@@ -1,0 +1,18 @@
+{
+  "name": "Atlas Commerce",
+  "short_name": "Atlas",
+  "description": "Stock, scans mobiles et facturation.",
+  "lang": "fr",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F7F3EB",
+  "theme_color": "#0B1F1A",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "180x180",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

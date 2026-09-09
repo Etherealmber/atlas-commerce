@@ -1,0 +1,89 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "company-stock",
+  "main": "worker/index.ts",
+  "compatibility_date": "2025-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    // true = Worker always runs first (compatible with Wrangler 3 and 4).
+    // Combined with the explicit fetch() handler that forces /api/* through Hono,
+    // this prevents the SPA from answering API routes with HTML.
+    "run_worker_first": true
+  },
+  // Resource IDs are not auth credentials — access still requires your CF account.
+  // Sensitive values (passwords, API keys, emails) go in Secrets, NOT here.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "company-stock-db",
+      "database_id": "aba10fd7-bb8b-432c-a5ec-1701e43654c6",
+      "preview_database_id": "local-company-stock-db",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "CACHE",
+      "id": "33a5cd31362243138590c446614ffb9b",
+      "preview_id": "local-company-stock-cache"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "IMAGES",
+      "bucket_name": "company-stock-images",
+      "preview_bucket_name": "company-stock-images-preview"
+    }
+  ],
+  "send_email": [
+    {
+      "name": "EMAIL",
+      "destination_address": "admin@afmarbre.com"
+    }
+  ],
+  // Public / non-secret config only. Everything sensitive → `wrangler secret put`
+  "vars": {
+    "ENVIRONMENT": "production",
+    "CACHE_TTL_SECONDS": "300",
+    "TURNSTILE_SITE_KEY": "0x4AAAAAAEco33YS31FvWems"
+  },
+
+
+  // Free-tier SQLite Durable Objects (100k req/day)
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "MOBILE_HUB",
+        "class_name": "MobileHub"
+      },
+      {
+        "name": "RESTORE_HUB",
+        "class_name": "RestoreHub"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1-mobile-hub",
+      "new_sqlite_classes": ["MobileHub"]
+    },
+    {
+      "tag": "v2-restore-hub",
+      "new_sqlite_classes": ["RestoreHub"]
+    }
+  ],
+  // Workers Logs + Traces (dashboard Observability toggles also work after deploy)
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true,
+      "head_sampling_rate": 1
+    }
+  }
+
+}

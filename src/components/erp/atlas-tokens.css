@@ -1,0 +1,106 @@
+/**
+ * Atlas ERP density tokens (pure CSS — no Tailwind).
+ * Light defaults; dark via html.dark / [data-theme="dark"].
+ */
+:root {
+  --atlas-bg-app: #f8fafc;
+  --atlas-bg-surface: #ffffff;
+  --atlas-bg-hover: #f1f5f9;
+  --atlas-border: #e2e8f0;
+  --atlas-text-primary: #0f172a;
+  --atlas-text-secondary: #64748b;
+  --atlas-accent: #0d7377;
+  --atlas-accent-hover: #0a5c5f;
+  --atlas-accent-soft: rgba(13, 115, 119, 0.12);
+  --atlas-success: #059669;
+  --atlas-warning: #d97706;
+  --atlas-danger: #dc2626;
+  --atlas-font-size-sm: 12px;
+  --atlas-font-size-base: 13px;
+  --atlas-radius: 4px;
+  --atlas-radius-lg: 8px;
+  --space-3xs: 2px;
+  --space-2xs: 4px;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --atlas-mono: 'Spline Sans Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --atlas-sans: 'DM Sans', system-ui, -apple-system, sans-serif;
+}
+
+html.dark,
+[data-theme="dark"] {
+  --atlas-bg-app: #0f172a;
+  --atlas-bg-surface: #1e293b;
+  --atlas-bg-hover: #334155;
+  --atlas-border: #334155;
+  --atlas-text-primary: #f8fafc;
+  --atlas-text-secondary: #94a3b8;
+  --atlas-accent: #2dd4bf;
+  --atlas-accent-hover: #5eead4;
+  --atlas-accent-soft: rgba(45, 212, 191, 0.14);
+  --atlas-success: #34d399;
+  --atlas-warning: #fbbf24;
+  --atlas-danger: #f87171;
+}
+
+.atlas-erp {
+  font-family: var(--atlas-sans);
+  font-size: var(--atlas-font-size-base);
+  color: var(--atlas-text-primary);
+  background: var(--atlas-bg-app);
+}
+.atlas-mono {
+  font-family: var(--atlas-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+
+/* ── Phase 1 bridge: legacy page tokens → atlas ERP density ── */
+:root {
+  /* Prefer atlas tokens when screens use either naming */
+  --atlas-bg-primary: var(--atlas-bg-app);
+  --atlas-text-muted: var(--atlas-text-secondary);
+  --atlas-bg-primary-surface: var(--atlas-bg-surface);
+
+  /* Soft-align classic Atlas vars for denser screens */
+  --line: var(--atlas-border);
+  --muted: var(--atlas-text-secondary);
+  --paper: var(--atlas-bg-surface);
+  --ok: var(--atlas-success);
+  --warn: var(--atlas-warning);
+  --bad: var(--atlas-danger);
+  --zellij: var(--atlas-accent);
+  --zellij-soft: var(--atlas-accent-soft);
+}
+
+/* Dense desk content under token layer */
+.layout main.content {
+  font-size: var(--atlas-font-size-base);
+}
+.layout main.content .card {
+  border: 1px solid var(--atlas-border);
+  border-radius: var(--atlas-radius-lg, 8px);
+  background: var(--atlas-bg-surface);
+}
+.layout main.content table {
+  font-size: var(--atlas-font-size-sm);
+}
+.layout main.content th {
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: var(--atlas-text-secondary);
+}
+.layout main.content input,
+.layout main.content select,
+.layout main.content textarea {
+  font-size: var(--atlas-font-size-base);
+  border-color: var(--atlas-border);
+}
+.layout main.content .page-header h1,
+.layout main.content h1 {
+  font-size: 1.25rem;
+}
+
+

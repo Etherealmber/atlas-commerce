@@ -1,0 +1,246 @@
+
+/**
+ * ERP module surfaces ↔ Atlas density + liquid glass
+ * html[data-density="comfortable"|"compact"]
+ * html[data-liquid-glass="on"|"off"] / data-glass / .liquid-glass-active
+ */
+
+/* Comfort: slightly airier KPIs & tables */
+html[data-density="comfortable"] .atlas-kpi-row,
+html[data-density="comfortable"] .bank-metrics {
+  gap: 10px;
+}
+html[data-density="comfortable"] .atlas-kpi,
+html[data-density="comfortable"] .bank-metric {
+  padding: 12px 14px;
+}
+html[data-density="comfortable"] .atlas-orders table.data-dense th,
+html[data-density="comfortable"] .atlas-orders table.data-dense td,
+html[data-density="comfortable"] .atlas-catalog table.data-dense th,
+html[data-density="comfortable"] .atlas-catalog table.data-dense td,
+html[data-density="comfortable"] .atlas-crm table.data-dense th,
+html[data-density="comfortable"] .atlas-crm table.data-dense td,
+html[data-density="comfortable"] .bank-row {
+  padding: 10px 12px;
+}
+html[data-density="comfortable"] .atlas-orders table.data-dense,
+html[data-density="comfortable"] .atlas-catalog table.data-dense,
+html[data-density="comfortable"] .atlas-crm table.data-dense {
+  font-size: 13px;
+}
+html[data-density="comfortable"] .atlas-mobile-nav-btn,
+html[data-density="comfortable"] .atlas-nav-btn {
+  min-height: 52px;
+}
+
+/* Compact: tighter */
+html[data-density="compact"] .atlas-kpi-row,
+html[data-density="compact"] .bank-metrics {
+  gap: 6px;
+}
+html[data-density="compact"] .atlas-kpi,
+html[data-density="compact"] .bank-metric {
+  padding: 6px 8px;
+}
+html[data-density="compact"] .atlas-kpi .val,
+html[data-density="compact"] .bank-metric .val {
+  font-size: 0.95rem;
+}
+html[data-density="compact"] .atlas-orders table.data-dense th,
+html[data-density="compact"] .atlas-orders table.data-dense td,
+html[data-density="compact"] .atlas-catalog table.data-dense th,
+html[data-density="compact"] .atlas-catalog table.data-dense td,
+html[data-density="compact"] .atlas-crm table.data-dense th,
+html[data-density="compact"] .atlas-crm table.data-dense td,
+html[data-density="compact"] .bank-row {
+  padding: 5px 8px;
+}
+html[data-density="compact"] .atlas-orders table.data-dense,
+html[data-density="compact"] .atlas-catalog table.data-dense,
+html[data-density="compact"] .atlas-crm table.data-dense {
+  font-size: 12px;
+}
+html[data-density="compact"] .atlas-kpi .lbl,
+html[data-density="compact"] .bank-metric .lbl {
+  font-size: 9px;
+}
+html[data-density="compact"] .row-actions button,
+html[data-density="compact"] .row-actions a {
+  min-height: 28px !important;
+  padding: 2px 6px !important;
+  font-size: 11px !important;
+}
+html[data-density="compact"] .atlas-nav-btn {
+  min-height: 44px;
+}
+html[data-density="compact"] .atlas-orders-col-body {
+  max-height: min(50vh, 420px);
+}
+
+/* Liquid glass ON — frosted cards/KPI/nav/sheets */
+html[data-liquid-glass="on"] .atlas-kpi,
+html[data-glass="on"] .atlas-kpi,
+html.liquid-glass-active .atlas-kpi,
+html[data-liquid-glass="on"] .bank-metric,
+html[data-glass="on"] .bank-metric,
+html.liquid-glass-active .bank-metric,
+html[data-liquid-glass="on"] .atlas-orders-col,
+html[data-glass="on"] .atlas-orders-col,
+html.liquid-glass-active .atlas-orders-col,
+html[data-liquid-glass="on"] .bank-pane,
+html[data-glass="on"] .bank-pane,
+html.liquid-glass-active .bank-pane,
+html[data-liquid-glass="on"] .atlas-stat,
+html[data-glass="on"] .atlas-stat,
+html.liquid-glass-active .atlas-stat {
+  background: color-mix(in srgb, var(--paper, var(--atlas-bg-surface)) 55%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-color: color-mix(in srgb, var(--atlas-border, var(--line)) 80%, transparent);
+}
+html[data-liquid-glass="on"] .atlas-mobile-nav,
+html[data-glass="on"] .atlas-mobile-nav,
+html.liquid-glass-active .atlas-mobile-nav {
+  background: color-mix(in srgb, var(--atlas-bg-surface, var(--paper)) 72%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+html[data-liquid-glass="on"] .atlas-sheet-content,
+html[data-glass="on"] .atlas-sheet-content,
+html.liquid-glass-active .atlas-sheet-content,
+html[data-liquid-glass="on"] .bank-sheet,
+html[data-glass="on"] .bank-sheet {
+  background: color-mix(in srgb, var(--atlas-bg-surface, var(--paper)) 78%, transparent);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+/* Liquid OFF / compact often disables glass — solid surfaces */
+html[data-liquid-glass="off"] .atlas-kpi,
+html[data-glass="off"] .atlas-kpi,
+html.liquid-glass-off .atlas-kpi,
+html[data-liquid-glass="off"] .bank-metric,
+html[data-glass="off"] .bank-metric,
+html[data-liquid-glass="off"] .bank-pane,
+html[data-glass="off"] .bank-pane,
+html[data-liquid-glass="off"] .atlas-orders-col,
+html[data-glass="off"] .atlas-orders-col {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: var(--atlas-bg-surface, var(--paper));
+}
+
+/* Settings density shell */
+.atlas-settings.atlas-page {
+  font-size: var(--atlas-font-size-base, 13px);
+}
+.atlas-settings .settings-nav-group-label {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--atlas-text-secondary, var(--muted));
+}
+.atlas-settings .settings-nav-item {
+  font-size: 13px;
+  min-height: 36px;
+}
+html[data-density="compact"] .atlas-settings .settings-nav-item {
+  min-height: 32px;
+  font-size: 12px;
+}
+html[data-density="comfortable"] .atlas-settings .settings-nav-item {
+  min-height: 40px;
+}
+html[data-liquid-glass="on"] .atlas-settings .settings-nav,
+html[data-glass="on"] .atlas-settings .settings-nav {
+  background: color-mix(in srgb, var(--paper, var(--atlas-bg-surface)) 60%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+
+/* ── Match Atlas stat cards (not pale ERP boxes) ── */
+.atlas-kpi-row,
+.bank-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.atlas-kpi,
+.bank-metric {
+  background: var(--paper, #fff);
+  border: 1px solid var(--line, #e5e0d8);
+  border-radius: var(--radius, 14px);
+  padding: 14px 16px;
+  box-shadow: var(--shadow, 0 1px 0 rgba(15,27,45,.04), 0 8px 24px rgba(15,27,45,.06));
+}
+.atlas-kpi .lbl,
+.bank-metric .lbl {
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted, #6b7280);
+}
+.atlas-kpi .val,
+.bank-metric .val {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink, #0f1b2d);
+  font-family: var(--font, inherit);
+}
+.atlas-kpi.warn .val { color: var(--warn, #a16207); }
+.atlas-kpi.danger .val { color: var(--bad, #b91c1c); }
+html[data-theme="dark"] .atlas-kpi .val,
+html[data-theme="dark"] .bank-metric .val {
+  color: var(--ink, #f8fafc);
+}
+/* toolbar match atlas cards */
+.atlas-orders-toolbar,
+.atlas-catalog-toolbar {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius, 14px);
+  box-shadow: var(--shadow);
+  padding: 12px 14px;
+}
+.atlas-orders-view-toggle {
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+.atlas-orders-view-toggle button.active {
+  background: var(--zellij, #0d7377);
+  color: #fff;
+  border-color: transparent;
+}
+/* tables: softer atlas */
+.atlas-orders table.data-dense,
+.atlas-catalog table.data-dense,
+.atlas-crm table.data-dense {
+  border-radius: var(--radius, 14px);
+}
+.atlas-orders .table-wrap,
+.atlas-catalog .table-shell,
+.atlas-crm .table-wrap {
+  border-radius: var(--radius, 14px);
+  border-color: var(--line);
+  box-shadow: var(--shadow);
+}
+/* bank hub */
+.bank-hub .card,
+.bank-pane {
+  border-radius: var(--radius, 14px);
+  box-shadow: var(--shadow);
+}
+.bank-pill.active {
+  background: var(--zellij, #0d7377);
+  color: #fff;
+  border-color: transparent;
+}
+.bank-tab.active {
+  background: var(--zellij, #0d7377);
+  color: #fff;
+}

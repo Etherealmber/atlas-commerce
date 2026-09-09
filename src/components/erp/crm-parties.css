@@ -1,0 +1,151 @@
+
+/* Phase 2 Step 4 — Clients & Vendors (CRM) density */
+.atlas-crm {
+  font-size: var(--atlas-font-size-base, 13px);
+  color: var(--atlas-text-primary, inherit);
+}
+.atlas-crm .page-header h1 {
+  font-size: 1.2rem;
+  letter-spacing: -0.01em;
+}
+.atlas-crm .atlas-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.atlas-crm .atlas-kpi {
+  border: 1px solid var(--atlas-border, var(--line));
+  border-radius: var(--atlas-radius, 4px);
+  padding: 8px 10px;
+  background: var(--atlas-bg-surface, var(--paper));
+}
+.atlas-crm .atlas-kpi .lbl {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--atlas-text-secondary, var(--muted));
+}
+.atlas-crm .atlas-kpi .val {
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-family: var(--atlas-mono, ui-monospace, monospace);
+  margin-top: 2px;
+}
+.atlas-crm .atlas-kpi.warn .val { color: var(--atlas-warning, var(--warn)); }
+.atlas-crm .atlas-kpi.danger .val { color: var(--atlas-danger, var(--bad)); }
+
+.atlas-crm .atlas-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+.atlas-crm .atlas-stat {
+  border: 1px solid var(--atlas-border, var(--line));
+  border-radius: var(--atlas-radius-lg, 8px);
+  padding: 12px 14px;
+  background: var(--atlas-bg-surface, var(--paper));
+}
+.atlas-crm .atlas-stat .as-label {
+  font-size: 11px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--atlas-text-secondary, var(--muted));
+}
+.atlas-crm .atlas-stat .as-value {
+  font-family: var(--atlas-mono, ui-monospace, monospace);
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.atlas-crm .table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--atlas-border, var(--line));
+  border-radius: var(--atlas-radius-lg, 8px);
+}
+.atlas-crm table.data-dense {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  min-width: 640px;
+}
+.atlas-crm table.data-dense th,
+.atlas-crm table.data-dense td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--atlas-border, var(--line));
+  text-align: left;
+  vertical-align: middle;
+}
+.atlas-crm table.data-dense th {
+  font-size: 11px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--atlas-text-secondary, var(--muted));
+  background: var(--atlas-bg-hover, rgba(0,0,0,.03));
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.atlas-crm table.data-dense th:first-child,
+.atlas-crm table.data-dense td:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--atlas-bg-surface, var(--paper));
+  z-index: 1;
+  box-shadow: 1px 0 0 var(--atlas-border, var(--line));
+}
+.atlas-crm table.data-dense th:first-child {
+  z-index: 3;
+  background: var(--atlas-bg-hover, rgba(0,0,0,.03));
+}
+.atlas-crm .party-name {
+  font-weight: 650;
+  font-size: 13px;
+}
+.atlas-crm .party-sub {
+  font-size: 11px;
+  color: var(--atlas-text-secondary, var(--muted));
+  margin-top: 2px;
+}
+.atlas-crm .mono-amt {
+  font-family: var(--atlas-mono, ui-monospace, monospace);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.atlas-crm .credit-pill {
+  display: inline-flex;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+.atlas-crm .credit-pill.ok {
+  background: color-mix(in srgb, var(--atlas-success, var(--ok)) 14%, transparent);
+  color: var(--atlas-success, var(--ok));
+}
+.atlas-crm .credit-pill.warn {
+  background: color-mix(in srgb, var(--atlas-warning, var(--warn)) 16%, transparent);
+  color: var(--atlas-warning, var(--warn));
+}
+.atlas-crm .credit-pill.danger {
+  background: color-mix(in srgb, var(--atlas-danger, var(--bad)) 14%, transparent);
+  color: var(--atlas-danger, var(--bad));
+}
+.atlas-crm .credit-pill.muted {
+  background: rgba(100, 116, 139, 0.12);
+  color: var(--atlas-text-secondary, var(--muted));
+}
+.atlas-crm .row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.atlas-crm .row-actions button,
+.atlas-crm .row-actions a {
+  min-height: 32px;
+  padding: 4px 8px !important;
+  font-size: 11.5px !important;
+}

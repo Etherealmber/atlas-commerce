@@ -1,0 +1,85 @@
+{
+  "rules": [
+    {
+      "id": "abort-incomplete-multipart",
+      "enabled": true,
+      "conditions": {
+        "prefix": ""
+      },
+      "abortMultipartUploadsTransition": {
+        "condition": {
+          "type": "Age",
+          "maxAge": 7
+        }
+      }
+    },
+    {
+      "id": "expire-tmp-uploads",
+      "enabled": true,
+      "conditions": {
+        "prefix": "tmp/"
+      },
+      "deleteObjectsTransition": {
+        "condition": {
+          "type": "Age",
+          "maxAge": 3
+        }
+      }
+    },
+    {
+      "id": "expire-old-audit-archives",
+      "enabled": true,
+      "conditions": {
+        "prefix": "audit/"
+      },
+      "deleteObjectsTransition": {
+        "condition": {
+          "type": "Age",
+          "maxAge": 365
+        }
+      }
+    },
+    {
+      "id": "ia-transition-products-optional",
+      "enabled": false,
+      "conditions": {
+        "prefix": "products/"
+      },
+      "storageClassTransitions": [
+        {
+          "condition": {
+            "type": "Age",
+            "maxAge": 90
+          },
+          "storageClass": "InfrequentAccess"
+        }
+      ]
+    },
+    {
+      "id": "expire-backups-30m-14d",
+      "enabled": true,
+      "conditions": {
+        "prefix": "backups/30m/"
+      },
+      "deleteObjectsTransition": {
+        "condition": {
+          "type": "Age",
+          "maxAge": 14
+        }
+      }
+    },
+    {
+      "id": "expire-backups-prerevert-14d",
+      "enabled": true,
+      "conditions": {
+        "prefix": "backups/pre-revert/"
+      },
+      "deleteObjectsTransition": {
+        "condition": {
+          "type": "Age",
+          "maxAge": 14
+        }
+      }
+    }
+  ]
+}

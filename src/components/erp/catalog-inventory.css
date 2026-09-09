@@ -1,0 +1,122 @@
+/* Phase 2 Step 3 — Catalog & Inventory density */
+.atlas-catalog {
+  font-size: var(--atlas-font-size-base, 13px);
+  color: var(--atlas-text-primary, inherit);
+}
+.atlas-catalog .page-header h1 {
+  font-size: 1.2rem;
+  letter-spacing: -0.01em;
+}
+.atlas-catalog .atlas-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.atlas-catalog .atlas-kpi {
+  border: 1px solid var(--atlas-border, var(--line));
+  border-radius: var(--atlas-radius, 4px);
+  padding: 8px 10px;
+  background: var(--atlas-bg-surface, var(--paper));
+}
+.atlas-catalog .atlas-kpi .lbl {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--atlas-text-secondary, var(--muted));
+}
+.atlas-catalog .atlas-kpi .val {
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-family: var(--atlas-mono, ui-monospace, monospace);
+  margin-top: 2px;
+}
+.atlas-catalog .atlas-kpi.warn .val { color: var(--atlas-warning, var(--warn)); }
+.atlas-catalog .atlas-kpi.danger .val { color: var(--atlas-danger, var(--bad)); }
+.atlas-catalog table.data-dense {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  min-width: 720px;
+}
+.atlas-catalog table.data-dense th,
+.atlas-catalog table.data-dense td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--atlas-border, var(--line));
+  text-align: left;
+  vertical-align: middle;
+}
+.atlas-catalog table.data-dense th {
+  font-size: 11px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--atlas-text-secondary, var(--muted));
+  background: var(--atlas-bg-hover, rgba(0,0,0,.03));
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.atlas-catalog table.data-dense th:nth-child(2),
+.atlas-catalog table.data-dense td:nth-child(2) {
+  position: sticky;
+  left: 0;
+  background: var(--atlas-bg-surface, var(--paper));
+  z-index: 1;
+  box-shadow: 1px 0 0 var(--atlas-border, var(--line));
+  max-width: 220px;
+}
+.atlas-catalog table.data-dense th:nth-child(2) {
+  z-index: 3;
+  background: var(--atlas-bg-hover, rgba(0,0,0,.03));
+}
+.atlas-catalog .sku-mono {
+  font-family: var(--atlas-mono, ui-monospace, monospace);
+  font-size: 11.5px;
+  color: var(--atlas-text-secondary, var(--muted));
+}
+.atlas-catalog .stock-cell {
+  font-family: var(--atlas-mono, ui-monospace, monospace);
+  font-weight: 700;
+  margin-right: 6px;
+}
+.atlas-catalog .stock-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  vertical-align: middle;
+}
+.atlas-catalog .stock-pill.ok {
+  background: color-mix(in srgb, var(--atlas-success, var(--ok)) 14%, transparent);
+  color: var(--atlas-success, var(--ok));
+}
+.atlas-catalog .stock-pill.low {
+  background: color-mix(in srgb, var(--atlas-warning, var(--warn)) 16%, transparent);
+  color: var(--atlas-warning, var(--warn));
+}
+.atlas-catalog .stock-pill.out {
+  background: color-mix(in srgb, var(--atlas-danger, var(--bad)) 14%, transparent);
+  color: var(--atlas-danger, var(--bad));
+}
+.atlas-catalog .row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.atlas-catalog .row-actions button {
+  min-height: 32px;
+  padding: 4px 8px !important;
+  font-size: 11.5px !important;
+}
+.atlas-catalog-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--atlas-text-secondary, var(--muted));
+  margin-bottom: 8px;
+  align-items: center;
+}

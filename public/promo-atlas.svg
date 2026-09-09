@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f5f2eb"/>
+      <stop offset="100%" stop-color="#e8f0ee"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1080" fill="url(#bg)"/>
+  <rect x="48" y="48" width="984" height="984" rx="40" fill="#fff" stroke="#ebe6dc" stroke-width="2"/>
+  <circle cx="180" cy="200" r="64" fill="#1a6b66"/>
+  <text x="180" y="212" text-anchor="middle" fill="#fff" font-family="system-ui,sans-serif" font-size="42" font-weight="800">A</text>
+  <text x="280" y="190" fill="#1a1814" font-family="system-ui,sans-serif" font-size="48" font-weight="800">Atlas Commerce</text>
+  <text x="280" y="240" fill="#1a6b66" font-family="system-ui,sans-serif" font-size="22" font-weight="600" letter-spacing="3">STOCK &amp; FACTURATION</text>
+  <text x="100" y="360" fill="#3d4a44" font-family="system-ui,sans-serif" font-size="36" font-weight="600">Gérez votre commerce</text>
+  <text x="100" y="410" fill="#3d4a44" font-family="system-ui,sans-serif" font-size="36" font-weight="600">depuis le bureau et le rayon.</text>
+  <text x="100" y="500" fill="#5c6b64" font-family="system-ui,sans-serif" font-size="26">• Scan code-barres (téléphone)</text>
+  <text x="100" y="550" fill="#5c6b64" font-family="system-ui,sans-serif" font-size="26">• Stock officiel validé sur PC</text>
+  <text x="100" y="600" fill="#5c6b64" font-family="system-ui,sans-serif" font-size="26">• Factures &amp; PDF en MAD</text>
+  <text x="100" y="650" fill="#5c6b64" font-family="system-ui,sans-serif" font-size="26">• Cloud Cloudflare · Maroc</text>
+  <rect x="100" y="740" width="420" height="72" rx="36" fill="#1a6b66"/>
+  <text x="310" y="786" text-anchor="middle" fill="#fff" font-family="system-ui,sans-serif" font-size="28" font-weight="700">Atlas Commerce</text>
+  <text x="100" y="880" fill="#8a9a92" font-family="system-ui,sans-serif" font-size="20">by Haytam · @loxdpsy · etherealmber</text>
+  <text x="100" y="920" fill="#8a9a92" font-family="system-ui,sans-serif" font-size="18">stock.afmarbre.com</text>
+</svg>
