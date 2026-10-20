@@ -1,4 +1,5 @@
 import { FloatingPortal } from './FloatingPortal';
+import { useWizard, StepBody, WizardFoot } from './ui/FormWizard';
 import { ModalFormError, FieldHint } from './ModalFormFeedback';
 import { useEffect, useState } from 'react';
 import { api } from '../api';
@@ -48,6 +49,7 @@ export default function RemboursementModal({ open, onClose, onCreated, preferQui
   const [reasonDetail, setReasonDetail] = useState('');
   const [payMethod, setPayMethod] = useState('cash');
   const [saving, setSaving] = useState(false);
+  const wz = useWizard(2);
   const [err, setErr] = useState('');
 
   const fmt = (n: number) => fmtMoney(n, 'MAD');
@@ -126,6 +128,65 @@ export default function RemboursementModal({ open, onClose, onCreated, preferQui
     })();
   }, [open, preferQuickSale]);
 
+  const submitWr = async () => {
+              if (!sourceId) {
+                setErr('Choisissez le document d’origine.');
+                return;
+              }
+              if (!reasonCode) {
+                setErr('Sélectionnez un motif valable.');
+                return;
+              }
+              if (reasonDetail.trim().length < 12) {
+                setErr('Explication trop courte (min. 12 caractères).');
+                return;
+              }
+              const active = lines.filter((l) => Number(l.quantity) > 0);
+              if (!active.length) {
+                setErr('Indiquez au moins une quantité à rembourser.');
+                return;
+              }
+              for (const l of active) {
+                if (!l.restock && !l.disposition) {
+                  setErr(`Disposition obligatoire pour « ${l.product_name} ».`);
+                  return;
+                }
+              }
+              const restockCount = active.filter((l) => l.restock).length;
+              const ok = await confirm({
+                title: 'Confirmer le remboursement WR',
+                message: `Créer un avoir WR ?\n• ${restockCount} ligne(s) → retour stock\n• ${active.length - restockCount} hors stock`,
+                confirmLabel: 'Créer l’avoir WR',
+                cancelLabel: 'Retour',
+              });
+              if (!ok) return;
+              setSaving(true);
+              setErr('');
+              try {
+                const res: any = await api.createRemboursement({
+                  refund_of_invoice_id: sourceId,
+                  refund_reason_code: reasonCode,
+                  refund_payment_method: payMethod,
+                  refund_reason: reasonDetail.trim(),
+                  items: active.map((l) => ({
+                    invoice_item_id: l.invoice_item_id,
+                    quantity: l.quantity,
+                    restock: l.restock,
+                    disposition: l.restock ? undefined : l.disposition,
+                  })),
+                });
+                const msg = res.message || `Avoir ${res.data?.number || 'WR'} créé.`;
+                toast(msg, 'success');
+                onCreated?.();
+                onClose();
+              } catch (e: any) {
+                const msg = friendlyError(e, 'Impossible de créer le remboursement.');
+                setErr(msg);
+              } finally {
+                setSaving(false);
+              }
+  };
+
   if (!open) return null;
 
   return (
@@ -136,16 +197,11 @@ export default function RemboursementModal({ open, onClose, onCreated, preferQui
           Choisissez une facture ou un ticket VR, les quantités, le motif, et pour chaque ligne si l’article revient
           en stock (par défaut oui).
         </p>
+        <StepBody active={wz.step === 1}>
         <div
+          className="modal-note modal-note--warn"
           style={{
-            fontSize: 12,
-            lineHeight: 1.45,
-            marginBottom: 14,
             padding: '10px 12px',
-            background: '#fdf6ef',
-            border: '1px solid #e8c9a0',
-            borderRadius: 10,
-            color: '#5c3d1e',
           }}
         >
           <strong>Numérotation WR-</strong> — distincte des tickets <strong>VR-</strong>. Motifs acceptés : erreur de
@@ -189,6 +245,8 @@ export default function RemboursementModal({ open, onClose, onCreated, preferQui
           </select>
         </div>
 
+        </StepBody>
+        <StepBody active={wz.step === 2}>
         {source && (
           <>
             <p style={{ fontSize: 13, marginBottom: 8 }}>
@@ -196,15 +254,15 @@ export default function RemboursementModal({ open, onClose, onCreated, preferQui
               {fmt(Number(source.amount_paid || 0))} / {fmt(Number(source.total || 0))}
             </p>
             {Number(source.amount_paid || 0) + 0.001 >= Number(source.total || 0) || source.status === 'paid' ? (
-              <p style={{ fontSize: 12, marginBottom: 10, padding: '8px 10px', background: '#eef7f0', borderRadius: 8, color: '#1a1d26' }}>
+              <p className="modal-note modal-note--ok">
                 Document déjà payé — le WR créera une <strong>sortie de solde</strong> (remboursement client). Stock ajusté selon les lignes.
               </p>
             ) : Number(source.amount_paid || 0) > 0.001 ? (
-              <p style={{ fontSize: 12, marginBottom: 10, padding: '8px 10px', background: '#f5f2eb', borderRadius: 8, color: '#5c4a2e' }}>
+              <p className="modal-note modal-note--warn">
                 Partiellement payé — crédit sur le reste dû + sortie de solde pour la part déjà encaissée.
               </p>
             ) : (
-              <p style={{ fontSize: 12, marginBottom: 10, padding: '8px 10px', background: '#f5f2eb', borderRadius: 8, color: '#5c4a2e' }}>
+              <p className="modal-note modal-note--warn">
                 Non payé — le WR s’applique en crédit sur le reste dû (pas de sortie caisse).
               </p>
             )}
@@ -325,76 +383,17 @@ export default function RemboursementModal({ open, onClose, onCreated, preferQui
           </select>
         </div>
 
+        </StepBody>
         <ModalFormError message={err} />
-            <div className="form-actions">
-          <button
-            type="button"
-            disabled={saving}
-            onClick={async () => {
-              if (!sourceId) {
-                setErr('Choisissez le document d’origine.');
-                return;
-              }
-              if (!reasonCode) {
-                setErr('Sélectionnez un motif valable.');
-                return;
-              }
-              if (reasonDetail.trim().length < 12) {
-                setErr('Explication trop courte (min. 12 caractères).');
-                return;
-              }
-              const active = lines.filter((l) => Number(l.quantity) > 0);
-              if (!active.length) {
-                setErr('Indiquez au moins une quantité à rembourser.');
-                return;
-              }
-              for (const l of active) {
-                if (!l.restock && !l.disposition) {
-                  setErr(`Disposition obligatoire pour « ${l.product_name} ».`);
-                  return;
-                }
-              }
-              const restockCount = active.filter((l) => l.restock).length;
-              const ok = await confirm({
-                title: 'Confirmer le remboursement WR',
-                message: `Créer un avoir WR ?\n• ${restockCount} ligne(s) → retour stock\n• ${active.length - restockCount} hors stock`,
-                confirmLabel: 'Créer l’avoir WR',
-                cancelLabel: 'Retour',
-              });
-              if (!ok) return;
-              setSaving(true);
-              setErr('');
-              try {
-                const res: any = await api.createRemboursement({
-                  refund_of_invoice_id: sourceId,
-                  refund_reason_code: reasonCode,
-                  refund_payment_method: payMethod,
-                  refund_reason: reasonDetail.trim(),
-                  items: active.map((l) => ({
-                    invoice_item_id: l.invoice_item_id,
-                    quantity: l.quantity,
-                    restock: l.restock,
-                    disposition: l.restock ? undefined : l.disposition,
-                  })),
-                });
-                const msg = res.message || `Avoir ${res.data?.number || 'WR'} créé.`;
-                toast(msg, 'success');
-                onCreated?.();
-                onClose();
-              } catch (e: any) {
-                const msg = friendlyError(e, 'Impossible de créer le remboursement.');
-                setErr(msg);
-              } finally {
-                setSaving(false);
-              }
-            }}
-          >
-            {saving ? 'Création…' : 'Créer le remboursement'}
-          </button>
-          <button type="button" className="secondary" disabled={saving} onClick={onClose}>
-            Annuler
-          </button>
-        </div>
+            <WizardFoot
+              title="Remboursement (WR)"
+              wz={wz}
+              stepLabel={wz.step === 1 ? 'Document & motif' : 'Lignes & dispositions'}
+              onCancel={() => !saving && onClose()}
+              onSubmit={() => void submitWr()}
+              submitLabel={saving ? 'Création…' : 'Créer le remboursement'}
+              saving={saving}
+            />
       </div>
     </div></FloatingPortal>
   );

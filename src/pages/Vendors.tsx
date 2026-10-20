@@ -9,6 +9,7 @@ import { SupplierPartsPanel } from '../components/atlas-v209-panels';
 import RefreshIconButton from '../components/RefreshIconButton';
 import '../components/erp/crm-parties.css';
 import { FloatingPortal } from '../components/FloatingPortal';
+import { useWizard, StepBody, WizardFoot } from '../components/ui/FormWizard';
 
 export default function Vendors() {
   const [pwOpen, setPwOpen] = useState(false);
@@ -20,6 +21,7 @@ export default function Vendors() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [show, setShow] = useState(false);
+  const wz = useWizard(2);
   const [editId, setEditId] = useState<number | null>(null);
   const [search, setSearch] = useState('');
   const [saving, setSaving] = useState(false);
@@ -114,7 +116,7 @@ export default function Vendors() {
         <h1>Fournisseurs</h1>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
-          <button onClick={() => { setEditId(null); setForm({ name: '', ice: '', if_number: '', address: '', city: '', phone: '', email: '' }); setShow(true); }}>+ Nouveau fournisseur</button>
+          <button onClick={() => { setEditId(null); setForm({ name: '', ice: '', if_number: '', address: '', city: '', phone: '', email: '' }); wz.reset(); setShow(true); }}>+ Nouveau fournisseur</button>
         </div>
       </div>
 
@@ -202,7 +204,7 @@ export default function Vendors() {
                       title="Aucun fournisseur"
                       description="Ajoutez vos fournisseurs pour les rattacher aux factures d'achat."
                       actionLabel="Ajouter mon premier fournisseur"
-                      onAction={() => { setEditId(null); setForm({ name: '', ice: '', if_number: '', address: '', city: '', phone: '', email: '' }); setShow(true); }}
+                      onAction={() => { setEditId(null); setForm({ name: '', ice: '', if_number: '', address: '', city: '', phone: '', email: '' }); wz.reset(); setShow(true); }}
                       icon="building"
                     />
                   </td></tr>
@@ -213,24 +215,33 @@ export default function Vendors() {
       </div>
 
       {show && (
-        <FloatingPortal><div className="modal-overlay" onClick={() => setShow(false)}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => { setShow(false); wz.reset(); }}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>{editId ? 'Modifier le fournisseur' : 'Nouveau fournisseur'}</h2>
+            <StepBody active={wz.step === 1}>
             <div className="form-row"><label>Nom *</label><input className={fieldErrors.name ? 'field-error' : undefined} value={form.name} onChange={(e) => { setForm({ ...form, name: e.target.value }); setFieldErrors((x) => ({ ...x, name: '' })); }} placeholder="Ex. Ciments du Maroc" /><span className="field-error-msg">{fieldErrors.name || ''}</span></div>
             <div className="grid grid-2">
               <div className="form-row"><label>ICE / Identifiant fiscal</label><input value={form.ice} onChange={(e) => setForm({ ...form, ice: e.target.value })} /></div>
               <div className="form-row"><label>IF</label><input value={form.if_number} onChange={(e) => setForm({ ...form, if_number: e.target.value })} /></div>
             </div>
+            </StepBody>
+            <StepBody active={wz.step === 2}>
             <div className="form-row"><label>Adresse</label><input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
             <div className="grid grid-2">
               <div className="form-row"><label>Ville</label><input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} /></div>
               <div className="form-row"><label>Téléphone</label><input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
             </div>
             <div className="form-row"><label>E-mail</label><input type="email" className={fieldErrors.email ? 'field-error' : undefined} value={form.email} onChange={(e) => { setForm({ ...form, email: e.target.value }); setFieldErrors((x) => ({ ...x, email: '' })); }} placeholder="contact@fournisseur.ma" /><span className="field-error-msg">{fieldErrors.email || ''}</span></div>
-            <div className="form-actions">
-              <button onClick={save} disabled={saving}>{saving ? 'Enregistrement...' : 'Enregistrer dans la base'}</button>
-              <button className="secondary" onClick={() => setShow(false)}>Annuler</button>
-            </div>
+            </StepBody>
+            <WizardFoot
+              title={editId ? 'Modifier le fournisseur' : 'Nouveau fournisseur'}
+              wz={wz}
+              stepLabel={wz.step === 1 ? 'Identité' : 'Contact'}
+              onCancel={() => { setShow(false); wz.reset(); }}
+              onSubmit={() => void save()}
+              submitLabel={saving ? 'Enregistrement...' : 'Enregistrer dans la base'}
+              saving={saving}
+            />
           </div>
         </div></FloatingPortal>
       )}

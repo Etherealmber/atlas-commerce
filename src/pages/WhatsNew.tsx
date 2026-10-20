@@ -21,6 +21,39 @@ type Release = {
 
 const RELEASES: Release[] = [
   {
+    version: '1.4.5-beta',
+    date: '20 octobre 2026',
+    sections: [
+      {
+        kind: 'features',
+        items: [
+          { id: '145a1', text: 'Tous les popups suivent le même système guidé : produit (3 étapes), facture d’achat (3 étapes), remboursement WR (2 étapes), reçu et fournisseur (2 étapes) — Annuler / Retour / Continuer toujours alignés à droite' },
+          { id: '145a2', text: 'Éditeur photo : zoom − / + / 1:1, double-clic ×2 et bouton « ↩ Original » pour revenir à la photo d’origine à tout moment' },
+          { id: '145a3', text: 'Zone de dépôt OCR redesignée (facture d’achat) : carte pointillée claire/sombre avec icône et aide au survol' },
+          { id: '145a4', text: 'Transition de thème façon PowerPoint : révélation circulaire depuis le centre de la fenêtre (View Transitions), sans blanc au chargement' },
+        ],
+      },
+      {
+        kind: 'improvements',
+        items: [
+          { id: '145b1', text: 'Zéro flash blanc : le thème enregistré est appliqué avant le premier rendu (page, squelettes, sélecteur de date)' },
+          { id: '145b2', text: 'Palette zinc unique en sombre : boutons primaires clairs (fini le noir/bleu marine), segments Apparence lisibles, focus et appuis zinc' },
+          { id: '145b3', text: 'Notes d’information des popups (WR, statuts de paiement) thémées : texte toujours lisible en clair et en sombre' },
+          { id: '145b4', text: 'Animations sobres : appui bouton, survol des cartes, pop des modales, squelettes décalés — désactivées si mouvement réduit' },
+        ],
+      },
+      {
+        kind: 'fixes',
+        items: [
+          { id: '145c1', text: 'Le tap hors d’un popup annule et réinitialise le formulaire (jamais d’enregistrement accidentel)' },
+          { id: '145c2', text: 'Erreurs affichées sous leur champ dans le popup (scan code-barres, lignes vides, montant de règlement)' },
+          { id: '145c3', text: 'Page Nouvelles : canevas sombre complet + entrée 1.4.5 (le gris clair résiduel a disparu)' },
+          { id: '145c4', text: 'Fiabilité worker : /api/public/github-profile mis en cache 6 h avec repli statique (plus de 503) ; migrations D1 silencieuses (PRAGMA d’abord)' },
+        ],
+      },
+    ],
+  },
+  {
     version: '1.4.4-beta',
     date: '20 octobre 2026',
     sections: [

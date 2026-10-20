@@ -23,6 +23,7 @@ import { printProductLabel } from '../lib/printProductLabel';
 import RefreshIconButton from '../components/RefreshIconButton';
 import '../components/erp/catalog-inventory.css';
 import { FloatingPortal } from '../components/FloatingPortal';
+import { useWizard, StepBody, WizardFoot } from '../components/ui/FormWizard';
 import { ModalFormError, FieldHint } from '../components/ModalFormFeedback';
 
 export default function Products() {
@@ -37,6 +38,7 @@ export default function Products() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [show, setShow] = useState(false);
+  const wz = useWizard(3);
   const [editing, setEditing] = useState<any>(null);
   const [exportBusy, setExportBusy] = useState(false);
   const [search, setSearch] = useState('');
@@ -686,7 +688,7 @@ export default function Products() {
                       title="Aucun produit"
                       description="Ajoutez des articles avec stock, prix et seuil bas pour piloter les ventes et les alertes."
                       actionLabel="Ajouter mon premier produit"
-                      onAction={() => { setEditing(null); setForm(emptyForm); setModalError(''); setShow(true); }}
+                      onAction={() => { setEditing(null); setForm(emptyForm); setModalError(''); wz.reset(); setShow(true); }}
                       icon="package"
                     />
                   </td>
@@ -909,6 +911,7 @@ export default function Products() {
         <FloatingPortal><div className="modal-overlay" onClick={() => { setShow(false); setForm(emptyForm); setEditing(null); setModalError(''); }}>
           <div className="modal" style={{ maxWidth: 640 }} onClick={(e) => e.stopPropagation()}>
             <h2>{editing ? 'Modifier le produit' : 'Nouveau produit'}</h2>
+            <StepBody active={wz.step === 1}>
             <div className="grid grid-2">
               <div className="form-row"><label>Nom *</label><input className={fieldErrors.name ? 'field-error' : undefined} value={form.name} onChange={(e) => { setForm({ ...form, name: e.target.value }); setFieldErrors((x) => ({ ...x, name: '' })); }} placeholder="Ex. Carrelage 60×60" /><span className="field-error-msg">{fieldErrors.name || ''}</span></div>
               <div className="form-row"><label>Référence (SKU)</label><input value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} /></div>
@@ -982,6 +985,8 @@ export default function Products() {
                           <div className="form-row"><label>N° lot (épicerie)</label><input value={form.lot_number || ''} onChange={(e) => setForm({ ...form, lot_number: e.target.value })} placeholder="Optionnel" /></div>
               <div className="form-row"><label>Date limite (DLC)</label><DatePicker value={(form.expiry_date || '').toString().slice(0, 10)} onChange={(v) => setForm({ ...form, expiry_date: v })} /></div>
 </div>
+            </StepBody>
+            <StepBody active={wz.step === 2}>
             <div className="grid grid-2">
               <div className="form-row"><label>Prix de vente *</label><NumberField value={form.price} onValueChange={(n) => { setForm((f: any) => ({ ...f, price: n })); setFieldErrors((x) => ({ ...x, price: '' })); }} /><span className="field-error-msg">{fieldErrors.price || ''}</span></div>
               <div className="form-row"><label>Coût</label><NumberField value={form.cost} onValueChange={(n) => setForm((f: any) => ({ ...f, cost: n }))} /></div>
@@ -1026,6 +1031,8 @@ export default function Products() {
               <div className="form-row"><label>Palier 2 — Remise %</label><NumberField value={form.bulk_pct_2} onValueChange={(n) => setForm({ ...form, bulk_pct_2: n })} min={0} max={100} step="0.1" placeholder="ex. 10" /></div>
             </div>
 
+              </StepBody>
+              <StepBody active={wz.step === 3}>
             {editing && (
               <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--border, #e0d9cc)' }}>
                 <h3 style={{ fontSize: 13, margin: '0 0 6px' }}>Variantes (taille / couleur / etc.)</h3>
@@ -1083,23 +1090,17 @@ export default function Products() {
               </p>
             )}
 
-            <ModalFormError message={modalError} />
-            {/* Same pinned action bar as every other form */}
-            <div className="wizard-foot">
-              <div className="wizard-foot-nav">
-                {firstError(fieldErrors) ? (
-                  <span className="wizard-foot-step save-error-inline">{firstError(fieldErrors)}</span>
-                ) : (
-                  <span className="wizard-foot-step">Fiche produit</span>
-                )}
-                <div className="wizard-foot-actions">
-                  <button className="secondary" onClick={() => { setShow(false); setForm(emptyForm); setEditing(null); setModalError(''); }}>Annuler</button>
-                  <button onClick={() => save()} disabled={saving}>
-                    {saving ? 'Enregistrement…' : 'Enregistrer'}
-                  </button>
-                </div>
-              </div>
-            </div>
+              </StepBody>
+            <ModalFormError message={modalError || firstError(fieldErrors)} />
+            <WizardFoot
+              title={editing ? 'Modifier le produit' : 'Nouveau produit'}
+              wz={wz}
+              stepLabel={wz.step === 1 ? 'Identité' : wz.step === 2 ? 'Prix & stock' : 'Variantes & photos'}
+              onCancel={() => { setShow(false); setForm(emptyForm); setEditing(null); setModalError(''); wz.reset(); }}
+              onSubmit={() => void save()}
+              submitLabel={saving ? 'Enregistrement…' : 'Enregistrer'}
+              saving={saving}
+            />
           </div>
         </div></FloatingPortal>
       )}
