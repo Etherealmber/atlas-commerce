@@ -18,6 +18,22 @@
 
 ---
 
+## 📸 Captures d'écran réelles
+
+Captures et enregistrement générés depuis l'application elle-même (Chromium headless, `scripts/capture-shots.mjs`).
+
+| Tableau de bord — sombre | Tableau de bord — clair |
+| --- | --- |
+| ![Tableau de bord sombre](public/shots/dashboard-dark.png) | ![Tableau de bord clair](public/shots/dashboard-light.png) |
+
+| Assistant devis (sombre) | Paramètres — apparence |
+| --- | --- |
+| ![Assistant devis](public/shots/devis-modal-dark.png) | ![Paramètres apparence](public/shots/settings-dark.png) |
+
+Enregistrement d'une session complète (connexion → tableau de bord → devis) :
+
+![Session Atlas Commerce](public/shots/demo.gif)
+
 ## 🌟 À propos du projet
 
 Atlas Commerce est un ERP/POS **auto-hébergé sur Cloudflare** (Workers + D1 + R2) pensé pour les commerces, grossistes et entrepôts au Maroc : gestion du stock multi-dépôts, caisse rapide (tickets VR sans TVA), facturation TVA avec créances et remboursements, achats/réceptions, devis, employés & paie, balance/trésorerie — **sans abonnement SaaS opaque** et sans dépendre d'un serveur dédié.

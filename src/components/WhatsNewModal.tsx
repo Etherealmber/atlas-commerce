@@ -57,12 +57,12 @@ export default function WhatsNewModal() {
         </h2>
         <p className="muted" style={{ margin: '0 0 16px', lineHeight: 1.45 }}>
           Canal <strong>{APP_CHANNEL}</strong> · build {APP_BUILD_DATE}.  
-          Paramètres plein écran, nouveautés versionnées, et améliorations mobile.
+          Assistants pas à pas partout, thème sombre integral, et sélecteurs façon Discord.
         </p>
         <ul className="whats-new-modal-bullets">
-          <li>Mode paramètres / à propos sans barre latérale</li>
-          <li>Page Nouveautés avec historique détaillé</li>
-          <li>Recherche dans les paramètres + barre d’enregistrement</li>
+          <li>Popups en assistant pas à pas (devis, factures, reçus…)</li>
+          <li>Thème sombre zinc sur tous les éléments + erreurs dans les popups</li>
+          <li>Sélecteurs de clients/produits façon Discord + pied de popup arrondi</li>
         </ul>
         <div className="whats-new-modal-actions">
           <button type="button" className="secondary" onClick={() => dismiss(false)}>
