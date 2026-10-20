@@ -179,10 +179,7 @@ export default function Clients() {
   const save = async () => {
     const fe = validateClientForm(form);
     setFieldErrors(fe);
-    if (Object.keys(fe).length) {
-      setModalError(firstError(fe) || 'Formulaire incomplet.');
-      return;
-    }
+    if (Object.keys(fe).length) return; // erreurs affichées sous chaque champ
     setModalError('');
     setSaving(true);
     try {

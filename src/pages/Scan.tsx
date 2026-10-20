@@ -30,6 +30,10 @@ type ProductRequest = {
   id: number;
   code: string;
   name?: string;
+  sku?: string;
+  unit?: string;
+  quantity?: number;
+  category?: string;
   note?: string;
   photo_url?: string;
   status: string;
@@ -59,6 +63,8 @@ function readFileAsDataUrl(file: File): Promise<string> {
   });
 }
 
+const SCAN_UNITS = ['unité', 'pièce', 'kg', 'g', 'L', 'mL', 'm', 'carton', 'boîte', 'paquet', 'sachet'];
+
 export default function Scan() {
   const nav = useNavigate();
   const narrow = useIsNarrow();
@@ -78,6 +84,13 @@ export default function Scan() {
   const [reqName, setReqName] = useState('');
   const [reqNote, setReqNote] = useState('');
   const [reqPhoto, setReqPhoto] = useState(''); // data URL preview + payload
+  const [reqSku, setReqSku] = useState('');
+  const [reqUnit, setReqUnit] = useState('unité');
+  const [reqQty, setReqQty] = useState('1');
+  const [reqCat, setReqCat] = useState('');
+  const [reqCats, setReqCats] = useState<string[]>([]);
+  const [reqUnits, setReqUnits] = useState<string[]>(SCAN_UNITS);
+  const [reqErrors, setReqErrors] = useState<{ name?: string; unit?: string; qty?: string }>({});
   const [reqBusy, setReqBusy] = useState(false);
   const [reqMsg, setReqMsg] = useState('');
   const [sent, setSent] = useState(false);
@@ -113,6 +126,24 @@ export default function Scan() {
     if (unknown) {
       setReqOpen(true);
       setReqMsg('');
+      setReqErrors({});
+      setReqSku(q.trim());
+      api
+        .getUnits()
+        .then((r: any) => {
+          const list = (r?.data || []).map((u: any) => String(u.name || u.label || '')).filter(Boolean);
+          setReqUnits(list.length ? list : SCAN_UNITS);
+        })
+        .catch(() => setReqUnits(SCAN_UNITS));
+      api
+        .getProducts({ fields: 'light', limit: 500 })
+        .then((r: any) => {
+          const cats = Array.from(
+            new Set((r?.data || []).map((pp: any) => String(pp.category || '')).filter(Boolean)),
+          ) as string[];
+          setReqCats(cats);
+        })
+        .catch(() => {});
     }
   }, [unknown]);
 
@@ -218,16 +249,32 @@ export default function Scan() {
     setReqNote('');
     setReqPhoto('');
     setReqMsg('');
+    setReqSku('');
+    setReqUnit('unité');
+    setReqQty('1');
+    setReqCat('');
+    setReqErrors({});
   };
 
   const submitRequest = async () => {
     if (!q.trim() || reqBusy) return;
+    const errs: { name?: string; unit?: string; qty?: string } = {};
+    if (!reqName.trim()) errs.name = 'Nom obligatoire';
+    if (!reqUnit) errs.unit = 'Unité obligatoire';
+    const qtyN = Number(String(reqQty).replace(',', '.'));
+    if (!String(reqQty).trim() || !Number.isFinite(qtyN) || qtyN < 0) errs.qty = 'Quantité obligatoire (0 ou plus)';
+    setReqErrors(errs);
+    if (Object.keys(errs).length) return;
     setReqBusy(true);
     setReqMsg('');
     try {
       await api.createProductRequest({
         code: q.trim(),
-        name: reqName.trim() || undefined,
+        name: reqName.trim(),
+        sku: reqSku.trim() || q.trim(),
+        unit: reqUnit,
+        quantity: qtyN,
+        category: reqCat.trim() || undefined,
         note: reqNote.trim() || undefined,
         photo_data_url: reqPhoto || undefined,
       });
@@ -246,7 +293,16 @@ export default function Scan() {
   };
 
   const createProductFromRequest = (r: ProductRequest) => {
-    nav('/products', { state: { newWithBarcode: r.code, newWithName: r.name || '' } });
+    nav('/products', {
+      state: {
+        newWithBarcode: r.code,
+        newWithName: r.name || '',
+        newWithSku: r.sku || r.code,
+        newWithUnit: r.unit || 'unité',
+        newWithQuantity: Number(r.quantity || 0),
+        newWithCategory: r.category || '',
+      },
+    });
   };
 
   const dismissRequest = async (r: ProductRequest) => {
@@ -448,16 +504,72 @@ export default function Scan() {
               Le code <strong>{q}</strong> n’existe pas encore. Envoyez une demande de création —
               le prix et le stock seront complétés sur PC.
             </p>
+            <label className="scan-req-label" htmlFor="scan-req-barcode">Code-barres (automatique)</label>
+            <input
+              id="scan-req-barcode"
+              className="scan-req-input"
+              value={q}
+              readOnly
+              style={{ opacity: 0.75 }}
+            />
+            <label className="scan-req-label" htmlFor="scan-req-sku">SKU (automatique)</label>
+            <input
+              id="scan-req-sku"
+              className="scan-req-input"
+              value={reqSku}
+              onChange={(e) => setReqSku(e.target.value)}
+            />
             <label className="scan-req-label" htmlFor="scan-req-name">
-              Nom du produit (optionnel)
+              Nom du produit *
             </label>
             <input
               id="scan-req-name"
-              className="scan-req-input"
+              className={`scan-req-input${reqErrors.name ? ' scan-req-input--err' : ''}`}
               value={reqName}
-              onChange={(e) => setReqName(e.target.value)}
+              onChange={(e) => { setReqName(e.target.value); setReqErrors((x) => ({ ...x, name: '' })); }}
               placeholder="Ex. Café moulu 250 g"
             />
+            {reqErrors.name ? <span className="scan-req-err">{reqErrors.name}</span> : null}
+            <div className="scan-req-grid">
+              <div>
+                <label className="scan-req-label" htmlFor="scan-req-unit">Unité *</label>
+                <select
+                  id="scan-req-unit"
+                  className={`scan-req-input${reqErrors.unit ? ' scan-req-input--err' : ''}`}
+                  value={reqUnit}
+                  onChange={(e) => { setReqUnit(e.target.value); setReqErrors((x) => ({ ...x, unit: '' })); }}
+                >
+                  {reqUnits.map((u) => (
+                    <option key={u} value={u}>{u}</option>
+                  ))}
+                </select>
+                {reqErrors.unit ? <span className="scan-req-err">{reqErrors.unit}</span> : null}
+              </div>
+              <div>
+                <label className="scan-req-label" htmlFor="scan-req-qty">Quantité *</label>
+                <input
+                  id="scan-req-qty"
+                  className={`scan-req-input${reqErrors.qty ? ' scan-req-input--err' : ''}`}
+                  inputMode="decimal"
+                  value={reqQty}
+                  onChange={(e) => { setReqQty(e.target.value); setReqErrors((x) => ({ ...x, qty: '' })); }}
+                  placeholder="0"
+                />
+                {reqErrors.qty ? <span className="scan-req-err">{reqErrors.qty}</span> : null}
+              </div>
+            </div>
+            <label className="scan-req-label" htmlFor="scan-req-cat">Catégorie</label>
+            <select
+              id="scan-req-cat"
+              className="scan-req-input"
+              value={reqCat}
+              onChange={(e) => setReqCat(e.target.value)}
+            >
+              <option value="">— choisir —</option>
+              {reqCats.map((cc) => (
+                <option key={cc} value={cc}>{cc}</option>
+              ))}
+            </select>
             <label className="scan-req-label" htmlFor="scan-req-photo">
               Photo (optionnel)
             </label>

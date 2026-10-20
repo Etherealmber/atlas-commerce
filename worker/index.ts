@@ -15234,6 +15234,11 @@ async function ensureProductRequestsTable(db: D1Database): Promise<void> {
   await db
     .prepare(`CREATE INDEX IF NOT EXISTS idx_product_requests_status ON product_requests(status, id DESC)`)
     .run();
+  // v1.4.5 — scan requests carry the full minimal product sheet
+  await addColumnIfMissing(db, 'product_requests', 'sku', `TEXT NOT NULL DEFAULT ''`);
+  await addColumnIfMissing(db, 'product_requests', 'unit', `TEXT NOT NULL DEFAULT ''`);
+  await addColumnIfMissing(db, 'product_requests', 'quantity', `REAL NOT NULL DEFAULT 0`);
+  await addColumnIfMissing(db, 'product_requests', 'category', `TEXT NOT NULL DEFAULT ''`);
 }
 
 /** stock / admin / owner only (phone floor operators have the stock role). */
@@ -15267,6 +15272,16 @@ app.post('/api/stock/product-requests', async (c) => {
   if (!code) return c.json({ success: false, error: 'Code obligatoire' }, 400);
   const name = String(body.name || '').trim().slice(0, 120);
   const note = String(body.note || '').trim().slice(0, 500);
+  const sku = String(body.sku || '').trim().slice(0, 120);
+  const unit = String(body.unit || '').trim().slice(0, 40);
+  const quantity = Number(body.quantity);
+  const category = String(body.category || '').trim().slice(0, 120);
+  // Minimal required sheet: name + unit + quantity (price stays out of scan flow)
+  if (!name) return c.json({ success: false, error: 'Nom obligatoire', code: 'NAME_REQUIRED' }, 400);
+  if (!unit) return c.json({ success: false, error: 'Unité obligatoire', code: 'UNIT_REQUIRED' }, 400);
+  if (!Number.isFinite(quantity) || quantity < 0) {
+    return c.json({ success: false, error: 'Quantité obligatoire', code: 'QTY_REQUIRED' }, 400);
+  }
   let photoUrl = '';
   const dataUrl = String(body.photo_data_url || '').trim();
   if (dataUrl.startsWith('data:image') && c.env.IMAGES) {
@@ -15276,8 +15291,9 @@ app.post('/api/stock/product-requests', async (c) => {
   }
   await ensureProductRequestsTable(c.env.DB);
   const ins = await c.env.DB.prepare(
-    `INSERT INTO product_requests (code, name, note, photo_url, created_by) VALUES (?, ?, ?, ?, ?)`,
-  ).bind(code, name, note, photoUrl, gate.username).run();
+    `INSERT INTO product_requests (code, name, note, photo_url, created_by, sku, unit, quantity, category)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).bind(code, name, note, photoUrl, gate.username, sku || code, unit, quantity, category).run();
   const row = await c.env.DB.prepare(`SELECT * FROM product_requests WHERE id = ?`).bind(ins.meta.last_row_id).first();
   return c.json({ success: true, data: row }, 201);
 });

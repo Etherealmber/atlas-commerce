@@ -1019,3 +1019,44 @@ html[data-theme="dark"] .ac-topbar button.secondary:hover {
   background: #3f3f46 !important;
   color: #fafafa !important;
 }
+
+/* ========== v203 — agent popovers / account menu / phone popups on zinc ========== */
+html[data-theme="dark"] .atlas-agent-perm-popover,
+html[data-theme="dark"] .atlas-agent-perm-popover--portal {
+  background: #1c1c1f !important;
+  border-color: #2a2a2e !important;
+  color: #f4f4f5 !important;
+}
+html[data-theme="dark"] .atlas-agent-perm-popover button,
+html[data-theme="dark"] .atlas-agent-perm-popover--portal button {
+  background: #27272a;
+  color: #e4e4e7;
+  border-color: #3f3f46;
+}
+html[data-theme="dark"] .atlas-agent-perm-popover input,
+html[data-theme="dark"] .atlas-agent-perm-popover--portal input {
+  background: #161618;
+  border-color: #3f3f46;
+  color: #f4f4f5;
+}
+html[data-theme="dark"] .atlas-agent-history {
+  background: #161618;
+  border-color: #2a2a2e;
+}
+html[data-theme="dark"] .atlas-agent-history-title,
+html[data-theme="dark"] .atlas-agent-history-day { color: #a1a1aa; }
+html[data-theme="dark"] select option { background: #1c1c1f; color: #f4f4f5; }
+html[data-theme="dark"] .account-menu-section-label { color: #a1a1aa; }
+html[data-theme="dark"] .account-menu-divider { border-color: #2a2a2e; }
+html[data-theme="dark"] .ph-modal-bg { background: rgba(0, 0, 0, 0.55); }
+html[data-theme="dark"] .ph-modal-actions button.secondary {
+  background: #27272a;
+  color: #e4e4e7;
+  border-color: #3f3f46;
+}
+
+/* ========== v203 — minimal & squeezed ========== */
+html body .as-hint { display: none; }
+html body .ac-metric { padding: 10px 12px; }
+html body .content table td,
+html body .content table th { padding: 8px 10px; }

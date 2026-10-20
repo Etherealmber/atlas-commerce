@@ -18797,3 +18797,34 @@ html[data-theme="dark"] .scan-requests-photo--none { background: #27272a; border
   border-color: var(--ac-primary, #0a0a0a);
   color: var(--ac-primary-fg, #fafafa);
 }
+
+/* ========== Scan request modal v1.4.5: grid + inline field errors ========== */
+.scan-req-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 2px 0;
+}
+.scan-req-err {
+  display: block;
+  font-size: 12px;
+  color: #b91c1c;
+  margin: 4px 0 2px;
+}
+.scan-req-input--err {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 1px #dc2626 !important;
+}
+html[data-theme="dark"] .scan-req-err { color: #f87171; }
+html[data-theme="dark"] .scan-req-modal {
+  background: #1c1c1f;
+  color: #f4f4f5;
+  border-color: #2a2a2e;
+}
+html[data-theme="dark"] .scan-req-input {
+  background: #161618;
+  border-color: #3f3f46;
+  color: #f4f4f5;
+}
+html[data-theme="dark"] .scan-req-sub,
+html[data-theme="dark"] .scan-req-label { color: #a1a1aa; }
