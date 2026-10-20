@@ -21,6 +21,7 @@ import { startAtlasLoading, setAtlasLoading, doneAtlasLoading } from '../compone
 import { VALUATION_METHOD_OPTIONS } from '../lib/labels';
 import IntegrationsPanel from '../components/IntegrationsPanel';
 import AgentPermissionsPanel from '../components/AgentPermissionsPanel';
+import AppUpdatePanel from '../components/settings/AppUpdatePanel';
 
 export default function Settings() {
   const [uiDensity, setUiDensity] = useState<Density>(() => getDensity());
@@ -124,7 +125,7 @@ export default function Settings() {
 
 
 
-  const VALID_TABS = new Set(['profile', 'company', 'attendance', 'legal', 'invoicing', 'documents', 'warehouse', 'categories', 'integrations', 'admin', 'audit']);
+  const VALID_TABS = new Set(['profile', 'company', 'attendance', 'legal', 'invoicing', 'documents', 'warehouse', 'categories', 'integrations', 'app', 'admin', 'audit']);
   const tabFromUrl = searchParams.get('tab') || 'profile';
   const activeTab = VALID_TABS.has(tabFromUrl) ? tabFromUrl : 'profile';
 
@@ -2025,6 +2026,12 @@ if (loading) return (
 
       
       
+      {activeTab === 'app' && (canAccessAdminSettings() || isOwner) && (
+        <div>
+          <AppUpdatePanel />
+        </div>
+      )}
+
       {activeTab === 'audit' && (canAccessAdminSettings() || isOwner) && (
         <div className="audit-panel settings-audit-full">
           <header className="audit-panel-head">
