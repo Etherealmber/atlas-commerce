@@ -1,7 +1,7 @@
 import { SwitchMode } from './components/ui/SwitchMode';
 import MobileBottomNav from './components/erp/MobileBottomNav';
 import { useEffect, useState, useRef, lazy, Suspense } from 'react';
-import { User, Settings, CreditCard, Mail, Sparkles, LogOut, Sun, Moon, Monitor, Type } from 'lucide-react';
+import { User, CreditCard, Mail, Sparkles, LogOut, Sun, Moon, Monitor, Type } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { applyPageTitle } from './lib/pageTitle';
