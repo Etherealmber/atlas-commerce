@@ -114,6 +114,9 @@ export default function TypeaheadField({
               onMouseEnter={() => setHi(i)}
               onClick={() => pick(o)}
             >
+              <span className="atlas-typeahead-ava" aria-hidden>
+                {(o.label || '?').trim().slice(0, 2).toUpperCase()}
+              </span>
               <span className="atlas-typeahead-main">
                 <strong>{o.label}</strong>
                 {o.sub ? <span className="atlas-typeahead-sub">{o.sub}</span> : null}
