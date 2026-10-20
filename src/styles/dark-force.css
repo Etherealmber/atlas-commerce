@@ -2166,3 +2166,201 @@ html[data-theme="dark"] body .phone-root .ptab.active {
 }
 html[data-theme="dark"] body .ptab.active svg { stroke: #f4f4f5 !important; }
 /* v213 END */
+
+/* ═══════════════════════════════════════════════════════════════
+   v214 — ONE zinc palette everywhere in dark (no slate/navy/indigo),
+   wizard foot actions right-aligned, errors under their field
+   ═══════════════════════════════════════════════════════════════ */
+
+/* The global button system reads these variables — overriding them at the
+   root re-palettes EVERY button (incl. the 25-:not specificity monster) */
+html[data-theme="dark"] {
+  --btn-primary-bg: #e4e4e7;
+  --btn-primary-bg-solid: #e4e4e7;
+  --btn-primary-text: #18181b;
+  --btn-secondary-bg: #27272a;
+  --btn-secondary-text: #e4e4e7;
+  --btn-secondary-border: #3f3f46;
+}
+html[data-theme="dark"] body button.secondary,
+html[data-theme="dark"] body .btn.secondary,
+html[data-theme="dark"] body .btn-secondary {
+  background: #27272a !important;
+  color: #e4e4e7 !important;
+  border-color: #3f3f46 !important;
+}
+html[data-theme="dark"] body button.secondary:hover:not(:disabled),
+html[data-theme="dark"] body .btn.secondary:hover:not(:disabled) {
+  background: #323236 !important;
+  color: #fafafa !important;
+}
+/* Tapped = zinc, never white; no brightness flash on dark */
+html[data-theme="dark"] body button:active:not(.danger),
+html[data-theme="dark"] body .btn:active:not(.danger),
+html[data-theme="dark"] body button.secondary:active,
+html[data-theme="dark"] body .wizard-foot button:active,
+html[data-theme="dark"] body .wizard-foot button.secondary:active {
+  background: #3f3f46 !important;
+  background-image: none !important;
+  color: #fafafa !important;
+  -webkit-text-fill-color: #fafafa !important;
+  filter: none !important;
+}
+html[data-theme="dark"] body .wizard-foot button.secondary:active {
+  background: #3f3f46 !important;
+  border-color: #52525b !important;
+}
+
+/* Inputs / selects / textareas / file: zinc, not slate-navy; neutral focus ring */
+html[data-theme="dark"] body input:not([type="checkbox"]):not([type="radio"]),
+html[data-theme="dark"] body select,
+html[data-theme="dark"] body textarea,
+html[data-theme="dark"] body input[type="file"] {
+  background: #18181b !important;
+  background-color: #18181b !important;
+  border-color: #3f3f46 !important;
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+}
+html[data-theme="dark"] body input:not([type="checkbox"]):not([type="radio"]):focus,
+html[data-theme="dark"] body select:focus,
+html[data-theme="dark"] body textarea:focus {
+  border-color: #52525b !important;
+  box-shadow: 0 0 0 3px rgba(161, 161, 170, 0.22) !important;
+  outline: none !important;
+}
+html[data-theme="dark"] body input::placeholder,
+html[data-theme="dark"] body textarea::placeholder,
+html[data-theme="dark"] body select:invalid {
+  color: #8b8b93 !important;
+  -webkit-text-fill-color: #8b8b93 !important;
+  opacity: 1 !important;
+}
+html[data-theme="dark"] body input[type="file"]::file-selector-button,
+html[data-theme="dark"] body input[type="file"]::-webkit-file-upload-button {
+  background: #3f3f46 !important;
+  color: #e4e4e7 !important;
+  border: 1px solid #52525b !important;
+  border-radius: 6px;
+}
+html[data-theme="dark"] body select option {
+  background: #1c1c1f !important;
+  color: #e4e4e7 !important;
+}
+
+/* Wizard foot: step chip left, actions pinned RIGHT in every popup */
+html[data-theme="dark"] body .wizard-foot .wizard-foot-nav,
+body .wizard-foot .wizard-foot-nav {
+  width: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 10px !important;
+  flex-wrap: wrap !important;
+  row-gap: 8px !important;
+}
+html[data-theme="dark"] body .wizard-foot .wizard-foot-actions,
+body .wizard-foot .wizard-foot-actions {
+  margin-left: auto !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+/* Disabled Continuer/submit: dim zinc, clearly inactive, never navy */
+html[data-theme="dark"] body .wizard-foot button:disabled:not(.secondary),
+html[data-theme="dark"] body button:disabled:not(.secondary):not(.danger) {
+  background: #26262a !important;
+  background-image: none !important;
+  color: #7c7c85 !important;
+  -webkit-text-fill-color: #7c7c85 !important;
+  border-color: #333338 !important;
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+/* Account / user dropdown menu: one readable zinc palette */
+html[data-theme="dark"] body .ac-user-dropdown,
+html[data-theme="dark"] body .ph-account-menu {
+  background: #1c1c1f !important;
+  border-color: #2e2e33 !important;
+}
+html[data-theme="dark"] body .ac-user-dropdown-item,
+html[data-theme="dark"] body .ac-user-dropdown-list > button {
+  background: #27272a !important;
+  border-color: #3f3f46 !important;
+  color: #e4e4e7 !important;
+}
+html[data-theme="dark"] body .ac-user-dropdown-item b,
+html[data-theme="dark"] body .ac-user-dropdown-item > span b,
+html[data-theme="dark"] body .ac-user-dropdown-list > button b {
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+}
+html[data-theme="dark"] body .ac-user-dropdown-item i,
+html[data-theme="dark"] body .ac-user-dropdown-item > span i {
+  color: #a1a1aa !important;
+  -webkit-text-fill-color: #a1a1aa !important;
+}
+html[data-theme="dark"] body .ac-user-dropdown-item:hover,
+html[data-theme="dark"] body .ac-user-dropdown-list > button:hover {
+  background: #323236 !important;
+}
+html[data-theme="dark"] body .ac-theme-seg .ac-seg-btn[aria-pressed="true"],
+html[data-theme="dark"] body .ac-scale-seg .ac-seg-btn[aria-pressed="true"],
+html[data-theme="dark"] body .ac-type-switch button[aria-pressed="true"] {
+  background: #e4e4e7 !important;
+  color: #18181b !important;
+  -webkit-text-fill-color: #18181b !important;
+  border-color: #e4e4e7 !important;
+}
+html[data-theme="dark"] body .ac-user-dropdown-hello,
+html[data-theme="dark"] body .ac-user-dropdown-role {
+  color: #a1a1aa !important;
+}
+html[data-theme="dark"] body .ac-user-dropdown-name {
+  color: #f4f4f5 !important;
+}
+
+/* Field-level error message (under its input, inside the popup) */
+.ac-field-error {
+  margin: 6px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #dc2626;
+}
+html[data-theme="dark"] body .ac-field-error {
+  color: #f87171 !important;
+}
+/* v214 END */
+
+/* v214b — remaining navy/slate design tokens → zinc, one palette everywhere */
+html[data-theme="dark"] {
+  --atlas-bg-app: #111113;
+  --atlas-bg-surface: #1c1c1f;
+  --atlas-bg-hover: #27272a;
+  --atlas-border: #3f3f46;
+  --atlas-text-primary: #f4f4f5;
+  --atlas-text-secondary: #a1a1aa;
+  --atlas-accent: #a1a1aa;
+  --atlas-accent-hover: #d4d4d8;
+  --atlas-accent-soft: rgba(161, 161, 170, 0.14);
+  --paper: #1c1c1f;
+  --parchment: #18181b;
+  --bg: #111113;
+  --bg-elevated: #1c1c1f;
+  --surface: #202024;
+  --text: #f4f4f5;
+  --muted: #a1a1aa;
+  --line: #3f3f46;
+  --line-soft: rgba(255, 255, 255, 0.08);
+  --dialog-bg: #1c1c1f;
+  --dialog-text: #f4f4f5;
+  --dialog-muted: #a1a1aa;
+  --dialog-border: #3f3f46;
+  --toast-bg: #27272a;
+  --toast-text: #f4f4f5;
+  --overlay-bg: rgba(9, 9, 11, 0.38);
+  --focus-ring: 0 0 0 2px #18181b, 0 0 0 4px #71717a;
+  --stone: #202024;
+}
+/* v214b END */
