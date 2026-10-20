@@ -52,6 +52,8 @@ export default function QuickSale() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showRefund, setShowRefund] = useState(false);
+  const [cashIn, setCashIn] = useState(0);
+  const [wrTotal, setWrTotal] = useState(0);
   // Encaissement list row (distinct from create-ticket payMode cash/card)
   const [payTarget, setPayTarget] = useState<any>(null);
   const [settleMode, setSettleMode] = useState<'full' | 'partial'>('full');
@@ -96,11 +98,17 @@ export default function QuickSale() {
       api.getInvoices(filter || undefined, { kind: 'quick_sale' }).catch(() => ({ data: [] })),
       api.getProducts({ include_variants: true } as any).catch(() => ({ data: [] })),
       api.getClients().catch(() => ({ data: [] })),
+      api.getInvoices(undefined, { kind: 'all' } as any).catch(() => ({ data: [] })),
     ])
-      .then(([i, p, c]: any[]) => {
+      .then(([i, p, c, all]: any[]) => {
         setList(i.data || []);
         setProducts(p.data || []);
         setClients(c.data || []);
+        const allArr: any[] = all.data || [];
+        const isVR = (x: any) => /^VR[-/]/.test(x.number || '') || ['quick_sale', 'ticket'].includes(x.doc_kind || '');
+        const isWR = (x: any) => /^WR[-/]/.test(x.number || '') || (x.doc_kind || '') === 'remboursement';
+        setCashIn(allArr.filter((x) => isVR(x) && x.status === 'paid').reduce((s2, x) => s2 + (Number(x.amount_paid) || Number(x.total) || 0), 0));
+        setWrTotal(allArr.filter((x) => isWR(x) && x.status !== 'cancelled').reduce((s2, x) => s2 + (Number(x.total) || 0), 0));
       })
       .finally(() => {
         setLoading(false);
@@ -476,6 +484,7 @@ export default function QuickSale() {
         <div className="ac-metric"><div className="as-label">Tickets</div><div className="as-value">{qsKpis.n}</div></div>
         <div className="ac-metric"><div className="as-label">Ouverts</div><div className="as-value">{qsKpis.open}</div></div>
         <div className="ac-metric"><div className="as-label">Payés</div><div className="as-value">{qsKpis.paid}</div></div>
+        <div className="ac-metric ac-metric--solde"><div className="as-label">Solde caisse</div><div className="as-value">{new Intl.NumberFormat('fr-MA', { maximumFractionDigits: 2 }).format(cashIn - wrTotal)} <small>MAD</small></div><div className="as-hint">encaissé {new Intl.NumberFormat('fr-MA', { maximumFractionDigits: 0 }).format(cashIn)} − remboursements {new Intl.NumberFormat('fr-MA', { maximumFractionDigits: 0 }).format(wrTotal)}</div></div>
       </div>
 <SaveFeedback message={msg} type={msgType} />
 

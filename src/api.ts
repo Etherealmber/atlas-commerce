@@ -531,6 +531,7 @@ export const api = {
     request(`/api/catalog/products/${id}/images/${imageId}`, { method: 'DELETE' }),
 
   getVendors: () => request<{ data: any[] }>('/api/vendors'),
+  getAlerts: () => request<{ data: any[]; meta?: any }>('/api/alerts'),
   createVendor: (body: any) => request('/api/vendors', { method: 'POST', body: JSON.stringify(body) }),
   updateVendor: (id: number, body: any) => request(`/api/vendors/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteVendor: (id: number, confirm_password: string) =>

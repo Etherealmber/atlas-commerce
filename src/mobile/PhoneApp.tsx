@@ -495,6 +495,7 @@ export default function PhoneApp() {
           <Route path="/bills" element={allowSell ? <PhoneBills onToast={show} /> : <div className="phone-panel"><p className="ph-perm-banner">Rôle magasinier : pas d’achats.</p></div>} />
           <Route path="/warehouse" element={<PhoneWarehouse onToast={show} />} />
           <Route path="/agent" element={<PhoneAgentMobile />} />
+          <Route path="/inbox" element={<PhoneInbox />} />
 
           <Route
             path="*"
@@ -1870,3 +1871,43 @@ function PhoneAgentMobile() {
   );
 }
 
+
+function PhoneInbox() {
+  const navigate = useNavigate();
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let cancelled = false;
+    api.getAlerts().then((r: any) => { if (!cancelled) setAlerts(r?.data || []); }).catch(() => { if (!cancelled) setAlerts([]); }).finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+  const dest = (href: string) => {
+    if (href.startsWith('/products')) return '/m/warehouse';
+    if (href.startsWith('/scan')) return '/m/scan';
+    if (href.startsWith('/quick-sale')) return '/m/vente';
+    if (href.startsWith('/bills')) return '/m/bills';
+    return '/m';
+  };
+  return (
+    <div className="phone-panel ph-inbox">
+      <h1 className="ph-title">Notifications</h1>
+      {loading ? <p className="ph-muted">Chargement…</p> : alerts.length === 0 ? (
+        <p className="ph-muted">Aucune alerte — tout est en ordre.</p>
+      ) : (
+        <ul className="ph-inbox-list">
+          {alerts.map((a: any, i: number) => (
+            <li key={`${a.kind}-${i}`}>
+              <button type="button" className="ph-inbox-item" onClick={() => navigate(dest(a.href || '/m'))}>
+                <span className={`ph-inbox-dot ${a.severity === 'high' ? 'danger' : a.severity === 'medium' ? 'warn' : ''}`} />
+                <span className="ph-inbox-text">
+                  <strong>{a.label}</strong>
+                  <em>{String(a.kind).replace(/_/g, ' ')}</em>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}

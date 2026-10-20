@@ -566,6 +566,8 @@ function DesktopShell() {
   const settingsTab = new URLSearchParams(location.search).get('tab') || 'profile';
   const [focusUserMenuOpen, setFocusUserMenuOpen] = useState(false);
   const [shellSearchOpen, setShellSearchOpen] = useState(false);
+  const [searchOpts, setSearchOpts] = useState({ whole: false, regex: false, notes: true });
+  const [shellAlerts, setShellAlerts] = useState<any[]>([]);
   const [shellSearch, setShellSearch] = useState('');
   const [shellSearchHits, setShellSearchHits] = useState<{ type: string; id: number | string; label: string; sub?: string; to: string }[]>([]);
   const [shellSearchLoading, setShellSearchLoading] = useState(false);
@@ -585,6 +587,13 @@ function DesktopShell() {
   }, []);
 
   useEffect(() => {
+    if (!shellNotifOpen) { setShellAlerts([]); return; }
+    let cancelled = false;
+    api.getAlerts().then((r: any) => { if (!cancelled) setShellAlerts(r?.data || []); }).catch(() => { if (!cancelled) setShellAlerts([]); });
+    return () => { cancelled = true; };
+  }, [shellNotifOpen]);
+
+  useEffect(() => {
     const q = shellSearch.trim();
     if (!shellSearchOpen || q.length < 2) {
       setShellSearchHits([]);
@@ -595,31 +604,51 @@ function DesktopShell() {
     setShellSearchLoading(true);
     const t = window.setTimeout(async () => {
       try {
-        const ql = q.toLowerCase();
-        const [clientsRes, productsRes, invoicesRes] = await Promise.all([
+        const esc = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        let match: (s: string) => boolean;
+        if (searchOpts.regex) {
+          try { const re = new RegExp(q, 'i'); match = (v: string) => re.test(v); } catch { match = () => false; }
+        } else if (searchOpts.whole) {
+          const re = new RegExp(`(^|[^\\w])${esc}([^\\w]|$)`, 'i'); match = (v: string) => re.test(v);
+        } else {
+          const ql0 = q.toLowerCase(); match = (v: string) => v.toLowerCase().includes(ql0);
+        }
+        const [clientsRes, productsRes, invoicesRes, vendorsRes] = await Promise.all([
           api.getClients().catch(() => ({ data: [] as any[] })),
           api.getProducts().catch(() => ({ data: [] as any[] })),
           api.getInvoices().catch(() => ({ data: [] as any[] })),
+          (api as any).getVendors ? (api as any).getVendors().catch(() => ({ data: [] as any[] })) : Promise.resolve({ data: [] as any[] }),
         ]);
         if (cancelled) return;
         const hits: { type: string; id: number | string; label: string; sub?: string; to: string }[] = [];
+        const PAGES: [string, string][] = [['tableau de bord', '/'], ['produits', '/products'], ['stock', '/products'], ['clients', '/clients'], ['factures', '/invoices'], ['devis', '/quotes'], ['caisse', '/quick-sale'], ['scan', '/scan'], ['fournisseurs', '/vendors'], ['achats', '/bills'], ['paramètres', '/settings'], ['nouveautés', '/whats-new'], ['à propos', '/about']];
+        for (const [label, to] of PAGES) {
+          if (match(label)) hits.push({ type: 'Page', id: to, label: label[0].toUpperCase() + label.slice(1), to });
+        }
         for (const c of (clientsRes as any)?.data || []) {
-          const blob = `${c.name || ''} ${c.ice || ''} ${c.city || ''} ${c.email || ''}`.toLowerCase();
-          if (blob.includes(ql)) {
+          const blob = `${c.name || ''} ${c.ice || ''} ${c.city || ''} ${c.email || ''} ${c.phone || ''} ${searchOpts.notes ? (c.notes || '') : ''}`;
+          if (match(blob)) {
             hits.push({ type: 'Client', id: c.id, label: c.name || `Client #${c.id}`, sub: [c.ice, c.city].filter(Boolean).join(' · '), to: '/clients' });
           }
           if (hits.length >= 8) break;
         }
         for (const p of (productsRes as any)?.data || []) {
-          const blob = `${p.name || ''} ${p.sku || ''} ${p.barcode || ''} ${p.category || ''}`.toLowerCase();
-          if (blob.includes(ql)) {
+          const blob = `${p.name || ''} ${p.sku || ''} ${p.barcode || ''} ${p.category || ''} ${searchOpts.notes ? (p.description || '') : ''}`;
+          if (match(blob)) {
             hits.push({ type: 'Produit', id: p.id, label: p.name || `Produit #${p.id}`, sub: p.sku || p.category || '', to: '/products' });
           }
           if (hits.filter((h) => h.type === 'Produit').length >= 6) break;
         }
+        for (const v of (vendorsRes as any)?.data || []) {
+          const blob = `${v.name || ''} ${v.contact || ''} ${v.phone || ''} ${v.city || ''}`;
+          if (match(blob)) {
+            hits.push({ type: 'Fournisseur', id: v.id, label: v.name || `Fournisseur #${v.id}`, sub: v.city || v.phone || '', to: '/vendors' });
+          }
+          if (hits.filter((h) => h.type === 'Fournisseur').length >= 4) break;
+        }
         for (const inv of (invoicesRes as any)?.data || []) {
-          const blob = `${inv.number || ''} ${inv.client_name || ''} ${inv.status || ''}`.toLowerCase();
-          if (blob.includes(ql)) {
+          const blob = `${inv.number || ''} ${inv.client_name || ''} ${inv.status || ''}`;
+          if (match(blob)) {
             hits.push({
               type: inv.kind === 'quote' ? 'Devis' : 'Facture',
               id: inv.id,
@@ -641,7 +670,7 @@ function DesktopShell() {
       cancelled = true;
       window.clearTimeout(t);
     };
-  }, [shellSearch, shellSearchOpen]);
+  }, [shellSearch, shellSearchOpen, searchOpts]);
 
   useEffect(() => {
     // Close focus user menu when route changes
@@ -982,6 +1011,18 @@ function DesktopShell() {
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" /></svg>
                   </button>
                 </div>
+                <div className="ac-shell-search-opts" role="group" aria-label="Options de recherche">
+                  {([['whole', 'Mot entier'], ['regex', 'Regex'], ['notes', 'Notes']] as const).map(([k, lbl]) => (
+                    <label key={k} className="ac-shell-search-opt">
+                      <input
+                        type="checkbox"
+                        checked={(searchOpts as any)[k]}
+                        onChange={(e) => setSearchOpts((o) => ({ ...o, [k]: e.target.checked }))}
+                      />
+                      <span>{lbl}</span>
+                    </label>
+                  ))}
+                </div>
                 {(shellSearch.trim().length >= 2) && (
                   <div className="ac-shell-search-dropdown" role="listbox">
                     {shellSearchLoading && <div className="ac-shell-search-empty">Recherche…</div>}
@@ -1099,7 +1140,18 @@ function DesktopShell() {
                       {(badges.actions_pending + badges.employees_pay_due + badges.invoices_unpaid + badges.products_low) === 0 && (
                         <li className="ac-notif-empty">Tout est à jour</li>
                       )}
-                    </ul>
+                                          {shellAlerts.slice(0, 8).map((a: any, idx: number) => (
+                        <li key={`al-${a.kind}-${idx}`}>
+                          <button type="button" className="ac-notif-item" onClick={() => { setShellNotifOpen(false); navigate(a.href || '/'); }}>
+                            <span className={`ac-notif-dot ${a.severity === 'high' ? 'danger' : a.severity === 'medium' ? 'warn' : ''}`} />
+                            <span>
+                              <strong>{a.label}</strong>
+                              <em>{String(a.kind).replace(/_/g, ' ')}</em>
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+</ul>
                     <button type="button" className="ac-notif-all" onClick={() => { setShellNotifOpen(false); navigate('/actions'); }}>
                       Tout voir
                     </button>
