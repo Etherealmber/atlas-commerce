@@ -1,10 +1,10 @@
 import { onAgentDraft } from '../lib/agentDraft';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import EmptyState from '../components/EmptyState';
 import DatePicker from '../components/DatePicker';
 import { draftProductFromFile } from '../lib/assist';
 import { validateProductForm, firstError } from '../lib/formValidate';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ListPager } from '../components/ui/ListPager';
 import { createPortal } from 'react-dom';
 import { useDebouncedValue } from '../lib/perf';
@@ -201,6 +201,26 @@ export default function Products() {
     setVariantForm({ variant_label: '', sku: '', barcode: '', price: '', stock_quantity: '0' });
     setModalError(''); setShow(true);
   };
+  // Scan page → "Créer produit" on an open creation request: open the form
+  // with the scanned barcode (and optional name) prefilled. Price stays empty
+  // for the PC user to complete.
+  const location = useLocation();
+  const reqPrefillDone = useRef(false);
+  useEffect(() => {
+    const st = location.state as { newWithBarcode?: string; newWithName?: string } | null;
+    if (reqPrefillDone.current || !st?.newWithBarcode) return;
+    reqPrefillDone.current = true;
+    setForm({
+      ...emptyForm,
+      barcode: String(st.newWithBarcode || ''),
+      name: String(st.newWithName || ''),
+    });
+    setEditing(null);
+    setVariants([]);
+    setVariantForm({ variant_label: '', sku: '', barcode: '', price: '', stock_quantity: '0' });
+    setModalError(''); setShow(true);
+    window.history.replaceState({}, '');
+  }, [location.state]);
   const openEdit = async (p: any) => {
     setForm({ ...p, tax_rate: p.tax_rate ?? '', ...parseBulkFromProduct(p) });
     setEditing(p);

@@ -15107,6 +15107,95 @@ app.post('/api/admin/app-update/apk', async (c) => {
   });
 });
 
+/* ────────────────────────────────────────────────────────────────────────────
+ * Product creation requests — scan page: unknown barcode → phone user sends a
+ * request (code + optional photo/name, NO price); a PC user (admin/owner) or
+ * stock role creates the product later with the price.
+ * ────────────────────────────────────────────────────────────────────────── */
+async function ensureProductRequestsTable(db: D1Database): Promise<void> {
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS product_requests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code TEXT NOT NULL,
+        name TEXT NOT NULL DEFAULT '',
+        note TEXT NOT NULL DEFAULT '',
+        photo_url TEXT NOT NULL DEFAULT '',
+        status TEXT NOT NULL DEFAULT 'open',
+        created_by TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        closed_at TEXT,
+        product_id INTEGER
+      )`,
+    )
+    .run();
+  await db
+    .prepare(`CREATE INDEX IF NOT EXISTS idx_product_requests_status ON product_requests(status, id DESC)`)
+    .run();
+}
+
+/** stock / admin / owner only (phone floor operators have the stock role). */
+function gateStockRole(c: any): { ok: true; username: string } | { ok: false; status: number; error: string } {
+  const session = sessionUserFromHeader(c.req.header('Authorization'));
+  if (!session.username) return { ok: false, status: 401, error: 'Non authentifié' };
+  const role = normalizeRole(session.role || 'user');
+  if (role !== 'owner' && role !== 'admin' && role !== 'stock') {
+    return { ok: false, status: 403, error: 'Réservé aux rôles stock/admin/owner' };
+  }
+  return { ok: true, username: session.username };
+}
+
+app.get('/api/stock/product-requests', async (c) => {
+  const gate = gateStockRole(c);
+  if (!gate.ok) return c.json({ success: false, error: gate.error }, gate.status as any);
+  const status = String(c.req.query('status') || 'open');
+  await ensureProductRequestsTable(c.env.DB);
+  const { results } = await c.env.DB.prepare(
+    `SELECT * FROM product_requests WHERE status = ? ORDER BY id DESC LIMIT 100`,
+  ).bind(status).all();
+  return c.json({ success: true, data: results || [] });
+});
+
+app.post('/api/stock/product-requests', async (c) => {
+  const gate = gateStockRole(c);
+  if (!gate.ok) return c.json({ success: false, error: gate.error }, gate.status as any);
+  let body: any = {};
+  try { body = await c.req.json(); } catch { return c.json({ success: false, error: 'JSON invalide' }, 400); }
+  const code = String(body.code || '').trim().slice(0, 120);
+  if (!code) return c.json({ success: false, error: 'Code obligatoire' }, 400);
+  const name = String(body.name || '').trim().slice(0, 120);
+  const note = String(body.note || '').trim().slice(0, 500);
+  let photoUrl = '';
+  const dataUrl = String(body.photo_data_url || '').trim();
+  if (dataUrl.startsWith('data:image') && c.env.IMAGES) {
+    const mime = (/^data:(image\/[a-z0-9+.-]+);base64,/i.exec(dataUrl) || [])[1]?.toLowerCase() || 'image/jpeg';
+    const key = `product-requests/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${mimeToExt(mime)}`;
+    photoUrl = (await uploadDataUrlImage(c.env.IMAGES, c.env, dataUrl, key)) || '';
+  }
+  await ensureProductRequestsTable(c.env.DB);
+  const ins = await c.env.DB.prepare(
+    `INSERT INTO product_requests (code, name, note, photo_url, created_by) VALUES (?, ?, ?, ?, ?)`,
+  ).bind(code, name, note, photoUrl, gate.username).run();
+  const row = await c.env.DB.prepare(`SELECT * FROM product_requests WHERE id = ?`).bind(ins.meta.last_row_id).first();
+  return c.json({ success: true, data: row }, 201);
+});
+
+app.post('/api/stock/product-requests/:id/close', async (c) => {
+  const gate = gateStockRole(c);
+  if (!gate.ok) return c.json({ success: false, error: gate.error }, gate.status as any);
+  const id = Number(c.req.param('id'));
+  if (!Number.isFinite(id) || id < 1) return c.json({ success: false, error: 'ID invalide' }, 400);
+  let body: any = {};
+  try { body = await c.req.json(); } catch { body = {}; }
+  const status = body.status === 'done' ? 'done' : 'dismissed';
+  const productId = Number(body.product_id || 0) || null;
+  await ensureProductRequestsTable(c.env.DB);
+  await c.env.DB.prepare(
+    `UPDATE product_requests SET status = ?, product_id = ?, closed_at = datetime('now') WHERE id = ?`,
+  ).bind(status, productId, id).run();
+  return c.json({ success: true, data: { id, status, product_id: productId } });
+});
+
 /** D1 snapshot → R2 every 4 hours (00,04,08,12,16,20 UTC). */
 
 /** Derive AES-256 key from backup secret (ADMIN_BACKUP_TOKEN or BACKUP_ENCRYPTION_KEY). */

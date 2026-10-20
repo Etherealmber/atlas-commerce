@@ -255,7 +255,7 @@ export default function AppUpdatePanel() {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
             <button type="button" className="secondary" onClick={() => void copy(state.json.url)}>Copier URL latest.json</button>
             <button type="button" className="secondary" onClick={() => void copy(state.apk.url)}>Copier URL latest.apk</button>
-            <a href={state.json.url} target="_blank" rel="noreferrer" style={{ alignSelf: 'center', fontSize: 13 }}>Ouvrir latest.json</a>
+            <a href={state.json.url} target="_blank" rel="noreferrer" style={{ alignSelf: 'center', fontSize: 13, color: 'var(--muted, #64748b)' }}>Ouvrir latest.json</a>
           </div>
         )}
       </div>

@@ -1,8 +1,12 @@
 /**
  * Scan code-barres — same pipeline as the old phone terrain scan
  * (Quagga2 / html5-qrcode / ZXing via barcodeScan.ts).
+ *
+ * Unknown code → popup proposing a *product creation request* (code + optional
+ * photo/name, never a price — a PC user completes the product later).
+ * Desktop (PC) also lists open requests with a "Créer produit" shortcut.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { canManageStock } from '../auth';
@@ -22,8 +26,42 @@ type Hit = {
   price?: number;
 };
 
+type ProductRequest = {
+  id: number;
+  code: string;
+  name?: string;
+  note?: string;
+  photo_url?: string;
+  status: string;
+  created_by?: string;
+  created_at?: string;
+};
+
+function useIsNarrow(): boolean {
+  const [narrow, setNarrow] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(max-width: 900px)').matches : false,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 900px)');
+    const fn = (e: MediaQueryListEvent) => setNarrow(e.matches);
+    mq.addEventListener('change', fn);
+    return () => mq.removeEventListener('change', fn);
+  }, []);
+  return narrow;
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(String(fr.result || ''));
+    fr.onerror = () => reject(new Error('Lecture du fichier impossible'));
+    fr.readAsDataURL(file);
+  });
+}
+
 export default function Scan() {
   const nav = useNavigate();
+  const narrow = useIsNarrow();
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -34,6 +72,17 @@ export default function Scan() {
   const stopRef = useRef<ScanStop | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // Product-creation request (unknown barcode)
+  const [reqOpen, setReqOpen] = useState(false);
+  const [reqName, setReqName] = useState('');
+  const [reqNote, setReqNote] = useState('');
+  const [reqPhoto, setReqPhoto] = useState(''); // data URL preview + payload
+  const [reqBusy, setReqBusy] = useState(false);
+  const [reqMsg, setReqMsg] = useState('');
+  const [sent, setSent] = useState(false);
+  const reqPhotoRef = useRef<HTMLInputElement | null>(null);
+  const [requests, setRequests] = useState<ProductRequest[]>([]);
 
   useEffect(() => {
     if (!canManageStock()) nav('/', { replace: true });
@@ -46,6 +95,26 @@ export default function Scan() {
       stopRef.current = null;
     };
   }, []);
+
+  const loadRequests = useCallback(async () => {
+    try {
+      const r: any = await api.listProductRequests('open');
+      setRequests((r?.data || []) as ProductRequest[]);
+    } catch { /* silent — panel is best-effort */ }
+  }, []);
+
+  useEffect(() => {
+    if (narrow) return; // mobile stays minimal
+    void loadRequests();
+  }, [narrow, loadRequests]);
+
+  // Unknown code → open the request popup automatically
+  useEffect(() => {
+    if (unknown) {
+      setReqOpen(true);
+      setReqMsg('');
+    }
+  }, [unknown]);
 
   const stopCamera = () => {
     try { stopRef.current?.(); } catch { /* */ }
@@ -143,6 +212,52 @@ export default function Scan() {
     }
   };
 
+  const closeReqModal = () => {
+    setReqOpen(false);
+    setReqName('');
+    setReqNote('');
+    setReqPhoto('');
+    setReqMsg('');
+  };
+
+  const submitRequest = async () => {
+    if (!q.trim() || reqBusy) return;
+    setReqBusy(true);
+    setReqMsg('');
+    try {
+      await api.createProductRequest({
+        code: q.trim(),
+        name: reqName.trim() || undefined,
+        note: reqNote.trim() || undefined,
+        photo_data_url: reqPhoto || undefined,
+      });
+      closeReqModal();
+      setUnknown(false);
+      setErr('');
+      setHit(null);
+      setSent(true);
+      void loadRequests();
+    } catch (e: any) {
+      setReqMsg(e?.message || 'Envoi impossible — réessayez');
+    } finally {
+      setBusy(false);
+      setReqBusy(false);
+    }
+  };
+
+  const createProductFromRequest = (r: ProductRequest) => {
+    nav('/products', { state: { newWithBarcode: r.code, newWithName: r.name || '' } });
+  };
+
+  const dismissRequest = async (r: ProductRequest) => {
+    try {
+      await api.closeProductRequest(r.id, { status: 'dismissed' });
+      setRequests((rows) => rows.filter((x) => x.id !== r.id));
+    } catch (e: any) {
+      setErr(e?.message || 'Impossible de rejeter la demande');
+    }
+  };
+
   return (
     <div className="scan-page">
       <header className="scan-hero">
@@ -193,6 +308,7 @@ export default function Scan() {
         className="scan-form"
         onSubmit={(e) => {
           e.preventDefault();
+          setSent(false);
           void resolveCode(q);
         }}
       >
@@ -219,6 +335,12 @@ export default function Scan() {
       {err ? (
         <div className="scan-alert" role="alert">
           {err}
+        </div>
+      ) : null}
+
+      {sent && !err ? (
+        <div className="scan-alert scan-alert--ok" role="status">
+          Demande de création envoyée ✓ — un utilisateur PC complétera le produit (prix, etc.).
         </div>
       ) : null}
 
@@ -253,6 +375,7 @@ export default function Scan() {
                 setQ('');
                 setHit(null);
                 setUnknown(false);
+                setSent(false);
                 setErr('');
                 inputRef.current?.focus();
               }}
@@ -270,6 +393,131 @@ export default function Scan() {
           <p>Le résultat du scan apparaîtra ici.</p>
         </div>
       ) : null}
+
+      {/* ── Desktop (PC): open creation requests ── */}
+      {!narrow && requests.length > 0 && (
+        <section className="scan-requests" aria-label="Demandes de création">
+          <h2 className="scan-requests-title">
+            Demandes de création ({requests.length})
+          </h2>
+          <p className="scan-requests-lead">
+            Envoyées depuis le scan (code inconnu). Créez le produit avec son prix, puis rejetez la demande.
+          </p>
+          <ul className="scan-requests-list">
+            {requests.map((r) => (
+              <li key={r.id} className="scan-requests-row">
+                {r.photo_url ? (
+                  <img className="scan-requests-photo" src={r.photo_url} alt="" loading="lazy" />
+                ) : (
+                  <span className="scan-requests-photo scan-requests-photo--none" aria-hidden />
+                )}
+                <div className="scan-requests-info">
+                  <strong>{r.code}</strong>
+                  {r.name ? <span>{r.name}</span> : null}
+                  <em>
+                    {r.created_by || '—'}
+                    {r.created_at ? ` · ${String(r.created_at).replace('T', ' ').slice(0, 16)}` : ''}
+                  </em>
+                </div>
+                <div className="scan-requests-actions">
+                  <button type="button" onClick={() => createProductFromRequest(r)}>
+                    Créer produit
+                  </button>
+                  <button type="button" className="secondary" onClick={() => void dismissRequest(r)}>
+                    Rejeter
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* ── Unknown code → creation request popup ── */}
+      {reqOpen && (
+        <div className="scan-req-bg" role="presentation" onClick={closeReqModal}>
+          <div
+            className="scan-req-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Demander la création du produit"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2>Produit introuvable</h2>
+            <p className="scan-req-sub">
+              Le code <strong>{q}</strong> n’existe pas encore. Envoyez une demande de création —
+              le prix et le stock seront complétés sur PC.
+            </p>
+            <label className="scan-req-label" htmlFor="scan-req-name">
+              Nom du produit (optionnel)
+            </label>
+            <input
+              id="scan-req-name"
+              className="scan-req-input"
+              value={reqName}
+              onChange={(e) => setReqName(e.target.value)}
+              placeholder="Ex. Café moulu 250 g"
+            />
+            <label className="scan-req-label" htmlFor="scan-req-photo">
+              Photo (optionnel)
+            </label>
+            <div className="scan-req-photo-row">
+              <button
+                type="button"
+                id="scan-req-photo"
+                className="scan-req-photo-btn secondary"
+                onClick={() => reqPhotoRef.current?.click()}
+              >
+                {reqPhoto ? 'Changer la photo' : 'Prendre / choisir une photo'}
+              </button>
+              {reqPhoto ? (
+                <img className="scan-req-thumb" src={reqPhoto} alt="Aperçu de la photo" />
+              ) : null}
+            </div>
+            <input
+              ref={reqPhotoRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              hidden
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = '';
+                if (!f) return;
+                void readFileAsDataUrl(f)
+                  .then((d) => setReqPhoto(d))
+                  .catch(() => setReqMsg('Lecture de la photo impossible'));
+              }}
+            />
+            <div className="scan-req-note">
+              <label className="scan-req-label" htmlFor="scan-req-note">
+                Note (optionnel)
+              </label>
+              <textarea
+                id="scan-req-note"
+                className="scan-req-input"
+                rows={2}
+                value={reqNote}
+                onChange={(e) => setReqNote(e.target.value)}
+                placeholder="Détails utiles pour la saisie PC…"
+              />
+            </div>
+            {reqMsg ? (
+              <p className="scan-req-error" role="alert">
+                {reqMsg}
+              </p>
+            ) : null}
+            <div className="scan-req-actions">
+              <button type="button" onClick={() => void submitRequest()} disabled={reqBusy}>
+                {reqBusy ? 'Envoi…' : 'Envoyer la demande'}
+              </button>
+              <button type="button" className="secondary" onClick={closeReqModal} disabled={reqBusy}>
+                Plus tard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
