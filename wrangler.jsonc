@@ -55,6 +55,43 @@
     "TURNSTILE_SITE_KEY": "0x4AAAAAAEco33YS31FvWems"
   },
 
+  // Required by `wrangler preview` (Workers Builds deploy command).
+  // Mirrors the production bindings above so preview deployments run with the
+  // same resources; only ENVIRONMENT differs. Durable Objects are intentionally
+  // omitted here — wrangler excludes them from previews (warning only).
+  "previews": {
+    "vars": {
+      "ENVIRONMENT": "preview",
+      "CACHE_TTL_SECONDS": "300",
+      "TURNSTILE_SITE_KEY": "0x4AAAAAAEco33YS31FvWems"
+    },
+    "kv_namespaces": [
+      {
+        "binding": "CACHE",
+        "id": "33a5cd31362243138590c446614ffb9b"
+      }
+    ],
+    "d1_databases": [
+      {
+        "binding": "DB",
+        "database_name": "company-stock-db",
+        "database_id": "aba10fd7-bb8b-432c-a5ec-1701e43654c6"
+      }
+    ],
+    "r2_buckets": [
+      {
+        "binding": "IMAGES",
+        "bucket_name": "company-stock-images"
+      }
+    ],
+    "send_email": [
+      {
+        "name": "EMAIL",
+        "destination_address": "admin@afmarbre.com"
+      }
+    ]
+  },
+
 
   // Free-tier SQLite Durable Objects (100k req/day)
   "durable_objects": {
