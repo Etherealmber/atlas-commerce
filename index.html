@@ -36,19 +36,37 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <style>
-      html, body { margin: 0; background: #f5f2eb; color: #0f1b2d; font-family: system-ui, sans-serif; }
+      html { --boot-bg: #f5f2eb; --boot-fg: #0f1b2d; --boot-muted: #6b7280; }
+      html[data-theme="dark"] { --boot-bg: #111113; --boot-fg: #e4e4e7; --boot-muted: #a1a1aa; }
+      html, body { margin: 0; background: var(--boot-bg); color: var(--boot-fg); font-family: system-ui, sans-serif; }
       #root:empty::after {
         content: 'Chargement…';
         display: block;
         text-align: center;
         padding: 48px;
-        color: #6b7280;
+        color: var(--boot-muted);
         font-size: 14px;
       }
       #root.boot-slow:empty::after {
         content: 'Chargement lent — vérifiez le réseau ou actualisez.';
       }
     </style>
+    <script>
+      /* Apply the saved theme before first paint — no white flash in dark mode */
+      (function () {
+        try {
+          var m = localStorage.getItem('atlas-theme') || 'light';
+          var dark = m === 'dark' ||
+            (m === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          var r = document.documentElement;
+          r.setAttribute('data-theme', dark ? 'dark' : 'light');
+          r.classList.toggle('theme-dark', dark);
+          r.style.colorScheme = dark ? 'dark' : 'light';
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute('content', dark ? '#111113' : '#f4f5f7');
+        } catch (e) { /* private mode — default light */ }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

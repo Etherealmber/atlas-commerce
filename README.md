@@ -5,7 +5,7 @@
 
 <!-- Badges -->
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
-![Version](https://img.shields.io/badge/version-1.4.4--beta-blue)
+![Version](https://img.shields.io/badge/version-1.4.5--beta-blue)
 ![Build](https://img.shields.io/badge/build-cloudflare%20workers-orange)
 ![Stack](https://img.shields.io/badge/stack-React%20%2B%20Vite%20%2B%20D1%20%2B%20R2-0a0a0a)
 ![Mobile](https://img.shields.io/badge/mobile-Capacitor%20Android-3ddc84)
