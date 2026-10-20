@@ -5,6 +5,7 @@ import PasswordConfirm from '../components/PasswordConfirm';
 import SaveFeedback from '../components/SaveFeedback';
 import { validateVendorForm, firstError } from '../lib/formValidate';
 import EmptyState from '../components/EmptyState';
+import { SupplierPartsPanel } from '../components/atlas-v209-panels';
 import RefreshIconButton from '../components/RefreshIconButton';
 import '../components/erp/crm-parties.css';
 import { FloatingPortal } from '../components/FloatingPortal';
@@ -244,6 +245,7 @@ export default function Vendors() {
           onConfirm={async (password) => { await pendingAction(password); }}
         />
       )}
+      <SupplierPartsPanel />
     </div>
   );
 }

@@ -778,6 +778,7 @@ registerMailboxRoutes(app, {
   sessionUserFromHeader,
 });
 registerEmployeeRoutes(app, { checkConfirmPassword });
+registerAtlasV209Routes(app, { sessionUserFromHeader, applyStockDelta, adjustLocationStock, getDefaultLocationId });
 // Admin read routes need helpers defined later — registered near Users & Admin section
 
 /** Phase 3: health / bindings observability (no secrets). */

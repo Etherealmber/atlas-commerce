@@ -69,6 +69,41 @@ export default function Scan() {
   const nav = useNavigate();
   const narrow = useIsNarrow();
   const [q, setQ] = useState('');
+  const [opMode, setOpMode] = useState<'vente' | 'receive' | 'transfer' | 'count'>('vente');
+  const [opQty, setOpQty] = useState('1');
+  const [opLot, setOpLot] = useState('');
+  const [opExpiry, setOpExpiry] = useState('');
+  const [opWh, setOpWh] = useState('');
+  const [opWh2, setOpWh2] = useState('');
+  const [opMsg, setOpMsg] = useState('');
+  const [opErr, setOpErr] = useState('');
+  const [warehouses, setWarehouses] = useState<any[]>([]);
+  useEffect(() => { api.getStockLocations().then((r: any) => setWarehouses(r?.data || [])).catch(() => {}); }, []);
+  const runOp = async () => {
+    setOpErr(''); setOpMsg(''); setBusy(true);
+    try {
+      const code = q.trim().toLowerCase();
+      const pr: any = await api.getProducts();
+      const prod = (pr?.data || []).find((x: any) => String(x.barcode || '').toLowerCase() === code || String(x.sku || '').toLowerCase() === code);
+      if (!prod) { setOpErr('Code inconnu pour cette opération — scannez un produit existant.'); return; }
+      const qty = Number(opQty);
+      if (opMode === 'receive') {
+        const r: any = await api.stockReceive({ product_id: prod.id, quantity: qty, location_id: opWh ? Number(opWh) : undefined, lot: opLot, expiry: opExpiry });
+        setOpMsg(`Réception ✓ — stock ${prod.name} : ${r?.data?.stock_quantity ?? '?'}`);
+      } else if (opMode === 'count') {
+        const r: any = await api.stockCount({ product_id: prod.id, quantity: qty, location_id: opWh ? Number(opWh) : undefined });
+        setOpMsg(`Inventaire ✓ — stock ${prod.name} : ${r?.data?.stock_quantity ?? qty}`);
+      } else {
+        await api.stockTransfer({ product_id: prod.id, quantity: qty, from_location_id: Number(opWh), to_location_id: Number(opWh2) });
+        setOpMsg(`Transfert ✓ — ${prod.name}`);
+      }
+    } catch (e: any) {
+      setOpErr(e?.message || 'Erreur opération');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const [busy, setBusy] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [err, setErr] = useState('');
@@ -358,6 +393,50 @@ export default function Scan() {
             }}
           />
         </div>
+      )}
+
+      <div className="scan-ops-chips" role="tablist" aria-label="Mode de scan">
+        {([['vente', 'Vente'], ['receive', 'Réception'], ['transfer', 'Transfert'], ['count', 'Inventaire']] as const).map(([m, lbl]) => (
+          <button key={m} type="button" className={`secondary${opMode === m ? ' is-active' : ''}`} onClick={() => { setOpMode(m); setOpErr(''); setOpMsg(''); }}>
+            {lbl}
+          </button>
+        ))}
+      </div>
+
+      {opMode !== 'vente' && (
+        <form
+          className="scan-form scan-ops-form"
+          onSubmit={(e) => { e.preventDefault(); void runOp(); }}
+        >
+          <div className="scan-row">
+            <input className="scan-input" type="number" step="any" min="0" value={opQty} onChange={(e) => setOpQty(e.target.value)} placeholder="Quantité" aria-label="Quantité" />
+            {opMode === 'receive' && (
+              <>
+                <input className="scan-input" value={opLot} onChange={(e) => setOpLot(e.target.value)} placeholder="Lot (optionnel)" aria-label="Lot" />
+                <input className="scan-input" type="date" value={opExpiry} onChange={(e) => setOpExpiry(e.target.value)} aria-label="Expiration" />
+              </>
+            )}
+          </div>
+          {(opMode === 'receive' || opMode === 'count') && warehouses.length > 0 && (
+            <select className="scan-input" value={opWh} onChange={(e) => setOpWh(e.target.value)} aria-label="Dépôt">
+              <option value="">Dépôt principal</option>
+              {warehouses.map((w: any) => <option key={w.id} value={w.id}>{w.name}</option>)}
+            </select>
+          )}
+          {opMode === 'transfer' && (
+            <div className="scan-row">
+              <select className="scan-input" value={opWh} onChange={(e) => setOpWh(e.target.value)} aria-label="Dépôt source">
+                {warehouses.map((w: any) => <option key={w.id} value={w.id}>{w.name} (source)</option>)}
+              </select>
+              <select className="scan-input" value={opWh2} onChange={(e) => setOpWh2(e.target.value)} aria-label="Dépôt destination">
+                {warehouses.map((w: any) => <option key={w.id} value={w.id}>{w.name} (dest.)</option>)}
+              </select>
+            </div>
+          )}
+          <button type="submit" className="scan-submit" disabled={busy}>{opMode === 'receive' ? 'Réceptionner' : opMode === 'transfer' ? 'Transférer' : 'Compter'}</button>
+          {opErr ? <div className="scan-alert" role="alert">{opErr}</div> : null}
+          {opMsg ? <div className="scan-alert scan-alert--ok" role="status">{opMsg}</div> : null}
+        </form>
       )}
 
       <form

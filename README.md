@@ -262,3 +262,5 @@ Analyse du dépôt open-source [InvenTree](https://github.com/inventree/InvenTre
 | 10 | Plugin system + webhooks + full REST API docs | Webhooks événementiels (stock bas, facture payée) sur le worker CF | L |
 
 Décision : implémenter d'abord 4, 6, 7 (effort S, valeur immédiate), puis 2 et 3.
+
+**v209 (livré)** : les 10 lignes sont câblées — réceptions/transferts/inventaire scan-first (`/api/stock/receive|count`, transferts via `/api/inventory/transfer`), lots + expiration (`stock_lots`, alertes FEFO), centre d'alertes (`/api/alerts` + cloche + `/m/inbox`), références fournisseur + paliers (`supplier_parts`, UI Vendors), pipeline statuts documents (`/api/invoices/:id/pipeline` + chips Factures), étiquettes imprimables QR+CODE128 (`/api/products/:id/label.svg`), kits/BOM avec assemblage et décrément (`kits`, `kit_items`, UI Produits), webhooks événementiels (`/api/webhooks` + dispatch `stock.*`, `doc.*`, `kit.assembled`, `atlas.alert` ; UI Settings → API), emplacements bin (`products.location`).

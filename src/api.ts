@@ -532,6 +532,20 @@ export const api = {
 
   getVendors: () => request<{ data: any[] }>('/api/vendors'),
   getAlerts: () => request<{ data: any[]; meta?: any }>('/api/alerts'),
+  stockReceive: (body: any) => request('/api/stock/receive', { method: 'POST', body: JSON.stringify(body) }),
+  stockCount: (body: any) => request('/api/stock/count', { method: 'POST', body: JSON.stringify(body) }),
+  getLots: (productId?: number) => request<{ data: any[] }>(`/api/stock/lots${productId ? `?product_id=${productId}` : ''}`),
+  setProductLocation: (id: number, location: string) => request(`/api/products/${id}/location`, { method: 'POST', body: JSON.stringify({ location }) }),
+  getVendorParts: (vendorId?: number) => request<{ data: any[] }>(`/api/vendors/parts${vendorId ? `?vendor_id=${vendorId}` : ''}`),
+  addVendorPart: (body: any) => request('/api/vendors/parts', { method: 'POST', body: JSON.stringify(body) }),
+  pipelineAdvance: (id: number, status: string) => request(`/api/invoices/${id}/pipeline`, { method: 'POST', body: JSON.stringify({ status }) }),
+  getPipeline: (id: number) => request<{ data: any[] }>(`/api/invoices/${id}/pipeline`),
+  getKits: () => request<{ data: any[] }>('/api/kits'),
+  createKit: (body: any) => request('/api/kits', { method: 'POST', body: JSON.stringify(body) }),
+  assembleKit: (id: number, quantity: number) => request(`/api/kits/${id}/assemble`, { method: 'POST', body: JSON.stringify({ quantity }) }),
+  getAlertSettings: () => request<{ data: any[] }>('/api/atlas/alerts'),
+  saveAlertSetting: (body: any) => request('/api/atlas/alerts', { method: 'POST', body: JSON.stringify(body) }),
+  labelUrl: (id: number) => `/api/products/${id}/label.svg`,
   createVendor: (body: any) => request('/api/vendors', { method: 'POST', body: JSON.stringify(body) }),
   updateVendor: (id: number, body: any) => request(`/api/vendors/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteVendor: (id: number, confirm_password: string) =>
@@ -603,10 +617,10 @@ export const api = {
   createApiKey: (body: { name?: string; scopes?: string }) =>
     request('/api/integrations/keys', { method: 'POST', body: JSON.stringify(body) }),
   deleteApiKey: (id: number) => request(`/api/integrations/keys/${id}`, { method: 'DELETE' }),
-  listWebhooks: () => request<{ data: any[] }>('/api/integrations/webhooks'),
+  listWebhooks: () => request<{ data: any[] }>('/api/webhooks'),
   createWebhook: (body: { url: string; events?: string; secret?: string }) =>
-    request('/api/integrations/webhooks', { method: 'POST', body: JSON.stringify(body) }),
-  deleteWebhook: (id: number) => request(`/api/integrations/webhooks/${id}`, { method: 'DELETE' }),
+    request('/api/webhooks', { method: 'POST', body: JSON.stringify(body) }),
+  deleteWebhook: (id: number) => request(`/api/webhooks/${id}`, { method: 'DELETE' }),
   getCogsReport: (from?: string, to?: string) => {
     const q = new URLSearchParams();
     if (from) q.set('from', from);
