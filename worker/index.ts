@@ -84,6 +84,7 @@ import {
   registerClientRoutes,
   registerMailboxRoutes,
   registerPartnerV1Routes,
+  registerAtlasV209Routes,
 } from './routes';
 import { countEmployeesPayDue } from './routes/employees';
 import { qrToSvg } from './qrSvg';
