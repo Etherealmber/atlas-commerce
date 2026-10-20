@@ -556,9 +556,14 @@ export default function Quotes() {
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 16 }}><span>TTC</span><strong>{fmt(draftTotals.ttc)} MAD</strong></div>
             </div>
             <ModalFormError message={modalError} />
-            <div className="form-actions">
-              <button onClick={create} disabled={saving}>{saving ? 'Enregistrement…' : 'Enregistrer le devis'}</button>
-              <button className="secondary" onClick={() => setShowModal(false)}>Annuler</button>
+            <div className="wizard-foot">
+              <div className="wizard-foot-nav">
+                <span className="wizard-foot-step">Nouveau devis</span>
+                <div className="wizard-foot-actions">
+                  <button className="secondary" onClick={() => setShowModal(false)}>Annuler</button>
+                  <button onClick={create} disabled={saving}>{saving ? 'Enregistrement…' : 'Enregistrer le devis'}</button>
+                </div>
+              </div>
             </div>
           </div>
         </div></FloatingPortal>

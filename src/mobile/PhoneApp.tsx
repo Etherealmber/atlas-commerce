@@ -564,9 +564,7 @@ function PhoneHome({
         <span>→</span>
       </button>
       <div className="ph-stats">
-        <div className="ph-stat"><span className="lbl">Produits actifs</span><strong>{productCount}</strong><span className="hint">dans le catalogue</span></div>
         <div className="ph-stat peach"><span className="lbl">Stock bas</span><strong>{lowCount}</strong><span className="hint">à vérifier en rayon</span></div>
-        <div className="ph-stat rose"><span className="lbl">À traiter</span><strong>{pending}</strong><span className="hint">envois mobile</span></div>
         {!stockOnly && (
           <div className="ph-stat white"><span className="lbl">Ventes du jour</span><strong>{todaySales} MAD</strong><span className="hint">toutes factures</span></div>
         )}
@@ -1271,8 +1269,6 @@ function PhoneProduits({
               <div className="ph-prod" key={`ap-${p.id}`}>
                 <div>
                   <div className="ph-row-title">{p.name}</div>
-                  <div className="ph-row-detail">{p.sku} · {p.barcode}</div>
-                  <div className="ph-meta">Approuvé {approvedIds.get(p.id)?.slice(0, 16)}</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <div className={low ? 'ph-low' : ''}>{stockOf(p)} / min {minOf(p)}</div>
@@ -1293,7 +1289,6 @@ function PhoneProduits({
           <div className="ph-prod" key={p.id}>
             <div>
               <div className="ph-row-title">{p.name}</div>
-              <div className="ph-row-detail">{p.sku} · {p.barcode}</div>
             </div>
             <div style={{ textAlign: 'right' }}>
               <div className={low ? 'ph-low' : ''}>{stockOf(p)} / min {minOf(p)}</div>

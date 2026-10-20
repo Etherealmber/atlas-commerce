@@ -369,14 +369,18 @@ function parseLocalAction(text: string, currentPath = ''): LocalAction | null {
   if (/\b(cr[ée]er?|ajoute?r?|nouveau)\b.*\bclient\b|\bclient\b.*\b(nomm[ée]|appel[ée])\b/.test(t) || /client\s+avec\s+/.test(t) || /^client\s+/.test(t)) {
     const ice = (t.match(/\b(\d{15})\b/) || [])[1] || '';
     let name = '';
+    // "client de nom X" / "client nommé X" / "client appelé X" — X may start with a digit
+    const mNom = text.match(
+      /client(?:e)?\s+(?:de\s+|du\s+)?(?:nom|nomm[ée]e?|appel[ée]e?)\s+["']?([^"'.]+?)["']?(?:\s+(?:avec|ice|email|e-mail|t[ée]l|phone)|$)/i,
+    );
     const m1 = text.match(/client(?:e)?\s+(?:nomm[ée]e?|appel[ée]e?|avec(?:\s+nom)?)\s+["']?([^"'.\d]+?)["']?(?:\s+avec|\s+ice|$)/i);
     const m2 = text.match(/(?:cr[ée]er?|ajoute?r?)\s+(?:un\s+)?client\s+["']?([^"'.]+?)["']?(?:\s+avec|\s+ice|$)/i);
     const m3 = text.match(/client\s+avec\s+(?:nom\s+)?["']?([a-zA-ZÀ-ÿ][\wÀ-ÿ\s-]{1,60})["']?/i);
-    name = (m1?.[1] || m2?.[1] || m3?.[1] || '').trim();
+    name = (mNom?.[1] || m1?.[1] || m2?.[1] || m3?.[1] || '').trim();
     // "create a client with haytam name" / "client haytam"
     if (!name) {
-      const m4 = text.match(/client(?:e)?\s+["']?([a-zA-ZÀ-ÿ][\wÀ-ÿ-]{1,40})["']?/i);
-      if (m4 && !/^(avec|nommé|nommee|nouveau|nouvelle)$/i.test(m4[1])) name = m4[1].trim();
+      const m4 = text.match(/client(?:e)?\s+["']?([a-zA-Z0-9À-ÿ][\wÀ-ÿ-]{1,40})["']?/i);
+      if (m4 && !/^(avec|nommé|nommee|nouveau|nouvelle|de|du|nom|appelé|appelee)$/i.test(m4[1])) name = m4[1].trim();
     }
     if (name) {
       const email = (text.match(/[\w.+-]+@[\w-]+\.[\w.-]+/) || [])[0] || '';
