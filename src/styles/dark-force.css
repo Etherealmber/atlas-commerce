@@ -2777,3 +2777,141 @@ html[data-theme="dark"] {
   --ok-bg: rgba(212, 212, 216, 0.10);
 }
 /* v217 END */
+
+/* ═══════════════════════════════════════════════════════════════
+   v218 — Discord-style picker rows (clients/products/…) + rounded
+   wizard foot. Both themes, one neutral language.
+   ═══════════════════════════════════════════════════════════════ */
+html body .atlas-typeahead-menu {
+  border-radius: 14px !important;
+  border: 1px solid var(--line, #e4e4e7) !important;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.14) !important;
+  padding: 6px !important;
+  max-height: 300px !important;
+  background: var(--paper, #ffffff) !important;
+  overflow: auto !important;
+}
+html body .atlas-typeahead-menu button.atlas-typeahead-item,
+html body .atlas-typeahead-menu button.atlas-typeahead-item.secondary {
+  display: grid !important;
+  grid-template-columns: 30px 1fr auto !important;
+  align-items: center !important;
+  gap: 10px !important;
+  width: 100% !important;
+  text-align: left !important;
+  padding: 7px 9px !important;
+  margin: 1px 0 !important;
+  border: 0 !important;
+  border-radius: 10px !important;
+  background: transparent !important;
+  background-image: none !important;
+  color: inherit !important;
+  box-shadow: none !important;
+  min-height: 40px !important;
+  height: auto !important;
+  font-size: 13px !important;
+}
+html body .atlas-typeahead-menu button.atlas-typeahead-item:hover,
+html body .atlas-typeahead-menu button.atlas-typeahead-item.is-active {
+  background: rgba(113, 113, 122, 0.12) !important;
+  background-image: none !important;
+  color: inherit !important;
+}
+html body .atlas-typeahead-ava {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(113, 113, 122, 0.16);
+  color: var(--ink, #18181b);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+html body .atlas-typeahead-main {
+  display: flex !important;
+  align-items: baseline !important;
+  gap: 8px !important;
+  min-width: 0 !important;
+  flex-wrap: wrap !important;
+}
+html body .atlas-typeahead-main strong {
+  font-weight: 600 !important;
+  font-size: 13px !important;
+  color: var(--ink, #18181b) !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+html body .atlas-typeahead-sub {
+  font-size: 11.5px !important;
+  color: var(--muted, #71717a) !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+html body .atlas-typeahead-meta {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  padding: 3px 10px !important;
+  border-radius: 999px !important;
+  background: rgba(113, 113, 122, 0.12) !important;
+  border: 1px solid rgba(113, 113, 122, 0.22) !important;
+  color: var(--muted, #52525b) !important;
+  white-space: nowrap !important;
+}
+html body .atlas-typeahead-hint {
+  font-size: 10.5px !important;
+  color: var(--muted, #a1a1aa) !important;
+  border-top: 1px solid rgba(113, 113, 122, 0.16) !important;
+  margin-top: 4px !important;
+  padding: 6px 10px 3px !important;
+}
+html body .atlas-typeahead-empty {
+  padding: 10px 12px !important;
+  font-size: 12.5px !important;
+  color: var(--muted, #71717a) !important;
+}
+/* dark theme values */
+html[data-theme="dark"] body .atlas-typeahead-menu {
+  background: #1c1c1f !important;
+  border-color: #3f3f46 !important;
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.5) !important;
+}
+html[data-theme="dark"] body .atlas-typeahead-menu button.atlas-typeahead-item:hover,
+html[data-theme="dark"] body .atlas-typeahead-menu button.atlas-typeahead-item.is-active {
+  background: #2a2a2e !important;
+}
+html[data-theme="dark"] body .atlas-typeahead-ava {
+  background: #3f3f46;
+  color: #e4e4e7;
+}
+html[data-theme="dark"] body .atlas-typeahead-main strong { color: #f4f4f5 !important; }
+html[data-theme="dark"] body .atlas-typeahead-sub,
+html[data-theme="dark"] body .atlas-typeahead-empty { color: #a1a1aa !important; }
+html[data-theme="dark"] body .atlas-typeahead-meta {
+  background: #27272a !important;
+  border-color: #3f3f46 !important;
+  color: #a1a1aa !important;
+}
+html[data-theme="dark"] body .atlas-typeahead-hint {
+  color: #71717a !important;
+  border-top-color: rgba(161, 161, 170, 0.16) !important;
+}
+html[data-theme="dark"] body .atlas-typeahead-menu button.atlas-typeahead-item.is-disabled {
+  opacity: 0.45 !important;
+}
+
+/* Wizard foot: rounded top corners, soft lift — both themes */
+html body .wizard-foot {
+  border-radius: 16px 16px 0 0 !important;
+  box-shadow: 0 -10px 24px rgba(0, 0, 0, 0.08) !important;
+  padding: 12px 14px calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+}
+html[data-theme="dark"] body .wizard-foot {
+  box-shadow: 0 -12px 28px rgba(0, 0, 0, 0.45) !important;
+}
+/* v218 END */
