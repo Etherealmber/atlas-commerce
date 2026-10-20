@@ -409,7 +409,7 @@ export default function Clients() {
       </div>
 
       {show && (
-        <FloatingPortal><div className="modal-overlay" onClick={() => { setShow(false); setEditId(null); }}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => { setShow(false); setEditId(null); setForm({ name: '', ice: '', if_number: '', address: '', city: '', phone: '', email: '', tax_exempt: false, credit_limit: 0 }); wz.reset(); }}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>{editId ? 'Modifier le client' : 'Nouveau client'}</h2>
             <StepBody active={wz.step === 1}>
@@ -466,7 +466,7 @@ export default function Clients() {
               wz={wz}
               title={editId ? 'Modifier le client' : 'Nouveau client'}
               stepLabel={['Identité', 'Contact', 'Options'][wz.step - 1]}
-              onCancel={() => { setShow(false); setEditId(null); }}
+              onCancel={() => { setShow(false); setEditId(null); setForm({ name: '', ice: '', if_number: '', address: '', city: '', phone: '', email: '', tax_exempt: false, credit_limit: 0 }); wz.reset(); }}
               onSubmit={save}
               submitLabel={editId ? 'Enregistrer' : 'Créer le client'}
               saving={saving}

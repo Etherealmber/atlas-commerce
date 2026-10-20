@@ -634,7 +634,7 @@ export default function Invoices() {
       </div>
 
       {showModal && (
-        <FloatingPortal><div className="modal-overlay" onClick={() => { setModalError(''); setFieldErrors({}); setShowModal(false); }}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => { setModalError(''); setFieldErrors({}); setShowModal(false); resetForm(); setDocStep(0); }}>
           <div className="modal" style={{ maxWidth: 1080, width: '96vw' }} onClick={(e) => e.stopPropagation()}>
             <h2>{docMode === 'quote' ? 'Nouveau devis (estimation)' : 'Nouvelle facture de vente'}</h2>
 
@@ -829,7 +829,7 @@ export default function Invoices() {
                   {firstError(fieldErrors) || `Étape ${docStep + 1}/3 · ${['Client', 'Lignes', 'Options'][docStep]}`}
                 </span>
                 <div className="wizard-foot-actions">
-                  <button type="button" className="secondary" onClick={() => { setModalError(''); setFieldErrors({}); setShowModal(false); }}>Annuler</button>
+                  <button type="button" className="secondary" onClick={() => { setModalError(''); setFieldErrors({}); setShowModal(false); resetForm(); setDocStep(0); }}>Annuler</button>
                   {docStep > 0 && (
                     <button type="button" className="secondary" onClick={() => setDocStep((x) => Math.max(0, x - 1))}>Retour</button>
                   )}

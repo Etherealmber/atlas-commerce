@@ -1,4 +1,5 @@
 import { afterBusinessMutation } from '../lib/delete-coord';
+import { addColumnIfMissing } from '../lib/schema';
 import type { AtlasApp } from './types';
 
 const _empSchemaOnce = new Set<string>();
@@ -85,11 +86,7 @@ async function ensureEmployeeTables(db: D1Database): Promise<void> {
     ['contract_type', "TEXT DEFAULT 'CDI'"],
   ];
   for (const [col, typ] of cols) {
-    try {
-      await db.prepare(`ALTER TABLE employees ADD COLUMN ${col} ${typ}`).run();
-    } catch {
-      /* exists */
-    }
+    await addColumnIfMissing(db, 'employees', col, typ);
   }
   await db
     .prepare(
@@ -104,7 +101,7 @@ async function ensureEmployeeTables(db: D1Database): Promise<void> {
     )`,
     )
     .run();
-  try { await db.prepare(`ALTER TABLE employees ADD COLUMN returned_at TEXT`).run(); } catch { /* */ }
+  await addColumnIfMissing(db, 'employees', 'returned_at', 'TEXT');
   _empSchemaOnce.add('employees');
 }
 
@@ -1315,11 +1312,7 @@ app.post('/api/employees/:id/pay', async (c) => {
           created_at TEXT DEFAULT (datetime('now'))
         )`,
       ).run();
-      try {
-        await c.env.DB.prepare(`ALTER TABLE expenses ADD COLUMN entry_type TEXT DEFAULT 'expense'`).run();
-      } catch {
-        /* exists */
-      }
+      await addColumnIfMissing(c.env.DB, 'expenses', 'entry_type', "TEXT DEFAULT 'expense'");
       await c.env.DB.prepare(
         `INSERT INTO expenses (category, description, amount, payment_method, expense_date, vendor_name, reference, notes, entry_type)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'expense')`,

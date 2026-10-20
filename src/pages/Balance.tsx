@@ -647,7 +647,7 @@ export default function Balance() {
       </div>
 
       {showModal && (
-        <FloatingPortal><div className="modal-overlay" onClick={() => setShowModal(false)}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => { setShowModal(false); setModalError(''); wz.reset(); }}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>Nouvelle écriture — {TYPE_META[entryType].label}</h2>
             <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>
@@ -719,7 +719,7 @@ export default function Balance() {
               wz={wz}
               title="Nouvelle écriture"
               stepLabel={['Type', 'Montant'][wz.step - 1]}
-              onCancel={() => setShowModal(false)}
+              onCancel={() => { setShowModal(false); setModalError(''); wz.reset(); }}
               onSubmit={create}
               submitLabel="Enregistrer"
               saving={saving}

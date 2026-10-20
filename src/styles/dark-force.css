@@ -1780,3 +1780,311 @@ html[data-theme="dark"] .account-seg button.active {
   color: #0a0a0a !important;
   -webkit-text-fill-color: #0a0a0a !important;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   v212 — DARK SPECIFICITY MIRRORS
+   Every rule below mirrors a light-mode rule from overrides-final.css /
+   App.css that was OUT-SPECIFYING the generic dark rules, with the
+   `html[data-theme="dark"] body` prefix (+1 class specificity) so dark
+   always wins. dark-force.css is imported last → wins ties too.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Tables: CRM / data-dense / ac-products / page-scoped variants ── */
+html[data-theme="dark"] body .atlas-crm table,
+html[data-theme="dark"] body .atlas-orders table,
+html[data-theme="dark"] body .atlas-page table,
+html[data-theme="dark"] body table.data-dense,
+html[data-theme="dark"] body table.data-table,
+html[data-theme="dark"] body table.ac-products-table {
+  background: #18181b !important;
+  background-color: #18181b !important;
+}
+html[data-theme="dark"] body .content table thead th,
+html[data-theme="dark"] body .atlas-crm table thead th,
+html[data-theme="dark"] body .atlas-orders table thead th,
+html[data-theme="dark"] body .atlas-page table thead th,
+html[data-theme="dark"] body table.data-dense thead th,
+html[data-theme="dark"] body table.data-table thead th,
+html[data-theme="dark"] body .atlas-crm table.data-dense thead th,
+html[data-theme="dark"] body .atlas-page table.data-dense thead th,
+html[data-theme="dark"] body table.ac-products-table thead th,
+html[data-theme="dark"] body .employees-page table thead th,
+html[data-theme="dark"] body .employees-page table.data-dense thead th,
+html[data-theme="dark"] body .attendance-page table thead th,
+html[data-theme="dark"] body .attendance-page table.data-dense thead th,
+html[data-theme="dark"] body .bills-page table thead th,
+html[data-theme="dark"] body .receipts-page table thead th,
+html[data-theme="dark"] body .vendors-page table thead th,
+html[data-theme="dark"] body .balance-page table thead th,
+html[data-theme="dark"] body .products-page table thead th,
+html[data-theme="dark"] body .settings-main table thead th,
+html[data-theme="dark"] body .settings-main table.data-dense thead th {
+  background: #27272a !important;
+  background-color: #27272a !important;
+  color: #a1a1aa !important;
+  border-bottom: 1px solid #3f3f46 !important;
+}
+html[data-theme="dark"] body .content table tbody td,
+html[data-theme="dark"] body .atlas-crm table tbody td,
+html[data-theme="dark"] body .atlas-orders table tbody td,
+html[data-theme="dark"] body .atlas-crm table.data-dense tbody td,
+html[data-theme="dark"] body .atlas-page table.data-dense tbody td {
+  background: #18181b !important;
+  background-color: #18181b !important;
+  color: #e4e4e7 !important;
+  border-bottom-color: #27272a !important;
+}
+html[data-theme="dark"] body .content .table-wrap,
+html[data-theme="dark"] body .ac-products-table-panel,
+html[data-theme="dark"] body .ac-panel.ac-products-table-panel {
+  background: #18181b !important;
+  border-color: #3f3f46 !important;
+  box-shadow: none !important;
+}
+
+/* ── Client/employee name links: readable zinc, never indigo/navy ── */
+html[data-theme="dark"] body .clients-page .party-name-link,
+html[data-theme="dark"] body .employees-page .party-name-link,
+html[data-theme="dark"] body span.party-name-link {
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+}
+html[data-theme="dark"] body .clients-page .party-name-link:hover,
+html[data-theme="dark"] body span.party-name-link:hover {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html[data-theme="dark"] body .party-sub { color: #a1a1aa !important; }
+
+/* ── Row action buttons (Factures / Situation / …): zinc, never white/navy ── */
+html[data-theme="dark"] body .clients-page .row-actions .secondary,
+html[data-theme="dark"] body .employees-page .row-actions .secondary,
+html[data-theme="dark"] body .actions-page .row-actions .secondary,
+html[data-theme="dark"] body table.ac-products-table .row-actions .secondary,
+html[data-theme="dark"] body table.ac-products-table .row-actions button.secondary,
+html[data-theme="dark"] body .employees-page .row-actions button,
+html[data-theme="dark"] body .row-actions button.secondary,
+html[data-theme="dark"] body .row-actions .secondary {
+  background: #27272a !important;
+  background-image: none !important;
+  border: 1px solid #3f3f46 !important;
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+  box-shadow: none !important;
+}
+
+/* ── Atlas Agent: nav / chips / suggest / prompt bar (panel-scoped enemies) ── */
+html[data-theme="dark"] body .atlas-agent-panel .atlas-agent-nav--readable button,
+html[data-theme="dark"] body .atlas-agent-panel .atlas-agent-chips--readable button,
+html[data-theme="dark"] body .atlas-agent-panel .atlas-agent-suggest--readable button,
+html[data-theme="dark"] body .atlas-agent-nav--readable button,
+html[data-theme="dark"] body .atlas-agent-chips--readable button,
+html[data-theme="dark"] body .atlas-agent-suggest--readable button,
+html[data-theme="dark"] body .atlas-agent-nav button.secondary,
+html[data-theme="dark"] body .atlas-agent-chips button.secondary {
+  background: #27272a !important;
+  background-image: none !important;
+  border: 1px solid #3f3f46 !important;
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+}
+html[data-theme="dark"] body .atlas-agent-foot .prompt-bar__field,
+html[data-theme="dark"] body .atlas-agent-prompt-bar,
+html[data-theme="dark"] body .atlas-agent-prompt-bar .prompt-bar__field,
+html[data-theme="dark"] body .prompt-bar__field {
+  background: #1c1c1f !important;
+  background-color: #1c1c1f !important;
+  border-color: #3f3f46 !important;
+  color: #e4e4e7 !important;
+  box-shadow: none !important;
+}
+
+/* ── Date picker trigger (dashboard range pill included) ── */
+html[data-theme="dark"] body button.atlas-dp-trigger,
+html[data-theme="dark"] body .content button.atlas-dp-trigger,
+html[data-theme="dark"] body .atlas-dp-range-wrap button.atlas-dp-trigger,
+html[data-theme="dark"] body .dash-date-range button.atlas-dp-trigger {
+  background: #27272a !important;
+  background-image: none !important;
+  border: 1px solid #3f3f46 !important;
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"] body button.atlas-dp-trigger .atlas-dp-value.is-placeholder {
+  color: #a1a1aa !important;
+  -webkit-text-fill-color: #a1a1aa !important;
+}
+html[data-theme="dark"] body button.atlas-dp-trigger .atlas-dp-icon { color: #a1a1aa !important; }
+html[data-theme="dark"] body .dash-range-btn {
+  background: #27272a !important;
+  border: 1px solid #3f3f46 !important;
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+}
+html[data-theme="dark"] body .dash-range-btn.is-on {
+  background: #f4f4f5 !important;
+  border-color: #f4f4f5 !important;
+  color: #18181b !important;
+  -webkit-text-fill-color: #18181b !important;
+}
+
+/* ── Checkboxes: visible in dark (base = white box, was invisible/weird) ── */
+html[data-theme="dark"] input[type="checkbox"],
+html[data-theme="dark"] body input[type="checkbox"] {
+  background: #27272a !important;
+  background-image: none !important;
+  border: 2px solid #71717a !important;
+}
+html[data-theme="dark"] input[type="checkbox"]:hover:not(:disabled):not(:checked) {
+  background: #3f3f46 !important;
+  border-color: #a1a1aa !important;
+}
+html[data-theme="dark"] input[type="checkbox"]:checked,
+html[data-theme="dark"] input[type="checkbox"]:checked:hover:not(:disabled) {
+  background: #e4e4e7 !important;
+  border-color: #e4e4e7 !important;
+}
+html[data-theme="dark"] input[type="checkbox"]:checked::after {
+  border-color: #18181b !important;
+}
+html[data-theme="dark"] input[type="checkbox"]:focus-visible {
+  box-shadow: 0 0 0 3px rgba(161, 161, 170, 0.35) !important;
+}
+
+/* ── Modal buttons: readable secondary / danger / IA buttons ── */
+html[data-theme="dark"] body .modal button.secondary,
+html[data-theme="dark"] body .modal-overlay button.secondary,
+html[data-theme="dark"] body [role="dialog"] button.secondary {
+  background: #27272a !important;
+  background-image: none !important;
+  border: 1px solid #3f3f46 !important;
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+}
+html[data-theme="dark"] body .modal button.danger,
+html[data-theme="dark"] body .modal-overlay button.danger {
+  background: #7f1d1d !important;
+  border-color: #991b1b !important;
+  color: #fee2e2 !important;
+  -webkit-text-fill-color: #fee2e2 !important;
+}
+
+/* ── Tapped (active) + disabled states: never white, never invisible ── */
+html[data-theme="dark"] body button.secondary:active,
+html[data-theme="dark"] body .modal button.secondary:active,
+html[data-theme="dark"] body .wizard-foot button.secondary:active,
+html[data-theme="dark"] body .row-actions button.secondary:active,
+html[data-theme="dark"] body .atlas-agent-nav--readable button:active,
+html[data-theme="dark"] body .atlas-agent-chips--readable button:active {
+  background: #3f3f46 !important;
+  background-image: none !important;
+  color: #fafafa !important;
+  -webkit-text-fill-color: #fafafa !important;
+}
+html[data-theme="dark"] body button:disabled,
+html[data-theme="dark"] body button.secondary:disabled,
+html[data-theme="dark"] body .modal button:disabled,
+html[data-theme="dark"] body .wizard-foot button:disabled {
+  background: #26262a !important;
+  background-image: none !important;
+  border: 1px solid #3f3f46 !important;
+  color: #71717a !important;
+  -webkit-text-fill-color: #71717a !important;
+  opacity: 1 !important;
+}
+
+/* ── Wizard foot: Annuler/Retour readable zinc, Continuer light & clear,
+      all three on one same level ── */
+html[data-theme="dark"] body .wizard-foot {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 10px !important;
+  background: #1c1c1f !important;
+  border-top: 1px solid #2e2e33 !important;
+}
+html[data-theme="dark"] body .wizard-foot .wizard-foot-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+html[data-theme="dark"] body .wizard-foot button.secondary {
+  background: #27272a !important;
+  background-image: none !important;
+  border: 1px solid #3f3f46 !important;
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+}
+html[data-theme="dark"] body .wizard-foot button:not(.secondary):not(.danger) {
+  background: #f4f4f5 !important;
+  background-image: none !important;
+  border: 1px solid #f4f4f5 !important;
+  color: #18181b !important;
+  -webkit-text-fill-color: #18181b !important;
+}
+html[data-theme="dark"] body .wizard-foot .wizard-foot-step,
+html[data-theme="dark"] body .wizard-foot .wz-chip {
+  color: #a1a1aa !important;
+  background: #27272a !important;
+  border-color: #3f3f46 !important;
+}
+
+/* ── Account menu: labels light zinc, never indigo ── */
+html[data-theme="dark"] body .account-menu-panel .account-menu-item,
+html[data-theme="dark"] body .account-menu-panel--portal .account-menu-item,
+html[data-theme="dark"] body .account-menu-item,
+html[data-theme="dark"] body .account-menu-item-label,
+html[data-theme="dark"] body .account-menu-panel .account-menu-item-label,
+html[data-theme="dark"] body .settings-topbar-menu-item {
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+  background: transparent !important;
+}
+html[data-theme="dark"] body .account-menu-panel .account-menu-item:hover,
+html[data-theme="dark"] body .account-menu-item:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #fafafa !important;
+  -webkit-text-fill-color: #fafafa !important;
+}
+html[data-theme="dark"] body .account-menu-section-label {
+  color: #71717a !important;
+  -webkit-text-fill-color: #71717a !important;
+}
+
+/* ── Form controls: placeholders, selects, single focus ring ── */
+html[data-theme="dark"] body input::placeholder,
+html[data-theme="dark"] body textarea::placeholder,
+html[data-theme="dark"] body input[type="text"]::placeholder,
+html[data-theme="dark"] body input[type="search"]::placeholder,
+html[data-theme="dark"] body input[type="email"]::placeholder,
+html[data-theme="dark"] body input[type="number"]::placeholder {
+  color: #71717a !important;
+  -webkit-text-fill-color: #71717a !important;
+  opacity: 1 !important;
+}
+html[data-theme="dark"] body select,
+html[data-theme="dark"] body select option {
+  background: #1c1c1f !important;
+  color: #e4e4e7 !important;
+}
+html[data-theme="dark"] body .modal input:focus,
+html[data-theme="dark"] body .modal textarea:focus,
+html[data-theme="dark"] body .modal select:focus,
+html[data-theme="dark"] body .settings-search-panel input:focus,
+html[data-theme="dark"] body .search-input:focus {
+  outline: none !important;
+  border-color: #52525b !important;
+  box-shadow: 0 0 0 2px rgba(161, 161, 170, 0.25) !important;
+}
+
+/* ── Note chips / small secondary chips inside panels (the "black blob" row) ── */
+html[data-theme="dark"] body .form-row button.secondary,
+html[data-theme="dark"] body .modal .form-row button.secondary {
+  background: #27272a !important;
+  background-image: none !important;
+  border: 1px solid #3f3f46 !important;
+  color: #d4d4d8 !important;
+  -webkit-text-fill-color: #d4d4d8 !important;
+}
+/* v212 END */

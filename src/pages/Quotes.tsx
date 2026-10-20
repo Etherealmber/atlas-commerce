@@ -418,7 +418,7 @@ export default function Quotes() {
       </div>
 
       {showModal && (
-        <FloatingPortal><div className="modal-overlay" onClick={() => setShowModal(false)}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => { if (saving) return; setShowModal(false); resetForm(); wz.reset(); }}>
           <div className="modal" style={{ maxWidth: 1080, width: '96vw' }} onClick={(e) => e.stopPropagation()}>
             <h2>Nouveau devis</h2>
             <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>
@@ -568,7 +568,7 @@ export default function Quotes() {
               wz={wz}
               title="Nouveau devis"
               stepLabel={['Client', 'Lignes', 'Notes'][wz.step - 1]}
-              onCancel={() => setShowModal(false)}
+              onCancel={() => { setShowModal(false); resetForm(); wz.reset(); }}
               onSubmit={create}
               submitLabel="Enregistrer le devis"
               saving={saving}
