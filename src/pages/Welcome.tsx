@@ -771,13 +771,31 @@ export default function Welcome() {
               <p className="welcome-sub">Du stock à la facture, de la caisse aux employés — un seul outil clair.</p>
               <div className="welcome-hero-shot">
                 <img
-                  src="/app-screenshot.svg"
-                  alt="Aperçu Atlas Commerce — tableau de bord"
-                  width={960}
-                  height={504}
+                  src="/shots/demo.gif"
+                  alt="Enregistrement réel d'une session Atlas Commerce (thème sombre)"
+                  width={900}
+                  height={560}
                   loading="eager"
                   decoding="async"
                 />
+              </div>
+              <div className="welcome-gallery">
+                <figure>
+                  <img src="/shots/dashboard-dark.png" alt="Tableau de bord — thème sombre" loading="lazy" decoding="async" />
+                  <figcaption>Tableau de bord — sombre</figcaption>
+                </figure>
+                <figure>
+                  <img src="/shots/dashboard-light.png" alt="Tableau de bord — thème clair" loading="lazy" decoding="async" />
+                  <figcaption>Tableau de bord — clair</figcaption>
+                </figure>
+                <figure>
+                  <img src="/shots/devis-modal-dark.png" alt="Assistant de création de devis — thème sombre" loading="lazy" decoding="async" />
+                  <figcaption>Devis — assistant pas à pas</figcaption>
+                </figure>
+                <figure>
+                  <img src="/shots/settings-dark.png" alt="Paramètres — apparence en thème sombre" loading="lazy" decoding="async" />
+                  <figcaption>Paramètres — apparence</figcaption>
+                </figure>
               </div>
             </div>
             <div className="welcome-features-grid">

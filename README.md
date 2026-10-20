@@ -18,6 +18,110 @@
 
 ---
 
+## 📸 Captures d'écran réelles
+
+Captures et enregistrement générés depuis l'application elle-même (Chromium headless, `scripts/capture-shots.mjs`).
+
+| Tableau de bord — sombre | Tableau de bord — clair |
+| --- | --- |
+| ![Tableau de bord sombre](public/shots/dashboard-dark.png) | ![Tableau de bord clair](public/shots/dashboard-light.png) |
+
+| Assistant devis (sombre) | Paramètres — apparence |
+| --- | --- |
+| ![Assistant devis](public/shots/devis-modal-dark.png) | ![Paramètres apparence](public/shots/settings-dark.png) |
+
+Enregistrement d'une session complète (connexion → tableau de bord → devis) :
+
+![Session Atlas Commerce](public/shots/demo.gif)
+
+## 🚀 Starter — démarrer de zéro
+
+Guide pas à pas, aucune connaissance de Cloudflare requise.
+
+### 0. Prérequis
+
+- **Node.js ≥ 20** et `npm`
+- Un compte **Cloudflare gratuit**
+- Wrangler CLI : `npx wrangler login` (une fois)
+
+### 1. Récupérer le code
+
+```bash
+# via GitHub CLI (recommandé) : fork + clone
+gh repo fork Etherealmber/atlas-commerce --clone=true
+cd atlas-commerce
+# ou sans gh : forkez sur github.com puis
+# git clone https://github.com/VOTRE_COMPTE/atlas-commerce.git && cd atlas-commerce
+npm install
+```
+
+### 2. Secrets locaux
+
+```bash
+printf 'ADMIN_USERNAME=admin\nADMIN_PASSWORD=ChangeMo123!\n' > .dev.vars
+```
+
+`.dev.vars` n'est **jamais commité** (gitignore). Choisissez un mot de passe fort.
+
+### 3. Base locale D1
+
+```bash
+npx wrangler d1 execute DB --local --file=schema.sql   # schéma de base
+npx wrangler d1 migrations apply DB --local            # migrations incrementales
+```
+
+### 4. Lancer
+
+```bash
+npm run dev -- --port 36521
+```
+
+Ouvrez **http://localhost:36521**, connectez-vous avec `admin` + votre mot de passe.
+En local (sans binding e-mail) le premier appareil est approuvé automatiquement ;
+en production l'**OTP par e-mail** protège chaque nouvel appareil.
+
+Vérifiez l'API : `curl http://localhost:36521/api/health`.
+
+### 5. Tests & captures (optionnel mais conseillé)
+
+```bash
+npm run smoke                              # suite de tests API bout-en-bout
+LD_LIBRARY_PATH=... node scripts/capture-shots.mjs   # captures réelles (voir plus haut)
+node scripts/make-posters.mjs              # 12 posters Instagram 1:1
+```
+
+### 6. Déployer sur Cloudflare
+
+```bash
+npx wrangler d1 create company-stock-db          # crée la D1 production
+# → remplacez database_id dans wrangler.jsonc par l'id retourné
+npx wrangler d1 execute DB --file=schema.sql     # schéma en production
+npx wrangler d1 migrations apply DB              # migrations en production
+npx wrangler r2 bucket create company-stock-images   # médias + updates Android
+npx wrangler secret put ADMIN_PASSWORD           # secret production
+npm run deploy                                   # deploy worker + assets
+```
+
+Bindings optionnels : `EMAIL` (SendMail/Workers Mail) pour l'OTP e-mail,
+`TURNSTILE_SECRET` pour le challenge login. Sans `EMAIL`, les nouveaux
+appareils distants ne pourront pas recevoir d'OTP — configurez-le en production.
+
+### 7. App mobile (Android)
+
+```bash
+npm run cap:sync      # build web + sync Capacitor
+npm run cap:open      # ouvre Android Studio
+```
+
+Les mises à jour OTA passent par le manifeste `latest.json` servi depuis R2
+(Admin → Mise à jour app).
+
+### 8. Besoin d'aide ?
+
+- `STATUS_REVIEW.md`, `ARCHITECTURE_PARTNER_API_V1.md` : architecture & API
+- Issues GitHub pour les bugs ; DM **@loxdpsy** pour les vulnérabilités
+- Licence **MIT © 2026 loxdpsy** — forkez, modifiez, vendez vos services, citez-nous ★
+
 ## 🌟 À propos du projet
 
 Atlas Commerce est un ERP/POS **auto-hébergé sur Cloudflare** (Workers + D1 + R2) pensé pour les commerces, grossistes et entrepôts au Maroc : gestion du stock multi-dépôts, caisse rapide (tickets VR sans TVA), facturation TVA avec créances et remboursements, achats/réceptions, devis, employés & paie, balance/trésorerie — **sans abonnement SaaS opaque** et sans dépendre d'un serveur dédié.

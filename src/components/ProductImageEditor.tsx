@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { api } from '../api';
 
 type Img = { id: number; url: string; is_primary?: number; alt_text?: string };
@@ -801,11 +802,11 @@ export default function ProductImageEditor({ productId }: { productId: number })
         </label>
       </div>
 
-      {edit && (
+      {edit && createPortal(
         <div className="modal-overlay" onClick={() => !busy && setEdit(null)}>
           <div
             className="modal-card"
-            style={{ maxWidth: 560 }}
+            style={{ maxWidth: 'min(560px, calc(100vw - 32px))' }}
             onClick={(e) => e.stopPropagation()}
           >
             <h3 style={{ marginTop: 0 }}>Modifier la photo — outil de recadrage</h3>
@@ -822,7 +823,8 @@ export default function ProductImageEditor({ productId }: { productId: number })
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

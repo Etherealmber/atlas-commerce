@@ -2915,3 +2915,235 @@ html[data-theme="dark"] body .wizard-foot {
   box-shadow: 0 -12px 28px rgba(0, 0, 0, 0.45) !important;
 }
 /* v218 END */
+
+/* ═══════════════════════════════════════════════════════════════
+   v219 — period chips → single rounded selector; empty states
+   centered column (icon / title / text no longer run together);
+   donut legends centered. Both themes.
+   ═══════════════════════════════════════════════════════════════ */
+html body .dash-range-select {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1.5px solid #d4d4d8;
+  background: #ffffff
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2318181b' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+    no-repeat right 12px center;
+  border-radius: 12px;
+  padding: 8px 36px 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink, #18181b);
+  cursor: pointer;
+  min-width: 132px;
+}
+html body .dash-range-select:hover { border-color: #a1a1aa; }
+html body .dash-range-select:focus-visible {
+  outline: 2px solid var(--focus, #6366f1);
+  outline-offset: 2px;
+}
+html[data-theme="dark"] body .dash-range-select {
+  background: #27272a
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23e4e4e7' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+    no-repeat right 12px center;
+  border-color: #3f3f46;
+  color: #f4f4f5;
+}
+html[data-theme="dark"] body .dash-range-select:hover { border-color: #52525b; }
+html body .dash-range-select option {
+  background: #ffffff;
+  color: #18181b;
+}
+html[data-theme="dark"] body .dash-range-select option {
+  background: #1c1c1f;
+  color: #f4f4f5;
+}
+
+/* Empty states: centered column — icon, title, description stacked */
+html body .ac-dash-empty {
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  text-align: center !important;
+}
+html body .ac-dash-empty .ae-ico,
+html body .ac-dash-empty .atlas-empty-icon {
+  margin: 0 auto 2px !important;
+}
+html body .ac-dash-empty strong {
+  display: block !important;
+  margin: 0 !important;
+}
+html body .ac-dash-empty p {
+  margin: 0 !important;
+  max-width: 34ch;
+}
+/* Donut legends centered under the ring */
+html body .ac-donut-legend {
+  justify-content: center !important;
+}
+/* v219 END */
+
+/* ═══════════════════════════════════════════════════════════════
+   v220 — zinc buttons everywhere (no black slabs, no navy), theme
+   segment active = zinc (not white), agent nav zinc, balance tracks
+   ═══════════════════════════════════════════════════════════════ */
+/* primary buttons: zinc-700 slab, never near-black */
+html[data-theme="dark"] body :where(.btn, button):not(.secondary):not(.ghost):not(.danger):not(.btn-delete-red):not(.ac-seg-btn):not(.atlas-typeahead-item):not(.density-toggle):not(.dash-range-select):not([class*="iconbtn"]):not([class*="toggle"]):not([class*="close"]):not(.atlas-agent-nav button) {
+  background: #3f3f46 !important;
+  background-color: #3f3f46 !important;
+  background-image: none !important;
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+  border-color: #52525b !important;
+}
+html[data-theme="dark"] body :where(.btn, button):not(.secondary):not(.ghost):not(.danger):not(.btn-delete-red):not(.ac-seg-btn):not(.atlas-typeahead-item):not(.density-toggle):not(.dash-range-select):not([class*="iconbtn"]):not([class*="toggle"]):not([class*="close"]):not(.atlas-agent-nav button):hover {
+  background: #4b4b52 !important;
+  background-color: #4b4b52 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+/* secondary / ghost-links: zinc card, readable text */
+html[data-theme="dark"] body :where(.btn.secondary, button.secondary, a.secondary, a.btn.secondary) {
+  background: #27272a !important;
+  background-color: #27272a !important;
+  background-image: none !important;
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+  border: 1px solid #3f3f46 !important;
+}
+html[data-theme="dark"] body :where(.btn.secondary, button.secondary, a.secondary, a.btn.secondary):hover {
+  background: #323236 !important;
+  background-color: #323236 !important;
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+}
+/* theme / scale / type segments: active = raised zinc, never a white pill */
+html[data-theme="dark"] body .ac-theme-seg .ac-seg-btn[aria-pressed="true"],
+html[data-theme="dark"] body .ac-scale-seg .ac-seg-btn[aria-pressed="true"],
+html[data-theme="dark"] body .ac-type-switch button[aria-pressed="true"] {
+  background: #3f3f46 !important;
+  background-color: #3f3f46 !important;
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+  border-color: #52525b !important;
+}
+html[data-theme="dark"] body .ac-theme-seg .ac-seg-btn:hover,
+html[data-theme="dark"] body .ac-scale-seg .ac-seg-btn:hover,
+html[data-theme="dark"] body .ac-type-switch button:hover,
+html[data-theme="dark"] body .ac-theme-seg .ac-seg-btn:active,
+html[data-theme="dark"] body .ac-scale-seg .ac-seg-btn:active {
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+}
+/* Atlas Agent: slate navy → zinc */
+html[data-theme="dark"] body .atlas-agent-nav {
+  background: #1c1c1f !important;
+  border-top-color: #3f3f46 !important;
+}
+html[data-theme="dark"] body .atlas-agent-nav button {
+  background: #27272a !important;
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+  border: 1px solid #3f3f46 !important;
+}
+html[data-theme="dark"] body .atlas-agent-nav button:hover {
+  background: #323236 !important;
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+}
+html[data-theme="dark"] body .atlas-agent-bubble {
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+}
+/* Balance page: tracks + labels readable in dark */
+html[data-theme="dark"] body .balance-chart-track {
+  background: #27272a !important;
+}
+html[data-theme="dark"] body .balance-chart-label {
+  color: #a1a1aa !important;
+  -webkit-text-fill-color: #a1a1aa !important;
+}
+html[data-theme="dark"] body .balance-chart-val {
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+}
+/* v220 END */
+
+/* v220b — zinc beats the near-black density rules (mirrored selectors + body) */
+html[data-theme="dark"][data-density="compact"] body .content button:not(.ac-timed-delete-btn):not(.ac-timed-delete):not(.danger):not(.mailbox-folder-item):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn),
+html[data-theme="dark"][data-density="comfortable"] body .content button:not(.ac-timed-delete-btn):not(.ac-timed-delete):not(.danger):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn) {
+  background: #3f3f46 !important;
+  background-color: #3f3f46 !important;
+  background-image: none !important;
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+  border-color: #52525b !important;
+}
+html[data-theme="dark"] body .content button.secondary,
+html[data-theme="dark"] body .content a.secondary,
+html[data-theme="dark"][data-density="compact"] body .content button.secondary,
+html[data-theme="dark"][data-density="comfortable"] body .content button.secondary,
+html[data-theme="dark"] body button.atlas-dp-trigger.secondary {
+  background: #27272a !important;
+  background-color: #27272a !important;
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+  border: 1px solid #3f3f46 !important;
+}
+html[data-theme="dark"] body .content button:not(.secondary):not(.ghost):not(.danger):active,
+html[data-theme="dark"] body .content button:not(.secondary):not(.ghost):not(.danger):focus {
+  background: #4b4b52 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+/* v220b END */
+
+/* v220c — Welcome gallery (real captures) */
+html body .welcome-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+  margin: 18px 0 6px;
+}
+html body .welcome-gallery figure {
+  margin: 0;
+  min-width: 0;
+}
+html body .welcome-gallery img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 12px;
+  border: 1px solid var(--line, #e4e4e7);
+  background: var(--paper, #fff);
+}
+html body .welcome-gallery figcaption {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted, #71717a);
+  text-align: center;
+}
+html[data-theme="dark"] body .welcome-gallery img {
+  border-color: #3f3f46;
+  background: #1c1c1f;
+}
+html[data-theme="dark"] body .welcome-gallery figcaption {
+  color: #a1a1aa;
+}
+/* v220c END */
+
+/* v221 — image editor stage themed (no black slab in light / white in dark) */
+html body {
+  --pie-stage-bg: #ececee;
+}
+html[data-theme="dark"] body {
+  --pie-stage-bg: #1c1c1f;
+}
+html body .image-crop-tool {
+  max-width: 100%;
+}
+html body .image-crop-tool > div {
+  max-width: calc(100vw - 48px) !important;
+}
+/* v221 END */
