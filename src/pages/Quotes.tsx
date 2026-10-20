@@ -132,7 +132,7 @@ export default function Quotes() {
 
   const create = async () => {
     if (!clientName.trim() || !items.some((it) => it.product_name && it.quantity > 0)) {
-      flash('Client et au moins une ligne sont obligatoires.', 'error');
+      setModalError('Client et au moins une ligne sont obligatoires.');
       return;
     }
     setSaving(true);
@@ -235,7 +235,7 @@ export default function Quotes() {
       return;
     }
     if (!clientName.trim() || !items.some((it) => it.product_name && it.quantity > 0)) {
-      flash('Client et au moins une ligne sont obligatoires.', 'error');
+      setModalError('Client et au moins une ligne sont obligatoires.');
       return;
     }
     setSaving(true);
