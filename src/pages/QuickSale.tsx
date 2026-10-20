@@ -79,6 +79,7 @@ export default function QuickSale() {
   ]);
   const [payMode, setPayMode] = useState<'cash' | 'card'>('cash');
   const [barcodeScan, setBarcodeScan] = useState('');
+  const [scanError, setScanError] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [msgType, setMsgType] = useState<'success' | 'error'>('success');
@@ -144,7 +145,7 @@ export default function QuickSale() {
       } catch { /* */ }
     }
     if (!p) {
-      flash('Produit introuvable pour ce code.', 'error');
+      setScanError('Produit introuvable pour ce code.');
       setBarcodeScan('');
       return;
     }
@@ -174,6 +175,7 @@ export default function QuickSale() {
       return [...prev, row];
     });
     setBarcodeScan('');
+    setScanError('');
     flash(`Ajouté: ${p.name}`);
   };
 
@@ -245,6 +247,7 @@ export default function QuickSale() {
       flash('Ce ticket est déjà soldé.', 'error');
       return;
     }
+    setModalError('');
     setPayTarget(inv);
     setSettleAmount(rest);
     setSettleMethod('cash');
@@ -259,6 +262,7 @@ export default function QuickSale() {
       flash('Ce ticket est déjà soldé.', 'error');
       return;
     }
+    setModalError('');
     setPayTarget(inv);
     setSettleAmount(rest);
     setSettleMethod('cash');
@@ -272,11 +276,11 @@ export default function QuickSale() {
     const rest = remainingOf(payTarget);
     const amount = settleMode === 'full' ? rest : Number(settleAmount);
     if (!amount || amount <= 0) {
-      flash('Montant invalide', 'error');
+      setModalError('Montant invalide.');
       return;
     }
     if (amount > rest + 0.001) {
-      flash(`Le montant ne peut pas dépasser le reste dû (${fmt(rest)}).`, 'error');
+      setModalError(`Le montant ne peut pas dépasser le reste dû (${fmt(rest)}).`);
       return;
     }
     setSettleSaving(true);
@@ -292,7 +296,7 @@ export default function QuickSale() {
       setPayTarget(null);
       refreshCounts();
     } catch (e: any) {
-      flash(e?.message || 'Paiement impossible', 'error');
+      setModalError(e?.message || 'Paiement impossible');
     } finally {
       setSettleSaving(false);
     }
@@ -365,7 +369,7 @@ export default function QuickSale() {
       (it) => (it.product_name || '').trim() && Number(it.quantity) > 0,
     );
     if (!lines.length) {
-      flash('Ajoutez au moins une ligne produit.', 'error');
+      setModalError('Ajoutez au moins une ligne produit.');
       return;
     }
     if (!(clientName || '').trim()) {
@@ -670,7 +674,7 @@ export default function QuickSale() {
               <label>Code-barres / SKU (Entrée = ajouter)</label>
               <input
                 value={barcodeScan}
-                onChange={(e) => setBarcodeScan(e.target.value)}
+                onChange={(e) => { setBarcodeScan(e.target.value); if (scanError) setScanError(''); }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
@@ -679,7 +683,11 @@ export default function QuickSale() {
                 }}
                 placeholder="Scanner ou saisir puis Entrée…"
                 autoComplete="off"
+                aria-invalid={scanError ? true : undefined}
               />
+              {scanError && (
+                <p className="ac-field-error" role="alert">{scanError}</p>
+              )}
             </div>
 
             <h3 style={{ margin: '16px 0 8px', fontSize: 14 }}>
