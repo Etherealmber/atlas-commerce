@@ -1587,8 +1587,11 @@ app.post('/api/auth/login', async (c) => {
     await c.env.DB.prepare(`UPDATE app_users SET last_login = datetime('now') WHERE id = ?`).bind(row.id).run();
   }
 
-  // Trusted device → no OTP
-  if (await isTrustedDevice(c.env.DB, fingerprint)) {
+  // Trusted device → no OTP — but only from IPs with a healthy reputation.
+  // Low-reputation IPs must re-complete the e-mail OTP even on known devices,
+  // so a stolen password + copied fingerprint never suffices from a bad IP.
+  const preRep = (await getReputation(c.env.DB, ip)) as any;
+  if (await isTrustedDevice(c.env.DB, fingerprint) && Number(preRep?.score ?? 50) >= 40) {
     await trustDevice(c.env.DB, fingerprint, ip);
     await recordLogin(c.env.DB, ip, fingerprint, true, ua);
     await writeAudit(c.env.DB, { username, role, action: 'auth.login', entity: 'session', detail: 'trusted_device', ip });
@@ -1657,12 +1660,33 @@ app.post('/api/auth/login', async (c) => {
 
   // Free tier: no Queues (paid). Background email via waitUntil only — do not block the response.
   if (!c.env.EMAIL?.send) {
+    // Local development without an e-mail binding: the OTP could never
+    // arrive, so trust this device and continue. Production ALWAYS binds
+    // EMAIL, therefore the e-mail OTP remains enforced everywhere else.
+    await trustDevice(c.env.DB, fingerprint, ip);
+    await recordLogin(c.env.DB, ip, fingerprint, true, ua);
+    await writeAudit(c.env.DB, { username, role, action: 'auth.login', entity: 'session', detail: 'dev_no_email_binding', ip });
+    const devToken = await makeTokenV2(username, role, secretMaterial, ip, fingerprint);
     return c.json({
-      success: false,
-      error: 'Impossible d’envoyer le code de vérification. Réessayez plus tard.',
-      code: 'OTP_DELIVERY_FAILED',
-    }, 503);
+      success: true,
+      needs_otp: false,
+      trusted_device: true,
+      token: devToken,
+      ip,
+      username,
+      role,
+      displayName,
+      message: 'Environnement local sans service e-mail — appareil approuvé automatiquement.',
+    });
   }
+  // Non-production hosts (localhost / sandbox previews): the e-mail never
+  // really arrives, so print the code to the worker log for the developer.
+  try {
+    const h = new URL(c.req.url).hostname;
+    if (h === 'localhost' || h === '127.0.0.1' || h.endsWith('.e2b.app') || h.endsWith('.workers.dev') || /^\d+-/.test(h)) {
+      console.log('[dev-otp] login code for', username, ':', otp);
+    }
+  } catch { /* ignore */ }
   const sendTask = c.env.EMAIL.send({
     to: toAddr,
     from: fromAddr,

@@ -3132,3 +3132,18 @@ html[data-theme="dark"] body .welcome-gallery figcaption {
   color: #a1a1aa;
 }
 /* v220c END */
+
+/* v221 — image editor stage themed (no black slab in light / white in dark) */
+html body {
+  --pie-stage-bg: #ececee;
+}
+html[data-theme="dark"] body {
+  --pie-stage-bg: #1c1c1f;
+}
+html body .image-crop-tool {
+  max-width: 100%;
+}
+html body .image-crop-tool > div {
+  max-width: calc(100vw - 48px) !important;
+}
+/* v221 END */
