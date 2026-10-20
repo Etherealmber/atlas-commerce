@@ -907,7 +907,7 @@ export default function Products() {
       </div>
 
       {show && (
-        <FloatingPortal><div className="modal-overlay" onClick={() => setShow(false)}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => { setShow(false); setForm(emptyForm); setEditing(null); setModalError(''); }}>
           <div className="modal" style={{ maxWidth: 640 }} onClick={(e) => e.stopPropagation()}>
             <h2>{editing ? 'Modifier le produit' : 'Nouveau produit'}</h2>
             <div className="grid grid-2">
@@ -956,24 +956,6 @@ export default function Products() {
                     )}
                     <option value="__new__">+ Nouvelle catégorie…</option>
                   </select>
-                  <button
-                    type="button"
-                    className="secondary"
-                    style={{ fontSize: 12, whiteSpace: 'nowrap' }}
-                    onClick={async () => {
-                      const hint = [form.name, form.description, form.sku].filter(Boolean).join(' · ') || 'matériau';
-                      try {
-                        const res = await api.assistChat(
-                          `Propose la meilleure catégorie produit pour: ${hint}`,
-                          { task: 'category', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
-                        );
-                        const cat = (res.data?.reply || '').split('\n')[0].replace(/^["«]|["»]$/g, '').trim();
-                        if (cat) setForm((f: any) => ({ ...f, category: cat.slice(0, 60) }));
-                      } catch { /* */ }
-                    }}
-                  >
-                    IA
-                  </button>
                 </div>
               </div>
               <div className="form-row">
@@ -1112,7 +1094,7 @@ export default function Products() {
                   <span className="wizard-foot-step">Fiche produit</span>
                 )}
                 <div className="wizard-foot-actions">
-                  <button className="secondary" onClick={() => setShow(false)}>Annuler</button>
+                  <button className="secondary" onClick={() => { setShow(false); setForm(emptyForm); setEditing(null); setModalError(''); }}>Annuler</button>
                   <button onClick={() => save()} disabled={saving}>
                     {saving ? 'Enregistrement…' : 'Enregistrer'}
                   </button>

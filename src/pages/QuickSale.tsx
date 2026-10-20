@@ -609,7 +609,7 @@ export default function QuickSale() {
       </div>
 
       {showModal && (
-        <FloatingPortal><div className="modal-overlay" onClick={() => !busy && setShowModal(false)}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => { if (busy) return; setShowModal(false); resetForm(); wz.reset(); }}>
           <div className="modal" style={{ maxWidth: 1080, width: '96vw' }} onClick={(e) => e.stopPropagation()}>
             <h2>Nouvelle vente rapide (caisse)</h2>
             <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 14, lineHeight: 1.45 }}>
@@ -826,7 +826,7 @@ export default function QuickSale() {
               wz={wz}
               title="Nouvelle vente rapide (caisse)"
               stepLabel={['Client', 'Articles', 'Paiement'][wz.step - 1]}
-              onCancel={() => !busy && setShowModal(false)}
+              onCancel={() => { if (busy) return; setShowModal(false); resetForm(); wz.reset(); }}
               onSubmit={() => void checkout()}
               submitLabel={`Encaisser · ${fmt(total)}`}
               saving={busy}

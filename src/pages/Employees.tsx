@@ -776,7 +776,7 @@ export default function Employees() {
       )}
 
       {showModal && (
-        <FloatingPortal><div className="modal-overlay" onClick={() => setShowModal(false)}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => { setShowModal(false); setEditing(null); setForm({ ...emptyForm }); setStep(0); setModalError(''); setFieldErrors({}); }}>
           <div className="modal" style={{ maxWidth: 640, width: '94vw' }} onClick={(ev) => ev.stopPropagation()}>
             <h2 style={{ marginBottom: 8 }}>{editing ? 'Modifier l’employé' : 'Nouvel employé'}</h2>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
