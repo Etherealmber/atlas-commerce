@@ -20,7 +20,6 @@ import VirtualTableBody, { VirtualScroll } from '../components/VirtualTableBody'
 import { isStockRole } from '../auth';
 import ProductImageEditor from '../components/ProductImageEditor';
 import { printProductLabel } from '../lib/printProductLabel';
-import { KitsPanel } from '../components/atlas-v209-panels';
 import RefreshIconButton from '../components/RefreshIconButton';
 import '../components/erp/catalog-inventory.css';
 import { FloatingPortal } from '../components/FloatingPortal';
@@ -1128,7 +1127,6 @@ export default function Products() {
           </div>
         </div></FloatingPortal>
       )}
-      <KitsPanel />
     </div>
   );
 }

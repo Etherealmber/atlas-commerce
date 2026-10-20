@@ -113,6 +113,12 @@ export default function DatePicker({
   size = 'md',
 }: DatePickerProps) {
   const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const fn = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    window.addEventListener('keydown', fn);
+    return () => window.removeEventListener('keydown', fn);
+  }, [open]);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popRef = useRef<HTMLDivElement>(null);
   const selected = parseISO(value);
@@ -380,6 +386,12 @@ export function DateRangePicker({
   showPresets = true,
 }: DateRangePickerProps) {
   const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const fn = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    window.addEventListener('keydown', fn);
+    return () => window.removeEventListener('keydown', fn);
+  }, [open]);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popRef = useRef<HTMLDivElement>(null);
   const start = parseISO(from);

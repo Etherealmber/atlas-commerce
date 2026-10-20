@@ -155,6 +155,8 @@ export function ImageWorkbench({
   const [nat, setNat] = useState({ w: 0, h: 0 });
   const [crop, setCrop] = useState<CropBox | null>(null);
   const [drag, setDrag] = useState<DragMode>(null);
+  const [zoom, setZoom] = useState(1);
+  const originalSrc = useRef(src);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(!src.startsWith('data:'));
@@ -382,22 +384,35 @@ export function ImageWorkbench({
     return { left, top, width: size, height: size, cursor };
   };
 
+  const baseW = compact ? 300 : 480;
+  const baseH = compact ? 220 : 320;
   return (
     <div className="image-crop-tool">
       <div
+        style={{
+          overflow: 'auto',
+          maxWidth: baseW + 24,
+          maxHeight: baseH + 60,
+          margin: '0 auto',
+          borderRadius: 12,
+          background: 'var(--pie-stage-bg, #0a0a0a)',
+        }}
+      >
+      <div
         ref={stageRef}
+        onDoubleClick={() => setZoom((z) => (z > 1 ? 1 : 2))}
+        title="Double-clic : zoom ×2 / retour ×1"
         style={{
           position: 'relative',
-          width: '100%',
-          maxWidth: compact ? 300 : 480,
-          height: compact ? 220 : 320,
-          margin: '0 auto',
-          background: '#0a0a0a',
+          width: baseW * zoom,
+          height: baseH * zoom,
+          margin: zoom === 1 ? '0 auto' : undefined,
+          background: 'var(--pie-stage-bg, #0a0a0a)',
           borderRadius: 12,
           overflow: 'hidden',
           userSelect: 'none',
           touchAction: 'none',
-          border: '1px solid var(--line, #e0d9cc)',
+          border: '1px solid var(--line, #3f3f46)',
         }}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -527,8 +542,45 @@ export function ImageWorkbench({
           </>
         )}
       </div>
+      </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10, justifyContent: 'center' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10, justifyContent: 'center', alignItems: 'center' }}>
+        <button type="button" className="secondary" disabled={busy || !dataSrc || zoom <= 1} onClick={() => setZoom((z) => Math.max(1, Math.round((z - 0.5) * 10) / 10))} title="Zoom arrière">
+          −
+        </button>
+        <span style={{ fontSize: 12, minWidth: 44, textAlign: 'center', color: 'var(--muted, #a1a1aa)' }}>{Math.round(zoom * 100)}%</span>
+        <button type="button" className="secondary" disabled={busy || !dataSrc || zoom >= 4} onClick={() => setZoom((z) => Math.min(4, Math.round((z + 0.5) * 10) / 10))} title="Zoom avant">
+          +
+        </button>
+        <button type="button" className="secondary" disabled={busy || !dataSrc || zoom === 1} onClick={() => setZoom(1)}>
+          1:1
+        </button>
+        <button
+          type="button"
+          className="secondary"
+          disabled={busy || !dataSrc}
+          title="Revenir à la photo d'origine (annule recadrage/rotation)"
+          onClick={() => {
+            setCrop(null);
+            setZoom(1);
+            setDataSrc(originalSrc.current.startsWith('data:') ? originalSrc.current : null);
+            if (!originalSrc.current.startsWith('data:')) {
+              setLoading(true);
+              void (async () => {
+                try {
+                  const res = await fetch(originalSrc.current);
+                  const blob = await res.blob();
+                  const fr = new FileReader();
+                  fr.onload = () => { setDataSrc(String(fr.result)); setLoading(false); };
+                  fr.readAsDataURL(blob);
+                } catch { setLoading(false); }
+              })();
+            }
+            onChange(originalSrc.current);
+          }}
+        >
+          ↩ Original
+        </button>
         <button type="button" className="secondary" disabled={busy || !dataSrc} onClick={() => void applyRotate(-1)}>
           ↺ 90°
         </button>
@@ -678,8 +730,8 @@ export default function ProductImageEditor({ productId }: { productId: number })
               width: 92,
               borderRadius: 10,
               overflow: 'hidden',
-              border: img.is_primary ? '2px solid var(--zellij, #71717a)' : '1px solid var(--line)',
-              background: '#f4f1ea',
+              border: img.is_primary ? '2px solid var(--pie-ring, #e8a317)' : '1px solid var(--pie-thumb-border, #d4d4d8)',
+              background: 'var(--pie-thumb-bg, #faf9f6)',
             }}
           >
             <button

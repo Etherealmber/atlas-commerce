@@ -2364,3 +2364,151 @@ html[data-theme="dark"] {
   --stone: #202024;
 }
 /* v214b END */
+
+/* v215 — primary buttons: light zinc in dark (was pure black) */
+html[data-theme="dark"] body GLOBAL BUTTON COLORS — identical in Compact & Confort
+   Density only changes size/padding/radius,
+html[data-theme="dark"] body never colors
+   Self-check: primary,
+html[data-theme="dark"] body secondary,
+html[data-theme="dark"] body danger,
+html[data-theme="dark"] body table actions,
+html[data-theme="dark"] body forms
+   ═══════════════════════════════════════════════════════════ */
+
+/* Primary — solid teal,
+html[data-theme="dark"] body white text,
+html[data-theme="dark"] body teal border (both densities) */
+html[data-density="compact"] .content button:not(.ac-timed-delete-btn):not(.ac-timed-delete):not(.danger):not(.mailbox-folder-item):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.atlas-dp-trigger):not(.mailbox-icon-btn):not(.mailbox-menu-item):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.atlas-password-toggle):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn),
+html[data-theme="dark"][data-density="comfortable"] .content button:not(.ac-timed-delete-btn):not(.ac-timed-delete):not(.danger):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.atlas-dp-trigger):not(.mailbox-icon-btn):not(.mailbox-menu-item):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.atlas-password-toggle):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn),
+html[data-theme="dark"][data-density="compact"] button.primary,
+html[data-theme="dark"][data-density="comfortable"] button.primary,
+html[data-theme="dark"][data-density="compact"] .btn:not(.secondary):not(.danger):not(.ghost),
+html[data-theme="dark"][data-density="comfortable"] .btn:not(.secondary):not(.danger):not(.ghost) {
+  background: #e4e4e7 !important;
+  background-image: none !important;
+  color: #18181b !important;
+  -webkit-text-fill-color: #18181b !important;
+  border-color: #e4e4e7 !important;
+}
+html[data-theme="dark"][data-density="comfortable"] table td button:not(.secondary):not(.danger):not(.ghost) {
+  background: #e4e4e7 !important;
+  background-image: none !important;
+  color: #18181b !important;
+  -webkit-text-fill-color: #18181b !important;
+  border-color: #e4e4e7 !important;
+}
+html[data-theme="dark"] body .content button:hover:not(:disabled):not(.secondary):not(.danger):not(.ghost),
+html[data-theme="dark"] body button:hover:not(:disabled):not(.secondary):not(.danger):not(.ghost) {
+  background: #d4d4d8 !important;
+  color: #18181b !important;
+}
+
+/* v215 — wizard step chip: compact pill, never a stretched gray bar */
+html[data-theme="dark"] body .wizard-foot-step,
+body .wizard-foot-step {
+  flex: 0 1 auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 5px 12px !important;
+  border-radius: 999px !important;
+  background: rgba(113, 113, 122, 0.14) !important;
+  border: 1px solid rgba(113, 113, 122, 0.25);
+  color: #a1a1aa !important;
+  font-size: 11.5px !important;
+  letter-spacing: 0.04em !important;
+}
+html[data-theme="dark"] body .wizard-foot-step.save-error-inline {
+  background: rgba(248, 113, 113, 0.12) !important;
+  border-color: rgba(248, 113, 113, 0.35) !important;
+  color: #f87171 !important;
+}
+
+/* v215 — theme/text-size segmented buttons: readable unpressed state */
+html[data-theme="dark"] body .ac-theme-seg .ac-seg-btn,
+html[data-theme="dark"] body .ac-scale-seg .ac-seg-btn,
+html[data-theme="dark"] body .ac-theme-seg button.secondary,
+html[data-theme="dark"] body .ac-scale-seg button.secondary {
+  background: #27272a !important;
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+  border: 1px solid #3f3f46 !important;
+}
+html[data-theme="dark"] body .ac-theme-seg .ac-seg-btn svg,
+html[data-theme="dark"] body .ac-scale-seg .ac-seg-btn svg {
+  color: #a1a1aa !important;
+}
+
+/* v215 — focused/tapped secondary never turns white (Historique & co) */
+html[data-theme="dark"] body button.secondary:focus,
+html[data-theme="dark"] body button.secondary:focus-visible,
+html[data-theme="dark"] body .row-actions button.secondary:focus,
+html[data-theme="dark"] body .settings-topbar-tabs button:focus-visible {
+  background: #323236 !important;
+  color: #fafafa !important;
+  -webkit-text-fill-color: #fafafa !important;
+  border-color: #52525b !important;
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(232, 163, 23, 0.35) !important;
+}
+
+/* v215 — image editor palette (thumbs, stage, ring) both themes */
+html { --pie-thumb-bg: #faf9f6; --pie-thumb-border: #d4d4d8; --pie-stage-bg: #101012; --pie-ring: #e8a317; }
+html[data-theme="dark"] {
+  --pie-thumb-bg: #202024;
+  --pie-thumb-border: #3f3f46;
+  --pie-stage-bg: #101012;
+  --pie-ring: #e8a317;
+}
+html[data-theme="dark"] body .product-image-editor img {
+  border-radius: 8px;
+}
+html body .product-image-editor button.secondary {
+  box-shadow: none !important;
+}
+
+/* v215 — motion polish: press feedback, hover lift, modal pop, staggered skeletons */
+@media (prefers-reduced-motion: no-preference) {
+  html body button, html body .btn {
+    transition: background-color 0.16s ease, color 0.16s ease, border-color 0.16s ease,
+      box-shadow 0.16s ease, transform 0.12s ease, filter 0.16s ease;
+  }
+  html body button:active:not(:disabled) { transform: scale(0.97); }
+  html body .card, html body .ac-stat, html body .ac-panel {
+    transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+  }
+  html body .card:hover, html body .ac-stat:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  }
+  html[data-theme="dark"] body .card:hover, html[data-theme="dark"] body .ac-stat:hover {
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  }
+  html body .modal, html body .modal-card {
+    animation: atlas-modal-pop 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  }
+  html body .modal-overlay { animation: atlas-fade-in 0.18s ease; }
+  html body .skeleton { animation: skeleton-shimmer 1.15s ease-in-out infinite; }
+  html body .page-skeleton .skeleton:nth-child(2) { animation-delay: 0.08s; }
+  html body .page-skeleton .skeleton:nth-child(3) { animation-delay: 0.16s; }
+}
+@keyframes atlas-modal-pop {
+  from { opacity: 0; transform: translateY(10px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes atlas-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* v215 — date picker popup: theme-consistent, clamped, refined */
+html[data-theme="dark"] body .atlas-dp-pop {
+  background: #1c1c1f !important;
+  border: 1px solid #3f3f46 !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5) !important;
+  color-scheme: dark;
+}
+html[data-theme="dark"] body .atlas-dp-pop .atlas-dp-day:hover,
+html[data-theme="dark"] body .atlas-dp-pop .atlas-dp-preset:hover {
+  background: #323236 !important;
+  color: #fafafa !important;
+}
+/* v215 END */
