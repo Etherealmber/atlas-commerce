@@ -560,13 +560,19 @@ const app = new Hono<{ Bindings: Env }>();
 
 /** Reject oversized request bodies early (DoS / memory pressure). */
 const MAX_BODY_BYTES = 2 * 1024 * 1024; // 2 MiB default
+/** APK uploads stream straight to R2 — exempt from the 2 MiB API body cap. */
+const APP_UPDATE_MAX_APK_BYTES = 200 * 1024 * 1024;
 const MAX_MAIL_SEND_BYTES = 35 * 1024 * 1024; // near Resend free per-message ceiling (~40MB incl. overhead)
 app.use('/api/*', async (c, next) => {
   const cl = c.req.header('content-length');
   if (cl) {
     const n = Number(cl);
-    const path = new URL(c.req.url).pathname;
-    const limit = path.includes('/api/admin/mailbox/send') ? MAX_MAIL_SEND_BYTES : MAX_BODY_BYTES;
+      const path = new URL(c.req.url).pathname;
+      const limit = path.includes('/api/admin/mailbox/send')
+        ? MAX_MAIL_SEND_BYTES
+        : path === '/api/admin/app-update/apk'
+          ? APP_UPDATE_MAX_APK_BYTES
+          : MAX_BODY_BYTES;
     if (n > limit) {
       return c.json({
         success: false,
@@ -3760,6 +3766,9 @@ app.use('/api/*', async (c, next) => {
     path.startsWith('/api/public/') ||
     path.startsWith('/api/cron/') ||
     path === '/api/media/proxy' ||
+    // Read-only APK update manifest check — called by the app before login
+    // (mandatory-update flow). Exposes only public CDN info.
+    path === '/api/app/android-update' ||
     path === '/api/auth/login' ||
     path === '/api/auth/verify-otp' ||
     path === '/api/auth/login-biometric' ||
@@ -14913,6 +14922,188 @@ app.get('/api/app/android-update', async (c) => {
     apkUrl: manifest.apkUrl || manifest.apk_url || null,
     mandatory: !!(manifest.mandatory),
     notes: manifest.notes || null,
+  });
+});
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * App update management (owner/admin only) — Cloudflare R2 `IMAGES` bucket:
+ *   app-updates/android/latest.json  (manifest read by the APK update check)
+ *   app-updates/android/latest.apk   (binary served via the CDN custom domain)
+ * The public read-only check above stays untouched; these routes only write.
+ * ────────────────────────────────────────────────────────────────────────── */
+const APP_UPDATE_JSON_KEY = 'app-updates/android/latest.json';
+const APP_UPDATE_APK_KEY = 'app-updates/android/latest.apk';
+const APP_UPDATE_APK_MIME = 'application/vnd.android.package-archive';
+
+function appUpdateCdnBase(env: any): string {
+  return String(env.CDN_BASE || 'https://cdn1.afmarbre.com').replace(/\/+$/, '');
+}
+
+/** owner/admin gate shared by the admin app-update routes. */
+function gateAppUpdateAdmin(c: any): { ok: true; username: string } | { ok: false; status: number; error: string } {
+  const session = sessionUserFromHeader(c.req.header('Authorization'));
+  if (!session.username) return { ok: false, status: 401, error: 'Non authentifié' };
+  const role = normalizeRole(session.role || 'user');
+  if (role !== 'owner' && role !== 'admin') return { ok: false, status: 403, error: 'Réservé admin/owner' };
+  return { ok: true, username: session.username };
+}
+
+/** Read manifest (R2 first, app_config fallback — same order as public check) + R2 object info. */
+async function readAppUpdateState(env: any) {
+  let manifest: any = null;
+  let source: 'r2' | 'db' | null = null;
+  let jsonMeta: { size: number; uploaded: string | null } | null = null;
+  if (env.IMAGES) {
+    try {
+      const head = await env.IMAGES.head(APP_UPDATE_JSON_KEY);
+      if (head) jsonMeta = { size: head.size, uploaded: head.uploaded ? new Date(head.uploaded).toISOString() : null };
+      const obj = await env.IMAGES.get(APP_UPDATE_JSON_KEY);
+      if (obj) { manifest = JSON.parse(await obj.text()); source = 'r2'; }
+    } catch { /* */ }
+  }
+  if (!manifest) {
+    try {
+      const rows = await env.DB.prepare(`SELECT key, value FROM app_config WHERE key LIKE 'android_update_%'`).all();
+      const map: Record<string, string> = {};
+      for (const r of (rows?.results || []) as any[]) map[String(r.key)] = String(r.value || '');
+      if (map.android_update_version_code || map.android_update_apk_url) {
+        manifest = {
+          versionCode: Number(map.android_update_version_code || 0),
+          versionName: map.android_update_version_name || '',
+          apkUrl: map.android_update_apk_url || '',
+          mandatory: map.android_update_mandatory === '1' || map.android_update_mandatory === 'true',
+          notes: map.android_update_notes || '',
+        };
+        source = 'db';
+      }
+    } catch { /* */ }
+  }
+  let apk: { size: number; uploaded: string | null } | null = null;
+  if (env.IMAGES) {
+    try {
+      const h = await env.IMAGES.head(APP_UPDATE_APK_KEY);
+      if (h) apk = { size: h.size, uploaded: h.uploaded ? new Date(h.uploaded).toISOString() : null };
+    } catch { /* */ }
+  }
+  return { manifest, source, jsonMeta, apk };
+}
+
+/** Mirror manifest into app_config so the DB fallback never goes stale. */
+async function mirrorAppUpdateConfig(db: D1Database, m: any): Promise<void> {
+  try {
+    await db.prepare(`CREATE TABLE IF NOT EXISTS app_config (key TEXT PRIMARY KEY, value TEXT)`).run();
+    const rows: [string, string][] = [
+      ['android_update_version_code', String(Number(m.versionCode || 0))],
+      ['android_update_version_name', String(m.versionName || '')],
+      ['android_update_apk_url', String(m.apkUrl || '')],
+      ['android_update_mandatory', m.mandatory ? '1' : '0'],
+      ['android_update_notes', String(m.notes || '')],
+    ];
+    for (const [k, v] of rows) {
+      await db
+        .prepare(`INSERT INTO app_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`)
+        .bind(k, v)
+        .run();
+    }
+  } catch { /* best-effort */ }
+}
+
+/** Current manifest + R2 object metadata for the admin UI. */
+app.get('/api/admin/app-update', async (c) => {
+  const gate = gateAppUpdateAdmin(c);
+  if (!gate.ok) return c.json({ success: false, error: gate.error }, gate.status as any);
+  const { manifest, source, jsonMeta, apk } = await readAppUpdateState(c.env);
+  const base = appUpdateCdnBase(c.env);
+  return c.json({
+    success: true,
+    data: {
+      manifest: manifest || {
+        versionCode: 0,
+        versionName: '',
+        apkUrl: `${base}/${APP_UPDATE_APK_KEY}`,
+        mandatory: false,
+        notes: '',
+      },
+      source,
+      json: { key: APP_UPDATE_JSON_KEY, url: `${base}/${APP_UPDATE_JSON_KEY}`, size: jsonMeta?.size ?? null, uploaded: jsonMeta?.uploaded ?? null },
+      apk: { key: APP_UPDATE_APK_KEY, url: `${base}/${APP_UPDATE_APK_KEY}`, size: apk?.size ?? null, uploaded: apk?.uploaded ?? null },
+      maxApkBytes: APP_UPDATE_MAX_APK_BYTES,
+    },
+  });
+});
+
+/** Save (create/replace) latest.json on R2 + mirror to app_config. */
+app.put('/api/admin/app-update', async (c) => {
+  const gate = gateAppUpdateAdmin(c);
+  if (!gate.ok) return c.json({ success: false, error: gate.error }, gate.status as any);
+  let body: any = {};
+  try { body = await c.req.json(); } catch { return c.json({ success: false, error: 'JSON invalide' }, 400); }
+  const versionCode = Math.floor(Number(body.versionCode));
+  if (!Number.isFinite(versionCode) || versionCode < 1) {
+    return c.json({ success: false, error: 'versionCode invalide (entier ≥ 1)' }, 400);
+  }
+  const versionName = String(body.versionName || '').trim().slice(0, 64);
+  if (!versionName) return c.json({ success: false, error: 'versionName obligatoire' }, 400);
+  let apkUrl = String(body.apkUrl || '').trim();
+  if (!apkUrl) apkUrl = `${appUpdateCdnBase(c.env)}/${APP_UPDATE_APK_KEY}`;
+  if (!/^https:\/\/\S+$/i.test(apkUrl)) return c.json({ success: false, error: 'apkUrl doit être une URL https://' }, 400);
+  const manifest = {
+    versionCode,
+    versionName,
+    apkUrl,
+    mandatory: body.mandatory === true || body.mandatory === 'true' || body.mandatory === 1,
+    notes: String(body.notes || '').slice(0, 4000),
+  };
+  if (c.env.IMAGES) {
+    try {
+      await c.env.IMAGES.put(APP_UPDATE_JSON_KEY, JSON.stringify(manifest, null, 2), {
+        httpMetadata: { contentType: 'application/json', cacheControl: 'public, max-age=60' },
+        customMetadata: { updated_by: gate.username, updated_at: new Date().toISOString() },
+      });
+    } catch (e: any) {
+      return c.json({ success: false, error: `Échec écriture R2 : ${e?.message || e}` }, 502);
+    }
+  }
+  await mirrorAppUpdateConfig(c.env.DB, manifest);
+  return c.json({ success: true, data: { manifest, storage: c.env.IMAGES ? 'r2+db' : 'db' } });
+});
+
+/** Upload latest.apk (raw binary body streamed to R2 — no full buffering). */
+app.post('/api/admin/app-update/apk', async (c) => {
+  const gate = gateAppUpdateAdmin(c);
+  if (!gate.ok) return c.json({ success: false, error: gate.error }, gate.status as any);
+  if (!c.env.IMAGES) return c.json({ success: false, error: 'Binding R2 (IMAGES) absent' }, 501);
+  const len = Number(c.req.header('Content-Length') || 0);
+  if (len > APP_UPDATE_MAX_APK_BYTES) return c.json({ success: false, error: 'APK trop lourd (max 200 Mo)' }, 413);
+  const stream = c.req.raw.body;
+  if (!stream) return c.json({ success: false, error: 'Corps APK absent' }, 400);
+  try {
+    await c.env.IMAGES.put(APP_UPDATE_APK_KEY, stream as any, {
+      httpMetadata: { contentType: APP_UPDATE_APK_MIME, cacheControl: 'public, max-age=300' },
+      customMetadata: { updated_by: gate.username, updated_at: new Date().toISOString() },
+    });
+  } catch (e: any) {
+    return c.json({ success: false, error: `Échec upload R2 : ${e?.message || e}` }, 502);
+  }
+  const head = await c.env.IMAGES.head(APP_UPDATE_APK_KEY).catch(() => null);
+  const base = appUpdateCdnBase(c.env);
+  // If the manifest exists but has no apkUrl yet, point it at the APK we just stored.
+  try {
+    const { manifest } = await readAppUpdateState(c.env);
+    if (manifest && !String(manifest.apkUrl || '').trim()) {
+      manifest.apkUrl = `${base}/${APP_UPDATE_APK_KEY}`;
+      if (c.env.IMAGES) {
+        await c.env.IMAGES.put(APP_UPDATE_JSON_KEY, JSON.stringify(manifest, null, 2), {
+          httpMetadata: { contentType: 'application/json', cacheControl: 'public, max-age=60' },
+          customMetadata: { updated_by: gate.username, updated_at: new Date().toISOString() },
+        });
+      }
+      await mirrorAppUpdateConfig(c.env.DB, manifest);
+    }
+  } catch { /* best-effort */ }
+  return c.json({
+    success: true,
+    data: { key: APP_UPDATE_APK_KEY, size: head?.size ?? len, url: `${base}/${APP_UPDATE_APK_KEY}` },
   });
 });
 

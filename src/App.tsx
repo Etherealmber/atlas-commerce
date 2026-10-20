@@ -545,7 +545,16 @@ function useTheme() {
   });
   useEffect(() => {
     const apply = () => {
-      document.documentElement.setAttribute('data-theme', resolveTheme(mode));
+      const resolved = resolveTheme(mode);
+      const root = document.documentElement;
+      root.setAttribute('data-theme', resolved);
+      // Legacy rules + skeletons key off .theme-dark — keep both in sync.
+      root.classList.toggle('theme-dark', resolved === 'dark');
+      // Native controls (select, date pickers, scrollbars) follow the theme.
+      root.style.colorScheme = resolved;
+      // Browser / WebView chrome (status bar on phone) follows the theme.
+      const meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.setAttribute('content', resolved === 'dark' ? '#111113' : '#f4f5f7');
     };
     apply();
     localStorage.setItem('atlas-theme', mode);
@@ -669,6 +678,7 @@ function DesktopShell() {
     { id: 'warehouse', label: 'Entrepôts', icon: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z' },
     { id: 'categories', label: 'Catégories', icon: 'M4 6h16M4 12h16M4 18h10' },
     { id: 'integrations', label: 'API', icon: 'M10 13a5 5 0 0 0 7.07 0l1.41-1.41a5 5 0 0 0-7.07-7.07L10 5.5M14 11a5 5 0 0 0-7.07 0L5.5 12.43a5 5 0 0 0 7.07 7.07L14 18.5' },
+    { id: 'app', label: 'Mise à jour app', icon: 'M7 2h10a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1zM11 18h2M12 2v0' },
     { id: 'admin', label: 'Admin', icon: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68V3a2 2 0 1 1 4 0v.09c0 .66.39 1.26 1 1.51.6.26 1.3.12 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.66 0 1.26.39 1.51 1H21a2 2 0 1 1 0 4h-.09c-.25.61-.85 1-1.51 1z' },
     { id: 'audit', label: 'Journal d’audit', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M9 13h6M9 17h4' },
   ];
@@ -1032,9 +1042,8 @@ function DesktopShell() {
                 </svg>
               </button>
             )}
-            
-            }
-<div className="ac-topbar-notif-wrap">
+
+            <div className="ac-topbar-notif-wrap">
               <button
                 type="button"
                 className="ac-topbar-icon secondary ac-topbar-bell"
@@ -1162,7 +1171,7 @@ function DesktopShell() {
             <nav className="settings-topbar-tabs" aria-label="Sections paramètres">
               {SETTINGS_TOP_TABS.filter((tab) => {
                 if (tab.id === 'profile') return true;
-                if (tab.id === 'admin' || tab.id === 'audit') return canAccessAdminSettings();
+                if (tab.id === 'admin' || tab.id === 'audit' || tab.id === 'app') return canAccessAdminSettings();
                 return canAccessCompanySettings();
               }).map((tab) => (
                 <button
@@ -1181,8 +1190,6 @@ function DesktopShell() {
               ))}
             </nav>
           )}
-
-          }
 
           {location.pathname === '/whats-new' && (
             <nav className="settings-topbar-tabs whats-new-topbar-tabs" aria-label="Filtrer les nouveautés">

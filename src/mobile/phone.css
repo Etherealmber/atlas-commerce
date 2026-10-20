@@ -1864,10 +1864,204 @@ html.phone-shell .atlas-agent-foot {
 html[data-theme="dark"].phone-shell .phone-topbar,
 html[data-theme="dark"].phone-shell .phone-tabbar,
 html[data-theme="dark"].phone-shell .atlas-agent-foot {
-  background: #0c0c0c !important;
-  border-color: #27272a !important;
+  background: #111113 !important;
+  border-color: #2a2a2e !important;
 }
 html.phone-shell .phone-mark {
   background: #0a0a0a !important;
   color: #fafafa !important;
+}
+
+
+/* ========== PHONE DARK THEME (data-theme="dark") ==========
+   The phone shell used hardcoded light surfaces; this block remaps every
+   phone surface to the app-wide dark tokens (#111113 / #1c1c1f / #2a2a2e).
+   Light theme is untouched — all rules are scoped to html[data-theme="dark"]. */
+
+/* Account menu + boot strip: colors live in CSS now (were inline styles) */
+.ph-account-menu {
+  background: #fff;
+  border-radius: 14px;
+  padding: 8px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .12);
+  border: 1px solid rgba(20, 34, 31, .08);
+}
+.ph-account-menu-head { border-bottom: 1px solid #eee; }
+.ph-boot-strip { padding: 6px 16px; font-size: 12px; color: #9aa3b5; background: #f5f2eb; }
+
+html[data-theme="dark"] .phone-root {
+  background: #111113;
+  color: #f4f4f5;
+}
+html[data-theme="dark"] .phone-topbar {
+  background: #111113;
+  border-bottom-color: #2a2a2e;
+}
+html[data-theme="dark"] .phone-tabbar {
+  background: #141417;
+  border-top-color: #2a2a2e;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, .45);
+}
+html[data-theme="dark"] .ptab { color: #8b8b93; }
+html[data-theme="dark"] .ptab.active { color: #fafafa; }
+html[data-theme="dark"] .phone-icon-btn {
+  background: #1c1c1f;
+  color: #f4f4f5;
+  border-color: #2a2a2e;
+  box-shadow: none;
+}
+html[data-theme="dark"] .phone-icon-btn:active { background: #27272a; }
+html[data-theme="dark"] .phone-notification-badge { border-color: #111113; }
+html[data-theme="dark"] .phone-avatar {
+  border-color: #1c1c1f;
+  outline-color: #3f3f46;
+}
+html[data-theme="dark"] .phone-user-chip strong { color: #f4f4f5; }
+html[data-theme="dark"] .phone-user-chip span { color: #a1a1aa; }
+
+/* Cards / panels / sheets */
+html[data-theme="dark"] .ph-panel,
+html[data-theme="dark"] .ph-card,
+html[data-theme="dark"] .ph-settings-card,
+html[data-theme="dark"] .phone-more-list,
+html[data-theme="dark"] .ph-modal {
+  background: #1c1c1f;
+  border-color: #2a2a2e;
+  color: #f4f4f5;
+  box-shadow: none;
+}
+html[data-theme="dark"] .ph-stat.mint,
+html[data-theme="dark"] .ph-stat.peach,
+html[data-theme="dark"] .ph-stat.rose,
+html[data-theme="dark"] .ph-stat.white {
+  background: #1c1c1f;
+  border: 1px solid #2a2a2e;
+}
+html[data-theme="dark"] .ph-row,
+html[data-theme="dark"] .ph-prod,
+html[data-theme="dark"] .ph-inv-item,
+html[data-theme="dark"] .ph-settings-row {
+  border-color: #2a2a2e;
+}
+html[data-theme="dark"] .ph-row.ph-card {
+  background: #1c1c1f;
+  border-color: #2a2a2e !important;
+}
+html[data-theme="dark"] .phone-more-list a {
+  color: #e4e4e7;
+  border-bottom-color: #2a2a2e;
+}
+html[data-theme="dark"] .phone-more-list a.active {
+  background: #27272a;
+  color: #fafafa;
+}
+html[data-theme="dark"] .ph-wh-active { background: #27272a; }
+
+/* Chips / tabs / badges / segments */
+html[data-theme="dark"] .ph-tabs { background: #27272a; }
+html[data-theme="dark"] .ph-tabs button { color: #a1a1aa; }
+html[data-theme="dark"] .ph-tabs button.on {
+  background: #3f3f46;
+  color: #fafafa;
+  box-shadow: none;
+}
+html[data-theme="dark"] .ph-chip {
+  background: #1c1c1f;
+  border-color: #3f3f46;
+  color: #e4e4e7;
+}
+html[data-theme="dark"] .ph-chip.on {
+  background: #33270f;
+  border-color: #8a6d1f;
+  color: #fbbf24;
+}
+html[data-theme="dark"] .ph-badge { background: #27272a; color: #e4e4e7; }
+html[data-theme="dark"] .ph-badge.ok { background: #12291f; color: #86efac; }
+html[data-theme="dark"] .ph-badge.bad { background: #331614; color: #fca5a5; }
+html[data-theme="dark"] .ph-seg button {
+  background: #1c1c1f;
+  border-color: #3f3f46;
+  color: #a1a1aa;
+}
+html[data-theme="dark"] .ph-seg button.on {
+  background: #fafafa;
+  border-color: #fafafa;
+  color: #0a0a0a;
+}
+
+/* Muted text */
+html[data-theme="dark"] .ph-sub,
+html[data-theme="dark"] .ph-meta,
+html[data-theme="dark"] .ph-card-meta,
+html[data-theme="dark"] .ph-row-detail,
+html[data-theme="dark"] .ph-stat .lbl,
+html[data-theme="dark"] .ph-stat .hint,
+html[data-theme="dark"] .ph-settings-hint,
+html[data-theme="dark"] .ph-field label,
+html[data-theme="dark"] .ph-modal label,
+html[data-theme="dark"] .ph-empty p,
+html[data-theme="dark"] .ph-restricted p,
+html[data-theme="dark"] .ph-boot-strip { color: #a1a1aa; }
+html[data-theme="dark"] .ph-empty h2,
+html[data-theme="dark"] .ph-back,
+html[data-theme="dark"] .ph-card-title,
+html[data-theme="dark"] .ph-row-title { color: #f4f4f5; }
+
+/* Inputs / search / modals */
+html[data-theme="dark"] .ph-search,
+html[data-theme="dark"] .ph-field select,
+html[data-theme="dark"] .ph-field input,
+html[data-theme="dark"] .ph-modal input,
+html[data-theme="dark"] .ph-modal textarea,
+html[data-theme="dark"] .ph-agent-composer textarea {
+  background: #1c1c1f;
+  border-color: #3f3f46;
+  color: #f4f4f5;
+}
+html[data-theme="dark"] .ph-search::placeholder,
+html[data-theme="dark"] .ph-field input::placeholder,
+html[data-theme="dark"] .ph-modal input::placeholder,
+html[data-theme="dark"] .ph-agent-composer textarea::placeholder { color: #71717a; }
+html[data-theme="dark"] .ph-modal-bg { background: rgba(0, 0, 0, .62); }
+html[data-theme="dark"] .ph-refresh-inline {
+  background: #1c1c1f !important;
+  border-color: #3f3f46 !important;
+  color: #e4e4e7 !important;
+}
+
+/* Banners */
+html[data-theme="dark"] .ph-perm-banner {
+  background: #331614;
+  border-color: #7f1d1d;
+  color: #fecaca;
+}
+html[data-theme="dark"] .ph-hub-badge {
+  background: #16211f;
+  border-color: #2a2a2e;
+  color: #d4e5e2;
+}
+html[data-theme="dark"] .ph-boot-strip { background: #111113; }
+
+/* Agent chat */
+html[data-theme="dark"] .ph-agent-bubble.assistant {
+  background: #1c1c1f;
+  border-color: #2a2a2e;
+  color: #f4f4f5;
+}
+html[data-theme="dark"] .ph-agent-composer { border-top-color: #2a2a2e; }
+
+/* Account menu (colors moved here from inline styles) */
+html[data-theme="dark"] .ph-account-menu {
+  background: #1c1c1f;
+  border-color: #2a2a2e;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .5);
+}
+html[data-theme="dark"] .ph-account-menu-head { border-bottom-color: #2a2a2e; }
+html[data-theme="dark"] .ph-account-menu .ph-menu-item { color: #f4f4f5 !important; }
+html[data-theme="dark"] .ph-account-menu .ph-menu-item.ph-menu-danger { color: #f87171 !important; }
+
+/* Toast: invert for contrast on dark backgrounds */
+html[data-theme="dark"] .phone-toast {
+  background: #fafafa;
+  color: #0a0a0a;
 }

@@ -70,3 +70,6 @@ html, body {
   background: var(--ac-bg) !important;
   color: var(--ac-ink);
 }
+/* Native widgets (selects, date inputs, scrollbars, autofill) follow the theme */
+html[data-theme="dark"] { color-scheme: dark; }
+html[data-theme="light"] { color-scheme: light; }

@@ -88,8 +88,13 @@ Sans secrets Firebase → register OK, envoi no-op (pas d’erreur bloquante).
 ## Mises à jour APK
 
 - Manifeste R2 : `app-updates/android/latest.json`
-- `GET /api/app/android-update?versionCode=12`
+- `GET /api/app/android-update?versionCode=12` — public (appelé avant login pour le flux mandatory)
 - L’app télécharge l’APK en interne (pas de navigateur).
+- Gestion admin (owner/admin) depuis Paramètres → onglet « Mise à jour app » :
+  - `GET /api/admin/app-update` — manifeste courant + métadonnées R2 (json/apk)
+  - `PUT /api/admin/app-update` — écrit `latest.json` sur R2 (+ miroir `app_config`)
+  - `POST /api/admin/app-update/apk` — upload binaire streamé vers R2 (max 200 Mo,
+    exempté du plafond 2 Mo des routes API)
 
 ## UBL / facturation électronique (M1 local)
 

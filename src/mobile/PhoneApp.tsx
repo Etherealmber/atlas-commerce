@@ -285,6 +285,9 @@ export default function PhoneApp() {
     const dark = v === 'dark' || (v === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     root.dataset.theme = dark ? 'dark' : 'light';
     root.classList.toggle('theme-dark', dark);
+    root.style.colorScheme = dark ? 'dark' : 'light';
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', dark ? '#111113' : '#f4f5f7');
   };
   const applyGlass = (v: boolean) => {
     setGlassOn(v);
@@ -363,8 +366,8 @@ export default function PhoneApp() {
                   onClick={() => setAccountOpen(false)}
                   style={{ position: 'fixed', inset: 0, border: 0, background: 'transparent', zIndex: 40 }}
                 />
-                <div className="ph-account-menu" role="menu" style={{ position: 'absolute', right: 0, top: '110%', zIndex: 50, minWidth: 200, background: '#fff', borderRadius: 14, padding: 8, boxShadow: '0 12px 40px rgba(0,0,0,.12)', border: '1px solid rgba(20,34,31,.08)' }}>
-                  <div style={{ padding: '8px 10px', borderBottom: '1px solid #eee' }}>
+                <div className="ph-account-menu" role="menu" style={{ position: 'absolute', right: 0, top: '110%', zIndex: 50, minWidth: 200 }}>
+                  <div className="ph-account-menu-head" style={{ padding: '8px 10px' }}>
                     <strong>{getDisplayName()}</strong>
                     <div className="muted" style={{ fontSize: 12 }}>{roleLabel}</div>
                   </div>
@@ -410,7 +413,7 @@ export default function PhoneApp() {
       </header>
 
       {booting && (
-        <div style={{ padding: '6px 16px', fontSize: 12, color: '#9aa3b5', background: '#f5f2eb' }}>
+        <div className="ph-boot-strip">
           Synchronisation…
         </div>
       )}
