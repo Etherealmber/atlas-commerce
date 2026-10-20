@@ -17,6 +17,7 @@ import { validateBillForm, firstError } from '../lib/formValidate';
 import { PAYMENT_METHODS, paymentMethodLabel } from '../lib/money';
 import RefreshIconButton from '../components/RefreshIconButton';
 import { FloatingPortal } from '../components/FloatingPortal';
+import { useWizard, StepBody, WizardFoot } from '../components/ui/FormWizard';
 import { ModalFormError, FieldHint } from '../components/ModalFormFeedback';
 
 const fmt = (n: number) => Math.round(Number(n || 0)).toLocaleString('fr-FR');
@@ -31,6 +32,7 @@ export default function Bills() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const wz = useWizard(3);
   const [filter, setFilter] = useState('');
   const [search, setSearch] = useState('');
   const [vendorId, setVendorId] = useState<number | ''>('');
@@ -459,39 +461,31 @@ export default function Bills() {
       </div>
 
       {showModal && (
-        <FloatingPortal><div className="modal-overlay" onClick={() => setShowModal(false)}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => { setShowModal(false); wz.reset(); }}>
           <div className="modal" style={{ maxWidth: 1080, width: '96vw' }} onClick={(e) => e.stopPropagation()}>
             <h2>Nouvelle facture d'achat</h2>
 
-            <div
-              className="form-row"
-              style={{
-                border: '1px dashed var(--ac-line, var(--line, #d4d4d8))',
-                borderRadius: 12,
-                padding: '12px 14px',
-                marginBottom: 14,
-              }}
-            >
-              <label style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                <span>📷 Scanner une facture (OCR) — image ou PDF</span>
-                <input
-                  type="file"
-                  accept="image/*,application/pdf"
-                  disabled={ocrBusy}
-                  onChange={(e) => {
-                    const f = e.target.files?.[0] || null;
-                    e.target.value = '';
-                    runBillOcr(f);
-                  }}
-                  style={{ maxWidth: 260 }}
-                />
-                {ocrBusy && <span style={{ fontSize: 12, color: 'var(--muted)' }}>Extraction en cours…</span>}
-              </label>
-              <p style={{ fontSize: 12, color: 'var(--muted)', margin: '6px 0 0' }}>
-                Fournisseur, date, numéro, lignes et total sont pré-remplis — rien n'est enregistré sans votre validation.
-              </p>
-            </div>
+            <label className="dropzone">
+              <span className="dropzone-ico" aria-hidden>📷</span>
+              <span className="dropzone-title">Scanner une facture (OCR) — image ou PDF</span>
+              <span className="dropzone-hint">Glissez un fichier ici ou cliquez pour parcourir</span>
+              <input
+                type="file"
+                accept="image/*,application/pdf"
+                disabled={ocrBusy}
+                onChange={(e) => {
+                  const f = e.target.files?.[0] || null;
+                  e.target.value = '';
+                  runBillOcr(f);
+                }}
+              />
+              {ocrBusy && <span className="dropzone-busy">Extraction en cours…</span>}
+            </label>
+            <p className="dropzone-note">
+              Fournisseur, date, numéro, lignes et total sont pré-remplis — rien n'est enregistré sans votre validation.
+            </p>
 
+            <StepBody active={wz.step === 1}>
             <div className="form-row">
               <label>Fournisseur enregistré</label>
               <TypeaheadField
@@ -515,6 +509,8 @@ export default function Bills() {
             <div className="form-row"><label>Adresse</label><input value={vendorAddress} onChange={(e) => setVendorAddress(e.target.value)} /></div>
             <div className="form-row"><label>Date d'émission</label><DatePicker value={issueDate} onChange={setIssueDate} /></div>
 
+            </StepBody>
+            <StepBody active={wz.step === 2}>
             <h3 style={{ margin: '16px 0 8px', fontSize: 14 }}>Articles — stock à la réception</h3>
             <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10, lineHeight: 1.4 }}>
               Choisissez un produit (recherche), le <strong>prix d&apos;achat</strong> se remplit si le coût catalogue existe. Vous pouvez le modifier librement.
@@ -620,13 +616,20 @@ export default function Bills() {
               Prix d’achat libre. Le coût catalogue est recalculé en moyenne pondérée à la réception (ancien stock × ancien coût + nouvel achat).
             </p>
 
+            </StepBody>
+            <StepBody active={wz.step === 3}>
             <div className="form-row"><label>Notes</label><textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
-            <ModalFormError message={modalError} />
-            <div className="form-actions">
-              {firstError(fieldErrors) && <span className="save-error-inline">{firstError(fieldErrors)}</span>}
-              <button onClick={create} disabled={saving}>{saving ? 'Enregistrement…' : 'Créer et enregistrer'}</button>
-              <button type="button" className="secondary" onClick={() => setShowModal(false)}>Annuler</button>
-            </div>
+            </StepBody>
+            <ModalFormError message={modalError || firstError(fieldErrors)} />
+            <WizardFoot
+              title="Nouvelle facture d'achat"
+              wz={wz}
+              stepLabel={wz.step === 1 ? 'Fournisseur' : wz.step === 2 ? 'Articles' : 'Notes & validation'}
+              onCancel={() => { setShowModal(false); wz.reset(); }}
+              onSubmit={() => void create()}
+              submitLabel={saving ? 'Enregistrement…' : 'Créer et enregistrer'}
+              saving={saving}
+            />
           </div>
         </div></FloatingPortal>
       )}

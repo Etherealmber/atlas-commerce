@@ -525,6 +525,14 @@ function useTheme() {
     return v === 'dark' || v === 'system' ? v : 'light';
   });
   useEffect(() => {
+    const sync = () => {
+      const v = localStorage.getItem('atlas-theme') || 'light';
+      setMode(v === 'dark' || v === 'system' ? v : 'light');
+    };
+    window.addEventListener('atlas-theme-change', sync);
+    return () => window.removeEventListener('atlas-theme-change', sync);
+  }, []);
+  useEffect(() => {
     const apply = () => {
       const resolved = resolveTheme(mode);
       const root = document.documentElement;

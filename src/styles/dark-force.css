@@ -2512,3 +2512,122 @@ html[data-theme="dark"] body .atlas-dp-pop .atlas-dp-preset:hover {
   color: #fafafa !important;
 }
 /* v215 END */
+
+/* ═══════════════════════════════════════════════════════════════
+   v216 — themed info notes, dropzone card, wizard-everywhere support,
+   dash range pills, WhatsNew dark canvas, no-select buttons
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Info notes inside popups (WR statuses, hints) — readable both themes */
+.modal-note {
+  font-size: 12px;
+  line-height: 1.5;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #f5f2eb;
+  border: 1px solid #e3dccb;
+  color: #5c4a2e;
+}
+.modal-note--ok { background: #eef7f0; border-color: #cfe6d6; color: #1a1d26; }
+.modal-note--warn { background: #fdf6ef; border-color: #e8c9a0; color: #5c3d1e; }
+html[data-theme="dark"] body .modal-note,
+html[data-theme="dark"] body .modal-note--warn {
+  background: rgba(232, 163, 23, 0.10) !important;
+  border-color: rgba(232, 163, 23, 0.35) !important;
+  color: #e8c9a0 !important;
+  -webkit-text-fill-color: #e8c9a0 !important;
+}
+html[data-theme="dark"] body .modal-note--ok {
+  background: rgba(161, 161, 170, 0.10) !important;
+  border-color: rgba(161, 161, 170, 0.30) !important;
+  color: #d4d4d8 !important;
+  -webkit-text-fill-color: #d4d4d8 !important;
+}
+html[data-theme="dark"] body .modal-note strong { color: inherit !important; }
+
+/* Dropzone card (OCR bill scan) — clean in both themes */
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+  border: 1.5px dashed var(--pie-thumb-border, #d4d4d8);
+  border-radius: 14px;
+  padding: 18px 16px;
+  margin-bottom: 10px;
+  background: var(--pie-thumb-bg, #faf9f6);
+  cursor: pointer;
+  transition: border-color 0.16s ease, background-color 0.16s ease, transform 0.12s ease;
+}
+.dropzone:hover { border-color: #e8a317; }
+.dropzone:active { transform: scale(0.995); }
+.dropzone-ico { font-size: 22px; line-height: 1; }
+.dropzone-title { font-size: 13px; font-weight: 600; color: var(--ac-ink, #0f172a); }
+.dropzone-hint { font-size: 11px; color: var(--ac-muted, #64748b); }
+.dropzone-busy { font-size: 12px; color: #e8a317; font-weight: 600; }
+.dropzone input[type="file"] {
+  margin-top: 8px;
+  max-width: 280px;
+  font-size: 11px;
+  color: var(--ac-muted, #64748b);
+}
+.dropzone-note { font-size: 12px; color: var(--ac-muted, #64748b); margin: 0 0 14px; }
+html[data-theme="dark"] body .dropzone {
+  background: #202024 !important;
+  border-color: #3f3f46 !important;
+}
+html[data-theme="dark"] body .dropzone:hover { border-color: #e8a317 !important; }
+html[data-theme="dark"] body .dropzone-title { color: #e4e4e7 !important; }
+html[data-theme="dark"] body .dropzone-hint,
+html[data-theme="dark"] body .dropzone-note { color: #a1a1aa !important; }
+
+/* Dashboard range pills: zinc in dark, light pill when active */
+html[data-theme="dark"] body .dash-range-btn {
+  background: #27272a !important;
+  border-color: #3f3f46 !important;
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+}
+html[data-theme="dark"] body .dash-range-btn.is-on {
+  background: #e4e4e7 !important;
+  border-color: #e4e4e7 !important;
+  color: #18181b !important;
+  -webkit-text-fill-color: #18181b !important;
+}
+/* Buttons never get text-selected while tapping/dragging */
+html body button, html body .btn { user-select: none; -webkit-user-select: none; }
+
+/* WhatsNew page: full dark canvas */
+html[data-theme="dark"] body .wn-changelog { color: #e4e4e7; }
+html[data-theme="dark"] body .wn-lead,
+html[data-theme="dark"] body .wn-ver,
+html[data-theme="dark"] body .wn-ver-date,
+html[data-theme="dark"] body .wn-crumb { color: #a1a1aa !important; }
+html[data-theme="dark"] body .wn-release {
+  background: #1c1c1f !important;
+  border-color: #2e2e33 !important;
+}
+html[data-theme="dark"] body .wn-release h3,
+html[data-theme="dark"] body .wn-release li { color: #d4d4d8 !important; }
+
+/* Modals not yet on the wizard kit: primaries light zinc, never navy/black */
+html[data-theme="dark"] body .modal .form-actions button:not(.secondary):not(.danger),
+html[data-theme="dark"] body .modal-card .form-actions button:not(.secondary):not(.danger),
+html[data-theme="dark"] body .modal-actions button:not(.secondary):not(.danger) {
+  background: #e4e4e7 !important;
+  background-image: none !important;
+  color: #18181b !important;
+  -webkit-text-fill-color: #18181b !important;
+  border-color: #e4e4e7 !important;
+}
+html[data-theme="dark"] body .modal .form-actions button:not(.secondary):not(.danger):disabled,
+html[data-theme="dark"] body .modal-actions button:not(.secondary):not(.danger):disabled {
+  background: #26262a !important;
+  color: #7c7c85 !important;
+  -webkit-text-fill-color: #7c7c85 !important;
+  border-color: #333338 !important;
+  opacity: 1 !important;
+}
+/* v216 END */
