@@ -39,7 +39,7 @@ import './App.css';
 import './styles/theme.css';
 import './styles/shell.css';
 
-import { applyDensityFromStorage, getDensity, setDensity, getUiScale, setUiScale, isGlassEnabled, setGlassEnabled, isLiquidGlassActive, subscribeUiPrefs, type Density, type UiScale } from './lib/density';
+import { applyDensityFromStorage, getDensity, setDensity, getUiScale, setUiScale, subscribeUiPrefs, type Density, type UiScale } from './lib/density';
 import AtlasLoadingBar from './components/AtlasLoadingBar';
 import { isWelcomeCompleted } from './lib/welcome';
 import { hasUnreadWhatsNew } from './lib/whatsNew';
@@ -206,18 +206,16 @@ function AccountMenu({
   }, []);
   const [d, setD] = useState<Density>(() => getDensity());
   const [scale, setScale] = useState<UiScale>(() => getUiScale());
-  const [glass, setGlass] = useState(() => isGlassEnabled());
   const [profileTick, setProfileTick] = useState(0);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [panelStyle, setPanelStyle] = useState<React.CSSProperties>({});
   useEffect(() => { applyDensityFromStorage(); }, []);
 
-  // Live sync density / scale / glass from Settings or other panels
+  // Live sync density / scale from Settings or other panels
   useEffect(() => {
     return subscribeUiPrefs(() => {
       setD(getDensity());
       setScale(getUiScale());
-      setGlass(isGlassEnabled());
     });
   }, []);
 
@@ -360,23 +358,6 @@ function AccountMenu({
                 <button type="button" className={scale === 'md' ? 'active' : undefined} onClick={() => { setUiScale('md'); setScale('md'); }}>Moyen</button>
                 <button type="button" className={scale === 'lg' ? 'active' : undefined} onClick={() => { setUiScale('lg'); setScale('lg'); }}>Grand</button>
               </div>
-              <div className="account-glass-row">
-                <span>Liquid glass</span>
-                <button
-                  type="button"
-                  className={`account-glass-switch${isLiquidGlassActive() && glass ? ' on' : ''}`}
-                  role="switch"
-                  aria-checked={isLiquidGlassActive()}
-                  onClick={() => {
-                    const next = !glass;
-                    setGlassEnabled(next);
-                    setGlass(next);
-                  }}
-                >
-                  <span className="account-glass-knob" />
-                </button>
-              </div>
-
               <div className="account-menu-divider" />
               <button type="button" role="menuitem" className="account-menu-item account-menu-danger" onClick={() => { setOpen(false); onLogout(); }}>
                 <MenuSvg d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />

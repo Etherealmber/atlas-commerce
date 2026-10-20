@@ -21,6 +21,37 @@ type Release = {
 
 const RELEASES: Release[] = [
   {
+    version: '1.4.4-beta',
+    date: '20 octobre 2026',
+    sections: [
+      {
+        kind: 'features',
+        items: [
+          { id: '144a1', text: 'Scan : code inconnu → demande de création produit (photo comprise), validée depuis la liste Produits' },
+          { id: '144a2', text: 'Mises à jour de l’application Android gérées depuis Paramètres (lien + APK via le serveur)' },
+          { id: '144a3', text: 'Formulaires guidés par étapes (employés) avec barre d’actions fixe : Retour / Continuer toujours au même endroit' },
+          { id: '144a4', text: 'Atlas Agent : « créer un client nommé X avec email/téléphone » ouvre directement la fiche pré-remplie à vérifier' },
+        ],
+      },
+      {
+        kind: 'improvements',
+        items: [
+          { id: '144b1', text: 'Thème sombre unifié partout : une seule palette zinc (fini les fonds bleu marine)' },
+          { id: '144b2', text: 'Menu du compte, sélecteur de dates (y compris plage) et boutons de période entièrement sombres' },
+          { id: '144b3', text: 'Suppressions et créations sensibles : simple confirmation, plus de mot de passe à ressaisir (la session + OTP protègent déjà)' },
+        ],
+      },
+      {
+        kind: 'fixes',
+        items: [
+          { id: '144c1', text: 'Synchronisation des conversations Atlas Agent restaurée (erreur 404 sur les threads)' },
+          { id: '144c2', text: 'Page Nouveautés : entrée fantôme qui faisait plancher l’affichage corrigée' },
+          { id: '144c3', text: 'Tableau de bord : plus d’erreur 403 quand le module Pointage est désactivé' },
+        ],
+      },
+    ],
+  },
+  {
     version: '1.4.3-beta',
     date: '11 octobre 2026',
     sections: [
@@ -122,7 +153,7 @@ const RELEASES: Release[] = [
         ],
       },
     ],
-  },,
+  },
   {
     version: '1.4.0-beta',
     date: '1er octobre 2026',
@@ -141,7 +172,7 @@ const RELEASES: Release[] = [
       {
         kind: 'fixes',
         items: [
-          { id: 'x0y1z2a', text: 'Purge liquid glass, teal et résidus verts (web + mobile)' },
+          { id: 'x0y1z2a', text: 'Purge des effets de verre, teal et résidus verts (web + mobile)' },
           { id: 'b3c4d5e', text: 'Login Auth7, cases noires, personnages ; barre Agent lisible' },
           { id: 'f6g7h8i', text: 'Bouton Supprimer fixe (plus de troncature ni saut de layout)' },
         ],

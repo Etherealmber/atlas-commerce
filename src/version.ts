@@ -1,8 +1,8 @@
 /** Product identity + version — all releases are beta until stable. */
 export const APP_NAME = 'Atlas Commerce';
 export const APP_TAGLINE = 'Stock · Caisse · Facturation';
-export const APP_VERSION = '1.4.3-beta';
-export const APP_BUILD_DATE = '2026-10-11';
+export const APP_VERSION = '1.4.4-beta';
+export const APP_BUILD_DATE = '2026-10-20';
 export const APP_BUILD = APP_BUILD_DATE;
 export const APP_CHANNEL = 'beta' as const;
 

@@ -327,7 +327,7 @@ export default function QuickSale() {
       if (bits.length) disclaimer = `Ce ticket VR et ${bits.join(', ')} seront effacés. Stock rétabli.`;
     } catch { /* */ }
     setPwTitle('Supprimer le ticket VR');
-    setPwDesc(disclaimer + ' Saisissez votre mot de passe.');
+    setPwDesc(disclaimer + ' Confirmez pour continuer.');
     setPendingAction(() => async (password: string) => {
       const res: any = await api.deleteInvoice(id, password);
       flash(res.message || 'Ticket supprimé.');

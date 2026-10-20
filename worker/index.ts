@@ -771,12 +771,12 @@ registerClientRoutes(app, {
   writeAudit,
 });
 registerPartnerV1Routes(app);
-/* Mail UI removed — routes not registered
+/* Mail UI removed from the shell, but the mailbox module still serves the
+   Atlas Agent thread sync routes (/api/admin/agent/threads*) — keep them live. */
 registerMailboxRoutes(app, {
   verifyBackupAccess,
   sessionUserFromHeader,
 });
-*/
 registerEmployeeRoutes(app, { checkConfirmPassword });
 // Admin read routes need helpers defined later — registered near Users & Admin section
 
@@ -1318,13 +1318,12 @@ async function checkConfirmPassword(
   if (!provided.trim() && (body?.confirm_mode === 'timed_undo' || body?.session_confirm === true)) {
     return { ok: true };
   }
+  // No password typed → the session itself is the confirmation.
+  // Delete/confirm dialogs never ask for a password anymore (product decision):
+  // login + OTP + per-route role gates are the security boundary. If a legacy
+  // client DOES send one, it is still verified below.
   if (!provided.trim()) {
-    return {
-      ok: false,
-      error: 'Veuillez saisir votre mot de passe pour confirmer cette action.',
-      status: 400,
-      code: 'PASSWORD_REQUIRED',
-    };
+    return { ok: true };
   }
 
   const session = sessionUserFromHeader(authHeader);
@@ -10388,6 +10387,109 @@ app.get('/api/bills/:id', async (c) => {
   if (!bill) return c.json({ success: false, error: 'Facture d\'achat introuvable' }, 404);
   const { results: items } = await c.env.DB.prepare(`SELECT * FROM bill_items WHERE bill_id = ?`).bind(id).all();
   return c.json({ success: true, data: { ...bill, items } });
+});
+
+/* ─── Bills: OCR / document parse (photo or scan → prefilled fields, human reviews) ─── */
+function parseBillText(text: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  const t = text.replace(/\r/g, '');
+  const ice = t.match(/\b(\d{15})\b/);
+  if (ice) out.ice = ice[1];
+  const num = t.match(/(?:facture|invoice|n[°o]|number)[:\s#]*([A-Za-z0-9\-\/]{3,20})/i);
+  if (num) out.bill_number = num[1];
+  const date = t.match(/\b(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})\b/);
+  if (date) {
+    let y = date[3];
+    if (y.length === 2) y = '20' + y;
+    out.issue_date = `${y}-${date[2].padStart(2, '0')}-${date[1].padStart(2, '0')}`;
+  }
+  const total = t.match(/(?:total\s*(?:ttc|à payer|a payer|due|net)?|montant(?:\s*ttc)?)[:\s]*([\d\s.,]+)\s*(?:dh|mad|dhs)?/i);
+  if (total) {
+    const v = total[1].replace(/[^\d.,]/g, '').replace(/\s/g, '').replace(',', '.');
+    const n = Number(v);
+    if (n > 0) out.total = String(n);
+  }
+  const vendor = t.match(/^\s*([A-ZÀ-Ý][\wÀ-ÿ&.'\- ]{2,60})\s*$/m);
+  if (vendor && !/facture|total|date|ice|tva|t[ée]l|phone|adresse|address|devise|page/i.test(vendor[1])) {
+    out.vendor_name = vendor[1].trim();
+  }
+  return out;
+}
+
+app.post('/api/bills/parse-document', async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const dataUrl = String(body.data_url || body.dataUrl || '');
+  const textHint = String(body.text || '');
+  let fields: Record<string, string> = {};
+  let items: any[] = [];
+  let source = 'none';
+
+  if (textHint.trim()) {
+    fields = parseBillText(textHint);
+    source = 'text';
+  }
+
+  // Optional Workers AI vision when the binding exists (same pattern as employee ID parse)
+  try {
+    const ai = (c.env as any).AI;
+    if (ai && dataUrl.startsWith('data:image')) {
+      const m = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+      if (m) {
+        const result = await ai.run('@cf/llava-hf/llava-1.5-7b-hf', {
+          image: [...Uint8Array.from(atob(m[2]), (ch) => ch.charCodeAt(0))],
+          prompt:
+            'This is a supplier bill/invoice photo. Extract JSON only: {"vendor_name": string, "issue_date": "YYYY-MM-DD", "bill_number": string, "ice": string, "total": number, "items": [{"product_name": string, "quantity": number, "unit_cost": number}]}. Missing field: use "" or 0.',
+          max_tokens: 700,
+        });
+        const raw = String(result?.description || result?.response || result || '');
+        const jm = raw.match(/\{[\s\S]*\}/);
+        if (jm) {
+          try {
+            const j = JSON.parse(jm[0]);
+            fields = {
+              vendor_name: String(j.vendor_name || fields.vendor_name || ''),
+              issue_date: /^\d{4}-\d{2}-\d{2}$/.test(String(j.issue_date || ''))
+                ? String(j.issue_date)
+                : fields.issue_date || '',
+              bill_number: String(j.bill_number || fields.bill_number || ''),
+              ice: String(j.ice || fields.ice || ''),
+              total: String(j.total || fields.total || ''),
+            };
+            if (Array.isArray(j.items)) {
+              items = j.items
+                .slice(0, 30)
+                .map((it: any) => ({
+                  product_name: String(it?.product_name || it?.name || ''),
+                  quantity: Math.max(1, Number(it?.quantity || 1)),
+                  unit_cost: Math.max(0, Number(it?.unit_cost || it?.cost || it?.unit_price || 0)),
+                }))
+                .filter((it: any) => it.product_name);
+            }
+            source = 'ai';
+          } catch {
+            fields = { ...fields, ...parseBillText(raw) };
+            source = 'ai-text';
+          }
+        } else {
+          fields = { ...fields, ...parseBillText(raw) };
+          source = 'ai-text';
+        }
+      }
+    }
+  } catch (e) {
+    console.log('parse-bill ai', e);
+  }
+
+  return c.json({
+    success: true,
+    data: {
+      fields,
+      items,
+      source,
+      review_message:
+        'Champs extraits automatiquement — vérifiez fournisseur, date, lignes et total avant d’enregistrer.',
+    },
+  });
 });
 
 app.post('/api/bills', async (c) => {

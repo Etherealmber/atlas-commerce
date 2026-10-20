@@ -719,6 +719,11 @@ export const api = {
     request<{ data: any[] }>(status ? `/api/bills?status=${status}` : '/api/bills'),
   getBill: (id: number) => request<{ data: any }>(`/api/bills/${id}`),
   createBill: (body: any) => request('/api/bills', { method: 'POST', body: JSON.stringify(body) }),
+  parseBillDocument: (body: { data_url?: string; text?: string }) =>
+    request<{ data: { fields: Record<string, string>; items: any[]; source: string; review_message: string } }>(
+      '/api/bills/parse-document',
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
   updateBillStatus: (id: number, body: { status: string; amount_paid?: number }) =>
     request(`/api/bills/${id}/status`, { method: 'PATCH', body: JSON.stringify(body) }),
   recordBillPayment: (

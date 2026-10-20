@@ -85,7 +85,7 @@ export default function CookieConsent() {
               />
               <span>
                 <strong>Préférences</strong>
-                <em>Thème clair/sombre, liquid glass, guide d&apos;accueil.</em>
+                <em>Thème clair/sombre, guide d&apos;accueil.</em>
               </span>
             </label>
             <label className="cookie-consent-row">

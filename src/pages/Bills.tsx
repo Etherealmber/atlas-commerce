@@ -48,6 +48,61 @@ export default function Bills() {
   const [pwOpen, setPwOpen] = useState(false);
   const [pwTitle, setPwTitle] = useState('');
   const [pwDesc, setPwDesc] = useState('');
+  const [ocrBusy, setOcrBusy] = useState(false);
+
+  /* OCR : photo/scan d'une facture fournisseur → champs pré-remplis à vérifier. */
+  const runBillOcr = async (file: File | null) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
+      flash('Format non pris en charge — image ou PDF uniquement.', 'error');
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      flash('Fichier trop volumineux (max 8 Mo).', 'error');
+      return;
+    }
+    setOcrBusy(true);
+    try {
+      const dataUrl: string = await new Promise((res, rej) => {
+        const fr = new FileReader();
+        fr.onload = () => res(String(fr.result || ''));
+        fr.onerror = () => rej(new Error('lecture impossible'));
+        fr.readAsDataURL(file);
+      });
+      const r: any = await api.parseBillDocument({ data_url: dataUrl });
+      const f = r?.data?.fields || {};
+      const its = Array.isArray(r?.data?.items) ? r.data.items : [];
+      let applied = 0;
+      if (f.vendor_name) {
+        setVendorName(String(f.vendor_name));
+        const match = vendors.find(
+          (v) => String(v.name || '').trim().toLowerCase() === String(f.vendor_name).trim().toLowerCase(),
+        );
+        if (match) { setVendorId(Number(match.id)); setVendorIce(match.ice || ''); setVendorAddress(match.address || ''); }
+        applied++;
+      }
+      if (f.ice && !vendorId) { setVendorIce(String(f.ice)); applied++; }
+      if (f.issue_date) { setIssueDate(String(f.issue_date)); applied++; }
+      if (f.bill_number) {
+        setNotes((n) => (n ? `${n}\n` : '') + `Facture fournisseur n° ${f.bill_number} (import OCR)`);
+        applied++;
+      }
+      if (its.length) {
+        setItems(its.map((it: any) => ({ product_name: String(it.product_name), quantity: Number(it.quantity) || 1, unit_cost: Number(it.unit_cost) || 0 })));
+        applied++;
+      }
+      flash(
+        applied
+          ? r?.data?.review_message || 'Champs pré-remplis — vérifiez avant d’enregistrer.'
+          : 'Extraction impossible — vérifiez que la photo est nette, puis saisissez les champs.',
+        applied ? 'success' : 'error',
+      );
+    } catch (e: any) {
+      flash(e?.message || 'OCR indisponible pour le moment.', 'error');
+    } finally {
+      setOcrBusy(false);
+    }
+  };
   const [pendingAction, setPendingAction] = useState<null | ((password: string) => Promise<void>)>(null);
   const [receiveBill, setReceiveBill] = useState<any>(null);
   const [receiveLines, setReceiveLines] = useState<{ id: number; product_name: string; ordered: number; received: number; add: number }[]>([]);
@@ -235,7 +290,7 @@ export default function Bills() {
     if (!targetIds.length) { flash('Sélectionnez au moins une facture.', 'error'); return; }
     setSelected(new Set(targetIds));
     setPwTitle(targetIds.length === 1 ? 'Supprimer la facture' : `Supprimer ${targetIds.length} factures`);
-    setPwDesc('Cette action est définitive. Saisissez votre mot de passe pour confirmer.');
+    setPwDesc('Cette action est définitive. Confirmez pour continuer.');
     setPendingAction(() => async (password: string) => {
       const res = targetIds.length === 1
         ? await api.deleteBill(targetIds[0], password)
@@ -407,6 +462,35 @@ export default function Bills() {
         <FloatingPortal><div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" style={{ maxWidth: 1080, width: '96vw' }} onClick={(e) => e.stopPropagation()}>
             <h2>Nouvelle facture d'achat</h2>
+
+            <div
+              className="form-row"
+              style={{
+                border: '1px dashed var(--ac-line, var(--line, #d4d4d8))',
+                borderRadius: 12,
+                padding: '12px 14px',
+                marginBottom: 14,
+              }}
+            >
+              <label style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <span>📷 Scanner une facture (OCR) — image ou PDF</span>
+                <input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  disabled={ocrBusy}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] || null;
+                    e.target.value = '';
+                    runBillOcr(f);
+                  }}
+                  style={{ maxWidth: 260 }}
+                />
+                {ocrBusy && <span style={{ fontSize: 12, color: 'var(--muted)' }}>Extraction en cours…</span>}
+              </label>
+              <p style={{ fontSize: 12, color: 'var(--muted)', margin: '6px 0 0' }}>
+                Fournisseur, date, numéro, lignes et total sont pré-remplis — rien n'est enregistré sans votre validation.
+              </p>
+            </div>
 
             <div className="form-row">
               <label>Fournisseur enregistré</label>

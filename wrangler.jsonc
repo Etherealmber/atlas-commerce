@@ -31,6 +31,10 @@
       "preview_id": "local-company-stock-cache"
     }
   ],
+  // Optional Workers AI (vision OCR for /api/bills/parse-document and
+  // /api/employees/parse-id): routes use env.AI when present and degrade
+  // gracefully when absent. To enable, uncomment and redeploy:
+  // "ai": { "binding": "AI" },
   "r2_buckets": [
     {
       "binding": "IMAGES",

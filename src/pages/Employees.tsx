@@ -1159,35 +1159,58 @@ export default function Employees() {
             )}
 
             <ModalFormError message={modalError} />
-            <div className="form-actions" style={{ marginTop: 16, flexWrap: 'wrap', gap: 8 }}>
-              <button type="button" className="secondary" onClick={() => { setModalError(''); setShowModal(false); }}>
-                Annuler
-              </button>
-              {editing && (
-                <>
-                  <button
-                    type="button"
-                    className="secondary"
-                    onClick={() => openPrintDoc(`/api/employees/${editing.id}/form/print`)}
-                  >
-                    Fiche
+            {/* Guided steps — the action bar never moves: Retour left,
+                Continuer / Créer always at the same place on the right. */}
+            <div className="wizard-foot">
+              <div className="wizard-foot-nav">
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={step === 0}
+                  onClick={() => setStep((s) => Math.max(0, s - 1))}
+                >
+                  Retour
+                </button>
+                <span className="wizard-foot-step">
+                  Étape {step + 1}/{STEPS.length} · {STEPS[step].label}
+                </span>
+                {step < STEPS.length - 1 ? (
+                  <button type="button" onClick={() => setStep((s) => Math.min(STEPS.length - 1, s + 1))}>
+                    Continuer
                   </button>
-                  <button
-                    type="button"
-                    className="secondary"
-                    onClick={() =>
-                      openReport('/api/reports/employee-situation', {
-                        employee_id: String(editing.id),
-                      })
-                    }
-                  >
-                    Situation
+                ) : (
+                  <button type="button" onClick={save} disabled={saving || idUploading}>
+                    {saving || idUploading ? 'Enregistrement…' : editing ? 'Enregistrer' : 'Créer l’employé'}
                   </button>
-                </>
-              )}
-              <button type="button" onClick={save} disabled={saving || idUploading}>
-                {saving || idUploading ? 'Enregistrement…' : editing ? 'Enregistrer' : 'Créer l’employé'}
-              </button>
+                )}
+              </div>
+              <div className="wizard-foot-extra">
+                <button type="button" className="secondary" onClick={() => { setModalError(''); setShowModal(false); }}>
+                  Annuler
+                </button>
+                {editing && (
+                  <>
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={() => openPrintDoc(`/api/employees/${editing.id}/form/print`)}
+                    >
+                      Fiche
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={() =>
+                        openReport('/api/reports/employee-situation', {
+                          employee_id: String(editing.id),
+                        })
+                      }
+                    >
+                      Situation
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div></FloatingPortal>

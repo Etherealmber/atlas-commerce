@@ -391,7 +391,7 @@ export default function Invoices() {
   };
 
   const requestDelete = async (id: number) => {
-    let disclaimer = 'Cette action est définitive. Saisissez votre mot de passe pour confirmer.';
+    let disclaimer = 'Cette action est définitive. Confirmez pour continuer.';
     try {
       const links = await api.getInvoiceLinks(id);
       const d = links.data;
@@ -402,7 +402,7 @@ export default function Invoices() {
         if (d.payments_count) bits.push(`${d.payments_count} paiement(s)`);
         disclaimer =
           `ATTENTION : la suppression de cette facture effacera aussi ${bits.join(', ') || 'les éléments liés'}. ` +
-          'Facture + reçus + encaissements solde seront supprimés ensemble. Confirmez avec votre mot de passe.';
+          'Facture + reçus + encaissements solde seront supprimés ensemble. Confirmez pour continuer.';
       }
     } catch { /* ignore */ }
     setPwTitle('Supprimer la facture et éléments liés');
