@@ -243,3 +243,22 @@ scripts/            # smoke tests
 ---
 
 Version courante : `src/version.ts` (`APP_VERSION`) · Journal détaillé : page **Nouveautés** · Créateur : etherealmber (El Jadida, Maroc).
+
+## 19. Roadmap — idées inspirées d'InvenTree (analyse comparative)
+
+Analyse du dépôt open-source [InvenTree](https://github.com/inventree/InvenTree) (inventory management Django/DRF) : ce qui pourrait enrichir Atlas Commerce, classé par valeur/effort.
+
+| # | Fonction InvenTree | Adaptation Atlas Commerce | Effort |
+|---|--------------------|---------------------------|--------|
+| 1 | Stock locations (arbre d'emplacements + bins) | Emplacements multi-dépôts par produit/lot (`Produits → Emplacement`) | M |
+| 2 | Batch/lot + expiry + FEFO alerts | N° de lot / série par article (dalles, palettes) + alerte expiration dashboard | M |
+| 3 | Stock operations: receive / ship / transfer / adjust / count scan-first | Étendre le scan Atlas : réception, transfert inter-dépôt, inventaire tournant par code-barres | M |
+| 4 | Supplier part cross-reference + price breaks | Fournisseur ↔ SKU interne + tarifs dégressifs par quantité dans Vendors | S |
+| 5 | PO/SO/Build status pipeline (pending→approved→shipped→delivered) | Pipeline de statuts sur Devis/Commandes/Factures avec journal d'audit | M |
+| 6 | Label & report printing (QR/barcode par article/colis) | Impression étiquettes colis/palettes (template navigateur, QR + code-barres) | S |
+| 7 | Dashboard alert center (low stock, expired, overdue orders) | Centre d'alertes dashboard : stock bas, lots expirés, factures échues | S |
+| 8 | BOM + builds (kit assembly with stock deduction) | Kits/nomenclatures : composer un bundle et décrémenter les composants | L |
+| 9 | Attachments & test/quality results per item | Photos/docs QC par lot (déjà partiel via OCR/scan) | S |
+| 10 | Plugin system + webhooks + full REST API docs | Webhooks événementiels (stock bas, facture payée) sur le worker CF | L |
+
+Décision : implémenter d'abord 4, 6, 7 (effort S, valeur immédiate), puis 2 et 3.
