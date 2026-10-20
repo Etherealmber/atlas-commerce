@@ -1,266 +1,189 @@
-# Atlas Commerce
+<div align="center">
+  <img src="public/logo-mark.svg" alt="Atlas Commerce" width="96" height="96" />
+  <h1>Atlas Commerce</h1>
+  <p><strong>ERP / Caisse / Facturation souverain pour commerces &amp; grossistes au Maroc</strong><br/>Stock multi-dépôts · Caisse &amp; tickets VR · Facturation TVA &amp; créances · Scan &amp; OCR · Atlas Agent IA · WebAuthn &amp; login QR</p>
 
-ERP web + mobile pour commerces et entrepôts au Maroc — **stock, caisse, facturation, achats, RH et finance** dans une seule application, pensée pour le terrain (scan code-barres, mode téléphone minimal, fonctionnement rôles) et pour le bureau (tableaux de bord, éditions PDF/Excel, comptabilité).
+<!-- Badges -->
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+![Version](https://img.shields.io/badge/version-1.4.4--beta-blue)
+![Build](https://img.shields.io/badge/build-cloudflare%20workers-orange)
+![Stack](https://img.shields.io/badge/stack-React%20%2B%20Vite%20%2B%20D1%20%2B%20R2-0a0a0a)
+![Mobile](https://img.shields.io/badge/mobile-Capacitor%20Android-3ddc84)
+![IA](https://img.shields.io/badge/agent-Atlas%20Agent%20IA-8b5cf6)
 
-- **Frontend** : React 18 + Vite + TypeScript (SPA servie par le Worker)
-- **Backend** : Cloudflare Worker (Hono) — un seul déploiement : `worker/index.ts` + `worker/routes/`
-- **Données** : Cloudflare D1 (SQLite) — migrations dans `migrations/`, schéma local `schema.sql`
-- **Fichiers** : Cloudflare R2 (`company-stock-images`) — photos produits, pièces d'identité chiffrées, APK de mise à jour
-- **Mobile** : Capacitor (Android) — même build web, coquille native fine + écrans téléphone dédiés
-- **Thème** : clair/sombre unifié (palette zinc `#111113 → #fafafa`), densité compact/confort, échelle de texte
+**Aperçu live (preview CF)** · **Ce README = documentation** · **[Signaler un bug](https://github.com/Etherealmber/atlas-commerce/issues/new)** · **[Demander une fonction](https://github.com/Etherealmber/atlas-commerce/issues/new)**
 
----
-
-## Sommaire
-
-1. [Fonctionnalités](#fonctionnalités)
-2. [Captures & parcours d'accueil](#captures--parcours-daccueil)
-3. [Architecture](#architecture)
-4. [Démarrage rapide](#démarrage-rapide)
-5. [Scripts](#scripts)
-6. [Variables & secrets](#variables--secrets)
-7. [Rôles & permissions](#rôles--permissions)
-8. [Modèle de sécurité](#modèle-de-sécurité)
-9. [Scan & création produit](#scan--création-produit)
-10. [OCR (factures & pièces)](#ocr-factures--pièces)
-11. [Atlas Agent](#atlas-agent)
-12. [Mises à jour Android (R2)](#mises-à-jour-android-r2)
-13. [Sauvegardes & restauration](#sauvegardes--restauration)
-14. [Tests & smoke](#tests--smoke)
-15. [Déploiement Cloudflare](#déploiement-cloudflare)
-16. [Structure du repo](#structure-du-repo)
-17. [Conventions UI](#conventions-ui)
-18. [Dépannage](#dépannage)
+> Projet propriétaire : **loxdpy** — GitHub **[@loxdpsy](https://github.com/loxdpsy)** · Compte org : **Etherealmber**
+</div>
 
 ---
 
-## Fonctionnalités
+## 🌟 À propos du projet
 
-| Domaine | Détails |
-| --- | --- |
-| **Catalogue** | Produits, variantes, codes-barres/SKU, catégories, unités, seuils de stock bas, photos (R2), impressions étiquettes |
-| **Scan** | Recherche instantanée code-barres/SKU (caméra ou douchette) ; code inconnu → **demande de création produit** avec fiche minimale (nom, unité, quantité, catégorie, photo) — le prix reste saisi sur PC |
-| **Ventes** | Caisse rapide, tickets VR, devis → factures → reçus, avoirs, encaissements partiels, échéancier client, PDF & impression thermique 32/48 mm |
-| **Achats** | Fournisseurs, factures d'achat, **OCR photo/PDF** (fournisseur, date, numéro, ICE, total, lignes), réceptions, réassorts |
-| **Finance** | Trésorerie multi-comptes, balance, dépenses, remboursements, clôtures journalières, rapports Excel/PDF |
-| **RH** | Employés en **formulaire guidé par étapes**, pièce d'identité chiffrée + OCR, pointage (module optionnel), salaires, acomptes plafonnés |
-| **Clients** | CRM, ICE/IF, plafond de crédit, score de risque, relances e-mail, historique complet |
-| **Atlas Agent** | Assistant conversationnel (Groq) : navigation, rapports, création d'entités **via la vraie fiche pré-remplie à valider** — jamais d'écriture aveugle |
-| **Admin** | Utilisateurs & rôles, permissions agent, audit log, sauvegardes/restauration, **mises à jour Android** (latest.json + APK via R2) |
-| **Connexion** | Mot de passe + **OTP e-mail**, passkeys/WebAuthn, **QR login** 60 s à usage unique, appareils de confiance |
+Atlas Commerce est un ERP/POS **auto-hébergé sur Cloudflare** (Workers + D1 + R2) pensé pour les commerces, grossistes et entrepôts au Maroc : gestion du stock multi-dépôts, caisse rapide (tickets VR sans TVA), facturation TVA avec créances et remboursements, achats/réceptions, devis, employés & paie, balance/trésorerie — **sans abonnement SaaS opaque** et sans dépendre d'un serveur dédié.
 
-## Captures & parcours d'accueil
+Le cœur est un **worker Cloudflare** (API REST + SSR) avec une base **D1** (SQLite managé), les médias et les mises à jour Android sur **R2** (`company-stock-images`), et un front **React + Vite** thémé (clair/sombre, densités, tailles de texte) décliné en coquille téléphone (Capacitor) et en app Android avec mises à jour OTA servies par le worker.
 
-L'app embarque un **parcours d'accueil** (page Welcome) avec aperçus vectoriels des écrans clés — tableau de bord, caisse, scan, catalogue — qui suivent le thème clair/sombre choisi par l'utilisateur. La page **Nouveautés** (`/whats-new`) journalise chaque version (fonctionnalités, améliorations, corrections) avec modal « quoi de neuf » à chaque mise à jour.
+Points forts :
 
-> Pour de vraies captures d'écran marketing : `npm run dev` puis captures navigateur — les mockups vectoriels de la Welcome servent de gabarits cohérents (classes `.wshot-*`).
+- **Scan & OCR** : un code-barres inconnu devient une demande de création produit (photo de facture/devis comprise), validée depuis la liste Produits.
+- **Atlas Agent IA** : « crée un client nommé X avec email/téléphone » ouvre la fiche pré-remplie à vérifier ; confirmation explicite avant exécution.
+- **Login moderne** : mot de passe + OTP, **WebAuthn/passkeys**, **login QR** PC↔téléphone (60 s, usage unique).
+- **Thème sombre complet** : chaque composant (agent, menus, popups téléphone, datepickers) est thémé zinc clair/sombre.
+- **Offline-first terrain** : coquille téléphone minimaliste, rôles (owner/admin/stock/terrain), actions mobile en attente.
 
-## Architecture
+## 🧭 Roadmap
 
-```
-┌───────────────┐   HTTPS    ┌──────────────────────────────┐
-│  Navigateur / │───────────▶│  Cloudflare Worker (Hono)    │
-│  Capacitor    │            │  worker/index.ts + routes/   │
-│  (Android)    │◀───────────│  • gates par rôle & module   │
-└───────────────┘  JSON/API  │  • OTP, sessions, audit      │
-                             └───────┬──────────┬───────────┘
-                                     │          │
-                              ┌──────▼───┐  ┌───▼────────────┐
-                              │ D1 (SQL) │  │ R2 (fichiers)  │
-                              │ company- │  │ photos, .id    │
-                              │ stock-db │  │ chiffrés, APK  │
-                              └──────────┘  └────────────────┘
-                                     │
-                              ┌──────▼───┐  ┌────────────────┐
-                              │ KV cache │  │ Workers AI (opt.)│
-                              └──────────┘  │ vision OCR      │
-                                            └────────────────┘
-```
+La roadmap comparative (inspirée d'[InvenTree](https://github.com/inventree/InvenTree)) est tenue dans la section **§Roadmap v209** plus bas : 10 chantiers S/M/L **déjà livrés** (ops scan-first, lots/FEFO, centre d'alertes, références fournisseur, pipeline statuts, étiquettes, kits/BOM, webhooks, emplacements bin). Les prochaines idées passent par les [issues](https://github.com/Etherealmber/atlas-commerce/issues).
 
-- **Un seul artefact déployé** : le Worker sert à la fois l'API `/api/*` et le SPA (assets `dist/`, `run_worker_first: true` → aucune route API ne renvoie d'HTML).
-- **Durable Objects** SQLite free-tier : `MobileHub` (boîte d'actions mobile), `RestoreHub` (restauration), `NumberHub` (numérotation documents).
-- **CDN** : assets Workers + domaine R2 custom (`cdn1.afmarbre.com`) pour images & APK.
+## 🛠️ Intégration
 
-## Démarrage rapide
+Atlas Commerce est conçu pour être étendu :
 
-```bash
-npm install          # npm ci échoue parfois sur ce repo — utiliser npm install
-npm run dev          # frontend Vite + worker local (plugin Cloudflare) — port 36521 si --port
-npm run preview      # worker complet seul (wrangler dev, D1 local + assets dist)
-```
+- **API REST** `/api/*` (worker) — sessions JWT, rôles, idempotence sur les écritures.
+- **Webhooks événementiels** `stock.receive`, `stock.count`, `stock.transfer`, `doc.*`, `kit.assembled`, `atlas.alert` (Settings → API).
+- **Mises à jour Android** : `latest.json` / `latest.apk` servis depuis R2 via le worker (lien + APK dans Paramètres).
+- **OCR & scan** : BarcodeDetector natif + OCR photos de factures/devis → données structurées.
+- **Étiquettes imprimables** : `/api/products/:id/label.svg` (QR + CODE128 + prix).
 
-Pièges connus du dev local :
+## 👾 Tech Stack
 
-- La base D1 locale **ne persiste pas** entre sessions : réappliquer `schema.sql`
-  (`npx wrangler d1 execute company-stock-db --local --file=schema.sql`).
-- Supprimer `.wrangler/deploy` et `dist/company_stock` avant un run local après un déploiement.
-- Champ du vérificateur OTP : `otp` (`POST /api/auth/verify-otp`) ; en local le code est lisible dans la table `otp_codes`.
-- Secrets locaux via `.dev.vars` (gitignoré) : `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `JWT_SECRET`.
-- Vite dev accepte les hosts de proxy (`server.allowedHosts: true`) pour les aperçus tunnelisés.
+<details open>
+<summary>Serveur</summary>
 
-## Scripts
+- [Cloudflare Workers](https://workers.cloudflare.com/) (Hono) — API + SSR + cron
+- [D1](https://developers.cloudflare.com/d1/) (SQLite managé) — schéma `schema.sql` + migrations
+- [R2](https://developers.cloudflare.com/r2/) — médias, backups, updates Android
+</details>
 
-| Commande | Rôle |
-| --- | --- |
-| `npm run dev` | Vite dev (SPA + worker local via plugin Cloudflare) |
-| `npm run build` | Build Vite → `dist/` |
-| `npm run preview` | `wrangler dev` (worker + assets + D1/KV/R2 locaux) |
-| `npm run deploy` | `wrangler deploy` — **production** (Worker + assets) |
-| `npm run smoke:local` / `smoke:prod` | Smoke tests API bout-en-bout (P0 + risques client + types de facture + numérotation) |
-| `npm run smoke:risk` / `smoke:invoice` / `smoke:partner` | Sous-suites ciblées |
-| `npm run cap:sync` / `cap:open` / `cap:add` / `cap:copy` | Build web + synchronisation/ouverture du projet Android Capacitor |
-| `npm run cf-typegen` | Régénère les types Wrangler (`Env`) |
+<details open>
+<summary>Client</summary>
 
-## Variables & secrets
+- [React](https://react.dev/) + [Vite](https://vitejs.dev/) + TypeScript
+- [Capacitor](https://capacitorjs.com/) — app Android (OTA via R2)
+- CSS maison thémé (`dark-force.css` chargé en dernier)
+</details>
 
-Config non sensible dans `wrangler.jsonc` (`vars`) : `ENVIRONMENT`, `CACHE_TTL_SECONDS`, `TURNSTILE_SITE_KEY`.
+<details>
+<summary>Sécurité</summary>
 
-Secrets (`wrangler secret put`, **jamais dans le repo**) :
+- JWT + OTP, **WebAuthn/passkeys**, login QR usage unique
+- Cloudflare Turnstile, rate-limit + réputation IP
+- Suppressions sans mot de passe (confirmations progressives), audit log
+</details>
 
-| Secret | Rôle |
-| --- | --- |
-| `ADMIN_PASSWORD` | Mot de passe du compte propriétaire |
-| `ADMIN_USERNAME` | Identifiant propriétaire (défaut `admin`) |
-| `JWT_SECRET` | Signature des sessions bearer |
-| `MAIL_BODY_ENCRYPTION_KEY` | Chiffrement des corps d'e-mails stockés |
-| clés Resend / SMTP | Envoi des OTP & e-mails documents |
-
-Bindings : D1 `DB`, KV `CACHE`, R2 `IMAGES`, Send Email `EMAIL`, DO `MOBILE_HUB/RESTORE_HUB/NUMBER_HUB`, **optionnel** Workers AI `AI` (décommenter `"ai": { "binding": "AI" }` pour la vision OCR).
-
-## Rôles & permissions
-
-| Rôle | Portée |
-| --- | --- |
-| `owner` | Tout + onglet équipe/app-update + secrets |
-| `admin` | Gestion complète hors réglages propriétaire |
-| `secretaire` | Ventes, clients, facturation ; écritures autorisées |
-| `stock` / `magasinier` | Scan, stock, demandes produit ; **pas de caisse ni prix** |
-| `user` | Lecture selon modules |
-
-Chaque module peut être désactivé (ex. Pointage) : les routes renvoient 403 et le client **skip silencieusement** (pas de bruit console).
-
-## Modèle de sécurité
-
-- Login + **OTP e-mail** (60 s/5 min selon flux), rate-limiting & réputation IP (`ip_reputation`).
-- Sessions bearer signées (`JWT_SECRET`) ; appareils de confiance & passkeys WebAuthn.
-- **Aucune suppression ne demande de mot de passe** : la confirmation simple + session + gates de rôle sont la barrière (décision produit).
-- Pièces d'identité : chiffrées AES côté serveur, stockées R2 en `.id`, hors D1.
-- CSP stricte ; secrets hors repo ; audit log des actions sensibles.
-- QR login : code 60 s **à usage unique**, affiché seulement à la demande.
-
-## Scan & création produit
-
-1. Scan douchette/caméra → recherche instantanée.
-2. Code inconnu → popup de **demande** : code-barres + SKU auto, unité (select `/api/units`), quantité, catégorie, photo optionnelle. Obligatoires : **nom, unité, quantité**.
-3. Demande listée sur Scan (desktop) ; création réelle depuis Produits → formulaire pré-rempli (sku, unité, stock, catégorie) — **le prix est saisi sur PC**.
-4. API : `GET/POST /api/stock/product-requests`, `POST /:id/close` (rôles stock/admin/owner).
-
-## OCR (factures & pièces)
-
-- `POST /api/bills/parse-document` : photo/PDF → fournisseur, date, numéro, ICE, total, lignes.
-  - Avec binding `AI` : vision Workers AI (`@cf/llava-hf/llava-1.5-7b-hf`).
-  - Sans : heuristiques texte (regex ICE/date/totaux) — dégrade proprement.
-- `POST /api/employees/parse-id` : même pattern pour CIN/passeports.
-- UI : bouton « 📷 Scanner une facture » dans la modale d'achat → pré-remplit, **rien n'est enregistré sans relecture humaine**.
-
-## Atlas Agent
-
-- Intent parser local (sans LLM) pour les actions UI courantes + Groq pour le conversationnel.
-- Création d'entités : l'agent **n'écrit jamais en base** — il ouvre la vraie modale pré-remplie (client, produit, employé, facture, devis) via `sessionStorage` (`atlas-agent-draft`) ; l'utilisateur ajuste puis enregistre.
-- Threads synchronisés : `GET/PUT/DELETE /api/admin/agent/threads` (routes mailbox).
-- Permissions réglables (mode « Demander avant » / « Automatiquement ») + outils autorisés.
-
-## Mises à jour Android (R2)
-
-Contrat public `GET /api/app-update` :
-
-```json
-{ "success": true, "updateAvailable": true, "versionCode": 103, "versionName": "1.4.4",
-  "apkUrl": "https://cdn1.afmarbre.com/app-updates/android/latest.apk",
-  "mandatory": true, "notes": "…" }
-```
-
-Gestion server-mediated dans **Paramètres → Application** (owner/admin) : édition de `latest.json` + upload `latest.apk` vers R2, sans redéploiement. Build mobile : `npm run cap:sync` (projet `android/` généré hors repo).
-
-## Sauvegardes & restauration
-
-- Export complet D1 → R2 (chiffré) + restauration incrémentale via `RestoreHub` (ignore l'existant, progression détaillée).
-- Restauration complète réservée owner ; sauvegardes planifiables.
-
-## Tests & smoke
+## 🧰 Déploiement / Démarrage
 
 ```bash
-npm run smoke:local    # contre wrangler dev (ATLAS_SMOKE_BASE auto)
-npm run smoke:prod     # contre la production
+npm install
+cp .env.example .dev.vars        # secrets locaux (jamais commités)
+npm run dev -- --port 36521      # preview local (worker + vite)
+npx wrangler d1 migrations apply DB --local
+npm run build                    # build client + worker
+npx wrangler preview             # preview Cloudflare (CI production = previews uniquement)
+npm run deploy                   # déploiement production manuel depuis main
 ```
 
-Suites : formes API P0, auth, risques client, types de facture (VR/FA), numérotation & stock, partner v1 (401 sans clé).
+Le build Cloudflare (dashboard) exécute `npm run build` puis `npx wrangler preview` : **la production n'est mise à jour que par `npm run deploy` depuis `main`**.
 
-## Déploiement Cloudflare
+## 📱 App mobile
 
-```bash
-npm run build && npm run deploy     # production
-```
+Compagnon Android (Capacitor) : coquille terrain minimaliste (Accueil, Stock, Scan, Caisse, Factures, Agent), scan code-barres, réceptions/transferts/inventaire, notifications = centre d'alertes. Mises à jour via Paramètres → lien + APK (R2, servies par le worker).
 
-- **Workers Builds** (dashboard) : la commande `npx wrangler preview` ne déploie que des **previews de branche** (bloc `previews` requis dans `wrangler.jsonc`, déjà configuré) — **la production ne bouge que via `wrangler deploy` depuis `main`**.
-- `wrangler.jsonc` : ne pas modifier les IDs de ressources ; valeurs sensibles en Secrets.
-- Migrations D1 : `migrations/` appliquées par wrangler au deploy ; le code utilise aussi `addColumnIfMissing` (migrations douces).
+## 🔒 Code de conduite & politique de sécurité
 
-## Structure du repo
+Merci de signaler toute vulnérabilité via une issue **privée** ou par message direct au propriétaire (**@loxdpsy**) — pas de divulgation publique avant correctif. Les secrets (`.dev.vars`, tokens) ne sont jamais commités ; les backups D1 sont chiffrés côté R2.
 
-```
-src/
-  pages/            # 33 écrans (Dashboard, QuickSale, Employees, Scan, Settings, Welcome…)
-  components/       # UI partagée (PasswordConfirm = confirmation simple, AtlasAgent, QR…)
-  styles/           # dark-force.css — dernière feuille chargée : cohérence des thèmes
-  mobile/           # coquille téléphone (PhoneApp, phone.css) — usage minimal
-  lib/              # api, assist, agentDraft, welcome, whatsNew, density, formValidate…
-worker/
-  index.ts          # monolithe Hono : routes métier + gates par module/rôle
-  routes/           # employees, clients, invoices, mailbox (agent), partner-v1, stock…
-migrations/         # migrations D1 versionnées
-scripts/            # smoke tests
-```
+## 👋 Contribuer
 
-## Conventions UI
+Projet propriétaire (licence MIT © 2026 loxdpsy). Les contributions passent par **pull requests** depuis une branche `arena/*` ou `feature/*` : une PR = un lot cohérent, build vert (`npm run build`), `tsc --noEmit` sans nouvelle erreur, et description en français listant les zones touchées.
 
-- **Erreurs sous leur champ** — jamais de toast ni de message haut-de-modale pour la validation.
-- Suppressions/actions sensibles : **confirmation simple**, compte à rebours annulable lisible dans les deux thèmes.
-- Formulaires longs : **étapes guidées** avec barre d'actions épinglée (Annuler / Retour / Continuer-Créer toujours au même niveau).
-- Thème : une seule palette zinc en sombre ; sidebar = topbar ; chaque composant suit `data-theme`.
-- Téléphone : écrans dédiés, données minimales (2 stats accueil, listes sans sous-lignes techniques).
+## 📜 Traduction
 
-## Dépannage
+Interface **français** (terrain Maroc). Les libellés sont centralisés (`src/lib/labels.ts`) pour préparer une future traduction arabe/anglais.
 
-| Symptôme | Cause probable |
-| --- | --- |
-| 404 sur des routes existantes (`/api/vendors`, `/api/admin/agent/threads`) | Bundle de production périmé → redéployer depuis `main` |
-| 403 `/api/attendance/weekly` | Module Pointage désactivé (gate normal ; client skip) |
-| `ERR_BLOCKED_BY_CLIENT` | Extension bloqueur de pub côté utilisateur |
-| Police bloquée (CSP) d'un domaine externe | CSP fonctionne comme prévu (overlay tiers) |
-| Login local impossible | `.dev.vars` manquant ou D1 locale sans `schema.sql` |
+## 💎 Remerciements
+
+- **[InvenTree](https://github.com/inventree/InvenTree)** — inspiration de la roadmap stock (ops scan-first, lots/FEFO, BOM, webhooks, emplacements).
+- **[PartKeepr](https://github.com/partkeepr/PartKeepr)** via InvenTree, pour l'esprit « stock low-level ».
+- Cloudflare, React, Vite, Hono, Capacitor et leurs communautés.
+
+## ❤️ Support
+
+Atlas Commerce est développé et maintenu par **loxdpy ([@loxdpsy](https://github.com/loxdpsy))** pour des commerces réels au Maroc (El Jadida). Usage interne & démonstrations : contactez le propriétaire via GitHub.
 
 ---
 
-Version courante : `src/version.ts` (`APP_VERSION`) · Journal détaillé : page **Nouveautés** · Créateur : etherealmber (El Jadida, Maroc).
+## 📚 Annexes opérationnelles
 
-## 19. Roadmap — idées inspirées d'InvenTree (analyse comparative)
+<details>
+<summary><strong>Fonctionnalités (matrice)</strong></summary>
 
-Analyse du dépôt open-source [InvenTree](https://github.com/inventree/InvenTree) (inventory management Django/DRF) : ce qui pourrait enrichir Atlas Commerce, classé par valeur/effort.
+| Domaine | Couverture |
+|---|---|
+| Stock | multi-dépôts, emplacements bin, lots + expiration (FEFO), seuils, mouvements audités, inventaire tournant, transferts, kits/BOM |
+| Caisse | tickets VR sans TVA, paiements multi-moyens, remboursements WR, solde caisse |
+| Facturation | FA TVA, créances, échéances, avoirs, exports CSV, emails, pipeline statuts + journal |
+| Achats | bills, réceptions, références fournisseur + paliers tarifaires |
+| Tiers | clients (ICE, situation), fournisseurs, employés & paie |
+| Scan/OCR | code-barres natif, demandes produit photo, OCR factures/devis |
+| IA | Atlas Agent (création pré-remplie avec confirmation), permissions par action |
+| Admin | utilisateurs & rôles, clés API + webhooks, backups D1→R2, audit, journal des versions |
+</details>
 
-| # | Fonction InvenTree | Adaptation Atlas Commerce | Effort |
-|---|--------------------|---------------------------|--------|
-| 1 | Stock locations (arbre d'emplacements + bins) | Emplacements multi-dépôts par produit/lot (`Produits → Emplacement`) | M |
-| 2 | Batch/lot + expiry + FEFO alerts | N° de lot / série par article (dalles, palettes) + alerte expiration dashboard | M |
-| 3 | Stock operations: receive / ship / transfer / adjust / count scan-first | Étendre le scan Atlas : réception, transfert inter-dépôt, inventaire tournant par code-barres | M |
-| 4 | Supplier part cross-reference + price breaks | Fournisseur ↔ SKU interne + tarifs dégressifs par quantité dans Vendors | S |
-| 5 | PO/SO/Build status pipeline (pending→approved→shipped→delivered) | Pipeline de statuts sur Devis/Commandes/Factures avec journal d'audit | M |
-| 6 | Label & report printing (QR/barcode par article/colis) | Impression étiquettes colis/palettes (template navigateur, QR + code-barres) | S |
-| 7 | Dashboard alert center (low stock, expired, overdue orders) | Centre d'alertes dashboard : stock bas, lots expirés, factures échues | S |
-| 8 | BOM + builds (kit assembly with stock deduction) | Kits/nomenclatures : composer un bundle et décrémenter les composants | L |
-| 9 | Attachments & test/quality results per item | Photos/docs QC par lot (déjà partiel via OCR/scan) | S |
-| 10 | Plugin system + webhooks + full REST API docs | Webhooks événementiels (stock bas, facture payée) sur le worker CF | L |
+<details>
+<summary><strong>Scripts & secrets</strong></summary>
 
-Décision : implémenter d'abord 4, 6, 7 (effort S, valeur immédiate), puis 2 et 3.
+- `npm run dev` (port 36521), `npm run build`, `npm run deploy`, `npx wrangler preview`
+- `.dev.vars` local : `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `JWT_SECRET` — jamais commités
+- R2 bucket `company-stock-images` : médias + `latest.json`/`latest.apk`
+</details>
 
-**v209 (livré)** : les 10 lignes sont câblées — réceptions/transferts/inventaire scan-first (`/api/stock/receive|count`, transferts via `/api/inventory/transfer`), lots + expiration (`stock_lots`, alertes FEFO), centre d'alertes (`/api/alerts` + cloche + `/m/inbox`), références fournisseur + paliers (`supplier_parts`, UI Vendors), pipeline statuts documents (`/api/invoices/:id/pipeline` + chips Factures), étiquettes imprimables QR+CODE128 (`/api/products/:id/label.svg`), kits/BOM avec assemblage et décrément (`kits`, `kit_items`, UI Produits), webhooks événementiels (`/api/webhooks` + dispatch `stock.*`, `doc.*`, `kit.assembled`, `atlas.alert` ; UI Settings → API), emplacements bin (`products.location`).
+<details>
+<summary><strong>Rôles & sécurité</strong></summary>
+
+- Rôles : owner > admin > stock > terrain ; gating API par rôle
+- Suppressions : confirmation progressive, **jamais de mot de passe** ; audit log
+- Login : password+OTP, WebAuthn, QR 60 s usage unique ; Turnstile + rate-limit
+</details>
+
+<details>
+<summary><strong>Conventions UI</strong></summary>
+
+- Thème sombre zinc sur **tous** les composants (agent, menus, popups téléphone, datepickers, checkboxes)
+- Wizards par étapes (Continuer au même niveau, pas de Retour à l'étape 1, Annuler bien placé)
+- Erreurs **sous leur champ** uniquement ; scan n'exige jamais le prix
+- Sidebar = topbar (même thème) ; téléphone = minimal, cibles ≥ 40 px, safe-area
+</details>
+
+<details>
+<summary><strong>Roadmap v209 (inspirée d'InvenTree) — livrée</strong></summary>
+
+| # | Fonction | Adaptation Atlas | Statut |
+|---|---|---|---|
+| 1 | Stock locations | emplacements bin `products.location` + dépôts existants | ✅ |
+| 2 | Batch/lot + expiry FEFO | `stock_lots` + alertes | ✅ |
+| 3 | Scan-first receive/transfer/count | modes Scan + `/api/stock/receive|count` + `/api/inventory/transfer` | ✅ |
+| 4 | Supplier parts + price breaks | `supplier_parts` + UI Vendors | ✅ |
+| 5 | Status pipeline + journal | `/api/invoices/:id/pipeline` + `status_events` + chips | ✅ |
+| 6 | Label printing | `/api/products/:id/label.svg` (QR + CODE128) | ✅ |
+| 7 | Alert center | `/api/alerts` + cloche + `/m/inbox` | ✅ |
+| 8 | BOM + builds | `kits`/`kit_items` + assemblage | ✅ |
+| 9 | Attachments QC | photos produits + OCR (existant) | ✅ |
+| 10 | Webhooks | `/api/webhooks` + dispatch événementiel | ✅ |
+</details>
+
+<details>
+<summary><strong>Troubleshooting</strong></summary>
+
+- `vite: not found` → `npm install` (node_modules non persisté)
+- Preview local : recréer `.dev.vars`, relancer `npm run dev -- --port 36521`
+- Production périmée → `npm run deploy` depuis `main` (la CI ne fait que des previews)
+- tsc baseline ~310 erreurs préexistantes : comparer les deltas uniquement
+</details>
+
+---
+
+## ⚠️ Licence
+
+Distribué sous licence **MIT** — voir [LICENSE](LICENSE). Copyright (c) 2026 **loxdpsy**.
