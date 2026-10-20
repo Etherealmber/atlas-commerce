@@ -2631,3 +2631,149 @@ html[data-theme="dark"] body .modal-actions button:not(.secondary):not(.danger):
   opacity: 1 !important;
 }
 /* v216 END */
+
+/* ═══ v217 — systematic dark mirrors: no white surface survives in dark ═══ */
+/* panels / cards / menus */
+html[data-theme="dark"] body .cookie-consent-details,
+html[data-theme="dark"] body .agent-perm-mode,
+html[data-theme="dark"] body .atlas-agent-meta .atlas-agent-retry,
+html[data-theme="dark"] body .mailbox-more-menu,
+html[data-theme="dark"] body .mailbox-msg-actions .secondary,
+html[data-theme="dark"] body .mailbox-split.is-reading iframe,
+html[data-theme="dark"] body .audit-detail-modal,
+html[data-theme="dark"] body .modal-backdrop > .modal,
+html[data-theme="dark"] body .modal-backdrop > .modal-card,
+html[data-theme="dark"] body .modal-backdrop .modal-card,
+html[data-theme="dark"] body .audit-detail-modal-backdrop > *,
+html[data-theme="dark"] body .whats-new-modal-backdrop > *,
+html[data-theme="dark"] body .modal-backdrop .modal,
+html[data-theme="dark"] body .whats-new-card,
+html[data-theme="dark"] body .atlas-agent-head-actions .atlas-agent-iconbtn,
+html[data-theme="dark"] body .atlas-agent-greeting,
+html[data-theme="dark"] body .bal-tx-menu,
+html[data-theme="dark"] body .welcome-feature-card,
+html[data-theme="dark"] body .bal-tx-search,
+html[data-theme="dark"] body .atlas-empty-action,
+html[data-theme="dark"] body .atlas-mobile-nav,
+html[data-theme="dark"] [data-liquid-glass="on"] .stat-card,
+html[data-theme="dark"] body .atlas-remember-box,
+html[data-theme="dark"] body no character strip */
+.atlas-login--phone,
+html[data-theme="dark"] body .about-secondary-link,
+html[data-theme="dark"] body .ac-notif-head,
+html[data-theme="dark"] body .ac-notif-all,
+html[data-theme="dark"] body .ac-edit-profile-modal,
+html[data-theme="dark"] body .atlas-login-right,
+html[data-theme="dark"] body .atlas-login--phone,
+html[data-theme="dark"] body .atlas-orders-toolbar,
+html[data-theme="dark"] body .quotes-page table tbody tr,
+html[data-theme="dark"] body .quicksale-page table tbody tr,
+html[data-theme="dark"] body .empty-state,
+html[data-theme="dark"] body td .empty-state,
+html[data-theme="dark"] body .quotes-page .ac-panel,
+html[data-theme="dark"] body .quicksale-page .ac-panel,
+html[data-theme="dark"] body .search-bar,
+html[data-theme="dark"] body .ac-avatar-crop-card,
+html[data-theme="dark"] body .settings-shell .card,
+html[data-theme="dark"] body .about-page .card,
+html[data-theme="dark"] body .about-section,
+html[data-theme="dark"] body .about-version-card,
+html[data-theme="dark"] body .about-meta-card,
+html[data-theme="dark"] body .mailbox-page .mailbox-shell,
+html[data-theme="dark"] body .mailbox-page .mailbox-list-panel,
+html[data-theme="dark"] body .mailbox-page .mailbox-read-panel,
+html[data-theme="dark"] body .about-page a.secondary,
+html[data-theme="dark"] body .whats-new-list.whats-new-list--stack,
+html[data-theme="dark"] body .ph-row.ph-card,
+html[data-theme="dark"] body .ph-refresh-inline,
+html[data-theme="dark"] body .ph-agent-shell,
+html[data-theme="dark"] body .ph-agent-head,
+html[data-theme="dark"] body .ph-agent-msgs,
+html[data-theme="dark"] body .ph-agent-bubble.assistant {
+  background: #1c1c1f !important;
+  background-color: #1c1c1f !important;
+  background-image: none !important;
+  color: #e4e4e7 !important;
+  border-color: #3f3f46 !important;
+}
+/* controls / hover states */
+html[data-theme="dark"] body .cookie-btn.secondary,
+html[data-theme="dark"] body .agent-perm-mode:hover,
+html[data-theme="dark"] body .agent-perm-tool-switch,
+html[data-theme="dark"] body not solid green bar ─── */
+button.welcome-switch-card,
+html[data-theme="dark"] body .welcome-switch-card,
+html[data-theme="dark"] body .welcome-switch-card.on,
+html[data-theme="dark"] body button.atlas-agent-retry,
+html[data-theme="dark"] .liquid-glass-active .content button.secondary,
+html[data-theme="dark"] body .mailbox-more-menu .mailbox-menu-item,
+html[data-theme="dark"] body .mailbox-more-menu button,
+html[data-theme="dark"] body .mailbox-more-menu button.secondary,
+html[data-theme="dark"] body .mailbox-more-menu button.primary,
+html[data-theme="dark"] body .mailbox-more-menu button.danger,
+html[data-theme="dark"] body .mailbox-more-menu button.ghost,
+html[data-theme="dark"] body .mailbox-more-menu button.mailbox-menu-item,
+html[data-theme="dark"] body .mailbox-more-menu button.secondary.mailbox-menu-item,
+html[data-theme="dark"] body select.mailbox-filter-select option,
+html[data-theme="dark"] body .mailbox-pager-btn.icon-refresh-btn.secondary,
+html[data-theme="dark"] body button.mailbox-pager-btn.icon-refresh-btn,
+html[data-theme="dark"] body .mailbox-pager-btn.icon-refresh-btn.secondary:hover:not(:disabled),
+html[data-theme="dark"] body not the icon button) ── */
+.mailbox-folders,
+html[data-theme="dark"] body .mailbox-folders .mailbox-folder-item,
+html[data-theme="dark"] body .atlas-typeahead-menu button.atlas-typeahead-item,
+html[data-theme="dark"] body .atlas-typeahead-menu button.atlas-typeahead-item.secondary,
+html[data-theme="dark"] body .atlas-typeahead-menu button.atlas-typeahead-item.is-active,
+html[data-theme="dark"] body .atlas-typeahead-menu button.atlas-typeahead-item:hover,
+html[data-theme="dark"] body .atlas-typeahead-menu button.atlas-typeahead-item .atlas-typeahead-meta,
+html[data-theme="dark"][data-density="compact"] .atlas-typeahead-menu button.atlas-typeahead-item,
+html[data-theme="dark"][data-density="compact"] .atlas-typeahead-menu button.atlas-typeahead-item.secondary,
+html[data-theme="dark"][data-density="compact"] .atlas-typeahead-menu button.atlas-typeahead-item.is-active,
+html[data-theme="dark"][data-density="compact"] .atlas-typeahead-menu button.atlas-typeahead-item:hover,
+html[data-theme="dark"] body .whats-new-filter-btn,
+html[data-theme="dark"] body .settings-topbar-search-clear,
+html[data-theme="dark"] body .settings-search-dd-clear-all,
+html[data-theme="dark"] body .atlas-agent-quick button,
+html[data-theme="dark"] body .atlas-agent-input-row input,
+html[data-theme="dark"] body .atlas-agent-input-row textarea,
+html[data-theme="dark"] body .atlas-agent-input-row,
+html[data-theme="dark"] body .bal-tx-row:hover,
+html[data-theme="dark"] body .bal-tx-filter-label select,
+html[data-theme="dark"] body .ac-notif-foot button,
+html[data-theme="dark"] body .atlas-empty-action:hover,
+html[data-theme="dark"] body .atlas-mobile-nav button.atlas-nav-btn:hover,
+html[data-theme="dark"] body .login-btn.login-btn-secondary:hover:not(:disabled),
+html[data-theme="dark"] body button.login-btn-secondary:hover:not(:disabled),
+html[data-theme="dark"] body .ac-search-input,
+html[data-theme="dark"] body .ac-filter-select,
+html[data-theme="dark"] body .search-bar input,
+html[data-theme="dark"] body .ac-user-dropdown-item--danger,
+html[data-theme="dark"] body .ac-user-dropdown-item--danger b,
+html[data-theme="dark"] body .about-page input,
+html[data-theme="dark"] body .about-page button.secondary,
+html[data-theme="dark"] body .ph-agent-input,
+html[data-theme="dark"] body .ph-agent-composer {
+  background: #27272a !important;
+  background-color: #27272a !important;
+  background-image: none !important;
+  color: #e4e4e7 !important;
+  border-color: #3f3f46 !important;
+}
+html[data-theme="dark"] body .atlas-typeahead-menu button.atlas-typeahead-item:hover,
+html[data-theme="dark"] body .atlas-typeahead-menu button.atlas-typeahead-item.is-active {
+  background: #323236 !important;
+  color: #fafafa !important;
+}
+html[data-theme="dark"] body .atlas-typeahead-meta,
+html[data-theme="dark"] body .atlas-typeahead-menu .atlas-typeahead-meta {
+  color: #a1a1aa !important;
+}
+/* Feedback banner tokens: light-only values were painting pink sheets and
+   near-black success text inside dark mode */
+html[data-theme="dark"] {
+  --bad: #f87171;
+  --bad-bg: rgba(248, 113, 113, 0.14);
+  --ok: #d4d4d8;
+  --ok-bg: rgba(212, 212, 216, 0.10);
+}
+/* v217 END */
