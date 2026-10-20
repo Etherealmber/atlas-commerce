@@ -1,15 +1,13 @@
 
+import { addColumnIfMissing } from './schema';
+
 const _localSchemaOnce = new Set<string>();
 /** Client schema helpers — shared by routes/clients and invoice credit checks */
 
 export async function ensureClientTaxExempt(db: D1Database) {
   if (_localSchemaOnce.has('ensureClientTaxExempt')) return;
 
-  try {
-    await db.prepare(`ALTER TABLE clients ADD COLUMN tax_exempt INTEGER DEFAULT 0`).run();
-  } catch {
-    /* exists */
-  }
+  await addColumnIfMissing(db, 'clients', 'tax_exempt', 'INTEGER DEFAULT 0');
 
   _localSchemaOnce.add('ensureClientTaxExempt');
 }
@@ -18,11 +16,7 @@ export async function ensureClientTaxExempt(db: D1Database) {
 export async function ensureClientCreditLimit(db: D1Database) {
   if (_localSchemaOnce.has('ensureClientCreditLimit')) return;
 
-  try {
-    await db.prepare(`ALTER TABLE clients ADD COLUMN credit_limit REAL DEFAULT 0`).run();
-  } catch {
-    /* exists */
-  }
+  await addColumnIfMissing(db, 'clients', 'credit_limit', 'REAL DEFAULT 0');
 
   _localSchemaOnce.add('ensureClientCreditLimit');
 }

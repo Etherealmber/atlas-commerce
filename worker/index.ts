@@ -4520,9 +4520,7 @@ h1{font-size:1.2rem;margin:0 0 10px}p{margin:0 0 12px;color:#9aa3b5;font-size:14
 
 async function ensureReceiptPublicToken(db: D1Database) {
   await schemaOnce('ensureReceiptPublicToken', async () => {
-  try {
-    await db.prepare(`ALTER TABLE receipts ADD COLUMN public_token TEXT`).run();
-  } catch { /* exists */ }
+  await addColumnIfMissing(db, 'receipts', 'public_token', `TEXT`);
 
   });
 }
@@ -5687,8 +5685,8 @@ app.post('/api/products', async (c) => {
     `INSERT INTO products (sku, name, description, category, unit, price, cost, stock_quantity, low_stock_threshold, track_inventory, image_url, barcode, tax_rate, bulk_discounts) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(sku || null, name, description, category, unit, price, cost, stock_quantity, low_stock_threshold, track_inventory, image_url, barcode, tax_rate, bulkJson).run();
 
-  try { await c.env.DB.prepare(`ALTER TABLE products ADD COLUMN lot_number TEXT`).run(); } catch { /* */ }
-  try { await c.env.DB.prepare(`ALTER TABLE products ADD COLUMN expiry_date TEXT`).run(); } catch { /* */ }
+  await addColumnIfMissing(c.env.DB, 'products', 'lot_number', `TEXT`);
+  await addColumnIfMissing(c.env.DB, 'products', 'expiry_date', `TEXT`);
   {
     const lot_number = body.lot_number != null ? String(body.lot_number).slice(0, 64) : '';
     const expiry_date = body.expiry_date != null ? String(body.expiry_date).slice(0, 32) : '';
@@ -5802,8 +5800,8 @@ app.put('/api/products/:id', async (c) => {
       values.push(v);
     }
   }
-  try { await c.env.DB.prepare(`ALTER TABLE products ADD COLUMN lot_number TEXT`).run(); } catch {}
-  try { await c.env.DB.prepare(`ALTER TABLE products ADD COLUMN expiry_date TEXT`).run(); } catch {}
+  await addColumnIfMissing(c.env.DB, 'products', 'lot_number', `TEXT`);
+  await addColumnIfMissing(c.env.DB, 'products', 'expiry_date', `TEXT`);
   if (body.lot_number !== undefined) { updates.push('lot_number = ?'); values.push(String(body.lot_number || '').slice(0, 64) || null); }
   if (body.expiry_date !== undefined) { updates.push('expiry_date = ?'); values.push(String(body.expiry_date || '').slice(0, 32) || null); }
   if (body.bulk_discounts !== undefined) {
@@ -7050,7 +7048,7 @@ async function publicRateLimit(env: any, key: string, limit = 30, windowTtl = 60
 
 async function ensureReceiptSituationColumn(db: D1Database) {
   await schemaOnce('ensureReceiptSituationColumn', async () => {
-  try { await db.prepare(`ALTER TABLE receipts ADD COLUMN include_client_situation INTEGER DEFAULT 0`).run(); } catch { /* */ }
+  await addColumnIfMissing(db, 'receipts', 'include_client_situation', `INTEGER DEFAULT 0`);
 
   });
 }
@@ -7070,27 +7068,13 @@ async function ensureQrPrivacySettings(db: D1Database) {
 
 async function ensureInvoicePublicToken(db: D1Database) {
   await schemaOnce('ensureInvoicePublicToken', async () => {
-  try {
-    await db.prepare(`ALTER TABLE invoices ADD COLUMN public_token TEXT`).run();
-  } catch { /* exists */ }
-  try {
-    await db.prepare(`ALTER TABLE invoices ADD COLUMN client_signature TEXT`).run();
-  } catch { /* exists */ }
-  try {
-    await db.prepare(`ALTER TABLE invoices ADD COLUMN signed_at TEXT`).run();
-  } catch { /* exists */ }
-  try {
-    await db.prepare(`ALTER TABLE invoices ADD COLUMN signature_digest TEXT`).run();
-  } catch { /* exists */ }
-  try {
-    await db.prepare(`ALTER TABLE invoices ADD COLUMN signed_doc_hash TEXT`).run();
-  } catch { /* exists */ }
-  try {
-    await db.prepare(`ALTER TABLE invoices ADD COLUMN timestamp_token TEXT`).run();
-  } catch { /* exists */ }
-  try {
-    await db.prepare(`ALTER TABLE invoices ADD COLUMN timestamp_at TEXT`).run();
-  } catch { /* exists */ }
+  await addColumnIfMissing(db, 'invoices', 'public_token', `TEXT`);
+  await addColumnIfMissing(db, 'invoices', 'client_signature', `TEXT`);
+  await addColumnIfMissing(db, 'invoices', 'signed_at', `TEXT`);
+  await addColumnIfMissing(db, 'invoices', 'signature_digest', `TEXT`);
+  await addColumnIfMissing(db, 'invoices', 'signed_doc_hash', `TEXT`);
+  await addColumnIfMissing(db, 'invoices', 'timestamp_token', `TEXT`);
+  await addColumnIfMissing(db, 'invoices', 'timestamp_at', `TEXT`);
 
   });
 }
@@ -7526,7 +7510,7 @@ async function ensureInvoiceItemPromoColumns(db: D1Database) {
 /** Invoice-level tax exempt */
 async function ensureInvoiceTaxExempt(db: D1Database) {
   await schemaOnce('ensureInvoiceTaxExempt', async () => {
-  try { await db.prepare(`ALTER TABLE invoices ADD COLUMN tax_exempt INTEGER DEFAULT 0`).run(); } catch { /* exists */ }
+  await addColumnIfMissing(db, 'invoices', 'tax_exempt', `INTEGER DEFAULT 0`);
 
   });
 }
@@ -7615,7 +7599,7 @@ function validateNextCreditNumber(raw: unknown): { ok: true; value: number } | {
  */
 async function ensureProductBulkDiscounts(db: D1Database) {
   await schemaOnce('ensureProductBulkDiscounts', async () => {
-  try { await db.prepare(`ALTER TABLE products ADD COLUMN bulk_discounts TEXT DEFAULT '[]'`).run(); } catch { /* exists */ }
+  await addColumnIfMissing(db, 'products', 'bulk_discounts', `TEXT DEFAULT '[]'`);
 
   });
 }
@@ -7746,9 +7730,7 @@ function normalizeMovementType(qtySigned: number, reason: string, explicit?: str
  */
 async function ensureValuationTables(db: D1Database) {
   await schemaOnce('ensureValuationTables', async () => {
-  try {
-    await db.prepare(`ALTER TABLE company_settings ADD COLUMN inventory_valuation_method TEXT DEFAULT 'average'`).run();
-  } catch { /* */ }
+  await addColumnIfMissing(db, 'company_settings', 'inventory_valuation_method', `TEXT DEFAULT 'average'`);
   await db.prepare(`
     CREATE TABLE IF NOT EXISTS stock_cost_layers (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -8168,9 +8150,7 @@ async function idempotencyPut(db: D1Database, key: string, route: string, status
 /** Phase 1 — period lock (YYYY-MM). Mutations with issue_date <= locked month blocked. */
 async function ensurePeriodLockColumn(db: D1Database) {
   await schemaOnce('ensurePeriodLockColumn', async () => {
-  try {
-    await db.prepare(`ALTER TABLE company_settings ADD COLUMN fiscal_locked_through TEXT DEFAULT ''`).run();
-  } catch { /* */ }
+  await addColumnIfMissing(db, 'company_settings', 'fiscal_locked_through', `TEXT DEFAULT ''`);
 
   });
 }
@@ -10065,7 +10045,7 @@ async function ensureUblClearance(db: D1Database) {
       updated_at TEXT DEFAULT (datetime('now'))
     )
   `).run();
-  try { await db.prepare(`ALTER TABLE invoices ADD COLUMN dgi_status TEXT DEFAULT ''`).run(); } catch { /* */ }
+  await addColumnIfMissing(db, 'invoices', 'dgi_status', `TEXT DEFAULT ''`);
 
   });
 }
@@ -10122,9 +10102,7 @@ app.get('/api/invoices/:id/ubl/validate', async (c) => {
   const dgiStatus = validation.ok
     ? (validation.warnings.length ? 'ubl_ok_warnings' : 'ubl_ready')
     : 'ubl_errors';
-  try {
-    await c.env.DB.prepare(`ALTER TABLE invoices ADD COLUMN dgi_status TEXT DEFAULT ''`).run();
-  } catch { /* exists */ }
+  await addColumnIfMissing(c.env.DB, 'invoices', 'dgi_status', `TEXT DEFAULT ''`);
   try {
     await c.env.DB.prepare(
       `UPDATE invoices SET dgi_status = ?, updated_at = datetime('now') WHERE id = ?`
@@ -11246,9 +11224,7 @@ app.delete('/api/receipts/:id', async (c) => {
 
 async function ensureExpenseTypeColumn(db: D1Database) {
   await schemaOnce('ensureExpenseTypeColumn', async () => {
-  try {
-    await db.prepare(`ALTER TABLE expenses ADD COLUMN entry_type TEXT DEFAULT 'expense'`).run();
-  } catch { /* column already exists */ }
+  await addColumnIfMissing(db, 'expenses', 'entry_type', `TEXT DEFAULT 'expense'`);
 
   });
 }
@@ -11833,9 +11809,7 @@ app.get('/api/reports/tva', async (c) => {
   const defaultTax = Number(settings?.tax_rate ?? 20);
 
   // Ensure line tax_rate exists (older DBs may lack it). invoices has tax_amount/subtotal, not tax_rate.
-  try {
-    await c.env.DB.prepare(`ALTER TABLE invoice_items ADD COLUMN tax_rate REAL DEFAULT 0`).run();
-  } catch { /* exists */ }
+  await addColumnIfMissing(c.env.DB, 'invoice_items', 'tax_rate', `REAL DEFAULT 0`);
 
   // Rate = line tax_rate when set, else company default. Never reference i.tax_rate (column does not exist).
   let sql = `
@@ -11919,7 +11893,7 @@ app.get('/api/reports/tva.csv', async (c) => {
   // Reuse JSON logic via internal fetch-like: call same computations
   const settings = await c.env.DB.prepare(`SELECT tax_rate FROM company_settings WHERE id = 1`).first() as any;
   const defaultTax = Number(settings?.tax_rate ?? 20);
-  try { await c.env.DB.prepare(`ALTER TABLE invoice_items ADD COLUMN tax_rate REAL DEFAULT 0`).run(); } catch { /* */ }
+  await addColumnIfMissing(c.env.DB, 'invoice_items', 'tax_rate', `REAL DEFAULT 0`);
   let sql = `
     SELECT COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) as tax_rate,
            SUM(CASE WHEN ii.line_total IS NOT NULL AND COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) > 0
@@ -12030,9 +12004,7 @@ app.get('/api/reports/tva.html', async (c) => {
   const from = c.req.query('from') || '';
   const to = c.req.query('to') || '';
   const defaultTax = Number(settings?.tax_rate ?? 20);
-  try {
-    await c.env.DB.prepare(`ALTER TABLE invoice_items ADD COLUMN tax_rate REAL DEFAULT 0`).run();
-  } catch { /* exists */ }
+  await addColumnIfMissing(c.env.DB, 'invoice_items', 'tax_rate', `REAL DEFAULT 0`);
 
   let sql = `
     SELECT COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) as tax_rate,
@@ -13193,8 +13165,8 @@ app.get('/api/delivery-notes/:id/print', async (c) => {
 
 async function ensureBillReceive(db: D1Database) {
   await schemaOnce('ensureBillReceive', async () => {
-  try { await db.prepare(`ALTER TABLE bill_items ADD COLUMN qty_received REAL DEFAULT 0`).run(); } catch { /* */ }
-  try { await db.prepare(`ALTER TABLE bills ADD COLUMN receive_status TEXT DEFAULT 'pending'`).run(); } catch { /* */ }
+  await addColumnIfMissing(db, 'bill_items', 'qty_received', `REAL DEFAULT 0`);
+  await addColumnIfMissing(db, 'bills', 'receive_status', `TEXT DEFAULT 'pending'`);
 
   });
 }
