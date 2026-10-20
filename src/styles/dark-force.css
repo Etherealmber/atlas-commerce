@@ -2915,3 +2915,71 @@ html[data-theme="dark"] body .wizard-foot {
   box-shadow: 0 -12px 28px rgba(0, 0, 0, 0.45) !important;
 }
 /* v218 END */
+
+/* ═══════════════════════════════════════════════════════════════
+   v219 — period chips → single rounded selector; empty states
+   centered column (icon / title / text no longer run together);
+   donut legends centered. Both themes.
+   ═══════════════════════════════════════════════════════════════ */
+html body .dash-range-select {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1.5px solid #d4d4d8;
+  background: #ffffff
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2318181b' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+    no-repeat right 12px center;
+  border-radius: 12px;
+  padding: 8px 36px 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink, #18181b);
+  cursor: pointer;
+  min-width: 132px;
+}
+html body .dash-range-select:hover { border-color: #a1a1aa; }
+html body .dash-range-select:focus-visible {
+  outline: 2px solid var(--focus, #6366f1);
+  outline-offset: 2px;
+}
+html[data-theme="dark"] body .dash-range-select {
+  background: #27272a
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23e4e4e7' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+    no-repeat right 12px center;
+  border-color: #3f3f46;
+  color: #f4f4f5;
+}
+html[data-theme="dark"] body .dash-range-select:hover { border-color: #52525b; }
+html body .dash-range-select option {
+  background: #ffffff;
+  color: #18181b;
+}
+html[data-theme="dark"] body .dash-range-select option {
+  background: #1c1c1f;
+  color: #f4f4f5;
+}
+
+/* Empty states: centered column — icon, title, description stacked */
+html body .ac-dash-empty {
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  text-align: center !important;
+}
+html body .ac-dash-empty .ae-ico,
+html body .ac-dash-empty .atlas-empty-icon {
+  margin: 0 auto 2px !important;
+}
+html body .ac-dash-empty strong {
+  display: block !important;
+  margin: 0 !important;
+}
+html body .ac-dash-empty p {
+  margin: 0 !important;
+  max-width: 34ch;
+}
+/* Donut legends centered under the ring */
+html body .ac-donut-legend {
+  justify-content: center !important;
+}
+/* v219 END */

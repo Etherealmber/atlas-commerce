@@ -54,7 +54,8 @@ function defaultRange(preset: string) {
   const to = new Date();
   to.setHours(12, 0, 0, 0); // noon local → stable date
   let from = new Date(to);
-  if (preset === '1m') from = new Date(to.getFullYear(), to.getMonth(), 1);
+  if (preset === '7d') from = new Date(to.getFullYear(), to.getMonth(), to.getDate() - 6);
+  else if (preset === '1m') from = new Date(to.getFullYear(), to.getMonth(), 1);
   else if (preset === '6m') from = new Date(to.getFullYear(), to.getMonth() - 5, 1);
   else if (preset === '12m' || preset === '1y') from = new Date(to.getFullYear(), to.getMonth() - 11, 1);
   else if (preset === '24m' || preset === '2y') from = new Date(to.getFullYear(), to.getMonth() - 23, 1);
@@ -824,25 +825,26 @@ export default function Dashboard() {
             <h3><svg className="as-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight:6,verticalAlign:'middle'}}><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>Flux de trésorerie</h3>
             <p>Entrées, sorties et résultat par mois</p>
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+          <select
+            className="dash-range-select"
+            value={preset}
+            aria-label="Période du graphique"
+            onChange={(e) => applyPreset(e.target.value)}
+          >
+            {preset === 'custom' && <option value="custom">Personnalisé</option>}
             {[
+              ['7d', '7 jours'],
               ['1m', '1 mois'],
               ['6m', '6 mois'],
               ['12m', '1 an'],
               ['24m', '2 ans'],
               ['ytd', 'Cette année'],
             ].map(([k, lab]) => (
-              <button
-                key={k}
-                type="button"
-                className={`dash-range-btn${preset === k ? ' is-on' : ''}`}
-                style={{ borderRadius: 999, padding: '6px 12px', fontSize: 12 }}
-                onClick={() => applyPreset(k)}
-              >
+              <option key={k} value={k}>
                 {lab}
-              </button>
+              </option>
             ))}
-          </div>
+          </select>
         </div>
         <div className="ac-chart-toolbar">
           <div className="dash-date-range" style={{ marginTop: 0, minWidth: 220, flex: '1 1 220px' }}>
