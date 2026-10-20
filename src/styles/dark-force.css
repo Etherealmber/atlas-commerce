@@ -1264,3 +1264,381 @@ html[data-theme="dark"] .wshot-card { fill: #27272a; stroke: #3f3f46; }
 html[data-theme="dark"] .wshot-accent { fill: #fafafa; }
 html[data-theme="dark"] .wshot-badge { fill: #ef4444; }
 html[data-theme="dark"] .wshot-corners { stroke: #fafafa; }
+
+/* ========== v206 — dark leftovers: agent panel, account menu, range datepicker ========== */
+/* Atlas Agent head / page chip / exec mode / msg actions / nav chips / composer */
+html[data-theme="dark"] .atlas-agent-head { border-bottom-color: #2a2a2e; }
+html[data-theme="dark"] .atlas-agent-head strong { color: #fafafa; }
+html[data-theme="dark"] .atlas-agent-head span { color: #a1a1aa; }
+html[data-theme="dark"] .atlas-agent-pagechip {
+  background: #27272a !important;
+  border: 1px solid #3f3f46 !important;
+  color: #f4f4f5 !important;
+}
+html[data-theme="dark"] .atlas-agent-pagechip .lbl,
+html[data-theme="dark"] .atlas-agent-pagechip small,
+html[data-theme="dark"] .atlas-agent-pagechip span { color: #a1a1aa !important; }
+html[data-theme="dark"] .atlas-agent-pagechip strong { color: #f4f4f5 !important; }
+html[data-theme="dark"] .atlas-agent-execmode button {
+  background: #27272a !important;
+  color: #e4e4e7 !important;
+  border: 1px solid #3f3f46 !important;
+}
+html[data-theme="dark"] .atlas-agent-execmode button.active {
+  background: #fafafa !important;
+  color: #0a0a0a !important;
+  -webkit-text-fill-color: #0a0a0a !important;
+  border-color: #fafafa !important;
+}
+html[data-theme="dark"] .atlas-agent-msg-act.secondary {
+  background: #27272a !important;
+  color: #e4e4e7 !important;
+  border: 1px solid #3f3f46 !important;
+}
+html[data-theme="dark"] .atlas-agent-msg-act.secondary:hover {
+  background: #3f3f46 !important;
+  color: #fafafa !important;
+}
+html[data-theme="dark"] .atlas-agent-panel .atlas-agent-nav--readable button,
+html[data-theme="dark"] .atlas-agent-panel .atlas-agent-chips--readable button,
+html[data-theme="dark"] .atlas-agent-panel .atlas-agent-suggest--readable button,
+html[data-theme="dark"] .atlas-agent-nav button.secondary,
+html[data-theme="dark"] .atlas-agent-chips button.secondary,
+html[data-theme="dark"] .atlas-agent-suggest button.secondary {
+  background: #27272a !important;
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+  border: 1px solid #3f3f46 !important;
+}
+html[data-theme="dark"] .atlas-agent-nav .lbl,
+html[data-theme="dark"] .atlas-agent-chips .lbl,
+html[data-theme="dark"] .atlas-agent-suggest .lbl { color: #a1a1aa !important; }
+html[data-theme="dark"] .atlas-agent-foot .prompt-bar__field,
+html[data-theme="dark"] .atlas-agent-foot .atlas-agent-prompt-bar .prompt-bar__field {
+  background: #161618 !important;
+  border: 1px solid #3f3f46 !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"] .atlas-agent-foot .prompt-bar__input,
+html[data-theme="dark"] .atlas-agent-foot .prompt-bar__input::placeholder {
+  color: #f4f4f5 !important;
+}
+
+/* Account menu: theme-aware panel (was forced dark in light mode too) */
+html[data-theme="light"] .account-menu-panel {
+  background: #ffffff !important;
+  border: 1px solid #e4e4e7 !important;
+  color: #0a0a0a;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12) !important;
+}
+html[data-theme="light"] .account-menu-item {
+  color: #3f3f46 !important;
+  background: transparent !important;
+}
+html[data-theme="light"] .account-menu-item:hover {
+  background: #f4f4f5 !important;
+  color: #0a0a0a !important;
+}
+html[data-theme="light"] .account-menu-section-label { color: #71717a !important; }
+html[data-theme="light"] .account-seg button {
+  background: #f4f4f5 !important;
+  color: #3f3f46 !important;
+  border: 1px solid #e4e4e7 !important;
+}
+html[data-theme="light"] .account-seg button.active {
+  background: #0a0a0a !important;
+  color: #fafafa !important;
+  -webkit-text-fill-color: #fafafa !important;
+}
+html[data-theme="light"] .account-menu-danger {
+  background: #fef2f2 !important;
+  color: #b91c1c !important;
+  -webkit-text-fill-color: #b91c1c !important;
+  border-color: #fecaca !important;
+}
+/* Dark: make sure item labels never dim out */
+html[data-theme="dark"] .account-menu-item { color: #e4e4e7 !important; }
+html[data-theme="dark"] .account-menu-item-label { color: #f4f4f5 !important; }
+html[data-theme="dark"] .account-seg button {
+  background: #27272a !important;
+  color: #e4e4e7 !important;
+  border: 1px solid #3f3f46 !important;
+}
+
+/* Range datepicker — nuclear dark pass (desktop + phone shell) */
+html[data-theme="dark"] .atlas-dp-pop.atlas-dp-range,
+html[data-theme="dark"] .atlas-dp-pop.atlas-dp-range.has-presets {
+  background: #1c1c1f !important;
+  border-color: #2a2a2e !important;
+}
+html[data-theme="dark"] .atlas-dp-presets {
+  background: #161618 !important;
+  border-color: #2a2a2e !important;
+}
+html[data-theme="dark"] .atlas-dp-range-main,
+html[data-theme="dark"] .atlas-dp-cal,
+html[data-theme="dark"] .atlas-dp-grid {
+  background: transparent !important;
+}
+html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-day,
+html[data-theme="dark"] .atlas-dp-pop .atlas-dp-weekdays,
+html[data-theme="dark"] .atlas-dp-pop .atlas-dp-title {
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+}
+html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-nav,
+html[data-theme="dark"] .atlas-dp-pop .atlas-dp-select {
+  background: #27272a !important;
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+  border: 1px solid #3f3f46 !important;
+}
+html[data-theme="dark"] .atlas-dp-pop .atlas-dp-foot,
+html[data-theme="dark"] .atlas-dp-pop .atlas-dp-foot button,
+html[data-theme="dark"] .atlas-dp-pop .atlas-dp-foot button.secondary {
+  background: #27272a !important;
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+  border: 1px solid #3f3f46 !important;
+}
+html[data-theme="dark"] .atlas-dp-pop .atlas-dp-foot button:hover {
+  background: #3f3f46 !important;
+  color: #fafafa !important;
+}
+html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-day.is-selected {
+  background: #fafafa !important;
+  color: #0a0a0a !important;
+  -webkit-text-fill-color: #0a0a0a !important;
+}
+html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-day.is-in-range {
+  background: #3f3f46 !important;
+  color: #f4f4f5 !important;
+}
+html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-preset {
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+}
+html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-preset.is-active {
+  background: #3f3f46 !important;
+  color: #fafafa !important;
+}
+
+/* ========== v207 — QR fab: kill the black-oval backdrop + panel polish ========== */
+/* Root cause: index.css paints EVERY <button> as a black pill (radius 999px).
+   The full-viewport backdrop is a <button> → pill radius on inset:0 = giant
+   black ellipse. Force a flat dim rectangle in both themes. */
+html body button.qr-fab-backdrop,
+html body .qr-fab-backdrop {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 100vw !important;
+  min-height: 100vh !important;
+  max-width: none !important;
+  max-height: none !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: rgba(15, 23, 42, 0.45) !important;
+  background-color: rgba(15, 23, 42, 0.45) !important;
+  background-image: none !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  filter: none !important;
+  box-shadow: none !important;
+}
+/* Generic guard: any full-screen <button> backdrop never inherits pill paint */
+html body button[class$="-backdrop"]:not(.account-menu-backdrop):not(.ac-topbar-menu-backdrop):not(.mobile-nav-backdrop):not(.atlas-agent-float-backdrop) {
+  border-radius: 0 !important;
+  padding: 0 !important;
+  filter: none !important;
+}
+html body .qr-fab-layer { z-index: 95 !important; }
+html body .qr-fab-panel {
+  z-index: 96;
+  border-radius: 18px;
+  padding: 18px;
+}
+/* Panel polish: readable hierarchy, consistent actions (light + dark) */
+html body .qr-fab-panel .qr-login-head strong,
+html body .qr-fab-panel h3 { font-size: 15px; }
+html body .qr-fab-panel .qr-login-show button,
+html body .qr-fab-panel .qr-login-stopped button {
+  min-height: 40px;
+  padding: 0 16px !important;
+  font-weight: 600;
+}
+html[data-theme="light"] .qr-fab-panel .qr-login-show button.secondary {
+  background: #0a0a0a !important;
+  color: #fafafa !important;
+  border-color: #0a0a0a !important;
+}
+html[data-theme="dark"] .qr-fab-panel .qr-login-show button.secondary {
+  background: #fafafa !important;
+  color: #0a0a0a !important;
+  border-color: #fafafa !important;
+}
+html body .qr-fab-panel .qr-login-user select {
+  min-height: 38px;
+  border-radius: 10px;
+}
+/* FAB itself: always visible above sticky save bar & phone chrome */
+html body .qr-fab { z-index: 94 !important; }
+html body .settings-sticky-save { z-index: 60 !important; }
+
+/* ========== v208 — phone minimal, smart search sheet, dark checkboxes, scan outline ========== */
+/* Dark-mode checkboxes / radios: visible zinc boxes (were invisible) */
+html[data-theme="dark"] input[type="checkbox"],
+html[data-theme="dark"] input[type="radio"] {
+  accent-color: #fafafa;
+  width: 18px;
+  height: 18px;
+  background: #27272a;
+  border: 1px solid #3f3f46;
+  border-radius: 4px;
+  appearance: auto;
+}
+html[data-theme="dark"] input[type="checkbox"]:checked,
+html[data-theme="dark"] input[type="radio"]:checked {
+  background: #fafafa;
+  border-color: #fafafa;
+}
+/* Smart-search options row (PC + phone) */
+html body .ac-shell-search-opts {
+  display: flex;
+  gap: 14px;
+  padding: 8px 12px 4px;
+  border-bottom: 1px solid var(--line, #e4e4e7);
+}
+html body .ac-shell-search-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted, #71717a);
+  cursor: pointer;
+}
+html[data-theme="dark"] body .ac-shell-search-opts { border-bottom-color: #2a2a2e; }
+html[data-theme="dark"] body .ac-shell-search-opt { color: #a1a1aa; }
+
+/* Scan: yellow outline window, no black slab */
+html body .scan-cam-wrap { background: #f4f4f5 !important; box-shadow: none !important; }
+html body .scan-reader {
+  outline: 3px solid #e8a317 !important;
+  outline-offset: -8px;
+  border-radius: 14px;
+  background: transparent !important;
+}
+html body .scan-reader video, html body .scan-reader canvas { border-radius: 14px; }
+html[data-theme="dark"] body .scan-cam-wrap { background: #161618 !important; }
+
+/* Caisse solde hint */
+html body .ac-metric--solde .as-value small { font-size: 11px; color: var(--muted, #71717a); margin-left: 2px; }
+
+/* Phone shell: notif panel + search dropdown become sheets */
+html.phone-shell .ac-notif-panel,
+html.phone-shell .ac-shell-search-dropdown,
+html.phone-shell .ac-shell-search-opts-wrap {
+  position: fixed !important;
+  left: 8px !important;
+  right: 8px !important;
+  top: 54px !important;
+  width: auto !important;
+  max-width: none !important;
+  max-height: 68vh !important;
+  overflow: auto !important;
+  z-index: 120 !important;
+  border-radius: 14px !important;
+}
+html.phone-shell .ac-shell-search-dropdown { top: 96px !important; }
+/* Phone shell: account menu compact */
+html.phone-shell .account-menu-panel {
+  position: fixed !important;
+  left: 8px !important;
+  right: 8px !important;
+  top: 54px !important;
+  bottom: auto !important;
+  max-height: 74vh !important;
+  overflow: auto !important;
+  padding: 8px !important;
+}
+html.phone-shell .account-menu-item { padding: 7px 8px !important; min-height: 40px !important; }
+html.phone-shell .account-menu-head { padding: 8px !important; }
+html.phone-shell .account-seg button { height: 32px !important; min-height: 32px !important; font-size: 12px !important; }
+html.phone-shell .account-menu-section-label { margin: 6px 2px 4px !important; }
+/* Phone shell: settings topbar no overlap, back button white not black pill */
+html.phone-shell .settings-topbar { flex-wrap: wrap !important; gap: 8px !important; row-gap: 8px !important; }
+html body .settings-topbar-back {
+  background: #ffffff !important;
+  color: #0a0a0a !important;
+  border: 1px solid #e4e4e7 !important;
+  border-radius: 10px !important;
+  position: static !important;
+}
+html[data-theme="dark"] body .settings-topbar-back {
+  background: #27272a !important;
+  color: #f4f4f5 !important;
+  border-color: #3f3f46 !important;
+}
+/* Phone shell: products filters 2-col grid, invoices actions wrap tight */
+html.phone-shell .ac-products-filters-row {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 8px !important;
+}
+html.phone-shell .ac-products-filters-row > *:first-child { grid-column: 1 / -1 !important; }
+html.phone-shell .ac-products-filters-row select,
+html.phone-shell .ac-products-filters-row input { width: 100% !important; min-height: 40px; }
+html.phone-shell .atlas-orders .page-header > div:last-child,
+html.phone-shell .invoices-page .page-header > div:last-child {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+  width: 100% !important;
+}
+html.phone-shell .atlas-orders .page-header > div:last-child > *,
+html.phone-shell .invoices-page .page-header > div:last-child > * {
+  flex: 1 1 45% !important;
+  min-height: 40px !important;
+  font-size: 13px !important;
+  padding: 0 10px !important;
+  justify-content: center !important;
+}
+/* Phone shell: dashboard period chips = neutral, not black blobs */
+html.phone-shell .ac-dash .ac-panel button:not(.danger):not(.ac-notif-item),
+html.phone-shell .ac-dash .ac-panel-head button {
+  background: #ffffff !important;
+  color: #0a0a0a !important;
+  border: 1px solid #e4e4e7 !important;
+  font-size: 12px !important;
+  min-height: 34px !important;
+  padding: 0 10px !important;
+}
+html[data-theme="dark"].phone-shell .ac-dash .ac-panel button:not(.danger):not(.ac-notif-item),
+html[data-theme="dark"].phone-shell .ac-dash .ac-panel-head button {
+  background: #27272a !important;
+  color: #f4f4f5 !important;
+  border-color: #3f3f46 !important;
+}
+/* QR fab panel = bottom sheet on phone */
+html.phone-shell .qr-fab-panel {
+  left: 12px !important;
+  right: 12px !important;
+  bottom: 68px !important;
+  width: auto !important;
+}
+/* Phone inbox (terrain app) */
+html body .ph-inbox-list { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+html body .ph-inbox-item {
+  display: flex; align-items: flex-start; gap: 10px; width: 100%;
+  padding: 10px 12px; border-radius: 12px; text-align: left;
+  background: var(--card, #fff); border: 1px solid var(--line, #e4e4e7);
+}
+html body .ph-inbox-dot { width: 8px; height: 8px; border-radius: 50%; background: #a1a1aa; margin-top: 6px; flex-shrink: 0; }
+html body .ph-inbox-dot.warn { background: #e8a317; }
+html body .ph-inbox-dot.danger { background: #dc2626; }
+html body .ph-inbox-text { display: flex; flex-direction: column; gap: 2px; }
+html body .ph-inbox-text strong { font-size: 13px; color: var(--ink, #0a0a0a); }
+html body .ph-inbox-text em { font-style: normal; font-size: 11px; color: var(--muted, #71717a); text-transform: capitalize; }
+html body .ph-muted { color: var(--muted, #71717a); font-size: 13px; }

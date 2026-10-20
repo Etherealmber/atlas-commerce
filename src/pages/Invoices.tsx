@@ -583,6 +583,8 @@ export default function Invoices() {
                       {(inv.status === 'quote' || inv.status === 'devis') && (
                         <button className="success" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => convertQuote(inv.id)}>→ Facturer</button>
                       )}
+                      {inv.status === 'sent' && <button className="secondary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => api.pipelineAdvance(inv.id, 'accepted').then(() => load(true)).catch((e: any) => alert(e?.message || 'Pipeline'))}>→ Acceptée</button>}
+                      {['sent', 'paid', 'partial'].includes(inv.status) && <button className="secondary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => api.pipelineAdvance(inv.id, 'delivered').then(() => load(true)).catch((e: any) => alert(e?.message || 'Pipeline'))}>→ Livrée</button>}
                       {inv.status !== 'paid' && inv.status !== 'cancelled' && inv.status !== 'quote' && inv.status !== 'devis' && inv.status !== 'remboursement' && (
                         <>
                           <button className="secondary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => openPay(inv)}>Paiement…</button>

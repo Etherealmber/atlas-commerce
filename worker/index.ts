@@ -778,6 +778,7 @@ registerMailboxRoutes(app, {
   sessionUserFromHeader,
 });
 registerEmployeeRoutes(app, { checkConfirmPassword });
+registerAtlasV209Routes(app, { sessionUserFromHeader, applyStockDelta, adjustLocationStock, getDefaultLocationId });
 // Admin read routes need helpers defined later — registered near Users & Admin section
 
 /** Phase 3: health / bindings observability (no secrets). */
@@ -15251,6 +15252,47 @@ function gateStockRole(c: any): { ok: true; username: string } | { ok: false; st
   }
   return { ok: true, username: session.username };
 }
+
+/* v209-A (S7/M2): alert center — low stock, expired lots, overdue invoices, open requests */
+app.get('/api/alerts', async (c) => {
+  const gate = gateStockRole(c);
+  if (!gate.ok) return c.json({ success: false, error: gate.error }, gate.status as any);
+  const db = c.env.DB;
+  await ensureProductRequestsTable(db);
+  await db.prepare(`CREATE TABLE IF NOT EXISTS stock_lots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    product_id INTEGER NOT NULL,
+    lot TEXT NOT NULL DEFAULT '',
+    expiry TEXT DEFAULT '',
+    quantity REAL NOT NULL DEFAULT 0,
+    warehouse_id INTEGER,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`).run();
+  const alerts: any[] = [];
+  const today = new Date().toISOString().slice(0, 10);
+  try {
+    const low = await db.prepare(`SELECT id, name, sku, stock_quantity, low_stock_threshold FROM products WHERE is_active = 1 AND track_inventory = 1 AND stock_quantity <= low_stock_threshold ORDER BY stock_quantity ASC LIMIT 20`).all();
+    for (const p0 of (low as any).results || []) {
+      alerts.push({ kind: Number(p0.stock_quantity) <= 0 ? 'rupture' : 'stock_bas', severity: Number(p0.stock_quantity) <= 0 ? 'high' : 'medium', label: `${p0.name} — ${Number(p0.stock_quantity) <= 0 ? 'rupture' : 'stock bas'} (${p0.stock_quantity})`, href: '/products', meta: { product_id: p0.id, sku: p0.sku } });
+    }
+    const lots = await db.prepare(`SELECT id, product_id, lot, expiry, quantity FROM stock_lots WHERE expiry != '' AND quantity > 0`).all();
+    for (const l of (lots as any).results || []) {
+      if (String(l.expiry) <= today) alerts.push({ kind: 'lot_expire', severity: 'high', label: `Lot ${l.lot || l.id} expiré (produit #${l.product_id})`, href: '/products', meta: l });
+      else if (String(l.expiry) <= new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10)) alerts.push({ kind: 'lot_bientot', severity: 'medium', label: `Lot ${l.lot || l.id} expire le ${l.expiry}`, href: '/products', meta: l });
+    }
+    const overdue = await db.prepare(`SELECT id, number, client_name, total, due_date FROM invoices WHERE COALESCE(doc_kind,'invoice') NOT IN ('quick_sale','ticket','remboursement') AND IFNULL(number,'') NOT LIKE 'VR-%' AND IFNULL(number,'') NOT LIKE 'WR-%' AND status != 'paid' AND status != 'cancelled' AND due_date != '' AND due_date < ? ORDER BY due_date ASC LIMIT 20`).bind(today).all();
+    for (const inv of (overdue as any).results || []) {
+      alerts.push({ kind: 'facture_echue', severity: 'medium', label: `${inv.number} — ${inv.client_name} échue le ${inv.due_date} (${inv.total} MAD)`, href: `/invoices/${inv.id}`, meta: inv });
+    }
+    const reqs = await db.prepare(`SELECT id, code, name, quantity FROM product_requests WHERE status = 'open' ORDER BY id DESC LIMIT 10`).all();
+    for (const r of (reqs as any).results || []) {
+      alerts.push({ kind: 'demande_produit', severity: 'low', label: `Demande scan : ${r.name} (x${r.quantity})`, href: '/products', meta: r });
+    }
+  } catch { /* tables may be missing on fresh DBs */ }
+  const order: Record<string, number> = { high: 0, medium: 1, low: 2 };
+  alerts.sort((a, b) => (order[a.severity] ?? 3) - (order[b.severity] ?? 3));
+  return c.json({ success: true, data: alerts.slice(0, 40), meta: { count: alerts.length, today } });
+});
 
 app.get('/api/stock/product-requests', async (c) => {
   const gate = gateStockRole(c);

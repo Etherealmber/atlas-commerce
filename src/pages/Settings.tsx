@@ -20,6 +20,7 @@ import { getDensity, setDensity, getUiScale, setUiScale, subscribeUiPrefs, type 
 import { startAtlasLoading, setAtlasLoading, doneAtlasLoading } from '../components/AtlasLoadingBar';
 import { VALUATION_METHOD_OPTIONS } from '../lib/labels';
 import IntegrationsPanel from '../components/IntegrationsPanel';
+import { AlertsPanel } from '../components/atlas-v209-panels';
 import AgentPermissionsPanel from '../components/AgentPermissionsPanel';
 import AppUpdatePanel from '../components/settings/AppUpdatePanel';
 
@@ -2294,6 +2295,7 @@ if (loading) return (
               <code> Authorization: Bearer atlas_…</code> (à venir côté auth) — la clé s&apos;affiche une seule fois à la création.
             </p>
             <IntegrationsPanel />
+            <AlertsPanel />
           </div>
         </div>
       )}
