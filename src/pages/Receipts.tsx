@@ -116,7 +116,7 @@ export default function Receipts() {
   };
 
   const requestDelete = async (id: number) => {
-    let disclaimer = 'Cette action est définitive. Saisissez votre mot de passe pour confirmer.';
+    let disclaimer = 'Cette action est définitive. Confirmez pour continuer.';
     let cascade_invoice = false;
     try {
       const links = await api.getReceiptLinks(id);
@@ -127,7 +127,7 @@ export default function Receipts() {
         if (d.invoice) bits.push(`liée à la facture ${d.invoice.number}`);
         disclaimer =
           `ATTENTION : suppression du reçu` + (bits.length ? ` (${bits.join(', ')})` : '') +
-          '. Les écritures de solde liées seront aussi supprimées. Confirmez avec votre mot de passe.';
+          '. Les écritures de solde liées seront aussi supprimées. Confirmez pour continuer.';
       }
       // Ask cascade BEFORE password so dialogs never stack on each other
       if (d?.invoice) {

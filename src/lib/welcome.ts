@@ -18,7 +18,7 @@ export type WelcomePrefs = {
   liquidGlass: boolean;
 };
 
-export const WELCOME_STEP_COUNT = 6;
+export const WELCOME_STEP_COUNT = 5;
 
 export function isWelcomeCompleted(): boolean {
   try {

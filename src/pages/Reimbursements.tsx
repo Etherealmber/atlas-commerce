@@ -255,7 +255,7 @@ export default function Reimbursements() {
         <PasswordConfirm
           open={pwOpen}
           title="Supprimer l’avoir WR"
-          description="Saisissez votre mot de passe pour confirmer la suppression et le rétablissement stock / solde."
+          description="Confirmez la suppression et le rétablissement du stock / solde. Cette action est définitive."
           confirmLabel="Supprimer définitivement"
           onCancel={() => { setPwOpen(false); setPendingDeleteId(null); }}
           onConfirm={confirmDeleteWr}

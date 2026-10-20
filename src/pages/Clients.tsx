@@ -209,7 +209,7 @@ export default function Clients() {
     if (!targetIds.length) { flash('Sélectionnez au moins un client.', 'error'); return; }
     setSelected(new Set(targetIds));
     setPwTitle(targetIds.length === 1 ? 'Supprimer le client' : `Supprimer ${targetIds.length} clients`);
-    setPwDesc('Cette action est définitive. Saisissez votre mot de passe pour confirmer.');
+    setPwDesc('Cette action est définitive. Confirmez pour continuer.');
     setPendingAction(() => async (password: string) => {
       const res = targetIds.length === 1
         ? await api.deleteClient(targetIds[0], password || undefined as any)
@@ -456,9 +456,17 @@ export default function Clients() {
               </small>
             </div>
             <ModalFormError message={modalError} />
-            <div className="form-actions">
-              <button onClick={save} disabled={saving}>{saving ? 'Enregistrement...' : 'Enregistrer dans la base'}</button>
-              <button className="secondary" onClick={() => { setShow(false); setEditId(null); }}>Annuler</button>
+            {/* Same action bar pattern as every other form: primary always right */}
+            <div className="wizard-foot">
+              <div className="wizard-foot-nav">
+                <span className="wizard-foot-step">Fiche client</span>
+                <button onClick={save} disabled={saving}>
+                  {saving ? 'Enregistrement...' : editId ? 'Enregistrer' : 'Créer le client'}
+                </button>
+              </div>
+              <div className="wizard-foot-extra">
+                <button className="secondary" onClick={() => { setShow(false); setEditId(null); }}>Annuler</button>
+              </div>
             </div>
           </div>
         </div></FloatingPortal>

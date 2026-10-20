@@ -9,7 +9,7 @@ type Props = {
   onGlass: (v: boolean) => void;
 };
 
-export default function PhoneSettings({ theme, glass, onTheme, onGlass }: Props) {
+export default function PhoneSettings({ theme, onTheme }: Props) {
   const nav = useNavigate();
 
   return (
@@ -46,10 +46,6 @@ export default function PhoneSettings({ theme, glass, onTheme, onGlass }: Props)
             Système
           </button>
         </div>
-        <label className="ph-toggle-row" style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14, alignItems: 'center' }}>
-          <span>Liquid Glass</span>
-          <input type="checkbox" checked={glass} onChange={(e) => onGlass(e.target.checked)} />
-        </label>
       </section>
 
       <section className="ph-settings-card">

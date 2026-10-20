@@ -821,3 +821,137 @@ html[data-theme="dark"] .atlas-dp-hint,
 html[data-theme="dark"] .atlas-dp-weekdays {
   color: #a1a1aa !important;
 }
+
+/* ========== v201 — wizard footers, range chips, modal controls, range-dp ========== */
+html[data-theme="dark"] .wizard-foot {
+  background: #1c1c1f;
+  border-top-color: #2a2a2e;
+}
+html[data-theme="dark"] .wizard-foot-step { color: #a1a1aa; }
+html[data-theme="dark"] .dash-range-btn {
+  background: #1c1c1f;
+  border-color: #3f3f46;
+  color: #d4d4d8;
+}
+html[data-theme="dark"] .dash-range-btn.is-on {
+  background: #fafafa;
+  border-color: #fafafa;
+  color: #0a0a0a;
+}
+/* Modal controls: secondary chips + step tabs readable on dark modals */
+html[data-theme="dark"] .modal button.secondary,
+html[data-theme="dark"] .modal-card button.secondary,
+html[data-theme="dark"] .modal-overlay button.secondary {
+  background: #27272a;
+  color: #e4e4e7;
+  border: 1px solid #3f3f46;
+}
+html[data-theme="dark"] .modal button.secondary:hover,
+html[data-theme="dark"] .modal-card button.secondary:hover {
+  background: #3f3f46;
+  color: #fafafa;
+}
+html[data-theme="dark"] .modal input,
+html[data-theme="dark"] .modal select,
+html[data-theme="dark"] .modal textarea,
+html[data-theme="dark"] .modal-card input,
+html[data-theme="dark"] .modal-card select,
+html[data-theme="dark"] .modal-card textarea {
+  background: #161618;
+  border-color: #3f3f46;
+  color: #f4f4f5;
+}
+/* Range datepicker: calendar half + footer were still light */
+html[data-theme="dark"] .atlas-dp-range-main {
+  background: #1c1c1f;
+}
+html[data-theme="dark"] .atlas-dp-foot button,
+html[data-theme="dark"] .atlas-dp-pop .atlas-dp-foot button.secondary {
+  background: #27272a !important;
+  color: #f4f4f5 !important;
+  border: 1px solid #3f3f46 !important;
+}
+html[data-theme="dark"] .atlas-dp-foot button:not(.secondary) {
+  background: #fafafa !important;
+  color: #0a0a0a !important;
+  border-color: #fafafa !important;
+}
+html[data-theme="dark"] .atlas-dp-weekdays,
+html[data-theme="dark"] .atlas-dp-hint { color: #a1a1aa !important; }
+
+/* ========== v201 — Welcome stage on the unified palette ========== */
+.welcome-stage {
+  background: #fafafa;
+  color: #0a0a0a;
+}
+html[data-theme="dark"] .welcome-stage {
+  background:
+    radial-gradient(ellipse 80% 55% at 50% -5%, #232327 0%, transparent 60%),
+    #111113;
+  color: #fafafa;
+}
+.welcome-ambient,
+html[data-theme="dark"] .welcome-ambient {
+  background: none;
+}
+html[data-theme="dark"] .welcome-sub,
+html[data-theme="dark"] .welcome-card-hint,
+html[data-theme="dark"] .welcome-note { color: #a1a1aa; }
+html[data-theme="dark"] .welcome-title { color: #fafafa; }
+html[data-theme="dark"] .welcome-progress-bar {
+  background: linear-gradient(90deg, #a1a1aa, #fafafa);
+}
+html[data-theme="dark"] .welcome-pick,
+html[data-theme="dark"] .welcome-density-card,
+html[data-theme="dark"] .welcome-card {
+  background: #1c1c1f;
+  border-color: #2a2a2e;
+  color: #f4f4f5;
+}
+html[data-theme="dark"] .welcome-pick.is-selected {
+  border-color: #fafafa;
+  box-shadow: 0 0 0 1px #fafafa;
+}
+html[data-theme="dark"] .welcome-cta {
+  background: #fafafa;
+  color: #0a0a0a;
+}
+html[data-theme="dark"] .welcome-btn-ghost {
+  background: #27272a;
+  color: #e4e4e7;
+  border-color: #3f3f46;
+}
+html[data-theme="dark"] .welcome-btn-ghost:hover { background: #3f3f46; color: #fafafa; }
+html[data-theme="dark"] .welcome-features-badge {
+  background: #27272a;
+  color: #e4e4e7;
+  border-color: #3f3f46;
+}
+
+/* ========== v201 — Atlas Agent on the unified palette ========== */
+html[data-theme="dark"] .atlas-agent-panel {
+  background: #1c1c1f;
+  border-color: #2a2a2e;
+  color: #f4f4f5;
+}
+html[data-theme="dark"] .atlas-agent-head,
+html[data-theme="dark"] .atlas-agent-foot {
+  background: #161618;
+  border-color: #2a2a2e;
+}
+html[data-theme="dark"] .atlas-agent-bubble {
+  background: #27272a;
+  color: #f4f4f5;
+  border-color: #2a2a2e;
+}
+html[data-theme="dark"] .atlas-agent-msg.user .atlas-agent-bubble {
+  background: #fafafa;
+  color: #0a0a0a;
+  border-color: #fafafa;
+}
+html[data-theme="dark"] .atlas-agent-foot .atlas-agent-input-wrap,
+html[data-theme="dark"] .atlas-agent-foot .atlas-agent-input-wrap input {
+  background: #161618;
+  color: #f4f4f5;
+  border-color: #3f3f46;
+}

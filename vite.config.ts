@@ -43,6 +43,9 @@ export default defineConfig({
     sourcemap: false,
   },
   server: {
+    // Dev-server only: accept requests proxied under preview/tunnel hostnames
+    // (Vite blocks unknown Host headers by default since the 6.0.9 security patch).
+    allowedHosts: true,
     warmup: {
       clientFiles: ['./src/main.tsx', './src/App.tsx', './src/pages/Login.tsx'],
     },

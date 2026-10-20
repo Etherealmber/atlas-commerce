@@ -87,7 +87,7 @@ export default function Vendors() {
 
   const remove = (id: number) => {
     setPwTitle('Supprimer le fournisseur');
-    setPwDesc('Cette action est définitive. Saisissez votre mot de passe pour confirmer.');
+    setPwDesc('Cette action est définitive. Confirmez pour continuer.');
     setPendingAction(() => async (password: string) => {
       await api.deleteVendor(id, password);
       flash('Fournisseur supprimé de la base de données.');

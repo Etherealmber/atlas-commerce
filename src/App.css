@@ -18736,3 +18736,50 @@ html[data-theme="dark"] .scan-requests-photo--none { background: #27272a; border
   .scan-req-modal { padding: 14px; }
   .scan-req-sub { font-size: 0.8rem; }
 }
+
+/* ========== Guided-step forms: pinned action bar (same place, every step) ========== */
+.wizard-foot {
+  position: sticky;
+  bottom: 0;
+  margin-top: 16px;
+  padding: 12px 0 4px;
+  border-top: 1px solid var(--ac-line, var(--line, #e8eaef));
+  background: var(--ac-paper, var(--paper, #ffffff));
+  z-index: 5;
+}
+.wizard-foot-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.wizard-foot-nav button { min-height: 42px; border-radius: 10px; padding: 8px 16px; }
+.wizard-foot-step {
+  flex: 1;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--ac-muted, var(--muted, #64748b));
+}
+.wizard-foot-extra {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-start;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.wizard-foot-extra button { min-height: 36px; border-radius: 10px; padding: 6px 12px; font-size: 0.8rem; }
+
+/* Dashboard treasury range chips — themed in both modes */
+.dash-range-btn {
+  border: 1px solid var(--ac-line, #e8eaef);
+  background: var(--ac-paper, #ffffff);
+  color: var(--ac-ink, #0f172a);
+  font-weight: 600;
+}
+.dash-range-btn.is-on {
+  background: var(--ac-primary, #0a0a0a);
+  border-color: var(--ac-primary, #0a0a0a);
+  color: var(--ac-primary-fg, #fafafa);
+}

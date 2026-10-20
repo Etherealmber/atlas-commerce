@@ -572,6 +572,18 @@ export default function Dashboard() {
         const { api } = await import('../api');
         const token = getToken() || '';
         const base = getApiBase();
+        /* Silent-skip when the Pointage module is disabled — avoids a noisy 403. */
+        let attOn = false;
+        try {
+          const s: any = await api.getSettings();
+          attOn = Number(s?.data?.attendance_enabled) === 1;
+        } catch {
+          attOn = false;
+        }
+        if (!attOn) {
+          if (!cancelled) setAttWeek([]);
+          return;
+        }
         try {
           const el: any = await api.getEmployees?.({ status: 'active', limit: 200 });
           const list = el?.data?.rows || el?.data || [];
@@ -850,7 +862,7 @@ export default function Dashboard() {
               <button
                 key={k}
                 type="button"
-                className={preset === k ? '' : 'secondary'}
+                className={`dash-range-btn${preset === k ? ' is-on' : ''}`}
                 style={{ borderRadius: 999, padding: '6px 12px', fontSize: 12 }}
                 onClick={() => applyPreset(k)}
               >

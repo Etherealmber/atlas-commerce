@@ -179,7 +179,7 @@ export default function Privacy() {
             </li>
             <li>
               <strong>Préférences d’affichage</strong>&nbsp;: thème (système / clair /
-              sombre), mode compact, Liquid Glass — stockées sur l’appareil
+              sombre), mode compact — stockées sur l’appareil
             </li>
             <li>
               <strong>File hors-ligne</strong>&nbsp;: actions en attente de synchronisation
@@ -261,7 +261,7 @@ export default function Privacy() {
               cookies techniques Cloudflare (CDN, WAF, Turnstile éventuel)
             </li>
             <li>
-              <strong>Préférences (web)</strong> — thème, liquid glass, guide d’accueil — selon
+              <strong>Préférences (web)</strong> — thème, guide d’accueil — selon
               consentement
             </li>
             <li>

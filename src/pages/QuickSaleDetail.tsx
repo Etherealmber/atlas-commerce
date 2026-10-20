@@ -107,7 +107,7 @@ export default function QuickSaleDetail() {
 
   const requestDelete = async () => {
     let disclaimer =
-      'Suppression définitive du ticket VR, des paiements et reçus liés. Le stock sera rétabli si le ticket n’est pas déjà annulé. Saisissez votre mot de passe.';
+      'Suppression définitive du ticket VR, des paiements et reçus liés. Le stock sera rétabli si le ticket n’est pas déjà annulé. Confirmez pour continuer.';
     try {
       const links = await api.getInvoiceLinks(ticket.id);
       const d = links.data;
@@ -115,7 +115,7 @@ export default function QuickSaleDetail() {
       if (d?.receipts?.length) bits.push(`${d.receipts.length} reçu(s)`);
       if (d?.payments_count) bits.push(`${d.payments_count} paiement(s)`);
       if (bits.length) {
-        disclaimer = `ATTENTION : ce ticket VR et ${bits.join(', ')} seront effacés. Stock rétabli. Confirmez avec votre mot de passe.`;
+        disclaimer = `ATTENTION : ce ticket VR et ${bits.join(', ')} seront effacés. Stock rétabli. Confirmez pour continuer.`;
       }
     } catch { /* */ }
     setPwDesc(disclaimer);

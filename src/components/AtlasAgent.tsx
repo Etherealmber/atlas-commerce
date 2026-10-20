@@ -379,10 +379,14 @@ function parseLocalAction(text: string, currentPath = ''): LocalAction | null {
       if (m4 && !/^(avec|nommé|nommee|nouveau|nouvelle)$/i.test(m4[1])) name = m4[1].trim();
     }
     if (name) {
+      const email = (text.match(/[\w.+-]+@[\w-]+\.[\w.-]+/) || [])[0] || '';
+      const phone = (text.match(/(?:\+?\d[\d\s.-]{8,17}\d)/) || [])[0]?.trim() || '';
       return {
         type: 'create_client',
         name,
         ice: ice || undefined,
+        email: email || undefined,
+        phone: phone || undefined,
         label: `Créer le client « ${name} »`,
       };
     }

@@ -42,37 +42,6 @@ function applyThemeMode(mode: WelcomeTheme) {
   document.documentElement.setAttribute('data-theme', resolved);
 }
 
-/** Custom glass toggle — no native checkbox */
-function GlassToggle({
-  on,
-  onChange,
-  label,
-  hint,
-}: {
-  on: boolean;
-  onChange: (v: boolean) => void;
-  label: string;
-  hint?: string;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      className={`welcome-switch-card${on ? ' on' : ''}`}
-      onClick={() => onChange(!on)}
-    >
-      <div className="welcome-switch-copy">
-        <span className="welcome-switch-label">{label}</span>
-        {hint ? <span className="welcome-switch-hint">{hint}</span> : null}
-      </div>
-      <span className="welcome-switch-track" aria-hidden>
-        <span className="welcome-switch-thumb" />
-      </span>
-    </button>
-  );
-}
-
 function ThemeMock({ mode }: { mode: WelcomeTheme }) {
   const isDark =
     mode === 'dark' ||
@@ -631,10 +600,6 @@ export default function Welcome() {
     setDensity(density);
   };
 
-  const toggleGlass = (on: boolean) => {
-    setPrefs(saveWelcomePrefs({ liquidGlass: false }));
-    setGlassEnabled(false);
-  };
 
   const finish = () => {
     setLeaving(true);
@@ -728,29 +693,6 @@ export default function Welcome() {
         )}
 
         {step === 2 && (
-          <section className="welcome-panel" key="glass">
-            <h2 className="welcome-title">Liquid Glass</h2>
-            <p className="welcome-sub">
-              Effet de profondeur optionnel (flou, transparence). Vous pourrez le changer plus tard dans le menu compte.
-            </p>
-            <GlassToggle
-              on={prefs.liquidGlass}
-              onChange={toggleGlass}
-              label="Activer Liquid Glass"
-              hint="Recommandé sur écran récent — désactivable à tout moment"
-            />
-            <div className="welcome-nav">
-              <button type="button" className="welcome-btn-ghost" onClick={() => go(1)}>
-                Retour
-              </button>
-              <button type="button" className="welcome-cta" onClick={() => go(3)}>
-                Suivant
-              </button>
-            </div>
-          </section>
-        )}
-
-        {step === 3 && (
                     <section className="welcome-panel welcome-panel-wide" key="features">
             <div className="welcome-features-hero">
               <span className="welcome-features-badge">★ Nos fonctionnalités</span>
@@ -786,17 +728,17 @@ export default function Welcome() {
               ))}
             </div>
             <div className="welcome-nav">
-              <button type="button" className="welcome-btn-ghost" onClick={() => go(2)}>
+              <button type="button" className="welcome-btn-ghost" onClick={() => go(1)}>
                 Retour
               </button>
-              <button type="button" className="welcome-cta" onClick={() => go(4)}>
+              <button type="button" className="welcome-cta" onClick={() => go(3)}>
                 Suivant
               </button>
             </div>
           </section>
         )}
 
-        {step === 4 && (
+        {step === 3 && (
           <section className="welcome-panel welcome-panel-wide" key="compare">
             <h2 className="welcome-title">Pourquoi {APP_NAME} change la donne</h2>
             <p className="welcome-sub">Comparaisons animées — papier &amp; outils lourds face à Atlas.</p>
@@ -829,17 +771,17 @@ export default function Welcome() {
             </div>
             <MasteryTips />
             <div className="welcome-nav">
-              <button type="button" className="welcome-btn-ghost" onClick={() => go(3)}>
+              <button type="button" className="welcome-btn-ghost" onClick={() => go(2)}>
                 Retour
               </button>
-              <button type="button" className="welcome-cta" onClick={() => go(5)}>
+              <button type="button" className="welcome-cta" onClick={() => go(4)}>
                 Suivant
               </button>
             </div>
           </section>
         )}
 
-        {step === 5 && (
+        {step === 4 && (
           <section className="welcome-panel welcome-close" key="close">
             <p className="welcome-thanks welcome-fade-up">Merci de nous faire confiance</p>
             <h2 className="welcome-title welcome-fade-up" style={{ animationDelay: '0.08s' }}>
@@ -892,7 +834,7 @@ export default function Welcome() {
             </div>
 
             <div className="welcome-nav">
-              <button type="button" className="welcome-btn-ghost" onClick={() => go(4)}>
+              <button type="button" className="welcome-btn-ghost" onClick={() => go(3)}>
                 Retour
               </button>
               <button type="button" className="welcome-cta welcome-cta-glow" onClick={finish} disabled={leaving}>

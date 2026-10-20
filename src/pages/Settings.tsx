@@ -2722,7 +2722,7 @@ if (loading) return (
             <h2 style={{ fontSize: 16, marginBottom: 12 }}>Comptes de l&apos;équipe</h2>
             <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>
               Ajoutez des collaborateurs. Ils se connectent avec leur identifiant et leur mot de passe.
-              Pour supprimer une facture, un produit, etc., ils confirment avec <strong>leur propre mot de passe</strong>.
+              Les suppressions (facture, produit, etc.) demandent une simple confirmation — la session et le code OTP protègent déjà le compte.
               Seul le compte propriétaire voit cet onglet.
             </p>
             <div className="grid grid-2" style={{ marginBottom: 12 }}>
@@ -2995,7 +2995,7 @@ if (loading) return (
           <div className="card settings-danger-zone" data-settings-anchor="danger" style={{ marginBottom: 16, borderColor: 'rgba(180, 50, 40, 0.35)' }}>
             <h2 style={{ fontSize: 16, marginTop: 0, marginBottom: 8, color: '#8b2e24' }}>Zone sensible</h2>
             <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12, lineHeight: 1.45 }}>
-              Actions réservées au propriétaire. Confirmez toujours avec votre mot de passe. La restauration complète passe par Sauvegarde (ci-dessus).
+              Actions réservées au propriétaire. Chaque action demande une confirmation explicite. La restauration complète passe par Sauvegarde (ci-dessus).
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               <button
@@ -3176,7 +3176,7 @@ if (loading) return (
       <PasswordConfirm
         open={pwOpen}
         title={pwTitle}
-        description="Saisissez votre mot de passe pour confirmer cette action."
+        description="Cette action est immédiate. Confirmez pour continuer."
         confirmLabel="Confirmer"
         onCancel={() => { setPwOpen(false); setPendingAction(null); }}
         onConfirm={async (password) => {
