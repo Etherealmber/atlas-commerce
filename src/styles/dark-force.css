@@ -1642,3 +1642,141 @@ html body .ph-inbox-text { display: flex; flex-direction: column; gap: 2px; }
 html body .ph-inbox-text strong { font-size: 13px; color: var(--ink, #0a0a0a); }
 html body .ph-inbox-text em { font-style: normal; font-size: 11px; color: var(--muted, #71717a); text-transform: capitalize; }
 html body .ph-muted { color: var(--muted, #71717a); font-size: 13px; }
+
+/* ========== v211 — wizards, modales scrollport, dark hardening final ========== */
+/* Wizard steps */
+html body .wz-off { display: none !important; }
+html body .wz-step { display: block; }
+html body .wz-chip {
+  display: inline-flex;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #0a0a0a;
+  color: #fafafa;
+  font-size: 11px;
+  font-weight: 700;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+html[data-theme="dark"] body .wz-chip { background: #fafafa; color: #0a0a0a; }
+/* Modales = scrollport : le pied wizard reste épinglé au bas de la modale,
+   plus de pied flottant au milieu du contenu */
+html body .modal-overlay .modal {
+  max-height: min(88dvh, 860px);
+  overflow: auto;
+}
+html body .wizard-foot {
+  position: sticky;
+  bottom: 0;
+  background: var(--paper, #ffffff);
+  border-top: 1px solid var(--line, #e4e4e7);
+  box-shadow: 0 -10px 24px rgba(15, 23, 42, 0.10);
+  padding: 10px 4px;
+  z-index: 6;
+}
+html[data-theme="dark"] body .wizard-foot {
+  background: #1c1c1f;
+  border-top-color: #2a2a2e;
+  box-shadow: 0 -10px 24px rgba(0, 0, 0, 0.45);
+}
+html body .wizard-foot-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+html body .wizard-foot-actions button { min-height: 40px; padding: 0 14px !important; }
+/* Tableaux sommes : en-têtes zinc + liens lisibles en sombre */
+html[data-theme="dark"] table thead th,
+html[data-theme="dark"] .table-wrap thead th {
+  background: #1c1c1f !important;
+  color: #a1a1aa !important;
+  border-color: #2a2a2e !important;
+}
+html[data-theme="dark"] table td a,
+html[data-theme="dark"] .table-wrap td a { color: #e4e4e7 !important; }
+/* Périodes dashboard : neutres, jamais blobs noirs */
+html body .dash-range-btn {
+  background: #ffffff !important;
+  color: #0a0a0a !important;
+  border: 1px solid #e4e4e7 !important;
+}
+html body .dash-range-btn.is-on {
+  background: #0a0a0a !important;
+  color: #fafafa !important;
+  border-color: #0a0a0a !important;
+}
+html[data-theme="dark"] body .dash-range-btn {
+  background: #27272a !important;
+  color: #e4e4e7 !important;
+  border-color: #3f3f46 !important;
+}
+html[data-theme="dark"] body .dash-range-btn.is-on {
+  background: #fafafa !important;
+  color: #0a0a0a !important;
+  border-color: #fafafa !important;
+}
+/* Datepicker trigger sombre */
+html[data-theme="dark"] button.atlas-dp-trigger,
+html[data-theme="dark"] .atlas-dp-trigger {
+  background: #27272a !important;
+  color: #f4f4f5 !important;
+  border: 1px solid #3f3f46 !important;
+}
+html[data-theme="dark"] .atlas-dp-trigger svg { color: #a1a1aa; }
+/* Caisse : chips Espèces/Carte + croix de ligne */
+html body .qs-pay.is-on {
+  background: #0a0a0a !important;
+  color: #fafafa !important;
+  border-color: #0a0a0a !important;
+}
+html[data-theme="dark"] body .qs-pay.is-on {
+  background: #fafafa !important;
+  color: #0a0a0a !important;
+  border-color: #fafafa !important;
+}
+html[data-theme="dark"] body .qs-pay.secondary {
+  background: #27272a !important;
+  color: #e4e4e7 !important;
+  border-color: #3f3f46 !important;
+}
+/* Modales sombres : secondary zinc, danger lisible (plus de carré blanc) */
+html[data-theme="dark"] .modal button.secondary,
+html[data-theme="dark"] .modal-overlay button.secondary {
+  background: #27272a !important;
+  color: #e4e4e7 !important;
+  border: 1px solid #3f3f46 !important;
+}
+html[data-theme="dark"] .modal button.danger,
+html[data-theme="dark"] .modal-overlay button.danger {
+  background: #3f1d1d !important;
+  color: #fecaca !important;
+  border: 1px solid #7f1d1d !important;
+}
+/* Inputs date lisibles en sombre */
+html[data-theme="dark"] input[type="date"] { color-scheme: dark; color: #f4f4f5 !important; }
+/* Atlas Agent : renfort final (head + chips + bulles) */
+html[data-theme="dark"] .atlas-agent-head strong { color: #fafafa !important; }
+html[data-theme="dark"] .atlas-agent-head span { color: #a1a1aa !important; }
+html[data-theme="dark"] .atlas-agent-panel .atlas-agent-nav button,
+html[data-theme="dark"] .atlas-agent-panel .atlas-agent-chips button,
+html[data-theme="dark"] .atlas-agent-panel .atlas-agent-suggest button {
+  background: #27272a !important;
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+  border: 1px solid #3f3f46 !important;
+}
+html[data-theme="dark"] .atlas-agent-bubble { background: #27272a !important; color: #f4f4f5 !important; }
+/* Menu utilisateur : renfort final */
+html[data-theme="dark"] .account-menu-item {
+  background: #27272a !important;
+  border: 1px solid #3f3f46 !important;
+  color: #e4e4e7 !important;
+}
+html[data-theme="dark"] .account-menu-item-label { color: #f4f4f5 !important; }
+html[data-theme="dark"] .account-menu-item .account-menu-svg { color: #a1a1aa !important; }
+html[data-theme="dark"] .account-seg button {
+  background: #27272a !important;
+  color: #e4e4e7 !important;
+  border: 1px solid #3f3f46 !important;
+}
+html[data-theme="dark"] .account-seg button.active {
+  background: #fafafa !important;
+  color: #0a0a0a !important;
+  -webkit-text-fill-color: #0a0a0a !important;
+}

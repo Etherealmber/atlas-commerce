@@ -817,33 +817,6 @@ export default function Dashboard() {
       </div>
 
       
-      <div className="ac-usage-grid">
-        <div className="ac-usage-card">
-          <span className="ac-usage-lab">Produits</span>
-          <strong className="ac-usage-val">{productCount}</strong>
-          <div className="ac-usage-track"><i style={{ width: `${Math.min(100, productCount ? 40 + (productCount % 50) : 8)}%` }} /></div>
-          <div className="ac-usage-meta"><span>catalogue</span><span>{productCount} fiches</span></div>
-        </div>
-        <div className="ac-usage-card">
-          <span className="ac-usage-lab">Stock bas</span>
-          <strong className="ac-usage-val">{lowCount}</strong>
-          <div className="ac-usage-track"><i style={{ width: `${productCount ? Math.min(100, Math.round((lowCount / Math.max(productCount, 1)) * 100)) : 0}%` }} /></div>
-          <div className="ac-usage-meta"><span>{productCount ? Math.round((lowCount / Math.max(productCount, 1)) * 100) : 0}%</span><span>du catalogue</span></div>
-        </div>
-        <div className="ac-usage-card">
-          <span className="ac-usage-lab">Créances</span>
-          <strong className="ac-usage-val">{fmt(data?.receivables ?? data?.clientDebt, cur)}</strong>
-          <div className="ac-usage-track"><i style={{ width: `${Math.min(100, Number(data?.receivables ?? 0) ? 55 : 5)}%` }} /></div>
-          <div className="ac-usage-meta"><span>ouvert</span><span>clients</span></div>
-        </div>
-        <div className="ac-usage-card">
-          <span className="ac-usage-lab">Ventes du jour</span>
-          <strong className="ac-usage-val">{fmt(todayRev, cur)}</strong>
-          <div className="ac-usage-track"><i style={{ width: `${Math.min(100, todayRev ? 62 : 5)}%` }} /></div>
-          <div className="ac-usage-meta"><span>jour</span><span>{cur}</span></div>
-        </div>
-      </div>
-
       <NextActionsPanel />
       <div className="ac-panel" style={{ marginBottom: 14 }}>
         <div className="ac-panel-head">

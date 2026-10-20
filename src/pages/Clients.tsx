@@ -3,6 +3,7 @@ import { downloadExport } from '../lib/export';
 import { onAgentDraft } from '../lib/agentDraft';
 import { useEffect, useState } from 'react';
 import EmptyState from '../components/EmptyState';
+import { useWizard, StepBody, WizardFoot } from '../components/ui/FormWizard';
 import { validateClientForm, firstError } from '../lib/formValidate';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
@@ -33,6 +34,7 @@ export default function Clients() {
   const [saveMsgType, setSaveMsgType] = useState<'success' | 'error'>('success');
   const [form, setForm] = useState({ name: '', ice: '', if_number: '', address: '', city: '', phone: '', email: '', tax_exempt: false as boolean, credit_limit: 0 as number });
   const [editId, setEditId] = useState<number | null>(null);
+  const wz = useWizard(3);
   const [deleteArmId, setDeleteArmId] = useState<number | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [pwOpen, setPwOpen] = useState(false);
@@ -91,7 +93,7 @@ export default function Clients() {
       });
       setFieldErrors({});
       setModalError('');
-      setShow(true);
+      wz.reset(); setShow(true);
       (window as any).__atlasClientDraft = null;
     }
   }, [list]);
@@ -410,6 +412,7 @@ export default function Clients() {
         <FloatingPortal><div className="modal-overlay" onClick={() => { setShow(false); setEditId(null); }}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>{editId ? 'Modifier le client' : 'Nouveau client'}</h2>
+            <StepBody active={wz.step === 1}>
             <div className="form-row"><label>Nom *</label>
               <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={!form.name.trim() ? 'input-warn' : ''} />
               {!form.name.trim() && <span className="field-hint">Obligatoire</span>}</div>
@@ -419,6 +422,8 @@ export default function Clients() {
               <div className="form-row"><label>IF</label>
                 <input value={form.if_number} onChange={(e) => setForm({ ...form, if_number: e.target.value })} /></div>
             </div>
+            </StepBody>
+            <StepBody active={wz.step === 2}>
             <div className="form-row"><label>Adresse</label>
               <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
             <div className="grid grid-2">
@@ -429,6 +434,8 @@ export default function Clients() {
             </div>
             <div className="form-row"><label>E-mail</label>
               <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+            </StepBody>
+            <StepBody active={wz.step === 3}>
             <div className="form-row">
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                 <input
@@ -452,19 +459,18 @@ export default function Clients() {
                 Plafond d&apos;encours (factures non soldées). Blocage à la création de facture et à la conversion devis→facture.
               </small>
             </div>
+            </StepBody>
             <ModalFormError message={modalError} />
             {/* Same action bar pattern as every other form: primary always right */}
-            <div className="wizard-foot">
-              <div className="wizard-foot-nav">
-                <span className="wizard-foot-step">{editId ? 'Modifier le client' : 'Nouveau client'}</span>
-                <div className="wizard-foot-actions">
-                  <button className="secondary" onClick={() => { setShow(false); setEditId(null); }}>Annuler</button>
-                  <button onClick={save} disabled={saving}>
-                    {saving ? 'Enregistrement...' : editId ? 'Enregistrer' : 'Créer le client'}
-                  </button>
-                </div>
-              </div>
-            </div>
+            <WizardFoot
+              wz={wz}
+              title={editId ? 'Modifier le client' : 'Nouveau client'}
+              stepLabel={['Identité', 'Contact', 'Options'][wz.step - 1]}
+              onCancel={() => { setShow(false); setEditId(null); }}
+              onSubmit={save}
+              submitLabel={editId ? 'Enregistrer' : 'Créer le client'}
+              saving={saving}
+            />
           </div>
         </div></FloatingPortal>
       )}
