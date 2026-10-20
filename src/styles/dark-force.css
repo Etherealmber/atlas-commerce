@@ -2088,3 +2088,81 @@ html[data-theme="dark"] body .modal .form-row button.secondary {
   -webkit-text-fill-color: #d4d4d8 !important;
 }
 /* v212 END */
+
+/* ═══════════════════════════════════════════════════════════════
+   v213 — theme reveal transition, transparent dark overlays,
+   settings-tab active/tapped states never white
+   ═══════════════════════════════════════════════════════════════ */
+
+/* FastFrame-style: new theme reveals from the middle of the window */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-old(root) { z-index: 1; }
+::view-transition-new(root) {
+  z-index: 2;
+  clip-path: circle(0% at 50% 50%);
+  animation: atlas-vt-reveal 0.45s ease-in-out forwards;
+}
+@keyframes atlas-vt-reveal {
+  from { clip-path: circle(0% at 50% 50%); }
+  to   { clip-path: circle(78% at 50% 50%); }
+}
+/* Fallback cross-fade where the View Transitions API is unavailable */
+html.theme-anim,
+html.theme-anim *,
+html.theme-anim *::before,
+html.theme-anim *::after {
+  transition:
+    background-color 0.32s ease,
+    background 0.32s ease,
+    color 0.32s ease,
+    border-color 0.32s ease,
+    fill 0.32s ease,
+    stroke 0.32s ease,
+    box-shadow 0.32s ease !important;
+}
+
+/* Dark: popup backdrop stays see-through (page visible behind, lightly dimmed) */
+html[data-theme="dark"] body .modal-overlay,
+html[data-theme="dark"] body .modal-overlay.modal-overlay-top {
+  background: rgba(9, 9, 11, 0.38) !important;
+  backdrop-filter: blur(2px) !important;
+  -webkit-backdrop-filter: blur(2px) !important;
+}
+
+/* Settings topbar tabs: active = zinc pill with amber ring, never white */
+html[data-theme="dark"] body .settings-topbar-tabs button.active,
+html[data-theme="dark"] body .settings-topbar-tabs button.settings-topbar-tab.active {
+  background: #27272a !important;
+  background-image: none !important;
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+  border-color: rgba(232, 163, 23, 0.55) !important;
+  box-shadow: 0 0 0 2px rgba(232, 163, 23, 0.18) !important;
+}
+html[data-theme="dark"] body .settings-topbar-tabs button:hover {
+  background: #3f3f46 !important;
+  color: #fafafa !important;
+}
+/* Tapped state across icon nav (desktop topbar, settings tabs, phone tabs) */
+html[data-theme="dark"] body .settings-topbar-tabs button:active,
+html[data-theme="dark"] body .ac-topbar-icon-btn:active,
+html[data-theme="dark"] body .phone-icon-btn:active,
+html[data-theme="dark"] body .ptab:active,
+html[data-theme="dark"] body .phone-tabbar .ptab:active {
+  background: #3f3f46 !important;
+  background-image: none !important;
+  color: #fafafa !important;
+  -webkit-text-fill-color: #fafafa !important;
+}
+html[data-theme="dark"] body .ptab.active,
+html[data-theme="dark"] body .phone-tabbar .ptab.active,
+html[data-theme="dark"] body .phone-root .ptab.active {
+  background: rgba(244, 244, 245, 0.10) !important;
+  color: #f4f4f5 !important;
+}
+html[data-theme="dark"] body .ptab.active svg { stroke: #f4f4f5 !important; }
+/* v213 END */

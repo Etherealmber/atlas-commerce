@@ -528,14 +528,33 @@ function useTheme() {
     const apply = () => {
       const resolved = resolveTheme(mode);
       const root = document.documentElement;
-      root.setAttribute('data-theme', resolved);
-      // Legacy rules + skeletons key off .theme-dark — keep both in sync.
-      root.classList.toggle('theme-dark', resolved === 'dark');
-      // Native controls (select, date pickers, scrollbars) follow the theme.
-      root.style.colorScheme = resolved;
-      // Browser / WebView chrome (status bar on phone) follows the theme.
-      const meta = document.querySelector('meta[name="theme-color"]');
-      if (meta) meta.setAttribute('content', resolved === 'dark' ? '#111113' : '#f4f5f7');
+      const doApply = () => {
+        root.setAttribute('data-theme', resolved);
+        // Legacy rules + skeletons key off .theme-dark — keep both in sync.
+        root.classList.toggle('theme-dark', resolved === 'dark');
+        // Native controls (select, date pickers, scrollbars) follow the theme.
+        root.style.colorScheme = resolved;
+        // Browser / WebView chrome (status bar on phone) follows the theme.
+        const meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', resolved === 'dark' ? '#111113' : '#f4f5f7');
+      };
+      // FastFrame-style theme change: circular reveal from the middle of the
+      // window (View Transitions API), graceful cross-fade fallback elsewhere.
+      const prev = root.getAttribute('data-theme');
+      const reduce = typeof window.matchMedia === 'function'
+        && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (prev && prev !== resolved && !reduce) {
+        const doc = document as Document & { startViewTransition?: (cb: () => void) => any };
+        if (typeof doc.startViewTransition === 'function') {
+          doc.startViewTransition(() => doApply());
+          return;
+        }
+        root.classList.add('theme-anim');
+        doApply();
+        window.setTimeout(() => root.classList.remove('theme-anim'), 420);
+        return;
+      }
+      doApply();
     };
     apply();
     localStorage.setItem('atlas-theme', mode);
