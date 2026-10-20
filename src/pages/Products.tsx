@@ -207,13 +207,20 @@ export default function Products() {
   const location = useLocation();
   const reqPrefillDone = useRef(false);
   useEffect(() => {
-    const st = location.state as { newWithBarcode?: string; newWithName?: string } | null;
+    const st = location.state as {
+      newWithBarcode?: string; newWithName?: string; newWithSku?: string;
+      newWithUnit?: string; newWithQuantity?: number; newWithCategory?: string;
+    } | null;
     if (reqPrefillDone.current || !st?.newWithBarcode) return;
     reqPrefillDone.current = true;
     setForm({
       ...emptyForm,
       barcode: String(st.newWithBarcode || ''),
+      sku: String(st.newWithSku || st.newWithBarcode || ''),
       name: String(st.newWithName || ''),
+      unit: String(st.newWithUnit || 'unité'),
+      stock_quantity: Number(st.newWithQuantity || 0),
+      category: String(st.newWithCategory || 'Général'),
     });
     setEditing(null);
     setVariants([]);
@@ -315,7 +322,7 @@ export default function Products() {
   const save = async (force = false) => {
     const fe = validateProductForm(form);
     setFieldErrors(fe);
-    if (Object.keys(fe).length) { flash(firstError(fe) || 'Complétez les champs obligatoires.', 'error'); return; }
+    if (Object.keys(fe).length) return; // erreurs affichées sous chaque champ
     setSaving(true);
     try {
       const body = buildProductBody(force);

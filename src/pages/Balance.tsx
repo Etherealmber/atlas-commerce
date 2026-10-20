@@ -176,7 +176,8 @@ export default function Balance() {
   };
 
   const create = async () => {
-    const fe = validateBalanceEntry({ description, amount }); setFieldErrors(fe); if (Object.keys(fe).length) { setModalError(firstError(fe) || 'Complétez l’écriture.'); return; } setModalError('');
+    const fe = validateBalanceEntry({ description, amount }); setFieldErrors(fe); if (Object.keys(fe).length) return; // erreurs affichées sous chaque champ
+    setModalError('');
     setSaving(true);
     try {
       await api.createExpense({

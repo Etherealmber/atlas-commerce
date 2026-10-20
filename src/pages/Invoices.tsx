@@ -246,9 +246,9 @@ export default function Invoices() {
     const fe = validateInvoiceForm({ client_name: clientName, items });
     setFieldErrors(fe);
     if (Object.keys(fe).length) {
-      flash(firstError(fe) || 'Complétez le formulaire.', 'error');
+
       setFieldErrors(fe);
-      setModalError(firstError(fe) || 'Complétez le formulaire.');
+
       return;
     }
     setSaving(true);
@@ -723,6 +723,7 @@ export default function Invoices() {
 
             {docStep === 1 && (<>
             <h3 style={{ margin: '16px 0 8px', fontSize: 14 }}>Lignes — prix TTC · TVA calculée en bas (style facture marbre)</h3>
+            {fieldErrors.items ? <span className="field-error-msg" style={{ display: 'block', marginBottom: 8 }}>{fieldErrors.items}</span> : null}
             <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10, lineHeight: 1.4 }}>
               Choisissez un produit (recherche), le <strong>prix catalogue</strong> se remplit automatiquement. Saisissez ensuite le <strong>prix client</strong> si une promo / remise s&apos;applique.
             </p>
@@ -790,6 +791,11 @@ export default function Invoices() {
                   <div style={{ fontWeight: 700, textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{lineTotal.toLocaleString('fr-FR', { maximumFractionDigits: 0 })}</div>
                   <button type="button" className="danger" style={{ padding: '6px 8px' }} onClick={() => setItems((prev) => prev.length <= 1 ? [{ product_name: '', quantity: 1, list_price: 0, unit_price: 0, product_query: '' }] : prev.filter((_, i) => i !== idx))} aria-label="Supprimer">×</button>
                 </div>
+                {(fieldErrors[`item_qty_${idx}`] || fieldErrors[`item_price_${idx}`]) ? (
+                  <span className="field-error-msg" style={{ display: 'block', marginTop: 4 }}>
+                    {fieldErrors[`item_qty_${idx}`] || fieldErrors[`item_price_${idx}`]}
+                  </span>
+                ) : null}
                 {promo && (
                   <div style={{ fontSize: 11, color: 'var(--success, #3f3f46)', marginTop: 2 }}>
                     Promo : −{(listP - unitP).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} / unité

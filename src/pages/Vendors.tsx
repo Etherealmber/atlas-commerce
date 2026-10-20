@@ -68,7 +68,7 @@ export default function Vendors() {
   const save = async () => {
     const fe = validateVendorForm(form);
     setFieldErrors(fe);
-    if (Object.keys(fe).length) { flash(firstError(fe) || 'Complétez les champs obligatoires.', 'error'); return; }
+    if (Object.keys(fe).length) return; // erreurs affichées sous chaque champ
     if (!form.name.trim()) { flash('Le nom du fournisseur est obligatoire.', 'error'); return; }
     setSaving(true);
     try {

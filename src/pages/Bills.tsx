@@ -169,7 +169,7 @@ export default function Bills() {
   const create = async () => {
     const fe = validateBillForm({ vendor_name: vendorName, items });
     setFieldErrors(fe);
-    if (Object.keys(fe).length) { flash(firstError(fe) || 'Complétez le formulaire.', 'error'); return; }
+    if (Object.keys(fe).length) return; // erreurs affichées sous chaque champ
     setSaving(true);
     try {
       await api.createBill({
@@ -537,6 +537,9 @@ export default function Bills() {
               <span>Total</span>
               <span />
             </div>
+            {fieldErrors.items ? (
+              <span className="field-error-msg" style={{ display: 'block', marginBottom: 8 }}>{fieldErrors.items}</span>
+            ) : null}
             {items.map((item, idx) => {
               const lineTotal = Number(item.quantity || 0) * Number(item.unit_cost || 0);
               return (
@@ -599,6 +602,11 @@ export default function Bills() {
                       ✕
                     </button>
                   </div>
+                  {(fieldErrors[`item_qty_${idx}`] || fieldErrors[`item_cost_${idx}`]) ? (
+                    <span className="field-error-msg" style={{ display: 'block', marginTop: 4 }}>
+                      {fieldErrors[`item_qty_${idx}`] || fieldErrors[`item_cost_${idx}`]}
+                    </span>
+                  ) : null}
                 </div>
               );
             })}

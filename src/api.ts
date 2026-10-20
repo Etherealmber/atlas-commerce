@@ -494,7 +494,7 @@ export const api = {
     request('/api/scan/quick-product', { method: 'POST', body: JSON.stringify(body) }),
   listProductRequests: (status = 'open') =>
     request<{ data: any[] }>(`/api/stock/product-requests?status=${encodeURIComponent(status)}`),
-  createProductRequest: (body: { code: string; name?: string; note?: string; photo_data_url?: string }) =>
+  createProductRequest: (body: { code: string; name?: string; sku?: string; unit?: string; quantity?: number; category?: string; note?: string; photo_data_url?: string }) =>
     request('/api/stock/product-requests', { method: 'POST', body: JSON.stringify(body) }),
   closeProductRequest: (id: number, body: { status: 'done' | 'dismissed'; product_id?: number }) =>
     request(`/api/stock/product-requests/${id}/close`, { method: 'POST', body: JSON.stringify(body) }),
