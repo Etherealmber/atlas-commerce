@@ -73,7 +73,7 @@ export async function ensureV209Schema(db: D1Database): Promise<void> {
   } catch { /* fresh db */ }
 }
 
-export async function dispatchWebhook(env: any, event: string, payload: any): Promise<void> {
+export async function dispatchWebhook(env: any, ctx: any, event: string, payload: any): Promise<void> {
   try {
     const db = env.DB as D1Database;
     await ensureV209Schema(db);
@@ -82,14 +82,13 @@ export async function dispatchWebhook(env: any, event: string, payload: any): Pr
       let evts: string[] = [];
       try { evts = JSON.parse(w.events || '[]'); } catch { evts = []; }
       if (evts.length && !evts.includes(event) && !evts.includes('*')) continue;
-      // fire-and-forget, never block the API
-      env.ctx?.waitUntil?.(
-        fetch(w.url, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ event, payload, at: new Date().toISOString() }),
-        }).catch(() => undefined),
-      );
+      // fire-and-forget, never block the API — waitUntil keeps the fetch alive after the response
+      const p = fetch(w.url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ event, payload, at: new Date().toISOString() }),
+      }).catch(() => undefined);
+      try { ctx?.waitUntil?.(p); } catch { /* isolated test contexts */ }
     }
   } catch { /* webhooks must never break business flows */ }
 }
@@ -163,7 +162,7 @@ export function registerAtlasV209Routes(app: AtlasApp, deps: V209Deps): void {
     if (b.lot || b.expiry) {
       await db.prepare(`INSERT INTO stock_lots (product_id, lot, expiry, quantity, warehouse_id) VALUES (?, ?, ?, ?, ?)`).bind(pid, String(b.lot || ''), String(b.expiry || ''), qty, loc).run();
     }
-    await dispatchWebhook(c.env, 'stock.receive', { product_id: pid, quantity: qty, by: g.username });
+    await dispatchWebhook(c.env, c.executionCtx, 'stock.receive', { product_id: pid, quantity: qty, by: g.username });
     return c.json({ success: true, data: { stock_quantity: newTotal } });
   });
 
@@ -181,7 +180,7 @@ export function registerAtlasV209Routes(app: AtlasApp, deps: V209Deps): void {
     } else {
       await applyDelta(db, pid, null, delta, 'count', 'Inventaire tournant', g.username, Number(p.stock_quantity), qty);
     }
-    await dispatchWebhook(c.env, 'stock.count', { product_id: pid, quantity: qty });
+    await dispatchWebhook(c.env, c.executionCtx, 'stock.count', { product_id: pid, quantity: qty });
     return c.json({ success: true, data: { stock_quantity: qty } });
   });
 
@@ -236,7 +235,7 @@ export function registerAtlasV209Routes(app: AtlasApp, deps: V209Deps): void {
     if (PIPELINE.indexOf(target) !== PIPELINE.indexOf(cur) + 1) return c.json({ success: false, error: 'PIPELINE_ORDER' }, 400);
     await db.prepare(`UPDATE invoices SET pipeline_status = ?, updated_at = datetime('now') WHERE id = ?`).bind(target, id).run();
     await db.prepare(`INSERT INTO status_events (invoice_id, from_status, to_status, by_user) VALUES (?, ?, ?, ?)`).bind(id, cur, target, g.username).run();
-    await dispatchWebhook(c.env, `doc.${target}`, { invoice_id: id, number: inv.number });
+    await dispatchWebhook(c.env, c.executionCtx, `doc.${target}`, { invoice_id: id, number: inv.number });
     return c.json({ success: true, data: { pipeline_status: target } });
   });
   app.get('/api/invoices/:id/pipeline', async (c) => {
@@ -287,7 +286,7 @@ export function registerAtlasV209Routes(app: AtlasApp, deps: V209Deps): void {
     }
     const out = await db.prepare(`SELECT stock_quantity FROM products WHERE id = ?`).bind(kit.product_id).first() as any;
     await applyDelta(db, kit.product_id, null, qty, 'kit_in', `Assemblage kit ${kit.name}`, g.username, Number(out.stock_quantity), Number(out.stock_quantity) + qty);
-    await dispatchWebhook(c.env, 'kit.assembled', { kit_id: kit.id, quantity: qty });
+    await dispatchWebhook(c.env, c.executionCtx, 'kit.assembled', { kit_id: kit.id, quantity: qty });
     return c.json({ success: true });
   });
 
@@ -329,7 +328,7 @@ export function registerAtlasV209Routes(app: AtlasApp, deps: V209Deps): void {
     const enabled = b.enabled ? 1 : 0;
     const threshold = Number(b.threshold || 0);
     if (b.test) {
-      await dispatchWebhook(c.env, 'atlas.alert', { key, label, threshold, message: String(b.message || 'Test alerte — ' + label), test: true });
+      await dispatchWebhook(c.env, c.executionCtx, 'atlas.alert', { key, label, threshold, message: String(b.message || 'Test alerte — ' + label), test: true });
       return c.json({ success: true, test: true });
     }
     await c.env.DB.prepare(`INSERT INTO atlas_alerts (key, label, enabled, threshold) VALUES (?, ?, ?, ?) ON CONFLICT(key) DO UPDATE SET label = excluded.label, enabled = excluded.enabled, threshold = excluded.threshold`).bind(key, label, enabled, threshold).run();
