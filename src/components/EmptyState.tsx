@@ -24,12 +24,14 @@ export default function EmptyState({
         <EmptyIcon name={icon} size={40} />
       </div>
       <h3 className="atlas-empty-title">{title}</h3>
-      {description && <p className="atlas-empty-desc">{description}</p>}
-      {actionLabel && onAction && (
-        <button type="button" className="secondary" onClick={onAction} style={{ marginTop: 12 }}>
+      {description ? (
+        <p className="atlas-empty-desc">{description}</p>
+      ) : null}
+      {actionLabel && onAction ? (
+        <button type="button" className="atlas-empty-action" onClick={onAction}>
           {actionLabel}
         </button>
-      )}
+      ) : null}
     </div>
   );
 }

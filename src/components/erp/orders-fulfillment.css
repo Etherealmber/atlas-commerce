@@ -30,30 +30,6 @@
   font-size: 13px;
   padding: 6px 10px;
 }
-.atlas-orders-view-toggle {
-  display: inline-flex;
-  border: 1px solid var(--atlas-border, var(--line));
-  border-radius: var(--atlas-radius, 4px);
-  overflow: hidden;
-}
-.atlas-orders-view-toggle button {
-  min-height: 36px;
-  padding: 6px 12px;
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  font-size: 12px;
-  font-weight: 650;
-  cursor: pointer;
-  color: var(--atlas-text-secondary, var(--muted));
-}
-.atlas-orders-view-toggle button + button {
-  border-left: 1px solid var(--atlas-border, var(--line));
-}
-.atlas-orders-view-toggle button.active {
-  background: var(--atlas-accent-soft, rgba(13,115,119,.12));
-  color: var(--atlas-accent, var(--zellij));
-}
 
 /* Dense table */
 .atlas-orders .table-wrap,
@@ -117,71 +93,6 @@
   font-size: 11.5px !important;
 }
 
-/* Kanban board */
-.atlas-orders-kanban {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 10px;
-  align-items: start;
-}
-.atlas-orders-col {
-  border: 1px solid var(--atlas-border, var(--line));
-  border-radius: var(--atlas-radius-lg, 8px);
-  background: var(--atlas-bg-surface, var(--paper));
-  min-height: 120px;
-}
-.atlas-orders-col-head {
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--atlas-border, var(--line));
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--atlas-text-secondary, var(--muted));
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-}
-.atlas-orders-col-body {
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: min(60vh, 520px);
-  overflow: auto;
-}
-.atlas-order-card {
-  border: 1px solid var(--atlas-border, var(--line));
-  border-radius: var(--atlas-radius, 4px);
-  padding: 10px;
-  background: transparent;
-  cursor: pointer;
-  text-align: left;
-  width: 100%;
-  font: inherit;
-  color: inherit;
-}
-.atlas-order-card:hover {
-  background: var(--atlas-bg-hover, rgba(0,0,0,.04));
-  border-color: var(--atlas-accent, var(--zellij));
-}
-.atlas-order-card .num {
-  font-family: var(--atlas-mono, ui-monospace, monospace);
-  font-weight: 650;
-  font-size: 12px;
-}
-.atlas-order-card .meta {
-  font-size: 11px;
-  color: var(--atlas-text-secondary, var(--muted));
-  margin-top: 4px;
-}
-.atlas-order-card .amt {
-  font-family: var(--atlas-mono, ui-monospace, monospace);
-  font-weight: 700;
-  margin-top: 6px;
-  font-size: 13px;
-}
-
 .atlas-kpi-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
@@ -211,7 +122,14 @@
   .atlas-orders table.data-dense {
     font-size: 12px;
   }
-  .atlas-orders-kanban {
-    grid-template-columns: 1fr;
+}
+
+/* MOBILE 375 — contain wide tables */
+
+@media (max-width: 430px) {
+  table { min-width: 0 !important; }
+  .table-wrap, [class*="table-wrap"] {
+    overflow-x: auto !important;
+    max-width: 100% !important;
   }
 }

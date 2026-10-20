@@ -14,7 +14,7 @@ function safeLoggedIn(): boolean {
 export default function Terms() {
   const logged = safeLoggedIn();
   return (
-    <div className="privacy-page">
+    <div className="privacy-page terms-page">
       <div className="privacy-inner">
         <p className="privacy-nav">
           {logged ? (
@@ -32,7 +32,7 @@ export default function Terms() {
         <p className="privacy-meta">
           {APP_NAME} · {APP_TAGLINE} · v{APP_VERSION}
           <br />
-          Dernière mise à jour : 8 septembre 2026
+          Dernière mise à jour : 16 septembre 2026
           <br />
           Éditeur : {APP_CREATOR_NAME} / etherealmber · El Jadida, Maroc
         </p>
@@ -74,7 +74,17 @@ export default function Terms() {
         </section>
 
         <section>
-          <h2>5. Données et sauvegardes</h2>
+          <h2>5. Modules métier</h2>
+          <p>
+            Stock, facturation (FA / VR / devis), achats, clients, solde, employés (paie),
+            messagerie et Atlas Agent font partie de l&apos;offre instance. L&apos;usage des
+            données collaborateurs et des pièces d&apos;identité des collaborateurs doit respecter
+            le droit marocain applicable.
+          </p>
+        </section>
+
+        <section>
+          <h2>6. Données et sauvegardes</h2>
           <p>
             Les données métier sont hébergées via Cloudflare (Workers, D1, R2). Les sauvegardes
             administrateur sont chiffrées. Vous restez responsable de la licéité des données

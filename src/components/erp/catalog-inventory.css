@@ -120,3 +120,13 @@
   margin-bottom: 8px;
   align-items: center;
 }
+
+/* MOBILE 375 — contain wide tables */
+
+@media (max-width: 430px) {
+  table { min-width: 0 !important; }
+  .table-wrap, [class*="table-wrap"] {
+    overflow-x: auto !important;
+    max-width: 100% !important;
+  }
+}

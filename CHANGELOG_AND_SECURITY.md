@@ -831,3 +831,11 @@ Then in the browser (important):
 4. Open Messagerie again.
 
 After that the list endpoint must return JSON. If it still returns HTML, the Worker itself is still not receiving `/api/*` (confirm Wrangler 4 deploy succeeded and the custom domain points to the latest version).
+
+
+## Password hashing (2026-09-10)
+
+- Secondary users (`app_users`): PBKDF2-SHA-256 (120k iterations) + per-user salt; legacy SHA-256 and accidental plaintext rows auto-upgrade on next successful login.
+- Owner (`admin`): Cloudflare Secret `ADMIN_PASSWORD` only — never stored in D1. Session proofs use a derived hash, not the raw password.
+- Legacy v1 session tokens (which embedded the password) are rejected.
+- Keep `ADMIN_PASSWORD` as a **Secret** (`wrangler secret put ADMIN_PASSWORD`), never in `wrangler.jsonc` vars.

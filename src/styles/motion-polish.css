@@ -1,0 +1,130 @@
+/* MOTION_POLISH_V53 — make-interfaces-feel-better */
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scale on press — buttons & nav */
+button:not(:disabled):active,
+a.btn:active,
+.ac-nav-item:active,
+.ac-topbar-icon-btn:active,
+.ac-topbar-user-btn:active {
+  transform: scale(0.96);
+}
+button,
+a.btn,
+.ac-nav-item,
+.ac-topbar-icon-btn,
+.ac-topbar-user-btn {
+  transition-property: transform, background-color, color, border-color, box-shadow, opacity;
+  transition-duration: 0.18s;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Sidebar active / hover */
+.ac-nav-item {
+  transition-property: background-color, color, transform;
+}
+.ac-nav-item:hover {
+  background: rgba(15, 23, 42, 0.04);
+}
+html[data-theme="dark"] .ac-nav-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* Logo mark soft lift */
+.logo img,
+.ac-brand img,
+.sidebar .logo img {
+  transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.25s cubic-bezier(0.2, 0, 0, 1);
+  border-radius: 10px;
+}
+.logo:hover img,
+.ac-brand:hover img,
+.sidebar .logo:hover img {
+  transform: scale(1.04);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+
+/* Dropdown enter */
+.ac-user-dropdown {
+  animation: ac-drop-in 0.22s cubic-bezier(0.2, 0, 0, 1) both;
+  transform-origin: top right;
+}
+@keyframes ac-drop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Cards / panels soft enter when present */
+.atlas-page .card,
+.atlas-crm .card,
+.ac-products-table-panel,
+.whats-new-list {
+  animation: ac-panel-in 0.32s cubic-bezier(0.2, 0, 0, 1) both;
+}
+@keyframes ac-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Metric tiles stagger via nth-child */
+.ac-metric-grid > *,
+.atlas-metric-grid > * {
+  animation: ac-panel-in 0.36s cubic-bezier(0.2, 0, 0, 1) both;
+}
+.ac-metric-grid > *:nth-child(1), .atlas-metric-grid > *:nth-child(1) { animation-delay: 0.02s; }
+.ac-metric-grid > *:nth-child(2), .atlas-metric-grid > *:nth-child(2) { animation-delay: 0.06s; }
+.ac-metric-grid > *:nth-child(3), .atlas-metric-grid > *:nth-child(3) { animation-delay: 0.1s; }
+.ac-metric-grid > *:nth-child(4), .atlas-metric-grid > *:nth-child(4) { animation-delay: 0.14s; }
+.ac-metric-grid > *:nth-child(5), .atlas-metric-grid > *:nth-child(5) { animation-delay: 0.18s; }
+.ac-metric-grid > *:nth-child(6), .atlas-metric-grid > *:nth-child(6) { animation-delay: 0.22s; }
+
+/* Tabular numbers on amounts */
+.as-value,
+.money,
+.amount,
+td.num,
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Headings */
+h1, h2, .atlas-page h1, .page-title {
+  text-wrap: balance;
+}
+
+/* Image outline */
+img.ac-topbar-avatar,
+.product-thumb img,
+.thumb img {
+  outline: 1px solid rgba(0, 0, 0, 0.1);
+}
+html[data-theme="dark"] img.ac-topbar-avatar,
+html[data-theme="dark"] .product-thumb img {
+  outline-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

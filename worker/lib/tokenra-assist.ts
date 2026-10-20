@@ -1,4 +1,5 @@
 /**
+import { fetchWithTimeout } from './http-client';
  * TokenRa OpenAI-compatible gateway (DeepSeek V4 Flash, etc.)
  * https://tokenra.io — POST /v1/chat/completions
  * Auth: Authorization: Bearer sk-...
@@ -36,7 +37,7 @@ export async function tokenraChat(opts: {
   for (const base of bases) {
     for (const model of models) {
       try {
-        const res = await fetch(`${base}/chat/completions`, {
+        const res = await fetchWithTimeout(`${base}/chat/completions`, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${opts.apiKey}`,

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import {
   acceptAll,
   acceptNecessaryOnly,
@@ -37,24 +37,30 @@ export default function CookieConsent() {
     setPanel('banner');
   };
 
-  if (!visible) return null;
+  if (!visible || typeof document === 'undefined') return null;
 
-  return (
+  const body = (
     <div
       className="cookie-consent"
       role="dialog"
       aria-labelledby="cookie-consent-title"
       aria-modal="true"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && hasDecidedConsent()) {
+          setVisible(false);
+          setPanel('banner');
+        }
+      }}
     >
-      <div className="cookie-consent-card">
+      <div className="cookie-consent-card" onClick={(e) => e.stopPropagation()}>
         <div className="cookie-consent-head">
           <h2 id="cookie-consent-title">Cookies &amp; données locales</h2>
           <p>
             Atlas Commerce enregistre localement ce qui est nécessaire à la session sécurisée
             (connexion, rôles). Aucune publicité. Détails dans la{' '}
-            <Link to="/privacy" onClick={() => setVisible(false)}>
+            <a href="/privacy" onClick={() => setVisible(false)}>
               politique de confidentialité
-            </Link>
+            </a>
             .
           </p>
         </div>
@@ -79,7 +85,7 @@ export default function CookieConsent() {
               />
               <span>
                 <strong>Préférences</strong>
-                <em>Thème clair/sombre, densité (compact / glass), guide d’accueil.</em>
+                <em>Thème clair/sombre, liquid glass, guide d&apos;accueil.</em>
               </span>
             </label>
             <label className="cookie-consent-row">
@@ -89,8 +95,8 @@ export default function CookieConsent() {
                 onChange={(e) => setAnalytics(e.target.checked)}
               />
               <span>
-                <strong>Mesure d’audience</strong>
-                <em>Non utilisée aujourd’hui — réservée à un outil anonymisé futur.</em>
+                <strong>Mesure d&apos;audience</strong>
+                <em>Non utilisée aujourd&apos;hui — réservée à un outil anonymisé futur.</em>
               </span>
             </label>
           </div>
@@ -99,35 +105,25 @@ export default function CookieConsent() {
         <div className="cookie-consent-actions">
           {panel === 'banner' ? (
             <>
-              <button
-                type="button"
-                className="cookie-btn secondary"
-                onClick={() => closeWith(acceptNecessaryOnly())}
-              >
-                Nécessaires uniquement
-              </button>
-              <button type="button" className="cookie-btn ghost" onClick={() => setPanel('details')}>
+              <button type="button" className="cookie-btn linkish" onClick={() => setPanel('details')}>
                 Personnaliser
               </button>
-              <button
-                type="button"
-                className="cookie-btn primary"
-                onClick={() => closeWith(acceptAll())}
-              >
+              <button type="button" className="cookie-btn secondary" onClick={() => closeWith(acceptNecessaryOnly())}>
+                Nécessaires seulement
+              </button>
+              <button type="button" className="cookie-btn primary" onClick={() => closeWith(acceptAll())}>
                 Tout accepter
               </button>
             </>
           ) : (
             <>
-              <button type="button" className="cookie-btn secondary" onClick={() => setPanel('banner')}>
+              <button type="button" className="cookie-btn linkish" onClick={() => setPanel('banner')}>
                 Retour
               </button>
               <button
                 type="button"
                 className="cookie-btn primary"
-                onClick={() =>
-                  closeWith(saveConsent({ preferences: prefs, analytics }, 'custom'))
-                }
+                onClick={() => closeWith(saveConsent({ preferences: prefs, analytics }, 'custom'))}
               >
                 Enregistrer mes choix
               </button>
@@ -137,4 +133,6 @@ export default function CookieConsent() {
       </div>
     </div>
   );
+
+  return createPortal(body, document.body);
 }

@@ -392,7 +392,7 @@ export default function Actions() {
           return (
             <div
               key={a.id}
-              className="card"
+              className="ac-panel"
               style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', flexWrap: 'wrap' }}
             >
               <div

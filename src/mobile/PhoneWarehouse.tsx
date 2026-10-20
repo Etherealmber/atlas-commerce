@@ -206,7 +206,6 @@ export default function PhoneWarehouse({ onToast }: Props) {
 
   return (
     <div className="phone-panel">
-      <p className="ph-eyebrow">Stock</p>
       <h1 className="ph-title" style={{ fontSize: 22 }}>Entrepôts</h1>
       <p className="ph-sub">
         Emplacement, inventaire et transferts.
@@ -267,7 +266,7 @@ export default function PhoneWarehouse({ onToast }: Props) {
           {report && !loading && (
             <>
               <div className="ph-stats">
-                <div className="ph-stat mint">
+                <div className="ph-stat">
                   <span className="lbl">Unités</span>
                   <strong>{fmt(report.totals?.qty)}</strong>
                   <span className="hint">en stock</span>

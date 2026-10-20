@@ -1,5 +1,10 @@
+import QrLoginPanel from '../components/settings/QrLoginPanel';
+import { isFeatureEnabled } from '../lib/featureFlags';
+import { EditProfile, type ProfileData } from '../components/ui/EditProfile';
+import { TimedUndoDelete, SaveToggle } from '../components/ui';
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import { api, BASE } from '../api';
 import { removePasskeyLocally } from '../fingerprint';
 import { getToken, canAccessAdminSettings, canAccessCompanySettings, getRole, setProfileCache, getDisplayInitials, isStockRole } from '../auth';
@@ -8,6 +13,7 @@ import PasswordConfirm from '../components/PasswordConfirm';
 import { numStr, numFromInput } from '../lib/numInput';
 import NumberField from '../components/NumberField';
 import { useUi } from '../components/AppDialogs';
+import { ModalFormError, FieldHint } from '../components/ModalFormFeedback';
 import { friendlyError, validateWrPrefix } from '../lib/errors';
 import { validateSettingsCompany, firstError } from '../lib/formValidate';
 import { getDensity, setDensity, getUiScale, setUiScale, subscribeUiPrefs, type Density, type UiScale } from '../lib/density'
@@ -15,10 +21,26 @@ import { startAtlasLoading, setAtlasLoading, doneAtlasLoading } from '../compone
 import { VALUATION_METHOD_OPTIONS } from '../lib/labels';
 import IntegrationsPanel from '../components/IntegrationsPanel';
 import AgentPermissionsPanel from '../components/AgentPermissionsPanel';
-import { isDemoMode, enterDemoMode, exitDemoMode, resetDemoData } from '../lib/demoMode';
 
 export default function Settings() {
   const [uiDensity, setUiDensity] = useState<Density>(() => getDensity());
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const [qrFabOpen, setQrFabOpen] = useState(false);
+  const [profileData, setProfileData] = useState<ProfileData>(() => {
+    try {
+      const raw = localStorage.getItem('atlas-profile');
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return {
+      fullName: '',
+      email: '',
+      timezone: 'Africa/Casablanca',
+      workingHours: '09:00 – 18:00',
+      title: '',
+      avatarUrl: '',
+      lastUpdated: '',
+    };
+  });
   const [uiScale, setUiScaleState] = useState<UiScale>(() => getUiScale());
   const { confirm, prompt, toast } = useUi();
   const [settings, setSettings] = useState<any>(null);
@@ -34,14 +56,121 @@ export default function Settings() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveOk, setSaveOk] = useState(false);
+  const [settingsDirty, setSettingsDirty] = useState(false);
+
   const [saveMsg, setSaveMsg] = useState('');
   const [saveMsgType, setSaveMsgType] = useState<'success' | 'error'>('success');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [settingsFormError, setSettingsFormError] = useState('');
+  const [monthPackError, setMonthPackError] = useState('');
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const VALID_TABS = new Set(['profile', 'company', 'legal', 'invoicing', 'documents', 'warehouse', 'categories', 'integrations', 'admin', 'audit']);
+
+  useEffect(() => {
+    const flashEl = (el: Element) => {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const h = el as HTMLElement;
+      h.classList.add('settings-anchor-flash');
+      // focus first input inside
+      const input = h.querySelector('input, select, textarea, button') as HTMLElement | null;
+      if (input && typeof input.focus === 'function') {
+        try { input.focus({ preventScroll: true }); } catch { try { input.focus(); } catch { /* */ } }
+      }
+      window.setTimeout(() => h.classList.remove('settings-anchor-flash'), 2200);
+    };
+
+    const tryScroll = (id?: string, tab?: string): boolean => {
+      if (!id && !tab) return false;
+      const el =
+        (id && document.querySelector('[data-settings-anchor="' + id + '"]')) ||
+        (tab && document.querySelector('[data-settings-anchor="sec-' + tab + '"]')) ||
+        null;
+      if (el) {
+        flashEl(el);
+        try { sessionStorage.removeItem('atlas-settings-pending-anchor'); } catch { /* */ }
+        return true;
+      }
+      return false;
+    };
+
+    const scrollWithRetry = (id?: string, tab?: string) => {
+      let tries = 0;
+      const tick = () => {
+        if (tryScroll(id, tab)) return;
+        tries += 1;
+        if (tries < 40) window.setTimeout(tick, 50);
+      };
+      // wait a frame so React paints the tab
+      requestAnimationFrame(() => requestAnimationFrame(tick));
+    };
+
+    const onGo = (e: Event) => {
+      const d = (e as CustomEvent).detail || {};
+      const id = d.id as string | undefined;
+      const tab = d.tab as string | undefined;
+      try {
+        sessionStorage.setItem(
+          'atlas-settings-pending-anchor',
+          JSON.stringify({ id: id || '', tab: tab || '' }),
+        );
+      } catch { /* */ }
+      if (tab) setSearchParams({ tab }, { replace: true });
+      scrollWithRetry(id, tab);
+    };
+    window.addEventListener('atlas-settings-go-anchor', onGo as EventListener);
+    return () => window.removeEventListener('atlas-settings-go-anchor', onGo as EventListener);
+  }, [setSearchParams]);
+
+
+
+  const VALID_TABS = new Set(['profile', 'company', 'attendance', 'legal', 'invoicing', 'documents', 'warehouse', 'categories', 'integrations', 'admin', 'audit']);
   const tabFromUrl = searchParams.get('tab') || 'profile';
   const activeTab = VALID_TABS.has(tabFromUrl) ? tabFromUrl : 'profile';
+
+  // When tab content is ready, honor pending anchor (Windows-style: open page + focus control)
+  useEffect(() => {
+    if (loading) return;
+    let raw: string | null = null;
+    try { raw = sessionStorage.getItem('atlas-settings-pending-anchor'); } catch { /* */ }
+    if (!raw) return;
+    let p: { id?: string; tab?: string } = {};
+    try { p = JSON.parse(raw); } catch { return; }
+    if (p.tab && p.tab !== activeTab) return;
+
+    let cancelled = false;
+    let tries = 0;
+    const run = () => {
+      if (cancelled) return;
+      const el = p.id
+        ? document.querySelector('[data-settings-anchor="' + p.id + '"]')
+        : null;
+      if (el) {
+        const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
+        (el as HTMLElement).classList.add('settings-anchor-flash');
+        const focusable = el.querySelector('input:not([type=hidden]), select, textarea, button, [tabindex]') as HTMLElement | null;
+        if (focusable) {
+          try { focusable.focus({ preventScroll: true }); } catch { try { focusable.focus(); } catch { /* */ } }
+        }
+        window.setTimeout(() => (el as HTMLElement).classList.remove('settings-anchor-flash'), 2400);
+        try { sessionStorage.removeItem('atlas-settings-pending-anchor'); } catch { /* */ }
+        return;
+      }
+      tries += 1;
+      if (tries < 50) window.setTimeout(run, 40);
+    };
+    // Double rAF + small delay so conditional tab JSX is mounted
+    const t = window.setTimeout(() => {
+      requestAnimationFrame(() => requestAnimationFrame(run));
+    }, 30);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [activeTab, loading]);
+
+
   // mailbox removed — fall through via VALID_TABS
   const setActiveTab = (id: string) => {
     const next = new URLSearchParams(searchParams);
@@ -55,6 +184,16 @@ export default function Settings() {
   const [restoreJob, setRestoreJob] = useState<any>(null);
   const [restoreMsg, setRestoreMsg] = useState('');
   const [backupBusy, setBackupBusy] = useState(false);
+  useEffect(() => {
+    if (!(restoreBusy || backupBusy)) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+      document.documentElement.style.overflow = '';
+    };
+  }, [restoreBusy, backupBusy]);
   const [backupPhase, setBackupPhase] = useState('');
   const [backupPct, setBackupPct] = useState(0);
   const [backupEtaSec, setBackupEtaSec] = useState<number | null>(null);
@@ -78,6 +217,15 @@ export default function Settings() {
   const [catDesc, setCatDesc] = useState('');
   const [catSaving, setCatSaving] = useState(false);
   const [auditLog, setAuditLog] = useState<any[]>([]);
+  const [auditDetailRow, setAuditDetailRow] = useState<any | null>(null);
+  useEffect(() => {
+    if (!auditDetailRow) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [auditDetailRow]);
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditCursor, setAuditCursor] = useState<string | null>(null);
   const [auditCursorStack, setAuditCursorStack] = useState<(string | null)[]>([null]);
@@ -97,8 +245,14 @@ export default function Settings() {
   };
 
   const flash = (msg: string, type: 'success' | 'error' = 'success') => {
-    setSaveMsg(msg); setSaveMsgType(type);
-    setTimeout(() => setSaveMsg(''), 4500);
+    setSaveMsg(msg);
+    setSaveMsgType(type);
+    // Single channel — section handlers may also set localSectionError
+    if (type === 'error') setSettingsFormError(msg);
+    else setSettingsFormError('');
+    setTimeout(() => {
+      setSaveMsg((m) => (m === msg ? '' : m));
+    }, 4500);
   };
 
 
@@ -114,12 +268,9 @@ export default function Settings() {
     if (!(canAccessAdminSettings() || isOwner)) return;
     api.getAssistProvider()
       .then((r: any) => {
-        const raw = String(r?.data?.provider || 'mistral');
-        const p = raw === 'gemini' ? 'gemini' : raw === 'groq' ? 'groq' : 'mistral';
         setAssistProvider('groq');
         setAssistMeta({
-          mistralConfigured: !!r?.data?.mistralConfigured,
-          geminiConfigured: !!r?.data?.geminiConfigured,
+                    geminiConfigured: !!r?.data?.geminiConfigured,
           groqConfigured: !!r?.data?.groqConfigured,
         });
       })
@@ -277,15 +428,18 @@ export default function Settings() {
   };
 
 
-  const update = (field: string, value: any) => setSettings((prev: any) => ({ ...(prev || {}), [field]: value }));
+  const update = (field: string, value: any) => {
+    setSettingsDirty(true);
+    setSettings((prev: any) => ({ ...(prev || {}), [field]: value }));
+  };
+
 
   const save = async () => {
     const merged = { ...s, ...settings };
     if (merged.credit_prefix != null) {
       const p = validateWrPrefix(merged.credit_prefix);
       if (!p.ok) {
-        flash(p.error, 'error');
-        toast(p.error, 'error');
+        flash(p.error, 'error'); /* pas de toast — bannière dans la page */
         setActiveTab('invoicing');
         return;
       }
@@ -296,7 +450,6 @@ export default function Settings() {
       if (!Number.isFinite(n) || n < 1 || Math.floor(n) !== n) {
         const msg = 'Le prochain numéro WR doit être un entier ≥ 1.';
         flash(msg, 'error');
-        toast(msg, 'error');
         setActiveTab('invoicing');
         return;
       }
@@ -306,25 +459,48 @@ export default function Settings() {
       setFieldErrors(errs);
       const msg = firstError(errs) || 'Complétez les champs obligatoires.';
       flash(msg, 'error');
-      toast(msg, 'error');
       setActiveTab('company');
       return;
     }
     setFieldErrors({});
+    setSaveOk(false);
     setSaving(true);
     try {
       const res = await api.updateSettings(merged);
       setSettings(res.data);
+      setSettingsDirty(false);
+      setSaveOk(true);
       flash('Paramètres enregistrés.');
       toast('Paramètres enregistrés', 'success');
     } catch (e: any) {
       const msg = friendlyError(e, 'Impossible d’enregistrer les paramètres.');
       flash(msg, 'error');
-      toast(msg, 'error');
     } finally {
       setSaving(false);
     }
   };
+
+  const TAB_BLURBS: Record<string, string> = {
+    profile: 'Votre compte, apparence et sécurité personnelle (mot de passe, passkeys).',
+    company: 'Nom, adresse, contacts et identité de la société sur les documents.',
+    attendance: 'Pointage, cycles de présence et règles de paie liées aux employés.',
+    legal: 'Mentions légales, ICE, RC, patente et textes affichés sur les documents.',
+    invoicing: 'Préfixes, numérotation, TVA et options de facturation.',
+    documents: 'Pied de page PDF, notes par défaut et modèles d’impression.',
+    warehouse: 'Entrepôts, emplacements et organisation du stock.',
+    categories: 'Catégories produits pour classer le catalogue.',
+    integrations: 'Clés API et connexions externes.',
+    admin: 'Utilisateurs, rôles et configuration serveur sensible.',
+    audit: 'Historique des actions importantes sur ce compte.',
+  };
+
+  const canSaveSection =
+    activeTab !== 'profile' &&
+    activeTab !== 'admin' &&
+    activeTab !== 'audit' &&
+    activeTab !== 'integrations' &&
+    activeTab !== 'categories';
+
 
   const loadPasskeys = async () => {
     setPasskeysLoading(true);
@@ -355,7 +531,6 @@ export default function Settings() {
     } catch (e: any) {
       const msg = friendlyError(e, 'Impossible de renommer la clé.');
       flash(msg, 'error');
-      toast(msg, 'error');
     }
   };
 
@@ -389,7 +564,6 @@ export default function Settings() {
     } catch (e: any) {
       const msg = friendlyError(e, 'Impossible de supprimer la clé.');
       flash(msg, 'error');
-      toast(msg, 'error');
     }
   };
 
@@ -408,9 +582,34 @@ export default function Settings() {
 
 
 
+  const officeSettings = canAccessCompanySettings();
+  const adminSettings = canAccessAdminSettings() || isOwner;
+
+  const tabs: { id: string; label: string; group: string; icon: string }[] = [
+    { id: 'profile', label: 'Mon profil', group: 'Vous', icon: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z' },
+    // stock / user: profile only — no company, legal, bank, warehouse, etc.
+    ...(officeSettings ? [
+      { id: 'company', label: 'Société', group: 'Entreprise', icon: 'M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6' },
+      { id: 'attendance', label: 'Présence', group: 'Entreprise', icon: 'M12 8v4l3 3M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z' },
+      { id: 'legal', label: 'Légal', group: 'Entreprise', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M9 13h6M9 17h4' },
+      { id: 'invoicing', label: 'Facturation', group: 'Documents', icon: 'M8 2h8a2 2 0 0 1 2 2v16l-3-1.5L12 21l-3-1.5L6 20V4a2 2 0 0 1 2-2z' },
+      { id: 'documents', label: 'PDF', group: 'Documents', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6' },
+      { id: 'warehouse', label: 'Entrepôts', group: 'Stock', icon: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z' },
+      { id: 'categories', label: 'Catégories', group: 'Stock', icon: 'M4 6h16M4 12h16M4 18h10' },
+    ] : []),
+    ...(adminSettings ? [
+      { id: 'integrations', label: 'API', group: 'Admin', icon: 'M10 13a5 5 0 0 0 7.07 0l1.41-1.41a5 5 0 0 0-7.07-7.07L10 5.93M14 11a5 5 0 0 0-7.07 0L5.52 12.4a5 5 0 0 0 7.07 7.07L14 18.07' },
+      { id: 'admin', label: 'Admin', group: 'Admin', icon: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8' },
+      { id: 'audit', label: 'Journal d’audit', group: 'Admin', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M9 13h6M9 17h4' },
+    ] : []),
+  ];
+  const tabGroups = Array.from(new Set(tabs.map((x) => x.group)));
+
+
+
 if (loading) return (
     <div className="atlas-page atlas-settings">
-      <p className="atlas-eyebrow">Société</p>
+      <p className="atlas-eyebrow">Espace de travail</p>
       <h1 className="atlas-hello" style={{ fontSize: '1.75rem' }}>Paramètres</h1>
       <div className="atlas-card" style={{ marginTop: 16 }}>
         <div className="skeleton" style={{ height: 16, width: '40%', marginBottom: 12 }} />
@@ -428,27 +627,6 @@ if (loading) return (
     /* still render form with empty defaults below via s */
   }
 
-  const officeSettings = canAccessCompanySettings();
-  const adminSettings = canAccessAdminSettings() || isOwner;
-
-  const tabs: { id: string; label: string; group: string; icon: string }[] = [
-    { id: 'profile', label: 'Mon profil', group: 'Vous', icon: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z' },
-    // stock / user: profile only — no company, legal, bank, warehouse, etc.
-    ...(officeSettings ? [
-      { id: 'company', label: 'Société', group: 'Entreprise', icon: 'M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6' },
-      { id: 'legal', label: 'Légal', group: 'Entreprise', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M9 13h6M9 17h4' },
-      { id: 'invoicing', label: 'Facturation', group: 'Documents', icon: 'M8 2h8a2 2 0 0 1 2 2v16l-3-1.5L12 21l-3-1.5L6 20V4a2 2 0 0 1 2-2z' },
-      { id: 'documents', label: 'PDF', group: 'Documents', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6' },
-      { id: 'warehouse', label: 'Entrepôts', group: 'Stock', icon: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z' },
-      { id: 'categories', label: 'Catégories', group: 'Stock', icon: 'M4 6h16M4 12h16M4 18h10' },
-    ] : []),
-    ...(adminSettings ? [
-      { id: 'integrations', label: 'API', group: 'Admin', icon: 'M10 13a5 5 0 0 0 7.07 0l1.41-1.41a5 5 0 0 0-7.07-7.07L10 5.93M14 11a5 5 0 0 0-7.07 0L5.52 12.4a5 5 0 0 0 7.07 7.07L14 18.07' },
-      { id: 'admin', label: 'Admin', group: 'Admin', icon: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8' },
-      { id: 'audit', label: 'Journal d’audit', group: 'Admin', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M9 13h6M9 17h4' },
-    ] : []),
-  ];
-  const tabGroups = Array.from(new Set(tabs.map((x) => x.group)));
 
   // Force profile if current tab not allowed (e.g. stock user)
   if (!tabs.some((x) => x.id === activeTab)) {
@@ -482,15 +660,14 @@ if (loading) return (
     setPwOpen(true);
   };
 
-  const deleteUser = (id: number, name: string) => {
-    setPwTitle(`Supprimer « ${name} »`);
-    setPendingAction(() => async (password: string) => {
-      await api.deleteAdminUser(id, password);
+  const deleteUser = async (id: number, _name: string) => {
+    try {
+      await api.deleteAdminUser(id, '');
       flash('Utilisateur supprimé.');
-      setPwOpen(false); setPendingAction(null);
       await reloadAdmin();
-    });
-    setPwOpen(true);
+    } catch (e: any) {
+      flash(e?.message || 'Suppression impossible', 'error');
+    }
   };
 
 
@@ -511,63 +688,145 @@ if (loading) return (
     setPwOpen(true);
   };
 
+
+  const formatAuditSummary = (row: any): string => {
+    const action = String(row.action || '');
+    const detail = String(row.detail || '').trim();
+    if (action === 'backup.restore') {
+      // Minimal: filename only if entity_id looks like a file
+      const id = String(row.entity_id || '').split('/').pop() || '';
+      if (detail && detail.length < 80 && !detail.includes('tables=products')) return detail;
+      return id ? `Restauration · ${id}` : 'Restauration de sauvegarde';
+    }
+    if (action === 'settings.update') {
+      const m = detail.match(/champs=([^;]+)/);
+      if (m) {
+        const n = m[1].split(',').filter(Boolean).length;
+        return n ? `${n} champ${n > 1 ? 's' : ''} modifié${n > 1 ? 's' : ''}` : 'Paramètres mis à jour';
+      }
+      return 'Paramètres mis à jour';
+    }
+    if (action.startsWith('assist.')) return detail.slice(0, 48) || 'Atlas Agent';
+    if (detail.length > 64) return detail.slice(0, 61) + '…';
+    return detail || '—';
+  };
+
+  const formatAuditActor = (row: any): { title: string; sub: string } => {
+    const u = String(row.username || '').trim();
+    const role = String(row.role || '').trim();
+    const action = String(row.action || '');
+    const detail = String(row.detail || '');
+    if (u) {
+      return { title: u, sub: roleLabel(row.role || '') || role || 'Utilisateur' };
+    }
+    if (action.startsWith('assist.') || /atlas.?agent|groq/i.test(detail)) {
+      return { title: 'Atlas Agent', sub: 'Automatisation' };
+    }
+    if (/cron|schedule|alarm|system/i.test(action + detail) || action.includes('retention')) {
+      return { title: 'Système', sub: 'Tâche planifiée' };
+    }
+    if (row.ip) {
+      return { title: 'Inconnu', sub: `IP ${row.ip}` };
+    }
+    return { title: 'Système', sub: 'Processus interne' };
+  };
+
   return (
     <div className="atlas-page atlas-settings">
-      <p className="atlas-eyebrow">Société</p>
-      <div className="page-header" style={{ alignItems: 'flex-start' }}>
-        <div>
-          <h1 className="atlas-hello" style={{ fontSize: '1.75rem' }}>Paramètres</h1>
-          <p className="atlas-lead" style={{ marginBottom: 0 }}>
+      <div className="page-header settings-page-header" style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ minWidth: 0, flex: '1 1 280px' }}>
+          <p className="atlas-eyebrow" style={{ marginBottom: 6 }}>Espace de travail</p>
+          <h1 className="atlas-hello" style={{ fontSize: '1.75rem', marginBottom: 6 }}>Paramètres</h1>
+          <p className="atlas-lead" style={{ marginBottom: 0, maxWidth: '100%', overflowWrap: 'anywhere', whiteSpace: 'normal' }}>
             Identité, fiscalité, banque et sécurité de l&apos;espace de travail.
           </p>
         </div>
-        <>
-          {Object.values(fieldErrors).filter(Boolean)[0] && (
-            <span className="save-error-inline">{Object.values(fieldErrors).filter(Boolean)[0]}</span>
-          )}
-          {activeTab !== 'profile' && activeTab !== 'admin' && activeTab !== 'audit' && activeTab !== 'integrations' && activeTab !== 'categories' && (
-            <button onClick={save} disabled={saving}>{saving ? 'Enregistrement…' : 'Enregistrer cette section'}</button>
-          )}
-        </>
+        {Object.values(fieldErrors).filter(Boolean)[0] && (
+          <span className="save-error-inline">{Object.values(fieldErrors).filter(Boolean)[0]}</span>
+        )}
       </div>
 
-<SaveFeedback message={saveMsg} type={saveMsgType} />
+      <p className="settings-tab-blurb muted">
+        {TAB_BLURBS[activeTab] || 'Configurez cette section selon les besoins de votre activité.'}
+      </p>
+      
 
-      <div className="settings-shell settings-shell--responsive">
-        <aside className="settings-nav" aria-label="Sections paramètres">
-          {tabGroups.map((g) => (
-            <div key={g} className="settings-nav-group">
-              <div className="settings-nav-group-label">{g}</div>
-              {tabs.filter((x) => x.group === g).map((tab) => (
-                <Link
-                  key={tab.id}
-                  to={`/settings?tab=${tab.id}`}
-                  className={activeTab === tab.id ? 'settings-nav-item active' : 'settings-nav-item'}
-                  onClick={() => setActiveTab(tab.id)}
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d={tab.icon} />
-                  </svg>
-                  <span>{tab.label}</span>
-                </Link>
-              ))}
-            </div>
-          ))}
-        </aside>
-        <div className="settings-main">
+      {/* Errors: one place only — success uses SaveFeedback; field/section errors below */}
+      {saveMsgType === 'success' && saveMsg ? (
+        <SaveFeedback message={saveMsg} type="success" />
+      ) : null}
+
+      <div className="settings-shell settings-shell--focus atlas-crm settings-page">
+        <div className="settings-main settings-main--wide">
+        {isFeatureEnabled('editProfileModal') && (
+        <>
+        <div className="ac-settings-profile-bar">
+          <div>
+            <strong>{profileForm.display_name || profileData.fullName || 'Votre profil'}</strong>
+            <span>{profileForm.email || profileData.email || profileForm.phone || 'Appuyez pour modifier'}</span>
+          </div>
+          <button type="button" className="secondary" onClick={() => setEditProfileOpen(true)}>
+            Modifier le profil
+          </button>
+        </div>
+        <EditProfile
+          key={`ep-${profileForm.email}-${profileForm.display_name}-${profileForm.avatar_url}`}
+          isOpen={editProfileOpen}
+          onClose={() => setEditProfileOpen(false)}
+          initialData={{
+            fullName: profileForm.display_name || profileData.fullName || '',
+            email: (profileForm.email || profileData.email || '').trim(),
+            timezone: profileData.timezone || 'Africa/Casablanca',
+            workingHours: profileData.workingHours || '09:00 – 18:00',
+            title: profileData.title || (profileForm.role === 'owner' ? 'Propriétaire' : ''),
+            avatarUrl: profileForm.avatar_url || profileData.avatarUrl || '',
+            lastUpdated: profileData.lastUpdated || '',
+          }}
+          onSave={async (data) => {
+            setProfileData({
+              ...data,
+              lastUpdated: new Date().toLocaleDateString('fr-FR'),
+            });
+            setProfileForm((prev) => ({
+              ...prev,
+              display_name: data.fullName,
+              email: data.email,
+              avatar_url: data.avatarUrl || prev.avatar_url,
+            }));
+            try { localStorage.setItem('atlas-profile', JSON.stringify(data)); } catch {}
+            try {
+              setProfileSaving(true);
+              await api.updateMe({
+                display_name: data.fullName,
+                email: data.email,
+                avatar_url: data.avatarUrl,
+                phone: profileForm.phone,
+                notes: profileForm.notes,
+              });
+              setProfileCache({
+                display_name: data.fullName,
+                avatar_url: data.avatarUrl,
+              });
+            } catch {
+              /* keep local */
+            } finally {
+              setProfileSaving(false);
+            }
+            setEditProfileOpen(false);
+          }}
+        />
+        </>
+        )}
+
 
       {activeTab === 'profile' && (
         <div className="card" style={{ marginBottom: 16 }}>
           <h3 style={{ marginTop: 0 }}>Apparence</h3>
-          <p className="muted" style={{ marginTop: 0 }}>Densité de l’interface et taille du texte (s’applique aussi en mode compact).</p>
+          <p className="muted" style={{ marginTop: 0 }}>Taille du texte de l’interface.</p>
           <div className="form-row">
-            <label>Densité</label>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button type="button" className={uiDensity === 'compact' ? 'btn primary' : 'btn secondary'} onClick={() => { setDensity('compact'); setUiDensity('compact'); }}>Compact</button>
-              <button type="button" className={uiDensity === 'comfortable' ? 'btn primary' : 'btn secondary'} onClick={() => { setDensity('comfortable'); setUiDensity('comfortable'); }}>Confort</button>
-            </div>
+            
           </div>
-          <div className="form-row">
+          <div className="form-row" data-settings-anchor="ui-scale">
             <label>Taille du texte</label>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <button type="button" className={uiScale === 'sm' ? 'btn primary' : 'btn secondary'} onClick={() => { setUiScale('sm'); setUiScaleState('sm'); }}>Petit</button>
@@ -582,7 +841,8 @@ if (loading) return (
       
       {activeTab === 'profile' && (
         <div>
-          <div className="card" style={{ marginBottom: 16 }}>
+          {!isFeatureEnabled('editProfileModal') && (
+        <div className="card" style={{ marginBottom: 16 }}>
             <div className="settings-section-head">
               <h2>Mon profil</h2>
               <p>
@@ -597,7 +857,7 @@ if (loading) return (
                 {profileForm.avatar_url ? (
                   <img src={profileForm.avatar_url} alt="" width={72} height={72} style={{ borderRadius: 16, objectFit: 'cover', border: '1px solid var(--line)' }} />
                 ) : (
-                  <div style={{ width: 72, height: 72, borderRadius: 16, background: '#0B1F1A', color: '#55C4A5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 22, letterSpacing: 0.5 }}>
+                  <div style={{ width: 72, height: 72, borderRadius: 16, background: '#0b0e14', color: '#71717a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 22, letterSpacing: 0.5 }}>
                     {(() => {
                       const n = (profileForm.display_name || profileForm.username || '?').trim();
                       const parts = n.split(/[\s._-]+/).filter(Boolean);
@@ -608,7 +868,7 @@ if (loading) return (
                 )}
               </div>
               <div style={{ flex: 1, minWidth: 240 }}>
-                <div className="form-row">
+                <div className="form-row" data-settings-anchor="profile_photo">
                   <label>Photo de profil</label>
                   <input
                     value={profileForm.avatar_url}
@@ -648,7 +908,7 @@ if (loading) return (
             <p style={{ fontSize: 12, color: 'var(--muted)', margin: '0 0 12px' }}>
               Identifiant et mot de passe : uniquement un administrateur peut les changer.
             </p>
-            <div className="form-row">
+            <div className="form-row" data-settings-anchor="display_name">
               <label>Nom affiché</label>
               <input
                 value={profileForm.display_name}
@@ -656,7 +916,7 @@ if (loading) return (
                 placeholder="Votre nom"
               />
             </div>
-            <div className="form-row">
+            <div className="form-row" data-settings-anchor="profile_email">
               <label>E-mail</label>
               <input
                 type="email"
@@ -665,7 +925,7 @@ if (loading) return (
                 placeholder="vous@exemple.com"
               />
             </div>
-            <div className="form-row">
+            <div className="form-row" data-settings-anchor="profile_phone">
               <label>Téléphone</label>
               <input
                 value={profileForm.phone}
@@ -673,7 +933,7 @@ if (loading) return (
                 placeholder="+212 …"
               />
             </div>
-            <div className="form-row">
+            <div className="form-row" data-settings-anchor="profile_notes">
               <label>Note personnelle (optionnel)</label>
               <textarea
                 rows={2}
@@ -740,8 +1000,9 @@ if (loading) return (
               {profileSaving ? 'Enregistrement…' : 'Enregistrer le profil'}
             </button>
           </div>
+          )}
           <div className="card" style={{ marginBottom: 16 }}>
-            <h2 style={{ fontSize: 16, marginBottom: 8 }}>Mes clés d&apos;accès (passkeys)</h2>
+            <h2 style={{ fontSize: 16, marginBottom: 8 }} data-settings-anchor="passkeys">Mes clés d&apos;accès (passkeys)</h2>
             <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>
               Biométrie et clés enregistrées pour <strong>cet appareil</strong>.
               Supprimer retire la clé du site Atlas ; le navigateur peut aussi la retirer de l&apos;appareil (sinon : Réglages système → Mots de passe / Clés d&apos;accès).
@@ -781,7 +1042,7 @@ if (loading) return (
                       <td style={{ padding: '8px 4px', color: 'var(--muted)' }}>{(k.created_at || '').slice(0, 16).replace('T', ' ')}</td>
                       <td style={{ padding: '8px 4px', whiteSpace: 'nowrap' }}>
                         <button type="button" className="secondary" style={{ padding: '4px 8px', fontSize: 12, marginRight: 6 }} onClick={() => renamePasskey(k.id, k.label || '')}>Renommer</button>
-                        <button type="button" className="danger" style={{ padding: '4px 8px', fontSize: 12 }} onClick={() => deletePasskey(k.id, k.label || '')}>Supprimer</button>
+                        <TimedUndoDelete deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10} onConfirm={() => void deletePasskey(k.id, k.label || '')} />
                       </td>
                     </tr>
                   ))}
@@ -797,7 +1058,7 @@ if (loading) return (
             </p>
             {adminConfig?.webauthn && (
               <>
-                <div className="form-row">
+                <div className="form-row" data-settings-anchor="webauthn">
                   <label>Type d&apos;attestation</label>
                   <select
                     value={adminConfig.webauthn.attestation || 'none'}
@@ -842,44 +1103,12 @@ if (loading) return (
                     <li key={i}>{n}</li>
                   ))}
                 </ul>
-                <button type="button" onClick={saveAdminConfig} style={{ marginTop: 12 }}>
+
+<button type="button" onClick={saveAdminConfig} style={{ marginTop: 12 }}>
                   Enregistrer la config WebAuthn
                 </button>
               </>
             )}
-          </div>
-
-          <div className="card" style={{ marginBottom: 16 }}>
-            <h2 style={{ fontSize: 16, marginTop: 0 }}>Mode démonstration</h2>
-            <p style={{ fontSize: 13, color: 'var(--muted)' }}>
-              Sandbox isolée (session uniquement). Aucune donnée réelle n’est modifiée.
-              « Revoir le guide » active aussi ce mode.
-            </p>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                className={isDemoMode() ? 'danger' : undefined}
-                onClick={() => {
-                  if (isDemoMode()) exitDemoMode();
-                  else enterDemoMode();
-                  window.location.reload();
-                }}
-              >
-                {isDemoMode() ? 'Quitter le mode démo' : 'Activer le mode démo'}
-              </button>
-              {isDemoMode() && (
-                <button
-                  type="button"
-                  className="secondary"
-                  onClick={() => {
-                    resetDemoData();
-                    window.location.reload();
-                  }}
-                >
-                  Réinitialiser les données
-                </button>
-              )}
-            </div>
           </div>
 
         </div>
@@ -887,35 +1116,346 @@ if (loading) return (
 
 {activeTab === 'company' && officeSettings && (
         <div className="atlas-card">
-          <h2 style={{ fontSize: 16, marginBottom: 20 }}>Informations de la société</h2>
+          <h2 style={{ fontSize: 16, marginBottom: 20 }} data-settings-anchor="sec-company">Informations de la société</h2>
+
+
           <div className="grid grid-2">
-            <div className="form-row"><label>Nom de la société *</label><input className={fieldErrors.company_name ? 'field-error' : undefined} value={s.company_name || ''} onChange={(e) => { update('company_name', e.target.value); setFieldErrors((fe) => ({ ...fe, company_name: '' })); }} placeholder="Ex. A-F Marbre" /><span className="field-error-msg">{fieldErrors.company_name || ''}</span></div>
-            <div className="form-row"><label>Forme juridique</label><input value={s.legal_form || ''} onChange={(e) => update('legal_form', e.target.value)} placeholder="SARL, SA, etc." /></div>
+            <div className="form-row" data-settings-anchor="company_name"><label>Nom de la société *</label><input className={fieldErrors.company_name ? 'field-error' : undefined} value={s.company_name || ''} onChange={(e) => { update('company_name', e.target.value); setFieldErrors((fe) => ({ ...fe, company_name: '' })); }} placeholder="Ex. A-F Marbre" /><span className="field-error-msg">{fieldErrors.company_name || ''}</span></div>
+            <div className="form-row" data-settings-anchor="legal_form"><label>Forme juridique</label><input value={s.legal_form || ''} onChange={(e) => update('legal_form', e.target.value)} placeholder="SARL, SA, etc." /></div>
           </div>
-          <div className="form-row"><label>Adresse</label><input value={s.address || ''} onChange={(e) => update('address', e.target.value)} /></div>
+          <div className="form-row" data-settings-anchor="company_address"><label>Adresse</label><input value={s.address || ''} onChange={(e) => update('address', e.target.value)} /></div>
           <div className="grid grid-3">
-            <div className="form-row"><label>Ville</label><input value={s.city || ''} onChange={(e) => update('city', e.target.value)} /></div>
-            <div className="form-row"><label>Code postal</label><input value={s.postal_code || ''} onChange={(e) => update('postal_code', e.target.value)} /></div>
-            <div className="form-row"><label>Pays</label><input value={s.country || ''} onChange={(e) => update('country', e.target.value)} /></div>
+            <div className="form-row" data-settings-anchor="company_city"><label>Ville</label><input value={s.city || ''} onChange={(e) => update('city', e.target.value)} /></div>
+            <div className="form-row" data-settings-anchor="company_postal"><label>Code postal</label><input value={s.postal_code || ''} onChange={(e) => update('postal_code', e.target.value)} /></div>
+            <div className="form-row" data-settings-anchor="company_country"><label>Pays</label><input value={s.country || ''} onChange={(e) => update('country', e.target.value)} /></div>
           </div>
           <div className="grid grid-2">
-            <div className="form-row"><label>Téléphone</label><input value={s.phone || ''} onChange={(e) => update('phone', e.target.value)} /></div>
+            <div className="form-row" data-settings-anchor="company_contact"><label>Téléphone</label><input value={s.phone || ''} onChange={(e) => update('phone', e.target.value)} /></div>
             <div className="form-row"><label>E-mail</label><input type="email" value={s.email || ''} onChange={(e) => update('email', e.target.value)} /></div>
           </div>
           <div className="grid grid-2">
-            <div className="form-row"><label>Site web</label><input value={s.website || ''} onChange={(e) => update('website', e.target.value)} /></div>
-            <div className="form-row"><label>URL du logo</label><input value={s.logo_url || ''} onChange={(e) => update('logo_url', e.target.value)} placeholder="https://..." /></div>
+            <div className="form-row" data-settings-anchor="company_website"><label>Site web</label><input value={s.website || ''} onChange={(e) => update('website', e.target.value)} /></div>
+            <div className="form-row" data-settings-anchor="company_logo"><label>URL du logo</label><input value={s.logo_url || ''} onChange={(e) => update('logo_url', e.target.value)} placeholder="https://..." /></div>
           </div>
           <div className="form-row"><label>Notes par défaut (factures)</label><textarea rows={2} value={s.notes || ''} onChange={(e) => update('notes', e.target.value)} /></div>
           <div className="form-row"><label>Pied de page des rapports PDF</label><textarea rows={2} value={s.report_footer || ''} onChange={(e) => update('report_footer', e.target.value)} placeholder="Ex. Document confidentiel — Atlas Commerce — Conservez ce rapport 10 ans (obligations comptables Maroc)" /></div>
         </div>
-      )}
+        )}
 
-      {activeTab === 'legal' && officeSettings && (
+
+      
+{activeTab === 'attendance' && officeSettings && (
+        <div className="settings-panel card" style={{ padding: 20 }}>
+          <h2 style={{ marginTop: 0 }}>Présence, paie & acomptes</h2>
+          <p className="muted" style={{ fontSize: 13 }}>
+            Toutes les règles du module présence : activation, retards, demi-journées, impact paie et acomptes.
+          </p>
+
+          <h3 style={{ fontSize: 15, marginTop: 20 }}>Module</h3>
+          <div className="form-row" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <label style={{ margin: 0 }}>Présence activée</label>
+            <input
+              type="checkbox"
+              checked={!!Number((settings as any)?.attendance_enabled)}
+              onChange={(e) =>
+                setSettings((s: any) => ({ ...s, attendance_enabled: e.target.checked ? 1 : 0 }))
+              }
+            />
+          </div>
+          <div className="form-row" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <label style={{ margin: 0 }}>Paie liée à la présence</label>
+            <input
+              type="checkbox"
+              checked={Number((settings as any)?.attendance_pay_use_presence ?? 1) === 1}
+              onChange={(e) =>
+                setSettings((s: any) => ({ ...s, attendance_pay_use_presence: e.target.checked ? 1 : 0 }))
+              }
+            />
+            <span className="muted" style={{ fontSize: 12 }}>Pénalités retard sur la paie suggérée</span>
+          </div>
+          <h3 style={{ fontSize: 15, marginTop: 24 }}>Horaires & pointage</h3>
+          <div className="grid grid-2">
+            <div className="form-row">
+              <label>Seuil retard</label>
+              <input
+                type="text"
+                placeholder="09:15"
+                value={String((settings as any)?.attendance_late_threshold || '09:15')}
+                onChange={(e) =>
+                  setSettings((s: any) => ({ ...s, attendance_late_threshold: e.target.value }))
+                }
+              />
+            </div>
+            <div className="form-row">
+              <label>Heures / jour ouvrable</label>
+              <input
+                type="number"
+                min={1}
+                max={24}
+                step={0.5}
+                value={Number((settings as any)?.attendance_workday_hours ?? 8)}
+                onChange={(e) =>
+                  setSettings((s: any) => ({ ...s, attendance_workday_hours: Number(e.target.value) }))
+                }
+              />
+            </div>
+            <div className="form-row">
+              <label>Demi-journée matin (HH:MM-HH:MM)</label>
+              <input
+                type="text"
+                value={String((settings as any)?.attendance_half_morning || '09:00-13:00')}
+                onChange={(e) =>
+                  setSettings((s: any) => ({ ...s, attendance_half_morning: e.target.value }))
+                }
+              />
+            </div>
+            <div className="form-row">
+              <label>Demi-journée après-midi</label>
+              <input
+                type="text"
+                value={String((settings as any)?.attendance_half_afternoon || '14:00-18:00')}
+                onChange={(e) =>
+                  setSettings((s: any) => ({ ...s, attendance_half_afternoon: e.target.value }))
+                }
+              />
+            </div>
+          </div>
+
+          <h3 style={{ fontSize: 15, marginTop: 24 }}>Paie liée à la présence</h3>
+          <div className="grid grid-2">
+            <div className="form-row">
+              <label>Mode de calcul de la paie suggérée</label>
+              <select
+                value={String((settings as any)?.attendance_pay_mode || 'presence')}
+                onChange={(e) =>
+                  setSettings((s: any) => ({ ...s, attendance_pay_mode: e.target.value }))
+                }
+              >
+                <option value="presence">Jours travaillés (présent / retard / demi) — recommandé Maroc</option>
+                <option value="calendar">Calendaire (jours écoulés du cycle)</option>
+              </select>
+              <span className="muted" style={{ fontSize: 11 }}>
+                Présent et retard = 1 jour · Demi = 0,5 · Absent = 0. Pas de retenue automatique « % retard ».
+              </span>
+            </div>
+            <div className="form-row" style={{ display: 'flex', alignItems: 'flex-start', gap: 10, flexDirection: 'column' }}>
+              <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input
+                  type="checkbox"
+                  checked={Number((settings as any)?.attendance_minute_deduct) === 1}
+                  onChange={(e) =>
+                    setSettings((s: any) => ({
+                      ...s,
+                      attendance_minute_deduct: e.target.checked ? 1 : 0,
+                    }))
+                  }
+                />
+                Retenir les minutes de retard (optionnel)
+              </label>
+              <span className="muted" style={{ fontSize: 11 }}>
+                Après le seuil, les minutes sont converties en fraction de jour ouvrable (temps non travaillé).
+              </span>
+            </div>
+          </div>
+
+          <h3 style={{ fontSize: 15, marginTop: 24 }}>Discipline (Code du travail)</h3>
+          <p className="muted" style={{ fontSize: 12 }}>
+            Pas d&apos;amende automatique. Compteur de retards sur le cycle → suggestion d&apos;avertissement / blâme
+            (confirmation manuelle RH).
+          </p>
+          <div className="grid grid-2">
+            <div className="form-row">
+              <label>Retards → suggérer avertissement</label>
+              <input
+                type="number"
+                min={1}
+                max={30}
+                value={Number((settings as any)?.attendance_warn_late_count ?? 3)}
+                onChange={(e) =>
+                  setSettings((s: any) => ({
+                    ...s,
+                    attendance_warn_late_count: Number(e.target.value),
+                  }))
+                }
+              />
+            </div>
+            <div className="form-row">
+              <label>Retards → suggérer blâme</label>
+              <input
+                type="number"
+                min={1}
+                max={60}
+                value={Number((settings as any)?.attendance_blame_late_count ?? 6)}
+                onChange={(e) =>
+                  setSettings((s: any) => ({
+                    ...s,
+                    attendance_blame_late_count: Number(e.target.value),
+                  }))
+                }
+              />
+            </div>
+          </div>
+
+          <h3 style={{ fontSize: 15, marginTop: 24 }}>Acomptes (indépendant de la présence)</h3>
+          <p className="muted" style={{ fontSize: 12 }}>
+            Règles d’avance sur salaire selon le cycle de paie. Aucun seuil « 25% de présence » —
+            uniquement les jours écoulés depuis le dernier paiement.
+          </p>
+          <div className="grid grid-2">
+            <div className="form-row">
+              <label>Cycle &lt; 14 j — max %</label>
+              <input
+                type="number"
+                min={0}
+                max={50}
+                value={Number((settings as any)?.attendance_acompte_short_max_pct ?? 5)}
+                onChange={(e) =>
+                  setSettings((s: any) => ({
+                    ...s,
+                    attendance_acompte_short_max_pct: Number(e.target.value),
+                  }))
+                }
+              />
+            </div>
+            <div className="form-row">
+              <label>Mensuel — plafond sans justificatif %</label>
+              <input
+                type="number"
+                min={0}
+                max={50}
+                value={Number((settings as any)?.attendance_acompte_monthly_max_pct ?? 15)}
+                onChange={(e) =>
+                  setSettings((s: any) => ({
+                    ...s,
+                    attendance_acompte_monthly_max_pct: Number(e.target.value),
+                  }))
+                }
+              />
+            </div>
+            <div className="form-row">
+              <label>Semaine 1 (≥7 j) %</label>
+              <input
+                type="number"
+                min={0}
+                max={50}
+                value={Number((settings as any)?.attendance_acompte_week1_pct ?? 5)}
+                onChange={(e) =>
+                  setSettings((s: any) => ({
+                    ...s,
+                    attendance_acompte_week1_pct: Number(e.target.value),
+                  }))
+                }
+              />
+            </div>
+            <div className="form-row">
+              <label>Semaine 2 (≥14 j) % en plus</label>
+              <input
+                type="number"
+                min={0}
+                max={50}
+                value={Number((settings as any)?.attendance_acompte_week2_pct ?? 5)}
+                onChange={(e) =>
+                  setSettings((s: any) => ({
+                    ...s,
+                    attendance_acompte_week2_pct: Number(e.target.value),
+                  }))
+                }
+              />
+            </div>
+            <div className="form-row">
+              <label>Semaine 3 (≥21 j) % en plus</label>
+              <input
+                type="number"
+                min={0}
+                max={50}
+                value={Number((settings as any)?.attendance_acompte_week3_pct ?? 5)}
+                onChange={(e) =>
+                  setSettings((s: any) => ({
+                    ...s,
+                    attendance_acompte_week3_pct: Number(e.target.value),
+                  }))
+                }
+              />
+              <span className="muted" style={{ fontSize: 11 }}>
+                Cycle &gt;14 j : justificatif obligatoire pour cette tranche
+              </span>
+            </div>
+            <div className="form-row">
+              <label>Semaine 4 (≥28 j, mensuel) % en plus</label>
+              <input
+                type="number"
+                min={0}
+                max={50}
+                value={Number((settings as any)?.attendance_acompte_week4_pct ?? 5)}
+                onChange={(e) =>
+                  setSettings((s: any) => ({
+                    ...s,
+                    attendance_acompte_week4_pct: Number(e.target.value),
+                  }))
+                }
+              />
+              <span className="muted" style={{ fontSize: 11 }}>Justificatif obligatoire</span>
+            </div>
+          </div>
+          <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
+            14 j exact : seulement sem.1 + sem.2. Mensuel : max 15% sans preuve, +sem.4 avec note.
+          </p>
+
+          <p className="muted" style={{ fontSize: 12, marginTop: 16 }}>
+            Paie suggérée = jours travaillés × taux journalier. Retard compte comme présent pour la paie ;
+            le compteur sert à la discipline. Acompte cycle long : % sem.1 / sem.2 configurables ci-dessous.
+          </p>
+
+          <div style={{ marginTop: 16 }}>
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  const payload: any = {
+                    attendance_enabled: Number((settings as any)?.attendance_enabled) ? 1 : 0,
+                    attendance_pay_use_presence: Number((settings as any)?.attendance_pay_use_presence ?? 1) ? 1 : 0,
+                    attendance_acompte_require_presence: Number(
+                      (settings as any)?.attendance_acompte_require_presence ?? 1,
+                    )
+                      ? 1
+                      : 0,
+                    attendance_late_threshold: String((settings as any)?.attendance_late_threshold || '09:15'),
+                    attendance_half_morning: String((settings as any)?.attendance_half_morning || '09:00-13:00'),
+                    attendance_half_afternoon: String((settings as any)?.attendance_half_afternoon || '14:00-18:00'),
+                    attendance_workday_hours: Number((settings as any)?.attendance_workday_hours ?? 8),
+                    attendance_pay_mode: String((settings as any)?.attendance_pay_mode || 'presence'),
+                    attendance_minute_deduct: Number((settings as any)?.attendance_minute_deduct) ? 1 : 0,
+                    attendance_warn_late_count: Number((settings as any)?.attendance_warn_late_count ?? 3),
+                    attendance_blame_late_count: Number((settings as any)?.attendance_blame_late_count ?? 6),
+                    attendance_acompte_week1_pct: Number((settings as any)?.attendance_acompte_week1_pct ?? 5),
+                    attendance_acompte_week2_pct: Number((settings as any)?.attendance_acompte_week2_pct ?? 5),
+                    attendance_acompte_week3_pct: Number((settings as any)?.attendance_acompte_week3_pct ?? 5),
+                    attendance_acompte_week4_pct: Number((settings as any)?.attendance_acompte_week4_pct ?? 5),
+                    attendance_acompte_short_max_pct: Number(
+                      (settings as any)?.attendance_acompte_short_max_pct ?? 5,
+                    ),
+                    attendance_acompte_monthly_max_pct: Number(
+                      (settings as any)?.attendance_acompte_monthly_max_pct ?? 15,
+                    ),
+                  };
+                  const res = await api.updateSettings(payload);
+                  if (res?.data) setSettings((s: any) => ({ ...s, ...res.data }));
+                  flash('Règles de présence enregistrées');
+                } catch (e: any) {
+                  flash(e?.message || 'Erreur', 'error');
+                }
+              }}
+            >
+              Enregistrer toutes les règles
+            </button>
+          </div>
+        </div>
+      )}
+{activeTab === 'legal' && officeSettings && (
         <div className="card">
           <h2 style={{ fontSize: 16, marginBottom: 20 }}>Identifiants légaux et fiscaux</h2>
           <div className="grid grid-2">
-            <div className="form-row"><label>ICE / Identifiant</label><input value={s.ice || ''} onChange={(e) => update('ice', e.target.value)} /></div>
+            <div className="form-row" data-settings-anchor="ice"><label>ICE / Identifiant</label><input value={s.ice || ''} onChange={(e) => update('ice', e.target.value)} /></div>
             <div className="form-row"><label>IF / Identifiant fiscal</label><input value={s.if_number || ''} onChange={(e) => update('if_number', e.target.value)} /></div>
           </div>
           <div className="grid grid-3">
@@ -1039,7 +1579,7 @@ if (loading) return (
               FA-2026-0001, DEV-2026-0001, REC-2026-0001, <strong>WR-2026-0001</strong> (remboursements / avoirs).
               La séquence ne doit pas comporter de trous.
             </p>
-            <div className="form-row" style={{ marginBottom: 16 }}>
+            <div className="form-row" data-settings-anchor="numbering" style={{ marginBottom: 16 }}>
               <label>Style de numérotation</label>
               <select
                 value={s.numbering_style || 'prefix_year'}
@@ -1052,7 +1592,7 @@ if (loading) return (
                 <option value="prefix_pad5">Préfixe + 5 chiffres (FA-00001)</option>
               </select>
             </div>
-            <div className="form-row" style={{ marginBottom: 16, maxWidth: 160 }}>
+            <div className="form-row" data-settings-anchor="number_pad" style={{ marginBottom: 16, maxWidth: 160 }}>
               <label>Nombre de chiffres (séquence)</label>
               <NumberField
                 min={3}
@@ -1062,21 +1602,23 @@ if (loading) return (
               />
             </div>
             <div className="grid grid-3">
-              <div className="form-row"><label>Préfixe factures de vente</label><input value={s.invoice_prefix || 'FA-'} onChange={(e) => update('invoice_prefix', e.target.value)} placeholder="FA-" /></div>
-              <div className="form-row"><label>Préfixe devis</label><input value={s.quote_prefix || 'DEV-'} onChange={(e) => update('quote_prefix', e.target.value)} placeholder="DEV-" /></div>
-              <div className="form-row"><label>Préfixe factures d&apos;achat</label><input value={s.bill_prefix || 'ACH-'} onChange={(e) => update('bill_prefix', e.target.value)} placeholder="ACH-" /></div>
-              <div className="form-row"><label>Préfixe reçus</label><input value={s.receipt_prefix || 'REC-'} onChange={(e) => update('receipt_prefix', e.target.value)} placeholder="REC-" /></div>
-              <div className="form-row">
+              <div className="form-row" data-settings-anchor="prefixes"><label>Préfixe factures de vente</label><input value={s.invoice_prefix || 'FA-'} onChange={(e) => update('invoice_prefix', e.target.value)} placeholder="FA-" /></div>
+              <div className="form-row" data-settings-anchor="employee_prefix"><label>Préfixe employés</label><input value={s.employee_prefix || 'EMP-'} onChange={(e) => update('employee_prefix', e.target.value)} placeholder="EMP-" /></div>
+              <div className="form-row"><label>Prochain n° employé</label><NumberField value={s.next_employee_number ?? 1} onValueChange={(n) => update('next_employee_number', n)} min={1} /></div>
+              <div className="form-row" data-settings-anchor="prefix_quote"><label>Préfixe devis</label><input value={s.quote_prefix || 'DEV-'} onChange={(e) => update('quote_prefix', e.target.value)} placeholder="DEV-" /></div>
+              <div className="form-row" data-settings-anchor="prefix_bill"><label>Préfixe factures d&apos;achat</label><input value={s.bill_prefix || 'ACH-'} onChange={(e) => update('bill_prefix', e.target.value)} placeholder="ACH-" /></div>
+              <div className="form-row" data-settings-anchor="prefix_receipt"><label>Préfixe reçus</label><input value={s.receipt_prefix || 'REC-'} onChange={(e) => update('receipt_prefix', e.target.value)} placeholder="REC-" /></div>
+              <div className="form-row" data-settings-anchor="prefix_wr">
                 <label>Préfixe remboursements (WR / avoir)</label>
                 <input value={s.credit_prefix || 'WR-'} onChange={(e) => update('credit_prefix', e.target.value)} placeholder="WR-" />
               </div>
-              <div className="form-row">
+              <div className="form-row" data-settings-anchor="prefix_qs">
                 <label>Préfixe ventes rapides (caisse)</label>
                 <input value={s.quick_sale_prefix || 'VR-'} onChange={(e) => update('quick_sale_prefix', e.target.value)} placeholder="VR-" />
               </div>
-              <div className="form-row"><label>Prochain n° facture</label><NumberField value={s.next_invoice_number ?? 1} onValueChange={(n) => update('next_invoice_number', n)} min={1} /></div>
-              <div className="form-row"><label>Prochain n° devis</label><NumberField value={s.next_quote_number ?? 1} onValueChange={(n) => update('next_quote_number', n)} min={1} /></div>
-              <div className="form-row"><label>Prochain n° facture d&apos;achat</label><NumberField value={s.next_bill_number ?? 1} onValueChange={(n) => update('next_bill_number', n)} min={1} /></div>
+              <div className="form-row" data-settings-anchor="next_invoice"><label>Prochain n° facture</label><NumberField value={s.next_invoice_number ?? 1} onValueChange={(n) => update('next_invoice_number', n)} min={1} /></div>
+              <div className="form-row" data-settings-anchor="next_quote"><label>Prochain n° devis</label><NumberField value={s.next_quote_number ?? 1} onValueChange={(n) => update('next_quote_number', n)} min={1} /></div>
+              <div className="form-row" data-settings-anchor="next_invoice"><label>Prochain n° facture d&apos;achat</label><NumberField value={s.next_bill_number ?? 1} onValueChange={(n) => update('next_bill_number', n)} min={1} /></div>
               <div className="form-row"><label>Prochain n° reçu</label><NumberField value={s.next_receipt_number ?? 1} onValueChange={(n) => update('next_receipt_number', n)} min={1} /></div>
               <div className="form-row">
                 <label>Prochain n° remboursement (WR)</label>
@@ -1107,12 +1649,34 @@ if (loading) return (
             <PeriodLockPanel />
           </div>
           <div className="card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h2 style={{ fontSize: 16 }}>Aperçu du modèle de facture</h2>
-              <a className="btn secondary" href={`${BASE}/api/settings/invoice-preview?token=${encodeURIComponent(getToken() || '')}`} target="_blank" rel="noreferrer">Ouvrir l'aperçu</a>
-            </div>
-            <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--line)' }}>
-              <iframe src={`${BASE}/api/settings/invoice-preview?token=${encodeURIComponent(getToken() || '')}`} style={{ width: '100%', height: 500, border: 'none' }} title="Aperçu facture" />
+            <h2 style={{ fontSize: 16, marginTop: 0, marginBottom: 8 }} data-settings-anchor="doc-preview">Aperçu PDF</h2>
+            <p className="muted" style={{ fontSize: 13, marginTop: 0, marginBottom: 12 }}>
+              Ouvre le dernier document réel de ce type (société, lignes, totaux). S’il n’y en a pas, un modèle avec vos infos. Le QR reprend ce résumé. Bandeau d’avertissement inclus — ce n’est pas une pièce à envoyer au client.
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {(['invoice', 'quote', 'receipt', 'bill', 'credit', 'report', 'employee'] as const).map((docType) => {
+                const labels: Record<string, string> = {
+                  invoice: 'Facture',
+                  quote: 'Devis',
+                  receipt: 'Reçu',
+                  bill: 'Achat',
+                  credit: 'Avoir',
+                  report: 'Rapport',
+                  employee: 'Fiche employé',
+                };
+                const href = `${BASE}/api/settings/invoice-preview?type=${docType}&token=${encodeURIComponent(getToken() || '')}`;
+                return (
+                  <a
+                    key={docType}
+                    href={href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="secondary doc-preview-link"
+                  >
+                    {labels[docType]}
+                  </a>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -1148,7 +1712,7 @@ if (loading) return (
               ))}
             </div>
             <div className="grid grid-2">
-              <div className="form-row">
+              <div className="form-row" data-settings-anchor="pdf_accent">
                 <label>Couleur d’accent (hex)</label>
                 <input
                   value={s.pdf_accent_color || '#1a1814'}
@@ -1156,7 +1720,7 @@ if (loading) return (
                   placeholder="#1a1814"
                 />
               </div>
-              <div className="form-row">
+              <div className="form-row" data-settings-anchor="pdf_footer">
                 <label>Texte bas de page PDF</label>
                 <input
                   value={s.pdf_footer_text || s.document_footer_note || ''}
@@ -1172,7 +1736,7 @@ if (loading) return (
               Ajoutez une image PNG/JPG (ou data URL) de votre signature manuscrite et de votre cachet.
               Elles apparaissent sur les <strong>factures</strong> et <strong>reçus</strong> (pas sur les devis).
             </p>
-            <div className="form-row">
+            <div className="form-row" data-settings-anchor="pdf_signature">
               <label>Signature société (URL ou data:image/png;base64,…)</label>
               <input
                 value={s.company_signature_url || ''}
@@ -1200,7 +1764,7 @@ if (loading) return (
                 <img src={settings.company_signature_url} alt="Signature" style={{ maxHeight: 72, background: '#fff', border: '1px solid var(--line)' }} />
               </div>
             )}
-            <div className="form-row">
+            <div className="form-row" data-settings-anchor="pdf_stamp">
               <label>Cachet / tampon (URL ou data URL)</label>
               <input
                 value={s.company_stamp_url || ''}
@@ -1208,7 +1772,7 @@ if (loading) return (
                 placeholder="https://… ou collez une data URL"
               />
             </div>
-            <div className="form-row">
+            <div className="form-row" data-settings-anchor="pdf_stamp">
               <label>Importer un cachet (fichier image)</label>
               <input
                 type="file"
@@ -1251,7 +1815,7 @@ if (loading) return (
                 Multi-entrepôts activé
               </label>
             </div>
-            <div className="form-row">
+            <div className="form-row" data-settings-anchor="sales_location">
               <label>ID emplacement ventes (sales_location_id)</label>
               <NumberField
                 value={Number(s.sales_location_id || 0)}
@@ -1262,7 +1826,7 @@ if (loading) return (
                 Laisser 0 = utiliser l&apos;emplacement marqué « défaut » dans Ops stock.
               </span>
             </div>
-            <div className="form-row">
+            <div className="form-row" data-settings-anchor="purchase_location">
               <label>ID emplacement achats (purchase_location_id)</label>
               <NumberField
                 value={Number(s.purchase_location_id || 0)}
@@ -1276,7 +1840,7 @@ if (loading) return (
           </div>
           <div className="card">
             <h2 style={{ fontSize: 16, marginBottom: 8 }}>Méthode de valorisation des stocks</h2>
-            <div className="form-row">
+            <div className="form-row" data-settings-anchor="valuation">
               <label>Méthode</label>
               <select
                 value={s.inventory_valuation_method || 'average'}
@@ -1370,29 +1934,21 @@ if (loading) return (
                           Modifier
                         </button>
                       ) : null}
-                      <button
-                        type="button"
-                        className="danger"
-                        style={{ padding: '4px 10px', fontSize: 12 }}
-                        onClick={() => {
-                          setPwTitle('Supprimer la catégorie');
-                          setPwDesc(
-                            cat.from_products
-                              ? `« ${cat.name} » n'est définie que sur des produits. Confirmer pour retirer ce libellé de tous les produits.`
-                              : `Supprimer « ${cat.name} » ? Les produits garderont leurs quantités ; le libellé catégorie sera vidé.`
-                          );
-                          setPendingAction(() => async (password: string) => {
-                            await api.deleteCategory(cat.id || 'by-name', password, cat.name);
+                      <TimedUndoDelete
+                        deleteLabel="Supprimer"
+                        undoLabel="Annuler"
+                        initialSeconds={10}
+                        onConfirm={async () => {
+                          try {
+                            await api.deleteCategory(cat.id || 'by-name', '', cat.name);
                             const r = await api.getCategories();
                             setCategories(r.data || []);
                             flash('Catégorie supprimée.');
-                            setPwOpen(false); setPendingAction(null);
-                          });
-                          setPwOpen(true);
+                          } catch (err: any) {
+                            flash(err?.message || 'Suppression impossible', 'error');
+                          }
                         }}
-                      >
-                        Suppr.
-                      </button>
+                      />
                     </td>
                   </tr>
                 ))}
@@ -1441,18 +1997,21 @@ if (loading) return (
                           <button type="button" className="secondary" style={{ padding: '4px 10px', fontSize: 12, marginRight: 6 }}
                             onClick={() => { setEditingUnit(u); setUnitName(u.name || ''); }}>Modifier</button>
                       ) : null}
-                          <button type="button" className="danger" style={{ padding: '4px 10px', fontSize: 12 }}
-                            onClick={() => {
-                              setPwTitle(`Supprimer l'unité « ${u.name} »`);
-                              setPendingAction(() => async (password: string) => {
-                                await api.deleteUnit(u.id || 'by-name', password, u.name);
-                                flash('Unité supprimée.');
-                                setPwOpen(false); setPendingAction(null);
+                          <TimedUndoDelete
+                            deleteLabel="Supprimer"
+                            undoLabel="Annuler"
+                            initialSeconds={10}
+                            onConfirm={async () => {
+                              try {
+                                await api.deleteUnit(u.id || 'by-name', '', u.name);
                                 const r = await api.getUnits();
                                 setUnits(r.data || []);
-                              });
-                              setPwOpen(true);
-                            }}>Suppr.</button>
+                                flash('Unité supprimée.');
+                              } catch (err: any) {
+                                flash(err?.message || 'Suppression impossible', 'error');
+                              }
+                            }}
+                          />
 
                     </td>
                   </tr>
@@ -1467,10 +2026,11 @@ if (loading) return (
       
       
       {activeTab === 'audit' && (canAccessAdminSettings() || isOwner) && (
-        <div className="audit-panel">
+        <div className="audit-panel settings-audit-full">
           <header className="audit-panel-head">
             <div>
               <h2 className="audit-panel-title">Journal d’audit</h2>
+            <p className="muted" style={{ fontSize: 13, marginBottom: 12 }}>Historique complet des actions — faites défiler la page.</p>
               <p className="audit-panel-sub">Historique des changements sur ce compte (admin uniquement).</p>
             </div>
             <div className="audit-panel-actions">
@@ -1611,7 +2171,17 @@ if (loading) return (
                     </td>
                   </tr>
                 )}
-                {auditLog.map((row: any) => (
+                {auditLog.map((row: any) => {
+                  const actor = formatAuditActor(row);
+                  const summary = formatAuditSummary(row);
+                  const resource = (() => {
+                    const ent = String(row.entity || '');
+                    let id = row.entity_id != null ? String(row.entity_id) : '';
+                    if (id.includes('/')) id = id.split('/').pop() || id;
+                    if (id.length > 36) id = id.slice(0, 18) + '…';
+                    return [ent, id ? `#${id}` : ''].filter(Boolean).join(' ') || '—';
+                  })();
+                  return (
                   <tr key={row.id || `${row.created_at}-${row.action}`}>
                     <td className="audit-time">
                       {row.created_at
@@ -1629,21 +2199,29 @@ if (loading) return (
                     <td>
                       <span className="audit-action-pill">{row.action || '—'}</span>
                     </td>
-                    <td>
-                      {[row.entity, row.entity_id != null ? `#${row.entity_id}` : ''].filter(Boolean).join(' ') || '—'}
-                    </td>
+                    <td className="audit-resource">{resource}</td>
                     <td>
                       <div className="audit-actor">
-                        <strong>{row.username || '—'}</strong>
-                        <span>{roleLabel(row.role || '')}</span>
+                        <strong>{actor.title}</strong>
+                        <span>{actor.sub}</span>
                       </div>
                     </td>
                     <td className="audit-ip">{row.ip || '—'}</td>
-                    <td className="audit-detail" title={row.detail || ''}>
-                      {row.detail || '—'}
+                    <td className="audit-detail">
+                      <a
+                        href="#"
+                        className="audit-detail-link"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setAuditDetailRow(row);
+                        }}
+                      >
+                        {summary}
+                      </a>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -1717,9 +2295,9 @@ if (loading) return (
 {activeTab === 'admin' && (canAccessAdminSettings() || isOwner) && (
         <div>
         <div className="card" style={{ marginBottom: 16, padding: 16 }}>
-          <h2 style={{ fontSize: 16, marginTop: 0 }}>Sauvegarde &amp; restauration</h2>
+          <h2 style={{ fontSize: 16, marginTop: 0 }} data-settings-anchor="backup">Sauvegarde &amp; restauration</h2>
           <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.45 }}>
-            Snapshot complet chiffré (AES-256-GCM, format .abk) — illisible sur le CDN sans ADMIN_BACKUP_TOKEN. Dossier backups/30m (cron ~30 min). Rétention 14 jours. Une copie de sécurité est créée avant chaque restauration.
+            Snapshot complet chiffré (AES-256-GCM, format .abk) — illisible sur le CDN sans ADMIN_BACKUP_TOKEN. Dossier backups/30m (cron ~30 min). Rétention 7 jours. Une copie de sécurité est créée avant chaque restauration.
           </p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 14 }}>
             <button type="button" className="secondary" disabled={restoreBusy || backupBusy} onClick={async () => {
@@ -1784,20 +2362,8 @@ if (loading) return (
             }}>↻ Actualiser</button>
           </div>
 
-          <label style={{ display: 'block', fontSize: 13, marginBottom: 6 }}>
-            Jeton optionnel (import fichier hors serveur uniquement)
-          </label>
-          <input
-            type="password"
-            autoComplete="off"
-            value={backupToken}
-            onChange={(e) => setBackupToken(e.target.value)}
-            placeholder="Uniquement si le .abk vient d’un autre serveur"
-            style={{ width: '100%', maxWidth: 420, marginBottom: 12 }}
-          />
-
           <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10, lineHeight: 1.45 }}>
-            Restauration R2 : le serveur utilise <code>ADMIN_BACKUP_TOKEN</code> tout seul (session admin suffisante).
+            Restauration R2 : session admin suffisante (jeton serveur côté Worker). Pour un fichier .abk d’un autre serveur, le jeton sera demandé après sélection du fichier.
           </p>
           <label style={{ display: 'block', fontSize: 13, marginBottom: 6 }}>Restaurer depuis R2</label>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
@@ -1937,6 +2503,15 @@ if (loading) return (
                 confirmLabel: 'Restaurer',
               });
               if (!ok) return;
+              let fileToken = '';
+              try {
+                const entered = window.prompt(
+                  'Jeton de sauvegarde (optionnel — uniquement si le fichier vient d’un autre serveur). Laissez vide sinon.',
+                  '',
+                );
+                if (entered === null) return; // cancel
+                fileToken = String(entered || '').trim();
+              } catch { /* */ }
               setRestoreBusy(true);
               setRestoreMsg('Lecture du fichier…');
               try {
@@ -1994,7 +2569,7 @@ if (loading) return (
                   } catch { /* */ }
                 };
                 pollTimer = setInterval(() => { void poll(localStorage.getItem('atlas_restore_job_id') || undefined); }, 2500);
-                const r = await api.backupRestore(body, backupToken.trim());
+                const r = await api.backupRestore(body, fileToken || undefined);
                 const jid = r?.data?.job_id;
                 if (jid) {
                   localStorage.setItem('atlas_restore_job_id', jid);
@@ -2021,8 +2596,9 @@ if (loading) return (
         </div>
 
         {/* Progress overlay — backup or restore */}
-        {(restoreBusy || backupBusy) && (
+        {(restoreBusy || backupBusy) && typeof document !== 'undefined' && createPortal(
           <div
+            className="atlas-restore-overlay"
             role="dialog"
             aria-modal="true"
             style={{
@@ -2030,9 +2606,14 @@ if (loading) return (
               background: 'rgba(15,23,42,0.55)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               padding: 24,
+              overflow: 'hidden',
+              overscrollBehavior: 'none',
+              touchAction: 'none',
             }}
+            onWheel={(e) => e.preventDefault()}
+            onTouchMove={(e) => e.preventDefault()}
           >
-            <div className="card" style={{ maxWidth: 440, width: '100%', padding: 24, textAlign: 'center' }}>
+            <div className="card atlas-restore-dialog" style={{ maxWidth: 440, width: '100%', padding: 24, textAlign: 'center', maxHeight: 'min(90vh, 520px)', overflow: 'hidden', position: 'relative' }}>
               <h3 style={{ marginTop: 0 }}>
                 {backupBusy ? 'Sauvegarde en cours' : 'Restauration en cours'}
               </h3>
@@ -2041,6 +2622,14 @@ if (loading) return (
                   ? (backupPhase || 'Préparation…')
                   : (restoreJob?.message || 'Ne fermez pas l’onglet. Un rafraîchissement réaffichera cette fenêtre jusqu’à la fin.')}
               </p>
+              {!backupBusy && (
+                <p style={{ fontSize: 12, color: '#71717a', margin: '0 0 4px', lineHeight: 1.4, minHeight: 18 }}>
+                  {restoreJob?.table ? <>Table : <strong>{String(restoreJob.table)}</strong></> : null}
+                  {restoreJob?.index != null && restoreJob?.total != null ? <> · {restoreJob.index}/{restoreJob.total}</> : null}
+                  {restoreJob?.rows != null ? <> · {Number(restoreJob.rows).toLocaleString('fr-FR')} lignes</> : null}
+                  {!restoreJob?.table && !restoreJob?.rows && restoreJob?.message?.includes('sécurité') ? 'Point de sécurité…' : null}
+                </p>
+              )}
               {(() => {
                 const pct = backupBusy
                   ? backupPct
@@ -2073,7 +2662,7 @@ if (loading) return (
               <p style={{ fontSize: 12, color: 'var(--muted)', margin: '14px 0 0' }}>
                 {backupBusy
                   ? 'Création du fichier .abk chiffré sur R2.'
-                  : 'En cas d’échec l’application reste utilisable — vous pourrez réessayer.'}
+                  : 'Fusion intelligente (lignes déjà présentes ignorées). En cas d’échec l’app reste utilisable.'}
               </p>
               {!backupBusy && (
                 <button
@@ -2098,7 +2687,7 @@ if (loading) return (
               )}
             </div>
           </div>
-        )}
+        , document.body)}
 
           <div className="card" style={{ marginBottom: 16 }}>
             <h2 style={{ fontSize: 16, marginBottom: 12 }}>Administrateur principal</h2>
@@ -2134,7 +2723,7 @@ if (loading) return (
                 <label>Identifiant</label>
                 <input value={newUser.username} onChange={(e) => setNewUser({ ...newUser, username: e.target.value })} placeholder="ex: secretaire" />
               </div>
-              <div className="form-row">
+              <div className="form-row" data-settings-anchor="display_name">
                 <label>Nom affiché</label>
                 <input value={newUser.display_name} onChange={(e) => setNewUser({ ...newUser, display_name: e.target.value })} placeholder="ex: Fatima — secrétariat" />
               </div>
@@ -2158,7 +2747,7 @@ if (loading) return (
               <div className="atlas-card" style={{ marginTop: 16 }}>
                 <h3 style={{ fontSize: 15, marginBottom: 10 }}>Modifier « {editingUser.username} »</h3>
                 <div className="grid grid-2" style={{ marginBottom: 12 }}>
-                  <div className="form-row">
+                  <div className="form-row" data-settings-anchor="display_name">
                     <label>Nom affiché</label>
                     <input value={editingUser.display_name || ''} onChange={(e) => setEditingUser({ ...editingUser, display_name: e.target.value })} />
                   </div>
@@ -2223,9 +2812,7 @@ if (loading) return (
                         onClick={() => setEditingUser({ ...u, password: '' })}>
                         Modifier
                       </button>
-                      <button type="button" className="danger" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => deleteUser(u.id, u.username)}>
-                        Supprimer
-                      </button>
+                      <TimedUndoDelete deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10} onConfirm={() => deleteUser(u.id, u.username)} />
                     </td>
                   </tr>
                 ))}
@@ -2234,9 +2821,10 @@ if (loading) return (
           </div>
 
           <div className="card" style={{ marginBottom: 16 }}>
-            <h2 style={{ fontSize: 16, marginBottom: 8 }}>Matrice des permissions</h2>
+            <h2 style={{ fontSize: 16, marginBottom: 8 }}>Équipe &amp; rôles</h2>
             <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>
-              Droits effectifs par rôle (contrôlés côté serveur). Le compte principal (admin) dispose de tous les droits.
+              Droits effectifs par rôle (contrôlés côté serveur). Invitez des utilisateurs ci-dessus, puis consultez la matrice.
+              Le propriétaire dispose de tous les droits.
             </p>
             <div className="table-wrap">
               <table className="data-table" style={{ width: '100%', fontSize: 13 }}>
@@ -2308,10 +2896,14 @@ if (loading) return (
                   const el = document.getElementById('atlas-month-pack') as HTMLInputElement | null;
                   const month = el?.value || new Date().toISOString().slice(0, 7);
                   try {
+                    setMonthPackError('');
                     await api.exportMonthPack(month, 'json');
                     flash(`Pack ${month} (JSON) téléchargé.`);
                   } catch (e: any) {
-                    flash(e?.message || 'Échec export', 'error');
+                    const msg = String(e?.message || 'Échec export');
+                    setMonthPackError(msg);
+                    setSettingsFormError('');
+                    setSaveMsg('');
                   }
                 }}
               >
@@ -2324,16 +2916,25 @@ if (loading) return (
                   const el = document.getElementById('atlas-month-pack') as HTMLInputElement | null;
                   const month = el?.value || new Date().toISOString().slice(0, 7);
                   try {
+                    setMonthPackError('');
                     await api.exportMonthPack(month, 'csv');
                     flash(`Pack ${month} (CSV) téléchargé.`);
                   } catch (e: any) {
-                    flash(e?.message || 'Échec export', 'error');
+                    const msg = String(e?.message || 'Échec export');
+                    setMonthPackError(msg);
+                    setSettingsFormError('');
+                    setSaveMsg('');
                   }
                 }}
               >
                 CSV
               </button>
             </div>
+            {monthPackError ? (
+              <p className="field-error" role="alert" style={{ marginTop: 12 }}>
+                {monthPackError}
+              </p>
+            ) : null}
           </div>
 
           <div className="card" style={{ marginBottom: 16 }}>
@@ -2384,6 +2985,70 @@ if (loading) return (
             </div>
           </div>
 
+          <div className="card settings-danger-zone" data-settings-anchor="danger" style={{ marginBottom: 16, borderColor: 'rgba(180, 50, 40, 0.35)' }}>
+            <h2 style={{ fontSize: 16, marginTop: 0, marginBottom: 8, color: '#8b2e24' }}>Zone sensible</h2>
+            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12, lineHeight: 1.45 }}>
+              Actions réservées au propriétaire. Confirmez toujours avec votre mot de passe. La restauration complète passe par Sauvegarde (ci-dessus).
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  try {
+                    const payload = {
+                      exported_at: new Date().toISOString(),
+                      version: 'company_settings',
+                      data: settings || {},
+                    };
+                    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = `atlas-settings-${new Date().toISOString().slice(0, 10)}.json`;
+                    a.click();
+                    URL.revokeObjectURL(a.href);
+                    toast('Export des paramètres téléchargé', 'success');
+                  } catch (e: any) {
+                    toast(e?.message || 'Échec export', 'error');
+                  }
+                }}
+              >
+                Exporter les paramètres (JSON)
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  setActiveTab('audit');
+                  try { setSearchParams({ tab: 'audit' }, { replace: true }); } catch { /* */ }
+                }}
+              >
+                Voir le journal d’audit
+              </button>
+              <button
+                type="button"
+                className="danger"
+                onClick={() => {
+                  setPwTitle('Confirmer une action sensible');
+                  setPendingAction(async () => {
+                    setPwOpen(false);
+                    setPendingAction(null);
+                    toast(
+                      'Aucune suppression automatique de données ici. Utilisez une restauration .abk pour revenir en arrière, ou contactez le support.',
+                      'success',
+                    );
+                  });
+                  setPwOpen(true);
+                }}
+              >
+                Action protégée (mot de passe)
+              </button>
+            </div>
+            <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 12, marginBottom: 0 }}>
+              Astuce : pour une vraie remise à zéro métier, restaurez une sauvegarde antérieure plutôt que d’effacer la base à la main.
+            </p>
+          </div>
+
           <div className="card">
             <h2 style={{ fontSize: 16, marginBottom: 8 }}>Serveur</h2>
             <p style={{ fontSize: 13 }}>Environnement : <strong>{adminConfig?.environment || '—'}</strong></p>
@@ -2399,19 +3064,147 @@ if (loading) return (
         </div>
       )}
 
+
+      {canSaveSection && (
+        <div className="settings-tab-save-bar card">
+          <span className="muted">
+            {settingsDirty ? 'Modifications non enregistrees dans cette section' : 'Cette section est a jour'}
+          </span>
+          <SaveToggle
+            size="sm"
+            idleText={settingsDirty ? 'Enregistrer' : 'À jour'}
+            savedText="Enregistré"
+            busy={saving}
+            success={saveOk}
+            dirty={settingsDirty}
+            disabled={!settingsDirty && !saving}
+            onClick={() => void save()}
+          />
+        </div>
+      )}
       </div>{/* settings-main */}
       </div>{/* settings-shell */}
 
-      {pwOpen && pendingAction && (
-        <PasswordConfirm
-          open={pwOpen}
-          title={pwTitle}
-          description="Saisissez votre mot de passe pour confirmer cette action."
-          confirmLabel="Confirmer"
-          onCancel={() => { setPwOpen(false); setPendingAction(null); }}
-          onConfirm={async (password) => { await pendingAction(password); }}
-        />
+      {auditDetailRow && createPortal(
+          <div
+            className="audit-detail-modal-backdrop"
+            role="presentation"
+            onClick={() => setAuditDetailRow(null)}
+          >
+            <div
+              className="audit-detail-modal card"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="audit-detail-title"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 id="audit-detail-title" style={{ marginTop: 0 }}>
+                Détail de l’entrée
+              </h3>
+              <dl className="audit-detail-dl">
+                <div>
+                  <dt>Heure</dt>
+                  <dd>{auditDetailRow.created_at || '—'}</dd>
+                </div>
+                <div>
+                  <dt>Action</dt>
+                  <dd>
+                    <code>{auditDetailRow.action || '—'}</code>
+                  </dd>
+                </div>
+                <div>
+                  <dt>Ressource</dt>
+                  <dd>
+                    {[auditDetailRow.entity, auditDetailRow.entity_id].filter(Boolean).join(' · ') || '—'}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Acteur</dt>
+                  <dd>
+                    {formatAuditActor(auditDetailRow).title}
+                    {' — '}
+                    {formatAuditActor(auditDetailRow).sub}
+                  </dd>
+                </div>
+                <div>
+                  <dt>IP</dt>
+                  <dd>{auditDetailRow.ip || '—'}</dd>
+                </div>
+                <div>
+                  <dt>Détail</dt>
+                  <dd className="audit-detail-full">{auditDetailRow.detail || '—'}</dd>
+                </div>
+              </dl>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+                <button type="button" className="secondary" onClick={() => setAuditDetailRow(null)}>
+                  Fermer
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      {canSaveSection && settingsDirty && (
+        <div className="settings-sticky-save" role="region" aria-label="Enregistrement">
+          <span>Modifications non enregistrées</span>
+          <div className="settings-sticky-save-actions">
+            <button type="button" className="secondary" onClick={() => { setSettingsDirty(false); window.location.reload(); }}>
+              Annuler
+            </button>
+            <SaveToggle
+              size="sm"
+              idleText="Enregistrer"
+              savedText="Enregistré"
+              busy={saving}
+              success={saveOk}
+              dirty={settingsDirty}
+              disabled={saving}
+              onClick={() => void save()}
+            />
+          </div>
+        </div>
       )}
+
+      <PasswordConfirm
+        open={pwOpen}
+        title={pwTitle}
+        description="Saisissez votre mot de passe pour confirmer cette action."
+        confirmLabel="Confirmer"
+        onCancel={() => { setPwOpen(false); setPendingAction(null); }}
+        onConfirm={async (password) => {
+          if (pendingAction) await pendingAction(password);
+        }}
+      />
+
+      <button
+        type="button"
+        className={`qr-fab${qrFabOpen ? ' is-open' : ''}`}
+        aria-label="Connexion par QR"
+        aria-expanded={qrFabOpen}
+        onClick={() => setQrFabOpen((v) => !v)}
+      >
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+          <rect x="3" y="3" width="7" height="7" rx="1" />
+          <rect x="14" y="3" width="7" height="7" rx="1" />
+          <rect x="3" y="14" width="7" height="7" rx="1" />
+          <path d="M14 14h3v3M21 14v3h-3M14 21h3" strokeLinecap="round" />
+        </svg>
+        <span>QR</span>
+      </button>
+      {qrFabOpen ? createPortal(
+        <div className="qr-fab-layer" role="dialog" aria-modal="true" aria-label="Connexion par QR">
+          <button type="button" className="qr-fab-backdrop" aria-label="Fermer" onClick={() => setQrFabOpen(false)} />
+          <div className="qr-fab-panel">
+            <div className="qr-fab-head">
+              <strong>Connexion par QR</strong>
+              <button type="button" className="qr-fab-x" aria-label="Fermer" onClick={() => setQrFabOpen(false)}>×</button>
+            </div>
+            <QrLoginPanel />
+          </div>
+        </div>,
+        document.body,
+      ) : null}
 
       <div className="card" style={{ marginTop: 20, background: 'var(--stone)', borderColor: 'transparent' }}>
         <p style={{ fontSize: 13, color: 'var(--muted)' }}>
@@ -2441,7 +3234,7 @@ function PeriodLockPanel() {
   };
   return (
     <div>
-      <div className="form-row" style={{ maxWidth: 200 }}>
+      <div className="form-row" data-settings-anchor="period_lock" style={{ maxWidth: 200 }}>
         <label>Clôturé jusqu&apos;à (YYYY-MM)</label>
         <input value={period} onChange={(e) => setPeriod(e.target.value)} placeholder="2026-06" disabled={!isOwner} />
       </div>

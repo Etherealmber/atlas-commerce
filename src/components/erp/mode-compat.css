@@ -212,7 +212,7 @@ html[data-theme="dark"] .bank-metric .val {
   border: 1px solid var(--line);
 }
 .atlas-orders-view-toggle button.active {
-  background: var(--zellij, #0d7377);
+  background: var(--zellij, #0a0a0a);
   color: #fff;
   border-color: transparent;
 }
@@ -236,11 +236,11 @@ html[data-theme="dark"] .bank-metric .val {
   box-shadow: var(--shadow);
 }
 .bank-pill.active {
-  background: var(--zellij, #0d7377);
+  background: var(--zellij, #0a0a0a);
   color: #fff;
   border-color: transparent;
 }
 .bank-tab.active {
-  background: var(--zellij, #0d7377);
+  background: var(--zellij, #0a0a0a);
   color: #fff;
 }

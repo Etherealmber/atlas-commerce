@@ -1,5 +1,8 @@
+import { TimedUndoDelete } from '../components/ui';
 import { useEffect, useState } from 'react';
+import DatePicker from '../components/DatePicker';
 import { api, BASE } from '../api';
+import TypeaheadField, { productTypeaheadOptions, partyTypeaheadOptions } from '../components/TypeaheadField';
 import { getToken } from '../auth';
 import SaveFeedback from '../components/SaveFeedback';
 import EmptyState from '../components/EmptyState';
@@ -13,11 +16,15 @@ import { friendlyError } from '../lib/errors';
 import { validateBillForm, firstError } from '../lib/formValidate';
 import { PAYMENT_METHODS, paymentMethodLabel } from '../lib/money';
 import RefreshIconButton from '../components/RefreshIconButton';
+import { FloatingPortal } from '../components/FloatingPortal';
+import { ModalFormError, FieldHint } from '../components/ModalFormFeedback';
 
 const fmt = (n: number) => Math.round(Number(n || 0)).toLocaleString('fr-FR');
 
 export default function Bills() {
   const { confirm, toast } = useUi();
+  const [modalError, setModalError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [bills, setBills] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [vendors, setVendors] = useState<any[]>([]);
@@ -33,10 +40,10 @@ export default function Bills() {
   const [issueDate, setIssueDate] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saveMsg, setSaveMsg] = useState('');
   const [saveMsgType, setSaveMsgType] = useState<'success' | 'error'>('success');
   const [items, setItems] = useState<{ product_id?: number; product_name: string; sku?: string; quantity: number; unit_cost: number }[]>([{ product_name: '', quantity: 1, unit_cost: 0 }]);
+  const [deleteArmId, setDeleteArmId] = useState<number | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [pwOpen, setPwOpen] = useState(false);
   const [pwTitle, setPwTitle] = useState('');
@@ -69,6 +76,15 @@ export default function Bills() {
         setRefreshing(false);
       });
   };
+
+  
+  useEffect(() => {
+    const onLists = () => {
+      try { load(true); } catch { /* */ }
+    };
+    window.addEventListener('atlas-lists-refresh', onLists as EventListener);
+    return () => window.removeEventListener('atlas-lists-refresh', onLists as EventListener);
+  }, []);
 
   useEffect(() => { load(); }, [filter]);
 
@@ -108,7 +124,7 @@ export default function Bills() {
       setShowModal(false); resetForm();
       flash('Facture d\'achat enregistrée dans la base de données avec succès.');
       load(true);
-    } catch (e: any) { flash(e.message || 'Erreur lors de l\'enregistrement.', 'error'); } finally { setSaving(false); }
+    } catch (e: any) { setModalError(e?.message || 'Erreur lors de l\'enregistrement.'); } finally { setSaving(false); }
   };
 
   const remainingOf = (b: any) =>
@@ -245,7 +261,7 @@ export default function Bills() {
   if (loading) return <div className="empty">Chargement des factures d'achat...</div>;
 
   return (
-    <div>
+    <div className="bills-page">
       <div className="page-header">
         <h1>Factures d'achat</h1>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -258,24 +274,27 @@ export default function Bills() {
             <option value="cancelled">Annulées</option>
           </select>
           {selected.size > 0 && (
-            <button className="danger" onClick={() => openDelete()}>
-              Supprimer la sélection ({selected.size})
-            </button>
+            <TimedUndoDelete
+              deleteLabel={`Supprimer (${selected.size})`}
+              undoLabel="Annuler"
+              initialSeconds={10}
+              onConfirm={() => openDelete()}
+            />
           )}
           <button className="secondary" onClick={() => openReport('/api/reports/payables')}>PDF Dettes</button>
-          <button onClick={() => setShowModal(true)}>+ Nouvelle facture d'achat</button>
+          <button onClick={() => { setModalError(''); setShowModal(true); }}>+ Nouvelle facture d'achat</button>
         </div>
       </div>
 
       <SaveFeedback message={saveMsg} type={saveMsgType} />
 
-      <div className="card" style={{ marginBottom: 16, padding: '12px 16px' }}>
+      <div className="ac-panel ac-products-filters">
         <div className="search-bar"><input className="search-input" placeholder="Rechercher par numéro ou nom de fournisseur..." value={search} onChange={(e) => setSearch(e.target.value)} /></div>
       </div>
 
-      <div className="card">
+      <div className="ac-panel ac-products-table-panel">
         <div className="table-wrap">
-          <table>
+          <table className="data-dense ac-products-table">
             <thead>
               <tr>
                 <th style={{ width: 40 }}>
@@ -357,7 +376,12 @@ export default function Bills() {
                     {b.status !== 'cancelled' && (
                       <button className="danger" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => cancelBill(b.id)}>Annuler</button>
                     )}
-                    <button className="danger" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => openDelete([b.id])}>Suppr.</button>
+                    {deleteArmId === b.id ? (
+                      <TimedUndoDelete autoStart deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10}
+                        onConfirm={() => { setDeleteArmId(null); openDelete([b.id]); }} />
+                    ) : (
+                      <TimedUndoDelete deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10} onConfirm={() => { setDeleteArmId(null); openDelete([b.id]); }} />
+                    )}
                   </td>
                 </tr>
               ))}
@@ -367,8 +391,8 @@ export default function Bills() {
                     <EmptyState
                       title="Aucune facture d'achat"
                       description="Enregistrez les factures fournisseurs, puis validez la réception pour alimenter le stock (rapprochement 3 voies)."
-                      actionLabel="Nouvelle facture d'achat"
-                      onAction={() => setShowModal(true)}
+                      actionLabel="Créer ma première facture d'achat"
+                      onAction={() => { setModalError(''); setShowModal(true); }}
                       icon="package"
                     />
                   </td>
@@ -380,18 +404,24 @@ export default function Bills() {
       </div>
 
       {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" style={{ maxWidth: 1080, width: '96vw' }} onClick={(e) => e.stopPropagation()}>
             <h2>Nouvelle facture d'achat</h2>
 
             <div className="form-row">
               <label>Fournisseur enregistré</label>
-              <select value={vendorId} onChange={(e) => selectVendor(e.target.value ? numFromInput(e.target.value) : '')}>
-                <option value="">— Saisie manuelle ou nouveau fournisseur —</option>
-                {vendors.map((v) => (
-                  <option key={v.id} value={v.id}>{v.name}{v.ice ? ` (ICE ${v.ice})` : ''}</option>
-                ))}
-              </select>
+              <TypeaheadField
+                value={vendorName}
+                placeholder="Rechercher un fournisseur (nom, ICE)…"
+                options={partyTypeaheadOptions(vendors, 'vendor')}
+                onChange={(v) => {
+                  setVendorName(v);
+                  setVendorId('');
+                  setFieldErrors((x) => ({ ...x, vendor_name: '' }));
+                }}
+                onPick={(o) => selectVendor(Number(o.id))}
+                emptyLabel="Aucun fournisseur"
+              />
             </div>
 
             <div className="grid grid-2">
@@ -399,38 +429,118 @@ export default function Bills() {
               <div className="form-row"><label>ICE / Identifiant fournisseur</label><input value={vendorIce} onChange={(e) => setVendorIce(e.target.value)} /></div>
             </div>
             <div className="form-row"><label>Adresse</label><input value={vendorAddress} onChange={(e) => setVendorAddress(e.target.value)} /></div>
-            <div className="form-row"><label>Date d'émission</label><input type="date" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} /></div>
+            <div className="form-row"><label>Date d'émission</label><DatePicker value={issueDate} onChange={setIssueDate} /></div>
 
-            <h3 style={{ margin: '16px 0 8px', fontSize: 14 }}>Articles (stock à la réception)</h3>
-            {items.map((item, idx) => (
-              <div key={idx} className="grid" style={{ gridTemplateColumns: '1.5fr 80px 100px 40px', gap: 8, marginBottom: 8 }}>
-                <select value={item.product_id || ''} onChange={(e) => updateLine(idx, 'product_id', e.target.value ? numFromInput(e.target.value) : undefined)}>
-                  <option value="">— Produit du stock ou saisie libre —</option>
-                  {products.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-                {!item.product_id && <input placeholder="Désignation" value={item.product_name} onChange={(e) => updateLine(idx, 'product_name', e.target.value)} />}
-                <NumberField value={item.quantity} onValueChange={(n) => updateLine(idx, 'quantity', n)} min={0.01} step="0.01" title="Quantité" />
-                <NumberField value={item.unit_cost} onValueChange={(n) => updateLine(idx, 'unit_cost', n)} min={0} step="0.01" title="Prix d’achat réel (peut être inférieur ou supérieur au coût catalogue)" />
-                <button type="button" className="danger" style={{ padding: '4px 8px' }} onClick={() => setItems(items.filter((_, i) => i !== idx))} aria-label="Supprimer la ligne">×</button>
-              </div>
-            ))}
-            <button type="button" className="secondary" onClick={() => setItems([...items, { product_name: '', quantity: 1, unit_cost: 0 }])} style={{ marginBottom: 16 }}>+ Ajouter une ligne</button>
-            <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>Prix d’achat libre. Le coût catalogue du produit est recalculé en moyenne pondérée (ancien stock × ancien coût + nouvel achat) — méthode standard quand les prix d’achat changent.</p>
+            <h3 style={{ margin: '16px 0 8px', fontSize: 14 }}>Articles — stock à la réception</h3>
+            <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10, lineHeight: 1.4 }}>
+              Choisissez un produit (recherche), le <strong>prix d&apos;achat</strong> se remplit si le coût catalogue existe. Vous pouvez le modifier librement.
+            </p>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1.6fr 1.3fr 80px 110px 100px 40px',
+                gap: 6,
+                marginBottom: 6,
+                fontSize: 10,
+                color: 'var(--muted)',
+                fontWeight: 600,
+              }}
+            >
+              <span>Recherche / produit</span>
+              <span>Désignation</span>
+              <span>Qté</span>
+              <span>P.U. achat</span>
+              <span>Total</span>
+              <span />
+            </div>
+            {items.map((item, idx) => {
+              const lineTotal = Number(item.quantity || 0) * Number(item.unit_cost || 0);
+              return (
+                <div key={idx} style={{ marginBottom: 10 }}>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1.6fr 1.3fr 80px 110px 100px 40px',
+                      gap: 6,
+                      alignItems: 'center',
+                    }}
+                  >
+                    <TypeaheadField
+                      value={item.product_name || ''}
+                      placeholder="Rechercher nom, SKU…"
+                      options={productTypeaheadOptions(products)}
+                      onOpen={() => {
+                        api.getProducts({ fields: 'light', limit: 500 }).then((r: any) => {
+                          if (Array.isArray(r?.data)) setProducts(r.data);
+                        }).catch(() => {});
+                      }}
+                      onChange={(v) => {
+                        updateLine(idx, 'product_name', v);
+                        updateLine(idx, 'product_id', undefined);
+                      }}
+                      onPick={(o) => {
+                        const prod = products.find((x) => String(x.id) === String(o.id));
+                        if (!prod) return;
+                        updateLine(idx, 'product_id', prod.id);
+                        updateLine(idx, 'product_name', prod.name || '');
+                        updateLine(idx, 'unit_cost', Number(prod.cost || prod.cost_price || prod.price || 0));
+                        if (prod.sku) updateLine(idx, 'sku', prod.sku);
+                      }}
+                      emptyLabel="Aucun produit"
+                    />
+                    <input
+                      placeholder="Désignation *"
+                      value={item.product_name}
+                      onChange={(e) => updateLine(idx, 'product_name', e.target.value)}
+                    />
+                    <NumberField value={item.quantity} onValueChange={(n) => updateLine(idx, 'quantity', n)} min={0.01} step="0.01" title="Quantité" />
+                    <NumberField value={item.unit_cost} onValueChange={(n) => updateLine(idx, 'unit_cost', n)} min={0} step="0.01" title="Prix d’achat" />
+                    <div style={{ fontWeight: 700, textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>
+                      {lineTotal.toLocaleString('fr-FR', { maximumFractionDigits: 0 })}
+                    </div>
+                    <button
+                      type="button"
+                      className="secondary"
+                      style={{ padding: '6px 8px', minWidth: 40 }}
+                      title="Supprimer la ligne"
+                      aria-label="Supprimer la ligne"
+                      onClick={() =>
+                        setItems((prev) =>
+                          prev.length <= 1
+                            ? [{ product_name: '', quantity: 1, unit_cost: 0 }]
+                            : prev.filter((_, i) => i !== idx),
+                        )
+                      }
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+            <div style={{ fontSize: 14, fontWeight: 700, textAlign: 'right', marginBottom: 12 }}>
+              Total estimé : {items.reduce((s, it) => s + Number(it.quantity || 0) * Number(it.unit_cost || 0), 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} DH
+            </div>
+            <button type="button" className="secondary" onClick={() => setItems([...items, { product_name: '', quantity: 1, unit_cost: 0 }])} style={{ marginBottom: 16 }}>
+              + Ajouter une ligne
+            </button>
+            <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 0 }}>
+              Prix d’achat libre. Le coût catalogue est recalculé en moyenne pondérée à la réception (ancien stock × ancien coût + nouvel achat).
+            </p>
 
             <div className="form-row"><label>Notes</label><textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
+            <ModalFormError message={modalError} />
             <div className="form-actions">
               {firstError(fieldErrors) && <span className="save-error-inline">{firstError(fieldErrors)}</span>}
               <button onClick={create} disabled={saving}>{saving ? 'Enregistrement…' : 'Créer et enregistrer'}</button>
               <button type="button" className="secondary" onClick={() => setShowModal(false)}>Annuler</button>
             </div>
           </div>
-        </div>
+        </div></FloatingPortal>
       )}
 
       {payTarget && (
-        <div className="modal-overlay" onClick={() => setPayTarget(null)}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => setPayTarget(null)}>
           <div className="modal" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
             <h2 style={{ marginTop: 0 }}>
               {payMode === 'full' ? 'Règlement intégral' : 'Paiement partiel'} — {payTarget.number}
@@ -516,7 +626,7 @@ export default function Bills() {
 
             <div className="form-row">
               <label>Date du paiement</label>
-              <input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} disabled={saving} />
+              <DatePicker value={payDate} onChange={setPayDate} disabled={saving} />
             </div>
 
             <div className="form-row">
@@ -551,6 +661,7 @@ export default function Bills() {
               </div>
             )}
 
+            <ModalFormError message={modalError} />
             <div className="form-actions">
               <button type="button" onClick={submitPay} disabled={saving}>
                 {saving ? '…' : payMode === 'full' ? 'Valider le règlement intégral' : 'Enregistrer ce paiement'}
@@ -558,11 +669,11 @@ export default function Bills() {
               <button type="button" className="secondary" onClick={() => setPayTarget(null)} disabled={saving}>Annuler</button>
             </div>
           </div>
-        </div>
+        </div></FloatingPortal>
       )}
 
       {receiveBill && (
-        <div className="modal-overlay" onClick={() => setReceiveBill(null)}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => setReceiveBill(null)}>
           <div className="modal" style={{ maxWidth: 640 }} onClick={(e) => e.stopPropagation()}>
             <h2 style={{ marginTop: 0 }}>Réception — {receiveBill.number}</h2>
             <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.45 }}>
@@ -604,6 +715,7 @@ export default function Bills() {
                 )}
               </tbody>
             </table>
+            <ModalFormError message={modalError} />
             <div className="form-actions" style={{ marginTop: 16 }}>
               <button type="button" disabled={receiveBusy} onClick={submitReceive}>
                 {receiveBusy ? 'Enregistrement…' : 'Valider la réception'}
@@ -611,7 +723,7 @@ export default function Bills() {
               <button type="button" className="secondary" onClick={() => setReceiveBill(null)}>Fermer</button>
             </div>
           </div>
-        </div>
+        </div></FloatingPortal>
       )}
 
       {pwOpen && pendingAction && (

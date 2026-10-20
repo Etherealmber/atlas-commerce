@@ -8,11 +8,11 @@
   --atlas-bg-hover: #f1f5f9;
   --atlas-border: #e2e8f0;
   --atlas-text-primary: #0f172a;
-  --atlas-text-secondary: #64748b;
-  --atlas-accent: #0d7377;
-  --atlas-accent-hover: #0a5c5f;
-  --atlas-accent-soft: rgba(13, 115, 119, 0.12);
-  --atlas-success: #059669;
+  --atlas-text-secondary: #71717a;
+  --atlas-accent: #0a0a0a; /* was teal; Option B black */
+  --atlas-accent-hover: #2a3040;
+  --atlas-accent-soft: rgba(15, 23, 42, 0.08);
+  --atlas-success: #0a0a0a;
   --atlas-warning: #d97706;
   --atlas-danger: #dc2626;
   --atlas-font-size-sm: 12px;
@@ -36,10 +36,10 @@ html.dark,
   --atlas-border: #334155;
   --atlas-text-primary: #f8fafc;
   --atlas-text-secondary: #94a3b8;
-  --atlas-accent: #2dd4bf;
-  --atlas-accent-hover: #5eead4;
-  --atlas-accent-soft: rgba(45, 212, 191, 0.14);
-  --atlas-success: #34d399;
+  --atlas-accent: #71717a;
+  --atlas-accent-hover: #a5b4fc;
+  --atlas-accent-soft: rgba(139, 156, 255, 0.14);
+  --atlas-success: #a1a1aa;
   --atlas-warning: #fbbf24;
   --atlas-danger: #f87171;
 }

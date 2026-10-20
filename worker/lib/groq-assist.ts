@@ -1,13 +1,15 @@
+import { upstreamFetch } from './upstream';
+
 /**
  * Groq free-tier — OpenAI-compatible.
  * https://api.groq.com/openai/v1/chat/completions
  */
 
 const MODELS = [
-  'llama-3.1-8b-instant',
-  'llama-3.3-70b-versatile',
   'openai/gpt-oss-20b',
-  'llama-3.1-70b-versatile',
+  'openai/gpt-oss-120b',
+  'llama-3.3-70b-versatile',
+  'llama-3.1-8b-instant',
 ];
 
 export async function groqChat(opts: {
@@ -24,7 +26,7 @@ export async function groqChat(opts: {
   let lastBody = '';
 
   for (const model of models) {
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const res = await upstreamFetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${opts.apiKey}`,
@@ -39,7 +41,7 @@ export async function groqChat(opts: {
           { role: 'user', content: opts.message },
         ],
       }),
-    });
+    }, { timeoutMs: 20000, retries: 2, label: 'groq' });
 
     const raw = await res.text().catch(() => '');
     lastStatus = res.status;
@@ -75,7 +77,7 @@ export async function groqChat(opts: {
     throw new Error('Atlas Agent: clé Groq refusée. Vérifiez GROQ_API_KEY.');
   }
   if (lastStatus === 404) {
-    throw new Error('Modèle Groq introuvable. Définissez GROQ_MODEL=llama-3.1-8b-instant');
+    throw new Error('Modèle Groq introuvable. Définissez GROQ_MODEL=openai/gpt-oss-20b');
   }
   throw new Error(
     lastStatus

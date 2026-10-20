@@ -1,4 +1,5 @@
 import { suggestExpenseCategory } from '../lib/assist';
+import DatePicker from '../components/DatePicker';
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
 import SaveFeedback from '../components/SaveFeedback';
@@ -11,6 +12,14 @@ import NumberField from '../components/NumberField';
 import EmptyState from '../components/EmptyState';
 import { validateBalanceEntry, firstError } from '../lib/formValidate';
 import RefreshIconButton from '../components/RefreshIconButton';
+import { FloatingPortal } from '../components/FloatingPortal';
+import { ModalFormError, FieldHint } from '../components/ModalFormFeedback';
+import { ListPager } from '../components/ui/ListPager';
+import { TimedUndoDelete } from '../components/ui/TimedUndoDelete';
+import {
+  Banknote, ShoppingBag, Truck, Fuel, Building2, Wrench, Users, Receipt,
+  ArrowDownLeft, ArrowUpRight, Wallet, Package,
+} from 'lucide-react';
 
 const EXPENSE_CATEGORIES = [
   'Fournitures de bureau', 'Équipement', 'Électronique', 'Loyer',
@@ -27,6 +36,37 @@ const INCOME_CATEGORIES = [
 const OWNER_DRAW_CATEGORIES = ['Prélèvement personnel', 'Dividende', 'Remboursement associé', 'Autre prélèvement'];
 const OWNER_CONTRIB_CATEGORIES = ['Apport en capital', 'Apport en compte courant', 'Autre apport'];
 
+
+function BalanceMiniBars({ title, rows }: { title: string; rows: { label: string; value: number; tone?: string }[] }) {
+  const max = Math.max(1, ...rows.map((r) => Math.abs(r.value)));
+  return (
+    <div className="ac-panel balance-chart-card balance-page">
+      <h3 className="balance-chart-title">{title}</h3>
+      <div className="balance-chart-bars">
+        {rows.length === 0 ? (
+          <p className="muted" style={{ margin: 0, fontSize: 13 }}>Aucune donnée</p>
+        ) : (
+          rows.map((r) => (
+            <div key={r.label} className="balance-chart-row">
+              <span className="balance-chart-label" title={r.label}>{r.label}</span>
+              <div className="balance-chart-track">
+                <div
+                  className="balance-chart-fill"
+                  style={{
+                    width: `${Math.min(100, (Math.abs(r.value) / max) * 100)}%`,
+                    background: r.tone || '#0f172a',
+                  }}
+                />
+              </div>
+              <span className="balance-chart-val">{Math.round(r.value).toLocaleString('fr-FR')}</span>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 type EntryType = 'expense' | 'income' | 'owner_draw' | 'owner_contrib';
 
 const TYPE_META: Record<EntryType, { label: string; direction: 'in' | 'out'; badge: string }> = {
@@ -35,6 +75,38 @@ const TYPE_META: Record<EntryType, { label: string; direction: 'in' | 'out'; bad
   owner_draw: { label: 'Prélèvement propriétaire', direction: 'out', badge: 'warning' },
   owner_contrib: { label: 'Apport propriétaire', direction: 'in', badge: 'info' },
 };
+
+
+function txIcon(type: EntryType, category?: string) {
+  const c = (category || '').toLowerCase();
+  if (type === 'income' || type === 'owner_contrib') return ArrowDownLeft;
+  if (type === 'owner_draw') return ArrowUpRight;
+  if (/carburant|fuel|essence/.test(c)) return Fuel;
+  if (/transport|livraison/.test(c)) return Truck;
+  if (/loyer|local|entrepôt|entrepot/.test(c)) return Building2;
+  if (/salaire|cnss|personnel/.test(c)) return Users;
+  if (/maintenance|réparation|reparation/.test(c)) return Wrench;
+  if (/fourniture|équipement|electron|électr|matière|matiere/.test(c)) return Package;
+  if (/taxe|impôt|impot|tva|douane/.test(c)) return Receipt;
+  if (/marketing|publicit/.test(c)) return ShoppingBag;
+  return Wallet;
+}
+
+function formatTxDate(d: string) {
+  if (!d) return '—';
+  try {
+    const dt = new Date(d.length === 10 ? d + 'T12:00:00' : d);
+    if (Number.isNaN(dt.getTime())) return d;
+    const now = new Date();
+    const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startY = new Date(startToday); startY.setDate(startY.getDate() - 1);
+    if (dt >= startToday) return `Aujourd'hui`;
+    if (dt >= startY) return 'Hier';
+    return dt.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  } catch {
+    return d;
+  }
+}
 
 function catsFor(t: EntryType) {
   if (t === 'income') return INCOME_CATEGORIES;
@@ -69,8 +141,11 @@ export default function Balance() {
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [modalError, setModalError] = useState('');
   const [saveMsg, setSaveMsg] = useState('');
   const [saveMsgType, setSaveMsgType] = useState<'success' | 'error'>('success');
+  const [txPage, setTxPage] = useState(0);
+  const [txQuery, setTxQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | EntryType>('all');
   const [reportPeriod, setReportPeriod] = useState('month');
 
@@ -97,11 +172,11 @@ export default function Balance() {
     setDescription(''); setAmount(0); setVendorName(''); setNotes('');
     setExpenseDate(new Date().toISOString().slice(0, 10));
     setPaymentMethod('cash');
-    setShowModal(true);
+    setModalError(''); setShowModal(true);
   };
 
   const create = async () => {
-    const fe = validateBalanceEntry({ description, amount }); setFieldErrors(fe); if (Object.keys(fe).length) { flash(firstError(fe) || 'Complétez l’écriture.', 'error'); return; }
+    const fe = validateBalanceEntry({ description, amount }); setFieldErrors(fe); if (Object.keys(fe).length) { setModalError(firstError(fe) || 'Complétez l’écriture.'); return; } setModalError('');
     setSaving(true);
     try {
       await api.createExpense({
@@ -112,7 +187,7 @@ export default function Balance() {
       setShowModal(false);
       flash(TYPE_META[entryType].label + ' enregistré(e).');
       load(true);
-    } catch (e: any) { flash(e.message, 'error'); } finally { setSaving(false); }
+    } catch (e: any) { setModalError(e?.message || 'Enregistrement impossible'); } finally { setSaving(false); }
   };
 
   const remove = async (id: number) => {
@@ -195,7 +270,13 @@ export default function Balance() {
   const rows = expenses
     .filter((e) => {
       const t = (e.entry_type || 'expense') as EntryType;
-      return filterType === 'all' || filterType === t;
+      if (filterType !== 'all' && filterType !== t) return false;
+      if (txQuery.trim()) {
+        const q = txQuery.trim().toLowerCase();
+        const hay = `${e.label || ''} ${e.category || ''} ${e.type || ''}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
     })
     .map((e) => {
       const t = (e.entry_type || 'expense') as EntryType;
@@ -212,9 +293,41 @@ export default function Balance() {
     })
     .sort((a, b) => (a.date < b.date ? 1 : -1));
 
+  const TX_PAGE = 50;
+  const sortedRows = rows;
+  const pagedRows = sortedRows.slice(txPage * TX_PAGE, txPage * TX_PAGE + TX_PAGE);
+
+  const byCategoryChart = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const e of expenses) {
+      const tpe = (e as any).entry_type || 'expense';
+      if (tpe !== 'expense' && tpe !== 'owner_draw') continue;
+      const cat = String((e as any).category || 'Autre');
+      map.set(cat, (map.get(cat) || 0) + Number((e as any).amount || 0));
+    }
+    return [...map.entries()]
+      .map(([label, value]) => ({ label, value, tone: '#0f172a' }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 8);
+  }, [expenses]);
+
+  const byTypeChart = useMemo(() => {
+    const map: Record<string, number> = { expense: 0, income: 0, owner_draw: 0, owner_contrib: 0 };
+    for (const e of expenses) {
+      const tpe = ((e as any).entry_type || 'expense') as string;
+      if (map[tpe] !== undefined) map[tpe] += Number((e as any).amount || 0);
+    }
+    return [
+      { label: 'Dépenses', value: map.expense, tone: '#ef4444' },
+      { label: 'Recettes', value: map.income, tone: '#2563eb' },
+      { label: 'Prélèvements', value: map.owner_draw, tone: '#f59e0b' },
+      { label: 'Apports', value: map.owner_contrib, tone: '#0f172a' },
+    ];
+  }, [expenses]);
+
   if (loading)
     return (
-      <div className="atlas-page">
+      <div className="atlas-page balance-page">
         <div className="skeleton" style={{ height: 14, width: 120, marginBottom: 10 }} />
         <div className="skeleton" style={{ height: 32, width: 260, marginBottom: 18 }} />
         <div className="atlas-loading-grid">
@@ -229,6 +342,7 @@ export default function Balance() {
   const moneyIn = Number(dashboard?.salesReceived || 0) + Number(dashboard?.otherIncomeTotal || 0) + Number(dashboard?.ownerContribTotal || 0);
   const moneyOut = Number(dashboard?.purchasesPaid || 0) + Number(dashboard?.expensesTotal || 0) + Number(dashboard?.ownerDrawTotal || 0);
 
+
   const methodLabel = (m?: string) => {
     if (!m || m === 'cash') return 'Espèces';
     if (m === 'bank') return 'Banque';
@@ -238,7 +352,7 @@ export default function Balance() {
   };
 
   return (
-    <div className="atlas-page">
+    <div className="atlas-page balance-page">
       <p className="atlas-eyebrow">Trésorerie</p>
       <div className="page-header" style={{ alignItems: 'flex-start' }}>
         <div>
@@ -258,29 +372,29 @@ export default function Balance() {
 
       <SaveFeedback message={saveMsg} type={saveMsgType} />
 
-      <div className="atlas-stat-grid">
-        <div className="atlas-stat paper">
+      <div className="ac-metric-grid">
+        <div className="ac-metric">
           <div className="as-label">Solde actuel</div>
           <div className="as-value" style={{ fontSize: '1.15rem' }}>
             {balance.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} MAD
           </div>
           <div className="as-hint">caisse &amp; banque</div>
         </div>
-        <div className="atlas-stat mint">
+        <div className="ac-metric">
           <div className="as-label">Entrées</div>
           <div className="as-value" style={{ fontSize: '1.15rem' }}>
             {moneyIn.toLocaleString('fr-FR', { minimumFractionDigits: 0 })} MAD
           </div>
           <div className="as-hint">ventes + recettes + apports</div>
         </div>
-        <div className="atlas-stat blush">
+        <div className="ac-metric">
           <div className="as-label">Sorties</div>
           <div className="as-value" style={{ fontSize: '1.15rem' }}>
             {moneyOut.toLocaleString('fr-FR', { minimumFractionDigits: 0 })} MAD
           </div>
           <div className="as-hint">achats + dépenses + prélèvements</div>
         </div>
-        <div className="atlas-stat sand">
+        <div className="ac-metric">
           <div className="as-label">Flux net</div>
           <div className="as-value" style={{ fontSize: '1.15rem' }}>
             {(moneyIn - moneyOut).toLocaleString('fr-FR', { minimumFractionDigits: 0 })} MAD
@@ -289,14 +403,45 @@ export default function Balance() {
         </div>
       </div>
 
-      <BankCsvReconcile />
+      <div className="balance-charts-grid">
+        <BalanceMiniBars title="Sorties par catégorie" rows={byCategoryChart} />
+        <BalanceMiniBars title="Répartition par type" rows={byTypeChart} />
+      </div>
+      <div className="balance-charts-grid" style={{ marginTop: 12 }}>
+        <BalanceMiniBars
+          title="Entrées (recettes + apports)"
+          rows={byTypeChart.filter((r) => r.label === 'Recettes' || r.label === 'Apports')}
+        />
+        <BalanceMiniBars
+          title="Sorties (dépenses + prélèvements)"
+          rows={byTypeChart.filter((r) => r.label === 'Dépenses' || r.label === 'Prélèvements')}
+        />
+      </div>
 
       {reconcile && (
         <div className="card" style={{ marginBottom: 20, padding: 0, overflow: 'hidden' }}>
-          <div style={{ padding: '14px 18px', background: reconcile.summary?.ok ? 'rgba(45,90,45,0.08)' : 'rgba(139,46,46,0.08)', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+          <div
+            className="balance-reconcile-head"
+            style={{
+              padding: '14px 18px',
+              background: reconcile.summary?.ok ? '#ffffff' : 'rgba(239, 68, 68, 0.06)',
+              borderBottom: '1px solid #e8eaef',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: 10,
+            }}
+          >
             <div>
-              <strong style={{ fontSize: 15 }}>Rapprochement comptable</strong>
-              <p style={{ fontSize: 13, margin: '4px 0 0', color: reconcile.summary?.ok ? 'var(--success, #2d5a2d)' : 'var(--bad, #8b2e2e)' }}>
+              <strong style={{ fontSize: 15, color: '#0f172a' }}>Rapprochement comptable</strong>
+              <p
+                style={{
+                  fontSize: 13,
+                  margin: '4px 0 0',
+                  color: reconcile.summary?.ok ? '#71717a' : '#b91c1c',
+                }}
+              >
                 {reconcile.summary?.ok ? 'Solde et paiements cohérents' : (reconcile.summary?.message || 'Écarts détectés')}
               </p>
             </div>
@@ -362,7 +507,10 @@ export default function Balance() {
           <button className="secondary" style={{ fontSize: 13 }} onClick={() => openReport('/api/reports/payables')}>
             Dettes
           </button>
-          <button style={{ fontSize: 13 }} onClick={() => openReport('/api/reports/combined', { period: reportPeriod, sections: 'balance,stock,receivables,payables' })}>
+          <button className="secondary" style={{ fontSize: 13 }} onClick={() => openReport('/api/reports/employees')}>
+            Employés &amp; paie
+          </button>
+          <button style={{ fontSize: 13 }} onClick={() => openReport('/api/reports/combined', { period: reportPeriod, sections: 'balance,stock,receivables,payables,employees' })}>
             Tous les rapports
           </button>
           <button
@@ -416,66 +564,87 @@ export default function Balance() {
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: 16, padding: '12px 16px', display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-        <span style={{ fontSize: 13, color: 'var(--muted)' }}>Filtrer :</span>
-        <select value={filterType} onChange={(e) => setFilterType(e.target.value as any)} style={{ width: 'auto' }}>
-          <option value="all">Toutes les écritures</option>
-          <option value="income">Recettes</option>
-          <option value="expense">Dépenses</option>
-          <option value="owner_contrib">Apports propriétaire</option>
-          <option value="owner_draw">Prélèvements propriétaire</option>
-        </select>
-      </div>
-
-      <div className="card">
-        <h2 style={{ fontFamily: 'var(--display)', fontSize: '1.35rem', marginBottom: 16 }}>Mouvements</h2>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th><th>Type</th><th>Libellé</th><th>Catégorie</th><th>Mode</th>
-                <th style={{ textAlign: 'right' }}>Montant</th><th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((m) => (
-                <tr key={m.id}>
-                  <td style={{ whiteSpace: 'nowrap' }}>{m.date}</td>
-                  <td><span className={`badge ${TYPE_META[m.type]?.badge || 'info'}`}>{TYPE_META[m.type]?.label || m.type}</span></td>
-                  <td><strong>{m.label}</strong></td>
-                  <td><span className="badge info">{m.category}</span></td>
-                  <td style={{ color: 'var(--muted)', fontSize: 13 }}>{methodLabel(m.method)}</td>
-                  <td className="bal-amount-cell">
-                    <span
-                      className={m.direction === 'in' ? 'bal-amount in' : 'bal-amount out'}
-                      title={m.direction === 'in' ? 'Entrée' : 'Sortie'}
-                    >
-                      <span className="bal-sign">{m.direction === 'in' ? '+' : '−'}</span>
-                      <span className="bal-num">{fmt(m.amount)}</span>
-                      <span className="bal-cur">{cur}</span>
-                    </span>
-                  </td>
-                  <td>
-                    <button className="danger" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => remove(m.id)}>Suppr.</button>
-                  </td>
-                </tr>
-              ))}
-              {!rows.length && (
-                <tr><td colSpan={7}>
-                  <EmptyState
-                    title="Aucun mouvement"
-                    description="Ajoutez une recette, dépense, apport ou prélèvement pour alimenter le solde."
-                    icon="wallet"
+<div className="card bal-tx-card">
+        <div className="bal-tx-toolbar">
+          <div className="bal-tx-toolbar-left">
+            <label className="bal-tx-filter-label">
+              <span>Filtrer</span>
+              <select
+                value={filterType}
+                onChange={(e) => { setFilterType(e.target.value as any); setTxPage(0); }}
+              >
+                <option value="all">Toutes les écritures</option>
+                <option value="income">Recettes</option>
+                <option value="expense">Dépenses</option>
+                <option value="capital">Apports</option>
+                <option value="owner_draw">Prélèvements</option>
+                <option value="transfer">Virements</option>
+              </select>
+            </label>
+            <input
+              type="search"
+              className="bal-tx-search"
+              placeholder="Rechercher…"
+              value={txQuery}
+              onChange={(e) => { setTxQuery(e.target.value); setTxPage(0); }}
+            />
+          </div>
+          <ListPager
+            page={txPage}
+            pageSize={50}
+            total={sortedRows.length}
+            onPageChange={setTxPage}
+            pageBase={0}
+            className="bal-tx-pager"
+          />
+        </div>
+        <div className="bal-tx-head-title">
+          <h2 className="bal-tx-title">Transactions récentes</h2>
+          <p className="bal-tx-sub">Derniers mouvements de trésorerie (50 par page)</p>
+        </div>
+        <div className="bal-tx-list">
+          {pagedRows.map((m: any) => {
+            const meta = TYPE_META[m.type as EntryType] || TYPE_META.expense;
+            const Icon = txIcon((m.type as EntryType) || 'expense', m.category);
+            const isIn = m.direction === 'in' || meta.direction === 'in';
+            return (
+              <div key={m.id} className="bal-tx-row">
+                <div className={`bal-tx-icon${isIn ? ' is-in' : ' is-out'}`}>
+                  <Icon size={18} strokeWidth={2} />
+                </div>
+                <div className="bal-tx-main">
+                  <div className="bal-tx-name">{m.label || meta.label}</div>
+                  <div className="bal-tx-cat">{m.category || meta.label}</div>
+                </div>
+                <div className="bal-tx-date">{formatTxDate(m.date)}</div>
+                <div className={`bal-tx-amount${isIn ? ' is-in' : ' is-out'}`}>
+                  {isIn ? '+' : '−'}{fmt(m.amount)} {cur}
+                </div>
+                <div className="bal-tx-actions">
+                  <TimedUndoDelete
+                    deleteLabel="Supprimer"
+                    undoLabel="Annuler"
+                    initialSeconds={10}
+                    onConfirm={() => remove(m.id)}
                   />
-                </td></tr>
-              )}
-            </tbody>
-          </table>
+                </div>
+              </div>
+            );
+          })}
+          {!sortedRows.length && (
+            <div className="bal-tx-empty">
+              <EmptyState
+                title="Aucun mouvement"
+                description="Ajoutez une recette, dépense, apport ou prélèvement pour alimenter le solde."
+                icon="wallet"
+              />
+            </div>
+          )}
         </div>
       </div>
 
       {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>Nouvelle écriture — {TYPE_META[entryType].label}</h2>
             <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>
@@ -516,7 +685,7 @@ export default function Balance() {
               </div>
               <div className="form-row">
                 <label>Date</label>
-                <input type="date" value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)} />
+                <DatePicker value={expenseDate} onChange={setExpenseDate} />
               </div>
             </div>
             <div className="grid grid-2">
@@ -538,12 +707,13 @@ export default function Balance() {
               <label>Notes</label>
               <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
             </div>
+            <ModalFormError message={modalError} />
             <div className="form-actions">
               <button onClick={create} disabled={saving}>{saving ? 'Enregistrement...' : 'Enregistrer'}</button>
               <button className="secondary" onClick={() => setShowModal(false)}>Annuler</button>
             </div>
           </div>
-        </div>
+        </div></FloatingPortal>
       )}
 
       {pwOpen && pendingAction && (
@@ -555,121 +725,6 @@ export default function Balance() {
           onCancel={() => { setPwOpen(false); setPendingAction(null); }}
           onConfirm={async (password) => { await pendingAction(password); }}
         />
-      )}
-    </div>
-  );
-}
-
-function BankCsvReconcile() {
-  const { toast } = useUi();
-  const [csv, setCsv] = useState('');
-  const [result, setResult] = useState<any>(null);
-  const [busy, setBusy] = useState(false);
-  const [windowDays, setWindowDays] = useState(7);
-  const fmt = (n: number) => Math.round(Number(n || 0)).toLocaleString('fr-FR');
-  const kindFr = (k: string) =>
-    k === 'invoice_payment' ? 'Paiement client' :
-    k === 'bill_payment' ? 'Paiement fournisseur' :
-    k === 'expense' ? 'Mouvement solde' : k;
-
-  const run = async () => {
-    setBusy(true);
-    try {
-      const r: any = await api.reconcileBankCsv(csv, { date_window_days: windowDays });
-      setResult(r.data);
-      toast(r.message || 'Rapprochement terminé', 'success');
-    } catch (e: any) {
-      toast(e?.message || 'Échec', 'error');
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <div className="card" style={{ marginBottom: 20 }}>
-      <h2 style={{ fontSize: 16, marginTop: 0 }}>Rapprochement banque (CSV)</h2>
-      <p style={{ fontSize: 13, color: 'var(--muted)' }}>
-        Collez un extrait : <code>date;libellé;montant</code> (séparateur ; ou ,). 
-        Matching intelligent : montant, date, n° facture/achat, sens crédit/débit.
-      </p>
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'end', marginBottom: 8 }}>
-        <div className="form-row" style={{ margin: 0 }}>
-          <label>Fenêtre date (± jours)</label>
-          <input
-            type="number"
-            min={0}
-            max={60}
-            value={windowDays}
-            onChange={(e) => setWindowDays(Math.max(0, Math.min(60, Number(e.target.value) || 0)))}
-            style={{ width: 80 }}
-          />
-        </div>
-      </div>
-      <textarea
-        rows={5}
-        value={csv}
-        onChange={(e) => setCsv(e.target.value)}
-        placeholder={'2026-08-01;Virement client FA-2026-0001;12000\n2026-08-02;Loyer;-3500'}
-        style={{ width: '100%', fontFamily: 'monospace', fontSize: 12 }}
-      />
-      <button type="button" disabled={busy || !csv.trim()} onClick={run} style={{ marginTop: 8 }}>
-        {busy ? 'Analyse…' : 'Rapprocher'}
-      </button>
-      {result && (
-        <div style={{ marginTop: 14 }}>
-          <p style={{ fontSize: 13, marginBottom: 8 }}>
-            Analysé : {result.parsed} · Matchés : <strong>{result.matched}</strong> · Sans match : {result.unmatched_count}
-          </p>
-          {result.rules && (
-            <p style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 10 }}>
-              Règles : {(result.rules as string[]).join(' · ')}
-            </p>
-          )}
-          {result.matched > 0 && (
-            <div className="table-wrap" style={{ maxHeight: 240, overflow: 'auto', marginBottom: 12 }}>
-              <table style={{ fontSize: 12 }}>
-                <thead>
-                  <tr>
-                    <th>Banque</th>
-                    <th style={{ textAlign: "right" }}>Montant</th>
-                    <th>Atlas</th>
-                    <th>Score</th>
-                    <th>Raisons</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(result.matches || []).slice(0, 40).map((m: any, i: number) => (
-                    <tr key={i}>
-                      <td>
-                        {m.bank?.date} · {m.bank?.label?.slice(0, 40)}
-                      </td>
-                      <td style={{ fontWeight: 700 }}>{fmt(m.bank?.amount)}</td>
-                      <td>
-                        {kindFr(m.match?.kind)} #{m.match?.id}
-                        {m.match?.ref ? ` · ${m.match.ref}` : ''}
-                      </td>
-                      <td>{m.score}</td>
-                      <td style={{ color: 'var(--muted)' }}>{(m.reasons || []).join(', ')}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {result.unmatched_count > 0 && (
-            <details>
-              <summary style={{ cursor: 'pointer', fontSize: 13 }}>
-                {result.unmatched_count} ligne(s) sans correspondance
-              </summary>
-              <ul style={{ fontSize: 12, marginTop: 6 }}>
-                {(result.unmatched || []).slice(0, 30).map((u: any, i: number) => (
-                  <li key={i}>
-                    {u.date} · {u.label} · <strong>{fmt(u.amount)}</strong>
-                  </li>
-                ))}
-              </ul>
-            </details>
-          )}
-        </div>
       )}
     </div>
   );

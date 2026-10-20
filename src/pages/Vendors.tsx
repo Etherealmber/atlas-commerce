@@ -1,3 +1,4 @@
+import { TimedUndoDelete } from '../components/ui';
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import PasswordConfirm from '../components/PasswordConfirm';
@@ -6,16 +7,19 @@ import { validateVendorForm, firstError } from '../lib/formValidate';
 import EmptyState from '../components/EmptyState';
 import RefreshIconButton from '../components/RefreshIconButton';
 import '../components/erp/crm-parties.css';
+import { FloatingPortal } from '../components/FloatingPortal';
 
 export default function Vendors() {
   const [pwOpen, setPwOpen] = useState(false);
   const [pwTitle, setPwTitle] = useState('');
   const [pwDesc, setPwDesc] = useState('');
   const [pendingAction, setPendingAction] = useState<null | ((password: string) => Promise<void>)>(null);
+  const [deleteArmId, setDeleteArmId] = useState<number | null>(null);
   const [list, setList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [show, setShow] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null);
   const [search, setSearch] = useState('');
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -36,7 +40,30 @@ export default function Vendors() {
       setRefreshing(false);
     });
   };
+  
+  useEffect(() => {
+    const onLists = () => {
+      try { load(true); } catch { /* */ }
+    };
+    window.addEventListener('atlas-lists-refresh', onLists as EventListener);
+    return () => window.removeEventListener('atlas-lists-refresh', onLists as EventListener);
+  }, []);
+
   useEffect(() => { load(); }, []);
+
+  const openEdit = (v: any) => {
+    setEditId(Number(v.id));
+    setForm({
+      name: v.name || '',
+      ice: v.ice || '',
+      if_number: v.if_number || '',
+      address: v.address || '',
+      city: v.city || '',
+      phone: v.phone || '',
+      email: v.email || '',
+    });
+    setShow(true);
+  };
 
   const save = async () => {
     const fe = validateVendorForm(form);
@@ -45,9 +72,14 @@ export default function Vendors() {
     if (!form.name.trim()) { flash('Le nom du fournisseur est obligatoire.', 'error'); return; }
     setSaving(true);
     try {
-      await api.createVendor(form);
+      if (editId) {
+        await api.updateVendor(editId, form);
+      } else {
+        await api.createVendor(form);
+      }
       setShow(false);
       setForm({ name: '', ice: '', if_number: '', address: '', city: '', phone: '', email: '' });
+      setEditId(null);
       flash('Fournisseur enregistré dans la base de données avec succès.');
       load(true);
     } catch (e: any) { flash(e.message, 'error'); } finally { setSaving(false); }
@@ -76,42 +108,42 @@ export default function Vendors() {
   const newMonth = list.filter((v) => String(v.created_at || '').startsWith(ym)).length;
 
   return (
-    <div className="atlas-crm">
+    <div className="atlas-crm vendors-page">
       <div className="page-header">
         <h1>Fournisseurs</h1>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
-          <button onClick={() => setShow(true)}>+ Nouveau fournisseur</button>
+          <button onClick={() => { setEditId(null); setForm({ name: '', ice: '', if_number: '', address: '', city: '', phone: '', email: '' }); setShow(true); }}>+ Nouveau fournisseur</button>
         </div>
       </div>
 
       <SaveFeedback message={saveMsg} type={saveMsgType} />
-<div className="card" style={{ marginBottom: 16, padding: '12px 16px' }}>
-        <div className="search-bar"><input className="search-input" placeholder="Rechercher par nom ou identifiant..." value={search} onChange={(e) => setSearch(e.target.value)} /></div>
+<div className="ac-panel ac-products-filters">
+        <div className="search-bar"><input className="ac-search-input" placeholder="Rechercher par nom ou identifiant..." value={search} onChange={(e) => setSearch(e.target.value)} /></div>
       </div>
 
-      <div className="atlas-stat-grid" style={{ marginBottom: 16 }}>
-        <div className="atlas-stat paper">
+      <div className="ac-metric-grid" style={{ marginBottom: 16 }}>
+        <div className="ac-metric">
           <div className="as-label">Solde total dû</div>
           <div className="as-value" style={{ fontSize: '1.35rem' }}>{Math.round(totalDue).toLocaleString('fr-FR')} MAD</div>
           <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>sur {withDue} fournisseur{withDue !== 1 ? 's' : ''}</div>
           {withDue > 0 && <span className="badge" style={{ marginTop: 6, background: '#fef3c7', color: '#92400e' }}>à payer</span>}
         </div>
-        <div className="atlas-stat paper">
+        <div className="ac-metric">
           <div className="as-label">Nouveaux ce mois</div>
           <div className="as-value" style={{ fontSize: '1.35rem' }}>{newMonth}</div>
           <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>fournisseurs ajoutés</div>
         </div>
-        <div className="atlas-stat paper">
+        <div className="ac-metric">
           <div className="as-label">Fournisseurs actifs</div>
           <div className="as-value" style={{ fontSize: '1.35rem' }}>{list.length}</div>
           <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>dans le fichier</div>
         </div>
       </div>
 
-      <div className="card">
+      <div className="ac-panel ac-products-table-panel">
         <div className="table-wrap">
-          <table className="data-dense">
+          <table className="data-dense ac-products-table">
             <thead>
               <tr>
                 <th>Nom</th>
@@ -130,7 +162,16 @@ export default function Vendors() {
                 return (
                   <tr key={v.id}>
                     <td>
-                      <div className="party-name">{v.name}</div>
+                      <span
+                        className="party-name party-name-link"
+                        role="button"
+                        tabIndex={0}
+                        title="Modifier"
+                        onClick={() => openEdit(v)}
+                        onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openEdit(v); } }}
+                      >
+                        {v.name}
+                      </span>
                       {v.ice && <div className="party-sub">{v.ice}</div>}
                     </td>
                     <td>{v.ice || '—'}</td>
@@ -144,7 +185,12 @@ export default function Vendors() {
                     <td>{v.phone || '—'}</td>
                     <td>{v.email || '—'}</td>
                     <td>
-                      <button className="danger" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => remove(v.id)}>Suppr.</button>
+                      {deleteArmId === v.id ? (
+                        <TimedUndoDelete autoStart deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10}
+                          onConfirm={() => { setDeleteArmId(null); void remove(v.id); }} />
+                      ) : (
+                        <TimedUndoDelete deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10} onConfirm={() => { setDeleteArmId(null); openDelete([v.id]); }} />
+                      )}
                     </td>
                   </tr>
                 );
@@ -154,6 +200,8 @@ export default function Vendors() {
                     <EmptyState
                       title="Aucun fournisseur"
                       description="Ajoutez vos fournisseurs pour les rattacher aux factures d'achat."
+                      actionLabel="Ajouter mon premier fournisseur"
+                      onAction={() => { setEditId(null); setForm({ name: '', ice: '', if_number: '', address: '', city: '', phone: '', email: '' }); setShow(true); }}
                       icon="building"
                     />
                   </td></tr>
@@ -164,9 +212,9 @@ export default function Vendors() {
       </div>
 
       {show && (
-        <div className="modal-overlay" onClick={() => setShow(false)}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => setShow(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>Nouveau fournisseur</h2>
+            <h2>{editId ? 'Modifier le fournisseur' : 'Nouveau fournisseur'}</h2>
             <div className="form-row"><label>Nom *</label><input className={fieldErrors.name ? 'field-error' : undefined} value={form.name} onChange={(e) => { setForm({ ...form, name: e.target.value }); setFieldErrors((x) => ({ ...x, name: '' })); }} placeholder="Ex. Ciments du Maroc" /><span className="field-error-msg">{fieldErrors.name || ''}</span></div>
             <div className="grid grid-2">
               <div className="form-row"><label>ICE / Identifiant fiscal</label><input value={form.ice} onChange={(e) => setForm({ ...form, ice: e.target.value })} /></div>
@@ -183,7 +231,7 @@ export default function Vendors() {
               <button className="secondary" onClick={() => setShow(false)}>Annuler</button>
             </div>
           </div>
-        </div>
+        </div></FloatingPortal>
       )}
 
       {pwOpen && pendingAction && (

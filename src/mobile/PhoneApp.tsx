@@ -14,6 +14,8 @@ import { getDensity, setDensity, isGlassEnabled, setGlassEnabled, isLiquidGlassA
 import { APP_VERSION } from '../version';
 import { useUi } from '../components/AppDialogs';
 import './phone.css';
+import PageTransition from '../components/PageTransition';
+import PageSkeleton from '../components/PageSkeleton';
 import {
   cacheProducts,
   cacheLocations,
@@ -29,7 +31,6 @@ import {
 import { startBarcodeScan, isBarcodeLike, captureAndDecode, decodeImageFile, preloadBarcodeScanner, prepareZXing } from '../lib/barcodeScan';
 import { IconPackage, IconInbox, IconDocument } from '../components/Icons';
 import OfflineBanner from '../components/OfflineBanner';
-const AtlasAgent = lazy(() => import('../components/AtlasAgent'));
 
 
 type Product = {
@@ -148,6 +149,15 @@ function PhoneEmbed({ title, children }: { title: string; children: ReactNode })
   );
 }
 export default function PhoneApp() {
+  useEffect(() => {
+    try {
+      setDensity('comfortable');
+      document.documentElement.dataset.density = 'comfortable';
+      document.documentElement.classList.remove('density-compact');
+      document.documentElement.classList.add('phone-shell');
+    } catch { /* */ }
+  }, []);
+
   const { confirm: uiConfirm } = useUi();
   const [products, setProducts] = useState<Product[]>([]);
   const [actions, setActions] = useState<Action[]>([]);
@@ -261,6 +271,25 @@ export default function PhoneApp() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [density, setDensityState] = useState<Density>(() => getDensity());
   const [glassOn, setGlassOn] = useState(() => isGlassEnabled());
+  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(() => {
+    try {
+      const v = localStorage.getItem('atlas-theme');
+      if (v === 'light' || v === 'dark' || v === 'system') return v;
+    } catch { /* */ }
+    return 'system';
+  });
+  const applyTheme = (v: 'light' | 'dark' | 'system') => {
+    setTheme(v);
+    try { localStorage.setItem('atlas-theme', v); } catch { /* */ }
+    const root = document.documentElement;
+    const dark = v === 'dark' || (v === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    root.dataset.theme = dark ? 'dark' : 'light';
+    root.classList.toggle('theme-dark', dark);
+  };
+  const applyGlass = (v: boolean) => {
+    setGlassOn(v);
+    setGlassEnabled(v);
+  };
   const [profileTick, setProfileTick] = useState(0);
 
   /** Prefer free-tier Durable Object profile when the account sheet opens. */
@@ -299,100 +328,63 @@ export default function PhoneApp() {
           </div>
         </div>
         <div className="phone-top-actions">
-          <div className="phone-user-chip">
-            <strong>{getDisplayName()}</strong>
-            <span>{stockOnly ? 'Magasinier' : 'Terrain'}</span>
-          </div>
           <button
             type="button"
             className="phone-icon-btn"
+            aria-label="Notifications"
             onClick={() => navigate('/m/inbox')}
-            aria-label={pending > 0 ? `${pending} notification${pending > 1 ? 's' : ''}` : 'Notifications'}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-              <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+              <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5" />
+              <path d="M9 17a3 3 0 0 0 6 0" />
             </svg>
-            {pending > 0 && <span className="phone-notification-badge">{pending > 9 ? '9+' : pending}</span>}
+            {pending > 0 ? <span className="phone-notification-badge">{pending > 99 ? '99+' : pending}</span> : null}
           </button>
-          <div className="phone-account-wrap">
+          <div className="phone-account-wrap" style={{ position: 'relative' }}>
             <button
               type="button"
-              className="phone-icon-btn phone-profile-btn"
-              title="Compte"
-              aria-label={`Compte ${getDisplayName()}`}
+              className="phone-avatar phone-profile-btn"
+              aria-label="Compte"
               aria-expanded={accountOpen}
               onClick={() => setAccountOpen((v) => !v)}
             >
               {getAvatarUrl() ? (
-                <img key={`pav-${profileTick}`} className="phone-avatar-img" src={getAvatarUrl()} alt="" width={28} height={28} loading="lazy" decoding="async" />
+                <img className="phone-avatar-img" src={getAvatarUrl()!} alt="" />
               ) : (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M20 21a8 8 0 0 0-16 0" />
-                  <circle cx="12" cy="8" r="4" />
-                </svg>
+                getDisplayInitials()
               )}
             </button>
             {accountOpen && (
               <>
-                <div className="phone-account-backdrop" onClick={() => setAccountOpen(false)} aria-hidden />
-                <div className="phone-account-menu" role="menu">
-                  <div className="ph-menu-meta">
-                    <strong key={`pnm-${profileTick}`}>{getDisplayName()}</strong>
-                    <div>{roleLabel} · @{getUsername() || '—'}</div>
-                    <div>v{APP_VERSION}</div>
+                <button
+                  type="button"
+                  className="ph-menu-backdrop"
+                  aria-label="Fermer le menu"
+                  onClick={() => setAccountOpen(false)}
+                  style={{ position: 'fixed', inset: 0, border: 0, background: 'transparent', zIndex: 40 }}
+                />
+                <div className="ph-account-menu" role="menu" style={{ position: 'absolute', right: 0, top: '110%', zIndex: 50, minWidth: 200, background: '#fff', borderRadius: 14, padding: 8, boxShadow: '0 12px 40px rgba(0,0,0,.12)', border: '1px solid rgba(20,34,31,.08)' }}>
+                  <div style={{ padding: '8px 10px', borderBottom: '1px solid #eee' }}>
+                    <strong>{getDisplayName()}</strong>
+                    <div className="muted" style={{ fontSize: 12 }}>{roleLabel}</div>
                   </div>
-                  {canAccessSettings() && (
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="ph-menu-item"
-                      onClick={() => {
-                        setAccountOpen(false);
-                        navigate('/m/settings');
-                      }}
-                    >
-                      {canAccessSettingsBeyondProfile() ? 'Paramètres' : 'Mon profil'}
-                    </button>
-                  )}
                   <button
                     type="button"
                     role="menuitem"
-                    className="ph-menu-item ph-menu-item-row"
+                    className="ph-menu-item"
+                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px', border: 0, background: 'transparent', borderRadius: 8, color: '#141822', fontWeight: 600 }}
                     onClick={() => {
-                      const next = density === 'compact' ? 'comfortable' : 'compact';
-                      setDensity(next);
-                      setDensityState(next);
+                      setAccountOpen(false);
+                      navigate('/m/settings');
                     }}
                   >
-                    <span>Densité</span>
-                    <span className="ph-menu-val">{density === 'compact' ? 'Compact' : 'Confort'}</span>
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="ph-menu-item ph-menu-item-row"
-                    disabled={density === 'compact'}
-                    onClick={() => {
-                      if (density === 'compact') return;
-                      const next = !glassOn;
-                      setGlassEnabled(next);
-                      setGlassOn(next);
-                    }}
-                  >
-                    <span>Liquid glass</span>
-                    <span className="ph-menu-val">
-                      {density === 'compact'
-                        ? 'Off (Compact)'
-                        : isLiquidGlassActive()
-                          ? 'Activé'
-                          : 'Désactivé'}
-                    </span>
+                    Paramètres
                   </button>
                   <button
                     type="button"
                     role="menuitem"
                     className="ph-menu-item ph-menu-danger"
+                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px', border: 0, background: 'transparent', borderRadius: 8, color: '#b91c1c' }}
                     onClick={async () => {
                       setAccountOpen(false);
                       const ok = await uiConfirm({
@@ -418,11 +410,12 @@ export default function PhoneApp() {
       </header>
 
       {booting && (
-        <div style={{ padding: '6px 16px', fontSize: 12, color: '#6b7c76', background: '#f5f2eb' }}>
+        <div style={{ padding: '6px 16px', fontSize: 12, color: '#9aa3b5', background: '#f5f2eb' }}>
           Synchronisation…
         </div>
       )}
       <main className="phone-main">
+        <PageTransition>
         <Routes>
           <Route
             path="/"
@@ -495,13 +488,28 @@ export default function PhoneApp() {
             }
           />
           <Route path="/more" element={<PhoneMore />} />
-          <Route path="/settings" element={<PhoneSettings />} />
+          <Route path="/settings" element={<PhoneSettings theme={theme} glass={glassOn} onTheme={applyTheme} onGlass={applyGlass} />} />
           <Route path="/bills" element={allowSell ? <PhoneBills onToast={show} /> : <div className="phone-panel"><p className="ph-perm-banner">Rôle magasinier : pas d’achats.</p></div>} />
           <Route path="/warehouse" element={<PhoneWarehouse onToast={show} />} />
           <Route path="/agent" element={<PhoneAgentMobile />} />
 
-          <Route path="*" element={<PhoneHome productCount={products.length} lowCount={lowCount} pending={pending} todaySales={stockOnly ? 0 : todaySales} actions={[]} onScan={() => navigate('/m/scan')} onBoîte={() => navigate('/m/inbox')} stockOnly={stockOnly} />} />
+          <Route
+            path="*"
+            element={
+              <div className="ph-restricted">
+                <h1>Oups</h1>
+                <p>
+                  Cette page n&apos;est pas disponible sur mobile, ou elle a été restreinte.
+                  Utilisez le menu du bas ou retournez à l&apos;accueil terrain.
+                </p>
+                <button type="button" className="ph-primary" onClick={() => navigate('/m')}>
+                  Retour à l&apos;accueil
+                </button>
+              </div>
+            }
+          />
         </Routes>
+        </PageTransition>
       </main>
 
       <nav className="phone-tabbar" aria-label="Navigation principale">
@@ -523,7 +531,6 @@ export default function PhoneApp() {
         </NavLink>
       </nav>
       {toast && <div className="phone-toast">{toast}</div>}
-      <Suspense fallback={null}><AtlasAgent /></Suspense>
     </div>
   );
 }
@@ -554,7 +561,7 @@ function PhoneHome({
         <span>→</span>
       </button>
       <div className="ph-stats">
-        <div className="ph-stat mint"><span className="lbl">Produits actifs</span><strong>{productCount}</strong><span className="hint">dans le catalogue</span></div>
+        <div className="ph-stat"><span className="lbl">Produits actifs</span><strong>{productCount}</strong><span className="hint">dans le catalogue</span></div>
         <div className="ph-stat peach"><span className="lbl">Stock bas</span><strong>{lowCount}</strong><span className="hint">à vérifier en rayon</span></div>
         <div className="ph-stat rose"><span className="lbl">À traiter</span><strong>{pending}</strong><span className="hint">envois mobile</span></div>
         {!stockOnly && (
@@ -667,62 +674,47 @@ function PhoneScan({
       stopCamera();
       setDecision(null);
       setAddNow(false);
-      // Probe permission first for clear UX (especially iOS / low-end)
       if (!navigator.mediaDevices?.getUserMedia) {
         setCamPermission('unavailable');
         onToast('Caméra non supportée sur cet appareil — utilisez Image ou saisie');
         return;
       }
-      try {
-        const probe = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: 'environment' } });
-        probe.getTracks().forEach((t) => t.stop());
-        setCamPermission('granted');
-      } catch (pe: any) {
-        const name = String(pe?.name || '');
-        if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
-          setCamPermission('denied');
-          onToast('Permission caméra refusée — autorisez-la dans Réglages, ou utilisez Image');
-          return;
-        }
-        if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
-          setCamPermission('unavailable');
-          onToast('Aucune caméra détectée — utilisez Image ou saisie');
-          return;
-        }
-        // Other errors: still try scanner (may recover)
-        setCamPermission('unknown');
-      }
       setScanning(true);
-      await new Promise((r) => requestAnimationFrame(() => r(null)));
+      // Wait two frames so readerRef mounts with scanning UI
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(null))));
       const reader = readerRef.current;
       if (!reader) {
         onToast('Caméra non prête — réessayez');
         setScanning(false);
         return;
       }
+      reader.innerHTML = '';
       const stop = await startBarcodeScan(
         reader,
         (scanned) => {
-          if (!isBarcodeLike(scanned)) {
-            onToast('Code non reconnu comme code-barres');
-            return;
-          }
-          setCode(scanned);
+          const text = String(scanned || '').trim();
+          if (!text) return;
+          setCamPermission('granted');
+          setCode(text);
           try { navigator.vibrate?.(40); } catch { /* */ }
           stopCamera();
-          void resolveCode(scanned);
+          void resolveCode(text);
         },
         (msg) => {
           onToast(msg);
-          stopCamera();
         }
       );
       (streamRef as any).stopScan = stop;
+      setCamPermission('granted');
     } catch (e: any) {
       stopCamera();
       const name = String(e?.name || '');
-      if (name === 'NotAllowedError' || name === 'PermissionDeniedError') setCamPermission('denied');
-      onToast(e?.message || 'Caméra indisponible — utilisez Image ou saisissez le code');
+      if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+        setCamPermission('denied');
+        onToast('Permission caméra refusée — autorisez-la dans Réglages, ou utilisez Image');
+      } else {
+        onToast(e?.message || 'Caméra indisponible — utilisez Image ou saisissez le code');
+      }
     }
   };
 
@@ -881,8 +873,8 @@ function PhoneScan({
         name: np.name.trim(),
         sku: np.sku.trim().toUpperCase(),
         barcode: np.barcode.trim() || decision.code,
-        unit_price: Number(np.price) || 0,
-        price: Number(np.price) || 0,
+        unit_price: 0,
+        price: 0,
         stock_quantity: Number(np.stock) || 0,
         category: 'Épicerie',
       };
@@ -904,7 +896,7 @@ function PhoneScan({
       await queueOrSend({
         type: 'new_product',
         title: `Produit inconnu · ${body.name}`,
-        detail: `${body.sku} · ${body.price} MAD · code ${body.barcode}`,
+        detail: `${body.sku} · stock ${body.stock_quantity} · code ${body.barcode}`,
         barcode: String(body.barcode || ''),
         meta: { needs_approval: true, create_product_body: body, image_data_url: np.image_data_url || undefined },
       });
@@ -982,7 +974,7 @@ function PhoneScan({
         )}
 
         <div className="ph-cam-wrap" style={{ display: scanning ? 'block' : 'none' }} aria-hidden={!scanning}>
-          <div ref={readerRef} id="ph-h5-reader" data-h5-reader="1" className="ph-h5-reader" />
+          <div ref={readerRef} className="ph-scan-reader ph-h5-reader" id="ph-h5-reader" data-h5-reader="1" />
           {scanning && (
             <>
               <div className="ph-cam-outline" aria-hidden="true">
@@ -1152,12 +1144,6 @@ function PhoneScan({
             <input value={np.sku} onChange={(e) => setNp({ ...np, sku: e.target.value })} />
             <label>Code-barres</label>
             <input value={np.barcode} onChange={(e) => setNp({ ...np, barcode: e.target.value })} />
-            {!isStockRole() && (
-              <>
-                <label>Prix (MAD)</label>
-                <input value={np.price} onChange={(e) => setNp({ ...np, price: e.target.value })} inputMode="decimal" />
-              </>
-            )}
             <label>Stock initial</label>
             <input value={np.stock} onChange={(e) => setNp({ ...np, stock: e.target.value })} inputMode="numeric" />
             <label>Photo (caméra seulement — le PC verra l’image)</label>
@@ -1191,9 +1177,6 @@ function PhoneScan({
             <div className="ph-modal-actions" style={{ flexDirection: 'column', gap: 8 }}>
               <button type="button" className="ph-cta" style={{ margin: 0 }} disabled={busy} onClick={createNow}>
                 Envoyer au PC
-              </button>
-              <button type="button" className="ph-chip" style={{ width: '100%' }} disabled={busy} onClick={sendToPcLater}>
-                Code seul → PC
               </button>
               <button type="button" className="ph-chip" style={{ width: '100%' }} onClick={closeDecision}>
                 Annuler
@@ -1326,7 +1309,7 @@ function PhoneProduits({
           <p>Ajoutez des articles pour gérer le stock.</p>
         </div>
       )}
-      <button type="button" className="ph-chip" style={{ marginTop: 12 }} onClick={() => { onRefresh(); onToast('Catalogue actualisé'); }}>Actualiser</button>
+      <button type="button" className="ph-chip ph-refresh-inline" style={{ marginTop: 12 }} onClick={() => { onRefresh(); onToast('Catalogue actualisé'); }} aria-label="Actualiser" title="Actualiser" />
     </div>
   );
 }
@@ -1359,7 +1342,7 @@ function PhoneBoîte({ actions, onRefresh }: { actions: Action[]; onRefresh: () 
             <button key={tk} type="button" className={tab === tk ? 'on' : ''} onClick={() => setTab(tk)}>{tk === 'pending' ? 'En attente' : tk === 'done' ? 'Terminées' : 'Toutes'}</button>
           ))}
         </div>
-        <button type="button" className="ph-chip ph-refresh-inline" onClick={onRefresh}>Actualiser</button>
+        <button type="button" className="ph-chip ph-refresh-inline" onClick={onRefresh} aria-label="Actualiser" title="Actualiser" />
       </div>
       <div className="ph-card-list">
       {list.map((a) => (
@@ -1499,13 +1482,13 @@ function PhoneVente({
 
       <div className="ph-panel" style={{ marginBottom: 12 }}>
         {lines.length === 0 && (
-          <p style={{ color: '#6b7c76', fontSize: 14, margin: 0 }}>Ajoutez des produits ci-dessous.</p>
+          <p style={{ color: '#9aa3b5', fontSize: 14, margin: 0 }}>Ajoutez des produits ci-dessous.</p>
         )}
         {lines.map((i) => (
           <div key={i.product_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #eee' }}>
             <div>
               <div style={{ fontWeight: 600 }}>{i.product_name}</div>
-              <div style={{ fontSize: 12, color: '#6b7c76' }}>{i.quantity}</div>
+              <div style={{ fontSize: 12, color: '#9aa3b5' }}>{i.quantity}</div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <button type="button" className="ph-chip" onClick={() => dec(i.product_id)} aria-label="Retirer">−</button>
@@ -1530,7 +1513,7 @@ function PhoneVente({
               padding: '10px 8px',
               borderRadius: 999,
               border: payMode === k ? 'none' : '1px solid #e5e0d6',
-              background: payMode === k ? '#0f4f4b' : '#fff',
+              background: payMode === k ? '#0a0a0a' : '#fff',
               color: payMode === k ? '#fff' : '#1a1814',
               fontWeight: 700,
               fontSize: 13,
@@ -1541,7 +1524,7 @@ function PhoneVente({
         ))}
       </div>
 
-      <div className="ph-panel" style={{ background: '#0f4f4b', color: '#fff', marginBottom: 12 }}>
+      <div className="ph-panel" style={{ background: '#0a0a0a', color: '#fff', marginBottom: 12 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: 20 }}>
           <span>Total</span><span>{Math.round(total).toLocaleString('fr-FR')} MAD</span>
         </div>
@@ -1594,7 +1577,7 @@ function PhoneVente({
             }}
           >
             <span style={{ fontWeight: 600 }}>{p.name}</span>
-            <span style={{ color: '#1a6b66', fontWeight: 700 }}>{Math.round(priceOf(p)).toLocaleString('fr-FR')} MAD</span>
+            <span style={{ color: '#171717', fontWeight: 700 }}>{Math.round(priceOf(p)).toLocaleString('fr-FR')} MAD</span>
           </button>
         ))}
       </div>
@@ -1782,24 +1765,110 @@ function PhoneInvoice({
 
 
 function PhoneAgentMobile() {
+  type Msg = { role: 'user' | 'assistant'; text: string };
+  const [msgs, setMsgs] = useState<Msg[]>(() => {
+    try {
+      const raw = localStorage.getItem('atlas-agent-mobile-msgs');
+      if (raw) {
+        const p = JSON.parse(raw);
+        if (Array.isArray(p) && p.length) return p.slice(-40);
+      }
+    } catch { /* */ }
+    return [
+      {
+        role: 'assistant',
+        text: 'Bonjour — je suis Atlas Agent (mobile). Posez une question sur le stock, les produits ou les actions terrain.',
+      },
+    ];
+  });
+  const [input, setInput] = useState('');
+  const [busy, setBusy] = useState(false);
+  const listRef = useRef<HTMLDivElement | null>(null);
+
   useEffect(() => {
     try {
-      sessionStorage.setItem('atlas_agent_open', '1');
-      document.documentElement.classList.add('atlas-agent-docked');
-      window.dispatchEvent(new CustomEvent('atlas-agent-open', { detail: { open: true } }));
+      localStorage.setItem('atlas-agent-mobile-msgs', JSON.stringify(msgs.slice(-40)));
     } catch { /* */ }
-    return () => {
-      try {
-        sessionStorage.setItem('atlas_agent_open', '0');
-        document.documentElement.classList.remove('atlas-agent-docked');
-        window.dispatchEvent(new CustomEvent('atlas-agent-open', { detail: { open: false } }));
-      } catch { /* */ }
-    };
-  }, []);
+    const el = listRef.current;
+    if (el) {
+      requestAnimationFrame(() => {
+        el.scrollTop = el.scrollHeight;
+      });
+    }
+  }, [msgs, busy]);
+
+  const send = async () => {
+    const text = input.trim();
+    if (!text || busy) return;
+    setInput('');
+    setMsgs((m) => [...m, { role: 'user', text }]);
+    setBusy(true);
+    try {
+      const res = await api.assistChat(text, { task: 'mobile_field', timezone: 'Africa/Casablanca' });
+      const reply =
+        (res as any)?.data?.reply ||
+        (res as any)?.data?.message ||
+        (res as any)?.message ||
+        'Réponse reçue.';
+      setMsgs((m) => [...m, { role: 'assistant', text: String(reply) }]);
+    } catch (e: any) {
+      setMsgs((m) => [
+        ...m,
+        {
+          role: 'assistant',
+          text: e?.message || 'Impossible de joindre l’assistant. Vérifiez la connexion ou la config API.',
+        },
+      ]);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
-    <div className="phone-panel phone-agent-hint" style={{ marginTop: 8 }}>
-      <h1 className="ph-title" style={{ fontSize: 20 }}>Atlas Agent</h1>
-      <p className="ph-sub">Posez une question sur le stock, le scan ou les actions en attente.</p>
+    <div className="ph-agent-shell" data-agent-mobile="1">
+      <header className="ph-agent-head">
+        <p className="ph-agent-eyebrow">Assistant</p>
+        <h1 className="ph-agent-title">Atlas Agent</h1>
+        <p className="ph-agent-sub">Version terrain — conversation sur cet appareil</p>
+      </header>
+      <div className="ph-agent-msgs" ref={listRef}>
+        {msgs.map((m, i) => (
+          <div key={i} className={'ph-agent-bubble ' + m.role}>
+            {m.text}
+          </div>
+        ))}
+        {busy ? <div className="ph-agent-bubble assistant ph-agent-typing">Réflexion…</div> : null}
+      </div>
+      <form
+        className="ph-agent-composer"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void send();
+        }}
+      >
+        <input
+          className="ph-agent-input"
+          type="text"
+          enterKeyHint="send"
+          autoComplete="off"
+          placeholder="Écrire un message…"
+          value={input}
+          disabled={busy}
+          onChange={(e) => setInput(e.target.value)}
+        />
+        <button
+          type="submit"
+          className="ph-agent-send"
+          disabled={busy || !input.trim()}
+          aria-label="Envoyer"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden>
+            <path d="M22 2L11 13" />
+            <path d="M22 2l-7 20-4-9-9-4 20-7z" />
+          </svg>
+        </button>
+      </form>
     </div>
   );
 }
+

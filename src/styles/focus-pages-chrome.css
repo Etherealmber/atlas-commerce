@@ -1,0 +1,357 @@
+/* focus-pages-chrome.css — Clients/Vendors parity for Settings, About, WhatsNew, Balance
+   Loaded AFTER overrides-final.css. No glass, no mint, no teal. */
+
+html body .settings-shell,
+html body .settings-main,
+html body .settings-page,
+html body .about-page,
+html body .whats-new-page,
+html body .balance-page,
+html body .mailbox-page {
+  --teal: #0a0a0a;
+  --teal-soft: #f1f5f9;
+  --mint: #ffffff;
+  --glass-bg: #ffffff;
+  --glass-blur: 0px;
+  --glass-saturate: 100%;
+}
+
+/* Kill liquid glass on these surfaces */
+html body .settings-shell *,
+html body .about-page *,
+html body .whats-new-page *,
+html body .balance-page * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html body .settings-shell .card,
+html body .settings-main .card,
+html body .settings-panel,
+html body .settings-section,
+html body .about-page .card,
+html body .about-section,
+html body .about-version-card,
+html body .about-meta-card,
+html body .whats-new-page .ac-panel,
+html body .whats-new-page .whats-new-list,
+html body .whats-new-page .whats-new-entry,
+html body .balance-page .ac-panel,
+html body .balance-page .card,
+html body .balance-page .atlas-stat,
+html body .mailbox-page .mailbox-shell,
+html body .mailbox-page .mailbox-list-panel,
+html body .mailbox-page .mailbox-read-panel {
+  background: #ffffff !important;
+  border: 1px solid #e8eaef !important;
+  border-radius: 16px !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+  background-image: none !important;
+}
+
+/* Tables inside settings / categories / passkeys */
+html body .settings-main table,
+html body .settings-main .table-wrap table,
+html body .settings-main table.data-dense {
+  width: 100%;
+  border-collapse: collapse;
+  background: #ffffff !important;
+}
+html body .settings-main table thead th,
+html body .settings-main table.data-dense thead th {
+  background: #f8fafc !important;
+  color: #71717a !important;
+  font-size: 0.68rem !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  padding: 12px 14px !important;
+  border-bottom: 1px solid #e8eaef !important;
+}
+html body .settings-main table tbody td,
+html body .settings-main table.data-dense tbody td {
+  background: #ffffff !important;
+  padding: 12px 14px !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  vertical-align: middle !important;
+}
+html body .settings-main table tbody tr:hover td {
+  background: #f8fafc !important;
+}
+
+/* Inputs / selects — flat white */
+html body .settings-main input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+html body .settings-main select,
+html body .settings-main textarea,
+html body .about-page input,
+html body .whats-new-page input,
+html body .balance-page input:not([type="checkbox"]),
+html body .balance-page select {
+  background: #ffffff !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+/* Secondary buttons — outline, not black/green */
+html body .settings-main button.secondary,
+html body .about-page button.secondary,
+html body .about-page a.secondary,
+html body .whats-new-page button.secondary {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 999px !important;
+  box-shadow: none !important;
+}
+
+/* Delete / danger — force red pill (TimedUndo + .danger) */
+html body .settings-main button.danger,
+html body .settings-main .ac-timed-delete-btn,
+html body .settings-main .ac-btn-delete,
+html body .balance-page button.danger,
+html body .balance-page .ac-timed-delete-btn {
+  background: #ef4444 !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 999px !important;
+  box-shadow: none !important;
+}
+html body .settings-main button.danger:hover,
+html body .settings-main .ac-timed-delete-btn:hover {
+  background: #dc2626 !important;
+}
+
+/* Settings nav active — neutral slate, not teal/mint */
+html body button.settings-nav-item.active,
+html body .settings-nav-item.active {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: none !important;
+}
+html body button.settings-nav-item.active svg,
+html body .settings-nav-item.active svg {
+  color: #0f172a !important;
+  stroke: #0f172a !important;
+}
+
+/* About chips — neutral */
+html body .about-trust-chip {
+  background: #f8fafc !important;
+  border: 1px solid #e8eaef !important;
+  color: #475569 !important;
+  border-radius: 999px !important;
+}
+
+/* Whats-new version pills — neutral not green */
+html body .whats-new-page .version-pill,
+html body .whats-new-page [class*="version"] {
+  background: #f1f5f9 !important;
+  color: #334155 !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+/* Balance stats — pure white */
+html body .balance-page .atlas-stat,
+html body .balance-page .ac-metric,
+html body .balance-page .atlas-kpi {
+  background: #ffffff !important;
+  border: 1px solid #e8eaef !important;
+  border-radius: 16px !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+
+/* Section heads */
+html body .settings-section-head h2 {
+  color: #0f172a !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em !important;
+}
+html body .settings-section-head p,
+html body .settings-tab-blurb {
+  color: #71717a !important;
+}
+
+/* Passkeys / categories table wrap */
+html body .settings-main .table-wrap {
+  border: 1px solid #e8eaef !important;
+  border-radius: 16px !important;
+  overflow: hidden !important;
+  background: #ffffff !important;
+}
+
+
+/* TIMED_DELETE_STABLE_V44 — compact delete, no layout jump after Annuler */
+html body .btn-delete-red-wrap,
+html body .ac-timed-delete {
+  display: inline-flex !important;
+  align-items: center !important;
+  vertical-align: middle !important;
+  line-height: 1 !important;
+}
+html body .btn-delete-red-wrap .btn-delete-red,
+html body table .btn-delete-red-wrap .btn-delete-red,
+html body .row-actions .btn-delete-red,
+html body .settings-main .btn-delete-red {
+  height: 32px !important;
+  min-height: 32px !important;
+  max-height: 32px !important;
+  padding: 0 12px !important;
+  border-radius: 999px !important;
+  font-size: 12px !important;
+  box-shadow: none !important;
+}
+html body .row-actions {
+  align-items: center !important;
+  flex-wrap: nowrap !important;
+  gap: 6px !important;
+}
+
+/* WHATSNEW_NEUTRAL_V45 */
+html body .whats-new-ver,
+html body .whats-new-page .whats-new-ver {
+  color: #334155 !important;
+  background: #f1f5f9 !important;
+  border: 1px solid #e2e8f0 !important;
+}
+html body .whats-new-card,
+html body .whats-new-page .card {
+  background: #ffffff !important;
+  border: 1px solid #e8eaef !important;
+  border-radius: 16px !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+html body .balance-page .balance-chart-fill {
+  background: linear-gradient(90deg, #0a0a0a, #52525b) !important;
+}
+html body .stock-pill.ok {
+  background: #f1f5f9 !important;
+  color: #334155 !important;
+}
+
+/* LOGIN_EYES_V46 */
+.atlas-eyeball {
+  position: relative;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: hidden !important;
+}
+.atlas-eyeball-pupil,
+.atlas-pupil-dot {
+  border-radius: 50% !important;
+  flex-shrink: 0;
+}
+.atlas-login-left .atlas-char-eye-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+}
+
+/* WHATSNEW_STACK_V51 — continuous list, no huge gaps between cards */
+html body .whats-new-page .whats-new-list,
+html body .whats-new-list.whats-new-list--stack {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+  max-width: 720px !important;
+  margin: 20px auto 0 !important;
+  background: #ffffff !important;
+  border: 1px solid #e8eaef !important;
+  border-radius: 16px !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+}
+html body .whats-new-page .whats-new-card,
+html body .whats-new-card.whats-new-card--row,
+html body .whats-new-list .card.whats-new-card {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  padding: 18px 22px !important;
+  margin: 0 !important;
+}
+html body .whats-new-list .whats-new-card:last-child {
+  border-bottom: none !important;
+}
+html body .whats-new-ver {
+  color: #334155 !important;
+  background: #f1f5f9 !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+/* v179 dark focus — undo forced whites on dark theme */
+html[data-theme="dark"] body .settings-shell,
+html[data-theme="dark"] body .settings-main,
+html[data-theme="dark"] body .settings-page,
+html[data-theme="dark"] body .about-page,
+html[data-theme="dark"] body .whats-new-page,
+html[data-theme="dark"] body .balance-page,
+html[data-theme="dark"] body .mailbox-page {
+  --mint: #1c1c1f;
+  --glass-bg: #1c1c1f;
+  --teal-soft: #27272a;
+}
+html[data-theme="dark"] body .settings-shell .card,
+html[data-theme="dark"] body .settings-main .card,
+html[data-theme="dark"] body .settings-panel,
+html[data-theme="dark"] body .settings-section,
+html[data-theme="dark"] body .about-page .card,
+html[data-theme="dark"] body .about-section,
+html[data-theme="dark"] body .about-version-card,
+html[data-theme="dark"] body .about-meta-card,
+html[data-theme="dark"] body .whats-new-page .ac-panel,
+html[data-theme="dark"] body .whats-new-page .whats-new-list,
+html[data-theme="dark"] body .whats-new-page .whats-new-entry,
+html[data-theme="dark"] body .balance-page .ac-panel,
+html[data-theme="dark"] body .balance-page .card,
+html[data-theme="dark"] body .balance-page .atlas-stat,
+html[data-theme="dark"] body .mailbox-page .mailbox-shell,
+html[data-theme="dark"] body .mailbox-page .mailbox-list-panel,
+html[data-theme="dark"] body .mailbox-page .mailbox-read-panel {
+  background: #1c1c1f !important;
+  border-color: #2a2a2e !important;
+  color: #f4f4f5 !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"] body .settings-main table,
+html[data-theme="dark"] body .settings-main .table-wrap table,
+html[data-theme="dark"] body .settings-main table thead th,
+html[data-theme="dark"] body .settings-main table tbody td {
+  background: #1c1c1f !important;
+  color: #e4e4e7 !important;
+  border-color: #2a2a2e !important;
+}
+html[data-theme="dark"] body .settings-main table thead th {
+  background: #27272a !important;
+  color: #a1a1aa !important;
+}
+html[data-theme="dark"] body .settings-main table tbody tr:hover td {
+  background: #27272a !important;
+}
+html[data-theme="dark"] body .settings-main input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+html[data-theme="dark"] body .settings-main select,
+html[data-theme="dark"] body .settings-main textarea,
+html[data-theme="dark"] body .about-page input,
+html[data-theme="dark"] body .whats-new-page input,
+html[data-theme="dark"] body .balance-page input:not([type="checkbox"]),
+html[data-theme="dark"] body .balance-page select {
+  background: #1c1c1f !important;
+  border-color: #3f3f46 !important;
+  color: #f4f4f5 !important;
+}
+html[data-theme="dark"] body .settings-main button.secondary,
+html[data-theme="dark"] body .about-page button.secondary,
+html[data-theme="dark"] body .about-page a.secondary,
+html[data-theme="dark"] body .whats-new-page button.secondary {
+  background: #27272a !important;
+  color: #e4e4e7 !important;
+  border-color: #3f3f46 !important;
+}

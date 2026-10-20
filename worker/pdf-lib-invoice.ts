@@ -3,6 +3,7 @@
  * Respects printable area: new pages when line items overflow.
  */
 import { PDFDocument, PDFPage, PDFFont, StandardFonts, rgb, degrees } from 'pdf-lib';
+import { qrMatrixWithLogo } from './qrSvg';
 
 export type PdfLibDocInput = {
   title: string;
@@ -415,30 +416,46 @@ export async function buildInvoicePdfLib(input: PdfLibDocInput): Promise<Uint8Ar
 
     if (isInvoice && input.publicUrl) {
     ensureSpace(78);
-    let qrImg: any = null;
-    try {
-      const qrApi = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&margin=2&ecc=M&color=0f1b2d&bgcolor=ffffff&data=${encodeURIComponent(String(input.publicUrl))}`;
-      const res = await fetch(qrApi);
-      if (res.ok) {
-        const buf = new Uint8Array(await res.arrayBuffer());
-        qrImg = await pdf.embedPng(buf).catch(async () => {
-          try { return await pdf.embedJpg(buf); } catch { return null; }
-        });
-      }
-    } catch { /* offline / network */ }
-    const boxH = qrImg ? 70 : 40;
+    const boxH = 70;
     page.drawRectangle({
       x: M, y: y - boxH + 8, width: PAGE_W - 2 * M, height: boxH,
       borderColor: muted, borderWidth: 0.8, color: rgb(0.98, 0.98, 0.98),
     });
-    if (qrImg) {
+    try {
+      const { matrix, logoFrom, logoSize } = qrMatrixWithLogo(String(input.publicUrl));
       const qs = 56;
-      page.drawImage(qrImg, { x: M + 8, y: y - boxH + 14, width: qs, height: qs });
+      const qx = M + 8;
+      const qy = y - boxH + 14;
+      const n = matrix.length || 1;
+      const cell = qs / n;
+      page.drawRectangle({ x: qx, y: qy, width: qs, height: qs, color: rgb(1, 1, 1) });
+      for (let r = 0; r < n; r++) {
+        for (let c = 0; c < n; c++) {
+          if (matrix[r][c]) {
+            page.drawRectangle({
+              x: qx + c * cell,
+              y: qy + (n - 1 - r) * cell,
+              width: cell + 0.05,
+              height: cell + 0.05,
+              color: rgb(0.04, 0.04, 0.04),
+            });
+          }
+        }
+      }
+      // Center Atlas plate
+      const ls = logoSize * cell;
+      const lx = qx + logoFrom * cell;
+      const ly = qy + (n - logoFrom - logoSize) * cell;
+      page.drawRectangle({
+        x: lx, y: ly, width: ls, height: ls,
+        color: rgb(0.04, 0.04, 0.04),
+      });
+      drawText(page, 'A', lx + ls * 0.28, ly + ls * 0.28, Math.max(8, ls * 0.55), bold, rgb(1, 1, 1));
       drawText(page, 'Scanner pour vérifier ce document', M + 72, y - 6, 9, bold);
       drawText(page, `${input.number || ''}  -  Total ${money(input.total)} ${cur}  -  Payé ${money(paid)}  -  Reste ${money(due)}`, M + 72, y - 20, 8, font, muted);
       drawText(page, 'QR officiel Atlas — ne scannez pas d\'autres codes.', M + 72, y - 32, 7, font, muted);
-    } else {
-      drawText(page, 'Vérification en ligne (QR indisponible hors réseau)', M + 8, y - 6, 8, bold);
+    } catch {
+      drawText(page, 'Vérification en ligne (QR indisponible)', M + 8, y - 6, 8, bold);
       drawText(page, `Total ${money(input.total)} ${cur} | Payé ${money(paid)} | Reste ${money(due)}`, M + 8, y - 18, 8, font, muted);
     }
     y -= boxH + 8;

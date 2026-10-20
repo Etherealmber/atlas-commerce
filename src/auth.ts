@@ -50,7 +50,9 @@ export function getDisplayInitials(): string {
   if (!name) return 'A';
   const parts = name.split(/[\s._-]+/).filter(Boolean);
   if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-  return name.slice(0, 2).toUpperCase();
+  // Single token: use first letter only for long labels (e.g. "Administrateur" → "A" not "AD")
+  if (parts[0].length > 3) return parts[0][0].toUpperCase();
+  return parts[0].slice(0, 2).toUpperCase();
 }
 
 export function clearToken() {
@@ -170,6 +172,7 @@ export function canAccessCompanySettings(): boolean {
   const r = getRole();
   return r === 'owner' || r === 'admin' || r === 'secretaire';
 }
+
 
 /** Any logged-in user may open Settings (profile at minimum). */
 export function canAccessSettings(): boolean {

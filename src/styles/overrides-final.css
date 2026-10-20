@@ -1,0 +1,3399 @@
+
+/* LAST — kill legacy teal chrome */
+html .sidebar,
+html body .layout > .sidebar,
+html[data-theme] .sidebar {
+  background: #ffffff !important;
+  background-image: none !important;
+  color: #0f172a !important;
+  border-right: 1px solid #e8eaef !important;
+}
+html[data-theme="dark"] .sidebar {
+  background: #0c0c0c !important;
+  color: #f4f4f5 !important;
+  border-right-color: #27272a !important;
+}
+html .sidebar .logo-mark { color: #0f172a !important; }
+html[data-theme="dark"] .sidebar .logo-mark { color: #f4f4f5 !important; }
+html .sidebar .logo-sub { color: #71717a !important; }
+html .sidebar nav a { color: #475569 !important; background: transparent !important; }
+html .sidebar nav a:hover,
+html .sidebar nav a.active {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"] .sidebar nav a { color: #a1a1aa !important; }
+html[data-theme="dark"] .sidebar nav a:hover,
+html[data-theme="dark"] .sidebar nav a.active {
+  background: #1a1a1a !important;
+  color: #fafafa !important;
+}
+html .sidebar .nav-section { color: #94a3b8 !important; }
+html .sidebar-footer { display: none !important; }
+
+/* Primary buttons: black/white never teal */
+html .content button:not(.secondary):not(.ghost):not(.danger):not(.icon-refresh-btn):not(.mailbox-folder-item):not(.settings-nav-item):not(.theme-toggle):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop),
+html .modal button:not(.secondary):not(.ghost):not(.danger),
+html .ac-edit-profile-modal button:not(.secondary):not(.ac-edit-profile-close) {
+  background: #0a0a0a !important;
+  background-image: none !important;
+  color: #fafafa !important;
+  border-color: #0a0a0a !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"] .content button:not(.secondary):not(.ghost):not(.danger):not(.icon-refresh-btn):not(.mailbox-folder-item):not(.settings-nav-item):not(.theme-toggle):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.atlas-shell-icon-btn):not(.ac-topbar-mail):not(.ac-topbar-notif):not(.ac-topbar-user-btn):not(.ac-pill-pager-btn):not(.ac-list-pager-btn):not(.ac-pager-hit),
+html[data-theme="dark"] .modal button:not(.secondary):not(.ghost):not(.danger):not(.account-menu-item),
+html[data-theme="dark"] .ac-edit-profile-modal button:not(.secondary):not(.ac-edit-profile-close) {
+  background: #2a3040 !important;
+  color: #f0f1f5 !important;
+  border-color: #3a4154 !important;
+}
+html .content button.secondary,
+html .modal button.secondary,
+html .ac-edit-profile-modal button.secondary {
+  background: transparent !important;
+  color: var(--ac-ink) !important;
+  border: 1px solid var(--ac-line) !important;
+}
+
+/* Red delete */
+.ac-timed-undo-btn {
+  border: none !important;
+  cursor: pointer;
+  border-radius: 999px !important;
+  background: #ef4444 !important;
+  color: #fff !important;
+  min-height: 40px !important;
+  padding: 0 !important;
+}
+.ac-timed-undo-btn.is-armed {
+  background: rgba(239, 68, 68, 0.12) !important;
+  color: #ef4444 !important;
+}
+.ac-timed-undo-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+.ac-timed-undo-undo-ico {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+}
+.ac-timed-undo-count {
+  display: inline-flex;
+  min-width: 1.5rem;
+  justify-content: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff !important;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+/* Profile modal: neutral overlay (no teal stage) */
+.ac-edit-profile-root {
+  background: transparent !important;
+}
+.ac-edit-profile-backdrop {
+  background: rgba(15, 23, 42, 0.45) !important;
+  backdrop-filter: none !important;
+}
+html[data-theme="dark"] .ac-edit-profile-backdrop {
+  background: rgba(0, 0, 0, 0.65) !important;
+}
+.ac-edit-profile-close {
+  background: var(--ac-nav-hover) !important;
+  color: var(--ac-ink) !important;
+  border: 1px solid var(--ac-line) !important;
+  border-radius: 10px !important;
+}
+.ac-edit-profile-modal button.ac-edit-profile-close {
+  background: var(--ac-nav-hover) !important;
+  color: var(--ac-ink) !important;
+  border: 1px solid var(--ac-line) !important;
+}
+
+.layout-settings-focus .ac-topbar--bionis { display: none !important; }
+
+/* Text size chips in settings — not teal */
+html .content .density-toggle button.active,
+html .content [class*="type"] button.active,
+html .content button.active:not(.nav) {
+  background: #0a0a0a !important;
+  color: #fafafa !important;
+  border-color: #0a0a0a !important;
+}
+
+
+/* Delete always red — never teal/black primary look */
+button.ac-timed-undo-btn,
+.ac-timed-undo-btn,
+button.ac-timed-delete-btn,
+.ac-timed-delete-btn,
+.ac-timed-delete-btn--solid,
+button.ac-btn-delete {
+  background: #ef4444 !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 999px !important;
+  font-weight: 700 !important;
+  box-shadow: none !important;
+  min-height: 40px !important;
+}
+button.ac-timed-undo-btn.is-armed,
+.ac-timed-undo-btn.is-armed {
+  background: rgba(239, 68, 68, 0.14) !important;
+  color: #ef4444 !important;
+}
+/* Selected row should not look like "armed delete" */
+tr.is-selected td,
+tr[data-selected="1"] td {
+  background: transparent !important;
+}
+
+
+/* ===== DELETE RED (beats .content button black) ===== */
+html body .content button.ac-timed-undo-btn,
+html body .content button.ac-timed-undo-btn.is-armed,
+html body button.ac-timed-undo-btn,
+html body .modal button.ac-timed-undo-btn,
+html body .page-header button.ac-timed-undo-btn,
+html body .ac-timed-undo-btn {
+  background: #ef4444 !important;
+  background-image: none !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 999px !important;
+  min-width: 112px !important;
+  width: 128px !important;
+  height: 40px !important;
+  max-height: 40px !important;
+  padding: 0 12px !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  box-shadow: none !important;
+  line-height: 1 !important;
+}
+html body .content button.ac-timed-undo-btn.is-armed,
+html body button.ac-timed-undo-btn.is-armed {
+  background: rgba(239, 68, 68, 0.12) !important;
+  color: #ef4444 !important;
+}
+
+
+/* ===== Modals: no colored stage — only transparent + dim ===== */
+.ac-edit-profile-root,
+.modal-overlay,
+.account-menu-backdrop,
+.ac-topbar-menu-backdrop {
+  background-image: none !important;
+}
+.ac-edit-profile-root { background: transparent !important; }
+.ac-edit-profile-backdrop,
+.modal-overlay {
+  background: rgba(0, 0, 0, 0.5) !important;
+}
+/* Single chevron on profile timezone select */
+.ac-edit-profile-select-wrap select {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  background-image: none !important;
+  padding-right: 2rem !important;
+}
+
+
+/* FORCE RED DELETE EVERYWHERE — last rules win */
+button.ac-timed-undo-btn,
+button.ac-timed-undo-btn *,
+.ac-timed-undo-btn,
+html body .content button.ac-timed-undo-btn,
+html body .page-header button.ac-timed-undo-btn,
+html body table button.ac-timed-undo-btn,
+html body .modal button button.ac-timed-undo-btn {
+  background: #ef4444 !important;
+  background-color: #ef4444 !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-color: transparent !important;
+}
+html body .content button.ac-timed-undo-btn.is-armed,
+button.ac-timed-undo-btn.is-armed {
+  background: rgba(239, 68, 68, 0.15) !important;
+  background-color: rgba(239, 68, 68, 0.15) !important;
+  color: #ef4444 !important;
+}
+button.danger,
+html body .content button.danger {
+  background: #ef4444 !important;
+  color: #fff !important;
+  border-color: #ef4444 !important;
+}
+
+
+/* ===== v14: kill solid black content / stuck overlay look ===== */
+html:not([data-theme="dark"]) body,
+html[data-theme="light"] body,
+html:not([data-theme="dark"]) .content,
+html[data-theme="light"] .content,
+html:not([data-theme="dark"]) .ac-main-column,
+html:not([data-theme="dark"]) .settings-main,
+html:not([data-theme="dark"]) .settings-shell {
+  background: #f4f5f7 !important;
+  background-image: none !important;
+  color: #0f172a !important;
+}
+html:not([data-theme="dark"]) .card,
+html[data-theme="light"] .card,
+html:not([data-theme="dark"]) .settings-main .card {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #e8eaef !important;
+}
+
+/* Never let a full-page solid black stage appear outside dark theme */
+html:not([data-theme="dark"]) .modal-overlay,
+html:not([data-theme="dark"]) .modal-backdrop,
+html:not([data-theme="dark"]) .audit-detail-modal-backdrop {
+  background: rgba(15, 23, 42, 0.45) !important;
+  background-image: none !important;
+}
+
+/* Settings: secondary buttons (no solid black) */
+html .settings-main button:not(.danger):not(.ac-timed-undo-btn):not(.ac-btn-delete),
+html .settings-shell button:not(.danger):not(.ac-timed-undo-btn),
+html .ac-settings-profile-bar button,
+html .settings-tab-save-bar button,
+html .settings-topbar-tabs button,
+html .settings-topnav-item {
+  background: transparent !important;
+  background-image: none !important;
+  color: #0f172a !important;
+  border: 1px solid #e8eaef !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"] .settings-main button:not(.danger):not(.ac-timed-undo-btn),
+html[data-theme="dark"] .settings-shell button:not(.danger):not(.ac-timed-undo-btn),
+html[data-theme="dark"] .ac-settings-profile-bar button {
+  color: #f4f4f5 !important;
+  border-color: #27272a !important;
+}
+html .settings-main button:hover:not(.danger),
+html .ac-settings-profile-bar button:hover {
+  background: #f1f5f9 !important;
+}
+html .settings-main button.active,
+html .settings-topbar-tabs button.active,
+html .settings-topnav-item.active {
+  background: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Notifications topbar icon = secondary outline (never solid black) */
+html .ac-topbar-icon,
+html button.ac-topbar-icon,
+html .ac-topbar-right .ac-topbar-icon {
+  background: transparent !important;
+  background-image: none !important;
+  color: #0f172a !important;
+  border: 1px solid #e8eaef !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"] .ac-topbar-icon {
+  color: #f4f4f5 !important;
+  border-color: #27272a !important;
+}
+html .ac-topbar-icon:hover {
+  background: #f1f5f9 !important;
+}
+
+/* Edit profile modal always readable */
+html .ac-edit-profile-modal {
+  background: #ffffff !important;
+  color: #0f172a !important;
+}
+html[data-theme="dark"] .ac-edit-profile-modal {
+  background: #141414 !important;
+  color: #f4f4f5 !important;
+}
+html .ac-edit-profile-modal button.secondary,
+html .ac-edit-profile-modal .ac-edit-profile-save,
+html .ac-edit-profile-modal .ac-edit-profile-close {
+  background: transparent !important;
+  color: inherit !important;
+  border: 1px solid #e8eaef !important;
+}
+html .ac-edit-profile-backdrop {
+  z-index: 0 !important;
+}
+html .ac-edit-profile-modal {
+  z-index: 1 !important;
+}
+
+
+/* Timed undo — force red pill like Watermelon reference */
+html body .ac-timed-undo-btn,
+html body button.ac-timed-undo-btn,
+html body .content button.ac-timed-undo-btn,
+html body .content .ac-timed-undo-btn {
+  background: #ef4444 !important;
+  background-image: none !important;
+  color: #fafafa !important;
+  border: none !important;
+  border-radius: 9999px !important;
+  box-shadow: none !important;
+  min-height: 44px !important;
+  height: auto !important;
+  width: auto !important;
+  max-width: none !important;
+  padding: 0 !important;
+}
+html body .ac-timed-undo-btn.is-armed,
+html body button.ac-timed-undo-btn.is-armed {
+  background: rgba(239, 68, 68, 0.12) !important;
+  color: #f87171 !important;
+}
+html body .ac-timed-undo-label {
+  color: #fafafa !important;
+}
+html body .ac-timed-undo-btn.is-armed .ac-timed-undo-label,
+html body .ac-timed-undo-label.is-armed {
+  color: #f87171 !important;
+}
+
+
+/* ===== v16: BLACK OVAL ROOT CAUSE — menu backdrop was a <button> with pill radius + primary black ===== */
+html body .ac-topbar-menu-backdrop,
+html body div.ac-topbar-menu-backdrop,
+html body button.ac-topbar-menu-backdrop {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 50 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+  cursor: default !important;
+  pointer-events: auto !important;
+}
+
+/* Segment controls (theme / text size) — match each other, outline only */
+html body .ac-theme-seg,
+html body .ac-scale-seg {
+  display: inline-flex !important;
+  gap: 6px !important;
+  flex-wrap: wrap !important;
+}
+html body .ac-theme-seg .ac-seg-btn,
+html body .ac-scale-seg .ac-seg-btn,
+html body .ac-theme-seg button.secondary,
+html body .ac-scale-seg button.secondary {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  min-height: 36px !important;
+  padding: 6px 12px !important;
+  border-radius: 999px !important;
+  border: 1px solid #e8eaef !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  font-size: 0.8125rem !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+}
+html body .ac-theme-seg .ac-seg-btn[aria-pressed="true"],
+html body .ac-scale-seg .ac-seg-btn[aria-pressed="true"],
+html body .ac-theme-seg button.secondary[aria-pressed="true"] {
+  background: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+}
+html[data-theme="dark"] body .ac-theme-seg .ac-seg-btn,
+html[data-theme="dark"] body .ac-scale-seg .ac-seg-btn {
+  background: #141414 !important;
+  color: #f4f4f5 !important;
+  border-color: #27272a !important;
+}
+
+/* DELETE — hard red, beats every primary button rule */
+html body button.ac-timed-undo-btn,
+html body .ac-timed-undo-btn,
+html body .content button.ac-timed-undo-btn,
+html body .content .ac-timed-undo-root button,
+html body .atlas-catalog button.ac-timed-undo-btn,
+html body table button.ac-timed-undo-btn {
+  background: #ef4444 !important;
+  background-color: #ef4444 !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 9999px !important;
+  box-shadow: none !important;
+}
+html body button.ac-timed-undo-btn.is-armed,
+html body .ac-timed-undo-btn.is-armed,
+html body .content button.ac-timed-undo-btn.is-armed {
+  background: rgba(239, 68, 68, 0.14) !important;
+  background-color: rgba(239, 68, 68, 0.14) !important;
+  color: #f87171 !important;
+}
+
+
+/* v17 user menu light + delete div */
+html body .ac-user-dropdown-item,
+html body .ac-user-dropdown button {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e8eaef !important;
+  box-shadow: none !important;
+}
+html body .btn-delete-red {
+  background-color: #ef4444 !important;
+  color: #fff !important;
+}
+html body .btn-delete-red.is-armed {
+  background-color: rgba(239, 68, 68, 0.14) !important;
+  color: #f87171 !important;
+}
+
+
+/* ===== v18 Date range picker — Watermelon-like (presets + calendar) ===== */
+html body .atlas-dp-pop {
+  z-index: 10060 !important;
+  background: #ffffff !important;
+  border: 1px solid #e8eaef !important;
+  border-radius: 16px !important;
+  box-shadow: 0 16px 48px rgba(15, 23, 42, 0.14) !important;
+  color: #0f172a !important;
+  overflow: hidden !important;
+}
+html body .atlas-dp-range.has-presets {
+  display: grid !important;
+  grid-template-columns: 148px 1fr !important;
+  width: min(440px, 96vw) !important;
+  min-width: 360px !important;
+}
+html body .atlas-dp-presets {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+  padding: 10px 8px !important;
+  background: #f8fafc !important;
+  border-right: 1px solid #e8eaef !important;
+}
+html body button.atlas-dp-preset {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 8px !important;
+  color: #475569 !important;
+  text-align: left !important;
+  padding: 8px 10px !important;
+  font-size: 0.8125rem !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+  width: 100% !important;
+  cursor: pointer !important;
+}
+html body button.atlas-dp-preset:hover {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+html body button.atlas-dp-preset.is-active {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+  font-weight: 600 !important;
+}
+html body .atlas-dp-range-main {
+  padding: 12px 14px 10px !important;
+  background: #fff !important;
+}
+html body .atlas-dp-hint {
+  margin: 0 0 10px !important;
+  font-size: 0.8rem !important;
+  color: #64748b !important;
+  font-weight: 500 !important;
+}
+html body button.atlas-dp-day {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 8px !important;
+  color: #0f172a !important;
+  box-shadow: none !important;
+  width: 36px !important;
+  height: 36px !important;
+  font-size: 0.8125rem !important;
+}
+html body button.atlas-dp-day:hover {
+  background: #f1f5f9 !important;
+}
+html body button.atlas-dp-day.is-selected,
+html body button.atlas-dp-day.is-range-end,
+html body button.atlas-dp-day.is-range-start {
+  background: #0a0a0a !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+html body button.atlas-dp-day.in-range {
+  background: #f4f4f5 !important;
+  color: #1e3a8a !important;
+  border-radius: 0 !important;
+}
+html body button.atlas-dp-nav,
+html body button.atlas-dp-btn {
+  background: #ffffff !important;
+  border: 1px solid #e8eaef !important;
+  color: #0f172a !important;
+  border-radius: 999px !important;
+  box-shadow: none !important;
+  font-weight: 600 !important;
+}
+html body button.atlas-dp-trigger {
+  background: #ffffff !important;
+  border: 1px solid #e8eaef !important;
+  color: #0f172a !important;
+  border-radius: 999px !important;
+  box-shadow: none !important;
+  min-height: 40px !important;
+  padding: 8px 14px !important;
+}
+html body .atlas-dp-foot {
+  display: flex !important;
+  justify-content: flex-end !important;
+  gap: 8px !important;
+  padding: 8px 12px 12px !important;
+  border-top: 1px solid #f1f5f9 !important;
+}
+
+/* User menu items — white chips */
+html body .ac-user-dropdown-item,
+html body .ac-user-dropdown button.ac-user-dropdown-item {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e8eaef !important;
+  border-radius: 12px !important;
+}
+
+
+/* v19 — FORCE RED delete everywhere (buttons that still say Supprimer) */
+html body .btn-delete-red,
+html body [role="button"].btn-delete-red,
+html body .btn-delete-red-wrap [role="button"],
+html body button.btn-delete-red,
+html body button.danger,
+html body .content button.danger {
+  background: #ef4444 !important;
+  background-color: #ef4444 !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+html body .btn-delete-red.is-armed,
+html body [role="button"].btn-delete-red.is-armed {
+  background: rgba(239, 68, 68, 0.14) !important;
+  background-color: rgba(239, 68, 68, 0.14) !important;
+  color: #f87171 !important;
+}
+/* Kill black primary on any leftover ac-timed-undo-btn */
+html body button.ac-timed-undo-btn,
+html body .content button.ac-timed-undo-btn,
+html body .atlas-catalog button.ac-timed-undo-btn {
+  background: #ef4444 !important;
+  background-color: #ef4444 !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 9999px !important;
+}
+
+
+/* v20 bionis charts + notifications */
+html body .ac-bionis-chart .ac-chart-bar {
+  transition: opacity 0.15s ease;
+}
+html body .ac-bionis-chart .ac-chart-bar:hover {
+  opacity: 0.9;
+}
+html body .ac-panel,
+html body .ac-metric {
+  background: #ffffff !important;
+  border: 1px solid #e8eaef !important;
+  border-radius: 16px !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+html body .ac-notif-panel {
+  position: absolute !important;
+  right: 0 !important;
+  top: calc(100% + 8px) !important;
+  width: min(320px, 92vw) !important;
+  background: #ffffff !important;
+  border: 1px solid #e8eaef !important;
+  border-radius: 16px !important;
+  box-shadow: 0 16px 48px rgba(15, 23, 42, 0.12) !important;
+  z-index: 60 !important;
+  color: #0f172a !important;
+  overflow: hidden !important;
+}
+html body .ac-notif-head {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 12px 14px !important;
+  border-bottom: 1px solid #e8eaef !important;
+  background: #f8fafc !important;
+}
+html body .ac-notif-list {
+  list-style: none !important;
+  margin: 0 !important;
+  padding: 8px !important;
+  max-height: 320px !important;
+  overflow: auto !important;
+}
+html:not([data-theme="dark"]) body button.ac-notif-item,
+html:not([data-theme="dark"]) body .ac-notif-item {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 10px !important;
+  width: 100% !important;
+  text-align: left !important;
+  padding: 10px 12px !important;
+  border-radius: 12px !important;
+  border: none !important;
+  background: transparent !important;
+  color: #0f172a !important;
+  box-shadow: none !important;
+  cursor: pointer !important;
+}
+html:not([data-theme="dark"]) body button.ac-notif-item:hover,
+html:not([data-theme="dark"]) body .ac-notif-item:hover {
+  background: #f1f5f9 !important;
+}
+html:not([data-theme="dark"]) body .ac-notif-item strong {
+  display: block !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  color: #0f172a !important;
+}
+html:not([data-theme="dark"]) body .ac-notif-item em {
+  display: block !important;
+  font-style: normal !important;
+  font-size: 0.75rem !important;
+  color: #64748b !important;
+  margin-top: 2px !important;
+}
+html body .ac-notif-dot {
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 999px !important;
+  margin-top: 6px !important;
+  flex-shrink: 0 !important;
+  background: #94a3b8 !important;
+}
+html body .ac-notif-dot.warn { background: #f59e0b !important; }
+html body .ac-notif-dot.danger { background: #ef4444 !important; }
+html body .ac-notif-empty {
+  padding: 20px !important;
+  text-align: center !important;
+  color: #64748b !important;
+  font-size: 0.875rem !important;
+}
+html body .ac-notif-all {
+  display: block !important;
+  width: 100% !important;
+  padding: 10px !important;
+  text-align: center !important;
+  border-top: 1px solid #e8eaef !important;
+  background: #fff !important;
+  color: #0f172a !important;
+  font-weight: 600 !important;
+  font-size: 0.8125rem !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+}
+
+
+/* v21 area charts + bionis metric polish */
+html body .ac-area-chart .ac-chart-line {
+  filter: drop-shadow(0 1px 0 rgba(15, 23, 42, 0.04));
+}
+html body .ac-area-chart .ac-chart-dot {
+  transition: r 0.15s ease;
+}
+html body .ac-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  padding: 8px 4px 0;
+  justify-content: center;
+}
+html body .ac-chart-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #71717a;
+}
+html body .ac-chart-legend-item i {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  display: inline-block;
+}
+html body .ac-metric-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)) !important;
+  gap: 12px !important;
+}
+html body .ac-metric {
+  padding: 16px 18px !important;
+}
+html body .ac-metric .as-value {
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+  color: #0f172a !important;
+}
+html body .ac-metric .as-label {
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  color: #64748b !important;
+  margin-bottom: 6px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+html body .ac-metric .as-hint {
+  font-size: 0.7rem !important;
+  color: #94a3b8 !important;
+  margin-top: 4px !important;
+}
+html body .ac-panel {
+  padding: 16px 18px !important;
+}
+html body .ac-panel-head h3 {
+  margin: 0 !important;
+  font-size: 1rem !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+}
+html body .ac-panel-head p {
+  margin: 4px 0 0 !important;
+  font-size: 0.8rem !important;
+  color: #64748b !important;
+}
+
+
+/* v24 products list — Bionis / Watermelon */
+html body .ac-products-kpis {
+  margin-bottom: 14px !important;
+}
+html body .ac-metric--ok .as-value { color: #0a0a0a !important; }
+html body .ac-metric--warn .as-value { color: #d97706 !important; }
+html body .ac-metric--danger .as-value { color: #dc2626 !important; }
+
+html body .ac-products-filters {
+  margin-bottom: 14px !important;
+  padding: 14px 16px !important;
+}
+html body .ac-products-filters-row {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 10px !important;
+  align-items: center !important;
+}
+html body .ac-search-field {
+  position: relative !important;
+  flex: 1 1 220px !important;
+  min-width: 180px !important;
+}
+html body .ac-search-icon {
+  position: absolute !important;
+  left: 12px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  color: #94a3b8 !important;
+  pointer-events: none !important;
+}
+html body .ac-search-input {
+  width: 100% !important;
+  height: 40px !important;
+  padding: 8px 12px 8px 36px !important;
+  border: 1px solid #e8eaef !important;
+  border-radius: 12px !important;
+  background: #fff !important;
+  color: #0f172a !important;
+  font-size: 0.875rem !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+html body .ac-search-input:focus {
+  border-color: #94a3b8 !important;
+  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.2) !important;
+}
+html body .ac-filter-select {
+  height: 40px !important;
+  min-width: 140px !important;
+  padding: 0 12px !important;
+  border: 1px solid #e8eaef !important;
+  border-radius: 12px !important;
+  background: #fff !important;
+  color: #0f172a !important;
+  font-size: 0.875rem !important;
+  box-shadow: none !important;
+}
+html body .ac-products-legend {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 12px 16px !important;
+  margin-top: 12px !important;
+  padding-top: 10px !important;
+  border-top: 1px solid #f1f5f9 !important;
+  font-size: 0.75rem !important;
+  color: #64748b !important;
+}
+html body .ac-products-table-panel {
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+html body .ac-products-table-panel .table-wrap,
+html body .ac-products-table-panel > table {
+  margin: 0 !important;
+}
+html body table.ac-products-table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+}
+html body table.ac-products-table thead th {
+  background: #f8fafc !important;
+  color: #64748b !important;
+  font-size: 0.7rem !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  padding: 12px 14px !important;
+  border-bottom: 1px solid #e8eaef !important;
+  text-align: left !important;
+}
+html body table.ac-products-table tbody td {
+  padding: 12px 14px !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  vertical-align: middle !important;
+  font-size: 0.875rem !important;
+  color: #0f172a !important;
+  background: #fff !important;
+}
+html body table.ac-products-table tbody tr:hover td {
+  background: #f8fafc !important;
+}
+html body table.ac-products-table .row-actions {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 6px !important;
+  align-items: center !important;
+}
+html body table.ac-products-table .row-actions .secondary {
+  background: #fff !important;
+  border: 1px solid #e8eaef !important;
+  color: #0f172a !important;
+  border-radius: 999px !important;
+  padding: 6px 12px !important;
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+}
+html body .stock-pill {
+  display: inline-flex !important;
+  align-items: center !important;
+  padding: 2px 8px !important;
+  border-radius: 999px !important;
+  font-size: 0.65rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.02em !important;
+  text-transform: uppercase !important;
+}
+html body .stock-pill.ok { background: #f1f5f9 !important; color: #334155 !important; }
+html body .stock-pill.low { background: #fffbeb !important; color: #b45309 !important; }
+html body .stock-pill.out { background: #fef2f2 !important; color: #b91c1c !important; }
+
+
+/* v25 — NEVER oval full-screen backdrops (buttons/divs) */
+html body .ac-edit-profile-backdrop,
+html body .ac-topbar-menu-backdrop,
+html body .modal-overlay,
+html body .ac-modal-backdrop,
+html body .whats-new-modal-backdrop,
+html body .audit-detail-modal-backdrop,
+html body [class*="backdrop"][class*="modal"],
+html body [class*="modal"][class*="backdrop"],
+html body [class*="overlay"] {
+  border-radius: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 100vw !important;
+  min-height: 100vh !important;
+  max-width: none !important;
+  max-height: none !important;
+  inset: 0 !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background: rgba(15, 23, 42, 0.45) !important;
+  background-image: none !important;
+  background-color: rgba(15, 23, 42, 0.45) !important;
+  box-shadow: none !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  transform: none !important;
+  scale: none !important;
+}
+html body .ac-edit-profile-root {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 10050 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 16px !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+html body .ac-edit-profile-backdrop {
+  position: absolute !important;
+  z-index: 0 !important;
+  cursor: pointer !important;
+}
+html body .ac-edit-profile-modal {
+  position: relative !important;
+  z-index: 1 !important;
+  border-radius: 16px !important;
+  background: #fff !important;
+  max-width: min(720px, 96vw) !important;
+  width: 100% !important;
+  max-height: 90vh !important;
+  overflow: auto !important;
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.2) !important;
+}
+
+/* Products actions — single line */
+html body table.ac-products-table .row-actions,
+html body .row-actions {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  flex-direction: row !important;
+  gap: 6px !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  white-space: nowrap !important;
+}
+html body table.ac-products-table .row-actions-cell {
+  white-space: nowrap !important;
+  min-width: 280px !important;
+}
+html body table.ac-products-table .row-actions .secondary,
+html body table.ac-products-table .row-actions button.secondary {
+  flex-shrink: 0 !important;
+  white-space: nowrap !important;
+  padding: 5px 10px !important;
+  font-size: 0.72rem !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  border-radius: 999px !important;
+}
+html body table.ac-products-table .row-actions .btn-delete-red-wrap,
+html body table.ac-products-table .row-actions .btn-delete-red {
+  flex-shrink: 0 !important;
+}
+html body table.ac-products-table .row-actions .btn-delete-red {
+  min-height: 32px !important;
+  height: 32px !important;
+  font-size: 0.72rem !important;
+}
+html body table.ac-products-table .row-actions .btn-delete-red > div {
+  padding: 6px 14px !important;
+}
+
+
+/* v26 shell search dropdown + CRM list polish */
+html body .ac-topbar-search-wrap {
+  position: relative !important;
+  z-index: 80 !important;
+}
+html body .ac-topbar-search-expanded {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  min-width: min(360px, 70vw) !important;
+  height: 40px !important;
+  padding: 0 6px 0 12px !important;
+  border-radius: 999px !important;
+  border: 1px solid #e2e8f0 !important;
+  background: #fff !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+html body .ac-topbar-search-input {
+  flex: 1 !important;
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-size: 0.875rem !important;
+  color: #0f172a !important;
+  min-width: 0 !important;
+}
+html body .ac-topbar-search-clear {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 999px !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: #64748b !important;
+  padding: 0 !important;
+}
+html body .ac-shell-search-dropdown {
+  position: absolute !important;
+  top: calc(100% + 8px) !important;
+  left: 0 !important;
+  right: 0 !important;
+  min-width: 280px !important;
+  max-height: min(360px, 60vh) !important;
+  overflow: auto !important;
+  background: #fff !important;
+  border: 1px solid #e8eaef !important;
+  border-radius: 14px !important;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.12) !important;
+  padding: 6px !important;
+  z-index: 90 !important;
+}
+html body .ac-shell-search-empty {
+  padding: 14px 12px !important;
+  font-size: 0.8125rem !important;
+  color: #64748b !important;
+  text-align: center !important;
+}
+html body button.ac-shell-search-hit,
+html body .ac-shell-search-hit {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 10px !important;
+  width: 100% !important;
+  text-align: left !important;
+  padding: 10px 12px !important;
+  border: none !important;
+  border-radius: 10px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #0f172a !important;
+  cursor: pointer !important;
+}
+html body button.ac-shell-search-hit:hover {
+  background: #f1f5f9 !important;
+}
+html body .ac-shell-search-type {
+  flex-shrink: 0 !important;
+  font-size: 0.65rem !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  color: #64748b !important;
+  background: #f1f5f9 !important;
+  padding: 3px 7px !important;
+  border-radius: 6px !important;
+  margin-top: 2px !important;
+}
+html body .ac-shell-search-label {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+  min-width: 0 !important;
+}
+html body .ac-shell-search-label strong {
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+}
+html body .ac-shell-search-label em {
+  font-style: normal !important;
+  font-size: 0.75rem !important;
+  color: #64748b !important;
+}
+
+/* Shared list pages (clients, invoices, employees, attendance) */
+html body .atlas-crm .card,
+html body .atlas-page .card {
+  border: 1px solid #e8eaef !important;
+  border-radius: 16px !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+  background: #fff !important;
+}
+html body .atlas-crm .search-input,
+html body .atlas-page .search-input,
+html body input.search-input {
+  height: 40px !important;
+  border-radius: 12px !important;
+  border: 1px solid #e8eaef !important;
+  padding: 8px 12px !important;
+  background: #fff !important;
+  box-shadow: none !important;
+}
+html body .atlas-crm table.data-dense thead th,
+html body .atlas-page table.data-dense thead th {
+  background: #f8fafc !important;
+  color: #64748b !important;
+  font-size: 0.7rem !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  padding: 12px 14px !important;
+  border-bottom: 1px solid #e8eaef !important;
+}
+html body .atlas-crm table.data-dense tbody td,
+html body .atlas-page table.data-dense tbody td {
+  padding: 12px 14px !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  vertical-align: middle !important;
+}
+html body .atlas-crm .row-actions,
+html body .atlas-page .row-actions {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  gap: 6px !important;
+  align-items: center !important;
+}
+
+
+/* v27 login SwapForm polish + employees/attendance */
+html body .atlas-login-form.atlas-login-swap,
+html body .atlas-login-box {
+  width: min(400px, 100%) !important;
+  background: #fefefe !important;
+  border: 1.5px solid #e6e6ef !important;
+  border-radius: 32px !important;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08) !important;
+  padding: 28px 28px 20px !important;
+}
+html body .atlas-login-form h1,
+html body .atlas-login-form h2,
+html body .atlas-login-title {
+  font-size: 1.75rem !important;
+  font-weight: 700 !important;
+  color: #191919 !important;
+  margin: 0 0 8px !important;
+  letter-spacing: -0.02em !important;
+}
+html body .atlas-login input[type="text"],
+html body .atlas-login input[type="password"],
+html body .atlas-login input[type="email"],
+html body .atlas-login input {
+  width: 100% !important;
+  padding: 10px 16px !important;
+  border-radius: 12px !important;
+  border: 1.2px solid #e7e7e7 !important;
+  background: #fff !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important;
+  font-size: 0.9375rem !important;
+}
+html body .atlas-login-submit,
+html body .atlas-login button[type="submit"] {
+  width: 100% !important;
+  padding: 12px 16px !important;
+  border-radius: 12px !important;
+  background: #030303 !important;
+  color: #fafafa !important;
+  border: none !important;
+  font-weight: 600 !important;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.12) !important;
+}
+html body .atlas-login-ghost,
+html body .atlas-login button.secondary {
+  background: #fff !important;
+  border: 1.2px solid #e7e7e7 !important;
+  color: #131313 !important;
+  border-radius: 12px !important;
+}
+html body #cf-turnstile,
+html body .cf-turnstile {
+  display: flex !important;
+  justify-content: center !important;
+  margin: 12px 0 !important;
+  min-height: 65px !important;
+}
+html body .atlas-login--phone #cf-turnstile {
+  transform: scale(0.95);
+  transform-origin: center center;
+}
+
+html body .employees-page .atlas-stat,
+html body .atlas-crm .atlas-stat {
+  background: #fff !important;
+  border: 1px solid #e8eaef !important;
+  border-radius: 16px !important;
+  padding: 16px 18px !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+html body .employees-page .search-input,
+html body .attendance-page .search-input,
+html body .atlas-crm .search-input {
+  height: 40px !important;
+  border-radius: 12px !important;
+  border: 1px solid #e8eaef !important;
+}
+html body .employees-page table.data-dense thead th,
+html body .attendance-page table.data-dense thead th {
+  background: #f8fafc !important;
+  color: #64748b !important;
+  font-size: 0.7rem !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+}
+html body .attendance-stats-row {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)) !important;
+  gap: 10px !important;
+  margin-bottom: 14px !important;
+}
+html body .attendance-stats-row .card {
+  border-radius: 14px !important;
+  border: 1px solid #e8eaef !important;
+  box-shadow: none !important;
+}
+
+
+/* v28 — Clients / Actions / Employees / Attendance match Products */
+html body .clients-page .ac-metric-grid,
+html body .employees-page .ac-metric-grid,
+html body .actions-page .ac-metric-grid,
+html body .attendance-page .ac-metric-grid {
+  margin-bottom: 14px !important;
+}
+html body .clients-page .ac-panel,
+html body .employees-page .ac-panel,
+html body .actions-page .ac-panel,
+html body .attendance-page .ac-panel {
+  margin-bottom: 14px !important;
+}
+html body .clients-page .badge.success,
+html body .employees-page .badge.success,
+html body .actions-page .badge.success,
+html body .attendance-page .badge.success {
+  background: #f1f5f9 !important;
+  color: #334155 !important;
+}
+html body .clients-page a,
+html body .employees-page a.btn {
+  color: #0f172a !important;
+}
+html body .clients-page .party-name-link,
+html body .employees-page .party-name-link {
+  color: #0f172a !important;
+  font-weight: 600 !important;
+  text-decoration: none !important;
+}
+html body .clients-page .party-name-link:hover {
+  color: #0a0a0a !important;
+}
+html body .clients-page .row-actions,
+html body .employees-page .row-actions,
+html body .actions-page .row-actions {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  gap: 6px !important;
+  align-items: center !important;
+}
+html body .clients-page .row-actions .secondary,
+html body .employees-page .row-actions .secondary,
+html body .actions-page .row-actions .secondary {
+  background: #fff !important;
+  border: 1px solid #e8eaef !important;
+  color: #0f172a !important;
+  border-radius: 999px !important;
+  padding: 5px 10px !important;
+  font-size: 0.72rem !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+}
+/* neutralize teal/green accents on these pages */
+html body .clients-page [style*="#71717a"],
+html body .employees-page [style*="#71717a"],
+html body .actions-page [style*="#71717a"] {
+  color: #0a0a0a !important;
+}
+
+
+/* v29 LOGIN — SwapForm look, no green, mobile = dark card */
+html body .atlas-login {
+  min-height: 100vh !important;
+  min-height: 100dvh !important;
+}
+/* Kill teal/green left panel */
+html body .atlas-login-left {
+  background: #09090b !important;
+  background-image: none !important;
+  background-color: #09090b !important;
+  background: #09090b !important;
+}
+html body .atlas-login-grid,
+html body .atlas-login-blur,
+html body .atlas-login-blur-1,
+html body .atlas-login-blur-2 {
+  opacity: 0.15 !important;
+  filter: grayscale(1) !important;
+}
+html body .atlas-login-left-logo span,
+html body .atlas-login-left-foot a {
+  color: #a1a1aa !important;
+}
+html body .atlas-login-right {
+  background: #fafafa !important;
+}
+html body .atlas-login-form.atlas-login-swap,
+html body .atlas-login-form-wrap,
+html body .atlas-login-form {
+  max-width: 400px !important;
+  width: 100% !important;
+  margin: 0 auto !important;
+  background: #fefefe !important;
+  border: 1.5px solid #e6e6ef !important;
+  border-radius: 32px !important;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08) !important;
+  padding: 28px 28px 24px !important;
+}
+html body .atlas-login-header h1,
+html body .atlas-login-form h1 {
+  font-size: 1.75rem !important;
+  font-weight: 700 !important;
+  color: #191919 !important;
+  text-align: center !important;
+}
+html body .atlas-login-header p {
+  color: #adadb0 !important;
+  text-align: center !important;
+  font-size: 0.95rem !important;
+}
+html body .atlas-login input,
+html body .atlas-login .atlas-field input {
+  border-radius: 12px !important;
+  border: 1.2px solid #e7e7e7 !important;
+  background: #fff !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important;
+  min-height: 44px !important;
+}
+html body .atlas-login-submit,
+html body .atlas-login button[type="submit"] {
+  width: 100% !important;
+  border-radius: 12px !important;
+  background: #030303 !important;
+  color: #fafafa !important;
+  border: none !important;
+  min-height: 48px !important;
+  font-weight: 600 !important;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.12) !important;
+}
+html body .atlas-login button.atlas-login-bio,
+html body .atlas-login .atlas-login-webauthn,
+html body .atlas-login button[class*="bio"] {
+  width: 100% !important;
+  border-radius: 12px !important;
+  background: #030303 !important;
+  color: #fafafa !important;
+  border: none !important;
+  min-height: 48px !important;
+  margin-bottom: 12px !important;
+}
+html body .atlas-login-remember input[type="checkbox"],
+html body .atlas-remember input[type="checkbox"] {
+  accent-color: #18181b !important;
+}
+
+/* MOBILE / PHONE / PWA — extreme SwapForm dark */
+@media (max-width: 900px) {
+  html body .atlas-login,
+  html body .atlas-login.atlas-login--phone {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: #09090b !important;
+    background-image: none !important;
+    padding: 20px 16px !important;
+  }
+  html body .atlas-login-left {
+    display: none !important;
+  }
+  html body .atlas-login-right {
+    width: 100% !important;
+    max-width: 100% !important;
+    background: transparent !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  html body .atlas-login-chars-mobile {
+    display: none !important;
+  }
+  html body .atlas-login-mobile-logo {
+    display: flex !important;
+    justify-content: center !important;
+    margin-bottom: 16px !important;
+    filter: brightness(10) !important;
+  }
+  html body .atlas-login-form.atlas-login-swap,
+  html body .atlas-login-form-wrap,
+  html body .atlas-login-form {
+    background: #18181b !important;
+    border: 1.5px solid #27272a !important;
+    border-radius: 32px !important;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45) !important;
+    padding: 28px 22px 22px !important;
+    max-width: 360px !important;
+  }
+  html body .atlas-login-header h1,
+  html body .atlas-login-form h1 {
+    color: #fafafa !important;
+  }
+  html body .atlas-login-header p,
+  html body .atlas-login-hint,
+  html body .atlas-login-meta {
+    color: #71717a !important;
+  }
+  html body .atlas-login .atlas-field label,
+  html body .atlas-login label {
+    color: #e4e4e7 !important;
+  }
+  html body .atlas-login input,
+  html body .atlas-login .atlas-field input {
+    background: #27272a !important;
+    border-color: #3f3f46 !important;
+    color: #fafafa !important;
+  }
+  html body .atlas-login input::placeholder {
+    color: #71717a !important;
+  }
+  html body .atlas-login-submit,
+  html body .atlas-login button[type="submit"] {
+    background: #fafafa !important;
+    color: #09090b !important;
+    box-shadow: none !important;
+  }
+  html body .atlas-login button.atlas-login-bio,
+  html body .atlas-login .atlas-login-webauthn {
+    background: #27272a !important;
+    color: #fafafa !important;
+    border: 1px solid #3f3f46 !important;
+  }
+  html body .atlas-password-toggle {
+    color: #a1a1aa !important;
+  }
+  html body .atlas-login-ghost {
+    background: transparent !important;
+    border: none !important;
+    color: #a1a1aa !important;
+  }
+}
+
+
+/* v29 — Auth7 login: no green, Watermelon layout */
+html body .atlas-login,
+html body .atlas-login.atlas-login--auth7 {
+  display: flex !important;
+  min-height: 100vh !important;
+  min-height: 100dvh !important;
+  width: 100% !important;
+  background: #ffffff !important;
+  background-image: none !important;
+  color: #0a0a0a !important;
+  font-family: inherit !important;
+  position: relative !important;
+}
+/* Kill green left panel completely */
+html body .atlas-login-left,
+html body .atlas-login-grid,
+html body .atlas-login-blur,
+html body .atlas-login-chars-mobile {
+  display: none !important;
+}
+html body .atlas-login-brand {
+  position: absolute !important;
+  top: 16px !important;
+  left: 16px !important;
+  z-index: 5 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  font-weight: 700 !important;
+  font-size: 1.05rem !important;
+  letter-spacing: -0.02em !important;
+  color: #0a0a0a !important;
+}
+html body .atlas-login-brand img {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 8px !important;
+}
+html body .atlas-login-right {
+  flex: 1 1 100% !important;
+  width: 100% !important;
+  max-width: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 72px 20px 32px !important;
+  background: #ffffff !important;
+  background-image: none !important;
+}
+html body .atlas-login-form-wrap {
+  width: 100% !important;
+  max-width: 420px !important;
+  margin: 0 auto !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+html body .atlas-login-header {
+  text-align: center !important;
+  margin-bottom: 28px !important;
+}
+html body .atlas-login-header h1 {
+  font-size: 1.85rem !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.03em !important;
+  color: #171717 !important;
+  margin: 0 0 6px !important;
+}
+html body .atlas-login-header p {
+  font-size: 0.875rem !important;
+  color: #737373 !important;
+  margin: 0 !important;
+}
+html body .atlas-login-mobile-logo {
+  display: none !important;
+}
+html body .atlas-login-form,
+html body .atlas-login-form.atlas-login-auth7-form {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 14px !important;
+  width: 100% !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+}
+html body .atlas-login .atlas-field label,
+html body .atlas-login label {
+  display: block !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  color: #262626 !important;
+  margin-bottom: 6px !important;
+}
+html body .atlas-login input[type="text"],
+html body .atlas-login input[type="password"],
+html body .atlas-login input[type="email"],
+html body .atlas-login input:not([type="checkbox"]):not([type="radio"]) {
+  width: 100% !important;
+  border-radius: 999px !important;
+  border: 1px solid #e5e5e5 !important;
+  background: #ffffff !important;
+  padding: 12px 20px !important;
+  font-size: 0.875rem !important;
+  color: #171717 !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+html body .atlas-login input:focus {
+  border-color: #171717 !important;
+  box-shadow: 0 0 0 1px #171717 !important;
+}
+html body .atlas-login-submit,
+html body .atlas-login button[type="submit"] {
+  width: 100% !important;
+  border-radius: 999px !important;
+  background: linear-gradient(to bottom, #3a3a3a, #121212) !important;
+  background-color: #121212 !important;
+  color: #ffffff !important;
+  border: none !important;
+  padding: 14px 24px !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08) !important;
+  margin-top: 4px !important;
+}
+html body .atlas-login-submit:hover,
+html body .atlas-login button[type="submit"]:hover {
+  opacity: 0.92 !important;
+}
+html body .atlas-login-secondary,
+html body .atlas-login button.atlas-login-secondary {
+  width: 100% !important;
+  border-radius: 999px !important;
+  border: 1px solid #e5e5e5 !important;
+  background: #ffffff !important;
+  color: #404040 !important;
+  padding: 12px 24px !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+}
+html body .atlas-login-secondary:hover {
+  background: #fafafa !important;
+}
+html body .atlas-login-ghost {
+  background: transparent !important;
+  border: none !important;
+  color: #737373 !important;
+  box-shadow: none !important;
+  font-size: 0.8125rem !important;
+}
+html body .atlas-login input[type="checkbox"] {
+  accent-color: #171717 !important;
+  width: 16px !important;
+  height: 16px !important;
+  border-radius: 4px !important;
+}
+/* Kill green checkbox / success accents */
+html body .atlas-login input[type="checkbox"]:checked {
+  accent-color: #171717 !important;
+}
+html body .atlas-login-alert {
+  background: #fef2f2 !important;
+  color: #991b1b !important;
+  border: 1px solid #fecaca !important;
+  border-radius: 12px !important;
+  padding: 10px 14px !important;
+  font-size: 0.8125rem !important;
+}
+html body .atlas-login-info {
+  background: #f5f5f5 !important;
+  color: #404040 !important;
+  border-radius: 12px !important;
+  padding: 10px 14px !important;
+  font-size: 0.8125rem !important;
+}
+html body .atlas-login-hint,
+html body .atlas-login-meta {
+  text-align: center !important;
+  color: #a3a3a3 !important;
+  font-size: 0.75rem !important;
+}
+html body .atlas-login-left-foot {
+  display: none !important;
+}
+/* Mobile: pure form, no art */
+@media (max-width: 900px) {
+  html body .atlas-login.atlas-login--auth7,
+  html body .atlas-login--phone {
+    background: #ffffff !important;
+  }
+  html body .atlas-login-right {
+    padding: 80px 20px 40px !important;
+  }
+  html body .atlas-login-header h1 {
+    font-size: 1.75rem !important;
+  }
+}
+/* Desktop: optional subtle right visual strip without green */
+@media (min-width: 1024px) {
+  html body .atlas-login.atlas-login--auth7 {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+  }
+  html body .atlas-login-brand {
+    top: 28px !important;
+    left: 28px !important;
+  }
+  html body .atlas-login-right {
+    grid-column: 1 !important;
+  }
+  /* restore characters on right as neutral panel */
+  html body .atlas-login.atlas-login--auth7::after {
+    content: "" !important;
+    grid-column: 2 !important;
+    margin: 16px !important;
+    border-radius: 2rem !important;
+    background:
+      radial-gradient(ellipse at 30% 20%, #f5f5f5 0%, transparent 50%),
+      radial-gradient(ellipse at 70% 80%, #e5e5e5 0%, transparent 45%),
+      #171717 !important;
+    min-height: calc(100vh - 32px) !important;
+  }
+}
+
+
+/* v30 — Employees mint row kill + Invoices/Quotes/QS/Bills match Products */
+html body .employees-page table tr,
+html body .employees-page table tbody tr,
+html body .employees-page table tbody tr:nth-child(even),
+html body .employees-page table tbody tr:nth-child(odd),
+html body .attendance-page table tbody tr {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+}
+html body .employees-page table tbody tr:hover,
+html body .attendance-page table tbody tr:hover {
+  background: #f8fafc !important;
+}
+html body .employees-page table thead th,
+html body .attendance-page table thead th {
+  background: #f8fafc !important;
+  color: #64748b !important;
+  border-bottom: 1px solid #e8eaef !important;
+}
+html body .employees-page .ac-products-table-panel,
+html body .employees-page .card,
+html body .attendance-page .ac-panel {
+  background: #fff !important;
+  border: 1px solid #e8eaef !important;
+  border-radius: 16px !important;
+  box-shadow: 0 1px 2px rgba(15,23,42,0.04) !important;
+}
+html body .employees-page .row-actions button,
+html body .employees-page .row-actions a {
+  border-radius: 999px !important;
+  font-size: 0.72rem !important;
+  font-weight: 600 !important;
+  padding: 5px 10px !important;
+}
+html body .employees-page .row-actions .secondary,
+html body .employees-page .row-actions button.secondary {
+  background: #fff !important;
+  border: 1px solid #e8eaef !important;
+  color: #0f172a !important;
+  box-shadow: none !important;
+}
+html body .employees-page .row-actions button:not(.secondary):not(.btn-delete-red) {
+  background: #0f172a !important;
+  color: #fff !important;
+  border: none !important;
+}
+
+/* Orders family: Invoices, Quotes, QuickSale, Bills */
+html body .atlas-orders .atlas-stat-grid,
+html body .atlas-orders .ac-metric-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important;
+  gap: 12px !important;
+  margin-bottom: 14px !important;
+}
+html body .atlas-orders .atlas-stat,
+html body .atlas-orders .ac-metric {
+  background: #fff !important;
+  border: 1px solid #e8eaef !important;
+  border-radius: 16px !important;
+  padding: 16px 18px !important;
+  box-shadow: 0 1px 2px rgba(15,23,42,0.04) !important;
+}
+html body .atlas-orders .atlas-stat .as-label,
+html body .atlas-orders .ac-metric .as-label {
+  font-size: 0.7rem !important;
+  font-weight: 600 !important;
+  color: #64748b !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+}
+html body .atlas-orders .atlas-stat .as-value,
+html body .atlas-orders .ac-metric .as-value {
+  font-size: 1.35rem !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+  letter-spacing: -0.02em !important;
+}
+html body .atlas-orders table tbody tr,
+html body .atlas-orders table tbody tr:nth-child(even) {
+  background: #fff !important;
+}
+html body .atlas-orders table tbody tr:hover {
+  background: #f8fafc !important;
+}
+html body .atlas-orders table thead th {
+  background: #f8fafc !important;
+  color: #64748b !important;
+  font-size: 0.7rem !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+}
+html body .atlas-orders .card,
+html body .atlas-orders .ac-panel {
+  background: #fff !important;
+  border: 1px solid #e8eaef !important;
+  border-radius: 16px !important;
+  box-shadow: 0 1px 2px rgba(15,23,42,0.04) !important;
+}
+html body .atlas-orders-toolbar {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 10px !important;
+  align-items: center !important;
+  margin-bottom: 14px !important;
+  padding: 12px 14px !important;
+  background: #fff !important;
+  border: 1px solid #e8eaef !important;
+  border-radius: 16px !important;
+}
+html body .atlas-orders .badge.success,
+html body .atlas-orders .badge.paid {
+  background: #f1f5f9 !important;
+  color: #334155 !important;
+}
+html body .atlas-orders a[style*="#71717a"],
+html body .atlas-orders [style*="background: #f1f5f9"],
+html body .atlas-orders [style*="background:#f1f5f9"] {
+  color: #0a0a0a !important;
+}
+/* kill any mint row backgrounds globally in CRM tables */
+html body table.data-dense tbody tr[style*="ecfdf"],
+html body table.data-dense tbody tr[style*="e8f5"],
+html body table.data-dense tbody tr[style*="d1fa"] {
+  background: #fff !important;
+}
+
+
+/* v31 — Bills / Receipts / Vendors / Balance match Products */
+html body .bills-page .ac-metric,
+html body .receipts-page .ac-metric,
+html body .vendors-page .ac-metric,
+html body .balance-page .ac-metric {
+  background: #fff !important;
+  border: 1px solid #e8eaef !important;
+  border-radius: 16px !important;
+  padding: 16px 18px !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+html body .bills-page .ac-metric-grid,
+html body .receipts-page .ac-metric-grid,
+html body .vendors-page .ac-metric-grid,
+html body .balance-page .ac-metric-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important;
+  gap: 12px !important;
+  margin-bottom: 14px !important;
+}
+html body .bills-page table tbody tr,
+html body .receipts-page table tbody tr,
+html body .vendors-page table tbody tr,
+html body .balance-page table tbody tr {
+  background: #fff !important;
+}
+html body .bills-page table tbody tr:hover,
+html body .receipts-page table tbody tr:hover,
+html body .vendors-page table tbody tr:hover,
+html body .balance-page table tbody tr:hover {
+  background: #f8fafc !important;
+}
+html body .bills-page table thead th,
+html body .receipts-page table thead th,
+html body .vendors-page table thead th,
+html body .balance-page table thead th {
+  background: #f8fafc !important;
+  color: #64748b !important;
+  font-size: 0.7rem !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+}
+html body .bills-page .card,
+html body .receipts-page .card,
+html body .vendors-page .card,
+html body .balance-page .card,
+html body .bills-page .ac-panel,
+html body .receipts-page .ac-panel,
+html body .vendors-page .ac-panel,
+html body .balance-page .ac-panel {
+  background: #fff !important;
+  border: 1px solid #e8eaef !important;
+  border-radius: 16px !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+html body .balance-page .atlas-outline-card {
+  background: #fff !important;
+  border: 1px solid #e8eaef !important;
+  border-radius: 16px !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+html body .vendors-page .badge.success,
+html body .bills-page .badge.success,
+html body .receipts-page .badge.success {
+  background: #f1f5f9 !important;
+  color: #334155 !important;
+}
+html body .vendors-page .row-actions,
+html body .bills-page .row-actions {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  gap: 6px !important;
+  align-items: center !important;
+}
+html body .vendors-page .row-actions .secondary,
+html body .bills-page .row-actions .secondary {
+  background: #fff !important;
+  border: 1px solid #e8eaef !important;
+  color: #0f172a !important;
+  border-radius: 999px !important;
+  padding: 5px 10px !important;
+  font-size: 0.72rem !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+}
+
+
+/* v32 — restore login characters on right visual panel */
+html body .atlas-login.atlas-login--auth7::after {
+  content: none !important;
+  display: none !important;
+}
+html body .atlas-login-visual {
+  display: none !important;
+}
+@media (min-width: 1024px) {
+  html body .atlas-login.atlas-login--auth7 {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    align-items: stretch !important;
+  }
+  html body .atlas-login-right {
+    grid-column: 1 !important;
+  }
+  html body .atlas-login-visual {
+    display: flex !important;
+    flex-direction: column !important;
+    grid-column: 2 !important;
+    margin: 16px !important;
+    border-radius: 2rem !important;
+    background: #0a0a0a !important;
+    min-height: calc(100vh - 32px) !important;
+    position: relative !important;
+    overflow: hidden !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  html body .atlas-login-visual .atlas-login-chars-wrap {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    flex: 1 1 auto !important;
+    padding: 24px !important;
+    z-index: 2 !important;
+  }
+  /* force characters visible (override earlier hide) */
+  html body .atlas-login-visual .atlas-login-chars-wrap,
+  html body .atlas-login-visual .atlas-login-chars-wrap * {
+    visibility: visible !important;
+  }
+  html body .atlas-login-visual-foot {
+    display: flex !important;
+    gap: 16px !important;
+    justify-content: center !important;
+    padding: 16px 24px 20px !important;
+    z-index: 2 !important;
+  }
+  html body .atlas-login-visual-foot a {
+    color: rgba(255, 255, 255, 0.55) !important;
+    font-size: 0.8rem !important;
+    text-decoration: none !important;
+  }
+  html body .atlas-login-visual-foot a:hover {
+    color: #fff !important;
+  }
+}
+/* Mobile: keep form only — no characters strip */
+@media (max-width: 1023px) {
+  html body .atlas-login-visual {
+    display: none !important;
+  }
+}
+/* Checkbox: black not green */
+html body .atlas-login input[type="checkbox"],
+html body .atlas-login .atlas-remember input[type="checkbox"] {
+  accent-color: #171717 !important;
+  width: 16px !important;
+  height: 16px !important;
+}
+html body .atlas-login .atlas-remember {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  font-size: 0.875rem !important;
+  color: #525252 !important;
+}
+
+
+/* v36 — plain white tables like Clients (force, all CRM) */
+html body .content table,
+html body .content table tbody,
+html body .content table tbody tr,
+html body .content table tbody tr:nth-child(odd),
+html body .content table tbody tr:nth-child(even),
+html body .employees-page table tbody tr,
+html body .products-page table tbody tr,
+html body .clients-page table tbody tr,
+html body .quotes-page table tbody tr,
+html body .invoices-page table tbody tr,
+html body .quicksale-page table tbody tr,
+html body .bills-page table tbody tr,
+html body .receipts-page table tbody tr,
+html body .vendors-page table tbody tr,
+html body .balance-page table tbody tr,
+html body .atlas-orders table tbody tr {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+}
+html body .content table tbody tr:hover,
+html body .employees-page table tbody tr:hover,
+html body .products-page table tbody tr:hover {
+  background: #f8fafc !important;
+}
+html body .content table thead th,
+html body .employees-page table thead th,
+html body .products-page table thead th {
+  background: #fafafa !important;
+  color: #64748b !important;
+  border-bottom: 1px solid #e8eaef !important;
+}
+/* Empty states: white not mint */
+html body .empty,
+html body .empty-state,
+html body .ac-panel .empty,
+html body td .empty-state,
+html body .content [class*="Empty"],
+html body .atlas-orders .empty,
+html body .quotes-page .ac-panel,
+html body .invoices-page .ac-panel,
+html body .quicksale-page .ac-panel {
+  background: #ffffff !important;
+}
+html body .content .card,
+html body .content .ac-panel,
+html body .content .table-wrap {
+  background: #ffffff !important;
+  border-color: #e8eaef !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+/* Kill liquid / glass search */
+html body .search-input,
+html body .ac-search-input,
+html body input.search-input,
+html body .search-bar input,
+html body .ac-products-filters input {
+  background: #ffffff !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  height: 40px !important;
+}
+html body .search-bar,
+html body .ac-products-filters,
+html body .ac-panel.ac-products-filters {
+  background: #ffffff !important;
+  border: 1px solid #e8eaef !important;
+  border-radius: 16px !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+/* Soft success badges → slate */
+html body .badge.success,
+html body .badge[class*="ok"],
+html body span.badge {
+  /* keep structure */
+}
+html body .badge.success {
+  background: #f1f5f9 !important;
+  color: #334155 !important;
+}
+/* Products status ACTIF mint → slate */
+html body .products-page .badge,
+html body .products-page [style*="#f1f5f9"],
+html body .products-page [style*="#f1f5f9"] {
+  background: #f1f5f9 !important;
+  color: #334155 !important;
+}
+/* Balance charts */
+html body .balance-charts-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
+  gap: 14px !important;
+  margin: 14px 0 18px !important;
+}
+html body .balance-chart-card {
+  padding: 16px 18px !important;
+}
+html body .balance-chart-title {
+  margin: 0 0 12px !important;
+  font-size: 0.9rem !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+  letter-spacing: -0.01em !important;
+}
+html body .balance-chart-bars {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+}
+html body .balance-chart-row {
+  display: grid !important;
+  grid-template-columns: 110px 1fr 64px !important;
+  gap: 10px !important;
+  align-items: center !important;
+}
+html body .balance-chart-label {
+  font-size: 0.75rem !important;
+  color: #64748b !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+html body .balance-chart-track {
+  height: 8px !important;
+  background: #f1f5f9 !important;
+  border-radius: 999px !important;
+  overflow: hidden !important;
+}
+html body .balance-chart-fill {
+  height: 100% !important;
+  border-radius: 999px !important;
+  transition: width 0.35s cubic-bezier(0.2, 0, 0, 1) !important;
+}
+html body .balance-chart-val {
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  font-variant-numeric: tabular-nums !important;
+  text-align: right !important;
+  color: #0f172a !important;
+}
+/* Balance table delete: red not black pill */
+html body .balance-page table button.danger,
+html body .balance-page table .danger {
+  background: #ef4444 !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 999px !important;
+}
+
+
+/* v38 — force Clients-style tables everywhere + dp above modal + avatar crop */
+html body .content table,
+html body .atlas-crm table,
+html body .atlas-orders table,
+html body .atlas-page table,
+html body table.data-dense,
+html body table.data-table {
+  width: 100% !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  background: #fff !important;
+}
+html body .content table thead th,
+html body .atlas-crm table thead th,
+html body .atlas-orders table thead th,
+html body .atlas-page table thead th,
+html body table.data-dense thead th,
+html body table.data-table thead th {
+  background: #f8fafc !important;
+  background-color: #f8fafc !important;
+  color: #64748b !important;
+  font-size: 0.68rem !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  border-bottom: 1px solid #e8eaef !important;
+  border-top: none !important;
+  padding: 12px 14px !important;
+  white-space: nowrap !important;
+}
+html body .content table tbody td,
+html body .atlas-crm table tbody td,
+html body .atlas-orders table tbody td {
+  background: #ffffff !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  padding: 12px 14px !important;
+  color: #0f172a !important;
+  font-size: 0.875rem !important;
+}
+html body .content .table-wrap,
+html body .ac-products-table-panel,
+html body .ac-panel.ac-products-table-panel {
+  background: #fff !important;
+  border: 1px solid #e8eaef !important;
+  border-radius: 16px !important;
+  overflow: hidden !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+
+/* Date picker always above modals */
+html body .atlas-dp-pop {
+  z-index: 100100 !important;
+  position: fixed !important;
+}
+html body .modal-overlay,
+html body .ac-edit-profile-root {
+  z-index: 10050 !important;
+}
+
+/* Edit profile avatar button */
+html body .ac-edit-profile-avatar-btn {
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  cursor: pointer !important;
+  position: relative !important;
+  display: inline-flex !important;
+}
+html body .ac-edit-profile-change-photo {
+  margin: 8px 0 12px !important;
+  border-radius: 999px !important;
+  font-size: 0.75rem !important;
+}
+html body .ac-avatar-crop-root {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 100120 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: rgba(15, 23, 42, 0.45) !important;
+  padding: 16px !important;
+}
+html body .ac-avatar-crop-card {
+  background: #fff !important;
+  border-radius: 16px !important;
+  padding: 20px 22px !important;
+  max-width: 360px !important;
+  width: 100% !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18) !important;
+}
+html body .ac-avatar-crop-card h3 {
+  margin: 0 0 6px !important;
+  font-size: 1.05rem !important;
+}
+html body .ac-avatar-crop-preview {
+  width: 160px !important;
+  height: 160px !important;
+  margin: 16px auto !important;
+  border-radius: 50% !important;
+  overflow: hidden !important;
+  border: 1px solid #e8eaef !important;
+}
+html body .ac-avatar-crop-preview img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
+html body .ac-avatar-crop-actions {
+  display: flex !important;
+  gap: 8px !important;
+  justify-content: flex-end !important;
+  margin-top: 12px !important;
+}
+
+/* AVATAR_CROP_POINTER_V57 — crop must receive clicks (parent root is pointer-events:none) */
+html body .ac-avatar-crop-root {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 100200 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: rgba(15, 23, 42, 0.55) !important;
+  padding: 16px !important;
+  pointer-events: auto !important;
+  isolation: isolate !important;
+}
+html body .ac-avatar-crop-card {
+  pointer-events: auto !important;
+  position: relative !important;
+  z-index: 1 !important;
+  background: #fff !important;
+  border-radius: 16px !important;
+  padding: 20px 22px !important;
+  max-width: 360px !important;
+  width: 100% !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.22) !important;
+}
+html body .ac-avatar-crop-actions button {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  min-height: 40px !important;
+  border-radius: 999px !important;
+  padding: 8px 16px !important;
+}
+html body .ac-avatar-crop-apply {
+  background: #0a0a0a !important;
+  color: #fff !important;
+  border: none !important;
+  font-weight: 600 !important;
+}
+html[data-theme="dark"] body .ac-avatar-crop-card {
+  background: #18181b !important;
+  color: #fafafa !important;
+}
+
+/* ATLAS_AGENT_UI_V59 — neutral shell, readable behind dock */
+html body .atlas-agent-panel {
+  background: #fafafa !important;
+  border-left: 1px solid #e8eaef !important;
+  box-shadow: -8px 0 32px rgba(15, 23, 42, 0.06) !important;
+  color: #0f172a !important;
+}
+html[data-theme="dark"] body .atlas-agent-panel {
+  background: #121212 !important;
+  border-left-color: #27272a !important;
+  color: #f4f4f5 !important;
+}
+html body .atlas-agent-head {
+  background: #fff !important;
+  border-bottom: 1px solid #e8eaef !important;
+}
+html[data-theme="dark"] body .atlas-agent-head {
+  background: #18181b !important;
+  border-bottom-color: #27272a !important;
+}
+html body .atlas-agent-panel button.secondary,
+html body .atlas-agent-panel .atlas-agent-close,
+html body .atlas-agent-panel .atlas-agent-chip {
+  background: #fff !important;
+  color: #0f172a !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 999px !important;
+  box-shadow: none !important;
+}
+html body .atlas-agent-panel button:not(.secondary):not(.atlas-agent-close) {
+  background: #0a0a0a !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 999px !important;
+}
+html body .atlas-agent-pagechip {
+  background: #f4f4f5 !important;
+  border: 1px solid #e8eaef !important;
+  border-radius: 12px !important;
+}
+html body .atlas-agent-bubble.assistant {
+  background: #fff !important;
+  border: 1px solid #e8eaef !important;
+  color: #0f172a !important;
+}
+html body .atlas-agent-bubble.user {
+  background: #0a0a0a !important;
+  color: #fff !important;
+}
+html body .atlas-agent-quick button {
+  background: #fff !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 999px !important;
+  color: #0f172a !important;
+}
+/* Keep main content visible (shifted) when agent docked — no full-screen opaque mask */
+html.atlas-agent-docked .layout > main,
+html.atlas-agent-docked .ac-main-column {
+  opacity: 1 !important;
+  filter: none !important;
+  pointer-events: auto !important;
+}
+
+/* ========== AGENT FINAL OVERRIDE V63 (last wins) ========== */
+html body button.atlas-agent-fab,
+html body button.atlas-agent-fab-premium,
+html body .atlas-agent-fab.on,
+html.atlas-agent-docked body .atlas-agent-fab,
+html.atlas-agent-docked body button.atlas-agent-fab,
+html.atlas-agent-docked .atlas-agent-fab.atlas-agent-fab-premium {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}
+/* FAB only when panel closed — class not on html */
+html:not(.atlas-agent-docked) body button.atlas-agent-fab.atlas-agent-fab-premium {
+  display: grid !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  opacity: 1 !important;
+  position: fixed !important;
+  right: 20px !important;
+  bottom: 20px !important;
+  z-index: 120 !important;
+  width: 56px !important;
+  height: 56px !important;
+  border-radius: 18px !important;
+  background: linear-gradient(145deg, #1c1c1e, #0a0a0a) !important;
+  color: #fafafa !important;
+  border: 1px solid rgba(255,255,255,0.1) !important;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.28) !important;
+}
+
+/* Red close — must beat .atlas-agent-panel .atlas-agent-close gray rules */
+html body .atlas-agent-panel button.atlas-agent-close,
+html body .atlas-agent-panel button.atlas-agent-close--danger,
+html body aside.atlas-agent-panel .atlas-agent-head-actions button.atlas-agent-close {
+  background: #ef4444 !important;
+  background-image: none !important;
+  border: 1px solid #dc2626 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3) !important;
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 12px !important;
+}
+html body .atlas-agent-panel button.atlas-agent-close:hover,
+html body .atlas-agent-panel button.atlas-agent-close--danger:hover {
+  background: #dc2626 !important;
+}
+html body .atlas-agent-panel button.atlas-agent-close svg,
+html body .atlas-agent-panel button.atlas-agent-close--danger svg {
+  stroke: #ffffff !important;
+  color: #ffffff !important;
+  fill: none !important;
+}
+
+/* Header icons: white pills */
+html body .atlas-agent-panel .atlas-agent-iconbtn {
+  background: #ffffff !important;
+  background-image: none !important;
+  border: 1px solid #e5e7eb !important;
+  color: #334155 !important;
+  -webkit-text-fill-color: #334155 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 1px 2px rgba(15,23,42,0.05) !important;
+}
+html body .atlas-agent-panel .atlas-agent-iconbtn svg {
+  stroke: #334155 !important;
+}
+html body .atlas-agent-panel .atlas-agent-iconbtn.on {
+  background: #f4f4f5 !important;
+  border-color: #d4d4d8 !important;
+}
+
+/* History items light */
+html body .atlas-agent-panel button.atlas-agent-history-item {
+  background: #f8f9fb !important;
+  color: #0f172a !important;
+  border: 1px solid #e8eaef !important;
+}
+html body .atlas-agent-panel .atlas-agent-history-label {
+  color: #0f172a !important;
+}
+
+/* ========== AGENT READABLE UI V64 (last wins) ========== */
+/* History list — light rows, dark text, no black/green */
+html body .atlas-agent-panel .atlas-agent-history-group button,
+html body .atlas-agent-panel button.atlas-agent-history-item,
+html body .atlas-agent-panel button.atlas-agent-history-item.active,
+html body .atlas-agent-panel .atlas-agent-history-group button.active {
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  min-height: 40px !important;
+  padding: 10px 12px !important;
+  border-radius: 12px !important;
+  background: #ffffff !important;
+  background-image: none !important;
+  border: 1px solid #e8eaef !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  font-weight: 600 !important;
+  font-size: 0.84rem !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+  text-align: left !important;
+}
+html body .atlas-agent-panel button.atlas-agent-history-item.active,
+html body .atlas-agent-panel .atlas-agent-history-group button.active {
+  background: #f4f4f5 !important;
+  border-color: #d4d4d8 !important;
+  color: #0a0a0a !important;
+  -webkit-text-fill-color: #0a0a0a !important;
+}
+html body .atlas-agent-panel .atlas-agent-history-label,
+html body .atlas-agent-panel button.atlas-agent-history-item span {
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+  opacity: 1 !important;
+}
+
+/* Header icon buttons — light, readable icons */
+html body .atlas-agent-panel .atlas-agent-head-actions button.atlas-agent-iconbtn,
+html body .atlas-agent-panel button.atlas-agent-iconbtn {
+  background: #ffffff !important;
+  background-image: none !important;
+  border: 1px solid #e5e7eb !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  border-radius: 12px !important;
+  width: 36px !important;
+  height: 36px !important;
+  box-shadow: 0 1px 2px rgba(15,23,42,0.05) !important;
+}
+html body .atlas-agent-panel button.atlas-agent-iconbtn svg {
+  stroke: #0f172a !important;
+  fill: none !important;
+  opacity: 1 !important;
+  width: 16px !important;
+  height: 16px !important;
+}
+html body .atlas-agent-panel button.atlas-agent-iconbtn.on {
+  background: #f4f4f5 !important;
+  border-color: #d4d4d8 !important;
+}
+
+/* Close stays red */
+html body .atlas-agent-panel button.atlas-agent-close,
+html body .atlas-agent-panel button.atlas-agent-close--danger {
+  background: #ef4444 !important;
+  border-color: #dc2626 !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  border-radius: 12px !important;
+}
+html body .atlas-agent-panel button.atlas-agent-close svg {
+  stroke: #fff !important;
+}
+
+/* Greeting chips — white + dark text */
+html body .atlas-agent-panel .atlas-agent-chips button {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 999px !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 2px rgba(15,23,42,0.04) !important;
+}
+html body .atlas-agent-panel .atlas-agent-chips button:hover {
+  background: #f4f4f5 !important;
+  border-color: #d4d4d8 !important;
+}
+
+/* Bottom ALLER À + suggest — white pills, dark text */
+html body .atlas-agent-panel .atlas-agent-nav button,
+html body .atlas-agent-panel .atlas-agent-suggest button {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 999px !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 2px rgba(15,23,42,0.04) !important;
+}
+html body .atlas-agent-panel .atlas-agent-nav button:hover,
+html body .atlas-agent-panel .atlas-agent-suggest button:hover {
+  background: #f4f4f5 !important;
+  border-color: #d4d4d8 !important;
+  color: #0a0a0a !important;
+}
+
+/* Exec mode: inactive white, active black (readable) */
+html body .atlas-agent-panel .atlas-agent-execmode button:not(.active) {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e5e7eb !important;
+}
+html body .atlas-agent-panel .atlas-agent-execmode button.active {
+  background: #0a0a0a !important;
+  color: #ffffff !important;
+  border-color: #0a0a0a !important;
+}
+
+/* Kill teal/green on agent surfaces */
+html body .atlas-agent-panel button:not(.atlas-agent-send):not(.atlas-agent-close):not(.active) {
+  background-image: none !important;
+}
+
+/* ========== AGENT NO BLACK BUTTONS V65 ========== */
+/* Defeat .content button primary black for entire agent panel */
+html body .atlas-agent-panel button.secondary,
+html body .atlas-agent-panel button.atlas-agent-history-item,
+html body .atlas-agent-panel .atlas-agent-nav button,
+html body .atlas-agent-panel .atlas-agent-suggest button,
+html body .atlas-agent-panel .atlas-agent-chips button,
+html body .atlas-agent-panel .atlas-agent-history-group button,
+html body aside.atlas-agent-panel button:not(.atlas-agent-send):not(.atlas-agent-close):not(.active):not(.atlas-agent-execmode button.active) {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  border: 1px solid #e5e7eb !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+html body .atlas-agent-panel button.atlas-agent-history-item.active {
+  background: #f4f4f5 !important;
+  border-color: #d4d4d8 !important;
+  color: #0a0a0a !important;
+  -webkit-text-fill-color: #0a0a0a !important;
+}
+html body .atlas-agent-panel .atlas-agent-nav--readable button,
+html body .atlas-agent-panel .atlas-agent-chips--readable button,
+html body .atlas-agent-panel .atlas-agent-suggest--readable button {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 999px !important;
+}
+html body .atlas-agent-panel button.atlas-agent-send {
+  background: #0a0a0a !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  border-color: #0a0a0a !important;
+}
+html body .atlas-agent-panel button.atlas-agent-close {
+  background: #ef4444 !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  border-color: #dc2626 !important;
+}
+html body .atlas-agent-panel .atlas-agent-execmode button.active {
+  background: #0a0a0a !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+
+/* ========== DELETE RED FORCE V90 — last wins ========== */
+html body .content .ac-timed-delete button,
+html body .content button.ac-timed-delete-btn,
+html body .content button.ac-timed-delete-btn.danger,
+html body .content button.danger.ac-timed-delete-btn,
+html body .bal-tx-actions button.ac-timed-delete-btn,
+html body .bal-tx-actions .ac-timed-delete-btn,
+html body .row-actions button.ac-timed-delete-btn,
+html body button.ac-timed-delete-btn,
+html body .ac-timed-delete-btn {
+  background: #ef4444 !important;
+  background-color: #ef4444 !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body .content button.ac-timed-delete-btn:hover,
+html body button.ac-timed-delete-btn:hover {
+  background: #dc2626 !important;
+  background-color: #dc2626 !important;
+  color: #ffffff !important;
+}
+html body .content button.ac-timed-delete-btn.is-armed,
+html body button.ac-timed-delete-btn.is-armed {
+  background: #fee2e2 !important;
+  background-color: #fee2e2 !important;
+  color: #b91c1c !important;
+  -webkit-text-fill-color: #b91c1c !important;
+}
+html body .ac-timed-delete-btn.is-armed .ac-td-count,
+html body .ac-timed-delete-btn.is-armed .ac-td-ico {
+  background: #ef4444 !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+
+/* MOBILE 375 OVERFLOW */
+@media (max-width: 430px) {
+  html body .ac-topbar,
+  html body .mobile-nav-drawer,
+  html body .layout,
+  html body .content {
+    max-width: 100% !important;
+  }
+  html body .account-menu-panel,
+  html body .ac-mail-panel,
+  html body .ac-notif-panel {
+    min-width: 0 !important;
+    max-width: calc(100vw - 16px) !important;
+  }
+}
+
+
+/* ═══ v169 LAST — account menu + kill white pills on dark ═══ */
+html[data-theme="dark"] body .account-menu-panel,
+html[data-theme="dark"] body .account-menu-panel--portal,
+html body .account-menu-panel--portal {
+  background: #161922 !important;
+  border: 1px solid #2e3444 !important;
+  color: #f0f1f5 !important;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.5) !important;
+}
+html[data-theme="dark"] body .account-menu-panel .account-menu-item,
+html[data-theme="dark"] body .account-menu-panel--portal .account-menu-item,
+html[data-theme="dark"] body button.account-menu-item,
+html body .account-menu-panel--portal button.account-menu-item,
+html[data-theme="dark"] body .account-menu-panel a.account-menu-item {
+  background: #222632 !important;
+  background-color: #222632 !important;
+  color: #e8eaf0 !important;
+  -webkit-text-fill-color: #e8eaf0 !important;
+  border: 1px solid #2e3444 !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+  margin: 3px 6px !important;
+}
+html[data-theme="dark"] body .account-menu-panel .account-menu-item:hover,
+html[data-theme="dark"] body .account-menu-panel--portal .account-menu-item:hover,
+html body .account-menu-panel--portal button.account-menu-item:hover {
+  background: #2a3040 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html[data-theme="dark"] body .account-menu-item.account-menu-danger,
+html body .account-menu-panel--portal .account-menu-danger {
+  background: #2a1a1a !important;
+  color: #f0a898 !important;
+  -webkit-text-fill-color: #f0a898 !important;
+  border-color: #4a3030 !important;
+}
+html[data-theme="dark"] body .account-menu-name { color: #f0f1f5 !important; }
+html[data-theme="dark"] body .account-menu-email,
+html[data-theme="dark"] body .account-menu-section-label { color: #9aa3b5 !important; }
+html[data-theme="dark"] body .account-menu-svg,
+html[data-theme="dark"] body .account-menu-item svg {
+  color: #aeb6c9 !important;
+  stroke: #aeb6c9 !important;
+  opacity: 1 !important;
+}
+
+/* Theme / scale chips in account menu */
+html[data-theme="dark"] body .account-theme-icons button,
+html[data-theme="dark"] body .account-scale-icons button {
+  background: #1a1d26 !important;
+  color: #c5cadd !important;
+  border: 1px solid #2e3444 !important;
+}
+html[data-theme="dark"] body .account-theme-icons button.active,
+html[data-theme="dark"] body .account-scale-icons button.active {
+  background: #2a3040 !important;
+  color: #fff !important;
+  border-color: #3a4154 !important;
+}
+
+/* v170 skeleton + no green (loads last) */
+html body .skeleton,
+html[data-theme="dark"] body .skeleton {
+  background: linear-gradient(90deg, #1a1d26 0%, #2a3040 50%, #1a1d26 100%) !important;
+  background-size: 200% 100% !important;
+}
+html:not([data-theme="dark"]) body .skeleton {
+  background: linear-gradient(90deg, #e8eaef 0%, #f1f3f7 45%, #e8eaef 90%) !important;
+  background-size: 200% 100% !important;
+}
+
+/* v171 pure charcoal — zero green undertone on dark */
+html[data-theme="dark"],
+html[data-theme="dark"] body,
+html[data-theme="dark"] #root,
+html[data-theme="dark"] .layout,
+html[data-theme="dark"] .content,
+html[data-theme="dark"] .atlas-page,
+html[data-theme="dark"] .settings-main,
+html[data-theme="dark"] .settings-page {
+  background: #0f1117 !important;
+  background-color: #0f1117 !important;
+  --bg: #0f1117 !important;
+  --bg-elevated: #161922 !important;
+  --paper: #1a1d26 !important;
+  --shell-bg: #0f1117 !important;
+  --shell-paper: #1a1d26 !important;
+  --shell-line: #2e3444 !important;
+}
+html[data-theme="dark"] body .card,
+html[data-theme="dark"] body .settings-card,
+html[data-theme="dark"] body .ac-panel,
+html[data-theme="dark"] body .ac-metric {
+  background: #1a1d26 !important;
+  border-color: #2e3444 !important;
+}
+html[data-theme="dark"] body .skeleton,
+html[data-theme="dark"] body [class*="skeleton"] {
+  background: linear-gradient(90deg, #161922 0%, #242836 50%, #161922 100%) !important;
+  background-size: 200% 100% !important;
+}
+
+/* v172 — kill #0b100e green-black forever */
+html[data-theme="dark"],
+html[data-theme="dark"] body,
+html[data-theme="dark"] #root,
+html[data-theme="dark"] .layout,
+html[data-theme="dark"] .content,
+html[data-theme="dark"] .sidebar,
+html[data-theme="dark"] .settings-page,
+html[data-theme="dark"] .settings-main,
+html[data-theme="dark"] .atlas-page,
+html[data-theme="dark"] .login-page {
+  background: #0a0a0a !important;
+  background-color: #0a0a0a !important;
+  --bg: #0a0a0a !important;
+  --parchment: #0a0a0a !important;
+  --shell-bg: #0a0a0a !important;
+}
+html[data-theme="dark"] body .card,
+html[data-theme="dark"] body .ac-panel,
+html[data-theme="dark"] body .ac-metric,
+html[data-theme="dark"] body .settings-card {
+  background: #141414 !important;
+  border-color: #2a2a2a !important;
+}
+
+
+/* v174 soft charcoal — NOT flat black; KPI rows unified */
+html[data-theme="dark"],
+html[data-theme="dark"] body,
+html[data-theme="dark"] #root {
+  --bg: #16181d !important;
+  --bg-elevated: #1c1f26 !important;
+  --paper: #1c1f26 !important;
+  --shell-bg: #16181d !important;
+  --shell-paper: #1c1f26 !important;
+  --shell-line: #2c303a !important;
+  --shell-sidebar-bg: #14161b !important;
+  --shell-ink: #eceef2 !important;
+  --shell-muted: #9aa3b5 !important;
+  background: #16181d !important;
+}
+html[data-theme="dark"] body .layout,
+html[data-theme="dark"] body .content,
+html[data-theme="dark"] body .atlas-page,
+html[data-theme="dark"] body .settings-page,
+html[data-theme="dark"] body .settings-main,
+html[data-theme="dark"] body .settings-shell,
+html[data-theme="dark"] body .settings-topbar,
+html[data-theme="dark"] body .ac-topbar,
+html[data-theme="dark"] body .atlas-shell-topbar,
+html[data-theme="dark"] body .sidebar {
+  background: #16181d !important;
+  background-color: #16181d !important;
+  border-color: #2c303a !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+/* Both KPI rows = same surface */
+html[data-theme="dark"] body .ac-metric,
+html[data-theme="dark"] body .ac-usage-card,
+html[data-theme="dark"] body .ac-usage-grid .ac-usage-card,
+html[data-theme="dark"] body .ac-panel,
+html[data-theme="dark"] body .ac-progress-row,
+html[data-theme="dark"] body .card,
+html[data-theme="dark"] body .settings-card,
+html[data-theme="dark"] body .ac-stat-pair,
+html[data-theme="dark"] body .ac-stat-pair > div {
+  background: #1c1f26 !important;
+  background-color: #1c1f26 !important;
+  border: 1px solid #2c303a !important;
+  color: #eceef2 !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"] body .ac-metric .as-value,
+html[data-theme="dark"] body .ac-usage-val,
+html[data-theme="dark"] body .ac-stat-pair strong {
+  color: #f4f5f7 !important;
+}
+html[data-theme="dark"] body .ac-metric .as-label,
+html[data-theme="dark"] body .ac-metric .as-hint,
+html[data-theme="dark"] body .ac-usage-lab,
+html[data-theme="dark"] body .ac-usage-meta {
+  color: #9aa3b5 !important;
+}
+html[data-theme="dark"] body .ac-usage-track {
+  background: #2c303a !important;
+}
+html[data-theme="dark"] body .ac-usage-track i {
+  background: #c5cadd !important;
+}
+html[data-theme="dark"] body .settings-topbar {
+  background: #16181d !important;
+  border-bottom: 1px solid #2c303a !important;
+}
+html[data-theme="dark"] body .skeleton,
+html[data-theme="dark"] body [class*="skeleton"] {
+  background: linear-gradient(90deg, #1c1f26 0%, #2a2e38 50%, #1c1f26 100%) !important;
+  background-size: 200% 100% !important;
+}
+
+/* v174 — unified zinc palette (sidebar = page = topbar; all cards identical) */
+html[data-theme="dark"],
+html[data-theme="dark"] body,
+html[data-theme="dark"] #root {
+  --bg: #111113 !important;
+  --bg-elevated: #1c1c1f !important;
+  --paper: #1c1c1f !important;
+  --shell-bg: #111113 !important;
+  --shell-paper: #1c1c1f !important;
+  --shell-line: #2a2a2e !important;
+  --shell-sidebar-bg: #111113 !important;
+  --shell-sidebar-border: #2a2a2e !important;
+  --parchment: #111113 !important;
+  background: #111113 !important;
+}
+html[data-theme="dark"] body .layout,
+html[data-theme="dark"] body .content,
+html[data-theme="dark"] body .sidebar,
+html[data-theme="dark"] body .atlas-page,
+html[data-theme="dark"] body .settings-page,
+html[data-theme="dark"] body .settings-main,
+html[data-theme="dark"] body .settings-shell,
+html[data-theme="dark"] body .login-page,
+html[data-theme="dark"] body .ac-topbar,
+html[data-theme="dark"] body .settings-topbar,
+html[data-theme="dark"] body .atlas-shell-topbar,
+html[data-theme="dark"] body .layout > .sidebar {
+  background: #111113 !important;
+  background-color: #111113 !important;
+  border-color: #2a2a2e !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+/* ALL cards same surface — no row mismatch */
+html[data-theme="dark"] body .card,
+html[data-theme="dark"] body .ac-panel,
+html[data-theme="dark"] body .ac-metric,
+html[data-theme="dark"] body .ac-stat-pair,
+html[data-theme="dark"] body .ac-stat-pair > div,
+html[data-theme="dark"] body .ac-progress-row,
+html[data-theme="dark"] body .ac-usage-card,
+html[data-theme="dark"] body .atlas-card,
+html[data-theme="dark"] body .atlas-stat,
+html[data-theme="dark"] body .stat-card,
+html[data-theme="dark"] body .dashboard-card,
+html[data-theme="dark"] body .settings-card,
+html[data-theme="dark"] body .content .card,
+html[data-theme="dark"] body .content .atlas-card,
+html[data-theme="dark"] body .content .stat-card,
+html[data-theme="dark"] body .kpi-card,
+html[data-theme="dark"] body [class*="kpi-"] {
+  background: #1c1c1f !important;
+  background-color: #1c1c1f !important;
+  border: 1px solid #2a2a2e !important;
+  color: #f4f4f5 !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"] body .ac-metric .as-value,
+html[data-theme="dark"] body .ac-metric .as-label,
+html[data-theme="dark"] body .ac-stat-pair strong {
+  color: #f4f4f5 !important;
+}
+html[data-theme="dark"] body .ac-metric .as-label,
+html[data-theme="dark"] body .as-hint {
+  color: #a1a1aa !important;
+}
+html[data-theme="dark"] body .settings-topbar {
+  background: #111113 !important;
+  border-bottom: 1px solid #2a2a2e !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"] body .settings-topbar-tabs button {
+  background: #1c1c1f !important;
+  color: #a1a1aa !important;
+  border: 1px solid #2a2a2e !important;
+}
+html[data-theme="dark"] body .settings-topbar-tabs button.active {
+  background: #27272a !important;
+  color: #fafafa !important;
+}
+html[data-theme="dark"] body .skeleton,
+html[data-theme="dark"] body [class*="skeleton"] {
+  background: linear-gradient(90deg, #1c1c1f 0%, #27272a 50%, #1c1c1f 100%) !important;
+  background-size: 200% 100% !important;
+}
+
+/* ═══ v176 — popups, sidebar icons, light purple text, touch ═══ */
+
+/* Light theme: neutral muted (never purple) */
+html:not([data-theme="dark"]) {
+  --muted: #64748b !important;
+  --shell-muted: #64748b !important;
+  --ink-soft: #475569 !important;
+}
+html:not([data-theme="dark"]) body,
+html:not([data-theme="dark"]) body .content,
+html:not([data-theme="dark"]) body p,
+html:not([data-theme="dark"]) body .muted,
+html:not([data-theme="dark"]) body .as-hint,
+html:not([data-theme="dark"]) body .as-label,
+html:not([data-theme="dark"]) body th {
+  color: inherit;
+}
+html:not([data-theme="dark"]) body .muted,
+html:not([data-theme="dark"]) body .as-hint,
+html:not([data-theme="dark"]) body .as-label,
+html:not([data-theme="dark"]) body .ac-metric .as-label {
+  color: #64748b !important;
+}
+html:not([data-theme="dark"]) body {
+  color: #0a0a0a !important;
+}
+
+/* Sidebar icons: no square box behind icons */
+html body .sidebar nav a,
+html body .sidebar nav button,
+html[data-theme="dark"] body .sidebar nav a,
+html[data-theme="dark"] body .sidebar nav button {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  border-radius: 10px !important;
+}
+html body .sidebar nav a:hover,
+html[data-theme="dark"] body .sidebar nav a:hover {
+  background: rgba(255,255,255,0.06) !important;
+}
+html body .sidebar nav a.active,
+html[data-theme="dark"] body .sidebar nav a.active {
+  background: rgba(255,255,255,0.1) !important;
+  box-shadow: inset 3px 0 0 #fafafa !important;
+}
+html body .sidebar nav a svg,
+html[data-theme="dark"] body .sidebar nav a svg {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+/* Topbar icon buttons: no square outline flash */
+html body .atlas-shell-icon-btn,
+html body .ac-topbar-mail,
+html body .ac-topbar-notif,
+html body .ac-topbar-user-btn,
+html[data-theme="dark"] body .atlas-shell-icon-btn,
+html[data-theme="dark"] body .ac-topbar-mail,
+html[data-theme="dark"] body .ac-topbar-notif,
+html[data-theme="dark"] body .ac-topbar-user-btn {
+  background: #1c1c1f !important;
+  border: 1px solid #2a2a2e !important;
+  color: #e4e4e7 !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"] body .atlas-shell-icon-btn:hover,
+html[data-theme="dark"] body .atlas-shell-icon-btn:active,
+html[data-theme="dark"] body .ac-topbar-mail:hover,
+html[data-theme="dark"] body .ac-topbar-mail:active,
+html[data-theme="dark"] body .ac-topbar-notif:hover,
+html[data-theme="dark"] body .ac-topbar-notif:active {
+  background: #27272a !important;
+  color: #fafafa !important;
+  border-color: #3f3f46 !important;
+}
+
+/* Account menu — dark panel, no white pills */
+html[data-theme="dark"] body .account-menu-panel,
+html[data-theme="dark"] body .account-menu-panel--portal,
+html[data-theme="dark"] body .account-menu-panel--rail-inline {
+  background: #1c1c1f !important;
+  border: 1px solid #2a2a2e !important;
+  color: #f4f4f5 !important;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.55) !important;
+}
+html[data-theme="dark"] body .account-menu-panel .account-menu-item,
+html[data-theme="dark"] body .account-menu-panel--portal .account-menu-item,
+html[data-theme="dark"] body button.account-menu-item,
+html[data-theme="dark"] body a.account-menu-item {
+  background: #27272a !important;
+  color: #f4f4f5 !important;
+  border: 1px solid #3f3f46 !important;
+  border-radius: 12px !important;
+}
+html[data-theme="dark"] body .account-menu-panel .account-menu-item:hover,
+html[data-theme="dark"] body .account-menu-panel .account-menu-item:active,
+html[data-theme="dark"] body .account-menu-panel--portal .account-menu-item:hover,
+html[data-theme="dark"] body .account-menu-panel--portal .account-menu-item:active {
+  background: #3f3f46 !important;
+  color: #fff !important;
+}
+html[data-theme="dark"] body .account-menu-item.account-menu-danger,
+html[data-theme="dark"] body .account-menu-panel .account-menu-danger {
+  background: #3f1d1d !important;
+  color: #fecaca !important;
+  border-color: #7f1d1d !important;
+}
+html[data-theme="dark"] body .account-menu-item svg {
+  color: #a1a1aa !important;
+  stroke: #a1a1aa !important;
+}
+/* Theme switcher chips */
+html[data-theme="dark"] body .account-menu-panel .theme-toggle,
+html[data-theme="dark"] body .account-menu-panel [class*="theme"] button,
+html[data-theme="dark"] body .account-glass-switch,
+html[data-theme="dark"] body .account-menu-panel .segmented button {
+  background: #27272a !important;
+  color: #a1a1aa !important;
+  border: 1px solid #3f3f46 !important;
+}
+html[data-theme="dark"] body .account-menu-panel .theme-toggle.active,
+html[data-theme="dark"] body .account-menu-panel [class*="theme"] button.active,
+html[data-theme="dark"] body .account-menu-panel .segmented button.active {
+  background: #fafafa !important;
+  color: #0a0a0a !important;
+  border-color: #fafafa !important;
+}
+
+/* Mail / notification popover */
+html[data-theme="dark"] body .mail-popover,
+html[data-theme="dark"] body .notif-popover,
+html[data-theme="dark"] body .ac-mail-panel,
+html[data-theme="dark"] body .ac-notif-panel,
+html[data-theme="dark"] body [class*="mailbox-panel"],
+html[data-theme="dark"] body [class*="mail-dropdown"] {
+  background: #1c1c1f !important;
+  border: 1px solid #2a2a2e !important;
+  color: #f4f4f5 !important;
+}
+html[data-theme="dark"] body .mail-popover button,
+html[data-theme="dark"] body .ac-mail-panel button,
+html[data-theme="dark"] body [class*="mailbox"] button,
+html[data-theme="dark"] body .mailbox-menu-item,
+html[data-theme="dark"] body .mail-item,
+html[data-theme="dark"] body [class*="mail-row"] {
+  background: #27272a !important;
+  color: #e4e4e7 !important;
+  border: 1px solid #3f3f46 !important;
+}
+html[data-theme="dark"] body .mail-popover button:hover,
+html[data-theme="dark"] body .mail-popover button:active,
+html[data-theme="dark"] body .mailbox-menu-item:hover,
+html[data-theme="dark"] body .mailbox-menu-item:active,
+html[data-theme="dark"] body .mail-item:hover,
+html[data-theme="dark"] body .mail-item:active,
+html[data-theme="dark"] body [class*="mail-row"]:hover,
+html[data-theme="dark"] body [class*="mail-row"]:active {
+  background: #3f3f46 !important;
+  color: #fafafa !important;
+}
+html[data-theme="dark"] body .mail-popover .mail-item.active,
+html[data-theme="dark"] body [class*="mail-row"].active,
+html[data-theme="dark"] body .mailbox-menu-item.active {
+  background: #3f3f46 !important;
+  color: #fafafa !important;
+  border-color: #52525b !important;
+}
+
+/* Buttons: no white flash on :active in dark */
+html[data-theme="dark"] body button:active:not(.danger),
+html[data-theme="dark"] body .btn:active:not(.danger) {
+  filter: brightness(1.15) !important;
+}
+html[data-theme="dark"] body button.secondary:active,
+html[data-theme="dark"] body button.ghost:active {
+  background: #3f3f46 !important;
+  color: #fafafa !important;
+}
+
+/* Settings placeholders */
+html[data-theme="dark"] body input::placeholder,
+html[data-theme="dark"] body textarea::placeholder {
+  color: #71717a !important;
+  opacity: 1 !important;
+}
+html[data-theme="dark"] body input,
+html[data-theme="dark"] body textarea,
+html[data-theme="dark"] body select {
+  background: #1c1c1f !important;
+  color: #f4f4f5 !important;
+  border-color: #3f3f46 !important;
+}
+
+/* Dashboard cards still identical */
+html[data-theme="dark"] body .ac-metric,
+html[data-theme="dark"] body .ac-panel {
+  background: #1c1c1f !important;
+  border-color: #2a2a2e !important;
+}
+
+/* v177 sidebar = topbar, mail no white, passkey UX */
+html[data-theme="dark"] body .sidebar,
+html[data-theme="dark"] body .ac-topbar,
+html[data-theme="dark"] body .settings-topbar,
+html[data-theme="dark"] body .atlas-shell-topbar,
+html[data-theme="dark"] body .layout > aside,
+html[data-theme="dark"] body .layout > .sidebar {
+  background: #111113 !important;
+  background-color: #111113 !important;
+  border-color: #2a2a2e !important;
+}
+html[data-theme="dark"] body .content,
+html[data-theme="dark"] body .atlas-page {
+  background: #111113 !important;
+}
+
+/* Mail panel items — never white on dark */
+html[data-theme="dark"] body .ac-mail-panel,
+html[data-theme="dark"] body .ac-mail-panel .ac-notif-list {
+  background: #1c1c1f !important;
+  color: #f4f4f5 !important;
+}
+html[data-theme="dark"] body .ac-mail-panel .ac-notif-item,
+html[data-theme="dark"] body .ac-mail-panel button.ac-notif-item,
+html[data-theme="dark"] body .ac-mail-panel [class*="notif-item"] {
+  background: #27272a !important;
+  border: 1px solid #3f3f46 !important;
+  color: #e4e4e7 !important;
+}
+html[data-theme="dark"] body .ac-mail-panel .ac-notif-item:hover,
+html[data-theme="dark"] body .ac-mail-panel .ac-notif-item:focus,
+html[data-theme="dark"] body .ac-mail-panel .ac-notif-item:active,
+html[data-theme="dark"] body .ac-mail-panel .ac-notif-item.is-active,
+html[data-theme="dark"] body .ac-mail-panel .ac-notif-item[aria-selected="true"] {
+  background: #3f3f46 !important;
+  color: #fafafa !important;
+  border-color: #52525b !important;
+}
+html[data-theme="dark"] body .ac-mail-panel .ac-notif-item strong,
+html[data-theme="dark"] body .ac-mail-panel .ac-notif-item-body strong {
+  color: #fafafa !important;
+}
+html[data-theme="dark"] body .ac-mail-panel .ac-notif-item em,
+html[data-theme="dark"] body .ac-mail-panel .ac-notif-item-body em {
+  color: #a1a1aa !important;
+}
+html[data-theme="dark"] body .ac-mail-panel button,
+html[data-theme="dark"] body .ac-mail-panel .ac-mail-open,
+html[data-theme="dark"] body .ac-mail-panel [class*="Ouvrir"] {
+  background: #27272a !important;
+  color: #e4e4e7 !important;
+  border: 1px solid #3f3f46 !important;
+}
+html[data-theme="dark"] body .mailbox-item:hover,
+html[data-theme="dark"] body .mailbox-item.is-active {
+  background: #3f3f46 !important;
+  color: #fafafa !important;
+}
+
+/* ═══════════════════════════════════════════════
+   v178 FINAL — must win over every earlier rule
+   ═══════════════════════════════════════════════ */
+
+/* Sidebar = topbar = content canvas */
+html[data-theme="dark"] body .sidebar,
+html[data-theme="dark"] body aside.sidebar,
+html[data-theme="dark"] body .layout > .sidebar,
+html[data-theme="dark"] body .ac-topbar,
+html[data-theme="dark"] body .settings-topbar,
+html[data-theme="dark"] body .atlas-shell-topbar,
+html[data-theme="dark"] body .content,
+html[data-theme="dark"] body .atlas-page {
+  background-color: #111113 !important;
+  background: #111113 !important;
+}
+
+/* Mail items: dark always in dark theme (class may include secondary) */
+html[data-theme="dark"] body .ac-mail-panel .ac-notif-item,
+html[data-theme="dark"] body .ac-mail-panel button.ac-notif-item,
+html[data-theme="dark"] body .ac-mail-panel button.ac-notif-item.secondary,
+html[data-theme="dark"] body .ac-notif-panel .ac-notif-item,
+html[data-theme="dark"] body .ac-notif-panel button.ac-notif-item,
+html[data-theme="dark"] body button.ac-notif-item,
+html[data-theme="dark"] body .ac-notif-item {
+  background: #27272a !important;
+  background-color: #27272a !important;
+  color: #e4e4e7 !important;
+  border: 1px solid #3f3f46 !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"] body .ac-mail-panel .ac-notif-item:hover,
+html[data-theme="dark"] body .ac-mail-panel .ac-notif-item:focus,
+html[data-theme="dark"] body .ac-mail-panel .ac-notif-item:active,
+html[data-theme="dark"] body .ac-mail-panel button.ac-notif-item:hover,
+html[data-theme="dark"] body .ac-mail-panel button.ac-notif-item:active,
+html[data-theme="dark"] body .ac-notif-panel .ac-notif-item:hover,
+html[data-theme="dark"] body .ac-notif-panel .ac-notif-item:active,
+html[data-theme="dark"] body button.ac-notif-item:hover,
+html[data-theme="dark"] body button.ac-notif-item:active {
+  background: #3f3f46 !important;
+  background-color: #3f3f46 !important;
+  color: #fafafa !important;
+}
+html[data-theme="dark"] body .ac-notif-item strong,
+html[data-theme="dark"] body .ac-notif-item-body strong,
+html[data-theme="dark"] body .ac-mail-panel .ac-notif-item strong {
+  color: #fafafa !important;
+}
+html[data-theme="dark"] body .ac-notif-item em,
+html[data-theme="dark"] body .ac-notif-item-body em,
+html[data-theme="dark"] body .ac-mail-panel .ac-notif-item em {
+  color: #a1a1aa !important;
+}
+html[data-theme="dark"] body .ac-mail-panel,
+html[data-theme="dark"] body .ac-notif-panel {
+  background: #1c1c1f !important;
+  border-color: #2a2a2e !important;
+  color: #f4f4f5 !important;
+}
+html[data-theme="dark"] body .ac-notif-foot button,
+html[data-theme="dark"] body .ac-mail-panel .secondary,
+html[data-theme="dark"] body .ac-mail-panel button.secondary {
+  background: #27272a !important;
+  color: #e4e4e7 !important;
+  border: 1px solid #3f3f46 !important;
+}
+
+/* Account menu — portal on body */
+html[data-theme="dark"] body .account-menu-panel,
+html[data-theme="dark"] body .account-menu-panel--portal,
+html[data-theme="dark"] .account-menu-panel--portal {
+  background: #1c1c1f !important;
+  border: 1px solid #2a2a2e !important;
+  color: #f4f4f5 !important;
+}
+html[data-theme="dark"] body .account-menu-item,
+html[data-theme="dark"] body button.account-menu-item,
+html[data-theme="dark"] .account-menu-panel--portal .account-menu-item,
+html[data-theme="dark"] .account-menu-panel--portal button.account-menu-item {
+  background: #27272a !important;
+  color: #f4f4f5 !important;
+  border: 1px solid #3f3f46 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+}
+html[data-theme="dark"] body .account-menu-item:hover,
+html[data-theme="dark"] body .account-menu-item:active,
+html[data-theme="dark"] .account-menu-panel--portal .account-menu-item:hover,
+html[data-theme="dark"] .account-menu-panel--portal .account-menu-item:active {
+  background: #3f3f46 !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+html[data-theme="dark"] body .account-menu-danger,
+html[data-theme="dark"] .account-menu-panel--portal .account-menu-danger {
+  background: #3f1d1d !important;
+  color: #fecaca !important;
+  -webkit-text-fill-color: #fecaca !important;
+  border-color: #7f1d1d !important;
+}
+html[data-theme="dark"] body .account-seg button,
+html[data-theme="dark"] body .account-menu-panel .account-seg button {
+  background: #27272a !important;
+  color: #a1a1aa !important;
+  border: 1px solid #3f3f46 !important;
+}
+html[data-theme="dark"] body .account-seg button.active {
+  background: #fafafa !important;
+  color: #0a0a0a !important;
+}

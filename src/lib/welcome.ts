@@ -18,7 +18,7 @@ export type WelcomePrefs = {
   liquidGlass: boolean;
 };
 
-export const WELCOME_STEP_COUNT = 5;
+export const WELCOME_STEP_COUNT = 6;
 
 export function isWelcomeCompleted(): boolean {
   try {
@@ -92,13 +92,13 @@ export function getWelcomePrefs(): WelcomePrefs {
       return {
         theme: p.theme === 'dark' || p.theme === 'system' || p.theme === 'light' ? p.theme : 'system',
         density: p.density === 'comfortable' ? 'comfortable' : 'compact',
-        liquidGlass: p.liquidGlass !== false,
+        liquidGlass: false,
       };
     }
   } catch {
     /* */
   }
-  return { theme: 'system', density: 'compact', liquidGlass: true };
+  return { theme: 'system', density: 'comfortable', liquidGlass: false };
 }
 
 export function saveWelcomePrefs(prefs: Partial<WelcomePrefs>): WelcomePrefs {

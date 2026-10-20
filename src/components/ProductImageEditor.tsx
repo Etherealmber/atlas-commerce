@@ -678,7 +678,7 @@ export default function ProductImageEditor({ productId }: { productId: number })
               width: 92,
               borderRadius: 10,
               overflow: 'hidden',
-              border: img.is_primary ? '2px solid var(--zellij, #0d7377)' : '1px solid var(--line)',
+              border: img.is_primary ? '2px solid var(--zellij, #71717a)' : '1px solid var(--line)',
               background: '#f4f1ea',
             }}
           >

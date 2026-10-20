@@ -1,13 +1,13 @@
-<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="180" height="180" rx="40" fill="#0B1F1A"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180" fill="none">
   <defs>
-    <linearGradient id="lm" x1="40" y1="30" x2="140" y2="150" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#5EEAD4"/>
-      <stop offset="0.55" stop-color="#2DD4BF"/>
-      <stop offset="1" stop-color="#14B8A6"/>
+    <linearGradient id="ac-face" x1="90" y1="0" x2="90" y2="180" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#171717"/>
+      <stop offset="1" stop-color="#0a0a0a"/>
     </linearGradient>
   </defs>
-  <path d="M90 38 L138 138 H118 L108 112 H72 L62 138 H42 L90 38 Z" fill="url(#lm)"/>
-  <path d="M78 100 H102 L90 70 Z" fill="#F0FDF4"/>
-  <circle cx="128" cy="50" r="9" fill="#FBBF24"/>
+  <rect width="180" height="180" rx="40" fill="url(#ac-face)"/>
+  <!-- hairline inner rim for depth -->
+  <rect x="5" y="5" width="170" height="170" rx="36" stroke="#ffffff" stroke-opacity="0.08" fill="none"/>
+  <!-- Premium geometric A -->
+  <path fill-rule="evenodd" clip-rule="evenodd" d="M90 38L136 142H116.2L107.6 118.5H72.4L63.8 142H44L90 38ZM90 68L79.2 97.5H100.8L90 68Z" fill="#fafafa"/>
 </svg>

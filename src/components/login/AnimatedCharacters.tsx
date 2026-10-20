@@ -172,7 +172,7 @@ export default function AnimatedCharacters({
       setSuccessLookY(-5);
       return;
     }
-    const colors = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#A78BFA', '#FF9B6B', '#6BCB77', '#4D96FF'];
+    const colors = ['#FF6B6B', '#71717a', '#FFE66D', '#A78BFA', '#FF9B6B', '#71717a', '#4D96FF'];
     setConfetti(
       Array.from({ length: 120 }, (_, i) => ({
         key: i,
@@ -257,16 +257,16 @@ export default function AnimatedCharacters({
             pupilSize={7}
             maxDistance={5}
             isBlinking={purpleBlink}
-            forceLookX={loginSuccess ? 0 : peekingPwd ? (purplePeek ? 4 : -4) : lookingEachOther ? 3 : undefined}
-            forceLookY={loginSuccess ? successLookY : peekingPwd ? (purplePeek ? 5 : -4) : lookingEachOther ? 4 : undefined}
+            forceLookX={loginSuccess ? 0 : peekingPwd ? (purplePeek ? 5 : -5) : isHiding ? 6 : lookingEachOther ? 3 : undefined}
+            forceLookY={loginSuccess ? successLookY : peekingPwd ? (purplePeek ? 4 : -3) : isHiding ? -6 : lookingEachOther ? 4 : undefined}
           />
           <EyeBall
             size={18}
             pupilSize={7}
             maxDistance={5}
             isBlinking={purpleBlink}
-            forceLookX={loginSuccess ? 0 : peekingPwd ? (purplePeek ? 4 : -4) : lookingEachOther ? 3 : undefined}
-            forceLookY={loginSuccess ? successLookY : peekingPwd ? (purplePeek ? 5 : -4) : lookingEachOther ? 4 : undefined}
+            forceLookX={loginSuccess ? 0 : peekingPwd ? (purplePeek ? 5 : -5) : isHiding ? 6 : lookingEachOther ? 3 : undefined}
+            forceLookY={loginSuccess ? successLookY : peekingPwd ? (purplePeek ? 4 : -3) : isHiding ? -6 : lookingEachOther ? 4 : undefined}
           />
         </div>
         <div
@@ -317,8 +317,8 @@ export default function AnimatedCharacters({
             isBlinking={blackBlink}
             isSad={loginFailed}
             sadRotate={-20}
-            forceLookX={loginSuccess ? 0 : peekingPwd ? -4 : lookingEachOther ? 0 : undefined}
-            forceLookY={loginSuccess ? successLookY : peekingPwd ? -4 : lookingEachOther ? -4 : undefined}
+            forceLookX={loginSuccess ? 0 : peekingPwd ? 5 : isHiding ? -5 : lookingEachOther ? 0 : undefined}
+            forceLookY={loginSuccess ? successLookY : peekingPwd ? 3 : isHiding ? -6 : lookingEachOther ? -4 : undefined}
           />
           <EyeBall
             size={16}
@@ -327,8 +327,8 @@ export default function AnimatedCharacters({
             isBlinking={blackBlink}
             isSad={loginFailed}
             sadRotate={20}
-            forceLookX={loginSuccess ? 0 : peekingPwd ? -4 : lookingEachOther ? 0 : undefined}
-            forceLookY={loginSuccess ? successLookY : peekingPwd ? -4 : lookingEachOther ? -4 : undefined}
+            forceLookX={loginSuccess ? 0 : peekingPwd ? 5 : isHiding ? -5 : lookingEachOther ? 0 : undefined}
+            forceLookY={loginSuccess ? successLookY : peekingPwd ? 3 : isHiding ? -6 : lookingEachOther ? -4 : undefined}
           />
         </div>
       </div>
@@ -358,19 +358,21 @@ export default function AnimatedCharacters({
             top: peekingPwd ? 55 : 60 + orangePos.faceY,
           }}
         >
-          <Pupil
-            size={12}
-            maxDistance={5}
+          <EyeBall
+            size={16}
+            pupilSize={6}
+            maxDistance={4}
             isBlinking={orangeBlink}
-            forceLookX={loginSuccess ? 0 : peekingPwd ? -5 : undefined}
-            forceLookY={loginSuccess ? successLookY : peekingPwd ? -4 : undefined}
+            forceLookX={loginSuccess ? 0 : peekingPwd ? 5 : isHiding ? -4 : isTyping ? -3 : undefined}
+            forceLookY={loginSuccess ? successLookY : peekingPwd ? 3 : isHiding ? -5 : isTyping ? -4 : undefined}
           />
-          <Pupil
-            size={12}
-            maxDistance={5}
+          <EyeBall
+            size={16}
+            pupilSize={6}
+            maxDistance={4}
             isBlinking={orangeBlink}
-            forceLookX={loginSuccess ? 0 : peekingPwd ? -5 : undefined}
-            forceLookY={loginSuccess ? successLookY : peekingPwd ? -4 : undefined}
+            forceLookX={loginSuccess ? 0 : peekingPwd ? 5 : isHiding ? -4 : isTyping ? -3 : undefined}
+            forceLookY={loginSuccess ? successLookY : peekingPwd ? 3 : isHiding ? -5 : isTyping ? -4 : undefined}
           />
         </div>
         <div
@@ -415,19 +417,21 @@ export default function AnimatedCharacters({
             top: peekingPwd ? 35 : 40 + yellowPos.faceY,
           }}
         >
-          <Pupil
-            size={12}
-            maxDistance={5}
+          <EyeBall
+            size={16}
+            pupilSize={6}
+            maxDistance={4}
             isBlinking={yellowBlink}
-            forceLookX={loginSuccess ? 0 : peekingPwd ? -5 : undefined}
-            forceLookY={loginSuccess ? successLookY : peekingPwd ? -4 : undefined}
+            forceLookX={loginSuccess ? 0 : peekingPwd ? -5 : isHiding ? 4 : isTyping ? -3 : undefined}
+            forceLookY={loginSuccess ? successLookY : peekingPwd ? 2 : isHiding ? -5 : isTyping ? -4 : undefined}
           />
-          <Pupil
-            size={12}
-            maxDistance={5}
+          <EyeBall
+            size={16}
+            pupilSize={6}
+            maxDistance={4}
             isBlinking={yellowBlink}
-            forceLookX={loginSuccess ? 0 : peekingPwd ? -5 : undefined}
-            forceLookY={loginSuccess ? successLookY : peekingPwd ? -4 : undefined}
+            forceLookX={loginSuccess ? 0 : peekingPwd ? -5 : isHiding ? 4 : isTyping ? -3 : undefined}
+            forceLookY={loginSuccess ? successLookY : peekingPwd ? 2 : isHiding ? -5 : isTyping ? -4 : undefined}
           />
         </div>
         <div

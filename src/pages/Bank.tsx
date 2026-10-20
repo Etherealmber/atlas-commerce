@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import DatePicker from '../components/DatePicker';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
 import { useUi } from '../components/AppDialogs';
@@ -733,11 +734,11 @@ export default function Bank() {
       <div className="bank-toolbar">
         <div>
           <label>Du</label>
-          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          <DatePicker value={from} onChange={setFrom} />
         </div>
         <div>
           <label>Au</label>
-          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          <DatePicker value={to} onChange={setTo} />
         </div>
         <div>
           <label>± jours</label>

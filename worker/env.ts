@@ -7,10 +7,14 @@ export interface Env {
   /** Free-tier Durable Object for mobile pending counts */
   MOBILE_HUB?: DurableObjectNamespace;
   RESTORE_HUB?: DurableObjectNamespace;
+  /** Atomic document number sequences */
+  NUMBER_HUB?: DurableObjectNamespace;
   /** R2 bucket for product/company images — company-stock-images */
   IMAGES?: R2Bucket;
   /** Cloudflare Secret — never commit */
   ADMIN_PASSWORD: string;
+  /** Google Cloud Translation API key (Secret) */
+  GOOGLE_TRANSLATE_API_KEY?: string;
   ADMIN_USERNAME?: string;
   /** Optional session signing secret (Secret). Falls back to ADMIN_PASSWORD-derived key if unset. */
   JWT_SECRET?: string;

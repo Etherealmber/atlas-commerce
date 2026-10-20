@@ -204,19 +204,29 @@ export function priceAnomaly(
 }
 
 /** 7. Client risk from open invoices */
-export function clientRisk(invoices: { status?: string; due_date?: string; issue_date?: string; total?: number; amount_paid?: number; client_id?: number; client_name?: string }[], clientId?: number | string, clientName?: string): {
+export function clientRisk(invoices: { status?: string; due_date?: string; issue_date?: string; total?: number; amount_paid?: number; client_id?: number; client_name?: string; doc_kind?: string; number?: string }[], clientId?: number | string, clientName?: string): {
   level: 'ok' | 'watch' | 'high';
   message: string;
   unpaid: number;
   overdue: number;
 } {
+  // Only evaluate after a real client is chosen (id or non-empty name)
+  const hasId = clientId !== undefined && clientId !== null && clientId !== '';
+  const hasName = !!(clientName && String(clientName).trim());
+  if (!hasId && !hasName) {
+    return { level: 'ok', message: '', unpaid: 0, overdue: 0 };
+  }
   const now = Date.now();
   let unpaid = 0;
   let overdue = 0;
   for (const inv of invoices || []) {
     if (['quote', 'devis', 'cancelled', 'remboursement'].includes(String(inv.status))) continue;
-    if (clientId && Number(inv.client_id) !== Number(clientId)) continue;
-    if (!clientId && clientName && norm(inv.client_name || '') !== norm(clientName)) continue;
+    const dk = String(inv.doc_kind || '');
+    if (dk === 'quick_sale' || dk === 'ticket') continue;
+    if (String(inv.number || '').startsWith('VR')) continue;
+    if (hasId && Number(inv.client_id) !== Number(clientId)) continue;
+    if (!hasId && hasName && norm(inv.client_name || '') !== norm(clientName || '')) continue;
+    if (!hasId && !hasName) continue;
     const due = Math.max(0, Number(inv.total || 0) - Number(inv.amount_paid || 0));
     if (due < 0.01) continue;
     unpaid += due;

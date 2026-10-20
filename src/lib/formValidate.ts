@@ -145,3 +145,36 @@ export function validateSettingsCompany(form: {
   }
   return e;
 }
+
+
+/** French hints for common input constraints */
+export const FR_HINT = {
+  required: 'Ce champ est obligatoire.',
+  numbersOnly: 'Chiffres uniquement.',
+  positiveNumber: 'Entrez un nombre valide (≥ 0).',
+  email: 'Adresse e-mail invalide.',
+  phone: 'Numéro de téléphone invalide.',
+  ice: 'ICE : 15 chiffres (sans espaces).',
+  minLength: (n: number) => `Au moins ${n} caractères.`,
+} as const;
+
+export function requireNonEmpty(v: unknown, label = 'Ce champ'): string | null {
+  if (!String(v ?? '').trim()) return `${label} est obligatoire.`;
+  return null;
+}
+
+export function requireNumber(v: unknown, label = 'Valeur'): string | null {
+  const s = String(v ?? '').trim();
+  if (!s) return `${label} est obligatoire.`;
+  if (!/^-?\d+([.,]\d+)?$/.test(s)) return 'Chiffres uniquement (décimales autorisées).';
+  const n = Number(s.replace(',', '.'));
+  if (!Number.isFinite(n)) return 'Nombre invalide.';
+  return null;
+}
+
+export function requireDigits(v: unknown, label = 'Ce champ'): string | null {
+  const s = String(v ?? '').replace(/\s/g, '');
+  if (!s) return `${label} est obligatoire.`;
+  if (!/^\d+$/.test(s)) return 'Chiffres uniquement.';
+  return null;
+}

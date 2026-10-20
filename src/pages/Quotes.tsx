@@ -1,3 +1,5 @@
+import TypeaheadField, { productTypeaheadOptions, partyTypeaheadOptions } from '../components/TypeaheadField';
+import DatePicker from '../components/DatePicker';
 import { useEffect, useState } from 'react';
 import { api, BASE } from '../api';
 import { openPrintDoc } from '../lib/reports';
@@ -10,8 +12,11 @@ import NumberField from '../components/NumberField';
 import EmptyState from '../components/EmptyState';
 import RefreshIconButton from '../components/RefreshIconButton';
 import PasswordConfirm from '../components/PasswordConfirm';
+import { FloatingPortal } from '../components/FloatingPortal';
+import { ModalFormError } from '../components/ModalFormFeedback';
 
 export default function Quotes() {
+  const [modalError, setModalError] = useState('');
   const { confirm } = useUi();
   const [list, setList] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
@@ -24,9 +29,12 @@ export default function Quotes() {
   const [saveMsgType, setSaveMsgType] = useState<'success' | 'error'>('success');
   const [clientId, setClientId] = useState('');
   const [clientName, setClientName] = useState('');
+  const [clientQuery, setClientQuery] = useState('');
+  const [clientDropOpen, setClientDropOpen] = useState(false);
+  const [productDropIdx, setProductDropIdx] = useState<number | null>(null);
   const [issueDate, setIssueDate] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState('');
-  const [items, setItems] = useState<{ product_id?: number; product_name: string; quantity: number; list_price: number; unit_price: number; tax_rate: number; sku?: string }[]>([
+  const [items, setItems] = useState<{ product_id?: number; product_name: string; product_query?: string; quantity: number; list_price: number; unit_price: number; tax_rate: number; sku?: string }[]>([
     { product_name: '', quantity: 1, list_price: 0, unit_price: 0, tax_rate: 20 },
   ]);
   const [taxExempt, setTaxExempt] = useState(false);
@@ -79,6 +87,15 @@ export default function Quotes() {
       });
   };
 
+  
+  useEffect(() => {
+    const onLists = () => {
+      try { load(true); } catch { /* */ }
+    };
+    window.addEventListener('atlas-lists-refresh', onLists as EventListener);
+    return () => window.removeEventListener('atlas-lists-refresh', onLists as EventListener);
+  }, []);
+
   useEffect(() => { load(); }, []);
 
   const onClient = (id: string) => {
@@ -103,6 +120,7 @@ export default function Quotes() {
     setItem(i, {
       product_id: p.id,
       product_name: p.name,
+      product_query: p.name,
       sku: p.sku || '',
       list_price: price,
       unit_price: price,
@@ -311,7 +329,7 @@ export default function Quotes() {
   if (loading) return <div className="empty">Chargement des devis...</div>;
 
   return (
-    <div>
+    <div className="atlas-crm quotes-page">
       <div className="page-header">
         <div>
           <h1>Devis</h1>
@@ -327,20 +345,24 @@ export default function Quotes() {
 
       <SaveFeedback message={saveMsg} type={saveMsgType} />
 
-      <div className="search-bar">
-        <input
-          className="search-input"
-          type="search"
-          placeholder="Rechercher n°, client, statut…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          aria-label="Rechercher dans les devis"
-        />
+      <div className="ac-panel ac-products-filters">
+        <div className="ac-products-filters-row">
+          <div className="ac-search-field">
+            <input
+              className="ac-search-input"
+              type="search"
+              placeholder="Rechercher n°, client, statut…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              aria-label="Rechercher dans les devis"
+            />
+          </div>
+        </div>
       </div>
 
-      <div className="card">
+      <div className="ac-panel ac-products-table-panel">
         <div className="table-wrap">
-          <table>
+          <table className="data-dense ac-products-table">
             <thead>
               <tr>
                 <th>N°</th><th>Client</th><th>Date</th><th>Statut</th>
@@ -382,6 +404,8 @@ export default function Quotes() {
                     <EmptyState
                       title="Aucun devis"
                       description="Créez une estimation pour un client. Vous pourrez la convertir en facture ensuite."
+                      actionLabel="Créer mon premier devis"
+                      onAction={() => { resetForm(); setShowModal(true); }}
                       icon="quote"
                     />
                   </td></tr>
@@ -392,7 +416,7 @@ export default function Quotes() {
       </div>
 
       {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" style={{ maxWidth: 1080, width: '96vw' }} onClick={(e) => e.stopPropagation()}>
             <h2>Nouveau devis</h2>
             <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>
@@ -401,19 +425,35 @@ export default function Quotes() {
             <div className="grid grid-2">
               <div className="form-row">
                 <label>Client *</label>
-                <select value={clientId} onChange={(e) => onClient(e.target.value)}>
-                  <option value="">— Choisir —</option>
-                  {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+                <TypeaheadField
+                  value={clientQuery || clientName}
+                  placeholder="Rechercher un client…"
+                  options={partyTypeaheadOptions(clients, 'client')}
+                  onOpen={() => {
+                    api.getClients().then((r: any) => {
+                      if (Array.isArray(r?.data)) setClients(r.data);
+                    }).catch(() => {});
+                  }}
+                  onChange={(v) => {
+                    setClientQuery(v);
+                    setClientName(v);
+                    setClientId('');
+                  }}
+                  onPick={(o) => {
+                    onClient(String(o.id));
+                    setClientQuery(o.label);
+                  }}
+                  emptyLabel="Aucun client"
+                />
               </div>
               <div className="form-row">
                 <label>Nom client (libre)</label>
-                <input value={clientName} onChange={(e) => setClientName(e.target.value)} placeholder="Monsieur Benane" />
+                <input value={clientName} onChange={(e) => { setClientName(e.target.value); setClientQuery(e.target.value); }} placeholder="Monsieur Benane" />
               </div>
             </div>
             <div className="form-row">
               <label>Date</label>
-              <input type="date" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} />
+              <DatePicker value={issueDate} onChange={setIssueDate} />
             </div>
 
             <div className="form-row" style={{ marginTop: 8 }}>
@@ -455,31 +495,27 @@ export default function Quotes() {
               return (
               <div key={i} style={{ marginBottom: 10 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.1fr 70px 90px 90px 70px 44px', gap: 8, alignItems: 'center' }}>
-                  <input
+                  <TypeaheadField
+                      value={(it as any).product_query ?? it.product_name ?? ''}
                       placeholder="Chercher produit (nom / SKU)…"
-                      defaultValue=""
-                      onChange={(e) => {
-                        const q = e.target.value.toLowerCase().trim();
-                        if (!q) return;
-                        const p = products.find((x) =>
-                          String(x.name || '').toLowerCase().includes(q) ||
-                          String(x.sku || '').toLowerCase() === q ||
-                          String(x.barcode || '') === q
-                        );
-                        if (p) pickProduct(i, String(p.id));
+                      options={productTypeaheadOptions(products)}
+                      onChange={(q) => {
+                        setItem(i, { product_name: q, product_id: undefined, product_query: q });
                       }}
-                      list={`qp-${i}`}
-                      
+                      onPick={(o) => {
+                        pickProduct(i, String(o.id));
+                      }}
+                      onOpen={() => {
+                        api.getProducts({ fields: 'light', limit: 500 }).then((r: any) => {
+                          if (Array.isArray(r?.data)) setProducts(r.data);
+                        }).catch(() => {});
+                      }}
+                      emptyLabel="Aucun produit"
                     />
-                    <datalist id={`qp-${i}`}>
-                      {products.slice(0, 80).map((p) => (
-                        <option key={p.id} value={p.name}>{p.sku ? p.sku + ' · ' : ''}{Number(p.price || 0)} MAD</option>
-                      ))}
-                    </datalist>
                   <input placeholder="Désignation" value={it.product_name} onChange={(e) => setItem(i, { product_name: e.target.value })} />
                   <NumberField value={it.quantity} onValueChange={(n) => setItem(i, { quantity: n })} min={0} step="0.01" />
                   <NumberField value={it.list_price} onValueChange={(n) => setItem(i, { list_price: n })} min={0} step="0.01" title="Prix catalogue" />
-                  <NumberField value={it.unit_price} onValueChange={(n) => setItem(i, { unit_price: n })} min={0} step="0.01" title="Prix client (promo)" style={promo ? { borderColor: 'var(--success, #2d5a2d)' } : undefined} />
+                  <NumberField value={it.unit_price} onValueChange={(n) => setItem(i, { unit_price: n })} min={0} step="0.01" title="Prix client (promo)" style={promo ? { borderColor: 'var(--success, #3f3f46)' } : undefined} />
                   <div style={{ fontWeight: 700, textAlign: 'right' }}>{(Number(it.quantity||0)*unitP).toLocaleString('fr-FR', { maximumFractionDigits: 0 })}</div>
                   <button
                     type="button"
@@ -487,13 +523,20 @@ export default function Quotes() {
                     title="Supprimer la ligne"
                     aria-label="Supprimer la ligne"
                     style={{ padding: '6px 8px', minWidth: 40 }}
-                    onClick={() => setItems((prev) => (prev.length <= 1 ? prev : prev.filter((_, j) => j !== i)))}
+                    onClick={() =>
+                      setItems((prev) => {
+                        if (prev.length <= 1) {
+                          return [{ product_name: '', quantity: 1, list_price: 0, unit_price: 0, tax_rate: 20 }];
+                        }
+                        return prev.filter((_, j) => j !== i);
+                      })
+                    }
                   >
                     ✕
                   </button>
                 </div>
                 {promo && (
-                  <div style={{ fontSize: 11, color: 'var(--success, #2d5a2d)', marginTop: 2 }}>
+                  <div style={{ fontSize: 11, color: 'var(--success, #3f3f46)', marginTop: 2 }}>
                     Promo −{(listP - unitP).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} / u ({listP > 0 ? (((listP - unitP) / listP) * 100).toFixed(1) : 0} %)
                   </div>
                 )}
@@ -512,16 +555,17 @@ export default function Quotes() {
               <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>TVA</span><strong>{fmt(draftTotals.tax)} MAD</strong></div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 16 }}><span>TTC</span><strong>{fmt(draftTotals.ttc)} MAD</strong></div>
             </div>
+            <ModalFormError message={modalError} />
             <div className="form-actions">
               <button onClick={create} disabled={saving}>{saving ? 'Enregistrement…' : 'Enregistrer le devis'}</button>
               <button className="secondary" onClick={() => setShowModal(false)}>Annuler</button>
             </div>
           </div>
-        </div>
+        </div></FloatingPortal>
       )}
 
       {convertId != null && (
-        <div className="modal-overlay" onClick={() => !saving && setConvertId(null)}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => !saving && setConvertId(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-labelledby="convert-quote-title">
             <h2 id="convert-quote-title" style={{ marginTop: 0 }}>Convertir le devis</h2>
             <p style={{ color: 'var(--muted)', fontSize: 14 }}>
@@ -539,11 +583,11 @@ export default function Quotes() {
               </button>
             </div>
           </div>
-        </div>
+        </div></FloatingPortal>
       )}
 
       {detailQuote && (
-        <div className="modal-overlay" onClick={() => !saving && resetForm()}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => !saving && resetForm()}>
           <div
             className="modal"
             style={{ maxWidth: 920, width: '96vw', maxHeight: '92vh', overflow: 'auto' }}
@@ -584,11 +628,10 @@ export default function Quotes() {
 
             <div className="form-row">
               <label>Date</label>
-              <input
-                type="date"
+              <DatePicker
                 value={issueDate}
                 disabled={editLocked || saving}
-                onChange={(e) => setIssueDate(e.target.value)}
+                onChange={setIssueDate}
               />
             </div>
 
@@ -653,7 +696,7 @@ export default function Quotes() {
                     />
                     <NumberField value={it.quantity} onValueChange={(n) => setItem(i, { quantity: n })} min={0} step="0.01" disabled={editLocked || saving} />
                     <NumberField value={it.list_price} onValueChange={(n) => setItem(i, { list_price: n })} min={0} step="0.01" disabled={editLocked || saving} title="Prix catalogue" />
-                    <NumberField value={it.unit_price} onValueChange={(n) => setItem(i, { unit_price: n })} min={0} step="0.01" disabled={editLocked || saving} title="Prix client" style={promo ? { borderColor: 'var(--success, #2d5a2d)' } : undefined} />
+                    <NumberField value={it.unit_price} onValueChange={(n) => setItem(i, { unit_price: n })} min={0} step="0.01" disabled={editLocked || saving} title="Prix client" style={promo ? { borderColor: 'var(--success, #3f3f46)' } : undefined} />
                     <div style={{ fontWeight: 700, textAlign: 'right' }}>{(Number(it.quantity || 0) * unitP).toLocaleString('fr-FR', { maximumFractionDigits: 0 })}</div>
                     <button
                       type="button"
@@ -661,7 +704,14 @@ export default function Quotes() {
                       title="Supprimer la ligne"
                       disabled={editLocked || saving || items.length <= 1}
                       style={{ padding: '6px 8px', minWidth: 40 }}
-                      onClick={() => setItems((prev) => (prev.length <= 1 ? prev : prev.filter((_, j) => j !== i)))}
+                      onClick={() =>
+                      setItems((prev) => {
+                        if (prev.length <= 1) {
+                          return [{ product_name: '', quantity: 1, list_price: 0, unit_price: 0, tax_rate: 20 }];
+                        }
+                        return prev.filter((_, j) => j !== i);
+                      })
+                    }
                     >
                       ✕
                     </button>
@@ -715,7 +765,7 @@ export default function Quotes() {
               </button>
             </div>
           </div>
-        </div>
+        </div></FloatingPortal>
       )}
 
       {pwOpen && pendingAction && (

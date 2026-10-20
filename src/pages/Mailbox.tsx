@@ -1,10 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { createPortal } from 'react-dom';
+import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import SaveFeedback from '../components/SaveFeedback';
 import RefreshIconButton from '../components/RefreshIconButton';
 import EmptyState from '../components/EmptyState';
+import { buildOfficePreview, type OfficeSlide } from '../lib/officePreview';
 import { useUi } from '../components/AppDialogs';
+import { InlineDisclosureMenu } from '../components/ui/InlineDisclosureMenu';
+import { ComposeEmailCard } from '../components/mailbox/ComposeEmailCard';
+import { ListPager } from '../components/ui/ListPager';
+import { Archive, MailWarning, Printer, Link2, FileText, Inbox } from 'lucide-react';
 
 type MailRow = {
   id: number;
@@ -134,62 +140,303 @@ function fmtSize(n: number): string {
  * submits nothing, while still rendering the sender's actual layout, fonts,
  * and inline images/logos exactly as sent. Auto-grows to fit its content.
  */
-function HtmlMailBody({ html }: { html: string }) {
+type CidAtt = { filename?: string; mimeType?: string; r2_key?: string; content_id?: string };
+
+const MAIL_REMOTE_IMAGES_KEY = 'atlas_mail_load_remote_images';
+
+function getMailRemoteImagesPref(): boolean {
+  try {
+    return localStorage.getItem(MAIL_REMOTE_IMAGES_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function setMailRemoteImagesPref(on: boolean) {
+  try {
+    localStorage.setItem(MAIL_REMOTE_IMAGES_KEY, on ? '1' : '0');
+  } catch { /* */ }
+}
+
+function rewriteMailHtml(html: string, attachments: CidAtt[], loadRemote: boolean): string {
+  let out = html || '';
+  for (const a of attachments) {
+    const cid = String(a.content_id || '').replace(/[<>]/g, '').trim();
+    if (!cid || !a.r2_key) continue;
+    const url =
+      `/api/admin/mailbox/attachment?key=${encodeURIComponent(a.r2_key)}` +
+      `&inline=1&filename=${encodeURIComponent(a.filename || 'image')}`;
+    const re = new RegExp(`cid:${cid.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'gi');
+    out = out.replace(re, url);
+  }
+  if (!loadRemote) {
+    const placeholder = encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="280" height="160" viewBox="0 0 280 160">
+        <rect width="100%" height="100%" rx="12" fill="#f5f2eb"/>
+        <rect x="24" y="24" width="232" height="112" rx="8" fill="#efebe3"/>
+        <g fill="none" stroke="#9aa8a2" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="108" y="52" width="64" height="48" rx="6"/>
+          <circle cx="126" cy="70" r="6"/>
+          <path d="M116 90l16-14 12 10 10-8 18 16"/>
+        </g>
+        <text x="140" y="130" text-anchor="middle" fill="#9aa3b5" font-family="system-ui,sans-serif" font-size="12">Image non chargée</text>
+      </svg>`.replace(/\s+/g, ' '),
+    );
+    out = out.replace(
+      /(<img\b[^>]*\bsrc\s*=\s*["'])(https?:\/\/[^"']+)(["'][^>]*>)/gi,
+      (_m, a, src, b) =>
+        `${a}data:image/svg+xml,${placeholder}${b} data-blocked-src="${src}" class="mail-img-blocked"`,
+    );
+  }
+  return out;
+}
+
+function HtmlMailBody({ html, attachments = [] }: { html: string; attachments?: CidAtt[] }) {
   const ref = useRef<HTMLIFrameElement>(null);
-  const [height, setHeight] = useState(480);
+  const [height, setHeight] = useState(600);
+  const [loadRemote, setLoadRemote] = useState(() => getMailRemoteImagesPref());
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const hasRemote = useMemo(
+    () => /<img\b[^>]*\bsrc\s*=\s*["']https?:\/\//i.test(html || ''),
+    [html],
+  );
 
   const doc = useMemo(() => {
-    // Base stylesheet: larger type so the full invoice / message is easy to read.
+    const body = rewriteMailHtml(html, attachments, loadRemote);
     return `<!DOCTYPE html><html><head><meta charset="utf-8">
       <base target="_blank">
       <meta name="viewport" content="width=device-width, initial-scale=1">
       <style>
-        html,body{margin:0;padding:20px 16px 28px;font-family:-apple-system,'IBM Plex Sans',system-ui,sans-serif;font-size:16px;line-height:1.6;color:#1a1a1a;background:#fff;word-break:break-word;}
-        img{max-width:100%;height:auto;}
+        html,body{margin:0;padding:20px 16px 28px;font-family:-apple-system,'IBM Plex Sans',system-ui,sans-serif;font-size:16px;line-height:1.6;color:#1a1a1a;background:#fff;word-break:break-word;overflow:hidden !important;}
+        img{max-width:100%;height:auto;display:block;margin:12px auto;}
+        img.mail-img-blocked{margin-left:auto;margin-right:auto;border-radius:12px;}
         a{color:#3a6ea5;}
         table{max-width:100% !important;width:100% !important;}
         h1,h2,h3{line-height:1.3;}
         *{box-sizing:border-box;}
       </style>
-    </head><body>${html}</body></html>`;
-  }, [html]);
+    </head><body>${body}</body></html>`;
+  }, [html, attachments, loadRemote]);
+
+  const lastH = useRef(0);
 
   const resize = () => {
     try {
+      const iframe = ref.current;
+      const doc2 = iframe?.contentDocument;
+      if (!iframe || !doc2?.body) return;
+      // Collapse to content size first — avoids scrollHeight feedback loops
+      const htmlEl = doc2.documentElement;
+      const body = doc2.body;
+      htmlEl.style.height = 'auto';
+      body.style.height = 'auto';
+      body.style.minHeight = '0';
+      // Measure content only (not the iframe viewport)
+      let h = 0;
+      const kids = body.children;
+      if (kids.length) {
+        const last = kids[kids.length - 1] as HTMLElement;
+        const top = (kids[0] as HTMLElement).offsetTop || 0;
+        h = last.offsetTop + last.offsetHeight - top;
+      }
+      h = Math.max(
+        h,
+        body.scrollHeight,
+        htmlEl.scrollHeight,
+      );
+      // body padding ~20+28
+      h = Math.ceil(h + 8);
+      h = Math.min(Math.max(h, 200), 30000);
+      // Only grow/shrink when change is real (prevents endless blank pages)
+      if (Math.abs(h - lastH.current) < 12) return;
+      lastH.current = h;
+      setHeight(h);
+    } catch { /* */ }
+  };
+
+  useEffect(() => {
+    setConfirmOpen(false);
+    lastH.current = 0;
+    setHeight(400);
+    if (getMailRemoteImagesPref()) setLoadRemote(true);
+  }, [html]);
+
+  // NO setInterval — that was expanding white space forever while scrolling
+
+  const onFrameLoad = () => {
+    lastH.current = 0;
+    resize();
+    // Second measure after layout/fonts
+    requestAnimationFrame(() => resize());
+    window.setTimeout(resize, 100);
+    window.setTimeout(resize, 400);
+    try {
       const doc2 = ref.current?.contentDocument;
-      const h = doc2?.documentElement?.scrollHeight || doc2?.body?.scrollHeight;
-      // Allow tall messages (full invoice pages) — up to ~8000px
-      if (h) setHeight(Math.min(Math.max(h + 32, 400), 20000));
-    } catch { /* cross-origin-ish quirk, keep last known height */ }
+      if (!doc2) return;
+      doc2.querySelectorAll('img').forEach((img) => {
+        if (img.complete) return;
+        img.addEventListener('load', () => resize(), { once: true });
+        img.addEventListener('error', () => resize(), { once: true });
+      });
+    } catch { /* */ }
+  };
+
+  const confirmLoadImages = () => {
+    setMailRemoteImagesPref(true);
+    setLoadRemote(true);
+    setConfirmOpen(false);
   };
 
   return (
-    <iframe
-      ref={ref}
-      title="Contenu du message"
-      srcDoc={doc}
-      onLoad={resize}
-      sandbox="allow-same-origin"
-      referrerPolicy="no-referrer"
-      style={{ width: '100%', height, border: 'none', borderRadius: 8, background: '#fff', display: 'block' }}
-    />
+    <div className="mailbox-html-body">
+      {hasRemote && !loadRemote && (
+        <div className="mailbox-images-banner">
+          {!confirmOpen ? (
+            <button
+              type="button"
+              className="secondary"
+              style={{ fontSize: 13, padding: '8px 14px' }}
+              onClick={() => setConfirmOpen(true)}
+            >
+              Afficher les images
+            </button>
+          ) : (
+            <div className="mailbox-images-confirm">
+              <p>
+                Charger les images distantes peut contacter les serveurs de l’expéditeur
+                (suivi / pixels) et augmenter le trafic stocké. Cela peut affecter la
+                confidentialité. Continuer&nbsp;?
+              </p>
+              <div className="mailbox-images-confirm-actions">
+                <button type="button" className="secondary" onClick={() => setConfirmOpen(false)}>
+                  Annuler
+                </button>
+                <button type="button" onClick={confirmLoadImages}>
+                  Oui, charger une fois pour toutes
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      <iframe
+        ref={ref}
+        title="Contenu du message"
+        srcDoc={doc}
+        onLoad={onFrameLoad}
+        sandbox="allow-same-origin"
+        scrolling="no"
+        referrerPolicy="no-referrer"
+        style={{
+          width: '100%',
+          height,
+          border: 'none',
+          borderRadius: 8,
+          background: '#fff',
+          display: 'block',
+          overflow: 'hidden',
+        }}
+      />
+    </div>
   );
+}
+
+function MailIcon({ d, title }: { d: string; title?: string }) {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      focusable="false"
+      style={{ display: 'block', width: 20, height: 20, flexShrink: 0 }}
+    >
+      <path fill="#0f172a" d={d} />
+    </svg>
+  );
+}
+function IconBack() {
+  return <MailIcon d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />;
+}
+function IconArchive() {
+  return <MailIcon d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17l-5-5h3V9h4v3h3l-5 5z" />;
+}
+function IconTrash() {
+  return <MailIcon d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />;
+}
+function IconSpam() {
+  return <MailIcon d="M12 2L1 21h22L12 2zm1 14h-2v-2h2v2zm0-4h-2V9h2v3z" />;
+}
+function IconTranslate() {
+  return <MailIcon d="M12.87 15.07l-2.54-2.51.03-.03A17.52 17.52 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z" />;
+}
+function IconMore() {
+  return <MailIcon d="M6 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />;
 }
 
 export default function Mailbox() {
   const { alert } = useUi();
   const navigate = useNavigate();
-  const params = useParams();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
-  const routeId = params.id ? Number(params.id) : null;
-  const isCompose = typeof window !== 'undefined' && window.location.pathname.includes('/mailbox/compose');
+  const isCompose = /\/mailbox\/compose\/?$/.test(location.pathname);
+  const routeMatch = location.pathname.match(/\/mailbox\/m\/(\d+)/);
+  const routeId = routeMatch ? Number(routeMatch[1]) : null;
   const [list, setList] = useState<MailRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  type MailFolder = 'inbox' | 'sent' | 'spam' | 'archived' | 'all';
+  const [folder, setFolder] = useState<MailFolder>('inbox');
   const [direction, setDirection] = useState<'' | 'in' | 'out'>('');
   const [statusFilter, setStatusFilter] = useState('');
+
+  const folderFilters = (f: MailFolder): { direction: '' | 'in' | 'out'; status: string } => {
+    // status '' → server hides spam & archived
+    // status 'all' was wrong (included spam/archived)
+    if (f === 'inbox') return { direction: 'in', status: '' }; // received only
+    if (f === 'sent') return { direction: 'out', status: '' }; // sent only
+    if (f === 'spam') return { direction: '', status: 'spam' };
+    if (f === 'archived') return { direction: '', status: 'archived' };
+    if (f === 'all') return { direction: '', status: '' }; // all except spam & archived
+    return { direction: 'in', status: '' };
+  };
+
+  const folderFromUrl = (): MailFolder => {
+    const raw = (searchParams.get('folder') || 'inbox').toLowerCase();
+    const allowed: MailFolder[] = ['inbox', 'sent', 'spam', 'archived', 'all'];
+    return (allowed.includes(raw as MailFolder) ? raw : 'inbox') as MailFolder;
+  };
+
+  const applyFolder = (f: MailFolder, opts?: { navigate?: boolean }) => {
+    const filters = folderFilters(f);
+    setFolder(f);
+    setPage(0);
+    setDirection(filters.direction);
+    setStatusFilter(filters.status);
+    setSelectedId(null);
+    setSelected(null);
+    setList([]); // clear stale rows immediately when switching tabs
+    if (opts?.navigate !== false) {
+      navigate(f === 'inbox' ? '/mailbox' : `/mailbox?folder=${f}`, { replace: true });
+    }
+  };
+
+  // URL is source of truth for folder tabs
+  useEffect(() => {
+    const f = folderFromUrl();
+    if (f !== folder) {
+      applyFolder(f, { navigate: false });
+      setPage(0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
   const [search, setSearch] = useState('');
+  const PAGE_SIZE = 50;
+  const [page, setPage] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
 
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [selected, setSelected] = useState<MailDetail | null>(null);
@@ -201,18 +448,51 @@ export default function Mailbox() {
   const [replyTo, setReplyTo] = useState('');
   const [sending, setSending] = useState(false);
   const [replyFiles, setReplyFiles] = useState<File[]>([]);
+  const [composeOpen, setComposeOpen] = useState(false);
   const [composeTo, setComposeTo] = useState('');
+  useEffect(() => {
+    if (isCompose) setComposeOpen(true);
+  }, [isCompose]);
+  useEffect(() => {
+    const open = () => setComposeOpen(true);
+    window.addEventListener('atlas-mailbox-compose', open);
+    return () => window.removeEventListener('atlas-mailbox-compose', open);
+  }, []);
+  // Lock body scroll while compose is open (no list jump / refresh feel)
+  useEffect(() => {
+    if (!composeOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [composeOpen]);
   const [composeSubject, setComposeSubject] = useState('');
   const [composeBody, setComposeBody] = useState('');
   const [composeFiles, setComposeFiles] = useState<File[]>([]);
   const [aiBusy, setAiBusy] = useState(false);
   const [aiInstruction, setAiInstruction] = useState('');
   const [translateBusy, setTranslateBusy] = useState(false);
+  const [translatedText, setTranslatedText] = useState<string | null>(null);
+  const [translateEngine, setTranslateEngine] = useState('');
+  const [summaryText, setSummaryText] = useState<string | null>(null);
+  const [summaryBusy, setSummaryBusy] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && t.closest && t.closest('.mailbox-more-menu, .mailbox-more-trigger')) return;
+      setMoreOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [moreOpen]);
   const composeFileRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewAtt, setPreviewAtt] = useState<AttMeta | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewGoogle, setPreviewGoogle] = useState<string | null>(null);
+  const [previewSlides, setPreviewSlides] = useState<OfficeSlide[] | null>(null);
+  const [previewSlideIdx, setPreviewSlideIdx] = useState(0);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState('');
 
@@ -230,25 +510,31 @@ export default function Mailbox() {
     if (client && !composeSubject) setComposeSubject(`AF Marbre — ${client}`);
   }, [searchParams]);
 
-  // Deep-link / Gmail-style open
+  // Deep-link open — do not clear selection when opening/closing compose overlay
   useEffect(() => {
     if (routeId && !Number.isNaN(routeId)) {
-      openMessage(routeId);
+      if (selectedId !== routeId) openMessage(routeId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeId]);
 
-  const load = (soft = false) => {
+  const load = (soft = false, pageOverride?: number, folderOverride?: MailFolder) => {
     if (soft) setRefreshing(true); else setLoading(true);
+    const pageIdx = pageOverride != null ? pageOverride : page;
+    const f = folderOverride || folderFromUrl();
+    const filters = folderFilters(f);
+    if (!soft) setList([]); // hard load: drop previous page immediately
     api.mailboxList({
-        direction: direction || undefined,
-        status: statusFilter || undefined,
+        direction: filters.direction || undefined,
+        status: filters.status || undefined,
         q: search || undefined,
-        limit: 200,
+        limit: PAGE_SIZE,
+        offset: pageIdx * PAGE_SIZE,
       })
       .then((r: any) => {
+        // Ignore stale responses if user switched folder mid-flight
+        if (folderFromUrl() !== f) return;
         const rows = (r.data || []) as MailRow[];
-        // Newest first (defensive client sort)
         rows.sort((a, b) => {
           const ta = Date.parse(String(a.created_at || '').replace(' ', 'T')) || 0;
           const tb = Date.parse(String(b.created_at || '').replace(' ', 'T')) || 0;
@@ -256,15 +542,40 @@ export default function Mailbox() {
           return Number(b.id) - Number(a.id);
         });
         setList(rows);
+        setTotalCount(Number(r?.meta?.total ?? rows.length));
       })
       .catch((e: any) => flash(e?.message || 'Erreur de chargement', 'error'))
       .finally(() => { setLoading(false); setRefreshing(false); });
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [direction, statusFilter]);
+  useEffect(() => {
+    const f = folderFromUrl();
+    setFolder(f);
+    const filters = folderFilters(f);
+    setDirection(filters.direction);
+    setStatusFilter(filters.status);
+    setList([]); // never keep previous page rows
+    load(false, page, f);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams.get('folder'), page]);
 
   useEffect(() => {
-    const t = setTimeout(() => load(true), 300);
+    const onRefresh = () => { load(true, undefined, folderFromUrl()); };
+    const onSync = () => { void syncResend(); };
+    window.addEventListener('atlas-mailbox-refresh', onRefresh);
+    window.addEventListener('atlas-mailbox-sync', onSync);
+    return () => {
+      window.removeEventListener('atlas-mailbox-refresh', onRefresh);
+      window.removeEventListener('atlas-mailbox-sync', onSync);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, page]);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setPage(0);
+      load(true, 0, folderFromUrl());
+    }, 350);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
@@ -273,8 +584,21 @@ export default function Mailbox() {
     setSelectedId(id);
     setLoadingDetail(true);
     setReplyOpen(false); setReplyFiles([]);
+    setTranslatedText(null);
+    setTranslateEngine('');
+    setSummaryText(null);
+    setMoreOpen(false);
     api.mailboxGet(id)
-      .then((r: any) => setSelected(r.data))
+      .then(async (r: any) => {
+        setSelected(r.data);
+        // Mark inbound as read (Gmail-style)
+        if (r?.data?.direction === 'in' && r?.data?.status !== 'read' && r?.data?.status !== 'spam') {
+          try {
+            await api.mailboxSetStatus(id, 'read');
+            load(true);
+          } catch { /* non-blocking */ }
+        }
+      })
       .catch((e: any) => flash(e?.message || 'Erreur de chargement', 'error'))
       .finally(() => setLoadingDetail(false));
   };
@@ -336,7 +660,11 @@ export default function Mailbox() {
     try {
       await api.mailboxDelete(id);
       flash('Message supprimé.');
-      if (selectedId === id) { setSelectedId(null); setSelected(null); }
+      if (selectedId === id) {
+        setSelectedId(null);
+        setSelected(null);
+        navigate('/mailbox');
+      }
       load(true);
     } catch (e: any) {
       flash(e?.message || 'Échec de la suppression', 'error');
@@ -347,12 +675,14 @@ export default function Mailbox() {
     setSyncing(true);
     try {
       const r: any = await api.mailboxSyncResend(150);
-      flash(r.message || 'Synchronisation Resend terminée.');
+      flash(r.message || 'Synchronisation terminée.');
       load(true);
     } catch (e: any) {
       const msg = e?.message || '';
-      if (String(msg).includes('EMAIL_NOT_CONFIGURED') || String(msg).toLowerCase().includes('resend_api_key')) {
-        await alert('RESEND_API_KEY n\'est pas défini sur ce Worker (wrangler secret put RESEND_API_KEY).', 'Email non configuré');
+      if (String(msg).includes('EMAIL_NOT_CONFIGURED') || String(msg).toLowerCase().includes('resend_api_key') || String(msg).toLowerCase().includes('clé api')) {
+        await alert('La synchronisation e-mail n\'est pas configurée sur le serveur (secret API manquant).', 'E-mail non configuré');
+      } else if (/404|not found|introuvable/i.test(String(msg))) {
+        flash('Synchronisation indisponible — redéployez le Worker (route sync manquante).', 'error');
       } else {
         flash(msg || 'Échec de la synchronisation', 'error');
       }
@@ -369,6 +699,8 @@ export default function Mailbox() {
     setPreviewAtt(null);
     setPreviewUrl(null);
     setPreviewGoogle(null);
+    setPreviewSlides(null);
+    setPreviewSlideIdx(0);
     setPreviewError('');
     setPreviewLoading(false);
   };
@@ -382,17 +714,41 @@ export default function Mailbox() {
       return null;
     });
     setPreviewGoogle(null);
+    setPreviewSlides(null);
+    setPreviewSlideIdx(0);
     setPreviewError('');
     setPreviewAtt(a);
     setPreviewLoading(true);
     const kind = attKind(a);
     try {
       if (kind === 'office') {
-        const r: any = await api.mailboxAttachmentPreviewUrl(a.r2_key, a.filename);
-        setPreviewGoogle(r?.data?.google_viewer_url || null);
-        setPreviewUrl(r?.data?.public_url || null);
+        // Local in-browser preview (Google Docs Viewer is unreliable for PPTX)
+        const { blob } = await api.mailboxFetchAttachmentBlob(a.r2_key, a.filename);
+        if (!blob || blob.size === 0) {
+          setPreviewError('Fichier vide ou illisible.');
+        } else {
+          const slides = await buildOfficePreview(blob, a.filename || '');
+          if (slides && slides.length) {
+            setPreviewSlides(slides);
+            setPreviewSlideIdx(0);
+          } else {
+            setPreviewError('Aperçu local impossible pour ce format. Utilisez Télécharger.');
+          }
+        }
       } else if (kind === 'other') {
-        setPreviewError('Aperçu non disponible pour ce type de fichier. Utilisez Télécharger.');
+        const name = (a.filename || '').toLowerCase();
+        if (/\.(docx|pptx|xlsx)$/i.test(name)) {
+          const { blob } = await api.mailboxFetchAttachmentBlob(a.r2_key, a.filename);
+          const slides = blob ? await buildOfficePreview(blob, a.filename || '') : null;
+          if (slides?.length) {
+            setPreviewSlides(slides);
+            setPreviewSlideIdx(0);
+          } else {
+            setPreviewError('Aperçu non disponible. Utilisez Télécharger.');
+          }
+        } else {
+          setPreviewError('Aperçu non disponible pour ce type de fichier. Utilisez Télécharger.');
+        }
       } else {
         const { blob, contentType } = await api.mailboxFetchAttachmentBlob(a.r2_key, a.filename);
         if (!blob || blob.size === 0) {
@@ -414,210 +770,431 @@ export default function Mailbox() {
     }
   };
 
-  const attachments = parseAttachments(selected?.meta_json);
+
+  const backToList = () => {
+    setSelectedId(null);
+    setSelected(null);
+    setReplyOpen(false);
+    setReplyFiles([]);
+    setComposeTo('');
+    setComposeSubject('');
+    setComposeBody('');
+    setComposeFiles([]);
+    navigate('/mailbox');
+  };
+
+  const selectMessage = (id: number) => {
+    if (selectedId !== id) openMessage(id);
+    const dest = `/mailbox`;
+    if (location.pathname !== dest) navigate(dest);
+  };
+
+  const sendCompose = async () => {
+    if (!composeTo.includes('@') || !composeSubject.trim()) {
+      flash('Destinataire et sujet requis', 'error');
+      return;
+    }
+    for (const f of composeFiles) {
+      if (f.size > 25 * 1024 * 1024) {
+        flash(`Fichier trop volumineux: ${f.name} (max 25 Mo)`, 'error');
+        return;
+      }
+    }
+    setSending(true);
+    try {
+      const attachmentsOut: { filename: string; mimeType: string; content_base64: string }[] = [];
+      for (const f of composeFiles) {
+        const content_base64 = await fileToBase64(f);
+        attachmentsOut.push({ filename: f.name, mimeType: f.type || 'application/octet-stream', content_base64 });
+      }
+      await api.mailboxSend({
+        to: composeTo,
+        subject: composeSubject,
+        text: composeBody,
+        attachments: attachmentsOut.length ? attachmentsOut : undefined,
+      });
+      flash(attachmentsOut.length ? `Message envoyé avec ${attachmentsOut.length} pièce(s) jointe(s).` : 'Message envoyé.');
+      setComposeTo('');
+      setComposeSubject('');
+      setComposeBody('');
+      setComposeFiles([]);
+      load(true);
+      navigate('/mailbox');
+    } catch (e: any) {
+      flash(e?.message || 'Échec de l\'envoi', 'error');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const runAiDraft = async (mode: 'compose' | 'reply') => {
+    setAiBusy(true);
+    try {
+      const context =
+        mode === 'reply'
+          ? (selected?.body_text || htmlToPlainText(selected?.body_html || '') || '')
+          : composeBody;
+      const r: any = await api.mailboxAiDraft({
+        instruction:
+          aiInstruction ||
+          (mode === 'reply'
+            ? 'Rédige une réponse professionnelle, claire et concise en français.'
+            : 'Rédige un email professionnel, clair et concis en français.'),
+        mode,
+        context,
+        lang: 'fr',
+      });
+      const body = r?.data?.body || '';
+      const subject = r?.data?.subject;
+      if (mode === 'reply') {
+        if (body) setReplyText(body);
+        if (subject) setReplySubject(subject);
+      } else {
+        if (body) setComposeBody(body);
+        if (subject) setComposeSubject(subject);
+      }
+      flash('Brouillon IA généré.');
+    } catch (e: any) {
+      flash(e?.message || 'IA indisponible', 'error');
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
+  const translateSelected = async (target = 'fr') => {
+    if (!selected) return;
+    setTranslateBusy(true);
+    setTranslatedText(null);
+    try {
+      const text = selected.body_text || htmlToPlainText(selected.body_html || '');
+      if (!text.trim()) {
+        flash('Rien à traduire.', 'error');
+        return;
+      }
+      const r: any = await api.mailboxTranslate({ text, target });
+      const translated = r?.data?.text || '';
+      const engine = r?.data?.engine || '';
+      if (!translated) throw new Error('Traduction vide');
+      if (/MYMEMORY WARNING|YOU USED ALL AVAILABLE/i.test(translated)) {
+        throw new Error('Quota de traduction dépassé. Réessayez plus tard.');
+      }
+      setTranslatedText(translated);
+      setTranslateEngine(engine);
+      flash(engine === 'google' ? 'Traduit avec Google Translate.' : 'Message traduit.');
+    } catch (e: any) {
+      const msg = e?.message || 'Traduction impossible';
+      flash(
+        /NO_AI_KEY|non configurée|GROQ/i.test(msg)
+          ? 'Configurez GROQ_API_KEY (secret Worker) pour la traduction IA.'
+          : msg,
+        'error',
+      );
+    } finally {
+      setTranslateBusy(false);
+    }
+  };
+
+  const summarizeSelected = async () => {
+    if (!selected) return;
+    setSummaryBusy(true);
+    setSummaryText(null);
+    const text = selected.body_text || htmlToPlainText(selected.body_html || '');
+    const subject = selected.subject || '';
+    const extractive = () => {
+      const lines = text.split(/\n+/).map((l) => l.trim()).filter(Boolean);
+      const pick = lines.slice(0, 5).join(' ');
+      return (subject ? '• Sujet : ' + subject + '\n' : '') + '• ' + pick.slice(0, 600);
+    };
+    try {
+      if (!text.trim()) {
+        flash('Rien à résumer.', 'error');
+        return;
+      }
+      try {
+        const r: any = await api.mailboxSummarize({ text, subject, lang: 'fr' });
+        const summary = r?.data?.summary || '';
+        if (summary) {
+          setSummaryText(summary);
+          flash('Résumé généré.');
+          return;
+        }
+      } catch {
+        /* use local extractive */
+      }
+      setSummaryText(extractive());
+      flash('Résumé (aperçu local).');
+    } catch (e: any) {
+      setSummaryText(extractive());
+      flash(e?.message || 'Résumé local affiché', 'error');
+    } finally {
+      setSummaryBusy(false);
+    }
+  };
+
+  const markUnread = async () => {
+    if (!selected) return;
+    try {
+      await api.mailboxSetStatus(selected.id, 'unread');
+      flash('Marqué comme non lu.');
+      setMoreOpen(false);
+      load(true);
+    } catch (e: any) {
+      flash(e?.message || 'Action impossible', 'error');
+    }
+  };
+
+  const markSpam = async () => {
+    if (!selected) return;
+    try {
+      await api.mailboxSetStatus(selected.id, 'spam');
+      flash('Déplacé vers les spams.');
+      setMoreOpen(false);
+      backToList();
+      load(true);
+    } catch (e: any) {
+      flash(e?.message || 'Action impossible', 'error');
+    }
+  };
+
+  const markArchive = async () => {
+    if (!selected) return;
+    try {
+      await api.mailboxSetStatus(selected.id, 'archived');
+      flash('Message archivé.');
+      setMoreOpen(false);
+      backToList();
+      load(true);
+    } catch (e: any) {
+      flash(e?.message || 'Action impossible', 'error');
+    }
+  };
+
+  const markInbox = async () => {
+    if (!selected) return;
+    try {
+      await api.mailboxSetStatus(selected.id, 'read');
+      flash('Déplacé vers la boîte de réception.');
+      setMoreOpen(false);
+      backToList();
+      load(true);
+    } catch (e: any) {
+      flash(e?.message || 'Action impossible', 'error');
+    }
+  };
+
+  /**
+   * Multi-signal spam heuristics (Gmail-style: content + sender + pattern),
+   * not a single keyword blacklist.
+   */
+  const spamHints = (m: MailRow): string[] => {
+    const hints: string[] = [];
+    const subj = String(m.subject || '');
+    const prev = String(m.preview || '');
+    const from = String(m.from_addr || '');
+    const blob = `${subj} ${prev} ${from}`.toLowerCase();
+    let score = 0;
+
+    // Content / social-engineering patterns
+    if (/\b(viagra|cialis|crypto\s*giveaway|you have won|claim your prize|lottery winner|nigerian?\s*prince)\b/i.test(blob)) {
+      score += 3;
+      hints.push('arnaque connue');
+    }
+    if (/\b(verify your account|password (will )?expire|suspend(ed)? account|confirm your identity|unusual activity)\b/i.test(blob)) {
+      score += 2;
+      hints.push('phishing compte');
+    }
+    if (/\b(urgent|agir maintenant|immediate action|within 24 hours)\b/i.test(blob) && /\b(http|www\.|bit\.ly|t\.co|\$|usd|btc|wallet)\b/i.test(blob)) {
+      score += 2;
+      hints.push('urgence + lien');
+    }
+    // Link / shortener density in preview
+    const linkHits = (blob.match(/https?:\/\/|www\.|bit\.ly|tinyurl/g) || []).length;
+    if (linkHits >= 3) {
+      score += 1;
+      hints.push('liens multiples');
+    }
+    // Sender identity risk (free disposable / risky TLD)
+    const domain = (from.split('@')[1] || '').replace(/>.*/, '').trim().toLowerCase();
+    if (domain && /\.(ru|tk|ml|ga|cf|gq|top|xyz|click|loan)\s*$/i.test(domain)) {
+      score += 2;
+      hints.push('domaine à risque');
+    }
+    // Display name spoofing common brands
+    if (/\b(paypal|apple id|microsoft|google security|amazon prime)\b/i.test(subj) && domain && !/(paypal|apple|microsoft|google|amazon)\./i.test(domain)) {
+      score += 3;
+      hints.push('usurpation expéditeur');
+    }
+    // ALL CAPS subject
+    if (subj.length > 12 && subj === subj.toUpperCase() && /[A-Z]/.test(subj)) {
+      score += 1;
+      hints.push('sujet majuscules');
+    }
+
+    if (score >= 3) return hints.slice(0, 3);
+    if (score >= 2) return hints.slice(0, 2);
+    return [];
+  };
+
+  const closeCompose = () => {
+    setComposeOpen(false);
+    setComposeFiles([]);
+    // Stay on current folder — only leave /compose path without full reload
+    if (isCompose) {
+      try {
+        const folder = searchParams.get('folder');
+        navigate(folder && folder !== 'inbox' ? `/mailbox?folder=${folder}` : '/mailbox', { replace: true });
+      } catch { /* */ }
+    }
+  };
+
+  const startForward = () => {
+    if (!selected) return;
+    const body =
+      `\n\n---------- Message transféré ----------\n` +
+      `De : ${selected.from_addr}\n` +
+      `Date : ${selected.created_at}\n` +
+      `Sujet : ${selected.subject || ''}\n\n` +
+      (selected.body_text || htmlToPlainText(selected.body_html || ''));
+    setComposeTo('');
+    setComposeSubject(selected.subject?.toLowerCase().startsWith('fwd:') ? selected.subject : `Fwd: ${selected.subject || ''}`);
+    setComposeBody(body);
+    setMoreOpen(false);
+    setComposeOpen(true);
+  };
+
+  const printSelected = () => {
+    if (!selected) return;
+    const w = window.open('', '_blank', 'noopener,noreferrer');
+    if (!w) {
+      flash('Autorisez les pop-ups pour imprimer.', 'error');
+      return;
+    }
+    const body = selected.body_html || `<pre style="white-space:pre-wrap;font-family:inherit">${(selected.body_text || '').replace(/</g, '&lt;')}</pre>`;
+    w.document.write(`<!DOCTYPE html><html><head><title>${(selected.subject || 'Message').replace(/</g, '')}</title>
+      <style>body{font-family:system-ui,sans-serif;max-width:720px;margin:24px auto;padding:0 16px;color:#111}
+      .meta{color:#555;font-size:13px;margin-bottom:16px}</style></head><body>
+      <h1 style="font-size:20px">${(selected.subject || '(sans objet)').replace(/</g, '')}</h1>
+      <div class="meta">De : ${selected.from_addr}<br/>À : ${selected.to_addr}<br/>${fmtDate(selected.created_at)}</div>
+      ${body}</body></html>`);
+    w.document.close();
+    w.focus();
+    setTimeout(() => { try { w.print(); } catch { /* */ } }, 300);
+    setMoreOpen(false);
+  };
+
+  const copySignedLink = async () => {
+    if (!selected) return;
+    try {
+      const r: any = await api.mailboxSignedLink(selected.id);
+      const url = r?.data?.url || '';
+      if (!url) throw new Error('Lien indisponible');
+      await navigator.clipboard.writeText(url);
+      flash('Lien sécurisé copié.');
+      setMoreOpen(false);
+    } catch (e: any) {
+      flash(e?.message || 'Impossible de copier le lien', 'error');
+    }
+  };
+
+    const attachments = parseAttachments(selected?.meta_json);
   const hasHtml = !!selected?.body_html?.trim();
 
   return (
-    <div>
-      <div className="page-header">
-        <h1>Messagerie</h1>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          {(isCompose || selectedId) && (
-            <button type="button" className="secondary" onClick={backToList}>← Boîte de réception</button>
-          )}
-          <button type="button" onClick={() => navigate('/mailbox/compose')}>Nouveau message</button>
-          <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
-          <button className="secondary" onClick={syncResend} disabled={syncing}>
-            {syncing ? 'Synchronisation...' : 'Synchroniser Resend'}
-          </button>
-        </div>
+    <>
+    <div className="mailbox-page atlas-crm">
+      <div className="page-header mailbox-page-header" hidden>
+        <h1 className="mailbox-page-title-sr">Messagerie</h1>
       </div>
 
       <SaveFeedback message={saveMsg} type={saveMsgType} />
 
-      {isCompose ? (
-        <div className="card" style={{ padding: 20, maxWidth: 820, margin: '0 auto' }}>
-          <h2 style={{ marginTop: 0 }}>Nouveau message</h2>
-          <div className="form-row"><label>À</label>
-            <input value={composeTo} onChange={(e) => setComposeTo(e.target.value)} placeholder="client@example.com" />
-          </div>
-          <div className="form-row"><label>Sujet</label>
-            <input value={composeSubject} onChange={(e) => setComposeSubject(e.target.value)} />
-          </div>
-          <div className="form-row"><label>Message</label>
-            <textarea rows={12} value={composeBody} onChange={(e) => setComposeBody(e.target.value)} style={{ minHeight: 220 }} />
-          </div>
-          <div className="form-row">
-            <label>Réponses rapides</label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {QUICK_REPLIES.map((q) => (
-                <button key={q.label} type="button" className="secondary" style={{ fontSize: 12, padding: '4px 10px' }}
-                  onClick={() => setComposeBody(q.body)}>{q.label}</button>
-              ))}
-            </div>
-          </div>
-          <div className="form-row">
-            <label>Rédiger avec l’IA</label>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <input style={{ flex: 1, minWidth: 180 }} value={aiInstruction} onChange={(e) => setAiInstruction(e.target.value)}
-                placeholder="Ex. Relancer le devis pour carrelage, ton poli" />
-              <button type="button" className="secondary" disabled={aiBusy} onClick={() => runAiDraft('compose')}>
-                {aiBusy ? 'Rédaction…' : 'Écrire avec l’IA'}
-              </button>
-            </div>
-          </div>
-          <div className="form-row">
-            <label>Pièces jointes</label>
-            <input ref={composeFileRef} type="file" multiple style={{ display: 'none' }}
-              onChange={(e) => { setComposeFiles((p) => [...p, ...Array.from(e.target.files || [])].slice(0, 5)); e.target.value = ''; }} />
-            <button type="button" className="secondary" onClick={() => composeFileRef.current?.click()}>📎 Joindre</button>
-            <span style={{ fontSize: 12, color: 'var(--muted)', marginLeft: 8 }}>Max 5 × 25 Mo</span>
-            {!!composeFiles.length && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
-                {composeFiles.map((f, i) => (
-                  <span key={i} style={{ fontSize: 12 }}>{f.name} ({fmtSize(f.size)})
-                    <button type="button" className="ghost" onClick={() => setComposeFiles((p) => p.filter((_, j) => j !== i))}>×</button>
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="form-actions">
-            <button onClick={sendCompose} disabled={sending}>{sending ? 'Envoi…' : 'Envoyer'}</button>
-            <button className="secondary" onClick={backToList}>Annuler</button>
-          </div>
+      <div className="mailbox-shell">
+      <nav className="settings-nav mailbox-folders mailbox-folders--legacy" aria-label="Dossiers" hidden>
+        <div className="settings-nav-group">
+          <div className="settings-nav-group-label">Dossiers</div>
+          {(
+            [
+              {
+                id: 'inbox' as const,
+                label: 'Boîte de réception',
+                to: '/mailbox',
+                icon: 'M4 6h16v12H4z M4 8l8 5 8-5',
+              },
+              {
+                id: 'sent' as const,
+                label: 'Envoyés',
+                to: '/mailbox?folder=sent',
+                icon: 'M22 2L11 13 M22 2l-7 20-4-9-9-4 20-7z',
+              },
+              {
+                id: 'spam' as const,
+                label: 'Spam',
+                to: '/mailbox?folder=spam',
+                icon: 'M12 9v4 M12 17h.01 M10.3 3.9L1.8 18a2 2 0 001.7 3h16.9a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z',
+              },
+              {
+                id: 'archived' as const,
+                label: 'Archives',
+                to: '/mailbox?folder=archived',
+                icon: 'M3 7h18v3H3z M5 10v9a1 1 0 001 1h12a1 1 0 001-1v-9 M10 14h4',
+              },
+              {
+                id: 'all' as const,
+                label: 'Tous',
+                to: '/mailbox?folder=all',
+                icon: 'M8 6h13 M8 12h13 M8 18h13 M3 6h.01 M3 12h.01 M3 18h.01',
+              },
+            ] as const
+          ).map((f) => (
+            <Link
+              key={f.id}
+              to={f.to}
+              className={folder === f.id ? 'settings-nav-item active' : 'settings-nav-item'}
+              onClick={() => applyFolder(f.id)}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d={f.icon} />
+              </svg>
+              <span>{f.label}</span>
+            </Link>
+          ))}
         </div>
-      ) : selectedId && selected && !loadingDetail ? (
-        <div className="card mailbox-reader" style={{ padding: 0, overflow: 'visible', maxWidth: 960, margin: '0 auto' }}>
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border, #e2e8f0)', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            <button type="button" className="secondary" onClick={backToList}>← Retour</button>
-            <button type="button" className="secondary" onClick={startReply}>Répondre</button>
-            <button type="button" className="secondary" disabled={translateBusy} onClick={() => translateSelected('fr')}>
-              {translateBusy ? 'Traduction…' : 'Traduire'}
-            </button>
-            <button type="button" className="secondary" onClick={copySignedLink}>Copier lien sécurisé</button>
-            <button type="button" className="danger" onClick={() => deleteMessage(selected.id)}>Supprimer</button>
-          </div>
-          <div style={{ padding: '20px 24px 32px' }}>
-            <h2 style={{ margin: '0 0 8px', fontSize: 22 }}>{selected.subject || '(sans objet)'}</h2>
-            <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>
-              {selected.direction === 'in' ? selected.from_addr : `À : ${selected.to_addr}`} · {fmtDate(selected.created_at)}
-            </div>
-            <div style={{ lineHeight: 1.55, fontSize: 15 }}>
-              {selected.body_html?.trim() ? (
-                <HtmlMailBody html={selected.body_html} />
-              ) : (
-                <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', margin: 0 }}>{selected.body_text || '(pas de contenu)'}</pre>
-              )}
-            </div>
-            {!!attachments.length && (
-              <div style={{ marginTop: 20 }}>
-                <div style={{ fontWeight: 650, fontSize: 13, marginBottom: 8 }}>Pièces jointes ({attachments.length})</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {attachments.map((a, i) => (
-                    <div key={i} style={{ display: 'inline-flex', gap: 6, alignItems: 'center', border: '1px solid var(--border)', borderRadius: 8, padding: '4px 8px' }}>
-                      <button type="button" className="ghost" onClick={() => openAttachmentPreview(a)}>{attIcon(attKind(a))} {a.filename}</button>
-                      <button type="button" className="secondary" style={{ fontSize: 12 }} onClick={() => api.mailboxDownloadAttachment(a.r2_key, a.filename).catch((e: any) => flash(e?.message || 'Échec', 'error'))}>↓</button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            {replyOpen && (
-              <div className="card" style={{ marginTop: 20, padding: 16 }}>
-                <div className="form-row"><label>À</label><input value={replyTo} onChange={(e) => setReplyTo(e.target.value)} /></div>
-                <div className="form-row"><label>Sujet</label><input value={replySubject} onChange={(e) => setReplySubject(e.target.value)} /></div>
-                <div className="form-row"><label>Message</label>
-                  <textarea rows={8} value={replyText} onChange={(e) => setReplyText(e.target.value)} style={{ minHeight: 160 }} />
-                </div>
-                <div className="form-row">
-                  <label>Réponses rapides</label>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    {QUICK_REPLIES.map((q) => (
-                      <button key={q.label} type="button" className="secondary" style={{ fontSize: 12 }} onClick={() => setReplyText(q.body)}>{q.label}</button>
-                    ))}
-                  </div>
-                </div>
-                <div className="form-row">
-                  <label>IA (réponse)</label>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <input style={{ flex: 1 }} value={aiInstruction} onChange={(e) => setAiInstruction(e.target.value)} placeholder="Ex. Accepter le délai, demander un acompte" />
-                    <button type="button" className="secondary" disabled={aiBusy} onClick={() => runAiDraft('reply')}>{aiBusy ? '…' : 'Rédiger avec l’IA'}</button>
-                  </div>
-                </div>
-                <div className="form-row">
-                  <label>Pièces jointes</label>
-                  <input ref={fileInputRef} type="file" multiple style={{ display: 'none' }}
-                    onChange={(e) => { setReplyFiles((p) => [...p, ...Array.from(e.target.files || [])].slice(0, 5)); e.target.value = ''; }} />
-                  <button type="button" className="secondary" onClick={() => fileInputRef.current?.click()}>📎 Joindre</button>
-                  {!!replyFiles.length && replyFiles.map((f, i) => (
-                    <span key={i} style={{ fontSize: 12, marginLeft: 8 }}>{f.name}
-                      <button type="button" className="ghost" onClick={() => setReplyFiles((p) => p.filter((_, j) => j !== i))}>×</button>
-                    </span>
-                  ))}
-                </div>
-                <div className="form-actions">
-                  <button onClick={sendReply} disabled={sending}>{sending ? 'Envoi…' : 'Envoyer'}</button>
-                  <button className="secondary" onClick={() => { setReplyOpen(false); setReplyFiles([]); }}>Annuler</button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      ) : (
-      <>
-      <div className="card" style={{ marginBottom: 16, padding: '12px 16px' }}>
-        <div
-          className="mailbox-toolbar"
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'minmax(0, 1fr) auto auto',
-            gap: 10,
-            alignItems: 'center',
-          }}
-        >
-          <div className="search-bar" style={{ width: '100%', minWidth: 0, margin: 0 }}>
+      </nav>
+      <div className="mailbox-main">
+      <div className="card mailbox-toolbar-card" style={{ marginBottom: 12, padding: '12px 16px' }}>
+        <div className="mailbox-toolbar">
+          <div className="search-bar mailbox-toolbar-search">
             <input
               className="search-input"
-              placeholder="Rechercher par sujet, expéditeur, destinataire..."
+              placeholder="Recherche : texte, from:, to:, subject:, has:attachment…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              style={{ width: '100%', height: 40, boxSizing: 'border-box' }}
             />
           </div>
-          <select
-            value={direction}
-            onChange={(e) => setDirection(e.target.value as any)}
-            aria-label="Filtrer par direction"
-            style={{ height: 40, minWidth: 150, width: 'auto', boxSizing: 'border-box' }}
-          >
-            <option value="">Tous les messages</option>
-            <option value="in">Reçus</option>
-            <option value="out">Envoyés</option>
-          </select>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            aria-label="Filtrer par statut"
-            style={{ height: 40, minWidth: 140, width: 'auto', boxSizing: 'border-box' }}
-          >
-            <option value="">Tous statuts</option>
-            <option value="sent">Envoyés (statut)</option>
-            <option value="received">Reçus (statut)</option>
-            <option value="delivered">Délivrés</option>
-            <option value="bounced">Rebondis</option>
-            <option value="unmatched">Non rattachés</option>
-          </select>
+          <div className="mailbox-toolbar-right">
+            <ListPager
+              page={page}
+              pageSize={PAGE_SIZE}
+              total={totalCount}
+              onPageChange={setPage}
+              pageBase={0}
+              loading={loading}
+              className="mailbox-pager"
+            />
+          </div>
         </div>
       </div>
 
-      <div className="card" style={{ padding: 0, display: 'flex', minHeight: 'calc(100vh - 160px)', height: 'auto', overflow: 'visible' }}>
-        {/* LIST */}
-        <div style={{ width: 360, flexShrink: 0, borderRight: '1px solid var(--border, #2c3441)', overflowY: 'auto', height: '100%' }}>
+      <div
+        className={`card mailbox-split${
+          selectedId && !isCompose ? ' is-reading' : ' is-inbox'
+        }`}
+      >
+        <div className="mailbox-list">
           {loading ? (
             <div className="empty" style={{ padding: 20 }}>Chargement...</div>
           ) : !list.length ? (
-            <div style={{ padding: 8 }}>
+            <div className="mailbox-list-empty">
               <EmptyState
                 icon="inbox"
                 title="Aucun message"
@@ -625,214 +1202,325 @@ export default function Mailbox() {
               />
             </div>
           ) : (
-            list.map((m) => (
-              <div
-                key={m.id}
-                onClick={() => openMessage(m.id)}
-                style={{
-                  padding: '12px 14px',
-                  borderBottom: '1px solid var(--border, #2c3441)',
-                  cursor: 'pointer',
-                  background: selectedId === m.id ? 'var(--hover, rgba(110,156,151,0.08))' : 'transparent',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
-                  <span className={`badge ${m.direction === 'in' ? 'info' : 'success'}`} style={{ fontSize: 10 }}>
-                    {m.direction === 'in' ? 'Reçu' : 'Envoyé'}
-                  </span>
-                  <span style={{ fontSize: 11, color: 'var(--muted)', whiteSpace: 'nowrap' }}>{fmtDate(m.created_at)}</span>
-                </div>
-                <div style={{ fontWeight: 600, marginTop: 4, fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {m.subject || '(sans objet)'}
-                </div>
-                <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {m.direction === 'in' ? m.from_addr : m.to_addr}
-                </div>
-                <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                  {(m.has_attachments === 1 || m.has_attachments === true || parseAttachments(m.meta_json).length > 0) && (
-                    <span className="badge" style={{ fontSize: 10, background: 'rgba(15,118,110,0.12)', color: '#0f766e' }} title="Pièces jointes">📎 PJ</span>
+            list.map((m) => {
+              const who = m.direction === 'in' ? (m.from_addr || '') : (m.to_addr || '');
+              const whoShort = who.replace(/<.*>/, '').trim() || who;
+              const snippet = (m.preview || '').replace(/\s+/g, ' ').trim();
+              const hasPj =
+                m.has_attachments === 1 ||
+                m.has_attachments === true ||
+                parseAttachments(m.meta_json).length > 0;
+              const unread = m.status === 'unread' || (m.direction === 'in' && m.status === 'received');
+              return (
+                <div
+                  key={m.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => selectMessage(m.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      selectMessage(m.id);
+                    }
+                  }}
+                  className={`mailbox-item${selectedId === m.id && !isCompose ? ' is-active' : ''}${
+                    unread ? ' is-unread' : ''
+                  }`}
+                >
+                  <div className="mailbox-item-main">
+                    <span className="mailbox-item-from" title={who}>
+                      {whoShort}
+                    </span>
+                    <span className="mailbox-item-line" title={`${m.subject || ''} ${snippet}`}>
+                      <span className="mailbox-item-subject">{m.subject || '(sans objet)'}</span>
+                      {snippet ? <span className="mailbox-item-snippet"> — {snippet}</span> : null}
+                    </span>
+                    <span className="mailbox-item-date">{fmtDate(m.created_at)}</span>
+                  </div>
+                  {(hasPj || m.status === 'unmatched' || m.status === 'spam' || spamHints(m).length > 0) && (
+                    <div className="mailbox-item-meta">
+                      {hasPj && (
+                        <span
+                          className="badge"
+                          style={{ fontSize: 10, background: 'rgba(15,118,110,0.12)', color: '#8b9cff' }}
+                          title="Pièces jointes"
+                        >
+                          📎
+                        </span>
+                      )}
+                      {m.status === 'unmatched' && (
+                        <span className="badge warn" style={{ fontSize: 10 }}>
+                          Non rattaché
+                        </span>
+                      )}
+                      {m.status === 'spam' && (
+                        <span className="badge warn" style={{ fontSize: 10 }}>
+                          Spam
+                        </span>
+                      )}
+                      {m.status !== 'spam' && spamHints(m).length > 0 && (
+                        <span className="badge warn" style={{ fontSize: 10 }} title={spamHints(m).join(', ')}>
+                          Suspect
+                        </span>
+                      )}
+                    </div>
                   )}
-                  {m.status === 'unmatched' && (
-                    <span className="badge warn" style={{ fontSize: 10 }}>Non rattaché</span>
-                  )}
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 
-        {/* DETAIL */}
-        <div style={{ flex: 1, overflowY: 'auto', height: '100%', padding: selected ? '16px 24px 40px' : 0 }}>
-          {!selectedId ? (
-            <div style={{ padding: 24 }}>
-              <EmptyState icon="inbox" title="Sélectionnez un message" description="Choisissez un email dans la liste pour lire la conversation." />
-            </div>
-          ) : loadingDetail ? (
-            <div className="empty">Chargement du message...</div>
-          ) : selected ? (
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-                <h2 style={{ margin: 0, fontSize: 22, lineHeight: 1.3 }}>{selected.subject || '(sans objet)'}</h2>
-                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                  <button className="secondary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={startReply}>Répondre</button>
-                  <button className="danger" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => deleteMessage(selected.id)}>Suppr.</button>
+        {(!isCompose && selectedId) && (
+          <div className="mailbox-pane mailbox-reader">
+            {loadingDetail ? (
+              <div className="empty">Chargement du message...</div>
+            ) : selected ? (
+              <div className="mailbox-reader-inner">
+                <div className="mailbox-topbar">
+                  <div className="mailbox-topbar-left">
+                    <button type="button" className="icon-refresh-btn secondary" title="Retour à la boîte de réception" aria-label="Retour" onClick={backToList} hidden>
+                      <IconBack />
+                    </button>
+                    <button type="button" className="icon-refresh-btn secondary" title="Archiver" aria-label="Archiver" onClick={markArchive}>
+                      <IconArchive />
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-refresh-btn secondary"
+                      title="Supprimer"
+                      aria-label="Supprimer"
+                      onClick={() => deleteMessage(selected.id)}
+                    >
+                      <IconTrash />
+                    </button>
+                    <button type="button" className="icon-refresh-btn secondary" title="Signaler comme spam" aria-label="Spam" onClick={markSpam}>
+                      <IconSpam />
+                    </button>
+                  </div>
+                  <div className="mailbox-topbar-right" style={{ position: 'relative' }}>
+                    <button
+                      type="button"
+                      className="icon-refresh-btn secondary"
+                      disabled={translateBusy}
+                      title="Traduire"
+                      aria-label="Traduire"
+                      onClick={() => translateSelected('fr')}
+                    >
+                      <IconTranslate />
+                    </button>
+                    <InlineDisclosureMenu
+                      open={moreOpen}
+                      onOpenChange={setMoreOpen}
+                      title="Plus d’options"
+                      align="right"
+                      showDelete
+                      deleteLabel="Supprimer"
+                      onDelete={() => { void deleteMessage(selected.id); }}
+                      items={[
+                        {
+                          id: 'unread',
+                          label: 'Marquer comme non lu',
+                          icon: <MailWarning size={18} />,
+                          onClick: () => markUnread(),
+                        },
+                        ...(selected.status === 'spam' || selected.status === 'archived'
+                          ? [{
+                              id: 'inbox',
+                              label: 'Boîte de réception',
+                              icon: <Inbox size={18} />,
+                              onClick: () => markInbox(),
+                            }]
+                          : [
+                              {
+                                id: 'spam',
+                                label: 'Signaler comme spam',
+                                icon: <MailWarning size={18} />,
+                                onClick: () => markSpam(),
+                              },
+                              {
+                                id: 'archive',
+                                label: 'Archiver',
+                                icon: <Archive size={18} />,
+                                onClick: () => markArchive(),
+                              },
+                            ]),
+                        {
+                          id: 'print',
+                          label: 'Imprimer',
+                          icon: <Printer size={18} />,
+                          onClick: () => printSelected(),
+                        },
+                        {
+                          id: 'link',
+                          label: 'Copier le lien',
+                          icon: <Link2 size={18} />,
+                          onClick: () => copySignedLink(),
+                        },
+                        {
+                          id: 'summary',
+                          label: summaryBusy ? 'Résumé…' : 'Résumer cet e-mail',
+                          icon: <FileText size={18} />,
+                          disabled: summaryBusy,
+                          onClick: () => { void summarizeSelected(); },
+                        },
+                      ]}
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 14 }}>
-                {thread.map((m) => {
-                  const isFull = m.id === selected.id;
-                  const atts = isFull ? attachments : [];
-                  return (
-                    <div key={m.id} className="card" style={{ padding: '20px 24px', background: 'var(--panel-2, rgba(255,255,255,0.02))', overflow: 'visible' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12, color: 'var(--muted)' }}>
-                        <span>
-                          <span className={`badge ${m.direction === 'in' ? 'info' : 'success'}`} style={{ fontSize: 10, marginRight: 8 }}>
-                            {m.direction === 'in' ? 'Reçu' : 'Envoyé'}
-                          </span>
-                          {m.direction === 'in' ? m.from_addr : `À : ${m.to_addr}`}
-                        </span>
-                        <span>{fmtDate(m.created_at)}</span>
+                <div className="mailbox-reader-scroll">
+                  <h2 className="mailbox-reader-subject">{selected.subject || '(sans objet)'}</h2>
+
+                  {summaryText && (
+                    <div className="mailbox-summary-card">
+                      <div className="mailbox-summary-title">Résumé</div>
+                      <pre className="mailbox-summary-body">{summaryText}</pre>
+                      <button type="button" className="ghost" style={{ fontSize: 12 }} onClick={() => setSummaryText(null)}>
+                        Masquer
+                      </button>
+                    </div>
+                  )}
+
+                  {translatedText && (
+                    <div className="mailbox-translate-card">
+                      <div className="mailbox-summary-title">
+                        Traduction{' '}
+                        {translateEngine
+                          ? `(${translateEngine === 'google' ? 'Google Translate' : translateEngine})`
+                          : ''}
                       </div>
-                      <div style={{ marginTop: 10 }}>
-                        {isFull && hasHtml ? (
-                          <HtmlMailBody html={selected.body_html!} />
-                        ) : isFull && selected.body_text ? (
-                          <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', margin: 0, fontFamily: 'inherit', fontSize: 15 }}>{selected.body_text}</pre>
-                        ) : (
-                          <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', margin: 0, fontFamily: 'inherit', fontSize: 15, color: m.preview ? undefined : 'var(--muted)' }}>
-                            {m.preview || '(pas de contenu)'}
-                          </pre>
-                        )}
-                      </div>
-                      {!!atts.length && (
-                        <div style={{ marginTop: 14 }}>
-                          <div style={{ fontSize: 12, fontWeight: 650, color: 'var(--muted)', marginBottom: 8 }}>
-                            Pièces jointes ({atts.length})
+                      <pre className="mailbox-summary-body">{translatedText}</pre>
+                      <button type="button" className="ghost" style={{ fontSize: 12 }} onClick={() => setTranslatedText(null)}>
+                        Masquer
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="mailbox-thread">
+                    {thread.map((m) => {
+                      const isFull = m.id === selected.id;
+                      const atts = isFull ? attachments : [];
+                      const hints = spamHints(m);
+                      return (
+                        <div key={m.id} className={`mailbox-msg-card${m.status === 'spam' ? ' is-spam' : ''}`}>
+                          <div className="mailbox-msg-meta">
+                            <span>
+                              <span
+                                className={`badge ${m.direction === 'in' ? 'info' : 'success'}`}
+                                style={{ fontSize: 10, marginRight: 8 }}
+                              >
+                                {m.direction === 'in' ? 'Reçu' : 'Envoyé'}
+                              </span>
+                              {m.direction === 'in' ? m.from_addr : `À : ${m.to_addr}`}
+                              {m.status === 'spam' && (
+                                <span className="badge warn" style={{ fontSize: 10, marginLeft: 8 }}>
+                                  Spam
+                                </span>
+                              )}
+                              {hints.map((h) => (
+                                <span key={h} className="badge warn" style={{ fontSize: 10, marginLeft: 6 }}>
+                                  {h}
+                                </span>
+                              ))}
+                            </span>
+                            <span>{fmtDate(m.created_at)}</span>
                           </div>
-                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                            {atts.map((a, i) => {
-                              const kind = attKind(a);
-                              return (
-                                <div
-                                  key={i}
-                                  style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: 6,
-                                    padding: '4px 6px 4px 10px',
-                                    borderRadius: 10,
-                                    border: '1px solid var(--border, #e2e8f0)',
-                                    background: 'var(--panel-2, #f8fafc)',
-                                    fontSize: 13,
-                                  }}
-                                >
-                                  <span>{attIcon(kind)}</span>
-                                  <button
-                                    type="button"
-                                    className="ghost"
-                                    style={{ padding: '2px 4px', minHeight: 0, fontWeight: 600 }}
-                                    onClick={() => openAttachmentPreview(a)}
-                                    title="Aperçu"
-                                  >
-                                    {a.filename}{a.size ? ` (${fmtSize(a.size)})` : ''}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="secondary"
-                                    style={{ padding: '4px 8px', fontSize: 12, minHeight: 0 }}
-                                    onClick={() => api.mailboxDownloadAttachment(a.r2_key, a.filename).catch((e: any) => flash(e?.message || 'Téléchargement échoué', 'error'))}
-                                    title="Télécharger"
-                                  >
-                                    ↓
-                                  </button>
-                                </div>
-                              );
-                            })}
+                          <div className="mailbox-msg-body">
+                            {isFull && hasHtml ? (
+                              <HtmlMailBody html={selected.body_html!} attachments={attachments} />
+                            ) : isFull && selected.body_text ? (
+                              <pre className="mailbox-msg-pre">{selected.body_text}</pre>
+                            ) : (
+                              <pre className="mailbox-msg-pre" style={{ color: m.preview ? undefined : 'var(--muted)' }}>
+                                {m.preview || '(pas de contenu)'}
+                              </pre>
+                            )}
+                          </div>
+                          {!!atts.length && (
+                            <div className="mailbox-msg-atts">
+                              <div style={{ fontSize: 12, fontWeight: 650, color: 'var(--muted)', marginBottom: 8 }}>
+                                Pièces jointes ({atts.length})
+                              </div>
+                              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                {atts.map((a, i) => {
+                                  const kind = attKind(a);
+                                  return (
+                                    <div key={i} className="mailbox-att-chip">
+                                      <span>{attIcon(kind)}</span>
+                                      <button
+                                        type="button"
+                                        className="ghost"
+                                        style={{ padding: '2px 4px', minHeight: 0, fontWeight: 600 }}
+                                        onClick={() => openAttachmentPreview(a)}
+                                      >
+                                        {a.filename}
+                                        {a.size ? ` (${fmtSize(a.size)})` : ''}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="secondary"
+                                        style={{ padding: '4px 8px', fontSize: 12, minHeight: 0 }}
+                                        onClick={() =>
+                                          api
+                                            .mailboxDownloadAttachment(a.r2_key, a.filename)
+                                            .catch((e: any) => flash(e?.message || 'Téléchargement échoué', 'error'))
+                                        }
+                                      >
+                                        ↓
+                                      </button>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                          <div className="mailbox-msg-actions">
+                            <button type="button" className="secondary" onClick={() => { if (m.id !== selected.id) selectMessage(m.id); setTimeout(() => startReply(), 0); }}>
+                              Répondre
+                            </button>
+                            <button type="button" className="secondary" onClick={() => { if (m.id !== selected.id) selectMessage(m.id); setTimeout(() => startForward(), 0); }}>
+                              Transférer
+                            </button>
                           </div>
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+                      );
+                    })}
+                  </div>
 
-              {replyOpen && (
-                <div className="card" style={{ marginTop: 16, padding: 16 }}>
-                  <div className="form-row"><label>À</label><input value={replyTo} onChange={(e) => setReplyTo(e.target.value)} /></div>
-                  <div className="form-row"><label>Sujet</label><input value={replySubject} onChange={(e) => setReplySubject(e.target.value)} /></div>
-                  <div className="form-row"><label>Message</label><textarea rows={6} value={replyText} onChange={(e) => setReplyText(e.target.value)} /></div>
-                  <div className="form-row">
-                    <label>Pièces jointes</label>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      multiple
-                      style={{ display: 'none' }}
-                      onChange={(e) => {
-                        const files = Array.from(e.target.files || []);
-                        setReplyFiles((prev) => {
-                          const next = [...prev, ...files].slice(0, 5);
-                          return next;
-                        });
-                        e.target.value = '';
-                      }}
+                  {replyOpen && (
+                  <div style={{ marginTop: 20, padding: '8px 0 24px' }}>
+                    <ComposeEmailCard
+                      title={replySubject.startsWith('Tr:') || replySubject.startsWith('Fwd:') ? 'Transférer' : 'Répondre'}
+                      to={replyTo}
+                      subject={replySubject}
+                      body={replyText}
+                      files={replyFiles}
+                      aiInstruction={aiInstruction}
+                      sending={sending}
+                      aiBusy={aiBusy}
+                      onToChange={setReplyTo}
+                      onSubjectChange={setReplySubject}
+                      onBodyChange={setReplyText}
+                      onAiInstructionChange={setAiInstruction}
+                      onAddFiles={(fs) => setReplyFiles((prev) => [...prev, ...fs].slice(0, 5))}
+                      onRemoveFile={(i) => setReplyFiles((prev) => prev.filter((_, j) => j !== i))}
+                      onAiDraft={() => void runAiDraft('reply')}
+                      onSend={() => void sendReply()}
+                      onClose={() => { setReplyOpen(false); setReplyFiles([]); }}
+                      quickReplies={QUICK_REPLIES.map((q) => ({ label: q.label, text: q.body }))}
                     />
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-                      <button
-                        type="button"
-                        className="secondary"
-                        style={{ padding: '6px 12px', fontSize: 13 }}
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        📎 Joindre un fichier
-                      </button>
-                      <span style={{ fontSize: 12, color: 'var(--muted)' }}>Max 5 fichiers · 25 Mo chacun (limite proche Resend)</span>
-                    </div>
-                    {!!replyFiles.length && (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
-                        {replyFiles.map((f, i) => (
-                          <span
-                            key={`${f.name}-${i}`}
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 6,
-                              padding: '4px 10px',
-                              borderRadius: 8,
-                              background: 'var(--panel-2, rgba(0,0,0,0.04))',
-                              border: '1px solid var(--border, #e2e8f0)',
-                              fontSize: 12,
-                            }}
-                          >
-                            📎 {f.name} ({fmtSize(f.size)})
-                            <button
-                              type="button"
-                              className="ghost"
-                              style={{ padding: '0 4px', minHeight: 0, fontSize: 14, lineHeight: 1 }}
-                              aria-label="Retirer"
-                              onClick={() => setReplyFiles((prev) => prev.filter((_, j) => j !== i))}
-                            >
-                              ×
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    )}
                   </div>
-                  <div className="form-actions">
-                    <button onClick={sendReply} disabled={sending}>{sending ? 'Envoi...' : 'Envoyer'}</button>
-                    <button className="secondary" onClick={() => { setReplyOpen(false); setReplyFiles([]); }}>Annuler</button>
-                  </div>
+                )}
                 </div>
-              )}
-            </div>
-          ) : null}
-        </div>
+              </div>
+            ) : null}
+          </div>
+        )}
       </div>
 
-      </>
-      )}
+      </div>{/* mailbox-main */}
+      </div>{/* mailbox-shell */}
 
       {previewAtt && (
         <div
@@ -919,12 +1607,91 @@ export default function Mailbox() {
               {!previewLoading && !previewError && previewAtt && attKind(previewAtt) === 'audio' && previewUrl && (
                 <audio key={previewUrl} src={previewUrl} controls preload="metadata" style={{ width: '100%', maxWidth: 480 }} />
               )}
-              {!previewLoading && !previewError && previewAtt && attKind(previewAtt) === 'office' && previewGoogle && (
-                <iframe
-                  title={previewAtt.filename}
-                  src={previewGoogle}
-                  style={{ width: '100%', height: '75vh', border: 'none', borderRadius: 8, background: '#fff' }}
-                />
+              {!previewLoading && !previewError && previewAtt && previewSlides && previewSlides.length > 0 && (
+                <div className="mailbox-gdocs-reader">
+                  <div className="mailbox-gdocs-toolbar">
+                    <button
+                      type="button"
+                      className="secondary"
+                      disabled={previewSlideIdx <= 0}
+                      onClick={() => setPreviewSlideIdx((i) => Math.max(0, i - 1))}
+                      aria-label="Précédent"
+                    >
+                      ←
+                    </button>
+                    <span className="mailbox-gdocs-counter">
+                      {previewSlideIdx + 1} / {previewSlides.length}
+                    </span>
+                    <button
+                      type="button"
+                      className="secondary"
+                      disabled={previewSlideIdx >= previewSlides.length - 1}
+                      onClick={() => setPreviewSlideIdx((i) => Math.min(previewSlides.length - 1, i + 1))}
+                      aria-label="Suivant"
+                    >
+                      →
+                    </button>
+                  </div>
+                  <div className="mailbox-gdocs-stage">
+                    <div className="mailbox-gdocs-slide">
+                      {(() => {
+                        const s = previewSlides[previewSlideIdx] || previewSlides[0]!;
+                        const isDoc = (previewAtt.filename || '').toLowerCase().endsWith('.docx');
+                        const isXlsx = (previewAtt.filename || '').toLowerCase().endsWith('.xlsx');
+                        return (
+                          <>
+                            {(isXlsx || !isDoc) && (
+                              <h2 className="mailbox-gdocs-title">{isXlsx ? s.title : (s.lines[0] || s.title)}</h2>
+                            )}
+                            <div className={`mailbox-gdocs-body${isDoc ? ' is-doc' : ''}${isXlsx ? ' is-sheet' : ''}`}>
+                              {s.table && s.table.length > 0 ? (
+                                <div className="mailbox-gdocs-table-wrap">
+                                  <table className="mailbox-gdocs-table">
+                                    <tbody>
+                                      {s.table.map((row, ri) => (
+                                        <tr key={ri}>
+                                          {row.map((cell, ci) =>
+                                            ri === 0 ? (
+                                              <th key={ci}>{cell}</th>
+                                            ) : (
+                                              <td key={ci}>{cell}</td>
+                                            ),
+                                          )}
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              ) : (
+                                <>
+                                  {(isDoc ? s.lines : s.lines.slice(1)).map((line, li) => (
+                                    <p key={li}>{line}</p>
+                                  ))}
+                                </>
+                              )}
+                              {s.images.map((src, ii) => (
+                                <img key={ii} src={src} alt="" className="mailbox-gdocs-img" />
+                              ))}
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                  {previewSlides.length > 1 && (
+                    <div className="mailbox-gdocs-dots" role="tablist" aria-label="Diapositives">
+                      {previewSlides.map((_, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          className={i === previewSlideIdx ? 'is-active' : ''}
+                          aria-label={`Diapositive ${i + 1}`}
+                          onClick={() => setPreviewSlideIdx(i)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -932,5 +1699,76 @@ export default function Mailbox() {
       )}
 
     </div>
+
+
+      {replyOpen &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div className="mailbox-compose-overlay" role="presentation" onClick={() => { setReplyOpen(false); setReplyFiles([]); }}>
+            <div className="mailbox-compose-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+              <ComposeEmailCard
+                title={replySubject.startsWith('Tr:') || replySubject.startsWith('Fwd:') ? 'Transférer' : 'Répondre'}
+                to={replyTo}
+                subject={replySubject}
+                body={replyText}
+                files={replyFiles}
+                aiInstruction={aiInstruction}
+                sending={sending}
+                aiBusy={aiBusy}
+                onToChange={setReplyTo}
+                onSubjectChange={setReplySubject}
+                onBodyChange={setReplyText}
+                onAiInstructionChange={setAiInstruction}
+                onAddFiles={(fs) => setReplyFiles((prev) => [...prev, ...fs].slice(0, 5))}
+                onRemoveFile={(i) => setReplyFiles((prev) => prev.filter((_, j) => j !== i))}
+                onAiDraft={() => void runAiDraft('reply')}
+                onSend={() => void sendReply()}
+                onClose={() => { setReplyOpen(false); setReplyFiles([]); }}
+                quickReplies={QUICK_REPLIES.map((q) => ({ label: q.label, text: q.body }))}
+              />
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      {composeOpen &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            className="mailbox-compose-overlay"
+            role="presentation"
+            onClick={() => closeCompose()}
+          >
+            <div
+              className="mailbox-compose-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Nouveau message"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <ComposeEmailCard
+                title="Nouveau message"
+                to={composeTo}
+                subject={composeSubject}
+                body={composeBody}
+                files={composeFiles}
+                aiInstruction={aiInstruction}
+                sending={sending}
+                aiBusy={aiBusy}
+                onToChange={setComposeTo}
+                onSubjectChange={setComposeSubject}
+                onBodyChange={setComposeBody}
+                onAiInstructionChange={setAiInstruction}
+                onAddFiles={(fs) => setComposeFiles((prev) => [...prev, ...fs].slice(0, 5))}
+                onRemoveFile={(i) => setComposeFiles((prev) => prev.filter((_, j) => j !== i))}
+                onAiDraft={() => void runAiDraft('compose')}
+                onSend={() => void sendCompose()}
+                onClose={closeCompose}
+              />
+            </div>
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }

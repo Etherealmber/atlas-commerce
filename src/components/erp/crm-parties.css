@@ -149,3 +149,216 @@
   padding: 4px 8px !important;
   font-size: 11.5px !important;
 }
+
+
+/* LIST_PAGES_SHARED_V41 — same chrome for orders/lists as Clients/Vendors */
+.atlas-orders,
+.atlas-page,
+.products-page,
+.employees-page,
+.quotes-page,
+.invoices-page,
+.quicksale-page,
+.bills-page,
+.receipts-page,
+.balance-page {
+  font-size: var(--atlas-font-size-base, 13px);
+  color: var(--atlas-text-primary, inherit);
+}
+.atlas-orders .page-header h1,
+.atlas-page .page-header h1,
+.products-page .page-header h1 {
+  font-size: 1.2rem;
+  letter-spacing: -0.01em;
+}
+
+.atlas-orders .table-wrap,
+.atlas-page .table-wrap,
+.products-page .table-wrap,
+.employees-page .table-wrap,
+.quotes-page .table-wrap,
+.invoices-page .table-wrap,
+.quicksale-page .table-wrap,
+.bills-page .table-wrap,
+.receipts-page .table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid #e8eaef;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.atlas-orders table.data-dense,
+.atlas-orders table.ac-products-table,
+.atlas-page table.data-dense,
+.products-page table.data-dense,
+.employees-page table.data-dense,
+.quotes-page table.data-dense,
+.invoices-page table.data-dense,
+.quicksale-page table.data-dense,
+.bills-page table.data-dense,
+.receipts-page table.data-dense,
+.atlas-crm table.data-dense {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  min-width: 640px;
+  background: #ffffff;
+}
+.atlas-orders table.data-dense th,
+.atlas-orders table.data-dense td,
+.atlas-page table.data-dense th,
+.atlas-page table.data-dense td,
+.products-page table.data-dense th,
+.products-page table.data-dense td,
+.employees-page table.data-dense th,
+.employees-page table.data-dense td,
+.quotes-page table.data-dense th,
+.quotes-page table.data-dense td,
+.invoices-page table.data-dense th,
+.invoices-page table.data-dense td,
+.quicksale-page table.data-dense th,
+.quicksale-page table.data-dense td,
+.bills-page table.data-dense th,
+.bills-page table.data-dense td,
+.receipts-page table.data-dense th,
+.receipts-page table.data-dense td,
+.atlas-crm table.data-dense th,
+.atlas-crm table.data-dense td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  text-align: left;
+  vertical-align: middle;
+  background: #ffffff;
+}
+.atlas-orders table.data-dense th,
+.atlas-page table.data-dense th,
+.products-page table.data-dense th,
+.employees-page table.data-dense th,
+.quotes-page table.data-dense th,
+.invoices-page table.data-dense th,
+.quicksale-page table.data-dense th,
+.bills-page table.data-dense th,
+.receipts-page table.data-dense th,
+.atlas-crm table.data-dense th {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #71717a;
+  background: #f8fafc !important;
+  border-bottom: 1px solid #e8eaef;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.atlas-orders table.data-dense tbody tr:hover td,
+.atlas-page table.data-dense tbody tr:hover td,
+.products-page table.data-dense tbody tr:hover td,
+.employees-page table.data-dense tbody tr:hover td,
+.quotes-page table.data-dense tbody tr:hover td,
+.invoices-page table.data-dense tbody tr:hover td,
+.atlas-crm table.data-dense tbody tr:hover td {
+  background: #f8fafc !important;
+}
+
+.atlas-orders .ac-panel.ac-products-filters,
+.atlas-orders .ac-panel.ac-products-table-panel,
+.atlas-page .ac-panel.ac-products-filters,
+.atlas-page .ac-panel.ac-products-table-panel,
+.atlas-crm .ac-panel.ac-products-filters,
+.atlas-crm .ac-panel.ac-products-table-panel,
+.products-page .ac-panel.ac-products-filters,
+.products-page .ac-panel.ac-products-table-panel {
+  background: #ffffff;
+  border: 1px solid #e8eaef;
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.atlas-orders .ac-search-input,
+.atlas-crm .ac-search-input,
+.atlas-page .ac-search-input,
+.products-page .ac-search-input {
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.atlas-orders .row-actions,
+.atlas-crm .row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.atlas-orders .row-actions button,
+.atlas-orders .row-actions a,
+.atlas-crm .row-actions button,
+.atlas-crm .row-actions a {
+  min-height: 32px;
+  padding: 4px 8px !important;
+  font-size: 11.5px !important;
+}
+
+
+/* FOCUS_PAGES_V42 — Settings / What's new / Mailbox match Clients panels */
+.settings-page .settings-panel,
+.settings-page .card,
+.settings-shell .card,
+.whats-new-page .ac-panel,
+.whats-new-page .whats-new-list,
+.mailbox-page .mailbox-shell,
+.mailbox-page .mailbox-list-panel,
+.mailbox-page .mailbox-read-panel {
+  background: #ffffff !important;
+  border: 1px solid #e8eaef !important;
+  border-radius: 16px !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+.settings-page .settings-section-head h2,
+.whats-new-page .atlas-hello,
+.whats-new-page h1 {
+  letter-spacing: -0.01em;
+}
+.settings-page input:not([type="checkbox"]):not([type="radio"]),
+.settings-page select,
+.settings-page textarea,
+.whats-new-page input,
+.mailbox-page input[type="search"],
+.mailbox-page .mailbox-search input {
+  background: #ffffff !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+}
+.settings-page button.secondary,
+.whats-new-page button.secondary,
+.mailbox-page button.secondary {
+  border-radius: 999px !important;
+}
+.whats-new-page .whats-new-entry {
+  border-bottom: 1px solid #f1f5f9;
+  padding: 16px 18px;
+}
+.whats-new-page .whats-new-entry:last-child {
+  border-bottom: none;
+}
+.mailbox-page .mailbox-folder-tabs,
+.mailbox-page .mailbox-top-tabs {
+  background: #ffffff;
+  border: 1px solid #e8eaef;
+  border-radius: 16px;
+  padding: 6px;
+}
+
+/* MOBILE 375 — contain wide tables */
+
+@media (max-width: 430px) {
+  table { min-width: 0 !important; }
+  .table-wrap, [class*="table-wrap"] {
+    overflow-x: auto !important;
+    max-width: 100% !important;
+  }
+}

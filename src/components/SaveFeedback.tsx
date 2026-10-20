@@ -7,7 +7,7 @@ export default function SaveFeedback({ message, type = 'success' }: Props) {
   if (!message) return null;
 
   const colors = {
-    success: { bg: 'var(--ok-bg, rgba(34,120,80,0.1))', color: 'var(--ok, #227850)' },
+    success: { bg: 'var(--ok-bg, rgba(99, 102, 241, 0.1))', color: 'var(--ok, #3f3f46)' },
     error: { bg: 'var(--bad-bg)', color: 'var(--bad)' },
     saving: { bg: 'rgba(59,130,246,0.08)', color: 'var(--muted)' },
   };

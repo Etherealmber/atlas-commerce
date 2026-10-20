@@ -1,7 +1,10 @@
 /**
  * Atlas Agent — dock + P0/P1/P2: citations, tools, drafts, stream UX, history, voice, role chips.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
+import LatticeLoader from './ui/LatticeLoader';
+import PromptBar from './ui/PromptBar';
+import { Attachment01Icon } from '@hugeicons/core-free-icons';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../api';
@@ -9,12 +12,12 @@ import { friendlyError } from '../lib/errors';
 import { isStockRole, canOfficeWork, canSell } from '../auth';
 import AgentPermissionsPanel from './AgentPermissionsPanel';
 import { setDensity, type Density } from '../lib/density';
-import { isDemoMode, demoCreateClient, demoCreateProduct } from '../lib/demoMode';
 import { uiToast } from './AppDialogs';
+import { setAgentDraft } from '../lib/agentDraft';
 
 function IconHistory({ size = 16 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#1a2e2a" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#1a1d26" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <circle cx="12" cy="12" r="9" />
       <path d="M12 7v5l3 2" />
     </svg>
@@ -22,7 +25,7 @@ function IconHistory({ size = 16 }: { size?: number }) {
 }
 function IconNewChat({ size = 16 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#1a2e2a" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#1a1d26" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d="M12 20h9" />
       <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
     </svg>
@@ -30,7 +33,7 @@ function IconNewChat({ size = 16 }: { size?: number }) {
 }
 function IconMic({ size = 16 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#1a2e2a" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#1a1d26" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <rect x="9" y="2" width="6" height="11" rx="3" />
       <path d="M5 10a7 7 0 0 0 14 0" />
       <path d="M12 17v4" />
@@ -38,18 +41,42 @@ function IconMic({ size = 16 }: { size?: number }) {
     </svg>
   );
 }
-function IconSend({ size = 16 }: { size?: number }) {
+function IconSend({ size = 18 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#1a2e2a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M12 19V5" />
-      <path d="M5 12l7-7 7 7" />
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M22 2L11 13" />
+      <path d="M22 2l-7 20-4-9-9-4 20-7z" />
+    </svg>
+  );
+}
+
+function IconCopy({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="9" y="9" width="13" height="13" rx="2" />
+      <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+    </svg>
+  );
+}
+function IconRetry({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M1 4v6h6" />
+      <path d="M3.51 15a9 9 0 102.13-9.36L1 10" />
+    </svg>
+  );
+}
+function IconAttach({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
     </svg>
   );
 }
 
 function IconSettings({ size = 16 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#1a2e2a" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#1a1d26" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <circle cx="12" cy="12" r="3" />
       <path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" />
     </svg>
@@ -58,7 +85,7 @@ function IconSettings({ size = 16 }: { size?: number }) {
 
 function IconStop({ size = 14 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="#1a2e2a" aria-hidden>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="#1a1d26" aria-hidden>
       <rect x="6" y="6" width="12" height="12" rx="2" />
     </svg>
   );
@@ -77,6 +104,9 @@ type Msg = {
   failed?: boolean;
   prompt?: string;
   streaming?: boolean;
+  /** Alternate assistant replies (retry / regenerate) */
+  variants?: string[];
+  variantIndex?: number;
 };
 
 type ThreadMeta = { id: string; title: string; updated: number };
@@ -88,6 +118,18 @@ const THREADS_KEY = 'atlas_agent_threads_v1';
 const ACTIVE_THREAD_KEY = 'atlas_agent_active_thread';
 
 function pageMeta(pathname: string): { title: string; hint: string; path: string } {
+  if (pathname === '/agent')
+    return { title: 'Atlas Agent', hint: 'Assistant mobile.', path: pathname };
+  if (false /* /m removed */)
+    return { title: 'Scan', hint: 'Code-barres terrain.', path: pathname };
+  if (false)
+    return { title: 'Entrepôts', hint: 'Stock terrain.', path: pathname };
+  if (false && pathname.startsWith('/mailbox'))
+    return { title: 'Boîte d’actions', hint: 'Envois vers le PC.', path: pathname };
+  if (false)
+    return { title: 'Accueil terrain', hint: 'Tableau de bord mobile.', path: pathname };
+  if (pathname.startsWith('/settings'))
+    return { title: 'Paramètres mobile', hint: 'Thème et compte.', path: pathname };
   if (pathname.startsWith('/products'))
     return { title: 'Produits & stock', hint: 'Catalogue, stock, étiquettes.', path: pathname };
   if (pathname.startsWith('/actions'))
@@ -100,7 +142,7 @@ function pageMeta(pathname: string): { title: string; hint: string; path: string
     return { title: 'Vente rapide', hint: 'Caisse / tickets.', path: pathname };
   if (pathname.startsWith('/clients'))
     return { title: 'Clients', hint: 'Fiches clients.', path: pathname };
-  if (pathname.startsWith('/mailbox'))
+  if (false && pathname.startsWith('/mailbox'))
     return {
       title: 'Messagerie',
       hint: 'Lis les mails, propose une réponse, signale impayés clients, ouvre devis/facture/TVA si besoin. Dis "réponse à ce mail" ou "qui doit payer".',
@@ -149,7 +191,6 @@ function sourcesFromTools(tools: ToolTrace[]): { label: string; href: string }[]
     }
     if (t.name === 'list_open_quotes') add('Devis', '/quotes');
     if (t.name === 'search_clients') add('Clients', '/clients');
-    if (t.name === 'list_recent_mail' || t.name === 'get_mail_brief') add('Messagerie', '/mailbox');
     if (t.name === 'get_dashboard_snapshot' || t.name === 'draft_day_close_report') {
       add('Tableau de bord', '/');
     }
@@ -189,6 +230,38 @@ function loadThreads(): ThreadMeta[] {
   }
 }
 
+
+const _persistTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const _persistInflight = new Set<string>();
+
+async function persistThreadR2(threadId: string, title: string, messages: any[]) {
+  // Debounce: at most one PUT per thread every 2.5s (avoids admin rate-limit toast storms)
+  const prev = _persistTimers.get(threadId);
+  if (prev) clearTimeout(prev);
+  const snapshot = messages.map((m) => ({
+    role: m.role,
+    text: m.text,
+    ms: m.ms,
+  }));
+  const titleSnap = title;
+  _persistTimers.set(
+    threadId,
+    setTimeout(() => {
+      _persistTimers.delete(threadId);
+      if (_persistInflight.has(threadId)) return;
+      _persistInflight.add(threadId);
+      void api
+        .putAgentThread(threadId, { title: titleSnap, messages: snapshot })
+        .catch(() => {
+          /* offline / R2 / rate-limit — local sessionStorage already has the msgs */
+        })
+        .finally(() => {
+          _persistInflight.delete(threadId);
+        });
+    }, 2500),
+  );
+}
+
 function saveThreads(list: ThreadMeta[]) {
   try {
     localStorage.setItem(THREADS_KEY, JSON.stringify(list.slice(0, 20)));
@@ -212,6 +285,10 @@ function loadMsgs(threadId: string): Msg[] {
 function saveMsgs(threadId: string, msgs: Msg[]) {
   try {
     sessionStorage.setItem(msgsKey(threadId), JSON.stringify(msgs.slice(-40)));
+    try {
+      const th = loadThreads().find((t) => t.id === threadId);
+      void persistThreadR2(threadId, th?.title || 'Sans titre', msgs.slice(-40));
+    } catch { /* */ }
   } catch { /* */ }
 }
 
@@ -256,7 +333,10 @@ type LocalAction =
   | { type: 'density'; value: Density; label: string }
   | { type: 'open_perms'; label: string }
   | { type: 'create_client'; name: string; ice?: string; phone?: string; email?: string; label: string }
-  | { type: 'create_product'; name: string; price?: number; stock?: number; sku?: string; label: string };
+  | { type: 'create_product'; name: string; price?: number; stock?: number; sku?: string; label: string }
+  | { type: 'update_client'; name: string; phone?: string; email?: string; label: string }
+  | { type: 'update_product'; name: string; price?: number; stock?: number; label: string }
+  | { type: 'open_create'; path: string; label: string };
 
 /** Lightweight local intent parser for common UI actions (no LLM required). */
 function parseLocalAction(text: string, currentPath = ''): LocalAction | null {
@@ -352,18 +432,122 @@ function parseLocalAction(text: string, currentPath = ''): LocalAction | null {
     return { type: 'navigate', path: '/reports', label: 'Ouvrir les rapports / clôture' };
   }
 
-  // Invoice
+  // Invoice / quote create
   if (/\b(facture|devis)\b/.test(t) && /\b(cr[ée]er?|nouvelle?|nouveau)\b/.test(t)) {
-    return { type: 'navigate', path: '/invoices', draft: { open: '1' }, label: 'Ouvrir la création de facture' };
+    const isQuote = /\bdevis\b/.test(t);
+    return {
+      type: 'navigate',
+      path: isQuote ? '/quotes' : '/invoices',
+      draft: { open: '1' },
+      label: isQuote ? 'Ouvrir la création de devis' : 'Ouvrir la création de facture',
+    };
   }
 
+  // Edit / update client
+  if (/\b(modifi|édit|mettre\s+à\s+jour|change)\b/.test(t) && /\bclient\b/.test(t)) {
+    const m = text.match(/client\s+["']?([a-zA-ZÀ-ÿ][\wÀ-ÿ\s-]{1,40})["']?/i);
+    const name = (m?.[1] || '').trim();
+    const phone = (t.match(/(?:tél|tel|phone)\s*[:=]?\s*([\d\s+]{8,})/) || [])[1]?.replace(/\s/g, '');
+    const email = (t.match(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/i) || [])[0];
+    if (name) {
+      return {
+        type: 'update_client',
+        name,
+        phone,
+        email,
+        label: `Modifier le client « ${name} »`,
+      };
+    }
+    return { type: 'navigate', path: '/clients', label: 'Ouvrir les clients pour modification' };
+  }
+
+  // Edit product
+  if (/\b(modifi|édit|mettre\s+à\s+jour|change)\b/.test(t) && /\bproduit\b/.test(t)) {
+    const m = text.match(/produit\s+["']?([^"']{2,60})["']?/i);
+    const name = (m?.[1] || '').trim();
+    const priceM = t.match(/(\d+[.,]?\d*)\s*(?:dh|mad)/);
+    const price = priceM ? Number(priceM[1].replace(',', '.')) : undefined;
+    if (name) {
+      return { type: 'update_product', name, price, label: `Modifier le produit « ${name} »` };
+    }
+    return { type: 'navigate', path: '/products', label: 'Ouvrir les produits pour modification' };
+  }
+
+  // Employee / vendor / quick sale shortcuts
+  if (/\b(employé|employe)\b/.test(t) && /\b(cr[ée]er?|nouveau|ajoute)\b/.test(t)) {
+    return { type: 'open_create', path: '/employees', label: 'Ouvrir la création d’employé' };
+  }
+  if (/\b(fournisseur|vendor)\b/.test(t) && /\b(cr[ée]er?|nouveau|ajoute)\b/.test(t)) {
+    return { type: 'open_create', path: '/vendors', label: 'Ouvrir la création fournisseur' };
+  }
+  if (/\b(vente\s*rapide|ticket\s*vr|caisse)\b/.test(t) && /\b(cr[ée]er?|nouvelle?|ouvre)\b/.test(t)) {
+    return { type: 'navigate', path: '/quick-sale', draft: { open: '1' }, label: 'Ouvrir la vente rapide' };
+  }
+
+
+  // Document → entity (fichier joint mentionné dans le texte ou "transformer en…")
+  if (
+    /\b(transforme|convertis|tourne|fais|créer?|cree|genere|génère)\b/.test(t) &&
+    /\b(facture|devis|reçu|recu|client|employé|employe|produit|fournisseur)\b/.test(t)
+  ) {
+    if (/\bfacture\b/.test(t)) {
+      return {
+        type: 'navigate',
+        path: '/invoices',
+        draft: { open: '1', entity: 'invoice', source: 'document' },
+        label: 'Ouvrir une facture à partir du document',
+      };
+    }
+    if (/\bdevis\b/.test(t)) {
+      return {
+        type: 'navigate',
+        path: '/quotes',
+        draft: { open: '1', entity: 'quote', source: 'document' },
+        label: 'Ouvrir un devis à partir du document',
+      };
+    }
+    if (/\b(reçu|recu)\b/.test(t)) {
+      return {
+        type: 'navigate',
+        path: '/receipts',
+        draft: { open: '1', entity: 'receipt', source: 'document' },
+        label: 'Ouvrir un reçu à partir du document',
+      };
+    }
+    if (/\bclient\b/.test(t)) {
+      return {
+        type: 'navigate',
+        path: '/clients',
+        draft: { open: '1', entity: 'client', source: 'document' },
+        label: 'Ouvrir un client à partir du document',
+      };
+    }
+    if (/\b(employé|employe)\b/.test(t)) {
+      return {
+        type: 'navigate',
+        path: '/employees',
+        draft: { open: '1', entity: 'employee', source: 'document' },
+        label: 'Ouvrir un employé à partir du document',
+      };
+    }
+    if (/\bproduit\b/.test(t)) {
+      return {
+        type: 'navigate',
+        path: '/products',
+        draft: { open: '1', entity: 'product', source: 'document' },
+        label: 'Ouvrir un produit à partir du document',
+      };
+    }
+  }
+
+  
   return null;
 }
 
 
 function scrubVendorNames(s: string) {
   return String(s || '')
-    .replace(/\b(Google|Gemini|Mistral|OpenAI|ChatGPT|Claude|Anthropic)\b/gi, 'Atlas Agent')
+    .replace(/\b(Google|Gemini|Atlas Agent|OpenAI|ChatGPT|Claude|Anthropic)\b/gi, 'Atlas Agent')
     .trim();
 }
 function clipAgent(s: string) {
@@ -432,6 +616,9 @@ export default function AtlasAgent() {
   }, [location.pathname, isPhoneShell, open]);
   const [showPerms, setShowPerms] = useState(false);
   const [execMode, setExecMode] = useState<ExecMode>(() => getExecMode());
+  /** Server agent_perm_mode: full | read_only | custom */
+  const [agentPermMode, setAgentPermMode] = useState<'full' | 'read_only' | 'custom'>('full');
+
   const [panelWidth, setPanelWidth] = useState(() => {
     try {
       const n = Number(localStorage.getItem('atlas_agent_width') || 380);
@@ -444,7 +631,9 @@ export default function AtlasAgent() {
   const [pendingAction, setPendingAction] = useState<LocalAction | null>(null);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
-  const [listening, setListening] = useState(false);
+  const [listening, setListening] = useState(false); // unused (dictation removed)
+  const [attachments, setAttachments] = useState<{ name: string; type: string; data_url: string }[]>([]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [msgs, setMsgs] = useState<Msg[]>(() => {
     const id = (() => {
       try {
@@ -498,18 +687,111 @@ export default function AtlasAgent() {
     saveMsgs(threadId, msgs);
   }, [msgs, threadId]);
 
+  // Hydrate conversation from sessionStorage + encrypted R2 (one file per thread)
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    const local = loadMsgs(threadId);
+    if (local.length) {
+      setMsgs(local);
+    }
+    (async () => {
+      try {
+        const res = await api.getAgentThread(threadId);
+        if (cancelled) return;
+        const remote = res?.data?.messages;
+        if (!Array.isArray(remote) || !remote.length) return;
+        const mapped = remote
+          .filter((m: any) => m && (m.role === 'user' || m.role === 'assistant') && m.text)
+          .map((m: any) => ({
+            role: m.role as 'user' | 'assistant',
+            text: String(m.text || ''),
+            ms: typeof m.ms === 'number' ? m.ms : undefined,
+          }));
+        if (!mapped.length) return;
+        // Prefer remote if richer; else keep local
+        setMsgs((cur) => {
+          if (cur.length > mapped.length) return cur;
+          try {
+            sessionStorage.setItem(msgsKey(threadId), JSON.stringify(mapped.slice(-40)));
+          } catch { /* */ }
+          return mapped.slice(-40);
+        });
+        if (res?.data?.title) {
+          setThreads((prev) => {
+            const next = [
+              { id: threadId, title: String(res.data.title).slice(0, 48), updated: Date.now() },
+              ...prev.filter((x) => x.id !== threadId),
+            ].slice(0, 20);
+            saveThreads(next);
+            return next;
+          });
+        }
+      } catch {
+        /* offline / rate limit — local history only */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [threadId, open]);
+
+  // Sync thread list from R2 index when panel opens
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.listAgentThreads();
+        if (cancelled) return;
+        const remote = res?.data;
+        if (!Array.isArray(remote) || !remote.length) return;
+        setThreads((prev) => {
+          const byId = new Map<string, ThreadMeta>();
+          for (const t of prev) byId.set(t.id, t);
+          for (const r of remote) {
+            const id = String(r.id || '');
+            if (!id) continue;
+            const updated = r.updated_at ? new Date(r.updated_at).getTime() : Date.now();
+            const existing = byId.get(id);
+            byId.set(id, {
+              id,
+              title: String(r.title || existing?.title || 'Sans titre').slice(0, 48),
+              updated: Math.max(existing?.updated || 0, updated || 0),
+            });
+          }
+          const next = [...byId.values()].sort((a, b) => b.updated - a.updated).slice(0, 20);
+          saveThreads(next);
+          return next;
+        });
+      } catch { /* */ }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
   useEffect(() => {
     if (prevPath.current === location.pathname) return;
     prevPath.current = location.pathname;
     if (!open) return;
-    setMsgs((m) => [
-      ...m,
-      {
-        role: 'assistant',
-        text: `Vous êtes sur « ${page.title} ». ${page.hint} Que puis-je faire ici ?`,
-      },
-    ]);
-  }, [location.pathname, open, page.title, page.hint]);
+    if (isPhoneShell) return;
+    // Keep existing thread messages when navigating — restore from session if state was empty
+    setMsgs((m) => {
+      let base = m;
+      if (!base.length) {
+        const local = loadMsgs(threadId);
+        if (local.length) base = local;
+      }
+      return [
+        ...base,
+        {
+          role: 'assistant' as const,
+          text: `Vous êtes sur « ${page.title} ». ${page.hint} Que puis-je faire ici ?`,
+        },
+      ];
+    });
+  }, [location.pathname, open, page.title, page.hint, isPhoneShell, threadId]);
 
   useEffect(() => {
     if (open) bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -524,9 +806,21 @@ export default function AtlasAgent() {
     };
   }, []);
 
-  const streamText = (full: string, meta: Omit<Msg, 'role' | 'text' | 'streaming'>) => {
+  const streamText = (full: string, meta: Omit<Msg, 'role' | 'text' | 'streaming'>, replaceStreaming = true) => {
     const idPlaceholder = { role: 'assistant' as const, text: '', streaming: true, ...meta };
-    setMsgs((m) => [...m, idPlaceholder]);
+    setMsgs((m) => {
+      if (replaceStreaming) {
+        const idx = [...m].map((x, i) => (x.streaming && x.role === 'assistant' ? i : -1)).filter((i) => i >= 0).pop();
+        if (typeof idx === 'number' && idx >= 0) {
+          const copy = [...m];
+          const prev = copy[idx];
+          const variants = prev.variants ? [...prev.variants] : [];
+          copy[idx] = { ...idPlaceholder, variants, variantIndex: variants.length };
+          return copy;
+        }
+      }
+      return [...m, idPlaceholder];
+    });
     let i = 0;
     if (streamTimer.current) window.clearInterval(streamTimer.current);
     streamTimer.current = window.setInterval(() => {
@@ -536,7 +830,21 @@ export default function AtlasAgent() {
         const copy = [...m];
         const last = copy[copy.length - 1];
         if (last?.streaming) {
-          copy[copy.length - 1] = { ...last, text: slice, streaming: i < full.length };
+          const done = i >= full.length;
+          let variants = last.variants ? [...last.variants] : [];
+          let variantIndex = last.variantIndex ?? 0;
+          if (done) {
+            variants = [...variants, full];
+            variantIndex = variants.length - 1;
+          }
+          copy[copy.length - 1] = {
+            ...last,
+            text: slice,
+            streaming: !done,
+            variants: done ? variants : last.variants,
+            variantIndex: done ? variantIndex : last.variantIndex,
+            ...meta,
+          };
         }
         return copy;
       });
@@ -556,15 +864,48 @@ export default function AtlasAgent() {
   };
 
 
+
+  useEffect(() => {
+    if (!open) return;
+    void api.getAgentPermissions().then((r: any) => {
+      const m = r?.data?.mode || r?.mode;
+      if (m === 'read_only' || m === 'custom' || m === 'full') setAgentPermMode(m);
+    }).catch(() => {});
+  }, [open]);
+
   const applyAction = useCallback(
     async (action: LocalAction, confirmed = false) => {
-      if (execMode === 'ask' && !confirmed) {
+      // Opening a form is not destructive — never block on "ask" mode
+      const formOpen =
+        action.type === 'create_client' ||
+        action.type === 'create_product' ||
+        action.type === 'update_client' ||
+        action.type === 'update_product' ||
+        action.type === 'open_create' ||
+        action.type === 'navigate' ||
+        action.type === 'open_perms' ||
+        action.type === 'density';
+      // Role-based: only office roles may auto-mutate; auto requires agent_perm_mode=full
+      const role = (() => {
+        try { return localStorage.getItem('stock_role') || 'user'; } catch { return 'user'; }
+      })();
+      const roleCanWrite = ['owner', 'admin', 'secretaire'].includes(String(role).toLowerCase());
+      const autoAllowed = execMode === 'auto' && agentPermMode === 'full' && roleCanWrite;
+      if (!formOpen && !confirmed && !autoAllowed) {
         setPendingAction(action);
+        const why =
+          execMode === 'ask'
+            ? 'Confirmez pour exécuter, ou passez en mode « Automatiquement » (permissions complètes).'
+            : agentPermMode !== 'full'
+              ? 'Permissions agent en lecture seule / personnalisées — confirmation requise.'
+              : !roleCanWrite
+                ? 'Votre rôle ne permet pas les écritures automatiques — confirmation requise.'
+                : 'Confirmation requise.';
         setMsgs((m) => [
           ...m,
           {
             role: 'assistant',
-            text: `Action préparée : ${action.label}. Confirmez pour exécuter, ou passez en mode « Automatiquement ».`,
+            text: `Action préparée : ${action.label}. ${why}`,
           },
         ]);
         return;
@@ -583,64 +924,105 @@ export default function AtlasAgent() {
         return;
       }
       if (action.type === 'create_client') {
-        try {
-          if (isDemoMode()) {
-            const row = demoCreateClient({ name: action.name, ice: action.ice, phone: action.phone, email: action.email });
-            try { uiToast(`Client démo « ${action.name} » créé`, 'success'); } catch { /* */ }
-            setMsgs((m) => [
-              ...m,
-              { role: 'assistant', text: `Client « ${action.name} » créé dans le sandbox démo (#${row.id}). Les données réelles n’ont pas été modifiées.` },
-            ]);
-          } else {
-            const body: Record<string, string> = { name: action.name };
-            if (action.ice) body.ice = action.ice;
-            if (action.phone) body.phone = action.phone;
-            if (action.email) body.email = action.email;
-            const res: any = await api.createClient(body);
-            const id = res?.data?.id;
-            try { uiToast(`Client « ${action.name} » créé`, 'success'); } catch { /* */ }
-            setMsgs((m) => [
-              ...m,
-              { role: 'assistant', text: `Client « ${action.name} » créé avec succès${id ? ` (#${id})` : ''}.` },
-            ]);
-          }
-          navigate('/clients');
-        } catch (e: any) {
-          setMsgs((m) => [...m, { role: 'assistant', text: friendlyError(e) || 'Création client impossible.' }]);
-        }
+        setAgentDraft({
+          open: '1',
+          entity: 'client',
+          mode: 'create',
+          prefill: {
+            name: action.name,
+            ice: action.ice || '',
+            phone: action.phone || '',
+            email: action.email || '',
+          },
+        });
+        navigate('/clients');
+        setMsgs((m) => [
+          ...m,
+          {
+            role: 'assistant',
+            text: `Formulaire client ouvert pour « ${action.name} ». Vérifiez les champs puis enregistrez.`,
+          },
+        ]);
         return;
       }
       if (action.type === 'create_product') {
+        setAgentDraft({
+          open: '1',
+          entity: 'product',
+          mode: 'create',
+          prefill: {
+            name: action.name,
+            price: action.price ?? 0,
+            stock_quantity: action.stock ?? 0,
+            sku: action.sku || '',
+          },
+        });
+        navigate('/products');
+        setMsgs((m) => [
+          ...m,
+          {
+            role: 'assistant',
+            text: `Formulaire produit ouvert pour « ${action.name} ». Complétez ou corrigez puis enregistrez.`,
+          },
+        ]);
+        return;
+      }
+      if (action.type === 'update_client') {
+        setAgentDraft({
+          open: '1',
+          entity: 'client',
+          mode: 'edit',
+          prefill: {
+            name: action.name,
+            phone: action.phone || '',
+            email: action.email || '',
+          },
+        });
+        navigate('/clients');
+        setMsgs((m) => [
+          ...m,
+          { role: 'assistant', text: `Ouverture du client « ${action.name} » pour modification.` },
+        ]);
+        return;
+      }
+      if (action.type === 'update_product') {
+        setAgentDraft({
+          open: '1',
+          entity: 'product',
+          mode: 'edit',
+          prefill: {
+            name: action.name,
+            price: action.price,
+            stock_quantity: action.stock,
+          },
+        });
+        navigate('/products');
+        setMsgs((m) => [
+          ...m,
+          { role: 'assistant', text: `Ouverture du produit « ${action.name} » pour modification.` },
+        ]);
+        return;
+      }
+      if (action.type === 'open_create') {
         try {
-          if (isDemoMode()) {
-            demoCreateProduct({
-              name: action.name,
-              price: action.price ?? 0,
-              stock_quantity: action.stock ?? 0,
-              sku: action.sku,
-            });
-            try { uiToast(`Produit démo « ${action.name} » créé`, 'success'); } catch { /* */ }
-            setMsgs((m) => [...m, { role: 'assistant', text: `Produit « ${action.name} » créé dans le sandbox démo.` }]);
-          } else {
-            await api.createProduct({
-              name: action.name,
-              price: action.price ?? 0,
-              stock_quantity: action.stock ?? 0,
-              unit: 'unité',
-              category: 'Général',
-              track_inventory: 1,
-              sku: action.sku || undefined,
-            });
-            try { uiToast(`Produit « ${action.name} » créé`, 'success'); } catch { /* */ }
-            setMsgs((m) => [...m, { role: 'assistant', text: `Produit « ${action.name} » créé avec succès.` }]);
-          }
-          navigate('/products');
-        } catch (e: any) {
-          setMsgs((m) => [...m, { role: 'assistant', text: friendlyError(e) || 'Création produit impossible.' }]);
-        }
+          sessionStorage.setItem('atlas-agent-draft', JSON.stringify({ open: '1' }));
+        } catch { /* */ }
+        navigate(action.path);
+        setMsgs((m) => [...m, { role: 'assistant', text: `Ouverture : ${action.label}.` }]);
         return;
       }
       if (action.type === 'navigate') {
+        if (action.draft) {
+          setAgentDraft({
+            open: action.draft.open || '1',
+            entity: (action.draft as any).entity,
+            mode: 'create',
+            prefill: action.draft as any,
+            source_file: (action.draft as any).source,
+            note: action.label,
+          });
+        }
+
         const here = (location.pathname || '').split('?')[0].replace(/\/+$/, '') || '/';
         const dest = (action.path || '').split('?')[0].replace(/\/+$/, '') || '/';
         if (here === dest || here.endsWith(dest)) {
@@ -670,19 +1052,91 @@ export default function AtlasAgent() {
         ]);
       }
     },
-    [execMode, navigate, location.pathname],
+    [execMode, agentPermMode, navigate, location.pathname],
   );
 
+  const onPickFiles = (e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    const allowed = (f: File) => {
+      const t = (f.type || '').toLowerCase();
+      const n = f.name.toLowerCase();
+      if (t.startsWith('image/')) return true;
+      if (t.includes('pdf') || n.endsWith('.pdf')) return true;
+      if (n.endsWith('.doc') || n.endsWith('.docx') || n.endsWith('.odt') || n.endsWith('.txt')) return true;
+      if (n.endsWith('.csv') || n.endsWith('.xlsx') || n.endsWith('.xls')) return true;
+      return false;
+    };
+    for (const f of files) {
+      if (!allowed(f)) {
+        try { uiToast(`Fichier refusé (images / documents uniquement) : ${f.name}`, 'error'); } catch { /* */ }
+        continue;
+      }
+      if (f.size > 4_000_000) {
+        try { uiToast(`Fichier trop lourd (max 4 Mo) : ${f.name}`, 'error'); } catch { /* */ }
+        continue;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const data_url = String(reader.result || '');
+        setAttachments((prev) => [...prev, { name: f.name, type: f.type || 'application/octet-stream', data_url }].slice(-5));
+      };
+      reader.readAsDataURL(f);
+    }
+  };
+
   const send = useCallback(
-    async (raw?: string, isRetry = false) => {
+    async (raw?: string, isRetry = false, retryAtIndex?: number) => {
       const q = (raw ?? input).trim();
-      if (!q || busy) return;
+      const files = isRetry ? [] : attachments;
+      if ((!q && !files.length) || busy) return;
       if (!isRetry) setInput('');
-      if (!isRetry) setMsgs((m) => [...m, { role: 'user', text: q }]);
-      touchThread(q);
+      if (!isRetry) setAttachments([]);
+      const attachNote = files.length
+        ? `\n[Pièces jointes: ${files.map((f) => f.name).join(', ')}]`
+        : '';
+      const userText = (q || 'Voir les pièces jointes') + attachNote;
+      if (!isRetry) {
+        setMsgs((m) => [...m, { role: 'user', text: userText }]);
+        touchThread(userText);
+      } else {
+        // Remove the assistant message being retried; keep variants of previous text
+        setMsgs((m) => {
+          const idx =
+            typeof retryAtIndex === 'number'
+              ? retryAtIndex
+              : (() => {
+                  for (let i = m.length - 1; i >= 0; i--) {
+                    if (m[i].role === 'assistant' && m[i].prompt === q) return i;
+                  }
+                  for (let i = m.length - 1; i >= 0; i--) {
+                    if (m[i].role === 'assistant') return i;
+                  }
+                  return -1;
+                })();
+          if (idx < 0) return m;
+          const copy = [...m];
+          const prev = copy[idx];
+          const prevVariants = prev.variants?.length
+            ? [...prev.variants]
+            : prev.text
+              ? [prev.text]
+              : [];
+          // placeholder while waiting
+          copy[idx] = {
+            role: 'assistant',
+            text: '',
+            streaming: true,
+            prompt: q,
+            variants: prevVariants,
+            variantIndex: prevVariants.length, // new reply will append
+          };
+          return copy;
+        });
+      }
 
       // Local UI actions (client, expense, density, permissions) — no round-trip
-      const local = parseLocalAction(q, location.pathname);
+      const local = parseLocalAction(q || userText, location.pathname);
       if (local) {
         void applyAction(local);
         return;
@@ -694,15 +1148,29 @@ export default function AtlasAgent() {
       abortRef.current = ac;
       const t0 = performance.now();
       try {
-        const prompt = [
-          `L'utilisateur est DÉJÀ sur la page: ${page.title} (${page.path}). ${page.hint}`,
-          'Réponds en français, 1–2 phrases. Explique quoi faire SUR CETTE page.',
-          'N\'ouvre pas et ne propose pas d\'ouvrir la page courante (les boutons du bas suffisent).',
-          `Question: ${q}`,
-        ].join('\n');
+        // Send the user text cleanly; page is context only (never inject "quoi faire"
+        // into every prompt — that was matching local canned tips and making the agent dumb).
+        const isGreeting = /^(bonjour|bonsoir|salut|hello|hi|hey|coucou|salam|bonne\s*(journée|soirée)|merci)[\s!.?]*$/i.test(q);
+        const prompt = isGreeting
+          ? q
+          : [
+              `Contexte page: ${page.title} (${page.path}). ${page.hint}`,
+              'Réponds en français, de façon utile et naturelle (2–5 phrases max sauf si on demande un détail).',
+              'Si la question est un salut ou hors sujet page, réponds normalement sans forcer un tutoriel de la page.',
+              'Ne propose pas d\'ouvrir la page courante.',
+              `Message: ${q || 'Analyse des pièces jointes (noms uniquement — contenu binaire non renvoyé au modèle).'}`,
+              files.length
+                ? `Fichiers joints (cette requête uniquement): ${files.map((f) => `${f.name} (${f.type})`).join('; ')}. Ne redemande pas de fichier si l'utilisateur n'en a pas fourni.`
+                : 'Aucun fichier joint — ne demande pas de pièce jointe sauf si indispensable.',
+            ].filter(Boolean).join('\n');
         const res = await api.assistChat(prompt, {
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Africa/Casablanca',
           thread_id: threadId,
+          user_message: q || userText,
+          page_path: page.path,
+          page_title: page.title,
+          exec_mode: execMode,
+          agent_perm_mode: agentPermMode,
         });
         if (ac.signal.aborted) return;
         const ms = Math.round(performance.now() - t0);
@@ -744,7 +1212,7 @@ export default function AtlasAgent() {
         abortRef.current = null;
       }
     },
-    [busy, input, page, threadId, applyAction, location.pathname],
+    [busy, input, attachments, page, threadId, applyAction, location.pathname],
   );
 
   const stop = () => {
@@ -769,14 +1237,72 @@ export default function AtlasAgent() {
     } catch { /* */ }
   };
 
-  const openThread = (id: string) => {
+  const refreshHistoryFromR2 = useCallback(async () => {
+    try {
+      const res = await api.listAgentThreads();
+      const remote = (res.data || []).map((th: any) => ({
+        id: String(th.id),
+        title: String(th.title || 'Sans titre'),
+        updated: th.updated_at ? new Date(th.updated_at).getTime() : Date.now(),
+      }));
+      setThreads((local) => {
+        const map = new Map<string, ThreadMeta>();
+        for (const t of local) map.set(t.id, t);
+        for (const t of remote) {
+          const prev = map.get(t.id);
+          map.set(t.id, {
+            id: t.id,
+            title: t.title || prev?.title || 'Sans titre',
+            updated: Math.max(prev?.updated || 0, t.updated || 0),
+          });
+        }
+        const merged = Array.from(map.values())
+          .sort((a, b) => b.updated - a.updated)
+          .slice(0, 40);
+        saveThreads(merged);
+        return merged;
+      });
+    } catch {
+      /* keep local */
+    }
+  }, []);
+
+  const openThread = async (id: string) => {
     setThreadId(id);
-    const saved = loadMsgs(id);
-    setMsgs(saved.length ? saved : [WELCOME]);
     setShowHistory(false);
     try {
       localStorage.setItem(ACTIVE_THREAD_KEY, id);
     } catch { /* */ }
+    const local = loadMsgs(id);
+    setMsgs(local.length ? local : [{ role: 'assistant', text: 'Chargement de la conversation…' }]);
+    try {
+      const res = await api.getAgentThread(id);
+      const remoteMsgs = Array.isArray(res.data?.messages) ? res.data!.messages! : [];
+      const mapped: Msg[] = remoteMsgs
+        .filter((m: any) => m && (m.role === 'user' || m.role === 'assistant') && m.text)
+        .map((m: any) => ({
+          role: m.role as 'user' | 'assistant',
+          text: String(m.text),
+          ms: m.ms,
+        }));
+      if (mapped.length) {
+        setMsgs(mapped);
+        try {
+          sessionStorage.setItem(msgsKey(id), JSON.stringify(mapped.slice(-80)));
+        } catch { /* */ }
+        return;
+      }
+      if (!local.length) setMsgs([WELCOME]);
+    } catch {
+      if (!local.length) {
+        setMsgs([
+          {
+            role: 'assistant',
+            text: 'Impossible de charger cette conversation (R2). Réessayez ou ouvrez une nouvelle discussion.',
+          },
+        ]);
+      }
+    }
   };
 
   const toggleVoice = () => {
@@ -863,28 +1389,31 @@ export default function AtlasAgent() {
     return groups;
   };
 
+  const hideAgent = ['/settings', '/about', '/whats-new', '/login', '/welcome', '/privacy', '/terms'].some(
+    (p) => location.pathname === p || location.pathname.startsWith(p + '/'),
+  );
+  if (hideAgent) return null;
+
   return (
     <>
-{!isPhoneShell && (
+{!isPhoneShell && !open && (
             <button
         type="button"
-        className={`atlas-agent-fab atlas-agent-fab-accent ${open ? 'on' : ''}`}
-        aria-label={open ? 'Masquer Atlas Agent' : 'Ouvrir Atlas Agent'}
+        className="atlas-agent-fab atlas-agent-fab-premium"
+        aria-label="Ouvrir Atlas Agent"
         title="Atlas Agent"
         onClick={() => {
-          setOpen((v) => {
-            const next = !v;
-            try {
-              document.documentElement.classList.toggle('atlas-agent-docked', next);
-              sessionStorage.setItem(OPEN_KEY, next ? '1' : '0');
-            } catch { /* */ }
-            return next;
-          });
+          setOpen(true);
+          try {
+            document.documentElement.classList.add('atlas-agent-docked');
+            sessionStorage.setItem(OPEN_KEY, '1');
+          } catch { /* */ }
         }}
       >
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-          <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z" />
-          <circle cx="18" cy="6" r="1.2" fill="currentColor" stroke="none" />
+        <span className="atlas-agent-fab-ring" aria-hidden />
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round">
+          <path d="M12 3l1.6 4.8L18.5 9.5l-4.9 1.6L12 16l-1.6-4.9L5.5 9.5l4.9-1.7L12 3z" />
+          <path d="M19 4v3M17.5 5.5h3" strokeWidth="1.5" />
         </svg>
       </button>
       )}
@@ -954,7 +1483,11 @@ export default function AtlasAgent() {
               className="atlas-agent-iconbtn"
               title="Historique"
               onClick={() => {
-                setShowHistory((v) => !v);
+                setShowHistory((v) => {
+                  const next = !v;
+                  if (next) void refreshHistoryFromR2();
+                  return next;
+                });
                 setShowPerms(false);
               }}
             >
@@ -963,14 +1496,14 @@ export default function AtlasAgent() {
             <button type="button" className="atlas-agent-iconbtn" title="Nouvelle conversation" onClick={clearThread}>
               <IconNewChat />
             </button>
-            <button type="button" className="atlas-agent-close" aria-label="Fermer" onClick={() => {
+            <button type="button" className="atlas-agent-close atlas-agent-close--danger" aria-label="Fermer" title="Fermer" onClick={() => {
           setOpen(false);
           try {
             document.documentElement.classList.remove('atlas-agent-docked');
             sessionStorage.setItem(OPEN_KEY, '0');
           } catch { /* */ }
         }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1a2e2a" strokeWidth="2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
             </button>
           </div>
           )}
@@ -978,8 +1511,22 @@ export default function AtlasAgent() {
 
         {showHistory && (
           <div className="atlas-agent-history">
-            <div className="atlas-agent-history-title">Conversations</div>
-            {threads.length === 0 && <p className="atlas-agent-history-empty">Aucune conversation enregistrée.</p>}
+            <div className="atlas-agent-history-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+              <span>Conversations</span>
+              <button
+                type="button"
+                className="atlas-agent-msg-act"
+                title="Actualiser depuis le serveur"
+                onClick={() => void refreshHistoryFromR2()}
+              >
+                ↻
+              </button>
+            </div>
+            {threads.length === 0 && (
+              <p className="atlas-agent-history-empty">
+                Aucune conversation. Les échanges sont enregistrés sur R2 après chaque message.
+              </p>
+            )}
             {Object.entries(groupedHistory()).map(([label, list]) => (
               <div key={label} className="atlas-agent-history-group">
                 <div className="atlas-agent-history-day">{label}</div>
@@ -987,7 +1534,7 @@ export default function AtlasAgent() {
                   <button
                     key={th.id}
                     type="button"
-                    className={`atlas-agent-history-item${th.id === threadId ? ' active' : ''}`}
+                    className={`atlas-agent-history-item secondary${th.id === threadId ? ' active' : ''}`}
                     onClick={() => openThread(th.id)}
                   >
                     <span className="atlas-agent-history-label">{th.title || 'Sans titre'}</span>
@@ -1038,7 +1585,7 @@ export default function AtlasAgent() {
           <div className="atlas-agent-greeting">
             <strong>{timeGreeting().hello}</strong>
             <span>{timeGreeting().sub}</span>
-            <div className="atlas-agent-chips">
+            <div className="atlas-agent-chips atlas-agent-chips--readable">
               {(isPhoneShell
                 ? [
                     { label: 'Stock bas', prompt: 'Résumé stock bas' },
@@ -1074,12 +1621,112 @@ export default function AtlasAgent() {
         )}
 
         <div className="atlas-agent-body">
-          {msgs.map((m, i) => (
+          {msgs.filter((m) => !(m.streaming && !String(m.text || '').trim())).map((m, i) => (
             <div key={i} className={`atlas-agent-msg ${m.role}`}>
               <div className="atlas-agent-bubble">
                 {m.text}
                 {m.streaming ? <span className="atlas-agent-caret">▍</span> : null}
               </div>
+              {m.role === 'user' && !m.streaming && m.text.trim() ? (
+                <div className="atlas-agent-msg-actions atlas-agent-msg-actions--user">
+                  <button
+                    type="button"
+                    className="atlas-agent-msg-act"
+                    title="Copier"
+                    onClick={() => {
+                      void navigator.clipboard?.writeText(m.text);
+                      try { uiToast('Copié', 'success'); } catch { /* */ }
+                    }}
+                  >
+                    <IconCopy />
+                  </button>
+                  <button
+                    type="button"
+                    className="atlas-agent-msg-act"
+                    title="Retirer"
+                    onClick={() => setMsgs((list) => list.filter((_, j) => j !== i))}
+                  >
+                    ×
+                  </button>
+                </div>
+              ) : null}
+              {m.role === 'assistant' && !m.streaming && m.text.trim() ? (
+                <div className="atlas-agent-msg-actions atlas-agent-msg-actions--assistant">
+                  <button
+                    type="button"
+                    className="atlas-agent-msg-act"
+                    title="Copier"
+                    onClick={() => {
+                      void navigator.clipboard?.writeText(m.text);
+                      try { uiToast('Copié', 'success'); } catch { /* */ }
+                    }}
+                  >
+                    <IconCopy />
+                  </button>
+                  {m.prompt ? (
+                    <button
+                      type="button"
+                      className="atlas-agent-msg-act"
+                      title="Réessayer"
+                      disabled={busy}
+                      onClick={() => void send(m.prompt!, true, i)}
+                    >
+                      <IconRetry />
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="atlas-agent-msg-act"
+                    title="Retirer"
+                    onClick={() => setMsgs((list) => list.filter((_, j) => j !== i))}
+                  >
+                    ×
+                  </button>
+                  {m.variants && m.variants.length > 1 ? (
+                    <div className="atlas-agent-variant-nav" aria-label="Versions de la réponse">
+                      <button
+                        type="button"
+                        className="atlas-agent-msg-act"
+                        title="Précédent"
+                        disabled={(m.variantIndex ?? 0) <= 0}
+                        onClick={() => {
+                          setMsgs((list) => {
+                            const copy = [...list];
+                            const cur = copy[i];
+                            if (!cur?.variants?.length) return list;
+                            const ni = Math.max(0, (cur.variantIndex ?? 0) - 1);
+                            copy[i] = { ...cur, variantIndex: ni, text: cur.variants[ni] };
+                            return copy;
+                          });
+                        }}
+                      >
+                        ‹
+                      </button>
+                      <span className="atlas-agent-variant-count">
+                        {(m.variantIndex ?? 0) + 1}/{m.variants.length}
+                      </span>
+                      <button
+                        type="button"
+                        className="atlas-agent-msg-act"
+                        title="Suivant"
+                        disabled={(m.variantIndex ?? 0) >= m.variants.length - 1}
+                        onClick={() => {
+                          setMsgs((list) => {
+                            const copy = [...list];
+                            const cur = copy[i];
+                            if (!cur?.variants?.length) return list;
+                            const ni = Math.min(cur.variants.length - 1, (cur.variantIndex ?? 0) + 1);
+                            copy[i] = { ...cur, variantIndex: ni, text: cur.variants[ni] };
+                            return copy;
+                          });
+                        }}
+                      >
+                        ›
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
 
               {m.tools && m.tools.length > 0 && (
                 <div className="atlas-agent-tools">
@@ -1138,7 +1785,7 @@ export default function AtlasAgent() {
                 </div>
               )}
 
-              {m.role === 'assistant' && (m.ms != null || m.failed) && !m.streaming && (
+              {m.role === 'assistant' && m.text.trim() && (m.ms != null || m.failed) && !m.streaming && (
                 <div className="atlas-agent-meta">
                   {m.ms != null && (
                     <span>
@@ -1190,10 +1837,26 @@ export default function AtlasAgent() {
           ))}
           {busy && (
             <div className="atlas-agent-msg assistant">
-              <div className="atlas-agent-bubble thinking">
-                <span className="atlas-agent-dots" aria-hidden />
-                Réflexion en cours…
-                <button type="button" className="atlas-agent-stop" onClick={stop}>
+              <div className="atlas-agent-bubble thinking atlas-agent-thinking-row">
+                <LatticeLoader
+                  status="working"
+                  label="Réflexion"
+                  doneLabel="Terminé en"
+                  errorLabel="Échec après"
+                  pattern="orbit"
+                  grid={3}
+                  shape="round"
+                  color="#0f172a"
+                  doneColor="#71717a"
+                  errorColor="#ef4444"
+                  cellSize={6}
+                  gap={2}
+                  fontSize={14}
+                  step={90}
+                  idleOpacity={0.15}
+                  showTimer
+                />
+                <button type="button" className="atlas-agent-stop secondary" onClick={stop}>
                   Arrêter
                 </button>
               </div>
@@ -1203,24 +1866,24 @@ export default function AtlasAgent() {
         </div>
 
         {!isPhoneShell && (
-        <div className="atlas-agent-nav">
+        <div className="atlas-agent-nav atlas-agent-nav--readable">
           <span className="lbl">Aller à</span>
-          <button type="button" onClick={() => go('/', 'Tableau de bord')}>Tableau de bord</button>
-          <button type="button" onClick={() => go('/products', 'Produits')}>Produits</button>
-          <button type="button" onClick={() => go('/actions', 'Boîte d’actions')}>Actions</button>
+          <button type="button" className="secondary" onClick={() => go('/', 'Tableau de bord')}>Tableau de bord</button>
+          <button type="button" className="secondary" onClick={() => go('/products', 'Produits')}>Produits</button>
+          <button type="button" className="secondary" onClick={() => go('/actions', 'Boîte d’actions')}>Actions</button>
           {!stockOnly && canOfficeWork() && (
-            <button type="button" onClick={() => go('/quotes', 'Devis')}>Devis</button>
+            <button type="button" className="secondary" onClick={() => go('/quotes', 'Devis')}>Devis</button>
           )}
           {!stockOnly && canSell() && (
-            <button type="button" onClick={() => go('/quick-sale', 'Vente rapide')}>Vente</button>
+            <button type="button" className="secondary" onClick={() => go('/quick-sale', 'Vente rapide')}>Vente</button>
           )}
           {!stockOnly && canOfficeWork() && (
-            <button type="button" onClick={() => go('/invoices', 'Factures')}>Factures</button>
+            <button type="button" className="secondary" onClick={() => go('/invoices', 'Factures')}>Factures</button>
           )}
         </div>
         )}
 
-        <div className="atlas-agent-suggest">
+        <div className="atlas-agent-suggest atlas-agent-suggest--readable">
           {!isPhoneShell && (
           <button type="button" disabled={busy} onClick={() => void send(`Que faire sur la page ${page.title} ?`)}>
             Que faire ici ?
@@ -1263,37 +1926,64 @@ export default function AtlasAgent() {
         </div>
 
         <footer className="atlas-agent-foot">
-          <button
-            type="button"
-            className={`atlas-agent-mic ${listening ? 'on' : ''}`}
-            title="Dictée (français)"
-            onClick={toggleVoice}
-            disabled={busy}
-          >
-            <IconMic />
-          </button>
           <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                void send();
-              }
-            }}
-            placeholder="Écrire un message…"
-            disabled={busy}
-            aria-label="Message Atlas Agent"
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,.pdf,.doc,.docx,.odt,.txt,.csv,.xlsx,.xls"
+            multiple
+            style={{ display: 'none' }}
+            onChange={onPickFiles}
           />
-          {busy ? (
-            <button type="button" className="atlas-agent-send stop" onClick={stop} title="Arrêter">
-              <IconStop />
-            </button>
-          ) : (
-            <button type="button" className="atlas-agent-send" disabled={!input.trim()} onClick={() => void send()}>
-              <IconSend />
-            </button>
-          )}
+          <PromptBar
+            placeholder="Écrire un message…"
+            sources={[
+              {
+                key: 'files',
+                name: 'Photos & fichiers',
+                description: 'Images et documents (max 4 Mo)',
+                icon: Attachment01Icon,
+                attach: true,
+              },
+            ]}
+            commands={[
+              { key: 'summarize', name: '/résumer', description: 'Synthèse de la conversation' },
+              { key: 'draft', name: '/brouillon', description: 'Première version' },
+              { key: 'explain', name: '/expliquer', description: 'En langage simple' },
+            ]}
+            models={[]}
+            efforts={[]}
+            busy={busy}
+            onSend={(text) => {
+              setInput(text);
+              void send(text);
+            }}
+            onStop={stop}
+            onAttach={() =>
+              new Promise<string[]>((resolve) => {
+                const input = fileInputRef.current;
+                if (!input) {
+                  resolve([]);
+                  return;
+                }
+                const prev = input.onchange;
+                input.onchange = (ev) => {
+                  onPickFiles(ev as any);
+                  const files = Array.from(input.files || []).map((f) => f.name);
+                  input.onchange = prev as any;
+                  resolve(files);
+                };
+                input.click();
+              })
+            }
+            background="#f4f4f5"
+            color="#0f172a"
+            menuBackground="#ffffff"
+            sparkColor="#3f3f46"
+            width={720}
+            radius={16}
+            maxRows={5}
+            className="atlas-agent-prompt-bar"
+          />
         </footer>
       </aside>
     </>

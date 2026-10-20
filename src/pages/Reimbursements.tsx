@@ -62,6 +62,15 @@ export default function Reimbursements() {
       });
   };
 
+  
+  useEffect(() => {
+    const onLists = () => {
+      try { load(true); } catch { /* */ }
+    };
+    window.addEventListener('atlas-lists-refresh', onLists as EventListener);
+    return () => window.removeEventListener('atlas-lists-refresh', onLists as EventListener);
+  }, []);
+
   useEffect(() => {
     load();
   }, []);
@@ -144,20 +153,24 @@ export default function Reimbursements() {
 
       <SaveFeedback message={saveMsg} type={saveMsgType} />
 
-      <div className="search-bar">
-        <input
-          className="search-input"
-          type="search"
-          placeholder="Rechercher n°, client…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          aria-label="Rechercher remboursements"
-        />
+      <div className="ac-panel ac-products-filters">
+        <div className="ac-products-filters-row">
+          <div className="ac-search-field">
+            <input
+              className="ac-search-input"
+              type="search"
+              placeholder="Rechercher n°, client…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              aria-label="Rechercher remboursements"
+            />
+          </div>
+        </div>
       </div>
 
-      <div className="card">
+      <div className="ac-panel ac-products-table-panel">
         <div className="table-wrap">
-          <table>
+          <table className="data-dense ac-products-table">
             <thead>
               <tr>
                 <th>N°</th>

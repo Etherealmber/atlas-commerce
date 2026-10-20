@@ -45,7 +45,7 @@ export function SuggestList({
           >
             <div style={{ fontWeight: 600, fontSize: 13 }}>{it.title}</div>
             {it.sub ? (
-              <div style={{ fontSize: 11, color: 'var(--muted, #6b7c76)' }}>{it.sub}</div>
+              <div style={{ fontSize: 11, color: 'var(--muted, #9aa3b5)' }}>{it.sub}</div>
             ) : null}
           </button>
         </li>

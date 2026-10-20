@@ -1,14 +1,19 @@
+import { onAgentDraft } from '../lib/agentDraft';
+import { useNavigate } from 'react-router-dom';
 import EmptyState from '../components/EmptyState';
+import DatePicker from '../components/DatePicker';
 import { draftProductFromFile } from '../lib/assist';
 import { validateProductForm, firstError } from '../lib/formValidate';
 import { useEffect, useMemo, useState } from 'react';
+import { ListPager } from '../components/ui/ListPager';
+import { createPortal } from 'react-dom';
 import { useDebouncedValue } from '../lib/perf';
 import { api } from '../api';
 import SaveFeedback from '../components/SaveFeedback';
-import PasswordConfirm from '../components/PasswordConfirm';
 import { openReport } from '../lib/reports';
 import { downloadExport } from '../lib/export';
 import { useUi } from '../components/AppDialogs';
+import { TimedUndoDelete, RunActionButton, EXPORT_CSV_STEPS } from '../components/ui';
 import { numStr, numFromInput } from '../lib/numInput';
 import NumberField from '../components/NumberField';
 import VirtualTableBody, { VirtualScroll } from '../components/VirtualTableBody';
@@ -17,8 +22,13 @@ import ProductImageEditor from '../components/ProductImageEditor';
 import { printProductLabel } from '../lib/printProductLabel';
 import RefreshIconButton from '../components/RefreshIconButton';
 import '../components/erp/catalog-inventory.css';
+import { FloatingPortal } from '../components/FloatingPortal';
+import { ModalFormError, FieldHint } from '../components/ModalFormFeedback';
 
 export default function Products() {
+  const navigate = useNavigate();
+  const [modalError, setModalError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const { confirm, prompt } = useUi();
   const hideMoney = isStockRole();
   const [list, setList] = useState<any[]>([]);
@@ -34,7 +44,6 @@ export default function Products() {
   const [stockFilter, setStockFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [saving, setSaving] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saveMsg, setSaveMsg] = useState('');
   const [saveMsgType, setSaveMsgType] = useState<'success' | 'error'>('success');
   const [adjustProduct, setAdjustProduct] = useState<any>(null);
@@ -43,11 +52,11 @@ export default function Products() {
   const [adjustReason, setAdjustReason] = useState('');
   const [movements, setMovements] = useState<any[] | null>(null);
   const [movementsFor, setMovementsFor] = useState<number | null>(null);
+  const [movementsPage, setMovementsPage] = useState(1);
+  const [reorderSuggestions, setReorderSuggestions] = useState<any[] | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [pwOpen, setPwOpen] = useState(false);
-  const [pwTitle, setPwTitle] = useState('');
-  const [pwDesc, setPwDesc] = useState('');
-  const [pendingAction, setPendingAction] = useState<null | ((password: string) => Promise<void>)>(null);
+  const [deleteTargets, setDeleteTargets] = useState<number[] | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
   const [units, setUnits] = useState<any[]>([]);
   const [variants, setVariants] = useState<any[]>([]);
@@ -106,6 +115,38 @@ export default function Products() {
       });
     loadLookups();
   };
+  
+  useEffect(() => {
+    const onLists = () => {
+      try { load(true); } catch { /* */ }
+    };
+    window.addEventListener('atlas-lists-refresh', onLists as EventListener);
+    return () => window.removeEventListener('atlas-lists-refresh', onLists as EventListener);
+  }, []);
+
+  
+
+  
+  useEffect(() => {
+    return onAgentDraft((d) => {
+      if (d.entity && d.entity !== 'product') return;
+      
+      const pre = (d.prefill || {}) as any;
+      setEditing(null);
+      setForm((f: any) => ({
+        ...emptyForm,
+        ...f,
+        name: pre.name ?? '',
+        price: pre.price != null ? Number(pre.price) : 0,
+        stock_quantity: pre.stock_quantity != null ? Number(pre.stock_quantity) : 0,
+        sku: pre.sku ?? '',
+      }));
+      setModalError('');
+      setShow(true);
+
+    });
+  }, []);
+
   useEffect(() => { load(); }, []);
 
   const addCategory = async () => {
@@ -158,13 +199,13 @@ export default function Products() {
     setEditing(null);
     setVariants([]);
     setVariantForm({ variant_label: '', sku: '', barcode: '', price: '', stock_quantity: '0' });
-    setShow(true);
+    setModalError(''); setShow(true);
   };
   const openEdit = async (p: any) => {
     setForm({ ...p, tax_rate: p.tax_rate ?? '', ...parseBulkFromProduct(p) });
     setEditing(p);
     setVariantForm({ variant_label: '', sku: '', barcode: '', price: String(p.price ?? ''), stock_quantity: '0' });
-    setShow(true);
+    setModalError(''); setShow(true);
     try {
       const res = await api.getVariants(p.id);
       setVariants(res.data || []);
@@ -293,19 +334,27 @@ export default function Products() {
   const openDelete = (ids?: number[]) => {
     const targetIds = ids && ids.length ? ids : Array.from(selected);
     if (!targetIds.length) { flash('Cochez au moins un produit à supprimer.', 'error'); return; }
-    setSelected(new Set(targetIds));
-    setPwTitle(targetIds.length === 1 ? 'Supprimer le produit' : `Supprimer ${targetIds.length} produits`);
-    setPwDesc('Cette action est définitive. Saisissez votre mot de passe pour confirmer.');
-    setPendingAction(() => async (password: string) => {
-      const res = targetIds.length === 1
-        ? await api.deleteProduct(targetIds[0], password)
-        : await api.bulkDeleteProducts(targetIds, password);
+    // Do NOT mark rows as selected — only arm timed delete
+    setDeleteTargets(targetIds);
+  };
+
+  const confirmDeleteTargets = async () => {
+    if (!deleteTargets?.length || deleteBusy) return;
+    setDeleteBusy(true);
+    try {
+      const res =
+        deleteTargets.length === 1
+          ? await api.deleteProduct(deleteTargets[0], undefined, { timedUndo: true })
+          : await api.bulkDeleteProducts(deleteTargets, undefined, { timedUndo: true });
       flash((res as any).message || 'Produit(s) supprimé(s).');
-      setPwOpen(false); setPendingAction(null);
+      setDeleteTargets(null);
       setSelected(new Set());
       load(true);
-    });
-    setPwOpen(true);
+    } catch (e: any) {
+      flash(e?.message || 'Suppression impossible', 'error');
+    } finally {
+      setDeleteBusy(false);
+    }
   };
 
   const toggleOne = (id: number) => {
@@ -328,12 +377,39 @@ export default function Products() {
   };
 
   const loadMovements = async (id: number) => {
-    if (movementsFor === id) { setMovements(null); setMovementsFor(null); return; }
+    setMovementsFor(id);
+    setMovements(null);
+    setMovementsPage(1);
     try {
-      const res = await api.getProductMovements(id);
-      setMovements(res.data); setMovementsFor(id);
-    } catch { setMovements([]); setMovementsFor(id); }
+      const res = await api.getProductMovements(id, 200);
+      const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
+      const rows = (res.data || []).filter((m: any) => {
+        const ts = Date.parse(String(m.created_at || m.date || ''));
+        return !ts || ts >= cutoff;
+      });
+      setMovements(rows);
+    } catch {
+      setMovements([]);
+    }
   };
+
+  const fmtMovType = (raw: string) => {
+    const s = String(raw || '').toLowerCase();
+    if (s.includes('sale') || s === 'out') return 'Vente';
+    if (s.includes('restock') || s.includes('in') || s === 'in') return 'Entrée';
+    if (s.includes('adjust')) return 'Ajustement';
+    if (s.includes('transfer')) return 'Transfert';
+    return raw || '—';
+  };
+  const fmtMovReason = (raw: string) => {
+    let s = String(raw || '');
+    s = s.replace(/Invoice cancelled \(restock\)/gi, 'Facture annulée (retour stock)');
+    s = s.replace(/Ticket VR \/ facture deleted \(restock\)/gi, 'Ticket / facture supprimé (retour stock)');
+    s = s.replace(/Invoice/gi, 'Facture');
+    s = s.replace(/restock/gi, 'retour stock');
+    return s || '—';
+  };
+
 
   const filtered = useMemo(() => {
     const q = (debouncedSearch || '').toLowerCase().trim();
@@ -355,7 +431,18 @@ export default function Products() {
 
   const fmt = (n: number) => Math.round(Number(n || 0)).toLocaleString("fr-FR");
 
-  if (loading) return <div className="empty">Chargement des produits...</div>;
+  if (loading) {
+    return (
+      <div className="atlas-page ac-dash products-page">
+        <div className="ac-metric-grid">
+          {[1,2,3,4,5,6].map((i) => (
+            <div key={i} className="ac-metric skeleton" style={{ minHeight: 88 }} />
+          ))}
+        </div>
+        <div className="skeleton" style={{ height: 320, borderRadius: 16, marginTop: 12 }} />
+      </div>
+    );
+  }
 
   const catalogKpis = (() => {
     const tracked = list.filter((p) => p.track_inventory);
@@ -367,27 +454,55 @@ export default function Products() {
   })();
 
   return (
-    <div className="atlas-catalog">
-      <div className="page-header">
+    <div className="atlas-catalog ac-products">
+      <div className="page-header ac-page-header">
         <div>
-          <h1>Produits &amp; stock</h1>
-          <p style={{ color: 'var(--muted)', fontSize: 14, marginTop: 4 }}>
-            {list.length} produits · {list.filter(p => p.stock_quantity <= p.low_stock_threshold && p.track_inventory).length} stock bas · {list.filter(p => p.stock_quantity === 0).length} en rupture
-          </p>
+          <p className="ac-dash-eyebrow">Catalogue</p>
+          <h1 className="ac-dash-hello" style={{ fontSize: '1.5rem' }}>Produits &amp; stock</h1>
+          <p className="ac-dash-lead">Références, seuils et mouvements de stock.</p>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
           {selected.size > 0 && (
-            <button className="danger" onClick={() => openDelete()}>
-              Supprimer la sélection ({selected.size})
-            </button>
+            <TimedUndoDelete
+              deleteLabel={selected.size === 1 ? 'Supprimer' : `Supprimer (${selected.size})`}
+              undoLabel="Annuler"
+              initialSeconds={10}
+              onConfirm={async () => {
+                const targets = Array.from(selected);
+                if (!targets.length) return;
+                setDeleteTargets(targets);
+                // delete immediately after timer (targets set synchronously before confirm runs async)
+                try {
+                  setDeleteBusy(true);
+                  if (targets.length === 1) await api.deleteProduct(targets[0], undefined, { timedUndo: true });
+                  else await api.bulkDeleteProducts(targets, undefined, { timedUndo: true });
+                  setSelected(new Set());
+                  setDeleteTargets(null);
+                  await load(true);
+                } catch (e: any) {
+                  flash(e?.message || 'Suppression impossible', 'error');
+                } finally {
+                  setDeleteBusy(false);
+                }
+              }}
+            />
           )}
-          <button className="secondary" onClick={() => openReport('/api/reports/stock')}>PDF Stock</button>
-          <button
-            className="secondary"
-            type="button"
-            disabled={exportBusy}
-            onClick={async () => {
+          <button className="secondary" onClick={() => openReport('/api/reports/stock')}>Voir le stock (PDF)</button>
+          <button type="button" className="secondary" onClick={async () => {
+            try {
+              const r = await api.getReorderSuggestions(40);
+              setReorderSuggestions(r.data || []);
+            } catch (e: any) {
+              flash(e?.message || 'Réassort impossible', 'error');
+            }
+          }}>Suggestions de réassort</button>
+          <RunActionButton
+            size="sm"
+            idleLabel="Excel CSV"
+            doneLabel="Téléchargé"
+            steps={EXPORT_CSV_STEPS}
+            onRun={async () => {
               setExportBusy(true);
               try {
                 await downloadExport('/api/export/products', 'produits.csv');
@@ -395,51 +510,126 @@ export default function Products() {
                 setExportBusy(false);
               }
             }}
-          >
-            {exportBusy ? 'Export…' : 'Excel CSV'}
-          </button>
-          <button onClick={openNew}>+ Nouveau produit</button>
+          />
+          <button onClick={openNew}>Ajouter un produit</button>
         </div>
       </div>
 
       <SaveFeedback message={saveMsg} type={saveMsgType} />
 
       
-      <div className="atlas-stat-grid" style={{ marginBottom: 16 }}>
-        <div className="atlas-stat paper"><div className="as-label">Produits</div><div className="as-value">{catalogKpis.n}</div></div>
-        <div className="atlas-stat paper"><div className="as-label">Affichés</div><div className="as-value">{catalogKpis.shown}</div></div>
-        <div className="atlas-stat paper"><div className="as-label">SKU / CB</div><div className="as-value">{catalogKpis.skus}</div></div>
-        <div className="atlas-stat paper"><div className="as-label">OK</div><div className="as-value">{catalogKpis.ok}</div></div>
-        <div className="atlas-stat paper"><div className="as-label">Stock bas</div><div className="as-value">{catalogKpis.low}</div></div>
-        <div className="atlas-stat paper"><div className="as-label">Rupture</div><div className="as-value">{catalogKpis.out}</div></div>
+      <div className="ac-metric-grid ac-metric-grid--6 ac-products-kpis">
+        <div className="ac-metric">
+          <div className="as-label">Produits</div>
+          <div className="as-value">{catalogKpis.n}</div>
+          <div className="as-hint">catalogue total</div>
+        </div>
+        <div className="ac-metric">
+          <div className="as-label">Affichés</div>
+          <div className="as-value">{catalogKpis.shown}</div>
+          <div className="as-hint">filtre actuel</div>
+        </div>
+        <div className="ac-metric">
+          <div className="as-label">SKU / CB</div>
+          <div className="as-value">{catalogKpis.skus}</div>
+          <div className="as-hint">références</div>
+        </div>
+        <div className="ac-metric ac-metric--ok">
+          <div className="as-label">OK</div>
+          <div className="as-value">{catalogKpis.ok}</div>
+          <div className="as-hint">au-dessus du seuil</div>
+        </div>
+        <div className="ac-metric ac-metric--warn">
+          <div className="as-label">Stock bas</div>
+          <div className="as-value">{catalogKpis.low}</div>
+          <div className="as-hint">≤ seuil</div>
+        </div>
+        <div className="ac-metric ac-metric--danger">
+          <div className="as-label">Rupture</div>
+          <div className="as-value">{catalogKpis.out}</div>
+          <div className="as-hint">quantité 0</div>
+        </div>
       </div>
-      <div className="atlas-catalog-legend">
-        <span><span className="stock-pill ok">OK</span> au-dessus du seuil</span>
-        <span><span className="stock-pill low">Bas</span> ≤ seuil</span>
-        <span><span className="stock-pill out">Rupture</span> qty 0</span>
-        <span>Recherche : nom · réf · code-barres</span>
-      </div>
-<div className="card" style={{ marginBottom: 16, padding: '12px 16px' }}>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-          <div className="search-bar" style={{ flex: 1, minWidth: 200, marginBottom: 0 }}><input className="search-input" placeholder="Rechercher par nom, référence ou code-barres..." value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Rechercher produits" /></div>
-          <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} style={{ width: 'auto', minWidth: 140 }}>
+
+      <div className="ac-panel ac-products-filters">
+        <div className="ac-products-filters-row">
+          <div className="ac-search-field">
+            <svg className="ac-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+              <circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" strokeLinecap="round" />
+            </svg>
+            <input
+              className="ac-search-input"
+              placeholder="Nom, référence ou code-barres…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              aria-label="Rechercher produits"
+            />
+          </div>
+          <select className="ac-filter-select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} aria-label="Catégorie">
             <option value="">Toutes catégories</option>
             {categories.map((c) => (
               <option key={c.id ?? c.name} value={c.name}>{c.name}</option>
             ))}
           </select>
-          <select value={stockFilter} onChange={(e) => setStockFilter(e.target.value)} style={{ width: 'auto' }}>
+          <select className="ac-filter-select" value={stockFilter} onChange={(e) => setStockFilter(e.target.value)} aria-label="Niveau de stock">
             <option value="">Tous les niveaux</option>
             <option value="ok">En stock</option>
             <option value="low">Stock bas</option>
             <option value="out">Rupture</option>
           </select>
         </div>
+        <div className="atlas-catalog-legend ac-products-legend">
+          <span><span className="stock-pill ok">OK</span> au-dessus du seuil</span>
+          <span><span className="stock-pill low">Bas</span> ≤ seuil</span>
+          <span><span className="stock-pill out">Rupture</span> qty 0</span>
+        </div>
       </div>
 
-      <div className="card">
+      <div className="ac-panel ac-products-table-panel">
+
+        {reorderSuggestions && (
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+              <div>
+                <strong>Suggestions de réassort</strong>
+                <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--muted)' }}>
+                  Basé sur ventes 30 jours et stock (couverture &lt; 14 j ou sous seuil)
+                </p>
+              </div>
+              <button type="button" className="secondary" onClick={() => setReorderSuggestions(null)}>Fermer</button>
+            </div>
+            {reorderSuggestions.length === 0 ? (
+              <p style={{ fontSize: 13, color: 'var(--muted)' }}>Aucun produit à réapprovisionner pour le moment.</p>
+            ) : (
+              <div className="table-wrap" style={{ marginTop: 12 }}>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Produit</th>
+                      <th>Stock</th>
+                      <th>Ventes 30j</th>
+                      <th>Couverture</th>
+                      <th>Qté suggérée</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reorderSuggestions.map((r) => (
+                      <tr key={r.product_id}>
+                        <td>{r.name}{r.sku ? ` · ${r.sku}` : ''}</td>
+                        <td>{r.stock}</td>
+                        <td>{r.sold_30d}</td>
+                        <td>{r.days_cover === 999 ? '—' : `${r.days_cover} j`}</td>
+                        <td><strong>{r.suggest_qty}</strong></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
         <VirtualScroll maxHeight={filtered.length > 60 ? 560 : undefined}>
-          <table className="data-dense">
+          <table className="data-dense ac-products-table">
             <thead>
               <tr>
                 <th style={{ width: 40 }}>
@@ -468,8 +658,8 @@ export default function Products() {
                     <EmptyState
                       title="Aucun produit"
                       description="Ajoutez des articles avec stock, prix et seuil bas pour piloter les ventes et les alertes."
-                      actionLabel="Nouveau produit"
-                      onAction={() => { setEditing(null); setForm(emptyForm); setShow(true); }}
+                      actionLabel="Ajouter mon premier produit"
+                      onAction={() => { setEditing(null); setForm(emptyForm); setModalError(''); setShow(true); }}
                       icon="package"
                     />
                   </td>
@@ -530,14 +720,14 @@ export default function Products() {
                       ) : '—'}
                     </td>
                     <td>{p.is_active === 0 ? <span className="badge danger">Inactif</span> : <span className="badge success">Actif</span>}</td>
-                    <td className="row-actions" style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                      {p.track_inventory && <button className="secondary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => setAdjustProduct(p)}>Ajuster</button>}
-                      <button className="secondary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => loadMovements(p.id)}>Historique</button>
-                      <button className="secondary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => openEdit(p)}>Modifier</button>
+                    <td className="row-actions-cell">
+                      <div className="row-actions row-actions--inline">
+                      {p.track_inventory && <button type="button" className="secondary" onClick={() => setAdjustProduct(p)}>Ajuster</button>}
+                      <button type="button" className="secondary" onClick={() => loadMovements(p.id)}>Historique</button>
+                      <button type="button" className="secondary" onClick={() => openEdit(p)}>Modifier</button>
                       <button
                         type="button"
                         className="secondary"
-                        style={{ padding: '4px 10px', fontSize: 12 }}
                         onClick={() =>
                           printProductLabel({
                             name: p.name,
@@ -550,7 +740,29 @@ export default function Products() {
                       >
                         Étiquette
                       </button>
-                      <button className="danger" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => openDelete([p.id])}>Suppr.</button>
+                      <TimedUndoDelete
+                        key={`del-${p.id}`}
+                        deleteLabel="Supprimer"
+                        undoLabel="Annuler"
+                        initialSeconds={10}
+                        onConfirm={async () => {
+                          try {
+                            setDeleteBusy(true);
+                            await api.deleteProduct(p.id, undefined, { timedUndo: true });
+                            setSelected((prev) => {
+                              const n = new Set(prev);
+                              n.delete(p.id);
+                              return n;
+                            });
+                            await load(true);
+                          } catch (e: any) {
+                            flash(e?.message || 'Suppression impossible', 'error');
+                          } finally {
+                            setDeleteBusy(false);
+                          }
+                        }}
+                      />
+                      </div>
                     </td>
                   </tr>
                 )}
@@ -558,36 +770,124 @@ export default function Products() {
             )}
           </table>
         </VirtualScroll>
-        {movementsFor && movements && (
-          <div style={{ background: 'var(--stone)', padding: '12px 20px', borderTop: '1px solid var(--border, #e5e0d8)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <strong style={{ fontSize: 13 }}>Historique des mouvements — produit #{movementsFor}</strong>
-              <button type="button" className="secondary" style={{ padding: '2px 10px', fontSize: 12 }} onClick={() => { setMovementsFor(null); setMovements(null); }}>Fermer</button>
-            </div>
-            {movements.length ? (
-              <table>
-                <thead><tr><th>Date</th><th>Type</th><th>Qté</th><th>Avant</th><th>Après</th><th>Raison</th><th>Référence</th></tr></thead>
-                <tbody>
-                  {movements.map((m) => (
-                    <tr key={m.id}>
-                      <td style={{ fontSize: 12 }}>{m.created_at}</td>
-                      <td><span className="badge info" style={{ textTransform: 'capitalize' }}>{m.type}</span></td>
-                      <td>{m.quantity}</td>
-                      <td>{m.previous_quantity}</td>
-                      <td style={{ fontWeight: 700 }}>{m.new_quantity}</td>
-                      <td style={{ fontSize: 12 }}>{m.reason || '—'}</td>
-                      <td style={{ fontSize: 12 }}>{m.reference || '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : <div className="empty" style={{ padding: 12 }}>Aucun mouvement de stock enregistré.</div>}
-          </div>
-        )}
+        {movementsFor != null &&
+          createPortal(
+            <div
+              className="modal-overlay"
+              style={{ zIndex: 10000 }}
+              onClick={() => {
+                setMovementsFor(null);
+                setMovements(null);
+              }}
+            >
+              <div
+                className="modal"
+                style={{
+                  width: 'max-content',
+                  maxWidth: 'min(960px, 94vw)',
+                  minWidth: 'min(320px, 94vw)',
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h2>Historique des mouvements</h2>
+                <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: -8, marginBottom: 16 }}>
+                  Produit #{movementsFor} · 90 derniers jours
+                  {movements && movements.length > 0
+                    ? ` · ${movements.length} mouvement${movements.length > 1 ? 's' : ''}`
+                    : ''}
+                </p>
+                {!movements ? (
+                  <div className="empty" style={{ padding: 16 }}>
+                    Chargement…
+                  </div>
+                ) : movements.length === 0 ? (
+                  <div className="empty" style={{ padding: 16 }}>
+                    Aucun mouvement sur 90 jours
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ overflowX: 'hidden' }}>
+                      <table style={{ width: '100%', tableLayout: 'auto' }}>
+                        <thead>
+                          <tr>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Qté</th>
+                            <th>Avant</th>
+                            <th>Après</th>
+                            <th>Raison</th>
+                            <th>Réf.</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {movements
+                            .slice((movementsPage - 1) * 20, movementsPage * 20)
+                            .map((mv: any, i: number) => (
+                              <tr key={mv.id || i}>
+                                <td style={{ whiteSpace: 'nowrap' }}>
+                                  {String(mv.created_at || '—').replace('T', ' ').slice(0, 16)}
+                                </td>
+                                <td>{fmtMovType(mv.type)}</td>
+                                <td>{mv.quantity ?? '—'}</td>
+                                <td>{mv.previous_quantity ?? '—'}</td>
+                                <td>
+                                  <strong>{mv.new_quantity ?? '—'}</strong>
+                                </td>
+                                <td style={{ maxWidth: 220, wordBreak: 'break-word' }}>
+                                  {fmtMovReason(mv.reason || '')}
+                                </td>
+                                <td style={{ whiteSpace: 'nowrap' }}>{mv.reference || '—'}</td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {movements.length > 20 && (
+                      <div style={{ display: 'flex', justifyContent: 'center', marginTop: 14 }}>
+                        <ListPager
+                          page={movementsPage}
+                          pageSize={20}
+                          total={movements.length}
+                          onPageChange={setMovementsPage}
+                          pageBase={1}
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+                <ModalFormError message={modalError} />
+            <div className="form-actions" style={{ marginTop: 16, displayContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={() => {
+                      const id = movementsFor;
+                      setMovementsFor(null);
+                      setMovements(null);
+                      if (id != null) navigate(`/products/${id}/historique`);
+                    }}
+                  >
+                    Voir plus — historique complet
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={() => {
+                      setMovementsFor(null);
+                      setMovements(null);
+                    }}
+                  >
+                    Fermer
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )}
       </div>
 
       {show && (
-        <div className="modal-overlay" onClick={() => setShow(false)}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => setShow(false)}>
           <div className="modal" style={{ maxWidth: 640 }} onClick={(e) => e.stopPropagation()}>
             <h2>{editing ? 'Modifier le produit' : 'Nouveau produit'}</h2>
             <div className="grid grid-2">
@@ -679,7 +979,7 @@ export default function Products() {
               </div>
               <div className="form-row"><label>Code-barres</label><input value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} /></div>
                           <div className="form-row"><label>N° lot (épicerie)</label><input value={form.lot_number || ''} onChange={(e) => setForm({ ...form, lot_number: e.target.value })} placeholder="Optionnel" /></div>
-              <div className="form-row"><label>Date limite (DLC)</label><input type="date" value={(form.expiry_date || '').toString().slice(0, 10)} onChange={(e) => setForm({ ...form, expiry_date: e.target.value })} /></div>
+              <div className="form-row"><label>Date limite (DLC)</label><DatePicker value={(form.expiry_date || '').toString().slice(0, 10)} onChange={(v) => setForm({ ...form, expiry_date: v })} /></div>
 </div>
             <div className="grid grid-2">
               <div className="form-row"><label>Prix de vente *</label><NumberField value={form.price} onValueChange={(n) => { setForm((f: any) => ({ ...f, price: n })); setFieldErrors((x) => ({ ...x, price: '' })); }} /><span className="field-error-msg">{fieldErrors.price || ''}</span></div>
@@ -782,17 +1082,18 @@ export default function Products() {
               </p>
             )}
 
+            <ModalFormError message={modalError} />
             <div className="form-actions">
               {firstError(fieldErrors) && <span className="save-error-inline">{firstError(fieldErrors)}</span>}
               <button onClick={() => save()} disabled={saving}>{saving ? 'Enregistrement…' : 'Enregistrer'}</button>
               <button className="secondary" onClick={() => setShow(false)}>Annuler</button>
             </div>
           </div>
-        </div>
+        </div></FloatingPortal>
       )}
 
       {adjustProduct && (
-        <div className="modal-overlay" onClick={() => setAdjustProduct(null)}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => setAdjustProduct(null)}>
           <div className="modal" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
             <h2>Ajuster le stock — {adjustProduct.name}</h2>
             <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>Stock actuel : <strong>{adjustProduct.stock_quantity}</strong></p>
@@ -806,23 +1107,13 @@ export default function Products() {
             </div>
             <div className="form-row"><label>Quantité</label><NumberField value={adjustQty} onValueChange={setAdjustQty} min={0.01} step="0.01" /></div>
             <div className="form-row"><label>Raison</label><input value={adjustReason} onChange={(e) => setAdjustReason(e.target.value)} placeholder="ex. Réception marchandise, casse, correction..." /></div>
+            <ModalFormError message={modalError} />
             <div className="form-actions">
               <button onClick={doAdjust} disabled={saving}>{saving ? 'Enregistrement...' : 'Ajuster le stock'}</button>
               <button className="secondary" onClick={() => setAdjustProduct(null)}>Annuler</button>
             </div>
           </div>
-        </div>
-      )}
-
-      {pwOpen && pendingAction && (
-        <PasswordConfirm
-          open={pwOpen}
-          title={pwTitle}
-          description={pwDesc}
-          confirmLabel="Confirmer"
-          onCancel={() => { setPwOpen(false); setPendingAction(null); }}
-          onConfirm={async (password) => { await pendingAction(password); }}
-        />
+        </div></FloatingPortal>
       )}
     </div>
   );

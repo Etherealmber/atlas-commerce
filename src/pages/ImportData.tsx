@@ -354,7 +354,7 @@ export default function ImportData() {
                     <td style={{ fontSize: 12 }}>
                       {!r.valid && <span style={{ color: 'var(--bad)' }}>{r.errors.join(', ')}</span>}
                       {r.valid && r.duplicate && <span style={{ color: '#8a6d1a' }}>Doublon ({r.duplicate.match_on}) : {r.duplicate.name}</span>}
-                      {r.valid && !r.duplicate && <span style={{ color: 'var(--success, #2d5a2d)' }}>OK</span>}
+                      {r.valid && !r.duplicate && <span style={{ color: 'var(--success, #3f3f46)' }}>OK</span>}
                     </td>
                     <td>
                       <select value={r.action} disabled={!r.valid} style={{ fontSize: 12 }}

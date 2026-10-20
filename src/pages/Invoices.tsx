@@ -1,7 +1,10 @@
+import { onAgentDraft } from '../lib/agentDraft';
 import { useEffect, useState } from 'react';
+import DatePicker from '../components/DatePicker';
 import { useDebouncedValue } from '../lib/perf';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
+import TypeaheadField, { productTypeaheadOptions, partyTypeaheadOptions } from '../components/TypeaheadField';
 import PasswordConfirm from '../components/PasswordConfirm';
 import { getToken } from '../auth';
 import SaveFeedback from '../components/SaveFeedback';
@@ -13,7 +16,6 @@ import { useUi } from '../components/AppDialogs';
 import { matchProducts, polishRefundReason, priceAnomaly, clientRisk } from '../lib/assist';
 import { NoteChips, SuggestList } from '../components/AssistBits';
 import { friendlyError } from '../lib/errors';
-import { isDemoMode, openDemoInvoicePrint } from '../lib/demoMode';
 import EmptyState from '../components/EmptyState';
 import { validateInvoiceForm, firstError } from '../lib/formValidate';
 
@@ -37,17 +39,19 @@ import NumberField from '../components/NumberField';
 import VirtualTableBody, { VirtualScroll } from '../components/VirtualTableBody';
 import RefreshIconButton from '../components/RefreshIconButton';
 import '../components/erp/orders-fulfillment.css';
+import { FloatingPortal } from '../components/FloatingPortal';
+import { ModalFormError, FieldHint } from '../components/ModalFormFeedback';
 
 export default function Invoices() {
+  const navigate = useNavigate();
   const { confirm, toast, prompt } = useUi();
+  const [modalError, setModalError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [pwOpen, setPwOpen] = useState(false);
   const [pwTitle, setPwTitle] = useState('');
   const [pwDesc, setPwDesc] = useState('');
   const [pendingAction, setPendingAction] = useState<null | ((password: string) => Promise<void>)>(null);
   const [list, setList] = useState<any[]>([]);
-  const [viewMode, setViewMode] = useState<'table' | 'kanban'>(() => {
-    try { return (localStorage.getItem('atlas_invoices_view') as 'table' | 'kanban') || 'table'; } catch { return 'table'; }
-  });
   const [products, setProducts] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,6 +63,10 @@ export default function Invoices() {
   const debouncedSearch = useDebouncedValue(search, 300);
   const [searchParams, setSearchParams] = useSearchParams();
   const clientFilter = searchParams.get('client');
+  const qParam = searchParams.get('q') || '';
+  useEffect(() => {
+    if (qParam) setSearch(qParam);
+  }, [qParam]);
 
   const [clientId, setClientId] = useState<number | ''>('');
   const [clientName, setClientName] = useState('');
@@ -71,7 +79,6 @@ export default function Invoices() {
   const [dueDate, setDueDate] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saveMsg, setSaveMsg] = useState('');
   const [saveMsgType, setSaveMsgType] = useState<'success' | 'error'>('success');
   const [items, setItems] = useState<{ product_id?: number; product_name: string; sku?: string; quantity: number; list_price: number; unit_price: number; product_query?: string }[]>([{ product_name: '', quantity: 1, list_price: 0, unit_price: 0, product_query: '' }]);
@@ -142,6 +149,10 @@ export default function Invoices() {
     setSaveMsg(msg); setSaveMsgType(type);
     setTimeout(() => setSaveMsg(''), 4500);
   };
+  const refreshCounts = () => {
+    try { window.dispatchEvent(new CustomEvent('atlas-nav-badges-refresh')); } catch { /* */ }
+    load(true);
+  };
 
   const load = (soft = false) => {
     if (soft) setRefreshing(true);
@@ -153,6 +164,26 @@ export default function Invoices() {
         setRefreshing(false);
       });
   };
+  
+  useEffect(() => {
+    const onLists = () => {
+      try { load(true); } catch { /* */ }
+    };
+    window.addEventListener('atlas-lists-refresh', onLists as EventListener);
+    return () => window.removeEventListener('atlas-lists-refresh', onLists as EventListener);
+  }, []);
+
+  
+  useEffect(() => {
+    return onAgentDraft((d) => {
+      if (d.entity && d.entity !== 'invoice' && d.entity !== 'quote') return;
+      setDocMode(d.entity === 'quote' ? 'quote' : 'invoice');
+      setModalError('');
+      setFieldErrors({});
+      setShowModal(true);
+    });
+  }, []);
+
   useEffect(() => { load(); }, [filter]);
 
   useEffect(() => {
@@ -214,7 +245,8 @@ export default function Invoices() {
     setFieldErrors(fe);
     if (Object.keys(fe).length) {
       flash(firstError(fe) || 'Complétez le formulaire.', 'error');
-      toast(firstError(fe) || 'Complétez le formulaire.', 'error');
+      setFieldErrors(fe);
+      setModalError(firstError(fe) || 'Complétez le formulaire.');
       return;
     }
     setSaving(true);
@@ -228,7 +260,7 @@ export default function Invoices() {
         status: docMode === 'quote' ? 'quote' : 'sent',
         tax_exempt: taxExempt,
       });
-      setShowModal(false); resetForm();
+      setModalError(''); setFieldErrors({}); setShowModal(false); resetForm();
       flash(res.message || (docMode === 'quote'
         ? 'Devis enregistré (non comptabilisé, stock non touché).'
         : 'Facture enregistrée dans la base de données avec succès.'));
@@ -341,7 +373,7 @@ export default function Invoices() {
       load(true);
     } catch (e: any) {
       flash(friendlyError(e, e.message), 'error');
-      toast(friendlyError(e, e.message), 'error');
+      setModalError(friendlyError(e, e.message));
     }
   };
 
@@ -409,15 +441,9 @@ export default function Invoices() {
     return { open, paid, due, n: filtered.length };
   })();
 
-  const kanbanCols: { key: string; label: string; match: (s: string) => boolean }[] = [
-    { key: 'draft', label: 'Brouillon / envoyé', match: (s) => s === 'draft' || s === 'sent' || s === '' },
-    { key: 'partial', label: 'Partiel', match: (s) => s === 'partial' || s === 'partially_paid' },
-    { key: 'paid', label: 'Payé', match: (s) => s === 'paid' },
-    { key: 'other', label: 'Autre', match: (s) => !['draft','sent','','partial','partially_paid','paid'].includes(s) },
-  ];
 
   return (
-    <div className="atlas-orders">
+    <div className="atlas-orders invoices-page">
       <div className="page-header">
         <div>
           <h1>Factures de vente</h1>
@@ -433,9 +459,9 @@ export default function Invoices() {
             <option value="cancelled">Annulées</option>
             <option value="overdue">En retard</option>
           </select>
-          <button className="secondary" onClick={() => openReport('/api/reports/receivables')}>PDF Créances</button>
-          <button className="secondary" onClick={() => downloadExport('/api/export/invoices', 'factures.csv')}>Export CSV</button>
-          <button onClick={() => { setDocMode('invoice'); setShowModal(true); }}>+ Nouvelle facture</button>
+          <button className="secondary" onClick={() => openReport('/api/reports/receivables')}>Exporter les créances</button>
+          <button className="secondary" onClick={() => downloadExport('/api/export/invoices', 'factures.csv')}>Télécharger le CSV</button>
+          <button onClick={() => { setDocMode('invoice'); setShowModal(true); }}>Créer une facture</button>
           <button
             className="secondary"
             style={{ borderColor: 'var(--copper, #b87333)', color: 'var(--copper-dark, #8a5520)' }}
@@ -458,61 +484,28 @@ export default function Invoices() {
       </div>
 
       
-      <div className="atlas-stat-grid" style={{ marginBottom: 16 }}>
-        <div className="atlas-stat paper"><div className="as-label">Total liste</div><div className="as-value">{orderKpis.n}</div></div>
-        <div className="atlas-stat paper"><div className="as-label">Ouvertes</div><div className="as-value">{orderKpis.open}</div></div>
-        <div className="atlas-stat paper"><div className="as-label">Payées</div><div className="as-value">{orderKpis.paid}</div></div>
-        <div className="atlas-stat paper"><div className="as-label">Reste dû</div><div className="as-value">{Math.round(orderKpis.due).toLocaleString('fr-FR')}</div></div>
-      </div>
-      <div className="atlas-orders-toolbar">
-        <div className="atlas-orders-view-toggle" role="group" aria-label="Vue">
-          <button type="button" className={viewMode === 'table' ? 'active' : ''} onClick={() => { setViewMode('table'); try { localStorage.setItem('atlas_invoices_view', 'table'); } catch {} }}>Tableau</button>
-          <button type="button" className={viewMode === 'kanban' ? 'active' : ''} onClick={() => { setViewMode('kanban'); try { localStorage.setItem('atlas_invoices_view', 'kanban'); } catch {} }}>Kanban</button>
-        </div>
-        <span style={{ fontSize: 12, color: 'var(--atlas-text-secondary, var(--muted))' }}>
-          {viewMode === 'kanban' ? 'Colonnes par statut paiement' : 'Liste dense · 1ʳᵉ colonne fixe'}
-        </span>
+      <div className="ac-metric-grid" style={{ marginBottom: 16 }}>
+        <div className="ac-metric"><div className="as-label">Total liste</div><div className="as-value">{orderKpis.n}</div></div>
+        <div className="ac-metric"><div className="as-label">Ouvertes</div><div className="as-value">{orderKpis.open}</div></div>
+        <div className="ac-metric"><div className="as-label">Payées</div><div className="as-value">{orderKpis.paid}</div></div>
+        <div className="ac-metric"><div className="as-label">Reste dû</div><div className="as-value">{Math.round(orderKpis.due).toLocaleString('fr-FR')}</div></div>
       </div>
 <SaveFeedback message={saveMsg} type={saveMsgType} />
 
       <div className="card" style={{ marginBottom: 16, padding: '12px 16px' }}>
-        <div className="search-bar"><input className="search-input" placeholder="Rechercher par numéro ou nom de client..." value={search} onChange={(e) => setSearch(e.target.value)} /></div>
+        <div className="ac-panel ac-products-filters" style={{ marginBottom: 12 }}>
+        <div className="ac-products-filters-row">
+          <div className="ac-search-field">
+            <input className="ac-search-input" placeholder="Rechercher par numéro ou nom de client..." value={search} onChange={(e) => setSearch(e.target.value)} />
+          </div>
+        </div>
+      </div>
       </div>
 
-      {viewMode === 'kanban' && (
-        <div className="atlas-orders-kanban">
-          {kanbanCols.map((col) => {
-            const cards = filtered.filter((inv) => col.match(String(inv.status || '').toLowerCase()));
-            return (
-              <div key={col.key} className="atlas-orders-col">
-                <div className="atlas-orders-col-head">
-                  <span>{col.label}</span>
-                  <span>{cards.length}</span>
-                </div>
-                <div className="atlas-orders-col-body">
-                  {cards.length === 0 && <div style={{ fontSize: 12, color: 'var(--muted)', padding: 8 }}>Aucune</div>}
-                  {cards.map((inv) => (
-                    <Link
-                      key={inv.id}
-                      to={`/invoices/${inv.id}`}
-                      className="atlas-order-card"
-                      style={{ textDecoration: 'none', display: 'block' }}
-                    >
-                      <div className="num">{inv.number || '#' + inv.id}</div>
-                      <div className="meta">{inv.client_name || '—'} · <span className={`badge ${statusBadgeClass(inv.status)}`}>{statusFr(inv.status)}</span></div>
-                      <div className="amt">{fmtMoney(Number(inv.total || 0), 'MAD')}</div>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-      {viewMode === 'table' && (
-      <div className="card">
+
+      <div className="ac-panel ac-products-table-panel">
         <VirtualScroll maxHeight={filtered.length > 60 ? 560 : undefined}>
-          <table className="data-dense">
+          <table className="data-dense ac-products-table">
             <thead>
               <tr><th>Numéro</th><th>Client</th><th>Date</th><th>Échéance</th><th>Statut</th><th>Total</th><th>Payé</th><th>Crédit (reste)</th><th>Actions</th></tr>
             </thead>
@@ -523,7 +516,7 @@ export default function Invoices() {
                     <EmptyState
                       title="Aucune facture"
                       description="Créez une facture de vente ou un devis. Les remboursements WR se font depuis une facture existante."
-                      actionLabel="Nouvelle facture"
+                      actionLabel="Créer ma première facture"
                       onAction={() => { setDocMode('invoice'); setShowModal(true); }}
                       icon="document"
                     />
@@ -567,8 +560,7 @@ export default function Invoices() {
                         ? '—'
                         : fmt(Math.max(0, Number(inv.total || 0) - Number(inv.amount_paid || 0)))}
                     </td>
-                    <td style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                      <Link to={`/invoices/${inv.id}`} className="btn secondary" style={{ padding: '4px 10px', fontSize: 12 }}>Ouvrir</Link>
+                    <td style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }} onClick={(e) => e.stopPropagation()}>
                       {inv.status !== 'quote' && inv.status !== 'devis' && inv.status !== 'remboursement' && inv.status !== 'cancelled' && (
                         <button
                           type="button"
@@ -579,49 +571,12 @@ export default function Invoices() {
                               const r: any = await api.createDeliveryNote({ invoice_id: inv.id });
                               toast(r.message || 'BL créé', 'success');
                             } catch (e: any) {
-                              toast(friendlyError(e), 'error');
+                              setModalError(friendlyError(e));
                             }
                           }}
                         >
                           BL
                         </button>
-                      )}
-                      {inv.status !== 'quote' && inv.status !== 'devis' && (
-                        <>
-                        <a
-                          className="btn secondary"
-                          style={{ padding: '4px 10px', fontSize: 12 }}
-                          href={`/api/invoices/${inv.id}/ubl`}
-                          target="_blank"
-                          rel="noreferrer"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            import('../auth').then(({ getToken }) => {
-                              const tok = getToken() || '';
-                              window.open(`/api/invoices/${inv.id}/ubl?token=${encodeURIComponent(tok)}`, '_blank');
-                            });
-                          }}
-                        >
-                          UBL
-                        </a>
-                        <button
-                          type="button"
-                          className="secondary"
-                          style={{ padding: '4px 10px', fontSize: 12 }}
-                          onClick={async () => {
-                            try {
-                              const r: any = await api.validateInvoiceUbl(inv.id);
-                              const d = r.data || {};
-                              if (d.ok) toast(r.message || 'UBL OK', 'success');
-                              else toast((d.errors || []).map((er: any) => formatIssue(er)).filter(Boolean).join(' · ') || 'UBL invalide', 'error');
-                            } catch (e: any) {
-                              toast(friendlyError(e), 'error');
-                            }
-                          }}
-                        >
-                          UBL
-                        </button>
-                        </>
                       )}
                       {(inv.status === 'quote' || inv.status === 'devis') && (
                         <button className="success" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => convertQuote(inv.id)}>→ Facturer</button>
@@ -629,7 +584,6 @@ export default function Invoices() {
                       {inv.status !== 'paid' && inv.status !== 'cancelled' && inv.status !== 'quote' && inv.status !== 'devis' && inv.status !== 'remboursement' && (
                         <>
                           <button className="secondary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => openPay(inv)}>Paiement…</button>
-                          <button className="success" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => markPaid(inv.id, inv.total, inv)}>Tout payer</button>
                         </>
                       )}
                       {inv.status !== 'cancelled' && inv.status !== 'quote' && inv.status !== 'devis' && inv.status !== 'remboursement' && (
@@ -674,33 +628,57 @@ export default function Invoices() {
           </table>
         </VirtualScroll>
       </div>
-      )}
 
       {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => { setModalError(''); setFieldErrors({}); setShowModal(false); }}>
           <div className="modal" style={{ maxWidth: 1080, width: '96vw' }} onClick={(e) => e.stopPropagation()}>
             <h2>{docMode === 'quote' ? 'Nouveau devis (estimation)' : 'Nouvelle facture de vente'}</h2>
 
             <div className="form-row">
               <label>Client enregistré</label>
-              <select value={clientId} onChange={(e) => selectClient(e.target.value ? numFromInput(e.target.value) : '')}>
-                <option value="">— Saisie manuelle ou nouveau client —</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}{c.ice ? ` (ICE ${c.ice})` : ''}</option>
-                ))}
-              </select>
+              <TypeaheadField
+                value={clientName}
+                placeholder="Rechercher un client…"
+                options={partyTypeaheadOptions(clients, 'client')}
+                onChange={(v) => {
+                  setClientName(v);
+                  setClientId('');
+                  setFieldErrors((x) => ({ ...x, client_name: '' }));
+                }}
+                onPick={(o) => selectClient(Number(o.id))}
+                onOpen={() => {
+                  api.getClients().then((r: any) => {
+                    if (Array.isArray(r?.data)) setClients(r.data);
+                  }).catch(() => {});
+                }}
+                emptyLabel="Aucun client"
+              />
             </div>
 
             <div className="grid grid-2">
               <div className="form-row"><label>Nom du client *</label><input className={fieldErrors.client_name ? 'field-error' : undefined} value={clientName} onChange={(e) => { setClientName(e.target.value); setFieldErrors((x) => ({ ...x, client_name: '' })); }} placeholder="Nom du client" /><span className="field-error-msg">{fieldErrors.client_name || ''}</span></div>
-              {(() => {
-                const risk = clientRisk(list, clientId || undefined, clientName);
-                return risk.level !== 'ok' ? (
-                  <div style={{ fontSize: 12, marginTop: 6, padding: '8px 10px', borderRadius: 8, background: risk.level === 'high' ? 'rgba(139,46,46,0.08)' : 'rgba(166,124,0,0.1)', color: risk.level === 'high' ? 'var(--bad)' : '#6b5a00' }}>
-                    {risk.message}
+              {clientId ? (() => {
+                const c = clients.find((x) => Number(x.id) === Number(clientId));
+                const due = Number(c?.balance_due ?? 0);
+                const limit = Number(c?.credit_limit ?? 0);
+                const risk = clientRisk(list, clientId, clientName);
+                return (
+                  <div style={{ fontSize: 12, marginTop: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ padding: '8px 10px', borderRadius: 8, background: 'var(--peach, #f5f2eb)', color: 'var(--ink, #141822)', border: '1px solid var(--line, #e5e0d6)' }}>
+                      {limit > 0
+                        ? `Crédit : ${Math.round(due).toLocaleString('fr-FR')} MAD ouvert / limite ${Math.round(limit).toLocaleString('fr-FR')} MAD`
+                        : due > 0.001
+                          ? `Encours ouvert : ${Math.round(due).toLocaleString('fr-FR')} MAD (pas de limite)`
+                          : 'Crédit : aucun encours · limite libre'}
+                    </div>
+                    {risk.level !== 'ok' ? (
+                      <div style={{ padding: '8px 10px', borderRadius: 8, background: risk.level === 'high' ? 'rgba(139,46,46,0.08)' : 'rgba(166,124,0,0.1)', color: risk.level === 'high' ? 'var(--bad)' : '#6b5a00' }}>
+                        {risk.message}
+                      </div>
+                    ) : null}
                   </div>
-                ) : null;
-              })()}
+                );
+              })() : null}
               <div className="form-row"><label>ICE / Identifiant fiscal</label><input value={clientIce} onChange={(e) => setClientIce(e.target.value)} /></div>
             </div>
             <div className="grid grid-2">
@@ -712,8 +690,8 @@ export default function Invoices() {
               <div className="form-row"><label>Téléphone</label><input value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} /></div>
             </div>
             <div className="grid grid-2">
-              <div className="form-row"><label>Date d'émission</label><input type="date" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} /></div>
-              <div className="form-row"><label>Date d'échéance</label><input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></div>
+              <div className="form-row"><label>Date d'émission</label><DatePicker value={issueDate} onChange={setIssueDate} /></div>
+              <div className="form-row"><label>Date d'échéance</label><DatePicker value={dueDate} onChange={setDueDate} /></div>
             </div>
             <div className="form-row">
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
@@ -751,32 +729,32 @@ export default function Invoices() {
               return (
               <div key={idx} style={{ marginBottom: 10 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1.2fr 70px 100px 100px 100px 36px', gap: 6, alignItems: 'center' }}>
-                  <div style={{ position: 'relative' }}>
-                    <input
-                      placeholder="Tapez pour chercher (nom, SKU, code-barres)…"
-                      value={item.product_query ?? ''}
-                      onChange={(e) => updateLine(idx, 'product_query', e.target.value)}
-                      list={`prod-suggest-${idx}`}
-                    />
-                    {!!(item.product_query || '').trim() && (() => {
-                      const matches = matchProducts(item.product_query || '', products, 5);
-                      return (
-                        <SuggestList
-                          items={matches.map((m) => ({
-                            key: String(m.product.id),
-                            title: m.product.name || '',
-                            sub: `${m.reason}${m.product.sku ? ' · ' + m.product.sku : ''} · ${Number(m.product.price || m.product.unit_price || 0)} MAD`,
-                          }))}
-                          onPick={(key) => updateLine(idx, 'product_id', Number(key))}
-                        />
-                      );
-                    })()}
-
-                  </div>
+                  <TypeaheadField
+                    value={item.product_query ?? ''}
+                    placeholder="Tapez pour chercher (nom, SKU, code-barres)…"
+                    options={productTypeaheadOptions(products)}
+                    onOpen={() => {
+                      api.getProducts({ fields: 'light', limit: 500 }).then((r: any) => {
+                        if (Array.isArray(r?.data)) setProducts(r.data);
+                      }).catch(() => {});
+                    }}
+                    onChange={(v) => updateLine(idx, 'product_query', v)}
+                    onPick={(o) => {
+                      const p = products.find((x) => String(x.id) === String(o.id));
+                      if (!p) return;
+                      updateLine(idx, 'product_id', p.id);
+                      updateLine(idx, 'product_name', p.name || '');
+                      updateLine(idx, 'product_query', p.name || '');
+                      updateLine(idx, 'list_price', Number(p.price || p.unit_price || 0));
+                      updateLine(idx, 'unit_price', Number(p.price || p.unit_price || 0));
+                      if (p.sku) updateLine(idx, 'sku', p.sku);
+                    }}
+                    emptyLabel="Aucun produit"
+                  />
                   <input placeholder="Désignation *" value={item.product_name} onChange={(e) => updateLine(idx, 'product_name', e.target.value)} />
                   <NumberField value={item.quantity} onValueChange={(n) => updateLine(idx, 'quantity', n)} min={0.01} step="0.01" title="Quantité" />
                   <NumberField value={item.list_price} onValueChange={(n) => updateLine(idx, 'list_price', n)} min={0} step="0.01" title="Prix catalogue" />
-                  <NumberField value={item.unit_price} onValueChange={(n) => updateLine(idx, 'unit_price', n)} min={0} step="0.01" title="Prix client (après promo)" style={promo ? { borderColor: 'var(--success, #2d5a2d)' } : undefined} />
+                  <NumberField value={item.unit_price} onValueChange={(n) => updateLine(idx, 'unit_price', n)} min={0} step="0.01" title="Prix client (après promo)" style={promo ? { borderColor: 'var(--success, #3f3f46)' } : undefined} />
                   {!!item.product_id && (() => {
                     const p = products.find((x) => Number(x.id) === Number(item.product_id));
                     const a = priceAnomaly(Number(item.unit_price || 0), {
@@ -788,10 +766,10 @@ export default function Invoices() {
                     ) : null;
                   })()}
                   <div style={{ fontWeight: 700, textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{lineTotal.toLocaleString('fr-FR', { maximumFractionDigits: 0 })}</div>
-                  <button type="button" className="danger" style={{ padding: '6px 8px' }} onClick={() => setItems(items.filter((_, i) => i !== idx))} aria-label="Supprimer">×</button>
+                  <button type="button" className="danger" style={{ padding: '6px 8px' }} onClick={() => setItems((prev) => prev.length <= 1 ? [{ product_name: '', quantity: 1, list_price: 0, unit_price: 0, product_query: '' }] : prev.filter((_, i) => i !== idx))} aria-label="Supprimer">×</button>
                 </div>
                 {promo && (
-                  <div style={{ fontSize: 11, color: 'var(--success, #2d5a2d)', marginTop: 2 }}>
+                  <div style={{ fontSize: 11, color: 'var(--success, #3f3f46)', marginTop: 2 }}>
                     Promo : −{(listP - unitP).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} / unité
                     ({listP > 0 ? (((listP - unitP) / listP) * 100).toFixed(1) : 0} %) · remise ligne {( (listP - unitP) * Number(item.quantity || 0) ).toLocaleString('fr-FR', { maximumFractionDigits: 0 })}
                   </div>
@@ -811,17 +789,18 @@ export default function Invoices() {
 
             <div className="form-row"><label>Notes</label><textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
               <NoteChips value={notes} onChange={setNotes} />
+            <ModalFormError message={modalError} />
             <div className="form-actions">
               {firstError(fieldErrors) && <span className="save-error-inline">{firstError(fieldErrors)}</span>}
               <button onClick={create} disabled={saving}>{saving ? 'Enregistrement…' : (docMode === 'quote' ? 'Enregistrer le devis' : 'Créer la facture')}</button>
-              <button type="button" className="secondary" onClick={() => setShowModal(false)}>Annuler</button>
+              <button type="button" className="secondary" onClick={() => { setModalError(''); setFieldErrors({}); setShowModal(false); }}>Annuler</button>
             </div>
           </div>
-        </div>
+        </div></FloatingPortal>
       )}
 
       {showRefund && (
-        <div className="modal-overlay" onClick={() => !refundSaving && setShowRefund(false)}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => !refundSaving && setShowRefund(false)}>
           <div className="modal" style={{ maxWidth: 720, width: '96vw' }} onClick={(e) => e.stopPropagation()}>
             <h2 style={{ marginTop: 0 }}>Remboursement / avoir (code WR)</h2>
             <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 12 }}>
@@ -1009,6 +988,7 @@ export default function Invoices() {
                 Déjà payé → sortie dans Solde. Non payé → réduction du reste dû uniquement.
               </p>
             </div>
+            <ModalFormError message={modalError} />
 <div className="form-actions">
               <button
                 type="button"
@@ -1110,11 +1090,11 @@ export default function Invoices() {
               </button>
             </div>
           </div>
-        </div>
+        </div></FloatingPortal>
       )}
 
       {payTarget && (
-        <div className="modal-overlay" onClick={() => !saving && setPayTarget(null)}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => !saving && setPayTarget(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
             <h2 style={{ marginTop: 0 }}>
               {payMode === 'full' ? 'Tout payer — choisir le mode' : 'Enregistrer un paiement'}
@@ -1140,7 +1120,7 @@ export default function Invoices() {
               </div>
               <div>
                 <div style={{ color: 'var(--muted)', fontSize: 11, textTransform: 'uppercase' }}>Déjà payé</div>
-                <strong style={{ color: 'var(--success, #2d5a2d)' }}>{fmt(payTarget.amount_paid || 0)}</strong>
+                <strong style={{ color: 'var(--success, #3f3f46)' }}>{fmt(payTarget.amount_paid || 0)}</strong>
               </div>
               <div>
                 <div style={{ color: 'var(--muted)', fontSize: 11, textTransform: 'uppercase' }}>Reste dû</div>
@@ -1181,7 +1161,7 @@ export default function Invoices() {
 
             <div className="form-row">
               <label>Date du paiement</label>
-              <input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} disabled={saving} />
+              <DatePicker value={payDate} onChange={setPayDate} disabled={saving} />
             </div>
 
             <div className="form-row">
@@ -1202,7 +1182,7 @@ export default function Invoices() {
               <button className="secondary" onClick={() => setPayTarget(null)} disabled={saving}>Annuler</button>
             </div>
           </div>
-        </div>
+        </div></FloatingPortal>
       )}
 
       {pwOpen && pendingAction && (

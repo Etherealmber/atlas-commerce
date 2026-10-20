@@ -158,9 +158,85 @@ export class MobileHub {
         return Response.json({ success: true, data: await this.readSnapshot() });
       }
 
+      // ─── Short-lived QR login session (idFromName('qr:' + token)) ───
+      // Keeps poll/claim off D1 to avoid Worker CPU limits. Alarm deletes after ~2 min.
+      if (path === '/qr' || path.endsWith('/qr')) {
+        if (request.method === 'GET') {
+          const bag = await this.state.storage.get([
+            'status', 'username', 'role', 'created_by', 'expires_at',
+            'claim_fingerprint', 'display_name', 'avatar_url',
+          ]);
+          if (!bag.get('status')) {
+            return Response.json({ success: false, error: 'NOT_FOUND' }, { status: 404 });
+          }
+          let status = String(bag.get('status') || 'pending');
+          const exp = bag.get('expires_at') ? String(bag.get('expires_at')) : '';
+          if (exp && status !== 'consumed' && status !== 'denied' && new Date(exp) < new Date()) {
+            status = 'expired';
+          }
+          return Response.json({
+            success: true,
+            data: {
+              status,
+              username: String(bag.get('username') || ''),
+              role: String(bag.get('role') || ''),
+              created_by: String(bag.get('created_by') || ''),
+              expires_at: exp,
+              claim_fingerprint: bag.get('claim_fingerprint')
+                ? String(bag.get('claim_fingerprint')).slice(0, 12) + '…'
+                : '',
+              has_device: !!bag.get('claim_fingerprint'),
+              display_name: String(bag.get('display_name') || ''),
+              avatar_url: String(bag.get('avatar_url') || ''),
+            },
+          });
+        }
+        if (request.method === 'PUT' || request.method === 'POST') {
+          const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+          const patch: Record<string, unknown> = {};
+          for (const k of [
+            'status', 'username', 'role', 'created_by', 'expires_at',
+            'claim_fingerprint', 'claim_ua', 'claim_ip', 'display_name', 'avatar_url',
+          ]) {
+            if (body[k] !== undefined) patch[k] = body[k];
+          }
+          if (Object.keys(patch).length) {
+            await this.state.storage.put(patch);
+          }
+          // Auto-delete ~130s after create/update to respect free-tier storage
+          if (body.status === 'pending' || body._schedule_alarm) {
+            await this.state.storage.setAlarm(Date.now() + 130_000);
+          }
+          if (body.status === 'consumed' || body.status === 'denied' || body.status === 'expired') {
+            await this.state.storage.setAlarm(Date.now() + 15_000);
+          }
+          const bag = await this.state.storage.get(['status', 'username', 'role', 'expires_at', 'display_name', 'avatar_url', 'claim_fingerprint']);
+          return Response.json({
+            success: true,
+            data: {
+              status: bag.get('status'),
+              username: bag.get('username'),
+              role: bag.get('role'),
+              expires_at: bag.get('expires_at'),
+              display_name: bag.get('display_name'),
+              avatar_url: bag.get('avatar_url'),
+              has_device: !!bag.get('claim_fingerprint'),
+            },
+          });
+        }
+        return Response.json({ success: false, error: 'Method not allowed' }, { status: 405 });
+      }
+
       return Response.json({ success: false, error: 'Not found' }, { status: 404 });
     } catch (e: any) {
       return Response.json({ success: false, error: e?.message || 'DO error' }, { status: 500 });
     }
   }
+
+  async alarm(): Promise<void> {
+    try {
+      await this.state.storage.deleteAll();
+    } catch { /* */ }
+  }
 }
+

@@ -37,7 +37,7 @@ export default function Privacy() {
         <p className="privacy-meta">
           {APP_NAME} · {APP_TAGLINE} · v{APP_VERSION}
           <br />
-          Dernière mise à jour : 8 septembre 2026
+          Dernière mise à jour : 16 septembre 2026
           <br />
           Responsable du traitement : {APP_CREATOR_NAME} / etherealmber · El Jadida, Maroc
           <br />
@@ -62,7 +62,7 @@ export default function Privacy() {
           <ul>
             <li>
               <strong>L’application web</strong> (navigateur, y compris mode téléphone{' '}
-              <code>/m/</code>)
+              <code>/</code>)
             </li>
             <li>
               <strong>L’application native Android</strong> (package{' '}
@@ -241,7 +241,17 @@ export default function Privacy() {
         </section>
 
         <section>
-          <h2>5. Cookies, stockage local &amp; app native</h2>
+          <h2>5. Employés &amp; pièces d&apos;identité</h2>
+          <p>
+            Les fiches collaborateurs (paie, coordonnées) sont stockées dans votre base D1.
+            Les pièces d&apos;identité (CIN / passeport) sont chiffrées côté serveur et déposées
+            sur R2 sous un chemin dédié ; elles ne sont accessibles qu&apos;aux comptes autorisés
+            de l&apos;instance. Les paiements de salaires sont enregistrés dans le solde (dépenses).
+          </p>
+        </section>
+
+        <section>
+          <h2>6. Cookies, stockage local &amp; app native</h2>
           <p>
             {APP_NAME} n’utilise pas de cookies publicitaires ni de traceurs marketing tiers.
           </p>
@@ -251,7 +261,7 @@ export default function Privacy() {
               cookies techniques Cloudflare (CDN, WAF, Turnstile éventuel)
             </li>
             <li>
-              <strong>Préférences (web)</strong> — thème, densité, guide d’accueil — selon
+              <strong>Préférences (web)</strong> — thème, liquid glass, guide d’accueil — selon
               consentement
             </li>
             <li>
@@ -275,7 +285,7 @@ export default function Privacy() {
         </section>
 
         <section>
-          <h2>6. Destinataires &amp; sous-traitants</h2>
+          <h2>7. Destinataires &amp; sous-traitants</h2>
           <ul>
             <li>Personnel autorisé de votre organisation (selon les rôles)</li>
             <li>Cloudflare, Inc. — hébergement, D1, R2, sécurité réseau</li>
@@ -296,7 +306,7 @@ export default function Privacy() {
         </section>
 
         <section>
-          <h2>7. Transferts hors Maroc / UE</h2>
+          <h2>8. Transferts hors Maroc / UE</h2>
           <p>
             Cloudflare et, le cas échéant, Google Firebase et le prestataire LLM peuvent
             traiter des données dans des datacenters situés hors du Maroc (et hors UE). Des
@@ -307,7 +317,7 @@ export default function Privacy() {
         </section>
 
         <section>
-          <h2>8. Durées de conservation</h2>
+          <h2>9. Durées de conservation</h2>
           <ul>
             <li>Comptes staff — durée de la relation + obligations légales</li>
             <li>Journaux de sécurité / login — durée limitée (ordre de quelques mois)</li>
@@ -318,7 +328,7 @@ export default function Privacy() {
         </section>
 
         <section>
-          <h2>9. Sécurité</h2>
+          <h2>10. Sécurité</h2>
           <p>
             Authentification (mot de passe, OTP, passkeys), sessions, HTTPS, isolation des
             rôles, journaux d’audit. L’application Android communique avec les mêmes API
@@ -328,7 +338,7 @@ export default function Privacy() {
         </section>
 
         <section>
-          <h2>10. Vos droits</h2>
+          <h2>11. Vos droits</h2>
           <p>
             Conformément au RGPD (si applicable) et à la réglementation marocaine (CNDP / loi
             09-08), vous pouvez demander l’accès, la rectification, l’effacement (dans les
@@ -345,7 +355,7 @@ export default function Privacy() {
         </section>
 
         <section>
-          <h2>11. Mineurs</h2>
+          <h2>12. Mineurs</h2>
           <p>
             Le service s’adresse à des professionnels. Il n’est pas destiné aux enfants de
             moins de 16 ans.
@@ -353,7 +363,7 @@ export default function Privacy() {
         </section>
 
         <section>
-          <h2>12. Codes QR &amp; documents publics</h2>
+          <h2>13. Codes QR &amp; documents publics</h2>
           <p>
             Les liens de vérification et de situation client sont signés (jeton HMAC). Le
             scan peut générer des journaux techniques. Aucun tracker publicitaire n’est
@@ -363,7 +373,7 @@ export default function Privacy() {
         </section>
 
         <section>
-          <h2>13. Modifications</h2>
+          <h2>14. Modifications</h2>
           <p>
             Cette politique peut être mise à jour pour refléter des évolutions légales ou
             techniques (y compris l’app native et les notifications). La date de « dernière

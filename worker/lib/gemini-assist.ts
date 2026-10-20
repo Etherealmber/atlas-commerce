@@ -1,4 +1,5 @@
 /**
+import { fetchWithTimeout } from './http-client';
  * Atlas Agent — Gemini generateContent path.
  *
  * Auth: header x-goog-api-key (required for current Gemini / auth keys).
@@ -63,7 +64,7 @@ export async function geminiSimpleChat(opts: {
 
   throw new Error(
     lastErr.includes('404')
-      ? 'Atlas Agent: modèle inaccessible. Définissez GEMINI_MODEL=gemini-flash-latest ou basculez sur Mistral.'
+      ? 'Atlas Agent: modèle inaccessible. Définissez GEMINI_MODEL=gemini-flash-latest ou définissez GROQ_API_KEY.'
       : lastErr,
   );
 }
@@ -76,7 +77,7 @@ async function generateOnce(
   body: Record<string, unknown>,
 ): Promise<GenResult> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
-  const res = await fetch(url, {
+  const res = await fetchWithTimeout(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

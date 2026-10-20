@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
+import DatePicker from '../components/DatePicker';
 import { matchProducts } from '../lib/assist';
 import { SuggestList } from '../components/AssistBits';
 import { Link } from 'react-router-dom';
 import { api, BASE } from '../api';
+import TypeaheadField, { productTypeaheadOptions, partyTypeaheadOptions } from '../components/TypeaheadField';
 import { getToken } from '../auth';
 import SaveFeedback from '../components/SaveFeedback';
 import NumberField from '../components/NumberField';
@@ -16,6 +18,8 @@ import { friendlyError } from '../lib/errors';
 import RefreshIconButton from '../components/RefreshIconButton';
 import '../components/erp/orders-fulfillment.css';
 import RemboursementModal from '../components/RemboursementModal';
+import { FloatingPortal } from '../components/FloatingPortal';
+import { ModalFormError, FieldHint } from '../components/ModalFormFeedback';
 
 type Product = {
   id: number;
@@ -40,6 +44,8 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 export default function QuickSale() {
   const { toast, confirm, prompt } = useUi();
+  const [modalError, setModalError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [list, setList] = useState<any[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [clients, setClients] = useState<any[]>([]);
@@ -59,7 +65,7 @@ export default function QuickSale() {
   const [showModal, setShowModal] = useState(false);
 
   const [clientId, setClientId] = useState<number | ''>('');
-  const [clientName, setClientName] = useState('Client de passage');
+  const [clientName, setClientName] = useState('');
   const [clientIce, setClientIce] = useState('');
   const [clientPhone, setClientPhone] = useState('');
   const [issueDate, setIssueDate] = useState(today());
@@ -68,6 +74,7 @@ export default function QuickSale() {
     { product_name: '', quantity: 1, list_price: 0, unit_price: 0, product_query: '' },
   ]);
   const [payMode, setPayMode] = useState<'cash' | 'card'>('cash');
+  const [barcodeScan, setBarcodeScan] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [msgType, setMsgType] = useState<'success' | 'error'>('success');
@@ -100,12 +107,71 @@ export default function QuickSale() {
         setRefreshing(false);
       });
   };
+  
+  useEffect(() => {
+    const onLists = () => {
+      try { load(true); } catch { /* */ }
+    };
+    window.addEventListener('atlas-lists-refresh', onLists as EventListener);
+    return () => window.removeEventListener('atlas-lists-refresh', onLists as EventListener);
+  }, []);
+
+
+  const applyBarcodeScan = async (code: string) => {
+    const c = code.trim();
+    if (!c) return;
+    let p = products.find(
+      (x) => String(x.barcode || '') === c || String(x.sku || '') === c || String(x.id) === c,
+    );
+    if (!p) {
+      try {
+        const list: any = await api.getProducts({ q: c, limit: 8 } as any);
+        const rows = list?.data || [];
+        p = rows.find(
+          (x: any) => String(x.barcode || '') === c || String(x.sku || '').toLowerCase() === c.toLowerCase(),
+        ) || rows[0];
+      } catch { /* */ }
+    }
+    if (!p) {
+      flash('Produit introuvable pour ce code.', 'error');
+      setBarcodeScan('');
+      return;
+    }
+    let unit = Number(p.price || 0);
+    if (clientId) {
+      try {
+        const pr: any = await api.getClientPriceForProduct(Number(clientId), Number(p.id));
+        if (pr?.data?.unit_price != null) unit = Number(pr.data.unit_price);
+      } catch { /* */ }
+    }
+    setItems((prev) => {
+      const emptyIdx = prev.findIndex((it) => !it.product_id && !String(it.product_name || '').trim());
+      const row = {
+        product_id: p.id,
+        product_name: p.name || '',
+        product_query: p.name || '',
+        sku: p.sku || '',
+        quantity: 1,
+        list_price: Number(p.price || 0),
+        unit_price: unit,
+      };
+      if (emptyIdx >= 0) {
+        const next = [...prev];
+        next[emptyIdx] = { ...next[emptyIdx], ...row };
+        return next;
+      }
+      return [...prev, row];
+    });
+    setBarcodeScan('');
+    flash(`Ajouté: ${p.name}`);
+  };
+
   useEffect(() => { load(); }, [filter]);
 
   const selectClient = (id: number | '') => {
     setClientId(id);
     if (!id) {
-      setClientName('Client de passage');
+      setClientName('');
       setClientIce('');
       setClientPhone('');
       return;
@@ -213,7 +279,7 @@ export default function QuickSale() {
       });
       flash(res.message || 'Paiement enregistré');
       setPayTarget(null);
-      load(true);
+      refreshCounts();
     } catch (e: any) {
       flash(e?.message || 'Paiement impossible', 'error');
     } finally {
@@ -237,13 +303,13 @@ export default function QuickSale() {
       confirmLabel: 'Annuler le ticket',
     });
     if (!voidReason || voidReason.trim().length < 5) {
-      toast('Motif trop court.', 'error');
+      setModalError('Motif trop court.');
       return;
     }
     try {
       const r: any = await api.updateInvoiceStatus(id, { status: 'cancelled', void_reason: voidReason.trim() } as any);
       flash(r.message || 'Ticket annulé — stock rétabli.');
-      load(true);
+      refreshCounts();
     } catch (e: any) {
       flash(friendlyError(e), 'error');
     }
@@ -267,14 +333,14 @@ export default function QuickSale() {
       flash(res.message || 'Ticket supprimé.');
       setPwOpen(false);
       setPendingAction(null);
-      load(true);
+      refreshCounts();
     });
     setPwOpen(true);
   };
 
   const resetForm = () => {
     setClientId('');
-    setClientName('Client de passage');
+    setClientName('');
     setClientIce('');
     setClientPhone('');
     setIssueDate(today());
@@ -292,7 +358,7 @@ export default function QuickSale() {
       return;
     }
     if (!(clientName || '').trim()) {
-      flash('Indiquez un nom de client (ou « Client de passage »).', 'error');
+      flash('Indiquez un nom de client.', 'error');
       return;
     }
     setBusy(true);
@@ -325,11 +391,22 @@ export default function QuickSale() {
       const number = String(data?.number || invId);
 
       // VR is NOT paid automatically — user encaisses later from the ticket page
+      // Remember client-specific prices when discounted vs catalogue
+      if (clientId) {
+        for (const it of items) {
+          if (!it.product_id) continue;
+          const list = Number(it.list_price || 0);
+          const unit = Number(it.unit_price || 0);
+          if (unit > 0 && (list <= 0 || Math.abs(unit - list) > 0.001)) {
+            api.setClientProductPrice(Number(clientId), Number(it.product_id), unit).catch(() => {});
+          }
+        }
+      }
       flash(`Ticket ${number} créé · ${fmt(invTotal)} (à encaisser)`, 'success');
-      toast(`Ticket ${number} enregistré — paiement non appliqué`, 'success');
+      toast(`Ticket ${number} créé — à encaisser · ${fmt(invTotal)}`, 'success');
       resetForm();
       setShowModal(false);
-      load(true);
+      refreshCounts();
     } catch (e: any) {
       flash(e?.message || 'Échec de la vente rapide', 'error');
     } finally {
@@ -365,7 +442,7 @@ export default function QuickSale() {
   })();
 
   return (
-    <div className="atlas-orders">
+    <div className="atlas-orders quicksale-page">
       <div className="page-header">
         <div>
           <h1>Vente rapide</h1>
@@ -390,32 +467,34 @@ export default function QuickSale() {
             <option value="paid">Encaissés</option>
             <option value="cancelled">Annulés</option>
           </select>
-          <button onClick={() => { resetForm(); setShowModal(true); }}>+ Nouvelle vente</button>
+          <button onClick={() => { resetForm(); setModalError(''); setShowModal(true); }}>+ Nouvelle vente</button>
         </div>
       </div>
 
       
-      <div className="atlas-stat-grid" style={{ marginBottom: 16 }}>
-        <div className="atlas-stat paper"><div className="as-label">Tickets</div><div className="as-value">{qsKpis.n}</div></div>
-        <div className="atlas-stat paper"><div className="as-label">Ouverts</div><div className="as-value">{qsKpis.open}</div></div>
-        <div className="atlas-stat paper"><div className="as-label">Payés</div><div className="as-value">{qsKpis.paid}</div></div>
+      <div className="ac-metric-grid" style={{ marginBottom: 16 }}>
+        <div className="ac-metric"><div className="as-label">Tickets</div><div className="as-value">{qsKpis.n}</div></div>
+        <div className="ac-metric"><div className="as-label">Ouverts</div><div className="as-value">{qsKpis.open}</div></div>
+        <div className="ac-metric"><div className="as-label">Payés</div><div className="as-value">{qsKpis.paid}</div></div>
       </div>
 <SaveFeedback message={msg} type={msgType} />
 
-      <div className="card" style={{ marginBottom: 16, padding: '12px 16px' }}>
-        <div className="search-bar">
-          <input
-            className="search-input"
-            placeholder="Rechercher par numéro ou nom de client..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+      <div className="ac-panel ac-products-filters" style={{ marginBottom: 16 }}>
+        <div className="ac-products-filters-row">
+          <div className="ac-search-field">
+            <input
+              className="ac-search-input"
+              placeholder="Rechercher par numéro ou nom de client..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
         </div>
       </div>
 
-      <div className="card">
+      <div className="ac-panel ac-products-table-panel">
         <VirtualScroll maxHeight={filtered.length > 60 ? 560 : undefined}>
-          <table className="data-dense">
+          <table className="data-dense ac-products-table">
             <thead>
               <tr>
                 <th>Numéro</th>
@@ -436,7 +515,7 @@ export default function QuickSale() {
                       title="Aucune vente rapide"
                       description="Créez un ticket caisse (série VR). Aucune TVA n’est appliquée."
                       actionLabel="Nouvelle vente"
-                      onAction={() => { resetForm(); setShowModal(true); }}
+                      onAction={() => { resetForm(); setModalError(''); setShowModal(true); }}
                       icon="document"
                     />
                   </td>
@@ -518,7 +597,7 @@ export default function QuickSale() {
       </div>
 
       {showModal && (
-        <div className="modal-overlay" onClick={() => !busy && setShowModal(false)}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => !busy && setShowModal(false)}>
           <div className="modal" style={{ maxWidth: 1080, width: '96vw' }} onClick={(e) => e.stopPropagation()}>
             <h2>Nouvelle vente rapide (caisse)</h2>
             <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 14, lineHeight: 1.45 }}>
@@ -527,17 +606,24 @@ export default function QuickSale() {
 
             <div className="form-row">
               <label>Client enregistré</label>
-              <select
-                value={clientId}
-                onChange={(e) => selectClient(e.target.value ? Number(e.target.value) : '')}
-              >
-                <option value="">— Client de passage / saisie manuelle —</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}{c.ice ? ` (ICE ${c.ice})` : ''}
-                  </option>
-                ))}
-              </select>
+              <TypeaheadField
+                value={clientName}
+                placeholder="Rechercher un client…"
+                options={partyTypeaheadOptions(clients, 'client')}
+                onOpen={() => {
+                  api.getClients().then((r: any) => {
+                    if (Array.isArray(r?.data)) setClients(r.data);
+                  }).catch(() => {});
+                }}
+                onChange={(v) => {
+                  setClientName(v);
+                  setClientId('');
+                }}
+                onPick={(o) => {
+                  selectClient(Number(o.id));
+                }}
+                emptyLabel="Aucun client"
+              />
             </div>
 
             <div className="grid grid-2">
@@ -546,7 +632,7 @@ export default function QuickSale() {
                 <input
                   value={clientName}
                   onChange={(e) => setClientName(e.target.value)}
-                  placeholder="Client de passage"
+                  placeholder="Nom du client"
                 />
               </div>
               <div className="form-row">
@@ -561,8 +647,24 @@ export default function QuickSale() {
               </div>
               <div className="form-row">
                 <label>Date d'émission</label>
-                <input type="date" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} />
+                <DatePicker value={issueDate} onChange={setIssueDate} />
               </div>
+            </div>
+
+            <div className="form-row" style={{ marginTop: 12 }}>
+              <label>Code-barres / SKU (Entrée = ajouter)</label>
+              <input
+                value={barcodeScan}
+                onChange={(e) => setBarcodeScan(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    applyBarcodeScan(barcodeScan);
+                  }
+                }}
+                placeholder="Scanner ou saisir puis Entrée…"
+                autoComplete="off"
+              />
             </div>
 
             <h3 style={{ margin: '16px 0 8px', fontSize: 14 }}>
@@ -608,20 +710,35 @@ export default function QuickSale() {
                       alignItems: 'center',
                     }}
                   >
-                    <div>
-                      <input
-                        placeholder="Rechercher nom, SKU…"
-                        value={item.product_query ?? ''}
-                        onChange={(e) => updateLine(idx, 'product_query', e.target.value)}
-                        list={`qs-prod-${idx}`}
-                      />
-                      <datalist id={`qs-prod-${idx}`}>
-                        {filteredP.map((p) => (
-                          <option key={p.id} value={p.name} />
-                        ))}
-                      </datalist>
-                      
-                    </div>
+                    <TypeaheadField
+                      value={item.product_query ?? ''}
+                      placeholder="Rechercher nom, SKU…"
+                      options={productTypeaheadOptions(products)}
+                    onOpen={() => {
+                      api.getProducts({ fields: 'light', limit: 500 }).then((r: any) => {
+                        if (Array.isArray(r?.data)) setProducts(r.data);
+                      }).catch(() => {});
+                    }}
+                      onChange={(v) => updateLine(idx, 'product_query', v)}
+                      onPick={async (o) => {
+                        const p = products.find((x) => String(x.id) === String(o.id));
+                        if (!p) return;
+                        let unit = Number(p.price || 0);
+                        if (clientId) {
+                          try {
+                            const pr: any = await api.getClientPriceForProduct(Number(clientId), Number(p.id));
+                            if (pr?.data?.unit_price != null) unit = Number(pr.data.unit_price);
+                          } catch { /* */ }
+                        }
+                        updateLine(idx, 'product_id', p.id);
+                        updateLine(idx, 'product_name', p.name || '');
+                        updateLine(idx, 'product_query', p.name || '');
+                        updateLine(idx, 'list_price', Number(p.price || 0));
+                        updateLine(idx, 'unit_price', unit);
+                        if (p.sku) updateLine(idx, 'sku', p.sku);
+                      }}
+                      emptyLabel="Aucun produit"
+                    />
                     <input
                       placeholder="Désignation *"
                       value={item.product_name}
@@ -637,7 +754,14 @@ export default function QuickSale() {
                       type="button"
                       className="danger"
                       style={{ padding: '6px 8px' }}
-                      onClick={() => setItems(items.filter((_, i) => i !== idx))}
+                      onClick={() =>
+                        setItems((prev) => {
+                          if (prev.length <= 1) {
+                            return [{ product_name: '', quantity: 1, list_price: 0, unit_price: 0, product_query: '' }];
+                          }
+                          return prev.filter((_, i) => i !== idx);
+                        })
+                      }
                       aria-label="Supprimer"
                     >
                       ×
@@ -679,6 +803,7 @@ export default function QuickSale() {
               <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optionnel" />
             </div>
 
+            <ModalFormError message={modalError} />
             <div className="form-actions">
               <button type="button" onClick={() => void checkout()} disabled={busy}>
                 {busy ? 'Encaissement…' : `Encaisser · ${fmt(total)}`}
@@ -686,7 +811,7 @@ export default function QuickSale() {
               <button type="button" className="secondary" onClick={() => !busy && setShowModal(false)}>Annuler</button>
             </div>
           </div>
-        </div>
+        </div></FloatingPortal>
       )}
 
       {pwOpen && pendingAction && (
@@ -701,7 +826,7 @@ export default function QuickSale() {
       )}
     
       {payTarget && (
-        <div className="modal-overlay" onClick={() => !settleSaving && setPayTarget(null)}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => !settleSaving && setPayTarget(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
             <h2 style={{ marginTop: 0 }}>
               {settleMode === 'full' ? 'Tout payer — ticket VR' : 'Paiement partiel — ticket VR'}
@@ -727,7 +852,7 @@ export default function QuickSale() {
               </div>
               <div>
                 <div style={{ color: 'var(--muted)', fontSize: 11, textTransform: 'uppercase' }}>Déjà payé</div>
-                <strong style={{ color: 'var(--success, #2d5a2d)' }}>{fmt(payTarget.amount_paid || 0)}</strong>
+                <strong style={{ color: 'var(--success, #3f3f46)' }}>{fmt(payTarget.amount_paid || 0)}</strong>
               </div>
               <div>
                 <div style={{ color: 'var(--muted)', fontSize: 11, textTransform: 'uppercase' }}>Reste dû</div>
@@ -765,7 +890,7 @@ export default function QuickSale() {
 
             <div className="form-row">
               <label>Date</label>
-              <input type="date" value={settleDate} onChange={(e) => setSettleDate(e.target.value)} disabled={settleSaving} />
+              <DatePicker value={settleDate} onChange={setSettleDate} disabled={settleSaving} />
             </div>
 
             <div className="form-row">
@@ -773,6 +898,7 @@ export default function QuickSale() {
               <input type="text" value={settleNote} onChange={(e) => setSettleNote(e.target.value)} disabled={settleSaving} />
             </div>
 
+            <ModalFormError message={modalError} />
             <div className="form-actions">
               <button type="button" onClick={() => void submitSettle()} disabled={settleSaving}>
                 {settleSaving ? '…' : settleMode === 'full' ? 'Valider le règlement intégral' : 'Enregistrer ce paiement'}
@@ -782,7 +908,7 @@ export default function QuickSale() {
               </button>
             </div>
           </div>
-        </div>
+        </div></FloatingPortal>
       )}
 
       <RemboursementModal

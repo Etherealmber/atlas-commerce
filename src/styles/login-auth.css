@@ -1,0 +1,571 @@
+/* Atlas Commerce login — structure like Discord, palette Atlas only.
+   Loaded from Login.tsx so it always applies on /login. */
+
+html.atlas-login-page,
+html.atlas-login-page body,
+html.atlas-login-page #root {
+  background:
+    radial-gradient(ellipse 90% 70% at 50% -10%, #1c1c1f 0%, transparent 55%),
+    radial-gradient(ellipse 60% 50% at 100% 100%, #12121a 0%, transparent 45%),
+    linear-gradient(165deg, #0f0f12 0%, #0a0a0c 40%, #070708 100%) !important;
+  min-height: 100% !important;
+  height: 100% !important;
+}
+
+html.atlas-login-page body {
+  margin: 0 !important;
+  overflow-x: hidden !important;
+}
+
+/* Kill legacy 2-col grid + white panels */
+html.atlas-login-page .atlas-login.atlas-login--auth7 {
+  display: flex !important;
+  flex-direction: column !important;
+  grid-template-columns: none !important;
+  grid-template-rows: none !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 100dvh !important;
+  max-height: none !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 56px 16px 32px !important;
+  gap: 16px !important;
+  overflow: auto !important;
+  background:
+    radial-gradient(ellipse 70% 50% at 18% 12%, rgba(250, 248, 244, 0.07), transparent 55%),
+    radial-gradient(ellipse 55% 40% at 88% 88%, rgba(99, 102, 241, 0.06), transparent 50%),
+    radial-gradient(ellipse 50% 35% at 50% 100%, rgba(24, 24, 27, 0.9), transparent 60%),
+    linear-gradient(160deg, #121214 0%, #0c0c0e 45%, #080809 100%) !important;
+  transition: background 0.8s ease, filter 0.8s ease, opacity 0.8s ease !important;
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7.atlas-login--exit {
+  opacity: 0 !important;
+  filter: blur(8px) !important;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 40%, rgba(250, 250, 250, 0.12), transparent 60%),
+    linear-gradient(180deg, #e8e6e1 0%, #f5f2eb 100%) !important;
+}
+
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-brand {
+  position: fixed !important;
+  top: 18px !important;
+  left: 20px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  color: #fafafa !important;
+  font-weight: 650 !important;
+  z-index: 50 !important;
+  background: transparent !important;
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-brand span {
+  color: #fafafa !important;
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-brand img {
+  border-radius: 8px !important;
+  background: #171717 !important;
+}
+
+/* Single centered card */
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-card {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: stretch !important;
+  width: min(800px, 96vw) !important;
+  max-width: 800px !important;
+  margin: 0 auto !important;
+  background: linear-gradient(165deg, #1a1a1d 0%, #141416 50%, #101012 100%) !important;
+  border: 1px solid #2e2e33 !important;
+  border-radius: 14px !important;
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+  overflow: hidden !important;
+}
+
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-form-wrap {
+  flex: 1 1 56% !important;
+  width: auto !important;
+  max-width: none !important;
+  padding: 40px 36px 28px !important;
+  background: #141414 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-qr-side {
+  flex: 0 0 280px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 36px 28px !important;
+  background: #141414 !important;
+  border-left: 1px solid #27272a !important;
+}
+
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-right,
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-left,
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-visual {
+  display: contents !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-header {
+  text-align: left !important;
+  margin-bottom: 1.25rem !important;
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-header h1 {
+  color: #fafafa !important;
+  font-size: 1.5rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+  margin: 0 0 6px !important;
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-header p {
+  color: #a1a1aa !important;
+  font-size: 0.9rem !important;
+  margin: 0 !important;
+}
+
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-field label,
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-remember-label {
+  color: #a1a1aa !important;
+  font-size: 0.72rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase !important;
+}
+
+/* Inputs: Atlas dark surface (not white) */
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-field input,
+html.atlas-login-page .atlas-login.atlas-login--auth7 input[type="text"],
+html.atlas-login-page .atlas-login.atlas-login--auth7 input[type="password"],
+html.atlas-login-page .atlas-login.atlas-login--auth7 input[type="email"] {
+  background: #0a0a0a !important;
+  border: 1px solid #3f3f46 !important;
+  color: #fafafa !important;
+  border-radius: 10px !important;
+  min-height: 44px !important;
+  height: 44px !important;
+  box-shadow: none !important;
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-field input:focus {
+  border-color: #fafafa !important;
+  box-shadow: 0 0 0 1px #fafafa !important;
+  outline: none !important;
+}
+
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-password-wrap {
+  background: transparent !important;
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-password-toggle {
+  color: #a1a1aa !important;
+}
+
+/* Primary CTA — brand black with cream text, or inverted on dark */
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-submit {
+  background: #fafafa !important;
+  color: #0a0a0a !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  min-height: 46px !important;
+  font-weight: 700 !important;
+  width: 100% !important;
+  box-shadow: none !important;
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-submit:hover {
+  background: #e4e4e7 !important;
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-submit span,
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-submit svg {
+  color: #0a0a0a !important;
+  stroke: #0a0a0a !important;
+}
+
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-hint,
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-meta {
+  color: #71717a !important;
+  text-align: center !important;
+  width: 100% !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-form-wrap .atlas-login-hint,
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-form-wrap .atlas-login-meta {
+  text-align: center !important;
+  display: block !important;
+}
+
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-qr-frame {
+  width: 176px !important;
+  height: 176px !important;
+  background: #fafafa !important;
+  border-radius: 12px !important;
+  padding: 12px !important;
+  margin: 0 auto 16px !important;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-qr-title {
+  color: #fafafa !important;
+  font-size: 1.05rem !important;
+  font-weight: 700 !important;
+  text-align: center !important;
+  margin: 0 0 8px !important;
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-qr-hint {
+  color: #a1a1aa !important;
+  font-size: 0.8rem !important;
+  text-align: center !important;
+  line-height: 1.45 !important;
+  max-width: 210px !important;
+  margin: 0 auto !important;
+}
+
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-page-foot {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 12px 18px !important;
+  justify-content: center !important;
+  color: #52525b !important;
+  font-size: 12px !important;
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-page-foot a {
+  color: #71717a !important;
+  text-decoration: none !important;
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-page-foot a:hover {
+  color: #fafafa !important;
+}
+
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-alert {
+  background: rgba(239, 68, 68, 0.12) !important;
+  border: 1px solid rgba(239, 68, 68, 0.35) !important;
+  color: #fca5a5 !important;
+  border-radius: 10px !important;
+}
+
+/* Mobile: cream paper, no QR */
+@media (max-width: 900px) {
+  html.atlas-login-page,
+  html.atlas-login-page body,
+  html.atlas-login-page #root {
+    background: #f5f2eb !important;
+  }
+  html.atlas-login-page .atlas-login.atlas-login--auth7 {
+    background: #f5f2eb !important;
+    padding: 24px 16px !important;
+    justify-content: flex-start !important;
+  }
+  html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-card {
+    flex-direction: column !important;
+    width: 100% !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+  html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-form-wrap {
+    background: transparent !important;
+    padding: 12px 0 !important;
+  }
+  html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-qr-side,
+  html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-page-foot {
+    display: none !important;
+  }
+  html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-header h1 {
+    color: #0a0a0a !important;
+  }
+  html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-header p,
+  html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-field label {
+    color: #52525b !important;
+  }
+  html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-field input {
+    background: #fff !important;
+    border-color: #e4e4e7 !important;
+    color: #0a0a0a !important;
+  }
+  html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-submit {
+    background: #0a0a0a !important;
+    color: #fafafa !important;
+  }
+  html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-submit span,
+  html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-submit svg {
+    color: #fafafa !important;
+    stroke: #fafafa !important;
+  }
+  html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-brand {
+    color: #0a0a0a !important;
+  }
+  html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-brand span {
+    color: #0a0a0a !important;
+  }
+}
+
+
+/* Passkey link + Turnstile dark/center */
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-turnstile {
+  display: flex !important;
+  justify-content: center !important;
+  margin: 8px 0 4px !important;
+  min-height: 65px !important;
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-passkey-link {
+  display: block !important;
+  width: 100% !important;
+  margin-top: 10px !important;
+  padding: 8px !important;
+  background: transparent !important;
+  border: 0 !important;
+  color: #a1a1aa !important;
+  font-size: 0.85rem !important;
+  font-weight: 500 !important;
+  text-align: center !important;
+  cursor: pointer !important;
+  text-decoration: underline !important;
+  text-underline-offset: 3px !important;
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-passkey-link:hover {
+  color: #fafafa !important;
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-secondary {
+  width: 100% !important;
+  margin-bottom: 8px !important;
+  background: #1a1a1a !important;
+  color: #fafafa !important;
+  border: 1px solid #3f3f46 !important;
+  border-radius: 10px !important;
+  min-height: 42px !important;
+  font-weight: 600 !important;
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-qr-panel {
+  text-align: center !important;
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-remember {
+  justify-content: flex-start !important;
+}
+
+
+html.atlas-login-page .atlas-login-qr-waiting-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 8px 0;
+}
+html.atlas-login-page .atlas-login-qr-avatar-lg {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #3f3f46, #18181b);
+  color: #fafafa;
+  font-size: 2rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+  border: 3px solid #27272a;
+}
+html.atlas-login-page .atlas-login-qr-phone-badge {
+  position: absolute;
+  right: -4px;
+  bottom: -2px;
+  font-size: 1.25rem;
+  line-height: 1;
+  background: #141414;
+  border-radius: 50%;
+  padding: 4px;
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-secondary {
+  display: none !important; /* passkey lives under QR only */
+}
+
+html.atlas-login-page .atlas-login-qr-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+
+/* Mobile web /login/qr confirm */
+.login-qr-page {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background: #0a0a0a;
+  color: #fafafa;
+  box-sizing: border-box;
+}
+.login-qr-card {
+  width: min(400px, 100%);
+  background: #141414;
+  border: 1px solid #27272a;
+  border-radius: 16px;
+  padding: 28px 22px;
+  text-align: center;
+}
+.login-qr-brand {
+  margin: 0 0 8px;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #71717a;
+}
+.login-qr-card h1 {
+  margin: 0 0 16px;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+.login-qr-identity {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.login-qr-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #3f3f46;
+}
+.login-qr-avatar--letter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #27272a;
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+.login-qr-account { margin: 0; color: #a1a1aa; font-size: 0.9rem; }
+.login-qr-msg { margin: 12px 0; color: #d4d4d8; line-height: 1.45; }
+.login-qr-msg--err { color: #fca5a5; }
+.login-qr-msg--ok { color: #c7d2fe; }
+.login-qr-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+.login-qr-btn {
+  min-height: 48px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 1rem;
+  border: 0;
+  cursor: pointer;
+}
+.login-qr-btn--ok { background: #fafafa; color: #0a0a0a; }
+.login-qr-btn--no { background: transparent; color: #a1a1aa; border: 1px solid #3f3f46; }
+.login-qr-link { color: #a1a1aa; }
+.login-qr-hint { margin-top: 12px; font-size: 0.85rem; color: #71717a; }
+
+html.atlas-login-page .atlas-login-qr-avatar-letter {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #fafafa;
+}
+html.atlas-login-page .atlas-login-qr-avatar-lg {
+  position: relative;
+  overflow: hidden;
+}
+
+
+/* QR stage transitions */
+html.atlas-login-page .atlas-login-qr-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  width: 100%;
+}
+html.atlas-login-page .atlas-login-qr-denied-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, #3f1d1d, #1c1212);
+  color: #fca5a5;
+  margin-bottom: 8px;
+  border: 1px solid #7f1d1d;
+}
+html.atlas-login-page .atlas-login-qr-retry {
+  margin-top: 12px;
+  min-height: 44px;
+  padding: 0 22px;
+  border-radius: 999px;
+  border: 0;
+  background: #fafafa;
+  color: #0a0a0a;
+  font-weight: 700;
+  cursor: pointer;
+}
+html.atlas-login-page .atlas-login-qr-retry:hover {
+  background: #e4e4e7;
+}
+html.atlas-login-page .atlas-login-qr-avatar-lg--ok {
+  border-color: #3f3f46;
+}
+html.atlas-login-page .atlas-login-qr-check {
+  display: none !important;
+}
+html.atlas-login-page .atlas-login-qr-panel {
+  min-height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+
+/* v186 login qr contrast — beat global white/light overrides */
+.login-qr-page {
+  background: #f4f5f7 !important;
+  color: #0a0a0a !important;
+}
+.login-qr-card {
+  background: #ffffff !important;
+  border: 1px solid #e4e4e7 !important;
+  color: #0a0a0a !important;
+}
+.login-qr-brand { color: #52525b !important; }
+.login-qr-card h1,
+.login-qr-card h1 * { color: #0a0a0a !important; }
+.login-qr-account { color: #3f3f46 !important; }
+.login-qr-account strong { color: #0a0a0a !important; }
+.login-qr-msg { color: #18181b !important; }
+.login-qr-msg--err { color: #b91c1c !important; }
+.login-qr-msg--ok { color: #166534 !important; }
+.login-qr-btn--ok { background: #0a0a0a !important; color: #fafafa !important; }
+.login-qr-btn--no { background: transparent !important; color: #3f3f46 !important; border: 1px solid #d4d4d8 !important; }
+.login-qr-link { color: #18181b !important; }
+.login-qr-hint { color: #52525b !important; }
+html[data-theme="dark"] .login-qr-page { background: #111113 !important; color: #fafafa !important; }
+html[data-theme="dark"] .login-qr-card { background: #1c1c1f !important; border-color: #2a2a2e !important; color: #fafafa !important; }
+html[data-theme="dark"] .login-qr-brand { color: #a1a1aa !important; }
+html[data-theme="dark"] .login-qr-card h1 { color: #fafafa !important; }
+html[data-theme="dark"] .login-qr-account { color: #d4d4d8 !important; }
+html[data-theme="dark"] .login-qr-account strong { color: #fafafa !important; }
+html[data-theme="dark"] .login-qr-msg { color: #e4e4e7 !important; }
+html[data-theme="dark"] .login-qr-msg--err { color: #fca5a5 !important; }
+html[data-theme="dark"] .login-qr-msg--ok { color: #86efac !important; }
+html[data-theme="dark"] .login-qr-btn--ok { background: #fafafa !important; color: #0a0a0a !important; }
+html[data-theme="dark"] .login-qr-btn--no { color: #e4e4e7 !important; border-color: #3f3f46 !important; }
+html[data-theme="dark"] .login-qr-link,
+html[data-theme="dark"] .login-qr-hint { color: #a1a1aa !important; }

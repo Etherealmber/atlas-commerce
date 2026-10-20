@@ -5,6 +5,10 @@ import { cloudflare } from '@cloudflare/vite-plugin';
 export default defineConfig({
   base: '/',
   plugins: [react(), cloudflare()],
+  resolve: {
+    // Single instance — do NOT path-alias react-router (breaks react-router/dom subpath)
+    dedupe: ['react', 'react-dom', 'react-router', 'react-router-dom'],
+  },
   build: {
     outDir: 'dist',
     target: 'es2020',
@@ -15,12 +19,19 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
-            if (id.includes('react-dom') || id.includes('/react/') || id.includes('react-router')) {
+            if (
+              id.includes('react-dom') ||
+              id.includes('/react/') ||
+              id.includes('\\react\\') ||
+              id.includes('react-router') ||
+              id.includes('scheduler') ||
+              id.includes('motion') ||
+              id.includes('lucide-react')
+            ) {
               return 'vendor-react';
             }
             return 'vendor';
           }
-          // Split heavy pages so first paint stays light
           if (id.includes('/pages/Dashboard')) return 'page-dashboard';
           if (id.includes('/pages/Invoices') || id.includes('/pages/InvoiceDetail')) return 'page-invoices';
           if (id.includes('/pages/Products') || id.includes('/pages/Scan')) return 'page-products';
@@ -29,15 +40,14 @@ export default defineConfig({
       },
     },
     chunkSizeWarningLimit: 600,
-    sourcemap: false, // never ship source maps to production
+    sourcemap: false,
   },
   server: {
-    // Faster HMR
     warmup: {
       clientFiles: ['./src/main.tsx', './src/App.tsx', './src/pages/Login.tsx'],
     },
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom'],
+    include: ['react', 'react-dom', 'react-router', 'react-router-dom', 'motion', 'lucide-react'],
   },
 });

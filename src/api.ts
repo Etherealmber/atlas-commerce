@@ -3,7 +3,6 @@ import { getCachedFingerprint } from './fingerprint';
 import { getApiBase } from './config';
 import { uiToast } from './components/AppDialogs';
 import { dedupedGet, invalidateGetCache } from './lib/perf';
-import { demoApiIntercept, isDemoMode } from './lib/demoMode';
 
 /** Resolve on each use so Capacitor native is detected reliably */
 export function getBase(): string {
@@ -25,7 +24,7 @@ function cacheTtlForPath(path: string): number {
   return GET_CACHE_TTL[base] ?? 0;
 }
 
-async function requestRaw<T>(path: string, options?: RequestInit): Promise<T> {
+async function requestRaw<T>(path: string, options?: RequestInit & { silent?: boolean }): Promise<T> {
   const token = getToken();
   const fp = await getCachedFingerprint().catch(() => 'none');
   const headers: Record<string, string> = {
@@ -35,10 +34,33 @@ async function requestRaw<T>(path: string, options?: RequestInit): Promise<T> {
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  let res: Response;
-  try {
-    res = await fetch(`${getApiBase()}${path}`, { ...options, headers });
-  } catch {
+  const method = String(options?.method || 'GET').toUpperCase();
+  const isIdempotentGet = method === 'GET' || method === 'HEAD';
+  const maxAttempts = isIdempotentGet ? 3 : 1;
+  let res: Response | null = null;
+  let lastNetErr: unknown = null;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      res = await fetch(`${getApiBase()}${path}`, { ...options, headers });
+      // Retry transient upstream / edge errors on GET only
+      if (isIdempotentGet && (res.status === 502 || res.status === 503 || res.status === 504) && attempt < maxAttempts - 1) {
+        await new Promise((r) => setTimeout(r, 250 * 2 ** attempt));
+        continue;
+      }
+      lastNetErr = null;
+      break;
+    } catch (e) {
+      lastNetErr = e;
+      if (isIdempotentGet && attempt < maxAttempts - 1) {
+        await new Promise((r) => setTimeout(r, 250 * 2 ** attempt));
+        continue;
+      }
+      const msg = 'Pas de connexion réseau — vérifiez internet ou réessayez';
+      try { uiToast(msg, 'error'); } catch { /* */ }
+      throw new Error(msg);
+    }
+  }
+  if (!res) {
     const msg = 'Pas de connexion réseau — vérifiez internet ou réessayez';
     try { uiToast(msg, 'error'); } catch { /* */ }
     throw new Error(msg);
@@ -139,13 +161,28 @@ async function requestRaw<T>(path: string, options?: RequestInit): Promise<T> {
   }
   if (res.status === 429) {
     const msg = data.error || 'Trop de requêtes — réessayez dans une minute';
-    try { uiToast(msg, 'error'); } catch { /* */ }
+    const silent429 =
+      !!(options as any)?.silent ||
+      path.includes('/api/admin/agent/threads') ||
+      /sync agent|Stockage R2/i.test(msg);
+    if (!silent429) {
+      try { uiToast(msg, 'error'); } catch { /* */ }
+    }
     throw new Error(msg);
   }
   if (!res.ok || data.success === false) {
-    const msg = data.error || `Erreur (${res.status})`;
+    let msg = data.error || `Erreur (${res.status})`;
+    if (/no such column:\s*tax_rate/i.test(msg)) {
+      msg = 'Schéma base à jour manquant (TVA). Rechargez après déploiement — migration automatique.';
+    } else if (/SQLITE_ERROR|D1_ERROR/i.test(msg)) {
+      msg = 'Erreur base de données. Réessayez ou contactez le support si cela persiste.';
+    }
+    const silent =
+      !!(options as any)?.silent ||
+      /Stockage R2/i.test(msg) ||
+      path.includes('/api/admin/agent/threads');
     // Toast for server / rate / network-class failures (not every 400 validation)
-    if (res.status >= 500 || res.status === 0) {
+    if (!silent && (res.status >= 500 || res.status === 0)) {
       try { uiToast(msg, 'error'); } catch { /* */ }
     }
     const err: any = new Error(msg);
@@ -166,24 +203,8 @@ async function requestRaw<T>(path: string, options?: RequestInit): Promise<T> {
  * - GET: in-flight dedupe + optional short TTL cache for reference data
  * - Mutations: invalidate related GET caches
  */
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
+async function request<T>(path: string, options?: RequestInit & { silent?: boolean }): Promise<T> {
   const method = (options?.method || 'GET').toUpperCase();
-  // Demo sandbox: intercept list/create for clients/products/invoices — never hits live DB
-  if (isDemoMode()) {
-    let body: unknown;
-    if (options?.body && typeof options.body === 'string') {
-      try { body = JSON.parse(options.body); } catch { body = undefined; }
-    }
-    const hit = demoApiIntercept(method, path, body);
-    if (hit) {
-      if ((hit as any).success === false) {
-        const err: any = new Error((hit as any).error || 'Erreur démo');
-        err.status = 400;
-        throw err;
-      }
-      return hit as T;
-    }
-  }
   if (method === 'GET') {
     const ttl = cacheTtlForPath(path);
     return dedupedGet(`GET:${path}`, () => requestRaw<T>(path, options), ttl);
@@ -196,10 +217,109 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   if (path.includes('/settings')) invalidateGetCache('GET:/api/settings');
   if (path.includes('/stock-locations')) invalidateGetCache('GET:/api/stock-locations');
   if (path.includes('/invoices')) invalidateGetCache('GET:/api/invoices');
+  if (path.includes('/clients')) invalidateGetCache('GET:/api/clients');
+  if (path.includes('/vendors')) invalidateGetCache('GET:/api/vendors');
+  if (path.includes('/bills')) invalidateGetCache('GET:/api/bills');
+  // Sidebar badges + page counters: any business mutation (create/pay/delete/status)
+  if (
+    path.includes('/invoices') ||
+    path.includes('/bills') ||
+    path.includes('/clients') ||
+    path.includes('/vendors') ||
+    path.includes('/quotes') ||
+    path.includes('/receipts') ||
+    path.includes('/products') ||
+    path.includes('/payments') ||
+    path.includes('/mobile-actions') ||
+    path.includes('/stock') ||
+    path.includes('/inventory') ||
+    path.includes('/remboursement') ||
+    path.includes('/credit') ||
+    path.includes('/expenses') ||
+    path.includes('/balance') ||
+    path.includes('/prices') ||
+    path.includes('/adjust-stock') ||
+    path.includes('/cycle-count') ||
+    path.includes('/transfer') ||
+    path.includes('/import') ||
+    path.includes('/employees')
+  ) {
+    try {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('atlas-nav-badges-refresh'));
+        window.dispatchEvent(new CustomEvent('atlas-lists-refresh', { detail: { path } }));
+      }
+    } catch { /* */ }
+  }
   return result;
 }
 
 export const api = {
+  getEmployees: (opts?: { status?: string; q?: string; category?: string }) => {
+    const p = new URLSearchParams();
+    if (opts?.status) p.set('status', opts.status);
+    if (opts?.q) p.set('q', opts.q);
+    if (opts?.category) p.set('category', opts.category);
+    const qs = p.toString();
+    return request<{ data: any[]; categories?: string[] }>(`/api/employees${qs ? `?${qs}` : ''}`);
+  },
+  getEmployee: (id: number) => request<{ data: any }>(`/api/employees/${id}`),
+  createEmployee: (body: any) =>
+    request('/api/employees', { method: 'POST', body: JSON.stringify(body) }),
+  updateEmployee: (id: number, body: any) =>
+    request(`/api/employees/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  advanceEmployee: (id: number, body?: { amount?: number; paid_at?: string; note?: string; payment_method?: string }) =>
+    request(`/api/employees/${id}/advance`, { method: 'POST', body: JSON.stringify(body || {}) }),
+  payEmployee: (id: number, body?: { amount?: number; paid_at?: string; note?: string; payment_method?: string }) =>
+    request(`/api/employees/${id}/pay`, { method: 'POST', body: JSON.stringify(body || {}) }),
+  resignEmployee: (
+    id: number,
+    body: {
+      confirm_password?: string;
+      settle_pay?: boolean;
+      amount?: number;
+      pay_amount?: number;
+      pay_cycle_type?: string;
+      pay_cycle_days?: number;
+      reason?: string;
+      note?: string;
+      payment_method?: string;
+    },
+  ) =>
+    request(`/api/employees/${id}/resign`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  reactivateEmployee: (id: number) =>
+    request(`/api/employees/${id}/reactivate`, { method: 'POST', body: '{}' }),
+  deleteEmployee: (id: number, confirm_password: string) =>
+    request(`/api/employees/${id}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ confirm_password }),
+    }),
+  parseEmployeeId: (body: { data_url?: string; text?: string }) =>
+    request<{ data: { fields: Record<string, string>; source: string; review_message: string } }>(
+      '/api/employees/parse-id',
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
+  uploadEmployeeIdDoc: (id: number, body: { data_url: string; file_name?: string; mime?: string }) =>
+    request(`/api/employees/${id}/id-document`, { method: 'POST', body: JSON.stringify(body) }),
+  employeeIdDocUrl: (id: number) => `/api/employees/${id}/id-document`,
+
+
+  getClientProductPrices: (clientId: number) =>
+    request<{ data: any[] }>(`/api/clients/${clientId}/prices`),
+  setClientProductPrice: (clientId: number, productId: number, unit_price: number) =>
+    request(`/api/clients/${clientId}/prices/${productId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ unit_price }),
+    }),
+  getClientPriceForProduct: (clientId: number, productId: number) =>
+    request<{ data: { unit_price: number | null } }>(`/api/clients/${clientId}/price-for/${productId}`),
+  getReceivablesAging: () => request<{ data: { buckets: any; rows: any[] } }>('/api/reports/aging'),
+  getReorderSuggestions: (limit = 30) =>
+    request<{ data: any[] }>(`/api/inventory/reorder-suggestions?limit=${limit}`),
+
 
   listWebAuthnCredentials: (all = false) =>
     request<{ data: any[]; meta?: any }>(`/api/auth/webauthn/credentials${all ? '?all=1' : ''}`),
@@ -221,15 +341,23 @@ export const api = {
     request('/api/import/commit', { method: 'POST', body: JSON.stringify(body) }),
   assistStatus: () => request<{ data: { configured: boolean; provider?: string; model?: string; hint?: string } }>('/api/assist/status'),
   getAssistProvider: () =>
-    request<{ data: { provider: string; mistralConfigured?: boolean; geminiConfigured?: boolean; mistralModel?: string; geminiModel?: string } }>(
+    request<{ data: { provider: string; groqConfigured?: boolean; groqModel?: string; geminiConfigured?: boolean } }>(
       '/api/settings/assist-provider',
     ),
-  setAssistProvider: (provider: 'gemini' | 'mistral' | 'groq') =>
+  setAssistProvider: (provider: 'groq') =>
     request<{ data: { provider: string }; message?: string }>('/api/settings/assist-provider', {
       method: 'PUT',
       body: JSON.stringify({ provider }),
     }),
-  assistChat: (message: string, opts?: { task?: string; timezone?: string; thread_id?: string }) =>
+  listAgentThreads: () =>
+    request<{ data: { id: string; title: string; updated_at?: string; message_count?: number }[] }>('/api/admin/agent/threads'),
+  getAgentThread: (id: string) =>
+    request<{ data: { title?: string; messages?: any[]; updated_at?: string } }>(`/api/admin/agent/threads/${encodeURIComponent(id)}`),
+  putAgentThread: (id: string, body: { title?: string; messages?: any[] }) =>
+    request(`/api/admin/agent/threads/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(body), silent: true } as any),
+  deleteAgentThread: (id: string) =>
+    request(`/api/admin/agent/threads/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  assistChat: (message: string, opts?: { task?: string; timezone?: string; thread_id?: string; user_message?: string }) =>
     request<{
       data: {
         reply: string;
@@ -243,6 +371,7 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({
         message,
+        user_message: opts?.user_message || message,
         task: opts?.task || 'general',
         timezone: opts?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Africa/Casablanca',
         thread_id: opts?.thread_id || 'live',
@@ -278,84 +407,6 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(id ? { id } : {}),
     }),
-  mailboxList: (params?: { direction?: string; q?: string; limit?: number; sync?: boolean; status?: string }) => {
-    const sp = new URLSearchParams();
-    if (params?.direction) sp.set('direction', params.direction);
-    if (params?.status) sp.set('status', params.status);
-    if (params?.q) sp.set('q', params.q);
-    if (params?.limit) sp.set('limit', String(params.limit));
-    if (params?.sync) sp.set('sync', '1');
-    const qs = sp.toString();
-    return request<{ data: any[] }>(`/api/admin/mailbox${qs ? `?${qs}` : ''}`);
-  },
-  mailboxGet: (id: string | number) => request<{ data: any }>(`/api/admin/mailbox/${id}`),
-  mailboxSend: (body: {
-    to: string;
-    subject: string;
-    text?: string;
-    html?: string;
-    reply_to_id?: number;
-    attachments?: { filename: string; mimeType?: string; content_base64: string }[];
-  }) =>
-    request<{ data: any }>('/api/admin/mailbox/send', { method: 'POST', body: JSON.stringify(body) }),
-  mailboxDelete: (id: string | number) =>
-    request<{ success: boolean }>(`/api/admin/mailbox/${id}`, { method: 'DELETE' }),
-  mailboxSyncResend: (limit?: number) =>
-    request<{ data: any; message?: string; messages?: any[] }>('/api/admin/mailbox/sync-resend', {
-      method: 'POST',
-      body: JSON.stringify({ limit: limit ?? 100 }),
-    }),
-  mailboxDownloadAttachment: (key: string, filename?: string) => (async () => {
-    const fp = await getCachedFingerprint().catch(() => 'none');
-    const res = await fetch(
-      `${getApiBase()}/api/admin/mailbox/attachment?key=${encodeURIComponent(key)}&filename=${encodeURIComponent(filename || '')}`,
-      { headers: { Authorization: `Bearer ${getToken()}`, 'X-Device-Fingerprint': fp || 'none' } },
-    );
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error((err as any).error || `Téléchargement échoué (${res.status})`);
-    }
-    const blob = await res.blob();
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = filename || key.split('/').pop() || 'piece-jointe';
-    a.click();
-    URL.revokeObjectURL(a.href);
-  })(),
-  /** Fetch attachment as blob for in-app preview (inline). */
-  mailboxFetchAttachmentBlob: async (key: string, filename?: string) => {
-    const fp = await getCachedFingerprint().catch(() => 'none');
-    const res = await fetch(
-      `${getApiBase()}/api/admin/mailbox/attachment?key=${encodeURIComponent(key)}&inline=1&filename=${encodeURIComponent(filename || '')}`,
-      { headers: { Authorization: `Bearer ${getToken()}`, 'X-Device-Fingerprint': fp || 'none' } },
-    );
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error((err as any).error || `Prévisualisation échouée (${res.status})`);
-    }
-    const blob = await res.blob();
-    const contentType = res.headers.get('Content-Type') || blob.type || 'application/octet-stream';
-    return { blob, contentType };
-  },
-  mailboxSignedLink: (id: string | number) =>
-    request<{ data: { url: string; path: string; exp: number; sig: string } }>(`/api/admin/mailbox/${id}/signed-link`),
-  mailboxOpenSigned: (id: string | number, e: number | string, s: string) =>
-    request<{ data: any }>(`/api/admin/mailbox/${id}/open-signed?e=${encodeURIComponent(String(e))}&s=${encodeURIComponent(s)}`),
-  mailboxAiDraft: (body: { instruction: string; mode?: 'compose' | 'reply'; context?: string; lang?: string }) =>
-    request<{ data: { subject?: string; body: string; source?: string } }>('/api/admin/mailbox/ai-draft', {
-      method: 'POST',
-      body: JSON.stringify(body),
-    }),
-  mailboxTranslate: (body: { text: string; target?: string; source?: string }) =>
-    request<{ data: { text: string; engine?: string } }>('/api/admin/mailbox/translate', {
-      method: 'POST',
-      body: JSON.stringify(body),
-    }),
-  mailboxAttachmentPreviewUrl: (key: string, filename?: string) =>
-    request<{ data: { public_url: string; google_viewer_url: string; expires_in: number; content_type: string } }>(
-      '/api/admin/mailbox/attachment-preview-url',
-      { method: 'POST', body: JSON.stringify({ key, filename }) },
-    ),
 
 
   getNavBadges: () =>
@@ -386,12 +437,31 @@ export const api = {
   getProduct: (id: number) => request<{ data: any }>(`/api/products/${id}`),
   createProduct: (body: any) => request('/api/products', { method: 'POST', body: JSON.stringify(body) }),
   updateProduct: (id: number, body: any) => request(`/api/products/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
-  deleteProduct: (id: number, confirm_password: string) =>
-    request(`/api/products/${id}`, { method: 'DELETE', body: JSON.stringify({ confirm_password }) }),
-  bulkDeleteProducts: (ids: number[], confirm_password: string) =>
-    request('/api/products/bulk-delete', { method: 'POST', body: JSON.stringify({ ids, confirm_password }) }),
-  getProductMovements: (id: number, limit = 50) =>
-    request<{ data: any[]; meta?: any }>(`/api/products/${id}/movements?limit=${limit}`),
+  deleteProduct: (id: number, confirm_password?: string, opts?: { timedUndo?: boolean }) =>
+    request(`/api/products/${id}`, {
+      method: 'DELETE',
+      body: JSON.stringify(
+        opts?.timedUndo || !confirm_password
+          ? { confirm_mode: 'timed_undo', session_confirm: true }
+          : { confirm_password },
+      ),
+    }),
+  bulkDeleteProducts: (ids: number[], confirm_password?: string, opts?: { timedUndo?: boolean }) =>
+    request('/api/products/bulk-delete', {
+      method: 'POST',
+      body: JSON.stringify(
+        opts?.timedUndo || !confirm_password
+          ? { ids, confirm_mode: 'timed_undo', session_confirm: true }
+          : { ids, confirm_password },
+      ),
+    }),
+  getProductMovements: (id: number, limit = 50, opts?: { full?: boolean; offset?: number }) => {
+    const qs = new URLSearchParams();
+    qs.set('limit', String(limit));
+    if (opts?.full) qs.set('full', '1');
+    if (opts?.offset) qs.set('offset', String(opts.offset));
+    return request<{ data: any[]; meta?: any }>(`/api/products/${id}/movements?${qs}`);
+  },
   /** Global inventory audit log */
   getStockMovements: (params?: { product_id?: number; type?: string; q?: string; limit?: number; offset?: number }) => {
     const qs = new URLSearchParams();
@@ -456,6 +526,7 @@ export const api = {
 
   getVendors: () => request<{ data: any[] }>('/api/vendors'),
   createVendor: (body: any) => request('/api/vendors', { method: 'POST', body: JSON.stringify(body) }),
+  updateVendor: (id: number, body: any) => request(`/api/vendors/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteVendor: (id: number, confirm_password: string) =>
     request(`/api/vendors/${id}`, { method: 'DELETE', body: JSON.stringify({ confirm_password }) }),
 
@@ -684,8 +755,11 @@ export const api = {
   getAdminUsers: () => request<{ data: any }>('/api/admin/users'),
   createAdminUser: (body: any) =>
     request('/api/admin/users', { method: 'POST', body: JSON.stringify(body) }),
-  deleteAdminUser: (id: number, confirm_password: string) =>
-    request(`/api/admin/users/${id}`, { method: 'DELETE', body: JSON.stringify({ confirm_password }) }),
+  deleteAdminUser: (id: number, confirm_password: string = '') =>
+    request(`/api/admin/users/${id}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ confirm_password, confirm_mode: 'timed_undo', session_confirm: true }),
+    }),
   updateAdminUser: (id: number, body: any) =>
     request(`/api/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   getAuditLog: (params?: {
@@ -772,26 +846,96 @@ export const api = {
   fixMissingReceipts: (confirm_password: string) =>
     request('/api/ledger/fix-receipts', { method: 'POST', body: JSON.stringify({ confirm_password }) }),
   getMe: () => request<{ data: any }>('/api/auth/me'),
+  qrPcSession: () =>
+    request<{
+      data: { token: string; expires_at: string; expires_in: number; qr_url: string; qr_svg?: string };
+    }>('/api/auth/qr/pc-session', { method: 'POST', body: '{}' }),
+  qrPhoneBind: (
+    token: string,
+    body: { fingerprint: string; user_agent?: string; confirm?: boolean },
+  ) =>
+    request<{
+      data: {
+        status: string;
+        username?: string;
+        role?: string;
+        display_name?: string;
+        avatar_url?: string;
+        message?: string;
+        needs_confirm?: boolean;
+      };
+    }>(`/api/auth/qr/session/${encodeURIComponent(token)}/phone-bind`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  qrLoginCreate: (body?: { username?: string }) =>
+    request<{
+      data: {
+        token: string;
+        expires_at: string;
+        expires_in: number;
+        qr_url: string;
+        qr_svg: string;
+        username: string;
+        role: string;
+      };
+    }>('/api/auth/qr/session', { method: 'POST', body: JSON.stringify(body || {}) }),
+  qrLoginStatus: (token: string) =>
+    request<{
+      data: {
+        status: string;
+        username?: string;
+        display_name?: string;
+        avatar_url?: string;
+        role?: string;
+        expires_at?: string;
+        has_device?: boolean;
+        claim_fingerprint?: string;
+      };
+    }>(`/api/auth/qr/session/${encodeURIComponent(token)}`, { silent: true } as any),
+  qrLoginClaim: (token: string, body: { fingerprint: string; user_agent?: string }) =>
+    request<{ data: { status: string; username?: string; role?: string; message?: string } }>(
+      `/api/auth/qr/session/${encodeURIComponent(token)}/claim`,
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
+  qrLoginApprove: (token: string) =>
+    request<{ data: { status: string } }>(`/api/auth/qr/session/${encodeURIComponent(token)}/approve`, {
+      method: 'POST',
+      body: '{}',
+    }),
+  qrLoginDeny: (token: string) =>
+    request<{ data: { status: string } }>(`/api/auth/qr/session/${encodeURIComponent(token)}/deny`, {
+      method: 'POST',
+      body: '{}',
+    }),
+  qrLoginComplete: (token: string, body: { fingerprint: string }) =>
+    request<{
+      data: { token: string; username: string; role: string; trusted_device?: boolean };
+    }>(`/api/auth/qr/session/${encodeURIComponent(token)}/complete`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
   updateMe: (body: any) => request('/api/auth/me', { method: 'PATCH', body: JSON.stringify(body) }),
 
   getCategories: () => request<{ data: any[] }>('/api/categories'),
   createCategory: (body: any) => request('/api/categories', { method: 'POST', body: JSON.stringify(body) }),
   updateCategory: (id: number, body: any) =>
     request(`/api/categories/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
-  deleteCategory: (id: number | string | null, confirm_password: string, name?: string) =>
+  deleteCategory: (id: number | string | null, confirm_password: string = '', name?: string) =>
     request(`/api/categories/${id || 'by-name'}`, {
       method: 'DELETE',
-      body: JSON.stringify({ confirm_password, name }),
+      body: JSON.stringify({ confirm_password, name, confirm_mode: 'timed_undo', session_confirm: true }),
     }),
 
   getUnits: () => request<{ data: any[] }>('/api/units'),
   createUnit: (body: any) => request('/api/units', { method: 'POST', body: JSON.stringify(body) }),
   updateUnit: (id: number, body: any) =>
     request(`/api/units/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
-  deleteUnit: (id: number | string | null, confirm_password: string, name?: string) =>
+  deleteUnit: (id: number | string | null, confirm_password: string = '', name?: string) =>
     request(`/api/units/${id || 'by-name'}`, {
       method: 'DELETE',
-      body: JSON.stringify({ confirm_password, name }),
+      body: JSON.stringify({ confirm_password, name, confirm_mode: 'timed_undo', session_confirm: true }),
     }),
 
   // Mobile floor → PC handoffs (shared D1)

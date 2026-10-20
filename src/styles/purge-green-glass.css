@@ -1,0 +1,118 @@
+/* purge-green-glass.css — final pass: no mint, no teal fill, no liquid glass */
+html, html.liquid-glass-active, html.liquid-glass-off,
+html[data-glass="on"], html[data-glass="off"],
+html[data-liquid-glass="on"], html[data-liquid-glass="off"] {
+  --mint: #ffffff !important;
+  --teal-soft: #f1f5f9 !important;
+  --glass-bg: #ffffff !important;
+  --glass-blur: 0px !important;
+  --glass-saturate: 100% !important;
+  --glass-shadow-elevated: 0 1px 2px rgba(15, 23, 42, 0.06) !important;
+}
+
+html *,
+html.liquid-glass-active *,
+html[data-glass="on"] * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.liquid-glass-surface,
+.liquid-glass-surface.is-glass,
+.liquid-glass-surface.is-solid {
+  background: #ffffff !important;
+  border: 1px solid #e8eaef !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Status / pills that used emerald */
+.stock-pill.ok,
+.credit-pill.ok,
+.badge-ok,
+.badge-success,
+.status-ok,
+.status-paid,
+.status-actif {
+  background: #f1f5f9 !important;
+  color: #334155 !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Success text can stay dark, not green */
+.text-success,
+.ok-text {
+  color: #0a0a0a !important;
+}
+
+/* Charts / progress that leaked teal */
+.balance-chart-fill,
+.ac-chart-bar,
+.progress-bar-fill {
+  background: linear-gradient(90deg, #0a0a0a, #52525b) !important;
+}
+
+/* P2_RESIDUAL */
+:root, html {
+  --zellij: #0a0a0a !important;
+  --zellij-soft: #f1f5f9 !important;
+  --ok: #0a0a0a !important;
+  --success: #0a0a0a !important;
+}
+.bank-pill.active,
+.bank-badge.info,
+.bank-row.active,
+.bank-mobile-nav button.active,
+.bank-wizard-steps span.on,
+.bank-drop.over {
+  background: #f1f5f9 !important;
+  color: #0a0a0a !important;
+  border-color: #e2e8f0 !important;
+}
+html[data-theme="dark"][data-liquid-glass="on"] .card,
+html[data-liquid-glass="on"] .card {
+  background: #ffffff !important;
+  backdrop-filter: none !important;
+}
+html[data-theme="dark"][data-liquid-glass="on"] .card {
+  background: #18181b !important;
+}
+
+
+/* v157 — kill filter:blur stuck on content (buddy PC / phones) */
+html, body, .layout, .content, main.content, .sidebar, .page-anim,
+.card, .atlas-card, .stat-card, .list-row, .table-wrap {
+  filter: none !important;
+  -webkit-filter: none !important;
+}
+html[data-density="comfortable"] .content .card,
+html[data-density="comfortable"] .content .atlas-card,
+html[data-density="comfortable"] .content table,
+html[data-density="comfortable"] .table-wrap,
+html[data-density="comfortable"] .list-row {
+  background: #ffffff !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html[data-theme="dark"][data-density="comfortable"] .content .card,
+html[data-theme="dark"][data-density="comfortable"] .content .atlas-card,
+html[data-theme="dark"][data-density="comfortable"] .content table,
+html[data-theme="dark"][data-density="comfortable"] .table-wrap,
+html[data-theme="dark"][data-density="comfortable"] .list-row,
+html[data-theme="dark"] .content .card,
+html[data-theme="dark"] .content .atlas-card,
+html[data-theme="dark"] .content .stat-card {
+  background: #1a1a1e !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  filter: none !important;
+}
+html[data-theme="dark"] .content {
+  background: #0a0a0c !important;
+}
+.modal-overlay, .modal-backdrop, .audit-detail-modal-backdrop,
+.mailbox-compose-overlay, .mobile-nav-backdrop {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}

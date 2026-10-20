@@ -1,4 +1,6 @@
+import { onAgentDraft } from '../lib/agentDraft';
 import { useEffect, useState } from 'react';
+import DatePicker from '../components/DatePicker';
 import { api, BASE } from '../api';
 import { getToken } from '../auth';
 import SaveFeedback from '../components/SaveFeedback';
@@ -9,8 +11,12 @@ import { numStr, numFromInput } from '../lib/numInput';
 import NumberField from '../components/NumberField';
 import EmptyState from '../components/EmptyState';
 import RefreshIconButton from '../components/RefreshIconButton';
+import { FloatingPortal } from '../components/FloatingPortal';
+import { ModalFormError, FieldHint } from '../components/ModalFormFeedback';
 
 export default function Receipts() {
+  const [modalError, setModalError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const { confirm } = useUi();
   const [list, setList] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -50,7 +56,26 @@ export default function Receipts() {
         setRefreshing(false);
       });
   };
+  
+  useEffect(() => {
+    const onLists = () => {
+      try { load(true); } catch { /* */ }
+    };
+    window.addEventListener('atlas-lists-refresh', onLists as EventListener);
+    return () => window.removeEventListener('atlas-lists-refresh', onLists as EventListener);
+  }, []);
+
+  
+  useEffect(() => {
+    return onAgentDraft((d) => {
+      if (d.entity && d.entity !== 'receipt') return;
+      setModalError('');
+      setShowModal(true);
+    });
+  }, []);
+
   useEffect(() => { load(); }, []);
+
 
   const selectInvoice = (id: number | '') => {
     setInvoiceId(id);
@@ -75,7 +100,7 @@ export default function Receipts() {
       setClientName(''); setAmount(0); setNotes(''); setInvoiceId('');
       flash('Reçu enregistré dans la base de données avec succès.');
       load(true);
-    } catch (e: any) { flash(e.message, 'error'); } finally { setSaving(false); }
+    } catch (e: any) { setModalError(e?.message || 'Enregistrement impossible'); } finally { setSaving(false); }
   };
 
   const toggleSituation = async (r: any) => {
@@ -133,24 +158,24 @@ export default function Receipts() {
   if (loading) return <div className="empty">Chargement des reçus...</div>;
 
   return (
-    <div>
+    <div className="receipts-page">
       <div className="page-header">
         <h1>Reçus</h1>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
-          <button onClick={() => setShowModal(true)}>+ Nouveau reçu</button>
+          <button onClick={() => { setModalError(''); setShowModal(true); }}>+ Nouveau reçu</button>
         </div>
       </div>
 
       <SaveFeedback message={saveMsg} type={saveMsgType} />
 
-      <div className="card" style={{ marginBottom: 16, padding: '12px 16px' }}>
+      <div className="ac-panel ac-products-filters">
         <div className="search-bar"><input className="search-input" placeholder="Rechercher par numéro ou nom de client..." value={search} onChange={(e) => setSearch(e.target.value)} /></div>
       </div>
 
-      <div className="card">
+      <div className="ac-panel ac-products-table-panel">
         <div className="table-wrap">
-          <table>
+          <table className="data-dense ac-products-table">
             <thead>
               <tr><th>Numéro</th><th>Client</th><th>Montant</th><th>Mode</th><th>Date</th><th>Facture</th><th>Actions</th></tr>
             </thead>
@@ -175,8 +200,8 @@ export default function Receipts() {
                           padding: '4px 10px',
                           fontSize: 12,
                           cursor: 'pointer',
-                          borderColor: Number(r.include_client_situation) === 1 ? 'var(--ok, #2d5a2d)' : undefined,
-                          background: Number(r.include_client_situation) === 1 ? 'rgba(45,90,45,0.12)' : undefined,
+                          borderColor: Number(r.include_client_situation) === 1 ? 'var(--ok, #3f3f46)' : undefined,
+                          background: Number(r.include_client_situation) === 1 ? 'rgba(99, 102, 241, 0.12)' : undefined,
                         }}
                         title="Affiche le QR situation client uniquement sur ce reçu (paramètre global reste inchangé)"
                         onClick={() => toggleSituation(r)}
@@ -193,6 +218,8 @@ export default function Receipts() {
                     <EmptyState
                       title="Aucun reçu"
                       description="Créez un reçu manuellement, ou soldez une facture (un reçu est généré automatiquement)."
+                      actionLabel="Créer mon premier reçu"
+                      onAction={() => { setModalError(''); setShowModal(true); }}
                       icon="receipt"
                     />
                   </td></tr>
@@ -203,7 +230,7 @@ export default function Receipts() {
       </div>
 
       {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>Nouveau reçu</h2>
             <div className="form-row">
@@ -229,15 +256,16 @@ export default function Receipts() {
                   <option value="other">Autre</option>
                 </select>
               </div>
-              <div className="form-row"><label>Date</label><input type="date" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} /></div>
+              <div className="form-row"><label>Date</label><DatePicker value={issueDate} onChange={setIssueDate} /></div>
             </div>
             <div className="form-row"><label>Notes</label><textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
+            <ModalFormError message={modalError} />
             <div className="form-actions">
               <button onClick={create} disabled={saving}>{saving ? 'Enregistrement...' : 'Enregistrer dans la base'}</button>
               <button className="secondary" onClick={() => setShowModal(false)}>Annuler</button>
             </div>
           </div>
-        </div>
+        </div></FloatingPortal>
       )}
 
       {pwOpen && pendingAction && (

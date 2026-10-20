@@ -1,8 +1,10 @@
+import { TimedUndoDelete } from '../components/ui';
 import { downloadExport } from '../lib/export';
+import { onAgentDraft } from '../lib/agentDraft';
 import { useEffect, useState } from 'react';
 import EmptyState from '../components/EmptyState';
 import { validateClientForm, firstError } from '../lib/formValidate';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import PasswordConfirm from '../components/PasswordConfirm';
 import SaveFeedback from '../components/SaveFeedback';
@@ -11,6 +13,8 @@ import { openReport } from '../lib/reports';
 import NumberField from '../components/NumberField';
 import RefreshIconButton from '../components/RefreshIconButton';
 import '../components/erp/crm-parties.css';
+import { FloatingPortal } from '../components/FloatingPortal';
+import { ModalFormError, FieldHint } from '../components/ModalFormFeedback';
 
 export default function Clients() {
   const navigate = useNavigate();
@@ -18,12 +22,18 @@ export default function Clients() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [show, setShow] = useState(false);
+  const [sitChoice, setSitChoice] = useState<null | { id: number; name: string; ice: string }>(null);
+  const [mailChoice, setMailChoice] = useState<null | { email: string; name: string }>(null);
+
   const [search, setSearch] = useState('');
   const [saving, setSaving] = useState(false);
+  const [modalError, setModalError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saveMsg, setSaveMsg] = useState('');
   const [saveMsgType, setSaveMsgType] = useState<'success' | 'error'>('success');
   const [form, setForm] = useState({ name: '', ice: '', if_number: '', address: '', city: '', phone: '', email: '', tax_exempt: false as boolean, credit_limit: 0 as number });
+  const [editId, setEditId] = useState<number | null>(null);
+  const [deleteArmId, setDeleteArmId] = useState<number | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [pwOpen, setPwOpen] = useState(false);
   const [pwTitle, setPwTitle] = useState('');
@@ -43,6 +53,74 @@ export default function Clients() {
       setRefreshing(false);
     });
   };
+  
+  useEffect(() => {
+    const onLists = () => {
+      try { load(true); } catch { /* */ }
+    };
+    window.addEventListener('atlas-lists-refresh', onLists as EventListener);
+    return () => window.removeEventListener('atlas-lists-refresh', onLists as EventListener);
+  }, []);
+
+  
+  useEffect(() => {
+    const d = (window as any).__atlasClientDraft;
+    if (!d || (!list.length && d.mode === 'edit')) return;
+    if (!(d.open || d.mode === 'create' || d.mode === 'edit')) return;
+    const pre = (d.prefill || {}) as any;
+    if (d.mode === 'edit' && pre.name) {
+      const found = list.find((c: any) => String(c.name || '').toLowerCase().includes(String(pre.name).toLowerCase()));
+      if (found) {
+        openEdit(found);
+        (window as any).__atlasClientDraft = null;
+        return;
+      }
+    }
+    if (d.open || d.mode === 'create') {
+      setEditId(null);
+      setForm({
+        name: pre.name || '',
+        ice: pre.ice || '',
+        if_number: '',
+        address: pre.address || '',
+        city: pre.city || '',
+        phone: pre.phone || '',
+        email: pre.email || '',
+        tax_exempt: false,
+        credit_limit: 0,
+      });
+      setFieldErrors({});
+      setModalError('');
+      setShow(true);
+      (window as any).__atlasClientDraft = null;
+    }
+  }, [list]);
+
+  
+  useEffect(() => {
+    return onAgentDraft((d) => {
+      if (d.entity && d.entity !== 'client') return;
+      
+      const pre = (d.prefill || {}) as any;
+      setEditId(null);
+      setForm({
+        name: pre.name || '',
+        ice: pre.ice || '',
+        if_number: '',
+        address: pre.address || '',
+        city: pre.city || '',
+        phone: pre.phone || '',
+        email: pre.email || '',
+        tax_exempt: false,
+        credit_limit: 0,
+      });
+      setFieldErrors({});
+      setModalError('');
+      setShow(true);
+
+    });
+  }, []);
+
   useEffect(() => { load(); }, []);
 
   const filtered = list.filter((c) =>
@@ -74,19 +152,53 @@ export default function Clients() {
     });
   };
 
+  const openCreate = () => {
+    setEditId(null);
+    setForm({ name: '', ice: '', if_number: '', address: '', city: '', phone: '', email: '', tax_exempt: false, credit_limit: 0 });
+    setFieldErrors({});
+    setShow(true);
+  };
+
+  const openEdit = (c: any) => {
+    setEditId(Number(c.id));
+    setForm({
+      name: c.name || '',
+      ice: c.ice || '',
+      if_number: c.if_number || '',
+      address: c.address || '',
+      city: c.city || '',
+      phone: c.phone || '',
+      email: c.email || '',
+      tax_exempt: !!c.tax_exempt,
+      credit_limit: Number(c.credit_limit) || 0,
+    });
+    setFieldErrors({});
+    setShow(true);
+  };
+
   const save = async () => {
     const fe = validateClientForm(form);
     setFieldErrors(fe);
-    if (Object.keys(fe).length) { flash(firstError(fe) || 'Formulaire incomplet.', 'error'); return; }
+    if (Object.keys(fe).length) {
+      setModalError(firstError(fe) || 'Formulaire incomplet.');
+      return;
+    }
+    setModalError('');
     setSaving(true);
     try {
-      await api.createClient(form);
+      if (editId) {
+        await api.updateClient(editId, form);
+        flash('Client mis à jour.');
+      } else {
+        await api.createClient(form);
+        flash('Client enregistré dans la base de données avec succès.');
+      }
       setShow(false);
+      setEditId(null);
       setForm({ name: '', ice: '', if_number: '', address: '', city: '', phone: '', email: '', tax_exempt: false, credit_limit: 0 });
-      flash('Client enregistré dans la base de données avec succès.');
       load(true);
     } catch (e: any) {
-      flash(e.message, 'error');
+      setModalError(e?.message || 'Enregistrement impossible');
     } finally {
       setSaving(false);
     }
@@ -100,7 +212,7 @@ export default function Clients() {
     setPwDesc('Cette action est définitive. Saisissez votre mot de passe pour confirmer.');
     setPendingAction(() => async (password: string) => {
       const res = targetIds.length === 1
-        ? await api.deleteClient(targetIds[0], password)
+        ? await api.deleteClient(targetIds[0], password || undefined as any)
         : await api.bulkDeleteClients(targetIds, password);
       flash((res as any).message || 'Client(s) supprimé(s).');
       setPwOpen(false); setPendingAction(null);
@@ -113,24 +225,34 @@ export default function Clients() {
   if (loading) return <div className="empty">Chargement des clients...</div>;
 
   return (
-    <div className="atlas-crm">
+    <div className="atlas-crm clients-page">
       <div className="page-header">
         <h1>Clients</h1>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
           {selected.size > 0 && (
-            <button className="danger" onClick={() => openDelete()}>
-              Supprimer la sélection ({selected.size})
-            </button>
+            <TimedUndoDelete
+              deleteLabel={`Supprimer (${selected.size})`}
+              undoLabel="Annuler"
+              initialSeconds={10}
+              onConfirm={() => openDelete()}
+            />
           )}
-          <button onClick={() => setShow(true)}>+ Nouveau client</button>
+          <button type="button" onClick={openCreate}>Ajouter un client</button>
         </div>
       </div>
 
       <SaveFeedback message={saveMsg} type={saveMsgType} />
 
-      <div className="card" style={{ marginBottom: 16, padding: '12px 16px' }}>
-        <div className="search-bar"><input className="search-input" placeholder="Rechercher par nom, ICE ou ville..." value={search} onChange={(e) => setSearch(e.target.value)} /></div>
+      <div className="ac-panel ac-products-filters">
+        <div className="ac-products-filters-row">
+          <div className="ac-search-field">
+            <svg className="ac-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+              <circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" strokeLinecap="round" />
+            </svg>
+            <input className="ac-search-input" placeholder="Nom, ICE ou ville…" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Rechercher clients" />
+          </div>
+        </div>
       </div>
 
       {(() => {
@@ -140,19 +262,19 @@ export default function Clients() {
         const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
         const newMonth = list.filter((c) => String((c as any).created_at || '').startsWith(ym)).length;
         return (
-          <div className="atlas-stat-grid" style={{ marginBottom: 16 }}>
-            <div className="atlas-stat paper">
+          <div className="ac-metric-grid ac-metric-grid--3" style={{ marginBottom: 16 }}>
+            <div className="ac-metric">
               <div className="as-label">Solde total dû</div>
               <div className="as-value" style={{ fontSize: '1.35rem' }}>{Math.round(totalDue).toLocaleString('fr-FR')} MAD</div>
               <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>sur {withDue} compte{withDue !== 1 ? 's' : ''}</div>
               {withDue > 0 && <span className="badge" style={{ marginTop: 6, background: '#fef3c7', color: '#92400e' }}>à relancer</span>}
             </div>
-            <div className="atlas-stat paper">
+            <div className="ac-metric">
               <div className="as-label">Nouveaux ce mois</div>
               <div className="as-value" style={{ fontSize: '1.35rem' }}>{newMonth}</div>
               <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>clients ajoutés</div>
             </div>
-            <div className="atlas-stat paper">
+            <div className="ac-metric">
               <div className="as-label">Comptes actifs</div>
               <div className="as-value" style={{ fontSize: '1.35rem' }}>{list.length}</div>
               <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>dans le fichier</div>
@@ -161,9 +283,9 @@ export default function Clients() {
         );
       })()}
 
-      <div className="card">
+      <div className="ac-panel ac-products-table-panel">
         <div className="table-wrap">
-          <table className="data-dense">
+          <table className="data-dense ac-products-table">
             <thead>
               <tr>
                 <th style={{ width: 40 }}>
@@ -198,7 +320,16 @@ export default function Clients() {
                     />
                   </td>
                   <td>
-                    <div className="party-name">{c.name}</div>
+                    <span
+                        className="party-name party-name-link"
+                        role="button"
+                        tabIndex={0}
+                        title="Modifier"
+                        onClick={() => openEdit(c)}
+                        onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openEdit(c); } }}
+                      >
+                        {c.name}
+                      </span>
                     {(c.ice || c.city) && <div className="party-sub">{[c.ice, c.city].filter(Boolean).join(' · ')}</div>}
                   </td>
                   <td>{c.ice || '—'}</td>
@@ -206,10 +337,26 @@ export default function Clients() {
                   <td style={{ fontWeight: 600 }}>{Math.round(Number((c as any).balance_due || 0)).toLocaleString('fr-FR')} MAD</td>
                   <td>{Number((c as any).balance_due || 0) > 0.001
                     ? <span className="badge" style={{ background: '#fef3c7', color: '#92400e' }}>Solde dû</span>
-                    : <span className="badge" style={{ background: '#e8f5e9', color: '#2d5a2d' }}>Soldé</span>}</td>
+                    : <span className="badge" style={{ background: '#f1f5f9', color: '#334155' }}>Soldé</span>}</td>
                   <td>{c.phone || '—'}</td>
-                  <td>{c.email || '—'}</td>
-                  <td>{c.tax_exempt ? <span className="badge" style={{ background: '#e8f5e9', color: '#2d5a2d' }}>Exonéré</span> : 'Assujetti'}</td>
+                  <td>{c.email ? (
+                    <span
+                      className="party-email-link"
+                      role="button"
+                      tabIndex={0}
+                      title="Écrire un e-mail"
+                      onClick={() => setMailChoice({ email: c.email, name: c.name || '' })}
+                      onKeyDown={(ev) => {
+                        if (ev.key === 'Enter' || ev.key === ' ') {
+                          ev.preventDefault();
+                          setMailChoice({ email: c.email, name: c.name || '' });
+                        }
+                      }}
+                    >
+                      {c.email}
+                    </span>
+                  ) : '—'}</td>
+                  <td>{c.tax_exempt ? <span className="badge" style={{ background: '#f1f5f9', color: '#334155' }}>Exonéré</span> : 'Assujetti'}</td>
                   <td>
                     <span className="mono-amt">{Number(c.credit_limit) > 0 ? Number(c.credit_limit).toLocaleString('fr-FR') : '∞'}</span>
                     {Number(c.credit_limit) > 0 && Number((c as any).balance_due || 0) > Number(c.credit_limit) && (
@@ -220,50 +367,28 @@ export default function Clients() {
                     )}
                     {Number(c.credit_limit) <= 0 && <span className="credit-pill muted" style={{ marginLeft: 6 }}>Illimité</span>}
                   </td>
-                  <td style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    <Link to={`/invoices?client=${c.id}`} style={{ fontSize: 12 }} className="btn secondary">Factures</Link>
-                    {c.email ? (
-                      <button
-                        type="button"
-                        className="secondary"
-                        style={{ fontSize: 12, marginLeft: 6 }}
-                        onClick={() => navigate(`/mailbox/compose?to=${encodeURIComponent(c.email)}&client=${encodeURIComponent(c.name || '')}`)}
-                      >
-                        E-mail
-                      </button>
-                    ) : null}
+                  <td className="row-actions-cell"><div className="row-actions">
                     <button
                       type="button"
                       className="secondary"
-                      style={{ padding: '4px 10px', fontSize: 12 }}
-                      onClick={() =>
-                        openReport('/api/reports/client-situation', {
-                          client_id: String(c.id),
-                          name: c.name || '',
-                          ice: c.ice || '',
-                        })
-                      }
+                      onClick={() => navigate(`/invoices?client=${c.id}&q=${encodeURIComponent(c.name || '')}`)}
                     >
-                      Situation (synthèse)
+                      Factures
                     </button>
                     <button
                       type="button"
                       className="secondary"
-                      style={{ padding: '4px 10px', fontSize: 12 }}
-                      title="Même rapport avec le détail des produits par pièce"
-                      onClick={() =>
-                        openReport('/api/reports/client-situation', {
-                          client_id: String(c.id),
-                          name: c.name || '',
-                          ice: c.ice || '',
-                          detail: 'full',
-                        })
-                      }
+                      onClick={() => setSitChoice({ id: c.id, name: c.name || '', ice: c.ice || '' })}
                     >
-                      Situation (détail produits)
+                      Situation
                     </button>
-                    <button className="danger" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => openDelete([c.id])}>Suppr.</button>
-                  </td>
+                    {deleteArmId === c.id ? (
+                      <TimedUndoDelete autoStart deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10}
+                        onConfirm={() => { setDeleteArmId(null); openDelete([c.id]); }} />
+                    ) : (
+                      <TimedUndoDelete deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10} onConfirm={() => { setDeleteArmId(null); openDelete([c.id]); }} />
+                    )}
+                  </div></td>
                 </tr>
               ))}
               {!filtered.length && (
@@ -272,8 +397,8 @@ export default function Clients() {
                     <EmptyState
                       title="Aucun client"
                       description="Ajoutez vos acheteurs (ICE, contact, limite de crédit) pour facturer plus vite."
-                      actionLabel="Nouveau client"
-                      onAction={() => setShow(true)}
+                      actionLabel="Ajouter mon premier client"
+                      onAction={openCreate}
                       icon="user"
                     />
                   </td>
@@ -285,9 +410,9 @@ export default function Clients() {
       </div>
 
       {show && (
-        <div className="modal-overlay" onClick={() => setShow(false)}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => { setShow(false); setEditId(null); }}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>Nouveau client</h2>
+            <h2>{editId ? 'Modifier le client' : 'Nouveau client'}</h2>
             <div className="form-row"><label>Nom *</label>
               <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={!form.name.trim() ? 'input-warn' : ''} />
               {!form.name.trim() && <span className="field-hint">Obligatoire</span>}</div>
@@ -330,12 +455,13 @@ export default function Clients() {
                 Plafond d&apos;encours (factures non soldées). Blocage à la création de facture et à la conversion devis→facture.
               </small>
             </div>
+            <ModalFormError message={modalError} />
             <div className="form-actions">
               <button onClick={save} disabled={saving}>{saving ? 'Enregistrement...' : 'Enregistrer dans la base'}</button>
-              <button className="secondary" onClick={() => setShow(false)}>Annuler</button>
+              <button className="secondary" onClick={() => { setShow(false); setEditId(null); }}>Annuler</button>
             </div>
           </div>
-        </div>
+        </div></FloatingPortal>
       )}
 
       {pwOpen && pendingAction && (
@@ -347,6 +473,81 @@ export default function Clients() {
           onCancel={() => { setPwOpen(false); setPendingAction(null); }}
           onConfirm={async (password) => { await pendingAction(password); }}
         />
+      )}
+
+      {mailChoice && (
+        <FloatingPortal>
+          <div className="modal-overlay" onClick={() => setMailChoice(null)}>
+            <div className="modal" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
+              <h2 style={{ marginTop: 0 }}>Envoyer un e-mail</h2>
+              <p style={{ color: 'var(--muted)', fontSize: 14 }}>
+                Ouvrir la composition vers <strong>{mailChoice.email}</strong>
+                {mailChoice.name ? ` (${mailChoice.name})` : ''} ?
+              </p>
+              <div className="form-actions" style={{ gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const email = mailChoice.email;
+                    setMailChoice(null);
+                    if (email) window.location.href = `mailto:${email}`;
+                  }}
+                >
+                  Ouvrir le client mail
+                </button>
+                <button type="button" className="secondary" onClick={() => setMailChoice(null)}>
+                  Annuler
+                </button>
+              </div>
+            </div>
+          </div>
+        </FloatingPortal>
+      )}
+
+      {sitChoice && (
+        <FloatingPortal>
+          <div className="modal-overlay" onClick={() => setSitChoice(null)}>
+            <div className="modal" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
+              <h2 style={{ marginTop: 0 }}>Situation client</h2>
+              <p style={{ color: 'var(--muted)', fontSize: 14 }}>
+                {sitChoice.name} — quel rapport ouvrir ?
+              </p>
+              <div className="form-actions" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    openReport('/api/reports/client-situation', {
+                      client_id: String(sitChoice.id),
+                      name: sitChoice.name,
+                      ice: sitChoice.ice,
+                    });
+                    setSitChoice(null);
+                  }}
+                >
+                  Synthèse
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => {
+                    openReport('/api/reports/client-situation', {
+                      client_id: String(sitChoice.id),
+                      name: sitChoice.name,
+                      ice: sitChoice.ice,
+                      detail: 'full',
+                    });
+                    setSitChoice(null);
+                  }}
+                >
+                  Détail complet (produits)
+                </button>
+                <button type="button" className="secondary" onClick={() => setSitChoice(null)}>
+                  Annuler
+                </button>
+              </div>
+            </div>
+          </div>
+        </FloatingPortal>
       )}
     </div>
   );

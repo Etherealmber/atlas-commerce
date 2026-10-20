@@ -1,3 +1,5 @@
+import { FloatingPortal } from './FloatingPortal';
+import { ModalFormError, FieldHint } from './ModalFormFeedback';
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import NumberField from './NumberField';
@@ -127,7 +129,7 @@ export default function RemboursementModal({ open, onClose, onCreated, preferQui
   if (!open) return null;
 
   return (
-    <div className="modal-overlay" onClick={() => !saving && onClose()}>
+    <FloatingPortal><div className="modal-overlay" onClick={() => !saving && onClose()}>
       <div className="modal" style={{ maxWidth: 720, width: '96vw' }} onClick={(e) => e.stopPropagation()}>
         <h2 style={{ marginTop: 0 }}>Créer un remboursement (WR)</h2>
         <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 12 }}>
@@ -194,7 +196,7 @@ export default function RemboursementModal({ open, onClose, onCreated, preferQui
               {fmt(Number(source.amount_paid || 0))} / {fmt(Number(source.total || 0))}
             </p>
             {Number(source.amount_paid || 0) + 0.001 >= Number(source.total || 0) || source.status === 'paid' ? (
-              <p style={{ fontSize: 12, marginBottom: 10, padding: '8px 10px', background: '#eef7f0', borderRadius: 8, color: '#1a4d2e' }}>
+              <p style={{ fontSize: 12, marginBottom: 10, padding: '8px 10px', background: '#eef7f0', borderRadius: 8, color: '#1a1d26' }}>
                 Document déjà payé — le WR créera une <strong>sortie de solde</strong> (remboursement client). Stock ajusté selon les lignes.
               </p>
             ) : Number(source.amount_paid || 0) > 0.001 ? (
@@ -323,7 +325,8 @@ export default function RemboursementModal({ open, onClose, onCreated, preferQui
           </select>
         </div>
 
-        <div className="form-actions">
+        <ModalFormError message={err} />
+            <div className="form-actions">
           <button
             type="button"
             disabled={saving}
@@ -381,7 +384,6 @@ export default function RemboursementModal({ open, onClose, onCreated, preferQui
               } catch (e: any) {
                 const msg = friendlyError(e, 'Impossible de créer le remboursement.');
                 setErr(msg);
-                toast(msg, 'error');
               } finally {
                 setSaving(false);
               }
@@ -394,6 +396,6 @@ export default function RemboursementModal({ open, onClose, onCreated, preferQui
           </button>
         </div>
       </div>
-    </div>
+    </div></FloatingPortal>
   );
 }

@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
+import DatePicker from '../components/DatePicker';
+import { openReport } from '../lib/reports';
 import { api } from '../api';
 import { useUi } from '../components/AppDialogs';
 import { friendlyError } from '../lib/errors';
 import { downloadExport } from '../lib/export';
+import { RunActionButton, EXPORT_REPORT_STEPS } from '../components/ui';
 import { draftReorderMessage, demandHint } from '../lib/assist';
 import { canAccessCompanySettings, getRole } from '../auth';
 import RefreshIconButton from '../components/RefreshIconButton';
@@ -26,36 +29,17 @@ export default function Reports() {
   const isOwner = getRole() === 'owner' || canAccessCompanySettings();
   const [exporting, setExporting] = useState(false);
 
-  const openHtmlReport = (path: string, label = 'rapport') => {
-    void (async () => {
-      setExporting(true);
-      try {
-        const { getToken } = await import('../auth');
-        const { getCachedFingerprint } = await import('../fingerprint');
-        const { BASE } = await import('../api');
-        const token = getToken();
-        const fp = await getCachedFingerprint();
-        const res = await fetch(`${BASE}${path}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'X-Device-Fingerprint': fp || '',
-          },
-        });
-        if (!res.ok) throw new Error(`Export ${res.status}`);
-        const html = await res.text();
-        if (!html || html.length < 40) throw new Error('Rapport vide');
-        const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-        const u = URL.createObjectURL(blob);
-        const w = window.open(u, '_blank', 'noopener');
-        if (!w) toast('Autorisez les pop-ups pour ouvrir le ' + label, 'error');
-        else toast(label.charAt(0).toUpperCase() + label.slice(1) + ' généré', 'success');
-        setTimeout(() => URL.revokeObjectURL(u), 120_000);
-      } catch (e: any) {
-        toast(friendlyError(e), 'error');
-      } finally {
-        setExporting(false);
+  const openHtmlReport = (path: string, _label = 'rapport') => {
+    // Shared helper opens the tab on the user gesture (no about:blank#blocked)
+    const [p, qs] = path.split('?');
+    const params: Record<string, string> = {};
+    if (qs) {
+      for (const part of qs.split('&')) {
+        const [k, v] = part.split('=');
+        if (k) params[decodeURIComponent(k)] = decodeURIComponent(v || '');
       }
-    })();
+    }
+    openReport(p, Object.keys(params).length ? params : undefined);
   };
 
   const loadAging = async () => {
@@ -188,9 +172,21 @@ export default function Reports() {
               <button type="button" className="secondary" onClick={() => openHtmlReport('/api/reports/aging.html')}>
                 Imprimer / PDF
               </button>
-              <button type="button" className="secondary" onClick={() => downloadExport('/api/reports/aging.csv', `balance-agee-${aging.as_of || 'export'}.csv`)}>
-                Excel / CSV
+              <button type="button" className="secondary" onClick={() => openHtmlReport('/api/reports/employees', 'employes')}>
+                Employés &amp; paie
               </button>
+              <button type="button" className="secondary" onClick={() => openHtmlReport('/api/reports/combined', 'rapports-combines')}>
+                Pack rapports
+              </button>
+              <RunActionButton
+                size="sm"
+                idleLabel="Excel / CSV"
+                doneLabel="Téléchargé"
+                steps={EXPORT_REPORT_STEPS}
+                onRun={async () => {
+                  await downloadExport('/api/reports/aging.csv', `balance-agee-${aging.as_of || 'export'}.csv`);
+                }}
+              />
             </div>
           </div>
           <div className="atlas-stat-grid" style={{ marginBottom: 16, marginTop: 12 }}>
@@ -240,11 +236,11 @@ export default function Reports() {
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14, alignItems: 'end' }}>
             <div className="form-row" style={{ margin: 0 }}>
               <label>Du</label>
-              <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+              <DatePicker value={from} onChange={setFrom} />
             </div>
             <div className="form-row" style={{ margin: 0 }}>
               <label>Au</label>
-              <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+              <DatePicker value={to} onChange={setTo} />
             </div>
             <RefreshIconButton onClick={loadTva} />
             <button
@@ -260,19 +256,19 @@ export default function Reports() {
             >
               Imprimer / PDF
             </button>
-            <button
-              type="button"
-              className="secondary"
-              onClick={() => {
+            <RunActionButton
+              size="sm"
+              idleLabel="Excel / CSV"
+              doneLabel="Téléchargé"
+              steps={EXPORT_REPORT_STEPS}
+              onRun={async () => {
                 const q = new URLSearchParams();
                 if (from) q.set('from', from);
                 if (to) q.set('to', to);
                 const s = q.toString();
-                downloadExport(`/api/reports/tva.csv${s ? `?${s}` : ''}`, `tva-${from || 'debut'}_${to || 'fin'}.csv`);
+                await downloadExport(`/api/reports/tva.csv${s ? `?${s}` : ''}`, `tva-${from || 'debut'}_${to || 'fin'}.csv`);
               }}
-            >
-              Excel / CSV
-            </button>
+            />
           </div>
           {tva && (
             <>

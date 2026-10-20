@@ -1,4 +1,7 @@
 /**
+import { fetchWithTimeout } from './http-client';
+
+const _localSchemaOnce = new Set<string>();
  * FCM HTTP v1 dispatcher for Cloudflare Workers.
  * Secrets (wrangler secret put):
  *   FIREBASE_PROJECT_ID
@@ -79,7 +82,7 @@ async function getGoogleAccessToken(env: FcmEnv): Promise<string | null> {
   );
   const jwt = `${unsigned}.${b64url(sig)}`;
 
-  const res = await fetch('https://oauth2.googleapis.com/token', {
+  const res = await fetchWithTimeout('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -96,6 +99,8 @@ async function getGoogleAccessToken(env: FcmEnv): Promise<string | null> {
 }
 
 async function ensurePushTable(db: D1Database) {
+  if (_localSchemaOnce.has('ensurePushTable')) return;
+
   await db
     .prepare(
       `CREATE TABLE IF NOT EXISTS device_push_tokens (
@@ -108,6 +113,8 @@ async function ensurePushTable(db: D1Database) {
       )`,
     )
     .run();
+
+  _localSchemaOnce.add('ensurePushTable');
 }
 
 /** Upsert FCM registration token for a user. */
@@ -182,7 +189,7 @@ export async function sendFcmToUser(
     if (!token) continue;
 
     if (accessToken && projectId) {
-      const res = await fetch(
+      const res = await fetchWithTimeout(
         `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
         {
           method: 'POST',
@@ -235,7 +242,7 @@ export async function sendFcmToUser(
     // Legacy HTTP API fallback
     const legacyKey = env.FCM_SERVER_KEY || env.FIREBASE_SERVER_KEY;
     if (!legacyKey) continue;
-    const res = await fetch('https://fcm.googleapis.com/fcm/send', {
+    const res = await fetchWithTimeout('https://fcm.googleapis.com/fcm/send', {
       method: 'POST',
       headers: {
         Authorization: `key=${legacyKey}`,

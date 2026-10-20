@@ -105,7 +105,7 @@ export default function IntegrationsPanel() {
         <p style={{ color: 'var(--bad, #b91c1c)', fontSize: 13 }}>{err}</p>
       )}
       {msg && (
-        <p style={{ color: 'var(--ok, #0f766e)', fontSize: 13 }}>{msg}</p>
+        <p style={{ color: 'var(--ok, #71717a)', fontSize: 13 }}>{msg}</p>
       )}
 
       {revealedKey && (

@@ -9,7 +9,6 @@ import { fmtMoney, paymentMethodLabel } from '../lib/money';
 import { useUi } from '../components/AppDialogs';
 import { numStr, numFromInput } from '../lib/numInput';
 import NumberField from '../components/NumberField';
-import { isDemoMode, openDemoInvoicePrint } from '../lib/demoMode';
 
 
 function formatIssue(e: unknown): string {
@@ -281,8 +280,9 @@ export default function InvoiceDetail() {
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <a
             className="btn secondary"
-            href={isDemoMode() ? undefined : `${BASE}/api/invoices/${invoice.id}/print?token=${encodeURIComponent(getToken() || '')}`}
-            onClick={(e) => { if (isDemoMode()) { e.preventDefault(); openDemoInvoicePrint(Number(invoice.id)); } }}
+            href={`${BASE}/api/invoices/${invoice.id}/print?token=${encodeURIComponent(getToken() || '')}`}
+            onClick={(e) => {
+}}
             target="_blank"
             rel="noreferrer"
           >
@@ -290,8 +290,9 @@ export default function InvoiceDetail() {
           </a>
           <a
             className="btn secondary"
-            href={isDemoMode() ? undefined : `${BASE}/api/invoices/${invoice.id}/pdf?token=${encodeURIComponent(getToken() || '')}`}
-            onClick={(e) => { if (isDemoMode()) { e.preventDefault(); openDemoInvoicePrint(Number(invoice.id)); } }}
+            href={`${BASE}/api/invoices/${invoice.id}/pdf?token=${encodeURIComponent(getToken() || '')}`}
+            onClick={(e) => {
+}}
             target="_blank"
             rel="noreferrer"
             title="Même mise en page que Imprimer — choisissez « Enregistrer au format PDF » dans la boîte d'impression"
@@ -304,8 +305,7 @@ export default function InvoiceDetail() {
             title="Imprimer via Bluetooth BLE ou USB Serial (Chrome)"
             onClick={async () => {
               try {
-                if (isDemoMode() && invoice?.id) { openDemoInvoicePrint(Number(invoice.id)); toast('Aperçu impression démo ouvert', 'success'); return; }
-                  const t = await printInvoiceTicket(invoice.id, { width: 32 });
+                const t = await printInvoiceTicket(invoice.id, { width: 32 });
                 toast(t === 'bluetooth' ? 'Envoyé via Bluetooth' : 'Envoyé via USB Serial', 'success');
               } catch (e: any) {
                 toast(e?.message || 'Impression impossible — utilisez « Télécharger ticket ».', 'error');
@@ -751,11 +751,11 @@ export default function InvoiceDetail() {
                   <tr>
                     <th>Produit</th>
                     <th>Qté</th>
-                    <th>Prix catalogue</th>
-                    <th>Prix client</th>
-                    <th>Remise</th>
+                    <th>Catalogue HT</th>
+                    <th>Client HT</th>
+                    <th>Remise HT</th>
                     <th>TVA %</th>
-                    <th>Total ligne</th>
+                    <th>Total TTC</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -769,15 +769,28 @@ export default function InvoiceDetail() {
                     (invoice.items || []).map((it: any) => {
                       const listP = Number(it.list_price ?? it.unit_price ?? 0);
                       const unitP = Number(it.unit_price || 0);
+                      const rate = Number(it.tax_rate ?? 20) / 100;
                       const disc = listP > unitP ? listP - unitP : 0;
+                      const listTtc = listP * (1 + rate);
+                      const unitTtc = unitP * (1 + rate);
                       return (
                         <tr key={it.id}>
                           <td>
                             {it.product_name} {it.sku && <small>({it.sku})</small>}
                           </td>
                           <td>{it.quantity}</td>
-                          <td>{fmt(listP)}</td>
-                          <td>{fmt(unitP)}</td>
+                          <td>
+                            {fmt(listP)}
+                            <small style={{ display: 'block', color: 'var(--muted)', fontSize: 11 }}>
+                              {fmt(listTtc)} TTC
+                            </small>
+                          </td>
+                          <td>
+                            {fmt(unitP)}
+                            <small style={{ display: 'block', color: 'var(--muted)', fontSize: 11 }}>
+                              {fmt(unitTtc)} TTC
+                            </small>
+                          </td>
                           <td>{disc > 0 ? `−${fmt(disc)}` : '—'}</td>
                           <td>{it.tax_rate}%</td>
                           <td>{fmt(it.line_total)}</td>
@@ -792,6 +805,9 @@ export default function InvoiceDetail() {
               <div>Sous-total HT : {fmt(invoice.subtotal)}</div>
               <div>TVA : {fmt(invoice.tax_amount)}</div>
               <div style={{ fontWeight: 700, fontSize: 18 }}>Total TTC : {fmt(invoice.total)}</div>
+              <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8, fontWeight: 400 }}>
+                Saisie en TTC à la création · unitaires affichés en HT · total = HT + TVA.
+              </p>
             </div>
             {!canEditLines && !isQuote && (
               <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 10 }}>

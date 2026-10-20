@@ -54,4 +54,4 @@ export function getApiBase(): string {
 
 export const APP_NAME = 'Atlas Commerce';
 export const APP_TAGLINE = 'Stock · Caisse · Facturation';
-export const APP_VERSION = '1.1.0';
+export const APP_VERSION = '1.4.0-beta';

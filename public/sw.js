@@ -1,8 +1,8 @@
 /* Atlas Commerce — offline shell, API cache, background sync
- * v6: never cache HTML as an API response (fixes persistent "HTML instead of JSON")
+ * v9: printable HTML reports / print tabs must never be rewritten as JSON
  */
-const CACHE_SHELL = 'atlas-shell-v7';
-const CACHE_API = 'atlas-api-v7';
+const CACHE_SHELL = 'atlas-shell-v9';
+const CACHE_API = 'atlas-api-v9';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/favicon.svg', '/logo.svg', '/logo-mark.svg'];
 const OUTBOX_TAG = 'atlas-outbox-sync';
 
@@ -38,14 +38,30 @@ function isJsonResponse(res) {
   return ct.includes('application/json');
 }
 
-/** Safe cache put — always clone before consuming body */
+/** HTML documents opened in a tab or fetched for print — not JSON APIs. */
+function isHtmlDocumentApi(url, req) {
+  if (req.mode === 'navigate' || req.destination === 'document') return true;
+  const p = url.pathname;
+  if (p.startsWith('/api/reports/')) {
+    if (p.endsWith('.csv')) return false;
+    if (/\/(aging|tva|cogs)\/?$/.test(p)) return false;
+    return true;
+  }
+  if (/^\/api\/(invoices|bills|receipts)\/\d+\/(print|pdf|ubl)(\.xml)?$/.test(p)) return true;
+  if (/^\/api\/print\/thermal\/\d+$/.test(p)) return true;
+  if (p === '/api/settings/invoice-preview') return true;
+  const accept = (req.headers.get('Accept') || '').toLowerCase();
+  if (accept.includes('text/html') && !accept.includes('application/json')) return true;
+  return false;
+}
+
 async function putCache(cacheName, request, response) {
   if (!response || !response.ok) return;
   try {
     const cache = await caches.open(cacheName);
     await cache.put(request, response.clone());
   } catch {
-    /* opaque / no-store / already used — ignore */
+    /* ignore */
   }
 }
 
@@ -60,18 +76,28 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // ── API GETs: network-first, only cache real JSON, never HTML ──
   if (isApiGet(url)) {
+    if (isHtmlDocumentApi(url, req)) {
+      event.respondWith(
+        fetch(req).catch(
+          () =>
+            new Response(
+              '<!DOCTYPE html><html lang="fr"><body style="font-family:system-ui;padding:40px"><p>Hors ligne — impossible d’ouvrir le document.</p></body></html>',
+              { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } },
+            ),
+        ),
+      );
+      return;
+    }
+
     event.respondWith(
       (async () => {
         try {
           const res = await fetch(req);
-          // Critical: do NOT cache SPA HTML that was wrongly returned for /api/*
           if (isJsonResponse(res)) {
             await putCache(CACHE_API, req, res);
             return res;
           }
-          // HTML or other non-JSON with 200 → treat as Worker routing failure
           const text = await res.clone().text().catch(() => '');
           if (/<!DOCTYPE|<html/i.test(text)) {
             return new Response(
@@ -84,10 +110,8 @@ self.addEventListener('fetch', (event) => {
               { status: 502, headers: { 'Content-Type': 'application/json' } }
             );
           }
-          // Non-JSON but not HTML — pass through without caching
           return res;
         } catch {
-          // Offline: only return a previously cached *JSON* response
           const hit = await caches.match(req);
           if (hit && isJsonResponse(hit)) return hit;
           return new Response(
@@ -102,7 +126,6 @@ self.addEventListener('fetch', (event) => {
 
   if (url.origin !== self.location.origin) return;
 
-  // Static assets: cache-first, revalidate in background
   if (url.pathname.startsWith('/assets/') || /\.(js|css|svg|png|woff2?)$/.test(url.pathname)) {
     event.respondWith(
       (async () => {

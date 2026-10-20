@@ -41,7 +41,7 @@
   "send_email": [
     {
       "name": "EMAIL",
-      "destination_address": "admin@afmarbre.com"
+      "destination_address": "admin@afmarbre.com" // OTP_TO must match this; security@ is FROM only
     }
   ],
   // Public / non-secret config only. Everything sensitive → `wrangler secret put`
@@ -62,6 +62,10 @@
       {
         "name": "RESTORE_HUB",
         "class_name": "RestoreHub"
+      },
+      {
+        "name": "NUMBER_HUB",
+        "class_name": "NumberHub"
       }
     ]
   },
@@ -73,16 +77,37 @@
     {
       "tag": "v2-restore-hub",
       "new_sqlite_classes": ["RestoreHub"]
+    },
+    {
+      "tag": "v3-number-hub",
+      "new_sqlite_classes": ["NumberHub"]
     }
   ],
   // Workers Logs + Traces (dashboard Observability toggles also work after deploy)
+  
+  // Optional: Cloudflare Queues for async jobs (create queue in dashboard, then uncomment)
+  // "queues": {
+  //   "producers": [{ "binding": "QUEUE", "queue": "atlas-jobs" }],
+  //   "consumers": [{ "queue": "atlas-jobs", "max_batch_size": 10, "max_retries": 3 }]
+  // },
+  // CDN: Workers Assets + R2 custom domain (CDN_BASE secret). Anycast LB is automatic on Cloudflare.
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1,
+    "redact_query_string": false,
     "logs": {
       "enabled": true,
+      "head_sampling_rate": 1,
       "invocation_logs": true,
-      "head_sampling_rate": 1
+      "persist": true
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "persist": true
+    },
+    "issues": {
+      "enabled": true
     }
   }
 

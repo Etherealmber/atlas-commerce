@@ -10,6 +10,8 @@ interface Env {
   IMAGES?: R2Bucket;
   /** Cloudflare Secret — never commit to GitHub */
   ADMIN_PASSWORD: string;
+  /** Google Cloud Translation API key (Secret) */
+  GOOGLE_TRANSLATE_API_KEY?: string;
   /** Optional. Default: "admin". Owner username for the original administrator. */
   ADMIN_USERNAME?: string;
   /** Optional session signing (Secret). */

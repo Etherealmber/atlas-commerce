@@ -9,10 +9,11 @@ type Props = {
   isBlinking?: boolean;
 };
 
+/** Standalone pupil (used on faces without full EyeBall). Always centered + look offset. */
 export default function Pupil({
   size = 12,
   maxDistance = 5,
-  pupilColor = 'black',
+  pupilColor = '#0a0a0a',
   forceLookX,
   forceLookY,
   isBlinking = false,
@@ -37,10 +38,25 @@ export default function Pupil({
     const cy = r.top + r.height / 2;
     const dx = mouse.x - cx;
     const dy = mouse.y - cy;
-    const dist = Math.min(Math.sqrt(dx * dx + dy * dy), maxDistance);
+    const max = Math.max(2, maxDistance);
+    const dist = Math.min(Math.sqrt(dx * dx + dy * dy), max);
     const angle = Math.atan2(dy, dx);
     px = Math.cos(angle) * dist;
     py = Math.sin(angle) * dist;
+  }
+
+  if (isBlinking) {
+    return (
+      <div
+        className="atlas-pupil-dot atlas-pupil-dot--blink"
+        style={{
+          width: size,
+          height: 2,
+          backgroundColor: pupilColor,
+          borderRadius: 999,
+        }}
+      />
+    );
   }
 
   return (
@@ -49,9 +65,13 @@ export default function Pupil({
       className="atlas-pupil-dot"
       style={{
         width: size,
-        height: isBlinking ? 2 : size,
+        height: size,
+        borderRadius: '50%',
         backgroundColor: pupilColor,
         transform: `translate(${px}px, ${py}px)`,
+        transition: 'transform 0.08s linear',
+        boxShadow: `inset -${Math.max(1, size * 0.2)}px -${Math.max(1, size * 0.15)}px 0 rgba(255,255,255,0.28)`,
+        flexShrink: 0,
       }}
     />
   );

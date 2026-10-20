@@ -1,27 +1,21 @@
 import { useState, useEffect, useRef } from 'react';
+import '../styles/login-auth.css';
 import AnimatedCharacters from '../components/login/AnimatedCharacters';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { openConsentSettings } from '../lib/cookieConsent';
 import { setToken, clearToken, getToken, setProfileCache, isLoggedIn, isStockRole } from '../auth';
 
-/** Desktop → home/dashboard. Mobile/native → /m/ */
+/** Same home for phone and desktop — responsive shell. */
 function postLoginPath(): string {
-  try {
-    const ua = navigator.userAgent || '';
-    const native = !!(window as any).Capacitor?.isNativePlatform?.();
-    const phone =
-      native ||
-      new URLSearchParams(window.location.search).get('mode') === 'phone' ||
-      window.matchMedia('(max-width: 900px)').matches ||
-      /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
-    if (phone) return '/m/';
-  } catch { /* */ }
   return '/';
 }
 
 import { APP_NAME, APP_VERSION, APP_CREATOR, APP_CREATOR_NAME, APP_PROFILE, APP_GITHUB } from '../version';
 import { getApiBase } from '../config';
 import { validateLoginForm, firstError } from '../lib/formValidate';
+import { motion, AnimatePresence } from 'motion/react';
+import { QRCodeSVG } from 'qrcode.react';
+import { api } from '../api';
 import {
   getCachedFingerprint,
   isBiometricAvailable,
@@ -40,6 +34,29 @@ import {
  * Chrome/Safari on phone must still show Turnstile.
  * The Gradle Android app never loads this page; it hits the Worker API with OkHttp.
  */
+function isMobileLogin() {
+  try {
+    if (typeof window === 'undefined') return false;
+    if (window.matchMedia('(max-width: 768px)').matches) return true;
+    if (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '')) return true;
+  } catch { /* */ }
+  return false;
+}
+/** Installed PWA / standalone display mode */
+function isPwaLogin() {
+  try {
+    if (typeof window === 'undefined') return false;
+    const mq = window.matchMedia('(display-mode: standalone)').matches;
+    const ios = !!(navigator as any).standalone;
+    return mq || ios;
+  } catch {
+    return false;
+  }
+}
+/** Load Turnstile on web desktop, mobile browser, and PWA — not pure Capacitor shell */
+function shouldLoadTurnstile() {
+  return !isNativeClient();
+}
 function isNativeClient(): boolean {
   try {
     const cap = (window as any).Capacitor;
@@ -74,7 +91,276 @@ const REASON_MESSAGES: Record<string, string> = {
   TURNSTILE_FAILED: 'Vérification anti-bot échouée. Rechargez la page.',
 };
 
+
+function LoginPcQrPanel({ onSuccessFlash }: { onSuccessFlash?: () => void }) {
+  const [qrUrl, setQrUrl] = useState('');
+  const [token, setTok] = useState('');
+  const [left, setLeft] = useState(60);
+  const [phase, setPhase] = useState<'wait' | 'claimed' | 'done' | 'denied'>('wait');
+  const [who, setWho] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const navigate = useNavigate();
+  const pausedRef = useRef(false);
+
+  const refresh = async () => {
+    try {
+      const res = await api.qrPcSession();
+      const d = res.data;
+      if (d?.token && d?.qr_url) {
+        setTok(d.token);
+        setQrUrl(d.qr_url);
+        setLeft(60);
+        setPhase('wait');
+        setWho('');
+        setAvatarUrl('');
+        pausedRef.current = false;
+      }
+    } catch { /* */ }
+  };
+
+  useEffect(() => {
+    if (isMobileLogin()) return;
+    void refresh();
+  }, []);
+
+  useEffect(() => {
+    if (!token || isMobileLogin() || phase !== 'wait') return;
+    const id = window.setInterval(() => {
+      setLeft((n) => {
+        if (n <= 1) {
+          if (!pausedRef.current) void refresh();
+          return 60;
+        }
+        return n - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [token, phase]);
+
+  useEffect(() => {
+    if (!token || isMobileLogin()) return;
+    let stopped = false;
+    const poll = async () => {
+      if (stopped) return;
+      try {
+        const st = await api.qrLoginStatus(token);
+        const s = st.data?.status || '';
+        if (st.data?.display_name || st.data?.username) {
+          setWho(String(st.data.display_name || st.data.username));
+        }
+        if (st.data?.avatar_url) setAvatarUrl(String(st.data.avatar_url));
+        if (s === 'claimed' || (st.data?.has_device && s !== 'denied' && s !== 'expired')) {
+          if (phase !== 'done' && phase !== 'denied') {
+            setPhase('claimed');
+            pausedRef.current = true;
+          }
+        }
+        if (s === 'approved') {
+          const fp = (await getCachedFingerprint()) || 'none';
+          const fin = await api.qrLoginComplete(token, { fingerprint: fp });
+          if (fin.data?.token) {
+            setToken(fin.data.token, undefined, fin.data.username, fin.data.role);
+            setProfileCache({
+              username: fin.data.username,
+              role: fin.data.role,
+              display_name: (fin.data as any).display_name || who || fin.data.username,
+              avatar_url: (fin.data as any).avatar_url || avatarUrl || null,
+            });
+            // Warm full profile for topbar (photo + name)
+            try {
+              const me = await api.getMe();
+              const m = (me as any)?.data || me;
+              if (m) {
+                setProfileCache({
+                  username: m.username || fin.data.username,
+                  role: m.role || fin.data.role,
+                  display_name: m.display_name,
+                  avatar_url: m.avatar_url,
+                });
+              }
+            } catch { /* */ }
+            setPhase('done');
+            onSuccessFlash?.();
+            window.setTimeout(() => navigate(postLoginPath(), { replace: true }), 1100);
+            return;
+          }
+        }
+        if (s === 'denied') {
+          setPhase('denied');
+          pausedRef.current = true;
+        }
+        if (s === 'expired' && phase === 'wait') {
+          void refresh();
+        }
+      } catch { /* */ }
+      if (!stopped) window.setTimeout(poll, 2000);
+    };
+    void poll();
+    return () => {
+      stopped = true;
+    };
+  }, [token, navigate, phase, onSuccessFlash]);
+
+  if (isMobileLogin()) return null;
+
+  return (
+    <div className="atlas-login-qr-panel">
+      <AnimatePresence mode="wait">
+        {phase === 'wait' ? (
+          <motion.div
+            key="qr"
+            className="atlas-login-qr-stage"
+            initial={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.88, filter: 'blur(6px)' }}
+            transition={{ type: 'spring', stiffness: 280, damping: 26 }}
+          >
+            <div className="atlas-login-qr-frame">
+              {qrUrl ? (
+                <QRCodeSVG
+                  value={qrUrl}
+                  size={180}
+                  level="H"
+                  bgColor="#ffffff"
+                  fgColor="#0a0a0a"
+                  imageSettings={{
+                    src: '/logo-mark.svg',
+                    height: 40,
+                    width: 40,
+                    excavate: true,
+                  }}
+                />
+              ) : (
+                <span className="atlas-login-qr-loading">…</span>
+              )}
+            </div>
+            <h2 className="atlas-login-qr-title">Connexion avec un QR</h2>
+            <p className="atlas-login-qr-hint">
+              Scannez avec l’<strong>app Atlas</strong> pour vous connecter instantanément.
+            </p>
+            {typeof window !== 'undefined' && window.PublicKeyCredential ? (
+              <button
+                type="button"
+                className="atlas-login-passkey-link"
+                onClick={() => window.dispatchEvent(new CustomEvent('atlas-login-passkey'))}
+              >
+                Ou se connecter avec une passkey
+              </button>
+            ) : null}
+          </motion.div>
+        ) : phase === 'claimed' ? (
+          <motion.div
+            key="claimed"
+            className="atlas-login-qr-stage atlas-login-qr-waiting-block"
+            initial={{ opacity: 0, scale: 0.7, y: 12 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 1.05 }}
+            transition={{ type: 'spring', stiffness: 260, damping: 22 }}
+          >
+            <motion.div
+              className="atlas-login-qr-avatar-lg"
+              initial={{ scale: 0.5, rotate: -8 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 18, delay: 0.05 }}
+              aria-hidden
+            >
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt=""
+                  className="atlas-login-qr-avatar-img"
+                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    const el = e.target as HTMLImageElement;
+                    el.style.display = 'none';
+                    const sib = el.parentElement?.querySelector('.atlas-login-qr-avatar-letter') as HTMLElement | null;
+                    if (sib) sib.style.display = 'flex';
+                  }}
+                />
+              ) : null}
+              <span
+                className="atlas-login-qr-avatar-letter"
+                style={{ display: avatarUrl ? 'none' : 'flex' }}
+              >
+                {(who || '?').slice(0, 1).toUpperCase()}
+              </span>
+            </motion.div>
+            <h2 className="atlas-login-qr-title">Vérifiez votre téléphone !</h2>
+            <p className="atlas-login-qr-hint">
+              Acceptez sur le téléphone pour <strong>{who || '…'}</strong>
+            </p>
+            <button type="button" className="atlas-login-passkey-link" onClick={() => void refresh()}>
+              Ce n’est pas moi — recommencer
+            </button>
+          </motion.div>
+        ) : phase === 'denied' ? (
+          <motion.div
+            key="denied"
+            className="atlas-login-qr-stage atlas-login-qr-denied"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 260, damping: 24 }}
+          >
+            <div className="atlas-login-qr-denied-icon" aria-hidden>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <path d="m15 9-6 6M9 9l6 6" />
+              </svg>
+            </div>
+            <h2 className="atlas-login-qr-title">Connexion refusée</h2>
+            <p className="atlas-login-qr-hint">
+              L’autorisation a été refusée sur le téléphone.
+            </p>
+            <button type="button" className="atlas-login-qr-retry" onClick={() => void refresh()}>
+              Réessayer
+            </button>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="done"
+            className="atlas-login-qr-stage atlas-login-qr-waiting-block"
+            initial={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.35 }}
+          >
+            <motion.div
+              className="atlas-login-qr-avatar-lg atlas-login-qr-avatar-lg--ok"
+              initial={{ scale: 0.85 }}
+              animate={{ scale: [0.85, 1.06, 1] }}
+              transition={{ duration: 0.55 }}
+              aria-hidden
+            >
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="" className="atlas-login-qr-avatar-img" referrerPolicy="no-referrer" />
+              ) : (
+                <span className="atlas-login-qr-avatar-letter" style={{ display: 'flex' }}>
+                  {(who || '?').slice(0, 1).toUpperCase()}
+                </span>
+              )}
+            </motion.div>
+            <h2 className="atlas-login-qr-title">Connexion…</h2>
+            <p className="atlas-login-qr-hint">
+              Bienvenue <strong>{who || ''}</strong>
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+
 export default function Login() {
+  useEffect(() => {
+    document.documentElement.classList.add('atlas-login-page');
+    return () => document.documentElement.classList.remove('atlas-login-page');
+  }, []);
+  useEffect(() => {
+    const onPk = () => { void loginWithWebAuthnRef.current?.(); };
+    window.addEventListener('atlas-login-passkey', onPk);
+    return () => window.removeEventListener('atlas-login-passkey', onPk);
+  }, []);
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [username, setUsername] = useState('admin');
@@ -82,6 +368,7 @@ export default function Login() {
   const [otp, setOtp] = useState('');
   const [step, setStep] = useState<'password' | 'otp'>('password');
   const [loading, setLoading] = useState(false);
+  const loginWithWebAuthnRef = useRef<(() => void) | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState(
     params.get('reason') ? REASON_MESSAGES[params.get('reason')!] || 'Veuillez vous connecter pour continuer.' : ''
@@ -99,6 +386,7 @@ export default function Login() {
   const [isTyping, setIsTyping] = useState(false);
   const [loginFailed, setLoginFailed] = useState(false);
   const [loginSuccess, setLoginSuccess] = useState(false);
+  const [pageExit, setPageExit] = useState(false);
   const [remember30, setRemember30] = useState(() => {
     try {
       return localStorage.getItem('atlas_remember_login') === '1';
@@ -140,17 +428,19 @@ export default function Login() {
     }
     (async () => {
       try {
-        // Phone / APK / mobile: never load Turnstile at all
-        if (isNativeClient()) {
+        // Capacitor native APK: skip widget. Mobile browser + PWA + desktop: load Turnstile.
+        if (!shouldLoadTurnstile()) {
           setTurnstileSiteKey(null);
           setTurnstileToken('');
         } else {
+          const client =
+            isPwaLogin() ? 'pwa' : isMobileLogin() ? 'mobile-web' : 'web';
           const tr = await fetch(`${getApiBase()}/api/auth/turnstile-config`, {
-            headers: { 'X-Atlas-Client': 'web' },
+            headers: { 'X-Atlas-Client': client },
           });
           const tj = await tr.json().catch(() => ({}));
           const key = tj?.data?.enabled && tj?.data?.site_key ? String(tj.data.site_key) : '';
-          if (key && !isNativeClient()) {
+          if (key) {
             setTurnstileSiteKey(key);
             if (!(window as any).turnstile) {
               const existing = document.querySelector('script[src*="challenges.cloudflare.com/turnstile"]');
@@ -166,7 +456,10 @@ export default function Login() {
         }
       } catch { /* optional */ }
       try {
-        const fp = await getCachedFingerprint().catch(() => 'none');
+        const fp = await Promise.race([
+        getCachedFingerprint().catch(() => 'none'),
+        new Promise<string>((r) => setTimeout(() => r('none'), 8000)),
+      ]);
         const bio = await isBiometricAvailable().catch(() => false);
         setBioAvailable(bio && isWebAuthnAvailable());
         const res = await fetch(`${getApiBase()}/api/auth/device-status`, {
@@ -203,7 +496,7 @@ export default function Login() {
           callback: (token: string) => setTurnstileToken(token),
           'expired-callback': () => setTurnstileToken(''),
           'error-callback': () => setTurnstileToken(''),
-          theme: 'light',
+          theme: 'dark',
           size: 'flexible',
         });
         turnstileWidgetId.current = widgetId;
@@ -269,7 +562,8 @@ export default function Login() {
       return;
     }
     setLoginSuccess(true);
-      window.setTimeout(() => navigate(postLoginPath(), { replace: true }), 900);
+      setPageExit(true);
+      window.setTimeout(() => navigate(postLoginPath(), { replace: true }), 1100);
   };
 
 
@@ -295,11 +589,14 @@ export default function Login() {
     setError('');
     setInfo('');
     try {
-      const fp = await getCachedFingerprint().catch(() => 'none');
+      const fp = await Promise.race([
+        getCachedFingerprint().catch(() => 'none'),
+        new Promise<string>((r) => setTimeout(() => r('none'), 8000)),
+      ]);
       const native = isNativeClient();
       // Web + Turnstile configured: require a token before hitting the API
       if (!native && turnstileSiteKey && !turnstileToken) {
-        setError('Vérification anti-bot en cours. Attendez le captcha (ou rechargez la page).');
+        setError('Vérification anti-bot (Turnstile) non prête. Attendez la case « Je ne suis pas un robot », ou rechargez. Sur mobile/PWA le captcha est désactivé.');
         setLoading(false);
         return;
       }
@@ -358,7 +655,10 @@ export default function Login() {
     setLoading(true);
     setError('');
     try {
-      const fp = await getCachedFingerprint().catch(() => 'none');
+      const fp = await Promise.race([
+        getCachedFingerprint().catch(() => 'none'),
+        new Promise<string>((r) => setTimeout(() => r('none'), 8000)),
+      ]);
       const res = await fetch(`${getApiBase()}/api/auth/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Device-Fingerprint': fp },
@@ -391,11 +691,14 @@ export default function Login() {
     setLoading(true);
     setError('');
     try {
-      const fp = await getCachedFingerprint().catch(() => 'none');
+      const fp = await Promise.race([
+        getCachedFingerprint().catch(() => 'none'),
+        new Promise<string>((r) => setTimeout(() => r('none'), 8000)),
+      ]);
       const optRes = await fetch(`${getApiBase()}/api/auth/webauthn/login/options`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Device-Fingerprint': fp },
-        body: JSON.stringify({ fingerprint: fp }),
+        body: JSON.stringify({ fingerprint: fp, username: username.trim() || undefined }),
       });
       const optData = await optRes.json().catch(() => ({}));
       if (!optRes.ok) {
@@ -427,11 +730,16 @@ export default function Login() {
     }
   };
 
+  loginWithWebAuthnRef.current = () => { void loginWithWebAuthn(); };
+
   const setupWebAuthn = async (deviceType: 'platform' | 'cross-platform') => {
     setLoading(true);
     setError('');
     try {
-      const fp = await getCachedFingerprint().catch(() => 'none');
+      const fp = await Promise.race([
+        getCachedFingerprint().catch(() => 'none'),
+        new Promise<string>((r) => setTimeout(() => r('none'), 8000)),
+      ]);
       const token = getToken();
       const optRes = await fetch(`${getApiBase()}/api/auth/webauthn/register/options`, {
         method: 'POST',
@@ -488,63 +796,36 @@ export default function Login() {
   };
 
   return (
-    <div className={`atlas-login${isNativeClient() ? ' atlas-login--phone' : ''}`}>
-      {/* Left — characters (desktop) */}
-      <div className="atlas-login-left">
-        <div className="atlas-login-left-logo">
-          <img src="/logo.svg" alt="" width={32} height={32} />
-          <span>{APP_NAME}</span>
-        </div>
-        <div className="atlas-login-chars-wrap">
-          <AnimatedCharacters
-            isTyping={isTyping}
-            showPassword={showPassword}
-            passwordLength={password.length}
-            loginFailed={loginFailed}
-            loginSuccess={loginSuccess}
-          />
-        </div>
-        <div className="atlas-login-left-foot">
-          <Link to="/privacy">Confidentialité</Link>
-          <Link to="/terms">Conditions</Link>
-          <a href={APP_GITHUB} target="_blank" rel="noreferrer">GitHub</a>
-        </div>
-        <div className="atlas-login-grid" aria-hidden />
-        <div className="atlas-login-blur atlas-login-blur-1" aria-hidden />
-        <div className="atlas-login-blur atlas-login-blur-2" aria-hidden />
-      </div>
+    <div className={`atlas-login atlas-login--auth7${(isNativeClient() || isMobileLogin() || isPwaLogin()) ? ' atlas-login--phone' : ''}`}>
+      {/* Brand mark */}
+      <motion.div
+        className="atlas-login-brand"
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 280, damping: 28, bounce: 0 }}
+      >
+        <img src="/logo.svg" alt="" width={28} height={28} />
+        <span>{APP_NAME}</span>
+      </motion.div>
 
-      {/* Right — form */}
-      <div className="atlas-login-right">
+      {/* Form column */}
+      <div className="atlas-login-card">
         <div className="atlas-login-form-wrap">
-          <div className="atlas-login-mobile-logo">
-            <img src="/logo.svg" alt="" width={36} height={36} />
-            <span>{APP_NAME}</span>
-          </div>
-
-          <div className="atlas-login-header">
-            <h1>Bon retour !</h1>
-            <p>Identifiant administrateur · Stock &amp; facturation</p>
-          </div>
-
-          {/* Mobile characters strip */}
-          {!isNativeClient() && (
-            <div className="atlas-login-chars-mobile">
-              <AnimatedCharacters
-                isTyping={isTyping}
-                showPassword={showPassword}
-                passwordLength={password.length}
-                loginFailed={loginFailed}
-                loginSuccess={loginSuccess}
-              />
-            </div>
-          )}
+          <motion.div
+            className="atlas-login-header"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ type: 'spring', stiffness: 260, damping: 26, bounce: 0, delay: 0.05 }}
+          >
+            <h1>Bon retour</h1>
+            <p>Connectez-vous pour gérer stock, caisse et facturation</p>
+          </motion.div>
 
           {error && <div className="atlas-login-alert" role="alert">{error}</div>}
           {info && !error && <div className="atlas-login-info" role="status">{info}</div>}
 
           {offerBioSetup ? (
-            <div className="atlas-login-form">
+            <div className="atlas-login-form atlas-login-auth7-form atlas-login-swap">
               <p className="atlas-login-note">
                 Choisissez une méthode rapide pour les prochaines connexions. Le mot de passe reste disponible.
               </p>
@@ -561,8 +842,11 @@ export default function Login() {
               </button>
             </div>
           ) : step === 'password' ? (
-            <form
-              className="atlas-login-form"
+            <motion.form
+              className="atlas-login-form atlas-login-auth7-form"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ type: 'spring', stiffness: 240, damping: 28, bounce: 0, delay: 0.1 }}
               onSubmit={async (e) => {
                 try {
                   localStorage.setItem('atlas_remember_login', remember30 ? '1' : '0');
@@ -577,12 +861,6 @@ export default function Login() {
                 }
               }}
             >
-              {hasCredentials && isWebAuthnAvailable() && (
-                <button type="button" className="atlas-login-secondary" disabled={loading} onClick={loginWithWebAuthn}>
-                  {loading ? 'Vérification…' : 'Biométrie / Clé de sécurité'}
-                </button>
-              )}
-
               <div className="atlas-field">
                 <label htmlFor="username">Identifiant</label>
                 <input
@@ -611,6 +889,8 @@ export default function Login() {
                     className={fieldErrors.password ? 'is-error' : undefined}
                     value={password}
                     onChange={(e) => { setPassword(e.target.value); setFieldErrors((x) => ({ ...x, password: '' })); }}
+                    onFocus={() => setIsTyping(true)}
+                    onBlur={() => setIsTyping(false)}
                     placeholder="••••••••"
                     autoComplete="current-password"
                     disabled={loading || !passwordConfigured}
@@ -631,19 +911,29 @@ export default function Login() {
               </div>
 
               <label className="atlas-remember">
-                <input type="checkbox" checked={remember30} onChange={(e) => setRemember30(e.target.checked)} />
-                <span>Se souvenir 30 jours</span>
+                <input
+                  type="checkbox"
+                  className="atlas-remember-input"
+                  checked={remember30}
+                  onChange={(e) => setRemember30(e.target.checked)}
+                />
+                <span className="atlas-remember-box" aria-hidden>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </span>
+                <span className="atlas-remember-label">Se souvenir 30 jours</span>
               </label>
 
-              {turnstileSiteKey && !isNativeClient() ? (
+              {turnstileSiteKey && shouldLoadTurnstile() ? (
                 <div id="cf-turnstile" className="atlas-turnstile" />
               ) : null}
 
               <button type="submit" className="atlas-login-submit" disabled={loading || !passwordConfigured}>
-                <span>{loading ? 'Vérification…' : deviceTrusted ? 'Se connecter' : 'Continuer'}</span>
+                <span>{loading ? 'Un instant…' : deviceTrusted ? 'Entrer dans Atlas' : 'Continuer'}</span>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
               </button>
-            </form>
+            </motion.form>
           ) : (
             <form className="atlas-login-form" onSubmit={submitOtp}>
               <div className="atlas-field">
@@ -663,7 +953,7 @@ export default function Login() {
                 />
               </div>
               <button type="submit" className="atlas-login-submit" disabled={loading}>
-                {loading ? 'Connexion…' : 'Se connecter'}
+                {loading ? 'Un instant…' : 'Entrer dans Atlas'}
               </button>
               <button
                 type="button"
@@ -695,6 +985,16 @@ export default function Login() {
           </p>
           <p className="atlas-login-meta">v{APP_VERSION}</p>
         </div>
+        <div className="atlas-login-qr-side" aria-label="Connexion par QR">
+          <LoginPcQrPanel onSuccessFlash={() => { setLoginSuccess(true); setPageExit(true); }} />
+        </div>
+      </div>
+
+      <div className="atlas-login-page-foot">
+        <span>© {new Date().getFullYear()} {APP_NAME}</span>
+        <Link to="/privacy">Confidentialité</Link>
+        <Link to="/terms">Conditions</Link>
+        <a href={APP_GITHUB} target="_blank" rel="noreferrer">GitHub</a>
       </div>
     </div>
   );
