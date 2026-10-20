@@ -1264,3 +1264,161 @@ html[data-theme="dark"] .wshot-card { fill: #27272a; stroke: #3f3f46; }
 html[data-theme="dark"] .wshot-accent { fill: #fafafa; }
 html[data-theme="dark"] .wshot-badge { fill: #ef4444; }
 html[data-theme="dark"] .wshot-corners { stroke: #fafafa; }
+
+/* ========== v206 — dark leftovers: agent panel, account menu, range datepicker ========== */
+/* Atlas Agent head / page chip / exec mode / msg actions / nav chips / composer */
+html[data-theme="dark"] .atlas-agent-head { border-bottom-color: #2a2a2e; }
+html[data-theme="dark"] .atlas-agent-head strong { color: #fafafa; }
+html[data-theme="dark"] .atlas-agent-head span { color: #a1a1aa; }
+html[data-theme="dark"] .atlas-agent-pagechip {
+  background: #27272a !important;
+  border: 1px solid #3f3f46 !important;
+  color: #f4f4f5 !important;
+}
+html[data-theme="dark"] .atlas-agent-pagechip .lbl,
+html[data-theme="dark"] .atlas-agent-pagechip small,
+html[data-theme="dark"] .atlas-agent-pagechip span { color: #a1a1aa !important; }
+html[data-theme="dark"] .atlas-agent-pagechip strong { color: #f4f4f5 !important; }
+html[data-theme="dark"] .atlas-agent-execmode button {
+  background: #27272a !important;
+  color: #e4e4e7 !important;
+  border: 1px solid #3f3f46 !important;
+}
+html[data-theme="dark"] .atlas-agent-execmode button.active {
+  background: #fafafa !important;
+  color: #0a0a0a !important;
+  -webkit-text-fill-color: #0a0a0a !important;
+  border-color: #fafafa !important;
+}
+html[data-theme="dark"] .atlas-agent-msg-act.secondary {
+  background: #27272a !important;
+  color: #e4e4e7 !important;
+  border: 1px solid #3f3f46 !important;
+}
+html[data-theme="dark"] .atlas-agent-msg-act.secondary:hover {
+  background: #3f3f46 !important;
+  color: #fafafa !important;
+}
+html[data-theme="dark"] .atlas-agent-panel .atlas-agent-nav--readable button,
+html[data-theme="dark"] .atlas-agent-panel .atlas-agent-chips--readable button,
+html[data-theme="dark"] .atlas-agent-panel .atlas-agent-suggest--readable button,
+html[data-theme="dark"] .atlas-agent-nav button.secondary,
+html[data-theme="dark"] .atlas-agent-chips button.secondary,
+html[data-theme="dark"] .atlas-agent-suggest button.secondary {
+  background: #27272a !important;
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+  border: 1px solid #3f3f46 !important;
+}
+html[data-theme="dark"] .atlas-agent-nav .lbl,
+html[data-theme="dark"] .atlas-agent-chips .lbl,
+html[data-theme="dark"] .atlas-agent-suggest .lbl { color: #a1a1aa !important; }
+html[data-theme="dark"] .atlas-agent-foot .prompt-bar__field,
+html[data-theme="dark"] .atlas-agent-foot .atlas-agent-prompt-bar .prompt-bar__field {
+  background: #161618 !important;
+  border: 1px solid #3f3f46 !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"] .atlas-agent-foot .prompt-bar__input,
+html[data-theme="dark"] .atlas-agent-foot .prompt-bar__input::placeholder {
+  color: #f4f4f5 !important;
+}
+
+/* Account menu: theme-aware panel (was forced dark in light mode too) */
+html[data-theme="light"] .account-menu-panel {
+  background: #ffffff !important;
+  border: 1px solid #e4e4e7 !important;
+  color: #0a0a0a;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12) !important;
+}
+html[data-theme="light"] .account-menu-item {
+  color: #3f3f46 !important;
+  background: transparent !important;
+}
+html[data-theme="light"] .account-menu-item:hover {
+  background: #f4f4f5 !important;
+  color: #0a0a0a !important;
+}
+html[data-theme="light"] .account-menu-section-label { color: #71717a !important; }
+html[data-theme="light"] .account-seg button {
+  background: #f4f4f5 !important;
+  color: #3f3f46 !important;
+  border: 1px solid #e4e4e7 !important;
+}
+html[data-theme="light"] .account-seg button.active {
+  background: #0a0a0a !important;
+  color: #fafafa !important;
+  -webkit-text-fill-color: #fafafa !important;
+}
+html[data-theme="light"] .account-menu-danger {
+  background: #fef2f2 !important;
+  color: #b91c1c !important;
+  -webkit-text-fill-color: #b91c1c !important;
+  border-color: #fecaca !important;
+}
+/* Dark: make sure item labels never dim out */
+html[data-theme="dark"] .account-menu-item { color: #e4e4e7 !important; }
+html[data-theme="dark"] .account-menu-item-label { color: #f4f4f5 !important; }
+html[data-theme="dark"] .account-seg button {
+  background: #27272a !important;
+  color: #e4e4e7 !important;
+  border: 1px solid #3f3f46 !important;
+}
+
+/* Range datepicker — nuclear dark pass (desktop + phone shell) */
+html[data-theme="dark"] .atlas-dp-pop.atlas-dp-range,
+html[data-theme="dark"] .atlas-dp-pop.atlas-dp-range.has-presets {
+  background: #1c1c1f !important;
+  border-color: #2a2a2e !important;
+}
+html[data-theme="dark"] .atlas-dp-presets {
+  background: #161618 !important;
+  border-color: #2a2a2e !important;
+}
+html[data-theme="dark"] .atlas-dp-range-main,
+html[data-theme="dark"] .atlas-dp-cal,
+html[data-theme="dark"] .atlas-dp-grid {
+  background: transparent !important;
+}
+html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-day,
+html[data-theme="dark"] .atlas-dp-pop .atlas-dp-weekdays,
+html[data-theme="dark"] .atlas-dp-pop .atlas-dp-title {
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+}
+html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-nav,
+html[data-theme="dark"] .atlas-dp-pop .atlas-dp-select {
+  background: #27272a !important;
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+  border: 1px solid #3f3f46 !important;
+}
+html[data-theme="dark"] .atlas-dp-pop .atlas-dp-foot,
+html[data-theme="dark"] .atlas-dp-pop .atlas-dp-foot button,
+html[data-theme="dark"] .atlas-dp-pop .atlas-dp-foot button.secondary {
+  background: #27272a !important;
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+  border: 1px solid #3f3f46 !important;
+}
+html[data-theme="dark"] .atlas-dp-pop .atlas-dp-foot button:hover {
+  background: #3f3f46 !important;
+  color: #fafafa !important;
+}
+html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-day.is-selected {
+  background: #fafafa !important;
+  color: #0a0a0a !important;
+  -webkit-text-fill-color: #0a0a0a !important;
+}
+html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-day.is-in-range {
+  background: #3f3f46 !important;
+  color: #f4f4f5 !important;
+}
+html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-preset {
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+}
+html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-preset.is-active {
+  background: #3f3f46 !important;
+  color: #fafafa !important;
+}
