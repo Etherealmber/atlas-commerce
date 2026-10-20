@@ -459,13 +459,13 @@ export default function Clients() {
             {/* Same action bar pattern as every other form: primary always right */}
             <div className="wizard-foot">
               <div className="wizard-foot-nav">
-                <span className="wizard-foot-step">Fiche client</span>
-                <button onClick={save} disabled={saving}>
-                  {saving ? 'Enregistrement...' : editId ? 'Enregistrer' : 'Créer le client'}
-                </button>
-              </div>
-              <div className="wizard-foot-extra">
-                <button className="secondary" onClick={() => { setShow(false); setEditId(null); }}>Annuler</button>
+                <span className="wizard-foot-step">{editId ? 'Modifier le client' : 'Nouveau client'}</span>
+                <div className="wizard-foot-actions">
+                  <button className="secondary" onClick={() => { setShow(false); setEditId(null); }}>Annuler</button>
+                  <button onClick={save} disabled={saving}>
+                    {saving ? 'Enregistrement...' : editId ? 'Enregistrer' : 'Créer le client'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

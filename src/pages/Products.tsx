@@ -1106,15 +1106,17 @@ export default function Products() {
             {/* Same pinned action bar as every other form */}
             <div className="wizard-foot">
               <div className="wizard-foot-nav">
-                {firstError(fieldErrors)
-                  ? <span className="save-error-inline">{firstError(fieldErrors)}</span>
-                  : <span className="wizard-foot-step">Fiche produit</span>}
-                <button onClick={() => save()} disabled={saving}>
-                  {saving ? 'Enregistrement…' : 'Enregistrer'}
-                </button>
-              </div>
-              <div className="wizard-foot-extra">
-                <button className="secondary" onClick={() => setShow(false)}>Annuler</button>
+                {firstError(fieldErrors) ? (
+                  <span className="wizard-foot-step save-error-inline">{firstError(fieldErrors)}</span>
+                ) : (
+                  <span className="wizard-foot-step">Fiche produit</span>
+                )}
+                <div className="wizard-foot-actions">
+                  <button className="secondary" onClick={() => setShow(false)}>Annuler</button>
+                  <button onClick={() => save()} disabled={saving}>
+                    {saving ? 'Enregistrement…' : 'Enregistrer'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

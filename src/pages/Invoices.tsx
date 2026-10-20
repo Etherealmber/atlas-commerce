@@ -79,6 +79,8 @@ export default function Invoices() {
   const [dueDate, setDueDate] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  // Guided steps: 0 = client & dates, 1 = lines, 2 = options & notes
+  const [docStep, setDocStep] = useState(0);
   const [saveMsg, setSaveMsg] = useState('');
   const [saveMsgType, setSaveMsgType] = useState<'success' | 'error'>('success');
   const [items, setItems] = useState<{ product_id?: number; product_name: string; sku?: string; quantity: number; list_price: number; unit_price: number; product_query?: string }[]>([{ product_name: '', quantity: 1, list_price: 0, unit_price: 0, product_query: '' }]);
@@ -634,6 +636,21 @@ export default function Invoices() {
           <div className="modal" style={{ maxWidth: 1080, width: '96vw' }} onClick={(e) => e.stopPropagation()}>
             <h2>{docMode === 'quote' ? 'Nouveau devis (estimation)' : 'Nouvelle facture de vente'}</h2>
 
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
+              {(['Client', 'Lignes', 'Options'] as const).map((lab, i) => (
+                <button
+                  key={lab}
+                  type="button"
+                  className={i === docStep ? '' : 'secondary'}
+                  style={{ padding: '6px 12px', fontSize: 12 }}
+                  onClick={() => setDocStep(i)}
+                >
+                  {lab}
+                </button>
+              ))}
+            </div>
+
+            {docStep === 0 && (<>
             <div className="form-row">
               <label>Client enregistré</label>
               <TypeaheadField
@@ -693,13 +710,18 @@ export default function Invoices() {
               <div className="form-row"><label>Date d'émission</label><DatePicker value={issueDate} onChange={setIssueDate} /></div>
               <div className="form-row"><label>Date d'échéance</label><DatePicker value={dueDate} onChange={setDueDate} /></div>
             </div>
+            </>)}
+
+            {docStep === 2 && (<>
             <div className="form-row">
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                 <input type="checkbox" checked={taxExempt} onChange={(e) => setTaxExempt(e.target.checked)} />
                 Exonéré de TVA (tax exempt) — TVA forcée à 0 %
               </label>
             </div>
+            </>)}
 
+            {docStep === 1 && (<>
             <h3 style={{ margin: '16px 0 8px', fontSize: 14 }}>Lignes — prix TTC · TVA calculée en bas (style facture marbre)</h3>
             <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10, lineHeight: 1.4 }}>
               Choisissez un produit (recherche), le <strong>prix catalogue</strong> se remplit automatiquement. Saisissez ensuite le <strong>prix client</strong> si une promo / remise s&apos;applique.
@@ -786,14 +808,30 @@ export default function Invoices() {
               )}
             </div>
             <button type="button" className="secondary" onClick={() => setItems([...items, { product_name: '', quantity: 1, list_price: 0, unit_price: 0, product_query: '' }])} style={{ marginBottom: 16 }}>+ Ajouter une ligne</button>
+            </>)}
 
+            {docStep === 2 && (<>
             <div className="form-row"><label>Notes</label><textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
               <NoteChips value={notes} onChange={setNotes} />
+            </>)}
             <ModalFormError message={modalError} />
-            <div className="form-actions">
-              {firstError(fieldErrors) && <span className="save-error-inline">{firstError(fieldErrors)}</span>}
-              <button onClick={create} disabled={saving}>{saving ? 'Enregistrement…' : (docMode === 'quote' ? 'Enregistrer le devis' : 'Créer la facture')}</button>
-              <button type="button" className="secondary" onClick={() => { setModalError(''); setFieldErrors({}); setShowModal(false); }}>Annuler</button>
+            <div className="wizard-foot">
+              <div className="wizard-foot-nav">
+                <span className="wizard-foot-step">
+                  {firstError(fieldErrors) || `Étape ${docStep + 1}/3 · ${['Client', 'Lignes', 'Options'][docStep]}`}
+                </span>
+                <div className="wizard-foot-actions">
+                  <button type="button" className="secondary" onClick={() => { setModalError(''); setFieldErrors({}); setShowModal(false); }}>Annuler</button>
+                  {docStep > 0 && (
+                    <button type="button" className="secondary" onClick={() => setDocStep((x) => Math.max(0, x - 1))}>Retour</button>
+                  )}
+                  {docStep < 2 ? (
+                    <button type="button" onClick={() => setDocStep((x) => Math.min(2, x + 1))}>Continuer</button>
+                  ) : (
+                    <button onClick={create} disabled={saving}>{saving ? 'Enregistrement…' : (docMode === 'quote' ? 'Enregistrer le devis' : 'Créer la facture')}</button>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div></FloatingPortal>

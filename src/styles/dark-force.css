@@ -955,3 +955,67 @@ html[data-theme="dark"] .atlas-agent-foot .atlas-agent-input-wrap input {
   color: #f4f4f5;
   border-color: #3f3f46;
 }
+
+/* ========== v202 — DatePicker follows the site palette in LIGHT too ========== */
+html[data-theme="light"] .atlas-dp-pop {
+  background: #ffffff !important;
+  color: #0a0a0a !important;
+  border: 1px solid #e4e4e7 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12) !important;
+}
+html[data-theme="light"] .atlas-dp-pop button.atlas-dp-day,
+html[data-theme="light"] .atlas-dp-pop button.atlas-dp-preset,
+html[data-theme="light"] .atlas-dp-pop button.atlas-dp-btn {
+  color: #0a0a0a !important;
+}
+html[data-theme="light"] .atlas-dp-pop button.atlas-dp-nav {
+  background: #f4f4f5 !important;
+  color: #0a0a0a !important;
+  border-radius: 8px !important;
+}
+html[data-theme="light"] .atlas-dp-pop button.atlas-dp-nav:hover { background: #e4e4e7 !important; }
+html[data-theme="light"] .atlas-dp-pop button.atlas-dp-day.is-today {
+  box-shadow: inset 0 0 0 1px #a1a1aa !important;
+  background: transparent !important;
+}
+html[data-theme="light"] .atlas-dp-pop button.atlas-dp-day.is-in-range {
+  background: #f4f4f5 !important;
+  color: #0a0a0a !important;
+}
+html[data-theme="light"] .atlas-dp-pop button.atlas-dp-day.is-selected {
+  background: #0a0a0a !important;
+  color: #fafafa !important;
+  border-radius: 8px !important;
+}
+html[data-theme="light"] button.atlas-dp-trigger {
+  background: #ffffff !important;
+  border: 1px solid #d4d4d8 !important;
+  color: #0a0a0a !important;
+  border-radius: 10px !important;
+}
+html[data-theme="light"] .atlas-dp-weekdays,
+html[data-theme="light"] .atlas-dp-hint { color: #71717a !important; }
+html[data-theme="light"] .atlas-dp-select {
+  background: #ffffff !important;
+  border: 1px solid #d4d4d8 !important;
+  color: #0a0a0a !important;
+}
+html[data-theme="light"] .atlas-dp-foot button.secondary {
+  background: #f4f4f5 !important;
+  color: #0a0a0a !important;
+  border: 1px solid #d4d4d8 !important;
+}
+
+/* ========== v202 — topbar icon chips readable in dark ========== */
+html[data-theme="dark"] .ac-topbar-icon,
+html[data-theme="dark"] .ac-topbar button.secondary {
+  background: #27272a !important;
+  color: #e4e4e7 !important;
+  border: 1px solid #3f3f46 !important;
+}
+html[data-theme="dark"] .ac-topbar-icon:hover,
+html[data-theme="dark"] .ac-topbar button.secondary:hover {
+  background: #3f3f46 !important;
+  color: #fafafa !important;
+}
