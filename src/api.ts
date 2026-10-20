@@ -492,6 +492,12 @@ export const api = {
     request<{ data: any }>(`/api/scan/barcode/${encodeURIComponent(code)}`),
   quickProductFromBarcode: (body: any) =>
     request('/api/scan/quick-product', { method: 'POST', body: JSON.stringify(body) }),
+  listProductRequests: (status = 'open') =>
+    request<{ data: any[] }>(`/api/stock/product-requests?status=${encodeURIComponent(status)}`),
+  createProductRequest: (body: { code: string; name?: string; note?: string; photo_data_url?: string }) =>
+    request('/api/stock/product-requests', { method: 'POST', body: JSON.stringify(body) }),
+  closeProductRequest: (id: number, body: { status: 'done' | 'dismissed'; product_id?: number }) =>
+    request(`/api/stock/product-requests/${id}/close`, { method: 'POST', body: JSON.stringify(body) }),
 
   getClients: () => request<{ data: any[] }>('/api/clients'),
   createClient: (body: any) => request('/api/clients', { method: 'POST', body: JSON.stringify(body) }),
