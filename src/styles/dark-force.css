@@ -1422,3 +1422,67 @@ html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-preset.is-active {
   background: #3f3f46 !important;
   color: #fafafa !important;
 }
+
+/* ========== v207 — QR fab: kill the black-oval backdrop + panel polish ========== */
+/* Root cause: index.css paints EVERY <button> as a black pill (radius 999px).
+   The full-viewport backdrop is a <button> → pill radius on inset:0 = giant
+   black ellipse. Force a flat dim rectangle in both themes. */
+html body button.qr-fab-backdrop,
+html body .qr-fab-backdrop {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 100vw !important;
+  min-height: 100vh !important;
+  max-width: none !important;
+  max-height: none !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: rgba(15, 23, 42, 0.45) !important;
+  background-color: rgba(15, 23, 42, 0.45) !important;
+  background-image: none !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  filter: none !important;
+  box-shadow: none !important;
+}
+/* Generic guard: any full-screen <button> backdrop never inherits pill paint */
+html body button[class$="-backdrop"]:not(.account-menu-backdrop):not(.ac-topbar-menu-backdrop):not(.mobile-nav-backdrop):not(.atlas-agent-float-backdrop) {
+  border-radius: 0 !important;
+  padding: 0 !important;
+  filter: none !important;
+}
+html body .qr-fab-layer { z-index: 95 !important; }
+html body .qr-fab-panel {
+  z-index: 96;
+  border-radius: 18px;
+  padding: 18px;
+}
+/* Panel polish: readable hierarchy, consistent actions (light + dark) */
+html body .qr-fab-panel .qr-login-head strong,
+html body .qr-fab-panel h3 { font-size: 15px; }
+html body .qr-fab-panel .qr-login-show button,
+html body .qr-fab-panel .qr-login-stopped button {
+  min-height: 40px;
+  padding: 0 16px !important;
+  font-weight: 600;
+}
+html[data-theme="light"] .qr-fab-panel .qr-login-show button.secondary {
+  background: #0a0a0a !important;
+  color: #fafafa !important;
+  border-color: #0a0a0a !important;
+}
+html[data-theme="dark"] .qr-fab-panel .qr-login-show button.secondary {
+  background: #fafafa !important;
+  color: #0a0a0a !important;
+  border-color: #fafafa !important;
+}
+html body .qr-fab-panel .qr-login-user select {
+  min-height: 38px;
+  border-radius: 10px;
+}
+/* FAB itself: always visible above sticky save bar & phone chrome */
+html body .qr-fab { z-index: 94 !important; }
+html body .settings-sticky-save { z-index: 60 !important; }
