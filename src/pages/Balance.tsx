@@ -1,5 +1,6 @@
 import { suggestExpenseCategory } from '../lib/assist';
 import DatePicker from '../components/DatePicker';
+import { useWizard, StepBody, WizardFoot } from '../components/ui/FormWizard';
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
 import SaveFeedback from '../components/SaveFeedback';
@@ -131,6 +132,7 @@ export default function Balance() {
   const [pendingAction, setPendingAction] = useState<null | ((password: string) => Promise<void>)>(null);
   const [reconcile, setReconcile] = useState<any>(null);
   const [showModal, setShowModal] = useState(false);
+  const wz = useWizard(2);
   const [entryType, setEntryType] = useState<EntryType>('expense');
   const [category, setCategory] = useState(EXPENSE_CATEGORIES[0]);
   const [description, setDescription] = useState('');
@@ -172,7 +174,7 @@ export default function Balance() {
     setDescription(''); setAmount(0); setVendorName(''); setNotes('');
     setExpenseDate(new Date().toISOString().slice(0, 10));
     setPaymentMethod('cash');
-    setModalError(''); setShowModal(true);
+    setModalError(''); wz.reset(); setShowModal(true);
   };
 
   const create = async () => {
@@ -653,6 +655,7 @@ export default function Balance() {
                 ? 'Entrée de trésorerie (affichée en vert, signe +).'
                 : 'Sortie de trésorerie (affichée en rouge, signe −).'}
             </p>
+            <StepBody active={wz.step === 1}>
             <div className="form-row">
               <label>Type</label>
               <select
@@ -679,6 +682,8 @@ export default function Balance() {
               <label>Libellé *</label>
               <input className={fieldErrors.description ? 'field-error' : undefined} value={description} onChange={(e) => { setDescription(e.target.value); setFieldErrors((x) => ({ ...x, description: '' })); }} placeholder="Ex. Loyer entrepôt août" /><span className="field-error-msg">{fieldErrors.description || ''}</span>
             </div>
+            </StepBody>
+            <StepBody active={wz.step === 2}>
             <div className="grid grid-2">
               <div className="form-row">
                 <label>Montant *</label>
@@ -708,11 +713,17 @@ export default function Balance() {
               <label>Notes</label>
               <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
             </div>
+            </StepBody>
             <ModalFormError message={modalError} />
-            <div className="form-actions">
-              <button onClick={create} disabled={saving}>{saving ? 'Enregistrement...' : 'Enregistrer'}</button>
-              <button className="secondary" onClick={() => setShowModal(false)}>Annuler</button>
-            </div>
+            <WizardFoot
+              wz={wz}
+              title="Nouvelle écriture"
+              stepLabel={['Type', 'Montant'][wz.step - 1]}
+              onCancel={() => setShowModal(false)}
+              onSubmit={create}
+              submitLabel="Enregistrer"
+              saving={saving}
+            />
           </div>
         </div></FloatingPortal>
       )}

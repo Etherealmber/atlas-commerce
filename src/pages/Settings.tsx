@@ -3186,6 +3186,7 @@ if (loading) return (
         }}
       />
 
+{createPortal(
       <button
         type="button"
         className={`qr-fab${qrFabOpen ? ' is-open' : ''}`}
@@ -3200,7 +3201,9 @@ if (loading) return (
           <path d="M14 14h3v3M21 14v3h-3M14 21h3" strokeLinecap="round" />
         </svg>
         <span>QR</span>
-      </button>
+      </button>,
+        document.body,
+      )}
       {qrFabOpen ? createPortal(
         <div className="qr-fab-layer" role="dialog" aria-modal="true" aria-label="Connexion par QR">
           <button type="button" className="qr-fab-backdrop" aria-label="Fermer" onClick={() => setQrFabOpen(false)} />

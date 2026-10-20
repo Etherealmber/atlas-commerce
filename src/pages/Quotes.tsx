@@ -10,6 +10,7 @@ import { useUi } from '../components/AppDialogs';
 import { numStr, numFromInput } from '../lib/numInput';
 import NumberField from '../components/NumberField';
 import EmptyState from '../components/EmptyState';
+import { useWizard, StepBody, WizardFoot } from '../components/ui/FormWizard';
 import RefreshIconButton from '../components/RefreshIconButton';
 import PasswordConfirm from '../components/PasswordConfirm';
 import { FloatingPortal } from '../components/FloatingPortal';
@@ -24,6 +25,7 @@ export default function Quotes() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const wz = useWizard(3);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
   const [saveMsgType, setSaveMsgType] = useState<'success' | 'error'>('success');
@@ -339,7 +341,7 @@ export default function Quotes() {
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
-          <button onClick={() => { resetForm(); setShowModal(true); }}>+ Nouveau devis</button>
+          <button onClick={() => { resetForm(); wz.reset(); setShowModal(true); }}>+ Nouveau devis</button>
         </div>
       </div>
 
@@ -422,6 +424,7 @@ export default function Quotes() {
             <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>
               Non comptabilisé tant qu’il n’est pas converti en facture. Stock non modifié.
             </p>
+            <StepBody active={wz.step === 1}>
             <div className="grid grid-2">
               <div className="form-row">
                 <label>Client *</label>
@@ -481,6 +484,8 @@ export default function Quotes() {
               </p>
             </div>
 
+            </StepBody>
+            <StepBody active={wz.step === 2}>
             <h3 style={{ fontSize: 14, margin: '16px 0 8px' }}>Lignes — prix catalogue · prix client (promo)</h3>
             <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>
               Le <strong>prix catalogue</strong> se remplit au choix du produit. Saisissez le <strong>prix client</strong> pour une promo / remise. Les devis ne touchent jamais le stock.
@@ -546,6 +551,8 @@ export default function Quotes() {
             <button type="button" className="secondary" style={{ marginBottom: 12 }} onClick={() => setItems([...items, { product_name: '', quantity: 1, list_price: 0, unit_price: 0, tax_rate: 20 }])}>
               + Ligne
             </button>
+            </StepBody>
+            <StepBody active={wz.step === 3}>
             <div className="form-row">
               <label>Notes</label>
               <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
@@ -556,15 +563,16 @@ export default function Quotes() {
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 16 }}><span>TTC</span><strong>{fmt(draftTotals.ttc)} MAD</strong></div>
             </div>
             <ModalFormError message={modalError} />
-            <div className="wizard-foot">
-              <div className="wizard-foot-nav">
-                <span className="wizard-foot-step">Nouveau devis</span>
-                <div className="wizard-foot-actions">
-                  <button className="secondary" onClick={() => setShowModal(false)}>Annuler</button>
-                  <button onClick={create} disabled={saving}>{saving ? 'Enregistrement…' : 'Enregistrer le devis'}</button>
-                </div>
-              </div>
-            </div>
+            </StepBody>
+            <WizardFoot
+              wz={wz}
+              title="Nouveau devis"
+              stepLabel={['Client', 'Lignes', 'Notes'][wz.step - 1]}
+              onCancel={() => setShowModal(false)}
+              onSubmit={create}
+              submitLabel="Enregistrer le devis"
+              saving={saving}
+            />
           </div>
         </div></FloatingPortal>
       )}

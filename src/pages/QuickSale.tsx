@@ -16,6 +16,7 @@ import { useUi } from '../components/AppDialogs';
 import PasswordConfirm from '../components/PasswordConfirm';
 import { friendlyError } from '../lib/errors';
 import RefreshIconButton from '../components/RefreshIconButton';
+import { useWizard, StepBody, WizardFoot } from '../components/ui/FormWizard';
 import '../components/erp/orders-fulfillment.css';
 import RemboursementModal from '../components/RemboursementModal';
 import { FloatingPortal } from '../components/FloatingPortal';
@@ -65,6 +66,7 @@ export default function QuickSale() {
   const [filter, setFilter] = useState('');
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const wz = useWizard(3);
 
   const [clientId, setClientId] = useState<number | ''>('');
   const [clientName, setClientName] = useState('');
@@ -91,6 +93,7 @@ export default function QuickSale() {
     setTimeout(() => setMsg(''), 4500);
   };
 
+  const refreshCounts = () => load(true);
   const load = (soft = false) => {
     if (soft) setRefreshing(true);
     else setLoading(true);
@@ -475,7 +478,7 @@ export default function QuickSale() {
             <option value="paid">Encaissés</option>
             <option value="cancelled">Annulés</option>
           </select>
-          <button onClick={() => { resetForm(); setModalError(''); setShowModal(true); }}>+ Nouvelle vente</button>
+          <button onClick={() => { resetForm(); setModalError(''); wz.reset(); setShowModal(true); }}>+ Nouvelle vente</button>
         </div>
       </div>
 
@@ -524,7 +527,7 @@ export default function QuickSale() {
                       title="Aucune vente rapide"
                       description="Créez un ticket caisse (série VR). Aucune TVA n’est appliquée."
                       actionLabel="Nouvelle vente"
-                      onAction={() => { resetForm(); setModalError(''); setShowModal(true); }}
+                      onAction={() => { resetForm(); setModalError(''); wz.reset(); setShowModal(true); }}
                       icon="document"
                     />
                   </td>
@@ -613,6 +616,7 @@ export default function QuickSale() {
               Prix saisis tels quels. <strong>Aucune TVA</strong> n’est calculée sur les tickets VR.
             </p>
 
+            <StepBody active={wz.step === 1}>
             <div className="form-row">
               <label>Client enregistré</label>
               <TypeaheadField
@@ -660,6 +664,8 @@ export default function QuickSale() {
               </div>
             </div>
 
+            </StepBody>
+            <StepBody active={wz.step === 2}>
             <div className="form-row" style={{ marginTop: 12 }}>
               <label>Code-barres / SKU (Entrée = ajouter)</label>
               <input
@@ -790,12 +796,14 @@ export default function QuickSale() {
               + Ajouter une ligne
             </button>
 
+            </StepBody>
+            <StepBody active={wz.step === 3}>
             <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
               {([['cash', 'Espèces'], ['card', 'Carte']] as const).map(([k, lab]) => (
                 <button
                   key={k}
                   type="button"
-                  className={payMode === k ? '' : 'secondary'}
+                  className={payMode === k ? 'qs-pay is-on' : 'secondary qs-pay'}
                   onClick={() => setPayMode(k)}
                 >
                   {lab}
@@ -812,13 +820,17 @@ export default function QuickSale() {
               <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optionnel" />
             </div>
 
+            </StepBody>
             <ModalFormError message={modalError} />
-            <div className="form-actions">
-              <button type="button" onClick={() => void checkout()} disabled={busy}>
-                {busy ? 'Encaissement…' : `Encaisser · ${fmt(total)}`}
-              </button>
-              <button type="button" className="secondary" onClick={() => !busy && setShowModal(false)}>Annuler</button>
-            </div>
+            <WizardFoot
+              wz={wz}
+              title="Nouvelle vente rapide (caisse)"
+              stepLabel={['Client', 'Articles', 'Paiement'][wz.step - 1]}
+              onCancel={() => !busy && setShowModal(false)}
+              onSubmit={() => void checkout()}
+              submitLabel={`Encaisser · ${fmt(total)}`}
+              saving={busy}
+            />
           </div>
         </div></FloatingPortal>
       )}
