@@ -355,15 +355,17 @@ export async function previewXlsx(blob: Blob): Promise<OfficeSlide[]> {
       const isM = /<is>[\s\S]*?<t[^>]*>([\s\S]*?)<\/t>/.exec(inner);
       if (type === 's' && vM) {
         const idx = Number(vM[1]);
+        // Shared strings were already entity-decoded when the table was
+        // built — decoding again would double-unescape (&amp;lt; -> <).
         val = shared[idx] ?? '';
       } else if (type === 'inlineStr' && isM) {
-        val = isM[1] || '';
+        val = decodeXmlEntities(isM[1] || '');
       } else if (vM) {
-        val = vM[1] || '';
+        val = decodeXmlEntities(vM[1] || '');
       } else if (isM) {
-        val = isM[1] || '';
+        val = decodeXmlEntities(isM[1] || '');
       }
-      val = decodeXmlEntities(val).trim();
+      val = val.trim();
       cells.set(`${pos.r}:${pos.c}`, val);
     }
     // Cap preview size for UI

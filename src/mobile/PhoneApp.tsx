@@ -17,6 +17,7 @@ import './phone.css';
 import PageTransition from '../components/PageTransition';
 import PageSkeleton from '../components/PageSkeleton';
 import { AvatarImage } from '../components/ui/AvatarImage';
+import { useProfileWarm } from '../lib/useProfileWarm';
 import {
   cacheProducts,
   cacheLocations,
@@ -150,6 +151,7 @@ function PhoneEmbed({ title, children }: { title: string; children: ReactNode })
   );
 }
 export default function PhoneApp() {
+  useProfileWarm();
   useEffect(() => {
     try {
       setDensity('comfortable');

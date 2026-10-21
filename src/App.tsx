@@ -66,6 +66,7 @@ import OfflineBanner from './components/OfflineBanner';
 import CookieConsent from './components/CookieConsent';
 import { TopbarUserMenu } from './components/shell/TopbarUserMenu';
 import { AvatarImage } from './components/ui/AvatarImage';
+import { useProfileWarm } from './lib/useProfileWarm';
 import { DemoProvider } from './context/DemoContext';
 const Welcome = lazy(() => import('./pages/Welcome'));
 
@@ -636,6 +637,7 @@ function useTheme() {
 function DesktopShell() {
   const navigate = useNavigate();
   const location = useLocation();
+  useProfileWarm();
   const isFocusRoute =
     location.pathname === '/settings' ||
     location.pathname.startsWith('/settings/') ||

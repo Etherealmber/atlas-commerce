@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import LatticeLoader from './ui/LatticeLoader';
 import PromptBar from './ui/PromptBar';
+import { ImageLightbox } from './ui/ImageLightbox';
 import { Attachment01Icon } from '@hugeicons/core-free-icons';
 import { createPortal } from 'react-dom';
 import { renderMiniMarkdown } from '../lib/miniMarkdown';
@@ -126,8 +127,6 @@ function pageMeta(pathname: string): { title: string; hint: string; path: string
     return { title: 'Scan', hint: 'Code-barres terrain.', path: pathname };
   if (false)
     return { title: 'Entrepôts', hint: 'Stock terrain.', path: pathname };
-  if (false && pathname.startsWith('/mailbox'))
-    return { title: 'Boîte d’actions', hint: 'Envois vers le PC.', path: pathname };
   if (false)
     return { title: 'Accueil terrain', hint: 'Tableau de bord mobile.', path: pathname };
   if (pathname.startsWith('/settings'))
@@ -144,12 +143,6 @@ function pageMeta(pathname: string): { title: string; hint: string; path: string
     return { title: 'Vente rapide', hint: 'Caisse / tickets.', path: pathname };
   if (pathname.startsWith('/clients'))
     return { title: 'Clients', hint: 'Fiches clients.', path: pathname };
-  if (false && pathname.startsWith('/mailbox'))
-    return {
-      title: 'Messagerie',
-      hint: 'Lis les mails, propose une réponse, signale impayés clients, ouvre devis/facture/TVA si besoin. Dis "réponse à ce mail" ou "qui doit payer".',
-      path: pathname,
-    };
   if (pathname.startsWith('/settings'))
     return { title: 'Paramètres', hint: 'Profil et société.', path: pathname };
   if (pathname.startsWith('/reports'))
@@ -664,6 +657,7 @@ export default function AtlasAgent() {
   const [busy, setBusy] = useState(false);
   const [listening, setListening] = useState(false); // unused (dictation removed)
   const [attachments, setAttachments] = useState<{ name: string; type: string; data_url: string }[]>([]);
+  const [lightbox, setLightbox] = useState<{ src: string; name?: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [msgs, setMsgs] = useState<Msg[]>(() => {
     const id = (() => {
@@ -1598,7 +1592,8 @@ export default function AtlasAgent() {
                         src={src}
                         alt={`Pièce jointe ${k + 1}`}
                         title="Ouvrir l’image"
-                        onClick={() => { try { window.open(src, '_blank', 'noopener'); } catch { /* */ } }}
+                        style={{ cursor: 'zoom-in' }}
+                        onClick={() => setLightbox({ src, name: `Pièce jointe ${k + 1}` })}
                       />
                     ))}
                   </div>
@@ -1969,6 +1964,10 @@ export default function AtlasAgent() {
               const a = attachments[i];
               if (a) setAnnotator({ index: i, src: a.data_url, name: a.name });
             }}
+            onPreviewAttachment={(i) => {
+              const a = attachments[i];
+              if (a) setLightbox({ src: a.data_url, name: a.name });
+            }}
             onAttach={() => {
               fileInputRef.current?.click();
             }}
@@ -1982,6 +1981,9 @@ export default function AtlasAgent() {
             className="atlas-agent-prompt-bar"
           />
         </footer>
+        {lightbox && (
+          <ImageLightbox src={lightbox.src} name={lightbox.name} onClose={() => setLightbox(null)} />
+        )}
         {annotator && (
           <ImageAnnotator
             src={annotator.src}

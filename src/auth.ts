@@ -6,7 +6,11 @@ const SESSION_IP_KEY = 'stock_session_ip';
 const ROLE_KEY = 'stock_role';
 const USER_KEY = 'stock_auth_user';
 const DISPLAY_NAME_KEY = 'stock_display_name';
-const AVATAR_URL_KEY = 'stock_avatar_url';
+
+// Avatar URL lives in memory only (never in DOM storage): it is refreshed
+// from the API via setProfileCache(), so no DOM-storage text can ever flow
+// into an <img> src (CodeQL js/dom-text-reinterpreted-as-html).
+let memoryAvatarUrl = '';
 
 export function sanitizeAvatarUrl(raw: string | null | undefined): string {
   const value = String(raw || '').trim();
@@ -63,7 +67,7 @@ export function getDisplayName(): string {
 }
 
 export function getAvatarUrl(): string {
-  return sanitizeAvatarUrl(localStorage.getItem(AVATAR_URL_KEY) || '');
+  return memoryAvatarUrl;
 }
 
 /**
@@ -86,9 +90,7 @@ export function setProfileCache(partial: {
     localStorage.setItem(DISPLAY_NAME_KEY, String(partial.display_name).trim());
   }
   if (partial.avatar_url != null) {
-    const a = sanitizeAvatarUrl(String(partial.avatar_url).trim());
-    if (a) localStorage.setItem(AVATAR_URL_KEY, a);
-    else localStorage.removeItem(AVATAR_URL_KEY);
+    memoryAvatarUrl = sanitizeAvatarUrl(partial.avatar_url);
   }
   if (partial.username) localStorage.setItem(USER_KEY, String(partial.username));
   if (partial.role) localStorage.setItem(ROLE_KEY, String(partial.role));
@@ -110,7 +112,7 @@ export function clearToken() {
   localStorage.removeItem(ROLE_KEY);
   localStorage.removeItem(USER_KEY);
   localStorage.removeItem(DISPLAY_NAME_KEY);
-  localStorage.removeItem(AVATAR_URL_KEY);
+  memoryAvatarUrl = '';
 }
 
 export function isLoggedIn(): boolean {
@@ -148,9 +150,7 @@ export function startSessionGuard(): () => void {
         if (m.role) localStorage.setItem(ROLE_KEY, String(m.role));
         if (m.display_name != null) localStorage.setItem(DISPLAY_NAME_KEY, String(m.display_name));
         if (m.avatar_url != null) {
-          const a = String(m.avatar_url).trim();
-          if (a) localStorage.setItem(AVATAR_URL_KEY, a);
-          else localStorage.removeItem(AVATAR_URL_KEY);
+          memoryAvatarUrl = sanitizeAvatarUrl(m.avatar_url);
         }
       }
     } catch {
