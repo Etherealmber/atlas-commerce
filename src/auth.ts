@@ -8,6 +8,31 @@ const USER_KEY = 'stock_auth_user';
 const DISPLAY_NAME_KEY = 'stock_display_name';
 const AVATAR_URL_KEY = 'stock_avatar_url';
 
+function sanitizeAvatarUrl(input: string): string {
+  const raw = String(input || '').trim();
+  if (!raw) return '';
+
+  // Allow inline uploaded images (data URLs) only for image MIME types.
+  if (/^data:image\/[a-zA-Z0-9.+-]+;base64,[a-zA-Z0-9+/=\s]+$/.test(raw)) {
+    return raw;
+  }
+
+  // Allow app-relative URLs.
+  if (raw.startsWith('/') || raw.startsWith('./') || raw.startsWith('../')) {
+    return raw;
+  }
+
+  // Allow absolute http(s) URLs only.
+  try {
+    const u = new URL(raw);
+    if (u.protocol === 'https:' || u.protocol === 'http:') return u.toString();
+  } catch {
+    return '';
+  }
+
+  return '';
+}
+
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
 }
@@ -28,7 +53,8 @@ export function getDisplayName(): string {
 }
 
 export function getAvatarUrl(): string {
-  return localStorage.getItem(AVATAR_URL_KEY) || '';
+  const stored = localStorage.getItem(AVATAR_URL_KEY) || '';
+  return sanitizeAvatarUrl(stored);
 }
 
 /** Cache profile fields used in sidebar / phone avatar (local only). */
@@ -37,7 +63,7 @@ export function setProfileCache( partial: { display_name?: string | null; avatar
     localStorage.setItem(DISPLAY_NAME_KEY, String(partial.display_name).trim());
   }
   if (partial.avatar_url != null) {
-    const a = String(partial.avatar_url).trim();
+    const a = sanitizeAvatarUrl(String(partial.avatar_url));
     if (a) localStorage.setItem(AVATAR_URL_KEY, a);
     else localStorage.removeItem(AVATAR_URL_KEY);
   }
