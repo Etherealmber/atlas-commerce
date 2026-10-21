@@ -32,6 +32,8 @@ Captures et enregistrement générés depuis l'application elle-même (Chromium 
 
 Enregistrement d'une session complète (connexion → tableau de bord → devis) :
 
+Captures desktop **et téléphone** (coque mobile réelle) dans `public/shots/` ; posters Instagram 1:1 avec vrais écrans dans `marketing/atlas-instagram-posters.zip`.
+
 ![Session Atlas Commerce](public/shots/demo.gif)
 
 ## 🚀 Starter — démarrer de zéro

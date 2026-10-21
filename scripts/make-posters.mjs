@@ -1,69 +1,76 @@
-/* Renders 12 Instagram 1:1 posters (1080×1080) for Atlas Commerce and zips
-   them into marketing/atlas-instagram-posters.zip. Pure HTML/CSS slides
-   captured by headless Chromium — same engine as capture-shots.mjs. */
+/* v2 posters — real app screens in device frames (desktop + phone),
+   12 Instagram 1:1 slides, zipped to marketing/atlas-instagram-posters.zip.
+   Slides are served by the local preview so <img src="/shots/..."> resolves. */
 import fs from 'node:fs';
 import path from 'node:path';
 import puppeteer from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
 
+const BASE = 'http://169.254.0.21:36521';
+const SLIDES = 'public/_slides';
 const OUT = 'marketing/posters';
+fs.mkdirSync(SLIDES, { recursive: true });
 fs.mkdirSync(OUT, { recursive: true });
 
-const POSTERS = [
-  ['Devis & factures', 'Des assistants pas à pas guident chaque étape — zéro formulaire géant.', 'wizards'],
-  ['Thème sombre zinc', 'Un dark mode integral : chaque bouton, chaque menu, chaque popup.', 'dark'],
-  ['Scan OCR téléphone', 'Photographiez une facture : le produit ou la dépense est pré-rempli.', 'ocr'],
-  ['Caisse express', 'Vente en 3 taps : client, articles, encaissement espèces ou banque.', 'pos'],
-  ['Stock sans surprise', 'Seuils mini, alertes dashboard, ajustements tracés.', 'stock'],
-  ['Atlas Agent IA', 'Un copilote qui répond, calcule et prépare vos documents.', 'agent'],
-  ['Rapports PDF', 'Balance, ventes, TVA — imprimables et partageables.', 'pdf'],
-  ['Terrain ↔ bureau', 'Le téléphone scanne, le desktop valide. Une seule base.', 'sync'],
-  ['Facturation complète', 'Acomptes, avoirs, multi-devises, numérotation légale.', 'billing'],
-  ['Équipe & pointage', 'Employés, présences, remboursements — sans papier.', 'team'],
-  ['Boîte d’actions', 'Chaque demande du terrain atterrit dans une file claire.', 'inbox'],
-  ['Open source MIT', 'Disponible sur GitHub maintenant. Forkez-le, citez-nous.', 'fork'],
+const P = [
+  { tag: 'ASSISTANTS', title: 'Chaque document,<br>pas à pas', bullets: ['Devis, factures, reçus : un assistant guidé', 'Erreurs affichées dans la popup, jamais perdues'], pc: 'devis-modal-dark', ph: 'phone-quotes-dark', cap: 'Création de devis · thème sombre' },
+  { tag: 'THÈME', title: 'Sombre intégral,<br>zinc partout', bullets: ['Un seul langage visuel clair / sombre', 'Aucune surface blanche oubliée, aucun texte invisible'], pc: 'dashboard-dark', ph: 'phone-dashboard-dark', cap: 'Tableau de bord · desktop & téléphone' },
+  { tag: 'SCAN OCR', title: 'Le terrain scanne,<br>le bureau valide', bullets: ['Photo du téléphone → produit ou dépense pré-rempli', 'Boîte d’actions : une file claire, zéro papier'], pc: 'pc-bills-dark', ph: 'phone-actions-dark', cap: 'Factures d’achat & boîte d’actions' },
+  { tag: 'CAISSE', title: 'Vendre en<br>trois taps', bullets: ['Ticket rapide espèces / banque / carte', 'Stock décrémenté en temps réel'], pc: 'pc-quicksale-dark', ph: 'phone-products-dark', cap: 'Caisse rapide & catalogue mobile' },
+  { tag: 'STOCK', title: 'Le stock qui<br>prévient', bullets: ['Seuils mini, alertes dashboard', 'Ajustements tracés, historiques par produit'], pc: 'pc-products-dark', ph: 'phone-products-dark', cap: 'Catalogue desktop & mobile' },
+  { tag: 'IA', title: 'Atlas Agent,<br>copilote intégré', bullets: ['Répond, calcule, prépare vos documents', 'Permissions fines par utilisateur'], pc: 'pc-agent-dark', ph: 'phone-dashboard-dark', cap: 'Panneau Agent & dashboard mobile' },
+  { tag: 'RAPPORTS', title: 'Balance & TVA,<br>imprimables', bullets: ['Rapports PDF propres, pied de page société', 'Entrées / sorties / résultat par période'], pc: 'pc-balance-dark', ph: 'phone-dashboard-dark', cap: 'Trésorerie & synthèse mobile' },
+  { tag: 'SYNC', title: 'Un seul compte,<br>tous les écrans', bullets: ['Même base D1 du téléphone au desktop', 'Le PC garde toutes les fonctions'], pc: 'dashboard-light', ph: 'phone-actions-dark', cap: 'Thème clair desktop · mobile sombre' },
+  { tag: 'FACTURATION', title: 'Facturation<br>complète', bullets: ['Acomptes, avoirs, créances clients', 'Numérotation et mentions légales'], pc: 'pc-invoices-dark', ph: 'phone-quotes-dark', cap: 'Journal des factures & devis mobile' },
+  { tag: 'ÉQUIPE', title: 'Employés &<br>pointage', bullets: ['Rôles et permissions par métier', 'Présences et remboursements sans papier'], pc: 'pc-employees-dark', ph: 'phone-dashboard-dark', cap: 'Rh desktop & synthèse mobile' },
+  { tag: 'BOÎTE', title: 'Une file,<br>zéro oubli', bullets: ['Chaque scan devient une action traitable', 'Historique complet des décisions'], pc: 'pc-actions-dark', ph: 'phone-actions-dark', cap: 'Boîte d’actions desktop & mobile' },
+  { tag: 'OPEN SOURCE', title: 'Forkez-le.<br>C’est MIT.', bullets: ['Disponible sur GitHub maintenant', 'Screenshots réels : aucune maquette'], pc: 'dashboard-dark', ph: 'phone-dashboard-dark', cap: 'Atlas Commerce 1.4.5-beta · © 2026 loxdpsy', fork: true },
 ];
 
-const slide = (i, [title, sub, tag]) => `<!doctype html><html><head><meta charset="utf-8"><style>
-  * { margin:0; box-sizing:border-box; font-family: 'Inter','Segoe UI',system-ui,sans-serif; }
+const SLUGS = ['wizards','dark-theme','scan-ocr','caisse','stock','agent-ia','rapports','sync','facturation','equipe','boite-actions','open-source'];
+const slide = (i, p) => `<!doctype html><html><head><meta charset="utf-8"><style>
+  * { margin:0; box-sizing:border-box; font-family:'Inter','Segoe UI',system-ui,sans-serif; }
   html,body { width:1080px; height:1080px; }
-  body { background:#141416; color:#f4f4f5; position:relative; overflow:hidden; }
-  body::before { content:''; position:absolute; inset:-20%;
-    background:
-      radial-gradient(600px 420px at 82% 12%, rgba(184,115,51,0.20), transparent 60%),
-      radial-gradient(700px 520px at 12% 88%, rgba(184,115,51,0.12), transparent 60%),
-      conic-gradient(from 210deg at 70% 30%, rgba(255,255,255,0.05), transparent 25%);
-  }
-  .frame { position:absolute; inset:56px; border:1px solid rgba(244,244,245,0.14); border-radius:36px; }
-  .num { position:absolute; top:96px; left:112px; font-size:30px; letter-spacing:0.32em; color:#b87333; font-weight:700; }
-  .logo { position:absolute; top:88px; right:112px; display:flex; align-items:center; gap:14px; }
-  .logo .m { width:56px; height:56px; border-radius:14px; background:linear-gradient(135deg,#2a2a2e,#1c1c1f);
-    border:1px solid rgba(184,115,51,0.5); display:flex; align-items:center; justify-content:center;
-    font-weight:800; font-size:26px; color:#b87333; }
-  .logo .n { font-size:24px; font-weight:600; color:#a1a1aa; }
-  .mid { position:absolute; left:112px; right:112px; top:330px; }
-  h1 { font-size:86px; line-height:1.04; font-weight:800; letter-spacing:-0.02em; }
-  h1 em { font-style:normal; color:#b87333; }
-  p { margin-top:34px; font-size:36px; line-height:1.4; color:#a1a1aa; max-width:820px; }
-  .tag { position:absolute; left:112px; top:252px; font-size:24px; letter-spacing:0.22em; text-transform:uppercase;
-    color:#71717a; border:1px solid rgba(161,161,170,0.3); border-radius:999px; padding:10px 22px; }
-  .foot { position:absolute; left:112px; right:112px; bottom:104px; display:flex; align-items:center; justify-content:space-between; }
-  .foot .repo { font-size:30px; font-weight:700; color:#f4f4f5; }
-  .foot .repo span { color:#b87333; }
-  .foot .cta { font-size:26px; color:#141416; background:#e4e4e7; border-radius:999px; padding:16px 30px; font-weight:700; }
-  .ver { position:absolute; bottom:56px; left:112px; font-size:20px; color:#52525b; letter-spacing:0.18em; }
+  body { background:#101012; color:#f4f4f5; position:relative; overflow:hidden; }
+  body::before { content:''; position:absolute; inset:0;
+    background: radial-gradient(720px 480px at 88% 6%, rgba(184,115,51,0.16), transparent 62%),
+                radial-gradient(560px 420px at 4% 96%, rgba(184,115,51,0.10), transparent 60%); }
+  .grid { position:absolute; inset:0; background-image:linear-gradient(rgba(244,244,245,0.035) 1px, transparent 1px),linear-gradient(90deg, rgba(244,244,245,0.035) 1px, transparent 1px); background-size:54px 54px; mask-image:radial-gradient(700px 500px at 30% 30%, #000, transparent 75%); }
+  .txt { position:absolute; left:64px; top:96px; width:430px; z-index:3; }
+  .kicker { display:inline-flex; align-items:center; gap:10px; font-size:21px; letter-spacing:0.26em; color:#b87333; font-weight:700; }
+  .kicker::before { content:''; width:26px; height:2px; background:#b87333; }
+  h1 { margin-top:26px; font-size:64px; line-height:1.06; font-weight:800; letter-spacing:-0.015em; }
+  ul { margin-top:30px; list-style:none; }
+  li { font-size:25px; line-height:1.35; color:#a1a1aa; padding-left:26px; position:relative; margin-bottom:14px; }
+  li::before { content:''; position:absolute; left:0; top:12px; width:9px; height:9px; border-radius:50%; background:#b87333; }
+  .cap { position:absolute; left:64px; bottom:150px; width:430px; font-size:19px; color:#71717a; z-index:3; }
+  .foot { position:absolute; left:64px; right:64px; bottom:64px; display:flex; align-items:center; justify-content:space-between; z-index:3; }
+  .repo { font-size:25px; font-weight:700; } .repo b { color:#b87333; }
+  .cta { font-size:22px; font-weight:700; color:#101012; background:#e4e4e7; padding:13px 26px; border-radius:999px; }
+  .num { position:absolute; right:64px; top:52px; font-size:22px; letter-spacing:0.3em; color:#52525b; font-weight:700; z-index:3; }
+  .desk { position:absolute; right:44px; top:120px; width:560px; z-index:2; border:1px solid #3f3f46; border-radius:16px; overflow:hidden; box-shadow:0 40px 80px rgba(0,0,0,0.55); background:#1c1c1f; }
+  .desk .bar { height:32px; display:flex; align-items:center; gap:6px; padding:0 12px; background:#1c1c1f; border-bottom:1px solid #27272a; }
+  .desk .bar i { width:9px; height:9px; border-radius:50%; background:#3f3f46; }
+  .desk .bar span { margin-left:10px; font-size:13px; color:#52525b; background:#141416; border:1px solid #27272a; border-radius:6px; padding:2px 10px; }
+  .desk img { display:block; width:100%; height:352px; object-fit:cover; object-position:top; }
+  .pho { position:absolute; right:70px; bottom:132px; width:236px; z-index:3; border:5px solid #27272a; outline:1px solid #3f3f46; border-radius:34px; overflow:hidden; box-shadow:0 34px 70px rgba(0,0,0,0.6); background:#141416; }
+  .pho img { display:block; width:100%; height:430px; object-fit:cover; object-position:top; }
+  .pho .notch { position:absolute; left:50%; transform:translateX(-50%); top:8px; width:74px; height:14px; border-radius:999px; background:#101012; border:1px solid #27272a; }
 </style></head><body>
-  <div class="frame"></div>
-  <div class="num">${String(i + 1).padStart(2, '0')} / 12</div>
-  <div class="logo"><div class="m">A</div><div class="n">Atlas Commerce</div></div>
-  <div class="tag">${tag}</div>
-  <div class="mid"><h1>${title.replace(/(GitHub|IA|OCR)/, '<em>$1</em>')}</h1><p>${sub}</p></div>
-  <div class="foot">
-    <div class="repo">github.com/<span>Etherealmber</span>/atlas-commerce</div>
-    <div class="cta">${i === 11 ? 'Fork it ★' : 'Dispo sur GitHub'}</div>
+  <div class="grid"></div>
+  <div class="num">${String(i + 1).padStart(2, '0')}/12</div>
+  <div class="txt">
+    <div class="kicker">${p.tag}</div>
+    <h1>${p.title}</h1>
+    <ul>${p.bullets.map((b) => `<li>${b}</li>`).join('')}</ul>
   </div>
-  <div class="ver">v1.4.5-BETA · MIT © 2026 LOXDPSY</div>
+  <div class="cap">${p.cap} — captures réelles de l’app.</div>
+  <div class="desk"><div class="bar"><i></i><i></i><i></i><span>stock.afmarbre.com</span></div><img src="/shots/${p.pc}.png" alt=""></div>
+  <div class="pho"><div class="notch"></div><img src="/shots/${p.ph}.png" alt=""></div>
+  <div class="foot"><div class="repo">github.com/<b>Etherealmber</b>/atlas-commerce</div><div class="cta">${p.fork ? 'Fork it ★' : 'Dispo sur GitHub'}</div></div>
 </body></html>`;
+
+for (let i = 0; i < P.length; i++) fs.writeFileSync(path.join(SLIDES, `${String(i + 1).padStart(2, '0')}.html`), slide(i, P[i]));
 
 const browser = await puppeteer.launch({
   args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox'],
@@ -72,11 +79,14 @@ const browser = await puppeteer.launch({
   defaultViewport: { width: 1080, height: 1080 },
 });
 const page = await browser.newPage();
-for (let i = 0; i < POSTERS.length; i++) {
-  await page.setContent(slide(i, POSTERS[i]), { waitUntil: 'load' });
-  const file = path.join(OUT, `${String(i + 1).padStart(2, '0')}-${POSTERS[i][2]}.png`);
+for (let i = 0; i < P.length; i++) {
+  await page.goto(`${BASE}/_slides/${String(i + 1).padStart(2, '0')}.html`, { waitUntil: 'networkidle2', timeout: 60000 });
+  await new Promise((r) => setTimeout(r, 700));
+  const file = path.join(OUT, `${String(i + 1).padStart(2, '0')}-${SLUGS[i]}.png`);
   await page.screenshot({ path: file });
   console.log('poster', file);
 }
 await browser.close();
-console.log('POSTERS DONE');
+for (const f of fs.readdirSync(SLIDES)) fs.unlinkSync(path.join(SLIDES, f));
+fs.rmdirSync(SLIDES);
+console.log('POSTERS V2 DONE');
