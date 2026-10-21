@@ -861,6 +861,16 @@ if (loading) return (
         />
       )}
 
+      {activeTab === 'profile' && (
+        <div className="card" style={{ marginBottom: 16 }} data-settings-anchor="agent-permissions">
+          <h3 style={{ marginTop: 0 }}>Permissions Atlas Agent</h3>
+          <p className="muted" style={{ marginTop: 0, marginBottom: 12 }}>
+            Outils et actions que l’agent peut exécuter en votre nom. Géré ici (plus dans le panneau de l’agent).
+          </p>
+          <AgentPermissionsPanel />
+        </div>
+      )}
+
 
       
       {activeTab === 'profile' && (

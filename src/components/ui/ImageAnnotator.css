@@ -1,0 +1,121 @@
+/* ImageAnnotator — canvas editor modal (light + dark, zinc palette) */
+.ia-overlay {
+  position: fixed; inset: 0; z-index: 10080;
+  background: rgba(9, 9, 11, 0.45);
+  display: flex; align-items: center; justify-content: center;
+  padding: 18px;
+}
+.ia-modal {
+  width: min(860px, 96vw);
+  max-height: 92vh;
+  display: flex; flex-direction: column;
+  background: #ffffff;
+  border: 1px solid #e4e4e7;
+  border-radius: 16px;
+  box-shadow: 0 24px 70px rgba(9, 9, 11, 0.28);
+  overflow: hidden;
+}
+.ia-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #e4e4e7;
+}
+.ia-head strong { font-size: 14px; color: #18181b; }
+.ia-name {
+  font-size: 12px; color: #71717a;
+  max-width: 46%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ia-head .modal-x { margin-left: auto; }
+.ia-tools {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 10px 14px;
+  border-bottom: 1px solid #f4f4f5;
+  background: #fafafa;
+}
+.ia-tools button {
+  display: inline-flex !important; align-items: center; gap: 6px;
+  padding: 6px 10px !important;
+  font-size: 12px; font-weight: 600;
+  color: #3f3f46 !important;
+  background: #ffffff !important;
+  background-image: none !important;
+  border: 1px solid #e4e4e7 !important;
+  border-radius: 9px !important;
+  box-shadow: none !important;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.ia-tools button:hover { background: #f4f4f5 !important; color: #18181b !important; }
+.ia-tools button.on { background: #18181b !important; color: #fafafa !important; border-color: #18181b !important; }
+.ia-tools button:disabled { opacity: 0.45; cursor: not-allowed; }
+.ia-tools button.ia-swatch {
+  width: 22px !important; height: 22px !important;
+  padding: 0 !important; border-radius: 999px !important;
+  border-color: transparent !important;
+  background: var(--sw, #71717a) !important;
+  box-shadow: inset 0 0 0 1px rgba(24, 24, 27, 0.18);
+}
+.ia-swatch.on { outline: 2px solid #18181b; outline-offset: 2px; }
+.ia-sep { width: 1px; height: 18px; background: #e4e4e7; }
+.ia-spacer { flex: 1; }
+.ia-canvas-wrap {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  padding: 14px;
+  background: repeating-conic-gradient(#f4f4f5 0% 25%, #ffffff 0% 50%) 0 0 / 18px 18px;
+  overflow: auto;
+}
+.ia-canvas {
+  border-radius: 10px;
+  box-shadow: 0 2px 14px rgba(9, 9, 11, 0.14);
+  touch-action: none;
+  cursor: crosshair;
+  max-width: 100%;
+}
+.ia-canvas--text { cursor: text; }
+.ia-text-input {
+  position: absolute;
+  min-width: 160px;
+  padding: 6px 9px;
+  font-size: 13px;
+  color: #18181b;
+  background: #ffffff;
+  border: 1.5px solid #b87333;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(9, 9, 11, 0.18);
+  z-index: 2;
+}
+.ia-loading { font-size: 13px; color: #71717a; }
+.ia-foot {
+  display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+  padding: 12px 14px;
+  border-top: 1px solid #e4e4e7;
+}
+.ia-hint { margin-right: auto; font-size: 12px; color: #71717a; }
+
+/* Dark theme */
+html[data-theme="dark"] .ia-modal {
+  background: #18181b;
+  border-color: #3f3f46;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+}
+html[data-theme="dark"] .ia-head { border-bottom-color: #27272a; }
+html[data-theme="dark"] .ia-head strong { color: #f4f4f5; }
+html[data-theme="dark"] .ia-name { color: #a1a1aa; }
+html[data-theme="dark"] .ia-tools { background: #1c1c1f; border-bottom-color: #27272a; }
+html[data-theme="dark"] .ia-tools button {
+  color: #e4e4e7 !important; background: #27272a !important; border-color: #3f3f46 !important;
+}
+html[data-theme="dark"] .ia-tools button:hover { background: #3f3f46 !important; color: #f4f4f5 !important; }
+html[data-theme="dark"] .ia-tools button.on { background: #f4f4f5 !important; color: #18181b !important; border-color: #f4f4f5 !important; }
+html[data-theme="dark"] .ia-tools button.ia-swatch { border-color: transparent !important; }
+html[data-theme="dark"] .ia-swatch.on { outline-color: #f4f4f5; }
+html[data-theme="dark"] .ia-sep { background: #3f3f46; }
+html[data-theme="dark"] .ia-canvas-wrap {
+  background: repeating-conic-gradient(#1c1c1f 0% 25%, #18181b 0% 50%) 0 0 / 18px 18px;
+}
+html[data-theme="dark"] .ia-text-input {
+  color: #f4f4f5; background: #1c1c1f; border-color: #b87333;
+}
+html[data-theme="dark"] .ia-foot { border-top-color: #27272a; }
+html[data-theme="dark"] .ia-hint, html[data-theme="dark"] .ia-loading { color: #a1a1aa; }

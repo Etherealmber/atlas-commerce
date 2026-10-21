@@ -4032,3 +4032,70 @@ html[data-theme="dark"] body .wn-release:not(.zz0):not(.zz1):not(.zz2):not(.zz3)
   border-color: #27272a !important;
 }
 /* v227 END */
+
+/* ═══════════════════════════════════════════════════════════════
+   v229 — markdown in agent bubbles, topbar theme button contrast
+   ═══════════════════════════════════════════════════════════════ */
+.atlas-agent-bubble .md-root { display: flex; flex-direction: column; gap: 6px; }
+.atlas-agent-bubble .md-p { margin: 0; }
+.atlas-agent-bubble .md-h1,
+.atlas-agent-bubble .md-h2,
+.atlas-agent-bubble .md-h3 {
+  margin: 2px 0 0;
+  font-weight: 700;
+  color: inherit;
+}
+.atlas-agent-bubble .md-h1 { font-size: 1.02em; }
+.atlas-agent-bubble .md-h2 { font-size: 0.98em; }
+.atlas-agent-bubble .md-h3 { font-size: 0.94em; }
+.atlas-agent-bubble .md-ul,
+.atlas-agent-bubble .md-ol {
+  margin: 2px 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.atlas-agent-bubble .md-pre {
+  margin: 2px 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(113, 113, 122, 0.14);
+  overflow-x: auto;
+  font-size: 0.86em;
+  line-height: 1.45;
+}
+.atlas-agent-bubble .md-inline-code {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: rgba(113, 113, 122, 0.16);
+  font-size: 0.9em;
+}
+.atlas-agent-bubble .md-quote {
+  margin: 2px 0;
+  padding: 4px 10px;
+  border-left: 3px solid rgba(113, 113, 122, 0.5);
+  opacity: 0.9;
+}
+.atlas-agent-bubble .md-hr {
+  border: 0;
+  border-top: 1px solid rgba(113, 113, 122, 0.35);
+  margin: 4px 0;
+}
+.atlas-agent-bubble a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+html[data-theme="dark"] body .atlas-agent-bubble .md-pre,
+html[data-theme="dark"] body .atlas-agent-bubble .md-inline-code {
+  background: rgba(161, 161, 170, 0.16);
+}
+/* Topbar theme toggle: visible border & surface in light (was washed out) */
+html:not([data-theme="dark"]) body .ac-topbar-icon.ac-topbar-theme {
+  background: #ffffff !important;
+  border: 1px solid #d4d4d8 !important;
+  color: #3f3f46 !important;
+  box-shadow: 0 1px 2px rgba(24, 24, 27, 0.06) !important;
+}
+html:not([data-theme="dark"]) body .ac-topbar-icon.ac-topbar-theme:hover {
+  background: #f4f4f5 !important;
+  color: #18181b !important;
+}
+/* v229 END */
