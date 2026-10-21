@@ -1204,7 +1204,7 @@ export default function Mailbox() {
           ) : (
             list.map((m) => {
               const who = m.direction === 'in' ? (m.from_addr || '') : (m.to_addr || '');
-              const whoShort = who.replace(/<.*>/, '').trim() || who;
+              const whoShort = who.replace(/[<>]/g, '').trim() || who;
               const snippet = (m.preview || '').replace(/\s+/g, ' ').trim();
               const hasPj =
                 m.has_attachments === 1 ||
