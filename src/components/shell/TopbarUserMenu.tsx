@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, type FC } from 'react';
 import { LogOut, Sparkles, Settings, Sun, Moon, Monitor, Info } from 'lucide-react';
+import { hasAvatarUrl } from '../../auth';
+import { AvatarImage } from '../ui/AvatarImage';
 
 type Props = {
   displayName: string;
   roleLabel: string;
-  avatarUrl?: string | null;
   initials: string;
   onLogout: () => void;
 };
@@ -13,26 +14,11 @@ type Props = {
 export const TopbarUserMenu: FC<Props> = ({
   displayName,
   roleLabel,
-  avatarUrl,
   initials,
   onLogout,
 }) => {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
-
-  const safeAvatarUrl = (() => {
-    const value = String(avatarUrl || '').trim();
-    if (!value) return '';
-    if (/^data:image\/(?:png|jpe?g|webp|gif);base64,[a-z0-9+/=\s]+$/i.test(value)) return value;
-    try {
-      const u = new URL(value, window.location.origin);
-      const protocol = u.protocol.toLowerCase();
-      if (protocol === 'https:' || protocol === 'http:' || protocol === 'blob:') return u.href;
-    } catch {
-      // invalid URL
-    }
-    return '';
-  })();
 
   useEffect(() => {
     if (!open) return;
@@ -66,8 +52,8 @@ export const TopbarUserMenu: FC<Props> = ({
         aria-haspopup="menu"
         onClick={() => setOpen((v) => !v)}
       >
-        {safeAvatarUrl ? (
-          <img className="ac-topbar-avatar" src={safeAvatarUrl} alt="" loading="lazy" decoding="async" />
+        {hasAvatarUrl() ? (
+          <AvatarImage className="ac-topbar-avatar" loading="lazy" />
         ) : (
           <span className="ac-topbar-avatar ac-topbar-avatar--ini">{initials}</span>
         )}

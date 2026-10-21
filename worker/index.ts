@@ -41,13 +41,7 @@ import { fetchWithTimeout } from './lib/http-client';
 import { searchProducts, reliabilityStatus, ensureProductSearchIndex, reliableFetch } from './lib/reliability';
 import { detectBffSurface } from './lib/bff';
 import { enqueue } from './lib/job-queue';
-import {
-  ensureMailSchema,
-  ADMIN_MAILBOX,
-  storeMailBodyR2,
-  loadMailBodyR2,
-  syncResendHistory,
-} from './routes/mailbox';
+import { ensureMailSchema } from './routes/mailbox';
 import { ensureClientTaxExempt, ensureClientCreditLimit, checkClientCreditLimit } from './lib/clients-schema';
 import { validateClientWrite, validateProductWrite, validateInvoiceWrite, validateVendorWrite, validateExpenseWrite, validateReceiptWrite, validateBillWrite } from './lib/validate';
 import {
@@ -565,23 +559,18 @@ const app = new Hono<{ Bindings: Env }>();
 const MAX_BODY_BYTES = 2 * 1024 * 1024; // 2 MiB default
 /** APK uploads stream straight to R2 — exempt from the 2 MiB API body cap. */
 const APP_UPDATE_MAX_APK_BYTES = 200 * 1024 * 1024;
-const MAX_MAIL_SEND_BYTES = 35 * 1024 * 1024; // near Resend free per-message ceiling (~40MB incl. overhead)
 app.use('/api/*', async (c, next) => {
   const cl = c.req.header('content-length');
   if (cl) {
     const n = Number(cl);
       const path = new URL(c.req.url).pathname;
-      const limit = path.includes('/api/admin/mailbox/send')
-        ? MAX_MAIL_SEND_BYTES
-        : path === '/api/admin/app-update/apk'
-          ? APP_UPDATE_MAX_APK_BYTES
-          : MAX_BODY_BYTES;
+      const limit = path === '/api/admin/app-update/apk'
+        ? APP_UPDATE_MAX_APK_BYTES
+        : MAX_BODY_BYTES;
     if (n > limit) {
       return c.json({
         success: false,
-        error: path.includes('/mailbox/send')
-          ? 'Corps trop volumineux pour l\'envoi (max 8 Mo avec pièces jointes).'
-          : 'Corps de requête trop volumineux (max 2 Mo).',
+        error: 'Corps de requête trop volumineux (max 2 Mo).',
         code: 'PAYLOAD_TOO_LARGE',
       }, 413);
     }
@@ -668,17 +657,6 @@ app.use('*', async (c, next) => {
   await next();
   try { c.header('X-Atlas-Bff', String(c.get('bffSurface') || 'web')); } catch { /* */ }
   const path = new URL(c.req.url).pathname;
-  // Public mail files must be fetchable by Google Docs Viewer (cross-origin).
-  // CORP same-site / COOP / noindex break that fetch → "No preview available".
-  const isPublicMailPreview = path === '/api/public/mail-preview';
-  if (isPublicMailPreview) {
-    c.header('X-Content-Type-Options', 'nosniff');
-    c.header('Cross-Origin-Resource-Policy', 'cross-origin');
-    c.header('Access-Control-Allow-Origin', '*');
-    c.header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-    // Do NOT set X-Frame-Options DENY, COOP same-origin, or X-Robots-Tag noindex here
-    return;
-  }
   // Security headers (defence in depth)
   c.header('X-Content-Type-Options', 'nosniff');
   c.header('X-Frame-Options', 'DENY');
@@ -790,6 +768,8 @@ app.use('/api/public/*', async (c, next) => {
 
 /** Never leak SQL / D1 / stack traces — always safe JSON. */
 app.onError((err, c) => {
+  // Real cause stays server-side (CF logs) — clients only get safe messages.
+  try { console.error('[onError]', c.req.method, new URL(c.req.url).pathname, String((err as any)?.stack || err || '').slice(0, 500)); } catch { /* */ }
   const safe = toClientError(err);
   try {
     return apiFail(c, safe.error, safe.code as any, safe.details, safe.status);
@@ -6338,7 +6318,7 @@ app.put('/api/products/:id', async (c) => {
   await addColumnIfMissing(c.env.DB, 'products', 'expiry_date', `TEXT`);
   if (body.lot_number !== undefined) { updates.push('lot_number = ?'); values.push(String(body.lot_number || '').slice(0, 64) || null); }
   if (body.expiry_date !== undefined) { updates.push('expiry_date = ?'); values.push(String(body.expiry_date || '').slice(0, 32) || null); }
-  if (body.bulk_discounts !== undefined) {
+  if (body.bulk_discounts !== undefined && (await hasColumn(c.env.DB, 'products', 'bulk_discounts'))) {
     updates.push(`bulk_discounts = ?`);
     values.push(JSON.stringify(parseBulkDiscounts(body.bulk_discounts)));
   }
@@ -8154,10 +8134,24 @@ function validateNextCreditNumber(raw: unknown): { ok: true; value: number } | {
  * Highest matching min_qty wins.
  */
 async function ensureProductBulkDiscounts(db: D1Database) {
-  await schemaOnce('ensureProductBulkDiscounts', async () => {
-  await addColumnIfMissing(db, 'products', 'bulk_discounts', `TEXT DEFAULT '[]'`);
+  try {
+    await schemaOnce('ensureProductBulkDiscounts', async () => {
+      await addColumnIfMissing(db, 'products', 'bulk_discounts', `TEXT DEFAULT '[]'`);
+    });
+  } catch (e) {
+    // Never 500 a product save because of an optional column migration.
+    console.error('ensureProductBulkDiscounts_err', String((e as any)?.message || e).slice(0, 300));
+  }
+}
 
-  });
+/** True when the column exists (or PRAGMA unavailable — assume yes). */
+async function hasColumn(db: D1Database, table: string, column: string): Promise<boolean> {
+  try {
+    const info = await db.prepare(`PRAGMA table_info(${table})`).all();
+    return ((info?.results || []) as { name?: string }[]).some((r) => String(r.name || '').toLowerCase() === column.toLowerCase());
+  } catch {
+    return true;
+  }
 }
 
 function parseBulkDiscounts(raw: any): { min_qty: number; percent: number }[] {
@@ -14520,6 +14514,7 @@ app.post('/api/invoices/:id/send-email', async (c) => {
   if (!res.ok) {
     return c.json({ success: false, error: data.message || 'Échec de l\'envoi via Resend', details: data }, 502);
   }
+  try { await ensureMailSchema(c.env.DB); } catch { /* table optional */ }
   try {
     await c.env.DB.prepare(
       `INSERT INTO mail_messages (direction, mailbox, from_addr, to_addr, subject, body_html, resend_id, status, meta_json)
@@ -20293,233 +20288,7 @@ app.post('/api/cron/backup-execute', async (c) => {
 
 
 
-/* ── Signed mailbox deep-links (HMAC) ── */
-async function mailHmacKey(env: Env): Promise<CryptoKey> {
-  const raw = String(env.MAIL_BODY_ENCRYPTION_KEY || env.JWT_SECRET || env.ADMIN_PASSWORD || 'atlas-mail-hmac').trim();
-  const bytes = new TextEncoder().encode(raw);
-  return crypto.subtle.importKey('raw', bytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']);
-}
-async function signMailLink(env: Env, id: string | number, expSec: number): Promise<string> {
-  const key = await mailHmacKey(env);
-  const payload = `${id}|${expSec}`;
-  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload));
-  return Array.from(new Uint8Array(sig)).map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-async function verifyMailLink(env: Env, id: string | number, expSec: number, sig: string): Promise<boolean> {
-  if (!sig || !expSec || expSec * 1000 < Date.now()) return false;
-  const expected = await signMailLink(env, id, expSec);
-  if (expected.length !== sig.length) return false;
-  let ok = 0;
-  for (let i = 0; i < expected.length; i++) ok |= expected.charCodeAt(i) ^ sig.charCodeAt(i);
-  return ok === 0;
-}
-
-/* ─── Admin mailbox (admin@afmarbre.com) — inbound CF Email Routing + outbound Resend ─── */
-
-/* mailbox domain → routes/mailbox.ts (helpers imported below with routes) */
-
-
-
-
-/** Create a short-lived public URL for office previews (Google Docs viewer). */
-
-
-/** Public (token-gated) stream for Google Docs viewer / iframe previews. */
-
-
-/** Strips Re:/Fwd: prefixes (repeated, either order) so replies match their original thread. */
-function normalizeThreadSubject(subject: string): string {
-  let s = String(subject || '').trim();
-  for (let i = 0; i < 4; i++) {
-    const next = s.replace(/^(re|fwd|fw|tr)\s*:\s*/i, '');
-    if (next === s) break;
-    s = next.trim();
-  }
-  return s.toLowerCase().slice(0, 300);
-}
-
-/** Pulls the bare address out of "Name <addr@domain>" or returns the input lowercased. */
-function extractAddr(v: string): string {
-  const m = String(v || '').match(/<([^>]+)>/);
-  return (m ? m[1] : String(v || '')).trim().toLowerCase();
-}
-
-/** Uint8Array → base64, chunked to avoid a call-stack overflow on larger images. */
-function uint8ToBase64(bytes: Uint8Array): string {
-  let binary = '';
-  const chunk = 8192;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  }
-  return btoa(binary);
-}
-
-/**
- * Finds the thread this inbound reply belongs to. We don't have Resend
- * webhooks configured, so we can't rely on In-Reply-To matching a Message-ID
- * we stored at send time — instead we match the most recent message in
- * either direction with the same counterpart address and the same subject
- * once Re:/Fwd: prefixes are stripped. Good enough for a single shared
- * mailbox; falls back to a fresh thread if nothing matches.
- */
-async function findThreadKeyForReply(env: Env, counterpartAddr: string, subject: string): Promise<string> {
-  const target = normalizeThreadSubject(subject);
-  if (target && counterpartAddr) {
-    try {
-      const { results } = await env.DB.prepare(
-        `SELECT id, thread_key, subject FROM mail_messages
-         WHERE mailbox = ? AND (from_addr LIKE ? OR to_addr LIKE ?)
-         ORDER BY id DESC LIMIT 25`
-      ).bind(ADMIN_MAILBOX, `%${counterpartAddr}%`, `%${counterpartAddr}%`).all();
-      for (const r of (results || []) as any[]) {
-        if (normalizeThreadSubject(String(r.subject || '')) === target) {
-          return String(r.thread_key || `thread-${r.id}`);
-        }
-      }
-    } catch { /* fall through to a fresh thread */ }
-  }
-  return `in-${Date.now()}`;
-}
-
-async function handleInboundEmail(
-  message: ForwardableEmailMessage,
-  env: Env,
-  _ctx: ExecutionContext
-): Promise<void> {
-  try {
-    await ensureMailSchema(env.DB);
-
-    const to = String(message.to || ADMIN_MAILBOX).toLowerCase();
-    const fromRaw = String(message.from || '');
-
-    // message.text()/.html() don't exist on Cloudflare's ForwardableEmailMessage —
-    // only .raw does. PostalMime parses the actual MIME: multipart/alternative
-    // (text + html parts), nested attachments, and inline (cid:) images.
-    let parsed: {
-      from?: { name?: string; address?: string };
-      subject?: string; text?: string; html?: string; messageId?: string;
-      attachments?: { filename?: string; mimeType?: string; content: Uint8Array; contentId?: string; disposition?: string | null }[];
-    } | null = null;
-    try {
-      parsed = await PostalMime.parse(message.raw);
-    } catch (e) {
-      console.error('postal_mime_parse_err', String((e as any)?.message || e));
-    }
-
-    // Prefer the parsed, structured From (has a display name) over Cloudflare's
-    // bare envelope address — "Jane Doe <jane@x.com>" beats "jane@x.com".
-    const fromAddr = extractAddr(fromRaw) || fromRaw.toLowerCase() || parsed?.from?.address || '';
-    const fromDisplay = parsed?.from?.name
-      ? `${parsed.from.name} <${parsed.from.address || fromAddr}>`
-      : (fromRaw || fromAddr);
-
-    const subject = String(parsed?.subject || message.headers?.get?.('subject') || '(sans objet)').slice(0, 500);
-    const text = String(parsed?.text || '').slice(0, 50000);
-    let html = String(parsed?.html || '');
-    const rfcMessageId = String(parsed?.messageId || '').replace(/[<>]/g, '').trim();
-
-    // Cloudflare can retry delivery on a transient failure — don't create a duplicate row.
-    if (rfcMessageId) {
-      const dupe = await env.DB.prepare(`SELECT id FROM mail_messages WHERE resend_id = ? LIMIT 1`)
-        .bind(`msg:${rfcMessageId}`).first();
-      if (dupe) return;
-    }
-
-    const threadKey = await findThreadKeyForReply(env, fromAddr, subject);
-
-    // Inline images (cid:) → data URIs. Case-insensitive + bracket variants.
-    const allAttachments = Array.isArray(parsed?.attachments) ? parsed!.attachments! : [];
-    const inlineIds = new Set<string>();
-    if (html) {
-      for (const att of allAttachments) {
-        if (!att.contentId || !att.mimeType?.startsWith('image/')) continue;
-        const cid = att.contentId.replace(/[<>]/g, '').trim();
-        if (!cid) continue;
-        const variants = [`cid:${cid}`, `cid:${cid.toLowerCase()}`, `cid:${encodeURIComponent(cid)}`];
-        const lowerHtml = html.toLowerCase();
-        if (!variants.some((v) => lowerHtml.includes(v.toLowerCase()))) continue;
-        try {
-          const b64 = uint8ToBase64(att.content);
-          const dataUri = `data:${att.mimeType};base64,${b64}`;
-          for (const v of variants) {
-            const re = new RegExp(v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-            html = html.replace(re, dataUri);
-          }
-          inlineIds.add(att.contentId);
-        } catch { /* leave as-is if inlining fails */ }
-      }
-    }
-    html = html.slice(0, 400000);
-
-    // Downloadable = not successfully inlined (keep content_id for client rewrite)
-    const downloadable = allAttachments.filter((a) => !a.contentId || !inlineIds.has(a.contentId));
-
-    let newId = '';
-    try {
-      const ins = await env.DB.prepare(
-        `INSERT INTO mail_messages (direction, mailbox, from_addr, to_addr, subject, body_text, body_html, resend_id, status, thread_key, meta_json)
-         VALUES ('in', ?, ?, ?, ?, ?, ?, ?, 'received', ?, ?)`
-      ).bind(
-        ADMIN_MAILBOX,
-        fromDisplay,
-        to,
-        subject,
-        text,
-        html,
-        rfcMessageId ? `msg:${rfcMessageId}` : '',
-        threadKey,
-        JSON.stringify({ source: 'cf_email_routing', raw_size: message.rawSize }),
-      ).run();
-      newId = String(ins.meta?.last_row_id || '');
-    } catch (e) {
-      // Most likely the unique index on resend_id caught a race with a retried delivery.
-      console.error('inbound_insert_err', String((e as any)?.message || e));
-      return;
-    }
-    if (!newId) return;
-
-    const r2 = await storeMailBodyR2(env, newId, html, text);
-    if (r2) {
-      try { await env.DB.prepare(`UPDATE mail_messages SET r2_key = ? WHERE id = ?`).bind(r2, newId).run(); } catch { /* */ }
-    }
-
-    // Attachments — e.g. a forwarded vendor receipt or a signed document.
-    // (Inline logos/signatures were already embedded into the HTML above and
-    // are excluded from `downloadable`, so they don't also show up as chips.)
-    if (downloadable.length && env.IMAGES) {
-      const stored: { filename: string; mimeType: string; size: number; r2_key: string }[] = [];
-      for (let i = 0; i < downloadable.length; i++) {
-        const att = downloadable[i];
-        try {
-          const safeName = String(att.filename || `piece-jointe-${i + 1}`).replace(/[^a-zA-Z0-9._-]/g, '_');
-          const key = `mail/${ADMIN_MAILBOX}/${newId}/${i}-${safeName}`;
-          await env.IMAGES.put(key, att.content, {
-            httpMetadata: { contentType: att.mimeType || 'application/octet-stream' },
-          });
-          stored.push({
-            filename: att.filename || safeName,
-            mimeType: att.mimeType || '',
-            size: att.content?.byteLength || 0,
-            r2_key: key,
-            content_id: att.contentId ? String(att.contentId).replace(/[<>]/g, '').trim() : undefined,
-          });
-        } catch (e) {
-          console.error('inbound_attachment_store_err', String((e as any)?.message || e));
-        }
-      }
-      if (stored.length) {
-        try {
-          await env.DB.prepare(`UPDATE mail_messages SET meta_json = ? WHERE id = ?`)
-            .bind(JSON.stringify({ source: 'cf_email_routing', raw_size: message.rawSize, attachments: stored }), newId)
-            .run();
-        } catch { /* */ }
-      }
-    }
-  } catch (e) {
-    console.error('inbound_email_err', String((e as any)?.message || e));
-  }
-}
-
+/* Mailbox module removed (v240): signed deep-links + CF Email Routing inbound deleted. */
 
 /* ─── SPA asset catch-all (MUST be last so specific /api/* routes win) ─── */
 app.get('*', async (c) => {
@@ -20586,8 +20355,5 @@ export default {
   // Cloudflare dashboard (Email → Email Routing → Routing rules) to be set
   // to "Send to a Worker" → this Worker. That dashboard step is separate
   // from this code and won't happen automatically on deploy.
-  async email(message: ForwardableEmailMessage, env: Env, ctx: ExecutionContext) {
-    await handleInboundEmail(message, env, ctx);
-  },
   // Free plan: no Cron Triggers (Error 10072). Use POST /api/cron/backup-execute instead.
 };

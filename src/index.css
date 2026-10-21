@@ -2507,7 +2507,7 @@ html.liquid-glass-active .app-dialog-card {
 .app-toast-stack {
   position: fixed;
   left: 50%;
-  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  top: calc(18px + env(safe-area-inset-top, 0px));
   transform: translateX(-50%);
   z-index: 13000;
   display: flex;

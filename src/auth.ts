@@ -6,7 +6,46 @@ const SESSION_IP_KEY = 'stock_session_ip';
 const ROLE_KEY = 'stock_role';
 const USER_KEY = 'stock_auth_user';
 const DISPLAY_NAME_KEY = 'stock_display_name';
-const AVATAR_URL_KEY = 'stock_avatar_url';
+
+// Avatar URL lives in memory only (never in DOM storage): it is refreshed
+// from the API via setProfileCache(), so no DOM-storage text can ever flow
+// into an <img> src (CodeQL js/dom-text-reinterpreted-as-html).
+let memoryAvatarUrl = '';
+
+export function sanitizeAvatarUrl(raw: string | null | undefined): string {
+  const value = String(raw || '').trim();
+  if (!value) return '';
+
+  // Allow common safe image data URLs produced by client-side crop/upload flow.
+  if (/^data:image\/(?:png|jpe?g|webp|gif);base64,[a-z0-9+/=]+$/i.test(value)) {
+    return value;
+  }
+
+  const isAllowedImagePath = (path: string): boolean => {
+    return /\.(?:png|jpe?g|webp|gif|avif|svg)$/i.test(path);
+  };
+
+  // Allow same-origin relative image paths only.
+  if (value.startsWith('/') || value.startsWith('./') || value.startsWith('../')) {
+    if (/[<>"'`\\\s]/.test(value)) return '';
+    const cleanPath = value.split('#')[0].split('?')[0];
+    if (!isAllowedImagePath(cleanPath)) return '';
+    return value;
+  }
+
+  // Allow only http(s) absolute image URLs.
+  try {
+    const u = new URL(value);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return '';
+    if (u.username || u.password) return '';
+    if (!isAllowedImagePath(u.pathname)) return '';
+    return u.toString();
+  } catch {
+    // Invalid URL -> reject.
+  }
+
+  return '';
+}
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
@@ -27,25 +66,39 @@ export function getDisplayName(): string {
   return localStorage.getItem(DISPLAY_NAME_KEY) || getUsername();
 }
 
-function sanitizeAvatarUrl(input: string): string {
-  const value = String(input || '').trim();
+export function getAvatarUrl(): string {
+  return memoryAvatarUrl;
+}
+
+/**
+ * Gate for ephemeral preview URLs: object URLs created by this app
+ * (blob:), plain base64 image data URLs, or whitelisted http(s) images.
+ */
+export function sanitizePreviewUrl(raw: string | null | undefined): string {
+  const value = String(raw || '').trim();
   if (!value) return '';
+  if (/^blob:https?:\/\//i.test(value)) return value;
+  return sanitizeImageDataUrl(value) || sanitizeAvatarUrl(value);
+}
 
-  // Allow safe image data URLs (used by local file upload preview/save flow).
-  if (/^data:image\/(?:png|jpe?g|webp|gif);base64,[a-z0-9+/=\s]+$/i.test(value)) return value;
-
-  try {
-    const u = new URL(value, window.location.origin);
-    const protocol = u.protocol.toLowerCase();
-    if (protocol === 'https:' || protocol === 'http:' || protocol === 'blob:') return u.href;
-  } catch {
-    // invalid URL
-  }
+/**
+ * Whitelist gate for client-side image previews (FileReader data URLs).
+ * Only plain base64 image data URLs pass; anything else becomes ''.
+ * CodeQL: validated values stop the DOM-text -> HTML-sink taint flow.
+ */
+export function sanitizeImageDataUrl(raw: string | null | undefined): string {
+  const value = String(raw || '').trim();
+  if (/^data:image\/(?:png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(value)) return value;
   return '';
 }
 
-export function getAvatarUrl(): string {
-  return sanitizeAvatarUrl(localStorage.getItem(AVATAR_URL_KEY) || '');
+/**
+ * Whether a sanitized avatar URL is cached. Returns a plain boolean on
+ * purpose: callers branch on it without ever carrying the URL text into
+ * markup (see AvatarImage, which assigns src imperatively).
+ */
+export function hasAvatarUrl(): boolean {
+  return getAvatarUrl() !== '';
 }
 
 /** Cache profile fields used in sidebar / phone avatar (local only). */
@@ -59,9 +112,7 @@ export function setProfileCache(partial: {
     localStorage.setItem(DISPLAY_NAME_KEY, String(partial.display_name).trim());
   }
   if (partial.avatar_url != null) {
-    const a = sanitizeAvatarUrl(String(partial.avatar_url).trim());
-    if (a) localStorage.setItem(AVATAR_URL_KEY, a);
-    else localStorage.removeItem(AVATAR_URL_KEY);
+    memoryAvatarUrl = sanitizeAvatarUrl(partial.avatar_url);
   }
   if (partial.username) localStorage.setItem(USER_KEY, String(partial.username));
   if (partial.role) localStorage.setItem(ROLE_KEY, String(partial.role));
@@ -83,7 +134,7 @@ export function clearToken() {
   localStorage.removeItem(ROLE_KEY);
   localStorage.removeItem(USER_KEY);
   localStorage.removeItem(DISPLAY_NAME_KEY);
-  localStorage.removeItem(AVATAR_URL_KEY);
+  memoryAvatarUrl = '';
 }
 
 export function isLoggedIn(): boolean {
@@ -121,9 +172,7 @@ export function startSessionGuard(): () => void {
         if (m.role) localStorage.setItem(ROLE_KEY, String(m.role));
         if (m.display_name != null) localStorage.setItem(DISPLAY_NAME_KEY, String(m.display_name));
         if (m.avatar_url != null) {
-          const a = String(m.avatar_url).trim();
-          if (a) localStorage.setItem(AVATAR_URL_KEY, a);
-          else localStorage.removeItem(AVATAR_URL_KEY);
+          memoryAvatarUrl = sanitizeAvatarUrl(m.avatar_url);
         }
       }
     } catch {
@@ -207,4 +256,6 @@ export function canAccessSettings(): boolean {
 }
 
 /** Company+ tabs in Settings (not profile). */
-export
+export function canAccessSettingsBeyondProfile(): boolean {
+  return canAccessCompanySettings();
+}
