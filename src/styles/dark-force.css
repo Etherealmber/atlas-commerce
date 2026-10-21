@@ -3147,3 +3147,97 @@ html body .image-crop-tool > div {
   max-width: calc(100vw - 48px) !important;
 }
 /* v221 END */
+
+/* v222 — ID-level zinc for segment controls + mail links (beats every
+   class-chain density rule; those never use an ID) */
+html[data-theme="dark"] {
+  --atlas-primary: #d4d4d8;
+}
+html[data-theme="dark"] body #root .ac-theme-seg .ac-seg-btn,
+html[data-theme="dark"] body #root .ac-scale-seg .ac-seg-btn,
+html[data-theme="dark"] body #root .ac-type-switch button {
+  background: #27272a !important;
+  background-color: #27272a !important;
+  background-image: none !important;
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+  border: 1px solid #3f3f46 !important;
+}
+html[data-theme="dark"] body #root .ac-theme-seg .ac-seg-btn[aria-pressed="true"],
+html[data-theme="dark"] body #root .ac-scale-seg .ac-seg-btn[aria-pressed="true"],
+html[data-theme="dark"] body #root .ac-type-switch button[aria-pressed="true"] {
+  background: #3f3f46 !important;
+  background-color: #3f3f46 !important;
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+  border-color: #52525b !important;
+}
+html[data-theme="dark"] body #root .ac-theme-seg .ac-seg-btn:hover,
+html[data-theme="dark"] body #root .ac-scale-seg .ac-seg-btn:hover {
+  background: #323236 !important;
+  background-color: #323236 !important;
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+}
+html[data-theme="dark"] body #root .party-email-link,
+html[data-theme="dark"] body #root a.party-email-link {
+  color: #d4d4d8 !important;
+  -webkit-text-fill-color: #d4d4d8 !important;
+}
+/* v222 END */
+
+/* v222 — responsive intelligence: phones minimize, desktop keeps everything.
+   All rules are inside a max-width query → PC layout untouched. */
+@media (max-width: 760px) {
+  html body .ac-topbar:not(.ac-topbar--searching) .ac-topbar-search-expanded {
+    display: none !important;
+  }
+  html body .page-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+  html body .ac-panel-head {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+  html body .ac-stat-pair {
+    width: 100%;
+    justify-content: space-between;
+  }
+  html body .ac-chart-toolbar {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+  html body .welcome-gallery {
+    grid-template-columns: 1fr !important;
+  }
+  html body .atlas-hello {
+    font-size: 1.4rem !important;
+  }
+  html body .modal-card {
+    max-width: calc(100vw - 20px) !important;
+  }
+  html body .ac-dash-grid,
+  html body .ac-kpi-grid,
+  html body .balance-cards {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  html body .ac-dash-empty {
+    min-height: 120px !important;
+  }
+  html body .wizard-foot {
+    padding: 10px 10px calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  html body .wizard-foot .wz-step-label {
+    display: none !important;
+  }
+}
+@media (max-width: 480px) {
+  html body .ac-dash-grid,
+  html body .ac-kpi-grid,
+  html body .balance-cards {
+    grid-template-columns: 1fr !important;
+  }
+}
+/* v222 responsive END */

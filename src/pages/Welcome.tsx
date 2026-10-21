@@ -796,6 +796,14 @@ export default function Welcome() {
                   <img src="/shots/settings-dark.png" alt="Paramètres — apparence en thème sombre" loading="lazy" decoding="async" />
                   <figcaption>Paramètres — apparence</figcaption>
                 </figure>
+                <figure>
+                  <img src="/shots/phone-dashboard-dark.png" alt="Tableau de bord sur téléphone — thème sombre" loading="lazy" decoding="async" />
+                  <figcaption>Tableau de bord — téléphone</figcaption>
+                </figure>
+                <figure>
+                  <img src="/shots/phone-quotes-dark.png" alt="Devis sur téléphone — thème sombre" loading="lazy" decoding="async" />
+                  <figcaption>Devis — téléphone</figcaption>
+                </figure>
               </div>
             </div>
             <div className="welcome-features-grid">
