@@ -655,6 +655,7 @@ async function dbPrimaryFlag(env: Env): Promise<string> {
 }
 app.use('*', async (c, next) => {
   if (c.env.DB_TARGET) {
+    (c.env as any).DB_SOURCE = c.env.DB; // remember the physical source before any swap
     try {
       if ((await dbPrimaryFlag(c.env)) === 'target') (c.env as any).DB = c.env.DB_TARGET;
     } catch { /* keep source */ }
@@ -1067,7 +1068,7 @@ app.get('/api/admin/db-migrate/status', async (c) => {
     data: {
       enabled: !!target,
       primary: target ? await dbPrimaryFlag(c.env) : 'source',
-      source: await migTables(c.env.DB),
+      source: await migTables(((c.env as any).DB_SOURCE || c.env.DB) as D1Database),
       target: target ? await migTables(target) : [],
     },
   });
@@ -1084,21 +1085,22 @@ app.post('/api/admin/db-migrate/copy', async (c) => {
   const cursor: Record<string, number> = { ...cursorIn };
   const done: string[] = [];
   let budget = 1500; // rows per call (Workers CPU-friendly)
-  const tables = await migTables(c.env.DB);
+  const physSrc = ((c.env as any).DB_SOURCE || c.env.DB) as D1Database;
+  const tables = await migTables(physSrc);
   for (const t of tables) {
     if (only && !only.includes(t.name)) continue;
     const name = t.name;
-    const ddl = (await c.env.DB.prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?`).bind(name).first()) as any;
+    const ddl = (await physSrc.prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?`).bind(name).first()) as any;
     if (!ddl?.sql) continue;
     try { await target.prepare(String(ddl.sql)).run(); } catch { /* exists or incompatible → skip table */ }
-    const cols = (await c.env.DB.prepare(`PRAGMA table_info(\`${name}\`)`).all()) as any;
+    const cols = (await physSrc.prepare(`PRAGMA table_info(\`${name}\`)`).all()) as any;
     const colNames = (cols.results || []).map((r: any) => `\`${String(r.name)}\``).join(', ');
     if (!colNames) { done.push(name); continue; }
     let last = Number(cursor[name] || 0);
     let guard = 0;
     while (budget > 0 && guard < 40) {
       guard += 1;
-      const batch = (await c.env.DB.prepare(`SELECT rowid AS __rid, * FROM \`${name}\` WHERE rowid > ? ORDER BY rowid LIMIT 200`).bind(last).all()) as any;
+      const batch = (await physSrc.prepare(`SELECT rowid AS __rid, * FROM \`${name}\` WHERE rowid > ? ORDER BY rowid LIMIT 200`).bind(last).all()) as any;
       const rows = batch.results || [];
       if (!rows.length) { done.push(name); delete cursor[name]; break; }
       for (const row of rows) {
@@ -1127,7 +1129,8 @@ app.post('/api/admin/db-migrate/cutover', async (c) => {
   const on = body.on === true || body.on === 'true';
   const value = on ? 'target' : 'source';
   const stamp = new Date().toISOString();
-  for (const db of [c.env.DB, target]) {
+  const physicalSource = ((c.env as any).DB_SOURCE || c.env.DB) as D1Database;
+  for (const db of [physicalSource, target]) {
     try {
       await db.prepare(`INSERT INTO app_config (key, value, updated_at) VALUES ('db_primary', ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`).bind(value, stamp).run();
     } catch { /* best effort per side */ }
@@ -15034,6 +15037,29 @@ function agentConvKey(username: string, threadId: string): string {
   return `agent-chats/v2/${u}/${t}.conv`;
 }
 
+/* v233 — token-cheap conversation memory: last turns, heavily truncated, from the encrypted R2 transcript */
+async function loadCompactHistory(env: Env, username: string, thread: string, maxTurns = 6): Promise<string> {
+  if (!env.IMAGES) return '';
+  try {
+    const obj = await env.IMAGES.get(agentConvKey(username, thread));
+    if (!obj) return '';
+    const buf = await obj.arrayBuffer();
+    const plain = await decryptAgentConv(env, buf);
+    if (!plain || plain.trimStart().startsWith('{')) return '';
+    const lines = plain.split('\n').filter((l) => l.startsWith('U|') || l.startsWith('A|'));
+    if (!lines.length) return '';
+    return lines
+      .slice(-maxTurns * 2)
+      .map((l) => {
+        const parts = l.split('|');
+        const who = parts[0] === 'U' ? 'U' : 'A';
+        const txt = String(parts.slice(2).join('|')).trim();
+        return `${who}: ${txt.slice(0, who === 'U' ? 160 : 200)}`;
+      })
+      .join('\n');
+  } catch { return ''; }
+}
+
 async function putAgentChatTurn(
   env: Env,
   row: {
@@ -15211,15 +15237,25 @@ app.post('/api/assist/chat', async (c) => {
 
   try {
     const system = atlasAgentSystem({ role, username, timezone: tz, source: sourceRefined });
+    // v233 — compact memory: the agent reads its recent conversation without replaying full turns
+    const history = await loadCompactHistory(c.env, username, threadId, 6);
+    const finalMessage = history
+      ? `Historique récent de la conversation (contexte uniquement — ne pas recopier):\n${history}\n\n${message}`
+      : message;
     const outGq = await groqChat({
       apiKey: groqKey,
       model: images.length && model === 'openai/gpt-oss-20b' ? '' : model,
       system,
-      message,
-      maxTokens: 1200,
+      message: finalMessage,
+      maxTokens: images.length ? 1200 : isGreeting ? 300 : 700,
       images,
     });
     const replyGq = scrubVendorNames(String(outGq.reply || '').trim());
+    // v233 — charge REAL tokens (prompt+completion) server-side instead of client guesses
+    const usedTokens = Math.max(0, Number(outGq.usage?.prompt || 0) + Number(outGq.usage?.completion || 0));
+    if (usedTokens > 0 && role !== 'owner' && role !== 'admin') {
+      try { await agentQuotaAdd(c.env, c.env.DB, username, usedTokens); } catch { /* quota best-effort */ }
+    }
     await auditAssist(c.env, { username, role, message, tools: 'groq', ok: true });
     await putAgentChatTurn(c.env, {
       username, role, message, reply: replyGq, tools: 'groq', model: outGq.model, thread_id: threadId,
@@ -15233,6 +15269,8 @@ app.post('/api/assist/chat', async (c) => {
         reply: replyGq,
         model: outGq.model,
         provider: 'groq',
+        usage: outGq.usage || null,
+        history_turns: history ? history.split('\n').length : 0,
         tool_trace: [],
         proposals: [],
         task,

@@ -1119,9 +1119,9 @@ export default function AtlasAgent() {
     const last = msgs[msgs.length - 1];
     if (last?.role === 'assistant' && msgs.length > lastReportedLen.current) {
       lastReportedLen.current = msgs.length;
-      const est = Math.round(((last.text || '').length + 240) / 4);
-      api.postAgentUsage(est)
-        .then((res: any) => { if (res?.data && !res.data.unlimited) setAgentPolicy((p0) => (p0 ? { ...p0, dailyUsed: res.data.dailyUsed ?? p0.dailyUsed, weeklyUsed: res.data.weeklyUsed ?? p0.weeklyUsed } : p0)); })
+      // v233 — the server charges real tokens; we just refresh the quota display
+      api.getAgentPolicy()
+        .then((res: any) => { if (res?.data) setAgentPolicy(res.data); })
         .catch(() => { /* */ });
     }
   }, [msgs]);

@@ -26,7 +26,7 @@ export async function groqChat(opts: {
   message: string;
   maxTokens?: number;
   images?: string[];
-}): Promise<{ reply: string; model: string }> {
+}): Promise<{ reply: string; model: string; usage?: { prompt: number; completion: number } }> {
   const preferred = (opts.model || '').trim();
   const images = (opts.images || []).filter((u) => typeof u === 'string' && u.startsWith('data:image/')).slice(0, 4);
   const base = images.length ? [...VISION_MODELS, ...MODELS] : MODELS;
@@ -88,7 +88,14 @@ export async function groqChat(opts: {
     text = text
       .replace(/\b(Google|Gemini|Mistral|OpenAI|ChatGPT|Claude|Groq|Llama|Meta)\b/gi, 'Atlas Agent')
       .trim();
-    return { reply: text, model: String(data?.model || model) };
+    return {
+      reply: text,
+      model: String(data?.model || model),
+      usage: {
+        prompt: Number(data?.usage?.prompt_tokens || 0),
+        completion: Number(data?.usage?.completion_tokens || 0),
+      },
+    };
   }
 
   if (lastStatus === 401 || lastStatus === 403) {
