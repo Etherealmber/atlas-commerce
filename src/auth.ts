@@ -8,41 +8,6 @@ const USER_KEY = 'stock_auth_user';
 const DISPLAY_NAME_KEY = 'stock_display_name';
 const AVATAR_URL_KEY = 'stock_avatar_url';
 
-function sanitizeAvatarUrl(raw: string | null | undefined): string {
-  const value = String(raw || '').trim();
-  if (!value) return '';
-
-  // Allow common safe image data URLs produced by client-side crop/upload flow.
-  if (/^data:image\/(?:png|jpe?g|webp|gif);base64,[a-z0-9+/=]+$/i.test(value)) {
-    return value;
-  }
-
-  const isAllowedImagePath = (path: string): boolean => {
-    return /\.(?:png|jpe?g|webp|gif|avif|svg)$/i.test(path);
-  };
-
-  // Allow same-origin relative image paths only.
-  if (value.startsWith('/') || value.startsWith('./') || value.startsWith('../')) {
-    if (/[<>"'`\\\s]/.test(value)) return '';
-    const cleanPath = value.split('#')[0].split('?')[0];
-    if (!isAllowedImagePath(cleanPath)) return '';
-    return value;
-  }
-
-  // Allow only http(s) absolute image URLs.
-  try {
-    const u = new URL(value);
-    if (u.protocol !== 'http:' && u.protocol !== 'https:') return '';
-    if (u.username || u.password) return '';
-    if (!isAllowedImagePath(u.pathname)) return '';
-    return u.toString();
-  } catch {
-    // Invalid URL -> reject.
-  }
-
-  return '';
-}
-
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
 }
@@ -62,8 +27,25 @@ export function getDisplayName(): string {
   return localStorage.getItem(DISPLAY_NAME_KEY) || getUsername();
 }
 
+function sanitizeAvatarUrl(input: string): string {
+  const value = String(input || '').trim();
+  if (!value) return '';
+
+  // Allow safe image data URLs (used by local file upload preview/save flow).
+  if (/^data:image\/(?:png|jpe?g|webp|gif);base64,[a-z0-9+/=\s]+$/i.test(value)) return value;
+
+  try {
+    const u = new URL(value, window.location.origin);
+    const protocol = u.protocol.toLowerCase();
+    if (protocol === 'https:' || protocol === 'http:' || protocol === 'blob:') return u.href;
+  } catch {
+    // invalid URL
+  }
+  return '';
+}
+
 export function getAvatarUrl(): string {
-  return sanitizeAvatarUrl(localStorage.getItem(AVATAR_URL_KEY));
+  return sanitizeAvatarUrl(localStorage.getItem(AVATAR_URL_KEY) || '');
 }
 
 /** Cache profile fields used in sidebar / phone avatar (local only). */
@@ -77,7 +59,7 @@ export function setProfileCache(partial: {
     localStorage.setItem(DISPLAY_NAME_KEY, String(partial.display_name).trim());
   }
   if (partial.avatar_url != null) {
-    const a = sanitizeAvatarUrl(partial.avatar_url);
+    const a = sanitizeAvatarUrl(String(partial.avatar_url).trim());
     if (a) localStorage.setItem(AVATAR_URL_KEY, a);
     else localStorage.removeItem(AVATAR_URL_KEY);
   }
@@ -225,6 +207,4 @@ export function canAccessSettings(): boolean {
 }
 
 /** Company+ tabs in Settings (not profile). */
-export function canAccessSettingsBeyondProfile(): boolean {
-  return canAccessCompanySettings();
-}
+export
