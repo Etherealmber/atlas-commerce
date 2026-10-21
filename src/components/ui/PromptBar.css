@@ -543,8 +543,7 @@
   background: rgba(113, 113, 122, 0.15);
 }
 .prompt-bar__chip[data-img] .prompt-bar__chip-name {
-  max-width: 168px;
-  font-weight: 600;
+  display: none; /* v234 — image titles never shown; thumbnail is enough */
 }
 .prompt-bar__chip-edit {
   display: inline-grid;
