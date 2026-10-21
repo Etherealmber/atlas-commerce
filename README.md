@@ -140,7 +140,7 @@ Points forts :
 
 ## 🧭 Roadmap
 
-La roadmap comparative (inspirée d'[InvenTree](https://github.com/inventree/InvenTree)) est tenue dans la section **§Roadmap v209** plus bas : 10 chantiers S/M/L **déjà livrés** (ops scan-first, lots/FEFO, centre d'alertes, références fournisseur, pipeline statuts, étiquettes, kits/BOM, webhooks, emplacements bin). Les prochaines idées passent par les [issues](https://github.com/Etherealmber/atlas-commerce/issues).
+La roadmap comparative est tenue dans la section **§Roadmap v209** plus bas : 10 chantiers S/M/L **déjà livrés** (ops scan-first, lots/FEFO, centre d'alertes, références fournisseur, pipeline statuts, étiquettes, kits/BOM, webhooks, emplacements bin). Les prochaines idées passent par les [issues](https://github.com/Etherealmber/atlas-commerce/issues).
 
 ## 🛠️ Intégration
 
@@ -210,8 +210,6 @@ Interface **français** (terrain Maroc). Les libellés sont centralisés (`src/l
 
 ## 💎 Remerciements
 
-- **[InvenTree](https://github.com/inventree/InvenTree)** — inspiration de la roadmap stock (ops scan-first, lots/FEFO, BOM, webhooks, emplacements).
-- **[PartKeepr](https://github.com/partkeepr/PartKeepr)** via InvenTree, pour l'esprit « stock low-level ».
 - Cloudflare, React, Vite, Hono, Capacitor et leurs communautés.
 
 ## ❤️ Support
@@ -263,7 +261,7 @@ Atlas Commerce est développé et maintenu par **loxdpy ([@loxdpsy](https://gith
 </details>
 
 <details>
-<summary><strong>Roadmap v209 (inspirée d'InvenTree) — livrée</strong></summary>
+<summary><strong>Roadmap v209 — livrée</strong></summary>
 
 | # | Fonction | Adaptation Atlas | Statut |
 |---|---|---|---|
@@ -287,6 +285,38 @@ Atlas Commerce est développé et maintenu par **loxdpy ([@loxdpsy](https://gith
 - Production périmée → `npm run deploy` depuis `main` (la CI ne fait que des previews)
 - tsc baseline ~310 erreurs préexistantes : comparer les deltas uniquement
 </details>
+
+---
+
+## 📚 Historique des versions
+
+Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depuis la première version interne ; le détail complet et vivant est dans l'app (**Nouveautés**), y compris le cycle bêta **1.x** pré-renumérotation (1.0.0 → 1.4.5) conservé tel quel.
+
+### 0.4.9-beta
+- OTP par e-mail via Resend (boîte de l'utilisateur), gabarit d'e-mail brandé, plus de « E-mail indisponible » en production
+- Atlas Agent : vision réelle des images jointes (Groq), miniatures dans la bulle, boutons ✎/✕ des pièces jointes visibles dans les deux thèmes
+- SÉCURITÉ : codes OTP jamais renvoyés par l'API en production ; WAF applicatif sur /api/* + endpoint /api/canary
+- Numérotation revue : cycle bêta 0.x, historique repris depuis la 0.0.1
+
+### 0.4.8-beta
+- Heure exacte de rafraîchissement des quotas (jour/semaine) affichée partout
+- Journal D1 de consommation de jetons (agent_usage_log) ; migration D1 → D1 depuis les Paramètres
+- Modales centrées + fermeture visible et thémée ; cartes permissions agent lisibles en clair/sombre
+
+### 0.4.7-beta
+- Quotas de jetons en Durable Object (persistants aux redéploiements)
+- Agent : markdown rendu, pièces jointes annotables, conversations chiffrées AES-GCM dans R2
+- Popups guidés unifiés (wizard) : pied droit, chip d'étape, erreurs inline, clic extérieur = annulation
+
+### 0.4.6-beta
+- Gouvernance de l'agent : 2FA, appareils connectés, suppressions gated par OTP, verrouillage anti-injection
+- Plafonds de jetons jour/semaine (admin exempté et pilote)
+
+### 0.4.5-beta
+- Palette zinc unique en sombre : zéro flash blanc, boutons primaires clairs, focus et appuis zinc, transition circulaire du thème
+
+### 0.0.1-beta
+- Première version interne (bêta) : stock, facturation et espace de travail Atlas Commerce
 
 ---
 

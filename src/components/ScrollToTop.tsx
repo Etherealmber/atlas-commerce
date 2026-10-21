@@ -33,7 +33,7 @@ export default function ScrollToTop() {
       }
       // Any nested page scroll containers used across modules
       document.querySelectorAll<HTMLElement>(
-        '.atlas-page, .content-scroll, .phone-scroll, .settings-main, .mailbox-pane, .table-wrap',
+        '.atlas-page, .content-scroll, .phone-scroll, .settings-main, .table-wrap',
       ).forEach((node) => {
         // Only reset elements that actually scroll (avoid resetting table inner if user expects keep — still safer to top on route change)
         if (node.scrollTop || node.scrollLeft) {

@@ -1,4 +1,5 @@
 'use client';
+import { sanitizePreviewUrl } from '../../auth';
 
 import {
   isValidElement,
@@ -143,6 +144,7 @@ export type PromptBarProps = {
   attachments?: { name: string; preview?: string }[];
   onRemoveAttachment?: (index: number) => void;
   onEditAttachment?: (index: number) => void;
+  onPreviewAttachment?: (index: number) => void;
   onStop?: () => void;
   onAttach?: () => string | string[] | Promise<string | string[] | void> | void;
   onDictate?: () => string | Promise<string | void> | void;
@@ -177,6 +179,7 @@ export default function PromptBar({
   attachments: attachmentsProp,
   onRemoveAttachment,
   onEditAttachment,
+  onPreviewAttachment,
   onDictate,
   background = '#27272a',
   color = '#f5f5f5',
@@ -637,8 +640,17 @@ export default function PromptBar({
           <div className="prompt-bar__chips">
             {attachments.map((file, i) => (
               <span key={`${file.name}-${i}`} className="prompt-bar__chip" data-img={file.preview ? '' : undefined}>
-                {file.preview ? (
-                  <img className="prompt-bar__chip-thumb" src={file.preview} alt="" loading="lazy" decoding="async" />
+                {file.preview && sanitizePreviewUrl(file.preview) ? (
+                  <img
+                    className="prompt-bar__chip-thumb"
+                    src={sanitizePreviewUrl(file.preview)}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    title="Ouvrir l’image"
+                    style={onPreviewAttachment ? { cursor: 'zoom-in' } : undefined}
+                    onClick={onPreviewAttachment ? () => onPreviewAttachment(i) : undefined}
+                  />
                 ) : (
                   <HugeiconsIcon icon={File02Icon} size={12} strokeWidth={2} />
                 )}
