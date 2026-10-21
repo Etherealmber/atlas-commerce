@@ -107,6 +107,10 @@
       {
         "name": "NUMBER_HUB",
         "class_name": "NumberHub"
+      },
+      {
+        "name": "AGENT_QUOTA_HUB",
+        "class_name": "AgentQuotaHub"
       }
     ]
   },
@@ -122,6 +126,10 @@
     {
       "tag": "v3-number-hub",
       "new_sqlite_classes": ["NumberHub"]
+    },
+    {
+      "tag": "v4-agent-quota-hub",
+      "new_sqlite_classes": ["AgentQuotaHub"]
     }
   ],
   // Workers Logs + Traces (dashboard Observability toggles also work after deploy)

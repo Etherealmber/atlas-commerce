@@ -6,8 +6,6 @@ type Props = {
   roleLabel: string;
   avatarUrl?: string | null;
   initials: string;
-  themeMode: 'light' | 'dark' | 'system';
-  onThemeMode: (m: 'light' | 'dark' | 'system') => void;
   onLogout: () => void;
 };
 
@@ -17,8 +15,6 @@ export const TopbarUserMenu: FC<Props> = ({
   roleLabel,
   avatarUrl,
   initials,
-  themeMode,
-  onThemeMode,
   onLogout,
 }) => {
   const [open, setOpen] = useState(false);
@@ -45,11 +41,6 @@ export const TopbarUserMenu: FC<Props> = ({
   const go = (path: string) => {
     setOpen(false);
     window.location.assign(path);
-  };
-
-  const setType = (scale: string) => {
-    document.documentElement.dataset.typeScale = scale;
-    localStorage.setItem('atlas-type-scale', scale);
   };
 
   return (
@@ -89,26 +80,6 @@ export const TopbarUserMenu: FC<Props> = ({
                 <Info className="ac-user-dropdown-ico" size={16} />
                 <span><b>À propos</b><i>Version et légal</i></span>
               </button>
-              <div className="ac-user-dropdown-prefs">
-                <span className="ac-user-dropdown-prefs-label">Apparence</span>
-                <div className="ac-theme-seg" role="group" aria-label="Thème">
-                  <button type="button" className="secondary ac-seg-btn" aria-pressed={themeMode === 'light'} onClick={() => onThemeMode('light')} title="Clair">
-                    <Sun size={16} strokeWidth={2} /><span>Clair</span>
-                  </button>
-                  <button type="button" className="secondary ac-seg-btn" aria-pressed={themeMode === 'dark'} onClick={() => onThemeMode('dark')} title="Sombre">
-                    <Moon size={16} strokeWidth={2} /><span>Sombre</span>
-                  </button>
-                  <button type="button" className="secondary ac-seg-btn" aria-pressed={themeMode === 'system'} onClick={() => onThemeMode('system')} title="Auto">
-                    <Monitor size={16} strokeWidth={2} /><span>Auto</span>
-                  </button>
-                </div>
-                <span className="ac-user-dropdown-prefs-label">Taille du texte</span>
-                <div className="ac-type-switch" role="group" aria-label="Taille du texte">
-                  <button type="button" onClick={() => setType('sm')} aria-label="Petit">A−</button>
-                  <button type="button" onClick={() => setType('md')} aria-label="Normal">A</button>
-                  <button type="button" onClick={() => setType('lg')} aria-label="Grand">A+</button>
-                </div>
-              </div>
               <button type="button" role="menuitem" className="ac-user-dropdown-item ac-user-dropdown-logout secondary" onClick={() => { setOpen(false); onLogout(); }}>
                 <LogOut className="ac-user-dropdown-ico" size={16} />
                 <span><b>Déconnexion</b><i>Terminer la session</i></span>

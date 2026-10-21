@@ -140,6 +140,9 @@ export type PromptBarProps = {
   onEffortChange?: (effort: string) => void;
   busy?: boolean;
   onSend?: (text: string, meta: { attachments: string[]; model?: PromptBarModel; effort: string }) => void;
+  attachments?: { name: string; preview?: string }[];
+  onRemoveAttachment?: (index: number) => void;
+  onEditAttachment?: (index: number) => void;
   onStop?: () => void;
   onAttach?: () => string | string[] | Promise<string | string[] | void> | void;
   onDictate?: () => string | Promise<string | void> | void;
@@ -171,6 +174,9 @@ export default function PromptBar({
   onSend,
   onStop,
   onAttach,
+  attachments: attachmentsProp,
+  onRemoveAttachment,
+  onEditAttachment,
   onDictate,
   background = '#27272a',
   color = '#f5f5f5',
@@ -201,7 +207,15 @@ export default function PromptBar({
   latest.current = { onSend, onStop, onAttach, onDictate, onEffortChange };
 
   const [draft, setDraft] = useState('');
-  const [attachments, setAttachments] = useState<string[]>([]);
+  const [innerAttachments, setInnerAttachments] = useState<string[]>([]);
+  const controlled = Array.isArray(attachmentsProp);
+  const attachments: { name: string; preview?: string }[] = controlled
+    ? (attachmentsProp as { name: string; preview?: string }[])
+    : innerAttachments.map((n) => ({ name: n }));
+  const removeAttachment = (i: number) => {
+    if (controlled) onRemoveAttachment?.(i);
+    else setInnerAttachments((a) => a.filter((_, j) => j !== i));
+  };
   const [modelKey, setModelKey] = useState(defaultModel);
   const [plusOpen, setPlusOpen] = useState(false);
   const [modelOpen, setModelOpen] = useState(false);
@@ -425,8 +439,8 @@ export default function PromptBar({
     if (row.attach) {
       setDraft(head);
       Promise.resolve(latest.current.onAttach?.()).then((files: any) => {
-        if (!files) return;
-        setAttachments((a) => [...a, ...(Array.isArray(files) ? files : [files])]);
+        if (!files || controlled) return;
+        setInnerAttachments((a) => [...a, ...(Array.isArray(files) ? files : [files])]);
       });
     } else if (open === 'at') {
       setDraft(`${head}@${row.name} `);
@@ -440,9 +454,10 @@ export default function PromptBar({
 
   const send = () => {
     if (!canSend || busy) return;
-    latest.current.onSend?.(draft.trim(), { attachments, model, effort: level });
+    latest.current.onSend?.(draft.trim(), { attachments: attachments.map((a) => a.name), model, effort: level });
     setDraft('');
-    setAttachments([]);
+    if (controlled) onRemoveAttachment?.(-1);
+    else setInnerAttachments([]);
     setDismissed(false);
     closeMenus();
     focusInput();
@@ -621,14 +636,29 @@ export default function PromptBar({
         {attachments.length > 0 ? (
           <div className="prompt-bar__chips">
             {attachments.map((file, i) => (
-              <span key={`${file}-${i}`} className="prompt-bar__chip">
-                <HugeiconsIcon icon={File02Icon} size={12} strokeWidth={2} />
-                <span className="prompt-bar__chip-name">{file}</span>
+              <span key={`${file.name}-${i}`} className="prompt-bar__chip" data-img={file.preview ? '' : undefined}>
+                {file.preview ? (
+                  <img className="prompt-bar__chip-thumb" src={file.preview} alt="" loading="lazy" decoding="async" />
+                ) : (
+                  <HugeiconsIcon icon={File02Icon} size={12} strokeWidth={2} />
+                )}
+                <span className="prompt-bar__chip-name">{file.name}</span>
+                {file.preview && onEditAttachment ? (
+                  <button
+                    type="button"
+                    className="prompt-bar__chip-edit"
+                    aria-label={`Annoter ${file.name}`}
+                    title="Annoter (texte, dessin)"
+                    onClick={() => onEditAttachment(i)}
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   className="prompt-bar__chip-x"
-                  aria-label={`Retirer ${file}`}
-                  onClick={() => setAttachments((a) => a.filter((_, j) => j !== i))}
+                  aria-label={`Retirer ${file.name}`}
+                  onClick={() => removeAttachment(i)}
                 >
                   <HugeiconsIcon icon={Cancel01Icon} size={10} strokeWidth={2.5} />
                 </button>
@@ -660,15 +690,17 @@ export default function PromptBar({
           <button
             type="button"
             className="prompt-bar__tool"
-            aria-label="Ajouter fichiers et sources"
-            aria-expanded={plusOpen}
-            data-on={plusOpen ? '' : undefined}
+            aria-label="Joindre des fichiers"
+            title="Joindre des fichiers"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
               setModelOpen(false);
               setEffortOpen(false);
-              setActive(0);
-              setPlusOpen((v) => !v);
+              setPlusOpen(false);
+              Promise.resolve(latest.current.onAttach?.()).then((files: any) => {
+                if (!files || controlled) return;
+                setInnerAttachments((a) => [...a, ...(Array.isArray(files) ? files : [files])]);
+              });
               focusInput();
             }}
           >

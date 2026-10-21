@@ -6,6 +6,7 @@ export interface Env {
   CACHE?: KVNamespace;
   /** Free-tier Durable Object for mobile pending counts */
   MOBILE_HUB?: DurableObjectNamespace;
+  AGENT_QUOTA_HUB?: DurableObjectNamespace;
   RESTORE_HUB?: DurableObjectNamespace;
   /** Atomic document number sequences */
   NUMBER_HUB?: DurableObjectNamespace;

@@ -6,11 +6,12 @@ import LatticeLoader from './ui/LatticeLoader';
 import PromptBar from './ui/PromptBar';
 import { Attachment01Icon } from '@hugeicons/core-free-icons';
 import { createPortal } from 'react-dom';
+import { renderMiniMarkdown } from '../lib/miniMarkdown';
+import ImageAnnotator from './ui/ImageAnnotator';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { friendlyError } from '../lib/errors';
 import { isStockRole, canOfficeWork, canSell } from '../auth';
-import AgentPermissionsPanel from './AgentPermissionsPanel';
 import { setDensity, type Density } from '../lib/density';
 import { uiToast } from './AppDialogs';
 import { setAgentDraft } from '../lib/agentDraft';
@@ -331,7 +332,7 @@ function getExecMode(): ExecMode {
 type LocalAction =
   | { type: 'navigate'; path: string; draft?: Record<string, string>; label: string }
   | { type: 'density'; value: Density; label: string }
-  | { type: 'open_perms'; label: string }
+  | { type: 'perms_moved'; label: string }
   | { type: 'create_client'; name: string; ice?: string; phone?: string; email?: string; label: string }
   | { type: 'create_product'; name: string; price?: number; stock?: number; sku?: string; label: string }
   | { type: 'update_client'; name: string; phone?: string; email?: string; label: string }
@@ -360,9 +361,9 @@ function parseLocalAction(text: string, currentPath = ''): LocalAction | null {
     return { type: 'density', value: 'comfortable', label: 'Passer l’interface en mode Confort' };
   }
 
-  // Permissions
+  // Permissions — now managed in Settings
   if (/permission|droits?\s+agent|outils?\s+agent/.test(t)) {
-    return { type: 'open_perms', label: 'Ouvrir les permissions Atlas Agent' };
+    return { type: 'perms_moved', label: 'Permissions → Paramètres' };
   }
 
   // Client creation
@@ -636,7 +637,7 @@ export default function AtlasAgent() {
       } catch { /* */ }
     }
   }, [location.pathname, isPhoneShell, open]);
-  const [showPerms, setShowPerms] = useState(false);
+  const [annotator, setAnnotator] = useState<{ index: number; src: string; name: string } | null>(null);
   const [execMode, setExecMode] = useState<ExecMode>(() => getExecMode());
   /** Server agent_perm_mode: full | read_only | custom */
   const [agentPermMode, setAgentPermMode] = useState<'full' | 'read_only' | 'custom'>('full');
@@ -905,7 +906,7 @@ export default function AtlasAgent() {
         action.type === 'update_product' ||
         action.type === 'open_create' ||
         action.type === 'navigate' ||
-        action.type === 'open_perms' ||
+        action.type === 'perms_moved' ||
         action.type === 'density';
       // Role-based: only office roles may auto-mutate; auto requires agent_perm_mode=full
       const role = (() => {
@@ -939,9 +940,8 @@ export default function AtlasAgent() {
         setMsgs((m) => [...m, { role: 'assistant', text: `C’est fait — interface en mode ${action.value === 'compact' ? 'Compact' : 'Confort'}.` }]);
         return;
       }
-      if (action.type === 'open_perms') {
-        setShowPerms(true);
-        setMsgs((m) => [...m, { role: 'assistant', text: 'Panneau des permissions ouvert.' }]);
+      if (action.type === 'perms_moved') {
+        setMsgs((m) => [...m, { role: 'assistant', text: 'Les permissions de l’agent se gèrent désormais dans **Paramètres → Atlas Agent & Sécurité**, section « Permissions Atlas Agent ».' }]);
         return;
       }
       if (action.type === 'create_client') {
@@ -1488,48 +1488,7 @@ export default function AtlasAgent() {
           </div>
           {!isPhoneShell && (
           <div className="atlas-agent-head-actions">
-            <div className="atlas-agent-perm-wrap">
-              <button
-                type="button"
-                className={`atlas-agent-iconbtn${showPerms ? ' on' : ''}`}
-                title="Permissions de l’agent"
-                aria-expanded={showPerms}
-                aria-label="Permissions de l’agent"
-                onClick={(e) => {
-                  const btn = e.currentTarget;
-                  const r = btn.getBoundingClientRect();
-                  (btn as any)._portalPos = { top: r.bottom + 6, right: window.innerWidth - r.right };
-                  setShowPerms((v) => !v);
-                }}
-              >
-                <IconSettings />
-              </button>
-              {showPerms &&
-                typeof document !== 'undefined' &&
-                createPortal(
-                  <>
-                    <button
-                      type="button"
-                      className="atlas-agent-float-backdrop"
-                      aria-label="Fermer"
-                      onClick={() => setShowPerms(false)}
-                    />
-                    <div
-                      className="atlas-agent-perm-popover atlas-agent-perm-popover--portal"
-                      role="dialog"
-                      aria-label="Permissions Atlas Agent"
-                      style={{ position: 'fixed', top: 56, right: 16, zIndex: 10050, maxHeight: 'min(70vh, 480px)', overflowY: 'auto' }}
-                    >
-                      <AgentPermissionsPanel
-                        compact
-                        onSaved={() => { /* status handled inside panel */ }}
-                      />
-                    </div>
-                  </>,
-                  document.body,
-                )}
-            </div>
-            <button
+<button
               type="button"
               className={`atlas-agent-iconbtn${showExtras ? ' on' : ''}`}
               title={showExtras ? 'Masquer les raccourcis' : 'Afficher les raccourcis'}
@@ -1541,7 +1500,6 @@ export default function AtlasAgent() {
                   try { localStorage.setItem('atlas_agent_show_extras', next ? '1' : '0'); } catch { /* */ }
                   return next;
                 });
-                setShowPerms(false);
               }}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden>
@@ -1592,7 +1550,6 @@ export default function AtlasAgent() {
                     { label: 'Nouveau client', prompt: 'Créer un client' },
                     { label: 'Dépense', prompt: 'Ajouter une dépense' },
                     { label: 'Rapport du jour', prompt: 'Rapport des ventes du jour' },
-                    { label: 'Permissions', prompt: 'Ouvrir les permissions agent' },
                   ]
               ).map((c) => (
                 <button key={c.label} type="button" onClick={() => void send(c.prompt)}>
@@ -1621,7 +1578,7 @@ export default function AtlasAgent() {
           {msgs.filter((m) => !(m.streaming && !String(m.text || '').trim())).map((m, i) => (
             <div key={i} className={`atlas-agent-msg ${m.role}`}>
               <div className="atlas-agent-bubble">
-                {m.text}
+                {m.role === 'assistant' ? renderMiniMarkdown(String(m.text || '')) : m.text}
                 {m.streaming ? <span className="atlas-agent-caret">▍</span> : null}
               </div>
               {m.role === 'user' && !m.streaming && m.text.trim() ? (
@@ -1943,7 +1900,7 @@ export default function AtlasAgent() {
             </div>
           )}
           {agentPolicy && !agentPolicy.isAdmin && !agentPolicy.blocked && (
-            <div className="atlas-agent-quota" title="Jetons utilisés (jour / semaine)">
+            <div className="atlas-agent-quota" title="Jetons utilisés (jour / semaine) — données Durable Object">
               {Math.round((agentPolicy.dailyUsed / agentPolicy.dailyLimit) * 100)}% du quota jour · {Math.round((agentPolicy.weeklyUsed / agentPolicy.weeklyLimit) * 100)}% semaine
             </div>
           )}
@@ -1971,23 +1928,20 @@ export default function AtlasAgent() {
               void send(text);
             }}
             onStop={stop}
-            onAttach={() =>
-              new Promise<string[]>((resolve) => {
-                const input = fileInputRef.current;
-                if (!input) {
-                  resolve([]);
-                  return;
-                }
-                const prev = input.onchange;
-                input.onchange = (ev) => {
-                  onPickFiles(ev as any);
-                  const files = Array.from(input.files || []).map((f) => f.name);
-                  input.onchange = prev as any;
-                  resolve(files);
-                };
-                input.click();
-              })
+            attachments={attachments.map((a) => ({
+              name: a.name,
+              preview: (a.type || '').startsWith('image/') ? a.data_url : undefined,
+            }))}
+            onRemoveAttachment={(i) =>
+              setAttachments((prev) => (i === -1 ? [] : prev.filter((_, j) => j !== i)))
             }
+            onEditAttachment={(i) => {
+              const a = attachments[i];
+              if (a) setAnnotator({ index: i, src: a.data_url, name: a.name });
+            }}
+            onAttach={() => {
+              fileInputRef.current?.click();
+            }}
             background="#f4f4f5"
             color="#0f172a"
             menuBackground="#ffffff"
@@ -1998,6 +1952,17 @@ export default function AtlasAgent() {
             className="atlas-agent-prompt-bar"
           />
         </footer>
+        {annotator && (
+          <ImageAnnotator
+            src={annotator.src}
+            name={annotator.name}
+            onClose={() => setAnnotator(null)}
+            onSave={(dataUrl) => {
+              const idx = annotator.index;
+              setAttachments((prev) => prev.map((a, j) => (j === idx ? { ...a, data_url: dataUrl, type: 'image/png' } : a)));
+            }}
+          />
+        )}
       </aside>
     </>
   );

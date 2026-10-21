@@ -2,7 +2,6 @@
 export type SettingsSearchHit = { id: string; tab: string; label: string; keywords: string };
 
 export const SETTINGS_SEARCH_INDEX: SettingsSearchHit[] = [
-  { id: 'ui-scale', tab: 'profile', label: 'Taille du texte', keywords: 'texte taille police apparence densite scale' },
   { id: 'profile_photo', tab: 'profile', label: 'Photo de profil', keywords: 'photo avatar image profil' },
   { id: 'display_name', tab: 'profile', label: 'Nom affiché', keywords: 'nom affiche display name profil' },
   { id: 'profile_email', tab: 'profile', label: 'E-mail du profil', keywords: 'email mail profil contact' },
