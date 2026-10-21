@@ -31,6 +31,7 @@ const RELEASES: Release[] = [
           { id: '052c2', text: 'Photo de profil chargée via le proxy worker same-origin (/api/me/avatar) : le CORS de cdn1.afmarbre.com ne bloque plus l’avatar' },
           { id: '052c3', text: 'Boutons ✎ / ✕ des pièces jointes de l’agent toujours visibles, thèmes clair et sombre' },
           { id: '052c4', text: 'Contours d’images thématisés (fini le liseré noir en mode clair / blanc en mode sombre) + fond neutre sous les PNG transparents' },
+          { id: '052c5', text: 'Historique des versions entièrement renuméroté en 0.x : l’ancien cycle 1.x devient 0.0.1 → 0.4.4 (première version = 0.0.1), plus aucune étiquette 1.x ni doublon' },
         ],
       },
       {
@@ -181,7 +182,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.4.5-beta',
+    version: '0.4.4-beta',
     date: '20 octobre 2026',
     sections: [
       {
@@ -214,7 +215,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.4.4-beta',
+    version: '0.4.3-beta',
     date: '20 octobre 2026',
     sections: [
       {
@@ -245,7 +246,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.4.3-beta',
+    version: '0.4.2-beta',
     date: '11 octobre 2026',
     sections: [
       {
@@ -280,7 +281,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.4.2-beta',
+    version: '0.4.1-beta',
 
     date: '7 octobre 2026',
     sections: [
@@ -318,7 +319,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.4.1-beta',
+    version: '0.4.0-beta',
     date: '6 octobre 2026',
     sections: [
       {
@@ -348,7 +349,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.4.0-beta',
+    version: '0.3.4-beta',
     date: '1er octobre 2026',
     sections: [
       {
@@ -373,7 +374,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.3.4-beta',
+    version: '0.3.3-beta',
     date: '28 septembre 2026',
     sections: [
       {
@@ -393,7 +394,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.3.3-beta',
+    version: '0.3.2-beta',
     date: '26 septembre 2026',
     sections: [
       {
@@ -413,7 +414,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.3.2-beta',
+    version: '0.3.1-beta',
     date: '25 septembre 2026',
     sections: [
       {
@@ -433,7 +434,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.3.1-beta',
+    version: '0.3.0-beta',
     date: '22 septembre 2026',
     sections: [
       {
@@ -452,7 +453,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.2.0-beta',
+    version: '0.2.0-beta',
     date: '15 septembre 2026',
     sections: [
       {
@@ -472,7 +473,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.1.9-beta',
+    version: '0.1.8-beta',
     date: '8 septembre 2026',
     sections: [
       {
@@ -490,7 +491,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.1.8-beta',
+    version: '0.1.7-beta',
     date: '5 septembre 2026',
     sections: [
       {
@@ -508,7 +509,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.1.7-beta',
+    version: '0.1.6-beta',
     date: '2 septembre 2026',
     sections: [
       {
@@ -520,7 +521,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.1.6-beta',
+    version: '0.1.5-beta',
     date: '28 août 2026',
     sections: [
       {
@@ -532,7 +533,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.1.5-beta',
+    version: '0.1.4-beta',
     date: '22 août 2026',
     sections: [
       {
@@ -550,7 +551,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.1.4-beta',
+    version: '0.1.3-beta',
     date: '18 août 2026',
     sections: [
       {
@@ -562,7 +563,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.1.3-beta',
+    version: '0.1.2-beta',
     date: '14 août 2026',
     sections: [
       {
@@ -574,7 +575,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.1.2-beta',
+    version: '0.1.1-beta',
     date: '10 août 2026',
     sections: [
       {
@@ -586,7 +587,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.1.1-beta',
+    version: '0.1.0-beta',
     date: '6 août 2026',
     sections: [
       {
@@ -598,7 +599,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.0.9-beta',
+    version: '0.0.4-beta',
     date: '2 août 2026',
     sections: [
       {
@@ -610,7 +611,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.0.5-beta',
+    version: '0.0.3-beta',
     date: '30 juillet 2026',
     sections: [
       {
@@ -622,7 +623,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.0.1-beta',
+    version: '0.0.2-beta',
     date: '28 juillet 2026',
     sections: [
       {
@@ -634,31 +635,20 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.0.0-beta',
+    version: '0.0.1-beta',
     date: '27 juillet 2026',
     sections: [
       {
         kind: 'features',
         items: [
           { id: 'p1q2r3s', text: 'Première publication Atlas Commerce (stock, caisse, facturation)' },
+          { id: '001a1', text: 'Première version interne (bêta) : stock, facturation et espace de travail Atlas Commerce' },
         ],
       },
       {
         kind: 'breaking',
         items: [
           { id: 't4u5v6w', text: 'Canal beta uniquement — versions stables à venir' },
-        ],
-      },
-    ],
-  },
-  {
-    version: '0.0.1-beta',
-    date: 'première version',
-    sections: [
-      {
-        kind: 'features',
-        items: [
-          { id: '001a1', text: 'Première version interne (bêta) : stock, facturation et espace de travail Atlas Commerce' },
         ],
       },
     ],
