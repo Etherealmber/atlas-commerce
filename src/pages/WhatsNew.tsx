@@ -21,6 +21,26 @@ type Release = {
 
 const RELEASES: Release[] = [
   {
+    version: '0.4.11-beta',
+    date: '22 octobre 2026',
+    sections: [
+      {
+        kind: 'features',
+        items: [
+          { id: '0411a1', text: 'Glisser-déposer réel des photos produit : déposez vos images directement sur l’étape Photos (zone en pointillés pleine largeur, surbrillance cuivre pendant le glisser), ou cliquez pour parcourir' },
+        ],
+      },
+      {
+        kind: 'improvements',
+        items: [
+          { id: '0411b1', text: 'Assistant produit allégé : l’étape « Variantes & photos » est séparée en deux étapes dédiées (Étape 3 Variantes · Étape 4 Photos) — moins de contenu d’un coup, moins de défilement' },
+          { id: '0411b2', text: 'Pied d’assistant réellement fixe dans toutes les fenêtres : les boutons ne bougent plus et ne recouvrent jamais le contenu — le corps de l’étape défile à l’intérieur, la barre reste en bas' },
+          { id: '0411b3', text: 'L’assistant repart toujours à l’étape 1 à chaque ouverture (nouveau produit, modification, pré-remplissage scan/agent)' },
+        ],
+      },
+    ],
+  },
+  {
     version: '0.4.10-beta',
     date: '22 octobre 2026',
     sections: [

@@ -292,6 +292,10 @@ Atlas Commerce est développé et maintenu par **loxdpy ([@loxdpsy](https://gith
 
 Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depuis la première version interne ; le détail complet et vivant est dans l'app (**Nouveautés**), y compris le cycle bêta **1.x** pré-renumérotation (1.0.0 → 1.4.5) conservé tel quel.
 
+### 0.4.11-beta
+- Glisser-déposer des photos produit sur l'étape dédiée (zone pleine largeur, surbrillance cuivre)
+- Assistant produit en 4 étapes : Variantes et Photos séparées, pied de fenêtre fixe qui ne recouvre jamais le contenu
+
 ### 0.4.10-beta
 - Erreur « Erreur interne — réessayez plus tard » sur la sauvegarde d'un produit corrigée (migration optionnelle de colonne rendue non bloquante)
 - Erreurs de sauvegarde affichées dans la zone prévue de la fenêtre (bannière au-dessus des boutons) sur tous les formulaires popup, plus de toast masqué

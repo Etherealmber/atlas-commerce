@@ -38,8 +38,8 @@ export default function Products() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [show, setShow] = useState(false);
-  const wz = useWizard(3);
   const [editing, setEditing] = useState<any>(null);
+  const wz = useWizard(editing ? 4 : 3);
   const [exportBusy, setExportBusy] = useState(false);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 300);
@@ -143,7 +143,7 @@ export default function Products() {
         stock_quantity: pre.stock_quantity != null ? Number(pre.stock_quantity) : 0,
         sku: pre.sku ?? '',
       }));
-      setModalError('');
+      setModalError(''); wz.reset();
       setShow(true);
 
     });
@@ -201,7 +201,7 @@ export default function Products() {
     setEditing(null);
     setVariants([]);
     setVariantForm({ variant_label: '', sku: '', barcode: '', price: '', stock_quantity: '0' });
-    setModalError(''); setShow(true);
+    setModalError(''); wz.reset(); setShow(true);
   };
   // Scan page → "Créer produit" on an open creation request: open the form
   // with the scanned barcode (and optional name) prefilled. Price stays empty
@@ -227,14 +227,14 @@ export default function Products() {
     setEditing(null);
     setVariants([]);
     setVariantForm({ variant_label: '', sku: '', barcode: '', price: '', stock_quantity: '0' });
-    setModalError(''); setShow(true);
+    setModalError(''); wz.reset(); setShow(true);
     window.history.replaceState({}, '');
   }, [location.state]);
   const openEdit = async (p: any) => {
     setForm({ ...p, tax_rate: p.tax_rate ?? '', ...parseBulkFromProduct(p) });
     setEditing(p);
     setVariantForm({ variant_label: '', sku: '', barcode: '', price: String(p.price ?? ''), stock_quantity: '0' });
-    setModalError(''); setShow(true);
+    setModalError(''); wz.reset(); setShow(true);
     try {
       const res = await api.getVariants(p.id);
       setVariants(res.data || []);
@@ -335,7 +335,7 @@ export default function Products() {
         await api.createProduct(body);
         flash('Produit créé.');
       }
-      setShow(false); setForm(emptyForm); setEditing(null);
+      setShow(false); setForm(emptyForm); setEditing(null); wz.reset();
       load(true);
     } catch (e: any) {
       if (e.code === 'DUPLICATE_PRODUCT' && e.force_required && !force) {
@@ -908,7 +908,7 @@ export default function Products() {
       </div>
 
       {show && (
-        <FloatingPortal><div className="modal-overlay" onClick={() => { setShow(false); setForm(emptyForm); setEditing(null); setModalError(''); }}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => { setShow(false); setForm(emptyForm); setEditing(null); setModalError(''); wz.reset(); }}>
           <div className="modal" style={{ maxWidth: 640 }} onClick={(e) => e.stopPropagation()}>
             <h2>{editing ? 'Modifier le produit' : 'Nouveau produit'}</h2>
             <StepBody active={wz.step === 1}>
@@ -1033,7 +1033,7 @@ export default function Products() {
 
               </StepBody>
               <StepBody active={wz.step === 3}>
-            {editing && (
+            {editing ? (
               <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--border, #e0d9cc)' }}>
                 <h3 style={{ fontSize: 13, margin: '0 0 6px' }}>Variantes (taille / couleur / etc.)</h3>
                 <p style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>
@@ -1082,20 +1082,22 @@ export default function Products() {
                   {savingVariant ? 'Ajout…' : '+ Ajouter la variante'}
                 </button>
               </div>
-            )}
-
-            {editing?.id ? <ProductImageEditor productId={Number(editing.id)} /> : (
+            ) : (
               <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 12 }}>
                 Enregistrez le produit pour ajouter, recadrer et tourner des photos.
               </p>
             )}
-
               </StepBody>
+            {editing?.id && (
+              <StepBody active={wz.step === 4}>
+                <ProductImageEditor productId={Number(editing.id)} />
+              </StepBody>
+            )}
             <ModalFormError message={modalError || firstError(fieldErrors)} />
             <WizardFoot
               title={editing ? 'Modifier le produit' : 'Nouveau produit'}
               wz={wz}
-              stepLabel={wz.step === 1 ? 'Identité' : wz.step === 2 ? 'Prix & stock' : 'Variantes & photos'}
+              stepLabel={wz.step === 1 ? 'Identité' : wz.step === 2 ? 'Prix & stock' : wz.step === 3 ? (editing ? 'Variantes' : 'Photos') : 'Photos'}
               onCancel={() => { setShow(false); setForm(emptyForm); setEditing(null); setModalError(''); wz.reset(); }}
               onSubmit={() => void save()}
               submitLabel={saving ? 'Enregistrement…' : 'Enregistrer'}

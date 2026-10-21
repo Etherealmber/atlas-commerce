@@ -18747,6 +18747,29 @@ html[data-theme="dark"] .scan-requests-photo--none { background: #27272a; border
   background: var(--ac-paper, var(--paper, #ffffff));
   z-index: 5;
 }
+
+/* ===== v242 — true FIXED wizard footers: the step body scrolls inside,
+   the foot never overlaps content and never moves between steps ===== */
+.modal:has(.wizard-foot),
+.modal-card:has(.wizard-foot) {
+  display: flex;
+  flex-direction: column;
+}
+.modal:has(.wizard-foot) > .wz-step,
+.modal-card:has(.wizard-foot) > .wz-step {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding-right: 2px;
+}
+.modal:has(.wizard-foot) > .wizard-foot,
+.modal-card:has(.wizard-foot) > .wizard-foot {
+  position: static;
+  flex: 0 0 auto;
+  margin-top: 10px;
+}
 .wizard-foot-nav {
   display: flex;
   align-items: center;

@@ -631,6 +631,7 @@ export default function ProductImageEditor({ productId }: { productId: number })
   const [err, setErr] = useState('');
   const [edit, setEdit] = useState<Img | null>(null);
   const [editSrc, setEditSrc] = useState('');
+  const [dragOver, setDragOver] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -716,7 +717,31 @@ export default function ProductImageEditor({ productId }: { productId: number })
   return (
     <div
       className="product-image-editor"
-      style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--line, #e0d9cc)' }}
+      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; if (!busy) setDragOver(true); }}
+      onDragLeave={(e) => { if (e.currentTarget === e.target) setDragOver(false); }}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragOver(false);
+        if (busy) return;
+        const files = Array.from(e.dataTransfer.files || []).filter((f) => /^image\//.test(f.type));
+        if (files.length) {
+          const dt = new DataTransfer();
+          files.forEach((f) => dt.items.add(f));
+          void addFiles(dt.files);
+        } else {
+          setErr('Déposez des fichiers image (JPEG, PNG ou WebP).');
+        }
+      }}
+      style={{
+        marginTop: 16,
+        paddingTop: 12,
+        borderTop: '1px solid var(--line, #e0d9cc)',
+        borderRadius: 10,
+        outline: dragOver ? '2px dashed var(--pie-ring, #e8a317)' : 'none',
+        outlineOffset: 4,
+        background: dragOver ? 'rgba(232, 163, 23, 0.05)' : 'transparent',
+        transition: 'background 0.15s ease, outline-color 0.15s ease',
+      }}
     >
       <h3 style={{ fontSize: 13, margin: '0 0 6px' }}>Photos produit</h3>
       <p style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>
@@ -773,21 +798,24 @@ export default function ProductImageEditor({ productId }: { productId: number })
         ))}
         <label
           style={{
-            width: 92,
-            height: 96,
+            width: '100%',
+            minHeight: 58,
             borderRadius: 10,
-            border: '1px dashed var(--line)',
+            border: dragOver ? '2px dashed var(--pie-ring, #e8a317)' : '1px dashed var(--line)',
+            background: dragOver ? 'rgba(232, 163, 23, 0.07)' : 'transparent',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            gap: 8,
             fontSize: 12,
             color: 'var(--muted)',
             cursor: busy ? 'wait' : 'pointer',
             textAlign: 'center',
-            padding: 6,
+            padding: '10px 12px',
+            transition: 'border-color 0.15s ease, background 0.15s ease',
           }}
         >
-          {busy ? '…' : '+ Ajouter'}
+          {busy ? 'Traitement des images…' : dragOver ? 'Relâchez pour ajouter les photos' : 'Déposez une image ici — ou cliquez pour parcourir'}
           <input
             type="file"
             accept="image/jpeg,image/png,image/webp"
