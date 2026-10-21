@@ -292,26 +292,18 @@ Atlas Commerce est développé et maintenu par **loxdpy ([@loxdpsy](https://gith
 
 Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depuis la première version interne ; le détail complet et vivant est dans l'app (**Nouveautés**), y compris l’ancien cycle bêta pré-renumérotation, renuméroté en **0.x** (0.0.1 → 0.4.4).
 
-### 0.5.5-beta
-- Sauvegarde produit blindée jusqu'au bout (updated_at gardé, dup-check non bloquant, SW v11 purge les caches périmés) ; appareils connectés auto-enregistrés ; UI agent sombre corrigée
-
-### 0.5.4-beta
-- Assistants sans défilement : étape « Remises volume » dédiée dans le produit ; audit de tous les wizards (chaque étape statique tient à l'écran)
-
-### 0.5.3-beta
-- Avatar instantané : cache blob partagé côté client + cache Durable Object/edge côté worker + préchargement ; WebP pour les recadrages
-
-### 0.5.2-beta
-- PUT/POST produits blindés contre les colonnes manquantes (plus de 500 « Erreur interne »)
-- Avatar via proxy same-origin (CORS cdn1 contourné) ; agent lit les fichiers dès l'envoi et reprend le dernier fichier sur « lis ça »
-
 ### 0.5.1-beta
 - Menu utilisateur portalisé (toujours visible) avec photo de profil dans l'en-tête ; avatar monogramme SVG de nouveau affiché
 - Assistant produit en 5 étapes sans défilement ; numérotation 0.4.10 → 0.5.0 et 0.4.11 → 0.5.1
-
-
 - Glisser-déposer des photos produit sur l'étape dédiée (zone pleine largeur, surbrillance cuivre)
 - Assistant produit en 4 étapes : Variantes et Photos séparées, pied de fenêtre fixe qui ne recouvre jamais le contenu
+- PUT/POST produits blindés contre les colonnes manquantes (plus de 500 « Erreur interne »)
+- Avatar via proxy same-origin (CORS cdn1 contourné) ; agent lit les fichiers dès l'envoi et reprend le dernier fichier sur « lis ça »
+- Avatar instantané : cache blob partagé côté client + cache Durable Object/edge côté worker + préchargement ; WebP pour les recadrages
+- Assistants sans défilement : étape « Remises volume » dédiée dans le produit ; audit de tous les wizards (chaque étape statique tient à l'écran)
+- Sauvegarde produit blindée jusqu'au bout (updated_at gardé, dup-check non bloquant, SW v11 purge les caches périmés) ; appareils connectés auto-enregistrés ; UI agent sombre corrigée
+- Nouveau produit : upload de photos dès l'étape Photos de la création (envoyées juste après la création) ; avatar visible immédiatement après rafraîchissement, sans clic
+- Facture : échec de déduction de stock = facture annulée + erreur affichée (plus de stock faussé en silence) ; corruption D1 (SQLITE_CORRUPT) diagnostiquée clairement (code DB_CORRUPT, message de restauration)
 
 ### 0.5.0-beta
 - Erreur « Erreur interne — réessayez plus tard » sur la sauvegarde d'un produit corrigée (migration optionnelle de colonne rendue non bloquante)

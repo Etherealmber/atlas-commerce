@@ -9189,7 +9189,19 @@ app.post('/api/invoices', async (c) => {
             requested: stErr.requested,
           }, 400);
         }
+        // v243.3: any other failure (D1 corruption, lock…) must NOT leave an
+        // invoice whose stock was never deducted — roll back and surface it.
         console.error('stock delta invoice', stErr);
+        try {
+          await c.env.DB.prepare(`DELETE FROM invoice_items WHERE invoice_id = ?`).bind(invoiceId).run();
+          await c.env.DB.prepare(`DELETE FROM invoices WHERE id = ?`).bind(invoiceId).run();
+        } catch { /* */ }
+        const safe = toClientError(stErr);
+        return c.json({
+          success: false,
+          error: `Stock non déduit — facture annulée. ${safe.error}`,
+          code: safe.code,
+        }, safe.status as any);
       }
     }
   }

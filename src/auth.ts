@@ -125,6 +125,9 @@ export function setProfileCache(partial: {
   }
   if (partial.username) localStorage.setItem(USER_KEY, String(partial.username));
   if (partial.role) localStorage.setItem(ROLE_KEY, String(partial.role));
+  // Shells re-render as soon as the profile lands (refresh: avatar shows
+  // without waiting for any click).
+  try { window.dispatchEvent(new CustomEvent('atlas-profile-changed')); } catch { /* */ }
 }
 
 export function getDisplayInitials(): string {

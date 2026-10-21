@@ -12,6 +12,7 @@ export type ErrorCode =
   | 'VALIDATION'
   | 'INTERNAL'
   | 'SERVICE_UNAVAILABLE'
+  | 'DB_CORRUPT'
   | 'TIMEOUT';
 
 const STATUS: Record<ErrorCode, number> = {
@@ -24,6 +25,7 @@ const STATUS: Record<ErrorCode, number> = {
   VALIDATION: 422,
   INTERNAL: 500,
   SERVICE_UNAVAILABLE: 503,
+  DB_CORRUPT: 503,
   TIMEOUT: 504,
 };
 
@@ -38,6 +40,7 @@ const SAFE_DEFAULTS: Record<ErrorCode, string> = {
   VALIDATION: 'Données invalides',
   INTERNAL: 'Erreur interne — réessayez plus tard',
   SERVICE_UNAVAILABLE: 'Service temporairement indisponible',
+  DB_CORRUPT: 'Base de données D1 corrompue (SQLITE_CORRUPT) — aucune écriture n’est possible tant qu’une restauration Cloudflare (TimeTravel / backup) n’a pas été faite. Contactez l’administrateur puis réessayez.',
   TIMEOUT: 'Délai dépassé — réessayez',
 };
 
@@ -56,6 +59,9 @@ export class AppError extends Error {
     this.expose = code !== 'INTERNAL';
   }
 }
+
+/** Physical D1/SQLite corruption — storage-level, needs a restore, not a retry. */
+const DB_CORRUPT_RE = /SQLITE_CORRUPT|database disk image is malformed/i;
 
 const DB_LEAK_RE =
   /\b(SQLITE_|D1_|SQLSTATE|near\s+"|syntax error|UNIQUE constraint|FOREIGN KEY|no such table|no such column|constraint failed|database is locked|disk i\/o error)\b/i;
@@ -86,6 +92,11 @@ export function toClientError(err: unknown): {
 
     if (name === 'AbortError' || /aborted|timeout|timed out/i.test(msg)) {
       return { status: 504, code: 'TIMEOUT', error: SAFE_DEFAULTS.TIMEOUT };
+    }
+
+    if (DB_CORRUPT_RE.test(msg)) {
+      console.error('[db-corrupt]', msg.slice(0, 400));
+      return { status: 503, code: 'DB_CORRUPT', error: SAFE_DEFAULTS.DB_CORRUPT };
     }
 
     if (DB_LEAK_RE.test(msg) || /D1_|prepare\(|\.bind\(/i.test(msg)) {
