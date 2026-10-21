@@ -1248,6 +1248,19 @@ app.get('/api/auth/devices', async (c) => {
     user_agent: String(r.user_agent || '').slice(0, 90),
     current: fp && String(r.fingerprint || '') === fp,
   }));
+  if (fp && !data.some((d: any) => d.current)) {
+    try {
+      await touchTrustedDevice(c.env.DB, username, fp, clientIp(c), c.req.header('User-Agent') || '');
+      data.unshift({
+        fingerprint: fp.slice(0, 12) + '…',
+        full: fp,
+        last_ip: clientIp(c),
+        last_seen: new Date().toISOString(),
+        user_agent: String(c.req.header('User-Agent') || '').slice(0, 90),
+        current: true,
+      });
+    } catch { /* best-effort */ }
+  }
   return c.json({ success: true, data });
 });
 
@@ -1263,6 +1276,32 @@ app.post('/api/auth/devices/revoke', async (c) => {
   await writeAudit(c.env.DB, { username, role: session.role, action: 'device.revoke', entity: target.slice(0, 12), detail: 'trusted_device' });
   return c.json({ success: true });
 });
+
+/** Best-effort: remember every device that actively uses the account. */
+async function touchTrustedDevice(
+  db: D1Database,
+  username: string,
+  fingerprint: string,
+  ip: string,
+  userAgent: string,
+): Promise<void> {
+  const fp = String(fingerprint || '').trim();
+  const uname = String(username || '').trim().toLowerCase();
+  if (!fp || fp === 'none' || !uname) return;
+  await ensureSecurityTables(db);
+  await db
+    .prepare(
+      `INSERT INTO trusted_devices (fingerprint, username, user_agent, last_ip, last_seen)
+       VALUES (?, ?, ?, ?, datetime('now'))
+       ON CONFLICT(fingerprint) DO UPDATE SET
+         username = excluded.username,
+         user_agent = excluded.user_agent,
+         last_ip = excluded.last_ip,
+         last_seen = datetime('now')`,
+    )
+    .bind(fp.slice(0, 128), uname, String(userAgent || '').slice(0, 200), String(ip || '').slice(0, 64))
+    .run();
+}
 
 /** Phase 3: health / bindings observability (no secrets). */
 app.get('/api/health', async (c) => {
@@ -4083,30 +4122,72 @@ app.get('/api/me/avatar', async (c) => {
     if (/;base64$/i.test(meta)) {
       const bin = atob(payload);
       bytes = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      for (let i2 = 0; i2 < bin.length; i2++) bytes[i2] = bin.charCodeAt(i2);
     } else {
       bytes = new TextEncoder().encode(decodeURIComponent(payload));
     }
     return new Response(bytes as unknown as BodyInit, {
-      headers: { 'Content-Type': meta.split(';')[0] || 'image/svg+xml', 'Cache-Control': 'public, max-age=3600' },
+      headers: { 'Content-Type': meta.split(';')[0] || 'image/svg+xml', 'Cache-Control': 'public, max-age=86400' },
     });
   }
+  // v243 — Durable-Object blob cache first (warm DO = sub-ms), then edge-cached
+  // origin fetch; both keyed by a hash of the avatar URL so uploads invalidate.
+  let version = 5381;
+  for (let i2 = 0; i2 < url.length; i2++) version = ((version * 33) ^ url.charCodeAt(i2)) >>> 0;
+  const vkey = String(version);
+  let bytes: Uint8Array | null = null;
+  let ctype = 'image/jpeg';
+  let doStub: DurableObjectStub | null = null;
   try {
-    const r = await fetch(url, { headers: { Accept: 'image/*' } });
-    if (!r.ok) return c.json({ success: false, error: 'Avatar indisponible' }, 502);
-    return new Response(r.body, {
-      headers: {
-        'Content-Type': r.headers.get('Content-Type') || 'image/jpeg',
-        'Cache-Control': 'public, max-age=3600',
-      },
-    });
-  } catch (e) {
-    console.error('avatar proxy', String((e as any)?.message || e).slice(0, 200));
-    return c.json({ success: false, error: 'Avatar indisponible' }, 502);
+    if (c.env.MOBILE_HUB) {
+      doStub = c.env.MOBILE_HUB.get(c.env.MOBILE_HUB.idFromName('profile:' + session.username));
+      const hit = await doStub.fetch(`https://do/avatar?v=${vkey}`);
+      if (hit.ok) {
+        bytes = new Uint8Array(await hit.arrayBuffer());
+        ctype = hit.headers.get('x-avatar-ctype') || ctype;
+      }
+    }
+  } catch { /* DO cold/unavailable — fall through to origin */ }
+  if (!bytes) {
+    try {
+      const r = await fetch(url, {
+        headers: { Accept: 'image/*' },
+        cf: { cacheTtl: 86400, cacheEverything: true } as any,
+      });
+      if (!r.ok) return c.json({ success: false, error: 'Avatar indisponible' }, 502);
+      ctype = r.headers.get('Content-Type') || ctype;
+      bytes = new Uint8Array(await r.arrayBuffer());
+      if (doStub && bytes.byteLength <= 4_000_000) {
+        c.executionCtx?.waitUntil(
+          doStub
+            .fetch(`https://do/avatar?v=${vkey}`, {
+              method: 'PUT',
+              headers: { 'x-avatar-ctype': ctype },
+              body: bytes.slice() as unknown as BodyInit,
+            })
+            .catch(() => {}),
+        );
+      }
+    } catch (e) {
+      console.error('avatar proxy', String((e as any)?.message || e).slice(0, 200));
+      return c.json({ success: false, error: 'Avatar indisponible' }, 502);
+    }
   }
+  return new Response(bytes as unknown as BodyInit, {
+    headers: {
+      'Content-Type': ctype,
+      'Cache-Control': 'public, max-age=86400, stale-while-revalidate=86400',
+    },
+  });
 });
 
 app.get('/api/auth/me', async (c) => {
+  // v243.2 — every active device (web/phone) registers itself so the
+  // "appareils connectés" popup always lists yours, current one included.
+  try {
+    const sess = sessionUserFromHeader(c.req.header('Authorization'));
+    await touchTrustedDevice(c.env.DB, sess.username, c.req.header('X-Device-Fingerprint') || '', clientIp(c), c.req.header('User-Agent') || '');
+  } catch { /* best-effort */ }
   const ip = clientIp(c);
   const fp = c.req.header('X-Device-Fingerprint') || undefined;
   const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, ip, fp);
@@ -6300,12 +6381,14 @@ app.put('/api/products/:id', async (c) => {
   const existing = await c.env.DB.prepare(`SELECT * FROM products WHERE id = ?`).bind(id).first() as any;
   if (!existing) return c.json({ success: false, error: 'Produit introuvable' }, 404);
 
-  // Duplicate check on update (exclude self)
+  // Duplicate check on update (exclude self) — never 500 the save if the
+  // schema drifts: a failing dup probe just skips the duplicate guard.
   const force = !!body.force_duplicate;
   const checkName = body.name !== undefined ? String(body.name) : existing.name;
   const checkSku = body.sku !== undefined ? body.sku : existing.sku;
   const checkBarcode = body.barcode !== undefined ? body.barcode : existing.barcode;
   const dupChecks: { label: string; row: any }[] = [];
+  try {
   if (checkSku) {
     const bySku = await c.env.DB.prepare(`SELECT id, name, sku, barcode FROM products WHERE LOWER(sku) = LOWER(?) AND id != ?`).bind(checkSku, id).first();
     if (bySku) dupChecks.push({ label: 'SKU', row: bySku });
@@ -6345,6 +6428,9 @@ app.put('/api/products/:id', async (c) => {
     body.price = Number(body.unit_price);
     if (!Number.isFinite(body.price)) body.price = 0;
   }
+  } catch (e) {
+    console.error('dup-check skip', String((e as any)?.message || e).slice(0, 300));
+  }
 
   const fields = ['sku', 'name', 'description', 'category', 'unit', 'price', 'cost', 'low_stock_threshold', 'track_inventory', 'is_active', 'image_url', 'barcode', 'tax_rate'];
   // Schema-drift guard: never let a missing optional column 500 the save.
@@ -6375,9 +6461,14 @@ app.put('/api/products/:id', async (c) => {
     values.push(JSON.stringify(parseBulkDiscounts(body.bulk_discounts)));
   }
   if (updates.length === 0) return c.json({ success: false, error: 'Aucun champ à modifier' }, 400);
-  updates.push(`updated_at = datetime('now')`);
+  if (!cols || cols.has('updated_at')) updates.push(`updated_at = datetime('now')`);
   values.push(id);
-  await c.env.DB.prepare(`UPDATE products SET ${updates.join(', ')} WHERE id = ?`).bind(...values).run();
+  try {
+    await c.env.DB.prepare(`UPDATE products SET ${updates.join(', ')} WHERE id = ?`).bind(...values).run();
+  } catch (e) {
+    console.error('[PUT products update failed]', String((e as any)?.message || e).slice(0, 400), JSON.stringify({ updates }));
+    throw e;
+  }
   const product = await c.env.DB.prepare(`SELECT * FROM products WHERE id = ?`).bind(id).first();
     if (body.location_id !== undefined && body.place_stock !== false) {
     try {

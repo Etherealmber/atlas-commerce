@@ -1294,6 +1294,13 @@ html[data-theme="dark"] .atlas-agent-execmode button.active {
   -webkit-text-fill-color: #0a0a0a !important;
   border-color: #fafafa !important;
 }
+html[data-theme="dark"] .atlas-agent-msg-act {
+  color: #a1a1aa !important;
+}
+html[data-theme="dark"] .atlas-agent-msg-act:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #fafafa !important;
+}
 html[data-theme="dark"] .atlas-agent-msg-act.secondary {
   background: #27272a !important;
   color: #e4e4e7 !important;

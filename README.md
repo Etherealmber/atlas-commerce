@@ -292,6 +292,15 @@ Atlas Commerce est développé et maintenu par **loxdpy ([@loxdpsy](https://gith
 
 Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depuis la première version interne ; le détail complet et vivant est dans l'app (**Nouveautés**), y compris l’ancien cycle bêta pré-renumérotation, renuméroté en **0.x** (0.0.1 → 0.4.4).
 
+### 0.5.5-beta
+- Sauvegarde produit blindée jusqu'au bout (updated_at gardé, dup-check non bloquant, SW v11 purge les caches périmés) ; appareils connectés auto-enregistrés ; UI agent sombre corrigée
+
+### 0.5.4-beta
+- Assistants sans défilement : étape « Remises volume » dédiée dans le produit ; audit de tous les wizards (chaque étape statique tient à l'écran)
+
+### 0.5.3-beta
+- Avatar instantané : cache blob partagé côté client + cache Durable Object/edge côté worker + préchargement ; WebP pour les recadrages
+
 ### 0.5.2-beta
 - PUT/POST produits blindés contre les colonnes manquantes (plus de 500 « Erreur interne »)
 - Avatar via proxy same-origin (CORS cdn1 contourné) ; agent lit les fichiers dès l'envoi et reprend le dernier fichier sur « lis ça »

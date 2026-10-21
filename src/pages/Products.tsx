@@ -39,7 +39,7 @@ export default function Products() {
   const [refreshing, setRefreshing] = useState(false);
   const [show, setShow] = useState(false);
   const [editing, setEditing] = useState<any>(null);
-  const wz = useWizard(editing ? 5 : 4);
+  const wz = useWizard(editing ? 6 : 5);
   const [exportBusy, setExportBusy] = useState(false);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 300);
@@ -1020,7 +1020,9 @@ export default function Products() {
             <div className="form-row">
               <label><input type="checkbox" checked={form.track_inventory} onChange={(e) => setForm({ ...form, track_inventory: e.target.checked ? 1 : 0 })} style={{ width: 'auto', display: 'inline', marginRight: 8 }} />Suivre le stock pour ce produit</label>
             </div>
-            <h3 style={{ fontSize: 13, margin: '12px 0 6px' }}>Remises volume (bulk discount)</h3>
+              </StepBody>
+            <StepBody active={wz.step === 4}>
+            <h3 style={{ fontSize: 13, margin: '0 0 6px' }}>Remises volume (bulk discount)</h3>
             <p style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>
               Si la quantité sur facture/devis atteint le seuil et qu&apos;aucun prix promo manuel n&apos;est saisi, la remise s&apos;applique automatiquement.
             </p>
@@ -1034,7 +1036,7 @@ export default function Products() {
             </div>
 
               </StepBody>
-              <StepBody active={wz.step === 4}>
+              <StepBody active={wz.step === 5}>
             {editing ? (
               <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--border, #e0d9cc)' }}>
                 <h3 style={{ fontSize: 13, margin: '0 0 6px' }}>Variantes (taille / couleur / etc.)</h3>
@@ -1091,7 +1093,7 @@ export default function Products() {
             )}
               </StepBody>
             {editing?.id && (
-              <StepBody active={wz.step === 5}>
+              <StepBody active={wz.step === 6}>
                 <ProductImageEditor productId={Number(editing.id)} />
               </StepBody>
             )}
@@ -1099,7 +1101,7 @@ export default function Products() {
             <WizardFoot
               title={editing ? 'Modifier le produit' : 'Nouveau produit'}
               wz={wz}
-              stepLabel={wz.step === 1 ? 'Identité' : wz.step === 2 ? 'Classement' : wz.step === 3 ? 'Prix & stock' : wz.step === 4 ? (editing ? 'Variantes' : 'Photos') : 'Photos'}
+              stepLabel={wz.step === 1 ? 'Identité' : wz.step === 2 ? 'Classement' : wz.step === 3 ? 'Prix & stock' : wz.step === 4 ? 'Remises volume' : wz.step === 5 ? (editing ? 'Variantes' : 'Photos') : 'Photos'}
               onCancel={() => { setShow(false); setForm(emptyForm); setEditing(null); setModalError(''); wz.reset(); }}
               onSubmit={() => void save()}
               submitLabel={saving ? 'Enregistrement…' : 'Enregistrer'}
