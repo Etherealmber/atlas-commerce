@@ -6,7 +6,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { api, BASE } from '../api';
-import { removePasskeyLocally } from '../fingerprint';
+import { removePasskeyLocally, registerWebAuthn, getCachedFingerprint, getDeviceLabel, getDeviceMeta, setStoredBiometricCredentialId, isWebAuthnAvailable } from '../fingerprint';
 import { getToken, canAccessAdminSettings, canAccessCompanySettings, getRole, setProfileCache, getDisplayInitials, isStockRole } from '../auth';
 import SaveFeedback from '../components/SaveFeedback';
 import PasswordConfirm from '../components/PasswordConfirm';
@@ -82,6 +82,8 @@ export default function Settings() {
   const [assistBusy, setAssistBusy] = useState(false);
   const [passkeys, setPasskeys] = useState<any[]>([]);
   const [passkeysLoading, setPasskeysLoading] = useState(false);
+  const [passkeyAdding, setPasskeyAdding] = useState(false);
+  const [passkeyMsg, setPasskeyMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [profileForm, setProfileForm] = useState({
     display_name: '', email: '', phone: '', avatar_url: '', notes: '', username: '', role: '',
   });
@@ -545,6 +547,37 @@ export default function Settings() {
     } finally {
       setPasskeysLoading(false);
     }
+  };
+
+  const addPasskey = async () => {
+    setPasskeyAdding(true); setPasskeyMsg(null);
+    try {
+      const fp = await getCachedFingerprint().catch(() => 'none');
+      const token = getToken();
+      const optRes = await fetch(`${BASE}/api/auth/webauthn/register/options`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Device-Fingerprint': fp, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ fingerprint: fp, device_type: 'desktop' }),
+      });
+      const optData: any = await optRes.json().catch(() => ({}));
+      if (!optRes.ok) { setPasskeyMsg({ ok: false, text: optData.error || 'Impossible de démarrer l\'enregistrement.' }); return; }
+      const reg = await registerWebAuthn(optData.options, 'platform');
+      const verRes = await fetch(`${BASE}/api/auth/webauthn/register/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Device-Fingerprint': fp, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({
+          fingerprint: fp, credential_id: reg.credentialId, challenge: reg.challenge, device_type: 'desktop',
+          transports: reg.transports, device_label: getDeviceLabel(), label: getDeviceLabel(), device_info: getDeviceMeta(),
+        }),
+      });
+      const verData: any = await verRes.json().catch(() => ({}));
+      if (!verRes.ok) { setPasskeyMsg({ ok: false, text: verData.error || 'Échec de l\'enregistrement.' }); return; }
+      setStoredBiometricCredentialId(reg.credentialId);
+      setPasskeyMsg({ ok: true, text: 'Passkey ajoutée à cet appareil.' });
+      await loadPasskeys();
+    } catch (e: any) {
+      setPasskeyMsg({ ok: false, text: e?.message || 'Enregistrement annulé.' });
+    } finally { setPasskeyAdding(false); }
   };
 
   const renamePasskey = async (id: string, current: string) => {
@@ -1047,13 +1080,21 @@ if (loading) return (
               Biométrie et clés enregistrées pour <strong>cet appareil</strong>.
               Supprimer retire la clé du site Atlas ; le navigateur peut aussi la retirer de l&apos;appareil (sinon : Réglages système → Mots de passe / Clés d&apos;accès).
             </p>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+              {isWebAuthnAvailable() && (
+                <button type="button" className="secondary" style={{ padding: '6px 12px', fontSize: 13 }} disabled={passkeyAdding || passkeysLoading} onClick={() => addPasskey()}>
+                  {passkeyAdding ? 'Enregistrement…' : '+ Ajouter une passkey'}
+                </button>
+              )}
               <button type="button" className="secondary" style={{ padding: '6px 12px', fontSize: 13 }} disabled={passkeysLoading} onClick={() => loadPasskeys()}>
                 {passkeysLoading ? 'Chargement…' : 'Actualiser'}
               </button>
             </div>
+            {passkeyMsg && (
+              <p style={{ fontSize: 13, marginBottom: 10, color: passkeyMsg.ok ? 'var(--muted)' : '#b91c1c' }} role="status">{passkeyMsg.text}</p>
+            )}
             {passkeys.length === 0 && !passkeysLoading && (
-              <p style={{ fontSize: 13, color: 'var(--muted)' }}>Aucune clé enregistrée sur cet appareil. Ajoutez-en depuis l&apos;écran de connexion après OTP.</p>
+              <p style={{ fontSize: 13, color: 'var(--muted)' }}>Aucune clé enregistrée sur cet appareil. Utilisez « + Ajouter une passkey » (biométrie ou clé de sécurité), comme sur mobile.</p>
             )}
             {passkeys.length > 0 && (
               <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
