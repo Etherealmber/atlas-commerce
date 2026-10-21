@@ -469,13 +469,22 @@ export default function Bills() {
           <div className="modal" style={{ maxWidth: 1080, width: '96vw' }} onClick={(e) => e.stopPropagation()}>
             <h2>Nouvelle facture d'achat</h2>
 
-            <label className="dropzone">
+            <label
+              className="dropzone"
+              onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
+              onDrop={(e) => {
+                e.preventDefault();
+                const f = e.dataTransfer.files?.[0] || null;
+                if (f && !ocrBusy) runBillOcr(f);
+              }}
+            >
               <span className="dropzone-ico" aria-hidden>📷</span>
               <span className="dropzone-title">Scanner une facture (OCR) — image ou PDF</span>
               <span className="dropzone-hint">Glissez un fichier ici ou cliquez pour parcourir</span>
               <input
                 type="file"
                 accept="image/*,application/pdf"
+                style={{ display: 'none' }}
                 disabled={ocrBusy}
                 onChange={(e) => {
                   const f = e.target.files?.[0] || null;
@@ -510,8 +519,10 @@ export default function Bills() {
               <div className="form-row"><label>Nom du fournisseur *</label><input className={fieldErrors.vendor_name ? 'field-error' : undefined} value={vendorName} onChange={(e) => { setVendorName(e.target.value); setFieldErrors((x) => ({ ...x, vendor_name: '' })); }} placeholder="Ex. Ciments du Maroc" /><span className="field-error-msg">{fieldErrors.vendor_name || ''}</span></div>
               <div className="form-row"><label>ICE / Identifiant fournisseur</label><input value={vendorIce} onChange={(e) => setVendorIce(e.target.value)} /></div>
             </div>
-            <div className="form-row"><label>Adresse</label><input value={vendorAddress} onChange={(e) => setVendorAddress(e.target.value)} /></div>
-            <div className="form-row"><label>Date d'émission</label><DatePicker value={issueDate} onChange={setIssueDate} /></div>
+            <div className="grid grid-2">
+              <div className="form-row"><label>Adresse</label><input value={vendorAddress} onChange={(e) => setVendorAddress(e.target.value)} /></div>
+              <div className="form-row"><label>Date d'émission</label><DatePicker value={issueDate} onChange={setIssueDate} /></div>
+            </div>
 
             </StepBody>
             <StepBody active={wz.step === 2}>

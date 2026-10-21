@@ -640,19 +640,6 @@ export default function Invoices() {
           <div className="modal" style={{ maxWidth: 1080, width: '96vw' }} onClick={(e) => e.stopPropagation()}>
             <h2>{docMode === 'quote' ? 'Nouveau devis (estimation)' : 'Nouvelle facture de vente'}</h2>
 
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
-              {(['Client', 'Lignes', 'Options'] as const).map((lab, i) => (
-                <button
-                  key={lab}
-                  type="button"
-                  className={i === docStep ? '' : 'secondary'}
-                  style={{ padding: '6px 12px', fontSize: 12 }}
-                  onClick={() => setDocStep(i)}
-                >
-                  {lab}
-                </button>
-              ))}
-            </div>
 
             {docStep === 0 && (<>
             <div className="form-row">

@@ -18875,3 +18875,11 @@ html[data-theme="dark"] .scan-req-input {
 }
 html[data-theme="dark"] .scan-req-sub,
 html[data-theme="dark"] .scan-req-label { color: #a1a1aa; }
+
+/* v248.2 — wizard modals keep two columns even on narrow viewports (no scrolling) */
+@media (max-width: 1024px) {
+  .modal .grid.grid-2 { grid-template-columns: 1fr 1fr !important; }
+}
+/* OCR dropzone: compact + native file input hidden (zone itself is the control) */
+.dropzone { padding: 12px 14px !important; margin: 10px 0 6px !important; }
+.dropzone input[type='file'] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }

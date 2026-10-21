@@ -64,6 +64,7 @@ const RELEASES: Release[] = [
           { id: '051d4', text: 'Corruption D1 (« database disk image is malformed » / SQLITE_CORRUPT) reconnue : message clair « base corrompue, restauration Cloudflare requise » (code DB_CORRUPT) au lieu d’un « Erreur interne » générique sur tout le site' },
           { id: '051d5', text: 'Auto-réparation de l’index de recherche produit (FTS5) : en cas de corruption (SQLITE_CORRUPT_VTAB), l’index est reconstruit depuis products — ou recréé et re-rempli — sans aucune perte de données, puis l’action n’a qu’à être réessayée ; bouton de reconstruction manuel réservé owner/admin' },
           { id: '051d6', text: 'Réplication de lecture D1 (Sessions API) branchée automatiquement : chaque requête ouvre une session D1 (cookie de bookmark pour relire ses propres écritures), les lectures peuvent être servies par la réplique la plus proche — et une sonde d’intégrité FTS tourne en tâche de fond (≤1/5 min) pour réparer sans aucune action manuelle' },
+          { id: '051d7', text: 'Assistants : plus aucune pastille d’étapes en haut (le chip « Étape X/Y » du pied suffit), plus de défilement même sur fenêtre étroite (2 colonnes gardées dans les modales) ; vente rapide sans double champ code-barres/SKU ; zone OCR compacte sans bouton « Choose File » natif (glisser-déposer réel) ; mode sombre : cartes Solde/fournisseurs, bouton « Arrêter » de l’agent, pastilles « Aller à », indicateur Réflexion et toggle mot de passe enfin thémés, et aucun bouton ne devient blanc au tap/focus' },
         ],
       },
     ],
