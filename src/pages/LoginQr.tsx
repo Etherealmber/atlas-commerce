@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { api } from '../api';
-import { setToken, setProfileCache, isLoggedIn, getToken } from '../auth';
+import { setToken, setProfileCache, isLoggedIn, getToken, sanitizeAvatarUrl } from '../auth';
 import { getCachedFingerprint } from '../fingerprint';
 import '../styles/login-auth.css';
 
@@ -50,7 +50,7 @@ export default function LoginQr() {
           });
           if (stopped) return;
           setAccount(res.data?.display_name || res.data?.username || '');
-          if (res.data?.avatar_url) setAvatarUrl(String(res.data.avatar_url));
+          if (res.data?.avatar_url) setAvatarUrl(sanitizeAvatarUrl(String(res.data.avatar_url)));
           if (res.data?.needs_confirm || res.data?.status === 'claimed') {
             setStatus('confirm');
             setMsg('Autoriser la connexion de cet ordinateur avec votre compte ?');
@@ -79,7 +79,7 @@ export default function LoginQr() {
             if (st.data?.display_name || st.data?.username) {
               setAccount(String(st.data.display_name || st.data.username));
             }
-            if (st.data?.avatar_url) setAvatarUrl(String(st.data.avatar_url));
+            if (st.data?.avatar_url) setAvatarUrl(sanitizeAvatarUrl(String(st.data.avatar_url)));
             if (s === 'denied' || s === 'expired') {
               setStatus('err');
               setMsg(s === 'denied' ? 'Connexion refusée sur l’ordinateur.' : 'QR expiré.');

@@ -9,13 +9,14 @@ import PhoneBills from './PhoneBills';
 import PhoneWarehouse from './PhoneWarehouse';
 import PhoneSettings from './PhoneSettings';
 import { api } from '../api';
-import { clearToken, getUsername, getDisplayInitials, getDisplayName, getAvatarUrl, getRole, setProfileCache, isStockRole, canSell, canAccessSettings, canAccessSettingsBeyondProfile } from '../auth';
+import { clearToken, getUsername, getDisplayInitials, getDisplayName, hasAvatarUrl, getRole, setProfileCache, isStockRole, canSell, canAccessSettings, canAccessSettingsBeyondProfile } from '../auth';
 import { getDensity, setDensity, isGlassEnabled, setGlassEnabled, isLiquidGlassActive, type Density } from '../lib/density';
 import { APP_VERSION } from '../version';
 import { useUi } from '../components/AppDialogs';
 import './phone.css';
 import PageTransition from '../components/PageTransition';
 import PageSkeleton from '../components/PageSkeleton';
+import { AvatarImage } from '../components/ui/AvatarImage';
 import {
   cacheProducts,
   cacheLocations,
@@ -351,8 +352,8 @@ export default function PhoneApp() {
               aria-expanded={accountOpen}
               onClick={() => setAccountOpen((v) => !v)}
             >
-              {getAvatarUrl() ? (
-                <img className="phone-avatar-img" src={getAvatarUrl()!} alt="" />
+              {hasAvatarUrl() ? (
+                <AvatarImage className="phone-avatar-img" />
               ) : (
                 getDisplayInitials()
               )}

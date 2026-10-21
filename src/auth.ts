@@ -8,7 +8,7 @@ const USER_KEY = 'stock_auth_user';
 const DISPLAY_NAME_KEY = 'stock_display_name';
 const AVATAR_URL_KEY = 'stock_avatar_url';
 
-function sanitizeAvatarUrl(raw: string | null | undefined): string {
+export function sanitizeAvatarUrl(raw: string | null | undefined): string {
   const value = String(raw || '').trim();
   if (!value) return '';
 
@@ -64,6 +64,15 @@ export function getDisplayName(): string {
 
 export function getAvatarUrl(): string {
   return sanitizeAvatarUrl(localStorage.getItem(AVATAR_URL_KEY));
+}
+
+/**
+ * Whether a sanitized avatar URL is cached. Returns a plain boolean on
+ * purpose: callers branch on it without ever carrying the URL text into
+ * markup (see AvatarImage, which assigns src imperatively).
+ */
+export function hasAvatarUrl(): boolean {
+  return getAvatarUrl() !== '';
 }
 
 /** Cache profile fields used in sidebar / phone avatar (local only). */
