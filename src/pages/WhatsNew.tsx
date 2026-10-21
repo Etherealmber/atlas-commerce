@@ -21,6 +21,18 @@ type Release = {
 
 const RELEASES: Release[] = [
   {
+    version: '0.5.4-beta',
+    date: '22 octobre 2026',
+    sections: [
+      {
+        kind: 'improvements',
+        items: [
+          { id: '054b1', text: 'Aucun assistant ne défile : l’étape « Prix & stock » du produit est scindée (étape dédiée « Remises volume ») — audit complet de tous les wizards (Devis, Employés, Clients, Factures, Vente rapide, Achats, Fournisseurs, Solde, Remboursement) : chaque étape statique tient à l’écran, seules les listes de lignes dynamiques défilent sous le pied fixe' },
+        ],
+      },
+    ],
+  },
+  {
     version: '0.5.3-beta',
     date: '22 octobre 2026',
     sections: [
