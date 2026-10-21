@@ -27,8 +27,25 @@ export function getDisplayName(): string {
   return localStorage.getItem(DISPLAY_NAME_KEY) || getUsername();
 }
 
+function sanitizeAvatarUrl(input: string): string {
+  const value = String(input || '').trim();
+  if (!value) return '';
+
+  // Allow safe image data URLs (used by local file upload preview/save flow).
+  if (/^data:image\/(?:png|jpe?g|webp|gif);base64,[a-z0-9+/=\s]+$/i.test(value)) return value;
+
+  try {
+    const u = new URL(value, window.location.origin);
+    const protocol = u.protocol.toLowerCase();
+    if (protocol === 'https:' || protocol === 'http:' || protocol === 'blob:') return u.href;
+  } catch {
+    // invalid URL
+  }
+  return '';
+}
+
 export function getAvatarUrl(): string {
-  return localStorage.getItem(AVATAR_URL_KEY) || '';
+  return sanitizeAvatarUrl(localStorage.getItem(AVATAR_URL_KEY) || '');
 }
 
 /** Cache profile fields used in sidebar / phone avatar (local only). */
@@ -37,7 +54,7 @@ export function setProfileCache( partial: { display_name?: string | null; avatar
     localStorage.setItem(DISPLAY_NAME_KEY, String(partial.display_name).trim());
   }
   if (partial.avatar_url != null) {
-    const a = String(partial.avatar_url).trim();
+    const a = sanitizeAvatarUrl(String(partial.avatar_url).trim());
     if (a) localStorage.setItem(AVATAR_URL_KEY, a);
     else localStorage.removeItem(AVATAR_URL_KEY);
   }
