@@ -24,37 +24,6 @@ import { AlertsPanel } from '../components/atlas-v209-panels';
 import AgentPermissionsPanel from '../components/AgentPermissionsPanel';
 import AppUpdatePanel from '../components/settings/AppUpdatePanel';
 import AgentSecurityPanel from '../components/AgentSecurityPanel';
-
-function SettingsThemeSeg() {
-  const [mode, setMode] = useState<string>(() => {
-    try { return localStorage.getItem('atlas-theme') || 'light'; } catch { return 'light'; }
-  });
-  const apply = (m: string) => {
-    setMode(m);
-    try { localStorage.setItem('atlas-theme', m); } catch { /* private mode */ }
-    const resolved = m === 'system'
-      ? (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-      : m;
-    const r = document.documentElement;
-    r.setAttribute('data-theme', resolved);
-    r.classList.toggle('theme-dark', resolved === 'dark');
-    r.style.colorScheme = resolved;
-    const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', resolved === 'dark' ? '#111113' : '#f4f5f7');
-    window.dispatchEvent(new CustomEvent('atlas-theme-change'));
-  };
-  const opts: [string, string][] = [['light', 'Clair'], ['dark', 'Sombre'], ['system', 'Auto']];
-  return (
-    <div className="ac-theme-seg" role="group" aria-label="Thème">
-      {opts.map(([v, lab]) => (
-        <button key={v} type="button" className="ac-seg-btn" aria-pressed={mode === v} onClick={() => apply(v)}>
-          {lab}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 export default function Settings() {
   const [uiDensity, setUiDensity] = useState<Density>(() => getDensity());
   const [editProfileOpen, setEditProfileOpen] = useState(false);
@@ -890,24 +859,6 @@ if (loading) return (
           isOwner={(typeof getRole === 'function' ? getRole() : '') === 'owner'}
           role={typeof getRole === 'function' ? String(getRole() || '') : ''}
         />
-      )}
-      {activeTab === 'profile' && (
-        <div className="card" style={{ marginBottom: 16 }}>
-          <h3 style={{ marginTop: 0 }}>Apparence</h3>
-          <p className="muted" style={{ marginTop: 0 }}>Thème et taille du texte de l’interface.</p>
-          <div className="form-row">
-            <label>Thème</label>
-            <SettingsThemeSeg />
-          </div>
-          <div className="form-row" data-settings-anchor="ui-scale">
-            <label>Taille du texte</label>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button type="button" className={uiScale === 'sm' ? 'btn primary' : 'btn secondary'} onClick={() => { setUiScale('sm'); setUiScaleState('sm'); }}>Petit</button>
-              <button type="button" className={uiScale === 'md' ? 'btn primary' : 'btn secondary'} onClick={() => { setUiScale('md'); setUiScaleState('md'); }}>Moyen</button>
-              <button type="button" className={uiScale === 'lg' ? 'btn primary' : 'btn secondary'} onClick={() => { setUiScale('lg'); setUiScaleState('lg'); }}>Grand</button>
-            </div>
-          </div>
-        </div>
       )}
 
 

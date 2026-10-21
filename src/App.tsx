@@ -352,12 +352,6 @@ function AccountMenu({
                 </button>
               </div>
 
-              <div className="account-menu-section-label">Taille du texte</div>
-              <div className="account-seg" role="group" aria-label="Taille du texte">
-                <button type="button" className={scale === 'sm' ? 'active' : undefined} onClick={() => { setUiScale('sm'); setScale('sm'); }}>Petit</button>
-                <button type="button" className={scale === 'md' ? 'active' : undefined} onClick={() => { setUiScale('md'); setScale('md'); }}>Moyen</button>
-                <button type="button" className={scale === 'lg' ? 'active' : undefined} onClick={() => { setUiScale('lg'); setScale('lg'); }}>Grand</button>
-              </div>
               <div className="account-menu-divider" />
               <button type="button" role="menuitem" className="account-menu-item account-menu-danger" onClick={() => { setOpen(false); onLogout(); }}>
                 <MenuSvg d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
@@ -1267,8 +1261,6 @@ function DesktopShell() {
               roleLabel={roleLabelFr(typeof getRole === 'function' ? getRole() : '')}
               avatarUrl={typeof getAvatarUrl === 'function' ? getAvatarUrl() : null}
               initials={typeof getDisplayInitials === 'function' ? getDisplayInitials() : '?'}
-              themeMode={themeMode}
-              onThemeMode={setThemeMode}
               onLogout={logout}
             />
           </div>
