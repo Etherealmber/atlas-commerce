@@ -224,6 +224,9 @@ export default function AgentSecurityPanel({ isOwner, role }: { isOwner: boolean
       {showDevices && (
         <div className="modal-overlay" onClick={() => setShowDevices(false)}>
           <div className="modal" style={{ maxWidth: 560, width: '94vw' }} onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="modal-x modal-close" aria-label="Fermer" onClick={() => setShowDevices(false)}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden><path d="M6 6l12 12M18 6L6 18" /></svg>
+            </button>
             <h2>Appareils connectés</h2>
             <p className="muted" style={{ marginTop: 0 }}>
               Chaque appareil qui s’est connecté à ce compte. Révoquez ceux que vous ne reconnaissez pas.

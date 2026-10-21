@@ -1,6 +1,8 @@
 /** Cloudflare Worker bindings — shared type for Hono and helpers. */
 export interface Env {
   DB: D1Database;
+  /** Optional second D1 (migration target, e.g. atlas-db). Absent in prod until the binding is added. */
+  DB_TARGET?: D1Database;
   ASSETS: Fetcher;
   /** Optional KV for short-lived read cache (dashboard, settings). Reduces D1 free-tier load. */
   CACHE?: KVNamespace;

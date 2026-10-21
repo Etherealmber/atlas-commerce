@@ -24,6 +24,7 @@ import { AlertsPanel } from '../components/atlas-v209-panels';
 import AgentPermissionsPanel from '../components/AgentPermissionsPanel';
 import AppUpdatePanel from '../components/settings/AppUpdatePanel';
 import AgentSecurityPanel from '../components/AgentSecurityPanel';
+import DbMigrationPanel from '../components/DbMigrationPanel';
 export default function Settings() {
   const [uiDensity, setUiDensity] = useState<Density>(() => getDensity());
   const [editProfileOpen, setEditProfileOpen] = useState(false);
@@ -859,6 +860,12 @@ if (loading) return (
           isOwner={(typeof getRole === 'function' ? getRole() : '') === 'owner'}
           role={typeof getRole === 'function' ? String(getRole() || '') : ''}
         />
+      )}
+
+      {activeTab === 'profile' && (typeof getRole === 'function' ? getRole() : '') === 'owner' && (
+        <div className="card" style={{ marginBottom: 16 }} data-settings-anchor="db-migration">
+          <DbMigrationPanel />
+        </div>
       )}
 
       {activeTab === 'profile' && (

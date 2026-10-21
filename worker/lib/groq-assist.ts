@@ -12,15 +12,25 @@ const MODELS = [
   'llama-3.1-8b-instant',
 ];
 
+/* v232 — vision-capable Groq models, tried first when images are attached */
+const VISION_MODELS = [
+  'meta-llama/llama-4-scout-17b-16e-instruct',
+  'llama-3.2-90b-vision-preview',
+  'llama-3.2-11b-vision-preview',
+];
+
 export async function groqChat(opts: {
   apiKey: string;
   model?: string;
   system: string;
   message: string;
   maxTokens?: number;
+  images?: string[];
 }): Promise<{ reply: string; model: string }> {
   const preferred = (opts.model || '').trim();
-  const models = [preferred, ...MODELS].filter((m, i, a) => !!m && a.indexOf(m) === i);
+  const images = (opts.images || []).filter((u) => typeof u === 'string' && u.startsWith('data:image/')).slice(0, 4);
+  const base = images.length ? [...VISION_MODELS, ...MODELS] : MODELS;
+  const models = [preferred, ...base].filter((m, i, a) => !!m && a.indexOf(m) === i);
   const maxTokens = Math.max(64, Math.min(opts.maxTokens ?? 1024, 4096));
   let lastStatus = 0;
   let lastBody = '';
@@ -38,7 +48,15 @@ export async function groqChat(opts: {
         max_tokens: maxTokens,
         messages: [
           { role: 'system', content: opts.system },
-          { role: 'user', content: opts.message },
+          images.length
+            ? {
+                role: 'user',
+                content: [
+                  { type: 'text', text: opts.message },
+                  ...images.map((url) => ({ type: 'image_url', image_url: { url } })),
+                ],
+              }
+            : { role: 'user', content: opts.message },
         ],
       }),
     }, { timeoutMs: 20000, retries: 2, label: 'groq' });

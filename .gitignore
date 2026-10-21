@@ -43,3 +43,4 @@ android/local.properties
 *.sql.gz
 *.abk
 backups/
+wrangler.local.jsonc

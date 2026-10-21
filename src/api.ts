@@ -358,6 +358,9 @@ export const api = {
   deleteAgentThread: (id: string) =>
     request(`/api/admin/agent/threads/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   /* v225 — agent governance, privacy deletes, 2FA, devices */
+  dbMigrateStatus: () => request<{ data: { enabled: boolean; primary: string; source: { name: string; rows: number }[]; target: { name: string; rows: number }[] } }>('/api/admin/db-migrate/status'),
+  dbMigrateCopy: (body: { tables?: string[]; cursor?: Record<string, number> }) => request<{ data: { copied: Record<string, number>; cursor: Record<string, number>; done: string[]; remainingBudget: number } }>('/api/admin/db-migrate/copy', { method: 'POST', body: JSON.stringify(body) } as any),
+  dbMigrateCutover: (on: boolean) => request<{ data: { primary: string } }>('/api/admin/db-migrate/cutover', { method: 'POST', body: JSON.stringify({ on }) } as any),
   getAgentPolicy: () => request<{ data: { blocked: boolean; isAdmin: boolean; dailyUsed: number; weeklyUsed: number; dailyLimit: number; weeklyLimit: number } }>('/api/agent/policy'),
   postAgentUsage: (tokens: number) => request<{ data: { unlimited?: boolean; dailyUsed?: number; weeklyUsed?: number } }>('/api/agent/usage', { method: 'POST', body: JSON.stringify({ tokens }), silent: true } as any),
   flagAgentAbuse: (reason: string) => request('/api/agent/flag', { method: 'POST', body: JSON.stringify({ reason }), silent: true } as any),
@@ -371,7 +374,7 @@ export const api = {
   put2fa: (enabled: boolean) => request<{ data: { enabled: boolean } }>('/api/settings/2fa', { method: 'PUT', body: JSON.stringify({ enabled }) }),
   getDevices: () => request<{ data: { fingerprint: string; full: string; last_ip: string; last_seen: string; user_agent: string; current: boolean }[] }>('/api/auth/devices'),
   revokeDevice: (fingerprint: string) => request('/api/auth/devices/revoke', { method: 'POST', body: JSON.stringify({ fingerprint }) }),
-  assistChat: (message: string, opts?: { task?: string; timezone?: string; thread_id?: string; user_message?: string }) =>
+  assistChat: (message: string, opts?: { task?: string; timezone?: string; thread_id?: string; user_message?: string; page_path?: string; page_title?: string; exec_mode?: string; agent_perm_mode?: string; images?: string[] }) =>
     request<{
       data: {
         reply: string;

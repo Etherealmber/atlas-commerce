@@ -104,6 +104,7 @@ type Msg = {
   sources?: { label: string; href: string }[];
   failed?: boolean;
   prompt?: string;
+  images?: string[];
   streaming?: boolean;
   /** Alternate assistant replies (retry / regenerate) */
   variants?: string[];
@@ -1158,7 +1159,7 @@ export default function AtlasAgent() {
         : '';
       const userText = (q || 'Voir les pièces jointes') + attachNote;
       if (!isRetry) {
-        setMsgs((m) => [...m, { role: 'user', text: userText }]);
+        setMsgs((m) => [...m, { role: 'user', text: userText, images: files.filter((f) => (f.type || '').startsWith('image/')).map((f) => f.data_url).slice(0, 4) }]);
         touchThread(userText);
       } else {
         // Remove the assistant message being retried; keep variants of previous text
@@ -1230,6 +1231,7 @@ export default function AtlasAgent() {
           user_message: q || userText,
           page_path: page.path,
           page_title: page.title,
+          images: files.filter((f) => (f.type || '').startsWith('image/')).map((f) => f.data_url).slice(0, 4),
           exec_mode: execMode,
           agent_perm_mode: agentPermMode,
         });
@@ -1586,6 +1588,19 @@ export default function AtlasAgent() {
             <div key={i} className={`atlas-agent-msg ${m.role}`}>
               <div className="atlas-agent-bubble">
                 {m.role === 'assistant' ? renderMiniMarkdown(String(m.text || '')) : m.text}
+                {m.role === 'user' && (m.images || []).length ? (
+                  <div className="atlas-agent-msg-imgs">
+                    {(m.images || []).map((src, k) => (
+                      <img
+                        key={k}
+                        src={src}
+                        alt={`Pièce jointe ${k + 1}`}
+                        title="Ouvrir l’image"
+                        onClick={() => { try { window.open(src, '_blank', 'noopener'); } catch { /* */ } }}
+                      />
+                    ))}
+                  </div>
+                ) : null}
                 {m.streaming ? <span className="atlas-agent-caret">▍</span> : null}
               </div>
               {m.role === 'user' && !m.streaming && m.text.trim() ? (
