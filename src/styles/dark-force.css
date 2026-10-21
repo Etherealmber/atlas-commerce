@@ -201,7 +201,11 @@ html[data-theme="dark"] body .whats-new-block li,
 html[data-theme="dark"] body .wn-ver-date {
   color: #a1a1aa !important;
 }
-html[data-theme="dark"] body .wn-ver,
+html[data-theme="dark"] body .wn-ver {
+  background: transparent !important;
+  color: #e4e4e7 !important;
+  border-color: transparent !important;
+}
 html[data-theme="dark"] body .whats-new-ver {
   background: #27272a !important;
   color: #e4e4e7 !important;
@@ -2606,8 +2610,8 @@ html[data-theme="dark"] body .wn-ver,
 html[data-theme="dark"] body .wn-ver-date,
 html[data-theme="dark"] body .wn-crumb { color: #a1a1aa !important; }
 html[data-theme="dark"] body .wn-release {
-  background: #1c1c1f !important;
-  border-color: #2e2e33 !important;
+  background: transparent !important;
+  border-color: #26262a !important;
 }
 html[data-theme="dark"] body .wn-release h3,
 html[data-theme="dark"] body .wn-release li { color: #d4d4d8 !important; }
@@ -4252,10 +4256,10 @@ html[data-theme="dark"] body .modal-note button.btn.secondary { background: tran
 html[data-theme="dark"] body .modal-note input { background: #18181b !important; border-color: #3f3f46 !important; color: #f4f4f5 !important; }
 /* v235 END */
 
-/* v236 — whats-new dark: version header same surface as the release card */
+/* v236/v237 — whats-new dark: ONE surface everywhere (page = card = header) */
 html[data-theme="dark"] body .wn-ver {
-  background: #1c1c1f !important;
-  border-color: #1c1c1f !important;
+  background: transparent !important;
+  border-color: transparent !important;
   color: #e4e4e7 !important;
 }
 html[data-theme="dark"] body .wn-ver .wn-ver-date { color: #a1a1aa !important; }
