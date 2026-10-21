@@ -4099,3 +4099,11 @@ html:not([data-theme="dark"]) body .ac-topbar-icon.ac-topbar-theme:hover {
   color: #18181b !important;
 }
 /* v229 END */
+
+/* v231 — quota reset captions */
+html body .ac-quota-reset {
+  font-size: 11px;
+  color: var(--muted, #71717a);
+}
+html[data-theme="dark"] body .ac-quota-reset { color: #a1a1aa; }
+/* v231 END */

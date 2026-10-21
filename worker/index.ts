@@ -824,6 +824,39 @@ async function getAgentControlRow(db: D1Database, username: string) {
 }
 
 
+/* ── v231: every quota event is journaled in D1 (survives counter resets) ── */
+async function ensureAgentUsageLog(db: D1Database) {
+  await db.prepare(`CREATE TABLE IF NOT EXISTS agent_usage_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL,
+    kind TEXT NOT NULL DEFAULT 'add',
+    tokens INTEGER NOT NULL DEFAULT 0,
+    daily_total INTEGER NOT NULL DEFAULT 0,
+    weekly_total INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`).run();
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_agent_usage_log_user ON agent_usage_log (username, id)`).run();
+}
+async function logAgentUsage(db: D1Database, username: string, kind: string, tokens: number, dailyTotal: number, weeklyTotal: number) {
+  try {
+    await ensureAgentUsageLog(db);
+    await db.prepare(`INSERT INTO agent_usage_log (username, kind, tokens, daily_total, weekly_total) VALUES (?, ?, ?, ?, ?)`).bind(username, kind, tokens, dailyTotal, weeklyTotal).run();
+    await db.prepare(`DELETE FROM agent_usage_log WHERE username = ? AND id NOT IN (SELECT id FROM agent_usage_log WHERE username = ? ORDER BY id DESC LIMIT 500)`).bind(username, username).run();
+  } catch (e) { console.error('[agent-usage-log] journal failed:', (e as any)?.message || e); }
+}
+function nextUtcMidnight(): string {
+  const d = new Date();
+  d.setUTCHours(24, 0, 0, 0);
+  return d.toISOString();
+}
+function nextMondayUtc(): string {
+  const d = new Date();
+  const day = (d.getUTCDay() + 6) % 7;
+  d.setUTCDate(d.getUTCDate() - day + 7);
+  d.setUTCHours(0, 0, 0, 0);
+  return d.toISOString();
+}
+
 /* ── Agent quota counters live in a Durable Object (survives deploys/restarts) ── */
 function agentQuotaStub(env: Env, username: string) {
   if (!env.AGENT_QUOTA_HUB) return null;
@@ -848,6 +881,7 @@ async function agentQuotaCounters(env: Env, db: D1Database, username: string) {
     });
     const j2 = (await seed.json()) as any;
     dailyUsed = j2.data.dailyUsed; weeklyUsed = j2.data.weeklyUsed;
+    await logAgentUsage(db, username, 'seed', 0, dailyUsed, weeklyUsed);
   }
   return { dailyUsed, weeklyUsed };
 }
@@ -858,6 +892,7 @@ async function agentQuotaAdd(env: Env, db: D1Database, username: string, tokens:
     const daily = row.daily_tokens + tokens;
     const weekly = row.weekly_tokens + tokens;
     await db.prepare(`UPDATE agent_controls SET daily_tokens = ?, weekly_tokens = ?, updated_at = datetime('now') WHERE username = ?`).bind(daily, weekly, username).run();
+    await logAgentUsage(db, username, 'add', tokens, daily, weekly);
     return { dailyUsed: daily, weeklyUsed: weekly };
   }
   const res = await stub.fetch('http://atlas-quota/add', {
@@ -866,6 +901,7 @@ async function agentQuotaAdd(env: Env, db: D1Database, username: string, tokens:
     body: JSON.stringify({ tokens }),
   });
   const j = (await res.json()) as any;
+  await logAgentUsage(db, username, 'add', tokens, j.data.dailyUsed, j.data.weeklyUsed);
   // best-effort mirror into D1 for admin tooling
   try {
     await db.prepare(`UPDATE agent_controls SET daily_tokens = ?, weekly_tokens = ?, updated_at = datetime('now') WHERE username = ?`).bind(j.data.dailyUsed, j.data.weeklyUsed, username).run();
@@ -890,6 +926,8 @@ app.get('/api/agent/policy', async (c) => {
       weeklyUsed: counters.weeklyUsed,
       dailyLimit: AGENT_DAILY_LIMIT,
       weeklyLimit: AGENT_WEEKLY_LIMIT,
+      dailyResetsAt: nextUtcMidnight(),
+      weeklyResetsAt: nextMondayUtc(),
     },
   });
 });
@@ -903,7 +941,18 @@ app.post('/api/agent/usage', async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const tokens = Math.max(0, Math.min(200000, Number(body.tokens) || 0));
   const counters = await agentQuotaAdd(c.env, c.env.DB, username, tokens);
-  return c.json({ success: true, data: { dailyUsed: counters.dailyUsed, weeklyUsed: counters.weeklyUsed, dailyLimit: AGENT_DAILY_LIMIT, weeklyLimit: AGENT_WEEKLY_LIMIT } });
+  return c.json({ success: true, data: { dailyUsed: counters.dailyUsed, weeklyUsed: counters.weeklyUsed, dailyLimit: AGENT_DAILY_LIMIT, weeklyLimit: AGENT_WEEKLY_LIMIT, dailyResetsAt: nextUtcMidnight(), weeklyResetsAt: nextMondayUtc() } });
+});
+
+app.get('/api/admin/agent-usage-log', async (c) => {
+  const gate = requireOwner(c);
+  if (!gate.ok) return gate.response;
+  await ensureAgentUsageLog(c.env.DB);
+  const username = String(c.req.query('username') || '').trim().toLowerCase();
+  const rows = username
+    ? await c.env.DB.prepare(`SELECT * FROM agent_usage_log WHERE username = ? ORDER BY id DESC LIMIT 200`).bind(username).all()
+    : await c.env.DB.prepare(`SELECT * FROM agent_usage_log ORDER BY id DESC LIMIT 200`).all();
+  return c.json({ success: true, data: rows.results || [] });
 });
 
 /* Prompt-injection / abuse tripwire: client flags the session user; agent locked until an admin restores. */

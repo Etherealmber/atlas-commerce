@@ -1250,6 +1250,7 @@ export function registerMailboxRoutes(app: Hono<any>, deps: MailboxRouteDeps): v
       if (env.IMAGES) {
         const key = `agent/${userKey}/${threadId}.agent`;
         const plain = new TextEncoder().encode(JSON.stringify(body));
+        if (plain.byteLength > 1_500_000) return false; // v231: refuse oversized blobs, keep local copy
         const cryptoKey = await agentCryptoKey(env, ['encrypt']);
         const iv = crypto.getRandomValues(new Uint8Array(12));
         const cipher = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, cryptoKey, plain));
