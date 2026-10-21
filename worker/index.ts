@@ -782,6 +782,226 @@ registerEmployeeRoutes(app, { checkConfirmPassword });
 registerAtlasV209Routes(app, { sessionUserFromHeader, applyStockDelta, adjustLocationStock, getDefaultLocationId });
 // Admin read routes need helpers defined later — registered near Users & Admin section
 
+/* ═══ v225 — Atlas Agent governance: usage caps, injection lockout, privacy deletes, 2FA, devices ═══ */
+const AGENT_DAILY_LIMIT = 40000;
+const AGENT_WEEKLY_LIMIT = 200000;
+
+async function ensureAgentControls(db: D1Database) {
+  await db.prepare(`CREATE TABLE IF NOT EXISTS agent_controls (
+    username TEXT PRIMARY KEY,
+    blocked INTEGER NOT NULL DEFAULT 0,
+    daily_tokens INTEGER NOT NULL DEFAULT 0,
+    daily_date TEXT NOT NULL DEFAULT '',
+    weekly_tokens INTEGER NOT NULL DEFAULT 0,
+    weekly_start TEXT NOT NULL DEFAULT '',
+    updated_at TEXT DEFAULT (datetime('now'))
+  )`).run();
+}
+function agentWeekStart(): string {
+  const d = new Date();
+  const day = (d.getUTCDay() + 6) % 7;
+  d.setUTCDate(d.getUTCDate() - day);
+  return d.toISOString().slice(0, 10);
+}
+async function getAgentControlRow(db: D1Database, username: string) {
+  await ensureAgentControls(db);
+  const today = new Date().toISOString().slice(0, 10);
+  const week = agentWeekStart();
+  const existing = await db.prepare(`SELECT * FROM agent_controls WHERE username = ?`).bind(username).first() as any;
+  if (!existing) {
+    await db.prepare(`INSERT INTO agent_controls (username, blocked, daily_tokens, daily_date, weekly_tokens, weekly_start) VALUES (?, 0, 0, ?, 0, ?)`).bind(username, today, week).run();
+    return { username, blocked: 0, daily_tokens: 0, daily_date: today, weekly_tokens: 0, weekly_start: week };
+  }
+  let { daily_tokens, daily_date, weekly_tokens, weekly_start } = existing;
+  if (daily_date !== today) { daily_tokens = 0; daily_date = today; }
+  if (weekly_start !== week) { weekly_tokens = 0; weekly_start = week; }
+  if (daily_tokens !== existing.daily_tokens || weekly_tokens !== existing.weekly_tokens) {
+    await db.prepare(`UPDATE agent_controls SET daily_tokens = ?, daily_date = ?, weekly_tokens = ?, weekly_start = ?, updated_at = datetime('now') WHERE username = ?`).bind(daily_tokens, daily_date, weekly_tokens, weekly_start, username).run();
+  }
+  return { ...existing, daily_tokens, daily_date, weekly_tokens, weekly_start };
+}
+
+app.get('/api/agent/policy', async (c) => {
+  const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, clientIp(c), c.req.header('X-Device-Fingerprint') || '');
+  if (reason !== 'ok') return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
+  const session = sessionUserFromHeader(c.req.header('Authorization'));
+  const username = String(session.username || '').toLowerCase();
+  const isAdmin = session.role === 'owner' || session.role === 'admin';
+  const row = await getAgentControlRow(c.env.DB, username);
+  return c.json({
+    success: true,
+    data: {
+      blocked: !!row.blocked,
+      isAdmin,
+      dailyUsed: row.daily_tokens,
+      weeklyUsed: row.weekly_tokens,
+      dailyLimit: AGENT_DAILY_LIMIT,
+      weeklyLimit: AGENT_WEEKLY_LIMIT,
+    },
+  });
+});
+
+app.post('/api/agent/usage', async (c) => {
+  const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, clientIp(c), c.req.header('X-Device-Fingerprint') || '');
+  if (reason !== 'ok') return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
+  const session = sessionUserFromHeader(c.req.header('Authorization'));
+  const username = String(session.username || '').toLowerCase();
+  if (session.role === 'owner' || session.role === 'admin') return c.json({ success: true, data: { unlimited: true } });
+  const body = await c.req.json().catch(() => ({}));
+  const tokens = Math.max(0, Math.min(200000, Number(body.tokens) || 0));
+  const row = await getAgentControlRow(c.env.DB, username);
+  const daily = row.daily_tokens + tokens;
+  const weekly = row.weekly_tokens + tokens;
+  await c.env.DB.prepare(`UPDATE agent_controls SET daily_tokens = ?, weekly_tokens = ?, updated_at = datetime('now') WHERE username = ?`).bind(daily, weekly, username).run();
+  return c.json({ success: true, data: { dailyUsed: daily, weeklyUsed: weekly, dailyLimit: AGENT_DAILY_LIMIT, weeklyLimit: AGENT_WEEKLY_LIMIT } });
+});
+
+/* Prompt-injection / abuse tripwire: client flags the session user; agent locked until an admin restores. */
+app.post('/api/agent/flag', async (c) => {
+  const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, clientIp(c), c.req.header('X-Device-Fingerprint') || '');
+  if (reason !== 'ok') return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
+  const session = sessionUserFromHeader(c.req.header('Authorization'));
+  const username = String(session.username || '').toLowerCase();
+  const isAdmin = session.role === 'owner' || session.role === 'admin';
+  if (isAdmin) return c.json({ success: true, data: { blocked: false, note: 'admin exempt' } });
+  await getAgentControlRow(c.env.DB, username);
+  await c.env.DB.prepare(`UPDATE agent_controls SET blocked = 1, updated_at = datetime('now') WHERE username = ?`).bind(username).run();
+  const body = await c.req.json().catch(() => ({}));
+  await writeAudit(c.env.DB, { username, role: session.role, action: 'agent.security_lock', entity: 'atlas_agent', detail: String(body.reason || 'prompt_injection').slice(0, 200) });
+  return c.json({ success: true, data: { blocked: true } });
+});
+
+app.get('/api/admin/agent-controls', async (c) => {
+  const gate = requireOwner(c);
+  if (!gate.ok) return gate.response;
+  await ensureAgentControls(c.env.DB);
+  const rows = await c.env.DB.prepare(`SELECT username, blocked, daily_tokens, weekly_tokens, updated_at FROM agent_controls ORDER BY updated_at DESC LIMIT 100`).all() as any;
+  return c.json({ success: true, data: rows.results || [] });
+});
+
+app.post('/api/admin/agent-access', async (c) => {
+  const gate = requireOwner(c);
+  if (!gate.ok) return gate.response;
+  const body = await c.req.json().catch(() => ({}));
+  const username = String(body.username || '').toLowerCase().slice(0, 64);
+  const action = String(body.action || '');
+  if (!username || !['block', 'restore'].includes(action)) return c.json({ success: false, error: 'Paramètres invalides' }, 400);
+  await getAgentControlRow(c.env.DB, username);
+  await c.env.DB.prepare(`UPDATE agent_controls SET blocked = ?, updated_at = datetime('now') WHERE username = ?`).bind(action === 'block' ? 1 : 0, username).run();
+  await writeAudit(c.env.DB, { username: gate.username, role: 'owner', action: action === 'block' ? 'agent.access_block' : 'agent.access_restore', entity: username, detail: 'atlas_agent' });
+  return c.json({ success: true });
+});
+
+/* ── Privacy: wipe all Atlas Agent conversations (OTP-gated) ── */
+app.post('/api/settings/agent-data/request-delete-otp', async (c) => {
+  const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, clientIp(c), c.req.header('X-Device-Fingerprint') || '');
+  if (reason !== 'ok') return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
+  const session = sessionUserFromHeader(c.req.header('Authorization'));
+  const username = String(session.username || '').toLowerCase();
+  const res = await issueDeleteOtp(c.env, 'agent-data', username, 'toutes les conversations Atlas Agent', 'Code de confirmation — suppression des données Atlas Agent');
+  return c.json({ success: true, emailed: res.emailed, message: res.message, otp: res.emailed ? undefined : res.otp });
+});
+
+app.post('/api/settings/agent-data/delete', async (c) => {
+  const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, clientIp(c), c.req.header('X-Device-Fingerprint') || '');
+  if (reason !== 'ok') return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
+  const session = sessionUserFromHeader(c.req.header('Authorization'));
+  const username = String(session.username || '').toLowerCase();
+  const body = await c.req.json().catch(() => ({}));
+  const check = await verifyDeleteOtp(c.env.DB, 'agent-data', username, String(body.otp || ''));
+  if (!check.ok) return c.json({ success: false, error: check.error }, check.status as any);
+  // R2 thread files for this user
+  const userKey = username.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 64) || 'user';
+  let removed = 0;
+  try {
+    if (c.env.IMAGES) {
+      const listed = await c.env.IMAGES.list({ prefix: `agent/${userKey}/`, limit: 1000 });
+      for (const obj of listed.objects || []) { await c.env.IMAGES.delete(obj.key); removed++; }
+    }
+  } catch { /* */ }
+  await ensureAgentControls(c.env.DB);
+  await c.env.DB.prepare(`UPDATE agent_controls SET daily_tokens = 0, weekly_tokens = 0, updated_at = datetime('now') WHERE username = ?`).bind(username).run();
+  await writeAudit(c.env.DB, { username, role: session.role, action: 'agent.data_delete', entity: 'atlas_agent', detail: `r2=${removed}` });
+  return c.json({ success: true, data: { removed } });
+});
+
+/* ── Account deletion (OTP-gated) ── */
+app.post('/api/settings/account/request-delete-otp', async (c) => {
+  const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, clientIp(c), c.req.header('X-Device-Fingerprint') || '');
+  if (reason !== 'ok') return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
+  const session = sessionUserFromHeader(c.req.header('Authorization'));
+  const username = String(session.username || '').toLowerCase();
+  const res = await issueDeleteOtp(c.env, 'account-delete', username, 'votre compte Atlas Commerce', 'Code de confirmation — suppression de compte');
+  return c.json({ success: true, emailed: res.emailed, message: res.message, otp: res.emailed ? undefined : res.otp });
+});
+
+app.post('/api/settings/account/delete', async (c) => {
+  const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, clientIp(c), c.req.header('X-Device-Fingerprint') || '');
+  if (reason !== 'ok') return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
+  const session = sessionUserFromHeader(c.req.header('Authorization'));
+  const username = String(session.username || '').toLowerCase();
+  if (session.role === 'owner') return c.json({ success: false, error: 'Le compte propriétaire ne peut pas être supprimé ici.' }, 400);
+  const body = await c.req.json().catch(() => ({}));
+  const check = await verifyDeleteOtp(c.env.DB, 'account-delete', username, String(body.otp || ''));
+  if (!check.ok) return c.json({ success: false, error: check.error }, check.status as any);
+  await c.env.DB.prepare(`DELETE FROM app_users WHERE lower(username) = ?`).bind(username).run();
+  await c.env.DB.prepare(`DELETE FROM trusted_devices WHERE lower(username) = ?`).bind(username).run();
+  await c.env.DB.prepare(`DELETE FROM webauthn_credentials WHERE lower(username) = ?`).bind(username).run();
+  await writeAudit(c.env.DB, { username, role: session.role, action: 'account.delete', entity: username, detail: 'otp-verified' });
+  return c.json({ success: true });
+});
+
+/* ── 2FA (OTP at every login, even trusted devices) ── */
+app.get('/api/settings/2fa', async (c) => {
+  const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, clientIp(c), c.req.header('X-Device-Fingerprint') || '');
+  if (reason !== 'ok') return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
+  const v = await getConfig(c.env.DB, 'twofa_enabled', '0');
+  return c.json({ success: true, data: { enabled: v === '1' } });
+});
+
+app.put('/api/settings/2fa', async (c) => {
+  const gate = requireOwner(c);
+  if (!gate.ok) return gate.response;
+  const body = await c.req.json().catch(() => ({}));
+  const enabled = body.enabled ? '1' : '0';
+  await setConfig(c.env.DB, 'twofa_enabled', enabled);
+  await writeAudit(c.env.DB, { username: gate.username, role: 'owner', action: 'security.2fa_toggle', entity: 'auth', detail: enabled === '1' ? 'enabled' : 'disabled' });
+  return c.json({ success: true, data: { enabled: enabled === '1' } });
+});
+
+/* ── Logged-in devices (every user sees their own; revoke supported) ── */
+app.get('/api/auth/devices', async (c) => {
+  const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, clientIp(c), c.req.header('X-Device-Fingerprint') || '');
+  if (reason !== 'ok') return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
+  const session = sessionUserFromHeader(c.req.header('Authorization'));
+  const username = String(session.username || '').toLowerCase();
+  const fp = String(c.req.header('X-Device-Fingerprint') || '');
+  await ensureSecurityTables(c.env.DB);
+  const rows = await c.env.DB.prepare(`SELECT fingerprint, last_ip, last_seen, user_agent FROM trusted_devices WHERE lower(username) = ? ORDER BY last_seen DESC LIMIT 25`).bind(username).all() as any;
+  const data = (rows.results || []).map((r: any) => ({
+    fingerprint: String(r.fingerprint || '').slice(0, 12) + '…',
+    full: String(r.fingerprint || ''),
+    last_ip: r.last_ip,
+    last_seen: r.last_seen,
+    user_agent: String(r.user_agent || '').slice(0, 90),
+    current: fp && String(r.fingerprint || '') === fp,
+  }));
+  return c.json({ success: true, data });
+});
+
+app.post('/api/auth/devices/revoke', async (c) => {
+  const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, clientIp(c), c.req.header('X-Device-Fingerprint') || '');
+  if (reason !== 'ok') return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
+  const session = sessionUserFromHeader(c.req.header('Authorization'));
+  const username = String(session.username || '').toLowerCase();
+  const body = await c.req.json().catch(() => ({}));
+  const target = String(body.fingerprint || '');
+  if (!target) return c.json({ success: false, error: 'Empreinte requise' }, 400);
+  await c.env.DB.prepare(`DELETE FROM trusted_devices WHERE fingerprint = ? AND lower(username) = ?`).bind(target, username).run();
+  await writeAudit(c.env.DB, { username, role: session.role, action: 'device.revoke', entity: target.slice(0, 12), detail: 'trusted_device' });
+  return c.json({ success: true });
+});
+
 /** Phase 3: health / bindings observability (no secrets). */
 app.get('/api/health', async (c) => {
   let d1 = false;
@@ -1591,7 +1811,8 @@ app.post('/api/auth/login', async (c) => {
   // Low-reputation IPs must re-complete the e-mail OTP even on known devices,
   // so a stolen password + copied fingerprint never suffices from a bad IP.
   const preRep = (await getReputation(c.env.DB, ip)) as any;
-  if (await isTrustedDevice(c.env.DB, fingerprint) && Number(preRep?.score ?? 50) >= 40) {
+  const twofaOn = (await getConfig(c.env.DB, 'twofa_enabled', '0')) === '1';
+  if (!twofaOn && await isTrustedDevice(c.env.DB, fingerprint) && Number(preRep?.score ?? 50) >= 40) {
     await trustDevice(c.env.DB, fingerprint, ip);
     await recordLogin(c.env.DB, ip, fingerprint, true, ua);
     await writeAudit(c.env.DB, { username, role, action: 'auth.login', entity: 'session', detail: 'trusted_device', ip });
