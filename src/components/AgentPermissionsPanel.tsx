@@ -121,13 +121,10 @@ export default function AgentPermissionsPanel({ compact = false, onSaved }: Prop
   return (
     <div className={`agent-perm-panel${compact ? ' is-compact' : ''}`}>
       {!compact && (
-        <>
-          <h2 className="agent-perm-title">Permissions Atlas Agent</h2>
-          <p className="agent-perm-lead">
-            Contrôle ce que l’assistant peut appeler (en plus des règles de rôle). Les conversations
-            peuvent être enregistrées — voir la politique de confidentialité.
-          </p>
-        </>
+        <p className="agent-perm-lead">
+          Contrôle ce que l’assistant peut appeler (en plus des règles de rôle). Les conversations
+          peuvent être enregistrées — voir la politique de confidentialité.
+        </p>
       )}
       {compact && (
         <div className="agent-perm-compact-head">

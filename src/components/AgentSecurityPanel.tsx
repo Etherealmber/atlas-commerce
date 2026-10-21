@@ -6,9 +6,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api';
 
-type Policy = { blocked: boolean; isAdmin: boolean; dailyUsed: number; weeklyUsed: number; dailyLimit: number; weeklyLimit: number };
+type Policy = { blocked: boolean; isAdmin: boolean; dailyUsed: number; weeklyUsed: number; dailyLimit: number; weeklyLimit: number; dailyResetsAt?: string; weeklyResetsAt?: string };
 type Device = { fingerprint: string; full: string; last_ip: string; last_seen: string; user_agent: string; current: boolean };
 type OtpFlow = { kind: 'agent' | 'account'; message: string; code?: string } | null;
+
+function fmtReset(iso?: string): string {
+  if (!iso) return 'au prochain cycle';
+  try {
+    return new Date(iso).toLocaleString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) + ' UTC';
+  } catch { return 'au prochain cycle'; }
+}
 
 export default function AgentSecurityPanel({ isOwner, role }: { isOwner: boolean; role: string }) {
   const [twoFa, setTwoFa] = useState<boolean | null>(null);
@@ -98,6 +105,7 @@ export default function AgentSecurityPanel({ isOwner, role }: { isOwner: boolean
                 <div className="ac-quota-bar" role="progressbar" aria-valuemin={0} aria-valuemax={policy.dailyLimit} aria-valuenow={policy.dailyUsed}>
                   <i className={!policy.isAdmin && policy.dailyUsed >= policy.dailyLimit ? 'full' : !policy.isAdmin && policy.dailyUsed > policy.dailyLimit * 0.8 ? 'warn' : undefined} style={{ width: `${Math.min(100, Math.round((policy.dailyUsed / policy.dailyLimit) * 100))}%` }} />
                 </div>
+                <span className="ac-quota-reset">Rafraîchit {fmtReset(policy.dailyResetsAt)} (minuit UTC), chaque jour à la même heure</span>
               </div>
               <div className="ac-quota-row">
                 <div className="ac-quota-head">
@@ -107,6 +115,7 @@ export default function AgentSecurityPanel({ isOwner, role }: { isOwner: boolean
                 <div className="ac-quota-bar" role="progressbar" aria-valuemin={0} aria-valuemax={policy.weeklyLimit} aria-valuenow={policy.weeklyUsed}>
                   <i className={!policy.isAdmin && policy.weeklyUsed >= policy.weeklyLimit ? 'full' : !policy.isAdmin && policy.weeklyUsed > policy.weeklyLimit * 0.8 ? 'warn' : undefined} style={{ width: `${Math.min(100, Math.round((policy.weeklyUsed / policy.weeklyLimit) * 100))}%` }} />
                 </div>
+                <span className="ac-quota-reset">Rafraîchit {fmtReset(policy.weeklyResetsAt)} (lundi 00:00 UTC), chaque semaine au même moment</span>
               </div>
             </div>
           )}
@@ -215,6 +224,9 @@ export default function AgentSecurityPanel({ isOwner, role }: { isOwner: boolean
       {showDevices && (
         <div className="modal-overlay" onClick={() => setShowDevices(false)}>
           <div className="modal" style={{ maxWidth: 560, width: '94vw' }} onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="modal-x modal-close" aria-label="Fermer" onClick={() => setShowDevices(false)}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden><path d="M6 6l12 12M18 6L6 18" /></svg>
+            </button>
             <h2>Appareils connectés</h2>
             <p className="muted" style={{ marginTop: 0 }}>
               Chaque appareil qui s’est connecté à ce compte. Révoquez ceux que vous ne reconnaissez pas.

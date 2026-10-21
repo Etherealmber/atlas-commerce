@@ -104,6 +104,7 @@ type Msg = {
   sources?: { label: string; href: string }[];
   failed?: boolean;
   prompt?: string;
+  images?: string[];
   streaming?: boolean;
   /** Alternate assistant replies (retry / regenerate) */
   variants?: string[];
@@ -267,6 +268,13 @@ function saveThreads(list: ThreadMeta[]) {
   try {
     localStorage.setItem(THREADS_KEY, JSON.stringify(list.slice(0, 20)));
   } catch { /* */ }
+}
+
+function fmtReset(iso?: string): string {
+  if (!iso) return 'au prochain cycle';
+  try {
+    return new Date(iso).toLocaleString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) + ' UTC';
+  } catch { return 'au prochain cycle'; }
 }
 
 function msgsKey(threadId: string) {
@@ -599,7 +607,7 @@ export default function AtlasAgent() {
   const [showExtras, setShowExtras] = useState<boolean>(() => {
     try { return localStorage.getItem('atlas_agent_show_extras') === '1'; } catch { return false; }
   });
-  const [agentPolicy, setAgentPolicy] = useState<{ blocked: boolean; isAdmin: boolean; dailyUsed: number; weeklyUsed: number; dailyLimit: number; weeklyLimit: number } | null>(null);
+  const [agentPolicy, setAgentPolicy] = useState<{ blocked: boolean; isAdmin: boolean; dailyUsed: number; weeklyUsed: number; dailyLimit: number; weeklyLimit: number; dailyResetsAt?: string; weeklyResetsAt?: string } | null>(null);
   useEffect(() => {
     if (!open) return;
     let alive = true;
@@ -1111,9 +1119,9 @@ export default function AtlasAgent() {
     const last = msgs[msgs.length - 1];
     if (last?.role === 'assistant' && msgs.length > lastReportedLen.current) {
       lastReportedLen.current = msgs.length;
-      const est = Math.round(((last.text || '').length + 240) / 4);
-      api.postAgentUsage(est)
-        .then((res: any) => { if (res?.data && !res.data.unlimited) setAgentPolicy((p0) => (p0 ? { ...p0, dailyUsed: res.data.dailyUsed ?? p0.dailyUsed, weeklyUsed: res.data.weeklyUsed ?? p0.weeklyUsed } : p0)); })
+      // v233 — the server charges real tokens; we just refresh the quota display
+      api.getAgentPolicy()
+        .then((res: any) => { if (res?.data) setAgentPolicy(res.data); })
         .catch(() => { /* */ });
     }
   }, [msgs]);
@@ -1129,11 +1137,11 @@ export default function AtlasAgent() {
         return;
       }
       if (agentPolicy && !agentPolicy.isAdmin && agentPolicy.dailyUsed >= agentPolicy.dailyLimit) {
-        setMsgs((m) => [...m, { role: 'assistant', text: "📉 Quota quotidien de jetons atteint. Réessayez demain — les administrateurs ne sont pas limités." }]);
+        setMsgs((m) => [...m, { role: 'assistant', text: `📉 Quota quotidien de jetons atteint. Il se rafraîchira ${fmtReset(agentPolicy.dailyResetsAt)} (minuit UTC) — chaque jour à la même heure. Les administrateurs ne sont pas limités.` }]);
         return;
       }
       if (agentPolicy && !agentPolicy.isAdmin && agentPolicy.weeklyUsed >= agentPolicy.weeklyLimit) {
-        setMsgs((m) => [...m, { role: 'assistant', text: "📉 Quota hebdomadaire de jetons atteint. Réessayez la semaine prochaine." }]);
+        setMsgs((m) => [...m, { role: 'assistant', text: `📉 Quota hebdomadaire de jetons atteint. Il se rafraîchira ${fmtReset(agentPolicy.weeklyResetsAt)} (lundi 00:00 UTC) — chaque semaine au même moment. Les administrateurs ne sont pas limités.` }]);
         return;
       }
       /* Prompt-injection tripwire: jailbreak patterns lock agent access until an admin restores it */
@@ -1151,7 +1159,7 @@ export default function AtlasAgent() {
         : '';
       const userText = (q || 'Voir les pièces jointes') + attachNote;
       if (!isRetry) {
-        setMsgs((m) => [...m, { role: 'user', text: userText }]);
+        setMsgs((m) => [...m, { role: 'user', text: userText, images: files.filter((f) => (f.type || '').startsWith('image/')).map((f) => f.data_url).slice(0, 4) }]);
         touchThread(userText);
       } else {
         // Remove the assistant message being retried; keep variants of previous text
@@ -1223,6 +1231,7 @@ export default function AtlasAgent() {
           user_message: q || userText,
           page_path: page.path,
           page_title: page.title,
+          images: files.filter((f) => (f.type || '').startsWith('image/')).map((f) => f.data_url).slice(0, 4),
           exec_mode: execMode,
           agent_perm_mode: agentPermMode,
         });
@@ -1579,6 +1588,19 @@ export default function AtlasAgent() {
             <div key={i} className={`atlas-agent-msg ${m.role}`}>
               <div className="atlas-agent-bubble">
                 {m.role === 'assistant' ? renderMiniMarkdown(String(m.text || '')) : m.text}
+                {m.role === 'user' && (m.images || []).length ? (
+                  <div className="atlas-agent-msg-imgs">
+                    {(m.images || []).map((src, k) => (
+                      <img
+                        key={k}
+                        src={src}
+                        alt={`Pièce jointe ${k + 1}`}
+                        title="Ouvrir l’image"
+                        onClick={() => { try { window.open(src, '_blank', 'noopener'); } catch { /* */ } }}
+                      />
+                    ))}
+                  </div>
+                ) : null}
                 {m.streaming ? <span className="atlas-agent-caret">▍</span> : null}
               </div>
               {m.role === 'user' && !m.streaming && m.text.trim() ? (
@@ -1900,8 +1922,14 @@ export default function AtlasAgent() {
             </div>
           )}
           {agentPolicy && !agentPolicy.isAdmin && !agentPolicy.blocked && (
-            <div className="atlas-agent-quota" title="Jetons utilisés (jour / semaine) — données Durable Object">
-              {Math.round((agentPolicy.dailyUsed / agentPolicy.dailyLimit) * 100)}% du quota jour · {Math.round((agentPolicy.weeklyUsed / agentPolicy.weeklyLimit) * 100)}% semaine
+            <div
+              className="atlas-agent-quota"
+              title={`Jetons utilisés (jour / semaine) — rafraîchit ${fmtReset(agentPolicy.dailyResetsAt)} / ${fmtReset(agentPolicy.weeklyResetsAt)}`}
+            >
+              {Math.min(100, Math.round((agentPolicy.dailyUsed / agentPolicy.dailyLimit) * 100))}% du quota jour · {Math.min(100, Math.round((agentPolicy.weeklyUsed / agentPolicy.weeklyLimit) * 100))}% semaine
+              {agentPolicy.dailyUsed >= agentPolicy.dailyLimit || agentPolicy.weeklyUsed >= agentPolicy.weeklyLimit
+                ? ` — rafraîchit ${fmtReset(agentPolicy.dailyUsed >= agentPolicy.dailyLimit ? agentPolicy.dailyResetsAt : agentPolicy.weeklyResetsAt)}`
+                : ''}
             </div>
           )}
           <PromptBar

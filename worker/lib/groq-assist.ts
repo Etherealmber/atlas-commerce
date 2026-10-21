@@ -12,15 +12,25 @@ const MODELS = [
   'llama-3.1-8b-instant',
 ];
 
+/* v232 — vision-capable Groq models, tried first when images are attached */
+const VISION_MODELS = [
+  'meta-llama/llama-4-scout-17b-16e-instruct',
+  'llama-3.2-90b-vision-preview',
+  'llama-3.2-11b-vision-preview',
+];
+
 export async function groqChat(opts: {
   apiKey: string;
   model?: string;
   system: string;
   message: string;
   maxTokens?: number;
-}): Promise<{ reply: string; model: string }> {
+  images?: string[];
+}): Promise<{ reply: string; model: string; usage?: { prompt: number; completion: number } }> {
   const preferred = (opts.model || '').trim();
-  const models = [preferred, ...MODELS].filter((m, i, a) => !!m && a.indexOf(m) === i);
+  const images = (opts.images || []).filter((u) => typeof u === 'string' && u.startsWith('data:image/')).slice(0, 4);
+  const base = images.length ? [...VISION_MODELS, ...MODELS] : MODELS;
+  const models = [preferred, ...base].filter((m, i, a) => !!m && a.indexOf(m) === i);
   const maxTokens = Math.max(64, Math.min(opts.maxTokens ?? 1024, 4096));
   let lastStatus = 0;
   let lastBody = '';
@@ -38,7 +48,15 @@ export async function groqChat(opts: {
         max_tokens: maxTokens,
         messages: [
           { role: 'system', content: opts.system },
-          { role: 'user', content: opts.message },
+          images.length
+            ? {
+                role: 'user',
+                content: [
+                  { type: 'text', text: opts.message },
+                  ...images.map((url) => ({ type: 'image_url', image_url: { url } })),
+                ],
+              }
+            : { role: 'user', content: opts.message },
         ],
       }),
     }, { timeoutMs: 20000, retries: 2, label: 'groq' });
@@ -70,7 +88,14 @@ export async function groqChat(opts: {
     text = text
       .replace(/\b(Google|Gemini|Mistral|OpenAI|ChatGPT|Claude|Groq|Llama|Meta)\b/gi, 'Atlas Agent')
       .trim();
-    return { reply: text, model: String(data?.model || model) };
+    return {
+      reply: text,
+      model: String(data?.model || model),
+      usage: {
+        prompt: Number(data?.usage?.prompt_tokens || 0),
+        completion: Number(data?.usage?.completion_tokens || 0),
+      },
+    };
   }
 
   if (lastStatus === 401 || lastStatus === 403) {

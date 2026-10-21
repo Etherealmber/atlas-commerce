@@ -613,6 +613,56 @@ app.use('*', cors({
   maxAge: 86400,
 }));
 
+/* ── v232 — in-worker WAF (free): blocks classic attack signatures before any route runs ── */
+const WAF_STATS = { blocked: 0, lastAt: null as string | null, lastSig: '' };
+const WAF_SIGS: RegExp[] = [
+  /(union[\s+]+select|select[\s+]+[^()]{0,40}[\s+]+from[\s+]*(information_schema|pg_catalog|sqlite_master))/i,
+  /(sleep\(\d|benchmark\(|waitfor[\s+]+delay|xp_cmdshell|pg_sleep\()/i,
+  /(\.\.[\/\\](etc|proc|windows)|[\/\\]etc[\/\\]passwd|proc[\/\\]self[\/\\]environ)/i,
+  /(<script|%3cscript|javascript:|onerror\s*=|onload\s*=)/i,
+  /(\$\{jndi:|log4j)/i,
+];
+app.use('*', async (c, next) => {
+  const u = new URL(c.req.url);
+  if (u.pathname.startsWith('/api')) {
+    const probe = `${u.pathname}?${u.search}`.slice(0, 4000);
+    let decoded = probe;
+    try { decoded = decodeURIComponent(probe); } catch { /* keep raw */ }
+    for (const sig of WAF_SIGS) {
+      if (sig.test(decoded)) {
+        WAF_STATS.blocked += 1;
+        WAF_STATS.lastAt = new Date().toISOString();
+        WAF_STATS.lastSig = sig.source.slice(0, 60);
+        return c.json({ success: false, error: 'Requête bloquée par le pare-feu applicatif (WAF).', code: 'WAF_BLOCKED' }, 403);
+      }
+    }
+  }
+  await next();
+});
+
+/* ── v232 — optional D1 cutover: when app_config db_primary='target' and DB_TARGET is bound, serve from it ── */
+let dbPrimaryCache: { value: string; at: number } | null = null;
+async function dbPrimaryFlag(env: Env): Promise<string> {
+  const now = Date.now();
+  if (dbPrimaryCache && now - dbPrimaryCache.at < 60000) return dbPrimaryCache.value;
+  let value = 'source';
+  try {
+    const row = (await env.DB.prepare(`SELECT value FROM app_config WHERE key = 'db_primary'`).first()) as any;
+    if (row && String(row.value) === 'target') value = 'target';
+  } catch { /* no app_config yet → stay on source */ }
+  dbPrimaryCache = { value, at: now };
+  return value;
+}
+app.use('*', async (c, next) => {
+  if (c.env.DB_TARGET) {
+    (c.env as any).DB_SOURCE = c.env.DB; // remember the physical source before any swap
+    try {
+      if ((await dbPrimaryFlag(c.env)) === 'target') (c.env as any).DB = c.env.DB_TARGET;
+    } catch { /* keep source */ }
+  }
+  await next();
+});
+
 app.use('*', async (c, next) => {
   c.set('bffSurface', detectBffSurface(c));
   await next();
@@ -824,6 +874,39 @@ async function getAgentControlRow(db: D1Database, username: string) {
 }
 
 
+/* ── v231: every quota event is journaled in D1 (survives counter resets) ── */
+async function ensureAgentUsageLog(db: D1Database) {
+  await db.prepare(`CREATE TABLE IF NOT EXISTS agent_usage_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL,
+    kind TEXT NOT NULL DEFAULT 'add',
+    tokens INTEGER NOT NULL DEFAULT 0,
+    daily_total INTEGER NOT NULL DEFAULT 0,
+    weekly_total INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`).run();
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_agent_usage_log_user ON agent_usage_log (username, id)`).run();
+}
+async function logAgentUsage(db: D1Database, username: string, kind: string, tokens: number, dailyTotal: number, weeklyTotal: number) {
+  try {
+    await ensureAgentUsageLog(db);
+    await db.prepare(`INSERT INTO agent_usage_log (username, kind, tokens, daily_total, weekly_total) VALUES (?, ?, ?, ?, ?)`).bind(username, kind, tokens, dailyTotal, weeklyTotal).run();
+    await db.prepare(`DELETE FROM agent_usage_log WHERE username = ? AND id NOT IN (SELECT id FROM agent_usage_log WHERE username = ? ORDER BY id DESC LIMIT 500)`).bind(username, username).run();
+  } catch (e) { console.error('[agent-usage-log] journal failed:', (e as any)?.message || e); }
+}
+function nextUtcMidnight(): string {
+  const d = new Date();
+  d.setUTCHours(24, 0, 0, 0);
+  return d.toISOString();
+}
+function nextMondayUtc(): string {
+  const d = new Date();
+  const day = (d.getUTCDay() + 6) % 7;
+  d.setUTCDate(d.getUTCDate() - day + 7);
+  d.setUTCHours(0, 0, 0, 0);
+  return d.toISOString();
+}
+
 /* ── Agent quota counters live in a Durable Object (survives deploys/restarts) ── */
 function agentQuotaStub(env: Env, username: string) {
   if (!env.AGENT_QUOTA_HUB) return null;
@@ -848,6 +931,7 @@ async function agentQuotaCounters(env: Env, db: D1Database, username: string) {
     });
     const j2 = (await seed.json()) as any;
     dailyUsed = j2.data.dailyUsed; weeklyUsed = j2.data.weeklyUsed;
+    await logAgentUsage(db, username, 'seed', 0, dailyUsed, weeklyUsed);
   }
   return { dailyUsed, weeklyUsed };
 }
@@ -858,6 +942,7 @@ async function agentQuotaAdd(env: Env, db: D1Database, username: string, tokens:
     const daily = row.daily_tokens + tokens;
     const weekly = row.weekly_tokens + tokens;
     await db.prepare(`UPDATE agent_controls SET daily_tokens = ?, weekly_tokens = ?, updated_at = datetime('now') WHERE username = ?`).bind(daily, weekly, username).run();
+    await logAgentUsage(db, username, 'add', tokens, daily, weekly);
     return { dailyUsed: daily, weeklyUsed: weekly };
   }
   const res = await stub.fetch('http://atlas-quota/add', {
@@ -866,6 +951,7 @@ async function agentQuotaAdd(env: Env, db: D1Database, username: string, tokens:
     body: JSON.stringify({ tokens }),
   });
   const j = (await res.json()) as any;
+  await logAgentUsage(db, username, 'add', tokens, j.data.dailyUsed, j.data.weeklyUsed);
   // best-effort mirror into D1 for admin tooling
   try {
     await db.prepare(`UPDATE agent_controls SET daily_tokens = ?, weekly_tokens = ?, updated_at = datetime('now') WHERE username = ?`).bind(j.data.dailyUsed, j.data.weeklyUsed, username).run();
@@ -890,6 +976,8 @@ app.get('/api/agent/policy', async (c) => {
       weeklyUsed: counters.weeklyUsed,
       dailyLimit: AGENT_DAILY_LIMIT,
       weeklyLimit: AGENT_WEEKLY_LIMIT,
+      dailyResetsAt: nextUtcMidnight(),
+      weeklyResetsAt: nextMondayUtc(),
     },
   });
 });
@@ -903,10 +991,154 @@ app.post('/api/agent/usage', async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const tokens = Math.max(0, Math.min(200000, Number(body.tokens) || 0));
   const counters = await agentQuotaAdd(c.env, c.env.DB, username, tokens);
-  return c.json({ success: true, data: { dailyUsed: counters.dailyUsed, weeklyUsed: counters.weeklyUsed, dailyLimit: AGENT_DAILY_LIMIT, weeklyLimit: AGENT_WEEKLY_LIMIT } });
+  return c.json({ success: true, data: { dailyUsed: counters.dailyUsed, weeklyUsed: counters.weeklyUsed, dailyLimit: AGENT_DAILY_LIMIT, weeklyLimit: AGENT_WEEKLY_LIMIT, dailyResetsAt: nextUtcMidnight(), weeklyResetsAt: nextMondayUtc() } });
+});
+
+app.get('/api/admin/agent-usage-log', async (c) => {
+  const gate = requireOwner(c);
+  if (!gate.ok) return gate.response;
+  await ensureAgentUsageLog(c.env.DB);
+  const username = String(c.req.query('username') || '').trim().toLowerCase();
+  const rows = username
+    ? await c.env.DB.prepare(`SELECT * FROM agent_usage_log WHERE username = ? ORDER BY id DESC LIMIT 200`).bind(username).all()
+    : await c.env.DB.prepare(`SELECT * FROM agent_usage_log ORDER BY id DESC LIMIT 200`).all();
+  return c.json({ success: true, data: rows.results || [] });
 });
 
 /* Prompt-injection / abuse tripwire: client flags the session user; agent locked until an admin restores. */
+/* ── v232 — canary endpoint: deploy smoke + subsystem health + WAF stats (no secrets) ── */
+app.get('/api/canary', async (c) => {
+  const t0 = Date.now();
+  const checks: Record<string, { ok: boolean; ms: number }> = {};
+  try {
+    const a = Date.now();
+    await c.env.DB.prepare(`SELECT 1 AS ok`).first();
+    checks.d1 = { ok: true, ms: Date.now() - a };
+  } catch { checks.d1 = { ok: false, ms: Date.now() - t0 }; }
+  if (c.env.CACHE) {
+    try {
+      const a = Date.now();
+      await c.env.CACHE.get('canary-ping');
+      checks.kv = { ok: true, ms: Date.now() - a };
+    } catch { checks.kv = { ok: false, ms: Date.now() - t0 }; }
+  } else checks.kv = { ok: false, ms: 0 };
+  if (c.env.IMAGES) {
+    try {
+      const a = Date.now();
+      await c.env.IMAGES.head('__canary_ping__');
+      checks.r2 = { ok: true, ms: Date.now() - a };
+    } catch { checks.r2 = { ok: false, ms: Date.now() - t0 }; }
+  } else checks.r2 = { ok: false, ms: 0 };
+  const allOk = Object.values(checks).every((k) => k.ok);
+  return c.json({
+    success: allOk,
+    data: {
+      version: '1.4.5-beta',
+      environment: String((c.env as any).ENVIRONMENT || 'unknown'),
+      ts: new Date().toISOString(),
+      totalMs: Date.now() - t0,
+      checks,
+      waf: { blocked: WAF_STATS.blocked, lastAt: WAF_STATS.lastAt, lastSig: WAF_STATS.lastSig },
+      dbTarget: { bound: !!c.env.DB_TARGET, primary: c.env.DB_TARGET ? await dbPrimaryFlag(c.env) : 'source' },
+    },
+  }, allOk ? 200 : 503);
+});
+
+/* ── v232 — D1 → D1 migration tooling (owner only). Target binding optional. ── */
+const MIG_SKIP = /^(sqlite_|d1_|_cf_)/;
+async function migTables(db: D1Database): Promise<{ name: string; rows: number }[]> {
+  const list = (await db.prepare(`SELECT name, sql FROM sqlite_master WHERE type = 'table' ORDER BY name`).all()) as any;
+  const out: { name: string; rows: number }[] = [];
+  for (const r of list.results || []) {
+    const name = String(r.name || '');
+    if (!name || MIG_SKIP.test(name)) continue;
+    try {
+      const c = (await db.prepare(`SELECT COUNT(*) AS c FROM \`${name}\``).first()) as any;
+      out.push({ name, rows: Number(c?.c || 0) });
+    } catch { out.push({ name, rows: -1 }); }
+  }
+  return out;
+}
+app.get('/api/admin/db-migrate/status', async (c) => {
+  const gate = requireOwner(c);
+  if (!gate.ok) return gate.response;
+  const target = (c.env as any).DB_TARGET as D1Database | undefined;
+  return c.json({
+    success: true,
+    data: {
+      enabled: !!target,
+      primary: target ? await dbPrimaryFlag(c.env) : 'source',
+      source: await migTables(((c.env as any).DB_SOURCE || c.env.DB) as D1Database),
+      target: target ? await migTables(target) : [],
+    },
+  });
+});
+app.post('/api/admin/db-migrate/copy', async (c) => {
+  const gate = requireOwner(c);
+  if (!gate.ok) return gate.response;
+  const target = (c.env as any).DB_TARGET as D1Database | undefined;
+  if (!target) return c.json({ success: false, error: 'Binding D1 « DB_TARGET » absente — ajoutez-la (atlas-db) puis redéployez.', code: 'NO_TARGET' }, 400);
+  const body = await c.req.json().catch(() => ({}));
+  const only = Array.isArray(body.tables) ? body.tables.map((t: any) => String(t)).slice(0, 80) : null;
+  const cursorIn = body.cursor && typeof body.cursor === 'object' ? body.cursor : {};
+  const copied: Record<string, number> = {};
+  const cursor: Record<string, number> = { ...cursorIn };
+  const done: string[] = [];
+  let budget = 1500; // rows per call (Workers CPU-friendly)
+  const physSrc = ((c.env as any).DB_SOURCE || c.env.DB) as D1Database;
+  const tables = await migTables(physSrc);
+  for (const t of tables) {
+    if (only && !only.includes(t.name)) continue;
+    const name = t.name;
+    const ddl = (await physSrc.prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?`).bind(name).first()) as any;
+    if (!ddl?.sql) continue;
+    try { await target.prepare(String(ddl.sql)).run(); } catch { /* exists or incompatible → skip table */ }
+    const cols = (await physSrc.prepare(`PRAGMA table_info(\`${name}\`)`).all()) as any;
+    const colNames = (cols.results || []).map((r: any) => `\`${String(r.name)}\``).join(', ');
+    if (!colNames) { done.push(name); continue; }
+    let last = Number(cursor[name] || 0);
+    let guard = 0;
+    while (budget > 0 && guard < 40) {
+      guard += 1;
+      const batch = (await physSrc.prepare(`SELECT rowid AS __rid, * FROM \`${name}\` WHERE rowid > ? ORDER BY rowid LIMIT 200`).bind(last).all()) as any;
+      const rows = batch.results || [];
+      if (!rows.length) { done.push(name); delete cursor[name]; break; }
+      for (const row of rows) {
+        const { __rid, ...rest } = row as any;
+        const vals = Object.keys(rest).map((k) => (rest as any)[k]);
+        const places = Object.keys(rest).map(() => '?').join(', ');
+        const keys = Object.keys(rest).map((k) => `\`${k}\``).join(', ');
+        try { await target.prepare(`INSERT OR REPLACE INTO \`${name}\` (${keys}) VALUES (${places})`).bind(...vals).run(); } catch { /* row-level skip */ }
+        last = Number(__rid);
+        budget -= 1;
+      }
+      cursor[name] = last;
+      copied[name] = (copied[name] || 0) + rows.length;
+      if (rows.length < 200) { done.push(name); delete cursor[name]; break; }
+    }
+    if (budget <= 0) break;
+  }
+  return c.json({ success: true, data: { copied, cursor, done, remainingBudget: budget } });
+});
+app.post('/api/admin/db-migrate/cutover', async (c) => {
+  const gate = requireOwner(c);
+  if (!gate.ok) return gate.response;
+  const target = (c.env as any).DB_TARGET as D1Database | undefined;
+  if (!target) return c.json({ success: false, error: 'Binding D1 « DB_TARGET » absente.', code: 'NO_TARGET' }, 400);
+  const body = await c.req.json().catch(() => ({}));
+  const on = body.on === true || body.on === 'true';
+  const value = on ? 'target' : 'source';
+  const stamp = new Date().toISOString();
+  const physicalSource = ((c.env as any).DB_SOURCE || c.env.DB) as D1Database;
+  for (const db of [physicalSource, target]) {
+    try {
+      await db.prepare(`INSERT INTO app_config (key, value, updated_at) VALUES ('db_primary', ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`).bind(value, stamp).run();
+    } catch { /* best effort per side */ }
+  }
+  dbPrimaryCache = { value, at: Date.now() };
+  return c.json({ success: true, data: { primary: value } });
+});
+
 app.post('/api/agent/flag', async (c) => {
   const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, clientIp(c), c.req.header('X-Device-Fingerprint') || '');
   if (reason !== 'ok') return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
@@ -14805,6 +15037,29 @@ function agentConvKey(username: string, threadId: string): string {
   return `agent-chats/v2/${u}/${t}.conv`;
 }
 
+/* v233 — token-cheap conversation memory: last turns, heavily truncated, from the encrypted R2 transcript */
+async function loadCompactHistory(env: Env, username: string, thread: string, maxTurns = 6): Promise<string> {
+  if (!env.IMAGES) return '';
+  try {
+    const obj = await env.IMAGES.get(agentConvKey(username, thread));
+    if (!obj) return '';
+    const buf = await obj.arrayBuffer();
+    const plain = await decryptAgentConv(env, buf);
+    if (!plain || plain.trimStart().startsWith('{')) return '';
+    const lines = plain.split('\n').filter((l) => l.startsWith('U|') || l.startsWith('A|'));
+    if (!lines.length) return '';
+    return lines
+      .slice(-maxTurns * 2)
+      .map((l) => {
+        const parts = l.split('|');
+        const who = parts[0] === 'U' ? 'U' : 'A';
+        const txt = String(parts.slice(2).join('|')).trim();
+        return `${who}: ${txt.slice(0, who === 'U' ? 160 : 200)}`;
+      })
+      .join('\n');
+  } catch { return ''; }
+}
+
 async function putAgentChatTurn(
   env: Env,
   row: {
@@ -14945,6 +15200,10 @@ app.post('/api/assist/chat', async (c) => {
   let body: any = {};
   try { body = await c.req.json(); } catch { body = {}; }
   const message = String(body.message || body.prompt || '').trim().slice(0, 2500);
+  // v232 — attached images travel to the vision model as data-URL parts
+  const images = Array.isArray(body.images)
+    ? body.images.filter((x: any) => typeof x === 'string' && x.startsWith('data:image/')).slice(0, 4).map((x: string) => x.slice(0, 4_000_000))
+    : [];
   if (!message) return c.json({ success: false, error: 'Message vide.' }, 400);
   // Raw user text (without page template) — used for local shortcuts only
   const userMessage = String(body.user_message || body.userMessage || '').trim().slice(0, 2500) || message;
@@ -14978,14 +15237,25 @@ app.post('/api/assist/chat', async (c) => {
 
   try {
     const system = atlasAgentSystem({ role, username, timezone: tz, source: sourceRefined });
+    // v233 — compact memory: the agent reads its recent conversation without replaying full turns
+    const history = await loadCompactHistory(c.env, username, threadId, 6);
+    const finalMessage = history
+      ? `Historique récent de la conversation (contexte uniquement — ne pas recopier):\n${history}\n\n${message}`
+      : message;
     const outGq = await groqChat({
       apiKey: groqKey,
-      model,
+      model: images.length && model === 'openai/gpt-oss-20b' ? '' : model,
       system,
-      message,
-      maxTokens: 1200,
+      message: finalMessage,
+      maxTokens: images.length ? 1200 : isGreeting ? 300 : 700,
+      images,
     });
     const replyGq = scrubVendorNames(String(outGq.reply || '').trim());
+    // v233 — charge REAL tokens (prompt+completion) server-side instead of client guesses
+    const usedTokens = Math.max(0, Number(outGq.usage?.prompt || 0) + Number(outGq.usage?.completion || 0));
+    if (usedTokens > 0 && role !== 'owner' && role !== 'admin') {
+      try { await agentQuotaAdd(c.env, c.env.DB, username, usedTokens); } catch { /* quota best-effort */ }
+    }
     await auditAssist(c.env, { username, role, message, tools: 'groq', ok: true });
     await putAgentChatTurn(c.env, {
       username, role, message, reply: replyGq, tools: 'groq', model: outGq.model, thread_id: threadId,
@@ -14999,6 +15269,8 @@ app.post('/api/assist/chat', async (c) => {
         reply: replyGq,
         model: outGq.model,
         provider: 'groq',
+        usage: outGq.usage || null,
+        history_turns: history ? history.split('\n').length : 0,
         tool_trace: [],
         proposals: [],
         task,

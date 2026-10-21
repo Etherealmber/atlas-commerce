@@ -4099,3 +4099,132 @@ html:not([data-theme="dark"]) body .ac-topbar-icon.ac-topbar-theme:hover {
   color: #18181b !important;
 }
 /* v229 END */
+
+/* v231 — quota reset captions */
+html body .ac-quota-reset {
+  font-size: 11px;
+  color: var(--muted, #71717a);
+}
+html[data-theme="dark"] body .ac-quota-reset { color: #a1a1aa; }
+/* v231 END */
+
+/* v232 — visibility & theming fixes: perm segments, chip actions, modal X, centering, notes, msg images, migration card */
+html body .agent-perm-mode {
+  background: #ffffff !important;
+  border-color: #e4e4e7 !important;
+  color: #27272a !important;
+  -webkit-text-fill-color: #27272a !important;
+}
+html body .agent-perm-mode strong { color: #18181b !important; -webkit-text-fill-color: #18181b !important; }
+html body .agent-perm-mode span { color: #71717a !important; -webkit-text-fill-color: #71717a !important; }
+html body .agent-perm-mode.active {
+  background: #27272a !important;
+  border-color: #27272a !important;
+  box-shadow: inset 3px 0 0 #a1a1aa !important;
+}
+html body .agent-perm-mode.active strong { color: #fafafa !important; -webkit-text-fill-color: #fafafa !important; }
+html body .agent-perm-mode.active span { color: #d4d4d8 !important; -webkit-text-fill-color: #d4d4d8 !important; }
+html body .agent-perm-mode.active::after { color: #fafafa !important; }
+html[data-theme="dark"] body .agent-perm-mode {
+  background: #27272a !important;
+  border-color: #3f3f46 !important;
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+}
+html[data-theme="dark"] body .agent-perm-mode strong { color: #f4f4f5 !important; -webkit-text-fill-color: #f4f4f5 !important; }
+html[data-theme="dark"] body .agent-perm-mode span { color: #a1a1aa !important; -webkit-text-fill-color: #a1a1aa !important; }
+html[data-theme="dark"] body .agent-perm-mode.active {
+  background: #3f3f46 !important;
+  border-color: #52525b !important;
+  box-shadow: inset 3px 0 0 #d4d4d8 !important;
+}
+html[data-theme="dark"] body .agent-perm-mode.active strong { color: #fafafa !important; -webkit-text-fill-color: #fafafa !important; }
+html[data-theme="dark"] body .agent-perm-mode.active span { color: #e4e4e7 !important; -webkit-text-fill-color: #e4e4e7 !important; }
+html[data-theme="dark"] body .agent-perm-mode.active::after { color: #fafafa !important; }
+
+/* attachment chip action buttons: visible icons in both themes */
+html body .prompt-bar__chip-edit,
+html body .prompt-bar__chip-x {
+  background: transparent !important;
+  color: #3f3f46 !important;
+  opacity: 0.9 !important;
+}
+html body .prompt-bar__chip-edit svg,
+html body .prompt-bar__chip-x svg { display: block; }
+html[data-theme="dark"] body .prompt-bar__chip-edit,
+html[data-theme="dark"] body .prompt-bar__chip-x { color: #d4d4d8 !important; }
+
+/* modal close (X): always visible, both themes */
+html body .modal { position: relative; }
+html body .modal-x,
+html body .modal-close {
+  position: absolute !important;
+  top: 12px !important;
+  right: 12px !important;
+  width: 30px !important;
+  height: 30px !important;
+  display: grid !important;
+  place-items: center !important;
+  border-radius: 9px !important;
+  border: 1px solid #e4e4e7 !important;
+  background: transparent !important;
+  color: #52525b !important;
+  -webkit-text-fill-color: #52525b !important;
+  cursor: pointer !important;
+  z-index: 2 !important;
+}
+html body .modal-x:hover,
+html body .modal-close:hover { background: rgba(63, 63, 70, 0.10) !important; color: #18181b !important; }
+html[data-theme="dark"] body .modal-x,
+html[data-theme="dark"] body .modal-close {
+  border-color: #3f3f46 !important;
+  color: #a1a1aa !important;
+  -webkit-text-fill-color: #a1a1aa !important;
+  background: transparent !important;
+}
+html[data-theme="dark"] body .modal-x:hover,
+html[data-theme="dark"] body .modal-close:hover { background: rgba(244, 244, 245, 0.08) !important; color: #f4f4f5 !important; }
+html body .modal > h2, html body .modal > h3 { padding-right: 38px; }
+
+/* modals always centered */
+html body .modal-overlay {
+  align-items: center !important;
+  justify-content: center !important;
+}
+html body .modal-overlay > .modal,
+html body .modal-overlay > .modal-card { margin: auto !important; }
+
+/* OTP / info notes: zinc palette in light, zinc in dark */
+html:not([data-theme="dark"]) body .modal-note {
+  background: #f4f4f5 !important;
+  border: 1px solid #e4e4e7 !important;
+  color: #52525b !important;
+  -webkit-text-fill-color: #52525b !important;
+}
+html:not([data-theme="dark"]) body .modal-note code { color: #27272a !important; }
+html[data-theme="dark"] body .modal-note,
+html[data-theme="dark"] body .modal-note--warn {
+  background: rgba(244, 244, 245, 0.06) !important;
+  border-color: #3f3f46 !important;
+  color: #a1a1aa !important;
+  -webkit-text-fill-color: #a1a1aa !important;
+}
+
+/* attached images inside user bubbles */
+html body .atlas-agent-msg-imgs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+html body .atlas-agent-msg-imgs img {
+  width: 76px; height: 76px; object-fit: cover; border-radius: 10px;
+  border: 1px solid #d4d4d8; cursor: zoom-in; background: #fafafa;
+}
+html[data-theme="dark"] body .atlas-agent-msg-imgs img { border-color: #3f3f46; background: #18181b; }
+
+/* migration card */
+html body .db-mig-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 12px 0; }
+html body .db-mig-grid > div { display: flex; flex-direction: column; gap: 2px; }
+html body .db-mig-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+html body .db-mig-progress { color: #15803d; font-size: 13px; margin: 10px 0 0; }
+html body .db-mig-error { color: #b91c1c; font-size: 13px; margin: 10px 0 0; }
+html[data-theme="dark"] body .db-mig-progress { color: #4ade80; }
+html[data-theme="dark"] body .db-mig-error { color: #f87171; }
+@media (max-width: 720px) { html body .db-mig-grid { grid-template-columns: 1fr; } }
+/* v232 END */
