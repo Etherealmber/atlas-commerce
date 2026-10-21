@@ -23,7 +23,7 @@
     "smoke:partner": "node scripts/smoke-partner-v1.mjs"
   },
   "dependencies": {
-    "@capacitor/android": "^7.4.2",
+    "@capacitor/android": "^7.6.9",
     "@capacitor/core": "^7.4.2",
     "@hugeicons/core-free-icons": "^1.0.0",
     "@hugeicons/react": "^1.0.0",
