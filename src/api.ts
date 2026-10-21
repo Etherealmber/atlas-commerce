@@ -392,6 +392,12 @@ export const api = {
         task: opts?.task || 'general',
         timezone: opts?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Africa/Casablanca',
         thread_id: opts?.thread_id || 'live',
+        // v234 — images were never sent before: the model could not see them
+        images: Array.isArray(opts?.images) ? opts!.images.slice(0, 4) : undefined,
+        page_path: opts?.page_path,
+        page_title: opts?.page_title,
+        exec_mode: opts?.exec_mode,
+        agent_perm_mode: opts?.agent_perm_mode,
       }),
     }),
   assistNextActions: () =>

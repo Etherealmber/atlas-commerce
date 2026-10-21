@@ -15202,7 +15202,7 @@ app.post('/api/assist/chat', async (c) => {
   const message = String(body.message || body.prompt || '').trim().slice(0, 2500);
   // v232 — attached images travel to the vision model as data-URL parts
   const images = Array.isArray(body.images)
-    ? body.images.filter((x: any) => typeof x === 'string' && x.startsWith('data:image/')).slice(0, 4).map((x: string) => x.slice(0, 4_000_000))
+    ? body.images.filter((x: any) => typeof x === 'string' && x.startsWith('data:image/')).slice(0, 4).map((x: string) => x.slice(0, 3_500_000))
     : [];
   if (!message) return c.json({ success: false, error: 'Message vide.' }, 400);
   // Raw user text (without page template) — used for local shortcuts only
@@ -15244,7 +15244,7 @@ app.post('/api/assist/chat', async (c) => {
       : message;
     const outGq = await groqChat({
       apiKey: groqKey,
-      model: images.length && model === 'openai/gpt-oss-20b' ? '' : model,
+      model: images.length ? '' : model,
       system,
       message: finalMessage,
       maxTokens: images.length ? 1200 : isGreeting ? 300 : 700,
