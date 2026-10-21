@@ -174,8 +174,85 @@ export async function ensureProductSearchIndex(db: D1Database): Promise<boolean>
   } catch (e) {
     console.warn('[search-index] FTS unavailable, LIKE fallback', e);
     ftsReady = false;
+    if (/SQLITE_CORRUPT|database disk image is malformed/i.test(String((e as any)?.message || e))) {
+      void repairProductSearchIndex(db);
+    }
     return false;
   }
+}
+
+/** FTS5 integrity probe — true when the virtual-table shadow pages are sound. */
+export async function checkProductSearchIndex(db: D1Database): Promise<boolean> {
+  try {
+    await db.prepare(`INSERT INTO products_fts(products_fts, rank) VALUES('integrity-check', 1)`).run();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+let repairInFlight: Promise<'rebuilt' | 'recreated' | 'failed'> | null = null;
+let lastRepairAt = 0;
+let lastFtsProbeAt = 0;
+
+/**
+ * Throttled background integrity probe (≤1/5 min per isolate): catches FTS
+ * corruption even when no write has hit it yet, and repairs automatically —
+ * the app heals itself with zero CLI / zero dashboard action.
+ */
+export async function proactiveFtsHealth(db: D1Database): Promise<void> {
+  const now = Date.now();
+  if (now - lastFtsProbeAt < 5 * 60_000) return;
+  lastFtsProbeAt = now;
+  try {
+    const ok = await checkProductSearchIndex(db);
+    if (!ok) {
+      console.warn('[search-index] integrity-check failed → automatic repair');
+      await repairProductSearchIndex(db, { force: true });
+    }
+  } catch { /* best-effort */ }
+}
+
+/**
+ * Self-heal a corrupted products_fts (SQLITE_CORRUPT_VTAB).
+ *
+ * The FTS index is DERIVED data (content='products'): rebuilding it — or, when
+ * the shadow pages are too damaged, dropping triggers + table and letting
+ * ensureProductSearchIndex recreate and reseed it — loses no business data.
+ * Cooldown + in-flight guard keep a corruption burst from looping repairs.
+ */
+export function repairProductSearchIndex(
+  db: D1Database,
+  opts?: { force?: boolean },
+): Promise<'rebuilt' | 'recreated' | 'failed'> {
+  if (repairInFlight) return repairInFlight;
+  if (!opts?.force && Date.now() - lastRepairAt < 60_000) return Promise.resolve('failed');
+  repairInFlight = (async () => {
+    lastRepairAt = Date.now();
+    try {
+      try {
+        await db.prepare(`INSERT INTO products_fts(products_fts) VALUES('rebuild')`).run();
+        console.log('[search-index] products_fts rebuilt from products');
+        return 'rebuilt' as const;
+      } catch (e) {
+        console.error('[search-index] rebuild failed, recreating table', String((e as any)?.message || e).slice(0, 300));
+      }
+      for (const t of ['products_fts_ai', 'products_fts_ad', 'products_fts_au']) {
+        try { await db.prepare(`DROP TRIGGER IF EXISTS ${t}`).run(); } catch { /* */ }
+      }
+      try { await db.prepare(`DROP TABLE IF EXISTS products_fts`).run(); } catch { /* */ }
+      ftsReady = null;
+      const ok = await ensureProductSearchIndex(db);
+      console.log('[search-index] products_fts recreated:', ok);
+      return ok ? ('recreated' as const) : ('failed' as const);
+    } catch (e) {
+      console.error('[search-index] repair failed', String((e as any)?.message || e).slice(0, 300));
+      return 'failed' as const;
+    } finally {
+      repairInFlight = null;
+    }
+  })();
+  return repairInFlight;
 }
 
 /** Stronger product search: FTS5 MATCH when available, else multi-column LIKE. */
