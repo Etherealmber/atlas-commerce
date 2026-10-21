@@ -26,6 +26,19 @@ import { FloatingPortal } from '../components/FloatingPortal';
 import { useWizard, StepBody, WizardFoot } from '../components/ui/FormWizard';
 import { ModalFormError, FieldHint } from '../components/ModalFormFeedback';
 
+function stagedFileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (file.size > 4_000_000) {
+      reject(new Error('Image trop lourde (max 4 Mo)'));
+      return;
+    }
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result || ''));
+    r.onerror = () => reject(new Error('Lecture fichier impossible'));
+    r.readAsDataURL(file);
+  });
+}
+
 export default function Products() {
   const navigate = useNavigate();
   const [modalError, setModalError] = useState('');
@@ -46,6 +59,10 @@ export default function Products() {
   const [stockFilter, setStockFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [saving, setSaving] = useState(false);
+  const [stagedPhotos, setStagedPhotos] = useState<{ file: File; url: string }[]>([]);
+  const [stagedDragOver, setStagedDragOver] = useState(false);
+  const [stagedErr, setStagedErr] = useState('');
+  const stagedInputRef = useRef<HTMLInputElement | null>(null);
   const [saveMsg, setSaveMsg] = useState('');
   const [saveMsgType, setSaveMsgType] = useState<'success' | 'error'>('success');
   const [adjustProduct, setAdjustProduct] = useState<any>(null);
@@ -332,7 +349,20 @@ export default function Products() {
         await api.updateProduct(editing.id, body);
         flash('Produit mis à jour.');
       } else {
-        await api.createProduct(body);
+        const res: any = await api.createProduct(body);
+        const newId = Number(res?.data?.id ?? res?.id ?? 0);
+        if (newId && stagedPhotos.length) {
+          for (let i = 0; i < stagedPhotos.length; i++) {
+            try {
+              await api.addProductImage(newId, {
+                data_url: await stagedFileToDataUrl(stagedPhotos[i].file),
+                is_primary: i === 0,
+                alt_text: stagedPhotos[i].file.name,
+              });
+            } catch { /* produit créé : photos ajoutables en modification */ }
+          }
+        }
+        clearStagedPhotos();
         flash('Produit créé.');
       }
       setShow(false); setForm(emptyForm); setEditing(null); wz.reset();
@@ -358,6 +388,29 @@ export default function Products() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const addStagedPhotos = (files: FileList | null) => {
+    if (!files?.length) return;
+    const imgs = Array.from(files).filter((f) => /^image\//.test(f.type));
+    if (!imgs.length) { setStagedErr('Déposez des fichiers image (JPEG, PNG ou WebP).'); return; }
+    setStagedErr('');
+    setStagedPhotos((prev) => [...prev, ...imgs.map((file) => ({ file, url: URL.createObjectURL(file) }))]);
+  };
+  const removeStagedPhoto = (i: number) => {
+    setStagedPhotos((prev) => {
+      const next = prev.slice();
+      const [gone] = next.splice(i, 1);
+      if (gone) { try { URL.revokeObjectURL(gone.url); } catch { /* */ } }
+      return next;
+    });
+  };
+  const clearStagedPhotos = () => {
+    setStagedPhotos((prev) => {
+      for (const st of prev) { try { URL.revokeObjectURL(st.url); } catch { /* */ } }
+      return [];
+    });
+    setStagedErr('');
   };
 
   const openDelete = (ids?: number[]) => {
@@ -1087,9 +1140,67 @@ export default function Products() {
                 </button>
               </div>
             ) : (
-              <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 12 }}>
-                Enregistrez le produit pour ajouter, recadrer et tourner des photos.
-              </p>
+              <div
+                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; setStagedDragOver(true); }}
+                onDragLeave={(e) => { if (e.currentTarget === e.target) setStagedDragOver(false); }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setStagedDragOver(false);
+                  addStagedPhotos(e.dataTransfer.files);
+                }}
+                style={{
+                  marginTop: 16,
+                  paddingTop: 12,
+                  borderTop: '1px solid var(--line, #e0d9cc)',
+                  borderRadius: 10,
+                  outline: stagedDragOver ? '2px dashed var(--pie-ring, #e8a317)' : 'none',
+                  outlineOffset: 4,
+                  background: stagedDragOver ? 'rgba(232, 163, 23, 0.05)' : 'transparent',
+                  transition: 'background 0.15s ease, outline-color 0.15s ease',
+                }}
+              >
+                <h3 style={{ fontSize: 13, margin: '0 0 6px' }}>Photos produit</h3>
+                <p style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>
+                  Glissez vos images ici ou cliquez pour parcourir — la première devient la photo principale.
+                </p>
+                {stagedErr && <p style={{ color: 'var(--bad)', fontSize: 12, marginBottom: 8 }}>{stagedErr}</p>}
+                {stagedPhotos.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 10 }}>
+                    {stagedPhotos.map((st, i) => (
+                      <div
+                        key={st.url}
+                        style={{
+                          width: 92,
+                          borderRadius: 10,
+                          overflow: 'hidden',
+                          border: i === 0 ? '2px solid var(--pie-ring, #e8a317)' : '1px solid var(--pie-thumb-border, #d4d4d8)',
+                          background: 'var(--pie-thumb-bg, #faf9f6)',
+                        }}
+                      >
+                        <img src={st.url} alt="" style={{ width: '100%', height: 72, objectFit: 'cover', display: 'block' }} />
+                        <div style={{ display: 'flex', fontSize: 10 }}>
+                          <span style={{ flex: 1, textAlign: 'center', padding: '3px 0', color: 'var(--muted)' }}>{i === 0 ? '★ Principale' : `Photo ${i + 1}`}</span>
+                          <button type="button" className="danger" style={{ padding: '3px 6px', fontSize: 10 }} onClick={() => removeStagedPhoto(i)}>×</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <input
+                  ref={stagedInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  hidden
+                  onChange={(e) => { addStagedPhotos(e.target.files); e.target.value = ''; }}
+                />
+                <button type="button" className="secondary" onClick={() => stagedInputRef.current?.click()}>
+                  + Ajouter des photos
+                </button>
+                <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8, marginBottom: 0 }}>
+                  Les photos choisies sont envoyées automatiquement juste après la création ; recadrage et rotation restent disponibles en modification.
+                </p>
+              </div>
             )}
               </StepBody>
             {editing?.id && (
@@ -1102,7 +1213,7 @@ export default function Products() {
               title={editing ? 'Modifier le produit' : 'Nouveau produit'}
               wz={wz}
               stepLabel={wz.step === 1 ? 'Identité' : wz.step === 2 ? 'Classement' : wz.step === 3 ? 'Prix & stock' : wz.step === 4 ? 'Remises volume' : wz.step === 5 ? (editing ? 'Variantes' : 'Photos') : 'Photos'}
-              onCancel={() => { setShow(false); setForm(emptyForm); setEditing(null); setModalError(''); wz.reset(); }}
+              onCancel={() => { setShow(false); setForm(emptyForm); setEditing(null); setModalError(''); clearStagedPhotos(); wz.reset(); }}
               onSubmit={() => void save()}
               submitLabel={saving ? 'Enregistrement…' : 'Enregistrer'}
               saving={saving}

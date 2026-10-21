@@ -21,9 +21,24 @@ type Props = {
  */
 export const AvatarImage: FC<Props> = ({ className, width, height, loading, fallback }) => {
   const ref = useRef<HTMLImageElement | null>(null);
-  const url = sanitizeAvatarUrl(getAvatarUrl());
+  const [url, setUrl] = useState<string>(() => sanitizeAvatarUrl(getAvatarUrl()));
   const [objectUrl, setObjectUrl] = useState<string | null>(() => (url ? peekAvatarObjectUrl(url) : null));
   const [failed, setFailed] = useState(false);
+
+  // React to the profile cache landing after a refresh (or an avatar change):
+  // re-read the url so the image appears without any user interaction.
+  useEffect(() => {
+    const sync = () => {
+      setFailed(false);
+      setUrl(sanitizeAvatarUrl(getAvatarUrl()));
+    };
+    window.addEventListener('atlas-profile-changed', sync);
+    window.addEventListener('atlas-avatar-changed', sync);
+    return () => {
+      window.removeEventListener('atlas-profile-changed', sync);
+      window.removeEventListener('atlas-avatar-changed', sync);
+    };
+  }, []);
 
   useEffect(() => {
     setFailed(false);

@@ -210,6 +210,15 @@ function AccountMenu({
   const [d, setD] = useState<Density>(() => getDensity());
   const [scale, setScale] = useState<UiScale>(() => getUiScale());
   const [profileTick, setProfileTick] = useState(0);
+  useEffect(() => {
+    const sync = () => setProfileTick((t) => t + 1);
+    window.addEventListener('atlas-profile-changed', sync);
+    window.addEventListener('atlas-avatar-changed', sync);
+    return () => {
+      window.removeEventListener('atlas-profile-changed', sync);
+      window.removeEventListener('atlas-avatar-changed', sync);
+    };
+  }, []);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [panelStyle, setPanelStyle] = useState<React.CSSProperties>({});
   useEffect(() => { applyDensityFromStorage(); }, []);
