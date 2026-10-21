@@ -395,14 +395,14 @@ export default function Products() {
   };
 
   const doAdjust = async () => {
-    if (!adjustProduct || adjustQty <= 0) { flash('Saisissez une quantité valide.', 'error'); return; }
+    if (!adjustProduct || adjustQty <= 0) { setModalError('Saisissez une quantité valide.'); return; }
     setSaving(true);
     try {
       await api.adjustStock(adjustProduct.id, { quantity: adjustQty, type: adjustType, reason: adjustReason });
       flash('Stock ajusté et enregistré dans la base de données.');
       setAdjustProduct(null); setAdjustQty(1); setAdjustReason('');
       load(true);
-    } catch (e: any) { flash(e.message, 'error'); } finally { setSaving(false); }
+    } catch (e: any) { setModalError(e?.message || 'Ajustement impossible — réessayez.'); } finally { setSaving(false); }
   };
 
   const loadMovements = async (id: number) => {
@@ -751,7 +751,7 @@ export default function Products() {
                     <td>{p.is_active === 0 ? <span className="badge danger">Inactif</span> : <span className="badge success">Actif</span>}</td>
                     <td className="row-actions-cell">
                       <div className="row-actions row-actions--inline">
-                      {p.track_inventory && <button type="button" className="secondary" onClick={() => setAdjustProduct(p)}>Ajuster</button>}
+                      {p.track_inventory && <button type="button" className="secondary" onClick={() => { setModalError(''); setAdjustProduct(p); }}>Ajuster</button>}
                       <button type="button" className="secondary" onClick={() => loadMovements(p.id)}>Historique</button>
                       <button type="button" className="secondary" onClick={() => openEdit(p)}>Modifier</button>
                       <button
@@ -1106,7 +1106,7 @@ export default function Products() {
       )}
 
       {adjustProduct && (
-        <FloatingPortal><div className="modal-overlay" onClick={() => setAdjustProduct(null)}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => { setModalError(''); setAdjustProduct(null); }}>
           <div className="modal" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
             <h2>Ajuster le stock — {adjustProduct.name}</h2>
             <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>Stock actuel : <strong>{adjustProduct.stock_quantity}</strong></p>
@@ -1123,7 +1123,7 @@ export default function Products() {
             <ModalFormError message={modalError} />
             <div className="form-actions">
               <button onClick={doAdjust} disabled={saving}>{saving ? 'Enregistrement...' : 'Ajuster le stock'}</button>
-              <button className="secondary" onClick={() => setAdjustProduct(null)}>Annuler</button>
+              <button className="secondary" onClick={() => { setModalError(''); setAdjustProduct(null); }}>Annuler</button>
             </div>
           </div>
         </div></FloatingPortal>

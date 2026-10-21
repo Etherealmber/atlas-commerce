@@ -4,6 +4,7 @@ import { api } from '../api';
 import { useUi } from '../components/AppDialogs';
 import { ImageWorkbench } from '../components/ProductImageEditor';
 import RefreshIconButton from '../components/RefreshIconButton';
+import { ModalFormError } from '../components/ModalFormFeedback';
 
 type Action = {
   id: number;
@@ -120,6 +121,7 @@ export default function Actions() {
       image_data_url: String(body.image_data_url || body.data_url || meta.image_data_url || ''),
       image_url: String(body.image_url || meta.image_url || ''),
     });
+    setErr('');
     setApprove(full);
   };
 
@@ -188,10 +190,10 @@ export default function Actions() {
           load(true);
           return;
         } catch (e2: any) {
-          toast(e2.message || e.message || 'Erreur création', 'error');
+          setErr(e2.message || e.message || 'Erreur création');
         }
       } else {
-        toast(e.message || 'Erreur création', 'error');
+        setErr(e.message || 'Erreur création');
       }
     } finally {
       setBusy(false);
@@ -268,6 +270,7 @@ export default function Actions() {
     setStockQty(
       meta.proposed_stock != null ? String(meta.proposed_stock) : meta.stock != null ? String(meta.stock) : '0'
     );
+    setErr('');
     setStockApprove(a);
   };
 
@@ -301,7 +304,7 @@ export default function Actions() {
       setStockApprove(null);
       load(true);
     } catch (e: any) {
-      toast(e.message || 'Erreur ajustement stock', 'error');
+      setErr(e.message || 'Erreur ajustement stock');
     } finally {
       setBusy(false);
     }
@@ -493,7 +496,7 @@ export default function Actions() {
       </div>
 
       {approve && (
-        <div className="modal-overlay" onClick={() => !busy && setApprove(null)}>
+        <div className="modal-overlay" onClick={() => { if (busy) return; setErr(''); setApprove(null); }}>
           <div className="modal-card" style={{ maxWidth: 560 }} onClick={(e) => e.stopPropagation()}>
             <h3>Approuver la création produit</h3>
             <p>Même formulaire que Produits. Le produit est ajouté au catalogue, puis la demande est clôturée.</p>
@@ -543,8 +546,9 @@ export default function Actions() {
                 />
               </div>
             )}
+            {err ? <ModalFormError message={err} /> : null}
             <div className="modal-actions">
-              <button type="button" className="secondary" disabled={busy} onClick={() => setApprove(null)}>
+              <button type="button" className="secondary" disabled={busy} onClick={() => { setErr(''); setApprove(null); }}>
                 Annuler
               </button>
               <button type="button" disabled={busy} onClick={submitApprove}>
@@ -556,7 +560,7 @@ export default function Actions() {
       )}
 
       {stockApprove && (
-        <div className="modal-overlay" onClick={() => !busy && setStockApprove(null)}>
+        <div className="modal-overlay" onClick={() => { if (busy) return; setErr(''); setStockApprove(null); }}>
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
             <h3>
               {parseMeta(stockApprove).cycle_batch
@@ -583,8 +587,9 @@ export default function Actions() {
                 />
               </div>
             )}
+            {err ? <ModalFormError message={err} /> : null}
             <div className="modal-actions">
-              <button type="button" className="secondary" disabled={busy} onClick={() => setStockApprove(null)}>
+              <button type="button" className="secondary" disabled={busy} onClick={() => { setErr(''); setStockApprove(null); }}>
                 Annuler
               </button>
               <button type="button" disabled={busy} onClick={submitStockApprove}>

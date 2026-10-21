@@ -294,7 +294,7 @@ Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depui
 
 ### 0.4.10-beta
 - Erreur « Erreur interne — réessayez plus tard » sur la sauvegarde d'un produit corrigée (migration optionnelle de colonne rendue non bloquante)
-- Erreurs de sauvegarde affichées dans la zone prévue de la fenêtre (bannière au-dessus des boutons), plus de toast masqué
+- Erreurs de sauvegarde affichées dans la zone prévue de la fenêtre (bannière au-dessus des boutons) sur tous les formulaires popup, plus de toast masqué
 - Notifications flottantes déplacées en haut de l'écran, cause réelle des erreurs tracée dans les logs serveur
 
 ### 0.4.9-beta

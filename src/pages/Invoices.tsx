@@ -289,6 +289,7 @@ export default function Invoices() {
       flash('Cette facture est déjà soldée.', 'error');
       return;
     }
+    setModalError('');
     setPayTarget(target);
     setPayAmount(rest);
     setPayMethod('cash');
@@ -304,6 +305,7 @@ export default function Invoices() {
       flash('Cette facture est déjà soldée.', 'error');
       return;
     }
+    setModalError('');
     setPayTarget(inv);
     setPayAmount(Math.min(rest, rest)); // default remaining, user can lower it
     setPayMethod('cash');
@@ -343,7 +345,7 @@ export default function Invoices() {
       setPayTarget(null);
       load(true);
     } catch (e: any) {
-      flash(e.message, 'error');
+      setModalError(e?.message || 'Paiement impossible — réessayez.');
     } finally {
       setSaving(false);
     }
@@ -1140,7 +1142,7 @@ export default function Invoices() {
       )}
 
       {payTarget && (
-        <FloatingPortal><div className="modal-overlay" onClick={() => !saving && setPayTarget(null)}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => { if (saving) return; setModalError(''); setPayTarget(null); }}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
             <h2 style={{ marginTop: 0 }}>
               {payMode === 'full' ? 'Tout payer — choisir le mode' : 'Enregistrer un paiement'}
@@ -1221,11 +1223,12 @@ export default function Invoices() {
               />
             </div>
 
+            <ModalFormError message={modalError} />
             <div className="form-actions">
               <button onClick={submitPay} disabled={saving}>
                 {saving ? '…' : payMode === 'full' ? 'Valider le règlement intégral' : 'Enregistrer ce paiement'}
               </button>
-              <button className="secondary" onClick={() => setPayTarget(null)} disabled={saving}>Annuler</button>
+              <button className="secondary" onClick={() => { setModalError(''); setPayTarget(null); }} disabled={saving}>Annuler</button>
             </div>
           </div>
         </div></FloatingPortal>

@@ -193,6 +193,7 @@ export default function Bills() {
       flash('Cette facture d\'achat est déjà soldée.', 'error');
       return;
     }
+    setModalError('');
     setPayTarget(b);
     setPayAmount(rest);
     setPayMethod('cash');
@@ -233,7 +234,7 @@ export default function Bills() {
       setPayTarget(null);
       load(true);
     } catch (e: any) {
-      flash(e.message, 'error');
+      setModalError(e?.message || 'Paiement impossible — réessayez.');
     } finally {
       setSaving(false);
     }
@@ -249,6 +250,7 @@ export default function Bills() {
         received: Number(l.received || 0),
         add: Math.max(0, Number(l.ordered || 0) - Number(l.received || 0)),
       }));
+      setModalError('');
       setReceiveBill(b);
       setReceiveLines(lines);
     } catch (e: any) {
@@ -259,6 +261,7 @@ export default function Bills() {
   const submitReceive = async () => {
     if (!receiveBill) return;
     setReceiveBusy(true);
+    setModalError('');
     try {
       const payload = {
         items: receiveLines
@@ -266,7 +269,7 @@ export default function Bills() {
           .map((l) => ({ bill_item_id: l.id, qty_received: l.add })),
       };
       if (!payload.items.length) {
-        toast('Aucune quantité à recevoir', 'error');
+        setModalError('Aucune quantité à recevoir.');
         return;
       }
       const r: any = await api.receiveBill(receiveBill.id, payload);
@@ -274,7 +277,7 @@ export default function Bills() {
       setReceiveBill(null);
       load(true);
     } catch (e: any) {
-      toast(friendlyError(e, e.message), 'error');
+      setModalError(friendlyError(e, e.message) || 'Réception impossible — réessayez.');
     } finally {
       setReceiveBusy(false);
     }
@@ -417,6 +420,7 @@ export default function Bills() {
                           className="success"
                           style={{ padding: '4px 10px', fontSize: 12 }}
                           onClick={async () => {
+                            setModalError('');
                             setPayTarget(b);
                             setPayAmount(remainingOf(b));
                             setPayMethod('cash');
@@ -635,7 +639,7 @@ export default function Bills() {
       )}
 
       {payTarget && (
-        <FloatingPortal><div className="modal-overlay" onClick={() => setPayTarget(null)}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => { setModalError(''); setPayTarget(null); }}>
           <div className="modal" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
             <h2 style={{ marginTop: 0 }}>
               {payMode === 'full' ? 'Règlement intégral' : 'Paiement partiel'} — {payTarget.number}
@@ -761,14 +765,14 @@ export default function Bills() {
               <button type="button" onClick={submitPay} disabled={saving}>
                 {saving ? '…' : payMode === 'full' ? 'Valider le règlement intégral' : 'Enregistrer ce paiement'}
               </button>
-              <button type="button" className="secondary" onClick={() => setPayTarget(null)} disabled={saving}>Annuler</button>
+              <button type="button" className="secondary" onClick={() => { setModalError(''); setPayTarget(null); }} disabled={saving}>Annuler</button>
             </div>
           </div>
         </div></FloatingPortal>
       )}
 
       {receiveBill && (
-        <FloatingPortal><div className="modal-overlay" onClick={() => setReceiveBill(null)}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => { setModalError(''); setReceiveBill(null); }}>
           <div className="modal" style={{ maxWidth: 640 }} onClick={(e) => e.stopPropagation()}>
             <h2 style={{ marginTop: 0 }}>Réception — {receiveBill.number}</h2>
             <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.45 }}>
@@ -815,7 +819,7 @@ export default function Bills() {
               <button type="button" disabled={receiveBusy} onClick={submitReceive}>
                 {receiveBusy ? 'Enregistrement…' : 'Valider la réception'}
               </button>
-              <button type="button" className="secondary" onClick={() => setReceiveBill(null)}>Fermer</button>
+              <button type="button" className="secondary" onClick={() => { setModalError(''); setReceiveBill(null); }}>Fermer</button>
             </div>
           </div>
         </div></FloatingPortal>
