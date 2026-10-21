@@ -21,6 +21,12 @@ export function sanitizeAvatarUrl(raw: string | null | undefined): string {
     return value;
   }
 
+  // Server-side default monogram avatars are URL-encoded SVG data URIs —
+  // safe in <img> context (no script execution), so let them through.
+  if (/^data:image\/svg\+xml;(?:charset=utf-8,|base64,)/i.test(value)) {
+    return value;
+  }
+
   const isAllowedImagePath = (path: string): boolean => {
     return /\.(?:png|jpe?g|webp|gif|avif|svg)$/i.test(path);
   };

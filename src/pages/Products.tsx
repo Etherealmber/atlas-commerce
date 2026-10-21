@@ -39,7 +39,7 @@ export default function Products() {
   const [refreshing, setRefreshing] = useState(false);
   const [show, setShow] = useState(false);
   const [editing, setEditing] = useState<any>(null);
-  const wz = useWizard(editing ? 4 : 3);
+  const wz = useWizard(editing ? 5 : 4);
   const [exportBusy, setExportBusy] = useState(false);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 300);
@@ -937,6 +937,8 @@ export default function Products() {
                 Générer la description (IA)
               </button>
             </div>
+              </StepBody>
+            <StepBody active={wz.step === 2}>
             <div className="grid grid-3">
               <div className="form-row">
                 <label>Catégorie</label>
@@ -986,7 +988,7 @@ export default function Products() {
               <div className="form-row"><label>Date limite (DLC)</label><DatePicker value={(form.expiry_date || '').toString().slice(0, 10)} onChange={(v) => setForm({ ...form, expiry_date: v })} /></div>
 </div>
             </StepBody>
-            <StepBody active={wz.step === 2}>
+            <StepBody active={wz.step === 3}>
             <div className="grid grid-2">
               <div className="form-row"><label>Prix de vente *</label><NumberField value={form.price} onValueChange={(n) => { setForm((f: any) => ({ ...f, price: n })); setFieldErrors((x) => ({ ...x, price: '' })); }} /><span className="field-error-msg">{fieldErrors.price || ''}</span></div>
               <div className="form-row"><label>Coût</label><NumberField value={form.cost} onValueChange={(n) => setForm((f: any) => ({ ...f, cost: n }))} /></div>
@@ -1032,7 +1034,7 @@ export default function Products() {
             </div>
 
               </StepBody>
-              <StepBody active={wz.step === 3}>
+              <StepBody active={wz.step === 4}>
             {editing ? (
               <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--border, #e0d9cc)' }}>
                 <h3 style={{ fontSize: 13, margin: '0 0 6px' }}>Variantes (taille / couleur / etc.)</h3>
@@ -1089,7 +1091,7 @@ export default function Products() {
             )}
               </StepBody>
             {editing?.id && (
-              <StepBody active={wz.step === 4}>
+              <StepBody active={wz.step === 5}>
                 <ProductImageEditor productId={Number(editing.id)} />
               </StepBody>
             )}
@@ -1097,7 +1099,7 @@ export default function Products() {
             <WizardFoot
               title={editing ? 'Modifier le produit' : 'Nouveau produit'}
               wz={wz}
-              stepLabel={wz.step === 1 ? 'Identité' : wz.step === 2 ? 'Prix & stock' : wz.step === 3 ? (editing ? 'Variantes' : 'Photos') : 'Photos'}
+              stepLabel={wz.step === 1 ? 'Identité' : wz.step === 2 ? 'Classement' : wz.step === 3 ? 'Prix & stock' : wz.step === 4 ? (editing ? 'Variantes' : 'Photos') : 'Photos'}
               onCancel={() => { setShow(false); setForm(emptyForm); setEditing(null); setModalError(''); wz.reset(); }}
               onSubmit={() => void save()}
               submitLabel={saving ? 'Enregistrement…' : 'Enregistrer'}

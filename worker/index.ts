@@ -4067,6 +4067,45 @@ app.put('/api/admin/config', async (c) => {
   return c.json({ success: true, message: 'Configuration administrateur enregistrée.' });
 });
 
+// Same-origin avatar proxy: cdn1 has no CORS headers, so clients fetch
+// through the worker (server-side fetch is not CORS-bound).
+app.get('/api/me/avatar', async (c) => {
+  const session = sessionUserFromHeader(c.req.header('Authorization'));
+  if (!session?.username) return c.json({ success: false, error: 'Non authentifié' }, 401);
+  const prof = await resolveUserProfileAvatar(c.env, session.username);
+  const url = String(prof.avatar_url || '').trim();
+  if (!url) return c.json({ success: false, error: 'Aucun avatar' }, 404);
+  if (url.startsWith('data:')) {
+    const comma = url.indexOf(',');
+    const meta = url.slice(5, comma);
+    const payload = url.slice(comma + 1);
+    let bytes: Uint8Array;
+    if (/;base64$/i.test(meta)) {
+      const bin = atob(payload);
+      bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    } else {
+      bytes = new TextEncoder().encode(decodeURIComponent(payload));
+    }
+    return new Response(bytes as unknown as BodyInit, {
+      headers: { 'Content-Type': meta.split(';')[0] || 'image/svg+xml', 'Cache-Control': 'public, max-age=3600' },
+    });
+  }
+  try {
+    const r = await fetch(url, { headers: { Accept: 'image/*' } });
+    if (!r.ok) return c.json({ success: false, error: 'Avatar indisponible' }, 502);
+    return new Response(r.body, {
+      headers: {
+        'Content-Type': r.headers.get('Content-Type') || 'image/jpeg',
+        'Cache-Control': 'public, max-age=3600',
+      },
+    });
+  } catch (e) {
+    console.error('avatar proxy', String((e as any)?.message || e).slice(0, 200));
+    return c.json({ success: false, error: 'Avatar indisponible' }, 502);
+  }
+});
+
 app.get('/api/auth/me', async (c) => {
   const ip = clientIp(c);
   const fp = c.req.header('X-Device-Fingerprint') || undefined;
@@ -6195,12 +6234,22 @@ app.post('/api/products', async (c) => {
     bulkJson = JSON.stringify(parsed);
   }
 
+  const postCols = await tableColumns(c.env.DB, 'products');
+  const insertCols = ['sku', 'name', 'description', 'category', 'unit', 'price', 'cost', 'stock_quantity', 'low_stock_threshold', 'track_inventory', 'image_url', 'barcode', 'tax_rate', 'bulk_discounts'];
+  const insertVals: any[] = [sku || null, name, description, category, unit, price, cost, stock_quantity, low_stock_threshold, track_inventory, image_url, barcode, tax_rate, bulkJson];
+  const useCols: string[] = [];
+  const useVals: any[] = [];
+  insertCols.forEach((colName, i) => {
+    if (postCols && !postCols.has(colName)) return;
+    useCols.push(colName);
+    useVals.push(insertVals[i]);
+  });
   const result = await c.env.DB.prepare(
-    `INSERT INTO products (sku, name, description, category, unit, price, cost, stock_quantity, low_stock_threshold, track_inventory, image_url, barcode, tax_rate, bulk_discounts) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).bind(sku || null, name, description, category, unit, price, cost, stock_quantity, low_stock_threshold, track_inventory, image_url, barcode, tax_rate, bulkJson).run();
+    `INSERT INTO products (${useCols.join(', ')}) VALUES (${useCols.map(() => '?').join(', ')})`
+  ).bind(...useVals).run();
 
-  await addColumnIfMissing(c.env.DB, 'products', 'lot_number', `TEXT`);
-  await addColumnIfMissing(c.env.DB, 'products', 'expiry_date', `TEXT`);
+  try { await addColumnIfMissing(c.env.DB, 'products', 'lot_number', `TEXT`); } catch { /* non-fatal */ }
+  try { await addColumnIfMissing(c.env.DB, 'products', 'expiry_date', `TEXT`); } catch { /* non-fatal */ }
   {
     const lot_number = body.lot_number != null ? String(body.lot_number).slice(0, 64) : '';
     const expiry_date = body.expiry_date != null ? String(body.expiry_date).slice(0, 32) : '';
@@ -6298,10 +6347,13 @@ app.put('/api/products/:id', async (c) => {
   }
 
   const fields = ['sku', 'name', 'description', 'category', 'unit', 'price', 'cost', 'low_stock_threshold', 'track_inventory', 'is_active', 'image_url', 'barcode', 'tax_rate'];
+  // Schema-drift guard: never let a missing optional column 500 the save.
+  const cols = await tableColumns(c.env.DB, 'products');
   const updates: string[] = [];
   const values: any[] = [];
   for (const f of fields) {
     if (body[f] !== undefined) {
+      if (cols && !cols.has(f)) continue;
       updates.push(`${f} = ?`);
       let v = body[f];
       if (f === 'price' || f === 'cost' || f === 'low_stock_threshold' || f === 'tax_rate') {
@@ -6314,10 +6366,10 @@ app.put('/api/products/:id', async (c) => {
       values.push(v);
     }
   }
-  await addColumnIfMissing(c.env.DB, 'products', 'lot_number', `TEXT`);
-  await addColumnIfMissing(c.env.DB, 'products', 'expiry_date', `TEXT`);
-  if (body.lot_number !== undefined) { updates.push('lot_number = ?'); values.push(String(body.lot_number || '').slice(0, 64) || null); }
-  if (body.expiry_date !== undefined) { updates.push('expiry_date = ?'); values.push(String(body.expiry_date || '').slice(0, 32) || null); }
+  try { await addColumnIfMissing(c.env.DB, 'products', 'lot_number', `TEXT`); } catch (e) { console.error('addColumn lot_number', String((e as any)?.message || e).slice(0, 200)); }
+  try { await addColumnIfMissing(c.env.DB, 'products', 'expiry_date', `TEXT`); } catch (e) { console.error('addColumn expiry_date', String((e as any)?.message || e).slice(0, 200)); }
+  if (body.lot_number !== undefined && (await hasColumn(c.env.DB, 'products', 'lot_number'))) { updates.push('lot_number = ?'); values.push(String(body.lot_number || '').slice(0, 64) || null); }
+  if (body.expiry_date !== undefined && (await hasColumn(c.env.DB, 'products', 'expiry_date'))) { updates.push('expiry_date = ?'); values.push(String(body.expiry_date || '').slice(0, 32) || null); }
   if (body.bulk_discounts !== undefined && (await hasColumn(c.env.DB, 'products', 'bulk_discounts'))) {
     updates.push(`bulk_discounts = ?`);
     values.push(JSON.stringify(parseBulkDiscounts(body.bulk_discounts)));
@@ -8141,6 +8193,16 @@ async function ensureProductBulkDiscounts(db: D1Database) {
   } catch (e) {
     // Never 500 a product save because of an optional column migration.
     console.error('ensureProductBulkDiscounts_err', String((e as any)?.message || e).slice(0, 300));
+  }
+}
+
+/** Lowercased column names of a table, or null when PRAGMA is unavailable. */
+async function tableColumns(db: D1Database, table: string): Promise<Set<string> | null> {
+  try {
+    const info = await db.prepare(`PRAGMA table_info(${table})`).all();
+    return new Set(((info?.results || []) as { name?: string }[]).map((r) => String(r.name || '').toLowerCase()));
+  } catch {
+    return null;
   }
 }
 

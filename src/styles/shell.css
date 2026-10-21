@@ -140,7 +140,7 @@
   border: 1px solid var(--ac-line); display: flex; align-items: center; justify-content: center;
   background: var(--ac-nav-hover); font-weight: 700; font-size: 0.8rem;
 }
-.content button:not(.secondary):not(.theme-toggle):not(.icon-refresh-btn):not(.ac-topbar-icon):not(.mailbox-icon-btn):not(.ghost):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop),
+.content button:not(.secondary):not(.theme-toggle):not(.icon-refresh-btn):not(.ac-topbar-icon):not(.mailbox-icon-btn):not(.ghost):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit),
 .content .btn:not(.secondary) {
   background: var(--ac-primary) !important;
   color: var(--ac-primary-fg) !important;

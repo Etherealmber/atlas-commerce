@@ -21,7 +21,29 @@ type Release = {
 
 const RELEASES: Release[] = [
   {
-    version: '0.4.11-beta',
+    version: '0.5.2-beta',
+    date: '22 octobre 2026',
+    sections: [
+      {
+        kind: 'fixes',
+        items: [
+          { id: '052c1', text: 'Enregistrement produit : PUT/POST blindés contre les schémas D1 incomplets (garde PRAGMA sur chaque colonne) — plus de 500 « Erreur interne » en production' },
+          { id: '052c2', text: 'Photo de profil chargée via le proxy worker same-origin (/api/me/avatar) : le CORS de cdn1.afmarbre.com ne bloque plus l’avatar' },
+          { id: '052c3', text: 'Boutons ✎ / ✕ des pièces jointes de l’agent toujours visibles, thèmes clair et sombre' },
+          { id: '052c4', text: 'Contours d’images thématisés (fini le liseré noir en mode clair / blanc en mode sombre) + fond neutre sous les PNG transparents' },
+          { id: '052c5', text: 'Historique des versions entièrement renuméroté en 0.x : l’ancien cycle 1.x devient 0.0.1 → 0.4.4 (première version = 0.0.1), plus aucune étiquette 1.x ni doublon' },
+        ],
+      },
+      {
+        kind: 'features',
+        items: [
+          { id: '052a1', text: 'Atlas Agent lit chaque fichier DÈS l’envoi (images en vision, extraits texte inclus dans le prompt) ; dire « lis ça » sans joindre de fichier reprend automatiquement le dernier fichier envoyé' },
+        ],
+      },
+    ],
+  },
+  {
+    version: '0.5.1-beta',
     date: '22 octobre 2026',
     sections: [
       {
@@ -36,12 +58,15 @@ const RELEASES: Release[] = [
           { id: '0411b1', text: 'Assistant produit allégé : l’étape « Variantes & photos » est séparée en deux étapes dédiées (Étape 3 Variantes · Étape 4 Photos) — moins de contenu d’un coup, moins de défilement' },
           { id: '0411b2', text: 'Pied d’assistant réellement fixe dans toutes les fenêtres : les boutons ne bougent plus et ne recouvrent jamais le contenu — le corps de l’étape défile à l’intérieur, la barre reste en bas' },
           { id: '0411b3', text: 'L’assistant repart toujours à l’étape 1 à chaque ouverture (nouveau produit, modification, pré-remplissage scan/agent)' },
+          { id: '0411b4', text: 'Assistant produit en 5 étapes (Identité · Classement · Prix & stock · Variantes · Photos) : chaque étape tient à l’écran sans défilement' },
+          { id: '0411c1', text: 'Menu utilisateur du topbar ouvert dans un portail fixé sous le bouton : plus jamais rogné, masqué ou décalé — et la photo de profil s’affiche désormais dans son en-tête' },
+          { id: '0411c2', text: 'Avatar monogramme (SVG serveur) de nouveau visible partout : le filtre client n’acceptait que png/jpeg/webp — repli initiales si l’image échoue (topbar, sidebar, réglages)' },
         ],
       },
     ],
   },
   {
-    version: '0.4.10-beta',
+    version: '0.5.0-beta',
     date: '22 octobre 2026',
     sections: [
       {
@@ -157,7 +182,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.4.5-beta',
+    version: '0.4.4-beta',
     date: '20 octobre 2026',
     sections: [
       {
@@ -190,7 +215,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.4.4-beta',
+    version: '0.4.3-beta',
     date: '20 octobre 2026',
     sections: [
       {
@@ -221,7 +246,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.4.3-beta',
+    version: '0.4.2-beta',
     date: '11 octobre 2026',
     sections: [
       {
@@ -256,7 +281,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.4.2-beta',
+    version: '0.4.1-beta',
 
     date: '7 octobre 2026',
     sections: [
@@ -294,7 +319,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.4.1-beta',
+    version: '0.4.0-beta',
     date: '6 octobre 2026',
     sections: [
       {
@@ -324,7 +349,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.4.0-beta',
+    version: '0.3.4-beta',
     date: '1er octobre 2026',
     sections: [
       {
@@ -349,7 +374,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.3.4-beta',
+    version: '0.3.3-beta',
     date: '28 septembre 2026',
     sections: [
       {
@@ -369,7 +394,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.3.3-beta',
+    version: '0.3.2-beta',
     date: '26 septembre 2026',
     sections: [
       {
@@ -389,7 +414,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.3.2-beta',
+    version: '0.3.1-beta',
     date: '25 septembre 2026',
     sections: [
       {
@@ -409,7 +434,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.3.1-beta',
+    version: '0.3.0-beta',
     date: '22 septembre 2026',
     sections: [
       {
@@ -428,7 +453,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.2.0-beta',
+    version: '0.2.0-beta',
     date: '15 septembre 2026',
     sections: [
       {
@@ -448,7 +473,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.1.9-beta',
+    version: '0.1.8-beta',
     date: '8 septembre 2026',
     sections: [
       {
@@ -466,7 +491,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.1.8-beta',
+    version: '0.1.7-beta',
     date: '5 septembre 2026',
     sections: [
       {
@@ -484,7 +509,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.1.7-beta',
+    version: '0.1.6-beta',
     date: '2 septembre 2026',
     sections: [
       {
@@ -496,7 +521,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.1.6-beta',
+    version: '0.1.5-beta',
     date: '28 août 2026',
     sections: [
       {
@@ -508,7 +533,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.1.5-beta',
+    version: '0.1.4-beta',
     date: '22 août 2026',
     sections: [
       {
@@ -526,7 +551,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.1.4-beta',
+    version: '0.1.3-beta',
     date: '18 août 2026',
     sections: [
       {
@@ -538,7 +563,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.1.3-beta',
+    version: '0.1.2-beta',
     date: '14 août 2026',
     sections: [
       {
@@ -550,7 +575,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.1.2-beta',
+    version: '0.1.1-beta',
     date: '10 août 2026',
     sections: [
       {
@@ -562,7 +587,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.1.1-beta',
+    version: '0.1.0-beta',
     date: '6 août 2026',
     sections: [
       {
@@ -574,7 +599,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.0.9-beta',
+    version: '0.0.4-beta',
     date: '2 août 2026',
     sections: [
       {
@@ -586,7 +611,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.0.5-beta',
+    version: '0.0.3-beta',
     date: '30 juillet 2026',
     sections: [
       {
@@ -598,7 +623,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.0.1-beta',
+    version: '0.0.2-beta',
     date: '28 juillet 2026',
     sections: [
       {
@@ -610,31 +635,20 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: '1.0.0-beta',
+    version: '0.0.1-beta',
     date: '27 juillet 2026',
     sections: [
       {
         kind: 'features',
         items: [
           { id: 'p1q2r3s', text: 'Première publication Atlas Commerce (stock, caisse, facturation)' },
+          { id: '001a1', text: 'Première version interne (bêta) : stock, facturation et espace de travail Atlas Commerce' },
         ],
       },
       {
         kind: 'breaking',
         items: [
           { id: 't4u5v6w', text: 'Canal beta uniquement — versions stables à venir' },
-        ],
-      },
-    ],
-  },
-  {
-    version: '0.0.1-beta',
-    date: 'première version',
-    sections: [
-      {
-        kind: 'features',
-        items: [
-          { id: '001a1', text: 'Première version interne (bêta) : stock, facturation et espace de travail Atlas Commerce' },
         ],
       },
     ],

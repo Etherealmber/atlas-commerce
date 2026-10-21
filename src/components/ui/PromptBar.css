@@ -526,6 +526,36 @@
   background: #fafafa !important;
 }
 
+/* v242 — attachment chip actions must ALWAYS be visible (both themes) */
+.prompt-bar__chips {
+  position: relative;
+  z-index: 3;
+}
+.prompt-bar__chip-x,
+.prompt-bar__chip-edit {
+  display: inline-grid !important;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 5px;
+  background: transparent !important;
+  color: var(--pb-ink, #3f3f46) !important;
+  opacity: 0.85;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.prompt-bar__chip-x svg,
+.prompt-bar__chip-edit svg {
+  display: block !important;
+}
+.prompt-bar__chip-x:hover,
+.prompt-bar__chip-edit:hover {
+  opacity: 1;
+  background: color-mix(in srgb, var(--pb-ink) 12%, transparent) !important;
+}
+
 /* v229 — richer attachment previews: image thumbnails + annotate action */
 .prompt-bar__chip[data-img] {
   height: 40px;
