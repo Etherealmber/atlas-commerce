@@ -3470,3 +3470,194 @@ html[data-theme="dark"] body .modal-overlay .modal-card > button.modal-x.modal-x
   border-color: #52525b !important;
 }
 /* v223.4 END */
+
+/* ═══════════════════════════════════════════════════════════════
+   v224 — BUTTON TOKEN SYSTEM + FULL NORMALIZATION
+   Every button variant maps to semantic tokens; hover/active always
+   set bg+fg as a pair so text can never lose contrast. Charcoal
+   (not #0a0a0a) primaries in light; zinc (never too black) in dark.
+   ═══════════════════════════════════════════════════════════════ */
+html[data-theme="light"] {
+  --btn-p-bg: #18181b;   --btn-p-fg: #fafafa;  --btn-p-bd: #18181b;
+  --btn-p-h: #27272a;    --btn-p-h-bd: #27272a; --btn-p-a: #3f3f46;
+  --btn-s-bg: #ffffff;   --btn-s-fg: #27272a;  --btn-s-bd: #d4d4d8;
+  --btn-s-h: #f4f4f5;    --btn-s-h-fg: #18181b; --btn-s-h-bd: #a1a1aa; --btn-s-a: #e4e4e7;
+  --btn-g-fg: #52525b;   --btn-g-h: #f4f4f5;   --btn-g-h-fg: #18181b;  --btn-g-a: #e4e4e7;
+  --btn-d-bg: #dc2626;   --btn-d-fg: #ffffff;  --btn-d-bd: #dc2626;
+  --btn-d-h: #b91c1c;    --btn-d-a: #991b1b;
+  --btn-dis-bg: #f4f4f5; --btn-dis-fg: #a1a1aa; --btn-dis-bd: #e4e4e7;
+}
+html[data-theme="dark"] {
+  --btn-p-bg: #3f3f46;   --btn-p-fg: #f4f4f5;  --btn-p-bd: #52525b;
+  --btn-p-h: #4b4b52;    --btn-p-h-bd: #71717a; --btn-p-a: #52525b;
+  --btn-s-bg: #27272a;   --btn-s-fg: #e4e4e7;  --btn-s-bd: #3f3f46;
+  --btn-s-h: #323236;    --btn-s-h-fg: #f4f4f5; --btn-s-h-bd: #52525b; --btn-s-a: #3f3f46;
+  --btn-g-fg: #a1a1aa;   --btn-g-h: #27272a;   --btn-g-h-fg: #f4f4f5;  --btn-g-a: #3f3f46;
+  --btn-d-bg: #7f1d1d;   --btn-d-fg: #fecaca;  --btn-d-bd: #991b1b;
+  --btn-d-h: #991b1b;    --btn-d-a: #b91c1c;
+  --btn-dis-bg: #1c1c1f; --btn-dis-fg: #52525b; --btn-dis-bd: #27272a;
+}
+
+/* — smooth hover/theme color transitions on every button — */
+html body button,
+html body .btn,
+html body a.btn {
+  transition: background-color 0.2s ease, color 0.2s ease,
+    border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+/* — PRIMARY (default) buttons — */
+html[data-theme] body .content button:not(.secondary):not(.ghost):not(.danger):not(.welcome-btn-ghost):not(.theme-toggle):not(.icon-refresh-btn):not(.mailbox-folder-item):not(.mailbox-menu-item):not(.mailbox-icon-btn):not(.settings-nav-item):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__chip-x):not(.ac-seg-btn):not(.modal-x):not(.modal-close):not(.ac-topbar-icon):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.ac-shell-icon-btn):not(.ac-notif-all):not([class*="close"]):not([class*="toggle"]):not([class*="iconbtn"]):not(.density-toggle button):not(.dash-range-select),
+html[data-theme] body .modal button:not(.secondary):not(.ghost):not(.danger):not(.modal-x):not(.modal-close):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.ac-seg-btn):not(.ac-pill-pager-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__chip-x):not([class*="close"]):not([class*="toggle"]):not([class*="iconbtn"]):not(.density-toggle button),
+html[data-theme] body .modal-overlay .modal button:not(.secondary):not(.ghost):not(.danger):not(.modal-x):not(.modal-close):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.ac-seg-btn):not(.ac-pill-pager-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__chip-x):not([class*="close"]):not([class*="toggle"]):not([class*="iconbtn"]):not(.density-toggle button),
+html[data-theme] body .content .btn:not(.secondary):not(.ghost):not(.danger),
+html[data-theme] body .modal .btn:not(.secondary):not(.ghost):not(.danger) {
+  background: var(--btn-p-bg) !important;
+  background-image: none !important;
+  color: var(--btn-p-fg) !important;
+  -webkit-text-fill-color: var(--btn-p-fg) !important;
+  border: 1px solid var(--btn-p-bd) !important;
+  box-shadow: none !important;
+}
+html[data-theme] body .content button:not(.secondary):not(.ghost):not(.danger):not(.welcome-btn-ghost):not(.theme-toggle):not(.icon-refresh-btn):not(.mailbox-folder-item):not(.mailbox-menu-item):not(.mailbox-icon-btn):not(.settings-nav-item):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__chip-x):not(.ac-seg-btn):not(.modal-x):not(.modal-close):not(.ac-topbar-icon):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.ac-shell-icon-btn):not(.ac-notif-all):not([class*="close"]):not([class*="toggle"]):not([class*="iconbtn"]):not(.density-toggle button):not(.dash-range-select):hover,
+html[data-theme] body .modal button:not(.secondary):not(.ghost):not(.danger):not(.modal-x):not(.modal-close):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.ac-seg-btn):not(.ac-pill-pager-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__chip-x):not([class*="close"]):not([class*="toggle"]):not([class*="iconbtn"]):not(.density-toggle button):hover,
+html[data-theme] body .content .btn:not(.secondary):not(.ghost):not(.danger):hover,
+html[data-theme] body .modal .btn:not(.secondary):not(.ghost):not(.danger):hover {
+  background: var(--btn-p-h) !important;
+  color: var(--btn-p-fg) !important;
+  -webkit-text-fill-color: var(--btn-p-fg) !important;
+  border-color: var(--btn-p-h-bd) !important;
+}
+html[data-theme] body .content button:not(.secondary):not(.ghost):not(.danger):not(.ac-topbar-icon):not(.ac-seg-btn):not([class*="close"]):not([class*="toggle"]):not([class*="iconbtn"]):active,
+html[data-theme] body .modal button:not(.secondary):not(.ghost):not(.danger):not(.modal-x):not(.modal-close):not(.ac-seg-btn):not([class*="close"]):not([class*="toggle"]):active {
+  background: var(--btn-p-a) !important;
+  color: var(--btn-p-fg) !important;
+  -webkit-text-fill-color: var(--btn-p-fg) !important;
+}
+
+/* — SECONDARY — */
+html[data-theme] body .content button.secondary,
+html[data-theme] body .content a.secondary,
+html[data-theme] body .modal button.secondary,
+html[data-theme] body .modal-overlay .modal button.secondary,
+html[data-theme] body .btn.secondary,
+html[data-theme] body a.btn.secondary {
+  background: var(--btn-s-bg) !important;
+  background-image: none !important;
+  color: var(--btn-s-fg) !important;
+  -webkit-text-fill-color: var(--btn-s-fg) !important;
+  border: 1px solid var(--btn-s-bd) !important;
+  box-shadow: none !important;
+}
+html[data-theme] body .content button.secondary:hover,
+html[data-theme] body .content a.secondary:hover,
+html[data-theme] body .modal button.secondary:hover,
+html[data-theme] body .modal-overlay .modal button.secondary:hover,
+html[data-theme] body .btn.secondary:hover,
+html[data-theme] body a.btn.secondary:hover {
+  background: var(--btn-s-h) !important;
+  color: var(--btn-s-h-fg) !important;
+  -webkit-text-fill-color: var(--btn-s-h-fg) !important;
+  border-color: var(--btn-s-h-bd) !important;
+}
+html[data-theme] body .content button.secondary:active,
+html[data-theme] body .modal button.secondary:active,
+html[data-theme] body .btn.secondary:active {
+  background: var(--btn-s-a) !important;
+  color: var(--btn-s-h-fg) !important;
+}
+
+/* — GHOST — */
+html[data-theme] body .content button.ghost,
+html[data-theme] body .modal button.ghost,
+html[data-theme] body .modal-overlay .modal button.ghost,
+html[data-theme] body .btn.ghost,
+html[data-theme] body .content button.welcome-btn-ghost,
+html[data-theme] body a.btn.ghost {
+  background: transparent !important;
+  background-image: none !important;
+  color: var(--btn-g-fg) !important;
+  -webkit-text-fill-color: var(--btn-g-fg) !important;
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+}
+html[data-theme] body .content button.ghost:hover,
+html[data-theme] body .modal button.ghost:hover,
+html[data-theme] body .modal-overlay .modal button.ghost:hover,
+html[data-theme] body .btn.ghost:hover,
+html[data-theme] body .content button.welcome-btn-ghost:hover,
+html[data-theme] body a.btn.ghost:hover {
+  background: var(--btn-g-h) !important;
+  color: var(--btn-g-h-fg) !important;
+  -webkit-text-fill-color: var(--btn-g-h-fg) !important;
+  border-color: var(--btn-s-h-bd) !important;
+}
+html[data-theme] body .content button.ghost:active,
+html[data-theme] body .modal button.ghost:active,
+html[data-theme] body .btn.ghost:active {
+  background: var(--btn-g-a) !important;
+  color: var(--btn-g-h-fg) !important;
+}
+
+/* — DANGER — */
+html[data-theme] body .content button.danger,
+html[data-theme] body .modal button.danger,
+html[data-theme] body .modal-overlay .modal button.danger,
+html[data-theme] body .btn.danger {
+  background: var(--btn-d-bg) !important;
+  background-image: none !important;
+  color: var(--btn-d-fg) !important;
+  -webkit-text-fill-color: var(--btn-d-fg) !important;
+  border: 1px solid var(--btn-d-bd) !important;
+  box-shadow: none !important;
+}
+html[data-theme] body .content button.danger:hover,
+html[data-theme] body .modal button.danger:hover,
+html[data-theme] body .modal-overlay .modal button.danger:hover,
+html[data-theme] body .btn.danger:hover {
+  background: var(--btn-d-h) !important;
+  color: var(--btn-d-fg) !important;
+  -webkit-text-fill-color: var(--btn-d-fg) !important;
+}
+html[data-theme] body .content button.danger:active,
+html[data-theme] body .modal button.danger:active,
+html[data-theme] body .btn.danger:active {
+  background: var(--btn-d-a) !important;
+}
+
+/* — DISABLED (all variants) — */
+html[data-theme] body .content button:disabled,
+html[data-theme] body .modal button:disabled,
+html[data-theme] body .modal-overlay .modal button:disabled,
+html[data-theme] body .btn.disabled {
+  background: var(--btn-dis-bg) !important;
+  background-image: none !important;
+  color: var(--btn-dis-fg) !important;
+  -webkit-text-fill-color: var(--btn-dis-fg) !important;
+  border-color: var(--btn-dis-bd) !important;
+  box-shadow: none !important;
+  opacity: 0.75 !important;
+}
+
+/* — known offenders: near-black hovers / cream text — */
+html[data-theme] body .ac-pill-pager-btn:hover:not(.is-disabled):not(:disabled),
+html[data-theme] body .ac-list-pager-btn:hover:not(.is-disabled):not(:disabled),
+html[data-theme] body .ac-pill-pager .ac-pill-pager-btn:hover:not(:disabled):not(.is-disabled) {
+  background: var(--btn-s-h) !important;
+  color: var(--btn-s-h-fg) !important;
+  -webkit-text-fill-color: var(--btn-s-h-fg) !important;
+  border-color: var(--btn-s-h-bd) !important;
+}
+html[data-theme] body .account-seg button:hover,
+html[data-theme] body .account-theme-icons button:hover {
+  background: var(--btn-g-h) !important;
+  color: var(--btn-g-h-fg) !important;
+  -webkit-text-fill-color: var(--btn-g-h-fg) !important;
+  border-color: var(--btn-s-h-bd) !important;
+}
+html[data-theme="dark"] body .atlas-agent-nav button:hover {
+  background: var(--btn-s-h) !important;
+  color: var(--btn-s-h-fg) !important;
+  border-color: var(--btn-s-h-bd) !important;
+}
+/* v224 END */
