@@ -37,7 +37,7 @@ import {
 import { canMutateBusiness, canHardDeleteStock, normalizeRole } from './lib/rbac';
 import { apiFail, apiOk } from './lib/api-response';
 import { toClientError, AppError } from './lib/errors';
-import { repairProductSearchIndex } from './lib/reliability';
+import { repairProductSearchIndex, proactiveFtsHealth } from './lib/reliability';
 import { fetchWithTimeout } from './lib/http-client';
 import { searchProducts, reliabilityStatus, ensureProductSearchIndex, reliableFetch } from './lib/reliability';
 import { detectBffSurface } from './lib/bff';
@@ -602,6 +602,53 @@ app.use('*', cors({
   allowHeaders: ['Content-Type', 'Authorization', 'X-Api-Key', 'Idempotency-Key', 'X-Device-Fingerprint', 'X-Admin-Backup-Token', 'X-Backup-Signature', 'X-Backup-Timestamp'],
   maxAge: 86400,
 }));
+
+/* ── D1 Sessions API (global read replication) — fully automatic ──────────
+ * Every request swaps c.env.DB for a D1 Session before ANY middleware/route
+ * touches the database, so reads can be served by the nearest read replica
+ * with sequential consistency once replication is enabled in the D1 settings
+ * (and cost nothing when it isn't: sessions then behave like the binding).
+ * Read-your-writes survives across requests via a short-lived bookmark
+ * cookie; brand-new sessions start on the primary so they never read stale.
+ * Degrades silently to the plain binding when withSession() is unavailable
+ * (e.g. local wrangler dev). */
+const D1_BM_COOKIE = '__atlas_d1_bm';
+function readD1Bookmark(c: any): string | null {
+  try {
+    const raw = String(c.req.header('Cookie') || '');
+    for (const part of raw.split(';')) {
+      const i = part.indexOf('=');
+      if (i < 0) continue;
+      if (part.slice(0, i).trim() === D1_BM_COOKIE) return decodeURIComponent(part.slice(i + 1).trim()) || null;
+    }
+  } catch { /* */ }
+  return null;
+}
+app.use('*', async (c, next) => {
+  const rawDb: any = (c.env as any).DB;
+  let session: any = null;
+  if (rawDb && typeof rawDb.withSession === 'function') {
+    const bm = readD1Bookmark(c);
+    try {
+      session = bm ? rawDb.withSession(bm) : rawDb.withSession('first-primary');
+    } catch { session = null; }
+    if (session) {
+      (c.env as any).DB = session;
+    }
+  }
+  await next();
+  if (session && typeof session.getBookmark === 'function') {
+    try {
+      const nb = session.getBookmark();
+      if (nb) {
+        c.res.headers.append(
+          'Set-Cookie',
+          `${D1_BM_COOKIE}=${encodeURIComponent(nb)}; Path=/; Max-Age=600; SameSite=Lax; Secure`,
+        );
+      }
+    } catch { /* */ }
+  }
+});
 
 /* ── v232 — in-worker WAF (free): blocks classic attack signatures before any route runs ── */
 const WAF_STATS = { blocked: 0, lastAt: null as string | null, lastSig: '' };
@@ -1329,6 +1376,7 @@ async function touchTrustedDevice(
 
 /** Phase 3: health / bindings observability (no secrets). */
 app.get('/api/health', async (c) => {
+  void proactiveFtsHealth(c.env.DB);
   let d1 = false;
   try {
     await c.env.DB.prepare('SELECT 1 as ok').first();
@@ -6173,6 +6221,7 @@ async function ensureProductVariantColumns(db: D1Database) {
 }
 
 app.get('/api/products', async (c) => {
+  void proactiveFtsHealth(c.env.DB);
   // Parse filters first so mobile/light can skip schema DDL (big latency win)
   const q = String(c.req.query('q') || c.req.query('search') || '').trim().toLowerCase();
   const category = String(c.req.query('category') || '').trim();

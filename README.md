@@ -305,6 +305,7 @@ Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depui
 - Nouveau produit : upload de photos dès l'étape Photos de la création (envoyées juste après la création) ; avatar visible immédiatement après rafraîchissement, sans clic
 - Facture : échec de déduction de stock = facture annulée + erreur affichée (plus de stock faussé en silence) ; corruption D1 (SQLITE_CORRUPT) diagnostiquée clairement (code DB_CORRUPT, message de restauration)
 - Auto-réparation FTS5 (products_fts) : corruption SQLITE_CORRUPT_VTAB reconstruite/recréée automatiquement sans perte de données + endpoint owner POST /api/admin/search-index/rebuild
+- Réplication de lecture D1 (Sessions API) automatique : session par requête + cookie de bookmark (read-your-writes), sonde d'intégrité FTS en tâche de fond ; activer « Enable Read Replication » dans les réglages D1 du dashboard pour que les répliques servent les lectures
 
 ### 0.5.0-beta
 - Erreur « Erreur interne — réessayez plus tard » sur la sauvegarde d'un produit corrigée (migration optionnelle de colonne rendue non bloquante)

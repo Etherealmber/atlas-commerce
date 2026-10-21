@@ -193,6 +193,25 @@ export async function checkProductSearchIndex(db: D1Database): Promise<boolean> 
 
 let repairInFlight: Promise<'rebuilt' | 'recreated' | 'failed'> | null = null;
 let lastRepairAt = 0;
+let lastFtsProbeAt = 0;
+
+/**
+ * Throttled background integrity probe (≤1/5 min per isolate): catches FTS
+ * corruption even when no write has hit it yet, and repairs automatically —
+ * the app heals itself with zero CLI / zero dashboard action.
+ */
+export async function proactiveFtsHealth(db: D1Database): Promise<void> {
+  const now = Date.now();
+  if (now - lastFtsProbeAt < 5 * 60_000) return;
+  lastFtsProbeAt = now;
+  try {
+    const ok = await checkProductSearchIndex(db);
+    if (!ok) {
+      console.warn('[search-index] integrity-check failed → automatic repair');
+      await repairProductSearchIndex(db, { force: true });
+    }
+  } catch { /* best-effort */ }
+}
 
 /**
  * Self-heal a corrupted products_fts (SQLITE_CORRUPT_VTAB).
