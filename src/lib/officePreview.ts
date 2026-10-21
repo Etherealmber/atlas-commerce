@@ -245,10 +245,13 @@ export async function previewXlsx(blob: Blob): Promise<OfficeSlide[]> {
       while ((tm = tRe.exec(block))) {
         parts.push(
           tm[1]!
-            .replace(/&amp;/g, '&')
             .replace(/&lt;/g, '<')
             .replace(/&gt;/g, '>')
-            .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n))),
+            .replace(/&quot;/g, '"')
+            .replace(/&apos;/g, "'")
+            .replace(/&#x([0-9a-fA-F]+);/g, (_, n) => String.fromCharCode(parseInt(n, 16)))
+            .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+            .replace(/&amp;/g, '&'),
         );
       }
       shared.push(parts.join(''));
