@@ -3241,3 +3241,157 @@ html[data-theme="dark"] body #root a.party-email-link {
   }
 }
 /* v222 responsive END */
+
+/* ═══════════════════════════════════════════════════════════════
+   v223 — PRO UI/UX PASS
+   1) fluid type + shells (desktop / tablet / phone / foldable)
+   2) ergonomic touch targets on coarse pointers
+   3) modal system: blur backdrop, internal scroll, sticky foot
+   4) wizard progress bar + step slide-in
+   5) theme-switch color transitions (html.theme-anim)
+   6) zero horizontal scroll guarantees
+   ═══════════════════════════════════════════════════════════════ */
+
+/* — fluid typography hierarchy (no clipping, proportional scale) — */
+html body .atlas-hello { font-size: clamp(1.35rem, 1.05rem + 1.3vw, 1.9rem) !important; line-height: 1.15 !important; }
+html body .content h2 { font-size: clamp(1.12rem, 1rem + 0.7vw, 1.45rem); line-height: 1.2; }
+html body .content h3 { font-size: clamp(0.98rem, 0.94rem + 0.4vw, 1.18rem); line-height: 1.25; }
+html body .atlas-lead,
+html body .ac-panel-head p { font-size: clamp(0.82rem, 0.8rem + 0.2vw, 0.95rem); line-height: 1.45; }
+html body .ac-panel { padding: 16px clamp(14px, 2vw, 22px); }
+html body .ac-panel-head { margin-bottom: 12px; }
+
+/* — tablet / iPad shell: fluid 2-col grids, condensed chrome — */
+@media (min-width: 761px) and (max-width: 1080px) {
+  html body .ac-dash-grid,
+  html body .ac-kpi-grid,
+  html body .balance-cards { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  html body .content { padding: 18px !important; }
+  html body .ac-topbar { gap: 6px !important; }
+  html body .welcome-gallery { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
+
+/* — foldable / dual-screen: symmetric split, nothing overlaps — */
+@media (horizontal-viewport-segments: 2) {
+  html body .ac-dash-grid,
+  html body .ac-kpi-grid,
+  html body .balance-cards { grid-template-columns: 1fr 1fr !important; }
+  html body .page-header { flex-direction: row !important; align-items: center !important; }
+  html body .modal-card { max-width: min(92vw, 760px) !important; }
+  html body .wizard-foot-nav { flex-wrap: nowrap !important; }
+}
+
+/* — ergonomic touch targets (44px) on coarse pointers — */
+@media (pointer: coarse) {
+  html body button:not(.wz-chip):not(.atlas-typeahead-item),
+  html body .btn,
+  html body a.btn,
+  html body .ac-seg-btn,
+  html body .ac-topbar-icon {
+    min-height: 44px !important;
+  }
+  html body .ac-seg-btn,
+  html body .ac-topbar-icon { min-width: 44px !important; }
+  html body input:not([type="checkbox"]):not([type="radio"]),
+  html body select { min-height: 44px !important; }
+  html body .atlas-typeahead-item { min-height: 44px !important; }
+  html body .prompt-bar__tool,
+  html body .prompt-bar__send { min-height: 44px !important; min-width: 44px !important; }
+}
+@media (pointer: coarse), (max-width: 760px) {
+  html body .atlas-agent-foot .prompt-bar button.prompt-bar__tool,
+  html body .atlas-agent-foot .prompt-bar button.prompt-bar__pick,
+  html body .atlas-agent-foot .prompt-bar button.prompt-bar__send,
+  html body .atlas-agent-panel .prompt-bar button.prompt-bar__tool,
+  html body .atlas-agent-panel .prompt-bar button.prompt-bar__pick,
+  html body .atlas-agent-panel .prompt-bar button.prompt-bar__send {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    max-width: 44px !important;
+    max-height: 44px !important;
+  }
+}
+
+/* — modal system: blurred backdrop, internal scroll, sticky foot — */
+html[data-theme] body .modal-overlay.modal-overlay.modal-overlay {
+  background: rgba(10, 10, 12, 0.55) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+html body .modal-overlay .modal-card,
+html body .modal-overlay .modal {
+  max-height: min(92dvh, 940px) !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain !important;
+  position: relative !important;
+  scrollbar-gutter: stable;
+}
+html body .modal-card > .wizard-foot,
+html body .modal-overlay .modal > .wizard-foot {
+  position: sticky !important;
+  bottom: 0 !important;
+  z-index: 5 !important;
+}
+html body .modal-x {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: 1px solid var(--line, #e4e4e7);
+  background: transparent;
+  color: var(--muted, #71717a);
+  cursor: pointer;
+  z-index: 6;
+}
+
+html body .modal-x:hover { background: rgba(113, 113, 122, 0.12); color: var(--ink, #18181b); }
+html[data-theme="dark"] body .modal-x { border-color: #3f3f46; color: #a1a1aa; }
+html[data-theme="dark"] body .modal-x:hover { background: #27272a; color: #f4f4f5; }
+
+/* — wizard progress bar + step slide-in — */
+html body .wz-progress {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(113, 113, 122, 0.22);
+  overflow: hidden;
+  margin: 0 0 12px;
+}
+html body .wz-progress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #b87333;
+  transition: width 0.25s ease;
+}
+html[data-theme="dark"] body .wz-progress { background: rgba(161, 161, 170, 0.18); }
+@media (prefers-reduced-motion: no-preference) {
+  html body .wz-step { animation: wz-step-in 0.22s ease; }
+  @keyframes wz-step-in {
+    from { opacity: 0; transform: translateX(10px); }
+    to { opacity: 1; transform: none; }
+  }
+}
+
+/* — smooth theme swap (class toggled for 260ms by App) — */
+html.theme-anim,
+html.theme-anim body,
+html.theme-anim *,
+html.theme-anim *::before,
+html.theme-anim *::after {
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease,
+    fill 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+/* — zero horizontal scroll guarantees — */
+html, body { overflow-x: clip; }
+html body .content { min-width: 0 !important; }
+html body .content > div:has(> table),
+html body .content > div:has(> .table-wrap) { overflow-x: auto; max-width: 100%; }
+/* v223 END */

@@ -35,8 +35,19 @@ export function WizardFoot(props: {
   saving?: boolean;
 }) {
   const { wz } = props;
+  const pct = Math.round((wz.step / wz.total) * 100);
   return (
     <div className="wizard-foot">
+      <div
+        className="wz-progress"
+        role="progressbar"
+        aria-valuemin={1}
+        aria-valuemax={wz.total}
+        aria-valuenow={wz.step}
+        aria-label={`Étape ${wz.step} sur ${wz.total}`}
+      >
+        <i style={{ width: `${pct}%` }} />
+      </div>
       <div className="wizard-foot-nav">
         <span className="wizard-foot-step">
           <span className="wz-chip">Étape {wz.step}/{wz.total}<span className="wz-step-label"> · {props.stepLabel}</span></span>

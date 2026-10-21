@@ -532,6 +532,60 @@ function useTheme() {
     window.addEventListener('atlas-theme-change', sync);
     return () => window.removeEventListener('atlas-theme-change', sync);
   }, []);
+
+  /* Professional dialog system (global): every .modal-card gets an
+     accessible close "X", and keyboard focus is trapped inside the
+     topmost open overlay (Tab / Shift+Tab cycle). */
+  useEffect(() => {
+    const ensureClose = (card: HTMLElement) => {
+      if (card.querySelector(':scope > .modal-x')) return;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'modal-x';
+      btn.setAttribute('aria-label', 'Fermer');
+      btn.innerHTML =
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+      btn.addEventListener('click', () => {
+        const overlay = card.closest('.modal-overlay');
+        if (overlay) overlay.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      });
+      card.insertBefore(btn, card.firstChild);
+    };
+    const scan = () =>
+      document.querySelectorAll<HTMLElement>('.modal-overlay .modal-card, .modal-overlay > .modal').forEach(ensureClose);
+    const mo = new MutationObserver(scan);
+    mo.observe(document.body, { childList: true, subtree: true });
+    scan();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      const overlays = document.querySelectorAll('.modal-overlay');
+      const top = overlays[overlays.length - 1] as HTMLElement | undefined;
+      if (!top) return;
+      const f = Array.from(
+        top.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter((el) => !el.hasAttribute('disabled') && el.offsetParent !== null);
+      if (!f.length) return;
+      const first = f[0];
+      const last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      } else if (!top.contains(document.activeElement)) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', onKey, true);
+    return () => {
+      mo.disconnect();
+      document.removeEventListener('keydown', onKey, true);
+    };
+  }, []);
   useEffect(() => {
     const apply = () => {
       const resolved = resolveTheme(mode);
@@ -542,6 +596,9 @@ function useTheme() {
         root.classList.toggle('theme-dark', resolved === 'dark');
         // Native controls (select, date pickers, scrollbars) follow the theme.
         root.style.colorScheme = resolved;
+        // Brief global color transition so the swap never flashes.
+        root.classList.add('theme-anim');
+        window.setTimeout(() => root.classList.remove('theme-anim'), 260);
         // Browser / WebView chrome (status bar on phone) follows the theme.
         const meta = document.querySelector('meta[name="theme-color"]');
         if (meta) meta.setAttribute('content', resolved === 'dark' ? '#111113' : '#f4f5f7');
