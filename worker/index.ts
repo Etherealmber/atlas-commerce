@@ -7212,7 +7212,14 @@ app.post('/api/catalog/products/:id/images', async (c) => {
     try { await c.env.DB.prepare(`UPDATE products SET image_url = ? WHERE id = ?`).bind(url, id).run(); } catch { /* */ }
   }
   await afterBusinessMutation(c.env.CACHE);
-  return c.json({ success: true, data: row, meta: { storage: url.includes('cdn1.afmarbre.com') ? 'r2' : 'url' } }, 201);
+  const isR2Storage = (() => {
+    try {
+      return new URL(url).hostname === 'cdn1.afmarbre.com';
+    } catch {
+      return false;
+    }
+  })();
+  return c.json({ success: true, data: row, meta: { storage: isR2Storage ? 'r2' : 'url' } }, 201);
 });
 
 app.put('/api/catalog/products/:id/images/:imageId', async (c) => {
