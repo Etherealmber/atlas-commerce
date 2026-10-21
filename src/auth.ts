@@ -17,15 +17,25 @@ function sanitizeAvatarUrl(raw: string | null | undefined): string {
     return value;
   }
 
-  // Allow same-origin relative paths.
+  const isAllowedImagePath = (path: string): boolean => {
+    return /\.(?:png|jpe?g|webp|gif|avif|svg)$/i.test(path);
+  };
+
+  // Allow same-origin relative image paths only.
   if (value.startsWith('/') || value.startsWith('./') || value.startsWith('../')) {
+    if (/[<>"'`\\\s]/.test(value)) return '';
+    const cleanPath = value.split('#')[0].split('?')[0];
+    if (!isAllowedImagePath(cleanPath)) return '';
     return value;
   }
 
-  // Allow only http(s) absolute URLs.
+  // Allow only http(s) absolute image URLs.
   try {
     const u = new URL(value);
-    if (u.protocol === 'http:' || u.protocol === 'https:') return value;
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return '';
+    if (u.username || u.password) return '';
+    if (!isAllowedImagePath(u.pathname)) return '';
+    return u.toString();
   } catch {
     // Invalid URL -> reject.
   }
