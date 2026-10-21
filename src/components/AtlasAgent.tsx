@@ -1577,30 +1577,6 @@ export default function AtlasAgent() {
           </div>
         </div>
 
-        {!isPhoneShell && (
-        <div className="atlas-agent-execmode" role="group" aria-label="Mode d’exécution">
-          <button
-            type="button"
-            className={execMode === 'ask' ? 'active' : undefined}
-            onClick={() => {
-              setExecMode('ask');
-              try { localStorage.setItem(AGENT_EXEC_MODE_KEY, 'ask'); } catch { /* */ }
-            }}
-          >
-            Demander avant
-          </button>
-          <button
-            type="button"
-            className={execMode === 'auto' ? 'active' : undefined}
-            onClick={() => {
-              setExecMode('auto');
-              try { localStorage.setItem(AGENT_EXEC_MODE_KEY, 'auto'); } catch { /* */ }
-            }}
-          >
-            Automatiquement
-          </button>
-        </div>
-        )}
 
         {msgs.length <= 1 && (
           <div className="atlas-agent-greeting">

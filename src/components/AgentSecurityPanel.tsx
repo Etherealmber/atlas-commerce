@@ -86,13 +86,30 @@ export default function AgentSecurityPanel({ isOwner, role }: { isOwner: boolean
             ) : (
               <strong>Actif</strong>
             )}
-            {policy && !policy.isAdmin && (
-              <span className="muted" style={{ marginLeft: 8 }}>
-                Quota : {policy.dailyUsed.toLocaleString('fr-FR')}/{policy.dailyLimit.toLocaleString('fr-FR')} jetons/j · {policy.weeklyUsed.toLocaleString('fr-FR')}/{policy.weeklyLimit.toLocaleString('fr-FR')} /sem
-              </span>
-            )}
             {policy?.isAdmin && <span className="muted" style={{ marginLeft: 8 }}>Admin : sans limite</span>}
           </div>
+          {policy && !policy.blocked && (
+            <div className="ac-quota">
+              <div className="ac-quota-row">
+                <div className="ac-quota-head">
+                  <span>Quota quotidien{policy.isAdmin ? ' · admin illimité' : ''}</span>
+                  <strong>{policy.dailyUsed.toLocaleString('fr-FR')} / {policy.dailyLimit.toLocaleString('fr-FR')} jetons</strong>
+                </div>
+                <div className="ac-quota-bar" role="progressbar" aria-valuemin={0} aria-valuemax={policy.dailyLimit} aria-valuenow={policy.dailyUsed}>
+                  <i className={!policy.isAdmin && policy.dailyUsed >= policy.dailyLimit ? 'full' : !policy.isAdmin && policy.dailyUsed > policy.dailyLimit * 0.8 ? 'warn' : undefined} style={{ width: `${Math.min(100, Math.round((policy.dailyUsed / policy.dailyLimit) * 100))}%` }} />
+                </div>
+              </div>
+              <div className="ac-quota-row">
+                <div className="ac-quota-head">
+                  <span>Quota hebdomadaire{policy.isAdmin ? ' · admin illimité' : ''}</span>
+                  <strong>{policy.weeklyUsed.toLocaleString('fr-FR')} / {policy.weeklyLimit.toLocaleString('fr-FR')} jetons</strong>
+                </div>
+                <div className="ac-quota-bar" role="progressbar" aria-valuemin={0} aria-valuemax={policy.weeklyLimit} aria-valuenow={policy.weeklyUsed}>
+                  <i className={!policy.isAdmin && policy.weeklyUsed >= policy.weeklyLimit ? 'full' : !policy.isAdmin && policy.weeklyUsed > policy.weeklyLimit * 0.8 ? 'warn' : undefined} style={{ width: `${Math.min(100, Math.round((policy.weeklyUsed / policy.weeklyLimit) * 100))}%` }} />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {isOwner && (
@@ -229,11 +246,8 @@ export default function AgentSecurityPanel({ isOwner, role }: { isOwner: boolean
                 </div>
               ))}
             </div>
-            <div className="wizard-foot" style={{ marginTop: 14 }}>
-              <div className="wizard-foot-nav">
-                <span />
-                <button type="button" className="btn secondary" onClick={() => setShowDevices(false)}>Fermer</button>
-              </div>
+            <div className="ac-modal-foot">
+              <button type="button" className="btn secondary" onClick={() => setShowDevices(false)}>Fermer</button>
             </div>
           </div>
         </div>
