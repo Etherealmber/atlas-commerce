@@ -768,6 +768,8 @@ app.use('/api/public/*', async (c, next) => {
 
 /** Never leak SQL / D1 / stack traces — always safe JSON. */
 app.onError((err, c) => {
+  // Real cause stays server-side (CF logs) — clients only get safe messages.
+  try { console.error('[onError]', c.req.method, new URL(c.req.url).pathname, String((err as any)?.stack || err || '').slice(0, 500)); } catch { /* */ }
   const safe = toClientError(err);
   try {
     return apiFail(c, safe.error, safe.code as any, safe.details, safe.status);
@@ -6316,7 +6318,7 @@ app.put('/api/products/:id', async (c) => {
   await addColumnIfMissing(c.env.DB, 'products', 'expiry_date', `TEXT`);
   if (body.lot_number !== undefined) { updates.push('lot_number = ?'); values.push(String(body.lot_number || '').slice(0, 64) || null); }
   if (body.expiry_date !== undefined) { updates.push('expiry_date = ?'); values.push(String(body.expiry_date || '').slice(0, 32) || null); }
-  if (body.bulk_discounts !== undefined) {
+  if (body.bulk_discounts !== undefined && (await hasColumn(c.env.DB, 'products', 'bulk_discounts'))) {
     updates.push(`bulk_discounts = ?`);
     values.push(JSON.stringify(parseBulkDiscounts(body.bulk_discounts)));
   }
@@ -8132,10 +8134,24 @@ function validateNextCreditNumber(raw: unknown): { ok: true; value: number } | {
  * Highest matching min_qty wins.
  */
 async function ensureProductBulkDiscounts(db: D1Database) {
-  await schemaOnce('ensureProductBulkDiscounts', async () => {
-  await addColumnIfMissing(db, 'products', 'bulk_discounts', `TEXT DEFAULT '[]'`);
+  try {
+    await schemaOnce('ensureProductBulkDiscounts', async () => {
+      await addColumnIfMissing(db, 'products', 'bulk_discounts', `TEXT DEFAULT '[]'`);
+    });
+  } catch (e) {
+    // Never 500 a product save because of an optional column migration.
+    console.error('ensureProductBulkDiscounts_err', String((e as any)?.message || e).slice(0, 300));
+  }
+}
 
-  });
+/** True when the column exists (or PRAGMA unavailable — assume yes). */
+async function hasColumn(db: D1Database, table: string, column: string): Promise<boolean> {
+  try {
+    const info = await db.prepare(`PRAGMA table_info(${table})`).all();
+    return ((info?.results || []) as { name?: string }[]).some((r) => String(r.name || '').toLowerCase() === column.toLowerCase());
+  } catch {
+    return true;
+  }
 }
 
 function parseBulkDiscounts(raw: any): { min_qty: number; percent: number }[] {

@@ -354,7 +354,7 @@ export default function Products() {
           return;
         }
       }
-      flash(e.message, 'error');
+      setModalError(e?.message || 'Enregistrement impossible — vérifiez les champs ou réessayez.');
     } finally {
       setSaving(false);
     }

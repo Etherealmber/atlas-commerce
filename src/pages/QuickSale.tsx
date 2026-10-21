@@ -326,7 +326,7 @@ export default function QuickSale() {
       flash(r.message || 'Ticket annulé — stock rétabli.');
       refreshCounts();
     } catch (e: any) {
-      flash(friendlyError(e), 'error');
+      setModalError(friendlyError(e) || 'Opération impossible — réessayez.');
     }
   };
 

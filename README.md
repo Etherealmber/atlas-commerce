@@ -292,6 +292,11 @@ Atlas Commerce est développé et maintenu par **loxdpy ([@loxdpsy](https://gith
 
 Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depuis la première version interne ; le détail complet et vivant est dans l'app (**Nouveautés**), y compris le cycle bêta **1.x** pré-renumérotation (1.0.0 → 1.4.5) conservé tel quel.
 
+### 0.4.10-beta
+- Erreur « Erreur interne — réessayez plus tard » sur la sauvegarde d'un produit corrigée (migration optionnelle de colonne rendue non bloquante)
+- Erreurs de sauvegarde affichées dans la zone prévue de la fenêtre (bannière au-dessus des boutons), plus de toast masqué
+- Notifications flottantes déplacées en haut de l'écran, cause réelle des erreurs tracée dans les logs serveur
+
 ### 0.4.9-beta
 - OTP par e-mail via Resend (boîte de l'utilisateur), gabarit d'e-mail brandé, plus de « E-mail indisponible » en production
 - Atlas Agent : vision réelle des images jointes (Groq), miniatures dans la bulle, boutons ✎/✕ des pièces jointes visibles dans les deux thèmes

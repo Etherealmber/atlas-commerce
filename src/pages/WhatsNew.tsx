@@ -21,6 +21,26 @@ type Release = {
 
 const RELEASES: Release[] = [
   {
+    version: '0.4.10-beta',
+    date: '22 octobre 2026',
+    sections: [
+      {
+        kind: 'fixes',
+        items: [
+          { id: '0410c1', text: '« Erreur interne — réessayez plus tard » sur l’enregistrement d’un produit : la migration optionnelle de la colonne des remises par quantité ne peut plus faire échouer la sauvegarde (PUT/POST produits blindés)' },
+          { id: '0410c2', text: 'Les erreurs de sauvegarde s’affichent désormais dans la zone prévue de la fenêtre (bannière rouge au-dessus des boutons) — Produits, Facturation et Vente rapide ne passent plus par un toast masqué par le pied de l’assistant' },
+          { id: '0410c3', text: 'Le journal réel de l’erreur reste côté serveur (logs Cloudflare) : plus aucun message SQL/interne exposé au client, mais la cause est tracée pour le débogage' },
+        ],
+      },
+      {
+        kind: 'improvements',
+        items: [
+          { id: '0410b1', text: 'Les notifications flottantes passent en haut de l’écran : elles ne se retrouvent plus jamais derrière les pieds de fenêtre ou les barres collantes' },
+        ],
+      },
+    ],
+  },
+  {
     version: '0.4.9-beta',
     date: '22 octobre 2026',
     sections: [

@@ -274,7 +274,7 @@ export default function Invoices() {
         if (openWa) window.open(res.data.whatsapp_url, '_blank', 'noopener,noreferrer');
       }
       load(true);
-    } catch (e: any) { flash(e.message || 'Erreur lors de l\'enregistrement.', 'error'); } finally { setSaving(false); }
+    } catch (e: any) { setModalError(e?.message || 'Erreur lors de l\'enregistrement.'); } finally { setSaving(false); }
   };
 
   const remainingOf = (inv: any) =>
@@ -389,7 +389,7 @@ export default function Invoices() {
       const res: any = await api.convertQuoteToInvoice(id);
       flash(res.message || 'Devis converti en facture.');
       load(true);
-    } catch (e: any) { flash(e.message, 'error'); }
+    } catch (e: any) { setModalError(e?.message || 'Opération impossible — réessayez.'); }
   };
 
   const requestDelete = async (id: number) => {
