@@ -110,12 +110,16 @@ h1, h2, .atlas-page h1, .page-title {
 /* Image outline */
 img.ac-topbar-avatar,
 .product-thumb img,
-.thumb img {
-  outline: 1px solid rgba(0, 0, 0, 0.1);
+.thumb img,
+.product-image-editor img {
+  outline: 1px solid var(--line, rgba(15, 23, 42, 0.14));
+  background: #ffffff;
 }
 html[data-theme="dark"] img.ac-topbar-avatar,
-html[data-theme="dark"] .product-thumb img {
-  outline-color: rgba(255, 255, 255, 0.1);
+html[data-theme="dark"] .product-thumb img,
+html[data-theme="dark"] .product-image-editor img {
+  outline-color: #3f3f46;
+  background: #26262a;
 }
 
 /* Prefer reduced motion */

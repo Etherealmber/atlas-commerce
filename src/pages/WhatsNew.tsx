@@ -21,6 +21,27 @@ type Release = {
 
 const RELEASES: Release[] = [
   {
+    version: '0.5.2-beta',
+    date: '22 octobre 2026',
+    sections: [
+      {
+        kind: 'fixes',
+        items: [
+          { id: '052c1', text: 'Enregistrement produit : PUT/POST blindés contre les schémas D1 incomplets (garde PRAGMA sur chaque colonne) — plus de 500 « Erreur interne » en production' },
+          { id: '052c2', text: 'Photo de profil chargée via le proxy worker same-origin (/api/me/avatar) : le CORS de cdn1.afmarbre.com ne bloque plus l’avatar' },
+          { id: '052c3', text: 'Boutons ✎ / ✕ des pièces jointes de l’agent toujours visibles, thèmes clair et sombre' },
+          { id: '052c4', text: 'Contours d’images thématisés (fini le liseré noir en mode clair / blanc en mode sombre) + fond neutre sous les PNG transparents' },
+        ],
+      },
+      {
+        kind: 'features',
+        items: [
+          { id: '052a1', text: 'Atlas Agent lit chaque fichier DÈS l’envoi (images en vision, extraits texte inclus dans le prompt) ; dire « lis ça » sans joindre de fichier reprend automatiquement le dernier fichier envoyé' },
+        ],
+      },
+    ],
+  },
+  {
     version: '0.5.1-beta',
     date: '22 octobre 2026',
     sections: [

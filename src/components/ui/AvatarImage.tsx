@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FC, type ReactNode } from 'react';
-import { getAvatarUrl, sanitizeAvatarUrl } from '../../auth';
+import { getAvatarUrl, sanitizeAvatarUrl, getToken } from '../../auth';
 
 type Props = {
   className?: string;
@@ -40,7 +40,12 @@ export const AvatarImage: FC<Props> = ({ className, width, height, loading, fall
     }
     (async () => {
       try {
-        const r = await fetch(url);
+        // Cross-origin avatar CDNs (no CORS headers) are fetched through the
+        // same-origin worker proxy; everything else is fetched directly.
+        const crossOrigin = /^https?:\/\//i.test(url) && !url.startsWith(window.location.origin);
+        const fetchUrl = crossOrigin ? '/api/me/avatar' : url;
+        const token = crossOrigin ? getToken() : null;
+        const r = await fetch(fetchUrl, token ? { headers: { Authorization: `Bearer ${token}` } } : undefined);
         if (!r.ok) throw new Error(`http ${r.status}`);
         const blob = await r.blob();
         const o = URL.createObjectURL(blob);

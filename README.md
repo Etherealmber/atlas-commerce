@@ -292,6 +292,10 @@ Atlas Commerce est développé et maintenu par **loxdpy ([@loxdpsy](https://gith
 
 Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depuis la première version interne ; le détail complet et vivant est dans l'app (**Nouveautés**), y compris le cycle bêta **1.x** pré-renumérotation (1.0.0 → 1.4.5) conservé tel quel.
 
+### 0.5.2-beta
+- PUT/POST produits blindés contre les colonnes manquantes (plus de 500 « Erreur interne »)
+- Avatar via proxy same-origin (CORS cdn1 contourné) ; agent lit les fichiers dès l'envoi et reprend le dernier fichier sur « lis ça »
+
 ### 0.5.1-beta
 - Menu utilisateur portalisé (toujours visible) avec photo de profil dans l'en-tête ; avatar monogramme SVG de nouveau affiché
 - Assistant produit en 5 étapes sans défilement ; numérotation 0.4.10 → 0.5.0 et 0.4.11 → 0.5.1

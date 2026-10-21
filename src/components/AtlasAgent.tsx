@@ -672,7 +672,10 @@ export default function AtlasAgent() {
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [listening, setListening] = useState(false); // unused (dictation removed)
-  const [attachments, setAttachments] = useState<{ name: string; type: string; data_url: string; preview_url?: string }[]>([]);
+  const [attachments, setAttachments] = useState<{ name: string; type: string; data_url: string; preview_url?: string; text_excerpt?: string }[]>([]);
+  // v242 — remember the latest uploaded files so "lis ça" without a new
+  // attachment re-sends them to the model instead of answering blind.
+  const lastFilesRef = useRef<{ name: string; type: string; data_url: string; preview_url?: string; text_excerpt?: string }[]>([]);
   const [lightbox, setLightbox] = useState<{ src: string; name?: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [msgs, setMsgs] = useState<Msg[]>(() => {
@@ -1119,20 +1122,28 @@ export default function AtlasAgent() {
         try { uiToast(`Fichier trop lourd (max 4 Mo) : ${f.name}`, 'error'); } catch { /* */ }
         continue;
       }
-      const reader = new FileReader();
-      reader.onload = () => {
-        const data_url = String(reader.result || '');
+      void (async () => {
+        const data_url = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result || ''));
+          reader.readAsDataURL(f);
+        });
         const isImg = (f.type || '').startsWith('image/');
+        const isTextual = (f.type || '').startsWith('text/') || /\.(txt|md|csv|json|xml|yml|yaml|log)$/i.test(f.name);
+        let text_excerpt: string | undefined;
+        if (!isImg && isTextual) {
+          try { text_excerpt = (await f.text()).slice(0, 12000); } catch { /* */ }
+        }
         setAttachments((prev) => [...prev, {
           name: f.name,
           type: f.type || 'application/octet-stream',
           data_url,
+          text_excerpt,
           // Opaque object URL for on-screen previews: FileReader text never
           // reaches an <img> src (CodeQL js/dom-text-reinterpreted-as-html).
           preview_url: isImg ? URL.createObjectURL(f) : undefined,
         }].slice(-5));
-      };
-      reader.readAsDataURL(f);
+      })();
     }
   };
 
@@ -1151,7 +1162,13 @@ export default function AtlasAgent() {
   const send = useCallback(
     async (raw?: string, isRetry = false, retryAtIndex?: number) => {
       const q = (raw ?? input).trim();
-      const files = isRetry ? [] : attachments;
+      const picked = isRetry ? [] : attachments;
+      const READ_RX = /\b(lis|lire|relis|relire|read|analyse|analyser|analyze|regarde|regarder|résume|resume|summarize|commente|commentes|étudie|etudie|ouvre|open)\b/i;
+      let reused = false;
+      const files = (!picked.length && READ_RX.test(q) && lastFilesRef.current.length)
+        ? ((reused = true), lastFilesRef.current)
+        : picked;
+      if (!isRetry && picked.length) lastFilesRef.current = picked;
       if ((!q && !files.length) || busy) return;
       /* v225 security: blocked users and exhausted quotas cannot talk to the agent */
       if (agentPolicy?.blocked) {
@@ -1244,9 +1261,14 @@ export default function AtlasAgent() {
               'Réponds en français, de façon utile et naturelle (2–5 phrases max sauf si on demande un détail).',
               'Si la question est un salut ou hors sujet page, réponds normalement sans forcer un tutoriel de la page.',
               'Ne propose pas d\'ouvrir la page courante.',
-              `Message: ${q || 'Analyse des pièces jointes (noms uniquement — contenu binaire non renvoyé au modèle).'}`,
+              `Message: ${q || 'Analyse des pièces jointes.'}`,
               files.length
-                ? `Fichiers joints (cette requête uniquement): ${files.map((f) => `${f.name} (${f.type})`).join('; ')}. Ne redemande pas de fichier si l'utilisateur n'en a pas fourni.`
+                ? [
+                    `Fichiers joints: ${files.map((f) => `${f.name} (${f.type})`).join('; ')}. Ne redemande pas de fichier si l'utilisateur n'en a pas fourni.`,
+                    'Consigne: lis IMMÉDIATEMENT chaque fichier joint (images transmises en vision, extraits texte inclus ci-dessous) et appuie ta réponse dessus en premier.',
+                    reused ? 'Ces pièces jointes ont déjà été fournies plus tôt dans la conversation — reprends-les pour cette demande.' : '',
+                    ...files.filter((f) => f.text_excerpt).map((f) => `--- Extrait de ${f.name} ---\n${f.text_excerpt}`),
+                  ].filter(Boolean).join('\n')
                 : 'Aucun fichier joint — ne demande pas de pièce jointe sauf si indispensable.',
             ].filter(Boolean).join('\n');
         const res = await api.assistChat(prompt, {
