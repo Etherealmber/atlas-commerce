@@ -21,7 +21,7 @@ type Release = {
 
 const RELEASES: Release[] = [
   {
-    version: '0.4.11-beta',
+    version: '0.5.1-beta',
     date: '22 octobre 2026',
     sections: [
       {
@@ -36,12 +36,15 @@ const RELEASES: Release[] = [
           { id: '0411b1', text: 'Assistant produit allégé : l’étape « Variantes & photos » est séparée en deux étapes dédiées (Étape 3 Variantes · Étape 4 Photos) — moins de contenu d’un coup, moins de défilement' },
           { id: '0411b2', text: 'Pied d’assistant réellement fixe dans toutes les fenêtres : les boutons ne bougent plus et ne recouvrent jamais le contenu — le corps de l’étape défile à l’intérieur, la barre reste en bas' },
           { id: '0411b3', text: 'L’assistant repart toujours à l’étape 1 à chaque ouverture (nouveau produit, modification, pré-remplissage scan/agent)' },
+          { id: '0411b4', text: 'Assistant produit en 5 étapes (Identité · Classement · Prix & stock · Variantes · Photos) : chaque étape tient à l’écran sans défilement' },
+          { id: '0411c1', text: 'Menu utilisateur du topbar ouvert dans un portail fixé sous le bouton : plus jamais rogné, masqué ou décalé — et la photo de profil s’affiche désormais dans son en-tête' },
+          { id: '0411c2', text: 'Avatar monogramme (SVG serveur) de nouveau visible partout : le filtre client n’acceptait que png/jpeg/webp — repli initiales si l’image échoue (topbar, sidebar, réglages)' },
         ],
       },
     ],
   },
   {
-    version: '0.4.10-beta',
+    version: '0.5.0-beta',
     date: '22 octobre 2026',
     sections: [
       {

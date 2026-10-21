@@ -402,7 +402,7 @@ function AccountMenu({
         onPointerDown={(e) => e.stopPropagation()}
       >
         {hasAvatarUrl() ? (
-          <AvatarImage key={`av-${profileTick}`} className="sidebar-avatar sidebar-avatar-img" width={36} height={36} />
+          <AvatarImage key={`av-${profileTick}`} className="sidebar-avatar sidebar-avatar-img" width={36} height={36} fallback={<span className="sidebar-avatar sidebar-avatar-img ac-topbar-avatar--ini">{typeof getDisplayInitials === 'function' ? getDisplayInitials() : '?'}</span>} />
         ) : (
           <span key={`ini-${profileTick}`} className="sidebar-avatar">{getDisplayInitials()}</span>
         )}
@@ -1699,7 +1699,7 @@ function DesktopShell() {
               onClick={() => setFocusUserMenuOpen((v) => !v)}
             >
               {hasAvatarUrl() ? (
-                <AvatarImage className="settings-topbar-avatar" />
+                <AvatarImage className="settings-topbar-avatar" fallback={<span className="settings-topbar-avatar ac-topbar-avatar--ini">{typeof getDisplayInitials === 'function' ? getDisplayInitials() : '?'}</span>} />
               ) : (
                 <span className="settings-topbar-avatar settings-topbar-avatar--ini">{getDisplayInitials()}</span>
               )}
