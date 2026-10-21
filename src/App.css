@@ -12021,6 +12021,30 @@ body:has(.modal-backdrop) .atlas-agent-fab {
   justify-content: flex-start;
   align-self: flex-start;
 }
+.atlas-agent-msg-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.atlas-agent-msg-file {
+  display: inline-flex;
+  align-items: center;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line, #e4e4e7);
+  background: rgba(113, 113, 122, 0.10);
+  color: inherit;
+  font-size: 11px;
+}
+html[data-theme="dark"] .atlas-agent-msg-file {
+  border-color: #3f3f46;
+  background: rgba(255, 255, 255, 0.06);
+}
 .atlas-agent-msg-act {
   width: 26px !important;
   height: 26px !important;

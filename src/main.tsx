@@ -115,7 +115,7 @@ createRoot(document.getElementById('root')!).render(
 // Offline PWA: cache shell + GET /api/* for hors-ligne scan / catalogue
 if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js?v=10').then((reg) => {
+    navigator.serviceWorker.register('/sw.js?v=11').then((reg) => {
       // Prefer fresh worker after deploy
       if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
       reg.addEventListener('updatefound', () => {

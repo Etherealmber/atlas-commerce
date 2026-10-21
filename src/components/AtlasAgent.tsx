@@ -1199,8 +1199,9 @@ export default function AtlasAgent() {
         ? `\n[Pièces jointes: ${namedFiles.map((f) => f.name).join(', ')}]`
         : '';
       const userText = (q || 'Voir les pièces jointes') + attachNote;
+      const bubbleText = q || '';
       if (!isRetry) {
-        setMsgs((m) => [...m, { role: 'user', text: userText, images: files.filter((f) => (f.type || '').startsWith('image/')).map((f) => sanitizeImageDataUrl(f.data_url)).filter(Boolean).slice(0, 4), imageUrls: files.filter((f) => (f.type || '').startsWith('image/')).map((f) => f.preview_url || '').filter(Boolean).slice(0, 4) }]);
+        setMsgs((m) => [...m, { role: 'user', text: bubbleText, fileNames: namedFiles.map((f) => f.name).slice(0, 5), images: files.filter((f) => (f.type || '').startsWith('image/')).map((f) => sanitizeImageDataUrl(f.data_url)).filter(Boolean).slice(0, 4), imageUrls: files.filter((f) => (f.type || '').startsWith('image/')).map((f) => f.preview_url || '').filter(Boolean).slice(0, 4) }]);
         touchThread(userText);
       } else {
         // Remove the assistant message being retried; keep variants of previous text
@@ -1634,6 +1635,13 @@ export default function AtlasAgent() {
             <div key={i} className={`atlas-agent-msg ${m.role}`}>
               <div className="atlas-agent-bubble">
                 {m.role === 'assistant' ? renderMiniMarkdown(String(m.text || '')) : m.text}
+                {m.role === 'user' && ((m as any).fileNames || []).length ? (
+                  <div className="atlas-agent-msg-files">
+                    {((m as any).fileNames || []).map((n: string, k: number) => (
+                      <span key={k} className="atlas-agent-msg-file" title={n}>{n}</span>
+                    ))}
+                  </div>
+                ) : null}
                 {m.role === 'user' && (m.images || []).length ? (
                   <div className="atlas-agent-msg-imgs">
                     {(m.images || []).map((raw, k) => (
