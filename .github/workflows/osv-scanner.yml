@@ -1,13 +1,8 @@
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-
-# A sample workflow which sets up periodic OSV-Scanner scanning for vulnerabilities,
-# in addition to a PR check which fails if new vulnerabilities are introduced.
-#
-# For more examples and options, including how to ignore specific vulnerabilities,
-# see https://google.github.io/osv-scanner/github-action/
+# OSV-Scanner — official v2.7.0 unified layout (scheduled + PR scans).
+# Pin SHA copied verbatim from google/osv-scanner-action's own
+# osv-scanner-unified-workflow.yml at v2.7.0 (ef6dfdf0…), which is the
+# combination tested by the maintainers; job-level permissions are
+# required by the reusable workflow for SARIF upload.
 
 name: OSV-Scanner
 
@@ -15,34 +10,40 @@ on:
   pull_request:
     branches: [ "main" ]
   merge_group:
-    branches: [ "main" ]
+    types: [checks_requested]
   schedule:
     - cron: '34 17 * * 5'
   push:
     branches: [ "main" ]
 
 permissions:
-  # Require writing security events to upload SARIF file to security tab
-  security-events: write
-  # Read commit contents
   contents: read
 
 jobs:
   scan-scheduled:
     if: ${{ github.event_name == 'push' || github.event_name == 'schedule' }}
-    uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@b1d267aea5211fa648d9d442fa64b90dbdcbdd36" # v2.7.0
+    permissions:
+      # Required to upload SARIF file to CodeQL.
+      actions: read
+      # Require writing security events to upload SARIF file to security tab
+      security-events: write
+      # Read commit contents
+      contents: read
+    uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@ef6dfdf01765802d5a8dbc3c39852a6128b00af0" # v2.7.0
     with:
-      # Example of specifying custom arguments
       scan-args: |-
+        --include-git-root
         -r
-        --skip-git
         ./
   scan-pr:
     if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
-    uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@b1d267aea5211fa648d9d442fa64b90dbdcbdd36" # v2.7.0
+    permissions:
+      actions: read
+      security-events: write
+      contents: read
+    uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@ef6dfdf01765802d5a8dbc3c39852a6128b00af0" # v2.7.0
     with:
-      # Example of specifying custom arguments
       scan-args: |-
+        --include-git-root
         -r
-        --skip-git
         ./

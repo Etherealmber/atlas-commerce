@@ -396,7 +396,7 @@ export default function Scan() {
       )}
 
       <div className="scan-ops-chips" role="tablist" aria-label="Mode de scan">
-        {([['vente', 'Vente'], ['receive', 'Réception'], ['transfer', 'Transfert'], ['count', 'Inventaire']] as const).map(([m, lbl]) => (
+        {([['vente', 'Vente'], ['receive', 'Réception'], ['transfer', 'Transfert']] as const).map(([m, lbl]) => (
           <button key={m} type="button" className={`secondary${opMode === m ? ' is-active' : ''}`} onClick={() => { setOpMode(m); setOpErr(''); setOpMsg(''); }}>
             {lbl}
           </button>
