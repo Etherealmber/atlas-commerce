@@ -62,6 +62,7 @@ const RELEASES: Release[] = [
           { id: '051d2', text: 'Photo de profil visible immédiatement après un rafraîchissement : topbar, menu utilisateur et réglages se mettent à jour dès que le profil arrive, sans aucun clic' },
           { id: '051d3', text: 'Facture : si la déduction de stock échoue (erreur base de données), la facture est annulée et l’erreur réelle s’affiche dans la zone prévue — plus jamais de stock faussé en silence' },
           { id: '051d4', text: 'Corruption D1 (« database disk image is malformed » / SQLITE_CORRUPT) reconnue : message clair « base corrompue, restauration Cloudflare requise » (code DB_CORRUPT) au lieu d’un « Erreur interne » générique sur tout le site' },
+          { id: '051d5', text: 'Auto-réparation de l’index de recherche produit (FTS5) : en cas de corruption (SQLITE_CORRUPT_VTAB), l’index est reconstruit depuis products — ou recréé et re-rempli — sans aucune perte de données, puis l’action n’a qu’à être réessayée ; bouton de reconstruction manuel réservé owner/admin' },
         ],
       },
     ],

@@ -304,6 +304,7 @@ Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depui
 - Sauvegarde produit blindée jusqu'au bout (updated_at gardé, dup-check non bloquant, SW v11 purge les caches périmés) ; appareils connectés auto-enregistrés ; UI agent sombre corrigée
 - Nouveau produit : upload de photos dès l'étape Photos de la création (envoyées juste après la création) ; avatar visible immédiatement après rafraîchissement, sans clic
 - Facture : échec de déduction de stock = facture annulée + erreur affichée (plus de stock faussé en silence) ; corruption D1 (SQLITE_CORRUPT) diagnostiquée clairement (code DB_CORRUPT, message de restauration)
+- Auto-réparation FTS5 (products_fts) : corruption SQLITE_CORRUPT_VTAB reconstruite/recréée automatiquement sans perte de données + endpoint owner POST /api/admin/search-index/rebuild
 
 ### 0.5.0-beta
 - Erreur « Erreur interne — réessayez plus tard » sur la sauvegarde d'un produit corrigée (migration optionnelle de colonne rendue non bloquante)

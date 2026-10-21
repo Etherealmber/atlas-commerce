@@ -37,6 +37,7 @@ import {
 import { canMutateBusiness, canHardDeleteStock, normalizeRole } from './lib/rbac';
 import { apiFail, apiOk } from './lib/api-response';
 import { toClientError, AppError } from './lib/errors';
+import { repairProductSearchIndex } from './lib/reliability';
 import { fetchWithTimeout } from './lib/http-client';
 import { searchProducts, reliabilityStatus, ensureProductSearchIndex, reliableFetch } from './lib/reliability';
 import { detectBffSurface } from './lib/bff';
@@ -767,10 +768,25 @@ app.use('/api/public/*', async (c, next) => {
 });
 
 /** Never leak SQL / D1 / stack traces — always safe JSON. */
-app.onError((err, c) => {
+app.onError(async (err, c) => {
   // Real cause stays server-side (CF logs) — clients only get safe messages.
   try { console.error('[onError]', c.req.method, new URL(c.req.url).pathname, String((err as any)?.stack || err || '').slice(0, 500)); } catch { /* */ }
   const safe = toClientError(err);
+  // v243.4: SQLITE_CORRUPT(_VTAB) on this app almost always means the
+  // products_fts FTS5 shadow pages — derived data we can rebuild ourselves.
+  // Heal now, tell the client to retry; a TimeTravel restore is NOT needed.
+  if (safe.code === 'DB_CORRUPT') {
+    const how = await repairProductSearchIndex(c.env.DB).catch(() => 'failed' as const);
+    if (how !== 'failed') {
+      return apiFail(
+        c,
+        'Index de recherche produit corrompu — réparation automatique effectuée (aucune donnée perdue). Réessayez votre action.',
+        'SERVICE_UNAVAILABLE',
+        { repaired: how },
+        503,
+      );
+    }
+  }
   try {
     return apiFail(c, safe.error, safe.code as any, safe.details, safe.status);
   } catch {
@@ -789,6 +805,14 @@ app.get('/api/admin/reliability', async (c) => {
     return apiFail(c, 'Action non autorisée', 'FORBIDDEN');
   }
   return apiOk(c, reliabilityStatus(c.env));
+});
+
+/** Owner/admin: manual FTS self-heal (same path as the automatic repair). */
+app.post('/api/admin/search-index/rebuild', async (c) => {
+  const gate = requireOwner(c);
+  if (!gate.ok) return gate.response;
+  const how = await repairProductSearchIndex(c.env.DB, { force: true });
+  return c.json({ success: how !== 'failed', result: how });
 });
 
 /* Domain route modules (extracted from monolith) */
