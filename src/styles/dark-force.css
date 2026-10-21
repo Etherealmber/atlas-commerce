@@ -4271,3 +4271,35 @@ html[data-theme="dark"] body .wn-ver {
 }
 html[data-theme="dark"] body .wn-ver .wn-ver-date { color: #a1a1aa !important; }
 /* v236 END */
+
+/* v248.2 — tapped/focused buttons NEVER turn white in dark */
+html[data-theme="dark"] body button:active:not(.active):not(.danger),
+html[data-theme="dark"] body button:focus:not(.active),
+html[data-theme="dark"] body button:focus-visible:not(.active) {
+  background-color: #3f3f46 !important;
+  background-image: none !important;
+  color: #fafafa !important;
+  -webkit-text-fill-color: #fafafa !important;
+}
+html[data-theme="dark"] body button.danger:active { background-color: #7f1d1d !important; color: #fecaca !important; }
+html[data-theme="dark"] * { -webkit-tap-highlight-color: transparent; }
+/* Agent: stop pill + thinking row + readable nav chips in dark */
+html[data-theme="dark"] body .atlas-agent-stop,
+html[data-theme="dark"] body .atlas-agent-stop.secondary { background: #27272a !important; color: #f87171 !important; border: 1px solid rgba(255,255,255,.16) !important; }
+html[data-theme="dark"] body .atlas-agent-stop:active { background: #3f3f46 !important; color: #fecaca !important; }
+html[data-theme="dark"] body .atlas-agent-thinking-row { color: #e4e4e7; }
+html[data-theme="dark"] body .atlas-agent-nav--readable button,
+html[data-theme="dark"] body .atlas-agent-nav--readable button:active { background: #1e293b !important; color: #f1f5f9 !important; border-color: #475569 !important; }
+/* Balance / vendors: outline cards + panels dark (override white !important upstream) */
+html[data-theme="dark"] body .balance-page .atlas-outline-card,
+html[data-theme="dark"] body .balance-page .ac-panel,
+html[data-theme="dark"] body .vendors-page .ac-panel {
+  background: #18181b !important;
+  border: 1px solid rgba(255,255,255,.08) !important;
+  box-shadow: none !important;
+  color: #e4e4e7 !important;
+}
+html[data-theme="dark"] body .balance-page .aoc-title { color: #a1a1aa !important; }
+/* Login password toggle: dark surface, not a white square */
+html[data-theme="dark"] body button.atlas-password-toggle,
+html[data-theme="dark"] body .atlas-password-toggle { background: #27272a !important; color: #e4e4e7 !important; border: 1px solid #3f3f46 !important; }

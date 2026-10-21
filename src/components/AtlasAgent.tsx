@@ -1877,7 +1877,7 @@ export default function AtlasAgent() {
                   pattern="orbit"
                   grid={3}
                   shape="round"
-                  color="#0f172a"
+                  color="currentColor"
                   doneColor="#71717a"
                   errorColor="#ef4444"
                   cellSize={6}

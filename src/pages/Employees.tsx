@@ -779,19 +779,6 @@ export default function Employees() {
         <FloatingPortal><div className="modal-overlay" onClick={() => { setShowModal(false); setEditing(null); setForm({ ...emptyForm }); setStep(0); setModalError(''); setFieldErrors({}); }}>
           <div className="modal" style={{ maxWidth: 640, width: '94vw' }} onClick={(ev) => ev.stopPropagation()}>
             <h2 style={{ marginBottom: 8 }}>{editing ? 'Modifier l’employé' : 'Nouvel employé'}</h2>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
-              {STEPS.map((s, i) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  className={i === step ? '' : 'secondary'}
-                  style={{ padding: '6px 12px', fontSize: 12 }}
-                  onClick={() => setStep(i)}
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
 
             {step === 0 && (
               <div className="grid grid-2">

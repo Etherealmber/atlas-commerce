@@ -670,26 +670,6 @@ export default function QuickSale() {
 
             </StepBody>
             <StepBody active={wz.step === 2}>
-            <div className="form-row" style={{ marginTop: 12 }}>
-              <label>Code-barres / SKU (Entrée = ajouter)</label>
-              <input
-                value={barcodeScan}
-                onChange={(e) => { setBarcodeScan(e.target.value); if (scanError) setScanError(''); }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    applyBarcodeScan(barcodeScan);
-                  }
-                }}
-                placeholder="Scanner ou saisir puis Entrée…"
-                autoComplete="off"
-                aria-invalid={scanError ? true : undefined}
-              />
-              {scanError && (
-                <p className="ac-field-error" role="alert">{scanError}</p>
-              )}
-            </div>
-
             <h3 style={{ margin: '16px 0 8px', fontSize: 14 }}>
               Lignes — recherche produit · prix · quantité
             </h3>

@@ -427,8 +427,8 @@ export default function Balance() {
             className="balance-reconcile-head"
             style={{
               padding: '14px 18px',
-              background: reconcile.summary?.ok ? '#ffffff' : 'rgba(239, 68, 68, 0.06)',
-              borderBottom: '1px solid #e8eaef',
+              background: reconcile.summary?.ok ? 'var(--card, #ffffff)' : 'rgba(239, 68, 68, 0.06)',
+              borderBottom: '1px solid var(--line, #e8eaef)',
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
@@ -437,12 +437,12 @@ export default function Balance() {
             }}
           >
             <div>
-              <strong style={{ fontSize: 15, color: '#0f172a' }}>Rapprochement comptable</strong>
+              <strong style={{ fontSize: 15, color: 'var(--ink, #0f172a)' }}>Rapprochement comptable</strong>
               <p
                 style={{
                   fontSize: 13,
                   margin: '4px 0 0',
-                  color: reconcile.summary?.ok ? '#71717a' : '#b91c1c',
+                  color: reconcile.summary?.ok ? 'var(--muted, #71717a)' : '#b91c1c',
                 }}
               >
                 {reconcile.summary?.ok ? 'Solde et paiements cohérents' : (reconcile.summary?.message || 'Écarts détectés')}
