@@ -1899,6 +1899,11 @@ export default function AtlasAgent() {
               </span>
             </div>
           )}
+          {agentPolicy && !agentPolicy.isAdmin && !agentPolicy.blocked && (
+            <div className="atlas-agent-quota" title="Jetons utilisés (jour / semaine) — données Durable Object">
+              {Math.round((agentPolicy.dailyUsed / agentPolicy.dailyLimit) * 100)}% du quota jour · {Math.round((agentPolicy.weeklyUsed / agentPolicy.weeklyLimit) * 100)}% semaine
+            </div>
+          )}
           <PromptBar
             placeholder="Écrire un message…"
             sources={[

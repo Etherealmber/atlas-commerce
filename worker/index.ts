@@ -72,6 +72,8 @@ import {
   sendFcmToUser as fcmSendToUser,
 } from './lib/fcm';
 import { MobileHub } from './durable/MobileHub';
+import { AgentQuotaHub } from './durable/AgentQuotaHub';
+export { AgentQuotaHub };
 import { RestoreHub } from './durable/RestoreHub';
 import { NumberHub } from './durable/NumberHub';
 import {
@@ -821,6 +823,56 @@ async function getAgentControlRow(db: D1Database, username: string) {
   return { ...existing, daily_tokens, daily_date, weekly_tokens, weekly_start };
 }
 
+
+/* ── Agent quota counters live in a Durable Object (survives deploys/restarts) ── */
+function agentQuotaStub(env: Env, username: string) {
+  if (!env.AGENT_QUOTA_HUB) return null;
+  const id = env.AGENT_QUOTA_HUB.idFromName('agent-quota:' + username);
+  return env.AGENT_QUOTA_HUB.get(id);
+}
+async function agentQuotaCounters(env: Env, db: D1Database, username: string) {
+  const stub = agentQuotaStub(env, username);
+  if (!stub) {
+    const row = await getAgentControlRow(db, username);
+    return { dailyUsed: row.daily_tokens, weeklyUsed: row.weekly_tokens };
+  }
+  const res = await stub.fetch('http://atlas-quota/');
+  const j = (await res.json()) as any;
+  let { dailyUsed, weeklyUsed, initialized } = j.data || { dailyUsed: 0, weeklyUsed: 0, initialized: false };
+  if (!initialized) {
+    const row = await getAgentControlRow(db, username);
+    const seed = await stub.fetch('http://atlas-quota/seed', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ daily: row.daily_tokens, dailyDate: row.daily_date, weekly: row.weekly_tokens, weeklyStart: row.weekly_start }),
+    });
+    const j2 = (await seed.json()) as any;
+    dailyUsed = j2.data.dailyUsed; weeklyUsed = j2.data.weeklyUsed;
+  }
+  return { dailyUsed, weeklyUsed };
+}
+async function agentQuotaAdd(env: Env, db: D1Database, username: string, tokens: number) {
+  const stub = agentQuotaStub(env, username);
+  if (!stub) {
+    const row = await getAgentControlRow(db, username);
+    const daily = row.daily_tokens + tokens;
+    const weekly = row.weekly_tokens + tokens;
+    await db.prepare(`UPDATE agent_controls SET daily_tokens = ?, weekly_tokens = ?, updated_at = datetime('now') WHERE username = ?`).bind(daily, weekly, username).run();
+    return { dailyUsed: daily, weeklyUsed: weekly };
+  }
+  const res = await stub.fetch('http://atlas-quota/add', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tokens }),
+  });
+  const j = (await res.json()) as any;
+  // best-effort mirror into D1 for admin tooling
+  try {
+    await db.prepare(`UPDATE agent_controls SET daily_tokens = ?, weekly_tokens = ?, updated_at = datetime('now') WHERE username = ?`).bind(j.data.dailyUsed, j.data.weeklyUsed, username).run();
+  } catch { /* mirror only */ }
+  return { dailyUsed: j.data.dailyUsed, weeklyUsed: j.data.weeklyUsed };
+}
+
 app.get('/api/agent/policy', async (c) => {
   const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, clientIp(c), c.req.header('X-Device-Fingerprint') || '');
   if (reason !== 'ok') return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
@@ -828,13 +880,14 @@ app.get('/api/agent/policy', async (c) => {
   const username = String(session.username || '').toLowerCase();
   const isAdmin = session.role === 'owner' || session.role === 'admin';
   const row = await getAgentControlRow(c.env.DB, username);
+  const counters = await agentQuotaCounters(c.env, c.env.DB, username);
   return c.json({
     success: true,
     data: {
       blocked: !!row.blocked,
       isAdmin,
-      dailyUsed: row.daily_tokens,
-      weeklyUsed: row.weekly_tokens,
+      dailyUsed: counters.dailyUsed,
+      weeklyUsed: counters.weeklyUsed,
       dailyLimit: AGENT_DAILY_LIMIT,
       weeklyLimit: AGENT_WEEKLY_LIMIT,
     },
@@ -849,11 +902,8 @@ app.post('/api/agent/usage', async (c) => {
   if (session.role === 'owner' || session.role === 'admin') return c.json({ success: true, data: { unlimited: true } });
   const body = await c.req.json().catch(() => ({}));
   const tokens = Math.max(0, Math.min(200000, Number(body.tokens) || 0));
-  const row = await getAgentControlRow(c.env.DB, username);
-  const daily = row.daily_tokens + tokens;
-  const weekly = row.weekly_tokens + tokens;
-  await c.env.DB.prepare(`UPDATE agent_controls SET daily_tokens = ?, weekly_tokens = ?, updated_at = datetime('now') WHERE username = ?`).bind(daily, weekly, username).run();
-  return c.json({ success: true, data: { dailyUsed: daily, weeklyUsed: weekly, dailyLimit: AGENT_DAILY_LIMIT, weeklyLimit: AGENT_WEEKLY_LIMIT } });
+  const counters = await agentQuotaAdd(c.env, c.env.DB, username, tokens);
+  return c.json({ success: true, data: { dailyUsed: counters.dailyUsed, weeklyUsed: counters.weeklyUsed, dailyLimit: AGENT_DAILY_LIMIT, weeklyLimit: AGENT_WEEKLY_LIMIT } });
 });
 
 /* Prompt-injection / abuse tripwire: client flags the session user; agent locked until an admin restores. */
