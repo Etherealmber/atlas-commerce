@@ -71,6 +71,17 @@ export function getAvatarUrl(): string {
 }
 
 /**
+ * Gate for ephemeral preview URLs: object URLs created by this app
+ * (blob:), plain base64 image data URLs, or whitelisted http(s) images.
+ */
+export function sanitizePreviewUrl(raw: string | null | undefined): string {
+  const value = String(raw || '').trim();
+  if (!value) return '';
+  if (/^blob:https?:\/\//i.test(value)) return value;
+  return sanitizeImageDataUrl(value) || sanitizeAvatarUrl(value);
+}
+
+/**
  * Whitelist gate for client-side image previews (FileReader data URLs).
  * Only plain base64 image data URLs pass; anything else becomes ''.
  * CodeQL: validated values stop the DOM-text -> HTML-sink taint flow.

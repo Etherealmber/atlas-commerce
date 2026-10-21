@@ -657,7 +657,7 @@ export default function AtlasAgent() {
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [listening, setListening] = useState(false); // unused (dictation removed)
-  const [attachments, setAttachments] = useState<{ name: string; type: string; data_url: string }[]>([]);
+  const [attachments, setAttachments] = useState<{ name: string; type: string; data_url: string; preview_url?: string }[]>([]);
   const [lightbox, setLightbox] = useState<{ src: string; name?: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [msgs, setMsgs] = useState<Msg[]>(() => {
@@ -1103,7 +1103,15 @@ export default function AtlasAgent() {
       const reader = new FileReader();
       reader.onload = () => {
         const data_url = String(reader.result || '');
-        setAttachments((prev) => [...prev, { name: f.name, type: f.type || 'application/octet-stream', data_url }].slice(-5));
+        const isImg = (f.type || '').startsWith('image/');
+        setAttachments((prev) => [...prev, {
+          name: f.name,
+          type: f.type || 'application/octet-stream',
+          data_url,
+          // Opaque object URL for on-screen previews: FileReader text never
+          // reaches an <img> src (CodeQL js/dom-text-reinterpreted-as-html).
+          preview_url: isImg ? URL.createObjectURL(f) : undefined,
+        }].slice(-5));
       };
       reader.readAsDataURL(f);
     }
@@ -1156,7 +1164,7 @@ export default function AtlasAgent() {
         : '';
       const userText = (q || 'Voir les pièces jointes') + attachNote;
       if (!isRetry) {
-        setMsgs((m) => [...m, { role: 'user', text: userText, images: files.filter((f) => (f.type || '').startsWith('image/')).map((f) => sanitizeImageDataUrl(f.data_url)).filter(Boolean).slice(0, 4) }]);
+        setMsgs((m) => [...m, { role: 'user', text: userText, images: files.filter((f) => (f.type || '').startsWith('image/')).map((f) => f.preview_url || sanitizeImageDataUrl(f.data_url)).filter(Boolean).slice(0, 4) }]);
         touchThread(userText);
       } else {
         // Remove the assistant message being retried; keep variants of previous text
@@ -1228,7 +1236,7 @@ export default function AtlasAgent() {
           user_message: q || userText,
           page_path: page.path,
           page_title: page.title,
-          images: files.filter((f) => (f.type || '').startsWith('image/')).map((f) => sanitizeImageDataUrl(f.data_url)).filter(Boolean).slice(0, 4),
+          images: files.filter((f) => (f.type || '').startsWith('image/')).map((f) => f.preview_url || sanitizeImageDataUrl(f.data_url)).filter(Boolean).slice(0, 4),
           exec_mode: execMode,
           agent_perm_mode: agentPermMode,
         });
@@ -1590,11 +1598,11 @@ export default function AtlasAgent() {
                     {(m.images || []).map((raw, k) => (
                       <img
                         key={k}
-                        src={sanitizeImageDataUrl(raw)}
+                        src={(m as any).imageUrls?.[k] || sanitizeImageDataUrl(raw)}
                         alt={`Pièce jointe ${k + 1}`}
                         title="Ouvrir l’image"
                         style={{ cursor: 'zoom-in' }}
-                        onClick={() => setLightbox({ src: sanitizeImageDataUrl(raw), name: `Pièce jointe ${k + 1}` })}
+                        onClick={() => setLightbox({ src: (m as any).imageUrls?.[k] || sanitizeImageDataUrl(raw), name: `Pièce jointe ${k + 1}` })}
                       />
                     ))}
                   </div>
@@ -1956,19 +1964,18 @@ export default function AtlasAgent() {
             onStop={stop}
             attachments={attachments.map((a) => ({
               name: a.name,
-              preview: (a.type || '').startsWith('image/') ? sanitizeImageDataUrl(a.data_url) || undefined : undefined,
+              preview: a.preview_url,
             }))}
             onRemoveAttachment={(i) =>
               setAttachments((prev) => (i === -1 ? [] : prev.filter((_, j) => j !== i)))
             }
             onEditAttachment={(i) => {
               const a = attachments[i];
-              const safeSrc = a ? sanitizeImageDataUrl(a.data_url) : '';
-              if (a && safeSrc) setAnnotator({ index: i, src: safeSrc, name: a.name });
+              if (a) setAnnotator({ index: i, src: a.preview_url || sanitizeImageDataUrl(a.data_url), name: a.name });
             }}
             onPreviewAttachment={(i) => {
               const a = attachments[i];
-              if (a) setLightbox({ src: a.data_url, name: a.name });
+              if (a) setLightbox({ src: a.preview_url || sanitizeImageDataUrl(a.data_url), name: a.name });
             }}
             onAttach={() => {
               fileInputRef.current?.click();

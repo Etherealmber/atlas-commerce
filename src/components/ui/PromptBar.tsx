@@ -1,5 +1,5 @@
 'use client';
-import { sanitizeImageDataUrl } from '../../auth';
+import { sanitizePreviewUrl } from '../../auth';
 
 import {
   isValidElement,
@@ -640,10 +640,10 @@ export default function PromptBar({
           <div className="prompt-bar__chips">
             {attachments.map((file, i) => (
               <span key={`${file.name}-${i}`} className="prompt-bar__chip" data-img={file.preview ? '' : undefined}>
-                {file.preview && sanitizeImageDataUrl(file.preview) ? (
+                {file.preview && sanitizePreviewUrl(file.preview) ? (
                   <img
                     className="prompt-bar__chip-thumb"
-                    src={sanitizeImageDataUrl(file.preview)}
+                    src={sanitizePreviewUrl(file.preview)}
                     alt=""
                     loading="lazy"
                     decoding="async"

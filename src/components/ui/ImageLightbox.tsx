@@ -1,5 +1,5 @@
 import { useEffect, useState, type FC } from 'react';
-import { sanitizeImageDataUrl, sanitizeAvatarUrl } from '../../auth';
+import { sanitizePreviewUrl } from '../../auth';
 import './ImageLightbox.css';
 
 type Props = {
@@ -14,7 +14,7 @@ type Props = {
  */
 export const ImageLightbox: FC<Props> = ({ src, name, onClose }) => {
   const [zoom, setZoom] = useState(false);
-  const safe = sanitizeImageDataUrl(src) || sanitizeAvatarUrl(src);
+  const safe = sanitizePreviewUrl(src);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
