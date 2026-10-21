@@ -27,7 +27,7 @@
     "@capacitor/core": "^7.4.2",
     "@hugeicons/core-free-icons": "^1.0.0",
     "@hugeicons/react": "^1.0.0",
-    "hono": "^4.7.0",
+    "hono": "^4.13.11",
     "lucide-react": "^0.544.0",
     "motion": "^12.23.12",
     "pdf-lib": "^1.17.1",
