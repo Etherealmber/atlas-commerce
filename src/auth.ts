@@ -49,7 +49,12 @@ export function getAvatarUrl(): string {
 }
 
 /** Cache profile fields used in sidebar / phone avatar (local only). */
-export function setProfileCache( partial: { display_name?: string | null; avatar_url?: string | null; username?: string | null; role?: string | null } ) {
+export function setProfileCache(partial: {
+  display_name?: string | null;
+  avatar_url?: string | null;
+  username?: string | null;
+  role?: string | null;
+}) {
   if (partial.display_name != null) {
     localStorage.setItem(DISPLAY_NAME_KEY, String(partial.display_name).trim());
   }
@@ -144,9 +149,11 @@ export function startSessionGuard(): () => void {
 export function getRole(): string {
   return localStorage.getItem(ROLE_KEY) || 'user';
 }
+
 export function isOwnerRole(): boolean {
   return getRole() === 'owner';
 }
+
 /** Floor scan / products list (includes magasinier). */
 export function canManageStock(): boolean {
   const r = getRole();
@@ -172,24 +179,27 @@ export function canSell(): boolean {
   const r = getRole();
   return r === 'owner' || r === 'admin' || r === 'secretaire';
 }
+
 export function canOfficeWork(): boolean {
   const r = getRole();
   return r === 'owner' || r === 'admin' || r === 'secretaire';
 }
+
 export function canViewReports(): boolean {
   return canOfficeWork();
 }
+
 /** Server / users / audit — principal admin (owner) only. Legacy role 'admin' treated as owner for access. */
 export function canAccessAdminSettings(): boolean {
   const r = getRole();
   return r === 'owner' || r === 'admin';
 }
+
 /** Company / legal / banking / warehouse settings — office roles only */
 export function canAccessCompanySettings(): boolean {
   const r = getRole();
   return r === 'owner' || r === 'admin' || r === 'secretaire';
 }
-
 
 /** Any logged-in user may open Settings (profile at minimum). */
 export function canAccessSettings(): boolean {
@@ -197,6 +207,4 @@ export function canAccessSettings(): boolean {
 }
 
 /** Company+ tabs in Settings (not profile). */
-export function canAccessSettingsBeyondProfile(): boolean {
-  return canAccessCompanySettings();
-}
+export
