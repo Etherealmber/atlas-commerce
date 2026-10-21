@@ -3218,10 +3218,8 @@ html[data-theme="dark"] body #root a.party-email-link {
   html body .modal-card {
     max-width: calc(100vw - 20px) !important;
   }
-  html body .ac-dash-grid,
-  html body .ac-kpi-grid,
-  html body .balance-cards {
-    grid-template-columns: 1fr 1fr !important;
+  html body .ac-metric-grid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important;
   }
   html body .ac-dash-empty {
     min-height: 120px !important;
@@ -3234,10 +3232,8 @@ html[data-theme="dark"] body #root a.party-email-link {
   }
 }
 @media (max-width: 480px) {
-  html body .ac-dash-grid,
-  html body .ac-kpi-grid,
-  html body .balance-cards {
-    grid-template-columns: 1fr !important;
+  html body .ac-metric-grid {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important;
   }
 }
 /* v222 responsive END */
@@ -3263,9 +3259,7 @@ html body .ac-panel-head { margin-bottom: 12px; }
 
 /* — tablet / iPad shell: fluid 2-col grids, condensed chrome — */
 @media (min-width: 761px) and (max-width: 1080px) {
-  html body .ac-dash-grid,
-  html body .ac-kpi-grid,
-  html body .balance-cards { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  html body .ac-metric-grid { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) !important; }
   html body .content { padding: 18px !important; }
   html body .ac-topbar { gap: 6px !important; }
   html body .welcome-gallery { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
@@ -3273,9 +3267,7 @@ html body .ac-panel-head { margin-bottom: 12px; }
 
 /* — foldable / dual-screen: symmetric split, nothing overlaps — */
 @media (horizontal-viewport-segments: 2) {
-  html body .ac-dash-grid,
-  html body .ac-kpi-grid,
-  html body .balance-cards { grid-template-columns: 1fr 1fr !important; }
+  html body .ac-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
   html body .page-header { flex-direction: row !important; align-items: center !important; }
   html body .modal-card { max-width: min(92vw, 760px) !important; }
   html body .wizard-foot-nav { flex-wrap: nowrap !important; }
@@ -3395,3 +3387,86 @@ html body .content { min-width: 0 !important; }
 html body .content > div:has(> table),
 html body .content > div:has(> .table-wrap) { overflow-x: auto; max-width: 100%; }
 /* v223 END */
+
+/* ═══════════════════════════════════════════════════════════════
+   v223.2 — ROUND-2 AUDIT: container queries, focus rings, polish
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Container queries: grids adapt to the *content* width, not just the
+   viewport — a panel in a split view reflows even on a wide screen. */
+html body .content { container-type: inline-size; }
+@container (max-width: 420px) {
+  html body .ac-metric-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important; }
+  html body .page-header { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
+  html body .welcome-gallery { grid-template-columns: 1fr !important; }
+}
+@container (min-width: 421px) and (max-width: 760px) {
+  html body .ac-metric-grid { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)) !important; }
+}
+
+/* Baseline focus ring for anything the app hasn't styled yet
+   (:where = zero specificity — existing focus styles still win). */
+html body :where(button, a, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid #b87333;
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+html body :where(input, select, textarea):focus-visible { border-radius: 10px; }
+
+/* Selection + scrollbar polish (both themes) */
+html body ::selection { background: rgba(184, 115, 51, 0.28); }
+html body .modal-overlay .modal::-webkit-scrollbar,
+html body .modal-overlay .modal-card::-webkit-scrollbar { width: 8px; }
+html body .modal-overlay .modal::-webkit-scrollbar-thumb,
+html body .modal-overlay .modal-card::-webkit-scrollbar-thumb {
+  background: rgba(113, 113, 122, 0.4);
+  border-radius: 999px;
+}
+/* v223.2 END */
+
+/* ═══════════════════════════════════════════════════════════════
+   v223.3 — modal X: shield from the blanket "primary black button"
+   rule (overrides-final `html .modal button:not(...)`) in BOTH themes
+   ═══════════════════════════════════════════════════════════════ */
+html[data-theme] body .modal-overlay .modal > button.modal-x,
+html[data-theme] body .modal-overlay .modal-card > button.modal-x {
+  background: transparent !important;
+  background-image: none !important;
+  border: 1px solid var(--line, #e4e4e7) !important;
+  color: var(--muted, #71717a) !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+html[data-theme] body .modal-overlay .modal > button.modal-x:hover,
+html[data-theme] body .modal-overlay .modal-card > button.modal-x:hover {
+  background: rgba(113, 113, 122, 0.12) !important;
+  color: #18181b !important;
+}
+html[data-theme="dark"] body .modal-overlay .modal > button.modal-x,
+html[data-theme="dark"] body .modal-overlay .modal-card > button.modal-x {
+  border-color: #3f3f46 !important;
+  color: #a1a1aa !important;
+}
+html[data-theme="dark"] body .modal-overlay .modal > button.modal-x:hover,
+html[data-theme="dark"] body .modal-overlay .modal-card > button.modal-x:hover {
+  background: #27272a !important;
+  color: #f4f4f5 !important;
+}
+/* v223.3 END */
+
+/* v223.4 — dark modal X: out-specify the zinc button monsters */
+html[data-theme="dark"] body .modal-overlay .modal > button.modal-x.modal-x.modal-x,
+html[data-theme="dark"] body .modal-overlay .modal-card > button.modal-x.modal-x.modal-x {
+  background: transparent !important;
+  background-image: none !important;
+  border: 1px solid #3f3f46 !important;
+  color: #a1a1aa !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"] body .modal-overlay .modal > button.modal-x.modal-x.modal-x:hover,
+html[data-theme="dark"] body .modal-overlay .modal-card > button.modal-x.modal-x.modal-x:hover {
+  background: #27272a !important;
+  color: #f4f4f5 !important;
+  border-color: #52525b !important;
+}
+/* v223.4 END */

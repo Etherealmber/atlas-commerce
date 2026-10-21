@@ -541,7 +541,7 @@ function useTheme() {
       if (card.querySelector(':scope > .modal-x')) return;
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'modal-x';
+      btn.className = 'modal-x modal-close';
       btn.setAttribute('aria-label', 'Fermer');
       btn.innerHTML =
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
