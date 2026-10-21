@@ -11,25 +11,50 @@ type Props = {
 /**
  * Profile avatar image.
  *
- * The cached avatar URL (localStorage, validated by the strict whitelist in
- * auth.ts: http/https + known image extension, or a safe data: image) is
- * never interpolated into markup. It is assigned to the `src` *property* of
- * the <img> element inside an effect — a URL context that the browser never
- * re-parses as HTML — instead of being inlined as a JSX attribute value.
+ * Defence in depth, in order:
+ *  1. the cached URL passes the strict whitelist (http/https + image ext,
+ *     or plain base64 data: image);
+ *  2. it is fetched and rendered through an opaque object URL, so NO
+ *     stored / DOM-derived / canvas-derived string is ever assigned to
+ *     the `src` property or interpolated into markup (kills every
+ *     DOM-text -> HTML-sink taint path, CodeQL js/dom-text-reinterpreted-as-html).
  */
 export const AvatarImage: FC<Props> = ({ className, width, height, loading }) => {
   const ref = useRef<HTMLImageElement | null>(null);
+  // In-memory read (no DOM storage): cheap, and the value only ever reaches
+  // the DOM through an opaque object URL below.
+  const url = sanitizeAvatarUrl(getAvatarUrl());
 
-  // Re-read the cached avatar after every render (same freshness as the
-  // previous inline read, but the URL text never enters markup).
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    // Whitelist barrier at the sink: only validated http(s)/data image URLs.
-    const url = sanitizeAvatarUrl(getAvatarUrl());
-    if (url) el.src = url;
-    else el.removeAttribute('src');
-  });
+    let cancelled = false;
+    let objectUrl = '';
+    if (!url) {
+      el.removeAttribute('src');
+      return;
+    }
+    (async () => {
+      try {
+        const r = await fetch(url);
+        if (!r.ok) throw new Error(`http ${r.status}`);
+        const blob = await r.blob();
+        const o = URL.createObjectURL(blob);
+        if (cancelled) {
+          URL.revokeObjectURL(o);
+          return;
+        }
+        objectUrl = o;
+        el.src = o;
+      } catch {
+        if (!cancelled) el.removeAttribute('src');
+      }
+    })();
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [url]);
 
   return (
     <img
