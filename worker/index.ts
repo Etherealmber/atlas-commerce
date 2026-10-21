@@ -7114,7 +7114,22 @@ app.get('/api/media/proxy', async (c) => {
   if (raw.startsWith('data:image/')) {
     return c.json({ success: false, error: 'data URL — pas de proxy' }, 400);
   }
-  if (!isAllowedImageUrl(raw) && !raw.includes('afmarbre.com') && !raw.includes('r2.dev')) {
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(raw);
+  } catch {
+    return c.json({ success: false, error: 'URL invalide' }, 400);
+  }
+  if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+    return c.json({ success: false, error: 'Protocole URL non autorisé' }, 400);
+  }
+  const host = parsedUrl.hostname.toLowerCase();
+  const isTrustedHost =
+    host === 'afmarbre.com' ||
+    host.endsWith('.afmarbre.com') ||
+    host === 'r2.dev' ||
+    host.endsWith('.r2.dev');
+  if (!isAllowedImageUrl(raw) && !isTrustedHost) {
     return c.json({ success: false, error: 'URL image non autorisée' }, 400);
   }
   try {
