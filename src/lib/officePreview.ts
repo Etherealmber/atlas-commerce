@@ -343,9 +343,9 @@ export async function previewXlsx(blob: Blob): Promise<OfficeSlide[]> {
         val = isM[1] || '';
       }
       val = val
-        .replace(/&amp;/g, '&')
         .replace(/&lt;/g, '<')
         .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&')
         .trim();
       cells.set(`${pos.r}:${pos.c}`, val);
     }
