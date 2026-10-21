@@ -1,4 +1,5 @@
 import { useEffect, useState, type FC } from 'react';
+import { sanitizeImageDataUrl, sanitizeAvatarUrl } from '../../auth';
 import './ImageLightbox.css';
 
 type Props = {
@@ -13,6 +14,7 @@ type Props = {
  */
 export const ImageLightbox: FC<Props> = ({ src, name, onClose }) => {
   const [zoom, setZoom] = useState(false);
+  const safe = sanitizeImageDataUrl(src) || sanitizeAvatarUrl(src);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -42,7 +44,7 @@ export const ImageLightbox: FC<Props> = ({ src, name, onClose }) => {
         }}
         title={zoom ? 'Réduire' : 'Agrandir'}
       >
-        <img src={src} alt={name || 'Pièce jointe'} draggable={false} />
+        {safe ? <img src={safe} alt={name || 'Pièce jointe'} draggable={false} /> : null}
       </div>
       {name ? <p className="atlas-lightbox-name">{name}</p> : null}
       <button

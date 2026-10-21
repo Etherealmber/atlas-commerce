@@ -1587,14 +1587,14 @@ export default function AtlasAgent() {
                 {m.role === 'assistant' ? renderMiniMarkdown(String(m.text || '')) : m.text}
                 {m.role === 'user' && (m.images || []).length ? (
                   <div className="atlas-agent-msg-imgs">
-                    {(m.images || []).map((src, k) => (
+                    {(m.images || []).map((raw, k) => (
                       <img
                         key={k}
-                        src={src}
+                        src={sanitizeImageDataUrl(raw)}
                         alt={`Pièce jointe ${k + 1}`}
                         title="Ouvrir l’image"
                         style={{ cursor: 'zoom-in' }}
-                        onClick={() => setLightbox({ src, name: `Pièce jointe ${k + 1}` })}
+                        onClick={() => setLightbox({ src: sanitizeImageDataUrl(raw), name: `Pièce jointe ${k + 1}` })}
                       />
                     ))}
                   </div>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, type FC } from 'react';
-import { getAvatarUrl } from '../../auth';
+import { getAvatarUrl, sanitizeAvatarUrl } from '../../auth';
 
 type Props = {
   className?: string;
@@ -25,7 +25,8 @@ export const AvatarImage: FC<Props> = ({ className, width, height, loading }) =>
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const url = getAvatarUrl();
+    // Whitelist barrier at the sink: only validated http(s)/data image URLs.
+    const url = sanitizeAvatarUrl(getAvatarUrl());
     if (url) el.src = url;
     else el.removeAttribute('src');
   });
