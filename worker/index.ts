@@ -1033,7 +1033,7 @@ app.get('/api/canary', async (c) => {
   return c.json({
     success: allOk,
     data: {
-      version: '1.4.5-beta',
+      version: '0.4.9-beta',
       environment: String((c.env as any).ENVIRONMENT || 'unknown'),
       ts: new Date().toISOString(),
       totalMs: Date.now() - t0,

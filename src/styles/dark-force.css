@@ -4251,3 +4251,12 @@ html[data-theme="dark"] body .modal-note button.btn.ghost,
 html[data-theme="dark"] body .modal-note button.btn.secondary { background: transparent !important; border-color: #52525b !important; color: #d4d4d8 !important; }
 html[data-theme="dark"] body .modal-note input { background: #18181b !important; border-color: #3f3f46 !important; color: #f4f4f5 !important; }
 /* v235 END */
+
+/* v236 — whats-new dark: version header same surface as the release card */
+html[data-theme="dark"] body .wn-ver {
+  background: #1c1c1f !important;
+  border-color: #1c1c1f !important;
+  color: #e4e4e7 !important;
+}
+html[data-theme="dark"] body .wn-ver .wn-ver-date { color: #a1a1aa !important; }
+/* v236 END */
