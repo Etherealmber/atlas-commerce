@@ -33,8 +33,14 @@ type MailDetail = MailRow & {
 };
 
 function htmlToPlainText(html: string): string {
-  return html
-    .replace(/<style[\s\S]*?<\/style>/gi, '')
+  let sanitized = html;
+  let previous: string;
+  do {
+    previous = sanitized;
+    sanitized = sanitized.replace(/<style[\s\S]*?<\/style>/gi, '');
+  } while (sanitized !== previous);
+
+  return sanitized
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/g, ' ')
     .replace(/&lt;/g, '<')
@@ -1204,7 +1210,7 @@ export default function Mailbox() {
           ) : (
             list.map((m) => {
               const who = m.direction === 'in' ? (m.from_addr || '') : (m.to_addr || '');
-              const whoShort = who.replace(/<.*>/, '').trim() || who;
+              const whoShort = who.replace(/[<>]/g, '').trim() || who;
               const snippet = (m.preview || '').replace(/\s+/g, ' ').trim();
               const hasPj =
                 m.has_attachments === 1 ||

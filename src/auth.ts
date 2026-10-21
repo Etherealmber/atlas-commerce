@@ -8,26 +8,36 @@ const USER_KEY = 'stock_auth_user';
 const DISPLAY_NAME_KEY = 'stock_display_name';
 const AVATAR_URL_KEY = 'stock_avatar_url';
 
-function sanitizeAvatarUrl(input: string): string {
-  const raw = String(input || '').trim();
-  if (!raw) return '';
+function sanitizeAvatarUrl(raw: string | null | undefined): string {
+  const value = String(raw || '').trim();
+  if (!value) return '';
 
-  // Allow inline uploaded images (data URLs) only for image MIME types.
-  if (/^data:image\/[a-zA-Z0-9.+-]+;base64,[a-zA-Z0-9+/=\s]+$/.test(raw)) {
-    return raw;
+  // Allow common safe image data URLs produced by client-side crop/upload flow.
+  if (/^data:image\/(?:png|jpe?g|webp|gif);base64,[a-z0-9+/=]+$/i.test(value)) {
+    return value;
   }
 
-  // Allow app-relative URLs.
-  if (raw.startsWith('/') || raw.startsWith('./') || raw.startsWith('../')) {
-    return raw;
+  const isAllowedImagePath = (path: string): boolean => {
+    return /\.(?:png|jpe?g|webp|gif|avif|svg)$/i.test(path);
+  };
+
+  // Allow same-origin relative image paths only.
+  if (value.startsWith('/') || value.startsWith('./') || value.startsWith('../')) {
+    if (/[<>"'`\\\s]/.test(value)) return '';
+    const cleanPath = value.split('#')[0].split('?')[0];
+    if (!isAllowedImagePath(cleanPath)) return '';
+    return value;
   }
 
-  // Allow absolute http(s) URLs only.
+  // Allow only http(s) absolute image URLs.
   try {
-    const u = new URL(raw);
-    if (u.protocol === 'https:' || u.protocol === 'http:') return u.toString();
+    const u = new URL(value);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return '';
+    if (u.username || u.password) return '';
+    if (!isAllowedImagePath(u.pathname)) return '';
+    return u.toString();
   } catch {
-    return '';
+    // Invalid URL -> reject.
   }
 
   return '';
@@ -53,17 +63,21 @@ export function getDisplayName(): string {
 }
 
 export function getAvatarUrl(): string {
-  const stored = localStorage.getItem(AVATAR_URL_KEY) || '';
-  return sanitizeAvatarUrl(stored);
+  return sanitizeAvatarUrl(localStorage.getItem(AVATAR_URL_KEY));
 }
 
 /** Cache profile fields used in sidebar / phone avatar (local only). */
-export function setProfileCache( partial: { display_name?: string | null; avatar_url?: string | null; username?: string | null; role?: string | null } ) {
+export function setProfileCache(partial: {
+  display_name?: string | null;
+  avatar_url?: string | null;
+  username?: string | null;
+  role?: string | null;
+}) {
   if (partial.display_name != null) {
     localStorage.setItem(DISPLAY_NAME_KEY, String(partial.display_name).trim());
   }
   if (partial.avatar_url != null) {
-    const a = sanitizeAvatarUrl(String(partial.avatar_url));
+    const a = sanitizeAvatarUrl(partial.avatar_url);
     if (a) localStorage.setItem(AVATAR_URL_KEY, a);
     else localStorage.removeItem(AVATAR_URL_KEY);
   }
@@ -153,9 +167,11 @@ export function startSessionGuard(): () => void {
 export function getRole(): string {
   return localStorage.getItem(ROLE_KEY) || 'user';
 }
+
 export function isOwnerRole(): boolean {
   return getRole() === 'owner';
 }
+
 /** Floor scan / products list (includes magasinier). */
 export function canManageStock(): boolean {
   const r = getRole();
@@ -181,24 +197,27 @@ export function canSell(): boolean {
   const r = getRole();
   return r === 'owner' || r === 'admin' || r === 'secretaire';
 }
+
 export function canOfficeWork(): boolean {
   const r = getRole();
   return r === 'owner' || r === 'admin' || r === 'secretaire';
 }
+
 export function canViewReports(): boolean {
   return canOfficeWork();
 }
+
 /** Server / users / audit — principal admin (owner) only. Legacy role 'admin' treated as owner for access. */
 export function canAccessAdminSettings(): boolean {
   const r = getRole();
   return r === 'owner' || r === 'admin';
 }
+
 /** Company / legal / banking / warehouse settings — office roles only */
 export function canAccessCompanySettings(): boolean {
   const r = getRole();
   return r === 'owner' || r === 'admin' || r === 'secretaire';
 }
-
 
 /** Any logged-in user may open Settings (profile at minimum). */
 export function canAccessSettings(): boolean {
