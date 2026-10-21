@@ -1696,11 +1696,14 @@ function DesktopShell() {
               aria-expanded={focusUserMenuOpen}
               onClick={() => setFocusUserMenuOpen((v) => !v)}
             >
-              {getAvatarUrl() ? (
-                <img className="settings-topbar-avatar" src={getAvatarUrl()!} alt="" />
-              ) : (
-                <span className="settings-topbar-avatar settings-topbar-avatar--ini">{getDisplayInitials()}</span>
-              )}
+              {(() => {
+                const avatarUrl = getAvatarUrl();
+                return avatarUrl ? (
+                  <img className="settings-topbar-avatar" src={avatarUrl} alt="" />
+                ) : (
+                  <span className="settings-topbar-avatar settings-topbar-avatar--ini">{getDisplayInitials()}</span>
+                );
+              })()}
               <div className="settings-topbar-user-meta">
                 <strong>{getDisplayName() || getUsername()}</strong>
                 <span>{getRole() || 'utilisateur'}</span>
