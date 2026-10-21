@@ -63,7 +63,7 @@ export function getDisplayName(): string {
 }
 
 export function getAvatarUrl(): string {
-  return sanitizeAvatarUrl(localStorage.getItem(AVATAR_URL_KEY));
+  return sanitizeAvatarUrl(localStorage.getItem(AVATAR_URL_KEY) || '');
 }
 
 /**
@@ -86,7 +86,7 @@ export function setProfileCache(partial: {
     localStorage.setItem(DISPLAY_NAME_KEY, String(partial.display_name).trim());
   }
   if (partial.avatar_url != null) {
-    const a = sanitizeAvatarUrl(partial.avatar_url);
+    const a = sanitizeAvatarUrl(String(partial.avatar_url).trim());
     if (a) localStorage.setItem(AVATAR_URL_KEY, a);
     else localStorage.removeItem(AVATAR_URL_KEY);
   }
