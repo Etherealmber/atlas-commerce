@@ -18,7 +18,7 @@ import {
   getUsername,
   getDisplayInitials,
   getDisplayName,
-  getAvatarUrl,
+  hasAvatarUrl,
   getRole,
   setProfileCache,
   canManageStock,
@@ -65,6 +65,8 @@ import PageSkeleton from './components/PageSkeleton';
 import OfflineBanner from './components/OfflineBanner';
 import CookieConsent from './components/CookieConsent';
 import { TopbarUserMenu } from './components/shell/TopbarUserMenu';
+import { AvatarImage } from './components/ui/AvatarImage';
+import { useProfileWarm } from './lib/useProfileWarm';
 import { DemoProvider } from './context/DemoContext';
 const Welcome = lazy(() => import('./pages/Welcome'));
 
@@ -399,8 +401,8 @@ function AccountMenu({
         }}
         onPointerDown={(e) => e.stopPropagation()}
       >
-        {getAvatarUrl() ? (
-          <img key={`av-${profileTick}`} className="sidebar-avatar sidebar-avatar-img" src={getAvatarUrl()!} alt="" width={36} height={36} />
+        {hasAvatarUrl() ? (
+          <AvatarImage key={`av-${profileTick}`} className="sidebar-avatar sidebar-avatar-img" width={36} height={36} />
         ) : (
           <span key={`ini-${profileTick}`} className="sidebar-avatar">{getDisplayInitials()}</span>
         )}
@@ -635,6 +637,7 @@ function useTheme() {
 function DesktopShell() {
   const navigate = useNavigate();
   const location = useLocation();
+  useProfileWarm();
   const isFocusRoute =
     location.pathname === '/settings' ||
     location.pathname.startsWith('/settings/') ||
@@ -1259,7 +1262,6 @@ function DesktopShell() {
             <TopbarUserMenu
               displayName={typeof getDisplayName === 'function' ? getDisplayName() : 'Utilisateur'}
               roleLabel={roleLabelFr(typeof getRole === 'function' ? getRole() : '')}
-              avatarUrl={typeof getAvatarUrl === 'function' ? getAvatarUrl() : null}
               initials={typeof getDisplayInitials === 'function' ? getDisplayInitials() : '?'}
               onLogout={logout}
             />
@@ -1696,14 +1698,11 @@ function DesktopShell() {
               aria-expanded={focusUserMenuOpen}
               onClick={() => setFocusUserMenuOpen((v) => !v)}
             >
-              {(() => {
-                const avatarUrl = getAvatarUrl();
-                return avatarUrl ? (
-                  <img className="settings-topbar-avatar" src={avatarUrl} alt="" />
-                ) : (
-                  <span className="settings-topbar-avatar settings-topbar-avatar--ini">{getDisplayInitials()}</span>
-                );
-              })()}
+              {hasAvatarUrl() ? (
+                <AvatarImage className="settings-topbar-avatar" />
+              ) : (
+                <span className="settings-topbar-avatar settings-topbar-avatar--ini">{getDisplayInitials()}</span>
+              )}
               <div className="settings-topbar-user-meta">
                 <strong>{getDisplayName() || getUsername()}</strong>
                 <span>{getRole() || 'utilisateur'}</span>

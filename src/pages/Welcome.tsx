@@ -182,12 +182,6 @@ const WELCOME_FEATURES: {
     icon: 'hr',
   },
   {
-    title: 'Boîte mail pro',
-    blurb: 'Inbox style Gmail, pièces jointes, traduction, anti-spam, archive.',
-    pages: 'Mailbox',
-    icon: 'mail',
-  },
-  {
     title: 'Atlas Agent',
     blurb: 'Assistant pour créer clients, produits, documents et interroger le stock.',
     pages: 'Agent (panneau latéral)',

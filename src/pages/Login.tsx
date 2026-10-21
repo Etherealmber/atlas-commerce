@@ -3,7 +3,7 @@ import '../styles/login-auth.css';
 import AnimatedCharacters from '../components/login/AnimatedCharacters';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { openConsentSettings } from '../lib/cookieConsent';
-import { setToken, clearToken, getToken, setProfileCache, isLoggedIn, isStockRole } from '../auth';
+import { setToken, clearToken, getToken, setProfileCache, isLoggedIn, isStockRole, sanitizeAvatarUrl } from '../auth';
 
 /** Same home for phone and desktop — responsive shell. */
 function postLoginPath(): string {
@@ -148,7 +148,7 @@ function LoginPcQrPanel({ onSuccessFlash }: { onSuccessFlash?: () => void }) {
         if (st.data?.display_name || st.data?.username) {
           setWho(String(st.data.display_name || st.data.username));
         }
-        if (st.data?.avatar_url) setAvatarUrl(String(st.data.avatar_url));
+        if (st.data?.avatar_url) setAvatarUrl(sanitizeAvatarUrl(String(st.data.avatar_url)));
         if (s === 'claimed' || (st.data?.has_device && s !== 'denied' && s !== 'expired')) {
           if (phase !== 'done' && phase !== 'denied') {
             setPhase('claimed');

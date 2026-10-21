@@ -4,6 +4,8 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import LatticeLoader from './ui/LatticeLoader';
 import PromptBar from './ui/PromptBar';
+import { ImageLightbox } from './ui/ImageLightbox';
+import { sanitizeImageDataUrl , getUsername } from '../auth';
 import { Attachment01Icon } from '@hugeicons/core-free-icons';
 import { createPortal } from 'react-dom';
 import { renderMiniMarkdown } from '../lib/miniMarkdown';
@@ -105,6 +107,8 @@ type Msg = {
   failed?: boolean;
   prompt?: string;
   images?: string[];
+  /** Session-only opaque object URLs for on-screen rendering (never persisted). */
+  imageUrls?: string[];
   streaming?: boolean;
   /** Alternate assistant replies (retry / regenerate) */
   variants?: string[];
@@ -119,6 +123,14 @@ const MSGS_KEY = 'atlas_agent_msgs_v1';
 const THREADS_KEY = 'atlas_agent_threads_v1';
 const ACTIVE_THREAD_KEY = 'atlas_agent_active_thread';
 
+/* v240.4 — storage is PER USER: switching accounts in one browser must never
+   expose another account's threads, messages or active-thread pointer. */
+function scopeUser(): string {
+  try { return String(getUsername() || 'anon').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 64); } catch { return 'anon'; }
+}
+function threadsKey(): string { return `${THREADS_KEY}:${scopeUser()}`; }
+function activeThreadKey(): string { return `${ACTIVE_THREAD_KEY}:${scopeUser()}`; }
+
 function pageMeta(pathname: string): { title: string; hint: string; path: string } {
   if (pathname === '/agent')
     return { title: 'Atlas Agent', hint: 'Assistant mobile.', path: pathname };
@@ -126,8 +138,6 @@ function pageMeta(pathname: string): { title: string; hint: string; path: string
     return { title: 'Scan', hint: 'Code-barres terrain.', path: pathname };
   if (false)
     return { title: 'Entrepôts', hint: 'Stock terrain.', path: pathname };
-  if (false && pathname.startsWith('/mailbox'))
-    return { title: 'Boîte d’actions', hint: 'Envois vers le PC.', path: pathname };
   if (false)
     return { title: 'Accueil terrain', hint: 'Tableau de bord mobile.', path: pathname };
   if (pathname.startsWith('/settings'))
@@ -144,12 +154,6 @@ function pageMeta(pathname: string): { title: string; hint: string; path: string
     return { title: 'Vente rapide', hint: 'Caisse / tickets.', path: pathname };
   if (pathname.startsWith('/clients'))
     return { title: 'Clients', hint: 'Fiches clients.', path: pathname };
-  if (false && pathname.startsWith('/mailbox'))
-    return {
-      title: 'Messagerie',
-      hint: 'Lis les mails, propose une réponse, signale impayés clients, ouvre devis/facture/TVA si besoin. Dis "réponse à ce mail" ou "qui doit payer".',
-      path: pathname,
-    };
   if (pathname.startsWith('/settings'))
     return { title: 'Paramètres', hint: 'Profil et société.', path: pathname };
   if (pathname.startsWith('/reports'))
@@ -223,7 +227,7 @@ const WELCOME: Msg = {
 
 function loadThreads(): ThreadMeta[] {
   try {
-    const raw = localStorage.getItem(THREADS_KEY);
+    const raw = localStorage.getItem(threadsKey());
     if (!raw) return [];
     const p = JSON.parse(raw);
     return Array.isArray(p) ? p.slice(0, 20) : [];
@@ -240,11 +244,15 @@ async function persistThreadR2(threadId: string, title: string, messages: any[])
   // Debounce: at most one PUT per thread every 2.5s (avoids admin rate-limit toast storms)
   const prev = _persistTimers.get(threadId);
   if (prev) clearTimeout(prev);
-  const snapshot = messages.map((m) => ({
-    role: m.role,
-    text: m.text,
-    ms: m.ms,
-  }));
+  const snapshot = messages.map((m) => {
+    const imgs = Array.isArray(m.images) ? (m.images as string[]).map((x) => sanitizeImageDataUrl(x)).filter(Boolean) : [];
+    return {
+      role: m.role,
+      text: m.text,
+      ms: m.ms,
+      ...(imgs.length ? { images: imgs.slice(0, 4) } : {}),
+    };
+  });
   const titleSnap = title;
   _persistTimers.set(
     threadId,
@@ -266,7 +274,7 @@ async function persistThreadR2(threadId: string, title: string, messages: any[])
 
 function saveThreads(list: ThreadMeta[]) {
   try {
-    localStorage.setItem(THREADS_KEY, JSON.stringify(list.slice(0, 20)));
+    localStorage.setItem(threadsKey(), JSON.stringify(list.slice(0, 20)));
   } catch { /* */ }
 }
 
@@ -278,12 +286,12 @@ function fmtReset(iso?: string): string {
 }
 
 function msgsKey(threadId: string) {
-  return `${MSGS_KEY}:${threadId}`;
+  return `${MSGS_KEY}:${scopeUser()}:${threadId}`;
 }
 
 function loadMsgs(threadId: string): Msg[] {
   try {
-    const raw = localStorage.getItem(msgsKey(threadId)) || sessionStorage.getItem(msgsKey(threadId)) || sessionStorage.getItem(MSGS_KEY);
+    const raw = localStorage.getItem(msgsKey(threadId)) || sessionStorage.getItem(msgsKey(threadId));
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed) && parsed.length) return parsed.slice(-40);
@@ -293,7 +301,8 @@ function loadMsgs(threadId: string): Msg[] {
 
 function saveMsgs(threadId: string, msgs: Msg[]) {
   try {
-    localStorage.setItem(msgsKey(threadId), JSON.stringify(msgs.slice(-40)));
+    const localCopy = msgs.slice(-40).map((m) => { const { images, imageUrls, ...rest } = m as any; return rest; });
+    localStorage.setItem(msgsKey(threadId), JSON.stringify(localCopy));
     try {
       const th = loadThreads().find((t) => t.id === threadId);
       void persistThreadR2(threadId, th?.title || 'Sans titre', msgs.slice(-40));
@@ -663,12 +672,13 @@ export default function AtlasAgent() {
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [listening, setListening] = useState(false); // unused (dictation removed)
-  const [attachments, setAttachments] = useState<{ name: string; type: string; data_url: string }[]>([]);
+  const [attachments, setAttachments] = useState<{ name: string; type: string; data_url: string; preview_url?: string }[]>([]);
+  const [lightbox, setLightbox] = useState<{ src: string; name?: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [msgs, setMsgs] = useState<Msg[]>(() => {
     const id = (() => {
       try {
-        return localStorage.getItem(ACTIVE_THREAD_KEY) || '';
+        return localStorage.getItem(activeThreadKey()) || '';
       } catch {
         return '';
       }
@@ -708,7 +718,7 @@ export default function AtlasAgent() {
   useEffect(() => {
     try {
       sessionStorage.setItem(OPEN_KEY, open ? '1' : '0');
-      localStorage.setItem(ACTIVE_THREAD_KEY, threadId);
+      localStorage.setItem(activeThreadKey(), threadId);
     } catch { /* */ }
     document.documentElement.classList.toggle('atlas-agent-docked', open);
     return () => document.documentElement.classList.remove('atlas-agent-docked');
@@ -734,17 +744,21 @@ export default function AtlasAgent() {
         if (!Array.isArray(remote) || !remote.length) return;
         const mapped = remote
           .filter((m: any) => m && (m.role === 'user' || m.role === 'assistant') && m.text)
-          .map((m: any) => ({
-            role: m.role as 'user' | 'assistant',
-            text: String(m.text || ''),
-            ms: typeof m.ms === 'number' ? m.ms : undefined,
-          }));
+          .map((m: any) => {
+            const imgs = Array.isArray(m.images) ? (m.images as string[]).map((x: string) => sanitizeImageDataUrl(x)).filter(Boolean) : [];
+            return {
+              role: m.role as 'user' | 'assistant',
+              text: String(m.text || ''),
+              ms: typeof m.ms === 'number' ? m.ms : undefined,
+              ...(imgs.length ? { images: imgs.slice(0, 4) } : {}),
+            };
+          });
         if (!mapped.length) return;
         // Prefer remote if richer; else keep local
         setMsgs((cur) => {
           if (cur.length > mapped.length) return cur;
           try {
-            sessionStorage.setItem(msgsKey(threadId), JSON.stringify(mapped.slice(-40)));
+            sessionStorage.setItem(msgsKey(threadId), JSON.stringify(mapped.slice(-40).map((m: any) => { const { images, imageUrls, ...rest } = m; return rest; })));
           } catch { /* */ }
           return mapped.slice(-40);
         });
@@ -936,7 +950,7 @@ export default function AtlasAgent() {
           ...m,
           {
             role: 'assistant',
-            text: `Action préparée : ${action.label}. ${why}`,
+            text: `Action préparée : ${String((action as any)?.label ?? 'action')}. ${why}`,
           },
         ]);
         return;
@@ -1108,7 +1122,15 @@ export default function AtlasAgent() {
       const reader = new FileReader();
       reader.onload = () => {
         const data_url = String(reader.result || '');
-        setAttachments((prev) => [...prev, { name: f.name, type: f.type || 'application/octet-stream', data_url }].slice(-5));
+        const isImg = (f.type || '').startsWith('image/');
+        setAttachments((prev) => [...prev, {
+          name: f.name,
+          type: f.type || 'application/octet-stream',
+          data_url,
+          // Opaque object URL for on-screen previews: FileReader text never
+          // reaches an <img> src (CodeQL js/dom-text-reinterpreted-as-html).
+          preview_url: isImg ? URL.createObjectURL(f) : undefined,
+        }].slice(-5));
       };
       reader.readAsDataURL(f);
     }
@@ -1161,7 +1183,7 @@ export default function AtlasAgent() {
         : '';
       const userText = (q || 'Voir les pièces jointes') + attachNote;
       if (!isRetry) {
-        setMsgs((m) => [...m, { role: 'user', text: userText, images: files.filter((f) => (f.type || '').startsWith('image/')).map((f) => f.data_url).slice(0, 4) }]);
+        setMsgs((m) => [...m, { role: 'user', text: userText, images: files.filter((f) => (f.type || '').startsWith('image/')).map((f) => sanitizeImageDataUrl(f.data_url)).filter(Boolean).slice(0, 4), imageUrls: files.filter((f) => (f.type || '').startsWith('image/')).map((f) => f.preview_url || '').filter(Boolean).slice(0, 4) }]);
         touchThread(userText);
       } else {
         // Remove the assistant message being retried; keep variants of previous text
@@ -1233,7 +1255,7 @@ export default function AtlasAgent() {
           user_message: q || userText,
           page_path: page.path,
           page_title: page.title,
-          images: files.filter((f) => (f.type || '').startsWith('image/')).map((f) => f.data_url).slice(0, 4),
+          images: files.filter((f) => (f.type || '').startsWith('image/')).map((f) => sanitizeImageDataUrl(f.data_url)).filter(Boolean).slice(0, 4),
           exec_mode: execMode,
           agent_perm_mode: agentPermMode,
         });
@@ -1297,7 +1319,7 @@ export default function AtlasAgent() {
     setThreadId(id);
     setMsgs([WELCOME]);
     try {
-      localStorage.setItem(ACTIVE_THREAD_KEY, id);
+      localStorage.setItem(activeThreadKey(), id);
     } catch { /* */ }
   };
 
@@ -1334,7 +1356,7 @@ export default function AtlasAgent() {
   const openThread = async (id: string) => {
     setThreadId(id);
     try {
-      localStorage.setItem(ACTIVE_THREAD_KEY, id);
+      localStorage.setItem(activeThreadKey(), id);
     } catch { /* */ }
     const local = loadMsgs(id);
     setMsgs(local.length ? local : [{ role: 'assistant', text: 'Chargement de la conversation…' }]);
@@ -1592,13 +1614,14 @@ export default function AtlasAgent() {
                 {m.role === 'assistant' ? renderMiniMarkdown(String(m.text || '')) : m.text}
                 {m.role === 'user' && (m.images || []).length ? (
                   <div className="atlas-agent-msg-imgs">
-                    {(m.images || []).map((src, k) => (
+                    {(m.images || []).map((raw, k) => (
                       <img
                         key={k}
-                        src={src}
+                        src={m.imageUrls?.[k] || sanitizeImageDataUrl(raw)}
                         alt={`Pièce jointe ${k + 1}`}
                         title="Ouvrir l’image"
-                        onClick={() => { try { window.open(src, '_blank', 'noopener'); } catch { /* */ } }}
+                        style={{ cursor: 'zoom-in' }}
+                        onClick={() => setLightbox({ src: m.imageUrls?.[k] || sanitizeImageDataUrl(raw), name: `Pièce jointe ${k + 1}` })}
                       />
                     ))}
                   </div>
@@ -1960,14 +1983,18 @@ export default function AtlasAgent() {
             onStop={stop}
             attachments={attachments.map((a) => ({
               name: a.name,
-              preview: (a.type || '').startsWith('image/') ? a.data_url : undefined,
+              preview: a.preview_url,
             }))}
             onRemoveAttachment={(i) =>
               setAttachments((prev) => (i === -1 ? [] : prev.filter((_, j) => j !== i)))
             }
             onEditAttachment={(i) => {
               const a = attachments[i];
-              if (a) setAnnotator({ index: i, src: a.data_url, name: a.name });
+              if (a) setAnnotator({ index: i, src: a.preview_url || sanitizeImageDataUrl(a.data_url), name: a.name });
+            }}
+            onPreviewAttachment={(i) => {
+              const a = attachments[i];
+              if (a) setLightbox({ src: a.preview_url || sanitizeImageDataUrl(a.data_url), name: a.name });
             }}
             onAttach={() => {
               fileInputRef.current?.click();
@@ -1982,6 +2009,9 @@ export default function AtlasAgent() {
             className="atlas-agent-prompt-bar"
           />
         </footer>
+        {lightbox && (
+          <ImageLightbox src={lightbox.src} name={lightbox.name} onClose={() => setLightbox(null)} />
+        )}
         {annotator && (
           <ImageAnnotator
             src={annotator.src}

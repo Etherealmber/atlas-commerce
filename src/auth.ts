@@ -6,9 +6,13 @@ const SESSION_IP_KEY = 'stock_session_ip';
 const ROLE_KEY = 'stock_role';
 const USER_KEY = 'stock_auth_user';
 const DISPLAY_NAME_KEY = 'stock_display_name';
-const AVATAR_URL_KEY = 'stock_avatar_url';
 
-function sanitizeAvatarUrl(raw: string | null | undefined): string {
+// Avatar URL lives in memory only (never in DOM storage): it is refreshed
+// from the API via setProfileCache(), so no DOM-storage text can ever flow
+// into an <img> src (CodeQL js/dom-text-reinterpreted-as-html).
+let memoryAvatarUrl = '';
+
+export function sanitizeAvatarUrl(raw: string | null | undefined): string {
   const value = String(raw || '').trim();
   if (!value) return '';
 
@@ -63,7 +67,38 @@ export function getDisplayName(): string {
 }
 
 export function getAvatarUrl(): string {
-  return sanitizeAvatarUrl(localStorage.getItem(AVATAR_URL_KEY));
+  return memoryAvatarUrl;
+}
+
+/**
+ * Gate for ephemeral preview URLs: object URLs created by this app
+ * (blob:), plain base64 image data URLs, or whitelisted http(s) images.
+ */
+export function sanitizePreviewUrl(raw: string | null | undefined): string {
+  const value = String(raw || '').trim();
+  if (!value) return '';
+  if (/^blob:https?:\/\//i.test(value)) return value;
+  return sanitizeImageDataUrl(value) || sanitizeAvatarUrl(value);
+}
+
+/**
+ * Whitelist gate for client-side image previews (FileReader data URLs).
+ * Only plain base64 image data URLs pass; anything else becomes ''.
+ * CodeQL: validated values stop the DOM-text -> HTML-sink taint flow.
+ */
+export function sanitizeImageDataUrl(raw: string | null | undefined): string {
+  const value = String(raw || '').trim();
+  if (/^data:image\/(?:png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(value)) return value;
+  return '';
+}
+
+/**
+ * Whether a sanitized avatar URL is cached. Returns a plain boolean on
+ * purpose: callers branch on it without ever carrying the URL text into
+ * markup (see AvatarImage, which assigns src imperatively).
+ */
+export function hasAvatarUrl(): boolean {
+  return getAvatarUrl() !== '';
 }
 
 /** Cache profile fields used in sidebar / phone avatar (local only). */
@@ -77,9 +112,7 @@ export function setProfileCache(partial: {
     localStorage.setItem(DISPLAY_NAME_KEY, String(partial.display_name).trim());
   }
   if (partial.avatar_url != null) {
-    const a = sanitizeAvatarUrl(partial.avatar_url);
-    if (a) localStorage.setItem(AVATAR_URL_KEY, a);
-    else localStorage.removeItem(AVATAR_URL_KEY);
+    memoryAvatarUrl = sanitizeAvatarUrl(partial.avatar_url);
   }
   if (partial.username) localStorage.setItem(USER_KEY, String(partial.username));
   if (partial.role) localStorage.setItem(ROLE_KEY, String(partial.role));
@@ -101,7 +134,7 @@ export function clearToken() {
   localStorage.removeItem(ROLE_KEY);
   localStorage.removeItem(USER_KEY);
   localStorage.removeItem(DISPLAY_NAME_KEY);
-  localStorage.removeItem(AVATAR_URL_KEY);
+  memoryAvatarUrl = '';
 }
 
 export function isLoggedIn(): boolean {
@@ -139,9 +172,7 @@ export function startSessionGuard(): () => void {
         if (m.role) localStorage.setItem(ROLE_KEY, String(m.role));
         if (m.display_name != null) localStorage.setItem(DISPLAY_NAME_KEY, String(m.display_name));
         if (m.avatar_url != null) {
-          const a = String(m.avatar_url).trim();
-          if (a) localStorage.setItem(AVATAR_URL_KEY, a);
-          else localStorage.removeItem(AVATAR_URL_KEY);
+          memoryAvatarUrl = sanitizeAvatarUrl(m.avatar_url);
         }
       }
     } catch {

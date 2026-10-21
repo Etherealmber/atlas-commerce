@@ -78,6 +78,37 @@ function entryText(e: ZipEntry): string {
   return new TextDecoder('utf-8').decode(e.data);
 }
 
+/**
+ * Decode XML character entities in ONE pass. Sequential `.replace()` chains
+ * unescape twice (`&amp;lt;` -> `&lt;` -> `<`), which corrupts text and can
+ * smuggle markup into previews; a single pass decodes each entity exactly
+ * once and leaves unknown entities untouched.
+ */
+function decodeXmlEntities(s: string): string {
+  return s.replace(/&(#[0-9]+|#[xX][0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);/g, (full, ent: string) => {
+    if (ent[0] === '#') {
+      const hex = ent[1] === 'x' || ent[1] === 'X';
+      const cp = parseInt(ent.slice(hex ? 2 : 1), hex ? 16 : 10);
+      if (Number.isFinite(cp) && cp >= 0 && cp <= 0x10ffff) return String.fromCodePoint(cp);
+      return full;
+    }
+    switch (ent) {
+      case 'lt':
+        return '<';
+      case 'gt':
+        return '>';
+      case 'quot':
+        return '"';
+      case 'apos':
+        return "'";
+      case 'amp':
+        return '&';
+      default:
+        return full;
+    }
+  });
+}
+
 /** Extract paragraph-ish text blocks from OOXML. */
 function extractLines(xml: string, paraTag: 'a:p' | 'w:p', runTag: 'a:t' | 'w:t'): string[] {
   const lines: string[] = [];
@@ -90,12 +121,7 @@ function extractLines(xml: string, paraTag: 'a:p' | 'w:p', runTag: 'a:t' | 'w:t'
     let rm: RegExpExecArray | null;
     runRe.lastIndex = 0;
     while ((rm = runRe.exec(block))) {
-      const t = rm[1]!
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&quot;/g, '"')
-        .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+      const t = decodeXmlEntities(rm[1]!)
         .replace(/\s+/g, ' ')
         .trim();
       if (t) parts.push(t);
@@ -105,11 +131,12 @@ function extractLines(xml: string, paraTag: 'a:p' | 'w:p', runTag: 'a:t' | 'w:t'
   }
   if (!lines.length) {
     // fallback flat
-    const flat = xml
-      .replace(new RegExp(`<${runTag}[^>]*>`, 'gi'), '')
-      .replace(new RegExp(`</${runTag}>`, 'gi'), ' ')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/&amp;/g, '&')
+    const flat = decodeXmlEntities(
+      xml
+        .replace(new RegExp(`<${runTag}[^>]*>`, 'gi'), '')
+        .replace(new RegExp(`</${runTag}>`, 'gi'), ' ')
+        .replace(/<[^>]+>/g, ' '),
+    )
       .replace(/\s+/g, ' ')
       .trim();
     if (flat) lines.push(flat);
@@ -243,16 +270,7 @@ export async function previewXlsx(blob: Blob): Promise<OfficeSlide[]> {
       const tRe = /<t[^>]*>([\s\S]*?)<\/t>/gi;
       let tm: RegExpExecArray | null;
       while ((tm = tRe.exec(block))) {
-        parts.push(
-          tm[1]!
-            .replace(/&lt;/g, '<')
-            .replace(/&gt;/g, '>')
-            .replace(/&quot;/g, '"')
-            .replace(/&apos;/g, "'")
-            .replace(/&#x([0-9a-fA-F]+);/g, (_, n) => String.fromCharCode(parseInt(n, 16)))
-            .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
-            .replace(/&amp;/g, '&'),
-        );
+        parts.push(decodeXmlEntities(tm[1]!));
       }
       shared.push(parts.join(''));
     }
@@ -337,19 +355,17 @@ export async function previewXlsx(blob: Blob): Promise<OfficeSlide[]> {
       const isM = /<is>[\s\S]*?<t[^>]*>([\s\S]*?)<\/t>/.exec(inner);
       if (type === 's' && vM) {
         const idx = Number(vM[1]);
+        // Shared strings were already entity-decoded when the table was
+        // built — decoding again would double-unescape (&amp;lt; -> <).
         val = shared[idx] ?? '';
       } else if (type === 'inlineStr' && isM) {
-        val = isM[1] || '';
+        val = decodeXmlEntities(isM[1] || '');
       } else if (vM) {
-        val = vM[1] || '';
+        val = decodeXmlEntities(vM[1] || '');
       } else if (isM) {
-        val = isM[1] || '';
+        val = decodeXmlEntities(isM[1] || '');
       }
-      val = val
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&amp;/g, '&')
-        .trim();
+      val = val.trim();
       cells.set(`${pos.r}:${pos.c}`, val);
     }
     // Cap preview size for UI
