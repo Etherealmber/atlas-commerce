@@ -21,6 +21,20 @@ type Release = {
 
 const RELEASES: Release[] = [
   {
+    version: '0.5.3-beta',
+    date: '22 octobre 2026',
+    sections: [
+      {
+        kind: 'improvements',
+        items: [
+          { id: '053b1', text: 'Avatar instantané : cache blob en mémoire partagé par toute l’app (un seul téléchargement par session), cache Durable Object + cache edge côté worker, et préchargement dès l’ouverture de session — fini l’attente sur le cercle vide' },
+          { id: '053b2', text: 'Avant l’arrivée de la photo, le monogramme/initials s’affiche immédiatement (plus jamais de cadre vide)' },
+          { id: '053b3', text: 'Avatars recadrés encodés en WebP (~3× plus léger que JPEG) : upload et chargement plus rapides' },
+        ],
+      },
+    ],
+  },
+  {
     version: '0.5.2-beta',
     date: '22 octobre 2026',
     sections: [

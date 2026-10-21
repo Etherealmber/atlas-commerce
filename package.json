@@ -1,7 +1,7 @@
 {
   "name": "atlas-commerce",
   "private": true,
-  "version": "0.5.2-beta",
+  "version": "0.5.3-beta",
   "type": "module",
   "description": "Atlas Commerce — stock, devis, factures (web + Capacitor Android)",
   "author": "loxdpsy",

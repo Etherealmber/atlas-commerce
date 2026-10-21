@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { api } from '../api';
 import { setProfileCache } from '../auth';
+import { prefetchAvatar } from './avatarCache';
 
 /**
  * Warm the in-memory profile cache (name, role, avatar) once at mount.
@@ -21,6 +22,8 @@ export function useProfileWarm(): void {
           username: m.username,
           role: m.role,
         });
+        // Start the avatar blob fetch now so the topbar never waits on it.
+        prefetchAvatar(m.avatar_url);
       } catch {
         /* best-effort: keep whatever the login flow cached */
       }

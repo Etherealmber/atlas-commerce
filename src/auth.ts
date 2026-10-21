@@ -119,6 +119,9 @@ export function setProfileCache(partial: {
   }
   if (partial.avatar_url != null) {
     memoryAvatarUrl = sanitizeAvatarUrl(partial.avatar_url);
+    // Lets the avatar blob cache drop stale entries + prefetch the new one
+    // without auth.ts importing it (no cycle).
+    try { window.dispatchEvent(new CustomEvent('atlas-avatar-changed')); } catch { /* */ }
   }
   if (partial.username) localStorage.setItem(USER_KEY, String(partial.username));
   if (partial.role) localStorage.setItem(ROLE_KEY, String(partial.role));

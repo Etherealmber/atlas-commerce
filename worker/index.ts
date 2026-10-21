@@ -4083,27 +4083,63 @@ app.get('/api/me/avatar', async (c) => {
     if (/;base64$/i.test(meta)) {
       const bin = atob(payload);
       bytes = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      for (let i2 = 0; i2 < bin.length; i2++) bytes[i2] = bin.charCodeAt(i2);
     } else {
       bytes = new TextEncoder().encode(decodeURIComponent(payload));
     }
     return new Response(bytes as unknown as BodyInit, {
-      headers: { 'Content-Type': meta.split(';')[0] || 'image/svg+xml', 'Cache-Control': 'public, max-age=3600' },
+      headers: { 'Content-Type': meta.split(';')[0] || 'image/svg+xml', 'Cache-Control': 'public, max-age=86400' },
     });
   }
+  // v243 — Durable-Object blob cache first (warm DO = sub-ms), then edge-cached
+  // origin fetch; both keyed by a hash of the avatar URL so uploads invalidate.
+  let version = 5381;
+  for (let i2 = 0; i2 < url.length; i2++) version = ((version * 33) ^ url.charCodeAt(i2)) >>> 0;
+  const vkey = String(version);
+  let bytes: Uint8Array | null = null;
+  let ctype = 'image/jpeg';
+  let doStub: DurableObjectStub | null = null;
   try {
-    const r = await fetch(url, { headers: { Accept: 'image/*' } });
-    if (!r.ok) return c.json({ success: false, error: 'Avatar indisponible' }, 502);
-    return new Response(r.body, {
-      headers: {
-        'Content-Type': r.headers.get('Content-Type') || 'image/jpeg',
-        'Cache-Control': 'public, max-age=3600',
-      },
-    });
-  } catch (e) {
-    console.error('avatar proxy', String((e as any)?.message || e).slice(0, 200));
-    return c.json({ success: false, error: 'Avatar indisponible' }, 502);
+    if (c.env.MOBILE_HUB) {
+      doStub = c.env.MOBILE_HUB.get(c.env.MOBILE_HUB.idFromName('profile:' + session.username));
+      const hit = await doStub.fetch(`https://do/avatar?v=${vkey}`);
+      if (hit.ok) {
+        bytes = new Uint8Array(await hit.arrayBuffer());
+        ctype = hit.headers.get('x-avatar-ctype') || ctype;
+      }
+    }
+  } catch { /* DO cold/unavailable — fall through to origin */ }
+  if (!bytes) {
+    try {
+      const r = await fetch(url, {
+        headers: { Accept: 'image/*' },
+        cf: { cacheTtl: 86400, cacheEverything: true } as any,
+      });
+      if (!r.ok) return c.json({ success: false, error: 'Avatar indisponible' }, 502);
+      ctype = r.headers.get('Content-Type') || ctype;
+      bytes = new Uint8Array(await r.arrayBuffer());
+      if (doStub && bytes.byteLength <= 4_000_000) {
+        c.executionCtx?.waitUntil(
+          doStub
+            .fetch(`https://do/avatar?v=${vkey}`, {
+              method: 'PUT',
+              headers: { 'x-avatar-ctype': ctype },
+              body: bytes.slice() as unknown as BodyInit,
+            })
+            .catch(() => {}),
+        );
+      }
+    } catch (e) {
+      console.error('avatar proxy', String((e as any)?.message || e).slice(0, 200));
+      return c.json({ success: false, error: 'Avatar indisponible' }, 502);
+    }
   }
+  return new Response(bytes as unknown as BodyInit, {
+    headers: {
+      'Content-Type': ctype,
+      'Cache-Control': 'public, max-age=86400, stale-while-revalidate=86400',
+    },
+  });
 });
 
 app.get('/api/auth/me', async (c) => {

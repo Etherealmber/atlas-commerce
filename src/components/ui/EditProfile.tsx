@@ -50,7 +50,10 @@ async function cropToCircleDataUrl(file: File): Promise<string> {
   ctx.closePath();
   ctx.clip();
   ctx.drawImage(img, sx, sy, side, side, 0, 0, out, out);
-  return canvas.toDataURL('image/jpeg', 0.92);
+  // v243 — WebP first (~3x smaller than JPEG at same quality): faster avatar
+  // uploads AND loads; falls back to JPEG where WebP encoding is unsupported.
+  const webp = canvas.toDataURL('image/webp', 0.9);
+  return webp.startsWith('data:image/webp') ? webp : canvas.toDataURL('image/jpeg', 0.92);
 }
 
 export const EditProfile: FC<Props> = ({ isOpen, onClose, initialData, onSave }) => {

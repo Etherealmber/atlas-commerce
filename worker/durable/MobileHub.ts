@@ -46,6 +46,9 @@ const PROFILE_KEYS = [
 ] as const;
 
 export class MobileHub {
+  /** In-memory avatar blob cache (warm DO = instant avatar serves). */
+  private avatarCache: { version: string; bytes: Uint8Array; ctype: string } | null = null;
+
   constructor(
     private readonly state: DurableObjectState,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -112,6 +115,32 @@ export class MobileHub {
             updatedAt: now,
           });
           return Response.json({ success: true, data: next });
+        }
+        return Response.json({ success: false, error: 'Method not allowed' }, { status: 405 });
+      }
+
+      // ─── Avatar blob cache (memory-only, keyed by URL version) ───
+      if (path === '/avatar' || path.endsWith('/avatar')) {
+        const v = url.searchParams.get('v') || '';
+        if (request.method === 'GET') {
+          const hit = this.avatarCache;
+          if (hit && hit.version === v) {
+            return new Response(hit.bytes as unknown as BodyInit, {
+              headers: { 'x-avatar-ctype': hit.ctype },
+            });
+          }
+          return Response.json({ success: false, error: 'miss' }, { status: 404 });
+        }
+        if (request.method === 'PUT') {
+          const bytes = new Uint8Array(await request.arrayBuffer());
+          if (bytes.byteLength > 0 && bytes.byteLength <= 4_000_000) {
+            this.avatarCache = {
+              version: v,
+              bytes,
+              ctype: request.headers.get('x-avatar-ctype') || 'image/jpeg',
+            };
+          }
+          return Response.json({ success: true });
         }
         return Response.json({ success: false, error: 'Method not allowed' }, { status: 405 });
       }
