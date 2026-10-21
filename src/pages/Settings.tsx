@@ -23,6 +23,7 @@ import IntegrationsPanel from '../components/IntegrationsPanel';
 import { AlertsPanel } from '../components/atlas-v209-panels';
 import AgentPermissionsPanel from '../components/AgentPermissionsPanel';
 import AppUpdatePanel from '../components/settings/AppUpdatePanel';
+import AgentSecurityPanel from '../components/AgentSecurityPanel';
 
 function SettingsThemeSeg() {
   const [mode, setMode] = useState<string>(() => {
@@ -851,6 +852,12 @@ if (loading) return (
         )}
 
 
+      {activeTab === 'profile' && (
+        <AgentSecurityPanel
+          isOwner={(typeof getRole === 'function' ? getRole() : '') === 'owner'}
+          role={typeof getRole === 'function' ? String(getRole() || '') : ''}
+        />
+      )}
       {activeTab === 'profile' && (
         <div className="card" style={{ marginBottom: 16 }}>
           <h3 style={{ marginTop: 0 }}>Apparence</h3>

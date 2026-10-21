@@ -119,6 +119,16 @@ export default function Privacy() {
               transmise à nos serveurs)
             </li>
             <li>Journal d’audit des actions sensibles</li>
+            <li>
+              Liste des appareils de confiance associés au compte (empreinte, dernière IP,
+              dernier accès, type de navigateur) — consultable et révocable à tout moment
+              depuis Paramètres → « Atlas Agent &amp; Sécurité » → « Voir les appareils »
+            </li>
+            <li>
+              Préférence de double authentification (2FA) : lorsqu’elle est activée par le
+              propriétaire de l’instance, un code OTP par e-mail est exigé à chaque connexion,
+              y compris depuis un appareil de confiance
+            </li>
           </ul>
 
           <h3>3.3 Données métier</h3>
@@ -140,7 +150,24 @@ export default function Privacy() {
             </li>
             <li>
               Conversations stockées sur <strong>Cloudflare R2</strong> (préfixe{' '}
-              <code>agent-chats/v2/</code>), <strong>un fichier chiffré par conversation</strong> (<code>.conv</code>, AES-GCM), séparément de D1 — pas de JSON en clair
+              <code>agent/&lt;utilisateur&gt;/</code>), <strong>un fichier chiffré par conversation</strong> (<code>.agent</code>, AES-GCM), séparément de D1 — pas de JSON en clair
+            </li>
+            <li>
+              Une conversation unique et persistante par utilisateur : les échanges sont
+              conservés localement (navigateur) et synchronisés sur R2 jusqu’à suppression
+              volontaire — il n’existe plus d’historique multi-conversations ni de création
+              de nouvelle discussion
+            </li>
+            <li>
+              Compteurs d’usage techniques (jetons estimés par jour et par semaine) utilisés
+              uniquement pour appliquer les quotas d’Atlas Agent ; remis à zéro à chaque
+              période et lors d’une suppression de données
+            </li>
+            <li>
+              En cas de détection d’abus ou d’injection de prompt (tentative de contourner
+              les consignes de l’assistant), l’accès à l’agent est suspendu et l’incident est
+              journalisé (<code>agent.security_lock</code>) jusqu’à rétablissement par un
+              administrateur
             </li>
             <li>
               Indication de plateforme (<code>source</code> / en-tête{' '}
@@ -158,6 +185,14 @@ export default function Privacy() {
             mots de passe, codes OTP, données bancaires). Les fichiers de conversation sont
             chiffrés côté serveur (jeton de chiffrement Worker) et inclus dans les sauvegardes
             R2 administrateur ; ils ne sont pas utilisés pour de la publicité.
+          </p>
+          <p>
+            <strong>Suppression de vos données agent :</strong> chaque utilisateur peut
+            supprimer définitivement l’ensemble de ses conversations Atlas Agent (fichiers R2,
+            copie locale et compteurs d’usage) depuis Paramètres → « Atlas Agent &amp;
+            Sécurité ». Cette action est protégée par un code OTP à usage unique et est
+            journalisée. La suppression du compte (comptes staff non propriétaires) suit la
+            même protection OTP et retire également appareils de confiance et passkeys.
           </p>
 
           <h3>3.5 Application native Android</h3>
@@ -318,6 +353,12 @@ export default function Privacy() {
 
         <section>
           <h2>9. Durées de conservation</h2>
+          <p>
+            Conversations Atlas Agent : conservées jusqu’à suppression par l’utilisateur
+            (voie OTP) ou par l’administrateur (suppression de compte). Compteurs de quota :
+            durée de la période (jour / semaine) puis réinitialisation. Verrous de sécurité
+            agent : conservés jusqu’à rétablissement explicite par un administrateur.
+          </p>
           <ul>
             <li>Comptes staff — durée de la relation + obligations légales</li>
             <li>Journaux de sécurité / login — durée limitée (ordre de quelques mois)</li>
@@ -339,6 +380,13 @@ export default function Privacy() {
 
         <section>
           <h2>11. Vos droits</h2>
+          <p>
+            En plus des voies classiques, deux actions en libre-service protégées par OTP
+            permettent d’exercer votre droit à l’effacement : suppression de toutes vos
+            conversations Atlas Agent, et suppression de votre compte staff (hors compte
+            propriétaire). Les appareils de confiance peuvent être révoqués individuellement
+            à tout moment.
+          </p>
           <p>
             Conformément au RGPD (si applicable) et à la réglementation marocaine (CNDP / loi
             09-08), vous pouvez demander l’accès, la rectification, l’effacement (dans les

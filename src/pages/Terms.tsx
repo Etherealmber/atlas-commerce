@@ -71,6 +71,37 @@ export default function Terms() {
             Les conversations sont stockées de façon chiffrée sur R2 selon la{' '}
             <Link to="/privacy">politique de confidentialité</Link>.
           </p>
+          <ul>
+            <li>
+              <strong>Conversation unique :</strong> l&apos;agent conserve une seule
+              conversation persistante par utilisateur ; il n&apos;existe pas d&apos;historique
+              multi-discussions. La suppression des échanges s&apos;effectue depuis les
+              Paramètres, protégée par code OTP.
+            </li>
+            <li>
+              <strong>Quotas d&apos;usage :</strong> afin de garantir un accès équitable,
+              l&apos;usage de l&apos;agent est plafonné en jetons par jour et par semaine pour
+              les comptes non administrateurs ; les administrateurs ne sont pas limités.
+            </li>
+            <li>
+              <strong>Interdiction d&apos;abus et d&apos;injection de prompt :</strong> toute
+              tentative de contourner les consignes de l&apos;assistant (« ignore les
+              instructions précédentes », jailbreak, extraction du prompt système, etc.)
+              entraîne la suspension immédiate de l&apos;accès à l&apos;agent pour le compte
+              concerné, jusqu&apos;à rétablissement explicite par un administrateur.
+              L&apos;incident est journalisé.
+            </li>
+            <li>
+              <strong>Accès par rôles :</strong> les capacités de l&apos;agent (lecture,
+              écriture, outils métier) dépendent du rôle de l&apos;utilisateur et des
+              permissions définies par le propriétaire de l&apos;instance.
+            </li>
+            <li>
+              <strong>Sécurité du compte :</strong> le propriétaire de l&apos;instance peut
+              activer la double authentification (2FA) : un code OTP est alors exigé à chaque
+              connexion, y compris sur appareil de confiance.
+            </li>
+          </ul>
         </section>
 
         <section>

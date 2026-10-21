@@ -357,6 +357,20 @@ export const api = {
     request(`/api/admin/agent/threads/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(body), silent: true } as any),
   deleteAgentThread: (id: string) =>
     request(`/api/admin/agent/threads/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  /* v225 — agent governance, privacy deletes, 2FA, devices */
+  getAgentPolicy: () => request<{ data: { blocked: boolean; isAdmin: boolean; dailyUsed: number; weeklyUsed: number; dailyLimit: number; weeklyLimit: number } }>('/api/agent/policy'),
+  postAgentUsage: (tokens: number) => request<{ data: { unlimited?: boolean; dailyUsed?: number; weeklyUsed?: number } }>('/api/agent/usage', { method: 'POST', body: JSON.stringify({ tokens }), silent: true } as any),
+  flagAgentAbuse: (reason: string) => request('/api/agent/flag', { method: 'POST', body: JSON.stringify({ reason }), silent: true } as any),
+  getAgentControls: () => request<{ data: any[] }>('/api/admin/agent-controls'),
+  setAgentAccess: (username: string, action: 'block' | 'restore') => request('/api/admin/agent-access', { method: 'POST', body: JSON.stringify({ username, action }) }),
+  requestAgentDataOtp: () => request<{ emailed: boolean; message: string; otp?: string }>('/api/settings/agent-data/request-delete-otp', { method: 'POST', body: '{}' }),
+  deleteAgentData: (otp: string) => request<{ data: { removed: number } }>('/api/settings/agent-data/delete', { method: 'POST', body: JSON.stringify({ otp }) }),
+  requestAccountOtp: () => request<{ emailed: boolean; message: string; otp?: string }>('/api/settings/account/request-delete-otp', { method: 'POST', body: '{}' }),
+  deleteAccount: (otp: string) => request('/api/settings/account/delete', { method: 'POST', body: JSON.stringify({ otp }) }),
+  get2fa: () => request<{ data: { enabled: boolean } }>('/api/settings/2fa'),
+  put2fa: (enabled: boolean) => request<{ data: { enabled: boolean } }>('/api/settings/2fa', { method: 'PUT', body: JSON.stringify({ enabled }) }),
+  getDevices: () => request<{ data: { fingerprint: string; full: string; last_ip: string; last_seen: string; user_agent: string; current: boolean }[] }>('/api/auth/devices'),
+  revokeDevice: (fingerprint: string) => request('/api/auth/devices/revoke', { method: 'POST', body: JSON.stringify({ fingerprint }) }),
   assistChat: (message: string, opts?: { task?: string; timezone?: string; thread_id?: string; user_message?: string }) =>
     request<{
       data: {

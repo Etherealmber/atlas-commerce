@@ -274,7 +274,7 @@ function msgsKey(threadId: string) {
 
 function loadMsgs(threadId: string): Msg[] {
   try {
-    const raw = sessionStorage.getItem(msgsKey(threadId)) || sessionStorage.getItem(MSGS_KEY);
+    const raw = localStorage.getItem(msgsKey(threadId)) || sessionStorage.getItem(msgsKey(threadId)) || sessionStorage.getItem(MSGS_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed) && parsed.length) return parsed.slice(-40);
@@ -284,7 +284,7 @@ function loadMsgs(threadId: string): Msg[] {
 
 function saveMsgs(threadId: string, msgs: Msg[]) {
   try {
-    sessionStorage.setItem(msgsKey(threadId), JSON.stringify(msgs.slice(-40)));
+    localStorage.setItem(msgsKey(threadId), JSON.stringify(msgs.slice(-40)));
     try {
       const th = loadThreads().find((t) => t.id === threadId);
       void persistThreadR2(threadId, th?.title || 'Sans titre', msgs.slice(-40));
@@ -595,7 +595,21 @@ export default function AtlasAgent() {
     }
   });
   const [threads, setThreads] = useState<ThreadMeta[]>(() => loadThreads());
-  const [showHistory, setShowHistory] = useState(false);
+  const [showExtras, setShowExtras] = useState<boolean>(() => {
+    try { return localStorage.getItem('atlas_agent_show_extras') === '1'; } catch { return false; }
+  });
+  const [agentPolicy, setAgentPolicy] = useState<{ blocked: boolean; isAdmin: boolean; dailyUsed: number; weeklyUsed: number; dailyLimit: number; weeklyLimit: number } | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    let alive = true;
+    (async () => {
+      try {
+        const res = await api.getAgentPolicy();
+        if (alive && res?.data) setAgentPolicy(res.data);
+      } catch { /* offline: permissive */ }
+    })();
+    return () => { alive = false; };
+  }, [open]);
   useEffect(() => {
     const onOpen = (e: Event) => {
       const detail = (e as CustomEvent)?.detail;
@@ -927,7 +941,6 @@ export default function AtlasAgent() {
       }
       if (action.type === 'open_perms') {
         setShowPerms(true);
-        setShowHistory(false);
         setMsgs((m) => [...m, { role: 'assistant', text: 'Panneau des permissions ouvert.' }]);
         return;
       }
@@ -1093,11 +1106,44 @@ export default function AtlasAgent() {
     }
   };
 
+  const lastReportedLen = useRef(0);
+  useEffect(() => {
+    const last = msgs[msgs.length - 1];
+    if (last?.role === 'assistant' && msgs.length > lastReportedLen.current) {
+      lastReportedLen.current = msgs.length;
+      const est = Math.round(((last.text || '').length + 240) / 4);
+      api.postAgentUsage(est)
+        .then((res: any) => { if (res?.data && !res.data.unlimited) setAgentPolicy((p0) => (p0 ? { ...p0, dailyUsed: res.data.dailyUsed ?? p0.dailyUsed, weeklyUsed: res.data.weeklyUsed ?? p0.weeklyUsed } : p0)); })
+        .catch(() => { /* */ });
+    }
+  }, [msgs]);
+
   const send = useCallback(
     async (raw?: string, isRetry = false, retryAtIndex?: number) => {
       const q = (raw ?? input).trim();
       const files = isRetry ? [] : attachments;
       if ((!q && !files.length) || busy) return;
+      /* v225 security: blocked users and exhausted quotas cannot talk to the agent */
+      if (agentPolicy?.blocked) {
+        setMsgs((m) => [...m, { role: 'assistant', text: "⛔ Accès à Atlas Agent suspendu pour votre compte (abus ou injection de prompt détecté). Contactez un administrateur pour le rétablir." }]);
+        return;
+      }
+      if (agentPolicy && !agentPolicy.isAdmin && agentPolicy.dailyUsed >= agentPolicy.dailyLimit) {
+        setMsgs((m) => [...m, { role: 'assistant', text: "📉 Quota quotidien de jetons atteint. Réessayez demain — les administrateurs ne sont pas limités." }]);
+        return;
+      }
+      if (agentPolicy && !agentPolicy.isAdmin && agentPolicy.weeklyUsed >= agentPolicy.weeklyLimit) {
+        setMsgs((m) => [...m, { role: 'assistant', text: "📉 Quota hebdomadaire de jetons atteint. Réessayez la semaine prochaine." }]);
+        return;
+      }
+      /* Prompt-injection tripwire: jailbreak patterns lock agent access until an admin restores it */
+      const INJECTION = /(ignore(z|s)? (toutes )?(les )?(instructions|consignes|regles|rules)( precedentes| anteriores)?|disregard (all|previous|prior)|forget (your|all|previous) (instructions|rules|training)|you are (now|no longer)|tu es (maintenant|desormais) (libere|unrestricted)|jailbreak|dan mode|developer mode|system prompt|revele (ton|le) (prompt|system)|reveal (your|the) (system|prompt)|do anything now|pretend (you are|to be) (an? )?(unrestricted|evil|jailbroken))/i;
+      if (q && INJECTION.test(q)) {
+        try { await api.flagAgentAbuse('prompt_injection'); } catch { /* */ }
+        setAgentPolicy((p0) => (p0 ? { ...p0, blocked: true } : p0));
+        setMsgs((m) => [...m, { role: 'assistant', text: "🛡️ Tentative d'injection de prompt détectée. Par sécurité, l'accès à Atlas Agent est suspendu jusqu'à rétablissement par un administrateur. Incident journalisé." }]);
+        return;
+      }
       if (!isRetry) setInput('');
       if (!isRetry) setAttachments([]);
       const attachNote = files.length
@@ -1209,7 +1255,7 @@ export default function AtlasAgent() {
           ...m,
           {
             role: 'assistant',
-            text: friendlyError(e) || 'Je ne peux pas répondre pour le moment. Réessayez.',
+            text: (friendlyError(e) || 'Je ne peux pas répondre pour le moment.') + '\n\n💡 Exemples de demandes que je sais traiter : « Résumé stock bas », « Rapport des ventes du jour », « Créer un client », « Ajouter une dépense de 200 DH », « Combien d\'actions en attente ? », « Que faire sur cette page ? ».',
             ms: Math.round(performance.now() - t0),
             failed: true,
             prompt: q,
@@ -1239,7 +1285,6 @@ export default function AtlasAgent() {
     const id = newThreadId();
     setThreadId(id);
     setMsgs([WELCOME]);
-    setShowHistory(false);
     try {
       localStorage.setItem(ACTIVE_THREAD_KEY, id);
     } catch { /* */ }
@@ -1277,7 +1322,6 @@ export default function AtlasAgent() {
 
   const openThread = async (id: string) => {
     setThreadId(id);
-    setShowHistory(false);
     try {
       localStorage.setItem(ACTIVE_THREAD_KEY, id);
     } catch { /* */ }
@@ -1456,7 +1500,6 @@ export default function AtlasAgent() {
                   const r = btn.getBoundingClientRect();
                   (btn as any)._portalPos = { top: r.bottom + 6, right: window.innerWidth - r.right };
                   setShowPerms((v) => !v);
-                  setShowHistory(false);
                 }}
               >
                 <IconSettings />
@@ -1488,21 +1531,26 @@ export default function AtlasAgent() {
             </div>
             <button
               type="button"
-              className="atlas-agent-iconbtn"
-              title="Historique"
+              className={`atlas-agent-iconbtn${showExtras ? ' on' : ''}`}
+              title={showExtras ? 'Masquer les raccourcis' : 'Afficher les raccourcis'}
+              aria-pressed={showExtras}
+              aria-label={showExtras ? 'Masquer les raccourcis' : 'Afficher les raccourcis'}
               onClick={() => {
-                setShowHistory((v) => {
+                setShowExtras((v) => {
                   const next = !v;
-                  if (next) void refreshHistoryFromR2();
+                  try { localStorage.setItem('atlas_agent_show_extras', next ? '1' : '0'); } catch { /* */ }
                   return next;
                 });
                 setShowPerms(false);
               }}
             >
-              <IconHistory />
-            </button>
-            <button type="button" className="atlas-agent-iconbtn" title="Nouvelle conversation" onClick={clearThread}>
-              <IconNewChat />
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden>
+                {showExtras ? (
+                  <><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z" /><circle cx="12" cy="12" r="2.6" /></>
+                ) : (
+                  <><path d="M3 3l18 18" /><path d="M10.6 5.1A9.8 9.8 0 0 1 12 5c6.4 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.2M6.6 6.6C3.8 8.6 2 12 2 12s3.6 7 10 7c1.5 0 2.9-.4 4.1-1" /></>
+                )}
+              </svg>
             </button>
             <button type="button" className="atlas-agent-close atlas-agent-close--danger" aria-label="Fermer" title="Fermer" onClick={() => {
           setOpen(false);
@@ -1517,41 +1565,6 @@ export default function AtlasAgent() {
           )}
         </header>
 
-        {showHistory && (
-          <div className="atlas-agent-history">
-            <div className="atlas-agent-history-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-              <span>Conversations</span>
-              <button
-                type="button"
-                className="atlas-agent-msg-act"
-                title="Actualiser depuis le serveur"
-                onClick={() => void refreshHistoryFromR2()}
-              >
-                ↻
-              </button>
-            </div>
-            {threads.length === 0 && (
-              <p className="atlas-agent-history-empty">
-                Aucune conversation. Les échanges sont enregistrés sur R2 après chaque message.
-              </p>
-            )}
-            {Object.entries(groupedHistory()).map(([label, list]) => (
-              <div key={label} className="atlas-agent-history-group">
-                <div className="atlas-agent-history-day">{label}</div>
-                {list.map((th) => (
-                  <button
-                    key={th.id}
-                    type="button"
-                    className={`atlas-agent-history-item secondary${th.id === threadId ? ' active' : ''}`}
-                    onClick={() => openThread(th.id)}
-                  >
-                    <span className="atlas-agent-history-label">{th.title || 'Sans titre'}</span>
-                  </button>
-                ))}
-              </div>
-            ))}
-          </div>
-        )}
 
         
 
@@ -1873,7 +1886,7 @@ export default function AtlasAgent() {
           <div ref={bottomRef} />
         </div>
 
-        {!isPhoneShell && (
+        {showExtras && !isPhoneShell && (
         <div className="atlas-agent-nav atlas-agent-nav--readable">
           <span className="lbl">Aller à</span>
           <button type="button" className="secondary" onClick={() => go('/', 'Tableau de bord')}>Tableau de bord</button>
@@ -1891,6 +1904,7 @@ export default function AtlasAgent() {
         </div>
         )}
 
+        {showExtras && (
         <div className="atlas-agent-suggest atlas-agent-suggest--readable">
           {!isPhoneShell && (
           <button type="button" disabled={busy} onClick={() => void send(`Que faire sur la page ${page.title} ?`)}>
@@ -1932,6 +1946,7 @@ export default function AtlasAgent() {
             </button>
           )}
         </div>
+        )}
 
         <footer className="atlas-agent-foot">
           <input
@@ -1942,6 +1957,20 @@ export default function AtlasAgent() {
             style={{ display: 'none' }}
             onChange={onPickFiles}
           />
+          {agentPolicy?.blocked && (
+            <div className="atlas-agent-lock" role="alert">
+              <strong>Accès Atlas Agent suspendu</strong>
+              <span>
+                Détection d’abus ou d’injection de prompt. L’accès est verrouillé jusqu’à rétablissement par un
+                administrateur (Paramètres → Atlas Agent & Sécurité).
+              </span>
+            </div>
+          )}
+          {agentPolicy && !agentPolicy.isAdmin && !agentPolicy.blocked && (
+            <div className="atlas-agent-quota" title="Jetons utilisés (jour / semaine)">
+              {Math.round((agentPolicy.dailyUsed / agentPolicy.dailyLimit) * 100)}% du quota jour · {Math.round((agentPolicy.weeklyUsed / agentPolicy.weeklyLimit) * 100)}% semaine
+            </div>
+          )}
           <PromptBar
             placeholder="Écrire un message…"
             sources={[
@@ -1960,7 +1989,7 @@ export default function AtlasAgent() {
             ]}
             models={[]}
             efforts={[]}
-            busy={busy}
+            busy={busy || !!agentPolicy?.blocked}
             onSend={(text) => {
               setInput(text);
               void send(text);
