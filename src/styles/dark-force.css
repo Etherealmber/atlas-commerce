@@ -4228,3 +4228,35 @@ html[data-theme="dark"] body .db-mig-progress { color: #4ade80; }
 html[data-theme="dark"] body .db-mig-error { color: #f87171; }
 @media (max-width: 720px) { html body .db-mig-grid { grid-template-columns: 1fr; } }
 /* v232 END */
+
+/* v235 — OTP note + its buttons: zinc tokens, ballast specificity so no chain can blacken them */
+html body .modal-note button.btn.primary:not(.zz0):not(.zz1):not(.zz2):not(.zz3):not(.zz4):not(.zz5):not(.zz6):not(.zz7):not(.zz8):not(.zz9):not(.zz10):not(.zz11):not(.zz12):not(.zz13):not(.zz14):not(.zz15):not(.zz16):not(.zz17):not(.zz18):not(.zz19):not(.zz20):not(.zz21):not(.zz22):not(.zz23):not(.zz24):not(.zz25):not(.zz26):not(.zz27):not(.zz28):not(.zz29):not(.zz30):not(.zz31):not(.zz32):not(.zz33):not(.zz34):not(.zz35):not(.zz36):not(.zz37):not(.zz38):not(.zz39):not(.zz40) {
+  background: #3f3f46 !important;
+  border-color: #3f3f46 !important;
+  color: #fafafa !important;
+}
+html body .modal-note button.btn.ghost:not(.zz0):not(.zz1):not(.zz2):not(.zz3):not(.zz4):not(.zz5):not(.zz6):not(.zz7):not(.zz8):not(.zz9):not(.zz10):not(.zz11):not(.zz12):not(.zz13):not(.zz14):not(.zz15):not(.zz16):not(.zz17):not(.zz18):not(.zz19):not(.zz20):not(.zz21):not(.zz22):not(.zz23):not(.zz24):not(.zz25):not(.zz26):not(.zz27):not(.zz28):not(.zz29):not(.zz30):not(.zz31):not(.zz32):not(.zz33):not(.zz34):not(.zz35):not(.zz36):not(.zz37):not(.zz38):not(.zz39):not(.zz40),
+html body .modal-note button.btn.secondary:not(.zz0):not(.zz1):not(.zz2):not(.zz3):not(.zz4):not(.zz5):not(.zz6):not(.zz7):not(.zz8):not(.zz9):not(.zz10):not(.zz11):not(.zz12):not(.zz13):not(.zz14):not(.zz15):not(.zz16):not(.zz17):not(.zz18):not(.zz19):not(.zz20):not(.zz21):not(.zz22):not(.zz23):not(.zz24):not(.zz25):not(.zz26):not(.zz27):not(.zz28):not(.zz29):not(.zz30):not(.zz31):not(.zz32):not(.zz33):not(.zz34):not(.zz35):not(.zz36):not(.zz37):not(.zz38):not(.zz39):not(.zz40) {
+  background: transparent !important;
+  border: 1px solid #d4d4d8 !important;
+  color: #3f3f46 !important;
+}
+html body .modal-note input:not(.zz0):not(.zz1):not(.zz2):not(.zz3):not(.zz4):not(.zz5) {
+  background: #ffffff !important;
+  border: 1px solid #d4d4d8 !important;
+  color: #18181b !important;
+}
+html[data-theme="dark"] body .modal-note button.btn.primary { background: #52525b !important; border-color: #52525b !important; color: #fafafa !important; }
+html[data-theme="dark"] body .modal-note button.btn.ghost,
+html[data-theme="dark"] body .modal-note button.btn.secondary { background: transparent !important; border-color: #52525b !important; color: #d4d4d8 !important; }
+html[data-theme="dark"] body .modal-note input { background: #18181b !important; border-color: #3f3f46 !important; color: #f4f4f5 !important; }
+/* v235 END */
+
+/* v236 — whats-new dark: version header same surface as the release card */
+html[data-theme="dark"] body .wn-ver {
+  background: #1c1c1f !important;
+  border-color: #1c1c1f !important;
+  color: #e4e4e7 !important;
+}
+html[data-theme="dark"] body .wn-ver .wn-ver-date { color: #a1a1aa !important; }
+/* v236 END */

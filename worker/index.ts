@@ -1033,7 +1033,7 @@ app.get('/api/canary', async (c) => {
   return c.json({
     success: allOk,
     data: {
-      version: '1.4.5-beta',
+      version: '0.4.9-beta',
       environment: String((c.env as any).ENVIRONMENT || 'unknown'),
       ts: new Date().toISOString(),
       totalMs: Date.now() - t0,
@@ -1180,7 +1180,7 @@ app.post('/api/settings/agent-data/request-delete-otp', async (c) => {
   if (reason !== 'ok') return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
   const session = sessionUserFromHeader(c.req.header('Authorization'));
   const username = String(session.username || '').toLowerCase();
-  const res = await issueDeleteOtp(c.env, 'agent-data', username, 'toutes les conversations Atlas Agent', 'Code de confirmation — suppression des données Atlas Agent');
+  const res = await issueDeleteOtp(c.env, 'agent-data', username, 'toutes les conversations Atlas Agent', 'Code de confirmation — suppression des données Atlas Agent', { toEmail: await userMail(c.env.DB, username) });
   return c.json({ success: true, emailed: res.emailed, message: res.message, otp: res.emailed ? undefined : res.otp });
 });
 
@@ -1213,7 +1213,7 @@ app.post('/api/settings/account/request-delete-otp', async (c) => {
   if (reason !== 'ok') return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
   const session = sessionUserFromHeader(c.req.header('Authorization'));
   const username = String(session.username || '').toLowerCase();
-  const res = await issueDeleteOtp(c.env, 'account-delete', username, 'votre compte Atlas Commerce', 'Code de confirmation — suppression de compte');
+  const res = await issueDeleteOtp(c.env, 'account-delete', username, 'votre compte Atlas Commerce', 'Code de confirmation — suppression de compte', { toEmail: await userMail(c.env.DB, username) });
   return c.json({ success: true, emailed: res.emailed, message: res.message, otp: res.emailed ? undefined : res.otp });
 });
 
@@ -1999,6 +1999,7 @@ app.get('/api/auth/turnstile-config', (c) => {
 });
 
 app.post('/api/auth/login', async (c) => {
+  let accountEmail = '';
   const body = await c.req.json().catch(() => ({}));
   const username = String(body.username ?? getOwnerUsername(c.env)).trim().toLowerCase();
   const password = String(body.password ?? '');
@@ -2049,6 +2050,7 @@ app.post('/api/auth/login', async (c) => {
       }, 401);
     }
     role = 'owner';
+    accountEmail = '';
     // Derive session material from password — never embed the raw ADMIN_PASSWORD in tokens
     secretMaterial = await sha256Hex(`owner-key|${ownerUser}|${normalizePassword(expected)}`);
     displayName = 'Administrateur';
@@ -2086,6 +2088,7 @@ app.post('/api/auth/login', async (c) => {
     }
     secretMaterial = hashForSession;
     displayName = row.display_name || username;
+    accountEmail = String(row?.email || '').trim();
     await c.env.DB.prepare(`UPDATE app_users SET last_login = datetime('now') WHERE id = ?`).bind(row.id).run();
   }
 
@@ -2125,10 +2128,14 @@ app.post('/api/auth/login', async (c) => {
   const ctxJson = JSON.stringify({ username, role, secretMaterial });
   // Cloudflare Email binding only allows the configured destination (admin@).
   // security@ is valid as FROM only — never as TO or sends fail with "not allowed".
-  const fromAddr = (c.env.OTP_FROM || 'noreply@afmarbre.com').trim() || 'security@afmarbre.com';
-  let toAddr = (c.env.OTP_TO || 'security@afmarbre.com').trim() || 'admin@afmarbre.com';
-  if (toAddr.toLowerCase() === fromAddr.toLowerCase() || toAddr.toLowerCase() === 'security@afmarbre.com') {
-    toAddr = 'admin@afmarbre.com';
+  const fromAddr = (c.env.OTP_FROM || (c.env as any).RESEND_FROM || 'noreply@afmarbre.com').trim() || 'security@afmarbre.com';
+  // v235 — the user's own inbox first (Resend can deliver anywhere); admin fallback for the CF binding
+  let toAddr = accountEmail;
+  if (!toAddr) {
+    toAddr = (c.env.OTP_TO || 'security@afmarbre.com').trim() || 'admin@afmarbre.com';
+    if (toAddr.toLowerCase() === fromAddr.toLowerCase() || toAddr.toLowerCase() === 'security@afmarbre.com') {
+      toAddr = 'admin@afmarbre.com';
+    }
   }
   const verifyUrl = `https://stock.afmarbre.com/login?user=${encodeURIComponent(username)}&hint=otp`;
 
@@ -2190,14 +2197,14 @@ app.post('/api/auth/login', async (c) => {
       console.log('[dev-otp] login code for', username, ':', otp);
     }
   } catch { /* ignore */ }
-  const sendTask = c.env.EMAIL.send({
+  const sendTask = sendOtpMail(c.env, {
     to: toAddr,
     from: fromAddr,
     subject: `Code de connexion — ${companyName} (${username})`,
     html: emailHtml,
     text: emailText,
-  }).catch((e) => {
-    console.error('otp_email_failed', String(e?.message || e));
+  }).then((ok) => {
+    if (!ok) console.error('otp_email_failed_all_transports', username);
   });
   try {
     const ec = (c as any).executionCtx;
@@ -10096,55 +10103,98 @@ function otpEmailHTML(
 ): string {
   const isLogin = purpose === 'login';
   const title = isLogin ? 'Code de connexion' : 'Code de confirmation';
-  const subtitle = isLogin
-    ? `${companyName} — Vérification de connexion`
-    : `${companyName} — Confirmation de suppression`;
   const intro = isLogin
-    ? `Une connexion a été demandée${meta?.username ? ` pour <strong>${meta.username}</strong>` : ''}. Pour finaliser l'accès, saisissez le code ci-dessous.`
-    : `Vous avez demandé la suppression de : <strong>${resourceLabel}</strong>.`;
-  const action = isLogin
-    ? `Veuillez saisir ce code dans l'application ou sur le site :`
-    : `Veuillez saisir le code ci-dessous pour confirmer la suppression :`;
-  const footer = isLogin
-    ? `Ce code est valable 10 minutes. Si vous n'êtes pas à l'origine de cette demande, ignorez cet e-mail et changez votre mot de passe.`
-    : `Ce code est valable 10 minutes. Si vous n'avez pas demandé cette suppression, ignorez cet e-mail.`;
-
-  const deviceBlock = isLogin && meta
-    ? `<div style="margin:20px 0;padding:14px 16px;background:#f5f2eb;border-radius:12px;font-size:13px;line-height:1.55;color:#9aa3b5">
-        <strong style="color:#1a1814">Détails de la tentative</strong><br/>
-        ${meta.ip ? `IP : <code>${meta.ip}</code><br/>` : ''}
-        ${meta.fingerprint ? `Empreinte appareil : <code style="word-break:break-all">${meta.fingerprint}</code><br/>` : ''}
-        ${meta.ua ? `Appareil / navigateur : <span style="word-break:break-word">${String(meta.ua).slice(0, 180)}</span><br/>` : ''}
-        ${meta.username ? `Compte : <strong>${meta.username}</strong>` : ''}
-      </div>`
+    ? 'Une nouvelle connexion vient d’être demandée sur votre compte. Utilisez le code ci-dessous pour la confirmer.'
+    : `Une opération sensible concernant ${resourceLabel} nécessite votre confirmation.`;
+  const rows = [
+    meta?.username ? ['Compte', meta.username] : null,
+    meta?.ip ? ['Adresse IP', meta.ip] : null,
+    meta?.ua ? ['Appareil', meta.ua.slice(0, 120)] : null,
+    meta?.fingerprint ? ['Empreinte', meta.fingerprint.slice(0, 24)] : null,
+  ].filter(Boolean) as [string, string][];
+  const deviceBlock = rows.length
+    ? `<div style="margin:22px 0 0;background:#f7f7f8;border:1px solid #e4e4e7;border-radius:12px;padding:14px 16px">${rows
+        .map(
+          ([k, v]) =>
+            `<div style="display:flex;justify-content:space-between;gap:16px;padding:3px 0;font-size:12px"><span style="color:#71717a">${k}</span><span style="color:#27272a;font-weight:600;text-align:right">${v}</span></div>`,
+        )
+        .join('')}</div>`
     : '';
-
-  const linkBlock = isLogin && meta?.verifyUrl
-    ? `<p style="font-size:14px;line-height:1.6;margin:18px 0">
-        Ou ouvrez ce lien pour confirmer que c'est bien vous (même code requis sur l'écran de connexion) :<br/>
-        <a href="${meta.verifyUrl}" style="color:#8b9cff;word-break:break-all">${meta.verifyUrl}</a>
-      </p>`
+  const linkBlock = meta?.verifyUrl
+    ? `<p style="margin:18px 0 0"><a href="${meta.verifyUrl}" style="color:#b87333;font-weight:600;font-size:13px;text-decoration:none">Continuer sur la page de vérification →</a></p>`
     : '';
-
-  return `<!DOCTYPE html>
-<html lang="fr">
-<head><meta charset="UTF-8" /></head>
-<body style="font-family:'DM Sans',system-ui,sans-serif;max-width:480px;margin:0 auto;color:#1a1814;padding:32px">
-  <div style="border-bottom:3px solid #b87333;padding-bottom:16px;margin-bottom:10px">
-    <h1 style="font-family:'Instrument Serif',Georgia,serif;font-size:24px;color:#b87333;margin:0">${title}</h1>
-    <p style="margin-top:8px;font-size:13px;color:#7a756c">${subtitle}</p>
+  return `<!doctype html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;color:#18181b">
+  <div style="display:none;max-height:0;overflow:hidden">Votre code ${title.toLowerCase()} : ${otp}</div>
+  <div style="max-width:480px;margin:0 auto;padding:28px 16px">
+    <div style="background:#18181b;border-radius:16px 16px 0 0;padding:18px 24px;display:flex;align-items:center;gap:12px">
+      <div style="width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#27272a,#0f0f10);border:1px solid #b87333;display:grid;place-items:center;color:#b87333;font-weight:800;font-size:15px">A</div>
+      <div>
+        <div style="color:#fafafa;font-weight:700;font-size:15px">Atlas Commerce</div>
+        <div style="color:#a1a1aa;font-size:12px">${companyName}</div>
+      </div>
+    </div>
+    <div style="background:#ffffff;border:1px solid #e4e4e7;border-top:0;border-radius:0 0 16px 16px;padding:26px 24px">
+      <div style="font-size:18px;font-weight:700">${title}</div>
+      <p style="font-size:13px;color:#52525b;line-height:1.6;margin:8px 0 0">${intro}</p>
+      <div style="margin:22px 0;text-align:center">
+        <div style="display:inline-block;font-family:'DM Sans',ui-monospace,monospace;font-size:34px;font-weight:800;letter-spacing:0.32em;color:#18181b;background:#fafafa;border:1.5px solid #d4d4d8;border-radius:12px;padding:14px 26px 14px 32px">${otp}</div>
+        <div style="margin-top:8px;font-size:12px;color:#71717a">Valable 10 minutes — usage unique</div>
+      </div>
+      ${deviceBlock}
+      ${linkBlock}
+      <p style="font-size:12px;color:#71717a;line-height:1.6;margin:20px 0 0">
+        Si vous n’êtes pas à l’origine de cette demande, ignorez ce message et changez votre mot de passe.
+        Ne partagez jamais ce code, y compris avec un membre de votre équipe.
+      </p>
+      <div style="margin-top:20px;border-top:1px solid #e4e4e7;padding-top:12px;font-size:11px;color:#a1a1aa">
+        ${companyName} — Atlas Commerce · © 2026 loxdpsy · MIT
+      </div>
+    </div>
   </div>
-  <p style="font-size:15px;line-height:1.6">${intro}</p>
-  <p style="font-size:15px;line-height:1.6">${action}</p>
-  <div style="text-align:center;margin:28px 0">
-    <div style="display:inline-block;font-family:'DM Sans',monospace;font-size:36px;font-weight:700;letter-spacing:0.3em;color:#b87333;background:#faf8f4;border:2px dashed #b87333;border-radius:12px;padding:16px 32px">${otp}</div>
-  </div>
-  ${deviceBlock}
-  ${linkBlock}
-  <p style="font-size:13px;color:#7a756c;line-height:1.6">${footer}</p>
-  <p style="font-size:11px;color:#7a756c;margin-top:24px;border-top:1px solid #e0d9cc;padding-top:12px">${companyName} — Gestion stock</p>
 </body>
 </html>`;
+}
+
+/* v235 — OTP e-mail: Resend first (configured domain), then CF Email binding. Never throws. */
+async function sendOtpMail(
+  env: Env,
+  opts: { to: string; from: string; subject: string; html: string; text: string },
+): Promise<boolean> {
+  const key = String((env as any).RESEND_API_KEY || '').trim();
+  if (key) {
+    try {
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: opts.from, to: [opts.to], subject: opts.subject, html: opts.html, text: opts.text }),
+      });
+      if (res.ok) return true;
+      console.error('otp_resend_failed', res.status);
+    } catch (e) {
+      console.error('otp_resend_error', String((e as any)?.message || e));
+    }
+  }
+  if (env.EMAIL?.send) {
+    try {
+      await env.EMAIL.send({ to: opts.to, from: opts.from, subject: opts.subject, html: opts.html, text: opts.text });
+      return true;
+    } catch (e) {
+      console.error('otp_binding_failed', String((e as any)?.message || e));
+    }
+  }
+  return false;
+}
+
+async function userMail(db: D1Database, username: string): Promise<string> {
+  try {
+    const row = (await db.prepare(`SELECT email FROM app_users WHERE username = ?`).bind(username).first()) as any;
+    return String(row?.email || '').trim();
+  } catch {
+    return '';
+  }
 }
 
 /** Store OTP, attempt email; never block deletion if email fails — return code as fallback. */
@@ -10154,6 +10204,7 @@ async function issueDeleteOtp(
   resourceId: string,
   resourceLabel: string,
   emailSubject: string,
+  opts?: { toEmail?: string },
 ): Promise<{ otp: string; emailed: boolean; to: string; message: string }> {
   await ensureSecurityTables(env.DB);
   const otp = generateOTP();
@@ -10165,34 +10216,56 @@ async function issueDeleteOtp(
 
   const settings = await env.DB.prepare(`SELECT * FROM company_settings WHERE id = 1`).first() as any;
   const companyName = settings?.company_name || 'Atlas Commerce';
-  const fromAddr = env.OTP_FROM || 'security@afmarbre.com';
-  const toAddr = env.OTP_TO || 'admin@afmarbre.com';
+  const fromAddr = env.OTP_FROM || (env as any).RESEND_FROM || 'security@afmarbre.com';
+  // v235 — send to the actual user when we know their address; never leak codes in production
+  const isProd = String((env as any).ENVIRONMENT || '').toLowerCase() === 'production';
+  const securityKind = resourceType === 'account-delete' || resourceType === 'agent-data';
+  const toAddr =
+    String(opts?.toEmail || '').trim() ||
+    (securityKind ? await userMail(env.DB, resourceId) : '') ||
+    env.OTP_TO ||
+    'admin@afmarbre.com';
 
+  const sendPromise = sendOtpMail(env, {
+    to: toAddr,
+    from: fromAddr,
+    subject: emailSubject,
+    html: otpEmailHTML(otp, resourceLabel, companyName),
+    text: `Code de confirmation pour ${resourceLabel} : ${otp}. Valable 10 minutes.`,
+  });
   let emailed = false;
-  if (env.EMAIL?.send) {
+  try {
+    emailed = await Promise.race([
+      sendPromise,
+      new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 2500)),
+    ]);
+  } catch {
+    emailed = false;
+  }
+  if (!emailed) {
     try {
-      await env.EMAIL.send({
-        to: toAddr,
-        from: fromAddr,
-        subject: emailSubject,
-        html: otpEmailHTML(otp, resourceLabel, companyName),
-        text: `Code de confirmation pour supprimer ${resourceLabel} : ${otp}. Valable 10 minutes.`,
-      });
-      emailed = true;
-    } catch {
-      emailed = false;
-    }
+      sendPromise.catch(() => { /* logged inside sendOtpMail */ });
+    } catch { /* */ }
   }
 
   if (emailed) {
     return {
-      otp,
+      otp: isProd ? '' : otp,
       emailed: true,
       to: toAddr,
       message: `Code envoyé à ${toAddr}. Vérifiez votre boîte de réception.`,
     };
   }
-  // Fallback: code is still valid in DB; surface it so deletion is never blocked by mail config
+  if (isProd) {
+    // SECURITY: never surface OTPs in API responses in production
+    return {
+      otp: '',
+      emailed: false,
+      to: '',
+      message: 'E-mail indisponible. Vérifiez la configuration e-mail (Resend) ou contactez l’administrateur.',
+    };
+  }
+  // Dev-only convenience: code visible so local flows are never blocked
   return {
     otp,
     emailed: false,
@@ -15202,7 +15275,7 @@ app.post('/api/assist/chat', async (c) => {
   const message = String(body.message || body.prompt || '').trim().slice(0, 2500);
   // v232 — attached images travel to the vision model as data-URL parts
   const images = Array.isArray(body.images)
-    ? body.images.filter((x: any) => typeof x === 'string' && x.startsWith('data:image/')).slice(0, 4).map((x: string) => x.slice(0, 4_000_000))
+    ? body.images.filter((x: any) => typeof x === 'string' && x.startsWith('data:image/')).slice(0, 4).map((x: string) => x.slice(0, 3_500_000))
     : [];
   if (!message) return c.json({ success: false, error: 'Message vide.' }, 400);
   // Raw user text (without page template) — used for local shortcuts only
@@ -15244,7 +15317,7 @@ app.post('/api/assist/chat', async (c) => {
       : message;
     const outGq = await groqChat({
       apiKey: groqKey,
-      model: images.length && model === 'openai/gpt-oss-20b' ? '' : model,
+      model: images.length ? '' : model,
       system,
       message: finalMessage,
       maxTokens: images.length ? 1200 : isGreeting ? 300 : 700,

@@ -1154,8 +1154,10 @@ export default function AtlasAgent() {
       }
       if (!isRetry) setInput('');
       if (!isRetry) setAttachments([]);
-      const attachNote = files.length
-        ? `\n[Pièces jointes: ${files.map((f) => f.name).join(', ')}]`
+      // v234 — images show as thumbnails; never print their titles (non-image files keep names)
+      const namedFiles = files.filter((f) => !(f.type || '').startsWith('image/'));
+      const attachNote = namedFiles.length
+        ? `\n[Pièces jointes: ${namedFiles.map((f) => f.name).join(', ')}]`
         : '';
       const userText = (q || 'Voir les pièces jointes') + attachNote;
       if (!isRetry) {
