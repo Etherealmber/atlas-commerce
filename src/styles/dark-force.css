@@ -4032,8 +4032,8 @@ html[data-theme="dark"] body .wn-ver:not(.zz0):not(.zz1):not(.zz2):not(.zz3):not
   color: #f4f4f5 !important;
 }
 html[data-theme="dark"] body .wn-release:not(.zz0):not(.zz1):not(.zz2):not(.zz3):not(.zz4):not(.zz5):not(.zz6):not(.zz7):not(.zz8):not(.zz9) {
-  background: #18181b !important;
-  border-color: #27272a !important;
+  background: transparent !important;
+  border-color: #26262a !important;
 }
 /* v227 END */
 
