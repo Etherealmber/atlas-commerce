@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'reac
 import LatticeLoader from './ui/LatticeLoader';
 import PromptBar from './ui/PromptBar';
 import { ImageLightbox } from './ui/ImageLightbox';
+import { sanitizeImageDataUrl } from '../auth';
 import { Attachment01Icon } from '@hugeicons/core-free-icons';
 import { createPortal } from 'react-dom';
 import { renderMiniMarkdown } from '../lib/miniMarkdown';
@@ -1155,7 +1156,7 @@ export default function AtlasAgent() {
         : '';
       const userText = (q || 'Voir les pièces jointes') + attachNote;
       if (!isRetry) {
-        setMsgs((m) => [...m, { role: 'user', text: userText, images: files.filter((f) => (f.type || '').startsWith('image/')).map((f) => f.data_url).slice(0, 4) }]);
+        setMsgs((m) => [...m, { role: 'user', text: userText, images: files.filter((f) => (f.type || '').startsWith('image/')).map((f) => sanitizeImageDataUrl(f.data_url)).filter(Boolean).slice(0, 4) }]);
         touchThread(userText);
       } else {
         // Remove the assistant message being retried; keep variants of previous text
@@ -1227,7 +1228,7 @@ export default function AtlasAgent() {
           user_message: q || userText,
           page_path: page.path,
           page_title: page.title,
-          images: files.filter((f) => (f.type || '').startsWith('image/')).map((f) => f.data_url).slice(0, 4),
+          images: files.filter((f) => (f.type || '').startsWith('image/')).map((f) => sanitizeImageDataUrl(f.data_url)).filter(Boolean).slice(0, 4),
           exec_mode: execMode,
           agent_perm_mode: agentPermMode,
         });
@@ -1955,14 +1956,15 @@ export default function AtlasAgent() {
             onStop={stop}
             attachments={attachments.map((a) => ({
               name: a.name,
-              preview: (a.type || '').startsWith('image/') ? a.data_url : undefined,
+              preview: (a.type || '').startsWith('image/') ? sanitizeImageDataUrl(a.data_url) || undefined : undefined,
             }))}
             onRemoveAttachment={(i) =>
               setAttachments((prev) => (i === -1 ? [] : prev.filter((_, j) => j !== i)))
             }
             onEditAttachment={(i) => {
               const a = attachments[i];
-              if (a) setAnnotator({ index: i, src: a.data_url, name: a.name });
+              const safeSrc = a ? sanitizeImageDataUrl(a.data_url) : '';
+              if (a && safeSrc) setAnnotator({ index: i, src: safeSrc, name: a.name });
             }}
             onPreviewAttachment={(i) => {
               const a = attachments[i];

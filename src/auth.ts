@@ -71,6 +71,17 @@ export function getAvatarUrl(): string {
 }
 
 /**
+ * Whitelist gate for client-side image previews (FileReader data URLs).
+ * Only plain base64 image data URLs pass; anything else becomes ''.
+ * CodeQL: validated values stop the DOM-text -> HTML-sink taint flow.
+ */
+export function sanitizeImageDataUrl(raw: string | null | undefined): string {
+  const value = String(raw || '').trim();
+  if (/^data:image\/(?:png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(value)) return value;
+  return '';
+}
+
+/**
  * Whether a sanitized avatar URL is cached. Returns a plain boolean on
  * purpose: callers branch on it without ever carrying the URL text into
  * markup (see AvatarImage, which assigns src imperatively).
