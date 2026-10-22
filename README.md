@@ -5,10 +5,10 @@
 
 <!-- Badges -->
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
-![Version](https://img.shields.io/badge/version-1.4.5--beta-blue)
+![Version](https://img.shields.io/badge/version-0.5.1--beta-blue)
 ![Build](https://img.shields.io/badge/build-cloudflare%20workers-orange)
 ![Stack](https://img.shields.io/badge/stack-React%20%2B%20Vite%20%2B%20D1%20%2B%20R2-0a0a0a)
-![Mobile](https://img.shields.io/badge/mobile-Capacitor%20Android-3ddc84)
+![Mobile](https://img.shields.io/badge/mobile-Capacitor%20%2B%20Android%20natif%20(Kotlin)-3ddc84)
 ![IA](https://img.shields.io/badge/agent-Atlas%20Agent%20IA-8b5cf6)
 
 **Aperçu live (preview CF)** · **Ce README = documentation** · **[Signaler un bug](https://github.com/Etherealmber/atlas-commerce/issues/new)** · **[Demander une fonction](https://github.com/Etherealmber/atlas-commerce/issues/new)**
