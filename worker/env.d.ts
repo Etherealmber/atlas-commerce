@@ -8,6 +8,8 @@ interface Env {
   RESTORE_HUB?: DurableObjectNamespace;
   /** R2 bucket for product/company images — company-stock-images */
   IMAGES?: R2Bucket;
+  ANDROID_RELEASE_TOKEN?: string;
+  CDN1_PUBLIC_BASE_URL?: string;
   /** Cloudflare Secret — never commit to GitHub */
   ADMIN_PASSWORD: string;
   /** Google Cloud Translation API key (Secret) */

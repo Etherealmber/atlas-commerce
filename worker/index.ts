@@ -38,6 +38,7 @@ import { canMutateBusiness, canHardDeleteStock, normalizeRole } from './lib/rbac
 import { apiFail, apiOk } from './lib/api-response';
 import { toClientError, AppError } from './lib/errors';
 import { repairProductSearchIndex, proactiveFtsHealth } from './lib/reliability';
+import { androidReleaseRouter, serveAppUpdatesAsset } from './routes/androidRelease';
 import { fetchWithTimeout } from './lib/http-client';
 import { searchProducts, reliabilityStatus, ensureProductSearchIndex, reliableFetch } from './lib/reliability';
 import { detectBffSurface } from './lib/bff';
@@ -4476,6 +4477,8 @@ app.use('/api/*', async (c, next) => {
     // Read-only APK update manifest check — called by the app before login
     // (mandatory-update flow). Exposes only public CDN info.
     path === '/api/app/android-update' ||
+    // CI release ingestion — Bearer ANDROID_RELEASE_TOKEN, no session/CSRF.
+    path === '/api/admin/android-release' ||
     path === '/api/auth/login' ||
     path === '/api/auth/verify-otp' ||
     path === '/api/auth/login-biometric' ||
@@ -15839,63 +15842,7 @@ app.put('/api/settings/assist-provider', async (c) => {
  * Example JSON:
  * { "versionCode": 10, "versionName": "0.9.4", "apkUrl": "https://cdn.../atlas.apk", "mandatory": false, "notes": "..." }
  */
-app.get('/api/app/android-update', async (c) => {
-  const currentCode = Number(c.req.query('versionCode') || 0);
-  let manifest: any = null;
-  try {
-    if (c.env.IMAGES) {
-      const obj = await c.env.IMAGES.get('app-updates/android/latest.json');
-      if (obj) {
-        manifest = JSON.parse(await obj.text());
-      }
-    }
-  } catch { /* */ }
-  if (!manifest) {
-    try {
-      const rows = await c.env.DB.prepare(
-        `SELECT key, value FROM app_config WHERE key LIKE 'android_update_%'`
-      ).all();
-      const map: Record<string, string> = {};
-      for (const r of (rows?.results || []) as any[]) {
-        map[String(r.key)] = String(r.value || '');
-      }
-      if (map.android_update_version_code || map.android_update_apk_url) {
-        manifest = {
-          versionCode: Number(map.android_update_version_code || 0),
-          versionName: map.android_update_version_name || '',
-          apkUrl: map.android_update_apk_url || '',
-          mandatory: map.android_update_mandatory === '1' || map.android_update_mandatory === 'true',
-          notes: map.android_update_notes || '',
-        };
-      }
-    } catch { /* */ }
-  }
-  if (!manifest) {
-    return c.json({
-      success: true,
-      ok: true,
-      updateAvailable: false,
-      versionCode: currentCode,
-      versionName: c.req.query('versionName') || null,
-      apkUrl: null,
-      mandatory: false,
-      notes: null,
-      message: 'Aucun manifeste de mise à jour (uploadez app-updates/android/latest.json sur R2)',
-    });
-  }
-  const remoteCode = Number(manifest.versionCode || manifest.version_code || 0);
-  const available = remoteCode > currentCode || manifest.updateAvailable === true;
-  return c.json({
-    success: true,
-    ok: true,
-    updateAvailable: available,
-    versionCode: remoteCode,
-    versionName: manifest.versionName || manifest.version_name || null,
-    apkUrl: manifest.apkUrl || manifest.apk_url || null,
-    mandatory: !!(manifest.mandatory),
-    notes: manifest.notes || null,
-  });
-});
+app.route('/', androidReleaseRouter);
 
 /* ────────────────────────────────────────────────────────────────────────────
  * App update management (owner/admin only) — Cloudflare R2 `IMAGES` bucket:
@@ -20590,6 +20537,11 @@ export default {
    */
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+    // CDN1 mirror paths (APK + manifest + HEAD latency pings) when cdn1
+    // traffic reaches the worker: serve straight from R2, HEAD via head().
+    if (url.pathname.startsWith('/app-updates/')) {
+      return serveAppUpdatesAsset(request, env);
+    }
     // Force every API path through the Hono app. If something goes wrong,
     // still return JSON so the service worker / front-end never see HTML.
     if (url.pathname.startsWith('/api/')) {
