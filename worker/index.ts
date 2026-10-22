@@ -4474,6 +4474,11 @@ app.use('/api/*', async (c, next) => {
     path.startsWith('/api/public/') ||
     path.startsWith('/api/cron/') ||
     path === '/api/media/proxy' ||
+    // Public health/canary probes — the Android server picker pings
+    // /api/health BEFORE login, and /api/canary is a deploy-smoke endpoint
+    // designed to expose no secrets (subsystem ok flags + WAF counters).
+    path === '/api/health' ||
+    path === '/api/canary' ||
     // Read-only APK update manifest check — called by the app before login
     // (mandatory-update flow). Exposes only public CDN info.
     path === '/api/app/android-update' ||
