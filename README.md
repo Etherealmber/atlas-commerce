@@ -8,7 +8,7 @@
 ![Version](https://img.shields.io/badge/version-0.5.1--beta-blue)
 ![Build](https://img.shields.io/badge/build-cloudflare%20workers-orange)
 ![Stack](https://img.shields.io/badge/stack-React%20%2B%20Vite%20%2B%20D1%20%2B%20R2-0a0a0a)
-![Mobile](https://img.shields.io/badge/mobile-Capacitor%20%2B%20Android%20natif%20(Kotlin)-3ddc84)
+![Mobile](https://img.shields.io/badge/mobile-PWA%20%2B%20Android%20natif%20(Kotlin)-3ddc84)
 ![IA](https://img.shields.io/badge/agent-Atlas%20Agent%20IA-8b5cf6)
 
 **Aperçu live (preview CF)** · **Ce README = documentation** · **[Signaler un bug](https://github.com/Etherealmber/atlas-commerce/issues/new)** · **[Demander une fonction](https://github.com/Etherealmber/atlas-commerce/issues/new)**
@@ -111,7 +111,6 @@ appareils distants ne pourront pas recevoir d'OTP — configurez-le en productio
 ### 7. App mobile (Android)
 
 ```bash
-npm run cap:sync      # build web + sync Capacitor
 npm run cap:open      # ouvre Android Studio
 ```
 
@@ -128,7 +127,7 @@ Les mises à jour OTA passent par le manifeste `latest.json` servi depuis R2
 
 Atlas Commerce est un ERP/POS **auto-hébergé sur Cloudflare** (Workers + D1 + R2) pensé pour les commerces, grossistes et entrepôts au Maroc : gestion du stock multi-dépôts, caisse rapide (tickets VR sans TVA), facturation TVA avec créances et remboursements, achats/réceptions, devis, employés & paie, balance/trésorerie — **sans abonnement SaaS opaque** et sans dépendre d'un serveur dédié.
 
-Le cœur est un **worker Cloudflare** (API REST + SSR) avec une base **D1** (SQLite managé), les médias et les mises à jour Android sur **R2** (`company-stock-images`), et un front **React + Vite** thémé (clair/sombre, densités, tailles de texte) décliné en coquille téléphone (Capacitor) et en app Android avec mises à jour OTA servies par le worker.
+Le cœur est un **worker Cloudflare** (API REST + SSR) avec une base **D1** (SQLite managé), les médias et les mises à jour Android sur **R2** (`company-stock-images`), et un front **React + Vite** thémé (clair/sombre, densités, tailles de texte) décliné en PWA installable (service worker + manifest) et en app Android native (Kotlin + Compose) ; les mises à jour APK sont servies par le worker (R2).
 
 Points forts :
 
@@ -166,7 +165,7 @@ Atlas Commerce est conçu pour être étendu :
 <summary>Client</summary>
 
 - [React](https://react.dev/) + [Vite](https://vitejs.dev/) + TypeScript
-- [Capacitor](https://capacitorjs.com/) — app Android (OTA via R2)
+- PWA — service worker + manifest : installable sur l'écran d'accueil, offline-ready ; mises à jour APK servies par le worker (R2)
 - CSS maison thémé (`dark-force.css` chargé en dernier)
 </details>
 
@@ -194,7 +193,7 @@ Le build Cloudflare (dashboard) exécute `npm run build` puis `npx wrangler prev
 
 ## 📱 App mobile
 
-- **Compagnon Android (Capacitor)** : coquille terrain minimaliste (Accueil, Stock, Scan, Caisse, Factures, Agent), scan code-barres, réceptions/transferts/inventaire, notifications = centre d'alertes. Mises à jour via Paramètres → lien + APK (R2, servies par le worker).
+- **PWA installable** : le compagnon mobile sans store — ajout à l'écran d'accueil, fonctionnement hors-ligne, mises à jour instantanées via le service worker ; scan, caisse, stock, factures et agent inclus. Le compagnon Capacitor a été retiré : la PWA le remplace entièrement.
 - **Android natif (Kotlin + Jetpack Compose)** — si vous voulez un rendu 100 % natif : [Etherealmber/atlas-commerce-android](https://github.com/Etherealmber/atlas-commerce-android). Sélecteur de serveur avant connexion (presets ou adresse HTTPS personnalisée avec sonde `/api/health`), authentification mot de passe + OTP avec session chiffrée (Keystore AES-GCM), tableau de bord, catalogue produits avec cache hors-ligne, scan code-barres, panier de vente rapide VR, écrans légaux/sécurité et réglages thème + densité. Licence MIT, CI GitHub Actions, et la même API worker que l'app web.
 
 ## 🔒 Code de conduite & politique de sécurité
@@ -211,7 +210,7 @@ Interface **français** (terrain Maroc). Les libellés sont centralisés (`src/l
 
 ## 💎 Remerciements
 
-- Cloudflare, React, Vite, Hono, Capacitor et leurs communautés.
+- Cloudflare, React, Vite, Hono et leurs communautés.
 
 ## ❤️ Support
 

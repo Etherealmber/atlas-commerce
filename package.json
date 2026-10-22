@@ -14,17 +14,11 @@
     "preview": "wrangler dev",
     "deploy": "wrangler deploy",
     "cf-typegen": "wrangler types",
-    "cap:sync": "npm run build && npx --yes @capacitor/cli sync android",
-    "cap:open": "npx --yes @capacitor/cli open android",
-    "cap:add": "npm run build && npx --yes @capacitor/cli add android",
-    "cap:copy": "npx --yes @capacitor/cli copy android",
     "smoke:local": "ATLAS_SMOKE_BASE=http://127.0.0.1:8787 node scripts/smoke-all.mjs",
     "smoke:prod": "ATLAS_SMOKE_BASE=https://stock.afmarbre.com node scripts/smoke-all.mjs",
     "smoke:partner": "node scripts/smoke-partner-v1.mjs"
   },
   "dependencies": {
-    "@capacitor/android": "^7.6.9",
-    "@capacitor/core": "^7.4.2",
     "@hugeicons/core-free-icons": "^1.0.0",
     "@hugeicons/react": "^1.0.0",
     "hono": "^4.13.11",
@@ -38,7 +32,6 @@
     "react-router-dom": "^7.1.1"
   },
   "devDependencies": {
-    "@capacitor/cli": "^7.4.2",
     "@cloudflare/vite-plugin": "^1.61.0",
     "@cloudflare/workers-types": "^5.20261005.1",
     "@sparticuz/chromium": "^153.0.0",
