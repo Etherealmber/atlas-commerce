@@ -1,0 +1,47 @@
+name: 🐛 Bug report / Rapport de bug
+description: Something is broken — quelque chose ne fonctionne pas
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened? / Que s'est-il passé ?
+      placeholder: Describe the problem exactly as you saw it.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce / Étapes pour reproduire
+      placeholder: |
+        1. Go to …
+        2. Click …
+        3. See error …
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where? / Où ?
+      options:
+        - Web app (stock.afmarbre.com)
+        - Android app (native Kotlin)
+        - PWA (installed)
+        - API / worker
+        - Other / Autre
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device + browser (or Android version)
+      placeholder: Pixel 8 / Chrome 130, Windows / Firefox…
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect? / Que devriez-vous voir ?
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error message / screenshot text
+      description: Never include passwords or OTP codes.

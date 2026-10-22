@@ -1,0 +1,93 @@
+name: Issue triage (auto-label + acknowledge)
+
+# When someone opens an issue — a complaint, a bug, a hack attempt report,
+# a feature wish — this reacts immediately: it classifies the issue by
+# keywords (FR + EN), applies labels, and posts an acknowledgement comment
+# with the right next steps. Security issues get routed to private handling
+# guidance. Issues opened by bots (e.g. security-patrol) are left untouched.
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Classify and acknowledge
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE: ${{ github.event.issue.number }}
+          AUTHOR: ${{ github.event.issue.user.login }}
+          ACTOR: ${{ github.event.sender.login }}
+          TITLE: ${{ github.event.issue.title }}
+          BODY: ${{ github.event.issue.body }}
+        run: |
+          # Never triage our own automation (security-patrol, auto-merge…)
+          if [ "$ACTOR" = "github-actions[bot]" ]; then
+            echo "Issue opened by automation — skipping triage."
+            exit 0
+          fi
+
+          # Ensure the label palette exists (idempotent)
+          gh label create bug         --color D73A4A --description "Something is broken"        >/dev/null 2>&1 || true
+          gh label create enhancement --color A2EEEF --description "New feature or request"     >/dev/null 2>&1 || true
+          gh label create feedback    --color FBCA04 --description "Complaint / user feedback"  >/dev/null 2>&1 || true
+          gh label create security    --color E11D48 --description "Security / intrusion"       >/dev/null 2>&1 || true
+          gh label create needs-info  --color D4C5F9 --description "Waiting for more details"   >/dev/null 2>&1 || true
+
+          TEXT="$(printf '%s\n%s' "$TITLE" "$BODY" | tr '[:upper:]' '[:lower:]')"
+          LABELS=()
+
+          if printf '%s' "$TEXT" | grep -qE 'hack|pirat|intrusion|exploit|vulnér|vulner|cve|xss|sql ?injection|brute ?force|waf|faille|breach|otp leak|fuite'; then
+            LABELS+=("security")
+          fi
+          if printf '%s' "$TEXT" | grep -qE 'bug|crash|erreur|error|cassé|broken|ne (fonctionne|marche) (pas|plus)|not working|500|502|503|blank page|page blanche'; then
+            LABELS+=("bug")
+          fi
+          if printf '%s' "$TEXT" | grep -qE 'plainte|complaint|mécontent|insatisfait|frustré|frustrat|unhappy|angry|déçu|deçu|deceived|rembours|refund'; then
+            LABELS+=("feedback")
+          fi
+          if printf '%s' "$TEXT" | grep -qE 'feature|demande|ajout|ajouter|suggestion|would be nice|pourriez-vous|could you add|amélioration|improve'; then
+            LABELS+=("enhancement")
+          fi
+          if [ ${#LABELS[@]} -eq 0 ]; then
+            LABELS+=("needs-info")
+          fi
+
+          ARGS=()
+          for L in "${LABELS[@]}"; do ARGS+=(--add-label "$L"); done
+          gh issue edit "$ISSUE" "${ARGS[@]}"
+
+          # Acknowledgement comment tailored to the classification
+          HAS() { printf '%s\n' "${LABELS[@]}" | grep -qx "$1"; }
+          if HAS security; then
+            BODY_C="🛡️ **Signalé comme sécurité** — merci !
+          - Si le problème expose des données ou un accès en cours : prévenez immédiatement un mainteneur en privé (les détails publics peuvent aider un attaquant).
+          - Notre patrouille automatisée (\`security-patrol.yml\`) sonde le site chaque jour ; ce ticket sera examiné en priorité.
+          - Ajoutez si possible : horodatage, URL/endpoint concerné, requête exacte (sans secrets), ce que vous avez observé."
+          elif HAS bug; then
+            BODY_C="🐛 **Bug enregistré** — merci du signalement.
+          Pour accélérer le correctif, ajoutez si possible :
+          - [ ] Étapes exactes pour reproduire
+          - [ ] Navigateur / appareil (ou app Android + version)
+          - [ ] Capture d'écran ou message d'erreur exact
+          - [ ] Heure approximative (pour retrouver les journaux worker)"
+          elif HAS feedback; then
+            BODY_C="🙏 **Retour reçu** — désolé pour la gêne.
+          Un mainteneur va lire ce ticket et revenir vers vous. Si cela concerne une commande ou un compte précis, indiquez la référence (jamais de mot de passe ni de code OTP ici)."
+          elif HAS enhancement; then
+            BODY_C="💡 **Demande d'évolution enregistrée** — merci !
+          Précisez le cas d'usage (qui, quand, pourquoi) : cela aide à prioriser. Les demandes sont groupées dans la prochaine version 0.x."
+          else
+            BODY_C="👋 **Merci pour votre ticket.**
+          Il nous manque des informations pour le classer : pouvez-vous préciser ce qui s'est passé, où (page/écran), et ce que vous attendiez à la place ?"
+          fi
+          printf '%s\n' "$BODY_C" > ack.md
+          gh issue comment "$ISSUE" --body-file ack.md
+          echo "Triaged issue #$ISSUE from @$AUTHOR with labels: ${LABELS[*]}"

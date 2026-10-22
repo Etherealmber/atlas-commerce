@@ -1,0 +1,23 @@
+name: 💡 Feature request / Demande d'évolution
+description: Suggest an idea — proposez une amélioration
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve? / Quel problème cela résout-il ?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Describe the feature you want
+  - type: checkboxes
+    id: surface
+    attributes:
+      label: Applies to
+      options:
+        - label: Web app
+        - label: Android app
+        - label: API / worker
+        - label: CI / automation

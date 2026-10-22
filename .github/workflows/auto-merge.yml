@@ -1,0 +1,127 @@
+name: Auto-merge verified PRs
+
+# Policy: every PR is merged automatically, but ONLY once every check on its
+# head commit says ok. Two jobs:
+#
+#  1. label  — every newly opened (non-draft) PR gets the `automerge` label,
+#              so the opt-out is explicit (remove the label to hold a PR).
+#  2. merge  — on check_suite completion, the PR for that commit is merged
+#              only when: it is open, not a draft, carries `automerge`,
+#              is mergeable, AND every check run on the head commit is
+#              completed with a success/skipped/neutral conclusion (at least
+#              one check must exist — never merge "unverified").
+#
+# A short grace delay protects against the race where one guard workflow
+# finishes before another one has registered its check runs.
+
+on:
+  pull_request_target:
+    types: [opened, reopened, ready_for_review]
+  check_suite:
+    types: [completed]
+
+permissions: {}
+
+concurrency:
+  group: automerge-${{ github.event.check_suite.head_sha || github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  label:
+    name: automerge-label
+    if: github.event_name == 'pull_request_target' && !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - name: Add automerge label
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          gh label create automerge --color 0E8A16 --description "Merge automatically once all checks pass" >/dev/null 2>&1 || true
+          gh pr edit "$PR" --add-label automerge
+          echo "PR #$PR queued for auto-merge once all checks are green."
+
+  merge:
+    name: automerge-merge
+    if: github.event_name == 'check_suite'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+      checks: read
+    steps:
+      - name: Merge if every check is green
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.check_suite.head_sha }}
+        run: |
+          # Grace period: let late-starting workflows register their check runs
+          # so we never merge while a guard is still queued.
+          sleep 60
+
+          PRS=$(gh api "repos/$REPO/commits/$SHA/pulls" --paginate -q '.[] | select(.state=="open") | .number')
+          if [ -z "$PRS" ]; then echo "No open PR for $SHA — nothing to do."; exit 0; fi
+
+          for PR in $PRS; do
+            LABELS=$(gh api "repos/$REPO/issues/$PR/labels" -q '.[].name')
+            if ! printf '%s\n' "$LABELS" | grep -qx automerge; then
+              echo "PR #$PR has no automerge label — held (remove/add the label to control merging)."
+              continue
+            fi
+            DRAFT=$(gh api "repos/$REPO/pulls/$PR" -q '.draft')
+            if [ "$DRAFT" = "true" ]; then echo "PR #$PR is draft — held."; continue; fi
+
+            # Every check run on the head commit must be completed and green.
+            # Our own two jobs are excluded — otherwise this job would wait
+            # for itself forever (its own check run is always "in_progress").
+            VERDICT=$(gh api "repos/$REPO/commits/$SHA/check-runs" --paginate -q '
+              [.check_runs[] | select(.name | IN("automerge-label","automerge-merge") | not)] as $runs
+              | {
+                  total: ($runs | length),
+                  pending: ([$runs[] | select(.status != "completed")] | length),
+                  bad: ([$runs[] | select(.status == "completed" and (.conclusion | IN("success","skipped","neutral") | not))] | length)
+                }
+              | "total=\(.total) pending=\(.pending) bad=\(.bad)"')
+            echo "PR #$PR checks: $VERDICT"
+            TOTAL=$(printf '%s' "$VERDICT" | sed -n 's/.*total=\([0-9]*\).*/\1/p')
+            PENDING=$(printf '%s' "$VERDICT" | sed -n 's/.*pending=\([0-9]*\).*/\1/p')
+            BAD=$(printf '%s' "$VERDICT" | sed -n 's/.*bad=\([0-9]*\).*/\1/p')
+
+            if [ "$TOTAL" = "0" ]; then
+              echo "No checks reported yet for $SHA — refusing to merge unverified."
+              continue
+            fi
+            if [ "$PENDING" != "0" ] || [ "$BAD" != "0" ]; then
+              echo "PR #$PR not fully green yet (pending=$PENDING failing=$BAD) — waiting for a later check_suite event."
+              if [ "$BAD" != "0" ]; then
+                gh pr comment "$PR" --body "⛔ Auto-merge held: $BAD check(s) failing on \`${SHA:0:7}\`. It will merge automatically as soon as everything is green." || true
+              fi
+              continue
+            fi
+
+            MERGEABLE=$(gh api "repos/$REPO/pulls/$PR" -q '.mergeable')
+            if [ "$MERGEABLE" != "true" ]; then
+              echo "PR #$PR mergeable=$MERGEABLE — cannot merge right now."
+              gh pr comment "$PR" --body "⚠️ All checks are green but GitHub reports the PR as not mergeable (conflict or still computing). Resolve, then re-run this workflow." || true
+              continue
+            fi
+
+            echo "All ${TOTAL} checks green — merging PR #$PR."
+            if gh api -X PUT "repos/$REPO/pulls/$PR/merge" -f merge_method=merge -f commit_title="Merge pull request #$PR (auto-merged: all checks green)"; then
+              gh pr comment "$PR" --body "✅ Auto-merged: all ${TOTAL} checks green on \`${SHA:0:7}\`." || true
+            else
+              echo "Merge call failed (maybe already merged by a concurrent event) — checking state."
+              STATE=$(gh api "repos/$REPO/pulls/$PR" -q '.state')
+              if [ "$STATE" != "closed" ]; then
+                echo "::error::Failed to merge PR #$PR and it is still open."
+                exit 1
+              fi
+              echo "PR #$PR already merged — fine."
+            fi
+          done

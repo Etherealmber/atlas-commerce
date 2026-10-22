@@ -291,6 +291,13 @@ Atlas Commerce est développé et maintenu par **loxdpy ([@loxdpsy](https://gith
 
 ## 📚 Historique des versions
 
+## Automations GitHub — le dépôt se surveille et se répare tout seul
+
+- `security-patrol.yml` (tous les jours 06:30 UTC + manuel) : `scripts/security-patrol.mjs` sonde la production en boîte noire — il « essaie de pirater » le site (SQLi UNION/WAITFOR, XSS `<script>`, traversal `/etc/passwd`, Log4Shell JNDI, accès admin sans session, POST release sans Bearer), vérifie les en-têtes de sécurité (CSP, HSTS, nosniff, DENY…) et lit les compteurs WAF du canary pour remonter les **intrusions réelles détectées et bloquées**. Chaque échec ouvre/met à jour un ticket `[security-patrol]` avec un **« Fix possible »** concret ; tout vert → le ticket ouvert est fermé automatiquement ; finding critique → run rouge.
+- `issue-triage.yml` : dès qu'un ticket est ouvert (plainte, bug, tentative de piratage signalée, idée), il classe par mots-clés FR/EN (`security`, `bug`, `feedback`, `enhancement`, sinon `needs-info`) et poste un accusé de réception avec les prochaines étapes — jamais sur les tickets créés par les bots.
+- Formulaires de tickets (`.github/ISSUE_TEMPLATE/`) : bug, plainte/retour, demande d'évolution, signalement sécurité (+ lien vers les advisories privées pour l'exploitable).
+- `auto-merge.yml` : chaque PR reçoit le label `automerge` à l'ouverture ; elle est fusionnée **automatiquement dès que TOUS les checks du commit sont verts** (aucun check en attente, aucun en échec, ≥1 check existant — jamais de merge « non vérifié »). Un check rouge → commentaire « Auto-merge held » et attente ; retirer le label `automerge` bloque le merge auto.
+
 ## CI guards — aucune erreur ne touche l'API ou le front sans passer ces portes
 - `api-guard.yml` : TypeScript du worker comparé à un baseline verrouillé (`scripts/tsc-baseline.txt`, toute nouvelle erreur échoue) + `wrangler deploy --dry-run` (le worker compile et le config valide, sans rien déployer)
 - `frontend-guard.yml` : build Vite obligatoire + sanity du bundle (index.html + assets hashés) + TypeScript src/ vs baseline
