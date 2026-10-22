@@ -10432,6 +10432,7 @@ async function sendOtpMail(
     }
   }
   if (env.EMAIL?.send) {
+    console.log('[otp-mail] Resend unavailable or failed — using the CF Send-Email binding fallback');
     try {
       await env.EMAIL.send({ to: opts.to, from: opts.from, subject: opts.subject, html: opts.html, text: opts.text });
       return true;
@@ -20562,6 +20563,26 @@ app.get('*', async (c) => {
 });
 
 export default {
+  /**
+   * Email Routing inbound — accept and discard quietly.
+   *
+   * Without this export, ANY email Cloudflare routes to the worker (a reply,
+   * a bounce, or an OTP mail sent through the Send-Email binding that loops
+   * back through a catch-all rule on our own domain) dies with
+   * "Handler does not export an email() function". The Mailbox feature is
+   * gone, so inbound mail has no job here: log one line and consume it.
+   */
+  async email(message: any, env: Env, ctx: ExecutionContext): Promise<void> {
+    try {
+      console.log(
+        '[email-event] inbound mail received and discarded:',
+        String(message?.from || '?'),
+        '->',
+        String(message?.to || '?'),
+      );
+    } catch { /* never throw from an event handler */ }
+  },
+
   /**
    * Explicit fetch entry — guarantees /api/* is always handled by Hono and
    * never falls through to the SPA assets layer (the root cause of the
