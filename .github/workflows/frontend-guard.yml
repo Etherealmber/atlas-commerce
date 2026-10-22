@@ -1,0 +1,78 @@
+name: Frontend guard (client)
+
+# Gates every client-side change: the Vite build must succeed, the bundle must
+# contain hashed assets, and src/ TypeScript errors must not exceed baseline.
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'index.html'
+      - 'vite.config.ts'
+      - 'tsconfig.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/tsc-baseline.txt'
+      - '.github/workflows/frontend-guard.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'index.html'
+      - 'vite.config.ts'
+      - 'tsconfig.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/tsc-baseline.txt'
+      - '.github/workflows/frontend-guard.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-guard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  client-build:
+    name: Vite build + bundle sanity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: bundle sanity (index.html + hashed assets present)
+        run: |
+          test -f dist/client/index.html
+          grep -qE '/assets/index-[^"]+\.js' dist/client/index.html
+          test -n "$(ls dist/client/assets/*.js 2>/dev/null | head -1)"
+          echo "client bundle OK"
+
+  client-typecheck:
+    name: src/ TypeScript — no new errors vs baseline
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: tsc --noEmit (src scope)
+        run: |
+          npx tsc --noEmit > tsc.log || true
+          COUNT=$(grep -vE '^worker/' tsc.log | grep -cE 'error TS' || true)
+          BASE=$(grep -E '^src=' scripts/tsc-baseline.txt | cut -d= -f2)
+          echo "src TypeScript errors: $COUNT (baseline: $BASE)"
+          if [ "$COUNT" -gt "$BASE" ]; then
+            echo "::error::New TypeScript errors in src/ ($COUNT > $BASE baseline). Fix them before this can merge."
+            grep -vE '^worker/' tsc.log | grep -E 'error TS' | head -40
+            exit 1
+          fi
+          if [ "$COUNT" -lt "$BASE" ]; then
+            echo "::notice::src baseline improved ($COUNT < $BASE) — lower src= in scripts/tsc-baseline.txt to lock the gain."
+          fi
