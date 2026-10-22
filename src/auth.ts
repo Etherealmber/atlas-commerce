@@ -87,7 +87,7 @@ export function sanitizePreviewUrl(raw: string | null | undefined): string {
   // (blob:<scheme>://<host>/<uuid>): character classes that cannot match any
   // HTML meta-character, so CodeQL accepts the guarded value as sanitized
   // (js/dom-text-reinterpreted-as-html).
-  if (/^blob:https?:\/\/[A-Za-z0-9.-]+\/[A-Za-z0-9-]+$/i.test(value)) return value;
+  if (/^blob:https?:\/\/[A-Za-z0-9.:-]+\/[A-Za-z0-9-]+$/i.test(value)) return value;
   return sanitizeImageDataUrl(value) || sanitizeAvatarUrl(value);
 }
 
