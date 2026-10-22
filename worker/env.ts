@@ -39,6 +39,10 @@ export interface Env {
   OTP_TO: string;
   /** Public CDN origin for R2 objects. Example: https://cdn1.afmarbre.com */
   CDN_BASE?: string;
+  /** CI secret (wrangler secret put ANDROID_RELEASE_TOKEN): Bearer token for POST /api/admin/android-release. */
+  ANDROID_RELEASE_TOKEN?: string;
+  /** Override of the public Android APK base on CDN1. */
+  CDN1_PUBLIC_BASE_URL?: string;
   CACHE_TTL_SECONDS?: string;
   TWILIO_ACCOUNT_SID?: string;
   TWILIO_AUTH_TOKEN?: string;

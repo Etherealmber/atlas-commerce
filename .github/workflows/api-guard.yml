@@ -58,6 +58,9 @@ jobs:
             echo "::notice::Worker baseline improved ($COUNT < $BASE) — lower worker= in scripts/tsc-baseline.txt to lock the gain."
           fi
 
+      - name: unit tests (vitest — android release pipeline)
+        run: npm test
+
   worker-bundle:
     name: Worker bundles + wrangler config validates (dry-run only)
     runs-on: ubuntu-latest
