@@ -34,12 +34,16 @@ jobs:
             exit 0
           fi
 
-          # Ensure the label palette exists (idempotent)
-          gh label create bug         --color D73A4A --description "Something is broken"        >/dev/null 2>&1 || true
-          gh label create enhancement --color A2EEEF --description "New feature or request"     >/dev/null 2>&1 || true
-          gh label create feedback    --color FBCA04 --description "Complaint / user feedback"  >/dev/null 2>&1 || true
-          gh label create security    --color E11D48 --description "Security / intrusion"       >/dev/null 2>&1 || true
-          gh label create needs-info  --color D4C5F9 --description "Waiting for more details"   >/dev/null 2>&1 || true
+          # Ensure the label palette exists (idempotent). REST only — the
+          # `gh label create` / `gh issue edit` GraphQL paths can fail with
+          # GITHUB_TOKEN (projects deprecation), REST never does.
+          REPO="$GITHUB_REPOSITORY"
+          mklabel() { gh api "repos/$REPO/labels" -f name="$1" -f color="$2" -f description="$3" >/dev/null 2>&1 || true; }
+          mklabel bug         D73A4A "Something is broken"
+          mklabel enhancement A2EEEF "New feature or request"
+          mklabel feedback    FBCA04 "Complaint / user feedback"
+          mklabel security    E11D48 "Security / intrusion"
+          mklabel needs-info  D4C5F9 "Waiting for more details"
 
           TEXT="$(printf '%s\n%s' "$TITLE" "$BODY" | tr '[:upper:]' '[:lower:]')"
           LABELS=()
@@ -60,9 +64,9 @@ jobs:
             LABELS+=("needs-info")
           fi
 
-          ARGS=()
-          for L in "${LABELS[@]}"; do ARGS+=(--add-label "$L"); done
-          gh issue edit "$ISSUE" "${ARGS[@]}"
+          ADDS=()
+          for L in "${LABELS[@]}"; do ADDS+=(-f "labels[]=$L"); done
+          gh api -X POST "repos/$REPO/issues/$ISSUE/labels" "${ADDS[@]}" >/dev/null
 
           # Acknowledgement comment tailored to the classification
           HAS() { printf '%s\n' "${LABELS[@]}" | grep -qx "$1"; }

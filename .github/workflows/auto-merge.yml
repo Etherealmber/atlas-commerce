@@ -42,10 +42,13 @@ jobs:
       - name: Add automerge label
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
         run: |
-          gh label create automerge --color 0E8A16 --description "Merge automatically once all checks pass" >/dev/null 2>&1 || true
-          gh pr edit "$PR" --add-label automerge
+          # REST only: `gh pr edit --add-label` goes through GraphQL
+          # (projectCards), which GITHUB_TOKEN cannot query → spurious exit 1.
+          gh api "repos/$REPO/labels" -f name=automerge -f color=0E8A16 -f description="Merge automatically once all checks pass" >/dev/null 2>&1 || true
+          gh api -X POST "repos/$REPO/issues/$PR/labels" -f 'labels[]=automerge' >/dev/null
           echo "PR #$PR queued for auto-merge once all checks are green."
 
   merge:

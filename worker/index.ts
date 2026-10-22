@@ -706,6 +706,27 @@ app.use('*', async (c, next) => {
   await next();
   try { c.header('X-Atlas-Bff', String(c.get('bffSurface') || 'web')); } catch { /* */ }
   const path = new URL(c.req.url).pathname;
+  // ── Edge-cache guard (2026-10-22, security patrol finding) ──
+  // A Cloudflare "cache everything"-style rule can store API responses at
+  // the edge and replay them to OTHER visitors: the patrol caught an
+  // authenticated /api/admin/r2/images listing being served anonymously
+  // from cache, and a stale 403 of /api/health. Origins must be explicit:
+  //  - no Cache-Control at all → no-store (JSON APIs are never cacheable)
+  //  - private/no-* Cache-Control → keep it for browsers, but pin the
+  //    Cloudflare edge with CDN-Cache-Control: no-store (CF-specific header
+  //    that survives even misconfigured cache rules)
+  //  - public Cache-Control → deliberate (public images/SVG); left as-is.
+  if (path.startsWith('/api')) {
+    try {
+      const cc = (c.res.headers.get('Cache-Control') || '').toLowerCase();
+      if (!cc) {
+        c.header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        c.header('CDN-Cache-Control', 'no-store');
+      } else if (!cc.startsWith('public')) {
+        c.header('CDN-Cache-Control', 'no-store');
+      }
+    } catch { /* response already immutable — nothing we can do */ }
+  }
   // Security headers (defence in depth)
   c.header('X-Content-Type-Options', 'nosniff');
   c.header('X-Frame-Options', 'DENY');
@@ -4468,6 +4489,13 @@ app.patch('/api/auth/me', async (c) => {
 
 /* ─── Auth Middleware ─── */
 
+// ⚠️ ORDER INVARIANT (audited 2026-10-22): Hono applies app.use() only to
+// routes registered AFTER it. The ~58 routes above (health, canary,
+// /api/auth/*, admin routes…) never pass through this middleware — each one
+// MUST carry its own gate (requireOwner/requireAuth/cron secret…) or be
+// intentionally public. The audit found every ungated early route to be
+// deliberately public; re-audit whenever routes are added above this line:
+//   grep -n "app.\(get\|post\|put\|delete\)('/api" worker/index.ts  (lines < this)
 app.use('/api/*', async (c, next) => {
   const path = new URL(c.req.url).pathname;
   if (
