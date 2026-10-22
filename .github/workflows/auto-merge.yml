@@ -78,7 +78,7 @@ jobs:
             if [ "$DRAFT" = "true" ]; then echo "PR #$PR is draft — held."; continue; fi
 
             # Every check run on the head commit must be completed and green.
-            # Excluded from the verdict:
+            # Verdict over every check run on the head commit, excluding:
             #  - our own two jobs (this job would otherwise wait for itself
             #    forever — its own check run is always "in_progress");
             #  - "Workers Builds" (Cloudflare PR *preview* deploys — external
@@ -86,17 +86,29 @@ jobs:
             #    red on every PR head; the authoritative production deploy is
             #    the push build on main, which is green. Remove this exclusion
             #    once the CF preview build settings are fixed.)
-            VERDICT=$(gh api "repos/$REPO/commits/$SHA/check-runs" --paginate -q '
-              [.check_runs[]
-                | select(.name | IN("automerge-label","automerge-merge") | not)
-                | select(.name | startswith("Workers Builds") | not)
-              ] as $runs
-              | {
-                  total: ($runs | length),
-                  pending: ([$runs[] | select(.status != "completed")] | length),
-                  bad: ([$runs[] | select(.status == "completed" and (.conclusion | IN("success","skipped","neutral") | not))] | length)
-                }
-              | "total=\(.total) pending=\(.pending) bad=\(.bad)"')
+            # A check run stuck "in_progress" whose parent check SUITE already
+            # completed green is counted as ok — GitHub occasionally leaves
+            # zombie check runs behind (observed on CodeQL, run 39802332782).
+            gh api "repos/$REPO/commits/$SHA/check-runs" --paginate > runs.json
+            gh api "repos/$REPO/commits/$SHA/check-suites" --paginate > suites.json
+            VERDICT=$(node -e '
+              const fs = require("fs");
+              const runs = JSON.parse(fs.readFileSync("runs.json", "utf8")).check_runs
+                .filter((r) => r.name !== "automerge-label" && r.name !== "automerge-merge")
+                .filter((r) => !r.name.startsWith("Workers Builds"));
+              const suites = new Map(
+                (JSON.parse(fs.readFileSync("suites.json", "utf8")).check_suites || [])
+                  .map((s) => [s.id, s]));
+              const OK = new Set(["success", "skipped", "neutral"]);
+              let pending = 0, bad = 0;
+              for (const r of runs) {
+                if (r.status === "completed") { if (!OK.has(r.conclusion)) bad++; continue; }
+                const suite = suites.get(r.check_suite?.id ?? r.check_suite_id);
+                if (suite && suite.status === "completed" && OK.has(suite.conclusion)) continue; // zombie, suite is green
+                pending++;
+              }
+              console.log(`total=${runs.length} pending=${pending} bad=${bad}`);
+            ')
             echo "PR #$PR checks: $VERDICT"
             TOTAL=$(printf '%s' "$VERDICT" | sed -n 's/.*total=\([0-9]*\).*/\1/p')
             PENDING=$(printf '%s' "$VERDICT" | sed -n 's/.*pending=\([0-9]*\).*/\1/p')
