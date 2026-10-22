@@ -17,7 +17,7 @@ import { TimedUndoDelete, RunActionButton, EXPORT_CSV_STEPS } from '../component
 import { numStr, numFromInput } from '../lib/numInput';
 import NumberField from '../components/NumberField';
 import VirtualTableBody, { VirtualScroll } from '../components/VirtualTableBody';
-import { isStockRole } from '../auth';
+import { isStockRole, sanitizePreviewUrl } from '../auth';
 import ProductImageEditor from '../components/ProductImageEditor';
 import { printProductLabel } from '../lib/printProductLabel';
 import RefreshIconButton from '../components/RefreshIconButton';
@@ -390,19 +390,6 @@ export default function Products() {
     }
   };
 
-  /**
-   * CodeQL js/dom-text-reinterpreted-as-html barrier (alert #15): staged photo
-   * URLs only ever reach <img src> as the exact shapes URL.createObjectURL /
-   * FileReader produce. The regex below is a FULL-STRING match built from
-   * character classes that cannot match any HTML meta-character (< > " ' ` &
-   * etc.), so nothing reinterpret-able as HTML can ever pass this guard —
-   * anything else renders an empty src.
-   */
-  const safeImageSrc = (u: string): string => (
-    /^(?:blob:https?:\/\/[A-Za-z0-9.-]+\/[A-Za-z0-9-]+|data:image\/(?:png|jpe?g|webp|gif|avif);base64,[A-Za-z0-9+/=]+)$/i.test(u || '')
-      ? u
-      : ''
-  );
   const addStagedPhotos = (files: FileList | null) => {
     if (!files?.length) return;
     const imgs = Array.from(files).filter((f) => /^image\//.test(f.type));
@@ -1190,7 +1177,7 @@ export default function Products() {
                           background: 'var(--pie-thumb-bg, #faf9f6)',
                         }}
                       >
-                        <img src={safeImageSrc(st.url)} alt="" style={{ width: '100%', height: 72, objectFit: 'cover', display: 'block' }} />
+                        <img src={sanitizePreviewUrl(st.url)} alt="" style={{ width: '100%', height: 72, objectFit: 'cover', display: 'block' }} />
                         <div style={{ display: 'flex', fontSize: 10 }}>
                           <span style={{ flex: 1, textAlign: 'center', padding: '3px 0', color: 'var(--muted)' }}>{i === 0 ? '★ Principale' : `Photo ${i + 1}`}</span>
                           <button type="button" className="danger" style={{ padding: '3px 6px', fontSize: 10 }} onClick={() => removeStagedPhoto(i)}>×</button>
