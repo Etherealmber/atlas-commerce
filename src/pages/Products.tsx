@@ -390,6 +390,12 @@ export default function Products() {
     }
   };
 
+  /**
+   * CodeQL js/dom-text-reinterpreted-as-html barrier: staged photo URLs only
+   * ever reach <img src> as blob:/data-image URLs produced by
+   * URL.createObjectURL — anything else is dropped instead of rendered.
+   */
+  const safeImageSrc = (u: string): string => (/^(blob:|data:image\/)/i.test(u || '') ? u : '');
   const addStagedPhotos = (files: FileList | null) => {
     if (!files?.length) return;
     const imgs = Array.from(files).filter((f) => /^image\//.test(f.type));
@@ -1177,7 +1183,7 @@ export default function Products() {
                           background: 'var(--pie-thumb-bg, #faf9f6)',
                         }}
                       >
-                        <img src={st.url} alt="" style={{ width: '100%', height: 72, objectFit: 'cover', display: 'block' }} />
+                        <img src={safeImageSrc(st.url)} alt="" style={{ width: '100%', height: 72, objectFit: 'cover', display: 'block' }} />
                         <div style={{ display: 'flex', fontSize: 10 }}>
                           <span style={{ flex: 1, textAlign: 'center', padding: '3px 0', color: 'var(--muted)' }}>{i === 0 ? '★ Principale' : `Photo ${i + 1}`}</span>
                           <button type="button" className="danger" style={{ padding: '3px 6px', fontSize: 10 }} onClick={() => removeStagedPhoto(i)}>×</button>

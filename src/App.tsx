@@ -120,6 +120,7 @@ const ProductHistory = lazy(() => import('./pages/ProductHistory'));
 const Products = lazy(() => import('./pages/Products'));
 const Scan = lazy(() => import('./pages/Scan'));
 const LoginQr = lazy(() => import('./pages/LoginQr'));
+const EmailVerify = lazy(() => import('./pages/EmailVerify'));
 const Invoices = lazy(() => import('./pages/Invoices'));
 const InvoiceDetail = lazy(() => import('./pages/InvoiceDetail'));
 const Bills = lazy(() => import('./pages/Bills'));
@@ -1930,6 +1931,7 @@ export default function App() {
           <Routes>
             <Route path="/login" element={<LoginGate />} />
             <Route path="/login/qr" element={<Suspense fallback={null}><LoginQr /></Suspense>} />
+            <Route path="/verify" element={<Suspense fallback={null}><EmailVerify /></Suspense>} />
             <Route path="/welcome" element={<WelcomeGate />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />
