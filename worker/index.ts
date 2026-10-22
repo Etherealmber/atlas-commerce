@@ -733,6 +733,7 @@ app.use('/api/*', async (c, next) => {
     path.startsWith('/api/auth/qr/') ||
     path === '/api/auth/login' ||
     path === '/api/auth/verify-otp' ||
+    path === '/api/auth/verify-link' ||
     path === '/api/auth/login-biometric' ||
     path === '/api/auth/webauthn/login/options' ||
     path === '/api/auth/webauthn/login/verify' ||
@@ -2473,7 +2474,14 @@ app.post('/api/auth/login', async (c) => {
       toAddr = 'admin@afmarbre.com';
     }
   }
-  const verifyUrl = `https://stock.afmarbre.com/login?user=${encodeURIComponent(username)}&hint=otp`;
+  // One-tap verification link: the SPA /verify page submits the code itself
+  // (and hands off to the PWA / native Android app when present) — the user
+  // never types the OTP.
+  const linkExp = new Date(expiresAt).getTime();
+  const linkSig = await sha256Hex(`otplink|${username}|${otp}|${linkExp}|${secretMaterial}`);
+  const verifyUrl =
+    `https://stock.afmarbre.com/verify?user=${encodeURIComponent(username)}` +
+    `&code=${encodeURIComponent(otp)}&sig=${linkSig}&exp=${linkExp}`;
 
   // Parallel: OTP rows + company name
   const [settings] = await Promise.all([
@@ -2669,6 +2677,99 @@ app.post('/api/auth/verify-otp', async (c) => {
   return c.json({
     success: true,
     trusted_device: true,
+    token,
+    ip,
+    username: user,
+    role,
+    reputationScore: rep.score,
+  });
+});
+
+/* ─── One-tap e-mail verification link (2026-10-23) ───────────────────────
+ * The OTP e-mail carries a signed link (?user&code&sig&exp). Opening it —
+ * in the browser, the installed PWA, or the native Android app — verifies
+ * the device WITHOUT typing the code: possession of the signed link is the
+ * first factor, the OTP row check the second. Single use: the login rows are
+ * consumed on success. Cross-device by design (mail opened on the phone
+ * while the PC requested the login): the OTP row is looked up by code, not
+ * by requesting fingerprint. Signature = sha256(otplink|user|otp|exp|secret)
+ * so a leaked URL cannot be replayed after expiry nor tampered with.
+ * ──────────────────────────────────────────────────────────────────────── */
+app.post('/api/auth/verify-link', async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const username = String(body.username ?? '').trim().toLowerCase();
+  const otp = String(body.otp || '').trim();
+  const sig = String(body.sig || '');
+  const exp = Number(body.exp || 0);
+  const fingerprint = String(body.fingerprint || 'none').slice(0, 128);
+  const ip = clientIp(c);
+  const ua = c.req.header('User-Agent') || '';
+
+  await ensureSecurityTables(c.env.DB);
+  const limited = await isRateLimited(c.env.DB, ip);
+  if (limited.blocked) {
+    await recordLogin(c.env.DB, ip, fingerprint, false, ua);
+    return c.json({ success: false, error: limited.reason, code: 'RATE_LIMITED' }, 429);
+  }
+  if (!username || !otp || otp.length < 4 || !sig || !exp) {
+    return c.json({ success: false, error: 'Lien de vérification incomplet', code: 'LINK_MALFORMED' }, 400);
+  }
+  if (Date.now() > exp) {
+    return c.json({ success: false, error: 'Lien expiré — reconnectez-vous', code: 'LINK_EXPIRED' }, 400);
+  }
+
+  // Device-independent lookup: the e-mail may be opened anywhere.
+  const record = await c.env.DB.prepare(
+    `SELECT * FROM otp_codes WHERE resource_type = 'login' AND code = ? ORDER BY created_at DESC LIMIT 1`,
+  ).bind(otp).first() as any;
+  if (!record) return c.json({ success: false, error: 'Code invalide ou déjà utilisé', code: 'BAD_OTP' }, 401);
+  if (new Date(record.expires_at) < new Date()) {
+    return c.json({ success: false, error: 'Code expiré. Veuillez recommencer la connexion.', code: 'OTP_EXPIRED' }, 400);
+  }
+
+  let user = username;
+  let role = 'owner';
+  let secretMaterial = '';
+  const ctxRow = await c.env.DB.prepare(
+    `SELECT * FROM otp_codes WHERE resource_type = 'login_ctx' AND resource_id = ? ORDER BY created_at DESC LIMIT 1`,
+  ).bind(record.resource_id).first() as any;
+  if (ctxRow?.code) {
+    try {
+      const ctx = JSON.parse(ctxRow.code);
+      user = ctx.username || user;
+      role = ctx.role || 'owner';
+      secretMaterial = ctx.secretMaterial || '';
+    } catch { /* fall through */ }
+  }
+  if (!secretMaterial) {
+    secretMaterial = (await secretMaterialForUsername(c.env, c.env.DB, user, role)) || '';
+  }
+  if (!secretMaterial) return c.json({ success: false, error: 'Compte introuvable', code: 'BAD_PASSWORD' }, 401);
+
+  // Constant-time signature check (recomputed exactly as at send time)
+  const expected = await sha256Hex(`otplink|${user}|${otp}|${exp}|${secretMaterial}`);
+  const a = expected.length === sig.length ? expected : expected + '\x00';
+  const b = expected.length === sig.length ? sig : sig + '\x00';
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  if (diff !== 0 || expected.length !== sig.length) {
+    await recordLogin(c.env.DB, ip, fingerprint, false, ua);
+    return c.json({ success: false, error: 'Signature du lien invalide', code: 'LINK_INVALID' }, 401);
+  }
+
+  // Single use: consume the login rows wherever they live
+  await c.env.DB.prepare(`DELETE FROM otp_codes WHERE resource_type = 'login' AND resource_id = ?`).bind(record.resource_id).run();
+  await c.env.DB.prepare(`DELETE FROM otp_codes WHERE resource_type = 'login_ctx' AND resource_id = ?`).bind(record.resource_id).run();
+  try { await purgeEphemeralSecurityData(c.env.DB); } catch { /* */ }
+
+  await trustDevice(c.env.DB, fingerprint, ip);
+  await recordLogin(c.env.DB, ip, fingerprint, true, ua);
+  const rep = await getReputation(c.env.DB, ip) as any;
+  const token = await makeTokenV2(user, role, secretMaterial, ip, fingerprint);
+  return c.json({
+    success: true,
+    trusted_device: true,
+    verified_via: 'email-link',
     token,
     ip,
     username: user,
@@ -10414,10 +10515,16 @@ function otpEmailHTML(
   },
 ): string {
   const isLogin = purpose === 'login';
-  const title = isLogin ? 'Code de connexion' : 'Code de confirmation';
+  const tag = isLogin ? 'VÉRIFICATION DE CONNEXION' : 'VÉRIFICATION DU COMPTE';
+  const h1 = isLogin
+    ? 'Confirmez cette connexion pour sécuriser votre'
+    : 'Confirmez votre e-mail pour sécuriser votre';
   const intro = isLogin
-    ? 'Une nouvelle connexion vient d’être demandée sur votre compte. Utilisez le code ci-dessous pour la confirmer.'
-    : `Une opération sensible concernant ${resourceLabel} nécessite votre confirmation.`;
+    ? 'Une nouvelle connexion vient d’être demandée sur votre compte. Confirmez-la en tapant le code ci-dessous, ou en un seul tap sur le bouton.'
+    : `Une opération sensible concernant ${resourceLabel} nécessite votre confirmation. Utilisez le code ci-dessous depuis l’application.`;
+  const ORANGE = '#f4590c';
+  const SALMON = '#ee8b6c';
+  const GREY = '#8b93a3';
   const rows = [
     meta?.username ? ['Compte', meta.username] : null,
     meta?.ip ? ['Adresse IP', meta.ip] : null,
@@ -10425,45 +10532,59 @@ function otpEmailHTML(
     meta?.fingerprint ? ['Empreinte', meta.fingerprint.slice(0, 24)] : null,
   ].filter(Boolean) as [string, string][];
   const deviceBlock = rows.length
-    ? `<div style="margin:22px 0 0;background:#f7f7f8;border:1px solid #e4e4e7;border-radius:12px;padding:14px 16px">${rows
+    ? `<div style="margin:26px 0 0;background:#f7f7f9;border:1px solid #e7e7ec;border-radius:12px;padding:12px 16px">${rows
         .map(
           ([k, v]) =>
-            `<div style="display:flex;justify-content:space-between;gap:16px;padding:3px 0;font-size:12px"><span style="color:#71717a">${k}</span><span style="color:#27272a;font-weight:600;text-align:right">${v}</span></div>`,
+            `<div style="display:flex;justify-content:space-between;gap:16px;padding:4px 0;font-size:12px"><span style="color:${GREY}">${k}</span><span style="color:#3d4453;font-weight:600;text-align:right">${v}</span></div>`,
         )
         .join('')}</div>`
     : '';
-  const linkBlock = meta?.verifyUrl
-    ? `<p style="margin:18px 0 0"><a href="${meta.verifyUrl}" style="color:#b87333;font-weight:600;font-size:13px;text-decoration:none">Continuer sur la page de vérification →</a></p>`
+  const button = meta?.verifyUrl
+    ? `<a href="${meta.verifyUrl}" style="display:block;width:100%;box-sizing:border-box;background:${ORANGE};border-radius:10px;padding:18px 12px;text-align:center;color:#ffffff;font-size:15px;font-weight:800;letter-spacing:1.5px;text-decoration:none;text-transform:uppercase">Vérifier &amp; continuer</a>`
     : '';
+  const social = (href: string, d: string) =>
+    `<a href="${href}" style="display:inline-block;margin-left:14px;text-decoration:none"><svg width="17" height="17" viewBox="0 0 24 24" fill="#8b93a3" xmlns="http://www.w3.org/2000/svg"><path d="${d}"/></svg></a>`;
   return `<!doctype html>
 <html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;color:#18181b">
-  <div style="display:none;max-height:0;overflow:hidden">Votre code ${title.toLowerCase()} : ${otp}</div>
-  <div style="max-width:480px;margin:0 auto;padding:28px 16px">
-    <div style="background:#18181b;border-radius:16px 16px 0 0;padding:18px 24px;display:flex;align-items:center;gap:12px">
-      <div style="width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#27272a,#0f0f10);border:1px solid #b87333;display:grid;place-items:center;color:#b87333;font-weight:800;font-size:15px">A</div>
-      <div>
-        <div style="color:#fafafa;font-weight:700;font-size:15px">Atlas Commerce</div>
-        <div style="color:#a1a1aa;font-size:12px">${companyName}</div>
-      </div>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${tag}</title></head>
+<body style="margin:0;padding:0;background:#f1f1f4;font-family:-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;color:#101114">
+  <div style="display:none;max-height:0;overflow:hidden">Votre code : ${otp}</div>
+  <div style="max-width:600px;margin:0 auto;padding:38px 22px 30px;text-align:center">
+    <div style="font-size:30px;line-height:1">🏬</div>
+    <div style="margin-top:8px;font-size:24px;font-weight:800;letter-spacing:-0.3px;color:#101114">Atlas Commerce</div>
+    <div style="height:34px"></div>
+    <div style="font-size:12px;font-weight:800;letter-spacing:2px;color:${SALMON};text-transform:uppercase">${tag}</div>
+    <h1 style="margin:14px 0 0;font-size:33px;line-height:1.18;font-weight:800;color:#101114">${h1} <em style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-weight:600;color:${SALMON}">compte</em></h1>
+    <p style="margin:18px auto 0;max-width:420px;font-size:15px;line-height:1.7;color:${GREY}">${intro}</p>
+    <div style="margin:30px 0 0;background:#f7f7f9;border:1px solid #e7e7ec;border-radius:12px;padding:30px 16px">
+      <div style="font-size:34px;font-weight:800;letter-spacing:3px;color:#8a93a6">${otp}</div>
     </div>
-    <div style="background:#ffffff;border:1px solid #e4e4e7;border-top:0;border-radius:0 0 16px 16px;padding:26px 24px">
-      <div style="font-size:18px;font-weight:700">${title}</div>
-      <p style="font-size:13px;color:#52525b;line-height:1.6;margin:8px 0 0">${intro}</p>
-      <div style="margin:22px 0;text-align:center">
-        <div style="display:inline-block;font-family:'DM Sans',ui-monospace,monospace;font-size:34px;font-weight:800;letter-spacing:0.32em;color:#18181b;background:#fafafa;border:1.5px solid #d4d4d8;border-radius:12px;padding:14px 26px 14px 32px">${otp}</div>
-        <div style="margin-top:8px;font-size:12px;color:#71717a">Valable 10 minutes — usage unique</div>
+    <div style="margin:22px 0 0">${button}</div>
+    ${deviceBlock}
+    <p style="margin:28px auto 0;max-width:380px;font-size:14px;line-height:1.65;color:${GREY}">Vous n’êtes pas à l’origine de cette demande ? Ignorez simplement ce message.</p>
+    <p style="margin:10px auto 0;max-width:420px;font-size:12px;line-height:1.6;color:#a6adbb">Code à usage unique, valable 10 minutes. Ne le partagez jamais, y compris avec un membre de votre équipe. · ${companyName}</p>
+  </div>
+  <div style="background:#0b0b0d;padding:34px 22px 30px;text-align:center">
+    <div style="max-width:600px;margin:0 auto">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <div style="display:flex;align-items:center;gap:9px;font-size:19px;font-weight:800;color:#9aa2b1"><span style="font-size:22px">🏬</span>Atlas</div>
+        <div style="white-space:nowrap">${social('https://www.facebook.com/', 'M22 12a10 10 0 1 0-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.4h-1.2c-1.2 0-1.6.8-1.6 1.6V12h2.7l-.4 2.9h-2.3v7A10 10 0 0 0 22 12Z')}
+${social('https://x.com/', 'M18.9 2H22l-6.8 7.8L23.2 22h-6.3l-4.9-6.4L6.4 22H3.3l7.3-8.3L1 2h6.4l4.4 5.9L18.9 2Zm-1.1 18h1.7L7.7 3.9H5.9L17.8 20Z')}
+${social('https://www.linkedin.com/', 'M20.4 20.4h-3.6v-5.6c0-1.3 0-3-1.9-3s-2.1 1.4-2.1 2.9v5.7H9.4V9h3.4v1.6h.1c.5-.9 1.6-1.9 3.4-1.9 3.6 0 4.3 2.4 4.3 5.5v6.2ZM5.3 7.4a2.1 2.1 0 1 1 0-4.2 2.1 2.1 0 0 1 0 4.2Zm1.8 13H3.5V9h3.6v11.4Z')}
+${social('https://www.youtube.com/', 'M23 12s0-3.9-.5-5.7c-.3-1-1.1-1.8-2.1-2.1C18.6 3.7 12 3.7 12 3.7s-6.6 0-8.4.5c-1 .3-1.8 1.1-2.1 2.1C1 8.1 1 12 1 12s0 3.9.5 5.7c.3 1 1.1 1.8 2.1 2.1 1.8.5 8.4.5 8.4.5s6.6 0 8.4-.5c1-.3 1.8-1.1 2.1-2.1.5-1.8.5-5.7.5-5.7ZM9.8 15.5v-7l6 3.5-6 3.5Z')}
+${social('https://www.instagram.com/', 'M12 2.2c3.2 0 3.6 0 4.9.1 1.2.1 1.9.2 2.3.4.6.2 1 .5 1.4.9.4.4.7.8.9 1.4.2.4.4 1.1.4 2.3.1 1.3.1 1.7.1 4.9s0 3.6-.1 4.9c-.1 1.2-.2 1.9-.4 2.3-.2.6-.5 1-.9 1.4-.4.4-.8.7-1.4.9-.4.2-1.1.4-2.3.4-1.3.1-1.7.1-4.9.1s-3.6 0-4.9-.1c-1.2-.1-1.9-.2-2.3-.4-.6-.2-1-.5-1.4-.9-.4-.4-.7-.8-.9-1.4-.2-.4-.4-1.1-.4-2.3-.1-1.3-.1-1.7-.1-4.9s0-3.6.1-4.9c.1-1.2.2-1.9.4-2.3.2-.6.5-1 .9-1.4.4-.4.8-.7 1.4-.9.4-.2 1.1-.4 2.3-.4 1.3-.1 1.7-.1 4.9-.1Zm0 3.8a6 6 0 1 0 0 12 6 6 0 0 0 0-12Zm0 9.9a3.9 3.9 0 1 1 0-7.8 3.9 3.9 0 0 1 0 7.8Zm6.2-10.1a1.4 1.4 0 1 1-2.8 0 1.4 1.4 0 0 1 2.8 0Z')}</div>
       </div>
-      ${deviceBlock}
-      ${linkBlock}
-      <p style="font-size:12px;color:#71717a;line-height:1.6;margin:20px 0 0">
-        Si vous n’êtes pas à l’origine de cette demande, ignorez ce message et changez votre mot de passe.
-        Ne partagez jamais ce code, y compris avec un membre de votre équipe.
-      </p>
-      <div style="margin-top:20px;border-top:1px solid #e4e4e7;padding-top:12px;font-size:11px;color:#a1a1aa">
-        ${companyName} — Atlas Commerce · © 2026 loxdpsy · MIT
+      <div style="margin-top:26px;font-size:13px;color:#9aa2b1">
+        <a href="https://stock.afmarbre.com/" style="color:#9aa2b1;text-decoration:underline">Notre blog</a>
+        <span style="margin:0 8px;color:#3a3f4a">|</span>
+        <a href="https://stock.afmarbre.com/" style="color:#9aa2b1;text-decoration:underline">À propos</a>
+        <span style="margin:0 8px;color:#3a3f4a">|</span>
+        <a href="https://stock.afmarbre.com/" style="color:#9aa2b1;text-decoration:underline">Contact</a>
+        <span style="margin:0 8px;color:#3a3f4a">|</span>
+        <a href="https://stock.afmarbre.com/" style="color:#9aa2b1;text-decoration:underline">Centre d’aide</a>
       </div>
+      <div style="margin-top:14px;font-size:12px;line-height:1.6;color:#7c8494">Atlas Commerce — stock.afmarbre.com<br/>© 2026 loxdpsy · MIT</div>
+      <div style="margin-top:10px"><a href="https://stock.afmarbre.com/settings" style="font-size:12px;color:#9aa2b1;text-decoration:underline">Se désabonner</a></div>
     </div>
   </div>
 </body>

@@ -83,7 +83,11 @@ export function getAvatarUrl(): string {
 export function sanitizePreviewUrl(raw: string | null | undefined): string {
   const value = String(raw || '').trim();
   if (!value) return '';
-  if (/^blob:https?:\/\//i.test(value)) return value;
+  // Full-string, end-anchored blob URL shape produced by URL.createObjectURL
+  // (blob:<scheme>://<host>/<uuid>): character classes that cannot match any
+  // HTML meta-character, so CodeQL accepts the guarded value as sanitized
+  // (js/dom-text-reinterpreted-as-html).
+  if (/^blob:https?:\/\/[A-Za-z0-9.:-]+\/[A-Za-z0-9-]+$/i.test(value)) return value;
   return sanitizeImageDataUrl(value) || sanitizeAvatarUrl(value);
 }
 
