@@ -5,10 +5,10 @@
 
 <!-- Badges -->
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
-![Version](https://img.shields.io/badge/version-1.4.5--beta-blue)
+![Version](https://img.shields.io/badge/version-0.5.1--beta-blue)
 ![Build](https://img.shields.io/badge/build-cloudflare%20workers-orange)
 ![Stack](https://img.shields.io/badge/stack-React%20%2B%20Vite%20%2B%20D1%20%2B%20R2-0a0a0a)
-![Mobile](https://img.shields.io/badge/mobile-Capacitor%20Android-3ddc84)
+![Mobile](https://img.shields.io/badge/mobile-PWA%20%2B%20Android%20natif%20(Kotlin)-3ddc84)
 ![IA](https://img.shields.io/badge/agent-Atlas%20Agent%20IA-8b5cf6)
 
 **Aperçu live (preview CF)** · **Ce README = documentation** · **[Signaler un bug](https://github.com/Etherealmber/atlas-commerce/issues/new)** · **[Demander une fonction](https://github.com/Etherealmber/atlas-commerce/issues/new)**
@@ -111,7 +111,6 @@ appareils distants ne pourront pas recevoir d'OTP — configurez-le en productio
 ### 7. App mobile (Android)
 
 ```bash
-npm run cap:sync      # build web + sync Capacitor
 npm run cap:open      # ouvre Android Studio
 ```
 
@@ -128,7 +127,7 @@ Les mises à jour OTA passent par le manifeste `latest.json` servi depuis R2
 
 Atlas Commerce est un ERP/POS **auto-hébergé sur Cloudflare** (Workers + D1 + R2) pensé pour les commerces, grossistes et entrepôts au Maroc : gestion du stock multi-dépôts, caisse rapide (tickets VR sans TVA), facturation TVA avec créances et remboursements, achats/réceptions, devis, employés & paie, balance/trésorerie — **sans abonnement SaaS opaque** et sans dépendre d'un serveur dédié.
 
-Le cœur est un **worker Cloudflare** (API REST + SSR) avec une base **D1** (SQLite managé), les médias et les mises à jour Android sur **R2** (`company-stock-images`), et un front **React + Vite** thémé (clair/sombre, densités, tailles de texte) décliné en coquille téléphone (Capacitor) et en app Android avec mises à jour OTA servies par le worker.
+Le cœur est un **worker Cloudflare** (API REST + SSR) avec une base **D1** (SQLite managé), les médias et les mises à jour Android sur **R2** (`company-stock-images`), et un front **React + Vite** thémé (clair/sombre, densités, tailles de texte) décliné en PWA installable (service worker + manifest) et en app Android native (Kotlin + Compose) ; les mises à jour APK sont servies par le worker (R2).
 
 Points forts :
 
@@ -166,7 +165,7 @@ Atlas Commerce est conçu pour être étendu :
 <summary>Client</summary>
 
 - [React](https://react.dev/) + [Vite](https://vitejs.dev/) + TypeScript
-- [Capacitor](https://capacitorjs.com/) — app Android (OTA via R2)
+- PWA — service worker + manifest : installable sur l'écran d'accueil, offline-ready ; mises à jour APK servies par le worker (R2)
 - CSS maison thémé (`dark-force.css` chargé en dernier)
 </details>
 
@@ -194,7 +193,8 @@ Le build Cloudflare (dashboard) exécute `npm run build` puis `npx wrangler prev
 
 ## 📱 App mobile
 
-Compagnon Android (Capacitor) : coquille terrain minimaliste (Accueil, Stock, Scan, Caisse, Factures, Agent), scan code-barres, réceptions/transferts/inventaire, notifications = centre d'alertes. Mises à jour via Paramètres → lien + APK (R2, servies par le worker).
+- **PWA installable** : le compagnon mobile sans store — ajout à l'écran d'accueil, fonctionnement hors-ligne, mises à jour instantanées via le service worker ; scan, caisse, stock, factures et agent inclus. Le compagnon Capacitor a été retiré : la PWA le remplace entièrement.
+- **Android natif (Kotlin + Jetpack Compose)** — si vous voulez un rendu 100 % natif : [Etherealmber/atlas-commerce-android](https://github.com/Etherealmber/atlas-commerce-android). Sélecteur de serveur avant connexion (presets ou adresse HTTPS personnalisée avec sonde `/api/health`), authentification mot de passe + OTP avec session chiffrée (Keystore AES-GCM), tableau de bord, catalogue produits avec cache hors-ligne, scan code-barres, panier de vente rapide VR, écrans légaux/sécurité et réglages thème + densité. Licence MIT, CI GitHub Actions, et la même API worker que l'app web.
 
 ## 🔒 Code de conduite & politique de sécurité
 
@@ -210,7 +210,7 @@ Interface **français** (terrain Maroc). Les libellés sont centralisés (`src/l
 
 ## 💎 Remerciements
 
-- Cloudflare, React, Vite, Hono, Capacitor et leurs communautés.
+- Cloudflare, React, Vite, Hono et leurs communautés.
 
 ## ❤️ Support
 
@@ -296,7 +296,12 @@ Atlas Commerce est développé et maintenu par **loxdpy ([@loxdpsy](https://gith
 - `themes-css-guard.yml` : `scripts/css-check.mjs` — accolades/parenthèses équilibrées, hex valides, dark-force.css dernier import CSS obligatoire, et aucune NOUVELLE déclaration blanche dans les blocs sombres sur les PR
 - Les trois tournent sur chaque pull request (et sur main) avec filters par chemin : un PR rouge ne devrait jamais être mergé, donc jamais déployé
 
+Version actuelle : **0.5.1-beta** (gelée jusqu'au prochain ordre de push).
+
 Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depuis la première version interne ; le détail complet et vivant est dans l'app (**Nouveautés**), y compris l’ancien cycle bêta pré-renumérotation, renuméroté en **0.x** (0.0.1 → 0.4.4).
+
+<details>
+<summary>📦 Toutes les versions (0.0.1-beta → 0.5.1-beta) — cliquer pour déplier</summary>
 
 ### 0.5.1-beta
 - Menu utilisateur portalisé (toujours visible) avec photo de profil dans l'en-tête ; avatar monogramme SVG de nouveau affiché
@@ -342,8 +347,79 @@ Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depui
 ### 0.4.5-beta
 - Palette zinc unique en sombre : zéro flash blanc, boutons primaires clairs, focus et appuis zinc, transition circulaire du thème
 
+### 0.4.4-beta
+- Tous les popups suivent le même système guidé : produit (3 étapes), facture d’achat (3 étapes), remboursement WR (2 étapes), reçu et fournisseur (2 ét…
+
+### 0.4.3-beta
+- Scan : code inconnu → demande de création produit (photo comprise), validée depuis la liste Produits
+
+### 0.4.2-beta
+- Thème sombre unifié (sidebar, topbar et pages sur la même palette zinc)
+
+### 0.4.1-beta
+- États vides avec un bouton clair pour créer (devis, reçus, fournisseurs…)
+
+### 0.4.0-beta
+- Restauration de sauvegarde plus rapide (ignore ce qui existe déjà)
+
+### 0.3.4-beta
+- Shell revisité : top bar, menu avatar, notifications, recherche
+
+### 0.3.3-beta
+- Erreurs de formulaire en français dans la popup
+
+### 0.3.2-beta
+- Messagerie focus (top bar, sans sidebar app)
+
+### 0.3.1-beta
+- Recherche Paramètres (historique, aperçu)
+
+### 0.3.0-beta
+- Mode focus Paramètres / À propos / Nouveautés
+
+### 0.2.0-beta
+- Employés, cycles de paie, acomptes
+
+### 0.1.8-beta
+- Boîte mail pro (dossiers, pièces jointes, spam)
+
+### 0.1.7-beta
+- Aperçu documents (PDF / images) dans la messagerie
+
+### 0.1.6-beta
+- Rapports stock / ventes ; historique produit
+
+### 0.1.5-beta
+- Reçus, remboursements, vente rapide
+
+### 0.1.4-beta
+- Devis convertibles ; factures FA / VR
+
+### 0.1.3-beta
+- Clients, fournisseurs, crédit client
+
+### 0.1.2-beta
+- Achats fournisseurs + réception stock
+
+### 0.1.1-beta
+- Solde trésorerie (recettes, dépenses, apports)
+
+### 0.1.0-beta
+- Catalogue produits, catégories, images R2
+
+### 0.0.4-beta
+- Stabilisation auth session et cookies
+
+### 0.0.3-beta
+- Tableau de bord métriques de base
+
+### 0.0.2-beta
+- Correctifs post-publication login / routing
+
 ### 0.0.1-beta
 - Première version interne (bêta) : stock, facturation et espace de travail Atlas Commerce
+
+</details>
 
 ---
 
