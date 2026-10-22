@@ -194,7 +194,8 @@ Le build Cloudflare (dashboard) exécute `npm run build` puis `npx wrangler prev
 
 ## 📱 App mobile
 
-Compagnon Android (Capacitor) : coquille terrain minimaliste (Accueil, Stock, Scan, Caisse, Factures, Agent), scan code-barres, réceptions/transferts/inventaire, notifications = centre d'alertes. Mises à jour via Paramètres → lien + APK (R2, servies par le worker).
+- **Compagnon Android (Capacitor)** : coquille terrain minimaliste (Accueil, Stock, Scan, Caisse, Factures, Agent), scan code-barres, réceptions/transferts/inventaire, notifications = centre d'alertes. Mises à jour via Paramètres → lien + APK (R2, servies par le worker).
+- **Android natif (Kotlin + Jetpack Compose)** — si vous voulez un rendu 100 % natif : [Etherealmber/atlas-commerce-android](https://github.com/Etherealmber/atlas-commerce-android). Sélecteur de serveur avant connexion (presets ou adresse HTTPS personnalisée avec sonde `/api/health`), authentification mot de passe + OTP avec session chiffrée (Keystore AES-GCM), tableau de bord, catalogue produits avec cache hors-ligne, scan code-barres, panier de vente rapide VR, écrans légaux/sécurité et réglages thème + densité. Licence MIT, CI GitHub Actions, et la même API worker que l'app web.
 
 ## 🔒 Code de conduite & politique de sécurité
 
@@ -296,7 +297,12 @@ Atlas Commerce est développé et maintenu par **loxdpy ([@loxdpsy](https://gith
 - `themes-css-guard.yml` : `scripts/css-check.mjs` — accolades/parenthèses équilibrées, hex valides, dark-force.css dernier import CSS obligatoire, et aucune NOUVELLE déclaration blanche dans les blocs sombres sur les PR
 - Les trois tournent sur chaque pull request (et sur main) avec filters par chemin : un PR rouge ne devrait jamais être mergé, donc jamais déployé
 
+Version actuelle : **0.5.1-beta** (gelée jusqu'au prochain ordre de push).
+
 Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depuis la première version interne ; le détail complet et vivant est dans l'app (**Nouveautés**), y compris l’ancien cycle bêta pré-renumérotation, renuméroté en **0.x** (0.0.1 → 0.4.4).
+
+<details>
+<summary>📦 Toutes les versions (0.0.1-beta → 0.5.1-beta) — cliquer pour déplier</summary>
 
 ### 0.5.1-beta
 - Menu utilisateur portalisé (toujours visible) avec photo de profil dans l'en-tête ; avatar monogramme SVG de nouveau affiché
@@ -342,8 +348,79 @@ Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depui
 ### 0.4.5-beta
 - Palette zinc unique en sombre : zéro flash blanc, boutons primaires clairs, focus et appuis zinc, transition circulaire du thème
 
+### 0.4.4-beta
+- Tous les popups suivent le même système guidé : produit (3 étapes), facture d’achat (3 étapes), remboursement WR (2 étapes), reçu et fournisseur (2 ét…
+
+### 0.4.3-beta
+- Scan : code inconnu → demande de création produit (photo comprise), validée depuis la liste Produits
+
+### 0.4.2-beta
+- Thème sombre unifié (sidebar, topbar et pages sur la même palette zinc)
+
+### 0.4.1-beta
+- États vides avec un bouton clair pour créer (devis, reçus, fournisseurs…)
+
+### 0.4.0-beta
+- Restauration de sauvegarde plus rapide (ignore ce qui existe déjà)
+
+### 0.3.4-beta
+- Shell revisité : top bar, menu avatar, notifications, recherche
+
+### 0.3.3-beta
+- Erreurs de formulaire en français dans la popup
+
+### 0.3.2-beta
+- Messagerie focus (top bar, sans sidebar app)
+
+### 0.3.1-beta
+- Recherche Paramètres (historique, aperçu)
+
+### 0.3.0-beta
+- Mode focus Paramètres / À propos / Nouveautés
+
+### 0.2.0-beta
+- Employés, cycles de paie, acomptes
+
+### 0.1.8-beta
+- Boîte mail pro (dossiers, pièces jointes, spam)
+
+### 0.1.7-beta
+- Aperçu documents (PDF / images) dans la messagerie
+
+### 0.1.6-beta
+- Rapports stock / ventes ; historique produit
+
+### 0.1.5-beta
+- Reçus, remboursements, vente rapide
+
+### 0.1.4-beta
+- Devis convertibles ; factures FA / VR
+
+### 0.1.3-beta
+- Clients, fournisseurs, crédit client
+
+### 0.1.2-beta
+- Achats fournisseurs + réception stock
+
+### 0.1.1-beta
+- Solde trésorerie (recettes, dépenses, apports)
+
+### 0.1.0-beta
+- Catalogue produits, catégories, images R2
+
+### 0.0.4-beta
+- Stabilisation auth session et cookies
+
+### 0.0.3-beta
+- Tableau de bord métriques de base
+
+### 0.0.2-beta
+- Correctifs post-publication login / routing
+
 ### 0.0.1-beta
 - Première version interne (bêta) : stock, facturation et espace de travail Atlas Commerce
+
+</details>
 
 ---
 
