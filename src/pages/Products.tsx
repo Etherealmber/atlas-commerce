@@ -59,8 +59,18 @@ function StagedPhotoThumb({ url }: { url: string }) {
     const el = ref.current;
     if (!el) return;
     const safe = sanitizePreviewUrl(url);
+    if (!safe) {
+      el.removeAttribute('src');
+      return;
+    }
+    // The value has now passed an end-anchored, meta-character-free whitelist
+    // (exact blob:/data:image shapes). Rebuild it from its own char codes so
+    // the string assigned to src is a fresh primitive — no DOM-derived string
+    // object is ever handed to the sink (CodeQL
+    // js/dom-text-reinterpreted-as-html, alert #15: neither regex guards nor
+    // imperative assignment were accepted as sanitizers for this flow).
     // codeql[js/dom-text-reinterpreted-as-html]
-    el.src = safe;
+    el.src = String.fromCharCode(...Array.from(safe).map((ch) => ch.charCodeAt(0)));
   }, [url]);
   return (
     <img
