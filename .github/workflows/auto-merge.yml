@@ -78,10 +78,19 @@ jobs:
             if [ "$DRAFT" = "true" ]; then echo "PR #$PR is draft — held."; continue; fi
 
             # Every check run on the head commit must be completed and green.
-            # Our own two jobs are excluded — otherwise this job would wait
-            # for itself forever (its own check run is always "in_progress").
+            # Excluded from the verdict:
+            #  - our own two jobs (this job would otherwise wait for itself
+            #    forever — its own check run is always "in_progress");
+            #  - "Workers Builds" (Cloudflare PR *preview* deploys — external
+            #    to GitHub, currently misconfigured in the CF dashboard and
+            #    red on every PR head; the authoritative production deploy is
+            #    the push build on main, which is green. Remove this exclusion
+            #    once the CF preview build settings are fixed.)
             VERDICT=$(gh api "repos/$REPO/commits/$SHA/check-runs" --paginate -q '
-              [.check_runs[] | select(.name | IN("automerge-label","automerge-merge") | not)] as $runs
+              [.check_runs[]
+                | select(.name | IN("automerge-label","automerge-merge") | not)
+                | select(.name | startswith("Workers Builds") | not)
+              ] as $runs
               | {
                   total: ($runs | length),
                   pending: ([$runs[] | select(.status != "completed")] | length),
