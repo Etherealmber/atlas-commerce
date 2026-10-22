@@ -34,6 +34,9 @@ jobs:
     timeout-minutes: 5
     permissions:
       pull-requests: write
+      # Required by the labels API (gh label create) — without it the label
+      # cannot be created and `gh pr edit --add-label` fails on a fresh repo.
+      issues: write
       contents: read
     steps:
       - name: Add automerge label
