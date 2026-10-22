@@ -391,11 +391,18 @@ export default function Products() {
   };
 
   /**
-   * CodeQL js/dom-text-reinterpreted-as-html barrier: staged photo URLs only
-   * ever reach <img src> as blob:/data-image URLs produced by
-   * URL.createObjectURL — anything else is dropped instead of rendered.
+   * CodeQL js/dom-text-reinterpreted-as-html barrier (alert #15): staged photo
+   * URLs only ever reach <img src> as the exact shapes URL.createObjectURL /
+   * FileReader produce. The regex below is a FULL-STRING match built from
+   * character classes that cannot match any HTML meta-character (< > " ' ` &
+   * etc.), so nothing reinterpret-able as HTML can ever pass this guard —
+   * anything else renders an empty src.
    */
-  const safeImageSrc = (u: string): string => (/^(blob:|data:image\/)/i.test(u || '') ? u : '');
+  const safeImageSrc = (u: string): string => (
+    /^(?:blob:https?:\/\/[A-Za-z0-9.-]+\/[A-Za-z0-9-]+|data:image\/(?:png|jpe?g|webp|gif|avif);base64,[A-Za-z0-9+/=]+)$/i.test(u || '')
+      ? u
+      : ''
+  );
   const addStagedPhotos = (files: FileList | null) => {
     if (!files?.length) return;
     const imgs = Array.from(files).filter((f) => /^image\//.test(f.type));
