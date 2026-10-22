@@ -1,0 +1,84 @@
+name: Branch cleanup (auto-delete unused branches)
+
+# Keeps the branch list clean automatically:
+#  1. When a PR closes (merged or abandoned): its head branch is deleted if
+#     it is fully merged into main, or if the PR was merged (GitHub squashed
+#     history still counts — the PR is closed and the work is on main).
+#  2. Weekly sweep (Mondays 05:00 UTC) + manual dispatch: deletes every
+#     remote branch that is fully merged into main (compare status
+#     "behind"/"identical") and has no open PR — including leftover
+#     `arena/*` session branches. `main` and any branch with an open PR are
+#     never touched. Nothing is force-deleted: unmerged branches with open
+#     work stay put (a branch is only skipped, never rebased or rewritten).
+
+on:
+  pull_request:
+    types: [closed]
+  schedule:
+    - cron: '0 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: branch-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Delete the head branch of the closed PR
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+          MERGED: ${{ github.event.pull_request.merged }}
+        run: |
+          if [ "$BRANCH" = "main" ] || [ -z "$BRANCH" ]; then exit 0; fi
+          OPEN=$(gh pr list --repo "$REPO" --head "$BRANCH" --state open --json number -q 'length')
+          if [ "$OPEN" != "0" ]; then echo "Branch $BRANCH still has an open PR — kept."; exit 0; fi
+          # Merged PR → always safe to delete. Closed-without-merge → only if
+          # the branch is fully contained in main.
+          if [ "$MERGED" != "true" ]; then
+            STATUS=$(gh api "repos/$REPO/compare/main...$(printf '%s' "$BRANCH" | sed 's|/|%2F|g')" -q '.status' 2>/dev/null || echo unknown)
+            if [ "$STATUS" != "behind" ] && [ "$STATUS" != "identical" ]; then
+              echo "PR closed without merge and branch not contained in main ($STATUS) — kept."
+              exit 0
+            fi
+          fi
+          gh api -X DELETE "repos/$REPO/git/refs/heads/$(printf '%s' "$BRANCH" | sed 's|/|%2F|g')" \
+            && echo "Deleted merged branch $BRANCH" \
+            || echo "Could not delete $BRANCH (protected or already gone) — fine."
+
+      - name: Weekly sweep of fully-merged branches
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          BRANCHES=$(gh api "repos/$REPO/branches" --paginate -q '.[].name')
+          DELETED=0; KEPT=0
+          for B in $BRANCHES; do
+            if [ "$B" = "main" ] || [ "$B" = "master" ]; then continue; fi
+            OPEN=$(gh pr list --repo "$REPO" --head "$B" --state open --json number -q 'length' 2>/dev/null || echo 1)
+            if [ "$OPEN" != "0" ]; then KEPT=$((KEPT+1)); continue; fi
+            ENC=$(printf '%s' "$B" | sed 's|/|%2F|g')
+            STATUS=$(gh api "repos/$REPO/compare/main...$ENC" -q '.status' 2>/dev/null || echo unknown)
+            if [ "$STATUS" = "behind" ] || [ "$STATUS" = "identical" ]; then
+              if gh api -X DELETE "repos/$REPO/git/refs/heads/$ENC" >/dev/null 2>&1; then
+                echo "Deleted fully-merged branch: $B"
+                DELETED=$((DELETED+1))
+              else
+                echo "Delete refused for $B (protected?) — kept."
+                KEPT=$((KEPT+1))
+              fi
+            else
+              KEPT=$((KEPT+1))
+            fi
+          done
+          echo "Sweep done: $DELETED deleted, $KEPT kept (unmerged, open PR, or protected)."

@@ -701,6 +701,214 @@ app.use('*', async (c, next) => {
   await next();
 });
 
+/* ─────────────────────────────────────────────────────────────────────────
+ * /api/* AUTH GATE — MUST STAY REGISTERED FIRST (before every app.get/post/…).
+ * Hono applies app.use() only to routes registered AFTER it. Until
+ * 2026-10-22 this middleware sat ~4,500 lines down, so the 58 routes above
+ * (admin/users, admin/config, admin/audit, admin/db-migrate, r2/images,
+ * auth/me, settings/2fa…) never saw it and were gated only by requireOwner()
+ * — which trusted the old sessionUserFromHeader() fallback that made EVERY
+ * anonymous caller an owner. The security patrol caught it live
+ * (GET /api/admin/r2/images → 200 + real data, no credentials).
+ * Add routes anywhere you like — but NEVER move this block below them.
+ * ───────────────────────────────────────────────────────────────────────── */
+app.use('/api/*', async (c, next) => {
+  const path = new URL(c.req.url).pathname;
+  if (
+    path.startsWith('/api/public/') ||
+    path.startsWith('/api/cron/') ||
+    path === '/api/media/proxy' ||
+    // Public health/canary probes — the Android server picker pings
+    // /api/health BEFORE login, and /api/canary is a deploy-smoke endpoint
+    // designed to expose no secrets (subsystem ok flags + WAF counters).
+    path === '/api/health' ||
+    path === '/api/canary' ||
+    // Read-only APK update manifest check — called by the app before login
+    // (mandatory-update flow). Exposes only public CDN info.
+    path === '/api/app/android-update' ||
+    // CI release ingestion — Bearer ANDROID_RELEASE_TOKEN, no session/CSRF.
+    path === '/api/admin/android-release' ||
+    // QR login bridge: the PC creates/polls its session ANONYMOUSLY (the
+    // phone side authenticates with its Bearer + the one-time QR token).
+    path.startsWith('/api/auth/qr/') ||
+    path === '/api/auth/login' ||
+    path === '/api/auth/verify-otp' ||
+    path === '/api/auth/login-biometric' ||
+    path === '/api/auth/webauthn/login/options' ||
+    path === '/api/auth/webauthn/login/verify' ||
+    path === '/api/auth/device-status' ||
+    path === '/api/auth/turnstile-config'
+  ) {
+    return next();
+  }
+  // ─── Extract session token from query (print / PDF / reports in new tab) ───
+  function extractQueryToken(rawUrl: string): string | null {
+    try {
+      const u = new URL(rawUrl);
+      let t = u.searchParams.get('token');
+      if (!t) {
+        // Manual parse if + was treated as space or param mangled
+        const m = rawUrl.match(/[?&]token=([^&]+)/);
+        if (m) t = m[1];
+      }
+      if (!t) return null;
+      // Spaces from form-encoding of + ; repeated decode safety
+      t = t.replace(/ /g, '+');
+      try { t = decodeURIComponent(t); } catch { /* already decoded */ }
+      t = t.replace(/ /g, '+');
+      // base64url → base64
+      if (t.includes('-') || t.includes('_')) {
+        t = t.replace(/-/g, '+').replace(/_/g, '/');
+      }
+      return t || null;
+    } catch {
+      return null;
+    }
+  }
+
+  function reportDeniedHtml(title: string, message: string, reason?: string): Response {
+    const detail = reason ? `<p style="color:#666;font-size:13px">Code : <code>${reason}</code></p>` : '';
+    return c.html(`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>${title}</title></head>
+<body style="font-family:system-ui,sans-serif;padding:40px;max-width:520px;margin:auto;color:#111;line-height:1.5">
+  <h1 style="font-size:1.35rem;margin:0 0 12px">${title}</h1>
+  <p>${message}</p>
+  ${detail}
+  <p style="margin-top:20px">Reconnectez-vous dans <strong>Atlas Commerce</strong>, puis rouvrez le rapport depuis le bouton dans l’application (ne partagez pas le lien).</p>
+  <p><a href="/login" style="color:#0f1b2d">Ouvrir la page de connexion</a></p>
+</body></html>`, 401);
+  }
+
+  // Allow print/PDF/thermal/reports with token via query param OR Authorization header
+  // (relax IP/fingerprint — same session as when the user opened the document)
+  const isReport = path.startsWith('/api/reports/');
+  const isPrintLike =
+    path.match(/^\/api\/invoices\/\d+\/print$/) ||
+    path.match(/^\/api\/invoices\/\d+\/pdf$/) ||
+    path.match(/^\/api\/invoices\/\d+\/ubl$/) ||
+    path.match(/^\/api\/invoices\/\d+\/ubl\.xml$/) ||
+    path.match(/^\/api\/bills\/\d+\/print$/) ||
+    path.match(/^\/api\/bills\/\d+\/pdf$/) ||
+    path.match(/^\/api\/receipts\/\d+\/print$/) ||
+    path.match(/^\/api\/receipts\/\d+\/pdf$/) ||
+    path.match(/^\/api\/print\/thermal\/\d+$/) ||
+    path === '/api/settings/invoice-preview' ||
+    path.startsWith('/api/attendance/export') ||
+    path === '/api/employees/form/print' ||
+    path.match(/^\/api\/employees\/\d+\/form\/print$/) ||
+    isReport;
+
+  if (isPrintLike) {
+    const ip = clientIp(c);
+    const queryToken = extractQueryToken(c.req.url);
+    const authHeader = c.req.header('Authorization');
+    const wantsJson =
+      (c.req.header('Accept') || '').includes('application/json') ||
+      (c.req.header('Content-Type') || '').includes('application/json') ||
+      !!authHeader?.startsWith('Bearer ');
+
+    const reportForbidden = (title: string, message: string, reason?: string) => {
+      if (wantsJson) {
+        return c.json({
+          success: false,
+          error: message,
+          code: reason || 'UNAUTHORIZED',
+        }, reason === 'FORBIDDEN_ROLE' ? 403 : 401);
+      }
+      return reportDeniedHtml(title, message, reason);
+    };
+
+    // 0) Short-lived print/report ticket (rt) — not a session JWT
+    try {
+      const u = new URL(c.req.url);
+      const rt = u.searchParams.get('rt');
+      if (rt && (await verifyReportLinkTicket(c.env, rt, path))) {
+        return next();
+      }
+    } catch { /* */ }
+
+    // 1) Query token (PDF tab / openReport)
+    if (queryToken) {
+      const reason = await authFailReason(`Bearer ${queryToken}`, c.env, c.env.DB, ip, undefined, { relaxSession: true });
+      if (reason === 'ok') {
+        if (isReport) {
+          const sess = sessionUserFromHeader(`Bearer ${queryToken}`);
+          const role = (sess.role || '').toLowerCase();
+          if (role !== 'owner' && role !== 'admin') {
+            return reportForbidden(
+              'Accès réservé',
+              'Les rapports comptables sont réservés au propriétaire et aux administrateurs.',
+              'FORBIDDEN_ROLE'
+            );
+          }
+        }
+        return next();
+      }
+      if (isReport) {
+        return reportForbidden(
+          'Accès au rapport refusé',
+          'La session n’a pas pu être validée. Reconnectez-vous puis rouvrez le rapport.',
+          reason
+        );
+      }
+    }
+
+    // 2) Authorization header (SPA fetch for /api/reports/aging, tva, cogs, etc.)
+    if (isReport && authHeader?.startsWith('Bearer ')) {
+      const reason = await authFailReason(authHeader, c.env, c.env.DB, ip, undefined, { relaxSession: true });
+      if (reason === 'ok') {
+        const sess = sessionUserFromHeader(authHeader);
+        const role = (sess.role || '').toLowerCase();
+        if (role !== 'owner' && role !== 'admin') {
+          return reportForbidden(
+            'Accès réservé',
+            'Les rapports sont réservés au propriétaire et aux administrateurs.',
+            'FORBIDDEN_ROLE'
+          );
+        }
+        return next();
+      }
+      return reportForbidden('Accès au rapport refusé', 'Session invalide — reconnectez-vous.', reason);
+    }
+
+    // Report without any token
+    if (isReport) {
+      return reportForbidden(
+        'Session requise',
+        'Ouvrez ce rapport depuis l’application pendant que vous êtes connecté.',
+        'missing'
+      );
+    }
+
+    // Print-like via Authorization (SPA fetch) or remaining cases — relax session
+    if (authHeader?.startsWith('Bearer ')) {
+      const reason = await authFailReason(authHeader, c.env, c.env.DB, ip, undefined, { relaxSession: true });
+      if (reason === 'ok') return next();
+      return reportForbidden(
+        'Session requise',
+        'Reconnectez-vous puis rouvrez le document depuis l’application.',
+        reason || 'UNAUTHORIZED',
+      );
+    }
+    // No token / no rt on print-like → friendly HTML (not raw JSON)
+    return reportForbidden(
+      'Session requise',
+      'Ouvrez ce document depuis l’application pendant que vous êtes connecté.',
+      'missing',
+    );
+  }
+  const ip = clientIp(c);
+  const fp = c.req.header('X-Device-Fingerprint') || undefined;
+  const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, ip, fp);
+  if (reason !== 'ok') {
+    return c.json({
+      success: false,
+      error: reason === 'ip_changed' ? 'Adresse IP modifiée — reconnexion requise' : reason === 'fp_changed' ? 'Appareil différent — reconnexion requise' : 'Non autorisé',
+      code: reason === 'ip_changed' ? 'IP_CHANGED' : reason === 'fp_changed' ? 'DEVICE_CHANGED' : 'UNAUTHORIZED',
+    }, 401);
+  }
+  return next();
+});
+
 app.use('*', async (c, next) => {
   c.set('bffSurface', detectBffSurface(c));
   await next();
@@ -2079,15 +2287,30 @@ async function authFailReason(
   return 'ok';
 }
 
-/** Extract session user from Authorization header (after auth succeeded). */
+/**
+ * Extract the session identity from an Authorization header.
+ *
+ * SECURITY (2026-10-22, patrol finding): this function NEVER falls back to
+ * 'owner'. It used to return the owner identity when the header was missing
+ * or unparseable — every route gated only by requireOwner()/requireBizMutator()
+ * (the 58 routes that were registered before the /api/* auth middleware, e.g.
+ * /api/admin/r2/images, /api/admin/users, /api/admin/config, /api/admin/audit…)
+ * was therefore world-open. Anonymous now means anonymous: gates reject, and
+ * the auth middleware — registered FIRST, before every route — performs the
+ * real verification (HMAC proof, IP/fingerprint binding) via authFailReason().
+ * Callers must handle { username: '', role: '' } as "not authenticated".
+ */
 function sessionUserFromHeader(authHeader: string | undefined): { username: string; role: string } {
-  if (!authHeader?.startsWith('Bearer ')) return { username: getOwnerUsername({} as Env), role: 'owner' };
+  const ANONYMOUS = { username: '', role: '' };
+  if (!authHeader?.startsWith('Bearer ')) return ANONYMOUS;
   const parsed = parseToken(authHeader.slice(7));
-  if (!parsed) return { username: 'admin', role: 'owner' };
+  if (!parsed) return ANONYMOUS;
   if (parsed.version === 2) {
-    return { username: parsed.username || 'admin', role: parsed.role || 'owner' };
+    return { username: parsed.username || '', role: parsed.role || '' };
   }
-  return { username: 'admin', role: 'owner' };
+  // Legacy v1 token (embeds the admin password): the auth middleware already
+  // validated it against the stored credentials before we get here.
+  return { username: getOwnerUsername({} as Env), role: 'admin' };
 }
 
 /* ─── Auth Routes ─── */
@@ -4488,207 +4711,6 @@ app.patch('/api/auth/me', async (c) => {
 });
 
 /* ─── Auth Middleware ─── */
-
-// ⚠️ ORDER INVARIANT (audited 2026-10-22): Hono applies app.use() only to
-// routes registered AFTER it. The ~58 routes above (health, canary,
-// /api/auth/*, admin routes…) never pass through this middleware — each one
-// MUST carry its own gate (requireOwner/requireAuth/cron secret…) or be
-// intentionally public. The audit found every ungated early route to be
-// deliberately public; re-audit whenever routes are added above this line:
-//   grep -n "app.\(get\|post\|put\|delete\)('/api" worker/index.ts  (lines < this)
-app.use('/api/*', async (c, next) => {
-  const path = new URL(c.req.url).pathname;
-  if (
-    path.startsWith('/api/public/') ||
-    path.startsWith('/api/cron/') ||
-    path === '/api/media/proxy' ||
-    // Public health/canary probes — the Android server picker pings
-    // /api/health BEFORE login, and /api/canary is a deploy-smoke endpoint
-    // designed to expose no secrets (subsystem ok flags + WAF counters).
-    path === '/api/health' ||
-    path === '/api/canary' ||
-    // Read-only APK update manifest check — called by the app before login
-    // (mandatory-update flow). Exposes only public CDN info.
-    path === '/api/app/android-update' ||
-    // CI release ingestion — Bearer ANDROID_RELEASE_TOKEN, no session/CSRF.
-    path === '/api/admin/android-release' ||
-    path === '/api/auth/login' ||
-    path === '/api/auth/verify-otp' ||
-    path === '/api/auth/login-biometric' ||
-    path === '/api/auth/webauthn/login/options' ||
-    path === '/api/auth/webauthn/login/verify' ||
-    path === '/api/auth/device-status' ||
-    path === '/api/auth/turnstile-config'
-  ) {
-    return next();
-  }
-  // ─── Extract session token from query (print / PDF / reports in new tab) ───
-  function extractQueryToken(rawUrl: string): string | null {
-    try {
-      const u = new URL(rawUrl);
-      let t = u.searchParams.get('token');
-      if (!t) {
-        // Manual parse if + was treated as space or param mangled
-        const m = rawUrl.match(/[?&]token=([^&]+)/);
-        if (m) t = m[1];
-      }
-      if (!t) return null;
-      // Spaces from form-encoding of + ; repeated decode safety
-      t = t.replace(/ /g, '+');
-      try { t = decodeURIComponent(t); } catch { /* already decoded */ }
-      t = t.replace(/ /g, '+');
-      // base64url → base64
-      if (t.includes('-') || t.includes('_')) {
-        t = t.replace(/-/g, '+').replace(/_/g, '/');
-      }
-      return t || null;
-    } catch {
-      return null;
-    }
-  }
-
-  function reportDeniedHtml(title: string, message: string, reason?: string): Response {
-    const detail = reason ? `<p style="color:#666;font-size:13px">Code : <code>${reason}</code></p>` : '';
-    return c.html(`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>${title}</title></head>
-<body style="font-family:system-ui,sans-serif;padding:40px;max-width:520px;margin:auto;color:#111;line-height:1.5">
-  <h1 style="font-size:1.35rem;margin:0 0 12px">${title}</h1>
-  <p>${message}</p>
-  ${detail}
-  <p style="margin-top:20px">Reconnectez-vous dans <strong>Atlas Commerce</strong>, puis rouvrez le rapport depuis le bouton dans l’application (ne partagez pas le lien).</p>
-  <p><a href="/login" style="color:#0f1b2d">Ouvrir la page de connexion</a></p>
-</body></html>`, 401);
-  }
-
-  // Allow print/PDF/thermal/reports with token via query param OR Authorization header
-  // (relax IP/fingerprint — same session as when the user opened the document)
-  const isReport = path.startsWith('/api/reports/');
-  const isPrintLike =
-    path.match(/^\/api\/invoices\/\d+\/print$/) ||
-    path.match(/^\/api\/invoices\/\d+\/pdf$/) ||
-    path.match(/^\/api\/invoices\/\d+\/ubl$/) ||
-    path.match(/^\/api\/invoices\/\d+\/ubl\.xml$/) ||
-    path.match(/^\/api\/bills\/\d+\/print$/) ||
-    path.match(/^\/api\/bills\/\d+\/pdf$/) ||
-    path.match(/^\/api\/receipts\/\d+\/print$/) ||
-    path.match(/^\/api\/receipts\/\d+\/pdf$/) ||
-    path.match(/^\/api\/print\/thermal\/\d+$/) ||
-    path === '/api/settings/invoice-preview' ||
-    path.startsWith('/api/attendance/export') ||
-    path === '/api/employees/form/print' ||
-    path.match(/^\/api\/employees\/\d+\/form\/print$/) ||
-    isReport;
-
-  if (isPrintLike) {
-    const ip = clientIp(c);
-    const queryToken = extractQueryToken(c.req.url);
-    const authHeader = c.req.header('Authorization');
-    const wantsJson =
-      (c.req.header('Accept') || '').includes('application/json') ||
-      (c.req.header('Content-Type') || '').includes('application/json') ||
-      !!authHeader?.startsWith('Bearer ');
-
-    const reportForbidden = (title: string, message: string, reason?: string) => {
-      if (wantsJson) {
-        return c.json({
-          success: false,
-          error: message,
-          code: reason || 'UNAUTHORIZED',
-        }, reason === 'FORBIDDEN_ROLE' ? 403 : 401);
-      }
-      return reportDeniedHtml(title, message, reason);
-    };
-
-    // 0) Short-lived print/report ticket (rt) — not a session JWT
-    try {
-      const u = new URL(c.req.url);
-      const rt = u.searchParams.get('rt');
-      if (rt && (await verifyReportLinkTicket(c.env, rt, path))) {
-        return next();
-      }
-    } catch { /* */ }
-
-    // 1) Query token (PDF tab / openReport)
-    if (queryToken) {
-      const reason = await authFailReason(`Bearer ${queryToken}`, c.env, c.env.DB, ip, undefined, { relaxSession: true });
-      if (reason === 'ok') {
-        if (isReport) {
-          const sess = sessionUserFromHeader(`Bearer ${queryToken}`);
-          const role = (sess.role || '').toLowerCase();
-          if (role !== 'owner' && role !== 'admin') {
-            return reportForbidden(
-              'Accès réservé',
-              'Les rapports comptables sont réservés au propriétaire et aux administrateurs.',
-              'FORBIDDEN_ROLE'
-            );
-          }
-        }
-        return next();
-      }
-      if (isReport) {
-        return reportForbidden(
-          'Accès au rapport refusé',
-          'La session n’a pas pu être validée. Reconnectez-vous puis rouvrez le rapport.',
-          reason
-        );
-      }
-    }
-
-    // 2) Authorization header (SPA fetch for /api/reports/aging, tva, cogs, etc.)
-    if (isReport && authHeader?.startsWith('Bearer ')) {
-      const reason = await authFailReason(authHeader, c.env, c.env.DB, ip, undefined, { relaxSession: true });
-      if (reason === 'ok') {
-        const sess = sessionUserFromHeader(authHeader);
-        const role = (sess.role || '').toLowerCase();
-        if (role !== 'owner' && role !== 'admin') {
-          return reportForbidden(
-            'Accès réservé',
-            'Les rapports sont réservés au propriétaire et aux administrateurs.',
-            'FORBIDDEN_ROLE'
-          );
-        }
-        return next();
-      }
-      return reportForbidden('Accès au rapport refusé', 'Session invalide — reconnectez-vous.', reason);
-    }
-
-    // Report without any token
-    if (isReport) {
-      return reportForbidden(
-        'Session requise',
-        'Ouvrez ce rapport depuis l’application pendant que vous êtes connecté.',
-        'missing'
-      );
-    }
-
-    // Print-like via Authorization (SPA fetch) or remaining cases — relax session
-    if (authHeader?.startsWith('Bearer ')) {
-      const reason = await authFailReason(authHeader, c.env, c.env.DB, ip, undefined, { relaxSession: true });
-      if (reason === 'ok') return next();
-      return reportForbidden(
-        'Session requise',
-        'Reconnectez-vous puis rouvrez le document depuis l’application.',
-        reason || 'UNAUTHORIZED',
-      );
-    }
-    // No token / no rt on print-like → friendly HTML (not raw JSON)
-    return reportForbidden(
-      'Session requise',
-      'Ouvrez ce document depuis l’application pendant que vous êtes connecté.',
-      'missing',
-    );
-  }
-  const ip = clientIp(c);
-  const fp = c.req.header('X-Device-Fingerprint') || undefined;
-  const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, ip, fp);
-  if (reason !== 'ok') {
-    return c.json({
-      success: false,
-      error: reason === 'ip_changed' ? 'Adresse IP modifiée — reconnexion requise' : reason === 'fp_changed' ? 'Appareil différent — reconnexion requise' : 'Non autorisé',
-      code: reason === 'ip_changed' ? 'IP_CHANGED' : reason === 'fp_changed' ? 'DEVICE_CHANGED' : 'UNAUTHORIZED',
-    }, 401);
-  }
-  return next();
-});
 
 /* ─── Public Routes ─── */
 

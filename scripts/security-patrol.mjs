@@ -202,6 +202,38 @@ async function main() {
         ? `Cloudflare edge interfered with the probe of ${a.path} — Security → Events in the CF dashboard: allow the AtlasSecurityPatrol UA / GH Actions IPs, then re-run the patrol. The worker itself could not be verified.`
         : a.fix);
   }
+  // 3b. The 2026-10-22 incident regression: a FORGED v2 token (base64 is
+  //     not signed by the attacker) must NOT pass as owner — the middleware
+  //     verifies the HMAC proof via authFailReason().
+  const forged = 'Bearer ' + Buffer.from('stock-auth-v2|attacker|owner|8.8.8.8|none|deadbeefdeadbeef').toString('base64');
+  for (const t of [
+    { id: 'forged-token-r2', path: '/api/admin/r2/images', name: 'forged owner token on admin R2 listing' },
+    { id: 'forged-token-config', path: '/api/admin/config', name: 'forged owner token on admin config' },
+  ]) {
+    const r = await probe(t.path, { headers: { Authorization: forged } });
+    const v = classifyAuthzProbe(r);
+    check(t.id, `Rejects ${t.name}`, 'critical', v.verdict === 'denied', v.detail,
+      'A hand-crafted base64 token was accepted — the HMAC proof verification (authFailReason) is not running for this route. It must be covered by the /api/* auth middleware registered BEFORE all routes in worker/index.ts.');
+  }
+  // 3c. More anonymous admin probes (routes that sat before the middleware
+  //     during the 2026-10-22 owner-fallback incident).
+  for (const a of [
+    { id: 'authz-audit', path: '/api/admin/audit', name: 'audit log without session' },
+    { id: 'authz-config', path: '/api/admin/config', name: 'admin config without session' },
+    { id: 'authz-me', path: '/api/auth/me', name: 'identity endpoint without session' },
+    { id: 'authz-migrate', path: '/api/admin/db-migrate/status', name: 'DB migration status without session' },
+  ]) {
+    const r = await probe(a.path, {}, { retries: 1 });
+    const v = classifyAuthzProbe(r);
+    const ok = v.verdict === 'denied';
+    const severity = v.verdict === 'cache-leak' || v.verdict === 'exposed' ? 'critical'
+      : v.verdict === 'edge-interference' ? 'medium' : 'high';
+    check(a.id, `Denies ${a.name}`, severity, ok, v.detail,
+      ok ? '' : v.verdict === 'edge-interference'
+        ? `Cloudflare edge interfered with the probe of ${a.path} — check CF dashboard → Security → Events (allow the AtlasSecurityPatrol UA), then re-run the patrol.`
+        : `GET ${a.path} answered without a denial body — the /api/* auth middleware must be registered before all routes in worker/index.ts (see the AUTH GATE block).`);
+  }
+
   // POST without a Bearer token must be a 401 UNAUTHORIZED from the worker.
   // NB: never hand-set content-length — undici computes it from the body.
   const postBody = 'x'.repeat(20_000);
@@ -251,7 +283,74 @@ async function main() {
     `HTTP ${headMirror.status}`,
     'HEAD on the CDN1 mirror paths must go through serveAppUpdatesAsset() → bucket.head(); a 405 means the explicit fetch() dispatch in worker/index.ts is missing.');
 
+  await cfSelfHeal(startedAt);
   emit(startedAt, { reachable: true, waf: wafInfo });
+}
+
+/* ── Optional Cloudflare integration (set CF_API_TOKEN as a repo secret) ──
+ * Token scopes needed (Zone-level for afmarbre.com):
+ *   Zone → Read · Zone → Cache Purge → Edit · Zone → Security Events → Read
+ * With it the patrol: (1) PURGES any URL it caught being replayed from the
+ * edge cache, and (2) looks up the firewall/bot rule that challenged its own
+ * requests so the issue names the exact rule to fix. Without it, findings
+ * still ship with manual dashboard guidance. CF_ZONE_ID optional (else the
+ * zone is resolved from the target hostname). */
+async function cfSelfHeal(startedAt) {
+  const token = (process.env.CF_API_TOKEN || '').trim();
+  if (!token) {
+    process.stderr.write('CF_API_TOKEN not set — skipping purge/firewall-event lookup (guidance-only mode)\n');
+    return;
+  }
+  const api = async (path, init = {}) => {
+    const res = await fetch(`https://api.cloudflare.com/client/v4${path}`, {
+      signal: AbortSignal.timeout(20_000),
+      ...init,
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...(init.headers || {}) },
+    });
+    return res.json().catch(() => ({}));
+  };
+  let zone = (process.env.CF_ZONE_ID || '').trim();
+  try {
+    if (!zone) {
+      const host = new URL(BASE).hostname.replace(/^[^.]+\./, ''); // stock.afmarbre.com → afmarbre.com
+      const z = await api(`/zones?name=${encodeURIComponent(host)}`);
+      zone = z?.result?.[0]?.id || '';
+    }
+    if (!zone) { process.stderr.write('CF zone not resolvable — skipping\n'); return; }
+
+    // 1) Purge every URL caught being served from the edge cache
+    const leaked = results.filter((r) => !r.ok && /edge cache|cf-cache-status/i.test(r.detail || ''));
+    const purgeFiles = [];
+    for (const r of leaked) {
+      const p = ({ 'authz-r2-list': '/api/admin/r2/images', 'site-up': '/api/health' })[r.id];
+      if (p) purgeFiles.push(BASE + p);
+    }
+    if (purgeFiles.length) {
+      const p = await api(`/zones/${zone}/purge_cache`, { method: 'POST', body: JSON.stringify({ files: purgeFiles }) });
+      const note = p?.success ? `✅ Auto-purged from Cloudflare edge cache: ${purgeFiles.join(', ')}` : `⚠️ Purge failed: ${JSON.stringify(p?.errors || p).slice(0, 200)}`;
+      for (const r of leaked) { r.detail += ` — ${note}`; process.stderr.write(note + '\n'); }
+    }
+
+    // 2) Name the firewall rule that challenged/blocked our probes
+    const blocked = results.filter((r) => !r.ok && /challenge|block\/challenge|edge block/i.test(r.detail || ''));
+    if (blocked.length) {
+      const ev = await api(`/zones/${zone}/security/events/filter`, {
+        method: 'POST',
+        body: JSON.stringify({ filter: { datetime: { since: startedAt } } }),
+      });
+      const events = (ev?.result?.info || ev?.result || []).slice ? (ev?.result?.info || ev?.result || []) : [];
+      const mine = (Array.isArray(events) ? events : []).filter((e) => /AtlasSecurityPatrol/i.test(JSON.stringify(e))).slice(0, 5);
+      if (mine.length) {
+        const rule = mine.map((e) => `${e.action || '?'} by ${e.description || e.rule_id || 'unknown rule'}`).join(' | ');
+        for (const r of blocked) r.fix = `Cloudflare rule identified from Security Events: ${rule}. Adjust it (CF dashboard → Security → WAF → Tools/Custom rules, or Bot Fight Mode) to ALLOW the AtlasSecurityPatrol UA, then re-run the patrol. ` + r.fix;
+        process.stderr.write(`CF security events matched: ${rule}\n`);
+      } else {
+        process.stderr.write('No matching CF security events found for our UA (events may lag a few minutes)\n');
+      }
+    }
+  } catch (e) {
+    process.stderr.write(`CF self-heal skipped: ${e?.message || e}\n`);
+  }
 }
 
 function emit(startedAt, extra) {
