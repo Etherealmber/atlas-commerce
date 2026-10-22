@@ -74,8 +74,15 @@ async function probe(path, init = {}, { retries = 0, retryDelayMs = 2000 } = {})
   return last;
 }
 
-const isEdgePage = (r) => CHALLENGE_RE.test(r.text || '') || /server:\s*cloudflare/i.test(JSON.stringify(r.headers));
+// NOTE: never classify by the `server: cloudflare` header — EVERY response
+// from the zone carries it. Edge pages are recognized by their BODY only.
+const isEdgePage = (r) => CHALLENGE_RE.test(r.text || '');
+// Responses served FROM the edge cache (not just fresh misses). STALE /
+// EXPIRED / REVALIDATED still mean the edge stored and replayed it — for an
+// authenticated API path that is the same leak class as HIT.
+const CACHED_STATES = new Set(['HIT', 'STALE', 'EXPIRED', 'REVALIDATED']);
 const cfCache = (r) => (r.headers['cf-cache-status'] || '').toUpperCase();
+const fromEdgeCache = (r) => CACHED_STATES.has(cfCache(r));
 
 /** Body-aware denial check for sensitive endpoints. */
 function classifyAuthzProbe(r) {
@@ -91,13 +98,13 @@ function classifyAuthzProbe(r) {
     if (/"success"\s*:\s*false/i.test(r.text) || /(OWNER_ONLY|UNAUTHORIZED|FORBIDDEN)/i.test(r.text)) {
       return { verdict: 'denied', detail: `HTTP ${r.status} with JSON denial body` };
     }
-    if (cfCache(r) === 'HIT') {
-      return { verdict: 'cache-leak', detail: `HTTP ${r.status} served from Cloudflare edge cache (cf-cache-status: HIT) — authenticated API content may leak to anonymous visitors` };
+    if (fromEdgeCache(r)) {
+      return { verdict: 'cache-leak', detail: `HTTP ${r.status} served from Cloudflare edge cache (cf-cache-status: ${cfCache(r)}) — authenticated API content is being replayed to anonymous visitors` };
     }
     if (isEdgePage(r)) {
       return { verdict: 'edge-interference', detail: `HTTP ${r.status} but the body is a Cloudflare challenge/block page, not our worker's response` };
     }
-    return { verdict: 'exposed', detail: `HTTP ${r.status} with non-denial body: ${(r.text || '').slice(0, 160)}` };
+    return { verdict: 'exposed', detail: `HTTP ${r.status} with non-denial body${cfCache(r) ? ` (cf-cache-status: ${cfCache(r)})` : ''}: ${(r.text || '').slice(0, 160)}` };
   }
   if (r.status >= 500) return { verdict: 'error', detail: `server error HTTP ${r.status}` };
   return { verdict: 'denied', detail: `HTTP ${r.status}` };
@@ -125,10 +132,19 @@ async function main() {
     return;
   }
   const healthDenied = [401, 403].includes(health.status);
+  const healthBodyIsJson = /^\s*[{[]/.test(health.text || '');
+  const healthLayer = isEdgePage(health) ? 'Cloudflare edge block/challenge page'
+    : healthBodyIsJson ? 'worker JSON denial'
+    : fromEdgeCache(health) ? `edge-cached response (cf-cache-status: ${cfCache(health)})`
+    : `unknown layer (cf-cache-status: ${cfCache(health) || 'none'})`;
   check('site-up', 'Production site reachable (/api/health → 200)', 'critical', health.status === 200,
-    `HTTP ${health.status}${health.status === 403 && isEdgePage(health) ? ' (Cloudflare edge block/challenge page — not the worker)' : ''}`,
+    `HTTP ${health.status} — ${healthLayer}`,
     healthDenied
-      ? 'GET /api/health must be PUBLIC and return 200. If the body is a Cloudflare page → CF dashboard → Security → Events: a WAF/bot rule is challenging CI runners (allow the AtlasSecurityPatrol UA). If it is our JSON 401 → the deployed worker predates the /api/health exemption: deploy main (`npm run deploy`).'
+      ? (fromEdgeCache(health)
+        ? 'The edge is replaying a STALE cached denial of /api/health from before the exemption was deployed. Fix: CF dashboard → Caching → Configuration → Purge Everything (or purge this URL), and add a Cache Rule bypassing cache for /api/* on stock.afmarbre.com. The worker now also sends CDN-Cache-Control: no-store on all non-public /api responses.'
+        : isEdgePage(health)
+          ? 'CF dashboard → Security → Events: a WAF/bot rule is challenging CI runners (allow the AtlasSecurityPatrol UA), then re-run the patrol.'
+          : 'The deployed worker still denies /api/health — main (PR #57 exemption) has not finished deploying. Workers Builds usually deploys pushes to main automatically; wait a few minutes or trigger the build, then re-run the patrol.')
       : 'GET /api/health must return 200 — check the Cloudflare dashboard for deploy errors.');
 
   // 1. Canary + WAF intrusion counters (real attacks detected since last deploy)
