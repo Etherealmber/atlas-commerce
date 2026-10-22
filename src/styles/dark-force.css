@@ -2729,7 +2729,6 @@ html[data-theme="dark"] body select.mailbox-filter-select option,
 html[data-theme="dark"] body .mailbox-pager-btn.icon-refresh-btn.secondary,
 html[data-theme="dark"] body button.mailbox-pager-btn.icon-refresh-btn,
 html[data-theme="dark"] body .mailbox-pager-btn.icon-refresh-btn.secondary:hover:not(:disabled),
-html[data-theme="dark"] body not the icon button) ── */
 .mailbox-folders,
 html[data-theme="dark"] body .mailbox-folders .mailbox-folder-item,
 html[data-theme="dark"] body .atlas-typeahead-menu button.atlas-typeahead-item,

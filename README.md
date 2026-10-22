@@ -290,6 +290,12 @@ Atlas Commerce est développé et maintenu par **loxdpy ([@loxdpsy](https://gith
 
 ## 📚 Historique des versions
 
+## CI guards — aucune erreur ne touche l'API ou le front sans passer ces portes
+- `api-guard.yml` : TypeScript du worker comparé à un baseline verrouillé (`scripts/tsc-baseline.txt`, toute nouvelle erreur échoue) + `wrangler deploy --dry-run` (le worker compile et le config valide, sans rien déployer)
+- `frontend-guard.yml` : build Vite obligatoire + sanity du bundle (index.html + assets hashés) + TypeScript src/ vs baseline
+- `themes-css-guard.yml` : `scripts/css-check.mjs` — accolades/parenthèses équilibrées, hex valides, dark-force.css dernier import CSS obligatoire, et aucune NOUVELLE déclaration blanche dans les blocs sombres sur les PR
+- Les trois tournent sur chaque pull request (et sur main) avec filters par chemin : un PR rouge ne devrait jamais être mergé, donc jamais déployé
+
 Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depuis la première version interne ; le détail complet et vivant est dans l'app (**Nouveautés**), y compris l’ancien cycle bêta pré-renumérotation, renuméroté en **0.x** (0.0.1 → 0.4.4).
 
 ### 0.5.1-beta

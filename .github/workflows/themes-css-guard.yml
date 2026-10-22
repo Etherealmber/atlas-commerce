@@ -1,0 +1,42 @@
+name: Themes & CSS guard
+
+# Dedicated gate for anything visual: every stylesheet must stay structurally
+# sound (balanced braces/parens, valid hex colors), dark-force.css must remain
+# the LAST imported stylesheet (it wins the cascade by design), and pull
+# requests may not introduce NEW white backgrounds inside dark-theme blocks.
+
+on:
+  pull_request:
+    paths:
+      - 'src/**/*.css'
+      - 'src/main.tsx'
+      - 'scripts/css-check.mjs'
+      - '.github/workflows/themes-css-guard.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'src/**/*.css'
+      - 'src/main.tsx'
+      - 'scripts/css-check.mjs'
+      - '.github/workflows/themes-css-guard.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: themes-css-guard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  css-guard:
+    name: CSS structure + dark-theme rules
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # history needed to diff added lines vs the PR base
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: node scripts/css-check.mjs
+        run: node scripts/css-check.mjs

@@ -1,0 +1,73 @@
+name: API guard (worker)
+
+# Gates every change that can touch the API: TypeScript errors beyond the
+# recorded baseline fail, and the worker must bundle + validate its config
+# through a dry-run (nothing is ever deployed by this workflow).
+
+on:
+  pull_request:
+    paths:
+      - 'worker/**'
+      - 'wrangler.jsonc'
+      - 'tsconfig.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/tsc-baseline.txt'
+      - '.github/workflows/api-guard.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'worker/**'
+      - 'wrangler.jsonc'
+      - 'tsconfig.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/tsc-baseline.txt'
+      - '.github/workflows/api-guard.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: api-guard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  worker-typecheck:
+    name: Worker TypeScript — no new errors vs baseline
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: tsc --noEmit (worker scope)
+        run: |
+          npx tsc --noEmit > tsc.log || true
+          COUNT=$(grep -cE '^worker/.*error TS' tsc.log || true)
+          BASE=$(grep -E '^worker=' scripts/tsc-baseline.txt | cut -d= -f2)
+          echo "worker TypeScript errors: $COUNT (baseline: $BASE)"
+          if [ "$COUNT" -gt "$BASE" ]; then
+            echo "::error::New TypeScript errors in worker/ ($COUNT > $BASE baseline). Fix them before this can merge."
+            grep -E '^worker/.*error TS' tsc.log | head -40
+            exit 1
+          fi
+          if [ "$COUNT" -lt "$BASE" ]; then
+            echo "::notice::Worker baseline improved ($COUNT < $BASE) — lower worker= in scripts/tsc-baseline.txt to lock the gain."
+          fi
+
+  worker-bundle:
+    name: Worker bundles + wrangler config validates (dry-run only)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: wrangler deploy --dry-run (compiles the worker, validates wrangler.jsonc, deploys nothing)
+        run: npx wrangler deploy --dry-run --config wrangler.jsonc
