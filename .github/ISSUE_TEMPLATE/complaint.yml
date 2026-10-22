@@ -1,0 +1,20 @@
+name: 🙏 Complaint / Plainte ou retour
+description: You are unhappy with something — signalez un problème vécu
+labels: [feedback]
+body:
+  - type: textarea
+    id: complaint
+    attributes:
+      label: What went wrong for you? / Qu'est-ce qui n'a pas été ?
+      placeholder: Tell us what happened and how it affected you.
+    validations:
+      required: true
+  - type: input
+    id: reference
+    attributes:
+      label: Order / account reference (no passwords, no OTP)
+      placeholder: e.g. invoice number, username
+  - type: textarea
+    id: resolution
+    attributes:
+      label: What would make it right? / Quelle solution attendez-vous ?

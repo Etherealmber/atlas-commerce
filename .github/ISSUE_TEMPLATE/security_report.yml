@@ -1,0 +1,29 @@
+name: 🛡️ Security report / Signalement sécurité
+description: Suspicious activity, hack attempt, leaked data — activité suspecte
+labels: [security]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ⚠️ If this is **actively exploitable right now**, prefer the private advisory:
+        Security → Advisories → New draft advisory. Public details can help attackers.
+  - type: textarea
+    id: what
+    attributes:
+      label: What did you observe? / Qu'avez-vous observé ?
+      placeholder: Suspicious request, blocked page, unexpected data exposure…
+    validations:
+      required: true
+  - type: input
+    id: when
+    attributes:
+      label: When? (date + approximate time + timezone)
+  - type: input
+    id: where
+    attributes:
+      label: Which URL / endpoint / screen?
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence (without secrets)
+      description: Exact request/response, screenshot text. Remove tokens, passwords, OTP codes.

@@ -1,0 +1,90 @@
+name: Security patrol (intrusion detection)
+
+# Daily black-box probe of the PRODUCTION site: the workflow "tries to hack
+# in" (SQLi, XSS, traversal, Log4Shell, unauthenticated admin access), audits
+# security headers, and reads the canary's WAF counters to report the real
+# intrusion attempts that were detected and blocked since the last deploy.
+# Findings open (or update) a single GitHub issue, each finding with a
+# concrete "fix possible" hint. No findings → any open patrol issue gets an
+# all-clear comment and is closed. Read-only probes with harmless payloads
+# that our own WAF blocks; nothing is ever deployed or mutated.
+
+on:
+  schedule:
+    - cron: '30 6 * * *'   # daily 06:30 UTC
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Target base URL (default: https://stock.afmarbre.com)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: security-patrol
+  cancel-in-progress: false
+
+jobs:
+  patrol:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Probe production
+        id: probe
+        env:
+          PATROL_BASE_URL: ${{ github.event.inputs.base_url || vars.PATROL_BASE_URL || 'https://stock.afmarbre.com' }}
+        run: |
+          node scripts/security-patrol.mjs > patrol.json.raw 2> patrol.log || true
+          cat patrol.log
+          node -e '
+            const fs = require("fs");
+            const raw = fs.readFileSync("patrol.json.raw", "utf8");
+            const m = raw.match(/::PATROL-JSON::([\s\S]*?)::END-PATROL-JSON::/);
+            if (!m) { console.error("no patrol JSON produced"); process.exit(1); }
+            const doc = JSON.parse(m[1]);
+            const findings = doc.findings.length;
+            const critical = doc.findings.filter((f) => f.severity === "critical").length;
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, "findings=" + findings + "\ncritical=" + critical + "\n");
+            console.log("findings=" + findings + " critical=" + critical + " waf_blocked=" + ((doc.waf && doc.waf.blocked) || 0));
+          '
+
+      - name: Open / update / close the patrol issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET: ${{ github.event.inputs.base_url || vars.PATROL_BASE_URL || 'https://stock.afmarbre.com' }}
+        run: |
+          gh label create security --color E11D48 --description "Sécurité / intrusion" >/dev/null 2>&1 || true
+          EXISTING=$(gh issue list --state open --search "in:title [security-patrol]" --json number -q '.[0].number // empty')
+          FINDINGS=${{ steps.probe.outputs.findings }}
+          if [ "$FINDINGS" != "0" ]; then
+            if [ -n "$EXISTING" ]; then
+              gh issue comment "$EXISTING" --body-file report.md
+              echo "Commented fresh findings on open patrol issue #$EXISTING"
+            else
+              gh issue create --title "[security-patrol] Findings on $TARGET" --label security --body-file report.md
+              echo "Created patrol issue"
+            fi
+          else
+            if [ -n "$EXISTING" ]; then
+              gh issue comment "$EXISTING" --body-file report.md
+              gh issue close "$EXISTING" --comment "All clear — patrol du $(date -u +%F) : tous les contrôles passent, fermeture automatique."
+              echo "All clear, closed #$EXISTING"
+            else
+              echo "All clear, no open issue"
+            fi
+          fi
+
+      - name: Fail the run on critical findings (red X in the Actions tab)
+        if: steps.probe.outputs.critical != '0'
+        run: |
+          echo "::error::${{ steps.probe.outputs.critical }} critical security finding(s) — see the [security-patrol] issue."
+          exit 1
