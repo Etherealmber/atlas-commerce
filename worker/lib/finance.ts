@@ -714,6 +714,265 @@ export async function computeStatement(
   } as Statement;
 }
 
+/* ─────────────────────────── period breakdown (v264) ───────────────────────────
+ * GET /api/admin/finance/period — cash/bank breakdown of a selected YYYY-MM.
+ *
+ * SAME canonical ledger rules as the statement (v258), by construction:
+ *  - same filtered sources: invoice_payments (excluding « Avoir » audit
+ *    trails), expenses entry_type='expense' (excluding mirror ledger rows),
+ *    employee_payments and bill_payments;
+ *  - same timezone semantics: plain local YYYY-MM-DD ranges from monthBounds()
+ *    in the company finance timezone; an OPEN month stops at ctx.today
+ *    (as-of), a CLOSED month is the full calendar month;
+ *  - every amount is round2() and computed server-side from persisted rows —
+ *    client-sent totals are never read, missing values are never inferred;
+ *  - the `statement` block is computeStatement()'s own output, so this
+ *    endpoint cannot disagree with GET /api/admin/finance/statement, and
+ *    `consistent_with_breakdown` re-checks the invariant on every call.
+ *
+ * Payment-method buckets (canonical app rule — src/pages/Balance.tsx isCash):
+ *  - cash        = persisted 'cash', '' or NULL. This is a RECORDED value, not
+ *                  a guess: the expenses/invoice_payments/bill_payments schemas
+ *                  default payment_method to 'cash' and the whole product
+ *                  (web + Android) treats a missing method as caisse.
+ *  - bank/card/check = the recorded non-cash vocabulary of the app's payment
+ *                  selector (Banque / virement, Carte, Chèque);
+ *  - other       = a recorded method outside that vocabulary — surfaced as-is
+ *                  in by_method, never silently merged away;
+ *  - not_recorded= sources with NO payment_method column at all
+ *                  (employee_payments). Payroll is never guessed cash or bank.
+ * Headline split: `cash` vs `bank` where bank = bank+card+check+other (the
+ * app's caisse/banque view). Invariant per source:
+ *   total = cash + bank + not_recorded.
+ *
+ * Owner movements (entry_type owner_contrib/owner_draw) and recorded misc
+ * income (entry_type='income') live in the expenses table but are EXCLUDED
+ * from statement cash — they are exposed as separate blocks and never folded
+ * into statement credits/debits.
+ */
+
+export type MethodBucket = 'cash' | 'bank' | 'card' | 'check' | 'other' | 'not_recorded';
+
+/** Canonical payment_method → bucket. ''/NULL = persisted schema default 'cash'. */
+export function normalizeMethodBucket(raw: unknown): MethodBucket {
+  const m = String(raw == null ? '' : raw).trim().toLowerCase();
+  if (m === '' || m === 'cash' || m === 'caisse' || m === 'espece' || m === 'especes' || m === 'espèces') return 'cash';
+  if (m === 'bank' || m === 'banque' || m === 'virement' || m === 'transfer' || m === 'cheque' || m === 'chèque') return 'bank';
+  if (m === 'card' || m === 'carte' || m === 'cb') return 'card';
+  if (m === 'check') return 'check';
+  return 'other';
+}
+
+export type PeriodMoneySplit = {
+  total: number;
+  count: number;
+  /** Caisse side of the canonical split. */
+  cash: number;
+  /** Banque side of the canonical split = recorded non-cash (bank+card+check+other). */
+  bank: number;
+  /** Sources without a payment_method column — never guessed cash or bank. */
+  not_recorded: number;
+  by_method: Record<MethodBucket, number>;
+};
+
+type SplitAgg = { total: number; count: number; m: Record<MethodBucket, number> };
+
+function newAgg(): SplitAgg {
+  return { total: 0, count: 0, m: { cash: 0, bank: 0, card: 0, check: 0, other: 0, not_recorded: 0 } };
+}
+
+function addRow(a: SplitAgg, amount: unknown, bucket: MethodBucket): void {
+  const v = round2(Number(amount || 0));
+  a.total = round2(a.total + v);
+  a.count += 1;
+  a.m[bucket] = round2(a.m[bucket] + v);
+}
+
+function mergeAggs(...aggs: SplitAgg[]): SplitAgg {
+  const out = newAgg();
+  for (const a of aggs) {
+    out.total = round2(out.total + a.total);
+    out.count += a.count;
+    for (const k of Object.keys(out.m) as MethodBucket[]) out.m[k] = round2(out.m[k] + a.m[k]);
+  }
+  return out;
+}
+
+function toSplit(a: SplitAgg): PeriodMoneySplit {
+  return {
+    total: a.total,
+    count: a.count,
+    cash: a.m.cash,
+    bank: round2(a.m.bank + a.m.card + a.m.check + a.m.other),
+    not_recorded: a.m.not_recorded,
+    by_method: { ...a.m },
+  };
+}
+
+export type PeriodCategoryTotal = { category: string; total: number; count: number };
+
+export type PeriodBreakdown = {
+  period: string;
+  timezone: string;
+  currency: string;
+  as_of: string;
+  status: 'open' | 'closed';
+  inflows: PeriodMoneySplit & {
+    by_source: { invoice_payments: PeriodMoneySplit; recorded_income: PeriodMoneySplit };
+  };
+  outflows: PeriodMoneySplit & {
+    refunds_total: number;
+    by_source: { expenses: PeriodMoneySplit; payroll: PeriodMoneySplit; supplier: PeriodMoneySplit };
+  };
+  owner: { contributions: PeriodMoneySplit; withdrawals: PeriodMoneySplit; net: number };
+  expense_categories: PeriodCategoryTotal[];
+  categories_truncated: boolean;
+  statement: {
+    opening_balance: number;
+    credits: number;
+    debits: number;
+    closing_balance: number;
+    net: number;
+    balanced: boolean;
+    consistent_with_breakdown: boolean;
+    rule: string;
+  };
+  reconciliation: { source: string; generated_at: string; rules: string };
+  mirror_audit: MirrorAudit;
+};
+
+const MAX_CATEGORY_ROWS = 100;
+
+export async function computePeriodBreakdown(
+  db: D1Database,
+  period: string,
+  ctx: FinanceContext,
+): Promise<PeriodBreakdown> {
+  const b = monthBounds(period);
+  const status: 'open' | 'closed' = period === ctx.today.slice(0, 7) ? 'open' : 'closed';
+  const toYmd = status === 'open' ? (ctx.today < b.end ? ctx.today : b.end) : b.end;
+
+  // 1) invoice_payments — the statement's credits (Avoir audit trails excluded).
+  const invAgg = newAgg();
+  try {
+    const r = await db.prepare(
+      `SELECT amount, payment_method FROM invoice_payments
+       WHERE COALESCE(note,'') NOT LIKE 'Avoir%'
+         AND substr(paid_at,1,10) >= ? AND substr(paid_at,1,10) <= ?`,
+    ).bind(b.start, toYmd).all() as any;
+    for (const row of r?.results || []) addRow(invAgg, row.amount, normalizeMethodBucket(row.payment_method));
+  } catch { /* table may lag */ }
+
+  // 2) expenses — every entry_type in one pass. The statement's expense slice
+  //    (entry_type='expense') keeps the canonical MIRROR_EXPENSE exclusion;
+  //    income/owner rows are aggregated in their own blocks.
+  const expAgg = newAgg();
+  const incAgg = newAgg();
+  const contribAgg = newAgg();
+  const drawAgg = newAgg();
+  const catTotals = new Map<string, { total: number; count: number }>();
+  let refunds = 0;
+  try {
+    const r = await db.prepare(
+      `SELECT amount, payment_method, entry_type, category FROM expenses
+       WHERE substr(expense_date,1,10) >= ? AND substr(expense_date,1,10) <= ?
+         AND (COALESCE(entry_type,'expense') <> 'expense' OR (
+               NOT (category='Règlement fournisseur' AND COALESCE(notes,'') LIKE 'bill_id:%')
+           AND NOT (category='Salaire' AND COALESCE(notes,'') LIKE 'employee_id:%')
+         ))`,
+    ).bind(b.start, toYmd).all() as any;
+    for (const row of r?.results || []) {
+      const amt = round2(Number(row.amount || 0));
+      const bucket = normalizeMethodBucket(row.payment_method);
+      const t = String(row.entry_type || 'expense');
+      if (t === 'income') addRow(incAgg, amt, bucket);
+      else if (t === 'owner_contrib') addRow(contribAgg, amt, bucket);
+      else if (t === 'owner_draw') addRow(drawAgg, amt, bucket);
+      else {
+        addRow(expAgg, amt, bucket);
+        const cat = String(row.category || '').trim() || 'Sans catégorie';
+        const e = catTotals.get(cat) || { total: 0, count: 0 };
+        e.total = round2(e.total + amt);
+        e.count += 1;
+        catTotals.set(cat, e);
+        if (cat === 'Remboursement client') refunds = round2(refunds + amt);
+      }
+    }
+  } catch { /* table may lag */ }
+
+  // 3) employee_payments — statement debits. NO payment_method column exists
+  //    on this table: payroll is reported as not_recorded, never guessed.
+  const payAgg = newAgg();
+  try {
+    const r = await db.prepare(
+      `SELECT amount FROM employee_payments
+       WHERE substr(paid_at,1,10) >= ? AND substr(paid_at,1,10) <= ?`,
+    ).bind(b.start, toYmd).all() as any;
+    for (const row of r?.results || []) addRow(payAgg, row.amount, 'not_recorded');
+  } catch { /* table may lag */ }
+
+  // 4) bill_payments — statement debits (supplier settlements).
+  const supAgg = newAgg();
+  try {
+    const r = await db.prepare(
+      `SELECT amount, payment_method FROM bill_payments
+       WHERE substr(paid_at,1,10) >= ? AND substr(paid_at,1,10) <= ?`,
+    ).bind(b.start, toYmd).all() as any;
+    for (const row of r?.results || []) addRow(supAgg, row.amount, normalizeMethodBucket(row.payment_method));
+  } catch { /* table may lag */ }
+
+  // Canonical statement — reused verbatim so the two endpoints never disagree.
+  const stmt = await computeStatement(db, period, ctx, 1, 1);
+  const ourCredits = invAgg.total;
+  const ourDebits = round2(expAgg.total + payAgg.total + supAgg.total);
+
+  const cats = [...catTotals.entries()]
+    .map(([category, v]) => ({ category, total: v.total, count: v.count }))
+    .sort((x, y) => y.total - x.total || x.category.localeCompare(y.category));
+
+  return {
+    period,
+    timezone: ctx.timezone,
+    currency: ctx.currency,
+    as_of: toYmd,
+    status,
+    inflows: {
+      ...toSplit(mergeAggs(invAgg, incAgg)),
+      by_source: { invoice_payments: toSplit(invAgg), recorded_income: toSplit(incAgg) },
+    },
+    outflows: {
+      ...toSplit(mergeAggs(expAgg, payAgg, supAgg)),
+      refunds_total: refunds,
+      by_source: { expenses: toSplit(expAgg), payroll: toSplit(payAgg), supplier: toSplit(supAgg) },
+    },
+    owner: {
+      contributions: toSplit(contribAgg),
+      withdrawals: toSplit(drawAgg),
+      net: round2(contribAgg.total - drawAgg.total),
+    },
+    expense_categories: cats.slice(0, MAX_CATEGORY_ROWS),
+    categories_truncated: cats.length > MAX_CATEGORY_ROWS,
+    statement: {
+      opening_balance: stmt.opening_balance,
+      credits: stmt.totals.credits,
+      debits: stmt.totals.debits,
+      closing_balance: stmt.closing_balance,
+      net: stmt.totals.net,
+      balanced: stmt.reconciliation.balanced,
+      consistent_with_breakdown:
+        Math.abs(ourCredits - stmt.totals.credits) < 0.005 &&
+        Math.abs(ourDebits - stmt.totals.debits) < 0.005,
+      rule: 'opening + credits - debits = closing — identical rows to GET /api/admin/finance/statement',
+    },
+    reconciliation: {
+      source: 'd1-live',
+      generated_at: new Date().toISOString(),
+      rules: 'docs/api-finance.md#calculation-rules',
+    },
+    mirror_audit: stmt.mirror_audit,
+  };
+}
+
 /* ─────────────────────────── durable outbox + delivery ─────────────────────────── */
 
 export type OutboxMessage = {

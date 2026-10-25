@@ -17,6 +17,7 @@ import type { AtlasApp } from './types';
 import {
   computeMonthlySummary,
   computePayrollObligations,
+  computePeriodBreakdown,
   computeStatement,
   ensureFinanceSchema,
   financeGate,
@@ -309,6 +310,31 @@ export function registerFinanceRoutes(app: AtlasApp, deps: FinanceRouteDeps): vo
     } catch (e: any) {
       console.error('finance_statement_err', String(e?.message || e));
       return c.json({ success: false, error: 'Relevé impossible à calculer', code: 'FINANCE_ERROR' }, 500);
+    }
+  });
+
+  /* ─── GET /api/admin/finance/period?period=YYYY-MM ───
+   * v264 — owner/admin cash & bank breakdown of the selected period:
+   * inflows/outflows split by payment method (canonical caisse/banque rule),
+   * owner contributions/withdrawals, expense-category totals and the
+   * statement invariant. Computed ONLY from persisted ledger rows with the
+   * SAME timezone + canonical filters as GET /api/admin/finance/statement —
+   * missing methods are reported as `not_recorded`, never inferred. */
+  app.get('/api/admin/finance/period', async (c) => {
+    const auth = await requireFinanceAdmin(c);
+    if (auth instanceof Response) return auth;
+    try {
+      await ensureFinanceSchema(c.env.DB);
+      const ctx = await getFinanceContext(c.env.DB);
+      const period = resolvePeriod(c, ctx.today.slice(0, 7));
+      if (!period) {
+        return c.json({ success: false, error: 'Période invalide — format attendu YYYY-MM.', code: 'BAD_PERIOD' }, 400);
+      }
+      const data = await computePeriodBreakdown(c.env.DB, period, ctx);
+      return c.json({ success: true, data });
+    } catch (e: any) {
+      console.error('finance_period_err', String(e?.message || e));
+      return c.json({ success: false, error: 'Ventilation de période impossible à calculer', code: 'FINANCE_ERROR' }, 500);
     }
   });
 

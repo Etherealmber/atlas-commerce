@@ -33,6 +33,7 @@ import {
   financeRecipients,
   computeMonthlySummary,
   computeStatement,
+  computePeriodBreakdown,
   computeOutstandingInvoices,
   computeOutstandingBills,
   computePayrollObligations,
@@ -40,6 +41,8 @@ import {
   runFinanceReminders,
 } from '../lib/finance';
 import { buildFinanceReportPdf } from '../pdf';
+import { Hono } from 'hono';
+import { registerFinanceRoutes } from '../routes/finance';
 
 // FCM is mocked: we assert WHO gets notified and HOW OFTEN, not Google's API.
 const sendFcmToUser = vi.fn(async (_env: any, _username: string, _opts: any) => ({ sent: 1, purged: 0 }));
@@ -97,7 +100,7 @@ async function seedBusinessTables(sqlite: DatabaseSync) {
       id INTEGER PRIMARY KEY AUTOINCREMENT, number TEXT DEFAULT '', vendor_name TEXT DEFAULT '',
       total REAL DEFAULT 0, due_date TEXT DEFAULT '', status TEXT DEFAULT 'received'
     );
-    CREATE TABLE bill_payments (id INTEGER PRIMARY KEY AUTOINCREMENT, bill_id INTEGER, amount REAL, paid_at TEXT);
+    CREATE TABLE bill_payments (id INTEGER PRIMARY KEY AUTOINCREMENT, bill_id INTEGER, amount REAL, paid_at TEXT, payment_method TEXT DEFAULT 'cash', payee TEXT DEFAULT 'company', note TEXT DEFAULT '');
     CREATE TABLE expenses (
       id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT DEFAULT '', amount REAL DEFAULT 0,
       expense_date TEXT DEFAULT '', entry_type TEXT DEFAULT 'expense',
@@ -748,5 +751,193 @@ describe('v259 automatic mirror audit', () => {
     expect((s as any).mirror_audit.consistent).toBe(true);
     const st = await computeStatement(made.db, '2026-10', ctx, 1, 50);
     expect(st.mirror_audit.consistent).toBe(true);
+  });
+});
+
+/* ─────────────────── v264 period breakdown (cash/bank + owner + categories) ─────────────────── */
+
+describe('v264 period breakdown — canonical cash/bank math', () => {
+  async function seed() {
+    const made = makeD1();
+    await seedBusinessTables(made.sqlite);
+    await ensureFinanceSchema(made.db);
+    const ctx = await getFinanceContext(made.db);
+    const period = prevPeriod(ctx.today.slice(0, 7)); // always a CLOSED month
+    const b = monthBounds(period);
+    const next = ctx.today; // a date guaranteed OUTSIDE the closed period
+    made.sqlite.exec(`
+      INSERT INTO invoice_payments (invoice_id, amount, paid_at, payment_method, note) VALUES
+        (1, 1000, '${b.start}', 'cash', ''),
+        (2, 500,  '${b.start}', 'bank', ''),
+        (3, 250,  '${b.start}', 'card', ''),
+        (4, 300,  '${b.start}', 'cash', 'Avoir facture 12'),
+        (5, 400,  '${next}',    'cash', '');
+      INSERT INTO expenses (category, description, amount, expense_date, entry_type, payment_method, notes) VALUES
+        ('Loyer', 'a', 200, '${b.start}', 'expense', 'cash', ''),
+        ('Loyer', 'b', 150, '${b.start}', 'expense', 'bank', ''),
+        ('Remboursement client', 'r', 90, '${b.start}', 'expense', 'cash', ''),
+        ('Règlement fournisseur', 'm', 6000, '${b.start}', 'expense', 'cash', 'bill_id:7|x'),
+        ('Salaire', 'm', 3000, '${b.start}', 'expense', 'cash', 'employee_id:2|x'),
+        ('', 'divers', 75, '${b.start}', 'expense', 'cash', ''),
+        ('Recette marché', 'i', 500, '${b.start}', 'income', 'cash', ''),
+        ('Recette marché', 'i2', 100, '${b.start}', 'income', 'bank', ''),
+        ('Apport', 'c', 2000, '${b.start}', 'owner_contrib', 'bank', ''),
+        ('Prélèvement', 'd', 300, '${b.start}', 'owner_draw', 'cash', ''),
+        ('Loyer', 'futur', 50, '${next}', 'expense', 'cash', '');
+      INSERT INTO employee_payments (employee_id, amount, paid_at) VALUES (1, 4000, '${b.start}');
+      INSERT INTO employee_payments (employee_id, amount, paid_at) VALUES (1, 500, '${next}');
+      INSERT INTO bill_payments (bill_id, amount, paid_at, payment_method) VALUES
+        (7, 700, '${b.start}', 'cash'),
+        (7, 800, '${b.start}', 'bank');
+    `);
+    return { db: made.db, sqlite: made.sqlite, ctx, period, b };
+  }
+
+  it('splits inflows/outflows cash vs bank, mirrors + Avoir excluded, payroll never guessed', async () => {
+    const { db, ctx, period, b } = await seed();
+    const bd = await computePeriodBreakdown(db, period, ctx);
+    expect(bd.status).toBe('closed');
+    expect(bd.as_of).toBe(b.end);
+    expect(bd.timezone).toBe(ctx.timezone);
+
+    // Inflows — statement credits: 1000 cash + 500 bank + 250 card.
+    // The « Avoir » trail (300) and the next-month row (400) stay out.
+    const inv = bd.inflows.by_source.invoice_payments;
+    expect(inv).toMatchObject({ total: 1750, count: 3, cash: 1000, bank: 750 });
+    expect(inv.by_method).toMatchObject({ cash: 1000, bank: 500, card: 250, check: 0, other: 0, not_recorded: 0 });
+    // Recorded misc income: real ledger rows, but NOT statement credits — separate source.
+    expect(bd.inflows.by_source.recorded_income).toMatchObject({ total: 600, count: 2, cash: 500, bank: 100 });
+    expect(bd.inflows.total).toBe(2350);
+
+    // Outflows — statement debits. Mirror rows (6000 supplier + 3000 payroll)
+    // and the next-month expense stay out: 200+150+90+75 = 515.
+    expect(bd.outflows.by_source.expenses).toMatchObject({ total: 515, count: 4, cash: 365, bank: 150 });
+    expect(bd.outflows.refunds_total).toBe(90);
+    // employee_payments has NO payment_method column → not_recorded, never guessed.
+    expect(bd.outflows.by_source.payroll).toMatchObject({ total: 4000, count: 1, cash: 0, bank: 0, not_recorded: 4000 });
+    expect(bd.outflows.by_source.supplier).toMatchObject({ total: 1500, count: 2, cash: 700, bank: 800 });
+    expect(bd.outflows.total).toBe(6015);
+    // Invariant: total = cash + bank + not_recorded (cent-exact).
+    expect(Math.round((bd.outflows.cash + bd.outflows.bank + bd.outflows.not_recorded) * 100))
+      .toBe(Math.round(bd.outflows.total * 100));
+    expect(bd.outflows.by_method.other).toBe(0);
+
+    // Owner movements — separate block, never folded into statement cash.
+    expect(bd.owner.contributions).toMatchObject({ total: 2000, bank: 2000, cash: 0, count: 1 });
+    expect(bd.owner.withdrawals).toMatchObject({ total: 300, cash: 300, count: 1 });
+    expect(bd.owner.net).toBe(1700);
+
+    // Category totals over the statement expense slice, sorted desc.
+    expect(bd.expense_categories).toEqual([
+      { category: 'Loyer', total: 350, count: 2 },
+      { category: 'Remboursement client', total: 90, count: 1 },
+      { category: 'Sans catégorie', total: 75, count: 1 },
+    ]);
+    expect(bd.categories_truncated).toBe(false);
+
+    // The statement block IS computeStatement's output — structural parity.
+    const stmt = await computeStatement(db, period, ctx, 1, 200);
+    expect(bd.statement.credits).toBe(stmt.totals.credits);
+    expect(bd.statement.debits).toBe(stmt.totals.debits);
+    expect(bd.statement.credits).toBe(1750);
+    expect(bd.statement.debits).toBe(6015);
+    expect(bd.statement.balanced).toBe(true);
+    expect(bd.statement.consistent_with_breakdown).toBe(true);
+    expect(Math.abs(bd.statement.opening_balance + bd.statement.credits - bd.statement.debits - bd.statement.closing_balance))
+      .toBeLessThan(0.005);
+    expect(bd.mirror_audit.mirror_rows_excluded.supplier).toEqual({ count: 1, total: 6000 });
+  });
+
+  it('unknown methods land in `other`, never merged away', async () => {
+    const { db, sqlite, ctx, period, b } = await seed();
+    sqlite.exec(`INSERT INTO expenses (category, description, amount, expense_date, entry_type, payment_method)
+      VALUES ('Divers', 'crypto', 42, '${b.start}', 'expense', 'bitcoin');`);
+    const bd = await computePeriodBreakdown(db, period, ctx);
+    expect(bd.outflows.by_source.expenses.by_method.other).toBe(42);
+    // headline bank = recorded non-cash (canonical caisse/banque view)
+    expect(bd.outflows.by_source.expenses.bank).toBe(192);
+  });
+
+  it('an OPEN period stops at today in the finance timezone (never counts the future)', async () => {
+    const made = makeD1();
+    await seedBusinessTables(made.sqlite);
+    await ensureFinanceSchema(made.db);
+    const ctx = await getFinanceContext(made.db);
+    const period = ctx.today.slice(0, 7);
+    const b = monthBounds(period);
+    made.sqlite.exec(`
+      INSERT INTO invoice_payments (invoice_id, amount, paid_at, payment_method) VALUES (1, 999, '${ctx.today}', 'cash');
+    `);
+    if (ctx.today < b.end) {
+      // a row later THIS month — inside the calendar period but in the future
+      made.sqlite.exec(`INSERT INTO invoice_payments (invoice_id, amount, paid_at, payment_method) VALUES (2, 777, '${b.end}', 'cash');`);
+    }
+    const bd = await computePeriodBreakdown(made.db, period, ctx);
+    expect(bd.status).toBe('open');
+    expect(bd.as_of).toBe(ctx.today);
+    expect(bd.inflows.by_source.invoice_payments.total).toBe(999);
+  });
+});
+
+describe('v264 GET /api/admin/finance/period — route gates', () => {
+  function makeApp(db: D1Database) {
+    const app = new Hono();
+    const sessions: Record<string, { username: string; role: string }> = {
+      'owner-tok': { username: 'boss', role: 'owner' },
+      'admin-tok': { username: 'adm', role: 'admin' },
+      'sec-tok': { username: 'sec', role: 'secretaire' },
+      'bad-tok': { username: 'ghost', role: 'owner' },
+    };
+    registerFinanceRoutes(app as any, {
+      sessionUserFromHeader: (h) => sessions[String(h || '').replace(/^Bearer\s+/i, '').trim()] || { username: '', role: '' },
+      authFailReason: async (h) => {
+        const tok = String(h || '').replace(/^Bearer\s+/i, '').trim();
+        return tok && tok !== 'bad-tok' && sessions[tok] ? 'ok' : 'missing';
+      },
+      clientIp: () => '203.0.113.9',
+      writeAudit: async () => {},
+    });
+    return app;
+  }
+
+  it('owner 200 / admin 200 / secretaire 403 / bad session 401 / bad period 400 / default = current month', async () => {
+    const made = makeD1();
+    await seedBusinessTables(made.sqlite);
+    await ensureFinanceSchema(made.db);
+    const ctx = await getFinanceContext(made.db);
+    const period = prevPeriod(ctx.today.slice(0, 7));
+    made.sqlite.exec(`INSERT INTO invoice_payments (invoice_id, amount, paid_at, payment_method) VALUES (1, 120, '${monthBounds(period).start}', 'bank');`);
+    const app = makeApp(made.db);
+    const env = { DB: made.db };
+    const get = (qs: string, tok?: string) => app.fetch(
+      new Request(`http://t.local/api/admin/finance/period${qs}`, { headers: tok ? { Authorization: `Bearer ${tok}` } : {} }),
+      env,
+    );
+
+    const ok = await get(`?period=${period}`, 'owner-tok');
+    expect(ok.status).toBe(200);
+    const okJ: any = await ok.json();
+    expect(okJ.success).toBe(true);
+    expect(okJ.data.period).toBe(period);
+    expect(okJ.data.inflows.by_source.invoice_payments).toMatchObject({ total: 120, bank: 120, cash: 0 });
+
+    const okAdmin = await get(`?period=${period}`, 'admin-tok');
+    expect(okAdmin.status).toBe(200);
+
+    const forbidden = await get(`?period=${period}`, 'sec-tok');
+    expect(forbidden.status).toBe(403);
+    expect((await forbidden.json() as any).code).toBe('FIN_FORBIDDEN');
+
+    const badPeriod = await get('?period=2026-13', 'owner-tok');
+    expect(badPeriod.status).toBe(400);
+    expect((await badPeriod.json() as any).code).toBe('BAD_PERIOD');
+
+    const unauth = await get(`?period=${period}`, 'bad-tok');
+    expect(unauth.status).toBe(401);
+
+    // Omitted period → the CURRENT month in the finance timezone.
+    const dflt = await get('', 'owner-tok');
+    expect(dflt.status).toBe(200);
+    expect((await dflt.json() as any).data.period).toBe(ctx.today.slice(0, 7));
   });
 });
