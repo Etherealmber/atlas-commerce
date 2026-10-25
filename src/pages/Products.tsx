@@ -18,7 +18,7 @@ import { numStr, numFromInput } from '../lib/numInput';
 import NumberField from '../components/NumberField';
 import VirtualTableBody, { VirtualScroll } from '../components/VirtualTableBody';
 import { isStockRole, sanitizePreviewUrl } from '../auth';
-import ProductImageEditor from '../components/ProductImageEditor';
+import ProductImageEditor, { ImageWorkbench } from '../components/ProductImageEditor';
 import { printProductLabel } from '../lib/printProductLabel';
 import RefreshIconButton from '../components/RefreshIconButton';
 import '../components/erp/catalog-inventory.css';
@@ -101,7 +101,11 @@ export default function Products() {
   const [stockFilter, setStockFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [saving, setSaving] = useState(false);
-  const [stagedPhotos, setStagedPhotos] = useState<{ file: File; url: string }[]>([]);
+  const [stagedPhotos, setStagedPhotos] = useState<{ file: File; url: string; edited?: string }[]>([]);
+  // v256 — in-wizard photo editing: index of the staged photo being edited and
+  // the working data URL inside the crop workbench.
+  const [stagedEditIdx, setStagedEditIdx] = useState<number | null>(null);
+  const [stagedEditSrc, setStagedEditSrc] = useState('');
   const [stagedDragOver, setStagedDragOver] = useState(false);
   const [stagedErr, setStagedErr] = useState('');
   const stagedInputRef = useRef<HTMLInputElement | null>(null);
@@ -397,7 +401,7 @@ export default function Products() {
           for (let i = 0; i < stagedPhotos.length; i++) {
             try {
               await api.addProductImage(newId, {
-                data_url: await stagedFileToDataUrl(stagedPhotos[i].file),
+                data_url: stagedPhotos[i].edited || await stagedFileToDataUrl(stagedPhotos[i].file),
                 is_primary: i === 0,
                 alt_text: stagedPhotos[i].file.name,
               });
@@ -1219,10 +1223,17 @@ export default function Products() {
                           background: 'var(--pie-thumb-bg, #faf9f6)',
                         }}
                       >
-                        <StagedPhotoThumb url={st.url} />
+                        <StagedPhotoThumb url={st.edited || st.url} />
                         <div style={{ display: 'flex', fontSize: 10 }}>
                           <span style={{ flex: 1, textAlign: 'center', padding: '3px 0', color: 'var(--muted)' }}>{i === 0 ? '★ Principale' : `Photo ${i + 1}`}</span>
-                          <button type="button" className="danger" style={{ padding: '3px 6px', fontSize: 10 }} onClick={() => removeStagedPhoto(i)}>×</button>
+                          <button
+                            type="button"
+                            className="secondary"
+                            style={{ padding: '3px 6px', fontSize: 10 }}
+                            title="Modifier la photo (recadrage)"
+                            onClick={() => { setStagedEditIdx(i); setStagedEditSrc(st.edited || st.url); }}
+                          >✎</button>
+                          <button type="button" className="danger" style={{ padding: '3px 6px', fontSize: 10 }} title="Retirer la photo" onClick={() => removeStagedPhoto(i)}>×</button>
                         </div>
                       </div>
                     ))}
@@ -1264,6 +1275,30 @@ export default function Products() {
         </div></FloatingPortal>
       )}
 
+            {stagedEditIdx !== null && createPortal(
+        <div className="modal-overlay" style={{ zIndex: 1400 }} onClick={() => setStagedEditIdx(null)}>
+          <div
+            className="modal-card"
+            style={{ maxWidth: 'min(560px, calc(100vw - 32px))' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ marginTop: 0 }}>Modifier la photo — recadrage</h3>
+            <ImageWorkbench src={stagedEditSrc} onChange={setStagedEditSrc} />
+            <div className="modal-actions" style={{ marginTop: 12 }}>
+              <button type="button" className="secondary" onClick={() => setStagedEditIdx(null)}>Annuler</button>
+              <button
+                type="button"
+                onClick={() => {
+                  const idx = stagedEditIdx;
+                  setStagedPhotos((prev) => prev.map((st, j) => (j === idx && stagedEditSrc.startsWith('data:image') ? { ...st, edited: stagedEditSrc } : st)));
+                  setStagedEditIdx(null);
+                }}
+              >Appliquer</button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
       {adjustProduct && (
         <FloatingPortal><div className="modal-overlay" onClick={() => { setModalError(''); setAdjustProduct(null); }}>
           <div className="modal" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>

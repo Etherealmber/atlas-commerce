@@ -337,6 +337,68 @@ Push notifications arrive via the existing FCM channel with
 
 ---
 
+## `GET /api/me/payroll` — employee-SELF pay date (v256)
+
+Role-safe by construction: **any** authenticated session (`user`, `stock`,
+`secretaire`, `admin`, `owner`) may call it, but it only ever returns the
+payroll obligation of the ONE employee file linked to the caller's own login —
+the username is taken exclusively from the verified session (no query params,
+no body, no way to ask for someone else).
+
+Linking: `employees.user_username` (new column, migration-safe) is set by an
+owner/admin in the employee form ("Compte lié (identifiant de connexion)") or
+via `POST/PUT /api/employees`. Matching is `LOWER(TRIM(user_username))`.
+
+```http
+GET /api/me/payroll
+Authorization: Bearer <session>
+```
+
+Responses:
+
+- `200` linked + payroll configured:
+
+```json
+{
+  "success": true,
+  "data": {
+    "linked": true,
+    "payroll_configured": true,
+    "employee_id": 12,
+    "display_name": "Yasmine B.",
+    "amount_due": 1450.00,
+    "pay_period": { "from": "2026-09-26", "to": "2026-10-26" },
+    "due_date": "2026-10-26",
+    "daily_rate": 48.33,
+    "status": "unpaid",
+    "last_payment": { "amount": 2900.00, "paid_at": "2026-09-26", "period_label": "Salaire septembre" },
+    "as_of": "2026-10-25",
+    "timezone": "Africa/Casablanca",
+    "currency": "MAD"
+  }
+}
+```
+
+- `200` linked but payroll not configured (`pay_amount` 0 or no anchor date):
+  `{ linked: true, payroll_configured: false, employee_id, last_payment, ... }` —
+  show "Date de paie non configurée" in the app.
+- `404` `PAYROLL_NOT_LINKED` — no employee file linked to this login. French UI
+  copy: "Aucune fiche employé liée à votre compte."
+- `409` `PAYROLL_AMBIGUOUS` — two employee files share the same login (admin
+  must fix the link).
+- `401` `UNAUTHORIZED` — invalid/expired session (with `reason`).
+
+Math is identical to the admin payroll route (pro-rata accrual, advances
+deducted, capped at one cycle) — same `payrollObligation()` function, computed
+as of today in the tenant timezone. The employee sees their own amounts; that
+is their data, never another row's.
+
+Android usage: call it on the Profil/Accueil screen for non-admin roles and
+render `due_date` ("Prochaine paie : 26/10/2026") plus `status`; no admin
+finance surface is exposed to employees.
+
+---
+
 ## Tests
 
 `worker/__tests__/finance.test.ts` (25 tests, vitest): period/leap/TZ-boundary math,

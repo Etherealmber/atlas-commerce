@@ -52,6 +52,8 @@ const emptyForm = {
   rib: '',
   cnss_number: '',
   notes: '',
+  // v256 — compte de connexion lié (permet à l'employé de voir SA date de paie)
+  user_username: '',
 };
 
 const STEPS = [
@@ -225,6 +227,7 @@ export default function Employees() {
       rib: e.rib || '',
       cnss_number: e.cnss_number || e.social_insurance || '',
       notes: e.notes || '',
+      user_username: e.user_username || '',
     });
     setStep(0);
     setIdFile(null);
@@ -266,6 +269,7 @@ export default function Employees() {
         rib: form.rib || '',
         cnss_number: form.cnss_number || form.social_insurance || '',
         social_insurance: form.cnss_number || form.social_insurance || '',
+        user_username: (form.user_username || '').trim().toLowerCase(),
       };
       let id = editing?.id;
       if (editing) {
@@ -1097,6 +1101,16 @@ export default function Employees() {
                     onChange={(e) => setF('rib', e.target.value)}
                     placeholder="MA00 0000 0000 0000 0000 0000 000"
                   />
+                </div>
+                <div className="form-row">
+                  <label>Compte lié (identifiant de connexion)</label>
+                  <input
+                    value={form.user_username || ''}
+                    onChange={(e) => setF('user_username', e.target.value)}
+                    placeholder="ex. yasmine — permet à l'employé de voir sa propre date de paie"
+                    autoComplete="off"
+                  />
+                  <FieldHint hint="L'employé connecté avec cet identifiant verra SA fiche de paie (date de paie uniquement) via l'app." />
                 </div>
                 <div className="form-row">
                   <label>Description du poste / fonctions</label>

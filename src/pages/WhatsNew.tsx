@@ -36,6 +36,16 @@ const RELEASES: Release[] = [
           { id: '051d17', text: 'Le téléphone retrouve son VRAI espace optimisé : l’app terrain /m (scan d’abord, catalogue hors-ligne, barre d’onglets) se relance automatiquement sur les petits écrans, l’APK native et ?mode=phone — le PC garde l’ERP complet. Passé confort tactile : cibles 44px+, anti-zoom iOS sur les champs, plus de texte sélectionnable sur les boutons, ripple matériau au toucher (React Bits), chiffres animés (CountUp) et loupe Lens sur les images. Qualité : oxlint branche le radar à bugs (0 erreur, 23 vrais défauts corrigés) dans la CI' },
           { id: '051d18', text: 'Finance côté serveur, sûre par rôle : rapport mensuel de trésorerie calculé par le worker (soldes ouverture/clôture, encaissements, dépenses, remboursements, créances clients et dettes fournisseurs échues/en retard, paie due) réservé owner/admin, PDF mensuel généré à la demande (jamais stocké ni devinable, téléchargement journalisé), échéancier de paie paginé sans données personnelles, et rappels programmés non spammeurs (jours 1/2/3 : rapport prêt puis seulement les changements ; factures clients et fournisseurs échues, paie due, paiement client enregistré) avec anti-doublon durable en base, revérification du rôle à l’envoi, retries avec backoff et montants masqués sur l’écran de verrouillage si réglé' },
           { id: '055a2', text: 'Historique des nouveautés réorganisé : l’énorme liste de la 0.5.1 est répartie en versions lisibles (0.5.1 allégée, puis 0.5.2 Avatars & agent, 0.5.3 Base de données, 0.5.4 Sécurité & CI) — aucun contenu supprimé, mêmes identifiants ; la version courante passe à 0.5.5-beta' },
+          { id: '055a5', text: 'Paie : chaque employé peut voir SA date de paie — nouveau point API GET /api/me/payroll strictement limité à sa propre fiche (liaison par identifiant de connexion, champ « Compte lié » sur la fiche employé, configurable par l’admin) ; jamais les données des autres, réponse claire si aucune fiche n’est liée' },
+          { id: '055a6', text: 'Push Android : le pont FCM complet est livré (correctif prêt à appliquer + guide pas à pas dans docs/) — SDK Firebase Messaging, service de réception, canal « Assistant & notifications serveur », enregistrement automatique du jeton d’appareil à chaque connexion pour que les notifications du serveur (agent, paie, stock) atteignent enfin l’APK' },
+        ],
+      },
+      {
+        kind: 'fixes',
+        items: [
+          { id: '055a3', text: 'Agent Atlas : cliquer/taper sur une image jointe l’ouvre désormais en plein écran — la visionneuse n’était plus piégée dans le panneau de l’agent (correctif portail), sur les vignettes envoyées comme sur les puces en cours de composition' },
+          { id: '055a4', text: 'Agent Atlas : les images jointes survivent au rafraîchissement de la page — photos recompressées (≤1280 px) puis enregistrées avec la conversation (local + serveur), pièces jointes non envoyées restaurées après rechargement, repli propre si le quota de stockage est atteint' },
+          { id: '055a7', text: 'Nouveau produit : la photo ajoutée dans l’assistant se modifie avant création — bouton ✎ sur chaque photo déposée (outil de recadrage complet, le même qu’en modification), la version recadrée est celle envoyée au catalogue' },
         ],
       },
     ],
