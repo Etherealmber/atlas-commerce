@@ -308,12 +308,36 @@ Atlas Commerce est développé et maintenu par **loxdpy ([@loxdpsy](https://gith
 - `themes-css-guard.yml` : `scripts/css-check.mjs` — accolades/parenthèses équilibrées, hex valides, dark-force.css dernier import CSS obligatoire, et aucune NOUVELLE déclaration blanche dans les blocs sombres sur les PR
 - Les trois tournent sur chaque pull request (et sur main) avec filters par chemin : un PR rouge ne devrait jamais être mergé, donc jamais déployé
 
-Version actuelle : **0.5.1-beta** (gelée jusqu'au prochain ordre de push).
+Version actuelle : **0.5.5-beta** (gelée jusqu'au prochain ordre de push).
 
 Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depuis la première version interne ; le détail complet et vivant est dans l'app (**Nouveautés**), y compris l’ancien cycle bêta pré-renumérotation, renuméroté en **0.x** (0.0.1 → 0.4.4).
 
 <details>
-<summary>📦 Toutes les versions (0.0.1-beta → 0.5.1-beta) — cliquer pour déplier</summary>
+<summary>📦 Toutes les versions (0.0.1-beta → 0.5.5-beta) — cliquer pour déplier</summary>
+
+### 0.5.5-beta
+- Téléphone terrain : l'app /m (scan d'abord, catalogue hors-ligne, barre d'onglets) se relance automatiquement sur petits écrans, APK native et ?mode=phone — le PC garde l'ERP complet ; confort tactile 44px+, anti-zoom iOS, ripple matériau (React Bits), CountUp, loupe Lens ; oxlint (0 erreur) dans la CI
+- Finance serveur sûre par rôle (`docs/api-finance.md`) : `GET /api/admin/finance/monthly` (soldes ouverture/clôture, encaissements, dépenses, remboursements, créances/dettes échues, paie due — calculé du journal persistant, owner/admin uniquement), `GET /api/admin/employees/payroll` paginé (champs minimaux, jamais de données personnelles), `GET /api/admin/finance/monthly/report.pdf` généré à la demande (streamé, no-store, jamais stocké ni énumérable, audit par téléchargement) ; rappels cron quotidiens non spammeurs (jours 1/2/3 rapport puis changements seulement, échéances clients/fournisseurs/paie, paiement enregistré) avec outbox durable + clé d'idempotence (tenant, événement, période, destinataire), revérification du rôle à l'envoi, retries backoff ≤5 et montants masqués sur l'écran de verrouillage si `finance_push_amounts = 0`
+- Téléphone = jumeau de l'app Android : même barre du haut (titre d'onglet + nom · rôle, menu rapide rond avec badge, avatar → profil), mêmes 5 onglets (Accueil, Produits, Scan, Vente avec badge panier, Agent — filtrés par rôle), même accueil (héros dégradé sombre adapté au rôle, Nouvelle vente/Scanner + Produits, Info Box, tuiles de statistiques Material 3, alerte stock) — palette zinc/papier/safran, coins et typographie identiques à l'APK
+- Nouveautés réorganisées en versions lisibles (0.5.1 allégée, 0.5.2 → 0.5.5) ; version courante : 0.5.5-beta
+
+### 0.5.4-beta
+- Assistants sans pastilles d'étapes en haut ni défilement (2 colonnes gardées en modale même écran étroit) ; vente rapide sans double champ SKU ; zone OCR compacte sans input natif ; sombre : cartes Solde, bouton Arrêter, pastilles Aller à, Réflexion, toggle mdp thémés + aucun bouton blanc au tap
+- Gardes CI sur chaque PR : TypeScript worker/src vs baseline + dry-run wrangler, build Vite + sanity du bundle, thèmes/CSS — un PR rouge ne peut plus atteindre la production
+- Pipeline de release Android sans upload manuel (GitHub Actions → /api/admin/android-release → R2/CDN1 → /api/app/android-update) ; automations GitHub : patrouille de sécurité quotidienne, triage des tickets, nettoyage des branches, auto-merge uniquement tous checks verts
+- Faille auth critique corrigée (58 routes enregistrées avant le middleware : l'anonyme était traité owner — middleware désormais enregistré AVANT toutes les routes) ; anti-fuite cache edge (no-store sur tout /api non public) ; /api/health + /api/canary publics ; e-mails OTP redesignés + vérification en un tap
+
+### 0.5.3-beta
+- Facture : échec de déduction de stock = facture annulée + erreur affichée (plus de stock faussé en silence) ; corruption D1 (SQLITE_CORRUPT) diagnostiquée clairement (code DB_CORRUPT, message de restauration)
+- Auto-réparation FTS5 (products_fts) : corruption SQLITE_CORRUPT_VTAB reconstruite/recréée automatiquement sans perte de données + endpoint owner POST /api/admin/search-index/rebuild
+- Réplication de lecture D1 (Sessions API) automatique : session par requête + cookie de bookmark (read-your-writes), sonde d'intégrité FTS en tâche de fond
+
+### 0.5.2-beta
+- Avatar via proxy same-origin (CORS cdn1 contourné) ; agent lit les fichiers dès l'envoi et reprend le dernier fichier sur « lis ça »
+- Avatar instantané : cache blob partagé côté client + cache Durable Object/edge côté worker + préchargement ; WebP pour les recadrages
+- Assistants sans défilement : étape « Remises volume » dédiée dans le produit ; audit de tous les wizards (chaque étape statique tient à l'écran)
+- Sauvegarde produit blindée jusqu'au bout (updated_at gardé, dup-check non bloquant, SW v11 purge les caches périmés) ; appareils connectés auto-enregistrés ; UI agent sombre corrigée
+- Nouveau produit : upload de photos dès l'étape Photos de la création ; avatar visible immédiatement après rafraîchissement, sans clic
 
 ### 0.5.1-beta
 - Menu utilisateur portalisé (toujours visible) avec photo de profil dans l'en-tête ; avatar monogramme SVG de nouveau affiché
@@ -321,16 +345,6 @@ Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depui
 - Glisser-déposer des photos produit sur l'étape dédiée (zone pleine largeur, surbrillance cuivre)
 - Assistant produit en 4 étapes : Variantes et Photos séparées, pied de fenêtre fixe qui ne recouvre jamais le contenu
 - PUT/POST produits blindés contre les colonnes manquantes (plus de 500 « Erreur interne »)
-- Avatar via proxy same-origin (CORS cdn1 contourné) ; agent lit les fichiers dès l'envoi et reprend le dernier fichier sur « lis ça »
-- Avatar instantané : cache blob partagé côté client + cache Durable Object/edge côté worker + préchargement ; WebP pour les recadrages
-- Assistants sans défilement : étape « Remises volume » dédiée dans le produit ; audit de tous les wizards (chaque étape statique tient à l'écran)
-- Sauvegarde produit blindée jusqu'au bout (updated_at gardé, dup-check non bloquant, SW v11 purge les caches périmés) ; appareils connectés auto-enregistrés ; UI agent sombre corrigée
-- Nouveau produit : upload de photos dès l'étape Photos de la création (envoyées juste après la création) ; avatar visible immédiatement après rafraîchissement, sans clic
-- Facture : échec de déduction de stock = facture annulée + erreur affichée (plus de stock faussé en silence) ; corruption D1 (SQLITE_CORRUPT) diagnostiquée clairement (code DB_CORRUPT, message de restauration)
-- Auto-réparation FTS5 (products_fts) : corruption SQLITE_CORRUPT_VTAB reconstruite/recréée automatiquement sans perte de données + endpoint owner POST /api/admin/search-index/rebuild
-- Réplication de lecture D1 (Sessions API) automatique : session par requête + cookie de bookmark (read-your-writes), sonde d'intégrité FTS en tâche de fond ; activer « Enable Read Replication » dans les réglages D1 du dashboard pour que les répliques servent les lectures
-- Assistants sans pastilles d'étapes en haut ni défilement (2 colonnes gardées en modale même écran étroit) ; vente rapide sans double champ SKU ; zone OCR compacte sans input natif ; sombre : cartes Solde, bouton Arrêter, pastilles Aller à, Réflexion, toggle mdp thémés + aucun bouton blanc au tap
-- Finance serveur sûre par rôle (`docs/api-finance.md`) : `GET /api/admin/finance/monthly` (soldes ouverture/clôture, encaissements, dépenses, remboursements, créances/dettes échues, paie due — calculé du journal persistant, owner/admin uniquement), `GET /api/admin/employees/payroll` paginé (champs minimaux, jamais de données personnelles), `GET /api/admin/finance/monthly/report.pdf` généré à la demande (streamé, no-store, jamais stocké ni énumérable, audit par téléchargement) ; rappels cron quotidiens non spammeurs (jours 1/2/3 rapport puis changements seulement, échéances clients/fournisseurs/paie, paiement enregistré) avec outbox durable + clé d'idempotence (tenant, événement, période, destinataire), revérification du rôle à l'envoi, retries backoff ≤5 et montants masqués sur l'écran de verrouillage si `finance_push_amounts = 0`
 
 ### 0.5.0-beta
 - Erreur « Erreur interne — réessayez plus tard » sur la sauvegarde d'un produit corrigée (migration optionnelle de colonne rendue non bloquante)

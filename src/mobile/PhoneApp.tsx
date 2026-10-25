@@ -4,7 +4,7 @@
  * Full ERP lives on PC shell only.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense, type ReactNode } from 'react';
-import { NavLink, Route, Routes, useNavigate } from 'react-router-dom';
+import { NavLink, Route, Routes, useNavigate, useLocation } from 'react-router-dom';
 import PhoneBills from './PhoneBills';
 import PhoneWarehouse from './PhoneWarehouse';
 import PhoneSettings from './PhoneSettings';
@@ -12,7 +12,6 @@ import { api } from '../api';
 import { clearToken, getUsername, getDisplayInitials, getDisplayName, hasAvatarUrl, getRole, setProfileCache, isStockRole, canSell, canAccessSettings, canAccessSettingsBeyondProfile } from '../auth';
 import { getDensity, setDensity, isGlassEnabled, setGlassEnabled, isLiquidGlassActive, type Density } from '../lib/density';
 import { APP_VERSION } from '../version';
-import { useUi } from '../components/AppDialogs';
 import './phone.css';
 import PageTransition from '../components/PageTransition';
 import PageSkeleton from '../components/PageSkeleton';
@@ -31,7 +30,7 @@ import {
   cacheCount,
 } from '../lib/offlineCatalog';
 import { startBarcodeScan, isBarcodeLike, captureAndDecode, decodeImageFile, preloadBarcodeScanner, prepareZXing } from '../lib/barcodeScan';
-import { IconPackage, IconInbox, IconDocument } from '../components/Icons';
+import { IconPackage, IconInbox } from '../components/Icons';
 import OfflineBanner from '../components/OfflineBanner';
 import { CountUp } from '../components/ui/Bits';
 
@@ -112,10 +111,45 @@ function minOf(p: Product) {
   return Number(p.min_stock ?? 5);
 }
 
-function formatDateFR() {
-  return new Date()
-    .toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
-    .toUpperCase();
+/* ─── v255 — Phone = twin of the Android app.
+ * Role labels & scope summaries copied verbatim from the native Roles.kt so
+ * both clients speak with the exact same words. ─── */
+function androidRoleLabel(role: string | null | undefined): string {
+  const r = String(role || '').trim().toLowerCase();
+  if (r === 'owner') return 'Propriétaire (Admin)';
+  if (r === 'admin') return 'Administrateur';
+  if (r === 'secretaire') return 'Secrétaire · Ventes';
+  if (r === 'stock' || r === 'magasinier') return 'Magasinier · Stock';
+  return 'Opérateur';
+}
+
+function androidScopeSummary(role: string | null | undefined): string {
+  const r = String(role || '').trim().toLowerCase();
+  if (r === 'owner' || r === 'admin') return 'Accès complet : création directe produits, validations, finances & alertes globales';
+  if (r === 'secretaire') return 'Accès Ventes & Caisse : facturation, stock & envoi direct des nouveaux produits à l\u2019Admin';
+  if (r === 'stock' || r === 'magasinier') return 'Accès Entrepôt : inventaire, ajustements stock & demandes envoyées directement à l\u2019Admin';
+  return 'Accès Opérateur : consultation catalogue, scan & demandes transmises à l\u2019Admin';
+}
+
+/** Top bar title = current tab label, exactly like the Android AtlasTopBar. */
+const TAB_TITLES: [string, string][] = [
+  ['/m/products', 'Produits'],
+  ['/m/scan', 'Scan'],
+  ['/m/vente', 'Vente'],
+  ['/m/agent', 'Agent'],
+  ['/m/inbox', 'Notifications'],
+  ['/m/settings', 'Mon profil'],
+  ['/m/warehouse', 'Entrepôt'],
+  ['/m/bills', 'Achats'],
+  ['/m/invoice', 'Devis'],
+  ['/m/more', 'Plus'],
+];
+function tabTitleFor(pathname: string): string {
+  const p = pathname.replace(/\/+$/, '') || '/m';
+  for (const [prefix, title] of TAB_TITLES) {
+    if (p === prefix || p.startsWith(`${prefix}/`)) return title;
+  }
+  return 'Accueil';
 }
 
 
@@ -162,13 +196,15 @@ export default function PhoneApp() {
     } catch { /* */ }
   }, []);
 
-  const { confirm: uiConfirm } = useUi();
+  const location = useLocation();
   const [products, setProducts] = useState<Product[]>([]);
   const [actions, setActions] = useState<Action[]>([]);
   const [pending, setPending] = useState(0);
   const [todaySales, setTodaySales] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
   const [booting, setBooting] = useState(true);
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [cartTick, setCartTick] = useState(0);
   const navigate = useNavigate();
 
   const show = (m: string) => {
@@ -197,6 +233,7 @@ export default function PhoneApp() {
       setActions((ac.data || []) as Action[]);
       setPending(Number(st.data?.pending || 0));
       setTodaySales(0);
+      setCartTick((t) => t + 1);
     } catch {
       /* keep last — never block UI */
     } finally {
@@ -270,9 +307,14 @@ export default function PhoneApp() {
     () => products.filter((p) => stockOf(p) < minOf(p)).length,
     [products]
   );
-  const stockOnly = isStockRole();
+  /* Android twin: the Vente tab carries the live cart badge (BadgedBox). */
+  const cartCount = useMemo(() => {
+    void cartTick;
+    try {
+      return Object.values(loadPhoneCart()).reduce((sum, q) => sum + (Number(q) || 0), 0);
+    } catch { return 0; }
+  }, [cartTick, location.pathname]);
   const allowSell = canSell();
-  const [accountOpen, setAccountOpen] = useState(false);
   const [density, setDensityState] = useState<Density>(() => getDensity());
   const [glassOn, setGlassOn] = useState(() => isGlassEnabled());
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(() => {
@@ -299,120 +341,80 @@ export default function PhoneApp() {
   };
   const [profileTick, setProfileTick] = useState(0);
 
-  /** Prefer free-tier Durable Object profile when the account sheet opens. */
-  useEffect(() => {
-    if (!accountOpen) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const r = await api.getMe();
-        const m = (r as any)?.data || r || {};
-        if (cancelled) return;
-        setProfileCache({
-          display_name: m.display_name,
-          avatar_url: m.avatar_url,
-          username: m.username,
-          role: m.role,
-        });
-        setProfileTick((t) => t + 1);
-      } catch {
-        /* keep local cache */
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [accountOpen]);
-  const roleLabel = stockOnly ? 'Magasinier' : (getRole() || 'Terrain');
+  const roleLabel = androidRoleLabel(getRole());
 
   return (
     <div className="phone-root">
       <OfflineBanner />
       <header className="phone-topbar">
-        <div className="phone-brand">
-          <img className="phone-logo" src="/logo-mark.svg" alt="Atlas Commerce" width={32} height={32} />
-          <div className="phone-brand-text">
-            <span className="phone-name">Atlas Commerce</span>
-            <span className="phone-role-line">{getDisplayName()} · {stockOnly ? 'Magasinier' : 'Terrain'}</span>
-          </div>
+        <div className="pt-titles">
+          <span className="pt-title">{tabTitleFor(location.pathname)}</span>
+          <span className="pt-sub">{getDisplayName()} · {roleLabel}</span>
         </div>
         <div className="phone-top-actions">
-          <button
-            type="button"
-            className="phone-icon-btn"
-            aria-label="Notifications"
-            onClick={() => navigate('/m/inbox')}
-          >
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-              <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5" />
-              <path d="M9 17a3 3 0 0 0 6 0" />
-            </svg>
-            {pending > 0 ? <span className="phone-notification-badge">{pending > 99 ? '99+' : pending}</span> : null}
-          </button>
-          <div className="phone-account-wrap" style={{ position: 'relative' }}>
+          <div className="ph-quick-wrap">
             <button
               type="button"
-              className="phone-avatar phone-profile-btn"
-              aria-label="Compte"
-              aria-expanded={accountOpen}
-              onClick={() => setAccountOpen((v) => !v)}
+              className="ph-quick-ball"
+              aria-label="Menu rapide (notifications et appareils)"
+              aria-expanded={quickOpen}
+              onClick={() => setQuickOpen((v) => !v)}
             >
-              {hasAvatarUrl() ? (
-                <AvatarImage className="phone-avatar-img" />
-              ) : (
-                getDisplayInitials()
-              )}
+              {pending > 0 ? <span className="ph-quick-count">{pending > 99 ? '99+' : pending}</span> : null}
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={quickOpen ? 'chev open' : 'chev'} aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
             </button>
-            {accountOpen && (
+            {quickOpen && (
               <>
                 <button
                   type="button"
                   className="ph-menu-backdrop"
                   aria-label="Fermer le menu"
-                  onClick={() => setAccountOpen(false)}
-                  style={{ position: 'fixed', inset: 0, border: 0, background: 'transparent', zIndex: 40 }}
+                  onClick={() => setQuickOpen(false)}
                 />
-                <div className="ph-account-menu" role="menu" style={{ position: 'absolute', right: 0, top: '110%', zIndex: 50, minWidth: 200 }}>
-                  <div className="ph-account-menu-head" style={{ padding: '8px 10px' }}>
-                    <strong>{getDisplayName()}</strong>
-                    <div className="muted" style={{ fontSize: 12 }}>{roleLabel}</div>
-                  </div>
+                <div className="ph-quick-menu" role="menu">
                   <button
                     type="button"
                     role="menuitem"
-                    className="ph-menu-item"
-                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px', border: 0, background: 'transparent', borderRadius: 8, color: '#141822', fontWeight: 600 }}
-                    onClick={() => {
-                      setAccountOpen(false);
-                      navigate('/m/settings');
-                    }}
+                    className="ph-quick-item"
+                    onClick={() => { setQuickOpen(false); navigate('/m/inbox'); }}
                   >
-                    Paramètres
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                      <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5" />
+                      <path d="M9 17a3 3 0 0 0 6 0" />
+                    </svg>
+                    <span className="ph-quick-item-txt">
+                      <strong>Notifications</strong>
+                      <small>Boîte d’alertes & activité</small>
+                    </span>
+                    {pending > 0 ? <span className="ph-quick-badge">{pending > 99 ? '99+' : pending}</span> : null}
                   </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="ph-menu-item ph-menu-danger"
-                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px', border: 0, background: 'transparent', borderRadius: 8, color: '#b91c1c' }}
-                    onClick={async () => {
-                      setAccountOpen(false);
-                      const ok = await uiConfirm({
-                        title: 'Déconnexion',
-                        message: `Se déconnecter (${getDisplayName()}) ?`,
-                        confirmLabel: 'Déconnecter',
-                        cancelLabel: 'Rester',
-                        danger: true,
-                      });
-                      if (ok) {
-                        clearToken();
-                        window.location.href = '/login';
-                      }
-                    }}
-                  >
-                    Déconnexion
-                  </button>
+                  <div className="ph-quick-div" />
+                  <a role="menuitem" className="ph-quick-item" href="/login/qr">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                      <rect x="3" y="5" width="12" height="9" rx="1.5" />
+                      <path d="M7 18h8M11 14v4M18 9h3M18 13h3M19.5 7v8" />
+                    </svg>
+                    <span className="ph-quick-item-txt">
+                      <strong>Connecter un appareil</strong>
+                      <small>Connexion QR sur PC / autre poste</small>
+                    </span>
+                  </a>
                 </div>
               </>
             )}
           </div>
+          <button
+            type="button"
+            className="phone-avatar phone-profile-btn"
+            aria-label="Mon profil"
+            onClick={() => navigate('/m/settings')}
+          >
+            {hasAvatarUrl() ? (
+              <AvatarImage className="phone-avatar-img" />
+            ) : (
+              getDisplayInitials()
+            )}
+          </button>
         </div>
       </header>
 
@@ -433,8 +435,7 @@ export default function PhoneApp() {
                 pending={pending}
                 todaySales={todaySales}
                 actions={actions.filter((a) => a.status === 'pending').slice(0, 4)}
-                onScan={() => navigate('/m/scan')}
-                onBoîte={() => navigate('/m/inbox')}
+                onRefresh={() => { setCartTick((t) => t + 1); void refresh(true); }}
               />
             }
           />
@@ -522,20 +523,37 @@ export default function PhoneApp() {
 
       <nav className="phone-tabbar" aria-label="Navigation principale">
         <NavLink to="/m" end className={({ isActive }) => (isActive ? 'ptab active' : 'ptab')}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M4 10.5L12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5z" /></svg>
-          Accueil
+          <span className="ptab-ico">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M4 10.5L12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5z" /></svg>
+          </span>
+          <span className="ptab-lbl">Accueil</span>
+        </NavLink>
+        <NavLink to="/m/products" className={({ isActive }) => (isActive ? 'ptab active' : 'ptab')}>
+          <span className="ptab-ico">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M20 7l-8-4-8 4v10l8 4 8-4V7z" /><path d="M4 7l8 4 8-4" /><path d="M12 11v10" /></svg>
+          </span>
+          <span className="ptab-lbl">Produits</span>
         </NavLink>
         <NavLink to="/m/scan" className={({ isActive }) => (isActive ? 'ptab active' : 'ptab')}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M4 7V5a1 1 0 0 1 1-1h2M20 7V5a1 1 0 0 0-1-1h-2M4 17v2a1 1 0 0 0 1 1h2M20 17v2a1 1 0 0 1-1 1h-2M7 12h10" /></svg>
-          Scan
+          <span className="ptab-ico">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M4 7V5a1 1 0 0 1 1-1h2M20 7V5a1 1 0 0 0-1-1h-2M4 17v2a1 1 0 0 0 1 1h2M20 17v2a1 1 0 0 1-1 1h-2M7 12h10" /></svg>
+          </span>
+          <span className="ptab-lbl">Scan</span>
         </NavLink>
-        <NavLink to="/m/warehouse" className={({ isActive }) => (isActive ? 'ptab active' : 'ptab')}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M3 9l9-5 9 5v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z"/><path d="M9 22V12h6v10"/></svg>
-          Entrepôt
-        </NavLink>
+        {allowSell && (
+          <NavLink to="/m/vente" className={({ isActive }) => (isActive ? 'ptab active' : 'ptab')}>
+            <span className="ptab-ico">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="9.5" cy="20" r="1.4" /><circle cx="17.5" cy="20" r="1.4" /><path d="M3 4h2l2.4 11.2a1.5 1.5 0 0 0 1.5 1.2h7.9a1.5 1.5 0 0 0 1.5-1.2L20.5 7.5H6" /></svg>
+              {cartCount > 0 ? <span className="ptab-badge">{cartCount > 99 ? '99+' : cartCount}</span> : null}
+            </span>
+            <span className="ptab-lbl">Vente</span>
+          </NavLink>
+        )}
         <NavLink to="/m/agent" className={({ isActive }) => (isActive ? 'ptab active' : 'ptab')}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/><circle cx="18" cy="6" r="1.2" fill="currentColor" stroke="none"/></svg>
-          AI Agent
+          <span className="ptab-ico">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z" /><circle cx="18" cy="6" r="1.2" fill="currentColor" stroke="none" /></svg>
+          </span>
+          <span className="ptab-lbl">Agent</span>
         </NavLink>
       </nav>
       {toast && <div className="phone-toast">{toast}</div>}
@@ -544,51 +562,186 @@ export default function PhoneApp() {
 }
 
 function PhoneHome({
-  productCount, lowCount, pending, todaySales, actions, onScan, onBoîte, stockOnly = false,
+  productCount, lowCount, pending, todaySales, actions, onRefresh,
 }: {
   productCount: number; lowCount: number; pending: number; todaySales: number;
-  actions: Action[]; onScan: () => void; onBoîte: () => void; stockOnly?: boolean;
+  actions: Action[]; onRefresh: () => void;
 }) {
+  const navigate = useNavigate();
+  const role = getRole();
+  /* Android Roles.canViewFinancials: owner/admin/secretaire see the treasury
+     hero; stock/user roles get the catalog-operations hero. Same split. */
+  const finance = canSell();
+  const admin = role === 'owner' || role === 'admin';
+  const roleLabel = androidRoleLabel(role);
+  const stockTone = lowCount > 0 ? 'tone-warning' : 'tone-positive';
+  const stockHint = lowCount > 0 ? 'À vérifier' : 'Optimal';
   return (
-    <div>
-      <p className="ph-eyebrow">{formatDateFR()} · CASABLANCA</p>
-      <h1 className="ph-title">Bonjour, {getDisplayName()}.</h1>
-      <p className="ph-sub">
-        {stockOnly
-          ? 'Mode magasinier : scan, contrôle stock et propositions produit. Pas de caisse.'
-          : 'Votre surface de vente est synchronisée. Voici ce qui mérite votre attention.'}
-      </p>
-      <button type="button" className="ph-cta" onClick={onScan}>
-        <span className="ph-cta-ico">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 7V5a1 1 0 0 1 1-1h2M20 7V5a1 1 0 0 0-1-1h-2M4 17v2a1 1 0 0 0 1 1h2M20 17v2a1 1 0 0 1-1 1h-2M7 12h10"/></svg>
+    <div className="ph-home">
+      <div className="ph-eyebrow-row ph-entrance">
+        <span className="ph-eyebrow2">Espace {roleLabel}</span>
+        <button type="button" className="ph-refresh" aria-label="Actualiser" onClick={onRefresh}>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7" /><path d="M20 5v6h-6" /></svg>
+        </button>
+      </div>
+
+      <div className="ph-entrance" style={{ animationDelay: '45ms' }}>
+        <div className="ph-hero">
+          <span className="ph-hero-label">
+            {finance ? 'VENTES DU JOUR' : `PILOTAGE CATALOGUE & STOCK · ${roleLabel.toUpperCase()}`}
+          </span>
+          <strong className="ph-hero-value">
+            {finance ? <CountUp value={todaySales} suffix=" MAD" /> : <>{productCount} articles actifs</>}
+          </strong>
+          <div className="ph-hero-pills">
+            {finance ? (
+              <>
+                <span className="ph-hero-pill">Stock {productCount} articles</span>
+                <span className="ph-hero-pill">{pending > 0 ? `${pending} envoi(s) en attente` : 'Boîte à jour'}</span>
+              </>
+            ) : (
+              <>
+                <span className="ph-hero-pill">
+                  {lowCount > 0 ? `${lowCount} article(s) en alerte stock` : 'Aucune rupture critique'}
+                </span>
+                <span className="ph-hero-pill">Demandes → Admin</span>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="ph-actions-row ph-entrance" style={{ animationDelay: '90ms' }}>
+        {finance ? (
+          <button type="button" className="ph-btn filled" onClick={() => navigate('/m/vente')}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="9.5" cy="20" r="1.4" /><circle cx="17.5" cy="20" r="1.4" /><path d="M3 4h2l2.4 11.2a1.5 1.5 0 0 0 1.5 1.2h7.9a1.5 1.5 0 0 0 1.5-1.2L20.5 7.5H6" /></svg>
+            Nouvelle vente
+          </button>
+        ) : (
+          <button type="button" className="ph-btn filled" onClick={() => navigate('/m/scan')}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M4 7V5a1 1 0 0 1 1-1h2M20 7V5a1 1 0 0 0-1-1h-2M4 17v2a1 1 0 0 0 1 1h2M20 17v2a1 1 0 0 1-1 1h-2M7 12h10" /></svg>
+            Scanner un article
+          </button>
+        )}
+        <button type="button" className="ph-btn outlined" onClick={() => navigate('/m/products')}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M20 7l-8-4-8 4v10l8 4 8-4V7z" /><path d="M4 7l8 4 8-4" /><path d="M12 11v10" /></svg>
+          Produits
+        </button>
+      </div>
+
+      <button
+        type="button"
+        className="ph-cardlink ph-entrance"
+        style={{ animationDelay: '135ms' }}
+        onClick={() => navigate('/m/inbox')}
+      >
+        <span className="ph-cardlink-ico" aria-hidden>
+          {admin ? (
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3l7 3v5c0 4.4-2.9 8.4-7 10-4.1-1.6-7-5.6-7-10V6l7-3z" /><path d="M9.5 12l1.8 1.8 3.4-3.6" /></svg>
+          ) : (
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5" /><path d="M9 17a3 3 0 0 0 6 0" /></svg>
+          )}
         </span>
-        <span className="ph-cta-text">
-          <strong>Scanner le stock</strong>
-          <span>Votre prochaine action prend 10 secondes.</span>
+        <span className="ph-cardlink-txt">
+          <strong>{admin ? 'Info Box Admin · Demandes & notifications' : `Info Box · Notifications ${roleLabel}`}</strong>
+          <small>{androidScopeSummary(role)}</small>
         </span>
-        <span>→</span>
+        <span className="ph-chip2 tone-info">Ouvrir</span>
       </button>
-      <div className="ph-stats">
-        <div className="ph-stat peach"><span className="lbl">Stock bas</span><strong><CountUp value={lowCount} /></strong><span className="hint">à vérifier en rayon</span></div>
-        {!stockOnly && (
-          <div className="ph-stat white"><span className="lbl">Ventes du jour</span><strong><CountUp value={todaySales} suffix=" MAD" /></strong><span className="hint">toutes factures</span></div>
+
+      <div className="ph-tiles ph-entrance" style={{ animationDelay: '180ms' }}>
+        <div className="ph-tile">
+          <span className="ph-tile-lbl">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M20 7l-8-4-8 4v10l8 4 8-4V7z" /><path d="M4 7l8 4 8-4" /><path d="M12 11v10" /></svg>
+            Produits
+          </span>
+          <strong className="ph-tile-val"><CountUp value={productCount} /></strong>
+        </div>
+        {finance ? (
+          <div className="ph-tile">
+            <span className="ph-tile-lbl">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M4 16l5-5 3.5 3.5L20 7" /><path d="M15 7h5v5" /></svg>
+              Ventes du jour
+            </span>
+            <strong className="ph-tile-val"><CountUp value={todaySales} suffix=" MAD" /></strong>
+          </div>
+        ) : (
+          <div className={`ph-tile ${stockTone}`}>
+            <span className="ph-tile-lbl">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M12 4l9 16H3L12 4z" /><path d="M12 10v4M12 17h.01" /></svg>
+              Stock faible
+            </span>
+            <strong className="ph-tile-val"><CountUp value={lowCount} /></strong>
+            <span className="ph-tile-hint">{stockHint}</span>
+          </div>
         )}
       </div>
-      <div className="ph-panel">
-        <div className="ph-panel-head">
-          <div>
-            <div className="ph-section">Prochaines actions</div>
-            <p className="ph-sub" style={{ fontSize: 13 }}>Traitez les envois du terrain.</p>
+
+      {finance && (
+        <div className="ph-tiles ph-entrance" style={{ animationDelay: '215ms' }}>
+          <div className={`ph-tile ${lowCount > 0 ? 'tone-warning' : 'tone-positive'}`}>
+            <span className="ph-tile-lbl">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M12 4l9 16H3L12 4z" /><path d="M12 10v4M12 17h.01" /></svg>
+              Stock faible
+            </span>
+            <strong className="ph-tile-val"><CountUp value={lowCount} /></strong>
+            <span className="ph-tile-hint">{lowCount > 0 ? 'À réapprovisionner' : 'Tout est bon'}</span>
           </div>
-          <button type="button" className="ph-chip" onClick={onBoîte}>Voir la boîte →</button>
-        </div>
-        {actions.length === 0 && (
-        <div className="ph-empty">
-          <div className="ph-empty-ico" aria-hidden><IconInbox size={28} /></div>
-          <h2>Aucun envoi</h2>
-          <p>Aucun envoi en attente.</p>
+          <div className={`ph-tile ${pending > 0 ? 'tone-info' : ''}`}>
+            <span className="ph-tile-lbl">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M4 6h16v12H4z" /><path d="M4 7l8 6 8-6" /></svg>
+              Envois en attente
+            </span>
+            <strong className="ph-tile-val">{pending}</strong>
+            <span className="ph-tile-hint">{pending > 0 ? 'À traiter dans la boîte' : 'Boîte à jour'}</span>
+          </div>
         </div>
       )}
+
+      {lowCount > 0 && (
+        <div className="ph-panel ph-alertcard ph-entrance" style={{ animationDelay: '250ms' }}>
+          <div className="ph-alertcard-head">
+            <span className="ph-chip2 tone-warning">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M12 4l9 16H3L12 4z" /><path d="M12 10v4M12 17h.01" /></svg>
+              Alerte stock
+            </span>
+            <button type="button" className="ph-textbtn" onClick={() => navigate('/m/products')}>Voir</button>
+          </div>
+          <p className="ph-alertcard-txt">{lowCount} produit(s) sont au niveau ou sous le seuil d’alerte.</p>
+        </div>
+      )}
+
+      <div className="ph-panel ph-entrance" style={{ animationDelay: '285ms' }}>
+        <div className="ph-sechead">
+          <div>
+            <strong className="ph-sechead-t">Outils terrain</strong>
+            <small className="ph-sechead-s">Entrepôt, achats et version PC</small>
+          </div>
+        </div>
+        <div className="ph-tools">
+          <NavLink to="/m/warehouse" className="ph-tool">Entrepôt · inventaire</NavLink>
+          {finance && <NavLink to="/m/bills" className="ph-tool">Achats &amp; réception</NavLink>}
+          {finance && <NavLink to="/m/invoice" className="ph-tool">Nouveau devis</NavLink>}
+          {finance && <a className="ph-tool" href="/?mode=pc">Rapports &amp; clôture (PC)</a>}
+          <NavLink to="/m/more" className="ph-tool">Tout ouvrir</NavLink>
+        </div>
+      </div>
+
+      <div className="ph-panel ph-entrance" style={{ animationDelay: '320ms' }}>
+        <div className="ph-sechead">
+          <div>
+            <strong className="ph-sechead-t">Activité récente</strong>
+            <small className="ph-sechead-s">Traitez les envois du terrain.</small>
+          </div>
+          <button type="button" className="ph-textbtn" onClick={() => navigate('/m/inbox')}>Voir</button>
+        </div>
+        {actions.length === 0 && (
+          <div className="ph-empty">
+            <div className="ph-empty-ico" aria-hidden><IconInbox size={28} /></div>
+            <h2>Aucun envoi</h2>
+            <p>Aucun envoi en attente.</p>
+          </div>
+        )}
         {actions.map((a) => (
           <div className="ph-row ph-card" key={a.id}>
             <div className={`ph-ico ${a.type}`}>{a.type === 'stock_check' ? 'ST' : 'SC'}</div>

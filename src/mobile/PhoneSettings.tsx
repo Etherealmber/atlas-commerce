@@ -9,13 +9,32 @@ type Props = {
   onGlass: (v: boolean) => void;
 };
 
+/* v255 — same words as the native app (Roles.kt label). */
+function androidRoleLabel(role: string | null | undefined): string {
+  const r = String(role || '').trim().toLowerCase();
+  if (r === 'owner') return 'Propriétaire (Admin)';
+  if (r === 'admin') return 'Administrateur';
+  if (r === 'secretaire') return 'Secrétaire · Ventes';
+  if (r === 'stock' || r === 'magasinier') return 'Magasinier · Stock';
+  return 'Opérateur';
+}
+
 export default function PhoneSettings({ theme, onTheme }: Props) {
   const nav = useNavigate();
 
   return (
     <div className="ph-settings">
-      <header className="ph-page-head" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-        <h1 style={{ margin: 0, fontSize: '1.25rem' }}>Paramètres</h1>
+      <header className="ph-page-head" style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 12 }}>
+        <button
+          type="button"
+          className="ph-refresh"
+          aria-label="Retour"
+          style={{ marginLeft: -8 }}
+          onClick={() => nav('/m')}
+        >
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6" /></svg>
+        </button>
+        <h1 style={{ margin: 0, fontSize: '1.25rem' }}>Mon profil</h1>
       </header>
 
       <section className="ph-settings-card">
@@ -26,7 +45,7 @@ export default function PhoneSettings({ theme, onTheme }: Props) {
         </div>
         <div className="ph-settings-row">
           <span>Rôle</span>
-          <strong>{getRole() || '—'}</strong>
+          <strong>{androidRoleLabel(getRole())}</strong>
         </div>
       </section>
 
