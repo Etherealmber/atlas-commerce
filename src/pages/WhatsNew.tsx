@@ -21,6 +21,27 @@ type Release = {
 
 const RELEASES: Release[] = [
   {
+    version: '0.6.4-beta',
+    date: '26 octobre 2026',
+    sections: [
+      {
+        kind: 'fixes',
+        items: [
+          { id: '064a1', text: 'Sécurité — journal de trésorerie verrouillé : créer une écriture de solde (et l’import en masse) est désormais strictement réservé au propriétaire et aux administrateurs — avant cet audit, n’importe quel compte connecté (magasinier, utilisateur simple…) pouvait insérer des écritures, y compris des apports/prélèvements propriétaire ; chaque écriture est maintenant journalisée (qui, quoi, quand) et des tests d’autorisation + de validation verrouillent le contrat (403 OWNER_ONLY, 422 VALIDATION)' },
+          { id: '064a2', text: 'Sécurité — Atlas Agent : les comptes suspendus et les quotas de jetons épuisés sont désormais refusés côté SERVEUR avant tout appel à l’IA (le contrôle ne reposait que sur l’application web — un client modifié pouvait le contourner)' },
+        ],
+      },
+      {
+        kind: 'features',
+        items: [
+          { id: '064a3', text: 'Nouvelle API finance `GET /api/admin/finance/period?period=AAAA-MM` (propriétaire/admin) : ventilations espèces/banque des entrées et sorties calculées serveur avec les MÊMES règles canoniques et le même fuseau que le relevé (mois ouvert arrêté à aujourd’hui, lignes miroir et « Avoir » exclus), apports et prélèvements propriétaire séparés, totaux par catégorie de dépenses, et bloc relevé intégré revérifié à chaque appel — impossible d’être en désaccord avec le relevé ; les paiements sans moyen enregistré (salaires) sont déclarés « non enregistrés », jamais devinés' },
+          { id: '064a4', text: 'Atlas Agent lit vraiment les PDF et fichiers texte joints : extraction serveur bornée et validée par signature binaire (≤2 documents, ≤2 Mo, ≤30 pages PDF, extrait plafonné à 12 000 caractères, types MIME sur liste blanche) — un PDF scanné sans texte est annoncé tel quel au modèle avec interdiction d’inventer ; un document refusé rejette toute la requête avec un code stable' },
+          { id: '064a5', text: 'Atlas Agent en streaming SSE : `POST /api/assist/chat/stream` diffuse la réponse jeton par jeton (event: token / done / error) avec les mêmes verrous (session, suspension, quota, documents) ; le quota est débité sur la consommation RÉELLE rapportée par le dernier chunk — un tour streamé coûte exactement ce qu’un tour classique coûte' },
+        ],
+      },
+    ],
+  },
+  {
     version: '0.6.3-beta',
     date: '26 octobre 2026',
     sections: [

@@ -313,12 +313,19 @@ Atlas Commerce est développé et maintenu par **loxdpy ([@loxdpsy](https://gith
 - `themes-css-guard.yml` : `scripts/css-check.mjs` — accolades/parenthèses équilibrées, hex valides, dark-force.css dernier import CSS obligatoire, et aucune NOUVELLE déclaration blanche dans les blocs sombres sur les PR
 - Les trois tournent sur chaque pull request (et sur main) avec filters par chemin : un PR rouge ne devrait jamais être mergé, donc jamais déployé
 
-Version actuelle : **0.6.3-beta** (gelée jusqu'au prochain ordre de push).
+Version actuelle : **0.6.4-beta** (gelée jusqu'au prochain ordre de push).
 
 Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depuis la première version interne ; le détail complet et vivant est dans l'app (**Nouveautés**), y compris l’ancien cycle bêta pré-renumérotation, renuméroté en **0.x** (0.0.1 → 0.4.4).
 
 <details>
 <summary>📦 Toutes les versions (0.0.1-beta → 0.5.5-beta) — cliquer pour déplier</summary>
+
+### 0.6.4-beta
+- Sécurité — `POST /api/expenses` + `POST /api/expenses/import` : audit puis verrouillage **propriétaire/admin uniquement** (403 OWNER_ONLY) — avant, tout compte authentifié (stock, user, secretaire…) pouvait insérer des écritures de trésorerie, y compris des apports/prélèvements propriétaire ; routes extraites dans `worker/routes/expenses.ts` avec re-validation de session en défense en profondeur + audit `expense.create`/`expense.import` ; tests d'autorisation et de validation (`worker/__tests__/expenses-auth.test.ts`)
+- Sécurité — Atlas Agent : comptes suspendus et quotas de jetons désormais refusés **côté serveur** avant tout appel LLM (`agentAccessVerdict`) — le contrôle ne reposait que sur la SPA
+- Nouvelle API `GET /api/admin/finance/period?period=AAAA-MM` (owner/admin) : ventilations **espèces/banque** des entrées/sorties, apports & prélèvements propriétaire, totaux par catégorie de dépenses — mêmes règles canoniques et même fuseau finance que le relevé (mois ouvert arrêté à aujourd'hui, miroirs et « Avoir » exclus), bloc relevé intégré + invariant revérifié à chaque appel ; moyens de paiement absents (salaires) déclarés `not_recorded`, **jamais devinés** (`worker/lib/finance.ts` `computePeriodBreakdown`, docs/api-finance.md, tests)
+- Atlas Agent — extraction de documents **bornée et validée par signature binaire** (PDF ≤ 2 Mo / ≤ 30 pages, texte UTF-8 strict, ≤ 2 documents, extrait ≤ 12 000 car.) : `worker/lib/agent-docs.ts` — un PDF scanné sans texte est annoncé « non extractible » au modèle avec interdiction d'inventer ; tout document refusé rejette la requête (codes stables DOC_MIME/DOC_MAGIC/DOC_PAGES/DOC_TOO_LARGE/DOC_BINARY…)
+- Atlas Agent — streaming SSE `POST /api/assist/chat/stream` (event: token/done/error) avec les mêmes verrous ; quota débité sur la consommation RÉELLE du dernier chunk ; `groqChatStream` + tests (`worker/__tests__/agent-docs.test.ts`, vitest 168/168)
 
 ### 0.6.3-beta
 - Barre Rapports PDF : le champ mois affiche toujours le mois d’ancrage de la période active (« Ce mois », « 3 mois »…) au lieu de rester vide, avec info-bulle ; bascule vers un mois précis inchangée
