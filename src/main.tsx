@@ -26,6 +26,10 @@ import './styles/bits.css';
 import './styles/dark-force.css'; /* absolute last — dark surfaces */
 import { isNativeApp } from './config';
 import { applyDensityFromStorage } from './lib/density';
+import { installCrashReporting } from './lib/crashReporter';
+
+// v260 — global crash reporting (fire-and-forget, throttled, sanitized server-side)
+installCrashReporting();
 
 document.title = 'Atlas Commerce';
 

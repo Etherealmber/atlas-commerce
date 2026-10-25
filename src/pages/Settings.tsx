@@ -20,6 +20,7 @@ import { getDensity, setDensity, getUiScale, setUiScale, subscribeUiPrefs, type 
 import { startAtlasLoading, setAtlasLoading, doneAtlasLoading } from '../components/AtlasLoadingBar';
 import { VALUATION_METHOD_OPTIONS } from '../lib/labels';
 import IntegrationsPanel from '../components/IntegrationsPanel';
+import GithubReportsPanel from '../components/settings/GithubReportsPanel';
 import { AlertsPanel } from '../components/atlas-v209-panels';
 import AgentPermissionsPanel from '../components/AgentPermissionsPanel';
 import AppUpdatePanel from '../components/settings/AppUpdatePanel';
@@ -2344,6 +2345,7 @@ if (loading) return (
             <IntegrationsPanel />
             <AlertsPanel />
           </div>
+          <GithubReportsPanel />
         </div>
       )}
 

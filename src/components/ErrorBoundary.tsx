@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { reportCrash } from '../lib/crashReporter';
 
 type Props = { children: ReactNode; label?: string };
 type State = { error: Error | null };
@@ -58,6 +59,8 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('[ErrorBoundary]', this.props.label || 'app', error, info?.componentStack);
+    // v260 — auto-report to the owner's GitHub issues (deduped + sanitized)
+    reportCrash(error, { componentStack: String(info?.componentStack || '').slice(0, 2000) });
   }
 
   reset = () => this.setState({ error: null });

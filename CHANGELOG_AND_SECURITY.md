@@ -1,5 +1,9 @@
 # Atlas Commerce — Documentation consolidée
 
+> **Archive historique** (fusion du 2026-09-09). Le changelog vivant est dans l'app
+> (**Nouveautés**) et le README (« Historique des versions ») ; la politique de sécurité
+> actuelle est dans [`SECURITY.md`](SECURITY.md). Ce fichier est conservé pour référence.
+
 *Fusionné le 2026-09-09 — 13 fichiers sources.*
 
 

@@ -22,6 +22,7 @@ import {
 } from '../version';
 import { openConsentSettings } from '../lib/cookieConsent';
 import { resetWelcome } from '../lib/welcome';
+import { api } from '../api';
 
 type GhUser = {
   name: string | null;
@@ -78,6 +79,85 @@ const PROJECT_SHOWCASE: {
     badge: 'GitHub',
   },
 ];
+
+
+/** v260 — "Signaler un problème" : user report → GitHub issue (docs/reports-github.md). */
+function ReportProblemForm() {
+  const [kind, setKind] = useState('bug');
+  const [message, setMessage] = useState('');
+  const [contact, setContact] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function submit() {
+    const text = message.trim();
+    if (text.length < 5) { setErr('Décrivez le problème en quelques mots (5 caractères minimum).'); return; }
+    setBusy(true); setErr(null); setDone(null);
+    try {
+      const res = await api.submitUserReport({
+        kind,
+        message: text,
+        contact: contact.trim() || undefined,
+        page: typeof location !== 'undefined' ? location.pathname : '',
+        version: APP_VERSION,
+      });
+      const ref = res?.data?.reference || 'OK';
+      setDone(`Merci ! Signalement envoyé — référence ${ref}. Il arrive dans les issues GitHub du projet.`);
+      setMessage(''); setContact('');
+    } catch (e: any) {
+      setErr(String(e?.message || 'Envoi impossible. Réessayez ou contactez le support.'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="card about-section" id="signaler">
+      <h2>Signaler un problème</h2>
+      <p className="about-muted" style={{ marginTop: 0 }}>
+        Bug, idée ou question : votre message est envoyé directement dans les <strong>issues GitHub</strong> du
+        projet Atlas Commerce (sans compte GitHub nécessaire). Les plantages de l’application sont aussi
+        signalés automatiquement — jamais de données personnelles ni de mots de passe dans ces rapports.
+      </p>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+        {[['bug', '🐛 Bug'], ['feedback', '💡 Idée / amélioration'], ['other', '❓ Autre']].map(([v, label]) => (
+          <button
+            key={v}
+            type="button"
+            className={kind === v ? 'primary' : 'secondary'}
+            style={{ borderRadius: 999, padding: '6px 14px', fontSize: 13 }}
+            onClick={() => setKind(v)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <textarea
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+        placeholder="Décrivez le problème : ce que vous faisiez, ce qui s’est passé, ce que vous attendiez…"
+        maxLength={2000}
+        rows={4}
+        style={{ width: '100%', borderRadius: 12, padding: 12, fontSize: 14, resize: 'vertical' }}
+      />
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginTop: 10 }}>
+        <input
+          value={contact}
+          onChange={(e) => setContact(e.target.value)}
+          placeholder="Contact (facultatif — email ou téléphone)"
+          maxLength={120}
+          style={{ flex: '1 1 220px', borderRadius: 12, padding: '10px 12px', fontSize: 13 }}
+        />
+        <button type="button" className="primary" disabled={busy} onClick={submit} style={{ borderRadius: 12, minHeight: 44, padding: '0 20px' }}>
+          {busy ? 'Envoi…' : 'Envoyer le signalement'}
+        </button>
+      </div>
+      {err && <p style={{ color: '#b91c1c', fontSize: 13, marginTop: 10 }}>{err}</p>}
+      {done && <p style={{ color: '#15803d', fontSize: 13, marginTop: 10 }}>{done}</p>}
+    </section>
+  );
+}
 
 export default function About() {
   const [year] = useState(() => new Date().getFullYear());
@@ -215,6 +295,8 @@ export default function About() {
         </div>
       </header>
 
+      <ReportProblemForm />
+
       <section className="card about-section">
         <h2>Ce que fait Atlas Commerce</h2>
         <p className="about-muted" style={{ marginTop: 0 }}>
@@ -247,8 +329,8 @@ export default function About() {
             <p>Fiches collaborateur, salaire mensuel ou tous les N jours, démission, pièce d’identité chiffrée, débit solde à chaque paiement.</p>
           </div>
           <div className="about-feature">
-            <h3>Boîte mail pro</h3>
-            <p>Gestion commerciale, stock et documents depuis un seul tableau de bord.</p>
+            <h3>Signalements & crashs</h3>
+            <p>Un bug ? L’application le détecte et le signale automatiquement. Vous pouvez aussi envoyer un signalement qui arrive directement dans les issues GitHub du projet.</p>
           </div>
           <div className="about-feature">
             <h3>Atlas Agent</h3>

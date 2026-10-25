@@ -1036,5 +1036,17 @@ export const api = {
     request('/api/push/register', { method: 'POST', body: JSON.stringify(body) }),
   thermalPrintUrl: (invoiceId: number, width: 32 | 48 = 32) =>
     `/api/print/thermal/${invoiceId}?width=${width}`,
+
+  /** v260 — crash & user reports → GitHub issues (docs/reports-github.md) */
+  submitUserReport: (body: { kind: string; message: string; contact?: string; page?: string; version?: string }) =>
+    request<{ data: { reference: string; issue_url: string | null } }>('/api/reports', { method: 'POST', body: JSON.stringify(body) }),
+  getGithubTokenStatus: () =>
+    request<{ data: { configured: boolean; source: 'env' | 'app' | null; repo: string } }>('/api/admin/github-token'),
+  saveGithubToken: (body: { token: string; repo?: string }) =>
+    request<{ data: { configured: boolean; login?: string | null; repo?: string } }>('/api/admin/github-token', { method: 'PUT', body: JSON.stringify(body) }),
+  listReports: (limit = 25) =>
+    request<{ data: { crashes: any[]; user_reports: any[]; pending: number } }>(`/api/admin/reports?limit=${limit}`),
+  retryReports: () =>
+    request<{ data: { crashes: number; user_reports: number; skipped: boolean } }>('/api/admin/reports/retry', { method: 'POST', body: '{}' }),
 };
 
