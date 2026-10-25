@@ -1,5 +1,8 @@
 <div align="center">
+  <picture>
+  <source media="(prefers-color-scheme: dark)" srcset="public/atlas-logo-dark.png" />
   <img src="public/atlas-logo-light.png" alt="Atlas Commerce" width="320" />
+</picture>
   <h1>Atlas Commerce</h1>
   <p><strong>ERP / Caisse / Facturation souverain pour commerces &amp; grossistes au Maroc</strong><br/>Stock multi-dépôts · Caisse &amp; tickets VR · Facturation TVA &amp; créances · Scan &amp; OCR · Atlas Agent IA · WebAuthn &amp; login QR</p>
 
@@ -313,12 +316,15 @@ Atlas Commerce est développé et maintenu par **loxdpy ([@loxdpsy](https://gith
 - `themes-css-guard.yml` : `scripts/css-check.mjs` — accolades/parenthèses équilibrées, hex valides, dark-force.css dernier import CSS obligatoire, et aucune NOUVELLE déclaration blanche dans les blocs sombres sur les PR
 - Les trois tournent sur chaque pull request (et sur main) avec filters par chemin : un PR rouge ne devrait jamais être mergé, donc jamais déployé
 
-Version actuelle : **0.6.5-beta** (gelée jusqu'au prochain ordre de push).
+Version actuelle : **0.6.6-beta** (gelée jusqu'au prochain ordre de push).
 
 Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depuis la première version interne ; le détail complet et vivant est dans l'app (**Nouveautés**), y compris l’ancien cycle bêta pré-renumérotation, renuméroté en **0.x** (0.0.1 → 0.4.4).
 
 <details>
 <summary>📦 Toutes les versions (0.0.1-beta → 0.5.5-beta) — cliquer pour déplier</summary>
+
+### 0.6.6-beta
+- Logo visible et propre en thème sombre : l'ancien carreau clair `#f1f5f9` forcé sous l'icône de la sidebar (et le tile blanc encadré de la page À propos) masquait l'artwork blanc — carreaux supprimés pour les images de marque + règles de priorité CSS renforcées ; le README GitHub affiche le lockup blanc en mode sombre via `<picture>`/`prefers-color-scheme`
 
 ### 0.6.5-beta
 - Nouvelle identité visuelle appliquée partout : les deux logos officiels (lockup noir sur fond clair, lockup blanc sur fond sombre) remplacent l'ancien logo vectoriel — sidebar, barre du haut Paramètres, écran de connexion (lockup complet), page À propos, centres des QR codes ; bascule automatique clair/sombre par paire d'images PNG transparentes (`atlas-logo-*.png` / `atlas-icon-*.png`, fonds retirés par traitement pixel, icône découpée du lockup)
