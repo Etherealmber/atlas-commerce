@@ -43,7 +43,7 @@ async function attFetch(path: string, init?: RequestInit) {
       'Content-Type': 'application/json',
       Authorization: token ? `Bearer ${token}` : '',
       'X-Device-Fingerprint': fp || '',
-      ...(init?.headers || {}),
+      ...(init?.headers as Record<string, string> | undefined),
     },
   });
   const j = await res.json().catch(() => ({}));

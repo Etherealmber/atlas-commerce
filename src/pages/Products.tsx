@@ -434,7 +434,7 @@ export default function Products() {
 
   const addStagedPhotos = (files: FileList | null) => {
     if (!files?.length) return;
-    const imgs = Array.from(files).filter((f) => /^image\//.test(f.type));
+    const imgs = Array.from(files).filter((f) => f.type.startsWith('image/'));
     if (!imgs.length) { setStagedErr('Déposez des fichiers image (JPEG, PNG ou WebP).'); return; }
     setStagedErr('');
     setStagedPhotos((prev) => [...prev, ...imgs.map((file) => ({ file, url: URL.createObjectURL(file) }))]);

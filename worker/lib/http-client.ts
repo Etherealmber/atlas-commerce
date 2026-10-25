@@ -41,7 +41,7 @@ function normalizeOpts(opts: HttpClientOptions = {}): {
     rest.mode != null;
 
   const requestInit: RequestInit = {
-    ...(init || {}),
+    ...init,
     ...(hasFetchFields ? rest : {}),
   };
 

@@ -16,7 +16,7 @@ export function AlertsPanel() {
   const load = () => {
     api.getAlertSettings().then((r: any) => {
       const have = r?.data || [];
-      const merged = DEFAULT_ALERTS.map((d) => ({ ...d, enabled: 1, ...(have.find((h: any) => h.key === d.key) || {}) }));
+      const merged = DEFAULT_ALERTS.map((d) => ({ ...d, enabled: 1, ...have.find((h: any) => h.key === d.key) }));
       setRows(merged);
     }).catch(() => setRows(DEFAULT_ALERTS.map((d) => ({ ...d, enabled: 1 }))));
   };

@@ -2065,3 +2065,41 @@ html[data-theme="dark"] .phone-toast {
   background: #fafafa;
   color: #0a0a0a;
 }
+
+/* ================= v253 — phone optimization pass =================
+   Touch-first hardening for the terrain app: bigger targets, no web-ish
+   text selection or tap flash, iOS zoom-proof inputs, cheaper long-list
+   scrolling, and the material ripple (adapted from React Bits "Ripple",
+   github.com/DavidHDev/react-bits, MIT — see PhoneShell in App.tsx). */
+.phone-icon-btn { width: 44px; height: 44px; flex: 0 0 44px; }
+.ptab { min-height: 56px; justify-content: center; }
+.ph-chip { min-height: 40px; padding: 10px 16px; }
+.phone-shell button, .phone-shell a, .phone-shell .ptab, .phone-shell .ph-chip,
+.phone-shell .ph-cta, .phone-shell .phone-icon-btn, .phone-shell label,
+.phone-shell .phone-tabbar, .phone-shell .phone-topbar {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+/* App chrome is NOT selectable text (buttons, nav, headers, chips) — content
+   (product names, details, numbers) stays selectable on purpose. */
+.phone-shell button, .phone-shell nav, .phone-shell .phone-topbar,
+.phone-shell .phone-tabbar, .phone-shell .ptab, .phone-shell .ph-chip,
+.phone-shell .ph-cta, .phone-shell .ph-eyebrow, .phone-shell .ph-section,
+.phone-shell .ph-stat .lbl, .phone-shell .ph-stat .hint, .phone-shell label {
+  user-select: none;
+  -webkit-user-select: none;
+}
+/* 16px inputs: stops iOS Safari from auto-zooming the page on focus. */
+.phone-shell input, .phone-shell textarea, .phone-shell select { font-size: 16px; }
+/* No pull-to-refresh fight / rubber-band white flash at the top. */
+.phone-root { overscroll-behavior-y: contain; }
+/* Long terrain lists paint only what is near the viewport. */
+.ph-row { content-visibility: auto; contain-intrinsic-size: auto 64px; }
+/* Material ripple (React Bits adaptation) */
+.ph-ripple {
+  position: absolute; border-radius: 50%; transform: scale(0);
+  background: currentColor; opacity: .16; pointer-events: none; z-index: 3;
+  animation: ph-ripple-anim .55s ease-out forwards;
+}
+@keyframes ph-ripple-anim { to { transform: scale(2.4); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .ph-ripple { display: none; } }

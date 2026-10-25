@@ -1862,6 +1862,36 @@ function PhoneShell() {
       delete document.documentElement.dataset.pwa;
     };
   }, []);
+  // v253 material ripple — adapted from React Bits "Ripple"
+  // (github.com/DavidHDev/react-bits, MIT): one delegated pointerdown gives
+  // every tappable element of the terrain app native-feeling touch feedback.
+  useEffect(() => {
+    const onDown = (e: PointerEvent) => {
+      const host = (e.target as HTMLElement | null)?.closest?.(
+        'button, a.ptab, .ph-chip, .ph-cta, .phone-icon-btn'
+      ) as HTMLElement | null;
+      if (!host || host.dataset.ripple === 'off') return;
+      const rect = host.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const size = Math.max(rect.width, rect.height) * 1.1;
+      const span = document.createElement('span');
+      span.className = 'ph-ripple';
+      span.style.width = `${size}px`;
+      span.style.height = `${size}px`;
+      span.style.left = `${e.clientX - rect.left - size / 2}px`;
+      span.style.top = `${e.clientY - rect.top - size / 2}px`;
+      if (getComputedStyle(host).position === 'static') host.style.position = 'relative';
+      const prevOverflow = host.style.overflow;
+      host.style.overflow = 'hidden';
+      host.appendChild(span);
+      span.addEventListener('animationend', () => {
+        span.remove();
+        host.style.overflow = prevOverflow;
+      }, { once: true });
+    };
+    document.addEventListener('pointerdown', onDown, { passive: true });
+    return () => document.removeEventListener('pointerdown', onDown);
+  }, []);
   return (
     <>
       <AtlasLoadingBar />
@@ -1889,8 +1919,12 @@ function PhoneShell() {
 }
 
 function Shell() {
-  // Single shell for all devices (responsive). /m phone app removed.
-  return <DesktopShell />;
+  // v253 — phones are optimized again: narrow viewports, the native APK and
+  // ?mode=phone get the purpose-built terrain app (/m: scan-first, offline
+  // catalog, tab bar — minimized field experience), while PCs keep the full
+  // ERP shell. Directive: phones minimize, PC keeps everything.
+  const isPhone = useIsPhoneShell();
+  return isPhone ? <PhoneShell /> : <DesktopShell />;
 }
 
 

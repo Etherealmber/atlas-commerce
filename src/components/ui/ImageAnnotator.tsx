@@ -120,7 +120,8 @@ export const ImageAnnotator: FC<ImageAnnotatorProps> = ({ src, name, onSave, onC
     const bx = Math.min(Math.max(2, textAt.x), canvas.width - w - pad * 2 - 2);
     const by = Math.min(Math.max(2, textAt.y), canvas.height - fs - pad * 2 - 2);
     ctx.beginPath();
-    (ctx as any).roundRect ? (ctx as any).roundRect(bx, by, w + pad * 2, fs + pad * 2, 6) : ctx.rect(bx, by, w + pad * 2, fs + pad * 2);
+    if (typeof (ctx as any).roundRect === 'function') (ctx as any).roundRect(bx, by, w + pad * 2, fs + pad * 2, 6);
+    else ctx.rect(bx, by, w + pad * 2, fs + pad * 2);
     ctx.fill();
     ctx.fillStyle = color === '#18181b' ? '#fafafa' : color;
     ctx.fillText(val, bx + pad, by + pad);

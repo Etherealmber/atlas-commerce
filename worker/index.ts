@@ -656,7 +656,7 @@ const WAF_STATS = { blocked: 0, lastAt: null as string | null, lastSig: '' };
 const WAF_SIGS: RegExp[] = [
   /(union[\s+]+select|select[\s+]+[^()]{0,40}[\s+]+from[\s+]*(information_schema|pg_catalog|sqlite_master))/i,
   /(sleep\(\d|benchmark\(|waitfor[\s+]+delay|xp_cmdshell|pg_sleep\()/i,
-  /(\.\.[\/\\](etc|proc|windows)|[\/\\]etc[\/\\]passwd|proc[\/\\]self[\/\\]environ)/i,
+  /(\.\.[/\\](etc|proc|windows)|[/\\]etc[/\\]passwd|proc[/\\]self[/\\]environ)/i,
   /(<script|%3cscript|javascript:|onerror\s*=|onload\s*=)/i,
   /(\$\{jndi:|log4j)/i,
 ];
@@ -3854,6 +3854,7 @@ function webauthnIdVariants(raw: string): string[] {
   set.add(id.replace(/-/g, '+').replace(/_/g, '/'));
   set.add(id.replace(/\+/g, '-').replace(/\//g, '_'));
   // with/without padding
+  // oxlint-disable-next-line unicorn/no-useless-spread -- snapshot on purpose: variants are ADDED to the set during the loop
   for (const v of [...set]) {
     const pad = v.length % 4 === 0 ? v : v + '='.repeat((4 - (v.length % 4)) % 4);
     set.add(pad);
@@ -5778,7 +5779,7 @@ app.put('/api/settings', async (c) => {
   for (const key of ['invoice_prefix', 'quote_prefix', 'receipt_prefix', 'bill_prefix'] as const) {
     if (body[key] !== undefined) {
       const v = String(body[key] || '').trim().slice(0, 12);
-      if (v && !/^[A-Za-z0-9][A-Za-z0-9\-\/]{0,11}$/.test(v)) {
+      if (v && !/^[A-Za-z0-9][A-Za-z0-9\-/]{0,11}$/.test(v)) {
         return c.json({
           success: false,
           error: `Préfixe « ${key} » invalide. Lettres, chiffres, - ou / uniquement (max 12).`,
@@ -8481,7 +8482,7 @@ function validateCreditPrefix(raw: unknown): { ok: true; value: string } | { ok:
   if (!v) {
     return { ok: false, error: 'Le préfixe des remboursements (WR) est obligatoire (ex. WR-).', code: 'WR_PREFIX_INVALID' };
   }
-  if (v.length > 12 || !/^[A-Za-z0-9][A-Za-z0-9\-\/]{0,11}$/.test(v)) {
+  if (v.length > 12 || !/^[A-Za-z0-9][A-Za-z0-9\-/]{0,11}$/.test(v)) {
     return {
       ok: false,
       error: 'Préfixe WR invalide. Utilisez 1 à 12 caractères (lettres, chiffres, tiret ou slash), ex. WR- ou AVOIR-.',
@@ -11409,9 +11410,9 @@ function parseBillText(text: string): Record<string, string> {
   const t = text.replace(/\r/g, '');
   const ice = t.match(/\b(\d{15})\b/);
   if (ice) out.ice = ice[1];
-  const num = t.match(/(?:facture|invoice|n[°o]|number)[:\s#]*([A-Za-z0-9\-\/]{3,20})/i);
+  const num = t.match(/(?:facture|invoice|n[°o]|number)[:\s#]*([A-Za-z0-9\-/]{3,20})/i);
   if (num) out.bill_number = num[1];
-  const date = t.match(/\b(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})\b/);
+  const date = t.match(/\b(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})\b/);
   if (date) {
     let y = date[3];
     if (y.length === 2) y = '20' + y;
@@ -14299,7 +14300,7 @@ app.post('/api/bank/reconcile-csv', async (c) => {
     const amount = Number(amountRaw);
     if (!Number.isFinite(amount)) continue;
     let date = parts[0].trim().slice(0, 10);
-    const dm = date.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
+    const dm = date.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})$/);
     if (dm) date = `${dm[3]}-${dm[2].padStart(2, '0')}-${dm[1].padStart(2, '0')}`;
     parsed.push({
       date,
@@ -15695,7 +15696,7 @@ app.post('/api/assist/chat', async (c) => {
   const username = String(session.username || 'user');
 
   // Atlas Agent: Groq only (Mistral/Gemini removed from product).
-  let provider: 'groq' = 'groq';
+  let provider = 'groq' as const;
   const groqKey = String((c.env as any).GROQ_API_KEY || '').trim();
   if (!groqKey) {
     return c.json({

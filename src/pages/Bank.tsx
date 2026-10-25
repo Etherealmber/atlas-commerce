@@ -50,7 +50,7 @@ function parseCsvSync(text: string): BankRow[] {
     const amount = Number(String(amountStr).replace(/\s/g, '').replace(',', '.'));
     if (!Number.isFinite(amount)) continue;
     let date = dateRaw;
-    const m = dateRaw.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+    const m = dateRaw.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})$/);
     if (m) {
       const y = m[3].length === 2 ? `20${m[3]}` : m[3];
       date = `${y}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;

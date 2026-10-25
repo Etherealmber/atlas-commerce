@@ -77,6 +77,7 @@ export function invalidateGetCache(prefix?: string) {
     getCache.clear();
     return;
   }
+  // oxlint-disable-next-line unicorn/no-useless-spread -- snapshot on purpose: keys are deleted during the loop
   for (const k of [...getCache.keys()]) {
     if (k.startsWith(prefix)) getCache.delete(k);
   }

@@ -33,6 +33,7 @@ import {
 import { startBarcodeScan, isBarcodeLike, captureAndDecode, decodeImageFile, preloadBarcodeScanner, prepareZXing } from '../lib/barcodeScan';
 import { IconPackage, IconInbox, IconDocument } from '../components/Icons';
 import OfflineBanner from '../components/OfflineBanner';
+import { CountUp } from '../components/ui/Bits';
 
 
 type Product = {
@@ -568,9 +569,9 @@ function PhoneHome({
         <span>→</span>
       </button>
       <div className="ph-stats">
-        <div className="ph-stat peach"><span className="lbl">Stock bas</span><strong>{lowCount}</strong><span className="hint">à vérifier en rayon</span></div>
+        <div className="ph-stat peach"><span className="lbl">Stock bas</span><strong><CountUp value={lowCount} /></strong><span className="hint">à vérifier en rayon</span></div>
         {!stockOnly && (
-          <div className="ph-stat white"><span className="lbl">Ventes du jour</span><strong>{todaySales} MAD</strong><span className="hint">toutes factures</span></div>
+          <div className="ph-stat white"><span className="lbl">Ventes du jour</span><strong><CountUp value={todaySales} suffix=" MAD" /></strong><span className="hint">toutes factures</span></div>
         )}
       </div>
       <div className="ph-panel">
