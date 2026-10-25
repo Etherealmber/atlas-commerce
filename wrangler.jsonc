@@ -67,7 +67,19 @@
   "vars": {
     "ENVIRONMENT": "production",
     "CACHE_TTL_SECONDS": "300",
-    "TURNSTILE_SITE_KEY": "0x4AAAAAAEco33YS31FvWems"
+    "TURNSTILE_SITE_KEY": "0x4AAAAAAEco33YS31FvWems",
+    // v259 — WebAuthn/passkeys capability config (non-secret). Passkeys stay
+    // DISABLED until WEBAUTHN_ENABLED is flipped to "true" AFTER the hardened
+    // verifier (worker/lib/webauthn.ts) is deployed and reviewed. Android
+    // Credential Manager additionally needs WEBAUTHN_ANDROID_PACKAGE +
+    // WEBAUTHN_ANDROID_CERT_HASH (see docs/webauthn.md).
+    "WEBAUTHN_ENABLED": "false",
+    "WEBAUTHN_RP_ID": "stock.afmarbre.com",
+    "WEBAUTHN_RP_NAME": "Atlas Commerce",
+    "WEBAUTHN_ALLOWED_ORIGINS": "https://stock.afmarbre.com",
+    "WEBAUTHN_REQUIRE_UV": "required",
+    "WEBAUTHN_ANDROID_PACKAGE": "",
+    "WEBAUTHN_ANDROID_CERT_HASH": ""
   },
 
   // Required by `wrangler preview` (Workers Builds deploy command).

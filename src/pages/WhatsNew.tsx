@@ -21,6 +21,27 @@ type Release = {
 
 const RELEASES: Release[] = [
   {
+    version: '0.5.7-beta',
+    date: '25 octobre 2026',
+    sections: [
+      {
+        kind: 'features',
+        items: [
+          { id: '057a1', text: 'Passkeys (WebAuthn) : vérification cryptographique complète côté serveur — challenge aléatoire à usage unique (atomique, 5 minutes, lié au compte, au RP et à l’origine), type webauthn.create/get vérifié, origine exacte autorisée, hash RP ID, flags présence/verification utilisateur, attestation « none » uniquement, clé publique ES256 extraite de l’objet d’attestation et stockée, signature vérifiée sur authData + hash clientData, handle utilisateur obligatoirement égal au compte (un passkey d’un autre compte est rejeté), compteurs anti-rejeu avec règle des passkeys synchronisés, doublons refusés, inscription liée à la session active' },
+          { id: '057a2', text: 'Capacité passkeys exposée aux clients : GET /api/auth/webauthn/status — l’app et l’APK n’affichent les passkeys QUE si le serveur les a activées de façon sécurisée (enabled, rp, origines, user_verification, ES256, état Android) ; Android Credential Manager : /.well-known/assetlinks.json servi automatiquement dès que le package et l’empreinte SHA-256 de signature Play sont configurés (docs/webauthn.md §4)' },
+          { id: '057a3', text: 'Audit miroir automatique (finance) : chaque réponse mensuelle et chaque relevé embarque mirror_audit — lignes miroir exclues comparées aux tables bill_payments/employee_payments avec drapeau consistent ; la vérification du correctif 6 000 MAD tourne toute seule en production, à chaque requête, sans CLI ni PC' },
+        ],
+      },
+      {
+        kind: 'fixes',
+        items: [
+          { id: '057a4', text: 'Sécurité passkeys : avant cette version, les routes WebAuthn faisaient confiance aux champs soumis par le client (aucune vérification de signature, clé publique jamais stockée, token émis après simple consommation du challenge + lookup de l’identifiant, challenges liés à une empreinte fournie par le client et consommation non atomique) — vecteur de prise de compte ; désormais chaque succès exige la vérification complète, les anciennes lignes sans clé publique sont inertes, et tout échec de connexion renvoie un code générique unique (401 WEBAUTHN_VERIFY_FAILED) qui rend l’énumération de comptes impossible' },
+          { id: '057a5', text: 'Passkeys volontairement DÉSACTIVÉES en production (WEBAUTHN_ENABLED=false — les 4 routes répondent 503 WEBAUTHN_DISABLED) jusqu’à validation de la checklist de déploiement docs/webauthn.md §5 ; 27 nouveaux tests WebAuthn (signatures ES256 réelles, fixtures CBOR, replay, origines, flags, compteurs, politiques) — suite vitest 72/72' },
+        ],
+      },
+    ],
+  },
+  {
     version: '0.5.6-beta',
     date: '25 octobre 2026',
     sections: [

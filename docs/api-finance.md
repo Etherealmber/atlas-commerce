@@ -104,6 +104,14 @@ the in-app `/api/alerts` feed uses.
   and payroll payment was subtracted twice from balances (see
   `docs/finance-6000-investigation.md`).
 
+**v259 — `mirror_audit` (automatic double-count audit).** The monthly summary and the statement
+both embed a `mirror_audit` block: counts/totals of the excluded mirror ledger rows (`bill_id:` /
+`employee_id:` notes) vs the `bill_payments` / `employee_payments` source tables, plus a
+`consistent: true|false` flag. It runs **in production automatically** on every request — no
+wrangler CLI, no PC needed — so the 6,000 MAD double-count fix
+(`docs/finance-6000-investigation.md`) is continuously verified from the app itself. If a future
+feature re-introduces mirror double counting, `consistent` flips to `false` in the live response.
+
 ### Legacy calculation rules
 
 - **sales_received** — `invoice_payments` rows with `paid_at` inside the period (partial

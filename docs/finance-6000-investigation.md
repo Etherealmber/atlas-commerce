@@ -102,7 +102,15 @@ passes `round2`; the statement additionally returns the invariant
   duplicates visible; reversals net out; company isolation; summary ≡ statement
   ≡ PDF inputs.
 
-## 5. Production confirmation probe (owner, sanitized output)
+## 5. Verification — now AUTOMATIC (v259)
+
+You no longer need wrangler or a PC: every `GET /api/admin/finance/monthly/<month>` and
+`GET /api/admin/finance/statement?...` response now embeds a `mirror_audit` block — mirror rows
+excluded vs `bill_payments`/`employee_payments` counts and totals, with a `consistent` flag
+(`docs/api-finance.md`). If the fix ever regresses, `consistent` flips to `false` in the live
+response — the confirmation runs by itself, on every request, in production.
+
+### 5.1 Manual probe (read-only, optional)
 
 ```bash
 # which rows are mirrors vs real cash (amounts/dates only):

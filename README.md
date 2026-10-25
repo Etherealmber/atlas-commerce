@@ -308,12 +308,16 @@ Atlas Commerce est développé et maintenu par **loxdpy ([@loxdpsy](https://gith
 - `themes-css-guard.yml` : `scripts/css-check.mjs` — accolades/parenthèses équilibrées, hex valides, dark-force.css dernier import CSS obligatoire, et aucune NOUVELLE déclaration blanche dans les blocs sombres sur les PR
 - Les trois tournent sur chaque pull request (et sur main) avec filters par chemin : un PR rouge ne devrait jamais être mergé, donc jamais déployé
 
-Version actuelle : **0.5.6-beta** (gelée jusqu'au prochain ordre de push).
+Version actuelle : **0.5.7-beta** (gelée jusqu'au prochain ordre de push).
 
 Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depuis la première version interne ; le détail complet et vivant est dans l'app (**Nouveautés**), y compris l’ancien cycle bêta pré-renumérotation, renuméroté en **0.x** (0.0.1 → 0.4.4).
 
 <details>
 <summary>📦 Toutes les versions (0.0.1-beta → 0.5.5-beta) — cliquer pour déplier</summary>
+
+### 0.5.7-beta
+- Passkeys WebAuthn sécurisés (`docs/webauthn.md`) : vérification cryptographique complète (challenges atomiques à usage unique liés compte/RP/origine, types `webauthn.create`/`get`, origine exacte, hash RP ID, flags UP/UV, attestation « none », clé publique ES256 stockée, signature sur authData + hash clientData, handle utilisateur = compte, compteurs anti-rejeu + règle passkeys synchronisés, doublons refusés) ; échecs de connexion = code générique unique (anti-énumération) ; `GET /api/auth/webauthn/status` (capacité client) ; `/.well-known/assetlinks.json` pour Android Credential Manager ; **désactivées en production** (`WEBAUTHN_ENABLED=false`, 503) jusqu’à la checklist §5 ; 27 tests WebAuthn réels (ES256/CBOR/replay) — vitest 72/72
+- Audit miroir finance AUTOMATIQUE : `mirror_audit` (lignes miroir exclues vs `bill_payments`/`employee_payments` + flag `consistent`) embarqué dans le résumé mensuel et le relevé — la confirmation du correctif 6 000 MAD tourne seule en production, sans CLI ni PC (`docs/api-finance.md`)
 
 ### 0.5.6-beta
 - Relevé mensuel serveur `GET /api/admin/finance/statement?period=` (owner/admin) : ouverture/clôture, mouvements chronologiques avec solde courant, refs assainies, pagination, statut ouvert/clos, invariant ouvrant + crédits − débits = clôturant ; résumé mensuel, relevé et PDF = UN seul calcul canonique (`docs/api-finance.md`)
