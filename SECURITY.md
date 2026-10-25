@@ -1,6 +1,6 @@
 # Security Policy — Atlas Commerce
 
-© 2026 loxdpsy — MIT — current beta: **0.4.9-beta** (stable target: 1.0.0)
+© 2026 loxdpsy — MIT — current beta: see README « Version actuelle » (stable target: 1.0.0)
 
 ## Supported Versions
 

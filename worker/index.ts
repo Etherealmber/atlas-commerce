@@ -99,6 +99,16 @@ import {
   verifyRegistration,
   type WebAuthnPolicy,
 } from './lib/webauthn';
+import {
+  ensureReportTables,
+  githubConfig,
+  listReports,
+  reportCrash,
+  reportUser,
+  retryPendingReports,
+  saveGithubConfig,
+  validateGithubToken,
+} from './lib/reports';
 import { qrToSvg } from './qrSvg';
 
 /** Signed short-lived tokens for external viewers (Google / Microsoft) — works across Worker isolates. */
@@ -753,6 +763,9 @@ app.use('/api/*', async (c, next) => {
     path === '/api/auth/webauthn/login/verify' ||
     path === '/api/auth/webauthn/status' ||
     path === '/.well-known/assetlinks.json' ||
+    // v260 — crash intake is public by design (fire-and-forget from global
+    // error handlers, incl. logged-out sessions); rate-limited + sanitized.
+    path === '/api/crash-reports' ||
     path === '/api/auth/device-status' ||
     path === '/api/auth/turnstile-config'
   ) {
@@ -3752,6 +3765,121 @@ app.get('/.well-known/assetlinks.json', async (c) => {
 });
 
 /** List WebAuthn credentials — device + legacy + all for owner/admin */
+/* ── v260 — Crash & user reports → GitHub issues (docs/reports-github.md) ──
+ * crash_reports: automatic intake from the app's global error handlers.
+ * user_reports: "Signaler un problème" from any logged-in account.
+ * GitHub sync is opt-in: env GITHUB_ISSUE_TOKEN secret or the owner-set
+ * app_config token (in-app, never echoed). Without one, everything queues
+ * in D1 and the daily cron drains it once configured — no report is lost. */
+app.post('/api/crash-reports', async (c) => {
+  const ip = clientIp(c);
+  const limited = await isRateLimited(c.env.DB, ip);
+  if (limited.blocked) return c.json({ success: false, error: limited.reason, code: 'RATE_LIMITED' }, 429);
+  let body: any = {};
+  try { body = await c.req.json(); } catch { body = {}; }
+  try {
+    await ensureReportTables(c.env.DB);
+    const out = await reportCrash(c.env.DB, c.env, body, ip);
+    return c.json({ success: true, data: { reference: `C-${out.id}`, deduped: out.deduped } }, 202);
+  } catch {
+    // Intake must never break the app: acknowledge even if D1/GitHub fails.
+    return c.json({ success: true, data: { reference: null } }, 202);
+  }
+});
+
+app.post('/api/reports', async (c) => {
+  const ip = clientIp(c);
+  const fingerprint = String(c.req.header('X-Device-Fingerprint') || 'none').slice(0, 128);
+  const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, ip, fingerprint);
+  if (reason !== 'ok') return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
+  const limited = await isRateLimited(c.env.DB, ip);
+  if (limited.blocked) return c.json({ success: false, error: limited.reason, code: 'RATE_LIMITED' }, 429);
+  const session = sessionUserFromHeader(c.req.header('Authorization'));
+  let body: any = {};
+  try { body = await c.req.json(); } catch { return c.json({ success: false, error: 'Requête invalide', code: 'BAD_REQUEST' }, 400); }
+  const message = String(body?.message || '').trim();
+  if (message.length < 5 || message.length > 2000) {
+    return c.json({ success: false, error: 'Le message doit contenir entre 5 et 2000 caractères.', code: 'BAD_REQUEST' }, 400);
+  }
+  await ensureReportTables(c.env.DB);
+  const out = await reportUser(c.env.DB, c.env, {
+    username: String(session.username || ''),
+    role: String(session.role || ''),
+    kind: String(body?.kind || 'bug'),
+    message,
+    contact: body?.contact ? String(body.contact) : '',
+    page: body?.page ? String(body.page) : '',
+    version: body?.version ? String(body.version) : '',
+  });
+  return c.json({ success: true, data: { reference: out.reference, issue_url: out.issue_url || null } }, 201);
+});
+
+/** Owner-only GitHub token management — the token is NEVER returned. */
+async function reportsOwnerSession(c: any, env: any, db: any, ip: string): Promise<{ username: string; role: string } | null> {
+  const fingerprint = String(c.req.header('X-Device-Fingerprint') || 'none').slice(0, 128);
+  const reason = await authFailReason(c.req.header('Authorization'), env, db, ip, fingerprint);
+  if (reason !== 'ok') return null;
+  return sessionUserFromHeader(c.req.header('Authorization'));
+}
+
+app.get('/api/admin/github-token', async (c) => {
+  const ip = clientIp(c);
+  const session = await reportsOwnerSession(c, c.env, c.env.DB, ip);
+  if (!session) return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
+  if (session.role !== 'owner') return c.json({ success: false, error: 'Réservé au propriétaire', code: 'FORBIDDEN' }, 403);
+  await ensureReportTables(c.env.DB);
+  const cfg = await githubConfig(c.env);
+  return c.json({ success: true, data: { configured: !!cfg.token, source: cfg.source, repo: cfg.repo } });
+});
+
+app.put('/api/admin/github-token', async (c) => {
+  const ip = clientIp(c);
+  const session = await reportsOwnerSession(c, c.env, c.env.DB, ip);
+  if (!session) return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
+  if (session.role !== 'owner') return c.json({ success: false, error: 'Réservé au propriétaire', code: 'FORBIDDEN' }, 403);
+  let body: any = {};
+  try { body = await c.req.json(); } catch { return c.json({ success: false, error: 'Requête invalide', code: 'BAD_REQUEST' }, 400); }
+  const token = String(body?.token || '').trim();
+  const repo = String(body?.repo || '').trim().replace(/^https?:\/\/github\.com\//i, '').replace(/\.git$/, '').replace(/^\/+|\/+$/g, '');
+  await ensureReportTables(c.env.DB);
+  if (!token) {
+    await saveGithubConfig(c.env.DB, '', repo);
+    return c.json({ success: true, data: { configured: false } });
+  }
+  if (token.length > 300 || !/^[A-Za-z0-9_]+$/.test(token)) {
+    return c.json({ success: false, error: 'Format de token invalide', code: 'BAD_REQUEST' }, 400);
+  }
+  const v = await validateGithubToken(token);
+  if (!v.ok) return c.json({ success: false, error: v.error || 'Token invalide', code: 'INVALID_TOKEN' }, 400);
+  await saveGithubConfig(c.env.DB, token, repo || 'Etherealmber/atlas-commerce');
+  return c.json({ success: true, data: { configured: true, login: v.login || null, repo: repo || 'Etherealmber/atlas-commerce' } });
+});
+
+app.get('/api/admin/reports', async (c) => {
+  const ip = clientIp(c);
+  const session = await reportsOwnerSession(c, c.env, c.env.DB, ip);
+  if (!session) return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
+  if (session.role !== 'owner' && session.role !== 'admin') {
+    return c.json({ success: false, error: 'Réservé au propriétaire/admin', code: 'FORBIDDEN' }, 403);
+  }
+  await ensureReportTables(c.env.DB);
+  const data = await listReports(c.env.DB, Number(c.req.query('limit') || 25));
+  return c.json({ success: true, data });
+});
+
+app.post('/api/admin/reports/retry', async (c) => {
+  const ip = clientIp(c);
+  const session = await reportsOwnerSession(c, c.env, c.env.DB, ip);
+  if (!session) return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
+  if (session.role !== 'owner') return c.json({ success: false, error: 'Réservé au propriétaire', code: 'FORBIDDEN' }, 403);
+  await ensureReportTables(c.env.DB);
+  const out = await retryPendingReports(c.env);
+  if (out.skipped) {
+    return c.json({ success: false, error: 'Aucun token GitHub configuré — ajoutez-le d’abord.', code: 'GITHUB_NOT_CONFIGURED' }, 409);
+  }
+  return c.json({ success: true, data: out });
+});
+
 app.get('/api/auth/webauthn/credentials', async (c) => {
   await ensureSecurityTables(c.env.DB);
   const fingerprint = String(c.req.header('X-Device-Fingerprint') || 'none').slice(0, 128);
@@ -20734,6 +20862,13 @@ export default {
     } catch (e) {
       // Never throw from the cron handler — the next run drains the outbox.
       console.error('[cron-finance] reminders failed:', String((e as any)?.message || e));
+    }
+    // v260 — drain queued crash/user reports to GitHub once a token exists.
+    try {
+      const r = await retryPendingReports(env as any);
+      if (!r.skipped && (r.crashes || r.user_reports)) console.log('[cron-reports]', JSON.stringify(r));
+    } catch (e) {
+      console.error('[cron-reports] retry failed:', String((e as any)?.message || e));
     }
   },
 

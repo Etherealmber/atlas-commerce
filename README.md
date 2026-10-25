@@ -38,7 +38,10 @@ Captures desktop **et téléphone** (coque mobile réelle) dans `public/shots/` 
 
 ## 🚀 Starter — démarrer de zéro
 
-Guide pas à pas, aucune connaissance de Cloudflare requise.
+> **Référence complète : [`SETUP.md`](SETUP.md)** — comptes, base de données D1, KV, R2,
+> bindings, chaque secret avec le lien de son fournisseur (Groq, Gemini, Resend, Turnstile,
+> Firebase, GitHub), déploiement **sans CLI** (Workers Builds) ou wrangler, domaine, OTP e-mail,
+> rapports GitHub, passkeys et Android. Le résumé rapide ci-dessous suffit pour tester en local.
 
 ### 0. Prérequis
 
@@ -110,17 +113,18 @@ appareils distants ne pourront pas recevoir d'OTP — configurez-le en productio
 
 ### 7. App mobile (Android)
 
-```bash
-npm run cap:open      # ouvre Android Studio
-```
-
-Les mises à jour OTA passent par le manifeste `latest.json` servi depuis R2
-(Admin → Mise à jour app).
+Capacitor a été supprimé : le mobile = **PWA installable** (cette app web) + **app native
+Kotlin/Compose** dans le dépôt https://github.com/Etherealmber/atlas-commerce-android
+(build Android Studio ou CI ; APK servis depuis R2 via le worker — `/api/app/android-update`,
+Admin → Mise à jour app). Passkeys Android : `docs/webauthn.md` §4 (assetlinks automatique).
 
 ### 8. Besoin d'aide ?
 
-- `STATUS_REVIEW.md`, `ARCHITECTURE_PARTNER_API_V1.md` : architecture & API
-- Issues GitHub pour les bugs ; DM **@loxdpsy** pour les vulnérabilités
+- **[`SETUP.md`](SETUP.md)** : installation complète de A à Z (base de données, secrets, fournisseurs de clés, déploiement sans CLI)
+- `docs/reports-github.md` : crashs & signalements utilisateurs → issues GitHub (configuration dans l'app)
+- `docs/webauthn.md` : passkeys (modèle de sécurité, activation, Android Credential Manager) · `docs/api-finance.md` : finance & relevés · `PARTNER_API.md` : API partenaire · `SECURITY.md` : vulnérabilités
+- **Dans l'app** : À propos → « Signaler un problème » (arrive dans les issues GitHub) ; les crashs sont rapportés automatiquement
+- DM **@loxdpsy** pour les vulnérabilités
 - Licence **MIT © 2026 loxdpsy** — forkez, modifiez, vendez vos services, citez-nous ★
 
 ## 🌟 À propos du projet
@@ -308,12 +312,19 @@ Atlas Commerce est développé et maintenu par **loxdpy ([@loxdpsy](https://gith
 - `themes-css-guard.yml` : `scripts/css-check.mjs` — accolades/parenthèses équilibrées, hex valides, dark-force.css dernier import CSS obligatoire, et aucune NOUVELLE déclaration blanche dans les blocs sombres sur les PR
 - Les trois tournent sur chaque pull request (et sur main) avec filters par chemin : un PR rouge ne devrait jamais être mergé, donc jamais déployé
 
-Version actuelle : **0.5.8-beta** (gelée jusqu'au prochain ordre de push).
+Version actuelle : **0.5.9-beta** (gelée jusqu'au prochain ordre de push).
 
 Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depuis la première version interne ; le détail complet et vivant est dans l'app (**Nouveautés**), y compris l’ancien cycle bêta pré-renumérotation, renuméroté en **0.x** (0.0.1 → 0.4.4).
 
 <details>
 <summary>📦 Toutes les versions (0.0.1-beta → 0.5.5-beta) — cliquer pour déplier</summary>
+
+### 0.5.9-beta
+- Crash reporting automatique → **issues GitHub** : erreurs globales, promesses rejetées et crashs React (ErrorBoundary) sont capturés, assainis (secrets retirés, IP hachée), dédupliqués par empreinte (un bug = une issue) et envoyés au dépôt du projet ; sans token, tout part en file D1 et le cron quotidien vide la file dès configuration (`docs/reports-github.md`)
+- Signalements utilisateurs : **À propos → « Signaler un problème »** (bug / idée / autre, contact facultatif) — chaque message devient une issue GitHub avec référence `R-<id>`, sans compte GitHub pour l'utilisateur
+- Panneau propriétaire **Paramètres → Intégrations → Rapports & crashs → GitHub** : token fine-grained (validé contre GitHub avant stockage, jamais renvoyé), dépôt cible, file en attente, renvoi manuel, liste des crashs/signalements récents avec liens d'issues
+- Documentation reprise de zéro : **`SETUP.md`** (comptes → D1/KV/R2 → chaque secret avec lien fournisseur → déploiement sans CLI Workers Builds → domaine/OTP → vérification → passkeys/Android), `docs/reports-github.md`, README corrigé (Capacitor supprimé, index docs à jour), `SECURITY.md` mis à jour ; nettoyage des fichiers d'état obsolètes (STATUS_REVIEW, UI_REWRITE, MONOLITH_PEEL, EDGE_EQUIVALENTS, P0_HARDENING, ARCHITECTURE_PARTNER_API_V1, ATTENDANCE_FROM_CLOUDATTEND)
+- 13 nouveaux tests (assainissement, empreintes, intake D1 + dédup, file d'attente, sync GitHub stubbée, priorité env > app) — vitest 91/91
 
 ### 0.5.8-beta
 - Passkeys Android Credential Manager : origines natives `android:apk-key-hash-sha256:` (dérivées de l’empreinte SHA-256 du certificat de signature Play configurée serveur) + origine web cross-origin liée au paquet signé acceptées par le vérificateur exact ; `WEBAUTHN_ANDROID_PACKAGE` préconfiguré ; `status.data.android.origin` expose la valeur acceptée ; assetlinks automatique dès l’empreinte renseignée ; sans configuration Android, vérification strictement web inchangée (`docs/webauthn.md` §4a) — 6 tests d’intégration, vitest 78/78

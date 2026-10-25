@@ -21,6 +21,26 @@ type Release = {
 
 const RELEASES: Release[] = [
   {
+    version: '0.5.9-beta',
+    date: '26 octobre 2026',
+    sections: [
+      {
+        kind: 'features',
+        items: [
+          { id: '059a1', text: 'Crash reporting automatique : les plantages de l’application (erreurs globales, promesses rejetées, crashs d’écrans React) sont capturés, assainis (secrets et tokens retirés, adresse IP hachée), dédupliqués par empreinte — un bug = une seule issue — puis envoyés directement dans les issues GitHub du projet ; sans token configuré, tout est gardé en file et part automatiquement dès sa configuration (cron quotidien inclus), aucun rapport n’est perdu' },
+          { id: '059a2', text: 'Signalement utilisateur : À propos → « Signaler un problème » — bug, idée ou question, avec contact facultatif ; chaque message devient une issue GitHub avec sa référence (R-…), sans que l’utilisateur ait besoin d’un compte GitHub' },
+          { id: '059a3', text: 'Panneau propriétaire Paramètres → Intégrations → « Rapports & crashs → GitHub » : collez un token fine-grained (Issues en lecture/écriture — gratuit, github.com/settings/personal-access-tokens/new), il est validé contre GitHub avant stockage et n’est jamais renvoyé ; dépôt cible modifiable, file d’attente visible, renvoi manuel, crashs et signalements récents avec liens vers les issues' },
+        ],
+      },
+      {
+        kind: 'improvements',
+        items: [
+          { id: '059a4', text: 'Documentation reprise de zéro : SETUP.md — installation complète du premier départ (comptes gratuits, base de données D1, cache KV, stockage R2, chaque secret avec le lien de son fournisseur : Groq, Google AI Studio, Resend, Turnstile, Firebase, GitHub — déploiement 100 % navigateur sans CLI via Workers Builds, domaine personnalisé, e-mail OTP, vérification, passkeys et app Android) ; docs/reports-github.md (confidentialité, déduplication, endpoints) ; README corrigé (Capacitor supprimé, index à jour) ; nettoyage de 7 fichiers d’état obsolètes' },
+        ],
+      },
+    ],
+  },
+  {
     version: '0.5.8-beta',
     date: '26 octobre 2026',
     sections: [
