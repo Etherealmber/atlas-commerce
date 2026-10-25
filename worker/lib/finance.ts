@@ -307,6 +307,12 @@ export type OutstandingDoc = {
   state: DocMoneyState;
 };
 
+export type MirrorAudit = {
+  mirror_rows_excluded: { supplier: { count: number; total: number }; payroll: { count: number; total: number } };
+  payment_tables: { supplier: { count: number; total: number }; payroll: { count: number; total: number } };
+  consistent: boolean;
+};
+
 export type MonthlySummary = {
   period: string;
   timezone: string;
@@ -322,6 +328,8 @@ export type MonthlySummary = {
   payables: { total_outstanding: number; total_overdue: number; documents: OutstandingDoc[] };
   payroll: { total_due: number; employees: number };
   reconciliation: { source: string; generated_at: string; rules: string };
+  /** v259 — automatic double-count audit (docs/finance-6000-investigation.md). */
+  mirror_audit: MirrorAudit;
 };
 
 /** Rows excluded from receivables: quotes, cancellations, paid, and the
@@ -479,6 +487,8 @@ export async function computeMonthlySummary(db: D1Database, period: string, ctx:
       rules: 'docs/api-finance.md#calculation-rules',
       as_of_date: asOf,
     } as any,
+    // v259 — automatic double-count audit (see docs/finance-6000-investigation.md)
+    mirror_audit: await computeMirrorAudit(db),
   };
 }
 
@@ -527,6 +537,7 @@ export type Statement = {
   total: number;
   has_more: boolean;
   rows: StatementRow[];
+  mirror_audit: MirrorAudit;
 };
 
 const MIRROR_EXPENSE = `NOT (category='Règlement fournisseur' AND COALESCE(notes,'') LIKE 'bill_id:%')
@@ -604,6 +615,38 @@ async function ledgerRows(db: D1Database, fromYmd: string, toYmd: string): Promi
   return out;
 }
 
+/**
+ * v259 — automatic double-count audit (no CLI needed): aggregates the mirror
+ * ledger rows excluded from the canonical math and cross-checks them against
+ * the payment tables. Surfaced in the monthly summary and the statement so the
+ * owner sees the reconciliation in the app itself. Sanitized: counts + totals
+ * only, never names, references or dates.
+ */
+export async function computeMirrorAudit(db: D1Database): Promise<MirrorAudit> {
+  const q = async (sql: string): Promise<{ count: number; total: number }> => {
+    try {
+      const r = await db.prepare(sql).first() as any;
+      return { count: Number(r?.n || 0), total: round2(Number(r?.s || 0)) };
+    } catch { return { count: 0, total: 0 }; }
+  };
+  const [mSup, mPay] = await Promise.all([
+    q(`SELECT COUNT(*) n, COALESCE(SUM(amount),0) s FROM expenses
+       WHERE entry_type='expense' AND category='Règlement fournisseur' AND COALESCE(notes,'') LIKE 'bill_id:%'`),
+    q(`SELECT COUNT(*) n, COALESCE(SUM(amount),0) s FROM expenses
+       WHERE entry_type='expense' AND category='Salaire' AND COALESCE(notes,'') LIKE 'employee_id:%'`),
+  ]);
+  const [pSup, pPay] = await Promise.all([
+    q(`SELECT COUNT(*) n, COALESCE(SUM(amount),0) s FROM bill_payments`),
+    q(`SELECT COUNT(*) n, COALESCE(SUM(amount),0) s FROM employee_payments`),
+  ]);
+  return {
+    mirror_rows_excluded: { supplier: mSup, payroll: mPay },
+    payment_tables: { supplier: pSup, payroll: pPay },
+    consistent: mSup.count === pSup.count && Math.abs(mSup.total - pSup.total) < 0.005
+      && mPay.count === pPay.count && Math.abs(mPay.total - pPay.total) < 0.005,
+  };
+}
+
 async function cashUntil(db: D1Database, untilInclusive: string): Promise<number> {
   const [a, b, c, d] = await Promise.all([
     sumUntil(db, SQL_SALES, untilInclusive),
@@ -667,7 +710,8 @@ export async function computeStatement(
     total,
     has_more: startIdx + size < total,
     rows: withRunning.slice(startIdx, startIdx + size),
-  };
+    mirror_audit: await computeMirrorAudit(db),
+  } as Statement;
 }
 
 /* ─────────────────────────── durable outbox + delivery ─────────────────────────── */

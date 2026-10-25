@@ -87,6 +87,17 @@ import {
 } from './routes';
 import { countEmployeesPayDue } from './routes/employees';
 import { notifyPaymentRecorded, runFinanceReminders } from './lib/finance';
+import {
+  consumeChallenge as waConsumeChallenge,
+  createChallenge as waCreateChallenge,
+  expectedOrigin,
+  parseClientData,
+  policyFromEnv,
+  userHandleFor,
+  verifyAuthentication,
+  verifyRegistration,
+  type WebAuthnPolicy,
+} from './lib/webauthn';
 import { qrToSvg } from './qrSvg';
 
 /** Signed short-lived tokens for external viewers (Google / Microsoft) — works across Worker isolates. */
@@ -739,6 +750,8 @@ app.use('/api/*', async (c, next) => {
     path === '/api/auth/login-biometric' ||
     path === '/api/auth/webauthn/login/options' ||
     path === '/api/auth/webauthn/login/verify' ||
+    path === '/api/auth/webauthn/status' ||
+    path === '/.well-known/assetlinks.json' ||
     path === '/api/auth/device-status' ||
     path === '/api/auth/turnstile-config'
   ) {
@@ -2025,6 +2038,14 @@ async function ensureSecurityTables(db: D1Database) {
   await addColumnIfMissing(db, 'webauthn_credentials', 'username', "TEXT DEFAULT ''");
   await addColumnIfMissing(db, 'webauthn_credentials', 'role', "TEXT DEFAULT ''");
   await addColumnIfMissing(db, 'webauthn_credentials', 'device_info', "TEXT DEFAULT ''");
+  // v259 — verified credential material (the pre-v259 schema stored NO key)
+  await addColumnIfMissing(db, 'webauthn_credentials', 'public_key_jwk', "TEXT DEFAULT ''");
+  await addColumnIfMissing(db, 'webauthn_credentials', 'counter', 'INTEGER DEFAULT 0');
+  await addColumnIfMissing(db, 'webauthn_credentials', 'backup_eligible', 'INTEGER DEFAULT 0');
+  await addColumnIfMissing(db, 'webauthn_credentials', 'backup_state', 'INTEGER DEFAULT 0');
+  await addColumnIfMissing(db, 'webauthn_credentials', 'rp_id', "TEXT DEFAULT ''");
+  await addColumnIfMissing(db, 'webauthn_credentials', 'origin', "TEXT DEFAULT ''");
+  await addColumnIfMissing(db, 'webauthn_credentials', 'cred_user_handle', "TEXT DEFAULT ''");
 
   // Short-lived challenges for WebAuthn register/login
   await db.prepare(`CREATE TABLE IF NOT EXISTS webauthn_challenges (
@@ -2035,6 +2056,12 @@ async function ensureSecurityTables(db: D1Database) {
     expires_at TEXT NOT NULL,
     created_at TEXT DEFAULT (datetime('now'))
   )`).run();
+  // v259 — purpose/account/RP/origin binding + atomic single-use consumption
+  await addColumnIfMissing(db, 'webauthn_challenges', 'username', "TEXT DEFAULT ''");
+  await addColumnIfMissing(db, 'webauthn_challenges', 'rp_id', "TEXT DEFAULT ''");
+  await addColumnIfMissing(db, 'webauthn_challenges', 'origin', "TEXT DEFAULT ''");
+  await addColumnIfMissing(db, 'webauthn_challenges', 'consumed', 'INTEGER DEFAULT 0');
+  await addColumnIfMissing(db, 'webauthn_challenges', 'consumed_at', 'TEXT DEFAULT NULL');
 
   // Multi-user accounts (owner is always env ADMIN_USERNAME + ADMIN_PASSWORD)
   await db.prepare(`CREATE TABLE IF NOT EXISTS app_users (
@@ -3314,122 +3341,23 @@ app.post('/api/auth/qr/session/:token/complete', async (c) => {
   });
 });
 
-/* ─── WebAuthn: platform biometrics + hardware security keys ─── */
+/* ─── WebAuthn: platform biometrics + hardware security keys (v259 hardened) ───
+ * ALL cryptographic verification lives in worker/lib/webauthn.ts (W3C WebAuthn
+ * L2 procedures). These routes only wire session/authz/persistence: every
+ * success path requires verifyRegistration()/verifyAuthentication() to return
+ * ok — client-submitted fields are never treated as proof of anything.
+ * Feature-gated: WEBAUTHN_ENABLED !== 'true' → 503 WEBAUTHN_DISABLED, and
+ * clients must consult GET /api/auth/webauthn/status before offering passkeys.
+ * Android Credential Manager: allowed only via the documented assetlinks
+ * association (WEBAUTHN_ANDROID_PACKAGE + WEBAUTHN_ANDROID_CERT_HASH). */
 
-async function storeChallenge(db: D1Database, fingerprint: string, purpose: string): Promise<string> {
-  const challenge = randomChallenge();
-  const id = randomChallenge().slice(0, 22);
-  const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
-  await db.prepare(
-    `INSERT INTO webauthn_challenges (id, challenge, fingerprint, purpose, expires_at) VALUES (?, ?, ?, ?, ?)`
-  ).bind(id, challenge, fingerprint, purpose, expiresAt).run();
-  return challenge;
+function waPolicy(env: any): WebAuthnPolicy {
+  return policyFromEnv(env as Record<string, string | undefined>);
 }
 
-async function consumeChallenge(
-  db: D1Database,
-  fingerprint: string,
-  purpose: string,
-  challenge: string,
-): Promise<boolean> {
-  const row = await db.prepare(
-    `SELECT * FROM webauthn_challenges WHERE fingerprint = ? AND purpose = ? AND challenge = ? ORDER BY created_at DESC LIMIT 1`
-  ).bind(fingerprint, purpose, challenge).first() as any;
-  if (!row) return false;
-  if (new Date(row.expires_at) < new Date()) {
-    await db.prepare(`DELETE FROM webauthn_challenges WHERE id = ?`).bind(row.id).run();
-    return false;
-  }
-  await db.prepare(`DELETE FROM webauthn_challenges WHERE id = ?`).bind(row.id).run();
-  return true;
+function waDisabledResponse() {
+  return { success: false, error: 'Passkeys désactivées sur ce serveur', code: 'WEBAUTHN_DISABLED' };
 }
-
-/** Start WebAuthn registration — returns PublicKeyCredentialCreationOptions fields */
-app.post('/api/auth/webauthn/register/options', async (c) => {
-  const body = await c.req.json().catch(() => ({}));
-  const fingerprint = String(body.fingerprint || c.req.header('X-Device-Fingerprint') || 'none').slice(0, 128);
-  await ensureSecurityTables(c.env.DB);
-
-  const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, clientIp(c), fingerprint);
-  if (reason !== 'ok') {
-    return c.json({ success: false, error: 'Session invalide — connectez-vous d\'abord', code: 'UNAUTHORIZED' }, 401);
-  }
-  // Logged-in session is enough to register a passkey (phone/PC). Auto-trust this device.
-  try {
-    if (!(await isTrustedDevice(c.env.DB, fingerprint))) {
-      await c.env.DB.prepare(
-        `INSERT OR IGNORE INTO trusted_devices (fingerprint, label, created_at, last_seen)
-         VALUES (?, 'Passkey device', datetime('now'), datetime('now'))`
-      ).bind(fingerprint).run().catch(() => {});
-      // fallback schema variants
-      try {
-        await c.env.DB.prepare(
-          `INSERT OR IGNORE INTO trusted_devices (fingerprint, created_at) VALUES (?, datetime('now'))`
-        ).bind(fingerprint).run();
-      } catch { /* */ }
-    }
-  } catch { /* non-fatal */ }
-
-  const challenge = await storeChallenge(c.env.DB, fingerprint, 'register');
-  const { results: existing } = await c.env.DB.prepare(
-    `SELECT id FROM webauthn_credentials WHERE fingerprint = ?`
-  ).bind(fingerprint).all();
-  const exclude = (existing || []).map((r: any) => ({ type: 'public-key', id: r.id }));
-
-  const deviceType = body.device_type === 'cross-platform' ? 'cross-platform' : 'platform';
-  const attestation = await getConfig(c.env.DB, 'webauthn_attestation', 'none');
-  const userVerification = await getConfig(c.env.DB, 'webauthn_user_verification', 'preferred');
-
-  // Android Credential Manager validates RP ID against Digital Asset Links.
-  // Must be the production domain (not workers.dev / localhost).
-  // Native Android requires exact production host for Digital Asset Links
-  let rpId = 'stock.afmarbre.com';
-  // user.id must be base64url-encoded opaque bytes for native clients
-  const userIdB64 = btoa(fingerprint.slice(0, 32)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  // strategy=gpm (default) | open | strict — platform authenticator for Android/iOS
-  // strategy=strict→ platform + resident required (Pixel / official sample)
-  const strategy = String(body.strategy || body.relaxed === true || body.relaxed === '1' ? 'open' : 'gpm').toLowerCase();
-  const authenticatorSelection: Record<string, unknown> = {
-    userVerification: 'preferred',
-  };
-  if (strategy === 'strict') {
-    authenticatorSelection.authenticatorAttachment = 'platform';
-    authenticatorSelection.residentKey = 'required';
-    authenticatorSelection.requireResidentKey = true;
-  } else if (strategy === 'open') {
-    authenticatorSelection.residentKey = 'preferred';
-    authenticatorSelection.requireResidentKey = false;
-  } else {
-    // gpm (default): works on Pixel, Samsung, most devices with Google PM
-    authenticatorSelection.authenticatorAttachment = 'platform';
-    authenticatorSelection.residentKey = 'preferred';
-    authenticatorSelection.requireResidentKey = false;
-  }
-  return c.json({
-    success: true,
-    options: {
-      challenge,
-      rp: { name: 'Atlas Commerce', id: rpId },
-      user: {
-        id: userIdB64,
-        name: String(body.username || 'atlas-user').slice(0, 64),
-        displayName: String(body.display_name || body.username || 'Atlas').slice(0, 64),
-      },
-      pubKeyCredParams: [
-        { type: 'public-key', alg: -7 },
-        { type: 'public-key', alg: -257 },
-      ],
-      authenticatorSelection,
-      timeout: 45000,
-      attestation: 'none',
-      excludeCredentials: [],
-    },
-    device_type: deviceType,
-    rp_id: rpId,
-    strategy,
-  });
-});
-
 
 /** Build a readable passkey label from client + User-Agent (Windows / iPhone / Android…). */
 function buildPasskeyLabel(body: any, ua: string, deviceType: string): string {
@@ -3477,27 +3405,116 @@ function enrichCredentialRow(r: any): any {
   };
 }
 
-/** Finish WebAuthn registration */
-app.post('/api/auth/webauthn/register/verify', async (c) => {
+/** Start WebAuthn registration — returns PublicKeyCredentialCreationOptions fields */
+app.post('/api/auth/webauthn/register/options', async (c) => {
+  const policy = waPolicy(c.env);
+  if (!policy.enabled) return c.json(waDisabledResponse(), 503);
   const body = await c.req.json().catch(() => ({}));
   const fingerprint = String(body.fingerprint || c.req.header('X-Device-Fingerprint') || 'none').slice(0, 128);
-  // Accept flat fields OR nested Credential Manager registration JSON
+  await ensureSecurityTables(c.env.DB);
+
+  const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, clientIp(c), fingerprint);
+  if (reason !== 'ok') {
+    return c.json({ success: false, error: 'Session invalide — connectez-vous d\'abord', code: 'UNAUTHORIZED' }, 401);
+  }
+  const session = sessionUserFromHeader(c.req.header('Authorization'));
+  const username = String(session.username || '').toLowerCase();
+  if (!username) return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
+  const origin = expectedOrigin(policy);
+
+  // Challenge bound to the SESSION account (not to any client-supplied value).
+  const challenge = await waCreateChallenge(c.env.DB, { purpose: 'register', username, rpId: policy.rpId, origin });
+  const found = await c.env.DB.prepare(
+    `SELECT id, transports FROM webauthn_credentials WHERE lower(username) = ?`,
+  ).bind(username).all() as any;
+  const exclude = ((found?.results || []) as any[]).map((r: any) => ({
+    type: 'public-key',
+    id: String(r.id),
+    transports: String(r.transports || '').split(',').filter(Boolean),
+  }));
+  const userHandle = await userHandleFor(username);
+  const deviceType = body.device_type === 'cross-platform' ? 'cross-platform' : 'platform';
+
+  return c.json({
+    success: true,
+    options: {
+      challenge,
+      rp: { name: policy.rpName, id: policy.rpId },
+      user: { id: userHandle, name: username, displayName: username },
+      pubKeyCredParams: [{ type: 'public-key', alg: -7 }],
+      authenticatorSelection: {
+        residentKey: 'preferred',
+        requireResidentKey: false,
+        userVerification: policy.requireUV ? 'required' : 'preferred',
+      },
+      timeout: 60000,
+      attestation: policy.attestation,
+      excludeCredentials: exclude,
+    },
+    device_type: deviceType,
+    rp_id: policy.rpId,
+  });
+});
+
+/** Finish WebAuthn registration — full attestation/authData/COSE verification */
+app.post('/api/auth/webauthn/register/verify', async (c) => {
+  const policy = waPolicy(c.env);
+  if (!policy.enabled) return c.json(waDisabledResponse(), 503);
+  const body = await c.req.json().catch(() => ({}));
+  const fingerprint = String(body.fingerprint || c.req.header('X-Device-Fingerprint') || 'none').slice(0, 128);
+  await ensureSecurityTables(c.env.DB);
+
+  const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, clientIp(c), fingerprint);
+  if (reason !== 'ok') return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
+  const session = sessionUserFromHeader(c.req.header('Authorization'));
+  const username = String(session.username || '').toLowerCase();
+  if (!username) return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
+
+  // Accept flat fields OR nested Credential Manager registration JSON.
   const cred = (body.credential && typeof body.credential === 'object') ? body.credential : {};
   const response = (cred.response && typeof cred.response === 'object') ? cred.response : {};
-  let credentialId = String(body.credential_id || cred.id || '').trim();
-  let challenge = String(body.challenge || '').trim();
-  // Decode challenge from clientDataJSON (base64url) when not provided flat
-  if (!challenge && response.clientDataJSON) {
-    try {
-      const b64 = String(response.clientDataJSON).replace(/-/g, '+').replace(/_/g, '/');
-      const pad = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4));
-      const json = JSON.parse(atob(b64 + pad));
-      challenge = String(json.challenge || '').trim();
-    } catch { /* ignore */ }
-  }
-  const deviceType = body.device_type === 'cross-platform' ? 'cross-platform' : 'platform';
+  const credentialIdHint = String(body.credential_id || cred.id || '').trim();
+  const clientDataJSON = String(response.clientDataJSON || body.clientDataJSON || '').trim();
+  const attestationObject = String(response.attestationObject || body.attestation_object || '').trim();
   const transportsRaw = body.transports || cred.transports || response.transports;
   const transports = Array.isArray(transportsRaw) ? transportsRaw.join(',') : String(transportsRaw || '');
+  const deviceType = body.device_type === 'cross-platform' ? 'cross-platform' : 'platform';
+  if (!clientDataJSON || !attestationObject) {
+    return c.json({ success: false, error: 'Réponse passkey incomplète', code: 'BAD_CREDENTIAL' }, 400);
+  }
+
+  let challenge = '';
+  try {
+    challenge = parseClientData(clientDataJSON).json.challenge;
+  } catch {
+    return c.json({ success: false, error: 'clientDataJSON invalide', code: 'WEBAUTHN_MALFORMED_CLIENTDATA' }, 400);
+  }
+  // Atomic single-use, bound to this account + purpose + RP + origin.
+  const consumed = await waConsumeChallenge(c.env.DB, {
+    challenge, purpose: 'register', rpId: policy.rpId, origin: expectedOrigin(policy), username,
+  });
+  if (!consumed) {
+    return c.json({ success: false, error: 'Challenge invalide ou expiré. Réessayez.', code: 'BAD_CHALLENGE' }, 400);
+  }
+
+  let verified;
+  try {
+    verified = await verifyRegistration({
+      clientDataJSON,
+      attestationObject,
+      expectedChallenge: challenge,
+      expectedOrigin: expectedOrigin(policy),
+      rpId: policy.rpId,
+      requireUV: policy.requireUV,
+      attestationPolicy: 'none',
+    });
+  } catch (e: any) {
+    return c.json({ success: false, error: 'Vérification passkey impossible', code: String(e?.code || 'WEBAUTHN_VERIFY_FAILED') }, 400);
+  }
+  if (credentialIdHint && credentialIdHint !== verified.credentialId) {
+    return c.json({ success: false, error: 'Identifiant de credential incohérent', code: 'WEBAUTHN_BAD_CREDENTIAL_ID' }, 400);
+  }
+
   const ua = c.req.header('User-Agent') || '';
   const label = buildPasskeyLabel(body, ua, deviceType).slice(0, 120);
   let deviceInfo = '';
@@ -3508,196 +3525,160 @@ app.post('/api/auth/webauthn/register/verify', async (c) => {
   } catch {
     deviceInfo = ua.slice(0, 200);
   }
-
-  await ensureSecurityTables(c.env.DB);
-
-  const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, clientIp(c), fingerprint);
-  if (reason !== 'ok') {
-    return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
-  }
-  // Session already validated above — do not block passkey verify on trusted list
-  if (!credentialId || !challenge) {
-    return c.json({
-      success: false,
-      error: 'credential_id et challenge obligatoires (réponse passkey incomplète)',
-      code: 'BAD_CREDENTIAL',
-    }, 400);
-  }
-  if (!(await consumeChallenge(c.env.DB, fingerprint, 'register', challenge))) {
-    return c.json({ success: false, error: 'Challenge invalide ou expiré. Réessayez.', code: 'BAD_CHALLENGE' }, 400);
+  const userHandle = await userHandleFor(username);
+  try {
+    await c.env.DB.prepare(
+      `INSERT INTO webauthn_credentials (id, fingerprint, device_type, transports, label, username, role, device_info,
+        public_key_jwk, counter, backup_eligible, backup_state, rp_id, origin, cred_user_handle, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+    ).bind(
+      verified.credentialId, fingerprint, deviceType, transports, label, username,
+      normalizeRole(session.role || 'user'), deviceInfo,
+      JSON.stringify(verified.publicKeyJwk), verified.counter,
+      verified.backupEligible ? 1 : 0, verified.backupState ? 1 : 0,
+      policy.rpId, expectedOrigin(policy), userHandle,
+    ).run();
+  } catch {
+    return c.json({ success: false, error: 'Cette passkey est déjà enregistrée', code: 'DUPLICATE_CREDENTIAL' }, 409);
   }
 
-  const session = sessionUserFromHeader(c.req.header('Authorization'));
-  const regUser = String(session.username || body.username || '').toLowerCase().slice(0, 64);
-  const regRole = normalizeRole(session.role || body.role || 'user');
-
-  await c.env.DB.prepare(
-    `INSERT INTO webauthn_credentials (id, fingerprint, device_type, transports, label, username, role, device_info, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-     ON CONFLICT(id) DO UPDATE SET fingerprint = ?, device_type = ?, transports = ?, label = ?, username = ?, role = ?, device_info = ?`
-  ).bind(
-    credentialId, fingerprint, deviceType, transports, label, regUser, regRole, deviceInfo,
-    fingerprint, deviceType, transports, label, regUser, regRole, deviceInfo,
-  ).run();
-
-  // Ensure trusted_devices row + legacy biometric id (INSERT if missing)
   await trustDevice(c.env.DB, fingerprint, clientIp(c));
-  await c.env.DB.prepare(
-    `UPDATE trusted_devices SET biometric_credential_id = ?, last_seen = datetime('now') WHERE fingerprint = ?`
-  ).bind(credentialId, fingerprint).run();
-
   return c.json({
     success: true,
-    credential_id: credentialId.slice(0, 16) + '…',
-    username: regUser,
-    role: regRole,
-    message: `Passkey enregistrée : ${label}. Sur l’écran de connexion, utilisez « Connexion passkey ».`,
+    credential_id: verified.credentialId.slice(0, 16) + '…',
+    username,
+    role: normalizeRole(session.role || 'user'),
     label,
+    message: `Passkey enregistrée : ${label}. Sur l’écran de connexion, utilisez « Connexion passkey ».`,
   });
 });
 
 /** Start WebAuthn authentication (login) */
 app.post('/api/auth/webauthn/login/options', async (c) => {
+  const policy = waPolicy(c.env);
+  if (!policy.enabled) return c.json(waDisabledResponse(), 503);
   const body = await c.req.json().catch(() => ({}));
-  const fingerprint = String(body.fingerprint || 'none').slice(0, 128);
-  const usernameFilter = String(body.username || '').trim().toLowerCase();
+  const ip = clientIp(c);
   await ensureSecurityTables(c.env.DB);
+  const limited = await isRateLimited(c.env.DB, ip);
+  if (limited.blocked) return c.json({ success: false, error: limited.reason, code: 'RATE_LIMITED' }, 429);
 
-  if (!fingerprint || fingerprint === 'none') {
-    return c.json({ success: false, error: 'Empreinte appareil manquante', code: 'NO_FINGERPRINT' }, 400);
-  }
-
-  // Passkeys are per-user: filter by username when provided so haytam never sees another account's key
-  let creds: any[] = [];
+  const usernameFilter = String(body.username || '').trim().toLowerCase();
+  const challenge = await waCreateChallenge(c.env.DB, {
+    purpose: 'login', username: usernameFilter, rpId: policy.rpId, origin: expectedOrigin(policy),
+  });
+  // Verifiable credentials only (rows with a stored public key). Legacy
+  // biometric ids without keys can never pass verification — not offered.
+  let allow: any[] = [];
   if (usernameFilter) {
     const q = await c.env.DB.prepare(
-      `SELECT id, device_type, transports, username FROM webauthn_credentials
-       WHERE fingerprint = ? AND lower(username) = ?`
-    ).bind(fingerprint, usernameFilter).all();
-    creds = (q.results || []) as any[];
-  } else {
-    const q = await c.env.DB.prepare(
-      `SELECT id, device_type, transports, username FROM webauthn_credentials WHERE fingerprint = ?`
-    ).bind(fingerprint).all();
-    creds = (q.results || []) as any[];
+      `SELECT id, transports FROM webauthn_credentials WHERE lower(username) = ? AND COALESCE(public_key_jwk,'') != ''`,
+    ).bind(usernameFilter).all() as any;
+    allow = ((q?.results || []) as any[]).map((r: any) => ({
+      type: 'public-key',
+      id: String(r.id),
+      transports: String(r.transports || '').split(',').filter(Boolean),
+    }));
   }
-
-  const allow: any[] = (creds || []).map((r: any) => ({
-    type: 'public-key',
-    id: r.id,
-    transports: r.transports ? String(r.transports).split(',').filter(Boolean) : ['internal'],
-  }));
-
-  // Legacy biometric only if no username filter (or matches nothing and user is empty)
-  if (!usernameFilter) {
-    const trusted = await c.env.DB.prepare(
-      `SELECT biometric_credential_id FROM trusted_devices WHERE fingerprint = ?`
-    ).bind(fingerprint).first() as any;
-    if (trusted?.biometric_credential_id && !allow.find((a) => a.id === trusted.biometric_credential_id)) {
-      allow.push({ type: 'public-key', id: trusted.biometric_credential_id, transports: ['internal'] });
-    }
-  }
-
-  // Empty allowCredentials → browser shows discoverable passkeys (Windows Hello / iCloud / phone)
-  // Same UX as Discord: user can pick a saved passkey even if not listed for this fingerprint yet.
-  const challenge = await storeChallenge(c.env.DB, fingerprint, 'login');
-  const rpIdLogin = 'stock.afmarbre.com';
   return c.json({
     success: true,
     options: {
       challenge,
       timeout: 60000,
-      userVerification: 'preferred',
+      userVerification: policy.requireUV ? 'required' : 'preferred',
       allowCredentials: allow,
-      rpId: rpIdLogin,
+      rpId: policy.rpId,
     },
   });
 });
 
-/** Finish WebAuthn authentication — issue session token */
+/** Finish WebAuthn authentication — session issued ONLY after full verification */
 app.post('/api/auth/webauthn/login/verify', async (c) => {
+  const policy = waPolicy(c.env);
+  if (!policy.enabled) return c.json(waDisabledResponse(), 503);
   const body = await c.req.json().catch(() => ({}));
   const fingerprint = String(body.fingerprint || 'none').slice(0, 128);
-  const credNested = (body.credential && typeof body.credential === 'object') ? body.credential : {};
-  let credentialId = String(body.credential_id || credNested.id || '').trim();
-  let challenge = String(body.challenge || '').trim();
-  const respNested = (credNested.response && typeof credNested.response === 'object') ? credNested.response : {};
-  if (!challenge && respNested.clientDataJSON) {
-    try {
-      const b64 = String(respNested.clientDataJSON).replace(/-/g, '+').replace(/_/g, '/');
-      const pad = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4));
-      const json = JSON.parse(atob(b64 + pad));
-      challenge = String(json.challenge || '').trim();
-    } catch { /* */ }
-  }
   const ip = clientIp(c);
   const ua = c.req.header('User-Agent') || '';
-
   await ensureSecurityTables(c.env.DB);
-
   const limited = await isRateLimited(c.env.DB, ip);
-  if (limited.blocked) {
-    return c.json({ success: false, error: limited.reason, code: 'RATE_LIMITED' }, 429);
-  }
+  if (limited.blocked) return c.json({ success: false, error: limited.reason, code: 'RATE_LIMITED' }, 429);
 
-  if (!credentialId || !challenge) {
-    return c.json({ success: false, error: 'credential_id et challenge obligatoires' }, 400);
-  }
+  const credNested = (body.credential && typeof body.credential === 'object') ? body.credential : {};
+  const respNested = (credNested.response && typeof credNested.response === 'object') ? credNested.response : {};
+  const credentialId = String(body.credential_id || credNested.id || '').trim();
+  const clientDataJSON = String(respNested.clientDataJSON || body.clientDataJSON || '').trim();
+  const authenticatorData = String(respNested.authenticatorData || body.authenticatorData || '').trim();
+  const signature = String(respNested.signature || body.signature || '').trim();
+  const userHandle = String(respNested.userHandle || body.userHandle || '').trim();
 
-  if (!(await consumeChallenge(c.env.DB, fingerprint, 'login', challenge))) {
+  // One generic failure shape for EVERY verification error: no credential
+  // oracle, no account enumeration, no difference between "unknown key" and
+  // "bad signature" (both recorded as failed logins for reputation).
+  const fail = async () => {
     await recordLogin(c.env.DB, ip, fingerprint, false, ua);
-    return c.json({ success: false, error: 'Challenge invalide ou expiré', code: 'BAD_CHALLENGE' }, 400);
+    return c.json({ success: false, error: 'Vérification passkey impossible', code: 'WEBAUTHN_VERIFY_FAILED' }, 401);
+  };
+
+  if (!credentialId || !clientDataJSON || !authenticatorData || !signature) return fail();
+  let challenge = '';
+  try {
+    challenge = parseClientData(clientDataJSON).json.challenge;
+  } catch {
+    return fail();
+  }
+  const consumed = await waConsumeChallenge(c.env.DB, {
+    challenge, purpose: 'login', rpId: policy.rpId, origin: expectedOrigin(policy),
+  });
+  if (!consumed) {
+    await recordLogin(c.env.DB, ip, fingerprint, false, ua);
+    return c.json({ success: false, error: 'Challenge invalide ou expiré', code: 'BAD_CHALLENGE' }, 401);
   }
 
-  // Prefer exact fingerprint match; else discoverable passkey by id (Discord-style)
-  let cred = await c.env.DB.prepare(
-    `SELECT * FROM webauthn_credentials WHERE id = ? AND fingerprint = ?`
-  ).bind(credentialId, fingerprint).first() as any;
+  const cred = await c.env.DB.prepare(`SELECT * FROM webauthn_credentials WHERE id = ?`).bind(credentialId).first() as any;
+  if (!cred || !String(cred.public_key_jwk || '')) return fail();
+  // Challenge requested for a specific account cannot unlock another account.
+  if (consumed.username && String(cred.username || '').toLowerCase() !== consumed.username) return fail();
 
-  if (!cred) {
-    cred = await c.env.DB.prepare(
-      `SELECT * FROM webauthn_credentials WHERE id = ?`
-    ).bind(credentialId).first() as any;
-    if (cred) {
-      // Rebind passkey to this browser fingerprint so future logins are local
-      try {
-        await c.env.DB.prepare(
-          `UPDATE webauthn_credentials SET fingerprint = ?, last_used = datetime('now') WHERE id = ?`
-        ).bind(fingerprint, credentialId).run();
-      } catch { /* */ }
-    }
+  let jwk: any;
+  try { jwk = JSON.parse(String(cred.public_key_jwk)); } catch { return fail(); }
+  let verified;
+  try {
+    verified = await verifyAuthentication({
+      clientDataJSON,
+      authenticatorData,
+      signature,
+      userHandle: userHandle || undefined,
+      expectedChallenge: challenge,
+      expectedOrigin: expectedOrigin(policy),
+      rpId: policy.rpId,
+      requireUV: policy.requireUV,
+      stored: {
+        publicKeyJwk: jwk,
+        counter: Number(cred.counter || 0),
+        backupEligible: Number(cred.backup_eligible || 0) === 1,
+        userHandle: String(cred.cred_user_handle || ''),
+      },
+    });
+  } catch {
+    return fail();
   }
 
-  if (!cred) {
-    const trusted = await c.env.DB.prepare(
-      `SELECT * FROM trusted_devices WHERE biometric_credential_id = ?`
-    ).bind(credentialId).first() as any;
-    if (!trusted) {
-      await recordLogin(c.env.DB, ip, fingerprint, false, ua);
-      return c.json({
-        success: false,
-        error: 'Passkey non reconnue. Connectez-vous avec le mot de passe, puis enregistrez une passkey.',
-        code: 'BIOMETRIC_MISMATCH',
-      }, 401);
-    }
-  } else {
-    await c.env.DB.prepare(
-      `UPDATE webauthn_credentials SET last_used = datetime('now') WHERE id = ?`
-    ).bind(credentialId).run();
-  }
-
+  await c.env.DB.prepare(
+    `UPDATE webauthn_credentials SET counter = ?, backup_state = ?, last_used = datetime('now') WHERE id = ?`,
+  ).bind(verified.counter, verified.backupState ? 1 : 0, credentialId).run().catch(() => {});
   await trustDevice(c.env.DB, fingerprint, ip);
   await recordLogin(c.env.DB, ip, fingerprint, true, ua);
   const rep = await getReputation(c.env.DB, ip) as any;
 
-  // Issue token for the user who registered the passkey (not always owner)
+  // Account comes ONLY from the verified credential row — never from the body.
   const ownerUser = getOwnerUsername(c.env);
-  let username = String(cred?.username || body.username || ownerUser).toLowerCase();
-  let role = normalizeRole(cred?.role || 'owner');
+  let username = String(cred.username || '').toLowerCase();
+  let role = normalizeRole(cred.role || 'user');
   let secretMaterial: string;
   let displayName = username;
-
-  if (!username || username === ownerUser || role === 'owner') {
+  if (!username) return fail();
+  if (username === ownerUser || role === 'owner') {
     const expected = getPassword(c.env);
     if (!expected) {
       return c.json({ success: false, error: 'Mot de passe administrateur non configuré', code: 'NO_PASSWORD_CONFIGURED' }, 503);
@@ -3708,23 +3689,12 @@ app.post('/api/auth/webauthn/login/verify', async (c) => {
     displayName = 'Administrateur';
   } else {
     const row = await c.env.DB.prepare(
-      `SELECT * FROM app_users WHERE username = ? AND active = 1`
+      `SELECT * FROM app_users WHERE username = ? AND active = 1`,
     ).bind(username).first() as any;
-    if (!row) {
-      // Fall back to owner if user deleted
-      const expected = getPassword(c.env);
-      if (!expected) {
-        return c.json({ success: false, error: 'Compte introuvable', code: 'USER_GONE' }, 401);
-      }
-      username = ownerUser;
-      role = 'owner';
-      secretMaterial = await sha256Hex(`owner-key|${ownerUser}|${normalizePassword(expected)}`);
-      displayName = 'Administrateur';
-    } else {
-      role = normalizeRole(row.role);
-      secretMaterial = row.password_hash;
-      displayName = row.display_name || username;
-    }
+    if (!row) return fail();
+    role = normalizeRole(row.role);
+    secretMaterial = row.password_hash;
+    displayName = row.display_name || username;
   }
 
   const token = await makeTokenV2(username, role, secretMaterial, ip, fingerprint);
@@ -3743,6 +3713,44 @@ app.post('/api/auth/webauthn/login/verify', async (c) => {
   });
 });
 
+/** Capability probe — clients offer passkeys ONLY when this says enabled. */
+app.get('/api/auth/webauthn/status', async (c) => {
+  const policy = waPolicy(c.env);
+  return c.json({
+    success: true,
+    data: {
+      enabled: policy.enabled,
+      rp: { id: policy.rpId, name: policy.rpName },
+      origins: policy.origins,
+      registration: policy.enabled,
+      login: policy.enabled,
+      user_verification: policy.requireUV ? 'required' : 'preferred',
+      attestation: policy.attestation,
+      algorithms: ['ES256'],
+      android: {
+        enabled: policy.enabled && !!policy.androidPackage && !!policy.androidCertHash,
+        package: policy.androidPackage || null,
+        assetlinks: '/.well-known/assetlinks.json',
+      },
+    },
+  }, 200, { 'Cache-Control': 'public, max-age=60' });
+});
+
+/** Digital Asset Links for Android Credential Manager (configured builds only). */
+app.get('/.well-known/assetlinks.json', async (c) => {
+  const policy = waPolicy(c.env);
+  if (!policy.androidPackage || !policy.androidCertHash) return c.json({ error: 'not configured' }, 404);
+  return c.json([
+    {
+      relation: ['delegate_permission/common.handle_all_urls', 'delegate_permission/common.get_login_creds'],
+      target: {
+        namespace: 'android_app',
+        package_name: policy.androidPackage,
+        sha256_cert_fingerprints: [policy.androidCertHash],
+      },
+    },
+  ], 200, { 'Cache-Control': 'public, max-age=3600' });
+});
 
 /** List WebAuthn credentials — device + legacy + all for owner/admin */
 app.get('/api/auth/webauthn/credentials', async (c) => {

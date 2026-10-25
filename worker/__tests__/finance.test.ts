@@ -725,3 +725,28 @@ describe('v258 statement + double-count regressions', () => {
     expect(pdf.length).toBeGreaterThan(500); // same summary object feeds the PDF
   });
 });
+
+describe('v259 automatic mirror audit', () => {
+  it('reports mirror rows vs payment tables and flags consistency', async () => {
+    const made = makeD1();
+    await seedBusinessTables(made.sqlite);
+    await ensureFinanceSchema(made.db);
+    made.sqlite.exec(`
+      INSERT INTO bills (id, number, vendor_name, total, due_date, status) VALUES (1, 'ACH-1', 'V', 6000, '2026-10-01', 'received');
+      INSERT INTO bill_payments (bill_id, amount, paid_at) VALUES (1, 6000, '2026-10-05');
+      INSERT INTO expenses (category, amount, expense_date, entry_type, notes)
+        VALUES ('Règlement fournisseur', 6000, '2026-10-05', 'expense', 'bill_id:1|x');
+      INSERT INTO employees (id, emp_number, name, pay_amount, joined_date) VALUES (1, 'E-1', 'T', 3000, '2026-01-01');
+      INSERT INTO employee_payments (employee_id, amount, paid_at) VALUES (1, 3000, '2026-10-10');
+      INSERT INTO expenses (category, amount, expense_date, entry_type, notes)
+        VALUES ('Salaire', 3000, '2026-10-10', 'expense', 'employee_id:1|x');
+    `);
+    const ctx = await getFinanceContext(made.db);
+    const s = await computeMonthlySummary(made.db, '2026-10', ctx);
+    expect((s as any).mirror_audit.mirror_rows_excluded.supplier).toEqual({ count: 1, total: 6000 });
+    expect((s as any).mirror_audit.payment_tables.payroll).toEqual({ count: 1, total: 3000 });
+    expect((s as any).mirror_audit.consistent).toBe(true);
+    const st = await computeStatement(made.db, '2026-10', ctx, 1, 50);
+    expect(st.mirror_audit.consistent).toBe(true);
+  });
+});
