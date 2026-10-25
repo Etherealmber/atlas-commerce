@@ -99,7 +99,7 @@ export function ShowQr({
                     bgColor="#ffffff"
                     className="ac-show-qr-svg"
                     imageSettings={{
-                      src: '/logo-mark.svg',
+                      src: '/atlas-icon-light.png',
                       height: 36,
                       width: 36,
                       excavate: true,

@@ -224,7 +224,7 @@ function LoginPcQrPanel({ onSuccessFlash }: { onSuccessFlash?: () => void }) {
                   bgColor="#ffffff"
                   fgColor="#0a0a0a"
                   imageSettings={{
-                    src: '/logo-mark.svg',
+                    src: '/atlas-icon-light.png',
                     height: 40,
                     width: 40,
                     excavate: true,
@@ -804,8 +804,9 @@ export default function Login() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 280, damping: 28, bounce: 0 }}
       >
-        <img src="/logo.svg" alt="" width={28} height={28} />
-        <span>{APP_NAME}</span>
+        {/* v265 — the lockup carries the wordmark; no duplicate text */}
+        <img src="/atlas-logo-light.png" alt={APP_NAME} className="brand-img brand-img--light" height={30} width={93} />
+        <img src="/atlas-logo-dark.png" alt={APP_NAME} className="brand-img brand-img--dark" height={30} width={93} />
       </motion.div>
 
       {/* Form column */}

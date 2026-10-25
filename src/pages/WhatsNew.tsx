@@ -21,6 +21,19 @@ type Release = {
 
 const RELEASES: Release[] = [
   {
+    version: '0.6.5-beta',
+    date: '26 octobre 2026',
+    sections: [
+      {
+        kind: 'features',
+        items: [
+          { id: '065a1', text: 'Nouvelle identité visuelle appliquée partout : les deux logos officiels (lockup noir sur fond clair, lockup blanc sur fond sombre) remplacent l’ancien logo vectoriel — sidebar, barre du haut Paramètres, écran de connexion (lockup complet avec le wordmark), page À propos et centres des QR codes ; la bascule clair/sombre se fait automatiquement par paire d’images PNG transparentes (fonds retirés au pixel près, icône découpée du lockup)' },
+          { id: '065a2', text: 'Favicons et PWA régénérés depuis le nouveau logo : favicon 16/32 px + .ico + variantes sombres servies selon prefers-color-scheme, apple-touch 180 px, icônes de manifest 192/512 (png + webp), image de partage 1200×630 ; les anciens fichiers vectoriels (logo.svg, logo-mark.svg, favicon.svg, og-image.svg) sont retirés et le manifest mis à jour' },
+        ],
+      },
+    ],
+  },
+  {
     version: '0.6.4-beta',
     date: '26 octobre 2026',
     sections: [

@@ -217,7 +217,8 @@ export default function About() {
     <div className="atlas-page about-page atlas-crm">
       <header className="about-hero">
         <div className="about-hero-brand">
-          <img src="/favicon.svg" alt="" width={48} height={48} className="about-logo" loading="lazy" decoding="async" />
+          <img src="/atlas-icon-light.png" alt="" width={48} height={48} className="about-logo brand-img brand-img--light" loading="lazy" decoding="async" />
+          <img src="/atlas-icon-dark.png" alt="" width={48} height={48} className="about-logo brand-img brand-img--dark" loading="lazy" decoding="async" />
           <div>
             <p className="atlas-eyebrow" style={{ margin: 0 }}>
               Produit
