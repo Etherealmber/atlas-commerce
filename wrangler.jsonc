@@ -4,6 +4,14 @@
   "main": "worker/index.ts",
   "compatibility_date": "2025-09-01",
   "compatibility_flags": ["nodejs_compat"],
+  // v257 — Smart Placement: this Worker is D1/KV/DO-round-trip heavy (every
+  // API request runs several queries against a single-region D1 primary) while
+  // all users sit in one country. Running the isolate next to those backends
+  // removes one cross-region RTT per query. Declared here (not only in the
+  // dashboard) so git-triggered Workers Builds keep it. Revert = delete block.
+  "placement": {
+    "mode": "smart"
+  },
   // v254 — finance reminders run daily at 07:35 UTC ≈ 08:35 Africa/Casablanca.
   // The job is idempotent (durable outbox + UNIQUE idem keys), so a missed or
   // duplicated trigger never re-notifies. POST /api/cron/finance-reminders
