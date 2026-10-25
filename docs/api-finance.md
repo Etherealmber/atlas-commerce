@@ -94,7 +94,17 @@ company-local today. Excluded from receivables: quotes/devis, cancelled, `VR-`/`
 documents and `doc_kind` in (`quick_sale`, `ticket`, `remboursement`) — the same filter
 the in-app `/api/alerts` feed uses.
 
-### Calculation rules
+### Calculation rules (v258 canonical filters)
+
+- `sales_received` excludes « Avoir … » audit rows in `invoice_payments`
+  (credit-note cash effect = paired `Remboursement client` expense row).
+- `expenses` excludes mirror ledger rows written by the bill-payment and
+  payroll routes (`Règlement fournisseur`/`bill_id:…`, `Salaire`/`employee_id:…`)
+  — those exist only for the Solde cash journal UI. Before v258 every supplier
+  and payroll payment was subtracted twice from balances (see
+  `docs/finance-6000-investigation.md`).
+
+### Legacy calculation rules
 
 - **sales_received** — `invoice_payments` rows with `paid_at` inside the period (partial
   payments count in the month they were recorded; late-recorded payments land in the
@@ -334,6 +344,65 @@ Forbidden (403) and unauthorized (401) responses use the stable envelopes shown 
 map `code == "FIN_FORBIDDEN"` to "Réservé aux administrateurs" in French UI copy.
 Push notifications arrive via the existing FCM channel with
 `data = { href, kind, period }` where `kind` is the event name from the reminders table.
+
+---
+
+## `GET /api/admin/finance/statement?period=YYYY-MM&page=1&page_size=50` (v258)
+
+Server-backed monthly statement, owner/admin gate (same `FIN_FORBIDDEN`
+envelope). One canonical ledger over the five persisted cash sources — the
+monthly summary, this statement and the PDF all derive from the same filtered
+queries, so they cannot disagree:
+
+- **credit** = `invoice_payments` excluding « Avoir … » audit trails (a credit
+  note's cash effect lives in its paired `Remboursement client` expense row);
+- **debit** = real `expenses` (mirror ledger rows excluded:
+  `Règlement fournisseur`+`notes bill_id:…`, `Salaire`+`notes employee_id:…`),
+  client refunds, `employee_payments`, `bill_payments`.
+
+Response (additive, stable codes):
+
+```json
+{
+  "success": true,
+  "data": {
+    "period": "2026-10",
+    "timezone": "Africa/Casablanca",
+    "currency": "MAD",
+    "as_of": "2026-10-25",
+    "status": "open",
+    "opening_balance": 1234.56,
+    "closing_balance": 2345.67,
+    "totals": { "credits": 5000.0, "debits": 3888.89, "net": 1111.11 },
+    "reconciliation": {
+      "opening": 1234.56, "credits": 5000.0, "debits": 3888.89,
+      "closing": 2345.67, "balanced": true,
+      "rule": "opening + credits - debits = closing"
+    },
+    "page": 1, "page_size": 50, "total": 12, "has_more": false,
+    "rows": [
+      {
+        "id": 41, "source": "bill_payments", "type": "supplier",
+        "label": "Règlement achat ACH-500", "ref": "ACH-500",
+        "debit": 6000.0, "credit": 0, "ts": "2026-10-05",
+        "running_balance": -4765.44
+      }
+    ]
+  }
+}
+```
+
+Row `type` ∈ `sale | refund | expense | payroll | supplier`. Labels/refs are
+sanitized: payroll rows expose `emp_number` (or `EMP-<id>`) and the payment
+label — never names, national ids or balances. `status` is `open` for the
+current tenant-timezone month (rows stop at `as_of`) and `closed` otherwise
+(full period). Pagination is over rows only; totals and reconciliation always
+cover the whole period. Errors: `400 BAD_PERIOD`, `401 UNAUTHORIZED`,
+`403 FIN_FORBIDDEN`, `500 FINANCE_ERROR`.
+
+Investigation of the duplicated 6,000 MAD symptom (mirror ledger rows counted
+twice before v258) and the production confirmation probe:
+`docs/finance-6000-investigation.md`.
 
 ---
 
