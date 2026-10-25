@@ -414,6 +414,106 @@ twice before v258) and the production confirmation probe:
 
 ---
 
+## `GET /api/admin/finance/period?period=YYYY-MM` (v264)
+
+Owner/admin gate (same `FIN_FORBIDDEN` envelope). Cash & bank breakdown of the
+selected period — **same timezone and canonical ledger rules as the
+statement**, computed only from persisted rows:
+
+- identical filtered sources (`invoice_payments` excluding « Avoir » trails,
+  `expenses` `entry_type='expense'` excluding mirror rows,
+  `employee_payments`, `bill_payments`);
+- an OPEN month stops at `as_of` = today in the company finance timezone,
+  a CLOSED month is the full calendar month;
+- the embedded `statement` block is `computeStatement()`'s own output and
+  `consistent_with_breakdown` re-checks the invariant on every call — this
+  endpoint cannot disagree with `GET /api/admin/finance/statement`.
+
+Payment-method buckets (canonical app rule — `src/pages/Balance.tsx`
+`isCash`): `cash` = persisted `'cash'`/`''`/NULL (the schema DEFAULT, a
+recorded value — not a guess); `bank`/`card`/`check` = the recorded
+vocabulary of the payment selector; `other` = a recorded method outside that
+vocabulary (surfaced as-is, never merged away); `not_recorded` = sources with
+NO `payment_method` column (`employee_payments` — payroll is never guessed
+cash or bank). Headline split: `cash` vs `bank` where **bank =
+bank+card+check+other** (the app's caisse/banque view). Invariant per source:
+`total = cash + bank + not_recorded`.
+
+Owner movements (`entry_type` `owner_contrib`/`owner_draw`) and recorded misc
+income (`entry_type='income'`) are real `expenses` rows but are **excluded
+from statement cash** — they live in separate blocks
+(`owner.contributions`, `owner.withdrawals`, `inflows.by_source.recorded_income`)
+and are never folded into statement credits/debits.
+
+```json
+{
+  "success": true,
+  "data": {
+    "period": "2026-09", "timezone": "Africa/Casablanca", "currency": "MAD",
+    "as_of": "2026-09-30", "status": "closed",
+    "inflows": {
+      "total": 2350.0, "count": 5, "cash": 1500.0, "bank": 850.0, "not_recorded": 0,
+      "by_method": { "cash": 1500.0, "bank": 600.0, "card": 250.0, "check": 0, "other": 0, "not_recorded": 0 },
+      "by_source": {
+        "invoice_payments": { "total": 1750.0, "count": 3, "cash": 1000.0, "bank": 750.0, "…": "…" },
+        "recorded_income":   { "total": 600.0,  "count": 2, "cash": 500.0,  "bank": 100.0, "…": "…" }
+      }
+    },
+    "outflows": {
+      "total": 6015.0, "count": 6, "cash": 1065.0, "bank": 950.0, "not_recorded": 4000.0,
+      "refunds_total": 90.0,
+      "by_source": {
+        "expenses": { "total": 515.0,  "count": 4, "cash": 365.0, "bank": 150.0 },
+        "payroll":  { "total": 4000.0, "count": 1, "cash": 0, "bank": 0, "not_recorded": 4000.0 },
+        "supplier": { "total": 1500.0, "count": 2, "cash": 700.0, "bank": 800.0 }
+      }
+    },
+    "owner": {
+      "contributions": { "total": 2000.0, "count": 1, "cash": 0, "bank": 2000.0 },
+      "withdrawals":   { "total": 300.0,  "count": 1, "cash": 300.0, "bank": 0 },
+      "net": 1700.0
+    },
+    "expense_categories": [
+      { "category": "Loyer", "total": 350.0, "count": 2 },
+      { "category": "Remboursement client", "total": 90.0, "count": 1 },
+      { "category": "Sans catégorie", "total": 75.0, "count": 1 }
+    ],
+    "categories_truncated": false,
+    "statement": {
+      "opening_balance": 0, "credits": 1750.0, "debits": 6015.0,
+      "closing_balance": -4265.0, "net": -4265.0, "balanced": true,
+      "consistent_with_breakdown": true,
+      "rule": "opening + credits - debits = closing — identical rows to GET /api/admin/finance/statement"
+    },
+    "mirror_audit": { "…": "same block as monthly/statement" }
+  }
+}
+```
+
+`expense_categories` covers the statement's expense slice (refunds included,
+sorted by total desc, capped at 100 rows with `categories_truncated`).
+Errors: `400 BAD_PERIOD`, `401 UNAUTHORIZED`, `403 FIN_FORBIDDEN`,
+`500 FINANCE_ERROR`. Tests: `worker/__tests__/finance.test.ts` (v264 blocks).
+
+---
+
+## Ledger write authorization (v264 audit fix)
+
+`POST /api/expenses` and `POST /api/expenses/import` are **owner/admin only**
+(`403 OWNER_ONLY`). Before v264 they sat behind the generic `/api/*`
+authentication middleware only — any authenticated role (`stock`, `user`,
+`secretaire`…) could insert ledger rows, including owner movements
+(`entry_type` `owner_contrib`/`owner_draw`). The routes now live in
+`worker/routes/expenses.ts` with defense-in-depth session re-validation
+(`authFailReason`) exactly like every finance surface, plus an audit trail
+(`expense.create` / `expense.import`). Validation contract unchanged:
+`422 VALIDATION` (amount bounds), `400` (missing description), entry_type
+whitelist coerces unknown values to `expense`. `DELETE /api/expenses/:id`
+keeps its existing gate (secretaire+ with password confirm). Tests:
+`worker/__tests__/expenses-auth.test.ts`.
+
+---
+
 ## `GET /api/me/payroll` — employee-SELF pay date (v256)
 
 Role-safe by construction: **any** authenticated session (`user`, `stock`,
