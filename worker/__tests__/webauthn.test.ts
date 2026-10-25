@@ -14,6 +14,8 @@ const { DatabaseSync } = (await import(SQLITE_MODULE)) as { DatabaseSync: new (p
 
 import {
   WebAuthnError,
+  androidOrigin,
+  androidOriginFromCertHash,
   b64uToBytes,
   bytesToB64u,
   consumeChallenge,
@@ -25,6 +27,7 @@ import {
   userHandleFor,
   verifyAuthentication,
   verifyRegistration,
+  type WebAuthnPolicy,
 } from '../lib/webauthn';
 
 /* ─────────────────────────── tiny CBOR encoder (test-only) ─────────────────────────── */
@@ -56,6 +59,15 @@ const concat = (...parts: Uint8Array[]) => {
 
 const RP_ID = 'stock.afmarbre.com';
 const ORIGIN = 'https://stock.afmarbre.com';
+const ANDROID_PACKAGE = 'ma.etherealmber.atlascommerce';
+/** Deterministic stand-in for the Play app-signing SHA-256 fingerprint. */
+const CERT_HEX = '9F:86:D0:81:88:4C:7D:65:9A:2F:EA:A0:C5:5A:D0:15:A3:BF:4F:1B:2B:0B:82:2C:D1:5D:6C:15:B0:F0:0A:08';
+const POLICY: WebAuthnPolicy = policyFromEnv({ WEBAUTHN_ENABLED: 'true' });
+const POLICY_ANDROID: WebAuthnPolicy = policyFromEnv({
+  WEBAUTHN_ENABLED: 'true',
+  WEBAUTHN_ANDROID_PACKAGE: ANDROID_PACKAGE,
+  WEBAUTHN_ANDROID_CERT_HASH: CERT_HEX,
+});
 
 type KeyMaterial = { priv: CryptoKey; pub: CryptoKey; jwk: JsonWebKey };
 
@@ -98,8 +110,10 @@ async function buildAuthData(opts: {
   return concat(base, aaguid, Uint8Array.from([(credId.length >> 8) & 255, credId.length & 255]), credId, opts.cose);
 }
 
-function clientDataB64(type: string, challenge: string, origin: string, crossOrigin = false): string {
-  const json = JSON.stringify({ type, challenge, origin, crossOrigin });
+function clientDataB64(type: string, challenge: string, origin: string, crossOrigin = false, androidPackageName?: string): string {
+  const json = JSON.stringify(androidPackageName
+    ? { type, challenge, origin, crossOrigin, androidPackageName }
+    : { type, challenge, origin, crossOrigin });
   return bytesToB64u(new TextEncoder().encode(json));
 }
 
@@ -161,16 +175,13 @@ describe('webauthn registration verification', () => {
     credId = crypto.getRandomValues(new Uint8Array(32));
   });
 
-  async function register(over: { origin?: string; challenge?: string; rpId?: string; up?: boolean; uv?: boolean; fmt?: string; clientData?: string } = {}) {
+  async function register(over: { origin?: string; challenge?: string; rpId?: string; up?: boolean; uv?: boolean; fmt?: string; clientData?: string; crossOrigin?: boolean; pkg?: string; policy?: WebAuthnPolicy } = {}) {
     const authData = await buildAuthData({ rpId: over.rpId, up: over.up, uv: over.uv, credId, cose: coseKey(key.jwk) });
     return verifyRegistration({
-      clientDataJSON: over.clientData ?? clientDataB64('webauthn.create', over.challenge ?? challenge, over.origin ?? ORIGIN),
+      clientDataJSON: over.clientData ?? clientDataB64('webauthn.create', over.challenge ?? challenge, over.origin ?? ORIGIN, over.crossOrigin ?? false, over.pkg),
       attestationObject: attestationObjectB64(authData, over.fmt),
       expectedChallenge: challenge,
-      expectedOrigin: ORIGIN,
-      rpId: RP_ID,
-      requireUV: true,
-      attestationPolicy: 'none',
+      policy: over.policy ?? POLICY,
     });
   }
 
@@ -236,9 +247,10 @@ describe('webauthn authentication verification', () => {
     origin?: string; challenge?: string; rpId?: string; up?: boolean; uv?: boolean;
     counter?: number; storedCounter?: number; backupEligible?: boolean;
     userHandle?: string; tamperSig?: boolean; wrongKey?: boolean;
+    crossOrigin?: boolean; pkg?: string; policy?: WebAuthnPolicy;
   } = {}) {
     const authData = await buildAuthData({ rpId: over.rpId, up: over.up, uv: over.uv, be: over.backupEligible, counter: over.counter ?? 1 });
-    const cd = clientDataB64('webauthn.get', over.challenge ?? challenge, over.origin ?? ORIGIN);
+    const cd = clientDataB64('webauthn.get', over.challenge ?? challenge, over.origin ?? ORIGIN, over.crossOrigin ?? false, over.pkg);
     const cdRaw = b64uToBytes(cd);
     const clientHash = await sha256(cdRaw);
     let sig = await signEs256(key.priv, concat(authData, clientHash));
@@ -251,9 +263,7 @@ describe('webauthn authentication verification', () => {
       signature: bytesToB64u(sig),
       userHandle: over.userHandle,
       expectedChallenge: challenge,
-      expectedOrigin: ORIGIN,
-      rpId: RP_ID,
-      requireUV: true,
+      policy: over.policy ?? POLICY,
       stored: {
         publicKeyJwk: storedJwk,
         counter: over.storedCounter ?? 0,
@@ -387,5 +397,97 @@ describe('webauthn policy + handles', () => {
     expect(a1).toBe(a2);
     expect(a1).not.toBe(b);
     expect(a1).not.toContain('yasmine');
+  });
+});
+
+/* ─────────── android credential manager origin integration (v259.1) ─────────── */
+
+describe('android credential manager integration', () => {
+  it('derives the apk-key-hash-sha256 origin from the signing-cert fingerprint', () => {
+    const o = androidOriginFromCertHash(CERT_HEX)!;
+    expect(o).toBe(androidOriginFromCertHash(CERT_HEX.replace(/:/g, '').toLowerCase())!);
+    expect(o.startsWith('android:apk-key-hash-sha256:')).toBe(true);
+    const bytes = Uint8Array.from((CERT_HEX.replace(/:/g, '').match(/../g) as string[]).map((h) => Number.parseInt(h, 16)));
+    expect(o).toBe(`android:apk-key-hash-sha256:${bytesToB64u(bytes)}`);
+    expect(androidOriginFromCertHash('not-a-hash')).toBeNull();
+    expect(androidOriginFromCertHash('')).toBeNull();
+  });
+
+  it('androidOrigin is null unless package AND cert hash are configured', () => {
+    expect(androidOrigin(POLICY)).toBeNull();
+    expect(androidOrigin(POLICY_ANDROID)).toBe(androidOriginFromCertHash(CERT_HEX));
+  });
+
+  it('accepts a native registration from the configured apk-key-hash origin', async () => {
+    const key = await makeKey();
+    const challenge = bytesToB64u(crypto.getRandomValues(new Uint8Array(32)));
+    const credId = crypto.getRandomValues(new Uint8Array(32));
+    const authData = await buildAuthData({ rpId: RP_ID, credId, cose: coseKey(key.jwk) });
+    const v = await verifyRegistration({
+      clientDataJSON: clientDataB64('webauthn.create', challenge, androidOrigin(POLICY_ANDROID)!, true),
+      attestationObject: attestationObjectB64(authData),
+      expectedChallenge: challenge,
+      policy: POLICY_ANDROID,
+    });
+    expect(v.credentialId).toBe(bytesToB64u(credId));
+    expect(v.publicKeyJwk.alg).toBe('ES256');
+  });
+
+  it('accepts the web origin cross-origin ONLY when clientData names the configured package', async () => {
+    const key = await makeKey();
+    const challenge = bytesToB64u(crypto.getRandomValues(new Uint8Array(32)));
+    const credId = crypto.getRandomValues(new Uint8Array(32));
+    const authData = await buildAuthData({ rpId: RP_ID, credId, cose: coseKey(key.jwk) });
+    const base = { attestationObject: attestationObjectB64(authData), expectedChallenge: challenge };
+    await expect(verifyRegistration({
+      ...base,
+      clientDataJSON: clientDataB64('webauthn.create', challenge, ORIGIN, true, ANDROID_PACKAGE),
+      policy: POLICY_ANDROID,
+    })).resolves.toBeTruthy();
+    // same clientData, android integration NOT configured → cross-origin rejected
+    await expect(verifyRegistration({
+      ...base,
+      clientDataJSON: clientDataB64('webauthn.create', challenge, ORIGIN, true, ANDROID_PACKAGE),
+      policy: POLICY,
+    })).rejects.toMatchObject({ code: 'WEBAUTHN_CROSS_ORIGIN' });
+    // a different package riding the allowlisted origin → rejected
+    await expect(verifyRegistration({
+      ...base,
+      clientDataJSON: clientDataB64('webauthn.create', challenge, ORIGIN, true, 'com.evil.app'),
+      policy: POLICY_ANDROID,
+    })).rejects.toMatchObject({ code: 'WEBAUTHN_CROSS_ORIGIN' });
+  });
+
+  it('rejects the android origin when the signing cert is not configured', async () => {
+    const key = await makeKey();
+    const challenge = bytesToB64u(crypto.getRandomValues(new Uint8Array(32)));
+    const credId = crypto.getRandomValues(new Uint8Array(32));
+    const authData = await buildAuthData({ rpId: RP_ID, credId, cose: coseKey(key.jwk) });
+    await expect(verifyRegistration({
+      clientDataJSON: clientDataB64('webauthn.create', challenge, androidOrigin(POLICY_ANDROID)!, true),
+      attestationObject: attestationObjectB64(authData),
+      expectedChallenge: challenge,
+      policy: POLICY,
+    })).rejects.toMatchObject({ code: 'WEBAUTHN_BAD_ORIGIN' });
+  });
+
+  it('accepts a native assertion (login) from the configured apk-key-hash origin', async () => {
+    const key = await makeKey();
+    const storedJwk = { kty: 'EC', crv: 'P-256', x: String(key.jwk.x), y: String(key.jwk.y), alg: 'ES256' };
+    const userHandle = await userHandleFor('yasmine');
+    const challenge = bytesToB64u(crypto.getRandomValues(new Uint8Array(32)));
+    const authData = await buildAuthData({ rpId: RP_ID, counter: 1 });
+    const cd = clientDataB64('webauthn.get', challenge, androidOrigin(POLICY_ANDROID)!, true);
+    const sig = await signEs256(key.priv, concat(authData, await sha256(b64uToBytes(cd))));
+    const v = await verifyAuthentication({
+      clientDataJSON: cd,
+      authenticatorData: bytesToB64u(authData),
+      signature: bytesToB64u(sig),
+      userHandle,
+      expectedChallenge: challenge,
+      policy: POLICY_ANDROID,
+      stored: { publicKeyJwk: storedJwk, counter: 0, backupEligible: false, userHandle },
+    });
+    expect(v.counter).toBe(1);
   });
 });

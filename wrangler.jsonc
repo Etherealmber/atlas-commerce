@@ -78,7 +78,12 @@
     "WEBAUTHN_RP_NAME": "Atlas Commerce",
     "WEBAUTHN_ALLOWED_ORIGINS": "https://stock.afmarbre.com",
     "WEBAUTHN_REQUIRE_UV": "required",
-    "WEBAUTHN_ANDROID_PACKAGE": "",
+    // Android Credential Manager: package is the Play applicationId. The cert
+    // hash is the SHA-256 fingerprint of the PLAY APP SIGNING key (Play Console
+    // → Setup → App integrity). Until it is filled in, assetlinks stays 404 and
+    // native android:apk-key-hash-sha256 origins are NOT accepted — passkeys
+    // remain web-origin only. See docs/webauthn.md §4.
+    "WEBAUTHN_ANDROID_PACKAGE": "ma.etherealmber.atlascommerce",
     "WEBAUTHN_ANDROID_CERT_HASH": ""
   },
 

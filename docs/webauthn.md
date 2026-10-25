@@ -27,7 +27,9 @@ consumed=0` — the row is only handed out once); expired/replayed/purpose- or a
 challenges are rejected.
 
 **Registration** (`POST /api/auth/webauthn/register/verify`):
-- clientDataJSON: `type === "webauthn.create"`, challenge equality, `origin` ∈ allowlist, crossOrigin rejected
+- clientDataJSON: `type === "webauthn.create"`, challenge equality, **exact origin acceptance** (§4a):
+  allowlisted web origin (crossOrigin rejected, except the configured-Android-package case) or the
+  derived `android:apk-key-hash-sha256:` origin
 - authenticatorData: RP ID hash == `sha256(WEBAUTHN_RP_ID)`, user-present flag, user-verified flag
   (required unless `WEBAUTHN_REQUIRE_UV=discouraged`), attestation extension offset consistency
 - attestation policy: `none` format only (default) — platform attestation (packed etc.) rejected
@@ -64,14 +66,35 @@ challenges are rejected.
     "origins": ["https://stock.afmarbre.com"],
     "user_verification": "required",
     "algorithms": ["ES256"],
-    "android": { "enabled": false, "package": "", "assetlinks": false } } }
+    "android": { "enabled": false, "package": "ma.etherealmber.atlascommerce",
+                 "origin": null, "assetlinks": "/.well-known/assetlinks.json" } } }
 ```
 
 **Clients must only offer passkey UI when `data.enabled === true`** (and for Android Credential
-Manager additionally `data.android.enabled === true`). This is the single source of truth for the
-capability — the app never guesses from build flags.
+Manager additionally `data.android.enabled === true`). `data.android.origin` is the exact
+`android:apk-key-hash-sha256:…` value the backend accepts — device teams compare it against what
+their build produces instead of guessing. This is the single source of truth for the capability —
+the app never guesses from build flags.
 
 ## 4. Android Credential Manager (production)
+
+### 4a. Which `clientDataJSON.origin` the verifier accepts
+
+The backend's exact-origin verifier accepts **only** these (v259.1):
+
+| Origin in clientDataJSON | crossOrigin | Condition |
+|---|---|---|
+| `https://stock.afmarbre.com` (allowlist) | `false` | always (browser/PWA flows) |
+| `https://stock.afmarbre.com` (allowlist) | `true` | only if `clientDataJSON.androidPackageName == WEBAUTHN_ANDROID_PACKAGE` **and** the Android integration is configured — this is what `androidx.credentials` produces when the app passes the web origin explicitly via the `origin` parameter of `CreatePublicKeyCredentialRequest` / `GetPublicKeyCredentialRequest` |
+| `android:apk-key-hash-sha256:<base64url(SHA-256(signing-cert DER))>` | any | only if it matches the origin **derived from `WEBAUTHN_ANDROID_CERT_HASH`** (i.e. the Play app-signing fingerprint) — the default when the app does not pass an origin |
+
+Everything else → `WEBAUTHN_BAD_ORIGIN` / `WEBAUTHN_CROSS_ORIGIN`. The derived origin is exposed at
+`GET /api/auth/webauthn/status` (`data.android.origin`) for verification. **Recommended app
+integration**: pass `origin = "https://stock.afmarbre.com"` explicitly so web and Android share one
+origin; both modes are supported.
+
+> CI note: the unit suite verifies the derivation, acceptance and rejection matrix above with real
+> ES256 assertions; a physical-device round-trip cannot run in CI — it is step 4 of the §5 checklist.
 
 1. **RP ID stays the web domain** (`stock.afmarbre.com`). Never use an app-specific domain.
 2. **Digital Asset Links** — the worker now serves `GET /.well-known/assetlinks.json`
@@ -79,16 +102,19 @@ capability — the app never guesses from build flags.
    - `delegate_permission/common.handle_all_urls` for `namespace: "android_app"`,
      `package_name: ma.etherealmber.atlascommerce`, SHA-256 fingerprint of the **Play App Signing key**
    - `delegate_permission/common.get_login_creds` for the same package + host (`stock.afmarbre.com`)
-3. Set in `wrangler.jsonc` vars (non-secret): `WEBAUTHN_ANDROID_PACKAGE=ma.etherealmber.atlascommerce`,
-   `WEBAUTHN_ANDROID_CERT_HASH=<AA:BB:…>` (Play Console → **Setup → App integrity → App signing key
-   certificate**, or `keytool -list -v -keystore upload-keystore.jks`). Upload-key hash too if you test
-   internal builds signed with the upload key.
+3. `WEBAUTHN_ANDROID_PACKAGE=ma.etherealmber.atlascommerce` is **already configured** in
+   `wrangler.jsonc`. Add `WEBAUTHN_ANDROID_CERT_HASH=<AA:BB:…>` — the SHA-256 of the **Play app-signing
+   key** (Play Console → **Setup → App integrity → App signing key certificate**; the repo keystore is
+   local-only via `signing.properties`, so the hash cannot be derived from source). Until the cert hash
+   is set, `assetlinks` stays 404, `android.enabled` stays false and native `apk-key-hash` origins are
+   rejected — web-origin passkeys keep working untouched. If you test internal builds signed with the
+   upload key, add its hash as a second accepted value (comma-separated).
 4. Allowed origins: Android browsers use the web origin (`https://stock.afmarbre.com`) — already in
    `WEBAUTHN_ALLOWED_ORIGINS`. For native Credential Manager calls the RP-ID association via assetlinks
    is what matters (the origin check applies to web flows).
 5. Kotlin: `androidx.credentials` (Credential Manager) — `CreatePublicKeyCredentialRequest` with the
-   JSON from `register/options`, `GetPublicKeyCredentialRequest` with `login/options`; gate both behind
-   `GET /api/auth/webauthn/status`.
+   JSON from `register/options`, `GetPublicKeyCredentialRequest` with `login/options`; pass
+   `origin = "https://stock.afmarbre.com"` (§4a); gate both behind `GET /api/auth/webauthn/status`.
 
 ## 5. Production configuration & enablement checklist
 
@@ -108,16 +134,19 @@ capability — the app never guesses from build flags.
 2. `GET /api/auth/webauthn/status` returns `enabled: false` (verifier live but gated).
 3. Real-device smoke test on a **preview/staging** environment with `WEBAUTHN_ENABLED=true` there:
    register → login → replay old challenge (must fail) → second account with same authenticator (must fail).
-4. Android: assetlinks published (`/.well-known/assetlinks.json` returns the two statements) and
-   Credential Manager registration succeeds on a Play-signed build.
+4. Android: assetlinks published (`/.well-known/assetlinks.json` returns the statement),
+   `status.data.android.origin` matches the apk-key-hash origin produced by the Play-signed build, and
+   Credential Manager registration + login succeed on that build.
 5. Flip `WEBAUTHN_ENABLED` to `"true"` in production vars and re-deploy. Existing keyless legacy rows
    remain inert; users re-enroll through the verified flow.
 
 ## 6. Tests
 
-`worker/__tests__/webauthn.test.ts` (27 tests, real ES256 signatures via WebCrypto + CBOR fixtures):
+`worker/__tests__/webauthn.test.ts` (33 tests, real ES256 signatures via WebCrypto + CBOR fixtures):
 valid registration/login round-trips; tampered signature; wrong origin / RP ID / challenge; missing UP/UV
 flags; wrong `userHandle` (`WEBAUTHN_WRONG_ACCOUNT`); stale counter (+ synced-passkey exception);
 replayed & expired & purpose-mismatched & account-bound challenges (atomic single use); packed-attestation
-rejection; malformed clientData; policy parsing; opaque user-handle stability. Plus route-level guarantees:
+rejection; malformed clientData; policy parsing; opaque user-handle stability; **Android Credential
+Manager origin matrix** (apk-key-hash derivation, native registration/login acceptance, web-origin +
+package cross-origin acceptance, wrong package / unconfigured rejection). Plus route-level guarantees:
 generic failure codes (no enumeration), 503 while disabled, session-bound registration.
