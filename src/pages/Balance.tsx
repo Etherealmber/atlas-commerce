@@ -488,6 +488,9 @@ export default function Balance() {
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
           <strong style={{ fontSize: 13 }}>Rapports PDF</strong>
           <select value={reportPeriod} onChange={(e) => setReportPeriod(e.target.value)} style={{ width: 'auto' }}>
+            {/^\d{4}-(0[1-9]|1[0-2])$/.test(reportPeriod) && (
+              <option value={reportPeriod}>Mois : {reportPeriod}</option>
+            )}
             <option value="month">Ce mois</option>
             <option value="3m">3 mois</option>
             <option value="6m">6 mois</option>
@@ -498,6 +501,15 @@ export default function Balance() {
             <option value="48m">4 ans</option>
             <option value="year">Année civile</option>
           </select>
+          {/* v262 — precise month (YYYY-MM, strictly validated server-side) */}
+          <input
+            type="month"
+            aria-label="Choisir un mois précis"
+            title="Rapports sur un mois précis (AAAA-MM)"
+            value={/^\d{4}-(0[1-9]|1[0-2])$/.test(reportPeriod) ? reportPeriod : ''}
+            onChange={(e) => setReportPeriod(e.target.value || 'month')}
+            style={{ width: 'auto', fontSize: 13 }}
+          />
           <button className="secondary" style={{ fontSize: 13 }} onClick={() => openReport('/api/reports/balance', { period: reportPeriod })}>
             Solde & mouvements
           </button>

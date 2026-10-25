@@ -312,12 +312,15 @@ Atlas Commerce est développé et maintenu par **loxdpy ([@loxdpsy](https://gith
 - `themes-css-guard.yml` : `scripts/css-check.mjs` — accolades/parenthèses équilibrées, hex valides, dark-force.css dernier import CSS obligatoire, et aucune NOUVELLE déclaration blanche dans les blocs sombres sur les PR
 - Les trois tournent sur chaque pull request (et sur main) avec filters par chemin : un PR rouge ne devrait jamais être mergé, donc jamais déployé
 
-Version actuelle : **0.6.1-beta** (gelée jusqu'au prochain ordre de push).
+Version actuelle : **0.6.2-beta** (gelée jusqu'au prochain ordre de push).
 
 Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depuis la première version interne ; le détail complet et vivant est dans l'app (**Nouveautés**), y compris l’ancien cycle bêta pré-renumérotation, renuméroté en **0.x** (0.0.1 → 0.4.4).
 
 <details>
 <summary>📦 Toutes les versions (0.0.1-beta → 0.5.5-beta) — cliquer pour déplier</summary>
+
+### 0.6.2-beta
+- Rapports sur mois précis : `/api/reports/combined` + sections acceptent une période `AAAA-MM` strictement validée (invalide → mois courant, jamais de dates cassées) en plus des périodes relatives ; bornes calculées dans le **fuseau finance de l’entreprise** (`finance_timezone`, défaut Africa/Casablanca) — mois courant arrêté à aujourd’hui local, mois passés complets (bissextiles sûrs) ; période propagée à toutes les sections/liens avec le ticket HMAC `rt` 30 min (JWT de session jamais accepté ni exposé, `token` supprimé défensivement) ; sélecteur de mois dans Solde ; logique pure `worker/lib/report-period.ts` + 17 tests (vitest 112/112)
 
 ### 0.6.1-beta
 - Passkeys Android : acceptation des DEUX formats d’origine natifs — `android:apk-key-hash-sha256:` (Credential Manager) et le legacy `android:apk-key-hash:` (base64 du SHA-1, `WEBAUTHN_ANDROID_CERT_SHA1` optionnel) — comparaison octet par octet après décodage tolérant (base64/url-safe, padding) ; `status.data.android.origin_legacy` exposé ; 4 tests de plus, vitest 95/95 (`docs/webauthn.md` §4a)

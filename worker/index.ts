@@ -86,7 +86,8 @@ import {
   registerFinanceRoutes,
 } from './routes';
 import { countEmployeesPayDue } from './routes/employees';
-import { notifyPaymentRecorded, runFinanceReminders } from './lib/finance';
+import { localTodayYmd, notifyPaymentRecorded, runFinanceReminders } from './lib/finance';
+import { buildReportLinkQuery, computePeriodBounds } from './lib/report-period';
 import {
   consumeChallenge as waConsumeChallenge,
   createChallenge as waCreateChallenge,
@@ -15248,48 +15249,26 @@ function fmtN(n: any) {
   return Math.round(Number(n || 0)).toLocaleString('fr-FR');
 }
 
-function periodBounds(c: any): { from: string; to: string; label: string } {
-  const period = c.req.query('period') || 'month';
-  const now = new Date();
-  let from: Date;
-  let to = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const monthsBack: Record<string, number> = {
-    month: 0, '3m': 2, '6m': 5, '9m': 8, '12m': 11, '24m': 23, '36m': 35, '48m': 47,
-  };
-  if (period === 'year' || period === 'ytd') {
-    from = new Date(now.getFullYear(), 0, 1);
-  } else if (period === 'custom' && c.req.query('from') && c.req.query('to')) {
-    from = new Date(c.req.query('from')!);
-    to = new Date(c.req.query('to')!);
-  } else if (period in monthsBack) {
-    const back = monthsBack[period];
-    from = new Date(now.getFullYear(), now.getMonth() - back, 1);
-  } else {
-    from = new Date(now.getFullYear(), now.getMonth(), 1);
-  }
-  const f = from.toISOString().slice(0, 10);
-  const t = to.toISOString().slice(0, 10);
-  const labels: Record<string, string> = {
-    month: from.toLocaleString('fr-FR', { month: 'long', year: 'numeric' }),
-    year: `Année ${now.getFullYear()}`,
-    ytd: `Année en cours ${now.getFullYear()}`,
-    '3m': '3 derniers mois',
-    '6m': '6 derniers mois',
-    '9m': '9 derniers mois',
-    '12m': '12 derniers mois',
-    '24m': '2 ans',
-    '36m': '3 ans',
-    '48m': '4 ans',
-    custom: `Du ${f} au ${t}`,
-  };
-  const label = labels[period] || labels.month;
-  return { from: f, to: t, label };
+/**
+ * Report period bounds (v262) — relative windows AND strictly validated
+ * `YYYY-MM` months, anchored on the company's finance timezone
+ * (company_settings.finance_timezone, default Africa/Casablanca): the current
+ * month stops at TODAY in that timezone, past months use the full calendar
+ * month. Pure logic lives in lib/report-period.ts (unit-tested). `periodKey`
+ * is the normalized period propagated to every section link.
+ */
+function periodBounds(c: any, timezone?: string): { from: string; to: string; label: string; periodKey: string } {
+  const tz = String(timezone || '').trim() || 'Africa/Casablanca';
+  return computePeriodBounds(
+    { period: c.req.query('period'), from: c.req.query('from'), to: c.req.query('to') },
+    { todayYmd: localTodayYmd(tz) },
+  );
 }
 
 app.get('/api/reports/balance', async (c) => {
   await ensureExpenseTypeColumn(c.env.DB);
   const settings = await c.env.DB.prepare(`SELECT * FROM company_settings WHERE id = 1`).first() as any;
-  const { from, to, label } = periodBounds(c);
+  const { from, to, label } = periodBounds(c, settings?.finance_timezone);
   const cur = settings?.currency || 'MAD';
   const { results: entries } = await c.env.DB.prepare(
     `SELECT * FROM expenses WHERE expense_date >= ? AND expense_date <= ? ORDER BY expense_date ASC, id ASC`
@@ -18094,28 +18073,23 @@ app.get('/api/reports/employees', async (c) => {
 
 app.get('/api/reports/combined', async (c) => {
   const settings = await c.env.DB.prepare(`SELECT * FROM company_settings WHERE id = 1`).first() as any;
-  const { label } = periodBounds(c);
+  // v262 — validated period (relative or strict YYYY-MM) in the company's
+  // finance timezone; periodKey (normalized) propagates to every section link.
+  const { from, to, label, periodKey } = periodBounds(c, settings?.finance_timezone);
   const cur = settings?.currency || 'MAD';
   const fmt = (n: number) => Number(n || 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 });
 
-  // Short-lived signed ticket for working links (30 min) — not the session JWT
+  // Short-lived signed ticket for working links (30 min) — not the session JWT.
+  // Raw user input never reaches the links: only rt + the validated periodKey.
   const rt = await mintReportLinkTicket(c.env);
-  let period = '';
-  try {
-    period = new URL(c.req.url).searchParams.get('period') || '';
-  } catch { /* */ }
-  const qs = (extra: Record<string, string> = {}) => {
-    const p = new URLSearchParams({ rt });
-    if (period) p.set('period', period);
-    for (const [k, v] of Object.entries(extra)) if (v) p.set(k, v);
-    return `?${p.toString()}`;
-  };
+  const qs = (extra: Record<string, string> = {}) => buildReportLinkQuery(rt, periodKey, extra);
   const href = (path: string, extra?: Record<string, string>) => `${path}${qs(extra || {})}`;
 
   let balanceHtml = '<p class="muted">Solde non disponible</p>';
   try {
     const exp = await c.env.DB.prepare(`SELECT COALESCE(SUM(CASE WHEN COALESCE(entry_type,'expense')='expense' THEN amount ELSE 0 END),0) as out,
-      COALESCE(SUM(CASE WHEN entry_type='income' OR entry_type='owner_contrib' THEN amount ELSE 0 END),0) as inn FROM expenses`).first() as any;
+      COALESCE(SUM(CASE WHEN entry_type='income' OR entry_type='owner_contrib' THEN amount ELSE 0 END),0) as inn FROM expenses
+      WHERE expense_date >= ? AND expense_date <= ?`).bind(from, to).first() as any;
     balanceHtml = `<div class="grid">
       <div class="stat"><div class="l">Sorties (dépenses)</div><div class="v out">−${fmt(exp?.out)} ${cur}</div></div>
       <div class="stat"><div class="l">Entrées hors ventes</div><div class="v in">+${fmt(exp?.inn)} ${cur}</div></div>
@@ -18160,7 +18134,7 @@ app.get('/api/reports/combined', async (c) => {
   } catch { /* */ }
 
   const body = `
-  <p class="muted">Période : <strong>${label}</strong>. Cliquez un lien pour le détail (valide 30 minutes).</p>
+  <p class="muted">Période : <strong>${label}</strong> (du ${from} au ${to}). Cliquez un lien pour le détail — même période, valide 30 minutes.</p>
   <ul style="font-size:15px;line-height:1.8">
     <li><a href="${href('/api/reports/balance')}">Solde &amp; mouvements</a></li>
     <li><a href="${href('/api/reports/stock')}">Stock &amp; valorisation</a></li>

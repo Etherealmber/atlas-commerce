@@ -21,6 +21,25 @@ type Release = {
 
 const RELEASES: Release[] = [
   {
+    version: '0.6.2-beta',
+    date: '26 octobre 2026',
+    sections: [
+      {
+        kind: 'features',
+        items: [
+          { id: '062a1', text: 'Rapports sur un mois précis : /api/reports/combined et ses sections acceptent désormais une période AAAA-MM strictement validée (année 1970–2100, mois 01–12 — toute valeur invalide retombe sur le mois en cours, jamais de dates cassées) en plus des périodes relatives (ce mois, 3/6/9/12 mois, 2–4 ans, année civile, personnalisé) ; sélecteur de mois dans Solde (input type=month) à côté des périodes rapides' },
+          { id: '062a2', text: 'Périodes ancrées sur le fuseau finance de l’entreprise (company_settings.finance_timezone, défaut Africa/Casablanca) : le mois en cours s’arrête à AUJOURD’HUI dans ce fuseau (plus le jour UTC du serveur), les mois passés utilisent le mois complet (février bissextile inclus), le mois futur est borné proprement ; la période choisie est propagée à toutes les sections et à tous les liens du rapport combiné (rt + période normalisée — l’entrée brute n’est jamais recopiée)' },
+        ],
+      },
+      {
+        kind: 'improvements',
+        items: [
+          { id: '062a3', text: 'Sécurité rapports inchangée et renforcée : les liens profonds gardent le ticket HMAC rt courte durée (30 min) — jamais de JWT de session accepté ni exposé dans les liens (le paramètre token est supprimé défensivement) ; la synthèse Solde du rapport combiné est maintenant bornée par la période sélectionnée ; logique extraite dans worker/lib/report-period.ts (pure, testable) — 17 nouveaux tests (mois valides/invalides, bornes de fuseau Tokyo/UTC/Casablanca sans offset figé, mois courant partiel, mois historiques bissextiles, propagation rt+période) — vitest 112/112' },
+        ],
+      },
+    ],
+  },
+  {
     version: '0.6.1-beta',
     date: '26 octobre 2026',
     sections: [
