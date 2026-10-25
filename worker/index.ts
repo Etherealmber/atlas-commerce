@@ -90,6 +90,7 @@ import { notifyPaymentRecorded, runFinanceReminders } from './lib/finance';
 import {
   consumeChallenge as waConsumeChallenge,
   createChallenge as waCreateChallenge,
+  androidOrigin,
   expectedOrigin,
   parseClientData,
   policyFromEnv,
@@ -3503,10 +3504,7 @@ app.post('/api/auth/webauthn/register/verify', async (c) => {
       clientDataJSON,
       attestationObject,
       expectedChallenge: challenge,
-      expectedOrigin: expectedOrigin(policy),
-      rpId: policy.rpId,
-      requireUV: policy.requireUV,
-      attestationPolicy: 'none',
+      policy,
     });
   } catch (e: any) {
     return c.json({ success: false, error: 'Vérification passkey impossible', code: String(e?.code || 'WEBAUTHN_VERIFY_FAILED') }, 400);
@@ -3650,9 +3648,7 @@ app.post('/api/auth/webauthn/login/verify', async (c) => {
       signature,
       userHandle: userHandle || undefined,
       expectedChallenge: challenge,
-      expectedOrigin: expectedOrigin(policy),
-      rpId: policy.rpId,
-      requireUV: policy.requireUV,
+      policy,
       stored: {
         publicKeyJwk: jwk,
         counter: Number(cred.counter || 0),
@@ -3728,8 +3724,11 @@ app.get('/api/auth/webauthn/status', async (c) => {
       attestation: policy.attestation,
       algorithms: ['ES256'],
       android: {
-        enabled: policy.enabled && !!policy.androidPackage && !!policy.androidCertHash,
+        enabled: policy.enabled && !!policy.androidPackage && !!androidOrigin(policy),
         package: policy.androidPackage || null,
+        // Native Credential Manager origin accepted for the configured signing
+        // cert — device teams verify their apk-key-hash matches this exactly.
+        origin: androidOrigin(policy),
         assetlinks: '/.well-known/assetlinks.json',
       },
     },

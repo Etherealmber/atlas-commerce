@@ -21,6 +21,25 @@ type Release = {
 
 const RELEASES: Release[] = [
   {
+    version: '0.5.8-beta',
+    date: '26 octobre 2026',
+    sections: [
+      {
+        kind: 'features',
+        items: [
+          { id: '058a1', text: 'Passkeys Android (Credential Manager) : le vérificateur accepte désormais l’origine native android:apk-key-hash-sha256 dérivée de l’empreinte SHA-256 du certificat de signature Play configuré côté serveur, ainsi que l’origine web en mode cross-origin quand le paquet Android signé correspond — sans configuration Android, tout reste strictement web (origine exacte, crossOrigin rejeté)' },
+          { id: '058a2', text: 'WEBAUTHN_ANDROID_PACKAGE préconfiguré (ma.etherealmber.atlascommerce) ; GET /api/auth/webauthn/status expose data.android.origin — la valeur exacte acceptée par le backend, à comparer avec celle produite par l’APK signé Play ; /.well-known/assetlinks.json s’active automatiquement dès que l’empreinte du certificat est renseignée (Play Console → Setup → App integrity)' },
+        ],
+      },
+      {
+        kind: 'improvements',
+        items: [
+          { id: '058a3', text: '6 nouveaux tests d’intégration Android (dérivation de l’origine apk-key-hash, enregistrement/connexion natifs acceptés, paquet inconnu ou certificat non configuré rejetés, matrice cross-origin) — suite vitest 78/78 ; docs/webauthn.md §4a : matrice complète des origines acceptées' },
+        ],
+      },
+    ],
+  },
+  {
     version: '0.5.7-beta',
     date: '25 octobre 2026',
     sections: [

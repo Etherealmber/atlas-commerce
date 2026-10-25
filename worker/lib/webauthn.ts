@@ -187,7 +187,7 @@ export function parseAuthenticatorData(raw: Uint8Array): ParsedAuthData {
 
 /* ────────────────────────────── client data ────────────────────────────── */
 
-export type ParsedClientData = { type: string; challenge: string; origin: string; crossOrigin: boolean };
+export type ParsedClientData = { type: string; challenge: string; origin: string; crossOrigin: boolean; androidPackageName: string | null };
 
 export function parseClientData(b64u: string): { json: ParsedClientData; raw: Uint8Array } {
   let raw: Uint8Array;
@@ -208,15 +208,37 @@ export function parseClientData(b64u: string): { json: ParsedClientData; raw: Ui
       challenge: parsed.challenge,
       origin: parsed.origin,
       crossOrigin: parsed.crossOrigin === true,
+      // Native Credential Manager assertions may carry the requesting package.
+      androidPackageName: typeof parsed.androidPackageName === 'string' ? parsed.androidPackageName : null,
     },
   };
 }
 
-function checkClientData(cd: ParsedClientData, expectedType: string, expectedChallenge: string, expectedOrigin: string): void {
+/**
+ * Origin acceptance (exact match, allowlist-driven):
+ *  - the native Android Credential Manager origin
+ *    `android:apk-key-hash-sha256:<base64url(SHA-256(signing-cert DER))>` derived
+ *    from WEBAUTHN_ANDROID_CERT_HASH — accepted only when the Android package is
+ *    configured (the cert hash IS the Play signing key fingerprint, so this ties
+ *    the assertion to the allowlisted APK signature);
+ *  - any allowlisted web origin with crossOrigin=false (browser flows);
+ *  - an allowlisted web origin with crossOrigin=true ONLY when the Android
+ *    integration is configured and clientDataJSON.androidPackageName equals that
+ *    package (androidx.credentials lets the app pass the web origin explicitly;
+ *    the provider then marks the assertion cross-origin and names the package).
+ */
+function checkClientData(cd: ParsedClientData, expectedType: string, expectedChallenge: string, policy: WebAuthnPolicy): void {
   if (cd.type !== expectedType) throw new WebAuthnError('WEBAUTHN_BAD_TYPE', `clientData type ${cd.type}`);
   if (!timingSafeEqual(cd.challenge, expectedChallenge)) throw new WebAuthnError('WEBAUTHN_BAD_CHALLENGE', 'clientData challenge mismatch');
-  if (cd.origin !== expectedOrigin) throw new WebAuthnError('WEBAUTHN_BAD_ORIGIN', `origin ${cd.origin}`);
-  if (cd.crossOrigin) throw new WebAuthnError('WEBAUTHN_CROSS_ORIGIN', 'cross-origin assertion');
+  const apkOrigin = androidOrigin(policy);
+  if (apkOrigin && cd.origin === apkOrigin) return;
+  if (policy.origins.includes(cd.origin)) {
+    if (cd.crossOrigin && !(policy.androidPackage && cd.androidPackageName === policy.androidPackage)) {
+      throw new WebAuthnError('WEBAUTHN_CROSS_ORIGIN', 'cross-origin assertion');
+    }
+    return;
+  }
+  throw new WebAuthnError('WEBAUTHN_BAD_ORIGIN', `origin ${cd.origin}`);
 }
 
 /* ────────────────────────────── registration ────────────────────────────── */
@@ -225,10 +247,8 @@ export type RegistrationInput = {
   clientDataJSON: string;
   attestationObject: string;
   expectedChallenge: string;
-  expectedOrigin: string;
-  rpId: string;
-  requireUV: boolean;
-  attestationPolicy: 'none';
+  /** Origin/RP/UV/attestation acceptance comes from the server-side policy. */
+  policy: WebAuthnPolicy;
 };
 
 export type VerifiedRegistration = {
@@ -243,7 +263,7 @@ export type VerifiedRegistration = {
 
 export async function verifyRegistration(input: RegistrationInput): Promise<VerifiedRegistration> {
   const cd = parseClientData(input.clientDataJSON);
-  checkClientData(cd.json, 'webauthn.create', input.expectedChallenge, input.expectedOrigin);
+  checkClientData(cd.json, 'webauthn.create', input.expectedChallenge, input.policy);
 
   let att: any;
   try {
@@ -257,16 +277,16 @@ export async function verifyRegistration(input: RegistrationInput): Promise<Veri
   const authDataRaw = mapGet(att, 'authData');
   // Explicit attestation policy: `none` only. Anything else (packed/fido-u2f/…)
   // is rejected rather than half-verified.
-  if (input.attestationPolicy === 'none' && fmt !== 'none') {
+  if (input.policy.attestation === 'none' && fmt !== 'none') {
     throw new WebAuthnError('WEBAUTHN_BAD_ATTESTATION', `fmt ${String(fmt)} not allowed by policy`);
   }
   if (!(authDataRaw instanceof Uint8Array)) throw new WebAuthnError('WEBAUTHN_MALFORMED', 'authData missing');
 
   const ad = parseAuthenticatorData(authDataRaw);
-  const rpIdHash = await sha256(input.rpId);
+  const rpIdHash = await sha256(input.policy.rpId);
   if (bytesToHex(ad.rpIdHash) !== bytesToHex(rpIdHash)) throw new WebAuthnError('WEBAUTHN_BAD_RPID', 'rpIdHash mismatch');
   if (!ad.up) throw new WebAuthnError('WEBAUTHN_MISSING_FLAGS', 'UP flag required');
-  if (input.requireUV && !ad.uv) throw new WebAuthnError('WEBAUTHN_MISSING_FLAGS', 'UV flag required by policy');
+  if (input.policy.requireUV && !ad.uv) throw new WebAuthnError('WEBAUTHN_MISSING_FLAGS', 'UV flag required by policy');
   if (!ad.at || !ad.credentialId || !ad.credentialPublicKeyJwk) {
     throw new WebAuthnError('WEBAUTHN_MALFORMED', 'attested credential data missing');
   }
@@ -289,9 +309,8 @@ export type AuthenticationInput = {
   signature: string;
   userHandle?: string;
   expectedChallenge: string;
-  expectedOrigin: string;
-  rpId: string;
-  requireUV: boolean;
+  /** Origin/RP/UV acceptance comes from the server-side policy. */
+  policy: WebAuthnPolicy;
   stored: {
     publicKeyJwk: { kty: string; crv: string; x: string; y: string; alg: string };
     counter: number;
@@ -304,13 +323,13 @@ export type VerifiedAuthentication = { counter: number; backupState: boolean; uv
 
 export async function verifyAuthentication(input: AuthenticationInput): Promise<VerifiedAuthentication> {
   const cd = parseClientData(input.clientDataJSON);
-  checkClientData(cd.json, 'webauthn.get', input.expectedChallenge, input.expectedOrigin);
+  checkClientData(cd.json, 'webauthn.get', input.expectedChallenge, input.policy);
 
   const ad = parseAuthenticatorData(b64uToBytes(input.authenticatorData));
-  const rpIdHash = await sha256(input.rpId);
+  const rpIdHash = await sha256(input.policy.rpId);
   if (bytesToHex(ad.rpIdHash) !== bytesToHex(rpIdHash)) throw new WebAuthnError('WEBAUTHN_BAD_RPID', 'rpIdHash mismatch');
   if (!ad.up) throw new WebAuthnError('WEBAUTHN_MISSING_FLAGS', 'UP flag required');
-  if (input.requireUV && !ad.uv) throw new WebAuthnError('WEBAUTHN_MISSING_FLAGS', 'UV flag required by policy');
+  if (input.policy.requireUV && !ad.uv) throw new WebAuthnError('WEBAUTHN_MISSING_FLAGS', 'UV flag required by policy');
 
   if (input.userHandle !== undefined && input.userHandle !== '') {
     if (!timingSafeEqual(String(input.userHandle), input.stored.userHandle)) {
@@ -478,7 +497,27 @@ export function policyFromEnv(env: Record<string, string | undefined>): WebAuthn
   };
 }
 
-/** The single origin this deployment accepts (first allowlisted entry). */
+/** The canonical web origin of this deployment (first allowlisted entry). */
 export function expectedOrigin(policy: WebAuthnPolicy): string {
   return policy.origins[0] || 'https://stock.afmarbre.com';
+}
+
+/**
+ * Native Android Credential Manager origin for a signing-cert SHA-256
+ * fingerprint: `android:apk-key-hash-sha256:<base64url(fingerprint bytes)>`
+ * (the fingerprint IS sha256(cert DER), per the WebAuthn origin format).
+ * Accepts colon-separated or plain hex; returns null when malformed.
+ */
+export function androidOriginFromCertHash(certHash: string): string | null {
+  const hex = String(certHash || '').replace(/[^0-9a-fA-F]/g, '').toUpperCase();
+  if (hex.length !== 64) return null;
+  const bytes = new Uint8Array(32);
+  for (let i = 0; i < 32; i++) bytes[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  return `android:apk-key-hash-sha256:${bytesToB64u(bytes)}`;
+}
+
+/** The android origin this deployment accepts, or null when not configured. */
+export function androidOrigin(policy: WebAuthnPolicy): string | null {
+  if (!policy.androidPackage || !policy.androidCertHash) return null;
+  return androidOriginFromCertHash(policy.androidCertHash);
 }
