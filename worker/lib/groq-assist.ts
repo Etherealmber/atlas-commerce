@@ -115,3 +115,91 @@ export async function groqChat(opts: {
       : 'Atlas Agent indisponible (Groq).',
   );
 }
+
+/* ─────────────────────────── streaming (v264) ───────────────────────────
+ * SSE token streaming for POST /api/assist/chat/stream. Same provider, same
+ * scrubbing rules as groqChat(); deltas are forwarded as they arrive and the
+ * REAL usage (prompt+completion tokens) is read from the final chunk so the
+ * server-side quota charges streamed turns exactly like buffered ones.
+ * `fetchImpl` is injectable for tests; the production path uses global fetch
+ * (upstreamFetch buffers whole bodies and cannot stream). */
+
+export async function groqChatStream(opts: {
+  apiKey: string;
+  model?: string;
+  system: string;
+  message: string;
+  maxTokens?: number;
+  onToken: (delta: string) => void;
+  fetchImpl?: typeof fetch;
+}): Promise<{ reply: string; model: string; usage?: { prompt: number; completion: number } }> {
+  const f = opts.fetchImpl || fetch;
+  const model = (opts.model || '').trim() || MODELS[0];
+  const maxTokens = Math.max(64, Math.min(opts.maxTokens ?? 700, 4096));
+  const res = await f('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${opts.apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      temperature: 0.55,
+      max_tokens: maxTokens,
+      stream: true,
+      messages: [
+        { role: 'system', content: opts.system },
+        { role: 'user', content: opts.message },
+      ],
+    }),
+    signal: AbortSignal.timeout(45_000),
+  });
+  if (res.status === 401 || res.status === 403) {
+    throw new Error('Atlas Agent: clé Groq refusée. Vérifiez GROQ_API_KEY (console.groq.com).');
+  }
+  if (res.status === 429) {
+    throw new Error('Quota Groq atteint. Réessayez dans quelques minutes.');
+  }
+  if (!res.ok || !res.body) {
+    throw new Error(`Atlas Agent indisponible en flux (HTTP ${res.status}).`);
+  }
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let buf = '';
+  let reply = '';
+  let usedModel = model;
+  let usage: { prompt: number; completion: number } | undefined;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let idx: number;
+    while ((idx = buf.indexOf('\n')) >= 0) {
+      const line = buf.slice(0, idx).trim();
+      buf = buf.slice(idx + 1);
+      if (!line.startsWith('data:')) continue;
+      const payload = line.slice(5).trim();
+      if (!payload || payload === '[DONE]') continue;
+      let j: any = null;
+      try { j = JSON.parse(payload); } catch { continue; }
+      if (j?.model) usedModel = String(j.model);
+      const delta = String(j?.choices?.[0]?.delta?.content || '');
+      if (delta) {
+        reply += delta;
+        try { opts.onToken(delta); } catch { /* consumer went away — keep draining */ }
+      }
+      const u = j?.usage || j?.x_groq?.usage;
+      if (u) {
+        usage = {
+          prompt: Number(u.prompt_tokens || 0),
+          completion: Number(u.completion_tokens || 0),
+        };
+      }
+    }
+  }
+  reply = reply
+    .replace(/\b(Google|Gemini|Mistral|OpenAI|ChatGPT|Claude|Groq|Llama|Meta)\b/gi, 'Atlas Agent')
+    .trim();
+  if (!reply) throw new Error('Atlas Agent: réponse vide du flux Groq.');
+  return { reply, model: usedModel, usage };
+}

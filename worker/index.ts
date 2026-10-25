@@ -60,7 +60,8 @@ import {
 } from './lib/agent';
 import { geminiSimpleChat, atlasAgentSystem, scrubVendorNames } from './lib/gemini-assist';
 import { tokenraChat } from './lib/tokenra-assist';
-import { groqChat } from './lib/groq-assist';
+import { groqChat, groqChatStream } from './lib/groq-assist';
+import { parseAgentDocumentsAsync, agentDocumentPromptSection } from './lib/agent-docs';
 import {
   upsertDeviceToken,
   notifyAssistApproval as fcmNotifyAssistApproval,
@@ -84,6 +85,7 @@ import {
   registerPartnerV1Routes,
   registerAtlasV209Routes,
   registerFinanceRoutes,
+  registerExpenseWriteRoutes,
 } from './routes';
 import { countEmployeesPayDue } from './routes/employees';
 import { localTodayYmd, notifyPaymentRecorded, runFinanceReminders } from './lib/finance';
@@ -1272,6 +1274,59 @@ async function agentQuotaAdd(env: Env, db: D1Database, username: string, tokens:
     await db.prepare(`UPDATE agent_controls SET daily_tokens = ?, weekly_tokens = ?, updated_at = datetime('now') WHERE username = ?`).bind(j.data.dailyUsed, j.data.weeklyUsed, username).run();
   } catch { /* mirror only */ }
   return { dailyUsed: j.data.dailyUsed, weeklyUsed: j.data.weeklyUsed };
+}
+
+/**
+ * v264 — server-side Atlas Agent access verdict: blocked accounts and
+ * exhausted daily/weekly token quotas are refused HERE, before any LLM call.
+ * Until now these checks lived only in the SPA (agentPolicy) — a crafted
+ * client could bypass them entirely. Owner/admin stay unlimited (established
+ * product rule); counters come from the durable quota object (D1 mirror as
+ * fallback) exactly like GET /api/agent/policy.
+ */
+async function agentAccessVerdict(
+  env: Env,
+  db: D1Database,
+  username: string,
+  role: string,
+): Promise<{ ok: true } | { ok: false; status: number; payload: any }> {
+  const uname = String(username || '').toLowerCase();
+  try {
+    const row = await getAgentControlRow(db, uname);
+    if (row.blocked) {
+      return {
+        ok: false,
+        status: 403,
+        payload: {
+          success: false,
+          error: 'Accès à Atlas Agent suspendu pour ce compte (abus ou injection détectés). Contactez un administrateur pour le rétablir.',
+          code: 'AGENT_BLOCKED',
+        },
+      };
+    }
+  } catch { /* controls table may lag — fail open ONLY for the blocked flag */ }
+  if (role === 'owner' || role === 'admin') return { ok: true };
+  try {
+    const counters = await agentQuotaCounters(env, db, uname);
+    if (counters.dailyUsed >= AGENT_DAILY_LIMIT || counters.weeklyUsed >= AGENT_WEEKLY_LIMIT) {
+      return {
+        ok: false,
+        status: 429,
+        payload: {
+          success: false,
+          error: 'Quota de jetons Atlas Agent atteint — rafraîchissement à minuit UTC (quotidien) et lundi 00:00 UTC (hebdomadaire).',
+          code: 'AGENT_QUOTA',
+          dailyUsed: counters.dailyUsed,
+          weeklyUsed: counters.weeklyUsed,
+          dailyLimit: AGENT_DAILY_LIMIT,
+          weeklyLimit: AGENT_WEEKLY_LIMIT,
+          dailyResetsAt: nextUtcMidnight(),
+          weeklyResetsAt: nextMondayUtc(),
+        },
+      };
+    }
+  } catch { /* quota infrastructure down — do not lock users out */ }
+  return { ok: true };
 }
 
 app.get('/api/agent/policy', async (c) => {
@@ -12436,43 +12491,14 @@ app.get('/api/expenses', async (c) => {
   return c.json({ success: true, data: results });
 });
 
-app.post('/api/expenses', async (c) => {
-  await ensureExpenseTypeColumn(c.env.DB);
-  const body = await c.req.json().catch(() => ({}));
-  const verr = validateExpenseWrite(body);
-  if (verr) return apiFail(c, Object.values(verr)[0] || 'Validation', 'VALIDATION', verr);
-  const {
-    category = 'General',
-    description,
-    amount,
-    payment_method = 'cash',
-    expense_date,
-    vendor_name = '',
-    reference = '',
-    notes = '',
-    entry_type = 'expense',
-  } = body;
-  if (!description || amount == null) return c.json({ success: false, error: 'La description et le montant sont obligatoires' }, 400);
-  const allowedTypes = ['expense', 'income', 'owner_draw', 'owner_contrib'];
-  const type = allowedTypes.includes(entry_type) ? entry_type : 'expense';
-  const result = await c.env.DB.prepare(
-    `INSERT INTO expenses (category, description, amount, payment_method, expense_date, vendor_name, reference, notes, entry_type)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).bind(
-    category,
-    description,
-    amount,
-    payment_method,
-    expense_date || new Date().toISOString().slice(0, 10),
-    vendor_name,
-    reference,
-    notes,
-    type,
-  ).run();
-  const expense = await c.env.DB.prepare(`SELECT * FROM expenses WHERE id = ?`).bind(result.meta.last_row_id).first();
-  await invalidateDashboardCache(c.env.CACHE);
-  const msg = type === 'income' ? 'Recette enregistrée dans la base de données.' : 'Dépense enregistrée dans la base de données.';
-  return c.json({ success: true, data: expense, message: msg }, 201);
+/* v264 — ledger writes moved to routes/expenses.ts with EXPLICIT owner/admin
+ * authorization (audit fix: these two routes previously sat behind the generic
+ * /api/* auth middleware only, so any authenticated role could insert ledger
+ * rows — including owner_contrib/owner_draw movements). Behavior, response
+ * shapes and French messages are unchanged; see __tests__/expenses-auth.test.ts. */
+registerExpenseWriteRoutes(app, {
+  sessionUserFromHeader, authFailReason, clientIp, ensureExpenseTypeColumn,
+  invalidateDashboardCache, writeAudit,
 });
 
 app.get('/api/expenses/:id/links', async (c) => {
@@ -12654,31 +12680,7 @@ app.post('/api/ledger/fix-receipts', async (c) => {
 
 
 /* ─── Import ledger (CSV/JSON from Excel templates) ─── */
-app.post('/api/expenses/import', async (c) => {
-  await ensureExpenseTypeColumn(c.env.DB);
-  const body = await c.req.json().catch(() => ({}));
-  const rows = Array.isArray(body.rows) ? body.rows : [];
-  if (!rows.length) return c.json({ success: false, error: 'Aucune ligne à importer' }, 400);
-  let inserted = 0;
-  for (const row of rows) {
-    const amount = Number(row.amount || row.montant || 0);
-    if (!amount || amount <= 0) continue;
-    const entryType = row.entry_type || row.type || (row.direction === 'in' || row.direction === 'entrée' || row.direction === 'دخول' ? 'income' : 'expense');
-    const type = ['expense', 'income', 'owner_draw', 'owner_contrib'].includes(entryType) ? entryType : (Number(row.in || row.دخول || 0) > 0 ? 'income' : 'expense');
-    const amt = amount || Number(row.in || row.دخول || row.out || row.خروج || 0);
-    if (!amt) continue;
-    const description = String(row.description || row.label || row.libelle || row.معلومات || 'Import').trim();
-    const category = String(row.category || row.categorie || 'Import Excel').trim();
-    const payment_method = String(row.payment_method || row.mode || 'cash');
-    const expense_date = String(row.date || row.expense_date || row.التاريخ || new Date().toISOString().slice(0, 10)).slice(0, 10);
-    await c.env.DB.prepare(
-      `INSERT INTO expenses (category, description, amount, payment_method, expense_date, vendor_name, reference, notes, entry_type)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).bind(category, description, amt, payment_method, expense_date, row.vendor || '', row.reference || 'import', row.notes || '', type).run();
-    inserted++;
-  }
-  return c.json({ success: true, message: `${inserted} écriture(s) importée(s).`, count: inserted });
-});
+/* v264 — POST /api/expenses/import: moved to routes/expenses.ts (owner/admin gate). */
 
 /* ─── Dashboard ─── */
 
@@ -15858,6 +15860,18 @@ app.post('/api/assist/chat', async (c) => {
     ? body.images.filter((x: any) => typeof x === 'string' && x.startsWith('data:image/')).slice(0, 4).map((x: string) => x.slice(0, 3_500_000))
     : [];
   if (!message) return c.json({ success: false, error: 'Message vide.' }, 400);
+  // v264 — server-side access verdict: blocked accounts and exhausted token
+  // quotas are refused HERE (until now the check lived only in the SPA).
+  const verdict = await agentAccessVerdict(c.env, c.env.DB, username, role);
+  if (!verdict.ok) return c.json(verdict.payload, verdict.status as 403);
+  // v264 — bounded, MIME-validated document extraction (PDF/text). A rejected
+  // document fails the WHOLE request with stable codes — never silently dropped.
+  const docsRes = await parseAgentDocumentsAsync((body as any).documents);
+  if (!docsRes.ok) {
+    return c.json({ success: false, error: docsRes.errors[0]?.error || 'Document refusé', code: 'DOC_INVALID', details: docsRes.errors }, 400);
+  }
+  const docSection = agentDocumentPromptSection(docsRes.docs);
+  const docsMeta = docsRes.docs.map((d) => ({ name: d.name, mime: d.mime, kind: d.kind, pages: d.pages, chars: d.chars, truncated: d.truncated, extraction: d.extraction }));
   // Raw user text (without page template) — used for local shortcuts only
   const userMessage = String(body.user_message || body.userMessage || '').trim().slice(0, 2500) || message;
 
@@ -15892,9 +15906,9 @@ app.post('/api/assist/chat', async (c) => {
     const system = atlasAgentSystem({ role, username, timezone: tz, source: sourceRefined });
     // v233 — compact memory: the agent reads its recent conversation without replaying full turns
     const history = await loadCompactHistory(c.env, username, threadId, 6);
-    const finalMessage = history
+    const finalMessage = (history
       ? `Historique récent de la conversation (contexte uniquement — ne pas recopier):\n${history}\n\n${message}`
-      : message;
+      : message) + docSection;
     const outGq = await groqChat({
       apiKey: groqKey,
       model: images.length ? '' : model,
@@ -15924,6 +15938,7 @@ app.post('/api/assist/chat', async (c) => {
         provider: 'groq',
         usage: outGq.usage || null,
         history_turns: history ? history.split('\n').length : 0,
+        documents: docsMeta,
         tool_trace: [],
         proposals: [],
         task,
@@ -15933,6 +15948,111 @@ app.post('/api/assist/chat', async (c) => {
     await auditAssist(c.env, { username, role, message, tools: 'error', ok: false });
     return c.json({ success: false, error: e?.message || 'Échec Atlas Agent', code: 'assist_upstream' }, 502);
   }
+});
+
+/* v264 — SSE streaming twin of POST /api/assist/chat. Identical gates
+ * (verified session, server-side blocked/quota verdict, bounded MIME-validated
+ * documents); tokens stream as `event: token`, the turn ends with `event: done`
+ * (full reply + model + REAL usage + document metadata) or `event: error`.
+ * Quota is charged from the real usage of the final Groq chunk — a streamed
+ * turn costs exactly what a buffered turn costs. Turns WITH images take the
+ * buffered vision path and arrive as a single token event. */
+app.post('/api/assist/chat/stream', async (c) => {
+  const authHeader = c.req.header('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return c.json({ success: false, error: 'Authentification requise.' }, 401);
+  }
+  const session = sessionUserFromHeader(authHeader);
+  const role = normalizeRole(session.role || 'user');
+  const username = String(session.username || 'user');
+  const groqKey = String((c.env as any).GROQ_API_KEY || '').trim();
+  if (!groqKey) {
+    return c.json({ success: false, error: 'Assistant IA non configuré. Secret GROQ_API_KEY manquant.', code: 'no_key' }, 503);
+  }
+  let body: any = {};
+  try { body = await c.req.json(); } catch { body = {}; }
+  const message = String(body.message || body.prompt || '').trim().slice(0, 2500);
+  if (!message) return c.json({ success: false, error: 'Message vide.' }, 400);
+  const images = Array.isArray(body.images)
+    ? body.images.filter((x: any) => typeof x === 'string' && x.startsWith('data:image/')).slice(0, 4).map((x: string) => x.slice(0, 3_500_000))
+    : [];
+  const verdict = await agentAccessVerdict(c.env, c.env.DB, username, role);
+  if (!verdict.ok) return c.json(verdict.payload, verdict.status as 403);
+  const docsRes = await parseAgentDocumentsAsync(body.documents);
+  if (!docsRes.ok) {
+    return c.json({ success: false, error: docsRes.errors[0]?.error || 'Document refusé', code: 'DOC_INVALID', details: docsRes.errors }, 400);
+  }
+  const docSection = agentDocumentPromptSection(docsRes.docs);
+  const docsMeta = docsRes.docs.map((d) => ({ name: d.name, mime: d.mime, kind: d.kind, pages: d.pages, chars: d.chars, truncated: d.truncated, extraction: d.extraction }));
+
+  const tz = String(body.timezone || body.tz || 'Africa/Casablanca').slice(0, 64);
+  const source = String(body.source || body.client || c.req.header('x-atlas-client') || 'web').slice(0, 32);
+  const model = String(body.model || (c.env as any).GROQ_MODEL || 'openai/gpt-oss-20b').slice(0, 80);
+  const threadId = String(body?.thread_id || body?.threadId || 'live').slice(0, 80);
+
+  const enc = new TextEncoder();
+  const sseStream = new ReadableStream({
+    async start(controller) {
+      const send = (event: string, data: unknown) => {
+        try { controller.enqueue(enc.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)); } catch { /* client gone */ }
+      };
+      try {
+        const system = atlasAgentSystem({ role, username, timezone: tz, source });
+        const history = await loadCompactHistory(c.env, username, threadId, 6);
+        const finalMessage = (history
+          ? `Historique récent de la conversation (contexte uniquement — ne pas recopier):\n${history}\n\n${message}`
+          : message) + docSection;
+        let reply = '';
+        let usedModel = model;
+        let usage: { prompt: number; completion: number } | undefined;
+        if (images.length) {
+          // Buffered vision fallback — the whole reply arrives as one token event.
+          const out = await groqChat({ apiKey: groqKey, model: '', system, message: finalMessage, maxTokens: 1200, images });
+          reply = scrubVendorNames(String(out.reply || '').trim());
+          usedModel = out.model;
+          usage = out.usage;
+          if (reply) send('token', { t: reply });
+        } else {
+          const out = await groqChatStream({
+            apiKey: groqKey,
+            model,
+            system,
+            message: finalMessage,
+            maxTokens: 700,
+            onToken: (delta) => send('token', { t: delta }),
+          });
+          reply = scrubVendorNames(out.reply);
+          usedModel = out.model;
+          usage = out.usage;
+        }
+        const usedTokens = Math.max(0, Number(usage?.prompt || 0) + Number(usage?.completion || 0));
+        if (usedTokens > 0 && role !== 'owner' && role !== 'admin') {
+          try { await agentQuotaAdd(c.env, c.env.DB, username, usedTokens); } catch { /* quota best-effort */ }
+        }
+        await auditAssist(c.env, { username, role, message, tools: 'groq-stream', ok: true });
+        await putAgentChatTurn(c.env, {
+          username, role, message, reply, tools: 'groq-stream', model: usedModel, thread_id: threadId,
+        });
+        await writeAudit(c.env.DB, {
+          username, role, action: 'assist.chat.stream', entity: 'atlas_agent', detail: 'groq', ip: clientIp(c),
+        });
+        send('done', { reply, model: usedModel, provider: 'groq', usage: usage || null, documents: docsMeta, thread_id: threadId });
+      } catch (e: any) {
+        try { await auditAssist(c.env, { username, role, message, tools: 'error', ok: false }); } catch { /* */ }
+        send('error', { code: 'assist_upstream', error: String(e?.message || 'Échec Atlas Agent').slice(0, 200) });
+      } finally {
+        try { controller.close(); } catch { /* already closed */ }
+      }
+    },
+  });
+  return new Response(sseStream, {
+    headers: {
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-store, no-transform',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    },
+  });
 });
 
 
