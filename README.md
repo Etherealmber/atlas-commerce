@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="public/logo-mark.svg" alt="Atlas Commerce" width="96" height="96" />
+  <img src="public/atlas-logo-light.png" alt="Atlas Commerce" width="320" />
   <h1>Atlas Commerce</h1>
   <p><strong>ERP / Caisse / Facturation souverain pour commerces &amp; grossistes au Maroc</strong><br/>Stock multi-dépôts · Caisse &amp; tickets VR · Facturation TVA &amp; créances · Scan &amp; OCR · Atlas Agent IA · WebAuthn &amp; login QR</p>
 
@@ -313,12 +313,16 @@ Atlas Commerce est développé et maintenu par **loxdpy ([@loxdpsy](https://gith
 - `themes-css-guard.yml` : `scripts/css-check.mjs` — accolades/parenthèses équilibrées, hex valides, dark-force.css dernier import CSS obligatoire, et aucune NOUVELLE déclaration blanche dans les blocs sombres sur les PR
 - Les trois tournent sur chaque pull request (et sur main) avec filters par chemin : un PR rouge ne devrait jamais être mergé, donc jamais déployé
 
-Version actuelle : **0.6.4-beta** (gelée jusqu'au prochain ordre de push).
+Version actuelle : **0.6.5-beta** (gelée jusqu'au prochain ordre de push).
 
 Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depuis la première version interne ; le détail complet et vivant est dans l'app (**Nouveautés**), y compris l’ancien cycle bêta pré-renumérotation, renuméroté en **0.x** (0.0.1 → 0.4.4).
 
 <details>
 <summary>📦 Toutes les versions (0.0.1-beta → 0.5.5-beta) — cliquer pour déplier</summary>
+
+### 0.6.5-beta
+- Nouvelle identité visuelle appliquée partout : les deux logos officiels (lockup noir sur fond clair, lockup blanc sur fond sombre) remplacent l'ancien logo vectoriel — sidebar, barre du haut Paramètres, écran de connexion (lockup complet), page À propos, centres des QR codes ; bascule automatique clair/sombre par paire d'images PNG transparentes (`atlas-logo-*.png` / `atlas-icon-*.png`, fonds retirés par traitement pixel, icône découpée du lockup)
+- Favicons & PWA régénérés depuis le nouveau logo : favicon 16/32 + `.ico` + variantes **sombres** servies via `prefers-color-scheme`, apple-touch 180, icônes manifest 192/512 (png+webp), og-image 1200×630 ; anciens `logo.svg` / `logo-mark.svg` / `favicon.svg` / `og-image.svg` supprimés, manifest et README mis à jour
 
 ### 0.6.4-beta
 - Sécurité — `POST /api/expenses` + `POST /api/expenses/import` : audit puis verrouillage **propriétaire/admin uniquement** (403 OWNER_ONLY) — avant, tout compte authentifié (stock, user, secretaire…) pouvait insérer des écritures de trésorerie, y compris des apports/prélèvements propriétaire ; routes extraites dans `worker/routes/expenses.ts` avec re-validation de session en défense en profondeur + audit `expense.create`/`expense.import` ; tests d'autorisation et de validation (`worker/__tests__/expenses-auth.test.ts`)

@@ -919,7 +919,9 @@ function DesktopShell() {
         }}
       >
         <div className="logo" title="Double-clic pour réduire / agrandir le menu" onDoubleClick={() => setSidebarCollapsed((v) => !v)} style={{ cursor: 'pointer' }}>
-          <img src="/favicon.svg" alt="" className="logo-img" width={36} height={36} onError={(e) => { (e.target as HTMLImageElement).src = '/logo-mark.svg'; }} />
+          {/* v265 — raster brand: black art in light theme, white art in dark */}
+          <img src="/atlas-icon-light.png" alt="" className="logo-img brand-img brand-img--light" width={36} height={36} />
+          <img src="/atlas-icon-dark.png" alt="" className="logo-img brand-img brand-img--dark" width={36} height={36} />
           <div className="logo-text">
             <span className="logo-mark">Atlas Commerce</span>
             <span className="logo-sub">{isStockRole() ? 'Stock · magasinier' : 'Stock & facturation'}</span>
@@ -1296,7 +1298,8 @@ function DesktopShell() {
             </button>
             <span className="settings-topbar-sep" aria-hidden />
             <div className="settings-topbar-brand">
-              <img src="/favicon.svg" alt="" width={28} height={28} onError={(e) => { (e.target as HTMLImageElement).src = '/logo-mark.svg'; }} />
+              <img src="/atlas-icon-light.png" alt="" className="brand-img brand-img--light" width={28} height={28} />
+              <img src="/atlas-icon-dark.png" alt="" className="brand-img brand-img--dark" width={28} height={28} />
               <div>
                 <strong>
                   {isSettingsRoute

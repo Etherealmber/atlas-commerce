@@ -5778,3 +5778,21 @@ html.theme-dark .skeleton {
   background: linear-gradient(90deg, #1c1c1f 0%, #2a2a2e 50%, #1c1c1f 100%) !important;
   background-size: 200% 100% !important;
 }
+
+/* ─── v265 — Atlas raster brand (PNG pair, theme-aware) ───
+ * The two official lockups/icons ship as transparent PNGs: black art for the
+ * light theme, white art for the dark theme. The pair is rendered side by
+ * side and the active one is picked by the theme attribute — no JS, no flash.
+ * Overrides kill the old svg-era tile styling (black rounded background,
+ * outline) that would box the transparent artwork. */
+.brand-img {
+  display: block;
+  object-fit: contain;
+  background: transparent !important;
+  border-radius: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+.brand-img--dark { display: none; }
+html[data-theme='dark'] .brand-img--light { display: none; }
+html[data-theme='dark'] .brand-img--dark { display: block; }
