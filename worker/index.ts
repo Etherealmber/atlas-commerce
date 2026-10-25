@@ -83,8 +83,10 @@ import {
   registerMailboxRoutes,
   registerPartnerV1Routes,
   registerAtlasV209Routes,
+  registerFinanceRoutes,
 } from './routes';
 import { countEmployeesPayDue } from './routes/employees';
+import { notifyPaymentRecorded, runFinanceReminders } from './lib/finance';
 import { qrToSvg } from './qrSvg';
 
 /** Signed short-lived tokens for external viewers (Google / Microsoft) — works across Worker isolates. */
@@ -1113,6 +1115,8 @@ registerMailboxRoutes(app, {
   sessionUserFromHeader,
 });
 registerEmployeeRoutes(app, { checkConfirmPassword });
+/* v254 — role-safe finance, payroll & reminders (owner/admin gated, server-computed) */
+registerFinanceRoutes(app, { sessionUserFromHeader, authFailReason, clientIp, writeAudit });
 registerAtlasV209Routes(app, { sessionUserFromHeader, applyStockDelta, adjustLocationStock, getDefaultLocationId });
 // Admin read routes need helpers defined later — registered near Users & Admin section
 
@@ -10314,6 +10318,22 @@ app.post('/api/invoices/:id/payments', async (c) => {
     `UPDATE invoices SET amount_paid = ?, status = ?, updated_at = datetime('now') WHERE id = ?`
   ).bind(next, status, id).run();
   await invalidateDashboardCache(c.env.CACHE);
+
+  // v254 — notify authorized finance recipients that a client payment was
+  // recorded (deduped by the durable outbox; re-checks role at delivery).
+  // Best-effort: a push failure must NEVER fail or roll back the payment.
+  try {
+    await notifyPaymentRecorded(c.env, {
+      invoiceId: Number(id),
+      number: String(inv.number || ''),
+      clientName: String(inv.client_name || ''),
+      amount: applied,
+      remaining,
+      status,
+    });
+  } catch (e) {
+    console.error('finance_payment_notify_err', String((e as any)?.message || e));
+  }
 
   // Receipt rules (Part 5):
   // - Created ONLY when remaining balance reaches 0 (status === 'paid')
@@ -20687,6 +20707,23 @@ app.get('*', async (c) => {
 });
 
 export default {
+  /**
+   * v254 — Daily finance reminders (wrangler triggers.crons: 35 7 * * *).
+   * Idempotent by construction: runFinanceReminders enqueues into the durable
+   * finance_outbox (UNIQUE tenant|event|period|recipient key), so re-runs,
+   * worker restarts and duplicate triggers can never double-notify. Delivery
+   * failures stay 'pending' with exponential backoff (max 5 attempts).
+   */
+  async scheduled(event: any, env: Env, ctx: ExecutionContext): Promise<void> {
+    try {
+      const report = await runFinanceReminders(env);
+      console.log('[cron-finance]', JSON.stringify(report));
+    } catch (e) {
+      // Never throw from the cron handler — the next run drains the outbox.
+      console.error('[cron-finance] reminders failed:', String((e as any)?.message || e));
+    }
+  },
+
   /**
    * Email Routing inbound — accept and discard quietly.
    *

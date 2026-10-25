@@ -4,6 +4,13 @@
   "main": "worker/index.ts",
   "compatibility_date": "2025-09-01",
   "compatibility_flags": ["nodejs_compat"],
+  // v254 — finance reminders run daily at 07:35 UTC ≈ 08:35 Africa/Casablanca.
+  // The job is idempotent (durable outbox + UNIQUE idem keys), so a missed or
+  // duplicated trigger never re-notifies. POST /api/cron/finance-reminders
+  // (CRON_SECRET) remains available for external schedulers.
+  "triggers": {
+    "crons": ["35 7 * * *"]
+  },
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
