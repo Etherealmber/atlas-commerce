@@ -120,6 +120,38 @@ function isCash(method?: string) {
   return !method || method === 'cash';
 }
 
+/** v262.1 — human-readable French label for the selected report period. */
+const REPORT_MONTHS_FR = [
+  'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+  'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
+];
+const REPORT_RELATIVE_LABELS_FR: Record<string, string> = {
+  month: 'Ce mois',
+  '3m': '3 derniers mois',
+  '6m': '6 derniers mois',
+  '9m': '9 derniers mois',
+  '12m': '12 derniers mois',
+  '24m': '24 derniers mois (2 ans)',
+  '36m': '36 derniers mois (3 ans)',
+  '48m': '48 derniers mois (4 ans)',
+  year: 'Année civile',
+};
+export function reportPeriodLabel(period: string): string {
+  const m = String(period || '').match(/^(\d{4})-(0[1-9]|1[0-2])$/);
+  if (m) return `${REPORT_MONTHS_FR[Number(m[2]) - 1]} ${m[1]}`;
+  return REPORT_RELATIVE_LABELS_FR[period] || 'Ce mois';
+}
+/** Whitelisted persisted values only — never trust storage blindly. */
+const REPORT_PERIOD_STORAGE_KEY = 'atlas-report-period';
+function readStoredReportPeriod(): string {
+  try {
+    const v = String(localStorage.getItem(REPORT_PERIOD_STORAGE_KEY) || '');
+    return /^(\d{4}-(0[1-9]|1[0-2])|month|3m|6m|9m|12m|24m|36m|48m|year)$/.test(v) ? v : 'month';
+  } catch {
+    return 'month';
+  }
+}
+
 export default function Balance() {
   const { confirm, prompt } = useUi();
   const [expenses, setExpenses] = useState<any[]>([]);
@@ -149,7 +181,13 @@ export default function Balance() {
   const [txPage, setTxPage] = useState(0);
   const [txQuery, setTxQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | EntryType>('all');
-  const [reportPeriod, setReportPeriod] = useState('month');
+  const [reportPeriod, setReportPeriod] = useState<string>(readStoredReportPeriod);
+  // v262.1 — the chosen month/period stays visible on the bar across refreshes
+  const changeReportPeriod = (v: string) => {
+    const next = /^(\d{4}-(0[1-9]|1[0-2])|month|3m|6m|9m|12m|24m|36m|48m|year)$/.test(v) ? v : 'month';
+    setReportPeriod(next);
+    try { localStorage.setItem(REPORT_PERIOD_STORAGE_KEY, next); } catch { /* private mode */ }
+  };
 
   const flash = (msg: string, type: 'success' | 'error' = 'success') => {
     setSaveMsg(msg); setSaveMsgType(type);
@@ -487,9 +525,9 @@ export default function Balance() {
       <div className="card" style={{ marginBottom: 20, padding: '14px 18px', display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
           <strong style={{ fontSize: 13 }}>Rapports PDF</strong>
-          <select value={reportPeriod} onChange={(e) => setReportPeriod(e.target.value)} style={{ width: 'auto' }}>
+          <select value={reportPeriod} onChange={(e) => changeReportPeriod(e.target.value)} style={{ width: 'auto' }}>
             {/^\d{4}-(0[1-9]|1[0-2])$/.test(reportPeriod) && (
-              <option value={reportPeriod}>Mois : {reportPeriod}</option>
+              <option value={reportPeriod}>Mois : {reportPeriodLabel(reportPeriod)}</option>
             )}
             <option value="month">Ce mois</option>
             <option value="3m">3 mois</option>
@@ -507,9 +545,13 @@ export default function Balance() {
             aria-label="Choisir un mois précis"
             title="Rapports sur un mois précis (AAAA-MM)"
             value={/^\d{4}-(0[1-9]|1[0-2])$/.test(reportPeriod) ? reportPeriod : ''}
-            onChange={(e) => setReportPeriod(e.target.value || 'month')}
+            onChange={(e) => changeReportPeriod(e.target.value || 'month')}
             style={{ width: 'auto', fontSize: 13 }}
           />
+          {/* v262.1 — the chosen month is ALWAYS visible right on the bar */}
+          <span style={{ fontSize: 12, color: 'var(--muted)' }} aria-live="polite">
+            Période : <strong style={{ color: 'inherit' }}>{reportPeriodLabel(reportPeriod)}</strong>
+          </span>
           <button className="secondary" style={{ fontSize: 13 }} onClick={() => openReport('/api/reports/balance', { period: reportPeriod })}>
             Solde & mouvements
           </button>
