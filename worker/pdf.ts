@@ -253,3 +253,171 @@ export function buildInvoicePdf(input: PdfDocInput): Uint8Array {
 
   return new TextEncoder().encode(pdf);
 }
+
+/* ─── v254 — Monthly finance report (owner/admin only, generated on demand) ─── */
+
+export type FinanceReportDocLine = {
+  number: string;
+  party: string;
+  due_date: string;
+  remaining: number;
+  state: string;
+};
+
+export type FinanceReportInput = {
+  companyName: string;
+  currency: string;
+  period: string;
+  generatedAt: string;
+  openingBalance: number;
+  closingBalance: number;
+  salesReceived: number;
+  expenses: number;
+  refunds: number;
+  payrollPaid: number;
+  supplierPaid: number;
+  receivablesTotal: number;
+  receivablesOverdue: number;
+  payablesTotal: number;
+  payablesOverdue: number;
+  payrollDue: number;
+  payrollCount: number;
+  receivableDocs: FinanceReportDocLine[];
+  receivableDocsTotal: number;
+  payableDocs: FinanceReportDocLine[];
+  payableDocsTotal: number;
+};
+
+function fmt2(n: number): string {
+  return Number(n || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/** Single-page A4 finance report — same raw-PDF pipeline as invoices. */
+export function buildFinanceReportPdf(input: FinanceReportInput): Uint8Array {
+  const cur = input.currency || 'MAD';
+  const W = 595;
+  const H = 842;
+  const margin = 40;
+  const lines: string[] = [];
+  let y = H - margin;
+
+  const push = (cmd: string) => lines.push(cmd);
+  const text = (str: string, x: number, yy: number, size = 10) => {
+    push(`BT /F1 ${size} Tf ${x.toFixed(1)} ${yy.toFixed(1)} Td (${esc(str)}) Tj ET`);
+  };
+  const bold = (str: string, x: number, yy: number, size = 10) => {
+    push(`BT /F2 ${size} Tf ${x.toFixed(1)} ${yy.toFixed(1)} Td (${esc(str)}) Tj ET`);
+  };
+  const hline = (x1: number, x2: number, yy: number) => {
+    push(`${x1} ${yy} m ${x2} ${yy} l S`);
+  };
+  const row = (label: string, amount: number, isBold = false) => {
+    if (isBold) { bold(label, margin, y, 10); bold(`${fmt2(amount)} ${cur}`, margin + 300, y, 10); }
+    else { text(label, margin, y, 9); text(`${fmt2(amount)} ${cur}`, margin + 300, y, 9); }
+    y -= 13;
+  };
+
+  bold(input.companyName || 'Atlas Commerce', margin, y, 14);
+  y -= 14;
+  bold('RAPPORT MENSUEL — TRESORERIE', W - margin - 220, H - margin, 14);
+  text(`Periode: ${input.period}`, W - margin - 220, H - margin - 16, 10);
+  text(`Devise: ${cur}`, W - margin - 220, H - margin - 28, 9);
+  text(`Genere le: ${String(input.generatedAt).replace('T', ' ').slice(0, 19)} UTC`, W - margin - 220, H - margin - 40, 8);
+  y -= 4;
+  hline(margin, W - margin, y);
+  y -= 16;
+
+  bold('Flux de tresorerie', margin, y, 11);
+  y -= 14;
+  row('Solde ouverture', input.openingBalance);
+  row('Ventes encaissees (reglements clients)', input.salesReceived);
+  row('Depenses (Solde, y c. remboursements)', input.expenses);
+  row('   dont remboursements clients', input.refunds);
+  row('Paie reglee (salaires + acomptes)', input.payrollPaid);
+  row('Factures fournisseurs reglees', input.supplierPaid);
+  row('Solde cloture', input.closingBalance, true);
+  y -= 6;
+  hline(margin, W - margin, y);
+  y -= 16;
+
+  bold('Creances clients (reste a encaisser)', margin, y, 11);
+  y -= 13;
+  text(`Total du: ${fmt2(input.receivablesTotal)} ${cur}   —   dont en retard: ${fmt2(input.receivablesOverdue)} ${cur}`, margin, y, 9);
+  y -= 12;
+  const docTable = (docs: FinanceReportDocLine[], total: number) => {
+    if (!docs.length) { text('Aucun document impaye.', margin, y, 9); y -= 13; return; }
+    hline(margin, W - margin, y);
+    y -= 11;
+    bold('Numero', margin, y, 8);
+    bold('Tiers', margin + 90, y, 8);
+    bold('Echeance', margin + 260, y, 8);
+    bold('Reste', margin + 340, y, 8);
+    bold('Etat', margin + 440, y, 8);
+    y -= 6;
+    hline(margin, W - margin, y);
+    y -= 12;
+    for (const d of docs) {
+      if (y < 90) break;
+      text(String(d.number || '-').slice(0, 18), margin, y, 8);
+      text(String(d.party || '-').slice(0, 30), margin + 90, y, 8);
+      text(String(d.due_date || '-').slice(0, 10), margin + 260, y, 8);
+      text(`${fmt2(d.remaining)} ${cur}`, margin + 340, y, 8);
+      text(String(d.state || '-'), margin + 440, y, 8);
+      y -= 11;
+    }
+    if (total > docs.length) { text(`... et ${total - docs.length} autre(s) document(s) — detail dans Balance.`, margin, y, 8); y -= 12; }
+  };
+  docTable(input.receivableDocs, input.receivableDocsTotal);
+  y -= 4;
+
+  if (y > 210) {
+    bold('Dettes fournisseurs (reste a payer)', margin, y, 11);
+    y -= 13;
+    text(`Total du: ${fmt2(input.payablesTotal)} ${cur}   —   dont en retard: ${fmt2(input.payablesOverdue)} ${cur}`, margin, y, 9);
+    y -= 12;
+    docTable(input.payableDocs, input.payableDocsTotal);
+  }
+
+  if (y > 120) {
+    y -= 4;
+    hline(margin, W - margin, y);
+    y -= 14;
+    bold('Paie a regler (obligations echues, acomptes deduits)', margin, y, 10);
+    y -= 13;
+    text(`${fmt2(input.payrollDue)} ${cur} pour ${input.payrollCount} employe(s) actif(s)`, margin, y, 9);
+    y -= 18;
+  }
+
+  text('Document confidentiel — reserve au proprietaire et aux administrateurs.', margin, 52, 7);
+  text('Calcul serveur depuis le journal persiste (reglements, depenses, paie) — ne modifiez jamais les totaux a la main.', margin, 42, 7);
+  text(`Source reconciliation: d1-live — ${String(input.generatedAt).slice(0, 19)} UTC`, margin, 32, 7);
+
+  const contentStream = lines.join('\n');
+  const contentLen = new TextEncoder().encode(contentStream).length;
+
+  const objects: string[] = [];
+  objects.push('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
+  objects.push('2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n');
+  objects.push(
+    `3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>\nendobj\n`,
+  );
+  objects.push(`4 0 obj\n<< /Length ${contentLen} >>\nstream\n${contentStream}\nendstream\nendobj\n`);
+  objects.push('5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n');
+  objects.push('6 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj\n');
+
+  let pdf = '%PDF-1.4\n';
+  const offsets: number[] = [0];
+  for (const obj of objects) {
+    offsets.push(new TextEncoder().encode(pdf).length);
+    pdf += obj;
+  }
+  const xrefPos = new TextEncoder().encode(pdf).length;
+  pdf += `xref\n0 ${objects.length + 1}\n`;
+  pdf += '0000000000 65535 f \n';
+  for (let i = 1; i <= objects.length; i++) {
+    pdf += `${String(offsets[i]).padStart(10, '0')} 00000 n \n`;
+  }
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefPos}\n%%EOF`;
+
+  return new TextEncoder().encode(pdf);
+}

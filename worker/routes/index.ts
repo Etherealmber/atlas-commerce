@@ -14,3 +14,5 @@ export { registerPartnerV1Routes } from './partner-v1';
 export { registerMailboxRoutes } from './mailbox';
 
 export { registerAtlasV209Routes, dispatchWebhook, ensureV209Schema } from './atlas-v209';
+
+export { registerFinanceRoutes } from './finance';
