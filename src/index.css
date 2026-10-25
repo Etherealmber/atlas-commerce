@@ -5796,3 +5796,12 @@ html.theme-dark .skeleton {
 .brand-img--dark { display: none; }
 html[data-theme='dark'] .brand-img--light { display: none; }
 html[data-theme='dark'] .brand-img--dark { display: block; }
+/* Legacy tile backgrounds (svg era) must never box the transparent artwork —
+   higher specificity than the old `html .sidebar .logo-img` !important rule. */
+html .sidebar .logo-img.brand-img,
+html .settings-topbar-brand img.brand-img,
+html .atlas-login-brand img.brand-img {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+}

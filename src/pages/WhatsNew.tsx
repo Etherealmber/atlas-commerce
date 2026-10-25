@@ -21,6 +21,18 @@ type Release = {
 
 const RELEASES: Release[] = [
   {
+    version: '0.6.6-beta',
+    date: '26 octobre 2026',
+    sections: [
+      {
+        kind: 'fixes',
+        items: [
+          { id: '066a1', text: 'Logo enfin visible et net en thème sombre : un ancien carreau clair (#f1f5f9) imposé sous l’icône de la sidebar — et le tile blanc encadré de la page À propos — masquaient l’artwork blanc (logo « invisible » posé sur un carré clair) ; les carreaux sont supprimés pour les images de marque, la priorité CSS est renforcée contre les règles héritées, et le README GitHub bascule sur le lockup blanc en mode sombre (picture + prefers-color-scheme)' },
+        ],
+      },
+    ],
+  },
+  {
     version: '0.6.5-beta',
     date: '26 octobre 2026',
     sections: [

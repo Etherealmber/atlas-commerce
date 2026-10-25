@@ -2541,11 +2541,13 @@ html[data-density="compact"] .content {
   gap: 14px;
   margin-bottom: 12px;
 }
+/* v265.1 — the transparent brand PNG stands alone: the old white tile
+   boxed the artwork and made the white dark-mode logo invisible. */
 .about-logo {
-  border-radius: 12px;
-  border: 1px solid var(--line, #e5e0d6);
-  background: #fff;
-  padding: 6px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  border-radius: 0;
 }
 .about-title {
   margin: 0;
@@ -12782,7 +12784,7 @@ html .sidebar .logo-mark {
 }
 html[data-theme="dark"] .sidebar .logo-mark { color: #f4f4f5 !important; }
 html .sidebar .logo-sub { color: #64748b !important; }
-html .sidebar .logo-img { background: #f1f5f9 !important; }
+html .sidebar .logo-img:not(.brand-img) { background: #f1f5f9 !important; }
 html .sidebar nav a {
   color: #475569 !important;
   background: transparent !important;
