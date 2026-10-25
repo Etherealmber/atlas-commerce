@@ -641,9 +641,15 @@ describe('v258 statement + double-count regressions', () => {
   });
 
   it('timezone boundary: tenant-local day wins over UTC day', () => {
-    // 2026-09-30T23:30Z is 2026-10-01 00:30 in Africa/Casablanca (UTC+1)
-    expect(localTodayYmd('Africa/Casablanca', new Date('2026-09-30T23:30:00Z'))).toBe('2026-10-01');
+    // Stable-rule zone (Japan: UTC+9, no DST ever) — 2026-09-30T23:30Z is
+    // 2026-10-01 08:30 in Tokyo: proves the day shifts with the tenant zone.
+    expect(localTodayYmd('Asia/Tokyo', new Date('2026-09-30T23:30:00Z'))).toBe('2026-10-01');
     expect(localTodayYmd('UTC', new Date('2026-09-30T23:30:00Z'))).toBe('2026-09-30');
+    // Casablanca's offset history moves with tzdata releases (Moroccan rules
+    // changed across ICU versions), so assert consistency with the runtime
+    // ICU instead of freezing an offset that CI's tzdata may disagree with.
+    const d = new Date('2026-09-30T23:30:00Z');
+    expect(localTodayYmd('Africa/Casablanca', d)).toBe(d.toLocaleDateString('en-CA', { timeZone: 'Africa/Casablanca' }));
   });
 
   it('duplicate payments surface as two rows (visible, never silently merged)', async () => {
