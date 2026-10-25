@@ -141,6 +141,17 @@ export function reportPeriodLabel(period: string): string {
   if (m) return `${REPORT_MONTHS_FR[Number(m[2]) - 1]} ${m[1]}`;
   return REPORT_RELATIVE_LABELS_FR[period] || 'Ce mois';
 }
+/** Current calendar month (YYYY-MM) — anchor shown for relative periods. */
+function currentMonthYmd(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
+/** The month the report bar's date field displays: the chosen month, or the
+ *  anchor month of the active relative window (never empty dashes). */
+export function reportPeriodMonthValue(period: string): string {
+  return /^\d{4}-(0[1-9]|1[0-2])$/.test(period) ? period : currentMonthYmd();
+}
+
 /** Whitelisted persisted values only — never trust storage blindly. */
 const REPORT_PERIOD_STORAGE_KEY = 'atlas-report-period';
 function readStoredReportPeriod(): string {
@@ -543,9 +554,13 @@ export default function Balance() {
           <input
             type="month"
             aria-label="Choisir un mois précis"
-            title="Rapports sur un mois précis (AAAA-MM)"
-            value={/^\d{4}-(0[1-9]|1[0-2])$/.test(reportPeriod) ? reportPeriod : ''}
+            value={reportPeriodMonthValue(reportPeriod)}
             onChange={(e) => changeReportPeriod(e.target.value || 'month')}
+            title={
+              /^\d{4}-(0[1-9]|1[0-2])$/.test(reportPeriod)
+                ? 'Rapports sur ce mois précis (AAAA-MM)'
+                : `Mois d'ancrage de la période « ${reportPeriodLabel(reportPeriod)} » — choisissez un mois pour basculer dessus`
+            }
             style={{ width: 'auto', fontSize: 13 }}
           />
           {/* v262.1 — the chosen month is ALWAYS visible right on the bar */}

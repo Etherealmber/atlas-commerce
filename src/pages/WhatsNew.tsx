@@ -21,6 +21,24 @@ type Release = {
 
 const RELEASES: Release[] = [
   {
+    version: '0.6.3-beta',
+    date: '26 octobre 2026',
+    sections: [
+      {
+        kind: 'fixes',
+        items: [
+          { id: '063a1', text: 'Barre Rapports PDF : le champ mois n’est plus jamais vide — pour « Ce mois », « 3 mois » et toute période relative, il affiche le mois d’ancrage de la période (ex. 10/2026) avec une info-bulle explicative ; choisir un mois dedans bascule toujours la période sur ce mois précis ; le libellé « Période : … » reste affiché à côté' },
+        ],
+      },
+      {
+        kind: 'features',
+        items: [
+          { id: '063a2', text: 'docs/desktop-design-prompt.md : le PROMPT MAÎTRE pour construire l’app desktop en parité visuelle stricte avec le web et l’Android — toutes les valeurs exactes (hex clair/sombre, rayons, typo DM Sans/Spline Sans Mono, densités, hauteurs, motion cubic-bezier(0.2,0,0,1), règles sombres, assistants, checklist par écran, protocole de vérification) extraites des deux repos avec citations de fichiers : l’IA n’a plus rien à prédire' },
+        ],
+      },
+    ],
+  },
+  {
     version: '0.6.2-beta',
     date: '26 octobre 2026',
     sections: [
