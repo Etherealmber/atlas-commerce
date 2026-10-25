@@ -1356,14 +1356,14 @@ html[data-theme="dark"] button.secondary {
   background: transparent !important;
 }
 html[data-theme="dark"] .phone-root {
-  background: #0f1117 !important;
-  color: #e8eef6;
+  background: #0a0a0c !important; /* Android DarkBg */
+  color: #f4f4f5;
 }
 html[data-theme="dark"] .phone-topbar,
 html[data-theme="dark"] .phone-tabbar,
 html[data-theme="dark"] .ph-panel {
-  background: #1c1c1f !important;
-  border-color: #2a2a2e !important;
+  background: #141414 !important; /* Android DarkSurface */
+  border-color: #27272a !important; /* Android DarkOutline */
 }
 
 /* Page layout refinement */

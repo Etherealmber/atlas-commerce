@@ -14,7 +14,7 @@ Objects (avatar cache). Production: `https://stock.afmarbre.com`. Frontend: **Re
 SPA** (no Tailwind — hand-written CSS in `src/styles/` + per-component CSS), installable as a
 **PWA**, with a **native Android app** (separate repo `atlas-commerce-android`, Kotlin/Compose)
 and a **desktop app** (`atlas-commerce-desktop`, Rust/egui/fastframe). License MIT © 2026
-loxdpsy / Etherealmber. Versioning: `0.x` betas (currently frozen at **0.5.1-beta** — never
+loxdpsy / Etherealmber. Versioning: `0.x` betas (currently frozen at **0.5.5-beta** — never
 bump or change changelog dates unless the owner says "push to next update").
 
 ## 2. Accounts, roles, security

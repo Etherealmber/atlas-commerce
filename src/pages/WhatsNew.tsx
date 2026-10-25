@@ -21,6 +21,101 @@ type Release = {
 
 const RELEASES: Release[] = [
   {
+    version: '0.5.5-beta',
+    date: '25 octobre 2026',
+    sections: [
+      {
+        kind: 'features',
+        items: [
+          { id: '055a1', text: 'Le téléphone devient le jumeau de l’app Android : même barre du haut (titre de l’onglet, sous-titre nom · rôle, menu rapide rond à chevron avec badge notifications, avatar qui ouvre le profil), même barre d’onglets à 5 places (Accueil, Produits, Scan, Vente avec badge panier — masquée pour les rôles sans caisse, Agent) et même accueil que l’APK : héros dégradé sombre adapté au rôle (ventes du jour ou pilotage catalogue & stock), boutons Nouvelle vente / Scanner + Produits, carte Info Box avec puce Ouvrir, tuiles de statistiques à icônes et tons (produits, ventes, stock faible, envois en attente), alerte stock dédiée, raccourcis entrepôt/achats/devis — palette zinc-papier-safran, coins 8 à 24 px, typographie et espacements compacts repris à l’identique du Material 3 natif' },
+        ],
+      },
+      {
+        kind: 'improvements',
+        items: [
+          { id: '051d17', text: 'Le téléphone retrouve son VRAI espace optimisé : l’app terrain /m (scan d’abord, catalogue hors-ligne, barre d’onglets) se relance automatiquement sur les petits écrans, l’APK native et ?mode=phone — le PC garde l’ERP complet. Passé confort tactile : cibles 44px+, anti-zoom iOS sur les champs, plus de texte sélectionnable sur les boutons, ripple matériau au toucher (React Bits), chiffres animés (CountUp) et loupe Lens sur les images. Qualité : oxlint branche le radar à bugs (0 erreur, 23 vrais défauts corrigés) dans la CI' },
+          { id: '051d18', text: 'Finance côté serveur, sûre par rôle : rapport mensuel de trésorerie calculé par le worker (soldes ouverture/clôture, encaissements, dépenses, remboursements, créances clients et dettes fournisseurs échues/en retard, paie due) réservé owner/admin, PDF mensuel généré à la demande (jamais stocké ni devinable, téléchargement journalisé), échéancier de paie paginé sans données personnelles, et rappels programmés non spammeurs (jours 1/2/3 : rapport prêt puis seulement les changements ; factures clients et fournisseurs échues, paie due, paiement client enregistré) avec anti-doublon durable en base, revérification du rôle à l’envoi, retries avec backoff et montants masqués sur l’écran de verrouillage si réglé' },
+          { id: '055a2', text: 'Historique des nouveautés réorganisé : l’énorme liste de la 0.5.1 est répartie en versions lisibles (0.5.1 allégée, puis 0.5.2 Avatars & agent, 0.5.3 Base de données, 0.5.4 Sécurité & CI) — aucun contenu supprimé, mêmes identifiants ; la version courante passe à 0.5.5-beta' },
+        ],
+      },
+    ],
+  },
+  {
+    version: '0.5.4-beta',
+    date: '25 octobre 2026',
+    sections: [
+      {
+        kind: 'improvements',
+        items: [
+          { id: '051d7', text: 'Assistants : plus aucune pastille d’étapes en haut (le chip « Étape X/Y » du pied suffit), plus de défilement même sur fenêtre étroite (2 colonnes gardées dans les modales) ; vente rapide sans double champ code-barres/SKU ; zone OCR compacte sans bouton « Choose File » natif (glisser-déposer réel) ; mode sombre : cartes Solde/fournisseurs, bouton « Arrêter » de l’agent, pastilles « Aller à », indicateur Réflexion et toggle mot de passe enfin thémés, et aucun bouton ne devient blanc au tap/focus' },
+          { id: '051d8', text: 'Trois gardes CI sur chaque pull request : API (TypeScript worker vs baseline + dry-run wrangler, rien n’est déployé par la CI), frontend (build Vite + sanity du bundle + TypeScript src vs baseline), et thèmes/CSS (structure des feuilles de style, dark-force.css dernier import, aucune nouvelle couleur blanche en mode sombre) — un PR rouge ne peut plus atteindre la production' },
+          { id: '051d10', text: 'Pipeline de release Android sans aucun upload manuel : GitHub Actions POSTe l’APK signé sur /api/admin/android-release (Bearer), le worker le streamme vers R2/CDN1 (version immuable + latest.apk + latest.json no-cache), l’app lit /api/app/android-update et les pings HEAD /app-updates/* répondent via bucket.head() — tests vitest inclus et lancés par la CI' },
+          { id: '051d11', text: 'Automatisation GitHub : patrouille de sécurité quotidienne qui « tente de pirater » le site (SQLi, XSS, traversal, Log4Shell, accès admin non authentifié), compte les intrusions réelles bloquées par le WAF et ouvre un ticket avec les correctifs possibles ; triage automatique des tickets (plainte, bug, sécurité, idée) avec accusé de réception ; formulaires de tickets structurés ; et auto-merge des PR uniquement quand TOUS les contrôles CI sont verts' },
+          { id: '051d15', text: 'Entretien automatique du dépôt : les branches fusionnées ou dont la PR est fermée sont supprimées (à la fermeture + balayage hebdomadaire, jamais une branche avec PR ouverte ni non fusionnée), et la patrouille peut purger elle-même le cache Cloudflare et nommer la règle pare-feu qui la bloque si un jeton CF_API_TOKEN est fourni' },
+          { id: '051d16', text: 'Nouveau design des e-mails OTP (maquette fournie adoptée telle quelle : en-tête logo, tag saumon, grand titre avec italique, boîte de code, bouton orange pleine largeur, pied noir avec réseaux sociaux) et vérification en UN tap : le bouton ouvre /verify qui transmet le code tout seul au worker (lien signé, usage unique), détecte la PWA installée ou l’app Android native et lui passe la main directement — plus aucun code à recopier' },
+        ],
+      },
+      {
+        kind: 'fixes',
+        items: [
+          { id: '051d12', text: 'Premier rapport de la patrouille corrigé à la racine : /api/health et /api/canary redeviennent publics (la sonde pré-login du sélecteur de serveur Android répondait 401), et la patrouille v2 distingue le WAF du worker de l’edge Cloudflare, lit les corps JSON (un 200 « success:false » est bien un refus), détecte les fuites de cache edge sur /api/* et ne se fait plus piéger par ses propres en-têtes' },
+          { id: '051d13', text: 'Anti-fuite de cache edge : toutes les réponses /api non explicitement publiques renvoient désormais Cache-Control no-store + CDN-Cache-Control no-store — plus aucun listing authentifié ne peut être rejoué anonymement par le cache Cloudflare (finding réel de la patrouille) ; la patrouille v3 reconnaît HIT/STALE/EXPIRED/REVALIDATED et identifie la couche exacte (worker, edge, cache) dans chaque finding' },
+          { id: '051d14', text: 'La patrouille a trouvé une vraie faille critique et elle est corrigée : un appelant SANS jeton (ou avec un jeton forgé en base64) était traité comme « owner » sur 58 routes API enregistrées avant le middleware d’authentification (admin/users, admin/config, admin/audit, r2/images, db-migrate…). Le middleware d’authentification est désormais enregistré AVANT toutes les routes (vérification HMAC + IP/appareil pour tout le monde), l’anonyme reste anonyme, le flux de connexion QR continue de fonctionner, et la patrouille rejoue l’attaque (jeton forgé) à chaque passage pour garantir que la porte reste fermée' },
+        ],
+      },
+    ],
+  },
+  {
+    version: '0.5.3-beta',
+    date: '25 octobre 2026',
+    sections: [
+      {
+        kind: 'fixes',
+        items: [
+          { id: '051d4', text: 'Corruption D1 (« database disk image is malformed » / SQLITE_CORRUPT) reconnue : message clair « base corrompue, restauration Cloudflare requise » (code DB_CORRUPT) au lieu d’un « Erreur interne » générique sur tout le site' },
+          { id: '051d5', text: 'Auto-réparation de l’index de recherche produit (FTS5) : en cas de corruption (SQLITE_CORRUPT_VTAB), l’index est reconstruit depuis products — ou recréé et re-rempli — sans aucune perte de données, puis l’action n’a qu’à être réessayée ; bouton de reconstruction manuel réservé owner/admin' },
+          { id: '051d6', text: 'Réplication de lecture D1 (Sessions API) branchée automatiquement : chaque requête ouvre une session D1 (cookie de bookmark pour relire ses propres écritures), les lectures peuvent être servies par la réplique la plus proche — et une sonde d’intégrité FTS tourne en tâche de fond (≤1/5 min) pour réparer sans aucune action manuelle' },
+          { id: '051d9', text: 'E-mails entrants : le worker accepte de nouveau les événements Email Routing (export email()) au lieu de crasher « Handler does not export an email() function » — réponse, bounce ou OTP revenu par une règle catch-all : une ligne de journal puis consommation silencieuse ; l’envoi OTP passe toujours par Resend en premier' },
+        ],
+      },
+    ],
+  },
+  {
+    version: '0.5.2-beta',
+    date: '25 octobre 2026',
+    sections: [
+      {
+        kind: 'features',
+        items: [
+          { id: '052a1', text: 'Atlas Agent lit chaque fichier DÈS l’envoi (images en vision, extraits texte inclus dans le prompt) ; dire « lis ça » sans joindre de fichier reprend automatiquement le dernier fichier envoyé' },
+        ],
+      },
+      {
+        kind: 'improvements',
+        items: [
+          { id: '053b1', text: 'Avatar instantané : cache blob en mémoire partagé par toute l’app (un seul téléchargement par session), cache Durable Object + cache edge côté worker, et préchargement dès l’ouverture de session — fini l’attente sur le cercle vide' },
+          { id: '053b2', text: 'Avant l’arrivée de la photo, le monogramme/initials s’affiche immédiatement (plus jamais de cadre vide)' },
+          { id: '053b3', text: 'Avatars recadrés encodés en WebP (~3× plus léger que JPEG) : upload et chargement plus rapides' },
+          { id: '054b1', text: 'Aucun assistant ne défile : l’étape « Prix & stock » du produit est scindée (étape dédiée « Remises volume ») — audit complet de tous les wizards (Devis, Employés, Clients, Factures, Vente rapide, Achats, Fournisseurs, Solde, Remboursement) : chaque étape statique tient à l’écran, seules les listes de lignes dynamiques défilent sous le pied fixe' },
+        ],
+      },
+      {
+        kind: 'fixes',
+        items: [
+          { id: '052c4', text: 'Contours d’images thématisés (fini le liseré noir en mode clair / blanc en mode sombre) + fond neutre sous les PNG transparents' },
+          { id: '052c5', text: 'Historique des versions entièrement renuméroté en 0.x : l’ancien cycle 1.x devient 0.0.1 → 0.4.4 (première version = 0.0.1), plus aucune étiquette 1.x ni doublon' },
+          { id: '055c1', text: '« Erreur interne » sur l’enregistrement produit : la colonne updated_at est désormais gardée comme les autres, le contrôle de doublon ne peut plus faire échouer la sauvegarde, et la cause exacte est journalisée côté serveur ; le service worker passe en v11 — les vieux caches production (qui resservaient l’ancien JS) sont purgés' },
+          { id: '055c2', text: 'Appareils connectés : chaque appareil actif du compte (PC, téléphone) s’enregistre automatiquement et apparaît dans la popup, appareil courant marqué « current »' },
+          { id: '055c3', text: 'Agent : un message avec pièces jointes n’affiche plus aucun texte parasite (« Voir les pièces jointes [Pièces jointes: …] ») — pastilles propres avec le nom du fichier, dans les deux thèmes' },
+          { id: '055c4', text: 'Mode sombre : boutons copier/× des messages et ✎/✕ des pièces jointes enfin visibles (encre constante, survols thémés)' },
+          { id: '051d1', text: 'Nouveau produit : la zone d’upload des photos existe dès l’étape Photos de l’assistant de création (glisser-déposer ou parcourir, aperçus avec suppression) — les images choisies partent automatiquement juste après la création' },
+          { id: '051d2', text: 'Photo de profil visible immédiatement après un rafraîchissement : topbar, menu utilisateur et réglages se mettent à jour dès que le profil arrive, sans aucun clic' },
+          { id: '051d3', text: 'Facture : si la déduction de stock échoue (erreur base de données), la facture est annulée et l’erreur réelle s’affiche dans la zone prévue — plus jamais de stock faussé en silence' },
+        ],
+      },
+    ],
+  },
+  {
     version: '0.5.1-beta',
     date: '22 octobre 2026',
     sections: [
@@ -28,7 +123,6 @@ const RELEASES: Release[] = [
         kind: 'features',
         items: [
           { id: '0411a1', text: 'Glisser-déposer réel des photos produit : déposez vos images directement sur l’étape Photos (zone en pointillés pleine largeur, surbrillance cuivre pendant le glisser), ou cliquez pour parcourir' },
-          { id: '052a1', text: 'Atlas Agent lit chaque fichier DÈS l’envoi (images en vision, extraits texte inclus dans le prompt) ; dire « lis ça » sans joindre de fichier reprend automatiquement le dernier fichier envoyé' },
         ],
       },
       {
@@ -40,10 +134,6 @@ const RELEASES: Release[] = [
           { id: '0411b4', text: 'Assistant produit en 5 étapes (Identité · Classement · Prix & stock · Variantes · Photos) : chaque étape tient à l’écran sans défilement' },
           { id: '0411c1', text: 'Menu utilisateur du topbar ouvert dans un portail fixé sous le bouton : plus jamais rogné, masqué ou décalé — et la photo de profil s’affiche désormais dans son en-tête' },
           { id: '0411c2', text: 'Avatar monogramme (SVG serveur) de nouveau visible partout : le filtre client n’acceptait que png/jpeg/webp — repli initiales si l’image échoue (topbar, sidebar, réglages)' },
-          { id: '053b1', text: 'Avatar instantané : cache blob en mémoire partagé par toute l’app (un seul téléchargement par session), cache Durable Object + cache edge côté worker, et préchargement dès l’ouverture de session — fini l’attente sur le cercle vide' },
-          { id: '053b2', text: 'Avant l’arrivée de la photo, le monogramme/initials s’affiche immédiatement (plus jamais de cadre vide)' },
-          { id: '053b3', text: 'Avatars recadrés encodés en WebP (~3× plus léger que JPEG) : upload et chargement plus rapides' },
-          { id: '054b1', text: 'Aucun assistant ne défile : l’étape « Prix & stock » du produit est scindée (étape dédiée « Remises volume ») — audit complet de tous les wizards (Devis, Employés, Clients, Factures, Vente rapide, Achats, Fournisseurs, Solde, Remboursement) : chaque étape statique tient à l’écran, seules les listes de lignes dynamiques défilent sous le pied fixe' },
         ],
       },
       {
@@ -52,30 +142,6 @@ const RELEASES: Release[] = [
           { id: '052c1', text: 'Enregistrement produit : PUT/POST blindés contre les schémas D1 incomplets (garde PRAGMA sur chaque colonne) — plus de 500 « Erreur interne » en production' },
           { id: '052c2', text: 'Photo de profil chargée via le proxy worker same-origin (/api/me/avatar) : le CORS de cdn1.afmarbre.com ne bloque plus l’avatar' },
           { id: '052c3', text: 'Boutons ✎ / ✕ des pièces jointes de l’agent toujours visibles, thèmes clair et sombre' },
-          { id: '052c4', text: 'Contours d’images thématisés (fini le liseré noir en mode clair / blanc en mode sombre) + fond neutre sous les PNG transparents' },
-          { id: '052c5', text: 'Historique des versions entièrement renuméroté en 0.x : l’ancien cycle 1.x devient 0.0.1 → 0.4.4 (première version = 0.0.1), plus aucune étiquette 1.x ni doublon' },
-          { id: '055c1', text: '« Erreur interne » sur l’enregistrement produit : la colonne updated_at est désormais gardée comme les autres, le contrôle de doublon ne peut plus faire échouer la sauvegarde, et la cause exacte est journalisée côté serveur ; le service worker passe en v11 — les vieux caches production (qui resservaient l’ancien JS) sont purgés' },
-          { id: '055c2', text: 'Appareils connectés : chaque appareil actif du compte (PC, téléphone) s’enregistre automatiquement et apparaît dans la popup, appareil courant marqué « current »' },
-          { id: '055c3', text: 'Agent : un message avec pièces jointes n’affiche plus aucun texte parasite (« Voir les pièces jointes [Pièces jointes: …] ») — pastilles propres avec le nom du fichier, dans les deux thèmes' },
-          { id: '055c4', text: 'Mode sombre : boutons copier/× des messages et ✎/✕ des pièces jointes enfin visibles (encre constante, survols thémés)' },
-          { id: '051d1', text: 'Nouveau produit : la zone d’upload des photos existe dès l’étape Photos de l’assistant de création (glisser-déposer ou parcourir, aperçus avec suppression) — les images choisies partent automatiquement juste après la création' },
-          { id: '051d2', text: 'Photo de profil visible immédiatement après un rafraîchissement : topbar, menu utilisateur et réglages se mettent à jour dès que le profil arrive, sans aucun clic' },
-          { id: '051d3', text: 'Facture : si la déduction de stock échoue (erreur base de données), la facture est annulée et l’erreur réelle s’affiche dans la zone prévue — plus jamais de stock faussé en silence' },
-          { id: '051d4', text: 'Corruption D1 (« database disk image is malformed » / SQLITE_CORRUPT) reconnue : message clair « base corrompue, restauration Cloudflare requise » (code DB_CORRUPT) au lieu d’un « Erreur interne » générique sur tout le site' },
-          { id: '051d5', text: 'Auto-réparation de l’index de recherche produit (FTS5) : en cas de corruption (SQLITE_CORRUPT_VTAB), l’index est reconstruit depuis products — ou recréé et re-rempli — sans aucune perte de données, puis l’action n’a qu’à être réessayée ; bouton de reconstruction manuel réservé owner/admin' },
-          { id: '051d6', text: 'Réplication de lecture D1 (Sessions API) branchée automatiquement : chaque requête ouvre une session D1 (cookie de bookmark pour relire ses propres écritures), les lectures peuvent être servies par la réplique la plus proche — et une sonde d’intégrité FTS tourne en tâche de fond (≤1/5 min) pour réparer sans aucune action manuelle' },
-          { id: '051d7', text: 'Assistants : plus aucune pastille d’étapes en haut (le chip « Étape X/Y » du pied suffit), plus de défilement même sur fenêtre étroite (2 colonnes gardées dans les modales) ; vente rapide sans double champ code-barres/SKU ; zone OCR compacte sans bouton « Choose File » natif (glisser-déposer réel) ; mode sombre : cartes Solde/fournisseurs, bouton « Arrêter » de l’agent, pastilles « Aller à », indicateur Réflexion et toggle mot de passe enfin thémés, et aucun bouton ne devient blanc au tap/focus' },
-          { id: '051d8', text: 'Trois gardes CI sur chaque pull request : API (TypeScript worker vs baseline + dry-run wrangler, rien n’est déployé par la CI), frontend (build Vite + sanity du bundle + TypeScript src vs baseline), et thèmes/CSS (structure des feuilles de style, dark-force.css dernier import, aucune nouvelle couleur blanche en mode sombre) — un PR rouge ne peut plus atteindre la production' },
-          { id: '051d9', text: 'E-mails entrants : le worker accepte de nouveau les événements Email Routing (export email()) au lieu de crasher « Handler does not export an email() function » — réponse, bounce ou OTP revenu par une règle catch-all : une ligne de journal puis consommation silencieuse ; l’envoi OTP passe toujours par Resend en premier' },
-          { id: '051d10', text: 'Pipeline de release Android sans aucun upload manuel : GitHub Actions POSTe l’APK signé sur /api/admin/android-release (Bearer), le worker le streamme vers R2/CDN1 (version immuable + latest.apk + latest.json no-cache), l’app lit /api/app/android-update et les pings HEAD /app-updates/* répondent via bucket.head() — tests vitest inclus et lancés par la CI' },
-          { id: '051d11', text: 'Automatisation GitHub : patrouille de sécurité quotidienne qui « tente de pirater » le site (SQLi, XSS, traversal, Log4Shell, accès admin non authentifié), compte les intrusions réelles bloquées par le WAF et ouvre un ticket avec les correctifs possibles ; triage automatique des tickets (plainte, bug, sécurité, idée) avec accusé de réception ; formulaires de tickets structurés ; et auto-merge des PR uniquement quand TOUS les contrôles CI sont verts' },
-          { id: '051d12', text: 'Premier rapport de la patrouille corrigé à la racine : /api/health et /api/canary redeviennent publics (la sonde pré-login du sélecteur de serveur Android répondait 401), et la patrouille v2 distingue le WAF du worker de l’edge Cloudflare, lit les corps JSON (un 200 « success:false » est bien un refus), détecte les fuites de cache edge sur /api/* et ne se fait plus piéger par ses propres en-têtes' },
-          { id: '051d13', text: 'Anti-fuite de cache edge : toutes les réponses /api non explicitement publiques renvoient désormais Cache-Control no-store + CDN-Cache-Control no-store — plus aucun listing authentifié ne peut être rejoué anonymement par le cache Cloudflare (finding réel de la patrouille) ; la patrouille v3 reconnaît HIT/STALE/EXPIRED/REVALIDATED et identifie la couche exacte (worker, edge, cache) dans chaque finding' },
-          { id: '051d14', text: 'La patrouille a trouvé une vraie faille critique et elle est corrigée : un appelant SANS jeton (ou avec un jeton forgé en base64) était traité comme « owner » sur 58 routes API enregistrées avant le middleware d’authentification (admin/users, admin/config, admin/audit, r2/images, db-migrate…). Le middleware d’authentification est désormais enregistré AVANT toutes les routes (vérification HMAC + IP/appareil pour tout le monde), l’anonyme reste anonyme, le flux de connexion QR continue de fonctionner, et la patrouille rejoue l’attaque (jeton forgé) à chaque passage pour garantir que la porte reste fermée' },
-          { id: '051d15', text: 'Entretien automatique du dépôt : les branches fusionnées ou dont la PR est fermée sont supprimées (à la fermeture + balayage hebdomadaire, jamais une branche avec PR ouverte ni non fusionnée), et la patrouille peut purger elle-même le cache Cloudflare et nommer la règle pare-feu qui la bloque si un jeton CF_API_TOKEN est fourni' },
-          { id: '051d16', text: 'Nouveau design des e-mails OTP (maquette fournie adoptée telle quelle : en-tête logo, tag saumon, grand titre avec italique, boîte de code, bouton orange pleine largeur, pied noir avec réseaux sociaux) et vérification en UN tap : le bouton ouvre /verify qui transmet le code tout seul au worker (lien signé, usage unique), détecte la PWA installée ou l’app Android native et lui passe la main directement — plus aucun code à recopier' },
-          { id: '051d17', text: 'Le téléphone retrouve son VRAI espace optimisé : l’app terrain /m (scan d’abord, catalogue hors-ligne, barre d’onglets) se relance automatiquement sur les petits écrans, l’APK native et ?mode=phone — le PC garde l’ERP complet. Passé confort tactile : cibles 44px+, anti-zoom iOS sur les champs, plus de texte sélectionnable sur les boutons, ripple matériau au toucher (React Bits), chiffres animés (CountUp) et loupe Lens sur les images. Qualité : oxlint branche le radar à bugs (0 erreur, 23 vrais défauts corrigés) dans la CI' },
-          { id: '051d18', text: 'Finance côté serveur, sûre par rôle : rapport mensuel de trésorerie calculé par le worker (soldes ouverture/clôture, encaissements, dépenses, remboursements, créances clients et dettes fournisseurs échues/en retard, paie due) réservé owner/admin, PDF mensuel généré à la demande (jamais stocké ni devinable, téléchargement journalisé), échéancier de paie paginé sans données personnelles, et rappels programmés non spammeurs (jours 1/2/3 : rapport prêt puis seulement les changements ; factures clients et fournisseurs échues, paie due, paiement client enregistré) avec anti-doublon durable en base, revérification du rôle à l’envoi, retries avec backoff et montants masqués sur l’écran de verrouillage si réglé' },
         ],
       },
     ],
