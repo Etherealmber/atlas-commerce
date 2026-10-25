@@ -10243,7 +10243,10 @@ app.post('/api/invoices/:id/payments', async (c) => {
   const payment_method = String(body.payment_method || 'cash');
   const payee = String(body.payee || 'company'); // company | owner
   const note = String(body.note || '');
-  const paid_at = String(body.paid_at || new Date().toISOString().slice(0, 10));
+  // v258 — tenant-local day (Africa/Casablanca), never the UTC date: a payment
+  // made just after local midnight used to land in the previous month's finance
+  // period because substr(paid_at,1,10) read a UTC day.
+  const paid_at = String(body.paid_at || moroccoTodayStr()).slice(0, 10);
   if (!amount || amount <= 0) return c.json({ success: false, error: 'Montant de paiement invalide' }, 400);
   const allowedMethods = [
     'cash', 'bank_company', 'bank_owner', 'check_company', 'check_owner', 'card', 'other',
@@ -11672,7 +11675,10 @@ app.post('/api/bills/:id/payments', async (c) => {
   const payment_method = String(body.payment_method || 'cash');
   const payee = String(body.payee || 'company');
   const note = String(body.note || '');
-  const paid_at = String(body.paid_at || new Date().toISOString().slice(0, 10));
+  // v258 — tenant-local day (Africa/Casablanca), never the UTC date: a payment
+  // made just after local midnight used to land in the previous month's finance
+  // period because substr(paid_at,1,10) read a UTC day.
+  const paid_at = String(body.paid_at || moroccoTodayStr()).slice(0, 10);
   if (!amount || amount <= 0) return c.json({ success: false, error: 'Montant de paiement invalide' }, 400);
   const allowedMethods = [
     'cash', 'bank_company', 'bank_owner', 'check_company', 'check_owner', 'card', 'other',

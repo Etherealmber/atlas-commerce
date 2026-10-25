@@ -32,6 +32,7 @@ import {
   enqueueOutbox,
   financeRecipients,
   computeMonthlySummary,
+  computeStatement,
   computeOutstandingInvoices,
   computeOutstandingBills,
   computePayrollObligations,
@@ -91,7 +92,7 @@ async function seedBusinessTables(sqlite: DatabaseSync) {
       total REAL DEFAULT 0, amount_paid REAL DEFAULT 0, due_date TEXT DEFAULT '',
       status TEXT DEFAULT 'sent', doc_kind TEXT DEFAULT 'invoice'
     );
-    CREATE TABLE invoice_payments (id INTEGER PRIMARY KEY AUTOINCREMENT, invoice_id INTEGER, amount REAL, paid_at TEXT);
+    CREATE TABLE invoice_payments (id INTEGER PRIMARY KEY AUTOINCREMENT, invoice_id INTEGER, amount REAL, paid_at TEXT, payment_method TEXT DEFAULT 'cash', payee TEXT DEFAULT 'company', note TEXT DEFAULT '');
     CREATE TABLE bills (
       id INTEGER PRIMARY KEY AUTOINCREMENT, number TEXT DEFAULT '', vendor_name TEXT DEFAULT '',
       total REAL DEFAULT 0, due_date TEXT DEFAULT '', status TEXT DEFAULT 'received'
@@ -99,7 +100,9 @@ async function seedBusinessTables(sqlite: DatabaseSync) {
     CREATE TABLE bill_payments (id INTEGER PRIMARY KEY AUTOINCREMENT, bill_id INTEGER, amount REAL, paid_at TEXT);
     CREATE TABLE expenses (
       id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT DEFAULT '', amount REAL DEFAULT 0,
-      expense_date TEXT DEFAULT '', entry_type TEXT DEFAULT 'expense'
+      expense_date TEXT DEFAULT '', entry_type TEXT DEFAULT 'expense',
+      description TEXT DEFAULT '', payment_method TEXT DEFAULT 'cash',
+      vendor_name TEXT DEFAULT '', reference TEXT DEFAULT '', notes TEXT DEFAULT ''
     );
     CREATE TABLE employees (
       id INTEGER PRIMARY KEY AUTOINCREMENT, emp_number TEXT DEFAULT '', name TEXT DEFAULT '',
@@ -108,6 +111,7 @@ async function seedBusinessTables(sqlite: DatabaseSync) {
       last_paid_at TEXT, joined_date TEXT, active INTEGER DEFAULT 1
     );
     CREATE TABLE employee_payments (id INTEGER PRIMARY KEY AUTOINCREMENT, employee_id INTEGER, amount REAL, paid_at TEXT, period_label TEXT DEFAULT '', note TEXT DEFAULT '');
+    CREATE TABLE employee_advances (id INTEGER PRIMARY KEY AUTOINCREMENT, employee_id INTEGER, amount REAL, advanced_at TEXT);
   `);
 }
 
@@ -515,5 +519,203 @@ describe('finance outbox + reminders (integration)', () => {
     const body = String((sendFcmToUser.mock.calls[0][2] as any).body);
     expect(body).not.toMatch(/\d{3,}/); // no 2500, no dates' digits run
     expect(body).toContain('—');
+  });
+});
+
+/* ─────────────────── v258 — canonical statement & double-count regressions ───────────────────
+ * Root cause tracked in docs/finance-6000-investigation.md: payroll and
+ * supplier payments each wrote a mirror ledger row into `expenses`
+ * (entry_type='expense'), so the cash outflow was subtracted TWICE from the
+ * balance (once via expenses, once via payroll_paid / supplier_paid) and the
+ * expenses field showed a phantom dépense. « Avoir » credit-note audit rows in
+ * invoice_payments likewise inflated sales_received. The statement below reads
+ * the same canonical filtered queries as the summary and the PDF. */
+describe('v258 statement + double-count regressions', () => {
+  let d1: any;
+  let sqlite: DatabaseSync;
+
+  beforeEach(async () => {
+    const made = makeD1();
+    d1 = made.db;
+    sqlite = made.sqlite;
+    await seedBusinessTables(sqlite);
+    await ensureFinanceSchema(d1);
+  });
+
+  it('counts a supplier payment exactly once (the 6,000 MAD regression)', async () => {
+    sqlite.exec(`
+      INSERT INTO bills (id, number, vendor_name, total, due_date, status) VALUES (1, 'ACH-500', 'Carrier X', 6000, '2026-10-01', 'received');
+      INSERT INTO bill_payments (bill_id, amount, paid_at) VALUES (1, 6000, '2026-10-05');
+      -- mirror ledger row written by the payment route (Solde journal copy)
+      INSERT INTO expenses (category, description, amount, expense_date, entry_type, notes)
+        VALUES ('Règlement fournisseur', 'Règlement achat ACH-500', 6000, '2026-10-05', 'expense', 'bill_id:1|payee:company|method:cash');
+      INSERT INTO expenses (category, description, amount, expense_date, entry_type)
+        VALUES ('Loyer', 'Loyer atelier', 1000, '2026-10-03', 'expense');
+    `);
+    const ctx = await getFinanceContext(d1);
+    const s = await computeMonthlySummary(d1, '2026-10', ctx);
+    expect(s.supplier_paid).toBe(6000);
+    expect(s.expenses).toBe(1000); // mirror row excluded — no phantom dépense
+    expect(s.closing_balance).toBe(round2(0 - 1000 - 0 - 6000));
+
+    const st = await computeStatement(d1, '2026-10', ctx, 1, 50);
+    const supplierRows = st.rows.filter((r) => r.type === 'supplier');
+    expect(supplierRows).toHaveLength(1); // exactly one cash movement
+    expect(supplierRows[0].debit).toBe(6000);
+    expect(st.totals.debits).toBe(7000);
+    expect(st.closing_balance).toBe(s.closing_balance);
+    expect(st.reconciliation.balanced).toBe(true);
+  });
+
+  it('excludes payroll mirror rows and labels advances', async () => {
+    sqlite.exec(`
+      INSERT INTO employees (id, emp_number, name, pay_amount, joined_date) VALUES (1, 'E-7', 'Test', 5000, '2026-01-01');
+      INSERT INTO employee_payments (employee_id, amount, paid_at, period_label, note)
+        VALUES (1, 2000, '2026-10-10', 'Acompte octobre', 'avance [acompte]');
+      INSERT INTO expenses (category, description, amount, expense_date, entry_type, notes)
+        VALUES ('Salaire', 'Acompte E-7', 2000, '2026-10-10', 'expense', 'employee_id:1|payment_id:1|acompte');
+    `);
+    const ctx = await getFinanceContext(d1);
+    const s = await computeMonthlySummary(d1, '2026-10', ctx);
+    expect(s.payroll_paid).toBe(2000);
+    expect(s.expenses).toBe(0);
+    const st = await computeStatement(d1, '2026-10', ctx, 1, 50);
+    const pay = st.rows.filter((r) => r.type === 'payroll');
+    expect(pay).toHaveLength(1);
+    expect(pay[0].label).toContain('Acompte');
+    expect(pay[0].label).toContain('E-7');
+    expect(pay[0].label).not.toContain('Test'); // sanitized: emp_number, never names
+  });
+
+  it('treats « Avoir » audit trails as non-sales and the cash slice as refund', async () => {
+    sqlite.exec(`
+      INSERT INTO invoices (id, number, client_name, total, amount_paid, status) VALUES (1, 'FA-9', 'Client A', 600, 600, 'paid');
+      INSERT INTO invoice_payments (invoice_id, amount, paid_at, note)
+        VALUES (1, 600, '2026-10-12', 'Avoir WR-1 — casse · sortie caisse 600');
+      INSERT INTO expenses (category, description, amount, expense_date, entry_type, notes)
+        VALUES ('Remboursement client', 'Remboursement WR-1 sur FA-9', 600, '2026-10-12', 'expense', 'credit_id:1|source:1');
+    `);
+    const ctx = await getFinanceContext(d1);
+    const s = await computeMonthlySummary(d1, '2026-10', ctx);
+    expect(s.sales_received).toBe(0); // audit trail is NOT cash in
+    expect(s.refunds).toBe(600);
+    expect(s.closing_balance).toBe(-600);
+    const st = await computeStatement(d1, '2026-10', ctx, 1, 50);
+    expect(st.rows.filter((r) => r.type === 'sale')).toHaveLength(0);
+    expect(st.rows.filter((r) => r.type === 'refund')).toHaveLength(1);
+  });
+
+  it('statement running balances, pagination and invariant', async () => {
+    sqlite.exec(`
+      INSERT INTO invoice_payments (invoice_id, amount, paid_at) VALUES
+        (1, 100, '2026-09-02'), (1, 200, '2026-09-05'), (1, 300, '2026-09-08');
+      INSERT INTO expenses (category, amount, expense_date, entry_type) VALUES ('Achat', 50, '2026-09-09', 'expense');
+    `);
+    const ctx = await getFinanceContext(d1);
+    const p1 = await computeStatement(d1, '2026-09', ctx, 1, 2);
+    expect(p1.rows.map((r) => r.running_balance)).toEqual([100, 300]);
+    expect(p1.has_more).toBe(true);
+    expect(p1.total).toBe(4);
+    const p2 = await computeStatement(d1, '2026-09', ctx, 2, 2);
+    expect(p2.rows.map((r) => r.running_balance)).toEqual([600, 550]);
+    expect(p2.has_more).toBe(false);
+    expect(p2.totals).toEqual({ credits: 600, debits: 50, net: 550 });
+    expect(p2.reconciliation.balanced).toBe(true);
+    expect(p2.closing_balance).toBe(550);
+    expect(p2.status).toBe('closed');
+  });
+
+  it('open period stops at as_of and reports status open', async () => {
+    const ctx = await getFinanceContext(d1);
+    const cur = ctx.today.slice(0, 7);
+    const day = (off: number) => addDaysYmd(ctx.today, off);
+    sqlite.exec(`
+      INSERT INTO invoice_payments (invoice_id, amount, paid_at) VALUES (1, 100, '${ctx.today}');
+      INSERT INTO invoice_payments (invoice_id, amount, paid_at) VALUES (1, 777, '${day(2)}');
+    `);
+    const st = await computeStatement(d1, cur, ctx, 1, 50);
+    expect(st.status).toBe('open');
+    expect(st.as_of).toBe(ctx.today);
+    expect(st.rows).toHaveLength(1); // future-dated row not in an open statement
+    expect(st.totals.credits).toBe(100);
+  });
+
+  it('timezone boundary: tenant-local day wins over UTC day', () => {
+    // 2026-09-30T23:30Z is 2026-10-01 00:30 in Africa/Casablanca (UTC+1)
+    expect(localTodayYmd('Africa/Casablanca', new Date('2026-09-30T23:30:00Z'))).toBe('2026-10-01');
+    expect(localTodayYmd('UTC', new Date('2026-09-30T23:30:00Z'))).toBe('2026-09-30');
+  });
+
+  it('duplicate payments surface as two rows (visible, never silently merged)', async () => {
+    sqlite.exec(`
+      INSERT INTO employees (id, emp_number, name, pay_amount, joined_date) VALUES (1, 'E-1', 'Test', 3000, '2026-01-01');
+      INSERT INTO employee_payments (employee_id, amount, paid_at) VALUES (1, 3000, '2026-09-15'), (1, 3000, '2026-09-15');
+    `);
+    const ctx = await getFinanceContext(d1);
+    const st = await computeStatement(d1, '2026-09', ctx, 1, 50);
+    const pay = st.rows.filter((r) => r.type === 'payroll');
+    expect(pay).toHaveLength(2);
+    expect(st.totals.debits).toBe(6000);
+    expect(st.reconciliation.balanced).toBe(true); // invariant holds even on bad data
+  });
+
+  it('void/reversal rows (negative amounts) net out', async () => {
+    sqlite.exec(`
+      INSERT INTO expenses (category, amount, expense_date, entry_type) VALUES
+        ('Achat', 500, '2026-09-05', 'expense'), ('Achat', -500, '2026-09-06', 'expense');
+    `);
+    const ctx = await getFinanceContext(d1);
+    const st = await computeStatement(d1, '2026-09', ctx, 1, 50);
+    expect(st.rows).toHaveLength(2);
+    expect(st.totals.debits).toBe(0);
+    expect(st.closing_balance).toBe(0);
+  });
+
+  it('company isolation: two databases never mix', async () => {
+    const other = makeD1();
+    await seedBusinessTables(other.sqlite);
+    await ensureFinanceSchema(other.db);
+    sqlite.exec(`INSERT INTO invoice_payments (invoice_id, amount, paid_at) VALUES (1, 100, '2026-09-02');`);
+    other.sqlite.exec(`INSERT INTO invoice_payments (invoice_id, amount, paid_at) VALUES (1, 999, '2026-09-02');`);
+    const ctx = await getFinanceContext(d1);
+    const ctxB = await getFinanceContext(other.db);
+    const a = await computeStatement(d1, '2026-09', ctx, 1, 50);
+    const b = await computeStatement(other.db, '2026-09', ctxB, 1, 50);
+    expect(a.totals.credits).toBe(100);
+    expect(b.totals.credits).toBe(999);
+  });
+
+  it('monthly summary, statement and PDF inputs agree on one canonical math', async () => {
+    sqlite.exec(`
+      INSERT INTO invoice_payments (invoice_id, amount, paid_at) VALUES (1, 1500, '2026-09-10');
+      INSERT INTO expenses (category, amount, expense_date, entry_type) VALUES
+        ('Achat', 200, '2026-09-05', 'expense'), ('Remboursement client', 100, '2026-09-06', 'expense');
+      INSERT INTO employees (id, emp_number, name, pay_amount, joined_date) VALUES (1, 'E-1', 'Test', 3000, '2026-01-01');
+      INSERT INTO employee_payments (employee_id, amount, paid_at) VALUES (1, 3000, '2026-09-30');
+      INSERT INTO bills (id, number, vendor_name, total, due_date, status) VALUES (1, 'B-1', 'V', 400, '2026-09-01', 'received');
+      INSERT INTO bill_payments (bill_id, amount, paid_at) VALUES (1, 400, '2026-09-15');
+    `);
+    const ctx = await getFinanceContext(d1);
+    const s = await computeMonthlySummary(d1, '2026-09', ctx);
+    const st = await computeStatement(d1, '2026-09', ctx, 1, 50);
+    expect(st.totals.credits).toBe(s.sales_received);
+    expect(st.totals.debits).toBe(round2(s.expenses + s.payroll_paid + s.supplier_paid));
+    expect(st.closing_balance).toBe(s.closing_balance);
+    expect(st.opening_balance).toBe(s.opening_balance);
+    const pdf = buildFinanceReportPdf({
+      companyName: 'Atlas Test SARL', currency: s.currency, period: s.period,
+      generatedAt: new Date().toISOString(),
+      openingBalance: s.opening_balance, closingBalance: s.closing_balance,
+      salesReceived: s.sales_received, expenses: s.expenses, refunds: s.refunds,
+      payrollPaid: s.payroll_paid, supplierPaid: s.supplier_paid,
+      receivablesTotal: s.receivables.total_outstanding, receivablesOverdue: s.receivables.total_overdue,
+      payablesTotal: s.payables.total_outstanding, payablesOverdue: s.payables.total_overdue,
+      payrollDue: s.payroll.total_due, payrollCount: s.payroll.employees,
+      receivableDocs: s.receivables.documents.slice(0, 14),
+      receivableDocsTotal: s.receivables.documents.length,
+      payableDocs: s.payables.documents.slice(0, 14),
+      payableDocsTotal: s.payables.documents.length,
+    });
+    expect(pdf.length).toBeGreaterThan(500); // same summary object feeds the PDF
   });
 });

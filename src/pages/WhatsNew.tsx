@@ -21,6 +21,31 @@ type Release = {
 
 const RELEASES: Release[] = [
   {
+    version: '0.5.6-beta',
+    date: '25 octobre 2026',
+    sections: [
+      {
+        kind: 'features',
+        items: [
+          { id: '056a1', text: 'Relevé mensuel de trésorerie côté serveur : GET /api/admin/finance/statement (owner/admin) — solde d’ouverture, mouvements chronologiques (encaissements, remboursements, dépenses, paie, fournisseurs) avec solde courant ligne à ligne, références assainies (numéros de documents, jamais de données personnelles), totaux, pagination, statut mois ouvert/clos et contrôle d’exactitude ouvrant + crédits − débits = clôturant ; le relevé, le résumé mensuel et le PDF partagent désormais UN SEUL calcul canonique' },
+        ],
+      },
+      {
+        kind: 'fixes',
+        items: [
+          { id: '056a2', text: 'Finance : fin du double comptage des paiements fournisseur et des salaires — chaque paiement écrivait une ligne miroir dans les dépenses (journal de Solde) que le calcul mensuel re-soustrayait : un règlement de 6 000 MAD apparaissait comme dépense fantôme ET trou de 6 000 MAD dans la clôture ; les avoirs (« Avoir … ») gonflaient aussi les encaissements ; correction rétroactive de toutes les périodes, sans supprimer aucune donnée, avec tests de régression (doublons visibles, annulations, frontières de fuseau, isolation société)' },
+          { id: '056a3', text: 'Finance : les paiements facture/achat datés par défaut au jour LOCAL du tenant (Africa/Casablanca) au lieu du jour UTC — un encaissement saisi juste après minuit tombait dans le mois précédent' },
+        ],
+      },
+      {
+        kind: 'improvements',
+        items: [
+          { id: '056a4', text: 'Chargement plus rapide : Smart Placement (le worker tourne près de sa base D1 — chaque requête API économise un aller-retour inter-régional) + en-têtes de cache immuables pour les bundles hashés (public/_headers) ; le cache edge des avatars est réactivable sans risque (toutes les réponses JSON privées restent no-store)' },
+        ],
+      },
+    ],
+  },
+  {
     version: '0.5.5-beta',
     date: '25 octobre 2026',
     sections: [

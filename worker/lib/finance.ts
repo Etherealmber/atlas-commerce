@@ -274,8 +274,25 @@ async function sumUntil(db: D1Database, sql: string, untilInclusive: string): Pr
   } catch { return 0; }
 }
 
-const SQL_SALES = `SELECT COALESCE(SUM(amount),0) s FROM invoice_payments WHERE substr(paid_at,1,10) <= ?`;
-const SQL_EXPENSES = `SELECT COALESCE(SUM(amount),0) s FROM expenses WHERE entry_type='expense' AND substr(expense_date,1,10) <= ?`;
+/* v258 — canonical cash filters (single source of truth for summary, statement
+ * and PDF):
+ *  - sales exclude « Avoir … » audit rows: a credit note inserts an
+ *    invoice_payments trail row (positive amount) whose cash effect is NOT an
+ *    inflow — the real cash outflow lives in the paired 'Remboursement client'
+ *    expense row (cash slice only). Counting the trail row inflated
+ *    sales_received AND closing_balance by the credit-vs-debt slice.
+ *  - expenses exclude mirror ledger rows written by other payment tables
+ *    (bill payments → 'Règlement fournisseur' + notes 'bill_id:…'; payroll →
+ *    'Salaire' + notes 'employee_id:…'). Those rows exist for the Solde cash
+ *    journal UI only; counting them here double-subtracted every supplier and
+ *    payroll payment (once via expenses, once via supplier_paid/payroll_paid) —
+ *    the root cause of unexplained amounts like a 6,000 MAD supplier payment
+ *    appearing both as an expense and as a 6,000 MAD hole in closing_balance. */
+const SQL_SALES = `SELECT COALESCE(SUM(amount),0) s FROM invoice_payments WHERE COALESCE(note,'') NOT LIKE 'Avoir%' AND substr(paid_at,1,10) <= ?`;
+const SQL_EXPENSES = `SELECT COALESCE(SUM(amount),0) s FROM expenses WHERE entry_type='expense'
+  AND NOT (category='Règlement fournisseur' AND COALESCE(notes,'') LIKE 'bill_id:%')
+  AND NOT (category='Salaire' AND COALESCE(notes,'') LIKE 'employee_id:%')
+  AND substr(expense_date,1,10) <= ?`;
 const SQL_PAYROLL_PAID = `SELECT COALESCE(SUM(amount),0) s FROM employee_payments WHERE substr(paid_at,1,10) <= ?`;
 const SQL_BILLS_PAID = `SELECT COALESCE(SUM(amount),0) s FROM bill_payments WHERE substr(paid_at,1,10) <= ?`;
 
@@ -462,6 +479,194 @@ export async function computeMonthlySummary(db: D1Database, period: string, ctx:
       rules: 'docs/api-finance.md#calculation-rules',
       as_of_date: asOf,
     } as any,
+  };
+}
+
+/* ─────────────────────────── canonical statement (v258) ───────────────────────────
+ * One ledger view over the five persisted cash sources. The monthly summary,
+ * the PDF and GET /api/admin/finance/statement all derive from these same
+ * filtered queries, so totals can never disagree again.
+ *   credit = cash in  (invoice payments, excluding « Avoir » audit trails)
+ *   debit  = cash out (real expenses, client refunds, payroll, supplier payments)
+ * Mirror ledger rows (Solde journal copies of payroll/supplier payments) are
+ * excluded — see SQL_EXPENSES comment. */
+
+export type StatementRowType = 'sale' | 'refund' | 'expense' | 'payroll' | 'supplier';
+
+export type StatementRow = {
+  id: number;
+  source: string;
+  type: StatementRowType;
+  label: string;
+  ref: string;
+  debit: number;
+  credit: number;
+  ts: string;
+  running_balance: number;
+};
+
+export type Statement = {
+  period: string;
+  timezone: string;
+  currency: string;
+  as_of: string;
+  status: 'open' | 'closed';
+  opening_balance: number;
+  closing_balance: number;
+  totals: { credits: number; debits: number; net: number };
+  reconciliation: {
+    opening: number;
+    credits: number;
+    debits: number;
+    closing: number;
+    balanced: boolean;
+    rule: string;
+  };
+  page: number;
+  page_size: number;
+  total: number;
+  has_more: boolean;
+  rows: StatementRow[];
+};
+
+const MIRROR_EXPENSE = `NOT (category='Règlement fournisseur' AND COALESCE(notes,'') LIKE 'bill_id:%')
+   AND NOT (category='Salaire' AND COALESCE(notes,'') LIKE 'employee_id:%')`;
+
+async function ledgerRows(db: D1Database, fromYmd: string, toYmd: string): Promise<Omit<StatementRow, 'running_balance'>[]> {
+  const out: Omit<StatementRow, 'running_balance'>[] = [];
+  const push = (r: Omit<StatementRow, 'running_balance'>) => out.push(r);
+  try {
+    const sales = await db.prepare(
+      `SELECT ip.id, ip.amount, ip.paid_at, i.number, i.client_name
+       FROM invoice_payments ip LEFT JOIN invoices i ON i.id = ip.invoice_id
+       WHERE COALESCE(ip.note,'') NOT LIKE 'Avoir%'
+         AND substr(ip.paid_at,1,10) >= ? AND substr(ip.paid_at,1,10) <= ?`,
+    ).bind(fromYmd, toYmd).all() as any;
+    for (const r of sales?.results || []) {
+      push({
+        id: Number(r.id), source: 'invoice_payments', type: 'sale',
+        label: `Encaissement ${String(r.number || 'facture')}`,
+        ref: String(r.number || `PAY-${r.id}`),
+        debit: 0, credit: round2(Number(r.amount || 0)), ts: String(r.paid_at || '').slice(0, 10),
+      });
+    }
+  } catch { /* table may lag */ }
+  try {
+    const exp = await db.prepare(
+      `SELECT id, amount, expense_date, category, description, reference
+       FROM expenses
+       WHERE entry_type='expense' AND ${MIRROR_EXPENSE}
+         AND substr(expense_date,1,10) >= ? AND substr(expense_date,1,10) <= ?`,
+    ).bind(fromYmd, toYmd).all() as any;
+    for (const r of exp?.results || []) {
+      const isRefund = String(r.category || '') === 'Remboursement client';
+      push({
+        id: Number(r.id), source: 'expenses', type: isRefund ? 'refund' : 'expense',
+        label: String(r.description || r.category || 'Dépense'),
+        ref: String(r.reference || `EXP-${r.id}`),
+        debit: round2(Number(r.amount || 0)), credit: 0, ts: String(r.expense_date || '').slice(0, 10),
+      });
+    }
+  } catch { /* table may lag */ }
+  try {
+    const pay = await db.prepare(
+      `SELECT ep.id, ep.amount, ep.paid_at, ep.period_label, ep.note, ep.employee_id, e.emp_number
+       FROM employee_payments ep LEFT JOIN employees e ON e.id = ep.employee_id
+       WHERE substr(ep.paid_at,1,10) >= ? AND substr(ep.paid_at,1,10) <= ?`,
+    ).bind(fromYmd, toYmd).all() as any;
+    for (const r of pay?.results || []) {
+      const empRef = String(r.emp_number || `EMP-${r.employee_id}`);
+      const isAdvance = /\[acompte\]/i.test(String(r.note || '')) || /^acompte/i.test(String(r.period_label || ''));
+      push({
+        id: Number(r.id), source: 'employee_payments', type: 'payroll',
+        label: `${isAdvance ? 'Acompte' : 'Salaire'} ${empRef}`,
+        ref: `${empRef}/PAY-${r.id}`,
+        debit: round2(Number(r.amount || 0)), credit: 0, ts: String(r.paid_at || '').slice(0, 10),
+      });
+    }
+  } catch { /* table may lag */ }
+  try {
+    const sup = await db.prepare(
+      `SELECT bp.id, bp.amount, bp.paid_at, bp.bill_id, b.number, b.vendor_name
+       FROM bill_payments bp LEFT JOIN bills b ON b.id = bp.bill_id
+       WHERE substr(bp.paid_at,1,10) >= ? AND substr(bp.paid_at,1,10) <= ?`,
+    ).bind(fromYmd, toYmd).all() as any;
+    for (const r of sup?.results || []) {
+      push({
+        id: Number(r.id), source: 'bill_payments', type: 'supplier',
+        label: `Règlement achat ${String(r.number || `ACH-${r.bill_id}`)}`,
+        ref: String(r.number || `BILL-${r.bill_id}`),
+        debit: round2(Number(r.amount || 0)), credit: 0, ts: String(r.paid_at || '').slice(0, 10),
+      });
+    }
+  } catch { /* table may lag */ }
+  out.sort((a, b) => a.ts.localeCompare(b.ts) || a.source.localeCompare(b.source) || a.id - b.id);
+  return out;
+}
+
+async function cashUntil(db: D1Database, untilInclusive: string): Promise<number> {
+  const [a, b, c, d] = await Promise.all([
+    sumUntil(db, SQL_SALES, untilInclusive),
+    sumUntil(db, SQL_EXPENSES, untilInclusive),
+    sumUntil(db, SQL_PAYROLL_PAID, untilInclusive),
+    sumUntil(db, SQL_BILLS_PAID, untilInclusive),
+  ]);
+  return round2(a - b - c - d);
+}
+
+/**
+ * v258 — server-backed monthly statement: opening balance, chronological cash
+ * rows with running balance, totals and the reconciliation invariant
+ * (opening + credits − debits = closing). Admin-gated by the caller.
+ */
+export async function computeStatement(
+  db: D1Database,
+  period: string,
+  ctx: FinanceContext,
+  page = 1,
+  pageSize = 50,
+): Promise<Statement> {
+  const b = monthBounds(period);
+  const currentMonth = ctx.today.slice(0, 7);
+  const status: 'open' | 'closed' = period === currentMonth ? 'open' : 'closed';
+  const asOf = status === 'open' ? ctx.today : b.end;
+  const toYmd = status === 'open' ? (ctx.today < b.end ? ctx.today : b.end) : b.end;
+  const opening = await cashUntil(db, addDaysYmd(b.start, -1));
+  const raw = await ledgerRows(db, b.start, toYmd);
+  let running = opening;
+  const withRunning: StatementRow[] = raw.map((r) => {
+    running = round2(running + r.credit - r.debit);
+    return { ...r, running_balance: running };
+  });
+  const credits = round2(raw.reduce((s, r) => s + r.credit, 0));
+  const debits = round2(raw.reduce((s, r) => s + r.debit, 0));
+  const closing = round2(opening + credits - debits);
+  const total = withRunning.length;
+  const p = Math.max(1, Number(page) || 1);
+  const size = Math.min(200, Math.max(1, Number(pageSize) || 50));
+  const startIdx = (p - 1) * size;
+  return {
+    period,
+    timezone: ctx.timezone,
+    currency: ctx.currency,
+    as_of: asOf,
+    status,
+    opening_balance: opening,
+    closing_balance: closing,
+    totals: { credits, debits, net: round2(credits - debits) },
+    reconciliation: {
+      opening,
+      credits,
+      debits,
+      closing,
+      balanced: Math.abs(opening + credits - debits - closing) < 0.005,
+      rule: 'opening + credits - debits = closing',
+    },
+    page: p,
+    page_size: size,
+    total,
+    has_more: startIdx + size < total,
+    rows: withRunning.slice(startIdx, startIdx + size),
   };
 }
 

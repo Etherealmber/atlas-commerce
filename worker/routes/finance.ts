@@ -17,6 +17,7 @@ import type { AtlasApp } from './types';
 import {
   computeMonthlySummary,
   computePayrollObligations,
+  computeStatement,
   ensureFinanceSchema,
   financeGate,
   getFinanceContext,
@@ -281,6 +282,33 @@ export function registerFinanceRoutes(app: AtlasApp, deps: FinanceRouteDeps): vo
     } catch (e: any) {
       console.error('me_payroll_err', String(e?.message || e));
       return c.json({ success: false, error: 'Lecture de paie impossible', code: 'FINANCE_ERROR' }, 500);
+    }
+  });
+
+  /* ─── GET /api/admin/finance/statement?period=YYYY-MM&page=1&page_size=50 ───
+   * v258 — server-backed monthly statement (owner/admin): opening balance,
+   * chronological cash rows (sale / refund / expense / payroll / supplier) with
+   * running balance, totals and the reconciliation invariant. Same canonical
+   * filtered queries as the monthly summary and the PDF, so the three can never
+   * disagree. Mirror ledger rows and « Avoir » audit trails are excluded here
+   * exactly as in the summary (see lib/finance.ts SQL filters). */
+  app.get('/api/admin/finance/statement', async (c) => {
+    const auth = await requireFinanceAdmin(c);
+    if (auth instanceof Response) return auth;
+    try {
+      await ensureFinanceSchema(c.env.DB);
+      const ctx = await getFinanceContext(c.env.DB);
+      const period = resolvePeriod(c, ctx.today.slice(0, 7));
+      if (!period) {
+        return c.json({ success: false, error: 'Période invalide — format attendu YYYY-MM.', code: 'BAD_PERIOD' }, 400);
+      }
+      const page = Math.max(1, Number(c.req.query('page') || 1) || 1);
+      const pageSize = Math.min(200, Math.max(1, Number(c.req.query('page_size') || 50) || 50));
+      const stmt = await computeStatement(c.env.DB, period, ctx, page, pageSize);
+      return c.json({ success: true, data: stmt });
+    } catch (e: any) {
+      console.error('finance_statement_err', String(e?.message || e));
+      return c.json({ success: false, error: 'Relevé impossible à calculer', code: 'FINANCE_ERROR' }, 500);
     }
   });
 

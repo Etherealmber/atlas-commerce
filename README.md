@@ -308,12 +308,17 @@ Atlas Commerce est développé et maintenu par **loxdpy ([@loxdpsy](https://gith
 - `themes-css-guard.yml` : `scripts/css-check.mjs` — accolades/parenthèses équilibrées, hex valides, dark-force.css dernier import CSS obligatoire, et aucune NOUVELLE déclaration blanche dans les blocs sombres sur les PR
 - Les trois tournent sur chaque pull request (et sur main) avec filters par chemin : un PR rouge ne devrait jamais être mergé, donc jamais déployé
 
-Version actuelle : **0.5.5-beta** (gelée jusqu'au prochain ordre de push).
+Version actuelle : **0.5.6-beta** (gelée jusqu'au prochain ordre de push).
 
 Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depuis la première version interne ; le détail complet et vivant est dans l'app (**Nouveautés**), y compris l’ancien cycle bêta pré-renumérotation, renuméroté en **0.x** (0.0.1 → 0.4.4).
 
 <details>
 <summary>📦 Toutes les versions (0.0.1-beta → 0.5.5-beta) — cliquer pour déplier</summary>
+
+### 0.5.6-beta
+- Relevé mensuel serveur `GET /api/admin/finance/statement?period=` (owner/admin) : ouverture/clôture, mouvements chronologiques avec solde courant, refs assainies, pagination, statut ouvert/clos, invariant ouvrant + crédits − débits = clôturant ; résumé mensuel, relevé et PDF = UN seul calcul canonique (`docs/api-finance.md`)
+- Fix double comptage finance (enquête `docs/finance-6000-investigation.md`) : lignes miroir des paiements fournisseur/salaire exclues du calcul (dépense fantôme + trou de clôture), avoirs exclus des encaissements, `paid_at` par défaut au jour local ; rétroactif, aucune donnée supprimée, 10 tests de régression
+- Vitesse : Smart Placement (`wrangler.jsonc`) + `public/_headers` (bundles immuables 1 an, HTML/SW revalidés)
 
 ### 0.5.5-beta
 - Téléphone terrain : l'app /m (scan d'abord, catalogue hors-ligne, barre d'onglets) se relance automatiquement sur petits écrans, APK native et ?mode=phone — le PC garde l'ERP complet ; confort tactile 44px+, anti-zoom iOS, ripple matériau (React Bits), CountUp, loupe Lens ; oxlint (0 erreur) dans la CI
