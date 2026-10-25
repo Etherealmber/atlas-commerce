@@ -21,7 +21,7 @@ type Release = {
 
 const RELEASES: Release[] = [
   {
-    version: '0.5.10-beta',
+    version: '0.6.1-beta',
     date: '26 octobre 2026',
     sections: [
       {
@@ -55,7 +55,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.5.8-beta',
-    date: '26 octobre 2026',
+    date: '25 octobre 2026',
     sections: [
       {
         kind: 'features',
@@ -95,7 +95,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.5.6-beta',
-    date: '25 octobre 2026',
+    date: '24 octobre 2026',
     sections: [
       {
         kind: 'features',
@@ -120,7 +120,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.5.5-beta',
-    date: '25 octobre 2026',
+    date: '24 octobre 2026',
     sections: [
       {
         kind: 'features',
@@ -150,7 +150,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.5.4-beta',
-    date: '25 octobre 2026',
+    date: '23 octobre 2026',
     sections: [
       {
         kind: 'improvements',
@@ -175,7 +175,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.5.3-beta',
-    date: '25 octobre 2026',
+    date: '23 octobre 2026',
     sections: [
       {
         kind: 'fixes',
@@ -190,7 +190,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.5.2-beta',
-    date: '25 octobre 2026',
+    date: '22 octobre 2026',
     sections: [
       {
         kind: 'features',
