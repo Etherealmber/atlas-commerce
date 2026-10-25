@@ -120,6 +120,7 @@ Admin → Mise à jour app). Passkeys Android : `docs/webauthn.md` §4 (assetlin
 
 ### 8. Besoin d'aide ?
 
+- **[`docs/desktop-design-prompt.md`](docs/desktop-design-prompt.md)** : prompt maître de l'app desktop (parité stricte web + Android, valeurs exactes citées)
 - **[`SETUP.md`](SETUP.md)** : installation complète de A à Z (base de données, secrets, fournisseurs de clés, déploiement sans CLI)
 - `docs/reports-github.md` : crashs & signalements utilisateurs → issues GitHub (configuration dans l'app)
 - `docs/webauthn.md` : passkeys (modèle de sécurité, activation, Android Credential Manager) · `docs/api-finance.md` : finance & relevés · `PARTNER_API.md` : API partenaire · `SECURITY.md` : vulnérabilités
@@ -312,12 +313,16 @@ Atlas Commerce est développé et maintenu par **loxdpy ([@loxdpsy](https://gith
 - `themes-css-guard.yml` : `scripts/css-check.mjs` — accolades/parenthèses équilibrées, hex valides, dark-force.css dernier import CSS obligatoire, et aucune NOUVELLE déclaration blanche dans les blocs sombres sur les PR
 - Les trois tournent sur chaque pull request (et sur main) avec filters par chemin : un PR rouge ne devrait jamais être mergé, donc jamais déployé
 
-Version actuelle : **0.6.2-beta** (gelée jusqu'au prochain ordre de push).
+Version actuelle : **0.6.3-beta** (gelée jusqu'au prochain ordre de push).
 
 Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depuis la première version interne ; le détail complet et vivant est dans l'app (**Nouveautés**), y compris l’ancien cycle bêta pré-renumérotation, renuméroté en **0.x** (0.0.1 → 0.4.4).
 
 <details>
 <summary>📦 Toutes les versions (0.0.1-beta → 0.5.5-beta) — cliquer pour déplier</summary>
+
+### 0.6.3-beta
+- Barre Rapports PDF : le champ mois affiche toujours le mois d’ancrage de la période active (« Ce mois », « 3 mois »…) au lieu de rester vide, avec info-bulle ; bascule vers un mois précis inchangée
+- `docs/desktop-design-prompt.md` : prompt maître desktop — parité visuelle stricte web + Android, toutes valeurs exactes (couleurs, rayons, typo, densités, motion, règles sombres, assistants, checklist écrans, protocole de vérification) extraites des deux repos avec citations
 
 ### 0.6.2-beta
 - Rapports sur mois précis : `/api/reports/combined` + sections acceptent une période `AAAA-MM` strictement validée (invalide → mois courant, jamais de dates cassées) en plus des périodes relatives ; bornes calculées dans le **fuseau finance de l’entreprise** (`finance_timezone`, défaut Africa/Casablanca) — mois courant arrêté à aujourd’hui local, mois passés complets (bissextiles sûrs) ; période propagée à toutes les sections/liens avec le ticket HMAC `rt` 30 min (JWT de session jamais accepté ni exposé, `token` supprimé défensivement) ; sélecteur de mois dans Solde ; logique pure `worker/lib/report-period.ts` + 17 tests (vitest 112/112)
