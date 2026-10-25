@@ -14,8 +14,11 @@ const { DatabaseSync } = (await import(SQLITE_MODULE)) as { DatabaseSync: new (p
 
 import {
   WebAuthnError,
+  androidLegacyOrigin,
+  androidLegacyOriginFromSha1,
   androidOrigin,
   androidOriginFromCertHash,
+  matchesAndroidOrigin,
   b64uToBytes,
   bytesToB64u,
   consumeChallenge,
@@ -67,6 +70,14 @@ const POLICY_ANDROID: WebAuthnPolicy = policyFromEnv({
   WEBAUTHN_ENABLED: 'true',
   WEBAUTHN_ANDROID_PACKAGE: ANDROID_PACKAGE,
   WEBAUTHN_ANDROID_CERT_HASH: CERT_HEX,
+});
+/** Deterministic stand-in for the SHA-1 fingerprint of the same signing cert. */
+const CERT_SHA1_HEX = '2A:E2:D3:0F:8B:1C:47:9D:6E:5A:03:F8:14:7C:B9:22:90:1D:EE:F3';
+const POLICY_ANDROID_BOTH: WebAuthnPolicy = policyFromEnv({
+  WEBAUTHN_ENABLED: 'true',
+  WEBAUTHN_ANDROID_PACKAGE: ANDROID_PACKAGE,
+  WEBAUTHN_ANDROID_CERT_HASH: CERT_HEX,
+  WEBAUTHN_ANDROID_CERT_SHA1: CERT_SHA1_HEX,
 });
 
 type KeyMaterial = { priv: CryptoKey; pub: CryptoKey; jwk: JsonWebKey };
@@ -486,6 +497,75 @@ describe('android credential manager integration', () => {
       userHandle,
       expectedChallenge: challenge,
       policy: POLICY_ANDROID,
+      stored: { publicKeyJwk: storedJwk, counter: 0, backupEligible: false, userHandle },
+    });
+    expect(v.counter).toBe(1);
+  });
+
+  it('accepts the LEGACY android:apk-key-hash: origin (base64 of SHA-1) when configured', async () => {
+    const legacy = androidLegacyOrigin(POLICY_ANDROID_BOTH)!;
+    expect(legacy).toBe(androidLegacyOriginFromSha1(CERT_SHA1_HEX));
+    expect(legacy.startsWith('android:apk-key-hash:')).toBe(true);
+    const key = await makeKey();
+    const challenge = bytesToB64u(crypto.getRandomValues(new Uint8Array(32)));
+    const credId = crypto.getRandomValues(new Uint8Array(32));
+    const authData = await buildAuthData({ rpId: RP_ID, credId, cose: coseKey(key.jwk) });
+    const v = await verifyRegistration({
+      clientDataJSON: clientDataB64('webauthn.create', challenge, legacy, true),
+      attestationObject: attestationObjectB64(authData),
+      expectedChallenge: challenge,
+      policy: POLICY_ANDROID_BOTH,
+    });
+    expect(v.credentialId).toBe(bytesToB64u(credId));
+  });
+
+  it('matches byte-for-byte across base64 alphabets and padding (string equality is not enough)', () => {
+    const legacy = androidLegacyOrigin(POLICY_ANDROID_BOTH)!;
+    const suffix = legacy.slice('android:apk-key-hash:'.length);
+    // standard alphabet + padding variant of the same bytes
+    let std = suffix.replace(/-/g, '+').replace(/_/g, '/');
+    while (std.length % 4) std += '=';
+    expect(matchesAndroidOrigin(`android:apk-key-hash:${std}`, POLICY_ANDROID_BOTH)).toBe(true);
+    expect(matchesAndroidOrigin(legacy, POLICY_ANDROID_BOTH)).toBe(true);
+    // sha256 form still matches under the combined policy
+    expect(matchesAndroidOrigin(androidOrigin(POLICY_ANDROID_BOTH)!, POLICY_ANDROID_BOTH)).toBe(true);
+    // wrong bytes / wrong prefix / unconfigured → false
+    expect(matchesAndroidOrigin(`android:apk-key-hash:${suffix.slice(1)}A`, POLICY_ANDROID_BOTH)).toBe(false);
+    expect(matchesAndroidOrigin(legacy, POLICY_ANDROID)).toBe(false); // no SHA-1 configured
+    expect(matchesAndroidOrigin(legacy, POLICY)).toBe(false);        // no android at all
+    expect(matchesAndroidOrigin('android:apk-key-hash:', POLICY_ANDROID_BOTH)).toBe(false);
+    expect(matchesAndroidOrigin('https://stock.afmarbre.com', POLICY_ANDROID_BOTH)).toBe(false);
+  });
+
+  it('rejects the legacy origin end-to-end when the SHA-1 fingerprint is not configured', async () => {
+    const legacy = androidLegacyOrigin(POLICY_ANDROID_BOTH)!;
+    const key = await makeKey();
+    const challenge = bytesToB64u(crypto.getRandomValues(new Uint8Array(32)));
+    const credId = crypto.getRandomValues(new Uint8Array(32));
+    const authData = await buildAuthData({ rpId: RP_ID, credId, cose: coseKey(key.jwk) });
+    await expect(verifyRegistration({
+      clientDataJSON: clientDataB64('webauthn.create', challenge, legacy, true),
+      attestationObject: attestationObjectB64(authData),
+      expectedChallenge: challenge,
+      policy: POLICY_ANDROID, // SHA-256 only
+    })).rejects.toMatchObject({ code: 'WEBAUTHN_BAD_ORIGIN' });
+  });
+
+  it('accepts a legacy-origin assertion (login) with the combined policy', async () => {
+    const key = await makeKey();
+    const storedJwk = { kty: 'EC', crv: 'P-256', x: String(key.jwk.x), y: String(key.jwk.y), alg: 'ES256' };
+    const userHandle = await userHandleFor('haytam');
+    const challenge = bytesToB64u(crypto.getRandomValues(new Uint8Array(32)));
+    const authData = await buildAuthData({ rpId: RP_ID, counter: 1 });
+    const cd = clientDataB64('webauthn.get', challenge, androidLegacyOrigin(POLICY_ANDROID_BOTH)!, true);
+    const sig = await signEs256(key.priv, concat(authData, await sha256(b64uToBytes(cd))));
+    const v = await verifyAuthentication({
+      clientDataJSON: cd,
+      authenticatorData: bytesToB64u(authData),
+      signature: bytesToB64u(sig),
+      userHandle,
+      expectedChallenge: challenge,
+      policy: POLICY_ANDROID_BOTH,
       stored: { publicKeyJwk: storedJwk, counter: 0, backupEligible: false, userHandle },
     });
     expect(v.counter).toBe(1);

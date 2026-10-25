@@ -90,6 +90,7 @@ import { notifyPaymentRecorded, runFinanceReminders } from './lib/finance';
 import {
   consumeChallenge as waConsumeChallenge,
   createChallenge as waCreateChallenge,
+  androidLegacyOrigin,
   androidOrigin,
   expectedOrigin,
   parseClientData,
@@ -3739,9 +3740,12 @@ app.get('/api/auth/webauthn/status', async (c) => {
       android: {
         enabled: policy.enabled && !!policy.androidPackage && !!androidOrigin(policy),
         package: policy.androidPackage || null,
-        // Native Credential Manager origin accepted for the configured signing
-        // cert — device teams verify their apk-key-hash matches this exactly.
+        // Native origins accepted for the configured signing cert(s) — device
+        // teams verify what their build emits against these exact values.
+        // Credential Manager emits the -sha256 form; the legacy FIDO2/GMS form
+        // (base64 of SHA-1) is also accepted when WEBAUTHN_ANDROID_CERT_SHA1 is set.
         origin: androidOrigin(policy),
+        origin_legacy: androidLegacyOrigin(policy),
         assetlinks: '/.well-known/assetlinks.json',
       },
     },

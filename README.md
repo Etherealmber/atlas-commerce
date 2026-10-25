@@ -312,12 +312,15 @@ Atlas Commerce est développé et maintenu par **loxdpy ([@loxdpsy](https://gith
 - `themes-css-guard.yml` : `scripts/css-check.mjs` — accolades/parenthèses équilibrées, hex valides, dark-force.css dernier import CSS obligatoire, et aucune NOUVELLE déclaration blanche dans les blocs sombres sur les PR
 - Les trois tournent sur chaque pull request (et sur main) avec filters par chemin : un PR rouge ne devrait jamais être mergé, donc jamais déployé
 
-Version actuelle : **0.5.9-beta** (gelée jusqu'au prochain ordre de push).
+Version actuelle : **0.5.10-beta** (gelée jusqu'au prochain ordre de push).
 
 Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depuis la première version interne ; le détail complet et vivant est dans l'app (**Nouveautés**), y compris l’ancien cycle bêta pré-renumérotation, renuméroté en **0.x** (0.0.1 → 0.4.4).
 
 <details>
 <summary>📦 Toutes les versions (0.0.1-beta → 0.5.5-beta) — cliquer pour déplier</summary>
+
+### 0.5.10-beta
+- Passkeys Android : acceptation des DEUX formats d’origine natifs — `android:apk-key-hash-sha256:` (Credential Manager) et le legacy `android:apk-key-hash:` (base64 du SHA-1, `WEBAUTHN_ANDROID_CERT_SHA1` optionnel) — comparaison octet par octet après décodage tolérant (base64/url-safe, padding) ; `status.data.android.origin_legacy` exposé ; 4 tests de plus, vitest 95/95 (`docs/webauthn.md` §4a)
 
 ### 0.5.9-beta
 - Crash reporting automatique → **issues GitHub** : erreurs globales, promesses rejetées et crashs React (ErrorBoundary) sont capturés, assainis (secrets retirés, IP hachée), dédupliqués par empreinte (un bug = une issue) et envoyés au dépôt du projet ; sans token, tout part en file D1 et le cron quotidien vide la file dès configuration (`docs/reports-github.md`)

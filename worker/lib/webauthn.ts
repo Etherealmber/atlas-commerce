@@ -230,8 +230,7 @@ export function parseClientData(b64u: string): { json: ParsedClientData; raw: Ui
 function checkClientData(cd: ParsedClientData, expectedType: string, expectedChallenge: string, policy: WebAuthnPolicy): void {
   if (cd.type !== expectedType) throw new WebAuthnError('WEBAUTHN_BAD_TYPE', `clientData type ${cd.type}`);
   if (!timingSafeEqual(cd.challenge, expectedChallenge)) throw new WebAuthnError('WEBAUTHN_BAD_CHALLENGE', 'clientData challenge mismatch');
-  const apkOrigin = androidOrigin(policy);
-  if (apkOrigin && cd.origin === apkOrigin) return;
+  if (matchesAndroidOrigin(cd.origin, policy)) return;
   if (policy.origins.includes(cd.origin)) {
     if (cd.crossOrigin && !(policy.androidPackage && cd.androidPackageName === policy.androidPackage)) {
       throw new WebAuthnError('WEBAUTHN_CROSS_ORIGIN', 'cross-origin assertion');
@@ -478,6 +477,8 @@ export type WebAuthnPolicy = {
   attestation: 'none';
   androidPackage: string;
   androidCertHash: string;
+  /** Optional SHA-1 fingerprint — legacy `android:apk-key-hash:` origin format. */
+  androidCertSha1: string;
 };
 
 export function policyFromEnv(env: Record<string, string | undefined>): WebAuthnPolicy {
@@ -494,12 +495,31 @@ export function policyFromEnv(env: Record<string, string | undefined>): WebAuthn
     attestation: 'none',
     androidPackage: String(env.WEBAUTHN_ANDROID_PACKAGE || '').trim(),
     androidCertHash: String(env.WEBAUTHN_ANDROID_CERT_HASH || '').trim().toUpperCase(),
+    androidCertSha1: String(env.WEBAUTHN_ANDROID_CERT_SHA1 || '').trim().toUpperCase(),
   };
 }
 
 /** The canonical web origin of this deployment (first allowlisted entry). */
 export function expectedOrigin(policy: WebAuthnPolicy): string {
   return policy.origins[0] || 'https://stock.afmarbre.com';
+}
+
+/** Fingerprint hex (colon-separated or plain) → raw bytes, or null. */
+function certHashBytes(hex: string, hexLen: number): Uint8Array | null {
+  const h = String(hex || '').replace(/[^0-9a-fA-F]/g, '').toUpperCase();
+  if (h.length !== hexLen) return null;
+  const bytes = new Uint8Array(hexLen / 2);
+  for (let i = 0; i < hexLen / 2; i++) bytes[i] = Number.parseInt(h.slice(i * 2, i * 2 + 2), 16);
+  return bytes;
+}
+
+/** Decode base64 tolerantly: url-safe or standard alphabet, padded or not. */
+function b64DecodeLoose(value: string): Uint8Array | null {
+  try {
+    return b64uToBytes(String(value).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''));
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -509,15 +529,53 @@ export function expectedOrigin(policy: WebAuthnPolicy): string {
  * Accepts colon-separated or plain hex; returns null when malformed.
  */
 export function androidOriginFromCertHash(certHash: string): string | null {
-  const hex = String(certHash || '').replace(/[^0-9a-fA-F]/g, '').toUpperCase();
-  if (hex.length !== 64) return null;
-  const bytes = new Uint8Array(32);
-  for (let i = 0; i < 32; i++) bytes[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
-  return `android:apk-key-hash-sha256:${bytesToB64u(bytes)}`;
+  const bytes = certHashBytes(certHash, 64);
+  return bytes ? `android:apk-key-hash-sha256:${bytesToB64u(bytes)}` : null;
 }
 
-/** The android origin this deployment accepts, or null when not configured. */
+/**
+ * Legacy FIDO2/GMS origin format documented by Android:
+ * `android:apk-key-hash:<base64(SHA-1(signing cert DER))>` — derived from the
+ * optional WEBAUTHN_ANDROID_CERT_SHA1 fingerprint.
+ */
+export function androidLegacyOriginFromSha1(sha1Hex: string): string | null {
+  const bytes = certHashBytes(sha1Hex, 40);
+  return bytes ? `android:apk-key-hash:${bytesToB64u(bytes)}` : null;
+}
+
+/** The primary (sha256) android origin accepted, or null when not configured. */
 export function androidOrigin(policy: WebAuthnPolicy): string | null {
   if (!policy.androidPackage || !policy.androidCertHash) return null;
   return androidOriginFromCertHash(policy.androidCertHash);
+}
+
+/** The legacy (sha1) android origin accepted, or null when not configured. */
+export function androidLegacyOrigin(policy: WebAuthnPolicy): string | null {
+  if (!policy.androidPackage || !policy.androidCertSha1) return null;
+  return androidLegacyOriginFromSha1(policy.androidCertSha1);
+}
+
+/**
+ * Byte-level acceptance of BOTH documented native origin formats — string
+ * comparison alone is not enough: Android docs reference `android:apk-key-hash:`
+ * (SHA-1) while Credential Manager emits `android:apk-key-hash-sha256:`, and
+ * encodings differ (base64 vs base64url, padding). We decode the suffix and
+ * compare RAW BYTES against the configured fingerprints, so any encoding of the
+ * correct hash matches — and only the correct hash matches.
+ */
+export function matchesAndroidOrigin(origin: string, policy: WebAuthnPolicy): boolean {
+  if (!policy.androidPackage || typeof origin !== 'string') return false;
+  const P256 = 'android:apk-key-hash-sha256:';
+  const P1 = 'android:apk-key-hash:';
+  if (origin.startsWith(P256)) {
+    const expected = certHashBytes(policy.androidCertHash, 64);
+    const got = b64DecodeLoose(origin.slice(P256.length));
+    return !!expected && !!got && got.length === 32 && bytesToHex(got) === bytesToHex(expected);
+  }
+  if (origin.startsWith(P1)) {
+    const expected = certHashBytes(policy.androidCertSha1, 40);
+    const got = b64DecodeLoose(origin.slice(P1.length));
+    return !!expected && !!got && got.length === 20 && bytesToHex(got) === bytesToHex(expected);
+  }
+  return false;
 }

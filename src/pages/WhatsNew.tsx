@@ -21,6 +21,19 @@ type Release = {
 
 const RELEASES: Release[] = [
   {
+    version: '0.5.10-beta',
+    date: '26 octobre 2026',
+    sections: [
+      {
+        kind: 'fixes',
+        items: [
+          { id: '0510a1', text: 'Passkeys Android : le vérificateur accepte désormais LES DEUX formats d’origine natifs documentés — android:apk-key-hash-sha256: (émis par Credential Manager) ET le préfixe historique android:apk-key-hash: (base64 du SHA-1 du certificat, documenté par la stack FIDO2 d’Android) via WEBAUTHN_ANDROID_CERT_SHA1 optionnel ; la comparaison est octet par octet après décodage tolérant (base64 standard ou url-safe, avec ou sans remplissage) — plus aucun échec WEBAUTHN_BAD_ORIGIN dû à une simple différence d’encodage ou de préfixe' },
+          { id: '0510a2', text: 'GET /api/auth/webauthn/status expose data.android.origin_legacy à côté de data.android.origin : l’app et l’APK comparent exactement ce que le backend accepte avant d’afficher les passkeys ; 4 nouveaux tests (dérivation SHA-1, acceptation multi-encodages, rejet sans empreinte SHA-1, connexion native legacy) — vitest 95/95' },
+        ],
+      },
+    ],
+  },
+  {
     version: '0.5.9-beta',
     date: '26 octobre 2026',
     sections: [
