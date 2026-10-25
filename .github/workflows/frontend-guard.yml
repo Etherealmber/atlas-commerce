@@ -34,6 +34,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  oxlint:
+    name: oxlint — correctness gate (zero errors)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      # Fails on ANY correctness error in src/ or worker/ (warnings, like the
+      # known no-unused-vars backlog, are reported but do not block).
+      - run: npm run lint
+
   client-build:
     name: Vite build + bundle sanity
     runs-on: ubuntu-latest

@@ -134,11 +134,11 @@ function activeThreadKey(): string { return `${ACTIVE_THREAD_KEY}:${scopeUser()}
 function pageMeta(pathname: string): { title: string; hint: string; path: string } {
   if (pathname === '/agent')
     return { title: 'Atlas Agent', hint: 'Assistant mobile.', path: pathname };
-  if (false /* /m removed */)
+  if (pathname === '/m/scan')
     return { title: 'Scan', hint: 'Code-barres terrain.', path: pathname };
-  if (false)
+  if (pathname === '/m/warehouse')
     return { title: 'Entrepôts', hint: 'Stock terrain.', path: pathname };
-  if (false)
+  if (pathname.startsWith('/m'))
     return { title: 'Accueil terrain', hint: 'Tableau de bord mobile.', path: pathname };
   if (pathname.startsWith('/settings'))
     return { title: 'Paramètres mobile', hint: 'Thème et compte.', path: pathname };

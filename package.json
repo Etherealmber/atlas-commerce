@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.5.1-beta",
   "type": "module",
-  "description": "Atlas Commerce — stock, devis, factures (web + Capacitor Android)",
+  "description": "Atlas Commerce \u2014 stock, devis, factures (web + Capacitor Android)",
   "author": "loxdpsy",
   "scripts": {
     "smoke": "node scripts/smoke-all.mjs",
@@ -17,7 +17,9 @@
     "smoke:local": "ATLAS_SMOKE_BASE=http://127.0.0.1:8787 node scripts/smoke-all.mjs",
     "smoke:prod": "ATLAS_SMOKE_BASE=https://stock.afmarbre.com node scripts/smoke-all.mjs",
     "smoke:partner": "node scripts/smoke-partner-v1.mjs",
-    "test": "vitest run"
+    "test": "vitest run",
+    "lint": "oxlint -c .oxlintrc.json src worker",
+    "lint:fix": "oxlint -c .oxlintrc.json src worker --fix"
   },
   "dependencies": {
     "@hugeicons/core-free-icons": "^1.0.0",
@@ -40,6 +42,7 @@
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.4",
     "gifenc": "^1.0.3",
+    "oxlint": "^1.89.0",
     "puppeteer-core": "^25.15.0",
     "typescript": "^5.7.0",
     "upng-js": "^2.1.0",

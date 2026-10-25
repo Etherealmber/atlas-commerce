@@ -582,7 +582,7 @@ function parseIdText(text: string): Record<string, string> {
   const cin = t.match(/\b([A-Z]{1,2}\d{5,8})\b/) || t.match(/\b(\d{8,10})\b/);
   if (cin) out.national_id = cin[1];
   // dates dd/mm/yyyy or yyyy-mm-dd
-  const dates = [...t.matchAll(/\b(\d{2})[\/\-.](\d{2})[\/\-.](\d{4})\b/g)];
+  const dates = [...t.matchAll(/\b(\d{2})[/\-.](\d{2})[/\-.](\d{4})\b/g)];
   if (dates.length) {
     const [, d, m, y] = dates[0];
     out.date_of_birth = `${y}-${m}-${d}`;

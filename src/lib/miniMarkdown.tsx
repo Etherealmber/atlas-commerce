@@ -51,10 +51,10 @@ export function renderMiniMarkdown(src: string): ReactNode {
     const line = lines[i];
 
     // code fence
-    if (/^```/.test(line.trim())) {
+    if (line.trim().startsWith('```')) {
       const buf: string[] = [];
       i += 1;
-      while (i < lines.length && !/^```/.test(lines[i].trim())) { buf.push(lines[i]); i += 1; }
+      while (i < lines.length && !lines[i].trim().startsWith('```')) { buf.push(lines[i]); i += 1; }
       i += 1;
       blocks.push(<pre key={`b${k++}`} className="md-pre"><code>{buf.join('\n')}</code></pre>);
       continue;

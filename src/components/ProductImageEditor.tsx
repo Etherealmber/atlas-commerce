@@ -723,7 +723,7 @@ export default function ProductImageEditor({ productId }: { productId: number })
         e.preventDefault();
         setDragOver(false);
         if (busy) return;
-        const files = Array.from(e.dataTransfer.files || []).filter((f) => /^image\//.test(f.type));
+        const files = Array.from(e.dataTransfer.files || []).filter((f) => f.type.startsWith('image/'));
         if (files.length) {
           const dt = new DataTransfer();
           files.forEach((f) => dt.items.add(f));

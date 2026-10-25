@@ -60,7 +60,7 @@ export function validateWrPrefix(raw: string): { ok: true; value: string } | { o
   const v = String(raw || '').trim();
   if (!v) return { ok: false, error: 'Le préfixe WR ne peut pas être vide (ex. WR-).' };
   if (v.length > 12) return { ok: false, error: CODE_MAP.WR_PREFIX_INVALID };
-  if (!/^[A-Za-z0-9][A-Za-z0-9\-\/]{0,11}$/.test(v)) {
+  if (!/^[A-Za-z0-9][A-Za-z0-9\-/]{0,11}$/.test(v)) {
     return { ok: false, error: CODE_MAP.WR_PREFIX_INVALID };
   }
   return { ok: true, value: v };

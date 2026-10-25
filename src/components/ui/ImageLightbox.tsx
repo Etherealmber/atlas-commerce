@@ -1,5 +1,6 @@
 import { useEffect, useState, type FC } from 'react';
 import { sanitizePreviewUrl } from '../../auth';
+import { Lens } from './Bits';
 import './ImageLightbox.css';
 
 type Props = {
@@ -44,7 +45,7 @@ export const ImageLightbox: FC<Props> = ({ src, name, onClose }) => {
         }}
         title={zoom ? 'Réduire' : 'Agrandir'}
       >
-        {safe ? <img src={safe} alt={name || 'Pièce jointe'} draggable={false} /> : null}
+        {safe ? <Lens src={safe} alt={name || 'Pièce jointe'} /> : null}
       </div>
       {name ? <p className="atlas-lightbox-name">{name}</p> : null}
       <button

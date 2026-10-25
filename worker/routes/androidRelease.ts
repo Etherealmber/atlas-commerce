@@ -22,7 +22,7 @@ const APK_MIME = 'application/vnd.android.package-archive';
 function json(body: unknown, status = 200, headers?: Record<string, string>): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json; charset=utf-8', ...(headers || {}) },
+    headers: { 'Content-Type': 'application/json; charset=utf-8', ...headers },
   });
 }
 

@@ -73,6 +73,7 @@ function memPut(key: string, value: unknown, ttlSeconds: number) {
 }
 
 function memDelPrefix(prefix: string) {
+  // oxlint-disable-next-line unicorn/no-useless-spread -- snapshot on purpose: keys are deleted during the loop
   for (const k of [...memStore.keys()]) {
     if (k.startsWith(prefix)) memStore.delete(k);
   }

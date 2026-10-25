@@ -23,7 +23,7 @@ export function validateClientForm(form: {
   if (ice && !/^\d{15}$/.test(ice)) e.ice = 'ICE : 15 chiffres (sans espaces).';
   const email = String(form.email || '').trim();
   if (email && !isEmail(email)) e.email = 'Adresse e-mail invalide.';
-  const phone = String(form.phone || '').replace(/[\s.\-]/g, '');
+  const phone = String(form.phone || '').replace(/[\s.-]/g, '');
   if (phone && phone.length < 8) e.phone = 'Numéro de téléphone trop court.';
   return e;
 }

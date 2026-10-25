@@ -369,7 +369,7 @@ export default function Settings() {
       setLoading(false);
     }, 8000);
     api.getSettings()
-      .then((r) => setSettings({ ...empty, ...(r.data || {}) }))
+      .then((r) => setSettings({ ...empty, ...r.data }))
       .catch(() => setSettings(empty))
       .finally(() => {
         window.clearTimeout(timer);
@@ -435,7 +435,7 @@ export default function Settings() {
 
   const update = (field: string, value: any) => {
     setSettingsDirty(true);
-    setSettings((prev: any) => ({ ...(prev || {}), [field]: value }));
+    setSettings((prev: any) => ({ ...prev, [field]: value }));
   };
 
 
@@ -1679,11 +1679,11 @@ if (loading) return (
               </div>
             </div>
             <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8 }}>
-              Exemple vente rapide : {(s.quick_sale_prefix || 'VR-').replace(/[-\/]+$/, '')}
+              Exemple vente rapide : {(s.quick_sale_prefix || 'VR-').replace(/[-/]+$/, '')}
               {(s.numbering_style || 'prefix_year') === 'prefix_pad5'
                 ? String(s.next_quick_sale_number ?? 1).padStart(5, '0')
                 : `-${new Date().getFullYear()}-${String(s.next_quick_sale_number ?? 1).padStart(Number(s.numbering_pad) || 4, '0')}`}
-              {' · '}Exemple WR : {(s.credit_prefix || 'WR-').replace(/[-\/]+$/, '')}
+              {' · '}Exemple WR : {(s.credit_prefix || 'WR-').replace(/[-/]+$/, '')}
               {(s.numbering_style || 'prefix_year') === 'prefix_pad5'
                 ? String(s.next_credit_number ?? 1).padStart(5, '0')
                 : `-${new Date().getFullYear()}-${String(s.next_credit_number ?? 1).padStart(Number(s.numbering_pad) || 4, '0')}`}
@@ -2516,7 +2516,7 @@ if (loading) return (
                   if (jid) {
                     localStorage.setItem('atlas_restore_job_id', jid);
                     setRestoreJob((prev: any) => ({
-                      ...(prev || {}),
+                      ...prev,
                       id: jid,
                       status: 'running',
                       message: r.message || prev?.message || 'Restauration en cours…',

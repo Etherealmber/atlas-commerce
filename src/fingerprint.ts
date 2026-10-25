@@ -317,6 +317,7 @@ function credIdVariants(raw: string): string[] {
   const set = new Set<string>([id]);
   set.add(id.replace(/-/g, '+').replace(/_/g, '/'));
   set.add(id.replace(/\+/g, '-').replace(/\//g, '_'));
+  // oxlint-disable-next-line unicorn/no-useless-spread -- snapshot on purpose: variants are ADDED to the set during the loop
   for (const v of [...set]) {
     set.add(v.replace(/=+$/, ''));
     if (v.length % 4) set.add(v + '='.repeat((4 - (v.length % 4)) % 4));

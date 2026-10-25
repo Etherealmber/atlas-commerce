@@ -1,0 +1,28 @@
+/* Bits — styles for the React Bits / Magic UI adapted components (Bits.tsx).
+   Imported BEFORE dark-force.css so the dark cascade still wins by design.
+   No white surfaces are introduced: the lens ring uses translucent tokens. */
+
+.bits-lens {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  line-height: 0;
+}
+.bits-lens img {
+  display: block;
+  max-width: 100%;
+}
+.bits-lens-mag {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.5);
+  transition: opacity 0.16s ease;
+  z-index: 6;
+  line-height: normal;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bits-lens-mag { transition: none; }
+}

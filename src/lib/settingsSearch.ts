@@ -162,7 +162,7 @@ function lev(a: string, b: string): number {
   if (!b.length) return a.length;
   const m = a.length;
   const n = b.length;
-  const dp = new Array(n + 1);
+  const dp: number[] = Array.from({ length: n + 1 }, () => 0);
   for (let j = 0; j <= n; j++) dp[j] = j;
   for (let i = 1; i <= m; i++) {
     let prev = dp[0];

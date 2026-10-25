@@ -47,7 +47,7 @@ export async function nextDocumentNumber(
   const pad = Math.max(3, Math.min(6, Number(settings?.numbering_pad || 4)));
   let prefix = String(prefixMap[kind] || '').trim();
   // Ensure prefix ends cleanly for styles that append year
-  if (prefix && !/[-\/]$/.test(prefix) && (style === 'prefix_year' || style === 'prefix_year_slash' || style === 'prefix_pad5')) {
+  if (prefix && !/[-/]$/.test(prefix) && (style === 'prefix_year' || style === 'prefix_year_slash' || style === 'prefix_pad5')) {
     // keep as-is; user controls trailing dash/slash
   }
   const counterCol = counterMap[kind];
@@ -110,12 +110,12 @@ export async function nextDocumentNumber(
       case 'year_slash':
         return `${year}/${seq}`;
       case 'prefix_year_slash':
-        return `${prefix.replace(/[-\/]+$/, '')}/${year}/${seq}`;
+        return `${prefix.replace(/[-/]+$/, '')}/${year}/${seq}`;
       case 'prefix_pad5':
         return `${prefix}${String(c).padStart(5, '0')}`;
       case 'prefix_year':
       default:
-        return `${prefix.replace(/[-\/]+$/, '')}-${year}-${seq}`;
+        return `${prefix.replace(/[-/]+$/, '')}-${year}-${seq}`;
     }
   };
 

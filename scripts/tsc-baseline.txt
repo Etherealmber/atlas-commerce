@@ -1,2 +1,2 @@
-worker=74
+worker=72
 src=74

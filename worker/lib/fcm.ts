@@ -205,7 +205,7 @@ export async function sendFcmToUser(
                 body: opts.body,
               },
               data: {
-                ...(opts.data || {}),
+                ...opts.data,
                 click_action: 'ATLAS_ASSIST_APPROVAL',
               },
               android: {

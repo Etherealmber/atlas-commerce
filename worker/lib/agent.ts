@@ -218,7 +218,6 @@ const TOOL_DEFS = [
     },
   },
 
-,
   {
     type: 'function',
     function: {
