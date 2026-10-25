@@ -1,4 +1,5 @@
 import { useEffect, useState, type FC } from 'react';
+import { createPortal } from 'react-dom';
 import { sanitizePreviewUrl } from '../../auth';
 import { Lens } from './Bits';
 import './ImageLightbox.css';
@@ -29,7 +30,10 @@ export const ImageLightbox: FC<Props> = ({ src, name, onClose }) => {
     };
   }, [onClose]);
 
-  return (
+  // Portal to <body>: the Atlas Agent panel keeps a transform when open,
+  // which would trap this position:fixed overlay inside the 380px drawer
+  // (ancestor transform = containing block for fixed descendants).
+  return createPortal(
     <div
       className="atlas-lightbox-overlay"
       role="dialog"
@@ -62,7 +66,8 @@ export const ImageLightbox: FC<Props> = ({ src, name, onClose }) => {
           <path d="M6 6l12 12M18 6L6 18" />
         </svg>
       </button>
-    </div>
+    </div>,
+    document.body,
   );
 };
 

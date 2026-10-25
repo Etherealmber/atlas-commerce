@@ -84,6 +84,9 @@ async function ensureEmployeeTables(db: D1Database): Promise<void> {
     ['weekly_hours', "REAL DEFAULT 44"],
     ['trial_days', "INTEGER DEFAULT 90"],
     ['contract_type', "TEXT DEFAULT 'CDI'"],
+    // v256 — link an employee file to a login account so GET /api/me/payroll
+    // can expose ONLY that employee's own pay date to their own session.
+    ['user_username', "TEXT DEFAULT ''"],
   ];
   for (const [col, typ] of cols) {
     await addColumnIfMissing(db, 'employees', col, typ);
@@ -715,8 +718,8 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps = 
         employment_status, joined_date, date_of_birth, gender, nationality, marital_status,
         national_id, tax_id, social_insurance, health_insurance, driving_license, immigration_status,
         address, city, country, postal_code, home_phone, work_phone,
-        active, pay_amount, pay_cycle_type, pay_cycle_days, notes
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,?,?,?,?)`,
+        active, pay_amount, pay_cycle_type, pay_cycle_days, notes, user_username
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,?,?,?,?,?)`,
     )
       .bind(
         emp_number,
@@ -750,6 +753,7 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps = 
         pay_cycle_type,
         pay_cycle_days,
         str(body, 'notes'),
+        str(body, 'user_username').trim().toLowerCase().slice(0, 64),
       )
       .run();
     await afterBusinessMutation(c.env.CACHE);
@@ -799,7 +803,7 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps = 
         employment_status=?, joined_date=?, date_of_birth=?, gender=?, nationality=?, marital_status=?,
         national_id=?, tax_id=?, social_insurance=?, health_insurance=?, driving_license=?, immigration_status=?,
         address=?, city=?, country=?, postal_code=?, home_phone=?, work_phone=?,
-        active=?, resigned_at=?, pay_amount=?, pay_cycle_type=?, pay_cycle_days=?, notes=?,
+        active=?, resigned_at=?, pay_amount=?, pay_cycle_type=?, pay_cycle_days=?, notes=?, user_username=?,
         updated_at=datetime('now')
        WHERE id=?`,
     )
@@ -837,6 +841,7 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps = 
         pay_cycle_type,
         pay_cycle_days,
         str(body, 'notes', existing.notes || ''),
+        str(body, 'user_username', existing.user_username || '').trim().toLowerCase().slice(0, 64),
         id,
       )
       .run();

@@ -299,14 +299,57 @@ function loadMsgs(threadId: string): Msg[] {
   return [];
 }
 
-function saveMsgs(threadId: string, msgs: Msg[]) {
-  try {
-    const localCopy = msgs.slice(-40).map((m) => { const { images, imageUrls, ...rest } = m as any; return rest; });
-    localStorage.setItem(msgsKey(threadId), JSON.stringify(localCopy));
+/**
+ * v256 — Recompress an image data URL (≤1280px, JPEG q0.72) so attached
+ * photos survive the localStorage quota and the R2 thread payload instead of
+ * being stripped or silently failing to persist. Non-images pass through.
+ */
+function compressImageDataUrl(dataUrl: string, maxDim = 1280, quality = 0.72): Promise<string> {
+  return new Promise((resolve) => {
+    if (!dataUrl.startsWith('data:image/')) { resolve(dataUrl); return; }
     try {
-      const th = loadThreads().find((t) => t.id === threadId);
-      void persistThreadR2(threadId, th?.title || 'Sans titre', msgs.slice(-40));
-    } catch { /* */ }
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const w0 = img.naturalWidth || maxDim;
+          const h0 = img.naturalHeight || maxDim;
+          const scale = Math.min(1, maxDim / Math.max(w0, h0));
+          if (scale >= 1 && dataUrl.length < 400_000) { resolve(dataUrl); return; }
+          const w = Math.max(1, Math.round(w0 * scale));
+          const h = Math.max(1, Math.round(h0 * scale));
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) { resolve(dataUrl); return; }
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        } catch { resolve(dataUrl); }
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    } catch { resolve(dataUrl); }
+  });
+}
+
+function saveMsgs(threadId: string, msgs: Msg[]) {
+  // v256 — keep (compressed) images in localStorage so they survive a page
+  // refresh; drop blob preview URLs (they die with the page anyway). On quota
+  // overflow, strip images from the oldest messages until the write fits.
+  let copy: any[] = msgs.slice(-40).map((m) => { const { imageUrls, ...rest } = m as any; return rest; });
+  for (let attempt = 0; attempt < 6; attempt++) {
+    try {
+      localStorage.setItem(msgsKey(threadId), JSON.stringify(copy));
+      break;
+    } catch {
+      const idx = copy.findIndex((m: any) => (m.images || []).length);
+      if (idx === -1) break;
+      copy = copy.map((m: any, i: number) => (i === idx ? { ...m, images: [] } : m));
+    }
+  }
+  try {
+    const th = loadThreads().find((t) => t.id === threadId);
+    void persistThreadR2(threadId, th?.title || 'Sans titre', copy);
   } catch { /* */ }
 }
 
@@ -673,6 +716,35 @@ export default function AtlasAgent() {
   const [busy, setBusy] = useState(false);
   const [listening, setListening] = useState(false); // unused (dictation removed)
   const [attachments, setAttachments] = useState<{ name: string; type: string; data_url: string; preview_url?: string; text_excerpt?: string }[]>([]);
+  // v256 — unsent composer attachments survive a page refresh (images are
+  // stored already-compressed; blob previews are recreated from the data URL).
+  const ATTACH_DRAFT_KEY = 'atlas-agent-attach-draft-v256';
+  useEffect(() => {
+    try {
+      if (!attachments.length) { localStorage.removeItem(ATTACH_DRAFT_KEY); return; }
+      const slim = attachments.map((a) => ({ name: a.name, type: a.type, data_url: a.data_url, text_excerpt: a.text_excerpt }));
+      localStorage.setItem(ATTACH_DRAFT_KEY, JSON.stringify(slim));
+    } catch { /* quota — attachments stay in memory only */ }
+  }, [attachments]);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(ATTACH_DRAFT_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed) || !parsed.length) return;
+      const restored = parsed
+        .filter((a: any) => a && typeof a.data_url === 'string' && a.data_url)
+        .map((a: any) => ({
+          name: String(a.name || 'Pièce jointe'),
+          type: String(a.type || 'application/octet-stream'),
+          data_url: String(a.type || '').startsWith('image/') ? sanitizeImageDataUrl(a.data_url) : String(a.data_url),
+          text_excerpt: typeof a.text_excerpt === 'string' ? a.text_excerpt.slice(0, 12000) : undefined,
+        }))
+        .filter((a: any) => a.data_url)
+        .slice(-5);
+      if (restored.length) setAttachments((prev) => (prev.length ? prev : restored));
+    } catch { /* */ }
+  }, []);
   // v242 — remember the latest uploaded files so "lis ça" without a new
   // attachment re-sends them to the model instead of answering blind.
   const lastFilesRef = useRef<{ name: string; type: string; data_url: string; preview_url?: string; text_excerpt?: string }[]>([]);
@@ -1134,10 +1206,13 @@ export default function AtlasAgent() {
         if (!isImg && isTextual) {
           try { text_excerpt = (await f.text()).slice(0, 12000); } catch { /* */ }
         }
+        // v256 — recompress images right away so the attachment (and thus the
+        // thread) stays small enough to persist across page refreshes.
+        const stored_url = isImg ? await compressImageDataUrl(data_url) : data_url;
         setAttachments((prev) => [...prev, {
           name: f.name,
           type: f.type || 'application/octet-stream',
-          data_url,
+          data_url: stored_url,
           text_excerpt,
           // Opaque object URL for on-screen previews: FileReader text never
           // reaches an <img> src (CodeQL js/dom-text-reinterpreted-as-html).
@@ -2013,7 +2088,9 @@ export default function AtlasAgent() {
             onStop={stop}
             attachments={attachments.map((a) => ({
               name: a.name,
-              preview: a.preview_url,
+              // v256 — drafts restored after a refresh have no blob preview;
+              // fall back to the (sanitized) compressed data URL.
+              preview: a.preview_url || sanitizeImageDataUrl(a.data_url) || undefined,
             }))}
             onRemoveAttachment={(i) =>
               setAttachments((prev) => (i === -1 ? [] : prev.filter((_, j) => j !== i)))
@@ -2049,7 +2126,11 @@ export default function AtlasAgent() {
             onClose={() => setAnnotator(null)}
             onSave={(dataUrl) => {
               const idx = annotator.index;
-              setAttachments((prev) => prev.map((a, j) => (j === idx ? { ...a, data_url: dataUrl, type: 'image/png' } : a)));
+              // v256 — flatten the annotated canvas to a compact JPEG so the
+              // edited attachment also survives refresh persistence.
+              void compressImageDataUrl(dataUrl).then((compact) => {
+                setAttachments((prev) => prev.map((a, j) => (j === idx ? { ...a, data_url: compact, type: 'image/jpeg', preview_url: undefined } : a)));
+              });
             }}
           />
         )}

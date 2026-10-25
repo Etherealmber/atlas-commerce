@@ -1,0 +1,319 @@
+diff --git a/.gitignore b/.gitignore
+index 103a43f..2e70807 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -17,5 +17,7 @@
+ /local.properties
+ ci-logs/
+ /.atlas-1.0.4-quarantine/
++# FCM bridge: per-deployment Firebase config — never commit the real file.
++app/google-services.json
+ !app/google-services.json.example
+ keystore.properties
+diff --git a/app/build.gradle.kts b/app/build.gradle.kts
+index c0a90c6..8873edd 100644
+--- a/app/build.gradle.kts
++++ b/app/build.gradle.kts
+@@ -127,6 +127,14 @@ android {
+     }
+ }
+ 
++// FCM bridge (v1.2): the google-services plugin runs ONLY when the Firebase
++// project config is present (google-services.json is a per-deployment secret —
++// never committed). Without it the app still builds and runs; push registration
++// no-ops (see PushTokenRegistrar.firebaseConfigured()).
++if (file("google-services.json").exists()) {
++    apply(plugin = "com.google.gms.google-services")
++}
++
+ kotlin {
+     compilerOptions {
+         jvmTarget.set(JvmTarget.JVM_17)
+@@ -161,6 +169,12 @@ dependencies {
+ 
+     implementation("androidx.datastore:datastore-preferences:1.1.1")
+ 
++    // FCM push bridge (v1.2) — worker pushes via FCM HTTP v1; the device token
++    // is registered with POST /api/assist/device-token after each sign-in.
++    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
++    implementation("com.google.firebase:firebase-messaging")
++    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0")
++
+     implementation("com.google.dagger:hilt-android:2.59")
+     ksp("com.google.dagger:hilt-compiler:2.59")
+     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
+diff --git a/app/src/main/AndroidManifest.xml b/app/src/main/AndroidManifest.xml
+index 81af37f..6d1d71c 100644
+--- a/app/src/main/AndroidManifest.xml
++++ b/app/src/main/AndroidManifest.xml
+@@ -61,6 +61,16 @@
+             </intent-filter>
+         </activity>
+ 
++        <!-- v1.2 FCM bridge: worker pushes (assist approvals, finance reminders,
++             stock alerts) arrive here; channel "atlas_assist" created in AtlasApp. -->
++        <service
++            android:name=".push.AtlasFirebaseMessagingService"
++            android:exported="false">
++            <intent-filter>
++                <action android:name="com.google.firebase.MESSAGING_EVENT" />
++            </intent-filter>
++        </service>
++
+         <provider
+             android:name="androidx.core.content.FileProvider"
+             android:authorities="${applicationId}.fileprovider"
+diff --git a/app/src/main/java/ma/etherealmber/atlascommerce/AtlasApp.kt b/app/src/main/java/ma/etherealmber/atlascommerce/AtlasApp.kt
+index eea9079..5bdfa0e 100644
+--- a/app/src/main/java/ma/etherealmber/atlascommerce/AtlasApp.kt
++++ b/app/src/main/java/ma/etherealmber/atlascommerce/AtlasApp.kt
+@@ -41,6 +41,19 @@ class AtlasApp : Application() {
+                     enableVibration(false)
+                 },
+             )
++            // v1.2 FCM bridge — the worker targets channel_id "atlas_assist" on
++            // every HTTP v1 push; without this channel Android drops them.
++            nm.createNotificationChannel(
++                NotificationChannel(
++                    ASSIST_CHANNEL_ID,
++                    "Assistant & notifications serveur",
++                    NotificationManager.IMPORTANCE_HIGH,
++                ).apply {
++                    description = "Notifications push envoyées par le serveur Atlas (agent, paie, stock)"
++                    lockscreenVisibility = Notification.VISIBILITY_PUBLIC
++                    setShowBadge(true)
++                },
++            )
+             nm.createNotificationChannel(
+                 NotificationChannel(
+                     ALERTS_CHANNEL_ID,
+@@ -57,6 +70,7 @@ class AtlasApp : Application() {
+ 
+     companion object {
+         const val UPDATE_CHANNEL_ID = "atlas_updates_v2"
++        const val ASSIST_CHANNEL_ID = "atlas_assist"
+         const val ALERTS_CHANNEL_ID = "atlas_role_alerts_v2"
+         const val EXTRA_OPEN_NOTIFICATIONS = "atlas_open_notifications"
+         const val EXTRA_OPEN_SETTINGS = "atlas_open_settings"
+diff --git a/app/src/main/java/ma/etherealmber/atlascommerce/core/net/AtlasApi.kt b/app/src/main/java/ma/etherealmber/atlascommerce/core/net/AtlasApi.kt
+index d7c7d0e..fe5f42f 100644
+--- a/app/src/main/java/ma/etherealmber/atlascommerce/core/net/AtlasApi.kt
++++ b/app/src/main/java/ma/etherealmber/atlascommerce/core/net/AtlasApi.kt
+@@ -43,6 +43,8 @@ import ma.etherealmber.atlascommerce.data.model.StockAdjustRequest
+ import ma.etherealmber.atlascommerce.data.model.SubmitProductRequestBody
+ import ma.etherealmber.atlascommerce.data.model.TrustedDeviceDto
+ import ma.etherealmber.atlascommerce.data.model.VerifyLinkRequest
++import ma.etherealmber.atlascommerce.push.DeviceTokenAckDto
++import ma.etherealmber.atlascommerce.push.DeviceTokenRequest
+ import retrofit2.http.Body
+ import retrofit2.http.DELETE
+ import retrofit2.http.GET
+@@ -64,6 +66,11 @@ interface AtlasApi {
+     @GET("api/health")
+     suspend fun health(): ApiEnvelope<HealthDto>
+ 
++    // --- Push (FCM) device-token registration — v1.2 bridge ---
++
++    @POST("api/assist/device-token")
++    suspend fun registerDeviceToken(@Body body: DeviceTokenRequest): ApiEnvelope<DeviceTokenAckDto>
++
+     @GET("api/app/android-update")
+     suspend fun androidUpdate(
+         @Query("versionCode") versionCode: Int,
+diff --git a/app/src/main/java/ma/etherealmber/atlascommerce/core/session/SessionManager.kt b/app/src/main/java/ma/etherealmber/atlascommerce/core/session/SessionManager.kt
+index e04d33c..4b2a65b 100644
+--- a/app/src/main/java/ma/etherealmber/atlascommerce/core/session/SessionManager.kt
++++ b/app/src/main/java/ma/etherealmber/atlascommerce/core/session/SessionManager.kt
+@@ -74,6 +74,7 @@ class SessionManager @Inject constructor(
+     private val deviceIdentity: DeviceIdentity,
+     private val cartStore: CartStore,
+     private val offlineCache: OfflineCache,
++    private val pushTokens: ma.etherealmber.atlascommerce.push.PushTokenRegistrar,
+     @ApplicationScope private val scope: CoroutineScope,
+ ) {
+ 
+@@ -95,6 +96,11 @@ class SessionManager @Inject constructor(
+ 
+     init {
+         scope.launch { restore() }
++        // v1.2 FCM bridge — (re)register the device push token with the worker
++        // whenever a session becomes active (restore, password login, QR pairing).
++        scope.launch {
++            state.collect { if (it is SessionState.Active) pushTokens.onSessionActive() }
++        }
+     }
+ 
+     private suspend fun restore() {
+diff --git a/app/src/main/java/ma/etherealmber/atlascommerce/push/AtlasFirebaseMessagingService.kt b/app/src/main/java/ma/etherealmber/atlascommerce/push/AtlasFirebaseMessagingService.kt
+new file mode 100644
+index 0000000..a86417b
+--- /dev/null
++++ b/app/src/main/java/ma/etherealmber/atlascommerce/push/AtlasFirebaseMessagingService.kt
+@@ -0,0 +1,67 @@
++package ma.etherealmber.atlascommerce.push
++
++import android.app.NotificationManager
++import android.app.PendingIntent
++import android.content.Intent
++import androidx.core.app.NotificationCompat
++import com.google.firebase.messaging.FirebaseMessagingService
++import com.google.firebase.messaging.RemoteMessage
++import dagger.hilt.android.AndroidEntryPoint
++import ma.etherealmber.atlascommerce.AtlasApp
++import ma.etherealmber.atlascommerce.MainActivity
++import ma.etherealmber.atlascommerce.R
++import javax.inject.Inject
++
++/**
++ * v1.2 FCM bridge — receives worker pushes sent over FCM HTTP v1
++ * (`android.notification.channel_id = "atlas_assist"`).
++ *
++ * Background messages carrying a `notification` block are shown by the system
++ * tray automatically; this service covers foreground display, data-only
++ * messages, and token rotation (re-registration with the worker).
++ */
++@AndroidEntryPoint
++class AtlasFirebaseMessagingService : FirebaseMessagingService() {
++
++    @Inject
++    lateinit var registrar: PushTokenRegistrar
++
++    override fun onNewToken(token: String) {
++        registrar.onTokenRefreshed(token)
++    }
++
++    override fun onMessageReceived(message: RemoteMessage) {
++        val title = message.notification?.title
++            ?: message.data["title"]
++            ?: "Atlas Commerce"
++        val body = message.notification?.body ?: message.data["body"]
++        if (body.isNullOrBlank()) return
++        showNotification(title, body, message.data)
++    }
++
++    private fun showNotification(title: String, body: String, data: Map<String, String>) {
++        runCatching {
++            val intent = Intent(this, MainActivity::class.java).apply {
++                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
++                for ((key, value) in data) putExtra(key, value)
++            }
++            val pending = PendingIntent.getActivity(
++                this,
++                title.hashCode(),
++                intent,
++                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
++            )
++            val notification = NotificationCompat.Builder(this, AtlasApp.ASSIST_CHANNEL_ID)
++                .setSmallIcon(R.drawable.ic_stat_update)
++                .setContentTitle(title)
++                .setContentText(body)
++                .setStyle(NotificationCompat.BigTextStyle().bigText(body))
++                .setPriority(NotificationCompat.PRIORITY_HIGH)
++                .setAutoCancel(true)
++                .setContentIntent(pending)
++                .build()
++            val nm = getSystemService(NotificationManager::class.java) ?: return
++            nm.notify(title.hashCode(), notification)
++        }
++    }
++}
+diff --git a/app/src/main/java/ma/etherealmber/atlascommerce/push/DeviceTokenRequest.kt b/app/src/main/java/ma/etherealmber/atlascommerce/push/DeviceTokenRequest.kt
+new file mode 100644
+index 0000000..6bafb6d
+--- /dev/null
++++ b/app/src/main/java/ma/etherealmber/atlascommerce/push/DeviceTokenRequest.kt
+@@ -0,0 +1,16 @@
++package ma.etherealmber.atlascommerce.push
++
++import com.squareup.moshi.JsonClass
++
++/** Body of POST /api/assist/device-token (worker upserts into device_push_tokens). */
++@JsonClass(generateAdapter = true)
++data class DeviceTokenRequest(
++    val token: String,
++    val platform: String = "android",
++)
++
++/** Worker ack: `{ success: true, data: { registered: true } }`. */
++@JsonClass(generateAdapter = true)
++data class DeviceTokenAckDto(
++    val registered: Boolean = false,
++)
+diff --git a/app/src/main/java/ma/etherealmber/atlascommerce/push/PushTokenRegistrar.kt b/app/src/main/java/ma/etherealmber/atlascommerce/push/PushTokenRegistrar.kt
+new file mode 100644
+index 0000000..77bd768
+--- /dev/null
++++ b/app/src/main/java/ma/etherealmber/atlascommerce/push/PushTokenRegistrar.kt
+@@ -0,0 +1,61 @@
++package ma.etherealmber.atlascommerce.push
++
++import android.content.Context
++import com.google.firebase.FirebaseApp
++import com.google.firebase.messaging.FirebaseMessaging
++import dagger.hilt.android.qualifiers.ApplicationContext
++import kotlinx.coroutines.CoroutineScope
++import kotlinx.coroutines.launch
++import kotlinx.coroutines.tasks.await
++import ma.etherealmber.atlascommerce.core.net.ApiProvider
++import ma.etherealmber.atlascommerce.core.net.TokenHolder
++import ma.etherealmber.atlascommerce.di.ApplicationScope
++import javax.inject.Inject
++import javax.inject.Singleton
++
++/**
++ * v1.2 FCM bridge — registers this device's push token with the Atlas worker
++ * (`POST /api/assist/device-token`, Bearer session) so server-side pushes
++ * (assist approvals, finance reminders, stock alerts) reach Android.
++ *
++ * Graceful degradation: when `google-services.json` is absent (Firebase not
++ * configured for this checkout), every entry point is a no-op — the app still
++ * builds and runs normally, push simply stays inactive.
++ */
++@Singleton
++class PushTokenRegistrar @Inject constructor(
++    @ApplicationContext private val context: Context,
++    private val apiProvider: ApiProvider,
++    private val tokenHolder: TokenHolder,
++    @ApplicationScope private val scope: CoroutineScope,
++) {
++
++    fun firebaseConfigured(): Boolean =
++        runCatching { FirebaseApp.getApps(context).isNotEmpty() }.getOrDefault(false)
++
++    /** Called whenever a session becomes active (restore, password login, QR pairing). */
++    fun onSessionActive() {
++        if (!firebaseConfigured()) return
++        scope.launch { runCatching { register() } }
++    }
++
++    /** Called by [AtlasFirebaseMessagingService] when FCM rotates the token. */
++    fun onTokenRefreshed(token: String) {
++        if (!firebaseConfigured() || !tokenHolder.hasSession()) return
++        scope.launch { runCatching { post(token) } }
++    }
++
++    suspend fun register() {
++        if (!firebaseConfigured() || !tokenHolder.hasSession()) return
++        val token = runCatching { FirebaseMessaging.getInstance().token.await() }.getOrNull()
++        if (token.isNullOrBlank()) return
++        post(token)
++    }
++
++    private suspend fun post(token: String) {
++        if (!tokenHolder.hasSession()) return
++        runCatching {
++            apiProvider.api().registerDeviceToken(DeviceTokenRequest(token = token, platform = "android"))
++        }
++    }
++}
+diff --git a/build.gradle.kts b/build.gradle.kts
+index cdd290a..3124619 100644
+--- a/build.gradle.kts
++++ b/build.gradle.kts
+@@ -3,4 +3,6 @@ plugins {
+     id("org.jetbrains.kotlin.plugin.compose") version "2.3.0" apply false
+     id("com.google.devtools.ksp") version "2.3.4" apply false
+     id("com.google.dagger.hilt.android") version "2.59" apply false
++    // FCM bridge (v1.2): applied in :app only when google-services.json exists.
++    id("com.google.gms.google-services") version "4.4.2" apply false
+ }

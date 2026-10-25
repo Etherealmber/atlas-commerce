@@ -22,9 +22,11 @@ import {
   getFinanceContext,
   isValidPeriod,
   monthBounds,
+  payrollObligation,
   round2,
   runFinanceReminders,
 } from '../lib/finance';
+import { addColumnIfMissing } from '../lib/schema';
 import { buildFinanceReportPdf } from '../pdf';
 
 export type FinanceRouteDeps = {
@@ -180,6 +182,105 @@ export function registerFinanceRoutes(app: AtlasApp, deps: FinanceRouteDeps): vo
     } catch (e: any) {
       console.error('finance_payroll_err', String(e?.message || e));
       return c.json({ success: false, error: 'Calcul de paie impossible', code: 'FINANCE_ERROR' }, 500);
+    }
+  });
+
+  /* ─── GET /api/me/payroll ───
+   * v256 — employee-SELF pay date. ANY authenticated session (user, stock,
+   * secretaire, admin…) reads the payroll obligation of the ONE employee file
+   * linked to its own login (employees.user_username) — nothing else. The
+   * username comes only from the verified session; there is no query param, no
+   * list, and no admin data on this route. Unlinked account → 404
+   * PAYROLL_NOT_LINKED; two files linked to one login → 409 PAYROLL_AMBIGUOUS. */
+  app.get('/api/me/payroll', async (c) => {
+    const authHeader = c.req.header('Authorization');
+    const reason = await deps.authFailReason(authHeader, c.env, c.env.DB, deps.clientIp(c), c.req.header('X-Device-Fingerprint') || '');
+    if (reason !== 'ok') {
+      return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED', reason }, 401);
+    }
+    const session = deps.sessionUserFromHeader(authHeader);
+    const username = String(session.username || '').trim().toLowerCase();
+    if (!username) return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
+    try {
+      await addColumnIfMissing(c.env.DB, 'employees', 'user_username', "TEXT DEFAULT ''");
+      const found = await c.env.DB.prepare(
+        `SELECT id, emp_number, name, first_name, last_name, pay_amount, pay_cycle_type,
+                pay_cycle_days, last_paid_at, joined_date, active
+         FROM employees WHERE LOWER(TRIM(COALESCE(user_username,''))) = ? LIMIT 2`,
+      ).bind(username).all() as any;
+      const rows = found?.results || [];
+      if (!rows.length) {
+        return c.json({ success: false, error: 'Aucune fiche employé liée à ce compte.', code: 'PAYROLL_NOT_LINKED' }, 404);
+      }
+      if (rows.length > 1) {
+        return c.json({ success: false, error: 'Plusieurs fiches employé liées à ce compte — contactez un administrateur.', code: 'PAYROLL_AMBIGUOUS' }, 409);
+      }
+      const row = rows[0];
+      const ctx = await getFinanceContext(c.env.DB);
+      const asOf = ctx.today;
+      let advances = 0;
+      try {
+        const anchorDay = String(row.last_paid_at || row.joined_date || '').slice(0, 10) || '2000-01-01';
+        const r = await c.env.DB.prepare(
+          `SELECT COALESCE(SUM(amount),0) s FROM employee_payments
+           WHERE employee_id = ? AND substr(paid_at,1,10) >= ? AND substr(paid_at,1,10) <= ?
+             AND (period_label LIKE 'Acompte%' OR note LIKE '%[acompte]%')`,
+        ).bind(Number(row.id), anchorDay, asOf).first() as any;
+        advances = Number(r?.s || 0);
+      } catch { /* advances table may lag */ }
+      let lastPayment: { amount: number; paid_at: string; period_label: string } | null = null;
+      try {
+        const lp = await c.env.DB.prepare(
+          `SELECT amount, paid_at, period_label FROM employee_payments
+           WHERE employee_id = ? ORDER BY substr(paid_at,1,10) DESC, id DESC LIMIT 1`,
+        ).bind(Number(row.id)).first() as any;
+        if (lp) {
+          lastPayment = {
+            amount: round2(Number(lp.amount || 0)),
+            paid_at: String(lp.paid_at || '').slice(0, 10),
+            period_label: String(lp.period_label || ''),
+          };
+        }
+      } catch { /* table may lag */ }
+      const ob = payrollObligation(row, asOf, advances);
+      if (!ob) {
+        // Linked file but payroll not configured (no pay_amount / no anchor):
+        // expose the link only — never other employees' data.
+        return c.json({
+          success: true,
+          data: {
+            linked: true,
+            payroll_configured: false,
+            employee_id: Number(row.id),
+            as_of: asOf,
+            timezone: ctx.timezone,
+            currency: ctx.currency,
+            last_payment: lastPayment,
+          },
+        });
+      }
+      const unpaid = !!ob.due_date && ob.due_date <= asOf && ob.amount_due > 0.005;
+      return c.json({
+        success: true,
+        data: {
+          linked: true,
+          payroll_configured: true,
+          employee_id: ob.employee_id,
+          display_name: ob.display_name,
+          amount_due: ob.amount_due,
+          pay_period: ob.pay_period,
+          due_date: ob.due_date,
+          daily_rate: ob.daily_rate,
+          status: unpaid ? 'unpaid' : 'paid',
+          last_payment: lastPayment,
+          as_of: asOf,
+          timezone: ctx.timezone,
+          currency: ctx.currency,
+        },
+      });
+    } catch (e: any) {
+      console.error('me_payroll_err', String(e?.message || e));
+      return c.json({ success: false, error: 'Lecture de paie impossible', code: 'FINANCE_ERROR' }, 500);
     }
   });
 
