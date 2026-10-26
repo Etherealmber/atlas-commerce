@@ -560,6 +560,32 @@ export function androidOrigin(policy: WebAuthnPolicy): string | null {
   return androidOriginFromCertHash(policy.androidCertHash);
 }
 
+/**
+ * v0.7 — credential descriptors for excludeCredentials (register) and
+ * allowCredentials (login): ONLY rows that still carry stored verification
+ * material (public_key_jwk). Legacy pre-v259 rows without a public key can
+ * never pass verification, so they must not block re-registration — and no
+ * row is ever deleted here. Single source of truth for both options routes.
+ */
+export async function credentialDescriptors(
+  db: { prepare: (sql: string) => any },
+  username: string,
+): Promise<{ type: 'public-key'; id: string; transports: string[] }[]> {
+  const q = await db
+    .prepare(
+      `SELECT id, transports FROM webauthn_credentials
+       WHERE lower(username) = ?
+         AND COALESCE(public_key_jwk, '') != ''`,
+    )
+    .bind(String(username || '').toLowerCase())
+    .all();
+  return ((q?.results || []) as any[]).map((r: any) => ({
+    type: 'public-key' as const,
+    id: String(r.id),
+    transports: String(r.transports || '').split(',').filter(Boolean),
+  }));
+}
+
 /** v0.7 — every accepted sha256 android origin (one per configured fingerprint). */
 export function androidOrigins(policy: WebAuthnPolicy): string[] {
   if (!policy.androidPackage) return [];
