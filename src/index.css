@@ -5811,8 +5811,11 @@ html .atlas-login-brand img.brand-img {
 .sidebar .logo .brand-lockup { display: none; }
 .sidebar:where(:not(.is-collapsed), .mobile-open) .logo {
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
   gap: 8px;
+  padding: 10px 12px 14px;
 }
 .sidebar:where(:not(.is-collapsed), .mobile-open) .logo .logo-img.brand-img { display: none; }
 .sidebar:where(:not(.is-collapsed), .mobile-open) .logo .brand-lockup--light { display: block; }
