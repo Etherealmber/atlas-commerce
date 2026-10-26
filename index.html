@@ -51,6 +51,33 @@
       #root.boot-slow:empty::after {
         content: 'Chargement lent — vérifiez le réseau ou actualisez.';
       }
+      /* v0.7 — Android-style splash: brand lockup + loader until the shell paints */
+      #splash {
+        position: fixed; inset: 0; z-index: 9999;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 20px; background: var(--boot-bg);
+        transition: opacity 0.3s ease;
+      }
+      #splash.sp-hide { opacity: 0; pointer-events: none; }
+      #splash .sp-logo { display: block; width: 200px; height: auto; }
+      #splash .sp-dark { display: none; }
+      html[data-theme="dark"] #splash .sp-light { display: none; }
+      html[data-theme="dark"] #splash .sp-dark { display: block; }
+      #splash .sp-spinner {
+        width: 26px; height: 26px; border-radius: 50%;
+        border: 3px solid rgba(128, 128, 128, 0.25);
+        border-top-color: var(--boot-fg);
+        animation: sp-spin 0.8s linear infinite;
+      }
+      @keyframes sp-spin { to { transform: rotate(360deg); } }
+      #splash .sp-text {
+        font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--boot-muted); font-weight: 600;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #splash .sp-spinner { animation-duration: 1.8s; }
+        #splash { transition: none; }
+      }
     </style>
     <script>
       /* Apply the saved theme before first paint — no white flash in dark mode */
@@ -70,11 +97,20 @@
     </script>
   </head>
   <body>
+    <!-- v0.7 — splash screen (logo + état de chargement, comme sur Android) -->
+    <div id="splash" aria-hidden="true">
+      <img src="/atlas-logo-light.png" alt="" class="sp-logo sp-light" width="200" height="65" />
+      <img src="/atlas-logo-dark.png" alt="" class="sp-logo sp-dark" width="200" height="65" />
+      <div class="sp-spinner"></div>
+      <div class="sp-text">Chargement…</div>
+    </div>
     <div id="root"></div>
     <script>
       setTimeout(function () {
         var r = document.getElementById('root');
         if (r && !r.children.length) {
+          var sp = document.getElementById('splash');
+          if (sp) sp.remove();
           r.classList.add('boot-slow');
           r.innerHTML = '<div style="text-align:center;padding:48px;font-family:system-ui;color:#334">' +
             '<p style="font-size:15px;margin:0 0 12px">L\'application met trop de temps à démarrer.</p>' +

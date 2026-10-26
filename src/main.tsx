@@ -117,6 +117,41 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>
 );
 
+// v0.7 — splash (logo + loader) fades out as soon as the React shell lands
+(function hideSplashWhenReady() {
+  if (typeof document === 'undefined') return;
+  const splash = document.getElementById('splash');
+  const rootEl = document.getElementById('root');
+  if (!splash || !rootEl) return;
+  let done = false;
+  const hide = () => {
+    if (done) return;
+    done = true;
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        splash.classList.add('sp-hide');
+        window.setTimeout(() => splash.remove(), 340);
+      }),
+    );
+  };
+  if (rootEl.children.length) {
+    hide();
+    return;
+  }
+  const mo = new MutationObserver(() => {
+    if (rootEl.children.length) {
+      mo.disconnect();
+      hide();
+    }
+  });
+  mo.observe(rootEl, { childList: true });
+  // Safety net: never trap the user behind the splash
+  window.setTimeout(() => {
+    mo.disconnect();
+    hide();
+  }, 15000);
+})();
+
 // Offline PWA: cache shell + GET /api/* for hors-ligne scan / catalogue
 if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {

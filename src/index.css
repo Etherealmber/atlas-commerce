@@ -5805,3 +5805,27 @@ html .atlas-login-brand img.brand-img {
   border: none !important;
   padding: 0 !important;
 }
+
+/* ─── v0.7 — expanded sidebar shows the FULL brand lockup (icon + wordmark);
+   the collapsed rail keeps the icon alone. Theme-aware pair, no tiles. ─── */
+.sidebar .logo .brand-lockup { display: none; }
+.sidebar:where(:not(.is-collapsed), .mobile-open) .logo {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.sidebar:where(:not(.is-collapsed), .mobile-open) .logo .logo-img.brand-img { display: none; }
+.sidebar:where(:not(.is-collapsed), .mobile-open) .logo .brand-lockup--light { display: block; }
+.sidebar:where(:not(.is-collapsed), .mobile-open) .logo .brand-lockup--dark { display: none; }
+html[data-theme='dark'] .sidebar:where(:not(.is-collapsed), .mobile-open) .logo .brand-lockup--light { display: none; }
+html[data-theme='dark'] .sidebar:where(:not(.is-collapsed), .mobile-open) .logo .brand-lockup--dark { display: block; }
+
+/* ─── v0.7 — circular theme reveal: the incoming theme is clipped by an
+   expanding circle animated from JS (no default cross-fade on the root). ─── */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-old(root) { z-index: 1; }
+::view-transition-new(root) { z-index: 2; }
