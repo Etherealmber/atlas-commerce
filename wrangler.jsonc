@@ -68,12 +68,13 @@
     "ENVIRONMENT": "production",
     "CACHE_TTL_SECONDS": "300",
     "TURNSTILE_SITE_KEY": "0x4AAAAAAEco33YS31FvWems",
-    // v259 — WebAuthn/passkeys capability config (non-secret). Passkeys stay
-    // DISABLED until WEBAUTHN_ENABLED is flipped to "true" AFTER the hardened
-    // verifier (worker/lib/webauthn.ts) is deployed and reviewed. Android
-    // Credential Manager additionally needs WEBAUTHN_ANDROID_PACKAGE +
-    // WEBAUTHN_ANDROID_CERT_HASH (see docs/webauthn.md).
-    "WEBAUTHN_ENABLED": "false",
+    // v259 — WebAuthn/passkeys capability config (non-secret). Hardened
+    // verifier (worker/lib/webauthn.ts) deployed & reviewed (168 tests dont
+    // la matrice WebAuthn). v0.7 : feature ON en prod sur ordre du
+    // propriétaire (26 oct. 2026) — Android Credential Manager via
+    // WEBAUTHN_ANDROID_PACKAGE + WEBAUTHN_ANDROID_CERT_HASH (SHA-256 de la
+    // clé Play App Signing, docs/webauthn.md). Rollback immédiat : "false".
+    "WEBAUTHN_ENABLED": "true",
     "WEBAUTHN_RP_ID": "stock.afmarbre.com",
     "WEBAUTHN_RP_NAME": "Atlas Commerce",
     "WEBAUTHN_ALLOWED_ORIGINS": "https://stock.afmarbre.com",
@@ -84,7 +85,7 @@
     // native android:apk-key-hash-sha256 origins are NOT accepted — passkeys
     // remain web-origin only. See docs/webauthn.md §4.
     "WEBAUTHN_ANDROID_PACKAGE": "ma.etherealmber.atlascommerce",
-    "WEBAUTHN_ANDROID_CERT_HASH": "FC:CC:F6:C3:B2:3D:B8:BE:1D:74:AF:BE:D5:04:DA:EA:5F:5D:FF:AF:8C:6F:C4:5A:F8:F0:2B:6A:C8:87:6C:C1",
+    "WEBAUTHN_ANDROID_CERT_HASH": "53:D0:74:2C:A3:34:22:36:58:E1:D7:F8:8C:DC:67:C5:4D:B0:AC:4E:17:88:59:DA:13:2D:4A:9F:30:62:65:6E",
     // Optional SHA-1 fingerprint of the SAME signing certificate — enables the
     // legacy `android:apk-key-hash:` origin format (base64 of SHA-1) documented
     // by Android's FIDO2 stack. Both formats are accepted byte-for-byte.
