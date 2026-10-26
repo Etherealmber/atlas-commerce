@@ -18,6 +18,7 @@ import {
   androidLegacyOriginFromSha1,
   androidOrigin,
   androidOriginFromCertHash,
+  androidOrigins,
   matchesAndroidOrigin,
   b64uToBytes,
   bytesToB64u,
@@ -535,6 +536,27 @@ describe('android credential manager integration', () => {
     expect(matchesAndroidOrigin(legacy, POLICY)).toBe(false);        // no android at all
     expect(matchesAndroidOrigin('android:apk-key-hash:', POLICY_ANDROID_BOTH)).toBe(false);
     expect(matchesAndroidOrigin('https://stock.afmarbre.com', POLICY_ANDROID_BOTH)).toBe(false);
+  });
+
+  it('v0.7 — comma-separated fingerprints: every key associates, unknown rejected', () => {
+    const A = '53:D0:74:2C:A3:34:22:36:58:E1:D7:F8:8C:DC:67:C5:4D:B0:AC:4E:17:88:59:DA:13:2D:4A:9F:30:62:65:6E';
+    const B = 'FC:CC:F6:C3:B2:3D:B8:BE:1D:74:AF:BE:D5:04:DA:EA:5F:5D:FF:AF:8C:6F:C4:5A:F8:F0:2B:6A:C8:87:6C:C1';
+    const multi = policyFromEnv({
+      WEBAUTHN_ENABLED: 'true',
+      WEBAUTHN_ANDROID_PACKAGE: 'ma.etherealmber.atlascommerce',
+      WEBAUTHN_ANDROID_CERT_HASH: `${A},${B}`,
+    });
+    expect(multi.androidCertHashes).toEqual([A, B]);
+    expect(multi.androidCertHash).toBe(A); // primary = first, status compat
+    const oA = androidOriginFromCertHash(A)!;
+    const oB = androidOriginFromCertHash(B)!;
+    expect(matchesAndroidOrigin(oA, multi)).toBe(true);
+    expect(matchesAndroidOrigin(oB, multi)).toBe(true);
+    expect(androidOrigins(multi)).toEqual([oA, oB]);
+    const wrong = androidOriginFromCertHash(
+      '11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF',
+    )!;
+    expect(matchesAndroidOrigin(wrong, multi)).toBe(false);
   });
 
   it('rejects the legacy origin end-to-end when the SHA-1 fingerprint is not configured', async () => {

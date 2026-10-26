@@ -477,6 +477,8 @@ export type WebAuthnPolicy = {
   attestation: 'none';
   androidPackage: string;
   androidCertHash: string;
+  /** v0.7 — ALL accepted SHA-256 signing fingerprints (comma-separated env). */
+  androidCertHashes: string[];
   /** Optional SHA-1 fingerprint — legacy `android:apk-key-hash:` origin format. */
   androidCertSha1: string;
 };
@@ -494,7 +496,16 @@ export function policyFromEnv(env: Record<string, string | undefined>): WebAuthn
     requireUV: String(env.WEBAUTHN_REQUIRE_UV || 'required').toLowerCase() !== 'preferred',
     attestation: 'none',
     androidPackage: String(env.WEBAUTHN_ANDROID_PACKAGE || '').trim(),
-    androidCertHash: String(env.WEBAUTHN_ANDROID_CERT_HASH || '').trim().toUpperCase(),
+    androidCertHash: (
+      String(env.WEBAUTHN_ANDROID_CERT_HASH || '')
+        .split(',')
+        .map((s) => s.trim().toUpperCase())
+        .filter(Boolean)[0] || ''
+    ),
+    androidCertHashes: String(env.WEBAUTHN_ANDROID_CERT_HASH || '')
+      .split(',')
+      .map((s) => s.trim().toUpperCase())
+      .filter(Boolean),
     androidCertSha1: String(env.WEBAUTHN_ANDROID_CERT_SHA1 || '').trim().toUpperCase(),
   };
 }
@@ -549,6 +560,14 @@ export function androidOrigin(policy: WebAuthnPolicy): string | null {
   return androidOriginFromCertHash(policy.androidCertHash);
 }
 
+/** v0.7 — every accepted sha256 android origin (one per configured fingerprint). */
+export function androidOrigins(policy: WebAuthnPolicy): string[] {
+  if (!policy.androidPackage) return [];
+  return policy.androidCertHashes
+    .map((h) => androidOriginFromCertHash(h))
+    .filter((o): o is string => !!o);
+}
+
 /** The legacy (sha1) android origin accepted, or null when not configured. */
 export function androidLegacyOrigin(policy: WebAuthnPolicy): string | null {
   if (!policy.androidPackage || !policy.androidCertSha1) return null;
@@ -568,9 +587,13 @@ export function matchesAndroidOrigin(origin: string, policy: WebAuthnPolicy): bo
   const P256 = 'android:apk-key-hash-sha256:';
   const P1 = 'android:apk-key-hash:';
   if (origin.startsWith(P256)) {
-    const expected = certHashBytes(policy.androidCertHash, 64);
     const got = b64DecodeLoose(origin.slice(P256.length));
-    return !!expected && !!got && got.length === 32 && bytesToHex(got) === bytesToHex(expected);
+    if (!got || got.length !== 32) return false;
+    // v0.7 — any configured signing fingerprint matches (Play + release keys).
+    return policy.androidCertHashes.some((h) => {
+      const expected = certHashBytes(h, 64);
+      return !!expected && bytesToHex(got) === bytesToHex(expected);
+    });
   }
   if (origin.startsWith(P1)) {
     const expected = certHashBytes(policy.androidCertSha1, 40);
