@@ -116,7 +116,8 @@ origin; both modes are supported.
    local-only via `signing.properties`, so the hash cannot be derived from source). Until the cert hash
    is set, `assetlinks` stays 404, `android.enabled` stays false and native `apk-key-hash` origins are
    rejected — web-origin passkeys keep working untouched. If you test internal builds signed with the
-   upload key, add its hash as a second accepted value (comma-separated).
+   upload key, do NOT comma-separate a second hash here — the verifier accepts exactly one
+   SHA-256; point those internal builds at a staging Worker configured with the upload-key hash.
 4. Allowed origins: Android browsers use the web origin (`https://stock.afmarbre.com`) — already in
    `WEBAUTHN_ALLOWED_ORIGINS`. For native Credential Manager calls the RP-ID association via assetlinks
    is what matters (the origin check applies to web flows).
