@@ -115,9 +115,11 @@ origin; both modes are supported.
    key** (Play Console → **Setup → App integrity → App signing key certificate**; the repo keystore is
    local-only via `signing.properties`, so the hash cannot be derived from source). Until the cert hash
    is set, `assetlinks` stays 404, `android.enabled` stays false and native `apk-key-hash` origins are
-   rejected — web-origin passkeys keep working untouched. If you test internal builds signed with the
-   upload key, do NOT comma-separate a second hash here — the verifier accepts exactly one
-   SHA-256; point those internal builds at a staging Worker configured with the upload-key hash.
+   rejected — web-origin passkeys keep working untouched. v0.7: the variable accepts a
+   **comma-separated list** of SHA-256 fingerprints (Play App Signing key + release/CDN
+   keystore) — `assetlinks.json` lists them all (plus the `.debug` package variant) and the
+   verifier accepts an origin derived from ANY of them, so Play installs and
+   GitHub-Release installs both associate.
 4. Allowed origins: Android browsers use the web origin (`https://stock.afmarbre.com`) — already in
    `WEBAUTHN_ALLOWED_ORIGINS`. For native Credential Manager calls the RP-ID association via assetlinks
    is what matters (the origin check applies to web flows).

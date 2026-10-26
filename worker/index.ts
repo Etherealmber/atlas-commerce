@@ -95,6 +95,7 @@ import {
   createChallenge as waCreateChallenge,
   androidLegacyOrigin,
   androidOrigin,
+  androidOrigins,
   expectedOrigin,
   parseClientData,
   policyFromEnv,
@@ -3801,6 +3802,8 @@ app.get('/api/auth/webauthn/status', async (c) => {
         // Credential Manager emits the -sha256 form; the legacy FIDO2/GMS form
         // (base64 of SHA-1) is also accepted when WEBAUTHN_ANDROID_CERT_SHA1 is set.
         origin: androidOrigin(policy),
+        // v0.7 — all accepted native origins (one per signing fingerprint).
+        origins_android: androidOrigins(policy),
         origin_legacy: androidLegacyOrigin(policy),
         assetlinks: '/.well-known/assetlinks.json',
       },
@@ -3811,17 +3814,27 @@ app.get('/api/auth/webauthn/status', async (c) => {
 /** Digital Asset Links for Android Credential Manager (configured builds only). */
 app.get('/.well-known/assetlinks.json', async (c) => {
   const policy = waPolicy(c.env);
-  if (!policy.androidPackage || !policy.androidCertHash) return c.json({ error: 'not configured' }, 404);
-  return c.json([
-    {
-      relation: ['delegate_permission/common.handle_all_urls', 'delegate_permission/common.get_login_creds'],
-      target: {
-        namespace: 'android_app',
-        package_name: policy.androidPackage,
-        sha256_cert_fingerprints: [policy.androidCertHash],
-      },
-    },
-  ], 200, { 'Cache-Control': 'public, max-age=3600' });
+  if (!policy.androidPackage || !policy.androidCertHashes.length) {
+    return c.json({ error: 'not configured' }, 404);
+  }
+  // v0.7 — Digital Asset Links accepts several signing fingerprints: list
+  // EVERY configured key (Play App Signing + release/CDN keystore) so both
+  // Play installs and GitHub-Release installs associate. Debug builds get
+  // their package variant too (same keys), as the historical static file did.
+  const fps = policy.androidCertHashes;
+  const relation = [
+    'delegate_permission/common.handle_all_urls',
+    'delegate_permission/common.get_login_creds',
+  ];
+  const entry = (pkg: string) => ({
+    relation,
+    target: { namespace: 'android_app', package_name: pkg, sha256_cert_fingerprints: fps },
+  });
+  return c.json(
+    [entry(policy.androidPackage), entry(`${policy.androidPackage}.debug`)],
+    200,
+    { 'Cache-Control': 'public, max-age=300' },
+  );
 });
 
 /** List WebAuthn credentials — device + legacy + all for owner/admin */
