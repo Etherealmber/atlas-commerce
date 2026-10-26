@@ -34,7 +34,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.6.5-beta',
-    date: '26 octobre 2026',
+    date: '25 octobre 2026',
     sections: [
       {
         kind: 'features',
@@ -47,7 +47,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.6.4-beta',
-    date: '26 octobre 2026',
+    date: '24 octobre 2026',
     sections: [
       {
         kind: 'fixes',
@@ -68,7 +68,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.6.3-beta',
-    date: '26 octobre 2026',
+    date: '23 octobre 2026',
     sections: [
       {
         kind: 'fixes',
@@ -86,7 +86,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.6.2-beta',
-    date: '26 octobre 2026',
+    date: '22 octobre 2026',
     sections: [
       {
         kind: 'features',
@@ -105,7 +105,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.6.1-beta',
-    date: '26 octobre 2026',
+    date: '21 octobre 2026',
     sections: [
       {
         kind: 'fixes',
@@ -118,7 +118,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.5.9-beta',
-    date: '26 octobre 2026',
+    date: '20 octobre 2026',
     sections: [
       {
         kind: 'features',
@@ -138,7 +138,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.5.8-beta',
-    date: '25 octobre 2026',
+    date: '19 octobre 2026',
     sections: [
       {
         kind: 'features',
@@ -157,7 +157,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.5.7-beta',
-    date: '25 octobre 2026',
+    date: '18 octobre 2026',
     sections: [
       {
         kind: 'features',
@@ -178,7 +178,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.5.6-beta',
-    date: '24 octobre 2026',
+    date: '17 octobre 2026',
     sections: [
       {
         kind: 'features',
@@ -203,7 +203,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.5.5-beta',
-    date: '24 octobre 2026',
+    date: '15 octobre 2026',
     sections: [
       {
         kind: 'features',
@@ -233,7 +233,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.5.4-beta',
-    date: '23 octobre 2026',
+    date: '13 octobre 2026',
     sections: [
       {
         kind: 'improvements',
@@ -258,7 +258,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.5.3-beta',
-    date: '23 octobre 2026',
+    date: '11 octobre 2026',
     sections: [
       {
         kind: 'fixes',
@@ -273,7 +273,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.5.2-beta',
-    date: '22 octobre 2026',
+    date: '9 octobre 2026',
     sections: [
       {
         kind: 'features',
@@ -308,7 +308,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.5.1-beta',
-    date: '22 octobre 2026',
+    date: '7 octobre 2026',
     sections: [
       {
         kind: 'features',
@@ -339,7 +339,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.5.0-beta',
-    date: '22 octobre 2026',
+    date: '5 octobre 2026',
     sections: [
       {
         kind: 'fixes',
@@ -359,7 +359,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.4.9-beta',
-    date: '22 octobre 2026',
+    date: '3 octobre 2026',
     sections: [
       {
         kind: 'features',
@@ -390,7 +390,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.4.8-beta',
-    date: '21 octobre 2026',
+    date: '1 octobre 2026',
     sections: [
       {
         kind: 'features',
@@ -411,7 +411,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.4.7-beta',
-    date: '21 octobre 2026',
+    date: '29 septembre 2026',
     sections: [
       {
         kind: 'features',
@@ -430,7 +430,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.4.6-beta',
-    date: '20 octobre 2026',
+    date: '27 septembre 2026',
     sections: [
       {
         kind: 'features',
@@ -443,7 +443,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.4.5-beta',
-    date: '20 octobre 2026',
+    date: '25 septembre 2026',
     sections: [
       {
         kind: 'improvements',
@@ -455,7 +455,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.4.4-beta',
-    date: '20 octobre 2026',
+    date: '23 septembre 2026',
     sections: [
       {
         kind: 'features',
@@ -488,7 +488,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.4.3-beta',
-    date: '20 octobre 2026',
+    date: '21 septembre 2026',
     sections: [
       {
         kind: 'features',
@@ -519,7 +519,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.4.2-beta',
-    date: '11 octobre 2026',
+    date: '18 septembre 2026',
     sections: [
       {
         kind: 'features',
@@ -555,7 +555,7 @@ const RELEASES: Release[] = [
   {
     version: '0.4.1-beta',
 
-    date: '7 octobre 2026',
+    date: '16 septembre 2026',
     sections: [
       {
         kind: 'features',
@@ -592,7 +592,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.4.0-beta',
-    date: '6 octobre 2026',
+    date: '14 septembre 2026',
     sections: [
       {
         kind: 'features',
@@ -622,7 +622,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.3.4-beta',
-    date: '1er octobre 2026',
+    date: '10 septembre 2026',
     sections: [
       {
         kind: 'features',
@@ -647,7 +647,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.3.3-beta',
-    date: '28 septembre 2026',
+    date: '7 septembre 2026',
     sections: [
       {
         kind: 'features',
@@ -667,7 +667,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.3.2-beta',
-    date: '26 septembre 2026',
+    date: '4 septembre 2026',
     sections: [
       {
         kind: 'features',
@@ -687,7 +687,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.3.1-beta',
-    date: '25 septembre 2026',
+    date: '1 septembre 2026',
     sections: [
       {
         kind: 'features',
@@ -707,7 +707,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.3.0-beta',
-    date: '22 septembre 2026',
+    date: '29 août 2026',
     sections: [
       {
         kind: 'features',
@@ -726,7 +726,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.2.0-beta',
-    date: '15 septembre 2026',
+    date: '24 août 2026',
     sections: [
       {
         kind: 'features',
@@ -746,7 +746,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.1.8-beta',
-    date: '8 septembre 2026',
+    date: '19 août 2026',
     sections: [
       {
         kind: 'features',
@@ -764,7 +764,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.1.7-beta',
-    date: '5 septembre 2026',
+    date: '15 août 2026',
     sections: [
       {
         kind: 'features',
@@ -782,7 +782,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.1.6-beta',
-    date: '2 septembre 2026',
+    date: '12 août 2026',
     sections: [
       {
         kind: 'features',
@@ -794,7 +794,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.1.5-beta',
-    date: '28 août 2026',
+    date: '8 août 2026',
     sections: [
       {
         kind: 'features',
@@ -806,7 +806,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.1.4-beta',
-    date: '22 août 2026',
+    date: '5 août 2026',
     sections: [
       {
         kind: 'features',
@@ -824,7 +824,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.1.3-beta',
-    date: '18 août 2026',
+    date: '1 août 2026',
     sections: [
       {
         kind: 'features',
@@ -836,7 +836,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.1.2-beta',
-    date: '14 août 2026',
+    date: '28 juillet 2026',
     sections: [
       {
         kind: 'features',
@@ -848,7 +848,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.1.1-beta',
-    date: '10 août 2026',
+    date: '24 juillet 2026',
     sections: [
       {
         kind: 'features',
@@ -860,7 +860,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.1.0-beta',
-    date: '6 août 2026',
+    date: '21 juillet 2026',
     sections: [
       {
         kind: 'features',
@@ -872,7 +872,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.0.4-beta',
-    date: '2 août 2026',
+    date: '16 juillet 2026',
     sections: [
       {
         kind: 'fixes',
@@ -884,7 +884,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.0.3-beta',
-    date: '30 juillet 2026',
+    date: '12 juillet 2026',
     sections: [
       {
         kind: 'features',
@@ -896,7 +896,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.0.2-beta',
-    date: '28 juillet 2026',
+    date: '9 juillet 2026',
     sections: [
       {
         kind: 'fixes',
@@ -908,7 +908,7 @@ const RELEASES: Release[] = [
   },
   {
     version: '0.0.1-beta',
-    date: '27 juillet 2026',
+    date: '6 juillet 2026',
     sections: [
       {
         kind: 'features',

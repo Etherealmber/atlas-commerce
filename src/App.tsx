@@ -354,13 +354,13 @@ function AccountMenu({
               <div className="account-menu-divider" />
               <div className="account-menu-section-label">Thème</div>
               <div className="account-theme-icons" role="group" aria-label="Thème">
-                <button type="button" className={themeMode === 'system' ? 'active' : undefined} title="Système" aria-label="Système" aria-pressed={themeMode === 'system'} onClick={() => setThemeMode('system')}>
+                <button type="button" data-theme-toggle className={themeMode === 'system' ? 'active' : undefined} title="Système" aria-label="Système" aria-pressed={themeMode === 'system'} onClick={() => setThemeMode('system')}>
                   <MenuSvg d="M2 4h20v12H2zM8 20h8M12 16v4" size={15} />
                 </button>
-                <button type="button" className={themeMode === 'light' ? 'active' : undefined} title="Clair" aria-label="Clair" aria-pressed={themeMode === 'light'} onClick={() => setThemeMode('light')}>
+                <button type="button" data-theme-toggle className={themeMode === 'light' ? 'active' : undefined} title="Clair" aria-label="Clair" aria-pressed={themeMode === 'light'} onClick={() => setThemeMode('light')}>
                   <MenuSvg d="M12 3v2M12 19v2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M3 12h2M19 12h2M5.6 18.4l1.4-1.4M17 7l1.4-1.4M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" size={15} />
                 </button>
-                <button type="button" className={themeMode === 'dark' ? 'active' : undefined} title="Sombre" aria-label="Sombre" aria-pressed={themeMode === 'dark'} onClick={() => setThemeMode('dark')}>
+                <button type="button" data-theme-toggle className={themeMode === 'dark' ? 'active' : undefined} title="Sombre" aria-label="Sombre" aria-pressed={themeMode === 'dark'} onClick={() => setThemeMode('dark')}>
                   <MenuSvg d="M21 14.5A8.5 8.5 0 1 1 9.5 3 7 7 0 0 0 21 14.5z" size={15} />
                 </button>
               </div>
@@ -526,6 +526,27 @@ function resolveTheme(mode: ThemeMode): 'light' | 'dark' {
   return mode;
 }
 
+// v0.7 — remember where a theme control was clicked so the circular reveal
+// grows from that exact spot. Controls are tagged [data-theme-toggle].
+let themeRevealOrigin: { x: number; y: number } | null = null;
+if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+  document.addEventListener(
+    'click',
+    (e) => {
+      const t = e.target as HTMLElement | null;
+      if (t && typeof t.closest === 'function' && t.closest('[data-theme-toggle]')) {
+        themeRevealOrigin = { x: e.clientX, y: e.clientY };
+      }
+    },
+    true,
+  );
+}
+function takeThemeRevealOrigin() {
+  const o = themeRevealOrigin;
+  themeRevealOrigin = null;
+  return o;
+}
+
 function useTheme() {
   const [mode, setMode] = useState<ThemeMode>(() => {
     const v = localStorage.getItem('atlas-theme') || 'light';
@@ -597,28 +618,57 @@ function useTheme() {
     const apply = () => {
       const resolved = resolveTheme(mode);
       const root = document.documentElement;
-      const doApply = () => {
+      const doApply = (colorFade = true) => {
         root.setAttribute('data-theme', resolved);
         // Legacy rules + skeletons key off .theme-dark — keep both in sync.
         root.classList.toggle('theme-dark', resolved === 'dark');
         // Native controls (select, date pickers, scrollbars) follow the theme.
         root.style.colorScheme = resolved;
-        // Brief global color transition so the swap never flashes.
-        root.classList.add('theme-anim');
-        window.setTimeout(() => root.classList.remove('theme-anim'), 260);
+        // Brief global color transition so the swap never flashes (skipped
+        // when the circular reveal already animates the whole swap).
+        if (colorFade) {
+          root.classList.add('theme-anim');
+          window.setTimeout(() => root.classList.remove('theme-anim'), 260);
+        }
         // Browser / WebView chrome (status bar on phone) follows the theme.
         const meta = document.querySelector('meta[name="theme-color"]');
         if (meta) meta.setAttribute('content', resolved === 'dark' ? '#111113' : '#f4f5f7');
       };
-      // FastFrame-style theme change: circular reveal from the middle of the
-      // window (View Transitions API), graceful cross-fade fallback elsewhere.
+      // v0.7 — theme swap: a circular reveal that grows from the exact spot
+      // of the switch the user clicked (light→dark AND dark→light), via the
+      // View Transitions API; graceful cross-fade fallback where it is missing.
       const prev = root.getAttribute('data-theme');
       const reduce = typeof window.matchMedia === 'function'
         && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       if (prev && prev !== resolved && !reduce) {
         const doc = document as Document & { startViewTransition?: (cb: () => void) => any };
         if (typeof doc.startViewTransition === 'function') {
-          doc.startViewTransition(() => doApply());
+          const o = takeThemeRevealOrigin();
+          const x = o ? o.x : window.innerWidth - 44;
+          const y = o ? o.y : 44;
+          const vt = doc.startViewTransition(() => doApply(false));
+          const ready = vt ? vt.ready : null;
+          if (ready && typeof ready.then === 'function') {
+            ready.then(() => {
+              const radius = Math.hypot(
+                Math.max(x, window.innerWidth - x),
+                Math.max(y, window.innerHeight - y),
+              );
+              doc.documentElement.animate(
+                {
+                  clipPath: [
+                    `circle(0px at ${x}px ${y}px)`,
+                    `circle(${radius}px at ${x}px ${y}px)`,
+                  ],
+                },
+                {
+                  duration: 480,
+                  easing: 'cubic-bezier(0.35, 0, 0.25, 1)',
+                  pseudoElement: '::view-transition-new(root)',
+                },
+              );
+            }).catch(() => { /* transition skipped (interrupted) — fine */ });
+          }
           return;
         }
         root.classList.add('theme-anim');
@@ -922,8 +972,10 @@ function DesktopShell() {
           {/* v265 — raster brand: black art in light theme, white art in dark */}
           <img src="/atlas-icon-light.png" alt="" className="logo-img brand-img brand-img--light" width={36} height={36} />
           <img src="/atlas-icon-dark.png" alt="" className="logo-img brand-img brand-img--dark" width={36} height={36} />
+          {/* v0.7 — expanded sidebar: the FULL lockup (mark + wordmark), per theme */}
+          <img src="/atlas-logo-light.png" alt="Atlas Commerce" className="brand-lockup brand-lockup--light brand-img brand-img--light" width={105} height={34} />
+          <img src="/atlas-logo-dark.png" alt="Atlas Commerce" className="brand-lockup brand-lockup--dark brand-img brand-img--dark" width={105} height={34} />
           <div className="logo-text">
-            <span className="logo-mark">Atlas Commerce</span>
             <span className="logo-sub">{isStockRole() ? 'Stock · magasinier' : 'Stock & facturation'}</span>
           </div>
         </div>
@@ -1162,6 +1214,7 @@ function DesktopShell() {
 
             <button
               type="button"
+              data-theme-toggle
               className="ac-topbar-icon secondary ac-topbar-theme"
               aria-label={resolveTheme(themeMode) === 'dark' ? 'Passer en thème clair' : 'Passer en thème sombre'}
               title={resolveTheme(themeMode) === 'dark' ? 'Thème clair' : 'Thème sombre'}
@@ -1696,13 +1749,13 @@ function DesktopShell() {
           )}
           <div className="settings-topbar-right">
             <div className="settings-topbar-theme" role="group" aria-label="Thème">
-              <button type="button" className={themeMode === 'system' ? 'active' : undefined} title="Système" aria-label="Système" aria-pressed={themeMode === 'system'} onClick={() => setThemeMode('system')}>
+              <button type="button" data-theme-toggle className={themeMode === 'system' ? 'active' : undefined} title="Système" aria-label="Système" aria-pressed={themeMode === 'system'} onClick={() => setThemeMode('system')}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" aria-hidden><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
               </button>
-              <button type="button" className={themeMode === 'light' ? 'active' : undefined} title="Clair" aria-label="Clair" aria-pressed={themeMode === 'light'} onClick={() => setThemeMode('light')}>
+              <button type="button" data-theme-toggle className={themeMode === 'light' ? 'active' : undefined} title="Clair" aria-label="Clair" aria-pressed={themeMode === 'light'} onClick={() => setThemeMode('light')}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" aria-hidden><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
               </button>
-              <button type="button" className={themeMode === 'dark' ? 'active' : undefined} title="Sombre" aria-label="Sombre" aria-pressed={themeMode === 'dark'} onClick={() => setThemeMode('dark')}>
+              <button type="button" data-theme-toggle className={themeMode === 'dark' ? 'active' : undefined} title="Sombre" aria-label="Sombre" aria-pressed={themeMode === 'dark'} onClick={() => setThemeMode('dark')}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" aria-hidden><path d="M21 14.5A8.5 8.5 0 1 1 9.5 3 7 7 0 0 0 21 14.5z"/></svg>
               </button>
             </div>
