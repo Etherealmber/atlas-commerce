@@ -5832,3 +5832,199 @@ html[data-theme='dark'] .sidebar:where(:not(.is-collapsed), .mobile-open) .logo 
 }
 ::view-transition-old(root) { z-index: 1; }
 ::view-transition-new(root) { z-index: 2; }
+
+/* ─── v0.7 — login brand: no opaque tile, correct pair per theme, soft fade ─── */
+html.atlas-login-page .atlas-login .atlas-login-brand img {
+  background: transparent !important;
+  border-radius: 0 !important;
+  border: none !important;
+  padding: 0 !important;
+}
+html.atlas-login-page .atlas-login .atlas-login-brand img.brand-img--light { display: block !important; }
+html.atlas-login-page .atlas-login .atlas-login-brand img.brand-img--dark { display: none !important; }
+html.atlas-login-page[data-theme='dark'] .atlas-login .atlas-login-brand img.brand-img--light { display: none !important; }
+html.atlas-login-page[data-theme='dark'] .atlas-login .atlas-login-brand img.brand-img--dark { display: block !important; }
+html.atlas-login-page .atlas-login .atlas-login-brand {
+  animation: atlas-brand-in 0.38s cubic-bezier(0.22, 0.8, 0.32, 1) both;
+}
+@keyframes atlas-brand-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  html.atlas-login-page .atlas-login .atlas-login-brand { animation: none; }
+}
+
+/* Turnstile fallback hint (widget blocked / never mounted) */
+html.atlas-login-page .atlas-turnstile-hint {
+  margin: 6px 0 2px;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: center;
+  color: #b45309;
+}
+html.atlas-login-page[data-theme='dark'] .atlas-turnstile-hint { color: #fbbf24; }
+
+/* ─── v0.7 — phone login: brand band + rounded sheet (native-app feel) ─── */
+@media (max-width: 768px) {
+  html.atlas-login-page .atlas-login.atlas-login--auth7 {
+    padding: 0 !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+  }
+  html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-brand {
+    position: static !important;
+    width: 100%;
+    justify-content: center;
+    padding: 30px 16px 34px;
+    border-radius: 0 0 26px 26px;
+    background: linear-gradient(180deg, #eceef1 0%, #f5f2eb 100%);
+  }
+  html.atlas-login-page[data-theme='dark'] .atlas-login.atlas-login--auth7 .atlas-login-brand {
+    background: linear-gradient(180deg, #101013 0%, #17171a 100%);
+  }
+  html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-brand img {
+    height: 34px !important;
+    width: auto !important;
+  }
+  /* The form card becomes a sheet overlapping the band */
+  html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-card,
+  html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-form-col,
+  html.atlas-login-page .atlas-login.atlas-login--auth7 > .atlas-login-form,
+  html.atlas-login-page .atlas-login.atlas-login--auth7 form.atlas-login-form {
+    margin: -18px 14px 0 !important;
+    border-radius: 22px !important;
+    padding: 22px 18px 24px !important;
+    box-shadow: 0 18px 44px rgba(2, 6, 23, 0.16) !important;
+  }
+  html.atlas-login-page[data-theme='dark'] .atlas-login.atlas-login--auth7 .atlas-login-card,
+  html.atlas-login-page[data-theme='dark'] .atlas-login.atlas-login--auth7 .atlas-login-form-col,
+  html.atlas-login-page[data-theme='dark'] .atlas-login.atlas-login--auth7 > .atlas-login-form,
+  html.atlas-login-page[data-theme='dark'] .atlas-login.atlas-login--auth7 form.atlas-login-form {
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.55) !important;
+  }
+  html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-submit {
+    border-radius: 999px !important;
+  }
+  html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-qr-panel {
+    margin: 14px 14px 26px !important;
+    border-radius: 22px !important;
+  }
+}
+
+/* ─── v0.7 — mobile bottom dock (phone & tablet portrait) ─── */
+.mobile-dock { display: none; }
+@media (max-width: 820px) {
+  .mobile-dock {
+    position: fixed;
+    left: 10px;
+    right: 10px;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    z-index: 640;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    align-items: end;
+    height: 60px;
+    padding: 5px 6px;
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.86);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    backdrop-filter: blur(16px) saturate(1.4);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow: 0 12px 32px rgba(2, 6, 23, 0.18);
+  }
+  html[data-theme='dark'] .mobile-dock {
+    background: rgba(24, 24, 27, 0.84);
+    border-color: rgba(255, 255, 255, 0.09);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+  }
+  .mobile-dock-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    height: 50px;
+    border-radius: 16px;
+    font-size: 10.5px;
+    font-weight: 650;
+    letter-spacing: 0.02em;
+    color: #64748b;
+    text-decoration: none;
+  }
+  html[data-theme='dark'] .mobile-dock-item { color: #a1a1aa; }
+  .mobile-dock-item svg { width: 20px; height: 20px; }
+  .mobile-dock-item.active { color: #2563eb; }
+  html[data-theme='dark'] .mobile-dock-item.active { color: #7db3ff; }
+  .mobile-dock-center { justify-content: flex-end; }
+  .mobile-dock-center .dock-bubble {
+    position: absolute;
+    top: -26px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(140deg, #111827, #334155);
+    color: #f8fafc;
+    box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.92), 0 10px 22px rgba(2, 6, 23, 0.3);
+  }
+  html[data-theme='dark'] .mobile-dock-center .dock-bubble {
+    background: linear-gradient(140deg, #f4f4f5, #cbd5e1);
+    color: #111827;
+    box-shadow: 0 0 0 5px rgba(24, 24, 27, 0.92), 0 10px 22px rgba(0, 0, 0, 0.5);
+  }
+  .mobile-dock-center .dock-bubble svg { width: 22px; height: 22px; }
+  .mobile-dock-center { position: relative; }
+  /* keep content & sticky footers above the dock */
+  .layout .content { padding-bottom: 96px; }
+  .layout [class*='sticky'] { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+}
+@media (max-width: 820px) and (orientation: landscape) and (max-height: 480px) {
+  .mobile-dock { display: none; }
+  .layout .content { padding-bottom: 24px; }
+}
+
+/* ─── v0.7 — in-app PDF preview modal (paper frame) ─── */
+.doc-preview-overlay { padding: 12px; }
+.doc-preview-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(920px, 100%);
+  height: min(92vh, 980px);
+  background: #fffdf9;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 30px 80px rgba(2, 6, 23, 0.35);
+}
+html[data-theme='dark'] .doc-preview-modal { background: #1b1b1e; }
+.doc-preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.1);
+  background: #fffdf9;
+  font-size: 14px;
+}
+html[data-theme='dark'] .doc-preview-head {
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+  background: #1b1b1e;
+}
+.doc-preview-actions { display: flex; align-items: center; gap: 8px; }
+.doc-preview-actions a, .doc-preview-actions button { font-size: 12.5px; }
+.doc-preview-frame {
+  flex: 1;
+  width: 100%;
+  border: 0;
+  background: #fff;
+}
+@media (max-width: 768px) {
+  .doc-preview-overlay { padding: 0; }
+  .doc-preview-modal { width: 100%; height: 100%; border-radius: 0; }
+}

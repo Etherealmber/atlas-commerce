@@ -84,7 +84,7 @@
     // native android:apk-key-hash-sha256 origins are NOT accepted — passkeys
     // remain web-origin only. See docs/webauthn.md §4.
     "WEBAUTHN_ANDROID_PACKAGE": "ma.etherealmber.atlascommerce",
-    "WEBAUTHN_ANDROID_CERT_HASH": "",
+    "WEBAUTHN_ANDROID_CERT_HASH": "FC:CC:F6:C3:B2:3D:B8:BE:1D:74:AF:BE:D5:04:DA:EA:5F:5D:FF:AF:8C:6F:C4:5A:F8:F0:2B:6A:C8:87:6C:C1",
     // Optional SHA-1 fingerprint of the SAME signing certificate — enables the
     // legacy `android:apk-key-hash:` origin format (base64 of SHA-1) documented
     // by Android's FIDO2 stack. Both formats are accepted byte-for-byte.
