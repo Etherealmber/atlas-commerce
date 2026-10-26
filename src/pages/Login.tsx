@@ -381,6 +381,7 @@ export default function Login() {
   const [passwordConfigured, setPasswordConfigured] = useState(true);
   const [turnstileSiteKey, setTurnstileSiteKey] = useState<string | null>(null);
   const [turnstileToken, setTurnstileToken] = useState('');
+  const [turnstileHint, setTurnstileHint] = useState(false);
   const turnstileWidgetId = useRef<string | undefined>(undefined);
   const [showPassword, setShowPassword] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
@@ -496,10 +497,33 @@ export default function Login() {
           callback: (token: string) => setTurnstileToken(token),
           'expired-callback': () => setTurnstileToken(''),
           'error-callback': () => setTurnstileToken(''),
-          theme: 'dark',
+          theme: 'auto',
           size: 'flexible',
         });
         turnstileWidgetId.current = widgetId;
+        // v0.7 — watchdog: widget invisible (réseau filtré, WebView ancien) →
+        // un seul retry, puis un message lisible au lieu d'un trou silencieux.
+        window.setTimeout(() => {
+          const box = document.getElementById('cf-turnstile');
+          if (box && !box.querySelector('iframe')) {
+            try { if (widgetId != null && (window as any).turnstile?.remove) (window as any).turnstile.remove(widgetId); } catch { /* */ }
+            try {
+              const el2 = document.getElementById('cf-turnstile');
+              if (el2) turnstileWidgetId.current = ts.render(el2, {
+                sitekey: turnstileSiteKey,
+                callback: (token: string) => setTurnstileToken(token),
+                'expired-callback': () => setTurnstileToken(''),
+                'error-callback': () => setTurnstileToken(''),
+                theme: 'auto',
+                size: 'flexible',
+              });
+            } catch { /* */ }
+            window.setTimeout(() => {
+              const b2 = document.getElementById('cf-turnstile');
+              if (b2 && !b2.querySelector('iframe')) setTurnstileHint(true);
+            }, 6000);
+          }
+        }, 6500);
       } catch { /* */ }
       return true;
     };
@@ -798,16 +822,11 @@ export default function Login() {
   return (
     <div className={`atlas-login atlas-login--auth7${(isNativeClient() || isMobileLogin() || isPwaLogin()) ? ' atlas-login--phone' : ''}`}>
       {/* Brand mark */}
-      <motion.div
-        className="atlas-login-brand"
-        initial={{ opacity: 0, y: -8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ type: 'spring', stiffness: 280, damping: 28, bounce: 0 }}
-      >
+      <div className="atlas-login-brand">
         {/* v265 — the lockup carries the wordmark; no duplicate text */}
         <img src="/atlas-logo-light.png" alt={APP_NAME} className="brand-img brand-img--light" height={30} width={93} />
         <img src="/atlas-logo-dark.png" alt={APP_NAME} className="brand-img brand-img--dark" height={30} width={93} />
-      </motion.div>
+      </div>
 
       {/* Form column */}
       <div className="atlas-login-card">
@@ -928,6 +947,12 @@ export default function Login() {
 
               {turnstileSiteKey && shouldLoadTurnstile() ? (
                 <div id="cf-turnstile" className="atlas-turnstile" />
+              ) : null}
+              {turnstileHint ? (
+                <p className="atlas-turnstile-hint">
+                  Vérification Cloudflare indisponible sur cette connexion — actualisez la page
+                  ou réessayez depuis un autre réseau.
+                </p>
               ) : null}
 
               <button type="submit" className="atlas-login-submit" disabled={loading || !passwordConfigured}>

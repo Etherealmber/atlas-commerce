@@ -1698,37 +1698,7 @@ if (loading) return (
             </p>
             <PeriodLockPanel />
           </div>
-          <div className="card">
-            <h2 style={{ fontSize: 16, marginTop: 0, marginBottom: 8 }} data-settings-anchor="doc-preview">Aperçu PDF</h2>
-            <p className="muted" style={{ fontSize: 13, marginTop: 0, marginBottom: 12 }}>
-              Ouvre le dernier document réel de ce type (société, lignes, totaux). S’il n’y en a pas, un modèle avec vos infos. Le QR reprend ce résumé. Bandeau d’avertissement inclus — ce n’est pas une pièce à envoyer au client.
-            </p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {(['invoice', 'quote', 'receipt', 'bill', 'credit', 'report', 'employee'] as const).map((docType) => {
-                const labels: Record<string, string> = {
-                  invoice: 'Facture',
-                  quote: 'Devis',
-                  receipt: 'Reçu',
-                  bill: 'Achat',
-                  credit: 'Avoir',
-                  report: 'Rapport',
-                  employee: 'Fiche employé',
-                };
-                const href = `${BASE}/api/settings/invoice-preview?type=${docType}&token=${encodeURIComponent(getToken() || '')}`;
-                return (
-                  <a
-                    key={docType}
-                    href={href}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="secondary doc-preview-link"
-                  >
-                    {labels[docType]}
-                  </a>
-                );
-              })}
-            </div>
-          </div>
+          <DocPreviewPanel />
         </div>
       )}
 
@@ -3309,5 +3279,87 @@ function PeriodLockPanel() {
       )}
       {msg && <p style={{ fontSize: 13, marginTop: 8 }}>{msg}</p>}
     </div>
+  );
+}
+
+/* v0.7 — Aperçu PDF : le rendu réel du document (données + QR) s'affiche DANS
+   l'app, dans un cadre façon papier ; pour le Reçu on demande d'abord si le
+   QR « situation client » doit apparaître sur cet aperçu. */
+const DOC_PREVIEW_LABELS: Record<string, string> = {
+  invoice: 'Facture',
+  quote: 'Devis',
+  receipt: 'Reçu',
+  bill: 'Achat',
+  credit: 'Avoir',
+  report: 'Rapport',
+  employee: 'Fiche employé',
+};
+
+function DocPreviewPanel() {
+  const [preview, setPreview] = useState<{ type: string; url: string } | null>(null);
+  const [askReceipt, setAskReceipt] = useState(false);
+  const openPreview = (type: string, qrSit?: '0' | '1') => {
+    const url =
+      `${BASE}/api/settings/invoice-preview?type=${type}` +
+      `&token=${encodeURIComponent(getToken() || '')}` +
+      (qrSit ? `&qr_situation=${qrSit}` : '');
+    setPreview({ type, url });
+  };
+  return (
+    <>
+      <div className="card">
+        <h2 style={{ fontSize: 16, marginTop: 0, marginBottom: 8 }} data-settings-anchor="doc-preview">Aperçu PDF</h2>
+        <p className="muted" style={{ fontSize: 13, marginTop: 0, marginBottom: 12 }}>
+          Même rendu que le PDF imprimé, affiché ici : dernier document réel de ce type (société, lignes, totaux) ou modèle avec vos infos, QR de vérification fonctionnel. Pour le Reçu, choisissez d&apos;inclure ou non le QR « situation client ». Bandeau d&apos;avertissement inclus — ce n&apos;est pas une pièce à envoyer au client.
+        </p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {Object.keys(DOC_PREVIEW_LABELS).map((docType) => (
+            <button
+              key={docType}
+              type="button"
+              className="secondary doc-preview-link"
+              onClick={() => (docType === 'receipt' ? setAskReceipt(true) : openPreview(docType))}
+            >
+              {DOC_PREVIEW_LABELS[docType]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {askReceipt && (
+        <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="QR situation client" onClick={() => setAskReceipt(false)}>
+          <div className="modal-card" style={{ maxWidth: 440 }} onClick={(e) => e.stopPropagation()}>
+            <h3>QR « situation client » sur cet aperçu ?</h3>
+            <p style={{ fontSize: 13.5, lineHeight: 1.5, color: 'var(--muted)' }}>
+              Le QR de vérification du reçu est toujours inclus. Voulez-vous ajouter en plus le QR
+              « situation client » (factures payées / impayées de la partie) sur cet aperçu ?
+            </p>
+            <div className="modal-actions" style={{ justifyContent: 'flex-end' }}>
+              <button type="button" className="secondary" onClick={() => { setAskReceipt(false); openPreview('receipt', '0'); }}>
+                Sans QR situation
+              </button>
+              <button type="button" className="primary" onClick={() => { setAskReceipt(false); openPreview('receipt', '1'); }}>
+                Avec QR situation
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {preview && (
+        <div className="modal-overlay doc-preview-overlay" role="dialog" aria-modal="true" aria-label={`Aperçu ${DOC_PREVIEW_LABELS[preview.type] || 'document'}`} onClick={() => setPreview(null)}>
+          <div className="doc-preview-modal" onClick={(e) => e.stopPropagation()}>
+            <header className="doc-preview-head">
+              <strong>Aperçu — {DOC_PREVIEW_LABELS[preview.type] || 'Document'}</strong>
+              <span className="doc-preview-actions">
+                <a className="secondary" href={preview.url} target="_blank" rel="noreferrer">Ouvrir dans un onglet</a>
+                <button type="button" className="secondary" onClick={() => setPreview(null)}>Fermer</button>
+              </span>
+            </header>
+            <iframe title={`Aperçu ${DOC_PREVIEW_LABELS[preview.type] || 'document'}`} src={preview.url} className="doc-preview-frame" />
+          </div>
+        </div>
+      )}
+    </>
   );
 }

@@ -960,6 +960,37 @@ function DesktopShell() {
         />
       )}
       
+      {/* v0.7 — dock mobile (téléphone / tablette portrait) : barre basse
+          translucide, libellés opaques, bouton central surélevé */}
+      <nav className="mobile-dock" aria-label="Navigation principale mobile">
+        <NavLink to="/" end className={({ isActive }) => `mobile-dock-item${isActive ? ' active' : ''}`}>
+          <NavIcon d="M4 10.5L12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5z" />
+          <span>Accueil</span>
+        </NavLink>
+        <NavLink to="/products" className={({ isActive }) => `mobile-dock-item${isActive ? ' active' : ''}`}>
+          <NavIcon d="M21 8l-9-5-9 5v8l9 5 9-5V8zM3 8l9 5 9-5M12 13v8" />
+          <span>Produits</span>
+        </NavLink>
+        {canManageStock() && (
+          <NavLink to="/scan" className={({ isActive }) => `mobile-dock-item mobile-dock-center${isActive ? ' active' : ''}`}>
+            <span className="dock-bubble">
+              <NavIcon d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2M8 12h8" />
+            </span>
+            <span>Scan</span>
+          </NavLink>
+        )}
+        {canSell() && (
+          <NavLink to="/quick-sale" className={({ isActive }) => `mobile-dock-item${isActive ? ' active' : ''}`}>
+            <NavIcon d="M6 2h12l1 5H5l1-5zM5 7v13a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V7M9 11h6" />
+            <span>Vente</span>
+          </NavLink>
+        )}
+        <NavLink to="/settings" className={({ isActive }) => `mobile-dock-item${isActive ? ' active' : ''}`}>
+          <NavIcon d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM19.4 12a7.4 7.4 0 0 0-.12-1.3l2.1-1.6-2-3.5-2.45 1a7.4 7.4 0 0 0-2.2-1.3L14.3 2.6h-4l-.43 2.7a7.4 7.4 0 0 0-2.2 1.3l-2.45-1-2 3.5 2.1 1.6a7.4 7.4 0 0 0 0 2.6l-2.1 1.6 2 3.5 2.45-1a7.4 7.4 0 0 0 2.2 1.3l.43 2.7h4l.43-2.7a7.4 7.4 0 0 0 2.2-1.3l2.45 1 2-3.5-2.1-1.6c.08-.43.12-.86.12-1.3z" />
+          <span>Réglages</span>
+        </NavLink>
+      </nav>
+
       <aside
         className={`sidebar ac-sidebar${sidebarCollapsed ? ' is-collapsed' : ''}${mobileNavOpen ? ' mobile-open' : ''}`}
         aria-expanded={!sidebarCollapsed || mobileNavOpen}

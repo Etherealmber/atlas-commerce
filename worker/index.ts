@@ -6224,6 +6224,26 @@ app.get('/api/settings/invoice-preview', async (c) => {
 
   doc.preview_qr = true;
   doc.preview_qr_text = summary;
+  // v0.7 — Reçu : l'aperçu peut montrer (ou non) le QR « situation client »,
+  // choisi dans l'app via ?qr_situation=1|0 (défaut = réglage de l'entreprise).
+  if (type === 'receipt') {
+    const qsSit = String(c.req.query('qr_situation') || '').toLowerCase();
+    const sitOn = qsSit === '1' || qsSit === 'true'
+      ? true
+      : qsSit === '0' || qsSit === 'false'
+        ? false
+        : Number(settings?.qr_client_situation ?? 0) === 1;
+    if (sitOn) {
+      doc.preview_situation_qr = true;
+      doc.preview_situation_text = [
+        'ATLAS COMMERCE — SITUATION CLIENT (APERCU)',
+        `Partie: ${doc.client_name || doc.vendor_name || '—'}`,
+        `Total du recu: ${Number(doc.total || 0).toFixed(2)} ${settings?.currency || 'MAD'}`,
+        "Exemple de QR situation tel qu'imprime sur le recu reel si l'option est activee.",
+        'Apercu non contractuel',
+      ].join('\n');
+    }
+  }
   doc.preview_banner = DISCLAIMER + (real ? ' Données : dernier document réel de ce type.' : ' Aucun document de ce type — modèle avec votre société et un article exemple.');
 
   return c.html(generateInvoiceHTML(settings, doc, items.length ? items : sampleItems, title, false));
@@ -20398,6 +20418,21 @@ function generateInvoiceHTML(settings: any, inv: any, items: any[], title = 'FAC
     </div>`;
   }
 
+  // v0.7 — second QR card: « situation client » sample on receipt previews
+  let qrSitBlock = '';
+  if (inv.preview_situation_qr && inv.preview_situation_text) {
+    const sitUrl = atlasQrImg('', String(inv.preview_situation_text), 100);
+    qrSitBlock = `
+    <div class="qr-panel">
+      <img src="${sitUrl}" width="96" height="96" alt="QR situation client (aperçu)" class="qr-img" style="width:96px;height:96px"/>
+      <div class="qr-meta">
+        <strong>Situation client</strong>
+        <div>Factures payées et impayées de cette partie — tel qu'imprimé sur le reçu réel quand l'option est activée.</div>
+        <div class="qr-hint">Aperçu non contractuel.</div>
+      </div>
+    </div>`;
+  }
+
   const validity = isQuote && inv.due_date
     ? `<div style="margin-top:6px">Validité jusqu'au <strong>${formatDate(inv.due_date)}</strong></div>`
     : '';
@@ -20705,6 +20740,7 @@ ${isInvoice && !isBill ? REFUND_POLICY_HTML : ''}
 ${(isInvoice || isQuote) && sellerIds ? `<div class="cgi-strip"><strong>Mentions légales émetteur</strong> — ${sellerIds}${settings?.address ? ' · ' + settings.address : ''}${settings?.city ? ', ' + settings.city : ''}. Document généré automatiquement — ne pas modifier.</div>` : ''}
 
 ${qrBlock}
+${qrSitBlock}
 ${!isQuote ? companyStampBlock(settings) : ''}
 
 <div class="footer">
