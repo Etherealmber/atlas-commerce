@@ -96,6 +96,7 @@ import {
   androidLegacyOrigin,
   androidOrigin,
   androidOrigins,
+  credentialDescriptors,
   expectedOrigin,
   parseClientData,
   policyFromEnv,
@@ -3496,14 +3497,10 @@ app.post('/api/auth/webauthn/register/options', async (c) => {
 
   // Challenge bound to the SESSION account (not to any client-supplied value).
   const challenge = await waCreateChallenge(c.env.DB, { purpose: 'register', username, rpId: policy.rpId, origin });
-  const found = await c.env.DB.prepare(
-    `SELECT id, transports FROM webauthn_credentials WHERE lower(username) = ?`,
-  ).bind(username).all() as any;
-  const exclude = ((found?.results || []) as any[]).map((r: any) => ({
-    type: 'public-key',
-    id: String(r.id),
-    transports: String(r.transports || '').split(',').filter(Boolean),
-  }));
+  // v0.7 — exclude ONLY credentials with stored verification material: a
+  // legacy row without public_key_jwk must not block re-registration (same
+  // filter as login/options; nothing is deleted, no check weakened).
+  const exclude = await credentialDescriptors(c.env.DB, username);
   const userHandle = await userHandleFor(username);
   const deviceType = body.device_type === 'cross-platform' ? 'cross-platform' : 'platform';
 
@@ -3640,14 +3637,7 @@ app.post('/api/auth/webauthn/login/options', async (c) => {
   // biometric ids without keys can never pass verification — not offered.
   let allow: any[] = [];
   if (usernameFilter) {
-    const q = await c.env.DB.prepare(
-      `SELECT id, transports FROM webauthn_credentials WHERE lower(username) = ? AND COALESCE(public_key_jwk,'') != ''`,
-    ).bind(usernameFilter).all() as any;
-    allow = ((q?.results || []) as any[]).map((r: any) => ({
-      type: 'public-key',
-      id: String(r.id),
-      transports: String(r.transports || '').split(',').filter(Boolean),
-    }));
+    allow = await credentialDescriptors(c.env.DB, usernameFilter);
   }
   return c.json({
     success: true,

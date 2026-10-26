@@ -19,6 +19,7 @@ import {
   androidOrigin,
   androidOriginFromCertHash,
   androidOrigins,
+  credentialDescriptors,
   matchesAndroidOrigin,
   b64uToBytes,
   bytesToB64u,
@@ -591,5 +592,38 @@ describe('android credential manager integration', () => {
       stored: { publicKeyJwk: storedJwk, counter: 0, backupEligible: false, userHandle },
     });
     expect(v.counter).toBe(1);
+  });
+});
+
+/* ─────────────── v0.7 — excludeCredentials filtering ─────────────── */
+
+describe('register/options excludeCredentials filtering', () => {
+  it('omits legacy rows without public_key_jwk, keeps verifiable ones', async () => {
+    const db = makeD1() as any;
+    await db.prepare(`CREATE TABLE IF NOT EXISTS webauthn_credentials (
+      id TEXT PRIMARY KEY, username TEXT DEFAULT '', transports TEXT DEFAULT '',
+      public_key_jwk TEXT
+    )`).run();
+    await db.prepare(
+      `INSERT INTO webauthn_credentials (id, username, transports, public_key_jwk) VALUES (?, ?, ?, ?)`,
+    ).bind('legacy-1', 'alice', '', null).run();
+    await db.prepare(
+      `INSERT INTO webauthn_credentials (id, username, transports, public_key_jwk) VALUES (?, ?, ?, ?)`,
+    ).bind('legacy-empty', 'alice', 'internal', '').run();
+    await db.prepare(
+      `INSERT INTO webauthn_credentials (id, username, transports, public_key_jwk) VALUES (?, ?, ?, ?)`,
+    ).bind('valid-1', 'alice', 'internal,hybrid', '{"kty":"OKP","crv":"P-256"}').run();
+    await db.prepare(
+      `INSERT INTO webauthn_credentials (id, username, transports, public_key_jwk) VALUES (?, ?, ?, ?)`,
+    ).bind('other-user', 'bob', '', '{"kty":"OKP"}').run();
+
+    const desc = await credentialDescriptors(db, 'alice');
+    expect(desc.map((d) => d.id)).toEqual(['valid-1']);
+    expect(desc[0].transports).toEqual(['internal', 'hybrid']);
+    // case-insensitive username match, same as the routes
+    const upper = await credentialDescriptors(db, 'ALICE');
+    expect(upper.map((d) => d.id)).toEqual(['valid-1']);
+    // unknown account → empty exclude list (fresh registration allowed)
+    expect(await credentialDescriptors(db, 'carol')).toEqual([]);
   });
 });
