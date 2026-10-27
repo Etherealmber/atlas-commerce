@@ -39,6 +39,16 @@ import { apiFail, apiOk } from './lib/api-response';
 import { toClientError, AppError } from './lib/errors';
 import { repairProductSearchIndex, proactiveFtsHealth } from './lib/reliability';
 import { androidReleaseRouter, serveAppUpdatesAsset } from './routes/androidRelease';
+import { registerDeviceTokenRoutes } from './routes/deviceToken';
+import {
+  androidMinVersionGuard,
+  manifestWithPolicy,
+  readMinVersionPolicy,
+  validateMinVersionPolicy,
+  writeMinVersionPolicy,
+  parseMinVersionPolicy,
+  type MinVersionPolicy,
+} from './lib/app-update-policy';
 import { fetchWithTimeout } from './lib/http-client';
 import { searchProducts, reliabilityStatus, ensureProductSearchIndex, reliableFetch } from './lib/reliability';
 import { detectBffSurface } from './lib/bff';
@@ -586,6 +596,18 @@ function roundDh(n: number | null | undefined): number {
 }
 
 const app = new Hono<{ Bindings: Env }>();
+
+/* ── v0.7 — minimum supported Android version (owner/admin-controlled) ──
+ * Outdated Android API clients get 426 APP_UPDATE_REQUIRED; web clients,
+ * health and the update-check/download routes are never blocked. Registered
+ * first so an outdated client sees the update prompt, not an auth error. */
+app.use(
+  '/api/*',
+  androidMinVersionGuard({
+    readPolicy: (db) => readMinVersionPolicy(db),
+    readManifest: async (env) => (await readAppUpdateState(env)).manifest,
+  }),
+);
 
 /** Reject oversized request bodies early (DoS / memory pressure). */
 const MAX_BODY_BYTES = 2 * 1024 * 1024; // 2 MiB default
@@ -16105,26 +16127,8 @@ async function notifyAssistApproval(env: Env, username: string, title: string, b
 
 
 /** Register Android FCM device token (upsert into D1). */
-app.post('/api/assist/device-token', async (c) => {
-  const authHeader = c.req.header('Authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    return c.json({ success: false, error: 'Authentification requise.' }, 401);
-  }
-  const session = sessionUserFromHeader(authHeader);
-  const user = String(session.username || '').trim();
-  if (!user) return c.json({ success: false, error: 'Authentification requise.' }, 401);
-
-  const body = await c.req.json().catch(() => ({}));
-  const token = String(body.token || body.fcm_token || '').trim().slice(0, 512);
-  const platform = String(body.platform || 'android').slice(0, 32);
-  if (!token) return c.json({ success: false, error: 'token requis' }, 400);
-  try {
-    await upsertDeviceToken(c.env.DB, user, token, platform);
-    return c.json({ success: true, data: { registered: true } });
-  } catch (e: any) {
-    return c.json({ success: false, error: e?.message || 'DB error' }, 500);
-  }
-});
+// v0.7 — extracted to worker/routes/deviceToken.ts (safe error codes, tested)
+registerDeviceTokenRoutes(app, sessionUserFromHeader);
 
 
 app.post('/api/assist/approve', async (c) => {
@@ -16397,9 +16401,12 @@ app.get('/api/admin/app-update', async (c) => {
   if (!gate.ok) return c.json({ success: false, error: gate.error }, gate.status as any);
   const { manifest, source, jsonMeta, apk } = await readAppUpdateState(c.env);
   const base = appUpdateCdnBase(c.env);
+  const policy = await readMinVersionPolicy(c.env.DB, { bypassCache: true });
   return c.json({
     success: true,
     data: {
+      minimumVersionEnabled: policy.enabled,
+      minimumSupportedVersionCode: policy.code,
       manifest: manifest || {
         versionCode: 0,
         versionName: '',
@@ -16437,9 +16444,37 @@ app.put('/api/admin/app-update', async (c) => {
     mandatory: body.mandatory === true || body.mandatory === 'true' || body.mandatory === 1,
     notes: String(body.notes || '').slice(0, 4000),
   };
+  // v0.7 — minimum supported Android version. Keys absent → keep current
+  // policy (a manifest rewrite must never drop it). Keys present → validate
+  // against the release being saved, then persist (app_config = truth) and
+  // mirror into the manifest so the public check echoes it.
+  const currentPolicy = await readMinVersionPolicy(c.env.DB, { bypassCache: true });
+  const hasPolicyKeys =
+    body.minimumVersionEnabled !== undefined || body.minimumSupportedVersionCode !== undefined;
+  const requestedPolicy: MinVersionPolicy = hasPolicyKeys
+    ? parseMinVersionPolicy(
+        body.minimumVersionEnabled !== undefined
+          ? body.minimumVersionEnabled
+          : currentPolicy.enabled,
+        body.minimumSupportedVersionCode !== undefined
+          ? body.minimumSupportedVersionCode
+          : currentPolicy.code,
+      )
+    : currentPolicy;
+  const policyError = validateMinVersionPolicy(requestedPolicy, manifest);
+  if (policyError) return c.json({ success: false, error: policyError }, 400);
+  const manifestWithMin = manifestWithPolicy(manifest, requestedPolicy);
+  if (hasPolicyKeys || requestedPolicy.enabled) {
+    try {
+      await writeMinVersionPolicy(c.env.DB, requestedPolicy);
+    } catch (e: any) {
+      console.error('[app-update] policy persist failed', String(e?.message || e).slice(0, 200));
+      return c.json({ success: false, error: 'Échec persistance de la politique' }, 500);
+    }
+  }
   if (c.env.IMAGES) {
     try {
-      await c.env.IMAGES.put(APP_UPDATE_JSON_KEY, JSON.stringify(manifest, null, 2), {
+      await c.env.IMAGES.put(APP_UPDATE_JSON_KEY, JSON.stringify(manifestWithMin, null, 2), {
         httpMetadata: { contentType: 'application/json', cacheControl: 'public, max-age=60' },
         customMetadata: { updated_by: gate.username, updated_at: new Date().toISOString() },
       });
@@ -16447,8 +16482,16 @@ app.put('/api/admin/app-update', async (c) => {
       return c.json({ success: false, error: `Échec écriture R2 : ${e?.message || e}` }, 502);
     }
   }
-  await mirrorAppUpdateConfig(c.env.DB, manifest);
-  return c.json({ success: true, data: { manifest, storage: c.env.IMAGES ? 'r2+db' : 'db' } });
+  await mirrorAppUpdateConfig(c.env.DB, manifestWithMin);
+  return c.json({
+    success: true,
+    data: {
+      manifest: manifestWithMin,
+      minimumVersionEnabled: requestedPolicy.enabled,
+      minimumSupportedVersionCode: requestedPolicy.code,
+      storage: c.env.IMAGES ? 'r2+db' : 'db',
+    },
+  });
 });
 
 /** Upload latest.apk (raw binary body streamed to R2 — no full buffering). */

@@ -20,6 +20,8 @@ type Manifest = {
 };
 
 type RemoteState = {
+  minimumVersionEnabled: boolean;
+  minimumSupportedVersionCode: number;
   manifest: Manifest;
   source: 'r2' | 'db' | null;
   json: { key: string; url: string; size: number | null; uploaded: string | null };
@@ -46,6 +48,8 @@ export default function AppUpdatePanel() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [form, setForm] = useState<Manifest>({ versionCode: 0, versionName: '', apkUrl: '', mandatory: false, notes: '' });
+  const [minEnabled, setMinEnabled] = useState(false);
+  const [minCode, setMinCode] = useState(0);
   const [savingJson, setSavingJson] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadPct, setUploadPct] = useState(0);
@@ -72,6 +76,8 @@ export default function AppUpdatePanel() {
       if (!res.ok || !data?.success) throw new Error(data?.error || `Erreur ${res.status}`);
       const d = data.data as RemoteState;
       setState(d);
+      setMinEnabled(!!d.minimumVersionEnabled);
+      setMinCode(Number(d.minimumSupportedVersionCode || 0));
       setForm({
         versionCode: Number(d.manifest?.versionCode || 0),
         versionName: String(d.manifest?.versionName || ''),
@@ -96,6 +102,8 @@ export default function AppUpdatePanel() {
       form.versionName !== String(m.versionName || '') ||
       form.apkUrl !== String(m.apkUrl || '') ||
       form.mandatory !== !!m.mandatory ||
+      minEnabled !== !!state.minimumVersionEnabled ||
+      Number(minCode || 0) !== Number(state.minimumSupportedVersionCode || 0) ||
       form.notes !== String(m.notes || '')
     );
   }, [form, state]);
@@ -140,6 +148,8 @@ export default function AppUpdatePanel() {
           apkUrl: form.apkUrl.trim(),
           mandatory: !!form.mandatory,
           notes: form.notes,
+          minimumVersionEnabled: !!minEnabled,
+          minimumSupportedVersionCode: Math.floor(Number(minCode || 0)),
         }),
       });
       const data: any = await res.json().catch(() => ({}));
@@ -300,6 +310,47 @@ export default function AppUpdatePanel() {
             />
             Mise à jour obligatoire (mandatory)
           </label>
+        </div>
+        <div
+          className="form-row"
+          style={{
+            marginTop: 12,
+            padding: 12,
+            border: '1px solid var(--line)',
+            borderRadius: 12,
+            background: 'var(--ac-nav-hover, #f1f5f9)',
+          }}
+        >
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={minEnabled}
+              onChange={(e) => setMinEnabled(e.target.checked)}
+              style={{ width: 'auto' }}
+            />
+            Exiger une version minimale Android (plancher versionCode)
+          </label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+            <label style={{ fontSize: 13, color: 'var(--muted)' }}>minimumSupportedVersionCode</label>
+            <input
+              type="number"
+              min={1}
+              step={1}
+              value={minCode}
+              onChange={(e) => setMinCode(Number(e.target.value))}
+              style={{ width: 120 }}
+              disabled={!minEnabled}
+            />
+          </div>
+          {minEnabled && (
+            <p style={{ fontSize: 12.5, lineHeight: 1.5, color: 'var(--ac-danger, #b91c1c)', margin: '8px 0 0' }}>
+              Confirmation : les versions Android dont le versionCode est inférieur à{' '}
+              <strong>{Math.floor(Number(minCode || 0))}</strong> recevront HTTP 426
+              (APP_UPDATE_REQUIRED) sur toutes les API et devront installer la mise à jour
+              ci-dessus pour continuer. Le plancher doit rester ≤ au versionCode disponible et
+              une URL APK utilisable est obligatoire. Les clients web ne sont jamais bloqués.
+            </p>
+          )}
         </div>
         <div className="form-row" style={{ marginTop: 8 }}>
           <label>notes (affichées dans l’app)</label>
