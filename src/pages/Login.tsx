@@ -363,7 +363,8 @@ export default function Login() {
   }, []);
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const [username, setUsername] = useState('admin');
+  // v0.7 — never prefill an identity: the field starts empty (placeholder only).
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [otp, setOtp] = useState('');
   const [step, setStep] = useState<'password' | 'otp'>('password');
@@ -824,8 +825,8 @@ export default function Login() {
       {/* Brand mark */}
       <div className="atlas-login-brand">
         {/* v265 — the lockup carries the wordmark; no duplicate text */}
-        <img src="/atlas-logo-light.png" alt={APP_NAME} className="brand-img brand-img--light" height={44} width={136} />
-        <img src="/atlas-logo-dark.png" alt={APP_NAME} className="brand-img brand-img--dark" height={44} width={136} />
+        <img src="/atlas-logo-light.png" alt={APP_NAME} className="brand-img brand-img--light" height={56} width={173} />
+        <img src="/atlas-logo-dark.png" alt={APP_NAME} className="brand-img brand-img--dark" height={56} width={173} />
       </div>
 
       {/* Form column */}
@@ -1006,10 +1007,14 @@ export default function Login() {
                   ? 'Appareil de confiance · biométrie ou mot de passe.'
                   : 'Appareil de confiance : mot de passe (pas d\'OTP).'
                 : step === 'password'
-                  ? 'Nouvel appareil : mot de passe + OTP e-mail.'
+                  ? null
                   : 'Code valable 10 min.'}
           </p>
-          <p className="atlas-login-meta">v{APP_VERSION} · {APP_BUILD_DATE}</p>
+          <p className="atlas-login-meta">
+            v{APP_VERSION} · {APP_BUILD_DATE}
+            <span aria-hidden> · </span>
+            <Link to="/whats-new" className="atlas-login-meta-link">Nouveautés</Link>
+          </p>
         </div>
         <div className="atlas-login-qr-side" aria-label="Connexion par QR">
           <LoginPcQrPanel onSuccessFlash={() => { setLoginSuccess(true); setPageExit(true); }} />
