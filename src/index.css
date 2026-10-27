@@ -6028,3 +6028,72 @@ html[data-theme='dark'] .doc-preview-head {
   .doc-preview-overlay { padding: 0; }
   .doc-preview-modal { width: 100%; height: 100%; border-radius: 0; }
 }
+
+/* ─── v0.7 — premium login: bigger card, layered depth, staggered entrance ─── */
+html.atlas-login-page .atlas-login .atlas-login-brand img.brand-img {
+  height: 44px;
+  width: auto;
+}
+/* Pre-JS / no data-theme yet: follow the OS so the lockup is never black-on-dark. */
+@media (prefers-color-scheme: dark) {
+  html.atlas-login-page:not([data-theme='light']) .atlas-login .atlas-login-brand img.brand-img--light { display: none !important; }
+  html.atlas-login-page:not([data-theme='light']) .atlas-login .atlas-login-brand img.brand-img--dark { display: block !important; }
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-card {
+  width: min(960px, 94vw) !important;
+  max-width: 960px !important;
+  border-radius: 22px !important;
+  border: 1px solid rgba(24, 24, 27, .08);
+  animation: atlas-card-in .5s cubic-bezier(.22, .8, .32, 1) both;
+}
+@keyframes atlas-card-in {
+  from { opacity: 0; transform: translateY(14px) scale(.985); }
+  to { opacity: 1; transform: none; }
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-form-wrap {
+  padding: 48px 48px 40px !important;
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 form.atlas-login-form > * {
+  animation: atlas-field-in .45s cubic-bezier(.22, .8, .32, 1) both;
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 form.atlas-login-form > *:nth-child(1) { animation-delay: .08s; }
+html.atlas-login-page .atlas-login.atlas-login--auth7 form.atlas-login-form > *:nth-child(2) { animation-delay: .12s; }
+html.atlas-login-page .atlas-login.atlas-login--auth7 form.atlas-login-form > *:nth-child(3) { animation-delay: .16s; }
+html.atlas-login-page .atlas-login.atlas-login--auth7 form.atlas-login-form > *:nth-child(4) { animation-delay: .20s; }
+html.atlas-login-page .atlas-login.atlas-login--auth7 form.atlas-login-form > *:nth-child(5) { animation-delay: .24s; }
+html.atlas-login-page .atlas-login.atlas-login--auth7 form.atlas-login-form > *:nth-child(6) { animation-delay: .28s; }
+html.atlas-login-page .atlas-login.atlas-login--auth7 form.atlas-login-form > *:nth-child(7) { animation-delay: .32s; }
+html.atlas-login-page .atlas-login.atlas-login--auth7 form.atlas-login-form > *:nth-child(8) { animation-delay: .36s; }
+@keyframes atlas-field-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-field input,
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-input {
+  transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease;
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-field input:focus,
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-input:focus {
+  box-shadow: 0 0 0 4px rgba(24, 24, 27, .08);
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-submit {
+  transition: transform .16s ease, box-shadow .16s ease, filter .16s ease;
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-submit:active:not(:disabled) {
+  transform: translateY(0);
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-qr-side {
+  animation: atlas-qr-in .55s .12s cubic-bezier(.22, .8, .32, 1) both;
+}
+@keyframes atlas-qr-in {
+  from { opacity: 0; transform: translateX(10px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-card,
+  html.atlas-login-page .atlas-login.atlas-login--auth7 form.atlas-login-form > *,
+  html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-qr-side { animation: none; }
+}

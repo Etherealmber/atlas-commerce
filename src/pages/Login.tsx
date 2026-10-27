@@ -824,8 +824,8 @@ export default function Login() {
       {/* Brand mark */}
       <div className="atlas-login-brand">
         {/* v265 — the lockup carries the wordmark; no duplicate text */}
-        <img src="/atlas-logo-light.png" alt={APP_NAME} className="brand-img brand-img--light" height={30} width={93} />
-        <img src="/atlas-logo-dark.png" alt={APP_NAME} className="brand-img brand-img--dark" height={30} width={93} />
+        <img src="/atlas-logo-light.png" alt={APP_NAME} className="brand-img brand-img--light" height={44} width={136} />
+        <img src="/atlas-logo-dark.png" alt={APP_NAME} className="brand-img brand-img--dark" height={44} width={136} />
       </div>
 
       {/* Form column */}

@@ -2090,6 +2090,10 @@ function PageTitleSync() {
 }
 
 export default function App() {
+  // v0.7 — theme (html[data-theme]) must exist on EVERY route, login included:
+  // the login brand pair and dark surfaces key off it (before, only the
+  // DesktopShell mounted useTheme → login fell back to the black lockup).
+  useTheme();
   useEffect(() => {
     //Chunks loaded fine on this boot → arm the one-shot reload again.
     try { sessionStorage.removeItem('atlas-chunk-reload'); } catch { /* */ }

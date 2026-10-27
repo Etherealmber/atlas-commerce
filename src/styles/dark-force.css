@@ -4315,3 +4315,13 @@ html[data-theme="dark"] .wn-plat--server { color: #fcd34d; }
 /* v0.7 — admin app-update panel status, dark theme. */
 html[data-theme="dark"] .aup-cdn--ok { color: #86efac; }
 html[data-theme="dark"] .aup-cdn--missing { color: #fcd34d; }
+
+/* v0.7 — premium login card, dark: zinc border, inner sheen, deeper shadow. */
+html[data-theme='dark'] body .atlas-login.atlas-login--auth7 .atlas-login-card {
+  border-color: rgba(244, 244, 245, .1) !important;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .6), inset 0 1px 0 rgba(244, 244, 245, .06) !important;
+}
+html[data-theme='dark'] body .atlas-login.atlas-login--auth7 .atlas-field input:focus,
+html[data-theme='dark'] body .atlas-login.atlas-login--auth7 .atlas-login-input:focus {
+  box-shadow: 0 0 0 4px rgba(244, 244, 245, .12);
+}
