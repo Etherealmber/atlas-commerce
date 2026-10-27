@@ -8,9 +8,18 @@ import { isLoggedIn, getToken } from '../auth';
 
 type SectionKind = 'features' | 'improvements' | 'fixes' | 'breaking';
 
+type Platform = 'web' | 'android' | 'desktop' | 'server';
+
+const PLAT_LABEL: Record<Platform, string> = {
+  web: 'Web',
+  android: 'Android',
+  desktop: 'Desktop',
+  server: 'Serveur',
+};
+
 type Section = {
   kind: SectionKind;
-  items: { id: string; text: string }[];
+  items: { id: string; text: string; platforms?: Platform[] }[];
 };
 
 type Release = {
@@ -28,23 +37,25 @@ export const RELEASES: Release[] = [
       {
         kind: 'features',
         items: [
-          { id: '070a1', text: 'Atlas Agent trilingue : l’assistant répond dans la langue choisie dans l’app Android (français, anglais, arabe) — le champ response_language est accepté et appliqué côté serveur sur les deux voies (/api/assist/chat et le flux SSE), quick prompts compris ; le prompt système impose la langue sélectionnée au lieu de revenir au français' },
-          { id: '070a2', text: 'Version minimale Android pilotée depuis le web : Settings → panneau Mise à jour app active un plancher de versionCode ; les builds sous le plancher reçoivent 426 APP_UPDATE_REQUIRED avec version et URL APK, les publications CI ne réinitialisent jamais le plancher, et le check public expose minimumVersionRequired' },
-          { id: '070a3', text: 'Page Nouveautés en lecture libre : /whats-new s’ouvre sans compte, dans une mise en page dédiée sans barre du haut ni accès au reste de l’application ; les utilisateurs connectés conservent l’expérience complète avec filtres' },
+          { id: '070a1', platforms: ['android', 'server', 'web'], text: 'Atlas Agent trilingue : l’assistant répond dans la langue choisie dans l’app Android (français, anglais, arabe) — le champ response_language est accepté et appliqué côté serveur sur les deux voies (/api/assist/chat et le flux SSE), quick prompts compris ; le prompt système impose la langue sélectionnée au lieu de revenir au français' },
+          { id: '070a2', platforms: ['android', 'server', 'web'], text: 'Version minimale Android pilotée depuis le web : Settings → panneau Mise à jour app active un plancher de versionCode ; les builds sous le plancher reçoivent 426 APP_UPDATE_REQUIRED avec version et URL APK, les publications CI ne réinitialisent jamais le plancher, et le check public expose minimumVersionRequired' },
+          { id: '070a3', platforms: ['web'], text: 'Page Nouveautés en lecture libre : /whats-new s’ouvre sans compte, dans une mise en page dédiée sans barre du haut ni accès au reste de l’application ; les utilisateurs connectés conservent l’expérience complète avec filtres' },
+          { id: '070a4', platforms: ['android'], text: 'Android — arabe de bout en bout : direction RTL appliquée à toute l’app, flèches directionnelles et hero de connexion mirroirés, copies Agent en arabe et anglais ; chaque envoi Agent (quick prompts, pièces jointes, confirmation sensible, fallback stream) porte la langue choisie via response_language' },
+          { id: '070a5', platforms: ['desktop'], text: 'Desktop — expérience native : texte non sélectionnable, mises à jour uniquement via GitHub Releases, choix du serveur au premier lancement ; ce journal suit les mêmes dates et conditions que le web et l’Android' },
         ],
       },
       {
         kind: 'improvements',
         items: [
-          { id: '070i1', text: 'Messages d’erreur du serveur traduits : les erreurs stables renvoyées à l’app (authentification, message vide, Agent non configuré ou en échec, mise à jour obligatoire, jeton de notification) existent en français, anglais et arabe, choisies selon l’en-tête Accept-Language ; les codes machine (UNAUTHORIZED, APP_UPDATE_REQUIRED, DEVICE_TOKEN_STORE_ERROR…) restent inchangés' },
+          { id: '070i1', platforms: ['server', 'android', 'web'], text: 'Messages d’erreur du serveur traduits : les erreurs stables renvoyées à l’app (authentification, message vide, Agent non configuré ou en échec, mise à jour obligatoire, jeton de notification) existent en français, anglais et arabe, choisies selon l’en-tête Accept-Language ; les codes machine (UNAUTHORIZED, APP_UPDATE_REQUIRED, DEVICE_TOKEN_STORE_ERROR…) restent inchangés' },
         ],
       },
       {
         kind: 'fixes',
         items: [
-          { id: '070f1', text: 'Notifications Android réparées : le module FCM contenait des déclarations avalées par un commentaire (ReferenceError « _localSchemaOnce is not defined » en production) ; la route d’enregistrement du jeton crée la table, upserte le token authentifié et renvoie un code stable DEVICE_TOKEN_STORE_ERROR sans jamais exposer de stack' },
-          { id: '070f2', text: 'Passkeys Android : plusieurs empreintes de certificat acceptées et publiées dans assetlinks (release + debug), et excludeCredentials ne propose plus que des credentials ayant une clé publique — sans supprimer aucune ligne ni affaiblir aucun contrôle' },
-          { id: '070f3', text: 'Lot terrain 0.7 : login par téléphone avec OTP, captcha anti-robot, aperçu de reçu PDF avec données réelles et QR fonctionnel (tap → situation du QR), nouveau logo et splash animé, dock mobile en bas, corrections complètes des thèmes sombre et clair' },
+          { id: '070f1', platforms: ['android', 'server'], text: 'Notifications Android réparées : le module FCM contenait des déclarations avalées par un commentaire (ReferenceError « _localSchemaOnce is not defined » en production) ; la route d’enregistrement du jeton crée la table, upserte le token authentifié et renvoie un code stable DEVICE_TOKEN_STORE_ERROR sans jamais exposer de stack' },
+          { id: '070f2', platforms: ['android', 'server'], text: 'Passkeys Android : plusieurs empreintes de certificat acceptées et publiées dans assetlinks (release + debug), et excludeCredentials ne propose plus que des credentials ayant une clé publique — sans supprimer aucune ligne ni affaiblir aucun contrôle' },
+          { id: '070f3', platforms: ['web', 'android'], text: 'Lot terrain 0.7 : login par téléphone avec OTP, captcha anti-robot, aperçu de reçu PDF avec données réelles et QR fonctionnel (tap → situation du QR), nouveau logo et splash animé, dock mobile en bas, corrections complètes des thèmes sombre et clair' },
         ],
       },
     ],
@@ -1065,6 +1076,13 @@ export default function WhatsNew() {
                     {sec.items.map((it) => (
                       <li key={it.id}>
                         <span>{it.text}</span>
+                        {it.platforms && it.platforms.length > 0 ? (
+                          <span className="wn-plats" aria-label="Plateformes concernées">
+                            {it.platforms.map((pl) => (
+                              <em key={pl} className={`wn-plat wn-plat--${pl}`}>{PLAT_LABEL[pl]}</em>
+                            ))}
+                          </span>
+                        ) : null}
                       </li>
                     ))}
                   </ul>

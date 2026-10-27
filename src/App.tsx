@@ -32,7 +32,24 @@ import {
   isOwnerRole,
 } from './auth';
 import { AppDialogsProvider } from './components/AppDialogs';
-const AtlasAgent = lazy(() => import('./components/AtlasAgent'));
+/** v0.7 — stale hashed chunks after a deploy: one silent reload, then fail
+ * clean into the ErrorBoundary page instead of a blank/wrong screen. */
+function lazyRetry(fn: () => Promise<any>) {
+  return lazy(() =>
+    fn().catch((e: any) => {
+      try {
+        const key = 'atlas-chunk-reload';
+        if (!sessionStorage.getItem(key)) {
+          sessionStorage.setItem(key, '1');
+          window.location.reload();
+          return new Promise(() => {}); // navigating away
+        }
+      } catch { /* private mode etc. */ }
+      throw e;
+    }),
+  );
+}
+const AtlasAgent = lazyRetry(() => import('./components/AtlasAgent'));
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { isNativeApp } from './config';
 import './App.css';
@@ -67,9 +84,9 @@ import CookieConsent from './components/CookieConsent';
 import { TopbarUserMenu } from './components/shell/TopbarUserMenu';
 import { AvatarImage } from './components/ui/AvatarImage';
 import { invalidateAvatarCache } from './lib/avatarCache';
-import { useProfileWarm } from './lib/useProfileWarm';
+import { useProfileWarm, useProfileTick } from './lib/useProfileWarm';
 import { DemoProvider } from './context/DemoContext';
-const Welcome = lazy(() => import('./pages/Welcome'));
+const Welcome = lazyRetry(() => import('./pages/Welcome'));
 
 type NavBadges = {
   invoices_unpaid: number;
@@ -115,33 +132,33 @@ function NavCount({ n, tone = 'default' }: { n: number; tone?: 'default' | 'warn
   );
 }
 
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const ProductHistory = lazy(() => import('./pages/ProductHistory'));
-const Products = lazy(() => import('./pages/Products'));
-const Scan = lazy(() => import('./pages/Scan'));
-const LoginQr = lazy(() => import('./pages/LoginQr'));
-const EmailVerify = lazy(() => import('./pages/EmailVerify'));
-const Invoices = lazy(() => import('./pages/Invoices'));
-const InvoiceDetail = lazy(() => import('./pages/InvoiceDetail'));
-const Bills = lazy(() => import('./pages/Bills'));
-const Receipts = lazy(() => import('./pages/Receipts'));
-const QuickSale = lazy(() => import('./pages/QuickSale'));
-const QuickSaleDetail = lazy(() => import('./pages/QuickSaleDetail'));
-const Balance = lazy(() => import('./pages/Balance'));
-const Reports = lazy(() => import('./pages/Reports'));
-const InventoryOps = lazy(() => import('./pages/InventoryOps'));
-const Settings = lazy(() => import('./pages/Settings'));
-const Clients = lazy(() => import('./pages/Clients'));
-const Employees = lazy(() => import('./pages/Employees'));
-const Attendance = lazy(() => import('./pages/Attendance'));
-const Vendors = lazy(() => import('./pages/Vendors'));
-const Quotes = lazy(() => import('./pages/Quotes'));
-const Reimbursements = lazy(() => import('./pages/Reimbursements'));
-const About = lazy(() => import('./pages/About'));
-const WhatsNew = lazy(() => import('./pages/WhatsNew'));
-const WhatsNewModal = lazy(() => import('./components/WhatsNewModal'));
-const Actions = lazy(() => import('./pages/Actions'));
-const PhoneApp = lazy(() => import('./mobile/PhoneApp'));
+const Dashboard = lazyRetry(() => import('./pages/Dashboard'));
+const ProductHistory = lazyRetry(() => import('./pages/ProductHistory'));
+const Products = lazyRetry(() => import('./pages/Products'));
+const Scan = lazyRetry(() => import('./pages/Scan'));
+const LoginQr = lazyRetry(() => import('./pages/LoginQr'));
+const EmailVerify = lazyRetry(() => import('./pages/EmailVerify'));
+const Invoices = lazyRetry(() => import('./pages/Invoices'));
+const InvoiceDetail = lazyRetry(() => import('./pages/InvoiceDetail'));
+const Bills = lazyRetry(() => import('./pages/Bills'));
+const Receipts = lazyRetry(() => import('./pages/Receipts'));
+const QuickSale = lazyRetry(() => import('./pages/QuickSale'));
+const QuickSaleDetail = lazyRetry(() => import('./pages/QuickSaleDetail'));
+const Balance = lazyRetry(() => import('./pages/Balance'));
+const Reports = lazyRetry(() => import('./pages/Reports'));
+const InventoryOps = lazyRetry(() => import('./pages/InventoryOps'));
+const Settings = lazyRetry(() => import('./pages/Settings'));
+const Clients = lazyRetry(() => import('./pages/Clients'));
+const Employees = lazyRetry(() => import('./pages/Employees'));
+const Attendance = lazyRetry(() => import('./pages/Attendance'));
+const Vendors = lazyRetry(() => import('./pages/Vendors'));
+const Quotes = lazyRetry(() => import('./pages/Quotes'));
+const Reimbursements = lazyRetry(() => import('./pages/Reimbursements'));
+const About = lazyRetry(() => import('./pages/About'));
+const WhatsNew = lazyRetry(() => import('./pages/WhatsNew'));
+const WhatsNewModal = lazyRetry(() => import('./components/WhatsNewModal'));
+const Actions = lazyRetry(() => import('./pages/Actions'));
+const PhoneApp = lazyRetry(() => import('./mobile/PhoneApp'));
 
 const LOADING_QUIPS = [
   'On aligne les carreaux…',
@@ -720,6 +737,8 @@ function DesktopShell() {
   const navigate = useNavigate();
   const location = useLocation();
   useProfileWarm();
+  // v0.7 — topbar/avatar re-render as soon as the profile cache warms.
+  useProfileTick();
   const isFocusRoute =
     location.pathname === '/settings' ||
     location.pathname.startsWith('/settings/') ||
@@ -1869,6 +1888,11 @@ function DesktopShell() {
         <ErrorBoundary label="desktop">
           <Suspense fallback={<PageFallback />}>
             <PageTransition>
+            {location.pathname === '/whats-new' ? (
+              // v0.7 — guaranteed changelog on /whats-new: rendered directly,
+              // independent of the Routes table below (no wrong-page flash).
+              <WhatsNew />
+            ) : (
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/actions" element={<Actions />} />
@@ -1909,6 +1933,7 @@ function DesktopShell() {
               <Route path="/m-legacy" element={<Navigate to="/" replace />} />
               <Route path="*" element={<NotFoundRedirect />} />
             </Routes>
+            )}
             </PageTransition>
           </Suspense>
         </ErrorBoundary>
@@ -2065,6 +2090,10 @@ function PageTitleSync() {
 }
 
 export default function App() {
+  useEffect(() => {
+    //Chunks loaded fine on this boot → arm the one-shot reload again.
+    try { sessionStorage.removeItem('atlas-chunk-reload'); } catch { /* */ }
+  }, []);
   return (
     <BrowserRouter>
       <AppDialogsProvider>

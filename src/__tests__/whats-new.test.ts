@@ -36,6 +36,32 @@ describe('WhatsNew releases', () => {
     }
   });
 
+  it('0.7.0-beta covers web, android, desktop and server scopes', () => {
+    const items = RELEASES[0].sections.flatMap((s) => s.items) as any[];
+    const plats = new Set(items.flatMap((i) => i.platforms || []));
+    for (const p of ['web', 'android', 'desktop', 'server']) {
+      expect(plats.has(p)).toBe(true);
+    }
+    const texts = items.map((i) => i.text).join(' ');
+    expect(texts).toContain('RTL');
+    expect(texts).toContain('GitHub Releases');
+  });
+
+  it('platform badges stay within the allowlist, item ids are unique', () => {
+    const ids: string[] = [];
+    for (const release of RELEASES) {
+      for (const section of release.sections) {
+        for (const item of section.items as any[]) {
+          ids.push(item.id);
+          for (const pl of item.platforms || []) {
+            expect(['web', 'android', 'desktop', 'server']).toContain(pl);
+          }
+        }
+      }
+    }
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
   it('no historical release was removed', () => {
     const versions = RELEASES.map((r) => r.version);
     for (const kept of [

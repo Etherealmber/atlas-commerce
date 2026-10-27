@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { setProfileCache } from '../auth';
 import { prefetchAvatar } from './avatarCache';
@@ -32,6 +32,26 @@ export function useProfileWarm(): void {
       cancelled = true;
     };
   }, []);
+}
+
+/**
+ * v0.7 — re-render the caller when the profile cache changes (avatar URL and
+ * display name arrive asynchronously after a refresh). Without this the
+ * topbar kept showing initials until some unrelated state (opening the menu)
+ * forced a re-render.
+ */
+export function useProfileTick(): number {
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const bump = () => setTick((t) => t + 1);
+    window.addEventListener('atlas-profile-changed', bump);
+    window.addEventListener('atlas-avatar-changed', bump);
+    return () => {
+      window.removeEventListener('atlas-profile-changed', bump);
+      window.removeEventListener('atlas-avatar-changed', bump);
+    };
+  }, []);
+  return tick;
 }
 
 export default useProfileWarm;
