@@ -1,14 +1,17 @@
 /* Atlas Commerce — offline shell, API cache, background sync
  * v9: printable HTML reports / print tabs must never be rewritten as JSON
  */
-const CACHE_SHELL = 'atlas-shell-v9';
-const CACHE_API = 'atlas-api-v9';
+/* v10 — shell/navigations bypass the HTTP cache entirely: after a deploy the
+ * next activation serves the fresh index.html immediately (stale HTTP-cache
+ * copies of index.html used to survive deploys and re-poison the precache). */
+const CACHE_SHELL = 'atlas-shell-v10';
+const CACHE_API = 'atlas-api-v10';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/favicon.svg', '/logo.svg', '/logo-mark.svg'];
 const OUTBOX_TAG = 'atlas-outbox-sync';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_SHELL).then((c) => c.addAll(SHELL).catch(() => {})).then(() => self.skipWaiting())
+    caches.open(CACHE_SHELL).then((c) => c.addAll(SHELL.map((p) => new Request(p, { cache: 'no-store' }))).catch(() => {})).then(() => self.skipWaiting())
   );
 });
 
@@ -151,7 +154,7 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       (async () => {
         try {
-          const res = await fetch(req);
+          const res = await fetch(req, { cache: 'no-store' });
           if (res.ok) {
             await putCache(CACHE_SHELL, '/', res);
             return res;

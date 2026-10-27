@@ -4325,3 +4325,14 @@ html[data-theme='dark'] body .atlas-login.atlas-login--auth7 .atlas-field input:
 html[data-theme='dark'] body .atlas-login.atlas-login--auth7 .atlas-login-input:focus {
   box-shadow: 0 0 0 4px rgba(244, 244, 245, .12);
 }
+
+/* v0.7 — Chrome autofill used to paint login inputs light-blue in dark mode. */
+html[data-theme='dark'] input:-webkit-autofill,
+html[data-theme='dark'] input:-webkit-autofill:hover,
+html[data-theme='dark'] input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #141416 inset;
+  box-shadow: 0 0 0 1000px #141416 inset;
+  -webkit-text-fill-color: #fafafa;
+  caret-color: #fafafa;
+  transition: background-color 9999s ease-out 0s;
+}
