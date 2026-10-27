@@ -18904,3 +18904,11 @@ html[data-theme="dark"] .scan-req-label { color: #a1a1aa; }
 .wn-plat--android { border-color: rgba(22,163,74,.5); color: #15803d; }
 .wn-plat--desktop { border-color: rgba(37,99,235,.5); color: #1d4ed8; }
 .wn-plat--server { border-color: rgba(217,119,6,.5); color: #b45309; }
+
+/* v0.7 — admin app-update panel: R2/CDN status line. */
+.aup-storage { display: grid; gap: 6px; margin-top: 10px; font-size: 12.5px; }
+.aup-storage code { font-size: 11.5px; opacity: .85; }
+.aup-cdn { font-style: normal; }
+.aup-cdn--ok { color: #15803d; }
+.aup-cdn--missing { color: #b45309; }
+.aup-cdn--ext { opacity: .8; }

@@ -4311,3 +4311,7 @@ html[data-theme="dark"] .wn-plat { border-color: rgba(244,244,245,.3); color: #e
 html[data-theme="dark"] .wn-plat--android { color: #86efac; }
 html[data-theme="dark"] .wn-plat--desktop { color: #93c5fd; }
 html[data-theme="dark"] .wn-plat--server { color: #fcd34d; }
+
+/* v0.7 — admin app-update panel status, dark theme. */
+html[data-theme="dark"] .aup-cdn--ok { color: #86efac; }
+html[data-theme="dark"] .aup-cdn--missing { color: #fcd34d; }

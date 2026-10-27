@@ -114,7 +114,7 @@ androidReleaseRouter.post('/api/admin/android-release', async (c) => {
         httpMetadata: { contentType: APK_MIME, cacheControl: 'public, max-age=31536000, immutable' },
       }),
       bucket.put(`${ANDROID_UPDATE_PREFIX}/latest.apk`, fixedB.readable, {
-        httpMetadata: { contentType: APK_MIME, cacheControl: 'public, max-age=60' },
+        httpMetadata: { contentType: APK_MIME, cacheControl: 'no-cache, max-age=0, must-revalidate' },
       }),
     ]);
   } catch (e) {
@@ -267,11 +267,16 @@ androidReleaseRouter.get('/api/app/android-update', (c) => buildAndroidUpdateRes
 androidReleaseRouter.on('HEAD', '/api/app/android-update', (c) => buildAndroidUpdateResponse(c, true));
 
 /* ── CDN1 mirror paths through the worker: GET streams, HEAD uses bucket.head() ── */
-function assetHeaders(o: any): Headers {
+function assetHeaders(o: any, key?: string): Headers {
   const h = new Headers();
   const meta = o?.httpMetadata || {};
   h.set('Content-Type', meta.contentType || 'application/octet-stream');
-  h.set('Cache-Control', meta.cacheControl || 'public, max-age=60');
+  // v0.7 — live objects (manifest + latest.apk alias) are ALWAYS revalidated at
+  // the edge, whatever metadata older objects carry: an admin save or a CI
+  // publish must be visible on the CDN immediately (stale stored cacheControl
+  // on pre-existing objects used to keep the edge serving the old manifest).
+  const live = !!key && (key.endsWith('/latest.json') || key.endsWith('/latest.apk'));
+  h.set('Cache-Control', live ? 'no-cache, max-age=0, must-revalidate' : (meta.cacheControl || 'public, max-age=60'));
   const size = o?.size ?? meta.contentLength;
   if (size != null) h.set('Content-Length', String(size));
   if (o?.etag) h.set('ETag', `"${o.etag}"`);
@@ -286,10 +291,10 @@ export async function serveAppUpdatesAsset(request: Request, env: Env): Promise<
   if (request.method === 'HEAD') {
     const head = await bucket.head(key).catch(() => null);
     if (!head) return new Response(null, { status: 404 });
-    return new Response(null, { status: 200, headers: assetHeaders(head) });
+    return new Response(null, { status: 200, headers: assetHeaders(head, key) });
   }
   if (request.method !== 'GET') return new Response('Method not allowed', { status: 405 });
   const obj = await bucket.get(key).catch(() => null);
   if (!obj) return new Response('Not found', { status: 404 });
-  return new Response(obj.body as unknown as BodyInit, { status: 200, headers: assetHeaders(obj) });
+  return new Response(obj.body as unknown as BodyInit, { status: 200, headers: assetHeaders(obj, key) });
 }

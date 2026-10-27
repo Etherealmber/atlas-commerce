@@ -26,6 +26,7 @@ type RemoteState = {
   source: 'r2' | 'db' | null;
   json: { key: string; url: string; size: number | null; uploaded: string | null };
   apk: { key: string; url: string; size: number | null; uploaded: string | null };
+  apkUrlExists: boolean | null;
   maxApkBytes: number;
 };
 
@@ -154,7 +155,11 @@ export default function AppUpdatePanel() {
       });
       const data: any = await res.json().catch(() => ({}));
       if (!res.ok || !data?.success) throw new Error(data?.error || `Erreur ${res.status}`);
-      flash('latest.json enregistré sur R2 ✓');
+      flash(
+        data?.data?.apkUrlExists === false
+          ? 'latest.json enregistré sur R2 ✓ — mais APK introuvable sur le CDN à cette URL (upload APK ou publication CI requis)'
+          : 'latest.json enregistré sur R2 ✓',
+      );
       await load();
     } catch (e: any) {
       flash(e?.message || 'Échec enregistrement latest.json', 'error');
@@ -375,6 +380,27 @@ export default function AppUpdatePanel() {
         >
           {jsonPreview}
         </pre>
+
+        {state && (
+          <div className="aup-storage">
+            <span>
+              R2 : <code>{state.json.key}</code> — {fmtBytes(state.json.size)} · upload{' '}
+              {state.json.uploaded ? new Date(state.json.uploaded).toLocaleString('fr-FR') : 'jamais'}
+            </span>
+            {state.apkUrlExists === true && (
+              <em className="aup-cdn aup-cdn--ok">APK présent sur le CDN ✓</em>
+            )}
+            {state.apkUrlExists === false && (
+              <em className="aup-cdn aup-cdn--missing">
+                APK introuvable sur le CDN à cette URL — enregistrer latest.json ne téléverse PAS le
+                binaire : utilisez l’upload APK ci-dessous ou la publication CI.
+              </em>
+            )}
+            {state.apkUrlExists == null && (
+              <em className="aup-cdn aup-cdn--ext">APK hébergé hors CDN Atlas (URL externe).</em>
+            )}
+          </div>
+        )}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <button type="button" onClick={() => void saveJson()} disabled={savingJson}>
             {savingJson ? 'Enregistrement…' : 'Enregistrer latest.json'}

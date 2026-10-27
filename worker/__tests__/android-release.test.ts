@@ -131,7 +131,7 @@ describe('POST /api/admin/android-release', () => {
     expect(versioned?.body.length).toBe(APK.length);
     expect(latest?.body.length).toBe(APK.length);
     expect(versioned?.httpMetadata.cacheControl).toBe('public, max-age=31536000, immutable');
-    expect(latest?.httpMetadata.cacheControl).toBe('public, max-age=60');
+    expect(latest?.httpMetadata.cacheControl).toBe('no-cache, max-age=0, must-revalidate');
     expect(versioned?.httpMetadata.contentType).toBe('application/vnd.android.package-archive');
 
     const manifestObj = bucket.store.get('app-updates/android/latest.json');
@@ -211,5 +211,58 @@ describe('CDN1 mirror paths', () => {
       env,
     );
     expect(miss.status).toBe(404);
+  });
+});
+
+describe('CDN cache headers — live objects always revalidated (v0.7)', () => {
+  beforeEach(() => {
+    bucket = new MemBucket();
+    env = { IMAGES: bucket, ANDROID_RELEASE_TOKEN: TOKEN } as any;
+  });
+
+  it('latest.json: no-cache at the edge even when stored metadata is cacheable', async () => {
+    await bucket.put('app-updates/android/latest.json', '{"versionCode":120}', {
+      httpMetadata: { contentType: 'application/json', cacheControl: 'public, max-age=60' },
+    });
+    const res = await serveAppUpdatesAsset(
+      new Request('https://cdn.example/app-updates/android/latest.json'),
+      env,
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Cache-Control')).toBe('no-cache, max-age=0, must-revalidate');
+  });
+
+  it('latest.apk alias: no-cache as well', async () => {
+    await bucket.put('app-updates/android/latest.apk', new Uint8Array([1, 2, 3]), {
+      httpMetadata: { contentType: 'application/vnd.android.package-archive', cacheControl: 'public, max-age=300' },
+    });
+    const res = await serveAppUpdatesAsset(
+      new Request('https://cdn.example/app-updates/android/latest.apk'),
+      env,
+    );
+    expect(res.headers.get('Cache-Control')).toBe('no-cache, max-age=0, must-revalidate');
+  });
+
+  it('versioned apk keeps its immutable edge cache', async () => {
+    await bucket.put('app-updates/android/atlas-commerce-v1.2.0.apk', new Uint8Array([9]), {
+      httpMetadata: { contentType: 'application/vnd.android.package-archive', cacheControl: 'public, max-age=31536000, immutable' },
+    });
+    const res = await serveAppUpdatesAsset(
+      new Request('https://cdn.example/app-updates/android/atlas-commerce-v1.2.0.apk'),
+      env,
+    );
+    expect(res.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable');
+  });
+
+  it('HEAD on live objects carries the same no-cache', async () => {
+    await bucket.put('app-updates/android/latest.json', '{}', {
+      httpMetadata: { contentType: 'application/json', cacheControl: 'public, max-age=60' },
+    });
+    const res = await serveAppUpdatesAsset(
+      new Request('https://cdn.example/app-updates/android/latest.json', { method: 'HEAD' }),
+      env,
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Cache-Control')).toBe('no-cache, max-age=0, must-revalidate');
   });
 });

@@ -16408,6 +16408,27 @@ async function mirrorAppUpdateConfig(db: D1Database, m: any): Promise<void> {
   } catch { /* best-effort */ }
 }
 
+/** R2 key when the URL is served by our own CDN base; null for external URLs. */
+function cdnKeyForUrl(env: any, url: string): string | null {
+  const base = appUpdateCdnBase(env);
+  const u = String(url || '').trim();
+  if (!u.startsWith(base + '/')) return null;
+  return decodeURIComponent(u.slice(base.length + 1));
+}
+
+/** v0.7 — does the APK the manifest points at actually exist on our CDN?
+ * Saving latest.json never uploads the binary: the admin UI must say so. */
+async function cdnApkExists(env: any, url: string): Promise<boolean | null> {
+  if (!env?.IMAGES) return null;
+  const key = cdnKeyForUrl(env, url);
+  if (!key) return null;
+  try {
+    return !!(await env.IMAGES.head(key));
+  } catch {
+    return null;
+  }
+}
+
 /** Current manifest + R2 object metadata for the admin UI. */
 app.get('/api/admin/app-update', async (c) => {
   const gate = gateAppUpdateAdmin(c);
@@ -16430,6 +16451,7 @@ app.get('/api/admin/app-update', async (c) => {
       source,
       json: { key: APP_UPDATE_JSON_KEY, url: `${base}/${APP_UPDATE_JSON_KEY}`, size: jsonMeta?.size ?? null, uploaded: jsonMeta?.uploaded ?? null },
       apk: { key: APP_UPDATE_APK_KEY, url: `${base}/${APP_UPDATE_APK_KEY}`, size: apk?.size ?? null, uploaded: apk?.uploaded ?? null },
+      apkUrlExists: await cdnApkExists(c.env, manifest?.apkUrl || ''),
       maxApkBytes: APP_UPDATE_MAX_APK_BYTES,
     },
   });
@@ -16488,7 +16510,7 @@ app.put('/api/admin/app-update', async (c) => {
   if (c.env.IMAGES) {
     try {
       await c.env.IMAGES.put(APP_UPDATE_JSON_KEY, JSON.stringify(manifestWithMin, null, 2), {
-        httpMetadata: { contentType: 'application/json', cacheControl: 'public, max-age=60' },
+        httpMetadata: { contentType: 'application/json', cacheControl: 'no-cache, max-age=0, must-revalidate' },
         customMetadata: { updated_by: gate.username, updated_at: new Date().toISOString() },
       });
     } catch (e: any) {
@@ -16503,6 +16525,7 @@ app.put('/api/admin/app-update', async (c) => {
       minimumVersionEnabled: requestedPolicy.enabled,
       minimumSupportedVersionCode: requestedPolicy.code,
       storage: c.env.IMAGES ? 'r2+db' : 'db',
+      apkUrlExists: await cdnApkExists(c.env, manifest.apkUrl),
     },
   });
 });
@@ -16518,7 +16541,7 @@ app.post('/api/admin/app-update/apk', async (c) => {
   if (!stream) return c.json({ success: false, error: 'Corps APK absent' }, 400);
   try {
     await c.env.IMAGES.put(APP_UPDATE_APK_KEY, stream as any, {
-      httpMetadata: { contentType: APP_UPDATE_APK_MIME, cacheControl: 'public, max-age=300' },
+      httpMetadata: { contentType: APP_UPDATE_APK_MIME, cacheControl: 'no-cache, max-age=0, must-revalidate' },
       customMetadata: { updated_by: gate.username, updated_at: new Date().toISOString() },
     });
   } catch (e: any) {
