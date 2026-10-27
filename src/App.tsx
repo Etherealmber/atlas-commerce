@@ -3,7 +3,7 @@ import MobileBottomNav from './components/erp/MobileBottomNav';
 import { useEffect, useState, useRef, lazy, Suspense } from 'react';
 import { User, CreditCard, Mail, Sparkles, LogOut, Sun, Moon, Monitor, Type } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import { BrowserRouter, Routes, Route, NavLink, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, NavLink, Navigate, Link, useNavigate, useLocation } from 'react-router-dom';
 import { applyPageTitle } from './lib/pageTitle';
 import Login from './pages/Login';
 import Privacy from './pages/Privacy';
@@ -469,6 +469,27 @@ function Protected({ children }: { children: React.ReactNode }) {
     return <Navigate to="/welcome" replace />;
   }
   return <>{children}</>;
+}
+
+/** v0.7 — /whats-new readable WITHOUT an account: static changelog only, in a
+ * dedicated standalone layout (no topbar, no Agent, no API call, no session
+ * access). Logged-in users keep the exact same Shell experience as before. */
+function WhatsNewRoute() {
+  const loggedIn = typeof isLoggedIn === 'function' ? isLoggedIn() : !!getToken();
+  if (loggedIn) return <Protected><Shell /></Protected>;
+  return (
+    <div className="public-whats-new">
+      <header className="public-whats-new-head">
+        <p className="public-whats-new-kicker">Atlas Commerce</p>
+        <h1>Nouveautés</h1>
+        <p className="public-whats-new-sub">Journal des versions — lecture libre, sans compte.</p>
+        <Link to="/login" className="public-whats-new-cta">Se connecter</Link>
+      </header>
+      <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
+        <WhatsNew />
+      </Suspense>
+    </div>
+  );
 }
 
 function WelcomeGate() {
@@ -2059,6 +2080,7 @@ export default function App() {
             <Route path="/403" element={<div className="access-page-standalone"><AccessPage kind="forbidden" /></div>} />
             <Route path="/error/:code" element={<div className="access-page-standalone"><HttpErrorPage /></div>} />
             <Route path="/404" element={<div className="access-page-standalone"><AccessPage kind="not-found" /></div>} />
+            <Route path="/whats-new" element={<WhatsNewRoute />} />
             <Route path="/*" element={<Protected><Shell /></Protected>} />
           </Routes>
           <CookieConsent />

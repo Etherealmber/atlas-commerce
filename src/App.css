@@ -18885,3 +18885,15 @@ html[data-theme="dark"] .scan-req-label { color: #a1a1aa; }
 /* OCR dropzone: compact + native file input hidden (zone itself is the control) */
 .dropzone { padding: 12px 14px !important; margin: 10px 0 6px !important; }
 .dropzone input[type='file'] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+/* v0.7 — /whats-new readable without an account: standalone layout, no topbar.
+   Static content only; logged-in users keep the Shell (see src/App.tsx). */
+.public-whats-new { min-height: 100vh; padding: 40px 16px 72px; }
+.public-whats-new-head { max-width: 760px; margin: 0 auto 28px; text-align: center; display: grid; gap: 6px; justify-items: center; }
+.public-whats-new-kicker { margin: 0; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; opacity: .7; }
+.public-whats-new-head h1 { margin: 0; font-size: 30px; line-height: 1.15; }
+.public-whats-new-sub { margin: 0; opacity: .75; }
+.public-whats-new-cta { display: inline-block; margin-top: 10px; padding: 9px 20px; border-radius: 999px; background: #18181b; color: #fafafa; text-decoration: none; font-weight: 600; }
+.public-whats-new-cta:hover { opacity: .9; }
+.public-whats-new .wn-changelog { max-width: 860px; margin: 0 auto; }
+.public-whats-new .wn-crumb { justify-content: center; }

@@ -69,6 +69,7 @@ import {
   auditAssist,
 } from './lib/agent';
 import { geminiSimpleChat, atlasAgentSystem, scrubVendorNames, normalizeResponseLanguage } from './lib/gemini-assist';
+import { pickUiLang, tr } from './lib/error-i18n';
 import { tokenraChat } from './lib/tokenra-assist';
 import { groqChat, groqChatStream } from './lib/groq-assist';
 import { parseAgentDocumentsAsync, agentDocumentPromptSection } from './lib/agent-docs';
@@ -15880,11 +15881,13 @@ app.get('/api/assist/transcripts/get', async (c) => {
 app.post('/api/assist/chat', async (c) => {
   const authHeader = c.req.header('Authorization');
   if (!authHeader?.startsWith('Bearer ')) {
-    return c.json({ success: false, error: 'Authentification requise.' }, 401);
+    return c.json({ success: false, error: tr(pickUiLang(c.req.header('Accept-Language')), 'auth_required') }, 401);
   }
   const session = sessionUserFromHeader(authHeader);
   const role = normalizeRole(session.role || 'user');
   const username = String(session.username || 'user');
+  // v0.7 — stable error messages localized from Accept-Language (fr/en/ar).
+  const uiLang = pickUiLang(c.req.header('Accept-Language'));
 
   // Atlas Agent: Groq only (Mistral/Gemini removed from product).
   let provider = 'groq' as const;
@@ -15892,7 +15895,7 @@ app.post('/api/assist/chat', async (c) => {
   if (!groqKey) {
     return c.json({
       success: false,
-      error: 'Assistant IA non configuré. Secret GROQ_API_KEY manquant.',
+      error: tr(uiLang, 'agent_no_key'),
       code: 'no_key',
     }, 503);
   }
@@ -15904,7 +15907,7 @@ app.post('/api/assist/chat', async (c) => {
   const images = Array.isArray(body.images)
     ? body.images.filter((x: any) => typeof x === 'string' && x.startsWith('data:image/')).slice(0, 4).map((x: string) => x.slice(0, 3_500_000))
     : [];
-  if (!message) return c.json({ success: false, error: 'Message vide.' }, 400);
+  if (!message) return c.json({ success: false, error: tr(uiLang, 'message_empty') }, 400);
   // v264 — server-side access verdict: blocked accounts and exhausted token
   // quotas are refused HERE (until now the check lived only in the SPA).
   const verdict = await agentAccessVerdict(c.env, c.env.DB, username, role);
@@ -15996,7 +15999,7 @@ app.post('/api/assist/chat', async (c) => {
     });
   } catch (e: any) {
     await auditAssist(c.env, { username, role, message, tools: 'error', ok: false });
-    return c.json({ success: false, error: e?.message || 'Échec Atlas Agent', code: 'assist_upstream' }, 502);
+    return c.json({ success: false, error: tr(uiLang, 'agent_upstream'), code: 'assist_upstream' }, 502);
   }
 });
 
@@ -16010,19 +16013,21 @@ app.post('/api/assist/chat', async (c) => {
 app.post('/api/assist/chat/stream', async (c) => {
   const authHeader = c.req.header('Authorization');
   if (!authHeader?.startsWith('Bearer ')) {
-    return c.json({ success: false, error: 'Authentification requise.' }, 401);
+    return c.json({ success: false, error: tr(pickUiLang(c.req.header('Accept-Language')), 'auth_required') }, 401);
   }
   const session = sessionUserFromHeader(authHeader);
   const role = normalizeRole(session.role || 'user');
   const username = String(session.username || 'user');
+  // v0.7 — same localized stable messages as the buffered twin.
+  const uiLang = pickUiLang(c.req.header('Accept-Language'));
   const groqKey = String((c.env as any).GROQ_API_KEY || '').trim();
   if (!groqKey) {
-    return c.json({ success: false, error: 'Assistant IA non configuré. Secret GROQ_API_KEY manquant.', code: 'no_key' }, 503);
+    return c.json({ success: false, error: tr(uiLang, 'agent_no_key'), code: 'no_key' }, 503);
   }
   let body: any = {};
   try { body = await c.req.json(); } catch { body = {}; }
   const message = String(body.message || body.prompt || '').trim().slice(0, 2500);
-  if (!message) return c.json({ success: false, error: 'Message vide.' }, 400);
+  if (!message) return c.json({ success: false, error: tr(uiLang, 'message_empty') }, 400);
   const images = Array.isArray(body.images)
     ? body.images.filter((x: any) => typeof x === 'string' && x.startsWith('data:image/')).slice(0, 4).map((x: string) => x.slice(0, 3_500_000))
     : [];
@@ -16092,7 +16097,7 @@ app.post('/api/assist/chat/stream', async (c) => {
         send('done', { reply, model: usedModel, provider: 'groq', usage: usage || null, documents: docsMeta, thread_id: threadId });
       } catch (e: any) {
         try { await auditAssist(c.env, { username, role, message, tools: 'error', ok: false }); } catch { /* */ }
-        send('error', { code: 'assist_upstream', error: String(e?.message || 'Échec Atlas Agent').slice(0, 200) });
+        send('error', { code: 'assist_upstream', error: tr(uiLang, 'agent_upstream') });
       } finally {
         try { controller.close(); } catch { /* already closed */ }
       }
