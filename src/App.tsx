@@ -500,6 +500,7 @@ function AboutRoute() {
         <h1>À propos</h1>
         <p className="public-whats-new-sub">Identité du produit et liens légaux — lecture libre, sans compte.</p>
         <Link to="/login" className="public-whats-new-cta">Se connecter</Link>
+        <Link to="/whats-new" className="public-whats-new-ghost">Nouveautés</Link>
       </header>
       <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
         <About />
@@ -521,6 +522,7 @@ function WhatsNewRoute() {
         <h1>Nouveautés</h1>
         <p className="public-whats-new-sub">Journal des versions — lecture libre, sans compte.</p>
         <Link to="/login" className="public-whats-new-cta">Se connecter</Link>
+        <Link to="/about" className="public-whats-new-ghost">À propos</Link>
       </header>
       <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
         <WhatsNew />

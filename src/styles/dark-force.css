@@ -4356,3 +4356,22 @@ html[data-theme='dark'] body .atlas-login.atlas-login--auth7 .atlas-login-input 
 html[data-theme='dark'] body .atlas-login.atlas-login--auth7 .atlas-login-submit {
   box-shadow: 0 12px 30px rgba(0, 0, 0, .55);
 }
+
+/* v0.7 — login footer hairline on dark surfaces. */
+html[data-theme='dark'] body .atlas-login.atlas-login--auth7 .atlas-login-page-foot {
+  border-top-color: rgba(244, 244, 245, .1) !important;
+}
+
+/* v0.7 — public heads (whats-new / about): the CTA pill and ghost link must
+   stay readable in BOTH themes (text was invisible on the pill). */
+html body .public-whats-new-cta {
+  background: #18181b !important;
+  color: #fafafa !important;
+  opacity: 1 !important;
+}
+html body .public-whats-new-ghost { color: #3f3f46 !important; }
+html[data-theme='dark'] body .public-whats-new-cta {
+  background: #f4f4f5 !important;
+  color: #18181b !important;
+}
+html[data-theme='dark'] body .public-whats-new-ghost { color: #d4d4d8 !important; }

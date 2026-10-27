@@ -18919,3 +18919,6 @@ html[data-theme="dark"] .scan-req-label { color: #a1a1aa; }
 .public-about #signaler { display: none; } /* report form needs a session */
 .about-meta-line { text-align: center; font-size: 12.5px; opacity: .8; margin: 0 0 18px; }
 .about-meta-line a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+
+.public-whats-new-ghost { margin-top: 8px; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; opacity: .85; }
+.public-whats-new-ghost:hover { opacity: 1; }
