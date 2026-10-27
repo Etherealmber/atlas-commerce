@@ -6,26 +6,28 @@
  */
 import type { Hono } from 'hono';
 import { upsertDeviceToken } from '../lib/fcm';
+import { pickUiLang, tr } from '../lib/error-i18n';
 
 export function registerDeviceTokenRoutes(
   app: Hono<any>,
   getSession: (authHeader: string | undefined) => { username: string; role: string },
 ): void {
   app.post('/api/assist/device-token', async (c) => {
+    const lang = pickUiLang(c.req.header('Accept-Language'));
     const authHeader = c.req.header('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
-      return c.json({ success: false, error: 'Authentification requise.', code: 'UNAUTHORIZED' }, 401);
+      return c.json({ success: false, error: tr(lang, 'auth_required'), code: 'UNAUTHORIZED' }, 401);
     }
     const session = getSession(authHeader);
     const user = String(session.username || '').trim();
     if (!user) {
-      return c.json({ success: false, error: 'Authentification requise.', code: 'UNAUTHORIZED' }, 401);
+      return c.json({ success: false, error: tr(lang, 'auth_required'), code: 'UNAUTHORIZED' }, 401);
     }
 
     const body = await c.req.json().catch(() => ({}));
     const token = String(body.token || body.fcm_token || '').trim().slice(0, 512);
     const platform = String(body.platform || 'android').slice(0, 32);
-    if (!token) return c.json({ success: false, error: 'token requis', code: 'TOKEN_REQUIRED' }, 400);
+    if (!token) return c.json({ success: false, error: tr(lang, 'token_required'), code: 'TOKEN_REQUIRED' }, 400);
     try {
       await upsertDeviceToken(c.env.DB, user, token, platform);
       return c.json({ success: true, data: { registered: true } });
@@ -35,7 +37,7 @@ export function registerDeviceTokenRoutes(
       return c.json(
         {
           success: false,
-          error: 'Enregistrement du token impossible pour le moment.',
+          error: tr(lang, 'token_store_error'),
           code: 'DEVICE_TOKEN_STORE_ERROR',
         },
         500,

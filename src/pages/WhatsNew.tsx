@@ -4,6 +4,7 @@ import { motion } from 'motion/react';
 import { Sparkles, Wrench, AlertCircle, ArrowUpCircle } from 'lucide-react';
 import { APP_VERSION, APP_BUILD_DATE } from '../version';
 import { markWhatsNewSeen } from '../lib/whatsNew';
+import { isLoggedIn, getToken } from '../auth';
 
 type SectionKind = 'features' | 'improvements' | 'fixes' | 'breaking';
 
@@ -19,7 +20,35 @@ type Release = {
 };
 
 
-const RELEASES: Release[] = [
+export const RELEASES: Release[] = [
+  {
+    version: '0.7.0-beta',
+    date: '27 octobre 2026',
+    sections: [
+      {
+        kind: 'features',
+        items: [
+          { id: '070a1', text: 'Atlas Agent trilingue : l’assistant répond dans la langue choisie dans l’app Android (français, anglais, arabe) — le champ response_language est accepté et appliqué côté serveur sur les deux voies (/api/assist/chat et le flux SSE), quick prompts compris ; le prompt système impose la langue sélectionnée au lieu de revenir au français' },
+          { id: '070a2', text: 'Version minimale Android pilotée depuis le web : Settings → panneau Mise à jour app active un plancher de versionCode ; les builds sous le plancher reçoivent 426 APP_UPDATE_REQUIRED avec version et URL APK, les publications CI ne réinitialisent jamais le plancher, et le check public expose minimumVersionRequired' },
+          { id: '070a3', text: 'Page Nouveautés en lecture libre : /whats-new s’ouvre sans compte, dans une mise en page dédiée sans barre du haut ni accès au reste de l’application ; les utilisateurs connectés conservent l’expérience complète avec filtres' },
+        ],
+      },
+      {
+        kind: 'improvements',
+        items: [
+          { id: '070i1', text: 'Messages d’erreur du serveur traduits : les erreurs stables renvoyées à l’app (authentification, message vide, Agent non configuré ou en échec, mise à jour obligatoire, jeton de notification) existent en français, anglais et arabe, choisies selon l’en-tête Accept-Language ; les codes machine (UNAUTHORIZED, APP_UPDATE_REQUIRED, DEVICE_TOKEN_STORE_ERROR…) restent inchangés' },
+        ],
+      },
+      {
+        kind: 'fixes',
+        items: [
+          { id: '070f1', text: 'Notifications Android réparées : le module FCM contenait des déclarations avalées par un commentaire (ReferenceError « _localSchemaOnce is not defined » en production) ; la route d’enregistrement du jeton crée la table, upserte le token authentifié et renvoie un code stable DEVICE_TOKEN_STORE_ERROR sans jamais exposer de stack' },
+          { id: '070f2', text: 'Passkeys Android : plusieurs empreintes de certificat acceptées et publiées dans assetlinks (release + debug), et excludeCredentials ne propose plus que des credentials ayant une clé publique — sans supprimer aucune ligne ni affaiblir aucun contrôle' },
+          { id: '070f3', text: 'Lot terrain 0.7 : login par téléphone avec OTP, captcha anti-robot, aperçu de reçu PDF avec données réelles et QR fonctionnel (tap → situation du QR), nouveau logo et splash animé, dock mobile en bas, corrections complètes des thèmes sombre et clair' },
+        ],
+      },
+    ],
+  },
   {
     version: '0.6.6-beta',
     date: '26 octobre 2026',
@@ -984,10 +1013,14 @@ export default function WhatsNew() {
     })).filter((rel) => rel.sections.length > 0);
   }, [filter]);
 
+  // v0.7 — public reading: breadcrumb targets /login when there is no session.
+  const wnLoggedIn = typeof isLoggedIn === 'function' ? isLoggedIn() : !!getToken();
   return (
     <div className="wn-changelog">
       <nav className="wn-crumb" aria-label="Fil d'Ariane">
-        <Link to="/">Accueil</Link>
+        {wnLoggedIn
+          ? <Link to="/">Accueil</Link>
+          : <span>Atlas Commerce</span>}
         <span aria-hidden>›</span>
         <span>Nouveautés</span>
       </nav>

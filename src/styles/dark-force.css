@@ -4302,3 +4302,6 @@ html[data-theme="dark"] body .balance-page .aoc-title { color: #a1a1aa !importan
 /* Login password toggle: dark surface, not a white square */
 html[data-theme="dark"] body button.atlas-password-toggle,
 html[data-theme="dark"] body .atlas-password-toggle { background: #27272a !important; color: #e4e4e7 !important; border: 1px solid #3f3f46 !important; }
+
+/* v0.7 — public WhatsNew page, dark theme (ONE zinc palette). */
+html[data-theme="dark"] .public-whats-new-cta { background: #f4f4f5; color: #18181b; }

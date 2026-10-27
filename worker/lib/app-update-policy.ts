@@ -18,6 +18,7 @@
  * The version header is compatibility metadata, NOT a security credential:
  * authentication, authorization, WebAuthn and device binding stay untouched.
  */
+import { pickUiLang, tr, type UiLang } from './error-i18n';
 
 export type MinVersionPolicy = { enabled: boolean; code: number };
 
@@ -159,12 +160,11 @@ export function androidClientMeta(c: any): { isAndroid: boolean; code: number | 
   return { isAndroid: client === 'android', code };
 }
 
-export function updateRequiredBody(manifest: any, policy: MinVersionPolicy) {
+export function updateRequiredBody(manifest: any, policy: MinVersionPolicy, lang: UiLang = 'fr') {
   return {
     success: false,
     code: 'APP_UPDATE_REQUIRED',
-    error:
-      'Cette version de l\'application Android n\'est plus supportée. Mettez à jour pour continuer.',
+    error: tr(lang, 'update_required'),
     update: {
       versionCode: Math.floor(Number(manifest?.versionCode || 0)) || null,
       versionName: manifest?.versionName || manifest?.version_name || null,
@@ -208,6 +208,6 @@ export function androidMinVersionGuard(deps: {
     try {
       manifest = await deps.readManifest(c.env);
     } catch { /* 426 still returned, update URLs best-effort */ }
-    return c.json(updateRequiredBody(manifest, policy), 426);
+    return c.json(updateRequiredBody(manifest, policy, pickUiLang(c.req.header('Accept-Language'))), 426);
   };
 }
