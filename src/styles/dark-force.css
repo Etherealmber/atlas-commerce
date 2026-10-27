@@ -4375,3 +4375,74 @@ html[data-theme='dark'] body .public-whats-new-cta {
   color: #18181b !important;
 }
 html[data-theme='dark'] body .public-whats-new-ghost { color: #d4d4d8 !important; }
+
+/* ══ v0.7 — LOGIN = SURFACE SOMBRE TOUJOURS (directive user : le login ne
+   suit PAS le thème système/app). dark-force.css est importé en dernier :
+   à spécificité égale (+ !important) ces règles gagnent sur le bloc
+   « Light » v204 inconditionnel. ══ */
+html body .atlas-login.atlas-login--auth7 {
+  background:
+    radial-gradient(ellipse 90% 70% at 12% 18%, rgba(250, 250, 250, 0.05), transparent 52%),
+    radial-gradient(ellipse 75% 55% at 88% 82%, rgba(250, 250, 250, 0.03), transparent 48%),
+    #111113 !important;
+}
+html body .atlas-login.atlas-login--auth7 .atlas-login-card {
+  background: #1c1c1f !important;
+  border: 1px solid #2a2a2e !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5) !important;
+}
+html body .atlas-login.atlas-login--auth7 .atlas-login-qr-side {
+  background: #161618 !important;
+  border-left: 1px solid #2a2a2e !important;
+}
+html body .atlas-login.atlas-login--auth7 .atlas-login-header h1 { color: #fafafa !important; }
+html body .atlas-login.atlas-login--auth7 .atlas-login-header p { color: #a1a1aa !important; }
+html body .atlas-login.atlas-login--auth7 .atlas-field label,
+html body .atlas-login.atlas-login--auth7 .atlas-remember-label { color: #a1a1aa !important; }
+html body .atlas-login.atlas-login--auth7 .atlas-field input,
+html body .atlas-login.atlas-login--auth7 input[type="text"],
+html body .atlas-login.atlas-login--auth7 input[type="password"] {
+  background: #141416 !important;
+  border: 1px solid rgba(244, 244, 255, 0.14) !important;
+  color: #fafafa !important;
+}
+/* autofill sombre inconditionnel : plus de bleu clair quel que soit data-theme */
+html body .atlas-login.atlas-login--auth7 input:-webkit-autofill,
+html body .atlas-login.atlas-login--auth7 input:-webkit-autofill:hover,
+html body .atlas-login.atlas-login--auth7 input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #141416 inset !important;
+  box-shadow: 0 0 0 1000px #141416 inset !important;
+  -webkit-text-fill-color: #fafafa !important;
+  caret-color: #fafafa !important;
+}
+html body .atlas-login.atlas-login--auth7 .atlas-login-submit {
+  background: #f4f4f5 !important;
+  color: #18181b !important;
+}
+html body .atlas-login.atlas-login--auth7 .atlas-login-qr-title { color: #fafafa !important; }
+html body .atlas-login.atlas-login--auth7 .atlas-login-qr-hint,
+html body .atlas-login.atlas-login--auth7 .atlas-login-hint { color: #a1a1aa !important; }
+html body .atlas-login.atlas-login--auth7 .atlas-login-page-foot {
+  color: #71717a !important;
+  border-top-color: rgba(244, 244, 245, 0.1) !important;
+}
+html body .atlas-login.atlas-login--auth7 .atlas-login-page-foot a { color: #a1a1aa !important; }
+
+/* ══ v0.7 — lockup BLANC permanent au-dessus de « Bon retour » : jamais de
+   tuile (28×28 / radius / fond), jamais de bascule de thème. ══ */
+html body .atlas-login-lockup {
+  display: flex;
+  justify-content: center;
+  margin: 0 0 14px;
+}
+html body .atlas-login-lockup img {
+  display: block !important;
+  height: 64px !important;
+  width: auto !important;
+  max-width: 72vw;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
