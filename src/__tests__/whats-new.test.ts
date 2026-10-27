@@ -53,6 +53,7 @@ describe('WhatsNew releases', () => {
       for (const section of release.sections) {
         for (const item of section.items as any[]) {
           ids.push(item.id);
+          expect((item.platforms || []).length).toBeGreaterThan(0);
           for (const pl of item.platforms || []) {
             expect(['web', 'android', 'desktop', 'server']).toContain(pl);
           }
