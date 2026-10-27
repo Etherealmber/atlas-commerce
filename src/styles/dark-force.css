@@ -4336,3 +4336,29 @@ html[data-theme='dark'] input:-webkit-autofill:focus {
   caret-color: #fafafa;
   transition: background-color 9999s ease-out 0s;
 }
+
+/* v0.7 — login premium pass 2, dark: ambient glows, card surface, sheen, qr side. */
+html[data-theme='dark'] body .atlas-login.atlas-login--auth7 {
+  background:
+    radial-gradient(1100px 520px at 85% -10%, rgba(244, 244, 245, .05), transparent 62%),
+    radial-gradient(900px 480px at 8% 112%, rgba(244, 244, 245, .035), transparent 60%),
+    #0e0e10 !important;
+}
+html[data-theme='dark'] body .atlas-login.atlas-login--auth7 .atlas-login-card {
+  background: linear-gradient(180deg, #1d1d20 0%, #141416 100%) !important;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, .65), 0 2px 6px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(244, 244, 245, .06) !important;
+}
+html[data-theme='dark'] body .atlas-login.atlas-login--auth7 .atlas-login-card::after {
+  background: linear-gradient(105deg, transparent 42%, rgba(244, 244, 245, .07) 50%, transparent 58%);
+}
+html[data-theme='dark'] body .atlas-login.atlas-login--auth7 .atlas-login-qr-side {
+  background: linear-gradient(180deg, rgba(244, 244, 245, .02), rgba(244, 244, 245, .045));
+}
+html[data-theme='dark'] body .atlas-login.atlas-login--auth7 .atlas-field input,
+html[data-theme='dark'] body .atlas-login.atlas-login--auth7 .atlas-login-input {
+  background: #141416;
+  border-color: rgba(244, 244, 245, .14);
+}
+html[data-theme='dark'] body .atlas-login.atlas-login--auth7 .atlas-login-submit {
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .55);
+}

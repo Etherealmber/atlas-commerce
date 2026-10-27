@@ -6031,7 +6031,7 @@ html[data-theme='dark'] .doc-preview-head {
 
 /* ─── v0.7 — premium login: bigger card, layered depth, staggered entrance ─── */
 html.atlas-login-page .atlas-login .atlas-login-brand img.brand-img {
-  height: 44px;
+  height: 56px;
   width: auto;
 }
 /* Pre-JS / no data-theme yet: follow the OS so the lockup is never black-on-dark. */
@@ -6096,4 +6096,65 @@ html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-qr-side {
   html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-card,
   html.atlas-login-page .atlas-login.atlas-login--auth7 form.atlas-login-form > *,
   html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-qr-side { animation: none; }
+}
+
+/* ─── v0.7 — login premium pass 2: ambient bg, card surface, sheen, inputs ─── */
+html.atlas-login-page .atlas-login.atlas-login--auth7 {
+  background:
+    radial-gradient(1100px 520px at 85% -10%, rgba(24, 24, 27, .07), transparent 62%),
+    radial-gradient(900px 480px at 8% 112%, rgba(24, 24, 27, .05), transparent 60%),
+    #f5f2eb !important;
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-card {
+  border-radius: 24px !important;
+  background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%) !important;
+  box-shadow: 0 30px 80px rgba(24, 24, 27, .14), 0 2px 6px rgba(24, 24, 27, .06) !important;
+  position: relative;
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 42%, rgba(255, 255, 255, .55) 50%, transparent 58%);
+  transform: translateX(-130%);
+  animation: atlas-sheen 1.1s .4s cubic-bezier(.22, .8, .32, 1) 1 both;
+}
+@keyframes atlas-sheen { to { transform: translateX(130%); } }
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-field input,
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-input {
+  height: 48px;
+  border-radius: 12px;
+  font-size: 15px;
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-submit {
+  height: 50px;
+  border-radius: 999px;
+  font-size: 15.5px;
+  letter-spacing: .01em;
+  box-shadow: 0 10px 24px rgba(24, 24, 27, .16);
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-submit svg {
+  transition: transform .18s ease;
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-submit:hover:not(:disabled) svg {
+  transform: translateX(3px);
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-qr-side {
+  background: linear-gradient(180deg, rgba(24, 24, 27, .02), rgba(24, 24, 27, .055));
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-qr-frame {
+  border-radius: 16px;
+  box-shadow: 0 12px 32px rgba(24, 24, 27, .18);
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-meta-link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  opacity: .9;
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-meta-link:hover { opacity: 1; }
+html.atlas-login-page .atlas-login-form p:empty { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-card::after { animation: none; opacity: 0; }
 }
