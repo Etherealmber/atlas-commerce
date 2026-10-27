@@ -161,7 +161,7 @@ createRoot(document.getElementById('root')!).render(
 // Offline PWA: cache shell + GET /api/* for hors-ligne scan / catalogue
 if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js?v=11').then((reg) => {
+    navigator.serviceWorker.register('/sw.js?v=12').then((reg) => {
       // Prefer fresh worker after deploy
       if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
       reg.addEventListener('updatefound', () => {
@@ -174,5 +174,14 @@ if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
         });
       });
     }).catch(() => {});
+    // v0.7 — when a fresher worker takes control, reload ONCE so the open tab
+    // never keeps rendering the previous bundle after a deploy.
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      try {
+        if (sessionStorage.getItem('atlas-sw-reload')) return;
+        sessionStorage.setItem('atlas-sw-reload', '1');
+        window.location.reload();
+      } catch { /* */ }
+    });
   });
 }

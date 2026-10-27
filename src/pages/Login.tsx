@@ -10,7 +10,7 @@ function postLoginPath(): string {
   return '/';
 }
 
-import { APP_NAME, APP_VERSION, APP_CREATOR, APP_CREATOR_NAME, APP_PROFILE, APP_GITHUB } from '../version';
+import { APP_BUILD_DATE, APP_NAME, APP_VERSION, APP_CREATOR, APP_CREATOR_NAME, APP_PROFILE, APP_GITHUB } from '../version';
 import { getApiBase } from '../config';
 import { validateLoginForm, firstError } from '../lib/formValidate';
 import { motion, AnimatePresence } from 'motion/react';
@@ -1009,7 +1009,7 @@ export default function Login() {
                   ? 'Nouvel appareil : mot de passe + OTP e-mail.'
                   : 'Code valable 10 min.'}
           </p>
-          <p className="atlas-login-meta">v{APP_VERSION}</p>
+          <p className="atlas-login-meta">v{APP_VERSION} · {APP_BUILD_DATE}</p>
         </div>
         <div className="atlas-login-qr-side" aria-label="Connexion par QR">
           <LoginPcQrPanel onSuccessFlash={() => { setLoginSuccess(true); setPageExit(true); }} />
