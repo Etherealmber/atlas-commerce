@@ -831,10 +831,11 @@ export default function Login() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ type: 'spring', stiffness: 260, damping: 26, bounce: 0, delay: 0.05 }}
           >
-            {/* v0.7 — the lockup lives INSIDE the card, above the title */}
-            <div className="atlas-login-brand atlas-login-brand--in-card">
-              <img src="/atlas-logo-light.png" alt={APP_NAME} className="brand-img brand-img--light" height={64} width={197} />
-              <img src="/atlas-logo-dark.png" alt={APP_NAME} className="brand-img brand-img--dark" height={64} width={197} />
+            {/* v0.7 — lockup BLANC toujours (indépendant du thème), dans la
+                carte au-dessus de « Bon retour » ; classe dédiée hors des
+                vieilles règles « tile » 28×28. */}
+            <div className="atlas-login-lockup">
+              <img src="/atlas-logo-dark.png" alt={APP_NAME} className="atlas-login-lockup-img" height={64} width={197} />
             </div>
             <h1>Bon retour</h1>
             <p>Connectez-vous pour gérer stock, caisse et facturation</p>
@@ -1023,13 +1024,13 @@ export default function Login() {
           <Link to="/about">À propos</Link>
           <span aria-hidden>·</span>
           <a href={APP_GITHUB} target="_blank" rel="noreferrer">GitHub</a>
+          <span aria-hidden>·</span>
+          <Link to="/whats-new">Nouveautés</Link>
         </nav>
         <p className="atlas-login-foot-meta">
           <span>© {new Date().getFullYear()} {APP_NAME}</span>
           <span aria-hidden>·</span>
           <span>v{APP_VERSION} · {APP_BUILD_DATE}</span>
-          <span aria-hidden>·</span>
-          <Link to="/whats-new">Nouveautés</Link>
         </p>
       </div>
     </div>
