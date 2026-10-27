@@ -1008,11 +1008,6 @@ export default function Login() {
                   ? null
                   : 'Code valable 10 min.'}
           </p>
-          <p className="atlas-login-meta">
-            v{APP_VERSION} · {APP_BUILD_DATE}
-            <span aria-hidden> · </span>
-            <Link to="/whats-new" className="atlas-login-meta-link">Nouveautés</Link>
-          </p>
         </div>
         <div className="atlas-login-qr-side" aria-label="Connexion par QR">
           <LoginPcQrPanel onSuccessFlash={() => { setLoginSuccess(true); setPageExit(true); }} />
@@ -1020,13 +1015,22 @@ export default function Login() {
       </div>
 
       <div className="atlas-login-page-foot">
-        <span>© {new Date().getFullYear()} {APP_NAME}</span>
-        <Link to="/privacy">Confidentialité</Link>
-        <Link to="/terms">Conditions</Link>
-        <a href={APP_GITHUB} target="_blank" rel="noreferrer">GitHub</a>
-        <span aria-hidden>·</span>
-        <span>v{APP_VERSION} · {APP_BUILD_DATE}</span>
-        <Link to="/whats-new">Nouveautés</Link>
+        <nav className="atlas-login-foot-links" aria-label="Liens légaux et produit">
+          <Link to="/privacy">Confidentialité</Link>
+          <span aria-hidden>·</span>
+          <Link to="/terms">Conditions</Link>
+          <span aria-hidden>·</span>
+          <Link to="/about">À propos</Link>
+          <span aria-hidden>·</span>
+          <a href={APP_GITHUB} target="_blank" rel="noreferrer">GitHub</a>
+        </nav>
+        <p className="atlas-login-foot-meta">
+          <span>© {new Date().getFullYear()} {APP_NAME}</span>
+          <span aria-hidden>·</span>
+          <span>v{APP_VERSION} · {APP_BUILD_DATE}</span>
+          <span aria-hidden>·</span>
+          <Link to="/whats-new">Nouveautés</Link>
+        </p>
       </div>
     </div>
   );
