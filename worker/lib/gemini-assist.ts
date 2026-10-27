@@ -200,13 +200,47 @@ export function scrubVendorNames(s: string): string {
     .trim();
 }
 
-/** Concise by instruction; always complete French sentences. */
+/** v0.7 — client-selectable agent response languages (Android app language). */
+export type AgentResponseLanguage = 'fr' | 'en' | 'ar';
+
+/**
+ * Allowlist for the `response_language` body field. Returns null when the
+ * value is absent or outside the allowlist → the legacy rule applies
+ * (answer in the user's language, French default). Values are never echoed
+ * into the prompt — only the allowlisted directive is.
+ */
+export function normalizeResponseLanguage(value: unknown): AgentResponseLanguage | null {
+  const raw = String(value ?? '').trim().toLowerCase().slice(0, 32).split('-')[0];
+  if (!raw) return null;
+  if (raw === 'fr' || raw === 'french' || raw === 'francais') return 'fr';
+  if (raw === 'en' || raw === 'english' || raw === 'anglais') return 'en';
+  if (raw === 'ar' || raw === 'arabic' || raw === 'arabe') return 'ar';
+  return null;
+}
+
+/** Hard language directive for the system prompt (overrides the French context). */
+function languageDirective(lang: AgentResponseLanguage | null): string {
+  if (lang === 'en') {
+    return 'LANGUAGE (HARD RULE, overrides everything below and any other language in this prompt or the history): ALWAYS answer in English. Complete sentences.';
+  }
+  if (lang === 'ar') {
+    return 'LANGUAGE (HARD RULE, overrides everything below and any other language in this prompt or the history): ALWAYS answer in Modern Standard Arabic. اللغة (قاعدة صارمة): أجب دائمًا بالعربية الفصحى، بجمل كاملة.';
+  }
+  if (lang === 'fr') {
+    return 'Langue (RÈGLE STRICTE, prioritaire sur tout le reste): réponds TOUJOURS en français, même si la question est dans une autre langue. Phrases complètes.';
+  }
+  return 'Langue: réponds dans la langue de l’utilisateur (français par défaut). Phrases complètes.';
+}
+
+/** Concise by instruction; language follows the client-selected `response_language`. */
 export function atlasAgentSystem(opts: {
   role: string;
   username: string;
   timezone?: string;
   source?: string;
+  responseLanguage?: AgentResponseLanguage | string | null;
 }): string {
+  const lang = normalizeResponseLanguage(opts.responseLanguage);
   const isMobile = ['android', 'ios', 'mobile', 'capacitor'].includes(
     (opts.source || '').toLowerCase(),
   );
@@ -214,7 +248,7 @@ export function atlasAgentSystem(opts: {
     'Tu es Atlas Agent, assistant intelligent d’Atlas Commerce (ERP stock, facturation, Maroc, MAD).',
     'Tu peux discuter librement: identité, explications, culture générale, conseils — pas seulement le stock.',
     'Si on te demande qui tu es: présente-toi clairement comme Atlas Agent (assistant Atlas Commerce).',
-    'Langue: réponds dans la langue de l’utilisateur (français par défaut). Phrases complètes.',
+    languageDirective(lang),
     'Sois utile et naturel. Pour le métier: sois précis (chiffres, actions concrètes).',
     'Évite le jargon vendeur IA (ne dis pas que tu es Gemini, Mistral, Groq, Llama, ChatGPT).',
     'Si l’utilisateur est déjà sur une page, explique quoi y faire — n’ouvre pas cette même page.',

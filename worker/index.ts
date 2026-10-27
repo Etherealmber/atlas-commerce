@@ -68,7 +68,7 @@ import {
   runAssistTool,
   auditAssist,
 } from './lib/agent';
-import { geminiSimpleChat, atlasAgentSystem, scrubVendorNames } from './lib/gemini-assist';
+import { geminiSimpleChat, atlasAgentSystem, scrubVendorNames, normalizeResponseLanguage } from './lib/gemini-assist';
 import { tokenraChat } from './lib/tokenra-assist';
 import { groqChat, groqChatStream } from './lib/groq-assist';
 import { parseAgentDocumentsAsync, agentDocumentPromptSection } from './lib/agent-docs';
@@ -15921,14 +15921,19 @@ app.post('/api/assist/chat', async (c) => {
   const userMessage = String(body.user_message || body.userMessage || '').trim().slice(0, 2500) || message;
 
   const task = String(body.task || 'general').toLowerCase();
+  // v0.7 — client-selected response language (Android app language): allowlisted
+  // here, enforced in the shared system prompt below. Unknown/absent → legacy rule.
+  const responseLanguage = normalizeResponseLanguage((body as any).response_language ?? (body as any).responseLanguage);
 
   // Greetings / small-talk → always LLM (never canned page tips)
   const isGreeting = /^(bonjour|bonsoir|salut|hello|hi|hey|coucou|salam|bonne\s*(journée|soirée)|merci)[\s!.?]*$/i.test(
     userMessage.trim(),
   );
 
-  // Deterministic short answers with live D1 data — only on the raw user message
-  if (!isGreeting && (task === 'general' || !task)) {
+  // Deterministic short answers with live D1 data — only on the raw user message,
+  // and only when French is acceptable (the canned hints are French; en/ar go
+  // through the LLM so quick prompts honor the selected language too).
+  if (!isGreeting && (task === 'general' || !task) && (responseLanguage === null || responseLanguage === 'fr')) {
     try {
       const snap = await loadQuickSnap(c.env);
       const quick = quickAssistHint(userMessage, snap);
@@ -15948,7 +15953,7 @@ app.post('/api/assist/chat', async (c) => {
   const threadId = String((body as any)?.thread_id || (body as any)?.threadId || 'live').slice(0, 80);
 
   try {
-    const system = atlasAgentSystem({ role, username, timezone: tz, source: sourceRefined });
+    const system = atlasAgentSystem({ role, username, timezone: tz, source: sourceRefined, responseLanguage });
     // v233 — compact memory: the agent reads its recent conversation without replaying full turns
     const history = await loadCompactHistory(c.env, username, threadId, 6);
     const finalMessage = (history
@@ -16034,6 +16039,9 @@ app.post('/api/assist/chat/stream', async (c) => {
   const source = String(body.source || body.client || c.req.header('x-atlas-client') || 'web').slice(0, 32);
   const model = String(body.model || (c.env as any).GROQ_MODEL || 'openai/gpt-oss-20b').slice(0, 80);
   const threadId = String(body?.thread_id || body?.threadId || 'live').slice(0, 80);
+  // v0.7 — same allowlisted response_language as the buffered twin (stream +
+  // vision fallback share this `system` prompt).
+  const responseLanguage = normalizeResponseLanguage(body.response_language ?? body.responseLanguage);
 
   const enc = new TextEncoder();
   const sseStream = new ReadableStream({
@@ -16042,7 +16050,7 @@ app.post('/api/assist/chat/stream', async (c) => {
         try { controller.enqueue(enc.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)); } catch { /* client gone */ }
       };
       try {
-        const system = atlasAgentSystem({ role, username, timezone: tz, source });
+        const system = atlasAgentSystem({ role, username, timezone: tz, source, responseLanguage });
         const history = await loadCompactHistory(c.env, username, threadId, 6);
         const finalMessage = (history
           ? `Historique récent de la conversation (contexte uniquement — ne pas recopier):\n${history}\n\n${message}`
