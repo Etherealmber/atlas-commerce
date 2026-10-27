@@ -6031,8 +6031,13 @@ html[data-theme='dark'] .doc-preview-head {
 
 /* ─── v0.7 — premium login: bigger card, layered depth, staggered entrance ─── */
 html.atlas-login-page .atlas-login .atlas-login-brand img.brand-img {
-  height: 56px;
+  height: 64px;
   width: auto;
+}
+html.atlas-login-page .atlas-login-brand--in-card {
+  display: flex;
+  justify-content: center;
+  margin: 0 0 14px;
 }
 /* Pre-JS / no data-theme yet: follow the OS so the lockup is never black-on-dark. */
 @media (prefers-color-scheme: dark) {
@@ -6099,12 +6104,6 @@ html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-qr-side {
 }
 
 /* ─── v0.7 — login premium pass 2: ambient bg, card surface, sheen, inputs ─── */
-html.atlas-login-page .atlas-login.atlas-login--auth7 {
-  background:
-    radial-gradient(1100px 520px at 85% -10%, rgba(24, 24, 27, .07), transparent 62%),
-    radial-gradient(900px 480px at 8% 112%, rgba(24, 24, 27, .05), transparent 60%),
-    #f5f2eb !important;
-}
 html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-card {
   border-radius: 24px !important;
   background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%) !important;

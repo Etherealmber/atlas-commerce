@@ -488,6 +488,26 @@ function Protected({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/** v0.7 — /about readable WITHOUT an account: standalone layout (no topbar,
+ * no Agent, no session access). Logged-in users keep the exact same Shell. */
+function AboutRoute() {
+  const loggedIn = typeof isLoggedIn === 'function' ? isLoggedIn() : !!getToken();
+  if (loggedIn) return <Protected><Shell /></Protected>;
+  return (
+    <div className="public-about">
+      <header className="public-whats-new-head">
+        <p className="public-whats-new-kicker">Atlas Commerce</p>
+        <h1>À propos</h1>
+        <p className="public-whats-new-sub">Identité du produit et liens légaux — lecture libre, sans compte.</p>
+        <Link to="/login" className="public-whats-new-cta">Se connecter</Link>
+      </header>
+      <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
+        <About />
+      </Suspense>
+    </div>
+  );
+}
+
 /** v0.7 — /whats-new readable WITHOUT an account: static changelog only, in a
  * dedicated standalone layout (no topbar, no Agent, no API call, no session
  * access). Logged-in users keep the exact same Shell experience as before. */
@@ -2114,6 +2134,7 @@ export default function App() {
             <Route path="/error/:code" element={<div className="access-page-standalone"><HttpErrorPage /></div>} />
             <Route path="/404" element={<div className="access-page-standalone"><AccessPage kind="not-found" /></div>} />
             <Route path="/whats-new" element={<WhatsNewRoute />} />
+            <Route path="/about" element={<AboutRoute />} />
             <Route path="/*" element={<Protected><Shell /></Protected>} />
           </Routes>
           <CookieConsent />

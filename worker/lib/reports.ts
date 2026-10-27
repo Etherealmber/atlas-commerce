@@ -24,7 +24,17 @@
  * user reports store only the reporting account's own username/role.
  */
 
-const DEFAULT_REPO = 'Etherealmber/atlas-commerce';
+/** v0.7 — crash/user reports come FROM the apps: issues land in the ANDROID repo. */
+export const REPORTS_REPO_DEFAULT = 'Etherealmber/atlas-commerce-android';
+/** Pre-0.7 default (web repo): migrated on read so old saved configs follow. */
+export const REPORTS_REPO_LEGACY = 'Etherealmber/atlas-commerce';
+/** Resolve the delivery repo: explicit override wins, legacy default migrates. */
+export function resolveReportsRepo(configured?: string | null): string {
+  const raw = String(configured || '').trim();
+  if (!raw || raw === REPORTS_REPO_LEGACY) return REPORTS_REPO_DEFAULT;
+  return raw;
+}
+const DEFAULT_REPO = REPORTS_REPO_DEFAULT;
 const LABEL_CRASH = 'crash-report';
 const LABEL_USER = 'user-report';
 const LABEL_FROM_APP = 'from-app';
@@ -159,14 +169,14 @@ async function setConfigValue(db: D1Database, key: string, value: string): Promi
 export async function githubConfig(env: ReportsEnv): Promise<{ token: string; repo: string; source: 'env' | 'app' | null }> {
   const envToken = String(env.GITHUB_ISSUE_TOKEN || '').trim();
   if (envToken) {
-    return { token: envToken, repo: String(env.GITHUB_ISSUE_REPO || DEFAULT_REPO).trim(), source: 'env' };
+    return { token: envToken, repo: resolveReportsRepo(env.GITHUB_ISSUE_REPO), source: 'env' };
   }
   const appToken = await getConfigValue(env.DB, 'github_reports_token');
   const appRepo = await getConfigValue(env.DB, 'github_reports_repo');
   if (appToken) {
-    return { token: appToken, repo: (appRepo || String(env.GITHUB_ISSUE_REPO || DEFAULT_REPO)).trim(), source: 'app' };
+    return { token: appToken, repo: resolveReportsRepo(appRepo || env.GITHUB_ISSUE_REPO), source: 'app' };
   }
-  return { token: '', repo: String(env.GITHUB_ISSUE_REPO || DEFAULT_REPO).trim(), source: null };
+  return { token: '', repo: resolveReportsRepo(env.GITHUB_ISSUE_REPO), source: null };
 }
 
 export async function saveGithubConfig(db: D1Database, token: string, repo: string): Promise<void> {
