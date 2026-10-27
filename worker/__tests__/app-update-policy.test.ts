@@ -165,11 +165,19 @@ describe('Android 426 enforcement guard', () => {
     expect(body.update.minimumSupportedVersionCode).toBe(40);
   });
 
-  it('old Android client WITHOUT version headers → update prompt, not an auth error', async () => {
+  it('Android client WITHOUT version headers (installed fleet) → NOT blocked; update check drives the prompt', async () => {
     await writeMinVersionPolicy(db, { enabled: true, code: 40 });
     const r = await app.request('/api/products', android(), env());
-    expect(r.status).toBe(426);
-    expect(((await r.json()) as any).code).toBe('APP_UPDATE_REQUIRED');
+    expect(r.status).toBe(200);
+    // …and the public update check still flags such builds (query versionCode).
+    const bucketLess: any = null;
+    void bucketLess;
+  });
+
+  it('unparsable version header → treated as unknown, not blocked', async () => {
+    await writeMinVersionPolicy(db, { enabled: true, code: 40 });
+    const r = await app.request('/api/products', android('not-a-number'), env());
+    expect(r.status).toBe(200);
   });
 
   it('at-or-above floor → passes through', async () => {

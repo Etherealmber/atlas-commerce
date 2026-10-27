@@ -8,10 +8,13 @@
  * DB round-trip. Reads follow the existing order: R2 manifest first,
  * app_config fallback.
  *
- * Enforcement: Android API clients (`X-Atlas-Client: android`) below the
- * floor — or without version headers at all (old clients) — get HTTP 426
- * `APP_UPDATE_REQUIRED` with the update payload. Web clients, bootstrap/
- * health and the update-check / APK download routes are never blocked.
+ * Enforcement: Android API clients (`X-Atlas-Client: android`) that advertise
+ * a version code BELOW the floor get HTTP 426 `APP_UPDATE_REQUIRED` with the
+ * update payload. Clients whose version is UNKNOWN (no header — installed
+ * builds predating the header) are NOT blocked (no fleet-wide lockout); they
+ * are steered to the update screen by the public update check
+ * (minimumVersionRequired / mandatory). Web clients, bootstrap/health and the
+ * update-check / APK download routes are never blocked.
  * The version header is compatibility metadata, NOT a security credential:
  * authentication, authorization, WebAuthn and device binding stay untouched.
  */
@@ -193,8 +196,14 @@ export function androidMinVersionGuard(deps: {
       policy = { enabled: false, code: 0 };
     }
     if (!policy.enabled) return next();
-    if (code !== null && code >= policy.code) return next();
-    // Below the floor — or an old client without version headers at all.
+    // KNOWN version at/above the floor → fine. UNKNOWN version (installed
+    // builds whose OkHttp interceptor predates the version headers) must NOT
+    // be hard-blocked here — that would lock out the whole current fleet the
+    // moment the policy is enabled. Those builds are steered to the update
+    // screen by the update check (minimumVersionRequired + mandatory), and
+    // builds that DO send the header are enforced strictly below.
+    if (code === null || code >= policy.code) return next();
+    // Known and below the floor → update prompt.
     let manifest: any = null;
     try {
       manifest = await deps.readManifest(c.env);
