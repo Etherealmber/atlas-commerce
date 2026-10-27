@@ -15,6 +15,14 @@
  */
 import { Hono } from 'hono';
 import type { Env } from '../env';
+import {
+  carryPolicyIntoManifest,
+  parseMinVersionPolicy,
+  policyFromManifest,
+  readMinVersionPolicy,
+  writeMinVersionPolicy,
+  type MinVersionPolicy,
+} from '../lib/app-update-policy';
 
 export const ANDROID_UPDATE_PREFIX = 'app-updates/android';
 const APK_MIME = 'application/vnd.android.package-archive';
@@ -137,8 +145,23 @@ androidReleaseRouter.post('/api/admin/android-release', async (c) => {
     notes,
     publishedAt: new Date().toISOString(),
   };
+  // v0.7 — CI ingestion must NEVER reset the admin minimum-version policy:
+  // carry it from the previous manifest (or app_config when absent).
+  let oldManifest: any = null;
   try {
-    await bucket.put(`${ANDROID_UPDATE_PREFIX}/latest.json`, JSON.stringify(manifest, null, 2), {
+    const oldObj = await bucket.get(`${ANDROID_UPDATE_PREFIX}/latest.json`);
+    if (oldObj) oldManifest = JSON.parse(await oldObj.text());
+  } catch { /* first release ever → no policy to carry */ }
+  let dbPolicy: MinVersionPolicy | null = null;
+  try {
+    dbPolicy = await readMinVersionPolicy(env.DB);
+  } catch { dbPolicy = null; }
+  const carried = carryPolicyIntoManifest(manifest, oldManifest, dbPolicy);
+  try {
+    await writeMinVersionPolicy(env.DB, carried.policy);
+  } catch { /* best-effort: app_config stays as-is */ }
+  try {
+    await bucket.put(`${ANDROID_UPDATE_PREFIX}/latest.json`, JSON.stringify(carried.manifest, null, 2), {
       httpMetadata: {
         contentType: 'application/json; charset=utf-8',
         cacheControl: 'no-cache, max-age=0, must-revalidate',
@@ -149,7 +172,7 @@ androidReleaseRouter.post('/api/admin/android-release', async (c) => {
     return json({ ok: false, success: false, error: 'MANIFEST_WRITE_FAILED' }, 502);
   }
   console.log('[android-release] ingested', versionName, 'code', versionCode, contentLength, 'bytes');
-  return json({ ok: true, success: true, manifest });
+  return json({ ok: true, success: true, manifest: carried.manifest });
 });
 
 /* ── Public update check (pre-login) + HEAD variant ── */
@@ -182,6 +205,10 @@ async function buildAndroidUpdateResponse(c: any, head: boolean): Promise<Respon
     } catch { /* */ }
   }
   if (!manifest) {
+    let noManifestPolicy: MinVersionPolicy = { enabled: false, code: 0 };
+    try {
+      noManifestPolicy = await readMinVersionPolicy(env.DB);
+    } catch { /* disabled */ }
     const body = {
       success: true,
       ok: true,
@@ -195,6 +222,9 @@ async function buildAndroidUpdateResponse(c: any, head: boolean): Promise<Respon
       sha256: null,
       sizeBytes: null,
       notes: null,
+      minimumVersionEnabled: noManifestPolicy.enabled,
+      minimumSupportedVersionCode: noManifestPolicy.enabled ? noManifestPolicy.code : 0,
+      minimumVersionRequired: false,
       message: 'Aucun manifeste de mise à jour (uploadez app-updates/android/latest.json sur R2)',
     };
     if (head) return new Response(null, { status: 200, headers: noCache });
@@ -202,6 +232,16 @@ async function buildAndroidUpdateResponse(c: any, head: boolean): Promise<Respon
   }
   const remoteCode = Number(manifest.versionCode || manifest.version_code || 0);
   const apkUrl = manifest.apkUrl || manifest.apk_url || null;
+  // v0.7 — echo the minimum-version policy (manifest copy, DB fallback).
+  let policy = policyFromManifest(manifest);
+  if (!policy) {
+    try {
+      policy = await readMinVersionPolicy(env.DB);
+    } catch {
+      policy = parseMinVersionPolicy(false, 0);
+    }
+  }
+  const minRequired = !!policy.enabled && clientCode < policy.code;
   const body = {
     success: true,
     ok: true,
@@ -216,6 +256,9 @@ async function buildAndroidUpdateResponse(c: any, head: boolean): Promise<Respon
     cdn1Url: manifest.cdn1Url || manifest.cdn1_url || apkUrl,
     githubUrl: manifest.githubUrl || manifest.github_url || null,
     notes: manifest.notes ?? null,
+    minimumVersionEnabled: !!policy.enabled,
+    minimumSupportedVersionCode: policy.enabled ? policy.code : 0,
+    minimumVersionRequired: minRequired,
   };
   if (head) return new Response(null, { status: 200, headers: noCache });
   return json(body, 200, noCache);

@@ -1,7 +1,14 @@
-/**
 import { fetchWithTimeout } from './http-client';
 
-const _localSchemaOnce = new Set<string>();
+/** Module-scoped schema cache (per isolate): CREATE TABLE IF NOT EXISTS once. */
+const localSchemaOnce = new Set<string>();
+
+/** Test-only: clears the per-isolate schema cache between in-process DBs. */
+export function resetLocalSchemaOnceForTests(): void {
+  localSchemaOnce.clear();
+}
+
+/**
  * FCM HTTP v1 dispatcher for Cloudflare Workers.
  * Secrets (wrangler secret put):
  *   FIREBASE_PROJECT_ID
@@ -23,7 +30,7 @@ export type FcmEnv = {
 
 export type FcmDataPayload = Record<string, string>;
 
-type PushRow = { token: string; platform?: string };
+type PushRow = { token: string; username?: string; platform?: string };
 
 function pemToArrayBuffer(pem: string): ArrayBuffer {
   const b64 = pem
@@ -99,7 +106,7 @@ async function getGoogleAccessToken(env: FcmEnv): Promise<string | null> {
 }
 
 async function ensurePushTable(db: D1Database) {
-  if (_localSchemaOnce.has('ensurePushTable')) return;
+  if (localSchemaOnce.has('ensurePushTable')) return;
 
   await db
     .prepare(
@@ -114,7 +121,7 @@ async function ensurePushTable(db: D1Database) {
     )
     .run();
 
-  _localSchemaOnce.add('ensurePushTable');
+  localSchemaOnce.add('ensurePushTable');
 }
 
 /** Upsert FCM registration token for a user. */
