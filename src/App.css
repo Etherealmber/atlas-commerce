@@ -18897,3 +18897,10 @@ html[data-theme="dark"] .scan-req-label { color: #a1a1aa; }
 .public-whats-new-cta:hover { opacity: .9; }
 .public-whats-new .wn-changelog { max-width: 860px; margin: 0 auto; }
 .public-whats-new .wn-crumb { justify-content: center; }
+
+/* v0.7 — platform badges on changelog items (web/android/desktop/server). */
+.wn-plats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.wn-plat { font-style: normal; font-size: 11px; letter-spacing: .04em; padding: 2px 9px; border-radius: 999px; border: 1px solid rgba(24,24,27,.22); opacity: .9; }
+.wn-plat--android { border-color: rgba(22,163,74,.5); color: #15803d; }
+.wn-plat--desktop { border-color: rgba(37,99,235,.5); color: #1d4ed8; }
+.wn-plat--server { border-color: rgba(217,119,6,.5); color: #b45309; }

@@ -4305,3 +4305,9 @@ html[data-theme="dark"] body .atlas-password-toggle { background: #27272a !impor
 
 /* v0.7 — public WhatsNew page, dark theme (ONE zinc palette). */
 html[data-theme="dark"] .public-whats-new-cta { background: #f4f4f5; color: #18181b; }
+
+/* v0.7 — platform badges, dark theme. */
+html[data-theme="dark"] .wn-plat { border-color: rgba(244,244,245,.3); color: #e4e4e7; }
+html[data-theme="dark"] .wn-plat--android { color: #86efac; }
+html[data-theme="dark"] .wn-plat--desktop { color: #93c5fd; }
+html[data-theme="dark"] .wn-plat--server { color: #fcd34d; }
