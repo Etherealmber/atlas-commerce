@@ -125,6 +125,7 @@ import {
   retryPendingReports,
   saveGithubConfig,
   validateGithubToken,
+  REPORTS_REPO_DEFAULT,
 } from './lib/reports';
 import { qrToSvg } from './qrSvg';
 
@@ -3937,8 +3938,8 @@ app.put('/api/admin/github-token', async (c) => {
   }
   const v = await validateGithubToken(token);
   if (!v.ok) return c.json({ success: false, error: v.error || 'Token invalide', code: 'INVALID_TOKEN' }, 400);
-  await saveGithubConfig(c.env.DB, token, repo || 'Etherealmber/atlas-commerce');
-  return c.json({ success: true, data: { configured: true, login: v.login || null, repo: repo || 'Etherealmber/atlas-commerce' } });
+  await saveGithubConfig(c.env.DB, token, repo || REPORTS_REPO_DEFAULT);
+  return c.json({ success: true, data: { configured: true, login: v.login || null, repo: repo || REPORTS_REPO_DEFAULT } });
 });
 
 app.get('/api/admin/reports', async (c) => {

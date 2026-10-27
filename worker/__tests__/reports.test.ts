@@ -156,9 +156,9 @@ describe('github config precedence', () => {
     const envCfg = await githubConfig({ DB: made.db, GITHUB_ISSUE_TOKEN: 'env-token' });
     expect(envCfg.source).toBe('env');
     expect(envCfg.token).toBe('env-token');
-    expect(envCfg.repo).toBe('Etherealmber/atlas-commerce');
+    expect(envCfg.repo).toBe('Etherealmber/atlas-commerce-android');
     const none = await githubConfig({ DB: makeD1().db });
-    expect(none).toEqual({ token: '', repo: 'Etherealmber/atlas-commerce', source: null });
+    expect(none).toEqual({ token: '', repo: 'Etherealmber/atlas-commerce-android', source: null });
   });
 });
 

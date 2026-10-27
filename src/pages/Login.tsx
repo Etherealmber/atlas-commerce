@@ -822,13 +822,6 @@ export default function Login() {
 
   return (
     <div className={`atlas-login atlas-login--auth7${(isNativeClient() || isMobileLogin() || isPwaLogin()) ? ' atlas-login--phone' : ''}`}>
-      {/* Brand mark */}
-      <div className="atlas-login-brand">
-        {/* v265 — the lockup carries the wordmark; no duplicate text */}
-        <img src="/atlas-logo-light.png" alt={APP_NAME} className="brand-img brand-img--light" height={56} width={173} />
-        <img src="/atlas-logo-dark.png" alt={APP_NAME} className="brand-img brand-img--dark" height={56} width={173} />
-      </div>
-
       {/* Form column */}
       <div className="atlas-login-card">
         <div className="atlas-login-form-wrap">
@@ -838,6 +831,11 @@ export default function Login() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ type: 'spring', stiffness: 260, damping: 26, bounce: 0, delay: 0.05 }}
           >
+            {/* v0.7 — the lockup lives INSIDE the card, above the title */}
+            <div className="atlas-login-brand atlas-login-brand--in-card">
+              <img src="/atlas-logo-light.png" alt={APP_NAME} className="brand-img brand-img--light" height={64} width={197} />
+              <img src="/atlas-logo-dark.png" alt={APP_NAME} className="brand-img brand-img--dark" height={64} width={197} />
+            </div>
             <h1>Bon retour</h1>
             <p>Connectez-vous pour gérer stock, caisse et facturation</p>
           </motion.div>
@@ -1026,6 +1024,9 @@ export default function Login() {
         <Link to="/privacy">Confidentialité</Link>
         <Link to="/terms">Conditions</Link>
         <a href={APP_GITHUB} target="_blank" rel="noreferrer">GitHub</a>
+        <span aria-hidden>·</span>
+        <span>v{APP_VERSION} · {APP_BUILD_DATE}</span>
+        <Link to="/whats-new">Nouveautés</Link>
       </div>
     </div>
   );
