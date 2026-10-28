@@ -1936,6 +1936,13 @@ function DesktopShell() {
               // v0.7 — guaranteed changelog on /whats-new: rendered directly,
               // independent of the Routes table below (no wrong-page flash).
               <WhatsNew />
+            ) : location.pathname === '/about' ? (
+              // v0.7.1 — same guarantee for /about (descendant <Routes> would
+              // otherwise fall through to the "/" dashboard route).
+              <About />
+            ) : location.pathname === '/download' ? (
+              // v0.7.1 — same guarantee for /download.
+              <Download />
             ) : (
             <Routes>
               <Route path="/" element={<Dashboard />} />

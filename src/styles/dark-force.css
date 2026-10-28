@@ -4468,3 +4468,15 @@ html[data-theme='dark'] body .ac-device-revoke:hover { background: rgba(127, 29,
 html[data-theme='dark'] body .ac-device-note { color: #fbbf24; }
 html[data-theme='dark'] body .atlas-dl-teaser-link { background: #f4f4f5; color: #18181b; }
 html[data-theme='dark'] body .atlas-dl-teaser > button { background: #27272a; color: #d4d4d8; }
+
+/* v0.7.1 — landing /download sur thème sombre. */
+html[data-theme='dark'] body .dl-stat { background: #1c1c1f; border-color: #2a2a2e; }
+html[data-theme='dark'] body .dl-stat strong { color: #fafafa; }
+html[data-theme='dark'] body .dl-section.card { background: #1c1c1f; border-color: #2a2a2e; }
+html[data-theme='dark'] body .dl-section h2,
+html[data-theme='dark'] body .dl-sec-title { color: #fafafa; }
+html[data-theme='dark'] body .dl-notes,
+html[data-theme='dark'] body .dl-tech { color: #d4d4d8; }
+html[data-theme='dark'] body .dl-feat p { color: #a1a1aa; }
+html[data-theme='dark'] body .dl-foot { color: #a1a1aa; }
+html[data-theme='dark'] body .dl-mandatory { color: #fbbf24; }

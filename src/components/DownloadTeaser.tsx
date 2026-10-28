@@ -6,6 +6,7 @@
  */
 import { useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import { getToken } from '../auth';
 
 const KEY = 'atlas-dl-teaser';
 
@@ -19,8 +20,12 @@ export default function DownloadTeaser() {
     try { localStorage.setItem(KEY, 'off'); } catch { /* private mode */ }
     setHidden(true);
   };
+  // v0.7.1 — never cover the floating buttons: stack above the Agent fab
+  // when connected, and above both fabs on /settings.
+  const loggedIn = !!getToken();
+  const stack = loc.pathname === '/settings' ? ' atlas-dl-teaser--settings' : loggedIn ? ' atlas-dl-teaser--app' : '';
   return (
-    <div className="atlas-dl-teaser">
+    <div className={`atlas-dl-teaser${stack}`}>
       <a
         className="atlas-dl-teaser-link"
         href="/download"
