@@ -5994,6 +5994,7 @@ html.atlas-login-page[data-theme='dark'] .atlas-turnstile-hint { color: #fbbf24;
 .doc-preview-modal {
   display: flex;
   flex-direction: column;
+  margin: auto;
   width: min(920px, 100%);
   height: min(92vh, 980px);
   background: #fffdf9;

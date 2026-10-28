@@ -31,6 +31,34 @@ type Release = {
 
 export const RELEASES: Release[] = [
   {
+    version: '0.7.1-beta',
+    date: '28 octobre 2026',
+    sections: [
+      {
+        kind: 'features',
+        items: [
+          { id: '071a1', platforms: ['web'], text: 'Pages publiques À propos et Télécharger : /about et /download se lisent sans compte, dans une mise en page dédiée sans barre du haut ; /download lit le manifeste latest.json du CDN et propose l’APK officielle en nouvel onglet' },
+          { id: '071a2', platforms: ['web'], text: 'Pastille flottante animée (rebond doux + point pulsant, respect de prefers-reduced-motion) qui attire l’attention vers le téléchargement de l’app Android ; un clic ouvre /download en nouvel onglet et la masque, un × la masque aussi' },
+          { id: '071a3', platforms: ['server'], text: 'Signalements et crashs : les issues GitHub partent désormais dans le dépôt Android (atlas-commerce-android) ; un ancien réglage pointant le dépôt web est migré à la lecture, un choix explicite du propriétaire reste respecté' },
+        ],
+      },
+      {
+        kind: 'improvements',
+        items: [
+          { id: '071i1', platforms: ['web'], text: 'Login figé sur la surface sombre avec le lockup blanc 64 px au-dessus de « Bon retour », colonne formulaire centrée hors panneau QR, pied de page deux rangs (liens puis meta) et texte autorempli toujours lisible' },
+          { id: '071i2', platforms: ['web', 'server'], text: 'Modale « Appareils connectés » redesignée : rangées cartes avec icône téléphone/PC, chip « actuel », bouton Révoquer style danger, fermeture visible et fonctionnelle ; après révocation l’appareil devra saisir un code OTP à sa prochaine connexion' },
+          { id: '071i3', platforms: ['server'], text: 'E-mails OTP à la charte Atlas : le logo officiel remplace l’emoji, terracotta et saffron de la marque au lieu des oranges génériques, fonds papier et neutres zinc alignés sur les documents PDF' },
+        ],
+      },
+      {
+        kind: 'fixes',
+        items: [
+          { id: '071f1', platforms: ['web'], text: 'Popup « Aperçu PDF » réparé : l’aperçu et le choix du QR « situation client » s’ouvrent désormais dans un portail React sur document.body — plus de fenêtre coupée en haut quand un ancêtre est transformé ou flouté, centrage garanti et fermeture au clic extérieure' },
+        ],
+      },
+    ],
+  },
+  {
     version: '0.7.0-beta',
     date: '27 octobre 2026',
     sections: [
