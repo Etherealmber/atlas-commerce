@@ -4,6 +4,7 @@
  * This module is provider-agnostic (create/update clients, products, snapshots, etc.).
  */
 import type { Env } from '../env';
+import { scrubProductForRole } from './inventory-policy';
 import { canMutateBusiness, canFloorStock, normalizeRole } from './rbac';
 
 export type AssistRole = string;
@@ -537,7 +538,8 @@ export async function runAssistTool(
           )
           .bind(like, like, like, limit)
           .all();
-        return { ok: true, data: results || [] };
+        // v0.7.1 — inventory privacy in the LLM context as well.
+        return { ok: true, data: (results || []).map((r: any) => scrubProductForRole(r, role)) };
       }
       case 'get_product': {
         let row: any = null;
@@ -550,11 +552,7 @@ export async function runAssistTool(
             .first();
         }
         if (!row) return { ok: false, error: 'Produit introuvable' };
-        if (normalizeRole(role) === 'stock') {
-          const { unit_price, cost, cost_price, ...rest } = row as any;
-          return { ok: true, data: rest };
-        }
-        return { ok: true, data: row };
+        return { ok: true, data: scrubProductForRole(row as any, role) };
       }
       case 'list_actions_pending': {
         const { results } = await db

@@ -8,7 +8,7 @@ import { createPortal } from 'react-dom';
 import { api } from '../api';
 
 type Policy = { blocked: boolean; isAdmin: boolean; dailyUsed: number; weeklyUsed: number; dailyLimit: number; weeklyLimit: number; dailyResetsAt?: string; weeklyResetsAt?: string };
-type Device = { fingerprint: string; full: string; last_ip: string; last_seen: string; user_agent: string; current: boolean };
+type Device = { fingerprint: string; full: string; last_ip: string; last_seen: string; user_agent: string; current: boolean; device_label?: string; city?: string; country?: string };
 type OtpFlow = { kind: 'agent' | 'account'; message: string; code?: string } | null;
 
 function fmtReset(iso?: string): string {
@@ -248,11 +248,14 @@ export default function AgentSecurityPanel({ isOwner, role }: { isOwner: boolean
                     </span>
                     <div className="ac-device-main">
                       <strong>
-                        {d.current ? 'Cet appareil' : d.fingerprint}
+                        {d.current ? 'Cet appareil' : d.device_label || d.fingerprint}
                         {d.current && <span className="ac-device-chip">actuel</span>}
                       </strong>
                       <span className="ac-device-ua">{d.user_agent}</span>
-                      <span className="ac-device-meta">{d.last_seen} · IP {d.last_ip}</span>
+                      <span className="ac-device-meta">
+                        {d.last_seen} · IP {d.last_ip}
+                        {(d.city || d.country) ? ` · ${[d.city, d.country].filter(Boolean).join(', ')}` : ''}
+                      </span>
                     </div>
                     {!d.current && (
                       <button
