@@ -19283,3 +19283,5 @@ html[data-theme="dark"] .scan-req-label { color: #a1a1aa; }
 .dl-cta-ghost:active { transform: translateY(1px); box-shadow: none; }
 .dl-cta-main:focus-visible,
 .dl-cta-ghost:focus-visible { outline: 2px solid #e0a184; outline-offset: 3px; }
+
+/* v0.7.1 — CTA boutons : voir bloc ci-dessus (hover/press/focus). */
