@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { RELEASES } from '../pages/WhatsNew';
+import { APP_VERSION } from '../version';
 
 /**
  * v0.7 — the public changelog must never lose an entry, and 0.7.0-beta must
@@ -8,9 +9,11 @@ import { RELEASES } from '../pages/WhatsNew';
  * so the "Nouveautés" badge pointed at an empty section).
  */
 describe('WhatsNew releases', () => {
-  it('0.7.0-beta is the first release and covers the 0.7 batch', () => {
-    expect(RELEASES[0].version).toBe('0.7.0-beta');
-    const texts = RELEASES[0].sections.flatMap((s) => s.items.map((i) => i.text)).join(' ');
+  it('the newest release matches APP_VERSION and 0.7.0-beta keeps the 0.7 batch', () => {
+    expect(RELEASES[0].version).toBe(APP_VERSION);
+    const r07 = RELEASES.find((r) => r.version === '0.7.0-beta');
+    expect(r07).toBeDefined();
+    const texts = (r07 as any).sections.flatMap((s: any) => s.items.map((i: any) => i.text)).join(' ');
     expect(texts).toContain('response_language');
     expect(texts).toContain('APP_UPDATE_REQUIRED');
     expect(texts).toContain('sans compte');
@@ -37,7 +40,8 @@ describe('WhatsNew releases', () => {
   });
 
   it('0.7.0-beta covers web, android, desktop and server scopes', () => {
-    const items = RELEASES[0].sections.flatMap((s) => s.items) as any[];
+    const r07 = RELEASES.find((r) => r.version === '0.7.0-beta') as any;
+    const items = r07.sections.flatMap((s: any) => s.items) as any[];
     const plats = new Set(items.flatMap((i) => i.platforms || []));
     for (const p of ['web', 'android', 'desktop', 'server']) {
       expect(plats.has(p)).toBe(true);

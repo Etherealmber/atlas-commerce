@@ -3335,7 +3335,7 @@ function DocPreviewPanel() {
         </div>
       </div>
 
-      {askReceipt && (
+      {askReceipt && createPortal(
         <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="QR situation client" onClick={() => setAskReceipt(false)}>
           <div className="modal-card" style={{ maxWidth: 440 }} onClick={(e) => e.stopPropagation()}>
             <h3>QR « situation client » sur cet aperçu ?</h3>
@@ -3352,10 +3352,11 @@ function DocPreviewPanel() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
-      {preview && (
+      {preview && createPortal(
         <div className="modal-overlay doc-preview-overlay" role="dialog" aria-modal="true" aria-label={`Aperçu ${DOC_PREVIEW_LABELS[preview.type] || 'document'}`} onClick={() => setPreview(null)}>
           <div className="doc-preview-modal" onClick={(e) => e.stopPropagation()}>
             <header className="doc-preview-head">
@@ -3367,7 +3368,8 @@ function DocPreviewPanel() {
             </header>
             <iframe title={`Aperçu ${DOC_PREVIEW_LABELS[preview.type] || 'document'}`} src={preview.url} className="doc-preview-frame" />
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );

@@ -10788,9 +10788,9 @@ function otpEmailHTML(
   const intro = isLogin
     ? 'Une nouvelle connexion vient d’être demandée sur votre compte. Confirmez-la en tapant le code ci-dessous, ou en un seul tap sur le bouton.'
     : `Une opération sensible concernant ${resourceLabel} nécessite votre confirmation. Utilisez le code ci-dessous depuis l’application.`;
-  const ORANGE = '#f4590c';
-  const SALMON = '#ee8b6c';
-  const GREY = '#8b93a3';
+  const ORANGE = '#c45c26'; /* terracotta Atlas */
+  const SALMON = '#d4a017'; /* saffron Atlas */
+  const GREY = '#6b7280'; /* zinc muted */
   const rows = [
     meta?.username ? ['Compte', meta.username] : null,
     meta?.ip ? ['Adresse IP', meta.ip] : null,
@@ -10798,7 +10798,7 @@ function otpEmailHTML(
     meta?.fingerprint ? ['Empreinte', meta.fingerprint.slice(0, 24)] : null,
   ].filter(Boolean) as [string, string][];
   const deviceBlock = rows.length
-    ? `<div style="margin:26px 0 0;background:#f7f7f9;border:1px solid #e7e7ec;border-radius:12px;padding:12px 16px">${rows
+    ? `<div style="margin:26px 0 0;background:#f7f1e8;border:1px solid #e2d5c3;border-radius:12px;padding:12px 16px">${rows
         .map(
           ([k, v]) =>
             `<div style="display:flex;justify-content:space-between;gap:16px;padding:4px 0;font-size:12px"><span style="color:${GREY}">${k}</span><span style="color:#3d4453;font-weight:600;text-align:right">${v}</span></div>`,
@@ -10809,20 +10809,20 @@ function otpEmailHTML(
     ? `<a href="${meta.verifyUrl}" style="display:block;width:100%;box-sizing:border-box;background:${ORANGE};border-radius:10px;padding:18px 12px;text-align:center;color:#ffffff;font-size:15px;font-weight:800;letter-spacing:1.5px;text-decoration:none;text-transform:uppercase">Vérifier &amp; continuer</a>`
     : '';
   const social = (href: string, d: string) =>
-    `<a href="${href}" style="display:inline-block;margin-left:14px;text-decoration:none"><svg width="17" height="17" viewBox="0 0 24 24" fill="#8b93a3" xmlns="http://www.w3.org/2000/svg"><path d="${d}"/></svg></a>`;
+    `<a href="${href}" style="display:inline-block;margin-left:14px;text-decoration:none"><svg width="17" height="17" viewBox="0 0 24 24" fill="#6b7280" xmlns="http://www.w3.org/2000/svg"><path d="${d}"/></svg></a>`;
   return `<!doctype html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${tag}</title></head>
 <body style="margin:0;padding:0;background:#f1f1f4;font-family:-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;color:#101114">
   <div style="display:none;max-height:0;overflow:hidden">Votre code : ${otp}</div>
   <div style="max-width:600px;margin:0 auto;padding:38px 22px 30px;text-align:center">
-    <div style="font-size:30px;line-height:1">🏬</div>
+    <img src="https://stock.afmarbre.com/atlas-logo-light.png" alt="Atlas Commerce" width="173" height="56" style="display:block;height:42px;width:auto;max-width:100%;margin:0 auto" />
     <div style="margin-top:8px;font-size:24px;font-weight:800;letter-spacing:-0.3px;color:#101114">Atlas Commerce</div>
     <div style="height:34px"></div>
     <div style="font-size:12px;font-weight:800;letter-spacing:2px;color:${SALMON};text-transform:uppercase">${tag}</div>
     <h1 style="margin:14px 0 0;font-size:33px;line-height:1.18;font-weight:800;color:#101114">${h1} <em style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-weight:600;color:${SALMON}">compte</em></h1>
     <p style="margin:18px auto 0;max-width:420px;font-size:15px;line-height:1.7;color:${GREY}">${intro}</p>
-    <div style="margin:30px 0 0;background:#f7f7f9;border:1px solid #e7e7ec;border-radius:12px;padding:30px 16px">
+    <div style="margin:30px 0 0;background:#f7f1e8;border:1px solid #e2d5c3;border-radius:12px;padding:30px 16px">
       <div style="font-size:34px;font-weight:800;letter-spacing:3px;color:#8a93a6">${otp}</div>
     </div>
     <div style="margin:22px 0 0">${button}</div>
