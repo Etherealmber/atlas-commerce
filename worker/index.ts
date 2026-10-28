@@ -99,6 +99,15 @@ import {
   registerExpenseWriteRoutes,
 } from './routes';
 import { countEmployeesPayDue } from './routes/employees';
+import { registerStockAdjustmentRoutes } from './routes/stockAdjustments';
+import {
+  normalizeInventoryRole,
+  roleCanDirectAdjustStock,
+  roleCanSeeFinancial,
+  roleCanSeeSellPrices,
+  scrubProductForRole,
+  deviceLabelFromUA,
+} from './lib/inventory-policy';
 import { localTodayYmd, notifyPaymentRecorded, runFinanceReminders } from './lib/finance';
 import { buildReportLinkQuery, computePeriodBounds } from './lib/report-period';
 import {
@@ -1665,17 +1674,24 @@ app.get('/api/auth/devices', async (c) => {
     last_ip: r.last_ip,
     last_seen: r.last_seen,
     user_agent: String(r.user_agent || '').slice(0, 90),
+    device_label: deviceLabelFromUA(r.user_agent),
+    city: String(r.city || ''),
+    country: String(r.country || ''),
     current: fp && String(r.fingerprint || '') === fp,
   }));
   if (fp && !data.some((d: any) => d.current)) {
     try {
-      await touchTrustedDevice(c.env.DB, username, fp, clientIp(c), c.req.header('User-Agent') || '');
+      await touchTrustedDevice(c.env.DB, username, fp, clientIp(c), c.req.header('User-Agent') || '', cfGeo(c));
+      const cfNow = cfGeo(c);
       data.unshift({
         fingerprint: fp.slice(0, 12) + '…',
         full: fp,
         last_ip: clientIp(c),
         last_seen: new Date().toISOString(),
         user_agent: String(c.req.header('User-Agent') || '').slice(0, 90),
+        device_label: deviceLabelFromUA(c.req.header('User-Agent') || ''),
+        city: cfNow.city,
+        country: cfNow.country,
         current: true,
       });
     } catch { /* best-effort */ }
@@ -1697,12 +1713,18 @@ app.post('/api/auth/devices/revoke', async (c) => {
 });
 
 /** Best-effort: remember every device that actively uses the account. */
+function cfGeo(c: any): { city: string; country: string } {
+  const cf = (c?.req?.raw as any)?.cf || {};
+  return { city: String(cf.city || ''), country: String(cf.country || '') };
+}
+
 async function touchTrustedDevice(
   db: D1Database,
   username: string,
   fingerprint: string,
   ip: string,
   userAgent: string,
+  geo?: { city?: string; country?: string } | null,
 ): Promise<void> {
   const fp = String(fingerprint || '').trim();
   const uname = String(username || '').trim().toLowerCase();
@@ -1710,15 +1732,24 @@ async function touchTrustedDevice(
   await ensureSecurityTables(db);
   await db
     .prepare(
-      `INSERT INTO trusted_devices (fingerprint, username, user_agent, last_ip, last_seen)
-       VALUES (?, ?, ?, ?, datetime('now'))
+      `INSERT INTO trusted_devices (fingerprint, username, user_agent, last_ip, last_seen, city, country)
+       VALUES (?, ?, ?, ?, datetime('now'), ?, ?)
        ON CONFLICT(fingerprint) DO UPDATE SET
          username = excluded.username,
          user_agent = excluded.user_agent,
          last_ip = excluded.last_ip,
-         last_seen = datetime('now')`,
+         last_seen = datetime('now'),
+         city = COALESCE(NULLIF(excluded.city, ''), city),
+         country = COALESCE(NULLIF(excluded.country, ''), country)`,
     )
-    .bind(fp.slice(0, 128), uname, String(userAgent || '').slice(0, 200), String(ip || '').slice(0, 64))
+    .bind(
+      fp.slice(0, 128),
+      uname,
+      String(userAgent || '').slice(0, 200),
+      String(ip || '').slice(0, 64),
+      String(geo?.city || '').slice(0, 80),
+      String(geo?.country || '').slice(0, 80),
+    )
     .run();
 }
 
@@ -2247,6 +2278,9 @@ async function trustDevice(db: D1Database, fingerprint: string, ip: string, user
   if (!fingerprint || fingerprint === 'none') return;
   await addColumnIfMissing(db, 'trusted_devices', 'username', "TEXT DEFAULT ''");
   await addColumnIfMissing(db, 'trusted_devices', 'user_agent', "TEXT DEFAULT ''");
+  // v0.7.1 — city/country captured from Cloudflare cf at login/touch (IP-based).
+  await addColumnIfMissing(db, 'trusted_devices', 'city', "TEXT DEFAULT ''");
+  await addColumnIfMissing(db, 'trusted_devices', 'country', "TEXT DEFAULT ''");
   const u = String(username || '').slice(0, 80);
   const ua = String(userAgent || '').slice(0, 160);
   await db.prepare(
@@ -4834,7 +4868,7 @@ app.get('/api/auth/me', async (c) => {
   // "appareils connectés" popup always lists yours, current one included.
   try {
     const sess = sessionUserFromHeader(c.req.header('Authorization'));
-    await touchTrustedDevice(c.env.DB, sess.username, c.req.header('X-Device-Fingerprint') || '', clientIp(c), c.req.header('User-Agent') || '');
+    await touchTrustedDevice(c.env.DB, sess.username, c.req.header('X-Device-Fingerprint') || '', clientIp(c), c.req.header('User-Agent') || '', cfGeo(c));
   } catch { /* best-effort */ }
   const ip = clientIp(c);
   const fp = c.req.header('X-Device-Fingerprint') || undefined;
@@ -6781,6 +6815,9 @@ app.get('/api/products', async (c) => {
     const ttl = Math.max(90, Number(c.env.CACHE_TTL_SECONDS || DEFAULT_CACHE_TTL));
     await kvPutJson(c.env.CACHE, cacheKey, results, light ? Math.max(ttl, 120) : ttl);
   }
+  // v0.7.1 — inventory privacy: omit price/cost fields server-side per role.
+  const listRole = normalizeInventoryRole(sessionUserFromHeader(c.req.header('Authorization')).role);
+  results = (results || []).map((r: any) => scrubProductForRole(r, listRole));
   return c.json(
     { success: true, data: results, meta: { cache: cacheable ? 'miss' : 'bypass', fields: light ? 'mobile' : 'full' } },
     200,
@@ -6800,7 +6837,12 @@ app.get('/api/products/:id', async (c) => {
     ).bind(id).all();
     variants = results || [];
   }
-  return c.json({ success: true, data: { ...product, variants } });
+  const oneRole = normalizeInventoryRole(sessionUserFromHeader(c.req.header('Authorization')).role);
+  const scrubbed = scrubProductForRole(product, oneRole);
+  return c.json({
+    success: true,
+    data: { ...scrubbed, variants: (variants || []).map((v: any) => scrubProductForRole(v, oneRole)) },
+  });
 });
 
 app.post('/api/products', async (c) => {
@@ -7044,6 +7086,19 @@ app.post('/api/products/:id/adjust-stock', async (c) => {
   const delta = outTypes.includes(String(type).toLowerCase()) ? -absQty : absQty;
   const prev = Number(product.stock_quantity || 0);
   if (prev + delta < 0) return c.json({ success: false, error: 'Stock insuffisant' }, 400);
+  // v0.7.1 — stock/user (magasinier/opérateur) cannot mutate stock directly:
+  // they must submit POST /api/stock-adjustment-requests (approval workflow).
+  const adjRole = normalizeInventoryRole(sessionUserFromHeader(c.req.header('Authorization')).role);
+  if (!roleCanDirectAdjustStock(adjRole)) {
+    return c.json(
+      {
+        success: false,
+        code: 'APPROVAL_REQUIRED',
+        error: `Rôle ${adjRole} : ajustement direct interdit — soumettez POST /api/stock-adjustment-requests (approbation owner/admin/secretaire).`,
+      },
+      403,
+    );
+  }
 
   const session = sessionUserFromHeader(c.req.header('Authorization'));
   const movement = await applyStockDelta(
@@ -7309,6 +7364,11 @@ app.get('/api/scan/barcode/:code', async (c) => {
     ).bind(product.parent_id).first();
   }
 
+  // v0.7.1 — inventory privacy on the barcode/scan path too.
+  const scanRole = normalizeInventoryRole(sessionUserFromHeader(c.req.header('Authorization')).role);
+  product = scrubProductForRole(product, scanRole) as any;
+  if (parent) parent = scrubProductForRole(parent, scanRole) as any;
+  const scanSeesPrice = roleCanSeeSellPrices(scanRole);
   const stockQty = Number(product.stock_quantity || 0);
   const threshold = Number(product.low_stock_threshold || 0);
   const stock_status = !product.track_inventory
@@ -7328,8 +7388,8 @@ app.get('/api/scan/barcode/:code', async (c) => {
       display_name: product.variant_label
         ? `${parent?.name || product.name} — ${product.variant_label}`
         : product.name,
-      // Ready-to-use invoice line payload for mobile
-      invoice_line: {
+      // Ready-to-use invoice line payload for mobile (price-visible roles only)
+      invoice_line: scanSeesPrice ? {
         product_id: product.id,
         product_name: product.variant_label
           ? `${parent?.name || product.name} — ${product.variant_label}`
@@ -7340,7 +7400,7 @@ app.get('/api/scan/barcode/:code', async (c) => {
         list_price: Number(product.price || 0),
         unit_price: Number(product.price || 0),
         tax_rate: product.tax_rate,
-      },
+      } : undefined,
     },
   });
 });
@@ -12597,6 +12657,19 @@ app.get('/api/expenses', async (c) => {
  * /api/* auth middleware only, so any authenticated role could insert ledger
  * rows — including owner_contrib/owner_draw movements). Behavior, response
  * shapes and French messages are unchanged; see __tests__/expenses-auth.test.ts. */
+/* v0.7.1 — stock-adjustment approval workflow (role-gated, audited). */
+registerStockAdjustmentRoutes(app, {
+  session: (c) => {
+    const s = sessionUserFromHeader(c.req.header('Authorization'));
+    return s?.username ? { username: s.username, role: s.role } : null;
+  },
+  freshRole: async (db, username) => {
+    const row = (await db.prepare(`SELECT role FROM users WHERE lower(username) = lower(?)`).bind(username).first()) as any;
+    return row?.role || null;
+  },
+  audit: (db, e) => writeAudit(db, e),
+});
+
 registerExpenseWriteRoutes(app, {
   sessionUserFromHeader, authFailReason, clientIp, ensureExpenseTypeColumn,
   invalidateDashboardCache, writeAudit,
@@ -14852,6 +14925,31 @@ app.get('/api/nav-badges', async (c) => {
 });
 
 app.get('/api/dashboard', async (c) => {
+  // v0.7.1 — inventory privacy: non-financial roles get an operational
+  // dashboard (counts + low-stock basics), never money aggregates.
+  const dashRole = normalizeInventoryRole(sessionUserFromHeader(c.req.header('Authorization')).role);
+  if (!roleCanSeeFinancial(dashRole)) {
+    const [counts, low] = await Promise.all([
+      c.env.DB.prepare(`SELECT COUNT(*) as count FROM products WHERE is_active = 1`).first(),
+      c.env.DB
+        .prepare(
+          `SELECT id, sku, name, barcode, category, unit, stock_quantity, low_stock_threshold, track_inventory
+           FROM products WHERE is_active = 1 AND track_inventory = 1 AND stock_quantity <= low_stock_threshold
+           ORDER BY name LIMIT 50`,
+        )
+        .all(),
+    ]);
+    return c.json({
+      success: true,
+      data: {
+        operational_only: true,
+        role: dashRole,
+        products: (counts as any)?.count ?? 0,
+        low_stock: (low as any)?.results || [],
+      },
+      meta: { privacy: 'inventory-policy' },
+    });
+  }
   // KV short cache reduces D1 free-tier read volume (many heavy aggregates).
   const ttl = Math.max(120, Math.min(1800, Number(c.env.CACHE_TTL_SECONDS || DEFAULT_CACHE_TTL)));
   const cached = await kvGetJson<any>(c.env.CACHE, await dashboardCacheKey(c.env.CACHE));
