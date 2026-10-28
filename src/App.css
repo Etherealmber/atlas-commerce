@@ -19162,7 +19162,8 @@ html[data-theme="dark"] .scan-req-label { color: #a1a1aa; }
 }
 .dl-release h3 { margin: 0 0 4px; font-size: 15px; color: #fafafa; }
 .dl-release-date { font-size: 12px; color: #71717a; margin: 0 0 12px; }
-.dl-release-body { margin: 0; white-space: pre-wrap; line-height: 1.7; font-size: 13.5px; color: #d4d4d8; max-height: 320px; overflow: auto; }
+.dl-release-body { margin: 0; line-height: 1.7; font-size: 13.5px; color: #d4d4d8; }
+.dl-md { white-space: normal; }
 .dl-release-link { display: inline-block; margin-top: 12px; font-size: 13px; color: #e0a184 !important; text-decoration: underline; text-underline-offset: 3px; }
 .dl-tech {
   margin: 26px 0 0; padding: 18px 22px;
@@ -19228,3 +19229,38 @@ html[data-theme="dark"] .scan-req-label { color: #a1a1aa; }
 }
 .dl-rel-row strong { color: #fafafa; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dl-rel-row a { color: #e0a184 !important; text-decoration: underline; text-underline-offset: 3px; flex: 0 0 auto; }
+
+/* v0.7.1 — navbar de la landing : visible par tous (connecté ou non). */
+.dl-nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 12px 22px;
+  background: rgba(11, 11, 13, .82);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, .07);
+}
+.dl-nav-brand img { height: 26px; width: 80px; display: block; }
+.dl-nav-links { display: flex; align-items: center; gap: 20px; font-size: 13.5px; }
+.dl-nav-links a { color: #a1a1aa; text-decoration: none; }
+.dl-nav-links a:hover { color: #fafafa; }
+.dl-nav-cta {
+  padding: 9px 18px;
+  border-radius: 999px;
+  background: #fafafa;
+  color: #18181b !important;
+  font-weight: 700;
+  font-size: 13px;
+  text-decoration: none;
+  flex: 0 0 auto;
+}
+.dl-nav-cta:hover { background: #e4e4e7; }
+@media (max-width: 760px) {
+  .dl-nav-links a:not(.dl-nav-keep) { display: none; }
+  .dl-nav-links { gap: 14px; }
+}

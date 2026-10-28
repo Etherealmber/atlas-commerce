@@ -155,6 +155,25 @@ export default function Download() {
 
   return (
     <div className="download-landing">
+      {/* ── Navbar visible par tous : accueil, légal, contact → À propos ── */}
+      <header className="dl-nav">
+        <Link to="/download" className="dl-nav-brand" aria-label={`${APP_NAME} — téléchargement`}>
+          <img src="/atlas-logo-dark.png" alt={APP_NAME} width={80} height={26} />
+        </Link>
+        <nav className="dl-nav-links" aria-label="Navigation de la page téléchargement">
+          <Link to="/">Accueil</Link>
+          <Link to="/whats-new">Nouveautés</Link>
+          <Link className="dl-nav-keep" to="/privacy">Confidentialité</Link>
+          <Link className="dl-nav-keep" to="/terms">Conditions</Link>
+          <Link to="/about">Contact &amp; à propos</Link>
+          {apkHref ? (
+            <a className="dl-nav-cta" href={apkHref} target="_blank" rel="noopener noreferrer">Télécharger</a>
+          ) : (
+            <Link className="dl-nav-cta" to="/login">Se connecter</Link>
+          )}
+        </nav>
+      </header>
+
       {/* ── Hero plein écran ─ */}
       <section className="dl-hero">
         <div className="dl-hero-bg" aria-hidden />
@@ -310,7 +329,7 @@ export default function Download() {
       <footer className="dl-foot">
         <div className="dl-foot-inner">
           <div className="dl-foot-brand">
-            <img src="/atlas-logo-dark.png" alt={APP_NAME} width={117} height={38} style={{ height: 38, width: 'auto', maxWidth: 160 }} />
+            <img src="/atlas-logo-dark.png" alt={APP_NAME} width={117} height={38} style={{ height: 38, width: 117 }} />
             <p>Application Android de gestion commerciale : stock, caisse, facturation et trésorerie, même offline.</p>
           </div>
           <nav aria-label="Liens produit">
