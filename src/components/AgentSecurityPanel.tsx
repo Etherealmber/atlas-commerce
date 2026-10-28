@@ -4,6 +4,7 @@
  * OTP-gated privacy deletes (agent data / account), logged-in devices popup.
  */
 import { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { api } from '../api';
 
 type Policy = { blocked: boolean; isAdmin: boolean; dailyUsed: number; weeklyUsed: number; dailyLimit: number; weeklyLimit: number; dailyResetsAt?: string; weeklyResetsAt?: string };
@@ -222,7 +223,7 @@ export default function AgentSecurityPanel({ isOwner, role }: { isOwner: boolean
         )}
       </div>
 
-      {showDevices && (
+      {showDevices && createPortal(
         <div className="modal-overlay" onClick={() => setShowDevices(false)}>
           <div className="modal" style={{ maxWidth: 560, width: '94vw' }} onClick={(e) => e.stopPropagation()}>
             <button type="button" className="modal-x modal-close" aria-label="Fermer" onClick={() => setShowDevices(false)}>
@@ -281,7 +282,8 @@ export default function AgentSecurityPanel({ isOwner, role }: { isOwner: boolean
               <button type="button" className="btn secondary" onClick={() => setShowDevices(false)}>Fermer</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );
