@@ -493,16 +493,10 @@ function Protected({ children }: { children: React.ReactNode }) {
 /** v0.7 — /download readable WITHOUT an account: APK manifest from the CDN,
  * standalone layout. Logged-in users keep the exact same Shell. */
 function DownloadRoute() {
-  const loggedIn = typeof isLoggedIn === 'function' ? isLoggedIn() : !!getToken();
-  if (loggedIn) return <Protected><Shell /></Protected>;
+  // v0.7.1 — /download est TOUJOURS une landing standalone : ni topbar,
+  // ni sidebar, ni FAB, ni Agent, connecté ou non (directive user).
   return (
-    <div className="public-about">
-      <header className="public-whats-new-head">
-        <p className="public-whats-new-kicker">Atlas Commerce</p>
-        <h1>Télécharger l&apos;app</h1>
-        <p className="public-whats-new-sub">L&apos;APK Android officielle — lecture libre, sans compte.</p>
-        <Link to="/login" className="public-whats-new-cta">Se connecter</Link>
-      </header>
+    <div className="download-standalone">
       <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
         <Download />
       </Suspense>
@@ -1940,9 +1934,6 @@ function DesktopShell() {
               // v0.7.1 — same guarantee for /about (descendant <Routes> would
               // otherwise fall through to the "/" dashboard route).
               <About />
-            ) : location.pathname === '/download' ? (
-              // v0.7.1 — same guarantee for /download.
-              <Download />
             ) : (
             <Routes>
               <Route path="/" element={<Dashboard />} />
@@ -1967,7 +1958,6 @@ function DesktopShell() {
               <Route path="/inventory-ops" element={<RoleGate allow={canAccessInventoryOps()}><InventoryOps /></RoleGate>} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/about" element={<About />} />
-              <Route path="/download" element={<Download />} />
               <Route path="/whats-new" element={<WhatsNew />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
