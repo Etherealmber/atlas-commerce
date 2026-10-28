@@ -1,14 +1,16 @@
 /**
- * Download — landing publique de téléchargement de l'APK Android.
- * Lit le manifeste `latest.json` servi par le CDN (même source que le
- * panneau de mise à jour owner) et présente le produit : hero, stats,
- * fonctionnalités, données techniques et liens — sans compte.
+ * Download — landing sombre PLEINEMENT autonome de l'APK Android.
+ * Ni topbar, ni sidebar, ni FAB, ni Agent : connecté ou non, la page se
+ * suffit (directive user). Manifeste `latest.json` du CDN pour le binaire,
+ * notes de version depuis les GitHub Releases du dépôt android.
  */
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { APP_NAME, APP_VERSION, APP_BUILD_DATE, APP_GITHUB } from '../version';
+import { APP_NAME, APP_BUILD_DATE, APP_GITHUB } from '../version';
 
 const LATEST_JSON = 'https://cdn1.afmarbre.com/app-updates/android/latest.json';
+const GH_RELEASE = 'https://api.github.com/repos/Etherealmber/atlas-commerce-android/releases/latest';
+const ANDROID_REPO = 'https://github.com/Etherealmber/atlas-commerce-android';
 
 type Manifest = {
   versionName?: string;
@@ -17,6 +19,14 @@ type Manifest = {
   buildDate?: string;
   notes?: string;
   mandatory?: boolean;
+};
+
+type GhRelease = {
+  tag_name?: string;
+  name?: string;
+  body?: string;
+  published_at?: string;
+  html_url?: string;
 };
 
 const FEATURES: { title: string; text: string }[] = [
@@ -31,6 +41,7 @@ const FEATURES: { title: string; text: string }[] = [
 export default function Download() {
   const [m, setM] = useState<Manifest | null>(null);
   const [state, setState] = useState<'loading' | 'ok' | 'error'>('loading');
+  const [rel, setRel] = useState<GhRelease | null>(null);
 
   const load = useCallback(() => {
     setState('loading');
@@ -43,11 +54,16 @@ export default function Download() {
         setState('ok');
       })
       .catch(() => setState('error'));
+    // Notes de version : la dernière GitHub Release du dépôt android.
+    fetch(GH_RELEASE, { cache: 'no-store', headers: { Accept: 'application/vnd.github+json' } })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((j: any) => setRel(j as GhRelease))
+      .catch(() => setRel(null));
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  /* v0.7.1 — SEO / partage : titre, description, Open Graph et Schema.org. */
+  /* SEO / partage : titre, description, Open Graph et Schema.org (sans prix). */
   useEffect(() => {
     const prevTitle = document.title;
     document.title = `Télécharger ${APP_NAME} — APK Android officielle`;
@@ -62,12 +78,12 @@ export default function Download() {
       return el;
     };
     const metas = [
-      upsert('name', 'description', `${APP_NAME} — application Android de gestion (stock, caisse, facturation) pour le commerce. APK officielle, gratuite, sans compte requis pour cette page.`),
+      upsert('name', 'description', `${APP_NAME} — application Android de gestion (stock, caisse, facturation) pour le commerce. APK officielle servie par CDN.`),
       upsert('property', 'og:type', 'website'),
       upsert('property', 'og:title', `Télécharger ${APP_NAME} — APK Android`),
       upsert('property', 'og:description', 'Gérez stock, caisse et facturation depuis votre Android. APK officielle servie par CDN.'),
       upsert('property', 'og:url', 'https://stock.afmarbre.com/download'),
-      upsert('property', 'og:image', 'https://stock.afmarbre.com/atlas-logo-light.png'),
+      upsert('property', 'og:image', 'https://stock.afmarbre.com/atlas-logo-dark.png'),
     ];
     const ld = document.createElement('script');
     ld.type = 'application/ld+json';
@@ -79,7 +95,6 @@ export default function Download() {
       operatingSystem: 'ANDROID',
       applicationCategory: 'BusinessApplication',
       inLanguage: 'fr',
-      offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
       url: 'https://stock.afmarbre.com/download',
     });
     document.head.appendChild(ld);
@@ -90,136 +105,165 @@ export default function Download() {
     };
   }, []);
 
+  const apkHref = state === 'ok' && m ? String(m.apkUrl) : '';
+  const relBody = String(rel?.body || '').trim();
+  const notesBody = relBody || String(m?.notes || '').trim();
+  const relTitle = rel?.name || rel?.tag_name || (m ? `v${m.versionName}` : APP_NAME);
+  const relDate = rel?.published_at ? String(rel.published_at).slice(0, 10) : m?.buildDate || APP_BUILD_DATE;
+
   return (
     <div className="download-landing">
-      {/* ── Hero ─ */}
+      {/* ── Hero plein écran ─ */}
       <section className="dl-hero">
         <div className="dl-hero-bg" aria-hidden />
         <div className="dl-hero-grid" aria-hidden />
-        <div className="dl-hero-content">
-          <p className="dl-eyebrow">Appli Android officielle</p>
-          <h1 className="dl-h1">
-            Gérez votre commerce<br />
-            <span>depuis votre poche</span>
-          </h1>
-          <p className="dl-desc">
-            {APP_NAME} — stock, caisse, facturation et trésorerie dans une seule application
-            Android : synchronisation offline, connexion QR et passkey, PDF prêts à imprimer.
+        <div className="dl-container">
+          <div className="dl-hero-content">
+            <p className="dl-eyebrow">Appli Android officielle</p>
+            <h1 className="dl-h1">
+              Gérez votre commerce<br />
+              <span>depuis votre poche</span>
+            </h1>
+            <p className="dl-desc">
+              {APP_NAME} — stock, caisse, facturation et trésorerie dans une seule
+              application Android : synchronisation offline, connexion QR et passkey,
+              PDF prêts à imprimer.
+            </p>
+            <div className="dl-ctas">
+              {apkHref ? (
+                <a className="dl-cta-main" href={apkHref} target="_blank" rel="noopener noreferrer">
+                  Télécharger l&apos;APK
+                </a>
+              ) : (
+                <span className="dl-cta-main dl-cta-wait" aria-disabled="true">
+                  {state === 'loading' ? 'Lecture du manifeste…' : 'Manifeste injoignable'}
+                </span>
+              )}
+              <a className="dl-cta-ghost" href={ANDROID_REPO} target="_blank" rel="noopener noreferrer">
+                Voir sur GitHub
+              </a>
+            </div>
+            <p className="dl-note">
+              <span className="dl-note-dot" aria-hidden />
+              Disponible maintenant — sans compte pour cette page
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Stats + fonctionnalités + release ─ */}
+      <section className="dl-band">
+        <div className="dl-container">
+          <div className="dl-stats" aria-label="Informations de version">
+            <div className="dl-stat">
+              <strong>{m ? `v${m.versionName || APP_NAME}` : '…'}</strong>
+              <span>Version</span>
+            </div>
+            <div className="dl-stat">
+              <strong>{m?.versionCode ? `#${m.versionCode}` : '…'}</strong>
+              <span>Build</span>
+            </div>
+            <div className="dl-stat">
+              <strong>{m?.buildDate || APP_BUILD_DATE}</strong>
+              <span>Publiée le</span>
+            </div>
+          </div>
+
+          <h2 className="dl-sec-title">Ce que l&apos;app sait faire</h2>
+          <p className="dl-sec-sub">
+            Une seule application de terrain, pensée pour le commerce : rapide, sûre,
+            utilisable d&apos;une main.
           </p>
-          <div className="dl-ctas">
-            {state === 'ok' && m ? (
-              <a className="public-whats-new-cta dl-cta-main" href={String(m.apkUrl)} target="_blank" rel="noopener noreferrer">
+          <div className="dl-feats">
+            {FEATURES.map((f) => (
+              <div key={f.title} className="dl-feat">
+                <strong>{f.title}</strong>
+                <p>{f.text}</p>
+              </div>
+            ))}
+          </div>
+
+          <h2 className="dl-sec-title" style={{ marginTop: 56 }}>Notes de version</h2>
+          <p className="dl-sec-sub">
+            {relBody
+              ? 'Dernière publication du dépôt Android sur GitHub Releases.'
+              : 'Dernières notes publiées avec le binaire.'}
+          </p>
+          <div className="dl-release">
+            <h3>{relTitle}</h3>
+            <p className="dl-release-date">{relDate}</p>
+            {notesBody ? (
+              <p className="dl-release-body">{notesBody}</p>
+            ) : (
+              <p className="dl-release-body">Notes de version non publiées pour ce binaire.</p>
+            )}
+            {rel?.html_url ? (
+              <a className="dl-release-link" href={rel.html_url} target="_blank" rel="noopener noreferrer">
+                Voir la release sur GitHub
+              </a>
+            ) : null}
+          </div>
+
+          <ul className="dl-tech">
+            <li>
+              Manifeste de mise à jour :{' '}
+              <a href={LATEST_JSON} target="_blank" rel="noopener noreferrer">latest.json</a>{' '}
+              <span className="dl-muted">· CDN cdn1.afmarbre.com</span>
+            </li>
+            <li>
+              Dépôts :{' '}
+              <a href={APP_GITHUB} target="_blank" rel="noopener noreferrer">atlas-commerce</a>{' '}
+              <span className="dl-muted">·</span>{' '}
+              <a href={ANDROID_REPO} target="_blank" rel="noopener noreferrer">atlas-commerce-android</a>
+            </li>
+            <li>
+              Licence : <span className="dl-muted">MIT © 2026 loxdpsy / Etherealmber</span>
+            </li>
+            <li>
+              Installation : <span className="dl-muted">ouvrez l&apos;APK téléchargée depuis ce lien officiel uniquement</span>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      {/* ── CTA final ─ */}
+      <section className="dl-cta-sec">
+        <div className="dl-container" style={{ position: 'relative', zIndex: 2 }}>
+          <h2>Prêt à encaisser partout ?</h2>
+          <p>Installez l&apos;APK officielle, connectez-vous en scannant le QR du web, et reprenez la caisse en deux minutes.</p>
+          <div className="dl-ctas" style={{ justifyContent: 'center' }}>
+            {apkHref ? (
+              <a className="dl-cta-main" href={apkHref} target="_blank" rel="noopener noreferrer">
                 Télécharger l&apos;APK
               </a>
             ) : (
-              <span className="public-whats-new-cta dl-cta-main dl-cta-wait" aria-disabled="true">
-                {state === 'loading' ? 'Lecture du manifeste…' : 'Manifeste injoignable'}
-              </span>
+              <span className="dl-cta-main dl-cta-wait" aria-disabled="true">Manifeste injoignable</span>
             )}
-            <a className="dl-cta-ghost" href={APP_GITHUB} target="_blank" rel="noopener noreferrer">
-              Voir sur GitHub
-            </a>
+            <Link className="dl-cta-ghost" to="/whats-new">Nouveautés</Link>
           </div>
-          <p className="dl-note">
-            <span className="dl-note-dot" aria-hidden />
-            Disponible maintenant — gratuit, sans compte pour cette page
-          </p>
         </div>
       </section>
 
-      {/* ── Stats ── */}
-      <section className="dl-stats" aria-label="Informations de version">
-        <div className="dl-stat">
-          <strong>{state === 'ok' && m ? `v${m.versionName || APP_VERSION}` : `v${APP_VERSION}`}</strong>
-          <span>Version</span>
-        </div>
-        <div className="dl-stat">
-          <strong>{state === 'ok' && m?.versionCode ? `#${m.versionCode}` : '—'}</strong>
-          <span>Build</span>
-        </div>
-        <div className="dl-stat">
-          <strong>{m?.buildDate || APP_BUILD_DATE}</strong>
-          <span>Publiée le</span>
-        </div>
-        <div className="dl-stat">
-          <strong>0 MAD</strong>
-          <span>Prix</span>
-        </div>
-      </section>
-
-      {/* ── Notes de version ── */}
-      {state === 'ok' && m?.notes ? (
-        <section className="card dl-section">
-          <h2>Notes de version</h2>
-          <p className="dl-notes">{m.notes}</p>
-          {m.mandatory ? <p className="dl-mandatory">Mise à jour obligatoire pour les versions antérieures.</p> : null}
-        </section>
-      ) : null}
-      {state === 'error' ? (
-        <section className="card dl-section">
-          <h2>Manifeste injoignable</h2>
-          <p className="dl-notes">
-            Le fichier de mise à jour ne répond pas pour le moment. Réessayez dans un instant.
-          </p>
-          <button type="button" className="secondary" onClick={load} style={{ borderRadius: 12, minHeight: 44, padding: '0 20px' }}>
-            Réessayer
-          </button>
-        </section>
-      ) : null}
-
-      {/* ── Fonctionnalités ── */}
-      <section className="dl-section">
-        <h2 className="dl-sec-title">Ce que l&apos;app sait faire</h2>
-        <div className="dl-feats">
-          {FEATURES.map((f) => (
-            <div key={f.title} className="card dl-feat">
-              <strong>{f.title}</strong>
-              <p>{f.text}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── Données techniques ── */}
-      <section className="card dl-section">
-        <h2>Données techniques</h2>
-        <ul className="dl-tech">
-          <li>
-            Manifeste de mise à jour :{' '}
-            <a href={LATEST_JSON} target="_blank" rel="noopener noreferrer">latest.json</a>{' '}
-            <span className="dl-muted">(CDN cdn1.afmarbre.com)</span>
-          </li>
-          <li>
-            Dépôt du projet :{' '}
-            <a href={APP_GITHUB} target="_blank" rel="noopener noreferrer">Etherealmber/atlas-commerce</a>{' '}
-            <span className="dl-muted">· builds Android : atlas-commerce-android</span>
-          </li>
-          <li>
-            Canal : <span className="dl-muted">beta (0.x)</span> · Licence :{' '}
-            <span className="dl-muted">MIT © 2026 loxdpsy / Etherealmber</span>
-          </li>
-          <li>
-            Install : <span className="dl-muted">ouvrez l&apos;APK téléchargée depuis ce lien officiel uniquement</span>
-          </li>
-        </ul>
-      </section>
-
-      {/* ── Footer ── */}
+      {/* ── Footer deux colonnes ─ */}
       <footer className="dl-foot">
-        <nav aria-label="Liens produit">
-          <Link to="/whats-new">Nouveautés</Link>
-          <span aria-hidden>·</span>
-          <Link to="/about">À propos</Link>
-          <span aria-hidden>·</span>
-          <Link to="/privacy">Confidentialité</Link>
-          <span aria-hidden>·</span>
-          <Link to="/terms">Conditions</Link>
-          <span aria-hidden>·</span>
-          <a href={APP_GITHUB} target="_blank" rel="noopener noreferrer">GitHub</a>
-        </nav>
-        <p>
-          v{APP_VERSION} · {APP_BUILD_DATE} — © {new Date().getFullYear()} {APP_NAME}
-        </p>
+        <div className="dl-foot-inner">
+          <div className="dl-foot-brand">
+            <img src="/atlas-logo-dark.png" alt={APP_NAME} />
+            <p>Application Android de gestion commerciale : stock, caisse, facturation et trésorerie, même offline.</p>
+          </div>
+          <nav aria-label="Liens produit">
+            <Link to="/whats-new">Nouveautés</Link>
+            <Link to="/about">À propos</Link>
+            <Link to="/privacy">Confidentialité</Link>
+            <Link to="/terms">Conditions</Link>
+            <a href={APP_GITHUB} target="_blank" rel="noopener noreferrer">GitHub</a>
+            <Link to="/login">Se connecter</Link>
+          </nav>
+        </div>
+        <div className="dl-foot-bottom">
+          <span>© {new Date().getFullYear()} {APP_NAME} — tous droits réservés</span>
+          <span>{m ? `v${m.versionName} · ${m.buildDate || APP_BUILD_DATE}` : APP_BUILD_DATE}</span>
+        </div>
       </footer>
     </div>
   );
