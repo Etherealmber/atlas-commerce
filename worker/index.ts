@@ -997,7 +997,10 @@ app.use('*', async (c, next) => {
   }
   // Security headers (defence in depth)
   c.header('X-Content-Type-Options', 'nosniff');
-  c.header('X-Frame-Options', 'DENY');
+  // v0.7.1 — l'aperçu PDF s'affiche DANS une iframe same-origin (Settings) :
+  // SAMEORIGIN suffit à bloquer le clickjacking externe tout en laissant
+  // passer notre propre modal. Tout le reste reste DENY.
+  c.header('X-Frame-Options', c.req.path === '/api/settings/invoice-preview' ? 'SAMEORIGIN' : 'DENY');
   c.header('Referrer-Policy', 'strict-origin-when-cross-origin');
   c.header('Permissions-Policy', 'camera=(self), microphone=(), geolocation=(), payment=()');
   c.header('X-Robots-Tag', 'noindex, nofollow');
@@ -6143,9 +6146,17 @@ app.get('/api/settings/invoice-preview', async (c) => {
   const company = settings?.company_name || 'Atlas Commerce';
   const DISCLAIMER = 'Document d’aperçu. Les montants réels proviennent de votre dernier enregistrement quand il existe. Ceci n’est pas une pièce comptable à remettre au client. Le QR reprend le résumé (type, numéro, partie, totaux) tel qu’il apparaîtra sur le PDF.';
 
-  const sampleItems = [
-    { product_name: 'Article exemple', sku: 'EX-01', quantity: 1, unit_price: 100, tax_rate: tax, line_total: 100 * (1 + tax / 100) },
+  // v0.7.1 — données de démo réalistes (3 lignes) quand aucun document réel.
+  const demoQty: [string, string, number, number][] = [
+    ['Carrelage grès cérame 60×60', 'CR-6060', 12, 89],
+    ['Colle à carrelage C2 (25 kg)', 'CL-C2', 4, 62],
+    ['Joint hydrofuge gris (5 kg)', 'JT-G5', 2, 45],
   ];
+  const sampleItems = demoQty.map(([product_name, sku, quantity, unit_price]) => ({
+    product_name, sku, quantity, unit_price, tax_rate: tax,
+    line_total: Math.round(quantity * unit_price * (1 + tax / 100) * 100) / 100,
+  }));
+  const DEMO_NOTE = 'Aperçu DÉMO — document non réel, généré avec des données d’exemple. Ne pas remettre au client.';
 
   async function latest(sql: string, ...binds: unknown[]) {
     try {
@@ -6168,18 +6179,39 @@ app.get('/api/settings/invoice-preview', async (c) => {
   };
 
   if (type === 'report') {
-    const body = `<h2 style="margin:0 0 12px">Rapport — ${company}</h2>
-      <p>TVA configurée : ${tax}% · devise ${settings?.currency || 'MAD'}</p>
+    const cur = settings?.currency || 'MAD';
+    const body = `<div class="watermark" aria-hidden="true">DÉMO</div>
+      <h2 style="margin:0 0 12px">Rapport — ${company}</h2>
+      <p>TVA configurée : ${tax}% · devise ${cur} · chiffres DÉMO quand aucune donnée réelle.</p>
+      <div class="grid">
+        <div class="stat"><div class="l">Ventes (30 j)</div><div class="v">12 500 ${cur}</div></div>
+        <div class="stat"><div class="l">Sorties (30 j)</div><div class="v">4 320 ${cur}</div></div>
+        <div class="stat"><div class="l">Résultat</div><div class="v">8 180 ${cur}</div></div>
+        <div class="stat"><div class="l">Documents</div><div class="v">17</div></div>
+      </div>
+      <table><thead><tr><th>Article</th><th>Qté</th><th>Montant</th></tr></thead><tbody>
+        <tr><td>Carrelage grès cérame 60×60</td><td>12</td><td>1 281,60 ${cur}</td></tr>
+        <tr><td>Colle à carrelage C2 (25 kg)</td><td>4</td><td>297,60 ${cur}</td></tr>
+        <tr><td>Joint hydrofuge gris (5 kg)</td><td>2</td><td>108,00 ${cur}</td></tr>
+      </tbody></table>
       <p style="border:1px solid #000;padding:8px;background:#fff8e8"><strong>Avertissement.</strong> ${DISCLAIMER}</p>`;
     return c.html(reportShell('Rapport', company, 'Aperçu', body, settings?.report_footer || settings?.notes));
   }
   if (type === 'employee') {
     let emp: any = null;
     try { emp = await latest(`SELECT * FROM employees ORDER BY id DESC LIMIT 1`); } catch { emp = null; }
-    const name = emp?.full_name || emp?.name || emp?.display_name || 'Aucun employé enregistré';
-    const body = `<h2>Fiche employé</h2>
-      <p><strong>${name}</strong>${emp?.job_title ? ' · ' + emp.job_title : ''}</p>
-      <p>${emp ? 'Dernière fiche réelle de votre base.' : 'Aucun employé — aperçu vide.'}</p>
+    const demoEmp = !emp;
+    const name = emp?.full_name || emp?.name || emp?.display_name || 'Amina Démo';
+    const role = emp?.job_title || 'Vendeuse — showroom';
+    const num = emp?.employee_number || 'EMP-0001';
+    const body = `<div class="watermark" aria-hidden="true">${demoEmp ? 'DÉMO' : 'APERÇU'}</div>
+      <h2>Fiche employé</h2>
+      <p><strong>${name}</strong> · ${role} · n° ${num}</p>
+      <table><thead><tr><th>Champ</th><th>Valeur</th></tr></thead><tbody>
+        <tr><td>Statut</td><td>${demoEmp ? 'Employé DÉMO (aucune fiche en base)' : 'Fiche réelle la plus récente'}</td></tr>
+        <tr><td>Entrée</td><td>${demoEmp ? '2026-01-05 (démo)' : String(emp?.hire_date || '—')}</td></tr>
+        <tr><td>Affectation</td><td>${demoEmp ? 'Showroom — Casablanca (démo)' : String(emp?.assignment || emp?.job_title || '—')}</td></tr>
+      </tbody></table>
       <p style="border:1px solid #000;padding:8px;background:#fff8e8"><strong>Avertissement.</strong> ${DISCLAIMER}</p>`;
     return c.html(reportShell('Fiche employé', company, emp?.employee_number || '—', body, settings?.report_footer || ''));
   }
@@ -6226,16 +6258,16 @@ app.get('/api/settings/invoice-preview', async (c) => {
       number: `${prefix || 'DEMO-'}${String(1).padStart(pad, '0')}`,
       issue_date: new Date().toISOString().slice(0, 10),
       status: 'draft',
-      client_name: 'Client exemple (aucun document en base)',
-      client_ice: settings?.ice || '',
-      client_city: settings?.city || '',
+      client_name: 'Marbrerie Démo SARL',
+      client_ice: settings?.ice || '002345678000099',
+      client_city: settings?.city || 'Casablanca',
       subtotal: ht,
       tax_amount: taxAmt,
       total: ht + taxAmt,
       amount_paid: 0,
-      notes: '',
+      notes: DEMO_NOTE,
     };
-    items = sampleItems.map((it) => ({ ...it, line_total: it.quantity * it.unit_price * (1 + tax / 100) }));
+    items = sampleItems;
   }
 
   const summary = [

@@ -86,14 +86,25 @@ export default function Download() {
 
   const load = useCallback(() => {
     setState('loading');
-    fetch(LATEST_JSON, { cache: 'no-store' })
+    // v0.7.1 — lecture same-origin d'abord (le Worker lit R2 : aucun CORS),
+    // repli sur le CDN si la voie interne échoue.
+    const fromApi = fetch('/api/app/android-update?versionCode=0', { cache: 'no-store' })
       .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
       .then((j: any) => {
         const man = (j && (j.manifest || j)) as Manifest;
         if (!man || !String(man.apkUrl || '')) throw new Error('empty');
-        setM(man);
-        setState('ok');
-      })
+        return man;
+      });
+    const fromCdn = fetch(LATEST_JSON, { cache: 'no-store' })
+      .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
+      .then((j: any) => {
+        const man = (j && (j.manifest || j)) as Manifest;
+        if (!man || !String(man.apkUrl || '')) throw new Error('empty');
+        return man;
+      });
+    fromApi
+      .catch(() => fromCdn)
+      .then((man) => { setM(man); setState('ok'); })
       .catch(() => setState('error'));
     // Toutes les versions : GitHub Releases du dépôt android (auto-update).
     fetch(GH_RELEASES, { cache: 'no-store', headers: { Accept: 'application/vnd.github+json' } })
