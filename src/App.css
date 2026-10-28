@@ -18922,3 +18922,122 @@ html[data-theme="dark"] .scan-req-label { color: #a1a1aa; }
 
 .public-whats-new-ghost { margin-top: 8px; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; opacity: .85; }
 .public-whats-new-ghost:hover { opacity: 1; }
+
+/* v0.7 — « Appareils connectés » : rangées cartes, icônes, chip, révocation. */
+.ac-device-list { display: flex; flex-direction: column; gap: 10px; }
+.ac-device-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #e4e4e7;
+  border-radius: 14px;
+  background: #fafafa;
+}
+.ac-device-ico {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #f4f4f5;
+  border: 1px solid #e4e4e7;
+  color: #52525b;
+}
+.ac-device-main { min-width: 0; flex: 1 1 auto; display: flex; flex-direction: column; gap: 2px; }
+.ac-device-main strong { font-size: 13.5px; display: flex; align-items: center; gap: 8px; }
+.ac-device-ua { font-size: 12px; color: #71717a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ac-device-meta { font-size: 11.5px; color: #a1a1aa; }
+.ac-device-chip {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(22, 163, 74, .12);
+  color: #15803d;
+}
+.ac-device-revoke {
+  flex: 0 0 auto;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  background: transparent;
+  border-radius: 10px;
+  min-height: 36px;
+  padding: 0 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ac-device-revoke:hover { background: rgba(185, 28, 28, .08); }
+.ac-device-note { margin: 10px 0 0; font-size: 12.5px; color: #92400e; }
+
+/* v0.7 — pastille flottante animée vers /download. */
+.atlas-dl-teaser {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 9500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: atlas-teaser-in .45s cubic-bezier(.22,.8,.32,1) both;
+}
+.atlas-dl-teaser-link {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 16px;
+  border-radius: 999px;
+  background: #18181b;
+  color: #fafafa;
+  font-weight: 600;
+  font-size: 13px;
+  text-decoration: none;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .28);
+  animation: atlas-teaser-bob 2.6s ease-in-out infinite;
+}
+.atlas-dl-teaser-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 0 rgba(34, 197, 94, .55);
+  animation: atlas-teaser-pulse 1.8s ease-out infinite;
+}
+.atlas-dl-teaser > button {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid #d4d4d8;
+  background: #ffffff;
+  color: #52525b;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+.atlas-dl-teaser > button:hover { background: #f4f4f5; color: #18181b; }
+@keyframes atlas-teaser-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+@keyframes atlas-teaser-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, .55); }
+  70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+@keyframes atlas-teaser-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .atlas-dl-teaser, .atlas-dl-teaser-link, .atlas-dl-teaser-dot { animation: none !important; }
+}
+
+/* v0.7 — page /download. */
+.download-page { max-width: 720px; margin: 0 auto; }
+.download-body { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+.download-version { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0; }
+.download-notes { margin: 0; white-space: pre-wrap; }
+.download-cta { margin-top: 4px; }

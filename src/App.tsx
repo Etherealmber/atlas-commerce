@@ -81,6 +81,7 @@ import PageTransition from './components/PageTransition';
 import PageSkeleton from './components/PageSkeleton';
 import OfflineBanner from './components/OfflineBanner';
 import CookieConsent from './components/CookieConsent';
+import DownloadTeaser from './components/DownloadTeaser';
 import { TopbarUserMenu } from './components/shell/TopbarUserMenu';
 import { AvatarImage } from './components/ui/AvatarImage';
 import { invalidateAvatarCache } from './lib/avatarCache';
@@ -155,6 +156,7 @@ const Vendors = lazyRetry(() => import('./pages/Vendors'));
 const Quotes = lazyRetry(() => import('./pages/Quotes'));
 const Reimbursements = lazyRetry(() => import('./pages/Reimbursements'));
 const About = lazyRetry(() => import('./pages/About'));
+const Download = lazyRetry(() => import('./pages/Download'));
 const WhatsNew = lazyRetry(() => import('./pages/WhatsNew'));
 const WhatsNewModal = lazyRetry(() => import('./components/WhatsNewModal'));
 const Actions = lazyRetry(() => import('./pages/Actions'));
@@ -486,6 +488,26 @@ function Protected({ children }: { children: React.ReactNode }) {
     return <Navigate to="/welcome" replace />;
   }
   return <>{children}</>;
+}
+
+/** v0.7 — /download readable WITHOUT an account: APK manifest from the CDN,
+ * standalone layout. Logged-in users keep the exact same Shell. */
+function DownloadRoute() {
+  const loggedIn = typeof isLoggedIn === 'function' ? isLoggedIn() : !!getToken();
+  if (loggedIn) return <Protected><Shell /></Protected>;
+  return (
+    <div className="public-about">
+      <header className="public-whats-new-head">
+        <p className="public-whats-new-kicker">Atlas Commerce</p>
+        <h1>Télécharger l&apos;app</h1>
+        <p className="public-whats-new-sub">L&apos;APK Android officielle — lecture libre, sans compte.</p>
+        <Link to="/login" className="public-whats-new-cta">Se connecter</Link>
+      </header>
+      <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
+        <Download />
+      </Suspense>
+    </div>
+  );
 }
 
 /** v0.7 — /about readable WITHOUT an account: standalone layout (no topbar,
@@ -1938,6 +1960,7 @@ function DesktopShell() {
               <Route path="/inventory-ops" element={<RoleGate allow={canAccessInventoryOps()}><InventoryOps /></RoleGate>} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/about" element={<About />} />
+              <Route path="/download" element={<Download />} />
               <Route path="/whats-new" element={<WhatsNew />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
@@ -2137,9 +2160,11 @@ export default function App() {
             <Route path="/404" element={<div className="access-page-standalone"><AccessPage kind="not-found" /></div>} />
             <Route path="/whats-new" element={<WhatsNewRoute />} />
             <Route path="/about" element={<AboutRoute />} />
+            <Route path="/download" element={<DownloadRoute />} />
             <Route path="/*" element={<Protected><Shell /></Protected>} />
           </Routes>
           <CookieConsent />
+          <DownloadTeaser />
         </DemoProvider>
       </AppDialogsProvider>
     </BrowserRouter>

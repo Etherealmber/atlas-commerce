@@ -21,6 +21,7 @@ export default function AgentSecurityPanel({ isOwner, role }: { isOwner: boolean
   const [twoFa, setTwoFa] = useState<boolean | null>(null);
   const [policy, setPolicy] = useState<Policy | null>(null);
   const [controls, setControls] = useState<any[]>([]);
+  const [revokedNote, setRevokedNote] = useState(false);
   const [devices, setDevices] = useState<Device[] | null>(null);
   const [showDevices, setShowDevices] = useState(false);
   const [otp, setOtp] = useState<OtpFlow>(null);
@@ -232,32 +233,50 @@ export default function AgentSecurityPanel({ isOwner, role }: { isOwner: boolean
               Chaque appareil qui s’est connecté à ce compte. Révoquez ceux que vous ne reconnaissez pas.
             </p>
             {(devices || []).length === 0 && <p className="muted">Aucun appareil enregistré.</p>}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {(devices || []).map((d) => (
-                <div key={d.full} className="ac-device-row">
-                  <div>
-                    <strong>{d.current ? 'Cet appareil' : d.fingerprint}</strong>
-                    <span className="muted" style={{ display: 'block', fontSize: 12 }}>
-                      {d.user_agent} · {d.last_seen} · IP {d.last_ip}
+            <div className="ac-device-list">
+              {(devices || []).map((d) => {
+                const isAndroid = /android/i.test(String(d.user_agent || ''));
+                return (
+                  <div key={d.full} className="ac-device-row">
+                    <span className="ac-device-ico" aria-hidden>
+                      {isAndroid ? (
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2.5" /><path d="M11 18.5h2" /></svg>
+                      ) : (
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2.5" y="4" width="19" height="12.5" rx="2" /><path d="M8 20.5h8M12 16.5v4" /></svg>
+                      )}
                     </span>
+                    <div className="ac-device-main">
+                      <strong>
+                        {d.current ? 'Cet appareil' : d.fingerprint}
+                        {d.current && <span className="ac-device-chip">actuel</span>}
+                      </strong>
+                      <span className="ac-device-ua">{d.user_agent}</span>
+                      <span className="ac-device-meta">{d.last_seen} · IP {d.last_ip}</span>
+                    </div>
+                    {!d.current && (
+                      <button
+                        type="button"
+                        className="ac-device-revoke"
+                        onClick={async () => {
+                          try {
+                            await api.revokeDevice(d.full);
+                            setDevices((prev) => (prev || []).filter((x) => x.full !== d.full));
+                            setRevokedNote(true);
+                          } catch { /* */ }
+                        }}
+                      >
+                        Révoquer
+                      </button>
+                    )}
                   </div>
-                  {!d.current && (
-                    <button
-                      type="button"
-                      className="btn secondary"
-                      onClick={async () => {
-                        try {
-                          await api.revokeDevice(d.full);
-                          setDevices((prev) => (prev || []).filter((x) => x.full !== d.full));
-                        } catch { /* */ }
-                      }}
-                    >
-                      Révoquer
-                    </button>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
+            {revokedNote && (
+              <p className="ac-device-note" role="status">
+                Appareil révoqué : un code OTP lui sera demandé à sa prochaine connexion.
+              </p>
+            )}
             <div className="ac-modal-foot">
               <button type="button" className="btn secondary" onClick={() => setShowDevices(false)}>Fermer</button>
             </div>

@@ -4,6 +4,7 @@ import { EditProfile, type ProfileData } from '../components/ui/EditProfile';
 import { TimedUndoDelete, SaveToggle } from '../components/ui';
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { APP_VERSION, APP_BUILD_DATE } from '../version';
 import { createPortal } from 'react-dom';
 import { api, BASE } from '../api';
 import { removePasskeyLocally, registerWebAuthn, getCachedFingerprint, getDeviceLabel, getDeviceMeta, setStoredBiometricCredentialId, isWebAuthnAvailable } from '../fingerprint';
@@ -776,6 +777,14 @@ if (loading) return (
           <h1 className="atlas-hello" style={{ fontSize: '1.75rem', marginBottom: 6 }}>Paramètres</h1>
           <p className="atlas-lead" style={{ marginBottom: 0, maxWidth: '100%', overflowWrap: 'anywhere', whiteSpace: 'normal' }}>
             Identité, fiscalité, banque et sécurité de l&apos;espace de travail.
+          </p>
+          {/* v0.7 — même meta que login/à propos : version · date · liens */}
+          <p className="about-meta-line" style={{ textAlign: 'left', margin: '8px 0 0' }}>
+            v{APP_VERSION} · {APP_BUILD_DATE}
+            <span aria-hidden> · </span>
+            <Link to="/whats-new">Nouveautés</Link>
+            <span aria-hidden> · </span>
+            <Link to="/about">À propos</Link>
           </p>
         </div>
         {Object.values(fieldErrors).filter(Boolean)[0] && (

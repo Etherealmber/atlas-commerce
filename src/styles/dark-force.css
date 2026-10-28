@@ -4330,10 +4330,8 @@ html[data-theme='dark'] body .atlas-login.atlas-login--auth7 .atlas-login-input:
 html[data-theme='dark'] input:-webkit-autofill,
 html[data-theme='dark'] input:-webkit-autofill:hover,
 html[data-theme='dark'] input:-webkit-autofill:focus {
-  -webkit-box-shadow: 0 0 0 1000px #141416 inset;
-  box-shadow: 0 0 0 1000px #141416 inset;
-  -webkit-text-fill-color: #fafafa;
-  caret-color: #fafafa;
+  -webkit-text-fill-color: #0a0a0a;
+  caret-color: #0a0a0a;
   transition: background-color 9999s ease-out 0s;
 }
 
@@ -4410,10 +4408,8 @@ html body .atlas-login.atlas-login--auth7 input[type="password"] {
 html body .atlas-login.atlas-login--auth7 input:-webkit-autofill,
 html body .atlas-login.atlas-login--auth7 input:-webkit-autofill:hover,
 html body .atlas-login.atlas-login--auth7 input:-webkit-autofill:focus {
-  -webkit-box-shadow: 0 0 0 1000px #141416 inset !important;
-  box-shadow: 0 0 0 1000px #141416 inset !important;
-  -webkit-text-fill-color: #fafafa !important;
-  caret-color: #fafafa !important;
+  -webkit-text-fill-color: #0a0a0a !important;
+  caret-color: #0a0a0a !important;
 }
 html body .atlas-login.atlas-login--auth7 .atlas-login-submit {
   background: #f4f4f5 !important;
@@ -4446,3 +4442,29 @@ html body .atlas-login-lockup img {
   outline: none !important;
   box-shadow: none !important;
 }
+
+/* v0.7 — bouton × des modales : visible et cliquable dans les deux thèmes. */
+html body .modal-overlay .modal-x {
+  color: #52525b !important;
+  border: 1px solid #d4d4d8 !important;
+  background: #ffffff !important;
+}
+html body .modal-overlay .modal-x:hover { color: #18181b !important; background: #f4f4f5 !important; }
+html[data-theme='dark'] body .modal-overlay .modal-x {
+  color: #d4d4d8 !important;
+  border: 1px solid #3f3f46 !important;
+  background: #27272a !important;
+}
+html[data-theme='dark'] body .modal-overlay .modal-x:hover { color: #fafafa !important; background: #3f3f46 !important; }
+
+/* v0.7 — rangées « Appareils connectés » sur surfaces sombres. */
+html[data-theme='dark'] body .ac-device-row { background: #1c1c1f; border-color: #2a2a2e; }
+html[data-theme='dark'] body .ac-device-row strong { color: #fafafa; }
+html[data-theme='dark'] body .ac-device-ua,
+html[data-theme='dark'] body .ac-device-meta { color: #a1a1aa; }
+html[data-theme='dark'] body .ac-device-chip { background: rgba(34, 197, 94, .16); color: #4ade80; }
+html[data-theme='dark'] body .ac-device-revoke { border-color: #7f1d1d; color: #fca5a5; }
+html[data-theme='dark'] body .ac-device-revoke:hover { background: rgba(127, 29, 29, .25); color: #fecaca; }
+html[data-theme='dark'] body .ac-device-note { color: #fbbf24; }
+html[data-theme='dark'] body .atlas-dl-teaser-link { background: #f4f4f5; color: #18181b; }
+html[data-theme='dark'] body .atlas-dl-teaser > button { background: #27272a; color: #d4d4d8; }
