@@ -19264,3 +19264,22 @@ html[data-theme="dark"] .scan-req-label { color: #a1a1aa; }
   .dl-nav-links a:not(.dl-nav-keep) { display: none; }
   .dl-nav-links { gap: 14px; }
 }
+
+/* v0.7.1 — les CTA de la landing sont des BOUTONS, pas des liens :
+   aucun soulignement, mêmes dimensions, états hover/press. */
+.dl-cta-main,
+.dl-cta-ghost {
+  text-decoration: none !important;
+  padding: 14px 26px !important;
+  font-size: 14.5px !important;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: transform .16s ease, box-shadow .16s ease, background .16s ease, border-color .16s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.dl-cta-main:hover { transform: translateY(-1px); box-shadow: 0 18px 46px rgba(0, 0, 0, .5); }
+.dl-cta-ghost:hover { transform: translateY(-1px); border-color: rgba(250, 250, 250, .45); background: rgba(250, 250, 250, .1); }
+.dl-cta-main:active,
+.dl-cta-ghost:active { transform: translateY(1px); box-shadow: none; }
+.dl-cta-main:focus-visible,
+.dl-cta-ghost:focus-visible { outline: 2px solid #e0a184; outline-offset: 3px; }
