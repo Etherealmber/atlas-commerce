@@ -12381,6 +12381,14 @@ async function ensureCatalogTables(db: D1Database) {
   });
 }
 
+/** v0.7.1 — les liens d'un aperçu naviguent DANS le popup (iframe), jamais un nouvel onglet. */
+function previewEmbed(html: string): string {
+  const tag =
+    `<base target="_self">` +
+    `<script>document.addEventListener('click',function(ev){var t=ev.target;var a=t&&t.closest?t.closest('a'):null;if(a){a.removeAttribute('target');}},true);</script>`;
+  return html.includes('<head>') ? html.replace('<head>', '<head>' + tag) : tag + html;
+}
+
 registerDeviceRoutes(app, {
   sessionUserFromHeader,
   authFailReason,
