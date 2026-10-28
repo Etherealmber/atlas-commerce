@@ -6181,39 +6181,64 @@ app.get('/api/settings/invoice-preview', async (c) => {
   if (type === 'report') {
     const cur = settings?.currency || 'MAD';
     const body = `<div class="watermark" aria-hidden="true">DÉMO</div>
-      <h2 style="margin:0 0 12px">Rapport — ${company}</h2>
-      <p>TVA configurée : ${tax}% · devise ${cur} · chiffres DÉMO quand aucune donnée réelle.</p>
-      <div class="grid">
-        <div class="stat"><div class="l">Ventes (30 j)</div><div class="v">12 500 ${cur}</div></div>
-        <div class="stat"><div class="l">Sorties (30 j)</div><div class="v">4 320 ${cur}</div></div>
-        <div class="stat"><div class="l">Résultat</div><div class="v">8 180 ${cur}</div></div>
-        <div class="stat"><div class="l">Documents</div><div class="v">17</div></div>
-      </div>
-      <table><thead><tr><th>Article</th><th>Qté</th><th>Montant</th></tr></thead><tbody>
+      <h2>Rapport d'activité — 30 derniers jours</h2>
+      <p class="muted">TVA configurée : ${tax}% · devise ${cur} · chiffres DÉMO quand aucune donnée réelle.</p>
+      <table><thead><tr><th>Libellé</th><th>Montant</th></tr></thead><tbody>
+        <tr><td>Ventes encaissées</td><td>12 500,00 ${cur}</td></tr>
+        <tr><td>Sorties (achats & frais)</td><td>4 320,00 ${cur}</td></tr>
+        <tr><td><strong>Résultat net</strong></td><td><strong>8 180,00 ${cur}</strong></td></tr>
+      </tbody></table>
+      <h2>Top articles (démo)</h2>
+      <table><thead><tr><th>Article</th><th>Qté</th><th>Montant TTC</th></tr></thead><tbody>
         <tr><td>Carrelage grès cérame 60×60</td><td>12</td><td>1 281,60 ${cur}</td></tr>
         <tr><td>Colle à carrelage C2 (25 kg)</td><td>4</td><td>297,60 ${cur}</td></tr>
         <tr><td>Joint hydrofuge gris (5 kg)</td><td>2</td><td>108,00 ${cur}</td></tr>
       </tbody></table>
       <p style="border:1px solid #000;padding:8px;background:#fff8e8"><strong>Avertissement.</strong> ${DISCLAIMER}</p>`;
-    return c.html(reportShell('Rapport', company, 'Aperçu', body, settings?.report_footer || settings?.notes));
+    return c.html(reportShell('Rapport', company, 'Aperçu — 30 jours', body, settings?.report_footer || settings?.notes));
   }
+
   if (type === 'employee') {
     let emp: any = null;
     try { emp = await latest(`SELECT * FROM employees ORDER BY id DESC LIMIT 1`); } catch { emp = null; }
-    const demoEmp = !emp;
-    const name = emp?.full_name || emp?.name || emp?.display_name || 'Amina Démo';
-    const role = emp?.job_title || 'Vendeuse — showroom';
-    const num = emp?.employee_number || 'EMP-0001';
-    const body = `<div class="watermark" aria-hidden="true">${demoEmp ? 'DÉMO' : 'APERÇU'}</div>
-      <h2>Fiche employé</h2>
-      <p><strong>${name}</strong> · ${role} · n° ${num}</p>
-      <table><thead><tr><th>Champ</th><th>Valeur</th></tr></thead><tbody>
-        <tr><td>Statut</td><td>${demoEmp ? 'Employé DÉMO (aucune fiche en base)' : 'Fiche réelle la plus récente'}</td></tr>
-        <tr><td>Entrée</td><td>${demoEmp ? '2026-01-05 (démo)' : String(emp?.hire_date || '—')}</td></tr>
-        <tr><td>Affectation</td><td>${demoEmp ? 'Showroom — Casablanca (démo)' : String(emp?.assignment || emp?.job_title || '—')}</td></tr>
-      </tbody></table>
-      <p style="border:1px solid #000;padding:8px;background:#fff8e8"><strong>Avertissement.</strong> ${DISCLAIMER}</p>`;
-    return c.html(reportShell('Fiche employé', company, emp?.employee_number || '—', body, settings?.report_footer || ''));
+    const demoEmp = emp || {
+      first_name: 'Amina', last_name: 'Démo', name: 'Amina Démo',
+      emp_number: 'EMP-0001', employee_number: 'EMP-0001',
+      job_title: 'Vendeuse — showroom', hire_date: '2026-01-05',
+      phone: '+212 6 00 00 00 00', email: 'amina.demo@atlas.ma',
+      address: '12, rue Démo', city: 'Casablanca',
+      cin: 'BE123456', cnss: '1234567',
+      pay_amount: 4500, pay_cycle_type: 'monthly',
+      status: 'actif', notes: 'Fiche DÉMO — aucune fiche réelle en base.',
+    };
+    return c.html(generateEmployeeFormHTML(settings, demoEmp, { autoPrint: false }));
+  }
+
+  // v0.7.1 — REÇU : le VRAI format reçu (générateur dédié), pas la facture.
+  if (type === 'receipt') {
+    const rc = await latest(`SELECT * FROM receipts ORDER BY id DESC LIMIT 1`);
+    let rItems: any[] = [];
+    if (rc?.invoice_id) {
+      try {
+        const rr = await c.env.DB.prepare(
+          `SELECT product_name, sku, quantity, unit_price, tax_rate, line_total
+           FROM invoice_items WHERE invoice_id = ? ORDER BY id`,
+        ).bind(rc.invoice_id).all();
+        rItems = (rr.results || []) as any[];
+      } catch { rItems = []; }
+    }
+    const tot = Math.round(sampleItems.reduce((s, it) => s + it.line_total, 0) * 100) / 100;
+    const receiptDoc: any = rc
+      ? { ...rc, _line_items: rItems.length ? rItems : sampleItems }
+      : {
+          number: `${settings?.receipt_prefix || 'REC-'}0001`,
+          issue_date: new Date().toISOString().slice(0, 10),
+          amount: tot, method: 'cash', status: 'paid',
+          client_name: 'Marbrerie Démo SARL',
+          notes: DEMO_NOTE,
+          _line_items: sampleItems,
+        };
+    return c.html(generateReceiptHTML(settings, receiptDoc, undefined, undefined));
   }
 
   let doc: any = null;
@@ -6222,28 +6247,16 @@ app.get('/api/settings/invoice-preview', async (c) => {
   if (type === 'bill') {
     doc = await latest(`SELECT * FROM bills ORDER BY id DESC LIMIT 1`);
     if (doc?.id) { items = await lines(`SELECT * FROM bill_items WHERE bill_id = ?`, doc.id); real = true; }
-  } else if (type === 'receipt') {
-    doc = await latest(`SELECT * FROM receipts ORDER BY id DESC LIMIT 1`);
-    if (doc) {
-      real = true;
-      items = [{ product_name: doc.notes || 'Règlement', sku: '', quantity: 1, unit_price: Number(doc.amount || 0), tax_rate: 0, line_total: Number(doc.amount || 0) }];
-      doc = {
-        ...doc,
-        client_name: doc.client_name,
-        subtotal: Number(doc.amount || 0),
-        tax_amount: 0,
-        total: Number(doc.amount || 0),
-        amount_paid: Number(doc.amount || 0),
-        status: 'paid',
-        issue_date: doc.issue_date,
-      };
-    }
   } else if (type === 'quote') {
     doc = await latest(`SELECT * FROM invoices WHERE status IN ('quote','devis') ORDER BY id DESC LIMIT 1`);
     if (doc?.id) { items = await lines(`SELECT * FROM invoice_items WHERE invoice_id = ?`, doc.id); real = true; }
   } else if (type === 'credit') {
     doc = await latest(`SELECT * FROM invoices WHERE number LIKE 'WR%' OR status IN ('refund','credit','avoir') ORDER BY id DESC LIMIT 1`);
-    if (doc?.id) { items = await lines(`SELECT * FROM invoice_items WHERE invoice_id = ?`, doc.id); real = true; }
+    if (doc?.id) {
+      items = await lines(`SELECT * FROM invoice_items WHERE invoice_id = ?`, doc.id);
+      real = true;
+      doc.doc_kind = 'remboursement'; // force le vrai layout AVOIR/WR
+    }
   } else {
     doc = await latest(`SELECT * FROM invoices WHERE IFNULL(status,'') NOT IN ('quote','devis') ORDER BY id DESC LIMIT 1`);
     if (doc?.id) { items = await lines(`SELECT * FROM invoice_items WHERE invoice_id = ?`, doc.id); real = true; }
@@ -6268,6 +6281,15 @@ app.get('/api/settings/invoice-preview', async (c) => {
       notes: DEMO_NOTE,
     };
     items = sampleItems;
+    if (type === 'credit') {
+      doc.doc_kind = 'remboursement';
+      doc.status = 'remboursement';
+      doc.number = `${settings?.credit_prefix || 'WR-'}0001`;
+    }
+    if (type === 'quote') {
+      doc.status = 'quote';
+      doc.due_date = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+    }
   }
 
   const summary = [
