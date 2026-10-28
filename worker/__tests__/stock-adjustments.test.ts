@@ -135,7 +135,7 @@ describe('submission never mutates stock', () => {
   it('stock role submits → 201 pending, stock unchanged', async () => {
     const res = await submit({ product_id: 1, direction: 'out', quantity: 4, reason: 'casse' });
     expect(res.status).toBe(201);
-    const body = await res.json();
+    const body = await res.json() as any;
     expect(body.data.status).toBe('pending');
     expect(body.data.stock_after).toBeNull();
     expect(await stockOf(1)).toBe(10);
@@ -165,7 +165,7 @@ describe('submission never mutates stock', () => {
   it('idempotency-key replay returns the same request', async () => {
     const a = await submit({ product_id: 1, direction: 'in', quantity: 2, idempotency_key: 'k-1' });
     const b = await submit({ product_id: 1, direction: 'in', quantity: 2, idempotency_key: 'k-1' });
-    const ja = await a.json(); const jb = await b.json();
+    const ja = await a.json() as any; const jb = await b.json() as any;
     expect(a.status).toBe(201);
     expect(b.status).toBe(200);
     expect(jb.replayed).toBe(true);
@@ -177,7 +177,7 @@ describe('submission never mutates stock', () => {
 
 describe('approval policy', () => {
   it('stock/user cannot approve or reject (403), even their own request', async () => {
-    const created = await (await submit({ product_id: 1, direction: 'in', quantity: 1 })).json();
+    const created = await (await submit({ product_id: 1, direction: 'in', quantity: 1 })).json() as any;
     expect((await approve(created.data.id, 'stock-tok')).status).toBe(403);
     expect((await approve(created.data.id, 'user-tok')).status).toBe(403);
     expect((await reject(created.data.id, 'stock2-tok')).status).toBe(403);
@@ -187,15 +187,15 @@ describe('approval policy', () => {
   it('decision-time role comes from the users table, not the session token', async () => {
     // Token says owner but the DB row was downgraded to stock → 403.
     sqlite.exec(`UPDATE users SET role='stock' WHERE username='boss'`);
-    const created = await (await submit({ product_id: 1, direction: 'in', quantity: 1 })).json();
+    const created = await (await submit({ product_id: 1, direction: 'in', quantity: 1 })).json() as any;
     expect((await approve(created.data.id, 'owner-tok')).status).toBe(403);
   });
 
   it('secretaire and owner may approve; owner/admin/secretaire may reject', async () => {
-    const a = await (await submit({ product_id: 1, direction: 'in', quantity: 3 }, 'user-tok')).json();
+    const a = await (await submit({ product_id: 1, direction: 'in', quantity: 3 }, 'user-tok')).json() as any;
     expect((await approve(a.data.id, 'sec-tok')).status).toBe(200);
     expect(await stockOf(1)).toBe(13);
-    const b = await (await submit({ product_id: 1, direction: 'out', quantity: 3 }, 'user-tok')).json();
+    const b = await (await submit({ product_id: 1, direction: 'out', quantity: 3 }, 'user-tok')).json() as any;
     expect((await reject(b.data.id, 'sec-tok')).status).toBe(200);
     expect(await stockOf(1)).toBe(13);
   });
@@ -203,10 +203,10 @@ describe('approval policy', () => {
 
 describe('approval applies the movement exactly once', () => {
   it('approve in → stock +q, movement row, before/after recorded', async () => {
-    const created = await (await submit({ product_id: 1, direction: 'in', quantity: 5, reason: 'livraison' })).json();
+    const created = await (await submit({ product_id: 1, direction: 'in', quantity: 5, reason: 'livraison' })).json() as any;
     const res = await approve(created.data.id);
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const body = await res.json() as any;
     expect(body.data.status).toBe('approved');
     expect(body.data.stock_before).toBe(10);
     expect(body.data.stock_after).toBe(15);
@@ -221,17 +221,17 @@ describe('approval applies the movement exactly once', () => {
   });
 
   it('duplicate approval (replay) → 409 and stock moves once', async () => {
-    const created = await (await submit({ product_id: 1, direction: 'in', quantity: 5 })).json();
+    const created = await (await submit({ product_id: 1, direction: 'in', quantity: 5 })).json() as any;
     expect((await approve(created.data.id)).status).toBe(200);
     const dup = await approve(created.data.id);
     expect(dup.status).toBe(409);
-    expect((await dup.json()).code).toBe('ALREADY_DECIDED');
+    expect((await dup.json() as any).code).toBe('ALREADY_DECIDED');
     expect(await stockOf(1)).toBe(15);
     expect(await movementsOf(1)).toBe(1);
   });
 
   it('concurrent approvals → exactly one wins', async () => {
-    const created = await (await submit({ product_id: 1, direction: 'out', quantity: 2 })).json();
+    const created = await (await submit({ product_id: 1, direction: 'out', quantity: 2 })).json() as any;
     const [r1, r2] = await Promise.all([approve(created.data.id), approve(created.data.id, 'sec-tok')]);
     const codes = [r1.status, r2.status].sort();
     expect(codes).toEqual([200, 409]);
@@ -240,7 +240,7 @@ describe('approval applies the movement exactly once', () => {
   });
 
   it('rejection leaves stock unchanged and blocks later approval', async () => {
-    const created = await (await submit({ product_id: 1, direction: 'out', quantity: 4 })).json();
+    const created = await (await submit({ product_id: 1, direction: 'out', quantity: 4 })).json() as any;
     expect((await reject(created.data.id, 'sec-tok', { note: 'pas justifié' })).status).toBe(200);
     expect(await stockOf(1)).toBe(10);
     expect(await movementsOf(1)).toBe(0);
@@ -249,10 +249,10 @@ describe('approval applies the movement exactly once', () => {
   });
 
   it('insufficient stock at approval → 409, request stays pending, stock untouched', async () => {
-    const created = await (await submit({ product_id: 1, direction: 'out', quantity: 50 })).json();
+    const created = await (await submit({ product_id: 1, direction: 'out', quantity: 50 })).json() as any;
     const res = await approve(created.data.id);
     expect(res.status).toBe(409);
-    expect((await res.json()).code).toBe('INSUFFICIENT_STOCK');
+    expect((await res.json() as any).code).toBe('INSUFFICIENT_STOCK');
     const row = await db.prepare(`SELECT status FROM stock_adjustment_requests WHERE id = ?`).bind(created.data.id).first();
     expect(row.status).toBe('pending');
     expect(await stockOf(1)).toBe(10);
@@ -261,7 +261,7 @@ describe('approval applies the movement exactly once', () => {
 
   it('unknown request → 404; approve after product deactivated → 422', async () => {
     expect((await approve(4242)).status).toBe(404);
-    const created = await (await submit({ product_id: 1, direction: 'in', quantity: 1 })).json();
+    const created = await (await submit({ product_id: 1, direction: 'in', quantity: 1 })).json() as any;
     sqlite.exec(`UPDATE products SET is_active = 0 WHERE id = 1`);
     expect((await approve(created.data.id)).status).toBe(422);
     expect(await stockOf(1)).toBe(10);
@@ -272,15 +272,15 @@ describe('listing visibility', () => {
   it('approvers see every request; stock/user see only their own', async () => {
     await submit({ product_id: 1, direction: 'in', quantity: 1 }, 'stock-tok');
     await submit({ product_id: 1, direction: 'in', quantity: 1 }, 'user-tok');
-    const asOwner = await (await call('GET', '/api/stock-adjustment-requests', undefined, 'owner-tok')).json();
-    const asStock = await (await call('GET', '/api/stock-adjustment-requests', undefined, 'stock-tok')).json();
+    const asOwner = await (await call('GET', '/api/stock-adjustment-requests', undefined, 'owner-tok')).json() as any;
+    const asStock = await (await call('GET', '/api/stock-adjustment-requests', undefined, 'stock-tok')).json() as any;
     expect(asOwner.data.length).toBe(2);
     expect(asStock.data.length).toBe(1);
     expect(asStock.data[0].requested_by).toBe('mag');
   });
 
   it('detail: requester or approver only', async () => {
-    const created = await (await submit({ product_id: 1, direction: 'in', quantity: 1 })).json();
+    const created = await (await submit({ product_id: 1, direction: 'in', quantity: 1 })).json() as any;
     expect((await call('GET', `/api/stock-adjustment-requests/${created.data.id}`, undefined, 'stock-tok')).status).toBe(200);
     expect((await call('GET', `/api/stock-adjustment-requests/${created.data.id}`, undefined, 'stock2-tok')).status).toBe(403);
     expect((await call('GET', `/api/stock-adjustment-requests/${created.data.id}`, undefined, 'sec-tok')).status).toBe(200);
