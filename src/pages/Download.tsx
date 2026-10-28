@@ -9,7 +9,7 @@ import { Link } from 'react-router-dom';
 import { APP_NAME, APP_BUILD_DATE, APP_GITHUB } from '../version';
 
 const LATEST_JSON = 'https://cdn1.afmarbre.com/app-updates/android/latest.json';
-const GH_RELEASE = 'https://api.github.com/repos/Etherealmber/atlas-commerce-android/releases/latest';
+const GH_RELEASES = 'https://api.github.com/repos/Etherealmber/atlas-commerce-android/releases?per_page=50';
 const ANDROID_REPO = 'https://github.com/Etherealmber/atlas-commerce-android';
 
 type Manifest = {
@@ -38,10 +38,51 @@ const FEATURES: { title: string; text: string }[] = [
   { title: 'Sécurité de bout en bout', text: 'OTP e-mail, appareils de confiance révocables, WebAuthn et empreinte de signature contrôlée.' },
 ];
 
+/* ── Mini-rendu Markdown sûr : escape HTML d'abord, puis titres, listes,
+      gras, italique, code inline et liens http(s) uniquement. ── */
+function escMd(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function inlineMd(s: string): string {
+  return s
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+    .replace(
+      /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,
+      '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>',
+    );
+}
+function mdToHtml(src: string): string {
+  const out: string[] = [];
+  let inUl = false;
+  const closeUl = () => { if (inUl) { out.push('</ul>'); inUl = false; } };
+  for (const raw of escMd(src).split(/\r?\n/)) {
+    const t = raw.trim();
+    if (!t) { closeUl(); continue; }
+    const bullet = t.match(/^[-*•]\s+(.*)$/);
+    if (bullet) {
+      if (!inUl) { out.push('<ul>'); inUl = true; }
+      out.push(`<li>${inlineMd(bullet[1])}</li>`);
+      continue;
+    }
+    closeUl();
+    const h = t.match(/^(#{1,6})\s+(.*)$/);
+    if (h) {
+      const lvl = Math.min(h[1].length + 2, 6);
+      out.push(`<h${lvl}>${inlineMd(h[2])}</h${lvl}>`);
+      continue;
+    }
+    out.push(`<p>${inlineMd(t)}</p>`);
+  }
+  closeUl();
+  return out.join('');
+}
+
 export default function Download() {
   const [m, setM] = useState<Manifest | null>(null);
   const [state, setState] = useState<'loading' | 'ok' | 'error'>('loading');
-  const [rel, setRel] = useState<GhRelease | null>(null);
+  const [rels, setRels] = useState<GhRelease[]>([]);
 
   const load = useCallback(() => {
     setState('loading');
@@ -54,11 +95,11 @@ export default function Download() {
         setState('ok');
       })
       .catch(() => setState('error'));
-    // Notes de version : la dernière GitHub Release du dépôt android.
-    fetch(GH_RELEASE, { cache: 'no-store', headers: { Accept: 'application/vnd.github+json' } })
+    // Toutes les versions : GitHub Releases du dépôt android (auto-update).
+    fetch(GH_RELEASES, { cache: 'no-store', headers: { Accept: 'application/vnd.github+json' } })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((j: any) => setRel(j as GhRelease))
-      .catch(() => setRel(null));
+      .then((j: any) => setRels(Array.isArray(j) ? (j as GhRelease[]) : []))
+      .catch(() => setRels([]));
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -106,6 +147,7 @@ export default function Download() {
   }, []);
 
   const apkHref = state === 'ok' && m ? String(m.apkUrl) : '';
+  const rel = rels[0] || null;
   const relBody = String(rel?.body || '').trim();
   const notesBody = relBody || String(m?.notes || '').trim();
   const relTitle = rel?.name || rel?.tag_name || (m ? `v${m.versionName}` : APP_NAME);
@@ -193,7 +235,7 @@ export default function Download() {
             <h3>{relTitle}</h3>
             <p className="dl-release-date">{relDate}</p>
             {notesBody ? (
-              <p className="dl-release-body">{notesBody}</p>
+              <div className="dl-md dl-release-body" dangerouslySetInnerHTML={{ __html: mdToHtml(notesBody) }} />
             ) : (
               <p className="dl-release-body">Notes de version non publiées pour ce binaire.</p>
             )}
@@ -202,6 +244,26 @@ export default function Download() {
                 Voir la release sur GitHub
               </a>
             ) : null}
+          </div>
+
+          <h2 className="dl-sec-title" style={{ marginTop: 56 }}>Toutes les versions</h2>
+          <p className="dl-sec-sub">
+            Historique complet, mis à jour automatiquement depuis GitHub Releases —
+            aucune publication manuelle nécessaire.
+          </p>
+          <div className="dl-rel-list">
+            {rels.map((r, i) => (
+              <div key={String(r.tag_name || r.name || i)} className="dl-rel-row">
+                <strong>{r.name || r.tag_name}</strong>
+                <span className="dl-muted">{String(r.published_at || '').slice(0, 10)}</span>
+                {r.html_url ? (
+                  <a href={r.html_url} target="_blank" rel="noopener noreferrer">Voir</a>
+                ) : null}
+              </div>
+            ))}
+            {rels.length === 0 && (
+              <p className="dl-muted" style={{ margin: 0 }}>Historique indisponible pour le moment.</p>
+            )}
           </div>
 
           <ul className="dl-tech">
@@ -248,7 +310,7 @@ export default function Download() {
       <footer className="dl-foot">
         <div className="dl-foot-inner">
           <div className="dl-foot-brand">
-            <img src="/atlas-logo-dark.png" alt={APP_NAME} />
+            <img src="/atlas-logo-dark.png" alt={APP_NAME} width={117} height={38} style={{ height: 38, width: 'auto', maxWidth: 160 }} />
             <p>Application Android de gestion commerciale : stock, caisse, facturation et trésorerie, même offline.</p>
           </div>
           <nav aria-label="Liens produit">
