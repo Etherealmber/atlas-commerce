@@ -152,7 +152,13 @@ export function ImageWorkbench({
 }) {
   const stageRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
-  const [dataSrc, setDataSrc] = useState<string | null>(src.startsWith('data:') ? src : null);
+  // CodeQL js/dom-xss guard: only strict image data-URLs may reach <img src>.
+  const SAFE_IMG_DATA_URL = /^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=\s]+$/i;
+  const safeImgUrl = (u: unknown): string | null => {
+    const v = String(u || '').trim();
+    return SAFE_IMG_DATA_URL.test(v) ? v : null;
+  };
+  const [dataSrc, setDataSrc] = useState<string | null>(safeImgUrl(src));
   const [nat, setNat] = useState({ w: 0, h: 0 });
   const [crop, setCrop] = useState<CropBox | null>(null);
   const [drag, setDrag] = useState<DragMode>(null);
@@ -168,7 +174,9 @@ export function ImageWorkbench({
     setErr('');
     setCrop(null);
     if (src.startsWith('data:image')) {
-      setDataSrc(src);
+      const safe = safeImgUrl(src);
+      if (!safe) { setErr('Format d’image non pris en charge'); setLoading(false); return; }
+      setDataSrc(safe);
       setLoading(false);
       return;
     }
@@ -176,8 +184,9 @@ export function ImageWorkbench({
     setDataSrc(null);
     void (async () => {
       try {
-        const data = await toEditableDataUrl(src);
+        const data = safeImgUrl(await toEditableDataUrl(src));
         if (cancelled) return;
+        if (!data) { setErr('Format d’image non pris en charge'); return; }
         setDataSrc(data);
         onChange(data);
       } catch (e: any) {
@@ -306,7 +315,8 @@ export function ImageWorkbench({
     setErr('');
     try {
       const next = await cropDataUrl(dataSrc, crop);
-      setDataSrc(next);
+      const safeNext = safeImgUrl(next);
+      if (safeNext) setDataSrc(safeNext);
       onChange(next);
       // reset crop box on new image
       const img = await loadImage(next);
@@ -332,7 +342,8 @@ export function ImageWorkbench({
     setErr('');
     try {
       const next = await rotateDataUrl(dataSrc, dir);
-      setDataSrc(next);
+      const safeNext = safeImgUrl(next);
+      if (safeNext) setDataSrc(safeNext);
       onChange(next);
       const img = await loadImage(next);
       setNat({ w: img.naturalWidth, h: img.naturalHeight });
@@ -564,7 +575,7 @@ export function ImageWorkbench({
           onClick={() => {
             setCrop(null);
             setZoom(1);
-            setDataSrc(originalSrc.current.startsWith('data:') ? originalSrc.current : null);
+            setDataSrc(safeImgUrl(originalSrc.current));
             if (!originalSrc.current.startsWith('data:')) {
               setLoading(true);
               void (async () => {
@@ -572,7 +583,7 @@ export function ImageWorkbench({
                   const res = await fetch(originalSrc.current);
                   const blob = await res.blob();
                   const fr = new FileReader();
-                  fr.onload = () => { setDataSrc(String(fr.result)); setLoading(false); };
+                  fr.onload = () => { setDataSrc(safeImgUrl(fr.result)); setLoading(false); };
                   fr.readAsDataURL(blob);
                 } catch { setLoading(false); }
               })();

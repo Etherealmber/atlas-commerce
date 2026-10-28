@@ -100,6 +100,8 @@ import {
 } from './routes';
 import { countEmployeesPayDue } from './routes/employees';
 import { registerStockAdjustmentRoutes } from './routes/stockAdjustments';
+import { registerDeviceRoutes } from './routes/devices';
+import { registerDocPreviewRoutes } from './routes/docPreviews';
 import {
   normalizeInventoryRole,
   roleCanDirectAdjustStock,
@@ -1660,59 +1662,6 @@ app.put('/api/settings/2fa', async (c) => {
 });
 
 /* ── Logged-in devices (every user sees their own; revoke supported) ── */
-app.get('/api/auth/devices', async (c) => {
-  const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, clientIp(c), c.req.header('X-Device-Fingerprint') || '');
-  if (reason !== 'ok') return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
-  const session = sessionUserFromHeader(c.req.header('Authorization'));
-  const username = String(session.username || '').toLowerCase();
-  const fp = String(c.req.header('X-Device-Fingerprint') || '');
-  await ensureSecurityTables(c.env.DB);
-  const rows = await c.env.DB.prepare(`SELECT fingerprint, last_ip, last_seen, user_agent FROM trusted_devices WHERE lower(username) = ? ORDER BY last_seen DESC LIMIT 25`).bind(username).all() as any;
-  const data = (rows.results || []).map((r: any) => ({
-    fingerprint: String(r.fingerprint || '').slice(0, 12) + '…',
-    full: String(r.fingerprint || ''),
-    last_ip: r.last_ip,
-    last_seen: r.last_seen,
-    user_agent: String(r.user_agent || '').slice(0, 90),
-    device_label: deviceLabelFromUA(r.user_agent),
-    city: String(r.city || ''),
-    country: String(r.country || ''),
-    current: fp && String(r.fingerprint || '') === fp,
-  }));
-  if (fp && !data.some((d: any) => d.current)) {
-    try {
-      await touchTrustedDevice(c.env.DB, username, fp, clientIp(c), c.req.header('User-Agent') || '', cfGeo(c));
-      const cfNow = cfGeo(c);
-      data.unshift({
-        fingerprint: fp.slice(0, 12) + '…',
-        full: fp,
-        last_ip: clientIp(c),
-        last_seen: new Date().toISOString(),
-        user_agent: String(c.req.header('User-Agent') || '').slice(0, 90),
-        device_label: deviceLabelFromUA(c.req.header('User-Agent') || ''),
-        city: cfNow.city,
-        country: cfNow.country,
-        current: true,
-      });
-    } catch { /* best-effort */ }
-  }
-  return c.json({ success: true, data });
-});
-
-app.post('/api/auth/devices/revoke', async (c) => {
-  const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, clientIp(c), c.req.header('X-Device-Fingerprint') || '');
-  if (reason !== 'ok') return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
-  const session = sessionUserFromHeader(c.req.header('Authorization'));
-  const username = String(session.username || '').toLowerCase();
-  const body = await c.req.json().catch(() => ({}));
-  const target = String(body.fingerprint || '');
-  if (!target) return c.json({ success: false, error: 'Empreinte requise' }, 400);
-  await c.env.DB.prepare(`DELETE FROM trusted_devices WHERE fingerprint = ? AND lower(username) = ?`).bind(target, username).run();
-  await writeAudit(c.env.DB, { username, role: session.role, action: 'device.revoke', entity: target.slice(0, 12), detail: 'trusted_device' });
-  return c.json({ success: true });
-});
-
-/** Best-effort: remember every device that actively uses the account. */
 function cfGeo(c: any): { city: string; country: string } {
   const cf = (c?.req?.raw as any)?.cf || {};
   return { city: String(cf.city || ''), country: String(cf.country || '') };
@@ -6171,333 +6120,6 @@ app.put('/api/settings', async (c) => {
   const settings = await c.env.DB.prepare(`SELECT * FROM company_settings WHERE id = 1`).first();
   return c.json({ success: true, data: settings, message: 'Paramètres enregistrés.' });
 });
-
-app.get('/api/settings/invoice-preview', async (c) => {
-  const settings = await c.env.DB.prepare(`SELECT * FROM company_settings WHERE id = 1`).first() as any;
-  const type = String(c.req.query('type') || 'invoice').toLowerCase();
-  const pad = Math.min(8, Math.max(3, Number(settings?.numbering_pad || 4)));
-  const tax = Number(settings?.tax_rate ?? 20);
-  const company = settings?.company_name || 'Atlas Commerce';
-  const DISCLAIMER = 'Document d’aperçu. Les montants réels proviennent de votre dernier enregistrement quand il existe. Ceci n’est pas une pièce comptable à remettre au client. Le QR reprend le résumé (type, numéro, partie, totaux) tel qu’il apparaîtra sur le PDF.';
-
-  // v0.7.1 — données de démo réalistes (3 lignes) quand aucun document réel.
-  const demoQty: [string, string, number, number][] = [
-    ['Carrelage grès cérame 60×60', 'CR-6060', 12, 89],
-    ['Colle à carrelage C2 (25 kg)', 'CL-C2', 4, 62],
-    ['Joint hydrofuge gris (5 kg)', 'JT-G5', 2, 45],
-  ];
-  const sampleItems = demoQty.map(([product_name, sku, quantity, unit_price]) => ({
-    product_name, sku, quantity, unit_price, tax_rate: tax,
-    line_total: Math.round(quantity * unit_price * (1 + tax / 100) * 100) / 100,
-  }));
-  const DEMO_NOTE = 'Aperçu DÉMO — document non réel, généré avec des données d’exemple. Ne pas remettre au client.';
-
-  async function latest(sql: string, ...binds: unknown[]) {
-    try {
-      return await c.env.DB.prepare(sql).bind(...binds).first() as any;
-    } catch {
-      return null;
-    }
-  }
-  async function lines(sql: string, id: number) {
-    try {
-      const r = await c.env.DB.prepare(sql).bind(id).all();
-      return (r.results || []) as any[];
-    } catch {
-      return [];
-    }
-  }
-
-  const titles: Record<string, string> = {
-    invoice: 'FACTURE', quote: 'DEVIS', receipt: 'REÇU', bill: "FACTURE D'ACHAT", credit: 'AVOIR',
-  };
-
-  if (type === 'report') {
-    const cur = settings?.currency || 'MAD';
-    const body = `<div class="watermark" aria-hidden="true">DÉMO</div>
-      <h2>Rapport d'activité — 30 derniers jours</h2>
-      <p class="muted">TVA configurée : ${tax}% · devise ${cur} · chiffres DÉMO quand aucune donnée réelle.</p>
-      <table><thead><tr><th>Libellé</th><th>Montant</th></tr></thead><tbody>
-        <tr><td>Ventes encaissées</td><td>12 500,00 ${cur}</td></tr>
-        <tr><td>Sorties (achats & frais)</td><td>4 320,00 ${cur}</td></tr>
-        <tr><td><strong>Résultat net</strong></td><td><strong>8 180,00 ${cur}</strong></td></tr>
-      </tbody></table>
-      <h2>Top articles (démo)</h2>
-      <table><thead><tr><th>Article</th><th>Qté</th><th>Montant TTC</th></tr></thead><tbody>
-        <tr><td>Carrelage grès cérame 60×60</td><td>12</td><td>1 281,60 ${cur}</td></tr>
-        <tr><td>Colle à carrelage C2 (25 kg)</td><td>4</td><td>297,60 ${cur}</td></tr>
-        <tr><td>Joint hydrofuge gris (5 kg)</td><td>2</td><td>108,00 ${cur}</td></tr>
-      </tbody></table>
-      <p style="border:1px solid #000;padding:8px;background:#fff8e8"><strong>Avertissement.</strong> ${DISCLAIMER}</p>`;
-    return c.html(reportShell('Rapport', company, 'Aperçu — 30 jours', body, settings?.report_footer || settings?.notes));
-  }
-
-  if (type === 'employee') {
-    let emp: any = null;
-    try { emp = await latest(`SELECT * FROM employees ORDER BY id DESC LIMIT 1`); } catch { emp = null; }
-    const demoEmp = emp || {
-      first_name: 'Amina', last_name: 'Démo', name: 'Amina Démo',
-      emp_number: 'EMP-0001', employee_number: 'EMP-0001',
-      job_title: 'Vendeuse — showroom', hire_date: '2026-01-05',
-      phone: '+212 6 00 00 00 00', email: 'amina.demo@atlas.ma',
-      address: '12, rue Démo', city: 'Casablanca',
-      cin: 'BE123456', cnss: '1234567',
-      pay_amount: 4500, pay_cycle_type: 'monthly',
-      status: 'actif', notes: 'Fiche DÉMO — aucune fiche réelle en base.',
-    };
-    return c.html(generateEmployeeFormHTML(settings, demoEmp, { autoPrint: false }));
-  }
-
-  // v0.7.1 — REÇU : le VRAI format reçu (générateur dédié), pas la facture.
-  if (type === 'receipt') {
-    const rc = await latest(`SELECT * FROM receipts ORDER BY id DESC LIMIT 1`);
-    let rItems: any[] = [];
-    if (rc?.invoice_id) {
-      try {
-        const rr = await c.env.DB.prepare(
-          `SELECT product_name, sku, quantity, unit_price, tax_rate, line_total
-           FROM invoice_items WHERE invoice_id = ? ORDER BY id`,
-        ).bind(rc.invoice_id).all();
-        rItems = (rr.results || []) as any[];
-      } catch { rItems = []; }
-    }
-    const tot = Math.round(sampleItems.reduce((s, it) => s + it.line_total, 0) * 100) / 100;
-    const receiptDoc: any = rc
-      ? { ...rc, _line_items: rItems.length ? rItems : sampleItems }
-      : {
-          number: `${settings?.receipt_prefix || 'REC-'}0001`,
-          issue_date: new Date().toISOString().slice(0, 10),
-          amount: tot, method: 'cash', status: 'paid',
-          client_name: 'Marbrerie Démo SARL',
-          notes: DEMO_NOTE,
-          _line_items: sampleItems,
-        };
-    return c.html(generateReceiptHTML(settings, receiptDoc, undefined, undefined));
-  }
-
-  let doc: any = null;
-  let items: any[] = [];
-  let real = false;
-  if (type === 'bill') {
-    doc = await latest(`SELECT * FROM bills ORDER BY id DESC LIMIT 1`);
-    if (doc?.id) { items = await lines(`SELECT * FROM bill_items WHERE bill_id = ?`, doc.id); real = true; }
-  } else if (type === 'quote') {
-    doc = await latest(`SELECT * FROM invoices WHERE status IN ('quote','devis') ORDER BY id DESC LIMIT 1`);
-    if (doc?.id) { items = await lines(`SELECT * FROM invoice_items WHERE invoice_id = ?`, doc.id); real = true; }
-  } else if (type === 'credit') {
-    doc = await latest(`SELECT * FROM invoices WHERE number LIKE 'WR%' OR status IN ('refund','credit','avoir') ORDER BY id DESC LIMIT 1`);
-    if (doc?.id) {
-      items = await lines(`SELECT * FROM invoice_items WHERE invoice_id = ?`, doc.id);
-      real = true;
-      doc.doc_kind = 'remboursement'; // force le vrai layout AVOIR/WR
-    }
-  } else {
-    doc = await latest(`SELECT * FROM invoices WHERE IFNULL(status,'') NOT IN ('quote','devis') ORDER BY id DESC LIMIT 1`);
-    if (doc?.id) { items = await lines(`SELECT * FROM invoice_items WHERE invoice_id = ?`, doc.id); real = true; }
-  }
-
-  const prefix = (type === 'quote' ? settings?.quote_prefix : type === 'bill' ? settings?.bill_prefix : type === 'receipt' ? settings?.receipt_prefix : type === 'credit' ? settings?.credit_prefix : settings?.invoice_prefix) || '';
-  const title = titles[type] || titles.invoice;
-  if (!doc) {
-    const ht = 100;
-    const taxAmt = Math.round(ht * (tax / 100) * 100) / 100;
-    doc = {
-      number: `${prefix || 'DEMO-'}${String(1).padStart(pad, '0')}`,
-      issue_date: new Date().toISOString().slice(0, 10),
-      status: 'draft',
-      client_name: 'Marbrerie Démo SARL',
-      client_ice: settings?.ice || '002345678000099',
-      client_city: settings?.city || 'Casablanca',
-      subtotal: ht,
-      tax_amount: taxAmt,
-      total: ht + taxAmt,
-      amount_paid: 0,
-      notes: DEMO_NOTE,
-    };
-    items = sampleItems;
-    if (type === 'credit') {
-      doc.doc_kind = 'remboursement';
-      doc.status = 'remboursement';
-      doc.number = `${settings?.credit_prefix || 'WR-'}0001`;
-    }
-    if (type === 'quote') {
-      doc.status = 'quote';
-      doc.due_date = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
-    }
-  }
-
-  const summary = [
-    'ATLAS COMMERCE',
-    title,
-    String(doc.number || ''),
-    `Partie: ${doc.client_name || doc.vendor_name || '—'}`,
-    `Total: ${Number(doc.total || 0).toFixed(2)} ${settings?.currency || 'MAD'}`,
-    `Emetteur: ${company}`,
-    real ? 'Source: dernier document enregistré' : 'Source: modele (aucun document)',
-    'Apercu non contractuel',
-  ].join('\n');
-
-  doc.preview_qr = true;
-  doc.preview_qr_text = summary;
-  // v0.7 — Reçu : l'aperçu peut montrer (ou non) le QR « situation client »,
-  // choisi dans l'app via ?qr_situation=1|0 (défaut = réglage de l'entreprise).
-  if (type === 'receipt') {
-    const qsSit = String(c.req.query('qr_situation') || '').toLowerCase();
-    const sitOn = qsSit === '1' || qsSit === 'true'
-      ? true
-      : qsSit === '0' || qsSit === 'false'
-        ? false
-        : Number(settings?.qr_client_situation ?? 0) === 1;
-    if (sitOn) {
-      doc.preview_situation_qr = true;
-      doc.preview_situation_text = [
-        'ATLAS COMMERCE — SITUATION CLIENT (APERCU)',
-        `Partie: ${doc.client_name || doc.vendor_name || '—'}`,
-        `Total du recu: ${Number(doc.total || 0).toFixed(2)} ${settings?.currency || 'MAD'}`,
-        "Exemple de QR situation tel qu'imprime sur le recu reel si l'option est activee.",
-        'Apercu non contractuel',
-      ].join('\n');
-    }
-  }
-  doc.preview_banner = DISCLAIMER + (real ? ' Données : dernier document réel de ce type.' : ' Aucun document de ce type — modèle avec votre société et un article exemple.');
-
-  return c.html(generateInvoiceHTML(settings, doc, items.length ? items : sampleItems, title, false));
-});
-
-/* ─── Categories & Units ─── */
-
-const DEFAULT_CATEGORIES: { name: string; description: string; sort_order: number }[] = [
-  { name: 'Général', description: 'Catégorie par défaut', sort_order: 0 },
-  { name: 'Alimentation', description: 'Produits alimentaires', sort_order: 10 },
-  { name: 'Boissons', description: 'Boissons et liquides', sort_order: 20 },
-  { name: 'Électronique', description: 'Appareils et composants électroniques', sort_order: 30 },
-  { name: 'Informatique', description: 'Matériel et accessoires informatiques', sort_order: 40 },
-  { name: 'Vêtements', description: 'Textile et habillement', sort_order: 50 },
-  { name: 'Cosmétiques', description: 'Beauté et soins', sort_order: 60 },
-  { name: 'Quincaillerie', description: 'Outils et quincaillerie', sort_order: 70 },
-  { name: 'Fournitures de bureau', description: 'Papeterie et bureau', sort_order: 80 },
-  { name: 'Hygiène', description: 'Produits d\'hygiène et entretien', sort_order: 90 },
-  { name: 'Emballage', description: 'Conditionnement et emballage', sort_order: 100 },
-  { name: 'Matières premières', description: 'Matières premières', sort_order: 110 },
-  { name: 'Pièces détachées', description: 'Pièces et rechanges', sort_order: 120 },
-  { name: 'Services', description: 'Prestations de service', sort_order: 130 },
-  { name: 'Autre', description: 'Divers', sort_order: 999 },
-];
-
-const DEFAULT_UNITS: { name: string; symbol: string; sort_order: number }[] = [
-  { name: 'unité', symbol: 'u', sort_order: 0 },
-  { name: 'pièce', symbol: 'pce', sort_order: 10 },
-  { name: 'kg', symbol: 'kg', sort_order: 20 },
-  { name: 'g', symbol: 'g', sort_order: 30 },
-  { name: 'L', symbol: 'L', sort_order: 40 },
-  { name: 'mL', symbol: 'mL', sort_order: 50 },
-  { name: 'm', symbol: 'm', sort_order: 60 },
-  { name: 'cm', symbol: 'cm', sort_order: 70 },
-  { name: 'm²', symbol: 'm²', sort_order: 80 },
-  { name: 'm³', symbol: 'm³', sort_order: 90 },
-  { name: 'boîte', symbol: 'bte', sort_order: 100 },
-  { name: 'carton', symbol: 'ctn', sort_order: 110 },
-  { name: 'paquet', symbol: 'paq', sort_order: 120 },
-  { name: 'lot', symbol: 'lot', sort_order: 130 },
-  { name: 'sac', symbol: 'sac', sort_order: 140 },
-  { name: 'bouteille', symbol: 'btl', sort_order: 150 },
-  { name: 'pack', symbol: 'pack', sort_order: 160 },
-  { name: 'douzaine', symbol: 'dz', sort_order: 170 },
-  { name: 'heure', symbol: 'h', sort_order: 180 },
-  { name: 'jour', symbol: 'j', sort_order: 190 },
-  { name: 'forfait', symbol: 'forf', sort_order: 200 },
-  { name: 'service', symbol: 'svc', sort_order: 210 },
-];
-
-async function ensureCategoriesTable(db: D1Database) {
-  await schemaOnce('product_categories', async () => {
-  await db.prepare(`
-    CREATE TABLE IF NOT EXISTS product_categories (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      description TEXT DEFAULT '',
-      sort_order INTEGER DEFAULT 0,
-      created_at TEXT DEFAULT (datetime('now'))
-    )
-  `).run();
-  const count = await db.prepare(`SELECT COUNT(*) as c FROM product_categories`).first() as any;
-  if (!Number(count?.c || 0)) {
-    for (const cat of DEFAULT_CATEGORIES) {
-      try {
-        await db.prepare(
-          `INSERT INTO product_categories (name, description, sort_order) VALUES (?, ?, ?)`
-        ).bind(cat.name, cat.description, cat.sort_order).run();
-      } catch { /* unique race */ }
-    }
-  }
-  });
-}
-
-async function ensureUnitsTable(db: D1Database) {
-  await schemaOnce('product_units', async () => {
-  await db.prepare(`
-    CREATE TABLE IF NOT EXISTS product_units (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      symbol TEXT DEFAULT '',
-      sort_order INTEGER DEFAULT 0,
-      created_at TEXT DEFAULT (datetime('now'))
-    )
-  `).run();
-  const count = await db.prepare(`SELECT COUNT(*) as c FROM product_units`).first() as any;
-  if (!Number(count?.c || 0)) {
-    for (const u of DEFAULT_UNITS) {
-      try {
-        await db.prepare(
-          `INSERT INTO product_units (name, symbol, sort_order) VALUES (?, ?, ?)`
-        ).bind(u.name, u.symbol, u.sort_order).run();
-      } catch { /* unique race */ }
-    }
-  }
-  });
-}
-
-/** Catalog public site tables (settings + per-product catalog flags). */
-async function ensureCatalogTables(db: D1Database) {
-  await schemaOnce('catalog', async () => {
-  await db.prepare(`
-    CREATE TABLE IF NOT EXISTS catalog_settings (
-      id INTEGER PRIMARY KEY CHECK (id = 1),
-      site_title TEXT DEFAULT '',
-      site_tagline TEXT DEFAULT '',
-      public_base_url TEXT DEFAULT '',
-      show_prices INTEGER DEFAULT 1,
-      show_stock INTEGER DEFAULT 0,
-      contact_email TEXT DEFAULT '',
-      contact_phone TEXT DEFAULT '',
-      updated_at TEXT DEFAULT (datetime('now'))
-    )
-  `).run();
-  const row = await db.prepare(`SELECT id FROM catalog_settings WHERE id = 1`).first();
-  if (!row) {
-    await db.prepare(`
-      INSERT INTO catalog_settings (id, site_title, site_tagline, show_prices, show_stock)
-      VALUES (1, 'Catalogue', '', 1, 0)
-    `).run();
-  }
-  await db.prepare(`
-    CREATE TABLE IF NOT EXISTS product_catalog (
-      product_id INTEGER PRIMARY KEY,
-      slug TEXT,
-      short_description TEXT DEFAULT '',
-      long_description TEXT DEFAULT '',
-      is_public INTEGER DEFAULT 0,
-      is_featured INTEGER DEFAULT 0,
-      published_at TEXT,
-      updated_at TEXT DEFAULT (datetime('now'))
-    )
-  `).run();
-  try {
-    await db.prepare(`CREATE INDEX IF NOT EXISTS idx_product_catalog_public ON product_catalog(is_public)`).run();
-  } catch { /* ignore */ }
-  });
-}
-
 
 app.get('/api/categories', async (c) => {
   await ensureCategoriesTable(c.env.DB);
@@ -12670,6 +12292,118 @@ registerStockAdjustmentRoutes(app, {
   audit: (db, e) => writeAudit(db, e),
 });
 
+async function ensureCategoriesTable(db: D1Database) {
+  await schemaOnce('product_categories', async () => {
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS product_categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      description TEXT DEFAULT '',
+      sort_order INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    )
+  `).run();
+  const count = await db.prepare(`SELECT COUNT(*) as c FROM product_categories`).first() as any;
+  if (!Number(count?.c || 0)) {
+    for (const cat of DEFAULT_CATEGORIES) {
+      try {
+        await db.prepare(
+          `INSERT INTO product_categories (name, description, sort_order) VALUES (?, ?, ?)`
+        ).bind(cat.name, cat.description, cat.sort_order).run();
+      } catch { /* unique race */ }
+    }
+  }
+  });
+}
+
+async function ensureUnitsTable(db: D1Database) {
+  await schemaOnce('product_units', async () => {
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS product_units (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      symbol TEXT DEFAULT '',
+      sort_order INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    )
+  `).run();
+  const count = await db.prepare(`SELECT COUNT(*) as c FROM product_units`).first() as any;
+  if (!Number(count?.c || 0)) {
+    for (const u of DEFAULT_UNITS) {
+      try {
+        await db.prepare(
+          `INSERT INTO product_units (name, symbol, sort_order) VALUES (?, ?, ?)`
+        ).bind(u.name, u.symbol, u.sort_order).run();
+      } catch { /* unique race */ }
+    }
+  }
+  });
+}
+
+/** Catalog public site tables (settings + per-product catalog flags). */
+async function ensureCatalogTables(db: D1Database) {
+  await schemaOnce('catalog', async () => {
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS catalog_settings (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      site_title TEXT DEFAULT '',
+      site_tagline TEXT DEFAULT '',
+      public_base_url TEXT DEFAULT '',
+      show_prices INTEGER DEFAULT 1,
+      show_stock INTEGER DEFAULT 0,
+      contact_email TEXT DEFAULT '',
+      contact_phone TEXT DEFAULT '',
+      updated_at TEXT DEFAULT (datetime('now'))
+    )
+  `).run();
+  const row = await db.prepare(`SELECT id FROM catalog_settings WHERE id = 1`).first();
+  if (!row) {
+    await db.prepare(`
+      INSERT INTO catalog_settings (id, site_title, site_tagline, show_prices, show_stock)
+      VALUES (1, 'Catalogue', '', 1, 0)
+    `).run();
+  }
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS product_catalog (
+      product_id INTEGER PRIMARY KEY,
+      slug TEXT,
+      short_description TEXT DEFAULT '',
+      long_description TEXT DEFAULT '',
+      is_public INTEGER DEFAULT 0,
+      is_featured INTEGER DEFAULT 0,
+      published_at TEXT,
+      updated_at TEXT DEFAULT (datetime('now'))
+    )
+  `).run();
+  try {
+    await db.prepare(`CREATE INDEX IF NOT EXISTS idx_product_catalog_public ON product_catalog(is_public)`).run();
+  } catch { /* ignore */ }
+  });
+}
+
+registerDeviceRoutes(app, {
+  sessionUserFromHeader,
+  authFailReason,
+  clientIp,
+  ensureSecurityTables,
+  touchTrustedDevice,
+  deviceLabelFromUA,
+  cfGeo,
+  writeAudit,
+});
+
+registerDocPreviewRoutes(app, {
+  sessionUserFromHeader,
+  authFailReason,
+  generateInvoiceHTML,
+  generateReceiptHTML,
+  generateEmployeeFormHTML,
+  reportShell,
+  qrToSvg,
+  makeSecureQrPayload,
+  previewEmbed,
+});
+
 registerExpenseWriteRoutes(app, {
   sessionUserFromHeader, authFailReason, clientIp, ensureExpenseTypeColumn,
   invalidateDashboardCache, writeAudit,
@@ -15373,7 +15107,7 @@ function reportShell(title: string, company: string, subtitle: string, body: str
   .in{color:#6366f1}.out{color:#8b2e2e}
   .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
   @media(max-width:800px){.grid,.grid-4{grid-template-columns:1fr 1fr}}
-.page-num{position:fixed;bottom:8mm;right:12mm;font-size:10px;color:#444}
+.page-num{margin-top:8px;text-align:right;font-size:10px;color:#444}
   .cat-totals{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:8px 0 0;padding:10px;background:#faf8f4;border:1px solid #e5e0d6;border-radius:6px}
   .cat-totals .ct{font-size:11px}
   .cat-totals .ct b{display:block;font-size:13px;margin-top:2px}
@@ -20088,7 +19822,7 @@ function companyStampBlock(settings: any): string {
 
 /** REÇU — Phase 3 Jobber-style proof of payment (QR kept) */
 
-function generateReceiptHTMLMinimal(settings: any, r: any, clientStatusUrl?: string, verifyUrl?: string): string {
+function generateReceiptHTMLMinimal(settings: any, r: any, clientStatusUrl?: string, verifyUrl?: string, opts?: { autoPrint?: boolean }): string {
   const formatDate = (d: string) => {
     if (!d) return '';
     const [y, m, day] = String(d).split('-');
@@ -20132,11 +19866,11 @@ ${r.invoice_number ? `<div class="row"><span>Facture</span><span>${r.invoice_num
 ${verifyQr ? `<p class="center"><img src="${verifyQr}" width="80" height="80" alt="QR"/><br/><span class="muted">Vérification</span></p>
 <p class="muted" style="font-size:10px;margin-top:8px"><a href="/privacy">Confidentialité</a> · QR situation optionnel et limité dans le temps</p>` : ''}
 <p class="center muted" style="margin-top:10px">Merci · ticket simplifié</p>
-<script>window.onload=function(){setTimeout(function(){window.print()},300)}</script>
+${opts?.autoPrint === false ? '' : '<script>window.onload=function(){setTimeout(function(){window.print()},300)}</script>'}
 </body></html>`;
 }
 
-function generateReceiptHTML(settings: any, r: any, clientStatusUrl?: string, verifyUrl?: string): string {
+function generateReceiptHTML(settings: any, r: any, clientStatusUrl?: string, verifyUrl?: string, opts?: { autoPrint?: boolean }): string {
   const formatDate = (d: string) => {
     if (!d) return '';
     const [y, m, day] = String(d).split('-');
@@ -20306,7 +20040,7 @@ ${companyStampBlock(settings)}
   <span>Preuve de paiement · Conservez ce reçu</span>
 </div>
 </div><!-- /.sheet -->
-<script>window.onload=function(){setTimeout(function(){window.print()},350)}</script>
+${opts?.autoPrint === false ? '' : '<script>window.onload=function(){setTimeout(function(){window.print()},350)}</script>'}
 </body></html>`;
 }
 

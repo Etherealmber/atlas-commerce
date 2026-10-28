@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.7.1-beta",
   "type": "module",
-  "description": "Atlas Commerce \u2014 stock, devis, factures (web + Capacitor Android)",
+  "description": "Atlas Commerce — stock, devis, factures (web + Capacitor Android)",
   "author": "loxdpsy",
   "scripts": {
     "smoke": "node scripts/smoke-all.mjs",
@@ -51,6 +51,7 @@
     "wrangler": "^4.147.0"
   },
   "overrides": {
-    "@cloudflare/workers-types": "^5.20261005.1"
+    "@cloudflare/workers-types": "^5.20261005.1",
+    "undici": "7.30.1"
   }
 }
