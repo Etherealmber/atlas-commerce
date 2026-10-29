@@ -13,6 +13,8 @@ export interface DocPreviewDeps {
   reportShell: (...a: any[]) => string;
   qrToSvg: (...a: any[]) => string;
   makeSecureQrPayload: (...a: any[]) => Promise<string>;
+  mintReportLinkTicket: (env: any) => Promise<string>;
+  buildReportLinkQuery: (rt: string, periodKey: string, extra?: Record<string, string>) => string;
   previewEmbed: (html: string) => string;
 }
 
@@ -58,29 +60,77 @@ app.get('/api/settings/invoice-preview', async (c: any) => {
   };
 
   if (type === 'report') {
+    // v0.7.2 — l'aperçu Rapport suit le VRAI /api/reports/combined : liste de
+    // liens (ouverts dans le popup), sections 1-4, mêmes requêtes ; jeu DÉMO
+    // cohérent (client, articles, reçu, employé) quand aucune donnée réelle.
     const cur = settings?.currency || 'MAD';
-    const rptQr = deps.qrToSvg(`RAPPORT — ${company} · 30 derniers jours · généré le ${new Date().toLocaleString('fr-FR')} · APERÇU DÉMO`, 96, 2);
-    const body = `<div class="watermark" aria-hidden="true">DÉMO</div>
-      <h2>Rapport d'activité — 30 derniers jours</h2>
-      <p class="muted">TVA configurée : ${tax}% · devise ${cur} · chiffres DÉMO quand aucune donnée réelle.</p>
-      <table><thead><tr><th>Libellé</th><th>Montant</th></tr></thead><tbody>
-        <tr><td>Ventes encaissées</td><td>12 500,00 ${cur}</td></tr>
-        <tr><td>Sorties (achats & frais)</td><td>4 320,00 ${cur}</td></tr>
-        <tr><td><strong>Résultat net</strong></td><td><strong>8 180,00 ${cur}</strong></td></tr>
-      </tbody></table>
-      <h2>Top articles (démo)</h2>
-      <table><thead><tr><th>Article</th><th>Qté</th><th>Montant TTC</th></tr></thead><tbody>
-        <tr><td>Carrelage grès cérame 60×60</td><td>12</td><td>1 281,60 ${cur}</td></tr>
-        <tr><td>Colle à carrelage C2 (25 kg)</td><td>4</td><td>297,60 ${cur}</td></tr>
-        <tr><td>Joint hydrofuge gris (5 kg)</td><td>2</td><td>108,00 ${cur}</td></tr>
-      </tbody></table>
+    const fmt = (n: number) => Number(n || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const now = new Date();
+    const periodKey = now.toISOString().slice(0, 7);
+    const label = `${now.toLocaleString('fr-FR', { month: 'long', year: 'numeric' })} (aperçu)`;
+    let rt = '';
+    try { rt = await deps.mintReportLinkTicket(c.env); } catch { rt = ''; }
+    const href = (path: string, extra: Record<string, string> = {}) =>
+      rt ? `${path}${deps.buildReportLinkQuery(rt, periodKey, extra)}` : '#';
+    let out = 0, inn = 0, recv = 0, pay = 0, receiptsSum = 0;
+    let emps: any[] = [];
+    try {
+      const e = await latest(`SELECT COALESCE(SUM(CASE WHEN COALESCE(entry_type,'expense')='expense' THEN amount ELSE 0 END),0) as out,
+        COALESCE(SUM(CASE WHEN entry_type='income' OR entry_type='owner_contrib' THEN amount ELSE 0 END),0) as inn FROM expenses
+        WHERE expense_date >= '${periodKey}-01' AND expense_date <= '${periodKey}-31'`);
+      out = Number(e?.out || 0); inn = Number(e?.inn || 0);
+    } catch { /* démo */ }
+    try { recv = Number((await latest(`SELECT COALESCE(SUM(total - COALESCE(amount_paid,0)),0) as due FROM invoices WHERE status NOT IN ('cancelled','paid','quote','devis') AND (total - COALESCE(amount_paid,0)) > 0.001`))?.due || 0); } catch { /* démo */ }
+    try { pay = Number((await latest(`SELECT COALESCE(SUM(total - COALESCE(amount_paid,0)),0) as due FROM bills WHERE status NOT IN ('cancelled','paid') AND (total - COALESCE(amount_paid,0)) > 0.001`))?.due || 0); } catch { /* démo */ }
+    try { receiptsSum = Number((await latest(`SELECT COALESCE(SUM(amount),0) as s FROM receipts WHERE issue_date >= '${periodKey}-01'`))?.s || 0); } catch { /* démo */ }
+    try {
+      const em = await c.env.DB.prepare(`SELECT id, emp_number, first_name, last_name, name, role_title, pay_amount, pay_cycle_type, pay_cycle_days, last_paid_at, COALESCE(active,1) as active FROM employees ORDER BY COALESCE(active,1) DESC, id LIMIT 20`).all();
+      emps = (em.results || []) as any[];
+    } catch { emps = []; }
+    const demo = !(out || inn || recv || pay || receiptsSum || emps.length);
+    if (demo) { out = 890; inn = 0; recv = 1687.2; pay = 890; receiptsSum = 1687.2; }
+    const wm = demo ? `<div class="watermark" aria-hidden="true">DÉMO</div>` : '';
+    const empRows = (demo
+      ? [`<tr><td>EMP-0001</td><td>Amina Démo</td><td>Vendeuse — showroom</td><td style="text-align:right">4 500,00 ${cur}</td><td>mensuel</td><td>—</td><td>Actif</td><td><a href="${href('/api/reports/employee-situation', { employee_id: '0' })}">Situation</a></td></tr>`]
+      : emps.map((e: any) => {
+          const nm = [e.first_name, e.last_name].filter(Boolean).join(' ') || e.name || '—';
+          const cy = e.pay_cycle_type === 'days' ? `${e.pay_cycle_days || 7} j` : 'mensuel';
+          return `<tr><td>${e.emp_number || '—'}</td><td>${nm}</td><td>${e.role_title || '—'}</td><td style="text-align:right">${fmt(e.pay_amount)} ${cur}</td><td>${cy}</td><td>${e.last_paid_at ? String(e.last_paid_at).slice(0, 10) : '—'}</td><td>${Number(e.active) ? 'Actif' : 'Démissionné'}</td><td><a href="${href('/api/reports/employee-situation', { employee_id: String(e.id) })}">Situation</a></td></tr>`;
+        })
+    ).join('');
+    const rptQr = deps.qrToSvg(`RAPPORTS COMBINÉS — ${company} · ${periodKey} · généré le ${new Date().toLocaleString('fr-FR')}${demo ? ' · APERÇU DÉMO' : ''}`, 96, 2);
+    const body = `${wm}
+      <p class="muted">Période : <strong>${label}</strong>. Cliquez un lien pour le détail — même période, valide 30 minutes. Les liens s'ouvrent dans cet aperçu.</p>
+      <ul style="font-size:15px;line-height:1.8">
+        <li><a href="${href('/api/reports/balance')}">Solde &amp; mouvements</a></li>
+        <li><a href="${href('/api/reports/stock')}">Stock &amp; valorisation</a></li>
+        <li><a href="${href('/api/reports/receivables')}">Créances clients</a></li>
+        <li><a href="${href('/api/reports/payables')}">Dettes fournisseurs</a></li>
+        <li><a href="${href('/api/reports/employees')}">Employés &amp; paie</a></li>
+        <li><a href="${href('/api/reports/aging.html')}">Balance âgée</a></li>
+        <li><a href="${href('/api/reports/tva.html')}">Récapitulatif TVA</a></li>
+      </ul>
+      <h2>1. Solde & mouvements (synthèse)</h2>
+      <div class="grid">
+        <div class="stat"><div class="l">Sorties (dépenses)</div><div class="v out">−${fmt(out)} ${cur}</div></div>
+        <div class="stat"><div class="l">Entrées hors ventes</div><div class="v in">+${fmt(inn)} ${cur}</div></div>
+        <div class="stat"><div class="l">Ventes encaissées (reçus)</div><div class="v in">${fmt(receiptsSum)} ${cur}</div></div>
+      </div>
+      <h2>2. Créances clients</h2>
+      <div class="stat"><div class="l">Créances clients ouvertes</div><div class="v">${fmt(recv)} ${cur}</div></div>
+      ${demo ? `<p class="muted">Marbrerie Démo SARL — FACT-0001 (3 lignes démo : carrelage, colle, joint).</p>` : ''}
+      <h2>3. Dettes fournisseurs</h2>
+      <div class="stat"><div class="l">Dettes fournisseurs ouvertes</div><div class="v">${fmt(pay)} ${cur}</div></div>
+      ${demo ? `<p class="muted">Démo Fournisseur SARL — ACH-0001 (réassort des 3 articles démo).</p>` : ''}
+      <h2>4. Employés & paie</h2>
+      <table><thead><tr><th>N°</th><th>Nom</th><th>Poste</th><th>Salaire</th><th>Cycle</th><th>Dernier paiement</th><th>Statut</th><th></th></tr></thead><tbody>${empRows || `<tr><td colspan="8">Aucun</td></tr>`}</tbody></table>
       <div style="margin:14px 0;padding:10px;border:1px dashed #999;text-align:center">
         <img src="${rptQr}" width="96" height="96" alt="QR résumé du rapport"/><br/>
-        <span class="muted">QR résumé — aperçu DÉMO</span><br/>
+        <span class="muted">QR résumé — ${demo ? 'aperçu DÉMO' : 'rapport'}</span><br/>
         <a href="${c.req.url}">Rouvrir ce rapport dans l'aperçu</a>
       </div>
-      <p style="border:1px solid #000;padding:8px;background:#fff8e8"><strong>Avertissement.</strong> ${DISCLAIMER}</p>`;
-    return c.html(deps.previewEmbed(deps.reportShell('Rapport', company, 'Aperçu — 30 jours', body, settings?.report_footer || settings?.notes)));
+      <p style="border:1px solid #000;padding:8px;background:#fff8e8"><strong>Avertissement.</strong> ${DISCLAIMER}${demo ? ' Chiffres DÉMO cohérents avec le jeu d’aperçu (client, articles, reçu, employé).' : ''}</p>`;
+    return c.html(deps.previewEmbed(deps.reportShell('Rapports combinés', company, label, body, settings?.report_footer || settings?.notes)));
   }
 
   if (type === 'employee') {
@@ -132,7 +182,34 @@ app.get('/api/settings/invoice-preview', async (c: any) => {
     } else {
       rVerify = `APERÇU DÉMO — REÇU ${receiptDoc.number} · ${receiptDoc.amount} ${settings?.currency || 'MAD'} · document non réel`;
     }
-    return c.html(deps.previewEmbed(deps.generateReceiptHTML(settings, receiptDoc, undefined, rVerify, { autoPrint: false })));
+    // v0.7.2 — le QR « situation client » s'affiche en aperçu quand l'option
+    // est activée (réglage global ou par reçu), comme sur le vrai reçu.
+    let statusUrl = '';
+    const qrSitOn = Number(settings?.qr_client_situation ?? 0) === 1 || Number(rc?.include_client_situation ?? 0) === 1;
+    if (qrSitOn) {
+      if (rc) {
+        let tok = '';
+        let kind: 'invoice' | 'receipt' = 'receipt';
+        if (rc.invoice_id) {
+          try {
+            const t = (await c.env.DB.prepare(`SELECT public_token FROM invoices WHERE id = ?`).bind(rc.invoice_id).first()) as any;
+            tok = String(t?.public_token || '');
+            kind = 'invoice';
+          } catch { tok = ''; }
+        }
+        if (!tok) tok = String(rc.public_token || '');
+        if (tok) {
+          try {
+            const ttl = Math.max(7, Math.min(365, Number(settings?.qr_situation_ttl_days ?? 90) || 90)) * 86400;
+            const signed = await deps.makeSecureQrPayload(c.env, kind, tok, ttl, c.env.DB);
+            statusUrl = `${new URL(c.req.url).origin}/api/public/verify?doc=client&t=${encodeURIComponent(signed)}`;
+          } catch { statusUrl = ''; }
+        }
+      } else {
+        statusUrl = `SITUATION DÉMO — Marbrerie Démo SARL · payé ${receiptDoc.amount} ${settings?.currency || 'MAD'} · dû 0,00 ${settings?.currency || 'MAD'} · aperçu non réel`;
+      }
+    }
+    return c.html(deps.previewEmbed(deps.generateReceiptHTML(settings, receiptDoc, statusUrl, rVerify, { autoPrint: false })));
   }
 
   let doc: any = null;

@@ -212,6 +212,10 @@ export default function About() {
   }, []);
 
   const byName = Object.fromEntries(repos.map((r) => [r.name, r]));
+  const showcaseNames = new Set(PROJECT_SHOWCASE.map((p) => p.repo));
+  // v0.7.2 — le profil créateur liste TOUS ses dépôts publics (hors forks),
+  // pas seulement la vitrine : les autres arrivent triés par activité (API).
+  const extraRepos = repos.filter((r) => !r.fork && !showcaseNames.has(r.name));
 
   return (
     <div className="atlas-page about-page atlas-crm">
@@ -472,6 +476,20 @@ export default function About() {
               </li>
             );
           })}
+          {extraRepos.map((r) => (
+            <li key={r.name}>
+              <a href={r.html_url} target="_blank" rel="noreferrer" className="about-project-link">
+                <span className="about-project-title">{r.name}</span>
+                <span className="about-project-blurb">{r.description || 'Dépôt public GitHub.'}</span>
+                {r.language ? (
+                  <span className="about-project-lang">
+                    {r.language}
+                    {r.stargazers_count ? ` · ★ ${r.stargazers_count}` : ''}
+                  </span>
+                ) : null}
+              </a>
+            </li>
+          ))}
         </ul>
       </section>
 

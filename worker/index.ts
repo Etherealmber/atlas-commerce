@@ -12404,6 +12404,8 @@ registerDocPreviewRoutes(app, {
   qrToSvg,
   makeSecureQrPayload,
   previewEmbed,
+  mintReportLinkTicket,
+  buildReportLinkQuery,
 });
 
 registerExpenseWriteRoutes(app, {
@@ -13106,7 +13108,7 @@ app.get('/api/reports/aging.html', async (c) => {
     <thead><tr><th>N°</th><th>Client</th><th>Échéance</th><th>Jours</th><th>Reste dû</th></tr></thead>
     <tbody>${table}</tbody>
   </table>`;
-  return c.html(reportShell('Balance âgée clients', settings?.company_name || 'Atlas Commerce', `Au ${today}`, body, settings?.report_footer || settings?.notes));
+  return c.html(reportShell('Balance âgée clients', settings?.company_name || 'Atlas Commerce', `Au ${today}`, body, settings?.report_footer || settings?.notes, combinedBackUrl(c)));
 });
 
 /** Phase 4 — printable TVA HTML */
@@ -13190,7 +13192,7 @@ app.get('/api/reports/tva.html', async (c) => {
   <table><thead><tr><th>Taux</th><th>Base HT</th><th>TVA</th></tr></thead><tbody>${salesRows}</tbody></table>
   <h2>Avoirs / WR (à déduire)</h2>
   <table><thead><tr><th>Taux</th><th>Base HT</th><th>TVA</th></tr></thead><tbody>${creditRows}</tbody></table>`;
-  return c.html(reportShell('Récapitulatif TVA', settings?.company_name || 'Atlas Commerce', periodLabel, body, settings?.report_footer || settings?.notes));
+  return c.html(reportShell('Récapitulatif TVA', settings?.company_name || 'Atlas Commerce', periodLabel, body, settings?.report_footer || settings?.notes, combinedBackUrl(c)));
 });
 
 /** Phase 1 — reorder list */
@@ -15057,7 +15059,17 @@ app.post('/api/invoices/:id/send-email', async (c) => {
 
 /* ─── Printable reports (open in browser → Enregistrer en PDF) ─── */
 
-function reportShell(title: string, company: string, subtitle: string, body: string, footerText?: string): string {
+function combinedBackUrl(c: any): string {
+  try {
+    const u = new URL(c.req.url);
+    const rt = u.searchParams.get('rt') || '';
+    const period = u.searchParams.get('period') || '';
+    if (!rt) return '';
+    return `/api/reports/combined?rt=${encodeURIComponent(rt)}${period ? `&period=${encodeURIComponent(period)}` : ''}`;
+  } catch { return ''; }
+}
+
+function reportShell(title: string, company: string, subtitle: string, body: string, footerText?: string, backUrl?: string): string {
   const generated = new Date().toLocaleString('fr-FR');
   return `<!DOCTYPE html>
 <html lang="fr">
@@ -15086,6 +15098,7 @@ function reportShell(title: string, company: string, subtitle: string, body: str
   .in{font-weight:700}
   .out{font-weight:700}
   .actions{margin:0 0 16px}
+  .actions .backlink{display:inline-block;background:#111;color:#fff;padding:10px 16px;border-radius:4px;text-decoration:none;font-size:13px;margin-right:8px}
   button{background:#111;color:#fff;border:0;padding:10px 16px;border-radius:4px;cursor:pointer;font-size:13px}
   .sign-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:16px;page-break-inside:avoid}
   .sign-box{min-height:90px;border:1px solid #333;padding:10px}
@@ -15131,7 +15144,7 @@ function reportShell(title: string, company: string, subtitle: string, body: str
 <body>
   <div class="watermark" aria-hidden="true">RAPPORT</div>
   <div class="sheet">
-  <div class="actions"><button type="button" onclick="window.print()">Imprimer / Enregistrer en PDF</button></div>
+  <div class="actions">${backUrl ? `<a class="backlink" href="${backUrl}">← Retour aux rapports combinés</a>` : ''}<button type="button" onclick="window.print()">Imprimer / Enregistrer en PDF</button></div>
   <div class="hdr">
     <div>
       <div class="co">${company}</div>
@@ -15264,7 +15277,7 @@ app.get('/api/reports/balance', async (c) => {
     <tbody>${tableRows}</tbody>
   </table>`;
 
-  return c.html(reportShell(`Rapport solde & mouvements`, settings?.company_name || 'Atlas Commerce', label, body, settings?.report_footer || settings?.notes));
+  return c.html(reportShell(`Rapport solde & mouvements`, settings?.company_name || 'Atlas Commerce', label, body, settings?.report_footer || settings?.notes, combinedBackUrl(c)));
 });
 
 app.get('/api/reports/stock', async (c) => {
@@ -15438,6 +15451,7 @@ app.get('/api/reports/stock', async (c) => {
     `Inventaire valorisé · ${locLabel}`,
     body,
     settings?.report_footer || settings?.notes,
+    combinedBackUrl(c),
   ));
 });
 
@@ -15475,7 +15489,7 @@ app.get('/api/reports/receivables', async (c) => {
     <thead><tr><th>N°</th><th>Client</th><th>Émission</th><th>Échéance</th><th>Statut</th><th>Reste dû</th></tr></thead>
     <tbody>${table}</tbody>
   </table>`;
-  return c.html(reportShell('Rapport créances clients', settings?.company_name || 'Atlas Commerce', 'À encaisser', body, settings?.report_footer || settings?.notes));
+  return c.html(reportShell('Rapport créances clients', settings?.company_name || 'Atlas Commerce', 'À encaisser', body, settings?.report_footer || settings?.notes, combinedBackUrl(c)));
 });
 
 app.get('/api/reports/payables', async (c) => {
@@ -15511,7 +15525,7 @@ app.get('/api/reports/payables', async (c) => {
     <thead><tr><th>N°</th><th>Fournisseur</th><th>Émission</th><th>Échéance</th><th>Statut</th><th>Reste dû</th></tr></thead>
     <tbody>${table}</tbody>
   </table>`;
-  return c.html(reportShell('Rapport dettes fournisseurs', settings?.company_name || 'Atlas Commerce', 'À régler', body, settings?.report_footer || settings?.notes));
+  return c.html(reportShell('Rapport dettes fournisseurs', settings?.company_name || 'Atlas Commerce', 'À régler', body, settings?.report_footer || settings?.notes, combinedBackUrl(c)));
 });
 
 
@@ -18134,7 +18148,7 @@ app.get('/api/reports/employee-situation', async (c) => {
   </table>
   <h2>Historique des paiements de salaire</h2>
   <table><thead><tr><th>Date</th><th>Montant</th><th>Période</th><th>Note</th></tr></thead><tbody>${rows}</tbody></table>`;
-  return c.html(reportShell(`Situation employé — ${name}`, settings?.company_name || 'Atlas Commerce', emp.emp_number || String(id), body, settings?.report_footer || settings?.notes));
+  return c.html(reportShell(`Situation employé — ${name}`, settings?.company_name || 'Atlas Commerce', emp.emp_number || String(id), body, settings?.report_footer || settings?.notes, combinedBackUrl(c)));
 });
 
 app.get('/api/reports/employees', async (c) => {
@@ -18178,7 +18192,7 @@ app.get('/api/reports/employees', async (c) => {
     <thead><tr><th>N°</th><th>Nom</th><th>Poste</th><th>Salaire</th><th>Cycle</th><th>Dernier paiement</th><th>Statut</th></tr></thead>
     <tbody>${table}</tbody>
   </table>`;
-  return c.html(reportShell('Rapport employés & paie', settings?.company_name || 'Atlas Commerce', new Date().toISOString().slice(0, 10), body, settings?.report_footer || settings?.notes));
+  return c.html(reportShell('Rapport employés & paie', settings?.company_name || 'Atlas Commerce', new Date().toISOString().slice(0, 10), body, settings?.report_footer || settings?.notes, combinedBackUrl(c)));
 });
 
 

@@ -8,7 +8,7 @@ export const APP_BUILD = APP_BUILD_DATE;
 export const APP_CHANNEL = 'beta' as const;
 
 export const APP_CREATOR = 'etherealmber';
-export const APP_CREATOR_NAME = 'Ethereal Mber';
+export const APP_CREATOR_NAME = 'Etherealmber';
 export const APP_TEAM = 'etherealmber';
 export const APP_GITHUB = 'https://github.com/etherealmber';
 export const APP_TEAM_GITHUB = 'https://github.com/etherealmber';
