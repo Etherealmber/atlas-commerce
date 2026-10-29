@@ -20282,3 +20282,90 @@ html[data-theme='light'] .hm-arc-tile { box-shadow: 0 12px 26px rgba(0, 0, 0, .1
   font-size: 10.5px;
   font-weight: 800;
 }
+
+/* ═══ v0.7.7 — arc du dossier : positions des 7 modules + sortie pilotée
+   par le scroll (le JS pose transform/opacity ; plus d'animation d'entrée). ═══ */
+.hm-folder-arc .hm-arc-tile {
+  width: 66px;
+  padding: 10px 6px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  border-radius: 14px;
+  background: var(--dl-card, #141416);
+  border: 1px solid var(--dl-line, #26262a);
+  color: var(--dl-accent, #e0a184);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .25);
+  animation: none;
+  opacity: .12;
+  will-change: transform, opacity;
+}
+.hm-folder-arc .hm-arc-tile svg { display: block; }
+.hm-folder-arc .hm-arc-tile em {
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--dl-sub, #a1a1aa);
+  line-height: 1.3;
+  text-align: center;
+}
+.hm-folder-arc .hm-arc-tile.p1 { left: 1%; top: 50%; }
+.hm-folder-arc .hm-arc-tile.p2 { left: 15%; top: 25%; }
+.hm-folder-arc .hm-arc-tile.p3 { left: 31%; top: 8%; }
+.hm-folder-arc .hm-arc-tile.p4 { left: 47%; top: 2%; }
+.hm-folder-arc .hm-arc-tile.p5 { left: 63%; top: 8%; }
+.hm-folder-arc .hm-arc-tile.p6 { left: 79%; top: 25%; }
+.hm-folder-arc .hm-arc-tile.p7 { left: 92%; top: 50%; }
+@media (prefers-reduced-motion: reduce) {
+  .hm-folder-arc .hm-arc-tile { opacity: 1 !important; transform: none !important; }
+}
+
+/* ═══ v0.7.7 — À propos centré (hero, chips, cartes) ═══ */
+.public-about .about-hero { text-align: center; }
+.public-about .about-hero-brand { justify-content: center; }
+.public-about .about-mission,
+.public-about .about-lead {
+  max-width: 660px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.public-about .about-trust-strip { justify-content: center; }
+.public-about .about-meta-row {
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ═══ v0.7.7 — mobile : arc du dossier, vieil arc « tout-en-un », À propos ═══ */
+@media (max-width: 700px) {
+  .hm-folder-arc { height: 300px; }
+  .hm-folder-arc .hm-arc-tile { width: 48px; padding: 8px 4px 6px; border-radius: 11px; }
+  .hm-folder-arc .hm-arc-tile svg { width: 16px; height: 16px; }
+  .hm-folder-arc .hm-arc-tile em { font-size: 8.5px; }
+  .hm-folder-arc .hm-arc-tile.p1 { left: 0%; top: 46%; }
+  .hm-folder-arc .hm-arc-tile.p2 { left: 13%; top: 22%; }
+  .hm-folder-arc .hm-arc-tile.p3 { left: 29%; top: 6%; }
+  .hm-folder-arc .hm-arc-tile.p4 { left: 44%; top: 0%; }
+  .hm-folder-arc .hm-arc-tile.p5 { left: 60%; top: 6%; }
+  .hm-folder-arc .hm-arc-tile.p6 { left: 76%; top: 22%; }
+  .hm-folder-arc .hm-arc-tile.p7 { left: 88%; top: 46%; }
+  .hm-folder { width: 210px; height: 140px; }
+  .hm-folder-logo { width: 34px; height: 34px; }
+
+  .hm-arc { height: 300px; }
+  .hm-arc-tile { width: 78px; padding: 9px 4px; border-radius: 13px; }
+  .hm-arc-tile i { font-size: 18px; }
+  .hm-arc-tile i svg { width: 18px; height: 18px; }
+  .hm-arc-tile em { font-size: 9px; }
+  .hm-arc-tile.p1 { left: 0%; top: 30%; }
+  .hm-arc-tile.p2 { left: 17%; top: 10%; }
+  .hm-arc-tile.p3 { left: 34%; top: 2%; }
+  .hm-arc-tile.p4 { left: 51%; top: 2%; }
+  .hm-arc-tile.p5 { left: 68%; top: 10%; }
+  .hm-arc-tile.p6 { left: 84%; top: 30%; }
+
+  .public-about .about-meta-row { grid-template-columns: 1fr !important; }
+  .public-about .about-hero-brand { flex-direction: column; gap: 8px; }
+  .public-whats-new { padding: 28px 12px 60px; }
+}

@@ -47,6 +47,8 @@ export const RELEASES: Release[] = [
           { id: '077f8', platforms: ['web'], text: 'Connecté, /about et /whats-new ne passent plus jamais par le shell : le bouton « ← Tableau de bord » résiduel a disparu définitivement de ces deux pages (routes descendantes du shell supprimées)' },
           { id: '077f9', platforms: ['web'], text: 'Topbar Paramètres sur UNE seule ligne (le repli en deux rangées est corrigé) et elle rétrécit désormais au scroll descendant / grandit en remontant, comme la pilule publique' },
           { id: '077i6', platforms: ['web'], text: 'La chip profil des pages publiques affiche la vraie photo de l’utilisateur (AvatarImage, repli initiales) — identique à celle des Paramètres' },
+          { id: '077i7', platforms: ['web'], text: 'Arc du dossier piloté par le scroll : les sept modules (Caisse, Stock, Facturation, Scan & OCR, Agent IA, WebAuthn, Rapports — avec libellés) sortent véritablement du folder à mesure qu’on descend dans la section ; positions statiques si prefers-reduced-motion' },
+          { id: '077i8', platforms: ['web'], text: 'Page À propos centrée (hero, puces technologies, cartes Support/Hébergement) et correctifs mobile : arc du dossier et arc « tout-en-un » redimensionnés et repositionnés sous 700 px, cartes À propos en une colonne, paddings Nouveautés resserrés' },
         ],
       },
       {

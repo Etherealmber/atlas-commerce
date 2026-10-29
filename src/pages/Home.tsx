@@ -202,6 +202,45 @@ const ARC_TOOLS: { icon: ReactNode; label: string; pos: string }[] = [
 ];
 
 export default function Home() {
+
+  // v0.7.7 — arc du dossier : les modules SORTENT du folder pendant le scroll
+  const folderArcRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const arc = folderArcRef.current;
+    if (!arc) return;
+    const tiles = Array.from(arc.querySelectorAll<HTMLElement>('.hm-arc-tile'));
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduced) {
+      tiles.forEach((t) => { t.style.opacity = '1'; t.style.transform = 'none'; });
+      return;
+    }
+    let raf = 0;
+    const apply = () => {
+      raf = 0;
+      const rect = arc.getBoundingClientRect();
+      const vh = window.innerHeight || 800;
+      const p = Math.min(1, Math.max(0, (vh * 0.9 - rect.top) / (rect.height + vh * 0.45)));
+      const cx = arc.clientWidth / 2;
+      const cy = arc.clientHeight - 90;
+      tiles.forEach((t, i) => {
+        const local = Math.min(1, Math.max(0, (p - i * 0.07) / 0.4));
+        const e = 1 - Math.pow(1 - local, 3);
+        const tx = (cx - (t.offsetLeft + t.offsetWidth / 2)) * (1 - e);
+        const ty = (cy - (t.offsetTop + t.offsetHeight / 2)) * (1 - e);
+        t.style.opacity = String(0.12 + 0.88 * e);
+        t.style.transform = `translate(${tx.toFixed(1)}px, ${ty.toFixed(1)}px) scale(${(0.55 + 0.45 * e).toFixed(3)})`;
+      });
+    };
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(apply); };
+    apply();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
   const theme = useThemeValue();
   useRiseObserver();
   const shot = theme === 'light' ? HOME_LIGHT : HOME_DARK;
@@ -258,27 +297,34 @@ export default function Home() {
             Caisse, stock, facturation, scan, agent IA, identités WebAuthn, rapports : chaque
             module sort du même dossier Atlas — même base, même compte, tous vos appareils.
           </p>
-          <div className="hm-folder-arc rise" aria-hidden="true">
-            <span className="hm-arc-tile" style={{ left: '2%', top: '52%', animationDelay: '0s' }}>
+          <div className="hm-folder-arc" ref={folderArcRef}>
+            <span className="hm-arc-tile p1">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="20" r="1.4" /><circle cx="17" cy="20" r="1.4" /><path d="M3 4h2l2.6 12h10.2L21 8H6" /></svg>
+              <em>Caisse</em>
             </span>
-            <span className="hm-arc-tile" style={{ left: '16%', top: '26%', animationDelay: '.35s' }}>
+            <span className="hm-arc-tile p2">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8" /><path d="M12 13v8" /></svg>
+              <em>Stock</em>
             </span>
-            <span className="hm-arc-tile" style={{ left: '33%', top: '9%', animationDelay: '.7s' }}>
+            <span className="hm-arc-tile p3">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6M9 13h6M9 17h6" /></svg>
+              <em>Facturation</em>
             </span>
-            <span className="hm-arc-tile" style={{ left: '50%', top: '4%', animationDelay: '1.05s' }}>
+            <span className="hm-arc-tile p4">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" /><path d="M7 12h10" /></svg>
+              <em>Scan &amp; OCR</em>
             </span>
-            <span className="hm-arc-tile" style={{ left: '67%', top: '9%', animationDelay: '1.4s' }}>
+            <span className="hm-arc-tile p5">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" /><path d="M18 16l.9 2.1L21 19l-2.1.9L18 22l-.9-2.1L15 19l2.1-.9z" /></svg>
+              <em>Agent IA</em>
             </span>
-            <span className="hm-arc-tile" style={{ left: '84%', top: '26%', animationDelay: '1.75s' }}>
+            <span className="hm-arc-tile p6">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><circle cx="8" cy="14" r="4" /><path d="M11.5 11.5L21 2m-3 3l3 3M15 9l2 2" /></svg>
+              <em>WebAuthn</em>
             </span>
-            <span className="hm-arc-tile" style={{ left: '95%', top: '52%', animationDelay: '2.1s' }}>
+            <span className="hm-arc-tile p7">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M21 20H3" /></svg>
+              <em>Rapports</em>
             </span>
             <div className="hm-folder">
               <span className="hm-folder-flap" />
