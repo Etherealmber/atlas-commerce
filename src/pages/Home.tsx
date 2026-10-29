@@ -277,7 +277,7 @@ export default function Home() {
             </Link>
           </div>
           <p className="hm-hero-note">
-            Gratuit · open source (MIT) · aussi sur <a href="/download">Android</a> et{' '}
+            Gratuit · open source (MIT) · aussi sur <a href="/android">Android</a> et{' '}
             <a href="/desktop">Windows · macOS · Linux</a>
           </p>
 
@@ -483,7 +483,7 @@ export default function Home() {
                 synchronisation chiffrée dès la connexion retrouvée. APK signé, installable en deux
                 touches.
               </p>
-              <Link to="/download" className="dl-link dl-chip">Télécharger l’APK →</Link>
+              <Link to="/android" className="dl-link dl-chip">Télécharger l’APK →</Link>
             </div>
             <div className="dl-card">
               <div className="dl-ico">{IC_DESK}</div>
@@ -571,7 +571,7 @@ export default function Home() {
               <p>
                 Le web se met à jour tout seul. L’application bureau embarque son propre
                 updater ; sur Android, la dernière version signée est toujours sur{' '}
-                <a href="/download">la page de téléchargement</a>.
+                <a href="/android">la page de téléchargement</a>.
               </p>
             </details>
           </div>
@@ -596,7 +596,7 @@ export default function Home() {
         <div className="dl-foot-links">
           <a href="/whats-new">Nouveautés</a>
           <a href="/about">À propos</a>
-          <a href="/download">Android</a>
+          <a href="/android">Android</a>
           <a href="/desktop">Bureau</a>
           <a href="https://github.com/Etherealmber/atlas-commerce" target="_blank" rel="noreferrer noopener">GitHub</a>
           <a href="https://github.com/Etherealmber/atlas-commerce/blob/main/SECURITY.md" target="_blank" rel="noreferrer noopener">Sécurité</a>

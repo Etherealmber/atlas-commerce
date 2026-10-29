@@ -15,7 +15,7 @@ export default function DownloadTeaser() {
     try { return localStorage.getItem(KEY) === 'off'; } catch { return true; }
   });
   const loc = useLocation();
-  if (hidden || ['/', '/download', '/desktop'].includes(loc.pathname)) return null;
+  if (hidden || ['/', '/download', '/android', '/desktop'].includes(loc.pathname)) return null;
   const dismiss = () => {
     try { localStorage.setItem(KEY, 'off'); } catch { /* private mode */ }
     setHidden(true);
@@ -28,7 +28,7 @@ export default function DownloadTeaser() {
     <div className={`atlas-dl-teaser${stack}`}>
       <a
         className="atlas-dl-teaser-link"
-        href="/download"
+        href="/android"
         target="_blank"
         rel="noopener noreferrer"
         onClick={dismiss}

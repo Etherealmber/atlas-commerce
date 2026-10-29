@@ -20369,3 +20369,62 @@ html[data-theme='light'] .hm-arc-tile { box-shadow: 0 12px 26px rgba(0, 0, 0, .1
   .public-about .about-hero-brand { flex-direction: column; gap: 8px; }
   .public-whats-new { padding: 28px 12px 60px; }
 }
+
+/* ═══ v0.7.7 — chip profil publique : slot avatar fixe + meta ellipsée ═══ */
+.pn-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 4px 12px 4px 5px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+}
+.pn-chip-avatar-slot {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  overflow: hidden;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+}
+.pn-chip-avatar { width: 26px; height: 26px; border-radius: 999px; object-fit: cover; display: block; }
+.pn-chip-ini {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 10.5px;
+  font-weight: 800;
+}
+.pn-chip-meta { display: flex; flex-direction: column; line-height: 1.1; min-width: 0; }
+.pn-chip-meta strong,
+.pn-chip-meta span {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pn-chip-meta strong { font-size: 12.5px; font-weight: 700; }
+.pn-chip-meta span { font-size: 10.5px; }
+
+/* ═══ v0.7.7 — quick bar connectés : carte séparée à côté de la pilule ═══ */
+.pn-quick {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  flex: 0 0 auto;
+}
+@media (max-width: 960px) {
+  .pn-quick-label { display: none; }
+  .pn-quick { padding: 5px 6px; }
+}
+
+/* ═══ v0.7.7 — topbar Paramètres : onglets sur une seule ligne ═══ */
+.settings-topbar-tabs { flex-wrap: nowrap; }

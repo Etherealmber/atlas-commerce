@@ -49,6 +49,9 @@ export const RELEASES: Release[] = [
           { id: '077i6', platforms: ['web'], text: 'La chip profil des pages publiques affiche la vraie photo de l’utilisateur (AvatarImage, repli initiales) — identique à celle des Paramètres' },
           { id: '077i7', platforms: ['web'], text: 'Arc du dossier piloté par le scroll : les sept modules (Caisse, Stock, Facturation, Scan & OCR, Agent IA, WebAuthn, Rapports — avec libellés) sortent véritablement du folder à mesure qu’on descend dans la section ; positions statiques si prefers-reduced-motion' },
           { id: '077i8', platforms: ['web'], text: 'Page À propos centrée (hero, puces technologies, cartes Support/Hébergement) et correctifs mobile : arc du dossier et arc « tout-en-un » redimensionnés et repositionnés sous 700 px, cartes À propos en une colonne, paddings Nouveautés resserrés' },
+          { id: '077f10', platforms: ['web'], text: 'La page de téléchargement Android déménage : /android est la nouvelle adresse (tous les liens mis à jour), /download redirige automatiquement — cookies, teaser et CTA suivent' },
+          { id: '077f11', platforms: ['web'], text: 'Paramètres : le bloc-titre « Espace de travail / Paramètres / Identité, fiscalité… » est supprimé (la topbar porte déjà ces informations) et les onglets de la topbar tiennent désormais sur une seule ligne' },
+          { id: '077i9', platforms: ['web'], text: 'Connecté, une carte flottante SÉPARÉE apparaît à côté de la pilule sur À propos et Nouveautés : raccourcis « Tableau de bord » et « Paramètres » (icônes seules sur mobile) ; la chip profil publique est fiabilisée (slot avatar 26 px fixe, nom/rôle ellipsés)' },
         ],
       },
       {
