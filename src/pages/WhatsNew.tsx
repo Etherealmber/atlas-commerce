@@ -31,6 +31,34 @@ type Release = {
 
 export const RELEASES: Release[] = [
   {
+    version: '0.7.6-beta',
+    date: '30 octobre 2026',
+    sections: [
+      {
+        kind: 'features',
+        items: [
+          { id: '076a1', platforms: ['web'], text: 'Page d’ouverture au choix : Paramètres → « Page d’ouverture » (tableau de bord, caisse, stock, clients, factures, créances, rapports, paramètres ou vitrine publique) — appliquée après la connexion et en ouvrant « / » connecté ; réglage local par appareil, fonctionnel en auto-hébergement sans aucun réglage serveur' },
+        ],
+      },
+      {
+        kind: 'improvements',
+        items: [
+          { id: '076i1', platforms: ['web'], text: 'À propos et Nouveautés portent la même barre flottante que l’accueil, connectés comme visiteurs (liens adaptés à la session), et suivent le vrai thème Atlas zinc/terracotta au lieu du rendu « README »' },
+          { id: '076i2', platforms: ['web'], text: 'Chrome public rendu 100 % en styles inline : logo unique selon le thème, toggle système/clair/sombre et bouton de téléchargement scindé immunisés contre toute cascade CSS (fini pastilles noires, caret détaché et soulignements) ; les téléchargements sont de vrais boutons, plus des liens' },
+          { id: '076i3', platforms: ['server'], text: 'Patrol sécurité : un challenge WAF sur l’UA du runner ne produit plus de CRITICAL trompeur — re-sonde avec un UA navigateur, passe avec avis d’allowlist si le site répond, et reste CRITICAL seulement si les visiteurs sont bloqués eux aussi' },
+        ],
+      },
+      {
+        kind: 'fixes',
+        items: [
+          { id: '076f1', platforms: ['web'], text: 'Connecté, /login renvoie désormais vers la page d’ouverture (tableau de bord par défaut) au lieu de la vitrine ; idem à la fin de l’assistant de premier lancement' },
+          { id: '076f2', platforms: ['web'], text: 'Carte « Agent IA » de l’accueil : la question part de l’utilisateur (bulle envoyée) et c’est l’IA qui répond (bulle reçue)' },
+          { id: '076f3', platforms: ['web'], text: 'Mentions « version · date · liens » retirées d’À propos, Nouveautés et Paramètres pour tout le monde, en attendant la prochaine mise à jour demandée' },
+        ],
+      },
+    ],
+  },
+  {
     version: '0.7.5-beta',
     date: '30 octobre 2026',
     sections: [
@@ -1177,13 +1205,6 @@ export default function WhatsNew() {
       >
         Nouveautés
       </motion.h1>
-      {/* v0.7.5 — la ligne « version · date » est réservée aux visiteurs publics */}
-      {!wnLoggedIn && (
-        <p className="wn-lead">
-          Version actuelle <strong>{APP_VERSION}</strong>
-          {APP_BUILD_DATE ? ` · ${APP_BUILD_DATE}` : ''}. Historique depuis la 0.0.1.
-        </p>
-      )}
 
       <div className="wn-releases">
         {releases.map((rel, ri) => (

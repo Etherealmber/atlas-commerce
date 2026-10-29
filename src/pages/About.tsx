@@ -8,8 +8,6 @@ import {
   APP_TAGLINE,
   APP_VERSION,
   APP_BUILD,
-  APP_BUILD_DATE,
-  APP_CHANNEL,
   APP_CREATOR,
   APP_CREATOR_NAME,
   APP_TEAM,
@@ -224,15 +222,6 @@ export default function About() {
 
   return (
     <div className="atlas-page about-page atlas-crm">
-      {/* v0.7 — version + build date + changelog, visible even when public.
-          v0.7.5 — masqué pour les utilisateurs connectés (demande utilisateur). */}
-      {!isLoggedIn() && (
-        <p className="about-meta-line">
-          v{APP_VERSION} · {APP_BUILD_DATE}
-          <span aria-hidden> · </span>
-          <Link to="/whats-new">Nouveautés</Link>
-        </p>
-      )}
       <header className="about-hero">
         <div className="about-hero-brand">
           <img src="/atlas-icon-light.png" alt="" width={48} height={48} className="about-logo brand-img brand-img--light" loading="lazy" decoding="async" />
@@ -263,20 +252,6 @@ export default function About() {
         </div>
 
         <div className="about-meta-row">
-        <div className="card about-version-card about-meta-card">
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-            <div>
-              <strong style={{ display: 'block', marginBottom: 4 }}>Version actuelle</strong>
-              <span className="muted" style={{ fontSize: 14 }}>
-                {APP_VERSION} · canal {APP_CHANNEL} · build {APP_BUILD_DATE}
-                {APP_LOCATION ? ` · ${APP_LOCATION}` : ''}
-              </span>
-            </div>
-            <Link to="/whats-new" className="secondary about-secondary-link">
-              Voir les nouveautés
-            </Link>
-          </div>
-        </div>
 
         <section className="card about-section about-support about-meta-card" style={{ margin: 0 }}>
             <h2 style={{ marginTop: 0, fontSize: '1.05rem' }}>Support</h2>

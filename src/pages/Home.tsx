@@ -327,8 +327,8 @@ export default function Home() {
             </div>
             <div className="hm-bento-card rise">
               <div className="hm-fx hm-fx-agent" aria-hidden="true">
-                <span className="hm-bubble left">Combien de ventes cette semaine ?</span>
-                <span className="hm-bubble right">23 ventes · 41 250 DH</span>
+                <span className="hm-bubble left">23 ventes · 41 250 DH — dont 8 aujourd’hui</span>
+                <span className="hm-bubble right">Combien de ventes cette semaine ?</span>
               </div>
               <h3>Agent IA intégré</h3>
               <p>Posez vos questions en français : rapports, actions et réponses instantanées.</p>

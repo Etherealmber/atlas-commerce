@@ -31,6 +31,8 @@ import {
   canSell,
   isOwnerRole,
 } from './auth';
+import { PublicNav, PublicSessionCta } from './components/PublicChrome';
+import { getStartPage, startDestination } from './lib/startPage';
 import { AppDialogsProvider } from './components/AppDialogs';
 /** v0.7 — stale hashed chunks after a deploy: one silent reload, then fail
  * clean into the ErrorBoundary page instead of a blank/wrong screen. */
@@ -475,7 +477,9 @@ function AccountMenu({
 function LoginGate() {
   const loggedIn = typeof isLoggedIn === 'function' ? isLoggedIn() : !!getToken();
   if (loggedIn) {
-    return <Navigate to={isStockRole() ? '/products' : '/'} replace />;
+    // v0.7.6 — déjà connecté : /login renvoie vers la page d'ouverture
+    // choisie (tableau de bord par défaut), plus jamais vers la vitrine.
+    return <Navigate to={startDestination()} replace />;
   }
   return <Login />;
 }
@@ -519,7 +523,13 @@ function HomeRoute() {
     window.matchMedia?.('(display-mode: standalone)').matches ||
     (navigator as unknown as { standalone?: boolean }).standalone === true;
   if (native || standalone) {
-    return <Navigate to={loggedIn ? '/dashboard' : '/login'} replace />;
+    return <Navigate to={loggedIn ? startDestination() : '/login'} replace />;
+  }
+  // v0.7.6 — connecté en navigateur classique : « / » ouvre la page choisie
+  // dans Paramètres → « Page d'ouverture » (dashboard par défaut). Le choix
+  // explicite « Accueil public (vitrine) » conserve la landing.
+  if (loggedIn && getStartPage() !== '/home') {
+    return <Navigate to={startDestination()} replace />;
   }
   return (
     <div className="download-standalone">
@@ -544,17 +554,29 @@ function DesktopRoute() {
 /** v0.7 — /about readable WITHOUT an account: standalone layout (no topbar,
  * no Agent, no session access). Logged-in users keep the exact same Shell. */
 function AboutRoute() {
+  // v0.7.6 — même barre pill que l'accueil, connectés compris : le contenu
+  // des liens change selon la session, jamais le chrome.
   const loggedIn = typeof isLoggedIn === 'function' ? isLoggedIn() : !!getToken();
-  if (loggedIn) return <Protected><Shell /></Protected>;
   return (
     <div className="public-about">
-      <header className="public-whats-new-head">
-        <p className="public-whats-new-kicker">Atlas Commerce</p>
-        <h1>À propos</h1>
-        <p className="public-whats-new-sub">Identité du produit et liens légaux — lecture libre, sans compte.</p>
-        <Link to="/login" className="public-whats-new-cta">Se connecter</Link>
-        <Link to="/whats-new" className="public-whats-new-ghost">Nouveautés</Link>
-      </header>
+      <PublicNav
+        links={
+          loggedIn
+            ? [
+                { href: '/dashboard', label: 'Tableau de bord' },
+                { href: '/settings', label: 'Paramètres' },
+                { href: '/whats-new', label: 'Nouveautés' },
+                { href: '/', label: 'Accueil' },
+              ]
+            : [
+                { href: '/', label: 'Accueil' },
+                { href: '/desktop', label: 'Bureau' },
+                { href: '/download', label: 'Android' },
+                { href: '/whats-new', label: 'Nouveautés' },
+              ]
+        }
+        cta={<PublicSessionCta />}
+      />
       <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
         <About />
       </Suspense>
@@ -566,17 +588,28 @@ function AboutRoute() {
  * dedicated standalone layout (no topbar, no Agent, no API call, no session
  * access). Logged-in users keep the exact same Shell experience as before. */
 function WhatsNewRoute() {
+  // v0.7.6 — barre pill commune, adaptée à la session (comme /about).
   const loggedIn = typeof isLoggedIn === 'function' ? isLoggedIn() : !!getToken();
-  if (loggedIn) return <Protected><Shell /></Protected>;
   return (
     <div className="public-whats-new">
-      <header className="public-whats-new-head">
-        <p className="public-whats-new-kicker">Atlas Commerce</p>
-        <h1>Nouveautés</h1>
-        <p className="public-whats-new-sub">Journal des versions — lecture libre, sans compte.</p>
-        <Link to="/login" className="public-whats-new-cta">Se connecter</Link>
-        <Link to="/about" className="public-whats-new-ghost">À propos</Link>
-      </header>
+      <PublicNav
+        links={
+          loggedIn
+            ? [
+                { href: '/dashboard', label: 'Tableau de bord' },
+                { href: '/settings', label: 'Paramètres' },
+                { href: '/about', label: 'À propos' },
+                { href: '/', label: 'Accueil' },
+              ]
+            : [
+                { href: '/', label: 'Accueil' },
+                { href: '/desktop', label: 'Bureau' },
+                { href: '/download', label: 'Android' },
+                { href: '/about', label: 'À propos' },
+              ]
+        }
+        cta={<PublicSessionCta />}
+      />
       <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
         <WhatsNew />
       </Suspense>
@@ -590,7 +623,7 @@ function WelcomeGate() {
     return <Navigate to="/login" replace />;
   }
   if (isWelcomeCompleted()) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={startDestination()} replace />;
   }
   return (
     <Suspense fallback={<div className="welcome-stage"><p style={{ textAlign: 'center', padding: 48 }}>Chargement…</p></div>}>

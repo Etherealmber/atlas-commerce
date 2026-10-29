@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { getTheme, setTheme as applyTheme, subscribeTheme, type ThemeChoice } from '../theme';
 import { isLoggedIn } from '../auth';
 
@@ -7,7 +7,11 @@ const LOGO_DARK = '/atlas-logo-dark.png';
 const LOGO_LIGHT = '/atlas-logo-light.png';
 
 /* ------------------------------------------------------------------ */
-/* v0.7.4 — chrome partagé des pages publiques (/, /desktop, /download) */
+/* v0.7.6 — chrome partagé des pages publiques (/, /desktop, /download,
+   /about, /whats-new). Tout le rendu critique (formes, couleurs, icônes)
+   passe en styles INLINE : aucune feuille de style globale (ancien thème,
+   overrides, extensions) ne peut plus transformer les boutons en pastilles
+   noires, souligner les pills ni dédoubler le logo. */
 /* ------------------------------------------------------------------ */
 
 export type Platform = 'android' | 'windows' | 'macos' | 'linux';
@@ -24,7 +28,7 @@ export function detectPlatform(): Platform {
   if (typeof navigator === 'undefined') return 'windows';
   const ua = navigator.userAgent;
   if (/android/i.test(ua)) return 'android';
-  if (/iphone|ipad|ipod/i.test(ua)) return 'android'; // iOS : pas de build natif → renvoie vers l'app Android/web
+  if (/iphone|ipad|ipod/i.test(ua)) return 'android';
   if (/mac os x|macintosh/i.test(ua)) return 'macos';
   if (/linux|x11/i.test(ua)) return 'linux';
   return 'windows';
@@ -34,6 +38,16 @@ export function useResolvedTheme(): ThemeChoice {
   const [theme, setT] = useState<ThemeChoice>(() => getTheme());
   useEffect(() => subscribeTheme(setT), []);
   return theme;
+}
+
+function resolvedNow(): 'light' | 'dark' {
+  const t = getTheme();
+  if (t !== 'system') return t;
+  try {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  } catch {
+    return 'dark';
+  }
 }
 
 /** Thème réellement affiché ('light' | 'dark'), le mode système suivant l'OS. */
@@ -57,94 +71,162 @@ export function useThemeValue(): 'light' | 'dark' {
   return v;
 }
 
-function resolvedNow(): 'light' | 'dark' {
-  const t = getTheme();
-  if (t !== 'system') return t;
-  try {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  } catch {
-    return 'dark';
-  }
+/** Palette du chrome public, selon le thème résolu. */
+function useChromeColors() {
+  const dark = useThemeValue() === 'dark';
+  return dark
+    ? {
+        dark: true,
+        navBg: 'rgba(24,24,27,.78)', navBorder: 'rgba(63,63,70,.75)', navShadow: '0 10px 34px rgba(0,0,0,.38)',
+        ink: '#fafafa', sub: '#a1a1aa', faint: '#71717a',
+        pillBg: 'rgba(255,255,255,.05)', pillBorder: 'rgba(63,63,70,.8)',
+        ghostBg: 'rgba(255,255,255,.03)', ghostBorder: 'rgba(63,63,70,.95)', ghostInk: '#e4e4e7',
+        hover: 'rgba(255,255,255,.08)',
+        menuBg: '#18181b', menuBorder: '#27272a', menuShadow: '0 20px 48px rgba(0,0,0,.55)',
+        cta: '#c45c26',
+      }
+    : {
+        dark: false,
+        navBg: 'rgba(255,255,255,.85)', navBorder: '#e4e4e7', navShadow: '0 10px 30px rgba(0,0,0,.08)',
+        ink: '#18181b', sub: '#52525b', faint: '#71717a',
+        pillBg: '#f4f4f5', pillBorder: '#e4e4e7',
+        ghostBg: '#ffffff', ghostBorder: '#e4e4e7', ghostInk: '#27272a',
+        hover: '#f4f4f5',
+        menuBg: '#ffffff', menuBorder: '#e4e4e7', menuShadow: '0 20px 48px rgba(0,0,0,.14)',
+        cta: '#b4531f',
+      };
 }
 
-/** Boutons de thème en icônes SVG (système · clair · sombre) — fini les emojis. */
+const ICONS: Record<ThemeChoice, ReactNode> = {
+  system: (
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'block' }}>
+      <rect x="2" y="4" width="20" height="13" rx="2" />
+      <path d="M8 21h8M12 17v4" />
+    </svg>
+  ),
+  light: (
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'block' }}>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+    </svg>
+  ),
+  dark: (
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'block' }}>
+      <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+    </svg>
+  ),
+};
+
+/** Toggle système/clair/sombre en icônes SVG — rendu 100 % inline. */
 export function PublicThemeToggle() {
   const theme = useResolvedTheme();
-  const btn = (v: ThemeChoice, label: string, icon: ReactNode) => (
-    <button
-      key={v}
-      type="button"
-      className="pn-tgl-btn"
-      data-theme-toggle
-      data-active={theme === v}
-      onClick={() => applyTheme(v)}
-      title={`Thème ${label}`}
-      aria-label={`Thème ${label}`}
-      aria-pressed={theme === v}
-    >
-      {icon}
-    </button>
-  );
+  const c = useChromeColors();
+  const btn = (v: ThemeChoice, label: string): ReactNode => {
+    const active = theme === v;
+    const st: CSSProperties = {
+      display: 'grid', placeItems: 'center', width: 28, height: 28,
+      border: 0, borderRadius: 999,
+      background: active ? c.cta : 'transparent',
+      color: active ? '#fff' : c.sub,
+      cursor: 'pointer', padding: 0,
+    };
+    return (
+      <button
+        key={v}
+        type="button"
+        data-theme-toggle
+        onClick={() => applyTheme(v)}
+        title={`Thème ${label}`}
+        aria-label={`Thème ${label}`}
+        aria-pressed={active}
+        style={st}
+      >
+        {ICONS[v]}
+      </button>
+    );
+  };
   return (
-    <div className="pn-tgl" role="group" aria-label="Thème">
-      {btn('system', 'système', (
-        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <rect x="2" y="4" width="20" height="13" rx="2" />
-          <path d="M8 21h8M12 17v4" />
-        </svg>
-      ))}
-      {btn('light', 'clair', (
-        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <circle cx="12" cy="12" r="4" />
-          <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
-        </svg>
-      ))}
-      {btn('dark', 'sombre', (
-        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
-        </svg>
-      ))}
+    <div
+      role="group"
+      aria-label="Thème"
+      style={{ display: 'flex', gap: 2, padding: 3, borderRadius: 999, background: c.pillBg, border: `1px solid ${c.pillBorder}` }}
+    >
+      {btn('system', 'système')}
+      {btn('light', 'clair')}
+      {btn('dark', 'sombre')}
     </div>
   );
 }
 
 export type NavLink = { href: string; label: string };
 
-/** Barre de navigation flottante « pill », inspirée du site Liner. */
+/** Barre de navigation flottante « pill » — une seule image de logo, choisie
+ *  par le thème résolu (plus jamais deux logos côte à côte). */
 export function PublicNav({ links, cta }: { links: NavLink[]; cta?: ReactNode }) {
+  const c = useChromeColors();
   const [menu, setMenu] = useState(false);
+  const linkSt = (extra?: CSSProperties): CSSProperties => ({
+    padding: '7px 12px', borderRadius: 999, color: c.sub, fontSize: 13.5,
+    textDecoration: 'none', whiteSpace: 'nowrap', background: 'transparent',
+    border: 0, cursor: 'pointer', fontWeight: 600, ...extra,
+  });
   return (
-    <header className="pn-wrap">
-      <nav className="pn-nav" aria-label="Navigation publique">
-        <Link to="/" className="pn-logo" onClick={() => setMenu(false)}>
-          <img className="pn-logo-img theme-logo-dark" src={LOGO_DARK} alt="Atlas" />
-          <img className="pn-logo-img theme-logo-light" src={LOGO_LIGHT} alt="Atlas" />
+    <header style={{ position: 'sticky', top: 14, zIndex: 60, padding: '14px 16px 0' }}>
+      <nav
+        aria-label="Navigation publique"
+        style={{
+          maxWidth: 1080, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 14,
+          padding: '8px 10px 8px 18px', borderRadius: 999,
+          background: c.navBg, border: `1px solid ${c.navBorder}`,
+          backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+          boxShadow: c.navShadow,
+        }}
+      >
+        <Link to="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', flex: '0 0 auto' }} aria-label="Atlas — accueil">
+          <img src={c.dark ? LOGO_DARK : LOGO_LIGHT} alt="Atlas" style={{ height: 24, width: 'auto', display: 'block' }} />
         </Link>
-        <div className="pn-links">
+        <div className="pn-links" style={{ display: 'flex', gap: 2, margin: '0 auto', minWidth: 0, overflow: 'hidden' }}>
           {links.map((l) => (
-            <a key={l.href} href={l.href} className="pn-link">{l.label}</a>
+            <a key={l.href} href={l.href} style={linkSt()}>{l.label}</a>
           ))}
         </div>
-        <div className="pn-right">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto', flex: '0 0 auto' }}>
           <PublicThemeToggle />
           {cta}
           <button
             type="button"
-            className="pn-burger"
             aria-label="Menu"
             aria-expanded={menu}
             onClick={() => setMenu((m) => !m)}
+            className="pn-burger-btn"
+            style={{
+              display: 'none', placeItems: 'center', width: 34, height: 34, padding: 0,
+              border: `1px solid ${c.ghostBorder}`, borderRadius: 999,
+              background: c.ghostBg, color: c.ghostInk, cursor: 'pointer',
+            }}
           >
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true" style={{ display: 'block' }}>
               {menu ? <path d="M6 6l12 12M18 6L6 18" /> : <path d="M4 7h16M4 12h16M4 17h16" />}
             </svg>
           </button>
         </div>
       </nav>
       {menu && (
-        <div className="pn-menu">
+        <div
+          style={{
+            maxWidth: 1080, margin: '8px auto 0', padding: 8, borderRadius: 18,
+            background: c.menuBg, border: `1px solid ${c.menuBorder}`, boxShadow: c.menuShadow,
+          }}
+        >
           {links.map((l) => (
-            <a key={l.href} href={l.href} className="pn-menu-link" onClick={() => setMenu(false)}>{l.label}</a>
+            <a
+              key={l.href}
+              href={l.href}
+              onClick={() => setMenu(false)}
+              style={{ display: 'block', padding: '11px 14px', borderRadius: 12, color: c.ghostInk, textDecoration: 'none', fontSize: 14, fontWeight: 600 }}
+            >
+              {l.label}
+            </a>
           ))}
         </div>
       )}
@@ -180,7 +262,7 @@ export function usePublicReleases(): { desktop: ReleaseAssets; android: { url: s
             });
           }
         }
-      } catch { /* hors-ligne : les liens retombent sur /desktop */ }
+      } catch { /* hors-ligne : repli vers /desktop */ }
       try {
         const res = await fetch('/public/android/manifest.json');
         if (res.ok) {
@@ -196,12 +278,30 @@ export function usePublicReleases(): { desktop: ReleaseAssets; android: { url: s
   return { desktop, android, loaded };
 }
 
-/** Bouton de téléchargement scindé : action principale + menu déroulant des autres plateformes. */
+/** Démarre un téléchargement : vrai BOUTON (pas un lien) qui ouvre l'asset. */
+function startDownload(url: string) {
+  if (url.startsWith('/')) {
+    window.location.assign(url);
+    return;
+  }
+  const a = document.createElement('a');
+  a.href = url;
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+/** Bouton de téléchargement scindé : action principale + menu des autres
+ *  plateformes. Forme et couleurs 100 % inline (conteneur = pill orange). */
 export function PublicDownloadCta({ prefer, full = true }: { prefer?: Platform; full?: boolean }) {
   const { desktop, android } = usePublicReleases();
   const main: Platform = prefer || detectPlatform();
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement | null>(null);
+  const navigate = useNavigate();
+  const c = useChromeColors();
 
   useEffect(() => {
     if (!open) return;
@@ -225,36 +325,85 @@ export function PublicDownloadCta({ prefer, full = true }: { prefer?: Platform; 
   const others = order.filter((p) => p !== main);
 
   return (
-    <div className="pn-split" ref={box}>
-      <a className="pn-split-main" href={urlFor(main)} data-full={full}>
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <div
+      ref={box}
+      style={{
+        position: 'relative', display: 'inline-flex', alignItems: 'stretch',
+        background: c.cta, borderRadius: 999, overflow: 'visible',
+        boxShadow: '0 14px 34px rgba(196,92,38,.35)',
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => startDownload(urlFor(main))}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 9,
+          padding: '13px 20px', border: 0, borderRadius: full ? '999px 0 0 999px' : 999,
+          background: 'transparent', color: '#fff', fontWeight: 700, fontSize: 14,
+          textDecoration: 'none', whiteSpace: 'nowrap', cursor: 'pointer',
+        }}
+      >
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'block' }}>
           <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
         </svg>
         Télécharger pour {PLATFORM_LABEL[main]}
-      </a>
+      </button>
       <button
         type="button"
-        className="pn-split-caret"
         aria-label="Autres plateformes"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
+        style={{
+          width: 40, border: 0, borderLeft: '1px solid rgba(255,255,255,.28)',
+          borderRadius: '0 999px 999px 0', background: 'transparent', color: '#fff',
+          cursor: 'pointer', display: 'grid', placeItems: 'center', padding: 0,
+        }}
       >
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'block' }}>
           <path d="M6 9l6 6 6-6" />
         </svg>
       </button>
       {open && (
-        <div className="pn-split-menu" role="menu">
+        <div
+          role="menu"
+          style={{
+            position: 'absolute', top: 'calc(100% + 10px)', left: 0, minWidth: 272,
+            display: 'flex', flexDirection: 'column', padding: 6, zIndex: 40,
+            background: c.menuBg, border: `1px solid ${c.menuBorder}`, borderRadius: 16,
+            boxShadow: c.menuShadow,
+          }}
+        >
           {others.map((p) => (
-            <a key={p} className="pn-split-item" role="menuitem" href={urlFor(p)}>
-              <span className="pn-split-os">Télécharger pour {PLATFORM_LABEL[p]}</span>
-              <span className="pn-split-ext">{extFor(p)}</span>
-            </a>
+            <button
+              key={p}
+              type="button"
+              role="menuitem"
+              onClick={() => { setOpen(false); startDownload(urlFor(p)); }}
+              style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10,
+                padding: '10px 12px', borderRadius: 10, border: 0, textAlign: 'left',
+                background: 'transparent', color: c.ghostInk, fontSize: 13.5, fontWeight: 600,
+                cursor: 'pointer', textDecoration: 'none',
+              }}
+            >
+              <span>Télécharger pour {PLATFORM_LABEL[p]}</span>
+              <span style={{ color: c.faint, fontSize: 12, fontWeight: 700 }}>{extFor(p)}</span>
+            </button>
           ))}
-          <Link className="pn-split-item" role="menuitem" to="/desktop">
-            <span className="pn-split-os">Toutes les versions bureau</span>
-            <span className="pn-split-ext">→</span>
-          </Link>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => { setOpen(false); navigate('/desktop'); }}
+            style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10,
+              padding: '10px 12px', borderRadius: 10, border: 0, textAlign: 'left',
+              background: 'transparent', color: c.ghostInk, fontSize: 13.5, fontWeight: 600,
+              cursor: 'pointer', textDecoration: 'none',
+            }}
+          >
+            <span>Toutes les versions bureau</span>
+            <span style={{ color: c.faint, fontSize: 12, fontWeight: 700 }}>→</span>
+          </button>
         </div>
       )}
     </div>
@@ -264,6 +413,7 @@ export function PublicDownloadCta({ prefer, full = true }: { prefer?: Platform; 
 /** Bouton « Star » GitHub avec compteur live. */
 export function GitHubStarButton({ repo = 'Etherealmber/atlas-commerce' }: { repo?: string }) {
   const [stars, setStars] = useState<number | null>(null);
+  const c = useChromeColors();
   useEffect(() => {
     let dead = false;
     void (async () => {
@@ -273,32 +423,45 @@ export function GitHubStarButton({ repo = 'Etherealmber/atlas-commerce' }: { rep
           const j: any = await r.json();
           if (!dead && typeof j?.stargazers_count === 'number') setStars(j.stargazers_count);
         }
-      } catch { /* le bouton reste un simple lien */ }
+      } catch { /* simple bouton */ }
     })();
     return () => { dead = true; };
   }, [repo]);
   return (
     <a
-      className="pn-star"
       href={`https://github.com/${repo}`}
       target="_blank"
       rel="noreferrer noopener"
       aria-label={`Dépôt GitHub ${repo}${stars != null ? ` — ${stars} étoiles` : ''}`}
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 16px',
+        borderRadius: 999, border: `1px solid ${c.ghostBorder}`, color: c.ghostInk,
+        textDecoration: 'none', whiteSpace: 'nowrap', background: c.ghostBg,
+        fontSize: 14, fontWeight: 600,
+      }}
     >
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true" style={{ display: 'block' }}>
         <path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.1 4.7 18.1 5 18.1 5c.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5z" />
       </svg>
       <span>GitHub</span>
-      {stars != null && <span className="pn-star-count">★ {stars.toLocaleString('fr-FR')}</span>}
+      {stars != null && <span style={{ color: c.dark ? '#d4a017' : '#a16207', fontSize: 12.5, fontWeight: 700 }}>★ {stars.toLocaleString('fr-FR')}</span>}
     </a>
   );
 }
 
 /** CTA de connexion / tableau de bord selon la session. */
 export function PublicSessionCta({ solid = true }: { solid?: boolean }) {
+  const c = useChromeColors();
+  const st: CSSProperties = {
+    padding: '8px 16px', borderRadius: 999, fontSize: 13.5, fontWeight: 700,
+    textDecoration: 'none', whiteSpace: 'nowrap',
+    color: solid ? '#fff' : c.ink,
+    border: `1px solid ${solid ? c.cta : c.ghostBorder}`,
+    background: solid ? c.cta : c.ghostBg,
+  };
   return isLoggedIn() ? (
-    <Link to="/dashboard" className={`pn-cta${solid ? ' solid' : ''}`}>Ouvrir l’app</Link>
+    <Link to="/dashboard" style={st}>Ouvrir l’app</Link>
   ) : (
-    <Link to="/login" className={`pn-cta${solid ? ' solid' : ''}`}>Se connecter</Link>
+    <Link to="/login" style={st}>Se connecter</Link>
   );
 }
