@@ -9,7 +9,7 @@
 <!-- Badges -->
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 <!-- SUPPORT-SYNC:badge:start -->
-![Version](https://img.shields.io/badge/version-0.7.5--beta-blue)
+![Version](https://img.shields.io/badge/version-0.7.6--beta-blue)
 <!-- SUPPORT-SYNC:badge:end -->
 ![Build](https://img.shields.io/badge/build-cloudflare%20workers-orange)
 ![Stack](https://img.shields.io/badge/stack-React%20%2B%20Vite%20%2B%20D1%20%2B%20R2-0a0a0a)
@@ -319,7 +319,7 @@ Atlas Commerce est développé et maintenu par **loxdpy ([@loxdpsy](https://gith
 - Les trois tournent sur chaque pull request (et sur main) avec filters par chemin : un PR rouge ne devrait jamais être mergé, donc jamais déployé
 
 <!-- SUPPORT-SYNC:support:start -->
-Version actuelle : **0.7.5-beta** (gelée jusqu'au prochain ordre de push).
+Version actuelle : **0.7.6-beta** (gelée jusqu'au prochain ordre de push).
 
 > **Politique de support** : seule la mineure courante (**0.7**) reçoit correctifs et mises à jour de sécurité. Dès la sortie de la mineure suivante (ex. 0.8.0), la mineure précédente passe immédiatement en fin de support — 0.6.x l'est depuis 0.7.0. Les versions 0.6.x et antérieures ne sont plus supportées.
 <!-- SUPPORT-SYNC:support:end -->
