@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { APP_VERSION, APP_BUILD_DATE, APP_CHANNEL } from '../version';
+import { DISPLAY_VERSION, APP_BUILD_DATE, APP_CHANNEL, RELEASE_VISIBLE_CAP, semverAtMost } from '../version';
+import { RELEASES } from '../pages/WhatsNew';
 import {
   shouldShowWhatsNewModal,
   markWhatsNewModalSeen,
@@ -53,16 +54,19 @@ export default function WhatsNewModal() {
       >
         <p className="atlas-eyebrow" style={{ marginBottom: 6 }}>Mise à jour</p>
         <h2 id="whats-new-modal-title" style={{ margin: '0 0 8px', fontSize: '1.25rem' }}>
-          Atlas Commerce {APP_VERSION}
+          Atlas Commerce {DISPLAY_VERSION}
         </h2>
         <p className="muted" style={{ margin: '0 0 16px', lineHeight: 1.45 }}>
           Canal <strong>{APP_CHANNEL}</strong> · build {APP_BUILD_DATE}.  
           Assistants pas à pas partout, thème sombre integral, et sélecteurs façon Discord.
         </p>
         <ul className="whats-new-modal-bullets">
-          <li>Popups en assistant pas à pas (devis, factures, reçus…)</li>
-          <li>Thème sombre zinc sur tous les éléments + erreurs dans les popups</li>
-          <li>Sélecteurs de clients/produits façon Discord + pied de popup arrondi</li>
+          {RELEASES.filter((r) => semverAtMost(r.version, RELEASE_VISIBLE_CAP))
+            .flatMap((r) => r.sections.flatMap((s) => s.items))
+            .slice(0, 3)
+            .map((it) => (
+              <li key={it.id}>{it.text}</li>
+            ))}
         </ul>
         <div className="whats-new-modal-actions">
           <button type="button" className="secondary" onClick={() => dismiss(false)}>

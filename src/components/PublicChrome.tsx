@@ -117,40 +117,29 @@ const ICONS: Record<ThemeChoice, ReactNode> = {
   ),
 };
 
-/** Toggle système/clair/sombre en icônes SVG — rendu 100 % inline. */
+/** Toggle système/clair/sombre — v0.7.7 : STRICTEMENT le même trio que le
+ *  dashboard (`.settings-topbar-theme`), actif terracotta via CSS. */
 export function PublicThemeToggle() {
   const theme = useResolvedTheme();
-  const c = useChromeColors();
   const btn = (v: ThemeChoice, label: string): ReactNode => {
     const active = theme === v;
-    const st: CSSProperties = {
-      display: 'grid', placeItems: 'center', width: 28, height: 28,
-      border: 0, borderRadius: 999,
-      background: active ? c.cta : 'transparent',
-      color: active ? '#fff' : c.sub,
-      cursor: 'pointer', padding: 0,
-    };
     return (
       <button
         key={v}
         type="button"
         data-theme-toggle
+        className={active ? 'active' : undefined}
         onClick={() => applyTheme(v)}
         title={`Thème ${label}`}
         aria-label={`Thème ${label}`}
         aria-pressed={active}
-        style={st}
       >
         {ICONS[v]}
       </button>
     );
   };
   return (
-    <div
-      role="group"
-      aria-label="Thème"
-      style={{ display: 'flex', gap: 2, padding: 3, borderRadius: 999, background: c.pillBg, border: `1px solid ${c.pillBorder}` }}
-    >
+    <div className="settings-topbar-theme public-theme-trio" role="group" aria-label="Thème">
       {btn('system', 'système')}
       {btn('light', 'clair')}
       {btn('dark', 'sombre')}
@@ -263,14 +252,29 @@ export function usePublicReleases(): { desktop: ReleaseAssets; android: { url: s
           }
         }
       } catch { /* hors-ligne : repli vers /desktop */ }
+      // v0.7.7 — source de vérité APK : le manifeste R2 `latest.json`
+      // (celui que l'appli Android consulte pour se mettre à jour).
+      let apkSet = false;
       try {
-        const res = await fetch('/public/android/manifest.json');
+        const res = await fetch('https://cdn1.afmarbre.com/app-updates/android/latest.json', { cache: 'no-store' });
         if (res.ok) {
           const m: any = await res.json();
-          const apk = Array.isArray(m?.artifacts) ? m.artifacts.find((a: any) => (a.url || '').endsWith('.apk')) : null;
-          if (apk?.url && !dead) setAndroid({ url: String(apk.url), label: String(m?.version || '') });
+          if (m?.apkUrl && !dead) {
+            setAndroid({ url: String(m.apkUrl), label: String(m.versionName || m.version || '') });
+            apkSet = true;
+          }
         }
-      } catch { /* /download reste la valeur de repli */ }
+      } catch { /* repli ci-dessous */ }
+      if (!apkSet) {
+        try {
+          const res = await fetch('/public/android/manifest.json');
+          if (res.ok) {
+            const m: any = await res.json();
+            const apk = Array.isArray(m?.artifacts) ? m.artifacts.find((a: any) => (a.url || '').endsWith('.apk')) : null;
+            if (apk?.url && !dead) setAndroid({ url: String(apk.url), label: String(m?.version || '') });
+          }
+        } catch { /* /download reste la valeur de repli */ }
+      }
       done();
     })();
     return () => { dead = true; };

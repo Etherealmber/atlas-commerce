@@ -20060,3 +20060,166 @@ html[data-theme='light'] .settings-topbar .settings-topbar-back {
 @media (max-width: 900px) {
   .settings-topbar { border-radius: 28px; }
 }
+
+/* ═══ v0.7.7 — trio de thème unifié (dashboard + pages publiques) : actif
+   terracotta Atlas au lieu du noir/blanc, partout. ═══ */
+.settings-topbar-theme button.active,
+html[data-theme="dark"] .settings-topbar-theme button.active {
+  background: #c45c26 !important;
+  color: #ffffff !important;
+}
+.settings-topbar-theme button.active:hover { background: #b4531f !important; }
+.public-theme-trio { margin-right: 0; flex: 0 0 auto; }
+html[data-theme="dark"] .public-theme-trio { background: #1c1c1f !important; border-color: #2a2a2e !important; }
+
+/* ═══ v0.7.7 — plus AUCUN soulignement sur les CTAs/cartes publiques ═══ */
+.hm-ghost,
+.home-landing .dl-link,
+.home-landing .dl-link:hover,
+.dl-release-link,
+.dl-tech a,
+.download-landing .dl-link,
+.download-landing .dl-link:hover {
+  text-decoration: none !important;
+}
+
+/* chips CTA des cartes : pill bordée, hover fond, jamais soulignée */
+.dl-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  padding: 7px 13px;
+  border: 1px solid var(--dl-line, #26262a);
+  border-radius: 999px;
+  background: var(--dl-chip-bg, rgba(255, 255, 255, .04));
+  color: var(--dl-accent, #e0a184) !important;
+  font-size: 13px;
+  font-weight: 700;
+  transition: background .15s ease, border-color .15s ease;
+}
+.dl-chip:hover { background: var(--dl-chip-hover, rgba(255, 255, 255, .09)); border-color: var(--dl-accent, #e0a184); }
+
+/* ═══ v0.7.7 — /download & /desktop au vrai thème Atlas (clair + sombre) ═══ */
+.home-landing, .download-landing {
+  --dl-bg: #09090b;
+  --dl-band: #101013;
+  --dl-card: #141416;
+  --dl-line: #26262a;
+  --dl-ink: #fafafa;
+  --dl-sub: #a1a1aa;
+  --dl-faint: #71717a;
+  --dl-accent: #e0a184;
+  --dl-accent-solid: #c45c26;
+  --dl-chip-bg: rgba(255, 255, 255, .04);
+  --dl-chip-hover: rgba(255, 255, 255, .09);
+}
+html[data-theme='light'] .home-landing,
+html[data-theme='light'] .download-landing {
+  --dl-bg: #fafafa;
+  --dl-band: #f4f4f5;
+  --dl-card: #ffffff;
+  --dl-line: #e4e4e7;
+  --dl-ink: #18181b;
+  --dl-sub: #52525b;
+  --dl-faint: #71717a;
+  --dl-accent: #b4531f;
+  --dl-accent-solid: #c45c26;
+  --dl-chip-bg: #ffffff;
+  --dl-chip-hover: #f4f4f5;
+}
+.download-landing { background: var(--dl-bg); color: var(--dl-ink); }
+.download-landing .dl-band { background: var(--dl-band); }
+.download-landing .dl-h1, .download-landing .dl-sec-title,
+.download-landing .dl-stat strong, .download-landing .dl-feat strong,
+.download-landing .dl-release h3 { color: var(--dl-ink); }
+.download-landing .dl-h1 span { color: var(--dl-accent); }
+.download-landing .dl-desc, .download-landing .dl-sec-sub,
+.download-landing .dl-feat p, .download-landing .dl-release-date,
+.download-landing .dl-note { color: var(--dl-sub); }
+.download-landing .dl-stat span { color: var(--dl-faint); }
+.download-landing .dl-feat, .download-landing .dl-stat,
+.download-landing .dl-release, .download-landing .dl-tech {
+  background: var(--dl-card);
+  border-color: var(--dl-line);
+}
+.download-landing .dl-release-body { color: var(--dl-ink); }
+.download-landing .dl-release-link, .download-landing .dl-tech a { color: var(--dl-accent) !important; }
+.download-landing .dl-cta-ghost { color: var(--dl-ink); border-color: var(--dl-line); }
+.download-landing .dl-cta-ghost:hover { background: var(--dl-chip-hover); }
+html[data-theme='light'] .download-landing .dl-hero-bg { background: radial-gradient(60% 60% at 50% 0%, rgba(196, 92, 38, .10), transparent 70%); }
+html[data-theme='light'] .download-landing .dl-hero-grid { opacity: .5; }
+
+/* ═══ v0.7.7 — section « dossier » : arc de modules qui sortent du folder ═══ */
+.hm-folder-sec { text-align: center; }
+.hm-folder-arc {
+  position: relative;
+  max-width: 760px;
+  height: 380px;
+  margin: 26px auto 0;
+}
+.hm-arc-tile {
+  position: absolute;
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--dl-card, #141416);
+  border: 1px solid var(--dl-line, #26262a);
+  color: var(--dl-accent, #e0a184);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .28);
+  animation: hm-tile-rise .9s cubic-bezier(.2, .8, .2, 1) backwards,
+    hm-tile-float 6s ease-in-out infinite;
+}
+.hm-arc-tile svg { display: block; }
+@keyframes hm-tile-rise {
+  from { transform: translate(140%, 220%) scale(.4); opacity: 0; }
+  to { transform: translate(0, 0) scale(1); opacity: 1; }
+}
+@keyframes hm-tile-float {
+  0%, 100% { margin-top: 0; }
+  50% { margin-top: -9px; }
+}
+.hm-folder {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: 300px;
+  height: 190px;
+}
+.hm-folder-flap {
+  position: absolute;
+  top: 0;
+  left: 14px;
+  width: 128px;
+  height: 34px;
+  border-radius: 12px 12px 0 0;
+  background: var(--dl-accent-solid, #c45c26);
+  opacity: .92;
+}
+.hm-folder-body {
+  position: absolute;
+  inset: 22px 0 0 0;
+  border-radius: 16px;
+  background: linear-gradient(180deg, var(--dl-card, #141416), var(--dl-band, #101013));
+  border: 1px solid var(--dl-line, #26262a);
+  box-shadow: 0 26px 60px rgba(0, 0, 0, .35);
+  display: grid;
+  place-items: center;
+}
+.hm-folder-logo { width: 44px; height: 44px; display: block; }
+.hm-folder-logo--dark { display: none; }
+html[data-theme='dark'] .hm-folder-logo--light { display: none; }
+html[data-theme='dark'] .hm-folder-logo--dark { display: block; }
+html[data-theme='light'] .hm-arc-tile { box-shadow: 0 12px 26px rgba(0, 0, 0, .10); }
+@media (max-width: 700px) {
+  .hm-folder-arc { height: 300px; }
+  .hm-arc-tile { width: 42px; height: 42px; border-radius: 11px; }
+  .hm-arc-tile svg { width: 16px; height: 16px; }
+  .hm-folder { width: 220px; height: 150px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hm-arc-tile { animation: none; }
+}

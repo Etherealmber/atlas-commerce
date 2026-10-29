@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
-import { APP_VERSION } from '../version';
+import { DISPLAY_VERSION } from '../version';
 import {
   PublicNav,
   PublicDownloadCta,
@@ -251,6 +251,45 @@ export default function Home() {
           </div>
         </section>
 
+        {/* ---------------- Dossier : les modules sortent du folder Atlas ---------------- */}
+        <section className="hm-sec hm-folder-sec" aria-label="Un dossier, tout votre commerce">
+          <h2 className="rise">Un dossier. Tout votre commerce.</h2>
+          <p className="hm-sec-sub rise">
+            Caisse, stock, facturation, scan, agent IA, identités WebAuthn, rapports : chaque
+            module sort du même dossier Atlas — même base, même compte, tous vos appareils.
+          </p>
+          <div className="hm-folder-arc rise" aria-hidden="true">
+            <span className="hm-arc-tile" style={{ left: '2%', top: '52%', animationDelay: '0s' }}>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="20" r="1.4" /><circle cx="17" cy="20" r="1.4" /><path d="M3 4h2l2.6 12h10.2L21 8H6" /></svg>
+            </span>
+            <span className="hm-arc-tile" style={{ left: '16%', top: '26%', animationDelay: '.35s' }}>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8" /><path d="M12 13v8" /></svg>
+            </span>
+            <span className="hm-arc-tile" style={{ left: '33%', top: '9%', animationDelay: '.7s' }}>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6M9 13h6M9 17h6" /></svg>
+            </span>
+            <span className="hm-arc-tile" style={{ left: '50%', top: '4%', animationDelay: '1.05s' }}>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" /><path d="M7 12h10" /></svg>
+            </span>
+            <span className="hm-arc-tile" style={{ left: '67%', top: '9%', animationDelay: '1.4s' }}>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" /><path d="M18 16l.9 2.1L21 19l-2.1.9L18 22l-.9-2.1L15 19l2.1-.9z" /></svg>
+            </span>
+            <span className="hm-arc-tile" style={{ left: '84%', top: '26%', animationDelay: '1.75s' }}>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><circle cx="8" cy="14" r="4" /><path d="M11.5 11.5L21 2m-3 3l3 3M15 9l2 2" /></svg>
+            </span>
+            <span className="hm-arc-tile" style={{ left: '95%', top: '52%', animationDelay: '2.1s' }}>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M21 20H3" /></svg>
+            </span>
+            <div className="hm-folder">
+              <span className="hm-folder-flap" />
+              <span className="hm-folder-body">
+                <img src="/atlas-icon-light.png" alt="" className="hm-folder-logo hm-folder-logo--light" width="44" height="44" />
+                <img src="/atlas-icon-dark.png" alt="" className="hm-folder-logo hm-folder-logo--dark" width="44" height="44" />
+              </span>
+            </div>
+          </div>
+        </section>
+
         {/* ---------------- Fonctionnalités (bento) ---------------- */}
         <section id="features" className="hm-sec">
           <h2 className="rise">Un back-office complet, pas une fiche de plus</h2>
@@ -388,7 +427,7 @@ export default function Home() {
                 fonctionne aussi en mode autonome — téléphone, tablette, pliable, Chromebook et
                 grand écran de bureau.
               </p>
-              <Link to="/login" className="dl-link">Ouvrir l’application →</Link>
+              <Link to="/login" className="dl-link dl-chip">Ouvrir l’application →</Link>
             </div>
             <div className="dl-card">
               <div className="dl-ico">{IC_PHONE}</div>
@@ -398,7 +437,7 @@ export default function Home() {
                 synchronisation chiffrée dès la connexion retrouvée. APK signé, installable en deux
                 touches.
               </p>
-              <Link to="/download" className="dl-link">Télécharger l’APK →</Link>
+              <Link to="/download" className="dl-link dl-chip">Télécharger l’APK →</Link>
             </div>
             <div className="dl-card">
               <div className="dl-ico">{IC_DESK}</div>
@@ -407,7 +446,7 @@ export default function Home() {
                 Windows, macOS et Linux : la même application dans une fenêtre native, mises à jour
                 automatiques et accès direct aux imprimantes pour vos documents PDF.
               </p>
-              <Link to="/desktop" className="dl-link">Version bureau →</Link>
+              <Link to="/desktop" className="dl-link dl-chip">Version bureau →</Link>
             </div>
           </div>
         </section>
@@ -423,7 +462,7 @@ export default function Home() {
                 React + Cloudflare Worker + D1. Toute la logique métier, l’OTP, les passkeys, la
                 facturation et les rapports — sous licence MIT.
               </p>
-              <a className="dl-link" href="https://github.com/Etherealmber/atlas-commerce" target="_blank" rel="noreferrer noopener">
+              <a className="dl-link dl-chip" href="https://github.com/Etherealmber/atlas-commerce" target="_blank" rel="noreferrer noopener">
                 Voir le dépôt →
               </a>
             </div>
@@ -434,13 +473,12 @@ export default function Home() {
                 Le client bureau Tauri (Windows, macOS, Linux) : fenêtre native, mises à jour
                 automatiques et impression directe.
               </p>
-              <a className="dl-link" href="https://github.com/Etherealmber/atlas-commerce-desktop" target="_blank" rel="noreferrer noopener">
+              <a className="dl-link dl-chip" href="https://github.com/Etherealmber/atlas-commerce-desktop" target="_blank" rel="noreferrer noopener">
                 Voir le dépôt →
               </a>
             </div>
           </div>
           <div className="dl-fork rise">
-            <GitHubStarButton repo="Etherealmber/atlas-commerce-desktop" />
             <GitHubStarButton repo="Etherealmber/atlas-commerce" />
             <span className="dl-fork-note">
               Une étoile sur les dépôts aide le projet · MIT © 2026 Etherealmber
@@ -517,7 +555,7 @@ export default function Home() {
           <a href="https://github.com/Etherealmber/atlas-commerce" target="_blank" rel="noreferrer noopener">GitHub</a>
           <a href="https://github.com/Etherealmber/atlas-commerce/blob/main/SECURITY.md" target="_blank" rel="noreferrer noopener">Sécurité</a>
         </div>
-        <p>MIT © 2026 Etherealmber · Atlas Commerce {APP_VERSION} · Créateur : loxdpsy</p>
+        <p>MIT © 2026 Etherealmber · Atlas Commerce {DISPLAY_VERSION} · Créateur : loxdpsy</p>
       </footer>
     </div>
   );
