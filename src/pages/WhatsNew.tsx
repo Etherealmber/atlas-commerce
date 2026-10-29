@@ -53,6 +53,7 @@ export const RELEASES: Release[] = [
           { id: '072i4', platforms: ['server'], text: 'Tous les QR codes générés (reçus, factures, rapports, aperçus) portent le nouveau logo Atlas au centre, sur pastille blanche' },
           { id: '072i5', platforms: ['web'], text: 'Rapports détaillés ouverts depuis le rapport combiné : bouton « ← Retour aux rapports combinés » en haut, jamais imprimé ; page À propos : profil créateur Etherealmber avec tous ses dépôts publics, plus seulement la vitrine' },
           { id: '072i6', platforms: ['server'], text: 'Automatisation du dépôt : branches fusionnées supprimées automatiquement, README et page Sécurité resynchronisés à chaque version — politique de support : seule la mineure courante est supportée, la mineure précédente passe en fin de support dès le changement de mineure' },
+          { id: '072i7', platforms: ['server', 'web'], text: 'Vérification de connexion : le mail OTP et la page /verify suivent le thème sombre zinc du serveur (cartes, code, boutons), marque « Atlas » seule au lieu du doublon « Atlas Commerce », pied de page © 2026 Etherealmber · loxdpsy · MIT' },
         ],
       },
       {
@@ -60,6 +61,7 @@ export const RELEASES: Release[] = [
         items: [
           { id: '072f1', platforms: ['server'], text: 'Déploiements Cloudflare fiabilisés : test de boot du worker en CI — toute référence manquante dans un module de routes casse désormais la CI, plus le deploy prod' },
           { id: '072f2', platforms: ['web'], text: 'Sécurité dépendances : undici 7.30.1 (override, 0 vulnérabilité npm audit) ; éditeur d’image sanitisé (data-URL image strictes uniquement, CodeQL)' },
+          { id: '072f3', platforms: ['server'], text: 'Mail OTP : bloc « Compte / Adresse IP / Appareil / Empreinte » reconstruit en tableau email-safe — les clients mail cassaient la mise en page flex et collaient libellés et valeurs (« Compteadmin »)' },
         ],
       },
     ],
