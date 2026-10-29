@@ -9,6 +9,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { PublicNav, PublicSessionCta, GitHubStarButton } from '../components/PublicChrome';
 import { APP_BUILD_DATE, APP_GITHUB, APP_NAME } from '../version';
 
 const GH_RELEASES = 'https://api.github.com/repos/Etherealmber/atlas-commerce-desktop/releases?per_page=50';
@@ -177,28 +178,17 @@ export default function Desktop() {
 
   return (
     <div className="download-landing desktop-landing">
-      <header className="dl-nav">
-        <Link to="/" className="dl-nav-brand" aria-label={`${APP_NAME} — accueil`}>
-          <img src="/atlas-logo-dark.png" alt="Atlas" className="dl-nav-logo theme-logo-dark" width={80} height={26} />
-          <img src="/atlas-logo-light.png" alt="Atlas" className="dl-nav-logo theme-logo-light" width={80} height={26} />
-        </Link>
-        <nav className="dl-nav-links" aria-label="Navigation de la page bureau">
-          <Link className="dl-nav-keep" to="/">Accueil</Link>
-          <Link className="dl-nav-keep" to="/download">Android</Link>
-          <Link className="dl-nav-keep" to="/whats-new">Nouveautés</Link>
-          <Link className="dl-nav-keep" to="/privacy">Confidentialité</Link>
-          <Link className="dl-nav-keep" to="/terms">Conditions</Link>
-        </nav>
-        <div className="home-nav-actions">
-          {mainAsset ? (
-            <a className="dl-nav-cta" href={String(mainAsset.browser_download_url)} target="_blank" rel="noopener noreferrer">
-              Télécharger
-            </a>
-          ) : (
-            <Link className="dl-nav-cta" to="/login">Se connecter</Link>
-          )}
-        </div>
-      </header>
+      <PublicNav
+        links={[
+          { href: '/', label: 'Accueil' },
+          { href: '/download', label: 'Android' },
+          { href: '#assets', label: 'Téléchargements' },
+          { href: '/whats-new', label: 'Nouveautés' },
+          { href: '/privacy', label: 'Confidentialité' },
+          { href: '/about', label: 'À propos' },
+        ]}
+        cta={<PublicSessionCta />}
+      />
 
       <section className="dl-hero">
         <div className="dl-hero-bg" aria-hidden />
@@ -237,6 +227,7 @@ export default function Desktop() {
               <a className="dl-cta-ghost" href={DESKTOP_REPO} target="_blank" rel="noopener noreferrer">
                 Dépôt & code source
               </a>
+              <GitHubStarButton repo="Etherealmber/atlas-commerce-desktop" />
             </div>
             <p className="dl-note">
               <span className="dl-note-dot" aria-hidden />
@@ -317,7 +308,7 @@ export default function Desktop() {
             ) : null}
           </div>
 
-          <h2 className="dl-sec-title" style={{ marginTop: 56 }}>Toutes les versions</h2>
+          <h2 className="dl-sec-title" id="assets" style={{ marginTop: 56 }}>Toutes les versions</h2>
           <p className="dl-sec-sub">Historique complet, mis à jour automatiquement depuis GitHub Releases.</p>
           <div className="dl-rel-list">
             {rels.map((r, i) => (

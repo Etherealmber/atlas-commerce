@@ -23,6 +23,7 @@ import {
 import { openConsentSettings } from '../lib/cookieConsent';
 import { resetWelcome } from '../lib/welcome';
 import { api } from '../api';
+import { isLoggedIn } from '../auth';
 
 type GhUser = {
   name: string | null;
@@ -83,6 +84,9 @@ const PROJECT_SHOWCASE: {
 
 /** v260 — "Signaler un problème" : user report → GitHub issue (docs/reports-github.md). */
 function ReportProblemForm() {
+  // v0.7.4 — le signalement de bug est réservé aux utilisateurs connectés :
+  // aucun formulaire ni rapport automatique pour les visiteurs non connectés.
+  const canReport = isLoggedIn();
   const [kind, setKind] = useState('bug');
   const [message, setMessage] = useState('');
   const [contact, setContact] = useState('');
@@ -112,6 +116,7 @@ function ReportProblemForm() {
     }
   }
 
+  if (!canReport) return null;
   return (
     <section className="card about-section" id="signaler">
       <h2>Signaler un problème</h2>

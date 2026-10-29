@@ -11,6 +11,7 @@
  * same message+frame deduped client-side, network noise ignored.
  */
 import { getApiBase } from '../config';
+import { isLoggedIn } from '../auth';
 import { APP_VERSION } from '../version';
 
 const MAX_PER_SESSION = 5;
@@ -19,6 +20,8 @@ const seen = new Set<string>();
 
 export function reportCrash(err: unknown, ctx: { route?: string; componentStack?: string } = {}): void {
   try {
+    // v0.7.4 — aucun rapport de bug pour les visiteurs non connectés (pages publiques, accueil, desktop…).
+    if (!isLoggedIn()) return;
     if (sent >= MAX_PER_SESSION) return;
     const e = err instanceof Error ? err : new Error(String(err ?? 'Erreur inconnue'));
     const message = (e.message || 'Erreur inconnue').slice(0, 400);

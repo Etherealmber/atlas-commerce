@@ -6,6 +6,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { PublicNav, PublicSessionCta } from '../components/PublicChrome';
 import { APP_NAME, APP_BUILD_DATE, APP_GITHUB } from '../version';
 
 const LATEST_JSON = 'https://cdn1.afmarbre.com/app-updates/android/latest.json';
@@ -167,23 +168,16 @@ export default function Download() {
   return (
     <div className="download-landing">
       {/* ── Navbar visible par tous : accueil, légal, contact → À propos ── */}
-      <header className="dl-nav">
-        <Link to="/download" className="dl-nav-brand" aria-label={`${APP_NAME} — téléchargement`}>
-          <img src="/atlas-logo-dark.png" alt={APP_NAME} width={80} height={26} />
-        </Link>
-        <nav className="dl-nav-links" aria-label="Navigation de la page téléchargement">
-          <Link to="/">Accueil</Link>
-          <Link to="/whats-new">Nouveautés</Link>
-          <Link className="dl-nav-keep" to="/privacy">Confidentialité</Link>
-          <Link className="dl-nav-keep" to="/terms">Conditions</Link>
-          <Link to="/about">Contact &amp; à propos</Link>
-          {apkHref ? (
-            <a className="dl-nav-cta" href={apkHref} target="_blank" rel="noopener noreferrer">Télécharger</a>
-          ) : (
-            <Link className="dl-nav-cta" to="/login">Se connecter</Link>
-          )}
-        </nav>
-      </header>
+      <PublicNav
+        links={[
+          { href: '/', label: 'Accueil' },
+          { href: '/desktop', label: 'Bureau' },
+          { href: '/whats-new', label: 'Nouveautés' },
+          { href: '/privacy', label: 'Confidentialité' },
+          { href: '/about', label: 'À propos' },
+        ]}
+        cta={<PublicSessionCta />}
+      />
 
       {/* ── Hero plein écran ─ */}
       <section className="dl-hero">

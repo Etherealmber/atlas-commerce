@@ -20288,7 +20288,7 @@ td{height:16px}
     <div class="sigs">
       <div class="sig"><div class="l">Date</div></div>
       <div class="sig"><div class="l">${filled ? 'Signature salarié' : 'Signature candidat'}</div></div>
-      <div class="sig"><div class="l">Visa employeur</div></div>
+      <div class="sig"><div class="l">Employeur</div></div>
     </div>
     <div class="foot">
       <span>${company} — document interne</span>
