@@ -855,16 +855,26 @@ function DesktopShell() {
   // v0.7.7 — la topbar Paramètres rétrécit en descendant, grandit en remontant
   const [settingsBarCompact, setSettingsBarCompact] = useState(false);
   useEffect(() => {
+    // v0.7.7 — hystérésis 48 px : aucun scintillement au scroll.
     let last = window.scrollY;
+    let acc = 0;
+    let compactNow = false;
     const onScroll = () => {
       const y = window.scrollY;
-      setSettingsBarCompact((prev) => {
-        if (y <= 60) return false;
-        if (y > 140 && y > last) return true;
-        if (y < last) return false;
-        return prev;
-      });
+      const d = y - last;
       last = y;
+      if (y <= 60) {
+        acc = 0;
+        if (compactNow) { compactNow = false; setSettingsBarCompact(false); }
+        return;
+      }
+      if (d > 0) {
+        acc = acc > 0 ? acc + d : d;
+        if (!compactNow && y > 140 && acc > 48) { compactNow = true; setSettingsBarCompact(true); }
+      } else if (d < 0) {
+        acc = acc < 0 ? acc + d : d;
+        if (compactNow && acc < -48) { compactNow = false; setSettingsBarCompact(false); }
+      }
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);

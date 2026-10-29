@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getTheme, setTheme as applyTheme, subscribeTheme, type ThemeChoice } from '../theme';
-import { isLoggedIn, getDisplayName, getUsername, getRole, getDisplayInitials, hasAvatarUrl } from '../auth';
+import { isLoggedIn, getDisplayName, getUsername, getRole, getDisplayInitials, hasAvatarUrl, clearToken } from '../auth';
+import { invalidateAvatarCache } from '../lib/avatarCache';
 import { AvatarImage } from './ui/AvatarImage';
 
 const LOGO_DARK = '/atlas-logo-dark.png';
@@ -152,27 +153,89 @@ export function PublicThemeToggle() {
  *  quand un appareil est connecté ; remplace le CTA « Ouvrir l'app ». */
 export function PublicProfileChip() {
   const c = useChromeColors();
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLSpanElement | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (ev: MouseEvent) => {
+      if (box.current && !box.current.contains(ev.target as Node)) setOpen(false);
+    };
+    const onKey = (ev: KeyboardEvent) => { if (ev.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
+  }, [open]);
   if (!isLoggedIn()) return null;
   const name = getDisplayName() || getUsername() || 'utilisateur';
   const role = getRole() || 'utilisateur';
+  const mi = (href: string, label: string): ReactNode => (
+    <Link
+      key={href}
+      to={href}
+      role="menuitem"
+      style={{
+        display: 'block', padding: '10px 14px', borderRadius: 10, color: c.ink,
+        textDecoration: 'none', fontSize: 13.5, fontWeight: 600,
+      }}
+    >
+      {label}
+    </Link>
+  );
   return (
-    <span className="pn-chip" style={{ background: c.ghostBg, border: `1px solid ${c.ghostBorder}` }}>
-      <span className="pn-chip-avatar-slot" style={{ background: c.ink, color: c.navBg }}>
-        {hasAvatarUrl() ? (
-          <AvatarImage
-            className="pn-chip-avatar"
-            width={26}
-            height={26}
-            fallback={<span className="pn-chip-ini">{getDisplayInitials() || '?'}</span>}
-          />
-        ) : (
-          <span className="pn-chip-ini">{getDisplayInitials() || '?'}</span>
-        )}
-      </span>
-      <span className="pn-chip-meta">
-        <strong style={{ color: c.ink }}>{name}</strong>
-        <span style={{ color: c.sub }}>{role}</span>
-      </span>
+    <span ref={box} style={{ position: 'relative', display: 'inline-flex' }}>
+      <button
+        type="button"
+        className="pn-chip"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        style={{ background: c.ghostBg, border: `1px solid ${c.ghostBorder}`, cursor: 'pointer', font: 'inherit' }}
+      >
+        <span className="pn-chip-avatar-slot" style={{ background: c.ink, color: c.navBg }}>
+          {hasAvatarUrl() ? (
+            <AvatarImage
+              className="pn-chip-avatar"
+              width={26}
+              height={26}
+              fallback={<span className="pn-chip-ini">{getDisplayInitials() || '?'}</span>}
+            />
+          ) : (
+            <span className="pn-chip-ini">{getDisplayInitials() || '?'}</span>
+          )}
+        </span>
+        <span className="pn-chip-meta">
+          <strong style={{ color: c.ink }}>{name}</strong>
+          <span style={{ color: c.sub }}>{role}</span>
+        </span>
+      </button>
+      {open && (
+        <div
+          role="menu"
+          aria-label="Menu du compte"
+          style={{
+            position: 'absolute', top: 'calc(100% + 8px)', right: 0, minWidth: 200,
+            padding: 6, zIndex: 90, display: 'flex', flexDirection: 'column', gap: 2,
+            background: c.menuBg, border: `1px solid ${c.menuBorder}`,
+            borderRadius: 14, boxShadow: c.menuShadow,
+          }}
+        >
+          {mi('/dashboard', 'Tableau de bord')}
+          {mi('/about', 'À propos')}
+          {mi('/whats-new', 'Nouveautés')}
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => { clearToken(); invalidateAvatarCache(); window.location.replace('/login'); }}
+            style={{
+              textAlign: 'left', padding: '10px 14px', borderRadius: 10, border: 0,
+              background: 'transparent', color: '#c45c26', fontSize: 13.5, fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            Déconnexion
+          </button>
+        </div>
+      )}
     </span>
   );
 }
@@ -182,31 +245,37 @@ export function PublicProfileChip() {
 export function PublicQuickBar() {
   const c = useChromeColors();
   if (!isLoggedIn()) return null;
-  const item = (href: string, label: string, d: string): ReactNode => (
-    <Link
-      key={href}
-      to={href}
-      title={label}
-      aria-label={label}
-      style={{
-        display: 'inline-flex', alignItems: 'center', gap: 7, padding: '7px 12px',
-        borderRadius: 999, textDecoration: 'none', color: c.ink, fontSize: 12.5,
-        fontWeight: 700, background: 'transparent', border: 0, whiteSpace: 'nowrap',
-      }}
-    >
-      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'block' }}>
-        <path d={d} />
-      </svg>
-      <span className="pn-quick-label">{label}</span>
-    </Link>
-  );
+  const items: { href: string; label: string; d: string }[] = [
+    { href: '/dashboard', label: 'Tableau de bord', d: 'M3 3h8v8H3zM13 3h8v5h-8zM13 12h8v9h-8zM3 15h8v6H3z' },
+    { href: '/quick-sale', label: 'Vente rapide', d: 'M6 6h15l-1.5 8h-12zM6 6L5 3H2M9 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM18 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2z' },
+    { href: '/products', label: 'Produits & stock', d: 'M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8' },
+    { href: '/invoices', label: 'Factures', d: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M9 13h6M9 17h4' },
+    { href: '/clients', label: 'Clients', d: 'M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75' },
+    { href: '/reports', label: 'Rapports', d: 'M4 20V10M10 20V4M16 20v-7M21 20H3' },
+  ];
   return (
     <div
       className="pn-quick"
+      role="navigation"
+      aria-label="Raccourcis espace de travail"
       style={{ background: c.navBg, border: `1px solid ${c.navBorder}`, boxShadow: c.navShadow }}
     >
-      {item('/dashboard', 'Tableau de bord', 'M3 3h8v8H3zM13 3h8v5h-8zM13 12h8v9h-8zM3 15h8v6H3z')}
-      {item('/settings', 'Paramètres', 'M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM19.2 15a1.6 1.6 0 0 0 .32 1.77l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.6 1.6 0 0 0-1.77-.32 1.6 1.6 0 0 0-.97 1.47V21a2 2 0 1 1-4 0v-.09a1.6 1.6 0 0 0-1.05-1.47 1.6 1.6 0 0 0-1.77.32l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.6 1.6 0 0 0 .32-1.77 1.6 1.6 0 0 0-1.47-.97H3a2 2 0 1 1 0-4h.09A1.6 1.6 0 0 0 4.56 9.1a1.6 1.6 0 0 0-.32-1.77l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.6 1.6 0 0 0 1.77.32 1.6 1.6 0 0 0 .97-1.47V3a2 2 0 1 1 4 0v.09a1.6 1.6 0 0 0 .97 1.47 1.6 1.6 0 0 0 1.77-.32l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.6 1.6 0 0 0-.32 1.77 1.6 1.6 0 0 0 1.47 1.05H21a2 2 0 1 1 0 4h-.09a1.6 1.6 0 0 0-1.47.97z')}
+      {items.map((it) => (
+        <Link
+          key={it.href}
+          to={it.href}
+          title={it.label}
+          aria-label={it.label}
+          style={{
+            display: 'grid', placeItems: 'center', width: 32, height: 32,
+            borderRadius: 10, color: c.sub, textDecoration: 'none', background: 'transparent',
+          }}
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'block' }}>
+            <path d={it.d} />
+          </svg>
+        </Link>
+      ))}
     </div>
   );
 }
@@ -221,16 +290,27 @@ export function PublicNav({ links, cta, quick = false }: { links: NavLink[]; cta
   // v0.7.7 — la pilule RÉTRÉCIT quand on descend, reprend sa taille en remontant.
   const [compact, setCompact] = useState(false);
   useEffect(() => {
+    // v0.7.7 — hystérésis : il faut un cumul de 48 px dans une direction pour
+    // changer d'état → plus de scintillement au moindre pixel de scroll.
     let last = window.scrollY;
+    let acc = 0;
+    let compactNow = false;
     const onScroll = () => {
       const y = window.scrollY;
-      setCompact((prev) => {
-        if (y <= 60) return false;
-        if (y > 140 && y > last) return true;
-        if (y < last) return false;
-        return prev;
-      });
+      const d = y - last;
       last = y;
+      if (y <= 60) {
+        acc = 0;
+        if (compactNow) { compactNow = false; setCompact(false); }
+        return;
+      }
+      if (d > 0) {
+        acc = acc > 0 ? acc + d : d;
+        if (!compactNow && y > 140 && acc > 48) { compactNow = true; setCompact(true); }
+      } else if (d < 0) {
+        acc = acc < 0 ? acc + d : d;
+        if (compactNow && acc < -48) { compactNow = false; setCompact(false); }
+      }
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
@@ -248,14 +328,12 @@ export function PublicNav({ links, cta, quick = false }: { links: NavLink[]; cta
         position: 'sticky', top: compact ? 8 : 14, zIndex: 60,
         padding: compact ? '6px 10px 0' : '14px 16px 0',
         transition: 'padding .18s ease, top .18s ease',
-        display: 'flex', alignItems: 'center', gap: 10,
       }}
     >
       <nav
         aria-label="Navigation publique"
         style={{
           maxWidth: 1080, margin: '0 auto', display: 'flex', alignItems: 'center', gap: compact ? 10 : 14,
-          flex: '1 1 auto', minWidth: 0,
           padding: compact ? '5px 8px 5px 12px' : '8px 10px 8px 18px', borderRadius: 999,
           background: c.navBg, border: `1px solid ${c.navBorder}`,
           backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
@@ -311,7 +389,11 @@ export function PublicNav({ links, cta, quick = false }: { links: NavLink[]; cta
           ))}
         </div>
       )}
-      {quick ? <PublicQuickBar /> : null}
+      {quick ? (
+        <div style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)' }}>
+          <PublicQuickBar />
+        </div>
+      ) : null}
     </header>
   );
 }
