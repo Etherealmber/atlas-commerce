@@ -2,7 +2,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { Sparkles, Wrench, AlertCircle, ArrowUpCircle } from 'lucide-react';
-import { APP_VERSION, APP_BUILD_DATE } from '../version';
+import { RELEASE_VISIBLE_CAP, semverAtMost } from '../version';
 import { markWhatsNewSeen } from '../lib/whatsNew';
 import { isLoggedIn, getToken } from '../auth';
 
@@ -39,12 +39,18 @@ export const RELEASES: Release[] = [
         items: [
           { id: '077f1', platforms: ['web'], text: '« / » ne redirige plus les utilisateurs connectés : la homepage publique reste visible même en session — la page d’ouverture ne s’applique qu’au moment de la connexion (et dans la PWA / la WebView Android)' },
           { id: '077f2', platforms: ['web'], text: 'À propos et Nouveautés affichent exactement la même navigation qu’un visiteur non connecté (Accueil · Bureau · Android · …) : plus de rangée de liens « connectés » ni de bouton « Tableau de bord » sur ces pages ; seul le bouton Se connecter / Ouvrir l’app suit la session' },
+          { id: '077f3', platforms: ['web'], text: 'Accueil : un seul bouton GitHub dans le pied de page (le doublon a disparu) ; plus aucun CTA souligné (« Voir les nouveautés », cartes « Construit en public ») — tout passe en chips/boutons' },
+          { id: '077f4', platforms: ['web', 'server'], text: 'Le téléchargement APK depuis l’accueil lit désormais le manifeste R2 `latest.json` (cdn1.afmarbre.com/app-updates/android/latest.json) — la même source que consulte l’appli Android pour ses mises à jour — avec repli sur le manifeste local' },
+          { id: '077f5', platforms: ['web'], text: '/download et /desktop suivent enfin le vrai thème Atlas (zinc + terracotta) en clair comme en sombre : cartes, bandes, textes et liens remappés sur la palette du dashboard' },
         ],
       },
       {
         kind: 'improvements',
         items: [
           { id: '077i1', platforms: ['web'], text: 'La barre des Paramètres adopte le même langage que la navigation publique : pilule flottante en blur, bordures et fonds zinc/terracotta selon le thème — tout en gardant les onglets de sections, la recherche, le toggle de thème et le profil utilisateur' },
+          { id: '077i2', platforms: ['web'], text: 'Nouvelle section « Un dossier. Tout votre commerce. » : sept modules en arc qui sortent d’un dossier portant le logo Atlas (animation d’élévation puis flottement, désactivée si prefers-reduced-motion)' },
+          { id: '077i3', platforms: ['web'], text: 'Le toggle de thème des pages publiques est désormais STRICTEMENT le même trio que celui du dashboard (.settings-topbar-theme), actif terracotta partout' },
+          { id: '077i4', platforms: ['web'], text: 'Gel de la version affichée (directive) : « 0.7.2 » partout où une version est montrée ; journal Nouveautés et modal limités aux entrées ≤ 0.7.2 ; plus aucun bump de version sans ordre explicite' },
         ],
       },
     ],
@@ -1194,7 +1200,8 @@ export default function WhatsNew() {
   }, []);
 
   const releases = useMemo(() => {
-    return RELEASES.map((rel) => ({
+    // v0.7.7 — gel directive : rien au-delà de 0.7.2 n'est exposé publiquement.
+    return RELEASES.filter((r) => semverAtMost(r.version, RELEASE_VISIBLE_CAP)).map((rel) => ({
       ...rel,
       sections: rel.sections.filter((sec) => {
         if (filter === 'all') return true;

@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { getDisplayName, getUsername, getRole, clearToken } from '../auth';
-import { APP_VERSION } from '../version';
+import { DISPLAY_VERSION } from '../version';
 
 type Props = {
   theme: string;
@@ -71,7 +71,7 @@ export default function PhoneSettings({ theme, onTheme }: Props) {
         <h2>Application</h2>
         <div className="ph-settings-row">
           <span>Version</span>
-          <strong className="mono">{APP_VERSION}</strong>
+          <strong className="mono">{DISPLAY_VERSION}</strong>
         </div>
         <div className="ph-settings-row">
           <span>Mode</span>
