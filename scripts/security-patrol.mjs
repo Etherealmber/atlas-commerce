@@ -132,13 +132,34 @@ async function main() {
     return;
   }
   const healthDenied = [401, 403].includes(health.status);
-  const healthBodyIsJson = /^\s*[{[]/.test(health.text || '');
-  const healthLayer = isEdgePage(health) ? 'Cloudflare edge block/challenge page'
+  // v0.7.6 — un 403 « challenge » du WAF sur l'UA du patrol ne veut PAS dire
+  // « site down » : le but du contrôle est « reachable for real users ». On
+  // re-sonde avec un UA navigateur standard ; si 200 → le site est joignable
+  // et le contrôle passe, avec l'avis d'allowlist en détail. Si l'UA
+  // navigateur est bloqué lui aussi → vrai CRITICAL, comme avant.
+  let healthEffective = health;
+  let patrolUaChallenged = false;
+  if (healthDenied && isEdgePage(health)) {
+    const browserProbe = await probe('/api/health', {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
+      },
+    }, { retries: 1 });
+    if (browserProbe.status === 200) {
+      healthEffective = browserProbe;
+      patrolUaChallenged = true;
+    }
+  }
+  const healthBodyIsJson = /^\s*[{[]/.test(healthEffective.text || '');
+  const healthLayer = patrolUaChallenged
+    ? `HTTP 200 via browser UA — le WAF challenge uniquement l'UA du patrol (${UA}), le site est joignable pour les visiteurs`
+    : isEdgePage(healthEffective) ? 'Cloudflare edge block/challenge page'
     : healthBodyIsJson ? 'worker JSON denial'
-    : fromEdgeCache(health) ? `edge-cached response (cf-cache-status: ${cfCache(health)})`
-    : `unknown layer (cf-cache-status: ${cfCache(health) || 'none'})`;
-  check('site-up', 'Production site reachable (/api/health → 200)', 'critical', health.status === 200,
-    `HTTP ${health.status} — ${healthLayer}`,
+    : fromEdgeCache(healthEffective) ? `edge-cached response (cf-cache-status: ${cfCache(healthEffective)})`
+    : `unknown layer (cf-cache-status: ${cfCache(healthEffective) || 'none'})`;
+  check('site-up', 'Production site reachable (/api/health → 200)', 'critical', healthEffective.status === 200,
+    `HTTP ${healthEffective.status} — ${healthLayer}`,
     healthDenied
       ? (fromEdgeCache(health)
         ? 'The edge is replaying a STALE cached denial of /api/health from before the exemption was deployed. Fix: CF dashboard → Caching → Configuration → Purge Everything (or purge this URL), and add a Cache Rule bypassing cache for /api/* on stock.afmarbre.com. The worker now also sends CDN-Cache-Control: no-store on all non-public /api responses.'

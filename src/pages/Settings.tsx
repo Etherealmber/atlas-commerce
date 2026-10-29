@@ -7,6 +7,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { APP_VERSION, APP_BUILD_DATE } from '../version';
 import { createPortal } from 'react-dom';
 import { api, BASE } from '../api';
+import { START_PAGES, getStartPage, setStartPage } from '../lib/startPage';
 import { removePasskeyLocally, registerWebAuthn, getCachedFingerprint, getDeviceLabel, getDeviceMeta, setStoredBiometricCredentialId, isWebAuthnAvailable } from '../fingerprint';
 import { getToken, canAccessAdminSettings, canAccessCompanySettings, getRole, setProfileCache, getDisplayInitials, isStockRole } from '../auth';
 import SaveFeedback from '../components/SaveFeedback';
@@ -28,6 +29,10 @@ import AppUpdatePanel from '../components/settings/AppUpdatePanel';
 import AgentSecurityPanel from '../components/AgentSecurityPanel';
 import DbMigrationPanel from '../components/DbMigrationPanel';
 export default function Settings() {
+  // v0.7.6 — préférence « page d'ouverture » (localStorage, par appareil)
+  const [startPagePref, setStartPagePref] = useState<string>(() => getStartPage());
+  const [startPageSaved, setStartPageSaved] = useState(false);
+
   const [uiDensity, setUiDensity] = useState<Density>(() => getDensity());
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [qrFabOpen, setQrFabOpen] = useState(false);
@@ -778,18 +783,41 @@ if (loading) return (
           <p className="atlas-lead" style={{ marginBottom: 0, maxWidth: '100%', overflowWrap: 'anywhere', whiteSpace: 'normal' }}>
             Identité, fiscalité, banque et sécurité de l&apos;espace de travail.
           </p>
-          {/* v0.7 — même meta que login/à propos : version · date · liens.
-              v0.7.5 — jamais affichée en session connectée. */}
-          <p className="about-meta-line" style={{ textAlign: 'left', margin: '8px 0 0', display: 'none' }}>
-            v{APP_VERSION} · {APP_BUILD_DATE}
-            <span aria-hidden> · </span>
-            <Link to="/whats-new">Nouveautés</Link>
-            <span aria-hidden> · </span>
-            <Link to="/about">À propos</Link>
-          </p>
         </div>
         {Object.values(fieldErrors).filter(Boolean)[0] && (
           <span className="save-error-inline">{Object.values(fieldErrors).filter(Boolean)[0]}</span>
+        )}
+      </div>
+
+      {/* v0.7.6 — page d'ouverture : choix par appareil, auto-hébergement compris */}
+      <div className="card" style={{ marginTop: 14, padding: '14px 16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ minWidth: 0, flex: '1 1 260px' }}>
+            <strong style={{ fontSize: 14 }}>Page d’ouverture</strong>
+            <p className="muted" style={{ margin: '4px 0 0', fontSize: 12.8, lineHeight: 1.55 }}>
+              Où arriver après la connexion — et en ouvrant « / » — sur cet appareil.
+              Réglage local : chaque personne (et chaque installation auto-hébergée) choisit la sienne.
+            </p>
+          </div>
+          <select
+            value={startPagePref}
+            onChange={(e) => {
+              setStartPagePref(e.target.value);
+              setStartPage(e.target.value);
+              setStartPageSaved(true);
+            }}
+            style={{ minWidth: 220 }}
+            aria-label="Page d'ouverture après connexion"
+          >
+            {START_PAGES.map((sp) => (
+              <option key={sp.value} value={sp.value}>{sp.label}</option>
+            ))}
+          </select>
+        </div>
+        {startPageSaved && (
+          <p className="muted" style={{ margin: '8px 0 0', fontSize: 12 }}>
+            Enregistré sur cet appareil — appliqué dès la prochaine connexion.
+          </p>
         )}
       </div>
 

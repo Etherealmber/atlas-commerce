@@ -19988,3 +19988,41 @@ html[data-theme='light'] body .home-landing .dl-foot-links a:hover { color: #181
 .hm-qrwrap { display: grid; place-items: center; padding: 6px; background: #fff; border-radius: 10px; box-shadow: 0 6px 18px rgba(0, 0, 0, .35); }
 .hm-qrwrap svg { display: block; }
 html[data-theme='light'] body .home-landing .hm-qrwrap { box-shadow: 0 6px 18px rgba(0, 0, 0, .12); }
+
+/* ═══ v0.7.6 — chrome public inline : compléments média + thème À propos ═══ */
+/* le burger et le masquage des liens centraux ne peuvent pas vivre en inline :
+   médias en CSS avec !important pour passer devant les styles inline. */
+@media (max-width: 960px) {
+  .pn-links { display: none !important; }
+  .pn-burger-btn { display: grid !important; }
+}
+
+/* À propos / Nouveautés : habillage « vrai thème Atlas » (zinc + terracotta),
+   fini le rendu README centré blanc/bleu. */
+.public-about, .public-whats-new { background: #09090b; color: #e4e4e7; min-height: 100vh; }
+.public-about .about-page, .public-about .atlas-page { background: transparent; }
+.public-about .about-hero { text-align: left; }
+.public-about .about-badges img, .public-about .about-badges svg { display: none; }
+.public-about .about-trust-chip {
+  background: #18181b; border: 1px solid #27272a; color: #d4d4d8;
+  border-radius: 999px; padding: 5px 12px; font-size: 12px; font-weight: 600;
+}
+.public-about .card, .public-whats-new .card {
+  background: #101013; border: 1px solid #27272a; border-radius: 16px; color: #e4e4e7;
+}
+.public-about a, .public-whats-new a { color: #e4713a; }
+.public-about h1, .public-about h2, .public-about h3, .public-whats-new h1, .public-whats-new h2 { color: #fafafa; }
+.public-about .about-muted, .public-about .muted, .public-whats-new .muted { color: #a1a1aa; }
+.public-about .about-links a, .public-about .about-links button {
+  color: #e4713a !important; text-decoration: none !important; font-weight: 700 !important;
+  background: transparent !important; border: 0 !important; padding: 0 !important;
+  border-radius: 0 !important; width: auto !important; height: auto !important;
+  display: inline !important; font-size: inherit !important;
+}
+.public-about .about-links a:hover, .public-about .about-links button:hover { text-decoration: underline !important; }
+html[data-theme='light'] body .public-about, html[data-theme='light'] body .public-whats-new { background: #fafafa; color: #27272a; }
+html[data-theme='light'] body .public-about .card, html[data-theme='light'] body .public-whats-new .card { background: #fff; border-color: #e4e4e7; color: #27272a; }
+html[data-theme='light'] body .public-about .about-trust-chip { background: #f4f4f5; border-color: #e4e4e7; color: #3f3f46; }
+html[data-theme='light'] body .public-about a, html[data-theme='light'] body .public-whats-new a { color: #b4531f; }
+html[data-theme='light'] body .public-about h1, html[data-theme='light'] body .public-about h2, html[data-theme='light'] body .public-about h3, html[data-theme='light'] body .public-whats-new h1, html[data-theme='light'] body .public-whats-new h2 { color: #18181b; }
+html[data-theme='light'] body .public-about .about-muted, html[data-theme='light'] body .public-about .muted, html[data-theme='light'] body .public-whats-new .muted { color: #52525b; }
