@@ -16,7 +16,13 @@ export default function CookieConsent() {
   const [analytics, setAnalytics] = useState(false);
 
   useEffect(() => {
-    setVisible(!hasDecidedConsent());
+    // v0.7.2 — /download, /whats-new and /about set no cookie at all: never
+    // ask for consent there. The banner can still be opened manually
+    // (atlas-consent-open) from the privacy link.
+    const path = window.location.pathname;
+    const noCookiePages = ['/download', '/whats-new', '/about'];
+    const skip = noCookiePages.some((p) => path === p || path.startsWith(`${p}/`));
+    setVisible(!skip && !hasDecidedConsent());
     const open = () => {
       const c = getConsent();
       if (c) {
@@ -42,16 +48,19 @@ export default function CookieConsent() {
   const body = (
     <div
       className="cookie-consent"
-      role="dialog"
+      role="region"
       aria-labelledby="cookie-consent-title"
-      aria-modal="true"
-      onClick={(e) => {
-        if (e.target === e.currentTarget && hasDecidedConsent()) {
-          setVisible(false);
-          setPanel('banner');
-        }
-      }}
     >
+      {hasDecidedConsent() && (
+        <button
+          type="button"
+          className="cookie-btn linkish cookie-consent-close"
+          aria-label="Fermer"
+          onClick={() => { setVisible(false); setPanel('banner'); }}
+        >
+          ×
+        </button>
+      )}
       <div className="cookie-consent-card" onClick={(e) => e.stopPropagation()}>
         <div className="cookie-consent-head">
           <h2 id="cookie-consent-title">Cookies &amp; données locales</h2>
