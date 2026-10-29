@@ -10520,20 +10520,29 @@ function otpEmailHTML(
     : `Une opération sensible concernant ${resourceLabel} nécessite votre confirmation. Utilisez le code ci-dessous depuis l’application.`;
   const ORANGE = '#c45c26'; /* terracotta Atlas */
   const SALMON = '#d4a017'; /* saffron Atlas */
-  const GREY = '#6b7280'; /* zinc muted */
+  // v0.7.2 — le mail suit le thème du serveur : palette zinc sombre de l'app.
+  const CANVAS = '#09090b'; /* zinc-950 */
+  const CARD = '#18181b'; /* zinc-900 */
+  const LINE = '#27272a'; /* zinc-800 */
+  const INK = '#fafafa'; /* zinc-50 */
+  const VAL = '#e4e4e7'; /* zinc-200 */
+  const GREY = '#a1a1aa'; /* zinc-400 */
+  const FAINT = '#71717a'; /* zinc-500 */
   const rows = [
     meta?.username ? ['Compte', meta.username] : null,
     meta?.ip ? ['Adresse IP', meta.ip] : null,
     meta?.ua ? ['Appareil', meta.ua.slice(0, 120)] : null,
     meta?.fingerprint ? ['Empreinte', meta.fingerprint.slice(0, 24)] : null,
   ].filter(Boolean) as [string, string][];
+  // v0.7.2 — tableau role=presentation : les clients mail (Gmail…) cassent
+  // display:flex et collaient libellé + valeur (« Compteadmin »).
   const deviceBlock = rows.length
-    ? `<div style="margin:26px 0 0;background:#f7f1e8;border:1px solid #e2d5c3;border-radius:12px;padding:12px 16px">${rows
+    ? `<div style="margin:26px 0 0;background:${CARD};border:1px solid ${LINE};border-radius:12px;padding:10px 16px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">${rows
         .map(
           ([k, v]) =>
-            `<div style="display:flex;justify-content:space-between;gap:16px;padding:4px 0;font-size:12px"><span style="color:${GREY}">${k}</span><span style="color:#3d4453;font-weight:600;text-align:right">${v}</span></div>`,
+            `<tr><td style="padding:5px 14px 5px 0;font-size:12px;color:${GREY};white-space:nowrap;vertical-align:top">${k}</td><td style="padding:5px 0;font-size:12px;font-weight:600;color:${VAL};text-align:right;word-break:break-word">${v}</td></tr>`,
         )
-        .join('')}</div>`
+        .join('')}</table></div>`
     : '';
   const button = meta?.verifyUrl
     ? `<a href="${meta.verifyUrl}" style="display:block;width:100%;box-sizing:border-box;background:${ORANGE};border-radius:10px;padding:18px 12px;text-align:center;color:#ffffff;font-size:15px;font-weight:800;letter-spacing:1.5px;text-decoration:none;text-transform:uppercase">Vérifier &amp; continuer</a>`
@@ -10543,22 +10552,21 @@ function otpEmailHTML(
   return `<!doctype html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${tag}</title></head>
-<body style="margin:0;padding:0;background:#f1f1f4;font-family:-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;color:#101114">
+<body style="margin:0;padding:0;background:${CANVAS};font-family:-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;color:${INK}">
   <div style="display:none;max-height:0;overflow:hidden">Votre code : ${otp}</div>
   <div style="max-width:600px;margin:0 auto;padding:38px 22px 30px;text-align:center">
-    <img src="https://stock.afmarbre.com/atlas-logo-light.png" alt="Atlas Commerce" width="173" height="56" style="display:block;height:42px;width:auto;max-width:100%;margin:0 auto" />
-    <div style="margin-top:8px;font-size:24px;font-weight:800;letter-spacing:-0.3px;color:#101114">Atlas Commerce</div>
+    <img src="https://stock.afmarbre.com/atlas-logo-dark.png" alt="Atlas" width="173" height="56" style="display:block;height:42px;width:auto;max-width:100%;margin:0 auto" />
     <div style="height:34px"></div>
     <div style="font-size:12px;font-weight:800;letter-spacing:2px;color:${SALMON};text-transform:uppercase">${tag}</div>
-    <h1 style="margin:14px 0 0;font-size:33px;line-height:1.18;font-weight:800;color:#101114">${h1} <em style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-weight:600;color:${SALMON}">compte</em></h1>
+    <h1 style="margin:14px 0 0;font-size:33px;line-height:1.18;font-weight:800;color:${INK}">${h1} <em style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-weight:600;color:${SALMON}">compte</em></h1>
     <p style="margin:18px auto 0;max-width:420px;font-size:15px;line-height:1.7;color:${GREY}">${intro}</p>
-    <div style="margin:30px 0 0;background:#f7f1e8;border:1px solid #e2d5c3;border-radius:12px;padding:30px 16px">
-      <div style="font-size:34px;font-weight:800;letter-spacing:3px;color:#8a93a6">${otp}</div>
+    <div style="margin:30px 0 0;background:${CARD};border:1px solid ${LINE};border-radius:12px;padding:30px 16px">
+      <div style="font-size:34px;font-weight:800;letter-spacing:3px;color:${VAL}">${otp}</div>
     </div>
     <div style="margin:22px 0 0">${button}</div>
     ${deviceBlock}
     <p style="margin:28px auto 0;max-width:380px;font-size:14px;line-height:1.65;color:${GREY}">Vous n’êtes pas à l’origine de cette demande ? Ignorez simplement ce message.</p>
-    <p style="margin:10px auto 0;max-width:420px;font-size:12px;line-height:1.6;color:#a6adbb">Code à usage unique, valable 10 minutes. Ne le partagez jamais, y compris avec un membre de votre équipe. · ${companyName}</p>
+    <p style="margin:10px auto 0;max-width:420px;font-size:12px;line-height:1.6;color:${FAINT}">Code à usage unique, valable 10 minutes. Ne le partagez jamais, y compris avec un membre de votre équipe. · ${companyName}</p>
   </div>
   <div style="background:#0b0b0d;padding:34px 22px 30px;text-align:center">
     <div style="max-width:600px;margin:0 auto">
@@ -10579,7 +10587,7 @@ ${social('https://www.instagram.com/', 'M12 2.2c3.2 0 3.6 0 4.9.1 1.2.1 1.9.2 2.
         <span style="margin:0 8px;color:#3a3f4a">|</span>
         <a href="https://stock.afmarbre.com/" style="color:#9aa2b1;text-decoration:underline">Centre d’aide</a>
       </div>
-      <div style="margin-top:14px;font-size:12px;line-height:1.6;color:#7c8494">Atlas Commerce — stock.afmarbre.com<br/>© 2026 loxdpsy · MIT</div>
+      <div style="margin-top:14px;font-size:12px;line-height:1.6;color:#7c8494">Atlas — stock.afmarbre.com<br/>© 2026 Etherealmber · loxdpsy · MIT</div>
       <div style="margin-top:10px"><a href="https://stock.afmarbre.com/settings" style="font-size:12px;color:#9aa2b1;text-decoration:underline">Se désabonner</a></div>
     </div>
   </div>
