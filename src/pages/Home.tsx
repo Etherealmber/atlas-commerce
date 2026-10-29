@@ -555,7 +555,7 @@ export default function Home() {
           <a href="https://github.com/Etherealmber/atlas-commerce" target="_blank" rel="noreferrer noopener">GitHub</a>
           <a href="https://github.com/Etherealmber/atlas-commerce/blob/main/SECURITY.md" target="_blank" rel="noreferrer noopener">Sécurité</a>
         </div>
-        <p>MIT © 2026 Etherealmber · Atlas Commerce {DISPLAY_VERSION} · Créateur : loxdpsy</p>
+        <p>MIT © 2026 Etherealmber · Atlas Commerce {DISPLAY_VERSION} · Créateur : Etherealmber</p>
       </footer>
     </div>
   );

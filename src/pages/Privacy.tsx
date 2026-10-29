@@ -42,8 +42,8 @@ export default function Privacy() {
           Responsable du traitement : {APP_CREATOR_NAME} / etherealmber · El Jadida, Maroc
           <br />
           Contact :{' '}
-          <a href="https://github.com/loxdpsy" target="_blank" rel="noreferrer">
-            github.com/loxdpsy
+          <a href="https://github.com/Etherealmber" target="_blank" rel="noreferrer">
+            github.com/Etherealmber
           </a>{' '}
           ·{' '}
           <a href="https://github.com/etherealmber" target="_blank" rel="noreferrer">
@@ -395,8 +395,8 @@ export default function Privacy() {
           </p>
           <p>
             Demande&nbsp;: administrateur de l’instance ou{' '}
-            <a href="https://github.com/loxdpsy" target="_blank" rel="noreferrer">
-              github.com/loxdpsy
+            <a href="https://github.com/Etherealmber" target="_blank" rel="noreferrer">
+              github.com/Etherealmber
             </a>
             . Réclamation possible auprès de la CNDP (Maroc) ou de l’autorité UE compétente.
           </p>

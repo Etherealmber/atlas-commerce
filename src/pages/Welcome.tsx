@@ -920,21 +920,17 @@ export default function Welcome() {
             <div className="welcome-projects welcome-fade-up" style={{ animationDelay: '0.32s' }}>
               <p className="welcome-projects-title">Autres projets</p>
               <div className="welcome-projects-grid">
-                <a className="welcome-project-card" href="https://chat.afmarbre.com" target="_blank" rel="noreferrer">
-                  <strong>Paul</strong>
-                  <span>Agent IA privé sur Cloudflare</span>
+                <a className="welcome-project-card" href="https://github.com/Etherealmber/afmarbre-main" target="_blank" rel="noreferrer">
+                  <strong>afmarbre-main</strong>
+                  <span>Vitrine &amp; infrastructure</span>
                 </a>
-                <a className="welcome-project-card" href="https://support.afmarbre.com" target="_blank" rel="noreferrer">
-                  <strong>Support</strong>
-                  <span>Page support clients</span>
+                <a className="welcome-project-card" href="https://github.com/Etherealmber/atlas-commerce-android" target="_blank" rel="noreferrer">
+                  <strong>atlas-commerce-android</strong>
+                  <span>App Android native</span>
                 </a>
-                <a className="welcome-project-card" href="https://github.com/loxdpsy/archi-convert" target="_blank" rel="noreferrer">
-                  <strong>Archi Convert</strong>
-                  <span>Unités &amp; matériaux</span>
-                </a>
-                <a className="welcome-project-card" href="https://github.com/loxdpsy/toolkit" target="_blank" rel="noreferrer">
-                  <strong>Toolkit</strong>
-                  <span>Boîte à outils TypeScript</span>
+                <a className="welcome-project-card" href="https://github.com/Etherealmber/atlas-commerce-desktop" target="_blank" rel="noreferrer">
+                  <strong>atlas-commerce-desktop</strong>
+                  <span>Client bureau Tauri</span>
                 </a>
               </div>
             </div>
