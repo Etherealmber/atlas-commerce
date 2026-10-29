@@ -31,6 +31,34 @@ type Release = {
 
 export const RELEASES: Release[] = [
   {
+    version: '0.7.4-beta',
+    date: '30 octobre 2026',
+    sections: [
+      {
+        kind: 'features',
+        items: [
+          { id: '074a1', platforms: ['web'], text: 'Pages publiques repensées (/, /desktop, /download) : navigation flottante en pilule, hero géant avec aperçu du tableau de bord, bouton de téléchargement scindé qui détecte votre appareil (« Télécharger pour Windows / macOS / Linux / Android ») avec menu des autres plateformes, bouton GitHub avec compteur d’étoiles, cartes bento des fonctionnalités, section « tout-en-un » (le cahier, Excel, Word, la calculatrice et WhatsApp remplacés par Atlas), FAQ en accordéon et CTA final' },
+          { id: '074a2', platforms: ['web'], text: 'Responsive complet des pages publiques : téléphones pliables (écran couvert étroit et écran ouvert), phones, tablettes et iPad, Chromebooks, très grands écrans et TV — la mise en page s’adapte de 280 px à 2400 px et plus' },
+        ],
+      },
+      {
+        kind: 'improvements',
+        items: [
+          { id: '074i1', platforms: ['web'], text: 'Employés : formulaire simplifié — les champs « N° employé » (généré automatiquement) et « Nom affiché » disparaissent ; le nom complet (prénom + nom de famille) fait foi partout, et les listes denses abrègent automatiquement les noms trop longs (prénom + initiales du nom de famille) avec le nom complet au survol' },
+          { id: '074i2', platforms: ['server'], text: 'Imprimé employé : la zone de signature indique simplement « Employeur » au lieu de « Visa employeur »' },
+          { id: '074i3', platforms: ['web'], text: 'Sélecteur de thème des pages publiques en icônes SVG (système · clair · sombre) à la place des emojis ; le choix « clair » est désormais conservé après rechargement' },
+        ],
+      },
+      {
+        kind: 'fixes',
+        items: [
+          { id: '074f1', platforms: ['web'], text: 'Nationalité des employés : le champ « Préciser la nationalité » n’apparaît plus en même temps que « Marocaine » — il faut choisir explicitement « Autre » pour le voir' },
+          { id: '074f2', platforms: ['web', 'server'], text: 'Signalement de bugs invisible pour les visiteurs non connectés : le formulaire « Signaler un problème » ne s’affiche plus sur les pages publiques et aucun rapport de plantage n’est envoyé sans session ouverte' },
+        ],
+      },
+    ],
+  },
+  {
     version: '0.7.3-beta',
     date: '30 octobre 2026',
     sections: [

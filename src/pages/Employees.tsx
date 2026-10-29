@@ -76,8 +76,19 @@ function cycleLabel(e: Emp) {
   return 'Mensuel';
 }
 
-function empName(e: Emp) {
-  return e.display_name || e.name || `${e.first_name || ''} ${e.last_name || ''}`.trim() || '—';
+function empName(e: Emp): string {
+  // v0.7.4 — le nom complet (prénom + nom de famille) fait foi partout dans l'UI.
+  return `${e.first_name || ''} ${e.last_name || ''}`.trim() || String(e.display_name || '') || String(e.name || '') || '—';
+}
+
+/** v0.7.4 — libellé compact pour les listes denses : nom complet, ou prénom + initiale(s) du nom de famille si trop long. */
+function empShort(e: Emp, max = 22): string {
+  const full = empName(e);
+  if (full.length <= max) return full;
+  const first = String(e.first_name || '').trim() || String(full).split(' ')[0];
+  const rest = String(full).split(/\s+/).filter((w: string) => w && w !== first);
+  const initials = rest.map((w: string) => `${w[0].toUpperCase()}.`).join('');
+  return initials ? `${first} ${initials}` : `${full.slice(0, max - 1)}…`;
 }
 
 export default function Employees() {
@@ -94,6 +105,8 @@ export default function Employees() {
   const [step, setStep] = useState(0);
   const [editing, setEditing] = useState<Emp | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
+  // v0.7.4 — « Autre nationalité » explicite : plus de confusion avec une valeur vide.
+  const [natOther, setNatOther] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
   const [msgType, setMsgType] = useState<'success' | 'error'>('success');
@@ -181,6 +194,7 @@ export default function Employees() {
   const openCreate = () => {
     setEditing(null);
     setForm({ ...emptyForm });
+    setNatOther(false);
     setStep(0);
     setIdFile(null);
     setModalError(''); setFieldErrors({}); setShowModal(true);
@@ -229,6 +243,7 @@ export default function Employees() {
       notes: e.notes || '',
       user_username: e.user_username || '',
     });
+    setNatOther(!!(e.nationality && e.nationality !== 'Marocaine'));
     setStep(0);
     setIdFile(null);
     setModalError(''); setFieldErrors({}); setShowModal(true);
@@ -243,9 +258,10 @@ export default function Employees() {
     });
 
   const save = async () => {
-    const name = form.name.trim() || `${form.first_name} ${form.last_name}`.trim();
+    // v0.7.4 — plus de « nom affiché » : le nom complet (prénom + nom de famille) est enregistré tel quel.
+    const name = `${form.first_name} ${form.last_name}`.trim();
     const fe: Record<string, string> = {};
-    if (!name) fe.name = 'Indiquez le nom affiché ou le prénom / nom de famille.';
+    if (!name) fe.name = 'Indiquez le prénom ou le nom de famille.';
     if (form.base_salary !== '' && form.base_salary != null && Number.isNaN(Number(form.base_salary))) {
       fe.base_salary = 'Chiffres uniquement pour le salaire.';
     }
@@ -685,11 +701,11 @@ export default function Employees() {
                         className="party-name party-name-link"
                         role="button"
                         tabIndex={0}
-                        title="Modifier"
+                        title={`${empName(e)} — modifier`}
                         onClick={() => openEdit(e)}
                         onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openEdit(e); } }}
                       >
-                        {empName(e)}
+                        {empShort(e)}
                       </span>
                       {e.phone ? <div style={{ fontSize: 12, color: 'var(--muted)' }}>{e.phone}</div> : null}
                     </td>
@@ -780,30 +796,12 @@ export default function Employees() {
       )}
 
       {showModal && (
-        <FloatingPortal><div className="modal-overlay" onClick={() => { setShowModal(false); setEditing(null); setForm({ ...emptyForm }); setStep(0); setModalError(''); setFieldErrors({}); }}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => { setShowModal(false); setEditing(null); setForm({ ...emptyForm }); setNatOther(false); setStep(0); setModalError(''); setFieldErrors({}); }}>
           <div className="modal" style={{ maxWidth: 640, width: '94vw' }} onClick={(ev) => ev.stopPropagation()}>
             <h2 style={{ marginBottom: 8 }}>{editing ? 'Modifier l’employé' : 'Nouvel employé'}</h2>
 
             {step === 0 && (
               <div className="grid grid-2">
-                <div className="form-row">
-                  <label>N° employé</label>
-                  <input
-                    value={form.emp_number}
-                    onChange={(e) => setF('emp_number', e.target.value)}
-                    placeholder={editing ? '' : 'Auto à la création (EMP-0001)'}
-                    readOnly={!editing}
-                  />
-                </div>
-                <div className="form-row">
-                  <label>Nom affiché</label>
-                  <input
-                    className={fieldErrors.name ? 'is-invalid' : undefined}
-                    value={form.name}
-                    onChange={(e) => { setF('name', e.target.value); setFieldErrors((x) => ({ ...x, name: '' })); }}
-                  />
-                  <FieldHint error={fieldErrors.name} />
-                </div>
                 <div className="form-row">
                   <label>Prénom</label>
                   <input value={form.first_name} onChange={(e) => setF('first_name', e.target.value)} />
@@ -827,17 +825,17 @@ export default function Employees() {
                 <div className="form-row">
                   <label>Nationalité</label>
                   <select
-                    value={form.nationality === 'Marocaine' || !form.nationality ? 'Marocaine' : '__other__'}
+                    value={natOther || (form.nationality !== '' && form.nationality !== 'Marocaine') ? '__other__' : 'Marocaine'}
                     onChange={(e) => {
-                      if (e.target.value === 'Marocaine') setF('nationality', 'Marocaine');
-                      else setF('nationality', '');
+                      if (e.target.value === 'Marocaine') { setNatOther(false); setF('nationality', 'Marocaine'); }
+                      else { setNatOther(true); if (form.nationality === 'Marocaine') setF('nationality', ''); }
                     }}
                   >
                     <option value="Marocaine">Marocaine</option>
                     <option value="__other__">Autre</option>
                   </select>
                 </div>
-                {form.nationality !== 'Marocaine' && (
+                {(natOther || (form.nationality !== '' && form.nationality !== 'Marocaine')) && (
                   <div className="form-row">
                     <label>Préciser la nationalité</label>
                     <input

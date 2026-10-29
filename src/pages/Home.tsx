@@ -1,354 +1,364 @@
-/**
- * Home — accueil public de stock.afmarbre.com (v0.7.3).
- *
- * Présente le produit (web, Android, bureau), explique son usage pas à pas
- * et invite à forker les dépôts GitHub (projet MIT). Lecture libre, sans
- * compte, sans cookie, sans aucune redirection : le tableau de bord vit
- * désormais sur /dashboard et la connexion sur /login.
- *
- * Mise en page : mêmes classes `dl-*` que /download (responsive phone/PC,
- * thèmes clair/sombre déjà câblés via html[data-theme]) + animations
- * d'entrée respectueuses de prefers-reduced-motion.
- */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getToken } from '../auth';
-import { APP_CREATOR_NAME, APP_GITHUB, APP_NAME, APP_VERSION } from '../version';
+import { APP_VERSION } from '../version';
+import {
+  PublicNav,
+  PublicDownloadCta,
+  GitHubStarButton,
+  PublicSessionCta,
+  useThemeValue,
+  type NavLink,
+} from '../components/PublicChrome';
+import { isLoggedIn } from '../auth';
 
-const WEB_REPO = 'https://github.com/Etherealmber/atlas-commerce';
-const ANDROID_REPO = 'https://github.com/Etherealmber/atlas-commerce-android';
-const DESKTOP_REPO = 'https://github.com/Etherealmber/atlas-commerce-desktop';
+const HOME_LIGHT = '/shots/dashboard-light.png';
+const HOME_DARK = '/shots/dashboard-dark.png';
 
-const STEPS: { n: string; title: string; text: string }[] = [
-  {
-    n: '1',
-    title: 'Créez votre espace',
-    text: 'Un compte par commerce : utilisateurs, rôles (owner, admin, secrétaire, magasinier…) et dépôts multiples se paramètrent depuis les Réglages.',
-  },
-  {
-    n: '2',
-    title: 'Connectez-vous en sécurité',
-    text: 'Mot de passe + code OTP par e-mail à chaque connexion, QR de connexion depuis l’app Android, passkeys WebAuthn et appareils révocables à tout moment.',
-  },
-  {
-    n: '3',
-    title: 'Vendez, encaissez, facturez',
-    text: 'Caisse rapide sur PC ou téléphone, tickets VR imprimables, factures TVA, devis, avoirs et reçus PDF avec QR de vérification publique.',
-  },
-  {
-    n: '4',
-    title: 'Suivez tout en temps réel',
-    text: 'Stock multi-dépôts, stock bas, créances clients, dettes fournisseurs, trésorerie, rapports combinés et balance âgée — exportables et imprimables.',
-  },
+const NAV: NavLink[] = [
+  { href: '#features', label: 'Fonctionnalités' },
+  { href: '#tout-en-un', label: 'Tout-en-un' },
+  { href: '#plateformes', label: 'Plateformes' },
+  { href: '#open-source', label: 'Open source' },
+  { href: '#faq', label: 'FAQ' },
+  { href: '/whats-new', label: 'Nouveautés' },
+  { href: '/about', label: 'À propos' },
 ];
 
-const FEATURES: { title: string; text: string }[] = [
-  { title: 'Stock multi-dépôts', text: 'Entrées, sorties, transferts, inventaire tournant et valorisation — chaque dépôt garde ses quantités.' },
-  { title: 'Caisse & tickets VR', text: 'Vente rapide au comptoir, impression thermique 58/80 mm ou PDF, remise et modes de paiement.' },
-  { title: 'Facturation TVA marocaine', text: 'Factures, devis, avoirs (WR), échéanciers et mentions légales ; taux TVA par article.' },
-  { title: 'Scan & OCR', text: 'Code-barres au téléphone ou à la douchette, création d’article par photo, devis fournisseur lus par OCR.' },
-  { title: 'Atlas Agent IA', text: 'Un assistant intégré qui répond sur vos chiffres : ventes du jour, stock bas, meilleurs clients…' },
-  { title: 'Créances & dettes', text: 'Suivi des règlements partiels, relances, balance âgée clients/fournisseurs et situation par client via QR.' },
-  { title: 'Équipe & paie', text: 'Employés, postes, cycles de paie, pointage et situations individuelles imprimables.' },
-  { title: 'Sécurité de bout en bout', text: 'OTP systématique, sessions signées liées à l’IP et à l’empreinte, WebAuthn, audit complet des actions.' },
-  { title: 'Hors-ligne maîtrisé', text: 'L’app Android continue le catalogue et les ventes sans réseau, puis synchronise automatiquement.' },
-];
-
-const PLATFORMS: { key: string; title: string; text: string; href: string; cta: string; ext?: boolean }[] = [
-  {
-    key: 'web',
-    title: 'Web — PC & téléphone',
-    text: 'L’ERP complet dans le navigateur : tableau de bord, caisse, facturation, rapports et réglages. Interface responsive, thème clair/sombre/system.',
-    href: '/dashboard',
-    cta: 'Ouvrir le tableau de bord',
-  },
-  {
-    key: 'android',
-    title: 'Android natif',
-    text: 'Appli Kotlin installée depuis notre CDN : scan, caisse terrain, catalogue hors-ligne, notifications et mises à jour automatiques.',
-    href: '/download',
-    cta: 'Page de téléchargement',
-  },
-  {
-    key: 'desktop',
-    title: 'Bureau (Windows · macOS · Linux)',
-    text: 'Application native emballée pour le comptoir : même compte, mêmes données, sensation native et mises à jour via GitHub Releases.',
-    href: '/desktop',
-    cta: 'Page de téléchargement',
-  },
-];
-
-/** Révélation au scroll : ajoute `.in` quand la section entre à l’écran. */
-function useReveal() {
-  const ref = useRef<HTMLDivElement | null>(null);
+/** Révélation douce au scroll (IntersectionObserver, une seule fois). */
+function useRiseObserver() {
   useEffect(() => {
-    const root = ref.current;
-    if (!root) return;
-    const els = Array.from(root.querySelectorAll<HTMLElement>('[data-reveal]'));
-    if (!('IntersectionObserver' in window)) {
-      els.forEach((el) => el.classList.add('in'));
-      return;
-    }
+    if (typeof IntersectionObserver === 'undefined') return;
     const io = new IntersectionObserver(
       (entries) => {
         for (const en of entries) {
           if (en.isIntersecting) {
-            en.target.classList.add('in');
+            (en.target as HTMLElement).classList.add('is-in');
             io.unobserve(en.target);
           }
         }
       },
       { threshold: 0.12 },
     );
-    els.forEach((el) => io.observe(el));
-    return () => io.disconnect();
+    const t = window.setTimeout(() => {
+      document.querySelectorAll<HTMLElement>('.home-landing .rise').forEach((el) => io.observe(el));
+    }, 60);
+    return () => {
+      window.clearTimeout(t);
+      io.disconnect();
+    };
   }, []);
-  return ref;
 }
+
+const ARC_TOOLS = [
+  { icon: '📒', label: 'Le cahier de caisse', pos: 'p1' },
+  { icon: '📊', label: 'Les classeurs Excel', pos: 'p2' },
+  { icon: '📝', label: 'Les devis sur Word', pos: 'p3' },
+  { icon: '🧮', label: 'La calculatrice', pos: 'p4' },
+  { icon: '💬', label: 'Les relances WhatsApp', pos: 'p5' },
+  { icon: '📸', label: 'Les photos de bons', pos: 'p6' },
+];
 
 export default function Home() {
-  const revealRef = useReveal();
-  const loggedIn = !!getToken();
-  const [stars, setStars] = useState<number | null>(null);
-
-  useEffect(() => {
-    const prevTitle = document.title;
-    document.title = `${APP_NAME} — Stock · Caisse · Facturation`;
-    const upsert = (attr: 'name' | 'property', key: string, content: string) => {
-      let el = document.head.querySelector<HTMLMetaElement>(`meta[${attr}="${key}"]`);
-      if (!el) {
-        el = document.createElement('meta');
-        el.setAttribute(attr, key);
-        document.head.appendChild(el);
-      }
-      el.setAttribute('content', content);
-      return el;
-    };
-    const metas = [
-      upsert('name', 'description', `${APP_NAME} — ERP, caisse et facturation pour commerces et grossistes au Maroc. Web, Android natif et application bureau. Projet open source MIT, forkez-le.`),
-      upsert('property', 'og:type', 'website'),
-      upsert('property', 'og:title', `${APP_NAME} — Stock · Caisse · Facturation`),
-      upsert('property', 'og:description', 'Présentation du produit : web, Android et bureau. Open source MIT, forkez le dépôt.'),
-      upsert('property', 'og:url', 'https://stock.afmarbre.com/'),
-      upsert('property', 'og:image', 'https://stock.afmarbre.com/atlas-logo-dark.png'),
-    ];
-    return () => {
-      document.title = prevTitle;
-      metas.forEach((el) => el.remove());
-    };
-  }, []);
-
-  useEffect(() => {
-    fetch('https://api.github.com/repos/Etherealmber/atlas-commerce', { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((j: any) => setStars(Number(j?.stargazers_count) || null))
-      .catch(() => setStars(null));
-  }, []);
+  const theme = useThemeValue();
+  useRiseObserver();
+  const shot = theme === 'light' ? HOME_LIGHT : HOME_DARK;
 
   return (
-    <div className="download-landing home-landing" ref={revealRef}>
-      <header className="dl-nav">
-        <Link to="/" className="dl-nav-brand" aria-label={`${APP_NAME} — accueil`}>
-          <img src="/atlas-logo-dark.png" alt="Atlas" className="dl-nav-logo theme-logo-dark" width={80} height={26} />
-          <img src="/atlas-logo-light.png" alt="Atlas" className="dl-nav-logo theme-logo-light" width={80} height={26} />
-        </Link>
-        <nav className="dl-nav-links" aria-label="Navigation de la page d’accueil">
-          <a className="dl-nav-keep" href="#fonctionnement">Comment ça marche</a>
-          <a className="dl-nav-keep" href="#fonctionnalites">Fonctionnalités</a>
-          <a className="dl-nav-keep" href="#plateformes">Android & bureau</a>
-          <a className="dl-nav-keep" href="#opensource">Open source</a>
-          <Link className="dl-nav-keep" to="/whats-new">Nouveautés</Link>
-          <Link className="dl-nav-keep" to="/about">À propos</Link>
-        </nav>
-        <div className="home-nav-actions">
-          <div className="home-theme" role="group" aria-label="Choix du thème">
-            <ThemeButtons />
-          </div>
-          {loggedIn ? (
-            <Link className="dl-nav-cta" to="/dashboard">Ouvrir l’application</Link>
-          ) : (
-            <Link className="dl-nav-cta" to="/login">Se connecter</Link>
-          )}
-        </div>
-      </header>
+    <div className="home-landing">
+      <div className="hm-bg" aria-hidden="true">
+        <div className="hm-bg-grid" />
+        <div className="hm-bg-glow hm-bg-glow-a" />
+        <div className="hm-bg-glow hm-bg-glow-b" />
+      </div>
 
-      <section className="dl-hero">
-        <div className="dl-hero-bg" aria-hidden />
-        <div className="dl-hero-grid" aria-hidden />
-        <div className="dl-container">
-          <div className="dl-hero-content hm-rise">
-            <p className="dl-eyebrow">Accueil officiel · {APP_VERSION}</p>
-            <h1 className="dl-h1">
-              Atlas<span className="dl-h1-dot">.</span>
-              <br />
-              <span className="dl-h1-soft">Tout votre commerce, une seule app.</span>
-            </h1>
-            <p className="dl-desc">
-              {APP_NAME} est l’ERP souverain des commerces et grossistes : stock multi-dépôts, caisse et
-              tickets VR, facturation TVA, créances, paie et rapports — sur PC, téléphone Android et
-              application bureau. Vos données restent chez vous.
-            </p>
-            <div className="dl-ctas">
-              {loggedIn ? (
-                <Link className="dl-cta-main" to="/dashboard">Ouvrir le tableau de bord</Link>
-              ) : (
-                <Link className="dl-cta-main" to="/login">Se connecter à mon espace</Link>
-              )}
-              <Link className="dl-cta-ghost" to="/download">Apk Android</Link>
-              <Link className="dl-cta-ghost" to="/desktop">Version bureau</Link>
-            </div>
-            <p className="dl-note">
-              <span className="dl-note-dot" aria-hidden />
-              Lecture libre : cette page ne pose aucun cookie et ne redirige jamais. Le tableau de bord
-              vit sur <Link to="/dashboard">/dashboard</Link>, la connexion sur <Link to="/login">/login</Link>.
-            </p>
-          </div>
-        </div>
-      </section>
+      <PublicNav links={NAV} cta={<PublicSessionCta />} />
 
-      <section className="dl-band" id="fonctionnement">
-        <div className="dl-container">
-          <h2 className="dl-sec-title" data-reveal>Comment ça marche</h2>
-          <div className="home-steps">
-            {STEPS.map((s, i) => (
-              <div className="home-step dl-section card" data-reveal style={{ animationDelay: `${i * 70}ms` }} key={s.n}>
-                <span className="home-step-n" aria-hidden>{s.n}</span>
-                <h3>{s.title}</h3>
-                <p>{s.text}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="dl-band" id="fonctionnalites">
-        <div className="dl-container">
-          <h2 className="dl-sec-title" data-reveal>Ce que fait Atlas pour vous</h2>
-          <div className="dl-feats">
-            {FEATURES.map((f, i) => (
-              <div className="dl-feat dl-section card" data-reveal style={{ animationDelay: `${i * 45}ms` }} key={f.title}>
-                <h3>{f.title}</h3>
-                <p>{f.text}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="dl-band" id="plateformes">
-        <div className="dl-container">
-          <h2 className="dl-sec-title" data-reveal>Une application par appareil</h2>
-          <div className="home-platforms">
-            {PLATFORMS.map((p, i) => (
-              <div className="home-platform dl-section card" data-reveal style={{ animationDelay: `${i * 70}ms` }} key={p.key}>
-                <span className={`home-platform-tag home-platform-tag--${p.key}`}>{p.key === 'web' ? 'Web' : p.key === 'android' ? 'Android' : 'Bureau'}</span>
-                <h3>{p.title}</h3>
-                <p>{p.text}</p>
-                {p.ext ? (
-                  <a className="dl-cta-ghost" href={p.href} target="_blank" rel="noopener noreferrer">{p.cta}</a>
-                ) : (
-                  <Link className="dl-cta-ghost" to={p.href}>{p.cta}</Link>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="dl-band home-oss" id="opensource">
-        <div className="dl-container" data-reveal>
-          <h2 className="dl-sec-title">Open source — forkez le projet</h2>
-          <p className="dl-desc">
-            {APP_NAME} est développé ouvertement par {APP_CREATOR_NAME} sous licence MIT : le code du web,
-            de l’appli Android et de l’app bureau est public. Forkez le dépôt de votre choix, proposez des
-            correctifs, ou hébergez votre propre instance.
+      <main className="hm-main">
+        {/* ---------------- Hero ---------------- */}
+        <section className="hm-hero">
+          <p className="hm-eyebrow">ATLAS · GESTION COMMERCIALE OPEN SOURCE</p>
+          <h1>
+            Tout votre commerce,
+            <br />
+            <span className="hm-grad">sans un seul tableur.</span>
+          </h1>
+          <p className="hm-sub">
+            Stock, caisse, facturation, créances, fournisseurs, paie, rapports et agent IA — réunis
+            dans une seule application, sur le web, Android et bureau.
           </p>
-          <div className="home-repos">
-            <a className="home-repo dl-section card" href={WEB_REPO} target="_blank" rel="noopener noreferrer">
-              <strong>Etherealmber/atlas-commerce</strong>
-              <span>Web · ERP, caisse & facturation (React + Cloudflare Workers)</span>
-              <em>{stars != null ? `★ ${stars}` : 'MIT'}</em>
-            </a>
-            <a className="home-repo dl-section card" href={ANDROID_REPO} target="_blank" rel="noopener noreferrer">
-              <strong>Etherealmber/atlas-commerce-android</strong>
-              <span>Android natif · Kotlin + Compose, hors-ligne & scan</span>
-              <em>MIT</em>
-            </a>
-            <a className="home-repo dl-section card" href={DESKTOP_REPO} target="_blank" rel="noopener noreferrer">
-              <strong>Etherealmber/atlas-commerce-desktop</strong>
-              <span>Bureau · Windows, macOS & Linux (Tauri/Rust)</span>
-              <em>MIT</em>
-            </a>
+          <div className="hm-cta">
+            <PublicDownloadCta />
+            <GitHubStarButton />
+            <Link to="/whats-new" className="hm-ghost">
+              Voir les nouveautés
+            </Link>
           </div>
-          <div className="dl-ctas">
-            <a className="dl-cta-main" href={`${WEB_REPO}/fork`} target="_blank" rel="noopener noreferrer">Forker atlas-commerce</a>
-            <a className="dl-cta-ghost" href={APP_GITHUB} target="_blank" rel="noopener noreferrer">Profil GitHub</a>
+          <p className="hm-hero-note">
+            Gratuit · open source (MIT) · aussi sur <a href="/download">Android</a> et{' '}
+            <a href="/desktop">Windows · macOS · Linux</a>
+          </p>
+
+          <div className="hm-window rise">
+            <div className="hm-window-bar" aria-hidden="true">
+              <span /><span /><span />
+              <em>stock.afmarbre.com — Tableau de bord</em>
+            </div>
+            <img src={shot} alt="Le tableau de bord Atlas Commerce" loading="lazy" />
           </div>
-        </div>
-      </section>
+        </section>
+
+        {/* ---------------- Fonctionnalités (bento) ---------------- */}
+        <section id="features" className="hm-sec">
+          <h2 className="rise">Un back-office complet, pas une fiche de plus</h2>
+          <p className="hm-sec-sub rise">
+            Chaque module remplace un outil éparpillé — et tout se tient dans la même base, sur tous
+            vos appareils.
+          </p>
+          <div className="hm-bento">
+            <div className="hm-bento-card rise">
+              <div className="hm-fx hm-fx-stock" aria-hidden="true">
+                <span className="hm-row"><b>Marbre blanc 2&nbsp;cm</b><i className="hm-chip ok">42 u.</i></span>
+                <span className="hm-row"><b>Granit noir</b><i className="hm-chip warn">6 u.</i></span>
+                <span className="hm-row"><b>Quartz beige</b><i className="hm-chip bad">0 u.</i></span>
+              </div>
+              <h3>Stock en temps réel</h3>
+              <p>Inventaire complet, alertes de seuil et mouvements datés — plus de stock fantôme.</p>
+            </div>
+            <div className="hm-bento-card rise">
+              <div className="hm-fx hm-fx-pos" aria-hidden="true">
+                <span className="hm-ticket">
+                  <b>VR-0147</b>
+                  <i>2 × Marbre blanc · 1 × pose</i>
+                  <u>1 687,20 DH</u>
+                </span>
+                <span className="hm-chip ok">Encaissée</span>
+              </div>
+              <h3>Caisse &amp; ventes</h3>
+              <p>Ventes comptoir, tickets, règlements partiels et clôture de caisse sans saisie double.</p>
+            </div>
+            <div className="hm-bento-card rise">
+              <div className="hm-fx hm-fx-invoice" aria-hidden="true">
+                <span className="hm-doc">
+                  <b>FACT-0001</b>
+                  <i /><i /><i />
+                  <u>Total 1 687,20</u>
+                </span>
+                <span className="hm-chip">PDF + QR</span>
+              </div>
+              <h3>Facturation PDF</h3>
+              <p>Devis, factures et reçus en PDF propres, avec QR de vérification publique.</p>
+            </div>
+            <div className="hm-bento-card rise">
+              <div className="hm-fx hm-fx-aging" aria-hidden="true">
+                <span className="hm-bar" style={{ width: '78%' }} />
+                <span className="hm-bar" style={{ width: '52%' }} />
+                <span className="hm-bar" style={{ width: '30%' }} />
+              </div>
+              <h3>Créances &amp; relances</h3>
+              <p>Balance âgée, clients à relancer et historique de paiement — sans Post-it.</p>
+            </div>
+            <div className="hm-bento-card rise">
+              <div className="hm-fx hm-fx-qr" aria-hidden="true">
+                <span className="hm-qr" />
+                <span className="hm-chip ok">Vérifié</span>
+              </div>
+              <h3>Vérification par QR</h3>
+              <p>Vos clients scannent et vérifient l’authenticité d’un reçu en une seconde.</p>
+            </div>
+            <div className="hm-bento-card rise">
+              <div className="hm-fx hm-fx-agent" aria-hidden="true">
+                <span className="hm-bubble left">Combien de ventes cette semaine ?</span>
+                <span className="hm-bubble right">23 ventes · 41 250 DH 📈</span>
+              </div>
+              <h3>Agent IA intégré</h3>
+              <p>Posez vos questions en français : rapports, actions et réponses instantanées.</p>
+            </div>
+          </div>
+        </section>
+
+        {/* ---------------- Tout-en-un (arc d'outils) ---------------- */}
+        <section id="tout-en-un" className="hm-sec hm-one">
+          <h2 className="rise">
+            Cahier, Excel, Word, calculatrice, WhatsApp…
+            <br />
+            <span className="hm-grad">remplacés par un seul produit.</span>
+          </h2>
+          <p className="hm-sec-sub rise">
+            Tout ce que vous utilisez déjà pour gérer votre commerce tient dans Atlas — et rien ne se
+            perd entre deux applications.
+          </p>
+          <div className="hm-arc rise" aria-hidden="false">
+            {ARC_TOOLS.map((t) => (
+              <span key={t.label} className={`hm-arc-tile ${t.pos}`}>
+                <i>{t.icon}</i>
+                <em>{t.label}</em>
+              </span>
+            ))}
+            <div className="hm-arc-core">
+              <img className="theme-logo-dark" src="/atlas-icon-dark.png" alt="" width={34} height={34} />
+              <img className="theme-logo-light" src="/atlas-icon-light.png" alt="" width={34} height={34} />
+              <b>Atlas</b>
+              <em>tout votre commerce, une seule application</em>
+            </div>
+          </div>
+        </section>
+
+        {/* ---------------- Confiance ---------------- */}
+        <section className="hm-sec">
+          <h2 className="rise">La confiance, d’abord</h2>
+          <div className="dl-trust rise">
+            <div><b>Connexion OTP &amp; passkeys</b><span>Codes à usage unique + WebAuthn/FIDO2, sans mot de passe à réutiliser.</span></div>
+            <div><b>Android hors-ligne</b><span>Vos données tournent sur le téléphone ; la synchronisation reprend toute seule.</span></div>
+            <div><b>Données souveraines</b><span>Cloudflare D1/R2 dans votre propre compte, sauvegardes chiffrées.</span></div>
+            <div><b>100&nbsp;% open source</b><span>Code MIT auditable, auto-hébergement possible, zéro lock-in.</span></div>
+            <div><b>QR public vérifiable</b><span>Chaque document imprimé porte un QR infalsifiable, vérifiable sans compte.</span></div>
+            <div><b>Sans commission</b><span>Aucun pourcentage sur vos ventes : le logiciel ne vit pas de votre chiffre.</span></div>
+          </div>
+        </section>
+
+        {/* ---------------- Plateformes ---------------- */}
+        <section id="plateformes" className="hm-sec">
+          <h2 className="rise">Une application, tous vos écrans</h2>
+          <div className="dl-grid rise">
+            <div className="dl-card">
+              <div className="dl-ico">🌐</div>
+              <h3>Web</h3>
+              <p>
+                Chrome, Edge, Safari et Firefox. Le PWA s’installe sur l’écran d’accueil et
+                fonctionne aussi en mode autonome — téléphone, tablette, pliable, Chromebook et
+                grand écran de bureau.
+              </p>
+              <Link to="/login" className="dl-link">Ouvrir l’application →</Link>
+            </div>
+            <div className="dl-card">
+              <div className="dl-ico">📱</div>
+              <h3>Android</h3>
+              <p>
+                Application native hors-ligne : caisse, stock, factures et scan QR sans réseau, avec
+                synchronisation chiffrée dès la connexion retrouvée. APK signé, installable en deux
+                touches.
+              </p>
+              <Link to="/download" className="dl-link">Télécharger l’APK →</Link>
+            </div>
+            <div className="dl-card">
+              <div className="dl-ico">🖥️</div>
+              <h3>Bureau</h3>
+              <p>
+                Windows, macOS et Linux : la même application dans une fenêtre native, mises à jour
+                automatiques et accès direct aux imprimantes pour vos documents PDF.
+              </p>
+              <Link to="/desktop" className="dl-link">Version bureau →</Link>
+            </div>
+          </div>
+        </section>
+
+        {/* ---------------- Open source ---------------- */}
+        <section id="open-source" className="hm-sec hm-ose">
+          <h2 className="rise">Construit en public</h2>
+          <div className="dl-ose-grid rise">
+            <div className="dl-card">
+              <div className="dl-ico">🏗️</div>
+              <h3>Atlas Commerce · web</h3>
+              <p>
+                React + Cloudflare Worker + D1. Toute la logique métier, l’OTP, les passkeys, la
+                facturation et les rapports — sous licence MIT.
+              </p>
+              <a className="dl-link" href="https://github.com/Etherealmber/atlas-commerce" target="_blank" rel="noreferrer noopener">
+                Voir le dépôt →
+              </a>
+            </div>
+            <div className="dl-card">
+              <div className="dl-ico">🖥️</div>
+              <h3>Atlas Desktop</h3>
+              <p>
+                Le client bureau Tauri (Windows, macOS, Linux) : fenêtre native, mises à jour
+                automatiques et impression directe.
+              </p>
+              <a className="dl-link" href="https://github.com/Etherealmber/atlas-commerce-desktop" target="_blank" rel="noreferrer noopener">
+                Voir le dépôt →
+              </a>
+            </div>
+          </div>
+          <div className="dl-fork rise">
+            <GitHubStarButton repo="Etherealmber/atlas-commerce-desktop" />
+            <GitHubStarButton repo="Etherealmber/atlas-commerce" />
+            <span className="dl-fork-note">
+              Une étoile sur les dépôts aide le projet · MIT © 2026 Etherealmber
+            </span>
+          </div>
+        </section>
+
+        {/* ---------------- FAQ ---------------- */}
+        <section id="faq" className="hm-sec">
+          <h2 className="rise">Questions fréquentes</h2>
+          <div className="hm-faq rise">
+            <details>
+              <summary>L’application est-elle vraiment gratuite ?<i aria-hidden="true" /></summary>
+              <p>
+                Oui. Atlas est open source sous licence MIT : vous pouvez l’utiliser, l’auditer et
+                l’auto-héberger librement. Aucune commission sur vos ventes, aucun abonnement caché.
+              </p>
+            </details>
+            <details>
+              <summary>Sur quels appareils puis-je l’utiliser ?<i aria-hidden="true" /></summary>
+              <p>
+                Sur le web (Chrome, Edge, Safari, Firefox), en PWA installé, sur Android (APK natif
+                hors-ligne) et sur ordinateur avec l’application bureau Windows, macOS ou Linux. Les
+                téléphones pliables, tablettes, Chromebooks et grands écrans sont pris en charge.
+              </p>
+            </details>
+            <details>
+              <summary>Puis-je travailler sans connexion ?<i aria-hidden="true" /></summary>
+              <p>
+                Oui sur Android et sur l’application bureau : vos données continuent de tourner en
+                local et la synchronisation reprend automatiquement dès que le réseau revient.
+              </p>
+            </details>
+            <details>
+              <summary>Mes données sont-elles en sécurité ?<i aria-hidden="true" /></summary>
+              <p>
+                La connexion repose sur des codes OTP et des passkeys (WebAuthn/FIDO2) — jamais de
+                mot de passe réutilisé. Les données vivent dans votre propre compte Cloudflare
+                (D1/R2), avec sauvegardes chiffrées et politique de divulgation responsable.
+              </p>
+            </details>
+            <details>
+              <summary>Comment se passent les mises à jour ?<i aria-hidden="true" /></summary>
+              <p>
+                Le web se met à jour tout seul. L’application bureau embarque son propre
+                updater ; sur Android, la dernière version signée est toujours sur{' '}
+                <a href="/download">la page de téléchargement</a>.
+              </p>
+            </details>
+          </div>
+        </section>
+
+        {/* ---------------- CTA final ---------------- */}
+        <section className="hm-final rise">
+          <h2>Prêt à tenir votre commerce la bonne façon ?</h2>
+          <p>Installez Atlas en deux minutes — vos produits, vos ventes et vos clients au même endroit.</p>
+          <div className="hm-cta">
+            <PublicDownloadCta />
+            {isLoggedIn() ? (
+              <Link to="/dashboard" className="hm-ghost">Ouvrir l’application</Link>
+            ) : (
+              <Link to="/login" className="hm-ghost">Se connecter</Link>
+            )}
+          </div>
+        </section>
+      </main>
 
       <footer className="dl-foot">
-        <div className="dl-container">
-          <p>
-            <Link to="/download">Télécharger</Link> · <Link to="/desktop">Bureau</Link> ·{' '}
-            <Link to="/whats-new">Nouveautés</Link> · <Link to="/about">À propos</Link> ·{' '}
-            <Link to="/privacy">Confidentialité</Link> · <Link to="/terms">Conditions</Link>
-          </p>
-          <p>Atlas — stock.afmarbre.com · © 2026 Etherealmber · loxdpsy · MIT</p>
+        <div className="dl-foot-links">
+          <a href="/whats-new">Nouveautés</a>
+          <a href="/about">À propos</a>
+          <a href="/download">Android</a>
+          <a href="/desktop">Bureau</a>
+          <a href="https://github.com/Etherealmber/atlas-commerce" target="_blank" rel="noreferrer noopener">GitHub</a>
+          <a href="https://github.com/Etherealmber/atlas-commerce/blob/main/SECURITY.md" target="_blank" rel="noreferrer noopener">Sécurité</a>
         </div>
+        <p>MIT © 2026 Etherealmber · Atlas Commerce {APP_VERSION} · Créateur : loxdpsy</p>
       </footer>
     </div>
-  );
-}
-
-/** Petit sélecteur système / clair / sombre — mêmes attributs [data-theme-toggle]
- *  que le reste de l’app (révélation circulaire + persistance atlas-theme). */
-function ThemeButtons() {
-  const [mode, setMode] = useState<string>(() => {
-    try {
-      return localStorage.getItem('atlas-theme') || 'system';
-    } catch {
-      return 'system';
-    }
-  });
-  useEffect(() => {
-    const sync = () => {
-      try {
-        setMode(localStorage.getItem('atlas-theme') || 'system');
-      } catch {
-        /* private mode */
-      }
-    };
-    window.addEventListener('atlas-theme-change', sync);
-    return () => window.removeEventListener('atlas-theme-change', sync);
-  }, []);
-  const pick = (m: 'system' | 'light' | 'dark') => {
-    try {
-      localStorage.setItem('atlas-theme', m);
-    } catch {
-      /* private mode */
-    }
-    setMode(m);
-    window.dispatchEvent(new Event('atlas-theme-change'));
-  };
-  const btn = (m: 'system' | 'light' | 'dark', label: string, icon: string) => (
-    <button
-      type="button"
-      data-theme-toggle
-      className={mode === m ? 'active' : undefined}
-      title={label}
-      aria-label={label}
-      aria-pressed={mode === m}
-      onClick={() => pick(m)}
-    >
-      <span aria-hidden>{icon}</span>
-    </button>
-  );
-  return (
-    <>
-      {btn('system', 'Suivre le système', '🖥️')}
-      {btn('light', 'Thème clair', '☀️')}
-      {btn('dark', 'Thème sombre', '🌙')}
-    </>
   );
 }

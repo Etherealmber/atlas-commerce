@@ -663,12 +663,12 @@ function takeThemeRevealOrigin() {
 function useTheme() {
   const [mode, setMode] = useState<ThemeMode>(() => {
     const v = localStorage.getItem('atlas-theme') || 'system';
-    return v === 'dark' || v === 'system' ? v : 'system';
+    return v === 'dark' || v === 'light' || v === 'system' ? v : 'system';
   });
   useEffect(() => {
     const sync = () => {
       const v = localStorage.getItem('atlas-theme') || 'system';
-      setMode(v === 'dark' || v === 'system' ? v : 'system');
+      setMode(v === 'dark' || v === 'light' || v === 'system' ? v : 'system');
     };
     window.addEventListener('atlas-theme-change', sync);
     return () => window.removeEventListener('atlas-theme-change', sync);
