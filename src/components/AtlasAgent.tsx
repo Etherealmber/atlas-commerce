@@ -2066,6 +2066,7 @@ export default function AtlasAgent() {
                 : ''}
             </div>
           )}
+          {!agentPolicy?.blocked && (
           <PromptBar
             placeholder="Écrire un message…"
             sources={[
@@ -2119,6 +2120,7 @@ export default function AtlasAgent() {
             maxRows={5}
             className="atlas-agent-prompt-bar"
           />
+          )}
         </footer>
         {lightbox && (
           <ImageLightbox src={lightbox.src} name={lightbox.name} onClose={() => setLightbox(null)} />

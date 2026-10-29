@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { getTheme, setTheme as applyTheme, subscribeTheme, type ThemeChoice } from '../theme';
 import { isLoggedIn, getDisplayName, getUsername, getRole, getDisplayInitials, hasAvatarUrl, clearToken } from '../auth';
 import { invalidateAvatarCache } from '../lib/avatarCache';
@@ -192,17 +192,11 @@ export function PublicProfileChip() {
         onClick={() => setOpen((v) => !v)}
         style={{ background: c.ghostBg, border: `1px solid ${c.ghostBorder}`, cursor: 'pointer', font: 'inherit' }}
       >
-        <span className="pn-chip-avatar-slot" style={{ background: c.ink, color: c.navBg }}>
-          {hasAvatarUrl() ? (
-            <AvatarImage
-              className="pn-chip-avatar"
-              width={26}
-              height={26}
-              fallback={<span className="pn-chip-ini">{getDisplayInitials() || '?'}</span>}
-            />
-          ) : (
-            <span className="pn-chip-ini">{getDisplayInitials() || '?'}</span>
-          )}
+        <span className="pn-chip-avatar-slot" style={{ color: c.navBg }}>
+          <span className="pn-chip-ini pn-chip-ini--base" style={{ background: c.ink }} aria-hidden="true">
+            {getDisplayInitials() || '?'}
+          </span>
+          {hasAvatarUrl() ? <AvatarImage className="pn-chip-avatar" width={26} height={26} fallback={null} /> : null}
         </span>
         <span className="pn-chip-meta">
           <strong style={{ color: c.ink }}>{name}</strong>
@@ -223,14 +217,18 @@ export function PublicProfileChip() {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" aria-hidden><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82V9c.26-.6.98-1.01 1.64-1.01H21a2 2 0 1 0 0-4h-.09a1.65 1.65 0 0 1-1.51-1z" /></svg>
               Paramètres
             </button>
+            {window.location.pathname !== '/about' && (
             <button type="button" role="menuitem" className="secondary settings-topbar-menu-item" onClick={() => { setOpen(false); window.location.assign('/about'); }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" aria-hidden><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></svg>
               À propos
             </button>
+            )}
+            {window.location.pathname !== '/whats-new' && (
             <button type="button" role="menuitem" className="secondary settings-topbar-menu-item settings-topbar-menu-item--novelties" onClick={() => { setOpen(false); window.location.assign('/whats-new'); }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" aria-hidden><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
               <span className="account-menu-item-label">Nouveautés</span>
             </button>
+            )}
             <button
               type="button"
               role="menuitem"
@@ -290,22 +288,22 @@ export function PublicQuickBar() {
 
 export type NavLink = { href: string; label: string };
 
-/** v0.7.7 — onglets icônes façon topbar Paramètres, pour les connectés. */
-const PN_TABS: { href: string; label: string; d: string }[] = [
-  { href: '/dashboard', label: 'Tableau de bord', d: 'M3 3h8v8H3zM13 3h8v5h-8zM13 12h8v9h-8zM3 15h8v6H3z' },
-  { href: '/quick-sale', label: 'Vente rapide', d: 'M6 6h15l-1.5 8h-12zM6 6L5 3H2M9 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM18 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2z' },
-  { href: '/products', label: 'Produits & stock', d: 'M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8' },
-  { href: '/invoices', label: 'Factures', d: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M9 13h6M9 17h4' },
-  { href: '/clients', label: 'Clients', d: 'M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75' },
-  { href: '/reports', label: 'Rapports', d: 'M4 20V10M10 20V4M16 20v-7M21 20H3' },
+/** v0.7.7 — onglets icônes des connectés : LÉGACY de l'ancienne topbar
+ *  (conditions, confidentialité, GitHub, guide, cookies) — rien qui duplique
+ *  la sidebar ; rendu avec les MÊMES classes que la topbar Paramètres. */
+const PN_TABS: { id: string; label: string; d: string }[] = [
+  { id: 'terms', label: "Conditions d'utilisation", d: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M9 15l2 2 4-4' },
+  { id: 'privacy', label: 'Confidentialité', d: 'M12 22s8-3.5 8-10V5l-8-3-8 3v7c0 6.5 8 10 8 10z' },
+  { id: 'github', label: 'GitHub', d: 'M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22' },
+  { id: 'welcome', label: "Guide d'accueil", d: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z' },
+  { id: 'cookies', label: 'Préférences cookies', d: 'M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0-18 0M9 10h.01M14 9h.01M10 14h.01' },
 ];
 
-/** Barre de navigation flottante « pill » — une seule image de logo, choisie
- *  par le thème résolu (plus jamais deux logos côte à côte). */
 export function PublicNav({ links, cta, classic = false }: { links: NavLink[]; cta?: ReactNode; classic?: boolean }) {
   const c = useChromeColors();
   const [menu, setMenu] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const loggedIn = isLoggedIn();
   // v0.7.7 — la pilule RÉTRÉCIT quand on descend, reprend sa taille en remontant.
   const [compact, setCompact] = useState(false);
@@ -370,27 +368,44 @@ export function PublicNav({ links, cta, classic = false }: { links: NavLink[]; c
           <img src={c.dark ? LOGO_DARK : LOGO_LIGHT} alt="Atlas" style={{ height: compact ? 19 : 24, width: 'auto', display: 'block', transition: 'height .18s ease' }} />
         </Link>
         {loggedIn && !classic ? (
-          <div className="pn-tabs" role="navigation" aria-label="Raccourcis espace de travail">
-            {PN_TABS.map((t) => (
-              <Link key={t.href} to={t.href} title={t.label} aria-label={t.label} style={tabSt()}>
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'block' }}>
+          <div className="settings-topbar-tabs pn-tabs" role="navigation" aria-label="Liens utiles">
+            {PN_TABS.filter((t) => {
+              if (t.id === 'terms') return location.pathname !== '/terms';
+              if (t.id === 'privacy') return location.pathname !== '/privacy';
+              return true;
+            }).map((t) => {
+              const svg = (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ display: 'block' }}>
                   <path d={t.d} />
                 </svg>
-              </Link>
-            ))}
-            <span className="pn-tabs-sep" aria-hidden />
-            <a href="/terms" title="Conditions d'utilisation" aria-label="Conditions d'utilisation" style={tabSt()}>
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'block' }}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6M9 15l2 2 4-4" /></svg>
-            </a>
-            <a href="/privacy" title="Confidentialité" aria-label="Confidentialité" style={tabSt()}>
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'block' }}><path d="M12 22s8-3.5 8-10V5l-8-3-8 3v7c0 6.5 8 10 8 10z" /></svg>
-            </a>
-            <button type="button" title="Préférences cookies" aria-label="Préférences cookies" style={tabSt({ border: 0, cursor: 'pointer' })} onClick={() => window.dispatchEvent(new Event('atlas-consent-open'))}>
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'block' }}><circle cx="12" cy="12" r="9" /><circle cx="9" cy="10" r="1" fill="currentColor" stroke="none" /><circle cx="14" cy="9" r="1" fill="currentColor" stroke="none" /><circle cx="10" cy="14" r="1" fill="currentColor" stroke="none" /></svg>
-            </button>
-            <button type="button" title="Revoir le guide d'accueil" aria-label="Revoir le guide d'accueil" style={tabSt({ border: 0, cursor: 'pointer' })} onClick={() => { resetWelcome(); navigate('/welcome'); }}>
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'block' }}><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
-            </button>
+              );
+              if (t.id === 'github') {
+                return (
+                  <button key={t.id} type="button" className="settings-topbar-tab secondary" title={t.label} aria-label={t.label} onClick={() => window.open('https://github.com/Etherealmber', '_blank', 'noopener,noreferrer')}>
+                    {svg}
+                  </button>
+                );
+              }
+              if (t.id === 'cookies') {
+                return (
+                  <button key={t.id} type="button" className="settings-topbar-tab secondary" title={t.label} aria-label={t.label} onClick={() => window.dispatchEvent(new Event('atlas-consent-open'))}>
+                    {svg}
+                  </button>
+                );
+              }
+              if (t.id === 'welcome') {
+                return (
+                  <button key={t.id} type="button" className="settings-topbar-tab secondary" title={t.label} aria-label={t.label} onClick={() => { resetWelcome(); navigate('/welcome'); }}>
+                    {svg}
+                  </button>
+                );
+              }
+              return (
+                <Link key={t.id} className="settings-topbar-tab secondary" to={`/${t.id}`} title={t.label} aria-label={t.label}>
+                  {svg}
+                </Link>
+              );
+            })}
           </div>
         ) : (
           <div className="pn-links" style={{ display: 'flex', gap: 2, margin: '0 auto', minWidth: 0, overflow: 'hidden' }}>

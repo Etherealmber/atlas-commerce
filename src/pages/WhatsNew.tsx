@@ -59,6 +59,12 @@ export const RELEASES: Release[] = [
           { id: '077i10', platforms: ['web'], text: 'Recherche globale : taper la recherche (Paramètres ou pilule publique) ouvre un PANNEAU LATÉRAL animé qui cherche vraiment partout — pages, routes, produits, clients, factures — avec le même sélecteur que le sélecteur de produits des popups (`.atlas-typeahead`), clavier ↑↓/Entrée/Échap' },
           { id: '077i11', platforms: ['web'], text: 'Le panneau recherche et l’Atlas Agent se superposent dans l’ordre d’ouverture (compteur de couches : jamais de boucle, aucun ne ferme l’autre)' },
           { id: '077i12', platforms: ['web'], text: 'Pilule publique unifiée sur le style Paramètres : connecté, onglets icônes (Tableau de bord, Vente rapide, Produits, Factures, Clients, Rapports) + bouton recherche dans la barre ; la carte de raccourcis séparée disparaît ; visiteur = liens texte façon accueil' },
+          { id: '077i13', platforms: ['web'], text: 'Recherche globale : plus aucun résultat affiché avant la première frappe ; l’historique de recherche est enregistré sur l’appareil (cache local), réutilisable et supprimable entrée par entrée ou en totalité' },
+          { id: '077i14', platforms: ['web'], text: 'La recherche des Paramètres devient une simple icône ; une icône recherche identique ouvre le panneau global depuis le tableau de bord et toutes les pages de l’application' },
+          { id: '077i15', platforms: ['web'], text: 'Barre du haut (À propos / Nouveautés) : liens utiles uniquement — Conditions d’utilisation, Confidentialité, GitHub, Guide d’accueil, Cookies — avec exactement les mêmes boutons que la topbar Paramètres ; la page en cours et les doublons de la sidebar disparaissent, y compris dans le menu du compte' },
+          { id: '077i16', platforms: ['web'], text: 'Filtres du journal des nouveautés lisibles en thème clair (les pastilles n’apparaissent plus en noir)' },
+          { id: '077i17', platforms: ['web'], text: 'La photo de profil s’affiche de nouveau dans la pastille de compte publique (initiales en base, image réelle par-dessus)' },
+          { id: '077i18', platforms: ['web'], text: 'Atlas Agent : quand l’accès est suspendu (abus ou injection de prompt détectée), la barre de saisie est masquée — seul l’avis de verrouillage reste visible' },
         ],
       },
       {

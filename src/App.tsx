@@ -1710,55 +1710,19 @@ function DesktopShell() {
           {isSettingsRoute && (
             <div className="settings-topbar-search-wrap">
               <div className="settings-topbar-search-inner">
-                <input
-                  type="text"
-                  className="settings-topbar-search"
-                  placeholder="Rechercher : réglage, produit, client, facture…"
-                  value=""
-                  readOnly
-                  autoComplete="off"
-                  onFocus={(e) => {
+                <button
+                  type="button"
+                  className="settings-topbar-search-icon"
+                  aria-label="Recherche globale"
+                  title="Recherche globale"
+                  onClick={() => {
                     // v0.7.7 — tap = panneau latéral (au-dessus de l'Agent si ouvert)
-                    e.currentTarget.blur();
                     setSettingsSearchOpen(false);
                     window.dispatchEvent(new Event('atlas-search-open'));
                   }}
-                  onChange={(e) => {
-                    setSettingsTopSearch(e.target.value);
-                    setSettingsSearchOpen(true);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape') {
-                      setSettingsTopSearch('');
-                      setSettingsSearchOpen(false);
-                    }
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      const hits = searchSettings(settingsTopSearch).hits.length
-                        ? searchSettings(settingsTopSearch).hits
-                        : searchSettings(settingsTopSearch).suggestions;
-                      if (hits[0]) {
-                        pushSearchHistory(hits[0].label);
-                        setSettingsSearchHistory(loadSearchHistory());
-                        setSettingsSearchOpen(false);
-                        setSettingsTopSearch('');
-                        setPendingAnchor(hits[0].id, hits[0].tab);
-                        navigate(`/settings?tab=${encodeURIComponent(hits[0].tab)}`);
-                        window.setTimeout(() => {
-                          try {
-                            window.dispatchEvent(
-                              new CustomEvent('atlas-settings-go-anchor', {
-                                detail: { id: hits[0].id, tab: hits[0].tab },
-                              }),
-                            );
-                          } catch { /* */ }
-                        }, 100);
-                      }
-                    }
-                  }}
-                  aria-label="Rechercher dans les paramètres"
-                  aria-expanded={settingsSearchOpen}
-                />
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
+                </button>
                 {settingsTopSearch ? (
                   <button
                     type="button"
@@ -1944,6 +1908,15 @@ function DesktopShell() {
             </div>
           )}
           <div className="settings-topbar-right">
+            <button
+              type="button"
+              className="settings-topbar-tab secondary"
+              aria-label="Recherche globale"
+              title="Recherche globale"
+              onClick={() => window.dispatchEvent(new Event('atlas-search-open'))}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
+            </button>
             <div className="settings-topbar-theme" role="group" aria-label="Thème">
               <button type="button" data-theme-toggle className={themeMode === 'system' ? 'active' : undefined} title="Système" aria-label="Système" aria-pressed={themeMode === 'system'} onClick={() => setThemeMode('system')}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" aria-hidden><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
