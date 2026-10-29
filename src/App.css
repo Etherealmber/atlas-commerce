@@ -20447,3 +20447,97 @@ html body .settings-topbar-tabs::-webkit-scrollbar { display: none; }
   }
 }
 button.pn-chip { font: inherit; }
+
+/* ═══ v0.7.7 — panneau de recherche global : tiroir droit animé, au-dessus
+   de l'Atlas Agent si ouvert après lui (couches --z-search / --z-agent). ═══ */
+.gsp {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(440px, 94vw);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  background: #ffffff;
+  border-left: 1px solid #e4e4e7;
+  box-shadow: -24px 0 60px rgba(0, 0, 0, .18);
+  transform: translateX(102%);
+  animation: gsp-in .24s cubic-bezier(.2, .8, .2, 1) forwards;
+}
+html[data-theme='dark'] .gsp {
+  background: #18181b;
+  border-left-color: #27272a;
+  box-shadow: -24px 0 60px rgba(0, 0, 0, .5);
+}
+@keyframes gsp-in {
+  from { transform: translateX(102%); opacity: .4; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.gsp-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 12px;
+  border: 1px solid #e4e4e7;
+  border-radius: 999px;
+  background: #fafafa;
+  color: #18181b;
+}
+html[data-theme='dark'] .gsp-head { background: #101013; border-color: #27272a; color: #fafafa; }
+.gsp-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+}
+.gsp-close {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: .65;
+}
+.gsp-close:hover { opacity: 1; }
+.gsp-list.atlas-typeahead-menu {
+  position: static !important;
+  flex: 1;
+  overflow-y: auto;
+  max-height: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 2px;
+}
+.gsp-hint {
+  margin: 0;
+  font-size: 11px;
+  color: #71717a;
+  text-align: center;
+}
+/* Agent Atlas : couche dynamique (ouvert en dernier = au-dessus) */
+.atlas-agent-panel { z-index: var(--z-agent, 110); }
+/* onglets icônes de la pilule publique (connectés) */
+.pn-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 0 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.pn-tabs::-webkit-scrollbar { display: none; }
+@media (max-width: 960px) {
+  .pn-tabs { display: none !important; }
+}
+.settings-topbar-search { cursor: pointer; }

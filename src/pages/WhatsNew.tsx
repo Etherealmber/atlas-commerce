@@ -56,6 +56,9 @@ export const RELEASES: Release[] = [
           { id: '077f13', platforms: ['web'], text: 'La chip profil publique devient un vrai menu déroulant (comme aux Paramètres) : Tableau de bord, À propos, Nouveautés et Déconnexion — avatar/logo visible sur toutes les pages' },
           { id: '077f14', platforms: ['web'], text: 'Topbar Paramètres élargie (1560 px) et onglets forcés sur UNE seule ligne (fin du wrap venu de dark-force) ; icônes resserrées sous 1500 px' },
           { id: '077f15', platforms: ['web'], text: 'Fin du scintillement des topbars au scroll : le passage compact/normal exige désormais 48 px de scroll cumulés dans une direction (hystérésis), sur la pilule publique comme sur la topbar Paramètres' },
+          { id: '077i10', platforms: ['web'], text: 'Recherche globale : taper la recherche (Paramètres ou pilule publique) ouvre un PANNEAU LATÉRAL animé qui cherche vraiment partout — pages, routes, produits, clients, factures — avec le même sélecteur que le sélecteur de produits des popups (`.atlas-typeahead`), clavier ↑↓/Entrée/Échap' },
+          { id: '077i11', platforms: ['web'], text: 'Le panneau recherche et l’Atlas Agent se superposent dans l’ordre d’ouverture (compteur de couches : jamais de boucle, aucun ne ferme l’autre)' },
+          { id: '077i12', platforms: ['web'], text: 'Pilule publique unifiée sur le style Paramètres : connecté, onglets icônes (Tableau de bord, Vente rapide, Produits, Factures, Clients, Rapports) + bouton recherche dans la barre ; la carte de raccourcis séparée disparaît ; visiteur = liens texte façon accueil' },
         ],
       },
       {

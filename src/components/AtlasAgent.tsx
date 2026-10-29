@@ -3,6 +3,7 @@
  */
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import LatticeLoader from './ui/LatticeLoader';
+import { bumpAtlasLayer } from './GlobalSearchPanel';
 import PromptBar from './ui/PromptBar';
 import { ImageLightbox } from './ui/ImageLightbox';
 import { sanitizeImageDataUrl , getUsername } from '../auth';
@@ -796,6 +797,9 @@ export default function AtlasAgent() {
       localStorage.setItem(activeThreadKey(), threadId);
     } catch { /* */ }
     document.documentElement.classList.toggle('atlas-agent-docked', open);
+    // v0.7.7 — l'agent ouvert passe AU-DESSUS du panneau recherche ouvert avant
+    // (et réciproquement) : compteur de couches partagé, jamais de boucle.
+    if (open) bumpAtlasLayer('--z-agent');
     return () => document.documentElement.classList.remove('atlas-agent-docked');
   }, [open, threadId]);
 
