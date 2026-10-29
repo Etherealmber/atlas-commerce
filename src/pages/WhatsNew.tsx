@@ -31,6 +31,25 @@ type Release = {
 
 export const RELEASES: Release[] = [
   {
+    version: '0.7.7-beta',
+    date: '30 octobre 2026',
+    sections: [
+      {
+        kind: 'fixes',
+        items: [
+          { id: '077f1', platforms: ['web'], text: '« / » ne redirige plus les utilisateurs connectés : la homepage publique reste visible même en session — la page d’ouverture ne s’applique qu’au moment de la connexion (et dans la PWA / la WebView Android)' },
+          { id: '077f2', platforms: ['web'], text: 'À propos et Nouveautés affichent exactement la même navigation qu’un visiteur non connecté (Accueil · Bureau · Android · …) : plus de rangée de liens « connectés » ni de bouton « Tableau de bord » sur ces pages ; seul le bouton Se connecter / Ouvrir l’app suit la session' },
+        ],
+      },
+      {
+        kind: 'improvements',
+        items: [
+          { id: '077i1', platforms: ['web'], text: 'La barre des Paramètres adopte le même langage que la navigation publique : pilule flottante en blur, bordures et fonds zinc/terracotta selon le thème — tout en gardant les onglets de sections, la recherche, le toggle de thème et le profil utilisateur' },
+        ],
+      },
+    ],
+  },
+  {
     version: '0.7.6-beta',
     date: '30 octobre 2026',
     sections: [
