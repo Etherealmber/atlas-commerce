@@ -107,7 +107,7 @@ export default function EmailVerify() {
           role: data.role,
         });
         setStatus('ok');
-        window.setTimeout(() => navigate('/', { replace: true }), 1400);
+        window.setTimeout(() => navigate('/dashboard', { replace: true }), 1400);
       } catch {
         setError('Erreur réseau. Vérifiez votre connexion puis rouvrez le lien du mail.');
         setStatus('error');

@@ -3,7 +3,7 @@
   "short_name": "Atlas",
   "description": "Stock, scans mobiles et facturation.",
   "lang": "fr",
-  "start_url": "/",
+  "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#F7F3EB",
   "theme_color": "#0a0a0a",

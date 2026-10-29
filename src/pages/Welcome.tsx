@@ -592,7 +592,7 @@ export default function Welcome() {
   const [compareTab, setCompareTab] = useState<'paper' | 'erp'>('paper');
 
   useEffect(() => {
-    if (isWelcomeCompleted()) navigate('/', { replace: true });
+    if (isWelcomeCompleted()) navigate('/dashboard', { replace: true });
   }, [navigate]);
 
   useEffect(() => {
@@ -674,7 +674,7 @@ export default function Welcome() {
     markWelcomeCompleted();
     setShowTour(true);
     window.setTimeout(() => {
-      navigate('/', { replace: true });
+      navigate('/dashboard', { replace: true });
       try {
         window.location.reload();
       } catch {
@@ -687,7 +687,7 @@ export default function Welcome() {
 
   return (
     <div className={`welcome-stage${leaving ? ' welcome-leaving' : ''}`} data-step={step}>
-      {showTour ? <FeatureTour steps={tourSteps} onClose={() => { setShowTour(false); navigate('/'); }} /> : null}
+      {showTour ? <FeatureTour steps={tourSteps} onClose={() => { setShowTour(false); navigate('/dashboard'); }} /> : null}
 
       <div className="welcome-ambient" aria-hidden />
       <div

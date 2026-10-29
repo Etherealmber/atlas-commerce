@@ -15,7 +15,7 @@ export default function DownloadTeaser() {
     try { return localStorage.getItem(KEY) === 'off'; } catch { return true; }
   });
   const loc = useLocation();
-  if (hidden || loc.pathname === '/download') return null;
+  if (hidden || ['/', '/download', '/desktop'].includes(loc.pathname)) return null;
   const dismiss = () => {
     try { localStorage.setItem(KEY, 'off'); } catch { /* private mode */ }
     setHidden(true);
