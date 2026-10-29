@@ -1102,28 +1102,41 @@ html[data-theme="dark"] .settings-section-head h2 {
 
 /* ── Cookie consent (GDPR) — solid panel, never translucent glass ── */
 .cookie-consent {
+  /* v0.7.2 — small floating card, bottom-center, above everything,
+     non-blocking: the page stays fully usable while it is visible. */
   position: fixed;
-  inset: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: max(12px, env(safe-area-inset-bottom, 0px));
   z-index: 10050;
   display: flex;
-  align-items: center;
   justify-content: center;
-  padding: 16px 16px max(16px, env(safe-area-inset-bottom, 0px));
-  background: rgba(15, 23, 22, 0.55) !important;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  pointer-events: auto;
+  width: min(430px, calc(100vw - 20px));
+  pointer-events: none;
+  background: transparent !important;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.cookie-consent-close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  padding: 2px 7px !important;
+  font-size: 14px;
+  line-height: 1;
 }
 .cookie-consent-card {
+  position: relative;
+  pointer-events: auto;
   width: 100%;
-  max-width: 520px;
+  max-width: 430px;
   /* Force solid surfaces — ignore liquid-glass --paper / --bg-elevated */
   background: #faf9f6 !important;
   color: #0f172a !important;
   border: 1px solid #e5e0d6 !important;
-  border-radius: 20px;
-  box-shadow: 0 16px 48px rgba(15, 23, 42, 0.22) !important;
-  padding: 20px 20px 16px;
+  border-radius: 14px;
+  box-shadow: 0 10px 32px rgba(15, 23, 42, 0.28) !important;
+  padding: 12px 14px 10px;
   isolation: isolate;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
@@ -1135,15 +1148,15 @@ html[data-theme="dark"] .cookie-consent-card {
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5) !important;
 }
 .cookie-consent-head h2 {
-  margin: 0 0 8px;
-  font-size: 1.1rem;
+  margin: 0 0 4px;
+  font-size: 13px;
   font-weight: 700;
   color: inherit;
 }
 .cookie-consent-head p {
   margin: 0;
-  font-size: 13.5px;
-  line-height: 1.55;
+  font-size: 11.5px;
+  line-height: 1.5;
   color: #9aa3b5;
 }
 html[data-theme="dark"] .cookie-consent-head p {
@@ -1170,12 +1183,12 @@ html[data-theme="dark"] .cookie-consent-details {
 }
 .cookie-consent-row {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   align-items: flex-start;
-  font-size: 13px;
-  line-height: 1.45;
+  font-size: 12px;
+  line-height: 1.4;
   cursor: pointer;
-  padding: 12px 14px;
+  padding: 8px 10px;
   margin: 0;
   border-bottom: 1px solid #efebe3;
   background: transparent !important;
@@ -1202,8 +1215,8 @@ html[data-theme="dark"] .cookie-consent-row {
   display: block;
   font-style: normal;
   color: #64748b;
-  font-size: 12px;
-  margin-top: 3px;
+  font-size: 11px;
+  margin-top: 2px;
 }
 html[data-theme="dark"] .cookie-consent-row em {
   color: #94a3b8;

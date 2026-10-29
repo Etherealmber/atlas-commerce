@@ -31,6 +31,35 @@ type Release = {
 
 export const RELEASES: Release[] = [
   {
+    version: '0.7.2-beta',
+    date: '29 octobre 2026',
+    sections: [
+      {
+        kind: 'features',
+        items: [
+          { id: '072a1', platforms: ['server'], text: 'OTP obligatoire à chaque connexion par mot de passe (owner inclus) : fin du bypass « appareil de confiance », premier login d’un compte neuf compris ; le code part sur l’e-mail du compte, sinon sur l’e-mail principal de la société' },
+          { id: '072a2', platforms: ['server', 'android'], text: 'Ajustements de stock : circuit de demandes approbées (POST/GET /api/stock-adjustment-requests, approve/reject owner·admin·secrétaire, application atomique + audit) ; l’écran Notifications Android liste les demandes pendantes' },
+          { id: '072a3', platforms: ['web'], text: 'Aperçus PDF au vrai format par type (reçu, avoir/WR, fiche employé, rapport) avec QR, données démo marquées DÉMO, sans impression automatique et liens ouverts dans le popup' },
+        ],
+      },
+      {
+        kind: 'improvements',
+        items: [
+          { id: '072i1', platforms: ['server'], text: 'Confidentialité inventaire par rôle côté serveur : magasinier/opérateur ne reçoivent plus prix ni coûts (liste, scan, dashboard, contexte Agent) ; rapports comptables réservés owner/admin' },
+          { id: '072i2', platforms: ['web'], text: 'Modale « Appareils connectés » : nom d’appareil lisible (Atlas Android · modèle, Chrome · Windows…) et ville/pays selon l’IP au lieu de l’empreinte hexadécimale' },
+          { id: '072i3', platforms: ['web'], text: 'Bannière cookies : fini le plein écran — petite carte flottante en bas au centre, au-dessus de tout, non bloquante ; absente de /download, /whats-new et /about qui ne posent aucun cookie' },
+        ],
+      },
+      {
+        kind: 'fixes',
+        items: [
+          { id: '072f1', platforms: ['server'], text: 'Déploiements Cloudflare fiabilisés : test de boot du worker en CI — toute référence manquante dans un module de routes casse désormais la CI, plus le deploy prod' },
+          { id: '072f2', platforms: ['web'], text: 'Sécurité dépendances : undici 7.30.1 (override, 0 vulnérabilité npm audit) ; éditeur d’image sanitisé (data-URL image strictes uniquement, CodeQL)' },
+        ],
+      },
+    ],
+  },
+  {
     version: '0.7.1-beta',
     date: '28 octobre 2026',
     sections: [
