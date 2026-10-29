@@ -20428,3 +20428,22 @@ html[data-theme='light'] .hm-arc-tile { box-shadow: 0 12px 26px rgba(0, 0, 0, .1
 
 /* ═══ v0.7.7 — topbar Paramètres : onglets sur une seule ligne ═══ */
 .settings-topbar-tabs { flex-wrap: nowrap; }
+
+/* ═══ v0.7.7 — topbar Paramètres : plus large + onglets UNE ligne (force le
+   nowrap par-dessus le `flex-wrap: wrap !important` de dark-force). ═══ */
+.settings-topbar { max-width: 1560px; }
+html body .settings-topbar-tabs {
+  flex-wrap: nowrap !important;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+html body .settings-topbar-tabs::-webkit-scrollbar { display: none; }
+@media (max-width: 1500px) {
+  html body .settings-topbar-tabs { gap: 4px !important; }
+  html body .settings-topbar-tab {
+    width: 32px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+  }
+}
+button.pn-chip { font: inherit; }

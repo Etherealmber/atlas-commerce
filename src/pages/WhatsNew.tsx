@@ -52,6 +52,10 @@ export const RELEASES: Release[] = [
           { id: '077f10', platforms: ['web'], text: 'La page de téléchargement Android déménage : /android est la nouvelle adresse (tous les liens mis à jour), /download redirige automatiquement — cookies, teaser et CTA suivent' },
           { id: '077f11', platforms: ['web'], text: 'Paramètres : le bloc-titre « Espace de travail / Paramètres / Identité, fiscalité… » est supprimé (la topbar porte déjà ces informations) et les onglets de la topbar tiennent désormais sur une seule ligne' },
           { id: '077i9', platforms: ['web'], text: 'Connecté, une carte flottante SÉPARÉE apparaît à côté de la pilule sur À propos et Nouveautés : raccourcis « Tableau de bord » et « Paramètres » (icônes seules sur mobile) ; la chip profil publique est fiabilisée (slot avatar 26 px fixe, nom/rôle ellipsés)' },
+          { id: '077f12', platforms: ['web'], text: 'Raccourcis connectés : rangée d’icônes façon onglets Paramètres (Tableau de bord, Vente rapide, Produits, Factures, Clients, Rapports) ancrée À DROITE de la pilule, uniquement sur À propos / Nouveautés et uniquement connecté — sans bouton Paramètres' },
+          { id: '077f13', platforms: ['web'], text: 'La chip profil publique devient un vrai menu déroulant (comme aux Paramètres) : Tableau de bord, À propos, Nouveautés et Déconnexion — avatar/logo visible sur toutes les pages' },
+          { id: '077f14', platforms: ['web'], text: 'Topbar Paramètres élargie (1560 px) et onglets forcés sur UNE seule ligne (fin du wrap venu de dark-force) ; icônes resserrées sous 1500 px' },
+          { id: '077f15', platforms: ['web'], text: 'Fin du scintillement des topbars au scroll : le passage compact/normal exige désormais 48 px de scroll cumulés dans une direction (hystérésis), sur la pilule publique comme sur la topbar Paramètres' },
         ],
       },
       {
