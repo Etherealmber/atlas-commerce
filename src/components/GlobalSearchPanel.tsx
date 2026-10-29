@@ -57,11 +57,24 @@ const APP_ROWS: SearchRow[] = [
 
 let dynCache: { at: number; rows: SearchRow[] } | null = null;
 
+const HIST_KEY = 'atlas-search-history-v1';
+const loadHist = (): string[] => {
+  try {
+    const raw = localStorage.getItem(HIST_KEY);
+    const arr = raw ? (JSON.parse(raw) as unknown) : [];
+    return Array.isArray(arr) ? arr.filter((x): x is string => typeof x === 'string').slice(0, 12) : [];
+  } catch { return []; }
+};
+const saveHist = (h: string[]) => {
+  try { localStorage.setItem(HIST_KEY, JSON.stringify(h.slice(0, 12))); } catch { /* privé */ }
+};
+
 export default function GlobalSearchPanel() {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const [hi, setHi] = useState(0);
   const [dyn, setDyn] = useState<SearchRow[]>(() => dynCache?.rows || []);
+  const [hist, setHist] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const navigate = useNavigate();
   const loggedIn = typeof isLoggedIn === 'function' ? isLoggedIn() : false;
@@ -71,6 +84,7 @@ export default function GlobalSearchPanel() {
       bumpAtlasLayer('--z-search');
       setQ('');
       setHi(0);
+      setHist(loadHist());
       setOpen(true);
     };
     const onClose = () => setOpen(false);
@@ -150,7 +164,20 @@ export default function GlobalSearchPanel() {
 
   if (!open) return null;
 
+  const pushHist = (term: string) => {
+    const t = term.trim();
+    if (!t) return;
+    const next = [t, ...loadHist().filter((x) => x !== t)].slice(0, 12);
+    saveHist(next);
+    setHist(next);
+  };
+  const dropHist = (term: string) => {
+    const next = loadHist().filter((x) => x !== term);
+    saveHist(next);
+    setHist(next);
+  };
   const go = (r: SearchRow) => {
+    if (q.trim()) pushHist(q);
     setOpen(false);
     navigate(r.href);
   };
@@ -189,7 +216,31 @@ export default function GlobalSearchPanel() {
         </button>
       </div>
       <div className="atlas-typeahead-menu gsp-list" role="listbox" aria-label="Résultats">
-        {results.map((r, i) => (
+        {!q.trim() && hist.length > 0 && (
+          <div className="gsp-hist">
+            <div className="gsp-hist-head">
+              <span>Historique (cet appareil)</span>
+              <button type="button" className="gsp-hist-clear" onClick={() => { saveHist([]); setHist([]); }}>
+                Tout effacer
+              </button>
+            </div>
+            {hist.map((h) => (
+              <div key={h} className="gsp-hist-row">
+                <button type="button" className="gsp-hist-item" onClick={() => setQ(h)}>
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true" style={{ display: 'block' }}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" /></svg>
+                  {h}
+                </button>
+                <button type="button" className="gsp-hist-x" aria-label={`Retirer ${h} de l'historique`} onClick={() => dropHist(h)}>
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true" style={{ display: 'block' }}><path d="M6 6l12 12M18 6L6 18" /></svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        {!q.trim() && hist.length === 0 && (
+          <div className="atlas-typeahead-empty">Tapez un mot pour chercher partout…</div>
+        )}
+        {q.trim() && results.map((r, i) => (
           <button
             key={r.id}
             type="button"
@@ -207,7 +258,7 @@ export default function GlobalSearchPanel() {
             {r.meta ? <span className="atlas-typeahead-meta">{r.meta}</span> : null}
           </button>
         ))}
-        {!results.length && (
+        {q.trim() && !results.length && (
           <div className="atlas-typeahead-empty">Aucun résultat pour « {q} »</div>
         )}
       </div>

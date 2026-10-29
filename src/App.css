@@ -20553,20 +20553,25 @@ html[data-theme='dark'] .gsp-head { background: #101013; border-color: #27272a; 
 .wn-filter {
   padding: 8px 16px;
   border-radius: 999px;
-  border: 1px solid var(--dl-line, #26262a);
-  background: var(--dl-card, #141416);
-  color: var(--dl-sub, #a1a1aa);
+  border: 1px solid #e4e4e7;
+  background: #fff;
+  color: #52525b;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
   transition: background .15s ease, color .15s ease, border-color .15s ease;
 }
-.wn-filter:hover { color: var(--dl-ink, #fafafa); }
-.wn-filter.active {
+.wn-filter:hover { color: #18181b; background: #f4f4f5; }
+.wn-filter.active,
+.wn-filter.active:hover {
   background: #c45c26;
   border-color: #c45c26;
   color: #fff;
 }
+html[data-theme="dark"] .wn-filter { border-color: #26262a; background: #141416; color: #a1a1aa; }
+html[data-theme="dark"] .wn-filter:hover { color: #fafafa; background: #1c1c1f; }
+html[data-theme="dark"] .wn-filter.active,
+html[data-theme="dark"] .wn-filter.active:hover { background: #c45c26; border-color: #c45c26; color: #fff; }
 .wn-copy {
   display: inline-flex;
   align-items: center;
@@ -20574,19 +20579,102 @@ html[data-theme='dark'] .gsp-head { background: #101013; border-color: #27272a; 
   margin-left: 10px;
   padding: 4px 10px;
   border-radius: 999px;
-  border: 1px solid var(--dl-line, #26262a);
+  border: 1px solid #e4e4e7;
   background: transparent;
-  color: var(--dl-sub, #a1a1aa);
+  color: #52525b;
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
   vertical-align: middle;
 }
-.wn-copy:hover { color: var(--dl-accent, #e0a184); border-color: var(--dl-accent, #e0a184); }
+.wn-copy:hover { color: #b4531f; border-color: #b4531f; }
+html[data-theme="dark"] .wn-copy { border-color: #26262a; color: #a1a1aa; }
+html[data-theme="dark"] .wn-copy:hover { color: #e0a184; border-color: #e0a184; }
 .pn-tabs-sep {
   width: 1px;
   height: 20px;
   margin: 0 4px;
-  background: var(--dl-line, #26262a);
+  background: #e4e4e7;
   opacity: .7;
 }
+html[data-theme="dark"] .pn-tabs-sep { background: #26262a; }
+
+
+/* ═══ v0.7.7 — recherche : icône seule en topbar Paramètres + historique appareil ═══ */
+.settings-topbar-search-icon {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  flex: 0 0 auto;
+  transition: background .15s ease, border-color .15s ease;
+}
+.settings-topbar-search-icon:hover { background: color-mix(in srgb, currentColor 8%, transparent); }
+
+.gsp-hist { display: block; }
+.gsp-hist-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--zinc-500, #71717a);
+}
+.gsp-hist-clear {
+  border: 0;
+  background: transparent;
+  color: #c45c26;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+.gsp-hist-clear:hover { background: color-mix(in srgb, #c45c26 12%, transparent); }
+.gsp-hist-row { display: flex; align-items: center; gap: 4px; }
+.gsp-hist-item {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.gsp-hist-item:hover { background: color-mix(in srgb, currentColor 7%, transparent); }
+.gsp-hist-x {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  margin-right: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--zinc-500, #71717a);
+  cursor: pointer;
+}
+.gsp-hist-x:hover { background: color-mix(in srgb, #ef4444 14%, transparent); color: #ef4444; }
+
+/* avatar chip : initiales en base, image réelle par-dessus (fini le rond noir vide) */
+.pn-chip-avatar-slot { position: relative; background: transparent; }
+.pn-chip-ini--base { position: absolute; inset: 0; }
+.pn-chip-avatar-slot .pn-chip-avatar { position: absolute; inset: 0; z-index: 1; }
