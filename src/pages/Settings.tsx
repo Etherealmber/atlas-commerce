@@ -778,8 +778,9 @@ if (loading) return (
           <p className="atlas-lead" style={{ marginBottom: 0, maxWidth: '100%', overflowWrap: 'anywhere', whiteSpace: 'normal' }}>
             Identité, fiscalité, banque et sécurité de l&apos;espace de travail.
           </p>
-          {/* v0.7 — même meta que login/à propos : version · date · liens */}
-          <p className="about-meta-line" style={{ textAlign: 'left', margin: '8px 0 0' }}>
+          {/* v0.7 — même meta que login/à propos : version · date · liens.
+              v0.7.5 — jamais affichée en session connectée. */}
+          <p className="about-meta-line" style={{ textAlign: 'left', margin: '8px 0 0', display: 'none' }}>
             v{APP_VERSION} · {APP_BUILD_DATE}
             <span aria-hidden> · </span>
             <Link to="/whats-new">Nouveautés</Link>

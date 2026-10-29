@@ -1974,7 +1974,10 @@ function DesktopShell() {
             ) : (
             <Routes>
               <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              {/* v0.7.5 — parent "/dashboard/*" : le reste "/" EST le dashboard
+                  (un Navigate vers /dashboard rebouclait : même URL → re-render
+                  infini → « Throttling navigation » + contenu vide). */}
+              <Route path="/" element={<Dashboard />} />
               <Route path="/actions" element={<Actions />} />
               <Route path="/products" element={<Products />} />
               <Route path="/scan" element={<RoleGate allow={canManageStock()}><Scan /></RoleGate>} />
@@ -2199,7 +2202,7 @@ export default function App() {
             <Route path="/download" element={<DownloadRoute />} />
             <Route path="/" element={<HomeRoute />} />
             <Route path="/desktop" element={<DesktopRoute />} />
-            <Route path="/dashboard" element={<Protected><Shell /></Protected>} />
+            <Route path="/dashboard/*" element={<Protected><Shell /></Protected>} />
             <Route path="/*" element={<Protected><Shell /></Protected>} />
           </Routes>
           <CookieConsent />

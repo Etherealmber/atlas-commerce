@@ -1,5 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { QRCodeSVG } from 'qrcode.react';
 import { APP_VERSION } from '../version';
 import {
   PublicNav,
@@ -23,6 +24,75 @@ const NAV: NavLink[] = [
   { href: '/whats-new', label: 'Nouveautés' },
   { href: '/about', label: 'À propos' },
 ];
+
+/** Fond animé du hero (particules lumineuses dérivantes, façon Liner).
+ * Respecte prefers-reduced-motion : une seule image fixe est alors peinte. */
+function HeroCanvas() {
+  const ref = useRef<HTMLCanvasElement | null>(null);
+  useEffect(() => {
+    const cv = ref.current;
+    if (!cv) return;
+    const ctx = cv.getContext('2d');
+    if (!ctx) return;
+    let raf = 0;
+    let w = 0;
+    let h = 0;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const dots = Array.from({ length: 46 }, () => ({
+      x: Math.random(),
+      y: Math.random(),
+      r: 0.8 + Math.random() * 2.1,
+      p: Math.random() * Math.PI * 2,
+      v: 0.4 + Math.random() * 0.8,
+    }));
+    const resize = () => {
+      const r = cv.getBoundingClientRect();
+      w = cv.width = Math.max(1, Math.floor(r.width * dpr));
+      h = cv.height = Math.max(1, Math.floor(r.height * dpr));
+    };
+    const draw = (t: number) => {
+      ctx.clearRect(0, 0, w, h);
+      for (const d of dots) {
+        const x = (d.x + Math.sin(t * 0.00006 * d.v + d.p) * 0.03) * w;
+        const y = (d.y + Math.cos(t * 0.00005 * d.v + d.p) * 0.045) * h;
+        const rad = d.r * 7 * dpr;
+        const g = ctx.createRadialGradient(x, y, 0, x, y, rad);
+        g.addColorStop(0, 'rgba(228, 113, 58, .38)');
+        g.addColorStop(1, 'rgba(228, 113, 58, 0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(x, y, rad, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    };
+    const loop = (t: number) => {
+      draw(t);
+      raf = requestAnimationFrame(loop);
+    };
+    resize();
+    window.addEventListener('resize', resize);
+    const reduce =
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) draw(1200);
+    else raf = requestAnimationFrame(loop);
+    const onVis = () => {
+      if (document.hidden) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      } else if (!reduce && !raf) {
+        raf = requestAnimationFrame(loop);
+      }
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', resize);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, []);
+  return <canvas ref={ref} className="hm-canvas" aria-hidden="true" />;
+}
 
 /** Révélation douce au scroll (IntersectionObserver, une seule fois). */
 function useRiseObserver() {
@@ -49,13 +119,86 @@ function useRiseObserver() {
   }, []);
 }
 
-const ARC_TOOLS = [
-  { icon: '📒', label: 'Le cahier de caisse', pos: 'p1' },
-  { icon: '📊', label: 'Les classeurs Excel', pos: 'p2' },
-  { icon: '📝', label: 'Les devis sur Word', pos: 'p3' },
-  { icon: '🧮', label: 'La calculatrice', pos: 'p4' },
-  { icon: '💬', label: 'Les relances WhatsApp', pos: 'p5' },
-  { icon: '📸', label: 'Les photos de bons', pos: 'p6' },
+/* v0.7.5 — icônes SVG dessinées à la main (fini les emojis) : chaque outil
+   remplacé garde sa couleur de marque, l'arc reste lisible en clair/sombre. */
+const IC_BOOK = (
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <rect x="4" y="3" width="16" height="18" rx="2.5" fill="#d4a017" />
+    <path d="M8 3v18" stroke="#8a6a12" strokeWidth="1.6" />
+    <path d="M11 8h6M11 12h6M11 16h4" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" />
+  </svg>
+);
+const IC_EXCEL = (
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <rect x="3" y="3" width="18" height="18" rx="3" fill="#107c41" />
+    <path d="M9.2 8.2l5.6 7.6M14.8 8.2l-5.6 7.6" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" />
+  </svg>
+);
+const IC_WORD = (
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <rect x="3" y="3" width="18" height="18" rx="3" fill="#185abd" />
+    <path d="M7.5 8.5l1.7 7 2.3-5 2.3 5 1.7-7" stroke="#fff" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+const IC_CALC = (
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <rect x="5" y="2.5" width="14" height="19" rx="3" fill="#3f3f46" />
+    <rect x="7.5" y="5" width="9" height="4" rx="1" fill="#a1a1aa" />
+    <circle cx="9" cy="12.5" r="1.2" fill="#fafafa" /><circle cx="12" cy="12.5" r="1.2" fill="#fafafa" /><circle cx="15" cy="12.5" r="1.2" fill="#fafafa" />
+    <circle cx="9" cy="16.5" r="1.2" fill="#fafafa" /><circle cx="12" cy="16.5" r="1.2" fill="#fafafa" /><circle cx="15" cy="16.5" r="1.2" fill="#c45c26" />
+  </svg>
+);
+const IC_WHATS = (
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="#25d366" aria-hidden="true">
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z" />
+  </svg>
+);
+const IC_CAM = (
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M4 8h3l2-2.5h6L17 8h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" />
+    <circle cx="12" cy="13.5" r="3.4" />
+  </svg>
+);
+const IC_PDF = (
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M6 2.5h8l4.5 4.5v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-17.5a1 1 0 0 1 1-1Z" fill="#e11d48" />
+    <path d="M14 2.5V7h4.5" fill="#9f1239" />
+    <path d="M8.5 12h7M8.5 15h7M8.5 18h4.5" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" />
+  </svg>
+);
+const IC_GLOBE = (
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="9" />
+    <path d="M3 12h18M12 3c2.6 2.5 3.9 5.6 3.9 9S14.6 18.5 12 21c-2.6-2.5-3.9-5.6-3.9-9S9.4 5.5 12 3Z" />
+  </svg>
+);
+const IC_PHONE = (
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">
+    <rect x="7" y="2.5" width="10" height="19" rx="2.5" />
+    <path d="M11 18.5h2" />
+  </svg>
+);
+const IC_DESK = (
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="2.5" y="4" width="19" height="12.5" rx="2" />
+    <path d="M9 20.5h6M12 16.5v4" />
+  </svg>
+);
+const IC_REPO = (
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M21 8.5 12 3.5 3 8.5l9 5 9-5Z" />
+    <path d="M3 8.5v7l9 5 9-5v-7" />
+    <path d="M12 13.5v7" />
+  </svg>
+);
+
+const ARC_TOOLS: { icon: ReactNode; label: string; pos: string }[] = [
+  { icon: IC_BOOK, label: 'Le cahier de caisse', pos: 'p1' },
+  { icon: IC_EXCEL, label: 'Les classeurs Excel', pos: 'p2' },
+  { icon: IC_WORD, label: 'Les devis sur Word', pos: 'p3' },
+  { icon: IC_CALC, label: 'La calculatrice', pos: 'p4' },
+  { icon: IC_WHATS, label: 'Les relances WhatsApp', pos: 'p5' },
+  { icon: IC_CAM, label: 'Les photos de bons', pos: 'p6' },
 ];
 
 export default function Home() {
@@ -76,6 +219,7 @@ export default function Home() {
       <main className="hm-main">
         {/* ---------------- Hero ---------------- */}
         <section className="hm-hero">
+          <HeroCanvas />
           <p className="hm-eyebrow">ATLAS · GESTION COMMERCIALE OPEN SOURCE</p>
           <h1>
             Tout votre commerce,
@@ -158,8 +302,24 @@ export default function Home() {
               <p>Balance âgée, clients à relancer et historique de paiement — sans Post-it.</p>
             </div>
             <div className="hm-bento-card rise">
-              <div className="hm-fx hm-fx-qr" aria-hidden="true">
-                <span className="hm-qr" />
+              <div className="hm-fx hm-fx-qr">
+                <span className="hm-qrwrap" title="QR de vérification publique — scannez-moi">
+                  {/* v0.7.5 — vrai QR (qrcode.react) pointant vers la vérification
+                      publique, logo Atlas excavé au centre, comme sur les reçus. */}
+                  <QRCodeSVG
+                    value="https://stock.afmarbre.com/verify"
+                    size={62}
+                    level="M"
+                    bgColor="#ffffff"
+                    fgColor="#18181b"
+                    imageSettings={{
+                      src: '/atlas-icon-dark.png',
+                      width: 18,
+                      height: 18,
+                      excavate: true,
+                    }}
+                  />
+                </span>
                 <span className="hm-chip ok">Vérifié</span>
               </div>
               <h3>Vérification par QR</h3>
@@ -168,7 +328,7 @@ export default function Home() {
             <div className="hm-bento-card rise">
               <div className="hm-fx hm-fx-agent" aria-hidden="true">
                 <span className="hm-bubble left">Combien de ventes cette semaine ?</span>
-                <span className="hm-bubble right">23 ventes · 41 250 DH 📈</span>
+                <span className="hm-bubble right">23 ventes · 41 250 DH</span>
               </div>
               <h3>Agent IA intégré</h3>
               <p>Posez vos questions en français : rapports, actions et réponses instantanées.</p>
@@ -221,7 +381,7 @@ export default function Home() {
           <h2 className="rise">Une application, tous vos écrans</h2>
           <div className="dl-grid rise">
             <div className="dl-card">
-              <div className="dl-ico">🌐</div>
+              <div className="dl-ico">{IC_GLOBE}</div>
               <h3>Web</h3>
               <p>
                 Chrome, Edge, Safari et Firefox. Le PWA s’installe sur l’écran d’accueil et
@@ -231,7 +391,7 @@ export default function Home() {
               <Link to="/login" className="dl-link">Ouvrir l’application →</Link>
             </div>
             <div className="dl-card">
-              <div className="dl-ico">📱</div>
+              <div className="dl-ico">{IC_PHONE}</div>
               <h3>Android</h3>
               <p>
                 Application native hors-ligne : caisse, stock, factures et scan QR sans réseau, avec
@@ -241,7 +401,7 @@ export default function Home() {
               <Link to="/download" className="dl-link">Télécharger l’APK →</Link>
             </div>
             <div className="dl-card">
-              <div className="dl-ico">🖥️</div>
+              <div className="dl-ico">{IC_DESK}</div>
               <h3>Bureau</h3>
               <p>
                 Windows, macOS et Linux : la même application dans une fenêtre native, mises à jour
@@ -257,7 +417,7 @@ export default function Home() {
           <h2 className="rise">Construit en public</h2>
           <div className="dl-ose-grid rise">
             <div className="dl-card">
-              <div className="dl-ico">🏗️</div>
+              <div className="dl-ico">{IC_REPO}</div>
               <h3>Atlas Commerce · web</h3>
               <p>
                 React + Cloudflare Worker + D1. Toute la logique métier, l’OTP, les passkeys, la
@@ -268,7 +428,7 @@ export default function Home() {
               </a>
             </div>
             <div className="dl-card">
-              <div className="dl-ico">🖥️</div>
+              <div className="dl-ico">{IC_DESK}</div>
               <h3>Atlas Desktop</h3>
               <p>
                 Le client bureau Tauri (Windows, macOS, Linux) : fenêtre native, mises à jour

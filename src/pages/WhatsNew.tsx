@@ -31,6 +31,27 @@ type Release = {
 
 export const RELEASES: Release[] = [
   {
+    version: '0.7.5-beta',
+    date: '30 octobre 2026',
+    sections: [
+      {
+        kind: 'fixes',
+        items: [
+          { id: '075f1', platforms: ['web'], text: 'Tableau de bord réparé : la route /dashboard affichait une page vide et pouvait figer l’onglet (boucle de navigation « Throttling navigation ») — les Routes descendants du shell reçoit désormais le suffixe /* et le reste « / » rend directement le dashboard ; la navigation latérale répond à nouveau normalement' },
+          { id: '075f2', platforms: ['web', 'server'], text: 'Sécurité : révoquer un appareil (« Appareils connectés ») coupe désormais sa session en cours — le serveur rejette en 401 DEVICE_REVOKED toute requête authentifiée dont l’empreinte n’est plus dans les appareils de confiance ; l’app Android se déconnecte toute seule au prochain appel, une reconnexion restaure l’accès' },
+          { id: '075f3', platforms: ['web'], text: 'Boutons de thème et bouton de téléchargement scindé réparés sur les pages publiques : plus de pastilles grises détachées, le caret reste soudé au bouton principal et le segment actif du toggle (système/clair/sombre) se voit clairement' },
+          { id: '075f4', platforms: ['web'], text: 'La ligne « version · date · Nouveautés · À propos » disparaît pour les utilisateurs connectés sur À propos, Nouveautés et Paramètres (elle reste visible des visiteurs publics)' },
+        ],
+      },
+      {
+        kind: 'improvements',
+        items: [
+          { id: '075i1', platforms: ['web'], text: 'Accueil : vrai QR code scannable (logo Atlas au centre) pointant vers la vérification publique, icônes SVG dessinées à la main partout à la place des emojis (arc « tout-en-un », cartes plateformes et dépôts) et fond du hero animé en canvas façon Liner, désactivé si prefers-reduced-motion' },
+        ],
+      },
+    ],
+  },
+  {
     version: '0.7.4-beta',
     date: '30 octobre 2026',
     sections: [
@@ -1156,10 +1177,13 @@ export default function WhatsNew() {
       >
         Nouveautés
       </motion.h1>
-      <p className="wn-lead">
-        Version actuelle <strong>{APP_VERSION}</strong>
-        {APP_BUILD_DATE ? ` · ${APP_BUILD_DATE}` : ''}. Historique depuis la 0.0.1.
-      </p>
+      {/* v0.7.5 — la ligne « version · date » est réservée aux visiteurs publics */}
+      {!wnLoggedIn && (
+        <p className="wn-lead">
+          Version actuelle <strong>{APP_VERSION}</strong>
+          {APP_BUILD_DATE ? ` · ${APP_BUILD_DATE}` : ''}. Historique depuis la 0.0.1.
+        </p>
+      )}
 
       <div className="wn-releases">
         {releases.map((rel, ri) => (
