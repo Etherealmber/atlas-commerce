@@ -32,7 +32,7 @@ import {
   isOwnerRole,
 } from './auth';
 import { PublicNav, PublicSessionCta } from './components/PublicChrome';
-import { getStartPage, startDestination } from './lib/startPage';
+import { startDestination } from './lib/startPage';
 import { AppDialogsProvider } from './components/AppDialogs';
 /** v0.7 — stale hashed chunks after a deploy: one silent reload, then fail
  * clean into the ErrorBoundary page instead of a blank/wrong screen. */
@@ -525,12 +525,10 @@ function HomeRoute() {
   if (native || standalone) {
     return <Navigate to={loggedIn ? startDestination() : '/login'} replace />;
   }
-  // v0.7.6 — connecté en navigateur classique : « / » ouvre la page choisie
-  // dans Paramètres → « Page d'ouverture » (dashboard par défaut). Le choix
-  // explicite « Accueil public (vitrine) » conserve la landing.
-  if (loggedIn && getStartPage() !== '/home') {
-    return <Navigate to={startDestination()} replace />;
-  }
+  // v0.7.7 — « / » reste la VITRINE pour tout le monde, même connecté :
+  // personne n'est renvoyé vers le dashboard en demandant explicitement la
+  // homepage. La page d'ouverture ne s'applique qu'après la connexion
+  // (LoginGate / welcome / WebView & PWA).
   return (
     <div className="download-standalone">
       <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
@@ -554,27 +552,19 @@ function DesktopRoute() {
 /** v0.7 — /about readable WITHOUT an account: standalone layout (no topbar,
  * no Agent, no session access). Logged-in users keep the exact same Shell. */
 function AboutRoute() {
-  // v0.7.6 — même barre pill que l'accueil, connectés compris : le contenu
-  // des liens change selon la session, jamais le chrome.
-  const loggedIn = typeof isLoggedIn === 'function' ? isLoggedIn() : !!getToken();
+  // v0.7.6 — même barre pill que l'accueil ; v0.7.7 — liens identiques pour
+  // tous, seul le CTA suit la session.
   return (
     <div className="public-about">
       <PublicNav
-        links={
-          loggedIn
-            ? [
-                { href: '/dashboard', label: 'Tableau de bord' },
-                { href: '/settings', label: 'Paramètres' },
-                { href: '/whats-new', label: 'Nouveautés' },
-                { href: '/', label: 'Accueil' },
-              ]
-            : [
-                { href: '/', label: 'Accueil' },
-                { href: '/desktop', label: 'Bureau' },
-                { href: '/download', label: 'Android' },
-                { href: '/whats-new', label: 'Nouveautés' },
-              ]
-        }
+        // v0.7.7 — même navigation que pour un visiteur non connecté :
+        // seuls le CTA (Se connecter / Ouvrir l'app) et le toggle suivent la session.
+        links={[
+          { href: '/', label: 'Accueil' },
+          { href: '/desktop', label: 'Bureau' },
+          { href: '/download', label: 'Android' },
+          { href: '/whats-new', label: 'Nouveautés' },
+        ]}
         cta={<PublicSessionCta />}
       />
       <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
@@ -588,26 +578,17 @@ function AboutRoute() {
  * dedicated standalone layout (no topbar, no Agent, no API call, no session
  * access). Logged-in users keep the exact same Shell experience as before. */
 function WhatsNewRoute() {
-  // v0.7.6 — barre pill commune, adaptée à la session (comme /about).
-  const loggedIn = typeof isLoggedIn === 'function' ? isLoggedIn() : !!getToken();
+  // v0.7.6 — barre pill commune ; v0.7.7 — liens identiques pour tous.
   return (
     <div className="public-whats-new">
       <PublicNav
-        links={
-          loggedIn
-            ? [
-                { href: '/dashboard', label: 'Tableau de bord' },
-                { href: '/settings', label: 'Paramètres' },
-                { href: '/about', label: 'À propos' },
-                { href: '/', label: 'Accueil' },
-              ]
-            : [
-                { href: '/', label: 'Accueil' },
-                { href: '/desktop', label: 'Bureau' },
-                { href: '/download', label: 'Android' },
-                { href: '/about', label: 'À propos' },
-              ]
-        }
+        // v0.7.7 — identique à la version visiteurs ; CTA adapté à la session.
+        links={[
+          { href: '/', label: 'Accueil' },
+          { href: '/desktop', label: 'Bureau' },
+          { href: '/download', label: 'Android' },
+          { href: '/about', label: 'À propos' },
+        ]}
         cta={<PublicSessionCta />}
       />
       <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
@@ -1516,7 +1497,7 @@ function DesktopShell() {
         )}
 
       {isFocusRoute && (
-        <header className={`settings-topbar${location.pathname === '/whats-new' || location.pathname === '/about' ? ' settings-topbar--centered' : ''}`} role="banner">
+        <header className="settings-topbar" role="banner">
           <div className="settings-topbar-left">
             <button
               type="button"

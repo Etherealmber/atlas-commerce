@@ -20026,3 +20026,37 @@ html[data-theme='light'] body .public-about .about-trust-chip { background: #f4f
 html[data-theme='light'] body .public-about a, html[data-theme='light'] body .public-whats-new a { color: #b4531f; }
 html[data-theme='light'] body .public-about h1, html[data-theme='light'] body .public-about h2, html[data-theme='light'] body .public-about h3, html[data-theme='light'] body .public-whats-new h1, html[data-theme='light'] body .public-whats-new h2 { color: #18181b; }
 html[data-theme='light'] body .public-about .about-muted, html[data-theme='light'] body .public-about .muted, html[data-theme='light'] body .public-whats-new .muted { color: #52525b; }
+
+/* ═══ v0.7.7 — topbar Paramètres en pilule flottante, même famille que la
+   nav publique : colle au thème (clair/sombre), garde onglets, recherche,
+   thème et profil. ═══ */
+.settings-topbar {
+  position: sticky;
+  top: 10px;
+  z-index: 55;
+  max-width: 1400px;
+  width: calc(100% - 24px);
+  margin: 10px auto 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(63, 63, 70, .75);
+  background: rgba(24, 24, 27, .78);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 10px 34px rgba(0, 0, 0, .38);
+  padding-left: 10px;
+  padding-right: 10px;
+}
+html[data-theme='light'] .settings-topbar,
+html.theme-dark[data-theme='light'] .settings-topbar {
+  background: rgba(255, 255, 255, .85);
+  border-color: #e4e4e7;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .08);
+}
+html[data-theme='light'] .settings-topbar .settings-topbar-back {
+  background: #f4f4f5;
+  border-color: #e4e4e7;
+  color: #27272a;
+}
+@media (max-width: 900px) {
+  .settings-topbar { border-radius: 28px; }
+}
