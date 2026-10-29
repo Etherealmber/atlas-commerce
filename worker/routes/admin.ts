@@ -16,7 +16,7 @@ export function registerAdminReadRoutes(app: AtlasApp, deps: AdminRouteDeps): vo
     if (!gate.ok) return gate.response;
     await deps.ensureSecurityTables(c.env.DB);
     const { results } = await c.env.DB.prepare(
-      `SELECT id, username, role, display_name, active, created_by, created_at, last_login FROM app_users ORDER BY username`,
+      `SELECT id, username, role, display_name, active, created_by, created_at, last_login, email FROM app_users ORDER BY username`,
     ).all();
     const ownerUser = deps.getOwnerUsername(c.env);
     return c.json({

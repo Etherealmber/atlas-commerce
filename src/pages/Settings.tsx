@@ -210,7 +210,7 @@ export default function Settings() {
   const [adminUsers, setAdminUsers] = useState<any[]>([]);
   const [ownerInfo, setOwnerInfo] = useState<any>(null);
   const [adminConfig, setAdminConfig] = useState<any>(null);
-  const [newUser, setNewUser] = useState({ username: '', password: '', display_name: '', role: 'secretaire' });
+  const [newUser, setNewUser] = useState({ username: '', password: '', display_name: '', role: 'secretaire', email: '' });
   const [pwOpen, setPwOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<null | ((password: string) => Promise<void>)>(null);
   const [pwTitle, setPwTitle] = useState('');
@@ -691,7 +691,7 @@ if (loading) return (
     setPendingAction(() => async (password: string) => {
       await api.createAdminUser({ ...newUser, confirm_password: password });
       flash('Utilisateur créé.');
-      setNewUser({ username: '', password: '', display_name: '', role: 'secretaire' });
+      setNewUser({ username: '', password: '', display_name: '', role: 'secretaire', email: '' });
       setPwOpen(false); setPendingAction(null);
       await reloadAdmin();
     });
@@ -2769,6 +2769,10 @@ if (loading) return (
                 <input type="password" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} />
               </div>
               <div className="form-row">
+                <label>E-mail (OTP) — optionnel</label>
+                <input type="email" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} placeholder="vide = OTP sur l'e-mail principal" />
+              </div>
+              <div className="form-row">
                 <label>Rôle</label>
                 <select value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}>
                   <option value="stock">Magasinier (scan, stock, proposer produit · pas de caisse)</option>
@@ -2801,6 +2805,10 @@ if (loading) return (
                     <label>Nouveau mot de passe (optionnel)</label>
                     <input type="password" value={editingUser.password || ''} onChange={(e) => setEditingUser({ ...editingUser, password: e.target.value })} placeholder="Laisser vide = inchangé" />
                   </div>
+                  <div className="form-row">
+                    <label>E-mail (OTP) — optionnel</label>
+                    <input type="email" value={editingUser.email || ''} onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })} placeholder="vide = OTP sur l'e-mail principal" />
+                  </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button type="button" onClick={() => {
@@ -2810,6 +2818,7 @@ if (loading) return (
                         confirm_password: password,
                         display_name: editingUser.display_name,
                         role: editingUser.role,
+                        email: editingUser.email || '',
                         password: editingUser.password || undefined,
                       });
                       flash('Utilisateur mis à jour.');
@@ -2830,6 +2839,7 @@ if (loading) return (
                   <th>Identifiant</th>
                   <th>Nom affiché</th>
                   <th>Rôle</th>
+                  <th>E-mail (OTP)</th>
                   <th>Créé le</th>
                   <th>Actions</th>
                 </tr>
@@ -2843,6 +2853,7 @@ if (loading) return (
                     <td>{u.username}</td>
                     <td>{u.display_name || '—'}</td>
                     <td>{roleLabel(u.role)}</td>
+                    <td style={{ fontSize: 12 }}>{u.email || <span title="OTP envoyé sur l'e-mail principal">— principal</span>}</td>
                     <td style={{ fontSize: 12 }}>{u.created_at}</td>
                     <td style={{ whiteSpace: 'nowrap' }}>
                       <button type="button" className="secondary" style={{ padding: '4px 10px', fontSize: 12, marginRight: 6 }}

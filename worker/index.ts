@@ -2230,6 +2230,8 @@ async function trustDevice(db: D1Database, fingerprint: string, ip: string, user
   // v0.7.1 — city/country captured from Cloudflare cf at login/touch (IP-based).
   await addColumnIfMissing(db, 'trusted_devices', 'city', "TEXT DEFAULT ''");
   await addColumnIfMissing(db, 'trusted_devices', 'country', "TEXT DEFAULT ''");
+  // v0.7.1 — main company email = OTP fallback destination until a user has one.
+  await addColumnIfMissing(db, 'company_settings', 'email', "TEXT DEFAULT ''");
   const u = String(username || '').slice(0, 80);
   const ua = String(userAgent || '').slice(0, 160);
   await db.prepare(
@@ -2543,34 +2545,11 @@ app.post('/api/auth/login', async (c) => {
     await c.env.DB.prepare(`UPDATE app_users SET last_login = datetime('now') WHERE id = ?`).bind(row.id).run();
   }
 
-  // Trusted device → no OTP — but only from IPs with a healthy reputation.
-  // Low-reputation IPs must re-complete the e-mail OTP even on known devices,
-  // so a stolen password + copied fingerprint never suffices from a bad IP.
-  const preRep = (await getReputation(c.env.DB, ip)) as any;
-  const twofaOn = (await getConfig(c.env.DB, 'twofa_enabled', '0')) === '1';
-  if (!twofaOn && await isTrustedDevice(c.env.DB, fingerprint) && Number(preRep?.score ?? 50) >= 40) {
-    await trustDevice(c.env.DB, fingerprint, ip);
-    await recordLogin(c.env.DB, ip, fingerprint, true, ua);
-    await writeAudit(c.env.DB, { username, role, action: 'auth.login', entity: 'session', detail: 'trusted_device', ip });
-    const rep = await getReputation(c.env.DB, ip) as any;
-    const token = await makeTokenV2(username, role, secretMaterial, ip, fingerprint);
-    const row = await c.env.DB.prepare(
-      `SELECT biometric_credential_id FROM trusted_devices WHERE fingerprint = ?`
-    ).bind(fingerprint).first() as any;
-    return c.json({
-      success: true,
-      needs_otp: false,
-      trusted_device: true,
-      biometric_registered: !!(row?.biometric_credential_id),
-      token,
-      ip,
-      username,
-      role,
-      displayName,
-      reputationScore: rep.score,
-      message: 'Appareil de confiance — connexion sans OTP.',
-    });
-  }
+  // v0.7.1 — OTP REQUIRED FOR EVERY PASSWORD LOGIN (owner and users),
+  // including first-ever login of a brand-new account and account switching
+  // on an already-trusted device. The trusted-device shortcut was the hole:
+  // being logged in as A on a trusted device let B sign in with no OTP.
+  // (WebAuthn/passkey login stays a separate, possession-based flow.)
 
   // New device — OTP required (owner and users) — fast path: parallel DB + background email
   const otp = generateOTP();
@@ -2580,14 +2559,9 @@ app.post('/api/auth/login', async (c) => {
   // Cloudflare Email binding only allows the configured destination (admin@).
   // security@ is valid as FROM only — never as TO or sends fail with "not allowed".
   const fromAddr = (c.env.OTP_FROM || (c.env as any).RESEND_FROM || 'noreply@afmarbre.com').trim() || 'security@afmarbre.com';
-  // v235 — the user's own inbox first (Resend can deliver anywhere); admin fallback for the CF binding
+  // v235+v0.7.1 — the user's own inbox first; else the company MAIN email
+  // (company_settings.email) until the user has one; else configured inbox.
   let toAddr = accountEmail;
-  if (!toAddr) {
-    toAddr = (c.env.OTP_TO || 'security@afmarbre.com').trim() || 'admin@afmarbre.com';
-    if (toAddr.toLowerCase() === fromAddr.toLowerCase() || toAddr.toLowerCase() === 'security@afmarbre.com') {
-      toAddr = 'admin@afmarbre.com';
-    }
-  }
   // One-tap verification link: the SPA /verify page submits the code itself
   // (and hands off to the PWA / native Android app when present) — the user
   // never types the OTP.
@@ -2599,7 +2573,7 @@ app.post('/api/auth/login', async (c) => {
 
   // Parallel: OTP rows + company name
   const [settings] = await Promise.all([
-    c.env.DB.prepare(`SELECT company_name FROM company_settings WHERE id = 1`).first() as Promise<any>,
+    c.env.DB.prepare(`SELECT company_name, email FROM company_settings WHERE id = 1`).first() as Promise<any>,
     c.env.DB.prepare(
       `INSERT INTO otp_codes (code, resource_type, resource_id, expires_at) VALUES (?, 'login', ?, ?)
        ON CONFLICT(resource_type, resource_id) DO UPDATE SET code = ?, expires_at = ?, created_at = datetime('now')`
@@ -2610,6 +2584,13 @@ app.post('/api/auth/login', async (c) => {
     ).bind(ctxJson, loginResourceId, expiresAt, ctxJson, expiresAt).run(),
   ]);
   const companyName = settings?.company_name || 'Atlas Commerce';
+  if (!toAddr) toAddr = String(settings?.email || '').trim();
+  if (!toAddr) {
+    toAddr = (c.env.OTP_TO || 'security@afmarbre.com').trim() || 'admin@afmarbre.com';
+    if (toAddr.toLowerCase() === fromAddr.toLowerCase() || toAddr.toLowerCase() === 'security@afmarbre.com') {
+      toAddr = 'admin@afmarbre.com';
+    }
+  }
   const emailHtml = otpEmailHTML(otp, 'connexion', companyName, 'login', {
     ip,
     ua,
@@ -2672,12 +2653,14 @@ app.post('/api/auth/login', async (c) => {
     void sendTask;
   }
 
+  const masked = toAddr.replace(/^(.{2})[^@]*(@.*)$/, '$1•••$2');
   return c.json({
     success: true,
     needs_otp: true,
     emailed: true,
     username,
-    message: 'Un code de vérification a été envoyé. Vérifiez votre boîte de réception.',
+    otp_sent_to: masked,
+    message: `Un code de vérification a été envoyé à ${masked}. Vérifiez votre boîte de réception.`,
   });
 });
 
@@ -4378,6 +4361,10 @@ app.post('/api/admin/users', async (c) => {
   const role = ['admin', 'secretaire', 'stock', 'user'].includes(String(body.role))
     ? String(body.role)
     : 'user';
+  const email = String(body.email || '').trim().toLowerCase();
+  if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    return c.json({ success: false, error: 'Adresse e-mail invalide' }, 400);
+  }
 
   if (!username || username.length < 2) {
     return c.json({ success: false, error: 'Nom d\'utilisateur trop court (min. 2 caractères)' }, 400);
@@ -4399,9 +4386,9 @@ app.post('/api/admin/users', async (c) => {
   const salt = randomChallenge().slice(0, 16);
   const password_hash = await hashUserPassword(password, salt);
   await c.env.DB.prepare(
-    `INSERT INTO app_users (username, password_hash, password_salt, role, display_name, created_by)
-     VALUES (?, ?, ?, ?, ?, ?)`
-  ).bind(username, password_hash, salt, role, displayName, gate.username).run();
+    `INSERT INTO app_users (username, password_hash, password_salt, role, display_name, created_by, email)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).bind(username, password_hash, salt, role, displayName, gate.username, email).run();
 
   await writeAudit(c.env.DB, {
     username: gate.username, role: 'owner', action: 'user.create', entity: 'app_users',
@@ -4444,17 +4431,24 @@ app.put('/api/admin/users/:id', async (c) => {
     role = String(body.role);
   }
   const active = body.active === false || body.active === 0 ? 0 : 1;
+  let email = String(row.email || '');
+  if (body.email != null) {
+    email = String(body.email).trim().toLowerCase();
+    if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      return c.json({ success: false, error: 'Adresse e-mail invalide' }, 400);
+    }
+  }
 
   if (body.password && normalizePassword(body.password).length >= 6) {
     const salt = randomChallenge().slice(0, 16);
     const password_hash = await hashUserPassword(body.password, salt);
     await c.env.DB.prepare(
-      `UPDATE app_users SET display_name = ?, role = ?, active = ?, password_hash = ?, password_salt = ? WHERE id = ?`
-    ).bind(display_name, role, active, password_hash, salt, id).run();
+      `UPDATE app_users SET display_name = ?, role = ?, active = ?, password_hash = ?, password_salt = ?, email = ? WHERE id = ?`
+    ).bind(display_name, role, active, password_hash, salt, email, id).run();
   } else {
     await c.env.DB.prepare(
-      `UPDATE app_users SET display_name = ?, role = ?, active = ? WHERE id = ?`
-    ).bind(display_name, role, active, id).run();
+      `UPDATE app_users SET display_name = ?, role = ?, active = ?, email = ? WHERE id = ?`
+    ).bind(display_name, role, active, email, id).run();
   }
 
   return c.json({ success: true, message: `Utilisateur « ${row.username} » mis à jour.` });
