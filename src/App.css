@@ -20223,3 +20223,62 @@ html[data-theme='light'] .hm-arc-tile { box-shadow: 0 12px 26px rgba(0, 0, 0, .1
 @media (prefers-reduced-motion: reduce) {
   .hm-arc-tile { animation: none; }
 }
+
+/* ═══ v0.7.7 — topbar Paramètres : UNE seule ligne (plus de repli en deux
+   rangées) + état compact au scroll, mêmes règles que la pilule publique. ═══ */
+.settings-topbar,
+.settings-topbar:not(.settings-topbar--centered) {
+  flex-wrap: nowrap;
+}
+.settings-topbar-left { flex: 0 0 auto; }
+.settings-topbar:not(.settings-topbar--centered) .settings-topbar-tabs {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.settings-topbar-tabs::-webkit-scrollbar { display: none; }
+.settings-topbar:not(.settings-topbar--centered) .settings-topbar-search-wrap {
+  flex: 0 1 200px;
+  min-width: 130px;
+}
+.settings-topbar-right { flex: 0 0 auto; margin-left: auto; }
+@media (max-width: 1150px) {
+  .settings-topbar:not(.settings-topbar--centered) .settings-topbar-search-wrap { display: none; }
+  .settings-topbar-brand > div { display: none; }
+}
+.settings-topbar--compact {
+  padding-top: 5px !important;
+  padding-bottom: 5px !important;
+  min-height: 46px;
+  transition: padding .18s ease, min-height .18s ease;
+}
+.settings-topbar--compact .settings-topbar-back { padding: 6px 12px; }
+.settings-topbar--compact .settings-topbar-brand img { width: 22px; height: 22px; }
+.settings-topbar--compact .settings-topbar-brand > div { display: none; }
+.settings-topbar--compact .settings-topbar-tab {
+  width: 30px !important;
+  height: 30px !important;
+  min-height: 30px !important;
+}
+.settings-topbar--compact .settings-topbar-search-wrap { display: none; }
+.settings-topbar--compact .settings-topbar-user-meta { display: none; }
+.settings-topbar--compact .settings-topbar-avatar { width: 28px; height: 28px; }
+
+/* chip profil publique : photo ronde 26 px, repli initiales */
+.pn-chip-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  object-fit: cover;
+  display: block;
+}
+.pn-chip-ini {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 10.5px;
+  font-weight: 800;
+}

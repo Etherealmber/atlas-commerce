@@ -44,6 +44,9 @@ export const RELEASES: Release[] = [
           { id: '077f5', platforms: ['web'], text: '/download et /desktop suivent enfin le vrai thème Atlas (zinc + terracotta) en clair comme en sombre : cartes, bandes, textes et liens remappés sur la palette du dashboard' },
           { id: '077f6', platforms: ['web'], text: 'Connecté, le CTA « Ouvrir l’app » disparaît des pages publiques : la pilule affiche à la place la chip profil (initiales + nom + rôle), identique à celle des Paramètres, sur À propos, Nouveautés et toutes les pages publiques' },
           { id: '077f7', platforms: ['web'], text: 'À propos : un seul logo (le hero ne duplicate plus celui de la nav) ; carte créateur « Etherealmber » (plus jamais Haytam ni loxdpsy) ; liste de dépôts limitée aux trois demandés — afmarbre-main, atlas-commerce-android, atlas-commerce-desktop' },
+          { id: '077f8', platforms: ['web'], text: 'Connecté, /about et /whats-new ne passent plus jamais par le shell : le bouton « ← Tableau de bord » résiduel a disparu définitivement de ces deux pages (routes descendantes du shell supprimées)' },
+          { id: '077f9', platforms: ['web'], text: 'Topbar Paramètres sur UNE seule ligne (le repli en deux rangées est corrigé) et elle rétrécit désormais au scroll descendant / grandit en remontant, comme la pilule publique' },
+          { id: '077i6', platforms: ['web'], text: 'La chip profil des pages publiques affiche la vraie photo de l’utilisateur (AvatarImage, repli initiales) — identique à celle des Paramètres' },
         ],
       },
       {

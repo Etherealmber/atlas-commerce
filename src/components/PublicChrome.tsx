@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getTheme, setTheme as applyTheme, subscribeTheme, type ThemeChoice } from '../theme';
-import { isLoggedIn, getDisplayName, getUsername, getRole, getDisplayInitials } from '../auth';
+import { isLoggedIn, getDisplayName, getUsername, getRole, getDisplayInitials, hasAvatarUrl } from '../auth';
+import { AvatarImage } from './ui/AvatarImage';
 
 const LOGO_DARK = '/atlas-logo-dark.png';
 const LOGO_LIGHT = '/atlas-logo-light.png';
@@ -162,15 +163,30 @@ export function PublicProfileChip() {
         background: c.ghostBg, border: `1px solid ${c.ghostBorder}`,
       }}
     >
-      <span
-        style={{
-          width: 26, height: 26, borderRadius: 999, background: c.ink, color: c.navBg,
-          display: 'grid', placeItems: 'center', fontSize: 10.5, fontWeight: 800,
-        }}
-        aria-hidden="true"
-      >
-        {getDisplayInitials() || '?'}
-      </span>
+      {hasAvatarUrl() ? (
+        <AvatarImage
+          className="pn-chip-avatar"
+          width={26}
+          height={26}
+          fallback={
+            <span
+              className="pn-chip-ini"
+              style={{ background: c.ink, color: c.navBg }}
+              aria-hidden="true"
+            >
+              {getDisplayInitials() || '?'}
+            </span>
+          }
+        />
+      ) : (
+        <span
+          className="pn-chip-ini"
+          style={{ background: c.ink, color: c.navBg }}
+          aria-hidden="true"
+        >
+          {getDisplayInitials() || '?'}
+        </span>
+      )}
       <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
         <strong style={{ fontSize: 12.5, color: c.ink, fontWeight: 700 }}>{name}</strong>
         <span style={{ fontSize: 10.5, color: c.sub }}>{role}</span>
