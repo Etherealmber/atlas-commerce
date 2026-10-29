@@ -850,6 +850,24 @@ function DesktopShell() {
   const [settingsSearchOpen, setSettingsSearchOpen] = useState(false);
   const [settingsSearchHistory, setSettingsSearchHistory] = useState<string[]>(() => loadSearchHistory());
 
+  // v0.7.7 — la topbar Paramètres rétrécit en descendant, grandit en remontant
+  const [settingsBarCompact, setSettingsBarCompact] = useState(false);
+  useEffect(() => {
+    let last = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      setSettingsBarCompact((prev) => {
+        if (y <= 60) return false;
+        if (y > 140 && y > last) return true;
+        if (y < last) return false;
+        return prev;
+      });
+      last = y;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   const [focusWhatsNewUnread, setFocusWhatsNewUnread] = useState(() => hasUnreadWhatsNew());
   useEffect(() => {
     const sync = () => setFocusWhatsNewUnread(hasUnreadWhatsNew());
@@ -1497,7 +1515,7 @@ function DesktopShell() {
         )}
 
       {isFocusRoute && (
-        <header className="settings-topbar" role="banner">
+        <header className={`settings-topbar${settingsBarCompact ? ' settings-topbar--compact' : ''}`} role="banner">
           <div className="settings-topbar-left">
             <button
               type="button"
@@ -2012,8 +2030,8 @@ function DesktopShell() {
               <Route path="/reports" element={<RoleGate allow={canOfficeWork()}><Reports /></RoleGate>} />
               <Route path="/inventory-ops" element={<RoleGate allow={canAccessInventoryOps()}><InventoryOps /></RoleGate>} />
               <Route path="/settings" element={<Settings />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/whats-new" element={<WhatsNew />} />
+              {/* v0.7.7 — /about & /whats-new sont STRICTEMENT standalone
+                  (PublicNav) : plus de topbar shell ni de bouton retour ici */}
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/m" element={<Navigate to="/dashboard" replace />} />
