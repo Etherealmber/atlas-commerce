@@ -973,8 +973,16 @@ app.use('/api/*', async (c, next) => {
   if (reason !== 'ok') {
     return c.json({
       success: false,
-      error: reason === 'ip_changed' ? 'Adresse IP modifiée — reconnexion requise' : reason === 'fp_changed' ? 'Appareil différent — reconnexion requise' : 'Non autorisé',
-      code: reason === 'ip_changed' ? 'IP_CHANGED' : reason === 'fp_changed' ? 'DEVICE_CHANGED' : 'UNAUTHORIZED',
+      error:
+        reason === 'ip_changed' ? 'Adresse IP modifiée — reconnexion requise'
+        : reason === 'fp_changed' ? 'Appareil différent — reconnexion requise'
+        : reason === 'device_revoked' ? 'Appareil révoqué — reconnexion requise'
+        : 'Non autorisé',
+      code:
+        reason === 'ip_changed' ? 'IP_CHANGED'
+        : reason === 'fp_changed' ? 'DEVICE_CHANGED'
+        : reason === 'device_revoked' ? 'DEVICE_REVOKED'
+        : 'UNAUTHORIZED',
     }, 401);
   }
   return next();
@@ -2386,6 +2394,25 @@ async function authFailReason(
       const expectedProof = await makeSessionProof(user, row.role, row.password_hash, parsed.ip, parsed.fingerprint);
       if (proof !== expectedProof) return 'bad_password';
     }
+  }
+
+  // v0.7.5 — device revocation MUST kill live sessions (security audit finding):
+  // a token whose fingerprint no longer has a trusted_devices row was revoked
+  // remotely (« Appareils connectés » → révoquer). Every login path inserts the
+  // row before handing out the token (trustDevice / touchTrustedDevice), and
+  // /api/auth/me keeps re-touching it while the device is active — so a missing
+  // row means « revoked », not « never seen ». Android signs out on any
+  // authenticated 401; the web client drops to /login the same way.
+  const revokedFp = parsed.fingerprint && parsed.fingerprint !== 'none' ? String(parsed.fingerprint).slice(0, 128) : '';
+  if (revokedFp) {
+    const dev = (await db
+      .prepare(`SELECT username FROM trusted_devices WHERE fingerprint = ?`)
+      .bind(revokedFp)
+      .first()) as { username?: string } | null;
+    if (!dev) return 'device_revoked';
+    const devUser = String(dev.username || '').toLowerCase();
+    const tokUser = String(parsed.username || '').toLowerCase();
+    if (devUser && tokUser && devUser !== tokUser) return 'device_revoked';
   }
 
   if (opts?.relaxSession) return 'ok';

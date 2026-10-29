@@ -224,12 +224,15 @@ export default function About() {
 
   return (
     <div className="atlas-page about-page atlas-crm">
-      {/* v0.7 — version + build date + changelog, visible even when public */}
-      <p className="about-meta-line">
-        v{APP_VERSION} · {APP_BUILD_DATE}
-        <span aria-hidden> · </span>
-        <Link to="/whats-new">Nouveautés</Link>
-      </p>
+      {/* v0.7 — version + build date + changelog, visible even when public.
+          v0.7.5 — masqué pour les utilisateurs connectés (demande utilisateur). */}
+      {!isLoggedIn() && (
+        <p className="about-meta-line">
+          v{APP_VERSION} · {APP_BUILD_DATE}
+          <span aria-hidden> · </span>
+          <Link to="/whats-new">Nouveautés</Link>
+        </p>
+      )}
       <header className="about-hero">
         <div className="about-hero-brand">
           <img src="/atlas-icon-light.png" alt="" width={48} height={48} className="about-logo brand-img brand-img--light" loading="lazy" decoding="async" />
