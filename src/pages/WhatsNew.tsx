@@ -42,6 +42,8 @@ export const RELEASES: Release[] = [
           { id: '077f3', platforms: ['web'], text: 'Accueil : un seul bouton GitHub dans le pied de page (le doublon a disparu) ; plus aucun CTA souligné (« Voir les nouveautés », cartes « Construit en public ») — tout passe en chips/boutons' },
           { id: '077f4', platforms: ['web', 'server'], text: 'Le téléchargement APK depuis l’accueil lit désormais le manifeste R2 `latest.json` (cdn1.afmarbre.com/app-updates/android/latest.json) — la même source que consulte l’appli Android pour ses mises à jour — avec repli sur le manifeste local' },
           { id: '077f5', platforms: ['web'], text: '/download et /desktop suivent enfin le vrai thème Atlas (zinc + terracotta) en clair comme en sombre : cartes, bandes, textes et liens remappés sur la palette du dashboard' },
+          { id: '077f6', platforms: ['web'], text: 'Connecté, le CTA « Ouvrir l’app » disparaît des pages publiques : la pilule affiche à la place la chip profil (initiales + nom + rôle), identique à celle des Paramètres, sur À propos, Nouveautés et toutes les pages publiques' },
+          { id: '077f7', platforms: ['web'], text: 'À propos : un seul logo (le hero ne duplicate plus celui de la nav) ; carte créateur « Etherealmber » (plus jamais Haytam ni loxdpsy) ; liste de dépôts limitée aux trois demandés — afmarbre-main, atlas-commerce-android, atlas-commerce-desktop' },
         ],
       },
       {
@@ -51,6 +53,7 @@ export const RELEASES: Release[] = [
           { id: '077i2', platforms: ['web'], text: 'Nouvelle section « Un dossier. Tout votre commerce. » : sept modules en arc qui sortent d’un dossier portant le logo Atlas (animation d’élévation puis flottement, désactivée si prefers-reduced-motion)' },
           { id: '077i3', platforms: ['web'], text: 'Le toggle de thème des pages publiques est désormais STRICTEMENT le même trio que celui du dashboard (.settings-topbar-theme), actif terracotta partout' },
           { id: '077i4', platforms: ['web'], text: 'Gel de la version affichée (directive) : « 0.7.2 » partout où une version est montrée ; journal Nouveautés et modal limités aux entrées ≤ 0.7.2 ; plus aucun bump de version sans ordre explicite' },
+          { id: '077i5', platforms: ['web'], text: 'La pilule de navigation publique rétrécit quand on descend (logo, paddings et liens compactés) et reprend sa taille dès qu’on remonte — sur toutes les pages qui l’utilisent (accueil, À propos, Nouveautés, Bureau, Android)' },
         ],
       },
     ],
@@ -175,7 +178,7 @@ export const RELEASES: Release[] = [
           { id: '072i4', platforms: ['server'], text: 'Tous les QR codes générés (reçus, factures, rapports, aperçus) portent le nouveau logo Atlas au centre, sur pastille blanche' },
           { id: '072i5', platforms: ['web'], text: 'Rapports détaillés ouverts depuis le rapport combiné : bouton « ← Retour aux rapports combinés » en haut, jamais imprimé ; page À propos : profil créateur Etherealmber avec tous ses dépôts publics, plus seulement la vitrine' },
           { id: '072i6', platforms: ['server'], text: 'Automatisation du dépôt : branches fusionnées supprimées automatiquement, README et page Sécurité resynchronisés à chaque version — politique de support : seule la mineure courante est supportée, la mineure précédente passe en fin de support dès le changement de mineure' },
-          { id: '072i7', platforms: ['server', 'web'], text: 'Vérification de connexion : le mail OTP et la page /verify suivent le thème sombre zinc du serveur (cartes, code, boutons), marque « Atlas » seule au lieu du doublon « Atlas Commerce », pied de page © 2026 Etherealmber · loxdpsy · MIT' },
+          { id: '072i7', platforms: ['server', 'web'], text: 'Vérification de connexion : le mail OTP et la page /verify suivent le thème sombre zinc du serveur (cartes, code, boutons), marque « Atlas » seule au lieu du doublon « Atlas Commerce », pied de page © 2026 Etherealmber · MIT' },
         ],
       },
       {

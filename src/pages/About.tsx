@@ -50,31 +50,24 @@ const PROJECT_SHOWCASE: {
   badge?: string;
 }[] = [
   {
-    repo: 'ai-agent',
-    title: 'Paul',
-    href: 'https://chat.afmarbre.com',
-    blurb: 'Agent IA privé sur Cloudflare — chat sur votre compte.',
-    badge: 'Live',
-  },
-  {
-    repo: 'support-page',
-    title: 'Support',
-    href: 'https://support.afmarbre.com',
-    blurb: 'Page support clients.',
-    badge: 'Live',
-  },
-  {
-    repo: 'archi-convert',
-    title: 'Archi Convert',
-    href: 'https://github.com/loxdpsy/archi-convert',
-    blurb: 'Unités et matériaux pour l’architecture.',
+    repo: 'afmarbre-main',
+    title: 'afmarbre-main',
+    href: 'https://github.com/Etherealmber/afmarbre-main',
+    blurb: 'Vitrine & infrastructure afmarbre.com.',
     badge: 'GitHub',
   },
   {
-    repo: 'toolkit',
-    title: 'Toolkit',
-    href: 'https://github.com/loxdpsy/toolkit',
-    blurb: 'Boîte à outils TypeScript.',
+    repo: 'atlas-commerce-android',
+    title: 'atlas-commerce-android',
+    href: 'https://github.com/Etherealmber/atlas-commerce-android',
+    blurb: 'Application Android native (Kotlin) : WebView, scan QR, notifications.',
+    badge: 'GitHub',
+  },
+  {
+    repo: 'atlas-commerce-desktop',
+    title: 'atlas-commerce-desktop',
+    href: 'https://github.com/Etherealmber/atlas-commerce-desktop',
+    blurb: 'Client bureau Tauri : Windows, macOS, Linux.',
     badge: 'GitHub',
   },
 ];
@@ -215,17 +208,14 @@ export default function About() {
   }, []);
 
   const byName = Object.fromEntries(repos.map((r) => [r.name, r]));
-  const showcaseNames = new Set(PROJECT_SHOWCASE.map((p) => p.repo));
-  // v0.7.2 — le profil créateur liste TOUS ses dépôts publics (hors forks),
-  // pas seulement la vitrine : les autres arrivent triés par activité (API).
-  const extraRepos = repos.filter((r) => !r.fork && !showcaseNames.has(r.name));
+  // v0.7.7 — directive : uniquement les 3 dépôts demandés (afmarbre-main,
+  // atlas-commerce-android, atlas-commerce-desktop) ; plus de liste API.
 
   return (
     <div className="atlas-page about-page atlas-crm">
       <header className="about-hero">
         <div className="about-hero-brand">
-          <img src="/atlas-icon-light.png" alt="" width={48} height={48} className="about-logo brand-img brand-img--light" loading="lazy" decoding="async" />
-          <img src="/atlas-icon-dark.png" alt="" width={48} height={48} className="about-logo brand-img brand-img--dark" loading="lazy" decoding="async" />
+          {/* v0.7.7 — le hero ne duplicate plus le logo : la nav publique porte la marque */}
           <div>
             <p className="atlas-eyebrow" style={{ margin: 0 }}>
               Produit
@@ -397,16 +387,14 @@ export default function About() {
           <div className="about-owner-meta">
             <h2>Créateur</h2>
             <p className="about-owner-name">
-              <strong>{user?.name || APP_CREATOR_NAME}</strong>
+              <strong>{APP_CREATOR_NAME}</strong>
               {' · '}
               <a href={APP_GITHUB} target="_blank" rel="noreferrer">
                 @{APP_CREATOR}
               </a>
             </p>
             <p className="about-muted about-owner-bio">
-              {user?.bio || 'Développement produit & infrastructure.'}
-              {user?.location ? ` · ${user.location}` : APP_LOCATION ? ` · ${APP_LOCATION}` : ''}
-              {user?.public_repos != null ? ` · ${user.public_repos} dépôts` : ''}
+              Développement produit & infrastructure · {APP_LOCATION}
             </p>
           </div>
         </div>
@@ -459,20 +447,6 @@ export default function About() {
               </li>
             );
           })}
-          {extraRepos.map((r) => (
-            <li key={r.name}>
-              <a href={r.html_url} target="_blank" rel="noreferrer" className="about-project-link">
-                <span className="about-project-title">{r.name}</span>
-                <span className="about-project-blurb">{r.description || 'Dépôt public GitHub.'}</span>
-                {r.language ? (
-                  <span className="about-project-lang">
-                    {r.language}
-                    {r.stargazers_count ? ` · ★ ${r.stargazers_count}` : ''}
-                  </span>
-                ) : null}
-              </a>
-            </li>
-          ))}
         </ul>
       </section>
 

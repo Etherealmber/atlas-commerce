@@ -303,7 +303,7 @@ export default function Download() {
               <a href={ANDROID_REPO} target="_blank" rel="noopener noreferrer">atlas-commerce-android</a>
             </li>
             <li>
-              Licence : <span className="dl-muted">MIT © 2026 loxdpsy / Etherealmber</span>
+              Licence : <span className="dl-muted">MIT © 2026 Etherealmber</span>
             </li>
             <li>
               Installation : <span className="dl-muted">ouvrez l&apos;APK téléchargée depuis ce lien officiel uniquement</span>

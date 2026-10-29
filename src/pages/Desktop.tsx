@@ -338,7 +338,7 @@ export default function Desktop() {
               <a href="https://github.com/Etherealmber/atlas-commerce-android" target="_blank" rel="noopener noreferrer">atlas-commerce-android</a>
             </li>
             <li>
-              Licence : <span className="dl-muted">MIT © 2026 Etherealmber / loxdpsy</span>
+              Licence : <span className="dl-muted">MIT © 2026 Etherealmber</span>
             </li>
             <li>
               Installation : <span className="dl-muted">Windows → .msi · macOS → .dmg (Gatekeeper : ouvrir une fois) · Linux → AppImage (chmod +x)</span>

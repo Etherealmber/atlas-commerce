@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getTheme, setTheme as applyTheme, subscribeTheme, type ThemeChoice } from '../theme';
-import { isLoggedIn } from '../auth';
+import { isLoggedIn, getDisplayName, getUsername, getRole, getDisplayInitials } from '../auth';
 
 const LOGO_DARK = '/atlas-logo-dark.png';
 const LOGO_LIGHT = '/atlas-logo-light.png';
@@ -147,6 +147,38 @@ export function PublicThemeToggle() {
   );
 }
 
+/** v0.7.7 — chip profil (comme celle des Paramètres) pour les pages publiques
+ *  quand un appareil est connecté ; remplace le CTA « Ouvrir l'app ». */
+export function PublicProfileChip() {
+  const c = useChromeColors();
+  if (!isLoggedIn()) return null;
+  const name = getDisplayName() || getUsername() || 'utilisateur';
+  const role = getRole() || 'utilisateur';
+  return (
+    <span
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 8,
+        padding: '4px 12px 4px 5px', borderRadius: 999, flex: '0 0 auto',
+        background: c.ghostBg, border: `1px solid ${c.ghostBorder}`,
+      }}
+    >
+      <span
+        style={{
+          width: 26, height: 26, borderRadius: 999, background: c.ink, color: c.navBg,
+          display: 'grid', placeItems: 'center', fontSize: 10.5, fontWeight: 800,
+        }}
+        aria-hidden="true"
+      >
+        {getDisplayInitials() || '?'}
+      </span>
+      <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
+        <strong style={{ fontSize: 12.5, color: c.ink, fontWeight: 700 }}>{name}</strong>
+        <span style={{ fontSize: 10.5, color: c.sub }}>{role}</span>
+      </span>
+    </span>
+  );
+}
+
 export type NavLink = { href: string; label: string };
 
 /** Barre de navigation flottante « pill » — une seule image de logo, choisie
@@ -154,25 +186,51 @@ export type NavLink = { href: string; label: string };
 export function PublicNav({ links, cta }: { links: NavLink[]; cta?: ReactNode }) {
   const c = useChromeColors();
   const [menu, setMenu] = useState(false);
+  // v0.7.7 — la pilule RÉTRÉCIT quand on descend, reprend sa taille en remontant.
+  const [compact, setCompact] = useState(false);
+  useEffect(() => {
+    let last = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      setCompact((prev) => {
+        if (y <= 60) return false;
+        if (y > 140 && y > last) return true;
+        if (y < last) return false;
+        return prev;
+      });
+      last = y;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
   const linkSt = (extra?: CSSProperties): CSSProperties => ({
-    padding: '7px 12px', borderRadius: 999, color: c.sub, fontSize: 13.5,
+    padding: compact ? '5px 9px' : '7px 12px', borderRadius: 999, color: c.sub,
+    fontSize: compact ? 12.5 : 13.5,
     textDecoration: 'none', whiteSpace: 'nowrap', background: 'transparent',
-    border: 0, cursor: 'pointer', fontWeight: 600, ...extra,
+    border: 0, cursor: 'pointer', fontWeight: 600,
+    transition: 'padding .18s ease, font-size .18s ease', ...extra,
   });
   return (
-    <header style={{ position: 'sticky', top: 14, zIndex: 60, padding: '14px 16px 0' }}>
+    <header
+      style={{
+        position: 'sticky', top: compact ? 8 : 14, zIndex: 60,
+        padding: compact ? '6px 10px 0' : '14px 16px 0',
+        transition: 'padding .18s ease, top .18s ease',
+      }}
+    >
       <nav
         aria-label="Navigation publique"
         style={{
-          maxWidth: 1080, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 14,
-          padding: '8px 10px 8px 18px', borderRadius: 999,
+          maxWidth: 1080, margin: '0 auto', display: 'flex', alignItems: 'center', gap: compact ? 10 : 14,
+          padding: compact ? '5px 8px 5px 12px' : '8px 10px 8px 18px', borderRadius: 999,
           background: c.navBg, border: `1px solid ${c.navBorder}`,
           backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
           boxShadow: c.navShadow,
+          transition: 'padding .18s ease, gap .18s ease',
         }}
       >
         <Link to="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', flex: '0 0 auto' }} aria-label="Atlas — accueil">
-          <img src={c.dark ? LOGO_DARK : LOGO_LIGHT} alt="Atlas" style={{ height: 24, width: 'auto', display: 'block' }} />
+          <img src={c.dark ? LOGO_DARK : LOGO_LIGHT} alt="Atlas" style={{ height: compact ? 19 : 24, width: 'auto', display: 'block', transition: 'height .18s ease' }} />
         </Link>
         <div className="pn-links" style={{ display: 'flex', gap: 2, margin: '0 auto', minWidth: 0, overflow: 'hidden' }}>
           {links.map((l) => (
@@ -181,7 +239,7 @@ export function PublicNav({ links, cta }: { links: NavLink[]; cta?: ReactNode })
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto', flex: '0 0 auto' }}>
           <PublicThemeToggle />
-          {cta}
+          {isLoggedIn() ? <PublicProfileChip /> : cta}
           <button
             type="button"
             aria-label="Menu"
