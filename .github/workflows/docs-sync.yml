@@ -8,11 +8,9 @@ name: Docs sync (version & support policy)
 on:
   push:
     branches: [main]
-    paths:
-      - 'src/version.ts'
-      - 'scripts/sync-docs.mjs'
-      - 'README.md'
-      - 'SECURITY.md'
+    # Pas de filtre `paths` : les filtres de chemins ne se déclenchent pas de
+    # façon fiable sur les merge commits (le seul mode de merge du dépôt).
+    # Le script est idempotent et ne commit que si les docs changent vraiment.
   workflow_dispatch:
 
 permissions:
