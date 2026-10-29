@@ -5,9 +5,9 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { openConsentSettings } from '../lib/cookieConsent';
 import { setToken, clearToken, getToken, setProfileCache, isLoggedIn, isStockRole, sanitizeAvatarUrl } from '../auth';
 
-/** Same home for phone and desktop — responsive shell. */
+/** v0.7.3 — après connexion : /dashboard (l'accueil `/` est public, sans redirect). */
 function postLoginPath(): string {
-  return '/';
+  return '/dashboard';
 }
 
 import { APP_BUILD_DATE, APP_NAME, APP_VERSION, APP_CREATOR, APP_CREATOR_NAME, APP_PROFILE, APP_GITHUB } from '../version';
@@ -420,7 +420,7 @@ export default function Login() {
     // Already signed in → leave login (do not clear session)
     const reason = params.get('reason');
     if (!reason && isLoggedIn()) {
-      navigate(isStockRole() && postLoginPath() === '/' ? '/products' : postLoginPath(), { replace: true });
+      navigate(isStockRole() ? '/products' : postLoginPath(), { replace: true });
       return;
     }
     // Forced re-login (session expired, etc.)

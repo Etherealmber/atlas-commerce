@@ -157,6 +157,8 @@ const Quotes = lazyRetry(() => import('./pages/Quotes'));
 const Reimbursements = lazyRetry(() => import('./pages/Reimbursements'));
 const About = lazyRetry(() => import('./pages/About'));
 const Download = lazyRetry(() => import('./pages/Download'));
+const Home = lazyRetry(() => import('./pages/Home'));
+const DesktopPage = lazyRetry(() => import('./pages/Desktop'));
 const WhatsNew = lazyRetry(() => import('./pages/WhatsNew'));
 const WhatsNewModal = lazyRetry(() => import('./components/WhatsNewModal'));
 const Actions = lazyRetry(() => import('./pages/Actions'));
@@ -504,6 +506,41 @@ function DownloadRoute() {
   );
 }
 
+/** v0.7.3 — `/` est l'ACCUEIL public : aucune redirection en navigateur
+ * classique (directive user) — le tableau de bord vit sur /dashboard et la
+ * connexion sur /login. Deux exceptions qui doivent continuer de fonctionner :
+ * la WebView native Android (UA « Atlas-Android ») et la PWA installée
+ * (display-mode standalone) ouvrent `/` comme racine d'app — elles partent
+ * vers /dashboard (ou /login), sinon l'app installée serait cassée. */
+function HomeRoute() {
+  const loggedIn = typeof isLoggedIn === 'function' ? isLoggedIn() : !!getToken();
+  const native = /Atlas-Android/i.test(navigator.userAgent || '');
+  const standalone =
+    window.matchMedia?.('(display-mode: standalone)').matches ||
+    (navigator as unknown as { standalone?: boolean }).standalone === true;
+  if (native || standalone) {
+    return <Navigate to={loggedIn ? '/dashboard' : '/login'} replace />;
+  }
+  return (
+    <div className="download-standalone">
+      <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
+        <Home />
+      </Suspense>
+    </div>
+  );
+}
+
+/** v0.7.3 — /desktop : landing standalone de l'app bureau, comme /download. */
+function DesktopRoute() {
+  return (
+    <div className="download-standalone">
+      <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
+        <DesktopPage />
+      </Suspense>
+    </div>
+  );
+}
+
 /** v0.7 — /about readable WITHOUT an account: standalone layout (no topbar,
  * no Agent, no session access). Logged-in users keep the exact same Shell. */
 function AboutRoute() {
@@ -553,7 +590,7 @@ function WelcomeGate() {
     return <Navigate to="/login" replace />;
   }
   if (isWelcomeCompleted()) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
   return (
     <Suspense fallback={<div className="welcome-stage"><p style={{ textAlign: 'center', padding: 48 }}>Chargement…</p></div>}>
@@ -625,13 +662,13 @@ function takeThemeRevealOrigin() {
 
 function useTheme() {
   const [mode, setMode] = useState<ThemeMode>(() => {
-    const v = localStorage.getItem('atlas-theme') || 'light';
-    return v === 'dark' || v === 'system' ? v : 'light';
+    const v = localStorage.getItem('atlas-theme') || 'system';
+    return v === 'dark' || v === 'system' ? v : 'system';
   });
   useEffect(() => {
     const sync = () => {
-      const v = localStorage.getItem('atlas-theme') || 'light';
-      setMode(v === 'dark' || v === 'system' ? v : 'light');
+      const v = localStorage.getItem('atlas-theme') || 'system';
+      setMode(v === 'dark' || v === 'system' ? v : 'system');
     };
     window.addEventListener('atlas-theme-change', sync);
     return () => window.removeEventListener('atlas-theme-change', sync);
@@ -1041,7 +1078,7 @@ function DesktopShell() {
       {/* v0.7 — dock mobile (téléphone / tablette portrait) : barre basse
           translucide, libellés opaques, bouton central surélevé */}
       <nav className="mobile-dock" aria-label="Navigation principale mobile">
-        <NavLink to="/" end className={({ isActive }) => `mobile-dock-item${isActive ? ' active' : ''}`}>
+        <NavLink to="/dashboard" end className={({ isActive }) => `mobile-dock-item${isActive ? ' active' : ''}`}>
           <NavIcon d="M4 10.5L12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5z" />
           <span>Accueil</span>
         </NavLink>
@@ -1091,7 +1128,7 @@ function DesktopShell() {
                 <nav>
           <div className="nav-section">Vue d&apos;ensemble</div>
           {canOfficeWork() && (
-          <NavLink to="/" end className={({ isActive }) => (isActive ? 'active' : '')} data-tooltip="Tableau de bord" title="Tableau de bord">
+          <NavLink to="/dashboard" end className={({ isActive }) => (isActive ? 'active' : '')} data-tooltip="Tableau de bord" title="Tableau de bord">
             <span className="nav-main"><NavIcon d="M4 10.5L12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5z" /><span className="nav-label">Tableau de bord</span></span>
           </NavLink>
           )}
@@ -1451,7 +1488,7 @@ function DesktopShell() {
             <button
               type="button"
               className="settings-topbar-back"
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/dashboard')}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
                 <path d="M15 18l-6-6 6-6" />
@@ -1936,7 +1973,8 @@ function DesktopShell() {
               <About />
             ) : (
             <Routes>
-              <Route path="/" element={<Dashboard />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/actions" element={<Actions />} />
               <Route path="/products" element={<Products />} />
               <Route path="/scan" element={<RoleGate allow={canManageStock()}><Scan /></RoleGate>} />
@@ -1961,7 +1999,7 @@ function DesktopShell() {
               <Route path="/whats-new" element={<WhatsNew />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
-              <Route path="/m" element={<Navigate to="/" replace />} />
+              <Route path="/m" element={<Navigate to="/dashboard" replace />} />
               <Route path="/m/scan" element={<Navigate to="/scan" replace />} />
               <Route path="/m/products" element={<Navigate to="/products" replace />} />
               <Route path="/m/vente" element={<Navigate to="/quick-sale" replace />} />
@@ -1969,10 +2007,10 @@ function DesktopShell() {
               <Route path="/m/warehouse" element={<Navigate to="/inventory-ops" replace />} />
               <Route path="/m/invoice" element={<Navigate to="/quotes" replace />} />
               <Route path="/m/settings" element={<Navigate to="/settings" replace />} />
-              <Route path="/m/agent" element={<Navigate to="/" replace />} />
+              <Route path="/m/agent" element={<Navigate to="/dashboard" replace />} />
               <Route path="/m/more" element={<Navigate to="/settings" replace />} />
-              <Route path="/m/*" element={<Navigate to="/" replace />} />
-              <Route path="/m-legacy" element={<Navigate to="/" replace />} />
+              <Route path="/m/*" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/m-legacy" element={<Navigate to="/dashboard" replace />} />
               <Route path="*" element={<NotFoundRedirect />} />
             </Routes>
             )}
@@ -2082,6 +2120,7 @@ function PhoneShell() {
             <Route path="/m-legacy" element={<PhoneApp />} />
             {/* Default phone landing */}
             <Route path="/" element={<Navigate to="/m" replace />} />
+            <Route path="/dashboard" element={<Navigate to="/m" replace />} />
             {/* Everything else PC-only: /settings, /balance, /dashboard, … */}
             <Route path="/*" element={<PhonePcOnlyPage />} />
           </Routes>
@@ -2158,6 +2197,9 @@ export default function App() {
             <Route path="/whats-new" element={<WhatsNewRoute />} />
             <Route path="/about" element={<AboutRoute />} />
             <Route path="/download" element={<DownloadRoute />} />
+            <Route path="/" element={<HomeRoute />} />
+            <Route path="/desktop" element={<DesktopRoute />} />
+            <Route path="/dashboard" element={<Protected><Shell /></Protected>} />
             <Route path="/*" element={<Protected><Shell /></Protected>} />
           </Routes>
           <CookieConsent />

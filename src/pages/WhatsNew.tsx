@@ -31,6 +31,26 @@ type Release = {
 
 export const RELEASES: Release[] = [
   {
+    version: '0.7.3-beta',
+    date: '30 octobre 2026',
+    sections: [
+      {
+        kind: 'features',
+        items: [
+          { id: '073a1', platforms: ['web'], text: 'Accueil public sur stock.afmarbre.com : la page / présente le produit (comment ça marche, fonctionnalités), les trois apps Web · Android · Bureau et le bloc open source avec bouton Fork — sans cookie et sans aucune redirection vers login ou dashboard' },
+          { id: '073a2', platforms: ['web', 'desktop'], text: 'Nouvelle page /desktop : installateurs bureau officiels (Windows .msi/.exe, macOS .dmg, Linux AppImage) lus depuis GitHub Releases avec détection de votre système, fichiers de la version, notes et historique — même gabarit que /download' },
+          { id: '073a3', platforms: ['web'], text: 'Route /dashboard explicite : l’application s’ouvre désormais sur cette adresse après connexion ; la racine reste l’accueil public. L’app Android installée et la PWA continuent de s’ouvrir directement dans l’app' },
+        ],
+      },
+      {
+        kind: 'improvements',
+        items: [
+          { id: '073i1', platforms: ['web'], text: 'Thème : premier lancement sur « système » par défaut (suit clair/sombre de l’OS, mis à jour en direct) ; accueil et /desktop gagnent un sélecteur système/clair/sombre, une palette claire complète et des révélations animées respectueuses de prefers-reduced-motion' },
+        ],
+      },
+    ],
+  },
+  {
     version: '0.7.2-beta',
     date: '29 octobre 2026',
     sections: [

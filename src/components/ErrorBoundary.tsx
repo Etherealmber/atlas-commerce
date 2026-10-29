@@ -81,9 +81,9 @@ export class ErrorBoundary extends Component<Props, State> {
     try {
       // Dashboard-related crash: hard reload home so a broken dashboard tree is not reused
       if (onDashboard) {
-        window.location.assign('/');
+        window.location.assign('/dashboard');
       } else {
-        window.location.assign('/');
+        window.location.assign('/dashboard');
       }
     } catch {
       try { window.location.href = '/'; } catch { /* */ }
