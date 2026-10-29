@@ -1,5 +1,5 @@
 import { Link, useSearchParams } from 'react-router-dom';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { Sparkles, Wrench, AlertCircle, ArrowUpCircle } from 'lucide-react';
 import { RELEASE_VISIBLE_CAP, semverAtMost } from '../version';
@@ -1210,12 +1210,22 @@ const KIND_META: Record<
 };
 
 export default function WhatsNew() {
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
+  const [copied, setCopied] = useState<string>('');
   const filter = params.get('f') || 'all';
 
   useEffect(() => {
     markWhatsNewSeen();
   }, []);
+
+  const copyLink = (version: string) => {
+    const url = `${window.location.origin}/whats-new#v-${version}`;
+    try {
+      void navigator.clipboard?.writeText(url);
+    } catch { /* clipboard refusé : l'ancre reste dans l'URL */ }
+    setCopied(version);
+    window.setTimeout(() => setCopied((c: string) => (c === version ? '' : c)), 1600);
+  };
 
   const releases = useMemo(() => {
     // v0.7.7 — gel directive : rien au-delà de 0.7.2 n'est exposé publiquement.
@@ -1251,6 +1261,25 @@ export default function WhatsNew() {
       </motion.h1>
 
       <div className="wn-releases">
+        <div className="wn-filters" role="group" aria-label="Filtrer le journal">
+          {[
+            { id: 'all', label: 'Tout' },
+            { id: 'added', label: 'Nouveautés' },
+            { id: 'improved', label: 'Améliorations' },
+            { id: 'fixed', label: 'Corrections' },
+          ].map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              className={`wn-filter${filter === f.id ? ' active' : ''}`}
+              aria-pressed={filter === f.id}
+              onClick={() => setParams(f.id === 'all' ? {} : { f: f.id })}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
         {releases.map((rel, ri) => (
           <motion.section
             key={rel.version}
@@ -1259,8 +1288,24 @@ export default function WhatsNew() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: Math.min(ri * 0.02, 0.4), duration: 0.28 }}
           >
-            <h2 className="wn-ver">
+            <h2 className="wn-ver" id={`v-${rel.version}`}>
               {rel.version} <span className="wn-ver-date">— {rel.date}</span>
+              <button
+                type="button"
+                className="wn-copy"
+                title="Copier le lien de cette version"
+                aria-label={`Copier le lien de la version ${rel.version}`}
+                onClick={() => copyLink(rel.version)}
+              >
+                {copied === rel.version ? (
+                  'Copié ✓'
+                ) : (
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'block' }}>
+                    <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" />
+                    <path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" />
+                  </svg>
+                )}
+              </button>
             </h2>
             {rel.sections.map((sec) => {
               const meta = KIND_META[sec.kind];

@@ -253,7 +253,7 @@ export default function Home() {
         <div className="hm-bg-glow hm-bg-glow-b" />
       </div>
 
-      <PublicNav links={NAV} cta={<PublicSessionCta />} />
+      <PublicNav links={NAV} cta={<PublicSessionCta />} classic />
 
       <main className="hm-main">
         {/* ---------------- Hero ---------------- */}
