@@ -177,6 +177,7 @@ export default function Download() {
           { href: '/about', label: 'À propos' },
         ]}
         cta={<PublicSessionCta />}
+        classic
       />
 
       {/* ── Hero plein écran ─ */}

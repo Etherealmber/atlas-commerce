@@ -188,6 +188,7 @@ export default function Desktop() {
           { href: '/about', label: 'À propos' },
         ]}
         cta={<PublicSessionCta />}
+        classic
       />
 
       <section className="dl-hero">

@@ -20541,3 +20541,52 @@ html[data-theme='dark'] .gsp-head { background: #101013; border-color: #27272a; 
   .pn-tabs { display: none !important; }
 }
 .settings-topbar-search { cursor: pointer; }
+
+/* ═══ v0.7.7 — filtres du journal + copie de lien par version ═══ */
+.wn-filters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 auto 26px;
+}
+.wn-filter {
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--dl-line, #26262a);
+  background: var(--dl-card, #141416);
+  color: var(--dl-sub, #a1a1aa);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+.wn-filter:hover { color: var(--dl-ink, #fafafa); }
+.wn-filter.active {
+  background: #c45c26;
+  border-color: #c45c26;
+  color: #fff;
+}
+.wn-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 10px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--dl-line, #26262a);
+  background: transparent;
+  color: var(--dl-sub, #a1a1aa);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.wn-copy:hover { color: var(--dl-accent, #e0a184); border-color: var(--dl-accent, #e0a184); }
+.pn-tabs-sep {
+  width: 1px;
+  height: 20px;
+  margin: 0 4px;
+  background: var(--dl-line, #26262a);
+  opacity: .7;
+}
