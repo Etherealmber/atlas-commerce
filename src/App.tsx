@@ -32,6 +32,7 @@ import {
   isOwnerRole,
 } from './auth';
 import { PublicNav, PublicSessionCta } from './components/PublicChrome';
+import GlobalSearchPanel from './components/GlobalSearchPanel';
 import { startDestination } from './lib/startPage';
 import { AppDialogsProvider } from './components/AppDialogs';
 /** v0.7 — stale hashed chunks after a deploy: one silent reload, then fail
@@ -566,7 +567,6 @@ function AboutRoute() {
           { href: '/whats-new', label: 'Nouveautés' },
         ]}
         cta={<PublicSessionCta />}
-        quick
       />
       <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
         <About />
@@ -591,7 +591,6 @@ function WhatsNewRoute() {
           { href: '/about', label: 'À propos' },
         ]}
         cta={<PublicSessionCta />}
-        quick
       />
       <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
         <WhatsNew />
@@ -1085,6 +1084,7 @@ function DesktopShell() {
     <>
       <ScrollToTop />
       <AtlasLoadingBar />
+      <GlobalSearchPanel />
       <div className={`layout${sidebarCollapsed ? ' sidebar-collapsed' : ''}${mobileNavOpen ? ' mobile-nav-open' : ''}${isFocusRoute ? ' layout-settings-focus' : ''}`}>
       <OfflineBanner />
 
@@ -1713,10 +1713,16 @@ function DesktopShell() {
                 <input
                   type="text"
                   className="settings-topbar-search"
-                  placeholder="Rechercher un réglage…"
-                  value={settingsTopSearch}
+                  placeholder="Rechercher : réglage, produit, client, facture…"
+                  value=""
+                  readOnly
                   autoComplete="off"
-                  onFocus={() => setSettingsSearchOpen(true)}
+                  onFocus={(e) => {
+                    // v0.7.7 — tap = panneau latéral (au-dessus de l'Agent si ouvert)
+                    e.currentTarget.blur();
+                    setSettingsSearchOpen(false);
+                    window.dispatchEvent(new Event('atlas-search-open'));
+                  }}
                   onChange={(e) => {
                     setSettingsTopSearch(e.target.value);
                     setSettingsSearchOpen(true);

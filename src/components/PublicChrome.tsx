@@ -282,11 +282,22 @@ export function PublicQuickBar() {
 
 export type NavLink = { href: string; label: string };
 
+/** v0.7.7 — onglets icônes façon topbar Paramètres, pour les connectés. */
+const PN_TABS: { href: string; label: string; d: string }[] = [
+  { href: '/dashboard', label: 'Tableau de bord', d: 'M3 3h8v8H3zM13 3h8v5h-8zM13 12h8v9h-8zM3 15h8v6H3z' },
+  { href: '/quick-sale', label: 'Vente rapide', d: 'M6 6h15l-1.5 8h-12zM6 6L5 3H2M9 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM18 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2z' },
+  { href: '/products', label: 'Produits & stock', d: 'M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8' },
+  { href: '/invoices', label: 'Factures', d: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M9 13h6M9 17h4' },
+  { href: '/clients', label: 'Clients', d: 'M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75' },
+  { href: '/reports', label: 'Rapports', d: 'M4 20V10M10 20V4M16 20v-7M21 20H3' },
+];
+
 /** Barre de navigation flottante « pill » — une seule image de logo, choisie
  *  par le thème résolu (plus jamais deux logos côte à côte). */
-export function PublicNav({ links, cta, quick = false }: { links: NavLink[]; cta?: ReactNode; quick?: boolean }) {
+export function PublicNav({ links, cta }: { links: NavLink[]; cta?: ReactNode }) {
   const c = useChromeColors();
   const [menu, setMenu] = useState(false);
+  const loggedIn = isLoggedIn();
   // v0.7.7 — la pilule RÉTRÉCIT quand on descend, reprend sa taille en remontant.
   const [compact, setCompact] = useState(false);
   useEffect(() => {
@@ -315,6 +326,11 @@ export function PublicNav({ links, cta, quick = false }: { links: NavLink[]; cta
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
+  const tabSt = (extra?: CSSProperties): CSSProperties => ({
+    display: 'grid', placeItems: 'center', width: compact ? 28 : 32, height: compact ? 28 : 32,
+    borderRadius: 10, color: c.sub, textDecoration: 'none', background: 'transparent',
+    transition: 'width .18s ease, height .18s ease', ...extra,
+  });
   const linkSt = (extra?: CSSProperties): CSSProperties => ({
     padding: compact ? '5px 9px' : '7px 12px', borderRadius: 999, color: c.sub,
     fontSize: compact ? 12.5 : 13.5,
@@ -344,12 +360,38 @@ export function PublicNav({ links, cta, quick = false }: { links: NavLink[]; cta
         <Link to="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', flex: '0 0 auto' }} aria-label="Atlas — accueil">
           <img src={c.dark ? LOGO_DARK : LOGO_LIGHT} alt="Atlas" style={{ height: compact ? 19 : 24, width: 'auto', display: 'block', transition: 'height .18s ease' }} />
         </Link>
-        <div className="pn-links" style={{ display: 'flex', gap: 2, margin: '0 auto', minWidth: 0, overflow: 'hidden' }}>
-          {links.map((l) => (
-            <a key={l.href} href={l.href} style={linkSt()}>{l.label}</a>
-          ))}
-        </div>
+        {loggedIn ? (
+          <div className="pn-tabs" role="navigation" aria-label="Raccourcis espace de travail">
+            {PN_TABS.map((t) => (
+              <Link key={t.href} to={t.href} title={t.label} aria-label={t.label} style={tabSt()}>
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'block' }}>
+                  <path d={t.d} />
+                </svg>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="pn-links" style={{ display: 'flex', gap: 2, margin: '0 auto', minWidth: 0, overflow: 'hidden' }}>
+            {links.map((l) => (
+              <a key={l.href} href={l.href} style={linkSt()}>{l.label}</a>
+            ))}
+          </div>
+        )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto', flex: '0 0 auto' }}>
+          <button
+            type="button"
+            aria-label="Recherche globale"
+            title="Recherche globale"
+            onClick={() => window.dispatchEvent(new Event('atlas-search-open'))}
+            style={{
+              display: 'grid', placeItems: 'center', width: 32, height: 32, borderRadius: 999,
+              border: 0, background: 'transparent', color: c.sub, cursor: 'pointer', padding: 0,
+            }}
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true" style={{ display: 'block' }}>
+              <circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" />
+            </svg>
+          </button>
           <PublicThemeToggle />
           {isLoggedIn() ? <PublicProfileChip /> : cta}
           <button
@@ -389,11 +431,6 @@ export function PublicNav({ links, cta, quick = false }: { links: NavLink[]; cta
           ))}
         </div>
       )}
-      {quick ? (
-        <div style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)' }}>
-          <PublicQuickBar />
-        </div>
-      ) : null}
     </header>
   );
 }
