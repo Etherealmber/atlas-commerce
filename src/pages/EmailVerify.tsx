@@ -10,8 +10,9 @@
  *     types the code;
  *  3. stores the session exactly like the login page and opens the app.
  *
- * Visual language mirrors the e-mail template (light grey canvas, orange
- * action, salmon accents) so the tap feels continuous.
+ * Visual language mirrors the e-mail template — which follows the server
+ * theme (dark zinc canvas, terracotta action, saffron accents) — so the tap
+ * feels continuous.
  */
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -21,9 +22,13 @@ import { getCachedFingerprint } from '../fingerprint';
 
 type Status = 'detect' | 'verifying' | 'ok' | 'error';
 
-const ORANGE = '#f4590c';
-const SALMON = '#ee8b6c';
-const GREY = '#8b93a3';
+const ORANGE = '#c45c26'; /* terracotta Atlas */
+const SALMON = '#d4a017'; /* saffron Atlas */
+const CANVAS = '#09090b'; /* zinc-950 — thème serveur */
+const CARD = '#18181b'; /* zinc-900 */
+const LINE = '#27272a'; /* zinc-800 */
+const INK = '#fafafa'; /* zinc-50 */
+const GREY = '#a1a1aa'; /* zinc-400 */
 
 export default function EmailVerify() {
   const [params] = useSearchParams();
@@ -119,11 +124,11 @@ export default function EmailVerify() {
           margin: '3px 4px',
           padding: '5px 12px',
           borderRadius: 999,
-          background: '#ffffff',
-          border: '1px solid #e7e7ec',
+          background: CARD,
+          border: `1px solid ${LINE}`,
           fontSize: 12,
           fontWeight: 600,
-          color: '#3d4453',
+          color: '#e4e4e7',
         }}
       >
         {label}
@@ -131,15 +136,14 @@ export default function EmailVerify() {
     ) : null;
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f1f1f4', display: 'grid', placeItems: 'center', padding: 22 }}>
+    <div style={{ minHeight: '100vh', background: CANVAS, display: 'grid', placeItems: 'center', padding: 22 }}>
       <div style={{ width: '100%', maxWidth: 460, textAlign: 'center' }}>
-        <div style={{ fontSize: 30, lineHeight: 1 }}>🏬</div>
-        <div style={{ marginTop: 8, fontSize: 22, fontWeight: 800, color: '#101114' }}>Atlas Commerce</div>
+        <img src="/atlas-logo-dark.png" alt="Atlas" style={{ display: 'block', height: 42, width: 'auto', maxWidth: '100%', margin: '0 auto' }} />
         <div style={{ height: 26 }} />
         <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 2, color: SALMON, textTransform: 'uppercase' }}>
           Vérification de l’appareil
         </div>
-        <h1 style={{ margin: '12px 0 0', fontSize: 28, lineHeight: 1.2, fontWeight: 800, color: '#101114' }}>
+        <h1 style={{ margin: '12px 0 0', fontSize: 28, lineHeight: 1.2, fontWeight: 800, color: INK }}>
           {status === 'ok' ? (
             <>
               Appareil vérifié <em style={{ fontFamily: "Georgia,'Times New Roman',serif", fontStyle: 'italic', fontWeight: 600, color: SALMON }}>✓</em>
@@ -162,7 +166,7 @@ export default function EmailVerify() {
               : 'Le code du mail est transmis automatiquement — rien à saisir.'}
         </p>
 
-        <div style={{ margin: '24px 0 0', background: '#f7f7f9', border: '1px solid #e7e7ec', borderRadius: 12, padding: '22px 16px' }}>
+        <div style={{ margin: '24px 0 0', background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: '22px 16px' }}>
           {status === 'ok' ? (
             <div style={{ fontSize: 34, fontWeight: 800, color: '#16a34a' }}>✓</div>
           ) : status === 'error' ? (
@@ -175,7 +179,7 @@ export default function EmailVerify() {
                 height: 34,
                 margin: '0 auto',
                 borderRadius: '50%',
-                border: `3px solid #e7e7ec`,
+                border: `3px solid ${LINE}`,
                 borderTopColor: ORANGE,
                 animation: 'emailverify-spin 0.9s linear infinite',
               }}
@@ -212,7 +216,7 @@ export default function EmailVerify() {
             </Link>
           </div>
         )}
-        <p style={{ margin: '22px auto 0', maxWidth: 360, fontSize: 12, lineHeight: 1.6, color: '#a6adbb' }}>
+        <p style={{ margin: '22px auto 0', maxWidth: 360, fontSize: 12, lineHeight: 1.6, color: '#71717a' }}>
           Vous n’êtes pas à l’origine de cette demande ? Fermez cette page et changez votre mot de passe.
         </p>
       </div>
