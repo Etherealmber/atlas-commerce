@@ -156,42 +156,58 @@ export function PublicProfileChip() {
   const name = getDisplayName() || getUsername() || 'utilisateur';
   const role = getRole() || 'utilisateur';
   return (
-    <span
-      style={{
-        display: 'inline-flex', alignItems: 'center', gap: 8,
-        padding: '4px 12px 4px 5px', borderRadius: 999, flex: '0 0 auto',
-        background: c.ghostBg, border: `1px solid ${c.ghostBorder}`,
-      }}
-    >
-      {hasAvatarUrl() ? (
-        <AvatarImage
-          className="pn-chip-avatar"
-          width={26}
-          height={26}
-          fallback={
-            <span
-              className="pn-chip-ini"
-              style={{ background: c.ink, color: c.navBg }}
-              aria-hidden="true"
-            >
-              {getDisplayInitials() || '?'}
-            </span>
-          }
-        />
-      ) : (
-        <span
-          className="pn-chip-ini"
-          style={{ background: c.ink, color: c.navBg }}
-          aria-hidden="true"
-        >
-          {getDisplayInitials() || '?'}
-        </span>
-      )}
-      <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
-        <strong style={{ fontSize: 12.5, color: c.ink, fontWeight: 700 }}>{name}</strong>
-        <span style={{ fontSize: 10.5, color: c.sub }}>{role}</span>
+    <span className="pn-chip" style={{ background: c.ghostBg, border: `1px solid ${c.ghostBorder}` }}>
+      <span className="pn-chip-avatar-slot" style={{ background: c.ink, color: c.navBg }}>
+        {hasAvatarUrl() ? (
+          <AvatarImage
+            className="pn-chip-avatar"
+            width={26}
+            height={26}
+            fallback={<span className="pn-chip-ini">{getDisplayInitials() || '?'}</span>}
+          />
+        ) : (
+          <span className="pn-chip-ini">{getDisplayInitials() || '?'}</span>
+        )}
+      </span>
+      <span className="pn-chip-meta">
+        <strong style={{ color: c.ink }}>{name}</strong>
+        <span style={{ color: c.sub }}>{role}</span>
       </span>
     </span>
+  );
+}
+
+/** v0.7.7 — carte flottante SÉPARÉE (à côté de la pilule, jamais dedans) :
+ *  raccourcis connectés « Tableau de bord » + « Paramètres ». */
+export function PublicQuickBar() {
+  const c = useChromeColors();
+  if (!isLoggedIn()) return null;
+  const item = (href: string, label: string, d: string): ReactNode => (
+    <Link
+      key={href}
+      to={href}
+      title={label}
+      aria-label={label}
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 7, padding: '7px 12px',
+        borderRadius: 999, textDecoration: 'none', color: c.ink, fontSize: 12.5,
+        fontWeight: 700, background: 'transparent', border: 0, whiteSpace: 'nowrap',
+      }}
+    >
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'block' }}>
+        <path d={d} />
+      </svg>
+      <span className="pn-quick-label">{label}</span>
+    </Link>
+  );
+  return (
+    <div
+      className="pn-quick"
+      style={{ background: c.navBg, border: `1px solid ${c.navBorder}`, boxShadow: c.navShadow }}
+    >
+      {item('/dashboard', 'Tableau de bord', 'M3 3h8v8H3zM13 3h8v5h-8zM13 12h8v9h-8zM3 15h8v6H3z')}
+      {item('/settings', 'Paramètres', 'M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM19.2 15a1.6 1.6 0 0 0 .32 1.77l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.6 1.6 0 0 0-1.77-.32 1.6 1.6 0 0 0-.97 1.47V21a2 2 0 1 1-4 0v-.09a1.6 1.6 0 0 0-1.05-1.47 1.6 1.6 0 0 0-1.77.32l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.6 1.6 0 0 0 .32-1.77 1.6 1.6 0 0 0-1.47-.97H3a2 2 0 1 1 0-4h.09A1.6 1.6 0 0 0 4.56 9.1a1.6 1.6 0 0 0-.32-1.77l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.6 1.6 0 0 0 1.77.32 1.6 1.6 0 0 0 .97-1.47V3a2 2 0 1 1 4 0v.09a1.6 1.6 0 0 0 .97 1.47 1.6 1.6 0 0 0 1.77-.32l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.6 1.6 0 0 0-.32 1.77 1.6 1.6 0 0 0 1.47 1.05H21a2 2 0 1 1 0 4h-.09a1.6 1.6 0 0 0-1.47.97z')}
+    </div>
   );
 }
 
@@ -199,7 +215,7 @@ export type NavLink = { href: string; label: string };
 
 /** Barre de navigation flottante « pill » — une seule image de logo, choisie
  *  par le thème résolu (plus jamais deux logos côte à côte). */
-export function PublicNav({ links, cta }: { links: NavLink[]; cta?: ReactNode }) {
+export function PublicNav({ links, cta, quick = false }: { links: NavLink[]; cta?: ReactNode; quick?: boolean }) {
   const c = useChromeColors();
   const [menu, setMenu] = useState(false);
   // v0.7.7 — la pilule RÉTRÉCIT quand on descend, reprend sa taille en remontant.
@@ -232,12 +248,14 @@ export function PublicNav({ links, cta }: { links: NavLink[]; cta?: ReactNode })
         position: 'sticky', top: compact ? 8 : 14, zIndex: 60,
         padding: compact ? '6px 10px 0' : '14px 16px 0',
         transition: 'padding .18s ease, top .18s ease',
+        display: 'flex', alignItems: 'center', gap: 10,
       }}
     >
       <nav
         aria-label="Navigation publique"
         style={{
           maxWidth: 1080, margin: '0 auto', display: 'flex', alignItems: 'center', gap: compact ? 10 : 14,
+          flex: '1 1 auto', minWidth: 0,
           padding: compact ? '5px 8px 5px 12px' : '8px 10px 8px 18px', borderRadius: 999,
           background: c.navBg, border: `1px solid ${c.navBorder}`,
           backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
@@ -293,6 +311,7 @@ export function PublicNav({ links, cta }: { links: NavLink[]; cta?: ReactNode })
           ))}
         </div>
       )}
+      {quick ? <PublicQuickBar /> : null}
     </header>
   );
 }
@@ -393,7 +412,7 @@ export function PublicDownloadCta({ prefer, full = true }: { prefer?: Platform; 
   }, [open]);
 
   const urlFor = (p: Platform): string => {
-    if (p === 'android') return android?.url || '/download';
+    if (p === 'android') return android?.url || '/android';
     return desktop[p] || `/desktop#${p}`;
   };
   const extFor = (p: Platform): string =>

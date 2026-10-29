@@ -777,13 +777,6 @@ if (loading) return (
   return (
     <div className="atlas-page atlas-settings">
       <div className="page-header settings-page-header" style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
-        <div style={{ minWidth: 0, flex: '1 1 280px' }}>
-          <p className="atlas-eyebrow" style={{ marginBottom: 6 }}>Espace de travail</p>
-          <h1 className="atlas-hello" style={{ fontSize: '1.75rem', marginBottom: 6 }}>Paramètres</h1>
-          <p className="atlas-lead" style={{ marginBottom: 0, maxWidth: '100%', overflowWrap: 'anywhere', whiteSpace: 'normal' }}>
-            Identité, fiscalité, banque et sécurité de l&apos;espace de travail.
-          </p>
-        </div>
         {Object.values(fieldErrors).filter(Boolean)[0] && (
           <span className="save-error-inline">{Object.values(fieldErrors).filter(Boolean)[0]}</span>
         )}

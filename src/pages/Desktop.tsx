@@ -181,7 +181,7 @@ export default function Desktop() {
       <PublicNav
         links={[
           { href: '/', label: 'Accueil' },
-          { href: '/download', label: 'Android' },
+          { href: '/android', label: 'Android' },
           { href: '#assets', label: 'Téléchargements' },
           { href: '/whats-new', label: 'Nouveautés' },
           { href: '/privacy', label: 'Confidentialité' },
@@ -361,7 +361,7 @@ export default function Desktop() {
                 Voir les releases
               </a>
             )}
-            <Link className="dl-cta-ghost" to="/download">Apk Android</Link>
+            <Link className="dl-cta-ghost" to="/android">Apk Android</Link>
             <Link className="dl-cta-ghost" to="/whats-new">Nouveautés</Link>
           </div>
         </div>
@@ -376,7 +376,7 @@ export default function Desktop() {
           </div>
           <nav aria-label="Liens produit">
             <Link to="/">Accueil</Link>
-            <Link to="/download">Android</Link>
+            <Link to="/android">Android</Link>
             <Link to="/whats-new">Nouveautés</Link>
             <Link to="/about">À propos</Link>
             <Link to="/privacy">Confidentialité</Link>

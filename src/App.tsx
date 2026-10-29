@@ -562,10 +562,11 @@ function AboutRoute() {
         links={[
           { href: '/', label: 'Accueil' },
           { href: '/desktop', label: 'Bureau' },
-          { href: '/download', label: 'Android' },
+          { href: '/android', label: 'Android' },
           { href: '/whats-new', label: 'Nouveautés' },
         ]}
         cta={<PublicSessionCta />}
+        quick
       />
       <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
         <About />
@@ -586,10 +587,11 @@ function WhatsNewRoute() {
         links={[
           { href: '/', label: 'Accueil' },
           { href: '/desktop', label: 'Bureau' },
-          { href: '/download', label: 'Android' },
+          { href: '/android', label: 'Android' },
           { href: '/about', label: 'À propos' },
         ]}
         cta={<PublicSessionCta />}
+        quick
       />
       <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
         <WhatsNew />
@@ -2231,7 +2233,9 @@ export default function App() {
             <Route path="/404" element={<div className="access-page-standalone"><AccessPage kind="not-found" /></div>} />
             <Route path="/whats-new" element={<WhatsNewRoute />} />
             <Route path="/about" element={<AboutRoute />} />
-            <Route path="/download" element={<DownloadRoute />} />
+            <Route path="/android" element={<DownloadRoute />} />
+            {/* v0.7.7 — l'ancienne page /download déménage sur /android */}
+            <Route path="/download" element={<Navigate to="/android" replace />} />
             <Route path="/" element={<HomeRoute />} />
             <Route path="/desktop" element={<DesktopRoute />} />
             <Route path="/dashboard/*" element={<Protected><Shell /></Protected>} />

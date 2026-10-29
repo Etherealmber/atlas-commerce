@@ -20,7 +20,7 @@ export default function CookieConsent() {
     // ask for consent there. The banner can still be opened manually
     // (atlas-consent-open) from the privacy link.
     const path = window.location.pathname;
-    const noCookiePages = ['/', '/download', '/desktop', '/whats-new', '/about'];
+    const noCookiePages = ['/', '/download', '/android', '/desktop', '/whats-new', '/about'];
     const skip = noCookiePages.some((p) => path === p || path.startsWith(`${p}/`));
     setVisible(!skip && !hasDecidedConsent());
     const open = () => {
