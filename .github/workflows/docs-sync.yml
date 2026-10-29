@@ -1,0 +1,48 @@
+name: Docs sync (version & support policy)
+
+# v0.7.2 — README.md et SECURITY.md suivent automatiquement APP_VERSION :
+# badge de version, « Version actuelle », table des versions supportées et
+# politique de support (seule la mineure courante est supportée ; au passage
+# à la mineure suivante, la précédente passe en fin de support).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/version.ts'
+      - 'scripts/sync-docs.mjs'
+      - 'README.md'
+      - 'SECURITY.md'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: docs-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Resync README & SECURITY from APP_VERSION
+        run: node scripts/sync-docs.mjs
+
+      - name: Commit & push si les docs ont changé
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md SECURITY.md
+          if git diff --cached --quiet; then
+            echo "Docs déjà à jour — aucun commit."
+          else
+            git commit -m "docs: sync version & politique de support [skip ci]"
+            git push
+          fi

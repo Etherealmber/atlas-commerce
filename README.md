@@ -8,7 +8,9 @@
 
 <!-- Badges -->
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
-![Version](https://img.shields.io/badge/version-0.5.1--beta-blue)
+<!-- SUPPORT-SYNC:badge:start -->
+![Version](https://img.shields.io/badge/version-0.7.2--beta-blue)
+<!-- SUPPORT-SYNC:badge:end -->
 ![Build](https://img.shields.io/badge/build-cloudflare%20workers-orange)
 ![Stack](https://img.shields.io/badge/stack-React%20%2B%20Vite%20%2B%20D1%20%2B%20R2-0a0a0a)
 ![Mobile](https://img.shields.io/badge/mobile-PWA%20%2B%20Android%20natif%20(Kotlin)-3ddc84)
@@ -316,7 +318,11 @@ Atlas Commerce est développé et maintenu par **loxdpy ([@loxdpsy](https://gith
 - `themes-css-guard.yml` : `scripts/css-check.mjs` — accolades/parenthèses équilibrées, hex valides, dark-force.css dernier import CSS obligatoire, et aucune NOUVELLE déclaration blanche dans les blocs sombres sur les PR
 - Les trois tournent sur chaque pull request (et sur main) avec filters par chemin : un PR rouge ne devrait jamais être mergé, donc jamais déployé
 
-Version actuelle : **0.7.0-beta** (gelée jusqu'au prochain ordre de push).
+<!-- SUPPORT-SYNC:support:start -->
+Version actuelle : **0.7.2-beta** (gelée jusqu'au prochain ordre de push).
+
+> **Politique de support** : seule la mineure courante (**0.7**) reçoit correctifs et mises à jour de sécurité. Dès la sortie de la mineure suivante (ex. 0.8.0), la mineure précédente passe immédiatement en fin de support — 0.6.x l'est depuis 0.7.0. Les versions 0.6.x et antérieures ne sont plus supportées.
+<!-- SUPPORT-SYNC:support:end -->
 
 Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depuis la première version interne ; le détail complet et vivant est dans l'app (**Nouveautés**), y compris l’ancien cycle bêta pré-renumérotation, renuméroté en **0.x** (0.0.1 → 0.4.4).
 

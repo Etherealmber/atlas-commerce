@@ -40,6 +40,8 @@ export const RELEASES: Release[] = [
           { id: '072a1', platforms: ['server'], text: 'OTP obligatoire à chaque connexion par mot de passe (owner inclus) : fin du bypass « appareil de confiance », premier login d’un compte neuf compris ; le code part sur l’e-mail du compte, sinon sur l’e-mail principal de la société' },
           { id: '072a2', platforms: ['server', 'android'], text: 'Ajustements de stock : circuit de demandes approbées (POST/GET /api/stock-adjustment-requests, approve/reject owner·admin·secrétaire, application atomique + audit) ; l’écran Notifications Android liste les demandes pendantes' },
           { id: '072a3', platforms: ['web'], text: 'Aperçus PDF au vrai format par type (reçu, avoir/WR, fiche employé, rapport) avec QR, données démo marquées DÉMO, sans impression automatique et liens ouverts dans le popup' },
+          { id: '072a4', platforms: ['web'], text: 'L’aperçu Rapport suit désormais le vrai rapport combiné : liste des 7 rapports détaillés, sections Solde & mouvements, Créances, Dettes, Employés & paie, liens ouverts dans le popup et jeu de données démo cohérent (client, articles, reçu, employé) avec avertissement permanent' },
+          { id: '072a5', platforms: ['server'], text: 'Le reçu en aperçu affiche le QR « situation client » quand l’option est activée, exactement comme le reçu réel : jeton signé, même durée de vie que le réglage' },
         ],
       },
       {
@@ -48,6 +50,9 @@ export const RELEASES: Release[] = [
           { id: '072i1', platforms: ['server'], text: 'Confidentialité inventaire par rôle côté serveur : magasinier/opérateur ne reçoivent plus prix ni coûts (liste, scan, dashboard, contexte Agent) ; rapports comptables réservés owner/admin' },
           { id: '072i2', platforms: ['web'], text: 'Modale « Appareils connectés » : nom d’appareil lisible (Atlas Android · modèle, Chrome · Windows…) et ville/pays selon l’IP au lieu de l’empreinte hexadécimale' },
           { id: '072i3', platforms: ['web'], text: 'Bannière cookies : fini le plein écran — petite carte flottante en bas au centre, au-dessus de tout, non bloquante ; absente de /download, /whats-new et /about qui ne posent aucun cookie' },
+          { id: '072i4', platforms: ['server'], text: 'Tous les QR codes générés (reçus, factures, rapports, aperçus) portent le nouveau logo Atlas au centre, sur pastille blanche' },
+          { id: '072i5', platforms: ['web'], text: 'Rapports détaillés ouverts depuis le rapport combiné : bouton « ← Retour aux rapports combinés » en haut, jamais imprimé ; page À propos : profil créateur Etherealmber avec tous ses dépôts publics, plus seulement la vitrine' },
+          { id: '072i6', platforms: ['server'], text: 'Automatisation du dépôt : branches fusionnées supprimées automatiquement, README et page Sécurité resynchronisés à chaque version — politique de support : seule la mineure courante est supportée, la mineure précédente passe en fin de support dès le changement de mineure' },
         ],
       },
       {
