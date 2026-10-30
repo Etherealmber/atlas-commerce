@@ -20678,3 +20678,17 @@ html[data-theme="dark"] .pn-tabs-sep { background: #26262a; }
 .pn-chip-avatar-slot { position: relative; background: transparent; }
 .pn-chip-ini--base { position: absolute; inset: 0; }
 .pn-chip-avatar-slot .pn-chip-avatar { position: absolute; inset: 0; z-index: 1; }
+
+
+/* ═══ v0.7.7 — /about & /whats-new : topbar Paramètres littérale (sticky + compacte) ═══ */
+.public-about,
+.public-whats-new { padding-top: 0; }
+.public-settings-topbar { margin: 0 auto 28px; width: 100%; }
+.public-settings-topbar .settings-topbar-tabs { flex: 0 1 auto; }
+.public-settings-topbar.settings-topbar--compact .settings-topbar-search-wrap { display: flex; align-items: center; }
+.public-settings-topbar.settings-topbar--compact .settings-topbar-search-icon { width: 28px; height: 28px; }
+@media (max-width: 760px) {
+  .public-settings-topbar .settings-topbar-back span,
+  .public-settings-topbar .settings-topbar-brand div { display: none; }
+  .public-settings-topbar .settings-topbar-tabs { display: none; }
+}
