@@ -31,7 +31,7 @@ import {
   canSell,
   isOwnerRole,
 } from './auth';
-import { PublicNav, PublicSessionCta } from './components/PublicChrome';
+import { PublicSettingsTopbar } from './components/PublicChrome';
 import GlobalSearchPanel from './components/GlobalSearchPanel';
 import { startDestination } from './lib/startPage';
 import { AppDialogsProvider } from './components/AppDialogs';
@@ -557,17 +557,9 @@ function AboutRoute() {
   // tous, seul le CTA suit la session.
   return (
     <div className="public-about">
-      <PublicNav
-        // v0.7.7 — même navigation que pour un visiteur non connecté :
-        // seuls le CTA (Se connecter / Ouvrir l'app) et le toggle suivent la session.
-        links={[
-          { href: '/', label: 'Accueil' },
-          { href: '/desktop', label: 'Bureau' },
-          { href: '/android', label: 'Android' },
-          { href: '/whats-new', label: 'Nouveautés' },
-        ]}
-        cta={<PublicSessionCta />}
-      />
+      {/* v0.7.7 — la pill publique est supprimée : topbar Paramètres LITTÉRALE
+          (sticky, compacte au scroll), un seul bouton recherche. */}
+      <PublicSettingsTopbar />
       <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
         <About />
       </Suspense>
@@ -582,16 +574,8 @@ function WhatsNewRoute() {
   // v0.7.6 — barre pill commune ; v0.7.7 — liens identiques pour tous.
   return (
     <div className="public-whats-new">
-      <PublicNav
-        // v0.7.7 — identique à la version visiteurs ; CTA adapté à la session.
-        links={[
-          { href: '/', label: 'Accueil' },
-          { href: '/desktop', label: 'Bureau' },
-          { href: '/android', label: 'Android' },
-          { href: '/about', label: 'À propos' },
-        ]}
-        cta={<PublicSessionCta />}
-      />
+      {/* v0.7.7 — topbar Paramètres littérale (sticky + compacte au scroll). */}
+      <PublicSettingsTopbar />
       <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
         <WhatsNew />
       </Suspense>
@@ -1908,15 +1892,6 @@ function DesktopShell() {
             </div>
           )}
           <div className="settings-topbar-right">
-            <button
-              type="button"
-              className="settings-topbar-tab secondary"
-              aria-label="Recherche globale"
-              title="Recherche globale"
-              onClick={() => window.dispatchEvent(new Event('atlas-search-open'))}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
-            </button>
             <div className="settings-topbar-theme" role="group" aria-label="Thème">
               <button type="button" data-theme-toggle className={themeMode === 'system' ? 'active' : undefined} title="Système" aria-label="Système" aria-pressed={themeMode === 'system'} onClick={() => setThemeMode('system')}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" aria-hidden><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>

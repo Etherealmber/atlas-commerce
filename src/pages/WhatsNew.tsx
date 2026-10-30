@@ -65,6 +65,8 @@ export const RELEASES: Release[] = [
           { id: '077i16', platforms: ['web'], text: 'Filtres du journal des nouveautés lisibles en thème clair (les pastilles n’apparaissent plus en noir)' },
           { id: '077i17', platforms: ['web'], text: 'La photo de profil s’affiche de nouveau dans la pastille de compte publique (initiales en base, image réelle par-dessus)' },
           { id: '077i18', platforms: ['web'], text: 'Atlas Agent : quand l’accès est suspendu (abus ou injection de prompt détectée), la barre de saisie est masquée — seul l’avis de verrouillage reste visible' },
+          { id: '077i19', platforms: ['web'], text: 'À propos et Nouveautés : l’ancienne barre pill disparaît au profit de la topbar Paramètres littérale — collante en haut, toujours visible au scroll et plus compacte quand on descend (sans scintillement)' },
+          { id: '077i20', platforms: ['web'], text: 'Un seul bouton recherche partout : doublon retiré de la topbar Paramètres ; accueil, bureau et Android n’affichent plus de bouton recherche' },
         ],
       },
       {

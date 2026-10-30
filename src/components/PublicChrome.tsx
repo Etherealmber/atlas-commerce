@@ -299,6 +299,55 @@ const PN_TABS: { id: string; label: string; d: string }[] = [
   { id: 'cookies', label: 'Préférences cookies', d: 'M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0-18 0M9 10h.01M14 9h.01M10 14h.01' },
 ];
 
+/** v0.7.7 — onglets legacy (Conditions, Confidentialité, GitHub, Guide,
+ *  Cookies) rendus avec les classes littérales de la topbar Paramètres.
+ *  La page en cours n'est JAMAIS affichée ; rien ne duplique la sidebar. */
+export function PnLegacyTabs() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  return (
+    <div className="settings-topbar-tabs pn-tabs" role="navigation" aria-label="Liens utiles">
+        {PN_TABS.filter((t) => {
+          if (t.id === 'terms') return location.pathname !== '/terms';
+          if (t.id === 'privacy') return location.pathname !== '/privacy';
+          return true;
+        }).map((t) => {
+          const svg = (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ display: 'block' }}>
+              <path d={t.d} />
+            </svg>
+          );
+          if (t.id === 'github') {
+            return (
+              <button key={t.id} type="button" className="settings-topbar-tab secondary" title={t.label} aria-label={t.label} onClick={() => window.open('https://github.com/Etherealmber', '_blank', 'noopener,noreferrer')}>
+                {svg}
+                  </button>
+            );
+              }
+          if (t.id === 'cookies') {
+            return (
+              <button key={t.id} type="button" className="settings-topbar-tab secondary" title={t.label} aria-label={t.label} onClick={() => window.dispatchEvent(new Event('atlas-consent-open'))}>
+                {svg}
+                  </button>
+            );
+              }
+          if (t.id === 'welcome') {
+            return (
+              <button key={t.id} type="button" className="settings-topbar-tab secondary" title={t.label} aria-label={t.label} onClick={() => { resetWelcome(); navigate('/welcome'); }}>
+                {svg}
+                  </button>
+            );
+              }
+          return (
+            <Link key={t.id} className="settings-topbar-tab secondary" to={`/${t.id}`} title={t.label} aria-label={t.label}>
+                  {svg}
+                </Link>
+          );
+            })}
+          </div>
+  );
+}
+
 export function PublicNav({ links, cta, classic = false }: { links: NavLink[]; cta?: ReactNode; classic?: boolean }) {
   const c = useChromeColors();
   const [menu, setMenu] = useState(false);
@@ -368,45 +417,7 @@ export function PublicNav({ links, cta, classic = false }: { links: NavLink[]; c
           <img src={c.dark ? LOGO_DARK : LOGO_LIGHT} alt="Atlas" style={{ height: compact ? 19 : 24, width: 'auto', display: 'block', transition: 'height .18s ease' }} />
         </Link>
         {loggedIn && !classic ? (
-          <div className="settings-topbar-tabs pn-tabs" role="navigation" aria-label="Liens utiles">
-            {PN_TABS.filter((t) => {
-              if (t.id === 'terms') return location.pathname !== '/terms';
-              if (t.id === 'privacy') return location.pathname !== '/privacy';
-              return true;
-            }).map((t) => {
-              const svg = (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ display: 'block' }}>
-                  <path d={t.d} />
-                </svg>
-              );
-              if (t.id === 'github') {
-                return (
-                  <button key={t.id} type="button" className="settings-topbar-tab secondary" title={t.label} aria-label={t.label} onClick={() => window.open('https://github.com/Etherealmber', '_blank', 'noopener,noreferrer')}>
-                    {svg}
-                  </button>
-                );
-              }
-              if (t.id === 'cookies') {
-                return (
-                  <button key={t.id} type="button" className="settings-topbar-tab secondary" title={t.label} aria-label={t.label} onClick={() => window.dispatchEvent(new Event('atlas-consent-open'))}>
-                    {svg}
-                  </button>
-                );
-              }
-              if (t.id === 'welcome') {
-                return (
-                  <button key={t.id} type="button" className="settings-topbar-tab secondary" title={t.label} aria-label={t.label} onClick={() => { resetWelcome(); navigate('/welcome'); }}>
-                    {svg}
-                  </button>
-                );
-              }
-              return (
-                <Link key={t.id} className="settings-topbar-tab secondary" to={`/${t.id}`} title={t.label} aria-label={t.label}>
-                  {svg}
-                </Link>
-              );
-            })}
-          </div>
+          <PnLegacyTabs />
         ) : (
           <div className="pn-links" style={{ display: 'flex', gap: 2, margin: '0 auto', minWidth: 0, overflow: 'hidden' }}>
             {links.map((l) => (
@@ -415,20 +426,22 @@ export function PublicNav({ links, cta, classic = false }: { links: NavLink[]; c
           </div>
         )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto', flex: '0 0 auto' }}>
-          <button
-            type="button"
-            aria-label="Recherche globale"
-            title="Recherche globale"
-            onClick={() => window.dispatchEvent(new Event('atlas-search-open'))}
-            style={{
-              display: 'grid', placeItems: 'center', width: 32, height: 32, borderRadius: 999,
-              border: 0, background: 'transparent', color: c.sub, cursor: 'pointer', padding: 0,
-            }}
-          >
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true" style={{ display: 'block' }}>
-              <circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" />
-            </svg>
-          </button>
+          {!classic && (
+            <button
+              type="button"
+              aria-label="Recherche globale"
+              title="Recherche globale"
+              onClick={() => window.dispatchEvent(new Event('atlas-search-open'))}
+              style={{
+                display: 'grid', placeItems: 'center', width: 32, height: 32, borderRadius: 999,
+                border: 0, background: 'transparent', color: c.sub, cursor: 'pointer', padding: 0,
+              }}
+            >
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true" style={{ display: 'block' }}>
+                <circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" />
+              </svg>
+            </button>
+          )}
           <PublicThemeToggle />
           {isLoggedIn() ? <PublicProfileChip /> : cta}
           <button
@@ -475,6 +488,83 @@ export function PublicNav({ links, cta, classic = false }: { links: NavLink[]; c
 type ReleaseAssets = Record<string, string>;
 
 /** Récupère les dernières versions (bureau via GitHub, Android via manifest.json public). */
+/** v0.7.7 — /about et /whats-new : la pill publique est SUPPRIMÉE au profit de
+ *  la topbar Paramètres LITTÉRALE (mêmes classes) : sticky, visible au scroll,
+ *  compacte (hystérésis 48 px, aucun scintillement). Un SEUL bouton recherche. */
+export function PublicSettingsTopbar() {
+  const [compact, setCompact] = useState(false);
+  useEffect(() => {
+    let last = window.scrollY;
+    let acc = 0;
+    let compactNow = false;
+    const onScroll = () => {
+      const y = window.scrollY;
+      const d = y - last;
+      last = y;
+      if (y <= 60) {
+        acc = 0;
+        if (compactNow) { compactNow = false; setCompact(false); }
+        return;
+      }
+      if (d > 0) {
+        acc = acc > 0 ? acc + d : d;
+        if (!compactNow && y > 140 && acc > 48) { compactNow = true; setCompact(true); }
+      } else if (d < 0) {
+        acc = acc < 0 ? acc + d : d;
+        if (compactNow && acc < -48) { compactNow = false; setCompact(false); }
+      }
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+  const location = useLocation();
+  const loggedIn = isLoggedIn();
+  const title = location.pathname === '/whats-new' ? 'Nouveautés' : 'À propos';
+  return (
+    <header className={`settings-topbar public-settings-topbar${compact ? ' settings-topbar--compact' : ''}`} role="banner">
+      <div className="settings-topbar-left">
+        {loggedIn && (
+          <>
+            <button type="button" className="settings-topbar-back" onClick={() => window.location.assign('/dashboard')}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+              Tableau de bord
+            </button>
+            <span className="settings-topbar-sep" aria-hidden />
+          </>
+        )}
+        <div className="settings-topbar-brand">
+          <img src="/atlas-icon-light.png" alt="" className="brand-img brand-img--light" width={28} height={28} />
+          <img src="/atlas-icon-dark.png" alt="" className="brand-img brand-img--dark" width={28} height={28} />
+          <div>
+            <strong>{title}</strong>
+            <span>Atlas Commerce · beta</span>
+          </div>
+        </div>
+      </div>
+      {loggedIn && <PnLegacyTabs />}
+      <div className="settings-topbar-right">
+        <div className="settings-topbar-search-wrap">
+          <div className="settings-topbar-search-inner">
+            <button
+              type="button"
+              className="settings-topbar-search-icon"
+              aria-label="Recherche globale"
+              title="Recherche globale"
+              onClick={() => window.dispatchEvent(new Event('atlas-search-open'))}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
+            </button>
+          </div>
+        </div>
+        <PublicThemeToggle />
+        {loggedIn ? <PublicProfileChip /> : <PublicSessionCta />}
+      </div>
+    </header>
+  );
+}
+
 export function usePublicReleases(): { desktop: ReleaseAssets; android: { url: string; label: string } | null; loaded: boolean } {
   const [desktop, setDesktop] = useState<ReleaseAssets>({});
   const [android, setAndroid] = useState<{ url: string; label: string } | null>(null);
