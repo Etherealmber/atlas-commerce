@@ -1068,7 +1068,6 @@ function DesktopShell() {
     <>
       <ScrollToTop />
       <AtlasLoadingBar />
-      <GlobalSearchPanel />
       <div className={`layout${sidebarCollapsed ? ' sidebar-collapsed' : ''}${mobileNavOpen ? ' mobile-nav-open' : ''}${isFocusRoute ? ' layout-settings-focus' : ''}`}>
       <OfflineBanner />
 
@@ -2185,6 +2184,8 @@ export default function App() {
       <AppDialogsProvider>
         <DemoProvider>
           <PageTitleSync />
+          {/* v0.7.7 — panneau recherche dispo sur TOUTES les routes (publiques comprises) */}
+          <GlobalSearchPanel />
           <Routes>
             <Route path="/login" element={<LoginGate />} />
             <Route path="/login/qr" element={<Suspense fallback={null}><LoginQr /></Suspense>} />

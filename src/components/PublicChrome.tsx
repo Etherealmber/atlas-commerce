@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { getTheme, setTheme as applyTheme, subscribeTheme, type ThemeChoice } from '../theme';
 import { isLoggedIn, getDisplayName, getUsername, getRole, getDisplayInitials, hasAvatarUrl, clearToken } from '../auth';
 import { invalidateAvatarCache } from '../lib/avatarCache';
 import { resetWelcome } from '../lib/welcome';
+import { useProfileWarm, useProfileTick } from '../lib/useProfileWarm';
 import { AvatarImage } from './ui/AvatarImage';
 
 const LOGO_DARK = '/atlas-logo-dark.png';
@@ -153,6 +154,8 @@ export function PublicThemeToggle() {
 /** v0.7.7 — chip profil (comme celle des Paramètres) pour les pages publiques
  *  quand un appareil est connecté ; remplace le CTA « Ouvrir l'app ». */
 export function PublicProfileChip() {
+  useProfileWarm();
+  useProfileTick();
   const c = useChromeColors();
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLSpanElement | null>(null);
@@ -518,6 +521,7 @@ export function PublicSettingsTopbar() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
   const location = useLocation();
+  const [params, setParams] = useSearchParams();
   const loggedIn = isLoggedIn();
   const title = location.pathname === '/whats-new' ? 'Nouveautés' : 'À propos';
   return (
@@ -543,6 +547,26 @@ export function PublicSettingsTopbar() {
           </div>
         </div>
       </div>
+      {location.pathname === '/whats-new' ? (
+        <div className="settings-topbar-tabs pst-filters" role="group" aria-label="Filtrer le journal">
+          {[
+            { id: 'all', label: 'Tout' },
+            { id: 'added', label: 'Nouveautés' },
+            { id: 'improved', label: 'Améliorations' },
+            { id: 'fixed', label: 'Corrections' },
+          ].map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              className={`wn-filter${(params.get('f') || 'all') === f.id ? ' active' : ''}`}
+              aria-pressed={(params.get('f') || 'all') === f.id}
+              onClick={() => setParams(f.id === 'all' ? {} : { f: f.id })}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
       {loggedIn && <PnLegacyTabs />}
       <div className="settings-topbar-right">
         <div className="settings-topbar-search-wrap">
