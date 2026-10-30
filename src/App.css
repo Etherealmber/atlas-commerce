@@ -20690,5 +20690,77 @@ html[data-theme="dark"] .pn-tabs-sep { background: #26262a; }
 @media (max-width: 760px) {
   .public-settings-topbar .settings-topbar-back span,
   .public-settings-topbar .settings-topbar-brand div { display: none; }
-  .public-settings-topbar .settings-topbar-tabs { display: none; }
+  .public-settings-topbar .pn-tabs { display: none; }
+  .public-settings-topbar .pst-filters { overflow-x: auto; flex-wrap: nowrap; }
+}
+
+
+/* ═══ v0.7.7 — topbar publique : FIXE (visible au scroll, compacte), recherche
+   lisible, filtres du journal dans la barre (le button global noir est neutralisé) ═══ */
+.public-settings-topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  max-width: none;
+  margin: 0;
+  z-index: 60;
+}
+.public-about,
+.public-whats-new { padding-top: 86px; }
+.public-settings-topbar .settings-topbar-search-icon,
+.public-settings-topbar .settings-topbar-search-icon:hover {
+  background: transparent !important;
+  color: #3f3f46 !important;
+  padding: 0 !important;
+  border: 1px solid transparent !important;
+  filter: none !important;
+}
+html[data-theme="dark"] .public-settings-topbar .settings-topbar-search-icon,
+html[data-theme="dark"] .public-settings-topbar .settings-topbar-search-icon:hover {
+  color: #d4d4d8 !important;
+}
+.public-settings-topbar .settings-topbar-search-wrap {
+  flex: 0 0 auto;
+  max-width: none;
+  min-width: 0;
+  width: auto;
+}
+/* pastilles de filtre : couleurs explicites, jamais le bouton global noir */
+.wn-filter,
+.wn-filter:hover {
+  background: #fff !important;
+  color: #52525b !important;
+  border: 1px solid #e4e4e7 !important;
+  padding: 6px 14px !important;
+  font-size: 12.5px !important;
+  filter: none !important;
+}
+.wn-filter.active,
+.wn-filter.active:hover {
+  background: #c45c26 !important;
+  border-color: #c45c26 !important;
+  color: #fff !important;
+}
+html[data-theme="dark"] .wn-filter,
+html[data-theme="dark"] .wn-filter:hover {
+  background: #141416 !important;
+  color: #a1a1aa !important;
+  border-color: #26262a !important;
+}
+html[data-theme="dark"] .wn-filter.active,
+html[data-theme="dark"] .wn-filter.active:hover {
+  background: #c45c26 !important;
+  border-color: #c45c26 !important;
+  color: #fff !important;
+}
+.pst-filters { flex: 0 1 auto; gap: 6px; }
+.public-settings-topbar.settings-topbar--compact .wn-filter,
+.public-settings-topbar.settings-topbar--compact .wn-filter:hover {
+  padding: 4px 10px !important;
+  font-size: 11.5px !important;
+}
+@media (max-width: 900px) {
+  .public-about, .public-whats-new { padding-top: 70px; }
+  .public-settings-topbar .settings-topbar-brand > div { display: none; }
 }

@@ -67,6 +67,9 @@ export const RELEASES: Release[] = [
           { id: '077i18', platforms: ['web'], text: 'Atlas Agent : quand l’accès est suspendu (abus ou injection de prompt détectée), la barre de saisie est masquée — seul l’avis de verrouillage reste visible' },
           { id: '077i19', platforms: ['web'], text: 'À propos et Nouveautés : l’ancienne barre pill disparaît au profit de la topbar Paramètres littérale — collante en haut, toujours visible au scroll et plus compacte quand on descend (sans scintillement)' },
           { id: '077i20', platforms: ['web'], text: 'Un seul bouton recherche partout : doublon retiré de la topbar Paramètres ; accueil, bureau et Android n’affichent plus de bouton recherche' },
+          { id: '077i21', platforms: ['web'], text: 'Nouveautés : les filtres Tout / Nouveautés / Améliorations / Corrections montent DANS la topbar (pastilles lisibles en clair comme en sombre) et le bouton « copier le lien » à côté de chaque version disparaît' },
+          { id: '077i22', platforms: ['web'], text: 'Topbar À propos / Nouveautés : fixe en haut — toujours visible en scrollant, plus compacte en descendant ; le bouton recherche (collé au sélecteur de thème) ouvre enfin le panneau global sur ces pages' },
+          { id: '077i23', platforms: ['web'], text: 'La photo de profil s’affiche dans la pastille de compte des pages publiques (le cache profil est réchauffé dès l’arrivée sur la page, plus de rond noir aux initiales)' },
         ],
       },
       {
@@ -1218,22 +1221,12 @@ const KIND_META: Record<
 };
 
 export default function WhatsNew() {
-  const [params, setParams] = useSearchParams();
-  const [copied, setCopied] = useState<string>('');
+  const [params] = useSearchParams();
   const filter = params.get('f') || 'all';
 
   useEffect(() => {
     markWhatsNewSeen();
   }, []);
-
-  const copyLink = (version: string) => {
-    const url = `${window.location.origin}/whats-new#v-${version}`;
-    try {
-      void navigator.clipboard?.writeText(url);
-    } catch { /* clipboard refusé : l'ancre reste dans l'URL */ }
-    setCopied(version);
-    window.setTimeout(() => setCopied((c: string) => (c === version ? '' : c)), 1600);
-  };
 
   const releases = useMemo(() => {
     // v0.7.7 — gel directive : rien au-delà de 0.7.2 n'est exposé publiquement.
@@ -1269,25 +1262,6 @@ export default function WhatsNew() {
       </motion.h1>
 
       <div className="wn-releases">
-        <div className="wn-filters" role="group" aria-label="Filtrer le journal">
-          {[
-            { id: 'all', label: 'Tout' },
-            { id: 'added', label: 'Nouveautés' },
-            { id: 'improved', label: 'Améliorations' },
-            { id: 'fixed', label: 'Corrections' },
-          ].map((f) => (
-            <button
-              key={f.id}
-              type="button"
-              className={`wn-filter${filter === f.id ? ' active' : ''}`}
-              aria-pressed={filter === f.id}
-              onClick={() => setParams(f.id === 'all' ? {} : { f: f.id })}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-
         {releases.map((rel, ri) => (
           <motion.section
             key={rel.version}
@@ -1298,22 +1272,6 @@ export default function WhatsNew() {
           >
             <h2 className="wn-ver" id={`v-${rel.version}`}>
               {rel.version} <span className="wn-ver-date">— {rel.date}</span>
-              <button
-                type="button"
-                className="wn-copy"
-                title="Copier le lien de cette version"
-                aria-label={`Copier le lien de la version ${rel.version}`}
-                onClick={() => copyLink(rel.version)}
-              >
-                {copied === rel.version ? (
-                  'Copié ✓'
-                ) : (
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'block' }}>
-                    <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" />
-                    <path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" />
-                  </svg>
-                )}
-              </button>
             </h2>
             {rel.sections.map((sec) => {
               const meta = KIND_META[sec.kind];
