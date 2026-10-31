@@ -20864,3 +20864,56 @@ html[data-theme='light'] body .download-landing .dl-cta-ghost:hover {
 html[data-theme='light'] body .home-landing .dl-cta-wait,
 html[data-theme='light'] body .desktop-landing .dl-cta-wait,
 html[data-theme='light'] body .download-landing .dl-cta-wait { background: #f4f4f5 !important; color: #52525b !important; }
+
+
+/* ═══ v0.7.7 — clair : rangées de versions, markdown des releases, sha256 complet ═══ */
+html[data-theme='light'] body .download-landing .dl-rel-row,
+html[data-theme='light'] body .desktop-landing .dl-rel-row,
+html[data-theme='light'] body .home-landing .dl-rel-row {
+  background: #ffffff !important;
+  border-color: #e4e4e7 !important;
+}
+html[data-theme='light'] body .download-landing .dl-rel-row strong,
+html[data-theme='light'] body .desktop-landing .dl-rel-row strong,
+html[data-theme='light'] body .home-landing .dl-rel-row strong { color: #18181b !important; }
+html[data-theme='light'] body .download-landing .dl-rel-row a,
+html[data-theme='light'] body .desktop-landing .dl-rel-row a,
+html[data-theme='light'] body .home-landing .dl-rel-row a { color: #b4531f !important; }
+html[data-theme='light'] body .download-landing .dl-md,
+html[data-theme='light'] body .download-landing .dl-md li,
+html[data-theme='light'] body .download-landing .dl-md p,
+html[data-theme='light'] body .desktop-landing .dl-md,
+html[data-theme='light'] body .desktop-landing .dl-md li,
+html[data-theme='light'] body .desktop-landing .dl-md p { color: #3f3f46 !important; }
+html[data-theme='light'] body .download-landing .dl-md strong,
+html[data-theme='light'] body .download-landing .dl-md h3,
+html[data-theme='light'] body .download-landing .dl-md h4,
+html[data-theme='light'] body .download-landing .dl-md h5,
+html[data-theme='light'] body .download-landing .dl-md h6,
+html[data-theme='light'] body .desktop-landing .dl-md strong,
+html[data-theme='light'] body .desktop-landing .dl-md h3,
+html[data-theme='light'] body .desktop-landing .dl-md h4 { color: #18181b !important; }
+html[data-theme='light'] body .download-landing .dl-md code,
+html[data-theme='light'] body .desktop-landing .dl-md code {
+  background: #f4f4f5 !important;
+  border-color: #e4e4e7 !important;
+  color: #18181b !important;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+html[data-theme='light'] body .download-landing .dl-md a,
+html[data-theme='light'] body .desktop-landing .dl-md a { color: #b4531f !important; }
+html[data-theme='light'] body .download-landing .dl-tech,
+html[data-theme='light'] body .desktop-landing .dl-tech { color: #52525b !important; }
+html[data-theme='light'] body .download-landing .dl-tech .dl-muted,
+html[data-theme='light'] body .desktop-landing .dl-tech .dl-muted { color: #71717a !important; }
+
+/* topbar publique sur téléphone : compacte, rien ne déborde */
+@media (max-width: 760px) {
+  .public-settings-topbar { gap: 8px; padding: 8px 10px; min-height: 48px; }
+  .public-settings-topbar .settings-topbar-back { display: none; }
+  .public-settings-topbar .settings-topbar-sep { display: none; }
+  .public-settings-topbar .pn-chip-meta { display: none; }
+  .public-settings-topbar .pst-filters { max-width: 44vw; overflow-x: auto; flex-wrap: nowrap; }
+  .public-settings-topbar .settings-topbar-brand img { width: 22px; height: 22px; }
+}

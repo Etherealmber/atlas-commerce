@@ -77,6 +77,7 @@ export const RELEASES: Release[] = [
           { id: '077i28', platforms: ['web'], text: '« Accès agent des utilisateurs » s’ouvre désormais en popup, comme les appareils connectés : liste des comptes, statut, Suspendre / Rétablir ; les cartes de permissions ne s’affichent plus noires (clair et sombre)' },
           { id: '077i29', platforms: ['web'], text: 'Le bouton recherche des topbars (Paramètres, À propos, Nouveautés) porte exactement le même gabarit que les icônes d’onglets, est collé au sélecteur de thème et reste visible en scrollant (il rétrécit en mode compact) ; l’onglet Atlas Agent des Paramètres arbore une icône robot lisible' },
           { id: '077i30', platforms: ['web'], text: 'Thème clair : les pages Android (/android) et Bureau (/desktop) sont entièrement lisibles — bouton fantôme « Voir sur GitHub » de nouveau visible, pill principale contrastée, fonds, cartes, notes et pied de page accordés au clair' },
+          { id: '077i31', platforms: ['web'], text: 'Thème clair, suite : rangées « Toutes les versions » blanches et lisibles, puces de code (version, APK, sha256) claires et sans coupure, libellés du manifeste contrastés, logo du pied de page adapté au thème ; sur téléphone la barre publique se compacte et le menu burger s’affiche enfin' },
         ],
       },
       {
