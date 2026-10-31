@@ -19553,7 +19553,9 @@ html[data-theme='light'] body .home-landing .home-platform-tag--desktop { backgr
 .pn-cta:hover { filter: brightness(1.1); background: rgba(255, 255, 255, .08); }
 .pn-cta.solid:hover { background: #c45c26; }
 .pn-burger {
-  display: none; place-items: center; width: 34px; height: 34px;
+  /* !important : battre le `button { display:inline-flex }` global — le burger
+     ne doit exister qu'en média ≤960 px (rule !important plus bas). */
+  display: none !important; place-items: center; width: 34px; height: 34px;
   border: 1px solid rgba(63, 63, 70, .9); border-radius: 999px;
   background: rgba(255, 255, 255, .04); color: #e4e4e7; cursor: pointer;
 }
