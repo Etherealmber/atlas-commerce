@@ -409,6 +409,36 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ proposal_id }),
     }),
+  /* ── v0.7.7 — Atlas Agent : mémoire / contexte / garde-fous / outils / RAG ── */
+  getAgentKnowledge: () =>
+    request<{
+      data: {
+        isAdmin: boolean;
+        memory: { id: number; username: string; scope: string; content: string; created_at: string }[];
+        context: string;
+        guardrails: { id: number; rule: string; active: number; created_at: string }[];
+        docs: { id: number; name: string; chars: number; created_at: string }[];
+        tools: { name: string; description: string; enabled: boolean; allowedForRole: boolean }[];
+      };
+    }>('/api/agent/knowledge'),
+  addAgentMemory: (content: string, scope: 'user' | 'org' = 'user') =>
+    request<{ data: any }>('/api/agent/knowledge/memory', { method: 'POST', body: JSON.stringify({ content, scope }) }),
+  deleteAgentMemory: (id: number) =>
+    request<{ success: boolean }>(`/api/agent/knowledge/memory/${id}`, { method: 'DELETE' }),
+  setAgentContext: (text: string) =>
+    request<{ success: boolean }>('/api/agent/knowledge/context', { method: 'PUT', body: JSON.stringify({ text }) }),
+  addAgentGuardrail: (rule: string) =>
+    request<{ data: any }>('/api/agent/knowledge/guardrails', { method: 'POST', body: JSON.stringify({ rule }) }),
+  setAgentGuardrailActive: (id: number, active: boolean) =>
+    request<{ success: boolean }>(`/api/agent/knowledge/guardrails/${id}`, { method: 'PUT', body: JSON.stringify({ active }) }),
+  deleteAgentGuardrail: (id: number) =>
+    request<{ success: boolean }>(`/api/agent/knowledge/guardrails/${id}`, { method: 'DELETE' }),
+  setAgentToolPref: (tool: string, enabled: boolean) =>
+    request<{ success: boolean }>('/api/agent/knowledge/tools', { method: 'PUT', body: JSON.stringify({ tool, enabled }) }),
+  addAgentDoc: (name: string, content: string) =>
+    request<{ data: any }>('/api/agent/knowledge/docs', { method: 'POST', body: JSON.stringify({ name, content }) }),
+  deleteAgentDoc: (id: number) =>
+    request<{ success: boolean }>(`/api/agent/knowledge/docs/${id}`, { method: 'DELETE' }),
   backupNow: () => request<{ data: any; message?: string }>('/api/admin/backup-now', { method: 'POST' }),
   revokePublicToken: (invoiceId: number) =>
     request<{ message?: string }>('/api/admin/revoke-public-token', {

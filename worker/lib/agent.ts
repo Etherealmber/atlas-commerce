@@ -467,6 +467,14 @@ export function listAllToolNames(): string[] {
   return TOOL_DEFS.map((t) => t.function.name);
 }
 
+/** v0.7.7 — nom + description de chaque outil (UI Paramètres). */
+export function listAllToolsMeta(): { name: string; description: string }[] {
+  return TOOL_DEFS.map((t) => ({
+    name: t.function.name,
+    description: String((t.function as any).description || ''),
+  }));
+}
+
 async function localDateCasablanca(): Promise<string> {
   try {
     return new Intl.DateTimeFormat('en-CA', {

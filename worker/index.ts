@@ -64,6 +64,8 @@ import {
 import { icebergCatalogInfo } from './lib/iceberg';
 import {
   listAllToolNames,
+  listAllToolsMeta,
+  toolsForRole,
   buildNextActions,
   runAssistTool,
   auditAssist,
@@ -71,7 +73,22 @@ import {
 import { geminiSimpleChat, atlasAgentSystem, scrubVendorNames, normalizeResponseLanguage } from './lib/gemini-assist';
 import { pickUiLang, tr } from './lib/error-i18n';
 import { tokenraChat } from './lib/tokenra-assist';
-import { groqChat, groqChatStream } from './lib/groq-assist';
+import { groqChat, groqChatStream, groqChatWithTools } from './lib/groq-assist';
+import {
+  loadAgentKnowledge,
+  addMemory,
+  deleteMemory,
+  setContext,
+  addGuardrail,
+  setGuardrailActive,
+  deleteGuardrail,
+  setToolPref,
+  addDoc,
+  deleteDoc,
+  retrieveKnowledge,
+  knowledgePromptSections,
+  KNOWLEDGE_TOOL_DEFS,
+} from './lib/agent-knowledge';
 import { parseAgentDocumentsAsync, agentDocumentPromptSection } from './lib/agent-docs';
 import {
   upsertDeviceToken,
@@ -1571,6 +1588,132 @@ app.post('/api/agent/flag', async (c) => {
   return c.json({ success: true, data: { blocked: true } });
 });
 
+/* ── v0.7.7 — Atlas Agent : mémoire / contexte / garde-fous / outils / RAG ──
+ * Tout se pilote depuis Paramètres (ancre agent-knowledge). Lecture pour tout
+ * compte connecté ; écriture org = owner/admin ; mémoire perso = chacun la sienne. */
+app.get('/api/agent/knowledge', async (c) => {
+  const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, clientIp(c), c.req.header('X-Device-Fingerprint') || '');
+  if (reason !== 'ok') return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
+  const session = sessionUserFromHeader(c.req.header('Authorization'));
+  const username = String(session.username || '').toLowerCase();
+  const isAdmin = session.role === 'owner' || session.role === 'admin';
+  const k = await loadAgentKnowledge(c.env.DB, username);
+  const meta = listAllToolsMeta();
+  return c.json({
+    success: true,
+    data: {
+      isAdmin,
+      memory: k.memory,
+      context: k.context,
+      guardrails: k.guardrails,
+      docs: k.docs.map((d) => ({ id: d.id, name: d.name, chars: d.chars, created_at: d.created_at })),
+      tools: meta.map((t) => ({
+        name: t.name,
+        description: t.description,
+        enabled: k.toolPrefs[t.name] === undefined ? true : k.toolPrefs[t.name] === 1,
+        allowedForRole: toolsForRole(session.role || 'user').some((d: any) => d.function.name === t.name),
+      })),
+    },
+  });
+});
+
+app.post('/api/agent/knowledge/memory', async (c) => {
+  const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, clientIp(c), c.req.header('X-Device-Fingerprint') || '');
+  if (reason !== 'ok') return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
+  const session = sessionUserFromHeader(c.req.header('Authorization'));
+  const username = String(session.username || '').toLowerCase();
+  const isAdmin = session.role === 'owner' || session.role === 'admin';
+  const body = await c.req.json().catch(() => ({} as any));
+  const scope = String(body.scope || 'user') === 'org' && isAdmin ? 'org' : 'user';
+  try {
+    const row = await addMemory(c.env.DB, username, String(body.content || ''), scope);
+    await writeAudit(c.env.DB, { username, role: session.role, action: 'agent.memory_add', entity: 'atlas_agent', detail: row.content.slice(0, 80), ip: clientIp(c) });
+    return c.json({ success: true, data: row });
+  } catch {
+    return c.json({ success: false, error: 'Souvenir vide ou trop long.', code: 'MEMORY_EMPTY' }, 400);
+  }
+});
+
+app.delete('/api/agent/knowledge/memory/:id', async (c) => {
+  const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, clientIp(c), c.req.header('X-Device-Fingerprint') || '');
+  if (reason !== 'ok') return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
+  const session = sessionUserFromHeader(c.req.header('Authorization'));
+  const username = String(session.username || '').toLowerCase();
+  const isAdmin = session.role === 'owner' || session.role === 'admin';
+  const id = Number(c.req.param('id'));
+  const ok = await deleteMemory(c.env.DB, id, username, isAdmin);
+  if (!ok) return c.json({ success: false, error: 'Souvenir introuvable ou non autorisé.', code: 'NOT_FOUND' }, 404);
+  await writeAudit(c.env.DB, { username, role: session.role, action: 'agent.memory_delete', entity: 'atlas_agent', detail: String(id), ip: clientIp(c) });
+  return c.json({ success: true });
+});
+
+app.put('/api/agent/knowledge/context', async (c) => {
+  const gate = await requireOwnerOrAdmin(c);
+  if (!gate.ok) return gate.response;
+  const body = await c.req.json().catch(() => ({} as any));
+  await setContext(c.env.DB, String(body.text || ''));
+  return c.json({ success: true });
+});
+
+app.post('/api/agent/knowledge/guardrails', async (c) => {
+  const gate = await requireOwnerOrAdmin(c);
+  if (!gate.ok) return gate.response;
+  const body = await c.req.json().catch(() => ({} as any));
+  try {
+    const row = await addGuardrail(c.env.DB, String(body.rule || ''));
+    return c.json({ success: true, data: row });
+  } catch {
+    return c.json({ success: false, error: 'Règle vide.', code: 'GUARDRAIL_EMPTY' }, 400);
+  }
+});
+
+app.put('/api/agent/knowledge/guardrails/:id', async (c) => {
+  const gate = await requireOwnerOrAdmin(c);
+  if (!gate.ok) return gate.response;
+  const body = await c.req.json().catch(() => ({} as any));
+  const ok = await setGuardrailActive(c.env.DB, Number(c.req.param('id')), !!body.active);
+  if (!ok) return c.json({ success: false, error: 'Règle introuvable.', code: 'NOT_FOUND' }, 404);
+  return c.json({ success: true });
+});
+
+app.delete('/api/agent/knowledge/guardrails/:id', async (c) => {
+  const gate = await requireOwnerOrAdmin(c);
+  if (!gate.ok) return gate.response;
+  const ok = await deleteGuardrail(c.env.DB, Number(c.req.param('id')));
+  if (!ok) return c.json({ success: false, error: 'Règle introuvable.', code: 'NOT_FOUND' }, 404);
+  return c.json({ success: true });
+});
+
+app.put('/api/agent/knowledge/tools', async (c) => {
+  const gate = await requireOwnerOrAdmin(c);
+  if (!gate.ok) return gate.response;
+  const body = await c.req.json().catch(() => ({} as any));
+  const tool = String(body.tool || '').slice(0, 80);
+  if (!listAllToolNames().includes(tool)) return c.json({ success: false, error: 'Outil inconnu.', code: 'TOOL_UNKNOWN' }, 400);
+  await setToolPref(c.env.DB, tool, !!body.enabled);
+  return c.json({ success: true });
+});
+
+app.post('/api/agent/knowledge/docs', async (c) => {
+  const gate = await requireOwnerOrAdmin(c);
+  if (!gate.ok) return gate.response;
+  const body = await c.req.json().catch(() => ({} as any));
+  try {
+    const row = await addDoc(c.env.DB, String(body.name || ''), String(body.content || ''));
+    return c.json({ success: true, data: { id: row.id, name: row.name, chars: row.chars } });
+  } catch {
+    return c.json({ success: false, error: 'Contenu vide.', code: 'DOC_EMPTY' }, 400);
+  }
+});
+
+app.delete('/api/agent/knowledge/docs/:id', async (c) => {
+  const gate = await requireOwnerOrAdmin(c);
+  if (!gate.ok) return gate.response;
+  const ok = await deleteDoc(c.env.DB, Number(c.req.param('id')));
+  if (!ok) return c.json({ success: false, error: 'Document introuvable.', code: 'NOT_FOUND' }, 404);
+  return c.json({ success: true });
+});
+
 app.get('/api/admin/agent-controls', async (c) => {
   const gate = requireOwner(c);
   if (!gate.ok) return gate.response;
@@ -2444,6 +2587,16 @@ async function authFailReason(
  * real verification (HMAC proof, IP/fingerprint binding) via authFailReason().
  * Callers must handle { username: '', role: '' } as "not authenticated".
  */
+async function requireOwnerOrAdmin(c: any): Promise<{ ok: true } | { ok: false; response: any }> {
+  const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, clientIp(c), c.req.header('X-Device-Fingerprint') || '');
+  if (reason !== 'ok') return { ok: false, response: c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401) };
+  const session = sessionUserFromHeader(c.req.header('Authorization'));
+  if (session.role !== 'owner' && session.role !== 'admin') {
+    return { ok: false, response: c.json({ success: false, error: 'Réservé owner/admin.', code: 'FORBIDDEN' }, 403) };
+  }
+  return { ok: true };
+}
+
 function sessionUserFromHeader(authHeader: string | undefined): { username: string; role: string } {
   const ANONYMOUS = { username: '', role: '' };
   if (!authHeader?.startsWith('Bearer ')) return ANONYMOUS;
@@ -15894,20 +16047,72 @@ app.post('/api/assist/chat', async (c) => {
   const threadId = String((body as any)?.thread_id || (body as any)?.threadId || 'live').slice(0, 80);
 
   try {
-    const system = atlasAgentSystem({ role, username, timezone: tz, source: sourceRefined, responseLanguage });
+    // v0.7.7 — savoir persistant (mémoire, contexte, garde-fous, RAG) injecté côté serveur
+    const knowledge = await loadAgentKnowledge(c.env.DB, username).catch(() => null);
+    const knowSection = knowledge ? knowledgePromptSections(knowledge, userMessage) : '';
+    const system =
+      atlasAgentSystem({ role, username, timezone: tz, source: sourceRefined, responseLanguage }) + knowSection;
     // v233 — compact memory: the agent reads its recent conversation without replaying full turns
     const history = await loadCompactHistory(c.env, username, threadId, 6);
     const finalMessage = (history
       ? `Historique récent de la conversation (contexte uniquement — ne pas recopier):\n${history}\n\n${message}`
       : message) + docSection;
-    const outGq = await groqChat({
-      apiKey: groqKey,
-      model: images.length ? '' : model,
-      system,
-      message: finalMessage,
-      maxTokens: images.length ? 1200 : isGreeting ? 300 : 700,
-      images,
-    });
+    let toolTrace: { name: string; ok: boolean; error?: string; data?: unknown }[] = [];
+    const outGq = images.length
+      ? await groqChat({
+          apiKey: groqKey,
+          model: '',
+          system,
+          message: finalMessage,
+          maxTokens: 1200,
+          images,
+        })
+      : await groqChatWithTools({
+          apiKey: groqKey,
+          model,
+          system,
+          message: finalMessage,
+          maxTokens: isGreeting ? 300 : 700,
+          tools: [
+            ...toolsForRole(role).filter((d: any) =>
+              knowledge
+                ? knowledge.toolPrefs[d.function.name] === undefined
+                  ? true
+                  : knowledge.toolPrefs[d.function.name] === 1
+                : true,
+            ),
+            ...KNOWLEDGE_TOOL_DEFS,
+          ],
+          executor: async (name, args) => {
+            if (name === 'save_memory') {
+              try {
+                const row = await addMemory(c.env.DB, username, String(args.content || ''), 'user');
+                return { ok: true, data: { saved: row.id, content: row.content } };
+              } catch (e: any) {
+                return { ok: false, error: String(e?.message || e).slice(0, 160) };
+              }
+            }
+            if (name === 'recall_memory') {
+              const k2 = await loadAgentKnowledge(c.env.DB, username);
+              const q = String(args.query || '').toLowerCase();
+              const words = q.split(/\s+/).filter((w) => w.length > 2);
+              const hits = k2.memory
+                .filter((m) => {
+                  const low = m.content.toLowerCase();
+                  return low.includes(q.slice(0, 60)) || words.some((w) => low.includes(w));
+                })
+                .slice(0, 8)
+                .map((m) => m.content);
+              return { ok: true, data: { memories: hits } };
+            }
+            if (name === 'search_knowledge') {
+              const k3 = await loadAgentKnowledge(c.env.DB, username);
+              return { ok: true, data: { hits: retrieveKnowledge(k3.docs, String(args.query || ''), 3) } };
+            }
+            return runAssistTool(c.env, name, args, role);
+          },
+        });
+    toolTrace = (outGq as any).tool_trace || [];
     const replyGq = scrubVendorNames(String(outGq.reply || '').trim());
     // v233 — charge REAL tokens (prompt+completion) server-side instead of client guesses
     const usedTokens = Math.max(0, Number(outGq.usage?.prompt || 0) + Number(outGq.usage?.completion || 0));
@@ -15930,7 +16135,7 @@ app.post('/api/assist/chat', async (c) => {
         usage: outGq.usage || null,
         history_turns: history ? history.split('\n').length : 0,
         documents: docsMeta,
-        tool_trace: [],
+        tool_trace: toolTrace,
         proposals: [],
         task,
       },
@@ -15965,6 +16170,7 @@ app.post('/api/assist/chat/stream', async (c) => {
   let body: any = {};
   try { body = await c.req.json(); } catch { body = {}; }
   const message = String(body.message || body.prompt || '').trim().slice(0, 2500);
+  const userMessage = String(body.user_message || body.userMessage || '').trim().slice(0, 2500) || message;
   if (!message) return c.json({ success: false, error: tr(uiLang, 'message_empty') }, 400);
   const images = Array.isArray(body.images)
     ? body.images.filter((x: any) => typeof x === 'string' && x.startsWith('data:image/')).slice(0, 4).map((x: string) => x.slice(0, 3_500_000))
@@ -15993,7 +16199,11 @@ app.post('/api/assist/chat/stream', async (c) => {
         try { controller.enqueue(enc.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)); } catch { /* client gone */ }
       };
       try {
-        const system = atlasAgentSystem({ role, username, timezone: tz, source, responseLanguage });
+        // v0.7.7 — même savoir persistant que le jumeau bufferisé
+        const knowledge = await loadAgentKnowledge(c.env.DB, username).catch(() => null);
+        const knowSection = knowledge ? knowledgePromptSections(knowledge, userMessage) : '';
+        const system =
+          atlasAgentSystem({ role, username, timezone: tz, source, responseLanguage }) + knowSection;
         const history = await loadCompactHistory(c.env, username, threadId, 6);
         const finalMessage = (history
           ? `Historique récent de la conversation (contexte uniquement — ne pas recopier):\n${history}\n\n${message}`

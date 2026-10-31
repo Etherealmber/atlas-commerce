@@ -28,6 +28,7 @@ import AgentPermissionsPanel from '../components/AgentPermissionsPanel';
 import AppUpdatePanel from '../components/settings/AppUpdatePanel';
 import AgentSecurityPanel from '../components/AgentSecurityPanel';
 import DbMigrationPanel from '../components/DbMigrationPanel';
+import AgentKnowledgePanel from '../components/settings/AgentKnowledgePanel';
 export default function Settings() {
   // v0.7.6 — préférence « page d'ouverture » (localStorage, par appareil)
   const [startPagePref, setStartPagePref] = useState<string>(() => getStartPage());
@@ -2321,6 +2322,8 @@ if (loading) return (
         </div>
       )}
 
+
+      {activeTab === 'integrations' && <AgentKnowledgePanel />}
 
       {activeTab === 'integrations' && (canAccessAdminSettings() || isOwner) && (
         <div>

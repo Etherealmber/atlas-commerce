@@ -208,6 +208,28 @@ export default function About() {
   }, []);
 
   const byName = Object.fromEntries(repos.map((r) => [r.name, r]));
+  // v0.7.7 — compteurs publics du créateur (best-effort : silencieux si hors-ligne)
+  const [ghProfile, setGhProfile] = useState<{ followers: number; repos: number; stars: number } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const r = await fetch(`https://api.github.com/users/${APP_CREATOR}`, { headers: { Accept: 'application/vnd.github+json' } });
+        if (!r.ok) return;
+        const j: any = await r.json();
+        const reposRes = await fetch(`https://api.github.com/users/${APP_CREATOR}/repos?per_page=100`, { headers: { Accept: 'application/vnd.github+json' } });
+        let stars = 0;
+        if (reposRes.ok) {
+          const list: any[] = await reposRes.json();
+          stars = list.reduce((acc, x) => acc + Number(x?.stargazers_count || 0), 0);
+        }
+        if (alive) {
+          setGhProfile({ followers: Number(j?.followers || 0), repos: Number(j?.public_repos || 0), stars });
+        }
+      } catch { /* best-effort */ }
+    })();
+    return () => { alive = false; };
+  }, []);
   // v0.7.7 — directive : uniquement les 3 dépôts demandés (afmarbre-main,
   // atlas-commerce-android, atlas-commerce-desktop) ; plus de liste API.
 
@@ -395,6 +417,29 @@ export default function About() {
             </p>
             <p className="about-muted about-owner-bio">
               Développement produit & infrastructure · {APP_LOCATION}
+            </p>
+            {ghProfile && (
+              <p className="about-owner-stats" style={{ display: 'flex', gap: 14, margin: '8px 0 0', fontSize: 12.5, color: 'var(--muted, #52525b)' }}>
+                <span><strong>{ghProfile.followers}</strong> abonnés</span>
+                <span><strong>{ghProfile.repos}</strong> dépôts publics</span>
+                <span><strong>{ghProfile.stars}</strong> étoiles reçues</span>
+              </p>
+            )}
+            <p style={{ margin: '10px 0 0' }}>
+              <a
+                className="about-owner-ghbtn"
+                href={`https://github.com/${APP_CREATOR}`}
+                target="_blank"
+                rel="noreferrer noopener"
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 16px',
+                  borderRadius: 999, border: '1px solid var(--line, #e4e4e7)', background: 'var(--paper, #fff)',
+                  color: 'inherit', textDecoration: 'none', fontSize: 13, fontWeight: 700,
+                }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" /></svg>
+                Profil GitHub
+              </a>
             </p>
           </div>
         </div>

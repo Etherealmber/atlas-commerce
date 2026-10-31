@@ -54,6 +54,7 @@ export const SETTINGS_SEARCH_INDEX: SettingsSearchHit[] = [
   { id: 'categories_list', tab: 'categories', label: 'Catégories produits', keywords: 'categorie produit catalogue' },
   { id: 'integrations_api', tab: 'integrations', label: 'API / intégrations', keywords: 'api integration webhook' },
   { id: 'atlas_agent', tab: 'integrations', label: 'Atlas Agent', keywords: 'atlas agent groq ia' },
+  { id: 'agent_knowledge', tab: 'integrations', label: 'Mémoire & savoir de l’Agent (mémoire, contexte, garde-fous, outils, RAG)', keywords: 'memoire memory rag connaissances outils garde-fous contexte agent knowledge docs documents' },
   { id: 'backup', tab: 'admin', label: 'Sauvegarde et restauration', keywords: 'sauvegarde restore backup' },
   { id: 'users', tab: 'admin', label: 'Utilisateurs et rôles', keywords: 'utilisateur role equipe admin' },
   { id: 'danger', tab: 'admin', label: 'Zone sensible', keywords: 'danger export reset parametres' },
