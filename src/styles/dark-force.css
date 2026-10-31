@@ -4480,3 +4480,40 @@ html[data-theme='dark'] body .dl-tech { color: #d4d4d8; }
 html[data-theme='dark'] body .dl-feat p { color: #a1a1aa; }
 html[data-theme='dark'] body .dl-foot { color: #a1a1aa; }
 html[data-theme='dark'] body .dl-mandatory { color: #fbbf24; }
+
+
+/* v0.7.7 — cartes « Permissions Atlas Agent » : lisibles dans LES DEUX thèmes
+   (le button global noir et les miroirs dark ne doivent jamais gagner). */
+html body .agent-perm-mode,
+html body .agent-perm-mode:hover {
+  background: #ffffff !important;
+  border-color: #e4e4e7 !important;
+  color: #27272a !important;
+  -webkit-text-fill-color: #27272a !important;
+}
+html body .agent-perm-mode strong { color: #18181b !important; -webkit-text-fill-color: #18181b !important; }
+html body .agent-perm-mode span { color: #71717a !important; -webkit-text-fill-color: #71717a !important; }
+html body .agent-perm-mode.active,
+html body .agent-perm-mode.active:hover {
+  background: #c45c26 !important;
+  border-color: #c45c26 !important;
+  box-shadow: inset 3px 0 0 rgba(255, 255, 255, 0.35) !important;
+}
+html body .agent-perm-mode.active strong,
+html body .agent-perm-mode.active span { color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; }
+html[data-theme="dark"] body .agent-perm-mode,
+html[data-theme="dark"] body .agent-perm-mode:hover {
+  background: #141416 !important;
+  border-color: #3f3f46 !important;
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+}
+html[data-theme="dark"] body .agent-perm-mode strong { color: #fafafa !important; -webkit-text-fill-color: #fafafa !important; }
+html[data-theme="dark"] body .agent-perm-mode span { color: #a1a1aa !important; -webkit-text-fill-color: #a1a1aa !important; }
+html[data-theme="dark"] body .agent-perm-mode.active,
+html[data-theme="dark"] body .agent-perm-mode.active:hover {
+  background: #c45c26 !important;
+  border-color: #c45c26 !important;
+}
+html[data-theme="dark"] body .agent-perm-mode.active strong,
+html[data-theme="dark"] body .agent-perm-mode.active span { color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; }

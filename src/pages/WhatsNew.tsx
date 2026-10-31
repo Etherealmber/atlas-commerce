@@ -73,6 +73,8 @@ export const RELEASES: Release[] = [
           { id: '077i24', platforms: ['web', 'server'], text: 'Atlas Agent doté d’un savoir persistant : MÉMOIRE par utilisateur, CONTEXTE métier, GARDE-FOUS impératifs, OUTILS activables et base de connaissances RAG — tout se consulte et s’édite dans Paramètres → Intégrations → « Mémoire & savoir de l’Agent »' },
           { id: '077i25', platforms: ['server'], text: 'L’Agent appelle désormais de vrais outils en conversation (boucle function-calling Groq, 3 tours max, trace visible) : outils métier selon le rôle + save_memory / recall_memory / search_knowledge ; les outils coupés dans les Paramètres sont exclus côté serveur' },
           { id: '077i26', platforms: ['web'], text: 'Accès Agent suspendu : un popup dédié explique le verrouillage (une fois par session) en plus de l’avis dans le panneau ; la page À propos affiche la carte Créateur enrichie (abonnés, dépôts, étoiles) avec bouton « Profil GitHub »' },
+          { id: '077i27', platforms: ['web'], text: 'Nouvel onglet « Atlas Agent » dans les Paramètres : mémoire & savoir, sécurité & quotas, permissions et provider Groq réunis au même endroit (recherche Paramètres mise à jour)' },
+          { id: '077i28', platforms: ['web'], text: '« Accès agent des utilisateurs » s’ouvre désormais en popup, comme les appareils connectés : liste des comptes, statut, Suspendre / Rétablir ; les cartes de permissions ne s’affichent plus noires (clair et sombre)' },
         ],
       },
       {
