@@ -357,6 +357,20 @@ html.atlas-login-page .atlas-turnstile-retry {
   font-weight: 600 !important;
   cursor: pointer !important;
 }
+html.atlas-login-page .atlas-login-qr-failed {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  width: 100% !important;
+  height: 100% !important;
+  color: #a1a1aa !important;
+  font-size: 0.8rem !important;
+  text-align: center !important;
+  padding: 12px !important;
+}
+html.atlas-login-page .atlas-login-qr-failed p { margin: 0 !important; }
 html.atlas-login-page .atlas-turnstile-retry:hover {
   background: rgba(255, 255, 255, 0.1) !important;
   color: #fafafa !important;

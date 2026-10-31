@@ -4330,8 +4330,8 @@ html[data-theme='dark'] body .atlas-login.atlas-login--auth7 .atlas-login-input:
 html[data-theme='dark'] input:-webkit-autofill,
 html[data-theme='dark'] input:-webkit-autofill:hover,
 html[data-theme='dark'] input:-webkit-autofill:focus {
-  -webkit-text-fill-color: #0a0a0a;
-  caret-color: #0a0a0a;
+  -webkit-text-fill-color: #fafafa;
+  caret-color: #fafafa;
   transition: background-color 9999s ease-out 0s;
 }
 
@@ -4408,8 +4408,9 @@ html body .atlas-login.atlas-login--auth7 input[type="password"] {
 html body .atlas-login.atlas-login--auth7 input:-webkit-autofill,
 html body .atlas-login.atlas-login--auth7 input:-webkit-autofill:hover,
 html body .atlas-login.atlas-login--auth7 input:-webkit-autofill:focus {
-  -webkit-text-fill-color: #0a0a0a !important;
-  caret-color: #0a0a0a !important;
+  -webkit-text-fill-color: #fafafa !important;
+  caret-color: #fafafa !important;
+  transition: background-color 9999s ease-out 0s !important;
 }
 html body .atlas-login.atlas-login--auth7 .atlas-login-submit {
   background: #f4f4f5 !important;
