@@ -94,6 +94,9 @@ const REASON_MESSAGES: Record<string, string> = {
 
 function LoginPcQrPanel({ onSuccessFlash }: { onSuccessFlash?: () => void }) {
   const [qrUrl, setQrUrl] = useState('');
+  // v0.7.7 — session QR injoignable : message + bouton Réessayer au lieu d'un « … » éternel
+  const [qrFailed, setQrFailed] = useState(false);
+  const qrAutoRetried = useRef(false);
   const [token, setTok] = useState('');
   const [left, setLeft] = useState(60);
   const [phase, setPhase] = useState<'wait' | 'claimed' | 'done' | 'denied'>('wait');
@@ -114,13 +117,29 @@ function LoginPcQrPanel({ onSuccessFlash }: { onSuccessFlash?: () => void }) {
         setWho('');
         setAvatarUrl('');
         pausedRef.current = false;
+        setQrFailed(false);
+      } else {
+        setQrFailed(true);
       }
-    } catch { /* */ }
+    } catch {
+      setQrFailed(true);
+    }
   };
 
   useEffect(() => {
     if (isMobileLogin()) return;
     void refresh();
+    // un seul retry automatique silencieux si le premier appel meurt (réseau lent)
+    const t = window.setTimeout(() => {
+      if (!qrAutoRetried.current) {
+        qrAutoRetried.current = true;
+        setQrUrl((cur) => {
+          if (!cur) void refresh();
+          return cur;
+        });
+      }
+    }, 9000);
+    return () => window.clearTimeout(t);
   }, []);
 
   useEffect(() => {
@@ -230,6 +249,13 @@ function LoginPcQrPanel({ onSuccessFlash }: { onSuccessFlash?: () => void }) {
                     excavate: true,
                   }}
                 />
+              ) : qrFailed ? (
+                <div className="atlas-login-qr-failed">
+                  <p>QR indisponible pour le moment.</p>
+                  <button type="button" className="atlas-login-qr-retry" onClick={() => void refresh()}>
+                    Réessayer
+                  </button>
+                </div>
               ) : (
                 <span className="atlas-login-qr-loading">…</span>
               )}
@@ -388,6 +414,7 @@ export default function Login() {
   const [turnstileHint, setTurnstileHint] = useState(false);
   // v0.7.7 — retry manuel du widget Turnstile (re-render complet)
   const [turnstileNonce, setTurnstileNonce] = useState(0);
+  const turnstileTokenRef = useRef('');
   const turnstileWidgetId = useRef<string | undefined>(undefined);
   const [showPassword, setShowPassword] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
@@ -500,13 +527,17 @@ export default function Login() {
       try {
         widgetId = ts.render(el, {
           sitekey: turnstileSiteKey,
-          callback: (token: string) => setTurnstileToken(token),
-          'expired-callback': () => setTurnstileToken(''),
-          'error-callback': () => setTurnstileToken(''),
+          callback: (token: string) => { turnstileTokenRef.current = token; setTurnstileToken(token); setTurnstileHint(false); },
+          'expired-callback': () => { turnstileTokenRef.current = ''; setTurnstileToken(''); },
+          'error-callback': () => { turnstileTokenRef.current = ''; setTurnstileToken(''); },
           theme: 'auto',
           size: 'flexible',
         });
         turnstileWidgetId.current = widgetId;
+        // v0.7.7 — widget monté mais muet (« Verifying… » sans fin) : on propose le retry
+        window.setTimeout(() => {
+          if (!cancelled && !turnstileTokenRef.current) setTurnstileHint(true);
+        }, 15000);
         // v0.7 — watchdog: widget invisible (réseau filtré, WebView ancien) →
         // un seul retry, puis un message lisible au lieu d'un trou silencieux.
         window.setTimeout(() => {
@@ -517,9 +548,9 @@ export default function Login() {
               const el2 = document.getElementById('cf-turnstile');
               if (el2) turnstileWidgetId.current = ts.render(el2, {
                 sitekey: turnstileSiteKey,
-                callback: (token: string) => setTurnstileToken(token),
-                'expired-callback': () => setTurnstileToken(''),
-                'error-callback': () => setTurnstileToken(''),
+                callback: (token: string) => { turnstileTokenRef.current = token; setTurnstileToken(token); setTurnstileHint(false); },
+                'expired-callback': () => { turnstileTokenRef.current = ''; setTurnstileToken(''); },
+                'error-callback': () => { turnstileTokenRef.current = ''; setTurnstileToken(''); },
                 theme: 'auto',
                 size: 'flexible',
               });
@@ -641,8 +672,11 @@ export default function Login() {
       const native = isNativeClient();
       // Web + Turnstile configured: require a token before hitting the API
       if (!native && turnstileSiteKey && !turnstileToken) {
-        setError('Vérification anti-bot (Turnstile) non prête. Attendez la case « Je ne suis pas un robot », ou rechargez. Sur mobile/PWA le captcha est désactivé.');
+        setError('La vérification Cloudflare n’a pas encore fourni de jeton. Patientez quelques secondes puis cliquez à nouveau, ou utilisez « Réessayer la vérification » sous le cadre. Sur mobile/PWA le captcha est désactivé.');
         setLoading(false);
+        window.setTimeout(() => {
+          document.querySelector('.atlas-login-alert')?.scrollIntoView({ block: 'nearest' });
+        }, 0);
         return;
       }
       const res = await fetch(`${getApiBase()}/api/auth/login`, {

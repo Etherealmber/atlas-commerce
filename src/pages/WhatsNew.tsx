@@ -80,6 +80,7 @@ export const RELEASES: Release[] = [
           { id: '077i31', platforms: ['web'], text: 'Thème clair, suite : rangées « Toutes les versions » blanches et lisibles, puces de code (version, APK, sha256) claires et sans coupure, libellés du manifeste contrastés, logo du pied de page adapté au thème ; sur téléphone la barre publique se compacte et le menu burger s’affiche enfin' },
           { id: '077i32', platforms: ['web'], text: 'Le bouton burger de la barre publique n’apparaît plus sur ordinateur (réservé aux écrans ≤960 px)' },
           { id: '077i33', platforms: ['web'], text: 'Connexion : « Ou se connecter avec une passkey » et le nouveau « Télécharger l’app Android » sont de vrais boutons (fini les liens soulignés) ; si la vérification Cloudflare est indisponible, un bouton « Réessayer la vérification » remonte le widget sans recharger la page, et l’attente anti-gel est raccourcie' },
+          { id: '077i34', platforms: ['web'], text: 'Connexion : les identifiants pré-remplis par le navigateur s’affichent enfin en clair sur fond sombre ; le panneau QR propose « Réessayer » au lieu d’un cadre vide si la session ne charge pas ; un cadre Turnstile bloqué en « Verifying… » débloque lui aussi le bouton « Réessayer la vérification », et l’alerte s’affiche sous les yeux quand Continuer est tapé trop tôt' },
         ],
       },
       {
