@@ -20764,3 +20764,25 @@ html[data-theme="dark"] .wn-filter.active:hover {
   .public-about, .public-whats-new { padding-top: 70px; }
   .public-settings-topbar .settings-topbar-brand > div { display: none; }
 }
+
+
+/* ═══ v0.7.7 — bouton recherche = même gabarit que les icônes de la topbar
+   Paramètres, collé au sélecteur de thème, visible même en scroll (compact) ═══ */
+.settings-topbar-search-wrap--icon {
+  flex: 0 0 auto !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  width: auto !important;
+  margin: 0 !important;
+}
+.settings-topbar-search-wrap--icon .settings-topbar-search-inner { display: contents; }
+.settings-topbar--compact .settings-topbar-search-wrap--icon { display: flex !important; }
+.settings-topbar--compact .settings-topbar-search-wrap--icon .settings-topbar-tab {
+  width: 30px !important;
+  height: 30px !important;
+  min-height: 30px !important;
+}
+@media (max-width: 1150px) {
+  .settings-topbar-search-wrap--icon { display: flex !important; }
+}
+.public-settings-topbar .settings-topbar-searchtab { flex: 0 0 auto; }

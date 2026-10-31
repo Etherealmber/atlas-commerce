@@ -569,19 +569,17 @@ export function PublicSettingsTopbar() {
       ) : null}
       {loggedIn && <PnLegacyTabs />}
       <div className="settings-topbar-right">
-        <div className="settings-topbar-search-wrap">
-          <div className="settings-topbar-search-inner">
-            <button
-              type="button"
-              className="settings-topbar-search-icon"
-              aria-label="Recherche globale"
-              title="Recherche globale"
-              onClick={() => window.dispatchEvent(new Event('atlas-search-open'))}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
-            </button>
-          </div>
-        </div>
+        {/* v0.7.7 — même gabarit d'icône que la topbar Paramètres, collé au sélecteur
+            de thème, jamais masqué (ni en compact, ni en scroll) */}
+        <button
+          type="button"
+          className="settings-topbar-tab secondary settings-topbar-searchtab"
+          aria-label="Recherche globale"
+          title="Recherche globale"
+          onClick={() => window.dispatchEvent(new Event('atlas-search-open'))}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" aria-hidden><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
+        </button>
         <PublicThemeToggle />
         {loggedIn ? <PublicProfileChip /> : <PublicSessionCta />}
       </div>

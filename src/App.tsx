@@ -1690,12 +1690,13 @@ function DesktopShell() {
           )}
 
 
+          <div className="settings-topbar-right">
           {isSettingsRoute && (
-            <div className="settings-topbar-search-wrap">
+            <div className="settings-topbar-search-wrap settings-topbar-search-wrap--icon">
               <div className="settings-topbar-search-inner">
                 <button
                   type="button"
-                  className="settings-topbar-search-icon"
+                  className="settings-topbar-tab secondary settings-topbar-searchtab"
                   aria-label="Recherche globale"
                   title="Recherche globale"
                   onClick={() => {
@@ -1704,7 +1705,7 @@ function DesktopShell() {
                     window.dispatchEvent(new Event('atlas-search-open'));
                   }}
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" aria-hidden><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
                 </button>
                 {settingsTopSearch ? (
                   <button
@@ -1890,7 +1891,6 @@ function DesktopShell() {
               )}
             </div>
           )}
-          <div className="settings-topbar-right">
             <div className="settings-topbar-theme" role="group" aria-label="Thème">
               <button type="button" data-theme-toggle className={themeMode === 'system' ? 'active' : undefined} title="Système" aria-label="Système" aria-pressed={themeMode === 'system'} onClick={() => setThemeMode('system')}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" aria-hidden><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
