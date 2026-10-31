@@ -25,6 +25,8 @@ export default function AgentSecurityPanel({ isOwner, role }: { isOwner: boolean
   const [revokedNote, setRevokedNote] = useState(false);
   const [devices, setDevices] = useState<Device[] | null>(null);
   const [showDevices, setShowDevices] = useState(false);
+  // v0.7.7 — accès agent : popup dédié, même patron que « Appareils connectés »
+  const [showAccess, setShowAccess] = useState(false);
   const [otp, setOtp] = useState<OtpFlow>(null);
   const [otpInput, setOtpInput] = useState('');
   const [busy, setBusy] = useState('');
@@ -149,25 +151,10 @@ export default function AgentSecurityPanel({ isOwner, role }: { isOwner: boolean
         {isOwner && controls.length > 0 && (
           <div className="form-row">
             <label>Accès agent des utilisateurs</label>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {controls.map((c: any) => (
-                <div key={c.username} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <code style={{ minWidth: 110 }}>{c.username}</code>
-                  <span className="muted">{c.blocked ? 'suspendu' : 'ok'}</span>
-                  <button
-                    type="button"
-                    className="btn secondary"
-                    onClick={async () => {
-                      try {
-                        await api.setAgentAccess(c.username, c.blocked ? 'restore' : 'block');
-                        void load();
-                      } catch { /* */ }
-                    }}
-                  >
-                    {c.blocked ? 'Rétablir' : 'Suspendre'}
-                  </button>
-                </div>
-              ))}
+            <div>
+              <button type="button" className="btn secondary" onClick={() => setShowAccess(true)}>
+                Gérer les accès ({controls.length ?? '…'})
+              </button>
             </div>
           </div>
         )}
@@ -283,6 +270,58 @@ export default function AgentSecurityPanel({ isOwner, role }: { isOwner: boolean
             )}
             <div className="ac-modal-foot">
               <button type="button" className="btn secondary" onClick={() => setShowDevices(false)}>Fermer</button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+
+      {showAccess && createPortal(
+        <div className="modal-overlay" onClick={() => setShowAccess(false)}>
+          <div className="modal" style={{ maxWidth: 560, width: '94vw' }} onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="modal-x modal-close" aria-label="Fermer" onClick={() => setShowAccess(false)}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden><path d="M6 6l12 12M18 6L6 18" /></svg>
+            </button>
+            <h2>Accès agent des utilisateurs</h2>
+            <p className="muted" style={{ marginTop: 0 }}>
+              Suspendez ou rétablissez l’accès à l’Atlas Agent compte par compte (abus ou injection de prompt).
+              Un compte suspendu voit sa barre de saisie masquée et un popup d’explication.
+            </p>
+            {(controls || []).length === 0 && <p className="muted">Aucun compte enregistré.</p>}
+            <div className="ac-device-list">
+              {(controls || []).map((ctl: any) => (
+                <div key={ctl.username} className="ac-device-row">
+                  <span className="ac-device-ico" aria-hidden>
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+                  </span>
+                  <div className="ac-device-main">
+                    <strong>
+                      {ctl.username}
+                      <span className="ac-device-chip">{ctl.blocked ? 'suspendu' : 'ok'}</span>
+                    </strong>
+                    <span className="ac-device-meta">
+                      {ctl.blocked
+                        ? 'Accès verrouillé — barre de saisie masquée, popup affiché.'
+                        : 'Accès normal (quotas appliqués).'}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="ac-device-revoke"
+                    onClick={async () => {
+                      try {
+                        await api.setAgentAccess(ctl.username, ctl.blocked ? 'restore' : 'block');
+                        void load();
+                      } catch { /* */ }
+                    }}
+                  >
+                    {ctl.blocked ? 'Rétablir' : 'Suspendre'}
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="ac-modal-foot">
+              <button type="button" className="btn secondary" onClick={() => setShowAccess(false)}>Fermer</button>
             </div>
           </div>
         </div>,

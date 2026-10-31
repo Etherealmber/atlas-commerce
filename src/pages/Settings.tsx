@@ -631,6 +631,8 @@ export default function Settings() {
 
   const tabs: { id: string; label: string; group: string; icon: string }[] = [
     { id: 'profile', label: 'Mon profil', group: 'Vous', icon: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z' },
+    // v0.7.7 — onglet dédié Atlas Agent : visible par tous (mémoire perso), sections org gated
+    { id: 'agent', label: 'Atlas Agent', group: 'Vous', icon: 'M12 8V4H8m8 0h-4m4 16h-8a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2zM9 12h.01M15 12h.01M9 16h6' },
     // stock / user: profile only — no company, legal, bank, warehouse, etc.
     ...(officeSettings ? [
       { id: 'company', label: 'Société', group: 'Entreprise', icon: 'M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6' },
@@ -888,26 +890,9 @@ if (loading) return (
         )}
 
 
-      {activeTab === 'profile' && (
-        <AgentSecurityPanel
-          isOwner={(typeof getRole === 'function' ? getRole() : '') === 'owner'}
-          role={typeof getRole === 'function' ? String(getRole() || '') : ''}
-        />
-      )}
-
       {activeTab === 'profile' && (typeof getRole === 'function' ? getRole() : '') === 'owner' && (
         <div className="card" style={{ marginBottom: 16 }} data-settings-anchor="db-migration">
           <DbMigrationPanel />
-        </div>
-      )}
-
-      {activeTab === 'profile' && (
-        <div className="card" style={{ marginBottom: 16 }} data-settings-anchor="agent-permissions">
-          <h3 style={{ marginTop: 0 }}>Permissions Atlas Agent</h3>
-          <p className="muted" style={{ marginTop: 0, marginBottom: 12 }}>
-            Outils et actions que l’agent peut exécuter en votre nom. Géré ici (plus dans le panneau de l’agent).
-          </p>
-          <AgentPermissionsPanel />
         </div>
       )}
 
@@ -2323,23 +2308,41 @@ if (loading) return (
       )}
 
 
-      {activeTab === 'integrations' && <AgentKnowledgePanel />}
+      {/* v0.7.7 — onglet dédié : TOUT ce qui concerne l'Atlas Agent au même endroit */}
+      {activeTab === 'agent' && (
+        <div>
+          <AgentKnowledgePanel />
+          <AgentSecurityPanel
+            isOwner={(typeof getRole === 'function' ? getRole() : '') === 'owner'}
+            role={typeof getRole === 'function' ? String(getRole() || '') : ''}
+          />
+          <div className="card" style={{ marginBottom: 16 }} data-settings-anchor="agent-permissions">
+            <h3 style={{ marginTop: 0 }}>Permissions Atlas Agent</h3>
+            <p className="muted" style={{ marginTop: 0, marginBottom: 12 }}>
+              Outils et actions que l’agent peut exécuter en votre nom. Géré ici (plus dans le panneau de l’agent).
+            </p>
+            <AgentPermissionsPanel />
+          </div>
+          {(canAccessAdminSettings() || isOwner) && (
+            <div className="card" style={{ marginBottom: 16, padding: 16 }}>
+              <h2 style={{ fontSize: 16, marginTop: 0 }}>Atlas Agent · Groq</h2>
+              <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.45 }}>
+                Atlas Agent utilise uniquement <strong>Groq</strong> (rapide, gratuit avec quota).
+                Il peut parler librement (identité, explications, métier) — pas seulement le stock.
+              </p>
+              <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 10 }}>
+                Secret requis: <code>GROQ_API_KEY</code> {assistMeta.groqConfigured ? '✓ configuré' : '✗ manquant'}
+                <span className="muted" style={{ display: 'block', marginTop: 6, fontSize: '0.8rem' }}>
+                  Optionnel: <code>GROQ_MODEL</code> (défaut llama-3.1-8b-instant). Conversations chiffrées sur R2 (ACH2).
+                </span>
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {activeTab === 'integrations' && (canAccessAdminSettings() || isOwner) && (
         <div>
-          <div className="card" style={{ marginBottom: 16, padding: 16 }}>
-            <h2 style={{ fontSize: 16, marginTop: 0 }}>Atlas Agent · Groq</h2>
-            <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.45 }}>
-              Atlas Agent utilise uniquement <strong>Groq</strong> (rapide, gratuit avec quota).
-              Il peut parler librement (identité, explications, métier) — pas seulement le stock.
-            </p>
-            <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 10 }}>
-              Secret requis: <code>GROQ_API_KEY</code> {assistMeta.groqConfigured ? '✓ configuré' : '✗ manquant'}
-              <span className="muted" style={{ display: 'block', marginTop: 6, fontSize: '0.8rem' }}>
-                Optionnel: <code>GROQ_MODEL</code> (défaut llama-3.1-8b-instant). Conversations chiffrées sur R2 (ACH2).
-              </span>
-            </p>
-          </div>
           <div className="card" style={{ marginBottom: 16 }}>
             <h2 style={{ fontSize: 16 }}>Clés API publiques</h2>
             <p style={{ fontSize: 13, color: 'var(--muted)' }}>
