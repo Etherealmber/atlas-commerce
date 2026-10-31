@@ -422,7 +422,7 @@ export function PublicNav({ links, cta, classic = false }: { links: NavLink[]; c
         {loggedIn && !classic ? (
           <PnLegacyTabs />
         ) : (
-          <div className="pn-links" style={{ display: 'flex', gap: 2, margin: '0 auto', minWidth: 0, overflow: 'hidden' }}>
+          <div className="pn-links" style={{ gap: 2, margin: '0 auto', minWidth: 0, overflow: 'hidden' }}>
             {links.map((l) => (
               <a key={l.href} href={l.href} style={linkSt()}>{l.label}</a>
             ))}
@@ -452,9 +452,9 @@ export function PublicNav({ links, cta, classic = false }: { links: NavLink[]; c
             aria-label="Menu"
             aria-expanded={menu}
             onClick={() => setMenu((m) => !m)}
-            className="pn-burger-btn"
+            className="pn-burger-btn pn-burger"
             style={{
-              display: 'none', placeItems: 'center', width: 34, height: 34, padding: 0,
+              placeItems: 'center', width: 34, height: 34, padding: 0,
               border: `1px solid ${c.ghostBorder}`, borderRadius: 999,
               background: c.ghostBg, color: c.ghostInk, cursor: 'pointer',
             }}

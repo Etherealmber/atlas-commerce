@@ -335,7 +335,8 @@ export default function Download() {
       <footer className="dl-foot">
         <div className="dl-foot-inner">
           <div className="dl-foot-brand">
-            <img src="/atlas-logo-dark.png" alt={APP_NAME} width={117} height={38} style={{ height: 38, width: 117 }} />
+            <img src="/atlas-logo-dark.png" alt="" className="theme-logo-dark" width={117} height={38} style={{ height: 38, width: 117 }} />
+            <img src="/atlas-logo-light.png" alt={APP_NAME} className="theme-logo-light" width={117} height={38} style={{ height: 38, width: 117 }} />
             <p>Application Android de gestion commerciale : stock, caisse, facturation et trésorerie, même offline.</p>
           </div>
           <nav aria-label="Liens produit">
