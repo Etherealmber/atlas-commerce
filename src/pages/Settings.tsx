@@ -632,7 +632,7 @@ export default function Settings() {
   const tabs: { id: string; label: string; group: string; icon: string }[] = [
     { id: 'profile', label: 'Mon profil', group: 'Vous', icon: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z' },
     // v0.7.7 — onglet dédié Atlas Agent : visible par tous (mémoire perso), sections org gated
-    { id: 'agent', label: 'Atlas Agent', group: 'Vous', icon: 'M12 8V4H8m8 0h-4m4 16h-8a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2zM9 12h.01M15 12h.01M9 16h6' },
+    { id: 'agent', label: 'Atlas Agent', group: 'Vous', icon: 'M12 8V4H8M6 8h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2zM2 14h2M20 14h2M15 13v2M9 13v2' },
     // stock / user: profile only — no company, legal, bank, warehouse, etc.
     ...(officeSettings ? [
       { id: 'company', label: 'Société', group: 'Entreprise', icon: 'M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6' },

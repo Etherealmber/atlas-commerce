@@ -75,6 +75,7 @@ export const RELEASES: Release[] = [
           { id: '077i26', platforms: ['web'], text: 'Accès Agent suspendu : un popup dédié explique le verrouillage (une fois par session) en plus de l’avis dans le panneau ; la page À propos affiche la carte Créateur enrichie (abonnés, dépôts, étoiles) avec bouton « Profil GitHub »' },
           { id: '077i27', platforms: ['web'], text: 'Nouvel onglet « Atlas Agent » dans les Paramètres : mémoire & savoir, sécurité & quotas, permissions et provider Groq réunis au même endroit (recherche Paramètres mise à jour)' },
           { id: '077i28', platforms: ['web'], text: '« Accès agent des utilisateurs » s’ouvre désormais en popup, comme les appareils connectés : liste des comptes, statut, Suspendre / Rétablir ; les cartes de permissions ne s’affichent plus noires (clair et sombre)' },
+          { id: '077i29', platforms: ['web'], text: 'Le bouton recherche des topbars (Paramètres, À propos, Nouveautés) porte exactement le même gabarit que les icônes d’onglets, est collé au sélecteur de thème et reste visible en scrollant (il rétrécit en mode compact) ; l’onglet Atlas Agent des Paramètres arbore une icône robot lisible' },
         ],
       },
       {
