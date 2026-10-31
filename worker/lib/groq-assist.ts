@@ -116,6 +116,115 @@ export async function groqChat(opts: {
   );
 }
 
+/* ─────────────────────── boucle d'outils (v0.7.7) ───────────────────────
+ * Function-calling OpenAI-compatible sur Groq : le modèle peut appeler des
+ * outils (métier via runAssistTool, mémoire/RAG via agent-knowledge) jusqu'à
+ * 3 tours avant de répondre. Chaque appel est journalisé dans tool_trace. */
+export type AgentToolTrace = { name: string; ok: boolean; error?: string; data?: unknown };
+
+export async function groqChatWithTools(opts: {
+  apiKey: string;
+  model?: string;
+  system: string;
+  message: string;
+  maxTokens?: number;
+  tools: unknown[];
+  executor: (name: string, args: Record<string, unknown>) => Promise<{ ok: boolean; data?: unknown; error?: string }>;
+  maxRounds?: number;
+}): Promise<{
+  reply: string;
+  model: string;
+  usage?: { prompt: number; completion: number };
+  tool_trace: AgentToolTrace[];
+}> {
+  const maxRounds = Math.max(1, Math.min(opts.maxRounds ?? 3, 4));
+  const maxTokens = Math.max(64, Math.min(opts.maxTokens ?? 1024, 4096));
+  const messages: any[] = [
+    { role: 'system', content: opts.system },
+    { role: 'user', content: opts.message },
+  ];
+  const trace: AgentToolTrace[] = [];
+  let promptTokens = 0;
+  let completionTokens = 0;
+  let lastModel = '';
+  for (let round = 0; round < maxRounds; round++) {
+    const res = await upstreamFetch(
+      'https://api.groq.com/openai/v1/chat/completions',
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${opts.apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: opts.model || MODELS[0],
+          temperature: 0.55,
+          max_tokens: maxTokens,
+          tools: opts.tools,
+          tool_choice: 'auto',
+          messages,
+        }),
+      },
+      { timeoutMs: 20000, retries: 2, label: 'groq-tools' },
+    );
+    if (res.status === 401 || res.status === 403) {
+      throw new Error('Atlas Agent: clé Groq refusée. Vérifiez GROQ_API_KEY.');
+    }
+    if (res.status === 429) throw new Error('Quota Groq atteint. Réessayez dans quelques minutes.');
+    const raw = await res.text().catch(() => '');
+    let data: any = {};
+    try { data = JSON.parse(raw); } catch { data = {}; }
+    if (!res.ok) {
+      // modèle sans support outils ? → repli sans outils
+      const fallback = await groqChat({
+        apiKey: opts.apiKey,
+        model: opts.model,
+        system: opts.system,
+        message: opts.message,
+        maxTokens,
+      });
+      return { ...fallback, tool_trace: trace };
+    }
+    promptTokens += Number(data?.usage?.prompt_tokens || 0);
+    completionTokens += Number(data?.usage?.completion_tokens || 0);
+    lastModel = String(data?.model || opts.model || MODELS[0]);
+    const msg = data?.choices?.[0]?.message || {};
+    const calls: any[] = Array.isArray(msg.tool_calls) ? msg.tool_calls.slice(0, 4) : [];
+    if (!calls.length) {
+      const text = String(msg.content || '')
+        .trim()
+        .replace(/\b(Google|Gemini|Mistral|OpenAI|ChatGPT|Claude|Groq|Llama|Meta)\b/gi, 'Atlas Agent')
+        .trim();
+      if (text) return { reply: text, model: lastModel, usage: { prompt: promptTokens, completion: completionTokens }, tool_trace: trace };
+      break;
+    }
+    messages.push({ role: 'assistant', content: msg.content || null, tool_calls: calls });
+    for (const call of calls) {
+      const name = String(call?.function?.name || '');
+      let args: Record<string, unknown> = {};
+      try { args = JSON.parse(String(call?.function?.arguments || '{}')); } catch { args = {}; }
+      let out: { ok: boolean; data?: unknown; error?: string } = { ok: false, error: 'Outil inconnu.' };
+      try {
+        out = await opts.executor(name, args);
+      } catch (e: any) {
+        out = { ok: false, error: String(e?.message || e).slice(0, 200) };
+      }
+      trace.push({ name, ok: out.ok, error: out.ok ? undefined : out.error, data: out.ok ? out.data : undefined });
+      messages.push({
+        role: 'tool',
+        tool_call_id: String(call?.id || ''),
+        content: JSON.stringify(out).slice(0, 6000),
+      });
+    }
+  }
+  // dernier recours : réponse directe sans outils
+  const fallback = await groqChat({
+    apiKey: opts.apiKey,
+    model: opts.model,
+    system: opts.system,
+    message: opts.message,
+    maxTokens,
+  });
+  return { ...fallback, tool_trace: trace };
+}
+
 /* ─────────────────────────── streaming (v264) ───────────────────────────
  * SSE token streaming for POST /api/assist/chat/stream. Same provider, same
  * scrubbing rules as groqChat(); deltas are forwarded as they arrive and the

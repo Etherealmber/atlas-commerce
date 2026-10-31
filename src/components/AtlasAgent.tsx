@@ -661,6 +661,10 @@ export default function AtlasAgent() {
     try { return localStorage.getItem('atlas_agent_show_extras') === '1'; } catch { return false; }
   });
   const [agentPolicy, setAgentPolicy] = useState<{ blocked: boolean; isAdmin: boolean; dailyUsed: number; weeklyUsed: number; dailyLimit: number; weeklyLimit: number; dailyResetsAt?: string; weeklyResetsAt?: string } | null>(null);
+  // v0.7.7 — popup dédié « accès suspendu » : montré une fois par session
+  const [blockedModalSeen, setBlockedModalSeen] = useState(() => {
+    try { return sessionStorage.getItem('atlas-agent-blocked-seen') === '1'; } catch { return true; }
+  });
   useEffect(() => {
     if (!open) return;
     let alive = true;
@@ -2046,6 +2050,48 @@ export default function AtlasAgent() {
             style={{ display: 'none' }}
             onChange={onPickFiles}
           />
+          {agentPolicy?.blocked && open && !blockedModalSeen &&
+            createPortal(
+              <div
+                role="alertdialog"
+                aria-modal="true"
+                aria-labelledby="atlas-agent-blocked-title"
+                style={{
+                  position: 'fixed', inset: 0, zIndex: 999, display: 'grid', placeItems: 'center',
+                  background: 'rgba(9, 9, 11, 0.55)', backdropFilter: 'blur(3px)', padding: 20,
+                }}
+              >
+                <div
+                  style={{
+                    maxWidth: 420, width: '100%', borderRadius: 18, padding: 22,
+                    background: 'var(--paper, #fff)', border: '1px solid var(--line, #e4e4e7)',
+                    boxShadow: '0 24px 60px rgba(0,0,0,.35)', textAlign: 'center',
+                  }}
+                >
+                  <div style={{ width: 46, height: 46, margin: '0 auto 12px', borderRadius: 999, display: 'grid', placeItems: 'center', background: 'rgba(196,92,38,.12)', color: '#c45c26' }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><rect x="4" y="10" width="16" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></svg>
+                  </div>
+                  <h2 id="atlas-agent-blocked-title" style={{ margin: '0 0 8px', fontSize: 17 }}>
+                    Accès Atlas Agent suspendu
+                  </h2>
+                  <p style={{ margin: '0 0 16px', fontSize: 13.5, lineHeight: 1.55, color: 'var(--muted, #52525b)' }}>
+                    Abus ou injection de prompt détecté sur votre compte. L’accès est verrouillé jusqu’à
+                    rétablissement par un administrateur (Paramètres → Atlas Agent & Sécurité).
+                  </p>
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={() => {
+                      try { sessionStorage.setItem('atlas-agent-blocked-seen', '1'); } catch { /* privé */ }
+                      setBlockedModalSeen(true);
+                    }}
+                  >
+                    J’ai compris
+                  </button>
+                </div>
+              </div>,
+              document.body,
+            )}
           {agentPolicy?.blocked && (
             <div className="atlas-agent-lock" role="alert">
               <strong>Accès Atlas Agent suspendu</strong>
