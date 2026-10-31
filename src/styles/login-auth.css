@@ -312,22 +312,53 @@ html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-turnstile {
   margin: 8px 0 4px !important;
   min-height: 65px !important;
 }
+/* v0.7.7 — passkey & téléchargement Android : de vrais BOUTONS (fini le lien souligné) */
 html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-passkey-link {
-  display: block !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
   width: 100% !important;
   margin-top: 10px !important;
-  padding: 8px !important;
-  background: transparent !important;
-  border: 0 !important;
-  color: #a1a1aa !important;
+  padding: 10px 14px !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(63, 63, 70, 0.9) !important;
+  border-radius: 12px !important;
+  color: #e4e4e7 !important;
   font-size: 0.85rem !important;
-  font-weight: 500 !important;
+  font-weight: 600 !important;
   text-align: center !important;
   cursor: pointer !important;
-  text-decoration: underline !important;
-  text-underline-offset: 3px !important;
+  text-decoration: none !important;
+  transition: background .15s ease, color .15s ease, border-color .15s ease !important;
 }
 html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-passkey-link:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(161, 161, 170, 0.7) !important;
+  color: #fafafa !important;
+}
+html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-android-btn {
+  margin-top: 8px !important;
+}
+/* retry Turnstile : bouton secondaire lisible sous le message */
+html.atlas-login-page .atlas-turnstile-hint {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  align-items: stretch !important;
+}
+html.atlas-login-page .atlas-turnstile-retry {
+  padding: 9px 14px !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(63, 63, 70, 0.9) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #e4e4e7 !important;
+  font-size: 0.82rem !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+}
+html.atlas-login-page .atlas-turnstile-retry:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
   color: #fafafa !important;
 }
 html.atlas-login-page .atlas-login.atlas-login--auth7 .atlas-login-secondary {
