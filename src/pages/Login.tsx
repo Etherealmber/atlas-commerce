@@ -247,6 +247,9 @@ function LoginPcQrPanel({ onSuccessFlash }: { onSuccessFlash?: () => void }) {
                 Ou se connecter avec une passkey
               </button>
             ) : null}
+            <Link to="/android" className="atlas-login-passkey-link atlas-login-android-btn">
+              Télécharger l&apos;app Android
+            </Link>
           </motion.div>
         ) : phase === 'claimed' ? (
           <motion.div
@@ -383,6 +386,8 @@ export default function Login() {
   const [turnstileSiteKey, setTurnstileSiteKey] = useState<string | null>(null);
   const [turnstileToken, setTurnstileToken] = useState('');
   const [turnstileHint, setTurnstileHint] = useState(false);
+  // v0.7.7 — retry manuel du widget Turnstile (re-render complet)
+  const [turnstileNonce, setTurnstileNonce] = useState(0);
   const turnstileWidgetId = useRef<string | undefined>(undefined);
   const [showPassword, setShowPassword] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
@@ -460,7 +465,7 @@ export default function Login() {
       try {
         const fp = await Promise.race([
         getCachedFingerprint().catch(() => 'none'),
-        new Promise<string>((r) => setTimeout(() => r('none'), 8000)),
+        new Promise<string>((r) => setTimeout(() => r('none'), 3500)),
       ]);
         const bio = await isBiometricAvailable().catch(() => false);
         setBioAvailable(bio && isWebAuthnAvailable());
@@ -550,7 +555,7 @@ export default function Login() {
         }
       } catch { /* */ }
     };
-  }, [turnstileSiteKey]);
+  }, [turnstileSiteKey, turnstileNonce]);
 
   const afterToken = (data: any, justTrusted?: boolean) => {
     setToken(data.token, data.ip, (data.username || username).trim().toLowerCase(), data.role || 'user');
@@ -601,6 +606,21 @@ export default function Login() {
     } catch { /* */ }
   };
 
+  /** v0.7.7 — le widget a échoué (réseau filtré, CSP tiers…) : on le remonte de zéro. */
+  const retryTurnstile = () => {
+    setTurnstileHint(false);
+    setTurnstileToken('');
+    try {
+      const ts = (window as any).turnstile;
+      const id = turnstileWidgetId.current;
+      if (id != null && ts?.remove) ts.remove(id);
+    } catch { /* */ }
+    turnstileWidgetId.current = undefined;
+    const el = document.getElementById('cf-turnstile');
+    if (el) el.innerHTML = '';
+    setTurnstileNonce((n) => n + 1);
+  };
+
   const submitPassword = async (e: React.FormEvent) => {
     const fe = validateLoginForm({ username, password });
     setFieldErrors(fe);
@@ -616,7 +636,7 @@ export default function Login() {
     try {
       const fp = await Promise.race([
         getCachedFingerprint().catch(() => 'none'),
-        new Promise<string>((r) => setTimeout(() => r('none'), 8000)),
+        new Promise<string>((r) => setTimeout(() => r('none'), 3500)),
       ]);
       const native = isNativeClient();
       // Web + Turnstile configured: require a token before hitting the API
@@ -682,7 +702,7 @@ export default function Login() {
     try {
       const fp = await Promise.race([
         getCachedFingerprint().catch(() => 'none'),
-        new Promise<string>((r) => setTimeout(() => r('none'), 8000)),
+        new Promise<string>((r) => setTimeout(() => r('none'), 3500)),
       ]);
       const res = await fetch(`${getApiBase()}/api/auth/verify-otp`, {
         method: 'POST',
@@ -718,7 +738,7 @@ export default function Login() {
     try {
       const fp = await Promise.race([
         getCachedFingerprint().catch(() => 'none'),
-        new Promise<string>((r) => setTimeout(() => r('none'), 8000)),
+        new Promise<string>((r) => setTimeout(() => r('none'), 3500)),
       ]);
       const optRes = await fetch(`${getApiBase()}/api/auth/webauthn/login/options`, {
         method: 'POST',
@@ -763,7 +783,7 @@ export default function Login() {
     try {
       const fp = await Promise.race([
         getCachedFingerprint().catch(() => 'none'),
-        new Promise<string>((r) => setTimeout(() => r('none'), 8000)),
+        new Promise<string>((r) => setTimeout(() => r('none'), 3500)),
       ]);
       const token = getToken();
       const optRes = await fetch(`${getApiBase()}/api/auth/webauthn/register/options`, {
@@ -949,10 +969,15 @@ export default function Login() {
                 <div id="cf-turnstile" className="atlas-turnstile" />
               ) : null}
               {turnstileHint ? (
-                <p className="atlas-turnstile-hint">
-                  Vérification Cloudflare indisponible sur cette connexion — actualisez la page
-                  ou réessayez depuis un autre réseau.
-                </p>
+                <div className="atlas-turnstile-hint" role="status">
+                  <p style={{ margin: 0 }}>
+                    Vérification Cloudflare indisponible sur cette connexion — réessayez
+                    depuis un autre réseau ou relancez la vérification.
+                  </p>
+                  <button type="button" className="atlas-turnstile-retry" onClick={retryTurnstile}>
+                    Réessayer la vérification
+                  </button>
+                </div>
               ) : null}
 
               <button type="submit" className="atlas-login-submit" disabled={loading || !passwordConfigured}>
