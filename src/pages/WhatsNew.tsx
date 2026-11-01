@@ -81,6 +81,7 @@ export const RELEASES: Release[] = [
           { id: '077i32', platforms: ['web'], text: 'Le bouton burger de la barre publique n’apparaît plus sur ordinateur (réservé aux écrans ≤960 px)' },
           { id: '077i33', platforms: ['web'], text: 'Connexion : « Ou se connecter avec une passkey » et le nouveau « Télécharger l’app Android » sont de vrais boutons (fini les liens soulignés) ; si la vérification Cloudflare est indisponible, un bouton « Réessayer la vérification » remonte le widget sans recharger la page, et l’attente anti-gel est raccourcie' },
           { id: '077i34', platforms: ['web'], text: 'Connexion : les identifiants pré-remplis par le navigateur s’affichent enfin en clair sur fond sombre ; le panneau QR propose « Réessayer » au lieu d’un cadre vide si la session ne charge pas ; un cadre Turnstile bloqué en « Verifying… » débloque lui aussi le bouton « Réessayer la vérification », et l’alerte s’affiche sous les yeux quand Continuer est tapé trop tôt' },
+          { id: '077i35', platforms: ['web', 'server'], text: 'Changer de compte sur le même navigateur (ex. compte stock après l’admin) ne provoque plus « Appareil révoqué » : l’appareil de confiance est désormais rattaché au bon compte à chaque connexion ; l’onglet Atlas Agent apparaît dans la barre du haut des Paramètres, et cette barre reste visible même en faisant défiler la page' },
         ],
       },
       {

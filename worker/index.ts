@@ -2792,7 +2792,7 @@ app.post('/api/auth/login', async (c) => {
     // Local development without an e-mail binding: the OTP could never
     // arrive, so trust this device and continue. Production ALWAYS binds
     // EMAIL, therefore the e-mail OTP remains enforced everywhere else.
-    await trustDevice(c.env.DB, fingerprint, ip);
+  await trustDevice(c.env.DB, fingerprint, ip, username, c.req.header('User-Agent') || '');
     await recordLogin(c.env.DB, ip, fingerprint, true, ua);
     await writeAudit(c.env.DB, { username, role, action: 'auth.login', entity: 'session', detail: 'dev_no_email_binding', ip });
     const devToken = await makeTokenV2(username, role, secretMaterial, ip, fingerprint);
@@ -2947,7 +2947,7 @@ app.post('/api/auth/verify-otp', async (c) => {
   // Best-effort: sweep all expired security rows
   try { await purgeEphemeralSecurityData(c.env.DB); } catch { /* */ }
 
-  await trustDevice(c.env.DB, fingerprint, ip);
+  await trustDevice(c.env.DB, fingerprint, ip, username, c.req.header('User-Agent') || '');
   await recordLogin(c.env.DB, ip, fingerprint, true, ua);
   const rep = await getReputation(c.env.DB, ip) as any;
   const token = await makeTokenV2(user, role, secretMaterial, ip, fingerprint);
@@ -3039,7 +3039,7 @@ app.post('/api/auth/verify-link', async (c) => {
   await c.env.DB.prepare(`DELETE FROM otp_codes WHERE resource_type = 'login_ctx' AND resource_id = ?`).bind(record.resource_id).run();
   try { await purgeEphemeralSecurityData(c.env.DB); } catch { /* */ }
 
-  await trustDevice(c.env.DB, fingerprint, ip);
+  await trustDevice(c.env.DB, fingerprint, ip, username, c.req.header('User-Agent') || '');
   await recordLogin(c.env.DB, ip, fingerprint, true, ua);
   const rep = await getReputation(c.env.DB, ip) as any;
   const token = await makeTokenV2(user, role, secretMaterial, ip, fingerprint);
@@ -3545,7 +3545,7 @@ app.post('/api/auth/qr/session/:token/complete', async (c) => {
 
   const authToken = await makeTokenV2(row.username, row.role, secretMaterial, ip, fingerprint);
   try {
-    await trustDevice(c.env.DB, fingerprint, ip);
+    await trustDevice(c.env.DB, fingerprint, ip, String(row.username || ''), c.req.header('User-Agent') || '');
   } catch { /* */ }
   await recordLogin(c.env.DB, ip, fingerprint, true, ua);
   await writeAudit(c.env.DB, {
@@ -3781,7 +3781,7 @@ app.post('/api/auth/webauthn/register/verify', async (c) => {
     return c.json({ success: false, error: 'Cette passkey est déjà enregistrée', code: 'DUPLICATE_CREDENTIAL' }, 409);
   }
 
-  await trustDevice(c.env.DB, fingerprint, clientIp(c));
+  await trustDevice(c.env.DB, fingerprint, clientIp(c), username, c.req.header('User-Agent') || '');
   return c.json({
     success: true,
     credential_id: verified.credentialId.slice(0, 16) + '…',
@@ -3897,7 +3897,7 @@ app.post('/api/auth/webauthn/login/verify', async (c) => {
   await c.env.DB.prepare(
     `UPDATE webauthn_credentials SET counter = ?, backup_state = ?, last_used = datetime('now') WHERE id = ?`,
   ).bind(verified.counter, verified.backupState ? 1 : 0, credentialId).run().catch(() => {});
-  await trustDevice(c.env.DB, fingerprint, ip);
+  await trustDevice(c.env.DB, fingerprint, ip, String(cred.username || ''), c.req.header('User-Agent') || '');
   await recordLogin(c.env.DB, ip, fingerprint, true, ua);
   const rep = await getReputation(c.env.DB, ip) as any;
 

@@ -975,6 +975,8 @@ function DesktopShell() {
     { id: 'app', label: 'Mise à jour app', icon: 'M7 2h10a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1zM11 18h2M12 2v0' },
     { id: 'admin', label: 'Admin', icon: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68V3a2 2 0 1 1 4 0v.09c0 .66.39 1.26 1 1.51.6.26 1.3.12 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.66 0 1.26.39 1.51 1H21a2 2 0 1 1 0 4h-.09c-.25.61-.85 1-1.51 1z' },
     { id: 'audit', label: 'Journal d’audit', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M9 13h6M9 17h4' },
+    // v0.7.7 — onglet Atlas Agent aussi dans la topbar (même icône bot que Settings)
+    { id: 'agent', label: 'Atlas Agent', icon: 'M12 8V4H8M6 8h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2zM2 14h2M20 14h2M15 13v2M9 13v2' },
   ];
   const { mode: themeMode, setMode: setThemeMode } = useTheme();
   const [badges, setBadges] = useState<NavBadges>(EMPTY_BADGES);
@@ -1541,7 +1543,7 @@ function DesktopShell() {
           {isSettingsRoute && (
             <nav className="settings-topbar-tabs" aria-label="Sections paramètres">
               {SETTINGS_TOP_TABS.filter((tab) => {
-                if (tab.id === 'profile') return true;
+                if (tab.id === 'profile' || tab.id === 'agent') return true;
                 if (tab.id === 'admin' || tab.id === 'audit' || tab.id === 'app') return canAccessAdminSettings();
                 return canAccessCompanySettings();
               }).map((tab) => (
