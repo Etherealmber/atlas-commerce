@@ -64,7 +64,6 @@ import AtlasLoadingBar from './components/AtlasLoadingBar';
 import { isWelcomeCompleted } from './lib/welcome';
 import { hasUnreadWhatsNew } from './lib/whatsNew';
 import { openConsentSettings } from './lib/cookieConsent';
-import { resetWelcome } from './lib/welcome';
 import {
   filterSettingsHits,
   searchSettings,
@@ -1671,21 +1670,6 @@ function DesktopShell() {
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                   <path d="M12 2l2.4 7.2H22l-6 4.8 2.3 7L12 16.8 5.7 21l2.3-7-6-4.8h7.6z" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                className="settings-topbar-tab secondary"
-                title="Revoir le guide"
-                aria-label="Revoir le guide d'accueil"
-                onClick={() => {
-                  resetWelcome();
-                  window.location.assign('/welcome');
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
                 </svg>
               </button>
             </nav>

@@ -85,6 +85,7 @@ export const RELEASES: Release[] = [
           { id: '077i36', platforms: ['web'], text: 'Le menu compte de la barre du haut affiche désormais les vraies données (nom, rôle, avatar) sans attendre un rechargement : la vérification de session périodique prévient l’interface dès que le profil change' },
           { id: '077i37', platforms: ['web'], text: 'Paramètres : taper l’onglet Atlas Agent de la barre du haut ouvre enfin l’onglet Agent (l’URL ?tab=agent n’est plus renvoyée vers la page Profil, y compris pour les rôles stock/utilisateur), et la puce compte de cette barre affiche le rôle en français (« Magasinier », « Administrateur »…) au lieu de la clé technique' },
           { id: '077i38', platforms: ['web'], text: 'Permissions Atlas Agent : toute la gestion (modes, outils perso, outils organisation) vit désormais dans une popup façon « Appareils connectés » ouverte depuis une carte résumé ; les trois gros cartons sombres sont remplacés par un sélecteur segmenté lisible (clair & sombre) avec radio-points, et chaque outil affiche sa description' },
+          { id: '077i39', platforms: ['web'], text: 'Rangement des Paramètres : « Appareils connectés », la 2FA et la suppression de compte quittent l’onglet Atlas Agent pour un nouveau bloc « Sécurité du compte » dans l’onglet Profil ; le bouton « Revoir le guide d’accueil » quitte la barre du haut et vit dans l’onglet Admin' },
         ],
       },
       {
