@@ -137,7 +137,8 @@ export default function Settings() {
 
 
 
-  const VALID_TABS = new Set(['profile', 'company', 'attendance', 'legal', 'invoicing', 'documents', 'warehouse', 'categories', 'integrations', 'app', 'admin', 'audit']);
+  // v0.7.7 — 'agent' était absent : ?tab=agent retombait sur profile (« tap = page profil »)
+  const VALID_TABS = new Set(['profile', 'agent', 'company', 'attendance', 'legal', 'invoicing', 'documents', 'warehouse', 'categories', 'integrations', 'app', 'admin', 'audit']);
   const tabFromUrl = searchParams.get('tab') || 'profile';
   const activeTab = VALID_TABS.has(tabFromUrl) ? tabFromUrl : 'profile';
 
@@ -292,7 +293,7 @@ export default function Settings() {
 
   // Force profile tab when role cannot access company settings (stock / user)
   useEffect(() => {
-    if (!canAccessCompanySettings() && activeTab !== 'profile') {
+    if (!canAccessCompanySettings() && activeTab !== 'profile' && activeTab !== 'agent') {
       setActiveTab('profile');
     }
   }, [activeTab, isOwner]);
