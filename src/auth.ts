@@ -184,11 +184,24 @@ export function startSessionGuard(): () => void {
         }
       } else {
         const m = data?.data || data || {};
-        if (m.username) localStorage.setItem(USER_KEY, String(m.username));
-        if (m.role) localStorage.setItem(ROLE_KEY, String(m.role));
-        if (m.display_name != null) localStorage.setItem(DISPLAY_NAME_KEY, String(m.display_name));
-        if (m.avatar_url != null) {
-          memoryAvatarUrl = sanitizeAvatarUrl(m.avatar_url);
+        // v0.7.7 — le refresh /me doit AUSSI rafraîchir l'UI : on compare avant/après
+        // et on passe par setProfileCache (dispatch atlas-profile-changed + avatar)
+        // pour que la topbar / le menu compte affichent les vraies données.
+        const prevU = localStorage.getItem(USER_KEY) || '';
+        const prevR = localStorage.getItem(ROLE_KEY) || '';
+        const prevN = localStorage.getItem(DISPLAY_NAME_KEY) || '';
+        const prevA = memoryAvatarUrl || '';
+        const nextU = m.username ? String(m.username) : prevU;
+        const nextR = m.role ? String(m.role) : prevR;
+        const nextN = m.display_name != null ? String(m.display_name) : prevN;
+        const nextA = m.avatar_url != null ? sanitizeAvatarUrl(m.avatar_url) : prevA;
+        if (prevU !== nextU || prevR !== nextR || prevN !== nextN || prevA !== nextA) {
+          setProfileCache({
+            username: nextU || null,
+            role: nextR || null,
+            display_name: nextN,
+            avatar_url: nextA,
+          });
         }
       }
     } catch {
