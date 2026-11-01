@@ -27,6 +27,8 @@ import { AlertsPanel } from '../components/atlas-v209-panels';
 import AgentPermissionsPanel from '../components/AgentPermissionsPanel';
 import AppUpdatePanel from '../components/settings/AppUpdatePanel';
 import AgentSecurityPanel from '../components/AgentSecurityPanel';
+import AccountSecurityPanel from '../components/AccountSecurityPanel';
+import { resetWelcome } from '../lib/welcome';
 import DbMigrationPanel from '../components/DbMigrationPanel';
 import AgentKnowledgePanel from '../components/settings/AgentKnowledgePanel';
 export default function Settings() {
@@ -1179,6 +1181,11 @@ if (loading) return (
             )}
           </div>
 
+          {/* v0.7.7 — sécurité du compte (2FA, appareils connectés, compte) : sortie de l'onglet Agent */}
+          <AccountSecurityPanel
+            isOwner={(typeof getRole === 'function' ? getRole() : '') === 'owner'}
+            role={typeof getRole === 'function' ? String(getRole() || '') : ''}
+          />
         </div>
       )}
 
@@ -2361,6 +2368,24 @@ if (loading) return (
       
 {activeTab === 'admin' && (canAccessAdminSettings() || isOwner) && (
         <div>
+        {/* v0.7.7 — guide d'accueil : géré depuis l'onglet Admin (plus d'icône topbar) */}
+        <div className="card" style={{ marginBottom: 16, padding: 16 }}>
+          <h2 style={{ fontSize: 16, marginTop: 0 }}>Guide d’accueil</h2>
+          <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.45 }}>
+            Revoir le guide interactif de démarrage (page d’accueil pas-à-pas). Le guide se réaffiche
+            immédiatement pour ce navigateur.
+          </p>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => {
+              resetWelcome();
+              window.location.assign('/welcome');
+            }}
+          >
+            Revoir le guide d’accueil
+          </button>
+        </div>
         <div className="card" style={{ marginBottom: 16, padding: 16 }}>
           <h2 style={{ fontSize: 16, marginTop: 0 }} data-settings-anchor="backup">Sauvegarde &amp; restauration</h2>
           <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.45 }}>
