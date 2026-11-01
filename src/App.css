@@ -20919,3 +20919,13 @@ html[data-theme='light'] body .desktop-landing .dl-tech .dl-muted { color: #7171
   .public-settings-topbar .pst-filters { max-width: 44vw; overflow-x: auto; flex-wrap: nowrap; }
   .public-settings-topbar .settings-topbar-brand img { width: 22px; height: 22px; }
 }
+
+/* v0.7.7 — la topbar Settings/WhatsNew/About reste TOUJOURS visible au scroll */
+html body .settings-topbar {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 95 !important;
+}
+html body .layout.layout-settings-focus {
+  overflow: visible !important;
+}

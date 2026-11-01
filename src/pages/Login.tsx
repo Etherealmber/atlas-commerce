@@ -89,6 +89,7 @@ const REASON_MESSAGES: Record<string, string> = {
   BIOMETRIC_MISMATCH: 'Biométrie / clé non reconnue. Utilisez le mot de passe.',
   NO_CREDENTIALS: 'Aucune biométrie enregistrée. Utilisez le mot de passe.',
   TURNSTILE_FAILED: 'Vérification anti-bot échouée. Rechargez la page.',
+  DEVICE_REVOKED: 'Cet appareil a été révoqué depuis un autre appareil. Reconnectez-vous pour restaurer l’accès.',
 };
 
 
