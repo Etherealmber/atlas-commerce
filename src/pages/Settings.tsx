@@ -2322,7 +2322,8 @@ if (loading) return (
             <p className="muted" style={{ marginTop: 0, marginBottom: 12 }}>
               Outils et actions que l’agent peut exécuter en votre nom. Géré ici (plus dans le panneau de l’agent).
             </p>
-            <AgentPermissionsPanel />
+            {/* v0.7.7 — carte résumé + popup façon « Appareils connectés » */}
+            <AgentPermissionsPanel asTrigger />
           </div>
           {(canAccessAdminSettings() || isOwner) && (
             <div className="card" style={{ marginBottom: 16, padding: 16 }}>

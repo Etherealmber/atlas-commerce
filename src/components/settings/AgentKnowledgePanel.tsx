@@ -220,33 +220,6 @@ export default function AgentKnowledgePanel() {
         </>
       )}
 
-      {/* ── Outils (org) ── */}
-      {k.isAdmin && (
-        <>
-          <h3 style={{ fontSize: 13, margin: '18px 0 8px' }}>Outils de l’Agent</h3>
-          <p style={hint}>Activez ou coupez chaque outil disponible pour vos rôles.</p>
-          <div style={{ maxHeight: 260, overflowY: 'auto', paddingRight: 4 }}>
-            {k.tools.map((t) => (
-              <div key={t.name} style={row}>
-                <input
-                  type="checkbox"
-                  checked={t.enabled}
-                  disabled={!t.allowedForRole || busy}
-                  aria-label={`Activer l'outil ${t.name}`}
-                  onChange={(e) => void run(() => api.setAgentToolPref(t.name, e.target.checked))}
-                />
-                <span style={{ flex: '1 1 auto', minWidth: 0 }}>
-                  <strong style={{ fontSize: 12.5 }}>{t.name}</strong>
-                  <span style={{ display: 'block', fontSize: 11.5, color: 'var(--muted)' }}>
-                    {t.description || (t.allowedForRole ? '' : 'non autorisé pour votre rôle')}
-                  </span>
-                </span>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
       {/* ── Base de connaissances RAG (org) ── */}
       {k.isAdmin && (
         <>
