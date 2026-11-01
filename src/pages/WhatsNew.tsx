@@ -83,6 +83,7 @@ export const RELEASES: Release[] = [
           { id: '077i34', platforms: ['web'], text: 'Connexion : les identifiants pré-remplis par le navigateur s’affichent enfin en clair sur fond sombre ; le panneau QR propose « Réessayer » au lieu d’un cadre vide si la session ne charge pas ; un cadre Turnstile bloqué en « Verifying… » débloque lui aussi le bouton « Réessayer la vérification », et l’alerte s’affiche sous les yeux quand Continuer est tapé trop tôt' },
           { id: '077i35', platforms: ['web', 'server'], text: 'Changer de compte sur le même navigateur (ex. compte stock après l’admin) ne provoque plus « Appareil révoqué » : l’appareil de confiance est désormais rattaché au bon compte à chaque connexion ; l’onglet Atlas Agent apparaît dans la barre du haut des Paramètres, et cette barre reste visible même en faisant défiler la page' },
           { id: '077i36', platforms: ['web'], text: 'Le menu compte de la barre du haut affiche désormais les vraies données (nom, rôle, avatar) sans attendre un rechargement : la vérification de session périodique prévient l’interface dès que le profil change' },
+          { id: '077i37', platforms: ['web'], text: 'Paramètres : taper l’onglet Atlas Agent de la barre du haut ouvre enfin l’onglet Agent (l’URL ?tab=agent n’est plus renvoyée vers la page Profil, y compris pour les rôles stock/utilisateur), et la puce compte de cette barre affiche le rôle en français (« Magasinier », « Administrateur »…) au lieu de la clé technique' },
         ],
       },
       {

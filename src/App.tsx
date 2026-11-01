@@ -1918,7 +1918,7 @@ function DesktopShell() {
               )}
               <div className="settings-topbar-user-meta">
                 <strong>{getDisplayName() || getUsername()}</strong>
-                <span>{getRole() || 'utilisateur'}</span>
+                <span>{roleLabelFr(getRole())}</span>
               </div>
               {focusWhatsNewUnread ? <span className="whats-new-dot" aria-hidden /> : null}
             </button>
