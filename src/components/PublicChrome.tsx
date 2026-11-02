@@ -567,7 +567,8 @@ export function PublicSettingsTopbar() {
           ))}
         </div>
       ) : null}
-      {loggedIn && <PnLegacyTabs />}
+      {/* v0.7.7 — le journal n’a pas besoin des liens legacy : filtres seulement */}
+      {loggedIn && location.pathname !== '/whats-new' && <PnLegacyTabs />}
       <div className="settings-topbar-right">
         {/* v0.7.7 — même gabarit d'icône que la topbar Paramètres, collé au sélecteur
             de thème, jamais masqué (ni en compact, ni en scroll) */}

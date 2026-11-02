@@ -215,7 +215,7 @@ export default function GlobalSearchPanel() {
           </svg>
         </button>
       </div>
-      <div className="atlas-typeahead-menu gsp-list" role="listbox" aria-label="Résultats">
+      <div className={`atlas-typeahead-menu gsp-list${!q.trim() && hist.length === 0 ? ' gsp-list--compact' : ''}`} role="listbox" aria-label="Résultats">
         {!q.trim() && hist.length > 0 && (
           <div className="gsp-hist">
             <div className="gsp-hist-head">
