@@ -31,9 +31,38 @@ type Release = {
 
 export const RELEASES: Release[] = [
   {
-    version: '0.7.7-beta',
-    date: '30 octobre 2026',
+    version: '0.7.5',
+    date: '2 novembre 2026',
     sections: [
+      {
+        kind: 'features',
+        items: [
+          { id: '076a1', platforms: ['web'], text: 'Page d’ouverture au choix : Paramètres → « Page d’ouverture » (tableau de bord, caisse, stock, clients, factures, créances, rapports, paramètres ou vitrine publique) — appliquée après la connexion et en ouvrant « / » connecté ; réglage local par appareil, fonctionnel en auto-hébergement sans aucun réglage serveur' },
+          { id: '074a1', platforms: ['web'], text: 'Pages publiques repensées (/, /desktop, /download) : navigation flottante en pilule, hero géant avec aperçu du tableau de bord, bouton de téléchargement scindé qui détecte votre appareil (« Télécharger pour Windows / macOS / Linux / Android ») avec menu des autres plateformes, bouton GitHub avec compteur d’étoiles, cartes bento des fonctionnalités, section « tout-en-un » (le cahier, Excel, Word, la calculatrice et WhatsApp remplacés par Atlas), FAQ en accordéon et CTA final' },
+          { id: '074a2', platforms: ['web'], text: 'Responsive complet des pages publiques : téléphones pliables (écran couvert étroit et écran ouvert), phones, tablettes et iPad, Chromebooks, très grands écrans et TV — la mise en page s’adapte de 280 px à 2400 px et plus' },
+          { id: '073a1', platforms: ['web'], text: 'Accueil public sur stock.afmarbre.com : la page / présente le produit (comment ça marche, fonctionnalités), les trois apps Web · Android · Bureau et le bloc open source avec bouton Fork — sans cookie et sans aucune redirection vers login ou dashboard' },
+          { id: '073a2', platforms: ['web', 'desktop'], text: 'Nouvelle page /desktop : installateurs bureau officiels (Windows .msi/.exe, macOS .dmg, Linux AppImage) lus depuis GitHub Releases avec détection de votre système, fichiers de la version, notes et historique — même gabarit que /download' },
+          { id: '073a3', platforms: ['web'], text: 'Route /dashboard explicite : l’application s’ouvre désormais sur cette adresse après connexion ; la racine reste l’accueil public. L’app Android installée et la PWA continuent de s’ouvrir directement dans l’app' },
+        ],
+      },
+      {
+        kind: 'improvements',
+        items: [
+          { id: '077i1', platforms: ['web'], text: 'La barre des Paramètres adopte le même langage que la navigation publique : pilule flottante en blur, bordures et fonds zinc/terracotta selon le thème — tout en gardant les onglets de sections, la recherche, le toggle de thème et le profil utilisateur' },
+          { id: '077i2', platforms: ['web'], text: 'Nouvelle section « Un dossier. Tout votre commerce. » : sept modules en arc qui sortent d’un dossier portant le logo Atlas (animation d’élévation puis flottement, désactivée si prefers-reduced-motion)' },
+          { id: '077i3', platforms: ['web'], text: 'Le toggle de thème des pages publiques est désormais STRICTEMENT le même trio que celui du dashboard (.settings-topbar-theme), actif terracotta partout' },
+          { id: '077i4', platforms: ['web'], text: 'Gel de la version affichée (directive) : « 0.7.2 » partout où une version est montrée ; journal Nouveautés et modal limités aux entrées ≤ 0.7.2 ; plus aucun bump de version sans ordre explicite' },
+          { id: '077i5', platforms: ['web'], text: 'La pilule de navigation publique rétrécit quand on descend (logo, paddings et liens compactés) et reprend sa taille dès qu’on remonte — sur toutes les pages qui l’utilisent (accueil, À propos, Nouveautés, Bureau, Android)' },
+          { id: '076i1', platforms: ['web'], text: 'À propos et Nouveautés portent la même barre flottante que l’accueil, connectés comme visiteurs (liens adaptés à la session), et suivent le vrai thème Atlas zinc/terracotta au lieu du rendu « README »' },
+          { id: '076i2', platforms: ['web'], text: 'Chrome public rendu 100 % en styles inline : logo unique selon le thème, toggle système/clair/sombre et bouton de téléchargement scindé immunisés contre toute cascade CSS (fini pastilles noires, caret détaché et soulignements) ; les téléchargements sont de vrais boutons, plus des liens' },
+          { id: '076i3', platforms: ['server'], text: 'Patrol sécurité : un challenge WAF sur l’UA du runner ne produit plus de CRITICAL trompeur — re-sonde avec un UA navigateur, passe avec avis d’allowlist si le site répond, et reste CRITICAL seulement si les visiteurs sont bloqués eux aussi' },
+          { id: '075i1', platforms: ['web'], text: 'Accueil : vrai QR code scannable (logo Atlas au centre) pointant vers la vérification publique, icônes SVG dessinées à la main partout à la place des emojis (arc « tout-en-un », cartes plateformes et dépôts) et fond du hero animé en canvas façon Liner, désactivé si prefers-reduced-motion' },
+          { id: '074i1', platforms: ['web'], text: 'Employés : formulaire simplifié — les champs « N° employé » (généré automatiquement) et « Nom affiché » disparaissent ; le nom complet (prénom + nom de famille) fait foi partout, et les listes denses abrègent automatiquement les noms trop longs (prénom + initiales du nom de famille) avec le nom complet au survol' },
+          { id: '074i2', platforms: ['server'], text: 'Imprimé employé : la zone de signature indique simplement « Employeur » au lieu de « Visa employeur »' },
+          { id: '074i3', platforms: ['web'], text: 'Sélecteur de thème des pages publiques en icônes SVG (système · clair · sombre) à la place des emojis ; le choix « clair » est désormais conservé après rechargement' },
+          { id: '073i1', platforms: ['web'], text: 'Thème : premier lancement sur « système » par défaut (suit clair/sombre de l’OS, mis à jour en direct) ; accueil et /desktop gagnent un sélecteur système/clair/sombre, une palette claire complète et des révélations animées respectueuses de prefers-reduced-motion' },
+        ],
+      },
       {
         kind: 'fixes',
         items: [
@@ -92,113 +121,15 @@ export const RELEASES: Release[] = [
           { id: '077i42', platforms: ['web'], text: 'À propos / Nouveautés / Paramètres : la barre du haut retrouve son look de pilule flottante (décalée de 10 px, jamais collée au bord de l’écran) tout en restant visible quand on défile' },
           { id: '077i41', platforms: ['web'], text: 'À propos / Nouveautés : la barre du haut n’est plus « fixed » collée en permanence au bord de l’écran — elle est sticky dans le flux comme celle des Paramètres (posée en haut de la page, contenu dessous, elle se colle seulement quand on défile)' },
           { id: '077i40', platforms: ['web'], text: 'Topbars À propos / Nouveautés harmonisées : barre collée en haut sans bande vide, icônes de liens toutes dans la même boîte (fini deux nues + trois encadrées), liens legacy retirés de la page Nouveautés, filtres Tout / Nouveautés / Améliorations / Corrections au même gabarit avec actif lisible, recherche globale identique à celle des Paramètres (panneau vide compact, croix de fermeture ronde et discrète) et étiquettes de l’arc « tout-en-un » de l’accueil sur une seule ligne' },
-        ],
-      },
-      {
-        kind: 'improvements',
-        items: [
-          { id: '077i1', platforms: ['web'], text: 'La barre des Paramètres adopte le même langage que la navigation publique : pilule flottante en blur, bordures et fonds zinc/terracotta selon le thème — tout en gardant les onglets de sections, la recherche, le toggle de thème et le profil utilisateur' },
-          { id: '077i2', platforms: ['web'], text: 'Nouvelle section « Un dossier. Tout votre commerce. » : sept modules en arc qui sortent d’un dossier portant le logo Atlas (animation d’élévation puis flottement, désactivée si prefers-reduced-motion)' },
-          { id: '077i3', platforms: ['web'], text: 'Le toggle de thème des pages publiques est désormais STRICTEMENT le même trio que celui du dashboard (.settings-topbar-theme), actif terracotta partout' },
-          { id: '077i4', platforms: ['web'], text: 'Gel de la version affichée (directive) : « 0.7.2 » partout où une version est montrée ; journal Nouveautés et modal limités aux entrées ≤ 0.7.2 ; plus aucun bump de version sans ordre explicite' },
-          { id: '077i5', platforms: ['web'], text: 'La pilule de navigation publique rétrécit quand on descend (logo, paddings et liens compactés) et reprend sa taille dès qu’on remonte — sur toutes les pages qui l’utilisent (accueil, À propos, Nouveautés, Bureau, Android)' },
-        ],
-      },
-    ],
-  },
-  {
-    version: '0.7.6-beta',
-    date: '30 octobre 2026',
-    sections: [
-      {
-        kind: 'features',
-        items: [
-          { id: '076a1', platforms: ['web'], text: 'Page d’ouverture au choix : Paramètres → « Page d’ouverture » (tableau de bord, caisse, stock, clients, factures, créances, rapports, paramètres ou vitrine publique) — appliquée après la connexion et en ouvrant « / » connecté ; réglage local par appareil, fonctionnel en auto-hébergement sans aucun réglage serveur' },
-        ],
-      },
-      {
-        kind: 'improvements',
-        items: [
-          { id: '076i1', platforms: ['web'], text: 'À propos et Nouveautés portent la même barre flottante que l’accueil, connectés comme visiteurs (liens adaptés à la session), et suivent le vrai thème Atlas zinc/terracotta au lieu du rendu « README »' },
-          { id: '076i2', platforms: ['web'], text: 'Chrome public rendu 100 % en styles inline : logo unique selon le thème, toggle système/clair/sombre et bouton de téléchargement scindé immunisés contre toute cascade CSS (fini pastilles noires, caret détaché et soulignements) ; les téléchargements sont de vrais boutons, plus des liens' },
-          { id: '076i3', platforms: ['server'], text: 'Patrol sécurité : un challenge WAF sur l’UA du runner ne produit plus de CRITICAL trompeur — re-sonde avec un UA navigateur, passe avec avis d’allowlist si le site répond, et reste CRITICAL seulement si les visiteurs sont bloqués eux aussi' },
-        ],
-      },
-      {
-        kind: 'fixes',
-        items: [
           { id: '076f1', platforms: ['web'], text: 'Connecté, /login renvoie désormais vers la page d’ouverture (tableau de bord par défaut) au lieu de la vitrine ; idem à la fin de l’assistant de premier lancement' },
           { id: '076f2', platforms: ['web'], text: 'Carte « Agent IA » de l’accueil : la question part de l’utilisateur (bulle envoyée) et c’est l’IA qui répond (bulle reçue)' },
           { id: '076f3', platforms: ['web'], text: 'Mentions « version · date · liens » retirées d’À propos, Nouveautés et Paramètres pour tout le monde, en attendant la prochaine mise à jour demandée' },
-        ],
-      },
-    ],
-  },
-  {
-    version: '0.7.5-beta',
-    date: '30 octobre 2026',
-    sections: [
-      {
-        kind: 'fixes',
-        items: [
           { id: '075f1', platforms: ['web'], text: 'Tableau de bord réparé : la route /dashboard affichait une page vide et pouvait figer l’onglet (boucle de navigation « Throttling navigation ») — les Routes descendants du shell reçoit désormais le suffixe /* et le reste « / » rend directement le dashboard ; la navigation latérale répond à nouveau normalement' },
           { id: '075f2', platforms: ['web', 'server'], text: 'Sécurité : révoquer un appareil (« Appareils connectés ») coupe désormais sa session en cours — le serveur rejette en 401 DEVICE_REVOKED toute requête authentifiée dont l’empreinte n’est plus dans les appareils de confiance ; l’app Android se déconnecte toute seule au prochain appel, une reconnexion restaure l’accès' },
           { id: '075f3', platforms: ['web'], text: 'Boutons de thème et bouton de téléchargement scindé réparés sur les pages publiques : plus de pastilles grises détachées, le caret reste soudé au bouton principal et le segment actif du toggle (système/clair/sombre) se voit clairement' },
           { id: '075f4', platforms: ['web'], text: 'La ligne « version · date · Nouveautés · À propos » disparaît pour les utilisateurs connectés sur À propos, Nouveautés et Paramètres (elle reste visible des visiteurs publics)' },
-        ],
-      },
-      {
-        kind: 'improvements',
-        items: [
-          { id: '075i1', platforms: ['web'], text: 'Accueil : vrai QR code scannable (logo Atlas au centre) pointant vers la vérification publique, icônes SVG dessinées à la main partout à la place des emojis (arc « tout-en-un », cartes plateformes et dépôts) et fond du hero animé en canvas façon Liner, désactivé si prefers-reduced-motion' },
-        ],
-      },
-    ],
-  },
-  {
-    version: '0.7.4-beta',
-    date: '30 octobre 2026',
-    sections: [
-      {
-        kind: 'features',
-        items: [
-          { id: '074a1', platforms: ['web'], text: 'Pages publiques repensées (/, /desktop, /download) : navigation flottante en pilule, hero géant avec aperçu du tableau de bord, bouton de téléchargement scindé qui détecte votre appareil (« Télécharger pour Windows / macOS / Linux / Android ») avec menu des autres plateformes, bouton GitHub avec compteur d’étoiles, cartes bento des fonctionnalités, section « tout-en-un » (le cahier, Excel, Word, la calculatrice et WhatsApp remplacés par Atlas), FAQ en accordéon et CTA final' },
-          { id: '074a2', platforms: ['web'], text: 'Responsive complet des pages publiques : téléphones pliables (écran couvert étroit et écran ouvert), phones, tablettes et iPad, Chromebooks, très grands écrans et TV — la mise en page s’adapte de 280 px à 2400 px et plus' },
-        ],
-      },
-      {
-        kind: 'improvements',
-        items: [
-          { id: '074i1', platforms: ['web'], text: 'Employés : formulaire simplifié — les champs « N° employé » (généré automatiquement) et « Nom affiché » disparaissent ; le nom complet (prénom + nom de famille) fait foi partout, et les listes denses abrègent automatiquement les noms trop longs (prénom + initiales du nom de famille) avec le nom complet au survol' },
-          { id: '074i2', platforms: ['server'], text: 'Imprimé employé : la zone de signature indique simplement « Employeur » au lieu de « Visa employeur »' },
-          { id: '074i3', platforms: ['web'], text: 'Sélecteur de thème des pages publiques en icônes SVG (système · clair · sombre) à la place des emojis ; le choix « clair » est désormais conservé après rechargement' },
-        ],
-      },
-      {
-        kind: 'fixes',
-        items: [
           { id: '074f1', platforms: ['web'], text: 'Nationalité des employés : le champ « Préciser la nationalité » n’apparaît plus en même temps que « Marocaine » — il faut choisir explicitement « Autre » pour le voir' },
           { id: '074f2', platforms: ['web', 'server'], text: 'Signalement de bugs invisible pour les visiteurs non connectés : le formulaire « Signaler un problème » ne s’affiche plus sur les pages publiques et aucun rapport de plantage n’est envoyé sans session ouverte' },
-        ],
-      },
-    ],
-  },
-  {
-    version: '0.7.3-beta',
-    date: '30 octobre 2026',
-    sections: [
-      {
-        kind: 'features',
-        items: [
-          { id: '073a1', platforms: ['web'], text: 'Accueil public sur stock.afmarbre.com : la page / présente le produit (comment ça marche, fonctionnalités), les trois apps Web · Android · Bureau et le bloc open source avec bouton Fork — sans cookie et sans aucune redirection vers login ou dashboard' },
-          { id: '073a2', platforms: ['web', 'desktop'], text: 'Nouvelle page /desktop : installateurs bureau officiels (Windows .msi/.exe, macOS .dmg, Linux AppImage) lus depuis GitHub Releases avec détection de votre système, fichiers de la version, notes et historique — même gabarit que /download' },
-          { id: '073a3', platforms: ['web'], text: 'Route /dashboard explicite : l’application s’ouvre désormais sur cette adresse après connexion ; la racine reste l’accueil public. L’app Android installée et la PWA continuent de s’ouvrir directement dans l’app' },
-        ],
-      },
-      {
-        kind: 'improvements',
-        items: [
-          { id: '073i1', platforms: ['web'], text: 'Thème : premier lancement sur « système » par défaut (suit clair/sombre de l’OS, mis à jour en direct) ; accueil et /desktop gagnent un sélecteur système/clair/sombre, une palette claire complète et des révélations animées respectueuses de prefers-reduced-motion' },
         ],
       },
     ],
@@ -1251,7 +1182,7 @@ export default function WhatsNew() {
   }, []);
 
   const releases = useMemo(() => {
-    // v0.7.7 — gel directive : rien au-delà de 0.7.2 n'est exposé publiquement.
+    // v0.7.5 — journal public : tout ce qui suit 0.7.2 est regroupé sous 0.7.5 (cap).
     return RELEASES.filter((r) => semverAtMost(r.version, RELEASE_VISIBLE_CAP)).map((rel) => ({
       ...rel,
       sections: rel.sections.filter((sec) => {
