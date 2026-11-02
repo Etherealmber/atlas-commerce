@@ -374,6 +374,8 @@ export const api = {
   put2fa: (enabled: boolean) => request<{ data: { enabled: boolean } }>('/api/settings/2fa', { method: 'PUT', body: JSON.stringify({ enabled }) }),
   getDevices: () => request<{ data: { fingerprint: string; full: string; last_ip: string; last_seen: string; user_agent: string; current: boolean }[] }>('/api/auth/devices'),
   revokeDevice: (fingerprint: string) => request('/api/auth/devices/revoke', { method: 'POST', body: JSON.stringify({ fingerprint }) }),
+  // v0.7.5 — déconnexion volontaire : marque l'appareil reprenable 30 j (sans OTP au retour)
+  selfLogout: () => request('/api/auth/logout', { method: 'POST' }),
   assistChat: (message: string, opts?: { task?: string; timezone?: string; thread_id?: string; user_message?: string; page_path?: string; page_title?: string; exec_mode?: string; agent_perm_mode?: string; images?: string[] }) =>
     request<{
       data: {

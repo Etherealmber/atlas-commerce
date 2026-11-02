@@ -17,6 +17,8 @@ import {
   startSessionGuard,
   getUsername,
   getDisplayInitials,
+  listSavedAccounts,
+  switchSavedAccount,
   getDisplayName,
   hasAvatarUrl,
   getRole,
@@ -1063,10 +1065,16 @@ function DesktopShell() {
   }, []);
 
   const logout = () => {
-    clearToken();
-    invalidateAvatarCache();
-    // Full navigation so protected Shell cannot flash dashboard without session
-    window.location.replace('/login');
+    // v0.7.5 — prévient le serveur (appareil « reprenable » 30 j) avant de vider
+    void (async () => {
+      try {
+        await Promise.race([api.selfLogout(), new Promise((r) => setTimeout(r, 1500))]);
+      } catch { /* */ }
+      clearToken();
+      invalidateAvatarCache();
+      // Full navigation so protected Shell cannot flash dashboard without session
+      window.location.replace('/login');
+    })();
   };
 
   return (
@@ -1932,6 +1940,30 @@ function DesktopShell() {
                       À propos
                     </button>
                   )}
+                  {listSavedAccounts()
+                    .filter((a) => a.username.toLowerCase() !== (typeof getUsername === 'function' ? getUsername() : '').toLowerCase())
+                    .map((a) => (
+                      <button
+                        key={a.username}
+                        type="button"
+                        role="menuitem"
+                        className="secondary settings-topbar-menu-item"
+                        title={`Passer au compte ${a.username}`}
+                        onClick={() => { setFocusUserMenuOpen(false); switchSavedAccount(a.username); }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" aria-hidden><path d="M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3" /></svg>
+                        <span className="account-menu-item-label">{a.display_name || a.username}</span>
+                      </button>
+                    ))}
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="secondary settings-topbar-menu-item"
+                    onClick={() => { setFocusUserMenuOpen(false); clearToken(); window.location.assign('/login'); }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" aria-hidden><path d="M12 5v14M5 12h14" /></svg>
+                    Ajouter un compte
+                  </button>
                   {location.pathname !== '/whats-new' && (
                     <button type="button" role="menuitem" className="secondary settings-topbar-menu-item settings-topbar-menu-item--novelties" onClick={() => { setFocusUserMenuOpen(false); window.location.assign('/whats-new'); }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" aria-hidden><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>

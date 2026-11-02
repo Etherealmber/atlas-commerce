@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import { LogOut, Sparkles, Settings, Info } from 'lucide-react';
 import { AvatarImage } from '../ui/AvatarImage';
+import { listSavedAccounts, switchSavedAccount, getUsername, clearToken, type SavedAccount } from '../../auth';
 
 type Props = {
   displayName: string;
@@ -19,10 +20,15 @@ export const TopbarUserMenu: FC<Props> = ({
   onLogout,
 }) => {
   const [open, setOpen] = useState(false);
+  const [accounts, setAccounts] = useState<SavedAccount[]>([]);
   const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (open) setAccounts(listSavedAccounts());
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -123,7 +129,39 @@ export const TopbarUserMenu: FC<Props> = ({
                   </div>
                 </div>
               </div>
+              {accounts.filter((a) => a.username.toLowerCase() !== getUsername().toLowerCase()).length > 0 && (
+                <div className="ac-user-dropdown-list ac-user-dropdown-accounts">
+                  <p className="ac-user-dropdown-label">Comptes enregistrés — basculer</p>
+                  {accounts
+                    .filter((a) => a.username.toLowerCase() !== getUsername().toLowerCase())
+                    .map((a) => (
+                      <button
+                        key={a.username}
+                        type="button"
+                        role="menuitem"
+                        className="ac-user-dropdown-item secondary"
+                        onClick={() => switchSavedAccount(a.username)}
+                      >
+                        <span className="ac-topbar-avatar ac-topbar-avatar--ini" aria-hidden>
+                          {(a.display_name || a.username).slice(0, 2).toUpperCase()}
+                        </span>
+                        <span><b>{a.display_name || a.username}</b><i>{a.username} · changer de compte</i></span>
+                      </button>
+                    ))}
+                </div>
+              )}
               <div className="ac-user-dropdown-list">
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="ac-user-dropdown-item secondary"
+                  onClick={() => { setOpen(false); clearToken(); window.location.assign('/login'); }}
+                >
+                  <span className="ac-user-dropdown-ico" aria-hidden style={{ display: 'grid', placeItems: 'center' }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" aria-hidden><path d="M12 5v14M5 12h14" /></svg>
+                  </span>
+                  <span><b>Ajouter un compte</b><i>Se connecter avec un autre compte</i></span>
+                </button>
                 <button type="button" role="menuitem" className="ac-user-dropdown-item secondary" onClick={() => go('/settings')}>
                   <Settings className="ac-user-dropdown-ico" size={16} />
                   <span><b>Paramètres</b><i>Compte et préférences</i></span>

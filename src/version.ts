@@ -24,8 +24,8 @@ export const APP_PROFILE = 'https://github.com/etherealmber';
  * au-delà. Ne JAMAIS modifier DISPLAY_VERSION / RELEASE_VISIBLE_CAP ni bumper
  * APP_VERSION sans un ordre explicite de l'utilisateur.
  */
-export const DISPLAY_VERSION = '0.7.2';
-export const RELEASE_VISIBLE_CAP = '0.7.2';
+export const DISPLAY_VERSION = '0.7.5';
+export const RELEASE_VISIBLE_CAP = '0.7.5';
 
 /** true si `v` (ex. « 0.7.2 », « 0.7.6-beta ») est ≤ `cap` en semver simplifié. */
 export function semverAtMost(v: string, cap: string): boolean {

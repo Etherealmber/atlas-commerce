@@ -2380,6 +2380,8 @@ async function trustDevice(db: D1Database, fingerprint: string, ip: string, user
   await addColumnIfMissing(db, 'trusted_devices', 'user_agent', "TEXT DEFAULT ''");
   // v0.7.1 — city/country captured from Cloudflare cf at login/touch (IP-based).
   await addColumnIfMissing(db, 'trusted_devices', 'city', "TEXT DEFAULT ''");
+  // v0.7.5 — reprise après auto-déconnexion (30 j, même compte + même appareil)
+  await addColumnIfMissing(db, 'trusted_devices', 'resume_until', "TEXT DEFAULT ''");
   await addColumnIfMissing(db, 'trusted_devices', 'country', "TEXT DEFAULT ''");
   // v0.7.1 — main company email = OTP fallback destination until a user has one.
   await addColumnIfMissing(db, 'company_settings', 'email', "TEXT DEFAULT ''");
@@ -2723,6 +2725,39 @@ app.post('/api/auth/login', async (c) => {
     displayName = row.display_name || username;
     accountEmail = String(row?.email || '').trim();
     await c.env.DB.prepare(`UPDATE app_users SET last_login = datetime('now') WHERE id = ?`).bind(row.id).run();
+  }
+
+  // v0.7.5 — reprise après auto-déconnexion : même compte + même appareil +
+  // marque resume_until valide (<= 30 j) + 2FA désactivée → pas d'OTP.
+  // Le trou v0.7.1 reste fermé : un AUTRE compte sur l'appareil garde l'OTP.
+  if (fingerprint && fingerprint !== 'none') {
+    try {
+      const twofaOn = (await getConfig(c.env.DB, 'twofa_enabled', '0')) === '1';
+      if (!twofaOn) {
+        const rrow = await c.env.DB.prepare(
+          `SELECT username FROM trusted_devices WHERE fingerprint = ? AND resume_until != '' AND resume_until > datetime('now')`,
+        ).bind(fingerprint.slice(0, 128)).first() as any;
+        if (rrow && String(rrow.username || '').toLowerCase() === username) {
+          await c.env.DB.prepare(
+            `UPDATE trusted_devices SET resume_until = '', last_seen = datetime('now'), last_ip = ? WHERE fingerprint = ?`,
+          ).bind(ip, fingerprint.slice(0, 128)).run();
+          await recordLogin(c.env.DB, ip, fingerprint, true, ua);
+          await writeAudit(c.env.DB, { username, role, action: 'auth.login', entity: 'session', detail: 'resume_after_self_logout', ip });
+          const resumeToken = await makeTokenV2(username, role, secretMaterial, ip, fingerprint);
+          return c.json({
+            success: true,
+            needs_otp: false,
+            trusted_device: true,
+            token: resumeToken,
+            ip,
+            username,
+            role,
+            displayName,
+            message: 'Appareil repris après votre déconnexion — code non requis.',
+          });
+        }
+      }
+    } catch { /* repli OTP */ }
   }
 
   // v0.7.1 — OTP REQUIRED FOR EVERY PASSWORD LOGIN (owner and users),
@@ -5013,6 +5048,31 @@ app.get('/api/me/avatar', async (c) => {
       'Cache-Control': 'public, max-age=86400, stale-while-revalidate=86400',
     },
   });
+});
+
+/** v0.7.5 — déconnexion VOLONTAIRE : l'appareil de confiance reste connu et est
+ *  marqué « reprenable » 30 j pour le MÊME compte → reconnexion mot de passe seul
+ *  (2FA désactivée). Un appareil révoqué ou un autre compte restent exclus. */
+app.post('/api/auth/logout', async (c) => {
+  const fingerprint = String(c.req.header('X-Device-Fingerprint') || '').slice(0, 128);
+  const sess = sessionUserFromHeader(c.req.header('Authorization'));
+  await ensureSecurityTables(c.env.DB);
+  if (fingerprint && sess?.username) {
+    try {
+      await c.env.DB.prepare(
+        `UPDATE trusted_devices SET resume_until = datetime('now', '+30 days') WHERE fingerprint = ? AND lower(username) = ?`,
+      ).bind(fingerprint, String(sess.username).toLowerCase()).run();
+    } catch { /* */ }
+    await writeAudit(c.env.DB, {
+      username: sess.username,
+      role: sess.role || '',
+      action: 'auth.logout',
+      entity: 'session',
+      detail: 'self_logout_resume_30d',
+      ip: clientIp(c),
+    });
+  }
+  return c.json({ success: true });
 });
 
 app.get('/api/auth/me', async (c) => {

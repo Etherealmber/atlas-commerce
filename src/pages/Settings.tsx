@@ -788,38 +788,6 @@ if (loading) return (
         )}
       </div>
 
-      {/* v0.7.6 — page d'ouverture : choix par appareil, auto-hébergement compris */}
-      <div className="card" style={{ marginTop: 14, padding: '14px 16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-          <div style={{ minWidth: 0, flex: '1 1 260px' }}>
-            <strong style={{ fontSize: 14 }}>Page d’ouverture</strong>
-            <p className="muted" style={{ margin: '4px 0 0', fontSize: 12.8, lineHeight: 1.55 }}>
-              Où arriver après la connexion — et en ouvrant « / » — sur cet appareil.
-              Réglage local : chaque personne (et chaque installation auto-hébergée) choisit la sienne.
-            </p>
-          </div>
-          <select
-            value={startPagePref}
-            onChange={(e) => {
-              setStartPagePref(e.target.value);
-              setStartPage(e.target.value);
-              setStartPageSaved(true);
-            }}
-            style={{ minWidth: 220 }}
-            aria-label="Page d'ouverture après connexion"
-          >
-            {START_PAGES.map((sp) => (
-              <option key={sp.value} value={sp.value}>{sp.label}</option>
-            ))}
-          </select>
-        </div>
-        {startPageSaved && (
-          <p className="muted" style={{ margin: '8px 0 0', fontSize: 12 }}>
-            Enregistré sur cet appareil — appliqué dès la prochaine connexion.
-          </p>
-        )}
-      </div>
-
       <p className="settings-tab-blurb muted">
         {TAB_BLURBS[activeTab] || 'Configurez cette section selon les besoins de votre activité.'}
       </p>
@@ -832,7 +800,7 @@ if (loading) return (
 
       <div className="settings-shell settings-shell--focus atlas-crm settings-page">
         <div className="settings-main settings-main--wide">
-        {isFeatureEnabled('editProfileModal') && (
+        {activeTab === 'profile' && isFeatureEnabled('editProfileModal') && (
         <>
         <div className="ac-settings-profile-bar">
           <div>
@@ -2368,6 +2336,38 @@ if (loading) return (
       
 {activeTab === 'admin' && (canAccessAdminSettings() || isOwner) && (
         <div>
+        {/* v0.7.7 — page d'ouverture : réservée à l'onglet Admin (admin/owner uniquement) */}
+      {/* v0.7.6 — page d'ouverture : choix par appareil, auto-hébergement compris */}
+      <div className="card" style={{ marginTop: 14, padding: '14px 16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ minWidth: 0, flex: '1 1 260px' }}>
+            <strong style={{ fontSize: 14 }}>Page d’ouverture</strong>
+            <p className="muted" style={{ margin: '4px 0 0', fontSize: 12.8, lineHeight: 1.55 }}>
+              Où arriver après la connexion — et en ouvrant « / » — sur cet appareil.
+              Réglage local : chaque personne (et chaque installation auto-hébergée) choisit la sienne.
+            </p>
+          </div>
+          <select
+            value={startPagePref}
+            onChange={(e) => {
+              setStartPagePref(e.target.value);
+              setStartPage(e.target.value);
+              setStartPageSaved(true);
+            }}
+            style={{ minWidth: 220 }}
+            aria-label="Page d'ouverture après connexion"
+          >
+            {START_PAGES.map((sp) => (
+              <option key={sp.value} value={sp.value}>{sp.label}</option>
+            ))}
+          </select>
+        </div>
+        {startPageSaved && (
+          <p className="muted" style={{ margin: '8px 0 0', fontSize: 12 }}>
+            Enregistré sur cet appareil — appliqué dès la prochaine connexion.
+          </p>
+        )}
+      </div>
         {/* v0.7.7 — guide d'accueil : géré depuis l'onglet Admin (plus d'icône topbar) */}
         <div className="card" style={{ marginBottom: 16, padding: 16 }}>
           <h2 style={{ fontSize: 16, marginTop: 0 }}>Guide d’accueil</h2>

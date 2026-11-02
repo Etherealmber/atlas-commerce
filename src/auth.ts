@@ -62,6 +62,57 @@ export function setToken(token: string, ip?: string, username?: string, role?: s
   if (ip) localStorage.setItem(SESSION_IP_KEY, ip);
   if (username) localStorage.setItem(USER_KEY, username);
   if (role) localStorage.setItem(ROLE_KEY, role);
+  // v0.7.5 — switch de comptes façon app Android : chaque session réussie est
+  // conservée (token + profil) pour pouvoir basculer sans se re-authentifier.
+  if (username && token) upsertSavedAccount({ username, role, token });
+}
+
+/* ── v0.7.5 — comptes enregistrés (switch web, même modèle que l'app Android) ── */
+const ACCOUNTS_KEY = 'atlas_saved_accounts';
+export type SavedAccount = {
+  username: string;
+  role: string;
+  display_name: string;
+  avatar_url: string;
+  token: string;
+  saved_at: number;
+};
+export function listSavedAccounts(): SavedAccount[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(ACCOUNTS_KEY) || '[]');
+    return Array.isArray(raw) ? raw.filter((a) => a && a.token && a.username) : [];
+  } catch { return []; }
+}
+export function upsertSavedAccount(a: { username: string; role?: string; token: string }) {
+  try {
+    const u = String(a.username).trim().toLowerCase();
+    const list = listSavedAccounts().filter((x) => x.username.toLowerCase() !== u);
+    list.unshift({
+      username: u,
+      role: a.role || localStorage.getItem(ROLE_KEY) || 'user',
+      display_name: localStorage.getItem(DISPLAY_NAME_KEY) || u,
+      avatar_url: memoryAvatarUrl || '',
+      token: a.token,
+      saved_at: Date.now(),
+    });
+    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(list.slice(0, 6)));
+  } catch { /* */ }
+}
+export function removeSavedAccount(username: string) {
+  try {
+    const u = String(username).toLowerCase();
+    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(listSavedAccounts().filter((x) => x.username.toLowerCase() !== u)));
+  } catch { /* */ }
+}
+export function switchSavedAccount(username: string): boolean {
+  const e = listSavedAccounts().find((x) => x.username.toLowerCase() === String(username).toLowerCase());
+  if (!e) return false;
+  setToken(e.token, undefined, e.username, e.role);
+  if (e.display_name) localStorage.setItem(DISPLAY_NAME_KEY, e.display_name);
+  memoryAvatarUrl = sanitizeAvatarUrl(e.avatar_url || '');
+  try { window.dispatchEvent(new CustomEvent('atlas-profile-changed')); } catch { /* */ }
+  window.location.assign('/');
+  return true;
 }
 
 export function getUsername(): string {
