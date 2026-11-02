@@ -2638,7 +2638,7 @@ app.post('/api/auth/login', async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const username = String(body.username ?? getOwnerUsername(c.env)).trim().toLowerCase();
   const password = String(body.password ?? '');
-  const fingerprint = String(body.fingerprint || 'none').slice(0, 128);
+  const fingerprint = String(body.fingerprint || c.req.header('X-Device-Fingerprint') || 'none').slice(0, 128);
   const ip = clientIp(c);
   const ua = c.req.header('User-Agent') || '';
 
@@ -2884,7 +2884,7 @@ app.post('/api/auth/verify-otp', async (c) => {
   const username = String(body.username ?? getOwnerUsername(c.env)).trim().toLowerCase();
   const password = String(body.password ?? '');
   const otp = String(body.otp || '').trim();
-  const fingerprint = String(body.fingerprint || 'none').slice(0, 128);
+  const fingerprint = String(body.fingerprint || c.req.header('X-Device-Fingerprint') || 'none').slice(0, 128);
   const ip = clientIp(c);
   const ua = c.req.header('User-Agent') || '';
 
@@ -3013,7 +3013,7 @@ app.post('/api/auth/verify-link', async (c) => {
   const otp = String(body.otp || '').trim();
   const sig = String(body.sig || '');
   const exp = Number(body.exp || 0);
-  const fingerprint = String(body.fingerprint || 'none').slice(0, 128);
+  const fingerprint = String(body.fingerprint || c.req.header('X-Device-Fingerprint') || 'none').slice(0, 128);
   const ip = clientIp(c);
   const ua = c.req.header('User-Agent') || '';
 
@@ -3893,7 +3893,7 @@ app.post('/api/auth/webauthn/login/verify', async (c) => {
   const policy = waPolicy(c.env);
   if (!policy.enabled) return c.json(waDisabledResponse(), 503);
   const body = await c.req.json().catch(() => ({}));
-  const fingerprint = String(body.fingerprint || 'none').slice(0, 128);
+  const fingerprint = String(body.fingerprint || c.req.header('X-Device-Fingerprint') || 'none').slice(0, 128);
   const ip = clientIp(c);
   const ua = c.req.header('User-Agent') || '';
   await ensureSecurityTables(c.env.DB);
@@ -4504,7 +4504,7 @@ app.delete('/api/auth/trusted-devices/:fingerprint', async (c) => {
 
 app.post('/api/auth/device-status', async (c) => {
   const body = await c.req.json().catch(() => ({}));
-  const fingerprint = String(body.fingerprint || 'none').slice(0, 128);
+  const fingerprint = String(body.fingerprint || c.req.header('X-Device-Fingerprint') || 'none').slice(0, 128);
   await ensureSecurityTables(c.env.DB);
   if (!fingerprint || fingerprint === 'none') {
     return c.json({ success: true, trusted: false, biometric_registered: false, credential_count: 0 });
