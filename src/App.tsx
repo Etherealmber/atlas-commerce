@@ -562,6 +562,8 @@ function AboutRoute() {
       <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
         <About />
       </Suspense>
+      {/* v0.7.7 — même recherche globale que la page Paramètres */}
+      <GlobalSearchPanel />
     </div>
   );
 }
@@ -578,6 +580,8 @@ function WhatsNewRoute() {
       <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
         <WhatsNew />
       </Suspense>
+      {/* v0.7.7 — même recherche globale que la page Paramètres */}
+      <GlobalSearchPanel />
     </div>
   );
 }

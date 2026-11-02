@@ -21019,3 +21019,86 @@ html[data-theme="dark"] .agent-perm-tool-desc { color: #a1a1aa; }
 html[data-theme="dark"] .agent-perm-org-row { background: #1c1c1f; border-color: #303036; }
 html[data-theme="dark"] .agent-perm-org-row > span > span { color: #a1a1aa; }
 html[data-theme="dark"] .agent-perm-org { border-top-color: #303036; }
+
+/* v0.7.7 — topbars À propos / Nouveautés : barre collée en haut (plus de bande au-dessus) */
+html body .public-about,
+html body .public-whats-new { padding-top: 0 !important; }
+
+/* v0.7.7 — icônes de liens : les <a> portent exactement la même boîte que les <button> */
+.settings-topbar-tabs a.settings-topbar-tab,
+.settings-topbar-tabs a.secondary {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 40px !important;
+  min-width: 40px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  padding: 0 !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(15, 23, 42, 0.14) !important;
+  background: #fff !important;
+  color: #1c1c1f !important;
+  box-shadow: none !important;
+  text-decoration: none !important;
+}
+.settings-topbar-tabs a.settings-topbar-tab svg,
+.settings-topbar-tabs a.secondary svg { display: block; width: 18px; height: 18px; }
+html[data-theme="dark"] .settings-topbar-tabs a.settings-topbar-tab,
+html[data-theme="dark"] .settings-topbar-tabs a.secondary {
+  background: transparent !important;
+  border-color: #27272a !important;
+  color: #f4f4f5 !important;
+}
+
+/* v0.7.7 — filtres Nouveautés : même gabarit que les icônes À propos, actif lisible */
+.pst-filters .wn-filter {
+  min-height: 40px !important;
+  padding: 4px 16px !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(15, 23, 42, 0.14) !important;
+  background: #fff !important;
+  color: #1c1c1f !important;
+  font-weight: 600 !important;
+  font-size: 0.82rem !important;
+}
+.pst-filters .wn-filter.active {
+  background: #18181b !important;
+  border-color: #18181b !important;
+  color: #fafafa !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"] .pst-filters .wn-filter {
+  background: transparent !important;
+  border-color: #27272a !important;
+  color: #f4f4f5 !important;
+}
+html[data-theme="dark"] .pst-filters .wn-filter.active {
+  background: #f4f4f5 !important;
+  border-color: #f4f4f5 !important;
+  color: #18181b !important;
+}
+
+/* v0.7.7 — recherche globale : cadre vide compact au lieu d'un panneau étiré */
+.gsp-list.gsp-list--compact { flex: 0 0 auto !important; }
+
+/* v0.7.7 — boutons X de recherche : ronds et discrets, plus de cadre hérité */
+html body .ac-topbar-search-clear,
+html body .settings-topbar-search-clear {
+  border: 0 !important;
+  background: transparent !important;
+  color: #71717a !important;
+}
+html body .ac-topbar-search-clear:hover,
+html body .settings-topbar-search-clear:hover { color: #18181b !important; background: rgba(9, 9, 11, 0.06) !important; }
+html[data-theme="dark"] body .ac-topbar-search-clear,
+html[data-theme="dark"] body .settings-topbar-search-clear { color: #a1a1aa !important; }
+html[data-theme="dark"] body .ac-topbar-search-clear:hover,
+html[data-theme="dark"] body .settings-topbar-search-clear:hover { color: #fafafa !important; background: rgba(250, 250, 250, 0.08) !important; }
+
+/* v0.7.7 — arc « tout-en-un » : étiquettes sur une ligne, tuiles à largeur naturelle */
+.hm-arc-tile { width: auto !important; min-width: 92px; max-width: 190px; padding: 12px 12px !important; }
+.hm-arc-tile em { white-space: nowrap; }
+@media (max-width: 720px) {
+  .hm-arc-tile em { white-space: normal; }
+}
