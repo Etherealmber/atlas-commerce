@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { RELEASES } from '../pages/WhatsNew';
-import { APP_VERSION } from '../version';
+import { RELEASE_VISIBLE_CAP, semverAtMost } from '../version';
 
 /**
  * v0.7 — the public changelog must never lose an entry, and 0.7.0-beta must
@@ -9,8 +9,22 @@ import { APP_VERSION } from '../version';
  * so the "Nouveautés" badge pointed at an empty section).
  */
 describe('WhatsNew releases', () => {
-  it('the newest release matches APP_VERSION and 0.7.0-beta keeps the 0.7 batch', () => {
-    expect(RELEASES[0].version).toBe(APP_VERSION);
+  it('the public log merges everything after 0.7.2 under 0.7.5 (bump 0.7.2 -> 0.7.5, no .3/.4)', () => {
+    // v0.7.5 — groupes internes *-beta fusionnés sous la release publique 0.7.5.
+    expect(RELEASES[0].version).toBe('0.7.5');
+    expect(semverAtMost(RELEASES[0].version, RELEASE_VISIBLE_CAP)).toBe(true);
+    const versions = RELEASES.map((r) => r.version);
+    for (const hidden of ['0.7.3-beta', '0.7.4-beta', '0.7.5-beta', '0.7.6-beta', '0.7.7-beta']) {
+      expect(versions).not.toContain(hidden);
+    }
+    const topIds = RELEASES[0].sections.flatMap((s) => s.items.map((i) => i.id));
+    expect(topIds).toContain('077i44'); // reprise sans OTP + comptes enregistrés
+    expect(topIds).toContain('077i43'); // correctif QR
+    expect(topIds).toContain('076a1');  // page d'ouverture (ex-groupe 0.7.6-beta)
+    expect(topIds).toContain('073a1');  // plus ancien élément ex-groupe 0.7.3-beta
+  });
+
+  it('0.7.0-beta keeps the 0.7 batch', () => {
     const r07 = RELEASES.find((r) => r.version === '0.7.0-beta');
     expect(r07).toBeDefined();
     const texts = (r07 as any).sections.flatMap((s: any) => s.items.map((i: any) => i.text)).join(' ');

@@ -19,10 +19,10 @@ export const APP_DESCRIPTION =
 export const APP_PROFILE = 'https://github.com/etherealmber';
 
 /**
- * ⚠️ GEL DE VERSION (directive utilisateur, 30/10/2026) : la version AFFICHÉE
- * publiquement est figée à 0.7.2 et le journal « Nouveautés » n'expose rien
- * au-delà. Ne JAMAIS modifier DISPLAY_VERSION / RELEASE_VISIBLE_CAP ni bumper
- * APP_VERSION sans un ordre explicite de l'utilisateur.
+ * VERSION AFFICHÉE (directive utilisateur, 02/11/2026) : 0.7.5 partout (saut
+ * direct depuis 0.7.2, sans 0.7.3 ni 0.7.4). Le journal « Nouveautés » regroupe
+ * tout ce qui suit 0.7.2 sous la release publique 0.7.5 ; les groupes internes
+ * *-beta au-delà du cap ne sont jamais exposés. Ne bumper qu' sur ordre explicite.
  */
 export const DISPLAY_VERSION = '0.7.5';
 export const RELEASE_VISIBLE_CAP = '0.7.5';
