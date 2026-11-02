@@ -21117,3 +21117,14 @@ html body .public-settings-topbar {
   width: calc(100% - 24px) !important;
   margin: 10px auto 14px !important;
 }
+
+/* v0.7.7 — switch de comptes : libellé de section du menu compte */
+.ac-user-dropdown-label {
+  margin: 2px 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--muted, #71717a);
+}
+.ac-user-dropdown-accounts { border-bottom: 1px solid var(--line, #e4e4e7); padding-bottom: 6px; }
