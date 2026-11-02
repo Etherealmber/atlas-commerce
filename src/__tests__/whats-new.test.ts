@@ -17,11 +17,15 @@ describe('WhatsNew releases', () => {
     for (const hidden of ['0.7.3-beta', '0.7.4-beta', '0.7.5-beta', '0.7.6-beta', '0.7.7-beta']) {
       expect(versions).not.toContain(hidden);
     }
-    const topIds = RELEASES[0].sections.flatMap((s) => s.items.map((i) => i.id));
-    expect(topIds).toContain('077i44'); // reprise sans OTP + comptes enregistrés
-    expect(topIds).toContain('077i43'); // correctif QR
-    expect(topIds).toContain('076a1');  // page d'ouverture (ex-groupe 0.7.6-beta)
-    expect(topIds).toContain('073a1');  // plus ancien élément ex-groupe 0.7.3-beta
+    // v0.7.5 — release publique condensée en résumés thématiques courts.
+    const topItems = RELEASES[0].sections.flatMap((s) => s.items);
+    expect(topItems.length).toBeLessThanOrEqual(12);
+    const topIds = topItems.map((i) => i.id);
+    expect(topIds).toContain('075s1'); // comptes : reprise sans OTP + bascule
+    expect(topIds).toContain('075s10'); // correctifs groupés
+    for (const item of topItems) {
+      expect(item.platforms?.length ?? 0).toBeGreaterThan(0);
+    }
   });
 
   it('0.7.0-beta keeps the 0.7 batch', () => {
