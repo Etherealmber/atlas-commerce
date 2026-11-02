@@ -3350,7 +3350,24 @@ app.get('/api/auth/qr/session/:token', async (c) => {
   const token = String(c.req.param('token') || '').slice(0, 64);
   if (!token) return c.json({ success: false, error: 'Session introuvable', code: 'NOT_FOUND' }, 404);
 
-  const fromDo = await qrDoGet(c.env, token);
+  const fromDoRaw = await qrDoGet(c.env, token);
+  // v0.7.7 — self-heal : une copie DO bloquée à « pending » ne doit plus masquer
+  // un claim écrit en D1 (sessions créées avant le write-through).
+  const fromDo =
+    fromDoRaw && String(fromDoRaw.status || 'pending') === 'pending'
+      ? await (async () => {
+          try {
+            const d1 = await c.env.DB.prepare(
+              `SELECT status, username, role FROM qr_login_sessions WHERE token = ?`,
+            ).bind(token).first() as any;
+            if (d1 && String(d1.status || 'pending') !== 'pending') {
+              await qrDoPut(c.env, token, { status: String(d1.status), username: d1.username, role: d1.role });
+              return { ...fromDoRaw, status: String(d1.status), username: d1.username || fromDoRaw.username, role: d1.role || fromDoRaw.role };
+            }
+          } catch { /* */ }
+          return fromDoRaw;
+        })()
+      : fromDoRaw;
   if (fromDo) {
     const uname = String(fromDo.username || '').trim();
     let displayName = String(fromDo.display_name || uname);
@@ -3422,6 +3439,7 @@ app.post('/api/auth/qr/session/:token/claim', async (c) => {
   if (!row) return c.json({ success: false, error: 'QR invalide', code: 'NOT_FOUND' }, 404);
   if (new Date(row.expires_at) < new Date()) {
     await c.env.DB.prepare(`UPDATE qr_login_sessions SET status = 'expired' WHERE token = ?`).bind(token).run();
+    try { await qrDoPut(c.env, token, { status: 'expired' }); } catch { /* */ }
     return c.json({ success: false, error: 'QR expiré — regénérez-le sur l’ordinateur', code: 'EXPIRED' }, 410);
   }
   if (row.status === 'consumed' || row.status === 'denied' || row.status === 'expired') {
@@ -3434,6 +3452,16 @@ app.post('/api/auth/qr/session/:token/claim', async (c) => {
   await c.env.DB.prepare(
     `UPDATE qr_login_sessions SET status = 'claimed', claim_fingerprint = ?, claim_ua = ?, claim_ip = ? WHERE token = ?`
   ).bind(fingerprint, ua, ip, token).run();
+  // v0.7.7 — write-through : le poll PC lit le Durable Object EN PREMIER ;
+  // sans ce put la copie DO restait « pending » et le PC ne voyait jamais le scan.
+  try {
+    await qrDoPut(c.env, token, {
+      status: 'claimed',
+      username: row.username,
+      role: row.role,
+      claim_fingerprint: fingerprint,
+    });
+  } catch { /* */ }
 
   return c.json({
     success: true,
@@ -3542,6 +3570,7 @@ app.post('/api/auth/qr/session/:token/complete', async (c) => {
       return c.json({ success: false, error: 'Déjà utilisé', code: 'USED' }, 409);
     }
   }
+  try { await qrDoPut(c.env, token, { status: 'consumed', username: row.username, role: row.role }); } catch { /* */ }
 
   const authToken = await makeTokenV2(row.username, row.role, secretMaterial, ip, fingerprint);
   try {
