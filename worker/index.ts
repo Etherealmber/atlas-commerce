@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { addColumnIfMissing } from './lib/schema';
 import { cors } from 'hono/cors';
 import PostalMime from 'postal-mime';
 import type { Env } from './env';
@@ -2348,25 +2349,6 @@ async function ensureSecurityTables(db: D1Database) {
   });
 }
 
-/** Idempotent ALTER TABLE ADD COLUMN — ignores duplicate column (D1/SQLite). */
-async function addColumnIfMissing(db: D1Database, table: string, column: string, typeSql: string) {
-  try {
-    const info = await db.prepare(`PRAGMA table_info(${table})`).all();
-    const rows = (info?.results || []) as { name?: string }[];
-    if (rows.some((r) => String(r.name || '').toLowerCase() === column.toLowerCase())) {
-      return;
-    }
-  } catch {
-    /* pragma may fail on some bindings — fall through to ALTER */
-  }
-  try {
-    await db.prepare(`ALTER TABLE ${table} ADD COLUMN ${column} ${typeSql}`).run();
-  } catch (e: any) {
-    const msg = String(e?.message || e || '');
-    if (/duplicate column name/i.test(msg) || /already exists/i.test(msg)) return;
-    // Non-fatal for schema drift; log only in debug
-  }
-}
 
 async function isTrustedDevice(db: D1Database, fingerprint: string): Promise<boolean> {
   if (!fingerprint || fingerprint === 'none') return false;
@@ -5011,7 +4993,8 @@ app.get('/api/me/avatar', async (c) => {
     if (c.env.MOBILE_HUB) {
       doStub = c.env.MOBILE_HUB.get(c.env.MOBILE_HUB.idFromName('profile:' + session.username));
       const hit = await doStub.fetch(`https://do/avatar?v=${vkey}`);
-      if (hit.ok) {
+      // A cold / version-mismatched cache returns 204, not image bytes.
+      if (hit.status === 200) {
         bytes = new Uint8Array(await hit.arrayBuffer());
         ctype = hit.headers.get('x-avatar-ctype') || ctype;
       }
@@ -6572,18 +6555,14 @@ app.delete('/api/units/:id', async (c) => {
 
 async function ensureProductVariantColumns(db: D1Database) {
   await schemaOnce('product_variants', async () => {
-  for (const col of [
-    `ALTER TABLE products ADD COLUMN parent_id INTEGER DEFAULT NULL`,
-    `ALTER TABLE products ADD COLUMN variant_label TEXT DEFAULT ''`,
-    `ALTER TABLE products ADD COLUMN attributes TEXT DEFAULT '{}'`,
-    `ALTER TABLE products ADD COLUMN tax_rate REAL DEFAULT NULL`,
-    `ALTER TABLE products ADD COLUMN bulk_discounts TEXT DEFAULT '[]'`,
-    `ALTER TABLE products ADD COLUMN lot_number TEXT`,
-    `ALTER TABLE products ADD COLUMN expiry_date TEXT`,
-    `ALTER TABLE products ADD COLUMN barcode TEXT DEFAULT ''`,
-  ]) {
-    try { await db.prepare(col).run(); } catch { /* exists */ }
-  }
+  await addColumnIfMissing(db, 'products', 'parent_id', `INTEGER DEFAULT NULL`);
+  await addColumnIfMissing(db, 'products', 'variant_label', `TEXT DEFAULT ''`);
+  await addColumnIfMissing(db, 'products', 'attributes', `TEXT DEFAULT '{}'`);
+  await addColumnIfMissing(db, 'products', 'tax_rate', `REAL DEFAULT NULL`);
+  await addColumnIfMissing(db, 'products', 'bulk_discounts', `TEXT DEFAULT '[]'`);
+  await addColumnIfMissing(db, 'products', 'lot_number', `TEXT`);
+  await addColumnIfMissing(db, 'products', 'expiry_date', `TEXT`);
+  await addColumnIfMissing(db, 'products', 'barcode', `TEXT DEFAULT ''`);
   try {
     await db.prepare(`CREATE INDEX IF NOT EXISTS idx_products_sku ON products(sku)`).run();
   } catch { /* */ }
@@ -8212,13 +8191,9 @@ async function ensureReceiptSituationColumn(db: D1Database) {
 
 async function ensureQrPrivacySettings(db: D1Database) {
   await schemaOnce('ensureQrPrivacySettings', async () => {
-  for (const sql of [
-    `ALTER TABLE company_settings ADD COLUMN qr_client_situation INTEGER DEFAULT 0`,
-    `ALTER TABLE company_settings ADD COLUMN qr_situation_ttl_days INTEGER DEFAULT 90`,
-    `ALTER TABLE company_settings ADD COLUMN client_data_retention_days INTEGER DEFAULT 1825`,
-  ]) {
-    try { await db.prepare(sql).run(); } catch { /* */ }
-  }
+  await addColumnIfMissing(db, 'company_settings', 'qr_client_situation', `INTEGER DEFAULT 0`);
+  await addColumnIfMissing(db, 'company_settings', 'qr_situation_ttl_days', `INTEGER DEFAULT 90`);
+  await addColumnIfMissing(db, 'company_settings', 'client_data_retention_days', `INTEGER DEFAULT 1825`);
 
   });
 }
@@ -8649,13 +8624,9 @@ async function validateStoredSignature(inv: any): Promise<{
 /** Ensure invoice_items promo columns exist */
 async function ensureInvoiceItemPromoColumns(db: D1Database) {
   await schemaOnce('ensureInvoiceItemPromoColumns', async () => {
-  for (const col of [
-    'ALTER TABLE invoice_items ADD COLUMN list_price REAL DEFAULT 0',
-    'ALTER TABLE invoice_items ADD COLUMN discount_amount REAL DEFAULT 0',
-    'ALTER TABLE invoice_items ADD COLUMN discount_percent REAL DEFAULT 0',
-  ]) {
-    try { await db.prepare(col).run(); } catch { /* exists */ }
-  }
+  await addColumnIfMissing(db, 'invoice_items', 'list_price', `REAL DEFAULT 0`);
+  await addColumnIfMissing(db, 'invoice_items', 'discount_amount', `REAL DEFAULT 0`);
+  await addColumnIfMissing(db, 'invoice_items', 'discount_percent', `REAL DEFAULT 0`);
 
   });
 }
@@ -8859,12 +8830,8 @@ async function ensureStockMovementsTable(db: D1Database) {
       created_at TEXT DEFAULT (datetime('now'))
     )
   `).run();
-  for (const col of [
-    `ALTER TABLE stock_movements ADD COLUMN reference TEXT DEFAULT ''`,
-    `ALTER TABLE stock_movements ADD COLUMN created_by TEXT DEFAULT ''`,
-  ]) {
-    try { await db.prepare(col).run(); } catch { /* exists */ }
-  }
+  await addColumnIfMissing(db, 'stock_movements', 'reference', `TEXT DEFAULT ''`);
+  await addColumnIfMissing(db, 'stock_movements', 'created_by', `TEXT DEFAULT ''`);
 
   });
 }
@@ -9357,13 +9324,9 @@ async function assertPeriodOpen(
 /** Formal void: cancel keeps number forever; void_reason required for audit (CGI no gaps). */
 async function ensureVoidColumns(db: D1Database) {
   await schemaOnce('ensureVoidColumns', async () => {
-  for (const sql of [
-    `ALTER TABLE invoices ADD COLUMN void_reason TEXT DEFAULT ''`,
-    `ALTER TABLE invoices ADD COLUMN voided_at TEXT`,
-    `ALTER TABLE invoices ADD COLUMN voided_by TEXT DEFAULT ''`,
-  ]) {
-    try { await db.prepare(sql).run(); } catch { /* */ }
-  }
+  await addColumnIfMissing(db, 'invoices', 'void_reason', `TEXT DEFAULT ''`);
+  await addColumnIfMissing(db, 'invoices', 'voided_at', `TEXT`);
+  await addColumnIfMissing(db, 'invoices', 'voided_by', `TEXT DEFAULT ''`);
 
   });
 }
@@ -13585,13 +13548,9 @@ app.post('/api/inventory/reorder/draft-bill', async (c) => {
 
 async function ensureWarehouseSettings(db: D1Database) {
   await schemaOnce('ensureWarehouseSettings', async () => {
-  for (const sql of [
-    `ALTER TABLE company_settings ADD COLUMN multi_warehouse INTEGER DEFAULT 1`,
-    `ALTER TABLE company_settings ADD COLUMN sales_location_id INTEGER`,
-    `ALTER TABLE company_settings ADD COLUMN purchase_location_id INTEGER`,
-  ]) {
-    try { await db.prepare(sql).run(); } catch { /* */ }
-  }
+  await addColumnIfMissing(db, 'company_settings', 'multi_warehouse', `INTEGER DEFAULT 1`);
+  await addColumnIfMissing(db, 'company_settings', 'sales_location_id', `INTEGER`);
+  await addColumnIfMissing(db, 'company_settings', 'purchase_location_id', `INTEGER`);
 
   });
 }
@@ -18674,13 +18633,9 @@ async function ensureAttendanceSchema(db: D1Database) {
     UNIQUE(employee_id, work_date)
   )`).run();
   // SQLite ALTER cannot use non-constant defaults — plain TEXT columns only
-  for (const col of [
-    `ALTER TABLE employee_attendance ADD COLUMN status TEXT DEFAULT ''`,
-    `ALTER TABLE employee_attendance ADD COLUMN updated_at TEXT`,
-    `ALTER TABLE employee_attendance ADD COLUMN created_at TEXT`,
-  ]) {
-    try { await db.prepare(col).run(); } catch { /* exists */ }
-  }
+  await addColumnIfMissing(db, 'employee_attendance', 'status', `TEXT DEFAULT ''`);
+  await addColumnIfMissing(db, 'employee_attendance', 'updated_at', `TEXT`);
+  await addColumnIfMissing(db, 'employee_attendance', 'created_at', `TEXT`);
   try { await db.prepare(`CREATE INDEX IF NOT EXISTS idx_att_date ON employee_attendance(work_date)`).run(); } catch { /* */ }
   try { await db.prepare(`CREATE INDEX IF NOT EXISTS idx_att_emp ON employee_attendance(employee_id)`).run(); } catch { /* */ }
   });
