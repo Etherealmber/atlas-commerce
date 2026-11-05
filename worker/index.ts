@@ -73,7 +73,7 @@ import {
 import { geminiSimpleChat, atlasAgentSystem, scrubVendorNames, normalizeResponseLanguage } from './lib/gemini-assist';
 import { pickUiLang, tr } from './lib/error-i18n';
 import { tokenraChat } from './lib/tokenra-assist';
-import { groqChat, groqChatStream, groqChatWithTools } from './lib/groq-assist';
+import { groqChat, groqChatStream, groqChatStreamWithTools, groqChatWithTools } from './lib/groq-assist';
 import {
   loadAgentKnowledge,
   addMemory,
@@ -16058,6 +16058,40 @@ app.get('/api/assist/transcripts/get', async (c) => {
   }
 });
 
+/** v0.7.8 — exécuteur d'outils Agent PARTAGÉ entre /api/assist/chat (buffer) et
+ * /api/assist/chat/stream (flux) : outils « savoir » (mémoire/RAG) puis outils
+ * métier role-filtered via runAssistTool. Même comportement des deux côtés. */
+function agentKnowledgeExecutor(c: any, username: string, role: string) {
+  return async (name: string, args: Record<string, unknown>): Promise<{ ok: boolean; data?: unknown; error?: string }> => {
+    if (name === 'save_memory') {
+      try {
+        const row = await addMemory(c.env.DB, username, String(args.content || ''), 'user');
+        return { ok: true, data: { saved: row.id, content: row.content } };
+      } catch (e: any) {
+        return { ok: false, error: String(e?.message || e).slice(0, 160) };
+      }
+    }
+    if (name === 'recall_memory') {
+      const k2 = await loadAgentKnowledge(c.env.DB, username);
+      const q = String(args.query || '').toLowerCase();
+      const words = q.split(/\s+/).filter((w) => w.length > 2);
+      const hits = k2.memory
+        .filter((m) => {
+          const low = m.content.toLowerCase();
+          return low.includes(q.slice(0, 60)) || words.some((w) => low.includes(w));
+        })
+        .slice(0, 8)
+        .map((m) => m.content);
+      return { ok: true, data: { memories: hits } };
+    }
+    if (name === 'search_knowledge') {
+      const k3 = await loadAgentKnowledge(c.env.DB, username);
+      return { ok: true, data: { hits: retrieveKnowledge(k3.docs, String(args.query || ''), 3) } };
+    }
+    return runAssistTool(c.env, name, args, role);
+  };
+}
+
 app.post('/api/assist/chat', async (c) => {
   const authHeader = c.req.header('Authorization');
   if (!authHeader?.startsWith('Bearer ')) {
@@ -16172,34 +16206,7 @@ app.post('/api/assist/chat', async (c) => {
             ),
             ...KNOWLEDGE_TOOL_DEFS,
           ],
-          executor: async (name, args) => {
-            if (name === 'save_memory') {
-              try {
-                const row = await addMemory(c.env.DB, username, String(args.content || ''), 'user');
-                return { ok: true, data: { saved: row.id, content: row.content } };
-              } catch (e: any) {
-                return { ok: false, error: String(e?.message || e).slice(0, 160) };
-              }
-            }
-            if (name === 'recall_memory') {
-              const k2 = await loadAgentKnowledge(c.env.DB, username);
-              const q = String(args.query || '').toLowerCase();
-              const words = q.split(/\s+/).filter((w) => w.length > 2);
-              const hits = k2.memory
-                .filter((m) => {
-                  const low = m.content.toLowerCase();
-                  return low.includes(q.slice(0, 60)) || words.some((w) => low.includes(w));
-                })
-                .slice(0, 8)
-                .map((m) => m.content);
-              return { ok: true, data: { memories: hits } };
-            }
-            if (name === 'search_knowledge') {
-              const k3 = await loadAgentKnowledge(c.env.DB, username);
-              return { ok: true, data: { hits: retrieveKnowledge(k3.docs, String(args.query || ''), 3) } };
-            }
-            return runAssistTool(c.env, name, args, role);
-          },
+          executor: agentKnowledgeExecutor(c, username, role),
         });
     toolTrace = (outGq as any).tool_trace || [];
     const replyGq = scrubVendorNames(String(outGq.reply || '').trim());
@@ -16280,6 +16287,11 @@ app.post('/api/assist/chat/stream', async (c) => {
   // v0.7 — same allowlisted response_language as the buffered twin (stream +
   // vision fallback share this `system` prompt).
   const responseLanguage = normalizeResponseLanguage(body.response_language ?? body.responseLanguage);
+  // v0.7.8 — parité buffer : task + détection salutation pour le raccourci local.
+  const task = String(body.task || 'general').toLowerCase();
+  const isGreeting = /^(bonjour|bonsoir|salut|hello|hi|hey|coucou|salam|bonne\s*(journée|soirée)|merci)[\s!.?]*$/i.test(
+    userMessage.trim(),
+  );
 
   const enc = new TextEncoder();
   const sseStream = new ReadableStream({
@@ -16288,6 +16300,18 @@ app.post('/api/assist/chat/stream', async (c) => {
         try { controller.enqueue(enc.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)); } catch { /* client gone */ }
       };
       try {
+        // v0.7.8 — raccourci local identique au jumeau bufferisé (hint déterministe)
+        if (!isGreeting && (task === 'general' || !task) && (responseLanguage === null || responseLanguage === 'fr')) {
+          try {
+            const snap = await loadQuickSnap(c.env);
+            const quick = quickAssistHint(userMessage, snap);
+            if (quick) {
+              send('token', { t: quick });
+              send('done', { reply: quick, model: 'local', provider: 'local', usage: null, documents: docsMeta, thread_id: threadId, tool_trace: [] });
+              return;
+            }
+          } catch { /* fall through to LLM */ }
+        }
         // v0.7.7 — même savoir persistant que le jumeau bufferisé
         const knowledge = await loadAgentKnowledge(c.env.DB, username).catch(() => null);
         const knowSection = knowledge ? knowledgePromptSections(knowledge, userMessage) : '';
@@ -16300,6 +16324,7 @@ app.post('/api/assist/chat/stream', async (c) => {
         let reply = '';
         let usedModel = model;
         let usage: { prompt: number; completion: number } | undefined;
+        let toolTrace: { name: string; ok: boolean; error?: string; data?: unknown }[] = [];
         if (images.length) {
           // Buffered vision fallback — the whole reply arrives as one token event.
           const out = await groqChat({ apiKey: groqKey, model: '', system, message: finalMessage, maxTokens: 1200, images });
@@ -16308,14 +16333,30 @@ app.post('/api/assist/chat/stream', async (c) => {
           usage = out.usage;
           if (reply) send('token', { t: reply });
         } else {
-          const out = await groqChatStream({
+          // v0.7.8 — PARITÉ OUTILS : mêmes outils métier filtrés par rôle (+ savoir)
+          // que le jumeau bufferisé ; chaque exécution est diffusée en SSE
+          // (`event: tool`) et la trace complète rejoint `event: done`.
+          const out = await groqChatStreamWithTools({
             apiKey: groqKey,
             model,
             system,
             message: finalMessage,
             maxTokens: 700,
+            tools: [
+              ...toolsForRole(role).filter((d: any) =>
+                knowledge
+                  ? knowledge.toolPrefs[d.function.name] === undefined
+                    ? true
+                    : knowledge.toolPrefs[d.function.name] === 1
+                  : true,
+              ),
+              ...KNOWLEDGE_TOOL_DEFS,
+            ],
+            executor: agentKnowledgeExecutor(c, username, role),
             onToken: (delta) => send('token', { t: delta }),
+            onTool: (t) => send('tool', t),
           });
+          toolTrace = out.tool_trace || [];
           reply = scrubVendorNames(out.reply);
           usedModel = out.model;
           usage = out.usage;
@@ -16331,7 +16372,7 @@ app.post('/api/assist/chat/stream', async (c) => {
         await writeAudit(c.env.DB, {
           username, role, action: 'assist.chat.stream', entity: 'atlas_agent', detail: 'groq', ip: clientIp(c),
         });
-        send('done', { reply, model: usedModel, provider: 'groq', usage: usage || null, documents: docsMeta, thread_id: threadId });
+        send('done', { reply, model: usedModel, provider: 'groq', usage: usage || null, documents: docsMeta, thread_id: threadId, tool_trace: toolTrace });
       } catch (e: any) {
         try { await auditAssist(c.env, { username, role, message, tools: 'error', ok: false }); } catch { /* */ }
         send('error', { code: 'assist_upstream', error: tr(uiLang, 'agent_upstream') });

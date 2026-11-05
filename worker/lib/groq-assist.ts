@@ -225,6 +225,145 @@ export async function groqChatWithTools(opts: {
   return { ...fallback, tool_trace: trace };
 }
 
+/* ───────────────── streaming + outils (v0.7.8) ─────────────────────────
+ * SSE twin of groqChatWithTools(): every round is a STREAMED Groq call with
+ * the SAME role-filtered business tools as the buffered route. Content deltas
+ * are forwarded live; when a round ends with tool_calls, the tools run, an
+ * onTool trace entry fires, and the next round streams the grounded answer.
+ * Quota accounting sums the real usage of every round, exactly like the
+ * buffered loop. Final fallback = buffered groqChat() without tools. */
+const VENDOR_WORDS_RE = /\b(Google|Gemini|Mistral|OpenAI|ChatGPT|Claude|Groq|Llama|Meta)\b/gi;
+
+export async function groqChatStreamWithTools(opts: {
+  apiKey: string;
+  model?: string;
+  system: string;
+  message: string;
+  maxTokens?: number;
+  tools: unknown[];
+  executor: (name: string, args: Record<string, unknown>) => Promise<{ ok: boolean; data?: unknown; error?: string }>;
+  maxRounds?: number;
+  onToken: (delta: string) => void;
+  onTool?: (t: AgentToolTrace) => void;
+  fetchImpl?: typeof fetch;
+}): Promise<{
+  reply: string;
+  model: string;
+  usage?: { prompt: number; completion: number };
+  tool_trace: AgentToolTrace[];
+}> {
+  const f = opts.fetchImpl || fetch;
+  const maxRounds = Math.max(1, Math.min(opts.maxRounds ?? 3, 4));
+  const maxTokens = Math.max(64, Math.min(opts.maxTokens ?? 700, 4096));
+  const model = (opts.model || '').trim() || MODELS[0];
+  const messages: any[] = [
+    { role: 'system', content: opts.system },
+    { role: 'user', content: opts.message },
+  ];
+  const trace: AgentToolTrace[] = [];
+  let promptTokens = 0;
+  let completionTokens = 0;
+  let lastModel = model;
+  for (let round = 0; round < maxRounds; round++) {
+    const res = await f('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${opts.apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        temperature: 0.55,
+        max_tokens: maxTokens,
+        stream: true,
+        stream_options: { include_usage: true },
+        tools: opts.tools,
+        tool_choice: 'auto',
+        messages,
+      }),
+      signal: AbortSignal.timeout(45_000),
+    });
+    if (res.status === 401 || res.status === 403) {
+      throw new Error('Atlas Agent: clé Groq refusée. Vérifiez GROQ_API_KEY (console.groq.com).');
+    }
+    if (res.status === 429) throw new Error('Quota Groq atteint. Réessayez dans quelques minutes.');
+    if (!res.ok || !res.body) throw new Error(`Atlas Agent indisponible en flux (HTTP ${res.status}).`);
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+    let roundText = '';
+    const callsByIndex = new Map<number, { id: string; name: string; args: string }>();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let idx: number;
+      while ((idx = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, idx).trim();
+        buf = buf.slice(idx + 1);
+        if (!line.startsWith('data:')) continue;
+        const payload = line.slice(5).trim();
+        if (!payload || payload === '[DONE]') continue;
+        let j: any = null;
+        try { j = JSON.parse(payload); } catch { continue; }
+        if (j?.model) lastModel = String(j.model);
+        const delta = String(j?.choices?.[0]?.delta?.content || '');
+        if (delta) {
+          roundText += delta;
+          try { opts.onToken(delta); } catch { /* consumer went away — keep draining */ }
+        }
+        const tcs = j?.choices?.[0]?.delta?.tool_calls;
+        if (Array.isArray(tcs)) {
+          for (const tc of tcs) {
+            const i = Number(tc?.index ?? 0);
+            const cur = callsByIndex.get(i) || { id: '', name: '', args: '' };
+            if (tc?.id) cur.id = String(tc.id);
+            if (tc?.function?.name) cur.name += String(tc.function.name);
+            if (tc?.function?.arguments) cur.args += String(tc.function.arguments);
+            callsByIndex.set(i, cur);
+          }
+        }
+        const u = j?.usage || j?.x_groq?.usage;
+        if (u) {
+          promptTokens += Number(u.prompt_tokens || 0);
+          completionTokens += Number(u.completion_tokens || 0);
+        }
+      }
+    }
+    const calls = [...callsByIndex.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([, v]) => v)
+      .filter((v) => v.name)
+      .slice(0, 4);
+    if (!calls.length) {
+      const text = roundText.trim().replace(VENDOR_WORDS_RE, 'Atlas Agent').trim();
+      if (text) {
+        return { reply: text, model: lastModel, usage: { prompt: promptTokens, completion: completionTokens }, tool_trace: trace };
+      }
+      break;
+    }
+    messages.push({
+      role: 'assistant',
+      content: roundText || null,
+      tool_calls: calls.map((v, k) => ({ id: v.id || `call_${k}`, type: 'function', function: { name: v.name, arguments: v.args || '{}' } })),
+    });
+    for (const call of calls) {
+      let args: Record<string, unknown> = {};
+      try { args = JSON.parse(call.args || '{}'); } catch { args = {}; }
+      let out: { ok: boolean; data?: unknown; error?: string } = { ok: false, error: 'Outil inconnu.' };
+      try {
+        out = await opts.executor(call.name, args);
+      } catch (e: any) {
+        out = { ok: false, error: String(e?.message || e).slice(0, 200) };
+      }
+      const entry: AgentToolTrace = { name: call.name, ok: out.ok, error: out.ok ? undefined : out.error, data: out.ok ? out.data : undefined };
+      trace.push(entry);
+      try { opts.onTool?.(entry); } catch { /* consumer went away */ }
+      messages.push({ role: 'tool', tool_call_id: call.id || '', content: JSON.stringify(out).slice(0, 6000) });
+    }
+  }
+  // dernier recours : réponse directe bufferisée sans outils (jumeau bufferisé)
+  const fallback = await groqChat({ apiKey: opts.apiKey, model: opts.model, system: opts.system, message: opts.message, maxTokens });
+  return { ...fallback, tool_trace: trace };
+}
+
 /* ─────────────────────────── streaming (v264) ───────────────────────────
  * SSE token streaming for POST /api/assist/chat/stream. Same provider, same
  * scrubbing rules as groqChat(); deltas are forwarded as they arrive and the
