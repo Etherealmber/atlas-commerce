@@ -15,7 +15,7 @@ describe('WhatsNew releases', () => {
     expect(RELEASES[0].version).toBe('0.7.9');
     expect(RELEASES[0].date).toBe('6 novembre 2026');
     const items = RELEASES[0].sections.flatMap((s) => s.items);
-    expect(items.map((i) => i.id)).toEqual(['079s1', '079s2', '079s3', '079s4']);
+    expect(items.map((i) => i.id)).toEqual(['079s1', '079s2', '079s3', '079s4', '079s5']);
     const texts = items.map((i) => i.text).join(' ');
     for (const detail of ['push', 'approbation ou refus', 'streaming', 'Support et Hébergement', '7 tests']) {
       expect(texts).toContain(detail);

@@ -129,7 +129,9 @@ export class MobileHub {
               headers: { 'x-avatar-ctype': hit.ctype },
             });
           }
-          return Response.json({ success: false, error: 'miss' }, { status: 404 });
+          // An empty in-memory cache is expected after eviction / version changes,
+          // not a missing route or application error. The proxy loads the origin.
+          return new Response(null, { status: 204 });
         }
         if (request.method === 'PUT') {
           const bytes = new Uint8Array(await request.arrayBuffer());

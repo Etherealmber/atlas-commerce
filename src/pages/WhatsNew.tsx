@@ -48,6 +48,12 @@ export const RELEASES: Release[] = [
           { id: '079s4', platforms: ['server'], text: 'Connexion : 7 tests de régression supplémentaires protègent la reprise sans OTP après une déconnexion volontaire, uniquement pour le même compte et le même appareil, sans contourner les contrôles de sécurité.' },
         ],
       },
+      {
+        kind: 'fixes',
+        items: [
+          { id: '079s5', platforms: ['server'], text: 'Avatars : un cache vide est traité normalement et recharge l’image d’origine, sans faux 404 interne. Base de données : les migrations vérifient les colonnes existantes avant de les ajouter, évitant les erreurs répétées de colonne déjà présente dans les journaux Cloudflare.' },
+        ],
+      },
     ],
   },
   {

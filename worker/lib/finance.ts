@@ -20,6 +20,7 @@
  * never used for period math.
  */
 
+import { addColumnIfMissing } from './schema';
 import { normalizeRole } from './rbac';
 import { sendFcmToUser } from './fcm';
 
@@ -229,13 +230,9 @@ export async function ensureFinanceSchema(db: D1Database): Promise<void> {
       sent_at TEXT
     )`,
   ).run();
-  for (const sql of [
-    `ALTER TABLE company_settings ADD COLUMN finance_timezone TEXT DEFAULT 'Africa/Casablanca'`,
-    `ALTER TABLE company_settings ADD COLUMN finance_currency TEXT DEFAULT 'MAD'`,
-    `ALTER TABLE company_settings ADD COLUMN finance_push_amounts INTEGER DEFAULT 1`,
-  ]) {
-    try { await db.prepare(sql).run(); } catch { /* column already present */ }
-  }
+  await addColumnIfMissing(db, 'company_settings', 'finance_timezone', `TEXT DEFAULT 'Africa/Casablanca'`);
+  await addColumnIfMissing(db, 'company_settings', 'finance_currency', `TEXT DEFAULT 'MAD'`);
+  await addColumnIfMissing(db, 'company_settings', 'finance_push_amounts', `INTEGER DEFAULT 1`);
 }
 
 export type FinanceContext = {
