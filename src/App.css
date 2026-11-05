@@ -11456,16 +11456,17 @@ a.audit-detail-link {
 }
 
 
-/* About: version + support + hosting on one full-width row */
+/* About: center the two remaining support + hosting cards. */
 .about-meta-row {
   display: grid !important;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   gap: 12px !important;
+  margin-inline: auto;
   margin-top: 16px !important;
   margin-bottom: 8px !important;
   align-items: stretch !important;
   width: 100% !important;
-  max-width: none !important;
+  max-width: 720px !important;
 }
 .about-meta-row > .about-version-card,
 .about-meta-row > .about-meta-card,

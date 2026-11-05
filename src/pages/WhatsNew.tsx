@@ -31,6 +31,26 @@ type Release = {
 
 export const RELEASES: Release[] = [
   {
+    version: '0.7.9',
+    date: '6 novembre 2026',
+    sections: [
+      {
+        kind: 'features',
+        items: [
+          { id: '079s1', platforms: ['server'], text: 'Demandes d’ajustement de stock : notification push aux responsables autorisés à la soumission, puis au demandeur après approbation ou refus. Les notifications restent génériques, sans données sensibles ; un échec d’envoi ne bloque pas la demande et les actions répétées ne renvoient pas de notification.' },
+        ],
+      },
+      {
+        kind: 'improvements',
+        items: [
+          { id: '079s2', platforms: ['server'], text: 'Atlas Agent : les réponses en streaming peuvent désormais utiliser les mêmes outils métier et le savoir enregistré que les réponses classiques, avec les mêmes permissions et une trace des outils utilisés.' },
+          { id: '079s3', platforms: ['web'], text: 'À propos : les cartes Support et Hébergement sont centrées côte à côte sur grand écran et empilées sur mobile.' },
+          { id: '079s4', platforms: ['server'], text: 'Connexion : 7 tests de régression supplémentaires protègent la reprise sans OTP après une déconnexion volontaire, uniquement pour le même compte et le même appareil, sans contourner les contrôles de sécurité.' },
+        ],
+      },
+    ],
+  },
+  {
     version: '0.7.5',
     date: '2 novembre 2026',
     sections: [
