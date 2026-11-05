@@ -17,6 +17,10 @@ describe('WhatsNew releases', () => {
     for (const hidden of ['0.7.3-beta', '0.7.4-beta', '0.7.5-beta', '0.7.6-beta', '0.7.7-beta']) {
       expect(versions).not.toContain(hidden);
     }
+    // v0.7.9 — directive : aucune version entre 0.7.5 et 0.7.9 dans le journal.
+    for (const between of ['0.7.6', '0.7.7', '0.7.8', '0.7.9']) {
+      expect(versions).not.toContain(between);
+    }
     // v0.7.5 — release publique condensée en résumés thématiques courts.
     const topItems = RELEASES[0].sections.flatMap((s) => s.items);
     expect(topItems.length).toBeLessThanOrEqual(12);
