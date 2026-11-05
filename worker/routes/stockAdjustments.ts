@@ -41,7 +41,13 @@
  * stock_adjustment.*) and the approved movement writes stock_movements with
  * previous/new quantities, requester+approver in reason/reference.
  *
- * Push notifications: NOT implemented here — do not advertise them.
+ * Push notifications (v0.7.8): BEST-EFFORT, non-sensitive. Submit notifies the
+ * role-authorized approvers (owner/admin/secretaire, requester excluded); a
+ * decision notifies the requester's devices ONLY after the status change
+ * succeeded. Payload = event type + request id (+ generic French text); the
+ * app re-fetches details through the authenticated API. Idempotent replays and
+ * already-decided transitions send NOTHING; dead tokens are purged by the FCM
+ * dispatcher; a push failure never alters the request outcome.
  * Passkeys/WebAuthn are NOT required for approval (separate hardening option).
  */
 import {
@@ -49,6 +55,7 @@ import {
   roleCanApproveStockAdjustment,
   roleCanSubmitStockAdjustmentRequest,
 } from '../lib/inventory-policy';
+import { sendFcmToUser } from '../lib/fcm';
 
 export interface StockAdjustDeps {
   /** Signed server session only — never client-supplied role/tenant. */
@@ -126,6 +133,46 @@ async function readFreshRole(deps: StockAdjustDeps, db: any, sess: { username: s
   return normalizeInventoryRole(sess.role);
 }
 
+/* ── v0.7.8 — push stock-request (best-effort, jamais bloquant) ────────── */
+const PUSH_TITLE = 'Atlas Commerce — Stock';
+const PUSH_SUBMIT_BODY = 'Une demande d’ajustement de stock attend votre validation.';
+const PUSH_DECIDED_BODY = 'Votre demande d’ajustement de stock a été traitée.';
+
+/** Envoie best-effort : aucune erreur de push ne remonte à la route. */
+async function notifyStockEvent(
+  c: any,
+  usernames: string[],
+  data: Record<string, string>,
+  body: string,
+): Promise<void> {
+  try {
+    await Promise.all(
+      usernames.map((u) =>
+        sendFcmToUser(c.env, u, { title: PUSH_TITLE, body, data }).catch(() => null),
+      ),
+    );
+  } catch { /* le push ne défait jamais la demande */ }
+}
+
+/** Approveurs autorisés par la politique de rôle (owner + users actifs). */
+async function approverUsernames(c: any, exclude: string): Promise<string[]> {
+  const out = new Set<string>();
+  try {
+    const owner = String(c.env.ADMIN_USERNAME || 'admin').toLowerCase();
+    if (roleCanApproveStockAdjustment('owner')) out.add(owner);
+    const rows = (await c.env.DB
+      .prepare(`SELECT username, role FROM app_users WHERE active = 1`)
+      .all()) as any;
+    for (const r of rows?.results || []) {
+      if (roleCanApproveStockAdjustment(normalizeInventoryRole(String(r.role)))) {
+        out.add(String(r.username).toLowerCase());
+      }
+    }
+  } catch { /* best-effort */ }
+  out.delete(String(exclude).toLowerCase());
+  return [...out];
+}
+
 export function registerStockAdjustmentRoutes(app: any, deps: StockAdjustDeps): void {
   app.post('/api/stock-adjustment-requests', async (c: any) => {
     const sess = deps.session(c);
@@ -186,6 +233,13 @@ export function registerStockAdjustmentRoutes(app: any, deps: StockAdjustDeps): 
         entity: 'stock_adjustment_request', entity_id: (row as any)?.id ?? 0,
         detail: `${direction} ${quantity} · produit ${productId}`, ip: c.req?.header?.('CF-Connecting-IP') || '',
       });
+      // v0.7.8 — approvers notifiés (replay idempotent : jamais, cf. retour 200 ci-dessus)
+      await notifyStockEvent(
+        c,
+        await approverUsernames(c, sess.username),
+        { event: 'stock_request_submitted', request_id: String((row as any)?.id ?? 0) },
+        PUSH_SUBMIT_BODY,
+      );
       return c.json({ success: true, data: dto(row) }, 201);
     } catch (e: any) {
       if (idem && /UNIQUE/i.test(String(e?.message || e?.cause?.message || ''))) {
@@ -255,6 +309,13 @@ export function registerStockAdjustmentRoutes(app: any, deps: StockAdjustDeps): 
         .run();
       if (!claim.meta?.changes) return c.json({ success: false, code: 'ALREADY_DECIDED', error: 'Décision concurrente détectée.' }, 409);
       await deps.audit?.(db, { username: sess.username, role: fresh, action: 'stock_adjustment.reject', entity: 'stock_adjustment_request', entity_id: id, detail: note });
+      // v0.7.8 — demandeur notifié UNIQUEMENT après le changement de statut réussi
+      await notifyStockEvent(
+        c,
+        [String(req.requested_by)],
+        { event: 'stock_request_decided', status: 'rejected', request_id: String(id) },
+        PUSH_DECIDED_BODY,
+      );
       const after = await db.prepare(`SELECT * FROM stock_adjustment_requests WHERE id = ?`).bind(id).first();
       return c.json({ success: true, data: dto(after) }, 200);
     }
@@ -317,6 +378,13 @@ export function registerStockAdjustmentRoutes(app: any, deps: StockAdjustDeps): 
       entity: 'stock_adjustment_request', entity_id: id,
       detail: `${req.direction} ${qty} · produit ${req.product_id} · ${before}→${afterQty} · demandeur ${req.requested_by}`,
     });
+    // v0.7.8 — demandeur notifié UNIQUEMENT après mouvement appliqué + audit
+    await notifyStockEvent(
+      c,
+      [String(req.requested_by)],
+      { event: 'stock_request_decided', status: 'approved', request_id: String(id) },
+      PUSH_DECIDED_BODY,
+    );
     const after = await db.prepare(`SELECT * FROM stock_adjustment_requests WHERE id = ?`).bind(id).first();
     return c.json({ success: true, data: dto(after) }, 200);
   };
