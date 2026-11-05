@@ -19,13 +19,14 @@ export const APP_DESCRIPTION =
 export const APP_PROFILE = 'https://github.com/etherealmber';
 
 /**
- * VERSION AFFICHÉE (directive utilisateur, 02/11/2026) : 0.7.5 partout (saut
- * direct depuis 0.7.2, sans 0.7.3 ni 0.7.4). Le journal « Nouveautés » regroupe
- * tout ce qui suit 0.7.2 sous la release publique 0.7.5 ; les groupes internes
- * *-beta au-delà du cap ne sont jamais exposés. Ne bumper qu' sur ordre explicite.
+ * VERSION AFFICHÉE (directive utilisateur, 06/11/2026) : 0.7.9 partout — saut
+ * DIRECT depuis 0.7.5 (rien entre les deux : ni 0.7.6, ni 0.7.7, ni 0.7.8).
+ * Le journal « Nouveautés » reste figé sur sa release publique 0.7.5 : aucune
+ * version intermédiaire ni entrée 0.7.9 n'y est ajoutée (directive). Ne bumper
+ * qu' sur ordre explicite.
  */
-export const DISPLAY_VERSION = '0.7.5';
-export const RELEASE_VISIBLE_CAP = '0.7.5';
+export const DISPLAY_VERSION = '0.7.9';
+export const RELEASE_VISIBLE_CAP = '0.7.9';
 
 /** true si `v` (ex. « 0.7.2 », « 0.7.6-beta ») est ≤ `cap` en semver simplifié. */
 export function semverAtMost(v: string, cap: string): boolean {
