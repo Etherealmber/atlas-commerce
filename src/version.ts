@@ -21,9 +21,9 @@ export const APP_PROFILE = 'https://github.com/etherealmber';
 /**
  * VERSION AFFICHÉE (directive utilisateur, 06/11/2026) : 0.7.9 partout — saut
  * DIRECT depuis 0.7.5 (rien entre les deux : ni 0.7.6, ni 0.7.7, ni 0.7.8).
- * Le journal « Nouveautés » reste figé sur sa release publique 0.7.5 : aucune
- * version intermédiaire ni entrée 0.7.9 n'y est ajoutée (directive). Ne bumper
- * qu' sur ordre explicite.
+ * Le journal « Nouveautés » présente les ajouts sous 0.7.9, sans groupe
+ * intermédiaire. Conserver cette version jusqu’à un nouvel ordre explicite
+ * de l’utilisateur : aucun bump automatique.
  */
 export const DISPLAY_VERSION = '0.7.9';
 export const RELEASE_VISIBLE_CAP = '0.7.9';

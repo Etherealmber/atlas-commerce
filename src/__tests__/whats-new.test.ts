@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { RELEASES } from '../pages/WhatsNew';
-import { RELEASE_VISIBLE_CAP, semverAtMost } from '../version';
+import { DISPLAY_VERSION, RELEASE_VISIBLE_CAP, semverAtMost } from '../version';
 
 /**
  * v0.7 — the public changelog must never lose an entry, and 0.7.0-beta must
@@ -9,20 +9,36 @@ import { RELEASE_VISIBLE_CAP, semverAtMost } from '../version';
  * so the "Nouveautés" badge pointed at an empty section).
  */
 describe('WhatsNew releases', () => {
+  it('publishes the requested 0.7.9 additions without another version bump', () => {
+    expect(DISPLAY_VERSION).toBe('0.7.9');
+    expect(RELEASE_VISIBLE_CAP).toBe('0.7.9');
+    expect(RELEASES[0].version).toBe('0.7.9');
+    expect(RELEASES[0].date).toBe('6 novembre 2026');
+    const items = RELEASES[0].sections.flatMap((s) => s.items);
+    expect(items.map((i) => i.id)).toEqual(['079s1', '079s2', '079s3', '079s4']);
+    const texts = items.map((i) => i.text).join(' ');
+    for (const detail of ['push', 'approbation ou refus', 'streaming', 'Support et Hébergement', '7 tests']) {
+      expect(texts).toContain(detail);
+    }
+    for (const release of RELEASES) {
+      expect(semverAtMost(release.version, DISPLAY_VERSION)).toBe(true);
+    }
+  });
+
   it('the public log merges everything after 0.7.2 under 0.7.5 (bump 0.7.2 -> 0.7.5, no .3/.4)', () => {
     // v0.7.5 — groupes internes *-beta fusionnés sous la release publique 0.7.5.
-    expect(RELEASES[0].version).toBe('0.7.5');
+    expect(RELEASES.find((r) => r.version === '0.7.5')).toBeDefined();
     expect(semverAtMost(RELEASES[0].version, RELEASE_VISIBLE_CAP)).toBe(true);
     const versions = RELEASES.map((r) => r.version);
     for (const hidden of ['0.7.3-beta', '0.7.4-beta', '0.7.5-beta', '0.7.6-beta', '0.7.7-beta']) {
       expect(versions).not.toContain(hidden);
     }
     // v0.7.9 — directive : aucune version entre 0.7.5 et 0.7.9 dans le journal.
-    for (const between of ['0.7.6', '0.7.7', '0.7.8', '0.7.9']) {
+    for (const between of ['0.7.6', '0.7.7', '0.7.8']) {
       expect(versions).not.toContain(between);
     }
     // v0.7.5 — release publique condensée en résumés thématiques courts.
-    const topItems = RELEASES[0].sections.flatMap((s) => s.items);
+    const topItems = RELEASES.find((r) => r.version === '0.7.5')!.sections.flatMap((s) => s.items);
     expect(topItems.length).toBeLessThanOrEqual(12);
     const topIds = topItems.map((i) => i.id);
     expect(topIds).toContain('075s1'); // comptes : reprise sans OTP + bascule
