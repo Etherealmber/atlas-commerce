@@ -59,7 +59,7 @@ data: {"reply":"Bonjour à vous.","model":"model-id","provider":"groq","usage":{
 - Fin de connexion sans `done` ni `error` : réponse interrompue, pas une réussite.
 - Ignorer proprement les noms d’événements/champs inconnus pour la compatibilité future. Le parseur doit supporter les frames et caractères UTF-8 répartis sur plusieurs lectures réseau.
 
-Les outils autorisés par rôle et les outils mémoire/savoir sont partagés avec la route classique. Un outil désactivé ou non autorisé ne peut pas être exécuté, même si le modèle invente son appel. Les propositions ne proviennent que des résultats réussis d’outils serveur ; elles ne sont jamais devinées depuis le texte du modèle.
+Les outils autorisés par rôle et les outils mémoire/savoir sont partagés avec la route classique. Si le chargement des préférences échoue, les outils métier sont exclus (repli fermé). Un outil désactivé ou non autorisé ne peut pas être exécuté, même si le modèle invente son appel. Les propositions ne proviennent que des résultats réussis d’outils serveur ; elles ne sont jamais devinées depuis le texte du modèle.
 
 ### Propositions
 
@@ -70,6 +70,14 @@ Les routes classique (`data.proposals`) et SSE (`done.proposals`) retournent dé
 ```
 
 La génération de cette proposition ne modifie pas le stock. L’APK affiche une confirmation et utilise le parcours métier autorisé existant ; ne pas inventer d’identifiant de proposition ni appeler `/api/assist/apply` sans l’identifiant et le contrat réellement requis par cette route. Aucun auto-approve.
+
+Pour `type: inventory_adjustment`, après confirmation explicite de l’utilisateur, le parcours disponible est `POST /api/stock-adjustment-requests` avec la session habituelle et ce corps :
+
+```json
+{"product_id":1,"direction":"in","quantity":2,"reason":"Proposition assistant IA confirmée","idempotency_key":"une-cle-unique-par-confirmation"}
+```
+
+Convertir le delta : positif → `direction: in`, négatif → `direction: out`, `quantity = abs(delta)` strictement positive. Réutiliser la même clé en cas de retry de la même confirmation. Cette route soumet une **demande** : elle ne modifie pas directement le stock. Réponse 201 à la création ou 200 au replay idempotent, avec `data.id`. La validation séparée reste réservée aux rôles autorisés via `POST /api/stock-adjustment-requests/:id/approve` (ou `/reject`, corps `{"note":"..."}`). Respecter les erreurs de validation et de rôle du serveur ; ne jamais appeler automatiquement la route d’approbation.
 
 ### Erreurs et limites
 
