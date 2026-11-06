@@ -158,6 +158,7 @@ describe('v0.7.5 — reprise après auto-déconnexion (resume_until)', () => {
     const r = await logout(`Bearer ${await tokenFor('alice', 'user', secretA, 'fpA')}`, 'fpA');
     expect(r.status).toBe(200);
     expect((r.body as any).success).toBe(true);
+    expect(r.body.resume_prepared).toBe(true);
 
     expect(resumeOf('fpA')).not.toBe('');
     expect(resumeOf('fpA')).toContain('20'); // a datetime, not ''
@@ -234,4 +235,50 @@ describe('v0.7.5 — reprise après auto-déconnexion (resume_until)', () => {
     expect(badAuth.status).toBe(401);
     expect(resumeOf('fpA')).toBe('');
   });
+  it('simultaneous password logins consume the marker only once', async () => {
+    // Upgrade once so concurrent password validation does not race a hash migration.
+    await seedUser('alice', 'Test1234!');
+    seedDevice('fpA', 'alice');
+    await login('alice', 'Test1234!', 'fpA');
+    sqlite.exec(`UPDATE trusted_devices SET resume_until = datetime('now', '+1 day') WHERE fingerprint = 'fpA'`);
+    const results = await Promise.all([login('alice', 'Test1234!', 'fpA'), login('alice', 'Test1234!', 'fpA')]);
+    expect(results.filter((r) => r.body.needs_otp === false)).toHaveLength(1);
+    expect(results.filter((r) => r.body.needs_otp === true)).toHaveLength(1);
+    expect(resumeOf('fpA')).toBe('');
+  });
+
+  it('wrong password cannot consume a prepared marker', async () => {
+    const secret = await seedUser('alice', 'Test1234!');
+    seedDevice('fpA', 'alice');
+    await logout(`Bearer ${await tokenFor('alice', 'user', secret, 'fpA')}`, 'fpA');
+    const before = resumeOf('fpA');
+    const result = await login('alice', 'wrong-password', 'fpA');
+    expect(result.status).toBe(401);
+    expect(resumeOf('fpA')).toBe(before);
+  });
+
+  it('logout without fingerprint reports that no resume was prepared', async () => {
+    const secret = await seedUser('alice', 'Test1234!');
+    seedDevice('fpA', 'alice');
+    const result = await logout(`Bearer ${await tokenFor('alice', 'user', secret, 'fpA')}`, '');
+    expect(result.status).toBe(200);
+    expect(result.body.resume_prepared).toBe(false);
+    expect(resumeOf('fpA')).toBe('');
+  });
+
+  it('failed marker write reports failure and leaves the next login on OTP', async () => {
+    const secret = await seedUser('alice', 'Test1234!');
+    seedDevice('fpA', 'alice');
+    const original = db.prepare.bind(db);
+    db.prepare = (sql: string) => {
+      if (sql.includes("SET resume_until = datetime('now', '+30 days')")) throw new Error('unavailable');
+      return original(sql);
+    };
+    const result = await logout(`Bearer ${await tokenFor('alice', 'user', secret, 'fpA')}`, 'fpA');
+    expect(result.status).toBe(503);
+    expect(result.body).toMatchObject({ success: false, resume_prepared: false, code: 'RESUME_PREPARATION_FAILED' });
+    expect(resumeOf('fpA')).toBe('');
+    expect((await login('alice', 'Test1234!', 'fpA')).body.needs_otp).toBe(true);
+  });
+
 });

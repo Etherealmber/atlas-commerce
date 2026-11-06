@@ -120,7 +120,13 @@ export async function groqChat(opts: {
  * Function-calling OpenAI-compatible sur Groq : le modèle peut appeler des
  * outils (métier via runAssistTool, mémoire/RAG via agent-knowledge) jusqu'à
  * 3 tours avant de répondre. Chaque appel est journalisé dans tool_trace. */
-export type AgentToolTrace = { name: string; ok: boolean; error?: string; data?: unknown };
+export type AgentToolResult = { ok: boolean; data?: unknown; error?: string; proposal?: Record<string, unknown> };
+export type AgentToolTrace = AgentToolResult & { name: string };
+
+/** Only proposals from successful, server-executed tools reach the client. */
+export function proposalsFromToolTrace(trace: AgentToolTrace[]): Record<string, unknown>[] {
+  return trace.flatMap((t) => t.ok && t.proposal ? [t.proposal] : []);
+}
 
 export async function groqChatWithTools(opts: {
   apiKey: string;
@@ -129,7 +135,7 @@ export async function groqChatWithTools(opts: {
   message: string;
   maxTokens?: number;
   tools: unknown[];
-  executor: (name: string, args: Record<string, unknown>) => Promise<{ ok: boolean; data?: unknown; error?: string }>;
+  executor: (name: string, args: Record<string, unknown>) => Promise<AgentToolResult>;
   maxRounds?: number;
 }): Promise<{
   reply: string;
@@ -200,13 +206,13 @@ export async function groqChatWithTools(opts: {
       const name = String(call?.function?.name || '');
       let args: Record<string, unknown> = {};
       try { args = JSON.parse(String(call?.function?.arguments || '{}')); } catch { args = {}; }
-      let out: { ok: boolean; data?: unknown; error?: string } = { ok: false, error: 'Outil inconnu.' };
+      let out: AgentToolResult = { ok: false, error: 'Outil inconnu.' };
       try {
         out = await opts.executor(name, args);
       } catch (e: any) {
         out = { ok: false, error: String(e?.message || e).slice(0, 200) };
       }
-      trace.push({ name, ok: out.ok, error: out.ok ? undefined : out.error, data: out.ok ? out.data : undefined });
+      trace.push({ name, ok: out.ok, error: out.ok ? undefined : out.error, data: out.ok ? out.data : undefined, ...(out.ok && out.proposal ? { proposal: out.proposal } : {}) });
       messages.push({
         role: 'tool',
         tool_call_id: String(call?.id || ''),
@@ -241,7 +247,7 @@ export async function groqChatStreamWithTools(opts: {
   message: string;
   maxTokens?: number;
   tools: unknown[];
-  executor: (name: string, args: Record<string, unknown>) => Promise<{ ok: boolean; data?: unknown; error?: string }>;
+  executor: (name: string, args: Record<string, unknown>) => Promise<AgentToolResult>;
   maxRounds?: number;
   onToken: (delta: string) => void;
   onTool?: (t: AgentToolTrace) => void;
@@ -347,13 +353,13 @@ export async function groqChatStreamWithTools(opts: {
     for (const call of calls) {
       let args: Record<string, unknown> = {};
       try { args = JSON.parse(call.args || '{}'); } catch { args = {}; }
-      let out: { ok: boolean; data?: unknown; error?: string } = { ok: false, error: 'Outil inconnu.' };
+      let out: AgentToolResult = { ok: false, error: 'Outil inconnu.' };
       try {
         out = await opts.executor(call.name, args);
       } catch (e: any) {
         out = { ok: false, error: String(e?.message || e).slice(0, 200) };
       }
-      const entry: AgentToolTrace = { name: call.name, ok: out.ok, error: out.ok ? undefined : out.error, data: out.ok ? out.data : undefined };
+      const entry: AgentToolTrace = { name: call.name, ok: out.ok, error: out.ok ? undefined : out.error, data: out.ok ? out.data : undefined, ...(out.ok && out.proposal ? { proposal: out.proposal } : {}) };
       trace.push(entry);
       try { opts.onTool?.(entry); } catch { /* consumer went away */ }
       messages.push({ role: 'tool', tool_call_id: call.id || '', content: JSON.stringify(out).slice(0, 6000) });

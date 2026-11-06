@@ -1,7 +1,7 @@
 /** Product identity + version — all releases are beta until stable. */
 export const APP_NAME = 'Atlas Commerce';
 export const APP_TAGLINE = 'Stock · Caisse · Facturation';
-export const APP_VERSION = '0.7.7-beta';
+export const APP_VERSION = '0.8.0-beta';
 /* v0.7 — date toujours à jour (demande user) : date du jour UTC. */
 export const APP_BUILD_DATE = new Date().toISOString().slice(0, 10);
 export const APP_BUILD = APP_BUILD_DATE;
@@ -18,15 +18,9 @@ export const APP_DESCRIPTION =
   'Logiciel de gestion stock, caisse et facturation pour commerces et entrepôts au Maroc.';
 export const APP_PROFILE = 'https://github.com/etherealmber';
 
-/**
- * VERSION AFFICHÉE (directive utilisateur, 06/11/2026) : 0.7.9 partout — saut
- * DIRECT depuis 0.7.5 (rien entre les deux : ni 0.7.6, ni 0.7.7, ni 0.7.8).
- * Le journal « Nouveautés » présente les ajouts sous 0.7.9, sans groupe
- * intermédiaire. Conserver cette version jusqu’à un nouvel ordre explicite
- * de l’utilisateur : aucun bump automatique.
- */
-export const DISPLAY_VERSION = '0.7.9';
-export const RELEASE_VISIBLE_CAP = '0.7.9';
+/** Version demandée : 0.8.0. Aucun bump suivant sans accord explicite de l’utilisateur. */
+export const DISPLAY_VERSION = '0.8.0';
+export const RELEASE_VISIBLE_CAP = '0.8.0';
 
 /** true si `v` (ex. « 0.7.2 », « 0.7.6-beta ») est ≤ `cap` en semver simplifié. */
 export function semverAtMost(v: string, cap: string): boolean {

@@ -13,7 +13,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 const SQLITE_MODULE = ['node:', 'sqlite'].join('');
 const { DatabaseSync } = (await import(SQLITE_MODULE)) as { DatabaseSync: new (path: string) => any };
-import { groqChatStreamWithTools } from '../lib/groq-assist';
+import { groqChatStreamWithTools, proposalsFromToolTrace } from '../lib/groq-assist';
 import { toolsForRole } from '../lib/agent';
 
 async function sha256(s: string): Promise<string> {
@@ -289,4 +289,129 @@ describe('POST /api/assist/chat/stream — parité outils (v0.7.8)', () => {
     const doneLine = r.text.split('\n').find((l: string) => l.startsWith('data:') && l.includes('tool_trace')) || '';
     expect(JSON.parse(doneLine.slice(5).trim()).tool_trace).toEqual([]);
   });
+  it('returns the same server-generated proposals in buffered and SSE responses, without changing stock', async () => {
+    const secret = await seedUser('planner', 'Test1234!', 'owner');
+    seedDevice('fpP', 'planner');
+    sqlite.exec(`CREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT, sku TEXT, stock_quantity REAL);
+      INSERT INTO products VALUES (1, 'Produit', 'P1', 20)`);
+    vi.stubGlobal('fetch', (async (_u: any, init: any) => {
+      const body = JSON.parse(init.body);
+      groqBodies.push(body);
+      const called = body.messages.some((m: any) => m.role === 'tool');
+      const call = { id: 'p1', type: 'function', function: { name: 'propose_inventory_adjustment', arguments: '{"product_id":1,"delta":2}' } };
+      if (body.stream) return called
+        ? sseResponse([contentDelta('Please review the proposal.'), usageChunk(12, 4)])
+        : sseResponse([toolCallDelta(0, call.id, call.function.name, call.function.arguments), usageChunk(10, 3)]);
+      return Response.json({ model: 'test', choices: [{ message: called ? { content: 'Please review the proposal.' } : { tool_calls: [call] } }], usage: { prompt_tokens: 10, completion_tokens: 3 } });
+    }) as unknown as typeof fetch);
+    const token = await tokenFor('planner', 'owner', secret, 'fpP');
+    const body = { message: 'propose adding two units', response_language: 'en', task: 'stock', thread_id: 'android-thread' };
+    const buffered = await app.fetch(new Request('http://test.local/api/assist/chat', {
+      method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'CF-Connecting-IP': IP }, body: JSON.stringify(body),
+    }), env);
+    const json = await buffered.json();
+    const streamed = await streamChat(token, body);
+    const events = parseEvents(streamed.text);
+    const done = events.find((e) => e.event === 'done')!.data;
+    expect(json.data.proposals).toHaveLength(1);
+    expect(done.proposals).toEqual(json.data.proposals);
+    expect(done.proposals[0]).toMatchObject({ type: 'inventory_adjustment', product_id: 1, delta: 2, requires_approval: true });
+    expect(done).toMatchObject({ reply: 'Please review the proposal.', thread_id: 'android-thread', task: 'stock', documents: [], usage: { prompt: 22, completion: 7 } });
+    expect(events.filter((e) => e.event === 'done')).toHaveLength(1);
+    expect(events.find((e) => e.event === 'tool')!.data.proposal).toEqual(done.proposals[0]);
+    expect(sqlite.prepare('SELECT stock_quantity FROM products WHERE id = 1').get().stock_quantity).toBe(20);
+  });
+
+  it('rejects model-invented calls to disabled tools instead of emitting a proposal', async () => {
+    const secret = await seedUser('disabled', 'Test1234!', 'owner');
+    seedDevice('fpD', 'disabled');
+    sqlite.exec(`CREATE TABLE IF NOT EXISTS agent_tool_prefs (tool TEXT PRIMARY KEY, enabled INTEGER, updated_at TEXT);
+      INSERT INTO agent_tool_prefs VALUES ('propose_inventory_adjustment', 0, '')`);
+    let round = 0;
+    vi.stubGlobal('fetch', (async (_u: any, init: any) => {
+      groqBodies.push(JSON.parse(init.body));
+      return ++round === 1
+        ? sseResponse([toolCallDelta(0, 'disabled-call', 'propose_inventory_adjustment', '{"product_id":1,"delta":2}')])
+        : sseResponse([contentDelta('Not allowed.')]);
+    }) as unknown as typeof fetch);
+    const result = await streamChat(await tokenFor('disabled', 'owner', secret, 'fpD'), { message: 'propose stock change', response_language: 'en' });
+    expect(toolNames(groqBodies[0])).not.toContain('propose_inventory_adjustment');
+    const done = parseEvents(result.text).find((e) => e.event === 'done')!.data;
+    expect(done.proposals).toEqual([]);
+    expect(done.tool_trace[0]).toMatchObject({ name: 'propose_inventory_adjustment', ok: false });
+  });
+
+  it('streams tokens before the upstream has finished, not only in the final event', async () => {
+    const secret = await seedUser('live', 'Test1234!', 'owner');
+    seedDevice('fpL', 'live');
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const enc = new TextEncoder();
+    vi.stubGlobal('fetch', (async () => new Response(new ReadableStream({
+      async start(controller) {
+        controller.enqueue(enc.encode(`data: ${JSON.stringify(contentDelta('Live '))}\n\n`));
+        await gate;
+        controller.enqueue(enc.encode(`data: ${JSON.stringify(contentDelta('answer.'))}\n\ndata: [DONE]\n\n`));
+        controller.close();
+      },
+    }), { headers: { 'Content-Type': 'text/event-stream' } })) as unknown as typeof fetch);
+    const token = await tokenFor('live', 'owner', secret, 'fpL');
+    const response = await app.fetch(new Request('http://test.local/api/assist/chat/stream', {
+      method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'CF-Connecting-IP': IP },
+      body: JSON.stringify({ message: 'live response please', response_language: 'en' }),
+    }), env);
+    expect(response.headers.get('Content-Type')).toContain('text/event-stream');
+    const reader = response.body.getReader();
+    let text = '';
+    try {
+      const first = await reader.read();
+      text = new TextDecoder().decode(first.value);
+      expect(text).toContain('event: token');
+      expect(text).toContain('Live ');
+      expect(text).not.toContain('event: done');
+    } finally { release(); }
+    for (;;) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      text += new TextDecoder().decode(chunk.value);
+    }
+    expect(parseEvents(text).find((e) => e.event === 'done')!.data).toMatchObject({ reply: 'Live answer.', proposals: [] });
+  });
+
+  it('a stock account cannot execute a money tool even if the model invents the call', async () => {
+    const secret = await seedUser('floor', 'Test1234!', 'stock');
+    seedDevice('fpF', 'floor');
+    let round = 0;
+    vi.stubGlobal('fetch', (async () => ++round === 1
+      ? sseResponse([toolCallDelta(0, 'forbidden', 'create_invoice_draft', '{}')])
+      : sseResponse([contentDelta('Not permitted.')])) as unknown as typeof fetch);
+    const response = await streamChat(await tokenFor('floor', 'stock', secret, 'fpF'), { message: 'create invoice', response_language: 'en' });
+    const done = parseEvents(response.text).find((e) => e.event === 'done')!.data;
+    expect(done.proposals).toEqual([]);
+    expect(done.tool_trace[0]).toMatchObject({ name: 'create_invoice_draft', ok: false });
+    expect(done.tool_trace[0].error).toContain('non autorisé');
+  });
+
+  it('upstream errors terminate with an error event, never a successful done', async () => {
+    const secret = await seedUser('errors', 'Test1234!', 'owner');
+    seedDevice('fpE', 'errors');
+    vi.stubGlobal('fetch', (async () => new Response('unavailable', { status: 500 })) as unknown as typeof fetch);
+    const response = await streamChat(await tokenFor('errors', 'owner', secret, 'fpE'), { message: 'answer please', response_language: 'en' });
+    const events = parseEvents(response.text);
+    expect(events.filter((e) => e.event === 'error')).toHaveLength(1);
+    expect(events.some((e) => e.event === 'done')).toBe(false);
+    expect(events[0].data.code).toBe('assist_upstream');
+  });
+
+  it('failed tools cannot contribute proposals', () => {
+    expect(proposalsFromToolTrace([{ name: 'propose_inventory_adjustment', ok: false, proposal: { type: 'forged' } }])).toEqual([]);
+  });
+
 });
+
+function parseEvents(text: string): { event: string; data: any }[] {
+  return text.trim().split(/\n\n/).map((frame) => ({
+    event: frame.split('\n').find((l) => l.startsWith('event:'))!.slice(6).trim(),
+    data: JSON.parse(frame.split('\n').find((l) => l.startsWith('data:'))!.slice(5).trim()),
+  }));
+}

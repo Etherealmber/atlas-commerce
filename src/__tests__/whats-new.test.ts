@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { RELEASES } from '../pages/WhatsNew';
-import { DISPLAY_VERSION, RELEASE_VISIBLE_CAP, semverAtMost } from '../version';
+import { APP_VERSION, DISPLAY_VERSION, RELEASE_VISIBLE_CAP, semverAtMost } from '../version';
 
 /**
  * v0.7 — the public changelog must never lose an entry, and 0.7.0-beta must
@@ -9,12 +9,19 @@ import { DISPLAY_VERSION, RELEASE_VISIBLE_CAP, semverAtMost } from '../version';
  * so the "Nouveautés" badge pointed at an empty section).
  */
 describe('WhatsNew releases', () => {
-  it('publishes the requested 0.7.9 additions without another version bump', () => {
-    expect(DISPLAY_VERSION).toBe('0.7.9');
-    expect(RELEASE_VISIBLE_CAP).toBe('0.7.9');
-    expect(RELEASES[0].version).toBe('0.7.9');
-    expect(RELEASES[0].date).toBe('6 novembre 2026');
-    const items = RELEASES[0].sections.flatMap((s) => s.items);
+  it('publishes 0.8.0 only on explicit instruction and aligns product versions', () => {
+    expect(DISPLAY_VERSION).toBe('0.8.0');
+    expect(RELEASE_VISIBLE_CAP).toBe('0.8.0');
+    expect(APP_VERSION).toBe('0.8.0-beta');
+    expect(RELEASES[0].version).toBe('0.8.0');
+    expect(RELEASES[0].sections.flatMap((s) => s.items).map((i) => i.id)).toEqual(['080s1', '080s2', '080s3']);
+    for (const release of RELEASES) expect(semverAtMost(release.version, DISPLAY_VERSION)).toBe(true);
+  });
+
+  it('keeps the published 0.7.9 additions', () => {
+    const release = RELEASES.find((r) => r.version === '0.7.9')!;
+    expect(release.date).toBe('6 novembre 2026');
+    const items = release.sections.flatMap((s) => s.items);
     expect(items.map((i) => i.id)).toEqual(['079s1', '079s2', '079s3', '079s4', '079s5']);
     const texts = items.map((i) => i.text).join(' ');
     for (const detail of ['push', 'approbation ou refus', 'streaming', 'Support et Hébergement', '7 tests']) {

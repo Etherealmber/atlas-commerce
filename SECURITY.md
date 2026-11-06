@@ -7,13 +7,13 @@
 <!-- SUPPORT-SYNC:supported:start -->
 | Version        | Supported          |
 | -------------- | ------------------ |
-| 0.7.x (beta)   | :white_check_mark: |
-| 0.6.x and older| :x:                |
+| 0.8.x (beta)   | :white_check_mark: |
+| 0.7.x and older| :x:                |
 | 1.0.0 (future) | :white_check_mark: at release |
 
-**Policy:** only the current minor (**0.7**) is supported. When the next minor
-ships (e.g. 0.8.0), the previous minor reaches end of support immediately —
-0.6.x ended with the 0.7.0 release. Only the latest beta on `main` receives
+**Policy:** only the current minor (**0.8**) is supported. When the next minor
+ships (e.g. 0.9.0), the previous minor reaches end of support immediately —
+0.7.x ended with the 0.8.0 release. Only the latest beta on `main` receives
 security updates. Production runs the Cloudflare Worker build of `main`;
 previews run per-branch sandboxes.
 <!-- SUPPORT-SYNC:supported:end -->
