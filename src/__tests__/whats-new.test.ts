@@ -14,7 +14,7 @@ describe('WhatsNew releases', () => {
     expect(RELEASE_VISIBLE_CAP).toBe('0.8.0');
     expect(APP_VERSION).toBe('0.8.0-beta');
     expect(RELEASES[0].version).toBe('0.8.0');
-    expect(RELEASES[0].sections.flatMap((s) => s.items).map((i) => i.id)).toEqual(['080s1', '080s2', '080s3']);
+    expect(RELEASES[0].sections.flatMap((s) => s.items).map((i) => i.id)).toEqual(['080s1', '080s2', '080s4', '080s3']);
     for (const release of RELEASES) expect(semverAtMost(release.version, DISPLAY_VERSION)).toBe(true);
   });
 

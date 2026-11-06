@@ -39,6 +39,7 @@ export const RELEASES: Release[] = [
         items: [
           { id: '080s1', platforms: ['server'], text: 'Atlas Agent : le streaming conserve les outils métier autorisés et transmet désormais les propositions d’actions dans la réponse finale, avec les traces d’outils et les métadonnées utiles aux clients Android. Une proposition ne vaut pas validation automatique.' },
           { id: '080s2', platforms: ['server'], text: 'Connexion mobile : la déconnexion authentifiée confirme si la reprise a été préparée. Le mot de passe reste requis ; l’OTP reste obligatoire sans reprise valide ou avec la 2FA activée.' },
+          { id: '080s4', platforms: ['web'], text: 'Bienvenue : les captures de démonstration sont présentées une par une, dans des étapes séparées avec Précédent / Suivant, plutôt qu’une longue galerie sur une seule page.' },
         ],
       },
       {

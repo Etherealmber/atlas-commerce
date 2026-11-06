@@ -21129,3 +21129,35 @@ html body .public-settings-topbar {
   color: var(--muted, #71717a);
 }
 .ac-user-dropdown-accounts { border-bottom: 1px solid var(--line, #e4e4e7); padding-bottom: 6px; }
+
+/* Welcome 0.8.0: one capture per step, with bounded desktop/mobile media. */
+.welcome-preview-step .welcome-preview-media {
+  margin: 20px 0;
+  padding: 12px;
+  border: 1px solid var(--line, #e4e4e7);
+  border-radius: 16px;
+  background: var(--paper, #fafafa);
+}
+.welcome-preview-media picture { display: block; }
+.welcome-preview-media img {
+  display: block;
+  width: 100%;
+  height: min(48vh, 440px);
+  object-fit: contain;
+  border-radius: 8px;
+}
+.welcome-preview-step .welcome-nav {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.welcome-preview-step .welcome-nav button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+@media (max-width: 600px) {
+  .welcome-preview-step .welcome-preview-media { padding: 6px; margin: 16px 0; }
+  .welcome-preview-media img { height: min(42vh, 360px); }
+}

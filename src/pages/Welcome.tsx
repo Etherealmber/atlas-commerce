@@ -1,13 +1,18 @@
+import { WelcomePreview } from '../components/WelcomePreview';
 import { FeatureTour } from '../components/ui/FeatureTour';
 import { Package, FileText, Users, Bot, BarChart3 } from 'lucide-react';
 /**
  * Full-screen Atlas Commerce welcome — comparison engine, mastery tips, theme/density.
  * No legacy modals. State survives refresh via localStorage.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   WELCOME_STEP_COUNT,
+  WELCOME_PREVIEW_START,
+  WELCOME_FEATURES_STEP,
+  WELCOME_COMPARE_STEP,
+  WELCOME_FINAL_STEP,
   getWelcomePrefs,
   getWelcomeStep,
   isWelcomeCompleted,
@@ -40,77 +45,6 @@ function applyThemeMode(mode: WelcomeTheme) {
         : 'light'
       : mode;
   document.documentElement.setAttribute('data-theme', resolved);
-}
-
-/** Mini « captures » vectorielles des écrans clés — suivent le thème courant. */
-function ScreenShot({ kind }: { kind: 'dash' | 'sale' | 'scan' | 'stock' }) {
-  const bars = [20, 44, 32, 58, 40, 66, 50];
-  return (
-    <svg viewBox="0 0 320 200" className="wshot" aria-hidden>
-      <rect x="0.5" y="0.5" width="319" height="199" rx="14" className="wshot-bg" />
-      <path d="M1 14 a13 13 0 0 1 13-13 h292 a13 13 0 0 1 13 13 v12 H1 Z" className="wshot-bar" />
-      <circle cx="16" cy="13" r="3.5" className="wshot-dot" />
-      <circle cx="28" cy="13" r="3.5" className="wshot-dot" />
-      <circle cx="40" cy="13" r="3.5" className="wshot-dot" />
-      <rect x="12" y="34" width="52" height="154" rx="10" className="wshot-side" />
-      {[0, 1, 2, 3, 4].map((i) => (
-        <rect key={i} x="22" y={48 + i * 18} width="32" height="8" rx="4" className="wshot-line" />
-      ))}
-      {kind === 'dash' && (
-        <g>
-          {[0, 1, 2].map((i) => (
-            <g key={i}>
-              <rect x={76 + i * 80} y="42" width="72" height="40" rx="8" className="wshot-card" />
-              <rect x={84 + i * 80} y="52" width="30" height="6" rx="3" className="wshot-line" />
-              <rect x={84 + i * 80} y="64" width="44" height="10" rx="4" className="wshot-strong" />
-            </g>
-          ))}
-          <rect x="76" y="92" width="232" height="96" rx="10" className="wshot-card" />
-          {bars.map((h, i) => (
-            <rect key={i} x={92 + i * 30} y={176 - h} width="16" height={h} rx="4" className="wshot-accent" />
-          ))}
-        </g>
-      )}
-      {kind === 'sale' && (
-        <g>
-          {[0, 1, 2, 3, 4, 5].map((i) => (
-            <g key={i}>
-              <rect x={76 + (i % 3) * 78} y={42 + Math.floor(i / 3) * 56} width="70" height="48" rx="8" className="wshot-card" />
-              <rect x={84 + (i % 3) * 78} y={54 + Math.floor(i / 3) * 56} width="40" height="7" rx="3" className="wshot-line" />
-              <rect x={84 + (i % 3) * 78} y={68 + Math.floor(i / 3) * 56} width="26" height="9" rx="4" className="wshot-strong" />
-            </g>
-          ))}
-          <rect x="76" y="160" width="160" height="28" rx="8" className="wshot-card" />
-          <rect x="244" y="160" width="64" height="28" rx="8" className="wshot-accent" />
-        </g>
-      )}
-      {kind === 'scan' && (
-        <g>
-          <rect x="96" y="46" width="192" height="104" rx="12" className="wshot-card" />
-          <path d="M108 62 v-8 h12 M276 62 v-8 h-12 M108 134 v8 h12 M276 134 v8 h-12" className="wshot-corners" />
-          <rect x="112" y="94" width="160" height="4" rx="2" className="wshot-accent" />
-          <rect x="128" y="70" width="96" height="6" rx="3" className="wshot-line" />
-          <rect x="128" y="112" width="72" height="6" rx="3" className="wshot-line" />
-          <rect x="96" y="160" width="120" height="28" rx="8" className="wshot-card" />
-          <circle cx="252" cy="174" r="14" className="wshot-badge" />
-        </g>
-      )}
-      {kind === 'stock' && (
-        <g>
-          <rect x="76" y="42" width="232" height="18" rx="6" className="wshot-bar" />
-          {[0, 1, 2, 3, 4].map((i) => (
-            <g key={i}>
-              <rect x="76" y={66 + i * 25} width="232" height="20" rx="6" className="wshot-card" />
-              <rect x="84" y={73 + i * 25} width="70" height="7" rx="3" className="wshot-strong" />
-              <rect x="170" y={73 + i * 25} width="40" height="7" rx="3" className="wshot-line" />
-              <rect x="228" y={71 + i * 25} width="34" height="10" rx="5" className={i === 2 ? 'wshot-badge' : 'wshot-accent'} />
-              <rect x="272" y={73 + i * 25} width="28" height="7" rx="3" className="wshot-line" />
-            </g>
-          ))}
-        </g>
-      )}
-    </svg>
-  );
 }
 
 function ThemeMock({ mode }: { mode: WelcomeTheme }) {
@@ -584,6 +518,7 @@ export default function Welcome() {
     [],
   );
 
+  const panelRef = useRef<HTMLDivElement>(null);
   const [step, setStep] = useState(() => getWelcomeStep());
   const [prefs, setPrefs] = useState<WelcomePrefs>(() => getWelcomePrefs());
   const [showNext, setShowNext] = useState(step !== 0);
@@ -597,6 +532,12 @@ export default function Welcome() {
 
   useEffect(() => {
     setWelcomeStep(step);
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    const heading = panelRef.current?.querySelector<HTMLElement>('h1, h2');
+    if (heading) {
+      heading.tabIndex = -1;
+      heading.focus({ preventScroll: true });
+    }
   }, [step]);
 
   useEffect(() => {
@@ -638,7 +579,7 @@ export default function Welcome() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Enter') return;
       const t = e.target as HTMLElement | null;
-      if (t && (t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || (t.tagName === 'INPUT' && (t as HTMLInputElement).type !== 'checkbox' && (t as HTMLInputElement).type !== 'radio' && (t as HTMLInputElement).type !== 'button'))) {
+      if (t && (t.closest('button, a, [role="tab"]') || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || (t.tagName === 'INPUT' && (t as HTMLInputElement).type !== 'checkbox' && (t as HTMLInputElement).type !== 'radio' && (t as HTMLInputElement).type !== 'button'))) {
         return;
       }
       if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -693,6 +634,7 @@ export default function Welcome() {
       <div
         className="welcome-progress"
         role="progressbar"
+        aria-label="Progression du guide de bienvenue"
         aria-valuenow={step + 1}
         aria-valuemin={1}
         aria-valuemax={WELCOME_STEP_COUNT}
@@ -700,7 +642,7 @@ export default function Welcome() {
         <div className="welcome-progress-bar" style={{ width: `${progress}%` }} />
       </div>
 
-      <div className="welcome-inner">
+      <div className="welcome-inner" ref={panelRef}>
         {step === 0 && (
           <section className="welcome-panel welcome-hello" key="hello">
             <p className="welcome-kicker">{APP_NAME}</p>
@@ -757,49 +699,19 @@ export default function Welcome() {
           </section>
         )}
 
-        {step === 2 && (
-                    <section className="welcome-panel welcome-panel-wide" key="features">
-            <div className="welcome-features-hero">
-              <span className="welcome-features-badge">★ Nos fonctionnalités</span>
-              <h2 className="welcome-title">Tout pour vendre et gérer plus vite</h2>
-              <p className="welcome-sub">Du stock à la facture, de la caisse aux employés — un seul outil clair.</p>
-              <div className="welcome-hero-shot">
-                <img
-                  src="/shots/demo.gif"
-                  alt="Enregistrement réel d'une session Atlas Commerce (thème sombre)"
-                  width={900}
-                  height={560}
-                  loading="eager"
-                  decoding="async"
-                />
-              </div>
-              <div className="welcome-gallery">
-                <figure>
-                  <img src="/shots/dashboard-dark.png" alt="Tableau de bord — thème sombre" loading="lazy" decoding="async" />
-                  <figcaption>Tableau de bord — sombre</figcaption>
-                </figure>
-                <figure>
-                  <img src="/shots/dashboard-light.png" alt="Tableau de bord — thème clair" loading="lazy" decoding="async" />
-                  <figcaption>Tableau de bord — clair</figcaption>
-                </figure>
-                <figure>
-                  <img src="/shots/devis-modal-dark.png" alt="Assistant de création de devis — thème sombre" loading="lazy" decoding="async" />
-                  <figcaption>Devis — assistant pas à pas</figcaption>
-                </figure>
-                <figure>
-                  <img src="/shots/settings-dark.png" alt="Paramètres — apparence en thème sombre" loading="lazy" decoding="async" />
-                  <figcaption>Paramètres — apparence</figcaption>
-                </figure>
-                <figure>
-                  <img src="/shots/phone-dashboard-dark.png" alt="Tableau de bord sur téléphone — thème sombre" loading="lazy" decoding="async" />
-                  <figcaption>Tableau de bord — téléphone</figcaption>
-                </figure>
-                <figure>
-                  <img src="/shots/phone-quotes-dark.png" alt="Devis sur téléphone — thème sombre" loading="lazy" decoding="async" />
-                  <figcaption>Devis — téléphone</figcaption>
-                </figure>
-              </div>
-            </div>
+        {step >= WELCOME_PREVIEW_START && step < WELCOME_FEATURES_STEP && (
+          <WelcomePreview
+            key={step}
+            index={step - WELCOME_PREVIEW_START}
+            onPrevious={() => go(step - 1)}
+            onNext={() => go(step + 1)}
+          />
+        )}
+
+        {step === WELCOME_FEATURES_STEP && (
+          <section className="welcome-panel welcome-panel-wide" key="features">
+            <h2 className="welcome-title">Tout pour vendre et gérer plus vite</h2>
+            <p className="welcome-sub">Du stock à la facture, de la caisse aux employés — un seul outil clair.</p>
             <div className="welcome-features-grid">
               {WELCOME_FEATURES.map((f, i) => (
                 <article
@@ -818,33 +730,18 @@ export default function Welcome() {
                 </article>
               ))}
             </div>
-            <div className="wshots" aria-label="Aperçu des écrans">
-              {(
-                [
-                  ['dash', 'Tableau de bord'],
-                  ['sale', 'Caisse rapide'],
-                  ['scan', 'Scan & réassort'],
-                  ['stock', 'Catalogue & stock'],
-                ] as const
-              ).map(([k, cap]) => (
-                <div className="wshot-frame" key={k}>
-                  <ScreenShot kind={k} />
-                  <div className="wshot-cap">{cap}</div>
-                </div>
-              ))}
-            </div>
             <div className="welcome-nav">
-              <button type="button" className="welcome-btn-ghost" onClick={() => go(1)}>
+              <button type="button" className="welcome-btn-ghost" onClick={() => go(WELCOME_FEATURES_STEP - 1)}>
                 Retour
               </button>
-              <button type="button" className="welcome-cta" onClick={() => go(3)}>
+              <button type="button" className="welcome-cta" onClick={() => go(WELCOME_COMPARE_STEP)}>
                 Suivant
               </button>
             </div>
           </section>
         )}
 
-        {step === 3 && (
+        {step === WELCOME_COMPARE_STEP && (
           <section className="welcome-panel welcome-panel-wide" key="compare">
             <h2 className="welcome-title">Pourquoi {APP_NAME} change la donne</h2>
             <p className="welcome-sub">Comparaisons animées — papier &amp; outils lourds face à Atlas.</p>
@@ -877,17 +774,17 @@ export default function Welcome() {
             </div>
             <MasteryTips />
             <div className="welcome-nav">
-              <button type="button" className="welcome-btn-ghost" onClick={() => go(2)}>
+              <button type="button" className="welcome-btn-ghost" onClick={() => go(WELCOME_FEATURES_STEP)}>
                 Retour
               </button>
-              <button type="button" className="welcome-cta" onClick={() => go(4)}>
+              <button type="button" className="welcome-cta" onClick={() => go(WELCOME_FINAL_STEP)}>
                 Suivant
               </button>
             </div>
           </section>
         )}
 
-        {step === 4 && (
+        {step === WELCOME_FINAL_STEP && (
           <section className="welcome-panel welcome-close" key="close">
             <p className="welcome-thanks welcome-fade-up">Merci de nous faire confiance</p>
             <h2 className="welcome-title welcome-fade-up" style={{ animationDelay: '0.08s' }}>
@@ -936,7 +833,7 @@ export default function Welcome() {
             </div>
 
             <div className="welcome-nav">
-              <button type="button" className="welcome-btn-ghost" onClick={() => go(3)}>
+              <button type="button" className="welcome-btn-ghost" onClick={() => go(WELCOME_COMPARE_STEP)}>
                 Retour
               </button>
               <button type="button" className="welcome-cta welcome-cta-glow" onClick={finish} disabled={leaving}>

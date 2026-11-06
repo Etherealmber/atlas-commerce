@@ -18,7 +18,24 @@ export type WelcomePrefs = {
   liquidGlass: boolean;
 };
 
-export const WELCOME_STEP_COUNT = 5;
+/** Real captures are individual welcome steps, never a stacked gallery. */
+export const WELCOME_PREVIEWS = [
+  { src: '/shots/demo.gif', title: 'Une session Atlas, en pratique', description: 'Découvrez le parcours de création d’un devis dans l’application.', alt: 'Enregistrement réel d’une session Atlas Commerce', poster: '/shots/devis-modal-dark.png' },
+  { src: '/shots/dashboard-dark.png', title: 'Tableau de bord — sombre', description: 'Suivez votre activité dans une interface sombre.', alt: 'Tableau de bord Atlas Commerce en thème sombre' },
+  { src: '/shots/dashboard-light.png', title: 'Tableau de bord — clair', description: 'Retrouvez les mêmes repères dans le thème clair.', alt: 'Tableau de bord Atlas Commerce en thème clair' },
+  { src: '/shots/devis-modal-dark.png', title: 'Un devis, étape par étape', description: 'Renseignez le client, ajoutez les lignes puis vérifiez votre devis.', alt: 'Assistant de création de devis Atlas Commerce' },
+  { src: '/shots/settings-dark.png', title: 'Une interface à votre goût', description: 'Découvrez les réglages d’apparence de votre espace de travail.', alt: 'Paramètres d’apparence Atlas Commerce' },
+  { src: '/shots/phone-dashboard-dark.png', title: 'Votre activité sur téléphone', description: 'Consultez votre tableau de bord dans un format adapté au mobile.', alt: 'Tableau de bord Atlas Commerce sur téléphone' },
+  { src: '/shots/phone-quotes-dark.png', title: 'Les devis, même sur mobile', description: 'Retrouvez vos devis depuis votre téléphone.', alt: 'Liste des devis Atlas Commerce sur téléphone' },
+] as const;
+
+export const WELCOME_PREVIEW_START = 2;
+export const WELCOME_FEATURES_STEP = WELCOME_PREVIEW_START + WELCOME_PREVIEWS.length;
+export const WELCOME_COMPARE_STEP = WELCOME_FEATURES_STEP + 1;
+export const WELCOME_FINAL_STEP = WELCOME_COMPARE_STEP + 1;
+export const WELCOME_STEP_COUNT = WELCOME_FINAL_STEP + 1;
+const WELCOME_LAYOUT_KEY = 'atlas_welcome_layout';
+const WELCOME_LAYOUT = 'capture-steps-v2';
 
 export function isWelcomeCompleted(): boolean {
   try {
@@ -60,6 +77,7 @@ export function resetWelcome(): void {
   try {
     localStorage.setItem(WELCOME_COMPLETED_KEY, 'false');
     localStorage.setItem(WELCOME_STEP_KEY, '0');
+    localStorage.setItem(WELCOME_LAYOUT_KEY, WELCOME_LAYOUT);
   } catch {
     /* */
   }
@@ -68,7 +86,16 @@ export function resetWelcome(): void {
 export function getWelcomeStep(): number {
   try {
     const n = parseInt(localStorage.getItem(WELCOME_STEP_KEY) || '0', 10);
-    if (Number.isFinite(n) && n >= 0 && n < WELCOME_STEP_COUNT) return n;
+    if (Number.isFinite(n) && n >= 0 && n < WELCOME_STEP_COUNT) {
+      // Keep existing in-progress users on comparison / final screens after
+      // inserting previews. Completed installs are not forced through again.
+      if (localStorage.getItem(WELCOME_LAYOUT_KEY) !== WELCOME_LAYOUT) {
+        if (n === 3) return WELCOME_COMPARE_STEP;
+        if (n === 4) return WELCOME_FINAL_STEP;
+        if (n > 4) return 0;
+      }
+      return n;
+    }
   } catch {
     /* */
   }
@@ -79,6 +106,7 @@ export function setWelcomeStep(step: number): void {
   try {
     const s = Math.max(0, Math.min(WELCOME_STEP_COUNT - 1, step));
     localStorage.setItem(WELCOME_STEP_KEY, String(s));
+    localStorage.setItem(WELCOME_LAYOUT_KEY, WELCOME_LAYOUT);
   } catch {
     /* */
   }

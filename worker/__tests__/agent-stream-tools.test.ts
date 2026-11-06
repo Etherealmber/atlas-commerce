@@ -364,8 +364,12 @@ describe('POST /api/assist/chat/stream — parité outils (v0.7.8)', () => {
     const reader = response.body.getReader();
     let text = '';
     try {
-      const first = await reader.read();
-      text = new TextDecoder().decode(first.value);
+      const decoder = new TextDecoder();
+      while (!text.includes('\n\n')) {
+        const chunk = await reader.read();
+        if (chunk.done) break;
+        text += decoder.decode(chunk.value, { stream: true });
+      }
       expect(text).toContain('event: token');
       expect(text).toContain('Live ');
       expect(text).not.toContain('event: done');
@@ -401,6 +405,37 @@ describe('POST /api/assist/chat/stream — parité outils (v0.7.8)', () => {
     expect(events.filter((e) => e.event === 'error')).toHaveLength(1);
     expect(events.some((e) => e.event === 'done')).toBe(false);
     expect(events[0].data.code).toBe('assist_upstream');
+  });
+
+  it('refuses business tools on both routes if tool preferences cannot be loaded', async () => {
+    const secret = await seedUser('pref-failure', 'Test1234!', 'owner');
+    seedDevice('fpPref', 'pref-failure');
+    const original = db.prepare.bind(db);
+    db.prepare = (sql: string) => {
+      if (sql.includes('SELECT tool, enabled FROM agent_tool_prefs')) throw new Error('preferences unavailable');
+      return original(sql);
+    };
+    vi.stubGlobal('fetch', (async (_url: any, init: any) => {
+      const body = JSON.parse(init.body);
+      groqBodies.push(body);
+      const called = body.messages.some((m: any) => m.role === 'tool');
+      const call = { id: 'pref-call', type: 'function', function: { name: 'propose_inventory_adjustment', arguments: '{"product_id":1,"delta":2}' } };
+      if (body.stream) return called ? sseResponse([contentDelta('Unavailable.')]) : sseResponse([toolCallDelta(0, call.id, call.function.name, call.function.arguments)]);
+      return Response.json({ choices: [{ message: called ? { content: 'Unavailable.' } : { tool_calls: [call] } }] });
+    }) as unknown as typeof fetch);
+    const token = await tokenFor('pref-failure', 'owner', secret, 'fpPref');
+    for (const path of ['/api/assist/chat', '/api/assist/chat/stream']) {
+      const response = await app.fetch(new Request(`http://test.local${path}`, {
+        method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'CF-Connecting-IP': IP },
+        body: JSON.stringify({ message: 'propose stock change', response_language: 'en' }),
+      }), env);
+      const result = path.endsWith('/stream')
+        ? parseEvents(await response.text()).find((e) => e.event === 'done')!.data
+        : (await response.json()).data;
+      expect(result.proposals).toEqual([]);
+      expect(result.tool_trace[0]).toMatchObject({ name: 'propose_inventory_adjustment', ok: false });
+    }
+    for (const body of groqBodies) expect(toolNames(body)).not.toContain('propose_inventory_adjustment');
   });
 
   it('failed tools cannot contribute proposals', () => {

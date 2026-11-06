@@ -16028,7 +16028,7 @@ app.get('/api/assist/transcripts/get', async (c) => {
  * métier role-filtered via runAssistTool. Même comportement des deux côtés. */
 function agentChatTools(role: string, knowledge: Awaited<ReturnType<typeof loadAgentKnowledge>> | null) {
   return [
-    ...toolsForRole(role).filter((d) => knowledge?.toolPrefs[d.function.name] !== 0),
+    ...toolsForRole(role).filter((d) => knowledge !== null && knowledge.toolPrefs[d.function.name] !== 0),
     ...KNOWLEDGE_TOOL_DEFS,
   ];
 }
