@@ -9,7 +9,7 @@
 <!-- Badges -->
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 <!-- SUPPORT-SYNC:badge:start -->
-![Version](https://img.shields.io/badge/version-0.7.7--beta-blue)
+![Version](https://img.shields.io/badge/version-0.8.0--beta-blue)
 <!-- SUPPORT-SYNC:badge:end -->
 ![Build](https://img.shields.io/badge/build-cloudflare%20workers-orange)
 ![Stack](https://img.shields.io/badge/stack-React%20%2B%20Vite%20%2B%20D1%20%2B%20R2-0a0a0a)
@@ -40,6 +40,10 @@ Enregistrement d'une session complète (connexion → tableau de bord → devis)
 Captures desktop **et téléphone** (coque mobile réelle) dans `public/shots/` ; posters Instagram 1:1 avec vrais écrans dans `marketing/atlas-instagram-posters.zip`.
 
 ![Session Atlas Commerce](public/shots/demo.gif)
+
+## Intégration Android — 0.8.0
+
+Le [contrat Android ↔ Worker](docs/android-worker-0.8.md) décrit la reprise de connexion authentifiée, la confirmation `resume_prepared` et les événements SSE Agent (`token`, `tool`, `done`, `error`) avec propositions et permissions métier. La modification du Worker ne bascule pas automatiquement le chat de l’APK : son intégration reste à livrer côté Android.
 
 ## 🚀 Starter — démarrer de zéro
 
@@ -319,9 +323,9 @@ Atlas Commerce est développé et maintenu par **loxdpy ([@loxdpsy](https://gith
 - Les trois tournent sur chaque pull request (et sur main) avec filters par chemin : un PR rouge ne devrait jamais être mergé, donc jamais déployé
 
 <!-- SUPPORT-SYNC:support:start -->
-Version actuelle : **0.7.7-beta** (gelée jusqu'au prochain ordre de push).
+Version actuelle : **0.8.0-beta** (gelée jusqu'au prochain ordre de push).
 
-> **Politique de support** : seule la mineure courante (**0.7**) reçoit correctifs et mises à jour de sécurité. Dès la sortie de la mineure suivante (ex. 0.8.0), la mineure précédente passe immédiatement en fin de support — 0.6.x l'est depuis 0.7.0. Les versions 0.6.x et antérieures ne sont plus supportées.
+> **Politique de support** : seule la mineure courante (**0.8**) reçoit correctifs et mises à jour de sécurité. Dès la sortie de la mineure suivante (ex. 0.9.0), la mineure précédente passe immédiatement en fin de support — 0.7.x l'est depuis 0.8.0. Les versions 0.7.x et antérieures ne sont plus supportées.
 <!-- SUPPORT-SYNC:support:end -->
 
 Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depuis la première version interne ; le détail complet et vivant est dans l'app (**Nouveautés**), y compris l’ancien cycle bêta pré-renumérotation, renuméroté en **0.x** (0.0.1 → 0.4.4).

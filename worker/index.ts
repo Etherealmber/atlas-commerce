@@ -74,7 +74,7 @@ import {
 import { geminiSimpleChat, atlasAgentSystem, scrubVendorNames, normalizeResponseLanguage } from './lib/gemini-assist';
 import { pickUiLang, tr } from './lib/error-i18n';
 import { tokenraChat } from './lib/tokenra-assist';
-import { groqChat, groqChatStream, groqChatStreamWithTools, groqChatWithTools } from './lib/groq-assist';
+import { groqChat, groqChatStream, groqChatStreamWithTools, groqChatWithTools, proposalsFromToolTrace, type AgentToolTrace, type AgentToolResult } from './lib/groq-assist';
 import {
   loadAgentKnowledge,
   addMemory,
@@ -2716,13 +2716,15 @@ app.post('/api/auth/login', async (c) => {
     try {
       const twofaOn = (await getConfig(c.env.DB, 'twofa_enabled', '0')) === '1';
       if (!twofaOn) {
+        // Atomic check + consumption: two simultaneous logins cannot both
+        // reuse one marker. Password validation above remains mandatory.
         const rrow = await c.env.DB.prepare(
-          `SELECT username FROM trusted_devices WHERE fingerprint = ? AND resume_until != '' AND resume_until > datetime('now')`,
-        ).bind(fingerprint.slice(0, 128)).first() as any;
-        if (rrow && String(rrow.username || '').toLowerCase() === username) {
-          await c.env.DB.prepare(
-            `UPDATE trusted_devices SET resume_until = '', last_seen = datetime('now'), last_ip = ? WHERE fingerprint = ?`,
-          ).bind(ip, fingerprint.slice(0, 128)).run();
+          `UPDATE trusted_devices SET resume_until = '', last_seen = datetime('now'), last_ip = ?
+           WHERE fingerprint = ? AND lower(username) = ?
+             AND resume_until != '' AND resume_until > datetime('now')
+           RETURNING username`,
+        ).bind(ip, fingerprint.slice(0, 128), username).first() as any;
+        if (rrow) {
           await recordLogin(c.env.DB, ip, fingerprint, true, ua);
           await writeAudit(c.env.DB, { username, role, action: 'auth.login', entity: 'session', detail: 'resume_after_self_logout', ip });
           const resumeToken = await makeTokenV2(username, role, secretMaterial, ip, fingerprint);
@@ -5040,12 +5042,16 @@ app.post('/api/auth/logout', async (c) => {
   const fingerprint = String(c.req.header('X-Device-Fingerprint') || '').slice(0, 128);
   const sess = sessionUserFromHeader(c.req.header('Authorization'));
   await ensureSecurityTables(c.env.DB);
+  let resumePrepared = false;
   if (fingerprint && sess?.username) {
     try {
-      await c.env.DB.prepare(
+      const marked = await c.env.DB.prepare(
         `UPDATE trusted_devices SET resume_until = datetime('now', '+30 days') WHERE fingerprint = ? AND lower(username) = ?`,
       ).bind(fingerprint, String(sess.username).toLowerCase()).run();
-    } catch { /* */ }
+      resumePrepared = Number(marked.meta?.changes || 0) > 0;
+    } catch {
+      return c.json({ success: false, resume_prepared: false, code: 'RESUME_PREPARATION_FAILED', error: 'Reprise indisponible. Une vérification pourra être nécessaire à la prochaine connexion.' }, 503);
+    }
     await writeAudit(c.env.DB, {
       username: sess.username,
       role: sess.role || '',
@@ -5055,7 +5061,7 @@ app.post('/api/auth/logout', async (c) => {
       ip: clientIp(c),
     });
   }
-  return c.json({ success: true });
+  return c.json({ success: true, resume_prepared: resumePrepared });
 });
 
 app.get('/api/auth/me', async (c) => {
@@ -16020,8 +16026,17 @@ app.get('/api/assist/transcripts/get', async (c) => {
 /** v0.7.8 — exécuteur d'outils Agent PARTAGÉ entre /api/assist/chat (buffer) et
  * /api/assist/chat/stream (flux) : outils « savoir » (mémoire/RAG) puis outils
  * métier role-filtered via runAssistTool. Même comportement des deux côtés. */
-function agentKnowledgeExecutor(c: any, username: string, role: string) {
-  return async (name: string, args: Record<string, unknown>): Promise<{ ok: boolean; data?: unknown; error?: string }> => {
+function agentChatTools(role: string, knowledge: Awaited<ReturnType<typeof loadAgentKnowledge>> | null) {
+  return [
+    ...toolsForRole(role).filter((d) => knowledge?.toolPrefs[d.function.name] !== 0),
+    ...KNOWLEDGE_TOOL_DEFS,
+  ];
+}
+
+function agentKnowledgeExecutor(c: any, username: string, role: string, tools: ReturnType<typeof agentChatTools>) {
+  const allowed = new Set(tools.map((t) => t.function.name));
+  return async (name: string, args: Record<string, unknown>): Promise<AgentToolResult> => {
+    if (!allowed.has(name)) return { ok: false, error: 'Outil non autorisé ou désactivé.' };
     if (name === 'save_memory') {
       try {
         const row = await addMemory(c.env.DB, username, String(args.content || ''), 'user');
@@ -16131,6 +16146,7 @@ app.post('/api/assist/chat', async (c) => {
   try {
     // v0.7.7 — savoir persistant (mémoire, contexte, garde-fous, RAG) injecté côté serveur
     const knowledge = await loadAgentKnowledge(c.env.DB, username).catch(() => null);
+    const chatTools = agentChatTools(role, knowledge);
     const knowSection = knowledge ? knowledgePromptSections(knowledge, userMessage) : '';
     const system =
       atlasAgentSystem({ role, username, timezone: tz, source: sourceRefined, responseLanguage }) + knowSection;
@@ -16139,7 +16155,7 @@ app.post('/api/assist/chat', async (c) => {
     const finalMessage = (history
       ? `Historique récent de la conversation (contexte uniquement — ne pas recopier):\n${history}\n\n${message}`
       : message) + docSection;
-    let toolTrace: { name: string; ok: boolean; error?: string; data?: unknown }[] = [];
+    let toolTrace: AgentToolTrace[] = [];
     const outGq = images.length
       ? await groqChat({
           apiKey: groqKey,
@@ -16155,17 +16171,8 @@ app.post('/api/assist/chat', async (c) => {
           system,
           message: finalMessage,
           maxTokens: isGreeting ? 300 : 700,
-          tools: [
-            ...toolsForRole(role).filter((d: any) =>
-              knowledge
-                ? knowledge.toolPrefs[d.function.name] === undefined
-                  ? true
-                  : knowledge.toolPrefs[d.function.name] === 1
-                : true,
-            ),
-            ...KNOWLEDGE_TOOL_DEFS,
-          ],
-          executor: agentKnowledgeExecutor(c, username, role),
+          tools: chatTools,
+          executor: agentKnowledgeExecutor(c, username, role, chatTools),
         });
     toolTrace = (outGq as any).tool_trace || [];
     const replyGq = scrubVendorNames(String(outGq.reply || '').trim());
@@ -16191,7 +16198,7 @@ app.post('/api/assist/chat', async (c) => {
         history_turns: history ? history.split('\n').length : 0,
         documents: docsMeta,
         tool_trace: toolTrace,
-        proposals: [],
+        proposals: proposalsFromToolTrace(toolTrace),
         task,
       },
     });
@@ -16266,13 +16273,14 @@ app.post('/api/assist/chat/stream', async (c) => {
             const quick = quickAssistHint(userMessage, snap);
             if (quick) {
               send('token', { t: quick });
-              send('done', { reply: quick, model: 'local', provider: 'local', usage: null, documents: docsMeta, thread_id: threadId, tool_trace: [] });
+              send('done', { reply: quick, model: 'local', provider: 'local', usage: null, documents: docsMeta, thread_id: threadId, tool_trace: [], proposals: [], task, history_turns: 0 });
               return;
             }
           } catch { /* fall through to LLM */ }
         }
         // v0.7.7 — même savoir persistant que le jumeau bufferisé
         const knowledge = await loadAgentKnowledge(c.env.DB, username).catch(() => null);
+        const chatTools = agentChatTools(role, knowledge);
         const knowSection = knowledge ? knowledgePromptSections(knowledge, userMessage) : '';
         const system =
           atlasAgentSystem({ role, username, timezone: tz, source, responseLanguage }) + knowSection;
@@ -16283,7 +16291,7 @@ app.post('/api/assist/chat/stream', async (c) => {
         let reply = '';
         let usedModel = model;
         let usage: { prompt: number; completion: number } | undefined;
-        let toolTrace: { name: string; ok: boolean; error?: string; data?: unknown }[] = [];
+        let toolTrace: AgentToolTrace[] = [];
         if (images.length) {
           // Buffered vision fallback — the whole reply arrives as one token event.
           const out = await groqChat({ apiKey: groqKey, model: '', system, message: finalMessage, maxTokens: 1200, images });
@@ -16300,18 +16308,9 @@ app.post('/api/assist/chat/stream', async (c) => {
             model,
             system,
             message: finalMessage,
-            maxTokens: 700,
-            tools: [
-              ...toolsForRole(role).filter((d: any) =>
-                knowledge
-                  ? knowledge.toolPrefs[d.function.name] === undefined
-                    ? true
-                    : knowledge.toolPrefs[d.function.name] === 1
-                  : true,
-              ),
-              ...KNOWLEDGE_TOOL_DEFS,
-            ],
-            executor: agentKnowledgeExecutor(c, username, role),
+            maxTokens: isGreeting ? 300 : 700,
+            tools: chatTools,
+            executor: agentKnowledgeExecutor(c, username, role, chatTools),
             onToken: (delta) => send('token', { t: delta }),
             onTool: (t) => send('tool', t),
           });
@@ -16331,7 +16330,7 @@ app.post('/api/assist/chat/stream', async (c) => {
         await writeAudit(c.env.DB, {
           username, role, action: 'assist.chat.stream', entity: 'atlas_agent', detail: 'groq', ip: clientIp(c),
         });
-        send('done', { reply, model: usedModel, provider: 'groq', usage: usage || null, documents: docsMeta, thread_id: threadId, tool_trace: toolTrace });
+        send('done', { reply, model: usedModel, provider: 'groq', usage: usage || null, documents: docsMeta, thread_id: threadId, tool_trace: toolTrace, proposals: proposalsFromToolTrace(toolTrace), task, history_turns: history ? history.split('\n').length : 0 });
       } catch (e: any) {
         try { await auditAssist(c.env, { username, role, message, tools: 'error', ok: false }); } catch { /* */ }
         send('error', { code: 'assist_upstream', error: tr(uiLang, 'agent_upstream') });

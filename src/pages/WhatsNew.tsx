@@ -31,6 +31,25 @@ type Release = {
 
 export const RELEASES: Release[] = [
   {
+    version: '0.8.0',
+    date: '6 novembre 2026',
+    sections: [
+      {
+        kind: 'improvements',
+        items: [
+          { id: '080s1', platforms: ['server'], text: 'Atlas Agent : le streaming conserve les outils métier autorisés et transmet désormais les propositions d’actions dans la réponse finale, avec les traces d’outils et les métadonnées utiles aux clients Android. Une proposition ne vaut pas validation automatique.' },
+          { id: '080s2', platforms: ['server'], text: 'Connexion mobile : la déconnexion authentifiée confirme si la reprise a été préparée. Le mot de passe reste requis ; l’OTP reste obligatoire sans reprise valide ou avec la 2FA activée.' },
+        ],
+      },
+      {
+        kind: 'fixes',
+        items: [
+          { id: '080s3', platforms: ['server'], text: 'Sécurité de la reprise : le marqueur du même compte et du même appareil est consommé atomiquement, pour empêcher sa réutilisation par deux connexions simultanées.' },
+        ],
+      },
+    ],
+  },
+  {
     version: '0.7.9',
     date: '6 novembre 2026',
     sections: [
