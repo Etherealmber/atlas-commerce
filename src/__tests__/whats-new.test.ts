@@ -20,7 +20,7 @@ describe('WhatsNew releases', () => {
 
   it('keeps the published 0.7.9 additions', () => {
     const release = RELEASES.find((r) => r.version === '0.7.9')!;
-    expect(release.date).toBe('6 novembre 2026');
+    expect(release.date).toBe('5 novembre 2026');
     const items = release.sections.flatMap((s) => s.items);
     expect(items.map((i) => i.id)).toEqual(['079s1', '079s2', '079s3', '079s4', '079s5']);
     const texts = items.map((i) => i.text).join(' ');

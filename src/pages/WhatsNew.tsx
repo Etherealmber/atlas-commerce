@@ -52,7 +52,7 @@ export const RELEASES: Release[] = [
   },
   {
     version: '0.7.9',
-    date: '6 novembre 2026',
+    date: '5 novembre 2026',
     sections: [
       {
         kind: 'features',
