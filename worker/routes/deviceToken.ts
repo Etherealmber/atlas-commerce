@@ -25,15 +25,17 @@ export function registerDeviceTokenRoutes(
     }
 
     const body = await c.req.json().catch(() => ({}));
-    const token = String(body.token || body.fcm_token || '').trim().slice(0, 512);
+    const token = String(body.token || body.fcm_token || '').trim();
     const platform = String(body.platform || 'android').slice(0, 32);
     if (!token) return c.json({ success: false, error: tr(lang, 'token_required'), code: 'TOKEN_REQUIRED' }, 400);
+    // Never register a truncated value that differs from the SDK's token.
+    if (token.length > 512) return c.json({ success: false, error: 'Jeton de notification trop long.', code: 'TOKEN_INVALID' }, 400);
     try {
       await upsertDeviceToken(c.env.DB, user, token, platform);
       return c.json({ success: true, data: { registered: true } });
-    } catch (e: any) {
-      // Detailed cause server-side only (no secrets, truncated).
-      console.error('[device-token] upsert failed', String(e?.message || e).slice(0, 300));
+    } catch {
+      // DB exceptions can echo bind parameters: never log their raw text.
+      console.error('[device-token]', { outcome: 'store_failed' });
       return c.json(
         {
           success: false,

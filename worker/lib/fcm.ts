@@ -1,11 +1,11 @@
 import { fetchWithTimeout } from './http-client';
 
-/** Module-scoped schema cache (per isolate): CREATE TABLE IF NOT EXISTS once. */
-const localSchemaOnce = new Set<string>();
+/** Schema readiness is per D1 binding, not shared across databases. */
+let pushSchemaReady = new WeakSet<object>();
 
-/** Test-only: clears the per-isolate schema cache between in-process DBs. */
+/** Test-only: clears schema readiness between in-process DBs. */
 export function resetLocalSchemaOnceForTests(): void {
-  localSchemaOnce.clear();
+  pushSchemaReady = new WeakSet<object>();
 }
 
 /**
@@ -99,14 +99,15 @@ async function getGoogleAccessToken(env: FcmEnv): Promise<string | null> {
   });
   const data: any = await res.json().catch(() => ({}));
   if (!res.ok || !data.access_token) {
-    console.error('FCM OAuth failed', res.status, data?.error || data);
+    // OAuth responses can contain sensitive diagnostic text. Never log the body.
+    console.error('[fcm-oauth]', { http_status: res.status, outcome: 'rejected' });
     return null;
   }
   return String(data.access_token);
 }
 
 async function ensurePushTable(db: D1Database) {
-  if (localSchemaOnce.has('ensurePushTable')) return;
+  if (pushSchemaReady.has(db)) return;
 
   await db
     .prepare(
@@ -121,7 +122,7 @@ async function ensurePushTable(db: D1Database) {
     )
     .run();
 
-  localSchemaOnce.add('ensurePushTable');
+  pushSchemaReady.add(db);
 }
 
 /** Upsert FCM registration token for a user. */
@@ -144,10 +145,14 @@ export async function upsertDeviceToken(
     .run();
 }
 
-export async function deleteDeviceToken(db: D1Database, token: string): Promise<void> {
+export async function deleteDeviceToken(db: D1Database, token: string): Promise<boolean> {
   try {
-    await db.prepare(`DELETE FROM device_push_tokens WHERE token = ?`).bind(token).run();
-  } catch { /* */ }
+    const result = await db.prepare(`DELETE FROM device_push_tokens WHERE token = ?`).bind(token).run();
+    return Number(result.meta?.changes || 0) > 0;
+  } catch {
+    console.error('[fcm-token]', { outcome: 'purge_failed' });
+    return false;
+  }
 }
 
 export async function listDeviceTokens(
@@ -161,17 +166,39 @@ export async function listDeviceTokens(
     .prepare(
       `SELECT token, platform FROM device_push_tokens
        WHERE username = ? AND platform = ?
-       ORDER BY updated_at DESC LIMIT ?`,
+       ORDER BY updated_at DESC, id DESC LIMIT ?`,
     )
     .bind(username, platform, limit)
     .all();
   return (rows?.results || []) as PushRow[];
 }
 
-/**
- * Send FCM HTTP v1 data+notification message.
- * Purges token if FCM reports UNREGISTERED / NOT_FOUND.
- */
+/** Firebase tokens are opaque: neither their project nor their freshness can
+ * be inferred from their string. Only an explicitly typed FCM error permits
+ * deletion. HTTP 404 / NOT_FOUND alone can also mean a bad project or URL. */
+const FCM_ERROR_TYPE = 'type.googleapis.com/google.firebase.fcm.v1.FcmError';
+const FCM_CODES = new Set(['UNSPECIFIED_ERROR', 'INVALID_ARGUMENT', 'UNREGISTERED', 'SENDER_ID_MISMATCH', 'QUOTA_EXCEEDED', 'APNS_AUTH_ERROR', 'THIRD_PARTY_AUTH_ERROR', 'UNAVAILABLE', 'INTERNAL']);
+const RPC_CODES = new Set(['OK', 'INVALID_ARGUMENT', 'NOT_FOUND', 'PERMISSION_DENIED', 'UNAUTHENTICATED', 'RESOURCE_EXHAUSTED', 'UNAVAILABLE', 'INTERNAL', 'DEADLINE_EXCEEDED', 'FAILED_PRECONDITION', 'UNKNOWN']);
+
+function responseCodes(body: any): { status: string; fcm_codes: string[] } {
+  const status = RPC_CODES.has(body?.error?.status) ? body.error.status : 'UNKNOWN';
+  const details = Array.isArray(body?.error?.details) ? body.error.details : [];
+  const codes: string[] = details
+    .filter((d: any) => d?.['@type'] === FCM_ERROR_TYPE && FCM_CODES.has(d?.errorCode))
+    .map((d: any) => d.errorCode);
+  return { status, fcm_codes: [...new Set(codes)] };
+}
+
+/** Accept only the expected resource shape; never log arbitrary response text. */
+function acceptedMessageId(body: any, project: string): string | null {
+  const prefix = `projects/${project}/messages/`;
+  if (typeof body?.name !== 'string' || !body.name.startsWith(prefix)) return null;
+  const id = body.name.slice(prefix.length);
+  return /^[A-Za-z0-9_:%.~-]{1,256}$/.test(id) ? id : null;
+}
+
+/** `sent` means accepted by FCM, NOT displayed or delivered to Android.
+ * Only an explicit UNREGISTERED (legacy: NotRegistered) permits purging. */
 export async function sendFcmToUser(
   env: FcmEnv,
   username: string,
@@ -180,96 +207,113 @@ export async function sendFcmToUser(
     body: string;
     data?: FcmDataPayload;
     platform?: string;
+    /** HIGH for time-sensitive, user-visible alerts; NORMAL for nonurgent work. */
+    priority?: 'HIGH' | 'NORMAL';
   },
 ): Promise<{ sent: number; purged: number }> {
+  const title = String(opts.title || '').trim();
+  const body = String(opts.body || '').trim();
+  if (!title || !body) {
+    console.error('[fcm-send]', { outcome: 'invalid_notification' });
+    return { sent: 0, purged: 0 };
+  }
   const tokens = await listDeviceTokens(env.DB, username, opts.platform || 'android');
   if (!tokens.length) return { sent: 0, purged: 0 };
 
   const projectId = String(env.FIREBASE_PROJECT_ID || '').trim();
-  const accessToken = projectId ? await getGoogleAccessToken(env) : null;
-
+  let accessToken: string | null = null;
+  if (projectId) {
+    try { accessToken = await getGoogleAccessToken(env); }
+    catch { console.error('[fcm-oauth]', { outcome: 'unavailable' }); }
+    // Do not silently switch projects/transports after a configured v1 failure.
+    if (!accessToken) {
+      console.error('[fcm-send]', { transport: 'v1', outcome: 'credentials_unavailable' });
+      return { sent: 0, purged: 0 };
+    }
+  }
+  const legacyKey = env.FCM_SERVER_KEY || env.FIREBASE_SERVER_KEY;
+  if (!projectId && !legacyKey) {
+    console.error('[fcm-send]', { outcome: 'not_configured' });
+    return { sent: 0, purged: 0 };
+  }
+  const priority = opts.priority || 'HIGH';
+  const data = {
+    ...opts.data,
+    event: opts.data?.event?.trim() || opts.data?.type?.trim() || opts.data?.kind?.trim() || 'atlas_notification',
+    click_action: 'ATLAS_ASSIST_APPROVAL',
+  };
   let sent = 0;
   let purged = 0;
 
   for (const row of tokens) {
     const token = String(row.token || '');
     if (!token) continue;
-
-    if (accessToken && projectId) {
-      const res = await fetchWithTimeout(
-        `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            message: {
-              token,
-              notification: {
-                title: opts.title,
-                body: opts.body,
-              },
-              data: {
-                ...opts.data,
-                click_action: 'ATLAS_ASSIST_APPROVAL',
-              },
-              android: {
-                priority: 'HIGH',
-                notification: {
-                  channel_id: 'atlas_assist',
-                  click_action: 'ATLAS_ASSIST_APPROVAL',
+    const transport = projectId ? 'v1' : 'legacy';
+    try {
+      if (projectId && accessToken) {
+        const res = await fetchWithTimeout(
+          `https://fcm.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/messages:send`,
+          {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: {
+                token,
+                notification: { title, body },
+                data,
+                android: {
+                  priority,
+                  notification: { channel_id: 'atlas_assist', click_action: 'ATLAS_ASSIST_APPROVAL' },
                 },
               },
-            },
-          }),
-        },
-      );
-      if (res.ok) {
-        sent++;
+            }),
+          },
+        );
+        // Inspect every response, including 2xx. A status alone is not an ack.
+        const reply: any = await res.json().catch(() => null);
+        const messageId = res.ok ? acceptedMessageId(reply, projectId) : null;
+        if (res.ok && messageId) {
+          sent++;
+          console.info('[fcm-send]', { transport, http_status: res.status, status: 'OK', outcome: 'accepted', message_id: messageId });
+          continue;
+        }
+        const codes = responseCodes(reply);
+        const unregistered = !res.ok && codes.fcm_codes.includes('UNREGISTERED');
+        console.warn('[fcm-send]', { transport, http_status: res.status, ...codes, outcome: unregistered ? 'unregistered' : res.ok ? 'invalid_response' : 'rejected' });
+        if (unregistered && await deleteDeviceToken(env.DB, token)) purged++;
         continue;
       }
-      const errBody: any = await res.json().catch(() => ({}));
-      const status = String(errBody?.error?.details?.[0]?.errorCode || errBody?.error?.status || res.status);
-      if (
-        res.status === 404 ||
-        status.includes('UNREGISTERED') ||
-        status.includes('NOT_FOUND') ||
-        status === '404'
-      ) {
-        await deleteDeviceToken(env.DB, token);
-        purged++;
-      } else {
-        console.error('FCM v1 send failed', res.status, status);
-      }
-      continue;
-    }
 
-    // Legacy HTTP API fallback
-    const legacyKey = env.FCM_SERVER_KEY || env.FIREBASE_SERVER_KEY;
-    if (!legacyKey) continue;
-    const res = await fetchWithTimeout('https://fcm.googleapis.com/fcm/send', {
-      method: 'POST',
-      headers: {
-        Authorization: `key=${legacyKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        to: token,
-        priority: 'high',
-        notification: { title: opts.title, body: opts.body, sound: 'default' },
-        data: opts.data || {},
-      }),
-    });
-    if (res.ok) {
-      sent++;
-    } else if (res.status === 404 || res.status === 410) {
-      await deleteDeviceToken(env.DB, token);
-      purged++;
+      // Compatibility only for deployments explicitly configured for legacy.
+      // Parse its per-recipient result too: HTTP 200 can contain a send error.
+      const res = await fetchWithTimeout('https://fcm.googleapis.com/fcm/send', {
+        method: 'POST',
+        headers: { Authorization: `key=${legacyKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: token,
+          priority: priority.toLowerCase(),
+          notification: { title, body, sound: 'default', android_channel_id: 'atlas_assist', click_action: 'ATLAS_ASSIST_APPROVAL' },
+          data,
+        }),
+      });
+      const reply: any = await res.json().catch(() => null);
+      const result = reply?.results?.[0];
+      const id = result?.message_id ?? reply?.message_id;
+      const messageId = typeof id === 'string' || typeof id === 'number' ? String(id) : '';
+      const unregistered = result?.error === 'NotRegistered';
+      if (res.ok && !result?.error && /^[A-Za-z0-9_:%.~-]{1,256}$/.test(messageId)) {
+        sent++;
+        console.info('[fcm-send]', { transport, http_status: res.status, outcome: 'accepted', message_id: messageId });
+      } else {
+        console.warn('[fcm-send]', { transport, http_status: res.status, outcome: unregistered ? 'unregistered' : 'rejected' });
+        if (unregistered && await deleteDeviceToken(env.DB, token)) purged++;
+      }
+    } catch {
+      // Exception messages/response bodies may echo a token or credential.
+      console.error('[fcm-send]', { transport, outcome: 'network_or_response_failure' });
+      // Continue with the other registered devices; never purge on a timeout.
     }
   }
-
   return { sent, purged };
 }
 
@@ -284,7 +328,7 @@ export async function notifyAssistApproval(
   return sendFcmToUser(env, username, {
     title,
     body,
-    data: data || { type: 'assist_approval' },
+    data: { ...data, event: data?.event || 'assist_approval' },
   });
 }
 

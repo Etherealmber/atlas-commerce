@@ -9,7 +9,7 @@
  *  4. approve / reject → seul le demandeur est notifié, après le changement de
  *     statut réussi ; transition répétée (409) → aucun push ;
  *  5. échec push (HTTP 500) → la demande/la décision restent intactes ;
- *  6. jeton mort (404) → purgé de device_push_tokens.
+ *  6. jeton explicitement NotRegistered → purgé de device_push_tokens.
  * Payload non sensible : event + request_id (+ status), texte générique.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -96,7 +96,7 @@ beforeEach(async () => {
   vi.stubGlobal('fetch', (async (url: any, init: any) => {
     const body = JSON.parse(String(init.body));
     pushes.push({ to: String(body.to || ''), data: body.data || {}, notification: body.notification || {} });
-    return new Response(pushStatus === 200 ? JSON.stringify({ message_id: 'm' }) : 'boom', { status: pushStatus });
+    return new Response(pushStatus === 200 ? JSON.stringify({ message_id: 'm' }) : pushStatus === 404 ? JSON.stringify({ results: [{ error: 'NotRegistered' }] }) : 'boom', { status: pushStatus });
   }) as unknown as typeof fetch);
 
   const a = makeD1();
@@ -268,7 +268,7 @@ describe('v0.7.8 — push demandes de stock', () => {
     expect((ap.body as any).data.status).toBe('approved');
   });
 
-  it('jeton mort (404) → purgé de device_push_tokens', async () => {
+  it('jeton explicitement NotRegistered → purgé de device_push_tokens', async () => {
     pushStatus = 404;
     const mag = await seedUser(sqliteA, 'mag', 'Test1234!', 'stock');
     await seedUser(sqliteA, 'sec1', 'Test1234!', 'secretaire');
