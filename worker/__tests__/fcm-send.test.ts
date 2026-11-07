@@ -50,7 +50,7 @@ beforeEach(async () => {
   response = () => Response.json({ name: 'projects/atlas-test/messages/message-123' });
   for (const method of ['info', 'warn', 'error'] as const) vi.spyOn(console, method).mockImplementation((...args: unknown[]) => { logs.push(args); });
   vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
-    if (String(url).includes('oauth2.googleapis.com')) return Response.json(oauthStatus === 200 ? { access_token: 'oauth-private-token' } : { error: 'invalid_grant', error_description: 'credential-private-text' }, { status: oauthStatus });
+    if (new URL(String(url)).hostname === 'oauth2.googleapis.com') return Response.json(oauthStatus === 200 ? { access_token: 'oauth-private-token' } : { error: 'invalid_grant', error_description: 'credential-private-text' }, { status: oauthStatus });
     const body = JSON.parse(String(init.body));
     sends.push({ url: String(url), ...body });
     return response(body);
