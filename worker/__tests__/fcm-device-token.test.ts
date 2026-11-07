@@ -6,7 +6,7 @@
  * create/ensure the table, upsert the token, and NEVER leak raw exception
  * text or stack details to the app.
  */
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { Hono } from 'hono';
 
 const SQLITE_MODULE = ['node:', 'sqlite'].join('');
@@ -56,6 +56,7 @@ describe('upsertDeviceToken (schema helper)', () => {
 });
 
 describe('POST /api/assist/device-token', () => {
+  afterEach(() => vi.restoreAllMocks());
   beforeEach(() => resetLocalSchemaOnceForTests());
   function buildApp(db: any) {
     const app = new Hono();
@@ -81,6 +82,7 @@ describe('POST /api/assist/device-token', () => {
   });
 
   it('D1 failure → 500 with stable code, NO raw exception text or stack', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
     const db = { prepare: () => { throw new Error('D1 boom — secret-stack-at /worker/fcm.ts:99'); } };
     const app = buildApp(db);
     const r = await app.request('/api/assist/device-token', post({ token: 'fcm-abc' }), { DB: db } as any);
@@ -91,6 +93,15 @@ describe('POST /api/assist/device-token', () => {
     const raw = JSON.stringify(body);
     expect(raw).not.toMatch(/D1 boom/);
     expect(raw).not.toMatch(/stack|fcm\.ts/i);
+    expect(JSON.stringify(log.mock.calls)).not.toMatch(/D1 boom|secret-stack|fcm-abc/);
+  });
+
+  it('rejects overlong tokens rather than silently storing a truncated token', async () => {
+    const db = makeD1();
+    const app = buildApp(db);
+    const response = await app.request('/api/assist/device-token', post({ token: 'x'.repeat(513) }), { DB: db } as any);
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code: 'TOKEN_INVALID' });
   });
 
   it('auth + validation contract unchanged', async () => {
