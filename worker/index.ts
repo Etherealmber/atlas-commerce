@@ -41,6 +41,7 @@ import { toClientError, AppError } from './lib/errors';
 import { repairProductSearchIndex, proactiveFtsHealth } from './lib/reliability';
 import { androidReleaseRouter, serveAppUpdatesAsset } from './routes/androidRelease';
 import { registerDeviceTokenRoutes } from './routes/deviceToken';
+import { registerDesktopAuthRoutes, isDesktopAuthPath, isPublicDesktopAuthPath, DESKTOP_AUTH } from './routes/desktopAuth';
 import {
   androidMinVersionGuard,
   manifestWithPolicy,
@@ -795,6 +796,14 @@ app.use('*', async (c, next) => {
  * (GET /api/admin/r2/images → 200 + real data, no credentials).
  * Add routes anywhere you like — but NEVER move this block below them.
  * ───────────────────────────────────────────────────────────────────────── */
+// Apply even when the normal auth gate returns early (401/403).
+app.use(`${DESKTOP_AUTH}/*`, async (c, next) => {
+  await next();
+  c.header('Cache-Control', 'no-store');
+  c.header('CDN-Cache-Control', 'no-store');
+  c.header('Referrer-Policy', 'no-referrer');
+});
+
 app.use('/api/*', async (c, next) => {
   const path = new URL(c.req.url).pathname;
   if (
@@ -814,6 +823,9 @@ app.use('/api/*', async (c, next) => {
     // QR login bridge: the PC creates/polls its session ANONYMOUSLY (the
     // phone side authenticates with its Bearer + the one-time QR token).
     path.startsWith('/api/auth/qr/') ||
+    // Exact public desktop endpoints verify PKCE + state + creation IP/FP themselves.
+    // prepare/authorize stay behind this normal web session gate.
+    isPublicDesktopAuthPath(path) ||
     path === '/api/auth/login' ||
     path === '/api/auth/verify-otp' ||
     path === '/api/auth/verify-link' ||
@@ -1021,6 +1033,10 @@ app.use('*', async (c, next) => {
   //    Cloudflare edge with CDN-Cache-Control: no-store (CF-specific header
   //    that survives even misconfigured cache rules)
   //  - public Cache-Control → deliberate (public images/SVG); left as-is.
+  if (path === '/login/desktop') {
+    c.header('Cache-Control', 'no-store');
+    c.header('CDN-Cache-Control', 'no-store');
+  }
   if (path.startsWith('/api')) {
     try {
       const cc = (c.res.headers.get('Cache-Control') || '').toLowerCase();
@@ -1038,7 +1054,7 @@ app.use('*', async (c, next) => {
   // SAMEORIGIN suffit à bloquer le clickjacking externe tout en laissant
   // passer notre propre modal. Tout le reste reste DENY.
   c.header('X-Frame-Options', c.req.path === '/api/settings/invoice-preview' ? 'SAMEORIGIN' : 'DENY');
-  c.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+  c.header('Referrer-Policy', path === '/login/desktop' || isDesktopAuthPath(path) ? 'no-referrer' : 'strict-origin-when-cross-origin');
   c.header('Permissions-Policy', 'camera=(self), microphone=(), geolocation=(), payment=()');
   c.header('X-Robots-Tag', 'noindex, nofollow');
   c.header('Cross-Origin-Opener-Policy', 'same-origin');
@@ -1118,6 +1134,9 @@ app.use('/api/admin/*', async (c, next) => {
 /** Phase 2: rate-limit auth endpoints (login / OTP). Complements IP reputation. */
 app.use('/api/auth/*', async (c, next) => {
   if (c.req.method === 'OPTIONS' || c.req.method === 'GET') return next();
+  // Only this new flow uses its own atomic D1 budgets + per-request poll cap.
+  // Keep the login/OTP/legacy-QR budgets unchanged.
+  if (isDesktopAuthPath(c.req.path)) return next();
   const ip = clientIpFromRequest(c);
   const rl = await rateLimit(c.env.CACHE, `auth:${ip}`, 8, 60); // 8 writes / min / IP
   if (!rl.ok) {
@@ -3097,6 +3116,33 @@ function randomQrToken(): string {
   return Array.from(a, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+
+/** Versioned desktop flow: reuse existing proof validation, trust and v2 format. */
+registerDesktopAuthRoutes(app, {
+  ip: clientIp,
+  authenticate: async c => {
+    const fp = c.req.header('X-Device-Fingerprint') || '';
+    const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, clientIp(c), fp);
+    return reason === 'ok' ? sessionUserFromHeader(c.req.header('Authorization')) : null;
+  },
+  material: async (env, username, role) => {
+    if (username === getOwnerUsername(env)) {
+      return role === 'owner' ? secretMaterialForUsername(env, env.DB, username, role) : null;
+    }
+    const row = await env.DB.prepare('SELECT password_hash, role FROM app_users WHERE username = ? AND active = 1').bind(username).first() as any;
+    return row && row.role === role ? String(row.password_hash) : null;
+  },
+  mint: makeTokenV2,
+  trust: async (env, fp, ip, username, ua) => { await trustDevice(env.DB, fp, ip, username, ua); },
+  audit: async (c, identity, event) => {
+    if (event === 'exchange') {
+      try { await recordLogin(c.env.DB, clientIp(c), c.req.header('X-Device-Fingerprint') || '', true, c.req.header('User-Agent') || ''); } catch { /* best effort */ }
+    }
+    await writeAudit(c.env.DB, {
+      ...identity, action: `auth.desktop_${event}`, entity: 'session', detail: 'desktop_v1', ip: clientIp(c),
+    });
+  },
+});
 
 /** Public: PC login page QR — phone (logged-in) scans to authenticate this browser */
 app.post('/api/auth/qr/pc-session', async (c) => {

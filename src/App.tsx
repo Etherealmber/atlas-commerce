@@ -36,6 +36,7 @@ import {
 import { PublicSettingsTopbar } from './components/PublicChrome';
 import GlobalSearchPanel from './components/GlobalSearchPanel';
 import { startDestination } from './lib/startPage';
+import { desktopLoginReturn } from './lib/desktopApproval';
 import { AppDialogsProvider } from './components/AppDialogs';
 /** v0.7 — stale hashed chunks after a deploy: one silent reload, then fail
  * clean into the ErrorBoundary page instead of a blank/wrong screen. */
@@ -142,6 +143,7 @@ const ProductHistory = lazyRetry(() => import('./pages/ProductHistory'));
 const Products = lazyRetry(() => import('./pages/Products'));
 const Scan = lazyRetry(() => import('./pages/Scan'));
 const LoginQr = lazyRetry(() => import('./pages/LoginQr'));
+const LoginDesktop = lazyRetry(() => import('./pages/LoginDesktop'));
 const EmailVerify = lazyRetry(() => import('./pages/EmailVerify'));
 const Invoices = lazyRetry(() => import('./pages/Invoices'));
 const InvoiceDetail = lazyRetry(() => import('./pages/InvoiceDetail'));
@@ -481,7 +483,7 @@ function LoginGate() {
   if (loggedIn) {
     // v0.7.6 — déjà connecté : /login renvoie vers la page d'ouverture
     // choisie (tableau de bord par défaut), plus jamais vers la vitrine.
-    return <Navigate to={startDestination()} replace />;
+    return <Navigate to={desktopLoginReturn() || startDestination()} replace />;
   }
   return <Login />;
 }
@@ -2210,6 +2212,7 @@ export default function App() {
           <GlobalSearchPanel />
           <Routes>
             <Route path="/login" element={<LoginGate />} />
+            <Route path="/login/desktop" element={<Suspense fallback={null}><LoginDesktop /></Suspense>} />
             <Route path="/login/qr" element={<Suspense fallback={null}><LoginQr /></Suspense>} />
             <Route path="/verify" element={<Suspense fallback={null}><EmailVerify /></Suspense>} />
             <Route path="/welcome" element={<WelcomeGate />} />

@@ -45,6 +45,15 @@ Captures desktop **et téléphone** (coque mobile réelle) dans `public/shots/` 
 
 Le [contrat Android ↔ Worker](docs/android-worker-0.8.md) décrit la reprise de connexion authentifiée, la confirmation `resume_prepared` et les événements SSE Agent (`token`, `tool`, `done`, `error`) avec propositions et permissions métier. La modification du Worker ne bascule pas automatiquement le chat de l’APK : son intégration reste à livrer côté Android.
 
+## Connexion desktop par navigateur système
+
+Le Worker et le web exposent un flux optionnel versionné **desktop v1** :
+PKCE S256, origine HTTPS du serveur auto-hébergé choisi par l’utilisateur,
+connexion web/OTP existante puis consentement explicite, polling borné et
+échange unique lié au fingerprint desktop. Aucun callback ni jeton en URL.
+Les connexions native et QR historiques sont conservées. Le client desktop
+natif reste à implémenter selon le [contrat exact](docs/desktop-browser-auth-v1.md).
+
 ## 🚀 Starter — démarrer de zéro
 
 > **Référence complète : [`SETUP.md`](SETUP.md)** — comptes, base de données D1, KV, R2,
