@@ -5,9 +5,11 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { openConsentSettings } from '../lib/cookieConsent';
 import { setToken, clearToken, getToken, setProfileCache, isLoggedIn, isStockRole, sanitizeAvatarUrl } from '../auth';
 
+import { desktopLoginReturn } from '../lib/desktopApproval';
+
 /** v0.7.3 — après connexion : /dashboard (l'accueil `/` est public, sans redirect). */
-function postLoginPath(): string {
-  return '/dashboard';
+function postLoginPath(fallback = '/dashboard'): string {
+  return desktopLoginReturn() || fallback;
 }
 
 import { APP_BUILD_DATE, APP_NAME, APP_VERSION, APP_CREATOR, APP_CREATOR_NAME, APP_PROFILE, APP_GITHUB } from '../version';
@@ -453,7 +455,7 @@ export default function Login() {
     // Already signed in → leave login (do not clear session)
     const reason = params.get('reason');
     if (!reason && isLoggedIn()) {
-      navigate(isStockRole() ? '/products' : postLoginPath(), { replace: true });
+      navigate(postLoginPath(isStockRole() ? '/products' : '/dashboard'), { replace: true });
       return;
     }
     // Forced re-login (session expired, etc.)
@@ -614,6 +616,8 @@ export default function Login() {
         });
       })
       .catch(() => {});
+    // Only the opt-in desktop flow resumes consent; login/OTP themselves are unchanged.
+    if (desktopLoginReturn()) { navigate('/login/desktop', { replace: true }); return; }
     if ((justTrusted || data.trusted_device) && isWebAuthnAvailable() && !getStoredBiometricCredentialId() && !hasCredentials) {
       setOfferBioSetup(true);
       setInfo(

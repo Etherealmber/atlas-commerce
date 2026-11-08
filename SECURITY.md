@@ -29,6 +29,14 @@ previews run per-branch sandboxes.
 
 ## Authentication & Sessions
 
+- **Opt-in desktop system-browser login:** the versioned
+  `/api/auth/desktop/v1` protocol uses S256 PKCE, random state, exact HTTPS
+  origin binding, desktop creation-IP/fingerprint binding, explicit web
+  consent with a short-lived session-bound CSRF nonce, and atomic single-use
+  exchange. No callback or session token in a URL; browser login/OTP and
+  legacy native/QR authentication are unchanged. See the
+  [exact contract and threat boundaries](docs/desktop-browser-auth-v1.md).
+
 - Passwords: PBKDF2-SHA256 (`pbkdf2$<iterations>$<hex>`), per-user salt,
   automatic re-hash on login when parameters evolve.
 - Sessions: HMAC-signed tokens bound to IP + device fingerprint; rotation of
