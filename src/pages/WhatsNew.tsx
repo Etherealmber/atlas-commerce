@@ -39,12 +39,14 @@ export const RELEASES: Release[] = [
         kind: 'improvements',
         items: [
           { id: '081s1', platforms: ['server'], text: 'Connexion Android : préparation d’une preuve de possession cryptographique liée au compte et au serveur, plutôt qu’à la seule empreinte de l’appareil. Ce mécanisme reste désactivé, en attente de revue de sécurité et d’intégration Android ; les règles actuelles de mot de passe et d’OTP sont inchangées.' },
-          { id: '081s2', platforms: ['server'], text: 'Sécurité de la connexion : 54 tests backend supplémentaires couvrent la séparation des comptes, les preuves absentes ou invalides, l’expiration, la révocation, le repli OTP, les changements d’IP avec un VPN et les mots de passe incorrects. Ces tests ne remplacent pas une validation sur un appareil Android réel.' },
+          { id: '081s2', platforms: ['server'], text: 'Sécurité de la connexion : 79 tests backend supplémentaires couvrent la séparation des comptes, les preuves absentes ou invalides, l’expiration, la révocation, le repli OTP, les changements d’IP avec un VPN, les limites de tentatives sur IP partagée et les mots de passe incorrects. Ces tests ne remplacent pas une validation sur un appareil Android réel.' },
         ],
       },
       {
         kind: 'fixes',
         items: [
+          { id: '081s4', platforms: ['server'], text: 'Connexion sur VPN et réseaux partagés : les limites de tentatives distinguent désormais les comptes et les usages, avec des compteurs persistants et des plafonds globaux par IP. Quelques échecs sur un autre compte ne dégradent plus automatiquement la réputation de toute l’IP ; les blocages explicites et les protections contre les tentatives massives restent appliqués.' },
+          { id: '081s5', platforms: ['server'], text: 'Vérification par code ou lien e-mail : le compte demandé doit correspondre au contexte de connexion et les deux méthodes partagent le même budget de tentatives OTP. Les refus pour trop de tentatives indiquent un délai avant de réessayer ; une indisponibilité du limiteur ne permet pas de contourner la vérification.' },
           { id: '081s3', platforms: ['web'], text: 'Nouveautés : la page et la fenêtre de mise à jour affichent les notes de la version publiée correspondante. Une simple modification du numéro de build ne représente plus les anciennes notes comme une nouvelle mise à jour.' },
         ],
       },
