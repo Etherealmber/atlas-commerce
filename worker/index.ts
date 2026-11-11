@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { addColumnIfMissing } from './lib/schema';
+import { hasCredentialAttemptBudget, reserveCredentialAttempt, type CredentialAttemptPurpose } from './lib/credential-attempt-limits';
 import { cors } from 'hono/cors';
 import PostalMime from 'postal-mime';
 import type { Env } from './env';
@@ -1134,9 +1135,12 @@ app.use('/api/admin/*', async (c, next) => {
 /** Phase 2: rate-limit auth endpoints (login / OTP). Complements IP reputation. */
 app.use('/api/auth/*', async (c, next) => {
   if (c.req.method === 'OPTIONS' || c.req.method === 'GET') return next();
-  // Only this new flow uses its own atomic D1 budgets + per-request poll cap.
-  // Keep the login/OTP/legacy-QR budgets unchanged.
+  // Desktop PKCE has separate atomic D1 budgets and a per-request poll cap.
+  // Credential paths below have account-aware budgets; legacy auth retains 8/min.
   if (isDesktopAuthPath(c.req.path)) return next();
+  // These exact handlers reserve persistent per-account and shared-IP budgets.
+  // Do not apply the old 8/min shared-IP gate on top of those budgets.
+  if (hasCredentialAttemptBudget(c.req.path)) return next();
   const ip = clientIpFromRequest(c);
   const rl = await rateLimit(c.env.CACHE, `auth:${ip}`, 8, 60); // 8 writes / min / IP
   if (!rl.ok) {
@@ -2468,6 +2472,31 @@ async function getReputation(db: D1Database, ip: string) {
   return row;
 }
 
+/** Password/OTP admission is account-aware, but explicit IP denials still win.
+ * Never record a throttled request as another authentication failure.
+ */
+async function credentialAttemptGate(c: any, username: string, purpose: CredentialAttemptPurpose): Promise<Response | null> {
+  try {
+    const ip = clientIp(c);
+    const rep = await getReputation(c.env.DB, ip) as any;
+    const until = Date.parse(String(rep.blocked_until || ''));
+    if (until > Date.now() || Number(rep.score ?? 50) <= 10) {
+      const retryAfter = until > Date.now() ? Math.max(1, Math.ceil((until - Date.now()) / 1000)) : 900;
+      c.header('Retry-After', String(retryAfter));
+      return c.json({ success: false, code: 'RATE_LIMITED', error: 'Trop de tentatives. Réessayez plus tard.', retry_after: retryAfter }, 429);
+    }
+    const budget = await reserveCredentialAttempt(c.env.DB, ip, username, purpose);
+    if (!budget.allowed) {
+      c.header('Retry-After', String(budget.retryAfter));
+      return c.json({ success: false, code: 'RATE_LIMITED', error: 'Trop de tentatives. Réessayez plus tard.', retry_after: budget.retryAfter }, 429);
+    }
+    return null;
+  } catch {
+    // No raw DB error, username, IP, password or OTP in logs/response.
+    return c.json({ success: false, code: 'AUTH_LIMIT_UNAVAILABLE', error: 'Vérification de sécurité indisponible. Réessayez plus tard.' }, 503);
+  }
+}
+
 async function isRateLimited(db: D1Database, ip: string): Promise<{ blocked: boolean; reason?: string }> {
   const rep = await getReputation(db, ip) as any;
   if (rep.blocked_until) {
@@ -2476,8 +2505,10 @@ async function isRateLimited(db: D1Database, ip: string): Promise<{ blocked: boo
       return { blocked: true, reason: 'Trop de tentatives. Compte / IP temporairement bloqué. Réessayez plus tard.' };
     }
   }
+  // Named password/OTP attempts already consume durable account-aware budgets
+  // (delta 0). Do not let an unrelated legacy route re-ban their shared IP.
   const recent = await db.prepare(
-    `SELECT COUNT(*) as c FROM login_attempts WHERE ip = ? AND success = 0 AND created_at > datetime('now', '-10 minutes')`
+    `SELECT COUNT(*) as c FROM login_attempts WHERE ip = ? AND success = 0 AND reputation_delta < 0 AND created_at > datetime('now', '-10 minutes')`
   ).bind(ip).first();
   const fails = Number(recent?.c || 0);
   if (fails >= 5) {
@@ -2493,11 +2524,18 @@ async function isRateLimited(db: D1Database, ip: string): Promise<{ blocked: boo
   return { blocked: false };
 }
 
-async function recordLogin(db: D1Database, ip: string, fingerprint: string, success: boolean, userAgent: string) {
-  const delta = success ? 5 : -8;
+async function recordLogin(db: D1Database, ip: string, fingerprint: string, success: boolean, userAgent: string, accountBudgeted = false) {
+  // Budgeted password/OTP failures are isolated by account. Preserve telemetry,
+  // but don't turn five unrelated failures into an automatic shared-IP score ban.
+  // Legacy methods retain their existing reputation behavior.
+  const delta = success ? 5 : accountBudgeted ? 0 : -8;
   await db.prepare(`INSERT INTO login_attempts (ip, fingerprint, success, reputation_delta, user_agent) VALUES (?, ?, ?, ?, ?)`).bind(ip, fingerprint || '', success ? 1 : 0, delta, userAgent || '').run();
   await getReputation(db, ip);
-  if (success) {
+  if (accountBudgeted) {
+    await db.prepare(`UPDATE ip_reputation SET score = MIN(100, score + ?),
+      success_count = success_count + ?, failed_count = failed_count + ?, updated_at = datetime('now') WHERE ip = ?`)
+      .bind(success ? 5 : 0, success ? 1 : 0, success ? 0 : 1, ip).run();
+  } else if (success) {
     await db.prepare(`UPDATE ip_reputation SET score = MIN(100, score + 5), success_count = success_count + 1, failed_count = failed_count, blocked_until = NULL, updated_at = datetime('now') WHERE ip = ?`).bind(ip).run();
   } else {
     await db.prepare(`UPDATE ip_reputation SET score = MAX(0, score - 8), failed_count = failed_count + 1, updated_at = datetime('now') WHERE ip = ?`).bind(ip).run();
@@ -2653,11 +2691,8 @@ app.post('/api/auth/login', async (c) => {
   await ensureSecurityTables(c.env.DB);
   try { await purgeEphemeralSecurityData(c.env.DB); } catch { /* */ }
 
-  const limited = await isRateLimited(c.env.DB, ip);
-  if (limited.blocked) {
-    await recordLogin(c.env.DB, ip, fingerprint, false, ua);
-    return c.json({ success: false, error: limited.reason, code: 'RATE_LIMITED' }, 429);
-  }
+  const limitResponse = await credentialAttemptGate(c, username, 'password');
+  if (limitResponse) return limitResponse;
 
   const ownerUser = getOwnerUsername(c.env);
   let role = 'user';
@@ -2675,7 +2710,7 @@ app.post('/api/auth/login', async (c) => {
       }, 503);
     }
     if (!passwordsMatch(password, expected)) {
-      await recordLogin(c.env.DB, ip, fingerprint, false, ua);
+      await recordLogin(c.env.DB, ip, fingerprint, false, ua, true);
       await writeAudit(c.env.DB, { username, role: 'owner', action: 'auth.login_failed', entity: 'session', detail: 'bad_password', ip });
       const rep2 = await getReputation(c.env.DB, ip) as any;
       return c.json({
@@ -2696,11 +2731,11 @@ app.post('/api/auth/login', async (c) => {
       `SELECT * FROM app_users WHERE username = ? AND active = 1`
     ).bind(username).first() as any;
     if (!row) {
-      await recordLogin(c.env.DB, ip, fingerprint, false, ua);
+      await recordLogin(c.env.DB, ip, fingerprint, false, ua, true);
       return c.json({ success: false, error: 'Identifiant ou mot de passe incorrect', code: 'BAD_PASSWORD' }, 401);
     }
     if (!(await verifyUserPassword(password, row.password_salt, row.password_hash))) {
-      await recordLogin(c.env.DB, ip, fingerprint, false, ua);
+      await recordLogin(c.env.DB, ip, fingerprint, false, ua, true);
       const ph = String(row.password_hash || '');
       const highIter = /^pbkdf2\$(\d+)\$/i.exec(ph);
       const iters = highIter ? parseInt(highIter[1], 10) : 0;
@@ -2744,7 +2779,7 @@ app.post('/api/auth/login', async (c) => {
            RETURNING username`,
         ).bind(ip, fingerprint.slice(0, 128), username).first() as any;
         if (rrow) {
-          await recordLogin(c.env.DB, ip, fingerprint, true, ua);
+          await recordLogin(c.env.DB, ip, fingerprint, true, ua, true);
           await writeAudit(c.env.DB, { username, role, action: 'auth.login', entity: 'session', detail: 'resume_after_self_logout', ip });
           const resumeToken = await makeTokenV2(username, role, secretMaterial, ip, fingerprint);
           return c.json({
@@ -2831,7 +2866,7 @@ app.post('/api/auth/login', async (c) => {
     // arrive, so trust this device and continue. Production ALWAYS binds
     // EMAIL, therefore the e-mail OTP remains enforced everywhere else.
   await trustDevice(c.env.DB, fingerprint, ip, username, c.req.header('User-Agent') || '');
-    await recordLogin(c.env.DB, ip, fingerprint, true, ua);
+    await recordLogin(c.env.DB, ip, fingerprint, true, ua, true);
     await writeAudit(c.env.DB, { username, role, action: 'auth.login', entity: 'session', detail: 'dev_no_email_binding', ip });
     const devToken = await makeTokenV2(username, role, secretMaterial, ip, fingerprint);
     return c.json({
@@ -2893,17 +2928,25 @@ app.post('/api/auth/verify-otp', async (c) => {
 
   await ensureSecurityTables(c.env.DB);
 
-  const limited = await isRateLimited(c.env.DB, ip);
-  if (limited.blocked) {
-    await recordLogin(c.env.DB, ip, fingerprint, false, ua);
-    return c.json({ success: false, error: limited.reason, code: 'RATE_LIMITED' }, 429);
+  const loginResourceId = fingerprint !== 'none' ? `fp:${fingerprint}` : `ip:${ip}`;
+  // Bind attempts to the server's pending login principal, not a username an
+  // attacker can rotate while guessing one fingerprint-scoped OTP.
+  const ctxRow = await c.env.DB.prepare(
+    `SELECT * FROM otp_codes WHERE resource_type = 'login_ctx' AND resource_id = ? ORDER BY created_at DESC LIMIT 1`
+  ).bind(loginResourceId).first() as any;
+  let otpSubject = username;
+  try { otpSubject = String(JSON.parse(ctxRow?.code || '{}').username || username).trim().toLowerCase(); } catch { /* legacy context fallback */ }
+  const limitResponse = await credentialAttemptGate(c, otpSubject, 'otp');
+  if (limitResponse) return limitResponse;
+  if (otpSubject !== username) {
+    await recordLogin(c.env.DB, ip, fingerprint, false, ua, true);
+    return c.json({ success: false, error: 'Code incorrect', code: 'BAD_OTP' }, 401);
   }
 
   if (!otp || otp.length < 4) {
     return c.json({ success: false, error: 'Code OTP obligatoire', code: 'OTP_REQUIRED' }, 400);
   }
 
-  const loginResourceId = fingerprint !== 'none' ? `fp:${fingerprint}` : `ip:${ip}`;
   const record = await c.env.DB.prepare(
     `SELECT * FROM otp_codes WHERE resource_type = 'login' AND resource_id = ? ORDER BY created_at DESC LIMIT 1`
   ).bind(loginResourceId).first() as any;
@@ -2916,7 +2959,7 @@ app.post('/api/auth/verify-otp', async (c) => {
     }, 400);
   }
   if (record.code !== otp) {
-    await recordLogin(c.env.DB, ip, fingerprint, false, ua);
+    await recordLogin(c.env.DB, ip, fingerprint, false, ua, true);
     return c.json({ success: false, error: 'Code incorrect', code: 'BAD_OTP' }, 401);
   }
   if (new Date(record.expires_at) < new Date()) {
@@ -2927,11 +2970,7 @@ app.post('/api/auth/verify-otp', async (c) => {
     }, 400);
   }
 
-  // Restore login context
-  const ctxRow = await c.env.DB.prepare(
-    `SELECT * FROM otp_codes WHERE resource_type = 'login_ctx' AND resource_id = ? ORDER BY created_at DESC LIMIT 1`
-  ).bind(loginResourceId).first() as any;
-
+  // Restore the already-loaded server login context.
   let role = 'owner';
   let secretMaterial = '';
   let user = username;
@@ -2986,7 +3025,7 @@ app.post('/api/auth/verify-otp', async (c) => {
   try { await purgeEphemeralSecurityData(c.env.DB); } catch { /* */ }
 
   await trustDevice(c.env.DB, fingerprint, ip, username, c.req.header('User-Agent') || '');
-  await recordLogin(c.env.DB, ip, fingerprint, true, ua);
+  await recordLogin(c.env.DB, ip, fingerprint, true, ua, true);
   const rep = await getReputation(c.env.DB, ip) as any;
   const token = await makeTokenV2(user, role, secretMaterial, ip, fingerprint);
   return c.json({
@@ -3021,11 +3060,8 @@ app.post('/api/auth/verify-link', async (c) => {
   const ua = c.req.header('User-Agent') || '';
 
   await ensureSecurityTables(c.env.DB);
-  const limited = await isRateLimited(c.env.DB, ip);
-  if (limited.blocked) {
-    await recordLogin(c.env.DB, ip, fingerprint, false, ua);
-    return c.json({ success: false, error: limited.reason, code: 'RATE_LIMITED' }, 429);
-  }
+  const limitResponse = await credentialAttemptGate(c, username, 'otp');
+  if (limitResponse) return limitResponse;
   if (!username || !otp || otp.length < 4 || !sig || !exp) {
     return c.json({ success: false, error: 'Lien de vérification incomplet', code: 'LINK_MALFORMED' }, 400);
   }
@@ -3056,6 +3092,10 @@ app.post('/api/auth/verify-link', async (c) => {
       secretMaterial = ctx.secretMaterial || '';
     } catch { /* fall through */ }
   }
+  if (String(user).trim().toLowerCase() !== username) {
+    await recordLogin(c.env.DB, ip, fingerprint, false, ua, true);
+    return c.json({ success: false, error: 'Lien invalide', code: 'LINK_INVALID' }, 401);
+  }
   if (!secretMaterial) {
     secretMaterial = (await secretMaterialForUsername(c.env, c.env.DB, user, role)) || '';
   }
@@ -3068,7 +3108,7 @@ app.post('/api/auth/verify-link', async (c) => {
   let diff = 0;
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   if (diff !== 0 || expected.length !== sig.length) {
-    await recordLogin(c.env.DB, ip, fingerprint, false, ua);
+    await recordLogin(c.env.DB, ip, fingerprint, false, ua, true);
     return c.json({ success: false, error: 'Signature du lien invalide', code: 'LINK_INVALID' }, 401);
   }
 
@@ -3078,7 +3118,7 @@ app.post('/api/auth/verify-link', async (c) => {
   try { await purgeEphemeralSecurityData(c.env.DB); } catch { /* */ }
 
   await trustDevice(c.env.DB, fingerprint, ip, username, c.req.header('User-Agent') || '');
-  await recordLogin(c.env.DB, ip, fingerprint, true, ua);
+  await recordLogin(c.env.DB, ip, fingerprint, true, ua, true);
   const rep = await getReputation(c.env.DB, ip) as any;
   const token = await makeTokenV2(user, role, secretMaterial, ip, fingerprint);
   return c.json({

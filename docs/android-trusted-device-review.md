@@ -2,7 +2,13 @@
 
 **Status: NOT ENABLED. Not a security approval or an Android release.**
 
-The production login/OTP/session/revocation handlers are unchanged. There is no
+Scope note: the subsequent [shared-egress limiter follow-up](login-rate-limits.md)
+changes password/OTP admission and rejects OTP principal substitution; it does
+not integrate or enable this candidate. The statements below about unchanged
+handlers describe the original review-only foundation, not that later limiter
+patch.
+
+In the original review-only foundation, production login/OTP/session/revocation handlers are unchanged. There is no
 new route, D1 table, binding, secret, configuration switch or OTP bypass. The
 isolated verifier in [`worker/lib/android-device-proof.ts`](../worker/lib/android-device-proof.ts)
 returns `otpRequired: true` even for a cryptographically valid proof. It is not
@@ -17,7 +23,7 @@ Worker baseline: `cf951397553dc8749f15c96b33abf02d4a360e35`.
 | --- | --- | --- |
 | [`/api/auth/login`](../worker/index.ts), `isNativeAuthRequest`, `verifyTurnstile`, `isRateLimited` | Existing challenge/native classification and reputation checks run before password validation; active user/password are checked before ordinary OTP issuance. | Proof must never override password, account status or abuse gates. This work does not broaden native classification. |
 | Same login handler, `resume_until` | An **existing exception** consumes a same-username/fingerprint, unexpired self-logout marker when `twofa_enabled` is off. It can skip OTP for 30 days following authenticated logout. | The phrase “OTP always” is not globally literal. This exception is not cryptographic device possession. Preserved here, not endorsed as the future trust mechanism. |
-| Same login handler, email availability | Without `EMAIL.send`, an existing local/development path issues a session without OTP. | Not an enrollment source. Production readiness must separately verify fail-closed email configuration; unchanged in this patch. |
+| Same login handler, email availability | Without `EMAIL.send`, the existing fallback issues a session without OTP regardless of environment (intended for local/development use, but not environment-gated). | Not an enrollment source. Production readiness must separately verify fail-closed email configuration; unchanged in this patch. |
 | [`login-otp-always.test.ts`](../worker/__tests__/login-otp-always.test.ts) | Without those exceptions, known fingerprints, first logins and account switches require email OTP. Wrong password returns 401 without email. | Preserve the account-switch regression and safe legacy API behavior. |
 | `/api/auth/verify-otp`, `/api/auth/verify-link` | OTP/context rows and normal session issuance, followed by `trustDevice`. The code reconstructs the principal from server OTP context, while some device-write arguments originate from the request. | Any future enrollment must use only one verified principal and a fresh, single-use server OTP ceremony receipt. Do not infer OTP assurance from `trusted_device: true` or a bearer alone. |
 | `ensureSecurityTables`, `trustDevice`, `touchTrustedDevice` | `trusted_devices` has **fingerprint as its global primary key**; upserts may replace `username`. It stores metadata/resume/legacy biometric references, not an Android signing public key. | Cannot model simultaneous account A/B key enrollment safely; use a separate credential store. No automatic conversion of existing rows into cryptographic trust. |

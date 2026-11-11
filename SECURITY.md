@@ -41,8 +41,10 @@ previews run per-branch sandboxes.
   automatic re-hash on login when parameters evolve.
 - Sessions: existing v2 account-material proof includes the issuing IP and
   fingerprint. Fingerprint-bearing sessions currently tolerate IP changes;
-  a supplied different fingerprint or revoked device is rejected. Legacy
-  fingerprint-less sessions remain IP-bound. These are bearer sessions, not
+  a supplied different fingerprint is rejected in normal session checks. Legacy
+  fingerprint-less sessions remain IP-bound in normal checks. Report/print-like
+  checks relax fingerprint/IP comparison but still check device revocation.
+  These are bearer sessions, not
   Android signing-key proof, and logout does not itself revoke a bearer.
 - **Android trusted-device candidate (0.8.1, not enabled):** an isolated ES256
   verifier and regression tests prepare a user/tenant-scoped possession design.
@@ -58,8 +60,12 @@ previews run per-branch sandboxes.
 - Owner actions: 2FA (TOTP) and OTP-gated destructive operations (account,
   agent data, products), plus WebAuthn passkeys and a connected-devices
   manager with per-device revocation.
-- Login reputation gate: per-IP score, progressive blocks, rate limits on
-  auth endpoints; audit log for every auth event.
+- Password/email-OTP admission uses persistent account/IP/purpose budgets and
+  broader shared-IP ceilings; unrelated budgeted failures no longer degrade an
+  entire egress IP score. Explicit bans, low reputation and legacy negative-
+  reputation failures remain enforced. No fingerprint/native-header bypass.
+  429 responses include `Retry-After`; limiter storage failure fails closed.
+  See [limits, compatibility and rollout trade-offs](docs/login-rate-limits.md).
 
 ## Application Firewall & Abuse Controls
 
