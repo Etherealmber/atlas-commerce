@@ -94,16 +94,16 @@ beforeEach(async () => {
   app = mod.default?.fetch ? mod.default : mod.app;
 });
 
-async function login(body: any, ip = testIp) {
+async function login(body: any, ip = testIp, extraHeaders: Record<string, string> = {}) {
   const res = await app.fetch(
     new Request('http://test.local/api/auth/login', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': ip },
+      headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': ip, ...extraHeaders },
       body: JSON.stringify(body),
     }),
     env,
   );
-  return { status: res.status, body: await res.json() as any };
+  return { status: res.status, body: await res.json() as any, headers: res.headers };
 }
 const sentTo = () => String(sendSpy.mock.calls[0]?.[0]?.to ?? sendSpy.mock.calls[0]?.[1]?.to ?? '');
 
@@ -248,3 +248,181 @@ describe('Android possession rollout remains disabled on the real login route', 
     expect((await verifyFallbackOtp(otp)).body.token).toBeUndefined();
   });
 });
+
+
+/* eslint-disable no-await-in-loop -- These regressions intentionally submit ordered attempts and inspect each response. */
+describe('shared VPN egress: real password/OTP handlers', () => {
+  it('unrelated failures on a shared IP do not lock out Alice, including OTP completion', async () => {
+    await seedReturningUser();
+    for (let i = 0; i < 10; i++) {
+      expect((await login({ username: `nonexistent-${i}`, password: 'wrong', fingerprint: `fp-${i}` })).status).toBe(401);
+    }
+    // A legacy caller of the reputation gate must not re-ban those same failures.
+    const intake = await app.fetch(new Request('http://test.local/api/crash-reports', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': testIp }, body: '{}',
+    }), env);
+    expect(intake.status).not.toBe(429);
+    // Exceeds the previous eight-writes/min IP gate and five-failures gate.
+    const r = await login({ username: 'alice', password: 'Test1234!', fingerprint: 'same-phone' });
+    expect(r.status).toBe(200);
+    expect(r.body.needs_otp).toBe(true);
+    expect(r.body.token).toBeUndefined();
+    expect(sqlite.prepare(`SELECT score FROM ip_reputation WHERE ip = ?`).get(testIp).score).toBe(50);
+    const otp = sqlite.prepare(`SELECT code FROM otp_codes WHERE resource_type = 'login' AND resource_id = 'fp:same-phone'`).get().code;
+    expect((await verifyFallbackOtp(otp)).status).toBe(200);
+  });
+
+  it('five same-account/IP attempts stay bounded despite changing fingerprints/native hints', async () => {
+    await seedReturningUser();
+    for (let i = 0; i < 5; i++) {
+      expect((await login({ username: 'alice', password: 'wrong', fingerprint: `rotated-${i}` })).status).toBe(401);
+    }
+    const r = await login({ username: ' ALICE ', password: 'Test1234!', fingerprint: 'brand-new', client: 'android', device_proof: { verified: true } }, testIp, { 'X-Atlas-Client': 'android' });
+    expect(r.status).toBe(429);
+    expect(r.body.code).toBe('RATE_LIMITED');
+    expect(r.body.retry_after).toBeGreaterThan(0);
+    expect(Number(r.headers.get('Retry-After'))).toBe(r.body.retry_after);
+    expect(r.body.token).toBeUndefined();
+    expect(sendSpy).not.toHaveBeenCalled();
+    const rejectedAgain = await login({ username: 'alice', password: 'wrong' });
+    expect(rejectedAgain.status).toBe(429);
+    expect(sqlite.prepare(`SELECT COUNT(*) AS n FROM login_attempts WHERE success = 0`).get().n).toBe(5);
+    expect(sqlite.prepare(`SELECT blocked_until FROM ip_reputation WHERE ip = ?`).get(testIp).blocked_until).toBeNull();
+  });
+
+  it('an exhausted account/IP budget cannot authenticate that account, but not every other account is denied', async () => {
+    await seedReturningUser();
+    for (let i = 0; i < 5; i++) await login({ username: 'victim', password: 'wrong' });
+    expect((await login({ username: 'victim', password: 'wrong' })).status).toBe(429);
+    const alice = await login({ username: 'alice', password: 'Test1234!', fingerprint: 'same-phone' });
+    expect(alice.body.needs_otp).toBe(true);
+  });
+
+  it('rotating VPN IPs still meets an account-wide bound', async () => {
+    await seedReturningUser();
+    for (let i = 0; i < 20; i++) {
+      const r = await login({ username: 'alice', password: 'wrong' }, `198.51.100.${i + 1}`);
+      expect(r.status).toBe(401);
+    }
+    const blocked = await login({ username: 'alice', password: 'Test1234!' }, '198.51.100.99');
+    expect(blocked.status).toBe(429);
+    expect(sendSpy).not.toHaveBeenCalled();
+  });
+
+  it('a shared-IP spray still hits a global ceiling while health can remain healthy', async () => {
+    for (let i = 0; i < 60; i++) {
+      expect((await login({ username: `spray-${i}`, password: 'wrong' })).status).toBe(401);
+    }
+    const blocked = await login({ username: 'next-account', password: 'wrong' });
+    expect(blocked.status).toBe(429);
+    const health = await app.fetch(new Request('http://test.local/api/health', { headers: { 'CF-Connecting-IP': testIp } }), env);
+    expect(health.status).toBe(200);
+    expect((await health.json() as any).data.d1).toBe(true);
+  });
+
+  it('does not erase or ignore an explicit unexpired IP ban', async () => {
+    await seedReturningUser();
+    const until = new Date(Date.now() + 120_000).toISOString();
+    sqlite.prepare(`INSERT INTO ip_reputation (ip, score, blocked_until) VALUES (?, 50, ?)`).run(testIp, until);
+    const r = await login({ username: 'alice', password: 'Test1234!', fingerprint: 'same-phone' });
+    expect(r.status).toBe(429);
+    expect(Number(r.headers.get('Retry-After'))).toBeGreaterThan(0);
+    expect(sqlite.prepare(`SELECT blocked_until FROM ip_reputation WHERE ip = ?`).get(testIp).blocked_until).toBe(until);
+    expect(sqlite.prepare('SELECT COUNT(*) AS n FROM login_attempts').get().n).toBe(0);
+    expect(sendSpy).not.toHaveBeenCalled();
+  });
+
+  it('rejects OTP account substitution and charges guesses to the pending principal', async () => {
+    await seedReturningUser();
+    await login({ username: 'alice', password: 'Test1234!', fingerprint: 'same-phone' });
+    const otp = sqlite.prepare(`SELECT code FROM otp_codes WHERE resource_type = 'login' AND resource_id = 'fp:same-phone'`).get().code;
+    for (let i = 0; i < 5; i++) {
+      const res = await app.fetch(new Request('http://test.local/api/auth/verify-otp', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': testIp },
+        body: JSON.stringify({ username: `changed-${i}`, password: 'wrong', fingerprint: 'same-phone', otp }),
+      }), env);
+      expect(res.status).toBe(401);
+      expect((await res.json() as any).token).toBeUndefined();
+    }
+    // Changing the submitted username did not buy five fresh guesses each time.
+    expect((await verifyFallbackOtp(otp)).status).toBe(429);
+    expect(sqlite.prepare(`SELECT COUNT(*) AS n FROM otp_codes WHERE resource_type = 'login'`).get().n).toBe(1);
+  });
+
+  it('fails closed with a fixed diagnostic if the persistent limiter is unavailable', async () => {
+    await seedReturningUser();
+    const originalPrepare = db.prepare.bind(db);
+    db.prepare = (sql: string) => {
+      if (sql.includes('credential_attempt_limits_v1')) throw new Error('secret storage details');
+      return originalPrepare(sql);
+    };
+    const r = await login({ username: 'alice', password: 'Test1234!' });
+    expect(r.status).toBe(503);
+    expect(r.body.code).toBe('AUTH_LIMIT_UNAVAILABLE');
+    expect(JSON.stringify(r.body)).not.toContain('secret storage details');
+    expect(r.body.token).toBeUndefined();
+    expect(sendSpy).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('legacy IP reputation protections remain effective', () => {
+  it('legacy negative-reputation failures can still impose an IP block', async () => {
+    await seedReturningUser();
+    for (let i = 0; i < 5; i++) {
+      sqlite.prepare(`INSERT INTO login_attempts (ip, success, reputation_delta) VALUES (?, 0, -8)`).run(testIp);
+    }
+    const intake = await app.fetch(new Request('http://test.local/api/crash-reports', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': testIp }, body: '{}',
+    }), env);
+    expect(intake.status).toBe(429);
+    expect((await login({ username: 'alice', password: 'Test1234!' })).status).toBe(429);
+    expect(sendSpy).not.toHaveBeenCalled();
+  });
+
+  it('successful OTP does not reset the password-attempt bucket', async () => {
+    await seedReturningUser();
+    await login({ username: 'alice', password: 'Test1234!', fingerprint: 'same-phone' });
+    const otp = sqlite.prepare(`SELECT code FROM otp_codes WHERE resource_type = 'login' AND resource_id = 'fp:same-phone'`).get().code;
+    expect((await verifyFallbackOtp(otp)).status).toBe(200);
+    for (let i = 0; i < 4; i++) expect((await login({ username: 'alice', password: 'wrong' })).status).toBe(401);
+    expect((await login({ username: 'alice', password: 'Test1234!' })).status).toBe(429);
+  });
+});
+
+
+describe('email link uses bounded OTP verification without changing its signature contract', () => {
+  it('still accepts a valid cross-device signed link, but rejects account substitution', async () => {
+    await seedReturningUser();
+    await login({ username: 'alice', password: 'Test1234!', fingerprint: 'same-phone' });
+    const row = sqlite.prepare(`SELECT code, expires_at FROM otp_codes WHERE resource_type = 'login' AND resource_id = 'fp:same-phone'`).get();
+    const ctx = JSON.parse(sqlite.prepare(`SELECT code FROM otp_codes WHERE resource_type = 'login_ctx' AND resource_id = 'fp:same-phone'`).get().code);
+    const exp = new Date(row.expires_at).getTime();
+    const sig = sha256(`otplink|alice|${row.code}|${exp}|${ctx.secretMaterial}`);
+    const call = async (username: string) => app.fetch(new Request('http://test.local/api/auth/verify-link', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': testIp },
+      body: JSON.stringify({ username, otp: row.code, sig, exp, fingerprint: 'mail-phone' }),
+    }), env);
+    expect((await call('bob')).status).toBe(401);
+    const result = await call('alice');
+    expect(result.status).toBe(200);
+    const body = await result.json() as any;
+    expect(body.username).toBe('alice');
+    expect(atob(body.token).split('|').slice(0, 3)).toEqual(['stock-auth-v2', 'alice', 'user']);
+    expect((await call('alice')).status).toBe(401);
+  });
+
+  it('cannot buy extra OTP attempts by alternating verify-otp and verify-link', async () => {
+    await seedReturningUser();
+    await login({ username: 'alice', password: 'Test1234!', fingerprint: 'same-phone' });
+    for (let i = 0; i < 5; i++) expect((await verifyFallbackOtp('wrong-code')).status).toBe(401);
+    const res = await app.fetch(new Request('http://test.local/api/auth/verify-link', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': testIp },
+      body: JSON.stringify({ username: 'alice', otp: '000000', sig: 'invalid', exp: Date.now() + 10_000 }),
+    }), env);
+    expect(res.status).toBe(429);
+    expect(res.headers.get('Retry-After')).not.toBeNull();
+  });
+});
+
+/* eslint-enable no-await-in-loop */

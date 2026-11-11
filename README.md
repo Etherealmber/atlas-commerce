@@ -51,6 +51,10 @@ par compte/tenant](docs/android-trusted-device-review.md) pour les limites du mo
 actuel, le protocole candidat et les conditions de revue avant intégration.
 Aucun bump suivant ni publication sans nouvel accord explicite.
 
+Le [correctif de limitation des connexions sur IP partagée](docs/login-rate-limits.md)
+isole les budgets par compte tout en conservant des plafonds globaux par IP,
+les blocages explicites et le parcours OTP existant.
+
 ## Connexion desktop par navigateur système
 
 Le Worker et le web exposent un flux optionnel versionné **desktop v1** :

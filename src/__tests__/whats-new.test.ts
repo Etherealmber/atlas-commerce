@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { RELEASES } from '../pages/WhatsNew';
-import { APP_VERSION, DISPLAY_VERSION, RELEASE_VISIBLE_CAP, semverAtMost } from '../version';
+import { APP_VERSION, DISPLAY_VERSION, RELEASE_VISIBLE_CAP, WHATS_NEW_VERSION, semverAtMost } from '../version';
 
 /**
  * v0.7 — the public changelog must never lose an entry, and 0.7.0-beta must
@@ -9,12 +9,18 @@ import { APP_VERSION, DISPLAY_VERSION, RELEASE_VISIBLE_CAP, semverAtMost } from 
  * so the "Nouveautés" badge pointed at an empty section).
  */
 describe('WhatsNew releases', () => {
-  it('pins the authorized 0.8.1 product version without inventing a release note', () => {
+  it('publishes the authorized 0.8.1 notes without changing the product version', () => {
     expect(DISPLAY_VERSION).toBe('0.8.1');
     expect(RELEASE_VISIBLE_CAP).toBe('0.8.1');
     expect(APP_VERSION).toBe('0.8.1-beta');
-    expect(RELEASES[0].version).toBe('0.8.0');
-    expect(RELEASES[0].sections.flatMap((s) => s.items).map((i) => i.id)).toEqual(['080s1', '080s2', '080s4', '080s3']);
+    expect(RELEASES[0].version).toBe('0.8.1');
+    expect(WHATS_NEW_VERSION).toBe(RELEASES[0].version);
+    expect(RELEASES[0].sections.flatMap((s) => s.items).map((i) => i.id)).toEqual(['081s1', '081s2', '081s3']);
+    const text = RELEASES[0].sections.flatMap((s) => s.items).map((i) => i.text).join(' ');
+    expect(text).toContain('reste désactivé');
+    expect(text).toContain('54 tests backend');
+    const previous = RELEASES.find((r) => r.version === '0.8.0')!;
+    expect(previous.sections.flatMap((s) => s.items).map((i) => i.id)).toEqual(['080s1', '080s2', '080s4', '080s3']);
     for (const release of RELEASES) expect(semverAtMost(release.version, DISPLAY_VERSION)).toBe(true);
   });
 

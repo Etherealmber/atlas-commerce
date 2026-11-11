@@ -90,7 +90,7 @@ async function post(path: string, body: any, headers: Record<string, string> = {
   const res = await app.fetch(
     new Request(`http://test.local${path}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...headers },
+      headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': '203.0.113.87', ...headers },
       body: JSON.stringify(body),
     }),
     env,
@@ -110,8 +110,6 @@ async function del(path: string, headers: Record<string, string> = {}) {
 
 /** Full login (password + OTP) → live v2 session token bound to `fp`. */
 async function sessionFor(username: string, fp: string): Promise<string> {
-  // le limiteur de tentatives de connexion est global à l'IP de test : on repart de zéro
-  sqlite.exec(`DELETE FROM login_attempts; DELETE FROM ip_reputation;`);
   sqlite.exec(`INSERT OR IGNORE INTO app_users (username, password_salt, password_hash, role, email)
                VALUES ('${username}', 's1', '${legacyHash('s1', 'Test1234!')}', 'stock', '${username}@corp.ma')`);
   const l = await post('/api/auth/login', { username, password: 'Test1234!', fingerprint: fp });

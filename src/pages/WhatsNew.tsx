@@ -31,6 +31,26 @@ type Release = {
 
 export const RELEASES: Release[] = [
   {
+    version: '0.8.1',
+    // Date of the merged 0.8.1 change set, not the browser's current date.
+    date: '11 novembre 2026',
+    sections: [
+      {
+        kind: 'improvements',
+        items: [
+          { id: '081s1', platforms: ['server'], text: 'Connexion Android : préparation d’une preuve de possession cryptographique liée au compte et au serveur, plutôt qu’à la seule empreinte de l’appareil. Ce mécanisme reste désactivé, en attente de revue de sécurité et d’intégration Android ; les règles actuelles de mot de passe et d’OTP sont inchangées.' },
+          { id: '081s2', platforms: ['server'], text: 'Sécurité de la connexion : 54 tests backend supplémentaires couvrent la séparation des comptes, les preuves absentes ou invalides, l’expiration, la révocation, le repli OTP, les changements d’IP avec un VPN et les mots de passe incorrects. Ces tests ne remplacent pas une validation sur un appareil Android réel.' },
+        ],
+      },
+      {
+        kind: 'fixes',
+        items: [
+          { id: '081s3', platforms: ['web'], text: 'Nouveautés : la page et la fenêtre de mise à jour affichent les notes de la version publiée correspondante. Une simple modification du numéro de build ne représente plus les anciennes notes comme une nouvelle mise à jour.' },
+        ],
+      },
+    ],
+  },
+  {
     version: '0.8.0',
     date: '6 novembre 2026',
     sections: [

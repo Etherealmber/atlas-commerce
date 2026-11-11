@@ -1,7 +1,13 @@
-import { APP_VERSION } from '../version';
+import { WHATS_NEW_VERSION, semverAtMost } from '../version';
 
 const SEEN_KEY = 'atlas-whats-new-seen';
 const MODAL_KEY = 'atlas-whats-new-modal-seen';
+
+/** Accept legacy beta markers without rewriting or downgrading stored history. */
+function coversPublishedRelease(seen: string): boolean {
+  return /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(seen)
+    && semverAtMost(WHATS_NEW_VERSION, seen);
+}
 
 export function getSeenWhatsNewVersion(): string {
   try {
@@ -11,35 +17,33 @@ export function getSeenWhatsNewVersion(): string {
   }
 }
 
-export function markWhatsNewSeen(version: string = APP_VERSION): void {
+export function markWhatsNewSeen(version: string = WHATS_NEW_VERSION): void {
   try {
-    localStorage.setItem(SEEN_KEY, version);
-    localStorage.setItem(MODAL_KEY, version);
+    if (!coversPublishedRelease(localStorage.getItem(SEEN_KEY) || '')) localStorage.setItem(SEEN_KEY, version);
+    if (!coversPublishedRelease(localStorage.getItem(MODAL_KEY) || '')) localStorage.setItem(MODAL_KEY, version);
   } catch {
-    /* */
+    /* Storage may be unavailable; reading release notes still works. */
   }
 }
 
 export function hasUnreadWhatsNew(): boolean {
-  const seen = getSeenWhatsNewVersion();
-  if (!seen) return true;
-  return seen !== APP_VERSION;
+  return !coversPublishedRelease(getSeenWhatsNewVersion());
 }
 
-/** Show once-per-version modal until user dismisses or visits /whats-new */
+/** Show once per published release, not once per application build. */
 export function shouldShowWhatsNewModal(): boolean {
   try {
-    const modalSeen = localStorage.getItem(MODAL_KEY) || '';
-    return modalSeen !== APP_VERSION;
+    return !coversPublishedRelease(localStorage.getItem(MODAL_KEY) || '')
+      && !coversPublishedRelease(localStorage.getItem(SEEN_KEY) || '');
   } catch {
     return false;
   }
 }
 
-export function markWhatsNewModalSeen(version: string = APP_VERSION): void {
+export function markWhatsNewModalSeen(version: string = WHATS_NEW_VERSION): void {
   try {
-    localStorage.setItem(MODAL_KEY, version);
+    if (!coversPublishedRelease(localStorage.getItem(MODAL_KEY) || '')) localStorage.setItem(MODAL_KEY, version);
   } catch {
-    /* */
+    /* Storage may be unavailable. */
   }
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { DISPLAY_VERSION, APP_BUILD_DATE, APP_CHANNEL, RELEASE_VISIBLE_CAP, semverAtMost } from '../version';
+import { APP_CHANNEL, WHATS_NEW_VERSION } from '../version';
 import { RELEASES } from '../pages/WhatsNew';
 import {
   shouldShowWhatsNewModal,
@@ -29,7 +29,8 @@ export default function WhatsNewModal() {
     return () => window.clearTimeout(t);
   }, [location.pathname]);
 
-  if (!open) return null;
+  const release = RELEASES.find((r) => r.version === WHATS_NEW_VERSION);
+  if (!open || !release) return null;
 
   const dismiss = (goFull = false) => {
     markWhatsNewModalSeen();
@@ -54,15 +55,13 @@ export default function WhatsNewModal() {
       >
         <p className="atlas-eyebrow" style={{ marginBottom: 6 }}>Mise à jour</p>
         <h2 id="whats-new-modal-title" style={{ margin: '0 0 8px', fontSize: '1.25rem' }}>
-          Atlas Commerce {DISPLAY_VERSION}
+          Atlas Commerce {release.version}
         </h2>
         <p className="muted" style={{ margin: '0 0 16px', lineHeight: 1.45 }}>
-          Canal <strong>{APP_CHANNEL}</strong> · build {APP_BUILD_DATE}.  
-          Assistants pas à pas partout, thème sombre integral, et sélecteurs façon Discord.
+          Canal <strong>{APP_CHANNEL}</strong> · notes du {release.date}.
         </p>
         <ul className="whats-new-modal-bullets">
-          {RELEASES.filter((r) => semverAtMost(r.version, RELEASE_VISIBLE_CAP))
-            .flatMap((r) => r.sections.flatMap((s) => s.items))
+          {release.sections.flatMap((s) => s.items)
             .slice(0, 3)
             .map((it) => (
               <li key={it.id}>{it.text}</li>
