@@ -9,10 +9,10 @@ import { APP_VERSION, DISPLAY_VERSION, RELEASE_VISIBLE_CAP, semverAtMost } from 
  * so the "Nouveautés" badge pointed at an empty section).
  */
 describe('WhatsNew releases', () => {
-  it('publishes 0.8.0 only on explicit instruction and aligns product versions', () => {
-    expect(DISPLAY_VERSION).toBe('0.8.0');
-    expect(RELEASE_VISIBLE_CAP).toBe('0.8.0');
-    expect(APP_VERSION).toBe('0.8.0-beta');
+  it('pins the authorized 0.8.1 product version without inventing a release note', () => {
+    expect(DISPLAY_VERSION).toBe('0.8.1');
+    expect(RELEASE_VISIBLE_CAP).toBe('0.8.1');
+    expect(APP_VERSION).toBe('0.8.1-beta');
     expect(RELEASES[0].version).toBe('0.8.0');
     expect(RELEASES[0].sections.flatMap((s) => s.items).map((i) => i.id)).toEqual(['080s1', '080s2', '080s4', '080s3']);
     for (const release of RELEASES) expect(semverAtMost(release.version, DISPLAY_VERSION)).toBe(true);
