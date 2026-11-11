@@ -39,8 +39,18 @@ previews run per-branch sandboxes.
 
 - Passwords: PBKDF2-SHA256 (`pbkdf2$<iterations>$<hex>`), per-user salt,
   automatic re-hash on login when parameters evolve.
-- Sessions: HMAC-signed tokens bound to IP + device fingerprint; rotation of
-  signing secrets (automated, DB-backed, previous secret accepted briefly).
+- Sessions: existing v2 account-material proof includes the issuing IP and
+  fingerprint. Fingerprint-bearing sessions currently tolerate IP changes;
+  a supplied different fingerprint or revoked device is rejected. Legacy
+  fingerprint-less sessions remain IP-bound. These are bearer sessions, not
+  Android signing-key proof, and logout does not itself revoke a bearer.
+- **Android trusted-device candidate (0.8.1, not enabled):** an isolated ES256
+  verifier and regression tests prepare a user/tenant-scoped possession design.
+  No production route calls it; even valid candidate proofs require OTP.
+  Existing password/OTP behavior (including the historical self-logout resume
+  exception and local email-unavailable path) is unchanged. See the
+  [review plan and rollout blockers](docs/android-trusted-device-review.md).
+  No existing fingerprint record establishes cryptographic possession.
 - New-device logins require a **6-digit OTP** (10 min, single use). In
   `ENVIRONMENT=production` OTP codes are **never** returned by any API
   response — they travel only by e-mail (Resend, fallback Cloudflare

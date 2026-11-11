@@ -72,6 +72,7 @@ beforeEach(async () => {
   db = made.db;
   sqlite = made.sqlite;
   sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS audit_log (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, role TEXT, action TEXT, entity TEXT, entity_id TEXT, detail TEXT, ip TEXT, created_at TEXT DEFAULT (datetime('now')));
     CREATE TABLE IF NOT EXISTS company_settings (id INTEGER PRIMARY KEY, company_name TEXT DEFAULT '', email TEXT DEFAULT '');
     INSERT INTO company_settings (id, company_name, email) VALUES (1, 'TestCo', 'main@corp.ma');
     CREATE TABLE IF NOT EXISTS app_users (
@@ -281,4 +282,61 @@ describe('v0.7.5 — reprise après auto-déconnexion (resume_until)', () => {
     expect((await login('alice', 'Test1234!', 'fpA')).body.needs_otp).toBe(true);
   });
 
+});
+
+async function settings(token: string, ip: string, fp: string) {
+  const res = await app.fetch(new Request('http://test.local/api/settings/2fa', {
+    headers: { Authorization: `Bearer ${token}`, 'CF-Connecting-IP': ip, 'X-Device-Fingerprint': fp },
+  }), env);
+  return { status: res.status, body: await res.json() as any };
+}
+
+describe('current session/VPN and explicit device-revocation policy', () => {
+  it('fingerprint-bearing session survives VPN egress, but a different fingerprint is rejected', async () => {
+    const material = await seedUser('alice', 'Test1234!');
+    seedDevice('fpA', 'alice');
+    const token = await tokenFor('alice', 'user', material, 'fpA');
+    expect((await settings(token, '198.51.100.9', 'fpA')).status).toBe(200);
+    expect((await settings(token, '198.51.100.9', 'different')).status).toBe(401);
+  });
+  it('legacy session without fingerprint remains bound to its issuing IP', async () => {
+    const material = await seedUser('alice', 'Test1234!');
+    const token = await tokenFor('alice', 'user', material, 'none');
+    expect((await settings(token, IP, '')).status).toBe(200);
+    expect((await settings(token, '198.51.100.9', '')).status).toBe(401);
+  });
+  it.each(['web', 'android'])('%s device revocation kills an existing session despite a matching fingerprint', async (client) => {
+    const material = await seedUser('alice', 'Test1234!');
+    seedDevice('fpA', 'alice');
+    const token = await tokenFor('alice', 'user', material, 'fpA');
+    const path = client === 'android' ? '/api/auth/devices/revoke' : '/api/auth/trusted-devices/fpA';
+    const res = await app.fetch(new Request(`http://test.local${path}`, {
+      method: client === 'android' ? 'POST' : 'DELETE',
+      headers: { Authorization: `Bearer ${token}`, 'CF-Connecting-IP': IP, 'X-Device-Fingerprint': 'fpA', 'Content-Type': 'application/json' },
+      ...(client === 'android' ? { body: JSON.stringify({ fingerprint: 'fpA' }) } : {}),
+    }), env);
+    expect(res.status).toBe(200);
+    if (client === 'android') {
+      expect(sqlite.prepare(`SELECT COUNT(*) AS n FROM audit_log WHERE action = 'device.revoke'`).get().n).toBe(1);
+    }
+    expect((await settings(token, IP, 'fpA')).status).toBe(401);
+    expect((await login('alice', 'Test1234!', 'fpA')).body.needs_otp).toBe(true);
+  });
+});
+
+describe('Android revocation is user-scoped', () => {
+  it('cannot revoke another account device with its fingerprint', async () => {
+    const material = await seedUser('alice', 'Test1234!');
+    await seedUser('bob', 'Other1234!');
+    seedDevice('fpA', 'alice');
+    seedDevice('fpB', 'bob');
+    const token = await tokenFor('alice', 'user', material, 'fpA');
+    const res = await app.fetch(new Request('http://test.local/api/auth/devices/revoke', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'CF-Connecting-IP': IP, 'X-Device-Fingerprint': 'fpA', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fingerprint: 'fpB' }),
+    }), env);
+    expect(res.status).toBe(200); // Idempotent acknowledgement, not proof of deletion.
+    expect(sqlite.prepare(`SELECT username FROM trusted_devices WHERE fingerprint = 'fpB'`).get().username).toBe('bob');
+  });
 });

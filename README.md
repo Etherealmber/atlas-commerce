@@ -9,7 +9,7 @@
 <!-- Badges -->
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 <!-- SUPPORT-SYNC:badge:start -->
-![Version](https://img.shields.io/badge/version-0.8.0--beta-blue)
+![Version](https://img.shields.io/badge/version-0.8.1--beta-blue)
 <!-- SUPPORT-SYNC:badge:end -->
 ![Build](https://img.shields.io/badge/build-cloudflare%20workers-orange)
 ![Stack](https://img.shields.io/badge/stack-React%20%2B%20Vite%20%2B%20D1%20%2B%20R2-0a0a0a)
@@ -41,9 +41,15 @@ Captures desktop **et téléphone** (coque mobile réelle) dans `public/shots/` 
 
 ![Session Atlas Commerce](public/shots/demo.gif)
 
-## Intégration Android — 0.8.0
+## Intégration Android — 0.8.1
 
 Le [contrat Android ↔ Worker](docs/android-worker-0.8.md) décrit la reprise de connexion authentifiée, la confirmation `resume_prepared` et les événements SSE Agent (`token`, `tool`, `done`, `error`) avec propositions et permissions métier. La modification du Worker ne bascule pas automatiquement le chat de l’APK : son intégration reste à livrer côté Android.
+
+La fondation de preuve de possession Android **0.8.1** reste isolée et non activée :
+aucun nouveau parcours ne supprime l’OTP. Voir l’[audit et proposition de confiance
+par compte/tenant](docs/android-trusted-device-review.md) pour les limites du modèle
+actuel, le protocole candidat et les conditions de revue avant intégration.
+Aucun bump suivant ni publication sans nouvel accord explicite.
 
 ## Connexion desktop par navigateur système
 
@@ -332,7 +338,7 @@ Atlas Commerce est développé et maintenu par **loxdpy ([@loxdpsy](https://gith
 - Les trois tournent sur chaque pull request (et sur main) avec filters par chemin : un PR rouge ne devrait jamais être mergé, donc jamais déployé
 
 <!-- SUPPORT-SYNC:support:start -->
-Version actuelle : **0.8.0-beta** (gelée jusqu'au prochain ordre de push).
+Version actuelle : **0.8.1-beta** (gelée jusqu'au prochain ordre de push).
 
 > **Politique de support** : seule la mineure courante (**0.8**) reçoit correctifs et mises à jour de sécurité. Dès la sortie de la mineure suivante (ex. 0.9.0), la mineure précédente passe immédiatement en fin de support — 0.7.x l'est depuis 0.8.0. Les versions 0.7.x et antérieures ne sont plus supportées.
 <!-- SUPPORT-SYNC:support:end -->

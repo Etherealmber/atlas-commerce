@@ -57,8 +57,12 @@ let sqlite: any;
 let app: any;
 let sendSpy: any;
 let env: any;
+let scenario = 0;
+let testIp: string;
 
 beforeEach(async () => {
+  // Keep the real process-wide auth limiter; isolate independent scenarios.
+  testIp = `203.0.113.${++scenario}`;
   const made = makeD1();
   db = made.db;
   sqlite = made.sqlite;
@@ -90,11 +94,11 @@ beforeEach(async () => {
   app = mod.default?.fetch ? mod.default : mod.app;
 });
 
-async function login(body: any) {
+async function login(body: any, ip = testIp) {
   const res = await app.fetch(
     new Request('http://test.local/api/auth/login', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': ip },
       body: JSON.stringify(body),
     }),
     env,
@@ -148,5 +152,99 @@ describe('OTP required always', () => {
     const r = await login({ username: 'mag', password: 'nope', fingerprint: 'fp1' });
     expect(r.status).toBe(401);
     expect(sendSpy).not.toHaveBeenCalled();
+  });
+});
+
+async function seedReturningUser() {
+  sqlite.exec(`INSERT INTO app_users (username, password_salt, password_hash, role, email)
+    VALUES ('alice', 'sA', '${legacyHash('sA', 'Test1234!')}', 'user', 'alice@corp.ma')`);
+  sqlite.exec(`INSERT INTO trusted_devices (fingerprint, username, last_ip)
+    VALUES ('same-phone', 'alice', '203.0.113.7')`);
+}
+
+async function verifyFallbackOtp(code: string) {
+  const res = await app.fetch(new Request('http://test.local/api/auth/verify-otp', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': testIp },
+    body: JSON.stringify({ username: 'alice', password: 'Test1234!', fingerprint: 'same-phone', otp: code }),
+  }), env);
+  return { status: res.status, body: await res.json() as any };
+}
+
+describe('Android possession rollout remains disabled on the real login route', () => {
+  it.each([
+    ['missing', undefined],
+    ['invalid', { signature: 'invalid' }],
+    ['expired', { credential_id: 'old', expires_at: '2000-01-01', signature: 'invalid' }],
+    ['revoked', { credential_id: 'revoked', signature: 'invalid' }],
+    ['unsupported', { algorithm: 'none', signature: 'invalid' }],
+    ['client-asserted valid', { verified: true, trusted: true, username: 'alice', signature: 'invalid' }],
+  ])('same-account return with %s proof still requires OTP', async (_name, device_proof) => {
+    await seedReturningUser();
+    const r = await login({ username: 'alice', password: 'Test1234!', fingerprint: 'same-phone', device_proof });
+    expect(r.status).toBe(200);
+    expect(r.body.needs_otp).toBe(true);
+    expect(r.body.token).toBeUndefined();
+    expect(sendSpy).toHaveBeenCalledOnce();
+  });
+
+  it('cross-account proof claims cannot trust B on the phone enrolled for A', async () => {
+    await seedReturningUser();
+    sqlite.exec(`INSERT INTO app_users (username, password_salt, password_hash, role, email)
+      VALUES ('bob', 'sB', '${legacyHash('sB', 'Test1234!')}', 'user', 'bob@corp.ma')`);
+    const r = await login({ username: 'bob', password: 'Test1234!', fingerprint: 'same-phone',
+      device_proof: { username: 'alice', credential_id: 'alice-key', verified: true } });
+    expect(r.body.needs_otp).toBe(true);
+    expect(r.body.token).toBeUndefined();
+    expect(sentTo()).toBe('bob@corp.ma');
+  });
+
+  it('VPN egress change does not bypass OTP or count password login as successful', async () => {
+    await seedReturningUser();
+    const r = await login({ username: 'alice', password: 'Test1234!', fingerprint: 'same-phone' }, '198.51.100.9');
+    expect(r.body.needs_otp).toBe(true);
+    expect(r.body.token).toBeUndefined();
+    expect(sqlite.prepare(`SELECT COUNT(*) AS n FROM login_attempts WHERE success = 1`).get().n).toBe(0);
+  });
+
+  it('revoked record does not become trusted on a password-only return', async () => {
+    await seedReturningUser();
+    sqlite.exec(`DELETE FROM trusted_devices WHERE fingerprint = 'same-phone'`);
+    const r = await login({ username: 'alice', password: 'Test1234!', fingerprint: 'same-phone' });
+    expect(r.body.needs_otp).toBe(true);
+    expect(r.body.token).toBeUndefined();
+  });
+
+  it('wrong password plus purported possession proof cannot send OTP or issue a token', async () => {
+    await seedReturningUser();
+    const r = await login({ username: 'alice', password: 'wrong', fingerprint: 'same-phone', device_proof: { verified: true } });
+    expect(r.status).toBe(401);
+    expect(r.body.code).toBe('BAD_PASSWORD');
+    expect(r.body.token).toBeUndefined();
+    expect(sendSpy).not.toHaveBeenCalled();
+  });
+
+  it('a VPN IP blocked by reputation cannot use proof claims to bypass abuse controls', async () => {
+    await seedReturningUser();
+    sqlite.prepare(`INSERT INTO ip_reputation (ip, score) VALUES (?, 5)`).run(testIp);
+    const r = await login({ username: 'alice', password: 'Test1234!', fingerprint: 'same-phone', device_proof: { verified: true } });
+    expect(r.status).toBe(429);
+    expect(r.body.token).toBeUndefined();
+    expect(sendSpy).not.toHaveBeenCalled();
+  });
+
+  it('proof failure can complete the existing email OTP fallback unchanged', async () => {
+    await seedReturningUser();
+    const first = await login({ username: 'alice', password: 'Test1234!', fingerprint: 'same-phone', device_proof: { signature: 'invalid' } });
+    expect(first.body.needs_otp).toBe(true);
+    const otp = sqlite.prepare(`SELECT code FROM otp_codes WHERE resource_type = 'login' AND resource_id = 'fp:same-phone'`).get().code;
+
+    const bad = await verifyFallbackOtp('definitely-wrong');
+    expect(bad.status).toBe(401);
+    expect(bad.body.token).toBeUndefined();
+    const good = await verifyFallbackOtp(otp);
+    expect(good.status).toBe(200);
+    expect(good.body.username).toBe('alice');
+    expect(good.body.token).toEqual(expect.any(String));
+    expect((await verifyFallbackOtp(otp)).body.token).toBeUndefined();
   });
 });

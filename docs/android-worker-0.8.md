@@ -1,6 +1,9 @@
-# Android ↔ Worker — contrat 0.8.0
+# Android ↔ Worker — contrat 0.8.1
 
-Version publique : **0.8.0**, canal beta. Aucune version suivante sans ordre explicite.
+Version produit autorisée : **0.8.1**, canal beta. Aucune version suivante sans ordre explicite.
+Les API de ce contrat restent compatibles avec 0.8.0. La [preuve de possession
+Android candidate](android-trusted-device-review.md) n’est pas activée et ne modifie
+pas le parcours OTP. Aucun APK ni déploiement 0.8.1 livré par cette modification.
 Ce document décrit le Worker de ce dépôt ; il ne signifie pas que l’APK a été modifié, compilé ou livré. Déployer le Worker avant de vérifier le contrat dans l’APK.
 
 ## 1. Connexion : verrouiller l’APK sans contourner l’OTP
