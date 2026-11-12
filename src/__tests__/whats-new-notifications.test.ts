@@ -119,7 +119,7 @@ describe('release page and popup content', () => {
     expect(dialog?.textContent).toContain('Atlas Commerce 0.8.1');
     expect(dialog?.textContent).toContain('11 novembre 2026');
     expect(dialog?.textContent).toContain('reste désactivé');
-    expect(dialog?.textContent).toContain('79 tests backend');
+    expect(dialog?.textContent).toContain('82 tests backend');
     expect(dialog?.textContent).toContain('Connexion sur VPN et réseaux partagés');
     expect(dialog?.textContent).not.toContain('build-only-test');
     expect(dialog?.textContent).not.toContain('Atlas Agent : le streaming');

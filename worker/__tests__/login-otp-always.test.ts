@@ -425,4 +425,91 @@ describe('email link uses bounded OTP verification without changing its signatur
   });
 });
 
+/** Two actual DB accounts; EMAIL is a test double, never a production inbox. */
+async function seedControlledAccounts() {
+  await seedReturningUser();
+  sqlite.exec(`INSERT INTO app_users (username, password_salt, password_hash, role, email)
+    VALUES ('bob', 'sB', '${legacyHash('sB', 'Test1234!')}', 'stock', 'bob@corp.ma')`);
+}
+
+async function verifyControlledAccount(username: string, fingerprint: string, otp: string) {
+  const response = await app.fetch(new Request('http://test.local/api/auth/verify-otp', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': testIp },
+    body: JSON.stringify({ username, password: 'Test1234!', fingerprint, otp }),
+  }), env);
+  return { status: response.status, body: await response.json() as any };
+}
+
+describe('controlled two-account shared-egress regression (local, not staging)', () => {
+  it('A exhaustion does not prevent B completing real password/OTP and using its own session', async () => {
+    await seedControlledAccounts();
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const result = await login({ username: 'alice', password: 'wrong', fingerprint: 'fp-alice' });
+      expect(result.status).toBe(401);
+      expect(result.body.code).toBe('BAD_PASSWORD');
+    }
+    const denied = await login({ username: 'alice', password: 'Test1234!', fingerprint: 'fp-alice' });
+    expect(denied.status).toBe(429);
+    expect(denied.body.code).toBe('RATE_LIMITED');
+    expect(sendSpy).not.toHaveBeenCalled();
+
+    const pending = await login({ username: 'bob', password: 'Test1234!', fingerprint: 'fp-bob' });
+    expect(pending.status).toBe(200);
+    expect(pending.body.needs_otp).toBe(true);
+    expect(pending.body.token).toBeUndefined();
+    expect(sendSpy).toHaveBeenCalledOnce();
+    expect(sentTo()).toBe('bob@corp.ma');
+    const incorrect = await verifyControlledAccount('bob', 'fp-bob', 'not-a-code');
+    expect(incorrect.status).toBe(401);
+    expect(incorrect.body.code).toBe('BAD_OTP');
+    expect(incorrect.body.token).toBeUndefined();
+    const otp = sqlite.prepare(`SELECT code FROM otp_codes WHERE resource_type = 'login' AND resource_id = 'fp:fp-bob'`).get().code;
+    const accepted = await verifyControlledAccount('bob', 'fp-bob', otp);
+    expect(accepted.status).toBe(200);
+    const identity = atob(accepted.body.token).split('|');
+    expect(identity.slice(0, 5)).toEqual(['stock-auth-v2', 'bob', 'stock', testIp, 'fp-bob']);
+    const protectedResponse = await app.fetch(new Request('http://test.local/api/settings/2fa', {
+      headers: { Authorization: `Bearer ${accepted.body.token}`, 'CF-Connecting-IP': testIp, 'X-Device-Fingerprint': 'fp-bob' },
+    }), env);
+    expect(protectedResponse.status).toBe(200);
+    const replay = await verifyControlledAccount('bob', 'fp-bob', otp);
+    expect(replay.body.token).toBeUndefined();
+    expect(replay.body.code).toBe('OTP_NOT_REQUESTED');
+    // Alice's account limit is not cleared by Bob's successful login.
+    expect((await login({ username: 'alice', password: 'Test1234!', fingerprint: 'fp-alice' })).status).toBe(429);
+  });
+
+  it('a historical low-score egress still blocks both accounts without a blanket reset', async () => {
+    await seedControlledAccounts();
+    sqlite.prepare(`INSERT INTO ip_reputation (ip, score, failed_count) VALUES (?, 5, 19)`).run(testIp);
+    for (const username of ['alice', 'bob']) {
+      const response = await login({ username, password: 'Test1234!', fingerprint: `fp-${username}` });
+      expect(response.status).toBe(429);
+      expect(response.body.code).toBe('RATE_LIMITED');
+      expect(response.body.token).toBeUndefined();
+      expect(response.headers.get('Retry-After')).not.toBeNull();
+    }
+    const reputation = sqlite.prepare(`SELECT score, failed_count, blocked_until FROM ip_reputation WHERE ip = ?`).get(testIp);
+    expect(reputation.score).toBe(5);
+    expect(reputation.failed_count).toBe(19);
+    expect(reputation.blocked_until).toBeNull();
+    expect(sendSpy).not.toHaveBeenCalled();
+  });
+
+  it('expired B OTP cannot create a session or remove the OTP requirement for A', async () => {
+    await seedControlledAccounts();
+    expect((await login({ username: 'bob', password: 'Test1234!', fingerprint: 'fp-bob' })).body.needs_otp).toBe(true);
+    const otp = sqlite.prepare(`SELECT code FROM otp_codes WHERE resource_type = 'login' AND resource_id = 'fp:fp-bob'`).get().code;
+    sqlite.exec(`UPDATE otp_codes SET expires_at = '2000-01-01T00:00:00.000Z' WHERE resource_type = 'login' AND resource_id = 'fp:fp-bob'`);
+    const expired = await verifyControlledAccount('bob', 'fp-bob', otp);
+    expect(expired.status).toBe(400);
+    expect(expired.body.code).toBe('OTP_EXPIRED');
+    expect(expired.body.token).toBeUndefined();
+    const accountA = await login({ username: 'alice', password: 'Test1234!', fingerprint: 'fp-alice' });
+    expect(accountA.status).toBe(200);
+    expect(accountA.body.needs_otp).toBe(true);
+    expect(accountA.body.token).toBeUndefined();
+  });
+});
+
 /* eslint-enable no-await-in-loop */
