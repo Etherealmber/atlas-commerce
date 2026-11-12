@@ -41,6 +41,13 @@ export function registerClientRoutes(app: Hono<any>, deps?: ClientRouteDeps): vo
   const clientDeleteBlockers = deps?.clientDeleteBlockers;
   const writeAudit = deps?.writeAudit;
 
+  const gateBiz = (c: any) => {
+    if (!requireBizMutator) return { ok: true as const, username: 'user', role: 'admin' };
+    const r = requireBizMutator(c);
+    if (!r.ok) return { ok: false as const, response: r.response };
+    return { ok: true as const, username: r.username, role: r.role };
+  };
+
   app.get('/api/clients', async (c) => {
     await ensureClientTaxExempt(c.env.DB);
     await ensureClientCreditLimit(c.env.DB);
@@ -68,6 +75,8 @@ export function registerClientRoutes(app: Hono<any>, deps?: ClientRouteDeps): vo
   });
 
   app.post('/api/clients', async (c) => {
+    const gate = gateBiz(c);
+    if (!gate.ok) return gate.response;
     await ensureClientTaxExempt(c.env.DB);
     await ensureClientCreditLimit(c.env.DB);
     const body = await c.req.json().catch(() => ({}));
@@ -92,6 +101,8 @@ export function registerClientRoutes(app: Hono<any>, deps?: ClientRouteDeps): vo
   });
 
   app.put('/api/clients/:id', async (c) => {
+    const gate = gateBiz(c);
+    if (!gate.ok) return gate.response;
     await ensureClientTaxExempt(c.env.DB);
     await ensureClientCreditLimit(c.env.DB);
     const id = c.req.param('id');
@@ -119,6 +130,8 @@ export function registerClientRoutes(app: Hono<any>, deps?: ClientRouteDeps): vo
   });
 
   app.post('/api/clients/:id/request-delete-otp', async (c) => {
+    const gate = gateBiz(c);
+    if (!gate.ok) return gate.response;
     const id = c.req.param('id');
     const client = await c.env.DB.prepare(`SELECT * FROM clients WHERE id = ?`).bind(id).first() as any;
     if (!client) return c.json({ success: false, error: 'Client introuvable' }, 404);
@@ -129,7 +142,7 @@ export function registerClientRoutes(app: Hono<any>, deps?: ClientRouteDeps): vo
 
   app.delete('/api/clients/:id', async (c) => {
     try {
-      const gate = requireBizMutator(c);
+      const gate = gateBiz(c);
       if (!gate.ok) return gate.response;
       const id = c.req.param('id');
       const body = await c.req.json().catch(() => ({}));
@@ -156,6 +169,8 @@ export function registerClientRoutes(app: Hono<any>, deps?: ClientRouteDeps): vo
   });
 
   app.post('/api/clients/request-bulk-delete-otp', async (c) => {
+    const gate = gateBiz(c);
+    if (!gate.ok) return gate.response;
     const body = await c.req.json().catch(() => ({}));
     const ids: number[] = Array.isArray(body.ids) ? body.ids.map((x: any) => Number(x)).filter((n: number) => n > 0) : [];
     if (!ids.length) return c.json({ success: false, error: 'Aucun client sélectionné' }, 400);
@@ -169,6 +184,8 @@ export function registerClientRoutes(app: Hono<any>, deps?: ClientRouteDeps): vo
   });
 
   app.post('/api/clients/bulk-delete', async (c) => {
+    const gate = gateBiz(c);
+    if (!gate.ok) return gate.response;
     const body = await c.req.json().catch(() => ({}));
     const ids: number[] = Array.isArray(body.ids) ? body.ids.map((x: any) => Number(x)).filter((n: number) => n > 0) : [];
       if (!ids.length) return c.json({ success: false, error: 'Aucun client sélectionné' }, 400);
@@ -259,6 +276,8 @@ export function registerClientRoutes(app: Hono<any>, deps?: ClientRouteDeps): vo
   });
 
   app.post('/api/clients/import', async (c) => {
+    const gate = gateBiz(c);
+    if (!gate.ok) return gate.response;
     const body = await c.req.json().catch(() => ({}));
     const rows: any[] = Array.isArray(body.rows) ? body.rows : [];
     if (!rows.length) return c.json({ success: false, error: 'Aucune ligne à importer' }, 400);

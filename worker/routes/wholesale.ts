@@ -22,7 +22,11 @@ async function ensureClientPricesTable(db: D1Database): Promise<void> {
 }
 
 /** Client-specific prices + reorder suggestions (wholesale). */
-export function registerWholesaleRoutes(app: AtlasApp): void {
+export interface WholesaleDeps {
+  requireBizMutator?: (c: any) => { ok: true; username: string; role: string } | { ok: false; response: Response };
+}
+
+export function registerWholesaleRoutes(app: AtlasApp, deps?: WholesaleDeps): void {
   app.get('/api/clients/:id/prices', async (c) => {
     await ensureClientPricesTable(c.env.DB);
     const id = c.req.param('id');
@@ -39,6 +43,10 @@ export function registerWholesaleRoutes(app: AtlasApp): void {
   });
 
   app.put('/api/clients/:id/prices/:productId', async (c) => {
+    if (deps?.requireBizMutator) {
+      const gate = deps.requireBizMutator(c);
+      if (!gate.ok) return gate.response;
+    }
     await ensureClientPricesTable(c.env.DB);
     const clientId = Number(c.req.param('id'));
     const productId = Number(c.req.param('productId'));

@@ -33,6 +33,7 @@ import {
   assertSafeOutboundUrl,
   isAllowedImageUrl,
   clientIpFromRequest,
+  normalizeIp,
   escapeHtml,
   safeImageSrc,
 } from './lib/security';
@@ -710,23 +711,65 @@ function readD1Bookmark(c: any): string | null {
   } catch { /* */ }
   return null;
 }
+function readD1BookmarkFromReq(c: any): string | null {
+  const headerBm = c.req.header('x-d1-bookmark') || c.req.header('X-D1-Bookmark');
+  if (headerBm) {
+    const s = String(headerBm).trim();
+    if (s && s.length <= 512 && /^[a-zA-Z0-9_.-]+$/.test(s)) return s;
+  }
+  return readD1Bookmark(c);
+}
+
+function isCriticalSecurityPath(path: string, method: string): boolean {
+  if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') return true;
+  if (path.startsWith('/api/auth/')) return true;
+  if (path.startsWith('/api/admin/')) return true;
+  if (path.startsWith('/api/assist/approve')) return true;
+  if (path.startsWith('/api/stock-adjustment-requests')) return true;
+  if (path.startsWith('/api/mobile-actions')) return true;
+  return false;
+}
+
 app.use('*', async (c, next) => {
   const rawDb: any = (c.env as any).DB;
   let session: any = null;
   if (rawDb && typeof rawDb.withSession === 'function') {
-    const bm = readD1Bookmark(c);
+    const path = new URL(c.req.url).pathname;
+    const method = c.req.method.toUpperCase();
+    const bm = readD1BookmarkFromReq(c);
+
     try {
-      session = bm ? rawDb.withSession(bm) : rawDb.withSession('first-primary');
-    } catch { session = null; }
+      if (path === '/api/health') {
+        // Health check: can use unconstrained replica or available session
+        session = rawDb.withSession();
+      } else if (isCriticalSecurityPath(path, method)) {
+        // Security-sensitive reads and business mutations: first-primary or trustworthy bookmark
+        session = bm ? rawDb.withSession(bm) : rawDb.withSession('first-primary');
+      } else {
+        // Replica-eligible reads: use bookmark if available, else standard session
+        session = bm ? rawDb.withSession(bm) : rawDb.withSession();
+      }
+    } catch {
+      // Fail closed / safe fallback
+      try {
+        session = rawDb.withSession('first-primary');
+      } catch {
+        session = null;
+      }
+    }
+
     if (session) {
       (c.env as any).DB = session;
     }
   }
+
   await next();
+
   if (session && typeof session.getBookmark === 'function') {
     try {
       const nb = session.getBookmark();
       if (nb) {
+        c.res.headers.set('x-d1-bookmark', nb);
         c.res.headers.append(
           'Set-Cookie',
           `${D1_BM_COOKIE}=${encodeURIComponent(nb)}; Path=/; Max-Age=600; SameSite=Lax; Secure`,
@@ -734,6 +777,17 @@ app.use('*', async (c, next) => {
       }
     } catch { /* */ }
   }
+
+  // Safe diagnostics: served_by_region and served_by_primary (without leaking user data or full bookmarks)
+  try {
+    const meta: any = (c.res as any)?._meta || (session as any)?._meta;
+    if (meta?.served_by_region) {
+      c.res.headers.set('x-d1-region', String(meta.served_by_region));
+    }
+    if (typeof meta?.served_by_primary === 'boolean') {
+      c.res.headers.set('x-d1-primary', meta.served_by_primary ? '1' : '0');
+    }
+  } catch { /* */ }
 });
 
 /* ── v232 — in-worker WAF (free): blocks classic attack signatures before any route runs ── */
@@ -1218,7 +1272,7 @@ app.post('/api/admin/search-index/rebuild', async (c) => {
 /* Domain route modules (extracted from monolith) */
 registerInvoiceReadRoutes(app);
 registerStockReadRoutes(app);
-registerWholesaleRoutes(app);
+registerWholesaleRoutes(app, { requireBizMutator });
 registerPublicRoutes(app);
 registerClientRoutes(app, {
   issueDeleteOtp,
@@ -2143,7 +2197,8 @@ async function setConfig(db: D1Database, key: string, value: string) {
 
 
 function clientIp(c: any): string {
-  return c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For')?.split(',')[0]?.trim() || c.req.header('X-Real-IP') || 'unknown';
+  const raw = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For')?.split(',')[0]?.trim() || c.req.header('X-Real-IP') || 'unknown';
+  return normalizeIp(raw);
 }
 
 /** Session token v2: username + role + proof (no raw password). Legacy v1 still parsed. */
@@ -15908,12 +15963,8 @@ async function agentChatCryptoKey(env: any): Promise<CryptoKey | null> {
     '',
   ).trim();
   if (!secret) {
-    // deterministic weak fallback only for continuity — prefer setting a secret
-    const raw = await crypto.subtle.digest(
-      'SHA-256',
-      new TextEncoder().encode('atlas-agent-chat-fallback-v1'),
-    );
-    return crypto.subtle.importKey('raw', raw, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+    // Security fail-closed: do not encrypt or store transcripts with a hardcoded static public key
+    return null;
   }
   const raw = await crypto.subtle.digest(
     'SHA-256',

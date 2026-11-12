@@ -295,6 +295,7 @@ export async function groqChatStreamWithTools(opts: {
     const dec = new TextDecoder();
     let buf = '';
     let roundText = '';
+    let streamCompleted = false;
     const callsByIndex = new Map<number, { id: string; name: string; args: string }>();
     for (;;) {
       const { done, value } = await reader.read();
@@ -306,10 +307,15 @@ export async function groqChatStreamWithTools(opts: {
         buf = buf.slice(idx + 1);
         if (!line.startsWith('data:')) continue;
         const payload = line.slice(5).trim();
-        if (!payload || payload === '[DONE]') continue;
+        if (!payload) continue;
+        if (payload === '[DONE]') {
+          streamCompleted = true;
+          continue;
+        }
         let j: any = null;
         try { j = JSON.parse(payload); } catch { continue; }
         if (j?.model) lastModel = String(j.model);
+        if (j?.choices?.[0]?.finish_reason) streamCompleted = true;
         const delta = String(j?.choices?.[0]?.delta?.content || '');
         if (delta) {
           roundText += delta;
@@ -332,6 +338,9 @@ export async function groqChatStreamWithTools(opts: {
           completionTokens += Number(u.completion_tokens || 0);
         }
       }
+    }
+    if (!streamCompleted && callsByIndex.size > 0) {
+      throw new Error('Flux amont interrompu prématurément avant achèvement du tool_call.');
     }
     const calls = [...callsByIndex.entries()]
       .sort((a, b) => a[0] - b[0])

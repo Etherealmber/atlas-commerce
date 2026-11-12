@@ -9,22 +9,21 @@ import { APP_VERSION, DISPLAY_VERSION, RELEASE_VISIBLE_CAP, WHATS_NEW_VERSION, s
  * so the "Nouveautés" badge pointed at an empty section).
  */
 describe('WhatsNew releases', () => {
-  it('publishes the authorized 0.8.1 notes without changing the product version', () => {
-    expect(DISPLAY_VERSION).toBe('0.8.1');
-    expect(RELEASE_VISIBLE_CAP).toBe('0.8.1');
-    expect(APP_VERSION).toBe('0.8.1-beta');
-    expect(RELEASES[0].version).toBe('0.8.1');
+  it('publishes the authorized 0.8.5 notes without changing the product version', () => {
+    expect(DISPLAY_VERSION).toBe('0.8.5');
+    expect(RELEASE_VISIBLE_CAP).toBe('0.8.5');
+    expect(APP_VERSION).toBe('0.8.5-beta');
+    expect(RELEASES[0].version).toBe('0.8.5');
     expect(WHATS_NEW_VERSION).toBe(RELEASES[0].version);
-    expect(RELEASES[0].sections.flatMap((s) => s.items).map((i) => i.id)).toEqual(['081s1', '081s2', '081s4', '081s5', '081s6', '081s3']);
+    expect(RELEASES[0].sections.flatMap((s) => s.items).map((i) => i.id)).toEqual(['085s1', '085s2', '085s3', '085s4', '085s5']);
     const text = RELEASES[0].sections.flatMap((s) => s.items).map((i) => i.text).join(' ');
-    expect(text).toContain('reste désactivé');
-    expect(text).toContain('82 tests backend');
-    expect(text).toContain('Connexion sur VPN et réseaux partagés');
-    expect(text).toContain('compteurs persistants');
-    expect(text).toContain('même budget de tentatives OTP');
-    expect(text).toContain('staging isolé reste à effectuer');
-    expect(text).toContain('429 RATE_LIMITED');
-    expect(text).toContain('503 AUTH_LIMIT_UNAVAILABLE');
+    expect(text).toContain('Réplication globale D1');
+    expect(text).toContain('first-primary');
+    expect(text).toContain('requireBizMutator');
+    expect(text).toContain('données sensibles');
+    expect(text).toContain('IPv4 et IPv6');
+    const r081 = RELEASES.find((r) => r.version === '0.8.1')!;
+    expect(r081.sections.flatMap((s) => s.items).map((i) => i.id)).toEqual(['081s1', '081s2', '081s4', '081s5', '081s6', '081s3']);
     const previous = RELEASES.find((r) => r.version === '0.8.0')!;
     expect(previous.sections.flatMap((s) => s.items).map((i) => i.id)).toEqual(['080s1', '080s2', '080s4', '080s3']);
     for (const release of RELEASES) expect(semverAtMost(release.version, DISPLAY_VERSION)).toBe(true);

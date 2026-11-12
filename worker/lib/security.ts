@@ -105,13 +105,27 @@ export function assertHasWhereClause(sql: string): void {
   }
 }
 
+export function normalizeIp(raw: string): string {
+  const s = String(raw || '').trim();
+  if (!s || s === 'unknown' || s === '0.0.0.0') return s || 'unknown';
+  // [IPv6]:port or [IPv6]
+  const bracketMatch = s.match(/^\[([a-fA-F0-9:]+)\](?::\d+)?$/);
+  if (bracketMatch) return bracketMatch[1].toLowerCase();
+  // IPv4:port
+  const ipv4PortMatch = s.match(/^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(?::\d+)?$/);
+  if (ipv4PortMatch) return ipv4PortMatch[1];
+  // Plain IPv6
+  if (s.includes(':')) return s.toLowerCase();
+  return s;
+}
+
 export function clientIpFromRequest(c: { req: { header: (n: string) => string | undefined } }): string {
-  return (
+  const raw =
     c.req.header('cf-connecting-ip') ||
     c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ||
     c.req.header('x-real-ip') ||
-    '0.0.0.0'
-  );
+    '0.0.0.0';
+  return normalizeIp(raw);
 }
 
 /**
