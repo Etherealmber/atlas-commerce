@@ -118,7 +118,7 @@ describe('release page and popup content', () => {
     await render(createElement(WhatsNewModal));
     const dialog = host.querySelector('[role="dialog"]');
     expect(dialog?.textContent).toContain('Atlas Commerce 0.8.5');
-    expect(dialog?.textContent).toContain('20 octobre 2026');
+    expect(dialog?.textContent).toContain('13 novembre 2026');
     expect(dialog?.textContent).toContain('Réplication globale D1');
     expect(dialog?.textContent).toContain('first-primary');
     expect(dialog?.textContent).toContain('requireBizMutator');
