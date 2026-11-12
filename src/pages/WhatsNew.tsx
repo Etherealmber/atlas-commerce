@@ -32,7 +32,7 @@ type Release = {
 export const RELEASES: Release[] = [
   {
     version: '0.8.5',
-    date: '20 octobre 2026',
+    date: '13 novembre 2026',
     sections: [
       {
         kind: 'improvements',
