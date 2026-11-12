@@ -15,13 +15,16 @@ describe('WhatsNew releases', () => {
     expect(APP_VERSION).toBe('0.8.1-beta');
     expect(RELEASES[0].version).toBe('0.8.1');
     expect(WHATS_NEW_VERSION).toBe(RELEASES[0].version);
-    expect(RELEASES[0].sections.flatMap((s) => s.items).map((i) => i.id)).toEqual(['081s1', '081s2', '081s4', '081s5', '081s3']);
+    expect(RELEASES[0].sections.flatMap((s) => s.items).map((i) => i.id)).toEqual(['081s1', '081s2', '081s4', '081s5', '081s6', '081s3']);
     const text = RELEASES[0].sections.flatMap((s) => s.items).map((i) => i.text).join(' ');
     expect(text).toContain('reste désactivé');
-    expect(text).toContain('79 tests backend');
+    expect(text).toContain('82 tests backend');
     expect(text).toContain('Connexion sur VPN et réseaux partagés');
     expect(text).toContain('compteurs persistants');
     expect(text).toContain('même budget de tentatives OTP');
+    expect(text).toContain('staging isolé reste à effectuer');
+    expect(text).toContain('429 RATE_LIMITED');
+    expect(text).toContain('503 AUTH_LIMIT_UNAVAILABLE');
     const previous = RELEASES.find((r) => r.version === '0.8.0')!;
     expect(previous.sections.flatMap((s) => s.items).map((i) => i.id)).toEqual(['080s1', '080s2', '080s4', '080s3']);
     for (const release of RELEASES) expect(semverAtMost(release.version, DISPLAY_VERSION)).toBe(true);

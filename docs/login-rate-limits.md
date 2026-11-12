@@ -167,3 +167,13 @@ Android binary was performed by this patch.
   branch base after path/line normalization, with no new diagnostics.
 - `git diff --check`: passed.
 - Real VPN, Android binary, Cloudflare D1 load/concurrency, deployment: not run.
+
+
+## Follow-up validation on the merged backend
+
+See [shared-egress staging validation](shared-egress-staging-validation.md) for
+new two-account local regressions, exact failure classification and the gated
+operator procedure. Live staging remains unexecuted: the checked-in Worker
+preview shares production resource bindings and must not be used for intentional
+failed sign-ins without isolation. Historical bans/scores are not blanket-reset;
+Android countdown/retry behavior is not altered. The product stays at 0.8.1.
