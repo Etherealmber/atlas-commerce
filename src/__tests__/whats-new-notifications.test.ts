@@ -21,7 +21,7 @@ vi.mock('../auth', () => ({ isLoggedIn: () => false, getToken: () => null }));
 // A build-only change must not affect the published notes or their seen markers.
 vi.mock('../version', async (importOriginal) => ({
   ...await importOriginal<typeof import('../version')>(),
-  APP_VERSION: '0.8.1-build.2', DISPLAY_VERSION: 'build-only-test',
+  APP_VERSION: '0.8.5-build.2', DISPLAY_VERSION: 'build-only-test',
 }));
 
 const SEEN = 'atlas-whats-new-seen';
@@ -50,13 +50,13 @@ async function render(node: ReactNode, path = '/dashboard') {
 }
 
 describe('published release notification state', () => {
-  it('announces the new 0.8.1 notes to someone who has seen 0.8.0', () => {
-    localStorage.setItem(SEEN, '0.8.0-beta');
-    localStorage.setItem(MODAL, '0.8.0-beta');
+  it('announces the new 0.8.5 notes to someone who has seen 0.8.1', () => {
+    localStorage.setItem(SEEN, '0.8.1-beta');
+    localStorage.setItem(MODAL, '0.8.1-beta');
     expect(hasUnreadWhatsNew()).toBe(true);
     expect(shouldShowWhatsNewModal()).toBe(true);
   });
-  it.each(['0.8.1', '0.8.1-beta'])('preserves an existing %s marker across build changes', (version) => {
+  it.each(['0.8.5', '0.8.5-beta'])('preserves an existing %s marker across build changes', (version) => {
     localStorage.setItem(SEEN, version);
     localStorage.setItem(MODAL, version);
     expect(hasUnreadWhatsNew()).toBe(false);
@@ -67,19 +67,19 @@ describe('published release notification state', () => {
     expect(localStorage.getItem(MODAL)).toBe(version);
   });
   it('does not reopen a modal when the page-seen marker already covers the release', () => {
-    localStorage.setItem(SEEN, '0.8.1-beta');
+    localStorage.setItem(SEEN, '0.8.5-beta');
     expect(shouldShowWhatsNewModal()).toBe(false);
   });
   it('dismissing only the modal leaves the page unread badge intact', () => {
     markWhatsNewModalSeen();
     expect(shouldShowWhatsNewModal()).toBe(false);
     expect(hasUnreadWhatsNew()).toBe(true);
-    expect(localStorage.getItem(MODAL)).toBe('0.8.1');
+    expect(localStorage.getItem(MODAL)).toBe('0.8.5');
   });
   it('visiting the notes records the published version, not the build version', () => {
     markWhatsNewSeen();
-    expect(localStorage.getItem(SEEN)).toBe('0.8.1');
-    expect(localStorage.getItem(MODAL)).toBe('0.8.1');
+    expect(localStorage.getItem(SEEN)).toBe('0.8.5');
+    expect(localStorage.getItem(MODAL)).toBe('0.8.5');
     expect(hasUnreadWhatsNew()).toBe(false);
   });
   it('preserves newer seen markers when running an older build', () => {
@@ -105,22 +105,23 @@ describe('published release notification state', () => {
 });
 
 describe('release page and popup content', () => {
-  it('shows 0.8.1 first while retaining 0.8.0 and honest security status', async () => {
+  it('shows 0.8.5 first while retaining 0.8.1 and honest security status', async () => {
     await render(createElement(WhatsNew), '/whats-new');
     const releases = host.querySelectorAll('.wn-release');
-    expect(releases[0].textContent).toContain('0.8.1');
-    expect(releases[0].textContent).toContain('reste désactivé');
-    expect(releases[1].textContent).toContain('0.8.0');
-    expect(localStorage.getItem(SEEN)).toBe('0.8.1');
+    expect(releases[0].textContent).toContain('0.8.5');
+    expect(releases[0].textContent).toContain('Réplication globale D1');
+    expect(releases[1].textContent).toContain('0.8.1');
+    expect(releases[1].textContent).toContain('reste désactivé');
+    expect(localStorage.getItem(SEEN)).toBe('0.8.5');
   });
   it('pairs popup title, date and bullets with the same published release only', async () => {
     await render(createElement(WhatsNewModal));
     const dialog = host.querySelector('[role="dialog"]');
-    expect(dialog?.textContent).toContain('Atlas Commerce 0.8.1');
-    expect(dialog?.textContent).toContain('11 novembre 2026');
-    expect(dialog?.textContent).toContain('reste désactivé');
-    expect(dialog?.textContent).toContain('82 tests backend');
-    expect(dialog?.textContent).toContain('Connexion sur VPN et réseaux partagés');
+    expect(dialog?.textContent).toContain('Atlas Commerce 0.8.5');
+    expect(dialog?.textContent).toContain('20 octobre 2026');
+    expect(dialog?.textContent).toContain('Réplication globale D1');
+    expect(dialog?.textContent).toContain('first-primary');
+    expect(dialog?.textContent).toContain('requireBizMutator');
     expect(dialog?.textContent).not.toContain('build-only-test');
     expect(dialog?.textContent).not.toContain('Atlas Agent : le streaming');
     expect(dialog?.textContent).not.toContain('sélecteurs façon Discord');
@@ -129,7 +130,7 @@ describe('release page and popup content', () => {
     if (!dismissButton) throw new Error('Missing release popup dismiss button');
     await act(async () => dismissButton.click());
     expect(host.querySelector('[role="dialog"]')).toBeNull();
-    expect(localStorage.getItem(MODAL)).toBe('0.8.1');
+    expect(localStorage.getItem(MODAL)).toBe('0.8.5');
   });
   it('does not display the modal on the notes page itself', async () => {
     await render(createElement(WhatsNewModal), '/whats-new');

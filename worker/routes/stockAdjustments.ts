@@ -177,11 +177,11 @@ export function registerStockAdjustmentRoutes(app: any, deps: StockAdjustDeps): 
   app.post('/api/stock-adjustment-requests', async (c: any) => {
     const sess = deps.session(c);
     if (!sess?.username) return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Session invalide' }, 401);
-    const role = normalizeInventoryRole(sess.role);
+    const db = c.env.DB;
+    const role = await readFreshRole(deps, db, sess);
     if (!roleCanSubmitStockAdjustmentRequest(role)) {
       return c.json({ success: false, code: 'FORBIDDEN_ROLE', error: 'Rôle non autorisé à proposer un ajustement.' }, 403);
     }
-    const db = c.env.DB;
     await ensureStockAdjustmentTables(db);
     let body: any = {};
     try { body = await c.req.json(); } catch { body = {}; }
@@ -255,7 +255,7 @@ export function registerStockAdjustmentRoutes(app: any, deps: StockAdjustDeps): 
     if (!sess?.username) return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Session invalide' }, 401);
     const db = c.env.DB;
     await ensureStockAdjustmentTables(db);
-    const role = normalizeInventoryRole(sess.role);
+    const role = await readFreshRole(deps, db, sess);
     const status = String(c.req.query('status') || '').toLowerCase();
     const approver = roleCanApproveStockAdjustment(role);
     let sql = `SELECT * FROM stock_adjustment_requests`;
@@ -277,7 +277,8 @@ export function registerStockAdjustmentRoutes(app: any, deps: StockAdjustDeps): 
     const row = await db.prepare(`SELECT * FROM stock_adjustment_requests WHERE id = ?`).bind(Number(c.req.param('id'))).first();
     if (!row) return c.json({ success: false, code: 'NOT_FOUND', error: 'Demande introuvable' }, 404);
     const mine = String((row as any).requested_by || '').toLowerCase() === String(sess.username).toLowerCase();
-    if (!mine && !roleCanApproveStockAdjustment(sess.role)) {
+    const viewerRole = await readFreshRole(deps, db, sess);
+    if (!mine && !roleCanApproveStockAdjustment(viewerRole)) {
       return c.json({ success: false, code: 'FORBIDDEN_ROLE', error: 'Visibilité réservée au demandeur et aux approbateurs.' }, 403);
     }
     return c.json({ success: true, data: dto(row) }, 200);

@@ -713,6 +713,8 @@ export async function runAssistTool(
       case 'search_clients': {
         const q = String(args.query || '').trim();
         if (!q) return { ok: false, error: 'query requis' };
+        const rRole = normalizeRole(role);
+        const canViewContact = rRole === 'owner' || rRole === 'admin' || rRole === 'secretaire';
         const like = `%${q}%`;
         const { results } = await db
           .prepare(
@@ -722,7 +724,14 @@ export async function runAssistTool(
           )
           .bind(like, like, like, like, limit)
           .all();
-        return { ok: true, data: { items: results || [] } };
+        const items = (results || []).map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          ice: c.ice,
+          city: c.city,
+          ...(canViewContact ? { phone: c.phone, email: c.email } : {}),
+        }));
+        return { ok: true, data: { items } };
       }
       case 'list_recent_invoices': {
         const { results } = await db
@@ -1360,10 +1369,12 @@ export async function auditAssist(
         created_at TEXT DEFAULT (datetime('now'))
       )`,
     ).run();
+    const msgLen = (row.message || '').length;
+    const sanitizedMsg = `[message ${msgLen} chars]`;
     await env.DB.prepare(
       `INSERT INTO assist_audit (username, role, message, tools, ok) VALUES (?, ?, ?, ?, ?)`,
     )
-      .bind(row.username.slice(0, 64), row.role.slice(0, 32), row.message.slice(0, 500), row.tools.slice(0, 500), row.ok ? 1 : 0)
+      .bind(row.username.slice(0, 64), row.role.slice(0, 32), sanitizedMsg, row.tools.slice(0, 500), row.ok ? 1 : 0)
       .run();
   } catch {
     /* ignore */

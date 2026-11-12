@@ -31,6 +31,27 @@ type Release = {
 
 export const RELEASES: Release[] = [
   {
+    version: '0.8.5',
+    date: '20 octobre 2026',
+    sections: [
+      {
+        kind: 'improvements',
+        items: [
+          { id: '085s1', platforms: ['server'], text: 'Réplication globale D1 (Sessions API) : routage optimisé des lectures sur réplicas avec maintien strict de la cohérence séquentielle (read-your-writes) via jetons de reprise (x-d1-bookmark / cookie).' },
+          { id: '085s2', platforms: ['server'], text: 'Sécurité et intégrité des sessions : routage systématique sur la base primaire (first-primary) pour les routes d’authentification, d’administration, d’approbation et de mutation métier sans affaiblir les contrôles de sécurité.' },
+        ],
+      },
+      {
+        kind: 'fixes',
+        items: [
+          { id: '085s3', platforms: ['server'], text: 'Contrôles d’accès aux écritures : verrouillage strict des mutations clients et tarifs de gros via requireBizMutator et vérification dynamique des rôles sur la table app_users.' },
+          { id: '085s4', platforms: ['server'], text: 'Sécurité des flux et données sensibles : protection contre l’exécution d’outils sur flux IA interrompus, minimisation des champs exposés par rôle, masquage des invites dans les journaux d’audit et chiffrement fail-closed.' },
+          { id: '085s5', platforms: ['server'], text: 'Normalisation réseau : prise en charge et normalisation rigoureuse des adresses IPv4 et IPv6 (avec ports ou crochets) dans la réputation IP et la résolution client.' },
+        ],
+      },
+    ],
+  },
+  {
     version: '0.8.1',
     // Date of the merged 0.8.1 change set, not the browser's current date.
     date: '11 novembre 2026',
