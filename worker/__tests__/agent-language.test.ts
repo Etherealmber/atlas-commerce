@@ -39,7 +39,7 @@ describe('normalizeResponseLanguage (allowlist)', () => {
 });
 
 describe('atlasAgentSystem language directive', () => {
-  const base = { role: 'owner', username: 'loxdpsy', timezone: 'Africa/Casablanca', source: 'android' };
+  const base = { role: 'owner', username: 'Etherealmber', timezone: 'Africa/Casablanca', source: 'android' };
 
   it('default (no response_language) keeps the legacy user-language rule', () => {
     const s = atlasAgentSystem(base);
@@ -71,7 +71,7 @@ describe('atlasAgentSystem language directive', () => {
     for (const lang of [undefined, 'fr', 'en', 'ar'] as const) {
       const s = atlasAgentSystem({ ...base, responseLanguage: lang });
       expect(s).toContain('Atlas Agent');
-      expect(s).toContain('loxdpsy');
+      expect(s).toContain('Etherealmber');
       expect(s).toContain('Africa/Casablanca');
       expect(s).toContain('Mobile');
       expect(s).toContain('Gemini'); // vendor-name gag still instructed

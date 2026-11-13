@@ -8,10 +8,10 @@ import { apiOk } from '../lib/api-response';
  */
 const FALLBACK_PROFILE = {
   user: {
-    login: 'loxdpsy',
-    name: 'loxdpy',
-    html_url: 'https://github.com/loxdpsy',
-    avatar_url: 'https://github.com/loxdpsy.png',
+    login: 'Etherealmber',
+    name: 'Etherealmber',
+    html_url: 'https://github.com/Etherealmber',
+    avatar_url: 'https://github.com/Etherealmber.png',
     bio: null,
     public_repos: 0,
     followers: 0,
@@ -21,7 +21,7 @@ const FALLBACK_PROFILE = {
   repos: [] as any[],
 };
 
-const CACHE_KEY = 'public:github-profile:loxdpsy';
+const CACHE_KEY = 'public:github-profile:Etherealmber';
 const CACHE_TTL_SECONDS = 21600; // 6h — also keeps us far below GitHub's 60 req/h anonymous limit
 const FETCH_TIMEOUT_MS = 4000;
 
@@ -54,8 +54,8 @@ export function registerPublicRoutes(app: Hono<any>): void {
         : undefined;
       const opts: RequestInit = signal ? { headers, signal } : { headers };
       const [uRes, rRes] = await Promise.all([
-        fetch('https://api.github.com/users/loxdpsy', opts),
-        fetch('https://api.github.com/users/loxdpsy/repos?sort=updated&per_page=20', opts),
+        fetch('https://api.github.com/users/Etherealmber', opts),
+        fetch('https://api.github.com/users/Etherealmber/repos?sort=updated&per_page=20', opts),
       ]);
       if (!uRes.ok) throw new Error(`GitHub user ${uRes.status}`);
       const profile = await uRes.json();

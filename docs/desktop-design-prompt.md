@@ -186,4 +186,4 @@ codes couleur sémantiques, light **et** dark.
 ---
 
 *Extrait automatiquement des repos le 2026-10-26 (web `aa74287`, android HEAD) —
-MIT © 2026 loxdpsy / Etherealmber.*
+MIT ou Apache-2.0 © Etherealmber.*

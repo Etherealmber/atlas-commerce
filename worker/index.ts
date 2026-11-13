@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { isQuickSaleIntent } from './lib/quick-assist-intent';
 import { addColumnIfMissing } from './lib/schema';
 import { hasCredentialAttemptBudget, reserveCredentialAttempt, type CredentialAttemptPurpose } from './lib/credential-attempt-limits';
 import { cors } from 'hono/cors';
@@ -328,7 +329,7 @@ function quickAssistHint(message: string, snap: QuickSnap): string | null {
     return `Ventes du jour: ${mad} MAD (${snap.salesTodayCount} pièce(s)).`;
   }
 
-  if (/^vente\b|vendre|encaisser/.test(q) && !/jour|aujourd|ca /.test(q)) {
+  if (isQuickSaleIntent(q)) {
     return 'Utilisez Vente rapide ou créez une facture depuis Factures.';
   }
 
@@ -10975,7 +10976,7 @@ ${social('https://www.instagram.com/', 'M12 2.2c3.2 0 3.6 0 4.9.1 1.2.1 1.9.2 2.
         <span style="margin:0 8px;color:#3a3f4a">|</span>
         <a href="https://stock.afmarbre.com/" style="color:#9aa2b1;text-decoration:underline">Centre d’aide</a>
       </div>
-      <div style="margin-top:14px;font-size:12px;line-height:1.6;color:#7c8494">Atlas — stock.afmarbre.com<br/>© 2026 Etherealmber · loxdpsy · MIT</div>
+      <div style="margin-top:14px;font-size:12px;line-height:1.6;color:#7c8494">Atlas — stock.afmarbre.com<br/>© ${new Date().getUTCFullYear()} Etherealmber · MIT ou Apache-2.0</div>
       <div style="margin-top:10px"><a href="https://stock.afmarbre.com/settings" style="font-size:12px;color:#9aa2b1;text-decoration:underline">Se désabonner</a></div>
     </div>
   </div>

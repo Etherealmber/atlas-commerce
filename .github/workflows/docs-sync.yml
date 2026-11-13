@@ -11,6 +11,8 @@ on:
     # Pas de filtre `paths` : les filtres de chemins ne se déclenchent pas de
     # façon fiable sur les merge commits (le seul mode de merge du dépôt).
     # Le script est idempotent et ne commit que si les docs changent vraiment.
+  schedule:
+    - cron: '17 4 * * *' # Daily at 04:17 UTC; the script commits only on change.
   workflow_dispatch:
 
 permissions:
@@ -25,22 +27,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: Resync README & SECURITY from APP_VERSION
+      - name: Resync docs, support policy and license years
         run: node scripts/sync-docs.mjs
 
       - name: Commit & push si les docs ont changé
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add README.md SECURITY.md
+          git add README.md SECURITY.md LICENSE LICENSE-APACHE
           if git diff --cached --quiet; then
             echo "Docs déjà à jour — aucun commit."
           else
-            git commit -m "docs: sync version & politique de support [skip ci]"
+            git commit -m "docs: sync version, support and license years [skip ci]"
+            git pull --rebase origin main
             git push
           fi

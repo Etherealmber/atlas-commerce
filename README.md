@@ -23,7 +23,7 @@
 
 **Aperçu live (preview CF)** · **Ce README = documentation** · **[Signaler un bug](https://github.com/Etherealmber/atlas-commerce/issues/new)** · **[Demander une fonction](https://github.com/Etherealmber/atlas-commerce/issues/new)**
 
-> Projet propriétaire : **loxdpy** — GitHub **[@loxdpsy](https://github.com/loxdpsy)** · Compte org : **Etherealmber**
+> Projet maintenu par **[Etherealmber](https://github.com/Etherealmber)**.
 </div>
 
 ---
@@ -158,7 +158,7 @@ Admin → Mise à jour app). Passkeys Android : `docs/webauthn.md` §4 (assetlin
 - `docs/reports-github.md` : crashs & signalements utilisateurs → issues GitHub (configuration dans l'app)
 - `docs/webauthn.md` : passkeys (modèle de sécurité, activation, Android Credential Manager) · `docs/api-finance.md` : finance & relevés · `PARTNER_API.md` : API partenaire · `SECURITY.md` : vulnérabilités
 - **Dans l'app** : À propos → « Signaler un problème » (arrive dans les issues GitHub) ; les crashs sont rapportés automatiquement
-- DM **@loxdpsy** pour les vulnérabilités
+- Consultez [SECURITY.md](SECURITY.md) pour signaler les vulnérabilités
 - Licence **MIT ou Apache-2.0**, au choix — voir [Licences](#-licence).
 
 ## 🌟 À propos du projet
@@ -239,7 +239,7 @@ Le build Cloudflare (dashboard) exécute `npm run build` puis `npx wrangler prev
 
 ## 🔒 Code de conduite & politique de sécurité
 
-Merci de signaler toute vulnérabilité via une issue **privée** ou par message direct au propriétaire (**@loxdpsy**) — pas de divulgation publique avant correctif. Les secrets (`.dev.vars`, tokens) ne sont jamais commités ; les backups D1 sont chiffrés côté R2.
+Merci de signaler toute vulnérabilité de manière privée selon [SECURITY.md](SECURITY.md) — pas de divulgation publique avant correctif. Les secrets (`.dev.vars`, tokens) ne sont jamais commités ; les backups D1 sont chiffrés côté R2.
 
 ## 👋 Contribuer
 
@@ -255,7 +255,7 @@ Interface **français** (terrain Maroc). Les libellés sont centralisés (`src/l
 
 ## ❤️ Support
 
-Atlas Commerce est développé et maintenu par **loxdpy ([@loxdpsy](https://github.com/loxdpsy))** pour des commerces réels au Maroc (El Jadida). Usage interne & démonstrations : contactez le propriétaire via GitHub.
+Atlas Commerce est développé et maintenu par **[Etherealmber](https://github.com/Etherealmber)** pour des commerces réels au Maroc (El Jadida). Usage interne & démonstrations : contactez le propriétaire via GitHub.
 
 ---
 
@@ -541,4 +541,4 @@ Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depui
 
 ## ⚠️ Licence
 
-Distribué au choix sous [MIT](LICENSE) ou [Apache License 2.0](LICENSE-APACHE) (SPDX : `MIT OR Apache-2.0`). Copyright (c) 2026 **loxdpsy**. Les composants tiers peuvent être soumis à leurs propres licences et avis. Consultez [CONTRIBUTING.md](CONTRIBUTING.md) pour les contributions.
+Distribué au choix sous [MIT](LICENSE) ou [Apache License 2.0](LICENSE-APACHE) (SPDX : `MIT OR Apache-2.0`). Copyright **Etherealmber** (voir les notices de licence pour les années). Les composants tiers peuvent être soumis à leurs propres licences et avis. Consultez [CONTRIBUTING.md](CONTRIBUTING.md) pour les contributions.

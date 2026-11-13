@@ -191,10 +191,19 @@ self.addEventListener('sync', (event) => {
 });
 
 self.addEventListener('message', (event) => {
-  if (event.data?.type === 'REQUEST_SYNC') {
-    event.waitUntil(notifyClientsFlush());
-  }
-  if (event.data?.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
+  // Only a same-origin window client may control this worker. Do not trust
+  // the message body, a MessagePort, a worker, or a stale client identifier.
+  if (event.origin !== self.location.origin || !event.source || typeof event.source.id !== 'string') return;
+  if (event.data?.type !== 'REQUEST_SYNC' && event.data?.type !== 'SKIP_WAITING') return;
+  event.waitUntil((async () => {
+    const client = await self.clients.get(event.source.id);
+    if (!client || client.type !== 'window') return;
+    try {
+      if (new URL(client.url).origin !== self.location.origin) return;
+    } catch {
+      return;
+    }
+    if (event.data.type === 'REQUEST_SYNC') await notifyClientsFlush();
+    if (event.data.type === 'SKIP_WAITING') await self.skipWaiting();
+  })());
 });
