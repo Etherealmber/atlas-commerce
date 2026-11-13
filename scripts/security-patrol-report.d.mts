@@ -4,6 +4,7 @@ export function renderPatrolReport(doc: {
   base: unknown;
   passed: unknown;
   totalChecks: unknown;
+  coverage?: string;
   waf?: { blocked?: unknown; lastSig?: unknown; lastAt?: unknown } | null;
   findings?: Array<{ severity: unknown; title: unknown; detail: unknown; fix: unknown }>;
 }): string;

@@ -12,7 +12,7 @@ describe('security patrol report writing', () => {
   it('writes a safe report once and fails rather than reusing an existing file', () => {
     fixture = mkdtempSync(join(tmpdir(), 'atlas-patrol-'));
     const preload = join(fixture, 'fetch.cjs');
-    writeFileSync(preload, `globalThis.fetch = async () => new Response(JSON.stringify({success:true, data:{waf:{blocked:3,lastSig:'<script>@everyone</script>',lastAt:'2026-01-01'}}}), {status:200, headers:{'content-type':'application/json'}});`);
+    writeFileSync(preload, `globalThis.fetch = async () => new Response(JSON.stringify({success:true, data:{ok:true,waf:{blocked:3,lastSig:'<script>@everyone</script>',lastAt:'2026-01-01'}}}), {status:200, headers:{'content-type':'application/json'}});`);
     const args = ['--require', preload, resolve('scripts/security-patrol.mjs')];
     const env = { ...process.env, PATROL_BASE_URL: 'https://patrol.invalid', CF_API_TOKEN: '', CF_ZONE_ID: '' };
     const output = execFileSync(process.execPath, args, { cwd: fixture, env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });

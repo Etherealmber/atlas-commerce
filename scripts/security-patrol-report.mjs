@@ -18,6 +18,10 @@ export function renderPatrolReport(doc) {
     `Cible : **${safe(doc.base, 300)}** · ${safe(doc.passed, 12)}/${safe(doc.totalChecks, 12)} contrôles OK`,
     '',
   ];
+  if (doc.coverage === 'incomplete') {
+    lines.push('### ℹ️ Contrôles incomplets', '',
+      'Le contrôle de santé a été bloqué par une protection en périphérie. La disponibilité de l’application et les autres contrôles ne sont pas vérifiés ; aucun résultat « tout va bien » ne peut être déduit.', '');
+  }
   const waf = doc.waf;
   const blocked = Number(waf?.blocked);
   if (Number.isSafeInteger(blocked) && blocked > 0) {

@@ -75,9 +75,9 @@ async function probe(path, init = {}, { retries = 0, retryDelayMs = 2000 } = {})
   return last;
 }
 
-// NOTE: never classify by the `server: cloudflare` header — EVERY response
-// from the zone carries it. Edge pages are recognized by their BODY only.
-const isEdgePage = (r) => CHALLENGE_RE.test(r.text || '');
+// The generic server header is not evidence of a challenge. Cloudflare's
+// explicit mitigation header or the challenge page body is.
+const isEdgePage = (r) => (r.headers?.['cf-mitigated'] || '').toLowerCase() === 'challenge' || CHALLENGE_RE.test(r.text || '');
 // Responses served FROM the edge cache (not just fresh misses). STALE /
 // EXPIRED / REVALIDATED still mean the edge stored and replayed it — for an
 // authenticated API path that is the same leak class as HIT.
@@ -87,6 +87,9 @@ const fromEdgeCache = (r) => CACHED_STATES.has(cfCache(r));
 
 /** Body-aware denial check for sensitive endpoints. */
 function classifyAuthzProbe(r) {
+  if (isEdgePage(r)) {
+    return { verdict: 'edge-interference', detail: `HTTP ${r.status}: edge challenge; application authorization was not verified` };
+  }
   if (r.status === 0) {
     return { verdict: 'edge-interference', detail: `no HTTP response after ${r.attempts} attempt(s): ${r.error}` };
   }
@@ -132,42 +135,33 @@ async function main() {
     emit(startedAt, { reachable: false });
     return;
   }
-  const healthDenied = [401, 403].includes(health.status);
-  // v0.7.6 — un 403 « challenge » du WAF sur l'UA du patrol ne veut PAS dire
-  // « site down » : le but du contrôle est « reachable for real users ». On
-  // re-sonde avec un UA navigateur standard ; si 200 → le site est joignable
-  // et le contrôle passe, avec l'avis d'allowlist en détail. Si l'UA
-  // navigateur est bloqué lui aussi → vrai CRITICAL, comme avant.
-  let healthEffective = health;
-  let patrolUaChallenged = false;
-  if (healthDenied && isEdgePage(health)) {
-    const browserProbe = await probe('/api/health', {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
-      },
-    }, { retries: 1 });
-    if (browserProbe.status === 200) {
-      healthEffective = browserProbe;
-      patrolUaChallenged = true;
-    }
+  // A challenge proves only that this runner was blocked, not that the
+  // application is down or that other users can access it. Stop rather than
+  // misclassify blocked security probes as successful checks.
+  if (isEdgePage(health)) {
+    check('site-up', 'Health check inconclusive: edge challenge', 'medium', false,
+      `HTTP ${health.status} — Cloudflare challenged the patrol; application availability and remaining checks are unverified.`,
+      'Inspect Cloudflare Security Events for this request and the matching rule. If access is needed, use an authenticated or narrowly scoped exception for the health probe; do not trust a user-agent string as authentication. Verify availability independently before changing rules.');
+    emit(startedAt, { reachable: null, coverage: 'incomplete' });
+    return;
   }
-  const healthBodyIsJson = /^\s*[{[]/.test(healthEffective.text || '');
-  const healthLayer = patrolUaChallenged
-    ? `HTTP 200 via browser UA — le WAF challenge uniquement l'UA du patrol (${UA}), le site est joignable pour les visiteurs`
-    : isEdgePage(healthEffective) ? 'Cloudflare edge block/challenge page'
-    : healthBodyIsJson ? 'worker JSON denial'
-    : fromEdgeCache(healthEffective) ? `edge-cached response (cf-cache-status: ${cfCache(healthEffective)})`
-    : `unknown layer (cf-cache-status: ${cfCache(healthEffective) || 'none'})`;
-  check('site-up', 'Production site reachable (/api/health → 200)', 'critical', healthEffective.status === 200,
-    `HTTP ${healthEffective.status} — ${healthLayer}`,
+  const healthDenied = [401, 403].includes(health.status);
+  const healthBodyIsJson = /^\s*[{[]/.test(health.text || '');
+  let healthOk = false;
+  try {
+    const data = JSON.parse(health.text);
+    healthOk = health.status === 200 && data?.success === true && data?.data?.ok === true;
+  } catch { /* malformed or non-JSON health response */ }
+  const healthLayer = healthBodyIsJson ? 'worker JSON response'
+    : fromEdgeCache(health) ? `edge-cached response (cf-cache-status: ${cfCache(health)})`
+    : `unexpected response (cf-cache-status: ${cfCache(health) || 'none'})`;
+  check('site-up', 'Production health endpoint returns valid JSON', 'critical', healthOk,
+    `HTTP ${health.status} — ${healthLayer}`,
     healthDenied
       ? (fromEdgeCache(health)
-        ? 'The edge is replaying a STALE cached denial of /api/health from before the exemption was deployed. Fix: CF dashboard → Caching → Configuration → Purge Everything (or purge this URL), and add a Cache Rule bypassing cache for /api/* on stock.afmarbre.com. The worker now also sends CDN-Cache-Control: no-store on all non-public /api responses.'
-        : isEdgePage(health)
-          ? 'CF dashboard → Security → Events: a WAF/bot rule is challenging CI runners (allow the AtlasSecurityPatrol UA), then re-run the patrol.'
-          : 'The deployed worker still denies /api/health — main (PR #57 exemption) has not finished deploying. Workers Builds usually deploys pushes to main automatically; wait a few minutes or trigger the build, then re-run the patrol.')
-      : 'GET /api/health must return 200 — check the Cloudflare dashboard for deploy errors.');
+        ? 'Inspect the cache status and configure a narrowly scoped cache bypass for /api/health; verify the deployed worker and health endpoint independently.'
+        : 'The health endpoint returned an authentication or access denial. Check the deployed worker and Cloudflare Security Events for the matching rule.')
+      : 'GET /api/health must return HTTP 200 with success=true and data.ok=true. Check the deployed worker and its bindings.');
 
   // 1. Canary + WAF intrusion counters (real attacks detected since last deploy)
   const canary = await probe('/api/canary');
@@ -221,7 +215,7 @@ async function main() {
       : v.verdict === 'edge-interference' ? 'medium' : 'high';
     check(a.id, `Denies ${a.name}`, severity, ok, v.detail,
       ok ? '' : v.verdict === 'edge-interference'
-        ? `Cloudflare edge interfered with the probe of ${a.path} — Security → Events in the CF dashboard: allow the AtlasSecurityPatrol UA / GH Actions IPs, then re-run the patrol. The worker itself could not be verified.`
+        ? `Cloudflare edge interfered with the probe of ${a.path} — Security → Events in the CF dashboard: review the matching rule and use a narrowly scoped, authenticated exception if appropriate, then re-run the patrol. The worker itself could not be verified.`
         : a.fix);
   }
   // 3b. The 2026-10-22 incident regression: a FORGED v2 token (base64 is
@@ -234,8 +228,10 @@ async function main() {
   ]) {
     const r = await probe(t.path, { headers: { Authorization: forged } });
     const v = classifyAuthzProbe(r);
-    check(t.id, `Rejects ${t.name}`, 'critical', v.verdict === 'denied', v.detail,
-      'A hand-crafted base64 token was accepted — the HMAC proof verification (authFailReason) is not running for this route. It must be covered by the /api/* auth middleware registered BEFORE all routes in worker/index.ts.');
+    check(t.id, `Rejects ${t.name}`, v.verdict === 'edge-interference' ? 'medium' : 'critical', v.verdict === 'denied', v.detail,
+      v.verdict === 'edge-interference'
+        ? 'The application authorization could not be verified through the edge; review the matching security event and test authorization independently.'
+        : 'A hand-crafted base64 token was accepted — the HMAC proof verification (authFailReason) is not running for this route. It must be covered by the /api/* auth middleware registered BEFORE all routes in worker/index.ts.');
   }
   // 3c. More anonymous admin probes (routes that sat before the middleware
   //     during the 2026-10-22 owner-fallback incident).
@@ -252,7 +248,7 @@ async function main() {
       : v.verdict === 'edge-interference' ? 'medium' : 'high';
     check(a.id, `Denies ${a.name}`, severity, ok, v.detail,
       ok ? '' : v.verdict === 'edge-interference'
-        ? `Cloudflare edge interfered with the probe of ${a.path} — check CF dashboard → Security → Events (allow the AtlasSecurityPatrol UA), then re-run the patrol.`
+        ? `Cloudflare edge interfered with the probe of ${a.path} — check CF dashboard → Security → Events (review the matching rule; do not use the user-agent as authentication), then re-run the patrol.`
         : `GET ${a.path} answered without a denial body — the /api/* auth middleware must be registered before all routes in worker/index.ts (see the AUTH GATE block).`);
   }
 
@@ -267,7 +263,11 @@ async function main() {
   if (postRelease.status === 0) {
     check('authz-android-release-post', 'POST release ingestion without Bearer → 401 UNAUTHORIZED', 'medium', false,
       `no HTTP response after ${postRelease.attempts} attempts (${postRelease.error}) — likely Cloudflare edge reset/challenge on a bodied POST from a CI IP`,
-      'Cannot verify the endpoint through the edge — CF dashboard → Security → Events: check for a rule challenging/resetting POSTs from GitHub Actions IPs (allow the AtlasSecurityPatrol UA), then re-run the patrol.');
+      'Cannot verify the endpoint through the edge — CF dashboard → Security → Events: check for a rule challenging/resetting POSTs from GitHub Actions IPs (review the matching rule; do not use the user-agent as authentication), then re-run the patrol.');
+  } else if (isEdgePage(postRelease)) {
+    check('authz-android-release-post', 'POST release ingestion without Bearer → 401 UNAUTHORIZED', 'medium', false,
+      `HTTP ${postRelease.status} — edge challenge; application authorization was not verified`,
+      'Inspect Cloudflare Security Events for the matching rule and test the application authorization independently.');
   } else {
     const unauthorizedOk = postRelease.status === 401 && /UNAUTHORIZED/.test(postRelease.text);
     check('authz-android-release-post', 'POST release ingestion without Bearer → 401 UNAUTHORIZED', 'critical', unauthorizedOk,
@@ -364,7 +364,7 @@ async function cfSelfHeal(startedAt) {
       const mine = (Array.isArray(events) ? events : []).filter((e) => /AtlasSecurityPatrol/i.test(JSON.stringify(e))).slice(0, 5);
       if (mine.length) {
         const rule = mine.map((e) => `${e.action || '?'} by ${e.description || e.rule_id || 'unknown rule'}`).join(' | ');
-        for (const r of blocked) r.fix = `Cloudflare rule identified from Security Events: ${rule}. Adjust it (CF dashboard → Security → WAF → Tools/Custom rules, or Bot Fight Mode) to ALLOW the AtlasSecurityPatrol UA, then re-run the patrol. ` + r.fix;
+        for (const r of blocked) r.fix = `Cloudflare rule identified from Security Events: ${rule}. Adjust it (CF dashboard → Security → WAF → Tools/Custom rules, or Bot Fight Mode) after reviewing the event and its security implications, then re-run the patrol. Do not authenticate by user-agent alone. ` + r.fix;
         process.stderr.write(`CF security events matched: ${rule}\n`);
       } else {
         process.stderr.write('No matching CF security events found for our UA (events may lag a few minutes)\n');
