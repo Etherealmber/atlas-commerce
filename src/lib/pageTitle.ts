@@ -25,6 +25,7 @@ const EXACT: Record<string, string> = {
   '/about': 'À propos',
   '/whats-new': 'Nouveautés',
   '/privacy': 'Confidentialité',
+  '/licenses': 'Licences',
   '/terms': "Conditions d'utilisation",
   '/login': 'Connexion',
   '/welcome': 'Bienvenue',

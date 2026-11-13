@@ -8,6 +8,7 @@ import { applyPageTitle } from './lib/pageTitle';
 import Login from './pages/Login';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
+import Licenses from './pages/Licenses';
 import AccessPage, { RoleGate } from './pages/AccessPage'
 import { HttpErrorPage } from './pages/AccessPage';
 import {
@@ -2023,6 +2024,7 @@ function DesktopShell() {
                   (PublicNav) : plus de topbar shell ni de bouton retour ici */}
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
+              <Route path="/licenses" element={<Licenses />} />
               <Route path="/m" element={<Navigate to="/dashboard" replace />} />
               <Route path="/m/scan" element={<Navigate to="/scan" replace />} />
               <Route path="/m/products" element={<Navigate to="/products" replace />} />
@@ -2139,6 +2141,7 @@ function PhoneShell() {
             {/* Legal still readable on phone */}
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />
+            <Route path="/licenses" element={<Licenses />} />
             {/* Mobile terrain app */}
             <Route path="/m/*" element={<PhoneApp />} />
             <Route path="/m-legacy" element={<PhoneApp />} />
@@ -2218,6 +2221,7 @@ export default function App() {
             <Route path="/welcome" element={<WelcomeGate />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />
+            <Route path="/licenses" element={<Licenses />} />
             <Route path="/403" element={<div className="access-page-standalone"><AccessPage kind="forbidden" /></div>} />
             <Route path="/error/:code" element={<div className="access-page-standalone"><HttpErrorPage /></div>} />
             <Route path="/404" element={<div className="access-page-standalone"><AccessPage kind="not-found" /></div>} />
