@@ -5272,6 +5272,15 @@ app.get('/api/auth/me', async (c) => {
       role: session.role,
       is_owner: session.role === 'owner' || session.role === 'admin',
       reputationScore: rep.score,
+      token: await makeTokenV2(
+        session.username,
+        session.role,
+        session.username === ownerUser
+          ? await sha256Hex(`owner-key|${session.username}|${normalizePassword(getPassword(c.env))}`)
+          : String((await c.env.DB.prepare(`SELECT password_hash FROM app_users WHERE username = ?`).bind(session.username).first() as any)?.password_hash || ''),
+        ip,
+        fp || 'none',
+      ),
       ...profile,
     },
   });
@@ -15288,7 +15297,7 @@ app.get('/api/dashboard', async (c) => {
   } catch { /* */ }
   try {
     const bi = await c.env.DB.prepare(
-      `SELECT substr(replace(COALESCE(issue_date, bill_date, created_at, ''), 'T', ' '), 1, 7) as ym, COALESCE(SUM(total),0) as total
+      `SELECT substr(replace(COALESCE(issue_date, created_at, ''), 'T', ' '), 1, 7) as ym, COALESCE(SUM(total),0) as total
        FROM bills WHERE status NOT IN ('cancelled') GROUP BY ym`
     ).all();
     for (const r of (bi.results || []) as any[]) billMap[r.ym] = Number(r.total || 0);
@@ -15301,19 +15310,11 @@ app.get('/api/dashboard', async (c) => {
   } catch { /* */ }
   try {
     const rc = await c.env.DB.prepare(
-      `SELECT substr(replace(COALESCE(payment_date, created_at, ''), 'T', ' '), 1, 7) as ym, COALESCE(SUM(amount),0) as total
-       FROM payments GROUP BY ym`
+      `SELECT substr(replace(COALESCE(paid_at, created_at, ''), 'T', ' '), 1, 7) as ym, COALESCE(SUM(amount),0) as total
+       FROM invoice_payments GROUP BY ym`
     ).all();
     for (const r of (rc.results || []) as any[]) receiptMap[r.ym] = Number(r.total || 0);
-  } catch {
-    try {
-      const rc2 = await c.env.DB.prepare(
-        `SELECT substr(replace(COALESCE(paid_at, created_at, ''), 'T', ' '), 1, 7) as ym, COALESCE(SUM(amount),0) as total
-         FROM invoice_payments GROUP BY ym`
-      ).all();
-      for (const r of (rc2.results || []) as any[]) receiptMap[r.ym] = Number(r.total || 0);
-    } catch { /* */ }
-  }
+  } catch { /* */ }
 
   const monthlySeries = monthKeys.map((k, i) => ({
     key: k,
@@ -17232,7 +17233,22 @@ async function runDailyBackup(env: any): Promise<{ ok: boolean; key?: string; er
       tables: {},
       r2_object_keys: [] as string[],
     };
+    // Query existing tables dynamically so absent legacy tables don't spam D1 error logs
+    let existingTables = new Set<string>();
+    try {
+      const { results: tblResults } = await env.DB.prepare(
+        `SELECT name FROM sqlite_master WHERE type = 'table'`
+      ).all();
+      for (const r of (tblResults || []) as any[]) {
+        if (r?.name) existingTables.add(String(r.name));
+      }
+    } catch { /* fallback to checking each table */ }
+
     for (const t of tables) {
+      if (existingTables.size > 0 && !existingTables.has(t)) {
+        payload.tables[t] = { error: 'table_missing_or_skip' };
+        continue;
+      }
       try {
         const { results } = await env.DB.prepare(`SELECT * FROM ${t} LIMIT 200000`).all();
         payload.tables[t] = results || [];
