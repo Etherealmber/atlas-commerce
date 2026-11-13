@@ -1,6 +1,6 @@
 # Security Policy — Atlas Commerce
 
-© 2026 loxdpsy — MIT OR Apache-2.0 — current beta: see README « Version actuelle » (stable target: 1.0.0)
+© Etherealmber — MIT OR Apache-2.0 — current beta: see README « Version actuelle » (stable target: 1.0.0)
 
 ## Supported Versions
 
@@ -20,7 +20,7 @@ previews run per-branch sandboxes.
 
 ## Reporting a Vulnerability
 
-- Email **security@afmarbre.com** (or contact the maintainer, loxdpsy, on GitHub).
+- Email **security@afmarbre.com** (or contact the maintainer, Etherealmber, on GitHub).
 - Expect an acknowledgement within **48 h** and a status update every 7 days.
 - Accepted reports are fixed on a private branch, shipped with a version bump
   and a changelog entry under `fixes`; declined reports get a written rationale.

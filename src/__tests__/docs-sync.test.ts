@@ -12,15 +12,38 @@ function setup() {
   fixture = mkdtempSync(join(tmpdir(), 'atlas-docs-sync-'));
   mkdirSync(join(fixture, 'scripts'));
   mkdirSync(join(fixture, 'src'));
-  for (const file of ['README.md', 'SECURITY.md', 'src/version.ts', 'scripts/sync-docs.mjs']) {
+  for (const file of ['README.md', 'SECURITY.md', 'LICENSE', 'LICENSE-APACHE', 'src/version.ts', 'scripts/sync-docs.mjs', 'scripts/sync-license.mjs']) {
     cpSync(file, join(fixture, file));
   }
 }
-function sync() {
-  return execFileSync(process.execPath, [join(fixture, 'scripts/sync-docs.mjs')], { encoding: 'utf8' });
+function sync(year = 2026) {
+  const epoch = Math.floor(Date.UTC(year, 5, 1) / 1000).toString();
+  return execFileSync(process.execPath, [join(fixture, 'scripts/sync-docs.mjs')], { encoding: 'utf8', env: { ...process.env, SOURCE_DATE_EPOCH: epoch } });
 }
 
 describe('documentation badge synchronization', () => {
+  it('keeps the project notices in both licenses in sync without changing their terms', () => {
+    setup();
+    const mitBefore = readFileSync(join(fixture, 'LICENSE'), 'utf8');
+    const apacheBefore = readFileSync(join(fixture, 'LICENSE-APACHE'), 'utf8');
+    sync(2027);
+    for (const [file, before] of [['LICENSE', mitBefore], ['LICENSE-APACHE', apacheBefore]]) {
+      expect(readFileSync(join(fixture, file), 'utf8')).toBe(before.replace('Copyright (c) 2026 Etherealmber', 'Copyright (c) 2026-2027 Etherealmber'));
+    }
+    expect(sync(2027)).toContain('rien à changer');
+    sync(2026); // a stale clock must never shorten a previously published range
+    expect(readFileSync(join(fixture, 'LICENSE'), 'utf8')).toContain('Copyright (c) 2026-2027 Etherealmber');
+  });
+
+  it('fails closed if either project notice is missing', () => {
+    setup();
+    const apache = join(fixture, 'LICENSE-APACHE');
+    writeFileSync(apache, readFileSync(apache, 'utf8').replace('Copyright (c) 2026 Etherealmber', 'missing notice'));
+    const mit = readFileSync(join(fixture, 'LICENSE'), 'utf8');
+    expect(() => sync(2027)).toThrow();
+    expect(readFileSync(join(fixture, 'LICENSE'), 'utf8')).toBe(mit);
+  });
+
   it('keeps both license badges in the same row as the updated version and is idempotent', () => {
     setup();
     const versionPath = join(fixture, 'src/version.ts');

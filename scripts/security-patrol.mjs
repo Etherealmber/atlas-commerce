@@ -32,6 +32,7 @@
  */
 
 import { writeFileSync } from 'node:fs';
+import { encodePatrolJson, renderPatrolReport } from './security-patrol-report.mjs';
 
 const BASE = (process.env.PATROL_BASE_URL || 'https://stock.afmarbre.com').replace(/\/+$/, '');
 // Honest but browser-shaped: identifies us, links back to the repo, and
@@ -386,57 +387,20 @@ function emit(startedAt, extra) {
     results,
     ...extra,
   };
-  process.stdout.write('::PATROL-JSON::' + JSON.stringify(doc) + '::END-PATROL-JSON::\n');
 
-  // Human-readable issue body (written next to the JSON for the workflow).
-  const waf = doc.waf;
-  const lines = [
-    `## 🛡️ Security patrol — ${doc.startedAt}`,
-    ``,
-    `Cible : **${doc.base}** · ${doc.passed}/${doc.totalChecks} contrôles OK`,
-    ``,
-  ];
-  if (waf && waf.blocked) {
-    lines.push(
-      `### 🚨 Intrusions réelles détectées et bloquées par le WAF`,
-      ``,
-      `**${waf.blocked} requête(s) malveillante(s)** bloquée(s) depuis le dernier déploiement — dernière signature \`${waf.lastSig || '?'}\` à ${waf.lastAt || '?'}.`,
-      `Le pare-feu applicatif fonctionne : ces tentatives ont échoué (403 WAF_BLOCKED), rien à corriger de ce côté.`,
-      ``,
-    );
-  } else {
-    lines.push(
-      `### ✅ WAF`,
-      ``,
-      `Aucune tentative d'intrusion bloquée depuis le dernier déploiement (compteur canary à 0).`,
-      ``,
-    );
-  }
-  if (findings.length) {
-    lines.push(`### ⚠️ Points à corriger (${findings.length})`, ``);
-    for (const f of findings) {
-      lines.push(`- **[${String(f.severity).toUpperCase()}] ${f.title}** — ${f.detail}`);
-      lines.push(`  - 🔧 Fix possible : ${f.fix}`);
-    }
-    lines.push(``);
-  } else {
-    lines.push(
-      `### ✅ Aucun point à corriger`,
-      ``,
-      `Toutes les sondes d'intrusion sont bloquées, les en-têtes de sécurité sont présents et les endpoints sensibles refusent les accès non authentifiés.`,
-      ``,
-    );
-  }
+  // The output is a fixed, newly created file; never follow or overwrite a
+  // pre-existing path. Remote values are bounded and escaped before rendering.
   try {
-    const out = process.env.PATROL_REPORT || 'report.md';
-    writeFileSync(out, lines.join('\n'));
-    process.stderr.write(`report written to ${out}\n`);
+    writeFileSync('report.md', renderPatrolReport(doc), { flag: 'wx', mode: 0o600 });
+    process.stderr.write('report written to report.md\n');
+    process.stdout.write('::PATROL-JSON::' + encodePatrolJson(doc) + '::END-PATROL-JSON::\n');
   } catch (e) {
     process.stderr.write(`report write failed: ${e?.message || e}\n`);
+    throw e; // never let a stale report be used by the workflow
   }
 }
 
 main().catch((e) => {
   process.stderr.write(`patrol crashed: ${e?.stack || e}\n`);
-  emit(new Date().toISOString(), { reachable: false, crash: String(e?.message || e) });
+  process.exitCode = 1;
 });

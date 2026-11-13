@@ -8,12 +8,13 @@
  * nouvelle mineure sort (ex. 0.8.0), la mineure précédente (0.7) passe en fin
  * de support — comme 0.6 l'est depuis 0.7.0.
  *
- * Exécuté par .github/workflows/docs-sync.yml à chaque push sur main qui
- * touche src/version.ts ; le workflow commit & push si les docs changent.
+ * Exécuté sur les push main et quotidiennement ; met aussi à jour les années
+ * des notices de licence du projet, sans modifier les textes standards.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { syncLicenseYears } from './sync-license.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -34,7 +35,7 @@ const prev = minor > 0 ? `${major}.${minor - 1}` : `${major - 1}.9`;
 const next = `${major}.${minor + 1}`;
 const badge = version.replace(/-/g, '--'); // shields.io : - → --
 
-let changed = false;
+let changed = syncLicenseYears(root);
 
 function replaceBlock(file, key, content) {
   const path = join(root, file);

@@ -198,4 +198,4 @@ Détails techniques, confidentialité et endpoints : **`docs/reports-github.md`*
 
 ---
 
-*MIT © 2026 loxdpsy / Etherealmber.*
+*MIT ou Apache-2.0 © Etherealmber.*

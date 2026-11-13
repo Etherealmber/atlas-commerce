@@ -24,7 +24,7 @@ const P = [
   { tag: 'FACTURATION', title: 'Facturation<br>complète', bullets: ['Acomptes, avoirs, créances clients', 'Numérotation et mentions légales'], pc: 'pc-invoices-dark', ph: 'phone-quotes-dark', cap: 'Journal des factures & devis mobile' },
   { tag: 'ÉQUIPE', title: 'Employés &<br>pointage', bullets: ['Rôles et permissions par métier', 'Présences et remboursements sans papier'], pc: 'pc-employees-dark', ph: 'phone-dashboard-dark', cap: 'Rh desktop & synthèse mobile' },
   { tag: 'BOÎTE', title: 'Une file,<br>zéro oubli', bullets: ['Chaque scan devient une action traitable', 'Historique complet des décisions'], pc: 'pc-actions-dark', ph: 'phone-actions-dark', cap: 'Boîte d’actions desktop & mobile' },
-  { tag: 'OPEN SOURCE', title: 'Forkez-le.<br>C’est MIT.', bullets: ['Disponible sur GitHub maintenant', 'Screenshots réels : aucune maquette'], pc: 'dashboard-dark', ph: 'phone-dashboard-dark', cap: 'Atlas Commerce 1.4.5-beta · © 2026 loxdpsy', fork: true },
+  { tag: 'OPEN SOURCE', title: 'Forkez-le.<br>C’est MIT.', bullets: ['Disponible sur GitHub maintenant', 'Screenshots réels : aucune maquette'], pc: 'dashboard-dark', ph: 'phone-dashboard-dark', cap: 'Atlas Commerce 1.4.5-beta · © 2026 Etherealmber', fork: true },
 ];
 
 const SLUGS = ['wizards','dark-theme','scan-ocr','caisse','stock','agent-ia','rapports','sync','facturation','equipe','boite-actions','open-source'];
