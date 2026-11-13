@@ -60,7 +60,7 @@ function replaceBlock(file, key, content) {
 replaceBlock(
   'README.md',
   'badge',
-  `![Version](https://img.shields.io/badge/version-${badge}-blue)`,
+  `  <img src="https://img.shields.io/badge/version-${badge}-blue" alt="Version ${version}" />`,
 );
 
 replaceBlock(

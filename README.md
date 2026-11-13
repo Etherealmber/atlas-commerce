@@ -6,15 +6,20 @@
   <h1>Atlas Commerce</h1>
   <p><strong>ERP / Caisse / Facturation souverain pour commerces &amp; grossistes au Maroc</strong><br/>Stock multi-dépôts · Caisse &amp; tickets VR · Facturation TVA &amp; créances · Scan &amp; OCR · Atlas Agent IA · WebAuthn &amp; login QR</p>
 
-<!-- Badges -->
-![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
-<!-- SUPPORT-SYNC:badge:start -->
-![Version](https://img.shields.io/badge/version-0.8.5--beta-blue)
+<!-- Badges: the sync markers keep the version on the first row. -->
+<p>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT license" /></a>
+  <a href="LICENSE-APACHE"><img src="https://img.shields.io/badge/License-Apache--2.0-blue.svg" alt="Apache 2.0 license" /></a>
+  <!-- SUPPORT-SYNC:badge:start -->
+  <img src="https://img.shields.io/badge/version-0.8.5--beta-blue" alt="Version 0.8.5-beta" />
 <!-- SUPPORT-SYNC:badge:end -->
-![Build](https://img.shields.io/badge/build-cloudflare%20workers-orange)
-![Stack](https://img.shields.io/badge/stack-React%20%2B%20Vite%20%2B%20D1%20%2B%20R2-0a0a0a)
-![Mobile](https://img.shields.io/badge/mobile-PWA%20%2B%20Android%20natif%20(Kotlin)-3ddc84)
-![IA](https://img.shields.io/badge/agent-Atlas%20Agent%20IA-8b5cf6)
+</p>
+<p>
+  <img src="https://img.shields.io/badge/build-cloudflare%20workers-orange" alt="Build: Cloudflare Workers" />
+  <img src="https://img.shields.io/badge/stack-React%20%2B%20Vite%20%2B%20D1%20%2B%20R2-0a0a0a" alt="Stack: React, Vite, D1 and R2" />
+  <img src="https://img.shields.io/badge/mobile-PWA%20%2B%20Android%20natif%20(Kotlin)-3ddc84" alt="Mobile: PWA and Android" />
+  <img src="https://img.shields.io/badge/agent-Atlas%20Agent%20IA-8b5cf6" alt="Atlas Agent IA" />
+</p>
 
 **Aperçu live (preview CF)** · **Ce README = documentation** · **[Signaler un bug](https://github.com/Etherealmber/atlas-commerce/issues/new)** · **[Demander une fonction](https://github.com/Etherealmber/atlas-commerce/issues/new)**
 
@@ -154,7 +159,7 @@ Admin → Mise à jour app). Passkeys Android : `docs/webauthn.md` §4 (assetlin
 - `docs/webauthn.md` : passkeys (modèle de sécurité, activation, Android Credential Manager) · `docs/api-finance.md` : finance & relevés · `PARTNER_API.md` : API partenaire · `SECURITY.md` : vulnérabilités
 - **Dans l'app** : À propos → « Signaler un problème » (arrive dans les issues GitHub) ; les crashs sont rapportés automatiquement
 - DM **@loxdpsy** pour les vulnérabilités
-- Licence **MIT © 2026 loxdpsy** — forkez, modifiez, vendez vos services, citez-nous ★
+- Licence **MIT ou Apache-2.0**, au choix — voir [Licences](#-licence).
 
 ## 🌟 À propos du projet
 
@@ -238,7 +243,7 @@ Merci de signaler toute vulnérabilité via une issue **privée** ou par message
 
 ## 👋 Contribuer
 
-Projet propriétaire (licence MIT © 2026 loxdpsy). Les contributions passent par **pull requests** depuis une branche `arena/*` ou `feature/*` : une PR = un lot cohérent, build vert (`npm run build`), `tsc --noEmit` sans nouvelle erreur, et description en français listant les zones touchées.
+Projet sous double licence MIT ou Apache-2.0. Les contributions passent par **pull requests** depuis une branche `arena/*` ou `feature/*` : une PR = un lot cohérent, build vert (`npm run build`), `tsc --noEmit` sans nouvelle erreur, et description en français listant les zones touchées.
 
 ## 📜 Traduction
 
@@ -536,4 +541,4 @@ Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depui
 
 ## ⚠️ Licence
 
-Distribué sous licence **MIT** — voir [LICENSE](LICENSE). Copyright (c) 2026 **loxdpsy**.
+Distribué au choix sous [MIT](LICENSE) ou [Apache License 2.0](LICENSE-APACHE) (SPDX : `MIT OR Apache-2.0`). Copyright (c) 2026 **loxdpsy**. Les composants tiers peuvent être soumis à leurs propres licences et avis. Consultez [CONTRIBUTING.md](CONTRIBUTING.md) pour les contributions.

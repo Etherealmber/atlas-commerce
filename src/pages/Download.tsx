@@ -343,7 +343,7 @@ export default function Download() {
             <Link to="/whats-new">Nouveautés</Link>
             <Link to="/about">À propos</Link>
             <Link to="/privacy">Confidentialité</Link>
-            <Link to="/terms">Conditions</Link>
+            <Link to="/terms">Conditions</Link> · <Link to="/licenses">Licences</Link>
             <a href={APP_GITHUB} target="_blank" rel="noopener noreferrer">GitHub</a>
             <Link to="/login">Se connecter</Link>
           </nav>

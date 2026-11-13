@@ -1,6 +1,6 @@
 # Security Policy — Atlas Commerce
 
-© 2026 loxdpsy — MIT — current beta: see README « Version actuelle » (stable target: 1.0.0)
+© 2026 loxdpsy — MIT OR Apache-2.0 — current beta: see README « Version actuelle » (stable target: 1.0.0)
 
 ## Supported Versions
 
@@ -26,6 +26,15 @@ previews run per-branch sandboxes.
   and a changelog entry under `fixes`; declined reports get a written rationale.
 - Please include: endpoint or component, minimal reproduction, and whether
   production or preview is affected. Do **not** open public issues for exploits.
+
+## Self-hosted network security
+
+Operators are responsible for configuring HTTPS with a certificate valid for their
+instance hostname, securing credentials and backups, and keeping their instance
+and dependencies updated. Self-hosted domains are controlled by their operators;
+this project does not require a single hardcoded certificate pin for all instances.
+Use normal certificate-chain and hostname verification and do not disable TLS
+validation. Optional third-party services have their own security and privacy terms.
 
 ## Authentication & Sessions
 

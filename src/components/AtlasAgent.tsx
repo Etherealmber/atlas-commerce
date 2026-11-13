@@ -1580,7 +1580,7 @@ export default function AtlasAgent() {
     return groups;
   };
 
-  const hideAgent = ['/settings', '/about', '/whats-new', '/login', '/welcome', '/privacy', '/terms'].some(
+  const hideAgent = ['/settings', '/about', '/whats-new', '/login', '/welcome', '/privacy', '/terms', '/licenses'].some(
     (p) => location.pathname === p || location.pathname.startsWith(p + '/'),
   );
   if (hideAgent) return null;

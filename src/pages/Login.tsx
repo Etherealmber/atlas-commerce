@@ -1083,7 +1083,7 @@ export default function Login() {
         <nav className="atlas-login-foot-links" aria-label="Liens légaux et produit">
           <Link to="/privacy">Confidentialité</Link>
           <span aria-hidden>·</span>
-          <Link to="/terms">Conditions</Link>
+          <Link to="/terms">Conditions</Link> · <Link to="/licenses">Licences</Link>
           <span aria-hidden>·</span>
           <Link to="/about">À propos</Link>
           <span aria-hidden>·</span>
