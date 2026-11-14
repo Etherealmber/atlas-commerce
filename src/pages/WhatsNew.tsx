@@ -31,6 +31,13 @@ type Release = {
 
 export const RELEASES: Release[] = [
   {
+    version: '0.8.9',
+    date: '20 octobre 2026',
+    sections: [{ kind: 'features', items: [
+      { id: '089s1', platforms: ['server', 'android'], text: 'API de suivi en lecture seule : demandes de stock personnelles et tickets GitHub associés aux signalements, selon les autorisations et la configuration du serveur. Les sources indisponibles sont signalées explicitement.' },
+    ] }],
+  },
+  {
     version: '0.8.5',
     date: '13 novembre 2026',
     sections: [
