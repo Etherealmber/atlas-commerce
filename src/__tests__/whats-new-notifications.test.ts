@@ -119,7 +119,7 @@ describe('release page and popup content', () => {
     await render(createElement(WhatsNewModal));
     const dialog = host.querySelector('[role="dialog"]');
     expect(dialog?.textContent).toContain('Atlas Commerce 0.8.9');
-    expect(dialog?.textContent).toContain('20 octobre 2026');
+    expect(dialog?.textContent).toContain('15 novembre 2026');
     expect(dialog?.textContent).toContain('API de suivi');
     expect(dialog?.textContent).not.toContain('build-only-test');
     expect(dialog?.textContent).not.toContain('Atlas Agent : le streaming');
