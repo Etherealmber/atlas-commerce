@@ -11,7 +11,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT license" /></a>
   <a href="LICENSE-APACHE"><img src="https://img.shields.io/badge/License-Apache--2.0-blue.svg" alt="Apache 2.0 license" /></a>
   <!-- SUPPORT-SYNC:badge:start -->
-  <img src="https://img.shields.io/badge/version-0.8.5--beta-blue" alt="Version 0.8.5-beta" />
+  <img src="https://img.shields.io/badge/version-0.8.9--beta-blue" alt="Version 0.8.9-beta" />
 <!-- SUPPORT-SYNC:badge:end -->
 </p>
 <p>
@@ -155,6 +155,7 @@ Admin → Mise à jour app). Passkeys Android : `docs/webauthn.md` §4 (assetlin
 
 - **[`docs/desktop-design-prompt.md`](docs/desktop-design-prompt.md)** : prompt maître de l'app desktop (parité stricte web + Android, valeurs exactes citées)
 - **[`SETUP.md`](SETUP.md)** : installation complète de A à Z (base de données, secrets, fournisseurs de clés, déploiement sans CLI)
+- [`docs/mobile-work-status.md`](docs/mobile-work-status.md) : suivi mobile en lecture seule, autorisations et limites des sources.
 - `docs/reports-github.md` : crashs & signalements utilisateurs → issues GitHub (configuration dans l'app)
 - `docs/webauthn.md` : passkeys (modèle de sécurité, activation, Android Credential Manager) · `docs/api-finance.md` : finance & relevés · `PARTNER_API.md` : API partenaire · `SECURITY.md` : vulnérabilités
 - **Dans l'app** : À propos → « Signaler un problème » (arrive dans les issues GitHub) ; les crashs sont rapportés automatiquement
@@ -347,7 +348,7 @@ Atlas Commerce est développé et maintenu par **[Etherealmber](https://github.c
 - Les trois tournent sur chaque pull request (et sur main) avec filters par chemin : un PR rouge ne devrait jamais être mergé, donc jamais déployé
 
 <!-- SUPPORT-SYNC:support:start -->
-Version actuelle : **0.8.5-beta** (gelée jusqu'au prochain ordre de push).
+Version actuelle : **0.8.9-beta** (gelée jusqu'au prochain ordre de push).
 
 > **Politique de support** : seule la mineure courante (**0.8**) reçoit correctifs et mises à jour de sécurité. Dès la sortie de la mineure suivante (ex. 0.9.0), la mineure précédente passe immédiatement en fin de support — 0.7.x l'est depuis 0.8.0. Les versions 0.7.x et antérieures ne sont plus supportées.
 <!-- SUPPORT-SYNC:support:end -->

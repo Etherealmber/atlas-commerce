@@ -9,14 +9,16 @@ import { APP_VERSION, DISPLAY_VERSION, RELEASE_VISIBLE_CAP, WHATS_NEW_VERSION, s
  * so the "Nouveautés" badge pointed at an empty section).
  */
 describe('WhatsNew releases', () => {
-  it('publishes the authorized 0.8.5 notes without changing the product version', () => {
-    expect(DISPLAY_VERSION).toBe('0.8.5');
-    expect(RELEASE_VISIBLE_CAP).toBe('0.8.5');
-    expect(APP_VERSION).toBe('0.8.5-beta');
-    expect(RELEASES[0].version).toBe('0.8.5');
+  it('publishes the 0.8.9 notes and retains previous releases', () => {
+    expect(DISPLAY_VERSION).toBe('0.8.9');
+    expect(RELEASE_VISIBLE_CAP).toBe('0.8.9');
+    expect(APP_VERSION).toBe('0.8.9-beta');
+    expect(RELEASES[0].version).toBe('0.8.9');
     expect(WHATS_NEW_VERSION).toBe(RELEASES[0].version);
-    expect(RELEASES[0].sections.flatMap((s) => s.items).map((i) => i.id)).toEqual(['085s1', '085s2', '085s3', '085s4', '085s5']);
-    const text = RELEASES[0].sections.flatMap((s) => s.items).map((i) => i.text).join(' ');
+    expect(RELEASES[0].sections.flatMap((s) => s.items).map((i) => i.id)).toEqual(['089s1']);
+    const oldRelease = RELEASES.find((r) => r.version === '0.8.5')!;
+    expect(oldRelease.sections.flatMap((s) => s.items).map((i) => i.id)).toEqual(['085s1', '085s2', '085s3', '085s4', '085s5']);
+    const text = oldRelease.sections.flatMap((s) => s.items).map((i) => i.text).join(' ');
     expect(text).toContain('Réplication globale D1');
     expect(text).toContain('first-primary');
     expect(text).toContain('requireBizMutator');

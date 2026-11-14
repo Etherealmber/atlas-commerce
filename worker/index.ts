@@ -1,3 +1,4 @@
+import { registerWorkStatusRoute } from './routes/workStatus';
 import { Hono } from 'hono';
 import { isQuickSaleIntent } from './lib/quick-assist-intent';
 import { addColumnIfMissing } from './lib/schema';
@@ -728,6 +729,7 @@ function isCriticalSecurityPath(path: string, method: string): boolean {
   if (path.startsWith('/api/assist/approve')) return true;
   if (path.startsWith('/api/stock-adjustment-requests')) return true;
   if (path.startsWith('/api/mobile-actions')) return true;
+  if (path === '/api/mobile/work-status') return true;
   return false;
 }
 
@@ -740,7 +742,9 @@ app.use('*', async (c, next) => {
     const bm = readD1BookmarkFromReq(c);
 
     try {
-      if (path === '/api/health') {
+      if (path === '/api/mobile/work-status') {
+        session = rawDb.withSession('first-primary');
+      } else if (path === '/api/health') {
         // Health check: can use unconstrained replica or available session
         session = rawDb.withSession();
       } else if (isCriticalSecurityPath(path, method)) {
@@ -12671,6 +12675,8 @@ app.get('/api/expenses', async (c) => {
  * rows — including owner_contrib/owner_draw movements). Behavior, response
  * shapes and French messages are unchanged; see __tests__/expenses-auth.test.ts. */
 /* v0.7.1 — stock-adjustment approval workflow (role-gated, audited). */
+registerWorkStatusRoute(app, { session: sessionUserFromHeader, ownerUsername: getOwnerUsername });
+
 registerStockAdjustmentRoutes(app, {
   session: (c) => {
     const s = sessionUserFromHeader(c.req.header('Authorization'));
