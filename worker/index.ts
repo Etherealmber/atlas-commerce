@@ -1,3 +1,4 @@
+import { registerSnakeScoreRoutes } from './routes/snakeScore';
 import { registerWorkStatusRoute } from './routes/workStatus';
 import { Hono } from 'hono';
 import { isQuickSaleIntent } from './lib/quick-assist-intent';
@@ -633,6 +634,12 @@ function roundDh(n: number | null | undefined): number {
 
 const app = new Hono<{ Bindings: Env }>();
 
+app.use('/api/mobile/snake-score', async (c, next) => {
+  await next();
+  c.header('Cache-Control', 'no-store');
+  c.header('CDN-Cache-Control', 'no-store');
+});
+
 /* ── v0.7 — minimum supported Android version (owner/admin-controlled) ──
  * Outdated Android API clients get 426 APP_UPDATE_REQUIRED; web clients,
  * health and the update-check/download routes are never blocked. Registered
@@ -742,7 +749,7 @@ app.use('*', async (c, next) => {
     const bm = readD1BookmarkFromReq(c);
 
     try {
-      if (path === '/api/mobile/work-status') {
+      if (path === '/api/mobile/work-status' || path === '/api/mobile/snake-score') {
         session = rawDb.withSession('first-primary');
       } else if (path === '/api/health') {
         // Health check: can use unconstrained replica or available session
@@ -1563,7 +1570,8 @@ app.get('/api/canary', async (c) => {
 });
 
 /* ── v232 — D1 → D1 migration tooling (owner only). Target binding optional. ── */
-const MIG_SKIP = /^(sqlite_|d1_|_cf_)/;
+// Private game scores must not appear in admin migration counts or copy summaries.
+const MIG_SKIP = /^(sqlite_|d1_|_cf_|snake_personal_best$)/;
 async function migTables(db: D1Database): Promise<{ name: string; rows: number }[]> {
   const list = (await db.prepare(`SELECT name, sql FROM sqlite_master WHERE type = 'table' ORDER BY name`).all()) as any;
   const out: { name: string; rows: number }[] = [];
@@ -12676,6 +12684,7 @@ app.get('/api/expenses', async (c) => {
  * shapes and French messages are unchanged; see __tests__/expenses-auth.test.ts. */
 /* v0.7.1 — stock-adjustment approval workflow (role-gated, audited). */
 registerWorkStatusRoute(app, { session: sessionUserFromHeader, ownerUsername: getOwnerUsername });
+registerSnakeScoreRoutes(app, { session: sessionUserFromHeader, ownerUsername: getOwnerUsername });
 
 registerStockAdjustmentRoutes(app, {
   session: (c) => {

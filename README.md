@@ -156,6 +156,7 @@ Admin → Mise à jour app). Passkeys Android : `docs/webauthn.md` §4 (assetlin
 - **[`docs/desktop-design-prompt.md`](docs/desktop-design-prompt.md)** : prompt maître de l'app desktop (parité stricte web + Android, valeurs exactes citées)
 - **[`SETUP.md`](SETUP.md)** : installation complète de A à Z (base de données, secrets, fournisseurs de clés, déploiement sans CLI)
 - [`docs/mobile-work-status.md`](docs/mobile-work-status.md) : suivi mobile en lecture seule, autorisations et limites des sources.
+- [`docs/mobile-snake-score.md`](docs/mobile-snake-score.md) : synchronisation privée du meilleur score Snake.
 - `docs/reports-github.md` : crashs & signalements utilisateurs → issues GitHub (configuration dans l'app)
 - `docs/webauthn.md` : passkeys (modèle de sécurité, activation, Android Credential Manager) · `docs/api-finance.md` : finance & relevés · `PARTNER_API.md` : API partenaire · `SECURITY.md` : vulnérabilités
 - **Dans l'app** : À propos → « Signaler un problème » (arrive dans les issues GitHub) ; les crashs sont rapportés automatiquement

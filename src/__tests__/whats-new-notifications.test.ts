@@ -124,7 +124,8 @@ describe('release page and popup content', () => {
     expect(dialog?.textContent).not.toContain('build-only-test');
     expect(dialog?.textContent).not.toContain('Atlas Agent : le streaming');
     expect(dialog?.textContent).not.toContain('sélecteurs façon Discord');
-    expect(dialog?.querySelectorAll('li')).toHaveLength(1);
+    expect(dialog?.textContent).toContain('Atlas Snake');
+    expect(dialog?.querySelectorAll('li')).toHaveLength(2);
     const dismissButton = dialog?.querySelector('button');
     if (!dismissButton) throw new Error('Missing release popup dismiss button');
     await act(async () => dismissButton.click());
