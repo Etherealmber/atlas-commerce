@@ -35,6 +35,7 @@ export const RELEASES: Release[] = [
     date: '15 novembre 2026',
     sections: [{ kind: 'features', items: [
       { id: '089s1', platforms: ['server', 'android'], text: 'API de suivi en lecture seule : demandes de stock personnelles et tickets GitHub associés aux signalements, selon les autorisations et la configuration du serveur. Les sources indisponibles sont signalées explicitement.' },
+      { id: '089s2', platforms: ['server', 'android'], text: 'Atlas Snake : synchronisation privée du meilleur score par compte, sans classement et sans écraser un meilleur résultat.' },
     ] }],
   },
   {

@@ -1,0 +1,19 @@
+# Private Atlas Snake personal best (0.8.9)
+
+The existing authenticated Worker exposes `GET` and `PUT /api/mobile/snake-score`. Both require the usual `Authorization: Bearer <session>` and existing IP/device-fingerprint checks; provide `X-Device-Fingerprint` when appropriate. An unauthenticated or invalid session receives the existing 401 response. The current account is determined by the verified session and current active `app_users` row, never by input. The special environment-defined owner has one distinct owner score slot. This is for the existing single-tenant-per-D1 model, not a database shared between tenants. Deleted app users' scores cascade with their accounts; recreated usernames have new account IDs and do not inherit scores. No score is included in admin/user-list APIs, and there is no leaderboard. The existing application-level backup and D1 migration-copy tools do not include this private table, so they do not preserve scores; a database-level backup/migration is required if score preservation is desired.
+
+## GET
+
+A successful response has the **unwrapped** shape `{"personalBest":123}`. A new account with no row receives `{"personalBest":0}`. No request query parameters are accepted.
+
+## PUT
+
+Send `Content-Type: application/json` with `{"personalBest":123}`. The only accepted field is `personalBest`: a JSON integer from 0 through 2,147,483,647 inclusive (the signed 32-bit Android `Int` range). No username, account ID, role, tenant, timestamp, or other fields are accepted; query parameters are rejected too. The server atomically saves the maximum of the existing and submitted values and returns the canonical maximum in the same unwrapped shape as GET. Repeated, concurrent, delayed and lower submissions cannot reduce the score. A network timeout is indeterminate; retrying is safe.
+
+Malformed JSON, non-object bodies, missing/extra fields, fractional, negative, non-numeric and out-of-range scores receive the standard `422 {"success":false,"error":"…","code":"VALIDATION"}`. Bodies over 1 KiB return 413 `PAYLOAD_TOO_LARGE`; the bound is enforced during streaming even without `Content-Length`. Responses are `no-store` at browser and CDN. The existing in-memory, per-isolate limiter permits 120 requests per account per minute and returns 429 `RATE_LIMITED` with `Retry-After`; this is best-effort, not a global distributed quota. DB errors return generic 503 `SERVICE_UNAVAILABLE`; no score, credential or session material is logged. Security-sensitive reads and writes start on the D1 primary, independent of supplied replica bookmarks.
+
+## Migration and rollback
+
+Apply `migrations/0009_snake_personal_best.sql` using the project's D1 migration tooling before enabling these routes. The table references the existing `app_users` table; the app's existing security-schema initialization creates that table. Existing accounts require no backfill. If the migration is missing, the API fails closed with 503 rather than pretending an existing score is zero.
+
+D1's migration runner has no automatic down-migration convention here. The separately stored `docs/rollback/0009_snake_personal_best.sql` is the explicit destructive rollback: it drops the score table and removes this migration's entry from `d1_migrations`, allowing reapplication. **All saved scores are lost on rollback.** Stop or roll back the new Worker before applying the rollback to avoid 503s, and take a suitable backup first. Apply the rollback with Wrangler D1 execute against the intended local or remote database only after confirming the target. This does not remove accounts or other data.
