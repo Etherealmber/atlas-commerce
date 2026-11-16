@@ -1,3 +1,5 @@
+import { githubJson } from './github-json';
+
 /**
  * v260 — Crash reporting & user reports → GitHub issues.
  *
@@ -185,20 +187,25 @@ export async function saveGithubConfig(db: D1Database, token: string, repo: stri
 }
 
 async function gh(token: string, method: string, path: string, body?: any): Promise<{ ok: boolean; status: number; json: any }> {
-  const res = await fetch(`https://api.github.com${path}`, {
-    method,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
-      'User-Agent': 'atlas-commerce-reports',
-      ...(body ? { 'Content-Type': 'application/json' } : {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  let json: any = null;
-  try { json = await res.json(); } catch { /* 204 etc. */ }
-  return { ok: res.ok, status: res.status, json };
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  try {
+    const res = await fetch(`https://api.github.com${path}`, {
+      method,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'User-Agent': 'atlas-commerce-reports',
+        ...(body ? { 'Content-Type': 'application/json' } : {}),
+      },
+      redirect: 'error', signal: controller.signal,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    let json: any = null;
+    try { json = await res.json(); } catch { /* 204 etc. */ }
+    return { ok: res.ok, status: res.status, json };
+  } finally { clearTimeout(timeout); }
 }
 
 /** Validate a token (used before storing it). Returns login name or null. */
@@ -334,23 +341,90 @@ export type UserReportInput = {
   version?: string;
 };
 
-export type UserReportResult = { reference: string; issue_url: string };
+export type UserReportResult = { reference: string; issue_url: string; already_reported: boolean; issue_status: 'open' | 'closed' | null };
+export type ReportIdentity = { owner: boolean; userId: number | null };
 
-export async function reportUser(db: D1Database, env: ReportsEnv, input: UserReportInput): Promise<UserReportResult> {
+async function ensureReportDedup(db: D1Database): Promise<void> {
+  await db.prepare(`CREATE TABLE IF NOT EXISTS user_report_dedup (
+    scope TEXT NOT NULL, repo TEXT NOT NULL, fingerprint TEXT NOT NULL,
+    report_id INTEGER NOT NULL REFERENCES user_reports(id) ON DELETE CASCADE,
+    PRIMARY KEY (scope, repo, fingerprint)
+  )`).run();
+}
+
+/** Only trust an issue whose stored and returned URLs match the configured repo. */
+async function duplicateIssueStatus(token: string, repo: string, row: any): Promise<{ url: string; status: 'open' | 'closed' | null }> {
+  try {
+    if (!/^[A-Za-z0-9_-][A-Za-z0-9_.-]*\/[A-Za-z0-9_-][A-Za-z0-9_.-]*$/.test(repo)) throw new Error('repo');
+    const number = Number(row.issue_number);
+    const path = `/${repo}/issues/${number}`.toLowerCase();
+    const validUrl = (value: unknown) => {
+      const url = new URL(String(value));
+      return url.protocol === 'https:' && url.hostname === 'github.com' && !url.port && !url.username && !url.password &&
+        url.pathname.toLowerCase() === path && !url.search && !url.hash;
+    };
+    if (!Number.isSafeInteger(number) || number <= 0 || !validUrl(row.issue_url)) throw new Error('link');
+    if (!token) return { url: '', status: null };
+    const issue = await githubJson(`https://api.github.com/repos/${repo}/issues/${number}`, token);
+    if (issue.number !== number || issue.pull_request || !validUrl(issue.html_url) || !['open', 'closed'].includes(issue.state)) throw new Error('issue');
+    return { url: String(issue.html_url), status: issue.state };
+  } catch { return { url: '', status: null }; }
+}
+
+export async function reportUser(db: D1Database, env: ReportsEnv, input: UserReportInput, onCreated?: (id: number) => Promise<void>, identity?: ReportIdentity): Promise<UserReportResult> {
   const kind = ['bug', 'feedback', 'other'].includes(input.kind) ? input.kind : 'other';
   const message = redactSecrets(String(input.message || '')).slice(0, 2000);
   const contact = redactSecrets(String(input.contact || '')).slice(0, 120);
   const page = redactSecrets(String(input.page || '')).slice(0, 200);
   const version = String(input.version || '').slice(0, 40);
 
+  const { token, repo } = await githubConfig(env);
+  const scope = identity?.owner ? 'owner' : identity?.userId ? `user:${identity.userId}` : '';
+  // Redaction can make different messages identical; do not suppress those reports.
+  const canDedup = Boolean(scope) && !message.includes('[REDACTED]');
+  const fingerprint = canDedup ? await sha256Hex(JSON.stringify([kind, message])) : '';
+  if (canDedup) {
+    await ensureReportDedup(db);
+    // Adopt earlier linked reports only if their server-created ownership binding
+    // and URL match. Unbound legacy rows cannot prove account ownership.
+    const ownerTable = await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='work_status_report_owners'").first();
+    if (ownerTable) {
+      await db.prepare(`INSERT OR IGNORE INTO user_report_dedup (scope, repo, fingerprint, report_id)
+        SELECT ?, ?, ?, r.id FROM user_reports r JOIN work_status_report_owners o ON o.report_id = r.id
+        WHERE r.kind = ? AND r.message = ? AND r.status = 'linked' AND r.issue_number > 0
+          AND lower(r.issue_url) = lower('https://github.com/' || ? || '/issues/' || r.issue_number)
+          AND ((? = 1 AND o.owner_slot = 1) OR (? = 0 AND o.user_id = ?))
+        ORDER BY r.id ASC LIMIT 1`).bind(scope, repo.toLowerCase(), fingerprint, kind, message, repo,
+          identity?.owner ? 1 : 0, identity?.owner ? 1 : 0, identity?.userId ?? null).run();
+    }
+  }
   const res = await db.prepare(
     `INSERT INTO user_reports (username, role, kind, message, contact, page, version, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'new')`
-  ).bind(String(input.username || '').toLowerCase(), input.role, kind, message, contact, page, version).run();
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(String(input.username || '').toLowerCase(), input.role, kind, message, contact, page, version, canDedup ? 'dedup_check' : 'new').run();
   const id = Number((res.meta as any)?.last_row_id || 0);
   const reference = `R-${id}`;
-
-  const { token, repo } = await githubConfig(env);
+  if (canDedup) {
+    try {
+      const claim = await db.prepare('INSERT OR IGNORE INTO user_report_dedup (scope, repo, fingerprint, report_id) VALUES (?, ?, ?, ?)')
+        .bind(scope, repo.toLowerCase(), fingerprint, id).run();
+      if (!claim.meta?.changes) {
+        const existing = await db.prepare(`SELECT r.id, r.issue_number, r.issue_url FROM user_report_dedup d
+          JOIN user_reports r ON r.id = d.report_id WHERE d.scope = ? AND d.repo = ? AND d.fingerprint = ?`)
+          .bind(scope, repo.toLowerCase(), fingerprint).first() as any;
+        if (!existing) throw new Error('dedup unavailable');
+        await db.prepare('DELETE FROM user_reports WHERE id = ?').bind(id).run();
+        const issue = await duplicateIssueStatus(token, repo, existing);
+        return { reference: `R-${existing.id}`, issue_url: issue.url, already_reported: true, issue_status: issue.status };
+      }
+    } catch (e) {
+      // Prevent the queue from creating an issue when deduplication failed.
+      await db.prepare("UPDATE user_reports SET status = 'dedup_error' WHERE id = ?").bind(id).run().catch(() => {});
+      throw e;
+    }
+  }
+  if (onCreated && Number.isSafeInteger(id) && id > 0) await onCreated(id).catch(() => {});
+  if (canDedup) await db.prepare('UPDATE user_reports SET status = ? WHERE id = ?').bind(token ? 'sending' : 'pending', id).run();
   let issueUrl = '';
   if (token) {
     const body = [
@@ -376,7 +450,7 @@ export async function reportUser(db: D1Database, env: ReportsEnv, input: UserRep
   } else {
     await db.prepare(`UPDATE user_reports SET status='pending' WHERE id=?`).bind(id).run();
   }
-  return { reference, issue_url: issueUrl };
+  return { reference, issue_url: issueUrl, already_reported: false, issue_status: null };
 }
 
 /* ─────────────────────────── queue drain + admin views ─────────────────────────── */
@@ -387,6 +461,13 @@ export async function retryPendingReports(env: ReportsEnv): Promise<{ crashes: n
   const { token, repo } = await githubConfig(env);
   if (!token) return { crashes: 0, user_reports: 0, skipped: true };
 
+  // A crashed intake may leave its winning claim in progress. Do not recover
+  // unclaimed rows: they may be duplicates that never completed arbitration.
+  try {
+    await db.prepare(`UPDATE user_reports SET status = 'pending'
+      WHERE status IN ('dedup_check', 'sending') AND created_at < datetime('now', '-5 minutes')
+      AND id IN (SELECT report_id FROM user_report_dedup)`).run();
+  } catch { /* Older installations may not have the optional dedup table. */ }
   let crashes = 0;
   let userReports = 0;
   const pendingCrashes = await db.prepare(
@@ -408,21 +489,36 @@ export async function retryPendingReports(env: ReportsEnv): Promise<{ crashes: n
     }
   }
 
+  // Serialize concurrent queue drains per report; leases expire after crashes.
+  await db.prepare(`CREATE TABLE IF NOT EXISTS user_report_delivery_leases (
+    report_id INTEGER PRIMARY KEY, lease_id TEXT NOT NULL, started_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`).run();
   const pendingUser = await db.prepare(
     `SELECT id, username, role, kind, message, contact, page, version FROM user_reports
      WHERE status IN ('new','pending','failed') ORDER BY created_at DESC LIMIT 10`
   ).all() as any;
   for (const row of (pendingUser.results || []) as any[]) {
-    const created = await createIssue(token, repo, `[report:${row.kind} R-${row.id}] ${String(row.message).slice(0, 90)}`, [
-      `**Signalement utilisateur envoyé depuis l'application Atlas Commerce.** (rattrapage file d'attente)`,
-      ``, `- Référence : \`R-${row.id}\``, `- Type : ${row.kind}`, `- Compte : ${row.username} (rôle : ${row.role})`,
-      row.page ? `- Page : \`${row.page}\`` : '', row.version ? `- Version : ${row.version}` : '',
-      row.contact ? `- Contact laissé : ${row.contact}` : '', ``, `### Message`, String(row.message),
-    ].filter(Boolean).join('\n'), [LABEL_USER, LABEL_FROM_APP]);
-    if (created) {
-      await db.prepare(`UPDATE user_reports SET status='linked', issue_number=?, issue_url=? WHERE id=?`)
-        .bind(created.number, created.url, Number(row.id)).run();
-      userReports++;
+    const lease = crypto.randomUUID();
+    const acquired = await db.prepare(`INSERT INTO user_report_delivery_leases (report_id, lease_id, started_at)
+      VALUES (?, ?, datetime('now')) ON CONFLICT(report_id) DO UPDATE SET lease_id=excluded.lease_id, started_at=excluded.started_at
+      WHERE user_report_delivery_leases.started_at < datetime('now', '-5 minutes')`).bind(row.id, lease).run();
+    if (!acquired.meta?.changes) continue;
+    try {
+      const current = await db.prepare("SELECT status FROM user_reports WHERE id = ?").bind(row.id).first() as any;
+      if (!current || !['new', 'pending', 'failed'].includes(current.status)) continue;
+      const created = await createIssue(token, repo, `[report:${row.kind} R-${row.id}] ${String(row.message).slice(0, 90)}`, [
+        `**Signalement utilisateur envoyé depuis l'application Atlas Commerce.** (rattrapage file d'attente)`,
+        ``, `- Référence : \`R-${row.id}\``, `- Type : ${row.kind}`, `- Compte : ${row.username} (rôle : ${row.role})`,
+        row.page ? `- Page : \`${row.page}\`` : '', row.version ? `- Version : ${row.version}` : '',
+        row.contact ? `- Contact laissé : ${row.contact}` : '', ``, `### Message`, String(row.message),
+      ].filter(Boolean).join('\n'), [LABEL_USER, LABEL_FROM_APP]);
+      if (created) {
+        await db.prepare(`UPDATE user_reports SET status='linked', issue_number=?, issue_url=? WHERE id=?`)
+          .bind(created.number, created.url, Number(row.id)).run();
+        userReports++;
+      }
+    } finally {
+      await db.prepare('DELETE FROM user_report_delivery_leases WHERE report_id = ? AND lease_id = ?').bind(row.id, lease).run();
     }
   }
   return { crashes, user_reports: userReports, skipped: false };

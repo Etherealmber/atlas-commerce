@@ -303,46 +303,5 @@ app.get('/api/settings/invoice-preview', async (c: any) => {
 
 /* ─── Categories & Units ─── */
 
-const DEFAULT_CATEGORIES: { name: string; description: string; sort_order: number }[] = [
-  { name: 'Général', description: 'Catégorie par défaut', sort_order: 0 },
-  { name: 'Alimentation', description: 'Produits alimentaires', sort_order: 10 },
-  { name: 'Boissons', description: 'Boissons et liquides', sort_order: 20 },
-  { name: 'Électronique', description: 'Appareils et composants électroniques', sort_order: 30 },
-  { name: 'Informatique', description: 'Matériel et accessoires informatiques', sort_order: 40 },
-  { name: 'Vêtements', description: 'Textile et habillement', sort_order: 50 },
-  { name: 'Cosmétiques', description: 'Beauté et soins', sort_order: 60 },
-  { name: 'Quincaillerie', description: 'Outils et quincaillerie', sort_order: 70 },
-  { name: 'Fournitures de bureau', description: 'Papeterie et bureau', sort_order: 80 },
-  { name: 'Hygiène', description: 'Produits d\'hygiène et entretien', sort_order: 90 },
-  { name: 'Emballage', description: 'Conditionnement et emballage', sort_order: 100 },
-  { name: 'Matières premières', description: 'Matières premières', sort_order: 110 },
-  { name: 'Pièces détachées', description: 'Pièces et rechanges', sort_order: 120 },
-  { name: 'Services', description: 'Prestations de service', sort_order: 130 },
-  { name: 'Autre', description: 'Divers', sort_order: 999 },
-];
 
-const DEFAULT_UNITS: { name: string; symbol: string; sort_order: number }[] = [
-  { name: 'unité', symbol: 'u', sort_order: 0 },
-  { name: 'pièce', symbol: 'pce', sort_order: 10 },
-  { name: 'kg', symbol: 'kg', sort_order: 20 },
-  { name: 'g', symbol: 'g', sort_order: 30 },
-  { name: 'L', symbol: 'L', sort_order: 40 },
-  { name: 'mL', symbol: 'mL', sort_order: 50 },
-  { name: 'm', symbol: 'm', sort_order: 60 },
-  { name: 'cm', symbol: 'cm', sort_order: 70 },
-  { name: 'm²', symbol: 'm²', sort_order: 80 },
-  { name: 'm³', symbol: 'm³', sort_order: 90 },
-  { name: 'boîte', symbol: 'bte', sort_order: 100 },
-  { name: 'carton', symbol: 'ctn', sort_order: 110 },
-  { name: 'paquet', symbol: 'paq', sort_order: 120 },
-  { name: 'lot', symbol: 'lot', sort_order: 130 },
-  { name: 'sac', symbol: 'sac', sort_order: 140 },
-  { name: 'bouteille', symbol: 'btl', sort_order: 150 },
-  { name: 'pack', symbol: 'pack', sort_order: 160 },
-  { name: 'douzaine', symbol: 'dz', sort_order: 170 },
-  { name: 'heure', symbol: 'h', sort_order: 180 },
-  { name: 'jour', symbol: 'j', sort_order: 190 },
-  { name: 'forfait', symbol: 'forf', sort_order: 200 },
-  { name: 'service', symbol: 'svc', sort_order: 210 },
-];
 }

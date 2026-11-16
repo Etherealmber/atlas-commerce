@@ -56,6 +56,7 @@ import {
   roleCanSubmitStockAdjustmentRequest,
 } from '../lib/inventory-policy';
 import { sendFcmToUser } from '../lib/fcm';
+import { ensureMovementApprover } from '../lib/inventory-actors';
 
 export interface StockAdjustDeps {
   /** Signed server session only — never client-supplied role/tenant. */
@@ -359,14 +360,21 @@ export function registerStockAdjustmentRoutes(app: any, deps: StockAdjustDeps): 
     const now = await db.prepare(`SELECT stock_quantity FROM products WHERE id = ?`).bind(req.product_id).first() as any;
     const afterQty = Number(now?.stock_quantity ?? before + delta);
     try {
+      await ensureMovementApprover(db);
+      let hasApprover = false;
+      try {
+        const info = await db.prepare('PRAGMA table_info(stock_movements)').all();
+        hasApprover = (info.results || []).some((column: any) => column.name === 'approved_by');
+      } catch { /* preserve the existing movement write on legacy schemas */ }
       await db.batch([
         db.prepare(
-          `INSERT INTO stock_movements (product_id, type, quantity, previous_quantity, new_quantity, reason, reference, created_by)
-           VALUES (?, 'adjustment', ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO stock_movements (product_id, type, quantity, previous_quantity, new_quantity, reason, reference, created_by${hasApprover ? ', approved_by' : ''})
+           VALUES (?, 'adjustment', ?, ?, ?, ?, ?, ?${hasApprover ? ', ?' : ''})`,
         ).bind(
           req.product_id, delta, before, afterQty,
           `Approbation demande #${id} (${req.direction} ${qty}) — demandeur ${req.requested_by}: ${req.reason || ''}`,
           `stock-adjustment-request:${id}`, sess.username,
+          ...(hasApprover ? [sess.username] : []),
         ),
         db.prepare(`UPDATE stock_adjustment_requests SET stock_before=?, stock_after=? WHERE id=?`).bind(before, afterQty, id),
       ]);

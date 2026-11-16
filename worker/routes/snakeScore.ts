@@ -4,6 +4,20 @@ import { rateLimit } from '../lib/security';
 const MAX_SCORE = 2147483647; // Android's signed 32-bit Int range.
 const MAX_BODY = 1024;
 
+/** Auto-initialize on an authenticated request; migration 0009 remains compatible. */
+async function ensureSnakeScores(db: D1Database): Promise<void> {
+  const table = await db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'snake_personal_best'").first();
+  if (table) return;
+  await db.prepare(`CREATE TABLE IF NOT EXISTS snake_personal_best (
+    user_id INTEGER UNIQUE REFERENCES app_users(id) ON DELETE CASCADE,
+    owner_slot INTEGER UNIQUE CHECK (owner_slot IS NULL OR owner_slot = 1),
+    personal_best INTEGER NOT NULL DEFAULT 0
+      CHECK (typeof(personal_best) = 'integer' AND personal_best BETWEEN 0 AND 2147483647),
+    CHECK ((user_id IS NOT NULL AND owner_slot IS NULL) OR
+           (user_id IS NULL AND owner_slot IS NOT NULL AND owner_slot = 1))
+  )`).run();
+}
+
 // The Worker auth middleware has already verified the session proof.
 export function registerSnakeScoreRoutes(app: any, deps: {
   session: (header: string | undefined) => { username: string; role: string };
@@ -31,6 +45,7 @@ export function registerSnakeScoreRoutes(app: any, deps: {
         return apiFail(c, 'Trop de requêtes', 'RATE_LIMITED', { retry_after: limit.retryAfter });
       }
       if (new URL(c.req.url).search) return apiFail(c, 'Paramètres non autorisés', 'VALIDATION');
+      await ensureSnakeScores(c.env.DB);
       if (c.req.method === 'GET') {
         const row = isOwner
           ? await c.env.DB.prepare('SELECT personal_best FROM snake_personal_best WHERE owner_slot = 1').first()

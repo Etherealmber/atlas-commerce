@@ -1,6 +1,7 @@
 const _localSchemaOnce = new Set<string>();
 
 import type { AtlasApp } from './types';
+import { withInventoryActors } from '../lib/inventory-actors';
 
 async function ensureStockMovementsTable(db: D1Database): Promise<void> {
   if (_localSchemaOnce.has("ensureStockMovementsTable")) return;
@@ -44,7 +45,7 @@ export function registerStockReadRoutes(app: AtlasApp): void {
       .all();
     return c.json({
       success: true,
-      data: results,
+      data: (results || []).map((row: any) => withInventoryActors(row)),
       meta: {
         product_id: Number(id),
         limit,
@@ -82,6 +83,6 @@ export function registerStockReadRoutes(app: AtlasApp): void {
     )
       .bind(...binds, limit, offset)
       .all();
-    return c.json({ success: true, data: results || [], meta: { limit, offset, count: results?.length || 0 } });
+    return c.json({ success: true, data: (results || []).map((row: any) => withInventoryActors(row)), meta: { limit, offset, count: results?.length || 0 } });
   });
 }

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { recordReportOwner } from '../lib/report-ownership';
 const SQLITE_MODULE = ['node:', 'sqlite'].join('');
 const { DatabaseSync } = (await import(SQLITE_MODULE)) as { DatabaseSync: new (path: string) => any };
 const { default: app } = await import('../index');
@@ -127,6 +128,38 @@ describe('authenticated work status', () => {
     expect(data.trackers.github.error).toBe('NO_LINKED_REPORTS');
     expect(fetchMock).not.toHaveBeenCalled();
   });
+  it('automatically fetches public issues anonymously and refuses private or unavailable repositories', async () => {
+    env.GITHUB_ISSUE_TOKEN = 'server-secret'; env.GITHUB_ISSUE_REPO = 'Org/repo';
+    sqlite.exec(`INSERT INTO user_reports VALUES (5,'alice','linked',42,'https://github.com/Org/repo/issues/42','2026-02-01 00:00:00')`);
+    const remote = vi.fn(async (url: string, init: any) => {
+      expect(init.headers.Authorization).toBeUndefined();
+      return Response.json(url.endsWith('/issues/42') ? { number: 42, title: 'Public issue', state: 'open', updated_at: '2026-02-03T00:00:00Z', html_url: 'https://github.com/Org/repo/issues/42' } : { private: false, full_name: 'Org/repo', visibility: 'public' });
+    });
+    vi.stubGlobal('fetch', remote);
+    const t = await token();
+    let data: any = await (await request(t)).json();
+    expect(data.trackers.github.items[0]).toMatchObject({ id: '42', status: 'open', url: 'https://github.com/Org/repo/issues/42' });
+    remote.mockClear(); remote.mockImplementation(async () => new Response('private', { status: 404 }));
+    data = await (await request(t)).json();
+    expect(data.trackers.github.error).toBe('SOURCE_UNAVAILABLE');
+    expect(data.in_app.items).toHaveLength(2);
+    expect(remote).toHaveBeenCalledTimes(1);
+    env.WORK_STATUS_GITHUB_ENABLED = 'false'; remote.mockClear();
+    data = await (await request(t)).json();
+    expect(data.trackers.github.error).toBe('NOT_CONFIGURED');
+    expect(remote).not.toHaveBeenCalled();
+  });
+  it('does not let a reused username inherit reports bound to a previous account id', async () => {
+    env.GITHUB_ISSUE_TOKEN = 'key'; env.GITHUB_ISSUE_REPO = 'Org/repo'; env.WORK_STATUS_GITHUB_ENABLED = 'true';
+    sqlite.exec(`INSERT INTO user_reports VALUES (5,'alice','linked',42,'https://github.com/Org/repo/issues/42','2030-02-01 00:00:00')`);
+    await recordReportOwner(env.DB, 5, false, 1);
+    sqlite.exec("DELETE FROM app_users WHERE id=1; INSERT INTO app_users VALUES (9,'alice','secret-alice','','stock',1,'2026-01-01 00:00:00')");
+    const fetchMock = vi.fn(); vi.stubGlobal('fetch', fetchMock);
+    const data: any = await (await request(await token())).json();
+    expect(data.trackers.github.items).toEqual([]);
+    expect(data.trackers.github.error).toBe('NO_LINKED_REPORTS');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
   it('uses separate D1 tenants and forces a primary session despite a supplied bookmark', async () => {
     const t = await token();
     const calls: any[] = [];
@@ -137,8 +170,8 @@ describe('authenticated work status', () => {
     expect(calls).toEqual(['first-primary']);
     const other = new DatabaseSync(':memory:');
     try {
-      other.exec(`CREATE TABLE app_users (username TEXT, password_hash TEXT, role TEXT, active INTEGER, created_at TEXT);
-        INSERT INTO app_users VALUES ('alice','secret-alice','stock',1,'2026-01-01 00:00:00');
+      other.exec(`CREATE TABLE app_users (id INTEGER PRIMARY KEY, username TEXT, password_hash TEXT, role TEXT, active INTEGER, created_at TEXT);
+        INSERT INTO app_users VALUES (1,'alice','secret-alice','stock',1,'2026-01-01 00:00:00');
         CREATE TABLE stock_adjustment_requests (id INTEGER, product_name TEXT, status TEXT, requested_by TEXT, requested_at TEXT);
         INSERT INTO stock_adjustment_requests VALUES (77,'Other tenant','approved','alice','2026-02-01 00:00:00');`);
       env.DB = dbFor(other);

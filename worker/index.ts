@@ -1,3 +1,5 @@
+import { recordReportOwner } from './lib/report-ownership';
+import { ensureProductActors, withInventoryActors } from './lib/inventory-actors';
 import { registerSnakeScoreRoutes } from './routes/snakeScore';
 import { registerWorkStatusRoute } from './routes/workStatus';
 import { Hono } from 'hono';
@@ -126,6 +128,7 @@ import { countEmployeesPayDue } from './routes/employees';
 import { registerStockAdjustmentRoutes } from './routes/stockAdjustments';
 import { registerDeviceRoutes } from './routes/devices';
 import { registerDocPreviewRoutes } from './routes/docPreviews';
+import { DEFAULT_CATEGORIES, DEFAULT_UNITS } from './lib/product-defaults';
 import {
   normalizeInventoryRole,
   roleCanDirectAdjustStock,
@@ -749,7 +752,7 @@ app.use('*', async (c, next) => {
     const bm = readD1BookmarkFromReq(c);
 
     try {
-      if (path === '/api/mobile/work-status' || path === '/api/mobile/snake-score') {
+      if (path === '/api/mobile/work-status' || path === '/api/mobile/snake-score' || path === '/api/reports') {
         session = rawDb.withSession('first-primary');
       } else if (path === '/api/health') {
         // Health check: can use unconstrained replica or available session
@@ -1571,7 +1574,7 @@ app.get('/api/canary', async (c) => {
 
 /* ── v232 — D1 → D1 migration tooling (owner only). Target binding optional. ── */
 // Private game scores must not appear in admin migration counts or copy summaries.
-const MIG_SKIP = /^(sqlite_|d1_|_cf_|snake_personal_best$)/;
+const MIG_SKIP = /^(sqlite_|d1_|_cf_|snake_personal_best$|work_status_report_owners$|user_report_dedup$|user_report_delivery_leases$)/;
 async function migTables(db: D1Database): Promise<{ name: string; rows: number }[]> {
   const list = (await db.prepare(`SELECT name, sql FROM sqlite_master WHERE type = 'table' ORDER BY name`).all()) as any;
   const out: { name: string; rows: number }[] = [];
@@ -4239,8 +4242,26 @@ app.post('/api/reports', async (c) => {
   if (message.length < 5 || message.length > 2000) {
     return c.json({ success: false, error: 'Le message doit contenir entre 5 et 2000 caractères.', code: 'BAD_REQUEST' }, 400);
   }
+  // Capture the immutable account ID around a second proof check. Looking up
+  // the ID after GitHub delivery could bind a report to a recreated username.
+  const name = String(session.username || '').toLowerCase();
+  const owner = name === getOwnerUsername(c.env) && session.role === 'owner';
+  let userId: number | null = null;
+  if (!owner) {
+    try {
+      const before = await c.env.DB.prepare('SELECT id, role FROM app_users WHERE username = ? AND active = 1').bind(name).first() as any;
+      if (before?.role === session.role && Number.isSafeInteger(before.id) && before.id > 0 &&
+          await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, ip, fingerprint) === 'ok') {
+        const after = await c.env.DB.prepare('SELECT id, role FROM app_users WHERE username = ? AND active = 1').bind(name).first() as any;
+        if (after?.id === before.id && after.role === session.role) userId = before.id;
+      }
+    } catch { /* report is accepted, but no unverified ID is bound */ }
+  }
+  if (!owner && !userId) return c.json({ success: false, error: 'Impossible de vérifier le compte', code: 'AUTH_UNAVAILABLE' }, 503);
   await ensureReportTables(c.env.DB);
-  const out = await reportUser(c.env.DB, c.env, {
+  let out;
+  try {
+  out = await reportUser(c.env.DB, c.env, {
     username: String(session.username || ''),
     role: String(session.role || ''),
     kind: String(body?.kind || 'bug'),
@@ -4248,8 +4269,9 @@ app.post('/api/reports', async (c) => {
     contact: body?.contact ? String(body.contact) : '',
     page: body?.page ? String(body.page) : '',
     version: body?.version ? String(body.version) : '',
-  });
-  return c.json({ success: true, data: { reference: out.reference, issue_url: out.issue_url || null } }, 201);
+  }, id => recordReportOwner(c.env.DB, id, owner, userId), { owner, userId });
+  } catch { return c.json({ success: false, error: 'Signalement indisponible', code: 'SERVICE_UNAVAILABLE' }, 503); }
+  return c.json({ success: true, data: { reference: out.reference, issue_url: out.issue_url || null, already_reported: out.already_reported, issue_status: out.issue_status } }, 201);
 });
 
 /** Owner-only GitHub token management — the token is NEVER returned. */
@@ -6771,13 +6793,13 @@ app.get('/api/products', async (c) => {
   const cacheable = !q && !parentId && !category;
   const cacheKey = await productsCacheKey(
     c.env.CACHE,
-    [includeVariants ? 'v' : 'p', variantsOnly ? 'vo' : '', light ? 'm2' : 'f', String(limit)].filter(Boolean).join(':')
+    [includeVariants ? 'v' : 'p', variantsOnly ? 'vo' : '', light ? 'm3-actors' : 'f-actors', String(limit)].filter(Boolean).join(':')
   );
   if (cacheable) {
     const hit = await kvGetJson<any>(c.env.CACHE, cacheKey);
     if (hit) {
       return c.json(
-        { success: true, data: hit, meta: { cache: 'hit', fields: light ? 'mobile' : 'full' } },
+        { success: true, data: (hit as any[]).map(r => scrubProductForRole(withInventoryActors(r), normalizeInventoryRole(sessionUserFromHeader(c.req.header('Authorization')).role))), meta: { cache: 'hit', fields: light ? 'mobile' : 'full' } },
         200,
         { 'Cache-Control': light ? 'private, max-age=60' : 'private, max-age=20' },
       );
@@ -6785,8 +6807,10 @@ app.get('/api/products', async (c) => {
   }
 
   // Speed: mobile/light omits heavy columns AND images (phone never displays photos)
+  const productColumns = light ? await tableColumns(c.env.DB, 'products') : null;
+  const actorCols = ['created_by', 'approved_by'].filter(col => productColumns?.has(col)).map(col => `, ${col}`).join('');
   const cols = light
-    ? `id, sku, name, barcode, category, unit, price, stock_quantity, low_stock_threshold, parent_id, variant_label, is_active, track_inventory`
+    ? `id, sku, name, barcode, category, unit, price, stock_quantity, low_stock_threshold, parent_id, variant_label, is_active, track_inventory${actorCols}`
     : `*`;
   let sql = `SELECT ${cols} FROM products WHERE is_active = 1`;
   const binds: any[] = [];
@@ -6850,7 +6874,7 @@ app.get('/api/products', async (c) => {
   }
   // v0.7.1 — inventory privacy: omit price/cost fields server-side per role.
   const listRole = normalizeInventoryRole(sessionUserFromHeader(c.req.header('Authorization')).role);
-  results = (results || []).map((r: any) => scrubProductForRole(r, listRole));
+  results = (results || []).map((r: any) => scrubProductForRole(withInventoryActors(r), listRole));
   return c.json(
     { success: true, data: results, meta: { cache: cacheable ? 'miss' : 'bypass', fields: light ? 'mobile' : 'full' } },
     200,
@@ -6871,10 +6895,10 @@ app.get('/api/products/:id', async (c) => {
     variants = results || [];
   }
   const oneRole = normalizeInventoryRole(sessionUserFromHeader(c.req.header('Authorization')).role);
-  const scrubbed = scrubProductForRole(product, oneRole);
+  const scrubbed = scrubProductForRole(withInventoryActors(product), oneRole);
   return c.json({
     success: true,
-    data: { ...scrubbed, variants: (variants || []).map((v: any) => scrubProductForRole(v, oneRole)) },
+    data: { ...scrubbed, variants: (variants || []).map((v: any) => scrubProductForRole(withInventoryActors(v), oneRole)) },
   });
 });
 
@@ -6923,12 +6947,14 @@ app.post('/api/products', async (c) => {
     bulkJson = JSON.stringify(parsed);
   }
 
+  await ensureProductActors(c.env.DB);
   const postCols = await tableColumns(c.env.DB, 'products');
-  const insertCols = ['sku', 'name', 'description', 'category', 'unit', 'price', 'cost', 'stock_quantity', 'low_stock_threshold', 'track_inventory', 'image_url', 'barcode', 'tax_rate', 'bulk_discounts'];
-  const insertVals: any[] = [sku || null, name, description, category, unit, price, cost, stock_quantity, low_stock_threshold, track_inventory, image_url, barcode, tax_rate, bulkJson];
+  const insertCols = ['sku', 'name', 'description', 'category', 'unit', 'price', 'cost', 'stock_quantity', 'low_stock_threshold', 'track_inventory', 'image_url', 'barcode', 'tax_rate', 'bulk_discounts', 'created_by'];
+  const insertVals: any[] = [sku || null, name, description, category, unit, price, cost, stock_quantity, low_stock_threshold, track_inventory, image_url, barcode, tax_rate, bulkJson, sessionUserFromHeader(c.req.header('Authorization')).username || null];
   const useCols: string[] = [];
   const useVals: any[] = [];
   insertCols.forEach((colName, i) => {
+    if (colName === 'created_by' && !postCols?.has(colName)) return;
     if (postCols && !postCols.has(colName)) return;
     useCols.push(colName);
     useVals.push(insertVals[i]);
@@ -6973,7 +6999,7 @@ app.post('/api/products', async (c) => {
   } catch { /* */ }
   try { const su = sessionUserFromHeader(c.req.header('Authorization')); await writeAudit(c.env.DB, { username: su.username, role: su.role, action: 'product.create', entity: 'products', entity_id: String(result?.meta?.last_row_id || ''), detail: body?.name || '', ip: c.req.header('cf-connecting-ip') || '' }); } catch {}
   await invalidateDashboardCache(c.env.CACHE);
-  return c.json({ success: true, data: product, message: 'Produit enregistré dans la base de données.' }, 201);
+  return c.json({ success: true, data: product ? withInventoryActors(product as any) : product, message: 'Produit enregistré dans la base de données.' }, 201);
 });
 
 app.put('/api/products/:id', async (c) => {
@@ -7097,7 +7123,7 @@ app.put('/api/products/:id', async (c) => {
     }
   }
 await invalidateDashboardCache(c.env.CACHE);
-  return c.json({ success: true, data: product, message: 'Produit modifié dans la base de données.' });
+  return c.json({ success: true, data: product ? withInventoryActors(product as any) : product, message: 'Produit modifié dans la base de données.' });
 });
 
 app.post('/api/products/:id/adjust-stock', async (c) => {
@@ -7168,7 +7194,7 @@ app.get('/api/products/:id/variants', async (c) => {
   const { results } = await c.env.DB.prepare(
     `SELECT * FROM products WHERE parent_id = ? ORDER BY variant_label, name`
   ).bind(id).all();
-  return c.json({ success: true, data: results || [], parent });
+  return c.json({ success: true, data: (results || []).map((r: any) => withInventoryActors(r)), parent });
 });
 
 app.post('/api/products/:id/variants', async (c) => {
@@ -7222,9 +7248,12 @@ app.post('/api/products/:id/variants', async (c) => {
     }
   }
 
+  await ensureProductActors(c.env.DB);
+  const actorPresent = (await tableColumns(c.env.DB, 'products'))?.has('created_by') === true;
+  const actorName = sessionUserFromHeader(c.req.header('Authorization')).username || null;
   const result = await c.env.DB.prepare(
-    `INSERT INTO products (sku, name, description, category, unit, price, cost, stock_quantity, low_stock_threshold, track_inventory, image_url, barcode, tax_rate, bulk_discounts, parent_id, variant_label, attributes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO products (sku, name, description, category, unit, price, cost, stock_quantity, low_stock_threshold, track_inventory, image_url, barcode, tax_rate, bulk_discounts, parent_id, variant_label, attributes${actorPresent ? ', created_by' : ''})
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?${actorPresent ? ', ?' : ''})`
   ).bind(
     sku || null,
     name,
@@ -7243,14 +7272,16 @@ app.post('/api/products/:id/variants', async (c) => {
     Number(parentId),
     variant_label,
     attributes,
+    ...(actorPresent ? [actorName] : []),
   ).run();
 
   const variantId = result.meta.last_row_id;
   if (stock_quantity > 0) {
-    await applyStockDelta(c.env.DB, variantId, stock_quantity, 'Stock initial (variante)', `variant:${variantId}`, { type: 'initial' });
+    await applyStockDelta(c.env.DB, variantId, stock_quantity, 'Stock initial (variante)', `variant:${variantId}`, { type: 'initial', createdBy: actorName || undefined });
   }
+  await invalidateDashboardCache(c.env.CACHE);
   const variant = await c.env.DB.prepare(`SELECT * FROM products WHERE id = ?`).bind(variantId).first();
-  return c.json({ success: true, data: variant, message: 'Variante créée.' }, 201);
+  return c.json({ success: true, data: variant ? withInventoryActors(variant as any) : variant, message: 'Variante créée.' }, 201);
 });
 
 app.put('/api/products/variants/:vid', async (c) => {
@@ -7336,7 +7367,9 @@ app.get('/api/scan/barcode/:code', async (c) => {
   const code = decodeURIComponent(c.req.param('code') || '').trim();
   if (!code) return c.json({ success: false, error: 'Code-barres vide' }, 400);
 
-  const SCAN_COLS = `id, sku, name, barcode, category, unit, price, stock_quantity, low_stock_threshold, track_inventory, is_active, parent_id, variant_label, tax_rate`;
+  const scanColumns = await tableColumns(c.env.DB, 'products');
+  const scanActors = ['created_by', 'approved_by'].filter(col => scanColumns?.has(col)).map(col => `, ${col}`).join('');
+  const SCAN_COLS = `id, sku, name, barcode, category, unit, price, stock_quantity, low_stock_threshold, track_inventory, is_active, parent_id, variant_label, tax_rate${scanActors}`;
   let product = await c.env.DB.prepare(
     `SELECT ${SCAN_COLS} FROM products WHERE barcode = ? AND is_active = 1 LIMIT 1`
   ).bind(code).first() as any;
@@ -7399,7 +7432,7 @@ app.get('/api/scan/barcode/:code', async (c) => {
 
   // v0.7.1 — inventory privacy on the barcode/scan path too.
   const scanRole = normalizeInventoryRole(sessionUserFromHeader(c.req.header('Authorization')).role);
-  product = scrubProductForRole(product, scanRole) as any;
+  product = scrubProductForRole(withInventoryActors(product), scanRole) as any;
   if (parent) parent = scrubProductForRole(parent, scanRole) as any;
   const scanSeesPrice = roleCanSeeSellPrices(scanRole);
   const stockQty = Number(product.stock_quantity || 0);
@@ -7476,9 +7509,12 @@ app.post('/api/scan/quick-product', async (c) => {
   const variant_label = String(body.variant_label || '').trim();
   const sku = body.sku != null ? String(body.sku).trim() : barcode;
 
+  await ensureProductActors(c.env.DB);
+  const actorPresent = (await tableColumns(c.env.DB, 'products'))?.has('created_by') === true;
+  const actorName = sessionUserFromHeader(c.req.header('Authorization')).username || null;
   const result = await c.env.DB.prepare(
-    `INSERT INTO products (sku, name, description, category, unit, price, cost, stock_quantity, low_stock_threshold, track_inventory, image_url, barcode, tax_rate, bulk_discounts, parent_id, variant_label, attributes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, '', ?, NULL, '[]', ?, ?, '{}')`
+    `INSERT INTO products (sku, name, description, category, unit, price, cost, stock_quantity, low_stock_threshold, track_inventory, image_url, barcode, tax_rate, bulk_discounts, parent_id, variant_label, attributes${actorPresent ? ', created_by' : ''})
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, '', ?, NULL, '[]', ?, ?, '{}'${actorPresent ? ', ?' : ''})`
   ).bind(
     sku || null,
     name,
@@ -7492,16 +7528,18 @@ app.post('/api/scan/quick-product', async (c) => {
     barcode,
     parent_id,
     variant_label,
+    ...(actorPresent ? [actorName] : []),
   ).run();
 
   const id = result.meta.last_row_id;
   if (stock_quantity > 0) {
-    await applyStockDelta(c.env.DB, id, stock_quantity, 'Stock initial (scan)', barcode, { type: 'initial' });
+    await applyStockDelta(c.env.DB, id, stock_quantity, 'Stock initial (scan)', barcode, { type: 'initial', createdBy: actorName || undefined });
   }
+  await invalidateDashboardCache(c.env.CACHE);
   const product = await c.env.DB.prepare(`SELECT * FROM products WHERE id = ?`).bind(id).first();
   return c.json({
     success: true,
-    data: product,
+    data: product ? withInventoryActors(product as any) : product,
     message: 'Produit créé depuis le code-barres.',
   }, 201);
 });
@@ -9782,7 +9820,7 @@ app.post('/api/invoices', async (c) => {
     // Stock is NEVER reduced for quotes — only real invoices (atomic; fail if oversell)
     if (!isQuote && item.product_id) {
       try {
-        await applyStockDelta(c.env.DB, item.product_id, -Number(item.quantity), number.startsWith('VR') ? 'Vente rapide' : 'Facture', number, { type: 'sale', env: c.env });
+        await applyStockDelta(c.env.DB, item.product_id, -Number(item.quantity), number.startsWith('VR') ? 'Vente rapide' : 'Facture', number, { type: 'sale', env: c.env, createdBy: sessionUserFromHeader(c.req.header('Authorization')).username || undefined });
       } catch (stErr: any) {
         if (stErr?.code === 'INSUFFICIENT_STOCK') {
           // Best-effort rollback of this invoice to avoid orphan unpaid stock-less doc
@@ -10206,7 +10244,7 @@ app.post('/api/invoices/remboursement', async (c) => {
             Number(item.quantity),
             `WR ${number} — retour stock`,
             number,
-            { type: 'refund_restock' },
+            { type: 'refund_restock', createdBy: sessionUserFromHeader(c.req.header('Authorization')).username || undefined },
           );
         } catch (e) {
           console.error('restock refund', e);
@@ -10226,7 +10264,7 @@ app.post('/api/invoices/remboursement', async (c) => {
             0,
             `WR ${number} — hors stock (${dispLabel}) · qté facturée ${item.quantity}`,
             number,
-            { type: 'refund_no_restock' },
+            { type: 'refund_no_restock', createdBy: sessionUserFromHeader(c.req.header('Authorization')).username || undefined },
           );
         } catch (e) {
           console.error('no-restock audit', e);
@@ -10388,7 +10426,7 @@ app.patch('/api/invoices/:id/status', async (c) => {
     ).bind(id).all();
     for (const it of (items || []) as any[]) {
       if (it.product_id) {
-        await applyStockDelta(c.env.DB, it.product_id, Number(it.quantity || 0), 'Facture annulée (retour stock)', inv.number);
+        await applyStockDelta(c.env.DB, it.product_id, Number(it.quantity || 0), 'Facture annulée (retour stock)', inv.number, { createdBy: sessionUserFromHeader(c.req.header('Authorization')).username || undefined });
       }
     }
   }
@@ -10569,9 +10607,9 @@ app.put('/api/invoices/:id', async (c) => {
         if (Math.abs(stockDelta) < 1e-9) continue; // quantity unchanged — do not touch stock
         stockTouched = true;
         if (stockDelta > 0) {
-          await applyStockDelta(c.env.DB, pid, stockDelta, 'Modification facture (qté ↓ / ligne retirée)', inv.number);
+          await applyStockDelta(c.env.DB, pid, stockDelta, 'Modification facture (qté ↓ / ligne retirée)', inv.number, { createdBy: sessionUserFromHeader(c.req.header('Authorization')).username || undefined });
         } else {
-          await applyStockDelta(c.env.DB, pid, stockDelta, 'Modification facture (qté ↑ / ligne ajoutée)', inv.number);
+          await applyStockDelta(c.env.DB, pid, stockDelta, 'Modification facture (qté ↑ / ligne ajoutée)', inv.number, { createdBy: sessionUserFromHeader(c.req.header('Authorization')).username || undefined });
         }
       }
     }
@@ -10832,7 +10870,7 @@ app.post('/api/invoices/:id/convert-quote', async (c) => {
         -Number(item.quantity || 0),
         asQuickSale ? 'Devis→VR' : 'Devis→Facture',
         newNumber,
-        { type: 'sale' },
+        { type: 'sale', createdBy: sessionUserFromHeader(c.req.header('Authorization')).username || undefined },
       );
     } catch (stErr: any) {
       return c.json({
@@ -11986,7 +12024,7 @@ app.patch('/api/bills/:id/status', async (c) => {
             -recv,
             'Achat annulé (retrait stock reçu)',
             prev.number,
-            { type: 'purchase_cancel' }
+            { type: 'purchase_cancel', createdBy: sessionUserFromHeader(c.req.header('Authorization')).username || undefined }
           );
         }
       }
@@ -12199,7 +12237,7 @@ app.delete('/api/bills/:id', async (c) => {
             -recv,
             'Achat supprimé (retrait stock reçu)',
             bill.number,
-            { type: 'purchase_delete' }
+            { type: 'purchase_delete', createdBy: sessionUserFromHeader(c.req.header('Authorization')).username || undefined }
           );
         }
       }
@@ -14287,7 +14325,7 @@ app.post('/api/inventory/transfer', async (c) => {
       0,
       `Transfert emplacement ${fromLoc}→${toId} ×${qty}${note ? ' — ' + note : ''}`,
       'transfer',
-      { type: 'adjustment', skipLocation: true },
+      { type: 'adjustment', skipLocation: true, createdBy: gate.username },
     );
   } catch (e: any) {
     return c.json({ success: false, error: e?.message || 'Transfert impossible', code: e?.code }, 400);
@@ -14317,6 +14355,7 @@ app.post('/api/inventory/cycle-count', async (c) => {
     await applyStockDelta(c.env.DB, productId, delta, `Inventaire ${theoretical}→${counted} — ${note}`, 'cycle-count', {
       type: 'adjustment',
       allowNegative: true,
+      createdBy: gate.username,
     });
   } catch (e: any) {
     return c.json({ success: false, error: e?.message || 'Ajustement impossible' }, 400);
@@ -14720,6 +14759,7 @@ app.post('/api/bills/:id/receive', async (c) => {
     if (src.product_id && delta > 0) {
       await applyStockDelta(c.env.DB, src.product_id, delta, `Réception ${bill.number}`, bill.number, {
         type: 'purchase',
+        createdBy: sessionUserFromHeader(c.req.header('Authorization')).username || undefined,
         locationId: locationId || undefined,
       });
     }
@@ -20073,7 +20113,7 @@ app.post('/api/mobile-actions/:id/complete', async (c) => {
           delta,
           `Inventaire lot mobile → PC (${prev}→${counted})`,
           `mobile_action:${id}`,
-          { createdBy: completed_by, type: 'adjustment', allowNegative: true, env: c.env }
+          { createdBy: sessionUserFromHeader(c.req.header('Authorization')).username, type: 'adjustment', allowNegative: true, env: c.env }
         );
       }
     }
@@ -20097,7 +20137,7 @@ app.post('/api/mobile-actions/:id/complete', async (c) => {
             delta,
             'Ajustement stock (mobile → PC)',
             `mobile_action:${id}`,
-            { createdBy: completed_by, type: 'adjustment', allowNegative: false, env: c.env }
+            { createdBy: sessionUserFromHeader(c.req.header('Authorization')).username, type: 'adjustment', allowNegative: false, env: c.env }
           );
         } else {
           await c.env.DB.prepare(
