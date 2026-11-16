@@ -325,7 +325,7 @@ export type MonthlySummary = {
   payables: { total_outstanding: number; total_overdue: number; documents: OutstandingDoc[] };
   payroll: { total_due: number; employees: number };
   reconciliation: { source: string; generated_at: string; rules: string };
-  /** v259 — automatic double-count audit (docs/finance-6000-investigation.md). */
+  /** v259 — automatic double-count audit (docs/api-finance.md#historical-double-count-investigation). */
   mirror_audit: MirrorAudit;
 };
 
@@ -484,7 +484,7 @@ export async function computeMonthlySummary(db: D1Database, period: string, ctx:
       rules: 'docs/api-finance.md#calculation-rules',
       as_of_date: asOf,
     } as any,
-    // v259 — automatic double-count audit (see docs/finance-6000-investigation.md)
+    // v259 — automatic double-count audit (see docs/api-finance.md#historical-double-count-investigation)
     mirror_audit: await computeMirrorAudit(db),
   };
 }

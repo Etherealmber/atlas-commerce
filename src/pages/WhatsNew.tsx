@@ -38,6 +38,9 @@ export const RELEASES: Release[] = [
       { id: '089s2', platforms: ['server', 'android'], text: 'Atlas Snake : synchronisation privée du meilleur score par compte, stockage initialisé automatiquement, sans classement et sans écraser un meilleur résultat.' },
       { id: '089s3', platforms: ['server', 'android'], text: 'Produits et mouvements : affichage des créateurs et approbateurs disponibles, sans inventer les identités manquantes.' },
       { id: '089s4', platforms: ['server', 'android'], text: 'Signalements : détection des répétitions exactes du même compte avant création, avec reçu et état de l’issue si vérifiable. Snake Android : progression locale isolée par empreinte du jeton, mode invité séparé et synchronisation du meilleur score avec statut et nouvelles tentatives limitées.' },
+      { id: '089s5', platforms: ['server', 'android', 'web'], text: 'Images produits : orientation corrigée, recadrage carré et conversion WebP avant stockage ; migration progressive des images existantes à lancer par le propriétaire après sauvegarde. Les sources externes nécessitent une reprise manuelle.' },
+      { id: '089s6', platforms: ['server', 'android'], text: 'Préférences Android : API privée par compte avec liste de réglages autorisés, versions et résolution des conflits, synchronisation planifiée et délai de cinq minutes entre synchronisations ; aucune donnée sensible ou consentement ne sont synchronisés. L’intégration Android reste à effectuer.' },
+      { id: '089s7', platforms: ['server', 'web', 'android', 'desktop'], text: 'Documentation rationalisée : guides de connexion, finance, notifications et interface regroupés ; anciennes consignes destinées aux agents supprimées, avec conservation des informations opérationnelles utiles.' },
     ] }],
   },
   {
@@ -314,7 +317,7 @@ export const RELEASES: Release[] = [
       {
         kind: 'features',
         items: [
-          { id: '063a2', platforms: ['desktop'], text: 'docs/desktop-design-prompt.md : le PROMPT MAÎTRE pour construire l’app desktop en parité visuelle stricte avec le web et l’Android — toutes les valeurs exactes (hex clair/sombre, rayons, typo DM Sans/Spline Sans Mono, densités, hauteurs, motion cubic-bezier(0.2,0,0,1), règles sombres, assistants, checklist par écran, protocole de vérification) extraites des deux repos avec citations de fichiers : l’IA n’a plus rien à prédire' },
+          { id: '063a2', platforms: ['desktop'], text: 'Référence historique des choix visuels desktop, web et Android : couleurs, rayons, typographie, densités, mouvement, composants et vérifications dans src/components/ui/README.md.' },
         ],
       },
     ],

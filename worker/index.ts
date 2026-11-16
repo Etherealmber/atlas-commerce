@@ -1,3 +1,5 @@
+import { registerMobilePreferencesRoutes } from './routes/mobilePreferences';
+import { migrateProductImagePage, normalizeProductImageReference, isNormalizedProductUrl, ProductImageError } from './lib/product-images';
 import { recordReportOwner } from './lib/report-ownership';
 import { ensureProductActors, withInventoryActors } from './lib/inventory-actors';
 import { registerSnakeScoreRoutes } from './routes/snakeScore';
@@ -26,11 +28,9 @@ import {
 import { nextDocumentNumber } from './lib/numbering';
 import {
   uploadDataUrlImage,
-  productImageKey,
   companyAssetKey,
   keyFromCdnUrl,
   deleteR2Object,
-  mimeToExt,
   publicImageUrl,
 } from './lib/r2';
 import {
@@ -637,6 +637,12 @@ function roundDh(n: number | null | undefined): number {
 
 const app = new Hono<{ Bindings: Env }>();
 
+app.use('/api/mobile/preferences', async (c, next) => {
+  await next();
+  c.header('Cache-Control', 'no-store');
+  c.header('CDN-Cache-Control', 'no-store');
+});
+
 app.use('/api/mobile/snake-score', async (c, next) => {
   await next();
   c.header('Cache-Control', 'no-store');
@@ -659,6 +665,12 @@ app.use(
 const MAX_BODY_BYTES = 2 * 1024 * 1024; // 2 MiB default
 /** APK uploads stream straight to R2 — exempt from the 2 MiB API body cap. */
 const APP_UPDATE_MAX_APK_BYTES = 200 * 1024 * 1024;
+const PRODUCT_IMAGE_JSON_LIMIT = 6 * 1024 * 1024;
+function isProductImageWrite(path: string, method: string): boolean {
+  return ((method === 'POST' || method === 'PUT') && /^\/api\/catalog\/products\/[^/]+\/images(?:\/[^/]+)?$/.test(path)) ||
+    (method === 'POST' && ['/api/products', '/api/mobile-actions', '/api/stock/product-requests'].includes(path)) ||
+    (method === 'PUT' && /^\/api\/products\/[^/]+$/.test(path));
+}
 app.use('/api/*', async (c, next) => {
   const cl = c.req.header('content-length');
   if (cl) {
@@ -666,11 +678,11 @@ app.use('/api/*', async (c, next) => {
       const path = new URL(c.req.url).pathname;
       const limit = path === '/api/admin/app-update/apk'
         ? APP_UPDATE_MAX_APK_BYTES
-        : MAX_BODY_BYTES;
+        : isProductImageWrite(path, c.req.method.toUpperCase()) ? PRODUCT_IMAGE_JSON_LIMIT : MAX_BODY_BYTES;
     if (n > limit) {
       return c.json({
         success: false,
-        error: 'Corps de requête trop volumineux (max 2 Mo).',
+        error: `Corps de requête trop volumineux (max ${Math.floor(limit / (1024 * 1024))} Mo).`,
         code: 'PAYLOAD_TOO_LARGE',
       }, 413);
     }
@@ -752,7 +764,7 @@ app.use('*', async (c, next) => {
     const bm = readD1BookmarkFromReq(c);
 
     try {
-      if (path === '/api/mobile/work-status' || path === '/api/mobile/snake-score' || path === '/api/reports') {
+      if (path === '/api/mobile/work-status' || path === '/api/mobile/snake-score' || path === '/api/mobile/preferences' || path === '/api/reports' || path === '/api/admin/product-images/normalize') {
         session = rawDb.withSession('first-primary');
       } else if (path === '/api/health') {
         // Health check: can use unconstrained replica or available session
@@ -849,8 +861,24 @@ app.use('*', async (c, next) => {
   if (c.env.DB_TARGET) {
     (c.env as any).DB_SOURCE = c.env.DB; // remember the physical source before any swap
     try {
-      if ((await dbPrimaryFlag(c.env)) === 'target') (c.env as any).DB = c.env.DB_TARGET;
-    } catch { /* keep source */ }
+      const preferences = new URL(c.req.url).pathname === '/api/mobile/preferences';
+      // This resource's cooldown must not fall back to the wrong database if
+      // cutover state cannot be read; do not use the cached, fail-open flag.
+      const flag = preferences
+        ? (await c.env.DB.prepare(`SELECT value FROM app_config WHERE key = 'db_primary'`).first() as any)?.value
+        : await dbPrimaryFlag(c.env);
+      if (flag === 'target') {
+        const target = c.env.DB_TARGET as any;
+        (c.env as any).DB = preferences && typeof target.withSession === 'function'
+          ? target.withSession('first-primary') : target;
+      }
+    } catch {
+      // Never silently switch this private resource back to the source database
+      // if the configured target's primary session cannot be established.
+      if (new URL(c.req.url).pathname === '/api/mobile/preferences') {
+        return c.json({ success: false, code: 'SERVICE_UNAVAILABLE', error: 'Service indisponible' }, 503);
+      }
+    }
   }
   await next();
 });
@@ -6906,10 +6934,12 @@ app.post('/api/products', async (c) => {
   try { await ensureProductVariantColumns(c.env.DB); } catch { /* */ }
   // cache invalidated after successful write below
   await ensureProductBulkDiscounts(c.env.DB);
-  const body = await c.req.json().catch(() => ({}));
+  let body: any;
+  try { body = await readProductImageJson(c); } catch (e) { return productImageFailure(c, e); }
   const verr = validateProductWrite(body);
   if (verr) return apiFail(c, verr.name || Object.values(verr)[0] || 'Validation', 'VALIDATION', verr);
-  const { name, sku, description = '', category = 'General', unit = 'unit', price = 0, cost = 0, stock_quantity = 0, low_stock_threshold = 5, track_inventory = 1, image_url = '', barcode = '', tax_rate = null } = body;
+  const { name, sku, description = '', category = 'General', unit = 'unit', price = 0, cost = 0, stock_quantity = 0, low_stock_threshold = 5, track_inventory = 1, barcode = '', tax_rate = null } = body;
+  let image_url = String(body.image_url || '').trim();
   if (!name) return apiFail(c, 'Le nom du produit est obligatoire', 'VALIDATION');
 
   // Duplicate handling API:
@@ -6939,6 +6969,11 @@ app.post('/api/products', async (c) => {
       duplicate: { id: first.row.id, name: first.row.name, sku: first.row.sku, barcode: first.row.barcode },
       matches: dupChecks.map((d) => ({ on: d.label, id: d.row.id, name: d.row.name, sku: d.row.sku, barcode: d.row.barcode })),
     }, 409);
+  }
+
+  if (image_url) {
+    try { image_url = (await normalizeProductImageReference(c.env, 0, image_url)).url; }
+    catch (e) { return productImageFailure(c, e); }
   }
 
   let bulkJson = '[]';
@@ -7007,7 +7042,8 @@ app.put('/api/products/:id', async (c) => {
 
   const id = c.req.param('id');
   await ensureProductBulkDiscounts(c.env.DB);
-  const body = await c.req.json().catch(() => ({}));
+  let body: any;
+  try { body = await readProductImageJson(c); } catch (e) { return productImageFailure(c, e); }
   if (body.name != null || body.price != null) {
     const verr = validateProductWrite({ name: body.name ?? 'x', ...body });
     if (verr && verr.price) return apiFail(c, verr.price, 'VALIDATION', verr);
@@ -7064,6 +7100,11 @@ app.put('/api/products/:id', async (c) => {
   }
   } catch (e) {
     console.error('dup-check skip', String((e as any)?.message || e).slice(0, 300));
+  }
+
+  if (body.image_url && body.image_url !== existing.image_url) {
+    try { body.image_url = (await normalizeProductImageReference(c.env, id, String(body.image_url))).url; }
+    catch (e) { return productImageFailure(c, e); }
   }
 
   const fields = ['sku', 'name', 'description', 'category', 'unit', 'price', 'cost', 'low_stock_threshold', 'track_inventory', 'is_active', 'image_url', 'barcode', 'tax_rate'];
@@ -7969,66 +8010,104 @@ app.get('/api/media/proxy', async (c) => {
   }
 });
 
+/** Bound JSON reads even when Content-Length is absent or incorrect. */
+async function readProductImageJson(c: any): Promise<any> {
+  const reader = c.req.raw.body?.getReader();
+  if (!reader) return {};
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  while (true) {
+    const part = await reader.read();
+    if (part.done) break;
+    size += part.value.byteLength;
+    if (size > PRODUCT_IMAGE_JSON_LIMIT) { await reader.cancel().catch(() => {}); throw new ProductImageError('PAYLOAD_TOO_LARGE'); }
+    chunks.push(part.value);
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
+  try {
+    const value = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error();
+    return value;
+  } catch { throw new ProductImageError('INVALID_IMAGE'); }
+}
+
+function productImageFailure(c: any, e: unknown) {
+  const code = e instanceof ProductImageError ? e.code : 'STORAGE_UNAVAILABLE';
+  const status = code === 'PAYLOAD_TOO_LARGE' ? 413 : code === 'INVALID_IMAGE' || code === 'UNSUPPORTED_SOURCE' || code === 'SOURCE_MISSING' ? 400 : 503;
+  return c.json({ success: false, code, error: 'Image invalide ou stockage indisponible.' }, status);
+}
+
+// The environment-defined owner is verified independently of the token role.
+app.post('/api/admin/product-images/normalize', async (c) => {
+  const session = sessionUserFromHeader(c.req.header('Authorization'));
+  const auth = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, clientIp(c), c.req.header('X-Device-Fingerprint') || '');
+  if (auth !== 'ok' || session.username !== getOwnerUsername(c.env) || session.role !== 'owner') {
+    return c.json({ success: false, code: 'FORBIDDEN', error: 'Réservé au propriétaire.' }, 403);
+  }
+  if (!c.env.IMAGES) return c.json({ success: false, code: 'STORAGE_UNAVAILABLE' }, 503);
+  const body = await c.req.json().catch(() => ({}));
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return c.json({ success: false, code: 'VALIDATION' }, 400);
+  const phase = body.phase ?? 'images';
+  const after = body.after ?? 0, limit = body.limit ?? 3;
+  if (!['images', 'products'].includes(phase) || !Number.isSafeInteger(after) || after < 0 || !Number.isSafeInteger(limit) || limit < 1 || limit > 5) {
+    return c.json({ success: false, code: 'VALIDATION' }, 400);
+  }
+  try {
+    const result = await migrateProductImagePage(c.env.DB, c.env, phase, after, limit);
+    if (result.updated) await afterBusinessMutation(c.env.CACHE);
+    return c.json({ success: true, data: result });
+  } catch { return c.json({ success: false, code: 'SERVICE_UNAVAILABLE' }, 503); }
+});
+
 app.get('/api/catalog/products/:id/images', async (c) => {
   await ensureCatalogTables(c.env.DB);
   const id = c.req.param('id');
   const { results } = await c.env.DB.prepare(
     `SELECT * FROM product_images WHERE product_id = ? ORDER BY is_primary DESC, sort_order ASC, id ASC`
   ).bind(id).all();
-  return c.json({ success: true, data: results || [] });
+  return c.json({ success: true, data: (results || []).map((row: any) => isNormalizedProductUrl(c.env, String(row.url || '')) ? { ...row, content_type: 'image/webp' } : row) });
 });
 
 app.post('/api/catalog/products/:id/images', async (c) => {
   await ensureCatalogTables(c.env.DB);
   const id = c.req.param('id');
-  const body = await c.req.json().catch(() => ({}));
+  let body: any;
+  try { body = await readProductImageJson(c); } catch (e) { return productImageFailure(c, e); }
   let url = String(body.url || '').trim();
   const dataUrl = String(body.data_url || body.dataUrl || '').trim();
   const prod = await c.env.DB.prepare(`SELECT id FROM products WHERE id = ?`).bind(id).first();
   if (!prod) return c.json({ success: false, error: 'Produit introuvable' }, 404);
 
-  // Prefer R2 upload when data URL provided and IMAGES binding is present.
-  // Stores only the CDN URL in D1 (never base64 blobs) — protects free-tier D1 size.
-  if (dataUrl.startsWith('data:image') && c.env.IMAGES) {
-    const mimeMatch = /^data:(image\/[a-z0-9+.-]+);base64,/i.exec(dataUrl);
-    const ext = mimeMatch ? mimeToExt(mimeMatch[1].toLowerCase()) : 'jpg';
-    const key = productImageKey(id, ext);
-    const cdnUrl = await uploadDataUrlImage(c.env.IMAGES, c.env, dataUrl, key);
-    if (!cdnUrl) {
-      return c.json({ success: false, error: 'Échec envoi image vers R2 (format ou taille invalide, max 4 Mo).' }, 400);
-    }
-    url = cdnUrl;
-  }
-  if (!url) return c.json({ success: false, error: 'URL image ou data_url obligatoire' }, 400);
-  if (!isAllowedImageUrl(url)) {
-    return c.json({ success: false, error: 'URL image non autorisée (HTTPS CDN / R2 uniquement).' }, 400);
-  }
+  const source = dataUrl || url;
+  if (!source) return c.json({ success: false, error: 'URL image ou data_url obligatoire' }, 400);
+  try { url = (await normalizeProductImageReference(c.env, id, source)).url; }
+  catch (e) { return productImageFailure(c, e); }
 
   const is_primary = body.is_primary ? 1 : 0;
+  const insert = c.env.DB.prepare(
+    `INSERT INTO product_images (product_id, url, alt_text, sort_order, is_primary)
+     SELECT ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM products WHERE id = ?)`
+  ).bind(id, url, String(body.alt_text || ''), Number(body.sort_order || 0), is_primary, id);
+  let ins: D1Result;
   if (is_primary) {
-    await c.env.DB.prepare(`UPDATE product_images SET is_primary = 0 WHERE product_id = ?`).bind(id).run();
-  }
-  const ins = await c.env.DB.prepare(
-    `INSERT INTO product_images (product_id, url, alt_text, sort_order, is_primary) VALUES (?, ?, ?, ?, ?)`
-  ).bind(id, url, String(body.alt_text || ''), Number(body.sort_order || 0), is_primary).run();
+    const results = await c.env.DB.batch([
+      c.env.DB.prepare(`UPDATE product_images SET is_primary = 0 WHERE product_id = ? AND EXISTS (SELECT 1 FROM products WHERE id = ?)`).bind(id, id),
+      insert,
+      c.env.DB.prepare(`UPDATE products SET image_url = ? WHERE id = ?`).bind(url, id),
+    ]);
+    ins = results[1];
+  } else ins = await insert.run();
+  if (!ins.meta?.changes) return c.json({ success: false, error: 'Produit introuvable' }, 404);
   const newId = Number(ins.meta.last_row_id || 0);
   const row = newId
     ? await c.env.DB.prepare(`SELECT * FROM product_images WHERE id = ?`).bind(newId).first()
     : await c.env.DB.prepare(
         `SELECT * FROM product_images WHERE product_id = ? AND url = ? ORDER BY id DESC LIMIT 1`
       ).bind(id, url).first();
-  if (is_primary) {
-    try { await c.env.DB.prepare(`UPDATE products SET image_url = ? WHERE id = ?`).bind(url, id).run(); } catch { /* */ }
-  }
   await afterBusinessMutation(c.env.CACHE);
-  const isR2Storage = (() => {
-    try {
-      return new URL(url).hostname === 'cdn1.afmarbre.com';
-    } catch {
-      return false;
-    }
-  })();
-  return c.json({ success: true, data: row, meta: { storage: isR2Storage ? 'r2' : 'url' } }, 201);
+  return c.json({ success: true, data: row ? { ...row, content_type: 'image/webp' } : row, meta: { storage: 'r2', content_type: 'image/webp' } }, 201);
 });
 
 app.put('/api/catalog/products/:id/images/:imageId', async (c) => {
@@ -8039,34 +8118,34 @@ app.put('/api/catalog/products/:id/images/:imageId', async (c) => {
     `SELECT * FROM product_images WHERE id = ? AND product_id = ?`
   ).bind(imageId, productId).first() as any;
   if (!existing) return c.json({ success: false, error: 'Image introuvable' }, 404);
-  const body = await c.req.json().catch(() => ({}));
+  let body: any;
+  try { body = await readProductImageJson(c); } catch (e) { return productImageFailure(c, e); }
   let url = String(body.url || existing.url || '').trim();
   const dataUrl = String(body.data_url || body.dataUrl || '').trim();
-  if (dataUrl.startsWith('data:image') && c.env.IMAGES) {
-    const mimeMatch = /^data:(image\/[a-z0-9+.-]+);base64,/i.exec(dataUrl);
-    const ext = mimeMatch ? mimeToExt(mimeMatch[1].toLowerCase()) : 'jpg';
-    const key = productImageKey(productId, ext);
-    const cdnUrl = await uploadDataUrlImage(c.env.IMAGES, c.env, dataUrl, key);
-    if (!cdnUrl) {
-      return c.json({ success: false, error: 'Échec envoi image vers R2 (format ou taille invalide, max 4 Mo).' }, 400);
-    }
-    const oldKey = keyFromCdnUrl(c.env, String(existing.url));
-    if (oldKey && oldKey !== key) await deleteR2Object(c.env.IMAGES, oldKey);
-    url = cdnUrl;
+  if (dataUrl || body.url !== undefined) {
+    const source = dataUrl || url;
+    if (!source) return c.json({ success: false, code: 'INVALID_IMAGE' }, 400);
+    try { url = (await normalizeProductImageReference(c.env, productId, source)).url; }
+    catch (e) { return productImageFailure(c, e); }
   }
   const is_primary = body.is_primary ? 1 : Number(existing.is_primary || 0);
-  if (body.is_primary) {
-    await c.env.DB.prepare(`UPDATE product_images SET is_primary = 0 WHERE product_id = ?`).bind(productId).run();
-  }
-  await c.env.DB.prepare(
-    `UPDATE product_images SET url = ?, alt_text = ?, is_primary = ? WHERE id = ? AND product_id = ?`
-  ).bind(url, body.alt_text != null ? String(body.alt_text) : existing.alt_text || '', is_primary, imageId, productId).run();
-  if (is_primary) {
-    try { await c.env.DB.prepare(`UPDATE products SET image_url = ? WHERE id = ?`).bind(url, productId).run(); } catch { /* */ }
-  }
+  const previousPrimary = Number(existing.is_primary || 0);
+  const update = c.env.DB.prepare(
+    `UPDATE product_images SET url = ?, alt_text = ?, is_primary = ? WHERE id = ? AND product_id = ? AND url = ? AND COALESCE(is_primary, 0) = ?`
+  ).bind(url, body.alt_text != null ? String(body.alt_text) : existing.alt_text || '', is_primary, imageId, productId, existing.url, previousPrimary);
+  const statements: D1PreparedStatement[] = [];
+  if (body.is_primary) statements.push(c.env.DB.prepare(`UPDATE product_images SET is_primary = 0 WHERE product_id = ? AND id != ? AND EXISTS (SELECT 1 FROM product_images WHERE id = ? AND product_id = ? AND url = ? AND COALESCE(is_primary, 0) = ?)`)
+    .bind(productId, imageId, imageId, productId, existing.url, previousPrimary));
+  const updateIndex = statements.length;
+  statements.push(update);
+  if (is_primary) statements.push(c.env.DB.prepare(`UPDATE products SET image_url = ? WHERE id = ? AND EXISTS (SELECT 1 FROM product_images WHERE id = ? AND product_id = ? AND url = ? AND is_primary = 1)`)
+    .bind(url, productId, imageId, productId, url));
+  const result = await c.env.DB.batch(statements);
+  if (!result[updateIndex].meta?.changes) return c.json({ success: false, code: 'CONFLICT', error: 'Image modifiée entre-temps.' }, 409);
   const row = await c.env.DB.prepare(`SELECT * FROM product_images WHERE id = ?`).bind(imageId).first();
   await afterBusinessMutation(c.env.CACHE);
-  return c.json({ success: true, data: row, message: 'Image mise à jour.' });
+  const normalized = isNormalizedProductUrl(c.env, url);
+  return c.json({ success: true, data: row && normalized ? { ...row, content_type: 'image/webp' } : row, message: 'Image mise à jour.' });
 });
 
 app.delete('/api/catalog/products/:id/images/:imageId', async (c) => {
@@ -12723,6 +12802,7 @@ app.get('/api/expenses', async (c) => {
 /* v0.7.1 — stock-adjustment approval workflow (role-gated, audited). */
 registerWorkStatusRoute(app, { session: sessionUserFromHeader, ownerUsername: getOwnerUsername });
 registerSnakeScoreRoutes(app, { session: sessionUserFromHeader, ownerUsername: getOwnerUsername });
+registerMobilePreferencesRoutes(app, { session: sessionUserFromHeader, ownerUsername: getOwnerUsername, ensureSecurityTables });
 
 registerStockAdjustmentRoutes(app, {
   session: (c) => {
@@ -17098,7 +17178,7 @@ app.post('/api/stock/product-requests', async (c) => {
   const gate = gateStockRole(c);
   if (!gate.ok) return c.json({ success: false, error: gate.error }, gate.status as any);
   let body: any = {};
-  try { body = await c.req.json(); } catch { return c.json({ success: false, error: 'JSON invalide' }, 400); }
+  try { body = await readProductImageJson(c); } catch (e) { return productImageFailure(c, e); }
   const code = String(body.code || '').trim().slice(0, 120);
   if (!code) return c.json({ success: false, error: 'Code obligatoire' }, 400);
   const name = String(body.name || '').trim().slice(0, 120);
@@ -17115,10 +17195,9 @@ app.post('/api/stock/product-requests', async (c) => {
   }
   let photoUrl = '';
   const dataUrl = String(body.photo_data_url || '').trim();
-  if (dataUrl.startsWith('data:image') && c.env.IMAGES) {
-    const mime = (/^data:(image\/[a-z0-9+.-]+);base64,/i.exec(dataUrl) || [])[1]?.toLowerCase() || 'image/jpeg';
-    const key = `product-requests/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${mimeToExt(mime)}`;
-    photoUrl = (await uploadDataUrlImage(c.env.IMAGES, c.env, dataUrl, key)) || '';
+  if (dataUrl) {
+    try { photoUrl = (await normalizeProductImageReference(c.env, 0, dataUrl)).url; }
+    catch (e) { return productImageFailure(c, e); }
   }
   await ensureProductRequestsTable(c.env.DB);
   const ins = await c.env.DB.prepare(
@@ -20018,7 +20097,8 @@ app.get('/api/mobile-actions/:id', async (c) => {
 /** Phone creates a handoff (scan unknown, stock check, new product request, invoice draft) */
 app.post('/api/mobile-actions', async (c) => {
   await ensureMobileActionsTable(c.env.DB);
-  const body = await c.req.json().catch(() => ({}));
+  let body: any;
+  try { body = await readProductImageJson(c); } catch (e) { return productImageFailure(c, e); }
   const type = String(body.type || 'scan');
   if (!['scan', 'stock_check', 'new_product', 'invoice'].includes(type)) {
     return c.json({ success: false, error: 'type invalide' }, 400);
@@ -20048,9 +20128,8 @@ app.post('/api/mobile-actions', async (c) => {
         ? meta.create_product_body.image_data_url
         : '') ||
       '';
-    if (rawImg.startsWith('data:image') && c.env.IMAGES) {
-      const key = `pending/mobile/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
-      const cdn = await uploadDataUrlImage(c.env.IMAGES, c.env, rawImg, key);
+    if (rawImg) {
+      const cdn = (await normalizeProductImageReference(c.env, product_id || 0, rawImg)).url;
       if (cdn) {
         meta.image_url = cdn;
         meta.has_image = true;
@@ -20063,7 +20142,7 @@ app.post('/api/mobile-actions', async (c) => {
       }
     }
   } catch (e) {
-    console.error('mobile_action_image_upload', e);
+    return productImageFailure(c, e);
   }
   const meta_json = JSON.stringify(meta || {});
   const created_by = String(body.created_by || 'mobile');

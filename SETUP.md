@@ -189,7 +189,7 @@ Détails techniques, confidentialité et endpoints : **`docs/reports-github.md`*
 - **Sauvegardes** : Paramètres → Admin → Sauvegarde & restauration (snapshot chiffré AES-256-GCM
   sur R2, rétention 7 jours, cron ~30 min).
 - **Finance** : `docs/api-finance.md` (règles de calcul canoniques, relevé mensuel, `mirror_audit`
-  automatique) · enquête historique : `docs/finance-6000-investigation.md`.
+  automatique) · enquête historique : `docs/api-finance.md#historical-double-count-investigation`.
 - **CI** : chaque PR passe tsc (baseline verrouillée), oxlint 0 erreur, vitest, build Vite,
   dry-run wrangler, CodeQL, osv-scanner. Ne mergez jamais une PR rouge.
 - **Mises à jour APK** : servies depuis R2 par le worker (`/api/app/android-update`), ingestées

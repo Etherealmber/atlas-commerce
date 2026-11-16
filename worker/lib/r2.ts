@@ -97,11 +97,17 @@ export async function uploadDataUrlImage(
 
 export async function deleteR2Object(bucket: R2Bucket | undefined, key: string): Promise<void> {
   if (!bucket || !key) return;
+  // Normalized objects can be shared by product variants; reference-safe cleanup is separate.
+  if (isNormalizedProductKey(key)) return;
   try {
     await bucket.delete(key);
   } catch {
     /* ignore */
   }
+}
+
+export function isNormalizedProductKey(key: string): boolean {
+  return /^products\/\d+\/normalized\/v1\/[a-f0-9]{64}\.webp$/.test(key);
 }
 
 /** Extract R2 object key from a CDN URL if it matches our CDN base. */

@@ -102,15 +102,14 @@ the in-app `/api/alerts` feed uses.
   payroll routes (`Règlement fournisseur`/`bill_id:…`, `Salaire`/`employee_id:…`)
   — those exist only for the Solde cash journal UI. Before v258 every supplier
   and payroll payment was subtracted twice from balances (see
-  `docs/finance-6000-investigation.md`).
+  [historical investigation](#historical-double-count-investigation)).
 
 **v259 — `mirror_audit` (automatic double-count audit).** The monthly summary and the statement
 both embed a `mirror_audit` block: counts/totals of the excluded mirror ledger rows (`bill_id:` /
 `employee_id:` notes) vs the `bill_payments` / `employee_payments` source tables, plus a
-`consistent: true|false` flag. It runs **in production automatically** on every request — no
-wrangler CLI, no PC needed — so the 6,000 MAD double-count fix
-(`docs/finance-6000-investigation.md`) is continuously verified from the app itself. If a future
-feature re-introduces mirror double counting, `consistent` flips to `false` in the live response.
+`consistent: true|false` flag. The audit compares mirror counts and totals against
+the payment tables. It is useful for investigation, but a matching audit alone does not
+prove that every calculation or deployment is correct.
 
 ### Legacy calculation rules
 
@@ -408,9 +407,8 @@ current tenant-timezone month (rows stop at `as_of`) and `closed` otherwise
 cover the whole period. Errors: `400 BAD_PERIOD`, `401 UNAUTHORIZED`,
 `403 FIN_FORBIDDEN`, `500 FINANCE_ERROR`.
 
-Investigation of the duplicated 6,000 MAD symptom (mirror ledger rows counted
-twice before v258) and the production confirmation probe:
-`docs/finance-6000-investigation.md`.
+See the [historical double-count investigation](#historical-double-count-investigation)
+for the symptom, scope and optional read-only checks.
 
 ---
 
@@ -584,3 +582,38 @@ PDF byte structure, and real-SQLite integration for outbox dedupe, monthly summa
 receivable/payable filters, reminder recipients per event, cross-month anti-spam,
 delivery-time re-authorization (demoted/deactivated skipped), day 1/2/4 report sequence,
 payment-recorded dedupe, retry/backoff/attempt-cap, and lock-screen amount masking.
+
+
+## Historical double-count investigation
+
+In the v258 investigation of an unexplained 6,000 MAD, supplier or payroll
+payments were represented both in their source payment table and as `expenses`
+mirror rows for the Solde journal. Earlier summary math subtracted both,
+understating closing and subsequent opening balances. Credit-note audit rows in
+`invoice_payments` could also inflate sales; the cash refund is represented by
+the paired expense. Payment date defaults were aligned with the tenant-local
+business day. The canonical queries exclude mirror expenses and credit-note
+audit rows without deleting the underlying records. Summary, statement and PDF
+use the same canonical sources. Local regression tests cover supplier and payroll
+mirrors, credit notes, time zones, reversals, pagination and reconciliation.
+
+The original investigation used code and tests, not access to the production D1
+database. A live environment was not independently confirmed in that work. The
+`mirror_audit` counts/totals are a diagnostic, not a substitute for verifying the
+actual calculation and deployment. If an operator explicitly authorizes checks
+on the intended database, these optional read-only aggregate queries can help
+compare mirrors and source payments (do not expose individual records):
+
+```sql
+SELECT category, COUNT(*) AS n, SUM(amount) AS total
+FROM expenses WHERE notes LIKE 'bill_id:%' OR notes LIKE 'employee_id:%'
+GROUP BY category;
+SELECT 'bill_payments' AS src, COUNT(*) AS n, SUM(amount) AS total FROM bill_payments
+UNION ALL
+SELECT 'employee_payments', COUNT(*), SUM(amount) FROM employee_payments;
+```
+
+Use the appropriate authorized D1 tooling and compare against
+`GET /api/admin/finance/statement?period=<month>` and its reconciliation.
+A matching count alone does not establish that the selected period or balance
+is correct. Never run remote checks without confirming the target.
