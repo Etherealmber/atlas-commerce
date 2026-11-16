@@ -19,7 +19,7 @@ Limites côté client : **max 5 envois par session**, dédupliqué par message+p
 ### Signalements utilisateurs (`user_reports`)
 Page **À propos → « Signaler un problème »** (tout utilisateur connecté, tout rôle) :
 type (bug / idée / autre), message libre (5–2000 caractères), contact facultatif, page courante
-et version ajoutées automatiquement. Réponse : référence `R-<id>` + lien de l'issue si créée.
+et version ajoutées automatiquement. Réponse : référence `R-<id>`, lien éventuel, `already_reported` et `issue_status`.
 
 ## 2. Confidentialité & assainissement (avant stockage ET avant GitHub)
 
@@ -37,6 +37,9 @@ et version ajoutées automatiquement. Réponse : référence `R-<id>` + lien de 
   ligne D1 avec compteur d'occurrences ; côté GitHub, une **issue ouverte** portant l'empreinte
   dans le titre est recherchée avant création → un bug = une issue (les occurrences suivantes
   incrémentent le compteur D1).
+- Signalements utilisateur : avant de créer une issue, le Worker déduplique par compte authentifié, dépôt configuré, type et message assaini **exact** (après suppression des espaces en début/fin). Des modifications du message, type ou dépôt créent un signalement distinct. Ce n'est pas une recherche sémantique ni une recherche globale des issues GitHub ; les signalements d'autres comptes et les anciennes lignes sans identité vérifiable ne sont pas rapprochés. Les messages contenant des secrets expurgés ne sont pas rapprochés afin d'éviter de confondre deux textes différents. Les identifiants de compte viennent du serveur, jamais du corps de la requête.
+- Les doublons renvoient `already_reported: true` et la référence d'origine sans créer de nouvelle issue. Si le lien existe, une lecture GitHub vérifie son état actuel : `issue_status` vaut `open` ou `closed` avec `issue_url` validé. En attente, sans accès GitHub ou si la vérification échoue, les deux valent `null` : cela ne signifie pas que l'issue est ouverte ou fermée. Une première soumission renvoie `already_reported: false` et `issue_status: null` (même si une issue a été créée). Les créations simultanées identiques du même compte sont arbitrées en D1 avant l'appel GitHub. Les résultats externes après une coupure réseau restent indéterminés : GitHub n'offre pas de garantie d'exactement une création lors des reprises.
+- La table `user_report_dedup` est initialisée automatiquement ; les outils de sauvegarde/copie applicatifs l'omettent. Une sauvegarde au niveau D1 est nécessaire pour préserver les empreintes, en plus des liaisons d'identité de `work_status_report_owners`. Après restauration/import, la réutilisation d'ID de compte ou la perte de ces tables peut affecter l'isolation et la déduplication.
 - Sans token configuré (ou si GitHub échoue) : le rapport reste en file (`status pending`) et
   **rien n'est perdu** — `retryPendingReports()` rattrape la file :
   - via le **cron quotidien** (07:35 UTC, même déclencheur que les rappels finance) ;
@@ -59,7 +62,7 @@ et version ajoutées automatiquement. Réponse : référence `R-<id>` + lien de 
 | Endpoint | Auth | Rôle |
 |---|---|---|
 | `POST /api/crash-reports` | publique (rate-limitée) | intake crash — 202, `{reference, deduped}` ; n'échoue jamais côté app |
-| `POST /api/reports` | session (tout rôle, rate-limité) | signalement utilisateur — 201, `{reference, issue_url}` |
+| `POST /api/reports` | session (tout rôle, rate-limité) | signalement utilisateur — 201, `data: {reference, issue_url, already_reported, issue_status}` |
 | `GET /api/admin/github-token` | owner | `{configured, source: env\|app, repo}` — jamais le token |
 | `PUT /api/admin/github-token` | owner | `{token, repo?}` — validé contre GitHub avant stockage ; `token:""` efface |
 | `GET /api/admin/reports?limit=` | owner/admin | crashs + signalements récents (D1, déjà assainis) + `pending` |

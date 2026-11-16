@@ -233,6 +233,45 @@ describe('github sync with a stubbed API', () => {
   });
 });
 
+describe('deduplicated report recovery', () => {
+  it('serializes concurrent queue drains for the same report', async () => {
+    await reportUser(made.db, { DB: made.db }, { username: 'alice', role: 'stock', kind: 'bug', message: 'Concurrent queued report' }, undefined, { owner: false, userId: 1 });
+    let release!: () => void, entered!: () => void, creates = 0;
+    const waiting = new Promise<void>(resolve => { release = resolve; });
+    const started = new Promise<void>(resolve => { entered = resolve; });
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init: any) => {
+      if (url.endsWith('/labels')) return new Response('{}', { status: 422 });
+      if (init.method === 'POST' && url.endsWith('/issues')) { creates++; entered(); await waiting; return Response.json({ number: 98, html_url: 'https://github.com/Org/repo/issues/98' }, { status: 201 }); }
+      throw new Error('unexpected');
+    }));
+    const env = { DB: made.db, GITHUB_ISSUE_TOKEN: 'key', GITHUB_ISSUE_REPO: 'Org/repo' };
+    try {
+      const first = retryPendingReports(env);
+      await started;
+      expect((await retryPendingReports(env)).user_reports).toBe(0);
+      release();
+      expect((await first).user_reports).toBe(1);
+      expect(creates).toBe(1);
+    } finally { release(); }
+  });
+  it('recovers only a stale winning claim, not an unclaimed in-progress row', async () => {
+    const input = { username: 'alice', role: 'stock', kind: 'bug', message: 'A pending report to recover' };
+    const out = await reportUser(made.db, { DB: made.db }, input, undefined, { owner: false, userId: 1 });
+    made.sqlite.exec(`UPDATE user_reports SET status='sending', created_at='2000-01-01 00:00:00' WHERE id=${Number(out.reference.slice(2))};
+      INSERT INTO user_reports (username,role,kind,message,status,created_at) VALUES ('alice','stock','bug','unclaimed report','dedup_check','2000-01-01 00:00:00')`);
+    let creates = 0;
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init: any) => {
+      if (url.endsWith('/labels')) return new Response('{}', { status: 422 });
+      if (init.method === 'POST' && url.endsWith('/issues')) { creates++; return Response.json({ number: 99, html_url: 'https://github.com/Org/repo/issues/99' }, { status: 201 }); }
+      throw new Error('unexpected');
+    }));
+    const result = await retryPendingReports({ DB: made.db, GITHUB_ISSUE_TOKEN: 'key', GITHUB_ISSUE_REPO: 'Org/repo' });
+    expect(result.user_reports).toBe(1); expect(creates).toBe(1);
+    const rows = made.sqlite.prepare('SELECT status FROM user_reports ORDER BY id').all();
+    expect(rows.map((r: any) => r.status)).toEqual(['linked', 'dedup_check']);
+  });
+});
+
 describe('admin list view', () => {
   it('returns recent crashes, user reports and the pending count', async () => {
     await reportCrash(made.db, { DB: made.db }, CRASH, '8.8.8.8');

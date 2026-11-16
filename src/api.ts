@@ -1071,7 +1071,7 @@ export const api = {
 
   /** v260 — crash & user reports → GitHub issues (docs/reports-github.md) */
   submitUserReport: (body: { kind: string; message: string; contact?: string; page?: string; version?: string }) =>
-    request<{ data: { reference: string; issue_url: string | null } }>('/api/reports', { method: 'POST', body: JSON.stringify(body) }),
+    request<{ data: { reference: string; issue_url: string | null; already_reported: boolean; issue_status: 'open' | 'closed' | null } }>('/api/reports', { method: 'POST', body: JSON.stringify(body) }),
   getGithubTokenStatus: () =>
     request<{ data: { configured: boolean; source: 'env' | 'app' | null; repo: string } }>('/api/admin/github-token'),
   saveGithubToken: (body: { token: string; repo?: string }) =>

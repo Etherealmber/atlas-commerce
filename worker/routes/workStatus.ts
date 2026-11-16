@@ -1,3 +1,4 @@
+import { githubJson } from '../lib/github-json';
 import { githubConfig, redactSecrets } from '../lib/reports';
 import { rateLimit } from '../lib/security';
 
@@ -23,13 +24,16 @@ export function registerWorkStatusRoute(app: any, deps: {
     if (!username) return c.json({ success: false, code: 'UNAUTHORIZED' }, 401);
     // Do not trust the token's role claim: compare with the authoritative account.
     let accountCreated: string | null = null;
+    let userId: number | null = null;
+    const isOwner = username === deps.ownerUsername(c.env) && session.role === 'owner';
     try {
       let role: string;
-      if (username === deps.ownerUsername(c.env) && session.role === 'owner') role = 'owner';
+      if (isOwner) role = 'owner';
       else {
-        const user = await c.env.DB.prepare('SELECT role, created_at FROM app_users WHERE username = ? AND active = 1').bind(username).first();
+        const user = await c.env.DB.prepare('SELECT id, role, created_at FROM app_users WHERE username = ? AND active = 1').bind(username).first();
         if (!user) return c.json({ success: false, code: 'UNAUTHORIZED' }, 401);
         role = String(user.role || '');
+        if (Number.isSafeInteger(user.id) && user.id > 0) userId = user.id;
         const created = String(user.created_at || '');
         if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(created) && Number.isFinite(Date.parse(created + 'Z'))) accountCreated = created;
       }
@@ -72,15 +76,34 @@ export function registerWorkStatusRoute(app: any, deps: {
     }
 
     let github: any = unavailable('NOT_CONFIGURED');
-    if (String(c.env.WORK_STATUS_GITHUB_ENABLED || '') === 'true') {
+    if (String(c.env.WORK_STATUS_GITHUB_ENABLED || '') !== 'false') {
       try {
-        if (!accountCreated) throw new Error('ownership');
+        const ownerTable = await c.env.DB.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'work_status_report_owners'").first();
+        if (!accountCreated && !(ownerTable && (isOwner || userId))) { github = unavailable('OWNERSHIP_UNVERIFIABLE'); } else {
         const config = await githubConfig(c.env);
         if (config.token && /^[A-Za-z0-9_-][A-Za-z0-9_.-]*\/[A-Za-z0-9_-][A-Za-z0-9_.-]*$/.test(config.repo)) {
-          const { results } = await c.env.DB.prepare(
-            `SELECT id, issue_number, issue_url FROM user_reports WHERE lower(username) = ? AND status = 'linked'
-             AND issue_number IS NOT NULL AND created_at > ? AND (? IS NULL OR id < ?) ORDER BY id DESC LIMIT ?`
-          ).bind(username, accountCreated, ghCursor, ghCursor, limit + 1).all();
+          // Without explicit private-repo consent, make all reads anonymously so
+          // a repo becoming private cannot expose privileged issue contents.
+          const privateAllowed = String(c.env.WORK_STATUS_GITHUB_ENABLED || '') === 'true';
+          if (!privateAllowed) {
+            const repo = await githubJson(`https://api.github.com/repos/${config.repo}`, '');
+            if (repo?.private !== false || String(repo?.full_name || '').toLowerCase() !== config.repo.toLowerCase() ||
+                (repo.visibility != null && repo.visibility !== 'public')) throw new Error('not_public');
+          }
+          const issueToken = privateAllowed ? config.token : '';
+          const { results } = ownerTable
+            ? await c.env.DB.prepare(
+              `SELECT id, issue_number, issue_url FROM user_reports r WHERE status = 'linked' AND issue_number IS NOT NULL
+               AND (EXISTS (SELECT 1 FROM work_status_report_owners o WHERE o.report_id = r.id AND
+                    ((? = 1 AND o.owner_slot = 1) OR (? = 0 AND o.user_id = ?)))
+                 OR (? = 0 AND lower(r.username) = ? AND r.created_at > ?
+                     AND NOT EXISTS (SELECT 1 FROM work_status_report_owners o WHERE o.report_id = r.id)))
+               AND (? IS NULL OR r.id < ?) ORDER BY r.id DESC LIMIT ?`
+            ).bind(isOwner ? 1 : 0, isOwner ? 1 : 0, userId, isOwner ? 1 : 0, username, accountCreated, ghCursor, ghCursor, limit + 1).all()
+            : await c.env.DB.prepare(
+              `SELECT id, issue_number, issue_url FROM user_reports WHERE lower(username) = ? AND status = 'linked'
+               AND issue_number IS NOT NULL AND created_at > ? AND (? IS NULL OR id < ?) ORDER BY id DESC LIMIT ?`
+            ).bind(username, accountCreated, ghCursor, ghCursor, limit + 1).all();
           const page = results.slice(0, limit);
           if (!page.length) {
             // No upstream call was made; do not imply the tracker is healthy or clear.
@@ -93,51 +116,24 @@ export function registerWorkStatusRoute(app: any, deps: {
               if (!Number.isSafeInteger(number) || number <= 0 || stored.protocol !== 'https:' ||
                   stored.hostname !== 'github.com' || stored.port || stored.username || stored.password ||
                   stored.pathname.toLowerCase() !== expectedPath.toLowerCase() || stored.search || stored.hash) throw new Error('link');
-              const controller = new AbortController();
-              const timer = setTimeout(() => controller.abort(), 4000);
-              try {
-                const response = await fetch(`https://api.github.com/repos/${config.repo}/issues/${number}`, {
-                  headers: { Authorization: `Bearer ${config.token}`, Accept: 'application/vnd.github+json', 'User-Agent': 'atlas-commerce-work-status' },
-                  redirect: 'error', signal: controller.signal,
-                });
-                if (!response.ok) throw new Error('upstream');
-                // Bound the body as well as the request duration; never return issue bodies.
-                const reader = response.body?.getReader();
-                if (!reader) throw new Error('empty');
-                const chunks: Uint8Array[] = [];
-                let bytes = 0;
-                while (true) {
-                  // Sequential reads enforce a strict streaming size limit.
-                  // eslint-disable-next-line no-await-in-loop
-                  const part = await reader.read();
-                  if (part.done) break;
-                  bytes += part.value.length;
-                  if (bytes > 65536) {
-                    controller.abort();
-                    throw new Error('oversize');
-                  }
-                  chunks.push(part.value);
-                }
-                const data = new Uint8Array(bytes);
-                let offset = 0;
-                for (const chunk of chunks) { data.set(chunk, offset); offset += chunk.length; }
-                const issue: any = JSON.parse(new TextDecoder().decode(data));
-                const link = new URL(String(issue.html_url));
-                if (issue.number !== number || issue.pull_request || !['open', 'closed'].includes(issue.state) ||
-                    link.protocol !== 'https:' || link.hostname !== 'github.com' || link.port || link.username || link.password ||
-                    link.pathname.toLowerCase() !== expectedPath.toLowerCase() || link.search || link.hash ||
-                    typeof issue.title !== 'string' || typeof issue.updated_at !== 'string' || !Number.isFinite(Date.parse(issue.updated_at))) throw new Error('invalid');
-                return { source: 'github', id: String(number), title: redactSecrets(issue.title).slice(0, 200), status: issue.state,
-                  updated_at: issue.updated_at, url: link.toString() };
-              } finally { clearTimeout(timer); }
+              const issue: any = await githubJson(`https://api.github.com/repos/${config.repo}/issues/${number}`, issueToken);
+              const link = new URL(String(issue.html_url));
+              if (issue.number !== number || issue.pull_request || !['open', 'closed'].includes(issue.state) ||
+                  link.protocol !== 'https:' || link.hostname !== 'github.com' || link.port || link.username || link.password ||
+                  link.pathname.toLowerCase() !== expectedPath.toLowerCase() || link.search || link.hash ||
+                  typeof issue.title !== 'string' || typeof issue.updated_at !== 'string' || !Number.isFinite(Date.parse(issue.updated_at))) throw new Error('invalid');
+              return { source: 'github', id: String(number), title: redactSecrets(issue.title).slice(0, 200), status: issue.state,
+                updated_at: issue.updated_at, url: link.toString() };
+
             }));
             github = { availability: 'available', synced_at: new Date().toISOString(), items,
               next_cursor: results.length > limit ? String(page[page.length - 1].id) : null, error: null };
           }
         }
+        }
       } catch {
         // Do not log URLs, usernames, tokens, upstream responses, or report text.
-        github = unavailable(accountCreated ? 'SOURCE_UNAVAILABLE' : 'OWNERSHIP_UNVERIFIABLE');
+        github = unavailable(accountCreated || isOwner || userId ? 'SOURCE_UNAVAILABLE' : 'OWNERSHIP_UNVERIFIABLE');
       }
     }
     return c.json({ success: true, in_app: inApp, trackers: { github, linear: unavailable('NOT_CONFIGURED') } });

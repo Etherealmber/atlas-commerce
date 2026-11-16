@@ -148,8 +148,20 @@ describe('private mobile Snake personal best', () => {
     expect(responses.every(r => r.status === 200)).toBe(true);
     expect(await (await request('GET', t)).json()).toEqual({ personalBest: 250 });
   });
-  it('fails safely when the migration has not been applied', async () => {
+  it('automatically initializes storage when migration 0009 has not been applied', async () => {
     sqlite.exec('DROP TABLE snake_personal_best');
+    const t = await token();
+    expect(await (await request('GET', t)).json()).toEqual({ personalBest: 0 });
+    expect(await (await request('PUT', t, json(42))).json()).toEqual({ personalBest: 42 });
+    expect(await (await request('GET', t)).json()).toEqual({ personalBest: 42 });
+  });
+  it('fails closed if automatic initialization cannot create storage', async () => {
+    sqlite.exec('DROP TABLE snake_personal_best');
+    const original = env.DB;
+    env.DB = { ...original, prepare(sql: string) {
+      if (sql.startsWith('CREATE TABLE IF NOT EXISTS snake_personal_best')) throw new Error('unavailable');
+      return original.prepare(sql);
+    } };
     const r = await request('GET', await token());
     expect(r.status).toBe(503);
     expect(await r.json()).toEqual({ success: false, error: 'Service indisponible', code: 'SERVICE_UNAVAILABLE' });

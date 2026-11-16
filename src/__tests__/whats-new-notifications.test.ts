@@ -110,6 +110,7 @@ describe('release page and popup content', () => {
     const releases = host.querySelectorAll('.wn-release');
     expect(releases[0].textContent).toContain('0.8.9');
     expect(releases[0].textContent).toContain('API de suivi');
+    expect(releases[0].textContent).toContain('détection des répétitions exactes');
     expect(releases[1].textContent).toContain('0.8.5');
     expect(releases[2].textContent).toContain('0.8.1');
     expect(releases[2].textContent).toContain('reste désactivé');
@@ -125,7 +126,8 @@ describe('release page and popup content', () => {
     expect(dialog?.textContent).not.toContain('Atlas Agent : le streaming');
     expect(dialog?.textContent).not.toContain('sélecteurs façon Discord');
     expect(dialog?.textContent).toContain('Atlas Snake');
-    expect(dialog?.querySelectorAll('li')).toHaveLength(2);
+    expect(dialog?.textContent).toContain('créateurs et approbateurs');
+    expect(dialog?.querySelectorAll('li')).toHaveLength(3);
     const dismissButton = dialog?.querySelector('button');
     if (!dismissButton) throw new Error('Missing release popup dismiss button');
     await act(async () => dismissButton.click());

@@ -152,7 +152,7 @@ export function registerAtlasV209Routes(app: AtlasApp, deps: V209Deps): void {
     if (!p) return c.json({ success: false, error: 'PRODUCT_NOT_FOUND' }, 404);
     const loc = b.location_id ? Number(b.location_id) : (deps.getDefaultLocationId ? await deps.getDefaultLocationId(db) : null);
     if (deps.applyStockDelta) {
-      await deps.applyStockDelta(db, pid, qty, String(b.note || 'Réception'), 'receive', {});
+      await deps.applyStockDelta(db, pid, qty, String(b.note || 'Réception'), 'receive', { createdBy: g.username });
       if (loc && deps.adjustLocationStock) { try { await deps.adjustLocationStock(db, pid, loc, qty, {}); } catch { /* location optional */ } }
     } else {
       await applyDelta(db, pid, loc, qty, 'receive', String(b.note || 'Réception'), g.username, Number(p.stock_quantity), Number(p.stock_quantity) + qty);
@@ -176,7 +176,7 @@ export function registerAtlasV209Routes(app: AtlasApp, deps: V209Deps): void {
     if (!p) return c.json({ success: false, error: 'PRODUCT_NOT_FOUND' }, 404);
     const delta = qty - Number(p.stock_quantity);
     if (deps.applyStockDelta) {
-      await deps.applyStockDelta(db, pid, delta, 'Inventaire tournant (scan)', 'adjustment', {});
+      await deps.applyStockDelta(db, pid, delta, 'Inventaire tournant (scan)', 'adjustment', { createdBy: g.username });
     } else {
       await applyDelta(db, pid, null, delta, 'count', 'Inventaire tournant', g.username, Number(p.stock_quantity), qty);
     }

@@ -34,8 +34,10 @@ export const RELEASES: Release[] = [
     version: '0.8.9',
     date: '15 novembre 2026',
     sections: [{ kind: 'features', items: [
-      { id: '089s1', platforms: ['server', 'android'], text: 'API de suivi en lecture seule : demandes de stock personnelles et tickets GitHub associés aux signalements, selon les autorisations et la configuration du serveur. Les sources indisponibles sont signalées explicitement.' },
-      { id: '089s2', platforms: ['server', 'android'], text: 'Atlas Snake : synchronisation privée du meilleur score par compte, sans classement et sans écraser un meilleur résultat.' },
+      { id: '089s1', platforms: ['server', 'android'], text: 'API de suivi en lecture seule : demandes de stock personnelles et tickets GitHub associés aux signalements, avec lecture automatique pour les dépôts publics ; les dépôts privés nécessitent une activation explicite. Les sources indisponibles sont signalées explicitement.' },
+      { id: '089s2', platforms: ['server', 'android'], text: 'Atlas Snake : synchronisation privée du meilleur score par compte, stockage initialisé automatiquement, sans classement et sans écraser un meilleur résultat.' },
+      { id: '089s3', platforms: ['server', 'android'], text: 'Produits et mouvements : affichage des créateurs et approbateurs disponibles, sans inventer les identités manquantes.' },
+      { id: '089s4', platforms: ['server', 'android'], text: 'Signalements : détection des répétitions exactes du même compte avant création, avec reçu et état de l’issue si vérifiable. Snake Android : progression locale isolée par empreinte du jeton, mode invité séparé et synchronisation du meilleur score avec statut et nouvelles tentatives limitées.' },
     ] }],
   },
   {
