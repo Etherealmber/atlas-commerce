@@ -153,11 +153,13 @@ Admin → Mise à jour app). Passkeys Android : `docs/webauthn.md` §4 (assetlin
 
 ### 8. Besoin d'aide ?
 
-- **[`docs/desktop-design-prompt.md`](docs/desktop-design-prompt.md)** : prompt maître de l'app desktop (parité stricte web + Android, valeurs exactes citées)
+- [`src/components/ui/README.md`](src/components/ui/README.md) : composants UI et référence historique des choix visuels web / Android / desktop.
 - **[`SETUP.md`](SETUP.md)** : installation complète de A à Z (base de données, secrets, fournisseurs de clés, déploiement sans CLI)
 - [`docs/mobile-work-status.md`](docs/mobile-work-status.md) : suivi mobile en lecture seule, autorisations et limites des sources.
 - [`docs/mobile-snake-score.md`](docs/mobile-snake-score.md) : synchronisation privée du meilleur score Snake.
+- [`docs/mobile-preferences.md`](docs/mobile-preferences.md) : synchronisation privée des préférences Android, contrat et limites.
 - [`docs/mobile-inventory-actors.md`](docs/mobile-inventory-actors.md) : créateurs et approbateurs disponibles pour produits et mouvements.
+- [`docs/product-image-normalization.md`](docs/product-image-normalization.md) : format WebP et migration sécurisée des images produit.
 - `docs/reports-github.md` : crashs & signalements utilisateurs → issues GitHub (configuration dans l'app)
 - `docs/webauthn.md` : passkeys (modèle de sécurité, activation, Android Credential Manager) · `docs/api-finance.md` : finance & relevés · `PARTNER_API.md` : API partenaire · `SECURITY.md` : vulnérabilités
 - **Dans l'app** : À propos → « Signaler un problème » (arrive dans les issues GitHub) ; les crashs sont rapportés automatiquement
@@ -376,7 +378,7 @@ Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depui
 
 ### 0.6.3-beta
 - Barre Rapports PDF : le champ mois affiche toujours le mois d’ancrage de la période active (« Ce mois », « 3 mois »…) au lieu de rester vide, avec info-bulle ; bascule vers un mois précis inchangée
-- `docs/desktop-design-prompt.md` : prompt maître desktop — parité visuelle stricte web + Android, toutes valeurs exactes (couleurs, rayons, typo, densités, motion, règles sombres, assistants, checklist écrans, protocole de vérification) extraites des deux repos avec citations
+- Référence historique des choix desktop, web et Android (couleurs, rayons, typographie, densités, mouvement et composants) : `src/components/ui/README.md`.
 
 ### 0.6.2-beta
 - Rapports sur mois précis : `/api/reports/combined` + sections acceptent une période `AAAA-MM` strictement validée (invalide → mois courant, jamais de dates cassées) en plus des périodes relatives ; bornes calculées dans le **fuseau finance de l’entreprise** (`finance_timezone`, défaut Africa/Casablanca) — mois courant arrêté à aujourd’hui local, mois passés complets (bissextiles sûrs) ; période propagée à toutes les sections/liens avec le ticket HMAC `rt` 30 min (JWT de session jamais accepté ni exposé, `token` supprimé défensivement) ; sélecteur de mois dans Solde ; logique pure `worker/lib/report-period.ts` + 17 tests (vitest 112/112)
@@ -400,7 +402,7 @@ Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depui
 
 ### 0.5.6-beta
 - Relevé mensuel serveur `GET /api/admin/finance/statement?period=` (owner/admin) : ouverture/clôture, mouvements chronologiques avec solde courant, refs assainies, pagination, statut ouvert/clos, invariant ouvrant + crédits − débits = clôturant ; résumé mensuel, relevé et PDF = UN seul calcul canonique (`docs/api-finance.md`)
-- Fix double comptage finance (enquête `docs/finance-6000-investigation.md`) : lignes miroir des paiements fournisseur/salaire exclues du calcul (dépense fantôme + trou de clôture), avoirs exclus des encaissements, `paid_at` par défaut au jour local ; rétroactif, aucune donnée supprimée, 10 tests de régression
+- Fix double comptage finance (enquête `docs/api-finance.md#historical-double-count-investigation`) : lignes miroir des paiements fournisseur/salaire exclues du calcul (dépense fantôme + trou de clôture), avoirs exclus des encaissements, `paid_at` par défaut au jour local ; rétroactif, aucune donnée supprimée, 10 tests de régression
 - Vitesse : Smart Placement (`wrangler.jsonc`) + `public/_headers` (bundles immuables 1 an, HTML/SW revalidés)
 
 ### 0.5.5-beta
@@ -411,7 +413,7 @@ Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depui
 - Agent Atlas : les images jointes s'ouvrent en plein écran d'un clic/tap (visionneuse portail — plus piégée dans le panneau) et **survivent au rafraîchissement** (recompression ≤1280 px, persistance locale + R2 avec repli quota, brouillons d'attachments restaurés)
 - Assistant nouveau produit : photo modifiable avant création (✎ par photo déposée → atelier de recadrage `ImageWorkbench`, la version recadrée est uploadée)
 - Paie employé SELF : `GET /api/me/payroll` — chaque session ne lit que SA fiche de paie via `employees.user_username` (champ « Compte lié » du formulaire employé ; 404 `PAYROLL_NOT_LINKED` / 409 `PAYROLL_AMBIGUOUS` sinon) ; doc dans `docs/api-finance.md`
-- Pont FCM Android livré : `docs/android-fcm-bridge.patch` + `docs/android-fcm-bridge-prompt.md` (SDK firebase-messaging, service de réception, canal `atlas_assist`, enregistrement du jeton via `POST /api/assist/device-token` à chaque connexion ; google-services.json jamais committé, build OK sans)
+- Pont FCM Android livré : `docs/android-fcm-bridge.patch` (historique) et `docs/android-fcm-send-audit.md` (SDK firebase-messaging, service de réception, canal `atlas_assist`, enregistrement du jeton via `POST /api/assist/device-token` à chaque connexion ; google-services.json jamais committé, build OK sans)
 
 ### 0.5.4-beta
 - Assistants sans pastilles d'étapes en haut ni défilement (2 colonnes gardées en modale même écran étroit) ; vente rapide sans double champ SKU ; zone OCR compacte sans input natif ; sombre : cartes Solde, bouton Arrêter, pastilles Aller à, Réflexion, toggle mdp thémés + aucun bouton blanc au tap

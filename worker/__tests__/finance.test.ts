@@ -526,7 +526,7 @@ describe('finance outbox + reminders (integration)', () => {
 });
 
 /* ─────────────────── v258 — canonical statement & double-count regressions ───────────────────
- * Root cause tracked in docs/finance-6000-investigation.md: payroll and
+ * Root cause tracked in docs/api-finance.md#historical-double-count-investigation: payroll and
  * supplier payments each wrote a mirror ledger row into `expenses`
  * (entry_type='expense'), so the cash outflow was subtracted TWICE from the
  * balance (once via expenses, once via payroll_paid / supplier_paid) and the

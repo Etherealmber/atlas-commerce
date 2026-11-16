@@ -15,7 +15,9 @@ describe('WhatsNew releases', () => {
     expect(APP_VERSION).toBe('0.8.9-beta');
     expect(RELEASES[0].version).toBe('0.8.9');
     expect(WHATS_NEW_VERSION).toBe(RELEASES[0].version);
-    expect(RELEASES[0].sections.flatMap((s) => s.items).map((i) => i.id)).toEqual(['089s1', '089s2', '089s3', '089s4']);
+    expect(RELEASES[0].sections.flatMap((s) => s.items).map((i) => i.id)).toEqual(['089s1', '089s2', '089s3', '089s4', '089s5', '089s6', '089s7']);
+    expect(RELEASES[0].sections.flatMap((s) => s.items).find((i) => i.id === '089s5')?.text).toContain('WebP');
+    expect(RELEASES[0].sections.flatMap((s) => s.items).find((i) => i.id === '089s6')?.text).toContain('Préférences Android');
     expect(RELEASES[0].date).toBe('15 novembre 2026');
     const oldRelease = RELEASES.find((r) => r.version === '0.8.5')!;
     expect(oldRelease.sections.flatMap((s) => s.items).map((i) => i.id)).toEqual(['085s1', '085s2', '085s3', '085s4', '085s5']);

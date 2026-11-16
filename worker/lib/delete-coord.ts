@@ -2,7 +2,7 @@
  * Coordinated delete: D1 rows + R2 objects + KV cache invalidation.
  */
 import { invalidateDashboardCache } from './cache';
-import { keyFromCdnUrl, deleteR2Object } from './r2';
+import { keyFromCdnUrl, deleteR2Object, isNormalizedProductKey } from './r2';
 
 export async function deleteProductImagesFromR2(
   db: D1Database,
@@ -18,7 +18,7 @@ export async function deleteProductImagesFromR2(
       .all();
     for (const row of (results || []) as any[]) {
       const key = keyFromCdnUrl(env, String(row.url || ''));
-      if (key) {
+      if (key && !isNormalizedProductKey(key)) {
         await deleteR2Object(images, key);
         n++;
       }
@@ -32,7 +32,7 @@ export async function deleteProductImagesFromR2(
     const p = await db.prepare(`SELECT image_url FROM products WHERE id = ?`).bind(productId).first() as any;
     if (p?.image_url) {
       const key = keyFromCdnUrl(env, String(p.image_url));
-      if (key) {
+      if (key && !isNormalizedProductKey(key)) {
         await deleteR2Object(images, key);
         n++;
       }

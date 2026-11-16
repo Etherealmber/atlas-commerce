@@ -37,6 +37,12 @@ Ne pas confondre ces niveaux : l’accusé d’enregistrement du Worker n’est 
 
 `sendFcmToUser` conserve son résultat `{sent, purged}` : **sent = accepté par FCM**, pas « affiché ». Un échec sur un destinataire n’empêche pas l’essai des autres appareils ; il ne supprime pas son jeton.
 
+## Configuration Firebase (par déploiement)
+
+Le Worker utilise le projet Firebase configuré par `FIREBASE_PROJECT_ID` et les identifiants du compte de service `FIREBASE_CLIENT_EMAIL` et `FIREBASE_PRIVATE_KEY`. Le propriétaire configure ces secrets par les moyens habituels du déploiement, sans les publier ni les inclure dans des journaux. L'application Android doit être enregistrée dans le projet Firebase approprié avec son package effectif ; sa configuration `google-services.json` reste hors Git. La clé legacy `FCM_SERVER_KEY` ne concerne que les déploiements utilisant encore l'API legacy. Consulter `worker/lib/fcm.ts` pour le comportement effectif et les cas sans configuration ; ne pas déduire la livraison d'un message de la seule présence de secrets.
+
+L'intégration côté Android reste dans son dépôt propre. Le patch historique `docs/android-fcm-bridge.patch` est basé sur une ancienne révision et ne doit pas être appliqué sans vérifier sa compatibilité. Pour la paie individuelle, voir [`api-finance.md`](api-finance.md).
+
 ## Vérification d’exploitation : deux validations séparées
 
 ### A. Enregistrement / projet / acceptation FCM

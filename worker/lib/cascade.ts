@@ -4,7 +4,7 @@
  */
 
 import { invalidateDashboardCache } from './cache';
-import { deleteR2Object, keyFromCdnUrl } from './r2';
+import { deleteR2Object, keyFromCdnUrl, isNormalizedProductKey } from './r2';
 
 type EnvLike = {
   DB: D1Database;
@@ -26,7 +26,7 @@ export async function deleteProductImagesCascade(
   let removed_r2 = 0;
   for (const row of rows) {
     const key = keyFromCdnUrl(env, String(row.url || ''));
-    if (key) {
+    if (key && !isNormalizedProductKey(key)) {
       await deleteR2Object(env.IMAGES, key);
       removed_r2 += 1;
     }
@@ -36,7 +36,7 @@ export async function deleteProductImagesCascade(
   const product = await env.DB.prepare(`SELECT image_url FROM products WHERE id = ?`).bind(id).first() as any;
   if (product?.image_url) {
     const key = keyFromCdnUrl(env, String(product.image_url));
-    if (key) {
+    if (key && !isNormalizedProductKey(key)) {
       await deleteR2Object(env.IMAGES, key);
       removed_r2 += 1;
     }
