@@ -9,16 +9,19 @@ import { APP_VERSION, DISPLAY_VERSION, RELEASE_VISIBLE_CAP, WHATS_NEW_VERSION, s
  * so the "Nouveautés" badge pointed at an empty section).
  */
 describe('WhatsNew releases', () => {
-  it('publishes the 0.8.9 notes and retains previous releases', () => {
-    expect(DISPLAY_VERSION).toBe('0.8.9');
-    expect(RELEASE_VISIBLE_CAP).toBe('0.8.9');
-    expect(APP_VERSION).toBe('0.8.9-beta');
-    expect(RELEASES[0].version).toBe('0.8.9');
+  it('publishes the 0.9.0 notes and retains previous releases', () => {
+    expect(DISPLAY_VERSION).toBe('0.9.0');
+    expect(RELEASE_VISIBLE_CAP).toBe('0.9.0');
+    expect(APP_VERSION).toBe('0.9.0-beta');
+    expect(RELEASES[0].version).toBe('0.9.0');
     expect(WHATS_NEW_VERSION).toBe(RELEASES[0].version);
-    expect(RELEASES[0].sections.flatMap((s) => s.items).map((i) => i.id)).toEqual(['089s1', '089s2', '089s3', '089s4', '089s5', '089s6', '089s7']);
-    expect(RELEASES[0].sections.flatMap((s) => s.items).find((i) => i.id === '089s5')?.text).toContain('WebP');
-    expect(RELEASES[0].sections.flatMap((s) => s.items).find((i) => i.id === '089s6')?.text).toContain('Préférences Android');
-    expect(RELEASES[0].date).toBe('15 novembre 2026');
+    expect(RELEASES[0].date).toBe('20 octobre 2026');
+    expect(RELEASES[0].sections.flatMap((s) => s.items).map((i) => i.id)).toEqual(['090s1', '090s2']);
+    const r089 = RELEASES.find((r) => r.version === '0.8.9')!;
+    expect(r089.sections.flatMap((s) => s.items).map((i) => i.id)).toEqual(['089s1', '089s2', '089s3', '089s4', '089s5', '089s6', '089s7']);
+    expect(r089.sections.flatMap((s) => s.items).find((i) => i.id === '089s5')?.text).toContain('WebP');
+    expect(r089.sections.flatMap((s) => s.items).find((i) => i.id === '089s6')?.text).toContain('Préférences Android');
+    expect(r089.date).toBe('15 novembre 2026');
     const oldRelease = RELEASES.find((r) => r.version === '0.8.5')!;
     expect(oldRelease.sections.flatMap((s) => s.items).map((i) => i.id)).toEqual(['085s1', '085s2', '085s3', '085s4', '085s5']);
     const text = oldRelease.sections.flatMap((s) => s.items).map((i) => i.text).join(' ');

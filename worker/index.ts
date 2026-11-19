@@ -1,3 +1,4 @@
+import { readBalanceReport, balanceIsIncome } from './lib/report-balance';
 import { registerMobilePreferencesRoutes } from './routes/mobilePreferences';
 import { migrateProductImagePage, normalizeProductImageReference, isNormalizedProductUrl, ProductImageError } from './lib/product-images';
 import { recordReportOwner } from './lib/report-ownership';
@@ -15740,24 +15741,8 @@ app.get('/api/reports/balance', async (c) => {
   const settings = await c.env.DB.prepare(`SELECT * FROM company_settings WHERE id = 1`).first() as any;
   const { from, to, label } = periodBounds(c, settings?.finance_timezone);
   const cur = settings?.currency || 'MAD';
-  const { results: entries } = await c.env.DB.prepare(
-    `SELECT * FROM expenses WHERE expense_date >= ? AND expense_date <= ? ORDER BY expense_date ASC, id ASC`
-  ).bind(from, to).all();
-
-  const rows = (entries || []) as any[];
-  const isIn = (e: any) => e.entry_type === 'income' || e.entry_type === 'owner_contrib';
-  const isOut = (e: any) => !isIn(e);
-
-  const sum = (pred: (e: any) => boolean) => rows.filter(pred).reduce((s, e) => s + Number(e.amount || 0), 0);
-  const isCashMethod = (m: any) => !m || m === 'cash';
-  const cashIn = sum((e) => isIn(e) && isCashMethod(e.payment_method));
-  const cashOut = sum((e) => isOut(e) && isCashMethod(e.payment_method));
-  const bankIn = sum((e) => isIn(e) && !isCashMethod(e.payment_method));
-  const bankOut = sum((e) => isOut(e) && !isCashMethod(e.payment_method));
-  const ownerDraw = sum((e) => e.entry_type === 'owner_draw');
-  const ownerContrib = sum((e) => e.entry_type === 'owner_contrib');
-  const income = sum((e) => e.entry_type === 'income');
-  const expense = sum((e) => e.entry_type === 'expense' || !e.entry_type);
+  const { rows, cashIn, cashOut, bankIn, bankOut, ownerDraw, ownerContrib, income, expense } =
+    await readBalanceReport(c.env.DB, from, to);
 
   const typeLabel = (e: any) => {
     if (e.entry_type === 'income') return 'Recette';
@@ -15767,7 +15752,7 @@ app.get('/api/reports/balance', async (c) => {
   };
 
   const tableRows = rows.map((e) => {
-    const inn = isIn(e);
+    const inn = balanceIsIncome(e);
     return `<tr>
       <td>${e.expense_date || ''}</td>
       <td>${typeLabel(e)}</td>

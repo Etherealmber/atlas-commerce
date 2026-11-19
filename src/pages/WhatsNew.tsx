@@ -31,6 +31,14 @@ type Release = {
 
 export const RELEASES: Release[] = [
   {
+    version: '0.9.0',
+    date: '20 octobre 2026',
+    sections: [{ kind: 'fixes', items: [
+      { id: '090s1', platforms: ['web'], text: 'Cookies et données locales : texte, liens et choix plus lisibles en thème sombre et disposition adaptée aux petits écrans.' },
+      { id: '090s2', platforms: ['web'], text: 'Fenêtre Nouveautés : contraste et boutons corrigés en thème sombre, avec un affichage adapté aux petits écrans.' },
+    ] }],
+  },
+  {
     version: '0.8.9',
     date: '15 novembre 2026',
     sections: [{ kind: 'features', items: [

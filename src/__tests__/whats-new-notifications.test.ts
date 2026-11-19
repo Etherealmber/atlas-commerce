@@ -21,7 +21,7 @@ vi.mock('../auth', () => ({ isLoggedIn: () => false, getToken: () => null }));
 // A build-only change must not affect the published notes or their seen markers.
 vi.mock('../version', async (importOriginal) => ({
   ...await importOriginal<typeof import('../version')>(),
-  APP_VERSION: '0.8.9-build.2', DISPLAY_VERSION: 'build-only-test',
+  APP_VERSION: '0.9.0-build.2', DISPLAY_VERSION: 'build-only-test',
 }));
 
 const SEEN = 'atlas-whats-new-seen';
@@ -50,13 +50,13 @@ async function render(node: ReactNode, path = '/dashboard') {
 }
 
 describe('published release notification state', () => {
-  it('announces the new 0.8.9 notes to someone who has seen 0.8.1', () => {
-    localStorage.setItem(SEEN, '0.8.1-beta');
-    localStorage.setItem(MODAL, '0.8.1-beta');
+  it('announces the new 0.9.0 notes to someone who has seen 0.8.9', () => {
+    localStorage.setItem(SEEN, '0.8.9-beta');
+    localStorage.setItem(MODAL, '0.8.9-beta');
     expect(hasUnreadWhatsNew()).toBe(true);
     expect(shouldShowWhatsNewModal()).toBe(true);
   });
-  it.each(['0.8.9', '0.8.9-beta'])('preserves an existing %s marker across build changes', (version) => {
+  it.each(['0.9.0', '0.9.0-beta'])('preserves an existing %s marker across build changes', (version) => {
     localStorage.setItem(SEEN, version);
     localStorage.setItem(MODAL, version);
     expect(hasUnreadWhatsNew()).toBe(false);
@@ -67,26 +67,26 @@ describe('published release notification state', () => {
     expect(localStorage.getItem(MODAL)).toBe(version);
   });
   it('does not reopen a modal when the page-seen marker already covers the release', () => {
-    localStorage.setItem(SEEN, '0.8.9-beta');
+    localStorage.setItem(SEEN, '0.9.0-beta');
     expect(shouldShowWhatsNewModal()).toBe(false);
   });
   it('dismissing only the modal leaves the page unread badge intact', () => {
     markWhatsNewModalSeen();
     expect(shouldShowWhatsNewModal()).toBe(false);
     expect(hasUnreadWhatsNew()).toBe(true);
-    expect(localStorage.getItem(MODAL)).toBe('0.8.9');
+    expect(localStorage.getItem(MODAL)).toBe('0.9.0');
   });
   it('visiting the notes records the published version, not the build version', () => {
     markWhatsNewSeen();
-    expect(localStorage.getItem(SEEN)).toBe('0.8.9');
-    expect(localStorage.getItem(MODAL)).toBe('0.8.9');
+    expect(localStorage.getItem(SEEN)).toBe('0.9.0');
+    expect(localStorage.getItem(MODAL)).toBe('0.9.0');
     expect(hasUnreadWhatsNew()).toBe(false);
   });
   it('preserves newer seen markers when running an older build', () => {
-    localStorage.setItem(SEEN, '0.9.0-beta');
-    localStorage.setItem(MODAL, '0.9.0-beta');
+    localStorage.setItem(SEEN, '0.10.0-beta');
+    localStorage.setItem(MODAL, '0.10.0-beta');
     markWhatsNewSeen();
-    expect(getSeenWhatsNewVersion()).toBe('0.9.0-beta');
+    expect(getSeenWhatsNewVersion()).toBe('0.10.0-beta');
     expect(shouldShowWhatsNewModal()).toBe(false);
   });
   it('does not let an unparseable marker silently hide the notes', () => {
@@ -105,34 +105,32 @@ describe('published release notification state', () => {
 });
 
 describe('release page and popup content', () => {
-  it('shows 0.8.9 first while retaining 0.8.1 and honest security status', async () => {
+  it('shows 0.9.0 first while retaining prior releases', async () => {
     await render(createElement(WhatsNew), '/whats-new');
     const releases = host.querySelectorAll('.wn-release');
-    expect(releases[0].textContent).toContain('0.8.9');
-    expect(releases[0].textContent).toContain('API de suivi');
-    expect(releases[0].textContent).toContain('détection des répétitions exactes');
-    expect(releases[1].textContent).toContain('0.8.5');
-    expect(releases[2].textContent).toContain('0.8.1');
-    expect(releases[2].textContent).toContain('reste désactivé');
-    expect(localStorage.getItem(SEEN)).toBe('0.8.9');
+    expect(releases[0].textContent).toContain('0.9.0');
+    expect(releases[0].textContent).toContain('Cookies et données locales');
+    expect(releases[1].textContent).toContain('0.8.9');
+    expect(releases[1].textContent).toContain('API de suivi');
+    expect(releases[3].textContent).toContain('0.8.1');
+    expect(releases[3].textContent).toContain('reste désactivé');
+    expect(localStorage.getItem(SEEN)).toBe('0.9.0');
   });
-  it('pairs popup title, date and bullets with the same published release only', async () => {
+  it('pairs popup title, date and bullets with the published release', async () => {
     await render(createElement(WhatsNewModal));
     const dialog = host.querySelector('[role="dialog"]');
-    expect(dialog?.textContent).toContain('Atlas Commerce 0.8.9');
-    expect(dialog?.textContent).toContain('15 novembre 2026');
-    expect(dialog?.textContent).toContain('API de suivi');
+    expect(dialog?.textContent).toContain('Atlas Commerce 0.9.0');
+    expect(dialog?.textContent).toContain('20 octobre 2026');
+    expect(dialog?.textContent).toContain('Cookies et données locales');
+    expect(dialog?.textContent).toContain('Fenêtre Nouveautés');
     expect(dialog?.textContent).not.toContain('build-only-test');
-    expect(dialog?.textContent).not.toContain('Atlas Agent : le streaming');
-    expect(dialog?.textContent).not.toContain('sélecteurs façon Discord');
-    expect(dialog?.textContent).toContain('Atlas Snake');
-    expect(dialog?.textContent).toContain('créateurs et approbateurs');
-    expect(dialog?.querySelectorAll('li')).toHaveLength(3);
+    expect(dialog?.textContent).not.toContain('API de suivi');
+    expect(dialog?.querySelectorAll('li')).toHaveLength(2);
     const dismissButton = dialog?.querySelector('button');
     if (!dismissButton) throw new Error('Missing release popup dismiss button');
     await act(async () => dismissButton.click());
     expect(host.querySelector('[role="dialog"]')).toBeNull();
-    expect(localStorage.getItem(MODAL)).toBe('0.8.9');
+    expect(localStorage.getItem(MODAL)).toBe('0.9.0');
   });
   it('does not display the modal on the notes page itself', async () => {
     await render(createElement(WhatsNewModal), '/whats-new');
