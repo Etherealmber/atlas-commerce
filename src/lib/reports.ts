@@ -15,7 +15,7 @@ function qsFromParams(params?: Record<string, string | undefined>): string {
 /**
  * Open printable HTML report in a real navigable URL (with short-lived rt ticket)
  * so the browser Refresh button keeps working.
- * JWT is never put in the URL — only a 30‑minute HMAC report ticket.
+ * JWT is never put in the URL — only a short-lived HMAC report ticket (at most 30 minutes).
  */
 export function openReport(
   path: string,
@@ -63,7 +63,8 @@ export function openReport(
       // Mint short-lived report ticket (not the session JWT)
       let rt = '';
       try {
-        const tr = await fetch(`${base}/api/reports/link-ticket`, {
+        const ticketPath = path.startsWith('/api/reports/') ? '/api/reports/link-ticket' : '/api/print/link-ticket';
+        const tr = await fetch(`${base}${ticketPath}`, {
           credentials: 'same-origin',
           headers: {
             Authorization: `Bearer ${token}`,
@@ -89,7 +90,7 @@ export function openReport(
       const navUrl = qs ? `${fullPath}?${qs}` : fullPath;
 
       if (rt) {
-        // Real URL → refresh / share within 30 min works
+        // Real URL → refresh works until the ticket expires
         tab.location.href = navUrl;
         return;
       }

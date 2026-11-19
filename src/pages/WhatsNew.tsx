@@ -32,10 +32,14 @@ type Release = {
 export const RELEASES: Release[] = [
   {
     version: '0.9.0',
-    date: '20 octobre 2026',
+    date: '19 novembre 2026',
     sections: [{ kind: 'fixes', items: [
       { id: '090s1', platforms: ['web'], text: 'Cookies et données locales : texte, liens et choix plus lisibles en thème sombre et disposition adaptée aux petits écrans.' },
       { id: '090s2', platforms: ['web'], text: 'Fenêtre Nouveautés : contraste et boutons corrigés en thème sombre, avec un affichage adapté aux petits écrans.' },
+      { id: '090s3', platforms: ['server', 'android', 'web'], text: 'Rapports financiers combinés : affichage complet des sections choisies — solde, stock, créances, dettes, employés, balance âgée et TVA — avec les mêmes données que leurs rapports individuels.' },
+      { id: '090s4', platforms: ['server', 'android', 'web'], text: 'Accès aux rapports : tickets signés limités aux routes de rapport et au compte propriétaire ou administrateur, avec vérification du rôle actif et durée configurable plafonnée à 30 minutes. Les anciens liens doivent être rouverts avec un nouveau ticket.' },
+      { id: '090s5', platforms: ['server', 'android', 'web'], text: 'Lecture des rapports : pages générées côté serveur, sans JavaScript ni ressources externes, adaptées aux téléphones et tablettes et à l’impression multipage ; le stock affiche tous les emplacements par défaut.' },
+      { id: '090s6', platforms: ['server', 'android', 'web'], text: 'Erreurs de rapport : les tickets invalides ou expirés, les sections non prises en charge et les échecs de génération renvoient un état explicite plutôt qu’un rapport vide. Les vues restent générées à la demande, sans archivage immuable.' },
     ] }],
   },
   {
