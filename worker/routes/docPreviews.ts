@@ -13,7 +13,7 @@ export interface DocPreviewDeps {
   reportShell: (...a: any[]) => string;
   qrToSvg: (...a: any[]) => string;
   makeSecureQrPayload: (...a: any[]) => Promise<string>;
-  mintReportLinkTicket: (env: any) => Promise<string>;
+  mintPreviewReportTicket: (c: any) => Promise<string>;
   buildReportLinkQuery: (rt: string, periodKey: string, extra?: Record<string, string>) => string;
   previewEmbed: (html: string) => string;
 }
@@ -69,7 +69,7 @@ app.get('/api/settings/invoice-preview', async (c: any) => {
     const periodKey = now.toISOString().slice(0, 7);
     const label = `${now.toLocaleString('fr-FR', { month: 'long', year: 'numeric' })} (aperçu)`;
     let rt = '';
-    try { rt = await deps.mintReportLinkTicket(c.env); } catch { rt = ''; }
+    try { rt = await deps.mintPreviewReportTicket(c); } catch { rt = ''; }
     const href = (path: string, extra: Record<string, string> = {}) =>
       rt ? `${path}${deps.buildReportLinkQuery(rt, periodKey, extra)}` : '#';
     let out = 0, inn = 0, recv = 0, pay = 0, receiptsSum = 0;
@@ -100,7 +100,7 @@ app.get('/api/settings/invoice-preview', async (c: any) => {
     ).join('');
     const rptQr = deps.qrToSvg(`RAPPORTS COMBINÉS — ${company} · ${periodKey} · généré le ${new Date().toLocaleString('fr-FR')}${demo ? ' · APERÇU DÉMO' : ''}`, 96, 2);
     const body = `${wm}
-      <p class="muted">Période : <strong>${label}</strong>. Cliquez un lien pour le détail — même période, valide 30 minutes. Les liens s'ouvrent dans cet aperçu.</p>
+      <p class="muted">Période : <strong>${label}</strong>. Cliquez un lien pour le détail — même période, pendant la durée du ticket. Les liens s'ouvrent dans cet aperçu.</p>
       <ul style="font-size:15px;line-height:1.8">
         <li><a href="${href('/api/reports/balance')}">Solde &amp; mouvements</a></li>
         <li><a href="${href('/api/reports/stock')}">Stock &amp; valorisation</a></li>

@@ -42,7 +42,7 @@ describe('worker boot', () => {
       qrToSvg: noop,
       makeSecureQrPayload: async () => '',
       previewEmbed: (h: string) => h,
-      mintReportLinkTicket: async () => '',
+      mintPreviewReportTicket: async () => '',
       buildReportLinkQuery: () => '',
     });
     expect(typeof a.fetch).toBe('function');

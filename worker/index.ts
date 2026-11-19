@@ -1,3 +1,5 @@
+import { REPORT_TICKET_PATHS, mintScopedReportTicket, verifyScopedReportTicket } from './lib/report-ticket';
+import { verifyArchiveIdentity } from './lib/finance-report-archive-validation';
 import { readBalanceReport, balanceIsIncome } from './lib/report-balance';
 import { registerMobilePreferencesRoutes } from './routes/mobilePreferences';
 import { migrateProductImagePage, normalizeProductImageReference, isNormalizedProductUrl, ProductImageError } from './lib/product-images';
@@ -765,7 +767,7 @@ app.use('*', async (c, next) => {
     const bm = readD1BookmarkFromReq(c);
 
     try {
-      if (path === '/api/mobile/work-status' || path === '/api/mobile/snake-score' || path === '/api/mobile/preferences' || path === '/api/reports' || path === '/api/admin/product-images/normalize') {
+      if (path.startsWith('/api/reports/') || path === '/api/mobile/work-status' || path === '/api/mobile/snake-score' || path === '/api/mobile/preferences' || path === '/api/reports' || path === '/api/admin/product-images/normalize') {
         session = rawDb.withSession('first-primary');
       } else if (path === '/api/health') {
         // Health check: can use unconstrained replica or available session
@@ -862,21 +864,21 @@ app.use('*', async (c, next) => {
   if (c.env.DB_TARGET) {
     (c.env as any).DB_SOURCE = c.env.DB; // remember the physical source before any swap
     try {
-      const preferences = new URL(c.req.url).pathname === '/api/mobile/preferences';
-      // This resource's cooldown must not fall back to the wrong database if
+      const privateResource = new URL(c.req.url).pathname === '/api/mobile/preferences' || new URL(c.req.url).pathname.startsWith('/api/reports/');
+      // These resources must not fall back to the wrong database if
       // cutover state cannot be read; do not use the cached, fail-open flag.
-      const flag = preferences
+      const flag = privateResource
         ? (await c.env.DB.prepare(`SELECT value FROM app_config WHERE key = 'db_primary'`).first() as any)?.value
         : await dbPrimaryFlag(c.env);
       if (flag === 'target') {
         const target = c.env.DB_TARGET as any;
-        (c.env as any).DB = preferences && typeof target.withSession === 'function'
+        (c.env as any).DB = privateResource && typeof target.withSession === 'function'
           ? target.withSession('first-primary') : target;
       }
     } catch {
       // Never silently switch this private resource back to the source database
       // if the configured target's primary session cannot be established.
-      if (new URL(c.req.url).pathname === '/api/mobile/preferences') {
+      if (new URL(c.req.url).pathname === '/api/mobile/preferences' || new URL(c.req.url).pathname.startsWith('/api/reports/')) {
         return c.json({ success: false, code: 'SERVICE_UNAVAILABLE', error: 'Service indisponible' }, 503);
       }
     }
@@ -896,6 +898,21 @@ app.use('*', async (c, next) => {
  * Add routes anywhere you like — but NEVER move this block below them.
  * ───────────────────────────────────────────────────────────────────────── */
 // Apply even when the normal auth gate returns early (401/403).
+app.use('/api/print/link-ticket', async (c, next) => {
+  await next();
+  c.header('Cache-Control', 'no-store');
+  c.header('CDN-Cache-Control', 'no-store');
+  c.header('Referrer-Policy', 'no-referrer');
+});
+app.use('/api/reports/*', async (c, next) => {
+  await next();
+  c.header('Cache-Control', 'no-store');
+  c.header('CDN-Cache-Control', 'no-store');
+  c.header('Referrer-Policy', 'no-referrer');
+  c.header('X-Content-Type-Options', 'nosniff');
+  c.header('X-Frame-Options', 'SAMEORIGIN');
+  c.header('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; form-action 'self'; base-uri 'none'; frame-ancestors 'self'");
+});
 app.use(`${DESKTOP_AUTH}/*`, async (c, next) => {
   await next();
   c.header('Cache-Control', 'no-store');
@@ -996,6 +1013,37 @@ app.use('/api/*', async (c, next) => {
     path === '/api/employees/form/print' ||
     path.match(/^\/api\/employees\/\d+\/form\/print$/) ||
     isReport;
+
+  // Finance report tickets are GET-only, account-bound and cannot mint tickets.
+  // Legacy print tickets remain valid only on the separate document print paths.
+  if (isReport) {
+    const deny = (status: 401 | 403 | 503, code: string) => c.json({ success: false, error: 'Accès au rapport refusé', code }, status);
+    if (c.req.method !== 'GET') return deny(403, 'FORBIDDEN');
+    const auth = c.req.header('Authorization');
+    const queryToken = extractQueryToken(c.req.url);
+    const rt = c.req.query('rt');
+    if (rt && !auth && !queryToken && path !== '/api/reports/link-ticket') {
+      const verified = await verifyScopedReportTicket(reportTicketEnvironment(c.env), rt, getOwnerUsername(c.env));
+      if (verified !== 'ok') return deny(401, verified === 'expired' ? 'TICKET_EXPIRED' : 'INVALID_TICKET');
+      if (!REPORT_TICKET_PATHS.has(path)) return c.json({ success: false, code: 'UNSUPPORTED_REPORT', error: 'Rapport non pris en charge' }, 404);
+      (c as any).set('reportTicket', rt);
+      return next();
+    }
+    const identity = await verifyArchiveIdentity(c.env, auth || (queryToken ? `Bearer ${queryToken}` : undefined), clientIp(c), undefined, {
+      authFailReason: (header, env, db, ip, fp) => authFailReason(header, env as Env, db, ip, fp, { relaxSession: true }),
+      sessionUserFromHeader,
+      ownerUsername: (env) => getOwnerUsername(env as Env),
+    });
+    if (!identity.ok) return deny(identity.status, identity.code);
+    (c as any).set('reportIdentity', identity.identity);
+    if (path !== '/api/reports/link-ticket' && REPORT_TICKET_PATHS.has(path)) {
+      try {
+        const ticket = await mintScopedReportTicket(reportTicketEnvironment(c.env), identity.identity as any, getOwnerUsername(c.env));
+        (c as any).set('reportTicket', ticket.rt);
+      } catch { return deny(503, 'REPORT_TICKET_UNAVAILABLE'); }
+    }
+    return next();
+  }
 
   if (isPrintLike) {
     const ip = clientIp(c);
@@ -1268,7 +1316,7 @@ app.use('/api/public/*', async (c, next) => {
 /** Never leak SQL / D1 / stack traces — always safe JSON. */
 app.onError(async (err, c) => {
   // Real cause stays server-side (CF logs) — clients only get safe messages.
-  try { console.error('[onError]', c.req.method, new URL(c.req.url).pathname, String((err as any)?.stack || err || '').slice(0, 500)); } catch { /* */ }
+  try { if (!new URL(c.req.url).pathname.startsWith('/api/reports/')) console.error('[onError]', c.req.method, new URL(c.req.url).pathname, String((err as any)?.stack || err || '').slice(0, 500)); } catch { /* */ }
   const safe = toClientError(err);
   // v243.4: SQLITE_CORRUPT(_VTAB) on this app almost always means the
   // products_fts FTS5 shadow pages — derived data we can rebuild ourselves.
@@ -12935,7 +12983,16 @@ registerDocPreviewRoutes(app, {
   qrToSvg,
   makeSecureQrPayload,
   previewEmbed,
-  mintReportLinkTicket,
+  mintPreviewReportTicket: async (c: any) => {
+    const queryToken = String(c.req.query('token') || '').replace(/ /g, '+');
+    const result = await verifyArchiveIdentity(c.env, c.req.header('Authorization') || (queryToken ? `Bearer ${queryToken}` : undefined), clientIp(c), undefined, {
+      authFailReason: (header, env, db, ip, fp) => authFailReason(header, env as Env, db, ip, fp, { relaxSession: true }),
+      sessionUserFromHeader,
+      ownerUsername: env => getOwnerUsername(env as Env),
+    });
+    if (!result.ok) throw new Error('Report access denied');
+    return (await mintScopedReportTicket(reportTicketEnvironment(c.env), result.identity as any, getOwnerUsername(c.env))).rt;
+  },
   buildReportLinkQuery,
 });
 
@@ -13316,11 +13373,16 @@ app.put('/api/fiscal/period-lock', async (c) => {
 /** Phase 1 — client aging */
 
 /** Short-lived signed ticket for printable report deep-links (not a session JWT). */
+function reportTicketEnvironment(env: Env) {
+  return { DB: env.DB, JWT_SECRET: env.JWT_SECRET, ADMIN_PASSWORD: getPassword(env) || undefined, REPORT_TICKET_TTL_SECONDS: env.REPORT_TICKET_TTL_SECONDS };
+}
+
 async function mintReportLinkTicket(env: any, pathPrefix = '/api/'): Promise<string> {
   const exp = Math.floor(Date.now() / 1000) + 30 * 60; // 30 min
   // pathPrefix scopes the ticket; default /api/ covers reports + employee/invoice print
   const payload = `rtl1|${exp}|${pathPrefix}`;
-  const secret = String(env.JWT_SECRET || env.ADMIN_PASSWORD || 'atlas-report-link').trim();
+  const secret = String(env.JWT_SECRET || getPassword(env) || '').trim();
+  if (!secret) throw new Error('Print ticket unavailable');
   const key = await crypto.subtle.importKey(
     'raw',
     await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`report-link|${secret}`)),
@@ -13338,7 +13400,6 @@ async function verifyReportLinkTicket(env: any, ticket: string | null | undefine
     if (!ticket || !path.startsWith('/api/')) return false;
     // Only print/report style paths (never mutate endpoints)
     const printOk =
-      path.startsWith('/api/reports/') ||
       path === '/api/employees/form/print' ||
       /^\/api\/employees\/\d+\/form\/print$/.test(path) ||
       /^\/api\/invoices\/\d+\/(print|pdf)$/.test(path) ||
@@ -13350,7 +13411,8 @@ async function verifyReportLinkTicket(env: any, ticket: string | null | undefine
     const [expS, sigB64] = String(ticket).split('.');
     const exp = Number(expS);
     if (!exp || !sigB64 || exp < Math.floor(Date.now() / 1000)) return false;
-    const secret = String(env.JWT_SECRET || env.ADMIN_PASSWORD || 'atlas-report-link').trim();
+    const secret = String(env.JWT_SECRET || getPassword(env) || '').trim();
+    if (!secret) return false;
     const key = await crypto.subtle.importKey(
       'raw',
       await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`report-link|${secret}`)),
@@ -13361,11 +13423,8 @@ async function verifyReportLinkTicket(env: any, ticket: string | null | undefine
     const pad = sigB64.length % 4 === 0 ? '' : '='.repeat(4 - (sigB64.length % 4));
     const raw = atob(sigB64.replace(/-/g, '+').replace(/_/g, '/') + pad);
     const sig = new Uint8Array([...raw].map((c) => c.charCodeAt(0)));
-    // Current scope + legacy report-only tickets
-    for (const payload of [`rtl1|${exp}|/api/`, `rtl1|${exp}|/api/reports/`]) {
-      if (await crypto.subtle.verify('HMAC', key, sig, new TextEncoder().encode(payload))) return true;
-    }
-    return false;
+    // A legacy report-only signature never grants document-print access.
+    return await crypto.subtle.verify('HMAC', key, sig, new TextEncoder().encode(`rtl1|${exp}|/api/`));
   } catch {
     return false;
   }
@@ -13373,12 +13432,27 @@ async function verifyReportLinkTicket(env: any, ticket: string | null | undefine
 
 
 app.get('/api/reports/link-ticket', async (c) => {
-  // Authenticated session required (Authorization header) — returns short-lived rt for refreshable report URLs
   try {
-    const rt = await mintReportLinkTicket(c.env);
-    return c.json({ success: true, data: { rt, expires_in: 1800 } });
-  } catch (e: any) {
-    return c.json({ success: false, error: e?.message || 'ticket' }, 500);
+    const ticket = await mintScopedReportTicket(reportTicketEnvironment(c.env), (c as any).get('reportIdentity'), getOwnerUsername(c.env));
+    return c.json({ success: true, data: ticket });
+  } catch {
+    return c.json({ success: false, error: 'Ticket indisponible', code: 'REPORT_TICKET_UNAVAILABLE' }, 503);
+  }
+});
+
+// The legacy document-print ticket remains separate from the finance capability.
+app.get('/api/print/link-ticket', async (c) => {
+  const identity = await verifyArchiveIdentity(c.env, c.req.header('Authorization'), clientIp(c), c.req.header('X-Device-Fingerprint'), {
+    authFailReason: (header, env, db, ip, fp) => authFailReason(header, env as Env, db, ip, fp),
+    sessionUserFromHeader,
+    ownerUsername: env => getOwnerUsername(env as Env),
+  });
+  if (!identity.ok) return c.json({ success: false, code: identity.code, error: 'Accès refusé' }, identity.status);
+  try {
+    if (!String(c.env.JWT_SECRET || getPassword(c.env) || '').trim()) throw new Error('missing secret');
+    return c.json({ success: true, data: { rt: await mintReportLinkTicket(c.env), expires_in: 1800 } });
+  } catch {
+    return c.json({ success: false, error: 'Ticket indisponible', code: 'PRINT_TICKET_UNAVAILABLE' }, 503);
   }
 });
 
@@ -13525,9 +13599,8 @@ app.get('/api/reports/tva', async (c) => {
       to: to || null,
     },
   });
-  } catch (e: any) {
-    console.error('tva report', e);
-    return c.json({ success: false, error: e?.message || 'Erreur rapport TVA' }, 500);
+  } catch {
+    return c.json({ success: false, error: 'Rapport TVA indisponible', code: 'REPORT_GENERATION_FAILED' }, 500);
   }
 });
 
@@ -13593,7 +13666,7 @@ app.get('/api/reports/tva.csv', async (c) => {
 app.get('/api/reports/aging.html', async (c) => {
   const settings = await c.env.DB.prepare(`SELECT * FROM company_settings WHERE id = 1`).first() as any;
   const cur = settings?.currency || 'MAD';
-  const fmtN = (n: number) => Math.round(Number(n || 0)).toLocaleString('fr-FR');
+  const fmtN = (n: number) => Number(n || 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 });
   const { results } = await c.env.DB.prepare(
     `SELECT id, number, client_name, issue_date, due_date, total, amount_paid, status,
             ROUND(total - COALESCE(amount_paid, 0), 2) as remaining
@@ -13618,16 +13691,15 @@ app.get('/api/reports/aging.html', async (c) => {
   });
   const total = rows.reduce((s: number, r: any) => s + r.remaining, 0);
   const table = rows.map((r: any) => `<tr>
-    <td>${r.number || ''}</td>
-    <td>${r.client_name || ''}</td>
-    <td>${r.due_date || r.issue_date || '—'}</td>
+    <td>${escapeHtml(String(r.number || ''))}</td>
+    <td>${escapeHtml(String(r.client_name || ''))}</td>
+    <td>${escapeHtml(r.due_date || r.issue_date || '—')}</td>
     <td>${r.days_overdue}</td>
-    <td class="out">${fmtN(r.remaining)} ${cur}</td>
+    <td class="out">${fmtN(r.remaining)} ${escapeHtml(String(cur))}</td>
   </tr>`).join('') || `<tr><td colspan="5">Aucune créance ouverte</td></tr>`;
   const body = `
-  <div class="actions"><button onclick="window.print()">Imprimer / PDF</button></div>
   <div class="grid">
-    <div class="stat"><div class="l">Total créances</div><div class="v out">${fmtN(total)} ${cur}</div></div>
+    <div class="stat"><div class="l">Total créances</div><div class="v out">${fmtN(total)} ${escapeHtml(String(cur))}</div></div>
     <div class="stat"><div class="l">Courant</div><div class="v">${fmtN(buckets.current)}</div></div>
     <div class="stat"><div class="l">1–30 j</div><div class="v">${fmtN(buckets.d1_30)}</div></div>
     <div class="stat"><div class="l">31–60 j</div><div class="v">${fmtN(buckets.d31_60)}</div></div>
@@ -13646,9 +13718,10 @@ app.get('/api/reports/aging.html', async (c) => {
 app.get('/api/reports/tva.html', async (c) => {
   const settings = await c.env.DB.prepare(`SELECT * FROM company_settings WHERE id = 1`).first() as any;
   const cur = settings?.currency || 'MAD';
-  const fmtN = (n: number) => Math.round(Number(n || 0)).toLocaleString('fr-FR');
-  const from = c.req.query('from') || '';
-  const to = c.req.query('to') || '';
+  const fmtN = (n: number) => Number(n || 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 });
+  const bounds = c.req.query('period') ? periodBounds(c, settings?.finance_timezone) : null;
+  const from = bounds?.from || c.req.query('from') || '';
+  const to = bounds?.to || c.req.query('to') || '';
   const defaultTax = Number(settings?.tax_rate ?? 20);
   await addColumnIfMissing(c.env.DB, 'invoice_items', 'tax_rate', `REAL DEFAULT 0`);
 
@@ -13712,12 +13785,11 @@ app.get('/api/reports/tva.html', async (c) => {
     || `<tr><td colspan="3">Aucun avoir</td></tr>`;
 
   const body = `
-  <div class="actions"><button onclick="window.print()">Imprimer / PDF</button></div>
   <div class="grid">
-    <div class="stat"><div class="l">TVA collectée</div><div class="v in">${fmtN(totalSalesTva)} ${cur}</div></div>
-    <div class="stat"><div class="l">TVA avoirs WR</div><div class="v out">${fmtN(totalCreditsTva)} ${cur}</div></div>
-    <div class="stat"><div class="l">Net à déclarer</div><div class="v">${fmtN(totalSalesTva - totalCreditsTva)} ${cur}</div></div>
-    <div class="stat"><div class="l">Période</div><div class="v" style="font-size:13px">${periodLabel}</div></div>
+    <div class="stat"><div class="l">TVA collectée</div><div class="v in">${fmtN(totalSalesTva)} ${escapeHtml(String(cur))}</div></div>
+    <div class="stat"><div class="l">TVA avoirs WR</div><div class="v out">${fmtN(totalCreditsTva)} ${escapeHtml(String(cur))}</div></div>
+    <div class="stat"><div class="l">Net à déclarer</div><div class="v">${fmtN(totalSalesTva - totalCreditsTva)} ${escapeHtml(String(cur))}</div></div>
+    <div class="stat"><div class="l">Période</div><div class="v" style="font-size:13px">${escapeHtml(periodLabel)}</div></div>
   </div>
   <h2>Ventes par taux</h2>
   <table><thead><tr><th>Taux</th><th>Base HT</th><th>TVA</th></tr></thead><tbody>${salesRows}</tbody></table>
@@ -14699,7 +14771,7 @@ app.get('/api/reports/cogs', async (c) => {
       cogs: Number(r.cogs_approx || 0),
     }));
   } catch (e) {
-    console.error('cogs report', e);
+    // Do not log report query data or tickets.
   }
   // FIFO layers remaining value
   let layers_value = 0;
@@ -15584,9 +15656,10 @@ function combinedBackUrl(c: any): string {
   try {
     const u = new URL(c.req.url);
     const rt = u.searchParams.get('rt') || '';
-    const period = u.searchParams.get('period') || '';
     if (!rt) return '';
-    return `/api/reports/combined?rt=${encodeURIComponent(rt)}${period ? `&period=${encodeURIComponent(period)}` : ''}`;
+    const q = new URLSearchParams();
+    for (const key of ['rt', 'period', 'from', 'to']) { const value = u.searchParams.get(key); if (value) q.set(key, value); }
+    return `/api/reports/combined?${q.toString()}`;
   } catch { return ''; }
 }
 
@@ -15596,12 +15669,16 @@ function reportShell(title: string, company: string, subtitle: string, body: str
 <html lang="fr">
 <head>
 <meta charset="UTF-8"/>
-<title>${title} — ${company}</title>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>${escapeHtml(title)} — ${escapeHtml(company)}</title>
 <style>
   *{box-sizing:border-box}
   body{font-family:"Segoe UI",system-ui,-apple-system,sans-serif;color:#111;max-width:920px;margin:0 auto;padding:8px 12px;font-size:12px;line-height:1.35;position:relative}
   .watermark{position:fixed;inset:0;pointer-events:none;z-index:0;display:flex;align-items:center;justify-content:center;font-size:64px;font-weight:800;letter-spacing:0.1em;opacity:0.05;transform:rotate(-28deg);text-transform:uppercase;color:#111}
-  .sheet{position:relative;z-index:1}
+  .sheet{position:relative;z-index:1;min-width:0}
+  .report-content{overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch}
+  .report-content table{min-width:520px}
+  @media print{.report-content{overflow:visible}.report-content table{min-width:0}}
   table thead{display:table-header-group}
   table tr,.keep{page-break-inside:avoid;break-inside:avoid}
   .hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #111;padding-bottom:12px;margin-bottom:18px}
@@ -15656,7 +15733,7 @@ function reportShell(title: string, company: string, subtitle: string, body: str
     @page{@bottom-center{content:"Page " counter(page) " / " counter(pages);font-size:9pt;color:#444}}
     table tr{page-break-inside:avoid;break-inside:avoid}
     thead{display:table-header-group}
-    .sign-row,.cat-block{page-break-inside:avoid}
+    .sign-row{page-break-inside:avoid}.cat-block{page-break-inside:auto}
     .page-num{display:none}
   }
   @media (max-width:700px){.grid{grid-template-columns:1fr 1fr}.sign-row{grid-template-columns:1fr}.cat-totals{grid-template-columns:1fr 1fr}}
@@ -15665,18 +15742,20 @@ function reportShell(title: string, company: string, subtitle: string, body: str
 <body>
   <div class="watermark" aria-hidden="true">RAPPORT</div>
   <div class="sheet">
-  <div class="actions">${backUrl ? `<a class="backlink" href="${backUrl}">← Retour aux rapports combinés</a>` : ''}<button type="button" onclick="window.print()">Imprimer / Enregistrer en PDF</button></div>
+  <div class="actions">${backUrl ? `<a class="backlink" href="${escapeHtml(backUrl)}">← Retour aux rapports combinés</a>` : ''}</div>
   <div class="hdr">
     <div>
-      <div class="co">${company}</div>
-      <h1>${title}</h1>
-      <p class="muted">${subtitle}</p>
+      <div class="co">${escapeHtml(company)}</div>
+      <h1>${escapeHtml(title)}</h1>
+      <p class="muted">${escapeHtml(subtitle)}</p>
     </div>
     <div class="muted" style="text-align:right">
       Document comptable<br/>Généré le ${generated}<br/>Impression N&amp;B recommandée
     </div>
   </div>
-  ${body}
+  <!-- report-content-start -->
+  <main class="report-content">${body}</main>
+  <!-- report-content-end -->
   <div class="sign-row keep">
     <div class="sign-box">
       <div class="t">Préparé par</div>
@@ -15692,32 +15771,16 @@ function reportShell(title: string, company: string, subtitle: string, body: str
     </div>
   </div>
   <div class="footer">
-    <span>${company} — Gestion stock &amp; comptabilité</span>
-    <span>${footerText || 'Document comptable · Impression noir et blanc · À conserver'}</span>
+    <span>${escapeHtml(company)} — Gestion stock &amp; comptabilité</span>
+    <span>${escapeHtml(footerText || 'Document comptable · Impression noir et blanc · À conserver')}</span>
   </div>
   </div>
-  <div class="page-num" id="pn"></div>
-  <script>
-    (function(){
-      // Screen preview: approximate page count from content height
-      function upd(){
-        var el=document.getElementById('pn');
-        if(!el)return;
-        var h=document.body.scrollHeight;
-        var ph=1122; // ~A4 px at 96dpi
-        var pages=Math.max(1,Math.ceil(h/ph));
-        el.textContent='Page 1–'+pages+' (aperçu · numérotation exacte à l\\'impression)';
-      }
-      upd();
-      window.addEventListener('load',upd);
-    })();
-  </script>
 </body>
 </html>`;
 }
 
 function fmtN(n: any) {
-  return Math.round(Number(n || 0)).toLocaleString('fr-FR');
+  return Number(n || 0).toLocaleString('fr-FR', { maximumFractionDigits: 3 });
 }
 
 /**
@@ -15754,12 +15817,12 @@ app.get('/api/reports/balance', async (c) => {
   const tableRows = rows.map((e) => {
     const inn = balanceIsIncome(e);
     return `<tr>
-      <td>${e.expense_date || ''}</td>
+      <td>${escapeHtml(e.expense_date || '')}</td>
       <td>${typeLabel(e)}</td>
-      <td>${e.description || ''}</td>
-      <td>${e.category || ''}</td>
-      <td>${e.payment_method || '—'}</td>
-      <td class="${inn ? 'in' : 'out'}">${inn ? '+' : '−'}${fmtN(e.amount)} ${cur}</td>
+      <td>${escapeHtml(String(e.description || ''))}</td>
+      <td>${escapeHtml(String(e.category || ''))}</td>
+      <td>${escapeHtml(String(e.payment_method || '—'))}</td>
+      <td class="${inn ? 'in' : 'out'}">${inn ? '+' : '−'}${fmtN(e.amount)} ${escapeHtml(String(cur))}</td>
     </tr>`;
   }).join('') || `<tr><td colspan="6">Aucune écriture sur la période</td></tr>`;
 
@@ -15789,50 +15852,17 @@ app.get('/api/reports/stock', async (c) => {
   await ensureStockLocations(c.env.DB);
   const settings = await c.env.DB.prepare(`SELECT * FROM company_settings WHERE id = 1`).first() as any;
   const cur = settings?.currency || 'MAD';
-  const locParam = c.req.query('location_id') || '';
-  // Carry forward short-lived report ticket (and legacy token) so warehouse form submits stay authorized
-  let rt = c.req.query('rt') || '';
-  const token = c.req.query('token') || '';
-  if (!rt) {
-    try { rt = await mintReportLinkTicket(c.env); } catch { rt = ''; }
+  const locParam = c.req.query('location_id') || 'all';
+  const rt = (c as any).get('reportTicket') || '';
+  if (locParam !== 'all' && !/^[1-9]\d*$/.test(locParam)) {
+    return c.json({ success: false, code: 'BAD_LOCATION', error: 'Emplacement invalide' }, 400);
   }
-
   const locs = await c.env.DB.prepare(
     `SELECT id, code, name, is_default FROM stock_locations WHERE COALESCE(is_active,1)=1 ORDER BY COALESCE(is_default,0) DESC, name`
   ).all();
   const locations = (locs.results || []) as any[];
-
-  // Ask for warehouse if not specified
-  if (!locParam) {
-    const opts = locations.map((l: any) =>
-      `<option value="${l.id}">${l.name || l.code}${l.is_default ? ' (défaut)' : ''}</option>`
-    ).join('');
-    const esc = (s: string) => String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-    let formOrigin = '';
-    try { formOrigin = new URL(c.req.url).origin; } catch { formOrigin = ''; }
-    const body = `
-    <div class="actions" style="margin-bottom:20px">
-      <form method="get" action="${formOrigin}/api/reports/stock" style="display:flex;flex-wrap:wrap;gap:12px;align-items:end">
-        <input type="hidden" name="rt" value="${esc(rt)}" />
-        ${token ? `<input type="hidden" name="token" value="${esc(token)}" />` : ''}
-        <div>
-          <label style="display:block;font-size:11px;text-transform:uppercase;margin-bottom:4px">Entrepôt / magasin</label>
-          <select name="location_id" style="padding:8px 12px;font-size:14px;min-width:220px">
-            <option value="all">Tous les emplacements (total)</option>
-            ${opts}
-          </select>
-        </div>
-        <button type="submit">Générer le rapport</button>
-      </form>
-    </div>
-    <p class="muted">Choisissez un magasin pour valoriser le stock de cet emplacement uniquement, ou « Tous » pour le total produit.</p>`;
-    return c.html(reportShell(
-      'Rapport stock — choisir l’entrepôt',
-      settings?.company_name || 'Atlas Commerce',
-      'Sélectionnez le magasin avant impression',
-      body,
-      settings?.report_footer || settings?.notes,
-    ));
+  if (locParam !== 'all' && !locations.some((l: any) => String(l.id) === locParam)) {
+    return c.json({ success: false, code: 'BAD_LOCATION', error: 'Emplacement introuvable' }, 404);
   }
 
   let products: any[] = [];
@@ -15889,8 +15919,8 @@ app.get('/api/reports/stock', async (c) => {
       const low = p.track_inventory && qty <= Number(p.low_stock_threshold || 0);
       if (low) { lowCount++; catLow++; }
       return `<tr class="${low ? 'low' : ''}">
-        <td>${p.sku || '—'}</td>
-        <td><strong>${p.name || ''}</strong>${low ? ' <span class="badge-low">Stock bas</span>' : ''}</td>
+        <td>${escapeHtml(String(p.sku || '—'))}</td>
+        <td><strong>${escapeHtml(String(p.name || ''))}</strong>${low ? ' <span class="badge-low">Stock bas</span>' : ''}</td>
         <td class="num">${p.track_inventory ? qty : '—'}</td>
         <td class="num">${fmtN(cost)}</td>
         <td class="num">${fmtN(price)}</td>
@@ -15905,7 +15935,7 @@ app.get('/api/reports/stock', async (c) => {
     sections.push(`
     <div class="cat-block">
       <h2 class="cat-title">
-        <span>${catIndex}. ${cat}</span>
+        <span>${catIndex}. ${escapeHtml(cat)}</span>
         <span class="cat-meta">${list.length} réf. · Qté ${fmtN(catQty)}</span>
       </h2>
       <table>
@@ -15918,33 +15948,27 @@ app.get('/api/reports/stock', async (c) => {
       </table>
       <div class="cat-totals">
         <div class="ct">Qté totale<strong>${fmtN(catQty)}</strong></div>
-        <div class="ct">Total coût<strong>${fmtN(catCost)} ${cur}</strong></div>
-        <div class="ct">Total vente<strong>${fmtN(catSell)} ${cur}</strong></div>
-        <div class="ct">Marge catégorie<strong class="${catMargin >= 0 ? 'in' : 'out'}">${fmtN(catMargin)} ${cur} <span class="muted">(${marginPct}%)</span></strong></div>
+        <div class="ct">Total coût<strong>${fmtN(catCost)} ${escapeHtml(String(cur))}</strong></div>
+        <div class="ct">Total vente<strong>${fmtN(catSell)} ${escapeHtml(String(cur))}</strong></div>
+        <div class="ct">Marge catégorie<strong class="${catMargin >= 0 ? 'in' : 'out'}">${fmtN(catMargin)} ${escapeHtml(String(cur))} <span class="muted">(${marginPct}%)</span></strong></div>
       </div>
       ${catLow ? `<p class="muted" style="margin:6px 0 0">${catLow} alerte(s) stock bas dans cette catégorie</p>` : ''}
     </div>`);
   }
 
   const gainTotal = sellTotal - costTotal;
-  // Always carry rt (short-lived report ticket). Never open unauthenticated /api/reports/stock.
-  if (!rt) {
-    try { rt = await mintReportLinkTicket(c.env); } catch { /* */ }
-  }
-  const changeQs = new URLSearchParams();
-  if (rt) changeQs.set('rt', rt);
-  if (token) changeQs.set('token', token);
-  // Absolute URL: report tab is often about:blank after document.write
-  let origin = '';
-  try { origin = new URL(c.req.url).origin; } catch { origin = ''; }
-  const changeLink = `${origin}/api/reports/stock?${changeQs.toString()}`;
+  const opts = locations.map((l: any) => `<option value="${Number(l.id)}"${String(l.id) === locParam ? ' selected' : ''}>${escapeHtml(l.name || l.code || '')}</option>`).join('');
   const body = `
-  <p class="muted" style="margin:0 0 8px">Entrepôt : <strong>${locLabel}</strong>
-    · <a href="${changeLink}">Changer</a></p>
+  <form method="get" action="/api/reports/stock" class="actions">
+    <input type="hidden" name="rt" value="${escapeHtml(rt)}" />
+    <label>Entrepôt : <select name="location_id"><option value="all">Tous les emplacements</option>${opts}</select></label>
+    <button type="submit">Afficher</button>
+  </form>
+  <p class="muted">Entrepôt : <strong>${escapeHtml(locLabel)}</strong></p>
   <div class="grid grid-4">
-    <div class="stat"><div class="l">Valeur au coût</div><div class="v">${fmtN(costTotal)} ${cur}</div></div>
-    <div class="stat"><div class="l">Valeur à la vente</div><div class="v">${fmtN(sellTotal)} ${cur}</div></div>
-    <div class="stat"><div class="l">Marge potentielle</div><div class="v ${gainTotal >= 0 ? 'in' : 'out'}">${fmtN(gainTotal)} ${cur}</div></div>
+    <div class="stat"><div class="l">Valeur au coût</div><div class="v">${fmtN(costTotal)} ${escapeHtml(String(cur))}</div></div>
+    <div class="stat"><div class="l">Valeur à la vente</div><div class="v">${fmtN(sellTotal)} ${escapeHtml(String(cur))}</div></div>
+    <div class="stat"><div class="l">Marge potentielle</div><div class="v ${gainTotal >= 0 ? 'in' : 'out'}">${fmtN(gainTotal)} ${escapeHtml(String(cur))}</div></div>
     <div class="stat"><div class="l">Alertes stock bas</div><div class="v ${lowCount ? 'out' : ''}">${lowCount}</div></div>
   </div>
   <p class="muted" style="margin-bottom:16px">${products.length} références · ${groups.size} catégorie(s) · Qté ${fmtN(qtyTotal)}</p>
@@ -15975,18 +15999,18 @@ app.get('/api/reports/receivables', async (c) => {
     const rest = Number(inv.total || 0) - Number(inv.amount_paid || 0);
     total += rest;
     return `<tr>
-      <td>${inv.number || ''}</td>
-      <td>${inv.client_name || ''}</td>
-      <td>${inv.issue_date || ''}</td>
-      <td>${inv.due_date || '—'}</td>
-      <td>${inv.status || ''}</td>
-      <td class="out">${fmtN(rest)} ${cur}</td>
+      <td>${escapeHtml(String(inv.number || ''))}</td>
+      <td>${escapeHtml(String(inv.client_name || ''))}</td>
+      <td>${escapeHtml(String(inv.issue_date || ''))}</td>
+      <td>${escapeHtml(String(inv.due_date || '—'))}</td>
+      <td>${escapeHtml(String(inv.status || ''))}</td>
+      <td class="out">${fmtN(rest)} ${escapeHtml(String(cur))}</td>
     </tr>`;
   }).join('') || `<tr><td colspan="6">Aucune créance</td></tr>`;
 
   const body = `
   <div class="grid">
-    <div class="stat"><div class="l">Total à recevoir</div><div class="v out">${fmtN(total)} ${cur}</div></div>
+    <div class="stat"><div class="l">Total à recevoir</div><div class="v out">${fmtN(total)} ${escapeHtml(String(cur))}</div></div>
     <div class="stat"><div class="l">Factures</div><div class="v">${rows.length}</div></div>
   </div>
   <h2>Factures de vente impayées</h2>
@@ -16011,18 +16035,18 @@ app.get('/api/reports/payables', async (c) => {
     const rest = Number(b.total || 0) - Number(b.amount_paid || 0);
     total += rest;
     return `<tr>
-      <td>${b.number || ''}</td>
-      <td>${b.vendor_name || ''}</td>
-      <td>${b.issue_date || ''}</td>
-      <td>${b.due_date || '—'}</td>
-      <td>${b.status || ''}</td>
-      <td class="out">${fmtN(rest)} ${cur}</td>
+      <td>${escapeHtml(String(b.number || ''))}</td>
+      <td>${escapeHtml(String(b.vendor_name || ''))}</td>
+      <td>${escapeHtml(String(b.issue_date || ''))}</td>
+      <td>${escapeHtml(String(b.due_date || '—'))}</td>
+      <td>${escapeHtml(String(b.status || ''))}</td>
+      <td class="out">${fmtN(rest)} ${escapeHtml(String(cur))}</td>
     </tr>`;
   }).join('') || `<tr><td colspan="6">Aucune dette</td></tr>`;
 
   const body = `
   <div class="grid">
-    <div class="stat"><div class="l">Total à payer</div><div class="v out">${fmtN(total)} ${cur}</div></div>
+    <div class="stat"><div class="l">Total à payer</div><div class="v out">${fmtN(total)} ${escapeHtml(String(cur))}</div></div>
     <div class="stat"><div class="l">Factures d'achat</div><div class="v">${rows.length}</div></div>
   </div>
   <h2>Factures d'achat impayées</h2>
@@ -18769,7 +18793,7 @@ app.get('/api/reports/employees', async (c) => {
     ).all();
     rows = (r.results || []) as any[];
   } catch {
-    rows = [];
+    return c.json({ success: false, code: 'REPORT_GENERATION_FAILED', error: 'Rapport employés indisponible' }, 500);
   }
   const fmtN = (n: number) => Number(n || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const active = rows.filter((e) => Number(e.active) !== 0);
@@ -18778,19 +18802,19 @@ app.get('/api/reports/employees', async (c) => {
     const name = [e.first_name, e.last_name].filter(Boolean).join(' ') || '—';
     const cycle = e.pay_cycle_type === 'days' ? `tous les ${e.pay_cycle_days || 7} j` : 'mensuel';
     return `<tr>
-      <td>${e.emp_number || '—'}</td>
-      <td>${name}</td>
-      <td>${e.role_title || '—'}</td>
-      <td style="text-align:right">${fmtN(e.pay_amount)} ${cur}</td>
-      <td>${cycle}</td>
-      <td>${e.last_paid_at ? String(e.last_paid_at).slice(0, 10) : '—'}</td>
+      <td>${escapeHtml(String(e.emp_number || '—'))}</td>
+      <td>${escapeHtml(name)}</td>
+      <td>${escapeHtml(String(e.role_title || '—'))}</td>
+      <td style="text-align:right">${fmtN(e.pay_amount)} ${escapeHtml(String(cur))}</td>
+      <td>${escapeHtml(cycle)}</td>
+      <td>${escapeHtml(e.last_paid_at ? String(e.last_paid_at).slice(0, 10) : '—')}</td>
       <td>${Number(e.active) !== 0 ? 'Actif' : 'Démissionné'}</td>
     </tr>`;
   }).join('') || `<tr><td colspan="7">Aucun employé</td></tr>`;
   const body = `
   <div class="grid">
     <div class="stat"><div class="l">Effectif actif</div><div class="v">${active.length}</div></div>
-    <div class="stat"><div class="l">Masse salariale (cycles)</div><div class="v">${fmtN(payroll)} ${cur}</div></div>
+    <div class="stat"><div class="l">Masse salariale (cycles)</div><div class="v">${fmtN(payroll)} ${escapeHtml(String(cur))}</div></div>
     <div class="stat"><div class="l">Total fiches</div><div class="v">${rows.length}</div></div>
   </div>
   <h2>Registre du personnel</h2>
@@ -18803,90 +18827,59 @@ app.get('/api/reports/employees', async (c) => {
 
 
 app.get('/api/reports/combined', async (c) => {
-  const settings = await c.env.DB.prepare(`SELECT * FROM company_settings WHERE id = 1`).first() as any;
-  // v262 — validated period (relative or strict YYYY-MM) in the company's
-  // finance timezone; periodKey (normalized) propagates to every section link.
-  const { from, to, label, periodKey } = periodBounds(c, settings?.finance_timezone);
-  const cur = settings?.currency || 'MAD';
-  const fmt = (n: number) => Number(n || 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 });
-
-  // Short-lived signed ticket for working links (30 min) — not the session JWT.
-  // Raw user input never reaches the links: only rt + the validated periodKey.
-  const rt = await mintReportLinkTicket(c.env);
-  const qs = (extra: Record<string, string> = {}) => buildReportLinkQuery(rt, periodKey, extra);
-  const href = (path: string, extra?: Record<string, string>) => `${path}${qs(extra || {})}`;
-
-  let balanceHtml = '<p class="muted">Solde non disponible</p>';
+  const supported: Record<string, { path: string; label: string }> = {
+    balance: { path: '/api/reports/balance', label: 'Solde & mouvements' },
+    stock: { path: '/api/reports/stock', label: 'Stock & valorisation' },
+    receivables: { path: '/api/reports/receivables', label: 'Créances clients' },
+    payables: { path: '/api/reports/payables', label: 'Dettes fournisseurs' },
+    employees: { path: '/api/reports/employees', label: 'Employés & paie' },
+    aging: { path: '/api/reports/aging.html', label: 'Balance âgée' },
+    tva: { path: '/api/reports/tva.html', label: 'Récapitulatif TVA' },
+  };
+  const selected = c.req.query('sections') === undefined ? Object.keys(supported) : String(c.req.query('sections')).split(',');
+  if (!selected.length || selected.some((key) => !Object.hasOwn(supported, key)) || new Set(selected).size !== selected.length) {
+    return c.json({ success: false, code: 'UNSUPPORTED_REPORT', error: 'Section de rapport non prise en charge' }, 400);
+  }
   try {
-    const exp = await c.env.DB.prepare(`SELECT COALESCE(SUM(CASE WHEN COALESCE(entry_type,'expense')='expense' THEN amount ELSE 0 END),0) as out,
-      COALESCE(SUM(CASE WHEN entry_type='income' OR entry_type='owner_contrib' THEN amount ELSE 0 END),0) as inn FROM expenses
-      WHERE expense_date >= ? AND expense_date <= ?`).bind(from, to).first() as any;
-    balanceHtml = `<div class="grid">
-      <div class="stat"><div class="l">Sorties (dépenses)</div><div class="v out">−${fmt(exp?.out)} ${cur}</div></div>
-      <div class="stat"><div class="l">Entrées hors ventes</div><div class="v in">+${fmt(exp?.inn)} ${cur}</div></div>
-    </div>`;
-  } catch { /* */ }
-
-  let empHtml = '<p class="muted">Aucun employé</p>';
-  try {
-    const em = await c.env.DB.prepare(
-      `SELECT id, emp_number, first_name, last_name, name, role_title, pay_amount, pay_cycle_type, pay_cycle_days, last_paid_at, COALESCE(active,1) as active
-       FROM employees ORDER BY COALESCE(active,1) DESC, id LIMIT 50`
-    ).all();
-    const rows = ((em.results || []) as any[]).map((e) => {
-      const nm = [e.first_name, e.last_name].filter(Boolean).join(' ') || e.name || '—';
-      const cy = e.pay_cycle_type === 'days' ? `${e.pay_cycle_days || 7} j` : 'mensuel';
-      const sit = href('/api/reports/employee-situation', { employee_id: String(e.id) });
-      return `<tr><td>${e.emp_number || '—'}</td><td>${nm}</td><td>${e.role_title || '—'}</td>
-        <td style="text-align:right">${fmt(e.pay_amount)} ${cur}</td><td>${cy}</td>
-        <td>${e.last_paid_at ? String(e.last_paid_at).slice(0,10) : '—'}</td>
-        <td>${Number(e.active) ? 'Actif' : 'Démissionné'}</td>
-        <td><a href="${sit}">Situation</a></td></tr>`;
-    }).join('') || '<tr><td colspan="8">Aucun</td></tr>';
-    empHtml = `<table><thead><tr><th>N°</th><th>Nom</th><th>Poste</th><th>Salaire</th><th>Cycle</th><th>Dernier paiement</th><th>Statut</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
-  } catch { /* */ }
-
-  let recvHtml = '<p class="muted">—</p>';
-  try {
-    const r = await c.env.DB.prepare(
-      `SELECT COALESCE(SUM(total - COALESCE(amount_paid,0)),0) as due FROM invoices
-       WHERE status NOT IN ('cancelled','paid','quote','devis') AND (total - COALESCE(amount_paid,0)) > 0.001`
-    ).first() as any;
-    recvHtml = `<div class="stat"><div class="l">Créances clients ouvertes</div><div class="v">${fmt(r?.due)} ${cur}</div></div>`;
-  } catch { /* */ }
-
-  let payHtml = '<p class="muted">—</p>';
-  try {
-    const r = await c.env.DB.prepare(
-      `SELECT COALESCE(SUM(total - COALESCE(amount_paid,0)),0) as due FROM bills
-       WHERE status NOT IN ('cancelled','paid') AND (total - COALESCE(amount_paid,0)) > 0.001`
-    ).first() as any;
-    payHtml = `<div class="stat"><div class="l">Dettes fournisseurs ouvertes</div><div class="v">${fmt(r?.due)} ${cur}</div></div>`;
-  } catch { /* */ }
-
-  const body = `
-  <p class="muted">Période : <strong>${label}</strong> (du ${from} au ${to}). Cliquez un lien pour le détail — même période, valide 30 minutes.</p>
-  <ul style="font-size:15px;line-height:1.8">
-    <li><a href="${href('/api/reports/balance')}">Solde &amp; mouvements</a></li>
-    <li><a href="${href('/api/reports/stock')}">Stock &amp; valorisation</a></li>
-    <li><a href="${href('/api/reports/receivables')}">Créances clients</a></li>
-    <li><a href="${href('/api/reports/payables')}">Dettes fournisseurs</a></li>
-    <li><a href="${href('/api/reports/employees')}">Employés &amp; paie</a></li>
-    <li><a href="${href('/api/reports/aging.html')}">Balance âgée</a></li>
-    <li><a href="${href('/api/reports/tva.html')}">Récapitulatif TVA</a></li>
-  </ul>
-  <h2>1. Solde & mouvements (synthèse)</h2>
-  ${balanceHtml}
-  <h2>2. Créances clients</h2>
-  ${recvHtml}
-  <h2>3. Dettes fournisseurs</h2>
-  ${payHtml}
-  <h2>4. Employés & paie</h2>
-  ${empHtml}`;
-  return c.html(reportShell('Rapports combinés', settings?.company_name || 'Atlas Commerce', label, body, settings?.report_footer || settings?.notes));
+    const settings = await c.env.DB.prepare(`SELECT * FROM company_settings WHERE id = 1`).first() as any;
+    const { from, to, label, periodKey } = periodBounds(c, settings?.finance_timezone);
+    const rt = String((c as any).get('reportTicket') || '');
+    if (!rt) return c.json({ success: false, code: 'REPORT_TICKET_UNAVAILABLE', error: 'Ticket indisponible' }, 503);
+    const queryFor = (key: string) => {
+      const q = new URLSearchParams({ rt, period: periodKey });
+      if (periodKey === 'custom') { q.set('from', from); q.set('to', to); }
+      if (key === 'tva') { q.set('from', from); q.set('to', to); }
+      if (key === 'stock') q.set('location_id', 'all');
+      return q;
+    };
+    const sections: string[] = [];
+    const links: string[] = [];
+    for (const key of selected) {
+      const section = supported[key];
+      const path = `${section.path}?${queryFor(key).toString()}`;
+      // Dispatch to the real handler, using its complete server-rendered output.
+      // No credentials are fetched from a remote origin and no figures are recalculated here.
+      const request = new Request(new URL(path, c.req.url), { headers: { 'CF-Connecting-IP': clientIp(c) } });
+      const response = await app.fetch(request, c.env, c.executionCtx);
+      if (response.status === 401) {
+        const failure = await response.json().catch(() => null) as { code?: string } | null;
+        const code = failure?.code === 'TICKET_EXPIRED' ? 'TICKET_EXPIRED' : 'INVALID_TICKET';
+        return c.json({ success: false, code, error: 'Accès au rapport refusé' }, 401);
+      }
+      if (!response.ok || !(response.headers.get('content-type') || '').includes('text/html')) throw new Error('section unavailable');
+      const html = await response.text();
+      const match = html.match(/<!-- report-content-start -->\s*<main class="report-content">([\s\S]*?)<\/main>\s*<!-- report-content-end -->/);
+      if (!match || !match[1].trim()) throw new Error('empty section');
+      links.push(`<li><a href="${escapeHtml(path)}">${escapeHtml(section.label)}</a></li>`);
+      sections.push(`<section><h2>${escapeHtml(section.label)}</h2>${match[1]}</section>`);
+    }
+    const body = `<p>Période : ${escapeHtml(label)} (${escapeHtml(from)} – ${escapeHtml(to)}).</p>
+      <nav class="actions" aria-label="Sections"><ul>${links.join('')}</ul></nav>${sections.join('')}`;
+    return c.html(reportShell('Rapports combinés', settings?.company_name || 'Atlas Commerce', label, body, settings?.report_footer || settings?.notes));
+  } catch {
+    return c.json({ success: false, code: 'REPORT_GENERATION_FAILED', error: 'Rapport combiné indisponible' }, 500);
+  }
 });
-
-
 
 
 /* ── Employee attendance (pointage) — CloudAttend-inspired ── */
@@ -21631,11 +21624,11 @@ export default {
       try {
         return await app.fetch(request, env, ctx);
       } catch (err: any) {
-        console.error('api_fetch_fatal', String(err?.message || err));
+        if (!url.pathname.startsWith('/api/reports/')) console.error('api_fetch_fatal', String(err?.message || err));
         return new Response(
           JSON.stringify({
             success: false,
-            error: String(err?.message || 'Erreur interne').slice(0, 300),
+            error: url.pathname.startsWith('/api/reports/') ? 'Rapport indisponible' : String(err?.message || 'Erreur interne').slice(0, 300),
             code: 'INTERNAL_ERROR',
           }),
           { status: 500, headers: { 'Content-Type': 'application/json' } }

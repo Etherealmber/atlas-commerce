@@ -617,3 +617,55 @@ Use the appropriate authorized D1 tooling and compare against
 `GET /api/admin/finance/statement?period=<month>` and its reconciliation.
 A matching count alone does not establish that the selected period or balance
 is correct. Never run remote checks without confirming the target.
+
+## Server-rendered report viewer
+
+`GET /api/reports/link-ticket` requires an authenticated owner or active admin.
+It returns `{ "success": true, "data": { "rt": "…", "expires_in": 1800 } }`.
+The bearer capability is HMAC-signed for exact read-only report paths, the
+server-derived single-company finance tenant (`main`) and the issuing account.
+A report ticket cannot create another ticket or access invoice/employee document
+print endpoints. Each use rechecks the issuing admin's active role, account ID
+and password hash (or the owner configuration); changing them invalidates tickets.
+Each self-hosted installation must have its own strong `JWT_SECRET` (or unique
+owner password if that secret is unset); shared keys and identical account
+credentials cannot provide isolation between otherwise identical installations.
+No client-supplied tenant changes the company queried.
+
+The lifetime defaults to 1800 seconds. Operators may set
+`REPORT_TICKET_TTL_SECONDS` to an integer from 1 through 1800; invalid values
+fail closed. The upper bound remains unchanged, so Android's existing
+`expires_in` validation does not need widening. Do not log or share the ticket;
+report responses use `no-store` and `Referrer-Policy: no-referrer`. Configure
+reverse proxies and access/observability logs to redact the `rt` query parameter;
+the capability still appears in the navigation URL. Tickets
+issued under the previous broad report scheme no longer authorize report routes:
+request a fresh ticket when reopening an old report link. Existing non-report
+print clients use `GET /api/print/link-ticket` instead; this ticket does not grant
+access to finance report routes.
+
+After fetching a ticket with the session header, load a same-origin URL such as:
+
+```text
+GET /api/reports/combined?rt=<short-lived-ticket>&period=2026-09
+GET /api/reports/combined?rt=<short-lived-ticket>&period=custom&from=2026-09-01&to=2026-09-30&sections=balance,stock,tva
+GET /api/reports/stock?rt=<short-lived-ticket>&location_id=all
+GET /api/reports/aging.html?rt=<short-lived-ticket>
+GET /api/reports/tva.html?rt=<short-lived-ticket>&period=2026-09
+```
+
+Supported combined section keys: `balance`, `stock`, `receivables`, `payables`,
+`employees`, `aging`, `tva`. Omitting `sections` includes all seven. The stock
+report defaults to all locations. The combined page includes the full output of
+its selected sections, generated through the same section handlers, rather than
+just links. Inventory, outstanding balances, employees and aging remain live
+as-of views according to their existing handlers; the period applies to balance
+and VAT. These are generated-on-demand views, **not** immutable archive snapshots.
+
+The HTML is server rendered, requires no JavaScript or remote resources, and
+includes responsive and print styles. Use the browser's print command. A missing
+or invalid session/ticket returns 401, an expired verified ticket returns 401
+`TICKET_EXPIRED`, an authenticated non-admin receives 403, an unsupported
+combined section receives 400, and a failed combined generation returns 500
+`REPORT_GENERATION_FAILED`. Old `/api/reports` diagnostic submissions are a
+separate API and are unaffected.

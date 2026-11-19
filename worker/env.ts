@@ -21,6 +21,8 @@ export interface Env {
   ADMIN_USERNAME?: string;
   /** Optional session signing secret (Secret). Falls back to ADMIN_PASSWORD-derived key if unset. */
   JWT_SECRET?: string;
+  /** Optional report ticket lifetime, in seconds (1–1800). */
+  REPORT_TICKET_TTL_SECONDS?: string;
   RESEND_API_KEY?: string;
   /** Optional AES-GCM key for encrypting mail bodies in R2 (Secret). */
   MAIL_BODY_ENCRYPTION_KEY?: string;

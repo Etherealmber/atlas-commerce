@@ -120,12 +120,13 @@ describe('release page and popup content', () => {
     await render(createElement(WhatsNewModal));
     const dialog = host.querySelector('[role="dialog"]');
     expect(dialog?.textContent).toContain('Atlas Commerce 0.9.0');
-    expect(dialog?.textContent).toContain('20 octobre 2026');
+    expect(dialog?.textContent).toContain('19 novembre 2026');
     expect(dialog?.textContent).toContain('Cookies et données locales');
     expect(dialog?.textContent).toContain('Fenêtre Nouveautés');
     expect(dialog?.textContent).not.toContain('build-only-test');
     expect(dialog?.textContent).not.toContain('API de suivi');
-    expect(dialog?.querySelectorAll('li')).toHaveLength(2);
+    expect(dialog?.textContent).toContain('Rapports financiers');
+    expect(dialog?.querySelectorAll('li')).toHaveLength(3);
     const dismissButton = dialog?.querySelector('button');
     if (!dismissButton) throw new Error('Missing release popup dismiss button');
     await act(async () => dismissButton.click());
