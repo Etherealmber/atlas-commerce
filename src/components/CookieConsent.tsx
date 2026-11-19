@@ -51,17 +51,17 @@ export default function CookieConsent() {
       role="region"
       aria-labelledby="cookie-consent-title"
     >
-      {hasDecidedConsent() && (
-        <button
-          type="button"
-          className="cookie-btn linkish cookie-consent-close"
-          aria-label="Fermer"
-          onClick={() => { setVisible(false); setPanel('banner'); }}
-        >
-          ×
-        </button>
-      )}
       <div className="cookie-consent-card" onClick={(e) => e.stopPropagation()}>
+        {hasDecidedConsent() && (
+          <button
+            type="button"
+            className="cookie-btn linkish cookie-consent-close"
+            aria-label="Fermer"
+            onClick={() => { setVisible(false); setPanel('banner'); }}
+          >
+            ×
+          </button>
+        )}
         <div className="cookie-consent-head">
           <h2 id="cookie-consent-title">Cookies &amp; données locales</h2>
           <p>
@@ -114,7 +114,7 @@ export default function CookieConsent() {
         <div className="cookie-consent-actions">
           {panel === 'banner' ? (
             <>
-              <button type="button" className="cookie-btn linkish" onClick={() => setPanel('details')}>
+              <button type="button" className="cookie-btn linkish cookie-consent-customize" onClick={() => setPanel('details')}>
                 Personnaliser
               </button>
               <button type="button" className="cookie-btn secondary" onClick={() => closeWith(acceptNecessaryOnly())}>

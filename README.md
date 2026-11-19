@@ -11,7 +11,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT license" /></a>
   <a href="LICENSE-APACHE"><img src="https://img.shields.io/badge/License-Apache--2.0-blue.svg" alt="Apache 2.0 license" /></a>
   <!-- SUPPORT-SYNC:badge:start -->
-  <img src="https://img.shields.io/badge/version-0.8.9--beta-blue" alt="Version 0.8.9-beta" />
+  <img src="https://img.shields.io/badge/version-0.9.0--beta-blue" alt="Version 0.9.0-beta" />
 <!-- SUPPORT-SYNC:badge:end -->
 </p>
 <p>
@@ -352,9 +352,9 @@ Atlas Commerce est développé et maintenu par **[Etherealmber](https://github.c
 - Les trois tournent sur chaque pull request (et sur main) avec filters par chemin : un PR rouge ne devrait jamais être mergé, donc jamais déployé
 
 <!-- SUPPORT-SYNC:support:start -->
-Version actuelle : **0.8.9-beta** (gelée jusqu'au prochain ordre de push).
+Version actuelle : **0.9.0-beta** (gelée jusqu'au prochain ordre de push).
 
-> **Politique de support** : seule la mineure courante (**0.8**) reçoit correctifs et mises à jour de sécurité. Dès la sortie de la mineure suivante (ex. 0.9.0), la mineure précédente passe immédiatement en fin de support — 0.7.x l'est depuis 0.8.0. Les versions 0.7.x et antérieures ne sont plus supportées.
+> **Politique de support** : seule la mineure courante (**0.9**) reçoit correctifs et mises à jour de sécurité. Dès la sortie de la mineure suivante (ex. 0.10.0), la mineure précédente passe immédiatement en fin de support — 0.8.x l'est depuis 0.9.0. Les versions 0.8.x et antérieures ne sont plus supportées.
 <!-- SUPPORT-SYNC:support:end -->
 
 Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depuis la première version interne ; le détail complet et vivant est dans l'app (**Nouveautés**), y compris l’ancien cycle bêta pré-renumérotation, renuméroté en **0.x** (0.0.1 → 0.4.4).
