@@ -704,6 +704,29 @@ async function startDynamsoftScan(
   return stop;
 }
 
+/** QR-only device flow. Raw content is passed to the caller for strict origin validation. */
+export async function startDeviceQrScan(container: HTMLElement, onCode: (code: string) => void): Promise<ScanStop> {
+  const Html5Qrcode = await loadHtml5Qrcode();
+  if (!container.id) container.id = `device-qr-reader-${Date.now()}`;
+  const scanner = new Html5Qrcode(container.id);
+  let stopped = false;
+  const stop = () => {
+    if (stopped) return;
+    stopped = true;
+    try { if (scanner.isScanning) void scanner.stop().then(() => scanner.clear?.()).catch(() => {}); } catch { /* best effort */ }
+  };
+  try {
+    await scanner.start({ facingMode: 'environment' }, { fps: 10, disableFlip: false }, (raw: string) => {
+      if (stopped) return;
+      stop();
+      onCode(raw);
+    }, () => {});
+  } catch (error) { stop(); throw error; }
+  // A result can arrive before start() resolves; ensure its camera is released.
+  if (stopped) { try { if (scanner.isScanning) void scanner.stop().then(() => scanner.clear?.()).catch(() => {}); } catch { /* best effort */ } }
+  return stop;
+}
+
 async function startHtml5Scan(
   container: HTMLElement,
   onCode: (code: string) => void,

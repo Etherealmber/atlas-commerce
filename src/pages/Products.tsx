@@ -1,11 +1,10 @@
 import { onAgentDraft } from '../lib/agentDraft';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import EmptyState from '../components/EmptyState';
 import DatePicker from '../components/DatePicker';
 import { draftProductFromFile } from '../lib/assist';
 import { validateProductForm, firstError } from '../lib/formValidate';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ListPager } from '../components/ui/ListPager';
 import { createPortal } from 'react-dom';
 import { useDebouncedValue } from '../lib/perf';
 import { api } from '../api';
@@ -17,7 +16,11 @@ import { TimedUndoDelete, RunActionButton, EXPORT_CSV_STEPS } from '../component
 import { numStr, numFromInput } from '../lib/numInput';
 import NumberField from '../components/NumberField';
 import VirtualTableBody, { VirtualScroll } from '../components/VirtualTableBody';
-import { isStockRole, sanitizePreviewUrl } from '../auth';
+import { canAccessAdminSettings, canSell, sanitizePreviewUrl } from '../auth';
+import { Grid2X2, List } from 'lucide-react';
+import ProductArtwork from '../components/ProductArtwork';
+import './product-history.css';
+import './products-mobile-style.css';
 import ProductImageEditor, { ImageWorkbench } from '../components/ProductImageEditor';
 import { printProductLabel } from '../lib/printProductLabel';
 import RefreshIconButton from '../components/RefreshIconButton';
@@ -86,7 +89,8 @@ export default function Products() {
   const [modalError, setModalError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const { confirm, prompt } = useUi();
-  const hideMoney = isStockRole();
+  const hideMoney = !canSell();
+  const hideCost = !canAccessAdminSettings();
   const [list, setList] = useState<any[]>([]);
   const [stockLocations, setStockLocations] = useState<any[]>([]);
   const [placements, setPlacements] = useState<Record<number, any>>({});
@@ -115,9 +119,8 @@ export default function Products() {
   const [adjustQty, setAdjustQty] = useState(1);
   const [adjustType, setAdjustType] = useState('in');
   const [adjustReason, setAdjustReason] = useState('');
-  const [movements, setMovements] = useState<any[] | null>(null);
-  const [movementsFor, setMovementsFor] = useState<number | null>(null);
-  const [movementsPage, setMovementsPage] = useState(1);
+  const [catalogView, setCatalogView] = useState<'list' | 'grid'>(() => { try { return localStorage.getItem('atlas_desktop_products_view') === 'grid' ? 'grid' : 'list'; } catch { return 'list'; } });
+  const changeCatalogView = (view: 'list' | 'grid') => { setCatalogView(view); try { localStorage.setItem('atlas_desktop_products_view', view); } catch { /* session only */ } };
   const [reorderSuggestions, setReorderSuggestions] = useState<any[] | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [deleteTargets, setDeleteTargets] = useState<number[] | null>(null);
@@ -504,40 +507,15 @@ export default function Products() {
     } catch (e: any) { setModalError(e?.message || 'Ajustement impossible — réessayez.'); } finally { setSaving(false); }
   };
 
-  const loadMovements = async (id: number) => {
-    setMovementsFor(id);
-    setMovements(null);
-    setMovementsPage(1);
+  const deleteOne = async (id: number) => {
     try {
-      const res = await api.getProductMovements(id, 200);
-      const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
-      const rows = (res.data || []).filter((m: any) => {
-        const ts = Date.parse(String(m.created_at || m.date || ''));
-        return !ts || ts >= cutoff;
-      });
-      setMovements(rows);
-    } catch {
-      setMovements([]);
-    }
+      setDeleteBusy(true);
+      await api.deleteProduct(id, undefined, { timedUndo: true });
+      setSelected(prev => { const next = new Set(prev); next.delete(id); return next; });
+      load(true);
+    } catch (e: any) { flash(e?.message || 'Suppression impossible', 'error'); }
+    finally { setDeleteBusy(false); }
   };
-
-  const fmtMovType = (raw: string) => {
-    const s = String(raw || '').toLowerCase();
-    if (s.includes('sale') || s === 'out') return 'Vente';
-    if (s.includes('restock') || s.includes('in') || s === 'in') return 'Entrée';
-    if (s.includes('adjust')) return 'Ajustement';
-    if (s.includes('transfer')) return 'Transfert';
-    return raw || '—';
-  };
-  const fmtMovReason = (raw: string) => {
-    let s = String(raw || '');
-    s = s.replace(/Invoice cancelled \(restock\)/gi, 'Facture annulée (retour stock)');
-    s = s.replace(/Ticket VR \/ facture deleted \(restock\)/gi, 'Ticket / facture supprimé (retour stock)');
-    s = s.replace(/Invoice/gi, 'Facture');
-    s = s.replace(/restock/gi, 'retour stock');
-    return s || '—';
-  };
-
 
   const filtered = useMemo(() => {
     const q = (debouncedSearch || '').toLowerCase().trim();
@@ -756,7 +734,14 @@ export default function Products() {
             )}
           </div>
         )}
-        <VirtualScroll maxHeight={filtered.length > 60 ? 560 : undefined}>
+        <div className="desktop-product-viewbar"><span>{filtered.length} résultat{filtered.length === 1 ? '' : 's'}</span><div role="group" aria-label="Affichage des produits"><button type="button" className="secondary" aria-label="Affichage en grille" aria-pressed={catalogView === 'grid'} onClick={() => changeCatalogView('grid')}><Grid2X2 size={18} /></button><button type="button" className="secondary" aria-label="Affichage en liste" aria-pressed={catalogView === 'list'} onClick={() => changeCatalogView('list')}><List size={18} /></button></div></div>
+        {catalogView === 'grid' ? <>
+          {filtered.length > 0 && <label className="desktop-product-select-all"><input type="checkbox" checked={filtered.every(p => selected.has(p.id))} onChange={() => setSelected(prev => { const next = new Set(prev); const all = filtered.every(p => next.has(p.id)); filtered.forEach(p => all ? next.delete(p.id) : next.add(p.id)); return next; })} /> Tout sélectionner</label>}
+          {filtered.length === 0 ? <EmptyState title="Aucun produit" description="Essayez une autre recherche ou ajoutez un produit." actionLabel="Ajouter un produit" onAction={openNew} icon="package" /> : <div className="desktop-product-grid">{filtered.map(p => <article className="desktop-product-card" key={p.id}>
+            <Link to={`/products/${p.id}/historique`} className="desktop-product-card-link"><ProductArtwork url={p.image_url} /><strong>{p.name}</strong><span>{p.sku || p.barcode || 'Sans référence'}</span><div className="desktop-product-chips"><span>{p.track_inventory ? `Stock ${p.stock_quantity}` : 'Stock non suivi'}</span>{!hideMoney && p.price != null && <span>{fmt(p.price)} MAD</span>}</div></Link>
+            <div className="desktop-product-actions"><label><input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleOne(p.id)} aria-label={`Sélectionner ${p.name}`} /> Sélectionner</label>{p.track_inventory && <button type="button" className="secondary" onClick={() => { setModalError(''); setAdjustProduct(p); }}>Ajuster</button>}<button type="button" className="secondary" onClick={() => openEdit(p)}>Modifier</button><button type="button" className="secondary" onClick={() => window.open(api.labelUrl(p.id), '_blank', 'noopener')}>Étiquette</button><TimedUndoDelete deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10} onConfirm={() => deleteOne(p.id)} /></div>
+          </article>)}</div>}
+        </> : <VirtualScroll maxHeight={filtered.length > 60 ? 560 : undefined}>
           <table className="data-dense ac-products-table">
             <thead>
               <tr>
@@ -776,7 +761,7 @@ export default function Products() {
                     aria-label="Tout sélectionner"
                   />
                 </th>
-                <th>Nom</th><th>Référence</th><th>Catégorie</th>{!hideMoney && <th>Prix</th>}{!hideMoney && <th>Coût</th>}<th>Stock</th><th>Statut</th><th>Actions</th>
+                <th>Nom</th><th>Référence</th><th>Catégorie</th>{!hideMoney && <th>Prix</th>}{!hideCost && <th>Coût</th>}<th>Stock</th><th>Statut</th><th>Actions</th>
               </tr>
             </thead>
             {filtered.length === 0 ? (
@@ -800,7 +785,7 @@ export default function Products() {
                 maxHeight={560}
                 getKey={(p) => p.id}
                 renderRow={(p) => (
-                  <tr>
+                  <tr className="product-table-row" onClick={(event) => { if (!(event.target as HTMLElement).closest('button, a, input, label, [role="button"]')) navigate(`/products/${p.id}/historique`); }}>
                     <td>
                       <input
                         type="checkbox"
@@ -810,18 +795,13 @@ export default function Products() {
                       />
                     </td>
                     <td>
-                      <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                        {p.image_url ? (
-                          <img src={p.image_url} alt="" width={32} height={32} loading="lazy" decoding="async" style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }} />
-                        ) : null}
-                        {p.name}
-                      </strong>
+                      <Link className="product-list-open" to={`/products/${p.id}/historique`}><ProductArtwork url={p.image_url} /><strong>{p.name}</strong></Link>
                       {p.description && <div style={{ fontSize: 12, color: 'var(--muted)' }}>{p.description}</div>}
                     </td>
                     <td><span className="sku-mono">{p.sku || '—'}</span></td>
                     <td>{p.category || '—'}</td>
                     {!hideMoney && <td>{fmt(p.price)}</td>}
-                    {!hideMoney && <td>{fmt(p.cost)}</td>}
+                    {!hideCost && <td>{fmt(p.cost)}</td>}
                     <td style={{ fontWeight: 700 }}>
                       {p.track_inventory ? (
                         <div>
@@ -851,7 +831,6 @@ export default function Products() {
                     <td className="row-actions-cell">
                       <div className="row-actions row-actions--inline">
                       {p.track_inventory && <button type="button" className="secondary" onClick={() => { setModalError(''); setAdjustProduct(p); }}>Ajuster</button>}
-                      <button type="button" className="secondary" onClick={() => loadMovements(p.id)}>Historique</button>
                       <button type="button" className="secondary" onClick={() => openEdit(p)}>Modifier</button>
                       <button
                         type="button"
@@ -865,22 +844,7 @@ export default function Products() {
                         deleteLabel="Supprimer"
                         undoLabel="Annuler"
                         initialSeconds={10}
-                        onConfirm={async () => {
-                          try {
-                            setDeleteBusy(true);
-                            await api.deleteProduct(p.id, undefined, { timedUndo: true });
-                            setSelected((prev) => {
-                              const n = new Set(prev);
-                              n.delete(p.id);
-                              return n;
-                            });
-                            await load(true);
-                          } catch (e: any) {
-                            flash(e?.message || 'Suppression impossible', 'error');
-                          } finally {
-                            setDeleteBusy(false);
-                          }
-                        }}
+                        onConfirm={() => deleteOne(p.id)}
                       />
                       </div>
                     </td>
@@ -889,121 +853,7 @@ export default function Products() {
               />
             )}
           </table>
-        </VirtualScroll>
-        {movementsFor != null &&
-          createPortal(
-            <div
-              className="modal-overlay"
-              style={{ zIndex: 10000 }}
-              onClick={() => {
-                setMovementsFor(null);
-                setMovements(null);
-              }}
-            >
-              <div
-                className="modal"
-                style={{
-                  width: 'max-content',
-                  maxWidth: 'min(960px, 94vw)',
-                  minWidth: 'min(320px, 94vw)',
-                }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <h2>Historique des mouvements</h2>
-                <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: -8, marginBottom: 16 }}>
-                  Produit #{movementsFor} · 90 derniers jours
-                  {movements && movements.length > 0
-                    ? ` · ${movements.length} mouvement${movements.length > 1 ? 's' : ''}`
-                    : ''}
-                </p>
-                {!movements ? (
-                  <div className="empty" style={{ padding: 16 }}>
-                    Chargement…
-                  </div>
-                ) : movements.length === 0 ? (
-                  <div className="empty" style={{ padding: 16 }}>
-                    Aucun mouvement sur 90 jours
-                  </div>
-                ) : (
-                  <>
-                    <div style={{ overflowX: 'hidden' }}>
-                      <table style={{ width: '100%', tableLayout: 'auto' }}>
-                        <thead>
-                          <tr>
-                            <th>Date</th>
-                            <th>Type</th>
-                            <th>Qté</th>
-                            <th>Avant</th>
-                            <th>Après</th>
-                            <th>Raison</th>
-                            <th>Réf.</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {movements
-                            .slice((movementsPage - 1) * 20, movementsPage * 20)
-                            .map((mv: any, i: number) => (
-                              <tr key={mv.id || i}>
-                                <td style={{ whiteSpace: 'nowrap' }}>
-                                  {String(mv.created_at || '—').replace('T', ' ').slice(0, 16)}
-                                </td>
-                                <td>{fmtMovType(mv.type)}</td>
-                                <td>{mv.quantity ?? '—'}</td>
-                                <td>{mv.previous_quantity ?? '—'}</td>
-                                <td>
-                                  <strong>{mv.new_quantity ?? '—'}</strong>
-                                </td>
-                                <td style={{ maxWidth: 220, wordBreak: 'break-word' }}>
-                                  {fmtMovReason(mv.reason || '')}
-                                </td>
-                                <td style={{ whiteSpace: 'nowrap' }}>{mv.reference || '—'}</td>
-                              </tr>
-                            ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    {movements.length > 20 && (
-                      <div style={{ display: 'flex', justifyContent: 'center', marginTop: 14 }}>
-                        <ListPager
-                          page={movementsPage}
-                          pageSize={20}
-                          total={movements.length}
-                          onPageChange={setMovementsPage}
-                          pageBase={1}
-                        />
-                      </div>
-                    )}
-                  </>
-                )}
-                <ModalFormError message={modalError} />
-            <div className="form-actions" style={{ marginTop: 16, displayContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-                  <button
-                    type="button"
-                    className="secondary"
-                    onClick={() => {
-                      const id = movementsFor;
-                      setMovementsFor(null);
-                      setMovements(null);
-                      if (id != null) navigate(`/products/${id}/historique`);
-                    }}
-                  >
-                    Voir plus — historique complet
-                  </button>
-                  <button
-                    type="button"
-                    className="secondary"
-                    onClick={() => {
-                      setMovementsFor(null);
-                      setMovements(null);
-                    }}
-                  >
-                    Fermer
-                  </button>
-                </div>
-              </div>
-            </div>,
-            document.body,
-          )}
+        </VirtualScroll>}
       </div>
 
       {show && (

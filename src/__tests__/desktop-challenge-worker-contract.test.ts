@@ -120,11 +120,18 @@ describe('staging browser challenge and Worker contract', () => {
     await act(async () => { await inFlight; });
     expect(window.location.hash).toBe('');
     expect(host.textContent).toContain(request.pairing_code);
+    expect(host.querySelectorAll('input:not([type="checkbox"])')).toHaveLength(0);
+    expect(widgetOptions).toMatchObject({ size: 'normal', appearance: 'always', action: 'atlas_desktop_v2' });
     const approve = [...host.querySelectorAll('button')].find(b => b.textContent === 'Confirmer la vérification')!;
     expect(approve.disabled).toBe(true);
     await act(async () => widgetOptions.callback('provider-token'));
     expect(approve.disabled).toBe(true);
     await act(async () => (host.querySelector('input') as HTMLInputElement).click());
+    expect(approve.disabled).toBe(false);
+    await act(async () => widgetOptions['expired-callback']());
+    expect(approve.disabled).toBe(true);
+    expect(host.textContent).toContain('navigateur système');
+    await act(async () => widgetOptions.callback('provider-token'));
     expect(approve.disabled).toBe(false);
     await act(async () => approve.click()); await act(async () => { await inFlight; });
     expect(host.textContent).toContain('aucune connexion n’a été créée');

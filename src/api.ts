@@ -480,7 +480,7 @@ export const api = {
     if (params?.fields) qs.set('fields', params.fields);
     if (params?.limit) qs.set('limit', String(params.limit));
     const q = qs.toString();
-    return request<{ data: any[] }>(`/api/products${q ? `?${q}` : ''}`);
+    return request<{ data: any[] }>(`/api/products${q ? `?${q}` : ''}`, params?.fields === 'mobile' ? { cache: 'no-store' } : undefined);
   },
   getProduct: (id: number) => request<{ data: any }>(`/api/products/${id}`),
   createProduct: (body: any) => request('/api/products', { method: 'POST', body: JSON.stringify(body) }),

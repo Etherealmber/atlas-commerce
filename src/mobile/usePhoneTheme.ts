@@ -12,7 +12,9 @@ export function applyPhoneTheme(choice: ThemeChoice): void {
   const dark = choice === 'dark' || (choice === 'system' && systemIsDark());
   const root = document.documentElement;
   const next = dark ? 'dark' : 'light';
-  if (root.dataset.theme && root.dataset.theme !== next) {
+  let animate = true;
+  try { animate = localStorage.getItem('atlas_phone_animations') !== 'off' && !window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { /* use default */ }
+  if (animate && root.dataset.theme && root.dataset.theme !== next) {
     if (themeTransitionTimer !== undefined) window.clearTimeout(themeTransitionTimer);
     root.classList.add('phone-theme-transition');
     // Commit the transition styles before changing theme; works without the

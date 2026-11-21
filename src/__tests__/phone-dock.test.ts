@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
-import PhoneDock, { phoneDockItems, canOpenPhoneBalance, canOpenPhoneEmployees, showPhoneDock } from '../mobile/PhoneDock';
+import PhoneDock, { phoneDockItems, canOpenPhoneBalance, canOpenPhoneEmployees, phoneBackTarget, showPhoneDock } from '../mobile/PhoneDock';
 
 describe('mobile dock', () => {
   it.each([
@@ -26,9 +26,18 @@ describe('mobile dock', () => {
 
   it.each([
     ['/m', true], ['/m/scan', true], ['/m/products', true], ['/m/balance', true], ['/m/balance/classic', true], ['/m/employees', true],
-    ['/m/settings', false], ['/m/agent', false], ['/m/more', false], ['/m/vente', false], ['/m/inbox', false], ['/m/warehouse', false],
+    ['/m/settings', false], ['/m/agent', true], ['/m/more', false], ['/m/vente', true], ['/m/inbox', true], ['/m/device-scan', true], ['/m/warehouse', false],
   ])('uses the dock only on main routes: %s', (path, visible) => {
     expect(showPhoneDock(path)).toBe(visible);
+  });
+
+  it('returns subpages to their parent with a safe fallback for direct links', () => {
+    expect(phoneBackTarget('/m/settings/whats-new')).toBe('/m/settings');
+    expect(phoneBackTarget('/m/profile')).toBe('/m');
+    expect(phoneBackTarget('/m/products/7/historique')).toBe('/m/products');
+    expect(showPhoneDock('/m/products/7/historique')).toBe(false);
+    expect(phoneBackTarget('/m/warehouse')).toBe('/m');
+    expect(showPhoneDock('/m/settings/whats-new')).toBe(false);
   });
 
   it('marks the active page accessibly and keeps the scanner available', () => {

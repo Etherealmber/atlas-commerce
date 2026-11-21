@@ -62,12 +62,12 @@ export default function DesktopChallengePilot() {
       script = document.createElement('script'); script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
       script.async = true; script.defer = true;
     }
-    const unavailable = () => { if (!cancelled) { setToken(''); setMessage('Défi indisponible. Recommencez sur le desktop.'); } };
+    const unavailable = () => { if (!cancelled) { setToken(''); setMessage('Défi indisponible ou expiré. Fermez cette fenêtre et recommencez sur le desktop ; vous pouvez choisir le navigateur système.'); } };
     const render = () => {
       if (cancelled || rendered || !(window as any).turnstile?.render) return;
       try {
         id = (window as any).turnstile.render(box, {
-          sitekey: challenge.site_key, action: challenge.action, cData: challenge.cdata, size: 'compact',
+          sitekey: challenge.site_key, action: challenge.action, cData: challenge.cdata, size: 'normal', appearance: 'always',
           callback: (value: string) => { if (!cancelled) setToken(value); },
           'error-callback': unavailable, 'expired-callback': unavailable, 'timeout-callback': unavailable,
         });
@@ -106,7 +106,8 @@ export default function DesktopChallengePilot() {
       <p>Appareil : <strong><bdi>{challenge.device_label}</bdi></strong> (nom déclaré, non vérifié)</p>
       <p>Code à comparer : <strong>{challenge.pairing_code}</strong></p>
       <p>N’acceptez que votre propre demande. Un code communiqué par une autre personne peut servir à un abus.</p>
-      <div ref={widget} />
+      <p>Terminez le contrôle de sécurité ci-dessous ; une interaction peut être demandée.</p>
+      <div ref={widget} style={{ maxWidth: '100%', overflowX: 'auto', minHeight: 70 }} />
       <label><input type="checkbox" checked={compared} disabled={busy} onChange={e => setCompared(e.target.checked)} /> Le même code apparaît sur mon desktop.</label>
       <div className="login-qr-actions">
         <button type="button" disabled={!compared || !token || busy} onClick={() => void decide('approve')}>Confirmer la vérification</button>

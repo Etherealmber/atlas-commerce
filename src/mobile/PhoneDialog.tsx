@@ -1,9 +1,9 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { FloatingPortal } from '../components/FloatingPortal';
 
-type Props = { titleId: string; onClose: () => void; children: ReactNode };
+type Props = { titleId: string; onClose: () => void; children: ReactNode; className?: string };
 
-function DialogContent({ titleId, onClose, children }: Props) {
+function DialogContent({ titleId, onClose, children, className }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const close = useRef(onClose);
   close.current = onClose;
@@ -32,7 +32,7 @@ function DialogContent({ titleId, onClose, children }: Props) {
       if (previous?.isConnected) previous.focus();
     };
   }, []);
-  return <div className="ph-modal-bg" onClick={onClose}>
+  return <div className={`ph-modal-bg${className ? ` ${className}` : ''}`} onClick={onClose}>
     <div ref={ref} className="ph-modal" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onClick={(e) => e.stopPropagation()}>{children}</div>
   </div>;
 }

@@ -35,7 +35,7 @@ describe('mobile admin balance', () => {
     expect(host.textContent).toContain('Client');
     expect(host.textContent).toContain('500,00 MAD');
     await click(button('Rapports'));
-    expect(host.textContent).toContain('Télécharger le PDF');
+    expect(host.textContent).toContain('Télécharger et lire le PDF');
     expect(host.textContent).toContain('balance web complète');
   });
   it('switches months and requests matching statement and breakdown', async () => {

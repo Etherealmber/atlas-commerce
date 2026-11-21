@@ -6952,7 +6952,7 @@ app.get('/api/products', async (c) => {
   const cacheable = !q && !parentId && !category;
   const cacheKey = await productsCacheKey(
     c.env.CACHE,
-    [includeVariants ? 'v' : 'p', variantsOnly ? 'vo' : '', light ? 'm3-actors' : 'f-actors', String(limit)].filter(Boolean).join(':')
+    [includeVariants ? 'v' : 'p', variantsOnly ? 'vo' : '', light ? 'm4-actors-images' : 'f-actors', String(limit)].filter(Boolean).join(':')
   );
   if (cacheable) {
     const hit = await kvGetJson<any>(c.env.CACHE, cacheKey);
@@ -6965,11 +6965,14 @@ app.get('/api/products', async (c) => {
     }
   }
 
-  // Speed: mobile/light omits heavy columns AND images (phone never displays photos)
+  // Keep the mobile projection small while including product artwork where available.
   const productColumns = light ? await tableColumns(c.env.DB, 'products') : null;
   const actorCols = ['created_by', 'approved_by'].filter(col => productColumns?.has(col)).map(col => `, ${col}`).join('');
+  // Legacy inline photos can be megabytes each. Defer large images to the
+  // per-product endpoint instead of putting hundreds in the mobile cache.
+  const imageCols = productColumns?.has('image_url') ? `, CASE WHEN length(image_url) > 262144 THEN NULL ELSE image_url END AS image_url, CASE WHEN length(image_url) > 262144 THEN 1 ELSE 0 END AS image_inline_large` : '';
   const cols = light
-    ? `id, sku, name, barcode, category, unit, price, stock_quantity, low_stock_threshold, parent_id, variant_label, is_active, track_inventory${actorCols}`
+    ? `id, sku, name, barcode, category, unit, price, stock_quantity, low_stock_threshold, parent_id, variant_label, is_active, track_inventory${actorCols}${imageCols}`
     : `*`;
   let sql = `SELECT ${cols} FROM products WHERE is_active = 1`;
   const binds: any[] = [];

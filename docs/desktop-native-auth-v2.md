@@ -181,8 +181,12 @@ Chaque connexion pilote nécessite **toujours** un défi : c'est la politique
 actuelle, aucune exemption basée sur l'appareil n'existe. Le client génère en
 mémoire un state et un verifier CSPRNG distincts (32 octets ou plus, base64url
 sans padding), calcule S256, appelle `/pilot/requests`, montre le code, ouvre
-l'URL de défi de la section suivante dans le navigateur système, puis poll à
-5 secondes minimum. Il ne lit ni cookies ni JS ni token navigateur. Échec,
+l'URL de défi de la section suivante dans une WebView2 temporaire **si le client
+Windows applique et valide le contrat ci-dessous**, ou dans le navigateur système
+sur choix explicite, puis poll à 5 secondes minimum. La valeur de capacité
+historique `system_browser_turnstile` reste inchangée pour compatibilité : elle
+n'affirme pas la disponibilité ni la validation de WebView2. Il ne lit ni
+cookies ni stockage ni JS ni token navigateur. Échec,
 refus, expiration ou changement d'IP => recommencer, sans fallback automatique.
 Ne **pas** appeler `/pilot/consume` pour un login : `/pilot/login/password`
 consomme atomiquement le défi lui-même. L'IP du navigateur doit être égale à
@@ -340,9 +344,11 @@ attestation ; aucune empreinte ni en-tête client n'est une attestation.
   Le serveur génère aussi un `cdata` aléatoire, stocke le hash de state, le
   challenge, le hash IP et le label ; jamais le verifier brut. Le client futur
   construit `/login/desktop-challenge#request_id=<id>` sur l'origine exacte et
-  ouvre le navigateur système. Aucun state, verifier, mot de passe, OTP ni
-  jeton dans l'URL. Le fragment est retiré de l'historique par la page, avant
-  toute requête ; la référence peut néanmoins être copiée ou vue par le système,
+  ouvre la WebView2 temporaire conforme ci-dessous ou, sur choix explicite, le
+  navigateur système. Aucun state, verifier, mot de passe, OTP ni
+  jeton dans l'URL. Le fragment est retiré de l'historique par le composant avant
+  sa requête `prepare`, après le chargement du bootstrap partagé ; la référence
+  peut néanmoins être copiée ou vue par le système,
   les extensions ou le presse-papiers et ne doit pas être journalisée.
 - `POST /api/auth/desktop/v2/pilot/browser/prepare` :
   `{"origin":"<origine exacte>","request_id":"<id>"}` et en-tête Origin
@@ -378,6 +384,112 @@ Erreurs : `{"success":false,"code":"<code>","error":"Opération de connexion ind
 `METHOD_DISABLED`/`UNAVAILABLE`. Les middleware globaux peuvent répondre en
 premier. Une erreur ne permet jamais de basculer automatiquement vers un autre
 mode. Ne pas journaliser requêtes, réponses, URL, token fournisseur ou preuves.
+
+### Intégration Rust / WebView2 Windows à réaliser, non livrée ni validée
+
+Ce dépôt ne contient pas le client Rust de connexion desktop. La liste suivante
+est une **spécification d'implémentation**, pas du code exécuté ni une preuve de
+compatibilité Turnstile/WebView2. Tant que ces contrôles et essais ne sont pas
+réalisés, garder ce mode désactivé, y compris en staging. Le choix de navigateur
+système doit rester une action native explicite ; créer une nouvelle transaction
+après abandon/échec, jamais un basculement automatique ou un contournement.
+
+1. Dans le client Windows, ajouter une option de build/configuration staging
+   désactivée par défaut, distincte des flags serveur. Ne la proposer que pour
+   l'origine de staging explicitement autorisée et `password_otp.available` ;
+   ne pas interpréter `challenge: system_browser_turnstile` comme un test de
+   prise en charge WebView2. Si Runtime WebView2 absent, création ou chargement
+   impossible, fermer/annuler et proposer séparément le navigateur système.
+2. Valider l'origine configurée avec un parseur d'URL : HTTPS, hôte non vide,
+   pas de userinfo, chemin autre que `/`, query ni fragment ; comparer les origines
+   canoniques exactes, port effectif inclus (y compris port non standard), avec
+   l'origine renvoyée par le serveur et celle du navigateur. Certificat TLS
+   valide obligatoire, aucun handler n'accepte une erreur certificat. Après
+   création, valider version, ID `[a-f0-9]{64}`, origine, code, échéance et
+   intervalle ; construire l'URL depuis l'origine validée et le chemin fixe,
+   avec **seul** `#request_id=<id>` ; aucune query ni autre fragment. Ne pas
+   journaliser l'URL même si le fragment n'est pas transmis en HTTP.
+3. Générer state et verifier distincts par CSPRNG en mémoire native, S256 ;
+   afficher le code de comparaison et l'origine dans l'UI native. Créer une
+   fenêtre visible dédiée et temporaire WebView2, profil utilisateur neuf et
+   isolé par tentative (dossier privé, suppression après fermeture du processus
+   WebView2), sans profil de l'application ni session existante. Laisser les
+   cookies/stockage internes nécessaires au fournisseur fonctionner, mais Rust
+   ne les lit ni n'exporte, et ne lit ni DOM, JavaScript ni token Turnstile.
+   Aucun `ExecuteScript`, injection, host object, message web, interception de
+   requêtes/réponses, capture réseau, DevTools ou pont JS générique. Pas de
+   navigation vers les écrans de login ni de champs identifiant/password/OTP
+   dans la page ; saisir ces champs exclusivement dans l'interface native.
+4. Installer les handlers **avant toute navigation**. Dans
+   `CoreWebView2.NavigationStarting`, autoriser seulement l'URL de départ
+   construite ci-dessus et, pour la navigation principale, HTTPS sur l'origine
+   exacte avec chemin `/login/desktop-challenge`, sans query et sans fragment
+   supplémentaire. Contrôler chaque redirection et annuler toute autre URL ou
+   schéma, même si initiée par une sous-frame ; la suppression du fragment par
+   `history.replaceState` ne doit pas être prise pour une preuve de succès.
+   Ne pas autoriser par simple préfixe de chaîne ni autoriser toutes les pages
+   de l'origine. Tester aussi navigation top déclenchée par iframe et
+   redirections. `NewWindowRequested` : marquer traité et ne jamais ouvrir
+   automatiquement une popup ni un navigateur. Bloquer téléchargements et
+   demandes de permissions, désactiver menus de développement et raccourcis
+   DevTools ; toute navigation interdite ou erreur fatale annule l'opération.
+   Les sous-frames nécessaires à Turnstile sont distinctes de la navigation
+   principale : ne pas bloquer aveuglément leur fonctionnement, mais leur
+   interdire toute élévation vers une autre page principale. CSP et handlers ne
+   constituent pas une sandbox de code malveillant de même origine.
+5. Ne pas déduire la réussite d'une URL, fermeture de fenêtre, titre, message
+   JS ou callback navigateur. Seul `/pilot/poll` depuis Rust avec
+   `{origin,request_id,state,code_verifier}` en JSON, même IP et TLS sans
+   redirection, peut annoncer `verified`. Une requête en vol ; au minimum 5 s
+   entre polls, respecter `Retry-After`, maximum 60 et 300 s. Vérifier origin,
+   ID, statut et échéance ; fermer la WebView après `verified`, puis appeler
+   `/login/password` et `/login/otp` comme ci-dessus. `verified` n'est pas une
+   session ; ne pas appeler `/consume` pour le login. Fermeture utilisateur,
+   refus, échec, expiration, changement IP ou statut inattendu : arrêter le poll,
+   annuler au mieux avec la preuve (`/pilot/cancel`, ou `/login/cancel` après
+   password), effacer secrets de la mémoire et détruire la fenêtre/profil. Une
+   réponse perdue après password ou OTP ne doit pas être rejouée pour obtenir
+   des secrets ; abandonner et recommencer, session éventuellement orpheline.
+6. Choisir et épingler versions du crate/binding WebView2, Runtime evergreen ou
+   fixed version, SDK Windows et bibliothèque HTTP/TLS dans le dépôt desktop ;
+   utiliser une API exposant tous les événements ci-dessus. Vérifier les
+   correctifs Runtime et les versions OS supportées. Aucun crate ni version n'a
+   été ajouté ici, aucun comportement API Windows n'est garanti par ce texte.
+
+**CSP et dépendances actuelles.** Le Worker sert `no-store`, `no-referrer`,
+`X-Frame-Options: DENY` pour la page. La CSP globale actuelle autorise
+`script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://challenges.cloudflare.com https://static.cloudflareinsights.com`,
+`connect-src 'self' https://challenges.cloudflare.com` et d'autres domaines,
+`frame-src 'self' blob: https://challenges.cloudflare.com https://docs.google.com` ;
+fonts Google, images et styles sont également autorisés. C'est la CSP partagée
+de l'application, **pas** une politique minimale spécifique au pilote et elle
+n'empêche pas une navigation principale ; `unsafe-inline` et scripts same-origin
+restent un risque XSS. La page dépend de l'HTML/JS/CSS de l'application, du script
+Turnstile et de son iframe fournisseur ; un profil frais évite un ancien service
+worker. `reportCrash` ignore désormais cette page, mais l'HTML et le bootstrap
+partagés exécutent encore du code et peuvent utiliser du stockage web. Le client
+n'en lit pas le contenu. Valider les ressources effectives en staging sans
+capture des corps/URL sensibles ; ne pas élargir CSP aveuglément pour faire
+passer un test. Une page bootstrap dédiée et une CSP plus stricte sont à étudier
+avant production ; la navigation WebView reste contrôlée séparément.
+
+**Plan de validation bloquant.** Sur Windows 10 et 11 réels, Runtime installé et
+absent, tester lancement visible, interaction Turnstile réelle, succès,
+refus, expiration, fermeture/annulation, rejeu, concurrence, réponse perdue,
+IP modifiée/VPN, redirection, popup, navigation top par iframe et comparaison
+avec port non standard. Répéter avec choix explicite navigateur système. Sur
+Worker, D1, mail et Siteverify réels en staging isolé, vérifier atomismes,
+métadonnées strictes, désactivation par défaut et les mêmes échecs ; inspecter
+les logs effectifs Worker/edge/proxy/APM/client/mail avec marqueur non secret.
+Ne pas contourner la validation si une clé de test n'émet pas les métadonnées
+requises : obtenir une configuration compatible. Consigner versions, résultats
+et risques sans secrets. Aucun de ces essais réels n'a été effectué dans cette
+session : Linux sans WebView2 et Wrangler non authentifié ; la configuration
+preview suivie réutilise des ressources production, elle n'est pas un staging
+isolé. Aucun déploiement n'a été effectué. Localement, la suite complète a
+réussi (754 tests), le build a réussi et le lint a rapporté 0 erreur et 904
+avertissements ; les 112 tests ciblés incluent les scénarios simulés, pas ces
+validations réelles.
 
 ### Risque de transfert et critères de blocage
 
