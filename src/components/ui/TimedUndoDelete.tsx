@@ -1,6 +1,6 @@
 import { useEffect, useState, type FC, type KeyboardEvent, type ReactNode, type CSSProperties } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Undo2 } from 'lucide-react';
+import { Trash2, Undo2 } from 'lucide-react';
 
 export interface TimedUndoDeleteProps {
   initialSeconds?: number;
@@ -12,6 +12,8 @@ export interface TimedUndoDeleteProps {
   className?: string;
   width?: string;
   autoStart?: boolean;
+  /** Compact icon control, retaining a visible countdown and accessible labels. */
+  iconOnly?: boolean;
 }
 
 const RED = '#ef4444';
@@ -36,6 +38,7 @@ export const TimedUndoDelete: FC<TimedUndoDeleteProps> = ({
   className = '',
   width = '10.5rem',
   autoStart = false,
+  iconOnly = false,
 }) => {
   const [isDeleting, setIsDeleting] = useState(autoStart);
   const [countDown, setCountDown] = useState(initialSeconds);
@@ -152,7 +155,8 @@ export const TimedUndoDelete: FC<TimedUndoDeleteProps> = ({
       <div
         role="button"
         tabIndex={0}
-        aria-label={isDeleting ? undoLabel : deleteLabel}
+        aria-label={isDeleting ? `${undoLabel} (${countDown} s)` : deleteLabel}
+        title={isDeleting ? undoLabel : deleteLabel}
         className={`ac-timed-delete-btn${isDeleting ? ' is-armed' : ''}`}
         data-atlas-delete-btn="1"
         onClick={handleClick}
@@ -161,7 +165,7 @@ export const TimedUndoDelete: FC<TimedUndoDeleteProps> = ({
         onMouseLeave={() => setHover(false)}
         style={btnStyle}
       >
-        {isDeleting ? (
+        {iconOnly ? (isDeleting ? <span aria-live="polite">{countDown}</span> : <Trash2 size={18} aria-hidden="true" />) : isDeleting ? (
           <>
             <span style={{ ...chipStyle, background: RED }} aria-hidden>
               {icon ?? <Undo2 size={13} strokeWidth={2.5} color="#fff" />}

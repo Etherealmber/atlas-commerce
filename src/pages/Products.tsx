@@ -17,7 +17,7 @@ import { numStr, numFromInput } from '../lib/numInput';
 import NumberField from '../components/NumberField';
 import VirtualTableBody, { VirtualScroll } from '../components/VirtualTableBody';
 import { canAccessAdminSettings, canSell, sanitizePreviewUrl } from '../auth';
-import { Grid2X2, List } from 'lucide-react';
+import { Grid2X2, List, Pencil, SlidersHorizontal, Tags } from 'lucide-react';
 import ProductArtwork from '../components/ProductArtwork';
 import './product-history.css';
 import './products-mobile-style.css';
@@ -671,6 +671,7 @@ export default function Products() {
               aria-label="Rechercher produits"
             />
           </div>
+          <div className="desktop-product-viewbar" role="group" aria-label="Affichage des produits"><button type="button" className="secondary" title="Affichage en grille" aria-label="Affichage en grille" aria-pressed={catalogView === 'grid'} onClick={() => changeCatalogView('grid')}><Grid2X2 size={18} /></button><button type="button" className="secondary" title="Affichage en liste" aria-label="Affichage en liste" aria-pressed={catalogView === 'list'} onClick={() => changeCatalogView('list')}><List size={18} /></button></div>
           <select className="ac-filter-select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} aria-label="Catégorie">
             <option value="">Toutes catégories</option>
             {categories.map((c) => (
@@ -734,12 +735,12 @@ export default function Products() {
             )}
           </div>
         )}
-        <div className="desktop-product-viewbar"><span>{filtered.length} résultat{filtered.length === 1 ? '' : 's'}</span><div role="group" aria-label="Affichage des produits"><button type="button" className="secondary" aria-label="Affichage en grille" aria-pressed={catalogView === 'grid'} onClick={() => changeCatalogView('grid')}><Grid2X2 size={18} /></button><button type="button" className="secondary" aria-label="Affichage en liste" aria-pressed={catalogView === 'list'} onClick={() => changeCatalogView('list')}><List size={18} /></button></div></div>
+        <div className="desktop-product-result-count" aria-live="polite">{filtered.length} résultat{filtered.length === 1 ? '' : 's'}</div>
         {catalogView === 'grid' ? <>
           {filtered.length > 0 && <label className="desktop-product-select-all"><input type="checkbox" checked={filtered.every(p => selected.has(p.id))} onChange={() => setSelected(prev => { const next = new Set(prev); const all = filtered.every(p => next.has(p.id)); filtered.forEach(p => all ? next.delete(p.id) : next.add(p.id)); return next; })} /> Tout sélectionner</label>}
           {filtered.length === 0 ? <EmptyState title="Aucun produit" description="Essayez une autre recherche ou ajoutez un produit." actionLabel="Ajouter un produit" onAction={openNew} icon="package" /> : <div className="desktop-product-grid">{filtered.map(p => <article className="desktop-product-card" key={p.id}>
             <Link to={`/products/${p.id}/historique`} className="desktop-product-card-link"><ProductArtwork url={p.image_url} /><strong>{p.name}</strong><span>{p.sku || p.barcode || 'Sans référence'}</span><div className="desktop-product-chips"><span>{p.track_inventory ? `Stock ${p.stock_quantity}` : 'Stock non suivi'}</span>{!hideMoney && p.price != null && <span>{fmt(p.price)} MAD</span>}</div></Link>
-            <div className="desktop-product-actions"><label><input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleOne(p.id)} aria-label={`Sélectionner ${p.name}`} /> Sélectionner</label>{p.track_inventory && <button type="button" className="secondary" onClick={() => { setModalError(''); setAdjustProduct(p); }}>Ajuster</button>}<button type="button" className="secondary" onClick={() => openEdit(p)}>Modifier</button><button type="button" className="secondary" onClick={() => window.open(api.labelUrl(p.id), '_blank', 'noopener')}>Étiquette</button><TimedUndoDelete deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10} onConfirm={() => deleteOne(p.id)} /></div>
+            <div className="desktop-product-actions"><label title="Sélectionner le produit"><input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleOne(p.id)} aria-label={`Sélectionner ${p.name}`} /><span>Sélectionner</span></label>{p.track_inventory && <button type="button" className="secondary" title="Ajuster le stock" aria-label={`Ajuster le stock de ${p.name}`} onClick={() => { setModalError(''); setAdjustProduct(p); }}><SlidersHorizontal size={18} aria-hidden="true" /></button>}<button type="button" className="secondary" title="Modifier" aria-label={`Modifier ${p.name}`} onClick={() => openEdit(p)}><Pencil size={18} aria-hidden="true" /></button><button type="button" className="secondary" title="Étiquette" aria-label={`Étiquette de ${p.name}`} onClick={() => window.open(api.labelUrl(p.id), '_blank', 'noopener')}><Tags size={18} aria-hidden="true" /></button><TimedUndoDelete iconOnly width="44px" deleteLabel={`Supprimer ${p.name}`} undoLabel="Annuler la suppression" initialSeconds={10} onConfirm={() => deleteOne(p.id)} /></div>
           </article>)}</div>}
         </> : <VirtualScroll maxHeight={filtered.length > 60 ? 560 : undefined}>
           <table className="data-dense ac-products-table">

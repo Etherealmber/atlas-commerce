@@ -26,6 +26,12 @@ describe('Android-style home', () => {
     expect(host.textContent).toContain('1 234,00 MAD'); expect(host.textContent).toContain('FAC-1');
     expect(host.textContent).toContain('Tendance des ventes'); expect(host.textContent).toContain('Rapports PDF');
   });
+  it('refreshes the finance card without reloading the dashboard', async () => {
+    await render();
+    await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Actualiser les finances"]')!.click());
+    expect(api.getDashboard).toHaveBeenCalledTimes(1); expect(api.getFinanceMonthly).toHaveBeenCalledTimes(2);
+    expect(host.textContent).toContain('FAC-1');
+  });
   it('does not expose dashboard financial figures when the protected finance request fails', async () => {
     vi.mocked(api.getFinanceMonthly).mockRejectedValue(new Error('forbidden'));
     await render();

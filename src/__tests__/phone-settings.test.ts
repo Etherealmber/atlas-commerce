@@ -11,7 +11,7 @@ import { api } from '../api';
 vi.mock('../auth', () => ({ getDisplayName: () => 'Atlas', getUsername: () => 'atlas', getRole: () => 'owner', getToken: () => 'session', isLoggedIn: () => true, setProfileCache: vi.fn(), clearToken: vi.fn() }));
 let host: HTMLDivElement; let root: Root;
 beforeEach(() => { (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true; host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host); localStorage.clear(); });
-afterEach(async () => { await act(async () => root.unmount()); host.remove(); vi.restoreAllMocks(); });
+afterEach(async () => { await act(async () => root.unmount()); host.remove(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 const click = (text: string) => [...document.querySelectorAll('button')].find(b => b.textContent?.trim() === text)!;
 it('settings apply theme, text scale, animations and show language as coming soon', async () => {
   const theme = vi.fn(); const animation = vi.fn(); const scale = vi.fn(); const compact = vi.fn(); const start = vi.fn();
@@ -42,4 +42,48 @@ it('updates only editable profile fields and reports failure without claiming su
   await act(async () => { host.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); });
   expect(update).toHaveBeenCalledWith({ display_name: 'Atlas', email: 'a@example.com', phone: '123' });
   expect(host.textContent).toContain('Impossible d’enregistrer'); expect(host.textContent).not.toContain('Profil enregistré');
+});
+it('saves scanner preferences locally and restores them when settings reopen', async () => {
+  const settings = () => createElement(MemoryRouter, { children: createElement(PhoneSettings, { theme: 'system', onTheme: vi.fn(), animations: true, onAnimations: vi.fn(), compact: false, onCompact: vi.fn(), scale: 'md', onScale: vi.fn(), startTab: '/m', onStartTab: vi.fn() }) });
+  await act(async () => root.render(settings()));
+  const scanSwitch = (text: string) => [...host.querySelectorAll('label')].find(label => label.textContent?.includes(text))!.querySelector<HTMLInputElement>('input')!;
+  expect(scanSwitch('Ouvrir la caméra automatiquement').checked).toBe(false);
+  expect(scanSwitch('Vibration au scan').checked).toBe(true);
+  expect(scanSwitch('Signal sonore au scan').checked).toBe(false);
+  await act(async () => { scanSwitch('Ouvrir la caméra automatiquement').click(); scanSwitch('Vibration au scan').click(); scanSwitch('Signal sonore au scan').click(); });
+  expect(localStorage.getItem('atlas_phone_scan_auto_camera')).toBe('on');
+  expect(localStorage.getItem('atlas_phone_scan_vibrate')).toBe('off');
+  expect(localStorage.getItem('atlas_phone_scan_sound')).toBe('on');
+  await act(async () => root.render(null));
+  await act(async () => root.render(settings()));
+  expect(scanSwitch('Ouvrir la caméra automatiquement').checked).toBe(true);
+  expect(scanSwitch('Vibration au scan').checked).toBe(false);
+  expect(scanSwitch('Signal sonore au scan').checked).toBe(true);
+  expect(host.querySelector<HTMLAnchorElement>('a[href="/privacy"]')?.target).toBe('_blank');
+});
+it('reports when a scanner preference cannot be saved', async () => {
+  await act(async () => root.render(createElement(MemoryRouter, { children: createElement(PhoneSettings, { theme: 'system', onTheme: vi.fn(), animations: true, onAnimations: vi.fn(), compact: false, onCompact: vi.fn(), scale: 'md', onScale: vi.fn(), startTab: '/m', onStartTab: vi.fn() }) })));
+  vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => { throw new Error('blocked'); } });
+  const input = [...host.querySelectorAll('label')].find(label => label.textContent?.includes('Vibration au scan'))!.querySelector('input')!;
+  await act(async () => input.click());
+  expect(input.checked).toBe(true); expect(host.textContent).toContain('Impossible de sauvegarder');
+});
+it('asks for confirmation before signing out and allows cancellation', async () => {
+  const { clearToken } = await import('../auth');
+  vi.spyOn(api, 'getMe').mockResolvedValue({ data: {} });
+  await act(async () => root.render(createElement(MemoryRouter, { children: createElement(PhoneProfile) })));
+  await act(async () => click('Se déconnecter').click());
+  expect(document.querySelector('[role=dialog]')?.textContent).toContain('La session actuelle sera fermée');
+  expect(clearToken).not.toHaveBeenCalled();
+  await act(async () => click('Annuler').click());
+  expect(document.querySelector('[role=dialog]')).toBeNull(); expect(clearToken).not.toHaveBeenCalled();
+});
+it('shares the mobile link using the browser share sheet', async () => {
+  const share = vi.fn().mockResolvedValue(undefined);
+  Object.defineProperty(navigator, 'share', { configurable: true, value: share });
+  try {
+    await act(async () => root.render(createElement(MemoryRouter, { children: createElement(PhoneSettings, { theme: 'system', onTheme: vi.fn(), animations: true, onAnimations: vi.fn(), compact: false, onCompact: vi.fn(), scale: 'md', onScale: vi.fn(), startTab: '/m', onStartTab: vi.fn() }) })));
+    await act(async () => [...host.querySelectorAll('button')].find(b => b.textContent?.includes('Partager Atlas Commerce'))!.click());
+    expect(share).toHaveBeenCalledWith({ title: 'Atlas Commerce', url: `${window.location.origin}/m` });
+  } finally { Reflect.deleteProperty(navigator, 'share'); }
 });

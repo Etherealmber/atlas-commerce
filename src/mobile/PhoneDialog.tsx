@@ -12,7 +12,7 @@ function DialogContent({ titleId, onClose, children, className }: Props) {
     const modal = ref.current;
     if (!modal) return;
     const focusable = () => Array.from(modal.querySelectorAll<HTMLElement>(
-      'button:not(:disabled), input:not(:disabled):not([type="hidden"]), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])',
+      'button:not(:disabled), input:not(:disabled):not([type="hidden"]), select:not(:disabled), textarea:not(:disabled), a[href], iframe:not([tabindex="-1"]), [tabindex]:not([tabindex="-1"])',
     )).filter((element) => element.getClientRects().length > 0);
     (focusable()[0] || modal).focus();
     const onKey = (event: KeyboardEvent) => {

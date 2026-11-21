@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
+import { Check, SlidersHorizontal, X } from 'lucide-react';
 import { getBase } from '../api';
 import { getToken } from '../auth';
 import { getCachedFingerprint } from '../fingerprint';
@@ -15,7 +15,7 @@ function localDate() { const d = new Date(); return `${d.getFullYear()}-${String
  * Remove navigable URLs, including temporary tickets, before inserting it. */
 export function isolateReportHtml(html: string, sectionIndex?: number): string {
   const parsed = new DOMParser().parseFromString(html, 'text/html');
-  parsed.querySelectorAll('script, iframe, object, embed, form, base, link, meta[http-equiv], main.report-content > nav').forEach(el => el.remove());
+  parsed.querySelectorAll('script, iframe, object, embed, form, base, link, meta[http-equiv], main.report-content > nav, .sheet > .actions').forEach(el => el.remove());
   if (sectionIndex !== undefined) parsed.querySelectorAll('main.report-content > section').forEach((el, index) => { if (index !== sectionIndex) el.remove(); });
   parsed.querySelectorAll('*').forEach(el => {
     for (const attr of Array.from(el.attributes)) {
@@ -25,10 +25,14 @@ export function isolateReportHtml(html: string, sectionIndex?: number): string {
   const csp = parsed.createElement('meta'); csp.setAttribute('http-equiv', 'Content-Security-Policy');
   csp.setAttribute('content', "default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:; form-action 'none'; base-uri 'none'");
   parsed.head.insertBefore(csp, parsed.head.firstChild);
+  // Keep the server's accounting document legible as a light paper in either app theme.
+  const previewStyle = parsed.createElement('style');
+  previewStyle.textContent = 'html,body{background:#fff;color:#111;color-scheme:light}body{font-size:14px;line-height:1.5;padding:16px}th,td{font-size:12px}h2{font-size:15px}.hdr{gap:12px;flex-wrap:wrap}.report-content{overflow-x:auto}';
+  parsed.head.appendChild(previewStyle);
   return '<!doctype html>' + parsed.documentElement.outerHTML;
 }
 
-function ReportReader({ selection, onClose }: { selection: Selection; onClose: () => void }) {
+function ReportReader({ selection, onClose, onEdit }: { selection: Selection; onClose: () => void; onEdit: () => void }) {
   const [html, setHtml] = useState(''); const [error, setError] = useState(''); const [tab, setTab] = useState('overview');
   useEffect(() => {
     const controller = new AbortController(); let cancelled = false;
@@ -47,10 +51,10 @@ function ReportReader({ selection, onClose }: { selection: Selection; onClose: (
     return () => { cancelled = true; controller.abort(); };
   }, [selection]);
   return <PhoneDialog titleId="bundle-title" onClose={onClose} className="ph-report-modal"><div className="ph-report-viewer">
-    <header className="ph-report-header"><button type="button" aria-label="Fermer le rapport" onClick={onClose}><X size={20} /></button><div><h2 id="bundle-title">Pack de rapports</h2><small>Lecture sécurisée dans Atlas</small></div></header>
+    <header className="ph-report-header"><button type="button" aria-label="Fermer le rapport" onClick={onClose}><X size={20} /></button><div><h2 id="bundle-title">Pack de rapports</h2><small>Lecture sécurisée dans Atlas · document clair</small></div><button type="button" className="ph-report-edit theme-toggle" aria-label="Modifier le rapport" onClick={onEdit}><SlidersHorizontal size={20} aria-hidden="true" /></button></header>
     {error && <p className="ph-report-error" role="alert">{error}</p>}
     {!html && !error && <p role="status">Préparation du rapport…</p>}
-    {html && <><div className="ph-report-tabs" aria-label="Rubriques du rapport">{['overview', ...selection.sections].map(key => <button type="button" key={key} aria-pressed={tab === key} onClick={() => setTab(key)}>{key === 'overview' ? 'Aperçu' : sections.find(section => section[0] === key)?.[1]}</button>)}</div><iframe title="Pack de rapports financiers" sandbox="" referrerPolicy="no-referrer" srcDoc={isolateReportHtml(html, tab === 'overview' ? undefined : selection.sections.indexOf(tab))} className="ph-report-frame" /></>}
+    {html && <><div className="ph-report-tabs" role="group" aria-label="Rubriques du rapport">{['overview', ...selection.sections].map(key => <button type="button" className="theme-toggle" key={key} aria-pressed={tab === key} onClick={() => setTab(key)}>{key === 'overview' ? 'Aperçu' : sections.find(section => section[0] === key)?.[1]}</button>)}</div><iframe title="Pack de rapports financiers" sandbox="" referrerPolicy="no-referrer" srcDoc={isolateReportHtml(html, tab === 'overview' ? undefined : selection.sections.indexOf(tab))} className="ph-report-frame" /></>}
   </div></PhoneDialog>;
 }
 
@@ -59,8 +63,12 @@ export default function PhoneReportBundle({ onClose }: { onClose: () => void }) 
   const [period, setPeriod] = useState('month'); const [from, setFrom] = useState(today.slice(0, 8) + '01'); const [to, setTo] = useState(today);
   const [selected, setSelected] = useState<string[]>(sections.map(s => s[0])); const [ready, setReady] = useState<Selection | null>(null);
   const valid = period !== 'custom' || (!!from && !!to && from <= to && to <= today);
-  if (ready) return <ReportReader selection={ready} onClose={onClose} />;
-  return <PhoneDialog titleId="bundle-select-title" onClose={onClose}><div className="ph-bundle-select"><h2 id="bundle-select-title">Personnaliser le rapport</h2><p>Choisissez une période et les rubriques à consulter.</p><h3>PÉRIODE</h3><div className="ph-bundle-chips">{periods.map(([key, label]) => <button type="button" key={key} aria-pressed={period === key} onClick={() => setPeriod(key)}>{label}</button>)}</div>
-    {period === 'custom' ? <><div className="ph-bundle-dates"><label>Du<input type="date" max={today} value={from} onChange={e => setFrom(e.target.value)} /></label><label>Au<input type="date" min={from} max={today} value={to} onChange={e => setTo(e.target.value)} /></label></div>{!valid && <p role="alert">Vérifiez les dates : début avant fin, et aucune date future.</p>}</> : <p>Période calculée par le serveur dans son fuseau financier.</p>}
-    <h3>RUBRIQUES</h3><div className="ph-bundle-chips">{sections.map(([key, label]) => <button type="button" key={key} aria-pressed={selected.includes(key)} onClick={() => setSelected(old => old.includes(key) ? old.filter(s => s !== key) : [...old, key])}>{label}</button>)}</div><p>Les rubriques sélectionnées s’ouvrent dans Atlas.</p><div className="pb-form-actions"><button type="button" onClick={onClose}>Annuler</button><button type="button" disabled={!valid || !selected.length} onClick={() => setReady({ period, from, to, sections: selected })}>Préparer</button></div></div></PhoneDialog>;
+  if (ready) return <ReportReader selection={ready} onClose={onClose} onEdit={() => setReady(null)} />;
+  return <PhoneDialog titleId="bundle-select-title" onClose={onClose} className="ph-bundle-modal"><div className="ph-bundle-select">
+    <header className="ph-bundle-heading"><SlidersHorizontal size={22} aria-hidden="true" /><h2 id="bundle-select-title">Personnaliser le rapport</h2></header>
+    <div className="ph-bundle-body"><p>Choisissez une période et les rubriques à consulter.</p><h3>Période</h3><div className="ph-bundle-chips" role="group" aria-label="Période du rapport">{periods.map(([key, label]) => <button type="button" className="theme-toggle" key={key} aria-pressed={period === key} onClick={() => setPeriod(key)}>{period === key && <Check size={16} aria-hidden="true" />}{label}</button>)}</div>
+    {period === 'custom' ? <><div className="ph-bundle-dates"><label>Du<input type="date" max={today} value={from} onChange={e => setFrom(e.target.value)} /></label><label>Au<input type="date" min={from} max={today} value={to} onChange={e => setTo(e.target.value)} /></label></div>{!valid && <p className="ph-bundle-error" role="alert">Vérifiez les dates : début avant fin, et aucune date future.</p>}</> : <p>Période calculée par le serveur dans son fuseau financier.</p>}
+    <h3>Rubriques</h3><div className="ph-bundle-chips" role="group" aria-label="Rubriques du rapport">{sections.map(([key, label]) => <button type="button" className="theme-toggle" key={key} aria-pressed={selected.includes(key)} onClick={() => setSelected(old => old.includes(key) ? old.filter(s => s !== key) : [...old, key])}>{selected.includes(key) && <Check size={16} aria-hidden="true" />}{label}</button>)}</div><p>Les rubriques sélectionnées s’ouvrent dans Atlas.</p></div>
+    <div className="ph-bundle-actions"><button type="button" className="theme-toggle ph-bundle-cancel" onClick={onClose}>Annuler</button><button type="button" className="theme-toggle ph-bundle-prepare" disabled={!valid || !selected.length} onClick={() => setReady({ period, from, to, sections: selected })}>Préparer</button></div>
+  </div></PhoneDialog>;
 }

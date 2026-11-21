@@ -11,3 +11,21 @@
 html[data-theme="dark"] .product-artwork, html[data-theme="dark"] .product-history-tag, html[data-theme="dark"] .product-history-chips span { background: #34343b; color: #e4e4e7; }
 html[data-theme="dark"] .product-history-card, html[data-theme="dark"] .product-history-top { background: #1c1c1f; border-color: #3f3f46; color: #f4f4f5; }
 html.phone-shell .product-history { margin: 0 auto; }.ph-top-subtitle { display: block; color: #64748b; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } html[data-theme="dark"] .ph-top-subtitle { color: #b4b4bd; }
+
+/* Explicit foregrounds prevent the global button theme from hiding icon glyphs. */
+html body .product-history button.product-history-photo-action,
+html body .product-history button.product-history-refresh {
+  display: grid !important; place-items: center !important; padding: 0 !important;
+  background: #fff !important; color: #172033 !important; -webkit-text-fill-color: #172033 !important;
+  border: 1px solid #cbd5e1 !important; box-shadow: 0 2px 6px #0002 !important;
+}
+html body .product-history button.product-history-photo-action { width: 36px !important; min-width: 36px !important; height: 36px !important; min-height: 36px !important; border-radius: 50% !important; }
+html body .product-history button.product-history-refresh { width: 42px !important; min-width: 42px !important; height: 42px !important; min-height: 42px !important; border-radius: 50% !important; }
+html body .product-history button.product-history-photo-action svg,
+html body .product-history button.product-history-refresh svg { display: block !important; stroke: currentColor !important; fill: none !important; flex: none !important; }
+html[data-theme="dark"] body .product-history button.product-history-photo-action,
+html[data-theme="dark"] body .product-history button.product-history-refresh { background: #303036 !important; border-color: #52525b !important; color: #fafafa !important; -webkit-text-fill-color: #fafafa !important; }
+html body .product-history button:focus-visible, html body .product-history a:focus-visible { outline: 3px solid #60a5fa; outline-offset: 2px; }
+html[data-theme="dark"] body .product-history .product-history-card button.secondary.product-history-photo-action,
+html[data-theme="dark"] body .product-history .product-history-card button.secondary.product-history-refresh { background: #303036 !important; border-color: #52525b !important; color: #fafafa !important; -webkit-text-fill-color: #fafafa !important; }
+html body .product-history button.product-history-photo-action { width: 40px !important; min-width: 40px !important; height: 40px !important; min-height: 40px !important; }

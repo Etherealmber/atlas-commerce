@@ -16,7 +16,7 @@ describe('WhatsNew releases', () => {
     expect(RELEASES[0].version).toBe('0.9.0');
     expect(WHATS_NEW_VERSION).toBe(RELEASES[0].version);
     expect(RELEASES[0].date).toBe('19 novembre 2026');
-    expect(RELEASES[0].sections.flatMap((s) => s.items).map((i) => i.id)).toEqual(['090i1', '090i2', '090i3', '090i4', '090i5', '090i6', '090i7', '090i8', '090s1', '090s2', '090s3', '090s4', '090s5', '090s6', '090s7', '090s8', '090s9', '090s10', '090s11', '090s12', '090s13', '090s14', '090s15', '090s16', '090s17']);
+    expect(RELEASES[0].sections.flatMap((s) => s.items).map((i) => i.id)).toEqual(['090i1', '090i2', '090i3', '090i4', '090i5', '090i6', '090i7', '090i8', '090i9', '090i10', '090i11', '090s1', '090s2', '090s3', '090s4', '090s5', '090s6', '090s7', '090s8', '090s9', '090s10', '090s11', '090s12', '090s13', '090s14', '090s15', '090s16', '090s17']);
     const additions = RELEASES[0].sections[0].items;
     expect(additions.every((item) => item.platforms?.includes('web'))).toBe(true);
     const addedText = additions.map((item) => item.text).join(' ');

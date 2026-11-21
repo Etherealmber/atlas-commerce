@@ -206,6 +206,8 @@ async function requestRaw<T>(path: string, options?: RequestInit & { silent?: bo
 async function request<T>(path: string, options?: RequestInit & { silent?: boolean }): Promise<T> {
   const method = (options?.method || 'GET').toUpperCase();
   if (method === 'GET') {
+    // Explicit refreshes must not reuse a request that started before a mutation.
+    if (options?.cache === 'no-store') return requestRaw<T>(path, options);
     const ttl = cacheTtlForPath(path);
     return dedupedGet(`GET:${path}`, () => requestRaw<T>(path, options), ttl);
   }
@@ -1016,13 +1018,13 @@ export const api = {
     }),
 
   // Mobile floor → PC handoffs (shared D1)
-  listMobileActions: (params?: { status?: string; limit?: number; compact?: boolean }) => {
+  listMobileActions: (params?: { status?: string; limit?: number; compact?: boolean; noStore?: boolean }) => {
     const qs = new URLSearchParams();
     if (params?.status) qs.set('status', params.status);
     if (params?.limit) qs.set('limit', String(params.limit));
     if (params?.compact !== false) qs.set('compact', '1');
     const q = qs.toString();
-    return request<{ data: any[] }>(`/api/mobile-actions${q ? `?${q}` : ''}`);
+    return request<{ data: any[] }>(`/api/mobile-actions${q ? `?${q}` : ''}`, params?.noStore ? { cache: 'no-store' } : undefined);
   },
   getMobileAction: (id: number) => request<{ data: any }>(`/api/mobile-actions/${id}`),
   createMobileAction: (body: {
@@ -1057,7 +1059,7 @@ export const api = {
     note?: string;
     apply?: boolean;
   }) => request('/api/inventory/cycle-count/batch', { method: 'POST', body: JSON.stringify(body) }),
-  getMobileActionStats: () => request<{ data: { pending: number; today: number } }>('/api/mobile-actions/stats'),
+  getMobileActionStats: (noStore = false) => request<{ data: { pending: number; today: number } }>('/api/mobile-actions/stats', noStore ? { cache: 'no-store' } : undefined),
 
   /** Thermal ESC/POS ticket — download bytes for printer bridge */
   registerPushToken: (body: { token: string; platform?: string }) =>

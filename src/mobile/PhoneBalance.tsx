@@ -5,6 +5,7 @@ import { api } from '../api';
 import PhoneMonthlyReport from './PhoneMonthlyReport';
 import PhoneReportBundle from './PhoneReportBundle';
 import PhoneDialog from './PhoneDialog';
+import PhoneSkeleton from './PhoneSkeleton';
 import type { FinanceBucket, FinanceMonthly, FinancePeriod, FinanceRow, FinanceStatement } from './financeTypes';
 
 type EntryKind = 'expense' | 'income' | 'owner_contrib' | 'owner_draw';
@@ -127,7 +128,7 @@ export default function PhoneBalance() {
     }}>{label}</button>)}</div>
     {notice && <p className="pb-notice" role="status">{notice}</p>}
     {error && <div className="pb-notice" role="alert">{error} <button className="theme-toggle" type="button" onClick={refresh}>Réessayer</button></div>}
-    {loading && <p role="status" className="pb-loading">Chargement des données financières…</p>}
+    {loading && <PhoneSkeleton variant="dashboard" label="Chargement des données financières" />}
     {!loading && finance && <>
       {section === 'movements' && <div className="pb-section">
         {breakdown ? <div className="pb-grid"><div className="pb-card"><h3>Caisse</h3><p>Entrées <b>{money(breakdown.inflows.cash, currency)}</b></p><p>Sorties <b>{money(breakdown.outflows.cash, currency)}</b></p></div><div className="pb-card"><h3>Banque</h3><p>Entrées <b>{money(breakdown.inflows.bank, currency)}</b></p><p>Sorties <b>{money(breakdown.outflows.bank, currency)}</b></p></div><AmountCard label="Apports" value={breakdown.owner.contributions.total} currency={currency} tone="in" /><AmountCard label="Prélèvements" value={breakdown.owner.withdrawals.total} currency={currency} tone="out" /></div> : breakdownError && <p className="pb-note">Ventilation caisse/banque indisponible ; les soldes détaillés ne sont pas estimés.</p>}
