@@ -8,12 +8,16 @@ import { NavLink, Route, Routes, useNavigate, useLocation } from 'react-router-d
 import PhoneBills from './PhoneBills';
 import PhoneWarehouse from './PhoneWarehouse';
 import PhoneSettings from './PhoneSettings';
+import PhoneDock, { canOpenPhoneBalance, canOpenPhoneEmployees } from './PhoneDock';
+import { usePhoneTheme } from './usePhoneTheme';
 import { api } from '../api';
 import { clearToken, getUsername, getDisplayInitials, getDisplayName, hasAvatarUrl, getRole, setProfileCache, isStockRole, canSell, canAccessSettings, canAccessSettingsBeyondProfile } from '../auth';
 import { getDensity, setDensity, isGlassEnabled, setGlassEnabled, isLiquidGlassActive, type Density } from '../lib/density';
 import { APP_VERSION } from '../version';
 import './phone.css';
 import PageTransition from '../components/PageTransition';
+import PhoneDialog from './PhoneDialog';
+import { phoneStockQuantity as stockOf, phoneStockThreshold as minOf, phoneStockIsLow } from './phoneStock';
 import PageSkeleton from '../components/PageSkeleton';
 import { AvatarImage } from '../components/ui/AvatarImage';
 import { useProfileWarm } from '../lib/useProfileWarm';
@@ -44,6 +48,8 @@ type Product = {
   stock_quantity?: number;
   stock?: number;
   min_stock?: number;
+  low_stock_threshold?: number | null;
+  track_inventory?: number | boolean | null;
   unit_price?: number;
   price?: number;
 };
@@ -57,6 +63,9 @@ type Action = {
   created_at: string;
   barcode?: string;
 };
+
+const Balance = lazy(() => import('../pages/Balance'));
+const Employees = lazy(() => import('../pages/Employees'));
 
 const PHONE_CART_KEY = 'atlas-phone-cart';
 
@@ -101,14 +110,8 @@ function savePhoneCart(cart: Record<number, number>) {
   } catch { /* */ }
 }
 
-function stockOf(p: Product) {
-  return Number(p.stock_quantity ?? p.stock ?? 0);
-}
 function priceOf(p: Product) {
   return Number(p.unit_price ?? p.price ?? 0);
-}
-function minOf(p: Product) {
-  return Number(p.min_stock ?? 5);
 }
 
 /* ─── v255 — Phone = twin of the Android app.
@@ -141,6 +144,8 @@ const TAB_TITLES: [string, string][] = [
   ['/m/settings', 'Mon profil'],
   ['/m/warehouse', 'Entrepôt'],
   ['/m/bills', 'Achats'],
+  ['/m/balance', 'Balance'],
+  ['/m/employees', 'Employés'],
   ['/m/invoice', 'Devis'],
   ['/m/more', 'Plus'],
 ];
@@ -192,7 +197,6 @@ export default function PhoneApp() {
       setDensity('comfortable');
       document.documentElement.dataset.density = 'comfortable';
       document.documentElement.classList.remove('density-compact');
-      document.documentElement.classList.add('phone-shell');
     } catch { /* */ }
   }, []);
 
@@ -200,11 +204,17 @@ export default function PhoneApp() {
   const [products, setProducts] = useState<Product[]>([]);
   const [actions, setActions] = useState<Action[]>([]);
   const [pending, setPending] = useState(0);
-  const [todaySales, setTodaySales] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
   const [booting, setBooting] = useState(true);
   const [quickOpen, setQuickOpen] = useState(false);
-  const [cartTick, setCartTick] = useState(0);
+  const [scanDialogOpen, setScanDialogOpen] = useState(false);
+  useEffect(() => { setQuickOpen(false); }, [location.pathname]);
+  useEffect(() => {
+    if (!quickOpen) return;
+    const close = (event: KeyboardEvent) => { if (event.key === 'Escape') setQuickOpen(false); };
+    window.addEventListener('keydown', close);
+    return () => window.removeEventListener('keydown', close);
+  }, [quickOpen]);
   const navigate = useNavigate();
 
   const show = (m: string) => {
@@ -232,8 +242,6 @@ export default function PhoneApp() {
       await cacheProducts(pr.data || []); } catch { /* offline cache optional */ }
       setActions((ac.data || []) as Action[]);
       setPending(Number(st.data?.pending || 0));
-      setTodaySales(0);
-      setCartTick((t) => t + 1);
     } catch {
       /* keep last — never block UI */
     } finally {
@@ -295,7 +303,9 @@ export default function PhoneApp() {
       navigator.serviceWorker.addEventListener('message', onMsg);
     }
     return () => {
+      window.clearTimeout(bootTimer);
       clearInterval(t);
+      if ((window as any).__atlasFlushOutbox === flush) delete (window as any).__atlasFlushOutbox;
       window.removeEventListener('online', flush);
       if (navigator.serviceWorker) {
         navigator.serviceWorker.removeEventListener('message', onMsg);
@@ -304,37 +314,13 @@ export default function PhoneApp() {
   }, [refresh]);
 
   const lowCount = useMemo(
-    () => products.filter((p) => stockOf(p) < minOf(p)).length,
+    () => products.filter(phoneStockIsLow).length,
     [products]
   );
-  /* Android twin: the Vente tab carries the live cart badge (BadgedBox). */
-  const cartCount = useMemo(() => {
-    void cartTick;
-    try {
-      return Object.values(loadPhoneCart()).reduce((sum, q) => sum + (Number(q) || 0), 0);
-    } catch { return 0; }
-  }, [cartTick, location.pathname]);
   const allowSell = canSell();
   const [density, setDensityState] = useState<Density>(() => getDensity());
   const [glassOn, setGlassOn] = useState(() => isGlassEnabled());
-  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(() => {
-    try {
-      const v = localStorage.getItem('atlas-theme');
-      if (v === 'light' || v === 'dark' || v === 'system') return v;
-    } catch { /* */ }
-    return 'system';
-  });
-  const applyTheme = (v: 'light' | 'dark' | 'system') => {
-    setTheme(v);
-    try { localStorage.setItem('atlas-theme', v); } catch { /* */ }
-    const root = document.documentElement;
-    const dark = v === 'dark' || (v === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    root.dataset.theme = dark ? 'dark' : 'light';
-    root.classList.toggle('theme-dark', dark);
-    root.style.colorScheme = dark ? 'dark' : 'light';
-    const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', dark ? '#111113' : '#f4f5f7');
-  };
+  const [theme, applyTheme] = usePhoneTheme();
   const applyGlass = (v: boolean) => {
     setGlassOn(v);
     setGlassEnabled(v);
@@ -344,7 +330,7 @@ export default function PhoneApp() {
   const roleLabel = androidRoleLabel(getRole());
 
   return (
-    <div className="phone-root">
+    <div className={`phone-root${scanDialogOpen ? ' phone-root--dialog-open' : ''}`}>
       <OfflineBanner />
       <header className="phone-topbar">
         <div className="pt-titles">
@@ -356,7 +342,7 @@ export default function PhoneApp() {
             <button
               type="button"
               className="ph-quick-ball"
-              aria-label="Menu rapide (notifications et appareils)"
+              aria-label="Menu rapide"
               aria-expanded={quickOpen}
               onClick={() => setQuickOpen((v) => !v)}
             >
@@ -387,6 +373,12 @@ export default function PhoneApp() {
                       <small>Boîte d’alertes & activité</small>
                     </span>
                     {pending > 0 ? <span className="ph-quick-badge">{pending > 99 ? '99+' : pending}</span> : null}
+                  </button>
+                  {allowSell && <button type="button" role="menuitem" className="ph-quick-item" onClick={() => { setQuickOpen(false); navigate('/m/vente'); }}>
+                    <span className="ph-quick-item-txt"><strong>Vente</strong><small>Ouvrir la vente rapide</small></span>
+                  </button>}
+                  <button type="button" role="menuitem" className="ph-quick-item" onClick={() => { setQuickOpen(false); navigate('/m/agent'); }}>
+                    <span className="ph-quick-item-txt"><strong>Atlas Agent</strong><small>Ouvrir l’assistant</small></span>
                   </button>
                   <div className="ph-quick-div" />
                   <a role="menuitem" className="ph-quick-item" href="/login/qr">
@@ -423,7 +415,7 @@ export default function PhoneApp() {
           Synchronisation…
         </div>
       )}
-      <main className="phone-main">
+      <main className={`phone-main${location.pathname.replace(/\/+$/, '') === '/m/agent' ? ' phone-main--agent' : ''}`}>
         <PageTransition>
         <Routes>
           <Route
@@ -433,9 +425,8 @@ export default function PhoneApp() {
                 productCount={products.length}
                 lowCount={lowCount}
                 pending={pending}
-                todaySales={todaySales}
                 actions={actions.filter((a) => a.status === 'pending').slice(0, 4)}
-                onRefresh={() => { setCartTick((t) => t + 1); void refresh(true); }}
+                onRefresh={() => { void refresh(true); }}
               />
             }
           />
@@ -445,6 +436,7 @@ export default function PhoneApp() {
               <PhoneScan
                 products={products}
                 actions={actions}
+                onDecisionVisibilityChange={setScanDialogOpen}
                 onSent={async () => {
                   show('Envoyé au PC');
                   await refresh();
@@ -495,12 +487,13 @@ export default function PhoneApp() {
               )
             }
           />
+          <Route path="/balance" element={canOpenPhoneBalance(getRole()) ? <div className="phone-web-page"><Suspense fallback={<PageSkeleton variant="phone" />}><Balance /></Suspense></div> : <div className="phone-panel"><p>Cette page n’est pas disponible pour votre rôle.</p></div>} />
+          <Route path="/employees" element={canOpenPhoneEmployees(getRole()) ? <div className="phone-web-page"><Suspense fallback={<PageSkeleton variant="phone" />}><Employees /></Suspense></div> : <div className="phone-panel"><p>Cette page n’est pas disponible pour votre rôle.</p></div>} />
           <Route path="/more" element={<PhoneMore />} />
           <Route path="/settings" element={<PhoneSettings theme={theme} glass={glassOn} onTheme={applyTheme} onGlass={applyGlass} />} />
           <Route path="/bills" element={allowSell ? <PhoneBills onToast={show} /> : <div className="phone-panel"><p className="ph-perm-banner">Rôle magasinier : pas d’achats.</p></div>} />
           <Route path="/warehouse" element={<PhoneWarehouse onToast={show} />} />
           <Route path="/agent" element={<PhoneAgentMobile />} />
-          <Route path="/inbox" element={<PhoneInbox />} />
 
           <Route
             path="*"
@@ -521,50 +514,16 @@ export default function PhoneApp() {
         </PageTransition>
       </main>
 
-      <nav className="phone-tabbar" aria-label="Navigation principale">
-        <NavLink to="/m" end className={({ isActive }) => (isActive ? 'ptab active' : 'ptab')}>
-          <span className="ptab-ico">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M4 10.5L12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5z" /></svg>
-          </span>
-          <span className="ptab-lbl">Accueil</span>
-        </NavLink>
-        <NavLink to="/m/products" className={({ isActive }) => (isActive ? 'ptab active' : 'ptab')}>
-          <span className="ptab-ico">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M20 7l-8-4-8 4v10l8 4 8-4V7z" /><path d="M4 7l8 4 8-4" /><path d="M12 11v10" /></svg>
-          </span>
-          <span className="ptab-lbl">Produits</span>
-        </NavLink>
-        <NavLink to="/m/scan" className={({ isActive }) => (isActive ? 'ptab active' : 'ptab')}>
-          <span className="ptab-ico">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M4 7V5a1 1 0 0 1 1-1h2M20 7V5a1 1 0 0 0-1-1h-2M4 17v2a1 1 0 0 0 1 1h2M20 17v2a1 1 0 0 1-1 1h-2M7 12h10" /></svg>
-          </span>
-          <span className="ptab-lbl">Scan</span>
-        </NavLink>
-        {allowSell && (
-          <NavLink to="/m/vente" className={({ isActive }) => (isActive ? 'ptab active' : 'ptab')}>
-            <span className="ptab-ico">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="9.5" cy="20" r="1.4" /><circle cx="17.5" cy="20" r="1.4" /><path d="M3 4h2l2.4 11.2a1.5 1.5 0 0 0 1.5 1.2h7.9a1.5 1.5 0 0 0 1.5-1.2L20.5 7.5H6" /></svg>
-              {cartCount > 0 ? <span className="ptab-badge">{cartCount > 99 ? '99+' : cartCount}</span> : null}
-            </span>
-            <span className="ptab-lbl">Vente</span>
-          </NavLink>
-        )}
-        <NavLink to="/m/agent" className={({ isActive }) => (isActive ? 'ptab active' : 'ptab')}>
-          <span className="ptab-ico">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z" /><circle cx="18" cy="6" r="1.2" fill="currentColor" stroke="none" /></svg>
-          </span>
-          <span className="ptab-lbl">Agent</span>
-        </NavLink>
-      </nav>
+      <PhoneDock role={getRole()} />
       {toast && <div className="phone-toast">{toast}</div>}
     </div>
   );
 }
 
 function PhoneHome({
-  productCount, lowCount, pending, todaySales, actions, onRefresh,
+  productCount, lowCount, pending, actions, onRefresh,
 }: {
-  productCount: number; lowCount: number; pending: number; todaySales: number;
+  productCount: number; lowCount: number; pending: number;
   actions: Action[]; onRefresh: () => void;
 }) {
   const navigate = useNavigate();
@@ -591,7 +550,7 @@ function PhoneHome({
             {finance ? 'VENTES DU JOUR' : `PILOTAGE CATALOGUE & STOCK · ${roleLabel.toUpperCase()}`}
           </span>
           <strong className="ph-hero-value">
-            {finance ? <CountUp value={todaySales} suffix=" MAD" /> : <>{productCount} articles actifs</>}
+            {finance ? 'Indisponible' : <>{productCount} articles actifs</>}
           </strong>
           <div className="ph-hero-pills">
             {finance ? (
@@ -663,7 +622,7 @@ function PhoneHome({
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M4 16l5-5 3.5 3.5L20 7" /><path d="M15 7h5v5" /></svg>
               Ventes du jour
             </span>
-            <strong className="ph-tile-val"><CountUp value={todaySales} suffix=" MAD" /></strong>
+            <strong className="ph-tile-val">Indisponible</strong>
           </div>
         ) : (
           <div className={`ph-tile ${stockTone}`}>
@@ -758,9 +717,10 @@ function PhoneHome({
 }
 
 function PhoneScan({
-  products, actions, onSent, onToast,
+  products, actions, onSent, onToast, onDecisionVisibilityChange,
 }: {
   products: Product[]; actions: Action[]; onSent: () => void; onToast: (m: string) => void;
+  onDecisionVisibilityChange: (open: boolean) => void;
 }) {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
@@ -776,6 +736,10 @@ function PhoneScan({
     offline: boolean;
   }>(null);
   const [addNow, setAddNow] = useState(false);
+  useEffect(() => {
+    onDecisionVisibilityChange(!!decision && (decision.found ? !addNow : addNow));
+    return () => onDecisionVisibilityChange(false);
+  }, [decision, addNow, onDecisionVisibilityChange]);
   const [countedStock, setCountedStock] = useState('');
   const [np, setNp] = useState({ name: '', sku: '', barcode: '', price: '', stock: '0', image_data_url: '' });
   const navigate = useNavigate();
@@ -823,7 +787,7 @@ function PhoneScan({
     void tick();
     const id = window.setInterval(tick, 20000);
     // Preload WASM scanner engine (P3)
-    try { void prepareZXing?.(); } catch { /* */ }
+    void prepareZXing().catch(() => { /* scanner fallback stays available */ });
     return () => { stopped = true; window.clearInterval(id); };
   }, []);
 
@@ -1245,9 +1209,8 @@ function PhoneScan({
 
       {/* Single modal only: found product → adjust stock (no second popup) */}
       {decision && decision.found && !addNow && (
-        <div className="ph-modal-bg" onClick={closeDecision}>
-          <div className="ph-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Ajuster le stock</h3>
+        <PhoneDialog titleId="phone-stock-dialog-title" onClose={closeDecision}>
+            <h3 id="phone-stock-dialog-title">Ajuster le stock</h3>
             <p className="ph-sub" style={{ marginBottom: 12 }}>
               Code <strong>{decision.code}</strong>
               {decision.offline ? ' · mode hors ligne / cache' : ''}
@@ -1257,13 +1220,13 @@ function PhoneScan({
               Stock système : <strong>{stockOf(decision.found)}</strong> · min {minOf(decision.found)}
               {!isStockRole() && <> · {priceOf(decision.found)} MAD</>}
             </div>
-            <label>Stock compté en rayon</label>
+            <label htmlFor="phone-counted-stock">Stock compté en rayon</label>
             <input
+              id="phone-counted-stock"
               value={countedStock}
               onChange={(e) => setCountedStock(e.target.value)}
               inputMode="numeric"
               placeholder="Quantité réelle"
-              autoFocus
             />
             <p className="ph-sub" style={{ marginTop: 8, marginBottom: 12 }}>
               L&apos;ajustement est envoyé au PC pour approbation avant d&apos;être appliqué.
@@ -1281,15 +1244,13 @@ function PhoneScan({
                 Annuler
               </button>
             </div>
-          </div>
-        </div>
+        </PhoneDialog>
       )}
 
       {/* Single modal only: unknown product */}
       {decision && !decision.found && addNow && (
-        <div className="ph-modal-bg" onClick={closeDecision}>
-          <div className="ph-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Produit inconnu</h3>
+        <PhoneDialog titleId="phone-new-product-dialog-title" onClose={closeDecision}>
+            <h3 id="phone-new-product-dialog-title">Produit inconnu</h3>
             <p className="ph-sub" style={{ marginBottom: 12 }}>
               Code <strong>{decision.code}</strong>
               {decision.offline ? ' · hors ligne' : ''}
@@ -1341,8 +1302,7 @@ function PhoneScan({
                 Annuler
               </button>
             </div>
-          </div>
-        </div>
+        </PhoneDialog>
       )}
     </div>
   );
@@ -1377,7 +1337,7 @@ function PhoneProduits({
 
   const list = products
     .filter((p) => {
-      if (lowOnly && stockOf(p) >= minOf(p)) return false;
+      if (lowOnly && !phoneStockIsLow(p)) return false;
       if (!q.trim()) return true;
       const s = q.toLowerCase();
       return (
@@ -1422,7 +1382,7 @@ function PhoneProduits({
         <>
           <div className="ph-section">Approuvés (PC) · {sortMode === 'oldest' ? 'plus anciens' : 'plus récents'}</div>
           {approvedRecent.map((p) => {
-            const low = stockOf(p) < minOf(p);
+            const low = phoneStockIsLow(p);
             return (
               <div className="ph-prod" key={`ap-${p.id}`}>
                 <div>
@@ -1441,7 +1401,7 @@ function PhoneProduits({
       )}
 
       {list.map((p) => {
-        const low = stockOf(p) < minOf(p);
+        const low = phoneStockIsLow(p);
         const wasApproved = approvedIds.has(p.id);
         return (
           <div className="ph-prod" key={p.id}>

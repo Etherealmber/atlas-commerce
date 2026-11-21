@@ -2376,21 +2376,8 @@ html[data-theme="dark"] {
 }
 /* v214b END */
 
-/* v215 — primary buttons: light zinc in dark (was pure black) */
-html[data-theme="dark"] body GLOBAL BUTTON COLORS — identical in Compact & Confort
-   Density only changes size/padding/radius,
-html[data-theme="dark"] body never colors
-   Self-check: primary,
-html[data-theme="dark"] body secondary,
-html[data-theme="dark"] body danger,
-html[data-theme="dark"] body table actions,
-html[data-theme="dark"] body forms
-   ═══════════════════════════════════════════════════════════ */
-
-/* Primary — solid teal,
-html[data-theme="dark"] body white text,
-html[data-theme="dark"] body teal border (both densities) */
-html[data-density="compact"] .content button:not(.ac-timed-delete-btn):not(.ac-timed-delete):not(.danger):not(.mailbox-folder-item):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.atlas-dp-trigger):not(.mailbox-icon-btn):not(.mailbox-menu-item):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.atlas-password-toggle):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn),
+/* v215 — dark primary button colors, independent of density. */
+html[data-theme="dark"][data-density="compact"] .content button:not(.ac-timed-delete-btn):not(.ac-timed-delete):not(.danger):not(.mailbox-folder-item):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.atlas-dp-trigger):not(.mailbox-icon-btn):not(.mailbox-menu-item):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.atlas-password-toggle):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn),
 html[data-theme="dark"][data-density="comfortable"] .content button:not(.ac-timed-delete-btn):not(.ac-timed-delete):not(.danger):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.atlas-dp-trigger):not(.mailbox-icon-btn):not(.mailbox-menu-item):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.atlas-password-toggle):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn),
 html[data-theme="dark"][data-density="compact"] button.primary,
 html[data-theme="dark"][data-density="comfortable"] button.primary,
@@ -2668,8 +2655,6 @@ html[data-theme="dark"] body .atlas-empty-action,
 html[data-theme="dark"] body .atlas-mobile-nav,
 html[data-theme="dark"] [data-liquid-glass="on"] .stat-card,
 html[data-theme="dark"] body .atlas-remember-box,
-html[data-theme="dark"] body no character strip */
-.atlas-login--phone,
 html[data-theme="dark"] body .about-secondary-link,
 html[data-theme="dark"] body .ac-notif-head,
 html[data-theme="dark"] body .ac-notif-all,
@@ -2711,8 +2696,6 @@ html[data-theme="dark"] body .ph-agent-bubble.assistant {
 html[data-theme="dark"] body .cookie-btn.secondary,
 html[data-theme="dark"] body .agent-perm-mode:hover,
 html[data-theme="dark"] body .agent-perm-tool-switch,
-html[data-theme="dark"] body not solid green bar ─── */
-button.welcome-switch-card,
 html[data-theme="dark"] body .welcome-switch-card,
 html[data-theme="dark"] body .welcome-switch-card.on,
 html[data-theme="dark"] body button.atlas-agent-retry,
