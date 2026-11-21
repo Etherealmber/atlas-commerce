@@ -52,6 +52,8 @@ import { repairProductSearchIndex, proactiveFtsHealth } from './lib/reliability'
 import { androidReleaseRouter, serveAppUpdatesAsset } from './routes/androidRelease';
 import { registerDeviceTokenRoutes } from './routes/deviceToken';
 import { registerDesktopAuthRoutes, isDesktopAuthPath, isPublicDesktopAuthPath, DESKTOP_AUTH } from './routes/desktopAuth';
+import { registerDesktopNativeDiscovery, DESKTOP_NATIVE_V2_CAPABILITIES } from './routes/desktopNativeDiscovery';
+import { registerDesktopNativeV2, isNativeV2Operation, NATIVE_V2 } from './routes/desktopNativeV2';
 import {
   androidMinVersionGuard,
   manifestWithPolicy,
@@ -767,7 +769,7 @@ app.use('*', async (c, next) => {
     const bm = readD1BookmarkFromReq(c);
 
     try {
-      if (path.startsWith('/api/reports/') || path === '/api/mobile/work-status' || path === '/api/mobile/snake-score' || path === '/api/mobile/preferences' || path === '/api/reports' || path === '/api/admin/product-images/normalize') {
+      if (path.startsWith('/api/reports/') || path.startsWith(`${NATIVE_V2}/`) || path === '/api/mobile/work-status' || path === '/api/mobile/snake-score' || path === '/api/mobile/preferences' || path === '/api/reports' || path === '/api/admin/product-images/normalize') {
         session = rawDb.withSession('first-primary');
       } else if (path === '/api/health') {
         // Health check: can use unconstrained replica or available session
@@ -780,7 +782,10 @@ app.use('*', async (c, next) => {
         session = bm ? rawDb.withSession(bm) : rawDb.withSession();
       }
     } catch {
-      // Fail closed / safe fallback
+      // Native v2 must never silently fall back to an unconstrained D1 replica.
+      if (path.startsWith(`${NATIVE_V2}/`)) {
+        return c.json({ success: false, code: 'UNAVAILABLE', error: 'Connexion indisponible.' }, 503);
+      }
       try {
         session = rawDb.withSession('first-primary');
       } catch {
@@ -864,7 +869,7 @@ app.use('*', async (c, next) => {
   if (c.env.DB_TARGET) {
     (c.env as any).DB_SOURCE = c.env.DB; // remember the physical source before any swap
     try {
-      const privateResource = new URL(c.req.url).pathname === '/api/mobile/preferences' || new URL(c.req.url).pathname.startsWith('/api/reports/');
+      const privateResource = new URL(c.req.url).pathname === '/api/mobile/preferences' || new URL(c.req.url).pathname.startsWith('/api/reports/') || new URL(c.req.url).pathname.startsWith(`${NATIVE_V2}/`);
       // These resources must not fall back to the wrong database if
       // cutover state cannot be read; do not use the cached, fail-open flag.
       const flag = privateResource
@@ -872,13 +877,14 @@ app.use('*', async (c, next) => {
         : await dbPrimaryFlag(c.env);
       if (flag === 'target') {
         const target = c.env.DB_TARGET as any;
+        if (new URL(c.req.url).pathname.startsWith(`${NATIVE_V2}/`) && typeof target.withSession !== 'function') throw new Error('Native v2 requires a primary D1 session');
         (c.env as any).DB = privateResource && typeof target.withSession === 'function'
           ? target.withSession('first-primary') : target;
       }
     } catch {
       // Never silently switch this private resource back to the source database
       // if the configured target's primary session cannot be established.
-      if (new URL(c.req.url).pathname === '/api/mobile/preferences' || new URL(c.req.url).pathname.startsWith('/api/reports/')) {
+      if (new URL(c.req.url).pathname === '/api/mobile/preferences' || new URL(c.req.url).pathname.startsWith('/api/reports/') || new URL(c.req.url).pathname.startsWith(`${NATIVE_V2}/`)) {
         return c.json({ success: false, code: 'SERVICE_UNAVAILABLE', error: 'Service indisponible' }, 503);
       }
     }
@@ -920,6 +926,13 @@ app.use(`${DESKTOP_AUTH}/*`, async (c, next) => {
   c.header('Referrer-Policy', 'no-referrer');
 });
 
+app.use(`${NATIVE_V2}/*`, async (c, next) => {
+  await next();
+  c.header('Cache-Control', 'no-store');
+  c.header('CDN-Cache-Control', 'no-store');
+  c.header('Referrer-Policy', 'no-referrer');
+});
+
 app.use('/api/*', async (c, next) => {
   const path = new URL(c.req.url).pathname;
   if (
@@ -942,6 +955,9 @@ app.use('/api/*', async (c, next) => {
     // Exact public desktop endpoints verify PKCE + state + creation IP/FP themselves.
     // prepare/authorize stay behind this normal web session gate.
     isPublicDesktopAuthPath(path) ||
+    // Exact v2 operations enforce their own PKCE or authenticated-phone checks and D1 budgets.
+    (path === DESKTOP_NATIVE_V2_CAPABILITIES && c.req.method === 'GET') ||
+    (isNativeV2Operation(path) && c.req.method === 'POST') ||
     path === '/api/auth/login' ||
     path === '/api/auth/verify-otp' ||
     path === '/api/auth/verify-link' ||
@@ -1180,7 +1196,7 @@ app.use('*', async (c, next) => {
   //    Cloudflare edge with CDN-Cache-Control: no-store (CF-specific header
   //    that survives even misconfigured cache rules)
   //  - public Cache-Control → deliberate (public images/SVG); left as-is.
-  if (path === '/login/desktop') {
+  if (path === '/login/desktop' || path === '/login/desktop-phone') {
     c.header('Cache-Control', 'no-store');
     c.header('CDN-Cache-Control', 'no-store');
   }
@@ -1201,7 +1217,7 @@ app.use('*', async (c, next) => {
   // SAMEORIGIN suffit à bloquer le clickjacking externe tout en laissant
   // passer notre propre modal. Tout le reste reste DENY.
   c.header('X-Frame-Options', c.req.path === '/api/settings/invoice-preview' ? 'SAMEORIGIN' : 'DENY');
-  c.header('Referrer-Policy', path === '/login/desktop' || isDesktopAuthPath(path) ? 'no-referrer' : 'strict-origin-when-cross-origin');
+  c.header('Referrer-Policy', path === '/login/desktop' || path === '/login/desktop-phone' || isDesktopAuthPath(path) || path.startsWith(`${NATIVE_V2}/`) ? 'no-referrer' : 'strict-origin-when-cross-origin');
   c.header('Permissions-Policy', 'camera=(self), microphone=(), geolocation=(), payment=()');
   c.header('X-Robots-Tag', 'noindex, nofollow');
   c.header('Cross-Origin-Opener-Policy', 'same-origin');
@@ -1283,7 +1299,7 @@ app.use('/api/auth/*', async (c, next) => {
   if (c.req.method === 'OPTIONS' || c.req.method === 'GET') return next();
   // Desktop PKCE has separate atomic D1 budgets and a per-request poll cap.
   // Credential paths below have account-aware budgets; legacy auth retains 8/min.
-  if (isDesktopAuthPath(c.req.path)) return next();
+  if (isDesktopAuthPath(c.req.path) || isNativeV2Operation(c.req.path)) return next();
   // These exact handlers reserve persistent per-account and shared-IP budgets.
   // Do not apply the old 8/min shared-IP gate on top of those budgets.
   if (hasCredentialAttemptBudget(c.req.path)) return next();
@@ -1315,8 +1331,11 @@ app.use('/api/public/*', async (c, next) => {
 
 /** Never leak SQL / D1 / stack traces — always safe JSON. */
 app.onError(async (err, c) => {
+  if (new URL(c.req.url).pathname.startsWith(`${NATIVE_V2}/`)) {
+    return c.json({ success: false, code: 'UNAVAILABLE', error: 'Connexion indisponible.' }, 503);
+  }
   // Real cause stays server-side (CF logs) — clients only get safe messages.
-  try { if (!new URL(c.req.url).pathname.startsWith('/api/reports/')) console.error('[onError]', c.req.method, new URL(c.req.url).pathname, String((err as any)?.stack || err || '').slice(0, 500)); } catch { /* */ }
+  try { if (!new URL(c.req.url).pathname.startsWith('/api/reports/') && !new URL(c.req.url).pathname.startsWith(`${NATIVE_V2}/`)) console.error('[onError]', c.req.method, new URL(c.req.url).pathname, String((err as any)?.stack || err || '').slice(0, 500)); } catch { /* */ }
   const safe = toClientError(err);
   // v243.4: SQLITE_CORRUPT(_VTAB) on this app almost always means the
   // products_fts FTS5 shadow pages — derived data we can rebuild ourselves.
@@ -3306,6 +3325,37 @@ function randomQrToken(): string {
 
 
 /** Versioned desktop flow: reuse existing proof validation, trust and v2 format. */
+registerDesktopNativeDiscovery(app);
+
+// Verify the actual token fingerprint and database role; neither the declared
+// fingerprint nor the parsed role alone constitutes an identity.
+async function nativeCurrentIdentity(env: Env, username: string, role: string) {
+  if (!username || username !== username.toLowerCase()) return null;
+  if (username === getOwnerUsername(env)) {
+    if (role !== 'owner') return null;
+    const material = await secretMaterialForUsername(env, env.DB, username, role);
+    return material ? { username, role, material, userId: null } : null;
+  }
+  if (!['admin', 'secretaire', 'stock', 'user'].includes(role)) return null;
+  const row: any = await env.DB.prepare('SELECT id, role, password_hash FROM app_users WHERE username = ? AND active = 1').bind(username).first();
+  if (!row || row.role !== role || !row.password_hash || !Number.isSafeInteger(row.id) || row.id <= 0) return null;
+  return { username, role, material: String(row.password_hash), userId: Number(row.id) };
+}
+registerDesktopNativeV2(app, {
+  currentIdentity: nativeCurrentIdentity,
+  phoneIdentity: async (c, ip, fp) => {
+    const header = c.req.header('Authorization');
+    if (!header?.startsWith('Bearer ')) return null;
+    const parsed = parseToken(header.slice(7));
+    if (!parsed || parsed.version !== 2 || !parsed.username || parsed.fingerprint !== fp || !parsed.role) return null;
+    if (await authFailReason(header, c.env, c.env.DB, ip, fp) !== 'ok') return null;
+    const trusted: any = await c.env.DB.prepare('SELECT username FROM trusted_devices WHERE fingerprint = ?').bind(fp).first();
+    if (!trusted?.username || String(trusted.username).toLowerCase() !== parsed.username.toLowerCase()) return null;
+    return nativeCurrentIdentity(c.env, parsed.username, parsed.role);
+  },
+  mint: makeTokenV2,
+});
+
 registerDesktopAuthRoutes(app, {
   ip: clientIp,
   authenticate: async c => {
@@ -21624,11 +21674,11 @@ export default {
       try {
         return await app.fetch(request, env, ctx);
       } catch (err: any) {
-        if (!url.pathname.startsWith('/api/reports/')) console.error('api_fetch_fatal', String(err?.message || err));
+        if (!url.pathname.startsWith('/api/reports/') && !url.pathname.startsWith(`${NATIVE_V2}/`)) console.error('api_fetch_fatal', String(err?.message || err));
         return new Response(
           JSON.stringify({
             success: false,
-            error: url.pathname.startsWith('/api/reports/') ? 'Rapport indisponible' : String(err?.message || 'Erreur interne').slice(0, 300),
+            error: url.pathname.startsWith('/api/reports/') ? 'Rapport indisponible' : url.pathname.startsWith(`${NATIVE_V2}/`) ? 'Connexion indisponible' : String(err?.message || 'Erreur interne').slice(0, 300),
             code: 'INTERNAL_ERROR',
           }),
           { status: 500, headers: { 'Content-Type': 'application/json' } }
