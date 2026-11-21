@@ -168,6 +168,7 @@ export default function Balance() {
   const [expenses, setExpenses] = useState<any[]>([]);
   const [dashboard, setDashboard] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [pwOpen, setPwOpen] = useState(false);
   const [pwTitle, setPwTitle] = useState('');
@@ -208,8 +209,10 @@ export default function Balance() {
   const load = (soft = false) => {
     if (soft) setRefreshing(true);
     else setLoading(true);
+    setLoadError('');
     Promise.all([api.getExpenses(), api.getDashboard()])
       .then(([e, d]) => { setExpenses(e.data); setDashboard(d.data); })
+      .catch(() => setLoadError('Impossible de charger la balance. Vérifiez votre connexion puis réessayez.'))
       .finally(() => {
         setLoading(false);
         setRefreshing(false);
@@ -390,6 +393,12 @@ export default function Balance() {
       </div>
     );
 
+  if (loadError && !dashboard) return (
+    <div className="atlas-page balance-page" role="alert">
+      <p>{loadError}</p><button type="button" onClick={() => load()}>Réessayer</button>
+    </div>
+  );
+
   const balance = Number(dashboard?.currentBalance || 0);
   const moneyIn = Number(dashboard?.salesReceived || 0) + Number(dashboard?.otherIncomeTotal || 0) + Number(dashboard?.ownerContribTotal || 0);
   const moneyOut = Number(dashboard?.purchasesPaid || 0) + Number(dashboard?.expensesTotal || 0) + Number(dashboard?.ownerDrawTotal || 0);
@@ -422,6 +431,7 @@ export default function Balance() {
         </div>
       </div>
 
+      {loadError && <p role="alert">{loadError}</p>}
       <SaveFeedback message={saveMsg} type={saveMsgType} />
 
       <div className="ac-metric-grid">

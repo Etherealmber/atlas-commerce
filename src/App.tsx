@@ -628,8 +628,9 @@ function useIsPhoneShell() {
       else if (mode === 'pc') setPhone(false);
       else setPhone(mq.matches);
     };
-    mq.addEventListener('change', fn);
-    return () => mq.removeEventListener('change', fn);
+    if (mq.addEventListener) mq.addEventListener('change', fn);
+    else mq.addListener(fn);
+    return () => { if (mq.removeEventListener) mq.removeEventListener('change', fn); else mq.removeListener(fn); };
   }, []);
   return phone;
 }
@@ -2031,6 +2032,8 @@ function DesktopShell() {
               <Route path="/m/products" element={<Navigate to="/products" replace />} />
               <Route path="/m/vente" element={<Navigate to="/quick-sale" replace />} />
               <Route path="/m/bills" element={<Navigate to="/bills" replace />} />
+              <Route path="/m/balance" element={<Navigate to="/balance" replace />} />
+              <Route path="/m/employees" element={<Navigate to="/employees" replace />} />
               <Route path="/m/warehouse" element={<Navigate to="/inventory-ops" replace />} />
               <Route path="/m/invoice" element={<Navigate to="/quotes" replace />} />
               <Route path="/m/settings" element={<Navigate to="/settings" replace />} />
@@ -2102,42 +2105,11 @@ function PhoneShell() {
       delete document.documentElement.dataset.pwa;
     };
   }, []);
-  // v253 material ripple — adapted from React Bits "Ripple"
-  // (github.com/DavidHDev/react-bits, MIT): one delegated pointerdown gives
-  // every tappable element of the terrain app native-feeling touch feedback.
-  useEffect(() => {
-    const onDown = (e: PointerEvent) => {
-      const host = (e.target as HTMLElement | null)?.closest?.(
-        'button, a.ptab, .ph-chip, .ph-cta, .phone-icon-btn'
-      ) as HTMLElement | null;
-      if (!host || host.dataset.ripple === 'off') return;
-      const rect = host.getBoundingClientRect();
-      if (!rect.width || !rect.height) return;
-      const size = Math.max(rect.width, rect.height) * 1.1;
-      const span = document.createElement('span');
-      span.className = 'ph-ripple';
-      span.style.width = `${size}px`;
-      span.style.height = `${size}px`;
-      span.style.left = `${e.clientX - rect.left - size / 2}px`;
-      span.style.top = `${e.clientY - rect.top - size / 2}px`;
-      if (getComputedStyle(host).position === 'static') host.style.position = 'relative';
-      const prevOverflow = host.style.overflow;
-      host.style.overflow = 'hidden';
-      host.appendChild(span);
-      span.addEventListener('animationend', () => {
-        span.remove();
-        host.style.overflow = prevOverflow;
-      }, { once: true });
-    };
-    document.addEventListener('pointerdown', onDown, { passive: true });
-    return () => document.removeEventListener('pointerdown', onDown);
-  }, []);
   return (
     <>
       <AtlasLoadingBar />
       <ErrorBoundary label="phone">
         <Suspense fallback={<PhonePageFallback />}>
-          <PageTransition>
           <Routes>
             {/* Legal still readable on phone */}
             <Route path="/privacy" element={<Privacy />} />
@@ -2149,10 +2121,15 @@ function PhoneShell() {
             {/* Default phone landing */}
             <Route path="/" element={<Navigate to="/m" replace />} />
             <Route path="/dashboard" element={<Navigate to="/m" replace />} />
-            {/* Everything else PC-only: /settings, /balance, /dashboard, … */}
+            <Route path="/products" element={<Navigate to="/m/products" replace />} />
+            <Route path="/scan" element={<Navigate to="/m/scan" replace />} />
+            <Route path="/quick-sale" element={<Navigate to="/m/vente" replace />} />
+            <Route path="/balance" element={<Navigate to="/m/balance" replace />} />
+            <Route path="/employees" element={<Navigate to="/m/employees" replace />} />
+            <Route path="/settings" element={<Navigate to="/m/settings" replace />} />
+            {/* Other desktop routes remain available in the PC shell. */}
             <Route path="/*" element={<PhonePcOnlyPage />} />
           </Routes>
-          </PageTransition>
         </Suspense>
       </ErrorBoundary>
       <Suspense fallback={null}><WhatsNewModal /></Suspense>

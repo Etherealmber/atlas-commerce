@@ -54,14 +54,14 @@ export default function PhoneSettings({ theme, onTheme }: Props) {
         <p className="ph-settings-hint" style={{ margin: '0 0 10px', fontSize: 13, color: '#9aa3b5' }}>
           Thème de l&apos;application sur cet appareil.
         </p>
-        <div className="ph-seg">
-          <button type="button" className={theme === 'light' ? 'on' : ''} onClick={() => onTheme('light')}>
+        <div className="ph-seg" role="group" aria-label="Thème de l’application">
+          <button type="button" className={`theme-toggle${theme === 'light' ? ' on' : ''}`} aria-pressed={theme === 'light'} onClick={() => onTheme('light')}>
             Clair
           </button>
-          <button type="button" className={theme === 'dark' ? 'on' : ''} onClick={() => onTheme('dark')}>
+          <button type="button" className={`theme-toggle${theme === 'dark' ? ' on' : ''}`} aria-pressed={theme === 'dark'} onClick={() => onTheme('dark')}>
             Sombre
           </button>
-          <button type="button" className={theme === 'system' ? 'on' : ''} onClick={() => onTheme('system')}>
+          <button type="button" className={`theme-toggle${theme === 'system' ? ' on' : ''}`} aria-pressed={theme === 'system'} onClick={() => onTheme('system')}>
             Système
           </button>
         </div>

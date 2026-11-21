@@ -86,7 +86,7 @@
       /* Apply the saved theme before first paint — no white flash in dark mode */
       (function () {
         try {
-          var m = localStorage.getItem('atlas-theme') || 'light';
+          var m = localStorage.getItem('atlas-theme') || 'system';
           var dark = m === 'dark' ||
             (m === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
           var r = document.documentElement;
