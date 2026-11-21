@@ -5,6 +5,7 @@
  * every link opens inside the modal popup, and carry QR + DÉMO markings.
  */
 export interface DocPreviewDeps {
+  requireEmployeeAdmin: (c: any) => Promise<Response | null>;
   sessionUserFromHeader: (h: string | undefined) => { username: string; role: string };
   authFailReason: (...a: any[]) => Promise<string>;
   generateInvoiceHTML: (...a: any[]) => string;
@@ -20,8 +21,12 @@ export interface DocPreviewDeps {
 
 export function registerDocPreviewRoutes(app: any, deps: DocPreviewDeps): void {
 app.get('/api/settings/invoice-preview', async (c: any) => {
-  const settings = await c.env.DB.prepare(`SELECT * FROM company_settings WHERE id = 1`).first() as any;
   const type = String(c.req.query('type') || 'invoice').toLowerCase();
+  if (type === 'employee' || type === 'report') {
+    const denied = await deps.requireEmployeeAdmin(c);
+    if (denied) return denied;
+  }
+  const settings = await c.env.DB.prepare(`SELECT * FROM company_settings WHERE id = 1`).first() as any;
   const pad = Math.min(8, Math.max(3, Number(settings?.numbering_pad || 4)));
   const tax = Number(settings?.tax_rate ?? 20);
   const company = settings?.company_name || 'Atlas Commerce';

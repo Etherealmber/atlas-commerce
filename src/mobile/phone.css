@@ -2486,3 +2486,166 @@ html[data-theme="dark"].phone-shell body .ph-modal-bg .ph-modal strong { color: 
 html[data-theme="dark"].phone-shell body .ph-modal-bg .ph-sub,
 html[data-theme="dark"].phone-shell body .ph-modal-bg .ph-row-detail,
 html[data-theme="dark"].phone-shell body .ph-modal-bg .ph-modal label { color: #b4b4bd !important; }
+
+/* One document scroller: nested overflow containers interrupt touch gestures,
+   and a full-screen menu backdrop used to swallow every swipe. */
+html.phone-shell .phone-root,
+html.phone-shell .phone-main:not(.phone-main--agent) {
+  overflow: visible !important;
+  -webkit-overflow-scrolling: auto;
+}
+html.phone-shell { overscroll-behavior-y: auto; }
+html.phone-shell body { overscroll-behavior-y: auto; }
+html.phone-shell .phone-root .ph-quick-menu {
+  width: min(280px, calc(100vw - 24px)); min-width: 0;
+  max-height: calc(100vh - 90px); overflow-y: auto;
+  background: #fff !important; color: #0f172a !important;
+}
+html.phone-shell body .phone-root .ph-quick-menu .ph-quick-item {
+  display: flex !important; justify-content: flex-start !important;
+  width: 100% !important; min-height: 48px !important; padding: 10px !important;
+  background: transparent !important; border: 0 !important; border-radius: 10px !important;
+  box-shadow: none !important; color: #0f172a !important; -webkit-text-fill-color: #0f172a !important;
+}
+html.phone-shell body .phone-root .ph-quick-menu .ph-quick-item small { color: #475569 !important; -webkit-text-fill-color: #475569 !important; }
+html.phone-shell body .phone-root .ph-quick-menu .ph-quick-item:is(:hover, :focus-visible) { background: #f1f5f9 !important; }
+html[data-theme="dark"].phone-shell body .phone-root .ph-quick-menu { background: #1a1a1a !important; color: #f4f4f5 !important; }
+html[data-theme="dark"].phone-shell body .phone-root .ph-quick-menu .ph-quick-item { color: #f4f4f5 !important; -webkit-text-fill-color: #f4f4f5 !important; }
+html[data-theme="dark"].phone-shell body .phone-root .ph-quick-menu .ph-quick-item small { color: #b4b4bd !important; -webkit-text-fill-color: #b4b4bd !important; }
+html[data-theme="dark"].phone-shell body .phone-root .ph-quick-menu .ph-quick-item:is(:hover, :focus-visible) { background: #27272a !important; }
+
+/* Finance: compact layout mirrors Android's monthly movements/accounts/reports. */
+.pb-page { color: #172033; min-width: 0; }
+.pb-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+.pb-subtitle { text-align: center; color: #64748b; font-size: 13px; margin: 2px 0 8px; }
+.pb-period { display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 10px; }
+.pb-period select { width: auto; max-width: 220px; text-transform: capitalize; }
+.pb-actions { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 10px; -webkit-overflow-scrolling: touch; }
+.pb-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-bottom: 1px solid #e2e8f0; margin-bottom: 12px; }
+.pb-section { display: flex; flex-direction: column; gap: 10px; }
+.pb-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.pb-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 14px; min-width: 0; }
+.pb-card h3 { font-size: 14px; margin: 0 0 10px; }
+.pb-card p { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px; font-size: 12px; color: #475569; margin: 6px 0; }
+.pb-card p b { color: #172033; overflow-wrap: anywhere; }
+.pb-amount { display: flex; flex-direction: column; gap: 8px; }
+.pb-amount span { color: #64748b; font-size: 12px; }
+.pb-amount strong { font-size: 16px; overflow-wrap: anywhere; }
+.pb-amount.in strong, .pb-row b.in { color: #087443; }
+.pb-amount.out strong, .pb-row b.out { color: #b42318; }
+.pb-closing { background: #e8effe; border-color: #a8c1f4; display: flex; flex-direction: column; gap: 8px; }
+.pb-closing span { font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 7px; }
+.pb-closing strong { font-size: 21px; color: #1d4ed8; overflow-wrap: anywhere; }
+.pb-closing small, .pb-card small, .pb-note { color: #64748b; font-size: 12px; }
+.pb-note { margin: 0; }
+.pb-row, .pb-document { display: flex; gap: 9px; align-items: center; padding: 12px 0; border-top: 1px solid #e2e8f0; }
+.pb-row > div, .pb-document > div { flex: 1; min-width: 0; }
+.pb-row strong, .pb-document strong { display: block; font-size: 13px; overflow-wrap: anywhere; }
+.pb-row small, .pb-document small { display: block; overflow-wrap: anywhere; margin-top: 3px; }
+.pb-row b, .pb-document b { font-size: 12px; text-align: right; overflow-wrap: anywhere; }
+.pb-row-icon { background: #f1f5f9; border-radius: 50%; width: 36px; height: 36px; display: grid; place-items: center; flex: 0 0 36px; }
+.pb-bucket > strong { font-size: 19px; color: #2563eb; }
+.pb-movements label, .pb-form label { display: flex; flex-direction: column; gap: 5px; margin: 10px 0; font-size: 12px; font-weight: 600; }
+.pb-movements input, .pb-movements select, .pb-form input, .pb-form select, .pb-form textarea, .pb-period select { width: 100%; box-sizing: border-box; min-height: 44px; border-radius: 10px; border: 1px solid #cbd5e1; background: #fff; color: #172033; padding: 8px 10px; font-size: 16px; }
+.pb-period select { width: auto; font-size: 14px; }
+.pb-notice { padding: 10px; border-radius: 10px; background: #fef3c7; color: #78350f; font-size: 13px; }
+.pb-loading { text-align: center; color: #64748b; padding: 24px 0; }
+.pb-form h3 { margin: 0 0 12px; }
+.pb-form-actions { display: flex; gap: 8px; }
+html.phone-shell body .phone-root .pb-page button,
+html.phone-shell body .ph-modal .pb-form button {
+  border: 1px solid #d6dce5 !important; border-radius: 12px !important;
+  background: #f1f5f9 !important; color: #172033 !important; -webkit-text-fill-color: #172033 !important;
+  box-shadow: none !important; min-height: 44px !important; padding: 9px 13px !important; font-size: 13px !important;
+}
+html.phone-shell body .phone-root .pb-page .pb-actions button { white-space: nowrap; flex: 0 0 auto; }
+html.phone-shell body .phone-root .pb-page .pb-actions button:first-child,
+html.phone-shell body .ph-modal .pb-form button[type="submit"] { background: #171717 !important; color: #fff !important; -webkit-text-fill-color: #fff !important; }
+html.phone-shell body .phone-root .pb-page .pb-tabs button { border: 0 !important; border-radius: 0 !important; background: transparent !important; padding: 10px 4px !important; }
+html.phone-shell body .phone-root .pb-page .pb-tabs button[aria-selected="true"] { border-bottom: 3px solid #2563eb !important; color: #1d4ed8 !important; -webkit-text-fill-color: #1d4ed8 !important; }
+html.phone-shell body .phone-root .pb-page .pb-refresh { display: grid !important; place-items: center; padding: 8px !important; }
+html[data-theme="dark"].phone-shell .pb-page { color: #f4f4f5; }
+html[data-theme="dark"].phone-shell .pb-card { background: #1c1c1f; border-color: #3f3f46; }
+html[data-theme="dark"].phone-shell .pb-closing { background: #172642; border-color: #345b9a; }
+html[data-theme="dark"].phone-shell .pb-closing strong { color: #93c5fd; }
+html[data-theme="dark"].phone-shell .pb-subtitle, html[data-theme="dark"].phone-shell .pb-card p,
+html[data-theme="dark"].phone-shell .pb-card small, html[data-theme="dark"].phone-shell .pb-note,
+html[data-theme="dark"].phone-shell .pb-amount span { color: #b4b4bd; }
+html[data-theme="dark"].phone-shell .pb-card p b { color: #f4f4f5; }
+html[data-theme="dark"].phone-shell .pb-amount.in strong, html[data-theme="dark"].phone-shell .pb-row b.in { color: #86efac; }
+html[data-theme="dark"].phone-shell .pb-amount.out strong, html[data-theme="dark"].phone-shell .pb-row b.out { color: #fca5a5; }
+html[data-theme="dark"].phone-shell .pb-bucket > strong { color: #93c5fd; }
+html[data-theme="dark"].phone-shell .pb-row-icon { background: #34343b; }
+html[data-theme="dark"].phone-shell .pb-row, html[data-theme="dark"].phone-shell .pb-document, html[data-theme="dark"].phone-shell .pb-tabs { border-color: #3f3f46; }
+html[data-theme="dark"].phone-shell .pb-movements input, html[data-theme="dark"].phone-shell .pb-movements select,
+html[data-theme="dark"].phone-shell .pb-form input, html[data-theme="dark"].phone-shell .pb-form select,
+html[data-theme="dark"].phone-shell .pb-form textarea, html[data-theme="dark"].phone-shell .pb-period select { background: #27272a; color: #f4f4f5; border-color: #52525b; }
+html[data-theme="dark"].phone-shell body .phone-root .pb-page button,
+html[data-theme="dark"].phone-shell body .ph-modal .pb-form button { background: #3f3f46 !important; color: #f4f4f5 !important; -webkit-text-fill-color: #f4f4f5 !important; border-color: #52525b !important; }
+html[data-theme="dark"].phone-shell body .phone-root .pb-page .pb-tabs button { background: transparent !important; }
+html[data-theme="dark"].phone-shell body .phone-root .pb-page .pb-tabs button[aria-selected="true"] { color: #93c5fd !important; -webkit-text-fill-color: #93c5fd !important; border-bottom-color: #93c5fd !important; }
+html[data-theme="dark"].phone-shell body .phone-root .pb-page .pb-actions button:first-child,
+html[data-theme="dark"].phone-shell body .ph-modal .pb-form button[type="submit"] { background: #fafafa !important; color: #171717 !important; -webkit-text-fill-color: #171717 !important; }
+html.phone-shell body .ph-modal-bg { z-index: 2147483100; }
+/* Let the viewport own vertical scrolling rather than a fixed-height body. */
+html.phone-shell { height: auto !important; overflow-y: auto !important; }
+html.phone-shell body { height: auto !important; overflow: visible !important; }
+html.phone-shell body .phone-root .pb-page button { width: auto !important; }
+html.phone-shell body .phone-root .pb-page .pb-tabs button { width: 100% !important; }
+
+/* Only the five main destinations keep the shared floating dock. */
+html.phone-shell .phone-root--no-dock .phone-main { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)) !important; }
+html.phone-shell .phone-root--no-dock .ph-agent-shell { bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important; }
+
+/* Inventory scanner: camera stays off until requested, as in the native app. */
+.ph-scan-native { color: #172033; }
+.ph-scan-status { text-align: right; color: #64748b; font-size: 12px; }
+.ph-scan-idle { min-height: 250px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 24px 20px; text-align: center; background: #f1f3f7; border-radius: 18px; margin: 8px 0 12px; }
+.ph-scan-idle-icon { width: 68px; height: 68px; border-radius: 50%; display: grid; place-items: center; background: #dce8ff; color: #1d4ed8; }
+.ph-scan-idle h2 { margin: 0; font-size: 18px; }
+.ph-scan-idle p { margin: 0; max-width: 360px; color: #526078; font-size: 13px; line-height: 1.45; }
+.ph-scan-controls { border-radius: 18px; padding: 16px; background: #fff; border: 1px solid #e2e8f0; }
+.ph-scan-controls > label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 7px; }
+.ph-scan-controls .ph-scan-row input { min-width: 0; font-size: 16px; color: #172033; background: #fff; }
+.ph-scan-controls .ph-phone-actions { margin-top: 10px; }
+html.phone-shell body .phone-root .ph-scan-native button.theme-toggle { width: auto !important; min-height: 44px !important; padding: 9px 14px !important; border: 1px solid #d6dce5 !important; border-radius: 12px !important; background: #f1f5f9 !important; color: #172033 !important; -webkit-text-fill-color: #172033 !important; box-shadow: none !important; }
+html.phone-shell body .phone-root .ph-scan-native button.ph-scan-start { background: #171717 !important; color: #fff !important; -webkit-text-fill-color: #fff !important; }
+html[data-theme="dark"].phone-shell .ph-scan-native { color: #f4f4f5; }
+html[data-theme="dark"].phone-shell .ph-scan-idle, html[data-theme="dark"].phone-shell .ph-scan-controls { background: #1c1c1f; border-color: #3f3f46; }
+html[data-theme="dark"].phone-shell .ph-scan-idle-icon { background: #263d68; color: #bfdbfe; }
+html[data-theme="dark"].phone-shell .ph-scan-idle p, html[data-theme="dark"].phone-shell .ph-scan-status { color: #b4b4bd; }
+html[data-theme="dark"].phone-shell .ph-scan-controls .ph-scan-row input { color: #f4f4f5; background: #27272a; }
+html[data-theme="dark"].phone-shell body .phone-root .ph-scan-native button.theme-toggle { background: #3f3f46 !important; color: #f4f4f5 !important; -webkit-text-fill-color: #f4f4f5 !important; border-color: #52525b !important; }
+html[data-theme="dark"].phone-shell body .phone-root .ph-scan-native button.ph-scan-start { background: #fafafa !important; color: #171717 !important; -webkit-text-fill-color: #171717 !important; }
+
+/* CSS color interpolation is supported without the View Transitions API. */
+@media (prefers-reduced-motion: no-preference) {
+  html.phone-theme-transition .phone-root,
+  html.phone-theme-transition .phone-topbar,
+  html.phone-theme-transition .phone-tabbar,
+  html.phone-theme-transition .ph-panel,
+  html.phone-theme-transition .ph-settings-card,
+  html.phone-theme-transition .ph-scan-idle,
+  html.phone-theme-transition .ph-scan-controls,
+  html.phone-theme-transition .pb-card,
+  html.phone-theme-transition .ph-quick-menu {
+    transition: background-color 240ms ease, color 240ms ease, border-color 240ms ease !important;
+  }
+}
+.ph-scan-controls .ph-scan-row input::placeholder { color: #64748b; opacity: 1; }
+html[data-theme="dark"].phone-shell .ph-scan-controls .ph-scan-row input::placeholder { color: #b4b4bd; }
+.ph-scan-file-input { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+html.phone-shell body .phone-root .ph-scan-controls .ph-file-label .ph-chip { color: #172033 !important; -webkit-text-fill-color: #172033 !important; background: #f1f5f9 !important; border: 1px solid #d6dce5 !important; border-radius: 12px !important; }
+html[data-theme="dark"].phone-shell body .phone-root .ph-scan-controls .ph-file-label .ph-chip { color: #f4f4f5 !important; -webkit-text-fill-color: #f4f4f5 !important; background: #3f3f46 !important; border-color: #52525b !important; }
+.ph-file-label:focus-within .ph-chip { outline: 3px solid #d97706; outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  html.phone-theme-transition .phone-root,
+  html.phone-theme-transition .phone-topbar,
+  html.phone-theme-transition .phone-tabbar,
+  html.phone-theme-transition .ph-panel,
+  html.phone-theme-transition .ph-settings-card,
+  html.phone-theme-transition .ph-scan-idle,
+  html.phone-theme-transition .ph-scan-controls,
+  html.phone-theme-transition .pb-card,
+  html.phone-theme-transition .ph-quick-menu { transition: none !important; }
+}

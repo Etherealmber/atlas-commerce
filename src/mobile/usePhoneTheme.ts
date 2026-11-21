@@ -6,10 +6,21 @@ function systemIsDark(): boolean {
   catch { return false; }
 }
 
+let themeTransitionTimer: number | undefined;
+
 export function applyPhoneTheme(choice: ThemeChoice): void {
   const dark = choice === 'dark' || (choice === 'system' && systemIsDark());
   const root = document.documentElement;
-  root.dataset.theme = dark ? 'dark' : 'light';
+  const next = dark ? 'dark' : 'light';
+  if (root.dataset.theme && root.dataset.theme !== next) {
+    if (themeTransitionTimer !== undefined) window.clearTimeout(themeTransitionTimer);
+    root.classList.add('phone-theme-transition');
+    // Commit the transition styles before changing theme; works without the
+    // View Transitions API in Safari, Firefox and Chromium.
+    void root.offsetWidth;
+    themeTransitionTimer = window.setTimeout(() => root.classList.remove('phone-theme-transition'), 300);
+  }
+  root.dataset.theme = next;
   root.classList.toggle('theme-dark', dark);
   root.style.colorScheme = dark ? 'dark' : 'light';
   const meta = document.querySelector('meta[name="theme-color"]');

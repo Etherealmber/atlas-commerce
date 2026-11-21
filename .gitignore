@@ -5,6 +5,7 @@ node_modules/
 
 # Build / deploy
 dist/
+/experiments/windows-webauthn/target/
 .wrangler/
 .dev.vars
 .mf/

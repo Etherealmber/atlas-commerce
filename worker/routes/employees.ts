@@ -2,11 +2,10 @@ import { afterBusinessMutation } from '../lib/delete-coord';
 import { addColumnIfMissing } from '../lib/schema';
 import type { AtlasApp } from './types';
 
-const _empSchemaOnce = new Set<string>();
+const _empSchemaOnce = new WeakSet<D1Database>();
 
 async function ensureEmployeeTables(db: D1Database): Promise<void> {
-  if (_empSchemaOnce.has('employees')) return;
-  _empSchemaOnce.add('employees');
+  if (_empSchemaOnce.has(db)) return;
   await db
     .prepare(
       `CREATE TABLE IF NOT EXISTS employees (
@@ -105,7 +104,7 @@ async function ensureEmployeeTables(db: D1Database): Promise<void> {
     )
     .run();
   await addColumnIfMissing(db, 'employees', 'returned_at', 'TEXT');
-  _empSchemaOnce.add('employees');
+  _empSchemaOnce.add(db);
 }
 
 async function backfillEmpNumbers(db: D1Database): Promise<void> {
@@ -610,6 +609,7 @@ function parseIdText(text: string): Record<string, string> {
 }
 
 export type EmployeeRouteDeps = {
+  requireEmployeeAdmin: (c: any) => Promise<Response | null>;
   checkConfirmPassword?: (
     env: any,
     db: D1Database,
@@ -618,8 +618,9 @@ export type EmployeeRouteDeps = {
   ) => Promise<{ ok: true } | { ok: false; error: string; status: number; code: string }>;
 };
 
-export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps = {}): void {
+export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps): void {
   app.get('/api/employees', async (c) => {
+    { const denied = await deps.requireEmployeeAdmin(c); if (denied) return denied; }
     await ensureEmployeeTables(c.env.DB);
     try {
       await backfillEmpNumbers(c.env.DB);
@@ -689,6 +690,7 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps = 
   });
 
   app.get('/api/employees/:id', async (c) => {
+    { const denied = await deps.requireEmployeeAdmin(c); if (denied) return denied; }
     await ensureEmployeeTables(c.env.DB);
     const row = await c.env.DB.prepare(`SELECT * FROM employees WHERE id = ?`).bind(c.req.param('id')).first();
     if (!row) return c.json({ success: false, error: 'Employé introuvable' }, 404);
@@ -701,6 +703,7 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps = 
   });
 
   app.post('/api/employees', async (c) => {
+    { const denied = await deps.requireEmployeeAdmin(c); if (denied) return denied; }
     await ensureEmployeeTables(c.env.DB);
     const body = await c.req.json().catch(() => ({}));
     const first = str(body, 'first_name');
@@ -772,6 +775,7 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps = 
   });
 
   app.put('/api/employees/:id', async (c) => {
+    { const denied = await deps.requireEmployeeAdmin(c); if (denied) return denied; }
     await ensureEmployeeTables(c.env.DB);
     const id = c.req.param('id');
     const existing = (await c.env.DB.prepare(`SELECT * FROM employees WHERE id = ?`).bind(id).first()) as any;
@@ -851,8 +855,9 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps = 
     return c.json({ success: true, data: enrich(row), message: 'Employé mis à jour' });
   });
 
-  /** Resign — keeps payments forever. Optional final settlement for accrued days. */
+  /** Resignation only changes employment status; it never creates a payment. */
   app.post('/api/employees/:id/resign', async (c) => {
+    { const denied = await deps.requireEmployeeAdmin(c); if (denied) return denied; }
     await ensureEmployeeTables(c.env.DB);
     const id = c.req.param('id');
     const body = await c.req.json().catch(() => ({}));
@@ -861,68 +866,6 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps = 
     if (!emp) return c.json({ success: false, error: 'Employé introuvable' }, 404);
     const day = moroccoToday();
     const reason = String(body.reason || body.employment_status || 'Démission').trim() || 'Démission';
-
-    // Optional: update cycle before settlement snapshot
-    if (body.pay_cycle_type === 'monthly' || body.pay_cycle_type === 'days') {
-      const days = body.pay_cycle_type === 'monthly' ? 30 : Math.max(1, Number(body.pay_cycle_days || emp.pay_cycle_days || 7));
-      await c.env.DB.prepare(
-        `UPDATE employees SET pay_cycle_type = ?, pay_cycle_days = ?, updated_at = datetime('now') WHERE id = ?`,
-      )
-        .bind(body.pay_cycle_type, days, id)
-        .run();
-      emp.pay_cycle_type = body.pay_cycle_type;
-      emp.pay_cycle_days = days;
-    }
-    if (body.pay_amount != null && Number(body.pay_amount) >= 0) {
-      await c.env.DB.prepare(`UPDATE employees SET pay_amount = ?, updated_at = datetime('now') WHERE id = ?`)
-        .bind(Number(body.pay_amount), id)
-        .run();
-      emp.pay_amount = Number(body.pay_amount);
-    }
-
-    let settled = 0;
-    if (body.settle_pay) {
-      const acc = accruedPay(emp, day);
-      const amount = Math.max(0, Number(body.amount != null ? body.amount : acc.suggested_pay));
-      if (amount > 0) {
-        const periodLabel =
-          acc.period_from
-            ? `Solde départ ${acc.period_from} → ${day} (${acc.accrued_days} j)`
-            : `Solde départ au ${day}`;
-        const note = String(body.note || reason || '').trim();
-        const payment_method = String(body.payment_method || 'cash').trim() || 'cash';
-        const empLabel = displayName(emp);
-        const payIns = await c.env.DB.prepare(
-          `INSERT INTO employee_payments (employee_id, amount, paid_at, period_label, note) VALUES (?, ?, ?, ?, ?)`,
-        )
-          .bind(id, amount, day, periodLabel, note)
-          .run();
-        const payId = payIns.meta?.last_row_id;
-        await c.env.DB.prepare(`UPDATE employees SET last_paid_at = ?, updated_at = datetime('now') WHERE id = ?`)
-          .bind(day, id)
-          .run();
-        try {
-          await c.env.DB.prepare(
-            `INSERT INTO expenses (category, description, amount, payment_method, expense_date, vendor_name, reference, notes, entry_type)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'expense')`,
-          )
-            .bind(
-              'Salaire',
-              `Solde départ ${empLabel}`,
-              amount,
-              payment_method,
-              day,
-              empLabel,
-              emp.emp_number || `EMP-${id}`,
-              `employee_id:${id}|payment_id:${payId || ''}|resign|${note}`,
-            )
-            .run();
-        } catch {
-          /* expenses table */
-        }
-        settled = amount;
-      }
-    }
 
     await c.env.DB.prepare(
       `UPDATE employees SET active = 0, resigned_at = ?, employment_status = ?, updated_at = datetime('now') WHERE id = ?`,
@@ -934,13 +877,12 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps = 
     return c.json({
       success: true,
       data: enrich(row),
-      message: settled
-        ? `Démission enregistrée. Solde payé : ${settled.toLocaleString('fr-FR')} MAD.`
-        : 'Employé marqué comme démissionnaire. Historique des paiements conservé.',
+      message: 'Employé marqué comme démissionnaire. Historique des paiements conservé.',
     });
   });
 
   app.post('/api/employees/:id/reactivate', async (c) => {
+    { const denied = await deps.requireEmployeeAdmin(c); if (denied) return denied; }
     await ensureEmployeeTables(c.env.DB);
     const id = c.req.param('id');
     const emp = await c.env.DB.prepare(`SELECT id FROM employees WHERE id = ?`).bind(id).first();
@@ -958,6 +900,7 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps = 
 
   /** Parse ID document text / optional AI vision — returns suggested fields for user review. */
   app.post('/api/employees/parse-id', async (c) => {
+    { const denied = await deps.requireEmployeeAdmin(c); if (denied) return denied; }
     const body = await c.req.json().catch(() => ({}));
     const dataUrl = String(body.data_url || body.dataUrl || '');
     const textHint = String(body.text || '');
@@ -1022,6 +965,7 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps = 
   });
 
   app.post('/api/employees/:id/id-document', async (c) => {
+    { const denied = await deps.requireEmployeeAdmin(c); if (denied) return denied; }
     await ensureEmployeeTables(c.env.DB);
     const id = c.req.param('id');
     const emp = await c.env.DB.prepare(`SELECT id, id_doc_key FROM employees WHERE id = ?`).bind(id).first();
@@ -1118,6 +1062,7 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps = 
   });
 
   app.get('/api/employees/:id/id-document', async (c) => {
+    { const denied = await deps.requireEmployeeAdmin(c); if (denied) return denied; }
     await ensureEmployeeTables(c.env.DB);
     const id = c.req.param('id');
     const emp = (await c.env.DB.prepare(`SELECT id_doc_key, id_doc_name FROM employees WHERE id = ?`)
@@ -1148,6 +1093,7 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps = 
    * Does NOT reset last_paid_at — full cycle continues; acomptes reduce suggested net.
    */
   app.post('/api/employees/:id/advance', async (c) => {
+    { const denied = await deps.requireEmployeeAdmin(c); if (denied) return denied; }
     await ensureEmployeeTables(c.env.DB);
     const id = c.req.param('id');
     const emp = (await c.env.DB.prepare(`SELECT * FROM employees WHERE id = ?`).bind(id).first()) as any;
@@ -1259,6 +1205,7 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps = 
   });
 
 app.post('/api/employees/:id/pay', async (c) => {
+    { const denied = await deps.requireEmployeeAdmin(c); if (denied) return denied; }
     await ensureEmployeeTables(c.env.DB);
     const id = c.req.param('id');
     const emp = (await c.env.DB.prepare(`SELECT * FROM employees WHERE id = ?`).bind(id).first()) as any;
@@ -1353,36 +1300,27 @@ app.post('/api/employees/:id/pay', async (c) => {
 
   /** Permanent delete — never deletes payment history rows. */
   app.delete('/api/employees/:id', async (c) => {
+    { const denied = await deps.requireEmployeeAdmin(c); if (denied) return denied; }
     await ensureEmployeeTables(c.env.DB);
     const id = c.req.param('id');
-    const body = await c.req.json().catch(() => ({}));
-    // Session admin suffit — suppression uniquement si déjà démissionnaire (active=0)
     const emp = (await c.env.DB.prepare(`SELECT id_doc_key, name, active FROM employees WHERE id = ?`)
-      .bind(id)
-      .first()) as any;
+      .bind(id).first()) as any;
     if (!emp) return c.json({ success: false, error: 'Employé introuvable' }, 404);
-    // active may be 0 | 1 | "0" | null — only block when clearly active
-    const stillActive = Number(emp.active) === 1 || emp.active === true || emp.active === '1';
-    if (stillActive) {
-      return c.json(
-        {
-          success: false,
-          error: 'Démissionnez d’abord l’employé avant une suppression définitive.',
-          code: 'MUST_RESIGN_FIRST',
-        },
-        400,
-      );
+    if (emp.active !== 0 && emp.active !== '0') {
+      return c.json({ success: false, error: 'Démissionnez d’abord l’employé avant une suppression définitive.', code: 'MUST_RESIGN_FIRST' }, 400);
     }
-
+    // Fail closed when history exists: installations may have a cascading FK.
+    // The condition and deletion are one statement to prevent a reactivation or
+    // payment inserted between the check and the delete from losing history.
+    const deleted = await c.env.DB.prepare(`DELETE FROM employees WHERE id = ? AND active = 0
+      AND NOT EXISTS (SELECT 1 FROM employee_payments WHERE employee_id = employees.id)`)
+      .bind(id).run();
+    if (!deleted.meta?.changes) {
+      return c.json({ success: false, error: 'Suppression impossible : employé actif ou historique de paiements présent.', code: 'DELETE_BLOCKED' }, 409);
+    }
     if (emp.id_doc_key && c.env.IMAGES) {
-      try {
-        await c.env.IMAGES.delete(String(emp.id_doc_key));
-      } catch {
-        /* */
-      }
+      try { await c.env.IMAGES.delete(String(emp.id_doc_key)); } catch { /* best effort */ }
     }
-    // Keep employee_payments rows (audit trail)
-    await c.env.DB.prepare(`DELETE FROM employees WHERE id = ?`).bind(id).run();
     await afterBusinessMutation(c.env.CACHE);
     return c.json({
       success: true,

@@ -276,14 +276,7 @@ export const api = {
     id: number,
     body: {
       confirm_password?: string;
-      settle_pay?: boolean;
-      amount?: number;
-      pay_amount?: number;
-      pay_cycle_type?: string;
-      pay_cycle_days?: number;
       reason?: string;
-      note?: string;
-      payment_method?: string;
     },
   ) =>
     request(`/api/employees/${id}/resign`, {
@@ -822,6 +815,9 @@ export const api = {
   deleteReceipt: (id: number, confirm_password: string, cascade_invoice = false) =>
     request(`/api/receipts/${id}`, { method: 'DELETE', body: JSON.stringify({ confirm_password, cascade_invoice }) }),
 
+  getFinanceMonthly: (period?: string) => request<{ data: import('./mobile/financeTypes').FinanceMonthly }>(`/api/admin/finance/monthly${period ? `?${new URLSearchParams({ period })}` : ''}`),
+  getFinancePeriod: (period: string) => request<{ data: import('./mobile/financeTypes').FinancePeriod }>(`/api/admin/finance/period?${new URLSearchParams({ period })}`),
+  getFinanceStatement: (period: string, page = 1) => request<{ data: import('./mobile/financeTypes').FinanceStatement }>(`/api/admin/finance/statement?${new URLSearchParams({ period, page: String(page), page_size: '50' })}`),
   getExpenses: () => request<{ data: any[] }>('/api/expenses'),
   createExpense: (body: any) => request('/api/expenses', { method: 'POST', body: JSON.stringify(body) }),
   deleteExpense: (id: number, confirm_password: string, cascade_linked = false) =>

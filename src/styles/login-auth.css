@@ -614,3 +614,57 @@ html[data-theme="dark"] .login-qr-btn--ok { background: #fafafa !important; colo
 html[data-theme="dark"] .login-qr-btn--no { color: #e4e4e7 !important; border-color: #3f3f46 !important; }
 html[data-theme="dark"] .login-qr-link,
 html[data-theme="dark"] .login-qr-hint { color: #a1a1aa !important; }
+
+/* Mobile browser: Android-inspired shell, while retaining the web auth flow. */
+.atlas-login-phone-hero { display: none; }
+html.atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone {
+  justify-content: flex-start !important; min-height: 100vh !important; min-height: 100dvh !important;
+  padding: max(12px, env(safe-area-inset-top, 0px)) 12px 24px !important; gap: 8px !important;
+  background: #f5f2eb !important; box-sizing: border-box !important;
+}
+html.atlas-login-page body .atlas-login--phone .atlas-login-phone-hero {
+  display: flex; width: min(100%, 520px); min-height: 82px; padding: 0 10px;
+  box-sizing: border-box; align-items: center; justify-content: space-between;
+}
+html.atlas-login-page body .atlas-login--phone .atlas-login-phone-hero img { width: 155px; height: auto; filter: invert(1); }
+html.atlas-login-page body .atlas-login--phone .atlas-login-phone-hero a { color: #172033; text-decoration: none; padding: 12px; letter-spacing: 2px; }
+html.atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone .atlas-login-card {
+  width: min(100%, 520px) !important; background: #fff !important; border: 1px solid #e2e8f0 !important;
+  border-radius: 28px !important; box-shadow: none !important; overflow: visible !important;
+}
+html.atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone .atlas-login-form-wrap { background: transparent !important; padding: 22px 20px 26px !important; }
+html.atlas-login-page body .atlas-login--phone .atlas-login-lockup { display: none !important; }
+html.atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone .atlas-login-header { text-align: center !important; }
+html.atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone .atlas-login-header h1 { color: #172033 !important; }
+html.atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone .atlas-login-header p { color: #526078 !important; }
+html.atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone .atlas-login-page-foot { display: block !important; max-width: 520px; text-align: center; color: #64748b !important; }
+html.atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone .atlas-login-page-foot a { color: #475569 !important; }
+html[data-theme="dark"].atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone { background: #0a0a0c !important; }
+html[data-theme="dark"].atlas-login-page body .atlas-login--phone .atlas-login-phone-hero img { filter: none; }
+html[data-theme="dark"].atlas-login-page body .atlas-login--phone .atlas-login-phone-hero a { color: #f4f4f5; }
+html[data-theme="dark"].atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone .atlas-login-card { background: #1c1c1f !important; border-color: #3f3f46 !important; }
+html[data-theme="dark"].atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone .atlas-login-header h1 { color: #fafafa !important; }
+html[data-theme="dark"].atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone .atlas-login-header p,
+html[data-theme="dark"].atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone .atlas-field label,
+html[data-theme="dark"].atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone .atlas-login-page-foot,
+html[data-theme="dark"].atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone .atlas-login-page-foot a { color: #c4c4cc !important; }
+html[data-theme="dark"].atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone .atlas-field input { background: #27272a !important; border-color: #52525b !important; color: #fafafa !important; }
+html[data-theme="dark"].atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone .atlas-login-submit { background: #fafafa !important; color: #171717 !important; }
+html[data-theme="dark"].atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone .atlas-login-submit span,
+html[data-theme="dark"].atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone .atlas-login-submit svg { color: #171717 !important; stroke: #171717 !important; }
+html.atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone .atlas-login-form {
+  background: transparent !important; border: 0 !important; border-radius: 0 !important;
+  box-shadow: none !important; padding: 0 !important; width: 100% !important;
+}
+@media (max-width: 768px) {
+  html.atlas-login-page .atlas-dl-teaser { display: none !important; }
+}
+
+/* Browser Turnstile is required when configured, including on mobile/PWA. */
+html.atlas-login-page body .atlas-login.atlas-login--auth7 #cf-turnstile {
+  display: flex !important; justify-content: center !important;
+  visibility: visible !important; pointer-events: auto !important;
+  width: 100% !important; max-width: 100% !important;
+  height: auto !important; min-height: 65px !important;
+  overflow: visible !important; transform: none !important;
+}

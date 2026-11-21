@@ -2,7 +2,7 @@
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { usePhoneTheme } from '../mobile/usePhoneTheme';
+import { applyPhoneTheme, usePhoneTheme } from '../mobile/usePhoneTheme';
 import { setTheme } from '../theme';
 
 let root: Root;
@@ -54,6 +54,16 @@ describe('phone theme', () => {
     expect(document.documentElement.style.colorScheme).toBe('dark');
     await click('light');
     expect(document.documentElement.dataset.theme).toBe('light');
+  });
+  it('temporarily enables transitions only when the resolved theme changes', () => {
+    vi.useFakeTimers();
+    applyPhoneTheme('dark');
+    expect(document.documentElement.classList.contains('phone-theme-transition')).toBe(true);
+    vi.advanceTimersByTime(300);
+    expect(document.documentElement.classList.contains('phone-theme-transition')).toBe(false);
+    applyPhoneTheme('dark');
+    expect(document.documentElement.classList.contains('phone-theme-transition')).toBe(false);
+    vi.useRealTimers();
   });
   it('follows operating-system changes only in system mode', async () => {
     dark = true;

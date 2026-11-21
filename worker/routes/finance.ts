@@ -32,6 +32,7 @@ import { addColumnIfMissing } from '../lib/schema';
 import { buildFinanceReportPdf } from '../pdf';
 
 export type FinanceRouteDeps = {
+  requireEmployeeAdmin(c: any): Promise<Response | null>;
   sessionUserFromHeader(authHeader: string | undefined): { username: string; role: string };
   authFailReason(
     authHeader: string | undefined,
@@ -62,6 +63,8 @@ export function registerFinanceRoutes(app: AtlasApp, deps: FinanceRouteDeps): vo
    * or a ready JSON error response (401 UNAUTHORIZED / 403 FIN_FORBIDDEN).
    */
   async function requireFinanceAdmin(c: any): Promise<{ username: string; role: string } | Response> {
+    const denied = await deps.requireEmployeeAdmin(c);
+    if (denied) return denied;
     const authHeader = c.req.header('Authorization');
     const reason = await deps.authFailReason(authHeader, c.env, c.env.DB, deps.clientIp(c), c.req.header('X-Device-Fingerprint') || '');
     if (reason !== 'ok') {
@@ -187,14 +190,11 @@ export function registerFinanceRoutes(app: AtlasApp, deps: FinanceRouteDeps): vo
     }
   });
 
-  /* ─── GET /api/me/payroll ───
-   * v256 — employee-SELF pay date. ANY authenticated session (user, stock,
-   * secretaire, admin…) reads the payroll obligation of the ONE employee file
-   * linked to its own login (employees.user_username) — nothing else. The
-   * username comes only from the verified session; there is no query param, no
-   * list, and no admin data on this route. Unlinked account → 404
-   * PAYROLL_NOT_LINKED; two files linked to one login → 409 PAYROLL_AMBIGUOUS. */
+  /* Self payroll still resolves the linked employee from the session, but is
+   * currently restricted to owner/admin like the other sensitive payroll APIs. */
   app.get('/api/me/payroll', async (c) => {
+    const denied = await deps.requireEmployeeAdmin(c);
+    if (denied) return denied;
     const authHeader = c.req.header('Authorization');
     const reason = await deps.authFailReason(authHeader, c.env, c.env.DB, deps.clientIp(c), c.req.header('X-Device-Fingerprint') || '');
     if (reason !== 'ok') {
