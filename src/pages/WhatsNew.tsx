@@ -45,6 +45,9 @@ export const RELEASES: Release[] = [
       { id: '090s9', platforms: ['server', 'desktop', 'web'], text: 'Sécurité de la connexion v2 : liaison à l’origine HTTPS et au port, preuve PKCE S256 et état aléatoire, expiration après cinq minutes, vérifications bornées, annulation et échange atomique à usage unique avec contrôle du compte et de l’appareil.' },
       { id: '090s10', platforms: ['server', 'desktop'], text: 'Protection et fiabilité : limites persistantes par IP et compte, prise en compte de la révocation, requêtes D1 dirigées vers la base primaire et erreurs sans secrets ; configuration du proxy de confiance et essais en environnement de test requis.' },
       { id: '090s11', platforms: ['server', 'desktop', 'web'], text: 'Compatibilité : les parcours web, Android et desktop v1 restent inchangés. Le navigateur système v1 reste un choix explicite ; mot de passe/OTP natifs et passkeys Windows restent indisponibles sans garanties de sécurité vérifiables.' },
+      { id: '090s12', platforms: ['web'], text: 'Mobile : menu et défilement corrigés, navigation flottante limitée aux écrans principaux et écran Balance adapté aux téléphones pour les administrateurs.' },
+      { id: '090s13', platforms: ['web'], text: 'Connexion et scan mobiles : présentation inspirée d’Android, caméra démarrée à la demande, saisie manuelle et import d’image conservés ; les règles de connexion et d’autorisation web ne changent pas.' },
+      { id: '090s14', platforms: ['web'], text: 'Affichage : transition de thème légère respectant la préférence de réduction des animations du système.' },
     ] }],
   },
   {

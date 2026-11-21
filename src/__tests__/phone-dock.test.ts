@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
-import PhoneDock, { phoneDockItems, canOpenPhoneBalance, canOpenPhoneEmployees } from '../mobile/PhoneDock';
+import PhoneDock, { phoneDockItems, canOpenPhoneBalance, canOpenPhoneEmployees, showPhoneDock } from '../mobile/PhoneDock';
 
 describe('mobile dock', () => {
   it.each([
@@ -22,6 +22,13 @@ describe('mobile dock', () => {
   ])('applies web page guards for %s', (role, balance, employees) => {
     expect(canOpenPhoneBalance(role)).toBe(balance);
     expect(canOpenPhoneEmployees(role)).toBe(employees);
+  });
+
+  it.each([
+    ['/m', true], ['/m/scan', true], ['/m/products', true], ['/m/balance', true], ['/m/balance/classic', true], ['/m/employees', true],
+    ['/m/settings', false], ['/m/agent', false], ['/m/more', false], ['/m/vente', false], ['/m/inbox', false], ['/m/warehouse', false],
+  ])('uses the dock only on main routes: %s', (path, visible) => {
+    expect(showPhoneDock(path)).toBe(visible);
   });
 
   it('marks the active page accessibly and keeps the scanner available', () => {

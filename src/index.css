@@ -3773,7 +3773,7 @@ html[data-density="compact"] .atlas-password-toggle:hover {
   text-align: center;
 }
 
-/* Phone / APK login — compact single column, no Turnstile, no character strip */
+/* Phone login — compact single column, no character strip. */
 .atlas-login--phone {
   grid-template-columns: 1fr !important;
   max-height: none;
@@ -3805,15 +3805,6 @@ html[data-density="compact"] .atlas-password-toggle:hover {
 }
 .atlas-login--phone .atlas-login-header h1 {
   font-size: 1.5rem;
-}
-.atlas-login--phone .atlas-turnstile,
-.atlas-login--phone #cf-turnstile {
-  display: none !important;
-  height: 0 !important;
-  min-height: 0 !important;
-  overflow: hidden !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
 }
 .atlas-login--phone .atlas-login-secondary {
   border-radius: 999px;

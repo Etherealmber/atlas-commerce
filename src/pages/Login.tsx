@@ -477,19 +477,7 @@ export default function Login() {
           });
           const tj = await tr.json().catch(() => ({}));
           const key = tj?.data?.enabled && tj?.data?.site_key ? String(tj.data.site_key) : '';
-          if (key) {
-            setTurnstileSiteKey(key);
-            if (!(window as any).turnstile) {
-              const existing = document.querySelector('script[src*="challenges.cloudflare.com/turnstile"]');
-              if (!existing) {
-                const s = document.createElement('script');
-                s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
-                s.async = true;
-                s.defer = true;
-                document.head.appendChild(s);
-              }
-            }
-          }
+          if (key) setTurnstileSiteKey(key);
         }
       } catch { /* optional */ }
       try {
@@ -516,80 +504,83 @@ export default function Login() {
   }, []);
 
   useEffect(() => {
-    if (!turnstileSiteKey) return;
-    let widgetId: string | undefined;
+    if (!turnstileSiteKey || step !== 'password' || offerBioSetup) return;
     let cancelled = false;
+    let widgetId: string | undefined;
+    let rendered = false;
+    let poll: number | undefined;
+    const timers: number[] = [];
+    const el = document.getElementById('cf-turnstile');
+    if (!el) return;
+    turnstileTokenRef.current = '';
     setTurnstileToken('');
+    setTurnstileHint(false);
+
+    const scriptSelector = 'script[src*="challenges.cloudflare.com/turnstile/v0/api.js"]';
+    let script = document.querySelector<HTMLScriptElement>(scriptSelector);
+    if (!(window as any).turnstile && !script) {
+      script = document.createElement('script');
+      script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+      script.async = true;
+      script.defer = true;
+    }
+    const fail = () => {
+      if (!cancelled) {
+        window.clearInterval(poll);
+        turnstileTokenRef.current = '';
+        setTurnstileToken('');
+        setTurnstileHint(true);
+      }
+    };
     const tryRender = () => {
-      if (cancelled) return true;
-      const el = document.getElementById('cf-turnstile');
+      if (cancelled || rendered) return;
       const ts = (window as any).turnstile;
-      if (!el || !ts) return false;
-      // Avoid double-render if already mounted
-      if (el.childElementCount > 0) return true;
+      if (!ts?.render) return;
       try {
+        // Flexible widgets have a 300px minimum; compact fits narrow phones.
+        const size = el.clientWidth < 300 ? 'compact' : 'flexible';
         widgetId = ts.render(el, {
           sitekey: turnstileSiteKey,
-          callback: (token: string) => { turnstileTokenRef.current = token; setTurnstileToken(token); setTurnstileHint(false); },
-          'expired-callback': () => { turnstileTokenRef.current = ''; setTurnstileToken(''); },
-          'error-callback': () => { turnstileTokenRef.current = ''; setTurnstileToken(''); },
-          theme: 'auto',
-          size: 'flexible',
+          callback: (token: string) => {
+            if (cancelled) return;
+            turnstileTokenRef.current = token;
+            setTurnstileToken(token);
+            setTurnstileHint(false);
+          },
+          'expired-callback': fail,
+          'error-callback': fail,
+          'timeout-callback': fail,
+          theme: 'auto', size,
         });
+        rendered = true;
+        window.clearInterval(poll);
         turnstileWidgetId.current = widgetId;
-        // v0.7.7 — widget monté mais muet (« Verifying… » sans fin) : on propose le retry
-        window.setTimeout(() => {
+        timers.push(window.setTimeout(() => {
           if (!cancelled && !turnstileTokenRef.current) setTurnstileHint(true);
-        }, 15000);
-        // v0.7 — watchdog: widget invisible (réseau filtré, WebView ancien) →
-        // un seul retry, puis un message lisible au lieu d'un trou silencieux.
-        window.setTimeout(() => {
-          const box = document.getElementById('cf-turnstile');
-          if (box && !box.querySelector('iframe')) {
-            try { if (widgetId != null && (window as any).turnstile?.remove) (window as any).turnstile.remove(widgetId); } catch { /* */ }
-            try {
-              const el2 = document.getElementById('cf-turnstile');
-              if (el2) turnstileWidgetId.current = ts.render(el2, {
-                sitekey: turnstileSiteKey,
-                callback: (token: string) => { turnstileTokenRef.current = token; setTurnstileToken(token); setTurnstileHint(false); },
-                'expired-callback': () => { turnstileTokenRef.current = ''; setTurnstileToken(''); },
-                'error-callback': () => { turnstileTokenRef.current = ''; setTurnstileToken(''); },
-                theme: 'auto',
-                size: 'flexible',
-              });
-            } catch { /* */ }
-            window.setTimeout(() => {
-              const b2 = document.getElementById('cf-turnstile');
-              if (b2 && !b2.querySelector('iframe')) setTurnstileHint(true);
-            }, 6000);
-          }
-        }, 6500);
-      } catch { /* */ }
-      return true;
+        }, 15000));
+      } catch { fail(); }
     };
-    if (!tryRender()) {
-      const id = window.setInterval(() => {
-        if (tryRender()) window.clearInterval(id);
-      }, 200);
-      return () => {
-        cancelled = true;
-        window.clearInterval(id);
-        try {
-          if (widgetId != null && (window as any).turnstile?.remove) {
-            (window as any).turnstile.remove(widgetId);
-          }
-        } catch { /* */ }
-      };
-    }
+    script?.addEventListener('load', tryRender);
+    script?.addEventListener('error', fail);
+    if (script && !script.isConnected) document.head.appendChild(script);
+    poll = window.setInterval(tryRender, 200);
+    tryRender();
+    timers.push(window.setTimeout(() => {
+      window.clearInterval(poll);
+      if (!rendered) fail();
+    }, 10000));
     return () => {
       cancelled = true;
-      try {
-        if (widgetId != null && (window as any).turnstile?.remove) {
-          (window as any).turnstile.remove(widgetId);
-        }
-      } catch { /* */ }
+      window.clearInterval(poll);
+      timers.forEach((timer) => window.clearTimeout(timer));
+      script?.removeEventListener('load', tryRender);
+      script?.removeEventListener('error', fail);
+      try { if (widgetId != null) (window as any).turnstile?.remove?.(widgetId); } catch { /* */ }
+      el.replaceChildren();
+      if (turnstileWidgetId.current === widgetId) turnstileWidgetId.current = undefined;
+      turnstileTokenRef.current = '';
     };
-  }, [turnstileSiteKey, turnstileNonce]);
+  }, [turnstileSiteKey, turnstileNonce, step, offerBioSetup]);
 
   const afterToken = (data: any, justTrusted?: boolean) => {
     setToken(data.token, data.ip, (data.username || username).trim().toLowerCase(), data.role || 'user');
@@ -634,6 +625,7 @@ export default function Login() {
 
 
   const resetTurnstile = () => {
+    turnstileTokenRef.current = '';
     setTurnstileToken('');
     try {
       const ts = (window as any).turnstile;
@@ -645,23 +637,20 @@ export default function Login() {
   /** v0.7.7 — le widget a échoué (réseau filtré, CSP tiers…) : on le remonte de zéro. */
   const retryTurnstile = () => {
     setTurnstileHint(false);
+    turnstileTokenRef.current = '';
     setTurnstileToken('');
-    try {
-      const ts = (window as any).turnstile;
-      const id = turnstileWidgetId.current;
-      if (id != null && ts?.remove) ts.remove(id);
-    } catch { /* */ }
-    turnstileWidgetId.current = undefined;
-    const el = document.getElementById('cf-turnstile');
-    if (el) el.innerHTML = '';
+    // A blocked/failed script must be reloaded, not just the empty container.
+    if (!(window as any).turnstile?.render) {
+      document.querySelector('script[src*="challenges.cloudflare.com/turnstile/v0/api.js"]')?.remove();
+    }
     setTurnstileNonce((n) => n + 1);
   };
 
   const submitPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
     const fe = validateLoginForm({ username, password });
     setFieldErrors(fe);
     if (Object.keys(fe).length) { setError(firstError(fe) || 'Identifiants manquants.'); return; }
-    e.preventDefault();
     if (!password) {
       setError('Veuillez saisir votre mot de passe.');
       return;
@@ -677,7 +666,7 @@ export default function Login() {
       const native = isNativeClient();
       // Web + Turnstile configured: require a token before hitting the API
       if (!native && turnstileSiteKey && !turnstileToken) {
-        setError('La vérification Cloudflare n’a pas encore fourni de jeton. Patientez quelques secondes puis cliquez à nouveau, ou utilisez « Réessayer la vérification » sous le cadre. Sur mobile/PWA le captcha est désactivé.');
+        setError('La vérification Cloudflare n’a pas encore fourni de jeton. Patientez quelques secondes puis cliquez à nouveau, ou utilisez « Réessayer la vérification » sous le cadre.');
         setLoading(false);
         window.setTimeout(() => {
           document.querySelector('.atlas-login-alert')?.scrollIntoView({ block: 'nearest' });
@@ -881,6 +870,10 @@ export default function Login() {
 
   return (
     <div className={`atlas-login atlas-login--auth7${(isNativeClient() || isMobileLogin() || isPwaLogin()) ? ' atlas-login--phone' : ''}`}>
+      <div className="atlas-login-phone-hero">
+        <img src="/atlas-logo-dark.png" alt={APP_NAME} width="160" height="52" />
+        <Link to="/about" aria-label="À propos et aide">•••</Link>
+      </div>
       {/* Form column */}
       <div className="atlas-login-card">
         <div className="atlas-login-form-wrap">
@@ -896,8 +889,8 @@ export default function Login() {
             <div className="atlas-login-lockup">
               <img src="/atlas-logo-dark.png" alt={APP_NAME} className="atlas-login-lockup-img" height={64} width={197} />
             </div>
-            <h1>Bon retour</h1>
-            <p>Connectez-vous pour gérer stock, caisse et facturation</p>
+            <h1>{(isMobileLogin() || isPwaLogin() || isNativeClient()) ? (step === 'password' ? 'Bienvenue' : 'Vérification') : 'Bon retour'}</h1>
+            <p>{(isMobileLogin() || isPwaLogin() || isNativeClient()) ? 'Connectez-vous à votre espace Atlas Commerce.' : 'Connectez-vous pour gérer stock, caisse et facturation'}</p>
           </motion.div>
 
           {error && <div className="atlas-login-alert" role="alert">{error}</div>}
@@ -1019,7 +1012,7 @@ export default function Login() {
                 </div>
               ) : null}
 
-              <button type="submit" className="atlas-login-submit" disabled={loading || !passwordConfigured}>
+              <button type="submit" className="atlas-login-submit theme-toggle" disabled={loading || !passwordConfigured}>
                 <span>{loading ? 'Un instant…' : deviceTrusted ? 'Entrer dans Atlas' : 'Continuer'}</span>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
               </button>
@@ -1042,7 +1035,7 @@ export default function Login() {
                   disabled={loading}
                 />
               </div>
-              <button type="submit" className="atlas-login-submit" disabled={loading}>
+              <button type="submit" className="atlas-login-submit theme-toggle" disabled={loading}>
                 {loading ? 'Un instant…' : 'Entrer dans Atlas'}
               </button>
               <button

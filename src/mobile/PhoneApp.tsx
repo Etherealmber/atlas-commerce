@@ -8,7 +8,7 @@ import { NavLink, Route, Routes, useNavigate, useLocation } from 'react-router-d
 import PhoneBills from './PhoneBills';
 import PhoneWarehouse from './PhoneWarehouse';
 import PhoneSettings from './PhoneSettings';
-import PhoneDock, { canOpenPhoneBalance, canOpenPhoneEmployees } from './PhoneDock';
+import PhoneDock, { canOpenPhoneBalance, canOpenPhoneEmployees, showPhoneDock } from './PhoneDock';
 import { usePhoneTheme } from './usePhoneTheme';
 import { api } from '../api';
 import { clearToken, getUsername, getDisplayInitials, getDisplayName, hasAvatarUrl, getRole, setProfileCache, isStockRole, canSell, canAccessSettings, canAccessSettingsBeyondProfile } from '../auth';
@@ -17,6 +17,7 @@ import { APP_VERSION } from '../version';
 import './phone.css';
 import PageTransition from '../components/PageTransition';
 import PhoneDialog from './PhoneDialog';
+import { isSafeInventoryCode } from './phoneScan';
 import { phoneStockQuantity as stockOf, phoneStockThreshold as minOf, phoneStockIsLow } from './phoneStock';
 import PageSkeleton from '../components/PageSkeleton';
 import { AvatarImage } from '../components/ui/AvatarImage';
@@ -65,6 +66,7 @@ type Action = {
 };
 
 const Balance = lazy(() => import('../pages/Balance'));
+const PhoneBalance = lazy(() => import('./PhoneBalance'));
 const Employees = lazy(() => import('../pages/Employees'));
 
 const PHONE_CART_KEY = 'atlas-phone-cart';
@@ -161,17 +163,25 @@ function tabTitleFor(pathname: string): string {
 
 function PhoneMore() {
   const stockOnly = isStockRole();
+  const office = canSell();
   return (
     <div className="phone-panel">
       <h1 style={{ fontSize: '1.25rem', margin: '8px 0 16px' }}>Plus</h1>
       <ul className="phone-more-list">
+        <li><NavLink to="/m">Accueil</NavLink></li>
+        <li><NavLink to="/m/products">Produits</NavLink></li>
         <li><NavLink to="/m/scan">Scan code-barres</NavLink></li>
-        {!stockOnly && <li><NavLink to="/m/vente">Vente rapide</NavLink></li>}
-        {!stockOnly && <li><NavLink to="/m/bills">Achats &amp; réception</NavLink></li>}
+        <li><NavLink to="/m/inbox">Notifications</NavLink></li>
+        <li><NavLink to="/m/agent">Atlas Agent</NavLink></li>
+        {canOpenPhoneBalance(getRole()) && <li><NavLink to="/m/balance">Balance</NavLink></li>}
+        {canOpenPhoneEmployees(getRole()) && <li><NavLink to="/m/employees">Employés</NavLink></li>}
+        {office && <li><NavLink to="/m/vente">Vente rapide</NavLink></li>}
+        {office && <li><NavLink to="/m/bills">Achats &amp; réception</NavLink></li>}
         <li><NavLink to="/m/warehouse">Entrepôts · inventaire · transfert</NavLink></li>
-        {!stockOnly && <li><NavLink to="/m/invoice">Nouveau devis</NavLink></li>}
-        {!stockOnly && <li><a href="/?mode=pc">Rapports &amp; clôture (PC)</a></li>}
-        {!stockOnly && <li><a href="/?mode=pc">Ouvrir version PC</a></li>}
+        {office && <li><NavLink to="/m/invoice">Nouveau devis</NavLink></li>}
+        {office && <li><a href="/?mode=pc">Rapports &amp; clôture (PC)</a></li>}
+        <li><NavLink to="/m/settings">Mon profil et thème</NavLink></li>
+        {office && <li><a href="/?mode=pc">Ouvrir tous les outils de la version PC</a></li>}
       </ul>
       <p style={{ fontSize: 12, color: 'var(--muted)', padding: '12px 4px' }}>
         {stockOnly
@@ -207,13 +217,18 @@ export default function PhoneApp() {
   const [toast, setToast] = useState<string | null>(null);
   const [booting, setBooting] = useState(true);
   const [quickOpen, setQuickOpen] = useState(false);
+  const quickRef = useRef<HTMLDivElement>(null);
   const [scanDialogOpen, setScanDialogOpen] = useState(false);
   useEffect(() => { setQuickOpen(false); }, [location.pathname]);
   useEffect(() => {
     if (!quickOpen) return;
     const close = (event: KeyboardEvent) => { if (event.key === 'Escape') setQuickOpen(false); };
+    const outside = (event: PointerEvent) => {
+      if (event.target instanceof Node && !quickRef.current?.contains(event.target)) setQuickOpen(false);
+    };
     window.addEventListener('keydown', close);
-    return () => window.removeEventListener('keydown', close);
+    document.addEventListener('pointerdown', outside);
+    return () => { window.removeEventListener('keydown', close); document.removeEventListener('pointerdown', outside); };
   }, [quickOpen]);
   const navigate = useNavigate();
 
@@ -330,7 +345,7 @@ export default function PhoneApp() {
   const roleLabel = androidRoleLabel(getRole());
 
   return (
-    <div className={`phone-root${scanDialogOpen ? ' phone-root--dialog-open' : ''}`}>
+    <div className={`phone-root${scanDialogOpen ? ' phone-root--dialog-open' : ''}${showPhoneDock(location.pathname) ? '' : ' phone-root--no-dock'}`}>
       <OfflineBanner />
       <header className="phone-topbar">
         <div className="pt-titles">
@@ -338,7 +353,7 @@ export default function PhoneApp() {
           <span className="pt-sub">{getDisplayName()} · {roleLabel}</span>
         </div>
         <div className="phone-top-actions">
-          <div className="ph-quick-wrap">
+          <div className="ph-quick-wrap" ref={quickRef}>
             <button
               type="button"
               className="ph-quick-ball"
@@ -351,17 +366,10 @@ export default function PhoneApp() {
             </button>
             {quickOpen && (
               <>
-                <button
-                  type="button"
-                  className="ph-menu-backdrop"
-                  aria-label="Fermer le menu"
-                  onClick={() => setQuickOpen(false)}
-                />
-                <div className="ph-quick-menu" role="menu">
+                <div className="ph-quick-menu" aria-label="Menu rapide">
                   <button
                     type="button"
-                    role="menuitem"
-                    className="ph-quick-item"
+                    className="ph-quick-item theme-toggle"
                     onClick={() => { setQuickOpen(false); navigate('/m/inbox'); }}
                   >
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -374,14 +382,17 @@ export default function PhoneApp() {
                     </span>
                     {pending > 0 ? <span className="ph-quick-badge">{pending > 99 ? '99+' : pending}</span> : null}
                   </button>
-                  {allowSell && <button type="button" role="menuitem" className="ph-quick-item" onClick={() => { setQuickOpen(false); navigate('/m/vente'); }}>
+                  {allowSell && <button type="button" className="ph-quick-item theme-toggle" onClick={() => { setQuickOpen(false); navigate('/m/vente'); }}>
                     <span className="ph-quick-item-txt"><strong>Vente</strong><small>Ouvrir la vente rapide</small></span>
                   </button>}
-                  <button type="button" role="menuitem" className="ph-quick-item" onClick={() => { setQuickOpen(false); navigate('/m/agent'); }}>
+                  <button type="button" className="ph-quick-item theme-toggle" onClick={() => { setQuickOpen(false); navigate('/m/agent'); }}>
                     <span className="ph-quick-item-txt"><strong>Atlas Agent</strong><small>Ouvrir l’assistant</small></span>
                   </button>
+                  <button type="button" className="ph-quick-item theme-toggle" onClick={() => { setQuickOpen(false); navigate('/m/more'); }}>
+                    <span className="ph-quick-item-txt"><strong>Tous les outils</strong><small>Entrepôt, achats et autres pages</small></span>
+                  </button>
                   <div className="ph-quick-div" />
-                  <a role="menuitem" className="ph-quick-item" href="/login/qr">
+                  <a className="ph-quick-item theme-toggle" href="/login/qr">
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                       <rect x="3" y="5" width="12" height="9" rx="1.5" />
                       <path d="M7 18h8M11 14v4M18 9h3M18 13h3M19.5 7v8" />
@@ -487,7 +498,8 @@ export default function PhoneApp() {
               )
             }
           />
-          <Route path="/balance" element={canOpenPhoneBalance(getRole()) ? <div className="phone-web-page"><Suspense fallback={<PageSkeleton variant="phone" />}><Balance /></Suspense></div> : <div className="phone-panel"><p>Cette page n’est pas disponible pour votre rôle.</p></div>} />
+          <Route path="/balance" element={canOpenPhoneBalance(getRole()) ? <Suspense fallback={<PageSkeleton variant="phone" />}>{canOpenPhoneEmployees(getRole()) ? <PhoneBalance /> : <div className="phone-web-page"><Balance /></div>}</Suspense> : <div className="phone-panel"><p>Cette page n’est pas disponible pour votre rôle.</p></div>} />
+          <Route path="/balance/classic" element={canOpenPhoneBalance(getRole()) ? <div className="phone-web-page"><Suspense fallback={<PageSkeleton variant="phone" />}><Balance /></Suspense></div> : <div className="phone-panel"><p>Cette page n’est pas disponible pour votre rôle.</p></div>} />
           <Route path="/employees" element={canOpenPhoneEmployees(getRole()) ? <div className="phone-web-page"><Suspense fallback={<PageSkeleton variant="phone" />}><Employees /></Suspense></div> : <div className="phone-panel"><p>Cette page n’est pas disponible pour votre rôle.</p></div>} />
           <Route path="/more" element={<PhoneMore />} />
           <Route path="/settings" element={<PhoneSettings theme={theme} glass={glassOn} onTheme={applyTheme} onGlass={applyGlass} />} />
@@ -514,7 +526,7 @@ export default function PhoneApp() {
         </PageTransition>
       </main>
 
-      <PhoneDock role={getRole()} />
+      {showPhoneDock(location.pathname) && <PhoneDock role={getRole()} />}
       {toast && <div className="phone-toast">{toast}</div>}
     </div>
   );
@@ -729,7 +741,8 @@ function PhoneScan({
   const [outboxN, setOutboxN] = useState(0);
   const [camPermission, setCamPermission] = useState<'unknown' | 'granted' | 'denied' | 'unavailable'>('unknown');
   const readerRef = useRef<HTMLDivElement | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+  const scanStopRef = useRef<(() => void) | null>(null);
+  const cameraGeneration = useRef(0);
   const [decision, setDecision] = useState<null | {
     code: string;
     found: Product | null;
@@ -750,12 +763,9 @@ function PhoneScan({
   }, []);
 
   const stopCamera = () => {
-    try { (streamRef as any).stopScan?.(); } catch { /* */ }
-    (streamRef as any).stopScan = null;
-    streamRef.current?.getTracks().forEach((tr) => tr.stop());
-    streamRef.current = null;
-    // html5-qrcode owns the only camera/video element. Do not also call
-    // getUserMedia here or Android will show two previews and decode neither.
+    cameraGeneration.current++;
+    try { scanStopRef.current?.(); } catch { /* camera cleanup is best-effort */ }
+    scanStopRef.current = null;
     if (readerRef.current) readerRef.current.innerHTML = '';
     setScanning(false);
   };
@@ -793,8 +803,9 @@ function PhoneScan({
 
   const startCamera = async () => {
     if (busy) return;
+    stopCamera();
+    const generation = cameraGeneration.current;
     try {
-      stopCamera();
       setDecision(null);
       setAddNow(false);
       if (!navigator.mediaDevices?.getUserMedia) {
@@ -805,6 +816,7 @@ function PhoneScan({
       setScanning(true);
       // Wait two frames so readerRef mounts with scanning UI
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(null))));
+      if (generation !== cameraGeneration.current) return;
       const reader = readerRef.current;
       if (!reader) {
         onToast('Caméra non prête — réessayez');
@@ -815,6 +827,7 @@ function PhoneScan({
       const stop = await startBarcodeScan(
         reader,
         (scanned) => {
+          if (generation !== cameraGeneration.current) return;
           const text = String(scanned || '').trim();
           if (!text) return;
           setCamPermission('granted');
@@ -824,12 +837,14 @@ function PhoneScan({
           void resolveCode(text);
         },
         (msg) => {
-          onToast(msg);
+          if (generation === cameraGeneration.current) onToast(msg);
         }
       );
-      (streamRef as any).stopScan = stop;
+      if (generation !== cameraGeneration.current) { stop(); return; }
+      scanStopRef.current = stop;
       setCamPermission('granted');
     } catch (e: any) {
+      if (generation !== cameraGeneration.current) return;
       stopCamera();
       const name = String(e?.name || '');
       if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
@@ -844,6 +859,10 @@ function PhoneScan({
   const resolveCode = async (raw: string) => {
     const c = raw.trim();
     if (!c) return;
+    if (!isSafeInventoryCode(c)) {
+      onToast('Ce scanner est réservé aux codes produit. Utilisez la connexion d’appareil pour un QR de connexion.');
+      return;
+    }
     setBusy(true);
     // Always clear previous modal so only ONE popup shows
     setDecision(null);
@@ -863,7 +882,8 @@ function PhoneScan({
           } else {
             found = (await lookupOffline(c)) as Product | null;
             offline = !!found;
-            if (!found && !isOnline()) offline = true;
+            if (!found && isOnline()) { onToast('Recherche indisponible. Réessayez avant de créer un produit.'); return; }
+            if (!found) offline = true;
           }
         }
       } else {
@@ -913,7 +933,7 @@ function PhoneScan({
   };
 
   const confirmFound = async () => {
-    if (!decision?.found) return;
+    if (!decision?.found || !canSell()) return;
     const f = decision.found;
     setBusy(true);
     try {
@@ -1052,9 +1072,8 @@ function PhoneScan({
 
   return (
     <div>
-      <div className="ph-phone-card">
-         <p className="ph-eyebrow" style={{ color: 'rgba(255,255,255,0.7)' }}>Mode téléphone · {isOnline() ? 'En ligne' : 'Hors ligne'}</p>
-        <h2>Que scannez-vous ?</h2>
+      <div className="ph-scan-native">
+        <div className="ph-scan-status">{isOnline() ? 'En ligne' : 'Hors ligne'}</div>
         {(outboxN > 0 || (hubSnap && hubSnap.pending > 0)) && (
           <p className="ph-hub-badge" role="status" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
             <span>
@@ -1075,10 +1094,12 @@ function PhoneScan({
             )}
           </p>
         )}
-         <p className="ph-scan-help">
-           1) Ouvrez <strong>Caméra</strong> · 2) Placez le code dans le cadre jaune · 3) Tenez stable 1 s.
-           Le code peut être un peu décalé. Si ça échoue : <strong>Image</strong> ou saisie manuelle.
-         </p>
+        {!scanning && <div className="ph-scan-idle">
+          <span className="ph-scan-idle-icon" aria-hidden="true"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="5" width="14" height="14" rx="3" /><path d="m17 10 4-2v8l-4-2z" /></svg></span>
+          <h2>Caméra en veille</h2>
+          <p>La caméra reste éteinte jusqu’à votre demande. Démarrez-la pour scanner un code-barres ou saisissez le code manuellement.</p>
+          <button type="button" className="ph-scan-start theme-toggle" disabled={busy} onClick={startCamera}>Démarrer la caméra</button>
+        </div>}
 
         {camPermission === 'denied' && (
           <div className="ph-perm-banner" role="alert">
@@ -1112,19 +1133,21 @@ function PhoneScan({
             </>
           )}
         </div>
-        <label>Code-barres ou SKU</label>
+        <div className="ph-scan-controls">
+        <label htmlFor="phone-scan-code">Code-barres ou SKU</label>
         <div className="ph-scan-row">
           <input
+            id="phone-scan-code"
             value={code}
             onChange={(e) => setCode(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && resolveCode(code)}
             placeholder="Scannez ou saisissez un code"
-            inputMode="numeric"
+            inputMode="text"
           />
-          <button type="button" disabled={busy} onClick={() => resolveCode(code)}>Envoyer</button>
+          <button type="button" className="theme-toggle" disabled={busy} onClick={() => resolveCode(code)}>Rechercher</button>
         </div>
         <div className="ph-phone-actions">
-          <button type="button" onClick={scanning ? stopCamera : startCamera}>{scanning ? 'Arrêter' : 'Caméra'}</button>
+          {scanning && <button type="button" className="theme-toggle" onClick={stopCamera}>Arrêter la caméra</button>}
           {scanning && (
             <button
               type="button"
@@ -1156,8 +1179,8 @@ function PhoneScan({
             <input
               type="file"
               accept="image/*"
-              capture="environment"
-              style={{ display: 'none' }}
+              className="ph-scan-file-input"
+              aria-label="Importer une image de code-barres"
               onChange={async (e) => {
                 const f = e.target.files?.[0];
                 e.target.value = '';
@@ -1184,7 +1207,8 @@ function PhoneScan({
             />
             <span className="ph-chip" style={{ cursor: 'pointer' }}>Image</span>
           </label>
-          <button type="button" disabled={busy} onClick={shelf}>Contrôle rayon</button>
+          <button type="button" className="theme-toggle" disabled={busy} onClick={shelf}>Contrôle rayon</button>
+        </div>
         </div>
       </div>
 
@@ -1235,7 +1259,7 @@ function PhoneScan({
               <button type="button" className="ph-cta" style={{ margin: 0 }} disabled={busy} onClick={adjustStock}>
                 Ajuster le stock → PC
               </button>
-              {!isStockRole() && (
+              {canSell() && (
               <button type="button" className="ph-chip" style={{ width: '100%' }} disabled={busy} onClick={confirmFound}>
                 Ajouter au devis
               </button>

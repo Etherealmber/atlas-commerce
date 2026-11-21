@@ -16,7 +16,7 @@ describe('WhatsNew releases', () => {
     expect(RELEASES[0].version).toBe('0.9.0');
     expect(WHATS_NEW_VERSION).toBe(RELEASES[0].version);
     expect(RELEASES[0].date).toBe('19 novembre 2026');
-    expect(RELEASES[0].sections.flatMap((s) => s.items).map((i) => i.id)).toEqual(['090s1', '090s2', '090s3', '090s4', '090s5', '090s6', '090s7', '090s8', '090s9', '090s10', '090s11']);
+    expect(RELEASES[0].sections.flatMap((s) => s.items).map((i) => i.id)).toEqual(['090s1', '090s2', '090s3', '090s4', '090s5', '090s6', '090s7', '090s8', '090s9', '090s10', '090s11', '090s12', '090s13', '090s14']);
     const currentText = RELEASES[0].sections.flatMap((section) => section.items).map((item) => item.text).join(' ');
     for (const detail of ['solde, stock, créances, dettes, employés, balance âgée et TVA', 'tickets signés', '30 minutes', 'sans JavaScript', 'impression multipage', 'échecs de génération', 'sans archivage immuable']) expect(currentText).toContain(detail);
     for (const detail of ['découverte v2 expérimentaux', 'QR contenant seulement une référence temporaire', 'PKCE S256', 'échange atomique à usage unique', 'limites persistantes par IP et compte', 'passkeys Windows restent indisponibles', 'desktop v1 restent inchangés']) expect(currentText).toContain(detail);
