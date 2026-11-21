@@ -145,6 +145,7 @@ const Products = lazyRetry(() => import('./pages/Products'));
 const Scan = lazyRetry(() => import('./pages/Scan'));
 const LoginQr = lazyRetry(() => import('./pages/LoginQr'));
 const LoginDesktop = lazyRetry(() => import('./pages/LoginDesktop'));
+const LoginDesktopPhone = lazyRetry(() => import('./pages/LoginDesktopPhone'));
 const EmailVerify = lazyRetry(() => import('./pages/EmailVerify'));
 const Invoices = lazyRetry(() => import('./pages/Invoices'));
 const InvoiceDetail = lazyRetry(() => import('./pages/InvoiceDetail'));
@@ -2216,6 +2217,7 @@ export default function App() {
           <Routes>
             <Route path="/login" element={<LoginGate />} />
             <Route path="/login/desktop" element={<Suspense fallback={null}><LoginDesktop /></Suspense>} />
+            <Route path="/login/desktop-phone" element={<Suspense fallback={null}><LoginDesktopPhone /></Suspense>} />
             <Route path="/login/qr" element={<Suspense fallback={null}><LoginQr /></Suspense>} />
             <Route path="/verify" element={<Suspense fallback={null}><EmailVerify /></Suspense>} />
             <Route path="/welcome" element={<WelcomeGate />} />

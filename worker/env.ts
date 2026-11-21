@@ -52,6 +52,10 @@ export interface Env {
   SMS_API_URL?: string;
   SMS_API_KEY?: string;
   SMS_SENDER?: string;
+  /** Opt in to desktop v2 discovery; phone approval also needs its own explicit flag. */
+  DESKTOP_NATIVE_V2_DISCOVERY?: string;
+  /** Enable v2 phone approval in addition to discovery; use only after client/staging validation. */
+  DESKTOP_NATIVE_V2_PHONE_APPROVAL?: string;
   /** Cloudflare Turnstile (optional). If unset, login skips captcha check. */
   TURNSTILE_SITE_KEY?: string;
   TURNSTILE_SECRET_KEY?: string;

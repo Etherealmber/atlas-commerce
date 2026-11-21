@@ -31,8 +31,12 @@ function makeD1() {
     },
     async batch(stmts: any[]) {
       const out: any[] = [];
-      for (const st of stmts) out.push(await st.run());
-      return out;
+      sqlite.exec('BEGIN');
+      try {
+        for (const st of stmts) out.push(await st.run());
+        sqlite.exec('COMMIT');
+        return out;
+      } catch (e) { sqlite.exec('ROLLBACK'); throw e; }
     },
   };
   return { db, sqlite };
@@ -54,7 +58,7 @@ beforeEach(async () => {
     CREATE TABLE IF NOT EXISTS app_users (
       id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password_hash TEXT DEFAULT '',
       password_salt TEXT DEFAULT '', role TEXT DEFAULT 'user', display_name TEXT DEFAULT '',
-      active INTEGER DEFAULT 1, email TEXT DEFAULT '', created_by TEXT DEFAULT '',
+      active INTEGER DEFAULT 1, email TEXT DEFAULT '', phone TEXT DEFAULT '', avatar_url TEXT DEFAULT '', notes TEXT DEFAULT '', created_by TEXT DEFAULT '',
       created_at TEXT DEFAULT (datetime('now')), last_login TEXT
     );
     CREATE TABLE IF NOT EXISTS login_attempts (id INTEGER PRIMARY KEY AUTOINCREMENT, ip TEXT NOT NULL, fingerprint TEXT DEFAULT '', success INTEGER DEFAULT 0, reputation_delta INTEGER DEFAULT 0, user_agent TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now')));
@@ -131,6 +135,22 @@ async function consent(decision: 'approve' | 'deny' = 'approve') {
   return prepared.body.data;
 }
 const statusOf = () => sqlite.prepare('SELECT status FROM desktop_auth_v1 WHERE id = ?').get(requestData.request_id).status;
+
+describe('desktop v2 discovery on the real Worker', () => {
+  it('is public, HTTPS-only, opt-in and never enables authentication', async () => {
+    env.DESKTOP_NATIVE_V2_DISCOVERY = 'true';
+    const result = await call('/api/auth/desktop/v2/capabilities', undefined, { method: 'GET' });
+    expect(result.status).toBe(200);
+    expect(result.body.data).toMatchObject({ version: 2, discovery_enabled: true, methods: {
+      phone_approval: { available: false }, password_otp: { available: false }, windows_passkey: { available: false },
+    } });
+    expect(result.headers.get('Cache-Control')).toContain('no-store');
+    expect(result.headers.get('Referrer-Policy')).toBe('no-referrer');
+    expect((await call('/api/auth/desktop/v2/capabilities', undefined, { method: 'GET', origin: 'http://inventaire.self-hosted.example:8443' })).body.code).toBe('HTTPS_REQUIRED');
+    expect((await call('/api/auth/desktop/v2/exchange', { verifier: VERIFIER })).status).toBe(503);
+    expect(JSON.stringify(logs)).not.toContain(VERIFIER);
+  });
+});
 
 describe('desktop v1 — real Worker, web authentication and D1 transitions', () => {
   it('discovers a versioned flow on a custom HTTPS origin, without hardcoded production domains', async () => {
@@ -427,5 +447,225 @@ describe('desktop v1 — real Worker, web authentication and D1 transitions', ()
     expect(atob(complete.body.data.token).split('|')[4]).toBe(DESKTOP_FP);
     expect((await call(`/api/auth/qr/session/${qr}/complete`, { fingerprint: DESKTOP_FP })).body.code).toBe('USED');
 
+  });
+});
+
+const V2 = '/api/auth/desktop/v2';
+let v2Request: any;
+async function createV2(extra: Record<string, any> = {}) {
+  const response = await call(`${V2}/requests`, { origin: ORIGIN, state: STATE, code_challenge: await desktopHash(VERIFIER), code_challenge_method: 'S256', device_label: 'PC bureau', ...extra });
+  expect(response.status).toBe(201);
+  v2Request = response.body.data;
+  return v2Request;
+}
+const v2phone = (extra = {}) => ({ origin: ORIGIN, request_id: v2Request.request_id, ...extra });
+const v2desktop = (extra = {}) => v2phone({ state: STATE, code_verifier: VERIFIER, ...extra });
+async function prepV2() {
+  const r = await call(`${V2}/phone/prepare`, v2phone(), { web: true });
+  expect(r.status).toBe(200); return r.body.data;
+}
+async function decideV2(decision = 'approve') {
+  const prepared = await prepV2();
+  const r = await call(`${V2}/phone/decision`, v2phone({ consent_nonce: prepared.consent_nonce, decision, compare_confirmed: true }), { web: true });
+  expect(r.status).toBe(200); return prepared;
+}
+
+describe('desktop native v2 phone approval — real Worker and SQLite D1', () => {
+  beforeEach(() => { env.DESKTOP_NATIVE_V2_DISCOVERY = 'true'; env.DESKTOP_NATIVE_V2_PHONE_APPROVAL = 'true'; });
+  it('requires explicit opt-in and advertises only phone approval', async () => {
+    const cap = await call(`${V2}/capabilities`, undefined, { method: 'GET' });
+    expect(cap.body.data.methods.phone_approval).toMatchObject({ available: true, version: 2, code_challenge_method: 'S256' });
+    expect(cap.body.data.methods.password_otp.available).toBe(false);
+    expect(cap.body.data.methods.windows_passkey.available).toBe(false);
+    env.DESKTOP_NATIVE_V2_PHONE_APPROVAL = 'false';
+    const disabled = await call(`${V2}/requests`, {});
+    expect(disabled.status).toBe(503); expect(disabled.body.code).toBe('METHOD_DISABLED');
+  });
+  it('requires authenticated explicit phone consent and PKCE before one atomic session exchange', async () => {
+    const request = await createV2();
+    expect(request.pairing_code).toMatch(/^[A-Z0-9_-]{5}-[A-Z0-9_-]{5}$/);
+    expect(JSON.stringify(request)).not.toContain(STATE); expect(JSON.stringify(request)).not.toContain(VERIFIER);
+    expect((await call(`${V2}/exchange`, v2desktop())).body.code).toBe('NOT_APPROVED');
+    expect((await call(`${V2}/phone/prepare`, v2phone())).status).toBe(401);
+    const prepared = await prepV2();
+    expect(prepared).toMatchObject({ username: 'alice', origin: ORIGIN, pairing_code: request.pairing_code, device_label: 'PC bureau' });
+    expect((await call(`${V2}/phone/decision`, v2phone({ consent_nonce: prepared.consent_nonce, decision: 'approve' }), { web: true })).body.code).toBe('INVALID_REQUEST');
+    expect((await call(`${V2}/phone/decision`, v2phone({ consent_nonce: prepared.consent_nonce, decision: 'approve', compare_confirmed: true }), { web: true })).status).toBe(200);
+    expect((await call(`${V2}/poll`, v2desktop())).body.data.status).toBe('approved');
+    const exchange = await call(`${V2}/exchange`, v2desktop());
+    expect(exchange.status).toBe(200); expect(exchange.body.data.username).toBe('alice');
+    const token = exchange.body.data.token;
+    const meResult = await call('/api/auth/me', undefined, { method: 'GET', headers: { Authorization: `Bearer ${token}` } });
+    expect(meResult.status).toBe(200);
+    expect((await call(`${V2}/exchange`, v2desktop())).body.code).toBe('USED');
+    expect(JSON.stringify(logs)).not.toContain(VERIFIER); expect(JSON.stringify(logs)).not.toContain(token); expect(JSON.stringify(logs)).not.toContain(browserToken);
+    sqlite.prepare('DELETE FROM trusted_devices WHERE fingerprint = ?').run(DESKTOP_FP);
+    expect((await call('/api/auth/me', undefined, { method: 'GET', headers: { Authorization: `Bearer ${token}` } })).status).toBe(401);
+  });
+  it('rejects proof, origin/port, fingerprint and changed desktop IP', async () => {
+    await createV2();
+    const badProofs = await Promise.all([v2desktop({ state: 'x'.repeat(64) }), v2desktop({ code_verifier: 'x'.repeat(64) })].map(b => call(`${V2}/poll`, b)));
+    for (const result of badProofs) expect(result.body.code).toBe('INVALID_PROOF');
+    expect((await call(`${V2}/poll`, v2desktop({ origin: 'https://inventaire.self-hosted.example' }))).body.code).toBe('ORIGIN_MISMATCH');
+    expect((await call(`${V2}/poll`, v2desktop(), { headers: { 'X-Device-Fingerprint': 'different-device-012345' } })).body.code).toBe('INVALID_PROOF');
+    expect((await call(`${V2}/poll`, v2desktop(), { headers: { 'CF-Connecting-IP': '203.0.113.250' } })).body.code).toBe('INVALID_PROOF');
+    expect((await call(`${V2}/requests`, {}, { origin: 'http://inventaire.self-hosted.example:8443' })).body.code).toBe('HTTPS_REQUIRED');
+  });
+  it('rejects consent substitution, forged role, missing bearer and replay', async () => {
+    await createV2(); const p = await prepV2();
+    const changed = v2phone({ consent_nonce: p.consent_nonce, decision: 'approve', compare_confirmed: true });
+    const forged = atob(browserToken).split('|'); forged[2] = 'admin';
+    expect((await call(`${V2}/phone/decision`, changed, { web: true, headers: { Authorization: `Bearer ${btoa(forged.join('|'))}` } })).status).toBe(401);
+    expect((await call(`${V2}/phone/decision`, { ...changed, consent_nonce: '0'.repeat(64) }, { web: true })).body.code).toBe('INVALID_PROOF');
+    const second = await prepV2();
+    expect((await call(`${V2}/phone/decision`, changed, { web: true })).body.code).toBe('INVALID_PROOF');
+    expect((await call(`${V2}/phone/decision`, { ...changed, consent_nonce: second.consent_nonce }, { web: true })).status).toBe(200);
+    expect((await call(`${V2}/phone/decision`, { ...changed, consent_nonce: second.consent_nonce }, { web: true })).status).toBe(409);
+  });
+  it('denial, cancellation and expiry are terminal', async () => {
+    await createV2(); await decideV2('deny'); expect((await call(`${V2}/exchange`, v2desktop())).body.code).toBe('DENIED');
+    await createV2(); expect((await call(`${V2}/cancel`, v2desktop())).body.data.status).toBe('cancelled'); expect((await call(`${V2}/phone/prepare`, v2phone(), { web: true })).body.code).toBe('CANCELLED');
+    await createV2(); sqlite.prepare('UPDATE desktop_auth_v2 SET expires_at=? WHERE id=?').run(Date.now() - 1, v2Request.request_id); expect((await call(`${V2}/poll`, v2desktop())).body.code).toBe('EXPIRED');
+  });
+  it('rejects account changes, phone revocation and desktop fingerprint conflicts at exchange', async () => {
+    await createV2(); await decideV2(); sqlite.prepare('DELETE FROM trusted_devices WHERE fingerprint=?').run(BROWSER_FP);
+    expect((await call(`${V2}/exchange`, v2desktop())).body.code).toBe('CANCELLED');
+    sqlite.prepare('INSERT INTO trusted_devices (fingerprint,username) VALUES (?,?)').run(BROWSER_FP, 'alice');
+    expect((await call(`${V2}/exchange`, v2desktop())).body.code).toBe('CANCELLED');
+    await createV2(); await decideV2();
+    sqlite.prepare("UPDATE app_users SET role='admin' WHERE username='alice'").run();
+    sqlite.prepare("UPDATE app_users SET role='user' WHERE username='alice'").run();
+    expect((await call(`${V2}/exchange`, v2desktop())).body.code).toBe('CANCELLED');
+    await createV2(); await decideV2();
+    sqlite.prepare("INSERT INTO trusted_devices (fingerprint,username) VALUES (?,?)").run(DESKTOP_FP, 'bob');
+    expect((await call(`${V2}/exchange`, v2desktop())).body.code).toBe('ACCOUNT_CHANGED');
+    expect(sqlite.prepare('SELECT username FROM trusted_devices WHERE fingerprint=?').get(DESKTOP_FP).username).toBe('bob');
+  });
+  it('only one concurrent exchange succeeds', async () => {
+    await createV2(); await decideV2();
+    const results = await Promise.all([call(`${V2}/exchange`, v2desktop()), call(`${V2}/exchange`, v2desktop())]);
+    expect(results.filter(r => r.status === 200)).toHaveLength(1);
+    expect(results.filter(r => r.body.data?.token)).toHaveLength(1);
+  });
+  it('uses persistent IP/account budgets and bounded polling', async () => {
+    await createV2(); expect((await call(`${V2}/poll`, v2desktop())).status).toBe(200);
+    expect((await call(`${V2}/poll`, v2desktop())).body.code).toBe('SLOW_DOWN');
+    // eslint-disable-next-line no-await-in-loop -- preserve admission order.
+    for (let n = 0; n < 29; n++) await prepV2();
+    expect((await call(`${V2}/phone/prepare`, v2phone(), { web: true })).status).toBe(200);
+    expect((await call(`${V2}/phone/prepare`, v2phone(), { web: true })).body.code).toBe('RATE_LIMITED');
+    // eslint-disable-next-line no-await-in-loop -- preserve admission order.
+    for (let n = 0; n < 4; n++) await createV2();
+    expect((await call(`${V2}/requests`, {})).body.code).toBe('RATE_LIMITED');
+  });
+});
+
+describe('desktop v2 additional security and failure cases', () => {
+  beforeEach(() => { env.DESKTOP_NATIVE_V2_DISCOVERY = 'true'; env.DESKTOP_NATIVE_V2_PHONE_APPROVAL = 'true'; });
+  it('binds consent to the operation and expires its nonce', async () => {
+    await createV2(); const first = v2Request; const prepared = await prepV2();
+    await createV2(); const second = v2Request;
+    expect((await call(`${V2}/phone/decision`, v2phone({ consent_nonce: prepared.consent_nonce, decision: 'approve', compare_confirmed: true }), { web: true })).status).not.toBe(200);
+    v2Request = first; sqlite.prepare('UPDATE desktop_auth_v2 SET consent_until=? WHERE id=?').run(Date.now() - 1, first.request_id);
+    expect((await call(`${V2}/phone/decision`, v2phone({ consent_nonce: prepared.consent_nonce, decision: 'approve', compare_confirmed: true }), { web: true })).body.code).toBe('INVALID_PROOF');
+    expect(sqlite.prepare('SELECT status FROM desktop_auth_v2 WHERE id=?').get(second.request_id).status).toBe('pending');
+  });
+  it('rejects switched accounts and phone fingerprint changes', async () => {
+    await createV2(); const prepared = await prepV2();
+    const bobFp = 'bob-phone-fingerprint-0123456'; const material = await sha256('bob-password');
+    sqlite.prepare("INSERT INTO app_users (username,role,password_hash,active) VALUES ('bob','user',?,1)").run(material);
+    sqlite.prepare('INSERT INTO trusted_devices (fingerprint, username) VALUES (?, ?)').run(bobFp, 'bob');
+    const token = await tokenFor('bob', 'user', material, bobFp, browserIP);
+    const decision = v2phone({ consent_nonce: prepared.consent_nonce, decision: 'approve', compare_confirmed: true });
+    expect((await call(`${V2}/phone/decision`, decision, { web: true, headers: { Authorization: `Bearer ${token}`, 'X-Device-Fingerprint': bobFp } })).body.code).toBe('INVALID_PROOF');
+    expect((await call(`${V2}/phone/decision`, decision, { web: true, headers: { 'X-Device-Fingerprint': bobFp } })).status).toBe(401);
+  });
+  it('rolls back the exchange if trusted-device insertion fails, without leaking the verifier', async () => {
+    await createV2(); await decideV2(); const original = db.prepare.bind(db);
+    db.prepare = (sql: string) => {
+      if (sql.startsWith('INSERT INTO trusted_devices')) return { bind: () => ({ run: async () => { throw new Error(`private ${VERIFIER}`); } }) };
+      return original(sql);
+    };
+    const failed = await call(`${V2}/exchange`, v2desktop());
+    expect(failed.status).toBe(503); expect(JSON.stringify(failed.body)).not.toContain(VERIFIER);
+    expect(JSON.stringify(logs)).not.toContain(VERIFIER);
+    expect(sqlite.prepare('SELECT status FROM desktop_auth_v2 WHERE id=?').get(v2Request.request_id).status).toBe('approved');
+    db.prepare = original;
+    expect((await call(`${V2}/exchange`, v2desktop())).status).toBe(200);
+  });
+  it('fails closed without leaking secrets when D1 is unavailable', async () => {
+    const original = db.prepare.bind(db);
+    db.prepare = (sql: string) => {
+      if (sql.startsWith('INSERT INTO desktop_auth_limits_v2')) throw new Error(`private ${VERIFIER} ${browserToken}`);
+      return original(sql);
+    };
+    const result = await call(`${V2}/requests`, {});
+    expect(result.status).toBe(503); expect(result.body.code).toBe('UNAVAILABLE');
+    for (const output of [JSON.stringify(result.body), JSON.stringify(logs)]) {
+      expect(output).not.toContain(VERIFIER); expect(output).not.toContain(browserToken);
+    }
+    db.prepare = original;
+  });
+  it('sets no-store and no-referrer on the mobile web consent page', async () => {
+    env.ASSETS = { fetch: async () => new Response('<html></html>', { headers: { 'Content-Type': 'text/html' } }) };
+    const res = await app.fetch(new Request(`${ORIGIN}/login/desktop-phone`), env, { waitUntil() {} });
+    expect(res.status).toBe(200); expect(res.headers.get('Cache-Control')).toBe('no-store');
+    expect(res.headers.get('CDN-Cache-Control')).toBe('no-store'); expect(res.headers.get('Referrer-Policy')).toBe('no-referrer');
+    expect(res.headers.get('X-Frame-Options')).toBe('DENY');
+  });
+  it('requires trusted CF IP and rejects secrets in query strings', async () => {
+    expect((await call(`${V2}/requests`, {}, { headers: { 'CF-Connecting-IP': '', 'X-Forwarded-For': '203.0.113.99', 'X-Real-IP': '203.0.113.99' } })).status).toBe(503);
+    const response = await call(`${V2}/requests?password=not-in-response`, {});
+    expect(response.status).toBe(403);
+    expect(JSON.stringify(response.body)).not.toContain('not-in-response');
+    expect(JSON.stringify(logs)).not.toContain('not-in-response');
+  });
+  it('issues the current owner session only after phone approval', async () => {
+    sqlite.prepare('UPDATE trusted_devices SET username = ? WHERE fingerprint = ?').run('admin', BROWSER_FP);
+    browserToken = await tokenFor('admin', 'owner', await sha256('owner-key|admin|OwnerPass123!'), BROWSER_FP, browserIP);
+    await createV2(); await decideV2();
+    const result = await call(`${V2}/exchange`, v2desktop());
+    expect(result.status).toBe(200); expect(result.body.data).toMatchObject({ username: 'admin', role: 'owner' });
+  });
+  it('bounds the time and size of a request body', async () => {
+    const oversized = await call(`${V2}/requests`, { extra: 'x'.repeat(9000) });
+    expect(oversized.status).toBe(413);
+    let cancelled = false;
+    const slow = new ReadableStream({ cancel() { cancelled = true; } });
+    const request = new Request(`${ORIGIN}${V2}/requests`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': IP, 'X-Device-Fingerprint': DESKTOP_FP },
+      body: slow, duplex: 'half',
+    } as any);
+    const pending = app.fetch(request, env, { waitUntil() {} });
+    const response = await pending;
+    expect(response.status).toBe(408);
+    expect((await response.json()).code).toBe('REQUEST_TIMEOUT');
+    expect(cancelled).toBe(true);
+  });
+  it('does not accept the verifier as a password or offer OTP or passkeys', async () => {
+    const results = await Promise.all(['password', 'otp', 'passkey'].map(route => call(`${V2}/${route}`, { code_verifier: VERIFIER })));
+    for (const result of results) { expect(result.status).toBe(401); expect(JSON.stringify(result.body)).not.toContain(VERIFIER); }
+  });
+});
+
+describe('desktop v2 D1 cutover isolation', () => {
+  beforeEach(() => { env.DESKTOP_NATIVE_V2_DISCOVERY = 'true'; env.DESKTOP_NATIVE_V2_PHONE_APPROVAL = 'true'; });
+  it('binds v2 writes to the target primary and fails closed on target or flag errors', async () => {
+    const target = makeD1(); const modes: string[] = [];
+    target.sqlite.exec(`CREATE TABLE trusted_devices (fingerprint TEXT PRIMARY KEY, username TEXT); CREATE TABLE app_users (id INTEGER PRIMARY KEY, username TEXT, role TEXT, password_hash TEXT, active INTEGER);`);
+    sqlite.prepare("INSERT INTO app_config (key, value) VALUES ('db_primary','target')").run();
+    const source = { ...db, withSession: (mode: string) => { modes.push(`source:${mode}`); return db; } };
+    const targetBinding: any = { ...target.db, withSession: (mode: string) => { modes.push(`target:${mode}`); return target.db; } };
+    env.DB = source; env.DB_TARGET = targetBinding;
+    const result = await call(`${V2}/requests`, { origin: ORIGIN, state: STATE, code_challenge: await desktopHash(VERIFIER), code_challenge_method: 'S256', device_label: 'PC' });
+    expect(result.status).toBe(201);
+    expect(modes).toContain('source:first-primary'); expect(modes).toContain('target:first-primary');
+    expect(target.sqlite.prepare('SELECT COUNT(*) AS n FROM desktop_auth_v2').get().n).toBe(1);
+    expect(sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='desktop_auth_v2'").get()).toBeUndefined();
+    env.DB = source; targetBinding.withSession = () => { throw new Error('target unavailable'); };
+    expect((await call(`${V2}/requests`, {})).status).toBe(503);
+    env.DB = { ...source, withSession: () => { throw new Error('source unavailable'); } };
+    expect((await call(`${V2}/requests`, {})).status).toBe(503);
+    target.sqlite.close();
   });
 });

@@ -40,6 +40,7 @@ export const RELEASES: Release[] = [
       { id: '090s4', platforms: ['server', 'android', 'web'], text: 'Accès aux rapports : tickets signés limités aux routes de rapport et au compte propriétaire ou administrateur, avec vérification du rôle actif et durée configurable plafonnée à 30 minutes. Les anciens liens doivent être rouverts avec un nouveau ticket.' },
       { id: '090s5', platforms: ['server', 'android', 'web'], text: 'Lecture des rapports : pages générées côté serveur, sans JavaScript ni ressources externes, adaptées aux téléphones et tablettes et à l’impression multipage ; le stock affiche tous les emplacements par défaut.' },
       { id: '090s6', platforms: ['server', 'android', 'web'], text: 'Erreurs de rapport : les tickets invalides ou expirés, les sections non prises en charge et les échecs de génération renvoient un état explicite plutôt qu’un rapport vide. Les vues restent générées à la demande, sans archivage immuable.' },
+      { id: '090s7', platforms: ['server', 'desktop'], text: 'Connexion desktop native : API v2 expérimentale d’approbation par téléphone avec consentement, PKCE et échange unique, désactivée par défaut, avec page de consentement mobile web ; l’intégration desktop reste nécessaire. Mot de passe/OTP et passkeys natifs restent indisponibles ; le navigateur système v1 demeure un choix explicite.' },
     ] }],
   },
   {
