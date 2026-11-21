@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowDownLeft, ArrowUpRight, RefreshCw, Wallet } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { api, getBase } from '../api';
-import { getToken } from '../auth';
-import { getCachedFingerprint } from '../fingerprint';
-import { openReport } from '../lib/reports';
+import { Link, useSearchParams } from 'react-router-dom';
+import { api } from '../api';
+import PhoneMonthlyReport from './PhoneMonthlyReport';
+import PhoneReportBundle from './PhoneReportBundle';
 import PhoneDialog from './PhoneDialog';
 import type { FinanceBucket, FinanceMonthly, FinancePeriod, FinanceRow, FinanceStatement } from './financeTypes';
 
@@ -45,7 +44,8 @@ export default function PhoneBalance() {
   const [breakdown, setBreakdown] = useState<FinancePeriod | null>(null);
   const [statement, setStatement] = useState<FinanceStatement | null>(null);
   const [rows, setRows] = useState<FinanceRow[]>([]);
-  const [section, setSection] = useState<Section>('movements');
+  const [searchParams] = useSearchParams();
+  const [section, setSection] = useState<Section>(() => searchParams.get('tab') === 'reports' ? 'reports' : 'movements');
   const [filter, setFilter] = useState('all');
   const [query, setQuery] = useState('');
   const [reload, setReload] = useState(0);
@@ -57,7 +57,8 @@ export default function PhoneBalance() {
   const [saving, setSaving] = useState(false);
   const [entryError, setEntryError] = useState('');
   const [notice, setNotice] = useState('');
-  const [pdfLoading, setPdfLoading] = useState(false);
+  const [reportPeriod, setReportPeriod] = useState<string | null>(null);
+  const [bundleOpen, setBundleOpen] = useState(false);
   const generation = useRef(0);
   useEffect(() => {
     const id = ++generation.current;
@@ -105,20 +106,6 @@ export default function PhoneBalance() {
     } catch (e) { setEntryError(e instanceof Error ? e.message : 'Enregistrement impossible.'); }
     finally { setSaving(false); }
   }, [entry, saving]);
-  const downloadPdf = async () => {
-    if (!finance || pdfLoading) return;
-    setPdfLoading(true); setError('');
-    try {
-      const token = getToken(); if (!token) throw new Error('Session expirée.');
-      const fp = await getCachedFingerprint();
-      const response = await fetch(`${getBase()}/api/admin/finance/monthly/report.pdf?${new URLSearchParams({ period: finance.period })}`, { headers: { Authorization: `Bearer ${token}`, 'X-Device-Fingerprint': fp, Accept: 'application/pdf' } });
-      if (!response.ok) throw new Error('Téléchargement du PDF impossible.');
-      const blob = await response.blob();
-      if (!blob.size || !blob.type.toLowerCase().includes('pdf')) throw new Error('Le serveur n’a pas renvoyé de PDF valide.');
-      const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `releve-${finance.period}.pdf`; document.body.appendChild(a); a.click(); a.remove(); window.setTimeout(() => URL.revokeObjectURL(url), 60000);
-    } catch (e) { setError(e instanceof Error ? e.message : 'Téléchargement du PDF impossible.'); }
-    finally { setPdfLoading(false); }
-  };
   const currency = finance?.currency || 'MAD';
   const visibleRows = rows.filter((row) => {
     if (filter === 'in' && !(row.credit > 0)) return false;
@@ -156,8 +143,10 @@ export default function PhoneBalance() {
           </div></>}
       </div>}
       {section === 'accounts' && <div className="pb-section"><Bucket title="À recevoir" bucket={finance.receivables} currency={currency} /><Bucket title="À payer" bucket={finance.payables} currency={currency} /><AmountCard label={`Paie encore due · ${finance.payroll.employees} employé(s)`} value={finance.payroll.total_due} currency={currency} /></div>}
-      {section === 'reports' && <div className="pb-section"><div className="pb-card"><h3>Rapports financiers</h3><p>Relevé mensuel officiel du serveur · {finance.period}</p><button className="theme-toggle" type="button" onClick={downloadPdf} disabled={pdfLoading}>{pdfLoading ? 'Préparation…' : 'Télécharger le PDF'}</button></div><div className="pb-card"><h3>Rapport financier</h3><p>Ouvrir le rapport imprimable pour cette période.</p><button className="theme-toggle" type="button" onClick={() => openReport('/api/reports/balance', { period: finance.period })}>Ouvrir le rapport</button></div><Link to="/m/balance/classic">Ouvrir la balance web complète</Link></div>}
+      {section === 'reports' && <div className="pb-section"><div className="pb-card"><h3>Rapports financiers</h3><p>Relevé mensuel officiel du serveur · {finance.period}</p><button className="theme-toggle" type="button" onClick={() => setReportPeriod(finance.period)}>Télécharger et lire le PDF</button></div><div className="pb-card"><h3>Pack de rapports personnalisable</h3><p>Choisissez la période et les rubriques à consulter.</p><button className="theme-toggle" type="button" onClick={() => setBundleOpen(true)}>Ouvrir dans Atlas</button></div><Link to="/m/balance/classic">Ouvrir la balance web complète</Link></div>}
     </>}
+    {reportPeriod && <PhoneMonthlyReport period={reportPeriod} onClose={() => setReportPeriod(null)} />}
+    {bundleOpen && <PhoneReportBundle onClose={() => setBundleOpen(false)} />}
     {entry && <PhoneDialog titleId="pb-entry-title" onClose={() => { if (!saving) setEntry(null); }}><form className="pb-form" onSubmit={saveEntry}><h3 id="pb-entry-title">Nouvelle écriture · {entryLabels[entry]}</h3><label>Catégorie<select name="category" required>{entryCategories[entry].map((c) => <option key={c}>{c}</option>)}</select></label><label>Libellé<input name="description" required maxLength={255} /></label><label>Montant<input name="amount" type="number" min="0.01" step="0.01" required inputMode="decimal" /></label><label>Date<input name="date" type="date" defaultValue={today()} required /></label><label>Mode de paiement<select name="method"><option value="cash">Espèces (caisse)</option><option value="bank">Banque / virement</option><option value="card">Carte</option><option value="check">Chèque</option></select></label><label>Tiers<input name="vendor" /></label><label>Notes<textarea name="notes" rows={2} /></label>{entryError && <p role="alert">{entryError}</p>}<div className="pb-form-actions"><button className="theme-toggle" type="submit" disabled={saving}>{saving ? 'Enregistrement…' : 'Enregistrer'}</button><button className="theme-toggle" type="button" disabled={saving} onClick={() => setEntry(null)}>Annuler</button></div></form></PhoneDialog>}
   </div>;
 }

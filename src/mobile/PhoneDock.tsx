@@ -1,10 +1,18 @@
 import { NavLink } from 'react-router-dom';
 import { Home, Package, ScanLine, Wallet, Users } from 'lucide-react';
 
-/** The floating dock belongs to the five primary destinations only. */
+/** Keep the same primary navigation on these supporting screens too. */
 export function showPhoneDock(pathname: string): boolean {
   const path = pathname.replace(/\/+$/, '') || '/m';
-  return path === '/m' || ['/m/scan', '/m/products', '/m/balance', '/m/employees'].some((base) => path === base || path.startsWith(`${base}/`));
+  if (/^\/m\/products\/\d+\/historique$/.test(path)) return false;
+  return path === '/m' || ['/m/scan', '/m/products', '/m/balance', '/m/employees', '/m/vente', '/m/inbox', '/m/agent', '/m/device-scan'].some((base) => path === base || path.startsWith(`${base}/`));
+}
+
+export function phoneBackTarget(pathname: string): string {
+  if (pathname.startsWith('/m/settings/')) return '/m/settings';
+  if (pathname.startsWith('/m/products/')) return '/m/products';
+  if (pathname.startsWith('/m/balance/')) return '/m/balance';
+  return '/m';
 }
 
 export function canOpenPhoneBalance(role: string) {

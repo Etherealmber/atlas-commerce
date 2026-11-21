@@ -20,6 +20,9 @@ const seen = new Set<string>();
 
 export function reportCrash(err: unknown, ctx: { route?: string; componentStack?: string } = {}): void {
   try {
+    // A challenge may be opened in an already logged-in system browser. Never
+    // export its errors/stacks: they could contain provider or request data.
+    if (typeof location !== 'undefined' && location.pathname === '/login/desktop-challenge') return;
     // v0.7.4 — aucun rapport de bug pour les visiteurs non connectés (pages publiques, accueil, desktop…).
     if (!isLoggedIn()) return;
     if (sent >= MAX_PER_SESSION) return;

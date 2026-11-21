@@ -75,6 +75,21 @@ describe('inventory actor responses', () => {
     const updated: any = await (await call(`/api/products/${created.id}`, t)).json();
     expect(updated.data).toMatchObject({ created_by: 'alice', approved_by: null });
   });
+  it('includes product artwork in the light mobile projection without weakening role redaction', async () => {
+    sqlite.exec("INSERT INTO products (name, sku, image_url, price) VALUES ('Picture item', 'PIC-1', '/cdn/products/picture.webp', 42)");
+    const stock = await token('alice', 'stock');
+    const list: any = await (await call('/api/products?fields=mobile&q=PIC-1', stock)).json();
+    expect(list.data).toHaveLength(1);
+    expect(list.data[0].image_url).toBe('/cdn/products/picture.webp');
+    expect(list.data[0]).not.toHaveProperty('price');
+    const inlineImage = `data:image/png;base64,${'A'.repeat(262145)}`;
+    sqlite.prepare('UPDATE products SET image_url = ? WHERE sku = ?').run(inlineImage, 'PIC-1');
+    const large: any = await (await call('/api/products?fields=mobile&q=PIC-1', stock)).json();
+    expect(large.data[0]).toMatchObject({ image_url: null, image_inline_large: 1 });
+    const detail: any = await (await call(`/api/products/${large.data[0].id}`, stock)).json();
+    expect(detail.data.image_url).toBe(inlineImage);
+    expect(detail.data).not.toHaveProperty('price');
+  });
   it('preserves role-based price redaction on a cached mobile product list', async () => {
     const owner = await token('admin', 'owner'), stock = await token('alice', 'stock');
     const first: any = await (await call('/api/products?fields=mobile', owner)).json();

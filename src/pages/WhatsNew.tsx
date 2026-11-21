@@ -33,7 +33,16 @@ export const RELEASES: Release[] = [
   {
     version: '0.9.0',
     date: '19 novembre 2026',
-    sections: [{ kind: 'fixes', items: [
+    sections: [{ kind: 'improvements', items: [
+      { id: '090i1', platforms: ['web'], text: 'Accueil mobile : tableau de bord inspiré d’Android avec chiffres du serveur, actions, alertes et documents récents ; les informations financières restent réservées aux rôles autorisés.' },
+      { id: '090i2', platforms: ['web'], text: 'Navigation mobile : barre flottante, raccourcis, boutons de retour et pages distinctes pour le profil et les paramètres. Le scan d’appareil demande une confirmation avant toute approbation compatible.' },
+      { id: '090i3', platforms: ['web'], text: 'Paramètres mobiles : thème clair, sombre ou système, taille du texte, densité, animations et onglet d’ouverture ; la sélection des langues supplémentaires est annoncée comme bientôt disponible.' },
+      { id: '090i4', platforms: ['web'], text: 'Nouveautés mobiles : historique des versions web accessible depuis les paramètres, présenté sous forme de cartes inspirées de l’application Android.' },
+      { id: '090i5', platforms: ['web'], text: 'Rapports mobiles : lecture du PDF mensuel avec défilement, zoom et enregistrement ; partage selon les capacités du navigateur. Pack personnalisable avec période et rubriques, consultable dans Atlas.' },
+      { id: '090i6', platforms: ['web', 'server'], text: 'Produits sur mobile et PC : images, affichage en liste ou en grille et ouverture de la fiche en touchant le produit. L’historique des mouvements dispose d’une barre de retour et d’un chargement progressif ; le bouton Historique séparé a été retiré.' },
+      { id: '090i7', platforms: ['web', 'server'], text: 'Photos produits : remplacement de la photo principale depuis la fiche pour les rôles autorisés ; sur mobile, les images anciennes volumineuses sont chargées à la demande.' },
+      { id: '090i8', platforms: ['web'], text: 'Mobile : recherche et filtres produits, accès au scan, Agent et notifications adaptés aux petits écrans, sans modifier les autorisations du serveur.' },
+    ] }, { kind: 'fixes', items: [
       { id: '090s1', platforms: ['web'], text: 'Cookies et données locales : texte, liens et choix plus lisibles en thème sombre et disposition adaptée aux petits écrans.' },
       { id: '090s2', platforms: ['web'], text: 'Fenêtre Nouveautés : contraste et boutons corrigés en thème sombre, avec un affichage adapté aux petits écrans.' },
       { id: '090s3', platforms: ['server', 'android', 'web'], text: 'Rapports financiers combinés : affichage complet des sections choisies — solde, stock, créances, dettes, employés, balance âgée et TVA — avec les mêmes données que leurs rapports individuels.' },

@@ -5,14 +5,18 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense, type ReactNode } from 'react';
 import { NavLink, Route, Routes, useNavigate, useLocation } from 'react-router-dom';
+import { ArrowLeft, Settings, Sparkles, ShoppingCart, Search, ScanLine, RefreshCw, Grid2X2, List, Package } from 'lucide-react';
+import PhoneDeviceScan from './PhoneDeviceScan';
 import PhoneBills from './PhoneBills';
 import PhoneWarehouse from './PhoneWarehouse';
 import PhoneSettings from './PhoneSettings';
-import PhoneDock, { canOpenPhoneBalance, canOpenPhoneEmployees, showPhoneDock } from './PhoneDock';
+import PhoneProfile from './PhoneProfile';
+const PhoneWhatsNew = lazy(() => import('./PhoneWhatsNew'));
+import PhoneDock, { canOpenPhoneBalance, canOpenPhoneEmployees, phoneBackTarget, phoneDockItems, showPhoneDock } from './PhoneDock';
 import { usePhoneTheme } from './usePhoneTheme';
 import { api } from '../api';
-import { clearToken, getUsername, getDisplayInitials, getDisplayName, hasAvatarUrl, getRole, setProfileCache, isStockRole, canSell, canAccessSettings, canAccessSettingsBeyondProfile } from '../auth';
-import { getDensity, setDensity, isGlassEnabled, setGlassEnabled, isLiquidGlassActive, type Density } from '../lib/density';
+import { clearToken, getUsername, getDisplayInitials, hasAvatarUrl, getRole, setProfileCache, isStockRole, canSell, canAccessSettings, canAccessSettingsBeyondProfile } from '../auth';
+import { setDensity, type UiScale } from '../lib/density';
 import { APP_VERSION } from '../version';
 import './phone.css';
 import PageTransition from '../components/PageTransition';
@@ -37,7 +41,9 @@ import {
 import { startBarcodeScan, isBarcodeLike, captureAndDecode, decodeImageFile, preloadBarcodeScanner, prepareZXing } from '../lib/barcodeScan';
 import { IconPackage, IconInbox } from '../components/Icons';
 import OfflineBanner from '../components/OfflineBanner';
-import { CountUp } from '../components/ui/Bits';
+import PhoneHome from './PhoneHome';
+import ProductArtwork from '../components/ProductArtwork';
+import ProductHistory from '../pages/ProductHistory';
 
 
 type Product = {
@@ -53,6 +59,8 @@ type Product = {
   track_inventory?: number | boolean | null;
   unit_price?: number;
   price?: number;
+  image_url?: string | null;
+  image_inline_large?: number;
 };
 
 type Action = {
@@ -143,7 +151,10 @@ const TAB_TITLES: [string, string][] = [
   ['/m/vente', 'Vente'],
   ['/m/agent', 'Agent'],
   ['/m/inbox', 'Notifications'],
-  ['/m/settings', 'Mon profil'],
+  ['/m/device-scan', 'Scanner un appareil'],
+  ['/m/settings/whats-new', 'Mises à jour des versions'],
+  ['/m/settings', 'Paramètres'],
+  ['/m/profile', 'Mon profil'],
   ['/m/warehouse', 'Entrepôt'],
   ['/m/bills', 'Achats'],
   ['/m/balance', 'Balance'],
@@ -153,6 +164,7 @@ const TAB_TITLES: [string, string][] = [
 ];
 function tabTitleFor(pathname: string): string {
   const p = pathname.replace(/\/+$/, '') || '/m';
+  if (/^\/m\/products\/\d+\/historique$/.test(p)) return 'Historique du produit';
   for (const [prefix, title] of TAB_TITLES) {
     if (p === prefix || p.startsWith(`${prefix}/`)) return title;
   }
@@ -180,7 +192,8 @@ function PhoneMore() {
         <li><NavLink to="/m/warehouse">Entrepôts · inventaire · transfert</NavLink></li>
         {office && <li><NavLink to="/m/invoice">Nouveau devis</NavLink></li>}
         {office && <li><a href="/?mode=pc">Rapports &amp; clôture (PC)</a></li>}
-        <li><NavLink to="/m/settings">Mon profil et thème</NavLink></li>
+        <li><NavLink to="/m/profile">Mon profil</NavLink></li>
+        <li><NavLink to="/m/settings">Paramètres</NavLink></li>
         {office && <li><a href="/?mode=pc">Ouvrir tous les outils de la version PC</a></li>}
       </ul>
       <p style={{ fontSize: 12, color: 'var(--muted)', padding: '12px 4px' }}>
@@ -328,31 +341,37 @@ export default function PhoneApp() {
     };
   }, [refresh]);
 
-  const lowCount = useMemo(
-    () => products.filter(phoneStockIsLow).length,
-    [products]
-  );
   const allowSell = canSell();
-  const [density, setDensityState] = useState<Density>(() => getDensity());
-  const [glassOn, setGlassOn] = useState(() => isGlassEnabled());
   const [theme, applyTheme] = usePhoneTheme();
-  const applyGlass = (v: boolean) => {
-    setGlassOn(v);
-    setGlassEnabled(v);
-  };
-  const [profileTick, setProfileTick] = useState(0);
-
-  const roleLabel = androidRoleLabel(getRole());
+  const [, setProfileTick] = useState(0);
+  const [animations, setAnimations] = useState(() => { try { return localStorage.getItem('atlas_phone_animations') !== 'off'; } catch { return true; } });
+  const [compact, setCompact] = useState(() => { try { return localStorage.getItem('atlas_phone_density') === 'compact'; } catch { return false; } });
+  const [phoneScale, setPhoneScale] = useState<UiScale>(() => { try { const value = localStorage.getItem('atlas_phone_scale'); return value === 'sm' || value === 'lg' ? value : 'md'; } catch { return 'md'; } });
+  const [startTab, setStartTab] = useState(() => { try { return localStorage.getItem('atlas_phone_start_tab') || '/m'; } catch { return '/m'; } });
+  const applyAnimations = (enabled: boolean) => { setAnimations(enabled); try { localStorage.setItem('atlas_phone_animations', enabled ? 'on' : 'off'); } catch { /* use session preference */ } };
+  const applyCompact = (enabled: boolean) => { setCompact(enabled); try { localStorage.setItem('atlas_phone_density', enabled ? 'compact' : 'comfort'); } catch { /* use session preference */ } };
+  const applyPhoneScale = (scale: UiScale) => { setPhoneScale(scale); try { localStorage.setItem('atlas_phone_scale', scale); } catch { /* use session preference */ } };
+  const applyStartTab = (path: string) => { if (!phoneDockItems(getRole()).some(item => item.path === path)) return; setStartTab(path); try { localStorage.setItem('atlas_phone_start_tab', path); } catch { /* use session preference */ } };
+  const startHandled = useRef(false);
+  useEffect(() => {
+    if (startHandled.current) return;
+    startHandled.current = true;
+    if ((location.pathname === '/m' || location.pathname === '/m/') && !location.search && startTab !== '/m' && phoneDockItems(getRole()).some(item => item.path === startTab)) navigate(startTab, { replace: true });
+  }, [location.pathname, location.search, navigate, startTab]);
+  const hasDock = showPhoneDock(location.pathname);
+  const backTarget = phoneBackTarget(location.pathname);
 
   return (
-    <div className={`phone-root${scanDialogOpen ? ' phone-root--dialog-open' : ''}${showPhoneDock(location.pathname) ? '' : ' phone-root--no-dock'}`}>
+    <div data-phone-scale={phoneScale} className={`phone-root${scanDialogOpen ? ' phone-root--dialog-open' : ''}${hasDock ? '' : ' phone-root--no-dock'}${animations ? '' : ' phone-root--no-motion'}${compact ? ' phone-root--compact' : ''}`}>
       <OfflineBanner />
       <header className="phone-topbar">
+        {!hasDock && <button type="button" className="ph-top-back" aria-label="Retour" onClick={() => navigate(backTarget)}><ArrowLeft size={21} /></button>}
         <div className="pt-titles">
           <span className="pt-title">{tabTitleFor(location.pathname)}</span>
-          <span className="pt-sub">{getDisplayName()} · {roleLabel}</span>
+          {/^\/m\/products\/\d+\/historique\/?$/.test(location.pathname) && <small className="ph-top-subtitle">Détails et mouvements de stock</small>}
         </div>
         <div className="phone-top-actions">
+          {location.pathname !== '/m/agent' && <button type="button" className="ph-top-agent" aria-label="Ouvrir Atlas Agent" onClick={() => navigate('/m/agent')}><Sparkles size={21} aria-hidden="true" /></button>}
           <div className="ph-quick-wrap" ref={quickRef}>
             <button
               type="button"
@@ -383,34 +402,19 @@ export default function PhoneApp() {
                     {pending > 0 ? <span className="ph-quick-badge">{pending > 99 ? '99+' : pending}</span> : null}
                   </button>
                   {allowSell && <button type="button" className="ph-quick-item theme-toggle" onClick={() => { setQuickOpen(false); navigate('/m/vente'); }}>
-                    <span className="ph-quick-item-txt"><strong>Vente</strong><small>Ouvrir la vente rapide</small></span>
+                    <ShoppingCart size={20} aria-hidden="true" />
+                    <span className="ph-quick-item-txt"><strong>Vente</strong><small>Nouvelle vente / caisse</small></span>
                   </button>}
-                  <button type="button" className="ph-quick-item theme-toggle" onClick={() => { setQuickOpen(false); navigate('/m/agent'); }}>
-                    <span className="ph-quick-item-txt"><strong>Atlas Agent</strong><small>Ouvrir l’assistant</small></span>
-                  </button>
-                  <button type="button" className="ph-quick-item theme-toggle" onClick={() => { setQuickOpen(false); navigate('/m/more'); }}>
-                    <span className="ph-quick-item-txt"><strong>Tous les outils</strong><small>Entrepôt, achats et autres pages</small></span>
-                  </button>
-                  <div className="ph-quick-div" />
-                  <a className="ph-quick-item theme-toggle" href="/login/qr">
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                      <rect x="3" y="5" width="12" height="9" rx="1.5" />
-                      <path d="M7 18h8M11 14v4M18 9h3M18 13h3M19.5 7v8" />
-                    </svg>
-                    <span className="ph-quick-item-txt">
-                      <strong>Connecter un appareil</strong>
-                      <small>Connexion QR sur PC / autre poste</small>
-                    </span>
-                  </a>
                 </div>
               </>
             )}
           </div>
+          <button type="button" className="ph-top-settings" aria-label="Paramètres" onClick={() => navigate('/m/settings')}><Settings size={20} aria-hidden="true" /></button>
           <button
             type="button"
             className="phone-avatar phone-profile-btn"
             aria-label="Mon profil"
-            onClick={() => navigate('/m/settings')}
+            onClick={() => navigate('/m/profile')}
           >
             {hasAvatarUrl() ? (
               <AvatarImage className="phone-avatar-img" />
@@ -427,18 +431,12 @@ export default function PhoneApp() {
         </div>
       )}
       <main className={`phone-main${location.pathname.replace(/\/+$/, '') === '/m/agent' ? ' phone-main--agent' : ''}`}>
-        <PageTransition>
+        <PageTransition disabled={!animations}>
         <Routes>
           <Route
             path="/"
             element={
-              <PhoneHome
-                productCount={products.length}
-                lowCount={lowCount}
-                pending={pending}
-                actions={actions.filter((a) => a.status === 'pending').slice(0, 4)}
-                onRefresh={() => { void refresh(true); }}
-              />
+              <PhoneHome />
             }
           />
           <Route
@@ -460,6 +458,7 @@ export default function PhoneApp() {
             path="/products"
             element={<PhoneProduits products={products} actions={actions} onRefresh={() => refresh(true)} onToast={show} />}
           />
+          <Route path="/products/:id/historique" element={<ProductHistory mobile onProductUpdated={() => void refresh(true)} />} />
           <Route
             path="/inbox"
             element={<PhoneBoîte actions={actions} onRefresh={() => refresh(true)} />}
@@ -502,10 +501,13 @@ export default function PhoneApp() {
           <Route path="/balance/classic" element={canOpenPhoneBalance(getRole()) ? <div className="phone-web-page"><Suspense fallback={<PageSkeleton variant="phone" />}><Balance /></Suspense></div> : <div className="phone-panel"><p>Cette page n’est pas disponible pour votre rôle.</p></div>} />
           <Route path="/employees" element={canOpenPhoneEmployees(getRole()) ? <div className="phone-web-page"><Suspense fallback={<PageSkeleton variant="phone" />}><Employees /></Suspense></div> : <div className="phone-panel"><p>Cette page n’est pas disponible pour votre rôle.</p></div>} />
           <Route path="/more" element={<PhoneMore />} />
-          <Route path="/settings" element={<PhoneSettings theme={theme} glass={glassOn} onTheme={applyTheme} onGlass={applyGlass} />} />
+          <Route path="/profile" element={<PhoneProfile onChanged={() => setProfileTick(tick => tick + 1)} />} />
+          <Route path="/settings" element={<PhoneSettings theme={theme} onTheme={applyTheme} animations={animations} onAnimations={applyAnimations} compact={compact} onCompact={applyCompact} scale={phoneScale} onScale={applyPhoneScale} startTab={startTab} onStartTab={applyStartTab} />} />
+          <Route path="/settings/whats-new" element={<Suspense fallback={<PageSkeleton variant="phone" />}><PhoneWhatsNew /></Suspense>} />
           <Route path="/bills" element={allowSell ? <PhoneBills onToast={show} /> : <div className="phone-panel"><p className="ph-perm-banner">Rôle magasinier : pas d’achats.</p></div>} />
           <Route path="/warehouse" element={<PhoneWarehouse onToast={show} />} />
           <Route path="/agent" element={<PhoneAgentMobile />} />
+          <Route path="/device-scan" element={<PhoneDeviceScan />} />
 
           <Route
             path="*"
@@ -528,202 +530,6 @@ export default function PhoneApp() {
 
       {showPhoneDock(location.pathname) && <PhoneDock role={getRole()} />}
       {toast && <div className="phone-toast">{toast}</div>}
-    </div>
-  );
-}
-
-function PhoneHome({
-  productCount, lowCount, pending, actions, onRefresh,
-}: {
-  productCount: number; lowCount: number; pending: number;
-  actions: Action[]; onRefresh: () => void;
-}) {
-  const navigate = useNavigate();
-  const role = getRole();
-  /* Android Roles.canViewFinancials: owner/admin/secretaire see the treasury
-     hero; stock/user roles get the catalog-operations hero. Same split. */
-  const finance = canSell();
-  const admin = role === 'owner' || role === 'admin';
-  const roleLabel = androidRoleLabel(role);
-  const stockTone = lowCount > 0 ? 'tone-warning' : 'tone-positive';
-  const stockHint = lowCount > 0 ? 'À vérifier' : 'Optimal';
-  return (
-    <div className="ph-home">
-      <div className="ph-eyebrow-row ph-entrance">
-        <span className="ph-eyebrow2">Espace {roleLabel}</span>
-        <button type="button" className="ph-refresh" aria-label="Actualiser" onClick={onRefresh}>
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7" /><path d="M20 5v6h-6" /></svg>
-        </button>
-      </div>
-
-      <div className="ph-entrance" style={{ animationDelay: '45ms' }}>
-        <div className="ph-hero">
-          <span className="ph-hero-label">
-            {finance ? 'VENTES DU JOUR' : `PILOTAGE CATALOGUE & STOCK · ${roleLabel.toUpperCase()}`}
-          </span>
-          <strong className="ph-hero-value">
-            {finance ? 'Indisponible' : <>{productCount} articles actifs</>}
-          </strong>
-          <div className="ph-hero-pills">
-            {finance ? (
-              <>
-                <span className="ph-hero-pill">Stock {productCount} articles</span>
-                <span className="ph-hero-pill">{pending > 0 ? `${pending} envoi(s) en attente` : 'Boîte à jour'}</span>
-              </>
-            ) : (
-              <>
-                <span className="ph-hero-pill">
-                  {lowCount > 0 ? `${lowCount} article(s) en alerte stock` : 'Aucune rupture critique'}
-                </span>
-                <span className="ph-hero-pill">Demandes → Admin</span>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="ph-actions-row ph-entrance" style={{ animationDelay: '90ms' }}>
-        {finance ? (
-          <button type="button" className="ph-btn filled" onClick={() => navigate('/m/vente')}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="9.5" cy="20" r="1.4" /><circle cx="17.5" cy="20" r="1.4" /><path d="M3 4h2l2.4 11.2a1.5 1.5 0 0 0 1.5 1.2h7.9a1.5 1.5 0 0 0 1.5-1.2L20.5 7.5H6" /></svg>
-            Nouvelle vente
-          </button>
-        ) : (
-          <button type="button" className="ph-btn filled" onClick={() => navigate('/m/scan')}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M4 7V5a1 1 0 0 1 1-1h2M20 7V5a1 1 0 0 0-1-1h-2M4 17v2a1 1 0 0 0 1 1h2M20 17v2a1 1 0 0 1-1 1h-2M7 12h10" /></svg>
-            Scanner un article
-          </button>
-        )}
-        <button type="button" className="ph-btn outlined" onClick={() => navigate('/m/products')}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M20 7l-8-4-8 4v10l8 4 8-4V7z" /><path d="M4 7l8 4 8-4" /><path d="M12 11v10" /></svg>
-          Produits
-        </button>
-      </div>
-
-      <button
-        type="button"
-        className="ph-cardlink ph-entrance"
-        style={{ animationDelay: '135ms' }}
-        onClick={() => navigate('/m/inbox')}
-      >
-        <span className="ph-cardlink-ico" aria-hidden>
-          {admin ? (
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3l7 3v5c0 4.4-2.9 8.4-7 10-4.1-1.6-7-5.6-7-10V6l7-3z" /><path d="M9.5 12l1.8 1.8 3.4-3.6" /></svg>
-          ) : (
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5" /><path d="M9 17a3 3 0 0 0 6 0" /></svg>
-          )}
-        </span>
-        <span className="ph-cardlink-txt">
-          <strong>{admin ? 'Info Box Admin · Demandes & notifications' : `Info Box · Notifications ${roleLabel}`}</strong>
-          <small>{androidScopeSummary(role)}</small>
-        </span>
-        <span className="ph-chip2 tone-info">Ouvrir</span>
-      </button>
-
-      <div className="ph-tiles ph-entrance" style={{ animationDelay: '180ms' }}>
-        <div className="ph-tile">
-          <span className="ph-tile-lbl">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M20 7l-8-4-8 4v10l8 4 8-4V7z" /><path d="M4 7l8 4 8-4" /><path d="M12 11v10" /></svg>
-            Produits
-          </span>
-          <strong className="ph-tile-val"><CountUp value={productCount} /></strong>
-        </div>
-        {finance ? (
-          <div className="ph-tile">
-            <span className="ph-tile-lbl">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M4 16l5-5 3.5 3.5L20 7" /><path d="M15 7h5v5" /></svg>
-              Ventes du jour
-            </span>
-            <strong className="ph-tile-val">Indisponible</strong>
-          </div>
-        ) : (
-          <div className={`ph-tile ${stockTone}`}>
-            <span className="ph-tile-lbl">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M12 4l9 16H3L12 4z" /><path d="M12 10v4M12 17h.01" /></svg>
-              Stock faible
-            </span>
-            <strong className="ph-tile-val"><CountUp value={lowCount} /></strong>
-            <span className="ph-tile-hint">{stockHint}</span>
-          </div>
-        )}
-      </div>
-
-      {finance && (
-        <div className="ph-tiles ph-entrance" style={{ animationDelay: '215ms' }}>
-          <div className={`ph-tile ${lowCount > 0 ? 'tone-warning' : 'tone-positive'}`}>
-            <span className="ph-tile-lbl">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M12 4l9 16H3L12 4z" /><path d="M12 10v4M12 17h.01" /></svg>
-              Stock faible
-            </span>
-            <strong className="ph-tile-val"><CountUp value={lowCount} /></strong>
-            <span className="ph-tile-hint">{lowCount > 0 ? 'À réapprovisionner' : 'Tout est bon'}</span>
-          </div>
-          <div className={`ph-tile ${pending > 0 ? 'tone-info' : ''}`}>
-            <span className="ph-tile-lbl">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M4 6h16v12H4z" /><path d="M4 7l8 6 8-6" /></svg>
-              Envois en attente
-            </span>
-            <strong className="ph-tile-val">{pending}</strong>
-            <span className="ph-tile-hint">{pending > 0 ? 'À traiter dans la boîte' : 'Boîte à jour'}</span>
-          </div>
-        </div>
-      )}
-
-      {lowCount > 0 && (
-        <div className="ph-panel ph-alertcard ph-entrance" style={{ animationDelay: '250ms' }}>
-          <div className="ph-alertcard-head">
-            <span className="ph-chip2 tone-warning">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M12 4l9 16H3L12 4z" /><path d="M12 10v4M12 17h.01" /></svg>
-              Alerte stock
-            </span>
-            <button type="button" className="ph-textbtn" onClick={() => navigate('/m/products')}>Voir</button>
-          </div>
-          <p className="ph-alertcard-txt">{lowCount} produit(s) sont au niveau ou sous le seuil d’alerte.</p>
-        </div>
-      )}
-
-      <div className="ph-panel ph-entrance" style={{ animationDelay: '285ms' }}>
-        <div className="ph-sechead">
-          <div>
-            <strong className="ph-sechead-t">Outils terrain</strong>
-            <small className="ph-sechead-s">Entrepôt, achats et version PC</small>
-          </div>
-        </div>
-        <div className="ph-tools">
-          <NavLink to="/m/warehouse" className="ph-tool">Entrepôt · inventaire</NavLink>
-          {finance && <NavLink to="/m/bills" className="ph-tool">Achats &amp; réception</NavLink>}
-          {finance && <NavLink to="/m/invoice" className="ph-tool">Nouveau devis</NavLink>}
-          {finance && <a className="ph-tool" href="/?mode=pc">Rapports &amp; clôture (PC)</a>}
-          <NavLink to="/m/more" className="ph-tool">Tout ouvrir</NavLink>
-        </div>
-      </div>
-
-      <div className="ph-panel ph-entrance" style={{ animationDelay: '320ms' }}>
-        <div className="ph-sechead">
-          <div>
-            <strong className="ph-sechead-t">Activité récente</strong>
-            <small className="ph-sechead-s">Traitez les envois du terrain.</small>
-          </div>
-          <button type="button" className="ph-textbtn" onClick={() => navigate('/m/inbox')}>Voir</button>
-        </div>
-        {actions.length === 0 && (
-          <div className="ph-empty">
-            <div className="ph-empty-ico" aria-hidden><IconInbox size={28} /></div>
-            <h2>Aucun envoi</h2>
-            <p>Aucun envoi en attente.</p>
-          </div>
-        )}
-        {actions.map((a) => (
-          <div className="ph-row ph-card" key={a.id}>
-            <div className={`ph-ico ${a.type}`}>{a.type === 'stock_check' ? 'ST' : 'SC'}</div>
-            <div>
-              <div className="ph-meta">{a.type} · {a.created_at?.slice(0, 16)}</div>
-              <div className="ph-row-title">{a.title}</div>
-              <div className="ph-row-detail">{a.detail}</div>
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
@@ -1332,130 +1138,53 @@ function PhoneScan({
   );
 }
 
-function PhoneProduits({
-  products, actions, onRefresh, onToast,
-}: {
-  products: Product[];
-  actions?: Action[];
-  onRefresh: () => void;
-  onToast: (m: string) => void;
+export function PhoneProduits({ products, actions, onRefresh }: {
+  products: Product[]; actions?: Action[]; onRefresh: () => void; onToast: (m: string) => void;
 }) {
-  const hideMoney = isStockRole();
-  const [q, setQ] = useState('');
-  const [lowOnly, setLowOnly] = useState(false);
-  const [sortMode, setSortMode] = useState<'newest' | 'oldest' | 'name'>('newest');
-
-  // Products that were approved from mobile (new_product done, or stock_check done with product_id)
-  const approvedIds = useMemo(() => {
-    const map = new Map<number, string>(); // product_id → completed_at / created_at
-    for (const a of actions || []) {
-      if (a.status !== 'done') continue;
-      if (a.product_id) {
-        const t = a.completed_at || a.created_at || '';
-        const prev = map.get(a.product_id);
-        if (!prev || t > prev) map.set(a.product_id, t);
-      }
-    }
-    return map;
-  }, [actions]);
-
-  const list = products
-    .filter((p) => {
-      if (lowOnly && !phoneStockIsLow(p)) return false;
-      if (!q.trim()) return true;
-      const s = q.toLowerCase();
-      return (
-        (p.name || '').toLowerCase().includes(s) ||
-        (p.sku || '').toLowerCase().includes(s) ||
-        (p.barcode || '').includes(s)
-      );
-    })
-    .slice()
-    .sort((a, b) => {
-      if (sortMode === 'name') return (a.name || '').localeCompare(b.name || '', 'fr');
-      const ta = approvedIds.get(a.id) || (a as any).updated_at || (a as any).created_at || '';
-      const tb = approvedIds.get(b.id) || (b as any).updated_at || (b as any).created_at || '';
-      if (sortMode === 'newest') return tb.localeCompare(ta) || b.id - a.id;
-      return ta.localeCompare(tb) || a.id - b.id;
-    });
-
-  const approvedRecent = list.filter((p) => approvedIds.has(p.id)).slice(0, 12);
-
-  return (
-    <div>
-      <p className="ph-eyebrow">Catalogue</p>
-      <h1 className="ph-title">Produits</h1>
-      <p className="ph-sub">Vue claire de chaque article en rayon · approuvés inclus.</p>
-      <div className="ph-toolbar">
-        <input className="ph-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher nom, SKU ou code-barres" />
-        <button type="button" className={`ph-chip ${lowOnly ? 'on' : ''}`} onClick={() => setLowOnly((v) => !v)}>Stock bas</button>
-      </div>
-      <div className="ph-tabs" style={{ marginBottom: 10 }}>
-        {([
-          ['newest', 'Plus récents'],
-          ['oldest', 'Plus anciens'],
-          ['name', 'Nom'],
-        ] as const).map(([k, label]) => (
-          <button key={k} type="button" className={sortMode === k ? 'on' : ''} onClick={() => setSortMode(k)}>
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {approvedRecent.length > 0 && !q && !lowOnly && (
-        <>
-          <div className="ph-section">Approuvés (PC) · {sortMode === 'oldest' ? 'plus anciens' : 'plus récents'}</div>
-          {approvedRecent.map((p) => {
-            const low = phoneStockIsLow(p);
-            return (
-              <div className="ph-prod" key={`ap-${p.id}`}>
-                <div>
-                  <div className="ph-row-title">{p.name}</div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div className={low ? 'ph-low' : ''}>{stockOf(p)} / min {minOf(p)}</div>
-                  {!hideMoney && <div className="ph-row-title">{priceOf(p)} MAD</div>}
-                  <span className="ph-badge ok">Approuvé</span>
-                </div>
-              </div>
-            );
-          })}
-          <div className="ph-section" style={{ marginTop: 12 }}>Tout le catalogue</div>
-        </>
-      )}
-
-      {list.map((p) => {
-        const low = phoneStockIsLow(p);
-        const wasApproved = approvedIds.has(p.id);
-        return (
-          <div className="ph-prod" key={p.id}>
-            <div>
-              <div className="ph-row-title">{p.name}</div>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <div className={low ? 'ph-low' : ''}>{stockOf(p)} / min {minOf(p)}</div>
-              {!hideMoney && <div className="ph-row-title">{priceOf(p)} MAD</div>}
-              <span className={`ph-badge ${low ? 'bad' : 'ok'}`}>
-                {wasApproved ? 'Approuvé' : low ? 'À réappro' : 'OK'}
-              </span>
-            </div>
-          </div>
-        );
-      })}
-      {list.length === 0 && (
-        <div className="ph-empty">
-          <div className="ph-empty-ico" aria-hidden><IconPackage size={28} /></div>
-          <h2>Aucun produit</h2>
-          <p>Ajoutez des articles pour gérer le stock.</p>
-        </div>
-      )}
-      <button type="button" className="ph-chip ph-refresh-inline" style={{ marginTop: 12 }} onClick={() => { onRefresh(); onToast('Catalogue actualisé'); }} aria-label="Actualiser" title="Actualiser" />
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<'all' | 'low' | 'requests'>('all');
+  const [grid, setGrid] = useState(() => { try { return localStorage.getItem('atlas_phone_products_view') === 'grid'; } catch { return false; } });
+  const changeView = (showGrid: boolean) => { setGrid(showGrid); try { localStorage.setItem('atlas_phone_products_view', showGrid ? 'grid' : 'list'); } catch { /* session only */ } };
+  const navigate = useNavigate();
+  const lowCount = products.filter(phoneStockIsLow).length;
+  const requests = (actions || []).filter(a => a.type === 'new_product' && a.status === 'pending');
+  const visible = products.filter(p => (filter !== 'low' || phoneStockIsLow(p)) &&
+    [p.name, p.sku, p.barcode].some(value => String(value || '').toLowerCase().includes(query.trim().toLowerCase())));
+  return <section className="ph-catalogue">
+    <label className="ph-catalog-search"><Search size={20} aria-hidden="true" /><span className="sr-only">Rechercher un produit</span><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Nom, SKU ou code-barres" /></label>
+    <div className="ph-catalog-actions">
+      <button type="button" aria-label="Scanner un code-barres" onClick={() => navigate('/m/scan')}><ScanLine size={21} /></button>
+      <button type="button" aria-label="Actualiser le catalogue" onClick={onRefresh}><RefreshCw size={20} /></button>
     </div>
-  );
+    <div className="ph-catalog-filters" role="group" aria-label="Filtrer les produits">
+      <button type="button" aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>Tous</button>
+      <button type="button" aria-pressed={filter === 'low'} onClick={() => setFilter('low')}>À réappro. ({lowCount})</button>
+      <button type="button" aria-pressed={filter === 'requests'} onClick={() => setFilter('requests')}>{getRole() === 'owner' || getRole() === 'admin' ? 'À valider' : 'Mes demandes'} ({requests.length})</button>
+    </div>
+    {filter === 'requests' ? <div className="ph-catalog-list">{requests.length ? requests.map(a => <div className="ph-catalog-card" key={a.id}><div className="ph-catalog-icon"><Package size={22} /></div><div><strong>{a.title}</strong><p>{a.detail || 'Demande en attente'}</p><small>En attente</small></div></div>) : <div className="ph-empty"><h2>Aucune demande en attente</h2></div>}</div> : <>
+      <div className="ph-catalog-summary"><span>{visible.length} résultat{visible.length === 1 ? '' : 's'}</span><div><button type="button" aria-label="Affichage en grille" aria-pressed={grid} onClick={() => changeView(true)}><Grid2X2 size={20} /></button><button type="button" aria-label="Affichage en liste" aria-pressed={!grid} onClick={() => changeView(false)}><List size={20} /></button></div></div>
+      <div className={`ph-catalog-list${grid ? ' is-grid' : ''}`}>{visible.map(p => <NavLink className="ph-catalog-card ph-catalog-product" to={`/m/products/${p.id}/historique`} key={p.id}>
+        <ProductArtwork url={p.image_url} largeImageProductId={p.image_inline_large ? p.id : undefined} className="ph-catalog-art" />
+        <div className="ph-catalog-info"><strong>{p.name}</strong><p>{p.sku || p.barcode || 'Sans référence'}</p><small className={phoneStockIsLow(p) ? 'ph-low' : ''}>{p.track_inventory != null && !Number(p.track_inventory) ? 'Stock non suivi' : `Stock : ${stockOf(p)} · min ${minOf(p)}`}</small></div>
+        {canSell() && typeof (p.unit_price ?? p.price) === 'number' && <strong className="ph-catalog-price">{priceOf(p).toLocaleString('fr-FR')} MAD</strong>}
+      </NavLink>)}</div>
+      {visible.length === 0 && <div className="ph-empty"><h2>Aucun produit</h2><p>Essayez une autre recherche ou actualisez le catalogue.</p></div>}
+    </>}
+  </section>;
 }
 
 function PhoneBoîte({ actions, onRefresh }: { actions: Action[]; onRefresh: () => void }) {
   const [tab, setTab] = useState<'pending' | 'done' | 'all'>('pending');
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [alertError, setAlertError] = useState(false);
+  const [loadingAlerts, setLoadingAlerts] = useState(true);
+  const loadAlerts = useCallback(async () => {
+    setLoadingAlerts(true);
+    try { const result = await api.getAlerts(); setAlerts(result.data || []); setAlertError(false); }
+    catch { setAlertError(true); }
+    finally { setLoadingAlerts(false); }
+  }, []);
+  useEffect(() => { void loadAlerts(); }, [loadAlerts]);
   const list = actions.filter((a) => {
     if (tab === 'pending') return a.status === 'pending';
     if (tab === 'done') return a.status === 'done' || a.status === 'cancelled';
@@ -1473,8 +1202,11 @@ function PhoneBoîte({ actions, onRefresh }: { actions: Action[]; onRefresh: () 
     s === 'pending' ? 'En attente' : s === 'done' ? 'Traité' : s === 'cancelled' ? 'Refusé' : s;
   return (
     <div>
-      <p className="ph-eyebrow">Espace partagé</p>
-      <h1 className="ph-title">Boîte d'actions</h1>
+      <div className="ph-inbox-header"><div><h1>Info Box &amp; Notifications</h1><p>{androidRoleLabel(getRole())} · {alerts.length} alerte(s) · {actions.filter(a => a.status === 'pending').length} en attente</p></div><button type="button" aria-label="Actualiser les notifications" onClick={() => { onRefresh(); void loadAlerts(); }}><RefreshCw size={20} /></button></div>
+      <section className="ph-inbox-intro"><strong>Info Box · {androidRoleLabel(getRole())}</strong><p>{androidScopeSummary(getRole())}</p></section>
+      <h2 className="ph-section">Alertes</h2>
+      {loadingAlerts ? <p className="ph-sub">Chargement des alertes…</p> : alertError ? <p role="alert">Impossible de charger les alertes. Réessayez.</p> : alerts.length ? <div className="ph-card-list">{alerts.map((alert, i) => <div className="ph-row ph-card" key={`${alert.kind}-${i}`}><div className={`ph-inbox-dot ${alert.severity === 'high' ? 'danger' : 'warn'}`} /><div className="ph-row-title">{alert.label}</div></div>)}</div> : <p className="ph-sub">Aucune alerte pour votre rôle.</p>}
+      <h2 className="ph-section">Actions envoyées</h2>
       <p className="ph-sub">Vos envois vers le PC (lecture seule).</p>
       <div className="ph-tabs-row">
         <div className="ph-tabs">
@@ -1967,9 +1699,8 @@ function PhoneAgentMobile() {
   return (
     <div className="ph-agent-shell" data-agent-mobile="1">
       <header className="ph-agent-head">
-        <p className="ph-agent-eyebrow">Assistant</p>
-        <h1 className="ph-agent-title">Atlas Agent</h1>
-        <p className="ph-agent-sub">Version terrain — conversation sur cet appareil</p>
+        <div><p className="ph-agent-eyebrow">Assistant</p><h1 className="ph-agent-title">Atlas Agent</h1><p className="ph-agent-sub">Conversation sur cet appareil</p></div>
+        <button type="button" disabled={busy} className="ph-agent-new" onClick={() => setMsgs([{ role: 'assistant', text: 'Bonjour, comment puis-je vous aider ?' }])}>Nouvelle discussion</button>
       </header>
       <div className="ph-agent-msgs" ref={listRef}>
         {msgs.map((m, i) => (
@@ -1979,6 +1710,7 @@ function PhoneAgentMobile() {
         ))}
         {busy ? <div className="ph-agent-bubble assistant ph-agent-typing">Réflexion…</div> : null}
       </div>
+      <p className="ph-agent-disclaimer">Atlas Agent peut se tromper. Ne partagez pas de mots de passe ni de données personnelles inutiles.</p>
       <form
         className="ph-agent-composer"
         onSubmit={(e) => {

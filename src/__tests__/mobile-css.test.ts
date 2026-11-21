@@ -3,6 +3,11 @@ import { transform } from 'esbuild';
 import { describe, expect, it } from 'vitest';
 
 describe('mobile theme stylesheets', () => {
+  it('constrains the live scanner and keeps its canvas over the preview', () => {
+    const css = readFileSync('src/mobile/phone.css', 'utf8');
+    expect(css).toMatch(/\.ph-cam-wrap\s*\{[^}]*height:\s*clamp\(220px,\s*48vw,\s*320px\)/s);
+    expect(css).toMatch(/\.ph-cam-wrap\s+\.ph-scan-reader canvas\s*\{[^}]*position:\s*absolute\s*!important/s);
+  });
   it('does not hide the mobile browser Turnstile container', () => {
     const indexCss = readFileSync('src/index.css', 'utf8');
     const authCss = readFileSync('src/styles/login-auth.css', 'utf8');
