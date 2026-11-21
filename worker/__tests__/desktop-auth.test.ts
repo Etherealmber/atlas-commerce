@@ -200,6 +200,31 @@ describe('desktop v1 — real Worker, web authentication and D1 transitions', ()
     expect((await call(`${DESKTOP_AUTH}/exchange`, desktopBody())).body.code).toBe('USED');
   });
 
+  it('never logs OTPs or provider exception contents on preview hosts', async () => {
+    env.EMAIL = { send: vi.fn(async () => { throw new Error('provider-private-content'); }) };
+    const result = await call('/api/auth/login', { username: 'alice', password: 'ExamplePassword123!', fingerprint: BROWSER_FP, client: 'web' }, { web: true, origin: 'https://fictional.workers.dev', headers: { Authorization: '' } });
+    expect(result.body.needs_otp).toBe(true);
+    const otp = sqlite.prepare("SELECT code FROM otp_codes WHERE resource_type = 'login' AND resource_id = ?").get(`fp:${BROWSER_FP}`).code;
+    await Promise.resolve(); await Promise.resolve();
+    expect(env.EMAIL.send).toHaveBeenCalled();
+    expect(JSON.stringify(logs)).toContain('otp_binding_failed');
+    expect(JSON.stringify(logs)).not.toContain(otp);
+    expect(JSON.stringify(logs)).not.toContain('provider-private-content');
+    expect(JSON.stringify(logs)).not.toContain('ExamplePassword123!');
+  });
+
+  it('does not log secret-bearing unexpected errors on legacy auth routes', async () => {
+    const original = db.prepare.bind(db);
+    db.prepare = (sql: string) => {
+      if (sql.startsWith('SELECT * FROM app_users WHERE username')) throw new Error('fictional-secret-error');
+      return original(sql);
+    };
+    const result = await call('/api/auth/login', { username: 'alice', password: 'ExamplePassword123!', fingerprint: BROWSER_FP, client: 'web' }, { web: true, headers: { Authorization: '' } });
+    expect(result.status).toBe(500);
+    expect(JSON.stringify(logs)).not.toContain('fictional-secret-error');
+    expect(JSON.stringify(result.body)).not.toContain('fictional-secret-error');
+  });
+
   it('logged-out browser must use real web login + OTP, then explicitly authorize the preserved request', async () => {
     await create();
     const anonymous = await call(`${DESKTOP_AUTH}/prepare`, browserBody(), { web: true, headers: { Authorization: '' } });
@@ -642,9 +667,80 @@ describe('desktop v2 additional security and failure cases', () => {
     expect((await response.json()).code).toBe('REQUEST_TIMEOUT');
     expect(cancelled).toBe(true);
   });
-  it('does not accept the verifier as a password or offer OTP or passkeys', async () => {
-    const results = await Promise.all(['password', 'otp', 'passkey'].map(route => call(`${V2}/${route}`, { code_verifier: VERIFIER })));
-    for (const result of results) { expect(result.status).toBe(401); expect(JSON.stringify(result.body)).not.toContain(VERIFIER); }
+  it('never enables the reserved methods through a desktop header, configured keys or a supplied challenge', async () => {
+    env.TURNSTILE_SITE_KEY = 'configured-site'; env.TURNSTILE_SECRET_KEY = 'configured-secret'; env.WEBAUTHN_ENABLED = 'true';
+    const provider = vi.fn(); vi.stubGlobal('fetch', provider);
+    for (const route of ['password', 'otp', 'passkey']) {
+      // eslint-disable-next-line no-await-in-loop -- inspect each independent route.
+      const result = await call(`${V2}/${route}`, { username: 'alice', password: 'fictional-password', otp: '123456', turnstile_token: 'fictional-challenge' }, { headers: { 'X-Atlas-Client': 'desktop' } });
+      expect(result.status).toBe(503); expect(result.body.data?.token).toBeUndefined();
+      expect(JSON.stringify(result.body)).not.toContain('fictional-challenge');
+    }
+    expect(provider).not.toHaveBeenCalled();
+    expect(JSON.stringify(logs)).not.toContain('fictional-password');
+    expect(JSON.stringify(logs)).not.toContain('fictional-challenge');
+  });
+  it('enforces the persistent v2 operation budget under concurrent unavailable-method probes', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(Math.floor(Date.now() / 60_000) * 60_000 + 1000);
+    expect((await call(`${V2}/password`, {})).status).toBe(503);
+    const responses = await Promise.all(Array.from({ length: 100 }, () => call(`${V2}/password`, {})));
+    expect(responses.filter(r => r.body.code === 'NATIVE_ABUSE_VERIFIER_UNAVAILABLE')).toHaveLength(89);
+    expect(responses.filter(r => r.body.code === 'RATE_LIMITED')).toHaveLength(11);
+  });
+  it('returns stable unavailable errors without accepting credentials or enumerating accounts', async () => {
+    const credentials = { username: 'alice', password: 'fictional-password', otp: '123456', code_verifier: VERIFIER };
+    for (const route of ['password', 'otp', 'passkey']) {
+      const code = route === 'passkey' ? 'NATIVE_ASSOCIATION_UNVERIFIED' : 'NATIVE_ABUSE_VERIFIER_UNAVAILABLE';
+      // eslint-disable-next-line no-await-in-loop -- keep admissions ordered.
+      const valid = await call(`${V2}/${route}`, credentials);
+      // eslint-disable-next-line no-await-in-loop -- keep admissions ordered.
+      const unknown = await call(`${V2}/${route}`, { ...credentials, username: 'nonexistent-account' }, { headers: { 'User-Agent': 'Atlas Native', 'X-Atlas-Client': 'desktop' } });
+      expect(valid.status).toBe(503); expect(valid.body).toEqual(unknown.body);
+      expect(valid.body.code).toBe(code);
+      expect(valid.headers.get('cache-control')).toContain('no-store');
+      for (const output of [JSON.stringify(valid.body), JSON.stringify(logs)]) {
+        for (const secret of [credentials.password, credentials.otp, VERIFIER, credentials.username]) expect(output).not.toContain(secret);
+      }
+    }
+    expect(sqlite.prepare('SELECT COUNT(*) AS n FROM desktop_auth_v2').get().n).toBe(0);
+  });
+  it('limits disabled credential probes persistently and fails closed if the quota store fails', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(Math.floor(Date.now() / 60_000) * 60_000 + 1000);
+    // eslint-disable-next-line no-await-in-loop -- demonstrate the shared persistent limit.
+    for (let i = 0; i < 90; i++) expect((await call(`${V2}/password`, {})).body.code).toBe('NATIVE_ABUSE_VERIFIER_UNAVAILABLE');
+    const limited = await call(`${V2}/otp`, {});
+    expect(limited.status).toBe(429); expect(limited.body.code).toBe('RATE_LIMITED');
+    expect(limited.headers.get('retry-after')).toBeTruthy();
+    const count = sqlite.prepare('SELECT attempts FROM desktop_auth_limits_v2 WHERE attempts=90').get();
+    expect(count?.attempts).toBe(90);
+    const original = db.prepare.bind(db);
+    db.prepare = (sql: string) => { if (sql.startsWith('INSERT INTO desktop_auth_limits_v2')) throw new Error('private-failure'); return original(sql); };
+    const failed = await call(`${V2}/passkey`, {});
+    expect(failed.status).toBe(503); expect(failed.body.code).toBe('UNAVAILABLE');
+    expect(JSON.stringify(logs)).not.toContain('private-failure');
+  });
+  it('keeps unavailable methods unavailable even with phone approval disabled and ignores request bodies', async () => {
+    env.DESKTOP_NATIVE_V2_DISCOVERY = 'false'; env.DESKTOP_NATIVE_V2_PHONE_APPROVAL = 'false';
+    let read = false;
+    const stream = new ReadableStream({ pull() { read = true; throw new Error('body must not be read'); } }, { highWaterMark: 0 });
+    const request = new Request(`${ORIGIN}${V2}/password`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': IP }, body: stream, duplex: 'half',
+    } as any);
+    const response = await app.fetch(request, env, { waitUntil() {} });
+    expect(response.status).toBe(503); expect((await response.json()).code).toBe('NATIVE_ABUSE_VERIFIER_UNAVAILABLE');
+    expect(read).toBe(false);
+    expect(sqlite.prepare("SELECT name FROM sqlite_master WHERE name='desktop_auth_v2'").get()).toBeUndefined();
+    expect((await call(`${V2}/passkey`, {}, { headers: { Origin: 'https://evil.example' } })).body.code).toBe('ORIGIN_MISMATCH');
+    expect((await call(`${V2}/otp`, {}, { origin: 'http://inventaire.self-hosted.example:8443' })).body.code).toBe('HTTPS_REQUIRED');
+  });
+  it('a lost exchange response cannot be replayed to recover a token', async () => {
+    await createV2(); await decideV2();
+    // Simulate delivery loss after the server consumed the grant.
+    const lost = await call(`${V2}/exchange`, v2desktop());
+    expect(lost.status).toBe(200);
+    const replay = await call(`${V2}/exchange`, v2desktop());
+    expect(replay.status).toBe(409); expect(replay.body.code).toBe('USED');
+    expect(replay.body.data?.token).toBeUndefined();
   });
 });
 
@@ -667,5 +763,349 @@ describe('desktop v2 D1 cutover isolation', () => {
     env.DB = { ...source, withSession: () => { throw new Error('source unavailable'); } };
     expect((await call(`${V2}/requests`, {})).status).toBe(503);
     target.sqlite.close();
+  });
+});
+
+describe('staging challenge-only pilot on the real Worker', () => {
+  const root = '/api/auth/desktop/v2/pilot';
+  const browser = { headers: { Origin: ORIGIN } };
+  let req: any;
+  async function createPilot(verifier = VERIFIER, state = STATE) {
+    const r = await call(`${root}/requests`, { origin: ORIGIN, state, code_challenge: await desktopHash(verifier), code_challenge_method: 'S256', device_label: 'Desktop test' });
+    expect(r.status).toBe(201);
+    return r.body.data;
+  }
+  const reference = (id = req.request_id) => ({ origin: ORIGIN, request_id: id });
+  const proof = (id = req.request_id, verifier = VERIFIER, state = STATE) => ({ ...reference(id), state, code_verifier: verifier });
+  async function prepare(id = req.request_id) { return call(`${root}/browser/prepare`, reference(id), browser); }
+  async function decide(id = req.request_id, decision = 'approve') {
+    return call(`${root}/browser/decision`, { ...reference(id), decision, ...(decision === 'approve' ? { compare_confirmed: true, turnstile_token: 'test-provider-token' } : {}) }, browser);
+  }
+  function verifier(cdata: string, overrides: Record<string, unknown> = {}) {
+    const fn = vi.fn(async () => new Response(JSON.stringify({ success: true, hostname: new URL(ORIGIN).hostname, action: 'atlas_desktop_v2', cdata, ...overrides }), { status: 200 }));
+    vi.stubGlobal('fetch', fn); return fn;
+  }
+  beforeEach(() => { env.ENVIRONMENT = 'staging'; env.DESKTOP_NATIVE_V2_PILOT_CHALLENGE = 'true'; env.TURNSTILE_SITE_KEY = 'site'; env.TURNSTILE_SECRET_KEY = 'secret'; });
+
+  it('is opt-in, staging-only, and still cannot enable credential methods', async () => {
+    env.ENVIRONMENT = 'production';
+    expect((await call(`${root}/requests`, {})).body.code).toBe('METHOD_DISABLED');
+    env.ENVIRONMENT = 'staging'; env.DESKTOP_NATIVE_V2_PILOT_CHALLENGE = 'false';
+    expect((await call(`${root}/requests`, {})).body.code).toBe('METHOD_DISABLED');
+    env.DESKTOP_NATIVE_V2_PILOT_CHALLENGE = 'true'; env.TURNSTILE_SECRET_KEY = '';
+    expect((await call(`${root}/requests`, {})).body.code).toBe('UNAVAILABLE');
+    env.TURNSTILE_SECRET_KEY = 'secret';
+    expect((await call('/api/auth/desktop/v2/password', { password: 'do-not-log' })).body.code).toBe('NATIVE_ABUSE_VERIFIER_UNAVAILABLE');
+    expect((await call('/api/auth/desktop/v2/otp', { otp: '123456' })).status).toBe(503);
+  });
+  it('performs a challenge ceremony and atomically consumes exactly once without a login grant', async () => {
+    req = await createPilot();
+    const p = await prepare(); expect(p.status).toBe(200);
+    expect(p.body.data.pairing_code).toBe(req.pairing_code);
+    const f = verifier(p.body.data.cdata);
+    expect((await call(`${root}/consume`, proof())).status).toBe(409);
+    const result = await decide(); expect(result.body.data.status).toBe('verified');
+    expect(f).toHaveBeenCalledTimes(1);
+    expect((await call(`${root}/poll`, proof())).body.data.status).toBe('verified');
+    const [a,b] = await Promise.all([call(`${root}/consume`, proof()), call(`${root}/consume`, proof())]);
+    expect([a.status,b.status].sort()).toEqual([200,409]);
+    expect(JSON.stringify(a.body) + JSON.stringify(b.body)).not.toMatch(/token|grant|session/i);
+    expect((await decide()).status).toBe(409);
+    expect(JSON.stringify(logs)).not.toContain('test-provider-token');
+    expect(JSON.stringify(logs)).not.toContain(VERIFIER);
+  });
+  it('requires consent and browser origin; rejects wrong proof, transaction and origin', async () => {
+    req = await createPilot(); const other = await createPilot('w'.repeat(64), 'z'.repeat(64));
+    const p = await prepare(); verifier(p.body.data.cdata);
+    expect((await call(`${root}/browser/decision`, { ...reference(), decision: 'approve', turnstile_token: 'x' }, browser)).status).toBe(400);
+    expect((await call(`${root}/browser/decision`, { ...reference(), decision: 'approve', compare_confirmed: true, turnstile_token: 'x' })).status).toBe(403);
+    expect((await call(`${root}/poll`, proof(req.request_id, 'w'.repeat(64)))).status).toBe(401);
+    expect((await call(`${root}/poll`, proof(other.request_id))).status).toBe(401);
+    expect((await call(`${root}/poll`, { ...proof(), origin: 'https://evil.example' })).status).toBe(403);
+    expect((await call(`${root}/poll`, proof(), { headers: { 'CF-Connecting-IP': '198.51.100.3' } })).status).toBe(401);
+    expect((await decide(other.request_id)).status).toBe(403); // wrong transaction cdata
+    expect((await call(`${root}/consume`, proof(other.request_id, 'w'.repeat(64), 'z'.repeat(64)))).status).toBe(409);
+  });
+  it('denial, cancellation and expiry are terminal', async () => {
+    req = await createPilot(); expect((await decide(req.request_id, 'deny')).body.data.status).toBe('denied');
+    expect((await decide()).status).toBe(409);
+    expect((await call(`${root}/consume`, proof())).status).toBe(409);
+    req = await createPilot(); expect((await call(`${root}/cancel`, proof())).body.data.status).toBe('cancelled');
+    expect((await decide()).status).toBe(409);
+    req = await createPilot(); sqlite.prepare('UPDATE desktop_challenge_pilot_v2 SET expires_at=? WHERE id=?').run(Date.now() - 1, req.request_id);
+    expect((await prepare()).status).toBe(410); expect((await call(`${root}/poll`, proof())).status).toBe(410);
+  });
+  it('fails closed on provider outage or bad metadata and cannot retry a claimed challenge', async () => {
+    req = await createPilot(); const p = await prepare(); verifier(p.body.data.cdata, { hostname: 'evil.example' });
+    expect((await decide()).body.code).toBe('CHALLENGE_FAILED');
+    expect((await decide()).status).toBe(409);
+    expect((await call(`${root}/consume`, proof())).status).toBe(409);
+    req = await createPilot(); vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('secret provider response'); }));
+    expect((await decide()).body.code).toBe('CHALLENGE_FAILED');
+    expect((await call(`${root}/poll`, proof())).body.data.status).toBe('failed');
+    expect(JSON.stringify(logs)).not.toContain('secret provider response');
+  });
+  it('serializes competing browser decisions; lost consume response cannot be recovered or replayed', async () => {
+    req = await createPilot(); const p = await prepare(); const f = verifier(p.body.data.cdata);
+    const results = await Promise.all([decide(), decide()]);
+    expect(results.map(x => x.status).sort()).toEqual([200,409]); expect(f).toHaveBeenCalledTimes(1);
+    await call(`${root}/consume`, proof()); // caller loses successful response
+    expect((await call(`${root}/consume`, proof())).status).toBe(409);
+    expect((await call(`${root}/poll`, proof())).body.data.status).toBe('consumed');
+  });
+  it('demonstrates challenge relay: a different browser IP can solve an attacker-owned transaction', async () => {
+    req = await createPilot();
+    const unrelatedBrowser = { headers: { Origin: ORIGIN, 'CF-Connecting-IP': '198.51.100.77' } };
+    const prepared = await call(`${root}/browser/prepare`, reference(), unrelatedBrowser);
+    expect(prepared.status).toBe(200);
+    verifier(prepared.body.data.cdata);
+    const solved = await call(`${root}/browser/decision`, { ...reference(), decision: 'approve', compare_confirmed: true, turnstile_token: 'test-provider-token' }, unrelatedBrowser);
+    expect(solved.body.data.status).toBe('verified');
+    // The attacker owns the proof and can consume despite another person solving.
+    // This deliberately documents a remaining abuse avenue, NOT account login.
+    expect((await call(`${root}/consume`, proof())).body.data.status).toBe('consumed');
+    expect((await call('/api/auth/desktop/v2/password', {})).status).toBe(503);
+  });
+  it('cancellation or expiry during verification prevents a late provider response from authorizing', async () => {
+    for (const mode of ['cancel', 'expire'] as const) {
+      req = await createPilot(); const p = await prepare();
+      let resolve!: (response: Response) => void;
+      let called!: () => void;
+      const started = new Promise<void>(r => { called = r; });
+      vi.stubGlobal('fetch', vi.fn(() => { called(); return new Promise<Response>(r => { resolve = r; }); }));
+      const pending = decide(); await started;
+      if (mode === 'cancel') expect((await call(`${root}/cancel`, proof())).status).toBe(200);
+      else sqlite.prepare('UPDATE desktop_challenge_pilot_v2 SET expires_at=? WHERE id=?').run(Date.now() - 1, req.request_id);
+      resolve(new Response(JSON.stringify({ success: true, hostname: new URL(ORIGIN).hostname, action: 'atlas_desktop_v2', cdata: p.body.data.cdata })));
+      expect((await pending).status).toBe(503);
+      expect((await call(`${root}/consume`, proof())).status).not.toBe(200);
+    }
+  });
+  it('enforces separate persistent create and poll quotas', async () => {
+    req = await createPilot();
+    expect((await call(`${root}/poll`, proof())).status).toBe(200);
+    expect((await call(`${root}/poll`, proof())).body.code).toBe('SLOW_DOWN');
+    for (let i = 0; i < 4; i++) await createPilot();
+    expect((await call(`${root}/requests`, { origin: ORIGIN, state: STATE, code_challenge: await desktopHash(VERIFIER), code_challenge_method: 'S256', device_label: 'Desktop' })).status).toBe(429);
+  });
+});
+
+describe('staging native password + OTP pilot', () => {
+  const root = '/api/auth/desktop/v2/pilot';
+  const pass = 'TestOnly-Password-123!';
+  let req: any;
+  const proof = () => ({ origin: ORIGIN, request_id: req.request_id, state: STATE, code_verifier: VERIFIER });
+  async function p(path: string, value: any = proof(), options: any = {}) { return call(`${root}/${path}`, value, options); }
+  async function start() {
+    const r = await p('requests', { origin: ORIGIN, state: STATE, code_challenge: await desktopHash(VERIFIER), code_challenge_method: 'S256', device_label: 'Staging desktop' });
+    expect(r.status).toBe(201); req = r.body.data;
+    const ref = { origin: ORIGIN, request_id: req.request_id };
+    const prep = await p('browser/prepare', ref, { headers: { Origin: ORIGIN } });
+    expect(prep.status).toBe(200);
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ success: true, hostname: new URL(ORIGIN).hostname, action: 'atlas_desktop_v2', cdata: prep.body.data.cdata }))));
+    const decision = await p('browser/decision', { ...ref, decision:'approve', compare_confirmed:true, turnstile_token:'dummy' }, { headers: { Origin: ORIGIN } });
+    expect(decision.status).toBe(200);
+  }
+  async function password(username = 'alice', passwordValue = pass) {
+    return p('login/password', { ...proof(), username, password:passwordValue });
+  }
+  async function otpValue() {
+    // wait for the asynchronous mail delivery task and its D1 update without logging the code
+    for (let n = 0; n < 20; n++) {
+      if (sendSpy.mock.calls.length && sqlite.prepare('SELECT delivered FROM desktop_native_login_pilot_v1 WHERE id=?').get(req.request_id)?.delivered === 1) break;
+      await new Promise(resolve => setTimeout(resolve, 2));
+    }
+    const text = String(sendSpy.mock.calls.at(-1)?.[0]?.text || '');
+    const result = /Code de test : (\d{6})/.exec(text)?.[1]; expect(result).toBeTruthy(); return result!;
+  }
+  async function logIn() {
+    await start(); expect((await password()).body.data.status).toBe('otp_pending');
+    const code = await otpValue(); const res = await p('login/otp', { ...proof(), otp:code });
+    expect(res.status).toBe(200); return res.body.data;
+  }
+  beforeEach(async () => {
+    env.ENVIRONMENT = 'staging'; env.DESKTOP_NATIVE_V2_PILOT_CHALLENGE = 'true'; env.DESKTOP_NATIVE_V2_PILOT_LOGIN = 'true';
+    env.DESKTOP_NATIVE_V2_PILOT_ORIGIN = ORIGIN; env.DESKTOP_NATIVE_V2_PILOT_USERNAME = 'alice';
+    env.DESKTOP_NATIVE_V2_PILOT_OTP_FROM = 'from@example.test'; env.DESKTOP_NATIVE_V2_PILOT_OTP_TO = 'to@example.test';
+    env.DESKTOP_NATIVE_V2_PILOT_OTP_KEY = 'test-only-key-not-for-deployment-000000';
+    env.TURNSTILE_SITE_KEY = 'site'; env.TURNSTILE_SECRET_KEY = 'secret';
+    const material = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveBits']);
+    const bits = await crypto.subtle.deriveBits({ name:'PBKDF2', hash:'SHA-256', salt:new TextEncoder().encode('pc-salt:pilot-salt'), iterations:100000 }, material, 256);
+    const hash = Array.from(new Uint8Array(bits), x => x.toString(16).padStart(2,'0')).join('');
+    sqlite.prepare('UPDATE app_users SET password_salt=?, password_hash=? WHERE username=?').run('pilot-salt', `pbkdf2$100000$${hash}`, 'alice');
+  });
+  it('requires all staging gates and configuration; password cannot bypass the browser challenge', async () => {
+    env.ENVIRONMENT = 'production'; expect((await p('login/password', {})).body.code).toBe('METHOD_DISABLED');
+    env.ENVIRONMENT = 'staging'; env.DESKTOP_NATIVE_V2_PILOT_LOGIN = 'false'; expect((await p('login/password', {})).body.code).toBe('METHOD_DISABLED');
+    env.DESKTOP_NATIVE_V2_PILOT_LOGIN = 'true'; env.DESKTOP_NATIVE_V2_PILOT_OTP_KEY = ''; expect((await p('login/password', {})).body.code).toBe('METHOD_DISABLED');
+    env.DESKTOP_NATIVE_V2_PILOT_OTP_KEY = 'test-only-key-not-for-deployment-000000';
+    const create = await p('requests', { origin: ORIGIN, state:STATE, code_challenge:await desktopHash(VERIFIER), code_challenge_method:'S256', device_label:'PC' }); req=create.body.data;
+    expect((await password()).body.code).toBe('NOT_APPROVED');
+  });
+  it('authenticates only after OTP, rotates refresh and access, and revokes on logout', async () => {
+    const session = await logIn();
+    expect(session).toMatchObject({ origin:ORIGIN, username:'alice', role:'user', token_type:'Bearer' });
+    expect((await call('/api/auth/me', undefined, { method:'GET', headers:{ Authorization:`Bearer ${session.access_token}` } })).status).toBe(200);
+    expect((await call('/api/auth/me', undefined, { method:'GET', origin:'https://other.example', headers:{ Authorization:`Bearer ${session.access_token}` } })).status).toBe(401);
+    const rotated = await p('session/refresh', { origin:ORIGIN, refresh_token:session.refresh_token }); expect(rotated.status).toBe(200);
+    expect((await call('/api/auth/me', undefined, { method:'GET', headers:{ Authorization:`Bearer ${session.access_token}` } })).status).toBe(401);
+    expect((await call('/api/auth/me', undefined, { method:'GET', headers:{ Authorization:`Bearer ${rotated.body.data.access_token}` } })).status).toBe(200);
+    expect((await p('session/logout', { origin:ORIGIN, refresh_token:rotated.body.data.refresh_token })).status).toBe(200);
+    expect((await call('/api/auth/me', undefined, { method:'GET', headers:{ Authorization:`Bearer ${rotated.body.data.access_token}` } })).status).toBe(401);
+    expect((await p('session/refresh', { origin:ORIGIN, refresh_token:rotated.body.data.refresh_token })).status).toBe(401);
+    expect(JSON.stringify(logs)).not.toContain(pass); expect(JSON.stringify(logs)).not.toContain(session.refresh_token); expect(JSON.stringify(logs)).not.toContain(session.access_token);
+  });
+  it('publishes password capability only for fully configured staging; native tokens cannot enter legacy auth paths or URLs', async () => {
+    const c = await call('/api/auth/desktop/v2/capabilities', undefined, {method:'GET'});
+    expect(c.body.data.methods.password_otp).toMatchObject({available:true, experimental:true, staging_only:true});
+    const session = await logIn();
+    expect((await call('/api/auth/qr/session', {}, {headers:{Authorization:`Bearer ${session.access_token}`}})).status).toBe(401);
+    expect((await call('/api/auth/logout', {}, {headers:{Authorization:`Bearer ${session.access_token}`}})).status).toBe(401);
+    expect((await call(`/api/invoices/1/print?token=${session.access_token}`, undefined, {method:'GET'})).status).toBe(401);
+    env.DESKTOP_NATIVE_V2_PILOT_LOGIN = 'false';
+    expect((await call('/api/auth/me',undefined,{method:'GET',headers:{Authorization:`Bearer ${session.access_token}`}})).status).toBe(401);
+    expect((await call('/api/auth/desktop/v2/capabilities',undefined,{method:'GET'})).body.data.methods.password_otp.available).toBe(false);
+  });
+  it('revokes the rotated family on reuse of the previous refresh, including a lost response retry', async () => {
+    const session = await logIn();
+    const rotated = await p('session/refresh',{origin:ORIGIN,refresh_token:session.refresh_token});
+    expect(rotated.status).toBe(200); // response may have been lost
+    expect((await p('session/refresh',{origin:ORIGIN,refresh_token:session.refresh_token})).status).toBe(401);
+    expect((await call('/api/auth/me',undefined,{method:'GET',headers:{Authorization:`Bearer ${rotated.body.data.access_token}`}})).status).toBe(401);
+    expect((await p('session/refresh',{origin:ORIGIN,refresh_token:rotated.body.data.refresh_token})).status).toBe(401);
+  });
+  it('expires access and the absolute refresh lifetime, and permits only one concurrent refresh', async () => {
+    const session = await logIn();
+    const results = await Promise.all([p('session/refresh',{origin:ORIGIN,refresh_token:session.refresh_token}),p('session/refresh',{origin:ORIGIN,refresh_token:session.refresh_token})]);
+    expect(results.filter(x => x.status===200)).toHaveLength(1);
+    const next = results.find(x => x.status===200)!.body.data;
+    sqlite.prepare('UPDATE desktop_native_sessions_pilot_v1 SET access_expires_at=?').run(Date.now()-1);
+    expect((await call('/api/auth/me',undefined,{method:'GET',headers:{Authorization:`Bearer ${next.access_token}`}})).status).toBe(401);
+    sqlite.prepare('UPDATE desktop_native_sessions_pilot_v1 SET absolute_expires_at=?').run(Date.now()-1);
+    expect((await p('session/refresh',{origin:ORIGIN,refresh_token:next.refresh_token})).status).toBe(401);
+  });
+  it('does not allow denial or verifier outage to progress to password authentication', async () => {
+    const r = await p('requests',{origin:ORIGIN,state:STATE,code_challenge:await desktopHash(VERIFIER),code_challenge_method:'S256',device_label:'PC'}); req=r.body.data;
+    const ref = {origin:ORIGIN,request_id:req.request_id};
+    expect((await p('browser/decision',{...ref,decision:'deny'},{headers:{Origin:ORIGIN}})).status).toBe(200);
+    expect((await password()).status).toBe(409);
+    const r2 = await p('requests',{origin:ORIGIN,state:STATE,code_challenge:await desktopHash(VERIFIER),code_challenge_method:'S256',device_label:'PC'}); req=r2.body.data;
+    vi.stubGlobal('fetch',vi.fn(async () => { throw new Error('provider private detail'); }));
+    expect((await p('browser/decision',{origin:ORIGIN,request_id:req.request_id,decision:'approve',compare_confirmed:true,turnstile_token:'dummy'},{headers:{Origin:ORIGIN}})).body.code).toBe('CHALLENGE_FAILED');
+    expect((await password()).status).toBe(409);
+    expect(JSON.stringify(logs)).not.toContain('provider private detail');
+  });
+  it('enforces the persistent account/IP password budget across challenge transactions', async () => {
+    for (let i=0; i<5; i++) { await start(); expect((await password('alice','wrong-password')).status).toBe(200); }
+    // Allow one more challenge from a fresh IP while the account-wide budget
+    // remains shared; this sixth attempt exhausts neither the account-only
+    // budget nor a distinct pair, so repeat it for the same pair below.
+    ipSeq += 1; IP = `203.0.113.${100 + ipSeq}`;
+    for (let i=0; i<5; i++) { await start(); expect((await password('alice','wrong-password')).status).toBe(200); }
+    ipSeq += 1; IP = `203.0.113.${100 + ipSeq}`;
+    for (let i=0; i<5; i++) { await start(); expect((await password('alice','wrong-password')).status).toBe(200); }
+    ipSeq += 1; IP = `203.0.113.${100 + ipSeq}`;
+    for (let i=0; i<5; i++) { await start(); expect((await password('alice','wrong-password')).status).toBe(200); }
+    ipSeq += 1; IP = `203.0.113.${100 + ipSeq}`;
+    await start(); expect((await password('alice','wrong-password')).body.code).toBe('RATE_LIMITED');
+  });
+  it('checks native sessions on the primary and rejects token identity substitution', async () => {
+    const session = await logIn(); const used: string[] = [];
+    const wrapped = { ...db, withSession: (mode: string) => { used.push(mode); return db; } }; env.DB = wrapped;
+    expect((await call('/api/auth/me',undefined,{method:'GET',headers:{Authorization:`Bearer ${session.access_token}`}})).status).toBe(200);
+    expect(used).toContain('first-primary');
+    const encoded = session.access_token.slice(4).replace(/-/g,'+').replace(/_/g,'/');
+    const fields = atob(encoded + '='.repeat((4-encoded.length%4)%4)).split('|'); fields[2] = 'admin';
+    const forged = `np1.${btoa(fields.join('|')).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}`;
+    expect((await call('/api/auth/me',undefined,{method:'GET',headers:{Authorization:`Bearer ${forged}`}})).status).toBe(401);
+    env.DB = { ...db, withSession: () => { throw new Error('unavailable'); } };
+    expect((await call('/api/auth/me',undefined,{method:'GET',headers:{Authorization:`Bearer ${session.access_token}`}})).status).toBe(503);
+    const cutoverSource: any = { ...db, prepare(sql: string) { if (sql.includes("WHERE key = 'db_primary'")) throw new Error('private flag error'); return db.prepare(sql); } };
+    cutoverSource.withSession = () => cutoverSource;
+    env.DB = cutoverSource; env.DB_TARGET = { ...db, withSession: () => db };
+    expect((await call('/api/auth/me',undefined,{method:'GET',headers:{Authorization:`Bearer ${session.access_token}`}})).status).toBe(503);
+  });
+  it('rolls back OTP consumption when the D1 session insert fails', async () => {
+    await start(); await password(); const code = await otpValue();
+    const prepare = db.prepare.bind(db);
+    const spy = vi.spyOn(db, 'prepare').mockImplementation((...args: unknown[]) => {
+      const sql = String(args[0]);
+      const statement = prepare(sql);
+      if (sql.includes('INSERT INTO desktop_native_sessions_pilot_v1')) {
+        const bind = statement.bind.bind(statement);
+        statement.bind = (...args: any[]) => { const bound = bind(...args); bound.run = async () => { throw new Error('private storage error'); }; return bound; };
+      }
+      return statement;
+    });
+    expect((await p('login/otp',{...proof(),otp:code})).status).toBe(503);
+    expect(sqlite.prepare('SELECT status FROM desktop_native_login_pilot_v1 WHERE id=?').get(req.request_id).status).toBe('pending');
+    expect(sqlite.prepare('SELECT count(*) AS n FROM desktop_native_sessions_pilot_v1').get().n).toBe(0);
+    expect(JSON.stringify(logs)).not.toContain('private storage error');
+    spy.mockRestore(); expect((await p('login/otp',{...proof(),otp:code})).status).toBe(200);
+  });
+  it('allows only one password claim and cannot recover a lost OTP response', async () => {
+    await start();
+    const results = await Promise.all([password(), password()]);
+    expect(results.filter(r => r.status===200)).toHaveLength(1);
+    const code = await otpValue(); const response = await p('login/otp',{...proof(),otp:code});
+    expect(response.status).toBe(200); // If this is lost the session is not re-issued.
+    expect((await p('login/otp',{...proof(),otp:code})).status).not.toBe(200);
+  });
+  it('returns the same pending response for invalid password and unknown account, with no email or usable OTP', async () => {
+    await start(); const a = await password('alice', 'bad-password'); expect(a.status).toBe(200); expect(a.body.data.status).toBe('otp_pending');
+    expect((await p('login/otp', { ...proof(), otp:'000000' })).body.code).toBe('AUTH_FAILED');
+    expect(sendSpy).not.toHaveBeenCalled();
+    await start(); const b = await password('not-a-user', 'bad-password'); expect(b.status).toBe(a.status); expect(b.body).toEqual(a.body);
+    expect(sendSpy).not.toHaveBeenCalled();
+  });
+  it('bounds OTP attempts and refuses expired, incorrect and replayed OTPs', async () => {
+    await start(); await password(); const good = await otpValue(); const bad = good === '000000' ? '111111' : '000000';
+    for (let i=0; i<5; i++) expect((await p('login/otp', { ...proof(), otp:bad })).status).toBe(401);
+    expect((await p('login/otp', { ...proof(), otp:good })).status).not.toBe(200);
+    await start(); await password(); const code = await otpValue();
+    sqlite.prepare('UPDATE desktop_native_login_pilot_v1 SET expires_at=? WHERE id=?').run(Date.now()-1, req.request_id);
+    expect((await p('login/otp', { ...proof(), otp:code })).status).toBe(401);
+  });
+  it('allows only one concurrent OTP consumption and does not replay a lost response', async () => {
+    await start(); await password(); const code = await otpValue();
+    const results = await Promise.all([p('login/otp', {...proof(), otp:code}), p('login/otp', {...proof(), otp:code})]);
+    expect(results.filter(r => r.status === 200)).toHaveLength(1);
+    expect((await p('login/otp', {...proof(), otp:code})).status).not.toBe(200);
+    expect(sqlite.prepare('SELECT count(*) AS n FROM desktop_native_sessions_pilot_v1').get().n).toBe(1);
+  });
+  it('cancels after password, and revokes sessions on account changes even if restored', async () => {
+    await start(); await password(); const code = await otpValue(); expect((await p('login/cancel')).status).toBe(200);
+    expect((await p('login/otp', {...proof(), otp:code})).status).not.toBe(200);
+    const session = await logIn();
+    sqlite.prepare('UPDATE app_users SET active=0 WHERE username=?').run('alice');
+    sqlite.prepare('UPDATE app_users SET active=1 WHERE username=?').run('alice');
+    expect((await call('/api/auth/me', undefined, { method:'GET', headers:{Authorization:`Bearer ${session.access_token}`} })).status).toBe(401);
+    expect((await p('session/refresh', {origin:ORIGIN,refresh_token:session.refresh_token})).status).toBe(401);
+  });
+  it('permanently revokes a session when a password salt changes, even if restored', async () => {
+    const session = await logIn();
+    sqlite.prepare('UPDATE app_users SET password_salt=? WHERE username=?').run('changed-salt','alice');
+    sqlite.prepare('UPDATE app_users SET password_salt=? WHERE username=?').run('pilot-salt','alice');
+    expect((await call('/api/auth/me',undefined,{method:'GET',headers:{Authorization:`Bearer ${session.access_token}`}})).status).toBe(401);
+  });
+  it('fails closed on mail delivery failure, wrong proof and Siteverify failure', async () => {
+    await start();
+    expect((await p('login/password', {...proof(), code_verifier:'w'.repeat(64), username:'alice', password:pass})).status).toBe(401);
+    sendSpy.mockImplementationOnce(async () => { throw new Error('not logged'); });
+    expect((await password()).status).toBe(200);
+    await new Promise(resolve => setTimeout(resolve, 10));
+    expect((await p('login/otp', {...proof(), otp:'000000'})).status).toBe(401);
+    expect(JSON.stringify(logs)).not.toContain('not logged');
+  });
+  it('blocks different-IP browser relay, but documents same-IP shared-NAT relay risk', async () => {
+    const r = await p('requests', {origin:ORIGIN,state:STATE,code_challenge:await desktopHash(VERIFIER),code_challenge_method:'S256',device_label:'PC'}); req=r.body.data;
+    const ref = {origin:ORIGIN,request_id:req.request_id};
+    const prep = await p('browser/prepare',ref,{headers:{Origin:ORIGIN,'CF-Connecting-IP':'198.51.100.20'}});
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({success:true,hostname:new URL(ORIGIN).hostname,action:'atlas_desktop_v2',cdata:prep.body.data.cdata}))));
+    expect((await p('browser/decision',{...ref,decision:'approve',compare_confirmed:true,turnstile_token:'dummy'},{headers:{Origin:ORIGIN,'CF-Connecting-IP':'198.51.100.20'}})).status).toBe(403);
+    expect((await password()).status).toBe(409);
+    // Same-IP browser can be a different person behind the same NAT. The
+    // protocol cannot establish the identity of the challenge solver.
+    await start(); expect((await password()).status).toBe(200);
   });
 });

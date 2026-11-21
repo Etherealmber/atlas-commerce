@@ -70,7 +70,7 @@ const DB_LEAK_RE =
  * Convert any thrown value into a client-safe payload.
  * Raw database / driver messages are replaced with a generic INTERNAL message.
  */
-export function toClientError(err: unknown): {
+export function toClientError(err: unknown, options?: { log?: boolean }): {
   status: number;
   code: ErrorCode;
   error: string;
@@ -95,21 +95,21 @@ export function toClientError(err: unknown): {
     }
 
     if (DB_CORRUPT_RE.test(msg)) {
-      console.error('[db-corrupt]', msg.slice(0, 400));
+      if (options?.log !== false) console.error('[db-corrupt]', msg.slice(0, 400));
       return { status: 503, code: 'DB_CORRUPT', error: SAFE_DEFAULTS.DB_CORRUPT };
     }
 
     if (DB_LEAK_RE.test(msg) || /D1_|prepare\(|\.bind\(/i.test(msg)) {
-      console.error('[db-error]', msg.slice(0, 400));
+      if (options?.log !== false) console.error('[db-error]', msg.slice(0, 400));
       return { status: 500, code: 'INTERNAL', error: SAFE_DEFAULTS.INTERNAL };
     }
 
     // Unknown Error — log server-side, generic client message
-    console.error('[unhandled]', name, msg.slice(0, 400));
+    if (options?.log !== false) console.error('[unhandled]', name, msg.slice(0, 400));
     return { status: 500, code: 'INTERNAL', error: SAFE_DEFAULTS.INTERNAL };
   }
 
-  console.error('[unhandled-nonerror]', String(err).slice(0, 200));
+  if (options?.log !== false) console.error('[unhandled-nonerror]', String(err).slice(0, 200));
   return { status: 500, code: 'INTERNAL', error: SAFE_DEFAULTS.INTERNAL };
 }
 

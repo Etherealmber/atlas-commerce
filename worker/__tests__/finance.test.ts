@@ -889,6 +889,12 @@ describe('v264 GET /api/admin/finance/period — route gates', () => {
       'bad-tok': { username: 'ghost', role: 'owner' },
     };
     registerFinanceRoutes(app as any, {
+      requireEmployeeAdmin: async (c) => {
+        const token = String(c.req.header('Authorization') || '').replace(/^Bearer\s+/i, '').trim();
+        if (!sessions[token] || token === 'bad-tok') return c.json({ code: 'UNAUTHORIZED' }, 401);
+        if (!['owner', 'admin'].includes(sessions[token].role)) return c.json({ code: 'FIN_FORBIDDEN' }, 403);
+        return null;
+      },
       sessionUserFromHeader: (h) => sessions[String(h || '').replace(/^Bearer\s+/i, '').trim()] || { username: '', role: '' },
       authFailReason: async (h) => {
         const tok = String(h || '').replace(/^Bearer\s+/i, '').trim();

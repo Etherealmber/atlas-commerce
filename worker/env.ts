@@ -56,6 +56,14 @@ export interface Env {
   DESKTOP_NATIVE_V2_DISCOVERY?: string;
   /** Enable v2 phone approval in addition to discovery; use only after client/staging validation. */
   DESKTOP_NATIVE_V2_PHONE_APPROVAL?: string;
+  /** Staging-only challenge; native password additionally requires its own pilot flag and configuration. */
+  DESKTOP_NATIVE_V2_PILOT_CHALLENGE?: string;
+  DESKTOP_NATIVE_V2_PILOT_LOGIN?: string;
+  DESKTOP_NATIVE_V2_PILOT_ORIGIN?: string;
+  DESKTOP_NATIVE_V2_PILOT_USERNAME?: string;
+  DESKTOP_NATIVE_V2_PILOT_OTP_TO?: string;
+  DESKTOP_NATIVE_V2_PILOT_OTP_FROM?: string;
+  DESKTOP_NATIVE_V2_PILOT_OTP_KEY?: string;
   /** Cloudflare Turnstile (optional). If unset, login skips captcha check. */
   TURNSTILE_SITE_KEY?: string;
   TURNSTILE_SECRET_KEY?: string;

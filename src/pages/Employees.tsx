@@ -131,13 +131,7 @@ export default function Employees() {
   const [pwTitle, setPwTitle] = useState('');
   const [pwDesc, setPwDesc] = useState('');
   const [pwMode, setPwMode] = useState<'resign' | 'delete'>('resign');
-  const [resignSettle, setResignSettle] = useState(true);
-  const [resignAmount, setResignAmount] = useState(0);
   const [resignReason, setResignReason] = useState('Démission');
-  const [resignNote, setResignNote] = useState('');
-  const [resignCycleType, setResignCycleType] = useState<'monthly' | 'days'>('monthly');
-  const [resignCycleDays, setResignCycleDays] = useState(30);
-  const [resignPayRef, setResignPayRef] = useState(0);
   const [pendingDelete, setPendingDelete] = useState<Emp | null>(null);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewFields, setReviewFields] = useState<Record<string, string>>({});
@@ -453,14 +447,8 @@ export default function Employees() {
     setPendingDelete(e);
     setPwMode('resign');
     setPwTitle(`Démission — ${empName(e)}`);
-    setPwDesc('Réglez le solde des jours travaillés si besoin, puis confirmez la démission.');
-    setResignSettle(true);
-    setResignAmount(Number(e.suggested_pay || 0));
+    setPwDesc('Confirmez le passage de cet employé en ancien. Aucun paiement ne sera créé.');
     setResignReason(String(e.employment_status || 'Démission') || 'Démission');
-    setResignNote('');
-    setResignCycleType(e.pay_cycle_type === 'days' ? 'days' : 'monthly');
-    setResignCycleDays(Number(e.pay_cycle_days || (e.pay_cycle_type === 'days' ? 7 : 30)));
-    setResignPayRef(Number(e.pay_amount || 0));
     setPwOpen(true);
   };
 
@@ -511,14 +499,7 @@ export default function Employees() {
     if (pwMode === 'resign') {
       const r: any = await api.resignEmployee(pendingDelete.id, {
         confirm_password: '',
-        settle_pay: resignSettle,
-        amount: resignSettle ? resignAmount : undefined,
-        pay_amount: resignPayRef,
-        pay_cycle_type: resignCycleType,
-        pay_cycle_days: resignCycleType === 'days' ? resignCycleDays : 30,
         reason: resignReason,
-        note: resignNote,
-        payment_method: 'cash',
       });
       flash(r.message || 'Démission enregistrée');
     } else {
@@ -1554,57 +1535,6 @@ export default function Employees() {
             <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
               {pwDesc}
             </p>
-            <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 12, cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={resignSettle}
-                onChange={(e) => setResignSettle(e.target.checked)}
-                style={{ marginTop: 3 }}
-              />
-              <span>
-                Payer le solde des jours travaillés depuis le dernier paiement
-                {pendingDelete.period_from
-                  ? ` (${String(pendingDelete.period_from).slice(0, 10)} → aujourd'hui, ${pendingDelete.accrued_days ?? 0} j)`
-                  : ''}
-                {pendingDelete.suggested_pay != null
-                  ? ` — suggéré ${fmt(Number(pendingDelete.suggested_pay))}`
-                  : ''}
-              </span>
-            </label>
-            {resignSettle && (
-              <>
-                <div className="form-row">
-                  <label>Montant solde (modifiable)</label>
-                  <NumberField value={resignAmount} onValueChange={setResignAmount} min={0} step="1" />
-                </div>
-                <div className="form-row">
-                  <label>Salaire de référence</label>
-                  <NumberField value={resignPayRef} onValueChange={setResignPayRef} min={0} step="1" />
-                </div>
-                <div className="grid grid-2">
-                  <div className="form-row">
-                    <label>Cycle de paie</label>
-                    <select
-                      value={resignCycleType}
-                      onChange={(e) => {
-                        const v = e.target.value as 'monthly' | 'days';
-                        setResignCycleType(v);
-                        if (v === 'monthly') setResignCycleDays(30);
-                      }}
-                    >
-                      <option value="monthly">Mensuel (~30 j)</option>
-                      <option value="days">Tous les X jours</option>
-                    </select>
-                  </div>
-                  {resignCycleType === 'days' && (
-                    <div className="form-row">
-                      <label>Jours / cycle</label>
-                      <NumberField value={resignCycleDays} onValueChange={setResignCycleDays} min={1} step="1" />
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
             <div className="form-row">
               <label>Motif</label>
               <select value={resignReason} onChange={(e) => setResignReason(e.target.value)}>
@@ -1614,14 +1544,6 @@ export default function Employees() {
                 <option value="Rupture conventionnelle">Rupture conventionnelle</option>
                 <option value="Autre">Autre</option>
               </select>
-            </div>
-            <div className="form-row">
-              <label>Note</label>
-              <input
-                value={resignNote}
-                onChange={(e) => setResignNote(e.target.value)}
-                placeholder="Optionnel"
-              />
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
               <button

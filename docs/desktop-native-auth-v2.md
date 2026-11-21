@@ -1,4 +1,4 @@
-# Connexion desktop native v2 : approbation par téléphone (expérimental)
+# Connexion desktop native v2 : pilotes staging expérimentaux
 
 ## État et limites
 
@@ -14,11 +14,13 @@ décrits plus bas. Un serveur ne peut pas prouver qu'une UI cliente a réellemen
 consentement : `compare_confirmed` ne remplace pas une implémentation correcte
 et une validation des clients.
 
-Le mot de passe/OTP natif et les passkeys Windows **ne sont pas implémentés** et
-restent indisponibles, quels que soient les drapeaux WebAuthn/Turnstile. Le
-navigateur système v1 reste un choix explicite, jamais un repli automatique
-après refus, erreur de preuve, TLS ou origine. Ce changement ne modifie pas les
-routes v1, web, Android ou l'ancien QR. Aucune release ni déploiement effectué.
+Le pilote mot de passe + OTP est maintenant raccordé au défi navigateur, mais
+**exclusivement en staging**, avec un compte de test nommé et une boîte e-mail
+fixe de test. Il est désactivé par défaut et n'est ni validé en staging réel ni
+prêt pour la production. Le client desktop Rust et ses champs natifs ne sont pas
+présents dans ce dépôt. Le prototype passkey Windows est séparé et indisponible.
+Le navigateur système v1 reste un choix explicite, jamais un repli automatique.
+Aucune release ni aucun déploiement effectué.
 
 ### Activation opérateur — staging uniquement tant que les clients manquent
 
@@ -32,9 +34,9 @@ routes v1, web, Android ou l'ancien QR. Aucune release ni déploiement effectué
    `DESKTOP_NATIVE_V2_DISCOVERY=true` **et**
    `DESKTOP_NATIVE_V2_PHONE_APPROVAL=true`. L'une absente/différente de `true`
    désactive les opérations ; ne jamais déduire une disponibilité de la seule
-   présence du code. `DB` doit être lié pour annoncer la méthode. Un échec D1
+   présence du code. `DB` doit exposer `prepare` et `batch` pour annoncer la méthode. Un échec D1
    reste possible à l'exécution et renvoie 503.
-3. Le Worker exige `CF-Connecting-IP` pour chaque opération ; l'opérateur doit
+3. Le Worker exige `CF-Connecting-IP` pour chaque opération téléphone active ; l'opérateur doit
    garantir que seul un proxy/edge de confiance fournit cette en-tête et que
    les accès directs permettant de la falsifier sont bloqués. Sinon ne pas
    activer. Une IP desktop différente à l'échange impose de recommencer ; l'IP
@@ -56,8 +58,8 @@ routes v1, web, Android ou l'ancien QR. Aucune release ni déploiement effectué
   base ; elle exige aussi un bearer valide et l'empreinte exacte d'un appareil
   téléphone enregistré. L'empreinte déclarée n'est pas une attestation.
 - [`login-rate-limits.md`](login-rate-limits.md) décrit les budgets persistants
-  pour mot de passe/OTP. Aucune route v2 de mot de passe/OTP n'existe ici et
-  l'exemption native historique de `/api/auth/login` n'est pas étendue. Le
+  pour mot de passe/OTP. Les routes v2 réservées ci-dessous ne traitent aucune
+  authentification, et l'exemption native historique de `/api/auth/login` n'est pas étendue. Le
   vérificateur Turnstile historique échoue aussi ouvert lors d'une erreur réseau
   vers le fournisseur ; ce comportement préexistant n'est ni corrigé ni utilisé
   comme preuve d'un contrôle anti-abus natif dans cette v2.
@@ -98,6 +100,370 @@ vérifié via ses propres capacités avant de le proposer. Un serveur plus ancie
 peut retourner 401, 404 ou HTML : vérifier version et format, ne pas présumer
 qu'une erreur de sécurité autorise un repli. HTTP non chiffré répond 400
 `HTTPS_REQUIRED` ; query/origin incohérentes sur découverte : 400 `INVALID_REQUEST`.
+
+## Routes réservées pour méthodes indisponibles
+
+Ces routes publiques réservent les noms mais **n'acceptent aucune tentative**.
+Le client doit lire les capacités et ne jamais envoyer de mot de passe, OTP,
+assertion, identifiant de compte ou autre donnée sensible à ces chemins. Les
+appels POST HTTPS sans query ni Origin étranger reçoivent :
+
+| Chemin exact | Corps pris en charge | Réponse normale |
+| --- | --- | --- |
+| `/api/auth/desktop/v2/password` | aucun ; ne pas envoyer de corps | 503 `NATIVE_ABUSE_VERIFIER_UNAVAILABLE` |
+| `/api/auth/desktop/v2/otp` | aucun ; ne pas envoyer de corps | 503 `NATIVE_ABUSE_VERIFIER_UNAVAILABLE` |
+| `/api/auth/desktop/v2/passkey` | aucun ; ne pas envoyer de corps | 503 `NATIVE_ASSOCIATION_UNVERIFIED` |
+
+La forme exacte est `{"success":false,"code":"<code ci-dessus>","error":"Méthode native indisponible."}`.
+Le serveur ne lit ni ne traite le corps, ne cherche aucun compte et n'émet aucun
+challenge, OTP ou jeton. Les réponses ne dépendent pas du compte, d'un
+fingerprint, du user-agent, d'un en-tête natif ou des flags Turnstile/WebAuthn.
+Sans double opt-in téléphone, ces réponses ne créent pas de tables ni de quotas :
+ces routes ne permettent aucune authentification. Avec le double opt-in téléphone, ces
+sondes partagent le quota persistant `operation-ip` de la v2 ; dépassement 429
+`RATE_LIMITED`, indisponibilité D1/IP fiable 503 `UNAVAILABLE`. Les protections
+HTTP/origine et gardes globaux peuvent répondre avant les codes ci-dessus. Un
+ancien serveur peut répondre 401/404 : ne jamais interpréter ces réponses comme
+un droit d'utiliser un autre endpoint natif ou de contourner Turnstile.
+
+Ces chemins réservés ne sont pas ceux du pilote : utiliser uniquement les
+chemins `/api/auth/desktop/v2/pilot/...` documentés ci-dessous en staging. Les
+exemptions natives et le comportement fail-open historiques du web ne sont
+pas utilisés par le pilote. La méthode passkey reste indisponible.
+
+## Défi navigateur et connexion native — staging seulement
+
+Le défi seul ne crée aucune session. Le parcours de credentials utilise ce
+défi si, et seulement si, les deux flags staging et toutes les dépendances sont
+configurés. Hors staging, ou si une condition manque, il reste indisponible.
+Le client Rust n'est pas livré : les tests locaux appellent le vrai routeur avec
+un client simulé. L'expérience challenge-only continue de fonctionner séparément
+sans le flag credentials. Le serveur ne sait pas attester le logiciel client.
+
+### Trois propriétés distinctes et décision préalable
+
+| Événement | Ce qu'il démontre | Ce qu'il ne démontre pas |
+| --- | --- | --- |
+| `verified` | Siteverify a accepté un token associé au `cdata`, hostname et action attendus avant expiration. | Ni identité de la personne, ni possession du PC, ni compte authentifié. Un token peut être obtenu par relais. |
+| preuve PKCE + state | Le demandeur de poll/cancel/consume connaît les secrets correspondant à la transaction et utilise l'IP initiale. | Ni intégrité du binaire, ni présence du même humain dans le navigateur ; un attaquant peut lui-même créer la preuve et relayer le défi. |
+| compte authentifié | Le pilote vérifie le mot de passe et l'OTP pour le compte de test autorisé, puis émet une session contrôlée. | La simple résolution de Turnstile ou la connaissance de PKCE ne l'établit jamais. |
+
+Le test `demonstrates challenge relay` reproduit ce scénario en mode défi seul
+avec une autre IP et un fournisseur simulé ; il ne teste aucune ferme réelle.
+Le pilote credentials exige la même IP, ce qui réduit certains relais mais
+reste insuffisant derrière NAT/CGNAT, VPN et coercition ;
+un code affiché peut être communiqué. Options : accepter explicitement ce
+risque **pour des comptes synthétiques, D1 et messagerie isolés**, en imposant
+IP/compte/OTP, durée courte et revue humaine des résultats ; ou rester sans
+credentials/session et conserver ce pilote ; ou choisir un autre facteur/canal
+dont la liaison et le modèle de confiance seront vérifiés. Une décision de
+l'opérateur sur cette politique reste nécessaire avant tout déploiement en production.
+
+### Contrat Rust : mot de passe + OTP et session staging
+
+**Activation :** `ENVIRONMENT=staging`, `DESKTOP_NATIVE_V2_PILOT_CHALLENGE=true`,
+`DESKTOP_NATIVE_V2_PILOT_LOGIN=true`, `DESKTOP_NATIVE_V2_PILOT_ORIGIN` origine
+HTTPS exacte (port inclus), `DESKTOP_NATIVE_V2_PILOT_USERNAME` identifiant
+minuscule du seul compte de test non propriétaire, `DESKTOP_NATIVE_V2_PILOT_OTP_TO`
+et `DESKTOP_NATIVE_V2_PILOT_OTP_FROM` adresses de test et binding `EMAIL` opérant,
+`DESKTOP_NATIVE_V2_PILOT_OTP_KEY` secret dédié d'au moins 32 caractères, généré
+aléatoirement par l'opérateur et stocké exclusivement en secret staging, clés
+Turnstile et D1 fonctionnels. Aucun de ces secrets n'a été créé ici. Le compte
+isolé doit être actif et utiliser `pbkdf2$100000$...` ; comptes historiques,
+owner et autres comptes ne peuvent pas se connecter par ce pilote. La capacité
+annonce `{ "available":true,"version":2,"experimental":true,"staging_only":true,"challenge":"system_browser_turnstile","otp_required":true }`
+uniquement lorsque ces paramètres et l'origine reçue conviennent ; elle ne
+vérifie ni la disponibilité réelle du compte, D1, mail ou Siteverify, ni la
+configuration effective de l'infrastructure. Aucun header ou fingerprint ne
+fait office d'attestation.
+
+Chaque connexion pilote nécessite **toujours** un défi : c'est la politique
+actuelle, aucune exemption basée sur l'appareil n'existe. Le client génère en
+mémoire un state et un verifier CSPRNG distincts (32 octets ou plus, base64url
+sans padding), calcule S256, appelle `/pilot/requests`, montre le code, ouvre
+l'URL de défi de la section suivante dans le navigateur système, puis poll à
+5 secondes minimum. Il ne lit ni cookies ni JS ni token navigateur. Échec,
+refus, expiration ou changement d'IP => recommencer, sans fallback automatique.
+Ne **pas** appeler `/pilot/consume` pour un login : `/pilot/login/password`
+consomme atomiquement le défi lui-même. L'IP du navigateur doit être égale à
+celle du desktop pour un défi utilisable par ce pilote ; ce contrôle peut causer
+des faux refus avec VPN, multi-homing ou IPv6 et ne prouve pas l'identité.
+
+Les chemins ci-dessous sont sous `/api/auth/desktop/v2/pilot`, tous POST JSON
+sans query, avec TLS valide, pas de redirection, aucune journalisation des
+corps/réponses/en-têtes, et origine exacte. `proof` dans les exemples signifie
+uniquement les quatre champs explicites `origin`, `request_id`, `state`,
+`code_verifier` dans l'objet JSON ; ce n'est pas un champ littéral. Les secrets
+ne vont jamais dans une URL, un callback ou la page de défi.
+
+1. Après `poll` = `verified`, `POST /login/password` :
+   `{"origin":"<origine>","request_id":"<id>","state":"<state>","code_verifier":"<verifier>","username":"<compte>","password":"<secret>"}`.
+   Le nom est trim/lowercase et doit correspondre à `[a-z0-9._-]{1,64}` ; le
+   mot de passe a 1–512 caractères. Réponse **200 identique** pour compte absent,
+   hors allowlist ou mot de passe incorrect :
+   `{"success":true,"data":{"status":"otp_pending"}}`. Un seul appel peut
+   réserver et consommer la transaction. Un compte factice subit aussi PBKDF2 ;
+   l'envoi en arrière-plan n'a pas lieu pour une identité invalide. Les temps
+   ne sont pas garantis identiques : mesurer les fuites temporelles avant tout
+   usage au-delà de ce compte isolé. L'envoi échoué ne délivre pas de session.
+2. Le code est envoyé seulement vers la boîte staging configurée, jamais à une
+   adresse issue du client. `POST /login/otp` :
+   `{"origin":"<origine>","request_id":"<id>","state":"<state>","code_verifier":"<verifier>","otp":"<six chiffres>"}`.
+   Code CSPRNG uniforme, MAC HMAC-SHA256 lié à l'ID stocké en D1 ; au plus cinq
+   tentatives, expire au plus tard à l'expiration de la transaction initiale
+   (300 s en tout). Compte invalide, OTP incorrect/non délivré/expiré, course ou
+   rejeu : 401 `AUTH_FAILED` générique (une transaction expirée peut répondre
+   410 `EXPIRED` avant cette étape). Envoi asynchrone : une tentative avant la
+   confirmation de livraison consomme aussi un essai. Succès **200, une fois** :
+   `{"success":true,"data":{"token_type":"Bearer","access_token":"<access>","refresh_token":"<refresh>","access_expires_at":"<ISO UTC>","session_expires_at":"<ISO UTC>","origin":"<origine>","username":"<compte>","role":"<rôle>"}}`.
+3. Après l'étape password, `POST /login/cancel` reçoit les quatre champs proof
+   et renvoie 200 `{"success":true,"data":{"status":"cancelled"}}`. Avant
+   l'étape password utiliser `/pilot/cancel`. Après émission de session utiliser
+   `/session/logout`. Une annulation ou modification du compte pendant la
+   vérification empêche la création de session.
+4. L'access token sert uniquement d'en-tête `Authorization: Bearer <access>`
+   sur les API protégées ; il n'est pas accepté en query ni pour initier un
+   parcours web/QR/auth historique. Le stockage Rust doit être protégé par le
+   coffre système, isolé par origine, sans log ; aucune intégration coffre
+   n'est fournie ici. Accès valable 15 min au maximum ; session totale 12 h
+   maximum, non glissante. Les vérifications utilisent le hash du token en D1,
+   compte actif, rôle, ID et hash du matériel courant ; l'empreinte n'est pas
+   un facteur. Les lectures de sessions natives utilisent first-primary lorsque
+   le binding expose Sessions API ; D1 réel et cutover restent à vérifier.
+5. `POST /session/refresh` : `{"origin":"<origine>","refresh_token":"<refresh>"}`.
+   Succès : même objet session que l'OTP avec **deux nouveaux tokens**, expirations
+   et identité ; les anciens tokens sont invalidés. Renouveler en une seule
+   requête en vol. Rejeu du refresh immédiatement précédent révoque la famille,
+   y compris après réponse perdue ; les refresh plus anciens ne sont pas suivis.
+   Une course peut donc révoquer le résultat du gagnant : recommencer. Une
+   réponse OTP perdue n'est pas récupérable : recommencer ; la session orpheline
+   expirera au plus tard après 12 h, ou l'opérateur la révoque en D1.
+6. `POST /session/logout` : `{"origin":"<origine>","refresh_token":"<refresh courant>"}`
+   renvoie `{"success":true,"data":{"status":"revoked"}}`. Effacer les
+   tokens localement même en cas de perte réseau ; si nécessaire l'opérateur
+   révoque la session dans D1. Modification/suppression/désactivation du compte,
+   rôle, sel ou hash de mot de passe révoque de façon terminale les sessions et
+   tentatives en cours via triggers ; une requête déjà autorisée peut néanmoins
+   finir après révocation. Couper le flag suspend l'accès mais ne remplace pas
+   une révocation D1 permanente : le réactiver peut restaurer une session non
+   expirée/non révoquée.
+
+Budgets D1 fixes, réservés même en cas d'échec : 5 créations/IP/5 min ;
+90 autres opérations/IP/min ; pour password et OTP séparément, 20/compte/10 min
+et 5/(compte, IP)/10 min ; les noms inconnus ont les mêmes compteurs. OTP :
+maximum 5 essais par transaction. La réponse `RATE_LIMITED` est 429 avec
+`Retry-After: 600`, conservateur ; les fenêtres fixes autorisent une rafale à
+leur frontière. Un attaquant peut épuiser le quota d'un compte ciblé ou déduire
+une activité récente ; une IP partagée peut être bloquée. Les hash de compte et
+IP sont pseudonymes, pas anonymes. Le nettoyage est borné et opportuniste.
+
+Erreurs : `{"success":false,"code":"<code>","error":"Opération de connexion indisponible ou refusée."}` ; 400 `INVALID_REQUEST`/`HTTPS_REQUIRED`,
+401 `INVALID_PROOF`/`AUTH_FAILED`, 403 `ORIGIN_MISMATCH`/`CHALLENGE_FAILED`,
+409 `NOT_APPROVED`/`USED`, 410 `EXPIRED`, 429 `RATE_LIMITED`/`SLOW_DOWN`,
+503 `METHOD_DISABLED`/`UNAVAILABLE`. La protection globale peut répondre avant
+ce routeur. D1, SMTP et Siteverify sont en échec fermé. Le token de refresh
+est 64 caractères hex aléatoires ; ne pas le mettre en paramètre d'URL.
+
+Le navigateur avec le même IP peut appartenir à une autre personne derrière un
+NAT ou à une ferme via proxy. Le code de comparaison peut être relayé ou la
+victime contrainte. Le test automatisé reproduit le relais inter-IP en mode
+challenge-only ; en mode login cette variante est rejetée, mais un relais sur IP
+partagée reste possible. OTP et quotas réduisent l'impact sans prouver que le
+solveur est l'utilisateur du PC. Acceptation explicite du risque résiduel,
+revue externe et tests anti-énumération réels sont requis avant production.
+
+### Tests reproductibles et limites
+
+Dans ce dépôt (Node avec `node:sqlite`, dépendances npm installées) :
+
+```sh
+npx vitest run worker/__tests__/desktop-auth.test.ts src/__tests__/desktop-challenge-worker-contract.test.ts worker/__tests__/desktop-native-turnstile.test.ts
+npm test
+```
+
+Le premier groupe teste le composant de défi relié au vrai Worker avec D1
+SQLite et Siteverify simulés, puis password/OTP/session et logout ; les tests
+Worker couvrent aussi mauvais mot de passe/compte, OTP erroné/expiré, quotas,
+refus, relais inter-IP refusé, preuve incorrecte, reprise/réutilisation,
+concurrence, annulation, modification de compte, perte de réponse, échec mail,
+Siteverify et rollback D1 simulé. Les fonctions de messagerie reçoivent un code
+fictif en mémoire ; les tests ne l'impriment pas. Ils ne prouvent ni la sécurité
+contre un relais de même IP, ni un client Rust réel, ni le comportement D1,
+mail, edge et fournisseur réels. `npm run build` et un `wrangler deploy --dry-run`
+sont des validations locales, pas des déploiements.
+
+### Vérification opérationnelle avant tout essai réel
+
+`wrangler whoami` ici indique « not authenticated » : cela n'indique pas un
+échec de l'intégration Cloudflare de l'utilisateur, seulement l'absence d'accès
+CLI dans cette session. Aucun réglage effectif de dashboard, Logpush, proxy,
+Workers tail, APM, outil de diagnostic client ou rétention n'a pu être inspecté ;
+`observability.redact_query_string=true` est seulement le fichier suivi. Pas de
+preuve d'absence de logs des corps ou en-têtes ni des journaux fournisseur/mail.
+Ne fournir aucun secret en conversation. Un opérateur doit autoriser et fournir
+l'accès approprié par le canal d'intégration ou réaliser l'inspection lui-même.
+
+Avant tout déploiement, obtenir l'accord explicite et créer un environnement
+staging séparé (Worker, domaine HTTPS, D1 neuf, mail et clés Turnstile de test,
+sans comptes, secrets ou bindings de production). Vérifier configuration effective,
+règles d'accès direct et `CF-Connecting-IP`, désactivation des captures de
+bodies/Authorization et suppression des query strings dans Worker, proxy, WAF,
+APM, Logpush, exports, tail et rétention ; utiliser seulement un marqueur
+synthétique non secret dans une requête de diagnostic prévue pour cela, jamais
+une preuve, un mot de passe, OTP ou token comme canari. Examiner aussi email,
+client Rust et gestionnaire de crash. Restreindre l'accès, durée de rétention et
+nettoyage historique. Si l'un de ces canaux est inconnu, échec de validation.
+
+Ensuite, sur D1/Cloudflare réels, reproduire les tests automatisés du challenge
+avec des clés compatibles avec les métadonnées strictes ; inspecter refus,
+invalidations, courses et timeouts sans exposer leurs contenus. Vérifier que la
+capture des secrets reste désactivée au niveau fournisseur ; ne pas augmenter
+la verbosité pour déboguer. Les scénarios OTP, révocation et perte de réponse
+sont couverts par des tests simulés mais restent à exécuter sur le service réel. Tests sur Android séparés sans
+modifier le dépôt de référence. Ne pas confondre simulation SQLite avec D1 réel.
+
+### Contrat exact du défi commun
+
+Les règles communes HTTPS, port, origine, taille JSON et `no-store` ci-dessus
+s'appliquent. Tous les appels sont POST JSON sans query. Champs additionnels
+refusés ; toutes les valeurs entre chevrons sont des descriptions, pas des
+valeurs de test. `id` = 64 hex minuscules CSPRNG ; `state` et `code_verifier`
+suivent les mêmes règles et génération CSPRNG que le protocole téléphone.
+`S256` est le base64url sans padding de SHA-256 du verifier ASCII. La preuve et
+l'IP initiale sont obligatoires pour poll/cancel/consume ; changement d'IP
+impose de recommencer. Le hash d'IP ne constitue ni anonymisation robuste ni
+attestation ; aucune empreinte ni en-tête client n'est une attestation.
+
+- `POST /api/auth/desktop/v2/pilot/requests` :
+  `{"origin":"<origine exacte>","state":"<state>","code_challenge":"<S256>","code_challenge_method":"S256","device_label":"<nom>"}`.
+  201 : `{"success":true,"data":{"version":2,"request_id":"<id>","origin":"<origine exacte>","pairing_code":"<5 caractères>-<5 caractères>","expires_in":300,"interval":5}}`.
+  Le serveur génère aussi un `cdata` aléatoire, stocke le hash de state, le
+  challenge, le hash IP et le label ; jamais le verifier brut. Le client futur
+  construit `/login/desktop-challenge#request_id=<id>` sur l'origine exacte et
+  ouvre le navigateur système. Aucun state, verifier, mot de passe, OTP ni
+  jeton dans l'URL. Le fragment est retiré de l'historique par la page, avant
+  toute requête ; la référence peut néanmoins être copiée ou vue par le système,
+  les extensions ou le presse-papiers et ne doit pas être journalisée.
+- `POST /api/auth/desktop/v2/pilot/browser/prepare` :
+  `{"origin":"<origine exacte>","request_id":"<id>"}` et en-tête Origin
+  exactement égal à l'origine. 200 : `{"success":true,"data":{"request_id":"<id>","origin":"<origine exacte>","device_label":"<nom>","pairing_code":"<code>","site_key":"<clé publique>","action":"atlas_desktop_v2","cdata":"<hex aléatoire 64>","expires_at":"<date ISO UTC>"}}`.
+  La page affiche origine, nom non attesté et code et exécute Turnstile dans
+  le navigateur ; le client Rust ne lit ni cookies, JS ni token navigateur.
+- `POST /api/auth/desktop/v2/pilot/browser/decision` : même en-tête Origin et
+  soit `{"origin":"<origine>","request_id":"<id>","decision":"deny"}`,
+  soit `{"origin":"<origine>","request_id":"<id>","decision":"approve","compare_confirmed":true,"turnstile_token":"<token>"}`.
+  200 : `{"success":true,"data":{"status":"denied"}}` ou `verified`.
+  L'approbation exige la case de comparaison et un token ; le serveur revendique
+  atomiquement pending→verifying puis appelle directement Siteverify et compare
+  strictement hostname, action et cdata stockés. Port et PKCE sont liés à la
+  ligne serveur, pas attestés par Siteverify. Échec, réponse malformée, timeout
+  ou métadonnées incorrectes → `failed`, sans nouvelle tentative. Un crash
+  peut laisser `verifying` jusqu'à expiration : recommencer, jamais fail-open.
+- `POST /api/auth/desktop/v2/pilot/poll`, `/cancel`, `/consume` : chacun reçoit
+  `{"origin":"<origine exacte>","request_id":"<id>","state":"<state>","code_verifier":"<verifier>"}`.
+  Poll 200 : `{"success":true,"data":{"status":"<état>","request_id":"<id>","origin":"<origine>","interval":5}}` avec état `pending`,
+  `verifying`, `verified`, `failed`, `denied`, `cancelled` ou `consumed`.
+  Cancel 200 : `{"success":true,"data":{"status":"cancelled"}}`.
+  Consume 200 : `{"success":true,"data":{"status":"consumed"}}` et **rien
+  d'autre**. Une seule transition `verified→consumed` gagne. La perte de sa
+  réponse est irrécupérable ; poll peut indiquer `consumed`, jamais réémettre
+  d'autorisation. Expiration absolue 300 s, 60 polls max et 5 s entre polls.
+  Budget D1 distinct : cinq créations/IP/fenêtre fixe de 300 s, 90 autres
+  opérations/IP/fenêtre fixe de 60 s. Ce n'est pas un quota par compte et les
+  fenêtres fixes permettent des rafales aux frontières.
+
+Erreurs : `{"success":false,"code":"<code>","error":"Opération de connexion indisponible ou refusée."}` ; notamment 400 `INVALID_REQUEST`, 401
+`INVALID_PROOF`, 403 `ORIGIN_MISMATCH`/`CHALLENGE_FAILED`, 409 `USED`/
+`NOT_APPROVED`, 410 `EXPIRED`, 429 `SLOW_DOWN`/`RATE_LIMITED`, 503
+`METHOD_DISABLED`/`UNAVAILABLE`. Les middleware globaux peuvent répondre en
+premier. Une erreur ne permet jamais de basculer automatiquement vers un autre
+mode. Ne pas journaliser requêtes, réponses, URL, token fournisseur ou preuves.
+
+### Risque de transfert et critères de blocage
+
+Un attaquant peut créer sa propre transaction et son propre verifier, puis
+convaincre une autre personne de résoudre **son** défi ; le code peut être
+transmis, une ferme de défis le résoudre, ou une personne être contrainte.
+Même avec l’égalité IP imposée pour le pilote credentials, un NAT
+partagé, un header « desktop », une empreinte déclarée ou une case cochée ne
+prouvent pas que le même humain ou logiciel effectue la connexion. Le cdata
+empêche de substituer un token d'une autre transaction après vérification par
+le fournisseur, mais ne prévient pas le relais du défi lui-même. Le détenteur
+de l'ID peut aussi refuser une demande et causer un déni de service. Pas de
+liaison à un compte dans la seule cérémonie du défi ; les quotas compte sont
+appliqués ensuite par le pilote credentials. Ce pilote ne doit pas être activé
+en production sans revue indépendante et acceptation explicite des risques.
+
+Les tests exécutent composant navigateur et Worker avec D1 SQLite simulé et
+Siteverify simulé, pas un navigateur système Rust ni Cloudflare réel. Avant
+tout déploiement : tester D1 et Siteverify réels avec clés adaptées (les clés de
+test peuvent omettre les métadonnées strictes), proxy/edge et redaction effective
+de tous les logs, concurrence, interruption réseau et horloges ; inspecter aussi
+Logpush, traces, producteurs et rétention historique. Aucun accès effectif à ces
+paramètres n'a été vérifié ici. Évaluer séparément la compatibilité Android.
+
+### Prototype Windows séparé — laboratoire isolé, non activé
+
+Le prototype dans `experiments/windows-webauthn/` est une **bibliothèque de
+laboratoire non reliée aux routes**, sans transport, inscription, authentification,
+état persistant ni émission de session. Le Rust invoque l'API Windows
+`WebAuthNAuthenticatorGetAssertion` en demandant UV ; son ABI FFI est inspiré des
+préfixes v1 de [webauthn.h](https://github.com/microsoft/webauthn/blob/master/webauthn.h).
+Le validateur TS isolé convertit strictement la signature ES256 DER vers le format
+brut attendu par WebCrypto, puis utilise le vérificateur serveur existant avec
+une politique RP/origine explicitement fournie, UV obligatoire et clé stockée.
+Des tests logiciels signent réellement en ES256 et testent origine, RP, challenge,
+UV, compte utilisateur, signature, compteur et DER malformé ; ils ne simulent
+ni une machine Windows ni un état persistant. Le compteur retourné n'est **pas**
+mis à jour automatiquement. Aucun compilateur Rust ni machine Windows n'était
+disponible ici : le code natif/ABI reste non compilé et non validé. Les capacités
+`windows_passkey` restent indisponibles.
+
+Contrat Rust du laboratoire (API locale, **pas une route HTTP**) :
+
+- `client_data(origin: &str, rp_id: &str, challenge: &str) -> Result<Vec<u8>, ...>`
+  attend une origine HTTPS canonique, RP exactement égal à son hostname et un
+  challenge base64url de 43 caractères ; encode le JSON exact WebAuthn
+  `{"type":"webauthn.get","challenge":"<challenge>","origin":"<origine>","crossOrigin":false}`.
+  La restriction RP=hostname est volontaire pour ce lab, pas une règle générale
+  WebAuthn pour les domaines parents.
+- Sous Windows, `unsafe get_assertion(hwnd, origin, rp_id, challenge)` exige un
+  HWND valide du processus et retourne `LabAssertion { client_data_json,
+  authenticator_data, signature_der, credential_id, user_handle }`, tous octets
+  en mémoire ; aucun affichage, log, stockage ni appel réseau. L'appelant doit
+  vérifier TLS/origine/port et obtenir une configuration serveur de confiance.
+- `verifyWindowsLabAssertion` dans `verify.ts` reçoit `expectedOrigin`, `rpId`,
+  `expectedChallenge`, `clientDataJSON`, `authenticatorData`, `signatureDER`,
+  `userHandle?` (tous champs binaires en base64url sans padding) et `stored`
+  (`publicKeyJwk` ES256, `counter`, `backupEligible`, `userHandle`) depuis un
+  stockage de confiance. Résultat `{counter, backupState, uv}` ou erreur générique.
+  `credential_id` doit servir à rechercher la clé en base, jamais à accepter une
+  clé transmise par le client. Le challenge de production doit être CSPRNG,
+  expirant et consommé atomiquement ; le lab ne fournit pas cette gestion, ni
+  l'atomicité du compteur, ni la révocation/liaison compte.
+
+Sur Windows 10 et 11 réels, avec Rust stable et les outils de compilation/SDK
+Windows installés : préparer un RP de test HTTPS isolé et une passkey **de test**
+découvrable déjà enregistrée ; depuis un terminal avec fenêtre, définir
+`ATLAS_LAB_ORIGIN` et `ATLAS_LAB_RP_ID` (non secrets), puis lancer
+`cargo test --manifest-path experiments/windows-webauthn/Cargo.toml -- --ignored`.
+Faire un essai Windows Hello et un essai clé FIDO2, puis annuler l'UI Windows et
+vérifier l'échec ; relever OS/version/authentificateur sans copier les assertions.
+Ce smoke test emploie intentionnellement un challenge factice constant et ne
+contacte aucun serveur : il ne prouve pas la vérification serveur ni le rejeu.
+Pour un vrai test bout en bout, il reste à construire un harnais sécurisé qui
+émet un challenge aléatoire à usage unique, conserve en mémoire l'assertion et la
+transmet en POST TLS au validateur isolé avec une clé inscrite hors bande, puis
+à tester les tamper/rejeu, concurrence et invalidation du compte/clé. Ne pas
+improviser une route active ni enregistrer les valeurs dans des fichiers/logs.
+
+Le clientDataJSON étant fourni à l'API par l'appelant, déclarer une origine HTTPS
+ne prouve pas l'association de l'application native à cette origine. Décider
+explicitement si les applications natives non attestées sont acceptées comme
+cette origine, ou exiger un canal d'association vérifiable avant toute activation.
+Le résultat cryptographique prouve la possession d'une clé et, si UV, une
+vérification locale par l'authentificateur ; il ne prouve pas l'identité de
+l'application ou de la personne devant le PC.
 
 ## Protocole téléphone v2
 
@@ -257,21 +623,22 @@ Les erreurs ne doivent pas être interprétées comme une invitation à contourn
 le protocole. L'ID étant une référence aléatoire de 256 bits, les réponses de
 statut de cette opération ne révèlent pas l'existence d'un compte recherché.
 
-## Mot de passe natif et Windows WebAuthn : bloqués
+## Windows WebAuthn : non disponible
 
-Turnstile est un défi web, pas un widget Rust. Un marqueur natif, user-agent ou
-fingerprint ne prouve ni intégrité ni absence d'abus. Évaluer avec l'opérateur
-un vérificateur natif réellement attestable et sa politique de panne avant
-d'ajouter une route mot de passe/OTP. Sans alternative fiable, utiliser v1 en
-navigateur au choix explicite. Une future route devrait conserver les budgets
-IP/compte existants et créer un défi OTP temporaire lié à l'opération, sans
-conserver ou redemander le mot de passe, sans oracle d'existence de compte.
+Le pilote mot de passe/OTP ci-dessus est limité au staging. Turnstile n'est pas
+une attestation native ni une preuve de l'identité du solveur. Le prototype
+Windows reste indépendant et n'empêche pas les tests de ce pilote.
 
+Pour un serveur auto-hébergé, le RP ID est un domaine, sans schéma ni port ;
+l'origine HTTPS est distincte et conserve le port. Le serveur doit vérifier la
+cohérence du RP ID avec l'origine configurée, puis vérifier l'origine exacte
+attendue et le hash du RP ID dans chaque assertion ; il ne doit pas simplement
+accepter une origine fournie par le client.
 L'API Windows [`WebAuthNAuthenticatorGetAssertion`](https://learn.microsoft.com/en-us/windows/win32/api/webauthn/nf-webauthn-webauthnauthenticatorgetassertion)
 prend un RP ID et des données client de l'appelant ;
 [`webauthn.h`](https://github.com/microsoft/webauthn/blob/master/webauthn.h)
 ne démontre pas à lui seul une association serveur vérifiable entre une
-application native et une origine web. Aucune association officielle adaptée à
+application native et une origine web. L'[exemple Microsoft .NET MAUI](https://learn.microsoft.com/en-us/samples/dotnet/maui-samples/platformintegration-passkeys/) indique que son parcours Windows fait confiance à l'origine HTTPS directement, sans AASA ni Digital Asset Links ; il ne valide pas pour autant le modèle de confiance d'un client Rust arbitraire ni la configuration de chaque serveur Atlas. Aucune association officielle adaptée à
 ces installations auto-hébergées n'a été validée ici : ne pas fabriquer un
 origin ni élargir l'allowlist. Une solution future doit vérifier challenge, type,
 origin exact, RP ID hash, UP/UV, signature, compte, compteur et rejeu et être
@@ -291,3 +658,67 @@ personnalisé, changement d'IP, certificat invalide, refus et perte de réponse.
 Vérifier visuellement compte/serveur/code et la révocation des deux appareils.
 Tester un authentificateur réel séparément avant toute future activation passkey.
 Ne pas utiliser de secrets ou comptes de production.
+
+
+## Audit de déploiement séparé : téléphone v2 et Android
+
+Constats **du dépôt**, pas de l'environnement actif :
+
+- `wrangler.jsonc` ne définit ni `DESKTOP_NATIVE_V2_DISCOVERY` ni
+  `DESKTOP_NATIVE_V2_PHONE_APPROVAL`, donc la configuration suivie dans Git
+  n'active pas le parcours. Des variables du dashboard ou d'un autre fichier de
+  déploiement peuvent néanmoins différer ; vérifier les valeurs effectives sans
+  publier de secrets. La capacité `available: true` indique les flags et une
+  liaison D1 avec `prepare` et `batch`, pas un contrôle complet des permissions, clients ou de la santé D1.
+- Le fichier active les journaux d'invocation et les traces persistantes avec
+  `redact_query_string: true` (corrigé dans ce changement). Cela ne prouve pas
+  la configuration effectivement déployée, ni l'expurgation de tous les autres
+  systèmes ; une query interdite peut être capturée avant le refus Worker.
+  Avant activation, l'opérateur doit examiner séparément Workers Logs/Traces,
+  Logpush/tail consumers, proxy/CDN/WAF et journaux clients, désactiver ou
+  expurger les URL, queries, corps et en-têtes sensibles de bout en bout et
+  vérifier cette politique en staging avec des valeurs fictives. Le paramètre
+  `redact_query_string` ne couvre pas à lui seul les corps ou Authorization.
+  Vérifier aussi les réglages séparés de preview et l'absence de changement
+  de configuration par dashboard ; aucun secret n'est modifié ici.
+- Vérifier HTTPS et certificat, port et reconstruction d'URL par le proxy,
+  provenance non falsifiable de `CF-Connecting-IP`, D1 primaire/cutover,
+  droits de création des tables/index/triggers, transaction réelle du batch,
+  caches et absence d'enregistrement des liens et QR ; pas de test en production.
+
+**Android natif, non implémenté ici :** reconnaître uniquement le QR v2 à
+chemin fixe et fragment unique `request_id` (distinct du QR historique),
+valider l'origine HTTPS exacte et le port choisis par l'utilisateur, rejeter
+les redirections et ne jamais envoyer le bearer à un autre serveur. Utiliser une
+session téléphone existante et son fingerprint conforme au serveur, appeler
+`phone/prepare`, vérifier tous les champs et délais, afficher compte, serveur,
+label non vérifié et code, exiger une comparaison et une décision explicites,
+puis appeler `phone/decision` avec le nonce de cette préparation. Gérer refus,
+expiration, changement de compte, quotas et perte réseau sans approbation
+silencieuse ni réutilisation de nonce ; effacer le contexte après décision ou
+abandon. Une session Android ne connecte pas automatiquement le navigateur.
+Conserver le lecteur QR historique séparé et ses comportements existants.
+Un intent/deep link doit être validé strictement avant accès au coffre, sans
+journaliser sa valeur ; une empreinte n'est ni identité ni attestation.
+
+Valider ce contrat avec les équipes Rust et Android, un serveur de staging D1
+réel, clients natifs réels et certificats valides avant toute activation. Ces
+vérifications externes et les paramètres effectifs du dashboard restent non
+vérifiés dans ce dépôt.
+
+### Journaux historiques et compatibilité
+
+Le Worker n'écrit plus le code OTP dans la console, y compris sur les hôtes de
+preview, et ne journalise plus les exceptions brutes du transport d'e-mail OTP.
+Les parcours de connexion et l'envoi d'e-mail restent inchangés ; les outils de
+développement qui lisaient le code dans la console doivent utiliser une boîte
+de test dédiée en staging. Les messages d'erreur globaux d'authentification ne
+journalisent plus les exceptions brutes. Ces corrections ne prouvent pas que
+les autres composants ou le fournisseur d'e-mail expurgent leurs propres logs.
+
+Le lien OTP web historique contient des paramètres sensibles dans sa query ; il
+n'est pas modifié ici pour préserver sa compatibilité. Il faut vérifier la
+rédaction aux points d'accès, WAF, reverse proxies, tableaux de bord, tails,
+exports et traces, ainsi que la rétention historique, indépendamment du réglage
+Worker. Ne pas utiliser de valeur réelle pour tester les journaux. Les tokens
+et preuves des nouvelles opérations v2 restent hors URL et hors QR.

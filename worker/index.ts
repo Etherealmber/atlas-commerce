@@ -54,6 +54,7 @@ import { registerDeviceTokenRoutes } from './routes/deviceToken';
 import { registerDesktopAuthRoutes, isDesktopAuthPath, isPublicDesktopAuthPath, DESKTOP_AUTH } from './routes/desktopAuth';
 import { registerDesktopNativeDiscovery, DESKTOP_NATIVE_V2_CAPABILITIES } from './routes/desktopNativeDiscovery';
 import { registerDesktopNativeV2, isNativeV2Operation, NATIVE_V2 } from './routes/desktopNativeV2';
+import { parseNativePilotToken, validateNativePilotToken } from './lib/desktop-native-session';
 import {
   androidMinVersionGuard,
   manifestWithPolicy,
@@ -510,7 +511,7 @@ async function verifyTurnstile(
     });
     const data = (await res.json()) as { success?: boolean; 'error-codes'?: string[] };
     if (data?.success) return { ok: true };
-    console.error('turnstile_verify_failed', data?.['error-codes']);
+    console.error('turnstile_verify_failed');
     return { ok: false, error: 'Vérification anti-bot échouée. Rechargez la page.' };
   } catch {
     // Network failure: fail open so login is not bricked
@@ -769,7 +770,7 @@ app.use('*', async (c, next) => {
     const bm = readD1BookmarkFromReq(c);
 
     try {
-      if (path.startsWith('/api/reports/') || path.startsWith(`${NATIVE_V2}/`) || path === '/api/mobile/work-status' || path === '/api/mobile/snake-score' || path === '/api/mobile/preferences' || path === '/api/reports' || path === '/api/admin/product-images/normalize') {
+      if (path.startsWith('/api/reports/') || path.startsWith(`${NATIVE_V2}/`) || c.req.header('Authorization')?.startsWith('Bearer np1.') || path === '/api/mobile/work-status' || path === '/api/mobile/snake-score' || path === '/api/mobile/preferences' || path === '/api/reports' || path === '/api/admin/product-images/normalize') {
         session = rawDb.withSession('first-primary');
       } else if (path === '/api/health') {
         // Health check: can use unconstrained replica or available session
@@ -783,7 +784,7 @@ app.use('*', async (c, next) => {
       }
     } catch {
       // Native v2 must never silently fall back to an unconstrained D1 replica.
-      if (path.startsWith(`${NATIVE_V2}/`)) {
+      if (path.startsWith(`${NATIVE_V2}/`) || c.req.header('Authorization')?.startsWith('Bearer np1.')) {
         return c.json({ success: false, code: 'UNAVAILABLE', error: 'Connexion indisponible.' }, 503);
       }
       try {
@@ -869,7 +870,7 @@ app.use('*', async (c, next) => {
   if (c.env.DB_TARGET) {
     (c.env as any).DB_SOURCE = c.env.DB; // remember the physical source before any swap
     try {
-      const privateResource = new URL(c.req.url).pathname === '/api/mobile/preferences' || new URL(c.req.url).pathname.startsWith('/api/reports/') || new URL(c.req.url).pathname.startsWith(`${NATIVE_V2}/`);
+      const privateResource = new URL(c.req.url).pathname === '/api/mobile/preferences' || new URL(c.req.url).pathname.startsWith('/api/reports/') || new URL(c.req.url).pathname.startsWith(`${NATIVE_V2}/`) || !!c.req.header('Authorization')?.startsWith('Bearer np1.');
       // These resources must not fall back to the wrong database if
       // cutover state cannot be read; do not use the cached, fail-open flag.
       const flag = privateResource
@@ -877,14 +878,14 @@ app.use('*', async (c, next) => {
         : await dbPrimaryFlag(c.env);
       if (flag === 'target') {
         const target = c.env.DB_TARGET as any;
-        if (new URL(c.req.url).pathname.startsWith(`${NATIVE_V2}/`) && typeof target.withSession !== 'function') throw new Error('Native v2 requires a primary D1 session');
+        if ((new URL(c.req.url).pathname.startsWith(`${NATIVE_V2}/`) || c.req.header('Authorization')?.startsWith('Bearer np1.')) && typeof target.withSession !== 'function') throw new Error('Native v2 requires a primary D1 session');
         (c.env as any).DB = privateResource && typeof target.withSession === 'function'
           ? target.withSession('first-primary') : target;
       }
     } catch {
       // Never silently switch this private resource back to the source database
       // if the configured target's primary session cannot be established.
-      if (new URL(c.req.url).pathname === '/api/mobile/preferences' || new URL(c.req.url).pathname.startsWith('/api/reports/') || new URL(c.req.url).pathname.startsWith(`${NATIVE_V2}/`)) {
+      if (new URL(c.req.url).pathname === '/api/mobile/preferences' || new URL(c.req.url).pathname.startsWith('/api/reports/') || new URL(c.req.url).pathname.startsWith(`${NATIVE_V2}/`) || c.req.header('Authorization')?.startsWith('Bearer np1.')) {
         return c.json({ success: false, code: 'SERVICE_UNAVAILABLE', error: 'Service indisponible' }, 503);
       }
     }
@@ -935,6 +936,12 @@ app.use(`${NATIVE_V2}/*`, async (c, next) => {
 
 app.use('/api/*', async (c, next) => {
   const path = new URL(c.req.url).pathname;
+  // A staging native session must not be used to bootstrap a legacy web/QR
+  // session or to activate fingerprint-based trust. Native refresh/logout use
+  // their own proof-bearing POST bodies instead of Authorization.
+  const nativeHeader = c.req.header('Authorization')?.startsWith('Bearer np1.');
+  if (nativeHeader && path.startsWith('/api/auth/') && path !== '/api/auth/me') return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Non autorisé' }, 401);
+  if ((c.req.query('token') || '').startsWith('np1.')) return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Non autorisé' }, 401);
   if (
     path.startsWith('/api/public/') ||
     path.startsWith('/api/cron/') ||
@@ -974,6 +981,8 @@ app.use('/api/*', async (c, next) => {
   ) {
     return next();
   }
+  if (c.req.header('Authorization')?.slice(7).startsWith('np1.') && new URL(c.req.url).origin !== c.env.DESKTOP_NATIVE_V2_PILOT_ORIGIN) return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Non autorisé' }, 401);
+
   // ─── Extract session token from query (print / PDF / reports in new tab) ───
   function extractQueryToken(rawUrl: string): string | null {
     try {
@@ -1037,6 +1046,7 @@ app.use('/api/*', async (c, next) => {
     if (c.req.method !== 'GET') return deny(403, 'FORBIDDEN');
     const auth = c.req.header('Authorization');
     const queryToken = extractQueryToken(c.req.url);
+    if (queryToken?.startsWith('np1.')) return deny(401, 'INVALID_TOKEN');
     const rt = c.req.query('rt');
     if (rt && !auth && !queryToken && path !== '/api/reports/link-ticket') {
       const verified = await verifyScopedReportTicket(reportTicketEnvironment(c.env), rt, getOwnerUsername(c.env));
@@ -1091,7 +1101,7 @@ app.use('/api/*', async (c, next) => {
     } catch { /* */ }
 
     // 1) Query token (PDF tab / openReport)
-    if (queryToken) {
+    if (queryToken && !queryToken.startsWith('np1.')) {
       const reason = await authFailReason(`Bearer ${queryToken}`, c.env, c.env.DB, ip, undefined, { relaxSession: true });
       if (reason === 'ok') {
         if (isReport) {
@@ -1162,6 +1172,7 @@ app.use('/api/*', async (c, next) => {
   }
   const ip = clientIp(c);
   const fp = c.req.header('X-Device-Fingerprint') || undefined;
+  if (c.req.header('Authorization')?.slice(7).startsWith('np1.') && new URL(c.req.url).origin !== c.env.DESKTOP_NATIVE_V2_PILOT_ORIGIN) return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Non autorisé' }, 401);
   const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, ip, fp);
   if (reason !== 'ok') {
     return c.json({
@@ -1196,7 +1207,7 @@ app.use('*', async (c, next) => {
   //    Cloudflare edge with CDN-Cache-Control: no-store (CF-specific header
   //    that survives even misconfigured cache rules)
   //  - public Cache-Control → deliberate (public images/SVG); left as-is.
-  if (path === '/login/desktop' || path === '/login/desktop-phone') {
+  if (path === '/login/desktop' || path === '/login/desktop-phone' || path === '/login/desktop-challenge') {
     c.header('Cache-Control', 'no-store');
     c.header('CDN-Cache-Control', 'no-store');
   }
@@ -1217,7 +1228,7 @@ app.use('*', async (c, next) => {
   // SAMEORIGIN suffit à bloquer le clickjacking externe tout en laissant
   // passer notre propre modal. Tout le reste reste DENY.
   c.header('X-Frame-Options', c.req.path === '/api/settings/invoice-preview' ? 'SAMEORIGIN' : 'DENY');
-  c.header('Referrer-Policy', path === '/login/desktop' || path === '/login/desktop-phone' || isDesktopAuthPath(path) || path.startsWith(`${NATIVE_V2}/`) ? 'no-referrer' : 'strict-origin-when-cross-origin');
+  c.header('Referrer-Policy', path === '/login/desktop' || path === '/login/desktop-phone' || path === '/login/desktop-challenge' || isDesktopAuthPath(path) || path.startsWith(`${NATIVE_V2}/`) ? 'no-referrer' : 'strict-origin-when-cross-origin');
   c.header('Permissions-Policy', 'camera=(self), microphone=(), geolocation=(), payment=()');
   c.header('X-Robots-Tag', 'noindex, nofollow');
   c.header('Cross-Origin-Opener-Policy', 'same-origin');
@@ -1335,9 +1346,9 @@ app.onError(async (err, c) => {
   if (new URL(c.req.url).pathname.startsWith(`${NATIVE_V2}/`)) {
     return c.json({ success: false, code: 'UNAVAILABLE', error: 'Connexion indisponible.' }, 503);
   }
-  // Real cause stays server-side (CF logs) — clients only get safe messages.
-  try { if (!new URL(c.req.url).pathname.startsWith('/api/reports/') && !new URL(c.req.url).pathname.startsWith(`${NATIVE_V2}/`)) console.error('[onError]', c.req.method, new URL(c.req.url).pathname, String((err as any)?.stack || err || '').slice(0, 500)); } catch { /* */ }
-  const safe = toClientError(err);
+  // Authentication errors may contain request secrets; never log their raw exceptions.
+  try { if (!new URL(c.req.url).pathname.startsWith('/api/reports/') && !new URL(c.req.url).pathname.startsWith('/api/auth/')) console.error('[onError]', c.req.method, new URL(c.req.url).pathname, String((err as any)?.stack || err || '').slice(0, 500)); } catch { /* */ }
+  const safe = toClientError(err, { log: !new URL(c.req.url).pathname.startsWith('/api/auth/') });
   // v243.4: SQLITE_CORRUPT(_VTAB) on this app almost always means the
   // products_fts FTS5 shadow pages — derived data we can rebuild ourselves.
   // Heal now, tell the client to retry; a TimeTravel restore is NOT needed.
@@ -1400,9 +1411,17 @@ registerMailboxRoutes(app, {
   verifyBackupAccess,
   sessionUserFromHeader,
 });
-registerEmployeeRoutes(app, { checkConfirmPassword });
+async function requireEmployeeAdmin(c: any): Promise<Response | null> {
+  const result = await verifyArchiveIdentity(c.env, c.req.header('Authorization'), clientIp(c), c.req.header('X-Device-Fingerprint'), {
+    authFailReason: (header, env, db, ip, fp) => authFailReason(header, env as Env, db, ip, fp),
+    sessionUserFromHeader,
+    ownerUsername: env => getOwnerUsername(env as Env),
+  });
+  return result.ok ? null : c.json({ success: false, error: 'Accès refusé', code: result.code }, result.status);
+}
+registerEmployeeRoutes(app, { checkConfirmPassword, requireEmployeeAdmin });
 /* v254 — role-safe finance, payroll & reminders (owner/admin gated, server-computed) */
-registerFinanceRoutes(app, { sessionUserFromHeader, authFailReason, clientIp, writeAudit });
+registerFinanceRoutes(app, { sessionUserFromHeader, authFailReason, clientIp, writeAudit, requireEmployeeAdmin });
 registerAtlasV209Routes(app, { sessionUserFromHeader, applyStockDelta, adjustLocationStock, getDefaultLocationId });
 // Admin read routes need helpers defined later — registered near Users & Admin section
 
@@ -2719,6 +2738,7 @@ async function authFailReason(
   opts?: { relaxSession?: boolean },
 ): Promise<string> {
   if (!authHeader?.startsWith('Bearer ')) return 'missing';
+  if (authHeader.slice(7).startsWith('np1.')) return await validateNativePilotToken(env, authHeader.slice(7), nativeCurrentIdentity) ? 'ok' : 'bad_token';
   const parsed = parseToken(authHeader.slice(7));
   if (!parsed) return 'bad_token';
 
@@ -2809,6 +2829,8 @@ async function requireOwnerOrAdmin(c: any): Promise<{ ok: true } | { ok: false; 
 function sessionUserFromHeader(authHeader: string | undefined): { username: string; role: string } {
   const ANONYMOUS = { username: '', role: '' };
   if (!authHeader?.startsWith('Bearer ')) return ANONYMOUS;
+  const native = parseNativePilotToken(authHeader.slice(7));
+  if (native) return native; // only after the global authentication gate verifies its full hash
   const parsed = parseToken(authHeader.slice(7));
   if (!parsed) return ANONYMOUS;
   if (parsed.version === 2) {
@@ -3049,14 +3071,7 @@ app.post('/api/auth/login', async (c) => {
       message: 'Environnement local sans service e-mail — appareil approuvé automatiquement.',
     });
   }
-  // Non-production hosts (localhost / sandbox previews): the e-mail never
-  // really arrives, so print the code to the worker log for the developer.
-  try {
-    const h = new URL(c.req.url).hostname;
-    if (h === 'localhost' || h === '127.0.0.1' || h.endsWith('.e2b.app') || h.endsWith('.workers.dev') || /^\d+-/.test(h)) {
-      console.log('[dev-otp] login code for', username, ':', otp);
-    }
-  } catch { /* ignore */ }
+  // OTPs are never written to logs, including on development/preview hosts.
   const sendTask = sendOtpMail(c.env, {
     to: toAddr,
     from: fromAddr,
@@ -3344,6 +3359,21 @@ async function nativeCurrentIdentity(env: Env, username: string, role: string) {
 }
 registerDesktopNativeV2(app, {
   currentIdentity: nativeCurrentIdentity,
+  pilotPassword: async (env, username, password) => {
+    // One explicitly configured non-owner test account; no legacy or weak hashes.
+    const configured = String(env.DESKTOP_NATIVE_V2_PILOT_USERNAME || '').trim().toLowerCase();
+    const row: any = username === configured && username !== getOwnerUsername(env) ? await env.DB.prepare('SELECT id, username, role, password_salt, password_hash FROM app_users WHERE username=? AND active=1').bind(username).first() : null;
+    const validRow = row && ['admin', 'secretaire', 'stock', 'user'].includes(row.role) && /^pbkdf2\$100000\$[a-f0-9]{64}$/i.test(String(row.password_hash || ''));
+    const salt = validRow ? String(row.password_salt) : 'atlas-native-staging-dummy-salt';
+    const actual = await derivePbkdf2Bits(password, salt, 100000);
+    const expected = validRow ? String(row.password_hash).split('$')[2].toLowerCase() : '0'.repeat(64);
+    let diff = 0; for (let i = 0; i < 64; i++) diff |= actual.charCodeAt(i) ^ expected.charCodeAt(i);
+    return validRow && diff === 0 ? { username, role: String(row.role), material: String(row.password_hash), userId: Number(row.id) } : null;
+  },
+  pilotSendOtp: async (env, otp) => {
+    if (!env.EMAIL?.send) return false;
+    try { await env.EMAIL.send({ to: env.DESKTOP_NATIVE_V2_PILOT_OTP_TO!, from: env.DESKTOP_NATIVE_V2_PILOT_OTP_FROM!, subject: 'Atlas staging — code de connexion', text: `Code de test : ${otp}\nValable pendant cinq minutes au maximum. Ne partagez jamais ce code.` }); return true; } catch { return false; }
+  },
   phoneIdentity: async (c, ip, fp) => {
     const header = c.req.header('Authorization');
     if (!header?.startsWith('Bearer ')) return null;
@@ -5343,6 +5373,7 @@ app.get('/api/me/avatar', async (c) => {
  *  marqué « reprenable » 30 j pour le MÊME compte → reconnexion mot de passe seul
  *  (2FA désactivée). Un appareil révoqué ou un autre compte restent exclus. */
 app.post('/api/auth/logout', async (c) => {
+  if (c.req.header('Authorization')?.slice(7).startsWith('np1.')) return c.json({ success: false, code: 'USE_NATIVE_LOGOUT', error: 'Utilisez la déconnexion native.' }, 400);
   const fingerprint = String(c.req.header('X-Device-Fingerprint') || '').slice(0, 128);
   const sess = sessionUserFromHeader(c.req.header('Authorization'));
   await ensureSecurityTables(c.env.DB);
@@ -5373,7 +5404,7 @@ app.get('/api/auth/me', async (c) => {
   // "appareils connectés" popup always lists yours, current one included.
   try {
     const sess = sessionUserFromHeader(c.req.header('Authorization'));
-    await touchTrustedDevice(c.env.DB, sess.username, c.req.header('X-Device-Fingerprint') || '', clientIp(c), c.req.header('User-Agent') || '', cfGeo(c));
+    if (!c.req.header('Authorization')?.slice(7).startsWith('np1.')) await touchTrustedDevice(c.env.DB, sess.username, c.req.header('X-Device-Fingerprint') || '', clientIp(c), c.req.header('User-Agent') || '', cfGeo(c));
   } catch { /* best-effort */ }
   const ip = clientIp(c);
   const fp = c.req.header('X-Device-Fingerprint') || undefined;
@@ -11228,8 +11259,8 @@ async function sendOtpMail(
       });
       if (res.ok) return true;
       console.error('otp_resend_failed', res.status);
-    } catch (e) {
-      console.error('otp_resend_error', String((e as any)?.message || e));
+    } catch {
+      console.error('otp_resend_error');
     }
   }
   if (env.EMAIL?.send) {
@@ -11237,8 +11268,8 @@ async function sendOtpMail(
     try {
       await env.EMAIL.send({ to: opts.to, from: opts.from, subject: opts.subject, html: opts.html, text: opts.text });
       return true;
-    } catch (e) {
-      console.error('otp_binding_failed', String((e as any)?.message || e));
+    } catch {
+      console.error('otp_binding_failed');
     }
   }
   return false;
@@ -13025,6 +13056,7 @@ registerDeviceRoutes(app, {
 });
 
 registerDocPreviewRoutes(app, {
+  requireEmployeeAdmin,
   sessionUserFromHeader,
   authFailReason,
   generateInvoiceHTML,
@@ -15225,10 +15257,11 @@ app.post('/api/bank/reconcile-csv', async (c) => {
 /** Lightweight counts for sidebar / phone nav badges */
 app.get('/api/nav-badges', async (c) => {
   try {
+    const canSeePayroll = !(await requireEmployeeAdmin(c));
     const badgeKey = `nav-badges:${await getCacheGen(c.env.CACHE)}`;
     const cached = await kvGetJson<any>(c.env.CACHE, badgeKey);
     if (cached) {
-      return c.json({ success: true, data: cached, meta: { cache: 'hit' } }, 200, {
+      return c.json({ success: true, data: canSeePayroll ? cached : { ...cached, employees_pay_due: 0 }, meta: { cache: 'hit' } }, 200, {
         'Cache-Control': 'private, max-age=20',
       });
     }
@@ -15295,7 +15328,7 @@ app.get('/api/nav-badges', async (c) => {
       employees_pay_due,
     };
     await kvPutJson(c.env.CACHE, badgeKey, data, 30);
-    return c.json({ success: true, data }, 200, { 'Cache-Control': 'private, max-age=20' });
+    return c.json({ success: true, data: canSeePayroll ? data : { ...data, employees_pay_due: 0 } }, 200, { 'Cache-Control': 'private, max-age=20' });
   } catch (e: any) {
     console.error('nav-badges', e);
     return c.json({
@@ -19087,6 +19120,7 @@ async function requireAttendanceEnabled(c: any): Promise<Response | null> {
 }
 
 app.get('/api/attendance', async (c) => {
+  { const denied = await requireEmployeeAdmin(c); if (denied) return denied; }
   { const off = await requireAttendanceEnabled(c); if (off) return off; }
 
   await ensureAttendanceSchema(c.env.DB);
@@ -19264,6 +19298,7 @@ app.get('/api/attendance', async (c) => {
 });
 
 app.post('/api/attendance/check-in', async (c) => {
+  { const denied = await requireEmployeeAdmin(c); if (denied) return denied; }
   await ensureAttendanceSchema(c.env.DB);
   const body = await c.req.json().catch(() => ({}));
   const employee_id = Number(body.employee_id || 0);
@@ -19284,6 +19319,7 @@ app.post('/api/attendance/check-in', async (c) => {
 });
 
 app.post('/api/attendance/check-out', async (c) => {
+  { const denied = await requireEmployeeAdmin(c); if (denied) return denied; }
   await ensureAttendanceSchema(c.env.DB);
   const body = await c.req.json().catch(() => ({}));
   const employee_id = Number(body.employee_id || 0);
@@ -19311,6 +19347,7 @@ app.post('/api/attendance/check-out', async (c) => {
 
 /** Edit times / status / note for a day (manual correction) */
 app.put('/api/attendance', async (c) => {
+  { const denied = await requireEmployeeAdmin(c); if (denied) return denied; }
   { const off = await requireAttendanceEnabled(c); if (off) return off; }
 
   await ensureAttendanceSchema(c.env.DB);
@@ -19341,6 +19378,7 @@ app.put('/api/attendance', async (c) => {
 
 /** Mark all without entry as absent for the day */
 app.post('/api/attendance/mark-absent-missing', async (c) => {
+  { const denied = await requireEmployeeAdmin(c); if (denied) return denied; }
   await ensureAttendanceSchema(c.env.DB);
   const body = await c.req.json().catch(() => ({}));
   const date = String(body.date || moroccoTodayStr()).slice(0, 10);
@@ -19366,6 +19404,7 @@ app.post('/api/attendance/mark-absent-missing', async (c) => {
 
 /** Individual attendance record: scope=cycle|career */
 app.get('/api/attendance/record/:employeeId', async (c) => {
+  { const denied = await requireEmployeeAdmin(c); if (denied) return denied; }
   { const off = await requireAttendanceEnabled(c); if (off) return off; }
 
   await ensureAttendanceSchema(c.env.DB);
@@ -19498,6 +19537,7 @@ app.get('/api/attendance/record/:employeeId', async (c) => {
 });
 
 app.get('/api/attendance/weekly', async (c) => {
+  { const denied = await requireEmployeeAdmin(c); if (denied) return denied; }
   { const off = await requireAttendanceEnabled(c); if (off) return off; }
 
   await ensureAttendanceSchema(c.env.DB);
@@ -19545,6 +19585,7 @@ app.get('/api/attendance/weekly', async (c) => {
 });
 
 app.get('/api/attendance/export', async (c) => {
+  { const denied = await requireEmployeeAdmin(c); if (denied) return denied; }
   { const off = await requireAttendanceEnabled(c); if (off) return off; }
 
   await ensureAttendanceSchema(c.env.DB);
@@ -19593,6 +19634,7 @@ app.get('/api/attendance/export', async (c) => {
 });
 
 app.post('/api/attendance/self-check', async (c) => {
+  { const denied = await requireEmployeeAdmin(c); if (denied) return denied; }
   { const off = await requireAttendanceEnabled(c); if (off) return off; }
 
   await ensureAttendanceSchema(c.env.DB);
@@ -20938,11 +20980,13 @@ td{height:16px}
 }
 
 app.get('/api/employees/form/print', async (c) => {
+  { const denied = await requireEmployeeAdmin(c); if (denied) return denied; }
   const settings = await c.env.DB.prepare(`SELECT * FROM company_settings WHERE id = 1`).first() as any;
   return c.html(generateEmployeeFormHTML(settings, null, { autoPrint: true }));
 });
 
 app.get('/api/employees/:id/form/print', async (c) => {
+  { const denied = await requireEmployeeAdmin(c); if (denied) return denied; }
   const id = Number(c.req.param('id') || 0);
   if (!id) return c.html('<p>Employé manquant</p>', 400);
   const settings = await c.env.DB.prepare(`SELECT * FROM company_settings WHERE id = 1`).first() as any;

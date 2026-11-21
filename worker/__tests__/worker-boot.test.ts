@@ -33,6 +33,7 @@ describe('worker boot', () => {
       writeAudit: async () => {},
     });
     registerDocPreviewRoutes(a, {
+      requireEmployeeAdmin: async () => new Response(null, { status: 401 }),
       sessionUserFromHeader: () => ({ username: '', role: '' }),
       authFailReason: async () => 'missing',
       generateInvoiceHTML: noop,

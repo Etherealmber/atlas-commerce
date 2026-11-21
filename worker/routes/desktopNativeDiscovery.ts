@@ -1,8 +1,9 @@
 import { Hono } from 'hono';
+import { pilotLoginConfigured } from '../lib/desktop-native-session';
 
 /**
- * Enabling discovery alone never enables an authentication method.
- * Phone approval also requires its own opt-in flag.
+ * Discovery alone enables nothing. Phone and staging password pilots each
+ * require their own independent gates and runtime dependencies.
  */
 export const DESKTOP_NATIVE_V2_CAPABILITIES = '/api/auth/desktop/v2/capabilities';
 
@@ -23,10 +24,12 @@ export function registerDesktopNativeDiscovery(app: Hono<any>): void {
       version: 2,
       discovery_enabled: c.env.DESKTOP_NATIVE_V2_DISCOVERY === 'true',
       methods: {
-        phone_approval: c.env.DESKTOP_NATIVE_V2_DISCOVERY === 'true' && c.env.DESKTOP_NATIVE_V2_PHONE_APPROVAL === 'true' && typeof c.env.DB?.prepare === 'function'
+        phone_approval: c.env.DESKTOP_NATIVE_V2_DISCOVERY === 'true' && c.env.DESKTOP_NATIVE_V2_PHONE_APPROVAL === 'true' && typeof c.env.DB?.prepare === 'function' && typeof c.env.DB?.batch === 'function'
           ? { available: true, version: 2, code_challenge_method: 'S256', expires_in: 300, interval: 5, max_polls: 60, requires_phone_client: true }
           : { available: false, reason: 'METHOD_DISABLED' },
-        password_otp: { available: false, reason: 'NATIVE_ABUSE_VERIFIER_UNAVAILABLE' },
+        password_otp: pilotLoginConfigured(c.env) && url.origin === c.env.DESKTOP_NATIVE_V2_PILOT_ORIGIN
+          ? { available: true, version: 2, experimental: true, staging_only: true, challenge: 'system_browser_turnstile', otp_required: true }
+          : { available: false, reason: 'NATIVE_ABUSE_VERIFIER_UNAVAILABLE' },
         windows_passkey: { available: false, reason: 'NATIVE_ASSOCIATION_UNVERIFIED' },
       },
       browser_fallback: { version: 1, capabilities_path: '/api/auth/desktop/v1/capabilities', automatic: false },

@@ -23,6 +23,19 @@ describe('desktop native v2 discovery contract', () => {
       expect(res.headers.get('referrer-policy')).toBe('no-referrer');
     }
   });
+  it('does not advertise phone approval without both D1 prepare and transactional batch support', async () => {
+    const url = `https://self-hosted.example:8443${path}`;
+    const flags = { DESKTOP_NATIVE_V2_DISCOVERY: 'true', DESKTOP_NATIVE_V2_PHONE_APPROVAL: 'true' };
+    for (const DB of [{ prepare() {} }, { batch() {} }, null]) {
+      // eslint-disable-next-line no-await-in-loop -- verify each missing binding independently.
+      const response = await call(url, { ...flags, DB });
+      expect(response.data.data.methods.phone_approval.available).toBe(false);
+    }
+    const response = await call(url, { ...flags, DB: { prepare() {}, batch() {} } });
+    expect(response.data.data.methods.phone_approval.available).toBe(true);
+    expect(response.data.data.methods.password_otp.available).toBe(false);
+    expect(response.data.data.methods.windows_passkey.available).toBe(false);
+  });
   it('does not infer availability from native hints, identity, headers or global WebAuthn settings', async () => {
     const url = `https://self-hosted.example:8443${path}`;
     const first = await call(url, { WEBAUTHN_ENABLED: 'true', TURNSTILE_SECRET_KEY: 'not-exposed' });

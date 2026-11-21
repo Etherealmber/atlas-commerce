@@ -276,14 +276,7 @@ export const api = {
     id: number,
     body: {
       confirm_password?: string;
-      settle_pay?: boolean;
-      amount?: number;
-      pay_amount?: number;
-      pay_cycle_type?: string;
-      pay_cycle_days?: number;
       reason?: string;
-      note?: string;
-      payment_method?: string;
     },
   ) =>
     request(`/api/employees/${id}/resign`, {

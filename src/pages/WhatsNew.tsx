@@ -48,6 +48,9 @@ export const RELEASES: Release[] = [
       { id: '090s12', platforms: ['web'], text: 'Mobile : menu et défilement corrigés, navigation flottante limitée aux écrans principaux et écran Balance adapté aux téléphones pour les administrateurs.' },
       { id: '090s13', platforms: ['web'], text: 'Connexion et scan mobiles : présentation inspirée d’Android, caméra démarrée à la demande, saisie manuelle et import d’image conservés ; les règles de connexion et d’autorisation web ne changent pas.' },
       { id: '090s14', platforms: ['web'], text: 'Affichage : transition de thème légère respectant la préférence de réduction des animations du système.' },
+      { id: '090s15', platforms: ['server', 'web', 'android'], text: 'Employés et paie : contrôles serveur renforcés avec vérification de la session et du rôle actif owner/admin pour les fiches, paiements, présences et certains aperçus et impressions. La paie personnelle et le pointage sont provisoirement réservés aux administrateurs ; certaines impressions par ancien ticket seul peuvent être indisponibles.' },
+      { id: '090s16', platforms: ['server', 'web'], text: 'Départ d’un employé : la démission marque la fiche inactive sans créer de paiement. La suppression reste limitée aux anciens et est provisoirement bloquée en présence d’un historique de paiements pour le préserver.' },
+      { id: '090s17', platforms: ['server'], text: 'Isolation des entreprises : sécurisation encore partielle, limitée au modèle existant d’une entreprise par base D1 ; l’isolation entre entreprises partageant une base n’est pas garantie et nécessite une décision d’architecture et des tests supplémentaires avant déploiement.' },
     ] }],
   },
   {
