@@ -7,6 +7,7 @@ import {
   markWhatsNewModalSeen,
   markWhatsNewSeen,
 } from '../lib/whatsNew';
+import { getContributorsForRelease } from '../lib/contributors';
 
 /** Lightweight once-per-version intro modal (P3). */
 export default function WhatsNewModal() {
@@ -67,6 +68,21 @@ export default function WhatsNewModal() {
               <li key={it.id}>{it.text}</li>
             ))}
         </ul>
+        <div className="wn-release-contributors" style={{ marginBottom: 14 }}>
+          <span className="wn-contributors-label">Merci à</span>
+          {getContributorsForRelease(release.version).map((c) => (
+            <a
+              key={c.login}
+              href={c.url}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="wn-contributor-pill"
+            >
+              {c.avatarUrl ? <img src={c.avatarUrl} alt="" width={20} height={20} className="wn-contributor-avatar" loading="lazy" decoding="async" /> : null}
+              <span>{c.handle}</span>
+            </a>
+          ))}
+        </div>
         <div className="whats-new-modal-actions">
           <button type="button" className="secondary" onClick={() => dismiss(false)}>
             Plus tard

@@ -1463,6 +1463,10 @@ html {
 .ac-topbar-avatar {
   width: 36px;
   height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  flex: none;
+  aspect-ratio: 1 / 1;
   border-radius: 999px;
   object-fit: cover;
   outline: 1px solid rgba(0, 0, 0, 0.1);
@@ -1477,12 +1481,26 @@ html[data-theme="dark"] .ac-topbar-avatar {
   background: var(--ac-nav-hover);
   font-weight: 750;
   font-size: 0.8rem;
+  line-height: 1;
   color: var(--ac-ink);
 }
 .ac-topbar-user-btn {
-  border: none !important;
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  max-width: 40px !important;
+  min-height: 40px !important;
+  max-height: 40px !important;
+  flex: 0 0 40px !important;
+  aspect-ratio: 1 / 1;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(15, 23, 42, 0.12) !important;
   background: transparent !important;
-  padding: 2px !important;
+  padding: 0 !important;
   border-radius: 999px !important;
   cursor: pointer;
 }
@@ -1564,6 +1582,9 @@ html[data-theme="dark"] .ac-topbar-avatar {
 }
 .ac-topbar-user-wrap {
   position: relative;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
 }
 
 /* Sidebar — denser, less “AI generic” */
@@ -2889,7 +2910,9 @@ html body .ac-timed-delete-btn.is-armed .ac-td-ico {
   html body .ac-main-column > .ac-desktop-dock .ac-topbar-left,
   html body .ac-desktop-top-row > .ac-desktop-dock .ac-topbar-left { flex: 0 1 auto; }
   html body .ac-main-column > .ac-desktop-dock .ac-topbar-title,
-  html body .ac-desktop-top-row > .ac-desktop-dock .ac-topbar-title { max-width: min(28vw, 240px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  html body .ac-desktop-top-row > .ac-desktop-dock .ac-topbar-title { max-width: min(36vw, 320px); overflow: visible; text-overflow: clip; white-space: nowrap; }
+  html body .ac-main-column > .ac-desktop-dock.ac-topbar--compact:not(:focus-within) .ac-topbar-title,
+  html body .ac-desktop-top-row > .ac-desktop-dock.ac-topbar--compact:not(:focus-within) .ac-topbar-title { max-width: min(72vw, 480px); }
   html body .ac-main-column > .ac-desktop-dock.ac-topbar--compact:not(:focus-within),
   html body .ac-desktop-top-row > .ac-desktop-dock.ac-topbar--compact:not(:focus-within) { width: fit-content !important; transform: scale(.94); transform-origin: top center; }
 }
@@ -2901,7 +2924,8 @@ html body .ac-timed-delete-btn.is-armed .ac-td-ico {
 /* The compact desktop dock is a single, keyboard-accessible title. */
 html body .ac-desktop-dock button.ac-dock-expand {
   display: inline-flex !important; align-items: center; justify-content: center;
-  width: auto !important; min-width: 0; min-height: 44px; padding: 0 10px !important;
+  width: auto !important; min-width: 0; min-height: 44px; padding: 0 20px !important;
+  overflow: visible !important;
   border: 0 !important; border-radius: 999px !important; background: transparent !important;
   color: var(--ac-ink) !important; -webkit-text-fill-color: var(--ac-ink) !important;
   box-shadow: none !important; font: inherit; font-weight: 700; text-transform: capitalize;
@@ -2959,9 +2983,14 @@ html body .dock-page-header > .dock-page-actions {
     z-index: 36;
     overflow: visible;
     pointer-events: auto;
-    max-width: 100%;
-    padding: 4px;
-    margin: -4px;
+    width: max-content;
+    max-width: none;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 6px;
+    margin: -6px;
   }
   .desktop-catalog-actions-slot > .top-page-actions {
     flex-wrap: nowrap; width: max-content;
@@ -2980,7 +3009,7 @@ html body .desktop-catalog-actions-slot .top-page-actions > a {
   height: 36px !important; min-height: 36px !important;
   padding: 0 12px !important; font-size: 13px !important;
   border-radius: 999px !important;
-  transition: transform .18s cubic-bezier(.22, 1, .36, 1), background-color .18s ease, box-shadow .18s ease !important;
+  transition: background-color .18s ease, box-shadow .18s ease !important;
 }
 html body .desktop-catalog-actions-slot .top-page-actions > button.icon-refresh-btn {
   width: 36px !important; min-width: 36px !important; max-width: 36px !important;
@@ -3014,7 +3043,7 @@ html body .desktop-catalog-actions-slot .top-page-actions > a:focus-visible {
 @media (hover: hover) and (pointer: fine) {
   html body .desktop-catalog-actions-slot .top-page-actions > button:hover:not(:disabled),
   html body .desktop-catalog-actions-slot .top-page-actions > a:hover {
-    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
   }
 }
 html[data-theme="dark"] body .desktop-catalog-actions-slot > .top-page-actions {

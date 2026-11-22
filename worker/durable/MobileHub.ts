@@ -48,6 +48,9 @@ const PROFILE_KEYS = [
 export class MobileHub {
   /** In-memory avatar blob cache (warm DO = instant avatar serves). */
   private avatarCache: { version: string; bytes: Uint8Array; ctype: string } | null = null;
+  /** In-memory high-refresh JSON cache (avoids D1 scans & KV write limits). */
+  private cacheGen = 1;
+  private cacheEntries = new Map<string, { value: unknown; gen: number; expiresAt: number }>();
 
   constructor(
     private readonly state: DurableObjectState,
@@ -86,6 +89,51 @@ export class MobileHub {
     const path = url.pathname;
 
     try {
+      // ─── High-refresh shared snapshot cache (nav-badges, dashboard) ───
+      // Keeps frequent reads off D1 and off KV's 1k/day write cap.
+      if (path === '/cache' || path.endsWith('/cache')) {
+        const key = String(url.searchParams.get('key') || '').slice(0, 80);
+        if (!key) return Response.json({ success: false, error: 'key required' }, { status: 400 });
+        const storedGen = Number((await this.state.storage.get<number>('cache_gen')) ?? this.cacheGen);
+        this.cacheGen = Math.max(1, storedGen || 1);
+        if (request.method === 'GET') {
+          const reqGen = Number(url.searchParams.get('gen') || this.cacheGen);
+          if (reqGen && reqGen !== this.cacheGen) {
+            return Response.json({ success: true, hit: false, gen: this.cacheGen });
+          }
+          const mem = this.cacheEntries.get(key);
+          if (mem && mem.gen === this.cacheGen && Date.now() < mem.expiresAt) {
+            return Response.json({ success: true, hit: true, gen: this.cacheGen, data: mem.value });
+          }
+          const stored = await this.state.storage.get<{ value: unknown; gen: number; expiresAt: number }>(`cache:${key}`);
+          if (stored && stored.gen === this.cacheGen && Date.now() < stored.expiresAt) {
+            this.cacheEntries.set(key, stored);
+            return Response.json({ success: true, hit: true, gen: this.cacheGen, data: stored.value });
+          }
+          return Response.json({ success: true, hit: false, gen: this.cacheGen });
+        }
+        if (request.method === 'PUT' || request.method === 'POST') {
+          const body = (await request.json().catch(() => ({}))) as { value?: unknown; ttl?: number; gen?: number };
+          const ttlSec = Math.max(30, Math.min(3600, Number(body.ttl || 300)));
+          const entry = {
+            value: body.value ?? null,
+            gen: this.cacheGen,
+            expiresAt: Date.now() + ttlSec * 1000,
+          };
+          this.cacheEntries.set(key, entry);
+          await this.state.storage.put(`cache:${key}`, entry);
+          return Response.json({ success: true, gen: this.cacheGen });
+        }
+        return Response.json({ success: false, error: 'Method not allowed' }, { status: 405 });
+      }
+      if ((path === '/cache/invalidate' || path.endsWith('/cache/invalidate')) && request.method === 'POST') {
+        const storedGen = Number((await this.state.storage.get<number>('cache_gen')) ?? this.cacheGen);
+        this.cacheGen = Math.max(1, storedGen || 1) + 1;
+        this.cacheEntries.clear();
+        await this.state.storage.put('cache_gen', this.cacheGen);
+        return Response.json({ success: true, gen: this.cacheGen });
+      }
+
       // ─── Per-user profile (object idFromName('profile:username')) ───
       if (path === '/profile' || path.endsWith('/profile')) {
         if (request.method === 'GET') {

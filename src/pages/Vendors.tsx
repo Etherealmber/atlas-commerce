@@ -1,6 +1,7 @@
 import TopPageActions from '../components/TopPageActions';
 import { Plus } from 'lucide-react';
 import { TimedUndoDelete } from '../components/ui';
+import ListPager from '../components/ui/ListPager';
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import PasswordConfirm from '../components/PasswordConfirm';
@@ -31,6 +32,9 @@ export default function Vendors() {
   const wz = useWizard(2);
   const [editId, setEditId] = useState<number | null>(null);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 20;
+  useEffect(() => { setPage(0); }, [search]);
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saveMsg, setSaveMsg] = useState('');
@@ -108,6 +112,9 @@ export default function Vendors() {
   };
 
   const filtered = list.filter((v) => !search || v.name?.toLowerCase().includes(search.toLowerCase()) || v.ice?.toLowerCase().includes(search.toLowerCase()));
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const paged = filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
 
   if (loading) return <div className="empty">Chargement des fournisseurs...</div>;
 
@@ -152,6 +159,10 @@ export default function Vendors() {
       </div>
 
       <div className="ac-panel ac-products-table-panel">
+        <div className="ac-table-pager-bar">
+          <span className="ac-table-pager-meta">{filtered.length} fournisseur{filtered.length === 1 ? '' : 's'} · 20 par page</span>
+          <ListPager page={safePage} pageSize={PAGE_SIZE} total={filtered.length} onPageChange={setPage} />
+        </div>
         <div className="table-wrap">
           <table className="data-dense ac-products-table">
             <thead>
@@ -167,7 +178,7 @@ export default function Vendors() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((v) => {
+              {paged.map((v) => {
                 const due = Number(v.balance_due || 0);
                 return (
                   <tr key={v.id}>

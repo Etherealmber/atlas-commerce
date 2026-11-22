@@ -22,6 +22,7 @@ import { openConsentSettings } from '../lib/cookieConsent';
 import { resetWelcome } from '../lib/welcome';
 import { api } from '../api';
 import { isLoggedIn } from '../auth';
+import { REPO_CONTRIBUTORS, fetchRepoContributors, type Contributor } from '../lib/contributors';
 
 type GhUser = {
   name: string | null;
@@ -160,6 +161,15 @@ export default function About() {
   const [user, setUser] = useState<GhUser | null>(null);
   const [repos, setRepos] = useState<GhRepo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [contributors, setContributors] = useState<Contributor[]>(REPO_CONTRIBUTORS);
+
+  useEffect(() => {
+    let alive = true;
+    fetchRepoContributors().then((list) => {
+      if (alive) setContributors(list);
+    });
+    return () => { alive = false; };
+  }, []);
 
   useEffect(() => {
     /* title set by PageTitleSync */
@@ -462,6 +472,31 @@ export default function About() {
               Instagram
             </a>
           ) : null}
+        </div>
+      </section>
+
+      {/* Contributors & thanks */}
+      <section className="card about-section" aria-label="Remerciements et contributeurs">
+        <h2>Remerciements &amp; contributeurs</h2>
+        <p className="about-muted" style={{ marginTop: 0 }}>
+          Merci aux contributeurs qui participent aux commits et aux sorties d&apos;Atlas Commerce :
+        </p>
+        <div className="wn-contributors">
+          {contributors.map((c) => (
+            <a
+              key={c.login}
+              href={c.url}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="wn-contributor-pill"
+              title={`${c.name} — ${c.role}`}
+            >
+              {c.avatarUrl ? (
+                <img src={c.avatarUrl} alt="" width={20} height={20} className="wn-contributor-avatar" loading="lazy" decoding="async" />
+              ) : null}
+              <span>{c.name !== c.login ? `${c.name} (${c.handle})` : c.handle}</span>
+            </a>
+          ))}
         </div>
       </section>
 

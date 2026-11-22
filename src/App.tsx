@@ -1022,7 +1022,11 @@ function DesktopShell() {
   // Nav notification counts (unpaid, low stock, pending actions…)
   useEffect(() => {
     let cancelled = false;
-    const load = () => {
+    let lastLoadAt = 0;
+    const load = (force = false) => {
+      const now = Date.now();
+      if (!force && now - lastLoadAt < 15_000) return;
+      lastLoadAt = now;
       api
         .getNavBadges()
         .then((r: any) => {
@@ -1030,17 +1034,22 @@ function DesktopShell() {
         })
         .catch(() => { /* keep last */ });
     };
-    load();
-    const t = window.setInterval(load, 60_000);
+    load(true);
+    const t = window.setInterval(() => {
+      if (document.visibilityState === 'visible') load();
+    }, 120_000);
     const onFocus = () => load();
-    const onRefresh = () => load();
+    const onRefresh = () => load(true);
+    const onVisibility = () => { if (document.visibilityState === 'visible') load(); };
     window.addEventListener('focus', onFocus);
     window.addEventListener('atlas-nav-badges-refresh', onRefresh as EventListener);
+    document.addEventListener('visibilitychange', onVisibility);
     return () => {
       cancelled = true;
       window.clearInterval(t);
       window.removeEventListener('focus', onFocus);
       window.removeEventListener('atlas-nav-badges-refresh', onRefresh as EventListener);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, []);
 
@@ -1274,6 +1283,21 @@ function DesktopShell() {
           }}
           onPointerLeave={(event) => {
             if (event.pointerType === 'mouse') {
+              const related = event.relatedTarget as Node | null;
+              if (related && event.currentTarget.contains(related)) return;
+              if (event.clientX !== 0 || event.clientY !== 0) {
+                const rect = event.currentTarget.getBoundingClientRect();
+                if (
+                  rect.width > 0 &&
+                  rect.height > 0 &&
+                  event.clientX >= rect.left - 6 &&
+                  event.clientX <= rect.right + 6 &&
+                  event.clientY >= rect.top - 6 &&
+                  event.clientY <= rect.bottom + 6
+                ) {
+                  return;
+                }
+              }
               actionsHovered.current = false;
               if (actionsHoverExpanded.current && !actionsSlotRef.current?.contains(document.activeElement)) {
                 actionsHoverExpanded.current = false;
@@ -1320,6 +1344,21 @@ function DesktopShell() {
           }}
           onPointerLeave={(event) => {
             if (event.pointerType === 'mouse') {
+              const related = event.relatedTarget as Node | null;
+              if (related && event.currentTarget.contains(related)) return;
+              if (event.clientX !== 0 || event.clientY !== 0) {
+                const rect = event.currentTarget.getBoundingClientRect();
+                if (
+                  rect.width > 0 &&
+                  rect.height > 0 &&
+                  event.clientX >= rect.left - 6 &&
+                  event.clientX <= rect.right + 6 &&
+                  event.clientY >= rect.top - 6 &&
+                  event.clientY <= rect.bottom + 6
+                ) {
+                  return;
+                }
+              }
               dockHovered.current = false;
               if (dockHoverExpanded.current && !shellNotifOpen && !shellUserOpen) {
                 dockHoverExpanded.current = false;

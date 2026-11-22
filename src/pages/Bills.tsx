@@ -1,7 +1,8 @@
 import DocumentActors from '../components/DocumentActors';
 import TopPageActions from '../components/TopPageActions';
-import { FileDown, Plus } from 'lucide-react';
+import { Ban, CheckCircle2, CreditCard, FileDown, PackageCheck, Plus, Printer } from 'lucide-react';
 import { TimedUndoDelete } from '../components/ui';
+import ListPager from '../components/ui/ListPager';
 import { useEffect, useState } from 'react';
 import DatePicker from '../components/DatePicker';
 import { api, BASE } from '../api';
@@ -44,6 +45,9 @@ export default function Bills() {
   const wz = useWizard(3);
   const [filter, setFilter] = useState('');
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 20;
+  useEffect(() => { setPage(0); }, [search, filter]);
   const [vendorId, setVendorId] = useState<number | ''>('');
   const [vendorName, setVendorName] = useState('');
   const [vendorIce, setVendorIce] = useState('');
@@ -326,6 +330,9 @@ export default function Bills() {
   };
 
   const filtered = bills.filter((b) => !search || b.number?.toLowerCase().includes(search.toLowerCase()) || b.vendor_name?.toLowerCase().includes(search.toLowerCase()));
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const paged = filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
 
   if (loading) return <div className="empty">Chargement des factures d'achat...</div>;
 
@@ -364,6 +371,10 @@ export default function Bills() {
       </div>
 
       <div className="ac-panel ac-products-table-panel">
+        <div className="ac-table-pager-bar">
+          <span className="ac-table-pager-meta">{filtered.length} facture{filtered.length === 1 ? '' : 's'} · 20 par page</span>
+          <ListPager page={safePage} pageSize={PAGE_SIZE} total={filtered.length} onPageChange={setPage} />
+        </div>
         <div className="table-wrap">
           <table className="data-dense ac-products-table">
             <thead>
@@ -371,13 +382,13 @@ export default function Bills() {
                 <th style={{ width: 40 }}>
                   <input
                     type="checkbox"
-                    checked={filtered.length > 0 && filtered.every((b) => selected.has(b.id))}
+                    checked={paged.length > 0 && paged.every((b) => selected.has(b.id))}
                     onChange={() => {
-                      const all = filtered.length > 0 && filtered.every((b) => selected.has(b.id));
+                      const all = paged.length > 0 && paged.every((b) => selected.has(b.id));
                       setSelected((prev) => {
                         const next = new Set(prev);
-                        if (all) filtered.forEach((b) => next.delete(b.id));
-                        else filtered.forEach((b) => next.add(b.id));
+                        if (all) paged.forEach((b) => next.delete(b.id));
+                        else paged.forEach((b) => next.add(b.id));
                         return next;
                       });
                     }}
@@ -388,7 +399,7 @@ export default function Bills() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((b) => (
+              {paged.map((b) => (
                 <tr key={b.id}>
                   <td>
                     <input
@@ -413,10 +424,18 @@ export default function Bills() {
                     )}
                   </td>
                   <td className="row-actions-cell"><div className="row-actions">
-                    <a className="btn secondary" href={`${BASE}/api/bills/${b.id}/print?token=${encodeURIComponent(getToken() || '')}`} target="_blank" rel="noreferrer">Imprimer</a>
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={() => window.open(`${BASE}/api/bills/${b.id}/print?token=${encodeURIComponent(getToken() || '')}`, '_blank', 'noopener,noreferrer')}
+                    >
+                      <Printer size={14} aria-hidden="true" />
+                      <span>Imprimer</span>
+                    </button>
                     {b.status !== 'cancelled' && (
-                      <button type="button" className="secondary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => openReceive(b)}>
-                        Réception
+                      <button type="button" className="secondary" onClick={() => openReceive(b)}>
+                        <PackageCheck size={14} aria-hidden="true" />
+                        <span>Réception</span>
                       </button>
                     )}
                     {b.receive_status && (
@@ -426,10 +445,13 @@ export default function Bills() {
                     )}
                     {b.status !== 'paid' && b.status !== 'cancelled' && (
                       <>
-                        <button className="secondary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => openPay(b)}>Paiement…</button>
+                        <button type="button" className="secondary" onClick={() => openPay(b)}>
+                          <CreditCard size={14} aria-hidden="true" />
+                          <span>Paiement…</span>
+                        </button>
                         <button
+                          type="button"
                           className="secondary"
-                          style={{ padding: '4px 10px', fontSize: 12 }}
                           onClick={async () => {
                             setModalError('');
                             setPayTarget(b);
@@ -441,12 +463,16 @@ export default function Bills() {
                             setPayHistory([]);
                           }}
                         >
-                          Tout payer
+                          <CheckCircle2 size={14} aria-hidden="true" />
+                          <span>Tout payer</span>
                         </button>
                       </>
                     )}
                     {b.status !== 'cancelled' && (
-                      <button className="danger" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => cancelBill(b.id)}>Annuler</button>
+                      <button type="button" className="danger" onClick={() => cancelBill(b.id)}>
+                        <Ban size={14} aria-hidden="true" />
+                        <span>Annuler</span>
+                      </button>
                     )}
                     {deleteArmId === b.id ? (
                       <TimedUndoDelete autoStart deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10}

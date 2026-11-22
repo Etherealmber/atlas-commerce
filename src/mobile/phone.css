@@ -2618,18 +2618,30 @@ html[data-theme="dark"].phone-shell .ph-scan-controls .ph-scan-row input { color
 html[data-theme="dark"].phone-shell body .phone-root .ph-scan-native button.theme-toggle { background: #3f3f46 !important; color: #f4f4f5 !important; -webkit-text-fill-color: #f4f4f5 !important; border-color: #52525b !important; }
 html[data-theme="dark"].phone-shell body .phone-root .ph-scan-native button.ph-scan-start { background: #fafafa !important; color: #171717 !important; -webkit-text-fill-color: #171717 !important; }
 
-/* CSS color interpolation is supported without the View Transitions API. */
+/* Circular View Transitions reveal (driven from JS tap origin) + smooth fallback. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-old(root) { z-index: 1; }
+::view-transition-new(root) { z-index: 2; }
+
+/* CSS color interpolation fallback when View Transitions API is unavailable. */
 @media (prefers-reduced-motion: no-preference) {
+  html.phone-theme-transition,
+  html.phone-theme-transition body,
   html.phone-theme-transition .phone-root,
-  html.phone-theme-transition .phone-topbar,
-  html.phone-theme-transition .phone-tabbar,
-  html.phone-theme-transition .ph-panel,
-  html.phone-theme-transition .ph-settings-card,
-  html.phone-theme-transition .ph-scan-idle,
-  html.phone-theme-transition .ph-scan-controls,
-  html.phone-theme-transition .pb-card,
-  html.phone-theme-transition .ph-quick-menu {
-    transition: background-color 240ms ease, color 240ms ease, border-color 240ms ease !important;
+  html.phone-theme-transition .phone-root *,
+  html.phone-theme-transition .phone-root *::before,
+  html.phone-theme-transition .phone-root *::after {
+    transition:
+      background-color 260ms cubic-bezier(0.22, 1, 0.36, 1),
+      color 260ms cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 260ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 260ms cubic-bezier(0.22, 1, 0.36, 1),
+      fill 260ms ease,
+      stroke 260ms ease !important;
   }
 }
 .ph-scan-controls .ph-scan-row input::placeholder { color: #64748b; opacity: 1; }
@@ -2639,15 +2651,12 @@ html.phone-shell body .phone-root .ph-scan-controls .ph-file-label .ph-chip { co
 html[data-theme="dark"].phone-shell body .phone-root .ph-scan-controls .ph-file-label .ph-chip { color: #f4f4f5 !important; -webkit-text-fill-color: #f4f4f5 !important; background: #3f3f46 !important; border-color: #52525b !important; }
 .ph-file-label:focus-within .ph-chip { outline: 3px solid #d97706; outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) {
+  html.phone-theme-transition,
+  html.phone-theme-transition body,
   html.phone-theme-transition .phone-root,
-  html.phone-theme-transition .phone-topbar,
-  html.phone-theme-transition .phone-tabbar,
-  html.phone-theme-transition .ph-panel,
-  html.phone-theme-transition .ph-settings-card,
-  html.phone-theme-transition .ph-scan-idle,
-  html.phone-theme-transition .ph-scan-controls,
-  html.phone-theme-transition .pb-card,
-  html.phone-theme-transition .ph-quick-menu { transition: none !important; }
+  html.phone-theme-transition .phone-root *,
+  html.phone-theme-transition .phone-root *::before,
+  html.phone-theme-transition .phone-root *::after { transition: none !important; }
 }
 
 /* Android floating shell and compact live camera. The decoder's canvas must not
@@ -3080,7 +3089,7 @@ html.phone-shell body .phone-root button.ph-alert-row { width: 100% !important; 
 .ph-notification-action strong, .ph-notification-action small { display: block; overflow-wrap: anywhere; }.ph-notification-action strong { margin-top: 8px; font-size: 14px; }.ph-notification-action p { margin: 4px 0; }.ph-notification-action small { font-size: 11px; color: #64748b; }
 .ph-notifications-empty { display: grid; justify-items: center; gap: 6px; padding: 20px; text-align: center; }.ph-notifications-empty svg { color: #805038; }.ph-notifications-empty p { margin: 0; }
 .ph-profile-identity { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }.ph-profile-identity > div:nth-child(2) { flex: 1; min-width: 0; }.ph-profile-identity strong, .ph-profile-identity small { display: block; overflow-wrap: anywhere; }.ph-profile-identity small { color: #64748b; margin-top: 3px; font-size: 12px; }
-.ph-profile-avatar { display: grid; place-items: center; flex: 0 0 64px; height: 64px; border-radius: 50%; overflow: hidden; background: #e9dfd8; color: #754a32; font-size: 24px; font-weight: 700; }.ph-profile-avatar-image { width: 100%; height: 100%; object-fit: cover; }.ph-profile-header .ph-native-outline + .ph-native-outline { margin-top: 8px; }
+.ph-profile-avatar { display: grid; place-items: center; flex: 0 0 64px; width: 64px; min-width: 64px; height: 64px; min-height: 64px; aspect-ratio: 1 / 1; border-radius: 50%; overflow: hidden; background: #e9dfd8; color: #754a32; font-size: 24px; font-weight: 700; }.ph-profile-avatar-image { width: 100%; height: 100% !important; object-fit: cover; aspect-ratio: 1 / 1; display: block; }.ph-profile-header .ph-native-outline + .ph-native-outline { margin-top: 8px; }
 html.phone-shell body .ph-native-dialog { align-items: center; padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px)); }
 html.phone-shell body .ph-native-dialog .ph-modal { width: min(100%, 440px); max-height: calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); overflow-y: auto; padding: 24px; border-radius: 28px; color: #18181b; background: #fff; }
 .ph-native-dialog h2 { margin: 0 0 12px; font-size: 20px; }.ph-native-dialog h2 svg { vertical-align: middle; color: #15803d; }.ph-native-dialog p { font-size: 14px; line-height: 1.5; }.ph-native-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; flex-wrap: wrap; }

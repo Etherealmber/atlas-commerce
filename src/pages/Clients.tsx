@@ -1,6 +1,7 @@
 import TopPageActions from '../components/TopPageActions';
-import { UserPlus } from 'lucide-react';
+import { BarChart3, FileText, UserPlus } from 'lucide-react';
 import { TimedUndoDelete } from '../components/ui';
+import ListPager from '../components/ui/ListPager';
 import { downloadExport } from '../lib/export';
 import { onAgentDraft } from '../lib/agentDraft';
 import { useEffect, useState } from 'react';
@@ -36,6 +37,9 @@ export default function Clients() {
 
   const [searchParams] = useSearchParams();
   const [search, setSearch] = useState(() => searchParams.get('q') || '');
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 20;
+  useEffect(() => { setPage(0); }, [search]);
   useEffect(() => {
     const q = searchParams.get('q') || '';
     if (q) setSearch(q);
@@ -145,7 +149,11 @@ export default function Clients() {
     c.city?.toLowerCase().includes(search.toLowerCase())
   );
 
-  const allFilteredSelected = filtered.length > 0 && filtered.every((c) => selected.has(c.id));
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const paged = filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
+
+  const allFilteredSelected = paged.length > 0 && paged.every((c) => selected.has(c.id));
 
   const toggleOne = (id: number) => {
     setSelected((prev) => {
@@ -159,9 +167,9 @@ export default function Clients() {
     setSelected((prev) => {
       const next = new Set(prev);
       if (allFilteredSelected) {
-        filtered.forEach((c) => next.delete(c.id));
+        paged.forEach((c) => next.delete(c.id));
       } else {
-        filtered.forEach((c) => next.add(c.id));
+        paged.forEach((c) => next.add(c.id));
       }
       return next;
     });
@@ -296,6 +304,10 @@ export default function Clients() {
       })()}
 
       <div className="ac-panel ac-products-table-panel">
+        <div className="ac-table-pager-bar">
+          <span className="ac-table-pager-meta">{filtered.length} client{filtered.length === 1 ? '' : 's'} · 20 par page</span>
+          <ListPager page={safePage} pageSize={PAGE_SIZE} total={filtered.length} onPageChange={setPage} />
+        </div>
         <div className="table-wrap">
           <table className="data-dense ac-products-table">
             <thead>
@@ -321,7 +333,7 @@ export default function Clients() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((c) => (
+              {paged.map((c) => (
                 <tr key={c.id}>
                   <td>
                     <input
@@ -385,14 +397,16 @@ export default function Clients() {
                       className="secondary"
                       onClick={() => navigate(`/invoices?client=${c.id}&q=${encodeURIComponent(c.name || '')}`)}
                     >
-                      Factures
+                      <FileText size={14} aria-hidden="true" />
+                      <span>Factures</span>
                     </button>
                     <button
                       type="button"
                       className="secondary"
                       onClick={() => setSitChoice({ id: c.id, name: c.name || '', ice: c.ice || '' })}
                     >
-                      Situation
+                      <BarChart3 size={14} aria-hidden="true" />
+                      <span>Situation</span>
                     </button>
                     {deleteArmId === c.id ? (
                       <TimedUndoDelete autoStart deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10}

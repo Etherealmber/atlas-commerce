@@ -12,6 +12,7 @@ import { api } from '../api';
 import SaveFeedback from '../components/SaveFeedback';
 import { useUi } from '../components/AppDialogs';
 import { TimedUndoDelete } from '../components/ui';
+import ListPager from '../components/ui/ListPager';
 import { numStr, numFromInput } from '../lib/numInput';
 import NumberField from '../components/NumberField';
 import VirtualTableBody, { VirtualScroll } from '../components/VirtualTableBody';
@@ -122,6 +123,9 @@ export default function Products() {
   const debouncedSearch = useDebouncedValue(search, 300);
   const [stockFilter, setStockFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 20;
+  useEffect(() => { setPage(0); }, [debouncedSearch, stockFilter, categoryFilter]);
   const [saving, setSaving] = useState(false);
   const [stagedPhotos, setStagedPhotos] = useState<{ file: File; url: string; edited?: string }[]>([]);
   // v256 — in-wizard photo editing: index of the staged photo being edited and
@@ -577,6 +581,10 @@ export default function Products() {
     });
   }, [list, debouncedSearch, stockFilter, categoryFilter]);
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const paged = filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
+
   const fmt = (n: number) => Math.round(Number(n || 0)).toLocaleString("fr-FR");
 
   if (loading) {
@@ -689,6 +697,9 @@ export default function Products() {
               onChange={(e) => setSearch(e.target.value)}
               aria-label="Rechercher produits"
             />
+            <span className="desktop-product-result-count ac-search-result-count" aria-live="polite">
+              {filtered.length} résultat{filtered.length === 1 ? '' : 's'}
+            </span>
           </div>
           <div className="desktop-product-viewbar" role="group" aria-label="Affichage des produits"><button type="button" className="secondary" title="Affichage en grille" aria-label="Affichage en grille" aria-pressed={catalogView === 'grid'} onClick={() => changeCatalogView('grid')}><Grid2X2 size={18} /></button><button type="button" className="secondary" title="Affichage en liste" aria-label="Affichage en liste" aria-pressed={catalogView === 'list'} onClick={() => changeCatalogView('list')}><List size={18} /></button></div>
           <select className="ac-filter-select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} aria-label="Catégorie">
@@ -712,28 +723,30 @@ export default function Products() {
       </div>
 
       <div className={`ac-panel ac-products-table-panel${catalogView === 'grid' ? ' ac-products-table-panel--grid' : ''}`}>
-
-        <div className="desktop-product-result-count" aria-live="polite">{filtered.length} résultat{filtered.length === 1 ? '' : 's'}</div>
+        <div className="ac-table-pager-bar">
+          <span className="ac-table-pager-meta">{filtered.length} élément{filtered.length === 1 ? '' : 's'} · 20 par page</span>
+          <ListPager page={safePage} pageSize={PAGE_SIZE} total={filtered.length} onPageChange={setPage} />
+        </div>
         {catalogView === 'grid' ? <>
-          {filtered.length > 0 && <label className="desktop-product-select-all"><input type="checkbox" checked={filtered.every(p => selected.has(p.id))} onChange={() => setSelected(prev => { const next = new Set(prev); const all = filtered.every(p => next.has(p.id)); filtered.forEach(p => all ? next.delete(p.id) : next.add(p.id)); return next; })} /> Tout sélectionner</label>}
-          {filtered.length === 0 ? <EmptyState title="Aucun produit" description="Essayez une autre recherche ou ajoutez un produit." actionLabel="Ajouter un produit" onAction={openNew} icon="package" /> : <div className="desktop-product-grid">{filtered.map(p => <article className="desktop-product-card" key={p.id}>
+          {paged.length > 0 && <label className="desktop-product-select-all"><input type="checkbox" checked={paged.every(p => selected.has(p.id))} onChange={() => setSelected(prev => { const next = new Set(prev); const all = paged.every(p => next.has(p.id)); paged.forEach(p => all ? next.delete(p.id) : next.add(p.id)); return next; })} /> Tout sélectionner</label>}
+          {filtered.length === 0 ? <EmptyState title="Aucun produit" description="Essayez une autre recherche ou ajoutez un produit." actionLabel="Ajouter un produit" onAction={openNew} icon="package" /> : <div className="desktop-product-grid">{paged.map(p => <article className="desktop-product-card" key={p.id}>
             <Link to={`/products/${p.id}/historique`} className="desktop-product-card-link"><ProductArtwork url={p.image_url} /><strong>{p.name}</strong><span>{p.sku || p.barcode || 'Sans référence'}</span><div className="desktop-product-chips"><span className={`product-stock-chip ${!p.track_inventory ? 'untracked' : phoneStockQuantity(p) <= 0 ? 'out' : phoneStockIsLow(p) ? 'low' : 'ok'}`}>{p.track_inventory ? `Stock ${dualStockLabel(p)}` : 'Stock non suivi'}</span>{!hideMoney && p.price != null && <span>{fmt(p.price)} MAD</span>}</div></Link>
             <div className="desktop-product-actions"><label title="Sélectionner le produit"><input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleOne(p.id)} aria-label={`Sélectionner ${p.name}`} /><span>Sélectionner</span></label>{p.track_inventory && <button type="button" className="secondary" title="Ajuster le stock" aria-label={`Ajuster le stock de ${p.name}`} onClick={() => { setModalError(''); setAdjustProduct(p); }}><SlidersHorizontal size={18} aria-hidden="true" /></button>}<button type="button" className="secondary" title="Modifier" aria-label={`Modifier ${p.name}`} onClick={() => openEdit(p)}><Pencil size={18} aria-hidden="true" /></button><button type="button" className="secondary" title="Étiquette" aria-label={`Étiquette de ${p.name}`} onClick={() => window.open(api.labelUrl(p.id), '_blank', 'noopener')}><Tags size={18} aria-hidden="true" /></button><TimedUndoDelete iconOnly width="44px" deleteLabel={`Supprimer ${p.name}`} undoLabel="Annuler la suppression" initialSeconds={10} onConfirm={() => deleteOne(p.id)} /></div>
           </article>)}</div>}
-        </> : <VirtualScroll maxHeight={filtered.length > 60 ? 560 : undefined}>
+        </> : <VirtualScroll maxHeight={paged.length > 60 ? 560 : undefined}>
           <table className="data-dense ac-products-table">
             <thead>
               <tr>
                 <th style={{ width: 40 }}>
                   <input
                     type="checkbox"
-                    checked={filtered.length > 0 && filtered.every((p) => selected.has(p.id))}
+                    checked={paged.length > 0 && paged.every((p) => selected.has(p.id))}
                     onChange={() => {
-                      const all = filtered.length > 0 && filtered.every((p) => selected.has(p.id));
+                      const all = paged.length > 0 && paged.every((p) => selected.has(p.id));
                       setSelected((prev) => {
                         const next = new Set(prev);
-                        if (all) filtered.forEach((p) => next.delete(p.id));
-                        else filtered.forEach((p) => next.add(p.id));
+                        if (all) paged.forEach((p) => next.delete(p.id));
+                        else paged.forEach((p) => next.add(p.id));
                         return next;
                       });
                     }}
@@ -759,7 +772,7 @@ export default function Products() {
               </tbody>
             ) : (
               <VirtualTableBody
-                rows={filtered}
+                rows={paged}
                 rowHeight={48}
                 maxHeight={560}
                 getKey={(p) => p.id}
@@ -809,14 +822,23 @@ export default function Products() {
                     <td>{p.is_active === 0 ? <span className="badge danger">Inactif</span> : <span className="badge success">Actif</span>}</td>
                     <td className="row-actions-cell">
                       <div className="row-actions row-actions--inline">
-                      {p.track_inventory && <button type="button" className="secondary" onClick={() => { setModalError(''); setAdjustProduct(p); }}>Ajuster</button>}
-                      <button type="button" className="secondary" onClick={() => openEdit(p)}>Modifier</button>
+                      {p.track_inventory && (
+                        <button type="button" className="secondary" onClick={() => { setModalError(''); setAdjustProduct(p); }}>
+                          <SlidersHorizontal size={14} aria-hidden="true" />
+                          <span>Ajuster</span>
+                        </button>
+                      )}
+                      <button type="button" className="secondary" onClick={() => openEdit(p)}>
+                        <Pencil size={14} aria-hidden="true" />
+                        <span>Modifier</span>
+                      </button>
                       <button
                         type="button"
                         className="secondary"
                         onClick={() => window.open(api.labelUrl(p.id), '_blank', 'noopener')}
                       >
-                        Étiquette
+                        <Tags size={14} aria-hidden="true" />
+                        <span>Étiquette</span>
                       </button>
                       <TimedUndoDelete
                         key={`del-${p.id}`}
