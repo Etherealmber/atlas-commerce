@@ -1,4 +1,5 @@
 import TopPageActions from '../components/TopPageActions';
+import { Printer, UserPlus } from 'lucide-react';
 import { TimedUndoDelete } from '../components/ui';
 import { onAgentDraft } from '../lib/agentDraft';
 import { useEffect, useState } from 'react';
@@ -12,6 +13,7 @@ import DatePicker from '../components/DatePicker';
 import PasswordConfirm from '../components/PasswordConfirm';
 import { FloatingPortal } from '../components/FloatingPortal';
 import { ModalFormError, FieldHint } from '../components/ModalFormFeedback';
+import { isEmail } from '../lib/formValidate';
 import './employee-wizard.css';
 
 type Emp = Record<string, any>;
@@ -60,7 +62,8 @@ const emptyForm = {
 
 const STEPS = [
   { id: 'personal', label: 'Personnel', hint: 'Les informations de base de votre collaborateur.' },
-  { id: 'identity', label: 'Identité', hint: 'Ses documents et identifiants administratifs.' },
+  { id: 'identity', label: 'Identité', hint: 'Ses pièces d’identité et justificatifs.' },
+  { id: 'coverage', label: 'Social & fiscal', hint: 'Numéro fiscal, CNSS et couverture santé.' },
   { id: 'work', label: 'Poste', hint: 'Son rôle et sa date d’arrivée.' },
   { id: 'contact', label: 'Contact', hint: 'Ses coordonnées et son adresse.' },
   { id: 'pay', label: 'Salaire', hint: 'Définissez le montant et la fréquence de paiement.' },
@@ -629,10 +632,12 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
             onClick={() => openPrintDoc('/api/employees/form/print')}
             title="Formulaire vierge à faire remplir avant embauche"
           >
-            Imprimer fiche d’embauche
+            <Printer size={16} aria-hidden="true" />
+            <span className="tpa-label">Imprimer fiche d’embauche</span>
           </button>
-          <button type="button" onClick={openCreate}>
-            + Ajouter un employé
+          <button type="button" title="Ajouter un employé" onClick={openCreate}>
+            <UserPlus size={16} aria-hidden="true" />
+            <span className="tpa-label">Ajouter un employé</span>
           </button>
         </TopPageActions>
       </div>
@@ -865,17 +870,17 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
 
             {step === 1 && (
               <>
-                <div className="form-row">
-                  <label>Statut d’identité / séjour</label>
-                  <select value={form.immigration_status} onChange={(e) => setF('immigration_status', e.target.value)}>
-                    <option value="">— Choisir —</option>
-                    <option value="citizen">Citoyen (CIN)</option>
-                    <option value="resident">Résident permanent</option>
-                    <option value="work_permit">Titulaire de permis de travail</option>
-                    <option value="other">Autre / document de voyage</option>
-                  </select>
-                </div>
                 <div className="grid grid-2">
+                  <div className="form-row">
+                    <label>Statut d’identité / séjour</label>
+                    <select value={form.immigration_status} onChange={(e) => setF('immigration_status', e.target.value)}>
+                      <option value="">— Choisir —</option>
+                      <option value="citizen">Citoyen (CIN)</option>
+                      <option value="resident">Résident permanent</option>
+                      <option value="work_permit">Titulaire de permis de travail</option>
+                      <option value="other">Autre / document de voyage</option>
+                    </select>
+                  </div>
                   <div className="form-row">
                     <label>
                       {form.immigration_status === 'work_permit'
@@ -888,34 +893,10 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
                     </label>
                     <input value={form.national_id} onChange={(e) => setF('national_id', e.target.value)} />
                   </div>
-                  <div className="form-row">
-                    <label>Identifiant fiscal</label>
-                    <input value={form.tax_id} onChange={(e) => setF('tax_id', e.target.value)} />
-                  </div>
-                  {(form.immigration_status === 'citizen' ||
-                    form.immigration_status === 'resident' ||
-                    form.immigration_status === '') && (
-                    <>
-                      <div className="form-row">
-                        <label>CNSS / Social</label>
-                        <input value={form.social_insurance} onChange={(e) => setF('social_insurance', e.target.value)} />
-                      </div>
-                      <div className="form-row">
-                        <label>Assurance maladie</label>
-                        <input value={form.health_insurance} onChange={(e) => setF('health_insurance', e.target.value)} />
-                      </div>
-                    </>
-                  )}
-                  {form.immigration_status === 'work_permit' && (
-                    <div className="form-row">
-                      <label>Assurance (si applicable)</label>
-                      <input value={form.health_insurance} onChange={(e) => setF('health_insurance', e.target.value)} />
-                    </div>
-                  )}
-                  <div className="form-row">
-                    <label>Permis de conduire</label>
-                    <input value={form.driving_license} onChange={(e) => setF('driving_license', e.target.value)} />
-                  </div>
+                </div>
+                <div className="form-row">
+                  <label>Permis de conduire</label>
+                  <input value={form.driving_license} onChange={(e) => setF('driving_license', e.target.value)} />
                 </div>
                 <div className="form-row">
                   <label>Fichier CIN / passeport (PDF ou image)</label>
@@ -948,6 +929,39 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
             )}
 
             {step === 2 && (
+              <div className="grid grid-2">
+                <div className="form-row">
+                  <label>Identifiant fiscal</label>
+                  <input value={form.tax_id} onChange={(e) => setF('tax_id', e.target.value)} />
+                </div>
+                {(form.immigration_status === 'citizen' ||
+                  form.immigration_status === 'resident' ||
+                  form.immigration_status === '') && (
+                  <div className="form-row">
+                    <label>CNSS / Social</label>
+                    <input
+                      value={form.cnss_number || form.social_insurance || ''}
+                      onChange={(e) => {
+                        setF('cnss_number', e.target.value);
+                        setF('social_insurance', e.target.value);
+                      }}
+                      placeholder="Immatriculation CNSS"
+                    />
+                  </div>
+                )}
+                {(form.immigration_status === 'citizen' ||
+                  form.immigration_status === 'resident' ||
+                  form.immigration_status === '' ||
+                  form.immigration_status === 'work_permit') && (
+                  <div className="form-row">
+                    <label>{form.immigration_status === 'work_permit' ? 'Assurance (si applicable)' : 'Assurance maladie'}</label>
+                    <input value={form.health_insurance} onChange={(e) => setF('health_insurance', e.target.value)} />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {step === 3 && (
               <div className="grid grid-2">
                 <div className="form-row">
                   <label>Intitulé du poste</label>
@@ -984,7 +998,7 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
               </div>
             )}
 
-            {step === 3 && (
+            {step === 4 && (
               <>
                 <div className="form-row">
                   <label>Adresse</label>
@@ -1005,13 +1019,13 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
                   </div>
                   <div className="form-row">
                     <label>E-mail</label>
-                    <input type="email" value={form.email} onChange={(e) => setF('email', e.target.value)} />
+                    <input type="email" value={form.email} onChange={(e) => { setF('email', e.target.value); if (modalError) setModalError(''); }} />
                   </div>
                 </div>
               </>
             )}
 
-            {step === 4 && (
+            {step === 5 && (
               <>
                 <div className="form-row">
                   <label>Montant (MAD)</label>
@@ -1056,7 +1070,7 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
                 )}
               </>
             )}
-            {step === 5 && (
+            {step === 6 && (
               <>
                 <div className="grid grid-2">
                   <div className="form-row">
@@ -1093,28 +1107,17 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
                     />
                   </div>
                   <div className="form-row">
-                    <label>N° CNSS salarié</label>
+                    <label>RIB (versement salaire)</label>
                     <input
-                      value={form.cnss_number || form.social_insurance || ''}
-                      onChange={(e) => {
-                        setF('cnss_number', e.target.value);
-                        setF('social_insurance', e.target.value);
-                      }}
-                      placeholder="Immatriculation CNSS"
+                      value={form.rib || ''}
+                      onChange={(e) => setF('rib', e.target.value)}
+                      placeholder="MA00 0000 0000 0000 0000 0000 000"
                     />
                   </div>
                 </div>
-                <div className="form-row">
-                  <label>RIB (versement salaire)</label>
-                  <input
-                    value={form.rib || ''}
-                    onChange={(e) => setF('rib', e.target.value)}
-                    placeholder="MA00 0000 0000 0000 0000 0000 000"
-                  />
-                </div>
               </>
             )}
-            {step === 6 && (
+            {step === 7 && (
               <>
                 <div className="form-row">
                   <label>Compte lié (identifiant de connexion)</label>
@@ -1129,7 +1132,7 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
                 <div className="form-row">
                   <label>Description du poste / fonctions</label>
                   <textarea
-                    rows={3}
+                    rows={2}
                     value={form.job_description || ''}
                     onChange={(e) => setF('job_description', e.target.value)}
                     placeholder="Tâches principales, lieu de travail, horaires…"
@@ -1148,9 +1151,20 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
             {/* Guided steps — the action bar never moves: Retour left,
                 Continuer / Créer always at the same place on the right. */}
             <div className="wizard-foot">
+              <div
+                className="wz-progress"
+                role="progressbar"
+                aria-valuemin={1}
+                aria-valuemax={STEPS.length}
+                aria-valuenow={step + 1}
+                aria-label={`Étape ${step + 1} sur ${STEPS.length}`}
+              >
+                <i style={{ width: `${Math.round(((step + 1) / STEPS.length) * 100)}%` }} />
+              </div>
               <div className="wizard-foot-nav">
                 <span className="wizard-foot-step">
-                  Étape {step + 1}/{STEPS.length} · {STEPS[step].label}
+                  <span className="wz-chip">Étape {step + 1}/{STEPS.length}<span className="wz-step-label"> · {STEPS[step].label}</span></span>
+                  {editing ? 'Modifier l’employé' : 'Nouvel employé'}
                 </span>
                 <div className="wizard-foot-actions">
                   <button type="button" className="secondary" onClick={() => { setModalError(''); setShowModal(false); }}>
@@ -1167,6 +1181,14 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
                         setModalError('Indiquez le prénom ou le nom de famille.');
                         return;
                       }
+                      if (step === 4 && form.email.trim() && !isEmail(form.email)) {
+                        setModalError('Adresse e-mail invalide.');
+                        return;
+                      }
+                      if (step === 5 && (!Number.isFinite(Number(form.pay_amount)) || Number(form.pay_amount) < 0)) {
+                        setModalError('Indiquez un salaire valide (≥ 0).');
+                        return;
+                      }
                       setModalError('');
                       setStep((s) => Math.min(STEPS.length - 1, s + 1));
                     }}>
@@ -1179,28 +1201,6 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
                   )}
                 </div>
               </div>
-              {editing && (
-                <div className="wizard-foot-extra">
-                  <button
-                    type="button"
-                    className="secondary"
-                    onClick={() => openPrintDoc(`/api/employees/${editing.id}/form/print`)}
-                  >
-                    Fiche
-                  </button>
-                  <button
-                    type="button"
-                    className="secondary"
-                    onClick={() =>
-                      openReport('/api/reports/employee-situation', {
-                        employee_id: String(editing.id),
-                      })
-                    }
-                  >
-                    Situation
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         </div></FloatingPortal>

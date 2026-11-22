@@ -1,4 +1,5 @@
 import TopPageActions from '../components/TopPageActions';
+import { Plus, RotateCcw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import DatePicker from '../components/DatePicker';
 import { matchProducts } from '../lib/assist';
@@ -17,7 +18,13 @@ import { useUi } from '../components/AppDialogs';
 import PasswordConfirm from '../components/PasswordConfirm';
 import { friendlyError } from '../lib/errors';
 import RefreshIconButton from '../components/RefreshIconButton';
-import { useWizard, StepBody, WizardFoot } from '../components/ui/FormWizard';
+import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
+
+const QUICKSALE_STEPS: readonly WizardStepDef[] = [
+  { id: 'client', label: 'Client', hint: 'Client, coordonnées et date d’émission (aucune TVA sur les tickets VR).' },
+  { id: 'items', label: 'Articles', hint: 'Recherchez vos produits, prix et quantités.' },
+  { id: 'payment', label: 'Paiement', hint: 'Mode de règlement, total et notes.' },
+];
 import '../components/erp/orders-fulfillment.css';
 import RemboursementModal from '../components/RemboursementModal';
 import { FloatingPortal } from '../components/FloatingPortal';
@@ -466,13 +473,15 @@ export default function QuickSale() {
           <button
             type="button"
             className="secondary"
+            title="Remboursement (WR)"
             style={{ borderColor: 'var(--copper, #b87333)', color: 'var(--copper-dark, #8a5520)' }}
             onClick={() => setShowRefund(true)}
           >
-            + Remboursement (WR)
+            <RotateCcw size={16} aria-hidden="true" />
+            <span className="tpa-label">Remboursement (WR)</span>
           </button>
 
-          <button onClick={() => { resetForm(); setModalError(''); wz.reset(); setShowModal(true); }}>+ Nouvelle vente</button>
+          <button title="Nouvelle vente" onClick={() => { resetForm(); setModalError(''); wz.reset(); setShowModal(true); }}><Plus size={16} aria-hidden="true" /><span className="tpa-label">Nouvelle vente</span></button>
         </TopPageActions>
       </div>
 
@@ -611,11 +620,10 @@ export default function QuickSale() {
 
       {showModal && (
         <FloatingPortal><div className="modal-overlay" onClick={() => { if (busy) return; setShowModal(false); resetForm(); wz.reset(); }}>
-          <div className="modal" style={{ maxWidth: 1080, width: '96vw' }} onClick={(e) => e.stopPropagation()}>
-            <h2>Nouvelle vente rapide (caisse)</h2>
-            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 14, lineHeight: 1.45 }}>
-              Prix saisis tels quels. <strong>Aucune TVA</strong> n’est calculée sur les tickets VR.
-            </p>
+          <div className="modal step-wizard step-wizard--wide" role="dialog" aria-modal="true" aria-labelledby="qs-wizard-title" onClick={(e) => e.stopPropagation()}>
+            <WizardHeader eyebrow="VENTE RAPIDE" title="Nouvelle vente rapide (caisse)" titleId="qs-wizard-title" wz={wz} steps={QUICKSALE_STEPS} />
+            <div className="step-wizard__body">
+            <WizardIntro step={QUICKSALE_STEPS[wz.step - 1]} />
 
             <StepBody active={wz.step === 1}>
             <div className="form-row">
@@ -632,9 +640,11 @@ export default function QuickSale() {
                 onChange={(v) => {
                   setClientName(v);
                   setClientId('');
+                  if (modalError) setModalError('');
                 }}
                 onPick={(o) => {
                   selectClient(Number(o.id));
+                  if (modalError) setModalError('');
                 }}
                 emptyLabel="Aucun client"
               />
@@ -645,7 +655,7 @@ export default function QuickSale() {
                 <label>Nom du client *</label>
                 <input
                   value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
+                  onChange={(e) => { setClientName(e.target.value); if (modalError) setModalError(''); }}
                   placeholder="Nom du client"
                 />
               </div>
@@ -667,9 +677,6 @@ export default function QuickSale() {
 
             </StepBody>
             <StepBody active={wz.step === 2}>
-            <h3 style={{ margin: '16px 0 8px', fontSize: 14 }}>
-              Lignes — recherche produit · prix · quantité
-            </h3>
             <div
               style={{
                 display: 'grid',
@@ -691,15 +698,6 @@ export default function QuickSale() {
             </div>
             {items.map((item, idx) => {
               const lineTotal = Number(item.quantity || 0) * Number(item.unit_price || 0);
-              const q = (item.product_query || '').toLowerCase();
-              const filteredP = q
-                ? products.filter(
-                    (p) =>
-                      p.name?.toLowerCase().includes(q) ||
-                      p.sku?.toLowerCase().includes(q) ||
-                      String(p.barcode || '').includes(q),
-                  ).slice(0, 40)
-                : products.slice(0, 40);
               return (
                 <div key={idx} style={{ marginBottom: 10 }}>
                   <div
@@ -719,7 +717,7 @@ export default function QuickSale() {
                         if (Array.isArray(r?.data)) setProducts(r.data);
                       }).catch(() => {});
                     }}
-                      onChange={(v) => updateLine(idx, 'product_query', v)}
+                      onChange={(v) => { updateLine(idx, 'product_query', v); if (modalError) setModalError(''); }}
                       onPick={async (o) => {
                         const p = products.find((x) => String(x.id) === String(o.id));
                         if (!p) return;
@@ -736,13 +734,14 @@ export default function QuickSale() {
                         updateLine(idx, 'list_price', Number(p.price || 0));
                         updateLine(idx, 'unit_price', unit);
                         if (p.sku) updateLine(idx, 'sku', p.sku);
+                        if (modalError) setModalError('');
                       }}
                       emptyLabel="Aucun produit"
                     />
                     <input
                       placeholder="Désignation *"
                       value={item.product_name}
-                      onChange={(e) => updateLine(idx, 'product_name', e.target.value)}
+                      onChange={(e) => { updateLine(idx, 'product_name', e.target.value); if (modalError) setModalError(''); }}
                     />
                     <NumberField value={item.quantity} onValueChange={(n) => updateLine(idx, 'quantity', n)} min={0.01} step="0.01" />
                     <NumberField value={item.list_price} onValueChange={(n) => updateLine(idx, 'list_price', n)} min={0} step="0.01" />
@@ -776,7 +775,7 @@ export default function QuickSale() {
               onClick={() =>
                 setItems([...items, { product_name: '', quantity: 1, list_price: 0, unit_price: 0, product_query: '' }])
               }
-              style={{ marginBottom: 16 }}
+              style={{ marginBottom: 8 }}
             >
               + Ajouter une ligne
             </button>
@@ -807,11 +806,25 @@ export default function QuickSale() {
 
             </StepBody>
             <ModalFormError message={modalError} />
+            </div>
             <WizardFoot
               wz={wz}
               title="Nouvelle vente rapide (caisse)"
-              stepLabel={['Client', 'Articles', 'Paiement'][wz.step - 1]}
+              stepLabel={QUICKSALE_STEPS[wz.step - 1].label}
               onCancel={() => { if (busy) return; setShowModal(false); resetForm(); wz.reset(); }}
+              onBack={() => setModalError('')}
+              onNext={() => {
+                if (wz.step === 1 && !clientName.trim()) {
+                  setModalError('Le nom du client est obligatoire.');
+                  return false;
+                }
+                if (wz.step === 2 && !items.some((it) => String(it.product_name || '').trim() && Number(it.quantity) > 0)) {
+                  setModalError('Ajoutez au moins un article avec une quantité > 0.');
+                  return false;
+                }
+                setModalError('');
+                return true;
+              }}
               onSubmit={() => void checkout()}
               submitLabel={`Encaisser · ${fmt(total)}`}
               saving={busy}

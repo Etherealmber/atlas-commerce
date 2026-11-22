@@ -15,7 +15,7 @@ describe('WhatsNew releases', () => {
     expect(APP_VERSION).toBe('0.9.1-beta');
     expect(RELEASES[0].version).toBe('0.9.1');
     expect(WHATS_NEW_VERSION).toBe(RELEASES[0].version);
-    expect(RELEASES[0].date).toBe('20 octobre 2026');
+    expect(RELEASES[0].date).toBe('22 novembre 2026');
     expect(JSON.stringify(RELEASES[0])).not.toMatch(/cloudflare|google|microsoft|flclash/i);
     expect(RELEASES[0].sections[0].items.map(i => i.id)).toEqual(['091f1', '091f2', '091f3']);
     const old090 = RELEASES.find(r => r.version === '0.9.0')!;

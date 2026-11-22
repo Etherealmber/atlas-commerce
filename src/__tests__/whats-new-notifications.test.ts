@@ -120,7 +120,7 @@ describe('release page and popup content', () => {
     await render(createElement(WhatsNewModal));
     const dialog = host.querySelector('[role="dialog"]');
     expect(dialog?.textContent).toContain('Atlas Commerce 0.9.1');
-    expect(dialog?.textContent).toContain('20 octobre 2026');
+    expect(dialog?.textContent).toContain('22 novembre 2026');
     expect(dialog?.textContent).toContain('Connexion desktop expérimentale');
     expect(dialog?.textContent).toContain('Le serveur vérifie');
     expect(dialog?.textContent).toContain('navigateur externe');

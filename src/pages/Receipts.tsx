@@ -1,5 +1,6 @@
 import DocumentActors from '../components/DocumentActors';
 import TopPageActions from '../components/TopPageActions';
+import { Plus } from 'lucide-react';
 import { onAgentDraft } from '../lib/agentDraft';
 import { useEffect, useState } from 'react';
 import DatePicker from '../components/DatePicker';
@@ -14,8 +15,13 @@ import NumberField from '../components/NumberField';
 import EmptyState from '../components/EmptyState';
 import RefreshIconButton from '../components/RefreshIconButton';
 import { FloatingPortal } from '../components/FloatingPortal';
-import { useWizard, StepBody, WizardFoot } from '../components/ui/FormWizard';
+import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
 import { ModalFormError, FieldHint } from '../components/ModalFormFeedback';
+
+const RECEIPT_STEPS: readonly WizardStepDef[] = [
+  { id: 'client', label: 'Client & montant', hint: 'Associez une facture ou saisissez le client et le montant.' },
+  { id: 'payment', label: 'Paiement & notes', hint: 'Mode de règlement, date et remarques.' },
+];
 
 export default function Receipts() {
   const [modalError, setModalError] = useState('');
@@ -167,7 +173,7 @@ export default function Receipts() {
         <h1 className="sr-only">Reçus</h1>
         <TopPageActions>
           <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
-          <button onClick={() => { setModalError(''); setShowModal(true); }}>+ Nouveau reçu</button>
+          <button title="Nouveau reçu" onClick={() => { setModalError(''); setShowModal(true); }}><Plus size={16} aria-hidden="true" /><span className="tpa-label">Nouveau reçu</span></button>
         </TopPageActions>
       </div>
 
@@ -234,9 +240,11 @@ export default function Receipts() {
       </div>
 
       {showModal && (
-        <FloatingPortal><div className="modal-overlay" onClick={() => { setShowModal(false); wz.reset(); }}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>Nouveau reçu</h2>
+        <FloatingPortal><div className="modal-overlay" onClick={() => { setShowModal(false); setModalError(''); wz.reset(); }}>
+          <div className="modal step-wizard" role="dialog" aria-modal="true" aria-labelledby="receipt-wizard-title" onClick={(e) => e.stopPropagation()}>
+            <WizardHeader eyebrow="ENCAISSEMENT" title="Nouveau reçu" titleId="receipt-wizard-title" wz={wz} steps={RECEIPT_STEPS} />
+            <div className="step-wizard__body">
+            <WizardIntro step={RECEIPT_STEPS[wz.step - 1]} />
             <StepBody active={wz.step === 1}>
             <div className="form-row">
               <label>Lier à une facture (optionnel)</label>
@@ -248,8 +256,8 @@ export default function Receipts() {
               </select>
             </div>
             <div className="grid grid-2">
-              <div className="form-row"><label>Nom du client *</label><input value={clientName} onChange={(e) => setClientName(e.target.value)} /></div>
-              <div className="form-row"><label>Montant *</label><NumberField value={amount} onValueChange={setAmount} step="0.01" min={0.01} /></div>
+              <div className="form-row"><label>Nom du client *</label><input value={clientName} onChange={(e) => { setClientName(e.target.value); if (modalError) setModalError(''); }} /></div>
+              <div className="form-row"><label>Montant *</label><NumberField value={amount} onValueChange={(n) => { setAmount(n); if (modalError) setModalError(''); }} step="0.01" min={0.01} /></div>
             </div>
             </StepBody>
             <StepBody active={wz.step === 2}>
@@ -268,11 +276,21 @@ export default function Receipts() {
             <div className="form-row"><label>Notes</label><textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
             </StepBody>
             <ModalFormError message={modalError} />
+            </div>
             <WizardFoot
               title="Nouveau reçu"
               wz={wz}
-              stepLabel={wz.step === 1 ? 'Client & montant' : 'Paiement & notes'}
-              onCancel={() => { setShowModal(false); wz.reset(); }}
+              stepLabel={RECEIPT_STEPS[wz.step - 1].label}
+              onCancel={() => { setShowModal(false); setModalError(''); wz.reset(); }}
+              onBack={() => setModalError('')}
+              onNext={() => {
+                if (wz.step === 1) {
+                  if (!clientName.trim()) { setModalError('Le nom du client est obligatoire.'); return false; }
+                  if (!(Number(amount) > 0)) { setModalError('Indiquez un montant supérieur à 0.'); return false; }
+                }
+                setModalError('');
+                return true;
+              }}
               onSubmit={() => void create()}
               submitLabel={saving ? 'Enregistrement...' : 'Enregistrer dans la base'}
               saving={saving}

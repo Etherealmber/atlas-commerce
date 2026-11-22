@@ -2846,8 +2846,16 @@ html body .ac-timed-delete-btn.is-armed .ac-td-ico {
 }
 
 /* Floating desktop toolbar: compact on deliberate downward scrolling, restore on upward scroll. */
+.ac-desktop-top-row {
+  position: sticky; top: 0; z-index: 35; width: 100%;
+}
 @media (min-width: 901px) {
-  html body .ac-main-column > .ac-topbar--bionis {
+  .ac-desktop-top-row {
+    position: sticky; top: 10px; z-index: 35; width: 100%;
+    margin: 10px 0 6px; pointer-events: none;
+  }
+  html body .ac-main-column > .ac-topbar--bionis,
+  html body .ac-desktop-top-row > .ac-topbar--bionis {
     top: 10px !important;
     width: calc(100% - 32px) !important;
     margin: 10px auto 6px !important;
@@ -2856,28 +2864,39 @@ html body .ac-timed-delete-btn.is-armed .ac-td-ico {
     box-shadow: 0 8px 24px #00000012 !important;
     transition: width .32s cubic-bezier(.22, 1, .36, 1), border-radius .32s ease, box-shadow .32s ease !important;
   }
-  html body .ac-main-column > .ac-topbar--bionis.ac-topbar--compact:not(:focus-within) {
+  html body .ac-main-column > .ac-topbar--bionis.ac-topbar--compact:not(:focus-within),
+  html body .ac-desktop-top-row > .ac-topbar--bionis.ac-topbar--compact:not(:focus-within) {
     width: calc(100% - 88px) !important;
     border-radius: 28px !important;
     box-shadow: 0 10px 32px #0000001c !important;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  html body .ac-main-column > .ac-topbar--bionis { transition: none !important; }
+  html body .ac-main-column > .ac-topbar--bionis,
+  html body .ac-desktop-top-row > .ac-topbar--bionis { transition: none !important; }
 }
 
 /* Desktop shell commands live in a content-sized dock instead of a full-width bar. */
 @media (min-width: 901px) {
-  html body .ac-main-column > .ac-desktop-dock {
+  html body .ac-main-column > .ac-desktop-dock,
+  html body .ac-desktop-top-row > .ac-desktop-dock {
+    position: relative !important; top: auto !important; margin: 0 auto !important;
+    pointer-events: auto;
     width: fit-content !important; max-width: calc(100% - 32px) !important;
     gap: 12px !important; padding: 6px 10px !important; border-radius: 999px !important;
     transition: transform .3s cubic-bezier(.22, 1, .36, 1), box-shadow .3s ease !important;
   }
-  html body .ac-main-column > .ac-desktop-dock .ac-topbar-left { flex: 0 1 auto; }
-  html body .ac-main-column > .ac-desktop-dock .ac-topbar-title { max-width: min(28vw, 240px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  html body .ac-main-column > .ac-desktop-dock.ac-topbar--compact:not(:focus-within) { width: fit-content !important; transform: scale(.94); transform-origin: top center; }
+  html body .ac-main-column > .ac-desktop-dock .ac-topbar-left,
+  html body .ac-desktop-top-row > .ac-desktop-dock .ac-topbar-left { flex: 0 1 auto; }
+  html body .ac-main-column > .ac-desktop-dock .ac-topbar-title,
+  html body .ac-desktop-top-row > .ac-desktop-dock .ac-topbar-title { max-width: min(28vw, 240px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  html body .ac-main-column > .ac-desktop-dock.ac-topbar--compact:not(:focus-within),
+  html body .ac-desktop-top-row > .ac-desktop-dock.ac-topbar--compact:not(:focus-within) { width: fit-content !important; transform: scale(.94); transform-origin: top center; }
 }
-@media (prefers-reduced-motion: reduce) { html body .ac-main-column > .ac-desktop-dock { transition: none !important; } }
+@media (prefers-reduced-motion: reduce) {
+  html body .ac-main-column > .ac-desktop-dock,
+  html body .ac-desktop-top-row > .ac-desktop-dock { transition: none !important; }
+}
 
 /* The compact desktop dock is a single, keyboard-accessible title. */
 html body .ac-desktop-dock button.ac-dock-expand {
@@ -2910,13 +2929,21 @@ html body .dock-page-header > .dock-page-actions {
 /* Page actions use the same top-right slot as Products when enough room is
    available. Otherwise the component stays in normal flow. */
 .top-page-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.top-page-actions > button,
+.top-page-actions > a { display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
+.top-page-actions > button svg,
+.top-page-actions > a svg { flex: none; }
 .desktop-catalog-actions-slot:empty { display: none; }
 @media (min-width: 1500px) {
-  .ac-main-column > .desktop-catalog-actions-slot:not(:empty) {
-    position: absolute; top: 15px; right: 16px; z-index: 30;
-    max-width: calc((100% - 480px) / 2 - 40px);
+  .ac-main-column > .desktop-catalog-actions-slot:not(:empty),
+  .ac-desktop-top-row > .desktop-catalog-actions-slot:not(:empty) {
+    position: absolute; top: 50%; right: 16px; transform: translateY(-50%); z-index: 36;
+    max-width: calc((100% - 520px) / 2 - 24px);
+    overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain;
+    scrollbar-width: thin; pointer-events: auto; border-radius: 999px;
+    padding: 2px;
   }
-  .desktop-catalog-actions-slot > .top-page-actions { flex-wrap: nowrap; }
+  .desktop-catalog-actions-slot > .top-page-actions { flex-wrap: nowrap; width: max-content; }
   .dock-page-header:has(> .dock-actions-placeholder[data-docked="true"]) {
     height: 0; min-height: 0; margin: 0 !important; padding: 0 !important;
   }
@@ -2929,13 +2956,58 @@ html body .desktop-catalog-actions-slot .top-page-actions > button.secondary:not
 html body .desktop-catalog-actions-slot .top-page-actions > .btn.secondary {
   background: var(--ac-paper) !important; color: var(--ac-ink) !important; border: 1px solid var(--ac-line) !important;
 }
+html body .desktop-catalog-actions-slot .top-page-actions > button.danger {
+  background: #ef4444 !important; color: #fff !important; border: 0 !important;
+}
+
+/* Minimized top-right page actions: compact icon-only pill bar on scroll, expands on hover or tap. */
+@media (min-width: 1500px) {
+  .desktop-catalog-actions-slot > .top-page-actions {
+    transition: transform .25s cubic-bezier(.22, 1, .36, 1), padding .2s ease, background .2s ease;
+    transform-origin: center right;
+  }
+  .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact > .top-page-actions {
+    gap: 6px; padding: 4px 6px; border-radius: 999px;
+    background: var(--ac-paper); border: 1px solid var(--ac-line);
+    box-shadow: 0 8px 24px #00000014; transform: scale(.94);
+  }
+  html body .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact .top-page-actions > button:not(.tpa-keep-wide),
+  html body .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact .top-page-actions > a {
+    width: 34px !important; min-width: 34px !important; max-width: 34px !important;
+    height: 34px !important; min-height: 34px !important;
+    padding: 0 !important; gap: 0 !important; border-radius: 999px !important;
+  }
+  html body .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact .top-page-actions .tpa-label {
+    position: absolute !important; width: 1px !important; height: 1px !important;
+    padding: 0 !important; margin: -1px !important; overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important;
+  }
+  html body .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact .top-page-actions .tpa-date-wrap {
+    min-width: 0 !important; width: auto !important;
+  }
+  html body .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact .top-page-actions .tpa-date-wrap .atlas-dp-trigger {
+    width: 34px !important; min-width: 34px !important; max-width: 34px !important;
+    height: 34px !important; min-height: 34px !important; padding: 0 !important;
+    border-radius: 999px !important; justify-content: center !important;
+  }
+  html body .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact .top-page-actions .tpa-date-wrap .atlas-dp-value {
+    position: absolute !important; width: 1px !important; height: 1px !important;
+    padding: 0 !important; margin: -1px !important; overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) and (min-width: 1500px) {
+  .desktop-catalog-actions-slot > .top-page-actions { transition: none !important; }
+}
 
 /* A little lift on hover without affecting touch or reduced-motion users. */
 @media (min-width: 901px) and (hover: hover) and (pointer: fine) {
-  html body .ac-main-column > .ac-desktop-dock:hover { transform: scale(1.06); transform-origin: top center; }
+  html body .ac-main-column > .ac-desktop-dock:hover,
+  html body .ac-desktop-top-row > .ac-desktop-dock:hover { transform: scale(1.06); transform-origin: top center; }
 }
 @media (prefers-reduced-motion: reduce) and (min-width: 901px) {
-  html body .ac-main-column > .ac-desktop-dock:hover { transform: none; }
+  html body .ac-main-column > .ac-desktop-dock:hover,
+  html body .ac-desktop-top-row > .ac-desktop-dock:hover { transform: none; }
 }
 /* The phone employee directory retains its existing in-page alignment. */
 .employees-page--phone .top-page-actions { justify-content: flex-start; }

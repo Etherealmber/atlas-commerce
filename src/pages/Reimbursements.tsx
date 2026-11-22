@@ -1,5 +1,6 @@
 import DocumentActors from '../components/DocumentActors';
 import TopPageActions from '../components/TopPageActions';
+import { RotateCcw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
@@ -142,8 +143,9 @@ export default function Reimbursements() {
         <h1 className="sr-only">Remboursements</h1>
         <TopPageActions>
           <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
-          <button type="button" onClick={() => setShowCreate(true)}>
-            + Remboursement (WR)
+          <button type="button" title="Remboursement (WR)" onClick={() => setShowCreate(true)}>
+            <RotateCcw size={16} aria-hidden="true" />
+            <span className="tpa-label">Remboursement (WR)</span>
           </button>
         </TopPageActions>
       </div>
@@ -233,7 +235,7 @@ export default function Reimbursements() {
                   <td colSpan={6}>
                     <EmptyState
                       title="Aucun remboursement"
-                      description="Créez un avoir WR via le bouton « + Remboursement (WR) »."
+                      description="Créez un avoir WR via le bouton « Remboursement (WR) »."
                     />
                   </td>
                 </tr>

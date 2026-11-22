@@ -1,5 +1,6 @@
 import DocumentActors from '../components/DocumentActors';
 import TopPageActions from '../components/TopPageActions';
+import { Download, FileCode2, FileDown, Pencil, Printer, ReceiptText, ScrollText } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { whatsAppDraft } from '../lib/assist';
 import { useParams, Link, Navigate } from 'react-router-dom';
@@ -267,13 +268,15 @@ export default function InvoiceDetail() {
         <TopPageActions>
           <a
             className="btn secondary"
+            title="Imprimer"
             href={`${BASE}/api/invoices/${invoice.id}/print?token=${encodeURIComponent(getToken() || '')}`}
             onClick={(e) => {
 }}
             target="_blank"
             rel="noreferrer"
           >
-            Imprimer
+            <Printer size={16} aria-hidden="true" />
+            <span className="tpa-label">Imprimer</span>
           </a>
           <a
             className="btn secondary"
@@ -284,7 +287,8 @@ export default function InvoiceDetail() {
             rel="noreferrer"
             title="Même mise en page que Imprimer — choisissez « Enregistrer au format PDF » dans la boîte d'impression"
           >
-            PDF
+            <FileDown size={16} aria-hidden="true" />
+            <span className="tpa-label">PDF</span>
           </a>
           <button
             type="button"
@@ -299,7 +303,8 @@ export default function InvoiceDetail() {
               }
             }}
           >
-            Imprimer ticket
+            <ReceiptText size={16} aria-hidden="true" />
+            <span className="tpa-label">Imprimer ticket</span>
           </button>
           <button
             type="button"
@@ -314,7 +319,8 @@ export default function InvoiceDetail() {
               }
             }}
           >
-            Télécharger ticket
+            <Download size={16} aria-hidden="true" />
+            <span className="tpa-label">Télécharger ticket</span>
           </button>
           <button
             type="button"
@@ -329,21 +335,25 @@ export default function InvoiceDetail() {
               }
             }}
           >
-            Ticket 80mm
+            <ScrollText size={16} aria-hidden="true" />
+            <span className="tpa-label">Ticket 80mm</span>
           </button>
           {invoice.status !== 'quote' && invoice.status !== 'devis' && (
             <a
               className="btn secondary"
+              title="Export UBL XML"
               href={`${BASE}/api/invoices/${invoice.id}/ubl?token=${encodeURIComponent(getToken() || '')}`}
               target="_blank"
               rel="noreferrer"
             >
-              Export UBL XML
+              <FileCode2 size={16} aria-hidden="true" />
+              <span className="tpa-label">Export UBL XML</span>
             </a>
           )}
           {canEditLines && !editingLines && (
-            <button type="button" onClick={startEditLines}>
-              Modifier lignes & promo
+            <button type="button" title="Modifier lignes & promo" onClick={startEditLines}>
+              <Pencil size={16} aria-hidden="true" />
+              <span className="tpa-label">Modifier lignes &amp; promo</span>
             </button>
           )}
         </TopPageActions>

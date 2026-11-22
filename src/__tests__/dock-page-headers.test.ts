@@ -11,6 +11,7 @@ import Invoices from '../pages/Invoices';
 import Reimbursements from '../pages/Reimbursements';
 import Receipts from '../pages/Receipts';
 import Vendors from '../pages/Vendors';
+import Clients from '../pages/Clients';
 import Bills from '../pages/Bills';
 import Balance from '../pages/Balance';
 import Reports from '../pages/Reports';
@@ -35,6 +36,7 @@ it.each([
   [Quotes,'/quotes','Devis'], [QuickSale,'/quick-sale','Vente rapide'],
   [Invoices,'/invoices','Factures de vente'], [Reimbursements,'/reimbursements','Remboursements'],
   [Receipts,'/receipts','Reçus'], [Vendors,'/vendors','Fournisseurs'],
+  [Clients,'/clients','Clients'],
   [Bills,'/bills',"Factures d'achat"], [Balance,'/balance','Solde & mouvements'],
   [Reports,'/reports','Rapports & clôture'], [InventoryOps,'/inventory-ops','Opérations stock'],
 ])('retains the accessible heading and dock title for %s', async (Page,path,title) => {
@@ -59,7 +61,7 @@ it('removes the supplier reference panel without requesting or changing its data
 it.each([
   [Quotes,'/quotes'], [QuickSale,'/quick-sale'], [Invoices,'/invoices'],
   [Reimbursements,'/reimbursements'], [Receipts,'/receipts'], [Vendors,'/vendors'],
-  [Bills,'/bills'], [Balance,'/balance'],
+  [Clients,'/clients'], [Bills,'/bills'], [Balance,'/balance'],
 ])('puts the page actions in the top slot for %s when there is room', async (Page,path) => {
   const column=document.createElement('div'); column.className='ac-main-column';
   const slot=document.createElement('div'); slot.id='desktop-catalog-actions';
@@ -72,6 +74,9 @@ it.each([
   });
   await act(async () => root.render(createElement(MemoryRouter,{initialEntries:[path]},createElement(Page))));
   expect(slot.querySelector('[aria-label="Actualiser"]')).not.toBeNull();
+  for (const el of slot.querySelectorAll('.top-page-actions > button, .top-page-actions > a')) {
+    expect(el.querySelector('svg')).not.toBeNull();
+  }
   expect(host.querySelector('.dock-page-header [data-docked="true"]')).not.toBeNull();
   expect(host.querySelector('.dock-page-header .dock-page-actions')).toBeNull();
   await act(async () => slot.querySelector<HTMLButtonElement>('[aria-label="Actualiser"]')!.click());

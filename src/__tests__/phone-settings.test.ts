@@ -30,7 +30,7 @@ it('opens the complete version history with platform badges and desktop category
   await act(async () => root.render(createElement(MemoryRouter, { initialEntries: ['/m/settings'] }, createElement(Routes, null, createElement(Route, { path: '/m/settings', element: settings }), createElement(Route, { path: '/m/settings/whats-new', element: createElement(PhoneWhatsNew) })) )));
   await act(async () => [...host.querySelectorAll('button')].find(b => b.textContent?.includes('Nouveautés des versions'))!.click());
   expect(host.textContent).toContain('Atlas Commerce 0.9.1');
-  expect(host.textContent).toContain('20 octobre 2026');
+  expect(host.textContent).toContain('22 novembre 2026');
   expect(host.textContent).toContain('Produits sur mobile et PC');
   expect(host.textContent).toContain('Rapports mobiles');
   expect(host.textContent).toContain('API de suivi en lecture seule : demandes de stock personnelles');

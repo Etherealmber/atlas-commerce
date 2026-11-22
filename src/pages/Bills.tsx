@@ -1,5 +1,6 @@
 import DocumentActors from '../components/DocumentActors';
 import TopPageActions from '../components/TopPageActions';
+import { FileDown, Plus } from 'lucide-react';
 import { TimedUndoDelete } from '../components/ui';
 import { useEffect, useState } from 'react';
 import DatePicker from '../components/DatePicker';
@@ -19,8 +20,14 @@ import { validateBillForm, firstError } from '../lib/formValidate';
 import { PAYMENT_METHODS, paymentMethodLabel } from '../lib/money';
 import RefreshIconButton from '../components/RefreshIconButton';
 import { FloatingPortal } from '../components/FloatingPortal';
-import { useWizard, StepBody, WizardFoot } from '../components/ui/FormWizard';
+import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
 import { ModalFormError, FieldHint } from '../components/ModalFormFeedback';
+
+const BILL_STEPS: readonly WizardStepDef[] = [
+  { id: 'vendor', label: 'Fournisseur', hint: 'Scanner une facture ou renseigner le fournisseur.' },
+  { id: 'items', label: 'Articles', hint: 'Lignes d’achat et coût unitaire pour le stock.' },
+  { id: 'notes', label: 'Notes & validation', hint: 'Remarques complémentaires et validation finale.' },
+];
 
 const fmt = (n: number) => Math.round(Number(n || 0)).toLocaleString('fr-FR');
 
@@ -337,8 +344,8 @@ export default function Bills() {
               onConfirm={() => openDelete()}
             />
           )}
-          <button className="secondary" onClick={() => openReport('/api/reports/payables')}>PDF Dettes</button>
-          <button onClick={() => { setModalError(''); setShowModal(true); }}>+ Nouvelle facture d'achat</button>
+          <button className="secondary" title="PDF Dettes" onClick={() => openReport('/api/reports/payables')}><FileDown size={16} aria-hidden="true" /><span className="tpa-label">PDF Dettes</span></button>
+          <button title="Nouvelle facture d'achat" onClick={() => { setModalError(''); setShowModal(true); }}><Plus size={16} aria-hidden="true" /><span className="tpa-label">Nouvelle facture d&apos;achat</span></button>
         </TopPageActions>
       </div>
 
@@ -469,12 +476,16 @@ export default function Bills() {
       </div>
 
       {showModal && (
-        <FloatingPortal><div className="modal-overlay" onClick={() => { setShowModal(false); wz.reset(); }}>
-          <div className="modal" style={{ maxWidth: 1080, width: '96vw' }} onClick={(e) => e.stopPropagation()}>
-            <h2>Nouvelle facture d'achat</h2>
+        <FloatingPortal><div className="modal-overlay" onClick={() => { setShowModal(false); setModalError(''); setFieldErrors({}); wz.reset(); }}>
+          <div className="modal step-wizard step-wizard--wide" role="dialog" aria-modal="true" aria-labelledby="bill-wizard-title" onClick={(e) => e.stopPropagation()}>
+            <WizardHeader eyebrow="ACHAT FOURNISSEUR" title="Nouvelle facture d'achat" titleId="bill-wizard-title" wz={wz} steps={BILL_STEPS} />
+            <div className="step-wizard__body">
+            <WizardIntro step={BILL_STEPS[wz.step - 1]} />
 
+            <StepBody active={wz.step === 1}>
             <label
               className="dropzone"
+              style={{ padding: '10px 14px', marginBottom: 8 }}
               onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
               onDrop={(e) => {
                 e.preventDefault();
@@ -484,7 +495,7 @@ export default function Bills() {
             >
               <span className="dropzone-ico" aria-hidden>📷</span>
               <span className="dropzone-title">Scanner une facture (OCR) — image ou PDF</span>
-              <span className="dropzone-hint">Glissez un fichier ici ou cliquez pour parcourir</span>
+              <span className="dropzone-hint">Glissez un fichier ici ou cliquez pour pré-remplir</span>
               <input
                 type="file"
                 accept="image/*,application/pdf"
@@ -498,42 +509,35 @@ export default function Bills() {
               />
               {ocrBusy && <span className="dropzone-busy">Extraction en cours…</span>}
             </label>
-            <p className="dropzone-note">
-              Fournisseur, date, numéro, lignes et total sont pré-remplis — rien n'est enregistré sans votre validation.
-            </p>
-
-            <StepBody active={wz.step === 1}>
-            <div className="form-row">
-              <label>Fournisseur enregistré</label>
-              <TypeaheadField
-                value={vendorName}
-                placeholder="Rechercher un fournisseur (nom, ICE)…"
-                options={partyTypeaheadOptions(vendors, 'vendor')}
-                onChange={(v) => {
-                  setVendorName(v);
-                  setVendorId('');
-                  setFieldErrors((x) => ({ ...x, vendor_name: '' }));
-                }}
-                onPick={(o) => selectVendor(Number(o.id))}
-                emptyLabel="Aucun fournisseur"
-              />
-            </div>
 
             <div className="grid grid-2">
-              <div className="form-row"><label>Nom du fournisseur *</label><input className={fieldErrors.vendor_name ? 'field-error' : undefined} value={vendorName} onChange={(e) => { setVendorName(e.target.value); setFieldErrors((x) => ({ ...x, vendor_name: '' })); }} placeholder="Ex. Ciments du Maroc" /><span className="field-error-msg">{fieldErrors.vendor_name || ''}</span></div>
-              <div className="form-row"><label>ICE / Identifiant fournisseur</label><input value={vendorIce} onChange={(e) => setVendorIce(e.target.value)} /></div>
-            </div>
-            <div className="grid grid-2">
-              <div className="form-row"><label>Adresse</label><input value={vendorAddress} onChange={(e) => setVendorAddress(e.target.value)} /></div>
+              <div className="form-row">
+                <label>Fournisseur enregistré</label>
+                <TypeaheadField
+                  value={vendorName}
+                  placeholder="Rechercher un fournisseur (nom, ICE)…"
+                  options={partyTypeaheadOptions(vendors, 'vendor')}
+                  onChange={(v) => {
+                    setVendorName(v);
+                    setVendorId('');
+                    setFieldErrors((x) => ({ ...x, vendor_name: '' }));
+                    if (modalError) setModalError('');
+                  }}
+                  onPick={(o) => { selectVendor(Number(o.id)); if (modalError) setModalError(''); }}
+                  emptyLabel="Aucun fournisseur"
+                />
+              </div>
               <div className="form-row"><label>Date d'émission</label><DatePicker value={issueDate} onChange={setIssueDate} /></div>
+            </div>
+
+            <div className="grid grid-3">
+              <div className="form-row"><label>Nom du fournisseur *</label><input className={fieldErrors.vendor_name ? 'field-error' : undefined} value={vendorName} onChange={(e) => { setVendorName(e.target.value); setFieldErrors((x) => ({ ...x, vendor_name: '' })); if (modalError) setModalError(''); }} placeholder="Ex. Ciments du Maroc" /><span className="field-error-msg">{fieldErrors.vendor_name || ''}</span></div>
+              <div className="form-row"><label>ICE / Identifiant</label><input value={vendorIce} onChange={(e) => setVendorIce(e.target.value)} /></div>
+              <div className="form-row"><label>Adresse</label><input value={vendorAddress} onChange={(e) => setVendorAddress(e.target.value)} /></div>
             </div>
 
             </StepBody>
             <StepBody active={wz.step === 2}>
-            <h3 style={{ margin: '16px 0 8px', fontSize: 14 }}>Articles — stock à la réception</h3>
-            <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10, lineHeight: 1.4 }}>
-              Choisissez un produit (recherche), le <strong>prix d&apos;achat</strong> se remplit si le coût catalogue existe. Vous pouvez le modifier librement.
-            </p>
             <div
               style={{
                 display: 'grid',
@@ -579,6 +583,7 @@ export default function Bills() {
                       onChange={(v) => {
                         updateLine(idx, 'product_name', v);
                         updateLine(idx, 'product_id', undefined);
+                        if (modalError) setModalError('');
                       }}
                       onPick={(o) => {
                         const prod = products.find((x) => String(x.id) === String(o.id));
@@ -587,13 +592,14 @@ export default function Bills() {
                         updateLine(idx, 'product_name', prod.name || '');
                         updateLine(idx, 'unit_cost', Number(prod.cost || prod.cost_price || prod.price || 0));
                         if (prod.sku) updateLine(idx, 'sku', prod.sku);
+                        if (modalError) setModalError('');
                       }}
                       emptyLabel="Aucun produit"
                     />
                     <input
                       placeholder="Désignation *"
                       value={item.product_name}
-                      onChange={(e) => updateLine(idx, 'product_name', e.target.value)}
+                      onChange={(e) => { updateLine(idx, 'product_name', e.target.value); if (modalError) setModalError(''); }}
                     />
                     <NumberField value={item.quantity} onValueChange={(n) => updateLine(idx, 'quantity', n)} min={0.01} step="0.01" title="Quantité" />
                     <NumberField value={item.unit_cost} onValueChange={(n) => updateLine(idx, 'unit_cost', n)} min={0} step="0.01" title="Prix d’achat" />
@@ -625,26 +631,42 @@ export default function Bills() {
                 </div>
               );
             })}
-            <div style={{ fontSize: 14, fontWeight: 700, textAlign: 'right', marginBottom: 12 }}>
-              Total estimé : {items.reduce((s, it) => s + Number(it.quantity || 0) * Number(it.unit_cost || 0), 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} DH
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <button type="button" className="secondary" onClick={() => setItems([...items, { product_name: '', quantity: 1, unit_cost: 0 }])}>
+                + Ajouter une ligne
+              </button>
+              <span style={{ fontSize: 14, fontWeight: 700 }}>
+                Total estimé : {items.reduce((s, it) => s + Number(it.quantity || 0) * Number(it.unit_cost || 0), 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} DH
+              </span>
             </div>
-            <button type="button" className="secondary" onClick={() => setItems([...items, { product_name: '', quantity: 1, unit_cost: 0 }])} style={{ marginBottom: 16 }}>
-              + Ajouter une ligne
-            </button>
-            <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 0 }}>
-              Prix d’achat libre. Le coût catalogue est recalculé en moyenne pondérée à la réception (ancien stock × ancien coût + nouvel achat).
-            </p>
 
             </StepBody>
             <StepBody active={wz.step === 3}>
-            <div className="form-row"><label>Notes</label><textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
+            <div className="form-row"><label>Notes</label><textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
             </StepBody>
             <ModalFormError message={modalError || firstError(fieldErrors)} />
+            </div>
             <WizardFoot
               title="Nouvelle facture d'achat"
               wz={wz}
-              stepLabel={wz.step === 1 ? 'Fournisseur' : wz.step === 2 ? 'Articles' : 'Notes & validation'}
-              onCancel={() => { setShowModal(false); wz.reset(); }}
+              stepLabel={BILL_STEPS[wz.step - 1].label}
+              onCancel={() => { setShowModal(false); setModalError(''); setFieldErrors({}); wz.reset(); }}
+              onBack={() => { setModalError(''); setFieldErrors({}); }}
+              onNext={() => {
+                if (wz.step === 1 && !vendorName.trim()) {
+                  setFieldErrors({ vendor_name: 'Le nom du fournisseur est obligatoire.' });
+                  setModalError('Le nom du fournisseur est obligatoire.');
+                  return false;
+                }
+                if (wz.step === 2 && !items.some((it) => String(it.product_name || '').trim() && Number(it.quantity) > 0)) {
+                  setFieldErrors({ items: "Ajoutez au moins une ligne d'achat." });
+                  setModalError("Ajoutez au moins une ligne d'achat avec une quantité > 0.");
+                  return false;
+                }
+                setFieldErrors({});
+                setModalError('');
+                return true;
+              }}
               onSubmit={() => void create()}
               submitLabel={saving ? 'Enregistrement…' : 'Créer et enregistrer'}
               saving={saving}

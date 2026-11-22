@@ -67,6 +67,27 @@ it('does not show the removed search in the desktop dock while keeping its other
     await act(async () => window.dispatchEvent(new Event('scroll')));
     expect(dock.classList.contains('ac-topbar--compact')).toBe(false);
     await act(async () => dock.dispatchEvent(new PointerEvent('pointerout', { bubbles: true, pointerType: 'mouse' })));
+    expect(dock.classList.contains('ac-topbar--compact')).toBe(true);
+
+    // Hover then tap keeps the dock expanded even after pointer leaves.
+    await act(async () => dock.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, pointerType: 'mouse' })));
+    expect(dock.classList.contains('ac-topbar--compact')).toBe(false);
+    await act(async () => title.click());
+    await act(async () => dock.dispatchEvent(new PointerEvent('pointerout', { bubbles: true, pointerType: 'mouse' })));
+    expect(dock.classList.contains('ac-topbar--compact')).toBe(false);
+
+    // Top-right page actions mirror the compact / hover / leave-unless-tapped lifecycle.
+    const actionsSlot = host.querySelector<HTMLElement>('#desktop-catalog-actions')!;
+    expect(actionsSlot.classList.contains('desktop-catalog-actions-slot--compact')).toBe(true);
+    await act(async () => actionsSlot.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, pointerType: 'mouse' })));
+    expect(actionsSlot.classList.contains('desktop-catalog-actions-slot--compact')).toBe(false);
+    await act(async () => actionsSlot.dispatchEvent(new PointerEvent('pointerout', { bubbles: true, pointerType: 'mouse' })));
+    expect(actionsSlot.classList.contains('desktop-catalog-actions-slot--compact')).toBe(true);
+    await act(async () => actionsSlot.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, pointerType: 'mouse' })));
+    await act(async () => actionsSlot.click());
+    await act(async () => actionsSlot.dispatchEvent(new PointerEvent('pointerout', { bubbles: true, pointerType: 'mouse' })));
+    expect(actionsSlot.classList.contains('desktop-catalog-actions-slot--compact')).toBe(false);
+
     clock.mockRestore();
     await act(async () => host.querySelector<HTMLAnchorElement>('aside.sidebar a[href="/products"]')!.click());
     expect(host.querySelector('.ac-desktop-dock')?.classList.contains('ac-topbar--compact')).toBe(false);

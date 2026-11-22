@@ -5,7 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import PhoneProductCreate from '../mobile/PhoneProductCreate';
 import { api } from '../api';
 let host: HTMLDivElement; let root: Root;
-beforeEach(() => { (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true; host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host); localStorage.setItem('stock_role', 'owner'); });
+beforeEach(() => { (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true; host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host); localStorage.setItem('stock_role', 'owner'); vi.spyOn(api, 'getUnits').mockResolvedValue({ data: [] }); });
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); localStorage.removeItem('stock_role'); vi.restoreAllMocks(); });
 async function render(done = vi.fn()) { await act(async () => root.render(createElement(PhoneProductCreate, { onClose: vi.fn(), onCreated: done }))); return done; }
 function form() { return document.querySelector<HTMLFormElement>('.ph-create-form')!; }
@@ -43,8 +43,12 @@ it('includes an optional carton-to-area conversion in a price-free request', asy
   localStorage.setItem('stock_role', 'stock');
   const request = vi.spyOn(api, 'createMobileAction').mockResolvedValue({ data: {} } as any);
   await render(); fill();
-  form().querySelector<HTMLInputElement>('[name="unit"]')!.value = 'carton';
-  form().querySelector<HTMLInputElement>('[name="secondary_unit"]')!.value = 'm²';
+  const unitSelect = form().querySelector<HTMLSelectElement>('[name="unit"]')!;
+  const secondSelect = form().querySelector<HTMLSelectElement>('[name="secondary_unit"]')!;
+  expect(unitSelect.tagName).toBe('SELECT');
+  expect(secondSelect.tagName).toBe('SELECT');
+  unitSelect.value = 'carton';
+  secondSelect.value = 'm²';
   form().querySelector<HTMLInputElement>('[name="secondary_unit_factor"]')!.value = '1,59';
   await submit();
   const body = (request.mock.calls[0][0] as any).meta.create_product_body;

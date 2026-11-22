@@ -14,7 +14,7 @@ export default function TopPageActions({ children, enabled = true }: { children:
     const actions = actionsRef.current;
     if (!actions) return;
     const slot = document.getElementById('desktop-catalog-actions');
-    const column = slot?.parentElement;
+    const column = slot?.closest('.ac-main-column') || slot?.parentElement;
     const dock = column?.querySelector<HTMLElement>('.ac-desktop-dock');
     const update = () => {
       let next: HTMLElement | null = null;
@@ -27,9 +27,8 @@ export default function TopPageActions({ children, enabled = true }: { children:
           return total + Math.max(item.getBoundingClientRect().width, item.scrollWidth)
             + (parseFloat(style.marginLeft) || 0) + (parseFloat(style.marginRight) || 0);
         }, 0) + Math.max(0, visible.length - 1) * gap;
-        // A portalled button can be styled slightly differently from one inside
-        // .content. Keep the larger measurement to avoid bouncing between the
-        // two positions at a tight breakpoint; reset when the controls change.
+        // Keep the larger measurement to avoid bouncing on dynamic label updates;
+        // reset when the controls change.
         const signature = visible.map(item => `${item.tagName}:${item.textContent}:${item.getAttribute('aria-label') || ''}`).join('|');
         if (widthHistory.current.signature !== signature) widthHistory.current = { signature, maximum: 0 };
         widthHistory.current.maximum = Math.max(widthHistory.current.maximum, needed);
@@ -37,7 +36,8 @@ export default function TopPageActions({ children, enabled = true }: { children:
         // Reserve enough space for the expanded dock, including its hover scale.
         const dockWidth = Math.max(480, dock.getBoundingClientRect().width * 1.08);
         const available = columnWidth / 2 - dockWidth / 2 - 40;
-        if (needed > 0 && columnWidth > 0 && widthHistory.current.maximum <= available) next = slot;
+        // Dock whenever there is enough room for the action strip; overflow scrolls horizontally inside the slot.
+        if (needed > 0 && columnWidth > 0 && available >= 220) next = slot;
       }
       // Do not move a focused control out from under the keyboard user.
       if (next !== target && actions.contains(document.activeElement)) return;

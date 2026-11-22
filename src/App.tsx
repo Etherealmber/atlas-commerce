@@ -569,8 +569,6 @@ function AboutRoute() {
       <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
         <About />
       </Suspense>
-      {/* v0.7.7 — même recherche globale que la page Paramètres */}
-      <GlobalSearchPanel />
     </div>
   );
 }
@@ -587,8 +585,6 @@ function WhatsNewRoute() {
       <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
         <WhatsNew />
       </Suspense>
-      {/* v0.7.7 — même recherche globale que la page Paramètres */}
-      <GlobalSearchPanel />
     </div>
   );
 }
@@ -847,40 +843,85 @@ function DesktopShell() {
   const dockExpansionUntil = useRef(0);
   const desktopDockTitleRef = useRef<HTMLButtonElement>(null);
   const dockHovered = useRef(false);
+  const dockHoverExpanded = useRef(false);
+
+  const [actionsCompact, setActionsCompact] = useState(false);
+  const actionsCompactRef = useRef(false);
+  const actionsExpansionUntil = useRef(0);
+  const actionsHovered = useRef(false);
+  const actionsHoverExpanded = useRef(false);
+  const actionsSlotRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     // Start each page expanded; retain hysteresis once the user scrolls.
     setSettingsBarCompact(false);
     compactRef.current = false;
     dockHovered.current = false;
+    dockHoverExpanded.current = false;
     dockExpansionUntil.current = 0;
+
+    setActionsCompact(false);
+    actionsCompactRef.current = false;
+    actionsHovered.current = false;
+    actionsHoverExpanded.current = false;
+    actionsExpansionUntil.current = 0;
+
     let last = window.scrollY;
-    let acc = 0;
+    let dockAcc = 0;
+    let actionsAcc = 0;
     const onScroll = () => {
       const y = window.scrollY;
       const d = y - last;
       last = y;
       if (y <= 60) {
-        acc = 0;
-        if (compactRef.current) { compactRef.current = false; setSettingsBarCompact(false); }
+        dockAcc = 0;
+        actionsAcc = 0;
+        if (compactRef.current) { compactRef.current = false; dockHoverExpanded.current = false; setSettingsBarCompact(false); }
+        if (actionsCompactRef.current) { actionsCompactRef.current = false; actionsHoverExpanded.current = false; setActionsCompact(false); }
         return;
       }
-      if (dockHovered.current || Date.now() < dockExpansionUntil.current || document.querySelector('.ac-desktop-dock .ac-topbar-user-btn[aria-expanded="true"], .ac-desktop-dock .ac-topbar-bell[aria-expanded="true"]')) { acc = 0; return; }
+      const dockLocked = dockHovered.current || Date.now() < dockExpansionUntil.current || !!document.querySelector('.ac-desktop-dock .ac-topbar-user-btn[aria-expanded="true"], .ac-desktop-dock .ac-topbar-bell[aria-expanded="true"]');
+      const actionsLocked = actionsHovered.current || Date.now() < actionsExpansionUntil.current || !!(actionsSlotRef.current && document.activeElement && actionsSlotRef.current.contains(document.activeElement));
+
       if (d > 0) {
-        acc = acc > 0 ? acc + d : d;
-        if (!compactRef.current && y > 140 && acc > 48) {
-          if (document.activeElement?.closest('.ac-desktop-dock .ac-topbar-right')) desktopDockTitleRef.current?.focus();
-          compactRef.current = true; setSettingsBarCompact(true);
+        if (dockLocked) dockAcc = 0;
+        else {
+          dockAcc = dockAcc > 0 ? dockAcc + d : d;
+          if (!compactRef.current && y > 140 && dockAcc > 48) {
+            if (document.activeElement?.closest('.ac-desktop-dock .ac-topbar-right')) desktopDockTitleRef.current?.focus();
+            dockHoverExpanded.current = false;
+            compactRef.current = true; setSettingsBarCompact(true);
+          }
+        }
+        if (actionsLocked) actionsAcc = 0;
+        else {
+          actionsAcc = actionsAcc > 0 ? actionsAcc + d : d;
+          if (!actionsCompactRef.current && y > 140 && actionsAcc > 48) {
+            actionsHoverExpanded.current = false;
+            actionsCompactRef.current = true; setActionsCompact(true);
+          }
         }
       } else if (d < 0) {
-        acc = acc < 0 ? acc + d : d;
-        if (compactRef.current && acc < -48) { compactRef.current = false; setSettingsBarCompact(false); }
+        dockAcc = dockAcc < 0 ? dockAcc + d : d;
+        actionsAcc = actionsAcc < 0 ? actionsAcc + d : d;
+        if (compactRef.current && dockAcc < -48) { compactRef.current = false; dockHoverExpanded.current = false; setSettingsBarCompact(false); }
+        if (actionsCompactRef.current && actionsAcc < -48) { actionsCompactRef.current = false; actionsHoverExpanded.current = false; setActionsCompact(false); }
       }
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, [location.pathname]);
 
+  useEffect(() => {
+    if (!shellNotifOpen && !shellUserOpen && !dockHovered.current && dockHoverExpanded.current) {
+      dockHoverExpanded.current = false;
+      compactRef.current = true;
+      setSettingsBarCompact(true);
+    }
+  }, [shellNotifOpen, shellUserOpen]);
+
   const expandDesktopDock = () => {
+    dockHoverExpanded.current = false;
     compactRef.current = false;
     dockExpansionUntil.current = Date.now() + 400;
     setSettingsBarCompact(false);
@@ -1214,11 +1255,63 @@ function DesktopShell() {
         )}
 
         <div className="ac-main-column">
-        {!isFocusRoute && <div id="desktop-catalog-actions" className="desktop-catalog-actions-slot" />}
         {!isFocusRoute && (
+        <div className="ac-desktop-top-row">
+        <div
+          ref={actionsSlotRef}
+          id="desktop-catalog-actions"
+          className={`desktop-catalog-actions-slot${actionsCompact ? ' desktop-catalog-actions-slot--compact' : ''}`}
+          data-compact={actionsCompact ? 'true' : 'false'}
+          onPointerEnter={(event) => {
+            if (event.pointerType === 'mouse') {
+              actionsHovered.current = true;
+              if (actionsCompactRef.current) {
+                actionsHoverExpanded.current = true;
+                actionsCompactRef.current = false;
+                setActionsCompact(false);
+              }
+            }
+          }}
+          onPointerLeave={(event) => {
+            if (event.pointerType === 'mouse') {
+              actionsHovered.current = false;
+              if (actionsHoverExpanded.current && !actionsSlotRef.current?.contains(document.activeElement)) {
+                actionsHoverExpanded.current = false;
+                actionsCompactRef.current = true;
+                setActionsCompact(true);
+              }
+            }
+          }}
+          onClick={() => {
+            if (actionsHoverExpanded.current || actionsCompactRef.current) {
+              actionsHoverExpanded.current = false;
+              actionsCompactRef.current = false;
+              actionsExpansionUntil.current = Date.now() + 400;
+              setActionsCompact(false);
+            }
+          }}
+        />
         <header className={`ac-topbar ac-topbar--bionis ac-desktop-dock${settingsBarCompact && !shellNotifOpen && !shellUserOpen ? ' ac-topbar--compact' : ''}`} role="banner"
-          onPointerEnter={(event) => { if (event.pointerType === 'mouse') { dockHovered.current = true; expandDesktopDock(); } }}
-          onPointerLeave={(event) => { if (event.pointerType === 'mouse') dockHovered.current = false; }}>
+          onPointerEnter={(event) => {
+            if (event.pointerType === 'mouse') {
+              dockHovered.current = true;
+              if (compactRef.current) {
+                dockHoverExpanded.current = true;
+                compactRef.current = false;
+                setSettingsBarCompact(false);
+              }
+            }
+          }}
+          onPointerLeave={(event) => {
+            if (event.pointerType === 'mouse') {
+              dockHovered.current = false;
+              if (dockHoverExpanded.current && !shellNotifOpen && !shellUserOpen) {
+                dockHoverExpanded.current = false;
+                compactRef.current = true;
+                setSettingsBarCompact(true);
+              }
+            }
+          }}>
           <div className="ac-topbar-left">
             {!settingsBarCompact && <button
               type="button"
@@ -1364,6 +1457,7 @@ function DesktopShell() {
             />
           </div>}
         </header>
+        </div>
         )}
 
       {isFocusRoute && (

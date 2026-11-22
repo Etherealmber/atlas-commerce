@@ -41,7 +41,8 @@ html body .ac-products .desktop-product-actions .ac-timed-delete svg * { stroke:
 
 /* Keep selection independent of the dock and center the card contents. */
 html body .ac-products .product-selection-bar { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 10px; margin: 0 0 16px; padding: 10px; border: 1px solid var(--border, #e2e8f0); border-radius: 14px; background: var(--card, #fff); }
-html body .ac-products .desktop-product-result-count { text-align: center; }
+html body .ac-products .ac-products-table-panel--grid .desktop-product-result-count { text-align: center; }
+html body .ac-products .desktop-product-select-all { display: flex; width: fit-content; align-items: center; justify-content: center; gap: 8px; margin: 0 auto 12px; cursor: pointer; }
 html body .ac-products .desktop-product-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 260px)); justify-content: center; }
 html body .ac-products .desktop-product-card-link { text-align: center; justify-items: center; }
 html body .ac-products .desktop-product-chips, html body .ac-products .desktop-product-actions { justify-content: center; }

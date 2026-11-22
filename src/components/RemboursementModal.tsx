@@ -1,5 +1,5 @@
 import { FloatingPortal } from './FloatingPortal';
-import { useWizard, StepBody, WizardFoot } from './ui/FormWizard';
+import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from './ui/FormWizard';
 import { ModalFormError, FieldHint } from './ModalFormFeedback';
 import { useEffect, useState } from 'react';
 import { api } from '../api';
@@ -16,6 +16,11 @@ type Props = {
   /** Prefer VR tickets when opened from Quick Sale */
   preferQuickSale?: boolean;
 };
+
+const WR_STEPS: readonly WizardStepDef[] = [
+  { id: 'source', label: 'Document d’origine', hint: 'Choisissez la facture FA ou le ticket VR concerné.' },
+  { id: 'lines', label: 'Lignes & motif', hint: 'Quantités remboursées, retour en stock et explication.' },
+];
 
 const REASON_CODES = [
   { value: 'error_us', label: 'Erreur de notre part' },
@@ -191,12 +196,10 @@ export default function RemboursementModal({ open, onClose, onCreated, preferQui
 
   return (
     <FloatingPortal><div className="modal-overlay" onClick={() => !saving && onClose()}>
-      <div className="modal" style={{ maxWidth: 720, width: '96vw' }} onClick={(e) => e.stopPropagation()}>
-        <h2 style={{ marginTop: 0 }}>Créer un remboursement (WR)</h2>
-        <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 12 }}>
-          Choisissez une facture ou un ticket VR, les quantités, le motif, et pour chaque ligne si l’article revient
-          en stock (par défaut oui).
-        </p>
+      <div className="modal step-wizard" role="dialog" aria-modal="true" aria-labelledby="wr-wizard-title" onClick={(e) => e.stopPropagation()}>
+        <WizardHeader eyebrow="AVOIR / RETOUR" title="Créer un remboursement (WR)" titleId="wr-wizard-title" wz={wz} steps={WR_STEPS} />
+        <div className="step-wizard__body">
+        <WizardIntro step={WR_STEPS[wz.step - 1]} />
         <StepBody active={wz.step === 1}>
         <div
           className="modal-note modal-note--warn"
@@ -208,10 +211,6 @@ export default function RemboursementModal({ open, onClose, onCreated, preferQui
           notre part, article défectueux, mauvais article, quantité manquante, dommage transport.
         </div>
 
-        {err && (
-          <p style={{ color: 'var(--bad)', fontSize: 13, marginBottom: 8 }}>{err}</p>
-        )}
-
         <div className="form-row">
           <label>Document d’origine *</label>
           <select
@@ -222,6 +221,7 @@ export default function RemboursementModal({ open, onClose, onCreated, preferQui
               setSourceId(id);
               setSource(null);
               setLines([]);
+              setErr('');
               if (!id) return;
               try {
                 const res = await api.getInvoice(id);
@@ -266,7 +266,7 @@ export default function RemboursementModal({ open, onClose, onCreated, preferQui
                 Non payé — le WR s’applique en crédit sur le reste dû (pas de sortie caisse).
               </p>
             )}
-            <h3 style={{ fontSize: 14, margin: '12px 0 8px' }}>Lignes à rembourser</h3>
+            <h3 style={{ fontSize: 14, margin: '8px 0 6px' }}>Lignes à rembourser</h3>
             <div
               style={{
                 fontSize: 11,
@@ -290,7 +290,7 @@ export default function RemboursementModal({ open, onClose, onCreated, preferQui
                   display: 'grid',
                   gridTemplateColumns: '1.2fr 56px 72px 88px 1fr',
                   gap: 6,
-                  marginBottom: 10,
+                  marginBottom: 8,
                   alignItems: 'center',
                 }}
               >
@@ -351,9 +351,10 @@ export default function RemboursementModal({ open, onClose, onCreated, preferQui
           </>
         )}
 
+        <div className="grid grid-2">
         <div className="form-row">
           <label>Motif *</label>
-          <select value={reasonCode} onChange={(e) => setReasonCode(e.target.value)} disabled={saving}>
+          <select value={reasonCode} onChange={(e) => { setReasonCode(e.target.value); if (err) setErr(''); }} disabled={saving}>
             <option value="">— Choisir —</option>
             {REASON_CODES.map((r) => (
               <option key={r.value} value={r.value}>
@@ -363,17 +364,7 @@ export default function RemboursementModal({ open, onClose, onCreated, preferQui
           </select>
         </div>
         <div className="form-row">
-          <label>Explication détaillée *</label>
-          <textarea
-            rows={3}
-            value={reasonDetail}
-            onChange={(e) => setReasonDetail(e.target.value)}
-            disabled={saving}
-            placeholder="Min. 12 caractères — description claire du problème"
-          />
-        </div>
-        <div className="form-row">
-          <label>Mode de remboursement (obligatoire si document payé)</label>
+          <label>Mode de remboursement (si payé)</label>
           <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} disabled={saving}>
             <option value="cash">Espèces (caisse)</option>
             <option value="card">Carte</option>
@@ -382,14 +373,35 @@ export default function RemboursementModal({ open, onClose, onCreated, preferQui
             <option value="other">Autre</option>
           </select>
         </div>
+        </div>
+        <div className="form-row">
+          <label>Explication détaillée *</label>
+          <textarea
+            rows={2}
+            value={reasonDetail}
+            onChange={(e) => { setReasonDetail(e.target.value); if (err) setErr(''); }}
+            disabled={saving}
+            placeholder="Min. 12 caractères — description claire du problème"
+          />
+        </div>
 
         </StepBody>
         <ModalFormError message={err} />
+        </div>
             <WizardFoot
               title="Remboursement (WR)"
               wz={wz}
-              stepLabel={wz.step === 1 ? 'Document & motif' : 'Lignes & dispositions'}
+              stepLabel={WR_STEPS[wz.step - 1].label}
               onCancel={() => !saving && onClose()}
+              onBack={() => setErr('')}
+              onNext={() => {
+                if (wz.step === 1 && (!sourceId || !source)) {
+                  setErr('Choisissez une facture ou un ticket VR d’origine.');
+                  return false;
+                }
+                setErr('');
+                return true;
+              }}
               onSubmit={() => void submitWr()}
               submitLabel={saving ? 'Création…' : 'Créer le remboursement'}
               saving={saving}

@@ -37,7 +37,7 @@ it('guides the employee form, validates name, preserves data and uploads the sel
   expect(dialog().textContent).toContain('piece.pdf');
   await click('Retour'); expect(dialog().querySelector<HTMLInputElement>('#employee-first-name')?.value).toBe('Samira'); await click('Continuer');
   expect(dialog().textContent).toContain('piece.pdf');
-  for (const label of ['Poste','Contact','Salaire','Contrat','Détails']) { await click('Continuer'); expect(dialog().querySelector('[aria-current="step"]')?.textContent).toContain(label); }
+  for (const label of ['Social & fiscal','Poste','Contact','Salaire','Contrat','Détails']) { await click('Continuer'); expect(dialog().querySelector('[aria-current="step"]')?.textContent).toContain(label); }
   await click('Créer l’employé');
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)); });
   expect(create).toHaveBeenCalledWith(expect.objectContaining({first_name:'Samira',name:'Samira',pay_cycle_type:'monthly'}));
@@ -50,4 +50,19 @@ it('supports cancel and restarts the wizard on phone without saving', async () =
   await act(async () => [...host.querySelectorAll<HTMLButtonElement>('button')].find(b => b.textContent?.includes('Ajouter un employé'))!.click());
   expect(dialog().querySelector<HTMLInputElement>('#employee-first-name')?.value).toBe('');
   expect(dialog().querySelector('[aria-current="step"]')?.textContent).toContain('Personnel');
+});
+it('uses 8 steps and omits Fiche and Situation buttons inside the edit modal', async () => {
+  vi.spyOn(api, 'getEmployees').mockResolvedValue({
+    data: [{ id: 7, name: 'Nadia Benali', first_name: 'Nadia', last_name: 'Benali', pay_amount: 5000, pay_cycle_type: 'monthly', active: 1 }],
+  } as any);
+  await act(async () => root.render(createElement(Employees)));
+  await act(async () => { await Promise.resolve(); });
+  const editTrigger = host.querySelector<HTMLElement>('tbody [role="button"]')!;
+  expect(editTrigger).toBeTruthy();
+  await act(async () => editTrigger.click());
+  expect(dialog().querySelector('.employee-wizard__count')?.textContent?.trim()).toBe('1 / 8');
+  expect(dialog().querySelector('.wizard-foot-extra')).toBeNull();
+  const labels = [...dialog().querySelectorAll('button')].map(b => b.textContent?.trim());
+  expect(labels).not.toContain('Fiche');
+  expect(labels).not.toContain('Situation');
 });

@@ -1,4 +1,5 @@
 import TopPageActions from '../components/TopPageActions';
+import { FilePlus2, RotateCcw } from 'lucide-react';
 import { onAgentDraft } from '../lib/agentDraft';
 import { useEffect, useState } from 'react';
 import DatePicker from '../components/DatePicker';
@@ -39,7 +40,14 @@ import VirtualTableBody, { VirtualScroll } from '../components/VirtualTableBody'
 import RefreshIconButton from '../components/RefreshIconButton';
 import '../components/erp/orders-fulfillment.css';
 import { FloatingPortal } from '../components/FloatingPortal';
+import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
 import { ModalFormError, FieldHint } from '../components/ModalFormFeedback';
+
+const INVOICE_STEPS: readonly WizardStepDef[] = [
+  { id: 'client', label: 'Client', hint: 'Client, coordonnées et dates du document.' },
+  { id: 'lines', label: 'Lignes', hint: 'Articles, quantités et prix selon le mode TVA du produit.' },
+  { id: 'options', label: 'Options', hint: 'Régime TVA et notes sur le document.' },
+];
 
 export default function Invoices() {
   const navigate = useNavigate();
@@ -78,8 +86,8 @@ export default function Invoices() {
   const [dueDate, setDueDate] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
-  // Guided steps: 0 = client & dates, 1 = lines, 2 = options & notes
-  const [docStep, setDocStep] = useState(0);
+  // Guided steps: 1 = client & dates, 2 = lines, 3 = options & notes
+  const wz = useWizard(3);
   const [saveMsg, setSaveMsg] = useState('');
   const [saveMsgType, setSaveMsgType] = useState<'success' | 'error'>('success');
   const [items, setItems] = useState<{ product_id?: number; product_name: string; sku?: string; quantity: number; list_price: number; unit_price: number; product_query?: string }[]>([{ product_name: '', quantity: 1, list_price: 0, unit_price: 0, product_query: '' }]);
@@ -270,7 +278,7 @@ export default function Invoices() {
         status: docMode === 'quote' ? 'quote' : 'sent',
         tax_exempt: taxExempt,
       });
-      setModalError(''); setFieldErrors({}); setShowModal(false); resetForm();
+      setModalError(''); setFieldErrors({}); setShowModal(false); resetForm(); wz.reset();
       flash(res.message || (docMode === 'quote'
         ? 'Devis enregistré (non comptabilisé, stock non touché).'
         : 'Facture enregistrée dans la base de données avec succès.'));
@@ -463,6 +471,7 @@ export default function Invoices() {
 
           <button
             className="secondary"
+            title="Remboursement (WR)"
             style={{ borderColor: 'var(--copper, #b87333)', color: 'var(--copper-dark, #8a5520)' }}
             onClick={() => {
               setShowRefund(true);
@@ -477,9 +486,10 @@ export default function Invoices() {
                 .catch(() => setRefundSources(list));
             }}
           >
-            + Remboursement (WR)
+            <RotateCcw size={16} aria-hidden="true" />
+            <span className="tpa-label">Remboursement (WR)</span>
           </button>
-          <button onClick={() => { setDocMode('invoice'); setShowModal(true); }}>Créer une facture</button>
+          <button title="Créer une facture" onClick={() => { setDocMode('invoice'); setShowModal(true); }}><FilePlus2 size={16} aria-hidden="true" /><span className="tpa-label">Créer une facture</span></button>
         </TopPageActions>
       </div>
       {clientFilter && <p style={{ color: 'var(--muted)', fontSize: 14, marginTop: 4 }}>Filtré par client #{clientFilter}</p>}
@@ -641,59 +651,71 @@ export default function Invoices() {
       </div>
 
       {showModal && (
-        <FloatingPortal><div className="modal-overlay" onClick={() => { setModalError(''); setFieldErrors({}); setShowModal(false); resetForm(); setDocStep(0); }}>
-          <div className="modal" style={{ maxWidth: 1080, width: '96vw' }} onClick={(e) => e.stopPropagation()}>
-            <h2>{docMode === 'quote' ? 'Nouveau devis (estimation)' : 'Nouvelle facture de vente'}</h2>
+        <FloatingPortal><div className="modal-overlay" onClick={() => { setModalError(''); setFieldErrors({}); setShowModal(false); resetForm(); wz.reset(); }}>
+          <div className="modal step-wizard step-wizard--wide" role="dialog" aria-modal="true" aria-labelledby="invoice-wizard-title" onClick={(e) => e.stopPropagation()}>
+            <WizardHeader
+              eyebrow={docMode === 'quote' ? 'ESTIMATION' : 'FACTURATION'}
+              title={docMode === 'quote' ? 'Nouveau devis (estimation)' : 'Nouvelle facture de vente'}
+              titleId="invoice-wizard-title"
+              wz={wz}
+              steps={INVOICE_STEPS}
+            />
+            <div className="step-wizard__body">
+            <WizardIntro step={INVOICE_STEPS[wz.step - 1]} />
 
-
-            {docStep === 0 && (<>
-            <div className="form-row">
-              <label>Client enregistré</label>
-              <TypeaheadField
-                value={clientName}
-                placeholder="Rechercher un client…"
-                options={partyTypeaheadOptions(clients, 'client')}
-                onChange={(v) => {
-                  setClientName(v);
-                  setClientId('');
-                  setFieldErrors((x) => ({ ...x, client_name: '' }));
-                }}
-                onPick={(o) => selectClient(Number(o.id))}
-                onOpen={() => {
-                  api.getClients().then((r: any) => {
-                    if (Array.isArray(r?.data)) setClients(r.data);
-                  }).catch(() => {});
-                }}
-                emptyLabel="Aucun client"
-              />
+            <StepBody active={wz.step === 1}>
+            <div className="grid grid-3">
+              <div className="form-row">
+                <label>Client enregistré</label>
+                <TypeaheadField
+                  value={clientName}
+                  placeholder="Rechercher un client…"
+                  options={partyTypeaheadOptions(clients, 'client')}
+                  onChange={(v) => {
+                    setClientName(v);
+                    setClientId('');
+                    setFieldErrors((x) => ({ ...x, client_name: '' }));
+                    if (modalError) setModalError('');
+                  }}
+                  onPick={(o) => { selectClient(Number(o.id)); if (modalError) setModalError(''); }}
+                  onOpen={() => {
+                    api.getClients().then((r: any) => {
+                      if (Array.isArray(r?.data)) setClients(r.data);
+                    }).catch(() => {});
+                  }}
+                  emptyLabel="Aucun client"
+                />
+              </div>
+              <div className="form-row"><label>Date d'émission</label><DatePicker value={issueDate} onChange={setIssueDate} /></div>
+              <div className="form-row"><label>Date d'échéance</label><DatePicker value={dueDate} onChange={setDueDate} /></div>
             </div>
 
             <div className="grid grid-2">
-              <div className="form-row"><label>Nom du client *</label><input className={fieldErrors.client_name ? 'field-error' : undefined} value={clientName} onChange={(e) => { setClientName(e.target.value); setFieldErrors((x) => ({ ...x, client_name: '' })); }} placeholder="Nom du client" /><span className="field-error-msg">{fieldErrors.client_name || ''}</span></div>
-              {clientId ? (() => {
-                const c = clients.find((x) => Number(x.id) === Number(clientId));
-                const due = Number(c?.balance_due ?? 0);
-                const limit = Number(c?.credit_limit ?? 0);
-                const risk = clientRisk(list, clientId, clientName);
-                return (
-                  <div style={{ fontSize: 12, marginTop: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <div style={{ padding: '8px 10px', borderRadius: 8, background: 'var(--peach, #f5f2eb)', color: 'var(--ink, #141822)', border: '1px solid var(--line, #e5e0d6)' }}>
-                      {limit > 0
-                        ? `Crédit : ${Math.round(due).toLocaleString('fr-FR')} MAD ouvert / limite ${Math.round(limit).toLocaleString('fr-FR')} MAD`
-                        : due > 0.001
-                          ? `Encours ouvert : ${Math.round(due).toLocaleString('fr-FR')} MAD (pas de limite)`
-                          : 'Crédit : aucun encours · limite libre'}
-                    </div>
-                    {risk.level !== 'ok' ? (
-                      <div style={{ padding: '8px 10px', borderRadius: 8, background: risk.level === 'high' ? 'rgba(139,46,46,0.08)' : 'rgba(166,124,0,0.1)', color: risk.level === 'high' ? 'var(--bad)' : '#6b5a00' }}>
-                        {risk.message}
-                      </div>
-                    ) : null}
-                  </div>
-                );
-              })() : null}
+              <div className="form-row"><label>Nom du client *</label><input className={fieldErrors.client_name ? 'field-error' : undefined} value={clientName} onChange={(e) => { setClientName(e.target.value); setFieldErrors((x) => ({ ...x, client_name: '' })); if (modalError) setModalError(''); }} placeholder="Nom du client" /><span className="field-error-msg">{fieldErrors.client_name || ''}</span></div>
               <div className="form-row"><label>ICE / Identifiant fiscal</label><input value={clientIce} onChange={(e) => setClientIce(e.target.value)} /></div>
             </div>
+            {clientId ? (() => {
+              const c = clients.find((x) => Number(x.id) === Number(clientId));
+              const due = Number(c?.balance_due ?? 0);
+              const limit = Number(c?.credit_limit ?? 0);
+              const risk = clientRisk(list, clientId, clientName);
+              return (
+                <div style={{ fontSize: 12, marginBottom: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <div style={{ padding: '6px 10px', borderRadius: 8, background: 'var(--peach, #f5f2eb)', color: 'var(--ink, #141822)', border: '1px solid var(--line, #e5e0d6)' }}>
+                    {limit > 0
+                      ? `Crédit : ${Math.round(due).toLocaleString('fr-FR')} MAD ouvert / limite ${Math.round(limit).toLocaleString('fr-FR')} MAD`
+                      : due > 0.001
+                        ? `Encours ouvert : ${Math.round(due).toLocaleString('fr-FR')} MAD (pas de limite)`
+                        : 'Crédit : aucun encours · limite libre'}
+                  </div>
+                  {risk.level !== 'ok' ? (
+                    <div style={{ padding: '6px 10px', borderRadius: 8, background: risk.level === 'high' ? 'rgba(139,46,46,0.08)' : 'rgba(166,124,0,0.1)', color: risk.level === 'high' ? 'var(--bad)' : '#6b5a00' }}>
+                      {risk.message}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })() : null}
             <div className="grid grid-2">
               <div className="form-row"><label>Adresse</label><input value={clientAddress} onChange={(e) => setClientAddress(e.target.value)} /></div>
               <div className="form-row"><label>Ville</label><input value={clientCity} onChange={(e) => setClientCity(e.target.value)} /></div>
@@ -702,27 +724,10 @@ export default function Invoices() {
               <div className="form-row"><label>E-mail</label><input type="email" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} /></div>
               <div className="form-row"><label>Téléphone</label><input value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} /></div>
             </div>
-            <div className="grid grid-2">
-              <div className="form-row"><label>Date d'émission</label><DatePicker value={issueDate} onChange={setIssueDate} /></div>
-              <div className="form-row"><label>Date d'échéance</label><DatePicker value={dueDate} onChange={setDueDate} /></div>
-            </div>
-            </>)}
+            </StepBody>
 
-            {docStep === 2 && (<>
-            <div className="form-row">
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                <input type="checkbox" checked={taxExempt} onChange={(e) => setTaxExempt(e.target.checked)} />
-                Exonéré de TVA (tax exempt) — TVA forcée à 0 %
-              </label>
-            </div>
-            </>)}
-
-            {docStep === 1 && (<>
-            <h3 style={{ margin: '16px 0 8px', fontSize: 14 }}>Lignes — prix selon le mode TVA du produit</h3>
+            <StepBody active={wz.step === 2}>
             {fieldErrors.items ? <span className="field-error-msg" style={{ display: 'block', marginBottom: 8 }}>{fieldErrors.items}</span> : null}
-            <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10, lineHeight: 1.4 }}>
-              Choisissez un produit (recherche), le <strong>prix catalogue</strong> se remplit automatiquement. Saisissez ensuite le <strong>prix client</strong> si une promo / remise s&apos;applique.
-            </p>
             <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1.2fr 70px 100px 100px 100px 36px', gap: 6, marginBottom: 6, fontSize: 10, color: 'var(--muted)', fontWeight: 600 }}>
               <span>Recherche / produit</span>
               <span>Désignation</span>
@@ -737,14 +742,13 @@ export default function Invoices() {
               const listP = Number(item.list_price || 0);
               const unitP = Number(item.unit_price || 0);
               const promo = listP > 0 && unitP < listP;
-              const q = (item.product_query || '').toLowerCase();
-              const filteredProducts = q
-                ? products.filter((p) =>
-                    p.name?.toLowerCase().includes(q) ||
-                    p.sku?.toLowerCase().includes(q) ||
-                    String(p.barcode || '').includes(q)
-                  ).slice(0, 40)
-                : products.slice(0, 40);
+              const matchedProd = item.product_id ? products.find((x) => Number(x.id) === Number(item.product_id)) : undefined;
+              const anom = matchedProd
+                ? priceAnomaly(Number(item.unit_price || 0), {
+                    list: Number(item.list_price || matchedProd.price || 0),
+                    cost: Number(matchedProd.cost || matchedProd.cost_price || 0),
+                  })
+                : null;
               return (
               <div key={idx} style={{ marginBottom: 10 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1.2fr 70px 100px 100px 100px 36px', gap: 6, alignItems: 'center' }}>
@@ -757,7 +761,7 @@ export default function Invoices() {
                         if (Array.isArray(r?.data)) setProducts(r.data);
                       }).catch(() => {});
                     }}
-                    onChange={(v) => updateLine(idx, 'product_query', v)}
+                    onChange={(v) => { updateLine(idx, 'product_query', v); if (modalError) setModalError(''); }}
                     onPick={(o) => {
                       const p = products.find((x) => String(x.id) === String(o.id));
                       if (!p) return;
@@ -767,27 +771,25 @@ export default function Invoices() {
                       updateLine(idx, 'list_price', Number(p.price || p.unit_price || 0));
                       updateLine(idx, 'unit_price', Number(p.price || p.unit_price || 0));
                       if (p.sku) updateLine(idx, 'sku', p.sku);
+                      if (modalError) setModalError('');
                     }}
                     emptyLabel="Aucun produit"
                   />
-                  <input placeholder="Désignation *" value={item.product_name} onChange={(e) => updateLine(idx, 'product_name', e.target.value)} />
+                  <input placeholder="Désignation *" value={item.product_name} onChange={(e) => { updateLine(idx, 'product_name', e.target.value); if (modalError) setModalError(''); }} />
                   <NumberField value={item.quantity} onValueChange={(n) => updateLine(idx, 'quantity', n)} min={0.01} step="0.01" title="Quantité" />
                   <NumberField value={item.list_price} onValueChange={(n) => updateLine(idx, 'list_price', n)} min={0} step="0.01" title="Prix catalogue" />
                   <NumberField value={item.unit_price} onValueChange={(n) => updateLine(idx, 'unit_price', n)} min={0} step="0.01" title="Prix client (après promo)" style={promo ? { borderColor: 'var(--success, #3f3f46)' } : undefined} />
-                  {!!item.product_id && (() => {
-                    const p = products.find((x) => Number(x.id) === Number(item.product_id));
-                    const a = priceAnomaly(Number(item.unit_price || 0), {
-                      list: Number(item.list_price || p?.price || 0),
-                      cost: Number(p?.cost || p?.cost_price || 0),
-                    });
-                    return a.warn ? (
-                      <div style={{ fontSize: 11, color: a.level === 'below_cost' ? 'var(--bad)' : '#a67c00', marginTop: 4 }}>{a.message}</div>
-                    ) : null;
-                  })()}
                   <div style={{ fontWeight: 700, textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{lineTotal.toLocaleString('fr-FR', { maximumFractionDigits: 0 })}</div>
                   <button type="button" className="danger" style={{ padding: '6px 8px' }} onClick={() => setItems((prev) => prev.length <= 1 ? [{ product_name: '', quantity: 1, list_price: 0, unit_price: 0, product_query: '' }] : prev.filter((_, i) => i !== idx))} aria-label="Supprimer">×</button>
                 </div>
-                {item.product_id && <small>{products.find(p => Number(p.id) === Number(item.product_id))?.invoice_price_mode === 'exclusive' ? 'Facture : TVA ajoutée au prix' : 'Facture : TVA incluse ou mode historique'}</small>}
+                {matchedProd && (
+                  <small style={{ color: 'var(--muted)', display: 'block', marginTop: 2 }}>
+                    {matchedProd.invoice_price_mode === 'exclusive' ? 'Facture : TVA ajoutée au prix' : 'Facture : TVA incluse ou mode historique'}
+                  </small>
+                )}
+                {anom?.warn && (
+                  <div style={{ fontSize: 11, color: anom.level === 'below_cost' ? 'var(--bad)' : '#a67c00', marginTop: 2 }}>{anom.message}</div>
+                )}
                 {(fieldErrors[`item_qty_${idx}`] || fieldErrors[`item_price_${idx}`]) ? (
                   <span className="field-error-msg" style={{ display: 'block', marginTop: 4 }}>
                     {fieldErrors[`item_qty_${idx}`] || fieldErrors[`item_price_${idx}`]}
@@ -802,40 +804,56 @@ export default function Invoices() {
               </div>
               );
             })}
-            <div style={{ fontSize: 14, fontWeight: 700, textAlign: 'right', marginBottom: 12 }}>
-              Total estimé TTC : {items.reduce((s, it) => s + estimateLine(it), 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })}
-              {items.some((it) => Number(it.list_price || 0) > Number(it.unit_price || 0)) && (
-                <span style={{ fontWeight: 500, color: 'var(--muted)', marginLeft: 10, fontSize: 12 }}>
-                  (catalogue {items.reduce((s, it) => s + Number(it.quantity || 0) * Number(it.list_price || it.unit_price || 0), 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} · promo active)
-                </span>
-              )}
-            </div>
-            <button type="button" className="secondary" onClick={() => setItems([...items, { product_name: '', quantity: 1, list_price: 0, unit_price: 0, product_query: '' }])} style={{ marginBottom: 16 }}>+ Ajouter une ligne</button>
-            </>)}
-
-            {docStep === 2 && (<>
-            <div className="form-row"><label>Notes</label><textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
-              <NoteChips value={notes} onChange={setNotes} />
-            </>)}
-            <ModalFormError message={modalError} />
-            <div className="wizard-foot">
-              <div className="wizard-foot-nav">
-                <span className="wizard-foot-step">
-                  {firstError(fieldErrors) || `Étape ${docStep + 1}/3 · ${['Client', 'Lignes', 'Options'][docStep]}`}
-                </span>
-                <div className="wizard-foot-actions">
-                  <button type="button" className="secondary" onClick={() => { setModalError(''); setFieldErrors({}); setShowModal(false); resetForm(); setDocStep(0); }}>Annuler</button>
-                  {docStep > 0 && (
-                    <button type="button" className="secondary" onClick={() => setDocStep((x) => Math.max(0, x - 1))}>Retour</button>
-                  )}
-                  {docStep < 2 ? (
-                    <button type="button" onClick={() => setDocStep((x) => Math.min(2, x + 1))}>Continuer</button>
-                  ) : (
-                    <button onClick={create} disabled={saving}>{saving ? 'Enregistrement…' : (docMode === 'quote' ? 'Enregistrer le devis' : 'Créer la facture')}</button>
-                  )}
-                </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <button type="button" className="secondary" onClick={() => setItems([...items, { product_name: '', quantity: 1, list_price: 0, unit_price: 0, product_query: '' }])}>+ Ajouter une ligne</button>
+              <div style={{ fontSize: 14, fontWeight: 700, textAlign: 'right' }}>
+                Total estimé TTC : {items.reduce((s, it) => s + estimateLine(it), 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })}
+                {items.some((it) => Number(it.list_price || 0) > Number(it.unit_price || 0)) && (
+                  <span style={{ fontWeight: 500, color: 'var(--muted)', marginLeft: 10, fontSize: 12 }}>
+                    (catalogue {items.reduce((s, it) => s + Number(it.quantity || 0) * Number(it.list_price || it.unit_price || 0), 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} · promo active)
+                  </span>
+                )}
               </div>
             </div>
+            </StepBody>
+
+            <StepBody active={wz.step === 3}>
+            <div className="form-row">
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                <input type="checkbox" checked={taxExempt} onChange={(e) => setTaxExempt(e.target.checked)} />
+                Exonéré de TVA (tax exempt) — TVA forcée à 0 %
+              </label>
+            </div>
+            <div className="form-row"><label>Notes</label><textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
+            <NoteChips value={notes} onChange={setNotes} />
+            </StepBody>
+            <ModalFormError message={modalError || firstError(fieldErrors)} />
+            </div>
+            <WizardFoot
+              wz={wz}
+              title={docMode === 'quote' ? 'Nouveau devis' : 'Nouvelle facture'}
+              stepLabel={INVOICE_STEPS[wz.step - 1].label}
+              onCancel={() => { setModalError(''); setFieldErrors({}); setShowModal(false); resetForm(); wz.reset(); }}
+              onBack={() => { setModalError(''); setFieldErrors({}); }}
+              onNext={() => {
+                if (wz.step === 1 && !clientName.trim()) {
+                  setFieldErrors({ client_name: 'Le nom du client est obligatoire.' });
+                  setModalError('Le nom du client est obligatoire.');
+                  return false;
+                }
+                if (wz.step === 2 && !items.some((it) => String(it.product_name || '').trim() && Number(it.quantity) > 0)) {
+                  setFieldErrors({ items: 'Ajoutez au moins une ligne avec une désignation.' });
+                  setModalError('Ajoutez au moins une ligne avec une désignation et une quantité > 0.');
+                  return false;
+                }
+                setFieldErrors({});
+                setModalError('');
+                return true;
+              }}
+              onSubmit={() => void create()}
+              submitLabel={saving ? 'Enregistrement…' : (docMode === 'quote' ? 'Enregistrer le devis' : 'Créer la facture')}
+              saving={saving}
+            />
           </div>
         </div></FloatingPortal>
       )}
