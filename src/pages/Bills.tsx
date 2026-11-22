@@ -1,6 +1,6 @@
 import DocumentActors from '../components/DocumentActors';
 import TopPageActions from '../components/TopPageActions';
-import { FileDown, Plus } from 'lucide-react';
+import { Ban, CheckCircle2, CreditCard, FileDown, PackageCheck, Plus, Printer } from 'lucide-react';
 import { TimedUndoDelete } from '../components/ui';
 import ListPager from '../components/ui/ListPager';
 import { useEffect, useState } from 'react';
@@ -424,10 +424,14 @@ export default function Bills() {
                     )}
                   </td>
                   <td className="row-actions-cell"><div className="row-actions">
-                    <a className="btn secondary" href={`${BASE}/api/bills/${b.id}/print?token=${encodeURIComponent(getToken() || '')}`} target="_blank" rel="noreferrer">Imprimer</a>
+                    <a className="btn secondary" href={`${BASE}/api/bills/${b.id}/print?token=${encodeURIComponent(getToken() || '')}`} target="_blank" rel="noreferrer">
+                      <Printer size={14} aria-hidden="true" />
+                      <span>Imprimer</span>
+                    </a>
                     {b.status !== 'cancelled' && (
-                      <button type="button" className="secondary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => openReceive(b)}>
-                        Réception
+                      <button type="button" className="secondary" onClick={() => openReceive(b)}>
+                        <PackageCheck size={14} aria-hidden="true" />
+                        <span>Réception</span>
                       </button>
                     )}
                     {b.receive_status && (
@@ -437,10 +441,13 @@ export default function Bills() {
                     )}
                     {b.status !== 'paid' && b.status !== 'cancelled' && (
                       <>
-                        <button className="secondary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => openPay(b)}>Paiement…</button>
+                        <button type="button" className="secondary" onClick={() => openPay(b)}>
+                          <CreditCard size={14} aria-hidden="true" />
+                          <span>Paiement…</span>
+                        </button>
                         <button
+                          type="button"
                           className="secondary"
-                          style={{ padding: '4px 10px', fontSize: 12 }}
                           onClick={async () => {
                             setModalError('');
                             setPayTarget(b);
@@ -452,12 +459,16 @@ export default function Bills() {
                             setPayHistory([]);
                           }}
                         >
-                          Tout payer
+                          <CheckCircle2 size={14} aria-hidden="true" />
+                          <span>Tout payer</span>
                         </button>
                       </>
                     )}
                     {b.status !== 'cancelled' && (
-                      <button className="danger" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => cancelBill(b.id)}>Annuler</button>
+                      <button type="button" className="danger" onClick={() => cancelBill(b.id)}>
+                        <Ban size={14} aria-hidden="true" />
+                        <span>Annuler</span>
+                      </button>
                     )}
                     {deleteArmId === b.id ? (
                       <TimedUndoDelete autoStart deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10}

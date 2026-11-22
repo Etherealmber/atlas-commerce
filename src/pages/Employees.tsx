@@ -1,5 +1,5 @@
 import TopPageActions from '../components/TopPageActions';
-import { Printer, UserPlus } from 'lucide-react';
+import { BarChart3, CheckCircle2, FileText, Printer, UserCheck, UserMinus, UserPlus, Wallet } from 'lucide-react';
 import { TimedUndoDelete } from '../components/ui';
 import ListPager from '../components/ui/ListPager';
 import { onAgentDraft } from '../lib/agentDraft';
@@ -575,7 +575,8 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
         title="Dossier imprimable (1 page A4)"
         onClick={() => openPrintDoc(`/api/employees/${e.id}/form/print`)}
       >
-        Fiche
+        <FileText size={14} aria-hidden="true" />
+        <span>Fiche</span>
       </button>
       <button
         type="button"
@@ -587,12 +588,14 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
           })
         }
       >
-        Situation
+        <BarChart3 size={14} aria-hidden="true" />
+        <span>Situation</span>
       </button>
       {Number(e.active) !== 0 && (
         <>
           <button type="button" className="secondary" onClick={() => openPay(e)}>
-            Marquer payé
+            <CheckCircle2 size={14} aria-hidden="true" />
+            <span>Marquer payé</span>
           </button>
           <button
             type="button"
@@ -600,18 +603,21 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
             title="Acompte selon cycle (semaines) — pas lié à la présence"
             onClick={() => openAdvance(e)}
           >
-            Acompte
+            <Wallet size={14} aria-hidden="true" />
+            <span>Acompte</span>
           </button>
         </>
       )}
       {Number(e.active) !== 0 ? (
         <button type="button" className="secondary" onClick={() => openResign(e)}>
-          Démissionner
+          <UserMinus size={14} aria-hidden="true" />
+          <span>Démissionner</span>
         </button>
       ) : (
         <>
           <button type="button" className="secondary" onClick={() => reactivate(e)}>
-            Réactiver
+            <UserCheck size={14} aria-hidden="true" />
+            <span>Réactiver</span>
           </button>
           {deleteArmId === e.id ? (
             <TimedUndoDelete autoStart deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10}

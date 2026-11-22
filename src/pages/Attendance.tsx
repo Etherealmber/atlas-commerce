@@ -1,5 +1,5 @@
 import TopPageActions from '../components/TopPageActions';
-import { Download, Users, UserX } from 'lucide-react';
+import { Download, FileText, LogIn, LogOut, Pencil, Users, UserX } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, BASE } from '../api';
@@ -536,7 +536,8 @@ export default function Attendance() {
                         disabled={!!r.check_in || busyId === r.employee_id}
                         onClick={() => checkIn(r.employee_id)}
                       >
-                        Entrée
+                        <LogIn size={14} aria-hidden="true" />
+                        <span>Entrée</span>
                       </button>
                       <button
                         type="button"
@@ -544,13 +545,16 @@ export default function Attendance() {
                         disabled={!r.check_in || !!r.check_out || busyId === r.employee_id}
                         onClick={() => checkOut(r.employee_id)}
                       >
-                        Sortie
+                        <LogOut size={14} aria-hidden="true" />
+                        <span>Sortie</span>
                       </button>
                       <button type="button" className="secondary" onClick={() => openEdit(r)}>
-                        Modifier
+                        <Pencil size={14} aria-hidden="true" />
+                        <span>Modifier</span>
                       </button>
                       <button type="button" className="secondary" onClick={() => void loadRecord(r, 'cycle')}>
-                        Fiche
+                        <FileText size={14} aria-hidden="true" />
+                        <span>Fiche</span>
                       </button>
                     </div>
                   </td>

@@ -1,6 +1,6 @@
 import DocumentActors from '../components/DocumentActors';
 import TopPageActions from '../components/TopPageActions';
-import { Plus } from 'lucide-react';
+import { FileDown, FileText, Plus, Printer, QrCode } from 'lucide-react';
 import { TimedUndoDelete } from '../components/ui';
 import ListPager from '../components/ui/ListPager';
 import { onAgentDraft } from '../lib/agentDraft';
@@ -213,23 +213,30 @@ export default function Receipts() {
                   <td>{r.invoice_id ? <Link to={`/invoices/${r.invoice_id}`} className="ac-number-link"><strong>{r.invoice_number || `#${r.invoice_id}`}</strong></Link> : (r.invoice_number ? <strong>{r.invoice_number}</strong> : '—')}</td>
                   <td className="row-actions-cell">
                     <div className="row-actions" style={{ pointerEvents: 'auto' }}>
-                      <a className="btn secondary" style={{ padding: '4px 10px', fontSize: 12, cursor: 'pointer' }} href={`${BASE}/api/receipts/${r.id}/print?layout=full&token=${token}`} target="_blank" rel="noreferrer">Reçu détail</a>
-                      <a className="btn secondary" style={{ padding: '4px 10px', fontSize: 12, cursor: 'pointer' }} href={`${BASE}/api/receipts/${r.id}/print?layout=minimal&token=${token}`} target="_blank" rel="noreferrer">Ticket minimal</a>
-                      <a className="btn secondary" style={{ padding: '4px 10px', fontSize: 12, cursor: 'pointer' }} href={`${BASE}/api/receipts/${r.id}/pdf?token=${token}`} target="_blank" rel="noreferrer">PDF</a>
+                      <a className="btn secondary" href={`${BASE}/api/receipts/${r.id}/print?layout=full&token=${token}`} target="_blank" rel="noreferrer">
+                        <Printer size={14} aria-hidden="true" />
+                        <span>Reçu détail</span>
+                      </a>
+                      <a className="btn secondary" href={`${BASE}/api/receipts/${r.id}/print?layout=minimal&token=${token}`} target="_blank" rel="noreferrer">
+                        <FileText size={14} aria-hidden="true" />
+                        <span>Ticket minimal</span>
+                      </a>
+                      <a className="btn secondary" href={`${BASE}/api/receipts/${r.id}/pdf?token=${token}`} target="_blank" rel="noreferrer">
+                        <FileDown size={14} aria-hidden="true" />
+                        <span>PDF</span>
+                      </a>
                       <button
                         type="button"
                         className="secondary"
                         style={{
-                          padding: '4px 10px',
-                          fontSize: 12,
-                          cursor: 'pointer',
                           borderColor: Number(r.include_client_situation) === 1 ? 'var(--ok, #3f3f46)' : undefined,
                           background: Number(r.include_client_situation) === 1 ? 'rgba(99, 102, 241, 0.12)' : undefined,
                         }}
                         title="Affiche le QR situation client uniquement sur ce reçu (paramètre global reste inchangé)"
                         onClick={() => toggleSituation(r)}
                       >
-                        {Number(r.include_client_situation) === 1 ? 'Situation QR : ON' : 'Situation QR'}
+                        <QrCode size={14} aria-hidden="true" />
+                        <span>{Number(r.include_client_situation) === 1 ? 'Situation QR : ON' : 'Situation QR'}</span>
                       </button>
                       <TimedUndoDelete
                         deleteLabel="Supprimer"

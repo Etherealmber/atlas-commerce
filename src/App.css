@@ -12373,7 +12373,7 @@ html[data-theme="dark"] .nav-count-danger {
 /* Primary actions — near black (light) / white (dark) */
 .content button:not(.ac-timed-delete-btn):not(.ac-timed-delete):not(.danger):not(.secondary):not(.theme-toggle):not(.icon-refresh-btn):not(.mailbox-icon-btn):not(.atlas-dp-day):not(.atlas-dp-nav):not(.atlas-dp-preset):not(.atlas-dp-btn):not(.account-menu-item):not(.agent-perm-mode):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn),
 .content .btn:not(.secondary),
-.modal button:not(.secondary):not(.app-toast-close) {
+.modal button:not(.secondary):not(.app-toast-close):not(.step-wizard__step-btn) {
   background: var(--shell-primary) !important;
   color: var(--shell-primary-fg) !important;
   border: 1px solid transparent !important;

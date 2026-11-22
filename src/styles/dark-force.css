@@ -3503,8 +3503,8 @@ html body a.btn {
 
 /* — PRIMARY (default) buttons — */
 html[data-theme] body .content button:not(.secondary):not(.ghost):not(.danger):not(.welcome-btn-ghost):not(.theme-toggle):not(.icon-refresh-btn):not(.mailbox-folder-item):not(.mailbox-menu-item):not(.mailbox-icon-btn):not(.settings-nav-item):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__chip-x):not(.ac-seg-btn):not(.modal-x):not(.modal-close):not(.ac-topbar-icon):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.ac-shell-icon-btn):not(.ac-notif-all):not([class*="close"]):not([class*="toggle"]):not([class*="iconbtn"]):not(.density-toggle button):not(.dash-range-select),
-html[data-theme] body .modal button:not(.secondary):not(.ghost):not(.danger):not(.modal-x):not(.modal-close):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.ac-seg-btn):not(.ac-pill-pager-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__chip-x):not([class*="close"]):not([class*="toggle"]):not([class*="iconbtn"]):not(.density-toggle button),
-html[data-theme] body .modal-overlay .modal button:not(.secondary):not(.ghost):not(.danger):not(.modal-x):not(.modal-close):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.ac-seg-btn):not(.ac-pill-pager-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__chip-x):not([class*="close"]):not([class*="toggle"]):not([class*="iconbtn"]):not(.density-toggle button),
+html[data-theme] body .modal button:not(.secondary):not(.ghost):not(.danger):not(.modal-x):not(.modal-close):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.ac-seg-btn):not(.ac-pill-pager-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__chip-x):not(.step-wizard__step-btn):not([class*="close"]):not([class*="toggle"]):not([class*="iconbtn"]):not(.density-toggle button),
+html[data-theme] body .modal-overlay .modal button:not(.secondary):not(.ghost):not(.danger):not(.modal-x):not(.modal-close):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.ac-seg-btn):not(.ac-pill-pager-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__chip-x):not(.step-wizard__step-btn):not([class*="close"]):not([class*="toggle"]):not([class*="iconbtn"]):not(.density-toggle button),
 html[data-theme] body .content .btn:not(.secondary):not(.ghost):not(.danger),
 html[data-theme] body .modal .btn:not(.secondary):not(.ghost):not(.danger) {
   background: var(--btn-p-bg) !important;
@@ -3515,7 +3515,7 @@ html[data-theme] body .modal .btn:not(.secondary):not(.ghost):not(.danger) {
   box-shadow: none !important;
 }
 html[data-theme] body .content button:not(.secondary):not(.ghost):not(.danger):not(.welcome-btn-ghost):not(.theme-toggle):not(.icon-refresh-btn):not(.mailbox-folder-item):not(.mailbox-menu-item):not(.mailbox-icon-btn):not(.settings-nav-item):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__chip-x):not(.ac-seg-btn):not(.modal-x):not(.modal-close):not(.ac-topbar-icon):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.ac-shell-icon-btn):not(.ac-notif-all):not([class*="close"]):not([class*="toggle"]):not([class*="iconbtn"]):not(.density-toggle button):not(.dash-range-select):hover,
-html[data-theme] body .modal button:not(.secondary):not(.ghost):not(.danger):not(.modal-x):not(.modal-close):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.ac-seg-btn):not(.ac-pill-pager-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__chip-x):not([class*="close"]):not([class*="toggle"]):not([class*="iconbtn"]):not(.density-toggle button):hover,
+html[data-theme] body .modal button:not(.secondary):not(.ghost):not(.danger):not(.modal-x):not(.modal-close):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.ac-seg-btn):not(.ac-pill-pager-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__chip-x):not(.step-wizard__step-btn):not([class*="close"]):not([class*="toggle"]):not([class*="iconbtn"]):not(.density-toggle button):hover,
 html[data-theme] body .content .btn:not(.secondary):not(.ghost):not(.danger):hover,
 html[data-theme] body .modal .btn:not(.secondary):not(.ghost):not(.danger):hover {
   background: var(--btn-p-h) !important;
@@ -3524,7 +3524,7 @@ html[data-theme] body .modal .btn:not(.secondary):not(.ghost):not(.danger):hover
   border-color: var(--btn-p-h-bd) !important;
 }
 html[data-theme] body .content button:not(.secondary):not(.ghost):not(.danger):not(.ac-topbar-icon):not(.ac-seg-btn):not([class*="close"]):not([class*="toggle"]):not([class*="iconbtn"]):active,
-html[data-theme] body .modal button:not(.secondary):not(.ghost):not(.danger):not(.modal-x):not(.modal-close):not(.ac-seg-btn):not([class*="close"]):not([class*="toggle"]):active {
+html[data-theme] body .modal button:not(.secondary):not(.ghost):not(.danger):not(.modal-x):not(.modal-close):not(.ac-seg-btn):not(.step-wizard__step-btn):not([class*="close"]):not([class*="toggle"]):active {
   background: var(--btn-p-a) !important;
   color: var(--btn-p-fg) !important;
   -webkit-text-fill-color: var(--btn-p-fg) !important;
@@ -5157,15 +5157,25 @@ html[data-theme="dark"][data-density] body .content a.btn.secondary:active {
   -webkit-text-fill-color: #f4f4f5 !important;
 }
 
-/* Desktop table row actions: single clean horizontal line instead of multi-row stair stacking */
+/* Desktop table row actions: single clean horizontal line matching Vente Rapide pill style across ALL pages */
 @media (min-width: 901px) {
-  html[data-theme] body .content table th:last-child,
-  html[data-theme] body .content table td.row-actions-cell {
-    width: 1%;
-    white-space: nowrap;
+  html body .content .table-wrap,
+  html body .content .atlas-virtual-scroll {
+    overflow-x: auto !important;
   }
-  html[data-theme] body .content table td.row-actions-cell > .row-actions {
+  html body .content table th:last-child,
+  html body .content table td.row-actions-cell,
+  html body .content table.ac-products-table td.row-actions-cell {
+    width: 1% !important;
+    min-width: 0 !important;
+    white-space: nowrap !important;
+  }
+  html body .content table td.row-actions-cell > .row-actions,
+  html body .content table td:last-child > .row-actions,
+  html body .content table.ac-products-table .row-actions,
+  html body .content .row-actions--inline {
     display: inline-flex !important;
+    flex-direction: row !important;
     flex-wrap: nowrap !important;
     align-items: center !important;
     justify-content: flex-end !important;
@@ -5173,32 +5183,154 @@ html[data-theme="dark"][data-density] body .content a.btn.secondary:active {
     width: max-content !important;
     max-width: none !important;
     margin-left: auto !important;
+    white-space: nowrap !important;
   }
-  html[data-theme] body .content table td.row-actions-cell > .row-actions > button,
-  html[data-theme] body .content table td.row-actions-cell > .row-actions > a.btn {
-    height: 32px !important;
-    min-height: 32px !important;
-    padding: 0 11px !important;
-    font-size: 12px !important;
+  html body .content table td.row-actions-cell > .row-actions > button,
+  html body .content table td.row-actions-cell > .row-actions > a.btn,
+  html body .content table td:last-child > .row-actions > button,
+  html body .content table td:last-child > .row-actions > a.btn,
+  html body .content table.ac-products-table .row-actions > button,
+  html body .content table.ac-products-table .row-actions > a.btn {
+    height: 34px !important;
+    min-height: 34px !important;
+    padding: 0 12px !important;
+    font-size: 12.5px !important;
+    font-weight: 600 !important;
     line-height: 1 !important;
     border-radius: 999px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
     white-space: nowrap !important;
     flex: 0 0 auto !important;
+    box-shadow: none !important;
   }
-  html[data-theme] body .content table td.row-actions-cell > .row-actions > .ac-timed-delete {
-    height: 32px !important;
-    min-height: 32px !important;
+  html body .content table td.row-actions-cell > .row-actions > button.secondary,
+  html body .content table td.row-actions-cell > .row-actions > a.btn.secondary,
+  html body .content table td:last-child > .row-actions > button.secondary,
+  html body .content table td:last-child > .row-actions > a.btn.secondary,
+  html body .content table.ac-products-table .row-actions > button.secondary,
+  html body .content table.ac-products-table .row-actions > a.btn.secondary {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a !important;
+  }
+  html body .content table td.row-actions-cell > .row-actions > button.secondary:hover:not(:disabled),
+  html body .content table td.row-actions-cell > .row-actions > a.btn.secondary:hover,
+  html body .content table td:last-child > .row-actions > button.secondary:hover:not(:disabled),
+  html body .content table td:last-child > .row-actions > a.btn.secondary:hover,
+  html body .content table.ac-products-table .row-actions > button.secondary:hover:not(:disabled) {
+    background: #f8fafc !important;
+    border-color: #cbd5e1 !important;
+    color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a !important;
+  }
+  html[data-theme="dark"] body .content table td.row-actions-cell > .row-actions > button.secondary,
+  html[data-theme="dark"] body .content table td.row-actions-cell > .row-actions > a.btn.secondary,
+  html[data-theme="dark"] body .content table td:last-child > .row-actions > button.secondary,
+  html[data-theme="dark"] body .content table td:last-child > .row-actions > a.btn.secondary,
+  html[data-theme="dark"] body .content table.ac-products-table .row-actions > button.secondary,
+  html[data-theme="dark"] body .content table.ac-products-table .row-actions > a.btn.secondary {
+    background: #27272a !important;
+    border: 1px solid #3f3f46 !important;
+    color: #f4f4f5 !important;
+    -webkit-text-fill-color: #f4f4f5 !important;
+  }
+  html[data-theme="dark"] body .content table td.row-actions-cell > .row-actions > button.secondary:hover:not(:disabled),
+  html[data-theme="dark"] body .content table td.row-actions-cell > .row-actions > a.btn.secondary:hover,
+  html[data-theme="dark"] body .content table td:last-child > .row-actions > button.secondary:hover:not(:disabled),
+  html[data-theme="dark"] body .content table td:last-child > .row-actions > a.btn.secondary:hover,
+  html[data-theme="dark"] body .content table.ac-products-table .row-actions > button.secondary:hover:not(:disabled) {
+    background: #3f3f46 !important;
+    border-color: #52525b !important;
+    color: #fafafa !important;
+    -webkit-text-fill-color: #fafafa !important;
+  }
+  html body .content table td.row-actions-cell > .row-actions > .ac-timed-delete,
+  html body .content table td:last-child > .row-actions > .ac-timed-delete,
+  html body .content table.ac-products-table .row-actions > .ac-timed-delete {
+    height: 34px !important;
+    min-height: 34px !important;
     min-width: 0 !important;
     flex: 0 0 auto !important;
   }
-  html[data-theme] body .content table td.row-actions-cell > .row-actions > .ac-timed-delete .ac-timed-delete-btn,
-  html[data-theme] body .content table td.row-actions-cell > .row-actions > .ac-timed-delete .ac-timed-undo-btn {
-    height: 32px !important;
-    min-height: 32px !important;
-    padding: 0 11px !important;
-    font-size: 12px !important;
+  html body .content table td.row-actions-cell > .row-actions > .ac-timed-delete .ac-timed-delete-btn,
+  html body .content table td.row-actions-cell > .row-actions > .ac-timed-delete .ac-timed-undo-btn,
+  html body .content table td:last-child > .row-actions > .ac-timed-delete .ac-timed-delete-btn,
+  html body .content table td:last-child > .row-actions > .ac-timed-delete .ac-timed-undo-btn {
+    height: 34px !important;
+    min-height: 34px !important;
+    padding: 0 12px !important;
+    font-size: 12.5px !important;
     border-radius: 999px !important;
   }
+}
+
+/* Wizard step pills: never turned into solid black buttons by modal primary defaults */
+html[data-theme] body .modal-overlay .modal .step-wizard__progress[data-many-steps="true"],
+html[data-theme] body .modal-overlay .modal .employee-wizard__progress[data-many-steps="true"] {
+  column-gap: 6px !important;
+  row-gap: 6px !important;
+}
+html[data-theme] body .modal-overlay .modal button.step-wizard__step-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 4px 10px 4px 4px !important;
+  min-height: 30px !important;
+  border-radius: 999px !important;
+  background: #f8fafc !important;
+  background-image: none !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #475569 !important;
+  -webkit-text-fill-color: #475569 !important;
+  font-size: 0.72rem !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+}
+html[data-theme] body .modal-overlay .modal button.step-wizard__step-btn:hover {
+  background: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+html[data-theme] body .modal-overlay .modal li.is-complete > button.step-wizard__step-btn {
+  background: #f0fdf4 !important;
+  border-color: #bbf7d0 !important;
+  color: #166534 !important;
+  -webkit-text-fill-color: #166534 !important;
+}
+html[data-theme] body .modal-overlay .modal li.is-current > button.step-wizard__step-btn {
+  background: #18181b !important;
+  border-color: #18181b !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html[data-theme="dark"] body .modal-overlay .modal button.step-wizard__step-btn {
+  background: #27272a !important;
+  border-color: #3f3f46 !important;
+  color: #a1a1aa !important;
+  -webkit-text-fill-color: #a1a1aa !important;
+}
+html[data-theme="dark"] body .modal-overlay .modal button.step-wizard__step-btn:hover {
+  background: #3f3f46 !important;
+  border-color: #52525b !important;
+  color: #fafafa !important;
+  -webkit-text-fill-color: #fafafa !important;
+}
+html[data-theme="dark"] body .modal-overlay .modal li.is-complete > button.step-wizard__step-btn {
+  background: rgba(20, 83, 45, 0.35) !important;
+  border-color: #166534 !important;
+  color: #86efac !important;
+  -webkit-text-fill-color: #86efac !important;
+}
+html[data-theme="dark"] body .modal-overlay .modal li.is-current > button.step-wizard__step-btn {
+  background: #f4f4f5 !important;
+  border-color: #f4f4f5 !important;
+  color: #18181b !important;
+  -webkit-text-fill-color: #18181b !important;
 }
 
 /* Tappable document number links */

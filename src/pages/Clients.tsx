@@ -1,5 +1,5 @@
 import TopPageActions from '../components/TopPageActions';
-import { UserPlus } from 'lucide-react';
+import { BarChart3, FileText, UserPlus } from 'lucide-react';
 import { TimedUndoDelete } from '../components/ui';
 import ListPager from '../components/ui/ListPager';
 import { downloadExport } from '../lib/export';
@@ -397,14 +397,16 @@ export default function Clients() {
                       className="secondary"
                       onClick={() => navigate(`/invoices?client=${c.id}&q=${encodeURIComponent(c.name || '')}`)}
                     >
-                      Factures
+                      <FileText size={14} aria-hidden="true" />
+                      <span>Factures</span>
                     </button>
                     <button
                       type="button"
                       className="secondary"
                       onClick={() => setSitChoice({ id: c.id, name: c.name || '', ice: c.ice || '' })}
                     >
-                      Situation
+                      <BarChart3 size={14} aria-hidden="true" />
+                      <span>Situation</span>
                     </button>
                     {deleteArmId === c.id ? (
                       <TimedUndoDelete autoStart deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10}

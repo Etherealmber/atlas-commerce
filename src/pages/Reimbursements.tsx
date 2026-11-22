@@ -1,6 +1,6 @@
 import DocumentActors from '../components/DocumentActors';
 import TopPageActions from '../components/TopPageActions';
-import { RotateCcw } from 'lucide-react';
+import { FileDown, Mail, RotateCcw } from 'lucide-react';
 import { TimedUndoDelete } from '../components/ui';
 import ListPager from '../components/ui/ListPager';
 import { useEffect, useState } from 'react';
@@ -221,14 +221,16 @@ export default function Reimbursements() {
                         className="secondary"
                         onClick={() => printDoc(inv.id)}
                       >
-                        PDF
+                        <FileDown size={14} aria-hidden="true" />
+                        <span>PDF</span>
                       </button>
                       <button
                         type="button"
                         className="secondary"
                         onClick={() => sendEmail(inv)}
                       >
-                        E-mail
+                        <Mail size={14} aria-hidden="true" />
+                        <span>E-mail</span>
                       </button>
                       <TimedUndoDelete
                         deleteLabel="Supprimer"

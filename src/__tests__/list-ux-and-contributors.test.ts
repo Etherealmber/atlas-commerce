@@ -57,9 +57,19 @@ describe('List UX, danger/dock/slot CSS fixes, pagination (20/page), and release
   it('enforces danger hover contrast, single-line desktop row-actions, unclipped compact dock, and non-jumping actions slot CSS', () => {
     const darkForce = readFileSync(path.resolve(process.cwd(), 'src/styles/dark-force.css'), 'utf8');
     const shellCss = readFileSync(path.resolve(process.cwd(), 'src/styles/shell.css'), 'utf8');
+    const overridesFinal = readFileSync(path.resolve(process.cwd(), 'src/styles/overrides-final.css'), 'utf8');
+    const appCss = readFileSync(path.resolve(process.cwd(), 'src/App.css'), 'utf8');
+    const productsSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Products.tsx'), 'utf8');
 
     expect(darkForce).toMatch(/button\.danger:not\(\.ac-timed-delete-btn\):not\(\.ac-timed-undo-btn\):hover:not\(:disabled\)[\s\S]*background:\s*#b91c1c\s*!important;[\s\S]*color:\s*#ffffff\s*!important;[\s\S]*-webkit-text-fill-color:\s*#ffffff\s*!important;/);
-    expect(darkForce).toMatch(/@media\s*\(min-width:\s*901px\)[\s\S]*td\.row-actions-cell\s*>\s*\.row-actions[\s\S]*flex-wrap:\s*nowrap\s*!important/);
+    expect(darkForce).toMatch(/@media\s*\(min-width:\s*901px\)[\s\S]*td\.row-actions-cell\s*>\s*\.row-actions[\s\S]*table\.ac-products-table\s*\.row-actions[\s\S]*flex-wrap:\s*nowrap\s*!important/);
+    expect(overridesFinal).toMatch(/html\s+\.modal\s+button:[^}]*:not\(\.step-wizard__step-btn\)/);
+    expect(appCss).toMatch(/\.modal\s+button:not\(\.secondary\):not\(\.app-toast-close\):not\(\.step-wizard__step-btn\)/);
+    expect(darkForce).toMatch(/html\[data-theme\]\s+body\s+\.modal\s+button:[^}]*:not\(\.step-wizard__step-btn\)/);
+    expect(darkForce).toMatch(/button\.step-wizard__step-btn\s*\{[^}]*background:\s*#f8fafc\s*!important;/s);
+    expect(productsSrc).toMatch(/<SlidersHorizontal size=\{14\}[\s\S]*<span>Ajuster<\/span>/);
+    expect(productsSrc).toMatch(/<Pencil size=\{14\}[\s\S]*<span>Modifier<\/span>/);
+    expect(productsSrc).toMatch(/<Tags size=\{14\}[\s\S]*<span>Étiquette<\/span>/);
     expect(shellCss).toMatch(/button\.ac-dock-expand\s*\{[^}]*padding:\s*0\s+20px\s*!important;[^}]*overflow:\s*visible\s*!important;/s);
     expect(shellCss).toMatch(/\.ac-desktop-dock\.ac-topbar--compact:not\(:focus-within\)\s+\.ac-topbar-title\s*\{\s*max-width:\s*min\(72vw,\s*480px\)/);
     expect(shellCss).not.toMatch(/\.desktop-catalog-actions-slot\s+\.top-page-actions\s*>\s*button:hover:not\(:disabled\)[^}]*translateY\(-1px\)/);

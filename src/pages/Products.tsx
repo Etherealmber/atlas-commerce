@@ -822,14 +822,23 @@ export default function Products() {
                     <td>{p.is_active === 0 ? <span className="badge danger">Inactif</span> : <span className="badge success">Actif</span>}</td>
                     <td className="row-actions-cell">
                       <div className="row-actions row-actions--inline">
-                      {p.track_inventory && <button type="button" className="secondary" onClick={() => { setModalError(''); setAdjustProduct(p); }}>Ajuster</button>}
-                      <button type="button" className="secondary" onClick={() => openEdit(p)}>Modifier</button>
+                      {p.track_inventory && (
+                        <button type="button" className="secondary" onClick={() => { setModalError(''); setAdjustProduct(p); }}>
+                          <SlidersHorizontal size={14} aria-hidden="true" />
+                          <span>Ajuster</span>
+                        </button>
+                      )}
+                      <button type="button" className="secondary" onClick={() => openEdit(p)}>
+                        <Pencil size={14} aria-hidden="true" />
+                        <span>Modifier</span>
+                      </button>
                       <button
                         type="button"
                         className="secondary"
                         onClick={() => window.open(api.labelUrl(p.id), '_blank', 'noopener')}
                       >
-                        Étiquette
+                        <Tags size={14} aria-hidden="true" />
+                        <span>Étiquette</span>
                       </button>
                       <TimedUndoDelete
                         key={`del-${p.id}`}
