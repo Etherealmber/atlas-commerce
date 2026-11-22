@@ -9,10 +9,8 @@ import { createPortal } from 'react-dom';
 import { useDebouncedValue } from '../lib/perf';
 import { api } from '../api';
 import SaveFeedback from '../components/SaveFeedback';
-import { openReport } from '../lib/reports';
-import { downloadExport } from '../lib/export';
 import { useUi } from '../components/AppDialogs';
-import { TimedUndoDelete, RunActionButton, EXPORT_CSV_STEPS } from '../components/ui';
+import { TimedUndoDelete } from '../components/ui';
 import { numStr, numFromInput } from '../lib/numInput';
 import NumberField from '../components/NumberField';
 import VirtualTableBody, { VirtualScroll } from '../components/VirtualTableBody';
@@ -21,6 +19,7 @@ import { Grid2X2, List, Pencil, SlidersHorizontal, Tags } from 'lucide-react';
 import ProductArtwork from '../components/ProductArtwork';
 import './product-history.css';
 import './products-mobile-style.css';
+import './catalog-actions.css';
 import ProductImageEditor, { ImageWorkbench } from '../components/ProductImageEditor';
 import { printProductLabel } from '../lib/printProductLabel';
 import RefreshIconButton from '../components/RefreshIconButton';
@@ -96,10 +95,18 @@ export default function Products() {
   const [placements, setPlacements] = useState<Record<number, any>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [actionTarget, setActionTarget] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const query = window.matchMedia('(min-width: 1500px)');
+    const update = () => setActionTarget(query.matches ? document.getElementById('desktop-catalog-actions') : null);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
   const [show, setShow] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const wz = useWizard(editing ? 6 : 5);
-  const [exportBusy, setExportBusy] = useState(false);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 300);
   const [stockFilter, setStockFilter] = useState('');
@@ -121,7 +128,6 @@ export default function Products() {
   const [adjustReason, setAdjustReason] = useState('');
   const [catalogView, setCatalogView] = useState<'list' | 'grid'>(() => { try { return localStorage.getItem('atlas_desktop_products_view') === 'grid' ? 'grid' : 'list'; } catch { return 'list'; } });
   const changeCatalogView = (view: 'list' | 'grid') => { setCatalogView(view); try { localStorage.setItem('atlas_desktop_products_view', view); } catch { /* session only */ } };
-  const [reorderSuggestions, setReorderSuggestions] = useState<any[] | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [deleteTargets, setDeleteTargets] = useState<number[] | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
@@ -559,15 +565,8 @@ export default function Products() {
     return { n: list.length, low, out, ok, skus, shown: filtered.length };
   })();
 
-  return (
-    <div className="atlas-catalog ac-products">
-      <div className="page-header ac-page-header">
-        <div>
-          <p className="ac-dash-eyebrow">Catalogue</p>
-          <h1 className="ac-dash-hello" style={{ fontSize: '1.5rem' }}>Produits &amp; stock</h1>
-          <p className="ac-dash-lead">Références, seuils et mouvements de stock.</p>
-        </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+  const actionButtons = (
+        <div className="product-page-actions__buttons">
           <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
           {selected.size > 0 && (
             <TimedUndoDelete
@@ -594,31 +593,15 @@ export default function Products() {
               }}
             />
           )}
-          <button className="secondary" onClick={() => openReport('/api/reports/stock')}>Voir le stock (PDF)</button>
-          <button type="button" className="secondary" onClick={async () => {
-            try {
-              const r = await api.getReorderSuggestions(40);
-              setReorderSuggestions(r.data || []);
-            } catch (e: any) {
-              flash(e?.message || 'Réassort impossible', 'error');
-            }
-          }}>Suggestions de réassort</button>
-          <RunActionButton
-            size="sm"
-            idleLabel="Excel CSV"
-            doneLabel="Téléchargé"
-            steps={EXPORT_CSV_STEPS}
-            onRun={async () => {
-              setExportBusy(true);
-              try {
-                await downloadExport('/api/export/products', 'produits.csv');
-              } finally {
-                setExportBusy(false);
-              }
-            }}
-          />
           <button onClick={openNew}>Ajouter un produit</button>
         </div>
+  );
+  const useTopActions = !!actionTarget && selected.size === 0;
+  return (
+    <div className="atlas-catalog ac-products">
+      <div className={`page-header ac-page-header product-page-actions${useTopActions ? ' is-docked' : ''}`}>
+        <h1 className="sr-only">Produits &amp; stock</h1>
+        {useTopActions ? createPortal(actionButtons, actionTarget) : actionButtons}
       </div>
 
       <SaveFeedback message={saveMsg} type={saveMsgType} />
@@ -688,53 +671,12 @@ export default function Products() {
         <div className="atlas-catalog-legend ac-products-legend">
           <span><span className="stock-pill ok">OK</span> au-dessus du seuil</span>
           <span><span className="stock-pill low">Bas</span> ≤ seuil</span>
-          <span><span className="stock-pill out">Rupture</span> qty 0</span>
+          <span><span className="stock-pill out">Rupture</span> quantité nulle</span>
         </div>
       </div>
 
       <div className="ac-panel ac-products-table-panel">
 
-        {reorderSuggestions && (
-          <div className="card" style={{ marginBottom: 16 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-              <div>
-                <strong>Suggestions de réassort</strong>
-                <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--muted)' }}>
-                  Basé sur ventes 30 jours et stock (couverture &lt; 14 j ou sous seuil)
-                </p>
-              </div>
-              <button type="button" className="secondary" onClick={() => setReorderSuggestions(null)}>Fermer</button>
-            </div>
-            {reorderSuggestions.length === 0 ? (
-              <p style={{ fontSize: 13, color: 'var(--muted)' }}>Aucun produit à réapprovisionner pour le moment.</p>
-            ) : (
-              <div className="table-wrap" style={{ marginTop: 12 }}>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Produit</th>
-                      <th>Stock</th>
-                      <th>Ventes 30j</th>
-                      <th>Couverture</th>
-                      <th>Qté suggérée</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {reorderSuggestions.map((r) => (
-                      <tr key={r.product_id}>
-                        <td>{r.name}{r.sku ? ` · ${r.sku}` : ''}</td>
-                        <td>{r.stock}</td>
-                        <td>{r.sold_30d}</td>
-                        <td>{r.days_cover === 999 ? '—' : `${r.days_cover} j`}</td>
-                        <td><strong>{r.suggest_qty}</strong></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
         <div className="desktop-product-result-count" aria-live="polite">{filtered.length} résultat{filtered.length === 1 ? '' : 's'}</div>
         {catalogView === 'grid' ? <>
           {filtered.length > 0 && <label className="desktop-product-select-all"><input type="checkbox" checked={filtered.every(p => selected.has(p.id))} onChange={() => setSelected(prev => { const next = new Set(prev); const all = filtered.every(p => next.has(p.id)); filtered.forEach(p => all ? next.delete(p.id) : next.add(p.id)); return next; })} /> Tout sélectionner</label>}

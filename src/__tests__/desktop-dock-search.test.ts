@@ -6,6 +6,8 @@ import App from '../App';
 
 vi.mock('../pages/Dashboard', () => ({ default: () => null }));
 vi.mock('../pages/Products', () => ({ default: () => null }));
+vi.mock('../pages/Quotes', () => ({ default: () => null }));
+vi.mock('../pages/ProductHistory', () => ({ default: () => null }));
 vi.mock('../components/AtlasAgent', () => ({ default: () => null }));
 vi.mock('../components/WhatsNewModal', () => ({ default: () => null }));
 vi.mock('../components/PageTransition', () => ({ default: ({ children }: { children: React.ReactNode }) => children }));
@@ -25,7 +27,7 @@ it('does not show the removed search in the desktop dock while keeping its other
   window.history.replaceState({}, '', '/dashboard?mode=pc');
   vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ success: true, data: [] }), { headers: { 'Content-Type': 'application/json' } })));
   host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host);
-  await Promise.all([import('../pages/Dashboard'), import('../pages/Products'), import('../components/AtlasAgent'), import('../components/WhatsNewModal')]);
+  await Promise.all([import('../pages/Dashboard'), import('../pages/Products'), import('../pages/Quotes'), import('../pages/ProductHistory'), import('../components/AtlasAgent'), import('../components/WhatsNewModal')]);
   await act(async () => { root.render(createElement(App)); });
   const dock = host.querySelector<HTMLElement>('.ac-desktop-dock')!;
   expect(dock).not.toBeNull();
@@ -54,6 +56,14 @@ it('does not show the removed search in the desktop dock while keeping its other
     expect(dock.classList.contains('ac-topbar--compact')).toBe(false);
     await act(async () => host.querySelector<HTMLAnchorElement>('aside.sidebar a[href="/products"]')!.click());
     expect(host.querySelector('.ac-desktop-dock')?.classList.contains('ac-topbar--compact')).toBe(false);
+    expect(host.querySelector('.ac-dock-expand')?.textContent?.trim()).toBe('Produits & stock');
+    await act(async () => host.querySelector<HTMLAnchorElement>('aside.sidebar a[href="/quotes"]')!.click());
+    expect(host.querySelector('.ac-dock-expand')?.textContent?.trim()).toBe('Devis');
+    await act(async () => { window.history.pushState({}, '', '/products/7/historique'); window.dispatchEvent(new PopStateEvent('popstate')); });
+    expect(host.querySelector('.ac-dock-expand')?.textContent?.trim()).toBe('Historique du produit');
+    expect(host.querySelector('header a[aria-label="Retour aux produits"]')?.getAttribute('href')).toBe('/products');
+    await act(async () => host.querySelector<HTMLAnchorElement>('header a[aria-label="Retour aux produits"]')!.click());
+    expect(host.querySelector('.ac-dock-expand')?.textContent?.trim()).toBe('Produits & stock');
   } finally {
     if (originalScroll) Object.defineProperty(window, 'scrollY', originalScroll);
     else Reflect.deleteProperty(window, 'scrollY');

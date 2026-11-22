@@ -29,3 +29,13 @@ html body .product-history button:focus-visible, html body .product-history a:fo
 html[data-theme="dark"] body .product-history .product-history-card button.secondary.product-history-photo-action,
 html[data-theme="dark"] body .product-history .product-history-card button.secondary.product-history-refresh { background: #303036 !important; border-color: #52525b !important; color: #fafafa !important; -webkit-text-fill-color: #fafafa !important; }
 html body .product-history button.product-history-photo-action { width: 40px !important; min-width: 40px !important; height: 40px !important; min-height: 40px !important; }
+
+/* Keep the actual glyph at a usable size even under compact/density rules. */
+html body .product-history button.product-history-photo-action svg,
+html body .product-history button.product-history-refresh svg {
+  width: 20px !important; height: 20px !important; min-width: 20px !important; min-height: 20px !important;
+  max-width: none !important; opacity: 1 !important; visibility: visible !important;
+  stroke-width: 2.2 !important;
+}
+html body .product-history button.product-history-photo-action svg *,
+html body .product-history button.product-history-refresh svg * { stroke: currentColor !important; fill: none !important; }

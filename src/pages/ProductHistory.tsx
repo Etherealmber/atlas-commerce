@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Camera, History, RefreshCw } from 'lucide-react';
+import { useParams } from 'react-router-dom';
+import { Camera, History, RefreshCw } from 'lucide-react';
 import { api } from '../api';
 import { canSell } from '../auth';
 import ProductArtwork from '../components/ProductArtwork';
@@ -61,7 +61,7 @@ export default function ProductHistory({ mobile = false, onProductUpdated }: Pro
     finally { if (generation.current === current) setImageBusy(false); }
   };
   return <div className={`product-history${mobile ? ' product-history--phone' : ''}`}>
-    {!mobile && <header className="product-history-top"><Link to="/products" aria-label="Retour aux produits"><ArrowLeft size={22} /></Link><div><h1>Historique du produit</h1><p>Détails et mouvements de stock</p></div></header>}
+    {!mobile && <h1 className="sr-only">Historique du produit</h1>}
     {productError && <div className="product-history-card" role="alert">{productError} {valid && <button type="button" onClick={() => void load()}>Réessayer</button>}</div>}
     {loading && !product && (mobile ? <PhoneSkeleton variant="rows" label="Chargement du produit" /> : <p role="status">Chargement du produit…</p>)}
     {product && <section className="product-history-card"><div className="product-history-hero"><div className="product-history-photo"><ProductArtwork url={product.image_url} />{canSell() && <><input ref={imageInput} type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onChange={changePhoto} /><button type="button" className="secondary product-history-photo-action" aria-label="Modifier la photo du produit" title="Modifier la photo du produit" disabled={imageBusy} onClick={() => imageInput.current?.click()}><Camera size={16} /></button></>}</div><div><span className="product-history-tag">Fiche produit</span><h2>{product.name}</h2><p>{[product.sku, product.barcode, product.category].filter(Boolean).join(' · ') || 'Sans référence'}</p></div></div>

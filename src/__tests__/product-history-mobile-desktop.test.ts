@@ -48,7 +48,10 @@ describe('product history', () => {
     await renderHistory();
     expect(host.textContent).toContain('Historique du produit'); expect(host.textContent).toContain('Marbre'); expect(host.textContent).toContain('Créé par alice'); expect(host.textContent).toContain('Qté 3 · 5 → 8');
     expect(host.querySelector('img')?.getAttribute('src')).toContain('/cdn/stone.webp');
-    expect(host.querySelector('a[aria-label="Retour aux produits"]')?.getAttribute('href')).toBe('/products');
+    expect(host.querySelector('.product-history-top')).toBeNull();
+    expect(host.querySelector('h1')?.classList.contains('sr-only')).toBe(true);
+    expect(host.querySelector('[aria-label="Modifier la photo du produit"] svg')).not.toBeNull();
+    expect(host.querySelector('[aria-label="Actualiser l’historique"] svg')).not.toBeNull();
     await act(async () => [...host.querySelectorAll('button')].find(b => b.textContent === 'Charger la suite')!.click());
     expect(getMovements).toHaveBeenLastCalledWith(7, 40, { full: true, offset: 40 }); expect(host.textContent).toContain('Vente'); expect(host.textContent).not.toContain('Charger la suite');
   });

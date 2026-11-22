@@ -11,6 +11,7 @@ import DatePicker from '../components/DatePicker';
 import PasswordConfirm from '../components/PasswordConfirm';
 import { FloatingPortal } from '../components/FloatingPortal';
 import { ModalFormError, FieldHint } from '../components/ModalFormFeedback';
+import './employee-wizard.css';
 
 type Emp = Record<string, any>;
 
@@ -57,11 +58,13 @@ const emptyForm = {
 };
 
 const STEPS = [
-  { id: 'personal', label: 'Personnel' },
-  { id: 'identity', label: 'Identification' },
-  { id: 'work', label: 'Travail' },
-  { id: 'contact', label: 'Contact' },
-  { id: 'pay', label: 'Salaire & pièce' },
+  { id: 'personal', label: 'Personnel', hint: 'Les informations de base de votre collaborateur.' },
+  { id: 'identity', label: 'Identité', hint: 'Ses documents et identifiants administratifs.' },
+  { id: 'work', label: 'Poste', hint: 'Son rôle et sa date d’arrivée.' },
+  { id: 'contact', label: 'Contact', hint: 'Ses coordonnées et son adresse.' },
+  { id: 'pay', label: 'Salaire', hint: 'Définissez le montant et la fréquence de paiement.' },
+  { id: 'contract', label: 'Contrat', hint: 'Les conditions de travail et les coordonnées bancaires.' },
+  { id: 'details', label: 'Détails', hint: 'Complétez les informations utiles à la fiche.' },
 ] as const;
 
 function fmt(n: number) {
@@ -792,18 +795,26 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
 
       {showModal && (
         <FloatingPortal><div className="modal-overlay" onClick={() => { setShowModal(false); setEditing(null); setForm({ ...emptyForm }); setNatOther(false); setStep(0); setModalError(''); setFieldErrors({}); }}>
-          <div className="modal" style={{ maxWidth: 640, width: '94vw' }} onClick={(ev) => ev.stopPropagation()}>
-            <h2 style={{ marginBottom: 8 }}>{editing ? 'Modifier l’employé' : 'Nouvel employé'}</h2>
-
+          <div className="modal employee-wizard" role="dialog" aria-modal="true" aria-labelledby="employee-wizard-title" onClick={(ev) => ev.stopPropagation()}>
+            <header className="employee-wizard__header">
+              <div><p className="employee-wizard__eyebrow">FICHE EMPLOYÉ</p><h2 id="employee-wizard-title">{editing ? 'Modifier l’employé' : 'Nouvel employé'}</h2></div>
+              <span className="employee-wizard__count">{step + 1} / {STEPS.length}</span>
+            </header>
+            <ol className="employee-wizard__progress" aria-label="Étapes de la fiche employé">
+              {STEPS.map((item, index) => <li key={item.id} className={index === step ? 'is-current' : index < step ? 'is-complete' : ''} aria-current={index === step ? 'step' : undefined}><span>{index < step ? '✓' : index + 1}</span><b>{item.label}</b></li>)}
+            </ol>
+            <div className="wz-step employee-wizard__body">
+              <div className="employee-wizard__intro" aria-live="polite"><h3>{STEPS[step].label}</h3><p>{STEPS[step].hint}</p></div>
             {step === 0 && (
               <div className="grid grid-2">
                 <div className="form-row">
-                  <label>Prénom</label>
-                  <input value={form.first_name} onChange={(e) => setF('first_name', e.target.value)} />
+                  <label htmlFor="employee-first-name">Prénom</label>
+                  <input id="employee-first-name" value={form.first_name} onChange={(e) => { setF('first_name', e.target.value); if (modalError) setModalError(''); }} aria-invalid={!!modalError && !`${form.first_name} ${form.last_name}`.trim()} />
                 </div>
                 <div className="form-row">
-                  <label>Nom de famille</label>
-                  <input value={form.last_name} onChange={(e) => setF('last_name', e.target.value)} />
+                  <label htmlFor="employee-last-name">Nom de famille</label>
+                  <input id="employee-last-name" value={form.last_name} onChange={(e) => { setF('last_name', e.target.value); if (modalError) setModalError(''); }} aria-invalid={!!modalError && !`${form.first_name} ${form.last_name}`.trim()} />
+                  <FieldHint hint="Indiquez au moins un prénom ou un nom." />
                 </div>
                 <div className="form-row">
                   <label>Date de naissance</label>
@@ -872,7 +883,7 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
                           ? 'N° passeport / document'
                           : form.immigration_status === 'resident'
                             ? 'N° carte de séjour'
-                            : 'CIN / National ID'}
+                            : 'CIN / pièce d’identité'}
                     </label>
                     <input value={form.national_id} onChange={(e) => setF('national_id', e.target.value)} />
                   </div>
@@ -930,6 +941,7 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
                       }
                     }}
                   />
+                  <FieldHint hint={idFile ? `Fichier sélectionné : ${idFile.name}` : 'PDF ou image. Vous pourrez ajouter une pièce plus tard.'} />
                 </div>
               </>
             )}
@@ -1041,6 +1053,10 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
                     />
                   </div>
                 )}
+              </>
+            )}
+            {step === 5 && (
+              <>
                 <div className="grid grid-2">
                   <div className="form-row">
                     <label>Type de contrat</label>
@@ -1095,6 +1111,10 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
                     placeholder="MA00 0000 0000 0000 0000 0000 000"
                   />
                 </div>
+              </>
+            )}
+            {step === 6 && (
+              <>
                 <div className="form-row">
                   <label>Compte lié (identifiant de connexion)</label>
                   <input
@@ -1118,41 +1138,12 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
                   <label>Notes</label>
                   <textarea rows={2} value={form.notes || ''} onChange={(e) => setF('notes', e.target.value)} />
                 </div>
-                <div className="form-row" style={{ marginTop: 8, paddingTop: 12, borderTop: '1px solid var(--line, #e5e5e5)' }}>
-                  <label>Pièce d’identité (CIN / passeport) — stockée chiffrée (R2)</label>
-                  <input
-                    type="file"
-                    accept="image/*,application/pdf"
-                    onChange={async (e) => {
-                      const f = e.target.files?.[0] || null;
-                      setIdFile(f);
-                      if (!f || !f.type.startsWith('image/')) return;
-                      try {
-                        const data_url = await fileToDataUrl(f);
-                        const r: any = await api.parseEmployeeId({ data_url });
-                        setReviewFields(r?.data?.fields || {});
-                        setReviewMsg(
-                          r?.data?.review_message ||
-                            'Veuillez vérifier que les informations lues sont correctes.',
-                        );
-                        setReviewOpen(true);
-                      } catch {
-                        setReviewFields({});
-                        setReviewMsg('Vérifiez et saisissez les champs manuellement.');
-                        setReviewOpen(true);
-                      }
-                    }}
-                  />
-                  <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>
-                    {idFile
-                      ? `Fichier prêt : ${idFile.name} (chiffré à l’enregistrement, hors base D1)`
-                      : 'PDF ou image — obligatoire recommandé à la création. Chiffrement AES côté serveur, clé R2 .id uniquement.'}
-                  </p>
-                </div>
+
               </>
             )}
 
             <ModalFormError message={modalError} />
+            </div>
             {/* Guided steps — the action bar never moves: Retour left,
                 Continuer / Créer always at the same place on the right. */}
             <div className="wizard-foot">
@@ -1165,12 +1156,19 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
                     Annuler
                   </button>
                   {step > 0 && (
-                    <button type="button" className="secondary" onClick={() => setStep((s) => Math.max(0, s - 1))}>
+                    <button type="button" className="secondary" onClick={() => { setModalError(''); setStep((s) => Math.max(0, s - 1)); }}>
                       Retour
                     </button>
                   )}
                   {step < STEPS.length - 1 ? (
-                    <button type="button" onClick={() => setStep((s) => Math.min(STEPS.length - 1, s + 1))}>
+                    <button type="button" onClick={() => {
+                      if (step === 0 && !`${form.first_name} ${form.last_name}`.trim()) {
+                        setModalError('Indiquez le prénom ou le nom de famille.');
+                        return;
+                      }
+                      setModalError('');
+                      setStep((s) => Math.min(STEPS.length - 1, s + 1));
+                    }}>
                       Continuer
                     </button>
                   ) : (
