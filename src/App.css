@@ -21519,3 +21519,13 @@ html body .download-landing .dl-ed-platforms button:hover { color: var(--ed-text
 .download-landing .dl-timeline-empty { color: var(--ed-muted); }
 .download-landing .dl-timeline-more { min-height: 44px; padding: 10px 16px; border-radius: 12px; }
 @media (prefers-reduced-motion: reduce) { .home-landing .hm-release-link { transition: none; } }
+
+/* Hero calls to action: full-width mobile rows with a genuinely compact split toggle. */
+@media (max-width: 620px) {
+  .home-landing .hm-cta { align-items: stretch; }
+  .home-landing .hm-cta .hm-start { justify-content: center; box-sizing: border-box; }
+  .home-landing .hm-cta .public-download-split { display: flex !important; width: 100%; min-width: 0; }
+  html body .home-landing .hm-cta .public-download-main { flex: 1 1 auto; width: auto !important; min-width: 0; justify-content: center; }
+  html body .home-landing .hm-cta .public-download-toggle { flex: 0 0 48px; width: 48px !important; min-width: 48px; min-height: 48px; }
+  .home-landing .hm-cta .hm-hero-explore { align-self: center; }
+}

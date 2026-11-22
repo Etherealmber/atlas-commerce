@@ -3,6 +3,7 @@ import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 import Home from '../pages/Home';
 
 let host: HTMLDivElement;
@@ -30,6 +31,12 @@ it('keeps platform links and clearly labels the demonstration screenshots', asyn
   expect(host.querySelector('#faq details')).not.toBeNull();
 });
 
+it('keeps the mobile download split toggle narrow and its main action flexible', () => {
+  const css = readFileSync('src/App.css', 'utf8');
+  expect(css).toMatch(/\.hm-cta \.public-download-main\s*\{[^}]*flex:\s*1 1 auto/s);
+  expect(css).toMatch(/\.hm-cta \.public-download-toggle\s*\{[^}]*flex:\s*0 0 48px;\s*width:\s*48px\s*!important/s);
+});
+
 it('shows section content when IntersectionObserver is unavailable', async () => {
   vi.stubGlobal('IntersectionObserver', undefined);
   await act(async () => { root.render(createElement(MemoryRouter, { children: createElement(Home) })); });
@@ -48,5 +55,13 @@ it('shows the user question before the fictional agent reply', async () => {
   expect(bubbles[1].textContent).toContain('Agent Atlas');
   expect(bubbles[1].textContent).toContain('23 ventes');
   expect(host.querySelector('.hm-start')?.getAttribute('href')).toBe('/login');
+  const split = host.querySelector('.hm-cta .public-download-split')!;
+  const toggle = split.querySelector<HTMLButtonElement>('.public-download-toggle')!;
+  expect(split.querySelector('.public-download-main')).not.toBeNull();
+  await act(async () => toggle.click());
+  expect(toggle.getAttribute('aria-expanded')).toBe('true');
+  expect(split.querySelectorAll('[role="menuitem"]')).toHaveLength(4);
+  await act(async () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+  expect(toggle.getAttribute('aria-expanded')).toBe('false');
   expect(host.querySelectorAll('.hm-steps li')).toHaveLength(3);
 });

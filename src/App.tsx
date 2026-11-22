@@ -832,12 +832,7 @@ function DesktopShell() {
   const isSettingsRoute = location.pathname === '/settings' || location.pathname.startsWith('/settings/');
   const settingsTab = new URLSearchParams(location.search).get('tab') || 'profile';
   const [focusUserMenuOpen, setFocusUserMenuOpen] = useState(false);
-  const [shellSearchOpen, setShellSearchOpen] = useState(false);
-  const [searchOpts, setSearchOpts] = useState({ whole: false, regex: false, notes: true });
   const [shellAlerts, setShellAlerts] = useState<any[]>([]);
-  const [shellSearch, setShellSearch] = useState('');
-  const [shellSearchHits, setShellSearchHits] = useState<{ type: string; id: number | string; label: string; sub?: string; to: string }[]>([]);
-  const [shellSearchLoading, setShellSearchLoading] = useState(false);
   const [shellUserOpen, setShellUserOpen] = useState(false);
   
 
@@ -848,31 +843,46 @@ function DesktopShell() {
 
   // v0.7.7 — la topbar Paramètres rétrécit en descendant, grandit en remontant
   const [settingsBarCompact, setSettingsBarCompact] = useState(false);
+  const compactRef = useRef(false);
+  const dockExpansionUntil = useRef(0);
+  const desktopDockTitleRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    // v0.7.7 — hystérésis 48 px : aucun scintillement au scroll.
+    // Start each page expanded; retain hysteresis once the user scrolls.
+    setSettingsBarCompact(false);
+    compactRef.current = false;
+    dockExpansionUntil.current = 0;
     let last = window.scrollY;
     let acc = 0;
-    let compactNow = false;
     const onScroll = () => {
       const y = window.scrollY;
       const d = y - last;
       last = y;
       if (y <= 60) {
         acc = 0;
-        if (compactNow) { compactNow = false; setSettingsBarCompact(false); }
+        if (compactRef.current) { compactRef.current = false; setSettingsBarCompact(false); }
         return;
       }
+      if (Date.now() < dockExpansionUntil.current || document.querySelector('.ac-desktop-dock .ac-topbar-user-btn[aria-expanded="true"], .ac-desktop-dock .ac-topbar-bell[aria-expanded="true"]')) { acc = 0; return; }
       if (d > 0) {
         acc = acc > 0 ? acc + d : d;
-        if (!compactNow && y > 140 && acc > 48) { compactNow = true; setSettingsBarCompact(true); }
+        if (!compactRef.current && y > 140 && acc > 48) {
+          if (document.activeElement?.closest('.ac-desktop-dock .ac-topbar-right')) desktopDockTitleRef.current?.focus();
+          compactRef.current = true; setSettingsBarCompact(true);
+        }
       } else if (d < 0) {
         acc = acc < 0 ? acc + d : d;
-        if (compactNow && acc < -48) { compactNow = false; setSettingsBarCompact(false); }
+        if (compactRef.current && acc < -48) { compactRef.current = false; setSettingsBarCompact(false); }
       }
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
-  }, []);
+  }, [location.pathname]);
+
+  const expandDesktopDock = () => {
+    compactRef.current = false;
+    dockExpansionUntil.current = Date.now() + 400;
+    setSettingsBarCompact(false);
+  };
 
   const [focusWhatsNewUnread, setFocusWhatsNewUnread] = useState(() => hasUnreadWhatsNew());
   useEffect(() => {
@@ -887,85 +897,6 @@ function DesktopShell() {
     api.getAlerts().then((r: any) => { if (!cancelled) setShellAlerts(r?.data || []); }).catch(() => { if (!cancelled) setShellAlerts([]); });
     return () => { cancelled = true; };
   }, [shellNotifOpen]);
-
-  useEffect(() => {
-    const q = shellSearch.trim();
-    if (!shellSearchOpen || q.length < 2) {
-      setShellSearchHits([]);
-      setShellSearchLoading(false);
-      return;
-    }
-    let cancelled = false;
-    setShellSearchLoading(true);
-    const t = window.setTimeout(async () => {
-      try {
-        const esc = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        let match: (s: string) => boolean;
-        if (searchOpts.regex) {
-          try { const re = new RegExp(q, 'i'); match = (v: string) => re.test(v); } catch { match = () => false; }
-        } else if (searchOpts.whole) {
-          const re = new RegExp(`(^|[^\\w])${esc}([^\\w]|$)`, 'i'); match = (v: string) => re.test(v);
-        } else {
-          const ql0 = q.toLowerCase(); match = (v: string) => v.toLowerCase().includes(ql0);
-        }
-        const [clientsRes, productsRes, invoicesRes, vendorsRes] = await Promise.all([
-          api.getClients().catch(() => ({ data: [] as any[] })),
-          api.getProducts().catch(() => ({ data: [] as any[] })),
-          api.getInvoices().catch(() => ({ data: [] as any[] })),
-          (api as any).getVendors ? (api as any).getVendors().catch(() => ({ data: [] as any[] })) : Promise.resolve({ data: [] as any[] }),
-        ]);
-        if (cancelled) return;
-        const hits: { type: string; id: number | string; label: string; sub?: string; to: string }[] = [];
-        const PAGES: [string, string][] = [['tableau de bord', '/'], ['produits', '/products'], ['stock', '/products'], ['clients', '/clients'], ['factures', '/invoices'], ['devis', '/quotes'], ['caisse', '/quick-sale'], ['scan', '/scan'], ['fournisseurs', '/vendors'], ['achats', '/bills'], ['paramètres', '/settings'], ['nouveautés', '/whats-new'], ['à propos', '/about']];
-        for (const [label, to] of PAGES) {
-          if (match(label)) hits.push({ type: 'Page', id: to, label: label[0].toUpperCase() + label.slice(1), to });
-        }
-        for (const c of (clientsRes as any)?.data || []) {
-          const blob = `${c.name || ''} ${c.ice || ''} ${c.city || ''} ${c.email || ''} ${c.phone || ''} ${searchOpts.notes ? (c.notes || '') : ''}`;
-          if (match(blob)) {
-            hits.push({ type: 'Client', id: c.id, label: c.name || `Client #${c.id}`, sub: [c.ice, c.city].filter(Boolean).join(' · '), to: '/clients' });
-          }
-          if (hits.length >= 8) break;
-        }
-        for (const p of (productsRes as any)?.data || []) {
-          const blob = `${p.name || ''} ${p.sku || ''} ${p.barcode || ''} ${p.category || ''} ${searchOpts.notes ? (p.description || '') : ''}`;
-          if (match(blob)) {
-            hits.push({ type: 'Produit', id: p.id, label: p.name || `Produit #${p.id}`, sub: p.sku || p.category || '', to: '/products' });
-          }
-          if (hits.filter((h) => h.type === 'Produit').length >= 6) break;
-        }
-        for (const v of (vendorsRes as any)?.data || []) {
-          const blob = `${v.name || ''} ${v.contact || ''} ${v.phone || ''} ${v.city || ''}`;
-          if (match(blob)) {
-            hits.push({ type: 'Fournisseur', id: v.id, label: v.name || `Fournisseur #${v.id}`, sub: v.city || v.phone || '', to: '/vendors' });
-          }
-          if (hits.filter((h) => h.type === 'Fournisseur').length >= 4) break;
-        }
-        for (const inv of (invoicesRes as any)?.data || []) {
-          const blob = `${inv.number || ''} ${inv.client_name || ''} ${inv.status || ''}`;
-          if (match(blob)) {
-            hits.push({
-              type: inv.kind === 'quote' ? 'Devis' : 'Facture',
-              id: inv.id,
-              label: inv.number || `Doc #${inv.id}`,
-              sub: inv.client_name || inv.status || '',
-              to: inv.kind === 'quote' ? '/quotes' : `/invoices/${inv.id}`,
-            });
-          }
-          if (hits.filter((h) => h.type === 'Facture' || h.type === 'Devis').length >= 6) break;
-        }
-        setShellSearchHits(hits.slice(0, 16));
-      } catch {
-        if (!cancelled) setShellSearchHits([]);
-      } finally {
-        if (!cancelled) setShellSearchLoading(false);
-      }
-    }, 280);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(t);
-    };
-  }, [shellSearch, shellSearchOpen, searchOpts]);
 
   useEffect(() => {
     // Close focus user menu when route changes
@@ -1002,7 +933,7 @@ function DesktopShell() {
     }
   });
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const shellOverlayOpen = shellNotifOpen || shellSearchOpen || mobileNavOpen;
+  const shellOverlayOpen = shellNotifOpen || mobileNavOpen;
   useEffect(() => {
     document.documentElement.classList.toggle('atlas-overlay-open', shellOverlayOpen);
     return () => document.documentElement.classList.remove('atlas-overlay-open');
@@ -1282,9 +1213,9 @@ function DesktopShell() {
 
         <div className="ac-main-column">
         {!isFocusRoute && (
-        <header className={`ac-topbar ac-topbar--bionis ac-desktop-dock${settingsBarCompact && !shellSearchOpen && !shellNotifOpen && !shellUserOpen ? ' ac-topbar--compact' : ''}${shellSearchOpen ? ' ac-topbar--searching' : ''}`} role="banner">
+        <header className={`ac-topbar ac-topbar--bionis ac-desktop-dock${settingsBarCompact && !shellNotifOpen && !shellUserOpen ? ' ac-topbar--compact' : ''}`} role="banner">
           <div className="ac-topbar-left">
-            <button
+            {!settingsBarCompact && <button
               type="button"
               className="ac-topbar-icon ac-topbar-menu-btn secondary ac-topbar-menu-mobile"
               aria-label={mobileNavOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
@@ -1299,111 +1230,14 @@ function DesktopShell() {
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
                 <path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" />
               </svg>
-            </button>
-            {sidebarCollapsed && (
-              <button
-                type="button"
-                className="ac-topbar-icon secondary ac-topbar-collapse-desktop"
-                aria-label="Agrandir le menu"
-                onClick={() => setSidebarCollapsed(false)}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                  <rect x="3" y="4" width="18" height="16" rx="3" />
-                  <path d="M9 4v16" />
-                </svg>
-              </button>
-            )}
-            <span className="ac-topbar-title">
+            </button>}
+            <button ref={desktopDockTitleRef} type="button" className="ac-topbar-title ac-dock-expand" aria-label="Barre de commandes" aria-expanded={!settingsBarCompact} onClick={expandDesktopDock}>
               {location.pathname === '/' || location.pathname === ''
                 ? 'Tableau de bord'
                 : location.pathname.replace(/^\//, '').split('/')[0].replace(/-/g, ' ')}
-            </span>
+            </button>
           </div>
-          <div className="ac-topbar-right">
-            {shellSearchOpen ? (
-              <div className="ac-topbar-search-wrap">
-                <div className="ac-topbar-search-expanded">
-                  <svg className="ac-topbar-search-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                    <circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" strokeLinecap="round" />
-                  </svg>
-                  <input
-                    className="ac-topbar-search-input"
-                    type="search"
-                    autoFocus
-                    placeholder="Rechercher clients, produits, factures…"
-                    value={shellSearch}
-                    onChange={(e) => setShellSearch(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Escape') {
-                        setShellSearch('');
-                        setShellSearchHits([]);
-                        setShellSearchOpen(false);
-                      }
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className="ac-topbar-search-clear secondary"
-                    aria-label="Fermer la recherche"
-                    onClick={() => { setShellSearch(''); setShellSearchHits([]); setShellSearchOpen(false); }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" /></svg>
-                  </button>
-                </div>
-                <div className="ac-shell-search-opts" role="group" aria-label="Options de recherche">
-                  {([['whole', 'Mot entier'], ['regex', 'Regex'], ['notes', 'Notes']] as const).map(([k, lbl]) => (
-                    <label key={k} className="ac-shell-search-opt">
-                      <input
-                        type="checkbox"
-                        checked={(searchOpts as any)[k]}
-                        onChange={(e) => setSearchOpts((o) => ({ ...o, [k]: e.target.checked }))}
-                      />
-                      <span>{lbl}</span>
-                    </label>
-                  ))}
-                </div>
-                {(shellSearch.trim().length >= 2) && (
-                  <div className="ac-shell-search-dropdown" role="listbox">
-                    {shellSearchLoading && <div className="ac-shell-search-empty">Recherche…</div>}
-                    {!shellSearchLoading && shellSearchHits.length === 0 && (
-                      <div className="ac-shell-search-empty">Aucun résultat pour « {shellSearch.trim()} »</div>
-                    )}
-                    {!shellSearchLoading && shellSearchHits.map((h) => (
-                      <button
-                        key={`${h.type}-${h.id}`}
-                        type="button"
-                        className="ac-shell-search-hit secondary"
-                        role="option"
-                        onClick={() => {
-                          setShellSearchOpen(false);
-                          setShellSearch('');
-                          setShellSearchHits([]);
-                          navigate(h.to);
-                        }}
-                      >
-                        <span className="ac-shell-search-type">{h.type}</span>
-                        <span className="ac-shell-search-label">
-                          <strong>{h.label}</strong>
-                          {h.sub ? <em>{h.sub}</em> : null}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <button
-                type="button"
-                className="ac-topbar-icon secondary"
-                aria-label="Rechercher"
-                onClick={() => setShellSearchOpen(true)}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                  <circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" strokeLinecap="round" />
-                </svg>
-              </button>
-            )}
-
+          {!settingsBarCompact && <div className="ac-topbar-right">
             <button
               type="button"
               data-theme-toggle
@@ -1524,7 +1358,7 @@ function DesktopShell() {
               initials={typeof getDisplayInitials === 'function' ? getDisplayInitials() : '?'}
               onLogout={logout}
             />
-          </div>
+          </div>}
         </header>
         )}
 

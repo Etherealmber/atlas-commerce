@@ -710,6 +710,7 @@ export function PublicDownloadCta({ prefer, full = true }: { prefer?: Platform; 
   return (
     <div
       ref={box}
+      className="public-download-split"
       style={{
         position: 'relative', display: 'inline-flex', alignItems: 'stretch',
         background: c.cta, borderRadius: 999, overflow: 'visible',
@@ -718,6 +719,7 @@ export function PublicDownloadCta({ prefer, full = true }: { prefer?: Platform; 
     >
       <button
         type="button"
+        className="public-download-main"
         onClick={() => startDownload(urlFor(main))}
         style={{
           display: 'inline-flex', alignItems: 'center', gap: 9,
@@ -733,6 +735,7 @@ export function PublicDownloadCta({ prefer, full = true }: { prefer?: Platform; 
       </button>
       <button
         type="button"
+        className="public-download-toggle"
         aria-label="Autres plateformes"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}

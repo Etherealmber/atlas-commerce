@@ -24,6 +24,30 @@ it('sends and resets a local Agent conversation without inventing extra controls
   expect(host.textContent).not.toContain('Stock disponible'); expect(host.textContent).toContain('Quels articles sont en rupture');
 });
 
+it('collapses the Agent dock to a title on deliberate scroll and expands on tap', async () => {
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(10_000);
+  await act(async () => root.render(createElement(PhoneAgentMobile)));
+  const dock = host.querySelector<HTMLElement>('.ph-agent-dock')!;
+  const messages = host.querySelector<HTMLDivElement>('.ph-agent-msgs')!;
+  expect(dock.querySelector('[aria-label="Historique des discussions"]')).not.toBeNull();
+  await act(async () => { messages.dataset.phoneProgrammaticScroll = 'true'; messages.scrollTop = 100; messages.dispatchEvent(new Event('scroll')); });
+  expect(dock.classList.contains('is-collapsed')).toBe(false);
+  await act(async () => { delete messages.dataset.phoneProgrammaticScroll; messages.scrollTop = 170; messages.dispatchEvent(new Event('scroll')); });
+  const title = dock.querySelector<HTMLButtonElement>('.ph-agent-dock-expand')!;
+  expect(title.textContent).toBe('Atlas Agent');
+  expect(title.getAttribute('aria-expanded')).toBe('false');
+  expect(dock.querySelector('[aria-label="Historique des discussions"]')).toBeNull();
+  await act(async () => title.click());
+  expect(dock.querySelector('[aria-label="Historique des discussions"]')).not.toBeNull();
+  await act(async () => { messages.scrollTop = 250; messages.dispatchEvent(new Event('scroll')); });
+  expect(dock.classList.contains('is-collapsed')).toBe(false);
+  clock.mockReturnValue(10_500);
+  await act(async () => { messages.scrollTop = 320; messages.dispatchEvent(new Event('scroll')); });
+  expect(dock.classList.contains('is-collapsed')).toBe(true);
+  await act(async () => { messages.scrollTop = 260; messages.dispatchEvent(new Event('scroll')); });
+  expect(dock.classList.contains('is-collapsed')).toBe(false);
+});
+
 it('collapses on downward nested scroll, expands on upward scroll or tap, and resets on route change', async () => {
   const onCollapse = vi.fn();
   function View({ path }: { path: string }) {
@@ -198,18 +222,21 @@ it('renders assistant Markdown safely, leaves user text untouched and copies the
   expect(copy).toHaveBeenCalledWith(original);
 });
 
-it('keeps quick actions reachable in an existing conversation without changing data', async () => {
+it('shows native-style quick actions in a new conversation without a dock toggle or data changes', async () => {
   const create = vi.spyOn(api, 'createProduct');
   const onNavigate = vi.fn();
   vi.spyOn(api, 'assistChat').mockResolvedValue({ data: { reply: 'Réponse' } } as any);
   await act(async () => root.render(createElement(PhoneAgentMobile as ComponentType<{ onNavigate: typeof onNavigate }>, { onNavigate })));
-  await act(async () => host.querySelector<HTMLButtonElement>('.ph-agent-prompts button')!.click());
-  expect(host.querySelector('[aria-label="Actions rapides"]')).toBeNull();
-  await act(async () => host.querySelector<HTMLButtonElement>('button[aria-label="Raccourcis Atlas Agent"]')!.click());
+  expect(host.querySelector('[aria-label="Raccourcis Atlas Agent"]')).toBeNull();
   expect(host.querySelector('[aria-label="Actions rapides"]')?.textContent).toContain('Mon activité');
   await act(async () => [...host.querySelectorAll('button')].find(b => b.textContent === 'Demander un produit')!.click());
   expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain('produit');
   expect(create).not.toHaveBeenCalled();
+  await act(async () => [...document.body.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find(button => button.textContent === 'Annuler')!.click());
+  await act(async () => host.querySelector<HTMLButtonElement>('.ph-agent-prompts button')!.click());
+  expect(host.querySelector('[aria-label="Actions rapides"]')).toBeNull();
+  await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Nouvelle discussion"]')!.click());
+  expect(host.querySelector('[aria-label="Actions rapides"]')).not.toBeNull();
 });
 
 it('loads only read-only personal activity and preserves partial source failures', async () => {
