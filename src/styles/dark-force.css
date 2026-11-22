@@ -4450,8 +4450,9 @@ html[data-theme='dark'] body .ac-device-chip { background: rgba(34, 197, 94, .16
 html[data-theme='dark'] body .ac-device-revoke { border-color: #7f1d1d; color: #fca5a5; }
 html[data-theme='dark'] body .ac-device-revoke:hover { background: rgba(127, 29, 29, .25); color: #fecaca; }
 html[data-theme='dark'] body .ac-device-note { color: #fbbf24; }
-html[data-theme='dark'] body .atlas-dl-teaser-link { background: #f4f4f5; color: #18181b; }
-html[data-theme='dark'] body .atlas-dl-teaser > button { background: #27272a; color: #d4d4d8; }
+html[data-theme='dark'] body .atlas-dl-teaser-link { background: #242321; color: #faf9f6; border-color: #514b43; box-shadow: 0 10px 28px rgba(0, 0, 0, .35); }
+html[data-theme='dark'] body .atlas-dl-teaser > button { background: #242321 !important; color: #faf9f6 !important; border-color: #514b43 !important; }
+html[data-theme='dark'] body .atlas-dl-teaser > button:hover { background: #393630 !important; color: #fff !important; }
 
 /* v0.7.1 — landing /download sur thème sombre. */
 html[data-theme='dark'] body .dl-stat { background: #1c1c1f; border-color: #2a2a2e; }

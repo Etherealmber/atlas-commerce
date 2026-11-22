@@ -21,7 +21,7 @@ it('uses the Android manifest download without contacting the fallback CDN', asy
   vi.stubGlobal('fetch', fetchMock);
   await render(Download);
   expect(host.querySelector<HTMLAnchorElement>('.dl-cta-main')?.href).toBe('https://example.com/atlas.apk');
-  expect(fetchMock.mock.calls.some(([url]) => url.includes('cdn1.afmarbre.com'))).toBe(false);
+  expect(fetchMock.mock.calls.some(([url]) => new URL(url, 'https://atlas.test').hostname === 'cdn1.afmarbre.com')).toBe(false);
 });
 
 it('does not show a perpetual loading state when the selected desktop platform has no asset', async () => {

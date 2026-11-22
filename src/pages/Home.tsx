@@ -11,13 +11,9 @@ import {
 } from '../components/PublicChrome';
 import { isLoggedIn } from '../auth';
 
-
 const NAV: NavLink[] = [
   { href: '#features', label: 'Fonctionnalités' },
-  { href: '#tout-en-un', label: 'Tout-en-un' },
   { href: '#plateformes', label: 'Plateformes' },
-  { href: '#open-source', label: 'Open source' },
-  { href: '#faq', label: 'FAQ' },
   { href: '/whats-new', label: 'Nouveautés' },
   { href: '/about', label: 'À propos' },
 ];
@@ -179,6 +175,7 @@ export default function Home() {
         {/* ---------------- Hero ---------------- */}
         <section className="hm-hero">
           <p className="hm-eyebrow">ATLAS · GESTION COMMERCIALE OPEN SOURCE</p>
+          <div className="hm-hero-copy">
           <h1>
             Tout votre commerce,
             <br />
@@ -200,6 +197,8 @@ export default function Home() {
             <a href="/desktop">Windows · macOS · Linux</a>
           </p>
 
+          </div>
+          <div className="hm-showcase">
           <div className="hm-window rise">
             <div className="hm-window-bar" aria-hidden="true">
               <span /><span /><span />
@@ -207,7 +206,15 @@ export default function Home() {
             </div>
             <img src="/shots/desktop-demo.webp" alt="Tableau de bord web Atlas Commerce avec des données fictives" width="1280" height="800" />
           </div>
-          <p className="hm-shot-caption">Interface web sur ordinateur · données fictives de démonstration</p>
+          <img className="hm-phone-shot" src="/shots/phone-products-demo.webp" alt="Catalogue web mobile avec des produits fictifs" width="390" height="844" loading="lazy" />
+          </div>
+          <p className="hm-shot-caption">Interfaces web sur ordinateur et mobile · données fictives de démonstration</p>
+          <ul className="hm-facts" aria-label="Les essentiels d’Atlas">
+            <li><b>Stock &amp; scan</b><span>Suivez vos produits et vos mouvements.</span></li>
+            <li><b>Vente &amp; facturation</b><span>Du comptoir aux documents commerciaux.</span></li>
+            <li><b>Sur vos appareils</b><span>Web, Android et application bureau.</span></li>
+            <li><b>Open source</b><span>Un projet ouvert que vous pouvez explorer.</span></li>
+          </ul>
         </section>
 
         {/* ---------------- Dossier : les modules sortent du folder Atlas ---------------- */}
