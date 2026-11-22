@@ -39,4 +39,39 @@ html body .product-history button.product-history-refresh svg {
 }
 html body .product-history button.product-history-photo-action svg *,
 html body .product-history button.product-history-refresh svg * { stroke: currentColor !important; fill: none !important; }
-.product-history-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0; }
+.product-history-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 12px 0; }
+html body .product-history .product-history-actions button.secondary {
+  display: inline-flex !important; align-items: center !important; justify-content: center !important; gap: 7px;
+  height: 36px !important; min-height: 36px !important; padding: 0 15px !important;
+  border-radius: 999px !important; font-size: 13px !important; font-weight: 600 !important;
+  line-height: 1 !important; transition: background-color 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+html body .product-history .product-history-actions button.secondary svg { flex: none; stroke: currentColor !important; fill: none !important; }
+html body .product-history .product-history-actions button.product-history-action-stock {
+  background: #fef3c7 !important; color: #92400e !important; -webkit-text-fill-color: #92400e !important;
+  border: 1.5px solid #fcd34d !important;
+}
+html body .product-history .product-history-actions button.product-history-action-stock:hover:not(:disabled) {
+  background: #fde68a !important; border-color: #f59e0b !important;
+}
+html body .product-history .product-history-actions button.product-history-action-edit {
+  background: #dbeafe !important; color: #1d4ed8 !important; -webkit-text-fill-color: #1d4ed8 !important;
+  border: 1.5px solid #93c5fd !important;
+}
+html body .product-history .product-history-actions button.product-history-action-edit:hover:not(:disabled) {
+  background: #bfdbfe !important; border-color: #60a5fa !important;
+}
+html[data-theme="dark"] body .product-history .product-history-actions button.product-history-action-stock {
+  background: #451a03 !important; color: #fde68a !important; -webkit-text-fill-color: #fde68a !important;
+  border-color: #b45309 !important;
+}
+html[data-theme="dark"] body .product-history .product-history-actions button.product-history-action-stock:hover:not(:disabled) {
+  background: #78350f !important; border-color: #d97706 !important;
+}
+html[data-theme="dark"] body .product-history .product-history-actions button.product-history-action-edit {
+  background: #1e3a5f !important; color: #bfdbfe !important; -webkit-text-fill-color: #bfdbfe !important;
+  border-color: #3b82f6 !important;
+}
+html[data-theme="dark"] body .product-history .product-history-actions button.product-history-action-edit:hover:not(:disabled) {
+  background: #1e40af !important; border-color: #60a5fa !important;
+}

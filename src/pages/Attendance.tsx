@@ -1,4 +1,5 @@
 import TopPageActions from '../components/TopPageActions';
+import { Download, Users, UserX } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, BASE } from '../api';
@@ -321,8 +322,8 @@ export default function Attendance() {
   if (enabled === null || (loading && enabled === null)) {
     return (
       <div className="atlas-crm attendance-page">
-        <div className="page-header">
-          <h1>Présence</h1>
+        <div className="page-header dock-page-header">
+          <h1 className="sr-only">Présence</h1>
         </div>
         <div className="ac-panel" style={{ padding: 24 }}>
           <p className="muted" style={{ margin: 0 }}>Chargement…</p>
@@ -334,8 +335,8 @@ export default function Attendance() {
   if (!enabled) {
     return (
       <div className="atlas-crm attendance-page">
-        <div className="page-header">
-          <h1>Présence</h1>
+        <div className="page-header dock-page-header">
+          <h1 className="sr-only">Présence</h1>
         </div>
         <div className="ac-panel" style={{ padding: 24 }}>
           <p style={{ margin: '0 0 14px' }}>
@@ -352,26 +353,30 @@ export default function Attendance() {
 
   return (
     <div className="atlas-crm attendance-page">
-      <div className="page-header">
-        <h1>Présence / pointage</h1>
+      <div className="page-header dock-page-header">
+        <h1 className="sr-only">Présence / pointage</h1>
         <TopPageActions>
-          <div style={{ minWidth: 150 }}>
+          <div className="tpa-date-wrap" style={{ minWidth: 150 }}>
             <DatePicker value={date} onChange={setDate} />
           </div>
           <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
-          <button type="button" className="secondary" onClick={() => setExportOpen(true)}>
-            Export CSV / PDF
+          <button type="button" className="secondary" onClick={() => setExportOpen(true)} title="Export CSV / PDF">
+            <Download size={16} aria-hidden="true" />
+            <span className="tpa-label">Export CSV / PDF</span>
           </button>
           <button
             type="button"
             className="secondary"
             onClick={() => setAbsentOpen(true)}
             disabled={!selected.length}
+            title={`Absents (${selected.length})`}
           >
-            Absents ({selected.length})
+            <UserX size={16} aria-hidden="true" />
+            <span className="tpa-label">Absents ({selected.length})</span>
           </button>
           <Link
             to="/employees"
+            title="Employés / paie"
             style={{
               textDecoration: 'none',
               padding: '8px 14px',
@@ -382,7 +387,8 @@ export default function Attendance() {
               fontSize: 14,
             }}
           >
-            Employés / paie
+            <Users size={16} aria-hidden="true" />
+            <span className="tpa-label">Employés / paie</span>
           </Link>
         </TopPageActions>
       </div>

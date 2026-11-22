@@ -1,4 +1,5 @@
 import TopPageActions from '../components/TopPageActions';
+import { Plus } from 'lucide-react';
 import { TimedUndoDelete } from '../components/ui';
 import { useEffect, useState } from 'react';
 import { api } from '../api';
@@ -9,7 +10,13 @@ import EmptyState from '../components/EmptyState';
 import RefreshIconButton from '../components/RefreshIconButton';
 import '../components/erp/crm-parties.css';
 import { FloatingPortal } from '../components/FloatingPortal';
-import { useWizard, StepBody, WizardFoot } from '../components/ui/FormWizard';
+import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
+import { ModalFormError } from '../components/ModalFormFeedback';
+
+const VENDOR_STEPS: readonly WizardStepDef[] = [
+  { id: 'identity', label: 'Identité', hint: 'Nom du fournisseur et identifiants fiscaux.' },
+  { id: 'contact', label: 'Contact', hint: 'Adresse, ville, téléphone et e-mail.' },
+];
 
 export default function Vendors() {
   const [pwOpen, setPwOpen] = useState(false);
@@ -116,7 +123,7 @@ export default function Vendors() {
         <h1 className="sr-only">Fournisseurs</h1>
         <TopPageActions>
           <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
-          <button onClick={() => { setEditId(null); setForm({ name: '', ice: '', if_number: '', address: '', city: '', phone: '', email: '' }); wz.reset(); setShow(true); }}>+ Nouveau fournisseur</button>
+          <button title="Nouveau fournisseur" onClick={() => { setEditId(null); setForm({ name: '', ice: '', if_number: '', address: '', city: '', phone: '', email: '' }); wz.reset(); setShow(true); }}><Plus size={16} aria-hidden="true" /><span className="tpa-label">Nouveau fournisseur</span></button>
         </TopPageActions>
       </div>
 
@@ -215,13 +222,15 @@ export default function Vendors() {
       </div>
 
       {show && (
-        <FloatingPortal><div className="modal-overlay" onClick={() => { setShow(false); wz.reset(); }}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>{editId ? 'Modifier le fournisseur' : 'Nouveau fournisseur'}</h2>
+        <FloatingPortal><div className="modal-overlay" onClick={() => { setShow(false); setFieldErrors({}); wz.reset(); }}>
+          <div className="modal step-wizard" role="dialog" aria-modal="true" aria-labelledby="vendor-wizard-title" onClick={(e) => e.stopPropagation()}>
+            <WizardHeader eyebrow="FICHE FOURNISSEUR" title={editId ? 'Modifier le fournisseur' : 'Nouveau fournisseur'} titleId="vendor-wizard-title" wz={wz} steps={VENDOR_STEPS} />
+            <div className="step-wizard__body">
+            <WizardIntro step={VENDOR_STEPS[wz.step - 1]} />
             <StepBody active={wz.step === 1}>
             <div className="form-row"><label>Nom *</label><input className={fieldErrors.name ? 'field-error' : undefined} value={form.name} onChange={(e) => { setForm({ ...form, name: e.target.value }); setFieldErrors((x) => ({ ...x, name: '' })); }} placeholder="Ex. Ciments du Maroc" /><span className="field-error-msg">{fieldErrors.name || ''}</span></div>
             <div className="grid grid-2">
-              <div className="form-row"><label>ICE / Identifiant fiscal</label><input value={form.ice} onChange={(e) => setForm({ ...form, ice: e.target.value })} /></div>
+              <div className="form-row"><label>ICE / Identifiant fiscal</label><input className={fieldErrors.ice ? 'field-error' : undefined} value={form.ice} onChange={(e) => { setForm({ ...form, ice: e.target.value }); setFieldErrors((x) => ({ ...x, ice: '' })); }} /></div>
               <div className="form-row"><label>IF</label><input value={form.if_number} onChange={(e) => setForm({ ...form, if_number: e.target.value })} /></div>
             </div>
             </StepBody>
@@ -233,11 +242,29 @@ export default function Vendors() {
             </div>
             <div className="form-row"><label>E-mail</label><input type="email" className={fieldErrors.email ? 'field-error' : undefined} value={form.email} onChange={(e) => { setForm({ ...form, email: e.target.value }); setFieldErrors((x) => ({ ...x, email: '' })); }} placeholder="contact@fournisseur.ma" /><span className="field-error-msg">{fieldErrors.email || ''}</span></div>
             </StepBody>
+            <ModalFormError message={firstError(fieldErrors) || ''} />
+            </div>
             <WizardFoot
               title={editId ? 'Modifier le fournisseur' : 'Nouveau fournisseur'}
               wz={wz}
-              stepLabel={wz.step === 1 ? 'Identité' : 'Contact'}
-              onCancel={() => { setShow(false); wz.reset(); }}
+              stepLabel={VENDOR_STEPS[wz.step - 1].label}
+              onCancel={() => { setShow(false); setFieldErrors({}); wz.reset(); }}
+              onBack={() => setFieldErrors({})}
+              onNext={() => {
+                if (wz.step === 1) {
+                  if (!form.name.trim()) {
+                    setFieldErrors({ name: 'Le nom du fournisseur est obligatoire.' });
+                    return false;
+                  }
+                  const ice = form.ice.replace(/\s/g, '');
+                  if (ice && !/^\d{15}$/.test(ice)) {
+                    setFieldErrors({ ice: 'ICE : 15 chiffres (sans espaces).' });
+                    return false;
+                  }
+                }
+                setFieldErrors({});
+                return true;
+              }}
               onSubmit={() => void save()}
               submitLabel={saving ? 'Enregistrement...' : 'Enregistrer dans la base'}
               saving={saving}

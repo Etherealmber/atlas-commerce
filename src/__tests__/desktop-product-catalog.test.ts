@@ -44,10 +44,13 @@ it('offers list and grid, preserves actions, and opens product history from a ca
   expect(host.querySelector('.product-page-actions')?.textContent).toContain('Ajouter un produit');
   expect([...host.querySelectorAll('button')].some(b => b.textContent === 'Historique')).toBe(false);
   const rowDelete = host.querySelector<HTMLElement>('.product-table-row [role="button"]')!;
+  expect(host.querySelector('.ac-products-table-panel')?.classList.contains('ac-products-table-panel--grid')).toBe(false);
   await act(async () => rowDelete.click());
   expect(host.querySelector('.product-table-row')).not.toBeNull();
   await act(async () => rowDelete.click());
   await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Affichage en grille"]')!.click());
+  expect(host.querySelector('.ac-products-table-panel')?.classList.contains('ac-products-table-panel--grid')).toBe(true);
+  expect(host.querySelector('.ac-products-table-panel--grid .desktop-product-select-all')).not.toBeNull();
   expect(host.querySelector('.desktop-product-card img')?.getAttribute('src')).toContain('/cdn/marbre.webp');
   expect(host.querySelector('.desktop-product-chips .product-stock-chip')?.classList.contains('ok')).toBe(true);
   expect(localStorage.getItem('atlas_desktop_products_view')).toBe('grid');
@@ -70,6 +73,10 @@ it('keeps the staged product photo editor accessible', async () => {
   vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
   await act(async () => root.render(createElement(MemoryRouter, {initialEntries:['/products']}, createElement(Products))));
   await act(async () => [...host.querySelectorAll<HTMLButtonElement>('button')].find(b => b.textContent?.includes('Ajouter un produit'))!.click());
+  const secondaryUnitSelect = document.querySelector<HTMLSelectElement>('#product-secondary-unit')!;
+  expect(secondaryUnitSelect?.tagName).toBe('SELECT');
+  expect([...secondaryUnitSelect.options].some(o => o.value === 'm²')).toBe(true);
+  expect([...secondaryUnitSelect.options].some(o => o.value === '__new__')).toBe(true);
   const picker = document.querySelector<HTMLInputElement>('.modal input[type="file"][multiple]')!;
   const files = new DataTransfer(); files.items.add(new File(['x'], 'photo.png', {type:'image/png'})); picker.files=files.files;
   await act(async () => picker.dispatchEvent(new Event('change', {bubbles:true})));

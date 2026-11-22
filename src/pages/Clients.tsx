@@ -1,12 +1,13 @@
 import TopPageActions from '../components/TopPageActions';
+import { UserPlus } from 'lucide-react';
 import { TimedUndoDelete } from '../components/ui';
 import { downloadExport } from '../lib/export';
 import { onAgentDraft } from '../lib/agentDraft';
 import { useEffect, useState } from 'react';
 import EmptyState from '../components/EmptyState';
-import { useWizard, StepBody, WizardFoot } from '../components/ui/FormWizard';
-import { validateClientForm, firstError } from '../lib/formValidate';
-import { useNavigate } from 'react-router-dom';
+import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
+import { validateClientForm, isEmail, firstError } from '../lib/formValidate';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import PasswordConfirm from '../components/PasswordConfirm';
 import SaveFeedback from '../components/SaveFeedback';
@@ -18,6 +19,12 @@ import '../components/erp/crm-parties.css';
 import { FloatingPortal } from '../components/FloatingPortal';
 import { ModalFormError, FieldHint } from '../components/ModalFormFeedback';
 
+const CLIENT_STEPS: readonly WizardStepDef[] = [
+  { id: 'identity', label: 'Identité', hint: 'Nom du client et identifiants fiscaux.' },
+  { id: 'contact', label: 'Contact', hint: 'Adresse, ville, téléphone et e-mail.' },
+  { id: 'options', label: 'Options', hint: 'Exonération TVA et plafond de crédit.' },
+];
+
 export default function Clients() {
   const navigate = useNavigate();
   const [list, setList] = useState<any[]>([]);
@@ -27,7 +34,12 @@ export default function Clients() {
   const [sitChoice, setSitChoice] = useState<null | { id: number; name: string; ice: string }>(null);
   const [mailChoice, setMailChoice] = useState<null | { email: string; name: string }>(null);
 
-  const [search, setSearch] = useState('');
+  const [searchParams] = useSearchParams();
+  const [search, setSearch] = useState(() => searchParams.get('q') || '');
+  useEffect(() => {
+    const q = searchParams.get('q') || '';
+    if (q) setSearch(q);
+  }, [searchParams]);
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -226,8 +238,8 @@ export default function Clients() {
 
   return (
     <div className="atlas-crm clients-page">
-      <div className="page-header">
-        <h1>Clients</h1>
+      <div className="page-header dock-page-header">
+        <h1 className="sr-only">Clients</h1>
         <TopPageActions enabled={selected.size === 0}>
           <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
           {selected.size > 0 && (
@@ -238,7 +250,7 @@ export default function Clients() {
               onConfirm={() => openDelete()}
             />
           )}
-          <button type="button" onClick={openCreate}>Ajouter un client</button>
+          <button type="button" onClick={openCreate} title="Ajouter un client"><UserPlus size={16} aria-hidden="true" /><span className="tpa-label">Ajouter un client</span></button>
         </TopPageActions>
       </div>
 
@@ -410,16 +422,18 @@ export default function Clients() {
       </div>
 
       {show && (
-        <FloatingPortal><div className="modal-overlay" onClick={() => { setShow(false); setEditId(null); setForm({ name: '', ice: '', if_number: '', address: '', city: '', phone: '', email: '', tax_exempt: false, credit_limit: 0 }); wz.reset(); }}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>{editId ? 'Modifier le client' : 'Nouveau client'}</h2>
+        <FloatingPortal><div className="modal-overlay" onClick={() => { setShow(false); setEditId(null); setForm({ name: '', ice: '', if_number: '', address: '', city: '', phone: '', email: '', tax_exempt: false, credit_limit: 0 }); setModalError(''); wz.reset(); }}>
+          <div className="modal step-wizard" role="dialog" aria-modal="true" aria-labelledby="client-wizard-title" onClick={(e) => e.stopPropagation()}>
+            <WizardHeader eyebrow="FICHE CLIENT" title={editId ? 'Modifier le client' : 'Nouveau client'} titleId="client-wizard-title" wz={wz} steps={CLIENT_STEPS} />
+            <div className="step-wizard__body">
+            <WizardIntro step={CLIENT_STEPS[wz.step - 1]} />
             <StepBody active={wz.step === 1}>
             <div className="form-row"><label>Nom *</label>
-              <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={!form.name.trim() ? 'input-warn' : ''} />
+              <input value={form.name} onChange={(e) => { setForm({ ...form, name: e.target.value }); if (modalError) setModalError(''); }} className={!form.name.trim() ? 'input-warn' : ''} />
               {!form.name.trim() && <span className="field-hint">Obligatoire</span>}</div>
             <div className="grid grid-2">
               <div className="form-row"><label>ICE</label>
-                <input value={form.ice} onChange={(e) => setForm({ ...form, ice: e.target.value })} /></div>
+                <input value={form.ice} onChange={(e) => { setForm({ ...form, ice: e.target.value }); if (modalError) setModalError(''); }} /></div>
               <div className="form-row"><label>IF</label>
                 <input value={form.if_number} onChange={(e) => setForm({ ...form, if_number: e.target.value })} /></div>
             </div>
@@ -431,10 +445,10 @@ export default function Clients() {
               <div className="form-row"><label>Ville</label>
                 <input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} /></div>
               <div className="form-row"><label>Téléphone</label>
-                <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+                <input value={form.phone} onChange={(e) => { setForm({ ...form, phone: e.target.value }); if (modalError) setModalError(''); }} /></div>
             </div>
             <div className="form-row"><label>E-mail</label>
-              <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+              <input type="email" value={form.email} onChange={(e) => { setForm({ ...form, email: e.target.value }); if (modalError) setModalError(''); }} /></div>
             </StepBody>
             <StepBody active={wz.step === 3}>
             <div className="form-row">
@@ -462,12 +476,27 @@ export default function Clients() {
             </div>
             </StepBody>
             <ModalFormError message={modalError} />
-            {/* Same action bar pattern as every other form: primary always right */}
+            </div>
             <WizardFoot
               wz={wz}
               title={editId ? 'Modifier le client' : 'Nouveau client'}
-              stepLabel={['Identité', 'Contact', 'Options'][wz.step - 1]}
-              onCancel={() => { setShow(false); setEditId(null); setForm({ name: '', ice: '', if_number: '', address: '', city: '', phone: '', email: '', tax_exempt: false, credit_limit: 0 }); wz.reset(); }}
+              stepLabel={CLIENT_STEPS[wz.step - 1].label}
+              onCancel={() => { setShow(false); setEditId(null); setForm({ name: '', ice: '', if_number: '', address: '', city: '', phone: '', email: '', tax_exempt: false, credit_limit: 0 }); setModalError(''); wz.reset(); }}
+              onBack={() => setModalError('')}
+              onNext={() => {
+                if (wz.step === 1) {
+                  if (!form.name.trim()) { setModalError('Le nom du client est obligatoire.'); return false; }
+                  const ice = form.ice.replace(/\s/g, '');
+                  if (ice && !/^\d{15}$/.test(ice)) { setModalError('ICE : 15 chiffres (sans espaces).'); return false; }
+                }
+                if (wz.step === 2) {
+                  if (form.email.trim() && !isEmail(form.email)) { setModalError('Adresse e-mail invalide.'); return false; }
+                  const ph = form.phone.replace(/[\s.-]/g, '');
+                  if (ph && ph.length < 8) { setModalError('Numéro de téléphone trop court.'); return false; }
+                }
+                setModalError('');
+                return true;
+              }}
               onSubmit={save}
               submitLabel={editId ? 'Enregistrer' : 'Créer le client'}
               saving={saving}

@@ -1,14 +1,28 @@
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { api } from '../api';
 import { getRole } from '../auth';
 import PhoneDialog from './PhoneDialog';
-import { dualStockLabel } from '../lib/dualUnit';
+import { dualStockLabel, mergeUnitOptions, type UnitOption } from '../lib/dualUnit';
 
 /** Admins create directly; other roles submit an approval request, never a product write. */
 export default function PhoneProductCreate({ onClose, onCreated }: { onClose: () => void; onCreated: (direct: boolean) => void }) {
   const role = getRole(); const direct = role === 'owner' || role === 'admin';
-  const [baseUnit, setBaseUnit] = useState('unité'); const [secondUnit, setSecondUnit] = useState(''); const [factorText, setFactorText] = useState(''); const [stockText, setStockText] = useState('0');
+  const [units, setUnits] = useState<UnitOption[]>(() => mergeUnitOptions());
+  const [baseUnitChoice, setBaseUnitChoice] = useState('unité');
+  const [customBaseUnit, setCustomBaseUnit] = useState('');
+  const [secondUnitChoice, setSecondUnitChoice] = useState('');
+  const [customSecondUnit, setCustomSecondUnit] = useState('');
+  const [factorText, setFactorText] = useState(''); const [stockText, setStockText] = useState('0');
   const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const sending = useRef(false);
+  const baseUnit = baseUnitChoice === '__custom__' ? customBaseUnit : baseUnitChoice;
+  const secondUnit = secondUnitChoice === '__custom__' ? customSecondUnit : secondUnitChoice;
+  useEffect(() => {
+    let active = true;
+    api.getUnits?.().then((r) => {
+      if (active && Array.isArray(r?.data)) setUnits(mergeUnitOptions(r.data));
+    }).catch(() => {});
+    return () => { active = false; };
+  }, []);
   const close = () => { if (!sending.current) onClose(); };
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault(); if (sending.current) return;
@@ -40,8 +54,54 @@ export default function PhoneProductCreate({ onClose, onCreated }: { onClose: ()
       <label>Nom *<input name="name" maxLength={120} required autoComplete="off" /></label>
       <label>Référence / SKU<input name="sku" maxLength={80} autoComplete="off" /></label>
       {direct && <label>Code-barres<input name="barcode" maxLength={120} autoComplete="off" /></label>}
-      <div className="ph-create-fields"><label>Unité principale *<input name="unit" value={baseUnit} onChange={e => setBaseUnit(e.target.value)} maxLength={40} required /></label><label>Stock initial *<input name="quantity" type="number" min="0" step="any" value={stockText} onChange={e => setStockText(e.target.value)} required inputMode="decimal" /></label></div>
-      <div className="ph-create-fields"><label>Deuxième unité (facultatif)<input name="secondary_unit" maxLength={40} value={secondUnit} onChange={e => setSecondUnit(e.target.value)} placeholder="Ex. m²" /></label><label>Quantité par {baseUnit || 'unité'}<input name="secondary_unit_factor" inputMode="decimal" value={factorText} onChange={e => setFactorText(e.target.value)} placeholder="Ex. 1,59" /></label></div>
+      <div className="ph-create-fields">
+        <label>Unité principale *
+          <select
+            name={baseUnitChoice === '__custom__' ? undefined : 'unit'}
+            value={baseUnitChoice}
+            onChange={e => setBaseUnitChoice(e.target.value)}
+            required={baseUnitChoice !== '__custom__'}
+          >
+            {units.map((u) => (
+              <option key={u.id ?? u.name} value={u.name}>{u.symbol ? `${u.name} (${u.symbol})` : u.name}</option>
+            ))}
+            <option value="__custom__">Autre unité…</option>
+          </select>
+          {baseUnitChoice === '__custom__' && (
+            <input name="unit" value={customBaseUnit} onChange={e => setCustomBaseUnit(e.target.value)} maxLength={40} placeholder="Nom de l’unité" required />
+          )}
+        </label>
+        <label>Stock initial *<input name="quantity" type="number" min="0" step="any" value={stockText} onChange={e => setStockText(e.target.value)} required inputMode="decimal" /></label>
+      </div>
+      <div className="ph-create-fields">
+        <label>Deuxième unité (facultatif)
+          <select
+            name={secondUnitChoice === '__custom__' ? undefined : 'secondary_unit'}
+            value={secondUnitChoice}
+            onChange={e => {
+              const val = e.target.value;
+              setSecondUnitChoice(val);
+              if (!val) { setCustomSecondUnit(''); setFactorText(''); }
+            }}
+          >
+            <option value="">— Aucune —</option>
+            {units.map((u) => (
+              <option
+                key={u.id ?? u.name}
+                value={u.name}
+                disabled={Boolean(baseUnit) && u.name.toLowerCase() === baseUnit.trim().toLowerCase()}
+              >
+                {u.symbol ? `${u.name} (${u.symbol})` : u.name}
+              </option>
+            ))}
+            <option value="__custom__">Autre unité…</option>
+          </select>
+          {secondUnitChoice === '__custom__' && (
+            <input name="secondary_unit" value={customSecondUnit} onChange={e => setCustomSecondUnit(e.target.value)} maxLength={40} placeholder="Ex. m²" />
+          )}
+        </label>
+        <label>Quantité par {baseUnit || 'unité'}<input name="secondary_unit_factor" inputMode="decimal" value={factorText} onChange={e => setFactorText(e.target.value)} placeholder="Ex. 1,59" /></label>
+      </div>
       <p>Exemple : 1 carton = 1,59 m². Stock et prix sont enregistrés par unité principale.{secondUnit && Number(factorText.replace(',', '.')) > 0 ? ` Stock : ${dualStockLabel({ unit: baseUnit, secondary_unit: secondUnit, secondary_unit_factor: Number(factorText.replace(',', '.')), stock_quantity: Number(stockText) || 0 })}` : ''}</p>
       {direct && <label>Catégorie<input name="category" maxLength={120} /></label>}
       <label>Photo facultative (4 Mo maximum)<input name="photo" type="file" accept="image/jpeg,image/png,image/webp,image/gif" /></label>

@@ -1,5 +1,5 @@
 import TopPageActions from '../components/TopPageActions';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, FilePlus2 } from 'lucide-react';
 import './quote-actions.css';
 import TypeaheadField, { productTypeaheadOptions, partyTypeaheadOptions } from '../components/TypeaheadField';
 import DatePicker from '../components/DatePicker';
@@ -13,7 +13,13 @@ import { useUi } from '../components/AppDialogs';
 import { numStr, numFromInput } from '../lib/numInput';
 import NumberField from '../components/NumberField';
 import EmptyState from '../components/EmptyState';
-import { useWizard, StepBody, WizardFoot } from '../components/ui/FormWizard';
+import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
+
+const QUOTE_STEPS: readonly WizardStepDef[] = [
+  { id: 'client', label: 'Client', hint: 'Client, date et régime TVA du devis.' },
+  { id: 'lines', label: 'Lignes', hint: 'Produits, quantités et prix catalogue / client.' },
+  { id: 'notes', label: 'Notes', hint: 'Remarques et vérification des totaux.' },
+];
 import RefreshIconButton from '../components/RefreshIconButton';
 import PasswordConfirm from '../components/PasswordConfirm';
 import { FloatingPortal } from '../components/FloatingPortal';
@@ -339,7 +345,7 @@ export default function Quotes() {
         <h1 className="sr-only">Devis</h1>
         <TopPageActions>
           <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
-          <button onClick={() => { resetForm(); wz.reset(); setShowModal(true); }}>+ Nouveau devis</button>
+          <button title="Nouveau devis" onClick={() => { resetForm(); wz.reset(); setShowModal(true); }}><FilePlus2 size={16} aria-hidden="true" /><span className="tpa-label">Nouveau devis</span></button>
         </TopPageActions>
       </div>
 
@@ -417,11 +423,10 @@ export default function Quotes() {
 
       {showModal && (
         <FloatingPortal><div className="modal-overlay" onClick={() => { if (saving) return; setShowModal(false); resetForm(); wz.reset(); }}>
-          <div className="modal" style={{ maxWidth: 1080, width: '96vw' }} onClick={(e) => e.stopPropagation()}>
-            <h2>Nouveau devis</h2>
-            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>
-              Non comptabilisé tant qu’il n’est pas converti en facture. Stock non modifié.
-            </p>
+          <div className="modal step-wizard step-wizard--wide" role="dialog" aria-modal="true" aria-labelledby="quote-wizard-title" onClick={(e) => e.stopPropagation()}>
+            <WizardHeader eyebrow="ESTIMATION" title="Nouveau devis" titleId="quote-wizard-title" wz={wz} steps={QUOTE_STEPS} />
+            <div className="step-wizard__body">
+            <WizardIntro step={QUOTE_STEPS[wz.step - 1]} />
             <StepBody active={wz.step === 1}>
             <div className="grid grid-2">
               <div className="form-row">
@@ -439,17 +444,19 @@ export default function Quotes() {
                     setClientQuery(v);
                     setClientName(v);
                     setClientId('');
+                    if (modalError) setModalError('');
                   }}
                   onPick={(o) => {
                     onClient(String(o.id));
                     setClientQuery(o.label);
+                    if (modalError) setModalError('');
                   }}
                   emptyLabel="Aucun client"
                 />
               </div>
               <div className="form-row">
                 <label>Nom client (libre)</label>
-                <input value={clientName} onChange={(e) => { setClientName(e.target.value); setClientQuery(e.target.value); }} placeholder="Monsieur Benane" />
+                <input value={clientName} onChange={(e) => { setClientName(e.target.value); setClientQuery(e.target.value); if (modalError) setModalError(''); }} placeholder="Monsieur Benane" />
               </div>
             </div>
             <div className="form-row">
@@ -478,16 +485,12 @@ export default function Quotes() {
               <p style={{ fontSize: 12, color: 'var(--muted)', margin: '6px 0 0' }}>
                 {taxExempt
                   ? 'TVA désactivée — totaux calculés à 0 %.'
-                  : 'TVA activée — taux par ligne (défaut 20 %).'}
+                  : 'TVA activée — taux par ligne (défaut 20 %). Non comptabilisé tant qu’il n’est pas converti.'}
               </p>
             </div>
 
             </StepBody>
             <StepBody active={wz.step === 2}>
-            <h3 style={{ fontSize: 14, margin: '16px 0 8px' }}>Lignes — prix catalogue · prix client (promo)</h3>
-            <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>
-              Le <strong>prix catalogue</strong> se remplit au choix du produit. Saisissez le <strong>prix client</strong> pour une promo / remise. Les devis ne touchent jamais le stock.
-            </p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.1fr 70px 90px 90px 70px 44px', gap: 8, marginBottom: 6, fontSize: 11, color: 'var(--muted)', fontWeight: 600 }}>
               <span>Produit</span><span>Désignation</span><span>Qté</span><span>Catalogue</span><span>Prix client</span><span>Total</span><span></span>
             </div>
@@ -504,9 +507,11 @@ export default function Quotes() {
                       options={productTypeaheadOptions(products)}
                       onChange={(q) => {
                         setItem(i, { product_name: q, product_id: undefined, product_query: q });
+                        if (modalError) setModalError('');
                       }}
                       onPick={(o) => {
                         pickProduct(i, String(o.id));
+                        if (modalError) setModalError('');
                       }}
                       onOpen={() => {
                         api.getProducts({ fields: 'light', limit: 500 }).then((r: any) => {
@@ -515,7 +520,7 @@ export default function Quotes() {
                       }}
                       emptyLabel="Aucun produit"
                     />
-                  <input placeholder="Désignation" value={it.product_name} onChange={(e) => setItem(i, { product_name: e.target.value })} />
+                  <input placeholder="Désignation" value={it.product_name} onChange={(e) => { setItem(i, { product_name: e.target.value }); if (modalError) setModalError(''); }} />
                   <NumberField value={it.quantity} onValueChange={(n) => setItem(i, { quantity: n })} min={0} step="0.01" />
                   <NumberField value={it.list_price} onValueChange={(n) => setItem(i, { list_price: n })} min={0} step="0.01" title="Prix catalogue" />
                   <NumberField value={it.unit_price} onValueChange={(n) => setItem(i, { unit_price: n })} min={0} step="0.01" title="Prix client (promo)" style={promo ? { borderColor: 'var(--success, #3f3f46)' } : undefined} />
@@ -546,7 +551,7 @@ export default function Quotes() {
               </div>
               );
             })}
-            <button type="button" className="secondary" style={{ marginBottom: 12 }} onClick={() => setItems([...items, { product_name: '', quantity: 1, list_price: 0, unit_price: 0, tax_rate: 20 }])}>
+            <button type="button" className="secondary" style={{ marginBottom: 8 }} onClick={() => setItems([...items, { product_name: '', quantity: 1, list_price: 0, unit_price: 0, tax_rate: 20 }])}>
               + Ligne
             </button>
             </StepBody>
@@ -555,18 +560,32 @@ export default function Quotes() {
               <label>Notes</label>
               <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
             </div>
-            <div style={{ margin: '12px 0', padding: '12px 14px', background: 'var(--bg-elevated, #f5f2eb)', borderRadius: 10, fontSize: 14 }}>
+            <div style={{ margin: '10px 0 4px', padding: '12px 14px', background: 'var(--bg-elevated, #f5f2eb)', borderRadius: 10, fontSize: 14 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>HT</span><strong>{fmt(draftTotals.ht)} MAD</strong></div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>TVA</span><strong>{fmt(draftTotals.tax)} MAD</strong></div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 16 }}><span>TTC</span><strong>{fmt(draftTotals.ttc)} MAD</strong></div>
             </div>
-            <ModalFormError message={modalError} />
             </StepBody>
+            <ModalFormError message={modalError} />
+            </div>
             <WizardFoot
               wz={wz}
               title="Nouveau devis"
-              stepLabel={['Client', 'Lignes', 'Notes'][wz.step - 1]}
+              stepLabel={QUOTE_STEPS[wz.step - 1].label}
               onCancel={() => { setShowModal(false); resetForm(); wz.reset(); }}
+              onBack={() => setModalError('')}
+              onNext={() => {
+                if (wz.step === 1 && !clientName.trim() && !clientId) {
+                  setModalError('Indiquez ou sélectionnez un client.');
+                  return false;
+                }
+                if (wz.step === 2 && !items.some((it) => String(it.product_name || '').trim() && Number(it.quantity) > 0)) {
+                  setModalError('Ajoutez au moins une ligne avec une désignation et une quantité > 0.');
+                  return false;
+                }
+                setModalError('');
+                return true;
+              }}
               onSubmit={create}
               submitLabel="Enregistrer le devis"
               saving={saving}

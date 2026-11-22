@@ -1,0 +1,120 @@
+// @vitest-environment happy-dom
+import { act, createElement } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
+import { MemoryRouter } from 'react-router-dom';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import Clients from '../pages/Clients';
+import Vendors from '../pages/Vendors';
+import Receipts from '../pages/Receipts';
+import Balance from '../pages/Balance';
+import Products from '../pages/Products';
+import Invoices from '../pages/Invoices';
+import { api } from '../api';
+
+vi.mock('../lib/reports', () => ({ openReport: vi.fn(), openPrintDoc: vi.fn() }));
+
+let host: HTMLDivElement;
+let root: Root;
+
+beforeEach(() => {
+  (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+  host = document.createElement('div');
+  document.body.appendChild(host);
+  root = createRoot(host);
+
+  vi.spyOn(api, 'getClients').mockResolvedValue({ data: [] } as any);
+  vi.spyOn(api, 'getVendors').mockResolvedValue({ data: [] } as any);
+  vi.spyOn(api, 'getReceipts').mockResolvedValue({ data: [] } as any);
+  vi.spyOn(api, 'getInvoices').mockResolvedValue({ data: [] } as any);
+  vi.spyOn(api, 'getExpenses').mockResolvedValue({ data: [] } as any);
+  vi.spyOn(api, 'getDashboard').mockResolvedValue({ data: {} } as any);
+  vi.spyOn(api, 'getLedgerReconcile').mockResolvedValue({ data: null } as any);
+  vi.spyOn(api, 'getProducts').mockResolvedValue({ data: [] } as any);
+  vi.spyOn(api, 'getCategories').mockResolvedValue({ data: [] } as any);
+  vi.spyOn(api, 'getUnits').mockResolvedValue({ data: [] } as any);
+  vi.spyOn(api, 'getStockLocations').mockResolvedValue({ data: [] } as any);
+  vi.spyOn(api, 'getSettings').mockResolvedValue({ data: { tax_rate: 20 } } as any);
+});
+
+afterEach(async () => {
+  await act(async () => root.unmount());
+  host.remove();
+  vi.restoreAllMocks();
+});
+
+const dlg = () => document.querySelector<HTMLElement>('.step-wizard')!;
+const renderPage = async (el: React.ReactElement) => {
+  await act(async () => root.render(createElement(MemoryRouter, null, el)));
+  await act(async () => { await Promise.resolve(); });
+};
+const clickText = async (scope: ParentNode, text: string) => {
+  const btn = [...scope.querySelectorAll<HTMLButtonElement>('button')].find(
+    (b) => b.textContent?.includes(text) || b.getAttribute('title')?.includes(text),
+  );
+  expect(btn, `Button containing "${text}"`).toBeTruthy();
+  await act(async () => btn!.click());
+};
+
+function assertUnifiedStepShell(expectedTotalSteps: number) {
+  const d = dlg();
+  expect(d).toBeTruthy();
+  expect(d.querySelector('.step-wizard__header')).toBeTruthy();
+  expect(d.querySelector('.step-wizard__progress')).toBeTruthy();
+  expect(d.querySelector('.step-wizard__intro')).toBeTruthy();
+  expect(d.querySelector('.wz-progress')).toBeTruthy();
+  expect(d.querySelector('.step-wizard__count')?.textContent?.trim()).toBe(`1 / ${expectedTotalSteps}`);
+}
+
+it('Client wizard matches employee look and blocks advancing when name is empty', async () => {
+  await renderPage(createElement(Clients));
+  await clickText(host, 'Ajouter un client');
+  assertUnifiedStepShell(3);
+  await clickText(dlg(), 'Continuer');
+  expect(dlg().querySelector('.step-wizard__count')?.textContent?.trim()).toBe('1 / 3');
+  expect(dlg().querySelector('[role="alert"]')?.textContent).toContain('nom du client');
+});
+
+it('Vendor wizard matches employee look and blocks advancing when name is empty', async () => {
+  await renderPage(createElement(Vendors));
+  await clickText(host, 'Nouveau fournisseur');
+  assertUnifiedStepShell(2);
+  await clickText(dlg(), 'Continuer');
+  expect(dlg().querySelector('.step-wizard__count')?.textContent?.trim()).toBe('1 / 2');
+  expect(dlg().querySelector('[role="alert"]')?.textContent).toContain('nom du fournisseur');
+});
+
+it('Receipt wizard matches employee look and blocks advancing when required fields are empty', async () => {
+  await renderPage(createElement(Receipts));
+  await clickText(host, 'Nouveau reçu');
+  assertUnifiedStepShell(2);
+  await clickText(dlg(), 'Continuer');
+  expect(dlg().querySelector('.step-wizard__count')?.textContent?.trim()).toBe('1 / 2');
+  expect(dlg().querySelector('[role="alert"]')?.textContent).toContain('client');
+});
+
+it('Balance wizard matches employee look and blocks advancing when description is empty', async () => {
+  await renderPage(createElement(Balance));
+  await clickText(host, 'Dépense');
+  assertUnifiedStepShell(2);
+  await clickText(dlg(), 'Continuer');
+  expect(dlg().querySelector('.step-wizard__count')?.textContent?.trim()).toBe('1 / 2');
+  expect(dlg().querySelector('[role="alert"]')?.textContent).toContain('libellé');
+});
+
+it('Product wizard matches employee look and blocks advancing when name is empty', async () => {
+  await renderPage(createElement(Products));
+  await clickText(host, 'Ajouter un produit');
+  assertUnifiedStepShell(5);
+  await clickText(dlg(), 'Continuer');
+  expect(dlg().querySelector('.step-wizard__count')?.textContent?.trim()).toBe('1 / 5');
+  expect(dlg().querySelector('[role="alert"]')?.textContent).toContain('nom du produit');
+});
+
+it('Invoice wizard matches employee look and blocks advancing when client name is empty', async () => {
+  await renderPage(createElement(Invoices));
+  await clickText(host, 'Créer une facture');
+  assertUnifiedStepShell(3);
+  await clickText(dlg(), 'Continuer');
+  expect(dlg().querySelector('.step-wizard__count')?.textContent?.trim()).toBe('1 / 3');
+  expect(dlg().querySelector('[role="alert"]')?.textContent).toContain('client');
+});

@@ -1,4 +1,5 @@
 import TopPageActions from '../components/TopPageActions';
+import { Package } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
@@ -6,6 +7,7 @@ import { useUi } from '../components/AppDialogs';
 import { ImageWorkbench } from '../components/ProductImageEditor';
 import RefreshIconButton from '../components/RefreshIconButton';
 import { ModalFormError } from '../components/ModalFormFeedback';
+import { mergeUnitOptions, type UnitOption } from '../lib/dualUnit';
 
 type Action = {
   id: number;
@@ -70,7 +72,33 @@ export default function Actions() {
     image_data_url: '' as string,
     image_url: '' as string,
   });
+  const [units, setUnits] = useState<UnitOption[]>(() => mergeUnitOptions());
   const [busy, setBusy] = useState(false);
+
+  const loadUnits = useCallback(async () => {
+    try {
+      const r = await api.getUnits();
+      setUnits(mergeUnitOptions(r.data || []));
+    } catch { /* keep defaults */ }
+  }, []);
+
+  const addUnit = async (target: 'unit' | 'secondary_unit') => {
+    const name = await prompt({
+      title: 'Nouvelle unité',
+      message: 'Ex. palette, sachet…',
+      placeholder: "Nom de l'unité",
+    });
+    if (!name?.trim()) return;
+    const clean = name.trim();
+    try {
+      await api.createUnit({ name: clean });
+      await loadUnits();
+      setForm((f) => ({ ...f, [target]: clean }));
+      toast('Unité créée');
+    } catch (e: any) {
+      toast(e?.message || 'Erreur unité', 'error');
+    }
+  };
 
   const load = useCallback(async (soft = false) => {
     if (!soft) setLoading(true);
@@ -90,9 +118,10 @@ export default function Actions() {
 
   useEffect(() => {
     load();
+    void loadUnits();
     const t = setInterval(() => load(true), 10000);
     return () => clearInterval(t);
-  }, [load]);
+  }, [load, loadUnits]);
 
   const complete = async (id: number) => {
     try {
@@ -363,8 +392,9 @@ export default function Actions() {
           </p>
         </div>
         <TopPageActions>
-          <Link to="/products" className="btn secondary" style={{ textDecoration: 'none' }}>
-            Produits
+          <Link to="/products" className="btn secondary" title="Produits" style={{ textDecoration: 'none' }}>
+            <Package size={16} aria-hidden="true" />
+            <span className="tpa-label">Produits</span>
           </Link>
           <RefreshIconButton onClick={() => load(true)} />
         </TopPageActions>
@@ -557,9 +587,52 @@ export default function Actions() {
             </div>
             <div className="form-row">
               <label>Unité</label>
-              <input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
+              <select
+                value={form.unit || ''}
+                onChange={(e) => {
+                  if (e.target.value === '__new__') { void addUnit('unit'); return; }
+                  setForm({ ...form, unit: e.target.value });
+                }}
+              >
+                <option value="">— Choisir —</option>
+                {units.map((u) => (
+                  <option key={u.id ?? u.name} value={u.name}>
+                    {u.symbol ? `${u.name} (${u.symbol})` : u.name}
+                  </option>
+                ))}
+                {form.unit && !units.some((u) => u.name.toLowerCase() === form.unit.trim().toLowerCase()) && (
+                  <option value={form.unit}>{form.unit}</option>
+                )}
+                <option value="__new__">+ Nouvelle unité…</option>
+              </select>
             </div>
-            <div className="form-row"><label>Deuxième unité (facultatif)</label><input value={form.secondary_unit} maxLength={40} onChange={e => setForm({ ...form, secondary_unit: e.target.value })} placeholder="Ex. m²" /></div>
+            <div className="form-row">
+              <label>Deuxième unité (facultatif)</label>
+              <select
+                value={form.secondary_unit || ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === '__new__') { void addUnit('secondary_unit'); return; }
+                  if (!val) { setForm({ ...form, secondary_unit: '', secondary_unit_factor: '' }); return; }
+                  setForm({ ...form, secondary_unit: val });
+                }}
+              >
+                <option value="">— Aucune —</option>
+                {units.map((u) => (
+                  <option
+                    key={u.id ?? u.name}
+                    value={u.name}
+                    disabled={Boolean(form.unit) && u.name.toLowerCase() === form.unit.trim().toLowerCase()}
+                  >
+                    {u.symbol ? `${u.name} (${u.symbol})` : u.name}
+                  </option>
+                ))}
+                {form.secondary_unit && !units.some((u) => u.name.toLowerCase() === form.secondary_unit.trim().toLowerCase()) && (
+                  <option value={form.secondary_unit}>{form.secondary_unit}</option>
+                )}
+                <option value="__new__">+ Nouvelle unité…</option>
+              </select>
+            </div>
             <div className="form-row"><label>Quantité par {form.unit || 'unité'}</label><input value={form.secondary_unit_factor} inputMode="decimal" onChange={e => setForm({ ...form, secondary_unit_factor: e.target.value })} placeholder="Ex. 1,59" /><small>Le stock et le prix restent enregistrés par unité principale.</small></div>
             {(form.image_data_url || form.image_url) && (
               <div className="form-row">

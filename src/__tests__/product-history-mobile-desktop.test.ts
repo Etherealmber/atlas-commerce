@@ -53,6 +53,8 @@ describe('product history', () => {
     expect(host.querySelector('[aria-label="Modifier la photo du produit"] svg')).not.toBeNull();
     expect(host.querySelector('[aria-label="Actualiser l’historique"] svg')).not.toBeNull();
     expect(host.textContent).toContain('Ajuster le stock'); expect(host.textContent).toContain('Modifier les détails');
+    expect(host.querySelector('.product-history-action-stock svg')).not.toBeNull();
+    expect(host.querySelector('.product-history-action-edit svg')).not.toBeNull();
     expect(host.textContent).not.toContain('Approuvé par');
     await act(async () => [...host.querySelectorAll('button')].find(b => b.textContent === 'Charger la suite')!.click());
     expect(getMovements).toHaveBeenLastCalledWith(7, 40, { full: true, offset: 40 }); expect(host.textContent).toContain('Vente'); expect(host.textContent).not.toContain('Charger la suite');

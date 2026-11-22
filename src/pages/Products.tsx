@@ -16,10 +16,10 @@ import { numStr, numFromInput } from '../lib/numInput';
 import NumberField from '../components/NumberField';
 import VirtualTableBody, { VirtualScroll } from '../components/VirtualTableBody';
 import { canAccessAdminSettings, canSell, sanitizePreviewUrl } from '../auth';
-import { Grid2X2, List, Pencil, SlidersHorizontal, Tags } from 'lucide-react';
+import { Grid2X2, List, Pencil, Plus, SlidersHorizontal, Tags } from 'lucide-react';
 import ProductArtwork from '../components/ProductArtwork';
 import { phoneStockIsLow, phoneStockQuantity } from '../mobile/phoneStock';
-import { dualStockLabel } from '../lib/dualUnit';
+import { dualStockLabel, mergeUnitOptions, type UnitOption } from '../lib/dualUnit';
 import './product-history.css';
 import './products-mobile-style.css';
 import './catalog-actions.css';
@@ -28,8 +28,25 @@ import { printProductLabel } from '../lib/printProductLabel';
 import RefreshIconButton from '../components/RefreshIconButton';
 import '../components/erp/catalog-inventory.css';
 import { FloatingPortal } from '../components/FloatingPortal';
-import { useWizard, StepBody, WizardFoot } from '../components/ui/FormWizard';
+import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
 import { ModalFormError, FieldHint } from '../components/ModalFormFeedback';
+
+const PRODUCT_CREATE_STEPS: readonly WizardStepDef[] = [
+  { id: 'identity', label: 'Identité', hint: 'Nom, référence SKU et description catalogue.' },
+  { id: 'class', label: 'Classement', hint: 'Catégorie, unités et traçabilité.' },
+  { id: 'pricing', label: 'Prix & stock', hint: 'Tarifs, TVA, stock initial et seuil d’alerte.' },
+  { id: 'bulk', label: 'Remises volume', hint: 'Paliers de remise automatique selon la quantité.' },
+  { id: 'photos', label: 'Photos', hint: 'Ajoutez une ou plusieurs photos pour le catalogue.' },
+];
+
+const PRODUCT_EDIT_STEPS: readonly WizardStepDef[] = [
+  { id: 'identity', label: 'Identité', hint: 'Nom, référence SKU et description catalogue.' },
+  { id: 'class', label: 'Classement', hint: 'Catégorie, unités et traçabilité.' },
+  { id: 'pricing', label: 'Prix & stock', hint: 'Tarifs, TVA et seuil d’alerte.' },
+  { id: 'bulk', label: 'Remises volume', hint: 'Paliers de remise automatique selon la quantité.' },
+  { id: 'variants', label: 'Variantes', hint: 'Déclinaisons taille, couleur ou format.' },
+  { id: 'photos', label: 'Photos', hint: 'Gérez et recadrez les photos du produit.' },
+];
 
 function stagedFileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -126,7 +143,7 @@ export default function Products() {
   const [deleteTargets, setDeleteTargets] = useState<number[] | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
-  const [units, setUnits] = useState<any[]>([]);
+  const [units, setUnits] = useState<UnitOption[]>(() => mergeUnitOptions());
   const [variants, setVariants] = useState<any[]>([]);
   const [variantForm, setVariantForm] = useState({ variant_label: '', sku: '', barcode: '', price: '', stock_quantity: '0' });
   const [savingVariant, setSavingVariant] = useState(false);
@@ -157,7 +174,7 @@ export default function Products() {
     Promise.all([api.getCategories(), api.getUnits()])
       .then(([c, u]) => {
         setCategories(c.data || []);
-        setUnits(u.data || []);
+        setUnits(mergeUnitOptions(u.data || []));
       })
       .catch(() => { /* ignore */ });
   };
@@ -230,7 +247,7 @@ export default function Products() {
     }
   };
 
-  const addUnit = async () => {
+  const addUnit = async (target: 'unit' | 'secondary_unit' = 'unit') => {
     const name = await prompt({
       title: 'Nouvelle unité',
       message: 'Ex. palette, sachet…',
@@ -241,7 +258,7 @@ export default function Products() {
       const res: any = await api.createUnit({ name: name.trim() });
       flash(res.message || 'Unité créée.');
       await loadLookups();
-      setForm((f: any) => ({ ...f, unit: name.trim() }));
+      setForm((f: any) => ({ ...f, [target]: name.trim() }));
     } catch (e: any) {
       flash(e.message || 'Erreur unité', 'error');
     }
@@ -587,7 +604,7 @@ export default function Products() {
   const actionButtons = (
         <>
           <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
-          <button onClick={openNew}>Ajouter un produit</button>
+          <button onClick={openNew} title="Ajouter un produit"><Plus size={16} aria-hidden="true" /><span className="tpa-label">Ajouter un produit</span></button>
         </>
   );
   return (
@@ -694,7 +711,7 @@ export default function Products() {
         </div>
       </div>
 
-      <div className="ac-panel ac-products-table-panel">
+      <div className={`ac-panel ac-products-table-panel${catalogView === 'grid' ? ' ac-products-table-panel--grid' : ''}`}>
 
         <div className="desktop-product-result-count" aria-live="polite">{filtered.length} résultat{filtered.length === 1 ? '' : 's'}</div>
         {catalogView === 'grid' ? <>
@@ -818,13 +835,24 @@ export default function Products() {
         </VirtualScroll>}
       </div>
 
-      {show && (
-        <FloatingPortal><div className="modal-overlay" onClick={() => { setShow(false); setForm(emptyForm); setEditing(null); setModalError(''); wz.reset(); }}>
-          <div className="modal" style={{ maxWidth: 640 }} onClick={(e) => e.stopPropagation()}>
-            <h2>{editing ? 'Modifier le produit' : 'Nouveau produit'}</h2>
+      {show && (() => {
+        const productSteps = editing ? PRODUCT_EDIT_STEPS : PRODUCT_CREATE_STEPS;
+        const currentStepDef = productSteps[wz.step - 1] || productSteps[0];
+        return (
+        <FloatingPortal><div className="modal-overlay" onClick={() => { setShow(false); setForm(emptyForm); setEditing(null); setModalError(''); setFieldErrors({}); clearStagedPhotos(); wz.reset(); }}>
+          <div className="modal step-wizard step-wizard--wide" role="dialog" aria-modal="true" aria-labelledby="product-wizard-title" onClick={(e) => e.stopPropagation()}>
+            <WizardHeader
+              eyebrow="CATALOGUE PRODUIT"
+              title={editing ? 'Modifier le produit' : 'Nouveau produit'}
+              titleId="product-wizard-title"
+              wz={wz}
+              steps={productSteps}
+            />
+            <div className="step-wizard__body">
+            <WizardIntro step={currentStepDef} />
             <StepBody active={wz.step === 1}>
             <div className="grid grid-2">
-              <div className="form-row"><label>Nom *</label><input className={fieldErrors.name ? 'field-error' : undefined} value={form.name} onChange={(e) => { setForm({ ...form, name: e.target.value }); setFieldErrors((x) => ({ ...x, name: '' })); }} placeholder="Ex. Carrelage 60×60" /><span className="field-error-msg">{fieldErrors.name || ''}</span></div>
+              <div className="form-row"><label>Nom *</label><input className={fieldErrors.name ? 'field-error' : undefined} value={form.name} onChange={(e) => { setForm({ ...form, name: e.target.value }); setFieldErrors((x) => ({ ...x, name: '' })); if (modalError) setModalError(''); }} placeholder="Ex. Carrelage 60×60" /><span className="field-error-msg">{fieldErrors.name || ''}</span></div>
               <div className="form-row"><label>Référence (SKU)</label><input value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} /></div>
             </div>
             <div className="form-row">
@@ -850,36 +878,34 @@ export default function Products() {
             </div>
               </StepBody>
             <StepBody active={wz.step === 2}>
-            <div className="grid grid-3">
+            <div className="grid grid-2">
               <div className="form-row">
                 <label>Catégorie</label>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <select
-                    value={form.category || ''}
-                    onChange={(e) => {
-                      if (e.target.value === '__new__') { addCategory(); return; }
-                      setForm({ ...form, category: e.target.value });
-                    }}
-                    style={{ flex: 1 }}
-                  >
-                    <option value="">— Choisir —</option>
-                    {categories.map((c) => (
-                      <option key={c.id ?? c.name} value={c.name}>{c.name}</option>
-                    ))}
-                    {form.category && !categories.some((c) => c.name === form.category) && (
-                      <option value={form.category}>{form.category}</option>
-                    )}
-                    <option value="__new__">+ Nouvelle catégorie…</option>
-                  </select>
-                </div>
+                <select
+                  value={form.category || ''}
+                  onChange={(e) => {
+                    if (e.target.value === '__new__') { addCategory(); return; }
+                    setForm({ ...form, category: e.target.value });
+                  }}
+                >
+                  <option value="">— Choisir —</option>
+                  {categories.map((c) => (
+                    <option key={c.id ?? c.name} value={c.name}>{c.name}</option>
+                  ))}
+                  {form.category && !categories.some((c) => c.name === form.category) && (
+                    <option value={form.category}>{form.category}</option>
+                  )}
+                  <option value="__new__">+ Nouvelle catégorie…</option>
+                </select>
               </div>
               <div className="form-row">
-                <label>Unité (m², ML…)</label>
+                <label>Unité (m², ML…) *</label>
                 <select
                   value={form.unit || ''}
                   onChange={(e) => {
-                    if (e.target.value === '__new__') { addUnit(); return; }
+                    if (e.target.value === '__new__') { void addUnit('unit'); return; }
                     setForm({ ...form, unit: e.target.value });
+                    if (modalError) setModalError('');
                   }}
                 >
                   <option value="">— Choisir —</option>
@@ -894,23 +920,53 @@ export default function Products() {
                   <option value="__new__">+ Nouvelle unité…</option>
                 </select>
               </div>
-              <div className="grid grid-2">
-                <div className="form-row"><label htmlFor="product-secondary-unit">Deuxième unité (facultatif)</label><input id="product-secondary-unit" maxLength={40} value={form.secondary_unit || ''} onChange={e => setForm({ ...form, secondary_unit: e.target.value })} placeholder="Ex. m²" /></div>
-                <div className="form-row"><label htmlFor="product-secondary-factor">Quantité par {form.unit || 'unité'}</label><input id="product-secondary-factor" inputMode="decimal" value={form.secondary_unit_factor ?? ''} onChange={e => setForm({ ...form, secondary_unit_factor: e.target.value })} placeholder="Ex. 1,59" /></div>
+            </div>
+            <div className="grid grid-2">
+              <div className="form-row">
+                <label htmlFor="product-secondary-unit">Deuxième unité (facultatif)</label>
+                <select
+                  id="product-secondary-unit"
+                  value={form.secondary_unit || ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '__new__') { void addUnit('secondary_unit'); return; }
+                    if (!val) { setForm({ ...form, secondary_unit: '', secondary_unit_factor: '' }); return; }
+                    setForm({ ...form, secondary_unit: val });
+                    if (modalError) setModalError('');
+                  }}
+                >
+                  <option value="">— Aucune —</option>
+                  {units.map((u) => (
+                    <option
+                      key={u.id ?? u.name}
+                      value={u.name}
+                      disabled={Boolean(form.unit) && u.name.toLowerCase() === String(form.unit).trim().toLowerCase()}
+                    >
+                      {u.symbol ? `${u.name} (${u.symbol})` : u.name}
+                    </option>
+                  ))}
+                  {form.secondary_unit && !units.some((u) => u.name === form.secondary_unit) && (
+                    <option value={form.secondary_unit}>{form.secondary_unit}</option>
+                  )}
+                  <option value="__new__">+ Nouvelle unité…</option>
+                </select>
               </div>
-              <small>Exemple : 1 carton = 1,59 m². Le stock et le prix restent enregistrés par unité principale. Modifier le coefficient ne modifie pas le stock.</small>
+              <div className="form-row"><label htmlFor="product-secondary-factor">Quantité par {form.unit || 'unité'}</label><input id="product-secondary-factor" inputMode="decimal" value={form.secondary_unit_factor ?? ''} onChange={e => { setForm({ ...form, secondary_unit_factor: e.target.value }); if (modalError) setModalError(''); }} placeholder="Ex. 1,59" /></div>
+            </div>
+            <div className="grid grid-3">
               <div className="form-row"><label>Code-barres</label><input value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} /></div>
-                          <div className="form-row"><label>N° lot (épicerie)</label><input value={form.lot_number || ''} onChange={(e) => setForm({ ...form, lot_number: e.target.value })} placeholder="Optionnel" /></div>
+              <div className="form-row"><label>N° lot (épicerie)</label><input value={form.lot_number || ''} onChange={(e) => setForm({ ...form, lot_number: e.target.value })} placeholder="Optionnel" /></div>
               <div className="form-row"><label>Date limite (DLC)</label><DatePicker value={(form.expiry_date || '').toString().slice(0, 10)} onChange={(v) => setForm({ ...form, expiry_date: v })} /></div>
-</div>
+            </div>
+            <small style={{ display: 'block', color: 'var(--muted)' }}>Exemple : 1 carton = 1,59 m². Le stock et le prix restent enregistrés par unité principale.</small>
             </StepBody>
             <StepBody active={wz.step === 3}>
             <div className="grid grid-2">
-              <div className="form-row"><label>Prix de vente *</label><NumberField value={form.price} onValueChange={(n) => { setForm((f: any) => ({ ...f, price: n })); setFieldErrors((x) => ({ ...x, price: '' })); }} /><span className="field-error-msg">{fieldErrors.price || ''}</span></div>
+              <div className="form-row"><label>Prix de vente *</label><NumberField value={form.price} onValueChange={(n) => { setForm((f: any) => ({ ...f, price: n })); setFieldErrors((x) => ({ ...x, price: '' })); if (modalError) setModalError(''); }} /><span className="field-error-msg">{fieldErrors.price || ''}</span></div>
               <div className="form-row"><label>Coût</label><NumberField value={form.cost} onValueChange={(n) => setForm((f: any) => ({ ...f, cost: n }))} /></div>
             </div>
             {!editing && (
-              <div className="grid grid-3">
+              <div className="grid grid-2">
                 <div className="form-row"><label>Stock initial ({form.unit || "unité"})</label><NumberField value={form.stock_quantity} onValueChange={(n) => setForm({ ...form, stock_quantity: n })} />{form.secondary_unit && Number(String(form.secondary_unit_factor || "").replace(",", ".")) > 0 && <small>{dualStockLabel({ ...form, secondary_unit_factor: Number(String(form.secondary_unit_factor).replace(",", ".")) })}</small>}</div>
                 <div className="form-row"><label>Entrepôt / emplacement</label>
                   <select value={form.location_id || ''} onChange={(e) => setForm({ ...form, location_id: Number(e.target.value) || 0 })}>
@@ -919,31 +975,27 @@ export default function Products() {
                       <option key={l.id} value={l.id}>{l.name} ({l.code})</option>
                     ))}
                   </select>
-                  <span style={{ fontSize: 11, color: 'var(--muted)' }}>
-                    {editing ? 'À l’enregistrement, le stock total sera placé sur cet entrepôt.' : 'Le stock initial sera placé ici.'}
-                  </span>
                 </div>
-                <div className="form-row"><label>Seuil d'alerte</label><NumberField value={form.low_stock_threshold} onValueChange={(n) => setForm({ ...form, low_stock_threshold: n })} /></div>
-                <div className="form-row"><label>Taux TVA %</label><NumberField value={form.tax_rate} onValueChange={(n) => setForm({ ...form, tax_rate: n })} placeholder="Défaut" /></div>
               </div>
             )}
-            {editing && (
-              <div className="grid grid-2">
-                <div className="form-row"><label>Seuil d'alerte</label><NumberField value={form.low_stock_threshold} onValueChange={(n) => setForm({ ...form, low_stock_threshold: n })} /></div>
-                <div className="form-row"><label>Taux TVA %</label><NumberField value={form.tax_rate} onValueChange={(n) => setForm({ ...form, tax_rate: n })} placeholder="Défaut" /></div>
-              </div>
-            )}
-            <div className="form-row"><label>Prix sur facture</label><select value={form.invoice_price_mode || ''} onChange={(e) => setForm({ ...form, invoice_price_mode: e.target.value })}>
-              {!form.invoice_price_mode && <option value="">Mode historique (inchangé)</option>}
-              <option value="exclusive">TVA ajoutée au prix (HT)</option><option value="inclusive">TVA incluse dans le prix (TTC)</option>
-            </select><small>Ce choix concerne les factures ; les ventes rapides utilisent le prix sans TVA.</small></div>
-            <div className="form-row">
-              <label><input type="checkbox" checked={form.track_inventory} onChange={(e) => setForm({ ...form, track_inventory: e.target.checked ? 1 : 0 })} style={{ width: 'auto', display: 'inline', marginRight: 8 }} />Suivre le stock pour ce produit</label>
+            <div className="grid grid-3">
+              <div className="form-row"><label>Seuil d'alerte</label><NumberField value={form.low_stock_threshold} onValueChange={(n) => setForm({ ...form, low_stock_threshold: n })} /></div>
+              <div className="form-row"><label>Taux TVA %</label><NumberField value={form.tax_rate} onValueChange={(n) => setForm({ ...form, tax_rate: n })} placeholder="Défaut" /></div>
+              <div className="form-row"><label>Prix sur facture</label><select value={form.invoice_price_mode || ''} onChange={(e) => setForm({ ...form, invoice_price_mode: e.target.value })}>
+                {!form.invoice_price_mode && <option value="">Mode historique (inchangé)</option>}
+                <option value="exclusive">TVA ajoutée au prix (HT)</option><option value="inclusive">TVA incluse dans le prix (TTC)</option>
+              </select></div>
+            </div>
+            <div className="form-row" style={{ marginBottom: 4 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                <input type="checkbox" checked={Boolean(form.track_inventory)} onChange={(e) => setForm({ ...form, track_inventory: e.target.checked ? 1 : 0 })} style={{ width: 'auto', display: 'inline' }} />
+                Suivre le stock pour ce produit
+              </label>
+              <small style={{ color: 'var(--muted)' }}>La TVA par défaut s&apos;applique aux factures ; les ventes rapides utilisent le prix sans TVA.</small>
             </div>
               </StepBody>
             <StepBody active={wz.step === 4}>
-            <h3 style={{ fontSize: 13, margin: '0 0 6px' }}>Remises volume (bulk discount)</h3>
-            <p style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>
+            <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>
               Si la quantité sur facture/devis atteint le seuil et qu&apos;aucun prix promo manuel n&apos;est saisi, la remise s&apos;applique automatiquement.
             </p>
             <div className="grid grid-2">
@@ -958,13 +1010,9 @@ export default function Products() {
               </StepBody>
               <StepBody active={wz.step === 5}>
             {editing ? (
-              <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--border, #e0d9cc)' }}>
-                <h3 style={{ fontSize: 13, margin: '0 0 6px' }}>Variantes (taille / couleur / etc.)</h3>
-                <p style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>
-                  Chaque variante a son propre SKU, code-barres et stock — idéal pour le scan mobile.
-                </p>
+              <div>
                 {variants.length > 0 && (
-                  <div className="table-wrap" style={{ marginBottom: 10, maxHeight: 180, overflow: 'auto' }}>
+                  <div className="table-wrap" style={{ marginBottom: 10, maxHeight: 160, overflow: 'auto' }}>
                     <table style={{ fontSize: 12 }}>
                       <thead>
                         <tr>
@@ -1002,7 +1050,7 @@ export default function Products() {
                   <div className="form-row"><label>Prix</label><NumberField value={variantForm.price} onValueChange={(n) => setVariantForm({ ...variantForm, price: n })} /></div>
                   <div className="form-row"><label>Stock initial</label><NumberField value={variantForm.stock_quantity} onValueChange={(n) => setVariantForm({ ...variantForm, stock_quantity: n })} /></div>
                 </div>
-                <button type="button" className="secondary" style={{ marginBottom: 8 }} onClick={saveVariant} disabled={savingVariant}>
+                <button type="button" className="secondary" style={{ marginBottom: 4 }} onClick={saveVariant} disabled={savingVariant}>
                   {savingVariant ? 'Ajout…' : '+ Ajouter la variante'}
                 </button>
               </div>
@@ -1016,9 +1064,6 @@ export default function Products() {
                   addStagedPhotos(e.dataTransfer.files);
                 }}
                 style={{
-                  marginTop: 16,
-                  paddingTop: 12,
-                  borderTop: '1px solid var(--line, #e0d9cc)',
                   borderRadius: 10,
                   outline: stagedDragOver ? '2px dashed var(--pie-ring, #e8a317)' : 'none',
                   outlineOffset: 4,
@@ -1026,8 +1071,7 @@ export default function Products() {
                   transition: 'background 0.15s ease, outline-color 0.15s ease',
                 }}
               >
-                <h3 style={{ fontSize: 13, margin: '0 0 6px' }}>Photos produit</h3>
-                <p style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>
+                <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>
                   Glissez vos images ici ou cliquez pour parcourir — la première devient la photo principale.
                 </p>
                 {stagedErr && <p style={{ color: 'var(--bad)', fontSize: 12, marginBottom: 8 }}>{stagedErr}</p>}
@@ -1072,7 +1116,7 @@ export default function Products() {
                   + Ajouter des photos
                 </button>
                 <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8, marginBottom: 0 }}>
-                  Les photos choisies sont envoyées automatiquement juste après la création ; recadrage et rotation restent disponibles en modification.
+                  Les photos choisies sont envoyées automatiquement juste après la création.
                 </p>
               </div>
             )}
@@ -1083,18 +1127,66 @@ export default function Products() {
               </StepBody>
             )}
             <ModalFormError message={modalError || firstError(fieldErrors)} />
+            </div>
             <WizardFoot
               title={editing ? 'Modifier le produit' : 'Nouveau produit'}
               wz={wz}
-              stepLabel={wz.step === 1 ? 'Identité' : wz.step === 2 ? 'Classement' : wz.step === 3 ? 'Prix & stock' : wz.step === 4 ? 'Remises volume' : wz.step === 5 ? (editing ? 'Variantes' : 'Photos') : 'Photos'}
-              onCancel={() => { setShow(false); setForm(emptyForm); setEditing(null); setModalError(''); clearStagedPhotos(); wz.reset(); }}
+              stepLabel={currentStepDef.label}
+              onCancel={() => { setShow(false); setForm(emptyForm); setEditing(null); setModalError(''); setFieldErrors({}); clearStagedPhotos(); wz.reset(); }}
+              onBack={() => { setModalError(''); setFieldErrors({}); }}
+              onNext={() => {
+                if (wz.step === 1 && !String(form.name || '').trim()) {
+                  setFieldErrors({ name: 'Le nom du produit est obligatoire.' });
+                  setModalError('Le nom du produit est obligatoire.');
+                  return false;
+                }
+                if (wz.step === 2) {
+                  if (!String(form.unit || '').trim()) {
+                    setModalError("L'unité principale est obligatoire.");
+                    return false;
+                  }
+                  const secUnit = String(form.secondary_unit || '').trim();
+                  const secRaw = String(form.secondary_unit_factor ?? '').trim();
+                  if (secUnit && !secRaw) {
+                    setModalError('Indiquez la quantité par unité pour la deuxième unité.');
+                    return false;
+                  }
+                  if (!secUnit && secRaw) {
+                    setModalError('Choisissez la deuxième unité ou videz le coefficient.');
+                    return false;
+                  }
+                  if (secUnit && secRaw) {
+                    const secFactor = Number(secRaw.replace(',', '.'));
+                    if (!Number.isFinite(secFactor) || secFactor <= 0) {
+                      setModalError('Le coefficient de la deuxième unité doit être un nombre positif.');
+                      return false;
+                    }
+                    if (secUnit.toLowerCase() === String(form.unit || '').trim().toLowerCase()) {
+                      setModalError("La deuxième unité doit être différente de l'unité principale.");
+                      return false;
+                    }
+                  }
+                }
+                if (wz.step === 3) {
+                  const p = Number(form.price);
+                  if (!Number.isFinite(p) || p < 0) {
+                    setFieldErrors({ price: 'Prix de vente invalide.' });
+                    setModalError('Indiquez un prix de vente valide (≥ 0).');
+                    return false;
+                  }
+                }
+                setFieldErrors({});
+                setModalError('');
+                return true;
+              }}
               onSubmit={() => void save()}
               submitLabel={saving ? 'Enregistrement…' : 'Enregistrer'}
               saving={saving}
             />
           </div>
         </div></FloatingPortal>
-      )}
+        );
+      })()}
 
             {stagedEditIdx !== null && createPortal(
         <div className="modal-overlay" style={{ zIndex: 1400 }} onClick={() => setStagedEditIdx(null)}>

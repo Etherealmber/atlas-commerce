@@ -1,7 +1,7 @@
 import { dualStockLabel } from '../lib/dualUnit';
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Camera, History, RefreshCw } from 'lucide-react';
+import { Camera, History, Pencil, RefreshCw, SlidersHorizontal } from 'lucide-react';
 import { api } from '../api';
 import { canSell } from '../auth';
 import { TimedUndoDelete } from '../components/ui';
@@ -70,8 +70,8 @@ export default function ProductHistory({ mobile = false, onProductUpdated }: Pro
     {product && <section className="product-history-card"><div className="product-history-hero"><div className="product-history-photo"><ProductArtwork url={product.image_url} />{canSell() && <><input ref={imageInput} type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onChange={changePhoto} /><button type="button" className="secondary product-history-photo-action" aria-label="Modifier la photo du produit" title="Modifier la photo du produit" disabled={imageBusy} onClick={() => imageInput.current?.click()}><Camera size={16} /></button></>}</div><div><span className="product-history-tag">Fiche produit</span><h2>{product.name}</h2><p>{[product.sku, product.barcode, product.category].filter(Boolean).join(' · ') || 'Sans référence'}</p></div></div>
       <p className="product-history-actors">Créé par {actor(product.created_by, 'non renseigné')}{product.approved_by && <> · Approuvé par {product.approved_by}</>}</p>
       {!mobile && canSell() && <div className="product-history-actions">
-        {Number(product.track_inventory) !== 0 && <button type="button" className="secondary" onClick={() => navigate('/products', { state: { productAction: 'stock', productId } })}>Ajuster le stock</button>}
-        <button type="button" className="secondary" onClick={() => navigate('/products', { state: { productAction: 'edit', productId } })}>Modifier les détails</button>
+        {Number(product.track_inventory) !== 0 && <button type="button" className="secondary product-history-action-stock" onClick={() => navigate('/products', { state: { productAction: 'stock', productId } })}><SlidersHorizontal size={16} aria-hidden="true" />Ajuster le stock</button>}
+        <button type="button" className="secondary product-history-action-edit" onClick={() => navigate('/products', { state: { productAction: 'edit', productId } })}><Pencil size={16} aria-hidden="true" />Modifier les détails</button>
         <TimedUndoDelete deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10} onConfirm={async () => { try { await api.deleteProduct(productId, undefined, { timedUndo: true }); navigate('/products'); } catch (e: any) { setImageMessage(e?.message || 'Suppression impossible.'); } }} />
       </div>}
       {imageMessage && <p role="status">{imageMessage}</p>}

@@ -1,7 +1,7 @@
 import TopPageActions from '../components/TopPageActions';
 import { suggestExpenseCategory } from '../lib/assist';
 import DatePicker from '../components/DatePicker';
-import { useWizard, StepBody, WizardFoot } from '../components/ui/FormWizard';
+import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
 import SaveFeedback from '../components/SaveFeedback';
@@ -20,8 +20,13 @@ import { ListPager } from '../components/ui/ListPager';
 import { TimedUndoDelete } from '../components/ui/TimedUndoDelete';
 import {
   Banknote, ShoppingBag, Truck, Fuel, Building2, Wrench, Users, Receipt,
-  ArrowDownLeft, ArrowUpRight, Wallet, Package,
+  ArrowDownLeft, ArrowUpRight, ArrowUpFromLine, PiggyBank, Wallet, Package,
 } from 'lucide-react';
+
+const BALANCE_STEPS: readonly WizardStepDef[] = [
+  { id: 'type', label: 'Type & libellé', hint: 'Catégorie et description de l’écriture.' },
+  { id: 'amount', label: 'Montant & paiement', hint: 'Montant, date, mode de paiement et notes.' },
+];
 
 const EXPENSE_CATEGORIES = [
   'Fournitures de bureau', 'Équipement', 'Électronique', 'Loyer',
@@ -419,10 +424,10 @@ export default function Balance() {
         <h1 className="sr-only">Solde &amp; mouvements</h1>
         <TopPageActions>
           <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
-          <button className="secondary" onClick={() => openNew('income')}>+ Recette</button>
-          <button className="secondary" onClick={() => openNew('owner_contrib')}>+ Apport</button>
-          <button className="secondary" onClick={() => openNew('owner_draw')}>+ Prélèvement</button>
-          <button onClick={() => openNew('expense')}>+ Dépense</button>
+          <button className="secondary" title="Recette" onClick={() => openNew('income')}><ArrowDownLeft size={16} aria-hidden="true" /><span className="tpa-label">Recette</span></button>
+          <button className="secondary" title="Apport" onClick={() => openNew('owner_contrib')}><PiggyBank size={16} aria-hidden="true" /><span className="tpa-label">Apport</span></button>
+          <button className="secondary" title="Prélèvement" onClick={() => openNew('owner_draw')}><ArrowUpFromLine size={16} aria-hidden="true" /><span className="tpa-label">Prélèvement</span></button>
+          <button title="Dépense" onClick={() => openNew('expense')}><ArrowUpRight size={16} aria-hidden="true" /><span className="tpa-label">Dépense</span></button>
         </TopPageActions>
       </div>
 
@@ -721,15 +726,26 @@ export default function Balance() {
       </div>
 
       {showModal && (
-        <FloatingPortal><div className="modal-overlay" onClick={() => { setShowModal(false); setModalError(''); wz.reset(); }}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>Nouvelle écriture — {TYPE_META[entryType].label}</h2>
-            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>
-              {TYPE_META[entryType].direction === 'in'
-                ? 'Entrée de trésorerie (affichée en vert, signe +).'
-                : 'Sortie de trésorerie (affichée en rouge, signe −).'}
-            </p>
+        <FloatingPortal><div className="modal-overlay" onClick={() => { setShowModal(false); setModalError(''); setFieldErrors({}); wz.reset(); }}>
+          <div className="modal step-wizard" role="dialog" aria-modal="true" aria-labelledby="balance-wizard-title" onClick={(e) => e.stopPropagation()}>
+            <WizardHeader
+              eyebrow="TRÉSORERIE"
+              title={`Nouvelle écriture — ${TYPE_META[entryType].label}`}
+              titleId="balance-wizard-title"
+              wz={wz}
+              steps={BALANCE_STEPS}
+            />
+            <div className="step-wizard__body">
+            <WizardIntro step={{
+              ...BALANCE_STEPS[wz.step - 1],
+              hint: wz.step === 1
+                ? (TYPE_META[entryType].direction === 'in'
+                    ? 'Entrée de trésorerie (affichée en vert, signe +).'
+                    : 'Sortie de trésorerie (affichée en rouge, signe −).')
+                : BALANCE_STEPS[1].hint,
+            }} />
             <StepBody active={wz.step === 1}>
+            <div className="grid grid-2">
             <div className="form-row">
               <label>Type</label>
               <select
@@ -752,16 +768,17 @@ export default function Balance() {
                 {catsFor(entryType).map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
+            </div>
             <div className="form-row">
               <label>Libellé *</label>
-              <input className={fieldErrors.description ? 'field-error' : undefined} value={description} onChange={(e) => { setDescription(e.target.value); setFieldErrors((x) => ({ ...x, description: '' })); }} placeholder="Ex. Loyer entrepôt août" /><span className="field-error-msg">{fieldErrors.description || ''}</span>
+              <input className={fieldErrors.description ? 'field-error' : undefined} value={description} onChange={(e) => { setDescription(e.target.value); setFieldErrors((x) => ({ ...x, description: '' })); if (modalError) setModalError(''); }} placeholder="Ex. Loyer entrepôt août" /><span className="field-error-msg">{fieldErrors.description || ''}</span>
             </div>
             </StepBody>
             <StepBody active={wz.step === 2}>
             <div className="grid grid-2">
               <div className="form-row">
                 <label>Montant *</label>
-                <NumberField value={amount} onValueChange={setAmount} step="0.01" min={0.01} />
+                <NumberField value={amount} onValueChange={(n) => { setAmount(n); if (modalError) setModalError(''); }} step="0.01" min={0.01} />
               </div>
               <div className="form-row">
                 <label>Date</label>
@@ -789,11 +806,22 @@ export default function Balance() {
             </div>
             </StepBody>
             <ModalFormError message={modalError} />
+            </div>
             <WizardFoot
               wz={wz}
               title="Nouvelle écriture"
-              stepLabel={['Type', 'Montant'][wz.step - 1]}
-              onCancel={() => { setShowModal(false); setModalError(''); wz.reset(); }}
+              stepLabel={BALANCE_STEPS[wz.step - 1].label}
+              onCancel={() => { setShowModal(false); setModalError(''); setFieldErrors({}); wz.reset(); }}
+              onBack={() => setModalError('')}
+              onNext={() => {
+                if (wz.step === 1 && !description.trim()) {
+                  setFieldErrors((x) => ({ ...x, description: 'La description est obligatoire.' }));
+                  setModalError('Indiquez un libellé pour continuer.');
+                  return false;
+                }
+                setModalError('');
+                return true;
+              }}
               onSubmit={create}
               submitLabel="Enregistrer"
               saving={saving}

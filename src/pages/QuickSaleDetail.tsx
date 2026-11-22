@@ -1,5 +1,6 @@
 import DocumentActors from '../components/DocumentActors';
 import TopPageActions from '../components/TopPageActions';
+import { Ban, FileDown, Printer, ReceiptText, RotateCcw, Trash2 } from 'lucide-react';
 import { printInvoiceTicket } from '../lib/thermal';
 import { useEffect, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
@@ -161,15 +162,18 @@ export default function QuickSaleDetail() {
         <TopPageActions>
           <a
             className="btn secondary"
+            title="Imprimer"
             href={`${BASE}/api/invoices/${ticket.id}/print?token=${encodeURIComponent(token)}`}
             target="_blank"
             rel="noreferrer"
           >
-            Imprimer
+            <Printer size={16} aria-hidden="true" />
+            <span className="tpa-label">Imprimer</span>
           </a>
           <button
             type="button"
             className="secondary"
+            title="Ticket thermique"
             onClick={async () => {
               try {
                 await printInvoiceTicket(ticket.id, { prefer: 'auto' });
@@ -179,24 +183,29 @@ export default function QuickSaleDetail() {
               }
             }}
           >
-            Ticket thermique
+            <ReceiptText size={16} aria-hidden="true" />
+            <span className="tpa-label">Ticket thermique</span>
           </button>
           <a
             className="btn secondary"
+            title="PDF"
             href={`${BASE}/api/invoices/${ticket.id}/pdf?token=${encodeURIComponent(token)}`}
             target="_blank"
             rel="noreferrer"
           >
-            PDF
+            <FileDown size={16} aria-hidden="true" />
+            <span className="tpa-label">PDF</span>
           </a>
-          {!cancelled && ticket.status !== 'remboursement' && <button type="button" className="secondary" onClick={goRefund}>Créer un remboursement</button>}
+          {!cancelled && ticket.status !== 'remboursement' && <button type="button" className="secondary" title="Créer un remboursement" onClick={goRefund}><RotateCcw size={16} aria-hidden="true" /><span className="tpa-label">Créer un remboursement</span></button>}
           {!cancelled && (
-            <button type="button" className="secondary" onClick={() => void cancelTicket()}>
-              Annuler (stock)
+            <button type="button" className="secondary" title="Annuler (stock)" onClick={() => void cancelTicket()}>
+              <Ban size={16} aria-hidden="true" />
+              <span className="tpa-label">Annuler (stock)</span>
             </button>
           )}
-          <button type="button" className="danger" onClick={() => void requestDelete()}>
-            Supprimer
+          <button type="button" className="danger" title="Supprimer" onClick={() => void requestDelete()}>
+            <Trash2 size={16} aria-hidden="true" />
+            <span className="tpa-label">Supprimer</span>
           </button>
         </TopPageActions>
       </div>

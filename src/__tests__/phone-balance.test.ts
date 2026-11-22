@@ -75,7 +75,11 @@ describe('mobile admin balance', () => {
   });
   it('posts a new expense and refreshes the monthly snapshot', async () => {
     const create = vi.spyOn(api, 'createExpense').mockResolvedValue({});
-    await render(); await click(button('+ Dépense'));
+    await render();
+    const expenseBtn = button('Dépense');
+    expect(expenseBtn.textContent?.trim()).toBe('Dépense');
+    expect(expenseBtn.querySelector('svg')).not.toBeNull();
+    await click(expenseBtn);
     const form = document.querySelector<HTMLFormElement>('.pb-form')!;
     const setInput = async (name: string, value: string) => { const input = form.elements.namedItem(name) as HTMLInputElement; await act(async () => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, value); input.dispatchEvent(new Event('input', { bubbles: true })); }); };
     expect(button('Continuer').disabled).toBe(true);
@@ -94,7 +98,7 @@ describe('mobile admin balance', () => {
   });
   it('changes type and category, rejects invalid values, and retains fields after an error', async () => {
     vi.spyOn(api, 'createExpense').mockRejectedValue(new Error('Échec serveur'));
-    await render(); await click(button('+ Dépense'));
+    await render(); await click(button('Dépense'));
     const form = document.querySelector<HTMLFormElement>('.pb-form')!;
     const type = form.elements.namedItem('kind') as unknown as HTMLSelectElement;
     await act(async () => { type.value = 'income'; type.dispatchEvent(new Event('change', { bubbles: true })); });

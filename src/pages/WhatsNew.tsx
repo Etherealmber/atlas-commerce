@@ -32,7 +32,7 @@ type Release = {
 export const RELEASES: Release[] = [
   {
     version: '0.9.1',
-    date: '20 octobre 2026',
+    date: '22 novembre 2026',
     sections: [{ kind: 'features', items: [
       { id: '091f1', platforms: ['web', 'desktop', 'server'], text: 'Connexion desktop expérimentale en environnement de test : vérification de sécurité dans une fenêtre temporaire dédiée avant l’envoi du mot de passe saisi dans l’application, puis saisie native du code à usage unique.' },
       { id: '091f2', platforms: ['desktop', 'server'], text: 'Le serveur vérifie le défi et lie son résultat à la demande ; la fenêtre ne reçoit ni identifiants ni jetons de session. Expiration, annulation, usage unique et renouvellement de session restent contrôlés.' },
