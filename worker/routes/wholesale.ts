@@ -1,4 +1,6 @@
 import { afterBusinessMutation } from '../lib/delete-coord';
+import { normalizeInventoryRole, roleCanSeeFinancial, roleCanSeeSellPrices } from '../lib/inventory-policy';
+import { round2 } from '../lib/financeCore';
 const _localSchemaOnce = new Set<string>();
 
 import type { AtlasApp } from './types';
@@ -24,10 +26,17 @@ async function ensureClientPricesTable(db: D1Database): Promise<void> {
 /** Client-specific prices + reorder suggestions (wholesale). */
 export interface WholesaleDeps {
   requireBizMutator?: (c: any) => { ok: true; username: string; role: string } | { ok: false; response: Response };
+  sessionUserFromHeader?: (authHeader?: string) => { username?: string; role?: string };
 }
 
 export function registerWholesaleRoutes(app: AtlasApp, deps?: WholesaleDeps): void {
+  const callerRole = (c: any) =>
+    normalizeInventoryRole(deps?.sessionUserFromHeader?.(c.req.header('Authorization'))?.role);
+
   app.get('/api/clients/:id/prices', async (c) => {
+    if (deps?.sessionUserFromHeader && !roleCanSeeSellPrices(callerRole(c))) {
+      return c.json({ success: false, error: 'Accès aux tarifs réservé aux rôles commerciaux.', code: 'FORBIDDEN_ROLE' }, 403);
+    }
     await ensureClientPricesTable(c.env.DB);
     const id = c.req.param('id');
     const { results } = await c.env.DB.prepare(
@@ -62,13 +71,16 @@ export function registerWholesaleRoutes(app: AtlasApp, deps?: WholesaleDeps): vo
          unit_price = excluded.unit_price,
          updated_at = datetime('now')`,
     )
-      .bind(clientId, productId, unit_price)
+      .bind(clientId, productId, round2(unit_price))
       .run();
     await afterBusinessMutation(c.env.CACHE);
     return c.json({ success: true, message: 'Prix client enregistré' });
   });
 
   app.get('/api/clients/:id/price-for/:productId', async (c) => {
+    if (deps?.sessionUserFromHeader && !roleCanSeeSellPrices(callerRole(c))) {
+      return c.json({ success: false, error: 'Accès aux tarifs réservé aux rôles commerciaux.', code: 'FORBIDDEN_ROLE' }, 403);
+    }
     await ensureClientPricesTable(c.env.DB);
     const row = (await c.env.DB.prepare(
       `SELECT unit_price FROM client_product_prices WHERE client_id = ? AND product_id = ?`,
@@ -79,9 +91,10 @@ export function registerWholesaleRoutes(app: AtlasApp, deps?: WholesaleDeps): vo
   });
 
   app.get('/api/inventory/reorder-suggestions', async (c) => {
+    const canSeeCost = !deps?.sessionUserFromHeader || roleCanSeeFinancial(callerRole(c));
     const limit = Math.min(100, Math.max(5, Number(c.req.query('limit') || 30)));
     const { results: products } = await c.env.DB.prepare(
-      `SELECT id, name, sku, stock_quantity, low_stock_threshold, price, cost, cost_price, track_inventory
+      `SELECT id, name, sku, stock_quantity, low_stock_threshold, price, cost, track_inventory
        FROM products WHERE is_active = 1 AND track_inventory = 1`,
     ).all();
     const { results: sales } = await c.env.DB.prepare(
@@ -117,7 +130,7 @@ export function registerWholesaleRoutes(app: AtlasApp, deps?: WholesaleDeps): vo
         sold_30d: vel,
         days_cover: Math.round(daysCover * 10) / 10,
         suggest_qty: suggestQty,
-        unit_cost: Number(p.cost || p.cost_price || 0),
+        ...(canSeeCost ? { unit_cost: Number(p.cost || 0) } : {}),
       });
     }
     out.sort((a, b) => a.days_cover - b.days_cover);

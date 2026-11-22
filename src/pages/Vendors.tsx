@@ -210,7 +210,7 @@ export default function Vendors() {
                         <TimedUndoDelete autoStart deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10}
                           onConfirm={() => { setDeleteArmId(null); void remove(v.id); }} />
                       ) : (
-                        <TimedUndoDelete deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10} onConfirm={() => { setDeleteArmId(null); openDelete([v.id]); }} />
+                        <TimedUndoDelete deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10} onConfirm={() => { setDeleteArmId(null); remove(v.id); }} />
                       )}
                     </div></td>
                   </tr>

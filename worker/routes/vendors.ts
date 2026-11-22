@@ -37,6 +37,8 @@ export function registerVendorRoutes(app: Hono<any>, deps: VendorRouteDeps): voi
   });
 
   app.post('/api/vendors', async (c) => {
+    const gate = requireBizMutator(c);
+    if (!gate.ok) return gate.response;
     const body = await c.req.json().catch(() => ({}));
     const verr = validateVendorWrite(body);
     if (verr) return apiFail(c, Object.values(verr)[0] || 'Validation', 'VALIDATION', verr);
@@ -50,6 +52,8 @@ export function registerVendorRoutes(app: Hono<any>, deps: VendorRouteDeps): voi
   });
 
   app.put('/api/vendors/:id', async (c) => {
+    const gate = requireBizMutator(c);
+    if (!gate.ok) return gate.response;
     const id = Number(c.req.param('id'));
     if (!id) return c.json({ success: false, error: 'ID invalide' }, 400);
     const body = await c.req.json().catch(() => ({}));

@@ -42,6 +42,7 @@ export type PdfLibDocInput = {
   amountPaid?: number;
   currency?: string;
   notes?: string;
+  footerNote?: string | null;
   refundReason?: string;
   sourceInvoiceNumber?: string;
   /** Full refund policy text for sales invoices / WR (old + new). */

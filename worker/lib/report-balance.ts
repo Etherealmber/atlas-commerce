@@ -3,6 +3,8 @@
  * Keep the legacy classifications and arithmetic unchanged; the printable
  * view and any future archive must use the same source rows and totals.
  */
+import { summarizeBalanceTotals } from './financeCore';
+
 export type BalanceEntry = {
   entry_type?: string | null;
   payment_method?: string | null;
@@ -15,19 +17,7 @@ export function balanceIsIncome(e: BalanceEntry): boolean {
 }
 
 export function summarizeBalance<T extends BalanceEntry>(rows: T[]) {
-  const sum = (pred: (e: T) => boolean) => rows.filter(pred).reduce((s, e) => s + Number(e.amount || 0), 0);
-  const cash = (e: T) => !e.payment_method || e.payment_method === 'cash';
-  return {
-    rows,
-    cashIn: sum(e => balanceIsIncome(e) && cash(e)),
-    cashOut: sum(e => !balanceIsIncome(e) && cash(e)),
-    bankIn: sum(e => balanceIsIncome(e) && !cash(e)),
-    bankOut: sum(e => !balanceIsIncome(e) && !cash(e)),
-    ownerDraw: sum(e => e.entry_type === 'owner_draw'),
-    ownerContrib: sum(e => e.entry_type === 'owner_contrib'),
-    income: sum(e => e.entry_type === 'income'),
-    expense: sum(e => e.entry_type === 'expense' || !e.entry_type),
-  };
+  return summarizeBalanceTotals(rows);
 }
 
 export async function readBalanceReport(db: D1Database, from: string, to: string) {

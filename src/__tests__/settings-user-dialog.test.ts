@@ -7,16 +7,23 @@ import SettingsUserDialog from '../components/SettingsUserDialog';
 
 it('opens on demand, traps keyboard focus and restores focus on Escape', async () => {
   (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-  const host = document.createElement('div'); document.body.append(host);
+  const host = document.createElement('div'); document.body.appendChild(host);
   const root = createRoot(host);
   function Harness() {
     const [open, setOpen] = useState(false);
     return createElement('div', null,
       createElement('button', { onClick: () => setOpen(true) }, 'Open'),
-      open && createElement(SettingsUserDialog, { onClose: () => setOpen(false) },
-        createElement('h2', { id: 'create-team-user-title' }, 'Create'),
-        createElement('input', { name: 'team-new-identifier' }),
-        createElement('button', null, 'Cancel')));
+      open && createElement(
+        SettingsUserDialog,
+        {
+          onClose: () => setOpen(false),
+          children: [
+            createElement('h2', { key: 't', id: 'create-team-user-title' }, 'Create'),
+            createElement('input', { key: 'i', name: 'team-new-identifier' }),
+            createElement('button', { key: 'b' }, 'Cancel'),
+          ],
+        },
+      ));
   }
   try {
     await act(async () => root.render(createElement(Harness)));

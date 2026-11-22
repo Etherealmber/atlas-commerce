@@ -1,5 +1,7 @@
 import { afterBusinessMutation } from '../lib/delete-coord';
 import { addColumnIfMissing } from '../lib/schema';
+import { round2, roundCurrency, roundTo } from '../lib/financeCore';
+import { extractIdempotencyKey, idempotencyGet, idempotencyPut } from '../lib/ledgerHelpers';
 import type { AtlasApp } from './types';
 
 const _empSchemaOnce = new WeakSet<D1Database>();
@@ -342,6 +344,11 @@ function accruedPay(row: any, asOf?: string, advances = 0): {
   cycle_progress: number;
   can_advance: boolean;
   max_advance: number;
+  advance_pct_cap: number;
+  advance_needs_proof: boolean;
+  advance_tier: string;
+  meets_cycle_gate: boolean;
+  half_cycle_cap: number;
   period_source: string;
 } {
   const today = asOf || moroccoToday();
@@ -362,9 +369,9 @@ function accruedPay(row: any, asOf?: string, advances = 0): {
     }
   }
   const daily = cycle > 0 ? amount / cycle : 0;
-  const gross = Math.round(Math.min(elapsed, cycle * 24) * daily * 100) / 100;
+  const gross = round2(Math.min(elapsed, cycle * 24) * daily);
   const adv = Math.max(0, Number(advances || 0));
-  const net = Math.max(0, Math.round((gross - adv) * 100) / 100);
+  const net = Math.max(0, round2(gross - adv));
   const progress = cycle > 0 ? elapsed / cycle : 0;
   /**
    * Acompte caps from company settings (defaults: short≤14j → 5%; long → 5% @7j +5% @14j).
@@ -446,7 +453,7 @@ function accruedPay(row: any, asOf?: string, advances = 0): {
   const meets_cycle_gate = cycle > 0 ? progress >= 0.25 : false;
   // Always allow attempting acompte if salary > 0 (soft gate in UI)
   const can_advance = amount > 0 && maxPct > 0;
-  const max_advance = Math.round(amount * maxPct * 100) / 100;
+  const max_advance = round2(amount * maxPct);
   return {
     suggested_pay: amount > 0 ? net : 0,
     gross_accrued: amount > 0 ? gross : 0,
@@ -455,15 +462,15 @@ function accruedPay(row: any, asOf?: string, advances = 0): {
     period_from: periodFrom,
     period_to: today,
     cycle_days: cycle,
-    daily_rate: Math.round(daily * 100) / 100,
-    cycle_progress: Math.round(progress * 1000) / 1000,
+    daily_rate: round2(daily),
+    cycle_progress: roundTo(progress, 3),
     can_advance,
     max_advance,
     advance_pct_cap: maxPct,
     advance_needs_proof: needs_proof,
     advance_tier: tier,
     meets_cycle_gate,
-    half_cycle_cap: Math.round(amount * halfCap * 100) / 100,
+    half_cycle_cap: round2(amount * halfCap),
     period_source: anchor.source,
   };
 }
@@ -549,7 +556,7 @@ async function idCryptoKey(env: any): Promise<CryptoKey> {
 async function encryptIdBytes(env: any, plain: Uint8Array): Promise<Uint8Array> {
   const key = await idCryptoKey(env);
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plain));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new Uint8Array(plain)));
   const out = new Uint8Array(4 + 12 + ct.length);
   out[0] = 0x49;
   out[1] = 0x44;
@@ -854,7 +861,7 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps): 
       .run();
     await afterBusinessMutation(c.env.CACHE);
     const row = await c.env.DB.prepare(`SELECT * FROM employees WHERE id = ?`).bind(id).first();
-    try { await persistHrExtras(c.env.DB, id, body); } catch { /* */ }
+    try { await persistHrExtras(c.env.DB, Number(id), body); } catch { /* */ }
     return c.json({ success: true, data: enrich(row), message: 'Employé mis à jour' });
   });
 
@@ -1081,7 +1088,7 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps): 
     const meta = obj.customMetadata || {};
     const mime = meta.mime || 'application/octet-stream';
     const name = emp.id_doc_name || meta.original_name || 'document.id';
-    return new Response(plain, {
+    return new Response(new Uint8Array(plain), {
       headers: {
         'Content-Type': mime,
         'Content-Disposition': `attachment; filename="${String(name).replace(/"/g, '')}"`,
@@ -1103,6 +1110,11 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps): 
     if (!emp) return c.json({ success: false, error: 'Employé introuvable' }, 404);
     if (Number(emp.active) === 0) return c.json({ success: false, error: 'Employé inactif' }, 400);
     const body = await c.req.json().catch(() => ({}));
+    const idemKey = extractIdempotencyKey(c, body);
+    if (idemKey) {
+      const cached = await idempotencyGet(c.env.DB, `empadv:${id}:${idemKey}`);
+      if (cached) return c.json({ ...cached.body, replayed: true }, cached.status as any);
+    }
     const day = String(body.paid_at || moroccoToday()).slice(0, 10);
     let acompteRules: any = {};
     try {
@@ -1139,10 +1151,15 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps): 
       }, 400);
     }
 
+    let empCurrency = 'MAD';
+    try {
+      const st = await c.env.DB.prepare(`SELECT currency, finance_currency FROM company_settings WHERE id = 1`).first() as any;
+      empCurrency = String(st?.currency || st?.finance_currency || 'MAD');
+    } catch { /* */ }
+
     // Hard only: total acomptes this period cannot exceed 50% of cycle salary
-    const halfCap = Math.round(Number(emp.pay_amount || 0) * 0.5 * 100) / 100;
-    const hardLeft = Math.max(0, Math.round((halfCap - already) * 100) / 100);
-    const softLeft = Math.max(0, Math.round((acc.max_advance - already) * 100) / 100);
+    const halfCap = roundCurrency(Number(emp.pay_amount || 0) * 0.5, empCurrency, 'ledger');
+    const hardLeft = Math.max(0, roundCurrency(halfCap - already, empCurrency, 'ledger'));
     if (hardLeft <= 0) {
       return c.json({
         success: false,
@@ -1152,26 +1169,55 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps): 
       }, 400);
     }
     // Default = 5% of cycle salary, hard max = 50% − already taken
-    const fivePct = Math.round(Number(emp.pay_amount || 0) * 0.05 * 100) / 100;
+    const fivePct = roundCurrency(Number(emp.pay_amount || 0) * 0.05, empCurrency, 'ledger');
     let amount = Math.max(0, Number(body.amount != null ? body.amount : Math.min(fivePct, hardLeft)));
+    amount = roundCurrency(amount, empCurrency, 'ledger');
     if (amount <= 0) return c.json({ success: false, error: 'Montant invalide' }, 400);
     if (amount > hardLeft) amount = hardLeft;
     const note = String(body.note || '').trim();
     const payment_method = String(body.payment_method || 'cash').trim() || 'cash';
     const empLabel = displayName(emp);
-    const label = `Acompte ${day} (${Math.round(acc.cycle_progress * 100)}% cycle)`;
-    const payIns = await c.env.DB.prepare(
-      `INSERT INTO employee_payments (employee_id, amount, paid_at, period_label, note) VALUES (?, ?, ?, ?, ?)`,
-    )
-      .bind(id, amount, day, label, note ? `${note} [acompte]` : '[acompte]')
-      .run();
-    const payId = payIns.meta?.last_row_id;
+    const label = `Acompte ${day} (${round2(acc.cycle_progress * 100)}% cycle)`;
+    const fromD = acc0.period_from && /^\d{4}-\d{2}-\d{2}$/.test(acc0.period_from) ? acc0.period_from : '2000-01-01';
+    const toD = day && /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : moroccoToday();
+
+    await c.env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS payroll_assertions (marker TEXT PRIMARY KEY, ok INTEGER NOT NULL CHECK(ok = 1))`
+    ).run();
+    await c.env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS expenses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        category TEXT DEFAULT 'General',
+        description TEXT NOT NULL,
+        amount REAL NOT NULL,
+        payment_method TEXT DEFAULT 'cash',
+        expense_date TEXT,
+        vendor_name TEXT DEFAULT '',
+        reference TEXT DEFAULT '',
+        notes TEXT DEFAULT '',
+        entry_type TEXT DEFAULT 'expense',
+        created_at TEXT DEFAULT (datetime('now'))
+      )`
+    ).run();
+    await addColumnIfMissing(c.env.DB, 'expenses', 'entry_type', "TEXT DEFAULT 'expense'");
+    const advMarker = crypto.randomUUID();
     try {
-      await c.env.DB.prepare(
-        `INSERT INTO expenses (category, description, amount, payment_method, expense_date, vendor_name, reference, notes, entry_type)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'expense')`,
-      )
-        .bind(
+      await c.env.DB.batch([
+        c.env.DB.prepare(
+          `INSERT INTO payroll_assertions(marker, ok)
+           SELECT ?, CASE WHEN (
+             (SELECT COALESCE(SUM(amount), 0) FROM employee_payments
+              WHERE employee_id = ? AND paid_at >= ? AND paid_at <= ?
+                AND (period_label LIKE 'Acompte%' OR note LIKE '%[acompte]%')) + ?
+           ) <= (? + 0.01) THEN 1 ELSE 0 END`
+        ).bind(advMarker, Number(id), fromD, toD, amount, halfCap),
+        c.env.DB.prepare(
+          `INSERT INTO employee_payments (employee_id, amount, paid_at, period_label, note) VALUES (?, ?, ?, ?, ?)`,
+        ).bind(id, amount, day, label, note ? `${note} [acompte]` : '[acompte]'),
+        c.env.DB.prepare(
+          `INSERT INTO expenses (category, description, amount, payment_method, expense_date, vendor_name, reference, notes, entry_type)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'expense')`,
+        ).bind(
           'Salaire',
           `Acompte ${empLabel}`,
           amount,
@@ -1179,11 +1225,17 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps): 
           day,
           empLabel,
           emp.emp_number || `EMP-${id}`,
-          `employee_id:${id}|payment_id:${payId || ''}|acompte`,
-        )
-        .run();
-    } catch {
-      /* */
+          `employee_id:${id}|acompte:${advMarker}`,
+        ),
+        c.env.DB.prepare(`DELETE FROM payroll_assertions WHERE marker = ?`).bind(advMarker),
+      ]);
+    } catch (advErr: any) {
+      console.error('employee_advance_atomic_failed', String(advErr?.message || advErr));
+      return c.json({
+        success: false,
+        error: 'Plafond d’acompte dépassé ou opération concurrente détectée. Actualisez et réessayez.',
+        code: 'ADVANCE_CONFLICT',
+      }, 409);
     }
     await afterBusinessMutation(c.env.CACHE);
     try {
@@ -1195,16 +1247,18 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps): 
     const row = await c.env.DB.prepare(`SELECT * FROM employees WHERE id = ?`).bind(id).first();
     const adv2 = await sumAdvancesInPeriod(c.env.DB, Number(id), acc.period_from, day);
     const enriched = enrich({ ...row, __acompte_rules: acompteRules }, adv2);
-    const remainingPay = Math.max(0, Math.round((enriched.gross_accrued - adv2) * 100) / 100);
-    return c.json({
+    const remainingPay = Math.max(0, roundCurrency(enriched.gross_accrued - adv2, empCurrency, 'ledger'));
+    const advPayload = {
       success: true,
       data: {
         ...enriched,
         remaining_to_pay: remainingPay,
         advances_in_period: adv2,
       },
-      message: `Acompte ${amount.toLocaleString('fr-FR')} MAD enregistré. Reste à payer sur la période: ${remainingPay.toLocaleString('fr-FR')} MAD. Acompte restant possible: ${Math.max(0, hardLeft - amount).toLocaleString('fr-FR')} MAD.`,
-    });
+      message: `Acompte ${amount.toLocaleString('fr-FR')} ${empCurrency} enregistré. Reste à payer sur la période: ${remainingPay.toLocaleString('fr-FR')} ${empCurrency}. Acompte restant possible: ${Math.max(0, roundCurrency(hardLeft - amount, empCurrency, 'ledger')).toLocaleString('fr-FR')} ${empCurrency}.`,
+    };
+    if (idemKey) await idempotencyPut(c.env.DB, `empadv:${id}:${idemKey}`, 'POST /employees/advance', 200, advPayload);
+    return c.json(advPayload);
   });
 
 app.post('/api/employees/:id/pay', async (c) => {
@@ -1214,15 +1268,25 @@ app.post('/api/employees/:id/pay', async (c) => {
     const emp = (await c.env.DB.prepare(`SELECT * FROM employees WHERE id = ?`).bind(id).first()) as any;
     if (!emp) return c.json({ success: false, error: 'Employé introuvable' }, 404);
     const body = await c.req.json().catch(() => ({}));
+    const idemKey = extractIdempotencyKey(c, body);
+    if (idemKey) {
+      const cached = await idempotencyGet(c.env.DB, `emppay:${id}:${idemKey}`);
+      if (cached) return c.json({ ...cached.body, replayed: true }, cached.status as any);
+    }
     const paid_at = String(body.paid_at || new Date().toISOString().slice(0, 10)).slice(0, 10);
+    let empCurrency = 'MAD';
+    try {
+      const st = await c.env.DB.prepare(`SELECT currency, finance_currency FROM company_settings WHERE id = 1`).first() as any;
+      empCurrency = String(st?.currency || st?.finance_currency || 'MAD');
+    } catch { /* */ }
     const days = cycleDays(emp);
     const acc0 = accruedPay(emp, paid_at, 0);
     const advances = await sumAdvancesInPeriod(c.env.DB, Number(id), acc0.period_from, paid_at);
     const acc = accruedPay(emp, paid_at, advances);
     // Remaining to settle this cycle after acomptes (never negative)
-    const remaining = Math.max(0, Math.round((acc.gross_accrued - advances) * 100) / 100);
-    const defaultPay = remaining > 0 ? remaining : Math.max(0, Number(emp.pay_amount || 0) - advances);
-    const amount = Math.max(0, Number(body.amount != null ? body.amount : defaultPay));
+    const remaining = Math.max(0, roundCurrency(acc.gross_accrued - advances, empCurrency, 'ledger'));
+    const defaultPay = remaining > 0 ? remaining : Math.max(0, roundCurrency(Number(emp.pay_amount || 0) - advances, empCurrency, 'ledger'));
+    const amount = roundCurrency(Math.max(0, Number(body.amount != null ? body.amount : defaultPay)), empCurrency, 'ledger');
     if (amount <= 0) return c.json({ success: false, error: 'Montant invalide (rien à payer après acomptes)' }, 400);
     const label =
       acc.period_from
@@ -1234,45 +1298,56 @@ app.post('/api/employees/:id/pay', async (c) => {
     const noteBase = String(body.note || '').trim();
     const note =
       advances > 0
-        ? `${noteBase}${noteBase ? ' · ' : ''}Acomptes déduits: ${advances} MAD`.trim()
+        ? `${noteBase}${noteBase ? ' · ' : ''}Acomptes déduits: ${advances} ${empCurrency}`.trim()
         : noteBase;
     const payment_method = String(body.payment_method || body.method || 'cash').trim() || 'cash';
     const empLabel = displayName(emp);
 
-    const payIns = await c.env.DB.prepare(
-      `INSERT INTO employee_payments (employee_id, amount, paid_at, period_label, note) VALUES (?, ?, ?, ?, ?)`,
-    )
-      .bind(id, amount, paid_at, label, note)
-      .run();
-    const payId = payIns.meta?.last_row_id;
+    const fromD = acc0.period_from && /^\d{4}-\d{2}-\d{2}$/.test(acc0.period_from) ? acc0.period_from : '2000-01-01';
+    const toD = paid_at && /^\d{4}-\d{2}-\d{2}$/.test(paid_at) ? paid_at : moroccoToday();
+    await c.env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS payroll_assertions (marker TEXT PRIMARY KEY, ok INTEGER NOT NULL CHECK(ok = 1))`
+    ).run();
+    await c.env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS expenses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        category TEXT DEFAULT 'General',
+        description TEXT NOT NULL,
+        amount REAL NOT NULL,
+        payment_method TEXT DEFAULT 'cash',
+        expense_date TEXT,
+        vendor_name TEXT DEFAULT '',
+        reference TEXT DEFAULT '',
+        notes TEXT DEFAULT '',
+        entry_type TEXT DEFAULT 'expense',
+        created_at TEXT DEFAULT (datetime('now'))
+      )`
+    ).run();
+    await addColumnIfMissing(c.env.DB, 'expenses', 'entry_type', "TEXT DEFAULT 'expense'");
 
-    await c.env.DB.prepare(`UPDATE employees SET last_paid_at = ?, updated_at = datetime('now') WHERE id = ?`)
-      .bind(paid_at, id)
-      .run();
-
-    // Ledger: salary outflow so Solde / Balance reflects the payment
+    const payMarker = crypto.randomUUID();
     try {
-      await c.env.DB.prepare(
-        `CREATE TABLE IF NOT EXISTS expenses (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          category TEXT DEFAULT 'General',
-          description TEXT NOT NULL,
-          amount REAL NOT NULL,
-          payment_method TEXT DEFAULT 'cash',
-          expense_date TEXT,
-          vendor_name TEXT DEFAULT '',
-          reference TEXT DEFAULT '',
-          notes TEXT DEFAULT '',
-          entry_type TEXT DEFAULT 'expense',
-          created_at TEXT DEFAULT (datetime('now'))
-        )`,
-      ).run();
-      await addColumnIfMissing(c.env.DB, 'expenses', 'entry_type', "TEXT DEFAULT 'expense'");
-      await c.env.DB.prepare(
-        `INSERT INTO expenses (category, description, amount, payment_method, expense_date, vendor_name, reference, notes, entry_type)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'expense')`,
-      )
-        .bind(
+      await c.env.DB.batch([
+        c.env.DB.prepare(
+          `INSERT INTO payroll_assertions(marker, ok)
+           SELECT ?, CASE WHEN EXISTS (
+             SELECT 1 FROM employees WHERE id = ? AND COALESCE(last_paid_at, '') IS ?
+           ) AND (
+             SELECT COALESCE(SUM(amount), 0) FROM employee_payments
+             WHERE employee_id = ? AND paid_at >= ? AND paid_at <= ?
+               AND (period_label LIKE 'Acompte%' OR note LIKE '%[acompte]%')
+           ) IS ? THEN 1 ELSE 0 END`
+        ).bind(payMarker, Number(id), emp.last_paid_at ?? '', Number(id), fromD, toD, advances),
+        c.env.DB.prepare(
+          `INSERT INTO employee_payments (employee_id, amount, paid_at, period_label, note) VALUES (?, ?, ?, ?, ?)`,
+        ).bind(id, amount, paid_at, label, note),
+        c.env.DB.prepare(
+          `UPDATE employees SET last_paid_at = ?, updated_at = datetime('now') WHERE id = ?`
+        ).bind(paid_at, id),
+        c.env.DB.prepare(
+          `INSERT INTO expenses (category, description, amount, payment_method, expense_date, vendor_name, reference, notes, entry_type)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'expense')`,
+        ).bind(
           'Salaire',
           `Salaire ${empLabel} — ${label}`,
           amount,
@@ -1280,11 +1355,17 @@ app.post('/api/employees/:id/pay', async (c) => {
           paid_at,
           empLabel,
           emp.emp_number || `EMP-${id}`,
-          `employee_id:${id}|payment_id:${payId || ''}${note ? `|note:${note}` : ''}`,
-        )
-        .run();
-    } catch (e) {
-      console.error('employee pay → expenses', e);
+          `employee_id:${id}|pay:${payMarker}${note ? `|note:${note}` : ''}`,
+        ),
+        c.env.DB.prepare(`DELETE FROM payroll_assertions WHERE marker = ?`).bind(payMarker),
+      ]);
+    } catch (payErr: any) {
+      console.error('employee_pay_atomic_failed', String(payErr?.message || payErr));
+      return c.json({
+        success: false,
+        error: 'Paiement refusé : le cycle de paie ou les acomptes de cet employé ont changé simultanément.',
+        code: 'PAY_CONFLICT',
+      }, 409);
     }
 
     await afterBusinessMutation(c.env.CACHE);
@@ -1294,11 +1375,13 @@ app.post('/api/employees/:id/pay', async (c) => {
       /* */
     }
     const row = await c.env.DB.prepare(`SELECT * FROM employees WHERE id = ?`).bind(id).first();
-    return c.json({
+    const payPayload = {
       success: true,
       data: enrich(row),
-      message: `Paiement enregistré — ${amount.toLocaleString('fr-FR')} MAD (débit solde)`,
-    });
+      message: `Paiement enregistré — ${amount.toLocaleString('fr-FR')} ${empCurrency} (débit solde)`,
+    };
+    if (idemKey) await idempotencyPut(c.env.DB, `emppay:${id}:${idemKey}`, 'POST /employees/pay', 200, payPayload);
+    return c.json(payPayload);
   });
 
   /** Permanent delete — never deletes payment history rows. */

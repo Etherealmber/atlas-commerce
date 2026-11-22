@@ -54,6 +54,10 @@ export interface Env {
   SMS_SENDER?: string;
   /** Opt in to desktop v2 discovery; phone approval also needs its own explicit flag. */
   DESKTOP_NATIVE_V2_DISCOVERY?: string;
+  /** Require compiled Rust WASM finance core at runtime (fail closed if absent or invalid). */
+  FINANCE_REQUIRE_WASM?: string;
+  /** Optional explicit fallback mode ('ts-fallback') for non-WASM dev/test environments. */
+  FINANCE_ENGINE_MODE?: string;
   /** Enable v2 phone approval in addition to discovery; use only after client/staging validation. */
   DESKTOP_NATIVE_V2_PHONE_APPROVAL?: string;
   /** Staging-only challenge; native password additionally requires its own pilot flag and configuration. */

@@ -49,13 +49,13 @@ async function toEditableDataUrl(src: string): Promise<string> {
     if (!res.ok) {
       let msg = `Proxy HTTP ${res.status}`;
       try {
-        const j = await res.clone().json();
+        const j = (await res.clone().json()) as { error?: string };
         if (j?.error) msg = String(j.error);
       } catch { /* */ }
       throw new Error(msg);
     }
     if (ct.includes('application/json')) {
-      const j = await res.json();
+      const j = (await res.json()) as { error?: string };
       throw new Error(j?.error || 'Proxy JSON');
     }
     const blob = await res.blob();

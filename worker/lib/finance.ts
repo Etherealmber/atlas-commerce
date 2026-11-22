@@ -23,6 +23,18 @@
 import { addColumnIfMissing } from './schema';
 import { normalizeRole } from './rbac';
 import { sendFcmToUser } from './fcm';
+import {
+  round2 as coreRound2,
+  isValidPeriod as coreIsValidPeriod,
+  monthBounds as coreMonthBounds,
+  prevPeriod as corePrevPeriod,
+  addDaysYmd as coreAddDaysYmd,
+  daysBetweenYmd as coreDaysBetweenYmd,
+  classifyDoc as coreClassifyDoc,
+  payrollCycleDays as corePayrollCycleDays,
+  computePayrollObligation as coreComputePayrollObligation,
+  type DocMoneyState,
+} from './financeCore';
 
 /* ─────────────────────────── pure helpers ─────────────────────────── */
 
@@ -31,35 +43,22 @@ const ROLE_ORDER: Record<string, number> = { user: 1, stock: 1, secretaire: 2, a
 
 /** Half-up rounding to 2 decimals — the only money normalizer. */
 export function round2(n: number): number {
-  const v = Number(n);
-  if (!Number.isFinite(v)) return 0;
-  return Math.round((v + Number.EPSILON) * 100) / 100;
+  return coreRound2(n);
 }
 
 /** Strict YYYY-MM validation (rejects 2026-13, 26-01, garbage). */
 export function isValidPeriod(p: string): boolean {
-  const m = String(p || '').match(/^(\d{4})-(0[1-9]|1[0-2])$/);
-  return !!m;
+  return coreIsValidPeriod(p);
 }
 
 /** Inclusive local-date bounds of a YYYY-MM period + the exclusive next day. */
 export function monthBounds(period: string): { start: string; end: string; nextStart: string } {
-  const y = Number(period.slice(0, 4));
-  const m = Number(period.slice(5, 7));
-  const start = `${period}-01`;
-  const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate(); // day 0 of next month
-  const end = `${period}-${String(lastDay).padStart(2, '0')}`;
-  const ny = m === 12 ? y + 1 : y;
-  const nm = m === 12 ? 1 : m + 1;
-  const nextStart = `${ny}-${String(nm).padStart(2, '0')}-01`;
-  return { start, end, nextStart };
+  return coreMonthBounds(period);
 }
 
 /** Previous period (YYYY-MM) — wraps across years. */
 export function prevPeriod(period: string): string {
-  const y = Number(period.slice(0, 4));
-  const m = Number(period.slice(5, 7));
-  return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`;
+  return corePrevPeriod(period);
 }
 
 /** Calendar date (YYYY-MM-DD) in a given IANA timezone, DST/month-length safe. */
@@ -72,41 +71,24 @@ export function localTodayYmd(timeZone: string, now: Date = new Date()): string 
 }
 
 export function addDaysYmd(ymd: string, days: number): string {
-  const m = String(ymd).slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!m) return ymd;
-  const dt = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
-  dt.setUTCDate(dt.getUTCDate() + days);
-  return dt.toISOString().slice(0, 10);
+  return coreAddDaysYmd(ymd, days);
 }
 
 export function daysBetweenYmd(from: string, to: string): number {
-  const a = String(from).slice(0, 10);
-  const b = String(to).slice(0, 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(a) || !/^\d{4}-\d{2}-\d{2}$/.test(b)) return 0;
-  const d0 = Date.UTC(Number(a.slice(0, 4)), Number(a.slice(5, 7)) - 1, Number(a.slice(8, 10)));
-  const d1 = Date.UTC(Number(b.slice(0, 4)), Number(b.slice(5, 7)) - 1, Number(b.slice(8, 10)));
-  return Math.floor((d1 - d0) / 86400000);
+  return coreDaysBetweenYmd(from, to);
 }
 
 /**
  * Document money state — one unambiguous classifier for invoices AND bills.
  * `remaining` is derived from persisted payment rows, never a client value.
  */
-export type DocMoneyState = 'paid' | 'partial' | 'unpaid' | 'overdue';
+export type { DocMoneyState };
 export function classifyDoc(total: number, paid: number, dueDate: string | null, todayYmd: string): {
   state: DocMoneyState;
   remaining: number;
   overdue: boolean;
 } {
-  const t = round2(total);
-  const p = round2(paid);
-  const remaining = Math.max(0, round2(t - p));
-  const due = String(dueDate || '').slice(0, 10);
-  const overdue = !!due && /^\d{4}-\d{2}-\d{2}$/.test(due) && due < todayYmd && remaining > 0.005;
-  if (remaining <= 0.005) return { state: 'paid', remaining: 0, overdue: false };
-  if (overdue) return { state: 'overdue', remaining, overdue: true };
-  if (p > 0.005) return { state: 'partial', remaining, overdue: false };
-  return { state: 'unpaid', remaining, overdue: false };
+  return coreClassifyDoc(total, paid, dueDate, todayYmd);
 }
 
 /** Durable outbox idempotency key: (tenant, event, period, recipient). */
@@ -156,10 +138,7 @@ export type PayrollEmployeeRow = {
 };
 
 export function payrollCycleDays(row: PayrollEmployeeRow): number {
-  const t = String(row.pay_cycle_type || 'monthly');
-  if (t === 'monthly') return 30;
-  const d = Number(row.pay_cycle_days || 7);
-  return Math.max(1, Math.min(365, d || 7));
+  return corePayrollCycleDays(row);
 }
 
 /**
@@ -180,30 +159,7 @@ export function payrollObligation(
   due_date: string | null;
   daily_rate: number;
 } | null {
-  if (Number(row.active ?? 1) === 0) return null;
-  const amount = Number(row.pay_amount || 0);
-  if (!(amount > 0)) return null;
-  const cycle = payrollCycleDays(row);
-  const last = row.last_paid_at ? String(row.last_paid_at).slice(0, 10) : '';
-  const joined = row.joined_date ? String(row.joined_date).slice(0, 10) : '';
-  const anchor = last || joined;
-  if (!anchor || !/^\d{4}-\d{2}-\d{2}$/.test(anchor)) return null;
-  const dueDate = addDaysYmd(anchor, cycle);
-  const elapsed = Math.max(0, Math.min(cycle, daysBetweenYmd(anchor, asOfYmd)));
-  const dailyRate = round2(amount / cycle);
-  const gross = round2((elapsed / cycle) * amount);
-  const net = Math.max(0, round2(gross - Math.max(0, round2(advancesInPeriod))));
-  const fn = String(row.first_name || '').trim();
-  const ln = String(row.last_name || '').trim();
-  const display = (fn || ln ? `${fn} ${ln}`.trim() : String(row.name || '').trim()) || '—';
-  return {
-    employee_id: Number(row.id),
-    display_name: display,
-    amount_due: net,
-    pay_period: { from: anchor, to: addDaysYmd(anchor, cycle) },
-    due_date: dueDate,
-    daily_rate: dailyRate,
-  };
+  return coreComputePayrollObligation(row, asOfYmd, advancesInPeriod);
 }
 
 /* ─────────────────────────── schema & context ─────────────────────────── */

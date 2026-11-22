@@ -1,4 +1,5 @@
 import type { Hono } from 'hono';
+import { normalizeInventoryRole, scrubProductForRole } from '../lib/inventory-policy';
 
 export interface CatalogRouteDeps {
   ensureCatalogTables: (db: D1Database) => Promise<void>;
@@ -9,12 +10,13 @@ export interface CatalogRouteDeps {
   deleteR2Object: (bucket: any, key: string) => Promise<void>;
   normalizeProductImageReference: (env: any, productId: any, source: string) => Promise<{ url: string }>;
   isNormalizedProductUrl: (env: any, url: string) => boolean;
-  migrateProductImagePage: (db: D1Database, env: any, phase: string, after: number, limit: number) => Promise<any>;
+  migrateProductImagePage: (db: D1Database, env: any, phase: 'products' | 'images', after: number, limit: number) => Promise<any>;
   afterBusinessMutation: (kv: any) => Promise<void>;
   sessionUserFromHeader: (authHeader?: string) => { username?: string; role?: string };
   authFailReason: (authHeader: string | undefined, env: any, db: D1Database, ip: string, fp: string) => Promise<string>;
   clientIp: (c: any) => string;
   getOwnerUsername: (env: any) => string;
+  requireBizMutator?: (c: any) => { ok: true; username: string; role: string } | { ok: false; response: Response };
 }
 
 export function registerCatalogRoutes(app: Hono<any>, deps: CatalogRouteDeps): void {
@@ -33,6 +35,7 @@ export function registerCatalogRoutes(app: Hono<any>, deps: CatalogRouteDeps): v
     authFailReason,
     clientIp,
     getOwnerUsername,
+    requireBizMutator,
   } = deps;
 
   app.get('/api/catalog/settings', async (c) => {
@@ -42,6 +45,10 @@ export function registerCatalogRoutes(app: Hono<any>, deps: CatalogRouteDeps): v
   });
 
   app.put('/api/catalog/settings', async (c) => {
+    if (requireBizMutator) {
+      const gate = requireBizMutator(c);
+      if (!gate.ok) return gate.response;
+    }
     await ensureCatalogTables(c.env.DB);
     const body = await c.req.json().catch(() => ({}));
     const fields = ['site_title', 'site_tagline', 'public_base_url', 'show_prices', 'show_stock', 'contact_email', 'contact_phone'];
@@ -62,6 +69,7 @@ export function registerCatalogRoutes(app: Hono<any>, deps: CatalogRouteDeps): v
 
   app.get('/api/catalog/products', async (c) => {
     await ensureCatalogTables(c.env.DB);
+    const callerRole = normalizeInventoryRole(sessionUserFromHeader(c.req.header('Authorization')).role);
     const { results } = await c.env.DB.prepare(`
       SELECT p.id, p.sku, p.name, p.category, p.price, p.stock_quantity, p.image_url,
              COALESCE(c.is_public, p.is_public, 0) as is_public,
@@ -73,10 +81,14 @@ export function registerCatalogRoutes(app: Hono<any>, deps: CatalogRouteDeps): v
       WHERE p.is_active = 1
       ORDER BY p.name
     `).all();
-    return c.json({ success: true, data: results || [] });
+    return c.json({ success: true, data: (results || []).map((r: any) => scrubProductForRole(r, callerRole)) });
   });
 
   app.put('/api/catalog/products/:id', async (c) => {
+    if (requireBizMutator) {
+      const gate = requireBizMutator(c);
+      if (!gate.ok) return gate.response;
+    }
     await ensureCatalogTables(c.env.DB);
     const id = c.req.param('id');
     const body = await c.req.json().catch(() => ({}));

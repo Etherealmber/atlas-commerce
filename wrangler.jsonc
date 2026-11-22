@@ -4,6 +4,16 @@
   "main": "worker/index.ts",
   "compatibility_date": "2025-09-01",
   "compatibility_flags": ["nodejs_compat"],
+  // Rebuilds and verifies `worker/wasm/atlas_finance_core.wasm` (cached when unchanged)
+  // whenever `wrangler dev` watches Rust source changes or `wrangler deploy --config wrangler.jsonc` runs.
+  "build": {
+    "command": "node scripts/build-finance-wasm.mjs --strict",
+    "watch_dir": [
+      "rust/atlas-finance-core/src",
+      "rust/atlas-finance-core/Cargo.toml",
+      "rust-toolchain.toml"
+    ]
+  },
   // v257 — Smart Placement: this Worker is D1/KV/DO-round-trip heavy (every
   // API request runs several queries against a single-region D1 primary) while
   // all users sit in one country. Running the isolate next to those backends

@@ -8,21 +8,27 @@ on:
   pull_request:
     paths:
       - 'worker/**'
+      - 'shared/**'
+      - 'rust/**'
+      - 'rust-toolchain.toml'
+      - 'scripts/**'
       - 'wrangler.jsonc'
       - 'tsconfig.json'
       - 'package.json'
       - 'package-lock.json'
-      - 'scripts/tsc-baseline.txt'
       - '.github/workflows/api-guard.yml'
   push:
     branches: [main]
     paths:
       - 'worker/**'
+      - 'shared/**'
+      - 'rust/**'
+      - 'rust-toolchain.toml'
+      - 'scripts/**'
       - 'wrangler.jsonc'
       - 'tsconfig.json'
       - 'package.json'
       - 'package-lock.json'
-      - 'scripts/tsc-baseline.txt'
       - '.github/workflows/api-guard.yml'
 
 permissions:
@@ -70,16 +76,26 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Install pinned Rust toolchain (1.82.0 + wasm32-unknown-unknown)
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.82.0
+          targets: wasm32-unknown-unknown
+      - name: Cache Cargo registry and Rust target directory
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust/atlas-finance-core
       - run: npm ci
       - run: npm run build
-      - name: wrangler deploy --dry-run (compiles the worker, validates wrangler.jsonc, deploys nothing)
+      - name: wrangler deploy --dry-run (validates built Cloudflare bundle, deploys nothing)
         run: |
           set -o pipefail
           # wrangler >= 4.15 requires Node >= 22 — a mismatch crashes instantly
           # with a generic exit 1, so print the toolchain before validating.
           node -v
           npx wrangler --version
-          npx wrangler deploy --dry-run --config wrangler.jsonc 2>&1 | tee wrangler-dry-run.log || {
+          test -f dist/company_stock/wrangler.json
+          npx wrangler deploy --dry-run --config dist/company_stock/wrangler.json --outdir /tmp/wrangler-bundle-check 2>&1 | tee wrangler-dry-run.log || {
             echo "::error::wrangler dry-run failed — last lines below"
             tail -40 wrangler-dry-run.log
             exit 1

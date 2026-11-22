@@ -1,19 +1,33 @@
 import type { Hono } from 'hono';
+import {
+  aggregateDocumentTotals,
+  computeBillLine,
+  getCurrencySpec,
+  roundCurrency,
+  sanitizeNonNegativeAmount,
+  sumMoneyAmounts,
+} from '../lib/financeCore';
+import { canMutateBusiness, normalizeRole } from '../lib/rbac';
+import { roleCanSeeFinancial, roleCanSeeSellPrices } from '../lib/inventory-policy';
 
 export interface ExportRouteDeps {
   roundDh: (n: number) => number;
   sessionUserFromHeader: (authHeader?: string) => { username?: string; role?: string };
-  requireOwner: (c: any) => { ok: true; username: string; role: string } | { ok: false; response: Response };
+  requireOwner: (c: any) => { ok: true; username: string; role?: string } | { ok: false; response: Response };
   ensureExpenseTypeColumn: (db: D1Database) => Promise<void>;
   ensurePaymentHistoryTable: (db: D1Database) => Promise<void>;
 }
 
-function csvEscape(v: any): string {
+export function csvEscape(v: any): string {
   if (v == null) return '';
   if (typeof v === 'number' && Number.isFinite(v)) {
     return String(v).replace('.', ',');
   }
-  const s = String(v);
+  let s = String(v);
+  // Neutralize CSV formula injection (Excel/LibreOffice/Google Sheets) on untrusted strings
+  if (/^[=+\t\r@]/.test(s) || (s.startsWith('-') && !/^-\d+([.,]\d+)?$/.test(s))) {
+    s = `'${s}`;
+  }
   if (/[";\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
   return s;
 }
@@ -32,19 +46,35 @@ function csvFilename(base: string): string {
 
 export function registerExportRoutes(app: Hono<any>, deps: ExportRouteDeps): void {
   const {
-    roundDh,
     sessionUserFromHeader,
     requireOwner,
     ensureExpenseTypeColumn,
     ensurePaymentHistoryTable,
   } = deps;
 
+  function requireExportBizRole(c: any): Response | null {
+    const sess = sessionUserFromHeader(c.req.header('Authorization'));
+    const role = normalizeRole(sess?.role);
+    if (!sess?.username || !canMutateBusiness(role)) {
+      return c.json({
+        success: false,
+        error: 'Votre rôle ne permet pas cette action.',
+        code: 'FORBIDDEN_ROLE',
+        role,
+      }, 403);
+    }
+    return null;
+  }
+
   /* ─── Import bills (from seller invoice / Excel review) ─── */
   app.post('/api/bills/import', async (c) => {
+    const denied = requireExportBizRole(c);
+    if (denied) return denied;
     const body = await c.req.json().catch(() => ({}));
     const rows = Array.isArray(body.rows) ? body.rows : [];
     if (!rows.length) return c.json({ success: false, error: "Aucune facture d'achat à importer" }, 400);
     const settings = await c.env.DB.prepare(`SELECT * FROM company_settings WHERE id = 1`).first() as any;
+    const currency = String(settings?.currency || settings?.finance_currency || 'MAD');
     let inserted = 0;
     const created: any[] = [];
     for (const row of rows) {
@@ -54,29 +84,41 @@ export function registerExportRoutes(app: Hono<any>, deps: ExportRouteDeps): voi
       if (!items.length && !(row.total || row.montant)) continue;
       let subtotal = 0, tax_amount = 0;
       const lineItems: any[] = [];
+      let invalidRow = false;
       if (items.length) {
         for (const it of items) {
-          const qty = Number(it.quantity || it.qte || 1);
-          const price = Number(it.unit_price || it.prix || it.price || 0);
+          const qty = Number(it.quantity ?? it.qte ?? 1);
+          const price = Number(it.unit_price ?? it.prix ?? it.price ?? 0);
           const taxRate = Number(it.tax_rate ?? settings?.tax_rate ?? 0);
-          const ht = qty * price;
-          const tax = ht * (taxRate / 100);
-          subtotal += ht; tax_amount += tax;
-          lineItems.push({ product_name: it.product_name || it.designation || it.name || 'Article', quantity: qty, unit_price: price, tax_rate: taxRate, line_total: roundDh(ht + tax), sku: it.sku || '' });
+          if (!Number.isFinite(qty) || qty <= 0 || !Number.isFinite(price) || price < 0 || !Number.isFinite(taxRate) || taxRate < 0) {
+            invalidRow = true;
+            break;
+          }
+          const calc = computeBillLine({ quantity: qty, unitCost: price, taxRate, defaultTax: Number(settings?.tax_rate ?? 0), currency });
+          subtotal += calc.line_ht;
+          tax_amount += calc.line_tax;
+          lineItems.push({ product_name: it.product_name || it.designation || it.name || 'Article', quantity: calc.quantity, unit_price: calc.unit_cost, tax_rate: calc.tax_rate, line_total: calc.line_total, sku: it.sku || '' });
         }
       } else {
-        const total = Number(row.total || row.montant || 0);
-        subtotal = total;
-        lineItems.push({ product_name: row.description || 'Import facture fournisseur', quantity: 1, unit_price: total, tax_rate: 0, line_total: total, sku: '' });
+        const safeTotal = sanitizeNonNegativeAmount(row.total ?? row.montant ?? 0, { max: 1e12, decimals: 2 });
+        if (safeTotal == null || safeTotal <= 0) invalidRow = true;
+        else {
+          const calc = computeBillLine({ quantity: 1, unitCost: roundCurrency(safeTotal, currency, 'invoice'), taxRate: 0, defaultTax: 0, currency });
+          subtotal = calc.line_ht;
+          lineItems.push({ product_name: row.description || 'Import facture fournisseur', quantity: 1, unit_price: calc.unit_cost, tax_rate: 0, line_total: calc.line_total, sku: '' });
+        }
       }
-      subtotal = roundDh(subtotal); tax_amount = roundDh(tax_amount); const total = roundDh(subtotal + tax_amount);
+      if (invalidRow || !lineItems.length) continue;
+      const billTotals = aggregateDocumentTotals([{ line_ht: subtotal, line_tax_real: tax_amount }], currency);
+      subtotal = billTotals.subtotal; tax_amount = billTotals.tax_amount; const total = billTotals.total;
       const prefix = settings?.bill_prefix || 'BILL-';
       const nextNum = settings?.next_bill_number || 1;
       const number = `${prefix}${String(nextNum).padStart(5, '0')}`;
       const issue_date = String(row.issue_date || row.date || new Date().toISOString().slice(0, 10)).slice(0, 10);
       const due_date = row.due_date || null;
       const status = row.status === 'paid' ? 'paid' : 'sent';
-      const amount_paid = status === 'paid' ? total : Number(row.amount_paid || 0);
+      const rawPaid = sanitizeNonNegativeAmount(row.amount_paid ?? 0, { max: total, decimals: 2 }) ?? 0;
+      const amount_paid = status === 'paid' ? total : Math.min(total, rawPaid);
       const result = await c.env.DB.prepare(
         `INSERT INTO bills (number, vendor_id, vendor_name, issue_date, due_date, status, subtotal, tax_amount, total, amount_paid, notes)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -84,8 +126,8 @@ export function registerExportRoutes(app: Hono<any>, deps: ExportRouteDeps): voi
       const billId = result.meta.last_row_id;
       for (const it of lineItems) {
         await c.env.DB.prepare(
-          `INSERT INTO bill_items (bill_id, product_id, product_name, sku, quantity, unit_price, tax_rate, line_total) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        ).bind(billId, null, it.product_name, it.sku, it.quantity, it.unit_price, it.tax_rate, it.line_total).run();
+          `INSERT INTO bill_items (bill_id, product_id, product_name, sku, quantity, unit_cost, tax_rate, line_total) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        ).bind(billId, null, it.product_name, it.sku, it.quantity, it.unit_cost ?? it.unit_price, it.tax_rate, it.line_total).run();
       }
       await c.env.DB.prepare(`UPDATE company_settings SET next_bill_number = COALESCE(next_bill_number, 1) + 1 WHERE id = 1`).run();
       created.push({ id: billId, number, vendor_name, total });
@@ -95,6 +137,8 @@ export function registerExportRoutes(app: Hono<any>, deps: ExportRouteDeps): voi
   });
 
   app.get('/api/export/invoices', async (c) => {
+    const denied = requireExportBizRole(c);
+    if (denied) return denied;
     const { results } = await c.env.DB.prepare(
       `SELECT number, client_name, issue_date, due_date, status, subtotal, tax_amount, total, amount_paid,
               (total - COALESCE(amount_paid,0)) as remaining, notes FROM invoices ORDER BY issue_date DESC, id DESC`,
@@ -142,6 +186,8 @@ export function registerExportRoutes(app: Hono<any>, deps: ExportRouteDeps): voi
       ).all();
       results = (q.results || []) as any[];
     }
+    const canFinancial = roleCanSeeFinancial(session.role || '');
+    const canSell = roleCanSeeSellPrices(session.role || '');
     const rows = results.map((r) => {
       const stock = Number(r.stock_quantity ?? 0);
       const seuil = Number(r.low_stock_threshold ?? 0);
@@ -162,8 +208,8 @@ export function registerExportRoutes(app: Hono<any>, deps: ExportRouteDeps): voi
         r.category || '',
         r.unit || 'unité',
         r.variant_label || '',
-        Number(r.cost ?? 0),
-        Number(r.price ?? 0),
+        canFinancial ? Number(r.cost ?? 0) : '',
+        canSell ? Number(r.price ?? 0) : '',
         r.tax_rate != null && r.tax_rate !== '' ? Number(r.tax_rate) : '',
         stock,
         seuil,
@@ -190,6 +236,8 @@ export function registerExportRoutes(app: Hono<any>, deps: ExportRouteDeps): voi
   });
 
   app.get('/api/export/expenses', async (c) => {
+    const denied = requireExportBizRole(c);
+    if (denied) return denied;
     await ensureExpenseTypeColumn(c.env.DB);
     const { results } = await c.env.DB.prepare(
       `SELECT expense_date, entry_type, category, description, amount, payment_method, vendor_name, notes FROM expenses ORDER BY expense_date DESC`,
@@ -210,6 +258,8 @@ export function registerExportRoutes(app: Hono<any>, deps: ExportRouteDeps): voi
   });
 
   app.get('/api/export/clients', async (c) => {
+    const denied = requireExportBizRole(c);
+    if (denied) return denied;
     const { results } = await c.env.DB.prepare(`SELECT name, ice, if_number, address, city, phone, email FROM clients ORDER BY name`).all();
     const rows = ((results || []) as any[]).map((r) => [r.name, r.ice, r.if_number, r.address, r.city, r.phone, r.email]);
     const csv = toCsv(['Nom', 'ICE', 'IF', 'Adresse', 'Ville', 'Telephone', 'Email'], rows);
@@ -222,6 +272,8 @@ export function registerExportRoutes(app: Hono<any>, deps: ExportRouteDeps): voi
   });
 
   app.get('/api/export/payments', async (c) => {
+    const denied = requireExportBizRole(c);
+    if (denied) return denied;
     await ensurePaymentHistoryTable(c.env.DB);
     const { results } = await c.env.DB.prepare(
       `SELECT p.paid_at, i.number, i.client_name, p.amount, p.payment_method, p.payee, p.note
@@ -296,21 +348,26 @@ export function registerExportRoutes(app: Hono<any>, deps: ExportRouteDeps): voi
       expenses = [];
     }
 
-    const settings = await c.env.DB.prepare(`SELECT company_name, currency, starting_balance FROM company_settings WHERE id = 1`).first() as any;
+    const settings = await c.env.DB.prepare(`SELECT * FROM company_settings WHERE id = 1`).first() as any;
+    const currency = String(settings?.currency || settings?.finance_currency || 'MAD');
+    const finDecimals = getCurrencySpec(currency).minorDecimals;
     const invRows = (invoices.results || []) as any[];
     const payRows = (payments.results || []) as any[];
-    const salesTotal = invRows
-      .filter((i) => i.status !== 'cancelled' && i.status !== 'quote' && i.status !== 'devis' && i.doc_kind !== 'remboursement' && i.status !== 'remboursement')
-      .reduce((s, i) => s + Number(i.total || 0), 0);
-    const paidTotal = payRows.reduce((s, p) => s + Number(p.amount || 0), 0);
-    const expenseTotal = expenses.reduce((s, e) => s + Number(e.amount || 0), 0);
+    const salesTotal = sumMoneyAmounts(
+      invRows
+        .filter((i) => i.status !== 'cancelled' && i.status !== 'quote' && i.status !== 'devis' && i.doc_kind !== 'remboursement' && i.status !== 'remboursement')
+        .map((i) => Number(i.total || 0)),
+      finDecimals,
+    );
+    const paidTotal = sumMoneyAmounts(payRows.map((p) => Number(p.amount || 0)), finDecimals);
+    const expenseTotal = sumMoneyAmounts(expenses.map((e) => Number(e.amount || 0)), finDecimals);
 
     const pack = {
       meta: {
         month, from, to,
         generated_at: new Date().toISOString(),
         company: settings?.company_name || 'Atlas Commerce',
-        currency: settings?.currency || 'MAD',
+        currency,
         app: 'Atlas Commerce',
         phase: 5,
       },
@@ -334,7 +391,7 @@ export function registerExportRoutes(app: Hono<any>, deps: ExportRouteDeps): voi
       const sections: string[] = [];
       sections.push('### RESUME');
       sections.push(toCsv(
-        ['Mois', 'Factures', 'Paiements', 'Mvt stock', 'Depenses', 'CA', 'Encaisse', 'Depenses MAD'],
+        ['Mois', 'Factures', 'Paiements', 'Mvt stock', 'Depenses', 'CA', 'Encaisse', `Depenses ${currency}`],
         [[month, pack.summary.invoices_count, pack.summary.payments_count, pack.summary.stock_moves_count, pack.summary.expenses_count, salesTotal, paidTotal, expenseTotal]],
       ));
       sections.push('\n### FACTURES');

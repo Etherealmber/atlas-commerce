@@ -93,8 +93,8 @@ describe('phone theme', () => {
         pseudoElement: '::view-transition-new(root)',
       });
     } finally {
-      delete (document as Document & { startViewTransition?: unknown }).startViewTransition;
-      delete (document.documentElement as HTMLElement & { animate?: unknown }).animate;
+      Reflect.deleteProperty(document, 'startViewTransition');
+      Reflect.deleteProperty(document.documentElement, 'animate');
     }
   });
   it('follows operating-system changes only in system mode', async () => {

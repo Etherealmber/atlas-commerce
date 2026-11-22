@@ -486,7 +486,7 @@ export default function Settings() {
     setSaveOk(false);
     setSaving(true);
     try {
-      const res = await api.updateSettings(merged);
+      const res = (await api.updateSettings(merged)) as { data?: any };
       setSettings(res.data);
       setSettingsDirty(false);
       setSaveOk(true);
@@ -1486,7 +1486,7 @@ if (loading) return (
                       (settings as any)?.attendance_acompte_monthly_max_pct ?? 15,
                     ),
                   };
-                  const res = await api.updateSettings(payload);
+                  const res = (await api.updateSettings(payload)) as { data?: Record<string, any> };
                   if (res?.data) setSettings((s: any) => ({ ...s, ...res.data }));
                   flash('Règles de présence enregistrées');
                 } catch (e: any) {

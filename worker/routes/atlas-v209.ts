@@ -6,6 +6,11 @@
  */
 import type { AtlasApp } from './types';
 import { qrToSvg } from '../qrSvg';
+import { assertSafeOutboundUrl, escapeHtml } from '../lib/security';
+import { canMutateBusiness, normalizeRole } from '../lib/rbac';
+import { roleCanSeeSellPrices } from '../lib/inventory-policy';
+import { getCurrencySpec, roundCurrency } from '../lib/financeCore';
+import { addColumnIfMissing } from '../lib/schema';
 
 const once = new Set<string>();
 async function ensure(db: D1Database, key: string, ddl: string): Promise<void> {
@@ -61,16 +66,8 @@ export async function ensureV209Schema(db: D1Database): Promise<void> {
     created_at TEXT DEFAULT (datetime('now'))
   )`);
   // products.location (bin / emplacement reference) — M1
-  try {
-    const cols = await db.prepare(`PRAGMA table_info(products)`).all() as any;
-    if (!(cols.results || []).some((c: any) => c.name === 'location')) {
-      await db.prepare(`ALTER TABLE products ADD COLUMN location TEXT DEFAULT ''`).run();
-    }
-    const icols = await db.prepare(`PRAGMA table_info(invoices)`).all() as any;
-    if (!(icols.results || []).some((c: any) => c.name === 'pipeline_status')) {
-      await db.prepare(`ALTER TABLE invoices ADD COLUMN pipeline_status TEXT DEFAULT ''`).run();
-    }
-  } catch { /* fresh db */ }
+  await addColumnIfMissing(db, 'products', 'location', `TEXT DEFAULT ''`);
+  await addColumnIfMissing(db, 'invoices', 'pipeline_status', `TEXT DEFAULT ''`);
 }
 
 export async function dispatchWebhook(env: any, ctx: any, event: string, payload: any): Promise<void> {
@@ -82,8 +79,14 @@ export async function dispatchWebhook(env: any, ctx: any, event: string, payload
       let evts: string[] = [];
       try { evts = JSON.parse(w.events || '[]'); } catch { evts = []; }
       if (evts.length && !evts.includes(event) && !evts.includes('*')) continue;
+      let safeUrl: URL;
+      try {
+        safeUrl = assertSafeOutboundUrl(String(w.url || ''));
+      } catch {
+        continue;
+      }
       // fire-and-forget, never block the API — waitUntil keeps the fetch alive after the response
-      const p = fetch(w.url, {
+      const p = fetch(safeUrl.toString(), {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ event, payload, at: new Date().toISOString() }),
@@ -126,9 +129,23 @@ export function registerAtlasV209Routes(app: AtlasApp, deps: V209Deps): void {
   const gate = (c: any) => {
     const s = deps.sessionUserFromHeader(c.req.header('Authorization'));
     if (!s.username) return { ok: false as const, status: 401, error: 'Non authentifié' };
-    const role = (s.role || 'user').toLowerCase();
-    if (!['owner', 'admin', 'stock'].includes(role)) return { ok: false as const, status: 403, error: 'Rôle insuffisant' };
-    return { ok: true as const, username: s.username };
+    const role = normalizeRole(s.role || 'user');
+    if (!['owner', 'admin', 'secretaire', 'stock'].includes(role)) return { ok: false as const, status: 403, error: 'Rôle insuffisant' };
+    return { ok: true as const, username: s.username, role };
+  };
+  const gateMutator = (c: any) => {
+    const s = deps.sessionUserFromHeader(c.req.header('Authorization'));
+    if (!s.username) return { ok: false as const, status: 401, error: 'Non authentifié' };
+    const role = normalizeRole(s.role || 'user');
+    if (!canMutateBusiness(role)) return { ok: false as const, status: 403, error: 'Accès réservé aux opérateurs autorisés (owner/admin/secretaire).' };
+    return { ok: true as const, username: s.username, role };
+  };
+  const gateAdmin = (c: any) => {
+    const s = deps.sessionUserFromHeader(c.req.header('Authorization'));
+    if (!s.username) return { ok: false as const, status: 401, error: 'Non authentifié' };
+    const role = normalizeRole(s.role || 'user');
+    if (role !== 'owner' && role !== 'admin') return { ok: false as const, status: 403, error: 'Accès réservé owner/admin.' };
+    return { ok: true as const, username: s.username, role };
   };
 
   async function applyDelta(db: D1Database, productId: number, warehouseId: number | null, delta: number, type: string, reason: string, user: string, prevTotal: number, newTotal: number) {
@@ -143,7 +160,7 @@ export function registerAtlasV209Routes(app: AtlasApp, deps: V209Deps): void {
 
   /* ---- M3: scan-first stock operations ---- */
   app.post('/api/stock/receive', async (c) => {
-    const g = gate(c); if (!g.ok) return c.json({ success: false, error: g.error }, g.status as any);
+    const g = gateMutator(c); if (!g.ok) return c.json({ success: false, error: g.error }, g.status as any);
     const b = await c.req.json<any>();
     const qty = Number(b.quantity); const pid = Number(b.product_id);
     if (!pid || !isFinite(qty) || qty <= 0) return c.json({ success: false, error: 'QTY_INVALID' }, 400);
@@ -167,7 +184,7 @@ export function registerAtlasV209Routes(app: AtlasApp, deps: V209Deps): void {
   });
 
   app.post('/api/stock/count', async (c) => {
-    const g = gate(c); if (!g.ok) return c.json({ success: false, error: g.error }, g.status as any);
+    const g = gateMutator(c); if (!g.ok) return c.json({ success: false, error: g.error }, g.status as any);
     const b = await c.req.json<any>();
     const qty = Number(b.quantity); const pid = Number(b.product_id);
     if (!pid || !isFinite(qty) || qty < 0) return c.json({ success: false, error: 'QTY_INVALID' }, 400);
@@ -196,7 +213,7 @@ export function registerAtlasV209Routes(app: AtlasApp, deps: V209Deps): void {
 
   /* ---- M1: bin location on product ---- */
   app.post('/api/products/:id/location', async (c) => {
-    const g = gate(c); if (!g.ok) return c.json({ success: false, error: g.error }, g.status as any);
+    const g = gateMutator(c); if (!g.ok) return c.json({ success: false, error: g.error }, g.status as any);
     const b = await c.req.json<any>();
     await ensureV209Schema(c.env.DB);
     await c.env.DB.prepare(`UPDATE products SET location = ?, updated_at = datetime('now') WHERE id = ?`).bind(String(b.location || ''), Number(c.req.param('id'))).run();
@@ -205,7 +222,7 @@ export function registerAtlasV209Routes(app: AtlasApp, deps: V209Deps): void {
 
   /* ---- S4: supplier parts + price breaks ---- */
   app.get('/api/vendors/parts', async (c) => {
-    const g = gate(c); if (!g.ok) return c.json({ success: false, error: g.error }, g.status as any);
+    const g = gateAdmin(c); if (!g.ok) return c.json({ success: false, error: g.error }, g.status as any);
     await ensureV209Schema(c.env.DB);
     const vid = c.req.query('vendor_id');
     const q = vid ? c.env.DB.prepare(`SELECT * FROM supplier_parts WHERE vendor_id = ?`).bind(Number(vid)) : c.env.DB.prepare(`SELECT * FROM supplier_parts LIMIT 300`);
@@ -213,7 +230,7 @@ export function registerAtlasV209Routes(app: AtlasApp, deps: V209Deps): void {
     return c.json({ success: true, data: r.results || [] });
   });
   app.post('/api/vendors/parts', async (c) => {
-    const g = gate(c); if (!g.ok) return c.json({ success: false, error: g.error }, g.status as any);
+    const g = gateAdmin(c); if (!g.ok) return c.json({ success: false, error: g.error }, g.status as any);
     const b = await c.req.json<any>();
     if (!b.vendor_id || !b.product_id) return c.json({ success: false, error: 'PARAMS_REQUIRED' }, 400);
     await ensureV209Schema(c.env.DB);
@@ -223,7 +240,7 @@ export function registerAtlasV209Routes(app: AtlasApp, deps: V209Deps): void {
 
   /* ---- M5: quote / document status pipeline ---- */
   app.post('/api/invoices/:id/pipeline', async (c) => {
-    const g = gate(c); if (!g.ok) return c.json({ success: false, error: g.error }, g.status as any);
+    const g = gateMutator(c); if (!g.ok) return c.json({ success: false, error: g.error }, g.status as any);
     const b = await c.req.json<any>();
     const target = String(b.status || '');
     if (!PIPELINE.includes(target)) return c.json({ success: false, error: 'STATUS_INVALID' }, 400);
@@ -239,7 +256,7 @@ export function registerAtlasV209Routes(app: AtlasApp, deps: V209Deps): void {
     return c.json({ success: true, data: { pipeline_status: target } });
   });
   app.get('/api/invoices/:id/pipeline', async (c) => {
-    const g = gate(c); if (!g.ok) return c.json({ success: false, error: g.error }, g.status as any);
+    const g = gateMutator(c); if (!g.ok) return c.json({ success: false, error: g.error }, g.status as any);
     await ensureV209Schema(c.env.DB);
     const r = await c.env.DB.prepare(`SELECT * FROM status_events WHERE invoice_id = ? ORDER BY id ASC`).bind(Number(c.req.param('id'))).all();
     return c.json({ success: true, data: r.results || [] });
@@ -256,19 +273,21 @@ export function registerAtlasV209Routes(app: AtlasApp, deps: V209Deps): void {
     return c.json({ success: true, data: ((kits as any).results || []).map((k: any) => ({ ...k, items: byKit[k.id] || [] })) });
   });
   app.post('/api/kits', async (c) => {
-    const g = gate(c); if (!g.ok) return c.json({ success: false, error: g.error }, g.status as any);
+    const g = gateMutator(c); if (!g.ok) return c.json({ success: false, error: g.error }, g.status as any);
     const b = await c.req.json<any>();
     if (!b.name || !b.product_id) return c.json({ success: false, error: 'NAME_PRODUCT_REQUIRED' }, 400);
     const db = c.env.DB; await ensureV209Schema(db);
     const r = await db.prepare(`INSERT INTO kits (name, product_id) VALUES (?, ?)`).bind(String(b.name), Number(b.product_id)).run();
     const kitId = r.meta.last_row_id;
     for (const it of b.items || []) {
-      await db.prepare(`INSERT INTO kit_items (kit_id, product_id, quantity) VALUES (?, ?, ?)`).bind(kitId, Number(it.product_id), Number(it.quantity || 1)).run();
+      const q = Number(it.quantity || 1);
+      if (!Number.isFinite(q) || q <= 0) continue;
+      await db.prepare(`INSERT INTO kit_items (kit_id, product_id, quantity) VALUES (?, ?, ?)`).bind(kitId, Number(it.product_id), q).run();
     }
     return c.json({ success: true, data: { id: kitId } });
   });
   app.post('/api/kits/:id/assemble', async (c) => {
-    const g = gate(c); if (!g.ok) return c.json({ success: false, error: g.error }, g.status as any);
+    const g = gateMutator(c); if (!g.ok) return c.json({ success: false, error: g.error }, g.status as any);
     const qty = Number((await c.req.json<any>()).quantity || 1);
     if (!isFinite(qty) || qty <= 0) return c.json({ success: false, error: 'QTY_INVALID' }, 400);
     const db = c.env.DB; await ensureV209Schema(db);
@@ -281,32 +300,45 @@ export function registerAtlasV209Routes(app: AtlasApp, deps: V209Deps): void {
     }
     for (const it of items.results || []) {
       const need = Number(it.quantity) * qty;
-      const p = await db.prepare(`SELECT stock_quantity FROM products WHERE id = ?`).bind(it.product_id).first() as any;
-      await applyDelta(db, it.product_id, null, -need, 'kit_out', `Assemblage kit ${kit.name}`, g.username, Number(p.stock_quantity), Number(p.stock_quantity) - need);
+      if (deps.applyStockDelta) {
+        await deps.applyStockDelta(db, it.product_id, -need, `Assemblage kit ${kit.name}`, 'kit_out', { createdBy: g.username });
+      } else {
+        const p = await db.prepare(`SELECT stock_quantity FROM products WHERE id = ?`).bind(it.product_id).first() as any;
+        await applyDelta(db, it.product_id, null, -need, 'kit_out', `Assemblage kit ${kit.name}`, g.username, Number(p.stock_quantity), Number(p.stock_quantity) - need);
+      }
     }
-    const out = await db.prepare(`SELECT stock_quantity FROM products WHERE id = ?`).bind(kit.product_id).first() as any;
-    await applyDelta(db, kit.product_id, null, qty, 'kit_in', `Assemblage kit ${kit.name}`, g.username, Number(out.stock_quantity), Number(out.stock_quantity) + qty);
+    if (deps.applyStockDelta) {
+      await deps.applyStockDelta(db, kit.product_id, qty, `Assemblage kit ${kit.name}`, 'kit_in', { createdBy: g.username });
+    } else {
+      const out = await db.prepare(`SELECT stock_quantity FROM products WHERE id = ?`).bind(kit.product_id).first() as any;
+      await applyDelta(db, kit.product_id, null, qty, 'kit_in', `Assemblage kit ${kit.name}`, g.username, Number(out.stock_quantity), Number(out.stock_quantity) + qty);
+    }
     await dispatchWebhook(c.env, c.executionCtx, 'kit.assembled', { kit_id: kit.id, quantity: qty });
     return c.json({ success: true });
   });
 
   /* ---- L10: webhooks CRUD ---- */
   app.get('/api/webhooks', async (c) => {
-    const g = gate(c); if (!g.ok) return c.json({ success: false, error: g.error }, g.status as any);
+    const g = gateAdmin(c); if (!g.ok) return c.json({ success: false, error: g.error }, g.status as any);
     await ensureV209Schema(c.env.DB);
     const r = await c.env.DB.prepare(`SELECT * FROM webhooks ORDER BY id DESC`).all();
     return c.json({ success: true, data: r.results || [] });
   });
   app.post('/api/webhooks', async (c) => {
-    const g = gate(c); if (!g.ok) return c.json({ success: false, error: g.error }, g.status as any);
+    const g = gateAdmin(c); if (!g.ok) return c.json({ success: false, error: g.error }, g.status as any);
     const b = await c.req.json<any>();
-    if (!/^https?:\/\//.test(String(b.url || ''))) return c.json({ success: false, error: 'URL_INVALID' }, 400);
+    let safeUrl: URL;
+    try {
+      safeUrl = assertSafeOutboundUrl(String(b.url || ''));
+    } catch {
+      return c.json({ success: false, error: 'URL_INVALID' }, 400);
+    }
     await ensureV209Schema(c.env.DB);
-    const r = await c.env.DB.prepare(`INSERT INTO webhooks (url, events) VALUES (?, ?)`).bind(String(b.url), JSON.stringify(b.events || ['*'])).run();
+    const r = await c.env.DB.prepare(`INSERT INTO webhooks (url, events) VALUES (?, ?)`).bind(safeUrl.toString(), JSON.stringify(b.events || ['*'])).run();
     return c.json({ success: true, data: { id: r.meta.last_row_id } });
   });
   app.delete('/api/webhooks/:id', async (c) => {
-    const g = gate(c); if (!g.ok) return c.json({ success: false, error: g.error }, g.status as any);
+    const g = gateAdmin(c); if (!g.ok) return c.json({ success: false, error: g.error }, g.status as any);
     await ensureV209Schema(c.env.DB);
     await c.env.DB.prepare(`DELETE FROM webhooks WHERE id = ?`).bind(Number(c.req.param('id'))).run();
     return c.json({ success: true });
@@ -314,12 +346,14 @@ export function registerAtlasV209Routes(app: AtlasApp, deps: V209Deps): void {
 
   /* ---- S6: printable label (QR + CODE128) ---- */
   app.get('/api/atlas/alerts', async (c) => {
+    const g = gate(c); if (!g.ok) return c.json({ success: false, error: g.error }, g.status as any);
     await ensureV209Schema(c.env.DB);
     const rows = await c.env.DB.prepare(`SELECT key, label, enabled, threshold FROM atlas_alerts ORDER BY key`).all() as any;
     return c.json({ success: true, data: rows.results || [] });
   });
 
   app.post('/api/atlas/alerts', async (c) => {
+    const g = gateMutator(c); if (!g.ok) return c.json({ success: false, error: g.error }, g.status as any);
     await ensureV209Schema(c.env.DB);
     const b = await c.req.json().catch(() => ({})) as any;
     const key = String(b.key || '').trim();
@@ -339,22 +373,28 @@ export function registerAtlasV209Routes(app: AtlasApp, deps: V209Deps): void {
     const s = deps.sessionUserFromHeader(c.req.header('Authorization'));
     if (!s.username) return c.json({ success: false, error: 'Non authentifié' }, 401);
     const db = c.env.DB;
+    await ensureV209Schema(db);
     const p = await db.prepare(`SELECT id, name, sku, barcode, price, unit, location FROM products WHERE id = ?`).bind(Number(c.req.param('id'))).first() as any;
     if (!p) return c.text('Not found', 404);
     const code = String(p.barcode || p.sku || `P${p.id}`);
     const origin = new URL(c.req.url).origin;
     const qr = qrToSvg(`${origin}/scan?code=${encodeURIComponent(code)}`, 88, 2);
     const barcode = code128Svg(code, 40);
-    const price = new Intl.NumberFormat('fr-MA', { minimumFractionDigits: 2 }).format(Number(p.price || 0));
-    const esc = (v: string) => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const settings = await db.prepare(`SELECT * FROM company_settings WHERE id = 1`).first() as any;
+    const cur = String(settings?.currency || settings?.finance_currency || 'MAD');
+    const dec = getCurrencySpec(cur).invoiceDecimals;
+    const canSeePrice = roleCanSeeSellPrices(s.role || 'user');
+    const priceText = canSeePrice
+      ? `${roundCurrency(Number(p.price || 0), cur, 'invoice').toLocaleString('fr-FR', { minimumFractionDigits: dec, maximumFractionDigits: dec })} ${escapeHtml(cur)}`
+      : '';
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180">
 <rect width="320" height="180" fill="#ffffff" stroke="#d4d4d8"/>
-<text x="12" y="26" font-family="sans-serif" font-size="15" font-weight="700" fill="#0a0a0a">${esc(p.name).slice(0, 34)}</text>
-<text x="12" y="44" font-family="sans-serif" font-size="11" fill="#52525b">${esc(code)} · ${esc(p.unit || '')}${p.location ? ` · ${esc(p.location)}` : ''}</text>
-<text x="12" y="76" font-family="sans-serif" font-size="22" font-weight="800" fill="#0a0a0a">${price} MAD</text>
+<text x="12" y="26" font-family="sans-serif" font-size="15" font-weight="700" fill="#0a0a0a">${escapeHtml(String(p.name || '')).slice(0, 34)}</text>
+<text x="12" y="44" font-family="sans-serif" font-size="11" fill="#52525b">${escapeHtml(code)} · ${escapeHtml(String(p.unit || ''))}${p.location ? ` · ${escapeHtml(String(p.location))}` : ''}</text>
+${priceText ? `<text x="12" y="76" font-family="sans-serif" font-size="22" font-weight="800" fill="#0a0a0a">${priceText}</text>` : ''}
 <g transform="translate(220,52)">${qr.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '')}</g>
 <g transform="translate(12,120)">${barcode}</g>
-<text x="12" y="172" font-family="monospace" font-size="10" fill="#0a0a0a">${esc(code)}</text>
+<text x="12" y="172" font-family="monospace" font-size="10" fill="#0a0a0a">${escapeHtml(code)}</text>
 </svg>`;
     return c.text(svg, 200, { 'content-type': 'image/svg+xml' });
   });

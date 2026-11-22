@@ -18,7 +18,7 @@ import { numStr, numFromInput } from '../lib/numInput';
 import NumberField from '../components/NumberField';
 import { friendlyError } from '../lib/errors';
 import { validateBillForm, firstError } from '../lib/formValidate';
-import { PAYMENT_METHODS, paymentMethodLabel } from '../lib/money';
+import { PAYMENT_METHODS, paymentMethodLabel, remainingBalance } from '../lib/money';
 import RefreshIconButton from '../components/RefreshIconButton';
 import { FloatingPortal } from '../components/FloatingPortal';
 import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
@@ -198,7 +198,7 @@ export default function Bills() {
   };
 
   const remainingOf = (b: any) =>
-    Math.max(0, Number(b.total || 0) - Number(b.amount_paid || 0));
+    remainingBalance(b.total, b.amount_paid);
 
   const openPay = async (b: any) => {
     const rest = remainingOf(b);

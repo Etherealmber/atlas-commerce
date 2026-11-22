@@ -72,7 +72,7 @@ export function openReport(
             Accept: 'application/json',
           },
         });
-        const tj = await tr.json().catch(() => null);
+        const tj = (await tr.json().catch(() => null)) as { data?: { rt?: string } } | null;
         if (tr.ok && tj?.data?.rt) rt = String(tj.data.rt);
       } catch {
         /* fall through — still try header-based fetch */

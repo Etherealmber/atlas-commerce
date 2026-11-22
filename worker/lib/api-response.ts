@@ -4,18 +4,9 @@
  */
 
 import type { Context } from 'hono';
-import { looksLikeDbError } from './errors';
+import { looksLikeDbError, type ErrorCode } from './errors';
 
-export type ApiFailCode =
-  | 'BAD_REQUEST'
-  | 'UNAUTHORIZED'
-  | 'FORBIDDEN'
-  | 'NOT_FOUND'
-  | 'CONFLICT'
-  | 'RATE_LIMITED'
-  | 'VALIDATION'
-  | 'INTERNAL'
-  | 'SERVICE_UNAVAILABLE';
+export type ApiFailCode = ErrorCode;
 
 const STATUS: Record<ApiFailCode, number> = {
   BAD_REQUEST: 400,
@@ -27,6 +18,8 @@ const STATUS: Record<ApiFailCode, number> = {
   VALIDATION: 422,
   INTERNAL: 500,
   SERVICE_UNAVAILABLE: 503,
+  DB_CORRUPT: 503,
+  TIMEOUT: 504,
 };
 
 export function apiOk(c: Context, data?: unknown, message?: string, status = 200) {

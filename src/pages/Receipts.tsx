@@ -11,6 +11,7 @@ import { api, BASE } from '../api';
 import { getToken } from '../auth';
 import SaveFeedback from '../components/SaveFeedback';
 import { paymentMethodFr } from '../lib/labels';
+import { remainingBalance } from '../lib/money';
 import PasswordConfirm from '../components/PasswordConfirm';
 import { useUi } from '../components/AppDialogs';
 import { numStr, numFromInput } from '../lib/numInput';
@@ -99,7 +100,7 @@ export default function Receipts() {
       const inv = invoices.find((x) => x.id === id);
       if (inv) {
         setClientName(inv.client_name);
-        setAmount(Number(inv.total) - Number(inv.amount_paid || 0));
+        setAmount(remainingBalance(inv.total, inv.amount_paid));
       }
     }
   };
@@ -288,7 +289,7 @@ export default function Receipts() {
               <select value={invoiceId} onChange={(e) => selectInvoice(e.target.value ? numFromInput(e.target.value) : '')}>
                 <option value="">— Reçu indépendant —</option>
                 {invoices.filter((i) => i.status !== 'paid' && i.status !== 'cancelled').map((inv) => (
-                  <option key={inv.id} value={inv.id}>{inv.number} — {inv.client_name} (Reste : {fmt(Number(inv.total) - Number(inv.amount_paid || 0))})</option>
+                  <option key={inv.id} value={inv.id}>{inv.number} — {inv.client_name} (Reste : {fmt(remainingBalance(inv.total, inv.amount_paid))})</option>
                 ))}
               </select>
             </div>

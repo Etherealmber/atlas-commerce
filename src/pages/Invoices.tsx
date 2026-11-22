@@ -20,6 +20,7 @@ import { NoteChips, SuggestList } from '../components/AssistBits';
 import { friendlyError } from '../lib/errors';
 import EmptyState from '../components/EmptyState';
 import { validateInvoiceForm, firstError } from '../lib/formValidate';
+import { estimateInvoiceLineTtc, remainingBalance, round2 } from '../../shared/financeCore';
 
 function formatIssue(e: unknown): string {
   if (e == null) return '';
@@ -251,9 +252,15 @@ export default function Invoices() {
 
   const estimateLine = (item: (typeof items)[number]) => {
     const p = products.find(x => Number(x.id) === Number(item.product_id));
-    const amount = Number(item.quantity || 0) * Number(item.unit_price || 0);
-    const rate = Number(p?.tax_rate) > 0 ? Number(p.tax_rate) : defaultTax;
-    return !taxExempt && (docMode === 'quote' || p?.invoice_price_mode === 'exclusive') ? amount * (1 + rate / 100) : amount;
+    return estimateInvoiceLineTtc({
+      quantity: Number(item.quantity || 0),
+      unitPrice: Number(item.unit_price || 0),
+      productTaxRate: p?.tax_rate,
+      defaultTax,
+      taxExempt,
+      isQuote: docMode === 'quote',
+      priceModeExclusive: p?.invoice_price_mode === 'exclusive',
+    });
   };
 
   const resetForm = () => {
@@ -299,7 +306,7 @@ export default function Invoices() {
   };
 
   const remainingOf = (inv: any) =>
-    Math.max(0, Number(inv.total || 0) - Number(inv.amount_paid || 0));
+    remainingBalance(inv.total, inv.amount_paid);
 
   /** Part 3: "Tout payer" → open modal to choose payment method (never silent cash). */
   const markPaid = (id: number, _total: number, inv?: any) => {
@@ -466,7 +473,7 @@ export default function Invoices() {
   const orderKpis = (() => {
     const open = filtered.filter((i) => i.status !== 'paid' && i.status !== 'cancelled').length;
     const paid = filtered.filter((i) => i.status === 'paid').length;
-    const due = filtered.reduce((s, i) => s + Math.max(0, Number(i.total || 0) - Number(i.amount_paid || 0)), 0);
+    const due = filtered.reduce((s, i) => s + remainingBalance(i.total, i.amount_paid), 0);
     return { open, paid, due, n: filtered.length };
   })();
 
@@ -590,7 +597,7 @@ export default function Invoices() {
                     <td style={{ fontWeight: 700, color: (inv.status === 'quote' || inv.status === 'devis' || inv.status === 'paid' || inv.status === 'cancelled' || inv.status === 'remboursement') ? 'var(--muted)' : 'var(--bad)' }}>
                       {(inv.status === 'quote' || inv.status === 'devis' || inv.status === 'remboursement' || inv.doc_kind === 'remboursement')
                         ? '—'
-                        : fmt(Math.max(0, Number(inv.total || 0) - Number(inv.amount_paid || 0)))}
+                        : fmt(remainingBalance(inv.total, inv.amount_paid))}
                     </td>
                     <td className="row-actions-cell" onClick={(e) => e.stopPropagation()}><div className="row-actions">
                       {inv.status !== 'quote' && inv.status !== 'devis' && inv.status !== 'remboursement' && inv.status !== 'cancelled' && (

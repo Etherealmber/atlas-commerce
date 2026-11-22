@@ -312,10 +312,30 @@ export const api = {
     request('/api/employees', { method: 'POST', body: JSON.stringify(body) }),
   updateEmployee: (id: number, body: any) =>
     request(`/api/employees/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
-  advanceEmployee: (id: number, body?: { amount?: number; paid_at?: string; note?: string; payment_method?: string }) =>
-    request(`/api/employees/${id}/advance`, { method: 'POST', body: JSON.stringify(body || {}) }),
-  payEmployee: (id: number, body?: { amount?: number; paid_at?: string; note?: string; payment_method?: string }) =>
-    request(`/api/employees/${id}/pay`, { method: 'POST', body: JSON.stringify(body || {}) }),
+  advanceEmployee: (id: number, body?: { amount?: number; paid_at?: string; note?: string; payment_method?: string; idempotency_key?: string }) => {
+    const idempotency_key =
+      body?.idempotency_key ||
+      (typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `empadv-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
+    return request(`/api/employees/${id}/advance`, {
+      method: 'POST',
+      body: JSON.stringify({ ...body, idempotency_key }),
+      headers: { 'Idempotency-Key': idempotency_key },
+    });
+  },
+  payEmployee: (id: number, body?: { amount?: number; paid_at?: string; note?: string; payment_method?: string; idempotency_key?: string }) => {
+    const idempotency_key =
+      body?.idempotency_key ||
+      (typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `emppay-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
+    return request(`/api/employees/${id}/pay`, {
+      method: 'POST',
+      body: JSON.stringify({ ...body, idempotency_key }),
+      headers: { 'Idempotency-Key': idempotency_key },
+    });
+  },
   resignEmployee: (
     id: number,
     body: {
@@ -827,7 +847,18 @@ export const api = {
   getBills: (status?: string) =>
     request<{ data: any[] }>(status ? `/api/bills?status=${status}` : '/api/bills'),
   getBill: (id: number) => request<{ data: any }>(`/api/bills/${id}`),
-  createBill: (body: any) => request('/api/bills', { method: 'POST', body: JSON.stringify(body) }),
+  createBill: (body: any) => {
+    const idempotency_key =
+      body?.idempotency_key ||
+      (typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `bill-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
+    return request('/api/bills', {
+      method: 'POST',
+      body: JSON.stringify({ ...body, idempotency_key }),
+      headers: { 'Idempotency-Key': idempotency_key },
+    });
+  },
   parseBillDocument: (body: { data_url?: string; text?: string }) =>
     request<{ data: { fields: Record<string, string>; items: any[]; source: string; review_message: string } }>(
       '/api/bills/parse-document',
@@ -857,7 +888,18 @@ export const api = {
     request('/api/bills/bulk-delete', { method: 'POST', body: JSON.stringify({ ids, confirm_password }) }),
 
   getReceipts: () => request<{ data: any[] }>('/api/receipts'),
-  createReceipt: (body: any) => request('/api/receipts', { method: 'POST', body: JSON.stringify(body) }),
+  createReceipt: (body: any) => {
+    const idempotency_key =
+      body?.idempotency_key ||
+      (typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `rec-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
+    return request('/api/receipts', {
+      method: 'POST',
+      body: JSON.stringify({ ...body, idempotency_key }),
+      headers: { 'Idempotency-Key': idempotency_key },
+    });
+  },
   deleteReceipt: (id: number, confirm_password: string, cascade_invoice = false) =>
     request(`/api/receipts/${id}`, { method: 'DELETE', body: JSON.stringify({ confirm_password, cascade_invoice }) }),
 

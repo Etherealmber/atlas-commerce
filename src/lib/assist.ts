@@ -2,6 +2,7 @@
  * Local “AI helpers” for Atlas Commerce — no external API keys required.
  * Heuristics + French templates suitable for a small marble / stock shop.
  */
+import { remainingBalance } from '../../shared/financeCore';
 
 export type ProductLike = {
   id?: number;
@@ -227,7 +228,7 @@ export function clientRisk(invoices: { status?: string; due_date?: string; issue
     if (hasId && Number(inv.client_id) !== Number(clientId)) continue;
     if (!hasId && hasName && norm(inv.client_name || '') !== norm(clientName || '')) continue;
     if (!hasId && !hasName) continue;
-    const due = Math.max(0, Number(inv.total || 0) - Number(inv.amount_paid || 0));
+    const due = remainingBalance(Number(inv.total || 0), Number(inv.amount_paid || 0));
     if (due < 0.01) continue;
     unpaid += due;
     const d = inv.due_date || inv.issue_date;

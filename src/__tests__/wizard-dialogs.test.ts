@@ -47,7 +47,7 @@ const renderPage = async (el: React.ReactElement) => {
   await act(async () => root.render(createElement(MemoryRouter, null, el)));
   await act(async () => { await Promise.resolve(); });
 };
-const clickText = async (scope: ParentNode, text: string) => {
+const clickText = async (scope: HTMLElement | Document, text: string) => {
   const btn = [...scope.querySelectorAll<HTMLButtonElement>('button')].find(
     (b) => b.textContent?.includes(text) || b.getAttribute('title')?.includes(text),
   );

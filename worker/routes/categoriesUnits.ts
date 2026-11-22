@@ -1,4 +1,6 @@
 import type { Hono } from 'hono';
+import { canFloorStock, canMutateBusiness } from '../lib/rbac';
+import { sessionUserFromHeader } from '../lib/authHelpers';
 
 export interface CategoriesUnitsRouteDeps {
   ensureCategoriesTable: (db: D1Database) => Promise<void>;
@@ -8,6 +10,21 @@ export interface CategoriesUnitsRouteDeps {
 
 export function registerCategoriesUnitsRoutes(app: Hono<any>, deps: CategoriesUnitsRouteDeps): void {
   const { ensureCategoriesTable, ensureUnitsTable, checkConfirmPassword } = deps;
+
+  const gateFloor = (c: any) => {
+    const s = sessionUserFromHeader(c.req.header('Authorization'));
+    if (!canFloorStock(s.role)) {
+      return c.json({ success: false, error: 'Action réservée au personnel autorisé.', code: 'FORBIDDEN_ROLE' }, 403);
+    }
+    return null;
+  };
+  const gateBiz = (c: any) => {
+    const s = sessionUserFromHeader(c.req.header('Authorization'));
+    if (!canMutateBusiness(s.role)) {
+      return c.json({ success: false, error: 'Suppression réservée (owner / admin / secrétaire).', code: 'FORBIDDEN_ROLE' }, 403);
+    }
+    return null;
+  };
 
   app.get('/api/categories', async (c) => {
     await ensureCategoriesTable(c.env.DB);
@@ -25,6 +42,8 @@ export function registerCategoriesUnitsRoutes(app: Hono<any>, deps: CategoriesUn
   });
 
   app.post('/api/categories', async (c) => {
+    const denied = gateFloor(c);
+    if (denied) return denied;
     await ensureCategoriesTable(c.env.DB);
     const body = await c.req.json().catch(() => ({}));
     const name = String(body.name || '').trim();
@@ -44,6 +63,8 @@ export function registerCategoriesUnitsRoutes(app: Hono<any>, deps: CategoriesUn
   });
 
   app.put('/api/categories/:id', async (c) => {
+    const denied = gateFloor(c);
+    if (denied) return denied;
     await ensureCategoriesTable(c.env.DB);
     const id = c.req.param('id');
     const body = await c.req.json().catch(() => ({}));
@@ -64,6 +85,8 @@ export function registerCategoriesUnitsRoutes(app: Hono<any>, deps: CategoriesUn
   });
 
   app.delete('/api/categories/:id', async (c) => {
+    const denied = gateBiz(c);
+    if (denied) return denied;
     await ensureCategoriesTable(c.env.DB);
     const id = c.req.param('id');
     const body = await c.req.json().catch(() => ({}));
@@ -114,6 +137,8 @@ export function registerCategoriesUnitsRoutes(app: Hono<any>, deps: CategoriesUn
   });
 
   app.post('/api/units', async (c) => {
+    const denied = gateFloor(c);
+    if (denied) return denied;
     await ensureUnitsTable(c.env.DB);
     const body = await c.req.json().catch(() => ({}));
     const name = String(body.name || '').trim();
@@ -133,6 +158,8 @@ export function registerCategoriesUnitsRoutes(app: Hono<any>, deps: CategoriesUn
   });
 
   app.put('/api/units/:id', async (c) => {
+    const denied = gateFloor(c);
+    if (denied) return denied;
     await ensureUnitsTable(c.env.DB);
     const id = c.req.param('id');
     const body = await c.req.json().catch(() => ({}));
@@ -153,6 +180,8 @@ export function registerCategoriesUnitsRoutes(app: Hono<any>, deps: CategoriesUn
   });
 
   app.delete('/api/units/:id', async (c) => {
+    const denied = gateBiz(c);
+    if (denied) return denied;
     await ensureUnitsTable(c.env.DB);
     const id = c.req.param('id');
     const body = await c.req.json().catch(() => ({}));

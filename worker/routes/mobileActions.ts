@@ -214,11 +214,13 @@ export function registerMobileActionsRoutes(app: Hono<any>, deps: MobileActionsR
 
   /** PC operator completes a handoff (optionally applies stock from mobile count) */
   app.post('/api/mobile-actions/:id/complete', async (c) => {
+    const gate = requireBizMutator(c);
+    if (!gate.ok) return gate.response;
     await ensureMobileActionsTable(c.env.DB);
     const id = Number(c.req.param('id'));
     if (!id) return c.json({ success: false, error: 'id invalide' }, 400);
     const body = await c.req.json().catch(() => ({}));
-    const completed_by = sessionUserFromHeader(c.req.header('Authorization')).username || '';
+    const completed_by = gate.username || sessionUserFromHeader(c.req.header('Authorization')).username || '';
     const existing = await c.env.DB.prepare(`SELECT * FROM mobile_actions WHERE id = ?`).bind(id).first() as any;
     if (!existing) return c.json({ success: false, error: 'Action introuvable' }, 404);
     if (existing.status === 'done') return c.json({ success: true, data: existing, message: 'Déjà traitée' });

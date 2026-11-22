@@ -7,23 +7,29 @@ on:
   pull_request:
     paths:
       - 'src/**'
+      - 'shared/**'
+      - 'rust/**'
+      - 'rust-toolchain.toml'
+      - 'scripts/**'
       - 'index.html'
       - 'vite.config.ts'
       - 'tsconfig.json'
       - 'package.json'
       - 'package-lock.json'
-      - 'scripts/tsc-baseline.txt'
       - '.github/workflows/frontend-guard.yml'
   push:
     branches: [main]
     paths:
       - 'src/**'
+      - 'shared/**'
+      - 'rust/**'
+      - 'rust-toolchain.toml'
+      - 'scripts/**'
       - 'index.html'
       - 'vite.config.ts'
       - 'tsconfig.json'
       - 'package.json'
       - 'package-lock.json'
-      - 'scripts/tsc-baseline.txt'
       - '.github/workflows/frontend-guard.yml'
 
 permissions:
@@ -41,7 +47,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci
       # Fails on ANY correctness error in src/ or worker/ (warnings, like the
@@ -55,8 +61,17 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
+      - name: Install pinned Rust toolchain (1.82.0 + wasm32-unknown-unknown)
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.82.0
+          targets: wasm32-unknown-unknown
+      - name: Cache Cargo registry and Rust target directory
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust/atlas-finance-core
       - run: npm ci
       - run: npm run build
       - name: bundle sanity (index.html + hashed assets present)
@@ -73,7 +88,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci
       - name: tsc --noEmit (src scope)

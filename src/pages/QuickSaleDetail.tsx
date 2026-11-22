@@ -6,7 +6,7 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { api, BASE } from '../api';
 import { getToken } from '../auth';
 import { statusFr, statusBadgeClass } from '../lib/labels';
-import { fmtMoney, paymentMethodLabel } from '../lib/money';
+import { fmtMoney, paymentMethodLabel, remainingBalance } from '../lib/money';
 import { useUi } from '../components/AppDialogs';
 import PasswordConfirm from '../components/PasswordConfirm';
 import SaveFeedback from '../components/SaveFeedback';
@@ -52,7 +52,7 @@ export default function QuickSaleDetail() {
     ]);
     setTicket(res.data);
     setPayments(pays.data || []);
-    const due = Math.max(0, Number(res.data?.total || 0) - Number(res.data?.amount_paid || 0));
+    const due = remainingBalance(res.data?.total, res.data?.amount_paid);
     setPayAmount(due);
   };
 
@@ -67,7 +67,7 @@ export default function QuickSaleDetail() {
   if (!isVrDoc(ticket)) return <Navigate to={`/invoices/${ticket.id}`} replace />;
 
   const fmt = (n: number) => fmtMoney(n, 'MAD');
-  const due = Math.max(0, Number(ticket.total || 0) - Number(ticket.amount_paid || 0));
+  const due = remainingBalance(ticket.total, ticket.amount_paid);
   const cancelled = ticket.status === 'cancelled';
   const token = getToken() || '';
 

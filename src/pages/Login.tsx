@@ -475,7 +475,9 @@ export default function Login() {
           const tr = await fetch(`${getApiBase()}/api/auth/turnstile-config`, {
             headers: { 'X-Atlas-Client': client },
           });
-          const tj = await tr.json().catch(() => ({}));
+          const tj = (await tr.json().catch(() => ({}))) as {
+            data?: { enabled?: boolean; site_key?: string };
+          };
           const key = tj?.data?.enabled && tj?.data?.site_key ? String(tj.data.site_key) : '';
           if (key) setTurnstileSiteKey(key);
         }
@@ -492,9 +494,14 @@ export default function Login() {
           headers: { 'Content-Type': 'application/json', 'X-Device-Fingerprint': fp },
           body: JSON.stringify({ fingerprint: fp }),
         });
-        const data = await res.json().catch(() => ({}));
+        const data = (await res.json().catch(() => ({}))) as {
+          trusted?: boolean;
+          biometric_registered?: boolean;
+          credential_count?: number;
+          password_configured?: boolean;
+        };
         if (data.trusted) setDeviceTrusted(true);
-        if (data.biometric_registered || data.credential_count > 0) setHasCredentials(true);
+        if (data.biometric_registered || (data.credential_count ?? 0) > 0) setHasCredentials(true);
         if (data.password_configured === false) {
           setPasswordConfigured(false);
           setError('Connexion indisponible. Contactez l’administrateur.');
@@ -597,8 +604,8 @@ export default function Login() {
       headers: { Authorization: `Bearer ${data.token}` },
     })
       .then((r) => r.json())
-      .then((j) => {
-        const m = j?.data || {};
+      .then((j: unknown) => {
+        const m = ((j as { data?: Record<string, any> } | null)?.data) || {};
         setProfileCache({
           display_name: m.display_name,
           avatar_url: m.avatar_url,
@@ -688,9 +695,20 @@ export default function Login() {
           client: native ? 'native' : 'web',
         }),
       });
-      const data = await res.json().catch(() => ({}));
+      const data = (await res.json().catch(() => ({}))) as {
+        code?: string;
+        error?: string;
+        needs_otp?: boolean;
+        message?: string;
+        token?: string;
+        ip?: string;
+        username?: string;
+        role?: string;
+        display_name?: string;
+        avatar_url?: string;
+      };
       if (!res.ok) {
-        setError(REASON_MESSAGES[data.code] || data.error || 'Échec de la connexion.');
+        setError((data.code && REASON_MESSAGES[data.code]) || data.error || 'Échec de la connexion.');
         setLoginFailed(true);
         window.setTimeout(() => setLoginFailed(false), 3000);
         resetTurnstile();
@@ -737,9 +755,18 @@ export default function Login() {
         headers: { 'Content-Type': 'application/json', 'X-Device-Fingerprint': fp },
         body: JSON.stringify({ username: username.trim().toLowerCase(), password, otp: otp.trim(), fingerprint: fp }),
       });
-      const data = await res.json().catch(() => ({}));
+      const data = (await res.json().catch(() => ({}))) as {
+        code?: string;
+        error?: string;
+        token?: string;
+        ip?: string;
+        username?: string;
+        role?: string;
+        display_name?: string;
+        avatar_url?: string;
+      };
       if (!res.ok) {
-        setError(REASON_MESSAGES[data.code] || data.error || 'Code incorrect.');
+        setError((data.code && REASON_MESSAGES[data.code]) || data.error || 'Code incorrect.');
         if (data.code === 'OTP_EXPIRED' || data.code === 'OTP_NOT_REQUESTED') {
           setStep('password');
           setOtp('');
@@ -773,9 +800,13 @@ export default function Login() {
         headers: { 'Content-Type': 'application/json', 'X-Device-Fingerprint': fp },
         body: JSON.stringify({ fingerprint: fp, username: username.trim() || undefined }),
       });
-      const optData = await optRes.json().catch(() => ({}));
+      const optData = (await optRes.json().catch(() => ({}))) as {
+        code?: string;
+        error?: string;
+        options?: any;
+      };
       if (!optRes.ok) {
-        setError(REASON_MESSAGES[optData.code] || optData.error || 'WebAuthn indisponible.');
+        setError((optData.code && REASON_MESSAGES[optData.code]) || optData.error || 'WebAuthn indisponible.');
         return;
       }
       const assertion = await authenticateWebAuthn(optData.options);
@@ -788,9 +819,13 @@ export default function Login() {
           challenge: assertion.challenge,
         }),
       });
-      const verData = await verRes.json().catch(() => ({}));
+      const verData = (await verRes.json().catch(() => ({}))) as {
+        code?: string;
+        error?: string;
+        token?: string;
+      };
       if (!verRes.ok) {
-        setError(REASON_MESSAGES[verData.code] || verData.error || 'Échec WebAuthn.');
+        setError((verData.code && REASON_MESSAGES[verData.code]) || verData.error || 'Échec WebAuthn.');
         return;
       }
       if (verData.token) {
@@ -823,7 +858,10 @@ export default function Login() {
         },
         body: JSON.stringify({ fingerprint: fp, device_type: deviceType }),
       });
-      const optData = await optRes.json().catch(() => ({}));
+      const optData = (await optRes.json().catch(() => ({}))) as {
+        error?: string;
+        options?: any;
+      };
       if (!optRes.ok) {
         setError(optData.error || 'Impossible de démarrer l\'enregistrement.');
         return;
@@ -847,7 +885,9 @@ export default function Login() {
           device_info: getDeviceMeta(),
         }),
       });
-      const verData = await verRes.json().catch(() => ({}));
+      const verData = (await verRes.json().catch(() => ({}))) as {
+        error?: string;
+      };
       if (!verRes.ok) {
         setError(verData.error || 'Échec de l\'enregistrement.');
         return;

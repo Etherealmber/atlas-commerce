@@ -1,3 +1,6 @@
+import { escapeHtml } from '../lib/security';
+import { getCurrencySpec, roundCurrency } from '../lib/financeCore';
+
 /**
  * v0.7.1 — Document preview routes, extracted from worker/index.ts
  * (same path /api/settings/invoice-preview, same behaviour — mechanical move,
@@ -68,8 +71,10 @@ app.get('/api/settings/invoice-preview', async (c: any) => {
     // v0.7.2 — l'aperçu Rapport suit le VRAI /api/reports/combined : liste de
     // liens (ouverts dans le popup), sections 1-4, mêmes requêtes ; jeu DÉMO
     // cohérent (client, articles, reçu, employé) quand aucune donnée réelle.
-    const cur = settings?.currency || 'MAD';
-    const fmt = (n: number) => Number(n || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const cur = String(settings?.currency || settings?.finance_currency || 'MAD');
+    const curDec = getCurrencySpec(cur).minorDecimals;
+    const fmt = (n: number) => roundCurrency(Number(n || 0), cur, 'ledger').toLocaleString('fr-FR', { minimumFractionDigits: curDec, maximumFractionDigits: curDec });
+    const curSafe = escapeHtml(cur);
     const now = new Date();
     const periodKey = now.toISOString().slice(0, 7);
     const label = `${now.toLocaleString('fr-FR', { month: 'long', year: 'numeric' })} (aperçu)`;
@@ -85,7 +90,7 @@ app.get('/api/settings/invoice-preview', async (c: any) => {
         WHERE expense_date >= '${periodKey}-01' AND expense_date <= '${periodKey}-31'`);
       out = Number(e?.out || 0); inn = Number(e?.inn || 0);
     } catch { /* démo */ }
-    try { recv = Number((await latest(`SELECT COALESCE(SUM(total - COALESCE(amount_paid,0)),0) as due FROM invoices WHERE status NOT IN ('cancelled','paid','quote','devis') AND (total - COALESCE(amount_paid,0)) > 0.001`))?.due || 0); } catch { /* démo */ }
+    try { recv = Number((await latest(`SELECT COALESCE(SUM(total - COALESCE(amount_paid,0)),0) as due FROM invoices WHERE status NOT IN ('cancelled','paid','quote','devis','remboursement') AND COALESCE(doc_kind,'') != 'remboursement' AND (total - COALESCE(amount_paid,0)) > 0.001`))?.due || 0); } catch { /* démo */ }
     try { pay = Number((await latest(`SELECT COALESCE(SUM(total - COALESCE(amount_paid,0)),0) as due FROM bills WHERE status NOT IN ('cancelled','paid') AND (total - COALESCE(amount_paid,0)) > 0.001`))?.due || 0); } catch { /* démo */ }
     try { receiptsSum = Number((await latest(`SELECT COALESCE(SUM(amount),0) as s FROM receipts WHERE issue_date >= '${periodKey}-01'`))?.s || 0); } catch { /* démo */ }
     try {
@@ -96,43 +101,43 @@ app.get('/api/settings/invoice-preview', async (c: any) => {
     if (demo) { out = 890; inn = 0; recv = 1687.2; pay = 890; receiptsSum = 1687.2; }
     const wm = demo ? `<div class="watermark" aria-hidden="true">DÉMO</div>` : '';
     const empRows = (demo
-      ? [`<tr><td>EMP-0001</td><td>Amina Démo</td><td>Vendeuse — showroom</td><td style="text-align:right">4 500,00 ${cur}</td><td>mensuel</td><td>—</td><td>Actif</td><td><a href="${href('/api/reports/employee-situation', { employee_id: '0' })}">Situation</a></td></tr>`]
+      ? [`<tr><td>EMP-0001</td><td>Amina Démo</td><td>Vendeuse — showroom</td><td style="text-align:right">${fmt(4500)} ${curSafe}</td><td>mensuel</td><td>—</td><td>Actif</td><td><a href="${escapeHtml(href('/api/reports/employee-situation', { employee_id: '0' }))}">Situation</a></td></tr>`]
       : emps.map((e: any) => {
           const nm = [e.first_name, e.last_name].filter(Boolean).join(' ') || e.name || '—';
-          const cy = e.pay_cycle_type === 'days' ? `${e.pay_cycle_days || 7} j` : 'mensuel';
-          return `<tr><td>${e.emp_number || '—'}</td><td>${nm}</td><td>${e.role_title || '—'}</td><td style="text-align:right">${fmt(e.pay_amount)} ${cur}</td><td>${cy}</td><td>${e.last_paid_at ? String(e.last_paid_at).slice(0, 10) : '—'}</td><td>${Number(e.active) ? 'Actif' : 'Démissionné'}</td><td><a href="${href('/api/reports/employee-situation', { employee_id: String(e.id) })}">Situation</a></td></tr>`;
+          const cy = e.pay_cycle_type === 'days' ? `${Number(e.pay_cycle_days || 7)} j` : 'mensuel';
+          return `<tr><td>${escapeHtml(String(e.emp_number || '—'))}</td><td>${escapeHtml(nm)}</td><td>${escapeHtml(String(e.role_title || '—'))}</td><td style="text-align:right">${fmt(e.pay_amount)} ${curSafe}</td><td>${escapeHtml(cy)}</td><td>${e.last_paid_at ? escapeHtml(String(e.last_paid_at).slice(0, 10)) : '—'}</td><td>${Number(e.active) ? 'Actif' : 'Démissionné'}</td><td><a href="${escapeHtml(href('/api/reports/employee-situation', { employee_id: String(e.id) }))}">Situation</a></td></tr>`;
         })
     ).join('');
     const rptQr = deps.qrToSvg(`RAPPORTS COMBINÉS — ${company} · ${periodKey} · généré le ${new Date().toLocaleString('fr-FR')}${demo ? ' · APERÇU DÉMO' : ''}`, 96, 2);
     const body = `${wm}
-      <p class="muted">Période : <strong>${label}</strong>. Cliquez un lien pour le détail — même période, pendant la durée du ticket. Les liens s'ouvrent dans cet aperçu.</p>
+      <p class="muted">Période : <strong>${escapeHtml(label)}</strong>. Cliquez un lien pour le détail — même période, pendant la durée du ticket. Les liens s'ouvrent dans cet aperçu.</p>
       <ul style="font-size:15px;line-height:1.8">
-        <li><a href="${href('/api/reports/balance')}">Solde &amp; mouvements</a></li>
-        <li><a href="${href('/api/reports/stock')}">Stock &amp; valorisation</a></li>
-        <li><a href="${href('/api/reports/receivables')}">Créances clients</a></li>
-        <li><a href="${href('/api/reports/payables')}">Dettes fournisseurs</a></li>
-        <li><a href="${href('/api/reports/employees')}">Employés &amp; paie</a></li>
-        <li><a href="${href('/api/reports/aging.html')}">Balance âgée</a></li>
-        <li><a href="${href('/api/reports/tva.html')}">Récapitulatif TVA</a></li>
+        <li><a href="${escapeHtml(href('/api/reports/balance'))}">Solde &amp; mouvements</a></li>
+        <li><a href="${escapeHtml(href('/api/reports/stock'))}">Stock &amp; valorisation</a></li>
+        <li><a href="${escapeHtml(href('/api/reports/receivables'))}">Créances clients</a></li>
+        <li><a href="${escapeHtml(href('/api/reports/payables'))}">Dettes fournisseurs</a></li>
+        <li><a href="${escapeHtml(href('/api/reports/employees'))}">Employés &amp; paie</a></li>
+        <li><a href="${escapeHtml(href('/api/reports/aging.html'))}">Balance âgée</a></li>
+        <li><a href="${escapeHtml(href('/api/reports/tva.html'))}">Récapitulatif TVA</a></li>
       </ul>
       <h2>1. Solde & mouvements (synthèse)</h2>
       <div class="grid">
-        <div class="stat"><div class="l">Sorties (dépenses)</div><div class="v out">−${fmt(out)} ${cur}</div></div>
-        <div class="stat"><div class="l">Entrées hors ventes</div><div class="v in">+${fmt(inn)} ${cur}</div></div>
-        <div class="stat"><div class="l">Ventes encaissées (reçus)</div><div class="v in">${fmt(receiptsSum)} ${cur}</div></div>
+        <div class="stat"><div class="l">Sorties (dépenses)</div><div class="v out">−${fmt(out)} ${curSafe}</div></div>
+        <div class="stat"><div class="l">Entrées hors ventes</div><div class="v in">+${fmt(inn)} ${curSafe}</div></div>
+        <div class="stat"><div class="l">Ventes encaissées (reçus)</div><div class="v in">${fmt(receiptsSum)} ${curSafe}</div></div>
       </div>
       <h2>2. Créances clients</h2>
-      <div class="stat"><div class="l">Créances clients ouvertes</div><div class="v">${fmt(recv)} ${cur}</div></div>
+      <div class="stat"><div class="l">Créances clients ouvertes</div><div class="v">${fmt(recv)} ${curSafe}</div></div>
       ${demo ? `<p class="muted">Marbrerie Démo SARL — FACT-0001 (3 lignes démo : carrelage, colle, joint).</p>` : ''}
       <h2>3. Dettes fournisseurs</h2>
-      <div class="stat"><div class="l">Dettes fournisseurs ouvertes</div><div class="v">${fmt(pay)} ${cur}</div></div>
+      <div class="stat"><div class="l">Dettes fournisseurs ouvertes</div><div class="v">${fmt(pay)} ${curSafe}</div></div>
       ${demo ? `<p class="muted">Démo Fournisseur SARL — ACH-0001 (réassort des 3 articles démo).</p>` : ''}
       <h2>4. Employés & paie</h2>
       <table><thead><tr><th>N°</th><th>Nom</th><th>Poste</th><th>Salaire</th><th>Cycle</th><th>Dernier paiement</th><th>Statut</th><th></th></tr></thead><tbody>${empRows || `<tr><td colspan="8">Aucun</td></tr>`}</tbody></table>
       <div style="margin:14px 0;padding:10px;border:1px dashed #999;text-align:center">
         <img src="${rptQr}" width="96" height="96" alt="QR résumé du rapport"/><br/>
         <span class="muted">QR résumé — ${demo ? 'aperçu DÉMO' : 'rapport'}</span><br/>
-        <a href="${c.req.url}">Rouvrir ce rapport dans l'aperçu</a>
+        <a href="${escapeHtml(c.req.url)}">Rouvrir ce rapport dans l'aperçu</a>
       </div>
       <p style="border:1px solid #000;padding:8px;background:#fff8e8"><strong>Avertissement.</strong> ${DISCLAIMER}${demo ? ' Chiffres DÉMO cohérents avec le jeu d’aperçu (client, articles, reçu, employé).' : ''}</p>`;
     return c.html(deps.previewEmbed(deps.reportShell('Rapports combinés', company, label, body, settings?.report_footer || settings?.notes)));

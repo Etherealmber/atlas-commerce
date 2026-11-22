@@ -264,30 +264,62 @@ export function registerPartnerV1Routes(app: Hono<any>): void {
     const settings = (await c.env.DB.prepare(`SELECT * FROM company_settings WHERE id = 1`).first()) as any;
     const number = await nextDocumentNumber(c.env.DB, 'invoice', settings, c.env);
 
-    let subtotal = 0;
-    let tax_amount = 0;
     const defaultTax = Number(settings?.tax_rate ?? 20) || 20;
-    const lineRows: any[] = [];
+    const currency = String(settings?.currency || settings?.finance_currency || 'MAD');
+    const taxExempt = Boolean(body.tax_exempt);
+    const pricesTtc = body.prices_ttc === true;
+    const { computeInvoiceLinesAndTotals } = await import('../lib/financeCore');
+    const prepared: Array<{
+      product_name: string;
+      sku: string;
+      quantity: number;
+      unitPrice: number;
+      listPrice: number;
+      taxRate: number | undefined;
+    }> = [];
     for (const item of items) {
       const qty = Number(item.quantity || 0);
-      if (qty <= 0) continue;
+      if (!Number.isFinite(qty) || qty <= 0) continue;
       const unitP = Number(item.unit_price ?? item.price ?? 0);
-      const tax = item.tax_rate != null ? Number(item.tax_rate) : defaultTax;
-      const line = Math.round(qty * unitP * 100) / 100;
-      const lineTax = Math.round(line * (tax / 100) * 100) / 100;
-      subtotal += line;
-      tax_amount += lineTax;
-      lineRows.push({
+      if (!Number.isFinite(unitP) || unitP < 0) continue;
+      prepared.push({
         product_name: String(item.product_name || item.name || 'Ligne').slice(0, 200),
         sku: String(item.sku || '').slice(0, 80),
         quantity: qty,
-        unit_price: unitP,
-        tax_rate: tax,
-        line_total: line + lineTax,
+        unitPrice: unitP,
+        listPrice: Number(item.list_price ?? unitP),
+        taxRate: item.tax_rate != null ? Number(item.tax_rate) : undefined,
       });
     }
-    if (!lineRows.length) return apiFail(c, 'Aucune ligne valide', 'VALIDATION');
-    const total = Math.round((subtotal + tax_amount) * 100) / 100;
+    if (!prepared.length) return apiFail(c, 'Aucune ligne valide', 'VALIDATION');
+    const calcResult = computeInvoiceLinesAndTotals(
+      prepared.map((p) => ({
+        quantity: p.quantity,
+        unitPrice: p.unitPrice,
+        listPrice: p.listPrice,
+        taxRate: p.taxRate,
+        defaultTax,
+        pricesTtc,
+        isQuickSale: false,
+        taxExempt,
+        explicitInclusive: false,
+      })),
+      { defaultTax, isQuickSale: false, taxExempt, currency },
+    );
+    const lineRows = prepared.map((p, idx) => {
+      const calc = calcResult.lines[idx];
+      return {
+        product_name: p.product_name,
+        sku: p.sku,
+        quantity: p.quantity,
+        unit_price: calc.stored_unit_price,
+        tax_rate: calc.tax_rate,
+        line_total: calc.line_total,
+      };
+    });
+    const subtotal = calcResult.totals.subtotal;
+    const tax_amount = calcResult.totals.tax_amount;
+    const total = calcResult.totals.total;
     const issue = String(body.issue_date || new Date().toISOString().slice(0, 10)).slice(0, 10);
 
     const ins = await c.env.DB.prepare(

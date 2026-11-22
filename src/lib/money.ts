@@ -1,58 +1,45 @@
 /**
- * Money helpers — Moroccan dirham (MAD) displayed as DH.
- * Client-facing amounts are whole dirhams (no cents): 115.49 → 115, 115.79 → 116.
+ * Money helpers — backed by shared/financeCore.ts so UI previews match Worker calculations.
+ * Moroccan dirham (MAD) displayed as DH (whole dirhams for MAD; currency-aware for non-2-decimal currencies).
  */
+import {
+  currencySymbol,
+  fmtMoney as coreFmtMoney,
+  getCurrencySpec,
+  normalizeCurrencyCode,
+  remainingBalance,
+  round2,
+  roundDh,
+  roundMoneyForCurrency,
+} from '../../shared/financeCore';
 
-const SYMBOLS: Record<string, string> = {
-  MAD: 'DH',
-  MADH: 'DH',
-  DH: 'DH',
-  EUR: '€',
-  USD: '$',
-  GBP: '£',
-  TND: 'DT',
-  DZD: 'DA',
-  CAD: 'CA$',
+export {
+  currencySymbol,
+  getCurrencySpec,
+  normalizeCurrencyCode,
+  remainingBalance,
+  round2,
+  roundDh,
+  roundMoneyForCurrency,
 };
 
-export function currencySymbol(code?: string): string {
-  const c = (code || 'MAD').toUpperCase();
-  return SYMBOLS[c] || c;
+/** Round to nearest whole dirham (MAD client-facing convention) or currency default. */
+export function roundMoney(n: number | null | undefined, currency = 'MAD'): number {
+  const code = normalizeCurrencyCode(currency);
+  if (code === 'MAD') return roundDh(n);
+  return roundMoneyForCurrency(n, code);
 }
 
-export function normalizeCurrencyCode(code?: string): string {
-  const c = (code || 'MAD').toUpperCase().trim();
-  if (c === 'DH' || c === 'MADH') return 'MAD';
-  return c || 'MAD';
-}
-
-/** Round to nearest whole dirham (clients do not use fractions). */
-export function roundMoney(n: number | null | undefined): number {
-  const x = Number(n || 0);
-  if (!Number.isFinite(x)) return 0;
-  return Math.round(x);
-}
-
-/** 2-decimal internal (rare); prefer roundMoney for UI. */
+/** 2-decimal internal rounding with exact decimal scaling (never raw Math.round(x * 100) / 100). */
 export function roundMoney2(n: number | null | undefined): number {
-  const x = Number(n || 0);
-  if (!Number.isFinite(x)) return 0;
-  return Math.round(x * 100) / 100;
+  return round2(Number(n ?? 0));
 }
 
 /**
- * Format for UI: "1 234 DH" — whole numbers only.
+ * Format for UI: "1 234 DH" for MAD, or decimal-aware for EUR/USD/TND/JPY.
  */
 export function fmtMoney(n: number | null | undefined, currency = 'MAD'): string {
-  const v = roundMoney(n).toLocaleString('fr-FR', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  });
-  const code = normalizeCurrencyCode(currency);
-  const sym = currencySymbol(code);
-  if (sym === 'DH' || sym === 'DT' || sym === 'DA') return `${v} ${sym}`;
-  if (sym === '€' || sym === '$' || sym === '£') return `${sym}${v}`;
-  return `${v} ${sym}`;
+  return coreFmtMoney(n, currency);
 }
 
 export const PAYMENT_METHODS = [

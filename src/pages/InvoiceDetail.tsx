@@ -7,7 +7,7 @@ import { useParams, Link, Navigate, useNavigate } from 'react-router-dom';
 import { api, BASE } from '../api';
 import { getToken } from '../auth';
 import { statusFr, statusBadgeClass } from '../lib/labels';
-import { fmtMoney, paymentMethodLabel } from '../lib/money';
+import { fmtMoney, paymentMethodLabel, remainingBalance } from '../lib/money';
 import { useUi } from '../components/AppDialogs';
 import PasswordConfirm from '../components/PasswordConfirm';
 import { TimedUndoDelete } from '../components/ui';
@@ -214,7 +214,7 @@ export default function InvoiceDetail() {
     if (!invoice) return;
     setSavingClient(true);
     try {
-      const res = await api.updateInvoice(invoice.id, clientForm);
+      const res = (await api.updateInvoice(invoice.id, clientForm)) as { data?: Record<string, any> };
       setInvoice({ ...invoice, ...res.data });
       setEditingClient(false);
       setMsg('Coordonnées client enregistrées.');
@@ -225,7 +225,7 @@ export default function InvoiceDetail() {
     }
   };
 
-  const due = Math.max(0, Number(invoice.total || 0) - Number(invoice.amount_paid || 0));
+  const due = remainingBalance(invoice.total, invoice.amount_paid);
 
   return (
     <div>
@@ -249,7 +249,7 @@ export default function InvoiceDetail() {
                     number: invoice.number,
                     client: invoice.client_name,
                     total: k === 'reminder'
-                      ? Math.max(0, Number(invoice.total || 0) - Number(invoice.amount_paid || 0))
+                      ? remainingBalance(invoice.total, invoice.amount_paid)
                       : invoice.total,
                   });
                   void navigator.clipboard?.writeText(t).then(() => {});
@@ -778,7 +778,7 @@ export default function InvoiceDetail() {
                   });
                   if (!ok) return;
                   try {
-                    await api.updateInvoiceStatus(invoice.id, 'cancelled');
+                    await api.updateInvoiceStatus(invoice.id, { status: 'cancelled' });
                     toast('Document annulé', 'success');
                     await reload();
                   } catch (e: any) {
