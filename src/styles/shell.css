@@ -2876,6 +2876,15 @@ html body .ac-timed-delete-btn.is-armed .ac-td-ico {
   html body .ac-main-column > .ac-desktop-dock .ac-topbar-left { flex: 0 1 auto; }
   html body .ac-main-column > .ac-desktop-dock .ac-topbar-title { max-width: min(28vw, 240px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   html body .ac-main-column > .ac-desktop-dock.ac-topbar--compact:not(:focus-within) { width: fit-content !important; transform: scale(.94); transform-origin: top center; }
-  html body .ac-main-column > .ac-desktop-dock.ac-topbar--searching { width: min(700px, calc(100% - 32px)) !important; border-radius: 24px !important; }
 }
 @media (prefers-reduced-motion: reduce) { html body .ac-main-column > .ac-desktop-dock { transition: none !important; } }
+
+/* The compact desktop dock is a single, keyboard-accessible title. */
+html body .ac-desktop-dock button.ac-dock-expand {
+  display: inline-flex !important; align-items: center; justify-content: center;
+  width: auto !important; min-width: 0; min-height: 44px; padding: 0 10px !important;
+  border: 0 !important; border-radius: 999px !important; background: transparent !important;
+  color: var(--ac-ink) !important; -webkit-text-fill-color: var(--ac-ink) !important;
+  box-shadow: none !important; font: inherit; font-weight: 700; text-transform: capitalize;
+}
+html body .ac-desktop-dock button.ac-dock-expand:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }

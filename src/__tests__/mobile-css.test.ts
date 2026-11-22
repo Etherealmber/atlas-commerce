@@ -3,6 +3,10 @@ import { transform } from 'esbuild';
 import { describe, expect, it } from 'vitest';
 
 describe('mobile theme stylesheets', () => {
+  it('lets Agent conversation content scroll behind the floating dock', () => {
+    const css = readFileSync('src/mobile/phone.css', 'utf8');
+    expect(css).toMatch(/\.ph-agent-msgs\s*\{\s*margin-top:\s*0\s*!important;\s*padding-top:\s*calc\(76px\s*\+\s*env\(safe-area-inset-top,\s*0px\)\)/);
+  });
   it('constrains the live scanner and keeps its canvas over the preview', () => {
     const css = readFileSync('src/mobile/phone.css', 'utf8');
     expect(css).toMatch(/\.ph-cam-wrap\s*\{[^}]*height:\s*clamp\(220px,\s*48vw,\s*320px\)/s);

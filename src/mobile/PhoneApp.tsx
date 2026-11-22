@@ -1534,7 +1534,6 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme, onProductCreated
   });
   const [dialog, setDialog] = useState<'history' | 'quota' | 'activity' | 'language' | 'unlock' | 'photo' | null>(null);
   const [showCreate, setShowCreate] = useState(false);
-  const [showShortcuts, setShowShortcuts] = useState(() => msgs.length === 0);
   const [policy, setPolicy] = useState<Awaited<ReturnType<typeof api.getAgentPolicy>>['data'] | null>(null);
   const [policyStatus, setPolicyStatus] = useState('');
   const [contextActions, setContextActions] = useState<{ title: string; detail: string }[]>([]);
@@ -1547,6 +1546,44 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme, onProductCreated
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const followMessages = useRef(true);
   const sending = useRef(false);
+  const [dockCollapsed, setDockCollapsed] = useState(false);
+  const dockRef = useRef<HTMLElement>(null);
+  const dockFocusAfterChange = useRef(false);
+  const dockScroll = useRef({ last: 0, distance: 0, expandedUntil: 0 });
+
+  useEffect(() => {
+    if (!dockFocusAfterChange.current) return;
+    dockFocusAfterChange.current = false;
+    dockRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
+  }, [dockCollapsed]);
+
+  const onConversationScroll = (el: HTMLDivElement) => {
+    followMessages.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+    setShowLatest(!followMessages.current);
+    const state = dockScroll.current;
+    const delta = el.scrollTop - state.last;
+    state.last = el.scrollTop;
+    if (el.dataset.phoneProgrammaticScroll === 'true' || Date.now() < state.expandedUntil) { state.distance = 0; return; }
+    if ((delta > 0 && state.distance < 0) || (delta < 0 && state.distance > 0)) state.distance = 0;
+    state.distance += delta;
+    if (el.scrollTop <= 10 || state.distance <= -48) {
+      state.distance = 0;
+      if (dockCollapsed) {
+        dockFocusAfterChange.current = !!dockRef.current?.contains(document.activeElement);
+        setDockCollapsed(false);
+      }
+    } else if (state.distance >= 48 && el.scrollTop > 60 && !dockCollapsed) {
+      state.distance = 0;
+      dockFocusAfterChange.current = !!dockRef.current?.contains(document.activeElement);
+      setDockCollapsed(true);
+    }
+  };
+  const expandAgentDock = () => {
+    dockFocusAfterChange.current = !!dockRef.current?.contains(document.activeElement);
+    dockScroll.current.distance = 0;
+    dockScroll.current.expandedUntil = Date.now() + 400;
+    setDockCollapsed(false);
+  };
 
   useEffect(() => {
     try {
@@ -1579,7 +1616,7 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme, onProductCreated
   };
   const newConversation = () => {
     if (!archiveCurrent()) return;
-    followMessages.current = true; setThreadId(newPhoneAgentThreadId()); setMsgs([]); setShowShortcuts(true); setInput(''); setShowLatest(false); setQuickNotice('');
+    followMessages.current = true; setThreadId(newPhoneAgentThreadId()); setMsgs([]); setInput(''); setShowLatest(false); setQuickNotice('');
   };
   const refreshContext = async () => {
     setRefreshing(true); setQuickNotice('Actualisation du contexte…');
@@ -1603,7 +1640,7 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme, onProductCreated
     const text = (prompt ?? input).trim();
     if (!text || sending.current) return;
     sending.current = true;
-    setQuickNotice(''); setShowShortcuts(false);
+    setQuickNotice('');
     followMessages.current = true; setShowLatest(false);
     if (inputRef.current) inputRef.current.style.height = '';
     setInput('');
@@ -1631,18 +1668,19 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme, onProductCreated
 
   return (
     <div className="ph-agent-shell" data-agent-mobile="1" ref={shellRef}>
-      <nav className="ph-agent-dock" aria-label="Actions Atlas Agent">
+      <nav ref={dockRef} className={`ph-agent-dock${dockCollapsed ? ' is-collapsed' : ''}`} aria-label="Actions Atlas Agent">
+        {dockCollapsed ? <button type="button" className="ph-agent-dock-expand" aria-expanded="false" onClick={expandAgentDock}>Atlas Agent</button> : <>
         {(onBack || onNavigate) && <button type="button" aria-label="Retour" title="Retour" onClick={() => onBack ? onBack() : onNavigate?.('/m')}><ArrowLeft size={20} /></button>}
         <span className="ph-agent-dock-mark" aria-label="Atlas Agent"><AtlasAgentMascot size={27} /></span>
         <button type="button" disabled={busy} title="Historique" aria-label="Historique des discussions" onClick={() => setDialog('history')}><History size={20} /></button>
         <button type="button" disabled={busy} title="Nouvelle discussion" aria-label="Nouvelle discussion" onClick={newConversation}><MessageSquarePlus size={20} /></button>
         <button type="button" disabled={refreshing} title="Actualiser le contexte" aria-label="Actualiser le contexte" onClick={() => void refreshContext()}><RefreshCw size={20} /></button>
         <button type="button" title="Quota IA" aria-label="Quota IA" onClick={() => void openQuota()}><Hourglass size={20} /></button>
-        <button type="button" title="Raccourcis" aria-label="Raccourcis Atlas Agent" aria-expanded={showShortcuts} onClick={() => { setShowShortcuts(open => !open); if (!showShortcuts && listRef.current) listRef.current.scrollTop = 0; }}><Grid2X2 size={20} /></button>
+        </>}
       </nav>
-      <div className="ph-agent-msgs" ref={listRef} role="log" aria-live="polite" aria-label="Conversation" onScroll={e => { const el = e.currentTarget; followMessages.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40; setShowLatest(!followMessages.current); }}>
+      <div className="ph-agent-msgs" ref={listRef} role="log" aria-live="polite" aria-label="Conversation" onScroll={e => onConversationScroll(e.currentTarget)}>
         {quickNotice && <p className="ph-agent-quick-notice" role="status">{quickNotice}</p>}
-        {showShortcuts && <div className="ph-agent-quick" role="group" aria-label="Actions rapides">
+        {msgs.length === 0 && <div className="ph-agent-quick" role="group" aria-label="Actions rapides">
             {onNavigate && <button type="button" onClick={() => onNavigate('/m/settings/whats-new')}>Mises à jour</button>}
             {onTheme && ([['light', 'Thème clair'], ['dark', 'Thème sombre'], ['system', 'Thème système']] as const).map(([theme, label]) => <button type="button" key={theme} onClick={() => { onTheme(theme); setQuickNotice(`${label} activé.`); }}>{label}</button>)}
             <button type="button" onClick={() => setDialog('activity')}>Mon activité</button>
