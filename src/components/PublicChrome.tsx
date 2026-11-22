@@ -486,9 +486,11 @@ export function PublicNav({ links, cta, classic = false }: { links: NavLink[]; c
           }}
         >
           <div className="pn-mobile-actions"><PublicThemeToggle />{loggedIn ? <PublicProfileChip /> : cta}</div>
+          <nav className="pn-mobile-links" aria-label="Pages et sections">
           {links.map((l) => (
             <a
               key={l.href}
+              className="pn-mobile-link"
               href={l.href}
               onClick={() => setMenu(false)}
               style={{ display: 'block', padding: '11px 14px', borderRadius: 12, color: c.ghostInk, textDecoration: 'none', fontSize: 14, fontWeight: 600 }}
@@ -496,6 +498,7 @@ export function PublicNav({ links, cta, classic = false }: { links: NavLink[]; c
               {l.label}
             </a>
           ))}
+          </nav>
         </div>
       )}
     </header>

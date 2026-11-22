@@ -4618,3 +4618,17 @@ html body .whats-new-modal-backdrop .whats-new-modal {
   width: min(420px, calc(100vw - 32px)) !important;
   box-sizing: border-box;
 }
+
+/* Desktop release filters: retain a distinct selected state under dark button overrides. */
+html[data-theme='dark'] body .desktop-landing .dl-ed-platforms button[aria-pressed='false'] {
+  background: transparent !important;
+  color: #bdb5ae !important;
+  -webkit-text-fill-color: #bdb5ae !important;
+  box-shadow: none !important;
+}
+html[data-theme='dark'] body .desktop-landing .dl-ed-platforms button[aria-pressed='true'] {
+  background: #423a34 !important;
+  color: #f4f0eb !important;
+  -webkit-text-fill-color: #f4f0eb !important;
+  box-shadow: 0 1px 5px #0003 !important;
+}

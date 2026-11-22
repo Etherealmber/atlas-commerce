@@ -1,4 +1,5 @@
 import DownloadPreview from '../components/DownloadPreview';
+import DownloadHeroVisual from '../components/DownloadHeroVisual';
 /**
  * Desktop — page de téléchargement de l'application bureau (v0.7.3).
  *
@@ -6,12 +7,12 @@ import DownloadPreview from '../components/DownloadPreview';
  * releases lues depuis GitHub Releases du dépôt atlas-commerce-desktop
  * (Windows .msi/.exe, macOS .dmg, Linux .AppImage), détection de l'OS du
  * visiteur pour le bouton principal, notes de version et historique.
- * Ni topbar, ni cookie, ni session : lecture libre, connecté ou non.
+ * Navigation publique partagée et lecture libre, connecté ou non.
  */
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PublicNav, PublicSessionCta, GitHubStarButton } from '../components/PublicChrome';
-import { APP_BUILD_DATE, APP_GITHUB, APP_NAME } from '../version';
+import { APP_BUILD_DATE, APP_NAME } from '../version';
 
 const GH_RELEASES = 'https://api.github.com/repos/Etherealmber/atlas-commerce-desktop/releases?per_page=50';
 const DESKTOP_REPO = 'https://github.com/Etherealmber/atlas-commerce-desktop';
@@ -37,7 +38,7 @@ function detectOs(): OsKey {
 
 function osAsset(release: GhRelease | null, os: OsKey): GhAsset | null {
   const assets = release?.assets || [];
-  const has = (re: RegExp) => assets.find((a) => re.test(String(a.name || ''))) || null;
+  const has = (re: RegExp) => assets.find((a) => a.browser_download_url && re.test(String(a.name || ''))) || null;
   if (os === 'windows') {
     // .msi d'abord (installateur entreprise), puis setup.exe x86_64.
     return (
@@ -122,6 +123,7 @@ export default function Desktop() {
   const [rels, setRels] = useState<GhRelease[]>([]);
   const [state, setState] = useState<'load' | 'ok' | 'error'>('load');
   const [os, setOs] = useState<OsKey>('windows');
+  const [assetFilter, setAssetFilter] = useState<OsKey | 'all'>('all');
 
   useEffect(() => {
     setOs(detectOs());
@@ -173,9 +175,16 @@ export default function Desktop() {
   const latest = rels[0] || null;
   const relBody = String(latest?.body || '').trim();
   const relTitle = latest?.name || latest?.tag_name || 'Atlas Commerce Desktop';
-  const relDate = latest?.published_at ? String(latest.published_at).slice(0, 10) : APP_BUILD_DATE;
+  const relDate = latest?.published_at ? String(latest.published_at).slice(0, 10) : 'Date non disponible';
   const mainAsset = osAsset(latest, os);
-  const otherOs = (['windows', 'macos', 'linux'] as OsKey[]).filter((k) => k !== os);
+  const visibleAssets = (latest?.assets || []).filter((asset) => {
+    const name = String(asset.name || '');
+    if (/\.zsync$|source\.tar\.gz$/i.test(name)) return false;
+    if (assetFilter === 'all') return true;
+    if (assetFilter === 'windows') return /\.msi$|\.exe$|windows.*\.zip$/i.test(name);
+    if (assetFilter === 'macos') return /\.dmg$|macos.*\.zip$/i.test(name);
+    return /appimage|linux|\.deb$|\.rpm$/i.test(name);
+  });
 
   return (
     <div className="download-landing desktop-landing">
@@ -183,198 +192,65 @@ export default function Desktop() {
         links={[
           { href: '/', label: 'Accueil' },
           { href: '/android', label: 'Android' },
+          { href: '#apercu', label: 'Aperçu' },
           { href: '#assets', label: 'Téléchargements' },
           { href: '/whats-new', label: 'Nouveautés' },
-          { href: '/privacy', label: 'Confidentialité' },
-          { href: '/about', label: 'À propos' },
         ]}
         cta={<PublicSessionCta />}
         classic
       />
 
-      <section className="dl-hero">
-        <div className="dl-hero-bg" aria-hidden />
-        <div className="dl-hero-grid" aria-hidden />
-        <div className="dl-container dl-hero-layout">
-          <div className="dl-hero-content">
-            <p className="dl-eyebrow">Application bureau officielle</p>
-            <h1 className="dl-h1">
-              Atlas Commerce
-              <br />
-              <span className="dl-h1-soft">sur votre ordinateur.</span>
-            </h1>
-            <p className="dl-desc">
-              La version bureau d&apos;{APP_NAME} : une fenêtre native pour tenir la caisse au clavier,
-              imprimer sur votre imprimante système et garder l&apos;ERP ouvert toute la journée —
-              Windows, macOS et Linux.
-            </p>
-            <div className="dl-ctas">
-              {state === 'ok' && mainAsset ? (
-                <a className="dl-cta-main" href={String(mainAsset.browser_download_url)} target="_blank" rel="noopener noreferrer">
-                  Télécharger pour {OS_LABEL[os]}
-                </a>
-              ) : state === 'error' ? (
-                <span className="dl-cta-main dl-cta-wait" aria-disabled="true">Releases injoignables</span>
-              ) : state === 'ok' ? (
-                <span className="dl-cta-main dl-cta-wait" aria-disabled="true">Aucun binaire pour {OS_LABEL[os]}</span>
-              ) : (
-                <span className="dl-cta-main dl-cta-wait" aria-disabled="true">Chargement…</span>
-              )}
-              {otherOs.map((k) => {
-                const a = osAsset(latest, k);
-                return a ? (
-                  <a key={k} className="dl-cta-ghost" href={String(a.browser_download_url)} target="_blank" rel="noopener noreferrer">
-                    {OS_LABEL[k]}
-                  </a>
-                ) : null;
-              })}
-              <a className="dl-cta-ghost" href={DESKTOP_REPO} target="_blank" rel="noopener noreferrer">
-                Dépôt & code source
-              </a>
-              <GitHubStarButton repo="Etherealmber/atlas-commerce-desktop" />
-            </div>
-            <p className="dl-note">
-              <span className="dl-note-dot" aria-hidden />
-              Binaires signés et publiés automatiquement par GitHub Actions — téléchargez-les uniquement
-              depuis cette page ou le dépôt officiel.
-            </p>
-          </div>
-          <figure className="dl-hero-art dl-hero-art--desktop"><img src="/shots/desktop-demo.webp" alt="Tableau de bord web sur ordinateur avec données fictives" /><figcaption>Interface web sur ordinateur · données fictives</figcaption></figure>
-        </div>
-      </section>
-
-      <DownloadPreview platform="desktop" />
-
-      <section className="dl-band">
-        <div className="dl-container">
-          <div className="dl-stats" aria-label="Informations de version">
-            <div className="dl-stat">
-              <strong>{latest?.tag_name || '…'}</strong>
-              <span>Version</span>
-            </div>
-            <div className="dl-stat">
-              <strong>{relDate}</strong>
-              <span>Publiée le</span>
-            </div>
-            <div className="dl-stat">
-              <strong>{latest?.assets?.length || 0}</strong>
-              <span>Fichiers</span>
-            </div>
-          </div>
-
-          <p className="dl-section-index">02 / FONCTIONNALITÉS</p>
-          <h2 className="dl-sec-title">Pensée pour le comptoir</h2>
-          <p className="dl-sec-sub">Une app de poste fixe, rapide et sobre, branchée sur votre compte Atlas.</p>
-          <div className="dl-feats">
-            {FEATURES.map((f) => (
-              <div key={f.title} className="dl-feat">
-                <strong>{f.title}</strong>
-                <p>{f.text}</p>
-              </div>
-            ))}
-          </div>
-
-          <p className="dl-section-index dl-section-index--spaced">03 / TÉLÉCHARGEMENTS</p>
-          <h2 className="dl-sec-title">Fichiers de la dernière version</h2>
-          <p className="dl-sec-sub">Choisissez selon votre système — checksums et .zsync disponibles sur la release.</p>
-          <div className="dl-rel-list">
-            {(latest?.assets || [])
-              .filter((a) => !/\.zsync$|source\.tar\.gz$/i.test(String(a.name || '')))
-              .map((a, i) => (
-                <div key={String(a.name || i)} className="dl-rel-row">
-                  <strong>{String(a.name)}</strong>
-                  <span className="dl-muted">
-                    {/\.msi$|setup\.exe$|\.zip$/i.test(String(a.name || ''))
-                      ? 'Windows'
-                      : /\.dmg$/i.test(String(a.name || ''))
-                        ? 'macOS'
-                        : /AppImage|linux/i.test(String(a.name || ''))
-                          ? 'Linux'
-                          : '—'}
-                  </span>
-                  <a href={String(a.browser_download_url)} target="_blank" rel="noopener noreferrer">Télécharger</a>
+      <main className="dl-ed-main">
+        <section className="dl-hero dl-ed-hero">
+          <div className="dl-container">
+            <a className="dl-ed-release-badge" href="#versions"><span aria-hidden="true" />{latest?.tag_name ? `Version bureau · ${latest.tag_name}` : 'Versions bureau'} <b aria-hidden="true">↗</b></a>
+            <div className="dl-ed-hero-grid">
+              <div className="dl-hero-content">
+                <h1 className="dl-h1 dl-ed-title">Atlas Commerce<br /><span>pour bureau.</span></h1>
+                <p className="dl-desc">Votre espace de gestion dans une fenêtre dédiée, pour Windows, macOS et Linux.</p>
+                <div className="dl-ctas">
+                  {state === 'ok' && mainAsset ? <a className="dl-cta-main" href={String(mainAsset.browser_download_url)} target="_blank" rel="noopener noreferrer">↓ &nbsp; Télécharger pour {OS_LABEL[os]}</a> : state === 'error' ? <span className="dl-cta-main dl-cta-wait" aria-disabled="true">Releases injoignables</span> : state === 'ok' ? <span className="dl-cta-main dl-cta-wait" aria-disabled="true">Aucun binaire pour {OS_LABEL[os]}</span> : <span className="dl-cta-main dl-cta-wait" aria-disabled="true">Chargement…</span>}
+                  <a className="dl-cta-ghost" href="#assets">Autres fichiers</a>
                 </div>
-              ))}
-            {(latest?.assets || []).length === 0 && (
-              <p className="dl-muted" style={{ margin: 0 }}>Fichiers indisponibles pour le moment.</p>
-            )}
-          </div>
-
-          <h2 className="dl-sec-title" style={{ marginTop: 56 }}>Notes de version</h2>
-          <p className="dl-sec-sub">Dernière publication du dépôt bureau sur GitHub Releases.</p>
-          <div className="dl-release">
-            <h3>{relTitle}</h3>
-            <p className="dl-release-date">{relDate}</p>
-            {relBody ? (
-              <div className="dl-md dl-release-body" dangerouslySetInnerHTML={{ __html: mdToHtml(relBody) }} />
-            ) : (
-              <p className="dl-release-body">Notes de version non publiées pour ce binaire.</p>
-            )}
-            {latest?.html_url ? (
-              <a className="dl-release-link" href={latest.html_url} target="_blank" rel="noopener noreferrer">
-                Voir la release sur GitHub
-              </a>
-            ) : null}
-          </div>
-
-          <h2 className="dl-sec-title" id="assets" style={{ marginTop: 56 }}>Toutes les versions</h2>
-          <p className="dl-sec-sub">Historique complet, mis à jour automatiquement depuis GitHub Releases.</p>
-          <div className="dl-rel-list">
-            {rels.map((r, i) => (
-              <div key={String(r.tag_name || r.name || i)} className="dl-rel-row">
-                <strong>{r.name || r.tag_name}</strong>
-                <span className="dl-muted">{String(r.published_at || '').slice(0, 10)}</span>
-                {r.html_url ? (
-                  <a href={r.html_url} target="_blank" rel="noopener noreferrer">Voir</a>
-                ) : null}
+                <p className="dl-note">Choisissez un fichier adapté à votre système depuis les releases officielles.</p>
               </div>
-            ))}
-            {rels.length === 0 && (
-              <p className="dl-muted" style={{ margin: 0 }}>Historique indisponible pour le moment.</p>
-            )}
+              <div className="dl-ed-mark" aria-hidden="true"><div><img src="/atlas-icon-light.png" alt="" width="100" height="100" /></div><span>ATLAS · AU COMPTOIR</span></div>
+            </div>
+            <DownloadHeroVisual platform="desktop" />
+            <ul className="dl-ed-facts">
+              <li><b>Fenêtre dédiée</b><span>Votre espace Atlas sur ordinateur.</span></li>
+              <li><b>Ventes &amp; stock</b><span>Les outils du comptoir réunis.</span></li>
+              <li><b>Vos documents</b><span>Factures et rapports à consulter.</span></li>
+              <li><b>Open source</b><span>Code et releases sur GitHub.</span></li>
+            </ul>
           </div>
+        </section>
 
-          <ul className="dl-tech">
-            <li>
-              Dépôt :{' '}
-              <a href={DESKTOP_REPO} target="_blank" rel="noopener noreferrer">atlas-commerce-desktop</a>{' '}
-              <span className="dl-muted">· Rust / Tauri, empaquetage GitHub Actions</span>
-            </li>
-            <li>
-              Famille :{' '}
-              <a href={APP_GITHUB} target="_blank" rel="noopener noreferrer">atlas-commerce</a>{' '}
-              <span className="dl-muted">·</span>{' '}
-              <a href="https://github.com/Etherealmber/atlas-commerce-android" target="_blank" rel="noopener noreferrer">atlas-commerce-android</a>
-            </li>
-            <li>
-              Licence : <span className="dl-muted">MIT © 2026 Etherealmber</span>
-            </li>
-            <li>
-              Installation : <span className="dl-muted">Windows → .msi · macOS → .dmg (Gatekeeper : ouvrir une fois) · Linux → AppImage (chmod +x)</span>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <section className="dl-cta-sec">
-        <div className="dl-container" style={{ position: 'relative', zIndex: 2 }}>
-          <h2>Le comptoir, version poste fixe</h2>
-          <p>Installez l&apos;app bureau, connectez-vous avec le QR du web ou votre OTP, et encaissez sans ouvrir le navigateur.</p>
-          <div className="dl-ctas" style={{ justifyContent: 'center' }}>
-            {mainAsset ? (
-              <a className="dl-cta-main" href={String(mainAsset.browser_download_url)} target="_blank" rel="noopener noreferrer">
-                Télécharger pour {OS_LABEL[os]}
-              </a>
-            ) : (
-              <a className="dl-cta-main" href={`${DESKTOP_REPO}/releases`} target="_blank" rel="noopener noreferrer">
-                Voir les releases
-              </a>
-            )}
-            <Link className="dl-cta-ghost" to="/android">Apk Android</Link>
-            <Link className="dl-cta-ghost" to="/whats-new">Nouveautés</Link>
+        <section className="dl-ed-section dl-container" id="assets" aria-labelledby="desktop-download-title">
+          <div className="dl-ed-rail">
+            <div className="dl-ed-heading"><p className="dl-ed-kicker">01 / TÉLÉCHARGER</p><h2 id="desktop-download-title">Bureau</h2><p>Choisissez votre système. Les fichiers proviennent de la dernière release publiée.</p><a href={`${DESKTOP_REPO}/releases`} target="_blank" rel="noopener noreferrer">Releases sur GitHub ↗</a></div>
+            <div className="dl-ed-content">
+              <div className="dl-ed-platforms" role="group" aria-label="Filtrer les fichiers par système">
+                {([['all', 'Tous'], ['windows', 'Windows'], ['macos', 'macOS'], ['linux', 'Linux']] as const).map(([value, label]) => <button key={value} type="button" className="secondary" aria-pressed={assetFilter === value} onClick={() => setAssetFilter(value)}>{label}</button>)}
+              </div>
+              <div className="dl-ed-files" aria-live="polite">{visibleAssets.map((asset, i) => <div className="dl-ed-download-row" key={String(asset.name || i)}><div><strong>{String(asset.name || 'Fichier')}</strong><span>{/\.msi$|\.exe$/i.test(String(asset.name || '')) ? 'Windows' : /\.dmg$/i.test(String(asset.name || '')) ? 'macOS' : /appimage|linux|\.deb$|\.rpm$/i.test(String(asset.name || '')) ? 'Linux' : 'Autre fichier'}</span></div>{asset.browser_download_url && <a href={asset.browser_download_url} target="_blank" rel="noopener noreferrer">Télécharger ↗</a>}</div>)}{visibleAssets.length === 0 && <p className="dl-ed-hint">{state === 'load' ? 'Chargement des fichiers…' : 'Aucun fichier disponible pour cette sélection.'}</p>}</div>
+              <div className="dl-stats" aria-label="Informations de version"><div className="dl-stat"><strong>{latest?.tag_name || '—'}</strong><span>Version</span></div><div className="dl-stat"><strong>{latest?.published_at ? relDate : '—'}</strong><span>Publiée le</span></div><div className="dl-stat"><strong>{latest ? (latest.assets?.length ?? 0) : '—'}</strong><span>Fichiers</span></div></div>
+              <p className="dl-ed-hint">Windows : .msi / .exe · macOS : .dmg · Linux : AppImage. Consultez la release pour les autres fichiers.</p>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+
+        <section className="dl-ed-section dl-container" id="versions" aria-labelledby="desktop-versions-title">
+          <div className="dl-ed-rail">
+            <div className="dl-ed-heading"><p className="dl-ed-kicker">02 / MISES À JOUR</p><h2 id="desktop-versions-title">Versions</h2><p>Les dernières notes et publications du dépôt bureau.</p><a href={`${DESKTOP_REPO}/releases`} target="_blank" rel="noopener noreferrer">Toutes les releases ↗</a></div>
+            <div className="dl-ed-content"><article className="dl-release"><h3>{relTitle}</h3><p className="dl-release-date">{relDate}</p>{relBody ? <div className="dl-md dl-release-body" dangerouslySetInnerHTML={{ __html: mdToHtml(relBody) }} /> : <p className="dl-release-body">Notes de version non publiées pour ce binaire.</p>}{latest?.html_url && <a className="dl-release-link" href={latest.html_url} target="_blank" rel="noopener noreferrer">Voir la release sur GitHub ↗</a>}</article>
+              <h3 className="dl-ed-subheading">Historique</h3><div className="dl-rel-list">{rels.map((r, i) => <div key={String(r.tag_name || r.name || i)} className="dl-rel-row"><strong>{r.name || r.tag_name}</strong><span className="dl-muted">{String(r.published_at || '').slice(0, 10)}</span>{r.html_url && <a href={r.html_url} target="_blank" rel="noopener noreferrer">Voir ↗</a>}</div>)}{rels.length === 0 && <p className="dl-muted">Historique indisponible pour le moment.</p>}</div>
+            </div>
+          </div>
+        </section>
+        <DownloadPreview platform="desktop" />
+        <section className="dl-ed-section dl-container"><div className="dl-ed-rail"><div className="dl-ed-heading"><p className="dl-ed-kicker">04 / FONCTIONNALITÉS</p><h2>Pensée pour le comptoir.</h2><p>Retrouvez vos outils Atlas sur votre poste de travail.</p><GitHubStarButton repo="Etherealmber/atlas-commerce-desktop" /></div><div className="dl-feats">{FEATURES.map(f => <div key={f.title} className="dl-feat"><strong>{f.title}</strong><p>{f.text}</p></div>)}</div></div></section>
+      </main>
 
       <footer className="dl-foot">
         <div className="dl-foot-inner">

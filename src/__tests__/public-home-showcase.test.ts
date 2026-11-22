@@ -24,7 +24,7 @@ it('keeps platform links and clearly labels the demonstration screenshots', asyn
   expect(cards[1].querySelector('a')?.getAttribute('href')).toBe('/android');
   expect(cards[2].querySelector('a')?.getAttribute('href')).toBe('/desktop');
   expect(cards[0].textContent).toContain('Web mobile · données fictives');
-  expect(cards[1].textContent).toContain('Android natif · capture anonymisée');
+  expect(cards[1].textContent).toContain('Web mobile · données fictives');
   expect(cards[2].textContent).toContain('Web sur ordinateur · données fictives');
   expect(host.querySelector('#features')).not.toBeNull();
   expect(host.querySelector('#faq details')).not.toBeNull();

@@ -1,8 +1,8 @@
 import DownloadPreview from '../components/DownloadPreview';
+import DownloadHeroVisual from '../components/DownloadHeroVisual';
 /**
- * Download — landing sombre PLEINEMENT autonome de l'APK Android.
- * Ni topbar, ni sidebar, ni FAB, ni Agent : connecté ou non, la page se
- * suffit (directive user). Manifeste `latest.json` du CDN pour le binaire,
+ * Download — page publique de l'APK Android, avec navigation Atlas partagée.
+ * Manifeste `latest.json` du CDN pour le binaire,
  * notes de version depuis les GitHub Releases du dépôt android.
  */
 import { useCallback, useEffect, useState } from 'react';
@@ -164,7 +164,7 @@ export default function Download() {
   const relBody = String(rel?.body || '').trim();
   const notesBody = relBody || String(m?.notes || '').trim();
   const relTitle = rel?.name || rel?.tag_name || (m ? `v${m.versionName}` : APP_NAME);
-  const relDate = rel?.published_at ? String(rel.published_at).slice(0, 10) : m?.buildDate || APP_BUILD_DATE;
+  const relDate = rel?.published_at ? String(rel.published_at).slice(0, 10) : m?.buildDate || 'Date non disponible';
 
   return (
     <div className="download-landing">
@@ -172,169 +172,65 @@ export default function Download() {
       <PublicNav
         links={[
           { href: '/', label: 'Accueil' },
+          { href: '#apercu', label: 'Aperçu' },
+          { href: '#versions', label: 'Versions' },
           { href: '/desktop', label: 'Bureau' },
           { href: '/whats-new', label: 'Nouveautés' },
-          { href: '/privacy', label: 'Confidentialité' },
-          { href: '/about', label: 'À propos' },
         ]}
         cta={<PublicSessionCta />}
         classic
       />
 
-      {/* ── Hero plein écran ─ */}
-      <section className="dl-hero">
-        <div className="dl-hero-bg" aria-hidden />
-        <div className="dl-hero-grid" aria-hidden />
-        <div className="dl-container dl-hero-layout">
-          <div className="dl-hero-content">
-            <p className="dl-eyebrow">Appli Android officielle</p>
-            <h1 className="dl-h1">
-              Gérez votre commerce<br />
-              <span>depuis votre poche</span>
-            </h1>
-            <p className="dl-desc">
-              {APP_NAME} — stock, caisse, facturation et trésorerie dans une seule
-              application Android : synchronisation offline, connexion QR et passkey,
-              PDF prêts à imprimer.
-            </p>
-            <div className="dl-ctas">
-              {apkHref ? (
-                <a className="dl-cta-main" href={apkHref} target="_blank" rel="noopener noreferrer">
-                  Télécharger l&apos;APK
-                </a>
-              ) : (
-                <span className="dl-cta-main dl-cta-wait" aria-disabled="true">
-                  {state === 'loading' ? 'Lecture du manifeste…' : 'Manifeste injoignable'}
-                </span>
-              )}
-              <a className="dl-cta-ghost" href={ANDROID_REPO} target="_blank" rel="noopener noreferrer">
-                Voir sur GitHub
-              </a>
-            </div>
-            <p className="dl-note">
-              <span className="dl-note-dot" aria-hidden />
-              {state === 'ok' ? 'APK officielle · aucune connexion nécessaire pour télécharger' : state === 'loading' ? 'Vérification de la version officielle' : 'Consultez le dépôt pour les versions disponibles'}
-            </p>
-          </div>
-          <figure className="dl-hero-art dl-hero-art--android"><img src="/shots/android-scan-demo.webp" alt="Écran de scan de l’application Android" /><figcaption>Application Android · capture anonymisée</figcaption></figure>
-        </div>
-      </section>
-
-      {/* ── Stats + fonctionnalités + release ─ */}
-      <DownloadPreview platform="android" />
-
-      <section className="dl-band">
-        <div className="dl-container">
-          <div className="dl-stats" aria-label="Informations de version">
-            <div className="dl-stat">
-              <strong>{m ? `v${m.versionName || APP_NAME}` : '…'}</strong>
-              <span>Version</span>
-            </div>
-            <div className="dl-stat">
-              <strong>{m?.versionCode ? `#${m.versionCode}` : '…'}</strong>
-              <span>Build</span>
-            </div>
-            <div className="dl-stat">
-              <strong>{m?.buildDate || APP_BUILD_DATE}</strong>
-              <span>Publiée le</span>
-            </div>
-          </div>
-
-          <h2 className="dl-sec-title">Ce que l&apos;app sait faire</h2>
-          <p className="dl-sec-sub">
-            Une seule application de terrain, pensée pour le commerce : rapide, sûre,
-            utilisable d&apos;une main.
-          </p>
-          <div className="dl-feats">
-            {FEATURES.map((f) => (
-              <div key={f.title} className="dl-feat">
-                <strong>{f.title}</strong>
-                <p>{f.text}</p>
+      <main className="dl-ed-main">
+        <section className="dl-hero dl-ed-hero">
+          <div className="dl-container">
+            <a className="dl-ed-release-badge" href="#versions"><span aria-hidden="true" />{m?.versionName ? `Version Android · ${m.versionName}` : 'Versions Android'} <b aria-hidden="true">↗</b></a>
+            <div className="dl-ed-hero-grid">
+              <div className="dl-hero-content">
+                <h1 className="dl-h1 dl-ed-title">Atlas Commerce<br /><span>pour Android.</span></h1>
+                <p className="dl-desc">Stock, ventes, factures et trésorerie : les outils Atlas vous accompagnent sur le terrain.</p>
+                <div className="dl-ctas">
+                  {apkHref ? <a className="dl-cta-main" href={apkHref} target="_blank" rel="noopener noreferrer">↓ &nbsp; Télécharger l&apos;APK</a> : <span className="dl-cta-main dl-cta-wait" aria-disabled="true">{state === 'loading' ? 'Lecture du manifeste…' : 'Manifeste injoignable'}</span>}
+                  <a className="dl-cta-ghost" href="#versions">Voir les versions</a>
+                </div>
+                <p className="dl-note">{state === 'ok' ? 'APK officielle · téléchargement sans connexion au compte' : state === 'loading' ? 'Vérification de la version officielle' : 'Consultez le dépôt pour les versions disponibles'}</p>
               </div>
-            ))}
+              <div className="dl-ed-mark" aria-hidden="true"><div><img src="/atlas-icon-light.png" alt="" width="100" height="100" /></div><span>ATLAS · SUR LE TERRAIN</span></div>
+            </div>
+            <DownloadHeroVisual platform="android" />
+            <ul className="dl-ed-facts">
+              <li><b>Stock &amp; scan</b><span>Votre catalogue à portée de main.</span></li>
+              <li><b>Ventes &amp; PDF</b><span>Les documents de votre activité.</span></li>
+              <li><b>Sur le terrain</b><span>Fonctions disponibles hors ligne.</span></li>
+              <li><b>Open source</b><span>Un projet à explorer sur GitHub.</span></li>
+            </ul>
           </div>
+        </section>
 
-          <p className="dl-section-index dl-section-index--spaced">03 / MISES À JOUR</p>
-          <h2 className="dl-sec-title">Notes de version</h2>
-          <p className="dl-sec-sub">
-            {relBody
-              ? 'Dernière publication du dépôt Android sur GitHub Releases.'
-              : 'Dernières notes publiées avec le binaire.'}
-          </p>
-          <div className="dl-release">
-            <h3>{relTitle}</h3>
-            <p className="dl-release-date">{relDate}</p>
-            {notesBody ? (
-              <div className="dl-md dl-release-body" dangerouslySetInnerHTML={{ __html: mdToHtml(notesBody) }} />
-            ) : (
-              <p className="dl-release-body">Notes de version non publiées pour ce binaire.</p>
-            )}
-            {rel?.html_url ? (
-              <a className="dl-release-link" href={rel.html_url} target="_blank" rel="noopener noreferrer">
-                Voir la release sur GitHub
-              </a>
-            ) : null}
+        <section className="dl-ed-section dl-container" id="telechargement" aria-labelledby="android-download-title">
+          <div className="dl-ed-rail">
+            <div className="dl-ed-heading"><p className="dl-ed-kicker">01 / TÉLÉCHARGER</p><h2 id="android-download-title">Android</h2><p>Retrouvez la dernière APK officielle et les informations de version.</p><a href={ANDROID_REPO} target="_blank" rel="noopener noreferrer">Dépôt Android ↗</a></div>
+            <div className="dl-ed-content">
+              <div className="dl-ed-platforms" aria-label="Plateforme"><span className="dl-ed-platform-active">Android</span><Link to="/desktop">Bureau</Link></div>
+              <div className="dl-ed-download-row"><div><strong>Application Android</strong><span>{m?.versionName ? `Version ${m.versionName}` : 'Version indisponible'} · APK</span></div>{apkHref ? <a href={apkHref} target="_blank" rel="noopener noreferrer">Télécharger ↗</a> : <span>{state === 'loading' ? 'Chargement…' : 'Indisponible'}</span>}</div>
+              <div className="dl-stats" aria-label="Informations de version"><div className="dl-stat"><strong>{m?.versionName ? `v${m.versionName}` : '—'}</strong><span>Version</span></div><div className="dl-stat"><strong>{m?.versionCode ? `#${m.versionCode}` : '—'}</strong><span>Build</span></div><div className="dl-stat"><strong>{m?.buildDate || '—'}</strong><span>Publiée le</span></div></div>
+              <p className="dl-ed-hint">Installez uniquement l’APK obtenue depuis la page ou le dépôt officiel.</p>
+            </div>
           </div>
+        </section>
 
-          <h2 className="dl-sec-title" style={{ marginTop: 56 }}>Toutes les versions</h2>
-          <p className="dl-sec-sub">
-            Historique complet, mis à jour automatiquement depuis GitHub Releases —
-            aucune publication manuelle nécessaire.
-          </p>
-          <div className="dl-rel-list">
-            {rels.map((r, i) => (
-              <div key={String(r.tag_name || r.name || i)} className="dl-rel-row">
-                <strong>{r.name || r.tag_name}</strong>
-                <span className="dl-muted">{String(r.published_at || '').slice(0, 10)}</span>
-                {r.html_url ? (
-                  <a href={r.html_url} target="_blank" rel="noopener noreferrer">Voir</a>
-                ) : null}
-              </div>
-            ))}
-            {rels.length === 0 && (
-              <p className="dl-muted" style={{ margin: 0 }}>Historique indisponible pour le moment.</p>
-            )}
+        <section className="dl-ed-section dl-container" id="versions" aria-labelledby="android-versions-title">
+          <div className="dl-ed-rail">
+            <div className="dl-ed-heading"><p className="dl-ed-kicker">02 / MISES À JOUR</p><h2 id="android-versions-title">Versions</h2><p>Notes et historique publiés pour l’application Android.</p><a href={`${ANDROID_REPO}/releases`} target="_blank" rel="noopener noreferrer">Toutes les releases ↗</a></div>
+            <div className="dl-ed-content">
+              <article className="dl-release"><h3>{relTitle}</h3><p className="dl-release-date">{relDate}</p>{notesBody ? <div className="dl-md dl-release-body" dangerouslySetInnerHTML={{ __html: mdToHtml(notesBody) }} /> : <p className="dl-release-body">Notes de version non publiées pour ce binaire.</p>}{rel?.html_url && <a className="dl-release-link" href={rel.html_url} target="_blank" rel="noopener noreferrer">Voir la release sur GitHub ↗</a>}</article>
+              <h3 className="dl-ed-subheading">Historique</h3><div className="dl-rel-list">{rels.map((r, i) => <div key={String(r.tag_name || r.name || i)} className="dl-rel-row"><strong>{r.name || r.tag_name}</strong><span className="dl-muted">{String(r.published_at || '').slice(0, 10)}</span>{r.html_url && <a href={r.html_url} target="_blank" rel="noopener noreferrer">Voir ↗</a>}</div>)}{rels.length === 0 && <p className="dl-muted">Historique indisponible pour le moment.</p>}</div>
+            </div>
           </div>
-
-          <ul className="dl-tech">
-            <li>
-              Manifeste de mise à jour :{' '}
-              <a href={LATEST_JSON} target="_blank" rel="noopener noreferrer">latest.json</a>{' '}
-              <span className="dl-muted">· CDN cdn1.afmarbre.com</span>
-            </li>
-            <li>
-              Dépôts :{' '}
-              <a href={APP_GITHUB} target="_blank" rel="noopener noreferrer">atlas-commerce</a>{' '}
-              <span className="dl-muted">·</span>{' '}
-              <a href={ANDROID_REPO} target="_blank" rel="noopener noreferrer">atlas-commerce-android</a>
-            </li>
-            <li>
-              Licence : <span className="dl-muted">MIT © 2026 Etherealmber</span>
-            </li>
-            <li>
-              Installation : <span className="dl-muted">ouvrez l&apos;APK téléchargée depuis ce lien officiel uniquement</span>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      {/* ── CTA final ─ */}
-      <section className="dl-cta-sec">
-        <div className="dl-container" style={{ position: 'relative', zIndex: 2 }}>
-          <h2>Prêt à encaisser partout ?</h2>
-          <p>Installez l&apos;APK officielle, connectez-vous en scannant le QR du web, et reprenez la caisse en deux minutes.</p>
-          <div className="dl-ctas" style={{ justifyContent: 'center' }}>
-            {apkHref ? (
-              <a className="dl-cta-main" href={apkHref} target="_blank" rel="noopener noreferrer">
-                Télécharger l&apos;APK
-              </a>
-            ) : (
-              <span className="dl-cta-main dl-cta-wait" aria-disabled="true">{state === 'loading' ? 'Lecture du manifeste…' : 'Manifeste injoignable'}</span>
-            )}
-            <Link className="dl-cta-ghost" to="/whats-new">Nouveautés</Link>
-          </div>
-        </div>
-      </section>
+        </section>
+        <DownloadPreview platform="android" />
+        <section className="dl-ed-section dl-container"><div className="dl-ed-rail"><div className="dl-ed-heading"><p className="dl-ed-kicker">04 / FONCTIONNALITÉS</p><h2>Un outil pour le terrain.</h2><p>Les fonctionnalités Atlas pour accompagner votre activité.</p></div><div className="dl-feats">{FEATURES.map(f => <div key={f.title} className="dl-feat"><strong>{f.title}</strong><p>{f.text}</p></div>)}</div></div></section>
+      </main>
 
       {/* ── Footer deux colonnes ─ */}
       <footer className="dl-foot">

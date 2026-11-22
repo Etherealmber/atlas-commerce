@@ -206,7 +206,7 @@ export default function Home() {
           <div className="hm-window rise">
             <div className="hm-window-bar" aria-hidden="true">
               <span /><span /><span />
-              <em>stock.afmarbre.com — Tableau de bord</em>
+              <em>Atlas · Tableau de bord</em>
             </div>
             <img src="/shots/desktop-demo.webp" alt="Tableau de bord web Atlas Commerce avec des données fictives" width="1280" height="800" />
           </div>
@@ -412,7 +412,7 @@ export default function Home() {
               <Link to="/login" className="dl-link dl-chip">Ouvrir l’application →</Link>
             </div>
             <div className="dl-card hm-platform-card">
-              <figure className="hm-platform-visual hm-platform-visual--phone"><img src="/shots/android-balance-demo.webp" alt="Balance dans l’application Android, capture anonymisée" width="538" height="799" loading="lazy" /><figcaption>Android natif · capture anonymisée</figcaption></figure>
+              <figure className="hm-platform-visual hm-platform-visual--phone"><img src="/shots/phone-balance-demo.webp" alt="Balance web mobile avec données fictives" width="390" height="844" loading="lazy" /><figcaption>Web mobile · données fictives</figcaption></figure>
               <div className="dl-ico">{IC_PHONE}</div>
               <h3>Android</h3>
               <p>

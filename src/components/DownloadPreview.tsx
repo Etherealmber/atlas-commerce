@@ -1,19 +1,18 @@
-/** Local light-theme captures with anonymized or fictional data. */
+/** Web captures use local synthetic fixtures; they are not native client screenshots. */
 export default function DownloadPreview({ platform }: { platform: 'android' | 'desktop' }) {
-  return <section className={`dl-preview dl-preview--${platform}`} aria-labelledby={`dl-preview-${platform}`}>
+  return <section id="apercu" className={`dl-preview dl-preview--${platform}`} aria-labelledby={`dl-preview-${platform}`}>
     <div className="dl-container">
-      <p className="dl-preview-eyebrow">01 / EN UN COUP D’ŒIL</p>
-      <h2 className="dl-sec-title" id={`dl-preview-${platform}`}>{platform === 'android' ? 'Atlas sur le terrain' : 'Votre espace de travail'}</h2>
-      <p className="dl-sec-sub">{platform === 'android' ? 'Du scan au suivi de l’activité, retrouvez vos outils sur téléphone.' : 'Découvrez l’interface web sur ordinateur, avec des données fictives.'}</p>
-      {platform === 'android' ? <>
-        <div className="dl-preview-phones">
-          <figure><img src="/shots/android-scan-demo.webp" width="516" height="785" loading="lazy" alt="Application Android : écran de scan avec caméra en pause" /><figcaption>Android natif · Scanner</figcaption></figure>
-          <figure><img src="/shots/android-balance-demo.webp" width="538" height="799" loading="lazy" alt="Application Android : aperçu des transactions et soldes" /><figcaption>Android natif · Balance</figcaption></figure>
-          <figure><img src="/shots/phone-home-demo.webp" width="390" height="844" loading="lazy" alt="Interface web mobile : tableau de bord avec données fictives" /><figcaption>Web mobile · Tableau de bord</figcaption></figure>
-          <figure><img src="/shots/phone-products-demo.webp" width="390" height="844" loading="lazy" alt="Interface web mobile : catalogue de produits fictifs" /><figcaption>Web mobile · Produits</figcaption></figure>
+      <div className="dl-preview-intro">
+        <div><p className="dl-preview-eyebrow">03 / APERÇU</p>
+          <h2 className="dl-sec-title" id={`dl-preview-${platform}`}>{platform === 'android' ? 'Votre activité en poche.' : 'Un espace pour votre activité.'}</h2>
         </div>
-      </> : <figure className="dl-preview-desktop"><img src="/shots/desktop-demo.webp" width="1280" height="800" loading="lazy" alt="Tableau de bord web sur ordinateur avec des données de démonstration" /><figcaption>Interface web sur ordinateur · données fictives de démonstration</figcaption></figure>}
-      <p className="dl-preview-note">Aperçus en thème clair : captures Android anonymisées et interface web avec données fictives. Les écrans peuvent évoluer selon la version et les permissions.</p>
+        <p>{platform === 'android' ? 'Consultez votre catalogue et vos mouvements depuis une interface adaptée au téléphone.' : 'Suivez vos produits et leurs niveaux de stock depuis votre ordinateur.'}</p>
+      </div>
+      {platform === 'android' ? <div className="dl-preview-phones">
+        <figure className="dl-shot-card"><a href="/shots/phone-products-demo.webp" target="_blank" rel="noopener noreferrer" aria-label="Agrandir l’aperçu du catalogue web mobile"><img src="/shots/phone-products-demo.webp" width="390" height="844" loading="lazy" alt="Catalogue web mobile avec produits fictifs" /></a><figcaption><strong>01 · Vos produits</strong><span>Retrouvez les références et le stock.</span></figcaption></figure>
+        <figure className="dl-shot-card"><a href="/shots/phone-balance-demo.webp" target="_blank" rel="noopener noreferrer" aria-label="Agrandir l’aperçu de la balance web mobile"><img src="/shots/phone-balance-demo.webp" width="390" height="844" loading="lazy" alt="Balance web mobile avec mouvements fictifs" /></a><figcaption><strong>02 · Votre balance</strong><span>Gardez un œil sur les mouvements.</span></figcaption></figure>
+      </div> : <figure className="dl-preview-desktop dl-shot-card"><a href="/shots/desktop-products-demo.webp" target="_blank" rel="noopener noreferrer" aria-label="Agrandir l’aperçu du catalogue web sur ordinateur"><img src="/shots/desktop-products-demo.webp" width="1280" height="800" loading="lazy" alt="Catalogue web sur ordinateur avec produits et stocks fictifs" /></a><figcaption><strong>Produits &amp; stock</strong><span>Vos références et alertes dans une seule vue.</span></figcaption></figure>}
+      <p className="dl-preview-note">Captures de l’interface web en thème clair, avec des données fictives. Les applications Android et bureau peuvent différer selon leur version et vos permissions. Sélectionnez une image pour l’agrandir.</p>
     </div>
   </section>;
 }

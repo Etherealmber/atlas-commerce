@@ -26,10 +26,11 @@ it('opens its accessible menu and closes it on Escape or outside interaction', a
 
 it('uses separate, labelled Android and computer previews', async () => {
   await act(async () => root.render(createElement(DownloadPreview, { platform: 'android' })));
-  expect(host.querySelectorAll('img')).toHaveLength(4);
-  expect(host.textContent).toContain('Android natif');
-  expect(host.textContent).toContain('Web mobile');
-  expect(host.textContent).toContain('Atlas sur le terrain');
+  expect(host.querySelectorAll('img')).toHaveLength(2);
+  expect(host.textContent).toContain('interface web');
+  expect(host.querySelector('img')?.getAttribute('src')).toContain('phone-products-demo.webp');
+  expect(host.querySelectorAll('figure a')).toHaveLength(2);
+  expect(host.textContent).toContain('Votre activité en poche');
   await act(async () => root.render(createElement(DownloadPreview, { platform: 'desktop' })));
   expect(host.querySelectorAll('img')).toHaveLength(1);
   expect(host.textContent).toContain('données fictives');

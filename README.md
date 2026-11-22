@@ -32,19 +32,17 @@
 
 Aperçus en thème clair : données et identité de démonstration. Les écrans et les permissions peuvent varier selon la version.
 
-| Mobile Android — scan | Mobile Android — balance |
-| --- | --- |
-| ![Écran de scan Android](public/shots/android-scan-demo.webp) | ![Écran de balance Android](public/shots/android-balance-demo.webp) |
+| Web mobile — accueil | Web mobile — produits | Web mobile — balance |
+| --- | --- | --- |
+| ![Accueil web mobile avec données fictives](public/shots/phone-home-demo.webp) | ![Catalogue web mobile avec données fictives](public/shots/phone-products-demo.webp) | ![Balance web mobile avec données fictives](public/shots/phone-balance-demo.webp) |
 
-| Web mobile — accueil | Web mobile — produits |
-| --- | --- |
-| ![Accueil web mobile avec données fictives](public/shots/phone-home-demo.webp) | ![Catalogue web mobile avec données fictives](public/shots/phone-products-demo.webp) |
+### Interface web sur ordinateur
 
-### Version ordinateur
+![Tableau de bord web sur ordinateur avec données fictives](public/shots/desktop-demo.webp)
 
-![Tableau de bord ordinateur avec données fictives](public/shots/desktop-demo.webp)
+![Catalogue web sur ordinateur avec données fictives](public/shots/desktop-products-demo.webp)
 
-Les captures web mobile et ordinateur sont produites dans Chromium avec des réponses API fictives ; les captures Android fournies ont été anonymisées. Aucune connexion à une base de production n'a servi à la capture. Pour reproduire les captures web, démarrer `npx vite --config scripts/vite-capture.config.mjs --port 5173`, puis lancer `node scripts/capture-demo-shots.mjs` : les appels API et réseaux externes sont bloqués et remplacés par des données locales fictives.
+Ces captures montrent l'interface web, pas les clients natifs Android ou bureau, dont l'apparence peut différer. Elles sont produites dans Chromium avec des réponses API fictives, sans connexion à une base de production. Pour les reproduire, démarrer `npx vite --config scripts/vite-capture.config.mjs --port 5173`, puis lancer `node scripts/capture-demo-shots.mjs` : les appels API et réseaux externes sont bloqués et remplacés par des données locales fictives.
 
 ## Intégration Android — 0.8.1
 
