@@ -1005,7 +1005,7 @@ html body .row-actions {
   flex-direction: row !important;
   gap: 6px !important;
   align-items: center !important;
-  justify-content: flex-start !important;
+  justify-content: flex-end !important;
   white-space: nowrap !important;
 }
 html body table.ac-products-table .row-actions-cell {
@@ -1016,10 +1016,10 @@ html body table.ac-products-table .row-actions .secondary,
 html body table.ac-products-table .row-actions button.secondary {
   flex-shrink: 0 !important;
   white-space: nowrap !important;
-  padding: 5px 10px !important;
-  font-size: 0.72rem !important;
-  height: 32px !important;
-  min-height: 32px !important;
+  padding: 0 14px !important;
+  font-size: 12.5px !important;
+  height: 36px !important;
+  min-height: 36px !important;
   border-radius: 999px !important;
 }
 html body table.ac-products-table .row-actions .btn-delete-red-wrap,
@@ -1027,9 +1027,10 @@ html body table.ac-products-table .row-actions .btn-delete-red {
   flex-shrink: 0 !important;
 }
 html body table.ac-products-table .row-actions .btn-delete-red {
-  min-height: 32px !important;
-  height: 32px !important;
-  font-size: 0.72rem !important;
+  min-height: 36px !important;
+  height: 36px !important;
+  font-size: 12.5px !important;
+  border-radius: 999px !important;
 }
 html body table.ac-products-table .row-actions .btn-delete-red > div {
   padding: 6px 14px !important;

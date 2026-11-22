@@ -610,6 +610,8 @@ function parseIdText(text: string): Record<string, string> {
 
 export type EmployeeRouteDeps = {
   requireEmployeeAdmin: (c: any) => Promise<Response | null>;
+  /** Allows owner, admin, or secretary for employee list, detail, and update routes only. */
+  requireEmployeeDirectory?: (c: any) => Promise<Response | null>;
   checkConfirmPassword?: (
     env: any,
     db: D1Database,
@@ -619,8 +621,9 @@ export type EmployeeRouteDeps = {
 };
 
 export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps): void {
+  const requireDirectory = deps.requireEmployeeDirectory || deps.requireEmployeeAdmin;
   app.get('/api/employees', async (c) => {
-    { const denied = await deps.requireEmployeeAdmin(c); if (denied) return denied; }
+    { const denied = await requireDirectory(c); if (denied) return denied; }
     await ensureEmployeeTables(c.env.DB);
     try {
       await backfillEmpNumbers(c.env.DB);
@@ -690,7 +693,7 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps): 
   });
 
   app.get('/api/employees/:id', async (c) => {
-    { const denied = await deps.requireEmployeeAdmin(c); if (denied) return denied; }
+    { const denied = await requireDirectory(c); if (denied) return denied; }
     await ensureEmployeeTables(c.env.DB);
     const row = await c.env.DB.prepare(`SELECT * FROM employees WHERE id = ?`).bind(c.req.param('id')).first();
     if (!row) return c.json({ success: false, error: 'Employé introuvable' }, 404);
@@ -775,7 +778,7 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps): 
   });
 
   app.put('/api/employees/:id', async (c) => {
-    { const denied = await deps.requireEmployeeAdmin(c); if (denied) return denied; }
+    { const denied = await requireDirectory(c); if (denied) return denied; }
     await ensureEmployeeTables(c.env.DB);
     const id = c.req.param('id');
     const existing = (await c.env.DB.prepare(`SELECT * FROM employees WHERE id = ?`).bind(id).first()) as any;

@@ -1345,7 +1345,21 @@ function DesktopShell() {
                 <path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" />
               </svg>
             </button>}
-            {/^\/products\/[^/]+\/historique\/?$/.test(location.pathname) && <Link className="ac-dock-back" to="/products" aria-label="Retour aux produits" title="Retour aux produits"><ArrowLeft size={20} aria-hidden="true" /></Link>}
+            {/^\/products\/[^/]+\/historique\/?$/.test(location.pathname) && (
+              <Link className="ac-dock-back" to="/products" aria-label="Retour aux produits" title="Retour aux produits">
+                <ArrowLeft size={18} aria-hidden="true" />
+              </Link>
+            )}
+            {/^\/quick-sale\/[^/]+\/?$/.test(location.pathname) && (
+              <Link className="ac-dock-back" to="/quick-sale" aria-label="Retour aux ventes rapides" title="Retour aux ventes rapides">
+                <ArrowLeft size={18} aria-hidden="true" />
+              </Link>
+            )}
+            {/^\/invoices\/[^/]+\/?$/.test(location.pathname) && (
+              <Link className="ac-dock-back" to="/invoices" aria-label="Retour aux factures" title="Retour aux factures">
+                <ArrowLeft size={18} aria-hidden="true" />
+              </Link>
+            )}
             <button ref={desktopDockTitleRef} type="button" className="ac-topbar-title ac-dock-expand" aria-label="Barre de commandes" aria-expanded={!settingsBarCompact} onClick={expandDesktopDock}>
               {titleForPath(location.pathname).replace(/ · Atlas$/, '')}
             </button>

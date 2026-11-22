@@ -1,7 +1,6 @@
 import DocumentActors from '../components/DocumentActors';
 import TopPageActions from '../components/TopPageActions';
-import { Ban, FileDown, Printer, ReceiptText, RotateCcw, Trash2 } from 'lucide-react';
-import { printInvoiceTicket } from '../lib/thermal';
+import { Ban, Printer, RotateCcw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { api, BASE } from '../api';
@@ -12,6 +11,7 @@ import { useUi } from '../components/AppDialogs';
 import PasswordConfirm from '../components/PasswordConfirm';
 import SaveFeedback from '../components/SaveFeedback';
 import NumberField from '../components/NumberField';
+import { TimedUndoDelete } from '../components/ui';
 import { friendlyError } from '../lib/errors';
 
 function isVrDoc(inv: any) {
@@ -170,43 +170,12 @@ export default function QuickSaleDetail() {
             <Printer size={16} aria-hidden="true" />
             <span className="tpa-label">Imprimer</span>
           </a>
-          <button
-            type="button"
-            className="secondary"
-            title="Ticket thermique"
-            onClick={async () => {
-              try {
-                await printInvoiceTicket(ticket.id, { prefer: 'auto' });
-                flash('Ticket envoyé à l’imprimante');
-              } catch (e: any) {
-                flash(e?.message || 'Impression thermique indisponible — utilisez Imprimer', 'error');
-              }
-            }}
-          >
-            <ReceiptText size={16} aria-hidden="true" />
-            <span className="tpa-label">Ticket thermique</span>
-          </button>
-          <a
-            className="btn secondary"
-            title="PDF"
-            href={`${BASE}/api/invoices/${ticket.id}/pdf?token=${encodeURIComponent(token)}`}
-            target="_blank"
-            rel="noreferrer"
-          >
-            <FileDown size={16} aria-hidden="true" />
-            <span className="tpa-label">PDF</span>
-          </a>
-          {!cancelled && ticket.status !== 'remboursement' && <button type="button" className="secondary" title="Créer un remboursement" onClick={goRefund}><RotateCcw size={16} aria-hidden="true" /><span className="tpa-label">Créer un remboursement</span></button>}
-          {!cancelled && (
-            <button type="button" className="secondary" title="Annuler (stock)" onClick={() => void cancelTicket()}>
-              <Ban size={16} aria-hidden="true" />
-              <span className="tpa-label">Annuler (stock)</span>
+          {!cancelled && ticket.status !== 'remboursement' && (
+            <button type="button" className="secondary" title="Créer un remboursement" onClick={goRefund}>
+              <RotateCcw size={16} aria-hidden="true" />
+              <span className="tpa-label">Créer un remboursement</span>
             </button>
           )}
-          <button type="button" className="danger" title="Supprimer" onClick={() => void requestDelete()}>
-            <Trash2 size={16} aria-hidden="true" />
-            <span className="tpa-label">Supprimer</span>
-          </button>
         </TopPageActions>
       </div>
 
@@ -289,7 +258,7 @@ export default function QuickSaleDetail() {
         </div>
       )}
 
-      <div className="card">
+      <div className="card" style={{ marginBottom: 16 }}>
         <h3 style={{ fontSize: 15, marginTop: 0 }}>Paiements</h3>
         {payments.length === 0 ? (
           <p style={{ color: 'var(--muted)', fontSize: 13, margin: 0 }}>Aucun paiement enregistré.</p>
@@ -316,6 +285,29 @@ export default function QuickSaleDetail() {
           </table>
         )}
       </div>
+
+      <section className="card ac-danger-zone" aria-label="Zone de danger">
+        <div className="ac-danger-zone-head">
+          <div>
+            <h3>Zone de danger</h3>
+            <p>Annulez le ticket pour rétablir le stock, ou supprimez définitivement ce ticket VR.</p>
+          </div>
+          <div className="ac-danger-zone-actions">
+            {!cancelled && (
+              <button type="button" className="danger" onClick={() => void cancelTicket()}>
+                <Ban size={15} aria-hidden="true" />
+                <span>Annuler (stock)</span>
+              </button>
+            )}
+            <TimedUndoDelete
+              deleteLabel="Supprimer"
+              undoLabel="Annuler"
+              initialSeconds={10}
+              onConfirm={() => void requestDelete()}
+            />
+          </div>
+        </div>
+      </section>
 
       {pwOpen && pendingDelete && (
         <PasswordConfirm

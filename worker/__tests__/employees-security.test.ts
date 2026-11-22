@@ -17,23 +17,32 @@ function makeDb() {
     }; return api;
   } };
   sqlite.exec(`CREATE TABLE app_users (id INTEGER PRIMARY KEY, username TEXT, role TEXT, active INTEGER);
-    INSERT INTO app_users VALUES (1, 'admin', 'admin', 1), (2, 'stock', 'stock', 1);`);
+    INSERT INTO app_users VALUES (1, 'admin', 'admin', 1), (2, 'stock', 'stock', 1), (3, 'sec', 'secretaire', 1);`);
   return { sqlite, db };
 }
 function setup() {
   const { sqlite, db } = makeDb();
   const app: any = new Hono();
-  registerEmployeeRoutes(app, { requireEmployeeAdmin: async (c: any) => {
-    const result = await verifyArchiveIdentity(c.env, c.req.header('Authorization'), '', '', {
-      authFailReason: async (h) => h ? 'ok' : 'missing',
-      sessionUserFromHeader: (h) => {
-        const [username = '', role = ''] = String(h || '').replace('Bearer ', '').split(':');
-        return { username, role };
-      },
-      ownerUsername: () => 'owner',
-    });
-    return result.ok ? null : c.json({ code: result.code }, result.status);
-  } });
+  const verifyRole = (allowed: Set<string>) => async (c: any) => {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader) return c.json({ code: 'UNAUTHORIZED' }, 401);
+    const [username = '', sessionRole = ''] = String(authHeader).replace('Bearer ', '').split(':');
+    const uname = username.toLowerCase();
+    if (!uname) return c.json({ code: 'UNAUTHORIZED' }, 401);
+    const isOwner = uname === 'owner' && sessionRole === 'owner';
+    let role = 'owner';
+    if (!isOwner) {
+      const user = await c.env.DB.prepare('SELECT id, role FROM app_users WHERE username = ? AND active = 1').bind(uname).first() as { id: number; role: string } | null;
+      if (!user || user.role !== sessionRole) return c.json({ code: 'UNAUTHORIZED' }, 401);
+      role = user.role;
+    }
+    if (!allowed.has(role)) return c.json({ code: 'FIN_FORBIDDEN' }, 403);
+    return null;
+  };
+  registerEmployeeRoutes(app, {
+    requireEmployeeAdmin: verifyRole(new Set(['owner', 'admin'])),
+    requireEmployeeDirectory: verifyRole(new Set(['owner', 'admin', 'secretaire'])),
+  });
   const request = (path: string, method = 'GET', token?: string, body: any = {}) => app.request(path, {
     method, headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), 'Content-Type': 'application/json' },
     ...(method === 'GET' ? {} : { body: JSON.stringify(body) }),
@@ -88,5 +97,28 @@ describe('employee route security (single D1)', () => {
     expect((await request('/api/employees', 'POST', 'admin:admin', { name: 'Bob', emp_number: 'E2' })).status).toBe(201);
     expect((await request('/api/employees/2/resign', 'POST', 'admin:admin')).status).toBe(200);
     expect((await request('/api/employees/2', 'DELETE', 'admin:admin')).status).toBe(200);
+  });
+  it('allows secretary access only to employee list, detail, and update endpoints', async () => {
+    const { request } = setup();
+    expect((await request('/api/employees', 'POST', 'admin:admin', { name: 'Alice', emp_number: 'E1', role_title: 'Vendeuse' })).status).toBe(201);
+
+    // Secretary can list, read detail, and update employee profile
+    expect((await request('/api/employees', 'GET', 'sec:secretaire')).status).toBe(200);
+    expect((await request('/api/employees/1', 'GET', 'sec:secretaire')).status).toBe(200);
+    expect((await request('/api/employees/1', 'PUT', 'sec:secretaire', { role_title: 'Caissière' })).status).toBe(200);
+
+    // Forged role claim still rejected 401
+    expect((await request('/api/employees', 'GET', 'sec:admin')).status).toBe(401);
+
+    // Secretary stays forbidden from admin/payroll/destructive employee endpoints
+    expect((await request('/api/employees', 'POST', 'sec:secretaire', { name: 'Bob', emp_number: 'E2' })).status).toBe(403);
+    expect((await request('/api/employees/1', 'DELETE', 'sec:secretaire')).status).toBe(403);
+    expect((await request('/api/employees/1/resign', 'POST', 'sec:secretaire')).status).toBe(403);
+    expect((await request('/api/employees/1/reactivate', 'POST', 'sec:secretaire')).status).toBe(403);
+    expect((await request('/api/employees/1/pay', 'POST', 'sec:secretaire', { amount: 100 })).status).toBe(403);
+    expect((await request('/api/employees/1/advance', 'POST', 'sec:secretaire', { amount: 50 })).status).toBe(403);
+    expect((await request('/api/employees/parse-id', 'POST', 'sec:secretaire', {})).status).toBe(403);
+    expect((await request('/api/employees/1/id-document', 'GET', 'sec:secretaire')).status).toBe(403);
+    expect((await request('/api/employees/1/id-document', 'POST', 'sec:secretaire', {})).status).toBe(403);
   });
 });

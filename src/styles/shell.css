@@ -2935,10 +2935,31 @@ html body .dock-page-header > .dock-page-actions {
 .top-page-actions > a svg { flex: none; }
 .desktop-catalog-actions-slot:empty { display: none; }
 @media (min-width: 1500px) {
-  .ac-main-column > .desktop-catalog-actions-slot:not(:empty),
-  .ac-desktop-top-row > .desktop-catalog-actions-slot:not(:empty) {
+  .ac-desktop-top-row:has(> .desktop-catalog-actions-slot:not(:empty)) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: 14px;
+    padding: 0 16px;
+  }
+  .ac-desktop-top-row:has(> .desktop-catalog-actions-slot:not(:empty)) > .ac-desktop-dock {
+    grid-column: 2;
+    grid-row: 1;
+    margin: 0 !important;
+  }
+  .ac-main-column > .desktop-catalog-actions-slot:not(:empty) {
     position: absolute; top: 50%; right: 16px; transform: translateY(-50%); z-index: 36;
     overflow: visible; pointer-events: auto;
+  }
+  .ac-desktop-top-row > .desktop-catalog-actions-slot:not(:empty) {
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: end;
+    position: relative;
+    z-index: 36;
+    overflow: visible;
+    pointer-events: auto;
+    max-width: 100%;
   }
   .desktop-catalog-actions-slot > .top-page-actions {
     flex-wrap: nowrap; width: max-content;

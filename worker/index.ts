@@ -1422,7 +1422,33 @@ async function requireEmployeeAdmin(c: any): Promise<Response | null> {
   });
   return result.ok ? null : c.json({ success: false, error: 'Accès refusé', code: result.code }, result.status);
 }
-registerEmployeeRoutes(app, { checkConfirmPassword, requireEmployeeAdmin });
+async function requireEmployeeDirectory(c: any): Promise<Response | null> {
+  try {
+    const authHeader = c.req.header('Authorization');
+    if (await authFailReason(authHeader, c.env as Env, c.env.DB, clientIp(c), c.req.header('X-Device-Fingerprint')) !== 'ok') {
+      return c.json({ success: false, error: 'Accès refusé', code: 'UNAUTHORIZED' }, 401);
+    }
+    const session = sessionUserFromHeader(authHeader);
+    const username = String(session.username || '').toLowerCase();
+    if (!username) return c.json({ success: false, error: 'Accès refusé', code: 'UNAUTHORIZED' }, 401);
+    const owner = username === getOwnerUsername(c.env as Env) && session.role === 'owner';
+    let role = 'owner';
+    if (!owner) {
+      const user = await c.env.DB.prepare('SELECT id, role FROM app_users WHERE username = ? AND active = 1').bind(username).first() as { id: number; role: string } | null;
+      if (!user || !Number.isSafeInteger(user.id) || user.id <= 0 || user.role !== session.role) {
+        return c.json({ success: false, error: 'Accès refusé', code: 'UNAUTHORIZED' }, 401);
+      }
+      role = String(user.role || '').toLowerCase();
+    }
+    if (role !== 'owner' && role !== 'admin' && role !== 'secretaire') {
+      return c.json({ success: false, error: 'Accès refusé', code: 'FIN_FORBIDDEN' }, 403);
+    }
+    return null;
+  } catch {
+    return c.json({ success: false, error: 'Service indisponible', code: 'SERVICE_UNAVAILABLE' }, 503);
+  }
+}
+registerEmployeeRoutes(app, { checkConfirmPassword, requireEmployeeAdmin, requireEmployeeDirectory });
 /* v254 — role-safe finance, payroll & reminders (owner/admin gated, server-computed) */
 registerFinanceRoutes(app, { sessionUserFromHeader, authFailReason, clientIp, writeAudit, requireEmployeeAdmin });
 registerAtlasV209Routes(app, { sessionUserFromHeader, applyStockDelta, adjustLocationStock, getDefaultLocationId });

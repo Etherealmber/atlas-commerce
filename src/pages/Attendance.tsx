@@ -517,8 +517,8 @@ export default function Attendance() {
                       </div>
                     )}
                   </td>
-                  <td>
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <td className="row-actions-cell">
+                    <div className="row-actions">
                       <button
                         type="button"
                         className="secondary"

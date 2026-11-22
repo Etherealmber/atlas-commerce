@@ -72,7 +72,6 @@ export default function ProductHistory({ mobile = false, onProductUpdated }: Pro
       {!mobile && canSell() && <div className="product-history-actions">
         {Number(product.track_inventory) !== 0 && <button type="button" className="secondary product-history-action-stock" onClick={() => navigate('/products', { state: { productAction: 'stock', productId } })}><SlidersHorizontal size={16} aria-hidden="true" />Ajuster le stock</button>}
         <button type="button" className="secondary product-history-action-edit" onClick={() => navigate('/products', { state: { productAction: 'edit', productId } })}><Pencil size={16} aria-hidden="true" />Modifier les détails</button>
-        <TimedUndoDelete deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10} onConfirm={async () => { try { await api.deleteProduct(productId, undefined, { timedUndo: true }); navigate('/products'); } catch (e: any) { setImageMessage(e?.message || 'Suppression impossible.'); } }} />
       </div>}
       {imageMessage && <p role="status">{imageMessage}</p>}
       <div className="product-history-chips"><span>{product.track_inventory != null && !Number(product.track_inventory) ? 'Stock non suivi' : `Stock ${dualStockLabel(product)}`}</span>{canSell() && typeof product.price === 'number' && <span>{product.price.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MAD</span>}</div>
@@ -84,5 +83,18 @@ export default function ProductHistory({ mobile = false, onProductUpdated }: Pro
       {rows.map((m, index) => <div className="product-history-movement" key={m.id ?? `${m.created_at}-${index}`}><div><strong>{types[String(m.type || '').toLowerCase()] || m.type || 'Mouvement'}</strong><time>{String(m.created_at || '—').replace('T', ' ').slice(0, 16)}</time></div><p>Qté {quantity(m.quantity)} · {quantity(m.previous_quantity)} → {quantity(m.new_quantity)}</p>{(m.reason || m.reference) && <p>{[m.reason, m.reference].filter(Boolean).join(' · ')}</p>}<small>Créé par {actor(m.created_by, 'non renseigné')}{m.approved_by && <> · Approuvé par {m.approved_by}</>}</small></div>)}
       {hasMore && <button type="button" className="product-history-more" disabled={loadingMore} onClick={() => void more()}>{loadingMore ? 'Chargement…' : 'Charger la suite'}</button>}
     </section>
+    {!mobile && canSell() && product && (
+      <section className="product-history-card ac-danger-zone" aria-label="Zone de danger">
+        <div className="ac-danger-zone-head">
+          <div>
+            <h3>Zone de danger</h3>
+            <p>Supprimer ce produit le retire du catalogue actif (conservation des documents historiques).</p>
+          </div>
+          <div className="ac-danger-zone-actions">
+            <TimedUndoDelete deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10} onConfirm={async () => { try { await api.deleteProduct(productId, undefined, { timedUndo: true }); navigate('/products'); } catch (e: any) { setImageMessage(e?.message || 'Suppression impossible.'); } }} />
+          </div>
+        </div>
+      </section>
+    )}
   </div>;
 }
