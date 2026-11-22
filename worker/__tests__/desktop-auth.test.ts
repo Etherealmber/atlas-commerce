@@ -826,6 +826,12 @@ describe('staging challenge-only pilot on the real Worker', () => {
     expect((await decide(other.request_id)).status).toBe(403); // wrong transaction cdata
     expect((await call(`${root}/consume`, proof(other.request_id, 'w'.repeat(64), 'z'.repeat(64)))).status).toBe(409);
   });
+  it('rejects a mismatched port before preparing or using the transaction', async () => {
+    req = await createPilot();
+    expect((await call(`${root}/browser/prepare`, reference(), { headers: { Origin: 'https://inventaire.self-hosted.example' } })).body.code).toBe('ORIGIN_MISMATCH');
+    expect((await call(`${root}/poll`, { ...proof(), origin: 'https://inventaire.self-hosted.example' })).body.code).toBe('ORIGIN_MISMATCH');
+    expect((await prepare()).status).toBe(200);
+  });
   it('denial, cancellation and expiry are terminal', async () => {
     req = await createPilot(); expect((await decide(req.request_id, 'deny')).body.data.status).toBe('denied');
     expect((await decide()).status).toBe(409);
@@ -957,7 +963,7 @@ describe('staging native password + OTP pilot', () => {
   });
   it('publishes password capability only for fully configured staging; native tokens cannot enter legacy auth paths or URLs', async () => {
     const c = await call('/api/auth/desktop/v2/capabilities', undefined, {method:'GET'});
-    expect(c.body.data.methods.password_otp).toMatchObject({available:true, experimental:true, staging_only:true});
+    expect(c.body.data.methods.password_otp).toMatchObject({available:true, experimental:true, staging_only:true, challenge_presentation:{ hosted_path:'/login/desktop-challenge', webview2:'unverified_requires_client_validation', system_browser:'explicit_choice_only', same_ip_required:true, server_verified:true }});
     const session = await logIn();
     expect((await call('/api/auth/qr/session', {}, {headers:{Authorization:`Bearer ${session.access_token}`}})).status).toBe(401);
     expect((await call('/api/auth/logout', {}, {headers:{Authorization:`Bearer ${session.access_token}`}})).status).toBe(401);

@@ -1,3 +1,4 @@
+import DownloadPreview from '../components/DownloadPreview';
 /**
  * Download — landing sombre PLEINEMENT autonome de l'APK Android.
  * Ni topbar, ni sidebar, ni FAB, ni Agent : connecté ou non, la page se
@@ -96,7 +97,7 @@ export default function Download() {
         if (!man || !String(man.apkUrl || '')) throw new Error('empty');
         return man;
       });
-    const fromCdn = fetch(LATEST_JSON, { cache: 'no-store' })
+    const fromCdn = () => fetch(LATEST_JSON, { cache: 'no-store' })
       .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
       .then((j: any) => {
         const man = (j && (j.manifest || j)) as Manifest;
@@ -104,7 +105,7 @@ export default function Download() {
         return man;
       });
     fromApi
-      .catch(() => fromCdn)
+      .catch(() => fromCdn())
       .then((man) => { setM(man); setState('ok'); })
       .catch(() => setState('error'));
     // Toutes les versions : GitHub Releases du dépôt android (auto-update).
@@ -184,7 +185,7 @@ export default function Download() {
       <section className="dl-hero">
         <div className="dl-hero-bg" aria-hidden />
         <div className="dl-hero-grid" aria-hidden />
-        <div className="dl-container">
+        <div className="dl-container dl-hero-layout">
           <div className="dl-hero-content">
             <p className="dl-eyebrow">Appli Android officielle</p>
             <h1 className="dl-h1">
@@ -212,13 +213,16 @@ export default function Download() {
             </div>
             <p className="dl-note">
               <span className="dl-note-dot" aria-hidden />
-              Disponible maintenant — sans compte pour cette page
+              {state === 'ok' ? 'APK officielle · aucune connexion nécessaire pour télécharger' : state === 'loading' ? 'Vérification de la version officielle' : 'Consultez le dépôt pour les versions disponibles'}
             </p>
           </div>
+          <figure className="dl-hero-art dl-hero-art--android"><img src="/shots/android-scan-demo.webp" alt="Écran de scan de l’application Android" /><figcaption>Application Android · capture anonymisée</figcaption></figure>
         </div>
       </section>
 
       {/* ── Stats + fonctionnalités + release ─ */}
+      <DownloadPreview platform="android" />
+
       <section className="dl-band">
         <div className="dl-container">
           <div className="dl-stats" aria-label="Informations de version">
@@ -250,7 +254,8 @@ export default function Download() {
             ))}
           </div>
 
-          <h2 className="dl-sec-title" style={{ marginTop: 56 }}>Notes de version</h2>
+          <p className="dl-section-index dl-section-index--spaced">03 / MISES À JOUR</p>
+          <h2 className="dl-sec-title">Notes de version</h2>
           <p className="dl-sec-sub">
             {relBody
               ? 'Dernière publication du dépôt Android sur GitHub Releases.'
@@ -324,7 +329,7 @@ export default function Download() {
                 Télécharger l&apos;APK
               </a>
             ) : (
-              <span className="dl-cta-main dl-cta-wait" aria-disabled="true">Manifeste injoignable</span>
+              <span className="dl-cta-main dl-cta-wait" aria-disabled="true">{state === 'loading' ? 'Lecture du manifeste…' : 'Manifeste injoignable'}</span>
             )}
             <Link className="dl-cta-ghost" to="/whats-new">Nouveautés</Link>
           </div>

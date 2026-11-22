@@ -26,7 +26,7 @@ describe('mobile dock', () => {
 
   it.each([
     ['/m', true], ['/m/scan', true], ['/m/products', true], ['/m/balance', true], ['/m/balance/classic', false], ['/m/employees', true],
-    ['/m/settings', false], ['/m/agent', false], ['/m/more', false], ['/m/vente', true], ['/m/inbox', true], ['/m/device-scan', false], ['/m/warehouse', false],
+    ['/m/settings', false], ['/m/agent', false], ['/m/more', false], ['/m/vente', false], ['/m/inbox', false], ['/m/device-scan', false], ['/m/warehouse', false],
   ])('uses the dock only on main routes: %s', (path, visible) => {
     expect(showPhoneDock(path)).toBe(visible);
   });
@@ -56,12 +56,4 @@ describe('mobile dock', () => {
 
 it('returns the device QR scanner to the profile', () => {
   expect(phoneBackTarget('/m/device-scan')).toBe('/m/profile');
-});
-
-it.each(['/m/vente', '/m/inbox'])('keeps the last permitted dock selection for overlay %s without claiming it is the current page', (path) => {
-  const html = renderToStaticMarkup(createElement(MemoryRouter, { initialEntries: [path] }, createElement(PhoneDock, { role: 'owner', lastMainTab: '/m/products' })));
-  expect(html).toMatch(/class="ptab active"[^>]*href="\/m\/products"/);
-  expect(html).not.toContain('aria-current="page"');
-  const fallback = renderToStaticMarkup(createElement(MemoryRouter, { initialEntries: [path] }, createElement(PhoneDock, { role: 'stock', lastMainTab: '/m/balance' })));
-  expect(fallback).toMatch(/class="ptab active"[^>]*href="\/m"/);
 });

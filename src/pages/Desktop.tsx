@@ -1,3 +1,4 @@
+import DownloadPreview from '../components/DownloadPreview';
 /**
  * Desktop — page de téléchargement de l'application bureau (v0.7.3).
  *
@@ -194,7 +195,7 @@ export default function Desktop() {
       <section className="dl-hero">
         <div className="dl-hero-bg" aria-hidden />
         <div className="dl-hero-grid" aria-hidden />
-        <div className="dl-container">
+        <div className="dl-container dl-hero-layout">
           <div className="dl-hero-content">
             <p className="dl-eyebrow">Application bureau officielle</p>
             <h1 className="dl-h1">
@@ -214,6 +215,8 @@ export default function Desktop() {
                 </a>
               ) : state === 'error' ? (
                 <span className="dl-cta-main dl-cta-wait" aria-disabled="true">Releases injoignables</span>
+              ) : state === 'ok' ? (
+                <span className="dl-cta-main dl-cta-wait" aria-disabled="true">Aucun binaire pour {OS_LABEL[os]}</span>
               ) : (
                 <span className="dl-cta-main dl-cta-wait" aria-disabled="true">Chargement…</span>
               )}
@@ -236,8 +239,11 @@ export default function Desktop() {
               depuis cette page ou le dépôt officiel.
             </p>
           </div>
+          <figure className="dl-hero-art dl-hero-art--desktop"><img src="/shots/desktop-demo.webp" alt="Tableau de bord web sur ordinateur avec données fictives" /><figcaption>Interface web sur ordinateur · données fictives</figcaption></figure>
         </div>
       </section>
+
+      <DownloadPreview platform="desktop" />
 
       <section className="dl-band">
         <div className="dl-container">
@@ -256,6 +262,7 @@ export default function Desktop() {
             </div>
           </div>
 
+          <p className="dl-section-index">02 / FONCTIONNALITÉS</p>
           <h2 className="dl-sec-title">Pensée pour le comptoir</h2>
           <p className="dl-sec-sub">Une app de poste fixe, rapide et sobre, branchée sur votre compte Atlas.</p>
           <div className="dl-feats">
@@ -267,7 +274,8 @@ export default function Desktop() {
             ))}
           </div>
 
-          <h2 className="dl-sec-title" style={{ marginTop: 56 }}>Fichiers de la dernière version</h2>
+          <p className="dl-section-index dl-section-index--spaced">03 / TÉLÉCHARGEMENTS</p>
+          <h2 className="dl-sec-title">Fichiers de la dernière version</h2>
           <p className="dl-sec-sub">Choisissez selon votre système — checksums et .zsync disponibles sur la release.</p>
           <div className="dl-rel-list">
             {(latest?.assets || [])

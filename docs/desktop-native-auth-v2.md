@@ -171,7 +171,7 @@ aléatoirement par l'opérateur et stocké exclusivement en secret staging, clé
 Turnstile et D1 fonctionnels. Aucun de ces secrets n'a été créé ici. Le compte
 isolé doit être actif et utiliser `pbkdf2$100000$...` ; comptes historiques,
 owner et autres comptes ne peuvent pas se connecter par ce pilote. La capacité
-annonce `{ "available":true,"version":2,"experimental":true,"staging_only":true,"challenge":"system_browser_turnstile","otp_required":true }`
+annonce `{ "available":true,"version":2,"experimental":true,"staging_only":true,"challenge":"system_browser_turnstile","otp_required":true,"challenge_presentation":{"hosted_path":"/login/desktop-challenge","webview2":"unverified_requires_client_validation","system_browser":"explicit_choice_only","same_ip_required":true,"server_verified":true} }`
 uniquement lorsque ces paramètres et l'origine reçue conviennent ; elle ne
 vérifie ni la disponibilité réelle du compte, D1, mail ou Siteverify, ni la
 configuration effective de l'infrastructure. Aucun header ou fingerprint ne
@@ -184,8 +184,7 @@ sans padding), calcule S256, appelle `/pilot/requests`, montre le code, ouvre
 l'URL de défi de la section suivante dans une WebView2 temporaire **si le client
 Windows applique et valide le contrat ci-dessous**, ou dans le navigateur système
 sur choix explicite, puis poll à 5 secondes minimum. La valeur de capacité
-historique `system_browser_turnstile` reste inchangée pour compatibilité : elle
-n'affirme pas la disponibilité ni la validation de WebView2. Il ne lit ni
+historique `system_browser_turnstile` reste inchangée pour compatibilité. Le nouveau champ `challenge_presentation` décrit les présentations envisagées et les prérequis, pas une validation de WebView2 ni une garantie de disponibilité réelle : `webview2: unverified_requires_client_validation` impose les essais décrits ci-dessous. Il ne lit ni
 cookies ni stockage ni JS ni token navigateur. Échec,
 refus, expiration ou changement d'IP => recommencer, sans fallback automatique.
 Ne **pas** appeler `/pilot/consume` pour un login : `/pilot/login/password`
@@ -239,7 +238,7 @@ ne vont jamais dans une URL, un callback ou la page de défi.
    et identité ; les anciens tokens sont invalidés. Renouveler en une seule
    requête en vol. Rejeu du refresh immédiatement précédent révoque la famille,
    y compris après réponse perdue ; les refresh plus anciens ne sont pas suivis.
-   Une course peut donc révoquer le résultat du gagnant : recommencer. Une
+   Une course peut donc révoquer le résultat du gagnant : recommencer. Après une réponse refresh perdue ou incertaine, **ne jamais rejouer automatiquement** : effacer localement les jetons et recommencer une connexion ; un opérateur peut révoquer la session orpheline. Une
    réponse OTP perdue n'est pas récupérable : recommencer ; la session orpheline
    expirera au plus tard après 12 h, ou l'opérateur la révoque en D1.
 6. `POST /session/logout` : `{"origin":"<origine>","refresh_token":"<refresh courant>"}`
@@ -465,7 +464,7 @@ fonts Google, images et styles sont également autorisés. C'est la CSP partagé
 de l'application, **pas** une politique minimale spécifique au pilote et elle
 n'empêche pas une navigation principale ; `unsafe-inline` et scripts same-origin
 restent un risque XSS. La page dépend de l'HTML/JS/CSS de l'application, du script
-Turnstile et de son iframe fournisseur ; un profil frais évite un ancien service
+Turnstile et de son iframe fournisseur. Pour Turnstile, l’origine de frame minimale attendue est `https://challenges.cloudflare.com` (et `about:blank` transitoire interne au navigateur) ; ne pas confondre cette sous-frame avec la navigation principale ni supposer que la CSP globale actuelle est minimale. Vérifier les éventuelles évolutions du fournisseur en staging, sans ouvrir arbitrairement d’autres origines. Un profil frais évite un ancien service
 worker. `reportCrash` ignore désormais cette page, mais l'HTML et le bootstrap
 partagés exécutent encore du code et peuvent utiliser du stockage web. Le client
 n'en lit pas le contenu. Valider les ressources effectives en staging sans
@@ -486,10 +485,9 @@ requises : obtenir une configuration compatible. Consigner versions, résultats
 et risques sans secrets. Aucun de ces essais réels n'a été effectué dans cette
 session : Linux sans WebView2 et Wrangler non authentifié ; la configuration
 preview suivie réutilise des ressources production, elle n'est pas un staging
-isolé. Aucun déploiement n'a été effectué. Localement, la suite complète a
-réussi (754 tests), le build a réussi et le lint a rapporté 0 erreur et 904
-avertissements ; les 112 tests ciblés incluent les scénarios simulés, pas ces
-validations réelles.
+isolé. Aucun déploiement n'a été effectué. Les tests locaux utilisent des
+simulations ; ils ne remplacent aucune de ces validations réelles. Voir le
+[contrat client en anglais](desktop-native-auth-v2-client.md) pour les schémas et la reprise après perte de réponse.
 
 ### Risque de transfert et critères de blocage
 

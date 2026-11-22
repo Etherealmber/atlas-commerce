@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { getTheme, setTheme as applyTheme, subscribeTheme, type ThemeChoice } from '../theme';
 import { isLoggedIn, getDisplayName, getUsername, getRole, getDisplayInitials, hasAvatarUrl, clearToken } from '../auth';
@@ -354,6 +354,16 @@ export function PnLegacyTabs() {
 export function PublicNav({ links, cta, classic = false }: { links: NavLink[]; cta?: ReactNode; classic?: boolean }) {
   const c = useChromeColors();
   const [menu, setMenu] = useState(false);
+  const menuId = useId();
+  const navRef = useRef<HTMLElement>(null);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!menu) return;
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') { setMenu(false); menuButton.current?.focus(); } };
+    const outside = (e: PointerEvent) => { if (!navRef.current?.contains(e.target as Node)) setMenu(false); };
+    document.addEventListener('keydown', key); document.addEventListener('pointerdown', outside);
+    return () => { document.removeEventListener('keydown', key); document.removeEventListener('pointerdown', outside); };
+  }, [menu]);
   const navigate = useNavigate();
   const location = useLocation();
   const loggedIn = isLoggedIn();
@@ -399,6 +409,7 @@ export function PublicNav({ links, cta, classic = false }: { links: NavLink[]; c
   });
   return (
     <header
+      ref={navRef}
       style={{
         position: 'sticky', top: compact ? 8 : 14, zIndex: 60,
         padding: compact ? '6px 10px 0' : '14px 16px 0',
@@ -445,11 +456,12 @@ export function PublicNav({ links, cta, classic = false }: { links: NavLink[]; c
               </svg>
             </button>
           )}
-          <PublicThemeToggle />
-          {isLoggedIn() ? <PublicProfileChip /> : cta}
+          <div className="pn-main-actions"><PublicThemeToggle />{isLoggedIn() ? <PublicProfileChip /> : cta}</div>
           <button
             type="button"
-            aria-label="Menu"
+            ref={menuButton}
+            aria-label={menu ? "Fermer le menu" : "Menu"}
+            aria-controls={menuId}
             aria-expanded={menu}
             onClick={() => setMenu((m) => !m)}
             className="pn-burger-btn pn-burger"
@@ -467,11 +479,13 @@ export function PublicNav({ links, cta, classic = false }: { links: NavLink[]; c
       </nav>
       {menu && (
         <div
+          id={menuId} className="pn-mobile-menu"
           style={{
             maxWidth: 1080, margin: '8px auto 0', padding: 8, borderRadius: 18,
             background: c.menuBg, border: `1px solid ${c.menuBorder}`, boxShadow: c.menuShadow,
           }}
         >
+          <div className="pn-mobile-actions"><PublicThemeToggle />{loggedIn ? <PublicProfileChip /> : cta}</div>
           {links.map((l) => (
             <a
               key={l.href}

@@ -3026,3 +3026,174 @@ html.phone-shell body .ph-modal .pb-entry-form button:disabled { opacity: .5; }
 html[data-theme="dark"].phone-shell .pb-entry-step { color: #b4b4bd; }
 html[data-theme="dark"].phone-shell .pb-entry-help { color: #fca5a5; }
 html.phone-shell body .pb-entry-modal { align-items: center; padding-top: calc(16px + env(safe-area-inset-top, 0px)); }
+
+/* Keep the floating bar geometry stable when its children change. Animating
+   between max-content and a full-width bar makes touch targets jump on mobile. */
+html.phone-shell .phone-root > .phone-topbar { transition: box-shadow .22s ease !important; interpolate-size: numeric-only; }
+html.phone-shell .phone-root--no-motion > .phone-topbar { transition: none !important; }
+@media (prefers-reduced-motion: reduce) { html.phone-shell .phone-root > .phone-topbar { transition: none !important; } }
+
+/* Shared Material-inspired surfaces for sales, notifications and account. */
+.ph-sale, .ph-notifications { display: grid; gap: 10px; }
+.ph-native-card { box-sizing: border-box; min-width: 0; padding: 16px; border: 1px solid #e4e4e7; border-radius: 20px; background: #fff; color: #18181b; }
+.ph-native-card h2, .ph-sale-total h2 { margin: 0; font-size: 16px; line-height: 1.3; }
+.ph-native-card p, .ph-native-sub { color: #64748b; font-size: 13px; line-height: 1.45; }
+.ph-native-section-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.ph-native-section-head p { margin: 3px 0 0; }
+html.phone-shell body .phone-root :is(.ph-sale, .ph-notifications, .ph-profile) button,
+html.phone-shell body .ph-native-dialog button { font: inherit; cursor: pointer; }
+html.phone-shell body .phone-root :is(.ph-sale, .ph-notifications, .ph-profile) button:focus-visible,
+html.phone-shell body .ph-native-dialog button:focus-visible { outline: 3px solid #3b82f6; outline-offset: 2px; }
+html.phone-shell body .phone-root :is(.ph-sale, .ph-notifications, .ph-profile) button:disabled,
+html.phone-shell body .ph-native-dialog button:disabled { opacity: .5; cursor: not-allowed; }
+html.phone-shell body .phone-root button.ph-native-text { display: inline-flex; align-items: center; width: auto !important; min-height: 40px; padding: 4px 8px !important; border: 0 !important; border-radius: 10px !important; box-shadow: none !important; background: transparent !important; color: #754a32 !important; -webkit-text-fill-color: #754a32 !important; font-size: 13px; font-weight: 700; }
+html.phone-shell body .phone-root button.ph-native-icon { display: grid; place-items: center; flex: 0 0 44px; width: 44px !important; height: 44px; min-height: 44px; padding: 0 !important; border: 0 !important; border-radius: 50% !important; box-shadow: none !important; background: transparent !important; color: #3f3f46 !important; -webkit-text-fill-color: #3f3f46 !important; }
+html.phone-shell body .phone-root button.ph-native-tonal, html.phone-shell body .phone-root button.ph-native-outline { display: inline-flex; justify-content: center; align-items: center; gap: 8px; width: auto !important; min-height: 44px; padding: 9px 16px !important; border: 1px solid #d6d3d1 !important; border-radius: 22px !important; background: #f3efed !important; color: #30221c !important; -webkit-text-fill-color: #30221c !important; box-shadow: none !important; font-size: 13px; font-weight: 600; }
+html.phone-shell body .phone-root button.ph-native-outline { width: 100% !important; background: transparent !important; color: #27272a !important; -webkit-text-fill-color: #27272a !important; }
+.ph-sale-empty { display: grid; justify-items: center; text-align: center; padding: 20px 4px 10px; }
+.ph-sale-empty > span { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 50%; background: #f4f1ef; color: #805038; margin-bottom: 10px; }
+.ph-sale-empty p { max-width: 300px; margin: 6px 0 14px; }
+.ph-sale-line { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid #ececee; }
+.ph-sale-line-main { flex: 1; min-width: 0; }.ph-sale-line-main strong, .ph-sale-line-main small { display: block; overflow-wrap: anywhere; }.ph-sale-line-main small { color: #64748b; margin-top: 3px; }
+.ph-sale-quantity { display: flex; align-items: center; gap: 5px; margin-top: 4px; }.ph-sale-quantity span { min-width: 28px; text-align: center; }
+html.phone-shell body .phone-root .ph-sale-quantity button, html.phone-shell body .phone-root button.ph-sale-remove { display: grid; place-items: center; flex: 0 0 44px; width: 44px !important; height: 44px; padding: 0 !important; border: 0 !important; border-radius: 50% !important; background: transparent !important; box-shadow: none !important; color: #27272a !important; -webkit-text-fill-color: #27272a !important; }
+html.phone-shell body .phone-root button.ph-sale-remove { color: #b42318 !important; -webkit-text-fill-color: #b42318 !important; }
+html.phone-shell body .phone-root button.ph-sale-add { margin-top: 12px; }
+.ph-sale-missing, .ph-sale-error { padding: 12px; border-radius: 14px; background: #fef2f2; color: #991b1b; font-size: 13px; }.ph-sale-error p { margin: 4px 0 0; }
+.ph-sale-catalog { display: grid; gap: 4px; margin-top: 12px; }.ph-sale-catalog label { display: block; }
+.ph-sale-fields label { display: grid; gap: 6px; margin-top: 12px; font-size: 13px; font-weight: 600; }
+.ph-sale-fields input, .ph-sale-fields textarea, .ph-sale-catalog input { box-sizing: border-box; width: 100%; min-width: 0; min-height: 48px; padding: 10px 12px; border: 1px solid #a1a1aa; border-radius: 10px; background: #fff; color: #18181b; font: inherit; font-size: 16px; }
+html.phone-shell body .phone-root .ph-sale-catalog button { display: flex; align-items: center; gap: 8px; width: 100% !important; min-height: 48px; padding: 8px 4px !important; border: 0 !important; border-bottom: 1px solid #e4e4e7 !important; border-radius: 0 !important; background: transparent !important; color: #27272a !important; -webkit-text-fill-color: #27272a !important; box-shadow: none !important; text-align: left; font-size: 13px; }
+.ph-sale-catalog button span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.ph-native-chips, .ph-native-badges { display: flex; gap: 6px; flex-wrap: wrap; }.ph-native-chips { margin: 10px 0; }
+html.phone-shell body .phone-root .ph-native-chips button { width: auto !important; min-height: 40px; padding: 8px 12px !important; border: 1px solid #d6d3d1 !important; border-radius: 12px !important; background: transparent !important; color: #3f3f46 !important; -webkit-text-fill-color: #3f3f46 !important; box-shadow: none !important; font-size: 12px; }
+html.phone-shell body .phone-root .ph-native-chips button[aria-pressed="true"] { border-color: #a97f67 !important; background: #ede0d8 !important; color: #513521 !important; -webkit-text-fill-color: #513521 !important; }
+.ph-native-badge, .ph-native-badges span { display: inline-flex; align-items: center; padding: 4px 9px; border-radius: 9px; background: #e7efff; color: #31548a; font-size: 11px; font-weight: 700; }.ph-native-badges span:nth-child(2) { background: #f1f5f9; color: #475569; }.ph-native-badges span:nth-child(3), .ph-native-badges .warning { background: #fff2d3; color: #854d0e; }.ph-native-badges .positive { background: #dcfce7; color: #166534; }.ph-native-badges .danger { background: #fee2e2; color: #991b1b; }
+.ph-sale-total { position: sticky; bottom: env(safe-area-inset-bottom, 0px); z-index: 5; padding: 12px 16px; border: 1px solid #e4e4e7; border-radius: 20px; background: #fff; box-shadow: 0 -4px 18px #0001; }.ph-sale-total > div { display: flex; justify-content: space-between; align-items: center; }.ph-sale-total > div div { display: grid; gap: 2px; }.ph-sale-total small, .ph-sale-total > div > span, .ph-sale-total p { color: #64748b; font-size: 12px; }.ph-sale-total strong { font-size: 20px; }.ph-sale-total p { margin: 6px 0 0; }
+html.phone-shell body .phone-root button.ph-native-primary { display: flex; justify-content: center; align-items: center; gap: 8px; width: 100% !important; min-height: 48px; margin-top: 10px; padding: 10px 16px !important; border: 0 !important; border-radius: 16px !important; background: #171717 !important; color: #fff !important; -webkit-text-fill-color: #fff !important; box-shadow: none !important; font-weight: 700; }
+.ph-notifications-intro-row { display: flex; align-items: center; gap: 10px; }.ph-notifications-intro-row > svg { flex: 0 0 auto; color: #805038; }.ph-notifications-intro-row > div { flex: 1; min-width: 0; }.ph-notifications-intro h1 { margin: 0; font-size: 15px; }.ph-notifications-intro p { margin: 4px 0; }.ph-notifications-intro small { color: #64748b; font-size: 11px; }.ph-notifications-intro .ph-native-badge { flex: 0 0 auto; }
+.ph-notifications-section { display: grid; gap: 8px; }.ph-notifications-section h2 { font-size: 16px; margin: 8px 0 0; }.ph-notifications-section > p { font-size: 12px; color: #64748b; margin: 0; }
+.ph-alert-row { display: flex; align-items: center; gap: 10px; text-align: left; }.ph-alert-row > svg:first-child { color: #b45309; flex: 0 0 auto; }.ph-alert-row strong { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 14px; }
+html.phone-shell body .phone-root button.ph-alert-row { width: 100% !important; min-height: 56px; padding: 12px !important; border: 1px solid #e4e4e7 !important; border-radius: 20px !important; background: #fff !important; color: #18181b !important; -webkit-text-fill-color: #18181b !important; box-shadow: none !important; }
+.ph-notification-action strong, .ph-notification-action small { display: block; overflow-wrap: anywhere; }.ph-notification-action strong { margin-top: 8px; font-size: 14px; }.ph-notification-action p { margin: 4px 0; }.ph-notification-action small { font-size: 11px; color: #64748b; }
+.ph-notifications-empty { display: grid; justify-items: center; gap: 6px; padding: 20px; text-align: center; }.ph-notifications-empty svg { color: #805038; }.ph-notifications-empty p { margin: 0; }
+.ph-profile-identity { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }.ph-profile-identity > div:nth-child(2) { flex: 1; min-width: 0; }.ph-profile-identity strong, .ph-profile-identity small { display: block; overflow-wrap: anywhere; }.ph-profile-identity small { color: #64748b; margin-top: 3px; font-size: 12px; }
+.ph-profile-avatar { display: grid; place-items: center; flex: 0 0 64px; height: 64px; border-radius: 50%; overflow: hidden; background: #e9dfd8; color: #754a32; font-size: 24px; font-weight: 700; }.ph-profile-avatar-image { width: 100%; height: 100%; object-fit: cover; }.ph-profile-header .ph-native-outline + .ph-native-outline { margin-top: 8px; }
+html.phone-shell body .ph-native-dialog { align-items: center; padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px)); }
+html.phone-shell body .ph-native-dialog .ph-modal { width: min(100%, 440px); max-height: calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); overflow-y: auto; padding: 24px; border-radius: 28px; color: #18181b; background: #fff; }
+.ph-native-dialog h2 { margin: 0 0 12px; font-size: 20px; }.ph-native-dialog h2 svg { vertical-align: middle; color: #15803d; }.ph-native-dialog p { font-size: 14px; line-height: 1.5; }.ph-native-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; flex-wrap: wrap; }
+html.phone-shell body .ph-native-dialog .ph-native-dialog-actions button { width: auto !important; min-height: 44px; padding: 8px 14px !important; border: 0 !important; border-radius: 12px !important; background: transparent !important; color: #754a32 !important; -webkit-text-fill-color: #754a32 !important; box-shadow: none !important; font-weight: 700; }
+html[data-theme="dark"].phone-shell :is(.ph-native-card, .ph-sale-total) { background: #1c1c1f; color: #f4f4f5; border-color: #3f3f46; }
+html[data-theme="dark"].phone-shell :is(.ph-native-card p, .ph-native-sub, .ph-sale-line-main small, .ph-sale-total small, .ph-sale-total p, .ph-sale-total > div > span, .ph-notifications-section > p, .ph-notification-action small, .ph-profile-identity small, .ph-notifications-intro small) { color: #b4b4bd; }
+html[data-theme="dark"].phone-shell body .phone-root :is(button.ph-native-icon, button.ph-sale-remove, .ph-sale-quantity button) { color: #f4f4f5 !important; -webkit-text-fill-color: #f4f4f5 !important; }
+html[data-theme="dark"].phone-shell body .phone-root button.ph-sale-remove { color: #fca5a5 !important; -webkit-text-fill-color: #fca5a5 !important; }
+html[data-theme="dark"].phone-shell body .phone-root button.ph-native-text, html[data-theme="dark"].phone-shell body .ph-native-dialog .ph-native-dialog-actions button { color: #f3c6a6 !important; -webkit-text-fill-color: #f3c6a6 !important; }
+html[data-theme="dark"].phone-shell body .phone-root :is(button.ph-native-tonal, button.ph-native-outline, .ph-native-chips button) { background: #27272a !important; color: #f4f4f5 !important; -webkit-text-fill-color: #f4f4f5 !important; border-color: #52525b !important; }
+html[data-theme="dark"].phone-shell body .phone-root .ph-native-chips button[aria-pressed="true"] { background: #694331 !important; color: #fff !important; -webkit-text-fill-color: #fff !important; }
+html[data-theme="dark"].phone-shell body .phone-root button.ph-native-primary { background: #fafafa !important; color: #171717 !important; -webkit-text-fill-color: #171717 !important; }
+html[data-theme="dark"].phone-shell body .phone-root :is(button.ph-alert-row, .ph-sale-catalog button) { background: #1c1c1f !important; color: #fafafa !important; -webkit-text-fill-color: #fafafa !important; border-color: #3f3f46 !important; }
+html[data-theme="dark"].phone-shell :is(.ph-sale-fields input, .ph-sale-fields textarea, .ph-sale-catalog input) { background: #27272a; color: #fafafa; border-color: #71717a; }
+html[data-theme="dark"].phone-shell :is(.ph-sale-missing, .ph-sale-error) { background: #451a1a; color: #fecaca; }
+html[data-theme="dark"].phone-shell :is(.ph-sale-line, .ph-sale-catalog button) { border-color: #3f3f46; }
+html[data-theme="dark"].phone-shell :is(.ph-sale-empty > span, .ph-profile-avatar) { background: #49362c; color: #ffd5b7; }
+html[data-theme="dark"].phone-shell body .ph-native-dialog .ph-modal { background: #1c1c1f; color: #fafafa; }
+@media (max-width: 370px) { .ph-notifications-intro-row { flex-wrap: wrap; }.ph-notifications-intro-row > div { flex-basis: 60%; } }
+html.phone-shell body .ph-native-dialog .ph-sale-fields label { color: #3f3f46; }
+html[data-theme="dark"].phone-shell body .ph-native-dialog .ph-sale-fields label { color: #e4e4e7 !important; }
+
+.ph-sale-add-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+/* A smaller pill must occupy the same vertical flow space as the expanded bar. */
+html.phone-shell .phone-root > .phone-topbar.is-collapsed { margin-bottom: 38px; }
+/* Match the native settings' section hierarchy rather than all-caps labels. */
+html.phone-shell .ph-native-settings .ph-settings-card h2 { font-size: 15px; letter-spacing: 0; color: #27272a; }
+html[data-theme="dark"].phone-shell .ph-native-settings .ph-settings-card h2 { color: #f4f4f5; }
+/* Consistent keyboard focus across mobile screens and their portalled dialogs. */
+html.phone-shell :is(.phone-root, .ph-modal-bg) :is(button, a, input, select, textarea):focus-visible { outline: 3px solid #3b82f6; outline-offset: 2px; }
+
+/* Android-inspired Agent: full-height conversation and a floating IME-aware composer. */
+html.phone-shell .phone-root--no-dock .ph-agent-shell { top: calc(98px + env(safe-area-inset-top, 0px)) !important; bottom: calc(8px + max(env(safe-area-inset-bottom, 0px), var(--ph-agent-keyboard-inset, 0px))) !important; background: #f7f7f8 !important; }
+html[data-theme="dark"].phone-shell .phone-root--no-dock .ph-agent-shell { background: #0a0a0c !important; }
+.ph-agent-welcome { display: flex; align-items: center; gap: 12px; padding: 12px 4px; }.ph-agent-welcome strong { font-size: 16px; }.ph-agent-welcome p { margin: 4px 0 0; color: #64748b; font-size: 13px; }
+.ph-agent-quick { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; border: 1px solid #e4e4e7; border-radius: 18px; background: #fff; }
+.ph-agent-prompts { display: flex; align-items: flex-start; flex-direction: column; gap: 6px; }
+html.phone-shell body .phone-root :is(.ph-agent-quick, .ph-agent-prompts) button { width: auto !important; max-width: 100%; min-height: 40px; padding: 8px 12px !important; border: 1px solid #d4d4d8 !important; border-radius: 12px !important; background: transparent !important; color: #3f3f46 !important; -webkit-text-fill-color: #3f3f46 !important; box-shadow: none !important; text-align: left; font-size: 12px; line-height: 1.35; }
+.ph-agent-quick-notice, .ph-agent-copy-notice { margin: 0; color: #64748b; font-size: 12px; }
+html.phone-shell .ph-agent-message-content { flex: 1; max-width: none; }
+html.phone-shell .ph-agent-message.user .ph-agent-message-content { flex: 0 1 88%; max-width: 88%; }
+html.phone-shell body .phone-root .ph-agent-bubble { box-sizing: border-box; padding: 14px !important; border-radius: 16px !important; font-size: 14px !important; line-height: 1.5 !important; }
+html.phone-shell body .phone-root .ph-agent-bubble.assistant { width: 100%; border: 0 !important; border-bottom-left-radius: 5px !important; background: #ededf0 !important; }
+html.phone-shell body .phone-root .ph-agent-bubble.user { border-bottom-right-radius: 5px !important; background: #e6f6ec !important; color: #087443 !important; -webkit-text-fill-color: #087443 !important; }
+html.phone-shell .ph-agent-avatar { background: #e8e2df; color: #503a30; border-radius: 50%; }
+html.phone-shell body .phone-root .ph-agent-copy { align-self: flex-start; display: inline-flex; align-items: center; gap: 5px; width: auto !important; min-height: 36px; margin-top: 3px; padding: 4px 8px !important; border: 0 !important; border-radius: 10px !important; background: transparent !important; color: #64748b !important; -webkit-text-fill-color: #64748b !important; box-shadow: none !important; font-size: 12px; }
+html.phone-shell .ph-agent-typing { display: flex; align-items: center; gap: 10px; margin: 4px 0; padding: 12px 16px; border-radius: 28px; background: #ededf0; color: #52525b; font-style: normal !important; opacity: 1 !important; }
+.ph-agent-dots { display: inline-flex; gap: 4px; }.ph-agent-dots i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; animation: ph-agent-dot 1s ease-in-out infinite alternate; }.ph-agent-dots i:nth-child(2) { animation-delay: .15s; }.ph-agent-dots i:nth-child(3) { animation-delay: .3s; }
+@keyframes ph-agent-dot { to { opacity: .35; transform: translateY(-3px); } }
+html.phone-shell body .phone-root button.ph-agent-latest { position: absolute; right: 22px; bottom: 96px; z-index: 6; display: grid; place-items: center; width: 44px !important; height: 44px; min-height: 44px; padding: 0 !important; border: 0 !important; border-radius: 16px !important; background: #171717 !important; color: #fff !important; -webkit-text-fill-color: #fff !important; box-shadow: 0 4px 12px #0003 !important; }
+html.phone-shell .ph-agent-disclaimer { align-self: stretch; padding: 8px 10px; border-radius: 12px; background: #f1f1f3; line-height: 1.4; }
+html.phone-shell .ph-agent-composer { align-items: center !important; border-radius: 26px !important; }
+html.phone-shell .ph-agent-composer textarea.ph-agent-input { min-height: 56px !important; border-radius: 10px !important; padding: 16px 12px !important; }
+html.phone-shell body .phone-root .ph-agent-send { background: transparent !important; color: #684831 !important; -webkit-text-fill-color: #684831 !important; }
+html[data-theme="dark"].phone-shell :is(.ph-agent-welcome p, .ph-agent-quick-notice, .ph-agent-copy-notice) { color: #b4b4bd; }
+html[data-theme="dark"].phone-shell .ph-agent-quick { background: #1c1c1f; border-color: #3f3f46; }
+html[data-theme="dark"].phone-shell body .phone-root :is(.ph-agent-quick, .ph-agent-prompts) button { color: #f4f4f5 !important; -webkit-text-fill-color: #f4f4f5 !important; border-color: #52525b !important; }
+html[data-theme="dark"].phone-shell body .phone-root .ph-agent-bubble.assistant, html[data-theme="dark"].phone-shell .ph-agent-typing { background: #27272a !important; color: #fafafa !important; -webkit-text-fill-color: #fafafa !important; }
+html[data-theme="dark"].phone-shell body .phone-root .ph-agent-bubble.user { background: #10362a !important; color: #86efac !important; -webkit-text-fill-color: #86efac !important; }
+html[data-theme="dark"].phone-shell .ph-agent-avatar { background: #49362c; color: #ffd5b7; }
+html[data-theme="dark"].phone-shell .ph-agent-disclaimer { background: #1c1c1f; color: #b4b4bd; }
+html[data-theme="dark"].phone-shell body .phone-root :is(.ph-agent-send, .ph-agent-copy) { color: #f3c6a6 !important; -webkit-text-fill-color: #f3c6a6 !important; }
+html[data-theme="dark"].phone-shell body .phone-root button.ph-agent-latest { background: #fafafa !important; color: #171717 !important; -webkit-text-fill-color: #171717 !important; }
+@media (prefers-reduced-motion: reduce) { .ph-agent-dots i { animation: none; } }
+.phone-root--no-motion .ph-agent-dots i { animation: none; }
+
+/* Product picker retains the web handoff while keeping the cart screen compact. */
+.ph-sale-payment summary { font-weight: 600; font-size: 14px; cursor: pointer; }
+.ph-sale-picker-content h2 { margin: 0; }.ph-sale-picker-list { max-height: min(42dvh, 400px); overflow-y: auto; overscroll-behavior: contain; }
+html.phone-shell body .ph-sale-picker .ph-sale-catalog button { display: flex; align-items: center; gap: 8px; width: 100% !important; min-height: 48px; padding: 8px 4px !important; border: 0 !important; border-bottom: 1px solid #e4e4e7 !important; border-radius: 0 !important; background: transparent !important; color: #27272a !important; -webkit-text-fill-color: #27272a !important; box-shadow: none !important; text-align: left; font-size: 13px; }
+html[data-theme="dark"].phone-shell body .ph-sale-picker .ph-sale-catalog button { color: #fafafa !important; -webkit-text-fill-color: #fafafa !important; border-color: #3f3f46 !important; }
+.ph-sale-empty-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+html.phone-shell body .phone-root :is(.ph-agent-quick, .ph-agent-prompts) button { font-weight: 500 !important; }
+html[data-theme="dark"].phone-shell body .phone-root button.ph-agent-send,
+html[data-theme="dark"].phone-shell body .phone-root button.ph-agent-copy { background: transparent !important; box-shadow: none !important; }
+html.phone-shell body .phone-root button.ph-agent-send { border: 0 !important; box-shadow: none !important; }
+
+/* Native-style compact filters and readable multi-line notification details. */
+.ph-notifications-section .ph-native-chips { flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; padding: 2px 1px 6px; scrollbar-width: thin; }
+.ph-notifications-section .ph-native-chips button { flex: 0 0 auto; white-space: nowrap; }
+.ph-notification-action p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.ph-native-badges span.neutral { background: #f1f5f9; color: #475569; }
+.ph-native-badges span.danger { background: #fee2e2; color: #991b1b; }
+.ph-sale-picker-more { color: #64748b; font-size: 12px; }
+/* Keep a sticky total from covering form fields while the soft keyboard is open. */
+@supports selector(:has(*)) {
+  .ph-sale:has(.ph-sale-fields :is(input, textarea):focus) .ph-sale-total { position: static; }
+}
+@media (max-height: 600px) {
+  .ph-sale-total { padding: 8px 12px; }
+  .ph-sale-total p { font-size: 11px; }
+  .ph-sale-total strong { font-size: 18px; }
+}
+.ph-notifications-intro-row { display: grid; grid-template-columns: 22px minmax(0, 1fr) 44px; align-items: start; }
+.ph-notifications-intro-row > svg { margin-top: 2px; }
+.ph-notifications-intro-row > div { grid-column: 2; }
+.ph-notifications-intro-row > .ph-native-badge { grid-column: 2; justify-self: start; }
+.ph-notifications-intro-row > button { grid-column: 3; grid-row: 1; }
+@media (max-height: 600px) {
+  .ph-sale-empty { padding: 8px 4px 4px; }
+  .ph-sale-empty > span { width: 44px; height: 44px; margin-bottom: 6px; }
+  .ph-sale-empty p { margin: 4px 0 8px; }
+}
+html.phone-shell :is(.ph-sale-fields, .ph-sale-catalog) :is(input, textarea) { font-weight: 400 !important; }
+
+/* A calmer, more legible overview at phone widths. */
+.ph-home-native { gap: 14px; }
+.ph-home-native .ph-hero { padding: 20px; border-radius: 20px; }
+.ph-home-native .ph-tile { border-radius: 16px; padding: 14px; }
+.ph-home-native .ph-tile-lbl { white-space: normal; line-height: 1.3; }
+.ph-home-native .ph-tile-val { white-space: normal; overflow: visible; line-height: 1.2; }
+.ph-home-native .ph-panel { border-radius: 18px; }
+.ph-home-native .ph-btn { min-width: 0; }
+.ph-home-native :is(button, select):focus-visible { outline: 3px solid #c45c26; outline-offset: 3px; }
+@media (max-width: 340px) {
+  .ph-home-native .ph-actions-row { flex-direction: column; }
+  .ph-home-native .ph-home-finance-values span { flex-wrap: wrap; }
+}

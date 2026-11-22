@@ -45,6 +45,14 @@ describe('future native Turnstile verifier (not an enabled login method)', () =>
     }
     expect(log).not.toHaveBeenCalled();
   });
+  it('rejects redirects instead of following the provider to another origin', async () => {
+    const fetcher = vi.fn(async (_url: string, options: RequestInit) => {
+      expect(options.redirect).toBe('error');
+      return new Response(null, { status: 302, headers: { Location: 'https://other.example/' } });
+    });
+    expect(await verifyDesktopTurnstile(input, fetcher as typeof fetch)).toBe(false);
+    expect(fetcher).toHaveBeenCalledOnce();
+  });
   it('fails closed on timeout even if the transport ignores cancellation', async () => {
     vi.useFakeTimers();
     let signal: AbortSignal | null | undefined;

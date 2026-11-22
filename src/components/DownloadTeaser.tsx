@@ -34,9 +34,9 @@ export default function DownloadTeaser() {
         onClick={dismiss}
       >
         <span className="atlas-dl-teaser-dot" aria-hidden />
-        App Android · Télécharger l&apos;APK
+        Android · Télécharger l&apos;APK
       </a>
-      <button type="button" aria-label="Masquer la suggestion" onClick={dismiss}>×</button>
+      <button type="button" className="atlas-dl-teaser-close" aria-label="Masquer la suggestion" onClick={dismiss}>×</button>
     </div>
   );
 }

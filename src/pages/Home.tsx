@@ -7,97 +7,24 @@ import {
   PublicDownloadCta,
   GitHubStarButton,
   PublicSessionCta,
-  useThemeValue,
   type NavLink,
 } from '../components/PublicChrome';
 import { isLoggedIn } from '../auth';
 
-const HOME_LIGHT = '/shots/dashboard-light.png';
-const HOME_DARK = '/shots/dashboard-dark.png';
-
 const NAV: NavLink[] = [
   { href: '#features', label: 'Fonctionnalités' },
-  { href: '#tout-en-un', label: 'Tout-en-un' },
   { href: '#plateformes', label: 'Plateformes' },
-  { href: '#open-source', label: 'Open source' },
-  { href: '#faq', label: 'FAQ' },
   { href: '/whats-new', label: 'Nouveautés' },
   { href: '/about', label: 'À propos' },
 ];
 
-/** Fond animé du hero (particules lumineuses dérivantes, façon Liner).
- * Respecte prefers-reduced-motion : une seule image fixe est alors peinte. */
-function HeroCanvas() {
-  const ref = useRef<HTMLCanvasElement | null>(null);
-  useEffect(() => {
-    const cv = ref.current;
-    if (!cv) return;
-    const ctx = cv.getContext('2d');
-    if (!ctx) return;
-    let raf = 0;
-    let w = 0;
-    let h = 0;
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    const dots = Array.from({ length: 46 }, () => ({
-      x: Math.random(),
-      y: Math.random(),
-      r: 0.8 + Math.random() * 2.1,
-      p: Math.random() * Math.PI * 2,
-      v: 0.4 + Math.random() * 0.8,
-    }));
-    const resize = () => {
-      const r = cv.getBoundingClientRect();
-      w = cv.width = Math.max(1, Math.floor(r.width * dpr));
-      h = cv.height = Math.max(1, Math.floor(r.height * dpr));
-    };
-    const draw = (t: number) => {
-      ctx.clearRect(0, 0, w, h);
-      for (const d of dots) {
-        const x = (d.x + Math.sin(t * 0.00006 * d.v + d.p) * 0.03) * w;
-        const y = (d.y + Math.cos(t * 0.00005 * d.v + d.p) * 0.045) * h;
-        const rad = d.r * 7 * dpr;
-        const g = ctx.createRadialGradient(x, y, 0, x, y, rad);
-        g.addColorStop(0, 'rgba(228, 113, 58, .38)');
-        g.addColorStop(1, 'rgba(228, 113, 58, 0)');
-        ctx.fillStyle = g;
-        ctx.beginPath();
-        ctx.arc(x, y, rad, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    };
-    const loop = (t: number) => {
-      draw(t);
-      raf = requestAnimationFrame(loop);
-    };
-    resize();
-    window.addEventListener('resize', resize);
-    const reduce =
-      typeof window.matchMedia === 'function' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduce) draw(1200);
-    else raf = requestAnimationFrame(loop);
-    const onVis = () => {
-      if (document.hidden) {
-        cancelAnimationFrame(raf);
-        raf = 0;
-      } else if (!reduce && !raf) {
-        raf = requestAnimationFrame(loop);
-      }
-    };
-    document.addEventListener('visibilitychange', onVis);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener('resize', resize);
-      document.removeEventListener('visibilitychange', onVis);
-    };
-  }, []);
-  return <canvas ref={ref} className="hm-canvas" aria-hidden="true" />;
-}
-
 /** Révélation douce au scroll (IntersectionObserver, une seule fois). */
 function useRiseObserver() {
   useEffect(() => {
-    if (typeof IntersectionObserver === 'undefined') return;
+    if (typeof IntersectionObserver === 'undefined') {
+      document.querySelectorAll<HTMLElement>('.home-landing .rise').forEach((el) => el.classList.add('is-in'));
+      return;
+    }
     const io = new IntersectionObserver(
       (entries) => {
         for (const en of entries) {
@@ -241,25 +168,18 @@ export default function Home() {
       if (raf) cancelAnimationFrame(raf);
     };
   }, []);
-  const theme = useThemeValue();
   useRiseObserver();
-  const shot = theme === 'light' ? HOME_LIGHT : HOME_DARK;
 
   return (
     <div className="home-landing">
-      <div className="hm-bg" aria-hidden="true">
-        <div className="hm-bg-grid" />
-        <div className="hm-bg-glow hm-bg-glow-a" />
-        <div className="hm-bg-glow hm-bg-glow-b" />
-      </div>
-
+      <a className="hm-skip" href="#contenu">Aller au contenu</a>
       <PublicNav links={NAV} cta={<PublicSessionCta />} classic />
 
-      <main className="hm-main">
+      <main className="hm-main" id="contenu">
         {/* ---------------- Hero ---------------- */}
         <section className="hm-hero">
-          <HeroCanvas />
           <p className="hm-eyebrow">ATLAS · GESTION COMMERCIALE OPEN SOURCE</p>
+          <div className="hm-hero-copy">
           <h1>
             Tout votre commerce,
             <br />
@@ -281,13 +201,24 @@ export default function Home() {
             <a href="/desktop">Windows · macOS · Linux</a>
           </p>
 
+          </div>
+          <div className="hm-showcase">
           <div className="hm-window rise">
             <div className="hm-window-bar" aria-hidden="true">
               <span /><span /><span />
               <em>stock.afmarbre.com — Tableau de bord</em>
             </div>
-            <img src={shot} alt="Le tableau de bord Atlas Commerce" loading="lazy" />
+            <img src="/shots/desktop-demo.webp" alt="Tableau de bord web Atlas Commerce avec des données fictives" width="1280" height="800" />
           </div>
+          <img className="hm-phone-shot" src="/shots/phone-products-demo.webp" alt="Catalogue web mobile avec des produits fictifs" width="390" height="844" loading="lazy" />
+          </div>
+          <p className="hm-shot-caption">Interfaces web sur ordinateur et mobile · données fictives de démonstration</p>
+          <ul className="hm-facts" aria-label="Les essentiels d’Atlas">
+            <li><b>Stock &amp; scan</b><span>Suivez vos produits et vos mouvements.</span></li>
+            <li><b>Vente &amp; facturation</b><span>Du comptoir aux documents commerciaux.</span></li>
+            <li><b>Sur vos appareils</b><span>Web, Android et application bureau.</span></li>
+            <li><b>Open source</b><span>Un projet ouvert que vous pouvez explorer.</span></li>
+          </ul>
         </section>
 
         {/* ---------------- Dossier : les modules sortent du folder Atlas ---------------- */}
@@ -338,11 +269,11 @@ export default function Home() {
 
         {/* ---------------- Fonctionnalités (bento) ---------------- */}
         <section id="features" className="hm-sec">
-          <h2 className="rise">Un back-office complet, pas une fiche de plus</h2>
-          <p className="hm-sec-sub rise">
-            Chaque module remplace un outil éparpillé — et tout se tient dans la même base, sur tous
-            vos appareils.
-          </p>
+          <div className="hm-section-heading rise">
+            <p className="hm-section-kicker">01 / VOTRE ACTIVITÉ</p>
+            <h2>Les outils essentiels, réunis dans Atlas.</h2>
+            <p>Du catalogue à la facture, retrouvez les informations utiles à chaque étape de votre journée.</p>
+          </div>
           <div className="hm-bento">
             <div className="hm-bento-card rise">
               <div className="hm-fx hm-fx-stock" aria-hidden="true">
@@ -452,20 +383,25 @@ export default function Home() {
         <section className="hm-sec">
           <h2 className="rise">La confiance, d’abord</h2>
           <div className="dl-trust rise">
-            <div><b>Connexion OTP &amp; passkeys</b><span>Codes à usage unique + WebAuthn/FIDO2, sans mot de passe à réutiliser.</span></div>
+            <div><b>Connexion OTP &amp; passkeys</b><span>Codes à usage unique et WebAuthn/FIDO2 pour les parcours pris en charge.</span></div>
             <div><b>Android hors-ligne</b><span>Vos données tournent sur le téléphone ; la synchronisation reprend toute seule.</span></div>
             <div><b>Données souveraines</b><span>Cloudflare D1/R2 dans votre propre compte, sauvegardes chiffrées.</span></div>
             <div><b>100&nbsp;% open source</b><span>Code MIT auditable, auto-hébergement possible, zéro lock-in.</span></div>
-            <div><b>QR public vérifiable</b><span>Chaque document imprimé porte un QR infalsifiable, vérifiable sans compte.</span></div>
+            <div><b>QR public vérifiable</b><span>Les documents compatibles peuvent être vérifiés par QR sans compte.</span></div>
             <div><b>Sans commission</b><span>Aucun pourcentage sur vos ventes : le logiciel ne vit pas de votre chiffre.</span></div>
           </div>
         </section>
 
         {/* ---------------- Plateformes ---------------- */}
         <section id="plateformes" className="hm-sec">
-          <h2 className="rise">Une application, tous vos écrans</h2>
-          <div className="dl-grid rise">
-            <div className="dl-card">
+          <div className="hm-section-heading rise">
+            <p className="hm-section-kicker">02 / VOS APPAREILS</p>
+            <h2>Atlas vous suit, du terrain au comptoir.</h2>
+            <p>Choisissez l’interface adaptée à votre journée et retrouvez votre espace de travail.</p>
+          </div>
+          <div className="dl-grid hm-platform-grid rise">
+            <div className="dl-card hm-platform-card">
+              <figure className="hm-platform-visual hm-platform-visual--phone"><img src="/shots/phone-products-demo.webp" alt="Catalogue web mobile avec produits fictifs" width="390" height="844" loading="lazy" /><figcaption>Web mobile · données fictives</figcaption></figure>
               <div className="dl-ico">{IC_GLOBE}</div>
               <h3>Web</h3>
               <p>
@@ -475,22 +411,23 @@ export default function Home() {
               </p>
               <Link to="/login" className="dl-link dl-chip">Ouvrir l’application →</Link>
             </div>
-            <div className="dl-card">
+            <div className="dl-card hm-platform-card">
+              <figure className="hm-platform-visual hm-platform-visual--phone"><img src="/shots/android-balance-demo.webp" alt="Balance dans l’application Android, capture anonymisée" width="538" height="799" loading="lazy" /><figcaption>Android natif · capture anonymisée</figcaption></figure>
               <div className="dl-ico">{IC_PHONE}</div>
               <h3>Android</h3>
               <p>
-                Application native hors-ligne : caisse, stock, factures et scan QR sans réseau, avec
-                synchronisation chiffrée dès la connexion retrouvée. APK signé, installable en deux
-                touches.
+                Application native pour le stock, les ventes et le scan, avec des fonctions hors ligne
+                et une synchronisation au retour du réseau. Téléchargez l’APK depuis la page officielle.
               </p>
               <Link to="/android" className="dl-link dl-chip">Télécharger l’APK →</Link>
             </div>
-            <div className="dl-card">
+            <div className="dl-card hm-platform-card">
+              <figure className="hm-platform-visual hm-platform-visual--desktop"><img src="/shots/desktop-demo.webp" alt="Tableau de bord web sur ordinateur avec données fictives" width="1280" height="800" loading="lazy" /><figcaption>Web sur ordinateur · données fictives</figcaption></figure>
               <div className="dl-ico">{IC_DESK}</div>
               <h3>Bureau</h3>
               <p>
-                Windows, macOS et Linux : la même application dans une fenêtre native, mises à jour
-                automatiques et accès direct aux imprimantes pour vos documents PDF.
+                Windows, macOS et Linux : retrouvez votre espace Atlas dans une fenêtre dédiée.
+                Consultez les versions disponibles pour votre ordinateur.
               </p>
               <Link to="/desktop" className="dl-link dl-chip">Version bureau →</Link>
             </div>
@@ -554,15 +491,15 @@ export default function Home() {
             <details>
               <summary>Puis-je travailler sans connexion ?<i aria-hidden="true" /></summary>
               <p>
-                Oui sur Android et sur l’application bureau : vos données continuent de tourner en
-                local et la synchronisation reprend automatiquement dès que le réseau revient.
+                L’application Android propose des fonctions hors ligne avec synchronisation au retour
+                du réseau. La disponibilité dépend de la version et des opérations utilisées.
               </p>
             </details>
             <details>
               <summary>Mes données sont-elles en sécurité ?<i aria-hidden="true" /></summary>
               <p>
-                La connexion repose sur des codes OTP et des passkeys (WebAuthn/FIDO2) — jamais de
-                mot de passe réutilisé. Les données vivent dans votre propre compte Cloudflare
+                La connexion utilise notamment des codes OTP et, pour les parcours compatibles, des
+                passkeys (WebAuthn/FIDO2). En auto-hébergement, les données vivent dans votre compte Cloudflare
                 (D1/R2), avec sauvegardes chiffrées et politique de divulgation responsable.
               </p>
             </details>

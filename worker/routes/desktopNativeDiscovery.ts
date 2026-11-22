@@ -28,7 +28,7 @@ export function registerDesktopNativeDiscovery(app: Hono<any>): void {
           ? { available: true, version: 2, code_challenge_method: 'S256', expires_in: 300, interval: 5, max_polls: 60, requires_phone_client: true }
           : { available: false, reason: 'METHOD_DISABLED' },
         password_otp: pilotLoginConfigured(c.env) && url.origin === c.env.DESKTOP_NATIVE_V2_PILOT_ORIGIN
-          ? { available: true, version: 2, experimental: true, staging_only: true, challenge: 'system_browser_turnstile', otp_required: true }
+          ? { available: true, version: 2, experimental: true, staging_only: true, challenge: 'system_browser_turnstile', otp_required: true, challenge_presentation: { hosted_path: '/login/desktop-challenge', webview2: 'unverified_requires_client_validation', system_browser: 'explicit_choice_only', same_ip_required: true, server_verified: true } }
           : { available: false, reason: 'NATIVE_ABUSE_VERIFIER_UNAVAILABLE' },
         windows_passkey: { available: false, reason: 'NATIVE_ASSOCIATION_UNVERIFIED' },
       },

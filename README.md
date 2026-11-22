@@ -28,23 +28,23 @@
 
 ---
 
-## 📸 Captures d'écran réelles
+## 📸 Aperçu de l’application
 
-Captures et enregistrement générés depuis l'application elle-même (Chromium headless, `scripts/capture-shots.mjs`).
+Aperçus en thème clair : données et identité de démonstration. Les écrans et les permissions peuvent varier selon la version.
 
-| Tableau de bord — sombre | Tableau de bord — clair |
+| Mobile Android — scan | Mobile Android — balance |
 | --- | --- |
-| ![Tableau de bord sombre](public/shots/dashboard-dark.png) | ![Tableau de bord clair](public/shots/dashboard-light.png) |
+| ![Écran de scan Android](public/shots/android-scan-demo.webp) | ![Écran de balance Android](public/shots/android-balance-demo.webp) |
 
-| Assistant devis (sombre) | Paramètres — apparence |
+| Web mobile — accueil | Web mobile — produits |
 | --- | --- |
-| ![Assistant devis](public/shots/devis-modal-dark.png) | ![Paramètres apparence](public/shots/settings-dark.png) |
+| ![Accueil web mobile avec données fictives](public/shots/phone-home-demo.webp) | ![Catalogue web mobile avec données fictives](public/shots/phone-products-demo.webp) |
 
-Enregistrement d'une session complète (connexion → tableau de bord → devis) :
+### Version ordinateur
 
-Captures desktop **et téléphone** (coque mobile réelle) dans `public/shots/` ; posters Instagram 1:1 avec vrais écrans dans `marketing/atlas-instagram-posters.zip`.
+![Tableau de bord ordinateur avec données fictives](public/shots/desktop-demo.webp)
 
-![Session Atlas Commerce](public/shots/demo.gif)
+Les captures web mobile et ordinateur sont produites dans Chromium avec des réponses API fictives ; les captures Android fournies ont été anonymisées. Aucune connexion à une base de production n'a servi à la capture. Pour reproduire les captures web, démarrer `npx vite --config scripts/vite-capture.config.mjs --port 5173`, puis lancer `node scripts/capture-demo-shots.mjs` : les appels API et réseaux externes sont bloqués et remplacés par des données locales fictives.
 
 ## Intégration Android — 0.8.1
 
@@ -59,6 +59,10 @@ Aucun bump suivant ni publication sans nouvel accord explicite.
 Le [correctif de limitation des connexions sur IP partagée](docs/login-rate-limits.md)
 isole les budgets par compte tout en conservant des plafonds globaux par IP,
 les blocages explicites et le parcours OTP existant.
+
+## Pilote desktop natif staging
+
+Le [contrat exact Rust / OTP / Turnstile](docs/desktop-native-auth-v2-client.md) est expérimental, désactivé par défaut et ne constitue pas une validation de WebView2 ni une autorisation de production.
 
 ## Connexion desktop par navigateur système
 

@@ -8,6 +8,7 @@ import PhoneProfile from '../mobile/PhoneProfile';
 import PhoneWhatsNew from '../mobile/PhoneWhatsNew';
 import { api } from '../api';
 
+vi.mock('../components/ui/AvatarImage', () => ({ AvatarImage: ({ fallback }: { fallback: any }) => fallback }));
 vi.mock('../auth', () => ({ getDisplayName: () => 'Atlas', getUsername: () => 'atlas', getRole: () => 'owner', getToken: () => 'session', isLoggedIn: () => true, setProfileCache: vi.fn(), clearToken: vi.fn() }));
 let host: HTMLDivElement; let root: Root;
 beforeEach(() => { (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true; host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host); localStorage.clear(); });
@@ -39,9 +40,10 @@ it('updates only editable profile fields and reports failure without claiming su
   vi.spyOn(api, 'getMe').mockResolvedValue({ data: { display_name: 'Atlas', email: 'a@example.com', phone: '123', avatar_url: '/avatar.jpg', notes: 'private' } });
   const update = vi.spyOn(api, 'updateMe').mockRejectedValue(new Error('offline'));
   await act(async () => root.render(createElement(MemoryRouter, { children: createElement(PhoneProfile) })));
-  await act(async () => { host.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); });
+  await act(async () => { host.querySelector<HTMLButtonElement>('[aria-label="Modifier le profil"]')!.click(); });
+  await act(async () => { document.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); });
   expect(update).toHaveBeenCalledWith({ display_name: 'Atlas', email: 'a@example.com', phone: '123' });
-  expect(host.textContent).toContain('Impossible d’enregistrer'); expect(host.textContent).not.toContain('Profil enregistré');
+  expect(document.body.textContent).toContain('Impossible d’enregistrer'); expect(document.body.textContent).not.toContain('Profil enregistré');
 });
 it('saves scanner preferences locally and restores them when settings reopen', async () => {
   const settings = () => createElement(MemoryRouter, { children: createElement(PhoneSettings, { theme: 'system', onTheme: vi.fn(), animations: true, onAnimations: vi.fn(), compact: false, onCompact: vi.fn(), scale: 'md', onScale: vi.fn(), startTab: '/m', onStartTab: vi.fn() }) });
@@ -72,7 +74,7 @@ it('asks for confirmation before signing out and allows cancellation', async () 
   const { clearToken } = await import('../auth');
   vi.spyOn(api, 'getMe').mockResolvedValue({ data: {} });
   await act(async () => root.render(createElement(MemoryRouter, { children: createElement(PhoneProfile) })));
-  await act(async () => click('Se déconnecter').click());
+  await act(async () => click('Se déconnecter de cette session').click());
   expect(document.querySelector('[role=dialog]')?.textContent).toContain('La session actuelle sera fermée');
   expect(clearToken).not.toHaveBeenCalled();
   await act(async () => click('Annuler').click());
@@ -86,4 +88,13 @@ it('shares the mobile link using the browser share sheet', async () => {
     await act(async () => [...host.querySelectorAll('button')].find(b => b.textContent?.includes('Partager Atlas Commerce'))!.click());
     expect(share).toHaveBeenCalledWith({ title: 'Atlas Commerce', url: `${window.location.origin}/m` });
   } finally { Reflect.deleteProperty(navigator, 'share'); }
+});
+
+it('exposes the same live appearance controls on profile', async () => {
+  vi.spyOn(api, 'getMe').mockResolvedValue({ data: {} });
+  const onTheme = vi.fn();
+  const preferences = { theme: 'light', onTheme, animations: true, onAnimations: vi.fn(), compact: false, onCompact: vi.fn(), scale: 'md' as const, onScale: vi.fn(), startTab: '/m', onStartTab: vi.fn() };
+  await act(async () => root.render(createElement(MemoryRouter, { children: createElement(PhoneProfile, { preferences }) })));
+  await act(async () => click('Sombre').click());
+  expect(onTheme).toHaveBeenCalledWith('dark'); expect(host.textContent).toContain('Appareils liés');
 });
