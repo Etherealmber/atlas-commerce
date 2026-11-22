@@ -1022,7 +1022,11 @@ function DesktopShell() {
   // Nav notification counts (unpaid, low stock, pending actions…)
   useEffect(() => {
     let cancelled = false;
-    const load = () => {
+    let lastLoadAt = 0;
+    const load = (force = false) => {
+      const now = Date.now();
+      if (!force && now - lastLoadAt < 15_000) return;
+      lastLoadAt = now;
       api
         .getNavBadges()
         .then((r: any) => {
@@ -1030,12 +1034,12 @@ function DesktopShell() {
         })
         .catch(() => { /* keep last */ });
     };
-    load();
+    load(true);
     const t = window.setInterval(() => {
       if (document.visibilityState === 'visible') load();
     }, 120_000);
     const onFocus = () => load();
-    const onRefresh = () => load();
+    const onRefresh = () => load(true);
     const onVisibility = () => { if (document.visibilityState === 'visible') load(); };
     window.addEventListener('focus', onFocus);
     window.addEventListener('atlas-nav-badges-refresh', onRefresh as EventListener);

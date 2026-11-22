@@ -312,13 +312,21 @@ export function startSessionGuard(): () => void {
     }
   };
 
-  check();
+  let lastCheckAt = 0;
+  const checkIfDue = (force = false) => {
+    const now = Date.now();
+    if (!force && now - lastCheckAt < 15_000) return;
+    lastCheckAt = now;
+    void check();
+  };
+
+  checkIfDue(true);
   const interval = window.setInterval(() => {
-    if (document.visibilityState === 'visible') check();
+    if (document.visibilityState === 'visible') checkIfDue();
   }, 60_000);
-  const onFocus = () => check();
+  const onFocus = () => checkIfDue();
   window.addEventListener('focus', onFocus);
-  const onVisibility = () => { if (document.visibilityState === 'visible') check(); };
+  const onVisibility = () => { if (document.visibilityState === 'visible') checkIfDue(); };
   document.addEventListener('visibilitychange', onVisibility);
 
   return () => {

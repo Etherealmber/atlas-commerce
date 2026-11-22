@@ -18,12 +18,15 @@ export function getBase(): string {
 /** @deprecated use getBase() — kept for existing imports */
 export const BASE = getApiBase();
 
-/** TTL for low-volatility GET responses (settings, categories, units). */
+/** TTL for low-volatility GET responses (settings, categories, units) + refresh cooldowns. */
 const GET_CACHE_TTL: Record<string, number> = {
   '/api/settings': 60_000,
   '/api/categories': 120_000,
   '/api/units': 120_000,
   '/api/stock-locations': 60_000,
+  '/api/nav-badges': 15_000,
+  '/api/auth/me': 15_000,
+  '/api/hub/snapshot': 10_000,
 };
 
 function cacheTtlForPath(path: string): number {
@@ -257,6 +260,9 @@ async function request<T>(path: string, options?: RequestInit & { silent?: boole
   if (path.includes('/invoices')) invalidateGetCache('GET:/api/invoices');
   if (path.includes('/clients')) invalidateGetCache('GET:/api/clients');
   if (path.includes('/vendors')) invalidateGetCache('GET:/api/vendors');
+  invalidateGetCache('GET:/api/nav-badges');
+  invalidateGetCache('GET:/api/dashboard');
+  invalidateGetCache('GET:/api/hub/snapshot');
   if (path.includes('/bills')) invalidateGetCache('GET:/api/bills');
   // Sidebar badges + page counters: any business mutation (create/pay/delete/status)
   if (

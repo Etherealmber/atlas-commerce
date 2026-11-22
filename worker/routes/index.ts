@@ -18,3 +18,11 @@ export { registerAtlasV209Routes, dispatchWebhook, ensureV209Schema } from './at
 export { registerFinanceRoutes } from './finance';
 
 export { registerExpenseWriteRoutes } from './expenses';
+
+export { registerVendorRoutes } from './vendors';
+export { registerExportRoutes } from './exports';
+export { registerMobileActionsRoutes } from './mobileActions';
+export { registerAttendanceRoutes } from './attendance';
+export { registerCatalogRoutes } from './catalog';
+export { registerCategoriesUnitsRoutes } from './categoriesUnits';
+export { registerDataImportRoutes } from './dataImport';

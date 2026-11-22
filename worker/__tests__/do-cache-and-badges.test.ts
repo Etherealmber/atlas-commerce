@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MobileHub } from '../durable/MobileHub';
-import { doCacheGet, doCachePut, invalidateDashboardCache } from '../lib/cache';
+import { checkRefreshLimit, doCacheGet, doCachePut, invalidateDashboardCache } from '../lib/cache';
 
 function makeDoNamespace() {
   const values = new Map<string, unknown>();
@@ -52,5 +52,17 @@ describe('MobileHub shared snapshot cache (offloads D1 and KV limits)', () => {
 
     await invalidateDashboardCache(undefined, ns);
     expect(await doCacheGet(ns, kv, 'nav-badges', 300)).toBeNull();
+  });
+
+  it('enforces sliding-window refresh limit without touching D1 or KV', () => {
+    const key = `test-refresh-${Date.now()}`;
+    expect(checkRefreshLimit(key, 3, 60_000)).toEqual({ ok: true, remaining: 2 });
+    expect(checkRefreshLimit(key, 3, 60_000)).toEqual({ ok: true, remaining: 1 });
+    expect(checkRefreshLimit(key, 3, 60_000)).toEqual({ ok: true, remaining: 0 });
+    const blocked = checkRefreshLimit(key, 3, 60_000);
+    expect(blocked.ok).toBe(false);
+    if (!blocked.ok) {
+      expect(blocked.retryAfter).toBeGreaterThanOrEqual(1);
+    }
   });
 });

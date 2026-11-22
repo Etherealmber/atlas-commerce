@@ -246,3 +246,40 @@ export async function invalidateDashboardCache(kv: KVNamespace | undefined, hub?
 export async function invalidateAllBusinessCache(kv: KVNamespace | undefined, hub?: DurableObjectNamespace): Promise<void> {
   await bumpCacheGen(kv, hub);
 }
+
+const refreshWindows = new Map<string, number[]>();
+
+/**
+ * In-isolate sliding-window refresh limit (0 D1 reads, 0 KV writes).
+ * Blocks runaway refresh loops / F5 spam while allowing generous normal
+ * Android & desktop bursts (default 45 refreshes / 60s per user+endpoint).
+ */
+export function checkRefreshLimit(
+  bucketKey: string,
+  maxPerMinute = 45,
+  windowMs = 60_000,
+): { ok: true; remaining: number } | { ok: false; retryAfter: number } {
+  const now = Date.now();
+  const cutoff = now - windowMs;
+  let stamps = refreshWindows.get(bucketKey);
+  if (stamps) {
+    let keepFrom = 0;
+    while (keepFrom < stamps.length && stamps[keepFrom] <= cutoff) keepFrom += 1;
+    if (keepFrom > 0) stamps = stamps.slice(keepFrom);
+  } else {
+    stamps = [];
+  }
+  if (stamps.length >= maxPerMinute) {
+    const oldest = stamps[0] || now;
+    const retryAfter = Math.max(1, Math.ceil((oldest + windowMs - now) / 1000));
+    refreshWindows.set(bucketKey, stamps);
+    return { ok: false, retryAfter };
+  }
+  stamps.push(now);
+  refreshWindows.set(bucketKey, stamps);
+  if (refreshWindows.size > 500) {
+    const first = refreshWindows.keys().next().value;
+    if (first) refreshWindows.delete(first);
+  }
+  return { ok: true, remaining: Math.max(0, maxPerMinute - stamps.length) };
+}
