@@ -428,7 +428,7 @@ export default function Bills() {
                       <>
                         <button className="secondary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => openPay(b)}>Paiement…</button>
                         <button
-                          className="success"
+                          className="secondary"
                           style={{ padding: '4px 10px', fontSize: 12 }}
                           onClick={async () => {
                             setModalError('');

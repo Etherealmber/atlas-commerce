@@ -1,6 +1,7 @@
 import DocumentActors from '../components/DocumentActors';
 import TopPageActions from '../components/TopPageActions';
 import { Plus } from 'lucide-react';
+import { TimedUndoDelete } from '../components/ui';
 import { onAgentDraft } from '../lib/agentDraft';
 import { useEffect, useState } from 'react';
 import DatePicker from '../components/DatePicker';
@@ -218,7 +219,12 @@ export default function Receipts() {
                       >
                         {Number(r.include_client_situation) === 1 ? 'Situation QR : ON' : 'Situation QR'}
                       </button>
-                      <button type="button" className="danger" style={{ padding: '4px 10px', fontSize: 12, background: '#6b2828', cursor: 'pointer' }} onClick={() => requestDelete(r.id)}>Suppr.</button>
+                      <TimedUndoDelete
+                        deleteLabel="Supprimer"
+                        undoLabel="Annuler"
+                        initialSeconds={10}
+                        onConfirm={() => requestDelete(r.id)}
+                      />
                     </div>
                   </td>
                 </tr>

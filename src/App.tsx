@@ -1282,6 +1282,22 @@ function DesktopShell() {
               }
             }
           }}
+          onFocus={() => {
+            if (actionsCompactRef.current) {
+              actionsHoverExpanded.current = true;
+              actionsCompactRef.current = false;
+              setActionsCompact(false);
+            }
+          }}
+          onBlur={(event) => {
+            const next = event.relatedTarget as Node | null;
+            if (next && event.currentTarget.contains(next)) return;
+            if (actionsHoverExpanded.current && !actionsHovered.current && Date.now() >= actionsExpansionUntil.current) {
+              actionsHoverExpanded.current = false;
+              actionsCompactRef.current = true;
+              setActionsCompact(true);
+            }
+          }}
           onClick={() => {
             if (actionsHoverExpanded.current || actionsCompactRef.current) {
               actionsHoverExpanded.current = false;

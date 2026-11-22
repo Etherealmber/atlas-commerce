@@ -1,5 +1,6 @@
 import TopPageActions from '../components/TopPageActions';
-import { Plus, RotateCcw } from 'lucide-react';
+import { Plus, RotateCcw, CheckCircle2, CreditCard, ExternalLink, Printer, Ban } from 'lucide-react';
+import { TimedUndoDelete } from '../components/ui';
 import { useEffect, useState } from 'react';
 import DatePicker from '../components/DatePicker';
 import { matchProducts } from '../lib/assist';
@@ -560,16 +561,17 @@ export default function QuickSale() {
                     <td style={{ fontWeight: 700, color: inv.status === 'paid' || inv.status === 'cancelled' ? 'var(--muted)' : 'var(--bad)' }}>
                       {inv.status === 'cancelled' ? '—' : fmt(Math.max(0, Number(inv.total || 0) - Number(inv.amount_paid || 0)))}
                     </td>
-                    <td style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                    <td style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                       {inv.status !== 'cancelled' && remainingOf(inv) > 0.001 && (
                         <>
                           <button
                             type="button"
-                            className="success"
+                            className="secondary"
                             style={{ padding: '4px 10px', fontSize: 12 }}
                             onClick={() => markPaid(inv)}
                           >
-                            Tout payer
+                            <CheckCircle2 size={14} aria-hidden="true" />
+                            <span>Tout payer</span>
                           </button>
                           <button
                             type="button"
@@ -577,11 +579,15 @@ export default function QuickSale() {
                             style={{ padding: '4px 10px', fontSize: 12 }}
                             onClick={() => openPartialPay(inv)}
                           >
-                            Paiement
+                            <CreditCard size={14} aria-hidden="true" />
+                            <span>Paiement</span>
                           </button>
                         </>
                       )}
-                      <Link to={`/quick-sale/${inv.id}`} className="btn secondary" style={{ padding: '4px 10px', fontSize: 12 }}>Ouvrir</Link>
+                      <Link to={`/quick-sale/${inv.id}`} className="btn secondary" style={{ padding: '4px 10px', fontSize: 12 }}>
+                        <ExternalLink size={14} aria-hidden="true" />
+                        <span>Ouvrir</span>
+                      </Link>
                       <a
                         className="btn secondary"
                         style={{ padding: '4px 10px', fontSize: 12 }}
@@ -589,7 +595,8 @@ export default function QuickSale() {
                         target="_blank"
                         rel="noreferrer"
                       >
-                        Imprimer
+                        <Printer size={14} aria-hidden="true" />
+                        <span>Imprimer</span>
                       </a>
                       {inv.status !== 'cancelled' && (
                         <button
@@ -598,17 +605,16 @@ export default function QuickSale() {
                           style={{ padding: '4px 10px', fontSize: 12 }}
                           onClick={() => void cancelTicket(inv.id)}
                         >
-                          Annuler
+                          <Ban size={14} aria-hidden="true" />
+                          <span>Annuler</span>
                         </button>
                       )}
-                      <button
-                        type="button"
-                        className="danger"
-                        style={{ padding: '4px 10px', fontSize: 12 }}
-                        onClick={() => void requestDelete(inv.id)}
-                      >
-                        Suppr.
-                      </button>
+                      <TimedUndoDelete
+                        deleteLabel="Supprimer"
+                        undoLabel="Annuler"
+                        initialSeconds={10}
+                        onConfirm={() => void requestDelete(inv.id)}
+                      />
                     </td>
                   </tr>
                 )}

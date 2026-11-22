@@ -1,6 +1,7 @@
 import DocumentActors from '../components/DocumentActors';
 import TopPageActions from '../components/TopPageActions';
 import { RotateCcw } from 'lucide-react';
+import { TimedUndoDelete } from '../components/ui';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
@@ -202,7 +203,7 @@ export default function Reimbursements() {
                   <td style={{ textAlign: 'right', fontWeight: 700 }}>
                     {fmtMoney(Number(inv.total || 0), 'MAD')}
                   </td>
-                  <td style={{ whiteSpace: 'nowrap' }}>
+                  <td style={{ whiteSpace: 'nowrap', display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                     <button
                       type="button"
                       className="secondary"
@@ -210,7 +211,7 @@ export default function Reimbursements() {
                       onClick={() => printDoc(inv.id)}
                     >
                       PDF
-                    </button>{' '}
+                    </button>
                     <button
                       type="button"
                       className="secondary"
@@ -218,15 +219,13 @@ export default function Reimbursements() {
                       onClick={() => sendEmail(inv)}
                     >
                       E-mail
-                    </button>{' '}
-                    <button
-                      type="button"
-                      className="danger"
-                      style={{ fontSize: 12, padding: '4px 10px' }}
-                      onClick={() => requestDeleteWr(inv)}
-                    >
-                      Suppr.
                     </button>
+                    <TimedUndoDelete
+                      deleteLabel="Supprimer"
+                      undoLabel="Annuler"
+                      initialSeconds={10}
+                      onConfirm={() => requestDeleteWr(inv)}
+                    />
                   </td>
                 </tr>
               ))}

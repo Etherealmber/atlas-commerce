@@ -21,6 +21,7 @@ import { TimedUndoDelete } from '../components/ui/TimedUndoDelete';
 import {
   Banknote, ShoppingBag, Truck, Fuel, Building2, Wrench, Users, Receipt,
   ArrowDownLeft, ArrowUpRight, ArrowUpFromLine, PiggyBank, Wallet, Package,
+  FileText, FileSpreadsheet, Files, UserCheck, X, ChevronRight,
 } from 'lucide-react';
 
 const BALANCE_STEPS: readonly WizardStepDef[] = [
@@ -197,6 +198,7 @@ export default function Balance() {
   const [saveMsg, setSaveMsg] = useState('');
   const [saveMsgType, setSaveMsgType] = useState<'success' | 'error'>('success');
   const [txPage, setTxPage] = useState(0);
+  const [showReportsDialog, setShowReportsDialog] = useState(false);
   const [txQuery, setTxQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | EntryType>('all');
   const [reportPeriod, setReportPeriod] = useState<string>(readStoredReportPeriod);
@@ -542,81 +544,145 @@ export default function Balance() {
         </div>
       )}
 
-      {/* Report bar */}
-      <div className="card" style={{ marginBottom: 20, padding: '14px 18px', display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-          <strong style={{ fontSize: 13 }}>Rapports PDF</strong>
-          <select value={reportPeriod} onChange={(e) => changeReportPeriod(e.target.value)} style={{ width: 'auto' }}>
-            {/^\d{4}-(0[1-9]|1[0-2])$/.test(reportPeriod) && (
-              <option value={reportPeriod}>Mois : {reportPeriodLabel(reportPeriod)}</option>
-            )}
-            <option value="month">Ce mois</option>
-            <option value="3m">3 mois</option>
-            <option value="6m">6 mois</option>
-            <option value="9m">9 mois</option>
-            <option value="12m">12 mois</option>
-            <option value="24m">2 ans</option>
-            <option value="36m">3 ans</option>
-            <option value="48m">4 ans</option>
-            <option value="year">Année civile</option>
-          </select>
-          {/* v262 — precise month (YYYY-MM, strictly validated server-side) */}
-          <input
-            type="month"
-            aria-label="Choisir un mois précis"
-            value={reportPeriodMonthValue(reportPeriod)}
-            onChange={(e) => changeReportPeriod(e.target.value || 'month')}
-            title={
-              /^\d{4}-(0[1-9]|1[0-2])$/.test(reportPeriod)
-                ? 'Rapports sur ce mois précis (AAAA-MM)'
-                : `Mois d'ancrage de la période « ${reportPeriodLabel(reportPeriod)} » — choisissez un mois pour basculer dessus`
-            }
-            style={{ width: 'auto', fontSize: 13 }}
-          />
-          {/* v262.1 — the chosen month is ALWAYS visible right on the bar */}
-          <span style={{ fontSize: 12, color: 'var(--muted)' }} aria-live="polite">
-            Période : <strong style={{ color: 'inherit' }}>{reportPeriodLabel(reportPeriod)}</strong>
+      {/* Report dialog trigger (compact like mobile — tap to open dialog) */}
+      <div className="bal-reports-bar">
+        <button
+          type="button"
+          className="secondary bal-reports-trigger"
+          onClick={() => setShowReportsDialog(true)}
+        >
+          <span className="bal-reports-trigger-main">
+            <FileText size={18} aria-hidden="true" />
+            <span>
+              <strong>Rapports PDF &amp; exports</strong>
+              <small>Période : {reportPeriodLabel(reportPeriod)} · Solde, Stock, Créances, Dettes, Paie, CSV</small>
+            </span>
           </span>
-          <button className="secondary" style={{ fontSize: 13 }} onClick={() => openReport('/api/reports/balance', { period: reportPeriod })}>
-            Solde & mouvements
-          </button>
-          <button className="secondary" style={{ fontSize: 13 }} onClick={() => openReport('/api/reports/stock')}>
-            Stock
-          </button>
-          <button className="secondary" style={{ fontSize: 13 }} onClick={() => openReport('/api/reports/receivables')}>
-            Créances
-          </button>
-          <button className="secondary" style={{ fontSize: 13 }} onClick={() => openReport('/api/reports/payables')}>
-            Dettes
-          </button>
-          <button className="secondary" style={{ fontSize: 13 }} onClick={() => openReport('/api/reports/employees')}>
-            Employés &amp; paie
-          </button>
-          <button style={{ fontSize: 13 }} onClick={() => openReport('/api/reports/combined', { period: reportPeriod, sections: 'balance,stock,receivables,payables,employees' })}>
-            Tous les rapports
-          </button>
-          <button
-            className="secondary"
-            style={{ fontSize: 13 }}
-            type="button"
-            onClick={async () => {
-              const name = await prompt({
-                title: 'Situation client',
-                message: 'Nom du client (ou partie du nom) pour le rapport PDF.',
-                placeholder: 'Ex. haytam',
-                confirmLabel: 'Ouvrir le rapport',
-              });
-              if (!name?.trim()) return;
-              openReport('/api/reports/client-situation', { name: name.trim() });
-            }}
-          >
-            Situation client
-          </button>
-          <button className="secondary" style={{ fontSize: 13 }} type="button" onClick={() => downloadExport('/api/export/expenses', 'solde-mouvements.csv')}>Excel CSV</button>
-          <button className="secondary" style={{ fontSize: 13 }} type="button" onClick={() => downloadExport('/api/export/payments', 'paiements.csv')}>Paiements CSV</button>
-        </div>
-        <span style={{ fontSize: 12, color: 'var(--muted)' }}>Ouvre une page → Imprimer / Enregistrer en PDF</span>
+          <span className="bal-reports-trigger-cta">
+            <span>Ouvrir</span>
+            <ChevronRight size={16} aria-hidden="true" />
+          </span>
+        </button>
       </div>
+
+      {showReportsDialog && (
+        <FloatingPortal>
+          <div className="modal-overlay" onClick={() => setShowReportsDialog(false)}>
+            <div
+              className="modal bal-reports-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="bal-reports-title"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="bal-reports-modal-head">
+                <div>
+                  <span className="bal-reports-eyebrow">RAPPORTS &amp; EXPORTS</span>
+                  <h2 id="bal-reports-title">Rapports PDF &amp; exports</h2>
+                </div>
+                <button
+                  type="button"
+                  className="modal-x secondary"
+                  aria-label="Fermer"
+                  onClick={() => setShowReportsDialog(false)}
+                >
+                  <X size={18} aria-hidden="true" />
+                </button>
+              </div>
+
+              <div className="bal-reports-period-row">
+                <label className="bal-reports-field">
+                  <span>Période</span>
+                  <select value={reportPeriod} onChange={(e) => changeReportPeriod(e.target.value)}>
+                    {/^\d{4}-(0[1-9]|1[0-2])$/.test(reportPeriod) && (
+                      <option value={reportPeriod}>Mois : {reportPeriodLabel(reportPeriod)}</option>
+                    )}
+                    <option value="month">Ce mois</option>
+                    <option value="3m">3 mois</option>
+                    <option value="6m">6 mois</option>
+                    <option value="9m">9 mois</option>
+                    <option value="12m">12 mois</option>
+                    <option value="24m">2 ans</option>
+                    <option value="36m">3 ans</option>
+                    <option value="48m">4 ans</option>
+                    <option value="year">Année civile</option>
+                  </select>
+                </label>
+                <label className="bal-reports-field">
+                  <span>Mois précis</span>
+                  <input
+                    type="month"
+                    aria-label="Choisir un mois précis"
+                    value={reportPeriodMonthValue(reportPeriod)}
+                    onChange={(e) => changeReportPeriod(e.target.value || 'month')}
+                  />
+                </label>
+                <div className="bal-reports-active-period" aria-live="polite">
+                  Période active : <strong>{reportPeriodLabel(reportPeriod)}</strong>
+                </div>
+              </div>
+
+              <div className="bal-reports-grid">
+                <button type="button" className="secondary" onClick={() => openReport('/api/reports/balance', { period: reportPeriod })}>
+                  <Wallet size={16} aria-hidden="true" />
+                  <span>Solde &amp; mouvements</span>
+                </button>
+                <button type="button" className="secondary" onClick={() => openReport('/api/reports/stock')}>
+                  <Package size={16} aria-hidden="true" />
+                  <span>Stock</span>
+                </button>
+                <button type="button" className="secondary" onClick={() => openReport('/api/reports/receivables')}>
+                  <ArrowDownLeft size={16} aria-hidden="true" />
+                  <span>Créances</span>
+                </button>
+                <button type="button" className="secondary" onClick={() => openReport('/api/reports/payables')}>
+                  <ArrowUpRight size={16} aria-hidden="true" />
+                  <span>Dettes</span>
+                </button>
+                <button type="button" className="secondary" onClick={() => openReport('/api/reports/employees')}>
+                  <Users size={16} aria-hidden="true" />
+                  <span>Employés &amp; paie</span>
+                </button>
+                <button
+                  type="button"
+                  className="secondary bal-reports-all-btn"
+                  onClick={() => openReport('/api/reports/combined', { period: reportPeriod, sections: 'balance,stock,receivables,payables,employees' })}
+                >
+                  <Files size={16} aria-hidden="true" />
+                  <span>Tous les rapports</span>
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={async () => {
+                    const name = await prompt({
+                      title: 'Situation client',
+                      message: 'Nom du client (ou partie du nom) pour le rapport PDF.',
+                      placeholder: 'Ex. haytam',
+                      confirmLabel: 'Ouvrir le rapport',
+                    });
+                    if (!name?.trim()) return;
+                    openReport('/api/reports/client-situation', { name: name.trim() });
+                  }}
+                >
+                  <UserCheck size={16} aria-hidden="true" />
+                  <span>Situation client</span>
+                </button>
+                <button type="button" className="secondary" onClick={() => downloadExport('/api/export/expenses', 'solde-mouvements.csv')}>
+                  <FileSpreadsheet size={16} aria-hidden="true" />
+                  <span>Excel CSV</span>
+                </button>
+                <button type="button" className="secondary" onClick={() => downloadExport('/api/export/payments', 'paiements.csv')}>
+                  <FileText size={16} aria-hidden="true" />
+                  <span>Paiements CSV</span>
+                </button>
+              </div>
+
+              <p className="bal-reports-hint">Ouvre une page → Imprimer / Enregistrer en PDF</p>
+            </div>
+          </div>
+        </FloatingPortal>
+      )}
 
 
       <div className="atlas-outline-row">

@@ -76,12 +76,16 @@ it('does not show the removed search in the desktop dock while keeping its other
     await act(async () => dock.dispatchEvent(new PointerEvent('pointerout', { bubbles: true, pointerType: 'mouse' })));
     expect(dock.classList.contains('ac-topbar--compact')).toBe(false);
 
-    // Top-right page actions mirror the compact / hover / leave-unless-tapped lifecycle.
+    // Top-right page actions mirror the compact / hover / keyboard-focus / leave-unless-tapped lifecycle.
     const actionsSlot = host.querySelector<HTMLElement>('#desktop-catalog-actions')!;
     expect(actionsSlot.classList.contains('desktop-catalog-actions-slot--compact')).toBe(true);
     await act(async () => actionsSlot.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, pointerType: 'mouse' })));
     expect(actionsSlot.classList.contains('desktop-catalog-actions-slot--compact')).toBe(false);
     await act(async () => actionsSlot.dispatchEvent(new PointerEvent('pointerout', { bubbles: true, pointerType: 'mouse' })));
+    expect(actionsSlot.classList.contains('desktop-catalog-actions-slot--compact')).toBe(true);
+    await act(async () => actionsSlot.dispatchEvent(new FocusEvent('focusin', { bubbles: true })));
+    expect(actionsSlot.classList.contains('desktop-catalog-actions-slot--compact')).toBe(false);
+    await act(async () => actionsSlot.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: document.body })));
     expect(actionsSlot.classList.contains('desktop-catalog-actions-slot--compact')).toBe(true);
     await act(async () => actionsSlot.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, pointerType: 'mouse' })));
     await act(async () => actionsSlot.click());
