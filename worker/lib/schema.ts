@@ -7,6 +7,28 @@
  * `duplicate column name: SQLITE_ERROR` error events on each fresh isolate.
  * Checking PRAGMA table_info first means the failing ALTER is never issued.
  */
+const _schemaOnce = new Set<string>();
+const _schemaOnceInflight = new Map<string, Promise<void>>();
+
+export async function schemaOnce(key: string, fn: () => Promise<void>): Promise<void> {
+  if (_schemaOnce.has(key)) return;
+  const existing = _schemaOnceInflight.get(key);
+  if (existing) {
+    await existing;
+    return;
+  }
+  const p = (async () => {
+    try {
+      await fn();
+    } finally {
+      _schemaOnce.add(key);
+      _schemaOnceInflight.delete(key);
+    }
+  })();
+  _schemaOnceInflight.set(key, p);
+  await p;
+}
+
 export async function addColumnIfMissing(
   db: D1Database,
   table: string,
