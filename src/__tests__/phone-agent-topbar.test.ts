@@ -130,3 +130,49 @@ it('keeps the composer above the visual viewport keyboard and cleans up listener
     await act(async () => root.render(null)); expect(viewport.removeEventListener).toHaveBeenCalledTimes(2);
   } finally { if (previous) Object.defineProperty(window, 'visualViewport', previous); else Reflect.deleteProperty(window, 'visualViewport'); }
 });
+
+it('archives and restores conversations locally without overwriting other accounts', async () => {
+  localStorage.setItem('stock_auth_user', 'alice');
+  vi.spyOn(api, 'assistChat').mockResolvedValue({ data: { reply: 'Réponse privée' } } as any);
+  await act(async () => root.render(createElement(PhoneAgentMobile)));
+  await act(async () => host.querySelector<HTMLButtonElement>('.ph-agent-prompts button')!.click());
+  await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Nouvelle discussion"]')!.click());
+  expect(host.textContent).not.toContain('Réponse privée');
+  await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Historique des discussions"]')!.click());
+  expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain('Quels articles');
+  await act(async () => document.body.querySelector<HTMLButtonElement>('.ph-agent-history-list button')!.click());
+  expect(host.textContent).toContain('Réponse privée');
+  await act(async () => root.render(null)); localStorage.setItem('stock_auth_user', 'bob');
+  await act(async () => root.render(createElement(PhoneAgentMobile)));
+  await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Historique des discussions"]')!.click());
+  expect(document.body.querySelector('[role="dialog"]')?.textContent).not.toContain('Quels articles');
+});
+
+it('refreshes real context endpoints and displays actual quota or failure', async () => {
+  vi.spyOn(api, 'assistStatus').mockResolvedValue({ data: { configured: true } } as any);
+  const quota = vi.spyOn(api, 'getAgentPolicy').mockResolvedValue({ data: { blocked: false, isAdmin: false, dailyUsed: 12, dailyLimit: 100, weeklyUsed: 42, weeklyLimit: 500 } });
+  vi.spyOn(api, 'assistNextActions').mockResolvedValue({ data: { items: [] } } as any);
+  await act(async () => root.render(createElement(PhoneAgentMobile)));
+  await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Actualiser le contexte"]')!.click());
+  expect(host.textContent).toContain('Contexte actualisé');
+  await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Quota IA"]')!.click());
+  expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain('12 / 100');
+  await act(async () => document.body.querySelector<HTMLButtonElement>('[role="dialog"] button')!.click());
+  quota.mockRejectedValue(new Error('offline'));
+  await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Quota IA"]')!.click());
+  expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain('Quota indisponible');
+});
+
+it('shows refreshed AI suggestions only for an administrator', async () => {
+  vi.spyOn(api, 'assistStatus').mockResolvedValue({ data: { configured: true } } as any);
+  vi.spyOn(api, 'getAgentPolicy').mockResolvedValue({ data: { blocked: false, isAdmin: false, dailyUsed: 0, dailyLimit: 100, weeklyUsed: 0, weeklyLimit: 500 } });
+  vi.spyOn(api, 'assistNextActions').mockResolvedValue({ data: { items: [{ priority: 1, title: 'Suggestion sensible', detail: 'Vérifier' }] } });
+  localStorage.setItem('stock_role', 'stock');
+  await act(async () => root.render(createElement(PhoneAgentMobile)));
+  await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Actualiser le contexte"]')!.click());
+  expect(host.textContent).not.toContain('Suggestion sensible');
+  await act(async () => root.render(null)); localStorage.setItem('stock_role', 'owner');
+  await act(async () => root.render(createElement(PhoneAgentMobile)));
+  await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Actualiser le contexte"]')!.click());
+  expect(host.textContent).toContain('Suggestion sensible');
+});

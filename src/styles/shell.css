@@ -2865,3 +2865,17 @@ html body .ac-timed-delete-btn.is-armed .ac-td-ico {
 @media (prefers-reduced-motion: reduce) {
   html body .ac-main-column > .ac-topbar--bionis { transition: none !important; }
 }
+
+/* Desktop shell commands live in a content-sized dock instead of a full-width bar. */
+@media (min-width: 901px) {
+  html body .ac-main-column > .ac-desktop-dock {
+    width: fit-content !important; max-width: calc(100% - 32px) !important;
+    gap: 12px !important; padding: 6px 10px !important; border-radius: 999px !important;
+    transition: transform .3s cubic-bezier(.22, 1, .36, 1), box-shadow .3s ease !important;
+  }
+  html body .ac-main-column > .ac-desktop-dock .ac-topbar-left { flex: 0 1 auto; }
+  html body .ac-main-column > .ac-desktop-dock .ac-topbar-title { max-width: min(28vw, 240px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  html body .ac-main-column > .ac-desktop-dock.ac-topbar--compact:not(:focus-within) { width: fit-content !important; transform: scale(.94); transform-origin: top center; }
+  html body .ac-main-column > .ac-desktop-dock.ac-topbar--searching { width: min(700px, calc(100% - 32px)) !important; border-radius: 24px !important; }
+}
+@media (prefers-reduced-motion: reduce) { html body .ac-main-column > .ac-desktop-dock { transition: none !important; } }

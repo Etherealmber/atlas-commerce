@@ -93,3 +93,17 @@ it('does not label a build date or a different release as APK publication', asyn
   await render(Download);
   expect(host.querySelectorAll('.dl-stat strong')[2].textContent).toBe('—');
 });
+
+it('searches the full release history and preserves published notes and links', async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => Array.from({ length: 8 }, (_, i) => ({ tag_name: `v${i}`, body: `Notes uniques ${i}`, html_url: `https://example.com/v${i}`, published_at: '2026-11-17T12:03:55Z', assets: [] })) })));
+  await render(Desktop);
+  expect(host.querySelectorAll('.dl-timeline-item')).toHaveLength(6);
+  await act(async () => host.querySelector<HTMLButtonElement>('.dl-timeline-more')!.click());
+  expect(host.querySelectorAll('.dl-timeline-item')).toHaveLength(8);
+  const search = host.querySelector<HTMLInputElement>('.dl-timeline-search input')!;
+  await act(async () => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(search, 'uniques 7'); search.dispatchEvent(new Event('input', { bubbles: true })); });
+  expect(host.querySelectorAll('.dl-timeline-item')).toHaveLength(1);
+  expect(host.querySelector('.dl-timeline-item')?.textContent).toContain('v7');
+  expect(host.querySelector('.dl-timeline-item .dl-md')?.textContent).toContain('Notes uniques 7');
+  expect(host.querySelector<HTMLAnchorElement>('.dl-timeline-item a')?.href).toBe('https://example.com/v7');
+});

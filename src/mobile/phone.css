@@ -3259,3 +3259,15 @@ html[data-theme="dark"].phone-shell body .phone-root .employees-page--phone .emp
 }
 html.phone-shell .phone-root > .phone-topbar.is-collapsed { box-shadow: 0 8px 24px #00000024 !important; }
 html[data-theme="dark"].phone-shell .phone-root > .phone-topbar.is-collapsed { box-shadow: 0 8px 24px #00000070 !important; }
+
+/* Full-viewport Agent: its floating action dock overlays the conversation. */
+html.phone-shell .phone-root--no-dock .ph-agent-shell { top: 0 !important; bottom: max(env(safe-area-inset-bottom, 0px), var(--ph-agent-keyboard-inset, 0px)) !important; }
+html.phone-shell .ph-agent-msgs { padding-top: calc(88px + env(safe-area-inset-top, 0px)) !important; }
+html.phone-shell .ph-agent-dock { position: absolute; z-index: 8; top: calc(10px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 2px; max-width: calc(100% - 20px); padding: 5px; border: 1px solid #e4e4e7; border-radius: 999px; background: #fff; box-shadow: 0 8px 26px #0002; }
+html.phone-shell body .phone-root .ph-agent-dock button { display: grid; place-items: center; flex: 0 0 42px; width: 42px !important; height: 42px; min-height: 42px; padding: 0 !important; border: 0 !important; border-radius: 50% !important; background: transparent !important; color: #27272a !important; -webkit-text-fill-color: #27272a !important; box-shadow: none !important; }
+html.phone-shell .ph-agent-dock-mark { display: grid; place-items: center; width: 32px; flex: 0 0 32px; }
+html[data-theme="dark"].phone-shell .ph-agent-dock { background: #222225; border-color: #414146; }
+html[data-theme="dark"].phone-shell body .phone-root .ph-agent-dock button { color: #f4f4f5 !important; -webkit-text-fill-color: #f4f4f5 !important; }
+.ph-agent-history-list { display: grid; gap: 8px; max-height: 45dvh; overflow-y: auto; margin-bottom: 16px; }
+.ph-agent-history-list button { text-align: left; overflow-wrap: anywhere; }
+html.phone-shell body .phone-root .ph-agent-dock button:disabled { opacity: .45; }

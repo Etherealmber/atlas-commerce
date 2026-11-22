@@ -21495,3 +21495,27 @@ html body .download-landing .dl-ed-platforms button:hover { color: var(--ed-text
   [data-theme-toggle] svg { transition: transform .35s cubic-bezier(.22, 1.3, .36, 1); }
   [data-theme-toggle]:active svg { transform: rotate(-18deg) scale(.88); }
 }
+
+/* Searchable, progressive release journal shared by the download pages. */
+.home-landing .hm-release-link { text-decoration: none; transition: border-color .2s ease, transform .2s ease; }
+.home-landing .hm-release-link:hover { border-color: var(--dl-accent-solid); transform: translateY(-2px); }
+.download-landing .dl-timeline-wrap { margin-top: 34px; min-width: 0; }
+.download-landing .dl-timeline-intro { display: flex; align-items: end; justify-content: space-between; gap: 18px; flex-wrap: wrap; }
+.download-landing .dl-timeline-intro h3 { margin: 6px 0 0; font-size: clamp(20px, 2vw, 26px); letter-spacing: -.035em; color: var(--ed-text); }
+.download-landing .dl-timeline-search { display: flex; align-items: center; gap: 8px; padding: 0 12px; min-height: 44px; border: 1px solid var(--ed-line); border-radius: 12px; background: var(--ed-surface); color: var(--ed-muted); }
+.download-landing .dl-timeline-search input { width: min(230px, 60vw); min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ed-text); font: inherit; font-size: 13px; }
+.download-landing .dl-timeline-search:focus-within { outline: 2px solid #c45c26; outline-offset: 2px; }
+.download-landing .dl-timeline-count { margin: 14px 0 18px; color: var(--ed-muted); font-size: 12px; }
+.download-landing .dl-timeline { margin-left: 7px; border-left: 1px solid var(--ed-line); }
+.download-landing .dl-timeline-item { position: relative; padding: 0 0 32px 28px; min-width: 0; overflow-wrap: anywhere; }
+.download-landing .dl-timeline-marker { position: absolute; left: -5px; top: 5px; height: 9px; width: 9px; background: #c45c26; border-radius: 50%; box-shadow: 0 0 0 5px var(--ed-page); }
+.download-landing .dl-timeline-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: var(--ed-muted); font-size: 12px; }
+.download-landing .dl-timeline-latest, .download-landing .dl-timeline-tag { border: 1px solid var(--ed-line); border-radius: 999px; padding: 3px 8px; color: var(--dl-accent); font-size: 11px; font-weight: 700; }
+.download-landing .dl-timeline-item h4 { margin: 10px 0 8px; color: var(--ed-text); font-size: 20px; letter-spacing: -.02em; }
+.download-landing .dl-timeline-item details { margin: 12px 0; color: var(--ed-text); }
+.download-landing .dl-timeline-item summary { cursor: pointer; font-size: 13px; font-weight: 700; }
+.download-landing .dl-timeline-item .dl-md { margin-top: 12px; padding: 14px 16px; border: 1px solid var(--ed-line); border-radius: 14px; background: var(--ed-surface); }
+.download-landing .dl-timeline-item > a { font-size: 13px; color: var(--dl-accent) !important; }
+.download-landing .dl-timeline-empty { color: var(--ed-muted); }
+.download-landing .dl-timeline-more { min-height: 44px; padding: 10px 16px; border-radius: 12px; }
+@media (prefers-reduced-motion: reduce) { .home-landing .hm-release-link { transition: none; } }

@@ -57,7 +57,7 @@ export default function Home() {
       <main className="hm-main" id="contenu">
         {/* ---------------- Hero ---------------- */}
         <section className="hm-hero">
-          <p className="hm-eyebrow">ATLAS · GESTION COMMERCIALE OPEN SOURCE</p>
+          <Link className="hm-eyebrow hm-release-link" to="/whats-new">Atlas Commerce · {DISPLAY_VERSION} <span aria-hidden="true">↗</span></Link>
           <div className="hm-hero-copy">
           <h1>
             <span className="hm-headline-first">Votre commerce,</span>{' '}

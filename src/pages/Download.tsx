@@ -1,3 +1,4 @@
+import ReleaseTimeline from '../components/ReleaseTimeline';
 import DownloadPreview from '../components/DownloadPreview';
 import DownloadHeroVisual from '../components/DownloadHeroVisual';
 /**
@@ -230,7 +231,7 @@ export default function Download() {
             <div className="dl-ed-heading"><p className="dl-ed-kicker">02 / MISES À JOUR</p><h2 id="android-versions-title">Versions</h2><p>Notes et historique publiés pour l’application Android.</p><a href={`${ANDROID_REPO}/releases`} target="_blank" rel="noopener noreferrer">Toutes les releases ↗</a></div>
             <div className="dl-ed-content">
               <article className="dl-release"><p className="dl-release-label">Dernière release</p><h3>{relTitle}</h3><p className="dl-release-date">{relDate ? `Publiée le ${relDate}` : 'Date de publication indisponible'}</p>{notesBody ? <div className="dl-md dl-release-body" dangerouslySetInnerHTML={{ __html: mdToHtml(notesBody) }} /> : <p className="dl-release-body">Notes de version non publiées pour ce binaire.</p>}{rel?.html_url && <a className="dl-release-link" href={rel.html_url} target="_blank" rel="noopener noreferrer">Voir la release sur GitHub ↗</a>}</article>
-              <h3 className="dl-ed-subheading">Historique</h3><div className="dl-rel-list">{rels.map((r, i) => <div key={String(r.tag_name || r.name || i)} className="dl-rel-row"><strong>{r.name || r.tag_name}</strong><span className="dl-muted">{publicationDate(r.published_at) || 'Date indisponible'}</span>{r.html_url && <a href={r.html_url} target="_blank" rel="noopener noreferrer">Voir ↗</a>}</div>)}{rels.length === 0 && <p className="dl-muted">Historique indisponible pour le moment.</p>}</div>
+              <ReleaseTimeline releases={rels} renderMarkdown={mdToHtml} />
             </div>
           </div>
         </section>

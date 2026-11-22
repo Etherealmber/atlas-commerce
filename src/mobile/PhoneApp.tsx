@@ -5,7 +5,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense, type ReactNode } from 'react';
 import { NavLink, Route, Routes, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Settings, Sparkles, ShoppingCart, Search, ScanLine, RefreshCw, Grid2X2, List, Package, MessageSquarePlus, Plus, Send, ChevronRight, Home, Bell, Bot, Wallet, Users, Receipt, Warehouse, FileText, Monitor, UserRound, Minus, Trash2, CircleAlert, CircleCheck, CreditCard, ShieldCheck, Copy, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Settings, Sparkles, ShoppingCart, Search, ScanLine, RefreshCw, Grid2X2, List, Package, MessageSquarePlus, Plus, Send, ChevronRight, Home, Bell, Bot, Wallet, Users, Receipt, Warehouse, FileText, Monitor, UserRound, Minus, Trash2, CircleAlert, CircleCheck, CreditCard, ShieldCheck, Copy, ChevronDown, History, Hourglass } from 'lucide-react';
 import PhoneDeviceScan from './PhoneDeviceScan';
 import PhoneBills from './PhoneBills';
 import PhoneWarehouse from './PhoneWarehouse';
@@ -386,10 +386,9 @@ export default function PhoneApp() {
   return (
     <div data-phone-scale={phoneScale} className={`phone-root${scanDialogOpen ? ' phone-root--dialog-open' : ''}${hasDock ? '' : ' phone-root--no-dock'}${animations ? '' : ' phone-root--no-motion'}${compact ? ' phone-root--compact' : ''}`}>
       <OfflineBanner />
-      <header className={`phone-topbar${topCollapsed ? ' is-collapsed' : ''}`}>
+      {pathname !== '/m/agent' && <header className={`phone-topbar${topCollapsed ? ' is-collapsed' : ''}`}>
         {showBack && <button type="button" className="ph-top-back" aria-label="Retour" onClick={() => navigate(backTarget)}><ArrowLeft size={21} /></button>}
         {topCollapsed ? <button type="button" className="ph-top-expand" aria-label={`Développer la barre : ${tabTitleFor(pathname)}`} onClick={() => setTopCollapsed(false)}>{tabTitleFor(pathname)}</button> : <>
-        {pathname === '/m/agent' && <AtlasAgentMascot size={30} />}
         <div className="pt-titles">
           <span className="pt-title">{tabTitleFor(location.pathname)}</span>
           {/^\/m\/products\/\d+\/historique\/?$/.test(location.pathname) && <small className="ph-top-subtitle">Détails et mouvements de stock</small>}
@@ -412,9 +411,9 @@ export default function PhoneApp() {
         </div>}
         {pathname === '/m/profile' && <button type="button" className="ph-top-settings" aria-label="Paramètres" onClick={() => navigate('/m/settings', { state: { phoneBack: '/m/profile' } })}><Settings size={20} aria-hidden="true" /></button>}
         </>}
-      </header>
+      </header>}
 
-      {booting && (
+      {booting && pathname !== '/m/agent' && (
         <div className="ph-boot-strip">
           Synchronisation…
         </div>
@@ -495,7 +494,7 @@ export default function PhoneApp() {
           <Route path="/settings/whats-new" element={<Suspense fallback={<PageSkeleton variant="phone" />}><PhoneWhatsNew /></Suspense>} />
           <Route path="/bills" element={allowSell ? <PhoneBills onToast={show} /> : <div className="phone-panel"><p className="ph-perm-banner">Rôle magasinier : pas d’achats.</p></div>} />
           <Route path="/warehouse" element={<PhoneWarehouse onToast={show} />} />
-          <Route path="/agent" element={<PhoneAgentMobile onNavigate={path => navigate(path)} onTheme={applyTheme} />} />
+          <Route path="/agent" element={<PhoneAgentMobile onNavigate={path => navigate(path)} onBack={() => navigate(backTarget)} onTheme={applyTheme} />} />
           <Route path="/device-scan" element={<PhoneDeviceScan />} />
 
           <Route
@@ -1481,7 +1480,7 @@ function AgentMark() {
   return <span className="ph-agent-avatar" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.1">{Array.from({ length: 16 }, (_, index) => index).filter(index => index !== 4).map(index => <line key={index} x1="10" y1="4" x2="10" y2=".8" transform={`rotate(${index * 22.5} 10 10)`} />)}<line x1="10" y1="10" x2="19.6" y2="10" /></svg></span>;
 }
 
-export function PhoneAgentMobile({ onNavigate, onTheme }: { onNavigate?: (path: string) => void; onTheme?: (theme: 'light' | 'dark' | 'system') => void } = {}) {
+export function PhoneAgentMobile({ onNavigate, onBack, onTheme }: { onNavigate?: (path: string) => void; onBack?: () => void; onTheme?: (theme: 'light' | 'dark' | 'system') => void } = {}) {
   type Msg = { role: 'user' | 'assistant'; text: string };
   // Never display the old unscoped local conversation for a different account.
   const storageKey = useMemo(() => {
@@ -1514,6 +1513,16 @@ export function PhoneAgentMobile({ onNavigate, onTheme }: { onNavigate?: (path: 
     } catch { /* */ }
     return [];
   });
+  type SavedThread = { threadId: string; messages: Msg[] };
+  const historyKey = storageKey ? `${storageKey}:history` : null;
+  const [history, setHistory] = useState<SavedThread[]>(() => {
+    try { const value = historyKey && JSON.parse(localStorage.getItem(historyKey) || '[]'); return Array.isArray(value) ? value.filter(t => typeof t?.threadId === 'string' && Array.isArray(t.messages)).map(t => ({ threadId: t.threadId, messages: t.messages.filter((m: Msg) => (m?.role === 'user' || m?.role === 'assistant') && typeof m.text === 'string').slice(-40) })) : []; } catch { return []; }
+  });
+  const [dialog, setDialog] = useState<'history' | 'quota' | null>(null);
+  const [policy, setPolicy] = useState<Awaited<ReturnType<typeof api.getAgentPolicy>>['data'] | null>(null);
+  const [policyStatus, setPolicyStatus] = useState('');
+  const [contextActions, setContextActions] = useState<{ title: string; detail: string }[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [showLatest, setShowLatest] = useState(false); const [quickNotice, setQuickNotice] = useState(''); const [copyNotice, setCopyNotice] = useState('');
@@ -1542,10 +1551,43 @@ export function PhoneAgentMobile({ onNavigate, onTheme }: { onNavigate?: (path: 
     return () => { viewport.removeEventListener('resize', update); viewport.removeEventListener('scroll', update); };
   }, []);
 
+  // Archive only on explicit navigation; preserve the current cache format for existing users.
+  const archiveCurrent = () => {
+    if (!msgs.length) return true;
+    const next = [{ threadId, messages: msgs.slice(-40) }, ...history.filter(t => t.threadId !== threadId)];
+    if (historyKey) {
+      try { localStorage.setItem(historyKey, JSON.stringify(next)); }
+      catch { setQuickNotice('Impossible de conserver cette discussion sur cet appareil.'); return false; }
+    }
+    setHistory(next); return true;
+  };
+  const newConversation = () => {
+    if (!archiveCurrent()) return;
+    followMessages.current = true; setThreadId(newPhoneAgentThreadId()); setMsgs([]); setInput(''); setShowLatest(false); setQuickNotice('');
+  };
+  const refreshContext = async () => {
+    setRefreshing(true); setQuickNotice('Actualisation du contexte…');
+    const results = await Promise.allSettled([api.assistStatus(), api.getAgentPolicy(), api.assistNextActions()]);
+    if (results[1].status === 'fulfilled') setPolicy(results[1].value.data);
+    if (results[2].status === 'fulfilled' && (getRole() === 'owner' || getRole() === 'admin')) {
+      const items = results[2].value.data?.items;
+      setContextActions(Array.isArray(items) ? items.filter(item => typeof item.title === 'string' && item.title.trim()).slice(0, 4) : []);
+    }
+    const ok = results.filter(r => r.status === 'fulfilled').length;
+    setQuickNotice(ok === results.length ? 'Contexte actualisé.' : ok ? 'Contexte partiellement actualisé. Vérifiez la connexion.' : 'Actualisation indisponible. Vérifiez la connexion.');
+    setRefreshing(false);
+  };
+  const openQuota = async () => {
+    setDialog('quota'); setPolicyStatus('Chargement…');
+    try { const result = await api.getAgentPolicy(); setPolicy(result.data); setPolicyStatus(''); }
+    catch { setPolicy(null); setPolicyStatus('Quota indisponible. Vérifiez la connexion.'); }
+  };
+
   const send = async (prompt?: string) => {
     const text = (prompt ?? input).trim();
     if (!text || sending.current) return;
     sending.current = true;
+    setQuickNotice('');
     followMessages.current = true; setShowLatest(false);
     if (inputRef.current) inputRef.current.style.height = '';
     setInput('');
@@ -1573,17 +1615,22 @@ export function PhoneAgentMobile({ onNavigate, onTheme }: { onNavigate?: (path: 
 
   return (
     <div className="ph-agent-shell" data-agent-mobile="1" ref={shellRef}>
-      <header className="ph-agent-head">
-        <span className="ph-agent-status">Conversation sur cet appareil</span>
-        <button type="button" disabled={busy} className="ph-agent-new" title="Nouvelle discussion" aria-label="Nouvelle discussion" onClick={() => { followMessages.current = true; setThreadId(newPhoneAgentThreadId()); setMsgs([]); setShowLatest(false); setQuickNotice(''); }}><MessageSquarePlus size={20} aria-hidden="true" /></button>
-      </header>
+      <nav className="ph-agent-dock" aria-label="Actions Atlas Agent">
+        {(onBack || onNavigate) && <button type="button" aria-label="Retour" title="Retour" onClick={() => onBack ? onBack() : onNavigate?.('/m')}><ArrowLeft size={20} /></button>}
+        <span className="ph-agent-dock-mark" aria-label="Atlas Agent"><AtlasAgentMascot size={27} /></span>
+        <button type="button" disabled={busy} title="Historique" aria-label="Historique des discussions" onClick={() => setDialog('history')}><History size={20} /></button>
+        <button type="button" disabled={busy} title="Nouvelle discussion" aria-label="Nouvelle discussion" onClick={newConversation}><MessageSquarePlus size={20} /></button>
+        <button type="button" disabled={refreshing} title="Actualiser le contexte" aria-label="Actualiser le contexte" onClick={() => void refreshContext()}><RefreshCw size={20} /></button>
+        <button type="button" title="Quota IA" aria-label="Quota IA" onClick={() => void openQuota()}><Hourglass size={20} /></button>
+      </nav>
       <div className="ph-agent-msgs" ref={listRef} role="log" aria-live="polite" aria-label="Conversation" onScroll={e => { const el = e.currentTarget; followMessages.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40; setShowLatest(!followMessages.current); }}>
+        {quickNotice && <p className="ph-agent-quick-notice" role="status">{quickNotice}</p>}
         {msgs.length === 0 && <>
           {(onNavigate || onTheme) && <div className="ph-agent-quick" role="group" aria-label="Raccourcis Atlas Agent">
             {onTheme && ([['light', 'Thème clair'], ['dark', 'Thème sombre'], ['system', 'Thème système']] as const).map(([theme, label]) => <button type="button" key={theme} onClick={() => { onTheme(theme); setQuickNotice(`${label} activé.`); }}>{label}</button>)}
             {onNavigate && <><button type="button" onClick={() => onNavigate('/m/settings/whats-new')}>Mises à jour</button><button type="button" onClick={() => onNavigate('/m/profile')}>Modifier mon profil</button><button type="button" onClick={() => onNavigate('/m/products')}>Produits</button><button type="button" onClick={() => onNavigate('/m/scan')}>Scanner</button></>}
           </div>}
-          {quickNotice && <p className="ph-agent-quick-notice" role="status">{quickNotice}</p>}
+          {contextActions.length > 0 && <div className="ph-agent-prompts" aria-label="Suggestions actualisées">{contextActions.map((item, i) => <button type="button" disabled={busy} key={`${item.title}-${i}`} onClick={() => void send(item.detail ? `${item.title} : ${item.detail}` : item.title)}>{item.title}</button>)}</div>}
           <div className="ph-agent-prompts" aria-label="Questions suggérées"><button type="button" disabled={busy} onClick={() => void send('Quels articles sont en rupture ou à réapprovisionner ?')}>Quels articles sont en rupture ou à réapprovisionner ?</button><button type="button" disabled={busy} onClick={() => void send('Quelles demandes scan sont en attente ?')}>Quelles demandes scan sont en attente ?</button></div>
         </>}
         {msgs.map((m, i) => (
@@ -1596,6 +1643,17 @@ export function PhoneAgentMobile({ onNavigate, onTheme }: { onNavigate?: (path: 
         {busy ? <div className="ph-agent-typing" role="status"><AtlasAgentMascot size={30} engaged /><span className="ph-agent-dots" aria-hidden="true"><i /><i /><i /></span> Atlas Agent réfléchit…</div> : null}
         <p className="ph-agent-disclaimer">Atlas Agent peut se tromper. Votre message est transmis au serveur Atlas et au fournisseur IA configuré. Ne partagez pas de mots de passe ni de données personnelles inutiles.</p>
       </div>
+      {dialog === 'history' && <PhoneDialog titleId="ph-agent-history-title" onClose={() => setDialog(null)}>
+        <h2 id="ph-agent-history-title">Historique des discussions</h2><p>Discussions enregistrées sur cet appareil pour ce compte.</p>{quickNotice && <p role="status">{quickNotice}</p>}
+        {history.filter(t => t.threadId !== threadId).length === 0 && <p>Aucune autre discussion enregistrée.</p>}
+        <div className="ph-agent-history-list">{history.filter(t => t.threadId !== threadId).map(t => <button type="button" key={t.threadId} onClick={() => { if (!archiveCurrent()) return; setThreadId(t.threadId); setMsgs(t.messages); setInput(''); setShowLatest(false); followMessages.current = true; setDialog(null); }}>{t.messages.find(m => m.role === 'user')?.text.slice(0, 90) || 'Discussion'}</button>)}</div>
+        <button type="button" className="ph-btn" onClick={() => setDialog(null)}>Fermer</button>
+      </PhoneDialog>}
+      {dialog === 'quota' && <PhoneDialog titleId="ph-agent-quota-title" onClose={() => setDialog(null)}>
+        <h2 id="ph-agent-quota-title">Quota IA</h2>{policyStatus && <p role="status">{policyStatus}</p>}
+        {!policyStatus && policy && (policy.blocked ? <p>Accès à l’Agent bloqué.</p> : policy.isAdmin ? <p>Compte administrateur : quota non limité.</p> : <><p>Jour : {policy.dailyUsed} / {policy.dailyLimit} jetons</p><p>Semaine : {policy.weeklyUsed} / {policy.weeklyLimit} jetons</p></>)}
+        <button type="button" className="ph-btn" onClick={() => setDialog(null)}>Fermer</button>
+      </PhoneDialog>}
       {showLatest && msgs.length > 0 && <button type="button" className="theme-toggle ph-agent-latest" aria-label="Aller aux derniers messages" onClick={() => { const el = listRef.current; followMessages.current = true; setShowLatest(false); if (el) { el.dataset.phoneProgrammaticScroll = 'true'; el.scrollTop = el.scrollHeight; window.setTimeout(() => { delete el.dataset.phoneProgrammaticScroll; }, 150); } }}><ChevronDown size={20} /></button>}
       <form
         className="ph-agent-composer"
