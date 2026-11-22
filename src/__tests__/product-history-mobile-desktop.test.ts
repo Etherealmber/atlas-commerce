@@ -52,6 +52,13 @@ describe('product history', () => {
     await act(async () => [...host.querySelectorAll('button')].find(b => b.textContent === 'Charger la suite')!.click());
     expect(getMovements).toHaveBeenLastCalledWith(7, 40, { full: true, offset: 40 }); expect(host.textContent).toContain('Vente'); expect(host.textContent).not.toContain('Charger la suite');
   });
+  it('refreshes movements without refetching or clearing the product', async () => {
+    const getProduct = vi.spyOn(api, 'getProduct').mockResolvedValue({ data: product });
+    const getMovements = vi.spyOn(api, 'getProductMovements').mockResolvedValueOnce({ data: movements }).mockResolvedValueOnce({ data: [] });
+    await renderHistory(true);
+    await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Actualiser l’historique"]')!.click());
+    expect(getProduct).toHaveBeenCalledTimes(1); expect(getMovements).toHaveBeenCalledTimes(2); expect(host.textContent).toContain('Marbre'); expect(host.textContent).toContain('Aucun mouvement enregistré');
+  });
   it('keeps prices and image editing hidden for stock roles', async () => {
     identity.sell = false; vi.spyOn(api, 'getProduct').mockResolvedValue({ data: product }); vi.spyOn(api, 'getProductMovements').mockResolvedValue({ data: [] });
     await renderHistory(true);

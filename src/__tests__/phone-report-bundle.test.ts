@@ -39,3 +39,26 @@ it('requires at least one section and valid custom dates', async () => {
   await act(async () => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(inputs[0], '2099-01-01'); inputs[0].dispatchEvent(new Event('input', { bubbles: true })); inputs[0].dispatchEvent(new Event('change', { bubbles: true })); });
   expect(button('Préparer').disabled).toBe(true);
 });
+it('allows editing after preview and keeps the selected report choices', async () => {
+  const report = '<!doctype html><html><body><div class="sheet"><div class="actions"><button>Print</button></div><main class="report-content"><section>Balance details</section><section>Stock details</section></main></div></body></html>';
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(report, { headers: { 'Content-Type': 'text/html' } })));
+  await act(async () => root.render(createElement(PhoneReportBundle, { onClose: () => {} })));
+  expect(button('Ce mois').getAttribute('aria-pressed')).toBe('true'); expect(button('3 mois').getAttribute('aria-pressed')).toBe('false');
+  await act(async () => { button('3 mois').click(); button('Stock').click(); });
+  await act(async () => button('Préparer').click());
+  const frame = document.querySelector<HTMLIFrameElement>('iframe')!;
+  expect(frame.srcdoc).toContain('background:#fff'); expect(frame.srcdoc).not.toContain('<button>Print</button>');
+  await act(async () => document.querySelector<HTMLButtonElement>('[aria-label="Modifier le rapport"]')!.click());
+  expect(button('3 mois').getAttribute('aria-pressed')).toBe('true'); expect(button('Stock').getAttribute('aria-pressed')).toBe('false');
+});
+it('displays the correct preview section after changing section order', async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => new Response('<html><body><main class="report-content"><section>Stock details</section><section>Balance details</section></main></body></html>', { headers: { 'Content-Type': 'text/html' } })));
+  await act(async () => root.render(createElement(PhoneReportBundle, { onClose: () => {} })));
+  await act(async () => { for (const label of ['Balance', 'Créances clients', 'Fournisseurs', 'Employés & paie', 'Balance âgée', 'TVA']) button(label).click(); button('Balance').click(); });
+  await act(async () => button('Préparer').click());
+  await act(async () => button('Balance').click());
+  const frame = document.querySelector<HTMLIFrameElement>('iframe')!;
+  expect(frame.srcdoc).toContain('Balance details'); expect(frame.srcdoc).not.toContain('Stock details');
+  await act(async () => button('Stock').click());
+  expect(frame.srcdoc).toContain('Stock details'); expect(frame.srcdoc).not.toContain('Balance details');
+});

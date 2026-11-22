@@ -39,3 +39,18 @@ it('releases a camera that starts after the user closes the scanner', async () =
     expect(stop).toHaveBeenCalledOnce();
   } finally { await act(async () => root.unmount()); host.remove(); }
 });
+
+it('opens automatically only when opted in and releases the camera on unmount', async () => {
+  (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+  localStorage.setItem('atlas_phone_scan_auto_camera', 'on');
+  const stop = vi.fn(); scanner.start.mockResolvedValue(stop);
+  const host = document.createElement('div'); document.body.appendChild(host); const root = createRoot(host);
+  try {
+    await act(async () => { root.render(createElement(PhoneDeviceScan)); await new Promise(r => setTimeout(r, 30)); });
+    // Flush the frame scheduled by the mount effect.
+    await act(async () => { await new Promise(r => setTimeout(r, 30)); });
+    expect(scanner.start).toHaveBeenCalledOnce();
+    await act(async () => root.unmount());
+    expect(stop).toHaveBeenCalledOnce();
+  } finally { host.remove(); localStorage.clear(); }
+});

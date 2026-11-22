@@ -41,3 +41,22 @@ it('rejects a non-PDF response without displaying its body', async () => {
   expect(document.body.textContent).not.toContain('private response');
   expect(pdf.getDocument).not.toHaveBeenCalled();
 });
+it('rerenders pages when the preview width changes and uses bounded high-density rendering', async () => {
+  const render = vi.fn(() => ({ promise: Promise.resolve(), cancel: vi.fn() }));
+  pdf.getPage.mockResolvedValue({ getViewport: ({ scale }: { scale: number }) => ({ width: 600 * scale, height: 800 * scale }), render });
+  pdf.getDocument.mockReturnValue({ promise: Promise.resolve({ numPages: 1, getPage: pdf.getPage }), destroy: pdf.destroy });
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({} as any);
+  vi.stubGlobal('IntersectionObserver', class { callback: IntersectionObserverCallback; constructor(cb: IntersectionObserverCallback) { this.callback = cb; } observe(target: Element) { this.callback([{ isIntersecting: true, target } as IntersectionObserverEntry], this as unknown as IntersectionObserver); } disconnect() {} });
+  let resize!: () => void;
+  vi.stubGlobal('ResizeObserver', class { constructor(cb: () => void) { resize = cb; } observe() {} disconnect() {} });
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(new Blob(['%PDF-test'], { type: 'application/pdf' }), { headers: { 'Content-Type': 'application/pdf' } })));
+  vi.stubGlobal('devicePixelRatio', 2);
+  await act(async () => root.render(createElement(PhoneMonthlyReport, { period: '2026-10', onClose: () => {} })));
+  const frame = document.querySelector<HTMLElement>('.ph-report-paper')!;
+  Object.defineProperty(frame, 'clientWidth', { configurable: true, value: 500 });
+  const count = render.mock.calls.length;
+  await act(async () => resize());
+  expect(render.mock.calls.length).toBeGreaterThan(count);
+  const canvas = document.querySelector('canvas')!;
+  expect(canvas.style.width).toBe('476px'); expect(canvas.width).toBe(952);
+});

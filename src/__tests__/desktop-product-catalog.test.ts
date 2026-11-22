@@ -23,7 +23,14 @@ it('offers list and grid, preserves actions, and opens product history from a ca
   await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Affichage en grille"]')!.click());
   expect(host.querySelector('.desktop-product-card img')?.getAttribute('src')).toContain('/cdn/marbre.webp');
   expect(localStorage.getItem('atlas_desktop_products_view')).toBe('grid');
-  expect(host.textContent).toContain('Ajuster'); expect(host.textContent).toContain('Modifier'); expect(host.textContent).toContain('Supprimer');
+  expect(host.querySelector('.ac-products-filters [aria-label="Affichage en grille"]')).not.toBeNull();
+  expect(host.querySelector('[aria-label="Ajuster le stock de Marbre"] svg')).not.toBeNull();
+  expect(host.querySelector('[aria-label="Modifier Marbre"] svg')).not.toBeNull();
+  expect(host.querySelector('[aria-label="Étiquette de Marbre"] svg')).not.toBeNull();
+  const gridDelete = host.querySelector<HTMLElement>('[aria-label="Supprimer Marbre"]')!;
+  expect(gridDelete.querySelector('svg')).not.toBeNull();
+  await act(async () => gridDelete.click()); expect(gridDelete.getAttribute('aria-label')).toContain('Annuler la suppression');
+  await act(async () => gridDelete.click()); expect(gridDelete.getAttribute('aria-label')).toBe('Supprimer Marbre');
   const selection = host.querySelector<HTMLInputElement>('[aria-label="Sélectionner Marbre"]')!;
   await act(async () => selection.click()); expect(selection.checked).toBe(true);
   await act(async () => (host.querySelector('.desktop-product-card-link') as HTMLAnchorElement).click());

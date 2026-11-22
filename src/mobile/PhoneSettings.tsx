@@ -1,27 +1,62 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, Globe, Palette, Sparkles } from 'lucide-react';
+import { Camera, ChevronRight, ExternalLink, FileText, Globe, Info, Palette, Share2, Sparkles } from 'lucide-react';
 import { DISPLAY_VERSION } from '../version';
 import type { UiScale } from '../lib/density';
 import PhoneDialog from './PhoneDialog';
 import { getRole } from '../auth';
 import { phoneDockItems } from './PhoneDock';
+import { getScanPreference, setScanPreference, type ScanPreference } from './phoneScanPreferences';
 
 type Props = { theme: string; onTheme: (t: 'light' | 'dark' | 'system') => void; animations: boolean; onAnimations: (v: boolean) => void; compact: boolean; onCompact: (v: boolean) => void; scale: UiScale; onScale: (v: UiScale) => void; startTab: string; onStartTab: (path: string) => void };
+function SettingSwitch({ title, description, checked, onChange }: { title: string; description: string; checked: boolean; onChange: (value: boolean) => void }) {
+  return <label className="ph-setting-toggle"><span><strong>{title}</strong><small>{description}</small></span><input type="checkbox" role="switch" checked={checked} onChange={e => onChange(e.target.checked)} /></label>;
+}
+function ExternalSetting({ href, icon, title, description }: { href: string; icon: ReactNode; title: string; description: string }) {
+  return <a className="ph-setting-link" href={href} target="_blank" rel="noopener noreferrer">{icon}<span><strong>{title}</strong><small>{description} · nouvel onglet</small></span><ExternalLink size={18} aria-hidden="true" /></a>;
+}
 export default function PhoneSettings({ theme, onTheme, animations, onAnimations, compact, onCompact, scale, onScale, startTab, onStartTab }: Props) {
-  const nav = useNavigate(); const [language, setLanguage] = useState(false);
+  const nav = useNavigate();
+  const [language, setLanguage] = useState(false);
+  const [scan, setScan] = useState(() => ({ autoCamera: getScanPreference('autoCamera'), vibrate: getScanPreference('vibrate'), sound: getScanPreference('sound') }));
+  const [scanNotice, setScanNotice] = useState('');
+  const [shareNotice, setShareNotice] = useState('');
+  const updateScan = (key: ScanPreference, value: boolean) => {
+    if (!setScanPreference(key, value)) { setScanNotice('Impossible de sauvegarder cette préférence dans ce navigateur.'); return; }
+    setScanNotice(''); setScan(current => ({ ...current, [key]: value }));
+  };
+  const share = async () => {
+    const url = `${window.location.origin}/m`;
+    try {
+      if (navigator.share) { await navigator.share({ title: 'Atlas Commerce', url }); setShareNotice(''); }
+      else if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(url); setShareNotice('Lien copié.'); }
+      else setShareNotice('Le partage n’est pas disponible dans ce navigateur.');
+    } catch (error) { if ((error as Error)?.name !== 'AbortError') setShareNotice('Impossible de partager le lien.'); }
+  };
   return <div className="ph-settings ph-native-settings">
-    <p className="ph-settings-lead">Personnalisez votre expérience sur cet appareil.</p>
-    <section className="ph-settings-card"><h2><Palette size={19} /> Apparence, navigation &amp; animations</h2>
+    <div className="ph-settings-intro"><span className="ph-settings-intro-icon"><Palette size={22} aria-hidden="true" /></span><div><strong>À votre façon</strong><p>Personnalisez Atlas sur cet appareil.</p></div></div>
+    <section className="ph-settings-card"><h2><Palette size={19} aria-hidden="true" /> Apparence et navigation</h2>
       <div className="ph-setting-block"><strong>Thème</strong><small>Choisissez l’apparence de l’application.</small><div className="ph-seg" role="group" aria-label="Thème de l’application">{([['light', 'Clair'], ['dark', 'Sombre'], ['system', 'Système']] as const).map(([value, label]) => <button type="button" key={value} className={`theme-toggle${theme === value ? ' on' : ''}`} aria-pressed={theme === value} onClick={() => onTheme(value)}>{label}</button>)}</div></div>
-      <button type="button" className="ph-setting-link" onClick={() => setLanguage(true)}><Globe size={20} /><span><strong>Langue</strong><small>Français · autres langues bientôt disponibles</small></span><ChevronRight size={18} /></button>
+      <button type="button" className="ph-setting-link" onClick={() => setLanguage(true)}><Globe size={20} aria-hidden="true" /><span><strong>Langue</strong><small>Français · autres langues bientôt disponibles</small></span><ChevronRight size={18} aria-hidden="true" /></button>
       <div className="ph-setting-block"><strong>Taille du texte</strong><small>Adaptée aux préférences de votre navigateur.</small><div className="ph-seg" role="group" aria-label="Taille du texte">{([['sm', 'Petite'], ['md', 'Normale'], ['lg', 'Grande']] as const).map(([value, label]) => <button type="button" key={value} className={`theme-toggle${scale === value ? ' on' : ''}`} aria-pressed={scale === value} onClick={() => onScale(value)}>{label}</button>)}</div></div>
-      <div className="ph-setting-block"><strong>Densité d’affichage</strong><small>Espacement des cartes sur mobile.</small><div className="ph-seg" role="group" aria-label="Densité d’affichage"><button type="button" className={`theme-toggle${!compact ? ' on' : ''}`} aria-pressed={!compact} onClick={() => onCompact(false)}>Confort</button><button type="button" className={`theme-toggle${compact ? ' on' : ''}`} aria-pressed={compact} onClick={() => onCompact(true)}>Compact</button></div></div>
+      <div className="ph-setting-block"><strong>Densité d’affichage</strong><small>Espacement des cartes sur mobile.</small><div className="ph-seg ph-seg--two" role="group" aria-label="Densité d’affichage"><button type="button" className={`theme-toggle${!compact ? ' on' : ''}`} aria-pressed={!compact} onClick={() => onCompact(false)}>Confort</button><button type="button" className={`theme-toggle${compact ? ' on' : ''}`} aria-pressed={compact} onClick={() => onCompact(true)}>Compact</button></div></div>
       <label className="ph-setting-block"><strong>Onglet d’ouverture au lancement</strong><small>Utilisé à l’ouverture de l’accueil mobile.</small><select aria-label="Onglet d’ouverture au lancement" value={phoneDockItems(getRole()).some(item => item.path === startTab) ? startTab : '/m'} onChange={e => onStartTab(e.target.value)}>{phoneDockItems(getRole()).map(item => <option key={item.id} value={item.path}>{item.label}</option>)}</select></label>
-      <label className="ph-setting-toggle"><span><strong>Animations fluides</strong><small>Transitions et effets de mouvement.</small></span><input type="checkbox" checked={animations} onChange={e => onAnimations(e.target.checked)} /></label>
+      <SettingSwitch title="Animations fluides" description="Transitions et effets de mouvement." checked={animations} onChange={onAnimations} />
       <p className="ph-settings-hint">Le navigateur respecte aussi la préférence système de réduction des animations.</p>
     </section>
-    <section className="ph-settings-card"><h2><Sparkles size={19} /> Application</h2><div className="ph-settings-row"><span>Version web</span><strong>{DISPLAY_VERSION}</strong></div><button type="button" className="ph-setting-link" onClick={() => nav('/m/settings/whats-new')}><Sparkles size={20} /><span><strong>Nouveautés des versions</strong><small>Historique des changements publiés sur le web</small></span><ChevronRight size={18} /></button></section>
+    <section className="ph-settings-card"><h2><Camera size={19} aria-hidden="true" /> Caméra et scanner</h2>
+      <SettingSwitch title="Ouvrir la caméra automatiquement" description="Au lancement du scanner produit ou QR appareil. Le navigateur peut demander l’autorisation." checked={scan.autoCamera} onChange={v => updateScan('autoCamera', v)} />
+      <SettingSwitch title="Vibration au scan" description="Après la lecture d’un code compatible, si l’appareil le permet." checked={scan.vibrate} onChange={v => updateScan('vibrate', v)} />
+      <SettingSwitch title="Signal sonore au scan" description="Un court son après la lecture. Selon les règles audio du navigateur." checked={scan.sound} onChange={v => updateScan('sound', v)} />
+      <p className="ph-settings-hint">Ces préférences restent dans ce navigateur. Vous pouvez toujours arrêter la caméra depuis le scanner.</p>{scanNotice && <p role="status" className="ph-settings-notice">{scanNotice}</p>}
+    </section>
+    <section className="ph-settings-card"><h2><Sparkles size={19} aria-hidden="true" /> Application</h2><div className="ph-settings-row"><span>Version web</span><strong>{DISPLAY_VERSION}</strong></div><button type="button" className="ph-setting-link" onClick={() => nav('/m/settings/whats-new')}><Sparkles size={20} aria-hidden="true" /><span><strong>Nouveautés des versions</strong><small>Historique des changements publiés sur le web</small></span><ChevronRight size={18} aria-hidden="true" /></button><button type="button" className="ph-setting-link" onClick={() => void share()}><Share2 size={20} aria-hidden="true" /><span><strong>Partager Atlas Commerce</strong><small>Partager ou copier le lien de l’application</small></span><ChevronRight size={18} aria-hidden="true" /></button>{shareNotice && <p role="status" className="ph-settings-notice">{shareNotice}</p>}</section>
+    <section className="ph-settings-card"><h2><Info size={19} aria-hidden="true" /> Informations et aide</h2>
+      <ExternalSetting href="/about" icon={<Info size={20} aria-hidden="true" />} title="À propos et assistance" description="Informations sur le projet et aide" />
+      <ExternalSetting href="/privacy" icon={<FileText size={20} aria-hidden="true" />} title="Confidentialité" description="Politique de confidentialité" />
+      <ExternalSetting href="/terms" icon={<FileText size={20} aria-hidden="true" />} title="Conditions d’utilisation" description="Conditions du service" />
+      <ExternalSetting href="/licenses" icon={<FileText size={20} aria-hidden="true" />} title="Licences open source" description="Logiciels et licences" />
+    </section>
     {language && <PhoneDialog titleId="ph-language-title" onClose={() => setLanguage(false)}><h2 id="ph-language-title">Langue</h2><p>Les autres langues arrivent bientôt sur la version web.</p><button type="button" className="ph-primary" onClick={() => setLanguage(false)}>Compris</button></PhoneDialog>}
   </div>;
 }

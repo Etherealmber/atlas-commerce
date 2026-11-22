@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ScanLine } from 'lucide-react';
 import { startDeviceQrScan } from '../lib/barcodeScan';
 import { deviceApprovalPath } from './phoneDeviceQr';
+import { getScanPreference, phoneScanFeedback } from './phoneScanPreferences';
 
 export default function PhoneDeviceScan() {
   const reader = useRef<HTMLDivElement>(null);
@@ -27,7 +28,7 @@ export default function PhoneDeviceScan() {
         if (current !== generation.current) return;
         const path = deviceApprovalPath(raw, window.location.origin);
         stop();
-        if (path) window.location.assign(path);
+        if (path) { phoneScanFeedback(); window.location.assign(path); }
         else setMessage('QR non compatible ou d’un autre serveur. Scannez une demande desktop v2 de ce serveur.');
       });
       if (current !== generation.current) close(); else stopRef.current = close;
@@ -35,6 +36,7 @@ export default function PhoneDeviceScan() {
       if (current === generation.current) { setActive(false); setMessage('Caméra ou lecteur QR indisponible. Vérifiez les autorisations et réessayez.'); }
     }
   };
+  useEffect(() => { if (getScanPreference('autoCamera')) void start(); }, []);
   return <section className="ph-device-page">
     <div className="ph-device-heading"><ScanLine size={24} aria-hidden="true" /><div><h1>Scanner un appareil</h1><p>Connexion desktop</p></div></div>
     {!active && <div className="ph-scan-idle"><span className="ph-scan-idle-icon"><ScanLine size={30} aria-hidden="true" /></span><h2>Lecteur QR en veille</h2><p>{message}</p><button type="button" className="ph-scan-start theme-toggle" onClick={() => void start()}>Démarrer la caméra QR</button></div>}

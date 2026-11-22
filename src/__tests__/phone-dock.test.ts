@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
-import PhoneDock, { phoneDockItems, canOpenPhoneBalance, canOpenPhoneEmployees, phoneBackTarget, showPhoneDock } from '../mobile/PhoneDock';
+import PhoneDock, { phoneDockItems, canOpenPhoneBalance, canOpenPhoneEmployees, phoneBackTarget, phoneShowsBack, showPhoneDock } from '../mobile/PhoneDock';
 
 describe('mobile dock', () => {
   it.each([
@@ -25,10 +25,15 @@ describe('mobile dock', () => {
   });
 
   it.each([
-    ['/m', true], ['/m/scan', true], ['/m/products', true], ['/m/balance', true], ['/m/balance/classic', true], ['/m/employees', true],
-    ['/m/settings', false], ['/m/agent', true], ['/m/more', false], ['/m/vente', true], ['/m/inbox', true], ['/m/device-scan', true], ['/m/warehouse', false],
+    ['/m', true], ['/m/scan', true], ['/m/products', true], ['/m/balance', true], ['/m/balance/classic', false], ['/m/employees', true],
+    ['/m/settings', false], ['/m/agent', false], ['/m/more', false], ['/m/vente', true], ['/m/inbox', true], ['/m/device-scan', false], ['/m/warehouse', false],
   ])('uses the dock only on main routes: %s', (path, visible) => {
     expect(showPhoneDock(path)).toBe(visible);
+  });
+
+  it('shows a back action on pushed pages even when the dock is visible', () => {
+    for (const path of ['/m/agent', '/m/vente', '/m/inbox', '/m/device-scan', '/m/settings', '/m/products/7/historique']) expect(phoneShowsBack(path)).toBe(true);
+    for (const path of ['/m', '/m/products', '/m/scan']) expect(phoneShowsBack(path)).toBe(false);
   });
 
   it('returns subpages to their parent with a safe fallback for direct links', () => {
@@ -47,4 +52,16 @@ describe('mobile dock', () => {
     expect(html).toContain('href="/m/scan"');
     expect(html).not.toContain('href="/m/vente"');
   });
+});
+
+it('returns the device QR scanner to the profile', () => {
+  expect(phoneBackTarget('/m/device-scan')).toBe('/m/profile');
+});
+
+it.each(['/m/vente', '/m/inbox'])('keeps the last permitted dock selection for overlay %s without claiming it is the current page', (path) => {
+  const html = renderToStaticMarkup(createElement(MemoryRouter, { initialEntries: [path] }, createElement(PhoneDock, { role: 'owner', lastMainTab: '/m/products' })));
+  expect(html).toMatch(/class="ptab active"[^>]*href="\/m\/products"/);
+  expect(html).not.toContain('aria-current="page"');
+  const fallback = renderToStaticMarkup(createElement(MemoryRouter, { initialEntries: [path] }, createElement(PhoneDock, { role: 'stock', lastMainTab: '/m/balance' })));
+  expect(fallback).toMatch(/class="ptab active"[^>]*href="\/m"/);
 });
