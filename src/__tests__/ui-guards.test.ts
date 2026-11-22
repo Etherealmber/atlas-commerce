@@ -126,4 +126,14 @@ describe('UI guards: Rapports modal close button & floating pill stability', () 
     expect(avatar).toBeTruthy();
     expect(avatar!.textContent).toBe('OE');
   });
+
+  it('scopes desktop hover micro-animations away from mobile shell and keeps mobile theme transitions unified', () => {
+    const darkForceCss = readFileSync(path.resolve(process.cwd(), 'src/styles/dark-force.css'), 'utf8');
+    const phoneCss = readFileSync(path.resolve(process.cwd(), 'src/mobile/phone.css'), 'utf8');
+
+    expect(darkForceCss).toContain('@media (min-width: 901px) and (hover: hover) and (pointer: fine)');
+    expect(darkForceCss).toContain('html:not(.phone-shell) body .content button');
+    expect(darkForceCss).not.toContain('circle(78% at 50% 50%)');
+    expect(phoneCss).toContain('html.phone-theme-transition .phone-root *');
+  });
 });

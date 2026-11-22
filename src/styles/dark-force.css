@@ -2105,35 +2105,27 @@ html[data-theme="dark"] body .modal .form-row button.secondary {
    settings-tab active/tapped states never white
    ═══════════════════════════════════════════════════════════════ */
 
-/* FastFrame-style: new theme reveals from the middle of the window */
+/* Circular View Transitions reveal (driven from JS tap origin) */
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation: none;
   mix-blend-mode: normal;
 }
 ::view-transition-old(root) { z-index: 1; }
-::view-transition-new(root) {
-  z-index: 2;
-  clip-path: circle(0% at 50% 50%);
-  animation: atlas-vt-reveal 0.45s ease-in-out forwards;
-}
-@keyframes atlas-vt-reveal {
-  from { clip-path: circle(0% at 50% 50%); }
-  to   { clip-path: circle(78% at 50% 50%); }
-}
+::view-transition-new(root) { z-index: 2; }
+
 /* Fallback cross-fade where the View Transitions API is unavailable */
 html.theme-anim,
 html.theme-anim *,
 html.theme-anim *::before,
 html.theme-anim *::after {
   transition:
-    background-color 0.32s ease,
-    background 0.32s ease,
-    color 0.32s ease,
-    border-color 0.32s ease,
-    fill 0.32s ease,
-    stroke 0.32s ease,
-    box-shadow 0.32s ease !important;
+    background-color 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    color 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    fill 0.24s ease,
+    stroke 0.24s ease,
+    box-shadow 0.28s cubic-bezier(0.22, 1, 0.36, 1) !important;
 }
 
 /* Dark: popup backdrop stays see-through (page visible behind, lightly dimmed) */
@@ -5497,4 +5489,219 @@ html body .top-page-actions a:hover,
 html body .desktop-catalog-actions-slot a,
 html body .desktop-catalog-actions-slot a:hover {
   text-decoration: none !important;
+}
+
+/* Desktop-only tactile hover enlargement & micro-animations (never on mobile web) */
+@media (min-width: 901px) and (hover: hover) and (pointer: fine) {
+  @media (prefers-reduced-motion: no-preference) {
+    /* Base smooth spring transitions for desktop interactive elements */
+    html:not(.phone-shell) body .content button:not(:disabled):not(.atlas-dp-day):not(.atlas-dp-nav):not(.modal-x):not(.modal-close),
+    html:not(.phone-shell) body .content a.btn,
+    html:not(.phone-shell) body .top-page-actions > button:not(:disabled),
+    html:not(.phone-shell) body .top-page-actions > a.btn,
+    html:not(.phone-shell) body .ac-list-pager-btn,
+    html:not(.phone-shell) body .ac-seg-btn,
+    html:not(.phone-shell) body .ac-fluid-tab,
+    html:not(.phone-shell) body .wn-filter,
+    html:not(.phone-shell) body .wn-contributor-pill,
+    html:not(.phone-shell) body .bank-tabs button,
+    html:not(.phone-shell) body .sidebar .ac-nav-item,
+    html:not(.phone-shell) body .ac-desktop-dock .ac-dock-item,
+    html:not(.phone-shell) body .ac-user-dropdown-item,
+    html:not(.phone-shell) body .ac-number-link,
+    html:not(.phone-shell) body .quote-number-link,
+    html:not(.phone-shell) body .party-name-link,
+    html:not(.phone-shell) body .content :is(.badge, .stock-pill, .credit-pill, .atlas-status-tag, .about-trust-chip) {
+      transition:
+        transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+        background-color 0.18s ease,
+        border-color 0.18s ease,
+        color 0.18s ease !important;
+    }
+
+    /* Cards, metric KPIs, product tiles, release cards & interactive rows */
+    html:not(.phone-shell) body .content :is(
+      .ac-metric,
+      .atlas-stat,
+      .bank-metric,
+      .desktop-product-card,
+      .whats-new-card,
+      .wn-thanks-card,
+      .ac-profile-card,
+      .atlas-outline-card,
+      .bal-tx-row,
+      .db-mig-panel,
+      .qr-login-panel,
+      .about-section
+    ) {
+      transition:
+        transform 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+        border-color 0.2s ease,
+        background-color 0.2s ease !important;
+    }
+
+    html:not(.phone-shell) body :is(
+      .content button,
+      .content a.btn,
+      .top-page-actions > button,
+      .top-page-actions > a.btn,
+      .sidebar .ac-nav-item,
+      .ac-desktop-dock .ac-dock-item,
+      .ac-user-dropdown-item,
+      .ac-metric,
+      .desktop-product-card,
+      .ac-profile-card
+    ) svg,
+    html:not(.phone-shell) body .product-table-row .product-artwork,
+    html:not(.phone-shell) body .desktop-product-card .product-artwork {
+      transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1) !important;
+    }
+
+    /* Buttons, pills, pagers, tabs & topbar actions: cohesive lift + enlarge */
+    html:not(.phone-shell) body .content button:not(:disabled):not(.atlas-dp-day):not(.atlas-dp-nav):not(.modal-x):not(.modal-close):not(.bal-reports-trigger):hover,
+    html:not(.phone-shell) body .content a.btn:hover,
+    html:not(.phone-shell) body .top-page-actions > button:not(:disabled):hover,
+    html:not(.phone-shell) body .top-page-actions > a.btn:hover,
+    html:not(.phone-shell) body .ac-list-pager-btn:not(:disabled):hover,
+    html:not(.phone-shell) body .ac-seg-btn:hover,
+    html:not(.phone-shell) body .ac-fluid-tab:hover,
+    html:not(.phone-shell) body .wn-filter:hover,
+    html:not(.phone-shell) body .wn-contributor-pill:hover,
+    html:not(.phone-shell) body .bank-tabs button:not(:disabled):hover {
+      transform: translateY(-1px) scale(1.032) !important;
+      box-shadow: 0 5px 14px rgba(15, 23, 42, 0.08);
+    }
+    html[data-theme="dark"]:not(.phone-shell) body .content button:not(:disabled):not(.atlas-dp-day):not(.atlas-dp-nav):not(.modal-x):not(.modal-close):not(.bal-reports-trigger):hover,
+    html[data-theme="dark"]:not(.phone-shell) body .content a.btn:hover,
+    html[data-theme="dark"]:not(.phone-shell) body .top-page-actions > button:not(:disabled):hover,
+    html[data-theme="dark"]:not(.phone-shell) body .top-page-actions > a.btn:hover,
+    html[data-theme="dark"]:not(.phone-shell) body .ac-list-pager-btn:not(:disabled):hover,
+    html[data-theme="dark"]:not(.phone-shell) body .ac-seg-btn:hover,
+    html[data-theme="dark"]:not(.phone-shell) body .ac-fluid-tab:hover,
+    html[data-theme="dark"]:not(.phone-shell) body .wn-filter:hover,
+    html[data-theme="dark"]:not(.phone-shell) body .wn-contributor-pill:hover,
+    html[data-theme="dark"]:not(.phone-shell) body .bank-tabs button:not(:disabled):hover {
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.34);
+    }
+
+    /* Full-width trigger card (.bal-reports-trigger): sleek subtle scale without horizontal clipping */
+    html:not(.phone-shell) body .content button.bal-reports-trigger:not(:disabled):hover {
+      transform: translateY(-1px) scale(1.012) !important;
+      border-color: #cbd5e1 !important;
+      box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08) !important;
+    }
+    html[data-theme="dark"]:not(.phone-shell) body .content button.bal-reports-trigger:not(:disabled):hover {
+      border-color: rgba(255, 255, 255, 0.24) !important;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.42) !important;
+    }
+    html:not(.phone-shell) body .content button.bal-reports-trigger:hover .bal-reports-trigger-cta svg {
+      transform: translateX(3px) scale(1.1) !important;
+    }
+
+    /* Keep single-line table row actions compact while still tactile */
+    html:not(.phone-shell) body .content .row-actions button:not(:disabled):hover,
+    html:not(.phone-shell) body .content .row-actions a:hover {
+      transform: translateY(-1px) scale(1.035) !important;
+    }
+
+    /* Icon micro-animations on hover */
+    html:not(.phone-shell) body .content button:not(:disabled):not(.icon-refresh-btn):not(.bal-reports-trigger):hover svg,
+    html:not(.phone-shell) body .content a.btn:hover svg,
+    html:not(.phone-shell) body .top-page-actions > button:not(:disabled):hover svg,
+    html:not(.phone-shell) body .top-page-actions > a.btn:hover svg,
+    html:not(.phone-shell) body .ac-list-pager-btn:not(:disabled):hover svg,
+    html:not(.phone-shell) body .ac-user-dropdown-item:hover svg {
+      transform: scale(1.12) rotate(-5deg) !important;
+    }
+
+    /* Sidebar & Desktop Dock nav micro-motion */
+    html:not(.phone-shell) body .sidebar .ac-nav-item:hover {
+      transform: translateX(3px) scale(1.015);
+    }
+    html:not(.phone-shell) body .sidebar .ac-nav-item:hover svg {
+      transform: scale(1.12) rotate(-4deg) !important;
+    }
+    html:not(.phone-shell) body .ac-desktop-dock .ac-dock-item:hover {
+      transform: scale(1.06);
+    }
+    html:not(.phone-shell) body .ac-desktop-dock .ac-dock-item:hover svg {
+      transform: scale(1.1) rotate(-4deg) !important;
+    }
+    html:not(.phone-shell) body .ac-user-dropdown-item:hover {
+      transform: translateX(2px) scale(1.012);
+    }
+
+    /* Cards, KPI metrics, product grid cards, release notes, about cards */
+    html:not(.phone-shell) body .content :is(
+      .ac-metric,
+      .atlas-stat,
+      .bank-metric,
+      .desktop-product-card,
+      .whats-new-card,
+      .wn-thanks-card,
+      .ac-profile-card,
+      .atlas-outline-card,
+      .db-mig-panel,
+      .qr-login-panel,
+      .about-section
+    ):hover {
+      transform: translateY(-2px) scale(1.014);
+      border-color: #cbd5e1;
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+    }
+    html[data-theme="dark"]:not(.phone-shell) body .content :is(
+      .ac-metric,
+      .atlas-stat,
+      .bank-metric,
+      .desktop-product-card,
+      .whats-new-card,
+      .wn-thanks-card,
+      .ac-profile-card,
+      .atlas-outline-card,
+      .db-mig-panel,
+      .qr-login-panel,
+      .about-section
+    ):hover {
+      border-color: #52525b;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
+    }
+    html:not(.phone-shell) body .content .bal-tx-row:hover {
+      transform: translateY(-1px) scale(1.006);
+      box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
+    }
+    html[data-theme="dark"]:not(.phone-shell) body .content .bal-tx-row:hover {
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.34);
+    }
+    html:not(.phone-shell) body .content :is(.ac-metric, .ac-profile-card):hover svg {
+      transform: scale(1.1) rotate(-4deg) !important;
+    }
+    html:not(.phone-shell) body .content .ac-profile-card:hover .ac-profile-card-chev {
+      transform: translateX(3px) scale(1.1) !important;
+    }
+    html:not(.phone-shell) body .content .desktop-product-card:hover .product-artwork,
+    html:not(.phone-shell) body .content .product-table-row:hover .product-artwork {
+      transform: scale(1.07) !important;
+    }
+
+    /* Interactive table links & status pills */
+    html:not(.phone-shell) body .content :is(.ac-number-link, .quote-number-link, .party-name-link):hover {
+      transform: scale(1.03);
+    }
+    html:not(.phone-shell) body .content :is(.badge, .stock-pill, .credit-pill, .atlas-status-tag, .about-trust-chip):hover {
+      transform: scale(1.045);
+    }
+
+    /* Tactile press feedback */
+    html:not(.phone-shell) body .content button:not(:disabled):not(.atlas-dp-day):not(.atlas-dp-nav):active,
+    html:not(.phone-shell) body .content a.btn:active,
+    html:not(.phone-shell) body .top-page-actions > button:not(:disabled):active,
+    html:not(.phone-shell) body .top-page-actions > a.btn:active,
+    html:not(.phone-shell) body .ac-list-pager-btn:not(:disabled):active,
+    html:not(.phone-shell) body .ac-seg-btn:active,
+    html:not(.phone-shell) body .ac-fluid-tab:active {
+      transform: scale(0.97) !important;
+    }
+  }
 }

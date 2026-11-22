@@ -2618,18 +2618,30 @@ html[data-theme="dark"].phone-shell .ph-scan-controls .ph-scan-row input { color
 html[data-theme="dark"].phone-shell body .phone-root .ph-scan-native button.theme-toggle { background: #3f3f46 !important; color: #f4f4f5 !important; -webkit-text-fill-color: #f4f4f5 !important; border-color: #52525b !important; }
 html[data-theme="dark"].phone-shell body .phone-root .ph-scan-native button.ph-scan-start { background: #fafafa !important; color: #171717 !important; -webkit-text-fill-color: #171717 !important; }
 
-/* CSS color interpolation is supported without the View Transitions API. */
+/* Circular View Transitions reveal (driven from JS tap origin) + smooth fallback. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-old(root) { z-index: 1; }
+::view-transition-new(root) { z-index: 2; }
+
+/* CSS color interpolation fallback when View Transitions API is unavailable. */
 @media (prefers-reduced-motion: no-preference) {
+  html.phone-theme-transition,
+  html.phone-theme-transition body,
   html.phone-theme-transition .phone-root,
-  html.phone-theme-transition .phone-topbar,
-  html.phone-theme-transition .phone-tabbar,
-  html.phone-theme-transition .ph-panel,
-  html.phone-theme-transition .ph-settings-card,
-  html.phone-theme-transition .ph-scan-idle,
-  html.phone-theme-transition .ph-scan-controls,
-  html.phone-theme-transition .pb-card,
-  html.phone-theme-transition .ph-quick-menu {
-    transition: background-color 240ms ease, color 240ms ease, border-color 240ms ease !important;
+  html.phone-theme-transition .phone-root *,
+  html.phone-theme-transition .phone-root *::before,
+  html.phone-theme-transition .phone-root *::after {
+    transition:
+      background-color 260ms cubic-bezier(0.22, 1, 0.36, 1),
+      color 260ms cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 260ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 260ms cubic-bezier(0.22, 1, 0.36, 1),
+      fill 260ms ease,
+      stroke 260ms ease !important;
   }
 }
 .ph-scan-controls .ph-scan-row input::placeholder { color: #64748b; opacity: 1; }
@@ -2639,15 +2651,12 @@ html.phone-shell body .phone-root .ph-scan-controls .ph-file-label .ph-chip { co
 html[data-theme="dark"].phone-shell body .phone-root .ph-scan-controls .ph-file-label .ph-chip { color: #f4f4f5 !important; -webkit-text-fill-color: #f4f4f5 !important; background: #3f3f46 !important; border-color: #52525b !important; }
 .ph-file-label:focus-within .ph-chip { outline: 3px solid #d97706; outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) {
+  html.phone-theme-transition,
+  html.phone-theme-transition body,
   html.phone-theme-transition .phone-root,
-  html.phone-theme-transition .phone-topbar,
-  html.phone-theme-transition .phone-tabbar,
-  html.phone-theme-transition .ph-panel,
-  html.phone-theme-transition .ph-settings-card,
-  html.phone-theme-transition .ph-scan-idle,
-  html.phone-theme-transition .ph-scan-controls,
-  html.phone-theme-transition .pb-card,
-  html.phone-theme-transition .ph-quick-menu { transition: none !important; }
+  html.phone-theme-transition .phone-root *,
+  html.phone-theme-transition .phone-root *::before,
+  html.phone-theme-transition .phone-root *::after { transition: none !important; }
 }
 
 /* Android floating shell and compact live camera. The decoder's canvas must not

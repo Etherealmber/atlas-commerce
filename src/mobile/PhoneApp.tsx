@@ -1686,7 +1686,7 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme, onProductCreated
         {quickNotice && <p className="ph-agent-quick-notice" role="status">{quickNotice}</p>}
         {msgs.length === 0 && <div className="ph-agent-quick" role="group" aria-label="Actions rapides">
             {onNavigate && <button type="button" onClick={() => onNavigate('/m/settings/whats-new')}>Mises à jour</button>}
-            {onTheme && ([['light', 'Thème clair'], ['dark', 'Thème sombre'], ['system', 'Thème système']] as const).map(([theme, label]) => <button type="button" key={theme} onClick={() => { onTheme(theme); setQuickNotice(`${label} activé.`); }}>{label}</button>)}
+            {onTheme && ([['light', 'Thème clair'], ['dark', 'Thème sombre'], ['system', 'Thème système']] as const).map(([theme, label]) => <button type="button" key={theme} data-theme-toggle onClick={() => { onTheme(theme); setQuickNotice(`${label} activé.`); }}>{label}</button>)}
             <button type="button" onClick={() => setDialog('activity')}>Mon activité</button>
             <button type="button" onClick={() => setDialog('unlock')}>Déverrouillage</button>
             <button type="button" onClick={() => setDialog('language')}>Langue</button>

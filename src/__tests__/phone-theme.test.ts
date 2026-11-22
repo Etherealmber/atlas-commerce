@@ -65,6 +65,38 @@ describe('phone theme', () => {
     expect(document.documentElement.classList.contains('phone-theme-transition')).toBe(false);
     vi.useRealTimers();
   });
+  it('uses View Transitions circular reveal when available on mobile', async () => {
+    const animate = vi.fn();
+    Object.defineProperty(document.documentElement, 'animate', {
+      configurable: true,
+      writable: true,
+      value: animate,
+    });
+    const startViewTransition = vi.fn((cb: () => void) => {
+      cb();
+      return { ready: Promise.resolve() };
+    });
+    Object.defineProperty(document, 'startViewTransition', {
+      configurable: true,
+      writable: true,
+      value: startViewTransition,
+    });
+
+    try {
+      applyPhoneTheme('dark');
+      await Promise.resolve();
+      expect(startViewTransition).toHaveBeenCalledTimes(1);
+      expect(document.documentElement.dataset.theme).toBe('dark');
+      expect(document.documentElement.classList.contains('phone-theme-transition')).toBe(false);
+      expect(animate).toHaveBeenCalledTimes(1);
+      expect(animate.mock.calls[0][1]).toMatchObject({
+        pseudoElement: '::view-transition-new(root)',
+      });
+    } finally {
+      delete (document as Document & { startViewTransition?: unknown }).startViewTransition;
+      delete (document.documentElement as HTMLElement & { animate?: unknown }).animate;
+    }
+  });
   it('follows operating-system changes only in system mode', async () => {
     dark = true;
     await act(async () => { listeners.forEach((fn) => fn()); });
