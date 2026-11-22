@@ -9,7 +9,8 @@ export default function TopPageActions({ children, enabled = true }: { children:
   const actionsRef = useRef<HTMLDivElement>(null);
   const widthHistory = useRef({ signature: '', maximum: 0 });
 
-  // Run after each render: action labels and selection-dependent controls can change width.
+  // Re-evaluate docking when enabled state, slot target, or action children change,
+  // and on container resize — never observe child hover/compact transitions directly.
   useLayoutEffect(() => {
     const actions = actionsRef.current;
     if (!actions) return;
@@ -27,17 +28,14 @@ export default function TopPageActions({ children, enabled = true }: { children:
           return total + Math.max(item.getBoundingClientRect().width, item.scrollWidth)
             + (parseFloat(style.marginLeft) || 0) + (parseFloat(style.marginRight) || 0);
         }, 0) + Math.max(0, visible.length - 1) * gap;
-        // Keep the larger measurement to avoid bouncing on dynamic label updates;
-        // reset when the controls change.
         const signature = visible.map(item => `${item.tagName}:${item.textContent}:${item.getAttribute('aria-label') || ''}`).join('|');
         if (widthHistory.current.signature !== signature) widthHistory.current = { signature, maximum: 0 };
         widthHistory.current.maximum = Math.max(widthHistory.current.maximum, needed);
         const columnWidth = column.getBoundingClientRect().width;
-        // Reserve enough space for the expanded dock, including its hover scale.
-        const dockWidth = Math.max(480, dock.getBoundingClientRect().width * 1.08);
+        const dockWidth = Math.max(460, dock.getBoundingClientRect().width);
         const available = columnWidth / 2 - dockWidth / 2 - 40;
-        // Dock whenever there is enough room for the action strip; overflow scrolls horizontally inside the slot.
-        if (needed > 0 && columnWidth > 0 && available >= 220) next = slot;
+        const minAvailable = target === slot ? 180 : 220;
+        if (needed > 0 && columnWidth > 0 && available >= minAvailable) next = slot;
       }
       // Do not move a focused control out from under the keyboard user.
       if (next !== target && actions.contains(document.activeElement)) return;
@@ -47,16 +45,13 @@ export default function TopPageActions({ children, enabled = true }: { children:
     window.addEventListener('resize', update);
     actions.addEventListener('focusout', update);
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update);
-    observer?.observe(actions);
     if (column) observer?.observe(column);
-    if (dock) observer?.observe(dock);
-    for (const item of Array.from(actions.children)) observer?.observe(item);
     return () => {
       window.removeEventListener('resize', update);
       actions.removeEventListener('focusout', update);
       observer?.disconnect();
     };
-  });
+  }, [enabled, target, children]);
 
   const content = <div ref={actionsRef} className="dock-page-actions top-page-actions">{children}</div>;
   return <><span hidden className="dock-actions-placeholder" data-docked={!!target} />{target ? createPortal(content, target) : content}</>;

@@ -2960,14 +2960,16 @@ html body .dock-page-header > .dock-page-actions {
     overflow: visible;
     pointer-events: auto;
     max-width: 100%;
+    padding: 4px;
+    margin: -4px;
   }
   .desktop-catalog-actions-slot > .top-page-actions {
     flex-wrap: nowrap; width: max-content;
     gap: 6px; padding: 5px 7px; border-radius: 999px;
     background: var(--ac-paper); border: 1px solid var(--ac-line);
     box-shadow: 0 8px 24px rgba(15, 23, 42, 0.10), 0 1px 3px rgba(15, 23, 42, 0.05);
-    transition: transform .24s cubic-bezier(.22, 1, .36, 1), box-shadow .24s ease, gap .2s ease;
-    transform-origin: center right;
+    transition: box-shadow .2s ease;
+    transform: none !important;
   }
   .dock-page-header:has(> .dock-actions-placeholder[data-docked="true"]) {
     height: 0; min-height: 0; margin: 0 !important; padding: 0 !important;
@@ -3012,7 +3014,7 @@ html body .desktop-catalog-actions-slot .top-page-actions > a:focus-visible {
 @media (hover: hover) and (pointer: fine) {
   html body .desktop-catalog-actions-slot .top-page-actions > button:hover:not(:disabled),
   html body .desktop-catalog-actions-slot .top-page-actions > a:hover {
-    transform: scale(1.05);
+    transform: translateY(-1px);
   }
 }
 html[data-theme="dark"] body .desktop-catalog-actions-slot > .top-page-actions {
@@ -3026,7 +3028,6 @@ html[data-theme="dark"] body .desktop-catalog-actions-slot:focus-within > .top-p
 /* Minimized top-right page actions: compact icon-only pill bar on scroll, expands on hover or keyboard focus. */
 @media (min-width: 1500px) {
   .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact > .top-page-actions {
-    transform: scale(.94);
     box-shadow: 0 6px 20px rgba(15, 23, 42, 0.09), 0 1px 2px rgba(15, 23, 42, 0.05);
   }
   html body .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact .top-page-actions > button:not(.tpa-keep-wide),
@@ -3058,13 +3059,11 @@ html[data-theme="dark"] body .desktop-catalog-actions-slot:focus-within > .top-p
     clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important;
   }
   html body .desktop-catalog-actions-slot:focus-within > .top-page-actions {
-    transform: scale(1.05);
     box-shadow: 0 12px 32px rgba(15, 23, 42, 0.14), 0 2px 6px rgba(15, 23, 42, 0.08);
   }
 }
 @media (min-width: 1500px) and (hover: hover) and (pointer: fine) {
   html body .desktop-catalog-actions-slot:hover > .top-page-actions {
-    transform: scale(1.05);
     box-shadow: 0 12px 32px rgba(15, 23, 42, 0.14), 0 2px 6px rgba(15, 23, 42, 0.08);
   }
 }
@@ -3074,14 +3073,18 @@ html[data-theme="dark"] body .desktop-catalog-actions-slot:focus-within > .top-p
   html body .desktop-catalog-actions-slot:focus-within > .top-page-actions { transform: none !important; }
 }
 
-/* A little lift on hover or keyboard focus without affecting touch or reduced-motion users. */
+/* Soft shadow lift on hover or keyboard focus without shifting hitboxes. */
 @media (min-width: 901px) {
   html body .ac-main-column > .ac-desktop-dock:focus-within,
-  html body .ac-desktop-top-row > .ac-desktop-dock:focus-within { transform: scale(1.06); transform-origin: top center; }
+  html body .ac-desktop-top-row > .ac-desktop-dock:focus-within {
+    box-shadow: 0 14px 36px rgba(15, 23, 42, 0.14), 0 2px 6px rgba(15, 23, 42, 0.07);
+  }
 }
 @media (min-width: 901px) and (hover: hover) and (pointer: fine) {
   html body .ac-main-column > .ac-desktop-dock:hover,
-  html body .ac-desktop-top-row > .ac-desktop-dock:hover { transform: scale(1.06); transform-origin: top center; }
+  html body .ac-desktop-top-row > .ac-desktop-dock:hover {
+    box-shadow: 0 14px 36px rgba(15, 23, 42, 0.14), 0 2px 6px rgba(15, 23, 42, 0.07);
+  }
 }
 @media (prefers-reduced-motion: reduce) and (min-width: 901px) {
   html body .ac-main-column > .ac-desktop-dock:hover,

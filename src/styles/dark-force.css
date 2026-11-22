@@ -4802,7 +4802,7 @@ html body .content .card button:not(.atlas-dp-day):not(.atlas-dp-nav):not(.atlas
 html body .content .card a.btn,
 html body .content .ac-panel button:not(.atlas-dp-day):not(.atlas-dp-nav):not(.atlas-dp-preset):not(.atlas-dp-btn):not(.atlas-dp-trigger):not(.account-glass-switch):not(.theme-toggle):not(.settings-nav-item):not(.density-toggle button):not(.ac-seg-btn),
 html body .content .ac-panel a.btn,
-html body .atlas-settings button:not(.atlas-dp-day):not(.atlas-dp-nav):not(.atlas-dp-preset):not(.atlas-dp-btn):not(.atlas-dp-trigger):not(.account-glass-switch):not(.theme-toggle):not(.settings-nav-item):not(.density-toggle button):not(.ac-seg-btn):not(.modal-x),
+html body .atlas-settings button:not(.atlas-dp-day):not(.atlas-dp-nav):not(.atlas-dp-preset):not(.atlas-dp-btn):not(.atlas-dp-trigger):not(.account-glass-switch):not(.theme-toggle):not(.settings-nav-item):not(.density-toggle button):not(.ac-seg-btn):not(.modal-x):not(.modal-close),
 html body .atlas-settings a.btn,
 html body .modal-overlay .modal .wizard-foot-actions button,
 html body .modal-overlay .modal .modal-actions button {
@@ -4815,6 +4815,70 @@ html body .modal-overlay .modal .modal-actions button {
   justify-content: center;
   gap: 7px;
   transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s ease, background-color 0.18s ease, border-color 0.18s ease;
+}
+
+/* Modal close button (.modal-x / .modal-close): never squished by padding, SVG always visible */
+html[data-theme] body .modal-overlay .modal button.modal-x,
+html[data-theme] body .modal-overlay .modal-card button.modal-x,
+html[data-theme] body .modal-overlay .modal button.modal-close,
+html[data-theme] body .modal-overlay .modal-card button.modal-close {
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  min-height: 34px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 10px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+  box-sizing: border-box !important;
+  color: #3f3f46 !important;
+  -webkit-text-fill-color: #3f3f46 !important;
+  background: rgba(244, 244, 245, 0.72) !important;
+  border: 1px solid #d4d4d8 !important;
+  box-shadow: none !important;
+  z-index: 8 !important;
+}
+html[data-theme] body .modal-overlay .modal button.modal-x:hover,
+html[data-theme] body .modal-overlay .modal-card button.modal-x:hover,
+html[data-theme] body .modal-overlay .modal button.modal-close:hover,
+html[data-theme] body .modal-overlay .modal-card button.modal-close:hover {
+  background: #e4e4e7 !important;
+  color: #09090b !important;
+  -webkit-text-fill-color: #09090b !important;
+}
+html[data-theme="dark"] body .modal-overlay .modal button.modal-x,
+html[data-theme="dark"] body .modal-overlay .modal-card button.modal-x,
+html[data-theme="dark"] body .modal-overlay .modal button.modal-close,
+html[data-theme="dark"] body .modal-overlay .modal-card button.modal-close {
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+  background: rgba(39, 39, 42, 0.88) !important;
+  border-color: #52525b !important;
+}
+html[data-theme="dark"] body .modal-overlay .modal button.modal-x:hover,
+html[data-theme="dark"] body .modal-overlay .modal-card button.modal-x:hover,
+html[data-theme="dark"] body .modal-overlay .modal button.modal-close:hover,
+html[data-theme="dark"] body .modal-overlay .modal-card button.modal-close:hover {
+  background: #3f3f46 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html[data-theme] body .modal-overlay .modal button.modal-x svg,
+html[data-theme] body .modal-overlay .modal-card button.modal-x svg,
+html[data-theme] body .modal-overlay .modal button.modal-close svg,
+html[data-theme] body .modal-overlay .modal-card button.modal-close svg {
+  width: 17px !important;
+  height: 17px !important;
+  min-width: 17px !important;
+  min-height: 17px !important;
+  flex: none !important;
+  display: block !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+  visibility: visible !important;
 }
 html body .atlas-settings .settings-nav-item {
   border-radius: 12px !important;

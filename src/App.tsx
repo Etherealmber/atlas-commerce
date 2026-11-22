@@ -685,7 +685,7 @@ function useTheme() {
      topmost open overlay (Tab / Shift+Tab cycle). */
   useEffect(() => {
     const ensureClose = (card: HTMLElement) => {
-      if (card.querySelector(':scope > .modal-x')) return;
+      if (card.querySelector(':scope > .modal-x, .modal-x, .modal-close')) return;
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'modal-x modal-close';

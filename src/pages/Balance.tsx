@@ -575,19 +575,19 @@ export default function Balance() {
               aria-labelledby="bal-reports-title"
               onClick={(e) => e.stopPropagation()}
             >
+              <button
+                type="button"
+                className="modal-x"
+                aria-label="Fermer"
+                onClick={() => setShowReportsDialog(false)}
+              >
+                <X size={18} aria-hidden="true" />
+              </button>
               <div className="bal-reports-modal-head">
                 <div>
                   <span className="bal-reports-eyebrow">RAPPORTS &amp; EXPORTS</span>
                   <h2 id="bal-reports-title">Rapports PDF &amp; exports</h2>
                 </div>
-                <button
-                  type="button"
-                  className="modal-x secondary"
-                  aria-label="Fermer"
-                  onClick={() => setShowReportsDialog(false)}
-                >
-                  <X size={18} aria-hidden="true" />
-                </button>
               </div>
 
               <div className="bal-reports-period-row">

@@ -123,6 +123,16 @@ function addedLines(file, base) {
 }
 
 // ---- run ------------------------------------------------------------------
+function tsxFiles(dir, out = []) {
+  for (const e of readdirSync(dir)) {
+    const p = path.join(dir, e);
+    const st = statSync(p);
+    if (st.isDirectory()) tsxFiles(p, out);
+    else if (p.endsWith('.tsx')) out.push(p);
+  }
+  return out;
+}
+
 const files = cssFiles(path.join(root, 'src'));
 for (const f of files) structural(path.relative(root, f), readFileSync(f, 'utf8'));
 
@@ -133,18 +143,55 @@ if (cssImports.length && !/dark-force\.css$/.test(cssImports[cssImports.length -
   problems.push(`src/main.tsx: dark-force.css must be the LAST css import (found "${cssImports[cssImports.length - 1]}" after it)`);
 }
 
-// PR mode: no NEW white-in-dark declarations
-const base = process.env.GITHUB_BASE_REF ? `origin/${process.env.GITHUB_BASE_REF}` : null;
-if (base) {
-  for (const f of files) {
-    const rel = path.relative(root, f);
-    const hits = whiteInDarkLines(readFileSync(f, 'utf8'));
-    if (!hits.size) continue;
-    const added = addedLines(rel, base);
-    if (!added) continue;
-    for (const ln of hits) {
-      if (added.has(ln)) problems.push(`${rel}:${ln}: new white background inside a dark-theme block`);
+// Strict guard 1: modal close buttons (.modal-x / .modal-close) must never be squished by padding or lose SVG stroke
+const darkForce = readFileSync(path.join(root, 'src/styles/dark-force.css'), 'utf8');
+if (!/button\.modal-x[\s\S]*?padding:\s*0\s*!important/.test(darkForce)) {
+  problems.push('src/styles/dark-force.css: missing `padding: 0 !important` shield for `.modal-x` / `.modal-close`');
+}
+if (!/button\.modal-x\s+svg[\s\S]*?stroke:\s*currentColor\s*!important/.test(darkForce)) {
+  problems.push('src/styles/dark-force.css: missing explicit `.modal-x svg` size/stroke shield');
+}
+
+// Strict guard 2: floating pill (.desktop-catalog-actions-slot > .top-page-actions) must not scale the container
+const shellCss = stripComments(readFileSync(path.join(root, 'src/styles/shell.css'), 'utf8'));
+for (const m of shellCss.matchAll(/\.desktop-catalog-actions-slot[^\{]*>\s*\.top-page-actions\s*\{([^}]*)\}/g)) {
+  if (/transform\s*:\s*scale\s*\(/i.test(m[1])) {
+    problems.push('src/styles/shell.css: `.desktop-catalog-actions-slot > .top-page-actions` must not use `transform: scale(...)` (causes pointer-boundary flicker)');
+  }
+}
+
+// Strict guard 3: TSX modal-x / modal-close hygiene (never pair with secondary/danger/btn/ghost, always aria-label)
+for (const tf of tsxFiles(path.join(root, 'src'))) {
+  const rel = path.relative(root, tf);
+  const src = readFileSync(tf, 'utf8');
+  for (const m of src.matchAll(/<button\b[^>]*className=["'][^"']*\b(?:modal-x|modal-close)\b[^"']*["'][^>]*>/g)) {
+    const tag = m[0];
+    const cls = tag.match(/className=["']([^"']*)["']/)?.[1] || '';
+    if (/\b(secondary|danger|ghost|btn)\b/.test(cls)) {
+      problems.push(`${rel}: close button "${cls}" must not combine .modal-x/.modal-close with .secondary/.danger/.ghost/.btn`);
     }
+    if (!/\baria-label=/.test(tag)) {
+      problems.push(`${rel}: close button "${cls}" is missing aria-label`);
+    }
+  }
+}
+
+// Strict guard 4: TopPageActions ResizeObserver must not observe child items directly
+const topPageActionsSrc = readFileSync(path.join(root, 'src/components/TopPageActions.tsx'), 'utf8');
+if (/observer\??\.observe\(\s*(?:item|actions|dock)\s*\)/.test(topPageActionsSrc)) {
+  problems.push('src/components/TopPageActions.tsx: ResizeObserver must observe `column` only (observing child buttons/dock triggers flicker loops)');
+}
+
+// Strict guard 5: no NEW white-in-dark declarations (PR base or local main)
+const base = process.env.GITHUB_BASE_REF ? `origin/${process.env.GITHUB_BASE_REF}` : 'main';
+for (const f of files) {
+  const rel = path.relative(root, f);
+  const hits = whiteInDarkLines(readFileSync(f, 'utf8'));
+  if (!hits.size) continue;
+  const added = addedLines(rel, base);
+  if (!added) continue;
+  for (const ln of hits) {
+    if (added.has(ln)) problems.push(`${rel}:${ln}: new white background inside a dark-theme block`);
   }
 }
 
@@ -153,4 +200,4 @@ if (problems.length) {
   for (const p of problems) console.error(' - ' + p);
   process.exit(1);
 }
-console.log(`CSS guard OK — ${files.length} stylesheets checked.`);
+console.log(`CSS guard OK — ${files.length} stylesheets & UI invariants checked.`);
