@@ -19,6 +19,8 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
+            // Markdown is needed only by the phone Agent, not by the shared app shell.
+            if (/[/\\]node_modules[/\\](?:react-markdown|remark-[^/\\]+|rehype-[^/\\]+|unified|micromark[^/\\]*|mdast-[^/\\]+|hast-[^/\\]+|unist-[^/\\]+|vfile[^/\\]*)[/\\]/.test(id)) return 'vendor-markdown';
             if (
               id.includes('react-dom') ||
               id.includes('/react/') ||

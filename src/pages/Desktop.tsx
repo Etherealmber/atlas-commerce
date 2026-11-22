@@ -1,3 +1,4 @@
+import ReleaseTimeline from '../components/ReleaseTimeline';
 import DownloadPreview from '../components/DownloadPreview';
 import DownloadHeroVisual from '../components/DownloadHeroVisual';
 /**
@@ -9,7 +10,9 @@ import DownloadHeroVisual from '../components/DownloadHeroVisual';
  * visiteur pour le bouton principal, notes de version et historique.
  * Navigation publique partagée et lecture libre, connecté ou non.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useLandingMotion } from '../hooks/useLandingMotion';
+import { publicationDate } from '../lib/releaseDate';
 import { Link } from 'react-router-dom';
 import { PublicNav, PublicSessionCta, GitHubStarButton } from '../components/PublicChrome';
 import { APP_BUILD_DATE, APP_NAME } from '../version';
@@ -120,6 +123,8 @@ function mdToHtml(src: string): string {
 }
 
 export default function Desktop() {
+  const pageRef = useRef<HTMLDivElement>(null);
+  useLandingMotion(pageRef, '.dl-ed-facts, .dl-ed-section, .dl-preview', '.dl-ed-visual-inner');
   const [rels, setRels] = useState<GhRelease[]>([]);
   const [state, setState] = useState<'load' | 'ok' | 'error'>('load');
   const [os, setOs] = useState<OsKey>('windows');
@@ -175,7 +180,7 @@ export default function Desktop() {
   const latest = rels[0] || null;
   const relBody = String(latest?.body || '').trim();
   const relTitle = latest?.name || latest?.tag_name || 'Atlas Commerce Desktop';
-  const relDate = latest?.published_at ? String(latest.published_at).slice(0, 10) : 'Date non disponible';
+  const relDate = publicationDate(latest?.published_at);
   const mainAsset = osAsset(latest, os);
   const visibleAssets = (latest?.assets || []).filter((asset) => {
     const name = String(asset.name || '');
@@ -187,7 +192,7 @@ export default function Desktop() {
   });
 
   return (
-    <div className="download-landing desktop-landing">
+    <div className="download-landing desktop-landing" ref={pageRef}>
       <PublicNav
         links={[
           { href: '/', label: 'Accueil' },
@@ -206,7 +211,7 @@ export default function Desktop() {
             <a className="dl-ed-release-badge" href="#versions"><span aria-hidden="true" />{latest?.tag_name ? `Version bureau · ${latest.tag_name}` : 'Versions bureau'} <b aria-hidden="true">↗</b></a>
             <div className="dl-ed-hero-grid">
               <div className="dl-hero-content">
-                <h1 className="dl-h1 dl-ed-title">Atlas Commerce<br /><span>pour bureau.</span></h1>
+                <h1 className="dl-h1 dl-ed-title"><span className="dl-ed-title-first">Atlas Commerce</span>{' '}<span className="dl-ed-title-second">pour bureau.</span></h1>
                 <p className="dl-desc">Votre espace de gestion dans une fenêtre dédiée, pour Windows, macOS et Linux.</p>
                 <div className="dl-ctas">
                   {state === 'ok' && mainAsset ? <a className="dl-cta-main" href={String(mainAsset.browser_download_url)} target="_blank" rel="noopener noreferrer">↓ &nbsp; Télécharger pour {OS_LABEL[os]}</a> : state === 'error' ? <span className="dl-cta-main dl-cta-wait" aria-disabled="true">Releases injoignables</span> : state === 'ok' ? <span className="dl-cta-main dl-cta-wait" aria-disabled="true">Aucun binaire pour {OS_LABEL[os]}</span> : <span className="dl-cta-main dl-cta-wait" aria-disabled="true">Chargement…</span>}
@@ -234,7 +239,7 @@ export default function Desktop() {
                 {([['all', 'Tous'], ['windows', 'Windows'], ['macos', 'macOS'], ['linux', 'Linux']] as const).map(([value, label]) => <button key={value} type="button" className="secondary" aria-pressed={assetFilter === value} onClick={() => setAssetFilter(value)}>{label}</button>)}
               </div>
               <div className="dl-ed-files" aria-live="polite">{visibleAssets.map((asset, i) => <div className="dl-ed-download-row" key={String(asset.name || i)}><div><strong>{String(asset.name || 'Fichier')}</strong><span>{/\.msi$|\.exe$/i.test(String(asset.name || '')) ? 'Windows' : /\.dmg$/i.test(String(asset.name || '')) ? 'macOS' : /appimage|linux|\.deb$|\.rpm$/i.test(String(asset.name || '')) ? 'Linux' : 'Autre fichier'}</span></div>{asset.browser_download_url && <a href={asset.browser_download_url} target="_blank" rel="noopener noreferrer">Télécharger ↗</a>}</div>)}{visibleAssets.length === 0 && <p className="dl-ed-hint">{state === 'load' ? 'Chargement des fichiers…' : 'Aucun fichier disponible pour cette sélection.'}</p>}</div>
-              <div className="dl-stats" aria-label="Informations de version"><div className="dl-stat"><strong>{latest?.tag_name || '—'}</strong><span>Version</span></div><div className="dl-stat"><strong>{latest?.published_at ? relDate : '—'}</strong><span>Publiée le</span></div><div className="dl-stat"><strong>{latest ? (latest.assets?.length ?? 0) : '—'}</strong><span>Fichiers</span></div></div>
+              <div className="dl-stats" aria-label="Informations de version"><div className="dl-stat"><strong>{latest?.tag_name || '—'}</strong><span>Version</span></div><div className="dl-stat"><strong>{relDate || '—'}</strong><span>Publiée le</span></div><div className="dl-stat"><strong>{latest ? (latest.assets?.length ?? 0) : '—'}</strong><span>Fichiers</span></div></div>
               <p className="dl-ed-hint">Windows : .msi / .exe · macOS : .dmg · Linux : AppImage. Consultez la release pour les autres fichiers.</p>
             </div>
           </div>
@@ -243,8 +248,8 @@ export default function Desktop() {
         <section className="dl-ed-section dl-container" id="versions" aria-labelledby="desktop-versions-title">
           <div className="dl-ed-rail">
             <div className="dl-ed-heading"><p className="dl-ed-kicker">02 / MISES À JOUR</p><h2 id="desktop-versions-title">Versions</h2><p>Les dernières notes et publications du dépôt bureau.</p><a href={`${DESKTOP_REPO}/releases`} target="_blank" rel="noopener noreferrer">Toutes les releases ↗</a></div>
-            <div className="dl-ed-content"><article className="dl-release"><h3>{relTitle}</h3><p className="dl-release-date">{relDate}</p>{relBody ? <div className="dl-md dl-release-body" dangerouslySetInnerHTML={{ __html: mdToHtml(relBody) }} /> : <p className="dl-release-body">Notes de version non publiées pour ce binaire.</p>}{latest?.html_url && <a className="dl-release-link" href={latest.html_url} target="_blank" rel="noopener noreferrer">Voir la release sur GitHub ↗</a>}</article>
-              <h3 className="dl-ed-subheading">Historique</h3><div className="dl-rel-list">{rels.map((r, i) => <div key={String(r.tag_name || r.name || i)} className="dl-rel-row"><strong>{r.name || r.tag_name}</strong><span className="dl-muted">{String(r.published_at || '').slice(0, 10)}</span>{r.html_url && <a href={r.html_url} target="_blank" rel="noopener noreferrer">Voir ↗</a>}</div>)}{rels.length === 0 && <p className="dl-muted">Historique indisponible pour le moment.</p>}</div>
+            <div className="dl-ed-content"><article className="dl-release"><p className="dl-release-label">Dernière release</p><h3>{relTitle}</h3><p className="dl-release-date">{relDate ? `Publiée le ${relDate}` : 'Date de publication indisponible'}</p>{relBody ? <div className="dl-md dl-release-body" dangerouslySetInnerHTML={{ __html: mdToHtml(relBody) }} /> : <p className="dl-release-body">Notes de version non publiées pour ce binaire.</p>}{latest?.html_url && <a className="dl-release-link" href={latest.html_url} target="_blank" rel="noopener noreferrer">Voir la release sur GitHub ↗</a>}</article>
+              <ReleaseTimeline releases={rels} renderMarkdown={mdToHtml} />
             </div>
           </div>
         </section>

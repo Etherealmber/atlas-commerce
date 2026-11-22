@@ -19,6 +19,9 @@ describe('WhatsNew releases', () => {
     const ids = RELEASES[0].sections.flatMap((s) => s.items).map((i) => i.id);
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids.length).toBeLessThanOrEqual(20);
+    expect(ids).toContain('090i9');
+    expect(ids).toContain('090i10');
+    expect(JSON.stringify(RELEASES[0])).not.toMatch(/flclash/i);
     const additions = RELEASES[0].sections[0].items;
     expect(additions.every((item) => item.platforms?.includes('web'))).toBe(true);
     const addedText = additions.map((item) => item.text).join(' ');

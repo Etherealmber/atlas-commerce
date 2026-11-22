@@ -799,7 +799,7 @@ function useTheme() {
         window.setTimeout(() => root.classList.remove('theme-anim'), 420);
         return;
       }
-      doApply();
+      doApply(!reduce && !!prev && prev !== resolved);
     };
     apply();
     localStorage.setItem('atlas-theme', mode);
@@ -1282,7 +1282,7 @@ function DesktopShell() {
 
         <div className="ac-main-column">
         {!isFocusRoute && (
-        <header className={`ac-topbar ac-topbar--bionis${shellSearchOpen ? ' ac-topbar--searching' : ''}`} role="banner">
+        <header className={`ac-topbar ac-topbar--bionis ac-desktop-dock${settingsBarCompact && !shellSearchOpen && !shellNotifOpen && !shellUserOpen ? ' ac-topbar--compact' : ''}${shellSearchOpen ? ' ac-topbar--searching' : ''}`} role="banner">
           <div className="ac-topbar-left">
             <button
               type="button"

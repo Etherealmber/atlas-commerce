@@ -1,3 +1,10 @@
+export type WorkStatusSource = {
+  availability: string;
+  items: { id: string; title: string | null; status: string; url?: string }[];
+  next_cursor: string | null;
+  error?: string | null;
+};
+
 import { getToken, clearToken } from './auth';
 import { getCachedFingerprint } from './fingerprint';
 import { getApiBase } from './config';
@@ -334,6 +341,8 @@ export const api = {
     request('/api/import/validate', { method: 'POST', body: JSON.stringify(body) }),
   importCommit: (body: any) =>
     request('/api/import/commit', { method: 'POST', body: JSON.stringify(body) }),
+  mobileWorkStatus: (cursor?: { source: 'in_app' | 'github'; value: string }) =>
+    request<{ success: boolean; in_app: WorkStatusSource; trackers: { github: WorkStatusSource } }>(`/api/mobile/work-status${cursor ? `?${cursor.source === 'in_app' ? 'in_app_cursor' : 'github_cursor'}=${encodeURIComponent(cursor.value)}` : ''}`),
   assistStatus: () => request<{ data: { configured: boolean; provider?: string; model?: string; hint?: string } }>('/api/assist/status'),
   getAssistProvider: () =>
     request<{ data: { provider: string; groqConfigured?: boolean; groqModel?: string; geminiConfigured?: boolean } }>(

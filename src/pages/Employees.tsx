@@ -91,7 +91,7 @@ function empShort(e: Emp, max = 22): string {
   return initials ? `${first} ${initials}` : `${full.slice(0, max - 1)}…`;
 }
 
-export default function Employees() {
+export default function Employees({ phone = false }: { phone?: boolean }) {
   const [deleteArmId, setDeleteArmId] = useState<string | number | null>(null);
   const [list, setList] = useState<Emp[]>([]);
   const [loading, setLoading] = useState(true);
@@ -556,8 +556,65 @@ export default function Employees() {
     .filter((e) => Number(e.active) !== 0)
     .reduce((s, e) => s + Number(e.pay_amount || 0), 0);
 
+  const employeeActions = (e: Emp) => (
+    <div className="row-actions">
+      <button
+        type="button"
+        className="secondary"
+        title="Dossier imprimable (1 page A4)"
+        onClick={() => openPrintDoc(`/api/employees/${e.id}/form/print`)}
+      >
+        Fiche
+      </button>
+      <button
+        type="button"
+        className="secondary"
+        title="Situation RH (rapport)"
+        onClick={() =>
+          openReport('/api/reports/employee-situation', {
+            employee_id: String(e.id),
+          })
+        }
+      >
+        Situation
+      </button>
+      {Number(e.active) !== 0 && (
+        <>
+          <button type="button" className="success" onClick={() => openPay(e)}>
+            Marquer payé
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            title="Acompte selon cycle (semaines) — pas lié à la présence"
+            onClick={() => openAdvance(e)}
+          >
+            Acompte
+          </button>
+        </>
+      )}
+      {Number(e.active) !== 0 ? (
+        <button type="button" className="secondary" onClick={() => openResign(e)}>
+          Démissionner
+        </button>
+      ) : (
+        <>
+          <button type="button" className="secondary" onClick={() => reactivate(e)}>
+            Réactiver
+          </button>
+          {deleteArmId === e.id ? (
+            <TimedUndoDelete autoStart deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10}
+              onConfirm={() => { setDeleteArmId(null); openDelete(e); }} />
+          ) : (
+            <TimedUndoDelete deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10} onConfirm={() => { setDeleteArmId(null); openDelete(e); }} />
+          )}
+        </>
+      )}
+    </div>
+  );
+
   return (
-    <div className="atlas-crm employees-page">
+    <div className={`atlas-crm employees-page${phone ? ' employees-page--phone' : ''}`}>
       <div className="page-header">
         <h1>Employés</h1>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -657,6 +714,16 @@ export default function Employees() {
             </button>
           )}
         </div>
+      ) : phone ? (
+        <section className="ph-employees-list" aria-label="Équipe">
+          <div className="ph-employees-list-title"><h2>Équipe</h2><span>{list.length} fiche(s) dans la liste</span></div>
+          {list.map((e) => <article className="ph-employee-card" key={e.id}>
+            <div className="ph-employee-head"><div className="ph-employee-avatar" aria-hidden="true">{empName(e).split(/\s+/).filter(Boolean).slice(0, 2).map((part: string) => part[0]?.toUpperCase()).join('')}</div><div className="ph-employee-name"><h3>{empName(e)}</h3><span>{e.role_title || 'Poste non renseigné'} · {e.emp_number || 'N° non renseigné'}</span></div><span className="ph-employee-status">{Number(e.active) === 0 ? 'Inactif' : 'Actif'}</span></div>
+            <dl className="ph-employee-info"><div><dt>Salaire</dt><dd>{fmt(Number(e.pay_amount || 0))}</dd></div><div><dt>Cycle</dt><dd>{cycleLabel(e)}</dd></div><div><dt>Dernier paiement</dt><dd>{e.last_paid_at ? String(e.last_paid_at).slice(0, 10) : 'Jamais'}</dd></div><div><dt>Prochaine échéance</dt><dd>{e.next_due || '—'}{e.pay_overdue ? ' · à payer' : ''}</dd></div>{e.phone && <div><dt>Téléphone</dt><dd>{e.phone}</dd></div>}{e.national_id && <div><dt>Pièce ID</dt><dd>{e.national_id}</dd></div>}</dl>
+            <div className="ph-employee-links"><button type="button" className="secondary" onClick={() => openEdit(e)}>Modifier</button><button type="button" className="secondary" onClick={() => void openDetail(e)}>Détails &amp; historique</button>{e.has_id_doc && <button type="button" className="secondary" onClick={() => void downloadId(e.id)}>Voir pièce</button>}</div>
+            <details className="ph-employee-more"><summary>Actions de la fiche</summary>{employeeActions(e)}</details>
+          </article>)}
+        </section>
       ) : (
         <div className="ac-panel ac-products-table-panel" style={{ padding: 0, width: '100%' }}>
           <div className="table-wrap">
@@ -713,60 +780,7 @@ export default function Employees() {
                       )}
                     </td>
                     <td className="row-actions-cell">
-                      <div className="row-actions">
-                        <button
-                          type="button"
-                          className="secondary"
-                          title="Dossier imprimable (1 page A4)"
-                          onClick={() => openPrintDoc(`/api/employees/${e.id}/form/print`)}
-                        >
-                          Fiche
-                        </button>
-                        <button
-                          type="button"
-                          className="secondary"
-                          title="Situation RH (rapport)"
-                          onClick={() =>
-                            openReport('/api/reports/employee-situation', {
-                              employee_id: String(e.id),
-                            })
-                          }
-                        >
-                          Situation
-                        </button>
-                        {Number(e.active) !== 0 && (
-                          <>
-                            <button type="button" className="success" onClick={() => openPay(e)}>
-                              Marquer payé
-                            </button>
-                            <button
-                              type="button"
-                              className="secondary"
-                              title="Acompte selon cycle (semaines) — pas lié à la présence"
-                              onClick={() => openAdvance(e)}
-                            >
-                              Acompte
-                            </button>
-                          </>
-                        )}
-                        {Number(e.active) !== 0 ? (
-                          <button type="button" className="secondary" onClick={() => openResign(e)}>
-                            Démissionner
-                          </button>
-                        ) : (
-                          <>
-                            <button type="button" className="secondary" onClick={() => reactivate(e)}>
-                              Réactiver
-                            </button>
-                            {deleteArmId === e.id ? (
-                              <TimedUndoDelete autoStart deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10}
-                                onConfirm={() => { setDeleteArmId(null); openDelete(e); }} />
-                            ) : (
-                              <TimedUndoDelete deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10} onConfirm={() => { setDeleteArmId(null); openDelete(e); }} />
-                            )}
-                          </>
-                        )}
-                      </div>
+                      {employeeActions(e)}
                     </td>
                   </tr>
                 ))}

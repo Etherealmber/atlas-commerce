@@ -1,3 +1,4 @@
+import ReleaseTimeline from '../components/ReleaseTimeline';
 import DownloadPreview from '../components/DownloadPreview';
 import DownloadHeroVisual from '../components/DownloadHeroVisual';
 /**
@@ -5,10 +6,12 @@ import DownloadHeroVisual from '../components/DownloadHeroVisual';
  * Manifeste `latest.json` du CDN pour le binaire,
  * notes de version depuis les GitHub Releases du dépôt android.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useLandingMotion } from '../hooks/useLandingMotion';
 import { Link } from 'react-router-dom';
 import { PublicNav, PublicSessionCta } from '../components/PublicChrome';
 import { APP_NAME, APP_BUILD_DATE, APP_GITHUB } from '../version';
+import { publicationDate, sameReleaseVersion } from '../lib/releaseDate';
 
 const LATEST_JSON = 'https://cdn1.afmarbre.com/app-updates/android/latest.json';
 const GH_RELEASES = 'https://api.github.com/repos/Etherealmber/atlas-commerce-android/releases?per_page=50';
@@ -82,6 +85,8 @@ function mdToHtml(src: string): string {
 }
 
 export default function Download() {
+  const pageRef = useRef<HTMLDivElement>(null);
+  useLandingMotion(pageRef, '.dl-ed-facts, .dl-ed-section, .dl-preview', '.dl-ed-visual-inner');
   const [m, setM] = useState<Manifest | null>(null);
   const [state, setState] = useState<'loading' | 'ok' | 'error'>('loading');
   const [rels, setRels] = useState<GhRelease[]>([]);
@@ -164,10 +169,12 @@ export default function Download() {
   const relBody = String(rel?.body || '').trim();
   const notesBody = relBody || String(m?.notes || '').trim();
   const relTitle = rel?.name || rel?.tag_name || (m ? `v${m.versionName}` : APP_NAME);
-  const relDate = rel?.published_at ? String(rel.published_at).slice(0, 10) : m?.buildDate || 'Date non disponible';
+  const relDate = publicationDate(rel?.published_at);
+  const manifestRelease = rels.find(r => sameReleaseVersion(r.tag_name, m?.versionName));
+  const manifestPublished = publicationDate(manifestRelease?.published_at);
 
   return (
-    <div className="download-landing">
+    <div className="download-landing android-landing" ref={pageRef}>
       {/* ── Navbar visible par tous : accueil, légal, contact → À propos ── */}
       <PublicNav
         links={[
@@ -187,7 +194,7 @@ export default function Download() {
             <a className="dl-ed-release-badge" href="#versions"><span aria-hidden="true" />{m?.versionName ? `Version Android · ${m.versionName}` : 'Versions Android'} <b aria-hidden="true">↗</b></a>
             <div className="dl-ed-hero-grid">
               <div className="dl-hero-content">
-                <h1 className="dl-h1 dl-ed-title">Atlas Commerce<br /><span>pour Android.</span></h1>
+                <h1 className="dl-h1 dl-ed-title"><span className="dl-ed-title-first">Atlas Commerce</span>{' '}<span className="dl-ed-title-second">pour Android.</span></h1>
                 <p className="dl-desc">Stock, ventes, factures et trésorerie : les outils Atlas vous accompagnent sur le terrain.</p>
                 <div className="dl-ctas">
                   {apkHref ? <a className="dl-cta-main" href={apkHref} target="_blank" rel="noopener noreferrer">↓ &nbsp; Télécharger l&apos;APK</a> : <span className="dl-cta-main dl-cta-wait" aria-disabled="true">{state === 'loading' ? 'Lecture du manifeste…' : 'Manifeste injoignable'}</span>}
@@ -213,8 +220,8 @@ export default function Download() {
             <div className="dl-ed-content">
               <div className="dl-ed-platforms" aria-label="Plateforme"><span className="dl-ed-platform-active">Android</span><Link to="/desktop">Bureau</Link></div>
               <div className="dl-ed-download-row"><div><strong>Application Android</strong><span>{m?.versionName ? `Version ${m.versionName}` : 'Version indisponible'} · APK</span></div>{apkHref ? <a href={apkHref} target="_blank" rel="noopener noreferrer">Télécharger ↗</a> : <span>{state === 'loading' ? 'Chargement…' : 'Indisponible'}</span>}</div>
-              <div className="dl-stats" aria-label="Informations de version"><div className="dl-stat"><strong>{m?.versionName ? `v${m.versionName}` : '—'}</strong><span>Version</span></div><div className="dl-stat"><strong>{m?.versionCode ? `#${m.versionCode}` : '—'}</strong><span>Build</span></div><div className="dl-stat"><strong>{m?.buildDate || '—'}</strong><span>Publiée le</span></div></div>
-              <p className="dl-ed-hint">Installez uniquement l’APK obtenue depuis la page ou le dépôt officiel.</p>
+              <div className="dl-stats" aria-label="Informations de version"><div className="dl-stat"><strong>{m?.versionName ? `v${m.versionName}` : '—'}</strong><span>Version</span></div><div className="dl-stat"><strong>{m?.versionCode ? `#${m.versionCode}` : '—'}</strong><span>Build</span></div><div className="dl-stat"><strong>{manifestPublished || '—'}</strong><span>Publication de l’APK</span></div></div>
+              <p className="dl-ed-hint">{m?.buildDate && <>Build : {m.buildDate} · </>}Installez uniquement l’APK obtenue depuis la page ou le dépôt officiel.</p>
             </div>
           </div>
         </section>
@@ -223,8 +230,8 @@ export default function Download() {
           <div className="dl-ed-rail">
             <div className="dl-ed-heading"><p className="dl-ed-kicker">02 / MISES À JOUR</p><h2 id="android-versions-title">Versions</h2><p>Notes et historique publiés pour l’application Android.</p><a href={`${ANDROID_REPO}/releases`} target="_blank" rel="noopener noreferrer">Toutes les releases ↗</a></div>
             <div className="dl-ed-content">
-              <article className="dl-release"><h3>{relTitle}</h3><p className="dl-release-date">{relDate}</p>{notesBody ? <div className="dl-md dl-release-body" dangerouslySetInnerHTML={{ __html: mdToHtml(notesBody) }} /> : <p className="dl-release-body">Notes de version non publiées pour ce binaire.</p>}{rel?.html_url && <a className="dl-release-link" href={rel.html_url} target="_blank" rel="noopener noreferrer">Voir la release sur GitHub ↗</a>}</article>
-              <h3 className="dl-ed-subheading">Historique</h3><div className="dl-rel-list">{rels.map((r, i) => <div key={String(r.tag_name || r.name || i)} className="dl-rel-row"><strong>{r.name || r.tag_name}</strong><span className="dl-muted">{String(r.published_at || '').slice(0, 10)}</span>{r.html_url && <a href={r.html_url} target="_blank" rel="noopener noreferrer">Voir ↗</a>}</div>)}{rels.length === 0 && <p className="dl-muted">Historique indisponible pour le moment.</p>}</div>
+              <article className="dl-release"><p className="dl-release-label">Dernière release</p><h3>{relTitle}</h3><p className="dl-release-date">{relDate ? `Publiée le ${relDate}` : 'Date de publication indisponible'}</p>{notesBody ? <div className="dl-md dl-release-body" dangerouslySetInnerHTML={{ __html: mdToHtml(notesBody) }} /> : <p className="dl-release-body">Notes de version non publiées pour ce binaire.</p>}{rel?.html_url && <a className="dl-release-link" href={rel.html_url} target="_blank" rel="noopener noreferrer">Voir la release sur GitHub ↗</a>}</article>
+              <ReleaseTimeline releases={rels} renderMarkdown={mdToHtml} />
             </div>
           </div>
         </section>
