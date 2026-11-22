@@ -3183,3 +3183,17 @@ html.phone-shell body .phone-root button.ph-agent-send { border: 0 !important; b
   .ph-sale-empty p { margin: 4px 0 8px; }
 }
 html.phone-shell :is(.ph-sale-fields, .ph-sale-catalog) :is(input, textarea) { font-weight: 400 !important; }
+
+/* A calmer, more legible overview at phone widths. */
+.ph-home-native { gap: 14px; }
+.ph-home-native .ph-hero { padding: 20px; border-radius: 20px; }
+.ph-home-native .ph-tile { border-radius: 16px; padding: 14px; }
+.ph-home-native .ph-tile-lbl { white-space: normal; line-height: 1.3; }
+.ph-home-native .ph-tile-val { white-space: normal; overflow: visible; line-height: 1.2; }
+.ph-home-native .ph-panel { border-radius: 18px; }
+.ph-home-native .ph-btn { min-width: 0; }
+.ph-home-native :is(button, select):focus-visible { outline: 3px solid #c45c26; outline-offset: 3px; }
+@media (max-width: 340px) {
+  .ph-home-native .ph-actions-row { flex-direction: column; }
+  .ph-home-native .ph-home-finance-values span { flex-wrap: wrap; }
+}

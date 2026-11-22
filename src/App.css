@@ -21199,3 +21199,55 @@ html body .public-settings-topbar {
   .pn-mobile-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 14px 12px; }
   .pn-mobile-actions > a { white-space: nowrap; }
 }
+
+/* Atlas editorial product pages: quiet surfaces, product-first layouts. */
+.home-landing, .download-landing { --dl-bg: #10100f; --dl-band: #161614; --dl-card: #1d1c1a; --dl-line: #393630; }
+html[data-theme='light'] .home-landing, html[data-theme='light'] .download-landing { --dl-bg: #faf9f6; --dl-band: #f2f0eb; --dl-card: #fff; --dl-line: #e6e2da; }
+.home-landing { background: var(--dl-bg); color: var(--dl-ink); }
+.hm-bg-grid, .hm-bg-glow, .hm-canvas, .download-landing .dl-hero-bg, .download-landing .dl-hero-grid { display: none; }
+.hm-hero { padding-top: clamp(76px, 9vw, 130px); }
+.hm-hero h1 { font-size: clamp(2.7rem, 7.3vw, 6.1rem); line-height: 1.03; letter-spacing: -.055em; }
+.hm-grad { background: none; color: var(--dl-accent); }
+.hm-sub { max-width: 600px; }
+.hm-window { margin-top: 64px; padding: 8px; border-radius: 22px; background: var(--dl-card); border-color: var(--dl-line); box-shadow: 0 24px 70px #0002; }
+.hm-window-bar { background: transparent; border-color: var(--dl-line); }
+.hm-window img { border-radius: 0 0 14px 14px; }
+.hm-shot-caption { color: var(--dl-sub); font-size: 12px; margin: 14px 0 0; }
+.download-landing .dl-hero { min-height: 0; padding: clamp(80px, 9vw, 132px) 24px 70px; }
+.download-landing .dl-hero-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .95fr); align-items: center; gap: clamp(32px, 6vw, 90px); }
+.download-landing .dl-h1 { font-size: clamp(2.8rem, 5.4vw, 5rem); line-height: 1.04; letter-spacing: -.05em; }
+.download-landing .dl-h1 .dl-h1-soft { font-size: .7em; }
+.download-landing .dl-desc { line-height: 1.7; }
+.download-landing .dl-hero-art { margin: 0; min-width: 0; padding: 24px; border: 1px solid var(--dl-line); border-radius: 26px; background: var(--dl-band); text-align: center; }
+.download-landing .dl-hero-art img { display: block; width: 100%; height: auto; border-radius: 12px; box-shadow: 0 16px 36px #0003; }
+.download-landing .dl-hero-art--android img { max-width: 230px; margin: auto; }
+.download-landing .dl-hero-art figcaption { font-size: 11px; color: var(--dl-sub); margin-top: 15px; }
+.download-landing .dl-preview, .download-landing .dl-band { border-top: 1px solid var(--dl-line); padding-top: 80px; padding-bottom: 80px; }
+.download-landing .dl-preview-eyebrow { text-align: left; }
+.download-landing .dl-sec-title, .download-landing .dl-sec-sub { text-align: left; margin-left: 0; }
+.download-landing .dl-sec-title { letter-spacing: -.035em; font-size: clamp(2rem, 4vw, 3rem); }
+.download-landing .dl-preview-phones { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.download-landing .dl-preview-phones figure { width: 100%; }
+.download-landing .dl-preview-phones img { border-radius: 16px; }
+.download-landing .dl-stats { gap: 0; border-block: 1px solid var(--dl-line); }
+.download-landing .dl-stat { border: 0; border-radius: 0; background: transparent; padding: 22px 18px; }
+.download-landing .dl-stat + .dl-stat { border-left: 1px solid var(--dl-line); }
+.download-landing .dl-feat { border-radius: 12px; padding: 24px; }
+.download-landing .dl-cta-main { background: #c45c26 !important; color: #fff !important; box-shadow: none; }
+.download-landing .dl-cta-main:hover { background: #a94a1b !important; }
+@media (max-width: 700px) {
+  .hm-hero { padding-top: 72px; }
+  .hm-hero h1 { font-size: clamp(2.5rem, 10vw, 4rem); }
+  .hm-window { margin-top: 44px; padding: 5px; }
+  .download-landing .dl-hero { padding: 72px 20px 48px; }
+  .download-landing .dl-hero-layout { grid-template-columns: 1fr; gap: 36px; }
+  .download-landing .dl-hero-art { padding: 18px; }
+  .download-landing .dl-hero-art--android img { max-width: 190px; }
+  .download-landing .dl-preview, .download-landing .dl-band { padding: 56px 20px; }
+  .download-landing .dl-preview-phones { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 12px; }
+  .download-landing .dl-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .download-landing .dl-stat { padding: 16px 8px; overflow-wrap: anywhere; }
+  .download-landing .dl-stat strong { font-size: 14px; }
+}
+.download-landing .dl-section-index { margin: 0 0 12px; color: var(--dl-accent); font-size: 12px; font-weight: 700; letter-spacing: .12em; }
+.download-landing .dl-section-index--spaced { margin-top: 64px; }

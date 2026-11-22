@@ -7,13 +7,10 @@ import {
   PublicDownloadCta,
   GitHubStarButton,
   PublicSessionCta,
-  useThemeValue,
   type NavLink,
 } from '../components/PublicChrome';
 import { isLoggedIn } from '../auth';
 
-const HOME_LIGHT = '/shots/dashboard-light.png';
-const HOME_DARK = '/shots/dashboard-dark.png';
 
 const NAV: NavLink[] = [
   { href: '#features', label: 'Fonctionnalités' },
@@ -24,75 +21,6 @@ const NAV: NavLink[] = [
   { href: '/whats-new', label: 'Nouveautés' },
   { href: '/about', label: 'À propos' },
 ];
-
-/** Fond animé du hero (particules lumineuses dérivantes, façon Liner).
- * Respecte prefers-reduced-motion : une seule image fixe est alors peinte. */
-function HeroCanvas() {
-  const ref = useRef<HTMLCanvasElement | null>(null);
-  useEffect(() => {
-    const cv = ref.current;
-    if (!cv) return;
-    const ctx = cv.getContext('2d');
-    if (!ctx) return;
-    let raf = 0;
-    let w = 0;
-    let h = 0;
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    const dots = Array.from({ length: 46 }, () => ({
-      x: Math.random(),
-      y: Math.random(),
-      r: 0.8 + Math.random() * 2.1,
-      p: Math.random() * Math.PI * 2,
-      v: 0.4 + Math.random() * 0.8,
-    }));
-    const resize = () => {
-      const r = cv.getBoundingClientRect();
-      w = cv.width = Math.max(1, Math.floor(r.width * dpr));
-      h = cv.height = Math.max(1, Math.floor(r.height * dpr));
-    };
-    const draw = (t: number) => {
-      ctx.clearRect(0, 0, w, h);
-      for (const d of dots) {
-        const x = (d.x + Math.sin(t * 0.00006 * d.v + d.p) * 0.03) * w;
-        const y = (d.y + Math.cos(t * 0.00005 * d.v + d.p) * 0.045) * h;
-        const rad = d.r * 7 * dpr;
-        const g = ctx.createRadialGradient(x, y, 0, x, y, rad);
-        g.addColorStop(0, 'rgba(228, 113, 58, .38)');
-        g.addColorStop(1, 'rgba(228, 113, 58, 0)');
-        ctx.fillStyle = g;
-        ctx.beginPath();
-        ctx.arc(x, y, rad, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    };
-    const loop = (t: number) => {
-      draw(t);
-      raf = requestAnimationFrame(loop);
-    };
-    resize();
-    window.addEventListener('resize', resize);
-    const reduce =
-      typeof window.matchMedia === 'function' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduce) draw(1200);
-    else raf = requestAnimationFrame(loop);
-    const onVis = () => {
-      if (document.hidden) {
-        cancelAnimationFrame(raf);
-        raf = 0;
-      } else if (!reduce && !raf) {
-        raf = requestAnimationFrame(loop);
-      }
-    };
-    document.addEventListener('visibilitychange', onVis);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener('resize', resize);
-      document.removeEventListener('visibilitychange', onVis);
-    };
-  }, []);
-  return <canvas ref={ref} className="hm-canvas" aria-hidden="true" />;
-}
 
 /** Révélation douce au scroll (IntersectionObserver, une seule fois). */
 function useRiseObserver() {
@@ -241,24 +169,15 @@ export default function Home() {
       if (raf) cancelAnimationFrame(raf);
     };
   }, []);
-  const theme = useThemeValue();
   useRiseObserver();
-  const shot = theme === 'light' ? HOME_LIGHT : HOME_DARK;
 
   return (
     <div className="home-landing">
-      <div className="hm-bg" aria-hidden="true">
-        <div className="hm-bg-grid" />
-        <div className="hm-bg-glow hm-bg-glow-a" />
-        <div className="hm-bg-glow hm-bg-glow-b" />
-      </div>
-
       <PublicNav links={NAV} cta={<PublicSessionCta />} classic />
 
       <main className="hm-main">
         {/* ---------------- Hero ---------------- */}
         <section className="hm-hero">
-          <HeroCanvas />
           <p className="hm-eyebrow">ATLAS · GESTION COMMERCIALE OPEN SOURCE</p>
           <h1>
             Tout votre commerce,
@@ -286,8 +205,9 @@ export default function Home() {
               <span /><span /><span />
               <em>stock.afmarbre.com — Tableau de bord</em>
             </div>
-            <img src={shot} alt="Le tableau de bord Atlas Commerce" loading="lazy" />
+            <img src="/shots/desktop-demo.webp" alt="Tableau de bord web Atlas Commerce avec des données fictives" width="1280" height="800" />
           </div>
+          <p className="hm-shot-caption">Interface web sur ordinateur · données fictives de démonstration</p>
         </section>
 
         {/* ---------------- Dossier : les modules sortent du folder Atlas ---------------- */}

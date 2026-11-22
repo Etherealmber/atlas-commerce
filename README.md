@@ -36,11 +36,15 @@ Aperçus en thème clair : données et identité de démonstration. Les écrans 
 | --- | --- |
 | ![Écran de scan Android](public/shots/android-scan-demo.webp) | ![Écran de balance Android](public/shots/android-balance-demo.webp) |
 
+| Web mobile — accueil | Web mobile — produits |
+| --- | --- |
+| ![Accueil web mobile avec données fictives](public/shots/phone-home-demo.webp) | ![Catalogue web mobile avec données fictives](public/shots/phone-products-demo.webp) |
+
 ### Version ordinateur
 
 ![Tableau de bord ordinateur avec données fictives](public/shots/desktop-demo.webp)
 
-La capture ordinateur est produite dans Chromium avec des réponses API fictives ; les captures Android fournies ont été anonymisées. Aucune connexion à une base de production n'a servi à la capture.
+Les captures web mobile et ordinateur sont produites dans Chromium avec des réponses API fictives ; les captures Android fournies ont été anonymisées. Aucune connexion à une base de production n'a servi à la capture. Pour reproduire les captures web, démarrer `npx vite --config scripts/vite-capture.config.mjs --port 5173`, puis lancer `node scripts/capture-demo-shots.mjs` : les appels API et réseaux externes sont bloqués et remplacés par des données locales fictives.
 
 ## Intégration Android — 0.8.1
 
