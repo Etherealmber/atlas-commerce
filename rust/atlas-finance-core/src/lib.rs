@@ -462,9 +462,11 @@ mod abi_tests {
         assert_eq!(fc_compute_invoice_batch([0.0_f64; 6].as_ptr(), MAX_BATCH_LINES + 1, out.as_mut_ptr(), 20.0, 0, 0, 1, 2), ERR_BOUNDS);
         assert_eq!(fc_apply_bulk_discount(100.0, 5.0, core::ptr::null(), 257, out.as_mut_ptr()), ERR_BOUNDS);
 
-        // Alignment guard (1-byte offset from u64-aligned buffer)
-        let mut raw = [0_u8; 64];
-        let unaligned_ptr = unsafe { raw.as_mut_ptr().add(1) } as *mut f64;
+        // Alignment guard (1-byte offset from 8-byte-aligned buffer)
+        #[repr(align(8))]
+        struct Aligned64([u8; 64]);
+        let mut raw = Aligned64([0_u8; 64]);
+        let unaligned_ptr = unsafe { raw.0.as_mut_ptr().add(1) } as *mut f64;
         assert_eq!(fc_compute_refund_split(50.0, 100.0, 0.0, 0, 2, unaligned_ptr), ERR_ALIGNMENT);
 
         // Aliasing / overlap guard
@@ -489,7 +491,7 @@ mod abi_tests {
 
         // Zero-length / invalid dealloc guards never panic
         fc_dealloc(core::ptr::null_mut(), 0);
-        fc_dealloc(unaligned_ptr, 64);
-        fc_dealloc(shared.as_mut_ptr(), MAX_ALLOC_BYTES + 1);
+        fc_dealloc(unaligned_ptr as *mut u8, 64);
+        fc_dealloc(shared.as_mut_ptr() as *mut u8, MAX_ALLOC_BYTES + 1);
     }
 }

@@ -1093,7 +1093,7 @@ export function computeRefundSplit(
         if (rc === 0) {
           const out = new Float64Array(w.memory.buffer, outPtr, 4);
           const code = out[3];
-          const newStatus = code === 2 ? 'paid' : code === 1 ? 'partial' : (sourceStatus === 'paid' ? 'paid' : 'sent');
+          const newStatus = code === 2 ? 'paid' : code === 1 ? 'partial' : (sourceStatus === 'paid' ? 'paid' : sourceStatus);
           return {
             credit_vs_debt: out[0],
             cash_refund: out[1],

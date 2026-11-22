@@ -156,7 +156,7 @@ async function main() {
   if (!checkOnly) {
     let toolchain;
     try {
-      toolchain = ensureRustWasmToolchain({
+      toolchain = await ensureRustWasmToolchain({
         autoInstall: process.argv.includes('--install') || isAutomatedBuildEnv(),
       });
     } catch (err) {
