@@ -580,7 +580,7 @@ export default function Invoices() {
                         ? '—'
                         : fmt(Math.max(0, Number(inv.total || 0) - Number(inv.amount_paid || 0)))}
                     </td>
-                    <td style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }} onClick={(e) => e.stopPropagation()}>
+                    <td className="row-actions-cell" onClick={(e) => e.stopPropagation()}><div className="row-actions">
                       {inv.status !== 'quote' && inv.status !== 'devis' && inv.status !== 'remboursement' && inv.status !== 'cancelled' && (
                         <button
                           type="button"
@@ -647,7 +647,7 @@ export default function Invoices() {
                         initialSeconds={10}
                         onConfirm={() => requestDelete(inv.id)}
                       />
-                    </td>
+                    </div></td>
                   </tr>
                 )}
               />
@@ -734,6 +734,7 @@ export default function Invoices() {
 
             <StepBody active={wz.step === 2}>
             {fieldErrors.items ? <span className="field-error-msg" style={{ display: 'block', marginBottom: 8 }}>{fieldErrors.items}</span> : null}
+            <div className="wizard-items-scroll">
             <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1.2fr 70px 100px 100px 100px 36px', gap: 6, marginBottom: 6, fontSize: 10, color: 'var(--muted)', fontWeight: 600 }}>
               <span>Recherche / produit</span>
               <span>Désignation</span>
@@ -810,6 +811,7 @@ export default function Invoices() {
               </div>
               );
             })}
+            </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <button type="button" className="secondary" onClick={() => setItems([...items, { product_name: '', quantity: 1, list_price: 0, unit_price: 0, product_query: '' }])}>+ Ajouter une ligne</button>
               <div style={{ fontSize: 14, fontWeight: 700, textAlign: 'right' }}>

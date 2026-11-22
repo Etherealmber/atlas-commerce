@@ -1,15 +1,16 @@
 import DocumentActors from '../components/DocumentActors';
 import TopPageActions from '../components/TopPageActions';
-import { Download, FileCode2, FileDown, Pencil, Printer, ReceiptText, ScrollText } from 'lucide-react';
+import { Ban, FileCode2, Pencil, Printer } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { whatsAppDraft } from '../lib/assist';
-import { useParams, Link, Navigate } from 'react-router-dom';
+import { useParams, Link, Navigate, useNavigate } from 'react-router-dom';
 import { api, BASE } from '../api';
-import { printInvoiceTicket, downloadTicket } from '../lib/thermal';
 import { getToken } from '../auth';
 import { statusFr, statusBadgeClass } from '../lib/labels';
 import { fmtMoney, paymentMethodLabel } from '../lib/money';
 import { useUi } from '../components/AppDialogs';
+import PasswordConfirm from '../components/PasswordConfirm';
+import { TimedUndoDelete } from '../components/ui';
 import { numStr, numFromInput } from '../lib/numInput';
 import NumberField from '../components/NumberField';
 
@@ -42,7 +43,8 @@ type EditLine = {
 
 export default function InvoiceDetail() {
   const { id } = useParams();
-  const { toast, alert } = useUi();
+  const navigate = useNavigate();
+  const { toast, alert, confirm } = useUi();
   const [invoice, setInvoice] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState('');
@@ -62,6 +64,9 @@ export default function InvoiceDetail() {
   const [notesEdit, setNotesEdit] = useState('');
   const [clearance, setClearance] = useState<any>(null);
   const [ublBusy, setUblBusy] = useState(false);
+  const [pwOpen, setPwOpen] = useState(false);
+  const [pwDesc, setPwDesc] = useState('');
+  const [pendingDelete, setPendingDelete] = useState<null | ((password: string) => Promise<void>)>(null);
 
   const reload = async () => {
     if (!id) return;
@@ -270,74 +275,12 @@ export default function InvoiceDetail() {
             className="btn secondary"
             title="Imprimer"
             href={`${BASE}/api/invoices/${invoice.id}/print?token=${encodeURIComponent(getToken() || '')}`}
-            onClick={(e) => {
-}}
             target="_blank"
             rel="noreferrer"
           >
             <Printer size={16} aria-hidden="true" />
             <span className="tpa-label">Imprimer</span>
           </a>
-          <a
-            className="btn secondary"
-            href={`${BASE}/api/invoices/${invoice.id}/pdf?token=${encodeURIComponent(getToken() || '')}`}
-            onClick={(e) => {
-}}
-            target="_blank"
-            rel="noreferrer"
-            title="Même mise en page que Imprimer — choisissez « Enregistrer au format PDF » dans la boîte d'impression"
-          >
-            <FileDown size={16} aria-hidden="true" />
-            <span className="tpa-label">PDF</span>
-          </a>
-          <button
-            type="button"
-            className="secondary"
-            title="Imprimer via Bluetooth BLE ou USB Serial (Chrome)"
-            onClick={async () => {
-              try {
-                const t = await printInvoiceTicket(invoice.id, { width: 32 });
-                toast(t === 'bluetooth' ? 'Envoyé via Bluetooth' : 'Envoyé via USB Serial', 'success');
-              } catch (e: any) {
-                toast(e?.message || 'Impression impossible — utilisez « Télécharger ticket ».', 'error');
-              }
-            }}
-          >
-            <ReceiptText size={16} aria-hidden="true" />
-            <span className="tpa-label">Imprimer ticket</span>
-          </button>
-          <button
-            type="button"
-            className="secondary"
-            title="Télécharger le fichier ESC/POS (.bin) pour APK ou outil externe"
-            onClick={async () => {
-              try {
-                await downloadTicket(invoice.id, 32, `ticket-${invoice.number || invoice.id}.bin`);
-                toast('Ticket téléchargé (.bin)', 'success');
-              } catch (e: any) {
-                toast(e?.message || 'Ticket indisponible', 'error');
-              }
-            }}
-          >
-            <Download size={16} aria-hidden="true" />
-            <span className="tpa-label">Télécharger ticket</span>
-          </button>
-          <button
-            type="button"
-            className="secondary"
-            title="Ticket 80mm (48 colonnes)"
-            onClick={async () => {
-              try {
-                await downloadTicket(invoice.id, 48, `ticket-${invoice.number || invoice.id}-80mm.bin`);
-                toast('Ticket 80mm téléchargé (.bin)', 'success');
-              } catch (e: any) {
-                toast(e?.message || 'Ticket 80mm indisponible', 'error');
-              }
-            }}
-          >
-            <ScrollText size={16} aria-hidden="true" />
-            <span className="tpa-label">Ticket 80mm</span>
-          </button>
           {invoice.status !== 'quote' && invoice.status !== 'devis' && (
             <a
               className="btn secondary"
@@ -816,6 +759,80 @@ export default function InvoiceDetail() {
           </>
         )}
       </div>
+
+      <section className="card ac-danger-zone" aria-label="Zone de danger">
+        <div className="ac-danger-zone-head">
+          <div>
+            <h3>Zone de danger</h3>
+            <p>Annulez ce document ou supprimez-le définitivement avec ses éléments liés.</p>
+          </div>
+          <div className="ac-danger-zone-actions">
+            {invoice.status !== 'cancelled' && invoice.status !== 'remboursement' && (
+              <button
+                type="button"
+                className="danger"
+                onClick={async () => {
+                  const ok = await confirm({
+                    title: 'Annuler le document',
+                    message: `Annuler ${invoice.number} ? Les stocks liés seront rétablis.`,
+                    confirmLabel: 'Annuler le document',
+                    danger: true,
+                  });
+                  if (!ok) return;
+                  try {
+                    await api.updateInvoiceStatus(invoice.id, 'cancelled');
+                    toast('Document annulé', 'success');
+                    await reload();
+                  } catch (e: any) {
+                    toast(e?.message || 'Annulation impossible', 'error');
+                  }
+                }}
+              >
+                <Ban size={15} aria-hidden="true" />
+                <span>Annuler</span>
+              </button>
+            )}
+            <TimedUndoDelete
+              deleteLabel="Supprimer"
+              undoLabel="Annuler"
+              initialSeconds={10}
+              onConfirm={async () => {
+                let disclaimer = 'Suppression définitive de la facture et des éléments liés. Confirmez pour continuer.';
+                try {
+                  const links = await api.getInvoiceLinks(invoice.id);
+                  const d = links.data;
+                  if (d?.has_links) {
+                    const bits: string[] = [];
+                    if (d.receipts?.length) bits.push(`${d.receipts.length} reçu(s)`);
+                    if (d.expenses?.length) bits.push(`${d.expenses.length} écriture(s) solde`);
+                    if (d.payments_count) bits.push(`${d.payments_count} paiement(s)`);
+                    disclaimer = `ATTENTION : la suppression effacera aussi ${bits.join(', ') || 'les éléments liés'}. Confirmez pour continuer.`;
+                  }
+                } catch { /* ignore */ }
+                setPwDesc(disclaimer);
+                setPendingDelete(() => async (password: string) => {
+                  await api.deleteInvoice(invoice.id, password);
+                  setPwOpen(false);
+                  setPendingDelete(null);
+                  navigate('/invoices');
+                });
+                setPwOpen(true);
+              }}
+            />
+          </div>
+        </div>
+      </section>
+
+      {pwOpen && pendingDelete && (
+        <PasswordConfirm
+          open={pwOpen}
+          title="Supprimer le document"
+          description={pwDesc}
+          confirmLabel="Supprimer définitivement"
+          onCancel={() => { setPwOpen(false); setPendingDelete(null); }}
+          onConfirm={async (password) => { await pendingDelete(password); }}
+        />
+      )}
     </div>
   );
 }

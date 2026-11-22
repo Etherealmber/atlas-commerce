@@ -199,8 +199,8 @@ export default function Receipts() {
                   <td><span className="badge info">{paymentMethodFr(r.payment_method)}</span></td>
                   <td>{r.issue_date}</td>
                   <td>{r.invoice_number ? <strong>{r.invoice_number}</strong> : (r.invoice_id ? `#${r.invoice_id}` : '—')}</td>
-                  <td>
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', pointerEvents: 'auto' }}>
+                  <td className="row-actions-cell">
+                    <div className="row-actions" style={{ pointerEvents: 'auto' }}>
                       <a className="btn secondary" style={{ padding: '4px 10px', fontSize: 12, cursor: 'pointer' }} href={`${BASE}/api/receipts/${r.id}/print?layout=full&token=${token}`} target="_blank" rel="noreferrer">Reçu détail</a>
                       <a className="btn secondary" style={{ padding: '4px 10px', fontSize: 12, cursor: 'pointer' }} href={`${BASE}/api/receipts/${r.id}/print?layout=minimal&token=${token}`} target="_blank" rel="noreferrer">Ticket minimal</a>
                       <a className="btn secondary" style={{ padding: '4px 10px', fontSize: 12, cursor: 'pointer' }} href={`${BASE}/api/receipts/${r.id}/pdf?token=${token}`} target="_blank" rel="noreferrer">PDF</a>

@@ -41,7 +41,11 @@ export function WizardHeader(props: {
         </div>
         <span className="step-wizard__count">{wz.step} / {wz.total}</span>
       </header>
-      <ol className="step-wizard__progress" aria-label={`Étapes : ${props.title}`}>
+      <ol
+        className="step-wizard__progress"
+        data-many-steps={steps.length >= 6 ? 'true' : undefined}
+        aria-label={`Étapes : ${props.title}`}
+      >
         {steps.map((item, index) => {
           const n = index + 1;
           return (
@@ -50,8 +54,14 @@ export function WizardHeader(props: {
               className={n === wz.step ? 'is-current' : n < wz.step ? 'is-complete' : ''}
               aria-current={n === wz.step ? 'step' : undefined}
             >
-              <span>{n < wz.step ? '✓' : n}</span>
-              <b>{item.label}</b>
+              <button
+                type="button"
+                className="step-wizard__step-btn"
+                onClick={() => wz.go(n)}
+              >
+                <span>{n < wz.step ? '✓' : n}</span>
+                <b>{item.label}</b>
+              </button>
             </li>
           );
         })}

@@ -806,8 +806,30 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
               <div><p className="employee-wizard__eyebrow">FICHE EMPLOYÉ</p><h2 id="employee-wizard-title">{editing ? 'Modifier l’employé' : 'Nouvel employé'}</h2></div>
               <span className="employee-wizard__count">{step + 1} / {STEPS.length}</span>
             </header>
-            <ol className="employee-wizard__progress" aria-label="Étapes de la fiche employé">
-              {STEPS.map((item, index) => <li key={item.id} className={index === step ? 'is-current' : index < step ? 'is-complete' : ''} aria-current={index === step ? 'step' : undefined}><span>{index < step ? '✓' : index + 1}</span><b>{item.label}</b></li>)}
+            <ol className="employee-wizard__progress" data-many-steps="true" aria-label="Étapes de la fiche employé">
+              {STEPS.map((item, index) => (
+                <li
+                  key={item.id}
+                  className={index === step ? 'is-current' : index < step ? 'is-complete' : ''}
+                  aria-current={index === step ? 'step' : undefined}
+                >
+                  <button
+                    type="button"
+                    className="step-wizard__step-btn"
+                    onClick={() => {
+                      if (index > 0 && !`${form.first_name} ${form.last_name}`.trim()) {
+                        setModalError('Indiquez le prénom ou le nom de famille.');
+                        return;
+                      }
+                      setModalError('');
+                      setStep(index);
+                    }}
+                  >
+                    <span>{index < step ? '✓' : index + 1}</span>
+                    <b>{item.label}</b>
+                  </button>
+                </li>
+              ))}
             </ol>
             <div className="wz-step employee-wizard__body">
               <div className="employee-wizard__intro" aria-live="polite"><h3>{STEPS[step].label}</h3><p>{STEPS[step].hint}</p></div>

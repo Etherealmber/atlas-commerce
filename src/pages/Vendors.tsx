@@ -194,14 +194,14 @@ export default function Vendors() {
                     </td>
                     <td>{v.phone || '—'}</td>
                     <td>{v.email || '—'}</td>
-                    <td>
+                    <td className="row-actions-cell"><div className="row-actions">
                       {deleteArmId === v.id ? (
                         <TimedUndoDelete autoStart deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10}
                           onConfirm={() => { setDeleteArmId(null); void remove(v.id); }} />
                       ) : (
                         <TimedUndoDelete deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10} onConfirm={() => { setDeleteArmId(null); openDelete([v.id]); }} />
                       )}
-                    </td>
+                    </div></td>
                   </tr>
                 );
               })}

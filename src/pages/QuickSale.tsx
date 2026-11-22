@@ -561,60 +561,58 @@ export default function QuickSale() {
                     <td style={{ fontWeight: 700, color: inv.status === 'paid' || inv.status === 'cancelled' ? 'var(--muted)' : 'var(--bad)' }}>
                       {inv.status === 'cancelled' ? '—' : fmt(Math.max(0, Number(inv.total || 0) - Number(inv.amount_paid || 0)))}
                     </td>
-                    <td style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                      {inv.status !== 'cancelled' && remainingOf(inv) > 0.001 && (
-                        <>
-                          <button
-                            type="button"
-                            className="secondary"
-                            style={{ padding: '4px 10px', fontSize: 12 }}
-                            onClick={() => markPaid(inv)}
-                          >
-                            <CheckCircle2 size={14} aria-hidden="true" />
-                            <span>Tout payer</span>
-                          </button>
-                          <button
-                            type="button"
-                            className="secondary"
-                            style={{ padding: '4px 10px', fontSize: 12 }}
-                            onClick={() => openPartialPay(inv)}
-                          >
-                            <CreditCard size={14} aria-hidden="true" />
-                            <span>Paiement</span>
-                          </button>
-                        </>
-                      )}
-                      <Link to={`/quick-sale/${inv.id}`} className="btn secondary" style={{ padding: '4px 10px', fontSize: 12 }}>
-                        <ExternalLink size={14} aria-hidden="true" />
-                        <span>Ouvrir</span>
-                      </Link>
-                      <a
-                        className="btn secondary"
-                        style={{ padding: '4px 10px', fontSize: 12 }}
-                        href={`${BASE}/api/invoices/${inv.id}/print?token=${encodeURIComponent(token)}`}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        <Printer size={14} aria-hidden="true" />
-                        <span>Imprimer</span>
-                      </a>
-                      {inv.status !== 'cancelled' && (
-                        <button
-                          type="button"
-                          className="secondary"
-                          style={{ padding: '4px 10px', fontSize: 12 }}
-                          onClick={() => void cancelTicket(inv.id)}
+                    <td className="row-actions-cell">
+                      <div className="row-actions">
+                        {inv.status !== 'cancelled' && remainingOf(inv) > 0.001 && (
+                          <>
+                            <button
+                              type="button"
+                              className="secondary"
+                              onClick={() => markPaid(inv)}
+                            >
+                              <CheckCircle2 size={14} aria-hidden="true" />
+                              <span>Tout payer</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="secondary"
+                              onClick={() => openPartialPay(inv)}
+                            >
+                              <CreditCard size={14} aria-hidden="true" />
+                              <span>Paiement</span>
+                            </button>
+                          </>
+                        )}
+                        <Link to={`/quick-sale/${inv.id}`} className="btn secondary">
+                          <ExternalLink size={14} aria-hidden="true" />
+                          <span>Ouvrir</span>
+                        </Link>
+                        <a
+                          className="btn secondary"
+                          href={`${BASE}/api/invoices/${inv.id}/print?token=${encodeURIComponent(token)}`}
+                          target="_blank"
+                          rel="noreferrer"
                         >
-                          <Ban size={14} aria-hidden="true" />
-                          <span>Annuler</span>
-                        </button>
-                      )}
-                      <TimedUndoDelete
-                        deleteLabel="Supprimer"
-                        undoLabel="Annuler"
-                        initialSeconds={10}
-                        onConfirm={() => void requestDelete(inv.id)}
-                      />
+                          <Printer size={14} aria-hidden="true" />
+                          <span>Imprimer</span>
+                        </a>
+                        {inv.status !== 'cancelled' && (
+                          <button
+                            type="button"
+                            className="secondary"
+                            onClick={() => void cancelTicket(inv.id)}
+                          >
+                            <Ban size={14} aria-hidden="true" />
+                            <span>Annuler</span>
+                          </button>
+                        )}
+                        <TimedUndoDelete
+                          deleteLabel="Supprimer"
+                          undoLabel="Annuler"
+                          initialSeconds={10}
+                          onConfirm={() => void requestDelete(inv.id)}
+                        />
+                      </div>
                     </td>
                   </tr>
                 )}
@@ -683,6 +681,7 @@ export default function QuickSale() {
 
             </StepBody>
             <StepBody active={wz.step === 2}>
+            <div className="wizard-items-scroll">
             <div
               style={{
                 display: 'grid',
@@ -775,6 +774,7 @@ export default function QuickSale() {
                 </div>
               );
             })}
+            </div>
             <button
               type="button"
               className="secondary"

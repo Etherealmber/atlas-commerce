@@ -412,8 +412,8 @@ export default function Bills() {
                       <small style={{ display: 'block', color: 'var(--bad)', fontSize: 11 }}>Reste {fmt(remainingOf(b))}</small>
                     )}
                   </td>
-                  <td style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                    <a className="btn secondary" style={{ padding: '4px 10px', fontSize: 12 }} href={`${BASE}/api/bills/${b.id}/print?token=${encodeURIComponent(getToken() || '')}`} target="_blank" rel="noreferrer">Imprimer</a>
+                  <td className="row-actions-cell"><div className="row-actions">
+                    <a className="btn secondary" href={`${BASE}/api/bills/${b.id}/print?token=${encodeURIComponent(getToken() || '')}`} target="_blank" rel="noreferrer">Imprimer</a>
                     {b.status !== 'cancelled' && (
                       <button type="button" className="secondary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => openReceive(b)}>
                         Réception
@@ -454,7 +454,7 @@ export default function Bills() {
                     ) : (
                       <TimedUndoDelete deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10} onConfirm={() => { setDeleteArmId(null); openDelete([b.id]); }} />
                     )}
-                  </td>
+                  </div></td>
                 </tr>
               ))}
               {!filtered.length && !loading && (
@@ -538,6 +538,7 @@ export default function Bills() {
 
             </StepBody>
             <StepBody active={wz.step === 2}>
+            <div className="wizard-items-scroll">
             <div
               style={{
                 display: 'grid',
@@ -631,6 +632,7 @@ export default function Bills() {
                 </div>
               );
             })}
+            </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <button type="button" className="secondary" onClick={() => setItems([...items, { product_name: '', quantity: 1, unit_cost: 0 }])}>
                 + Ajouter une ligne

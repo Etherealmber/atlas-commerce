@@ -384,8 +384,8 @@ export default function Quotes() {
                   <td>{q.issue_date}</td>
                   <td><span className={`badge ${statusBadgeClass(q.status)}`}>{statusFr(q.status)}</span></td>
                   <td style={{ textAlign: 'right', fontWeight: 700 }}>{fmt(q.total)}</td>
-                  <td style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                  <td className="row-actions-cell">
+                    <div className="row-actions">
                       <button type="button" className="secondary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => openDetail(q.id)} disabled={detailLoading}>
                         <ExternalLink size={15} aria-hidden="true" /> Ouvrir
                       </button>
@@ -495,6 +495,7 @@ export default function Quotes() {
 
             </StepBody>
             <StepBody active={wz.step === 2}>
+            <div className="wizard-items-scroll">
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.1fr 70px 90px 90px 70px 44px', gap: 8, marginBottom: 6, fontSize: 11, color: 'var(--muted)', fontWeight: 600 }}>
               <span>Produit</span><span>Désignation</span><span>Qté</span><span>Catalogue</span><span>Prix client</span><span>Total</span><span></span>
             </div>
@@ -555,6 +556,7 @@ export default function Quotes() {
               </div>
               );
             })}
+            </div>
             <button type="button" className="secondary" style={{ marginBottom: 8 }} onClick={() => setItems([...items, { product_name: '', quantity: 1, list_price: 0, unit_price: 0, tax_rate: 20 }])}>
               + Ligne
             </button>

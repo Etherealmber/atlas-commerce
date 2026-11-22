@@ -1,15 +1,19 @@
-html body .modal-overlay .modal.step-wizard {
+html body .modal-overlay .modal.step-wizard,
+html body .modal-overlay .modal.employee-wizard {
   display: flex !important;
   flex-direction: column !important;
-  width: min(94vw, 720px);
-  max-width: 720px;
-  max-height: min(94dvh, 900px) !important;
-  padding: 20px 24px 0 !important;
+  width: min(95vw, 880px) !important;
+  max-width: 880px !important;
+  max-height: min(93dvh, 920px) !important;
+  padding: 22px 26px 0 !important;
   overflow: hidden !important;
 }
-html body .modal-overlay .modal.step-wizard.step-wizard--wide {
-  width: min(96vw, 1040px);
-  max-width: 1040px;
+html body .modal-overlay .modal.step-wizard.step-wizard--wide,
+html body .modal-overlay .modal.employee-wizard {
+  width: min(96vw, 1120px) !important;
+  max-width: 1120px !important;
+  max-height: min(94dvh, 940px) !important;
+  padding: 22px 28px 0 !important;
 }
 .step-wizard__header,
 .employee-wizard__header {
@@ -47,24 +51,76 @@ html body .modal-overlay .modal.step-wizard.step-wizard--wide {
 .step-wizard__progress,
 .employee-wizard__progress {
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
+  row-gap: 8px;
+  column-gap: 12px;
   align-items: center;
-  padding: 12px 0 11px;
+  padding: 12px 2px 12px;
   margin: 0;
   list-style: none;
-  overflow-x: auto;
+  overflow: visible;
   flex: 0 0 auto;
-  scrollbar-width: thin;
 }
 .step-wizard__progress li,
 .employee-wizard__progress li {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex: 1 0 auto;
+  flex: 0 1 auto;
   color: var(--muted, #64748b);
-  font-size: 0.72rem;
+  font-size: 0.74rem;
   white-space: nowrap;
+}
+.step-wizard__step-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+  padding: 5px 11px 5px 5px !important;
+  border-radius: 999px !important;
+  border: 1px solid var(--line, #e4e4e7) !important;
+  background: transparent !important;
+  color: inherit !important;
+  font: inherit !important;
+  font-weight: 600 !important;
+  min-height: 32px !important;
+  cursor: pointer !important;
+  box-shadow: none !important;
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.18s ease, border-color 0.18s ease !important;
+}
+.step-wizard__step-btn:hover {
+  transform: scale(1.03);
+  border-color: var(--muted, #94a3b8) !important;
+  background: rgba(15, 23, 42, 0.04) !important;
+}
+.step-wizard__progress li.is-current .step-wizard__step-btn,
+.employee-wizard__progress li.is-current .step-wizard__step-btn {
+  border-color: #17191f !important;
+  background: rgba(23, 25, 31, 0.06) !important;
+  color: #09090b !important;
+}
+html[data-theme="dark"] .step-wizard__progress li.is-current .step-wizard__step-btn,
+html[data-theme="dark"] .employee-wizard__progress li.is-current .step-wizard__step-btn {
+  border-color: rgba(244, 244, 245, 0.35) !important;
+  background: rgba(255, 255, 255, 0.09) !important;
+  color: #fafafa !important;
+}
+html[data-theme="dark"] .step-wizard__step-btn {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+.wizard-items-scroll {
+  max-height: min(44vh, 360px);
+  overflow-y: auto;
+  overflow-x: auto;
+  overscroll-behavior: contain;
+  padding: 10px 10px 6px;
+  border: 1px solid var(--line, #e4e4e7);
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.02);
+  margin-bottom: 12px;
+}
+html[data-theme="dark"] .wizard-items-scroll {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
 }
 .step-wizard__progress li span,
 .employee-wizard__progress li span {
@@ -100,7 +156,7 @@ html body .modal-overlay .modal.step-wizard.step-wizard--wide {
   min-height: 0;
   overflow-y: auto;
   border-top: 1px solid var(--line, #e5e7eb);
-  padding: 14px 2px 8px 0;
+  padding: 18px 6px 16px 2px;
 }
 .step-wizard__intro,
 .employee-wizard__intro {
@@ -130,8 +186,8 @@ html body .modal-overlay .modal.step-wizard.step-wizard--wide {
   display: flex !important;
   flex-direction: column !important;
   align-items: stretch !important;
-  margin: 6px -24px 0;
-  padding: 10px 24px calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+  margin: 6px -28px 0;
+  padding: 12px 28px calc(14px + env(safe-area-inset-bottom, 0px)) !important;
 }
 .step-wizard .wz-progress {
   margin: 0 0 10px !important;

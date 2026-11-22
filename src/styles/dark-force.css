@@ -3305,8 +3305,8 @@ html[data-theme] body .modal-overlay.modal-overlay.modal-overlay {
   backdrop-filter: blur(8px) !important;
   -webkit-backdrop-filter: blur(8px) !important;
 }
-html body .modal-overlay .modal-card,
-html body .modal-overlay .modal {
+html body .modal-overlay .modal-card:not(.step-wizard):not(.employee-wizard),
+html body .modal-overlay .modal:not(.step-wizard):not(.employee-wizard) {
   max-height: min(92dvh, 940px) !important;
   overflow-y: auto !important;
   overscroll-behavior: contain !important;
@@ -4631,6 +4631,274 @@ html[data-theme='dark'] body .desktop-landing .dl-ed-platforms button[aria-press
   color: #f4f0eb !important;
   -webkit-text-fill-color: #f4f0eb !important;
   box-shadow: 0 1px 5px #0003 !important;
+}
+
+/* Spacious wizard dialogs (never clip step strip or create double scrollbars) */
+html body .modal-overlay .modal.step-wizard,
+html body .modal-overlay .modal.employee-wizard {
+  display: flex !important;
+  flex-direction: column !important;
+  width: min(95vw, 880px) !important;
+  max-width: 880px !important;
+  max-height: min(93dvh, 920px) !important;
+  padding: 22px 26px 0 !important;
+  overflow: hidden !important;
+  position: relative !important;
+}
+html body .modal-overlay .modal.step-wizard.step-wizard--wide,
+html body .modal-overlay .modal.employee-wizard {
+  width: min(96vw, 1120px) !important;
+  max-width: 1120px !important;
+  max-height: min(94dvh, 940px) !important;
+  padding: 22px 28px 0 !important;
+}
+html body .modal-overlay .modal.step-wizard .step-wizard__progress,
+html body .modal-overlay .modal.employee-wizard .employee-wizard__progress {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  row-gap: 8px !important;
+  column-gap: 12px !important;
+  align-items: center !important;
+  overflow: visible !important;
+  padding: 12px 2px !important;
+}
+html body .modal-overlay .modal.step-wizard .step-wizard__progress li,
+html body .modal-overlay .modal.employee-wizard .employee-wizard__progress li {
+  flex: 0 1 auto !important;
+}
+html body .modal-overlay .modal.step-wizard .step-wizard__body,
+html body .modal-overlay .modal.employee-wizard .employee-wizard__body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain !important;
+  padding: 18px 6px 16px 2px !important;
+}
+html body .modal-overlay .modal.step-wizard > .wizard-foot,
+html body .modal-overlay .modal.employee-wizard > .wizard-foot {
+  margin: 6px -28px 0 !important;
+  padding: 12px 28px calc(14px + env(safe-area-inset-bottom, 0px)) !important;
+}
+@media (max-width: 560px) {
+  html body .modal-overlay .modal.step-wizard,
+  html body .modal-overlay .modal.employee-wizard {
+    width: 96vw !important;
+    max-width: 96vw !important;
+    padding: 16px 16px 0 !important;
+  }
+  html body .modal-overlay .modal.step-wizard > .wizard-foot,
+  html body .modal-overlay .modal.employee-wizard > .wizard-foot {
+    margin: 6px -16px 0 !important;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
+/* Table row action buttons across ALL pages: right-aligned + pill shape matching TimedUndoDelete */
+html body .content table:has(tbody td.row-actions-cell) thead th:last-child,
+html body .content table:has(tbody td:last-child [data-atlas-delete="1"]) thead th:last-child,
+html body .content table:has(tbody td:last-child button) thead th:last-child {
+  text-align: right !important;
+}
+html body .content table td.row-actions-cell,
+html body .content table td.row-actions-cell > .row-actions,
+html body .content table td:last-child:has([data-atlas-delete="1"]),
+html body .content table td:last-child:has(> button),
+html body .content table td:last-child:has(> a.btn),
+html body .content table td:last-child:has(> div > button),
+html body .content table td:last-child:has(> div > a.btn),
+html body .content table td:last-child:has(> div > [data-atlas-delete="1"]) {
+  text-align: right !important;
+}
+html body .content table td.row-actions-cell > .row-actions,
+html body .content table td:last-child > .row-actions,
+html body .content table td:last-child > div:has(button),
+html body .content table td:last-child > div:has(a.btn),
+html body .content table td:last-child > div:has([data-atlas-delete="1"]) {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  justify-content: flex-end !important;
+  align-items: center !important;
+  gap: 6px !important;
+  width: 100%;
+}
+html body .content table td.row-actions-cell[style*="flex"],
+html body .content table td:last-child[style*="flex"] {
+  justify-content: flex-end !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+html body .content table td button,
+html body .content table td a.btn,
+html body .content table td .btn,
+html body .content .row-actions button,
+html body .content .row-actions a,
+html body .content .row-actions a.btn {
+  border-radius: 999px !important;
+}
+html body .content table td.row-actions-cell button,
+html body .content table td.row-actions-cell a.btn,
+html body .content table td.row-actions-cell .btn,
+html body .content table td:last-child button,
+html body .content table td:last-child a.btn,
+html body .content table td:last-child .btn,
+html body .content .row-actions button,
+html body .content .row-actions a,
+html body .content .row-actions a.btn {
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 0 14px !important;
+  border-radius: 999px !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  white-space: nowrap !important;
+  line-height: 1 !important;
+}
+
+/* Detail page Danger Zone */
+.ac-danger-zone {
+  margin-top: 18px;
+  border: 1px solid rgba(220, 38, 38, 0.28) !important;
+  background: rgba(254, 242, 242, 0.45) !important;
+}
+html[data-theme="dark"] .ac-danger-zone {
+  border-color: rgba(239, 68, 68, 0.32) !important;
+  background: rgba(127, 29, 29, 0.14) !important;
+}
+.ac-danger-zone-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.ac-danger-zone-head h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 750;
+  color: #b91c1c;
+}
+html[data-theme="dark"] .ac-danger-zone-head h3 {
+  color: #fca5a5;
+}
+.ac-danger-zone-head p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted, #64748b);
+}
+.ac-danger-zone-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Desktop web & Settings page unified pill button polish */
+html body .content .card button:not(.atlas-dp-day):not(.atlas-dp-nav):not(.atlas-dp-preset):not(.atlas-dp-btn):not(.atlas-dp-trigger):not(.account-glass-switch):not(.theme-toggle):not(.settings-nav-item):not(.density-toggle button):not(.ac-seg-btn),
+html body .content .card a.btn,
+html body .content .ac-panel button:not(.atlas-dp-day):not(.atlas-dp-nav):not(.atlas-dp-preset):not(.atlas-dp-btn):not(.atlas-dp-trigger):not(.account-glass-switch):not(.theme-toggle):not(.settings-nav-item):not(.density-toggle button):not(.ac-seg-btn),
+html body .content .ac-panel a.btn,
+html body .atlas-settings button:not(.atlas-dp-day):not(.atlas-dp-nav):not(.atlas-dp-preset):not(.atlas-dp-btn):not(.atlas-dp-trigger):not(.account-glass-switch):not(.theme-toggle):not(.settings-nav-item):not(.density-toggle button):not(.ac-seg-btn):not(.modal-x):not(.modal-close),
+html body .atlas-settings a.btn,
+html body .modal-overlay .modal .wizard-foot-actions button,
+html body .modal-overlay .modal .modal-actions button {
+  border-radius: 999px !important;
+  min-height: 36px;
+  padding: 0 16px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s ease, background-color 0.18s ease, border-color 0.18s ease;
+}
+
+/* Modal close button (.modal-x / .modal-close): never squished by padding, SVG always visible */
+html[data-theme] body .modal-overlay .modal button.modal-x,
+html[data-theme] body .modal-overlay .modal-card button.modal-x,
+html[data-theme] body .modal-overlay .modal button.modal-close,
+html[data-theme] body .modal-overlay .modal-card button.modal-close {
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  min-height: 34px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 10px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+  box-sizing: border-box !important;
+  color: #3f3f46 !important;
+  -webkit-text-fill-color: #3f3f46 !important;
+  background: rgba(244, 244, 245, 0.72) !important;
+  border: 1px solid #d4d4d8 !important;
+  box-shadow: none !important;
+  z-index: 8 !important;
+}
+html[data-theme] body .modal-overlay .modal button.modal-x:hover,
+html[data-theme] body .modal-overlay .modal-card button.modal-x:hover,
+html[data-theme] body .modal-overlay .modal button.modal-close:hover,
+html[data-theme] body .modal-overlay .modal-card button.modal-close:hover {
+  background: #e4e4e7 !important;
+  color: #09090b !important;
+  -webkit-text-fill-color: #09090b !important;
+}
+html[data-theme="dark"] body .modal-overlay .modal button.modal-x,
+html[data-theme="dark"] body .modal-overlay .modal-card button.modal-x,
+html[data-theme="dark"] body .modal-overlay .modal button.modal-close,
+html[data-theme="dark"] body .modal-overlay .modal-card button.modal-close {
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+  background: rgba(39, 39, 42, 0.88) !important;
+  border-color: #52525b !important;
+}
+html[data-theme="dark"] body .modal-overlay .modal button.modal-x:hover,
+html[data-theme="dark"] body .modal-overlay .modal-card button.modal-x:hover,
+html[data-theme="dark"] body .modal-overlay .modal button.modal-close:hover,
+html[data-theme="dark"] body .modal-overlay .modal-card button.modal-close:hover {
+  background: #3f3f46 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html[data-theme] body .modal-overlay .modal button.modal-x svg,
+html[data-theme] body .modal-overlay .modal-card button.modal-x svg,
+html[data-theme] body .modal-overlay .modal button.modal-close svg,
+html[data-theme] body .modal-overlay .modal-card button.modal-close svg {
+  width: 17px !important;
+  height: 17px !important;
+  min-width: 17px !important;
+  min-height: 17px !important;
+  flex: none !important;
+  display: block !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+html body .atlas-settings .settings-nav-item {
+  border-radius: 12px !important;
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.18s ease, color 0.18s ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  html body .atlas-settings .settings-nav-item:hover {
+    transform: translateX(2px) scale(1.015);
+  }
+  html body .ac-desktop-dock .ac-dock-back:hover {
+    transform: scale(1.08);
+  }
+  html body .ac-desktop-dock .ac-dock-back:hover svg {
+    transform: translateX(-2px);
+    transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  html body .modal-overlay .modal .wizard-foot-actions button:hover:not(:disabled),
+  html body .modal-overlay .modal .modal-actions button:hover:not(:disabled) {
+    transform: scale(1.035);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1005,7 +1005,7 @@ html body .row-actions {
   flex-direction: row !important;
   gap: 6px !important;
   align-items: center !important;
-  justify-content: flex-start !important;
+  justify-content: flex-end !important;
   white-space: nowrap !important;
 }
 html body table.ac-products-table .row-actions-cell {
@@ -1016,10 +1016,10 @@ html body table.ac-products-table .row-actions .secondary,
 html body table.ac-products-table .row-actions button.secondary {
   flex-shrink: 0 !important;
   white-space: nowrap !important;
-  padding: 5px 10px !important;
-  font-size: 0.72rem !important;
-  height: 32px !important;
-  min-height: 32px !important;
+  padding: 0 14px !important;
+  font-size: 12.5px !important;
+  height: 36px !important;
+  min-height: 36px !important;
   border-radius: 999px !important;
 }
 html body table.ac-products-table .row-actions .btn-delete-red-wrap,
@@ -1027,9 +1027,10 @@ html body table.ac-products-table .row-actions .btn-delete-red {
   flex-shrink: 0 !important;
 }
 html body table.ac-products-table .row-actions .btn-delete-red {
-  min-height: 32px !important;
-  height: 32px !important;
-  font-size: 0.72rem !important;
+  min-height: 36px !important;
+  height: 36px !important;
+  font-size: 12.5px !important;
+  border-radius: 999px !important;
 }
 html body table.ac-products-table .row-actions .btn-delete-red > div {
   padding: 6px 14px !important;
@@ -3732,6 +3733,7 @@ html[data-theme="dark"] .bal-reports-trigger-cta {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 16px;
+  padding-right: 44px;
 }
 .bal-reports-eyebrow {
   display: block;
@@ -3898,8 +3900,6 @@ html[data-theme="dark"] body .content table button.danger:hover:not(:disabled) {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .top-page-actions > button:hover:not(:disabled),
-  .top-page-actions > a:hover,
   .content table td button:hover:not(:disabled),
   .content table td a.btn:hover,
   .row-actions button:hover:not(:disabled),
@@ -3918,7 +3918,7 @@ html[data-theme="dark"] body .content table button.danger:hover:not(:disabled) {
   .ac-topbar-icon:hover:not(:disabled),
   .ac-dock-back:hover:not(:disabled),
   .ac-dock-expand:hover:not(:disabled) {
-    transform: scale(1.045) !important;
+    transform: scale(1.035) !important;
   }
 
   .hm-start:hover,
@@ -3943,8 +3943,6 @@ html[data-theme="dark"] body .content table button.danger:hover:not(:disabled) {
     transform: translateY(-1px) scale(1.045);
   }
 
-  .top-page-actions > button:hover:not(:disabled) svg,
-  .top-page-actions > a:hover svg,
   .content table td button:hover:not(:disabled) svg,
   .content table td a.btn:hover svg,
   .row-actions button:hover:not(:disabled) svg,
@@ -3961,7 +3959,7 @@ html[data-theme="dark"] body .content table button.danger:hover:not(:disabled) {
   .pn-theme-btn:hover svg,
   .atlas-dl-teaser > button:hover:not(:disabled) svg,
   .github-star-btn:hover svg {
-    transform: scale(1.15) rotate(-6deg);
+    transform: scale(1.12) rotate(-5deg);
   }
 
   .ac-timed-delete [role="button"]:hover svg,

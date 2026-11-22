@@ -203,29 +203,29 @@ export default function Reimbursements() {
                   <td style={{ textAlign: 'right', fontWeight: 700 }}>
                     {fmtMoney(Number(inv.total || 0), 'MAD')}
                   </td>
-                  <td style={{ whiteSpace: 'nowrap', display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                    <button
-                      type="button"
-                      className="secondary"
-                      style={{ fontSize: 12, padding: '4px 10px' }}
-                      onClick={() => printDoc(inv.id)}
-                    >
-                      PDF
-                    </button>
-                    <button
-                      type="button"
-                      className="secondary"
-                      style={{ fontSize: 12, padding: '4px 10px' }}
-                      onClick={() => sendEmail(inv)}
-                    >
-                      E-mail
-                    </button>
-                    <TimedUndoDelete
-                      deleteLabel="Supprimer"
-                      undoLabel="Annuler"
-                      initialSeconds={10}
-                      onConfirm={() => requestDeleteWr(inv)}
-                    />
+                  <td className="row-actions-cell">
+                    <div className="row-actions">
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={() => printDoc(inv.id)}
+                      >
+                        PDF
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={() => sendEmail(inv)}
+                      >
+                        E-mail
+                      </button>
+                      <TimedUndoDelete
+                        deleteLabel="Supprimer"
+                        undoLabel="Annuler"
+                        initialSeconds={10}
+                        onConfirm={() => requestDeleteWr(inv)}
+                      />
+                    </div>
                   </td>
                 </tr>
               ))}
