@@ -1,6 +1,7 @@
 import TopPageActions from '../components/TopPageActions';
-import { Plus, RotateCcw, CheckCircle2, CreditCard, ExternalLink, Printer, Ban } from 'lucide-react';
+import { Plus, RotateCcw, CheckCircle2, CreditCard, Printer, Ban } from 'lucide-react';
 import { TimedUndoDelete } from '../components/ui';
+import ListPager from '../components/ui/ListPager';
 import { useEffect, useState } from 'react';
 import DatePicker from '../components/DatePicker';
 import { matchProducts } from '../lib/assist';
@@ -74,6 +75,9 @@ export default function QuickSale() {
   const [settleSaving, setSettleSaving] = useState(false);
   const [filter, setFilter] = useState('');
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 20;
+  useEffect(() => { setPage(0); }, [search, filter]);
   const [showModal, setShowModal] = useState(false);
   const wz = useWizard(3);
 
@@ -455,6 +459,10 @@ export default function QuickSale() {
     return (inv.number || '').toLowerCase().includes(s) || (inv.client_name || '').toLowerCase().includes(s);
   });
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const paged = filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
+
   const token = getToken() || '';
 
   if (loading) return <div className="empty">Chargement des ventes rapides...</div>;
@@ -516,7 +524,11 @@ export default function QuickSale() {
       </div>
 
       <div className="ac-panel ac-products-table-panel">
-        <VirtualScroll maxHeight={filtered.length > 60 ? 560 : undefined}>
+        <div className="ac-table-pager-bar">
+          <span className="ac-table-pager-meta">{filtered.length} ticket{filtered.length === 1 ? '' : 's'} · 20 par page</span>
+          <ListPager page={safePage} pageSize={PAGE_SIZE} total={filtered.length} onPageChange={setPage} />
+        </div>
+        <VirtualScroll maxHeight={paged.length > 60 ? 560 : undefined}>
           <table className="data-dense ac-products-table">
             <thead>
               <tr>
@@ -546,13 +558,13 @@ export default function QuickSale() {
               </tbody>
             ) : (
               <VirtualTableBody
-                rows={filtered}
+                rows={paged}
                 rowHeight={52}
                 maxHeight={560}
                 getKey={(inv) => inv.id}
                 renderRow={(inv) => (
                   <tr>
-                    <td><Link to={`/quick-sale/${inv.id}`}><strong>{inv.number}</strong></Link></td>
+                    <td><Link to={`/quick-sale/${inv.id}`} className="ac-number-link" title="Ouvrir le ticket"><strong>{inv.number}</strong></Link></td>
                     <td>{inv.client_name}</td>
                     <td>{inv.issue_date}</td>
                     <td><span className={`badge ${statusBadgeClass(inv.status)}`}>{statusFr(inv.status)}</span></td>
@@ -583,10 +595,6 @@ export default function QuickSale() {
                             </button>
                           </>
                         )}
-                        <Link to={`/quick-sale/${inv.id}`} className="btn secondary">
-                          <ExternalLink size={14} aria-hidden="true" />
-                          <span>Ouvrir</span>
-                        </Link>
                         <a
                           className="btn secondary"
                           href={`${BASE}/api/invoices/${inv.id}/print?token=${encodeURIComponent(token)}`}

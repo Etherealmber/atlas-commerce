@@ -5,6 +5,12 @@ import { Sparkles, Wrench, AlertCircle, ArrowUpCircle } from 'lucide-react';
 import { RELEASE_VISIBLE_CAP, semverAtMost } from '../version';
 import { markWhatsNewSeen } from '../lib/whatsNew';
 import { isLoggedIn, getToken } from '../auth';
+import {
+  REPO_CONTRIBUTORS,
+  fetchRepoContributors,
+  getContributorsForRelease,
+  type Contributor,
+} from '../lib/contributors';
 
 type SectionKind = 'features' | 'improvements' | 'fixes' | 'breaking';
 
@@ -1256,9 +1262,15 @@ export const KIND_META: Record<
 export default function WhatsNew() {
   const [params] = useSearchParams();
   const filter = params.get('f') || 'all';
+  const [contributors, setContributors] = useState<Contributor[]>(REPO_CONTRIBUTORS);
 
   useEffect(() => {
     markWhatsNewSeen();
+    let alive = true;
+    fetchRepoContributors().then((list) => {
+      if (alive) setContributors(list);
+    });
+    return () => { alive = false; };
   }, []);
 
   const releases = useMemo(() => {
@@ -1294,8 +1306,34 @@ export default function WhatsNew() {
         Nouveautés
       </motion.h1>
 
+      <section className="wn-thanks-card" aria-label="Remerciements et contributeurs">
+        <h2 className="wn-thanks-title">Remerciements &amp; contributeurs</h2>
+        <p className="wn-thanks-sub">
+          Merci à toutes les personnes qui ont contribué par leurs commits et améliorations à Atlas Commerce :
+        </p>
+        <div className="wn-contributors">
+          {contributors.map((c) => (
+            <a
+              key={c.login}
+              href={c.url}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="wn-contributor-pill"
+              title={`${c.name} — ${c.role}`}
+            >
+              {c.avatarUrl ? (
+                <img src={c.avatarUrl} alt="" width={20} height={20} className="wn-contributor-avatar" loading="lazy" decoding="async" />
+              ) : null}
+              <span>{c.name !== c.login ? `${c.name} (${c.handle})` : c.handle}</span>
+            </a>
+          ))}
+        </div>
+      </section>
+
       <div className="wn-releases">
-        {releases.map((rel, ri) => (
+        {releases.map((rel, ri) => {
+          const relContributors = getContributorsForRelease(rel.version);
+          return (
           <motion.section
             key={rel.version}
             className="wn-release"
@@ -1334,8 +1372,27 @@ export default function WhatsNew() {
                 </div>
               );
             })}
+            <div className="wn-release-contributors" aria-label={`Contributeurs de la version ${rel.version}`}>
+              <span className="wn-contributors-label">Merci à</span>
+              {relContributors.map((c) => (
+                <a
+                  key={`${rel.version}-${c.login}`}
+                  href={c.url}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="wn-contributor-pill"
+                  title={`${c.name} (${c.handle})`}
+                >
+                  {c.avatarUrl ? (
+                    <img src={c.avatarUrl} alt="" width={20} height={20} className="wn-contributor-avatar" loading="lazy" decoding="async" />
+                  ) : null}
+                  <span>{c.handle}</span>
+                </a>
+              ))}
+            </div>
           </motion.section>
-        ))}
+          );
+        })}
         {releases.length === 0 && (
           <p className="wn-lead">Aucun élément pour ce filtre.</p>
         )}

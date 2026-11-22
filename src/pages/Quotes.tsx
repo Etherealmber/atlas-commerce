@@ -1,6 +1,7 @@
 import TopPageActions from '../components/TopPageActions';
-import { ExternalLink, FilePlus2 } from 'lucide-react';
+import { FilePlus2 } from 'lucide-react';
 import { TimedUndoDelete } from '../components/ui';
+import ListPager from '../components/ui/ListPager';
 import './quote-actions.css';
 import TypeaheadField, { productTypeaheadOptions, partyTypeaheadOptions } from '../components/TypeaheadField';
 import DatePicker from '../components/DatePicker';
@@ -51,6 +52,9 @@ export default function Quotes() {
   ]);
   const [taxExempt, setTaxExempt] = useState(false);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 20;
+  useEffect(() => { setPage(0); }, [search]);
   const [convertId, setConvertId] = useState<number | null>(null);
   const [detailQuote, setDetailQuote] = useState<any | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -69,6 +73,10 @@ export default function Quotes() {
       String(q.notes || '').toLowerCase().includes(s)
     );
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredQuotes.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const pagedQuotes = filteredQuotes.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
 
   const flash = (msg: string, type: 'success' | 'error' = 'success') => {
     setSaveMsg(msg); setSaveMsgType(type);
@@ -368,6 +376,10 @@ export default function Quotes() {
       </div>
 
       <div className="ac-panel ac-products-table-panel">
+        <div className="ac-table-pager-bar">
+          <span className="ac-table-pager-meta">{filteredQuotes.length} devis · 20 par page</span>
+          <ListPager page={safePage} pageSize={PAGE_SIZE} total={filteredQuotes.length} onPageChange={setPage} />
+        </div>
         <div className="table-wrap">
           <table className="data-dense ac-products-table">
             <thead>
@@ -377,18 +389,15 @@ export default function Quotes() {
               </tr>
             </thead>
             <tbody>
-              {filteredQuotes.map((q) => (
+              {pagedQuotes.map((q) => (
                 <tr key={q.id}>
-                  <td><button type="button" className="quote-number-link" onClick={() => openDetail(q.id)} disabled={detailLoading}>{q.number}</button></td>
+                  <td><button type="button" className="quote-number-link" onClick={() => openDetail(q.id)} disabled={detailLoading} title="Ouvrir le devis">{q.number}</button></td>
                   <td>{q.client_name}</td>
                   <td>{q.issue_date}</td>
                   <td><span className={`badge ${statusBadgeClass(q.status)}`}>{statusFr(q.status)}</span></td>
                   <td style={{ textAlign: 'right', fontWeight: 700 }}>{fmt(q.total)}</td>
                   <td className="row-actions-cell">
                     <div className="row-actions">
-                      <button type="button" className="secondary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => openDetail(q.id)} disabled={detailLoading}>
-                        <ExternalLink size={15} aria-hidden="true" /> Ouvrir
-                      </button>
                       {q.status !== 'cancelled' && (
                         <button type="button" className="secondary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => setConvertId(q.id)} disabled={saving}>
                           → Facturer

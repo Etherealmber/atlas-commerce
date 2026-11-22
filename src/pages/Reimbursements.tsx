@@ -2,6 +2,7 @@ import DocumentActors from '../components/DocumentActors';
 import TopPageActions from '../components/TopPageActions';
 import { RotateCcw } from 'lucide-react';
 import { TimedUndoDelete } from '../components/ui';
+import ListPager from '../components/ui/ListPager';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
@@ -28,6 +29,9 @@ export default function Reimbursements() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 20;
+  useEffect(() => { setPage(0); }, [search]);
   const [saveMsg, setSaveMsg] = useState('');
   const [saveMsgType, setSaveMsgType] = useState<'success' | 'error'>('success');
   const [showCreate, setShowCreate] = useState(false);
@@ -88,6 +92,9 @@ export default function Reimbursements() {
       String(inv.notes || '').toLowerCase().includes(s)
     );
   });
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const paged = filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
 
   const printDoc = (id: number) => openPrintDoc(`/api/invoices/${id}/print`);
 
@@ -169,6 +176,10 @@ export default function Reimbursements() {
       </div>
 
       <div className="ac-panel ac-products-table-panel">
+        <div className="ac-table-pager-bar">
+          <span className="ac-table-pager-meta">{filtered.length} remboursement{filtered.length === 1 ? '' : 's'} · 20 par page</span>
+          <ListPager page={safePage} pageSize={PAGE_SIZE} total={filtered.length} onPageChange={setPage} />
+        </div>
         <div className="table-wrap">
           <table className="data-dense ac-products-table">
             <thead>
@@ -182,10 +193,10 @@ export default function Reimbursements() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((inv) => (
+              {paged.map((inv) => (
                 <tr key={inv.id}>
                   <td>
-                    <strong>{inv.number}</strong>
+                    <Link to={`/invoices/${inv.id}`} className="ac-number-link" title="Ouvrir le remboursement"><strong>{inv.number}</strong></Link>
           <DocumentActors document={inv} />
                     {inv.refund_of_invoice_id ? (
                       <div style={{ fontSize: 12, color: 'var(--muted)' }}>

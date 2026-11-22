@@ -1274,6 +1274,21 @@ function DesktopShell() {
           }}
           onPointerLeave={(event) => {
             if (event.pointerType === 'mouse') {
+              const related = event.relatedTarget as Node | null;
+              if (related && event.currentTarget.contains(related)) return;
+              if (event.clientX !== 0 || event.clientY !== 0) {
+                const rect = event.currentTarget.getBoundingClientRect();
+                if (
+                  rect.width > 0 &&
+                  rect.height > 0 &&
+                  event.clientX >= rect.left - 6 &&
+                  event.clientX <= rect.right + 6 &&
+                  event.clientY >= rect.top - 6 &&
+                  event.clientY <= rect.bottom + 6
+                ) {
+                  return;
+                }
+              }
               actionsHovered.current = false;
               if (actionsHoverExpanded.current && !actionsSlotRef.current?.contains(document.activeElement)) {
                 actionsHoverExpanded.current = false;
@@ -1320,6 +1335,21 @@ function DesktopShell() {
           }}
           onPointerLeave={(event) => {
             if (event.pointerType === 'mouse') {
+              const related = event.relatedTarget as Node | null;
+              if (related && event.currentTarget.contains(related)) return;
+              if (event.clientX !== 0 || event.clientY !== 0) {
+                const rect = event.currentTarget.getBoundingClientRect();
+                if (
+                  rect.width > 0 &&
+                  rect.height > 0 &&
+                  event.clientX >= rect.left - 6 &&
+                  event.clientX <= rect.right + 6 &&
+                  event.clientY >= rect.top - 6 &&
+                  event.clientY <= rect.bottom + 6
+                ) {
+                  return;
+                }
+              }
               dockHovered.current = false;
               if (dockHoverExpanded.current && !shellNotifOpen && !shellUserOpen) {
                 dockHoverExpanded.current = false;

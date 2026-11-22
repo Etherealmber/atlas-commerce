@@ -1,6 +1,7 @@
 import TopPageActions from '../components/TopPageActions';
 import { FilePlus2, RotateCcw } from 'lucide-react';
 import { TimedUndoDelete } from '../components/ui';
+import ListPager from '../components/ui/ListPager';
 import { onAgentDraft } from '../lib/agentDraft';
 import { useEffect, useState } from 'react';
 import DatePicker from '../components/DatePicker';
@@ -69,8 +70,11 @@ export default function Invoices() {
   const [docMode, setDocMode] = useState<'invoice' | 'quote'>('invoice');
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 300);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 20;
   const [searchParams, setSearchParams] = useSearchParams();
   const clientFilter = searchParams.get('client');
+  useEffect(() => { setPage(0); }, [debouncedSearch, clientFilter]);
   const qParam = searchParams.get('q') || '';
   useEffect(() => {
     if (qParam) setSearch(qParam);
@@ -453,6 +457,10 @@ export default function Invoices() {
     return matchSearch && matchClient && isStandardInvoice(inv);
   });
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const paged = filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
+
   if (loading) return <div className="empty">Chargement des factures...</div>;
 
   const orderKpis = (() => {
@@ -524,7 +532,11 @@ export default function Invoices() {
 
 
       <div className="ac-panel ac-products-table-panel">
-        <VirtualScroll maxHeight={filtered.length > 60 ? 560 : undefined}>
+        <div className="ac-table-pager-bar">
+          <span className="ac-table-pager-meta">{filtered.length} facture{filtered.length === 1 ? '' : 's'} · 20 par page</span>
+          <ListPager page={safePage} pageSize={PAGE_SIZE} total={filtered.length} onPageChange={setPage} />
+        </div>
+        <VirtualScroll maxHeight={paged.length > 60 ? 560 : undefined}>
           <table className="data-dense ac-products-table">
             <thead>
               <tr><th>Numéro</th><th>Client</th><th>Date</th><th>Échéance</th><th>Statut</th><th>Total</th><th>Payé</th><th>Crédit (reste)</th><th>Actions</th></tr>
@@ -545,14 +557,14 @@ export default function Invoices() {
               </tbody>
             ) : (
               <VirtualTableBody
-                rows={filtered}
+                rows={paged}
                 rowHeight={52}
                 maxHeight={560}
                 getKey={(inv) => inv.id}
                 renderRow={(inv) => (
                   <tr>
                     <td>
-                      <Link to={`/invoices/${inv.id}`}><strong>{inv.number}</strong></Link>
+                      <Link to={`/invoices/${inv.id}`} className="ac-number-link" title="Ouvrir la facture"><strong>{inv.number}</strong></Link>
                       {(inv.status === 'remboursement' || inv.doc_kind === 'remboursement') && inv.refund_of_invoice_id ? (
                         <div style={{ fontSize: 11, color: 'var(--muted)' }}>
                           sur{' '}

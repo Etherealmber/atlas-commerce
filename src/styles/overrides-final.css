@@ -3076,11 +3076,7 @@ html[data-theme="dark"] body .sidebar nav a svg {
   border: none !important;
 }
 
-/* Topbar icon buttons: no square outline flash */
-html body .atlas-shell-icon-btn,
-html body .ac-topbar-mail,
-html body .ac-topbar-notif,
-html body .ac-topbar-user-btn,
+/* Topbar icon buttons: no square outline flash (dark theme only) */
 html[data-theme="dark"] body .atlas-shell-icon-btn,
 html[data-theme="dark"] body .ac-topbar-mail,
 html[data-theme="dark"] body .ac-topbar-notif,

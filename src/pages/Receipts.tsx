@@ -2,8 +2,10 @@ import DocumentActors from '../components/DocumentActors';
 import TopPageActions from '../components/TopPageActions';
 import { Plus } from 'lucide-react';
 import { TimedUndoDelete } from '../components/ui';
+import ListPager from '../components/ui/ListPager';
 import { onAgentDraft } from '../lib/agentDraft';
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import DatePicker from '../components/DatePicker';
 import { api, BASE } from '../api';
 import { getToken } from '../auth';
@@ -35,6 +37,9 @@ export default function Receipts() {
   const [showModal, setShowModal] = useState(false);
   const wz = useWizard(2);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 20;
+  useEffect(() => { setPage(0); }, [search]);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
   const [saveMsgType, setSaveMsgType] = useState<'success' | 'error'>('success');
@@ -164,6 +169,9 @@ export default function Receipts() {
 
   const fmt = (n: number) => Math.round(Number(n || 0)).toLocaleString('fr-FR');
   const filtered = list.filter((r) => !search || r.number?.toLowerCase().includes(search.toLowerCase()) || r.client_name?.toLowerCase().includes(search.toLowerCase()));
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const paged = filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
   const token = encodeURIComponent(getToken() || '');
 
   if (loading) return <div className="empty">Chargement des reçus...</div>;
@@ -185,20 +193,24 @@ export default function Receipts() {
       </div>
 
       <div className="ac-panel ac-products-table-panel">
+        <div className="ac-table-pager-bar">
+          <span className="ac-table-pager-meta">{filtered.length} reçu{filtered.length === 1 ? '' : 's'} · 20 par page</span>
+          <ListPager page={safePage} pageSize={PAGE_SIZE} total={filtered.length} onPageChange={setPage} />
+        </div>
         <div className="table-wrap">
           <table className="data-dense ac-products-table">
             <thead>
               <tr><th>Numéro</th><th>Client</th><th>Montant</th><th>Mode</th><th>Date</th><th>Facture</th><th>Actions</th></tr>
             </thead>
             <tbody>
-              {filtered.map((r) => (
+              {paged.map((r) => (
                 <tr key={r.id}>
                   <td><strong>{r.number}</strong><DocumentActors document={r} /></td>
                   <td>{r.client_name}</td>
                   <td style={{ fontWeight: 700, color: 'var(--success)' }}>{fmt(r.amount)}</td>
                   <td><span className="badge info">{paymentMethodFr(r.payment_method)}</span></td>
                   <td>{r.issue_date}</td>
-                  <td>{r.invoice_number ? <strong>{r.invoice_number}</strong> : (r.invoice_id ? `#${r.invoice_id}` : '—')}</td>
+                  <td>{r.invoice_id ? <Link to={`/invoices/${r.invoice_id}`} className="ac-number-link"><strong>{r.invoice_number || `#${r.invoice_id}`}</strong></Link> : (r.invoice_number ? <strong>{r.invoice_number}</strong> : '—')}</td>
                   <td className="row-actions-cell">
                     <div className="row-actions" style={{ pointerEvents: 'auto' }}>
                       <a className="btn secondary" style={{ padding: '4px 10px', fontSize: 12, cursor: 'pointer' }} href={`${BASE}/api/receipts/${r.id}/print?layout=full&token=${token}`} target="_blank" rel="noreferrer">Reçu détail</a>

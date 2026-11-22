@@ -10,6 +10,7 @@ import RefreshIconButton from '../components/RefreshIconButton';
 import SaveFeedback from '../components/SaveFeedback';
 import { getCachedFingerprint } from '../fingerprint';
 import { openReport } from '../lib/reports';
+import ListPager from '../components/ui/ListPager';
 
 type Row = {
   employee_id: number;
@@ -67,6 +68,8 @@ function statusLabel(s: string) {
 export default function Attendance() {
   const [date, setDate] = useState(todayMA());
   const [rows, setRows] = useState<Row[]>([]);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 20;
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -156,7 +159,11 @@ export default function Attendance() {
     });
   }, [rows, search, statusFilter, teamFilter]);
 
-  const allFilteredIds = filtered.map((r) => r.employee_id);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const paged = filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
+
+  const allFilteredIds = paged.map((r) => r.employee_id);
   const allChecked =
     allFilteredIds.length > 0 && allFilteredIds.every((id) => selected.includes(id));
 
@@ -452,6 +459,10 @@ export default function Attendance() {
       </div>
 
       <div className="ac-panel ac-products-table-panel" style={{ overflow: 'auto' }}>
+        <div className="ac-table-pager-bar">
+          <span className="ac-table-pager-meta">{filtered.length} employé{filtered.length === 1 ? '' : 's'} · 20 par page</span>
+          <ListPager page={safePage} pageSize={PAGE_SIZE} total={filtered.length} onPageChange={setPage} />
+        </div>
         {loading ? (
           <div style={{ padding: 24 }}>Chargement…</div>
         ) : filtered.length === 0 ? (
@@ -481,7 +492,7 @@ export default function Attendance() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((r) => (
+              {paged.map((r) => (
                 <tr key={r.employee_id}>
                   <td>
                     <input

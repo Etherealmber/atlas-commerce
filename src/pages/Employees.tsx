@@ -1,6 +1,7 @@
 import TopPageActions from '../components/TopPageActions';
 import { Printer, UserPlus } from 'lucide-react';
 import { TimedUndoDelete } from '../components/ui';
+import ListPager from '../components/ui/ListPager';
 import { onAgentDraft } from '../lib/agentDraft';
 import { useEffect, useState } from 'react';
 import { api } from '../api';
@@ -107,6 +108,9 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
   const [debouncedQ, setDebouncedQ] = useState('');
   const [statusFilter, setStatusFilter] = useState<'active' | 'resigned' | 'all'>('active');
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 20;
+  useEffect(() => { setPage(0); }, [debouncedQ, statusFilter, categoryFilter]);
   const [categories, setCategories] = useState<string[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [step, setStep] = useState(0);
@@ -620,6 +624,10 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
     </div>
   );
 
+  const totalPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const pagedList = list.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
+
   return (
     <div className={`atlas-crm employees-page${phone ? ' employees-page--phone' : ''}`}>
       <div className={`page-header${phone ? "" : " dock-page-header"}`}>
@@ -726,7 +734,11 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
       ) : phone ? (
         <section className="ph-employees-list" aria-label="Équipe">
           <div className="ph-employees-list-title"><h2>Équipe</h2><span>{list.length} fiche(s) dans la liste</span></div>
-          {list.map((e) => <article className="ph-employee-card" key={e.id}>
+          <div className="ac-table-pager-bar" style={{ marginBottom: 10 }}>
+            <span className="ac-table-pager-meta">{list.length} employé{list.length === 1 ? '' : 's'} · 20 par page</span>
+            <ListPager page={safePage} pageSize={PAGE_SIZE} total={list.length} onPageChange={setPage} size="sm" />
+          </div>
+          {pagedList.map((e) => <article className="ph-employee-card" key={e.id}>
             <div className="ph-employee-head"><div className="ph-employee-avatar" aria-hidden="true">{empName(e).split(/\s+/).filter(Boolean).slice(0, 2).map((part: string) => part[0]?.toUpperCase()).join('')}</div><div className="ph-employee-name"><h3>{empName(e)}</h3><span>{e.role_title || 'Poste non renseigné'} · {e.emp_number || 'N° non renseigné'}</span></div><span className="ph-employee-status">{Number(e.active) === 0 ? 'Inactif' : 'Actif'}</span></div>
             <dl className="ph-employee-info"><div><dt>Salaire</dt><dd>{fmt(Number(e.pay_amount || 0))}</dd></div><div><dt>Cycle</dt><dd>{cycleLabel(e)}</dd></div><div><dt>Dernier paiement</dt><dd>{e.last_paid_at ? String(e.last_paid_at).slice(0, 10) : 'Jamais'}</dd></div><div><dt>Prochaine échéance</dt><dd>{e.next_due || '—'}{e.pay_overdue ? ' · à payer' : ''}</dd></div>{e.phone && <div><dt>Téléphone</dt><dd>{e.phone}</dd></div>}{e.national_id && <div><dt>Pièce ID</dt><dd>{e.national_id}</dd></div>}</dl>
             <div className="ph-employee-links"><button type="button" className="secondary" onClick={() => openEdit(e)}>Modifier</button><button type="button" className="secondary" onClick={() => void openDetail(e)}>Détails &amp; historique</button>{e.has_id_doc && <button type="button" className="secondary" onClick={() => void downloadId(e.id)}>Voir pièce</button>}</div>
@@ -735,6 +747,10 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
         </section>
       ) : (
         <div className="ac-panel ac-products-table-panel" style={{ padding: 0, width: '100%' }}>
+          <div className="ac-table-pager-bar">
+            <span className="ac-table-pager-meta">{list.length} employé{list.length === 1 ? '' : 's'} · 20 par page</span>
+            <ListPager page={safePage} pageSize={PAGE_SIZE} total={list.length} onPageChange={setPage} />
+          </div>
           <div className="table-wrap">
             <table className="data-dense ac-products-table">
               <thead>
@@ -751,7 +767,7 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
                 </tr>
               </thead>
               <tbody>
-                {list.map((e) => (
+                {pagedList.map((e) => (
                   <tr key={e.id} style={{ opacity: Number(e.active) === 0 ? 0.55 : 1 }}>
                     <td>
                       <span

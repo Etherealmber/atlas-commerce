@@ -8,6 +8,7 @@ import { ImageWorkbench } from '../components/ProductImageEditor';
 import RefreshIconButton from '../components/RefreshIconButton';
 import { ModalFormError } from '../components/ModalFormFeedback';
 import { mergeUnitOptions, type UnitOption } from '../lib/dualUnit';
+import ListPager from '../components/ui/ListPager';
 
 type Action = {
   id: number;
@@ -52,6 +53,9 @@ export default function Actions() {
   const { toast, prompt } = useUi();
   const [tab, setTab] = useState<'pending' | 'done' | 'all'>('pending');
   const [rows, setRows] = useState<Action[]>([]);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 20;
+  useEffect(() => { setPage(0); }, [tab]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
   const [approve, setApprove] = useState<Action | null>(null);
@@ -412,8 +416,14 @@ export default function Actions() {
           </button>
         ))}
         <span className="muted" style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 600 }}>
-          {rows.length} ENREGISTREMENTS
+          {rows.length} ENREGISTREMENTS · 20 par page
         </span>
+        <ListPager
+          page={Math.min(page, Math.max(1, Math.ceil(rows.length / PAGE_SIZE)) - 1)}
+          pageSize={PAGE_SIZE}
+          total={rows.length}
+          onPageChange={setPage}
+        />
       </div>
 
       {loading && rows.length === 0 && (
@@ -436,7 +446,7 @@ export default function Actions() {
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {rows.map((a) => {
+        {rows.slice(Math.min(page, Math.max(1, Math.ceil(rows.length / PAGE_SIZE)) - 1) * PAGE_SIZE, (Math.min(page, Math.max(1, Math.ceil(rows.length / PAGE_SIZE)) - 1) + 1) * PAGE_SIZE).map((a) => {
           const approveNeeded = needsProductApproval(a);
           const stockNeeded = needsStockApproval(a);
           const meta = parseMeta(a);

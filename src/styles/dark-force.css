@@ -3268,15 +3268,17 @@ html body .ac-panel-head { margin-bottom: 12px; }
 
 /* — ergonomic touch targets (44px) on coarse pointers — */
 @media (pointer: coarse) {
-  html body button:not(.wz-chip):not(.atlas-typeahead-item),
+  html body button:not(.wz-chip):not(.atlas-typeahead-item):not(.phone-avatar),
   html body .btn,
   html body a.btn,
   html body .ac-seg-btn,
-  html body .ac-topbar-icon {
+  html body .ac-topbar-icon,
+  html body .ac-topbar-user-btn {
     min-height: 44px !important;
   }
   html body .ac-seg-btn,
-  html body .ac-topbar-icon { min-width: 44px !important; }
+  html body .ac-topbar-icon,
+  html body .ac-topbar-user-btn { min-width: 44px !important; }
   html body input:not([type="checkbox"]):not([type="radio"]),
   html body select { min-height: 44px !important; }
   html body .atlas-typeahead-item { min-height: 44px !important; }
@@ -4904,4 +4906,418 @@ html body .atlas-settings .settings-nav-item {
 @media (prefers-reduced-motion: reduce) {
   html.theme-anim, html.theme-anim *, html.theme-anim *::before, html.theme-anim *::after { transition: none !important; }
   ::view-transition-old(root), ::view-transition-new(root) { animation: none !important; }
+}
+
+/* Circular profile avatars & topbar user buttons: never squish into vertical capsules or force dark fill in light mode */
+html[data-theme] body .ac-desktop-dock .ac-topbar-right,
+html[data-theme] body .ac-topbar .ac-topbar-right {
+  flex: 0 0 auto !important;
+}
+html[data-theme] body .ac-topbar-user-wrap {
+  flex: 0 0 auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+html[data-theme] body .ac-topbar-user-btn {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  max-width: 40px !important;
+  min-height: 40px !important;
+  max-height: 40px !important;
+  flex: 0 0 40px !important;
+  aspect-ratio: 1 / 1 !important;
+  padding: 2px !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  border-radius: 999px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: hidden !important;
+  line-height: 1 !important;
+}
+html:not([data-theme="dark"]) body .ac-topbar-user-btn {
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  color: #0f172a !important;
+  box-shadow: none !important;
+}
+html:not([data-theme="dark"]) body .ac-topbar-user-btn:hover {
+  background: rgba(15, 23, 42, 0.06) !important;
+  border-color: #e4e4e7 !important;
+}
+html[data-theme="dark"] body .ac-topbar-user-btn {
+  background: #1c1c1f !important;
+  border: 1px solid #2a2a2e !important;
+  color: #e4e4e7 !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"] body .ac-topbar-user-btn:hover {
+  background: #27272a !important;
+  border-color: #3f3f46 !important;
+}
+@media (max-width: 900px), (pointer: coarse) {
+  html[data-theme] body .ac-topbar-user-btn {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    max-width: 44px !important;
+    min-height: 44px !important;
+    max-height: 44px !important;
+    flex: 0 0 44px !important;
+  }
+}
+html[data-theme] body .ac-topbar-avatar {
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  min-height: 36px !important;
+  flex: none !important;
+  aspect-ratio: 1 / 1 !important;
+  border-radius: 999px !important;
+  object-fit: cover !important;
+}
+html[data-theme] body .ac-topbar-user-btn .ac-topbar-avatar {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  flex: none !important;
+  aspect-ratio: 1 / 1 !important;
+  border-radius: 999px !important;
+  object-fit: cover !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  outline: none !important;
+  border: none !important;
+}
+html:not([data-theme="dark"]) body .ac-topbar-user-btn .ac-topbar-avatar--ini {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+  font-weight: 750 !important;
+  font-size: 0.78rem !important;
+  line-height: 1 !important;
+}
+html[data-theme="dark"] body .ac-topbar-user-btn .ac-topbar-avatar--ini {
+  background: #27272a !important;
+  color: #f4f4f5 !important;
+  font-weight: 750 !important;
+  font-size: 0.78rem !important;
+  line-height: 1 !important;
+}
+
+/* Focus topbar / sidebar / public header avatars */
+html[data-theme] body .settings-topbar-user-btn {
+  flex: 0 0 auto !important;
+}
+html[data-theme] body .settings-topbar-avatar {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  min-height: 32px !important;
+  flex: 0 0 32px !important;
+  aspect-ratio: 1 / 1 !important;
+  border-radius: 999px !important;
+  object-fit: cover !important;
+  overflow: hidden !important;
+}
+html[data-theme] body .settings-topbar--compact .settings-topbar-avatar {
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+  flex: 0 0 28px !important;
+}
+html[data-theme] body .settings-topbar-avatar--ini {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-weight: 750 !important;
+  font-size: 0.75rem !important;
+  line-height: 1 !important;
+}
+html:not([data-theme="dark"]) body .settings-topbar-avatar--ini {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+html[data-theme="dark"] body .settings-topbar-avatar--ini {
+  background: #27272a !important;
+  color: #f4f4f5 !important;
+}
+html[data-theme] body .sidebar-avatar,
+html[data-theme] body .sidebar-avatar-img {
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  min-height: 36px !important;
+  flex: 0 0 36px !important;
+  aspect-ratio: 1 / 1 !important;
+  border-radius: 999px !important;
+  object-fit: cover !important;
+  overflow: hidden !important;
+}
+html[data-theme] body .pn-chip-avatar-slot {
+  width: 26px !important;
+  height: 26px !important;
+  min-width: 26px !important;
+  min-height: 26px !important;
+  flex: 0 0 26px !important;
+  aspect-ratio: 1 / 1 !important;
+  border-radius: 999px !important;
+  overflow: hidden !important;
+}
+html[data-theme] body .pn-chip-avatar {
+  width: 26px !important;
+  height: 26px !important;
+  min-width: 26px !important;
+  min-height: 26px !important;
+  aspect-ratio: 1 / 1 !important;
+  border-radius: 999px !important;
+  object-fit: cover !important;
+  display: block !important;
+}
+
+/* Danger / Annuler buttons: beat legacy App.css density hover rules (#fef2f2 bg without text reset) */
+html[data-theme="light"][data-density] body .content button.danger:not(.ac-timed-delete-btn):not(.ac-timed-undo-btn),
+html[data-theme="light"] body .content button.danger:not(.ac-timed-delete-btn):not(.ac-timed-undo-btn),
+html:not([data-theme="dark"])[data-density] body .content button.danger:not(.ac-timed-delete-btn):not(.ac-timed-undo-btn),
+html[data-theme="light"] body .content a.btn.danger,
+html:not([data-theme="dark"]) body .content a.btn.danger {
+  background: #dc2626 !important;
+  border-color: #dc2626 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html[data-theme="light"][data-density] body .content button.danger:not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):hover:not(:disabled),
+html[data-theme="light"] body .content button.danger:not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):hover:not(:disabled),
+html:not([data-theme="dark"])[data-density] body .content button.danger:not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):hover:not(:disabled),
+html[data-theme="light"] body .content a.btn.danger:hover,
+html:not([data-theme="dark"]) body .content a.btn.danger:hover {
+  background: #b91c1c !important;
+  border-color: #b91c1c !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html[data-theme="light"][data-density] body .content button.danger:not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):active:not(:disabled),
+html[data-theme="light"][data-density] body .content button.danger:not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):focus-visible,
+html:not([data-theme="dark"])[data-density] body .content button.danger:not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):active:not(:disabled),
+html:not([data-theme="dark"])[data-density] body .content button.danger:not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):focus-visible {
+  background: #991b1b !important;
+  border-color: #991b1b !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html[data-theme="dark"][data-density] body .content button.danger:not(.ac-timed-delete-btn):not(.ac-timed-undo-btn),
+html[data-theme="dark"] body .content button.danger:not(.ac-timed-delete-btn):not(.ac-timed-undo-btn),
+html[data-theme="dark"] body .content a.btn.danger {
+  background: #7f1d1d !important;
+  border-color: #dc2626 !important;
+  color: #fecaca !important;
+  -webkit-text-fill-color: #fecaca !important;
+}
+html[data-theme="dark"][data-density] body .content button.danger:not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):hover:not(:disabled),
+html[data-theme="dark"] body .content button.danger:not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):hover:not(:disabled),
+html[data-theme="dark"] body .content a.btn.danger:hover {
+  background: #991b1b !important;
+  border-color: #ef4444 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html[data-theme="dark"][data-density] body .content button.danger:not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):active:not(:disabled),
+html[data-theme="dark"][data-density] body .content button.danger:not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):focus-visible {
+  background: #b91c1c !important;
+  border-color: #f87171 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* Secondary buttons on hover/active/focus: never lose text contrast */
+html:not([data-theme="dark"])[data-density] body .content button.secondary:hover:not(:disabled),
+html:not([data-theme="dark"])[data-density] body .content button.secondary:active:not(:disabled),
+html:not([data-theme="dark"])[data-density] body .content button.secondary:focus-visible,
+html:not([data-theme="dark"])[data-density] body .content a.btn.secondary:hover,
+html:not([data-theme="dark"])[data-density] body .content a.btn.secondary:active {
+  background: #f4f4f5 !important;
+  border-color: #d4d4d8 !important;
+  color: #18181b !important;
+  -webkit-text-fill-color: #18181b !important;
+}
+html[data-theme="dark"][data-density] body .content button.secondary:hover:not(:disabled),
+html[data-theme="dark"][data-density] body .content button.secondary:active:not(:disabled),
+html[data-theme="dark"][data-density] body .content button.secondary:focus-visible,
+html[data-theme="dark"][data-density] body .content a.btn.secondary:hover,
+html[data-theme="dark"][data-density] body .content a.btn.secondary:active {
+  background: #3f3f46 !important;
+  border-color: #52525b !important;
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+}
+
+/* Desktop table row actions: single clean horizontal line instead of multi-row stair stacking */
+@media (min-width: 901px) {
+  html[data-theme] body .content table th:last-child,
+  html[data-theme] body .content table td.row-actions-cell {
+    width: 1%;
+    white-space: nowrap;
+  }
+  html[data-theme] body .content table td.row-actions-cell > .row-actions {
+    display: inline-flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 6px !important;
+    width: max-content !important;
+    max-width: none !important;
+    margin-left: auto !important;
+  }
+  html[data-theme] body .content table td.row-actions-cell > .row-actions > button,
+  html[data-theme] body .content table td.row-actions-cell > .row-actions > a.btn {
+    height: 32px !important;
+    min-height: 32px !important;
+    padding: 0 11px !important;
+    font-size: 12px !important;
+    line-height: 1 !important;
+    border-radius: 999px !important;
+    white-space: nowrap !important;
+    flex: 0 0 auto !important;
+  }
+  html[data-theme] body .content table td.row-actions-cell > .row-actions > .ac-timed-delete {
+    height: 32px !important;
+    min-height: 32px !important;
+    min-width: 0 !important;
+    flex: 0 0 auto !important;
+  }
+  html[data-theme] body .content table td.row-actions-cell > .row-actions > .ac-timed-delete .ac-timed-delete-btn,
+  html[data-theme] body .content table td.row-actions-cell > .row-actions > .ac-timed-delete .ac-timed-undo-btn {
+    height: 32px !important;
+    min-height: 32px !important;
+    padding: 0 11px !important;
+    font-size: 12px !important;
+    border-radius: 999px !important;
+  }
+}
+
+/* Tappable document number links */
+html[data-theme] body .ac-number-link {
+  color: #2563eb !important;
+  -webkit-text-fill-color: #2563eb !important;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+html[data-theme] body .ac-number-link:hover {
+  text-decoration: underline;
+}
+html[data-theme="dark"] body .ac-number-link {
+  color: #93c5fd !important;
+  -webkit-text-fill-color: #93c5fd !important;
+}
+
+/* Shared table pager bar */
+html[data-theme] body .ac-table-pager-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--ac-line, #e2e8f0);
+}
+html[data-theme] body .ac-table-pager-meta {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted, #64748b);
+}
+html[data-theme="dark"] body .ac-table-pager-bar {
+  border-bottom-color: #27272a;
+}
+html[data-theme="dark"] body .ac-table-pager-meta {
+  color: #a1a1aa;
+}
+
+/* WhatsNew & About contributors / thanks-to attribution */
+html[data-theme] body .wn-thanks-card {
+  margin-bottom: 24px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 1px solid var(--ac-line, #e2e8f0);
+  background: var(--ac-paper, #ffffff);
+}
+html[data-theme="dark"] body .wn-thanks-card {
+  background: #18181b;
+  border-color: #27272a;
+}
+html[data-theme] body .wn-thanks-title {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 700;
+}
+html[data-theme] body .wn-thanks-sub {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--muted, #64748b);
+}
+html[data-theme="dark"] body .wn-thanks-sub {
+  color: #a1a1aa;
+}
+html[data-theme] body .wn-contributors {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+html[data-theme] body .wn-contributors-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted, #64748b);
+}
+html[data-theme="dark"] body .wn-contributors-label {
+  color: #a1a1aa;
+}
+html[data-theme] body .wn-release-contributors {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--ac-line, #e2e8f0);
+}
+html[data-theme="dark"] body .wn-release-contributors {
+  border-top-color: #27272a;
+}
+html[data-theme] body .wn-contributor-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 4px;
+  border-radius: 999px;
+  border: 1px solid var(--ac-line, #e2e8f0);
+  background: var(--ac-bg, #f8fafc);
+  color: var(--ac-ink, #0f172a) !important;
+  -webkit-text-fill-color: var(--ac-ink, #0f172a) !important;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+html[data-theme] body .wn-contributor-pill:hover {
+  border-color: #94a3b8;
+  text-decoration: none;
+}
+html[data-theme="dark"] body .wn-contributor-pill {
+  background: #27272a;
+  border-color: #3f3f46;
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+}
+html[data-theme] body .wn-contributor-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  object-fit: cover;
+  flex: none;
 }
