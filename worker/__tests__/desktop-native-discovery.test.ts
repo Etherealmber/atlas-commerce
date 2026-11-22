@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Hono } from 'hono';
-import { DESKTOP_NATIVE_V2_CAPABILITIES as path, registerDesktopNativeDiscovery } from '../routes/desktopNativeDiscovery';
+import { DESKTOP_NATIVE_V2_CAPABILITIES as path, DESKTOP_NATIVE_V3_CAPABILITIES as v3, registerDesktopNativeDiscovery } from '../routes/desktopNativeDiscovery';
 
 function app() { const a = new Hono<any>(); registerDesktopNativeDiscovery(a); return a; }
 async function call(url: string, env: any = {}, headers: Record<string, string> = {}) {
@@ -53,5 +53,27 @@ describe('desktop native v2 discovery contract', () => {
     const endpoints = ['requests', 'prepare', 'approve', 'poll', 'exchange', 'password', 'otp', 'passkey'];
     const responses = await Promise.all(endpoints.map(endpoint => app().request(`https://self-hosted.example:8443/api/auth/desktop/v2/${endpoint}`, { method: 'POST' }, { DESKTOP_NATIVE_V2_DISCOVERY: 'true' })));
     for (const res of responses) expect(res.status).toBe(404);
+  });
+});
+
+describe('desktop v3 discovery remains disabled', () => {
+  it('returns a stable non-secret unavailable contract even with production flags and bindings set', async () => {
+    const origin = 'https://self-hosted.example:8443';
+    const a = await call(`${origin}${v3}`);
+    const b = await call(`${origin}${v3}`, { ENVIRONMENT:'production', DESKTOP_NATIVE_V3_ENABLED:'true', DESKTOP_NATIVE_RESEND_API_KEY:'re_secret' }, {Authorization:'Bearer secret'});
+    expect(a.res.status).toBe(200); expect(b.data).toEqual(a.data);
+    expect(a.data.data).toMatchObject({version:3,enabled:false,reason:'NOT_READY',browser_fallback:{automatic:false}});
+    expect(Object.values(a.data.data.methods).every((method: any) => method.available === false)).toBe(true);
+    expect(JSON.stringify(b.data)).not.toContain('secret');
+    expect(a.res.headers.get('cache-control')).toBe('no-store'); expect(a.res.headers.get('referrer-policy')).toBe('no-referrer');
+  });
+  it('enforces HTTPS, exact origin/port and no query, and exposes no partial operations', async () => {
+    const origin = 'https://self-hosted.example:8443';
+    expect((await call(`http://self-hosted.example${v3}`)).data.code).toBe('HTTPS_REQUIRED');
+    expect((await call(`${origin}${v3}`, {}, {Origin:'https://self-hosted.example'})).data.code).toBe('INVALID_REQUEST');
+    expect((await call(`${origin}${v3}?token=secret`)).data.code).toBe('INVALID_REQUEST');
+    const routes = ['nonce','login/password','login/otp','enrollment','recovery','session/refresh','session/logout'];
+    const responses = await Promise.all(routes.map(route => app().request(`${origin}/api/auth/desktop/v3/${route}`, {method:'POST'}, {DESKTOP_NATIVE_V3_ENABLED:'true'})));
+    expect(responses.every(r => r.status === 404)).toBe(true);
   });
 });

@@ -333,12 +333,7 @@ export default function Quotes() {
   return (
     <div className="atlas-crm quotes-page">
       <div className="page-header">
-        <div>
-          <h1>Devis</h1>
-          <p style={{ color: 'var(--muted)', fontSize: 14, marginTop: 4 }}>
-            Estimation avant vente — non comptabilisée. Convertissez en facture pour encaisser et déduire le stock.
-          </p>
-        </div>
+        <h1 className="sr-only">Devis</h1>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
           <button onClick={() => { resetForm(); wz.reset(); setShowModal(true); }}>+ Nouveau devis</button>

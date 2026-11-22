@@ -14,21 +14,21 @@ Account username, password hash/salt, role, active state or editable email chang
 
 Once the trusted actor is known, `start` reserves the existing cross-channel password budget and `confirm` the existing cross-channel OTP budget: 60/IP/minute, 300/IP/10 minutes, 20/account/10 minutes combined and five/account+IP+purpose/10 minutes; reservations persist and failures consume budget. A verified logged-in actor can exhaust its own account's capacity and shared-IP users can still collide. The `send` callback is reached only after authorization and limiting, and only one nonexpired request/account can be sending/pending. Production recovery and delivery must share reviewed account/network and global quotas across channels; none is exposed here. Pseudonymous hashes of names/IPs remain dictionary-guessable.
 
-## Decisions: first enrollment (choose a policy)
+## First enrollment: selected direction and remaining decisions
 
 **Option A — existing strong session + explicit password reauthentication + new-mailbox code.** Easier bootstrap and self-service, but anyone who has stolen the current session and password can enroll their own mailbox; an editable email or proof at the new mailbox alone is not independent identity proof. Requires an actual strict reauth implementation and account notification.
 
 **Option B — existing session + approved administrator/out-of-band identity check, then new-mailbox code.** Harder for a remote password thief but introduces administrator insider risk, help-desk delay, secure record-keeping and potential social engineering. A dual-control or delay-and-notify variation can reduce unilateral administrative takeover but has availability and staffing costs.
 
-The core enforces only whatever approved `authorize` adapter actually verifies; it does not choose A or B. Decide whether old verified mail must always confirm changes (the present core requires it), what notice to send, and what to do when no old address exists. The separately configured owner requires its own stable identity and authorization adapter; do not map it to an invented `app_users` record.
+The user selected option A as the proposed regular-account default, with a stronger separately reviewed process for owner/admin accounts. The core enforces only what the injected adapter actually verifies; neither option is wired. See [Atlas defaults and integration conflicts](desktop-native-atlas-defaults.md). Decide whether old verified mail must always confirm changes (the present core requires it), what notice to send, and what to do when no old address exists. The separately configured owner requires its own stable identity and authorization adapter; do not map it to an invented `app_users` record.
 
-## Decisions: lost mailbox / device recovery (choose a policy)
+## Lost mailbox / device recovery: selected direction and remaining decisions
 
 **Option A — recovery through a second already enrolled, phishing-resistant factor or another approved trusted device**, with fresh proof, audit, notification and optional delay. This avoids unilateral administrator reset but cannot recover users who have lost every factor, and device keys must first be implemented and securely enrolled.
 
 **Option B — staffed administrator recovery with identity verification, dual approval where feasible, notification to prior channels and a cooling-off window**, followed by revocation of all existing native factors and sessions and re-enrollment. This works when all devices are lost but puts exceptional power and responsibility on operators and may exclude organizations with no independent second approver.
 
-For **owner/administrator recovery**, either use pre-enrolled offline recovery material (stored separately, single-use, protected and periodically tested) or an independently verified multi-person administrative process with documented break-glass control. The former can be lost/copied and needs lifecycle management; the latter depends on available trustworthy operators and formal identity checks. Neither is implemented. Decide who approves, required evidence, delay, notifications, revocation scope and how to prevent a recovery request from disclosing whether an account exists. Do not silently use a shared company inbox or editable email.
+The selected direction prefers option A where possible, then option B. For **owner recovery**, pre-enrolled offline single-use recovery codes and a separately controlled break-glass process are both required. The former can be lost/copied and needs lifecycle management; the latter depends on available trustworthy operators and formal identity checks. Neither is implemented. Decide who approves, required evidence, delay, notifications, revocation scope and how to prevent a recovery request from disclosing whether an account exists. Do not silently use a shared company inbox or editable email.
 
 ## Abuse, observable behavior and deployment
 

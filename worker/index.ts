@@ -52,7 +52,7 @@ import { repairProductSearchIndex, proactiveFtsHealth } from './lib/reliability'
 import { androidReleaseRouter, serveAppUpdatesAsset } from './routes/androidRelease';
 import { registerDeviceTokenRoutes } from './routes/deviceToken';
 import { registerDesktopAuthRoutes, isDesktopAuthPath, isPublicDesktopAuthPath, DESKTOP_AUTH } from './routes/desktopAuth';
-import { registerDesktopNativeDiscovery, DESKTOP_NATIVE_V2_CAPABILITIES } from './routes/desktopNativeDiscovery';
+import { registerDesktopNativeDiscovery, DESKTOP_NATIVE_V2_CAPABILITIES, DESKTOP_NATIVE_V3_CAPABILITIES } from './routes/desktopNativeDiscovery';
 import { registerDesktopPilotWebView, EMBEDDED_CHALLENGE_PATH, EMBEDDED_CHALLENGE_CSP } from './lib/desktop-pilot-webview';
 import { registerDesktopNativeV2, isNativeV2Operation, NATIVE_V2 } from './routes/desktopNativeV2';
 import { parseNativePilotToken, validateNativePilotToken } from './lib/desktop-native-session';
@@ -964,7 +964,7 @@ app.use('/api/*', async (c, next) => {
     // prepare/authorize stay behind this normal web session gate.
     isPublicDesktopAuthPath(path) ||
     // Exact v2 operations enforce their own PKCE or authenticated-phone checks and D1 budgets.
-    (path === DESKTOP_NATIVE_V2_CAPABILITIES && c.req.method === 'GET') ||
+    ((path === DESKTOP_NATIVE_V2_CAPABILITIES || path === DESKTOP_NATIVE_V3_CAPABILITIES) && c.req.method === 'GET') ||
     (isNativeV2Operation(path) && c.req.method === 'POST') ||
     path === '/api/auth/login' ||
     path === '/api/auth/verify-otp' ||

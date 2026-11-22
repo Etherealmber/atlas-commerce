@@ -455,14 +455,7 @@ export default function Invoices() {
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
-          <select value={filter} onChange={(e) => setFilter(e.target.value)} style={{ width: 'auto' }} aria-label="Filtrer par statut">
-            <option value="">Toutes les factures</option>
-            <option value="sent">Non payées / envoyées</option>
-            <option value="partial">Partiellement payées</option>
-            <option value="paid">Payées</option>
-            <option value="cancelled">Annulées</option>
-            <option value="overdue">En retard</option>
-          </select>
+
           <button className="secondary" onClick={() => openReport('/api/reports/receivables')}>Exporter les créances</button>
           <button className="secondary" onClick={() => downloadExport('/api/export/invoices', 'factures.csv')}>Télécharger le CSV</button>
           <button onClick={() => { setDocMode('invoice'); setShowModal(true); }}>Créer une facture</button>
@@ -502,6 +495,14 @@ export default function Invoices() {
           <div className="ac-search-field">
             <input className="ac-search-input" placeholder="Rechercher par numéro ou nom de client..." value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
+          <select value={filter} onChange={(e) => setFilter(e.target.value)} className="ac-filter-select" aria-label="Filtrer par statut">
+            <option value="">Toutes les factures</option>
+            <option value="sent">Non payées / envoyées</option>
+            <option value="partial">Partiellement payées</option>
+            <option value="paid">Payées</option>
+            <option value="cancelled">Annulées</option>
+            <option value="overdue">En retard</option>
+          </select>
         </div>
       </div>
       </div>

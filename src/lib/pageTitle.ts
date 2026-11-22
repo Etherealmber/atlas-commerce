@@ -5,6 +5,7 @@ const BRAND = 'Atlas';
 /** Exact path → title (no brand suffix yet). */
 const EXACT: Record<string, string> = {
   '/': 'Tableau de bord',
+  '/dashboard': 'Tableau de bord',
   '/actions': 'Actions en attente',
   '/products': 'Produits & stock',
   '/scan': 'Scan code-barres',
@@ -48,7 +49,7 @@ export function titleForPath(pathname: string): string {
   if (EXACT[path]) return withBrand(EXACT[path]);
 
   // Dynamic desktop routes
-  if (/^\/products\/[^/]+\/historique$/.test(path)) return withBrand('Historique produit');
+  if (/^\/products\/[^/]+\/historique$/.test(path)) return withBrand('Historique du produit');
   if (/^\/quick-sale\/[^/]+$/.test(path)) return withBrand('Détail vente rapide');
   if (/^\/invoices\/[^/]+$/.test(path)) return withBrand('Détail facture');
   if (/^\/error\/[^/]+$/.test(path)) return withBrand('Erreur');

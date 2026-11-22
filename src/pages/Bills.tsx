@@ -326,13 +326,7 @@ export default function Bills() {
         <h1>Factures d'achat</h1>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
-          <select value={filter} onChange={(e) => setFilter(e.target.value)} style={{ width: 'auto' }} aria-label="Filtrer par statut">
-            <option value="">Tous les statuts</option>
-            <option value="sent">Non payées / envoyées</option>
-            <option value="partial">Partiellement payées</option>
-            <option value="paid">Payées</option>
-            <option value="cancelled">Annulées</option>
-          </select>
+
           {selected.size > 0 && (
             <TimedUndoDelete
               deleteLabel={`Supprimer (${selected.size})`}
@@ -349,7 +343,15 @@ export default function Bills() {
       <SaveFeedback message={saveMsg} type={saveMsgType} />
 
       <div className="ac-panel ac-products-filters">
-        <div className="search-bar"><input className="search-input" placeholder="Rechercher par numéro ou nom de fournisseur..." value={search} onChange={(e) => setSearch(e.target.value)} /></div>
+        <div className="ac-products-filters-row"><div className="ac-search-field"><input className="ac-search-input" type="search" aria-label="Rechercher les factures d’achat" placeholder="Rechercher par numéro ou nom de fournisseur..." value={search} onChange={(e) => setSearch(e.target.value)} /></div>
+          <select value={filter} onChange={(e) => setFilter(e.target.value)} className="ac-filter-select" aria-label="Filtrer par statut">
+            <option value="">Tous les statuts</option>
+            <option value="sent">Non payées / envoyées</option>
+            <option value="partial">Partiellement payées</option>
+            <option value="paid">Payées</option>
+            <option value="cancelled">Annulées</option>
+          </select>
+        </div>
       </div>
 
       <div className="ac-panel ac-products-table-panel">

@@ -6,8 +6,25 @@ import { pilotLoginConfigured } from '../lib/desktop-native-session';
  * require their own independent gates and runtime dependencies.
  */
 export const DESKTOP_NATIVE_V2_CAPABILITIES = '/api/auth/desktop/v2/capabilities';
+export const DESKTOP_NATIVE_V3_CAPABILITIES = '/api/auth/desktop/v3/capabilities';
 
 export function registerDesktopNativeDiscovery(app: Hono<any>): void {
+  // Production v3 is not yet implemented: configuration alone must never
+  // advertise a method or enable a partial authentication protocol.
+  app.get(DESKTOP_NATIVE_V3_CAPABILITIES, c => {
+    c.header('Cache-Control', 'no-store');
+    c.header('CDN-Cache-Control', 'no-store');
+    c.header('Referrer-Policy', 'no-referrer');
+    const url = new URL(c.req.url);
+    const originHeader = c.req.header('Origin');
+    if (url.protocol !== 'https:') return c.json({ success: false, code: 'HTTPS_REQUIRED', error: 'HTTPS requis.' }, 400);
+    if (url.search || (originHeader !== undefined && originHeader !== url.origin)) return c.json({ success: false, code: 'INVALID_REQUEST', error: 'Requête invalide.' }, 400);
+    return c.json({ success: true, data: {
+      version: 3, enabled: false, reason: 'NOT_READY',
+      methods: { password_otp: { available: false }, mailbox_enrollment: { available: false }, recovery: { available: false }, device_proof: { available: false } },
+      browser_fallback: { version: 1, capabilities_path: '/api/auth/desktop/v1/capabilities', automatic: false },
+    } });
+  });
   app.get(DESKTOP_NATIVE_V2_CAPABILITIES, c => {
     c.header('Cache-Control', 'no-store');
     c.header('CDN-Cache-Control', 'no-store');

@@ -1,10 +1,10 @@
 import { SwitchMode } from './components/ui/SwitchMode';
 import MobileBottomNav from './components/erp/MobileBottomNav';
 import { useEffect, useState, useRef, lazy, Suspense } from 'react';
-import { User, CreditCard, Mail, Sparkles, LogOut, Sun, Moon, Monitor, Type } from 'lucide-react';
+import { User, CreditCard, Mail, Sparkles, LogOut, Sun, Moon, Monitor, Type, ArrowLeft } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, Link, useNavigate, useLocation } from 'react-router-dom';
-import { applyPageTitle } from './lib/pageTitle';
+import { applyPageTitle, titleForPath } from './lib/pageTitle';
 import Login from './pages/Login';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
@@ -1212,6 +1212,7 @@ function DesktopShell() {
         )}
 
         <div className="ac-main-column">
+        {!isFocusRoute && <div id="desktop-catalog-actions" className="desktop-catalog-actions-slot" />}
         {!isFocusRoute && (
         <header className={`ac-topbar ac-topbar--bionis ac-desktop-dock${settingsBarCompact && !shellNotifOpen && !shellUserOpen ? ' ac-topbar--compact' : ''}`} role="banner">
           <div className="ac-topbar-left">
@@ -1231,10 +1232,9 @@ function DesktopShell() {
                 <path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" />
               </svg>
             </button>}
+            {/^\/products\/[^/]+\/historique\/?$/.test(location.pathname) && <Link className="ac-dock-back" to="/products" aria-label="Retour aux produits" title="Retour aux produits"><ArrowLeft size={20} aria-hidden="true" /></Link>}
             <button ref={desktopDockTitleRef} type="button" className="ac-topbar-title ac-dock-expand" aria-label="Barre de commandes" aria-expanded={!settingsBarCompact} onClick={expandDesktopDock}>
-              {location.pathname === '/' || location.pathname === ''
-                ? 'Tableau de bord'
-                : location.pathname.replace(/^\//, '').split('/')[0].replace(/-/g, ' ')}
+              {titleForPath(location.pathname).replace(/ · Atlas$/, '')}
             </button>
           </div>
           {!settingsBarCompact && <div className="ac-topbar-right">

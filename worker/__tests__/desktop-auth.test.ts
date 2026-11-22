@@ -152,6 +152,18 @@ describe('desktop v2 discovery on the real Worker', () => {
   });
 });
 
+describe('desktop v3 discovery on the real Worker', () => {
+  it('is public but never enables incomplete production authentication', async () => {
+    env.ENVIRONMENT = 'production'; env.DESKTOP_NATIVE_V3_ENABLED = 'true';
+    const response = await call('/api/auth/desktop/v3/capabilities', undefined, {method:'GET'});
+    expect(response.status).toBe(200);
+    expect(response.body.data).toMatchObject({version:3,enabled:false,reason:'NOT_READY'});
+    expect(Object.values(response.body.data.methods).every((method: any) => !method.available)).toBe(true);
+    expect(response.headers.get('Cache-Control')).toContain('no-store');
+    expect((await call('/api/auth/desktop/v3/session/refresh', {})).status).not.toBe(200);
+  });
+});
+
 describe('desktop v1 — real Worker, web authentication and D1 transitions', () => {
   it('discovers a versioned flow on a custom HTTPS origin, without hardcoded production domains', async () => {
     const capabilities = await call(`${DESKTOP_AUTH}/capabilities`, undefined, { method: 'GET' });

@@ -11,10 +11,31 @@ beforeEach(() => {
   vi.spyOn(api, 'getProducts').mockResolvedValue({ data: [{ id: 4, name: 'Marbre', sku: 'M-4', price: 25, cost: 12, stock_quantity: 4, low_stock_threshold: 2, track_inventory: 1, image_url: '/cdn/marbre.webp' }] });
   vi.spyOn(api, 'getStockLocations').mockResolvedValue({ data: [] }); vi.spyOn(api, 'getCategories').mockResolvedValue({ data: [] }); vi.spyOn(api, 'getUnits').mockResolvedValue({ data: [] });
 });
-afterEach(async () => { await act(async () => root.unmount()); host.remove(); localStorage.removeItem('stock_role'); localStorage.removeItem('atlas_desktop_products_view'); vi.restoreAllMocks(); });
+afterEach(async () => { await act(async () => root.unmount()); host.remove(); document.getElementById('desktop-catalog-actions')?.remove(); localStorage.removeItem('stock_role'); localStorage.removeItem('atlas_desktop_products_view'); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+it('moves actions to the separate top slot on wide screens, and back for bulk selection or narrow screens', async () => {
+  const slot = document.createElement('div'); slot.id = 'desktop-catalog-actions'; document.body.appendChild(slot);
+  let change: () => void = () => {};
+  const media = {matches:true, addEventListener: (_: string, fn: () => void) => { change = fn; }, removeEventListener: vi.fn()};
+  vi.stubGlobal('matchMedia', () => media);
+  await act(async () => root.render(createElement(MemoryRouter, {initialEntries:['/products']}, createElement(Products))));
+  expect(slot.textContent).toContain('Ajouter un produit');
+  expect(host.querySelector('.product-page-actions.is-docked')).not.toBeNull();
+  const selection = host.querySelector<HTMLInputElement>('.product-table-row input[type="checkbox"]')!;
+  await act(async () => selection.click());
+  expect(slot.textContent).toBe(''); expect(host.querySelector('.product-page-actions')?.textContent).toContain('Supprimer');
+  await act(async () => selection.click()); expect(slot.textContent).toContain('Ajouter un produit');
+  await act(async () => { media.matches=false; change(); });
+  expect(slot.textContent).toBe(''); expect(host.querySelector('.product-page-actions')?.textContent).toContain('Ajouter un produit');
+});
 it('offers list and grid, preserves actions, and opens product history from a card', async () => {
   await act(async () => root.render(createElement(MemoryRouter, { initialEntries: ['/products'] }, createElement(Routes, null, createElement(Route, { path: '/products', element: createElement(Products) }), createElement(Route, { path: '/products/:id/historique', element: createElement('p', null, 'Product destination') })) )));
   expect(host.querySelector('.product-list-open')?.getAttribute('href')).toBe('/products/4/historique');
+  expect(host.querySelector('.product-page-actions h1')?.classList.contains('sr-only')).toBe(true);
+  expect(host.textContent).not.toContain('Références, seuils et mouvements de stock.');
+  expect(host.textContent).not.toContain('Voir le stock (PDF)');
+  expect(host.textContent).not.toContain('Suggestions de réassort');
+  expect(host.textContent).not.toContain('Excel CSV');
+  expect(host.querySelector('.product-page-actions')?.textContent).toContain('Ajouter un produit');
   expect([...host.querySelectorAll('button')].some(b => b.textContent === 'Historique')).toBe(false);
   const rowDelete = host.querySelector<HTMLElement>('.product-table-row [role="button"]')!;
   await act(async () => rowDelete.click());

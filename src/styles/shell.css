@@ -2888,3 +2888,13 @@ html body .ac-desktop-dock button.ac-dock-expand {
   box-shadow: none !important; font: inherit; font-weight: 700; text-transform: capitalize;
 }
 html body .ac-desktop-dock button.ac-dock-expand:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+
+/* Product history navigation stays inside the floating desktop dock. */
+html body .ac-desktop-dock .ac-dock-back {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px; flex: 0 0 40px; border-radius: 999px;
+  color: var(--ac-ink); text-decoration: none;
+}
+html body .ac-desktop-dock .ac-dock-back:hover { background: var(--ac-nav-hover); }
+html body .ac-desktop-dock .ac-dock-back:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+html body .ac-desktop-dock .ac-dock-back svg { display: block; width: 20px; height: 20px; flex: none; stroke: currentColor; fill: none; }

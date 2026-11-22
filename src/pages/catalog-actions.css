@@ -1,0 +1,13 @@
+/* The slot is a sibling of the dock, outside the content's CSS container.
+   Compact windows and bulk selection use normal flow instead. */
+.product-page-actions { justify-content: flex-end; }
+.product-page-actions__buttons { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.desktop-catalog-actions-slot:empty { display: none; }
+@media (min-width: 1500px) {
+  .ac-main-column:has(.desktop-catalog-actions-slot:not(:empty)) { position: relative; }
+  .ac-main-column > .desktop-catalog-actions-slot:not(:empty) {
+    position: absolute; top: 15px; right: 16px; z-index: 30;
+    max-width: calc((100% - 440px) / 2 - 16px);
+  }
+  .product-page-actions.is-docked { height: 0; min-height: 0; margin: 0 !important; padding: 0 !important; }
+}

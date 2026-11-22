@@ -475,13 +475,7 @@ export default function QuickSale() {
           >
             + Remboursement (WR)
           </button>
-          <select value={filter} onChange={(e) => setFilter(e.target.value)} style={{ width: 'auto' }} aria-label="Filtrer par statut">
-            <option value="">Tous les tickets</option>
-            <option value="sent">Non soldés</option>
-            <option value="partial">Partiels</option>
-            <option value="paid">Encaissés</option>
-            <option value="cancelled">Annulés</option>
-          </select>
+
           <button onClick={() => { resetForm(); setModalError(''); wz.reset(); setShowModal(true); }}>+ Nouvelle vente</button>
         </div>
       </div>
@@ -505,6 +499,13 @@ export default function QuickSale() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
+          <select value={filter} onChange={(e) => setFilter(e.target.value)} className="ac-filter-select" aria-label="Filtrer par statut">
+            <option value="">Tous les tickets</option>
+            <option value="sent">Non soldés</option>
+            <option value="partial">Partiels</option>
+            <option value="paid">Encaissés</option>
+            <option value="cancelled">Annulés</option>
+          </select>
         </div>
       </div>
 
