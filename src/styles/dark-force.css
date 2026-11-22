@@ -4632,3 +4632,8 @@ html[data-theme='dark'] body .desktop-landing .dl-ed-platforms button[aria-press
   -webkit-text-fill-color: #f4f0eb !important;
   box-shadow: 0 1px 5px #0003 !important;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  html.theme-anim, html.theme-anim *, html.theme-anim *::before, html.theme-anim *::after { transition: none !important; }
+  ::view-transition-old(root), ::view-transition-new(root) { animation: none !important; }
+}

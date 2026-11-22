@@ -21430,32 +21430,32 @@ html body .download-landing .dl-ed-platforms button[aria-pressed='true'] { backg
 html body .download-landing .dl-ed-platforms button:hover { color: var(--ed-text) !important; }
 
 /* Public landing motion and editorial refinements. Content is visible without JS. */
-.home-landing .rise, .android-landing :is(.dl-ed-facts, .dl-ed-section, .dl-preview) { opacity: 1; transform: none; }
+.home-landing .rise, .download-landing :is(.dl-ed-facts, .dl-ed-section, .dl-preview) { opacity: 1; transform: none; }
 @media (prefers-reduced-motion: no-preference) {
-  .home-landing .rise, .android-landing :is(.dl-ed-facts, .dl-ed-section, .dl-preview) { transition: opacity .7s ease, transform .8s cubic-bezier(.22, 1, .36, 1); }
-  .home-landing .rise.motion-pending:not(:focus-within), .android-landing .motion-pending:not(:focus-within) { opacity: 0; transform: translateY(22px); }
-  .home-landing .hm-eyebrow, .android-landing .dl-ed-release-badge { animation: atlas-rise .7s cubic-bezier(.22, 1, .36, 1) .05s backwards; }
-  .home-landing .hm-headline-first, .android-landing .dl-ed-title-first { animation: atlas-line-up .85s cubic-bezier(.22, 1, .36, 1) .1s backwards; }
-  .home-landing .hm-headline-second, .android-landing .dl-ed-title-second { animation: atlas-line-up .85s cubic-bezier(.22, 1, .36, 1) .22s backwards; }
-  .home-landing .hm-sub, .android-landing .dl-desc { animation: atlas-rise .75s cubic-bezier(.22, 1, .36, 1) .36s backwards; }
-  .home-landing .hm-hero-copy .hm-cta, .home-landing .hm-hero-note, .android-landing .dl-ctas, .android-landing .dl-note { animation: atlas-rise .75s cubic-bezier(.22, 1, .36, 1) .46s backwards; }
-  .home-landing .hm-showcase, .android-landing .dl-ed-visual-inner { transform: perspective(1200px) rotateX(var(--atlas-preview-tilt, 0deg)) scale(var(--atlas-preview-scale, 1)); transform-origin: center bottom; }
-  .home-landing .hm-showcase, .android-landing .dl-ed-visual { animation: atlas-shot-up 1s cubic-bezier(.22, 1, .36, 1) .35s backwards; }
-  .home-landing .hm-facts li, .android-landing .dl-ed-facts.is-in li { animation: atlas-rise .7s cubic-bezier(.22, 1, .36, 1) backwards; }
-  .home-landing .hm-facts li:nth-child(2), .android-landing .dl-ed-facts li:nth-child(2) { animation-delay: .08s; }
-  .home-landing .hm-facts li:nth-child(3), .android-landing .dl-ed-facts li:nth-child(3) { animation-delay: .16s; }
-  .home-landing .hm-facts li:nth-child(4), .android-landing .dl-ed-facts li:nth-child(4) { animation-delay: .24s; }
+  .home-landing .rise, .download-landing :is(.dl-ed-facts, .dl-ed-section, .dl-preview) { transition: opacity .7s ease, transform .8s cubic-bezier(.22, 1, .36, 1); }
+  .home-landing .rise.motion-pending:not(:focus-within), .download-landing .motion-pending:not(:focus-within) { opacity: 0; transform: translateY(22px); }
+  .home-landing .hm-eyebrow, .download-landing .dl-ed-release-badge { animation: atlas-rise .7s cubic-bezier(.22, 1, .36, 1) .05s backwards; }
+  .home-landing .hm-headline-first, .download-landing .dl-ed-title-first { animation: atlas-line-up .85s cubic-bezier(.22, 1, .36, 1) .1s backwards; }
+  .home-landing .hm-headline-second, .download-landing .dl-ed-title-second { animation: atlas-line-up .85s cubic-bezier(.22, 1, .36, 1) .22s backwards; }
+  .home-landing .hm-sub, .download-landing .dl-desc { animation: atlas-rise .75s cubic-bezier(.22, 1, .36, 1) .36s backwards; }
+  .home-landing .hm-hero-copy .hm-cta, .home-landing .hm-hero-note, .download-landing .dl-ctas, .download-landing .dl-note { animation: atlas-rise .75s cubic-bezier(.22, 1, .36, 1) .46s backwards; }
+  .home-landing .hm-showcase, .download-landing .dl-ed-visual-inner { transform: perspective(1200px) rotateX(var(--atlas-preview-tilt, 0deg)) scale(var(--atlas-preview-scale, 1)); transform-origin: center bottom; }
+  .home-landing .hm-showcase, .download-landing .dl-ed-visual { animation: atlas-shot-up 1s cubic-bezier(.22, 1, .36, 1) .35s backwards; }
+  .home-landing .hm-facts li, .download-landing .dl-ed-facts.is-in li { animation: atlas-rise .7s cubic-bezier(.22, 1, .36, 1) backwards; }
+  .home-landing .hm-facts li:nth-child(2), .download-landing .dl-ed-facts li:nth-child(2) { animation-delay: .08s; }
+  .home-landing .hm-facts li:nth-child(3), .download-landing .dl-ed-facts li:nth-child(3) { animation-delay: .16s; }
+  .home-landing .hm-facts li:nth-child(4), .download-landing .dl-ed-facts li:nth-child(4) { animation-delay: .24s; }
   .home-landing .hm-bento-card, .home-landing .hm-platform-card, .home-landing .hm-steps li { transition: opacity .7s ease, transform .8s cubic-bezier(.22, 1, .36, 1), border-color .25s, box-shadow .25s; }
   .home-landing .hm-bento-card:hover, .home-landing .hm-platform-card:hover, .home-landing .hm-steps li:hover { transform: translateY(-5px); box-shadow: 0 18px 40px #00000012; }
   .home-landing .hm-start:hover span, .home-landing .hm-hero-explore:hover span { transform: translate(3px, -3px); }
   .home-landing .hm-hero-explore:hover span { transform: translateY(4px); }
-  .android-landing .dl-cta-main:hover { transform: translateY(-3px); transition: transform .5s cubic-bezier(.22, 1.35, .36, 1); }
+  .download-landing .dl-cta-main:hover { transform: translateY(-3px); transition: transform .5s cubic-bezier(.22, 1.35, .36, 1); }
 }
 @keyframes atlas-rise { from { opacity: 0; transform: translateY(18px); } }
 @keyframes atlas-line-up { from { opacity: 0; transform: translateY(28px); } }
 @keyframes atlas-shot-up { from { opacity: 0; translate: 0 40px; } }
-.home-landing .hm-headline-first, .home-landing .hm-headline-second, .android-landing .dl-ed-title-first, .android-landing .dl-ed-title-second { display: block; }
-.android-landing .dl-ed-title .dl-ed-title-first { color: var(--ed-text); font-size: 1em; }
+.home-landing .hm-headline-first, .home-landing .hm-headline-second, .download-landing .dl-ed-title-first, .download-landing .dl-ed-title-second { display: block; }
+.download-landing .dl-ed-title .dl-ed-title-first { color: var(--ed-text); font-size: 1em; }
 .home-landing .hm-sub { max-width: 570px; }
 .home-landing .hm-start { display: inline-flex; gap: 18px; align-items: center; min-height: 48px; padding: 12px 20px; border-radius: 999px; background: var(--dl-ink); color: var(--dl-bg) !important; font-size: 14px; font-weight: 700; text-decoration: none; }
 .home-landing .hm-start span, .home-landing .hm-hero-explore span { display: inline-block; transition: transform .4s cubic-bezier(.22, 1.35, .36, 1); }
@@ -21480,8 +21480,18 @@ html body .download-landing .dl-ed-platforms button:hover { color: var(--ed-text
   .home-landing .hm-hero-explore { flex-basis: 100%; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .home-landing .rise, .android-landing :is(.dl-ed-facts, .dl-ed-section, .dl-preview) { opacity: 1 !important; transform: none !important; transition: none !important; }
-  .home-landing .hm-showcase, .android-landing .dl-ed-visual-inner { transform: none !important; }
+  .home-landing .rise, .download-landing :is(.dl-ed-facts, .dl-ed-section, .dl-preview) { opacity: 1 !important; transform: none !important; transition: none !important; }
+  .home-landing .hm-showcase, .download-landing .dl-ed-visual-inner { transform: none !important; }
   .home-landing .hm-start span, .home-landing .hm-hero-explore span { transition: none; }
   .home-landing :is(.hm-bento-card, .hm-platform-card, .hm-steps li), .home-landing :is(.hm-bento-card, .hm-platform-card, .hm-steps li):hover { transform: none; transition: none; }
+}
+
+/* Release information: distinguish publication from build dates. */
+.download-landing .dl-release-label { display: inline-flex; margin: 0 0 12px; padding: 5px 9px; border: 1px solid var(--ed-line); border-radius: 999px; color: var(--dl-accent); font-size: 11px; font-weight: 700; }
+.download-landing .dl-release h3 { overflow-wrap: anywhere; }
+.download-landing .dl-rel-row { gap: 12px; flex-wrap: wrap; }
+.download-landing .dl-rel-row strong { overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: no-preference) {
+  [data-theme-toggle] svg { transition: transform .35s cubic-bezier(.22, 1.3, .36, 1); }
+  [data-theme-toggle]:active svg { transform: rotate(-18deg) scale(.88); }
 }

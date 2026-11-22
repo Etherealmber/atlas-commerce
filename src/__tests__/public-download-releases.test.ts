@@ -29,7 +29,7 @@ it('does not show a perpetual loading state when the selected desktop platform h
   await render(Desktop);
   expect(host.querySelector('.dl-hero .dl-cta-wait')?.textContent).toContain('Aucun binaire');
   expect(host.querySelectorAll('.dl-stat strong')[1].textContent).toBe('—');
-  expect(host.querySelector('.dl-release-date')?.textContent).toBe('Date non disponible');
+  expect(host.querySelector('.dl-release-date')?.textContent).toBe('Date de publication indisponible');
 });
 
 
@@ -73,4 +73,23 @@ it('does not create a desktop download link when an asset has no URL', async () 
   await render(Desktop);
   expect(host.querySelector('.dl-hero .dl-cta-wait')?.textContent).toContain('Aucun binaire');
   expect(host.querySelector('.dl-ed-download-row a')).toBeNull();
+});
+
+
+it('shows the matching Android release publication date separately from its build date', async () => {
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => ({ ok: true, json: async () => url.includes('android-update')
+    ? { manifest: { apkUrl: 'https://example.com/atlas.apk', versionName: '1.8.0', buildDate: '2026-11-15' } }
+    : [{ tag_name: 'v1.8.1', published_at: '2026-11-22T00:16:49Z' }, { tag_name: 'v1.8.0', published_at: '2026-11-17T12:03:55Z' }] })));
+  await render(Download);
+  expect(host.querySelectorAll('.dl-stat strong')[2].textContent).toBe('17 novembre 2026');
+  expect(host.querySelector('.dl-release-date')?.textContent).toBe('Publiée le 22 novembre 2026');
+  expect(host.querySelector('.dl-ed-hint')?.textContent).toContain('Build : 2026-11-15');
+});
+
+it('does not label a build date or a different release as APK publication', async () => {
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => ({ ok: true, json: async () => url.includes('android-update')
+    ? { apkUrl: 'https://example.com/atlas.apk', versionName: '1.7.0', buildDate: '2026-11-15' }
+    : [{ tag_name: 'v1.8.0', published_at: '2026-11-17T12:03:55Z' }] })));
+  await render(Download);
+  expect(host.querySelectorAll('.dl-stat strong')[2].textContent).toBe('—');
 });

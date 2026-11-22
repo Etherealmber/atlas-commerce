@@ -3197,3 +3197,65 @@ html.phone-shell :is(.ph-sale-fields, .ph-sale-catalog) :is(input, textarea) { f
   .ph-home-native .ph-actions-row { flex-direction: column; }
   .ph-home-native .ph-home-finance-values span { flex-wrap: wrap; }
 }
+
+/* Android's charcoal palette and hero gradient, scoped to the phone shell. */
+html[data-theme="dark"].phone-shell body .phone-root { background: #0a0a0c !important; color: #f4f4f5; }
+html.phone-shell body .phone-root .ph-hero { background: linear-gradient(135deg, #171717, #2b2b2b) !important; color: #fafafa !important; }
+html[data-theme="dark"].phone-shell body .phone-root .ph-hero { background: linear-gradient(135deg, #1f1f23, #0e0e11) !important; color: #f4f4f5 !important; border: 1px solid #3f3f46; }
+html.phone-theme-transition .phone-root .ph-hero, html.phone-theme-transition .phone-root .ph-tile,
+html.phone-theme-transition .phone-root .ph-employee-card { transition: background-color .3s ease, color .3s ease, border-color .3s ease; }
+
+/* Android-style employee directory; all actions still use the existing web handlers. */
+html.phone-shell .employees-page--phone { display: grid; gap: 12px; width: 100%; min-width: 0; }
+html.phone-shell .employees-page--phone .page-header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 16px; margin: 0; background: #fff; border: 1px solid #e8eaef; border-radius: 20px; }
+html.phone-shell .employees-page--phone .page-header h1 { margin: 0; font-size: 21px; }
+html.phone-shell .employees-page--phone .page-header > div { width: 100%; }
+html.phone-shell .employees-page--phone .employees-toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
+html.phone-shell .employees-page--phone .ac-products-filters { padding: 14px; border-radius: 20px; }
+html.phone-shell .employees-page--phone .employees-toolbar input { flex-basis: 100% !important; }
+html.phone-shell .employees-page--phone .employees-toolbar select { flex: 1 1 120px !important; min-width: 0 !important; }
+html.phone-shell .employees-page--phone .ac-metric-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0 !important; }
+html.phone-shell .employees-page--phone .ac-metric { min-width: 0; padding: 14px; border: 1px solid #e8eaef; border-radius: 18px; background: #fff; }
+html.phone-shell .employees-page--phone .ac-metric:last-child { grid-column: 1 / -1; }
+.ph-employees-list { display: grid; gap: 10px; min-width: 0; }
+.ph-employees-list-title { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 6px 2px 0; }
+.ph-employees-list-title h2 { margin: 0; font-size: 17px; }
+.ph-employees-list-title span { color: #64748b; font-size: 12px; }
+.ph-employee-card { min-width: 0; padding: 16px; background: #fff; border: 1px solid #e8eaef; border-radius: 20px; }
+.ph-employee-head { display: flex; align-items: center; gap: 10px; }
+.ph-employee-avatar { display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; border-radius: 14px; background: #f1f5f9; color: #334155; font-size: 14px; font-weight: 700; }
+.ph-employee-name { flex: 1; min-width: 0; }
+.ph-employee-name h3 { margin: 0 0 3px; font-size: 15px; overflow-wrap: anywhere; }
+.ph-employee-name span, .ph-employee-info dt { color: #64748b; font-size: 12px; }
+.ph-employee-status { padding: 5px 8px; border-radius: 99px; background: #f1f5f9; color: #334155; font-size: 11px; font-weight: 700; }
+.ph-employee-info { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 14px 0; margin: 14px 0 0; border-top: 1px solid #e8eaef; }
+.ph-employee-info dd { margin: 4px 0 0; font-size: 13px; font-weight: 650; overflow-wrap: anywhere; }
+.ph-employee-links, .ph-employee-more .row-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+html.phone-shell body .phone-root .employees-page--phone :is(.ph-employee-links, .ph-employee-more) button { width: auto; min-height: 40px; padding: 8px 12px; font-size: 12px; }
+.ph-employee-more { margin-top: 10px; border-top: 1px solid #e8eaef; }
+.ph-employee-more summary { padding: 12px 0; cursor: pointer; font-weight: 700; font-size: 13px; }
+html[data-theme="dark"].phone-shell .employees-page--phone :is(.page-header, .ac-metric, .ph-employee-card) { background: #141414 !important; border-color: #3f3f46 !important; color: #f4f4f5; }
+html[data-theme="dark"].phone-shell .employees-page--phone :is(.ph-employee-avatar, .ph-employee-status) { background: #27272a; color: #f4f4f5; }
+html[data-theme="dark"].phone-shell .employees-page--phone :is(.ph-employee-name span, .ph-employee-info dt, .ph-employees-list-title span) { color: #a1a1aa; }
+html[data-theme="dark"].phone-shell .employees-page--phone :is(.ph-employee-info, .ph-employee-more) { border-color: #3f3f46; }
+@media (prefers-reduced-motion: no-preference) {
+  html.phone-shell .phone-root:not(.phone-root--no-motion) .phone-tabbar .ptab-ico svg { transition: transform .35s cubic-bezier(.2, 1.4, .3, 1); }
+  html.phone-shell .phone-root:not(.phone-root--no-motion) .phone-tabbar .ptab.active .ptab-ico svg { animation: ph-dock-select .4s cubic-bezier(.2, 1.4, .3, 1); }
+  html.phone-shell .phone-root:not(.phone-root--no-motion) .phone-topbar.is-collapsed .ph-top-expand { animation: ph-bar-label .22s ease-out; }
+  html.phone-shell .phone-root:not(.phone-root--no-motion) .phone-topbar:not(.is-collapsed) .pt-titles { animation: ph-bar-label .22s ease-out; }
+  html.phone-shell .phone-root:not(.phone-root--no-motion) .phone-tabbar .ptab:active svg { transform: scale(.9); }
+}
+@keyframes ph-dock-select { from { transform: translateY(5px) scale(.85); opacity: .65; } to { transform: none; opacity: 1; } }
+@keyframes ph-bar-label { from { opacity: .25; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  html.phone-theme-transition .phone-root :is(.ph-hero, .ph-tile, .ph-employee-card) { transition: none !important; }
+}
+/* Keep employee controls legible against the Android dark surfaces. */
+html[data-theme="dark"].phone-shell body .phone-root .employees-page--phone button.secondary {
+  background: #27272a !important; border-color: #52525b !important; color: #f4f4f5 !important; -webkit-text-fill-color: #f4f4f5 !important;
+}
+html[data-theme="dark"].phone-shell body .phone-root .employees-page--phone .employees-toolbar :is(input, select) {
+  background: #1a1a1a !important; border-color: #3f3f46 !important; color: #f4f4f5 !important; -webkit-text-fill-color: #f4f4f5 !important;
+}
+html.phone-shell .phone-root > .phone-topbar.is-collapsed { box-shadow: 0 8px 24px #00000024 !important; }
+html[data-theme="dark"].phone-shell .phone-root > .phone-topbar.is-collapsed { box-shadow: 0 8px 24px #00000070 !important; }
