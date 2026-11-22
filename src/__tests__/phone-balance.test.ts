@@ -77,11 +77,36 @@ describe('mobile admin balance', () => {
     const create = vi.spyOn(api, 'createExpense').mockResolvedValue({});
     await render(); await click(button('+ Dépense'));
     const form = document.querySelector<HTMLFormElement>('.pb-form')!;
-    (form.elements.namedItem('description') as HTMLInputElement).value = 'Fournitures';
-    (form.elements.namedItem('amount') as HTMLInputElement).value = '12.50';
+    const setInput = async (name: string, value: string) => { const input = form.elements.namedItem(name) as HTMLInputElement; await act(async () => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, value); input.dispatchEvent(new Event('input', { bubbles: true })); }); };
+    expect(button('Continuer').disabled).toBe(true);
+    await setInput('description', 'Fournitures');
+    await click(button('Continuer'));
+    expect(button('Enregistrer').disabled).toBe(true);
+    await setInput('amount', '12,50');
+    await click(button('Retour'));
+    expect((form.elements.namedItem('description') as HTMLInputElement).value).toBe('Fournitures');
+    await click(button('Continuer'));
+    expect((form.elements.namedItem('amount') as HTMLInputElement).value).toBe('12,50');
     await act(async () => { form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); });
     expect(create).toHaveBeenCalledWith(expect.objectContaining({ description: 'Fournitures', amount: 12.5, entry_type: 'expense' }));
     expect(host.textContent).toContain('Écriture enregistrée');
     expect(api.getFinanceMonthly).toHaveBeenCalledTimes(2);
   });
+  it('changes type and category, rejects invalid values, and retains fields after an error', async () => {
+    vi.spyOn(api, 'createExpense').mockRejectedValue(new Error('Échec serveur'));
+    await render(); await click(button('+ Dépense'));
+    const form = document.querySelector<HTMLFormElement>('.pb-form')!;
+    const type = form.elements.namedItem('kind') as unknown as HTMLSelectElement;
+    await act(async () => { type.value = 'income'; type.dispatchEvent(new Event('change', { bubbles: true })); });
+    expect((form.elements.namedItem('category') as unknown as HTMLSelectElement).value).toBe('Vente divers');
+    const changeInput = async (name: string, value: string) => { const input = form.elements.namedItem(name) as HTMLInputElement; await act(async () => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, value); input.dispatchEvent(new Event('input', { bubbles: true })); }); };
+    await changeInput('description', 'Recette'); await click(button('Continuer'));
+    await changeInput('amount', '-1'); expect(button('Enregistrer').disabled).toBe(true);
+    await changeInput('amount', '30'); await changeInput('date', ''); expect(button('Enregistrer').disabled).toBe(true);
+    await changeInput('date', '2026-10-20'); await click(button('Enregistrer'));
+    expect(api.createExpense).toHaveBeenCalledWith(expect.objectContaining({ entry_type: 'income', category: 'Vente divers', amount: 30 }));
+    expect(document.body.textContent).toContain('Échec serveur');
+    expect((form.elements.namedItem('amount') as HTMLInputElement).value).toBe('30');
+  });
+
 });

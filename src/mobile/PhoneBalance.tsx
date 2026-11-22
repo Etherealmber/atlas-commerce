@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { ArrowDownLeft, ArrowUpRight, RefreshCw, Wallet } from 'lucide-react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { ArrowDownLeft, ArrowUpRight, RefreshCw, Wallet, Plus, FileText, HandCoins, Receipt, CircleDollarSign } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import PhoneMonthlyReport from './PhoneMonthlyReport';
 import PhoneReportBundle from './PhoneReportBundle';
 import PhoneDialog from './PhoneDialog';
 import PhoneSkeleton from './PhoneSkeleton';
+import { financeMonths } from './phoneFinancePeriods';
 import type { FinanceBucket, FinanceMonthly, FinancePeriod, FinanceRow, FinanceStatement } from './financeTypes';
 
 type EntryKind = 'expense' | 'income' | 'owner_contrib' | 'owner_draw';
@@ -18,14 +19,7 @@ const entryCategories: Record<EntryKind, string[]> = {
   owner_draw: ['Prélèvement personnel', 'Dividende', 'Remboursement associé', 'Autre prélèvement'],
 };
 const money = (value: number, currency: string) => `${Number(value).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
-function months(current: string) {
-  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(current)) return [];
-  const [year, month] = current.split('-').map(Number);
-  return Array.from({ length: 24 }, (_, i) => {
-    const date = new Date(year, month - 1 - i, 1);
-    return { value: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`, label: date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }) };
-  });
-}
+
 function today() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
 
 function AmountCard({ label, value, currency, tone = '' }: { label: string; value: number; currency: string; tone?: string }) {
@@ -36,6 +30,43 @@ function Bucket({ title, bucket, currency }: { title: string; bucket: FinanceBuc
     {bucket.documents.length ? bucket.documents.map((d) => <div className="pb-document" key={d.id}><div><strong>{d.party || '—'}</strong><small>{d.number} {d.due_date ? `· Échéance ${d.due_date}` : ''}</small></div><b>{money(d.remaining, currency)}</b></div>) : <p>Aucun document ouvert pour cette période.</p>}
     {bucket.truncated && <p>Liste partielle : le serveur limite les documents affichés.</p>}
   </section>;
+}
+
+
+type EntryPayload = { entry_type: EntryKind; category: string; description: string; amount: number; payment_method: string; expense_date: string; vendor_name: string; notes: string };
+function validDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+function EntryDialog({ initialKind, saving, error, onClose, onSave }: { initialKind: EntryKind; saving: boolean; error: string; onClose: () => void; onSave: (entry: EntryPayload) => void }) {
+  const [kind, setKind] = useState(initialKind); const [step, setStep] = useState(0);
+  const [category, setCategory] = useState(entryCategories[initialKind][0]); const [description, setDescription] = useState('');
+  const [amount, setAmount] = useState(''); const [date, setDate] = useState(today()); const [method, setMethod] = useState('cash');
+  const [vendor, setVendor] = useState(''); const [notes, setNotes] = useState('');
+  const parsed = Number(amount.trim().replace(',', '.'));
+  const canSave = description.trim().length > 0 && amount.trim() !== '' && Number.isFinite(parsed) && parsed >= 0.01 && parsed <= 1e12 && validDate(date);
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (saving) return;
+    if (step === 0) { if (description.trim()) setStep(1); return; }
+    if (canSave) onSave({ entry_type: kind, category, description: description.trim(), amount: parsed, payment_method: method, expense_date: date, vendor_name: vendor.trim(), notes: notes.trim() });
+  };
+  return <PhoneDialog titleId="pb-entry-title" className="pb-entry-modal" onClose={() => { if (!saving) onClose(); }}><form className="pb-form pb-entry-form" onSubmit={submit}>
+    <h2 id="pb-entry-title">Nouvelle écriture — {entryLabels[kind]}</h2><div className="pb-entry-body">
+      <p className="pb-entry-step">{step === 0 ? 'Étape 1/2 · Type et libellé' : 'Étape 2/2 · Montant et règlement'}</p>
+      {step === 0 ? <><label>Type<select name="kind" value={kind} onChange={e => { const next = e.target.value as EntryKind; setKind(next); setCategory(entryCategories[next][0]); }}>{(Object.keys(entryLabels) as EntryKind[]).map(k => <option key={k} value={k}>{entryLabels[k]}</option>)}</select></label>
+        <label>Catégorie<select name="category" value={category} onChange={e => setCategory(e.target.value)}>{entryCategories[kind].map(c => <option key={c}>{c}</option>)}</select></label>
+        <label>Libellé *<input name="description" value={description} maxLength={255} placeholder="Ex. Loyer entrepôt octobre" onChange={e => setDescription(e.target.value)} /></label>
+        {!description.trim() && <p className="pb-entry-help">La description est obligatoire.</p>}</> : <>
+        <label>Montant *<input name="amount" type="text" inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} /></label>
+        <label>Date<input name="date" type="date" value={date} onChange={e => setDate(e.target.value)} /></label>
+        <label>Mode de paiement<select name="method" value={method} onChange={e => setMethod(e.target.value)}><option value="cash">Espèces (caisse)</option><option value="bank">Banque / virement</option><option value="card">Carte</option><option value="check">Chèque</option></select></label>
+        <label>Bénéficiaire / fournisseur (facultatif)<input name="vendor" value={vendor} onChange={e => setVendor(e.target.value)} /></label><label>Notes (facultatif)<textarea name="notes" rows={2} value={notes} onChange={e => setNotes(e.target.value)} /></label>
+        {(!Number.isFinite(parsed) || parsed < 0.01 || parsed > 1e12 || !amount.trim()) && <p className="pb-entry-help">Saisissez un montant entre 0,01 et 1 000 000 000 000.</p>}{!validDate(date) && <p className="pb-entry-help">La date doit être valide.</p>}
+      </>}{error && <p className="pb-entry-help" role="alert">{error}</p>}
+    </div><div className="pb-form-actions"><button className="theme-toggle pb-entry-cancel" type="button" disabled={saving} onClick={onClose}>Annuler</button>{step === 1 && <button className="theme-toggle pb-entry-back" type="button" disabled={saving} onClick={() => setStep(0)}>Retour</button>}<button className="theme-toggle pb-entry-primary" type="submit" disabled={saving || (step === 0 ? !description.trim() : !canSave)}>{saving ? 'Enregistrement…' : step === 0 ? 'Continuer' : 'Enregistrer'}</button></div>
+  </form></PhoneDialog>;
 }
 
 export default function PhoneBalance() {
@@ -70,7 +101,7 @@ export default function PhoneBalance() {
         if (id !== generation.current) return;
         const data = result.data;
         setFinance(data);
-        setMonthChoices((old) => old.length ? old : months(data.period));
+        setMonthChoices((old) => old.length ? old : financeMonths(data.period));
         const [stmt, detail] = await Promise.allSettled([api.getFinanceStatement(data.period), api.getFinancePeriod(data.period)]);
         if (id !== generation.current) return;
         if (stmt.status === 'fulfilled') { setStatement(stmt.value.data); setRows(stmt.value.data.rows); }
@@ -93,20 +124,16 @@ export default function PhoneBalance() {
     } catch { if (id === generation.current) setError('Impossible de charger la suite du relevé.'); }
     finally { if (id === generation.current) setLoadingMore(false); }
   };
-  const saveEntry = useCallback(async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!entry || saving) return;
-    const form = new FormData(event.currentTarget);
-    const description = String(form.get('description') || '').trim();
-    const amount = Number(form.get('amount'));
-    if (!description || !Number.isFinite(amount) || amount <= 0) { setEntryError('Indiquez un libellé et un montant supérieur à zéro.'); return; }
-    setSaving(true); setEntryError('');
+  const savingRef = useRef(false);
+  const saveEntry = async (payload: EntryPayload) => {
+    if (savingRef.current) return;
+    savingRef.current = true; setSaving(true); setEntryError('');
     try {
-      await api.createExpense({ entry_type: entry, category: String(form.get('category')), description, amount, payment_method: String(form.get('method')), expense_date: String(form.get('date')), vendor_name: String(form.get('vendor') || ''), notes: String(form.get('notes') || '') });
+      await api.createExpense(payload);
       setEntry(null); setNotice('Écriture enregistrée dans la balance.'); refresh();
     } catch (e) { setEntryError(e instanceof Error ? e.message : 'Enregistrement impossible.'); }
-    finally { setSaving(false); }
-  }, [entry, saving]);
+    finally { savingRef.current = false; setSaving(false); }
+  };
   const currency = finance?.currency || 'MAD';
   const visibleRows = rows.filter((row) => {
     if (filter === 'in' && !(row.credit > 0)) return false;
@@ -119,7 +146,7 @@ export default function PhoneBalance() {
     <div className="pb-period"><label><span className="pb-sr">Choisir un mois</span><select aria-label="Choisir un mois" value={period || finance?.period || ''} disabled={!finance && !monthChoices.length} onChange={(e) => setPeriod(e.target.value)}>
       {!finance && !period && <option value="">Mois</option>}{monthChoices.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
     </select></label><button className="pb-refresh theme-toggle" type="button" aria-label="Actualiser les soldes" disabled={loading} onClick={refresh}><RefreshCw size={19} /></button></div>
-    <div className="pb-actions" aria-label="Nouvelle écriture">{(Object.keys(entryLabels) as EntryKind[]).map((kind) => <button className="theme-toggle" type="button" key={kind} onClick={() => { setEntryError(''); setEntry(kind); }}>+ {entryLabels[kind]}</button>)}</div>
+    <div className="pb-actions" aria-label="Nouvelle écriture">{(Object.keys(entryLabels) as EntryKind[]).map((kind) => { const Icon = kind === 'expense' ? Plus : kind === 'income' ? CircleDollarSign : HandCoins; return <button className="theme-toggle" type="button" key={kind} onClick={() => { setEntryError(''); setEntry(kind); }}><Icon size={18} aria-hidden="true" /><span>{kind === 'expense' ? '+ Dépense' : entryLabels[kind]}</span></button>; })}</div>
     <div className="pb-tabs" role="tablist" aria-label="Sections balance">{([['movements', 'Mouvements'], ['accounts', 'Comptes'], ['reports', 'Rapports']] as const).map(([id, label]) => <button className="theme-toggle" key={id} role="tab" type="button" aria-selected={section === id} tabIndex={section === id ? 0 : -1} onClick={() => setSection(id)} onKeyDown={(event) => {
       const ids: Section[] = ['movements', 'accounts', 'reports'];
       const current = ids.indexOf(id);
@@ -144,10 +171,10 @@ export default function PhoneBalance() {
           </div></>}
       </div>}
       {section === 'accounts' && <div className="pb-section"><Bucket title="À recevoir" bucket={finance.receivables} currency={currency} /><Bucket title="À payer" bucket={finance.payables} currency={currency} /><AmountCard label={`Paie encore due · ${finance.payroll.employees} employé(s)`} value={finance.payroll.total_due} currency={currency} /></div>}
-      {section === 'reports' && <div className="pb-section"><div className="pb-card"><h3>Rapports financiers</h3><p>Relevé mensuel officiel du serveur · {finance.period}</p><button className="theme-toggle" type="button" onClick={() => setReportPeriod(finance.period)}>Télécharger et lire le PDF</button></div><div className="pb-card"><h3>Pack de rapports personnalisable</h3><p>Choisissez la période et les rubriques à consulter.</p><button className="theme-toggle" type="button" onClick={() => setBundleOpen(true)}>Ouvrir dans Atlas</button></div><Link to="/m/balance/classic">Ouvrir la balance web complète</Link></div>}
+      {section === 'reports' && <div className="pb-section"><div className="pb-card"><h3><FileText size={18} aria-hidden="true" /> Rapports financiers</h3><p>Relevé mensuel officiel du serveur · {finance.period}</p><button className="theme-toggle" type="button" onClick={() => setReportPeriod(finance.period)}>Télécharger et lire le PDF</button></div><div className="pb-card"><h3><Receipt size={18} aria-hidden="true" /> Pack de rapports personnalisable</h3><p>Choisissez la période et les rubriques à consulter.</p><button className="theme-toggle" type="button" onClick={() => setBundleOpen(true)}>Ouvrir dans Atlas</button></div><Link to="/m/balance/classic">Ouvrir la balance web complète</Link></div>}
     </>}
     {reportPeriod && <PhoneMonthlyReport period={reportPeriod} onClose={() => setReportPeriod(null)} />}
     {bundleOpen && <PhoneReportBundle onClose={() => setBundleOpen(false)} />}
-    {entry && <PhoneDialog titleId="pb-entry-title" onClose={() => { if (!saving) setEntry(null); }}><form className="pb-form" onSubmit={saveEntry}><h3 id="pb-entry-title">Nouvelle écriture · {entryLabels[entry]}</h3><label>Catégorie<select name="category" required>{entryCategories[entry].map((c) => <option key={c}>{c}</option>)}</select></label><label>Libellé<input name="description" required maxLength={255} /></label><label>Montant<input name="amount" type="number" min="0.01" step="0.01" required inputMode="decimal" /></label><label>Date<input name="date" type="date" defaultValue={today()} required /></label><label>Mode de paiement<select name="method"><option value="cash">Espèces (caisse)</option><option value="bank">Banque / virement</option><option value="card">Carte</option><option value="check">Chèque</option></select></label><label>Tiers<input name="vendor" /></label><label>Notes<textarea name="notes" rows={2} /></label>{entryError && <p role="alert">{entryError}</p>}<div className="pb-form-actions"><button className="theme-toggle" type="submit" disabled={saving}>{saving ? 'Enregistrement…' : 'Enregistrer'}</button><button className="theme-toggle" type="button" disabled={saving} onClick={() => setEntry(null)}>Annuler</button></div></form></PhoneDialog>}
+    {entry && <EntryDialog key={entry} initialKind={entry} saving={saving} error={entryError} onClose={() => setEntry(null)} onSave={saveEntry} />}
   </div>;
 }

@@ -3007,3 +3007,22 @@ html.phone-shell .ph-agent-bubble.assistant { -webkit-text-fill-color: #172033 !
 html[data-theme="dark"].phone-shell body .phone-root .ph-agent-bubble.user { color: #dcfce7 !important; -webkit-text-fill-color: #dcfce7 !important; }
 html[data-theme="dark"].phone-shell body .phone-root .ph-agent-bubble.assistant { background: #27272a !important; color: #f4f4f5 !important; -webkit-text-fill-color: #f4f4f5 !important; }
 html[data-theme="dark"].phone-shell body .phone-root .ph-agent-composer { background: #1c1c1f !important; background-image: none !important; border-color: #3f3f46 !important; }
+
+/* Android-inspired finance actions and two-step ledger entry. */
+.ph-actions-row .ph-btn, .ph-home-finance .ph-btn, .pb-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.ph-home-period { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; font-size: 13px; font-weight: 600; }
+.ph-home-period select { max-width: 65%; min-height: 44px; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 12px; background: #f1f5f9; color: #172033; font-size: 14px; }
+html[data-theme="dark"].phone-shell .ph-home-period select { background: #27272a; color: #f4f4f5; border-color: #52525b; }
+.pb-card h3 svg { vertical-align: middle; margin-right: 4px; }
+html.phone-shell body .pb-entry-modal .ph-modal { width: min(100%, 440px); max-height: calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); padding: 0; overflow: hidden; border-radius: 28px; }
+.pb-entry-form { display: flex; flex-direction: column; max-height: inherit; min-height: 0; }
+.pb-entry-form h2 { margin: 0; padding: 24px 24px 8px; font-size: 21px; }
+.pb-entry-body { overflow-y: auto; overscroll-behavior: contain; padding: 0 24px; }
+.pb-entry-step { font-size: 13px; color: #64748b; }
+.pb-entry-help { color: #b42318; font-size: 12px; }
+.pb-entry-form .pb-form-actions { justify-content: flex-end; flex-wrap: wrap; padding: 12px 24px 20px; }
+html.phone-shell body .ph-modal .pb-entry-form button.pb-entry-cancel, html.phone-shell body .ph-modal .pb-entry-form button.pb-entry-back { background: transparent !important; border-color: transparent !important; }
+html.phone-shell body .ph-modal .pb-entry-form button:disabled { opacity: .5; }
+html[data-theme="dark"].phone-shell .pb-entry-step { color: #b4b4bd; }
+html[data-theme="dark"].phone-shell .pb-entry-help { color: #fca5a5; }
+html.phone-shell body .pb-entry-modal { align-items: center; padding-top: calc(16px + env(safe-area-inset-top, 0px)); }
