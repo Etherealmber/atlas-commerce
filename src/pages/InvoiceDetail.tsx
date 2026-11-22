@@ -1,3 +1,5 @@
+import DocumentActors from '../components/DocumentActors';
+import TopPageActions from '../components/TopPageActions';
 import { useEffect, useState } from 'react';
 import { whatsAppDraft } from '../lib/assist';
 import { useParams, Link, Navigate } from 'react-router-dom';
@@ -260,24 +262,9 @@ export default function InvoiceDetail() {
           (« + Remboursement »). Si cette facture est déjà payée, le WR génère une sortie de caisse dans Solde.
         </div>
       )}
-      <div className="page-header">
-        <div>
-          <Link to="/invoices" style={{ fontSize: 13, color: 'var(--muted)' }}>
-            ← Retour aux factures
-          </Link>
-          <h1 style={{ marginTop: 4 }}>
-            {isQuote ? 'Devis' : 'Facture'} {invoice.number}
-            <span className={`badge ${statusBadgeClass(invoice.status)}`} style={{ marginLeft: 10, fontSize: 13 }}>
-              {statusFr(invoice.status)}
-            </span>
-          </h1>
-          <p style={{ color: 'var(--muted)', fontSize: 14 }}>
-            {isQuote
-              ? "Document d'estimation — non facturé"
-              : 'Facture de vente (le reçu est un document distinct à solde nul)'}
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+      <div className="page-header dock-page-header">
+        <h1 className="sr-only">{isQuote ? 'Devis' : 'Facture'} {invoice.number}</h1>
+        <TopPageActions>
           <a
             className="btn secondary"
             href={`${BASE}/api/invoices/${invoice.id}/print?token=${encodeURIComponent(getToken() || '')}`}
@@ -359,7 +346,7 @@ export default function InvoiceDetail() {
               Modifier lignes & promo
             </button>
           )}
-        </div>
+        </TopPageActions>
       </div>
 
       {msg && (
@@ -511,6 +498,8 @@ export default function InvoiceDetail() {
       )}
 
       <div className="card" style={{ marginBottom: 16 }}>
+        <p>Numéro : <strong>{invoice.number}</strong> · <span className={`badge ${statusBadgeClass(invoice.status)}`}>{statusFr(invoice.status)}</span></p>
+          <DocumentActors document={invoice} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <h3 style={{ margin: 0, fontSize: 16 }}>Client</h3>
           {!editingClient ? (

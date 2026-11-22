@@ -1,8 +1,10 @@
+import { dualStockLabel } from '../lib/dualUnit';
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Camera, History, RefreshCw } from 'lucide-react';
 import { api } from '../api';
 import { canSell } from '../auth';
+import { TimedUndoDelete } from '../components/ui';
 import ProductArtwork from '../components/ProductArtwork';
 import PhoneSkeleton from '../mobile/PhoneSkeleton';
 import './product-history.css';
@@ -14,6 +16,7 @@ const quantity = (value: unknown) => typeof value === 'number' && Number.isFinit
 
 type Props = { mobile?: boolean; onProductUpdated?: () => void };
 export default function ProductHistory({ mobile = false, onProductUpdated }: Props) {
+  const navigate = useNavigate();
   const { id } = useParams(); const productId = Number(id);
   const valid = /^\d+$/.test(id || '') && Number.isSafeInteger(productId) && productId > 0;
   const [product, setProduct] = useState<any>(null); const [rows, setRows] = useState<any[]>([]);
@@ -65,15 +68,20 @@ export default function ProductHistory({ mobile = false, onProductUpdated }: Pro
     {productError && <div className="product-history-card" role="alert">{productError} {valid && <button type="button" onClick={() => void load()}>Réessayer</button>}</div>}
     {loading && !product && (mobile ? <PhoneSkeleton variant="rows" label="Chargement du produit" /> : <p role="status">Chargement du produit…</p>)}
     {product && <section className="product-history-card"><div className="product-history-hero"><div className="product-history-photo"><ProductArtwork url={product.image_url} />{canSell() && <><input ref={imageInput} type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onChange={changePhoto} /><button type="button" className="secondary product-history-photo-action" aria-label="Modifier la photo du produit" title="Modifier la photo du produit" disabled={imageBusy} onClick={() => imageInput.current?.click()}><Camera size={16} /></button></>}</div><div><span className="product-history-tag">Fiche produit</span><h2>{product.name}</h2><p>{[product.sku, product.barcode, product.category].filter(Boolean).join(' · ') || 'Sans référence'}</p></div></div>
-      <p className="product-history-actors">Créé par {actor(product.created_by, 'non renseigné')} · Approuvé par {actor(product.approved_by, 'non transmis par le serveur')}</p>
+      <p className="product-history-actors">Créé par {actor(product.created_by, 'non renseigné')}{product.approved_by && <> · Approuvé par {product.approved_by}</>}</p>
+      {!mobile && canSell() && <div className="product-history-actions">
+        {Number(product.track_inventory) !== 0 && <button type="button" className="secondary" onClick={() => navigate('/products', { state: { productAction: 'stock', productId } })}>Ajuster le stock</button>}
+        <button type="button" className="secondary" onClick={() => navigate('/products', { state: { productAction: 'edit', productId } })}>Modifier les détails</button>
+        <TimedUndoDelete deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10} onConfirm={async () => { try { await api.deleteProduct(productId, undefined, { timedUndo: true }); navigate('/products'); } catch (e: any) { setImageMessage(e?.message || 'Suppression impossible.'); } }} />
+      </div>}
       {imageMessage && <p role="status">{imageMessage}</p>}
-      <div className="product-history-chips"><span>{product.track_inventory != null && !Number(product.track_inventory) ? 'Stock non suivi' : `Stock ${quantity(product.stock_quantity ?? product.stock)} ${product.unit || ''}`}</span>{canSell() && typeof product.price === 'number' && <span>{product.price.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MAD</span>}</div>
+      <div className="product-history-chips"><span>{product.track_inventory != null && !Number(product.track_inventory) ? 'Stock non suivi' : `Stock ${dualStockLabel(product)}`}</span>{canSell() && typeof product.price === 'number' && <span>{product.price.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MAD</span>}</div>
     </section>}
     <section className="product-history-card"><div className="product-history-section-head"><History size={20} /><h2>Historique des mouvements</h2>{!loading && !error && <span className="product-history-tag">{rows.length}{hasMore ? '+' : ''}</span>}<button type="button" className="secondary product-history-refresh" aria-label="Actualiser l’historique" title="Actualiser l’historique" disabled={loading} onClick={() => void refreshMovements()}><RefreshCw size={19} /></button></div>
       {loading && (mobile && !rows.length ? <PhoneSkeleton variant="rows" label="Chargement des mouvements" /> : <p role="status">Actualisation des mouvements…</p>)}
       {error && <p role="alert">{error} <button type="button" onClick={() => void refreshMovements()}>Réessayer</button></p>}
       {!loading && !error && rows.length === 0 && <p>Aucun mouvement enregistré pour ce produit.</p>}
-      {rows.map((m, index) => <div className="product-history-movement" key={m.id ?? `${m.created_at}-${index}`}><div><strong>{types[String(m.type || '').toLowerCase()] || m.type || 'Mouvement'}</strong><time>{String(m.created_at || '—').replace('T', ' ').slice(0, 16)}</time></div><p>Qté {quantity(m.quantity)} · {quantity(m.previous_quantity)} → {quantity(m.new_quantity)}</p>{(m.reason || m.reference) && <p>{[m.reason, m.reference].filter(Boolean).join(' · ')}</p>}<small>Créé par {actor(m.created_by, 'non renseigné')} · Approuvé par {actor(m.approved_by, 'non transmis par le serveur')}</small></div>)}
+      {rows.map((m, index) => <div className="product-history-movement" key={m.id ?? `${m.created_at}-${index}`}><div><strong>{types[String(m.type || '').toLowerCase()] || m.type || 'Mouvement'}</strong><time>{String(m.created_at || '—').replace('T', ' ').slice(0, 16)}</time></div><p>Qté {quantity(m.quantity)} · {quantity(m.previous_quantity)} → {quantity(m.new_quantity)}</p>{(m.reason || m.reference) && <p>{[m.reason, m.reference].filter(Boolean).join(' · ')}</p>}<small>Créé par {actor(m.created_by, 'non renseigné')}{m.approved_by && <> · Approuvé par {m.approved_by}</>}</small></div>)}
       {hasMore && <button type="button" className="product-history-more" disabled={loadingMore} onClick={() => void more()}>{loadingMore ? 'Chargement…' : 'Charger la suite'}</button>}
     </section>
   </div>;

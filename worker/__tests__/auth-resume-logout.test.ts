@@ -351,3 +351,42 @@ describe('Android revocation is user-scoped', () => {
     expect(sqlite.prepare(`SELECT username FROM trusted_devices WHERE fingerprint = 'fpB'`).get().username).toBe('bob');
   });
 });
+
+describe('role refresh exchange', () => {
+  async function request(path: string, token: string, method = 'GET', fp = 'fpA') {
+    return app.fetch(new Request(`http://test.local${path}`, { method, headers: { Authorization: `Bearer ${token}`, 'X-Device-Fingerprint': fp, 'CF-Connecting-IP': IP } }), env);
+  }
+  it('rejects stale privileges on ordinary routes and exchanges for the current role', async () => {
+    const secret = await seedUser('alice', 'Test1234!', 'admin');
+    seedDevice('fpA', 'alice');
+    const old = await tokenFor('alice', 'admin', secret, 'fpA');
+    sqlite.exec("UPDATE app_users SET role='user' WHERE username='alice'");
+    const denied = await request('/api/admin/users', old);
+    expect(denied.status).toBe(409); expect((await denied.json() as any).code).toBe('ROLE_CHANGED');
+    const print = await request(`/api/invoices/1/print?token=${encodeURIComponent(old)}`, old);
+    expect(print.status).toBe(401);
+    const refresh = await request('/api/auth/role-refresh', old, 'POST');
+    expect(refresh.status).toBe(200);
+    const body: any = await refresh.json();
+    expect(body.data).toMatchObject({ username: 'alice', role: 'user' });
+    expect(body.data.token).not.toBe(old);
+    expect((await request('/api/admin/users', body.data.token)).status).toBe(403);
+    expect((await request('/api/auth/logout', body.data.token, 'POST')).status).toBe(200);
+    expect((await request('/api/admin/users', old)).status).toBe(409);
+  });
+  it('reflects upgrades but rejects a changed password, deactivated user, revoked device or forgery', async () => {
+    const secret = await seedUser('alice', 'Test1234!', 'user'); seedDevice('fpA', 'alice');
+    const old = await tokenFor('alice', 'user', secret, 'fpA');
+    sqlite.exec("UPDATE app_users SET role='admin' WHERE username='alice'");
+    const refresh = await request('/api/auth/role-refresh', old, 'POST');
+    expect((await refresh.json() as any).data.role).toBe('admin');
+    expect((await request('/api/auth/role-refresh', old, 'POST', 'wrong-device')).status).toBe(401);
+    expect((await request('/api/auth/role-refresh', await tokenFor('alice','user','wrong','fpA'), 'POST')).status).toBe(401);
+    sqlite.exec("UPDATE app_users SET active=0 WHERE username='alice'");
+    expect((await request('/api/auth/role-refresh', old, 'POST')).status).toBe(401);
+    sqlite.exec("UPDATE app_users SET active=1, password_hash='changed' WHERE username='alice'");
+    expect((await request('/api/auth/role-refresh', old, 'POST')).status).toBe(401);
+    sqlite.exec(`UPDATE app_users SET password_hash='${secret}' WHERE username='alice'; DELETE FROM trusted_devices WHERE fingerprint='fpA'`);
+    expect((await request('/api/auth/role-refresh', old, 'POST')).status).toBe(401);
+  });
+});

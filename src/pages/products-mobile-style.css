@@ -38,3 +38,18 @@ html body .ac-products .desktop-product-actions .ac-timed-delete svg {
 html body .ac-products .desktop-product-actions button svg *,
 html body .ac-products .desktop-product-viewbar button svg *,
 html body .ac-products .desktop-product-actions .ac-timed-delete svg * { stroke: currentColor !important; fill: none !important; }
+
+/* Keep selection independent of the dock and center the card contents. */
+html body .ac-products .product-selection-bar { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 10px; margin: 0 0 16px; padding: 10px; border: 1px solid var(--border, #e2e8f0); border-radius: 14px; background: var(--card, #fff); }
+html body .ac-products .desktop-product-result-count { text-align: center; }
+html body .ac-products .desktop-product-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 260px)); justify-content: center; }
+html body .ac-products .desktop-product-card-link { text-align: center; justify-items: center; }
+html body .ac-products .desktop-product-chips, html body .ac-products .desktop-product-actions { justify-content: center; }
+html body .ac-products .desktop-product-actions label { justify-content: center; }
+html body .ac-products .desktop-product-actions .ac-timed-delete { flex: 0 0 44px !important; width: 44px !important; min-width: 44px !important; max-width: 44px !important; }
+html body .ac-products .desktop-product-chips .product-stock-chip.ok, html body .ac-products .stock-pill.ok { background: #dcfce7 !important; color: #166534 !important; }
+html body .ac-products .desktop-product-chips .product-stock-chip.low, html body .ac-products .stock-pill.low { background: #ffedd5 !important; color: #9a3412 !important; }
+html body .ac-products .desktop-product-chips .product-stock-chip.out, html body .ac-products .stock-pill.out { background: #fee2e2 !important; color: #991b1b !important; }
+html[data-theme="dark"] body .ac-products .desktop-product-chips .product-stock-chip.ok, html[data-theme="dark"] body .ac-products .stock-pill.ok { background: #14532d !important; color: #bbf7d0 !important; }
+html[data-theme="dark"] body .ac-products .desktop-product-chips .product-stock-chip.low, html[data-theme="dark"] body .ac-products .stock-pill.low { background: #7c2d12 !important; color: #fed7aa !important; }
+html[data-theme="dark"] body .ac-products .desktop-product-chips .product-stock-chip.out, html[data-theme="dark"] body .ac-products .stock-pill.out { background: #7f1d1d !important; color: #fecaca !important; }

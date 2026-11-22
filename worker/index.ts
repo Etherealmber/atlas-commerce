@@ -1,10 +1,10 @@
-import { REPORT_TICKET_PATHS, mintScopedReportTicket, verifyScopedReportTicket } from './lib/report-ticket';
+import { REPORT_TICKET_PATHS, mintScopedReportTicket, verifyScopedReportTicket, mintScopedPrintTicket, verifyScopedPrintTicket } from './lib/report-ticket';
 import { verifyArchiveIdentity } from './lib/finance-report-archive-validation';
 import { readBalanceReport, balanceIsIncome } from './lib/report-balance';
 import { registerMobilePreferencesRoutes } from './routes/mobilePreferences';
 import { migrateProductImagePage, normalizeProductImageReference, isNormalizedProductUrl, ProductImageError } from './lib/product-images';
 import { recordReportOwner } from './lib/report-ownership';
-import { ensureProductActors, withInventoryActors } from './lib/inventory-actors';
+import { ensureProductActors, ensureMovementApprover, withInventoryActors } from './lib/inventory-actors';
 import { registerSnakeScoreRoutes } from './routes/snakeScore';
 import { registerWorkStatusRoute } from './routes/workStatus';
 import { Hono } from 'hono';
@@ -1174,7 +1174,9 @@ app.use('/api/*', async (c, next) => {
   const ip = clientIp(c);
   const fp = c.req.header('X-Device-Fingerprint') || undefined;
   if (c.req.header('Authorization')?.slice(7).startsWith('np1.') && new URL(c.req.url).origin !== c.env.DESKTOP_NATIVE_V2_PILOT_ORIGIN) return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Non autorisé' }, 401);
-  const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, ip, fp);
+  const roleRefreshPath = path === '/api/auth/role-refresh' && c.req.method === 'POST';
+  const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, ip, fp, { allowRoleRefresh: roleRefreshPath });
+  if (reason === 'role_changed') return c.json({ success: false, error: 'Votre rôle a changé. Actualisez votre session.', code: 'ROLE_CHANGED' }, 409);
   if (reason !== 'ok') {
     return c.json({
       success: false,
@@ -2736,13 +2738,14 @@ async function authFailReason(
   db: D1Database,
   ip: string,
   fingerprint: string | undefined,
-  opts?: { relaxSession?: boolean },
+  opts?: { relaxSession?: boolean; allowRoleRefresh?: boolean },
 ): Promise<string> {
   if (!authHeader?.startsWith('Bearer ')) return 'missing';
   if (authHeader.slice(7).startsWith('np1.')) return await validateNativePilotToken(env, authHeader.slice(7), nativeCurrentIdentity) ? 'ok' : 'bad_token';
   const parsed = parseToken(authHeader.slice(7));
   if (!parsed) return 'bad_token';
 
+  let roleChanged = false;
   if (parsed.version === 1) {
     const exp = getPassword(env);
     // Legacy v1 tokens embedded the raw password — reject them (force re-login → v2)
@@ -2764,8 +2767,11 @@ async function authFailReason(
         `SELECT * FROM app_users WHERE username = ? AND active = 1`
       ).bind(user).first() as any;
       if (!row) return 'bad_password';
-      const expectedProof = await makeSessionProof(user, row.role, row.password_hash, parsed.ip, parsed.fingerprint);
+      // A stale role is proof of the same credential, not authority to use it.
+      // It may only exchange for a current-role token at the dedicated endpoint.
+      const expectedProof = await makeSessionProof(user, role, row.password_hash, parsed.ip, parsed.fingerprint);
       if (proof !== expectedProof) return 'bad_password';
+      roleChanged = role !== row.role;
     }
   }
 
@@ -2788,20 +2794,20 @@ async function authFailReason(
     if (devUser && tokUser && devUser !== tokUser) return 'device_revoked';
   }
 
-  if (opts?.relaxSession) return 'ok';
+  if (opts?.relaxSession) return roleChanged && !opts?.allowRoleRefresh ? 'role_changed' : 'ok';
   // Device-bound sessions: fingerprint is the strong signal. Mobile / CGNAT / IPv6
   // often change IP mid-session — do not force re-login when the same device token is used.
   const tokenFp = parsed.fingerprint && parsed.fingerprint !== 'none' ? parsed.fingerprint : '';
   const reqFp = fingerprint && fingerprint !== 'none' ? fingerprint : '';
   if (tokenFp) {
     if (reqFp && reqFp !== tokenFp) return 'fp_changed';
-    return 'ok';
+    return roleChanged && !opts?.allowRoleRefresh ? 'role_changed' : 'ok';
   }
   // Legacy sessions without fingerprint: still bind to IP
   if (parsed.ip && ip && parsed.ip !== ip) {
     return 'ip_changed';
   }
-  return 'ok';
+  return roleChanged && !opts?.allowRoleRefresh ? 'role_changed' : 'ok';
 }
 
 /**
@@ -5401,6 +5407,35 @@ app.post('/api/auth/logout', async (c) => {
   return c.json({ success: true, resume_prepared: resumePrepared });
 });
 
+// Only this exchange accepts a stale-role proof. Business routes continue to
+// reject it, including print/report paths, until a current token is issued.
+app.post('/api/auth/role-refresh', async (c) => {
+  const header = c.req.header('Authorization');
+  if (!header?.startsWith('Bearer ') || header.slice(7).startsWith('np1.')) return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Session invalide' }, 401);
+  const token = parseToken(header.slice(7));
+  if (!token || token.version !== 2) return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Session invalide' }, 401);
+  // Verify again here: do not rely on an unverified routing identity or body.
+  if (await authFailReason(header, c.env, c.env.DB, clientIp(c), c.req.header('X-Device-Fingerprint'), { allowRoleRefresh: true }) !== 'ok')
+    return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Session invalide' }, 401);
+  const username = String(token.username || '').toLowerCase();
+  let role: string;
+  let material: string;
+  if (username === getOwnerUsername(c.env) && token.role === 'owner') {
+    role = 'owner';
+    material = await sha256Hex(`owner-key|${username}|${normalizePassword(getPassword(c.env) || '')}`);
+  } else {
+    const row = await c.env.DB.prepare(`SELECT role, password_hash FROM app_users WHERE username = ? AND active = 1`).bind(username).first() as any;
+    if (!row || !['user', 'stock', 'secretaire', 'admin'].includes(String(row.role))) return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Session invalide' }, 401);
+    role = row.role;
+    material = String(row.password_hash || '');
+    // A password change between checks must never refresh an old proof.
+    if (token.proof !== await makeSessionProof(username, String(token.role || ''), material, token.ip, token.fingerprint))
+      return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Session invalide' }, 401);
+  }
+  const refreshed = await makeTokenV2(username, role, material, token.ip, token.fingerprint);
+  return c.json({ success: true, data: { token: refreshed, username, role } });
+});
+
 app.get('/api/auth/me', async (c) => {
   // v243.2 — every active device (web/phone) registers itself so the
   // "appareils connectés" popup always lists yours, current one included.
@@ -6905,12 +6940,37 @@ app.delete('/api/units/:id', async (c) => {
  *   POST /api/invoices               → same as web (client adds lines after scan)
  */
 
+async function ensureProductDualUnits(db: D1Database) {
+  await addColumnIfMissing(db, 'products', 'secondary_unit', 'TEXT DEFAULT NULL');
+  await addColumnIfMissing(db, 'products', 'secondary_unit_factor', 'REAL DEFAULT NULL');
+}
+
+/** 1 primary stock unit = factor secondary units; stock itself is unchanged. */
+function normalizeDualUnits(body: any, existing: any = {}): string | null {
+  const unitValue = body.secondary_unit !== undefined ? body.secondary_unit : existing.secondary_unit;
+  const factorValue = body.secondary_unit_factor !== undefined ? body.secondary_unit_factor : existing.secondary_unit_factor;
+  const secondary = typeof unitValue === 'string' ? unitValue.trim() : unitValue == null ? '' : null;
+  const emptyFactor = factorValue === '' || factorValue == null;
+  if (secondary === null || secondary.length > 40) return 'Unité secondaire invalide.';
+  if (!secondary && emptyFactor) { body.secondary_unit = null; body.secondary_unit_factor = null; return null; }
+  if (!secondary || emptyFactor || typeof factorValue === 'boolean') return 'Indiquez une deuxième unité et un coefficient positif.';
+  const factor = Number(factorValue);
+  if (!Number.isFinite(factor) || factor <= 0 || factor > 1_000_000_000) return 'Le coefficient doit être un nombre positif valide.';
+  const primary = String(body.unit ?? existing.unit ?? '').trim();
+  if (!primary || primary.toLowerCase() === secondary.toLowerCase()) return 'Les deux unités doivent être différentes.';
+  body.secondary_unit = secondary;
+  body.secondary_unit_factor = factor;
+  return null;
+}
+
 async function ensureProductVariantColumns(db: D1Database) {
   await schemaOnce('product_variants', async () => {
   await addColumnIfMissing(db, 'products', 'parent_id', `INTEGER DEFAULT NULL`);
   await addColumnIfMissing(db, 'products', 'variant_label', `TEXT DEFAULT ''`);
   await addColumnIfMissing(db, 'products', 'attributes', `TEXT DEFAULT '{}'`);
   await addColumnIfMissing(db, 'products', 'tax_rate', `REAL DEFAULT NULL`);
+  await addColumnIfMissing(db, 'products', 'invoice_price_mode', `TEXT DEFAULT NULL`);
+  await ensureProductDualUnits(db);
   await addColumnIfMissing(db, 'products', 'bulk_discounts', `TEXT DEFAULT '[]'`);
   await addColumnIfMissing(db, 'products', 'lot_number', `TEXT`);
   await addColumnIfMissing(db, 'products', 'expiry_date', `TEXT`);
@@ -6954,7 +7014,7 @@ app.get('/api/products', async (c) => {
   const cacheable = !q && !parentId && !category;
   const cacheKey = await productsCacheKey(
     c.env.CACHE,
-    [includeVariants ? 'v' : 'p', variantsOnly ? 'vo' : '', light ? 'm4-actors-images' : 'f-actors', String(limit)].filter(Boolean).join(':')
+    [includeVariants ? 'v' : 'p', variantsOnly ? 'vo' : '', light ? 'm6-actors-images-price-dual-unit' : 'f-actors', String(limit)].filter(Boolean).join(':')
   );
   if (cacheable) {
     const hit = await kvGetJson<any>(c.env.CACHE, cacheKey);
@@ -6972,9 +7032,10 @@ app.get('/api/products', async (c) => {
   const actorCols = ['created_by', 'approved_by'].filter(col => productColumns?.has(col)).map(col => `, ${col}`).join('');
   // Legacy inline photos can be megabytes each. Defer large images to the
   // per-product endpoint instead of putting hundreds in the mobile cache.
+  const priceModeCols = ['tax_rate', 'invoice_price_mode', 'secondary_unit', 'secondary_unit_factor'].filter(col => productColumns?.has(col)).map(col => `, ${col}`).join('');
   const imageCols = productColumns?.has('image_url') ? `, CASE WHEN length(image_url) > 262144 THEN NULL ELSE image_url END AS image_url, CASE WHEN length(image_url) > 262144 THEN 1 ELSE 0 END AS image_inline_large` : '';
   const cols = light
-    ? `id, sku, name, barcode, category, unit, price, stock_quantity, low_stock_threshold, parent_id, variant_label, is_active, track_inventory${actorCols}${imageCols}`
+    ? `id, sku, name, barcode, category, unit, price, stock_quantity, low_stock_threshold, parent_id, variant_label, is_active, track_inventory${actorCols}${priceModeCols}${imageCols}`
     : `*`;
   let sql = `SELECT ${cols} FROM products WHERE is_active = 1`;
   const binds: any[] = [];
@@ -7077,6 +7138,12 @@ app.post('/api/products', async (c) => {
   const { name, sku, description = '', category = 'General', unit = 'unit', price = 0, cost = 0, stock_quantity = 0, low_stock_threshold = 5, track_inventory = 1, barcode = '', tax_rate = null } = body;
   let image_url = String(body.image_url || '').trim();
   if (!name) return apiFail(c, 'Le nom du produit est obligatoire', 'VALIDATION');
+  if (body.secondary_unit !== undefined || body.secondary_unit_factor !== undefined) {
+    const error = normalizeDualUnits(body, { unit });
+    if (error) return apiFail(c, error, 'VALIDATION');
+    await ensureProductDualUnits(c.env.DB);
+  }
+  if (body.invoice_price_mode != null && !['inclusive', 'exclusive'].includes(body.invoice_price_mode)) return apiFail(c, 'Mode de prix facture invalide', 'VALIDATION');
 
   // Duplicate handling API:
   // Checks: SKU (case-insensitive), barcode (exact), name (case-insensitive).
@@ -7119,9 +7186,11 @@ app.post('/api/products', async (c) => {
   }
 
   await ensureProductActors(c.env.DB);
+  if (body.invoice_price_mode != null) await addColumnIfMissing(c.env.DB, 'products', 'invoice_price_mode', `TEXT DEFAULT NULL`);
   const postCols = await tableColumns(c.env.DB, 'products');
-  const insertCols = ['sku', 'name', 'description', 'category', 'unit', 'price', 'cost', 'stock_quantity', 'low_stock_threshold', 'track_inventory', 'image_url', 'barcode', 'tax_rate', 'bulk_discounts', 'created_by'];
-  const insertVals: any[] = [sku || null, name, description, category, unit, price, cost, stock_quantity, low_stock_threshold, track_inventory, image_url, barcode, tax_rate, bulkJson, sessionUserFromHeader(c.req.header('Authorization')).username || null];
+  if ((body.secondary_unit || body.secondary_unit_factor) && postCols && (!postCols.has('secondary_unit') || !postCols.has('secondary_unit_factor'))) return c.json({ success: false, code: 'SCHEMA_UNAVAILABLE', error: 'Unités secondaires indisponibles.' }, 503);
+  const insertCols = ['sku', 'name', 'description', 'category', 'unit', 'price', 'cost', 'stock_quantity', 'low_stock_threshold', 'track_inventory', 'image_url', 'barcode', 'tax_rate', 'bulk_discounts', 'created_by', 'invoice_price_mode', 'secondary_unit', 'secondary_unit_factor'];
+  const insertVals: any[] = [sku || null, name, description, category, unit, price, cost, stock_quantity, low_stock_threshold, track_inventory, image_url, barcode, tax_rate, bulkJson, sessionUserFromHeader(c.req.header('Authorization')).username || null, body.invoice_price_mode || null, body.secondary_unit ?? null, body.secondary_unit_factor ?? null];
   const useCols: string[] = [];
   const useVals: any[] = [];
   insertCols.forEach((colName, i) => {
@@ -7187,6 +7256,12 @@ app.put('/api/products/:id', async (c) => {
   const existing = await c.env.DB.prepare(`SELECT * FROM products WHERE id = ?`).bind(id).first() as any;
   if (!existing) return c.json({ success: false, error: 'Produit introuvable' }, 404);
 
+  if (body.secondary_unit !== undefined || body.secondary_unit_factor !== undefined || (body.unit !== undefined && existing.secondary_unit)) {
+    const error = normalizeDualUnits(body, existing);
+    if (error) return apiFail(c, error, 'VALIDATION');
+    await ensureProductDualUnits(c.env.DB);
+  }
+
   // Duplicate check on update (exclude self) — never 500 the save if the
   // schema drifts: a failing dup probe just skips the duplicate guard.
   const force = !!body.force_duplicate;
@@ -7243,9 +7318,12 @@ app.put('/api/products/:id', async (c) => {
     catch (e) { return productImageFailure(c, e); }
   }
 
-  const fields = ['sku', 'name', 'description', 'category', 'unit', 'price', 'cost', 'low_stock_threshold', 'track_inventory', 'is_active', 'image_url', 'barcode', 'tax_rate'];
+  await addColumnIfMissing(c.env.DB, 'products', 'invoice_price_mode', `TEXT DEFAULT NULL`);
+  if (body.invoice_price_mode != null && !['inclusive', 'exclusive'].includes(body.invoice_price_mode)) return apiFail(c, 'Mode de prix facture invalide', 'VALIDATION');
+  const fields = ['sku', 'name', 'description', 'category', 'unit', 'price', 'cost', 'low_stock_threshold', 'track_inventory', 'is_active', 'image_url', 'barcode', 'tax_rate', 'invoice_price_mode', 'secondary_unit', 'secondary_unit_factor'];
   // Schema-drift guard: never let a missing optional column 500 the save.
   const cols = await tableColumns(c.env.DB, 'products');
+  if ((body.secondary_unit !== undefined || body.secondary_unit_factor !== undefined) && cols && (!cols.has('secondary_unit') || !cols.has('secondary_unit_factor'))) return c.json({ success: false, code: 'SCHEMA_UNAVAILABLE', error: 'Unités secondaires indisponibles.' }, 503);
   const updates: string[] = [];
   const values: any[] = [];
   for (const f of fields) {
@@ -7376,6 +7454,7 @@ app.get('/api/products/:id/variants', async (c) => {
 
 app.post('/api/products/:id/variants', async (c) => {
   await ensureProductVariantColumns(c.env.DB);
+  await ensureProductDualUnits(c.env.DB);
   await ensureProductBulkDiscounts(c.env.DB);
   const parentId = c.req.param('id');
   const parent = await c.env.DB.prepare(`SELECT * FROM products WHERE id = ?`).bind(parentId).first() as any;
@@ -7429,8 +7508,8 @@ app.post('/api/products/:id/variants', async (c) => {
   const actorPresent = (await tableColumns(c.env.DB, 'products'))?.has('created_by') === true;
   const actorName = sessionUserFromHeader(c.req.header('Authorization')).username || null;
   const result = await c.env.DB.prepare(
-    `INSERT INTO products (sku, name, description, category, unit, price, cost, stock_quantity, low_stock_threshold, track_inventory, image_url, barcode, tax_rate, bulk_discounts, parent_id, variant_label, attributes${actorPresent ? ', created_by' : ''})
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?${actorPresent ? ', ?' : ''})`
+    `INSERT INTO products (sku, name, description, category, unit, price, cost, stock_quantity, low_stock_threshold, track_inventory, image_url, barcode, tax_rate, bulk_discounts, parent_id, variant_label, attributes, invoice_price_mode, secondary_unit, secondary_unit_factor${actorPresent ? ', created_by' : ''})
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?${actorPresent ? ', ?' : ''})`
   ).bind(
     sku || null,
     name,
@@ -7449,6 +7528,9 @@ app.post('/api/products/:id/variants', async (c) => {
     Number(parentId),
     variant_label,
     attributes,
+    parent.invoice_price_mode || null,
+    parent.secondary_unit || null,
+    parent.secondary_unit_factor ?? null,
     ...(actorPresent ? [actorName] : []),
   ).run();
 
@@ -9473,7 +9555,7 @@ async function applyStockDelta(
   qtySigned: number,
   reason: string,
   reference: string,
-  opts?: { createdBy?: string;
+  opts?: { createdBy?: string; approvedBy?: string;
     /** When set, may send FCM low-stock push */
     env?: any; type?: string; allowNegative?: boolean; locationId?: number | null; skipLocation?: boolean },
 ) {
@@ -9481,6 +9563,7 @@ async function applyStockDelta(
   const delta = Number(qtySigned);
   if (!Number.isFinite(delta)) return null;
   await ensureStockMovementsTable(db);
+  if (opts?.approvedBy) await ensureMovementApprover(db);
 
   const prod = await db.prepare(
     `SELECT id, stock_quantity, track_inventory, name FROM products WHERE id = ?`
@@ -9566,8 +9649,8 @@ async function applyStockDelta(
   }
 
   await db.prepare(
-    `INSERT INTO stock_movements (product_id, type, quantity, previous_quantity, new_quantity, reason, reference, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO stock_movements (product_id, type, quantity, previous_quantity, new_quantity, reason, reference, created_by${opts?.approvedBy ? ', approved_by' : ''})
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?${opts?.approvedBy ? ', ?' : ''})`
   ).bind(
     productId,
     type,
@@ -9577,6 +9660,7 @@ async function applyStockDelta(
     reason || '',
     reference || '',
     opts?.createdBy || '',
+    ...(opts?.approvedBy ? [opts.approvedBy] : []),
   ).run();
   // Optional push when crossing into low / rupture
   try {
@@ -9844,6 +9928,12 @@ async function ensureClientPricesTable(db: D1Database): Promise<void> {
 }
 
 /* nextDocumentNumber → worker/lib/numbering.ts */
+/** Nullable attribution: legacy rows and workflows without approval remain unknown. */
+async function ensureDocumentActors(db: D1Database, table: 'invoices' | 'bills' | 'receipts') {
+  await addColumnIfMissing(db, table, 'created_by', 'TEXT DEFAULT NULL');
+  await addColumnIfMissing(db, table, 'approved_by', 'TEXT DEFAULT NULL');
+}
+
 /* ─── Invoices ─── */
 
 /* GET /api/invoices + /:id → worker/routes/invoices.ts */
@@ -9854,10 +9944,13 @@ app.post('/api/invoices', async (c) => {
   const gate = requireBizMutator(c);
   if (!gate.ok) return gate.response;
 
+  await ensureDocumentActors(c.env.DB, 'invoices');
+  const documentCreator = sessionUserFromHeader(c.req.header('Authorization')).username || null;
   await ensureInvoiceItemPromoColumns(c.env.DB);
   await ensureInvoiceTaxExempt(c.env.DB);
   await ensureClientTaxExempt(c.env.DB);
   await ensureProductBulkDiscounts(c.env.DB);
+  await addColumnIfMissing(c.env.DB, 'products', 'invoice_price_mode', `TEXT DEFAULT NULL`);
 
   const body = await c.req.json().catch(() => ({}));
   const idemKey = extractIdempotencyKey(c, body);
@@ -9904,8 +9997,8 @@ app.post('/api/invoices', async (c) => {
   let subtotal = 0, tax_amount = 0;
   const lineItems: any[] = [];
 
-  // prices_ttc: true → unit_price / list_price saisis TTC (factures FA uniquement, jamais VR)
-  const pricesTtc = !isQuickSale && !!(body.prices_ttc || body.price_mode === 'ttc');
+  // The inclusive/exclusive price interpretation belongs to invoices only.
+  const pricesTtc = !isQuickSale && !isQuote && !!(body.prices_ttc || body.price_mode === 'ttc');
 
   for (const item of items) {
     const qty = Number(item.quantity || 0);
@@ -9915,6 +10008,8 @@ app.post('/api/invoices', async (c) => {
     let lineName = String(item.product_name || item.name || '').trim();
     let lineSku = String(item.sku || '').trim();
     let lineUnit = String(item.unit || '').trim();
+    let linePricesTtc = pricesTtc;
+    let explicitInclusive = false;
     if (item.client_price !== undefined && item.client_price !== null && item.client_price !== '') {
       unitP = Number(item.client_price);
     }
@@ -9922,9 +10017,11 @@ app.post('/api/invoices', async (c) => {
     // Catalogue price + name from product when linked
     if (item.product_id) {
       const prod = await c.env.DB.prepare(
-        `SELECT name, sku, price, bulk_discounts, unit, tax_rate FROM products WHERE id = ?`
+        `SELECT name, sku, price, bulk_discounts, unit, tax_rate, invoice_price_mode FROM products WHERE id = ?`
       ).bind(item.product_id).first() as any;
       if (prod) {
+        if (!isQuickSale && !isQuote && prod.invoice_price_mode === 'inclusive') { linePricesTtc = true; explicitInclusive = true; }
+        if (!isQuickSale && !isQuote && prod.invoice_price_mode === 'exclusive') linePricesTtc = false;
         if (!lineName) lineName = String(prod.name || '').trim();
         if (!lineSku) lineSku = String(prod.sku || '').trim();
         if (!lineUnit) lineUnit = String(prod.unit || '').trim();
@@ -9954,13 +10051,13 @@ app.post('/api/invoices', async (c) => {
     // Convert TTC → HT for storage (unit_price always HT in DB)
     let unitHt = unitP;
     let listHt = listP;
-    if (pricesTtc && taxRate > 0) {
+    if (linePricesTtc && taxRate > 0) {
       const factor = 1 + taxRate / 100;
       unitHt = unitP / factor;
       listHt = listP / factor;
     }
     const lineHt = qty * unitHt;
-    const lineTtc = pricesTtc && taxRate > 0 ? qty * unitP : lineHt * (1 + taxRate / 100);
+    const lineTtc = linePricesTtc && taxRate > 0 ? qty * unitP : lineHt * (1 + taxRate / 100);
     const lineTaxReal = lineTtc - lineHt;
     subtotal += lineHt;
     tax_amount += lineTaxReal;
@@ -9972,8 +10069,8 @@ app.post('/api/invoices', async (c) => {
       sku: lineSku || item.sku || '',
       unit: lineUnit || item.unit || '',
       quantity: qty,
-      list_price: roundDh(listHt),
-      unit_price: roundDh(unitHt),
+      list_price: explicitInclusive ? Math.round(listHt * 1e6) / 1e6 : roundDh(listHt),
+      unit_price: explicitInclusive ? Math.round(unitHt * 1e6) / 1e6 : roundDh(unitHt),
       tax_rate: taxRate,
       discount_amount: discAmt,
       discount_percent: discPct,
@@ -10007,12 +10104,12 @@ app.post('/api/invoices', async (c) => {
   let invResult: any;
   try {
     invResult = await c.env.DB.prepare(
-      `INSERT INTO invoices (number, client_id, client_name, client_ice, client_address, client_city, client_email, client_phone, issue_date, due_date, status, subtotal, tax_amount, total, notes, amount_paid, tax_exempt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).bind(number, client_id || null, client_name, client_ice, client_address, client_city, client_email, client_phone, issue_date || new Date().toISOString().slice(0, 10), due_date, finalStatus, subtotal, tax_amount, total, notes, 0, taxExempt ? 1 : 0).run();
+      `INSERT INTO invoices (number, client_id, client_name, client_ice, client_address, client_city, client_email, client_phone, issue_date, due_date, status, subtotal, tax_amount, total, notes, amount_paid, tax_exempt, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(number, client_id || null, client_name, client_ice, client_address, client_city, client_email, client_phone, issue_date || new Date().toISOString().slice(0, 10), due_date, finalStatus, subtotal, tax_amount, total, notes, 0, taxExempt ? 1 : 0, documentCreator).run();
   } catch {
     invResult = await c.env.DB.prepare(
-      `INSERT INTO invoices (number, client_id, client_name, client_ice, client_address, client_city, client_email, client_phone, issue_date, due_date, status, subtotal, tax_amount, total, notes, amount_paid) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).bind(number, client_id || null, client_name, client_ice, client_address, client_city, client_email, client_phone, issue_date || new Date().toISOString().slice(0, 10), due_date, finalStatus, subtotal, tax_amount, total, notes, 0).run();
+      `INSERT INTO invoices (number, client_id, client_name, client_ice, client_address, client_city, client_email, client_phone, issue_date, due_date, status, subtotal, tax_amount, total, notes, amount_paid, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(number, client_id || null, client_name, client_ice, client_address, client_city, client_email, client_phone, issue_date || new Date().toISOString().slice(0, 10), due_date, finalStatus, subtotal, tax_amount, total, notes, 0, documentCreator).run();
   }
   const invoiceId = invResult.meta.last_row_id;
   await ensureInvoicePublicToken(c.env.DB);
@@ -10155,6 +10252,8 @@ app.post('/api/invoices', async (c) => {
  */
 app.post('/api/invoices/remboursement', async (c) => {
   try {
+    await ensureDocumentActors(c.env.DB, 'invoices');
+    const documentCreator = sessionUserFromHeader(c.req.header('Authorization')).username || null;
     await ensureInvoiceItemPromoColumns(c.env.DB);
     await ensureInvoiceTaxExempt(c.env.DB);
     await ensureInvoiceRefundColumns(c.env.DB);
@@ -10356,8 +10455,8 @@ app.post('/api/invoices/remboursement', async (c) => {
         `INSERT INTO invoices (
           number, client_id, client_name, client_ice, client_address, client_city, client_email, client_phone,
           issue_date, due_date, status, subtotal, tax_amount, total, notes, amount_paid, tax_exempt,
-          doc_kind, refund_of_invoice_id, refund_reason, refund_reason_code
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'remboursement', ?, ?, ?, ?, ?, ?, 'remboursement', ?, ?, ?)`
+          doc_kind, refund_of_invoice_id, refund_reason, refund_reason_code, created_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'remboursement', ?, ?, ?, ?, ?, ?, 'remboursement', ?, ?, ?, ?)`
       ).bind(
         number,
         source.client_id || null,
@@ -10378,14 +10477,15 @@ app.post('/api/invoices/remboursement', async (c) => {
         sourceId,
         reasonCheck.full,
         reasonCode,
+        documentCreator,
       ).run();
     } catch {
       // Fallback without extra columns
       invResult = await c.env.DB.prepare(
         `INSERT INTO invoices (
           number, client_id, client_name, client_ice, client_address, client_city, client_email, client_phone,
-          issue_date, due_date, status, subtotal, tax_amount, total, notes, amount_paid
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'remboursement', ?, ?, ?, ?, ?)`
+          issue_date, due_date, status, subtotal, tax_amount, total, notes, amount_paid, created_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'remboursement', ?, ?, ?, ?, ?, ?)`
       ).bind(
         number,
         source.client_id || null,
@@ -10402,6 +10502,7 @@ app.post('/api/invoices/remboursement', async (c) => {
         total,
         notes,
         0,
+        documentCreator,
       ).run();
     }
 
@@ -10682,6 +10783,7 @@ app.put('/api/invoices/:id', async (c) => {
   if (!inv) return c.json({ success: false, error: 'Facture introuvable' }, 404);
 
   const isQuote = inv.status === 'quote' || inv.status === 'devis';
+  const isQuickSale = inv.doc_kind === 'quick_sale' || inv.doc_kind === 'ticket' || String(inv.number || '').startsWith('VR');
   const paid = Number(inv.amount_paid || 0);
   const isUnpaid = !isQuote && paid <= 0.0001 && inv.status !== 'paid' && inv.status !== 'cancelled';
   const canEditLines = isQuote || isUnpaid;
@@ -10701,11 +10803,14 @@ app.put('/api/invoices/:id', async (c) => {
 
   // Tax exempt toggle
   let taxExempt = inv.tax_exempt ? true : false;
-  if (body.tax_exempt !== undefined) {
+  if (isQuickSale && body.tax_exempt === false) {
+    return c.json({ success: false, error: 'Une vente rapide ne peut pas utiliser la TVA.', code: 'QUICK_SALE_NO_TAX' }, 400);
+  }
+  if (body.tax_exempt !== undefined && !isQuickSale) {
     taxExempt = !!body.tax_exempt;
     fields.push(`tax_exempt = ?`);
     values.push(taxExempt ? 1 : 0);
-  } else if (body.client_id) {
+  } else if (!isQuickSale && body.client_id) {
     const cl = await c.env.DB.prepare(`SELECT tax_exempt FROM clients WHERE id = ?`).bind(body.client_id).first() as any;
     if (cl?.tax_exempt) {
       taxExempt = true;
@@ -10717,6 +10822,9 @@ app.put('/api/invoices/:id', async (c) => {
   let message = 'Document mis à jour.';
 
   if (Array.isArray(body.items)) {
+    if (isQuickSale && Math.abs(Number(inv.tax_amount || 0)) > 0.001) {
+      return c.json({ success: false, error: 'Ce ticket historique contient de la TVA enregistrée. Ses montants doivent être régularisés avant de modifier ses lignes.', code: 'QUICK_SALE_HISTORICAL_TAX' }, 400);
+    }
     if (!canEditLines) {
       return c.json({
         success: false,
@@ -10728,6 +10836,7 @@ app.put('/api/invoices/:id', async (c) => {
       return c.json({ success: false, error: 'Au moins une ligne est obligatoire.' }, 400);
     }
 
+    if (isQuickSale) { taxExempt = true; fields.push('tax_exempt = ?'); values.push(1); }
     try { await ensureHrSettings(c.env.DB); } catch { /* */ }
     const settings = await c.env.DB.prepare(`SELECT tax_rate FROM company_settings WHERE id = 1`).first() as any;
     const defaultTax = Number(settings?.tax_rate ?? 20);
@@ -10972,6 +11081,8 @@ app.post('/api/invoices/:id/payments', async (c) => {
   let receipt = null;
   if (status === 'paid') {
     await ensureReceiptsTable(c.env.DB);
+    await ensureDocumentActors(c.env.DB, 'receipts');
+    const receiptCreator = sessionUserFromHeader(c.req.header('Authorization')).username || null;
     receipt = await c.env.DB.prepare(
       `SELECT * FROM receipts WHERE invoice_id = ? ORDER BY id DESC LIMIT 1`
     ).bind(id).first();
@@ -10980,9 +11091,9 @@ app.post('/api/invoices/:id/payments', async (c) => {
         const settings = await c.env.DB.prepare(`SELECT * FROM company_settings WHERE id = 1`).first() as any;
         const number = await nextDocumentNumber(c.env.DB, 'receipt', settings, c.env);
         await c.env.DB.prepare(
-          `INSERT INTO receipts (number, invoice_id, client_name, amount, payment_method, issue_date, notes)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`
-        ).bind(number, id, inv.client_name, total, method, paid_at, note || `Règlement complet facture ${inv.number}`).run();
+          `INSERT INTO receipts (number, invoice_id, client_name, amount, payment_method, issue_date, notes, created_by)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        ).bind(number, id, inv.client_name, total, method, paid_at, note || `Règlement complet facture ${inv.number}`, receiptCreator).run();
         receipt = await c.env.DB.prepare(
           `SELECT * FROM receipts WHERE number = ? LIMIT 1`
         ).bind(number).first();
@@ -10995,9 +11106,9 @@ app.post('/api/invoices/:id/payments', async (c) => {
           const nextNum = Number(settings?.next_receipt_number || 1);
           const number = `${prefix}${String(nextNum).padStart(5, '0')}`;
           await c.env.DB.prepare(
-            `INSERT OR IGNORE INTO receipts (number, invoice_id, client_name, amount, payment_method, issue_date, notes)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`
-          ).bind(number, id, inv.client_name, total, method, paid_at, note || `Règlement complet facture ${inv.number}`).run();
+            `INSERT OR IGNORE INTO receipts (number, invoice_id, client_name, amount, payment_method, issue_date, notes, created_by)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+          ).bind(number, id, inv.client_name, total, method, paid_at, note || `Règlement complet facture ${inv.number}`, receiptCreator).run();
           await c.env.DB.prepare(
             `UPDATE company_settings SET next_receipt_number = COALESCE(next_receipt_number, 1) + 1 WHERE id = 1`
           ).run();
@@ -11039,6 +11150,8 @@ app.get('/api/invoices/:id/payments', async (c) => {
 
 /** Convert a devis (quote) into a real invoice: deduct stock, set status sent, new invoice number optional keep same */
 app.post('/api/invoices/:id/convert-quote', async (c) => {
+  await ensureInvoiceTaxExempt(c.env.DB);
+  await ensureInvoiceRefundColumns(c.env.DB);
   const id = c.req.param('id');
   const body = await c.req.json().catch(() => ({} as any));
   const target = String(body?.target || body?.to || 'invoice').toLowerCase();
@@ -11052,6 +11165,15 @@ app.post('/api/invoices/:id/convert-quote', async (c) => {
   if (inv.status !== 'quote' && inv.status !== 'devis') {
     return c.json({ success: false, error: 'Seuls les devis peuvent être convertis' }, 400);
   }
+
+  const { results: quoteItems } = await c.env.DB.prepare(`SELECT * FROM invoice_items WHERE invoice_id = ?`).bind(id).all();
+  if (asQuickSale && Number(inv.amount_paid || 0) > 0.001) {
+    return c.json({ success: false, error: 'Ce devis comporte des paiements. Régularisez-les avant la conversion.', code: 'QUOTE_HAS_PAYMENTS' }, 400);
+  }
+  if (!quoteItems?.length || quoteItems.some((item: any) => !Number.isFinite(Number(item.quantity)) || !Number.isFinite(Number(item.unit_price)) || Number(item.quantity) <= 0 || Number(item.unit_price) < 0)) {
+    return c.json({ success: false, error: 'Lignes du devis invalides.', code: 'INVALID_QUOTE_LINES' }, 400);
+  }
+  const quickTotal = (quoteItems || []).reduce((sum: number, item: any) => sum + roundDh(Number(item.quantity) * Number(item.unit_price)), 0);
 
   // Credit limit (invoice path only — VR is cash-oriented)
   if (!asQuickSale) {
@@ -11075,39 +11197,56 @@ app.post('/api/invoices/:id/convert-quote', async (c) => {
   const settings = await c.env.DB.prepare(`SELECT * FROM company_settings WHERE id = 1`).first() as any;
   const kind = asQuickSale ? 'quick_sale' : 'invoice';
   const newNumber = await nextDocumentNumber(c.env.DB, kind as any, settings, c.env);
-  const { results: items } = await c.env.DB.prepare(`SELECT * FROM invoice_items WHERE invoice_id = ?`).bind(id).all();
-  for (const item of (items || []) as any[]) {
-    if (!item.product_id) continue;
-    try {
-      await applyStockDelta(
-        c.env.DB,
-        item.product_id,
-        -Number(item.quantity || 0),
-        asQuickSale ? 'Devis→VR' : 'Devis→Facture',
-        newNumber,
-        { type: 'sale', createdBy: sessionUserFromHeader(c.req.header('Authorization')).username || undefined },
-      );
-    } catch (stErr: any) {
-      return c.json({
-        success: false,
-        error: stErr?.message || 'Stock insuffisant pour convertir le devis',
-        code: stErr?.code || 'INSUFFICIENT_STOCK',
-      }, 400);
-    }
+  // D1 batch is atomic. All preconditions, stock updates, warehouse mirrors,
+  // movements and the document update commit together, or all roll back.
+  await ensureStockMovementsTable(c.env.DB);
+  await ensureStockLocations(c.env.DB);
+  const locationId = await getDefaultLocationId(c.env.DB);
+  await c.env.DB.prepare(`CREATE TABLE IF NOT EXISTS quote_conversion_assertions (marker TEXT PRIMARY KEY, ok INTEGER NOT NULL CHECK(ok = 1))`).run();
+  const marker = crypto.randomUUID();
+  const stmts: D1PreparedStatement[] = [];
+  const conditions = (quoteItems as any[]).map(() => `EXISTS (SELECT 1 FROM invoice_items WHERE invoice_id = ? AND id = ? AND product_id IS ? AND quantity IS ? AND unit_price IS ? AND tax_rate IS ? AND line_total IS ?)`);
+  const conditionBinds = (quoteItems as any[]).flatMap((item: any) => [id, item.id, item.product_id ?? null, item.quantity ?? null, item.unit_price ?? null, item.tax_rate ?? null, item.line_total ?? null]);
+  stmts.push(c.env.DB.prepare(`INSERT INTO quote_conversion_assertions(marker, ok)
+    SELECT ?, CASE WHEN EXISTS (SELECT 1 FROM invoices WHERE id = ? AND status IN ('quote','devis') AND number IS ? AND amount_paid IS ? AND total IS ?)
+    AND (SELECT COUNT(*) FROM invoice_items WHERE invoice_id = ?) = ? AND ${conditions.join(' AND ')} THEN 1 ELSE 0 END`)
+    .bind(marker, id, inv.number ?? null, inv.amount_paid ?? null, inv.total ?? null, id, quoteItems.length, ...conditionBinds));
+  const quantities = new Map<number, number>();
+  for (const item of quoteItems as any[]) {
+    if (item.product_id) quantities.set(Number(item.product_id), (quantities.get(Number(item.product_id)) || 0) + Number(item.quantity));
   }
-
+  const actor = sessionUserFromHeader(c.req.header('Authorization')).username || '';
+  for (const [productId, quantity] of quantities) {
+    // The assertion is inside the transaction, so another conversion cannot
+    // consume stock between validation and deduction. Untracked/missing
+    // products retain the legacy behavior of not changing stock.
+    stmts.push(c.env.DB.prepare(`INSERT INTO quote_conversion_assertions(marker, ok)
+      SELECT ?, CASE WHEN EXISTS (SELECT 1 FROM products WHERE id = ? AND track_inventory = 1 AND COALESCE(stock_quantity,0) < ?) THEN 0 ELSE 1 END`)
+      .bind(`${marker}:${productId}`, productId, quantity));
+    stmts.push(c.env.DB.prepare(`INSERT INTO stock_movements (product_id, type, quantity, previous_quantity, new_quantity, reason, reference, created_by)
+      SELECT id, 'sale', ?, COALESCE(stock_quantity,0), COALESCE(stock_quantity,0) - ?, ?, ?, ? FROM products WHERE id = ? AND track_inventory = 1`)
+      .bind(quantity, quantity, asQuickSale ? 'Devis→VR' : 'Devis→Facture', newNumber, actor, productId));
+    if (locationId) {
+      stmts.push(c.env.DB.prepare(`INSERT INTO stock_location_qty (location_id, product_id, quantity)
+        SELECT ?, id, MAX(0, CASE WHEN NOT EXISTS (SELECT 1 FROM stock_location_qty WHERE product_id = products.id) THEN COALESCE(stock_quantity,0) ELSE 0 END - ?)
+        FROM products WHERE id = ? AND track_inventory = 1
+        ON CONFLICT(location_id, product_id) DO UPDATE SET quantity = MAX(0, stock_location_qty.quantity - ?)`)
+        .bind(locationId, quantity, productId, quantity));
+    }
+    stmts.push(c.env.DB.prepare(`UPDATE products SET stock_quantity = COALESCE(stock_quantity,0) - ?, updated_at = datetime('now') WHERE id = ? AND track_inventory = 1`).bind(quantity, productId));
+  }
   if (asQuickSale) {
-    // Zero tax lines for VR tickets
-    try {
-      await c.env.DB.prepare(`UPDATE invoice_items SET tax_rate = 0 WHERE invoice_id = ?`).bind(id).run();
-    } catch { /* */ }
-    await c.env.DB.prepare(
-      `UPDATE invoices SET status = 'sent', number = ?, doc_kind = 'quick_sale', tax_exempt = 1, updated_at = datetime('now') WHERE id = ?`,
-    ).bind(newNumber, id).run();
+    stmts.push(c.env.DB.prepare(`UPDATE invoice_items SET tax_rate = 0, line_total = ROUND(quantity * unit_price) WHERE invoice_id = ?`).bind(id));
+    stmts.push(c.env.DB.prepare(`UPDATE invoices SET status = 'sent', number = ?, doc_kind = 'quick_sale', tax_exempt = 1, subtotal = ?, tax_amount = 0, total = ?, updated_at = datetime('now') WHERE id = ?`).bind(newNumber, quickTotal, quickTotal, id));
   } else {
-    await c.env.DB.prepare(
-      `UPDATE invoices SET status = 'sent', number = ?, doc_kind = 'invoice', updated_at = datetime('now') WHERE id = ?`,
-    ).bind(newNumber, id).run();
+    stmts.push(c.env.DB.prepare(`UPDATE invoices SET status = 'sent', number = ?, doc_kind = 'invoice', updated_at = datetime('now') WHERE id = ?`).bind(newNumber, id));
+  }
+  stmts.push(c.env.DB.prepare(`DELETE FROM quote_conversion_assertions WHERE marker = ? OR marker LIKE ?`).bind(marker, `${marker}:%`));
+  try {
+    await c.env.DB.batch(stmts);
+  } catch (error) {
+    console.error('quote_conversion_atomic_failed', String((error as any)?.message || error));
+    return c.json({ success: false, error: 'Conversion impossible : le devis ou le stock a changé, ou le stock est insuffisant. Actualisez et réessayez.', code: 'QUOTE_CONVERSION_CONFLICT' }, 409);
   }
 
   await afterBusinessMutation(c.env.CACHE);
@@ -12165,6 +12304,8 @@ app.post('/api/bills/parse-document', async (c) => {
 });
 
 app.post('/api/bills', async (c) => {
+  await ensureDocumentActors(c.env.DB, 'bills');
+  const documentCreator = sessionUserFromHeader(c.req.header('Authorization')).username || null;
   const body = await c.req.json().catch(() => ({}));
   const verr = validateBillWrite(body);
   if (verr) return apiFail(c, Object.values(verr)[0] || 'Validation', 'VALIDATION', verr);
@@ -12195,7 +12336,7 @@ app.post('/api/bills', async (c) => {
     });
   }
   subtotal = roundDh(subtotal); tax_amount = roundDh(tax_amount); const total = roundDh(subtotal + tax_amount);
-  const billResult = await c.env.DB.prepare(`INSERT INTO bills (number, vendor_id, vendor_name, vendor_ice, vendor_address, issue_date, due_date, status, subtotal, tax_amount, total, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(number, vendor_id || null, vendor_name, vendor_ice, vendor_address, issue_date || new Date().toISOString().slice(0, 10), due_date, status, subtotal, tax_amount, total, notes).run();
+  const billResult = await c.env.DB.prepare(`INSERT INTO bills (number, vendor_id, vendor_name, vendor_ice, vendor_address, issue_date, due_date, status, subtotal, tax_amount, total, notes, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(number, vendor_id || null, vendor_name, vendor_ice, vendor_address, issue_date || new Date().toISOString().slice(0, 10), due_date, status, subtotal, tax_amount, total, notes, documentCreator).run();
   const billId = billResult.meta.last_row_id;
   for (const item of lineItems) {
     await c.env.DB.prepare(`INSERT INTO bill_items (bill_id, product_id, product_name, sku, quantity, unit_cost, tax_rate, line_total) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).bind(billId, item.product_id || null, item.product_name, item.sku || '', item.quantity, item.unit_cost, item.tax_rate, item.line_total).run();
@@ -12519,6 +12660,8 @@ app.get('/api/receipts', async (c) => {
 
 app.post('/api/receipts', async (c) => {
   await ensureReceiptsTable(c.env.DB);
+  await ensureDocumentActors(c.env.DB, 'receipts');
+  const documentCreator = sessionUserFromHeader(c.req.header('Authorization')).username || null;
   await ensureExpenseTypeColumn(c.env.DB);
   const body = await c.req.json().catch(() => ({}));
   const verr = validateReceiptWrite(body);
@@ -12534,14 +12677,14 @@ app.post('/api/receipts', async (c) => {
   let result: any;
   try {
     result = await c.env.DB.prepare(
-      `INSERT INTO receipts (number, invoice_id, client_name, amount, payment_method, issue_date, notes) VALUES (?, ?, ?, ?, ?, ?, ?)`
-    ).bind(number, invoice_id || null, client_name, Number(amount), method, paidAt, notes).run();
+      `INSERT INTO receipts (number, invoice_id, client_name, amount, payment_method, issue_date, notes, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(number, invoice_id || null, client_name, Number(amount), method, paidAt, notes, documentCreator).run();
   } catch (e: any) {
     // Retry once with timestamp suffix if unique collision
     number = `${number}-${Date.now().toString(36).slice(-4)}`;
     result = await c.env.DB.prepare(
-      `INSERT INTO receipts (number, invoice_id, client_name, amount, payment_method, issue_date, notes) VALUES (?, ?, ?, ?, ?, ?, ?)`
-    ).bind(number, invoice_id || null, client_name, Number(amount), method, paidAt, notes).run();
+      `INSERT INTO receipts (number, invoice_id, client_name, amount, payment_method, issue_date, notes, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(number, invoice_id || null, client_name, Number(amount), method, paidAt, notes, documentCreator).run();
   }
 
   // If linked to invoice: record payment history (no double amount_paid if already paid via payments API)
@@ -13465,59 +13608,14 @@ function reportTicketEnvironment(env: Env) {
   return { DB: env.DB, JWT_SECRET: env.JWT_SECRET, ADMIN_PASSWORD: getPassword(env) || undefined, REPORT_TICKET_TTL_SECONDS: env.REPORT_TICKET_TTL_SECONDS };
 }
 
-async function mintReportLinkTicket(env: any, pathPrefix = '/api/'): Promise<string> {
-  const exp = Math.floor(Date.now() / 1000) + 30 * 60; // 30 min
-  // pathPrefix scopes the ticket; default /api/ covers reports + employee/invoice print
-  const payload = `rtl1|${exp}|${pathPrefix}`;
-  const secret = String(env.JWT_SECRET || getPassword(env) || '').trim();
-  if (!secret) throw new Error('Print ticket unavailable');
-  const key = await crypto.subtle.importKey(
-    'raw',
-    await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`report-link|${secret}`)),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign'],
-  );
-  const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload)));
-  const b64 = btoa(String.fromCharCode(...sig)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  return `${exp}.${b64}`;
+async function verifyReportLinkTicket(env: Env, ticket: string | null | undefined, path: string): Promise<boolean> {
+  if (!ticket) return false;
+  const printOk = path === '/api/employees/form/print' ||
+    /^\/api\/employees\/\d+\/form\/print$/.test(path) ||
+    /^\/api\/(?:invoices|bills|receipts)\/\d+\/(?:print|pdf)$/.test(path) ||
+    path === '/api/settings/invoice-preview' || path.startsWith('/api/attendance/export');
+  return printOk && await verifyScopedPrintTicket(reportTicketEnvironment(env), ticket, getOwnerUsername(env));
 }
-
-async function verifyReportLinkTicket(env: any, ticket: string | null | undefined, path: string): Promise<boolean> {
-  try {
-    if (!ticket || !path.startsWith('/api/')) return false;
-    // Only print/report style paths (never mutate endpoints)
-    const printOk =
-      path === '/api/employees/form/print' ||
-      /^\/api\/employees\/\d+\/form\/print$/.test(path) ||
-      /^\/api\/invoices\/\d+\/(print|pdf)$/.test(path) ||
-      /^\/api\/bills\/\d+\/(print|pdf)$/.test(path) ||
-      /^\/api\/receipts\/\d+\/(print|pdf)$/.test(path) ||
-      path === '/api/settings/invoice-preview' ||
-      path.startsWith('/api/attendance/export');
-    if (!printOk) return false;
-    const [expS, sigB64] = String(ticket).split('.');
-    const exp = Number(expS);
-    if (!exp || !sigB64 || exp < Math.floor(Date.now() / 1000)) return false;
-    const secret = String(env.JWT_SECRET || getPassword(env) || '').trim();
-    if (!secret) return false;
-    const key = await crypto.subtle.importKey(
-      'raw',
-      await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`report-link|${secret}`)),
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['verify'],
-    );
-    const pad = sigB64.length % 4 === 0 ? '' : '='.repeat(4 - (sigB64.length % 4));
-    const raw = atob(sigB64.replace(/-/g, '+').replace(/_/g, '/') + pad);
-    const sig = new Uint8Array([...raw].map((c) => c.charCodeAt(0)));
-    // A legacy report-only signature never grants document-print access.
-    return await crypto.subtle.verify('HMAC', key, sig, new TextEncoder().encode(`rtl1|${exp}|/api/`));
-  } catch {
-    return false;
-  }
-}
-
 
 app.get('/api/reports/link-ticket', async (c) => {
   try {
@@ -13538,7 +13636,11 @@ app.get('/api/print/link-ticket', async (c) => {
   if (!identity.ok) return c.json({ success: false, code: identity.code, error: 'Accès refusé' }, identity.status);
   try {
     if (!String(c.env.JWT_SECRET || getPassword(c.env) || '').trim()) throw new Error('missing secret');
-    return c.json({ success: true, data: { rt: await mintReportLinkTicket(c.env), expires_in: 1800 } });
+    const bearer = c.req.header('Authorization') || '';
+    const parsed = bearer.startsWith('Bearer ') ? parseToken(bearer.slice(7)) : null;
+    // Pilot tokens have separate revocation semantics and cannot mint this legacy-browser capability.
+    if (!parsed || parsed.version !== 2) throw new Error('Unsupported print session');
+    return c.json({ success: true, data: await mintScopedPrintTicket(reportTicketEnvironment(c.env), identity.identity as any, getOwnerUsername(c.env), parsed.fingerprint) });
   } catch {
     return c.json({ success: false, error: 'Ticket indisponible', code: 'PRINT_TICKET_UNAVAILABLE' }, 503);
   }
@@ -13621,11 +13723,11 @@ app.get('/api/reports/tva', async (c) => {
 
   // Rate = line tax_rate when set, else company default. Never reference i.tax_rate (column does not exist).
   let sql = `
-    SELECT COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) as tax_rate,
+    SELECT CASE WHEN COALESCE(i.doc_kind, '') IN ('quick_sale', 'ticket') OR COALESCE(i.number, '') LIKE 'VR%' THEN 0 ELSE COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) END as tax_rate,
            SUM(
              CASE
-               WHEN ii.line_total IS NOT NULL AND COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) > 0
-                 THEN ii.line_total / (1.0 + COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) / 100.0)
+               WHEN ii.line_total IS NOT NULL AND CASE WHEN COALESCE(i.doc_kind, '') IN ('quick_sale', 'ticket') OR COALESCE(i.number, '') LIKE 'VR%' THEN 0 ELSE COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) END > 0
+                 THEN ii.line_total / (1.0 + CASE WHEN COALESCE(i.doc_kind, '') IN ('quick_sale', 'ticket') OR COALESCE(i.number, '') LIKE 'VR%' THEN 0 ELSE COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) END / 100.0)
                WHEN ii.line_total IS NOT NULL
                  THEN ii.line_total
                ELSE COALESCE(ii.quantity, 0) * COALESCE(ii.unit_price, 0)
@@ -13633,9 +13735,9 @@ app.get('/api/reports/tva', async (c) => {
            ) as base_ht,
            SUM(
              CASE
-               WHEN ii.line_total IS NOT NULL AND COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) > 0
-                 THEN ii.line_total - (ii.line_total / (1.0 + COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) / 100.0))
-               ELSE COALESCE(ii.quantity, 0) * COALESCE(ii.unit_price, 0) * COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) / 100.0
+               WHEN ii.line_total IS NOT NULL AND CASE WHEN COALESCE(i.doc_kind, '') IN ('quick_sale', 'ticket') OR COALESCE(i.number, '') LIKE 'VR%' THEN 0 ELSE COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) END > 0
+                 THEN ii.line_total - (ii.line_total / (1.0 + CASE WHEN COALESCE(i.doc_kind, '') IN ('quick_sale', 'ticket') OR COALESCE(i.number, '') LIKE 'VR%' THEN 0 ELSE COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) END / 100.0))
+               ELSE COALESCE(ii.quantity, 0) * COALESCE(ii.unit_price, 0) * CASE WHEN COALESCE(i.doc_kind, '') IN ('quick_sale', 'ticket') OR COALESCE(i.number, '') LIKE 'VR%' THEN 0 ELSE COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) END / 100.0
              END
            ) as tva
     FROM invoice_items ii
@@ -13649,9 +13751,9 @@ app.get('/api/reports/tva', async (c) => {
   const { results } = await c.env.DB.prepare(sql).bind(...binds).all();
 
   let sqlWr = `
-    SELECT COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) as tax_rate,
+    SELECT COALESCE(ii.tax_rate, ${defaultTax}) as tax_rate,
            SUM(COALESCE(ii.quantity, 0) * COALESCE(ii.unit_price, 0)) as base_ht,
-           SUM(COALESCE(ii.quantity, 0) * COALESCE(ii.unit_price, 0) * COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) / 100.0) as tva
+           SUM(COALESCE(ii.quantity, 0) * COALESCE(ii.unit_price, 0) * COALESCE(ii.tax_rate, ${defaultTax}) / 100.0) as tva
     FROM invoice_items ii
     INNER JOIN invoices i ON i.id = ii.invoice_id
     WHERE (i.status = 'remboursement' OR COALESCE(i.doc_kind, '') = 'remboursement')`;
@@ -13702,14 +13804,14 @@ app.get('/api/reports/tva.csv', async (c) => {
   const defaultTax = Number(settings?.tax_rate ?? 20);
   await addColumnIfMissing(c.env.DB, 'invoice_items', 'tax_rate', `REAL DEFAULT 0`);
   let sql = `
-    SELECT COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) as tax_rate,
-           SUM(CASE WHEN ii.line_total IS NOT NULL AND COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) > 0
-                 THEN ii.line_total / (1.0 + COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) / 100.0)
+    SELECT CASE WHEN COALESCE(i.doc_kind, '') IN ('quick_sale', 'ticket') OR COALESCE(i.number, '') LIKE 'VR%' THEN 0 ELSE COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) END as tax_rate,
+           SUM(CASE WHEN ii.line_total IS NOT NULL AND CASE WHEN COALESCE(i.doc_kind, '') IN ('quick_sale', 'ticket') OR COALESCE(i.number, '') LIKE 'VR%' THEN 0 ELSE COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) END > 0
+                 THEN ii.line_total / (1.0 + CASE WHEN COALESCE(i.doc_kind, '') IN ('quick_sale', 'ticket') OR COALESCE(i.number, '') LIKE 'VR%' THEN 0 ELSE COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) END / 100.0)
                WHEN ii.line_total IS NOT NULL THEN ii.line_total
                ELSE COALESCE(ii.quantity, 0) * COALESCE(ii.unit_price, 0) END) as base_ht,
-           SUM(CASE WHEN ii.line_total IS NOT NULL AND COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) > 0
-                 THEN ii.line_total - (ii.line_total / (1.0 + COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) / 100.0))
-               ELSE COALESCE(ii.quantity, 0) * COALESCE(ii.unit_price, 0) * COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) / 100.0 END) as tva
+           SUM(CASE WHEN ii.line_total IS NOT NULL AND CASE WHEN COALESCE(i.doc_kind, '') IN ('quick_sale', 'ticket') OR COALESCE(i.number, '') LIKE 'VR%' THEN 0 ELSE COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) END > 0
+                 THEN ii.line_total - (ii.line_total / (1.0 + CASE WHEN COALESCE(i.doc_kind, '') IN ('quick_sale', 'ticket') OR COALESCE(i.number, '') LIKE 'VR%' THEN 0 ELSE COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) END / 100.0))
+               ELSE COALESCE(ii.quantity, 0) * COALESCE(ii.unit_price, 0) * CASE WHEN COALESCE(i.doc_kind, '') IN ('quick_sale', 'ticket') OR COALESCE(i.number, '') LIKE 'VR%' THEN 0 ELSE COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) END / 100.0 END) as tva
     FROM invoice_items ii INNER JOIN invoices i ON i.id = ii.invoice_id
     WHERE i.status NOT IN ('quote', 'devis', 'cancelled', 'remboursement')
       AND COALESCE(i.doc_kind, '') != 'remboursement'`;
@@ -13719,9 +13821,9 @@ app.get('/api/reports/tva.csv', async (c) => {
   sql += ` GROUP BY 1 ORDER BY 1`;
   const { results } = await c.env.DB.prepare(sql).bind(...binds).all();
   let sqlWr = `
-    SELECT COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) as tax_rate,
+    SELECT COALESCE(ii.tax_rate, ${defaultTax}) as tax_rate,
            SUM(COALESCE(ii.quantity, 0) * COALESCE(ii.unit_price, 0)) as base_ht,
-           SUM(COALESCE(ii.quantity, 0) * COALESCE(ii.unit_price, 0) * COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) / 100.0) as tva
+           SUM(COALESCE(ii.quantity, 0) * COALESCE(ii.unit_price, 0) * COALESCE(ii.tax_rate, ${defaultTax}) / 100.0) as tva
     FROM invoice_items ii INNER JOIN invoices i ON i.id = ii.invoice_id
     WHERE (i.status = 'remboursement' OR COALESCE(i.doc_kind, '') = 'remboursement')`;
   const bindsWr: any[] = [];
@@ -13814,20 +13916,20 @@ app.get('/api/reports/tva.html', async (c) => {
   await addColumnIfMissing(c.env.DB, 'invoice_items', 'tax_rate', `REAL DEFAULT 0`);
 
   let sql = `
-    SELECT COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) as tax_rate,
+    SELECT CASE WHEN COALESCE(i.doc_kind, '') IN ('quick_sale', 'ticket') OR COALESCE(i.number, '') LIKE 'VR%' THEN 0 ELSE COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) END as tax_rate,
            SUM(
              CASE
-               WHEN ii.line_total IS NOT NULL AND COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) > 0
-                 THEN ii.line_total / (1.0 + COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) / 100.0)
+               WHEN ii.line_total IS NOT NULL AND CASE WHEN COALESCE(i.doc_kind, '') IN ('quick_sale', 'ticket') OR COALESCE(i.number, '') LIKE 'VR%' THEN 0 ELSE COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) END > 0
+                 THEN ii.line_total / (1.0 + CASE WHEN COALESCE(i.doc_kind, '') IN ('quick_sale', 'ticket') OR COALESCE(i.number, '') LIKE 'VR%' THEN 0 ELSE COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) END / 100.0)
                WHEN ii.line_total IS NOT NULL THEN ii.line_total
                ELSE COALESCE(ii.quantity, 0) * COALESCE(ii.unit_price, 0)
              END
            ) as base_ht,
            SUM(
              CASE
-               WHEN ii.line_total IS NOT NULL AND COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) > 0
-                 THEN ii.line_total - (ii.line_total / (1.0 + COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) / 100.0))
-               ELSE COALESCE(ii.quantity, 0) * COALESCE(ii.unit_price, 0) * COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) / 100.0
+               WHEN ii.line_total IS NOT NULL AND CASE WHEN COALESCE(i.doc_kind, '') IN ('quick_sale', 'ticket') OR COALESCE(i.number, '') LIKE 'VR%' THEN 0 ELSE COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) END > 0
+                 THEN ii.line_total - (ii.line_total / (1.0 + CASE WHEN COALESCE(i.doc_kind, '') IN ('quick_sale', 'ticket') OR COALESCE(i.number, '') LIKE 'VR%' THEN 0 ELSE COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) END / 100.0))
+               ELSE COALESCE(ii.quantity, 0) * COALESCE(ii.unit_price, 0) * CASE WHEN COALESCE(i.doc_kind, '') IN ('quick_sale', 'ticket') OR COALESCE(i.number, '') LIKE 'VR%' THEN 0 ELSE COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) END / 100.0
              END
            ) as tva
     FROM invoice_items ii
@@ -13841,9 +13943,9 @@ app.get('/api/reports/tva.html', async (c) => {
   const { results } = await c.env.DB.prepare(sql).bind(...binds).all();
 
   let sqlWr = `
-    SELECT COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) as tax_rate,
+    SELECT COALESCE(ii.tax_rate, ${defaultTax}) as tax_rate,
            SUM(COALESCE(ii.quantity, 0) * COALESCE(ii.unit_price, 0)) as base_ht,
-           SUM(COALESCE(ii.quantity, 0) * COALESCE(ii.unit_price, 0) * COALESCE(NULLIF(ii.tax_rate, 0), ${defaultTax}) / 100.0) as tva
+           SUM(COALESCE(ii.quantity, 0) * COALESCE(ii.unit_price, 0) * COALESCE(ii.tax_rate, ${defaultTax}) / 100.0) as tva
     FROM invoice_items ii
     INNER JOIN invoices i ON i.id = ii.invoice_id
     WHERE (i.status = 'remboursement' OR COALESCE(i.doc_kind, '') = 'remboursement')`;
@@ -20221,7 +20323,7 @@ app.post('/api/mobile-actions', async (c) => {
     return productImageFailure(c, e);
   }
   const meta_json = JSON.stringify(meta || {});
-  const created_by = String(body.created_by || 'mobile');
+  const created_by = sessionUserFromHeader(c.req.header('Authorization')).username || '';
   const source = String(body.source || 'mobile').toLowerCase().slice(0, 32);
   const sourceNorm = ['android', 'web', 'mobile', 'assist'].includes(source) ? source : 'mobile';
   const r = await c.env.DB.prepare(
@@ -20242,7 +20344,7 @@ app.post('/api/mobile-actions/:id/complete', async (c) => {
   const id = Number(c.req.param('id'));
   if (!id) return c.json({ success: false, error: 'id invalide' }, 400);
   const body = await c.req.json().catch(() => ({}));
-  const completed_by = String(body.completed_by || 'pc');
+  const completed_by = sessionUserFromHeader(c.req.header('Authorization')).username || '';
   const existing = await c.env.DB.prepare(`SELECT * FROM mobile_actions WHERE id = ?`).bind(id).first() as any;
   if (!existing) return c.json({ success: false, error: 'Action introuvable' }, 404);
   if (existing.status === 'done') return c.json({ success: true, data: existing, message: 'Déjà traitée' });
@@ -20268,7 +20370,7 @@ app.post('/api/mobile-actions/:id/complete', async (c) => {
           delta,
           `Inventaire lot mobile → PC (${prev}→${counted})`,
           `mobile_action:${id}`,
-          { createdBy: sessionUserFromHeader(c.req.header('Authorization')).username, type: 'adjustment', allowNegative: true, env: c.env }
+          { createdBy: completed_by, approvedBy: completed_by, type: 'adjustment', allowNegative: true, env: c.env }
         );
       }
     }
@@ -20292,7 +20394,7 @@ app.post('/api/mobile-actions/:id/complete', async (c) => {
             delta,
             'Ajustement stock (mobile → PC)',
             `mobile_action:${id}`,
-            { createdBy: sessionUserFromHeader(c.req.header('Authorization')).username, type: 'adjustment', allowNegative: false, env: c.env }
+            { createdBy: completed_by, approvedBy: completed_by, type: 'adjustment', allowNegative: false, env: c.env }
           );
         } else {
           await c.env.DB.prepare(
@@ -21092,7 +21194,7 @@ function generateInvoiceHTML(settings: any, inv: any, items: any[], title = 'FAC
         <strong>Scanner pour vérifier ce document</strong>
         <div>${docLabel} <strong>${inv.number || ''}</strong>${bodyExtra === 'quick_sale' ? ' · ticket caisse VR' : ''}</div>
         <div>Client : ${eh(partyName || '—')} ${partyIce ? '· ICE ' + eh(partyIce) : ''}</div>
-        <div>Total ${fmt(totalAmt)} ${cur} · Payé ${fmt(paidAmt)} · Reste ${fmt(dueAmt)}</div>
+        <div>Total ${fmt(totalAmt)} · Payé ${fmt(paidAmt)} · Reste ${fmt(dueAmt)}</div>
         <div class="qr-hint">${inv.preview_qr ? 'Scannez : le lecteur affiche le résumé (type, numéro, partie, total) tel qu’il est imprimé. Aperçu non contractuel.' : 'Page officielle de vérification (soldes à jour). Ce QR mène uniquement vers le domaine Atlas de l’émetteur — ne scannez pas d’autres codes.'}</div>
       </div>
     </div>`;

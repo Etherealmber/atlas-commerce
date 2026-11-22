@@ -37,6 +37,15 @@ export const RELEASES: Release[] = [
       { id: '091f1', platforms: ['web', 'desktop', 'server'], text: 'Connexion desktop expérimentale en environnement de test : vérification de sécurité dans une fenêtre temporaire dédiée avant l’envoi du mot de passe saisi dans l’application, puis saisie native du code à usage unique.' },
       { id: '091f2', platforms: ['desktop', 'server'], text: 'Le serveur vérifie le défi et lie son résultat à la demande ; la fenêtre ne reçoit ni identifiants ni jetons de session. Expiration, annulation, usage unique et renouvellement de session restent contrôlés.' },
       { id: '091f3', platforms: ['desktop', 'server'], text: 'Un navigateur externe reste un choix explicite si la fenêtre temporaire ne fonctionne pas. Le pilote reste désactivé par défaut et réservé aux tests ; le client desktop doit encore intégrer ce parcours.' },
+    ] }, { kind: 'improvements', items: [
+      { id: '091ui8', platforms: ['web', 'server'], text: 'Produits : deuxième unité et coefficient facultatifs pour le marbre et le carrelage (par exemple 1 carton = 1,59 m²) ; le stock reste enregistré dans l’unité principale et son équivalent est affiché sur PC et mobile web.' },
+      { id: '091ui7', platforms: ['web', 'server'], text: 'Rôles : actualisation de session côté web sans déconnexion lors d’un changement de rôle ; les anciens droits ne sont pas acceptés. Conversion de devis : stock et document sont mis à jour ensemble. Les créateurs connus des nouveaux documents apparaissent sans inventer les identifiants manquants.' },
+      { id: '091ui6', platforms: ['web'], text: 'Comptes de l’équipe : création dans une fenêtre dédiée, avec des champs prévus pour un nouveau compte ; icônes Paramètres et À propos harmonisées.' },
+      { id: '091ui5', platforms: ['web', 'server'], text: 'Produits : le prix de facture peut être configuré TVA incluse ou TVA ajoutée ; les ventes rapides restent sans TVA. Les demandes mobiles se limitent aux informations essentielles, sans prix.' },
+      { id: '091ui1', platforms: ['web'], text: 'Catalogue PC : sélection et actions mieux disposées, cartes centrées et couleurs de stock ; accès aux modifications depuis la fiche produit. Les numéros de devis ouvrent leurs détails.' },
+      { id: '091ui2', platforms: ['web', 'server'], text: 'Détails de vente rapide et de facture simplifiés, remboursement conservé dans les actions ; contraste du logo QR imprimé amélioré.' },
+      { id: '091ui3', platforms: ['web', 'server'], text: 'Rapports TVA : les ventes rapides sont classées sans TVA ; les anciens montants enregistrés ne sont pas réécrits. Les devis convertis en vente rapide conservent leurs prix unitaires sans TVA ; les devis déjà payés exigent une régularisation préalable.' },
+      { id: '091ui4', platforms: ['web', 'server'], text: 'Demandes mobiles de stock : l’utilisateur connecté qui les traite est enregistré comme approbateur du mouvement ; les identités absentes des anciens enregistrements restent inconnues.' },
     ] }],
   },
   {

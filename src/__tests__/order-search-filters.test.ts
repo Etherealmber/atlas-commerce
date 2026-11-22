@@ -32,3 +32,24 @@ it.each([
   expect(api[method]).toHaveBeenCalledWith('paid', ...(method === 'getInvoices' && Page === QuickSale ? [{kind:'quick_sale'}] : []));
   expect((host.querySelector('.ac-products-filters select') as unknown as HTMLSelectElement)?.value).toBe('paid');
 });
+
+it('keeps the invoice refresh and creation actions in the requested order, including client-filter context', async () => {
+  await act(async () => root.render(createElement(MemoryRouter,{initialEntries:['/invoices?client=7']},createElement(Invoices))));
+  expect(host.textContent).toContain('Filtré par client #7');
+  const header=host.querySelector('.page-header')!;
+  expect(header.querySelector('h1')?.classList.contains('sr-only')).toBe(true);
+  expect(header.querySelector('.dock-page-actions')).not.toBeNull();
+  const buttons=[...header.querySelectorAll('button')];
+  expect(buttons.map(b=>b.getAttribute('aria-label') || b.textContent?.trim())).toEqual(['Actualiser','+ Remboursement (WR)','Créer une facture']);
+  expect(header.textContent).not.toContain('Exporter les créances');
+  expect(header.textContent).not.toContain('Télécharger le CSV');
+  await act(async () => buttons[2].click());
+  expect(document.body.textContent).toContain('Nouvelle facture de vente');
+});
+
+it('opens refund independently after its position is swapped', async () => {
+  await act(async () => root.render(createElement(MemoryRouter,{initialEntries:['/invoices']},createElement(Invoices))));
+  const refund=[...host.querySelectorAll<HTMLButtonElement>('.page-header button')].find(b=>b.textContent?.includes('Remboursement'))!;
+  await act(async () => refund.click());
+  expect(document.body.textContent).toContain('Remboursement / avoir (code WR)');
+});

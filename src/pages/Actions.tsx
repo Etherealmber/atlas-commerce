@@ -1,3 +1,4 @@
+import TopPageActions from '../components/TopPageActions';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
@@ -15,6 +16,8 @@ type Action = {
   status: string;
   created_at: string;
   completed_at?: string;
+  created_by?: string;
+  completed_by?: string;
   product_id?: number;
   meta_json?: string;
 };
@@ -58,9 +61,12 @@ export default function Actions() {
     barcode: '',
     price: '',
     cost: '',
+    invoice_price_mode: 'exclusive',
     stock: '0',
     category: 'Épicerie',
     unit: 'unité',
+    secondary_unit: '',
+    secondary_unit_factor: '',
     image_data_url: '' as string,
     image_url: '' as string,
   });
@@ -115,9 +121,12 @@ export default function Actions() {
       barcode,
       price: body.unit_price != null ? String(body.unit_price) : body.price != null ? String(body.price) : '',
       cost: body.cost != null ? String(body.cost) : '',
+      invoice_price_mode: 'exclusive',
       stock: body.stock_quantity != null ? String(body.stock_quantity) : '0',
       category: body.category || 'Épicerie',
       unit: body.unit || 'unité',
+      secondary_unit: String(body.secondary_unit || ''),
+      secondary_unit_factor: body.secondary_unit_factor != null ? String(body.secondary_unit_factor) : '',
       image_data_url: String(body.image_data_url || body.data_url || meta.image_data_url || ''),
       image_url: String(body.image_url || meta.image_url || ''),
     });
@@ -135,6 +144,12 @@ export default function Actions() {
       toast('Prix invalide', 'error');
       return;
     }
+    const second = form.secondary_unit.trim();
+    const rawFactor = form.secondary_unit_factor.trim();
+    const factor = Number(rawFactor.replace(',', '.'));
+    if ((second || rawFactor) && (!second || !rawFactor || !Number.isFinite(factor) || factor <= 0 || factor > 1_000_000_000 || second.toLowerCase() === form.unit.trim().toLowerCase())) {
+      setErr('Indiquez une deuxième unité différente et un coefficient positif valide.'); return;
+    }
     const sku = (form.sku.trim() || autoSku(form.name, form.barcode)).toUpperCase();
     setBusy(true);
     try {
@@ -148,8 +163,9 @@ export default function Actions() {
         stock_quantity: Number(form.stock) || 0,
         category: form.category || 'Épicerie',
         unit: form.unit || 'unité',
+        ...(second ? { secondary_unit: second, secondary_unit_factor: factor } : {}),
         track_inventory: true,
-        tax_rate: 20,
+        invoice_price_mode: form.invoice_price_mode,
       };
       if (form.image_url) body.image_url = form.image_url;
       const created: any = await api.createProduct(body);
@@ -181,7 +197,9 @@ export default function Actions() {
             stock_quantity: Number(form.stock) || 0,
             category: form.category || 'Épicerie',
             unit: form.unit || 'unité',
+            ...(second ? { secondary_unit: second, secondary_unit_factor: factor } : {}),
             track_inventory: true,
+            invoice_price_mode: form.invoice_price_mode,
             force_duplicate: true,
           });
           await api.completeMobileAction(approve.id, { completed_by: 'pc' });
@@ -344,12 +362,12 @@ export default function Actions() {
             Scans et demandes du téléphone — validez ici.
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <TopPageActions>
           <Link to="/products" className="btn secondary" style={{ textDecoration: 'none' }}>
             Produits
           </Link>
           <RefreshIconButton onClick={() => load(true)} />
-        </div>
+        </TopPageActions>
       </div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
         {(['pending', 'done', 'all'] as const).map((t) => (
@@ -434,6 +452,10 @@ export default function Actions() {
                 <div className="muted" style={{ fontSize: 13 }}>
                   {a.detail}
                 </div>
+                {(a.created_by && !['mobile', 'mobile-offline', 'pc'].includes(a.created_by.toLowerCase()) || a.completed_by && a.completed_by.toLowerCase() !== 'pc') && <div className="muted" style={{ fontSize: 12 }}>
+                  {a.created_by && !['mobile', 'mobile-offline', 'pc'].includes(a.created_by.toLowerCase()) && <span>Demandé par {a.created_by}</span>}
+                  {a.completed_by && a.completed_by.toLowerCase() !== 'pc' && <span> · {a.status === 'cancelled' ? 'Refusé' : 'Traité'} par {a.completed_by}</span>}
+                </div>}
                 {stockNeeded && meta.proposed_stock != null && (
                   <div style={{ fontSize: 13, marginTop: 4 }}>
                     Stock proposé : <strong>{meta.proposed_stock}</strong>
@@ -520,6 +542,7 @@ export default function Actions() {
               <label>Prix (MAD)</label>
               <input value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} inputMode="decimal" />
             </div>
+            <div className="form-row"><label>Prix sur facture</label><select value={form.invoice_price_mode} onChange={(e) => setForm({ ...form, invoice_price_mode: e.target.value })}><option value="exclusive">TVA ajoutée au prix (HT)</option><option value="inclusive">TVA incluse dans le prix (TTC)</option></select><small>Pour les ventes rapides, le prix reste sans TVA.</small></div>
             <div className="form-row">
               <label>Coût (MAD)</label>
               <input value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} inputMode="decimal" />
@@ -536,6 +559,8 @@ export default function Actions() {
               <label>Unité</label>
               <input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
             </div>
+            <div className="form-row"><label>Deuxième unité (facultatif)</label><input value={form.secondary_unit} maxLength={40} onChange={e => setForm({ ...form, secondary_unit: e.target.value })} placeholder="Ex. m²" /></div>
+            <div className="form-row"><label>Quantité par {form.unit || 'unité'}</label><input value={form.secondary_unit_factor} inputMode="decimal" onChange={e => setForm({ ...form, secondary_unit_factor: e.target.value })} placeholder="Ex. 1,59" /><small>Le stock et le prix restent enregistrés par unité principale.</small></div>
             {(form.image_data_url || form.image_url) && (
               <div className="form-row">
                 <label>Photo (téléphone) — recadrez / tournez avant d’approuver</label>

@@ -1,6 +1,8 @@
+import DocumentActors from '../components/DocumentActors';
+import TopPageActions from '../components/TopPageActions';
 import { printInvoiceTicket } from '../lib/thermal';
 import { useEffect, useState } from 'react';
-import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { api, BASE } from '../api';
 import { getToken } from '../auth';
 import { statusFr, statusBadgeClass } from '../lib/labels';
@@ -154,32 +156,9 @@ export default function QuickSaleDetail() {
 
   return (
     <div>
-      {!cancelled && ticket.status !== 'remboursement' && (
-        <div className="card" style={{ marginBottom: 12, padding: '10px 14px', fontSize: 13, lineHeight: 1.45 }}>
-          <strong>Remboursement WR</strong> — ce ticket VR peut faire l’objet d’un avoir (série WR-),
-          sans TVA. S’il est déjà encaissé, la sortie apparaît dans Solde.
-          {' '}
-          <button type="button" className="secondary" style={{ marginLeft: 8 }} onClick={goRefund}>
-            Créer un WR…
-          </button>
-        </div>
-      )}
-      <div className="page-header">
-        <div>
-          <Link to="/quick-sale" style={{ fontSize: 13, color: 'var(--muted)' }}>
-            ← Retour aux ventes rapides
-          </Link>
-          <h1 style={{ marginTop: 4 }}>
-            Ticket {ticket.number}
-            <span className={`badge ${statusBadgeClass(ticket.status)}`} style={{ marginLeft: 10, fontSize: 13 }}>
-              {statusFr(ticket.status)}
-            </span>
-          </h1>
-          <p style={{ color: 'var(--muted)', fontSize: 14 }}>
-            Vente rapide (série VR) — sans TVA · stock déduit à l’encaissement
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <div className="page-header dock-page-header">
+        <h1 className="sr-only">Ticket {ticket.number}</h1>
+        <TopPageActions>
           <a
             className="btn secondary"
             href={`${BASE}/api/invoices/${ticket.id}/print?token=${encodeURIComponent(token)}`}
@@ -210,6 +189,7 @@ export default function QuickSaleDetail() {
           >
             PDF
           </a>
+          {!cancelled && ticket.status !== 'remboursement' && <button type="button" className="secondary" onClick={goRefund}>Créer un remboursement</button>}
           {!cancelled && (
             <button type="button" className="secondary" onClick={() => void cancelTicket()}>
               Annuler (stock)
@@ -218,7 +198,7 @@ export default function QuickSaleDetail() {
           <button type="button" className="danger" onClick={() => void requestDelete()}>
             Supprimer
           </button>
-        </div>
+        </TopPageActions>
       </div>
 
       <SaveFeedback message={msg} type={msgType} />
@@ -231,8 +211,9 @@ export default function QuickSaleDetail() {
           {ticket.client_phone && <p style={{ margin: '4px 0 0', fontSize: 13 }}>{ticket.client_phone}</p>}
         </div>
         <div className="card">
-          <h3 style={{ fontSize: 15, marginTop: 0 }}>Ticket</h3>
+          <h3 style={{ fontSize: 15, marginTop: 0 }}>Ticket {ticket.number} <span className={`badge ${statusBadgeClass(ticket.status)}`}>{statusFr(ticket.status)}</span></h3>
           <p style={{ margin: 0, fontSize: 13 }}>Date : {ticket.issue_date || '—'}</p>
+          <DocumentActors document={ticket} />
           <p style={{ margin: '4px 0 0', fontSize: 13 }}>Total : <strong>{fmt(ticket.total)}</strong></p>
           <p style={{ margin: '4px 0 0', fontSize: 13 }}>Payé : {fmt(ticket.amount_paid || 0)}</p>
           <p style={{ margin: '4px 0 0', fontSize: 13 }}>
@@ -244,6 +225,7 @@ export default function QuickSaleDetail() {
         </div>
       </div>
 
+      {Math.abs(Number(ticket.tax_amount || 0)) > 0.001 && <p role="alert">Ce ticket historique contient une TVA enregistrée. Ses montants et paiements n’ont pas été modifiés ; une régularisation est nécessaire.</p>}
       <div className="card" style={{ marginBottom: 16 }}>
         <h3 style={{ fontSize: 15, marginTop: 0 }}>Lignes (sans TVA)</h3>
         <table>

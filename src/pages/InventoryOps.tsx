@@ -151,15 +151,7 @@ export default function InventoryOps() {
 
   return (
     <div className="atlas-page">
-      <p className="atlas-eyebrow">Stock</p>
-      <div className="page-header">
-        <div>
-          <h1 className="atlas-hello" style={{ fontSize: '1.75rem' }}>Opérations stock</h1>
-          <p className="atlas-lead">
-            Emplacements réels, stock par entrepôt, totaux par catégorie, transferts.
-          </p>
-        </div>
-      </div>
+      <h1 className="sr-only">Opérations stock</h1>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
         {(

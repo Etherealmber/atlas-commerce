@@ -109,13 +109,7 @@ export default function Reports() {
 
   return (
     <div className="atlas-page">
-      <p className="atlas-eyebrow">Pilotage</p>
-      <div className="page-header">
-        <div>
-          <h1 className="atlas-hello" style={{ fontSize: '1.75rem' }}>Rapports &amp; clôture</h1>
-          <p className="atlas-lead">Balance âgée, TVA, réapprovisionnement, période fiscale.</p>
-        </div>
-      </div>
+      <h1 className="sr-only">Rapports &amp; clôture</h1>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
         {(

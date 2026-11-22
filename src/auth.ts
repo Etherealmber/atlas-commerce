@@ -1,5 +1,6 @@
 import { getCachedFingerprint } from './fingerprint';
 import { getApiBase } from './config';
+import { invalidateGetCache } from './lib/perf';
 
 const TOKEN_KEY = 'stock_auth_token';
 const SESSION_IP_KEY = 'stock_session_ip';
@@ -208,6 +209,44 @@ export function isLoggedIn(): boolean {
   return !!getToken();
 }
 
+type RoleRefreshResult = 'updated' | 'invalid' | 'unavailable' | 'switched';
+const roleRefreshes = new Map<string, Promise<RoleRefreshResult>>();
+const roleTransitions = new Map<string, string>();
+
+export function getRefreshedTokenFor(token: string): string | null {
+  const next = roleTransitions.get(token);
+  return next && getToken() === next ? next : null;
+}
+
+/** Exchange a stale-role proof only after the server has rejected a request. */
+export function refreshSessionRole(token: string, fingerprint: string): Promise<RoleRefreshResult> {
+  if (getToken() !== token) return Promise.resolve(roleTransitions.get(token) === getToken() ? 'updated' : 'switched');
+  const inFlight = roleRefreshes.get(token);
+  if (inFlight) return inFlight;
+  const pending: Promise<RoleRefreshResult> = (async () => {
+    try {
+      const res = await fetch(`${getApiBase()}/api/auth/role-refresh`, {
+        method: 'POST', headers: { Authorization: `Bearer ${token}`, 'X-Device-Fingerprint': fingerprint || 'none' },
+      });
+      if (getToken() !== token) return 'switched';
+      if (res.status === 401) return 'invalid';
+      if (!res.ok) return 'unavailable';
+      const body: any = await res.json();
+      const data = body?.data;
+      if (!body?.success || typeof data?.token !== 'string' || !data.token || data.username !== getUsername() || !['owner', 'admin', 'secretaire', 'stock', 'user'].includes(data.role)) return 'unavailable';
+      if (getToken() !== token) return 'switched';
+      roleTransitions.clear();
+      roleTransitions.set(token, data.token);
+      setToken(data.token, undefined, data.username, data.role);
+      invalidateGetCache();
+      setProfileCache({ username: data.username, role: data.role });
+      return 'updated';
+    } catch { return 'unavailable'; }
+  })().finally(() => { roleRefreshes.delete(token); });
+  roleRefreshes.set(token, pending);
+  return pending;
+}
+
 export function startSessionGuard(): () => void {
   let stopped = false;
 
@@ -220,20 +259,33 @@ export function startSessionGuard(): () => void {
         getCachedFingerprint().catch(() => 'none'),
         new Promise<string>((r) => setTimeout(() => r('none'), 2500)),
       ]);
-      const res = await fetch(`${getApiBase()}/api/auth/me`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'X-Device-Fingerprint': fp || 'none',
-        },
+      let res = await fetch(`${getApiBase()}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${token}`, 'X-Device-Fingerprint': fp || 'none' },
       });
-      const data = await res.json().catch(() => ({}));
+      let data: any = await res.json().catch(() => ({}));
+      if (stopped || getToken() !== token) return;
+      if (res.status === 409 && data.code === 'ROLE_CHANGED') {
+        const refresh = await refreshSessionRole(token, fp);
+        if (stopped || refresh === 'switched' || refresh === 'unavailable') return;
+        if (refresh === 'invalid') {
+          if (getToken() !== token) return;
+          clearToken();
+          if (!window.location.pathname.includes('/login')) window.location.href = '/login?reason=UNAUTHORIZED';
+          return;
+        }
+        const current = getRefreshedTokenFor(token);
+        if (!current) return;
+        res = await fetch(`${getApiBase()}/api/auth/me`, { headers: { Authorization: `Bearer ${current}`, 'X-Device-Fingerprint': fp || 'none' } });
+        data = await res.json().catch(() => ({}));
+        if (stopped || getToken() !== current) return;
+      }
       if (res.status === 401) {
         clearToken();
         const code = data.code || 'UNAUTHORIZED';
         if (!window.location.pathname.includes('/login')) {
           window.location.href = '/login?reason=' + encodeURIComponent(code);
         }
-      } else {
+      } else if (res.ok) {
         const m = data?.data || data || {};
         // v0.7.7 — le refresh /me doit AUSSI rafraîchir l'UI : on compare avant/après
         // et on passe par setProfileCache (dispatch atlas-profile-changed + avatar)
@@ -264,14 +316,14 @@ export function startSessionGuard(): () => void {
   const interval = window.setInterval(check, 20_000);
   const onFocus = () => check();
   window.addEventListener('focus', onFocus);
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') check();
-  });
+  const onVisibility = () => { if (document.visibilityState === 'visible') check(); };
+  document.addEventListener('visibilitychange', onVisibility);
 
   return () => {
     stopped = true;
     window.clearInterval(interval);
     window.removeEventListener('focus', onFocus);
+    document.removeEventListener('visibilitychange', onVisibility);
   };
 }
 

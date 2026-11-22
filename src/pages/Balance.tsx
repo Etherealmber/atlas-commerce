@@ -1,3 +1,4 @@
+import TopPageActions from '../components/TopPageActions';
 import { suggestExpenseCategory } from '../lib/assist';
 import DatePicker from '../components/DatePicker';
 import { useWizard, StepBody, WizardFoot } from '../components/ui/FormWizard';
@@ -414,21 +415,15 @@ export default function Balance() {
 
   return (
     <div className="atlas-page balance-page">
-      <p className="atlas-eyebrow">Trésorerie</p>
-      <div className="page-header" style={{ alignItems: 'flex-start' }}>
-        <div>
-          <h1 className="atlas-hello" style={{ fontSize: '1.75rem' }}>Solde &amp; mouvements</h1>
-          <p className="atlas-lead" style={{ marginBottom: 0 }}>
-            Caisse, banque, apports et prélèvements. Rapports PDF imprimables.
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div className="page-header dock-page-header">
+        <h1 className="sr-only">Solde &amp; mouvements</h1>
+        <TopPageActions>
           <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
           <button className="secondary" onClick={() => openNew('income')}>+ Recette</button>
           <button className="secondary" onClick={() => openNew('owner_contrib')}>+ Apport</button>
           <button className="secondary" onClick={() => openNew('owner_draw')}>+ Prélèvement</button>
           <button onClick={() => openNew('expense')}>+ Dépense</button>
-        </div>
+        </TopPageActions>
       </div>
 
       {loadError && <p role="alert">{loadError}</p>}

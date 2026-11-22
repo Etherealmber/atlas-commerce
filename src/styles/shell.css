@@ -2898,3 +2898,44 @@ html body .ac-desktop-dock .ac-dock-back {
 html body .ac-desktop-dock .ac-dock-back:hover { background: var(--ac-nav-hover); }
 html body .ac-desktop-dock .ac-dock-back:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 html body .ac-desktop-dock .ac-dock-back svg { display: block; width: 20px; height: 20px; flex: none; stroke: currentColor; fill: none; }
+
+/* On pages whose title lives in the dock, keep the remaining header actions
+   against the right edge and allow them to wrap on narrow screens. */
+html body .dock-page-header > .dock-page-actions {
+  margin-left: auto;
+  justify-content: flex-end;
+  max-width: 100%;
+}
+
+/* Page actions use the same top-right slot as Products when enough room is
+   available. Otherwise the component stays in normal flow. */
+.top-page-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.desktop-catalog-actions-slot:empty { display: none; }
+@media (min-width: 1500px) {
+  .ac-main-column > .desktop-catalog-actions-slot:not(:empty) {
+    position: absolute; top: 15px; right: 16px; z-index: 30;
+    max-width: calc((100% - 480px) / 2 - 40px);
+  }
+  .desktop-catalog-actions-slot > .top-page-actions { flex-wrap: nowrap; }
+  .dock-page-header:has(> .dock-actions-placeholder[data-docked="true"]) {
+    height: 0; min-height: 0; margin: 0 !important; padding: 0 !important;
+  }
+}
+html body .desktop-catalog-actions-slot .top-page-actions > button:not(.secondary):not(.danger):not(.icon-refresh-btn),
+html body .desktop-catalog-actions-slot .top-page-actions > .btn:not(.secondary):not(.danger) {
+  background: var(--ac-primary) !important; color: var(--ac-primary-fg) !important; border: 0 !important;
+}
+html body .desktop-catalog-actions-slot .top-page-actions > button.secondary:not(.icon-refresh-btn),
+html body .desktop-catalog-actions-slot .top-page-actions > .btn.secondary {
+  background: var(--ac-paper) !important; color: var(--ac-ink) !important; border: 1px solid var(--ac-line) !important;
+}
+
+/* A little lift on hover without affecting touch or reduced-motion users. */
+@media (min-width: 901px) and (hover: hover) and (pointer: fine) {
+  html body .ac-main-column > .ac-desktop-dock:hover { transform: scale(1.06); transform-origin: top center; }
+}
+@media (prefers-reduced-motion: reduce) and (min-width: 901px) {
+  html body .ac-main-column > .ac-desktop-dock:hover { transform: none; }
+}
+/* The phone employee directory retains its existing in-page alignment. */
+.employees-page--phone .top-page-actions { justify-content: flex-start; }

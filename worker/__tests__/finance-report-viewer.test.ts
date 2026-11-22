@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mintScopedReportTicket, reportTicketTtl, verifyScopedReportTicket } from '../lib/report-ticket';
+import { mintScopedReportTicket, reportTicketTtl, verifyScopedReportTicket, verifyScopedPrintTicket, mintScopedPrintTicket } from '../lib/report-ticket';
 const SQLITE_MODULE = ['node:', 'sqlite'].join('');
 const { DatabaseSync } = (await import(SQLITE_MODULE)) as { DatabaseSync: new (path: string) => any };
 const { default: app } = await import('../index');
@@ -75,6 +75,8 @@ describe('finance report viewing', () => {
     expect(printRes.headers.get('cache-control')).toContain('no-store');
     const printRt = (await printRes.json() as any).data.rt;
     expect((await request(`/api/reports/balance?rt=${printRt}`)).status).toBe(401);
+    expect(await verifyScopedPrintTicket(env, printRt, 'admin')).toBe(true);
+    expect((await request(`/api/invoices/999/print?rt=${printRt}`)).status).toBe(404);
     expect((await request('/api/reports/link-ticket', await token('bob', 'admin', 'stock'))).status).toBe(401);
     const ownerRes = await request('/api/reports/link-ticket', await ownerToken());
     expect(ownerRes.status).toBe(200);
@@ -89,6 +91,18 @@ describe('finance report viewing', () => {
     expect((await request('/api/reports/balance?rt=forged')).status).toBe(401);
     sqlite.exec("UPDATE app_users SET role='stock' WHERE username='alice'");
     expect((await request(`/api/reports/balance?rt=${rt}`)).status).toBe(401);
+    expect(await verifyScopedPrintTicket(env, printRt, 'admin')).toBe(false);
+    expect((await request(`/api/invoices/1/print?rt=${printRt}`)).status).toBe(401);
+  });
+  it('revokes a device-bound print capability with its device or password', async () => {
+    sqlite.exec(`CREATE TABLE trusted_devices (fingerprint TEXT PRIMARY KEY, username TEXT); INSERT INTO trusted_devices VALUES ('device-a','alice');`);
+    const identity = { username:'alice', role:'admin' as const, userId:1, tenant:'main' };
+    const { rt } = await mintScopedPrintTicket(env, identity, 'admin', 'device-a');
+    expect(await verifyScopedPrintTicket(env, rt, 'admin')).toBe(true);
+    sqlite.exec(`DELETE FROM trusted_devices WHERE fingerprint='device-a'`);
+    expect(await verifyScopedPrintTicket(env, rt, 'admin')).toBe(false);
+    sqlite.exec(`INSERT INTO trusted_devices VALUES ('device-a','alice'); UPDATE app_users SET password_hash='new' WHERE username='alice'`);
+    expect(await verifyScopedPrintTicket(env, rt, 'admin')).toBe(false);
   });
   it('bounds configurable expiry, checks signature before expiry and isolates account/tenant', async () => {
     const ident = { username: 'alice', role: 'admin' as const, userId: 1, tenant: 'main' };

@@ -1,3 +1,4 @@
+import TopPageActions from '../components/TopPageActions';
 import { TimedUndoDelete } from '../components/ui';
 import { onAgentDraft } from '../lib/agentDraft';
 import { useEffect, useState } from 'react';
@@ -583,7 +584,7 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
       </button>
       {Number(e.active) !== 0 && (
         <>
-          <button type="button" className="success" onClick={() => openPay(e)}>
+          <button type="button" className="secondary" onClick={() => openPay(e)}>
             Marquer payé
           </button>
           <button
@@ -618,9 +619,9 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
 
   return (
     <div className={`atlas-crm employees-page${phone ? ' employees-page--phone' : ''}`}>
-      <div className="page-header">
-        <h1>Employés</h1>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div className={`page-header${phone ? "" : " dock-page-header"}`}>
+        <h1 className={phone ? undefined : "sr-only"}>Employés</h1>
+        <TopPageActions enabled={!phone}>
           <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
           <button
             type="button"
@@ -633,7 +634,7 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
           <button type="button" onClick={openCreate}>
             + Ajouter un employé
           </button>
-        </div>
+        </TopPageActions>
       </div>
 
       <SaveFeedback message={msg} type={msgType} />

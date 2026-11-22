@@ -1,3 +1,4 @@
+import TopPageActions from '../components/TopPageActions';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, BASE } from '../api';
@@ -353,7 +354,7 @@ export default function Attendance() {
     <div className="atlas-crm attendance-page">
       <div className="page-header">
         <h1>Présence / pointage</h1>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <TopPageActions>
           <div style={{ minWidth: 150 }}>
             <DatePicker value={date} onChange={setDate} />
           </div>
@@ -383,7 +384,7 @@ export default function Attendance() {
           >
             Employés / paie
           </Link>
-        </div>
+        </TopPageActions>
       </div>
       <SaveFeedback message={msg} type={msgType} />
 

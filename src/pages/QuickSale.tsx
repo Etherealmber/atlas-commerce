@@ -1,3 +1,4 @@
+import TopPageActions from '../components/TopPageActions';
 import { useEffect, useState } from 'react';
 import DatePicker from '../components/DatePicker';
 import { matchProducts } from '../lib/assist';
@@ -458,14 +459,9 @@ export default function QuickSale() {
 
   return (
     <div className="atlas-orders quicksale-page">
-      <div className="page-header">
-        <div>
-          <h1>Vente rapide</h1>
-          <p style={{ color: 'var(--muted)', fontSize: 14, marginTop: 4 }}>
-            Tickets caisse série VR — sans TVA. Le paiement n’est pas appliqué automatiquement : encaissement depuis le ticket. Distinct des factures FA.
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div className="page-header dock-page-header">
+        <h1 className="sr-only">Vente rapide</h1>
+        <TopPageActions>
           <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
           <button
             type="button"
@@ -477,7 +473,7 @@ export default function QuickSale() {
           </button>
 
           <button onClick={() => { resetForm(); setModalError(''); wz.reset(); setShowModal(true); }}>+ Nouvelle vente</button>
-        </div>
+        </TopPageActions>
       </div>
 
       

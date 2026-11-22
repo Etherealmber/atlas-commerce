@@ -6,6 +6,7 @@ import { invalidateAvatarCache } from '../lib/avatarCache';
 import { resetWelcome } from '../lib/welcome';
 import { useProfileWarm, useProfileTick } from '../lib/useProfileWarm';
 import { AvatarImage } from './ui/AvatarImage';
+import { Settings as SettingsIcon, Info } from 'lucide-react';
 
 const LOGO_DARK = '/atlas-logo-dark.png';
 const LOGO_LIGHT = '/atlas-logo-light.png';
@@ -217,12 +218,12 @@ export function PublicProfileChip() {
           />
           <div className="settings-topbar-menu" role="menu">
             <button type="button" role="menuitem" className="secondary settings-topbar-menu-item" onClick={() => { setOpen(false); window.location.assign('/settings'); }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" aria-hidden><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82V9c.26-.6.98-1.01 1.64-1.01H21a2 2 0 1 0 0-4h-.09a1.65 1.65 0 0 1-1.51-1z" /></svg>
+              <SettingsIcon size={16} aria-hidden="true" />
               Paramètres
             </button>
             {window.location.pathname !== '/about' && (
             <button type="button" role="menuitem" className="secondary settings-topbar-menu-item" onClick={() => { setOpen(false); window.location.assign('/about'); }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" aria-hidden><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></svg>
+              <Info size={16} aria-hidden="true" />
               À propos
             </button>
             )}

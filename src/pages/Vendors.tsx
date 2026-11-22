@@ -1,3 +1,4 @@
+import TopPageActions from '../components/TopPageActions';
 import { TimedUndoDelete } from '../components/ui';
 import { useEffect, useState } from 'react';
 import { api } from '../api';
@@ -5,7 +6,6 @@ import PasswordConfirm from '../components/PasswordConfirm';
 import SaveFeedback from '../components/SaveFeedback';
 import { validateVendorForm, firstError } from '../lib/formValidate';
 import EmptyState from '../components/EmptyState';
-import { SupplierPartsPanel } from '../components/atlas-v209-panels';
 import RefreshIconButton from '../components/RefreshIconButton';
 import '../components/erp/crm-parties.css';
 import { FloatingPortal } from '../components/FloatingPortal';
@@ -112,12 +112,12 @@ export default function Vendors() {
 
   return (
     <div className="atlas-crm vendors-page">
-      <div className="page-header">
-        <h1>Fournisseurs</h1>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div className="page-header dock-page-header">
+        <h1 className="sr-only">Fournisseurs</h1>
+        <TopPageActions>
           <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
           <button onClick={() => { setEditId(null); setForm({ name: '', ice: '', if_number: '', address: '', city: '', phone: '', email: '' }); wz.reset(); setShow(true); }}>+ Nouveau fournisseur</button>
-        </div>
+        </TopPageActions>
       </div>
 
       <SaveFeedback message={saveMsg} type={saveMsgType} />
@@ -256,7 +256,6 @@ export default function Vendors() {
           onConfirm={async (password) => { await pendingAction(password); }}
         />
       )}
-      <SupplierPartsPanel />
     </div>
   );
 }

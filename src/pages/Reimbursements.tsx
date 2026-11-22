@@ -1,3 +1,5 @@
+import DocumentActors from '../components/DocumentActors';
+import TopPageActions from '../components/TopPageActions';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
@@ -136,19 +138,14 @@ export default function Reimbursements() {
 
   return (
     <div>
-      <div className="page-header">
-        <div>
-          <h1>Remboursements</h1>
-          <p style={{ color: 'var(--muted)', fontSize: 14, marginTop: 4 }}>
-            Documents WR exclusivement — isolés des factures FA, devis et tickets VR.
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div className="page-header dock-page-header">
+        <h1 className="sr-only">Remboursements</h1>
+        <TopPageActions>
           <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
           <button type="button" onClick={() => setShowCreate(true)}>
             + Remboursement (WR)
           </button>
-        </div>
+        </TopPageActions>
       </div>
 
       <SaveFeedback message={saveMsg} type={saveMsgType} />
@@ -186,6 +183,7 @@ export default function Reimbursements() {
                 <tr key={inv.id}>
                   <td>
                     <strong>{inv.number}</strong>
+          <DocumentActors document={inv} />
                     {inv.refund_of_invoice_id ? (
                       <div style={{ fontSize: 12, color: 'var(--muted)' }}>
                         Source #{inv.refund_of_invoice_id}

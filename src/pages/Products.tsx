@@ -6,6 +6,7 @@ import { draftProductFromFile } from '../lib/assist';
 import { validateProductForm, firstError } from '../lib/formValidate';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import TopPageActions from '../components/TopPageActions';
 import { useDebouncedValue } from '../lib/perf';
 import { api } from '../api';
 import SaveFeedback from '../components/SaveFeedback';
@@ -17,6 +18,8 @@ import VirtualTableBody, { VirtualScroll } from '../components/VirtualTableBody'
 import { canAccessAdminSettings, canSell, sanitizePreviewUrl } from '../auth';
 import { Grid2X2, List, Pencil, SlidersHorizontal, Tags } from 'lucide-react';
 import ProductArtwork from '../components/ProductArtwork';
+import { phoneStockIsLow, phoneStockQuantity } from '../mobile/phoneStock';
+import { dualStockLabel } from '../lib/dualUnit';
 import './product-history.css';
 import './products-mobile-style.css';
 import './catalog-actions.css';
@@ -95,15 +98,6 @@ export default function Products() {
   const [placements, setPlacements] = useState<Record<number, any>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [actionTarget, setActionTarget] = useState<HTMLElement | null>(null);
-  useEffect(() => {
-    if (typeof window.matchMedia !== 'function') return;
-    const query = window.matchMedia('(min-width: 1500px)');
-    const update = () => setActionTarget(query.matches ? document.getElementById('desktop-catalog-actions') : null);
-    update();
-    query.addEventListener('change', update);
-    return () => query.removeEventListener('change', update);
-  }, []);
   const [show, setShow] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const wz = useWizard(editing ? 6 : 5);
@@ -138,8 +132,8 @@ export default function Products() {
   const [savingVariant, setSavingVariant] = useState(false);
 
   const emptyForm = {
-    name: '', sku: '', description: '', category: 'Général', unit: 'unité', price: 0, cost: 0,
-    stock_quantity: 0, low_stock_threshold: 5, track_inventory: 1, barcode: '', tax_rate: '', location_id: 0,
+    name: '', sku: '', description: '', category: 'Général', unit: 'unité', secondary_unit: '', secondary_unit_factor: '', price: 0, cost: 0,
+    stock_quantity: 0, low_stock_threshold: 5, track_inventory: 1, barcode: '', tax_rate: '', invoice_price_mode: 'exclusive', location_id: 0,
     bulk_qty_1: '', bulk_pct_1: '', bulk_qty_2: '', bulk_pct_2: '',
     lot_number: '',
     expiry_date: '',
@@ -315,6 +309,20 @@ export default function Products() {
     }
   };
 
+  const detailActionDone = useRef(false);
+  useEffect(() => {
+    const state = location.state as { productAction?: 'edit' | 'stock'; productId?: number } | null;
+    if (detailActionDone.current || !state?.productId || !state.productAction) return;
+    detailActionDone.current = true;
+    window.history.replaceState({ ...window.history.state, usr: null }, '');
+    api.getProduct(state.productId).then(res => {
+      if (!res.data) throw new Error('Produit introuvable');
+      if (state.productAction === 'edit') void openEdit(res.data);
+      else if (res.data.track_inventory) { setModalError(''); setAdjustProduct(res.data); }
+      else flash('Le suivi du stock est désactivé pour ce produit.', 'error');
+    }).catch((e: any) => flash(e?.message || 'Impossible de charger le produit.', 'error'));
+  }, [location.state]);
+
   const saveVariant = async () => {
     if (!editing?.id) return;
     if (!variantForm.variant_label.trim()) {
@@ -373,6 +381,8 @@ export default function Products() {
       description: form.description ?? '',
       category: form.category,
       unit: form.unit,
+      secondary_unit: String(form.secondary_unit || '').trim() || null,
+      secondary_unit_factor: form.secondary_unit_factor === '' || form.secondary_unit_factor == null ? null : Number(String(form.secondary_unit_factor).replace(',', '.')),
       barcode: form.barcode ?? '',
       lot_number: form.lot_number || '',
       expiry_date: form.expiry_date || '',
@@ -382,6 +392,7 @@ export default function Products() {
       low_stock_threshold: Number(form.low_stock_threshold) || 0,
       track_inventory: form.track_inventory ? 1 : 0,
       tax_rate: form.tax_rate === '' || form.tax_rate == null ? null : Number(form.tax_rate),
+      invoice_price_mode: form.invoice_price_mode || null,
       bulk_discounts: bulk,
     };
     // stock only on create (edit uses adjust-stock)
@@ -394,6 +405,14 @@ export default function Products() {
   };
 
   const save = async (force = false) => {
+    const secondUnit = String(form.secondary_unit || '').trim();
+    const rawFactor = String(form.secondary_unit_factor ?? '').trim();
+    const factor = Number(rawFactor.replace(',', '.'));
+    if ((secondUnit || rawFactor) && (!secondUnit || !rawFactor || !Number.isFinite(factor) || factor <= 0 || factor > 1_000_000_000 || secondUnit.toLowerCase() === String(form.unit || '').trim().toLowerCase())) {
+      setModalError('Indiquez une deuxième unité différente et un coefficient positif valide.');
+      return;
+    }
+    setModalError('');
     const fe = validateProductForm(form);
     setFieldErrors(fe);
     if (Object.keys(fe).length) return; // erreurs affichées sous chaque champ
@@ -566,9 +585,19 @@ export default function Products() {
   })();
 
   const actionButtons = (
-        <div className="product-page-actions__buttons">
+        <>
           <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
-          {selected.size > 0 && (
+          <button onClick={openNew}>Ajouter un produit</button>
+        </>
+  );
+  return (
+    <div className="atlas-catalog ac-products">
+      <div className="page-header ac-page-header product-page-actions dock-page-header">
+        <h1 className="sr-only">Produits &amp; stock</h1>
+        <TopPageActions>{actionButtons}</TopPageActions>
+      </div>
+
+      {selected.size > 0 && <div className="product-selection-bar" role="status"><span>{selected.size} produit{selected.size === 1 ? '' : 's'} sélectionné{selected.size === 1 ? '' : 's'}</span>          {selected.size > 0 && (
             <TimedUndoDelete
               deleteLabel={selected.size === 1 ? 'Supprimer' : `Supprimer (${selected.size})`}
               undoLabel="Annuler"
@@ -593,17 +622,7 @@ export default function Products() {
               }}
             />
           )}
-          <button onClick={openNew}>Ajouter un produit</button>
-        </div>
-  );
-  const useTopActions = !!actionTarget && selected.size === 0;
-  return (
-    <div className="atlas-catalog ac-products">
-      <div className={`page-header ac-page-header product-page-actions${useTopActions ? ' is-docked' : ''}`}>
-        <h1 className="sr-only">Produits &amp; stock</h1>
-        {useTopActions ? createPortal(actionButtons, actionTarget) : actionButtons}
-      </div>
-
+<button type="button" className="secondary" onClick={() => setSelected(new Set())}>Tout désélectionner</button></div>}
       <SaveFeedback message={saveMsg} type={saveMsgType} />
 
       
@@ -681,7 +700,7 @@ export default function Products() {
         {catalogView === 'grid' ? <>
           {filtered.length > 0 && <label className="desktop-product-select-all"><input type="checkbox" checked={filtered.every(p => selected.has(p.id))} onChange={() => setSelected(prev => { const next = new Set(prev); const all = filtered.every(p => next.has(p.id)); filtered.forEach(p => all ? next.delete(p.id) : next.add(p.id)); return next; })} /> Tout sélectionner</label>}
           {filtered.length === 0 ? <EmptyState title="Aucun produit" description="Essayez une autre recherche ou ajoutez un produit." actionLabel="Ajouter un produit" onAction={openNew} icon="package" /> : <div className="desktop-product-grid">{filtered.map(p => <article className="desktop-product-card" key={p.id}>
-            <Link to={`/products/${p.id}/historique`} className="desktop-product-card-link"><ProductArtwork url={p.image_url} /><strong>{p.name}</strong><span>{p.sku || p.barcode || 'Sans référence'}</span><div className="desktop-product-chips"><span>{p.track_inventory ? `Stock ${p.stock_quantity}` : 'Stock non suivi'}</span>{!hideMoney && p.price != null && <span>{fmt(p.price)} MAD</span>}</div></Link>
+            <Link to={`/products/${p.id}/historique`} className="desktop-product-card-link"><ProductArtwork url={p.image_url} /><strong>{p.name}</strong><span>{p.sku || p.barcode || 'Sans référence'}</span><div className="desktop-product-chips"><span className={`product-stock-chip ${!p.track_inventory ? 'untracked' : phoneStockQuantity(p) <= 0 ? 'out' : phoneStockIsLow(p) ? 'low' : 'ok'}`}>{p.track_inventory ? `Stock ${dualStockLabel(p)}` : 'Stock non suivi'}</span>{!hideMoney && p.price != null && <span>{fmt(p.price)} MAD</span>}</div></Link>
             <div className="desktop-product-actions"><label title="Sélectionner le produit"><input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleOne(p.id)} aria-label={`Sélectionner ${p.name}`} /><span>Sélectionner</span></label>{p.track_inventory && <button type="button" className="secondary" title="Ajuster le stock" aria-label={`Ajuster le stock de ${p.name}`} onClick={() => { setModalError(''); setAdjustProduct(p); }}><SlidersHorizontal size={18} aria-hidden="true" /></button>}<button type="button" className="secondary" title="Modifier" aria-label={`Modifier ${p.name}`} onClick={() => openEdit(p)}><Pencil size={18} aria-hidden="true" /></button><button type="button" className="secondary" title="Étiquette" aria-label={`Étiquette de ${p.name}`} onClick={() => window.open(api.labelUrl(p.id), '_blank', 'noopener')}><Tags size={18} aria-hidden="true" /></button><TimedUndoDelete iconOnly width="44px" deleteLabel={`Supprimer ${p.name}`} undoLabel="Annuler la suppression" initialSeconds={10} onConfirm={() => deleteOne(p.id)} /></div>
           </article>)}</div>}
         </> : <VirtualScroll maxHeight={filtered.length > 60 ? 560 : undefined}>
@@ -748,7 +767,7 @@ export default function Products() {
                     <td style={{ fontWeight: 700 }}>
                       {p.track_inventory ? (
                         <div>
-                          <span className="stock-cell">{p.stock_quantity}</span>
+                          <span className="stock-cell">{dualStockLabel(p)}</span>
                         {p.track_inventory && Number(p.stock_quantity) === 0 && <span className="stock-pill out">Rupture</span>}
                         {p.track_inventory && Number(p.stock_quantity) > 0 && Number(p.stock_quantity) <= Number(p.low_stock_threshold || 0) && <span className="stock-pill low">Bas</span>}
                         {p.track_inventory && Number(p.stock_quantity) > Number(p.low_stock_threshold || 0) && <span className="stock-pill ok">OK</span>}
@@ -875,6 +894,11 @@ export default function Products() {
                   <option value="__new__">+ Nouvelle unité…</option>
                 </select>
               </div>
+              <div className="grid grid-2">
+                <div className="form-row"><label htmlFor="product-secondary-unit">Deuxième unité (facultatif)</label><input id="product-secondary-unit" maxLength={40} value={form.secondary_unit || ''} onChange={e => setForm({ ...form, secondary_unit: e.target.value })} placeholder="Ex. m²" /></div>
+                <div className="form-row"><label htmlFor="product-secondary-factor">Quantité par {form.unit || 'unité'}</label><input id="product-secondary-factor" inputMode="decimal" value={form.secondary_unit_factor ?? ''} onChange={e => setForm({ ...form, secondary_unit_factor: e.target.value })} placeholder="Ex. 1,59" /></div>
+              </div>
+              <small>Exemple : 1 carton = 1,59 m². Le stock et le prix restent enregistrés par unité principale. Modifier le coefficient ne modifie pas le stock.</small>
               <div className="form-row"><label>Code-barres</label><input value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} /></div>
                           <div className="form-row"><label>N° lot (épicerie)</label><input value={form.lot_number || ''} onChange={(e) => setForm({ ...form, lot_number: e.target.value })} placeholder="Optionnel" /></div>
               <div className="form-row"><label>Date limite (DLC)</label><DatePicker value={(form.expiry_date || '').toString().slice(0, 10)} onChange={(v) => setForm({ ...form, expiry_date: v })} /></div>
@@ -887,7 +911,7 @@ export default function Products() {
             </div>
             {!editing && (
               <div className="grid grid-3">
-                <div className="form-row"><label>Stock initial</label><NumberField value={form.stock_quantity} onValueChange={(n) => setForm({ ...form, stock_quantity: n })} /></div>
+                <div className="form-row"><label>Stock initial ({form.unit || "unité"})</label><NumberField value={form.stock_quantity} onValueChange={(n) => setForm({ ...form, stock_quantity: n })} />{form.secondary_unit && Number(String(form.secondary_unit_factor || "").replace(",", ".")) > 0 && <small>{dualStockLabel({ ...form, secondary_unit_factor: Number(String(form.secondary_unit_factor).replace(",", ".")) })}</small>}</div>
                 <div className="form-row"><label>Entrepôt / emplacement</label>
                   <select value={form.location_id || ''} onChange={(e) => setForm({ ...form, location_id: Number(e.target.value) || 0 })}>
                     <option value="0">Emplacement par défaut</option>
@@ -909,6 +933,10 @@ export default function Products() {
                 <div className="form-row"><label>Taux TVA %</label><NumberField value={form.tax_rate} onValueChange={(n) => setForm({ ...form, tax_rate: n })} placeholder="Défaut" /></div>
               </div>
             )}
+            <div className="form-row"><label>Prix sur facture</label><select value={form.invoice_price_mode || ''} onChange={(e) => setForm({ ...form, invoice_price_mode: e.target.value })}>
+              {!form.invoice_price_mode && <option value="">Mode historique (inchangé)</option>}
+              <option value="exclusive">TVA ajoutée au prix (HT)</option><option value="inclusive">TVA incluse dans le prix (TTC)</option>
+            </select><small>Ce choix concerne les factures ; les ventes rapides utilisent le prix sans TVA.</small></div>
             <div className="form-row">
               <label><input type="checkbox" checked={form.track_inventory} onChange={(e) => setForm({ ...form, track_inventory: e.target.checked ? 1 : 0 })} style={{ width: 'auto', display: 'inline', marginRight: 8 }} />Suivre le stock pour ce produit</label>
             </div>
@@ -1096,7 +1124,7 @@ export default function Products() {
         <FloatingPortal><div className="modal-overlay" onClick={() => { setModalError(''); setAdjustProduct(null); }}>
           <div className="modal" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
             <h2>Ajuster le stock — {adjustProduct.name}</h2>
-            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>Stock actuel : <strong>{adjustProduct.stock_quantity}</strong></p>
+            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>Stock actuel : <strong>{dualStockLabel(adjustProduct)}</strong></p>
             <div className="form-row">
               <label>Type d'ajustement</label>
               <select value={adjustType} onChange={(e) => setAdjustType(e.target.value)}>
@@ -1105,7 +1133,7 @@ export default function Products() {
                 <option value="adjustment">Ajustement manuel</option>
               </select>
             </div>
-            <div className="form-row"><label>Quantité</label><NumberField value={adjustQty} onValueChange={setAdjustQty} min={0.01} step="0.01" /></div>
+            <div className="form-row"><label>Quantité ({adjustProduct.unit || "unité"})</label><NumberField value={adjustQty} onValueChange={setAdjustQty} min={0.01} step="0.01" />{adjustProduct.secondary_unit && <small>Équivalent : {dualStockLabel(adjustProduct, adjustQty)}</small>}</div>
             <div className="form-row"><label>Raison</label><input value={adjustReason} onChange={(e) => setAdjustReason(e.target.value)} placeholder="ex. Réception marchandise, casse, correction..." /></div>
             <ModalFormError message={modalError} />
             <div className="form-actions">

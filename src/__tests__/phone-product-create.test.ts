@@ -19,7 +19,8 @@ it('creates a catalog product for owner/admin', async () => {
 it.each(['stock', 'secretaire', 'user'])('sends an approval request rather than a direct write for %s', async (role) => {
   localStorage.setItem('stock_role', role); const create = vi.spyOn(api, 'createProduct'); const request = vi.spyOn(api, 'createMobileAction').mockResolvedValue({ data: {} } as any);
   const done = await render(); fill(); expect(form().querySelector('[name="price"]')).toBeNull(); await submit();
-  expect(create).not.toHaveBeenCalled(); expect(request).toHaveBeenCalledWith(expect.objectContaining({ type: 'new_product', source: 'web', meta: expect.objectContaining({ needs_approval: true, create_product_body: expect.objectContaining({ name: 'Marbre', stock_quantity: 4 }) }) })); expect(done).toHaveBeenCalledWith(false);
+  expect(form().querySelector('[name="barcode"]')).toBeNull(); expect(form().querySelector('[name="category"]')).toBeNull(); expect(form().querySelector('[name="invoice_price_mode"]')).toBeNull();
+  expect(create).not.toHaveBeenCalled(); expect(request).toHaveBeenCalledWith(expect.objectContaining({ type: 'new_product', source: 'web', meta: expect.objectContaining({ needs_approval: true, create_product_body: expect.objectContaining({ name: 'Marbre', stock_quantity: 4 }) }) })); expect((request.mock.calls[0]?.[0] as any)?.meta?.create_product_body).not.toHaveProperty('price'); expect(done).toHaveBeenCalledWith(false);
 });
 it('keeps the entered data and displays server failures without reporting success', async () => {
   vi.spyOn(api, 'createProduct').mockRejectedValue(new Error('Produit en doublon')); const done = await render(); fill(); await submit();
@@ -37,4 +38,16 @@ it('includes a selected photo in a direct product write', async () => {
   const dt = new DataTransfer(); dt.items.add(new File(['image'], 'photo.png', { type: 'image/png' })); input.files = dt.files;
   await act(async () => { form().dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); await new Promise(resolve => setTimeout(resolve, 10)); });
   expect(create).toHaveBeenCalledWith(expect.objectContaining({ image_url: expect.stringMatching(/^data:image\/png;base64,/) })); expect(done).toHaveBeenCalledWith(true);
+});
+it('includes an optional carton-to-area conversion in a price-free request', async () => {
+  localStorage.setItem('stock_role', 'stock');
+  const request = vi.spyOn(api, 'createMobileAction').mockResolvedValue({ data: {} } as any);
+  await render(); fill();
+  form().querySelector<HTMLInputElement>('[name="unit"]')!.value = 'carton';
+  form().querySelector<HTMLInputElement>('[name="secondary_unit"]')!.value = 'm²';
+  form().querySelector<HTMLInputElement>('[name="secondary_unit_factor"]')!.value = '1,59';
+  await submit();
+  const body = (request.mock.calls[0][0] as any).meta.create_product_body;
+  expect(body).toMatchObject({ unit:'carton', secondary_unit:'m²', secondary_unit_factor:1.59, stock_quantity:4 });
+  expect(body).not.toHaveProperty('price');
 });
