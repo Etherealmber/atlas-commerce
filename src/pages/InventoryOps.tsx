@@ -3,6 +3,7 @@ import { api } from '../api';
 import { useUi } from '../components/AppDialogs';
 import { friendlyError } from '../lib/errors';
 import NumberField from '../components/NumberField';
+import { TimedUndoDelete } from '../components/ui';
 
 const fmt = (n: number) =>
   Math.round(Number(n || 0)).toLocaleString('fr-FR');
@@ -334,19 +335,18 @@ export default function InventoryOps() {
                         load();
                       } catch (e: any) { toast(friendlyError(e), 'error'); }
                     }}>Renommer</button>
-                    <button type="button" className="danger" style={{ fontSize: 12, padding: '4px 8px' }} onClick={async () => {
-                      const ok = await confirm({
-                        title: 'Supprimer l\'emplacement',
-                        message: `Supprimer « ${l.name} » ? Le stock doit être à 0 (transférez d'abord).`,
-                        danger: true,
-                      });
-                      if (!ok) return;
-                      try {
-                        await api.deleteStockLocation(l.id);
-                        toast('Emplacement supprimé', 'success');
-                        load();
-                      } catch (e: any) { toast(friendlyError(e), 'error'); }
-                    }}>Suppr.</button>
+                    <TimedUndoDelete
+                      deleteLabel="Supprimer"
+                      undoLabel="Annuler"
+                      initialSeconds={10}
+                      onConfirm={async () => {
+                        try {
+                          await api.deleteStockLocation(l.id);
+                          toast('Emplacement supprimé', 'success');
+                          load();
+                        } catch (e: any) { toast(friendlyError(e), 'error'); }
+                      }}
+                    />
                   </td>
                 </tr>
               ))}
@@ -516,8 +516,11 @@ export default function InventoryOps() {
                   <td>{r.threshold}</td>
                   <td>{r.transfer_qty}</td>
                   <td>
-                    <button type="button" className="danger" style={{ fontSize: 12, padding: '2px 8px' }}
-                      onClick={async () => {
+                    <TimedUndoDelete
+                      deleteLabel="Supprimer"
+                      undoLabel="Annuler"
+                      initialSeconds={10}
+                      onConfirm={async () => {
                         try {
                           await api.deleteAutoTransferRule(r.id);
                           toast('Règle supprimée', 'success');
@@ -526,7 +529,7 @@ export default function InventoryOps() {
                           toast(friendlyError(e), 'error');
                         }
                       }}
-                    >Suppr.</button>
+                    />
                   </td>
                 </tr>
               ))}

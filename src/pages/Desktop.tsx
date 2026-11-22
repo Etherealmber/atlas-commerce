@@ -214,8 +214,8 @@ export default function Desktop() {
                 <h1 className="dl-h1 dl-ed-title"><span className="dl-ed-title-first">Atlas Commerce</span>{' '}<span className="dl-ed-title-second">pour bureau.</span></h1>
                 <p className="dl-desc">Votre espace de gestion dans une fenêtre dédiée, pour Windows, macOS et Linux.</p>
                 <div className="dl-ctas">
-                  {state === 'ok' && mainAsset ? <a className="dl-cta-main" href={String(mainAsset.browser_download_url)} target="_blank" rel="noopener noreferrer">↓ &nbsp; Télécharger pour {OS_LABEL[os]}</a> : state === 'error' ? <span className="dl-cta-main dl-cta-wait" aria-disabled="true">Releases injoignables</span> : state === 'ok' ? <span className="dl-cta-main dl-cta-wait" aria-disabled="true">Aucun binaire pour {OS_LABEL[os]}</span> : <span className="dl-cta-main dl-cta-wait" aria-disabled="true">Chargement…</span>}
-                  <a className="dl-cta-ghost" href="#assets">Autres fichiers</a>
+                  {state === 'ok' && mainAsset ? <a className="dl-cta-main" href={String(mainAsset.browser_download_url)} target="_blank" rel="noopener noreferrer"><span className="dl-cta-arrow" aria-hidden="true">↓</span> &nbsp; Télécharger pour {OS_LABEL[os]}</a> : state === 'error' ? <span className="dl-cta-main dl-cta-wait" aria-disabled="true">Releases injoignables</span> : state === 'ok' ? <span className="dl-cta-main dl-cta-wait" aria-disabled="true">Aucun binaire pour {OS_LABEL[os]}</span> : <span className="dl-cta-main dl-cta-wait" aria-disabled="true">Chargement…</span>}
+                  <a className="dl-cta-ghost" href="#assets">Autres fichiers <span className="dl-cta-arrow" aria-hidden="true">↓</span></a>
                 </div>
                 <p className="dl-note">Choisissez un fichier adapté à votre système depuis les releases officielles.</p>
               </div>

@@ -226,7 +226,7 @@ export default function Home() {
                 fonctionne aussi en mode autonome — téléphone, tablette, pliable, Chromebook et
                 grand écran de bureau.
               </p>
-              <Link to="/login" className="dl-link dl-chip">Ouvrir l’application →</Link>
+              <Link to="/login" className="dl-link dl-chip">Ouvrir l’application <span aria-hidden="true">→</span></Link>
             </div>
             <div className="dl-card hm-platform-card">
               <figure className="hm-platform-visual hm-platform-visual--phone"><img src="/shots/phone-balance-demo.webp" alt="Balance web mobile avec données fictives" width="390" height="844" loading="lazy" /><figcaption>Web mobile · données fictives</figcaption></figure>
@@ -236,7 +236,7 @@ export default function Home() {
                 Application native pour le stock, les ventes et le scan, avec des fonctions hors ligne
                 et une synchronisation au retour du réseau. Téléchargez l’APK depuis la page officielle.
               </p>
-              <Link to="/android" className="dl-link dl-chip">Télécharger l’APK →</Link>
+              <Link to="/android" className="dl-link dl-chip">Télécharger l’APK <span aria-hidden="true">→</span></Link>
             </div>
             <div className="dl-card hm-platform-card">
               <figure className="hm-platform-visual hm-platform-visual--desktop"><img src="/shots/desktop-demo.webp" alt="Tableau de bord web sur ordinateur avec données fictives" width="1280" height="800" loading="lazy" /><figcaption>Web sur ordinateur · données fictives</figcaption></figure>
@@ -246,7 +246,7 @@ export default function Home() {
                 Windows, macOS et Linux : retrouvez votre espace Atlas dans une fenêtre dédiée.
                 Consultez les versions disponibles pour votre ordinateur.
               </p>
-              <Link to="/desktop" className="dl-link dl-chip">Version bureau →</Link>
+              <Link to="/desktop" className="dl-link dl-chip">Version bureau <span aria-hidden="true">→</span></Link>
             </div>
           </div>
         </section>

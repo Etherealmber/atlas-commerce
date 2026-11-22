@@ -3648,3 +3648,425 @@ html body .gsp button.gsp-hist-x {
 html[data-theme="dark"] body .gsp button.gsp-hist-item {
   color: #e4e4e7 !important;
 }
+
+/* Balance reports dialog trigger & modal */
+.bal-reports-bar {
+  margin-bottom: 18px;
+}
+html body .content button.bal-reports-trigger {
+  width: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 14px !important;
+  padding: 13px 16px !important;
+  border-radius: 16px !important;
+  background: #ffffff !important;
+  border: 1px solid #e4e4e7 !important;
+  color: #09090b !important;
+  text-align: left !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+html[data-theme="dark"] body .content button.bal-reports-trigger {
+  background: #18181b !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #f4f4f5 !important;
+}
+.bal-reports-trigger-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.bal-reports-trigger-main > svg {
+  flex: none;
+  color: var(--copper, #b87333);
+}
+.bal-reports-trigger-main > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.bal-reports-trigger-main strong {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+.bal-reports-trigger-main small {
+  font-size: 12px;
+  font-weight: 500;
+  color: #71717a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+html[data-theme="dark"] .bal-reports-trigger-main small {
+  color: #a1a1aa;
+}
+.bal-reports-trigger-cta {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid #e4e4e7;
+  background: #f8fafc;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+html[data-theme="dark"] .bal-reports-trigger-cta {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+}
+.bal-reports-modal {
+  max-width: 620px !important;
+  width: min(94vw, 620px) !important;
+  padding: 22px 22px 18px !important;
+  border-radius: 20px !important;
+}
+.bal-reports-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.bal-reports-eyebrow {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--copper, #b87333);
+  margin-bottom: 4px;
+}
+.bal-reports-modal-head h2 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 750;
+}
+.bal-reports-period-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  align-items: end;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid #e4e4e7;
+  background: #f8fafc;
+  margin-bottom: 16px;
+}
+html[data-theme="dark"] .bal-reports-period-row {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+}
+.bal-reports-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #52525b;
+}
+html[data-theme="dark"] .bal-reports-field {
+  color: #a1a1aa;
+}
+.bal-reports-field select,
+.bal-reports-field input {
+  width: 100%;
+  margin: 0;
+}
+.bal-reports-active-period {
+  font-size: 12.5px;
+  color: #52525b;
+  padding-bottom: 8px;
+}
+html[data-theme="dark"] .bal-reports-active-period {
+  color: #a1a1aa;
+}
+.bal-reports-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+}
+.bal-reports-grid button {
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  padding: 10px 13px !important;
+  border-radius: 12px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+.bal-reports-grid button.bal-reports-all-btn {
+  border-color: rgba(184, 115, 51, 0.45) !important;
+  background: rgba(184, 115, 51, 0.08) !important;
+  color: #8a5520 !important;
+}
+html[data-theme="dark"] .bal-reports-grid button.bal-reports-all-btn {
+  border-color: rgba(212, 165, 116, 0.4) !important;
+  background: rgba(212, 165, 116, 0.12) !important;
+  color: #f0c99d !important;
+}
+.bal-reports-hint {
+  margin: 14px 0 0;
+  font-size: 12px;
+  color: #71717a;
+}
+
+/* Guarantee red danger buttons in light & dark mode (never black) */
+html body .content button.danger,
+html body .content table button.danger,
+html body .content .row-actions > button.danger {
+  background: #dc2626 !important;
+  color: #ffffff !important;
+  border: 1px solid #b91c1c !important;
+}
+html body .content button.danger:hover:not(:disabled),
+html body .content table button.danger:hover:not(:disabled) {
+  background: #b91c1c !important;
+  color: #ffffff !important;
+}
+html[data-theme="dark"] body .content button.danger,
+html[data-theme="dark"] body .content table button.danger {
+  background: rgba(220, 38, 38, 0.22) !important;
+  color: #fca5a5 !important;
+  border: 1px solid rgba(239, 68, 68, 0.42) !important;
+}
+html[data-theme="dark"] body .content button.danger:hover:not(:disabled),
+html[data-theme="dark"] body .content table button.danger:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.34) !important;
+  color: #fecaca !important;
+}
+
+/* Subtle hover/focus enlargement & icon micro-animations — App + /, /android, /desktop */
+.content button,
+.content a.btn,
+.ac-timed-delete [role="button"],
+.ac-timed-undo-btn,
+.ac-timed-delete-btn,
+.btn-delete-red,
+.hm-start,
+.hm-hero-explore,
+.hm-release-link,
+.dl-cta-main,
+.dl-cta-ghost,
+.dl-link,
+.dl-chip,
+.dl-ed-release-badge,
+.dl-ed-download-row a,
+.dl-ed-heading a,
+.dl-release-link,
+.pn-cta,
+.pn-nav a,
+.pn-theme-btn,
+.pn-mobile-cta,
+.dl-ed-platforms button,
+.dl-ed-platforms a,
+.atlas-dl-teaser > button,
+.github-star-btn {
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+              background-color 0.18s ease,
+              border-color 0.18s ease,
+              color 0.18s ease;
+}
+
+.content button svg,
+.content a.btn svg,
+.ac-timed-delete [role="button"] svg,
+.ac-timed-undo-btn svg,
+.ac-timed-delete-btn svg,
+.btn-delete-red svg,
+.hm-start span[aria-hidden],
+.hm-hero-explore span[aria-hidden],
+.hm-release-link span[aria-hidden],
+.dl-link span[aria-hidden],
+.dl-chip span[aria-hidden],
+.dl-cta-arrow,
+.dl-cta-main svg,
+.dl-cta-ghost svg,
+.dl-ed-release-badge b[aria-hidden],
+.pn-cta svg,
+.pn-theme-btn svg,
+.atlas-dl-teaser > button svg,
+.github-star-btn svg,
+.dl-card .dl-ico svg {
+  display: inline-block;
+  transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .top-page-actions > button:hover:not(:disabled),
+  .top-page-actions > a:hover,
+  .content table td button:hover:not(:disabled),
+  .content table td a.btn:hover,
+  .row-actions button:hover:not(:disabled),
+  .row-actions a:hover,
+  .desktop-product-actions button:hover:not(:disabled),
+  .bal-tx-actions button:hover:not(:disabled),
+  .content button.bal-reports-trigger:hover:not(:disabled),
+  .bal-reports-grid button:hover:not(:disabled),
+  .page-header button:hover:not(:disabled),
+  .ac-panel button:not(.atlas-dp-day):not(.atlas-dp-nav):hover:not(:disabled),
+  .card button:not(.atlas-dp-day):not(.atlas-dp-nav):hover:not(:disabled),
+  .ac-timed-delete [role="button"]:hover,
+  .ac-timed-undo-btn:hover,
+  .ac-timed-delete-btn:hover,
+  .btn-delete-red:hover,
+  .ac-topbar-icon:hover:not(:disabled),
+  .ac-dock-back:hover:not(:disabled),
+  .ac-dock-expand:hover:not(:disabled) {
+    transform: scale(1.045) !important;
+  }
+
+  .hm-start:hover,
+  .hm-hero-explore:hover,
+  .hm-release-link:hover,
+  .dl-cta-main:hover:not([aria-disabled="true"]),
+  .dl-cta-ghost:hover,
+  .dl-link:hover,
+  .dl-chip:hover,
+  .dl-ed-release-badge:hover,
+  .dl-ed-download-row a:hover,
+  .dl-ed-heading a:hover,
+  .dl-release-link:hover,
+  .pn-cta:hover,
+  .pn-nav a:hover,
+  .pn-theme-btn:hover,
+  .pn-mobile-cta:hover,
+  .dl-ed-platforms button:hover:not(:disabled),
+  .dl-ed-platforms a:hover,
+  .atlas-dl-teaser > button:hover:not(:disabled),
+  .github-star-btn:hover {
+    transform: translateY(-1px) scale(1.045);
+  }
+
+  .top-page-actions > button:hover:not(:disabled) svg,
+  .top-page-actions > a:hover svg,
+  .content table td button:hover:not(:disabled) svg,
+  .content table td a.btn:hover svg,
+  .row-actions button:hover:not(:disabled) svg,
+  .desktop-product-actions button:hover:not(:disabled) svg,
+  .bal-reports-trigger:hover svg,
+  .bal-reports-grid button:hover svg,
+  .page-header button:hover:not(:disabled) svg,
+  .ac-panel button:not(.atlas-dp-day):not(.atlas-dp-nav):hover:not(:disabled) svg,
+  .card button:not(.atlas-dp-day):not(.atlas-dp-nav):hover:not(:disabled) svg,
+  .ac-topbar-icon:hover:not(:disabled) svg,
+  .ac-dock-back:hover:not(:disabled) svg,
+  .ac-dock-expand:hover:not(:disabled) svg,
+  .pn-cta:hover svg,
+  .pn-theme-btn:hover svg,
+  .atlas-dl-teaser > button:hover:not(:disabled) svg,
+  .github-star-btn:hover svg {
+    transform: scale(1.15) rotate(-6deg);
+  }
+
+  .ac-timed-delete [role="button"]:hover svg,
+  .ac-timed-undo-btn:hover svg,
+  .ac-timed-delete-btn:hover svg,
+  .btn-delete-red:hover svg,
+  button.danger:hover:not(:disabled) svg {
+    transform: scale(1.16) rotate(-10deg);
+  }
+
+  .icon-refresh-btn:hover:not(:disabled) svg {
+    transform: rotate(55deg) scale(1.12) !important;
+  }
+
+  .hm-start:hover span[aria-hidden],
+  .hm-release-link:hover span[aria-hidden],
+  .dl-ed-release-badge:hover b[aria-hidden] {
+    transform: translate(2px, -2px) scale(1.12);
+  }
+
+  .dl-link:hover span[aria-hidden],
+  .dl-chip:hover span[aria-hidden] {
+    transform: translateX(3px) scale(1.12);
+  }
+
+  .hm-hero-explore:hover span[aria-hidden],
+  .dl-cta-main:hover:not([aria-disabled="true"]) .dl-cta-arrow,
+  .dl-cta-ghost:hover .dl-cta-arrow {
+    transform: translateY(2px) scale(1.14);
+  }
+
+  .dl-card:hover .dl-ico svg {
+    transform: scale(1.12) rotate(-4deg);
+  }
+}
+
+.top-page-actions > button:focus-visible:not(:disabled),
+.content table td button:focus-visible:not(:disabled),
+.content table td a.btn:focus-visible,
+.content button.bal-reports-trigger:focus-visible,
+.bal-reports-grid button:focus-visible,
+.ac-timed-delete [role="button"]:focus-visible,
+.ac-timed-undo-btn:focus-visible,
+.ac-timed-delete-btn:focus-visible,
+.btn-delete-red:focus-visible,
+.hm-start:focus-visible,
+.hm-hero-explore:focus-visible,
+.dl-cta-main:focus-visible,
+.dl-cta-ghost:focus-visible,
+.dl-link:focus-visible,
+.dl-chip:focus-visible,
+.pn-cta:focus-visible,
+.pn-theme-btn:focus-visible {
+  transform: scale(1.04) !important;
+}
+
+.content button:active:not(:disabled),
+.content a.btn:active,
+.ac-timed-delete [role="button"]:active,
+.ac-timed-undo-btn:active,
+.hm-start:active,
+.dl-cta-main:active:not([aria-disabled="true"]),
+.dl-cta-ghost:active,
+.pn-cta:active {
+  transform: scale(0.97) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .content button,
+  .content a.btn,
+  .ac-timed-delete [role="button"],
+  .ac-timed-undo-btn,
+  .ac-timed-delete-btn,
+  .btn-delete-red,
+  .hm-start,
+  .hm-hero-explore,
+  .hm-release-link,
+  .dl-cta-main,
+  .dl-cta-ghost,
+  .dl-link,
+  .dl-chip,
+  .dl-ed-release-badge,
+  .dl-ed-download-row a,
+  .dl-ed-heading a,
+  .dl-release-link,
+  .pn-cta,
+  .pn-nav a,
+  .pn-theme-btn,
+  .pn-mobile-cta,
+  .dl-ed-platforms button,
+  .dl-ed-platforms a,
+  .atlas-dl-teaser > button,
+  .github-star-btn,
+  .content button svg,
+  .content a.btn svg,
+  .ac-timed-delete [role="button"] svg,
+  .ac-timed-undo-btn svg,
+  .hm-start span[aria-hidden],
+  .hm-hero-explore span[aria-hidden],
+  .dl-link span[aria-hidden],
+  .dl-chip span[aria-hidden],
+  .dl-cta-arrow,
+  .dl-ed-release-badge b[aria-hidden],
+  .dl-card .dl-ico svg {
+    transition: none !important;
+    transform: none !important;
+  }
+}

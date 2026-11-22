@@ -197,8 +197,8 @@ export default function Download() {
                 <h1 className="dl-h1 dl-ed-title"><span className="dl-ed-title-first">Atlas Commerce</span>{' '}<span className="dl-ed-title-second">pour Android.</span></h1>
                 <p className="dl-desc">Stock, ventes, factures et trésorerie : les outils Atlas vous accompagnent sur le terrain.</p>
                 <div className="dl-ctas">
-                  {apkHref ? <a className="dl-cta-main" href={apkHref} target="_blank" rel="noopener noreferrer">↓ &nbsp; Télécharger l&apos;APK</a> : <span className="dl-cta-main dl-cta-wait" aria-disabled="true">{state === 'loading' ? 'Lecture du manifeste…' : 'Manifeste injoignable'}</span>}
-                  <a className="dl-cta-ghost" href="#versions">Voir les versions</a>
+                  {apkHref ? <a className="dl-cta-main" href={apkHref} target="_blank" rel="noopener noreferrer"><span className="dl-cta-arrow" aria-hidden="true">↓</span> &nbsp; Télécharger l&apos;APK</a> : <span className="dl-cta-main dl-cta-wait" aria-disabled="true">{state === 'loading' ? 'Lecture du manifeste…' : 'Manifeste injoignable'}</span>}
+                  <a className="dl-cta-ghost" href="#versions">Voir les versions <span className="dl-cta-arrow" aria-hidden="true">↓</span></a>
                 </div>
                 <p className="dl-note">{state === 'ok' ? 'APK officielle · téléchargement sans connexion au compte' : state === 'loading' ? 'Vérification de la version officielle' : 'Consultez le dépôt pour les versions disponibles'}</p>
               </div>

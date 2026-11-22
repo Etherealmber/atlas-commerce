@@ -1,5 +1,6 @@
 import TopPageActions from '../components/TopPageActions';
 import { FilePlus2, RotateCcw } from 'lucide-react';
+import { TimedUndoDelete } from '../components/ui';
 import { onAgentDraft } from '../lib/agentDraft';
 import { useEffect, useState } from 'react';
 import DatePicker from '../components/DatePicker';
@@ -598,7 +599,7 @@ export default function Invoices() {
                         </button>
                       )}
                       {(inv.status === 'quote' || inv.status === 'devis') && (
-                        <button className="success" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => convertQuote(inv.id)}>→ Facturer</button>
+                        <button className="secondary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => convertQuote(inv.id)}>→ Facturer</button>
                       )}
                       {inv.status === 'sent' && <button className="secondary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => api.pipelineAdvance(inv.id, 'accepted').then(() => load(true)).catch((e: any) => alert(e?.message || 'Pipeline'))}>→ Acceptée</button>}
                       {['sent', 'paid', 'partial'].includes(inv.status) && <button className="secondary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => api.pipelineAdvance(inv.id, 'delivered').then(() => load(true)).catch((e: any) => alert(e?.message || 'Pipeline'))}>→ Livrée</button>}
@@ -640,7 +641,12 @@ export default function Invoices() {
                       {inv.status !== 'cancelled' && inv.status !== 'remboursement' && (
                         <button className="danger" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => cancelInvoice(inv.id)}>Annuler</button>
                       )}
-                      <button className="danger" style={{ padding: '4px 10px', fontSize: 12, background: '#6b2828' }} onClick={() => requestDelete(inv.id)}>Suppr.</button>
+                      <TimedUndoDelete
+                        deleteLabel="Supprimer"
+                        undoLabel="Annuler"
+                        initialSeconds={10}
+                        onConfirm={() => requestDelete(inv.id)}
+                      />
                     </td>
                   </tr>
                 )}

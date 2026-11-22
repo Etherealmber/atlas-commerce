@@ -1,5 +1,6 @@
 import TopPageActions from '../components/TopPageActions';
 import { ExternalLink, FilePlus2 } from 'lucide-react';
+import { TimedUndoDelete } from '../components/ui';
 import './quote-actions.css';
 import TypeaheadField, { productTypeaheadOptions, partyTypeaheadOptions } from '../components/TypeaheadField';
 import DatePicker from '../components/DatePicker';
@@ -389,7 +390,7 @@ export default function Quotes() {
                         <ExternalLink size={15} aria-hidden="true" /> Ouvrir
                       </button>
                       {q.status !== 'cancelled' && (
-                        <button type="button" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => setConvertId(q.id)} disabled={saving}>
+                        <button type="button" className="secondary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => setConvertId(q.id)} disabled={saving}>
                           → Facturer
                         </button>
                       )}
@@ -398,9 +399,12 @@ export default function Quotes() {
                           Annuler
                         </button>
                       )}
-                      <button type="button" className="danger" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => deleteQuote(q.id)} disabled={saving}>
-                        Suppr.
-                      </button>
+                      <TimedUndoDelete
+                        deleteLabel="Supprimer"
+                        undoLabel="Annuler"
+                        initialSeconds={10}
+                        onConfirm={() => { if (!saving) void deleteQuote(q.id); }}
+                      />
                     </div>
                   </td>
                 </tr>
