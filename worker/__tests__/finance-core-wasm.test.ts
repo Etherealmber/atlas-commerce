@@ -128,9 +128,11 @@ describe('Finance Core — Shared Contract, Safety & ABI Verification', () => {
     expect(initFinanceWasmFromModule({} as WebAssembly.Module)).toBe(false);
     expect(getFinanceCoreStats().status).toBe('wasm_initialization_failed');
 
-    // 6. Fail-closed Worker verification when FINANCE_REQUIRE_WASM=true
+    // 6. Fail-closed Worker verification when FINANCE_REQUIRE_WASM=true and WASM is not bundled
+    resetWorkerFinanceWasmForTest({ simulateUnbundled: true });
     const check = verifyWorkerFinanceEngine({ ENVIRONMENT: 'production', FINANCE_REQUIRE_WASM: 'true' });
     expect(check.ok).toBe(false);
+    resetWorkerFinanceWasmForTest();
   });
 
   it('matches an independent BigInt decimal precision oracle for currency rounding & invoice/refund totals', () => {

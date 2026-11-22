@@ -23,6 +23,7 @@ type WasmModuleMap = Record<string, { default?: WebAssembly.Module } | WebAssemb
 let initialized = false;
 let loggedOutcome = false;
 let wasDetachedForFallback = false;
+let simulateUnbundledForTest = false;
 
 function loadBundledWasmModules(): WasmModuleMap {
   try {
@@ -38,6 +39,7 @@ function loadBundledWasmModules(): WasmModuleMap {
 const bundledWasmModules: WasmModuleMap = loadBundledWasmModules();
 
 function resolveBundledWasmModule(): WebAssembly.Module | null {
+  if (simulateUnbundledForTest) return null;
   const values = Object.values(bundledWasmModules);
   if (!values.length) return null;
   const entry = values[0];
@@ -127,10 +129,14 @@ export function getWorkerFinanceHealthStats(env?: {
   return getFinanceCoreStats();
 }
 
-export function resetWorkerFinanceWasmForTest(opts?: { intentionalFallback?: boolean }): void {
+export function resetWorkerFinanceWasmForTest(opts?: {
+  intentionalFallback?: boolean;
+  simulateUnbundled?: boolean;
+}): void {
   initialized = false;
   loggedOutcome = false;
   wasDetachedForFallback = false;
+  simulateUnbundledForTest = Boolean(opts?.simulateUnbundled);
   markFinanceWasmBundled(false);
   detachFinanceWasm(opts?.intentionalFallback ? 'intentional-ts-fallback' : null);
   if (opts?.intentionalFallback) {
