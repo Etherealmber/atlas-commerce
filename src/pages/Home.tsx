@@ -1,4 +1,5 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useRef } from 'react';
+import { useLandingMotion } from '../hooks/useLandingMotion';
 import { Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { DISPLAY_VERSION } from '../version';
@@ -18,81 +19,6 @@ const NAV: NavLink[] = [
   { href: '/about', label: 'À propos' },
 ];
 
-/** Révélation douce au scroll (IntersectionObserver, une seule fois). */
-function useRiseObserver() {
-  useEffect(() => {
-    if (typeof IntersectionObserver === 'undefined') {
-      document.querySelectorAll<HTMLElement>('.home-landing .rise').forEach((el) => el.classList.add('is-in'));
-      return;
-    }
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const en of entries) {
-          if (en.isIntersecting) {
-            (en.target as HTMLElement).classList.add('is-in');
-            io.unobserve(en.target);
-          }
-        }
-      },
-      { threshold: 0.12 },
-    );
-    const t = window.setTimeout(() => {
-      document.querySelectorAll<HTMLElement>('.home-landing .rise').forEach((el) => io.observe(el));
-    }, 60);
-    return () => {
-      window.clearTimeout(t);
-      io.disconnect();
-    };
-  }, []);
-}
-
-/* v0.7.5 — icônes SVG dessinées à la main (fini les emojis) : chaque outil
-   remplacé garde sa couleur de marque, l'arc reste lisible en clair/sombre. */
-const IC_BOOK = (
-  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <rect x="4" y="3" width="16" height="18" rx="2.5" fill="#d4a017" />
-    <path d="M8 3v18" stroke="#8a6a12" strokeWidth="1.6" />
-    <path d="M11 8h6M11 12h6M11 16h4" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" />
-  </svg>
-);
-const IC_EXCEL = (
-  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <rect x="3" y="3" width="18" height="18" rx="3" fill="#107c41" />
-    <path d="M9.2 8.2l5.6 7.6M14.8 8.2l-5.6 7.6" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" />
-  </svg>
-);
-const IC_WORD = (
-  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <rect x="3" y="3" width="18" height="18" rx="3" fill="#185abd" />
-    <path d="M7.5 8.5l1.7 7 2.3-5 2.3 5 1.7-7" stroke="#fff" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-const IC_CALC = (
-  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <rect x="5" y="2.5" width="14" height="19" rx="3" fill="#3f3f46" />
-    <rect x="7.5" y="5" width="9" height="4" rx="1" fill="#a1a1aa" />
-    <circle cx="9" cy="12.5" r="1.2" fill="#fafafa" /><circle cx="12" cy="12.5" r="1.2" fill="#fafafa" /><circle cx="15" cy="12.5" r="1.2" fill="#fafafa" />
-    <circle cx="9" cy="16.5" r="1.2" fill="#fafafa" /><circle cx="12" cy="16.5" r="1.2" fill="#fafafa" /><circle cx="15" cy="16.5" r="1.2" fill="#c45c26" />
-  </svg>
-);
-const IC_WHATS = (
-  <svg width="26" height="26" viewBox="0 0 24 24" fill="#25d366" aria-hidden="true">
-    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z" />
-  </svg>
-);
-const IC_CAM = (
-  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M4 8h3l2-2.5h6L17 8h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" />
-    <circle cx="12" cy="13.5" r="3.4" />
-  </svg>
-);
-const IC_PDF = (
-  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <path d="M6 2.5h8l4.5 4.5v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-17.5a1 1 0 0 1 1-1Z" fill="#e11d48" />
-    <path d="M14 2.5V7h4.5" fill="#9f1239" />
-    <path d="M8.5 12h7M8.5 15h7M8.5 18h4.5" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" />
-  </svg>
-);
 const IC_GLOBE = (
   <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">
     <circle cx="12" cy="12" r="9" />
@@ -119,59 +45,12 @@ const IC_REPO = (
   </svg>
 );
 
-const ARC_TOOLS: { icon: ReactNode; label: string; pos: string }[] = [
-  { icon: IC_BOOK, label: 'Le cahier de caisse', pos: 'p1' },
-  { icon: IC_EXCEL, label: 'Les classeurs Excel', pos: 'p2' },
-  { icon: IC_WORD, label: 'Les devis sur Word', pos: 'p3' },
-  { icon: IC_CALC, label: 'La calculatrice', pos: 'p4' },
-  { icon: IC_WHATS, label: 'Les relances WhatsApp', pos: 'p5' },
-  { icon: IC_CAM, label: 'Les photos de bons', pos: 'p6' },
-];
-
 export default function Home() {
-
-  // v0.7.7 — arc du dossier : les modules SORTENT du folder pendant le scroll
-  const folderArcRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    const arc = folderArcRef.current;
-    if (!arc) return;
-    const tiles = Array.from(arc.querySelectorAll<HTMLElement>('.hm-arc-tile'));
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduced) {
-      tiles.forEach((t) => { t.style.opacity = '1'; t.style.transform = 'none'; });
-      return;
-    }
-    let raf = 0;
-    const apply = () => {
-      raf = 0;
-      const rect = arc.getBoundingClientRect();
-      const vh = window.innerHeight || 800;
-      const p = Math.min(1, Math.max(0, (vh * 0.9 - rect.top) / (rect.height + vh * 0.45)));
-      const cx = arc.clientWidth / 2;
-      const cy = arc.clientHeight - 90;
-      tiles.forEach((t, i) => {
-        const local = Math.min(1, Math.max(0, (p - i * 0.07) / 0.4));
-        const e = 1 - Math.pow(1 - local, 3);
-        const tx = (cx - (t.offsetLeft + t.offsetWidth / 2)) * (1 - e);
-        const ty = (cy - (t.offsetTop + t.offsetHeight / 2)) * (1 - e);
-        t.style.opacity = String(0.12 + 0.88 * e);
-        t.style.transform = `translate(${tx.toFixed(1)}px, ${ty.toFixed(1)}px) scale(${(0.55 + 0.45 * e).toFixed(3)})`;
-      });
-    };
-    const onScroll = () => { if (!raf) raf = requestAnimationFrame(apply); };
-    apply();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
-    return () => {
-      window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onScroll);
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, []);
-  useRiseObserver();
+  const pageRef = useRef<HTMLDivElement>(null);
+  useLandingMotion(pageRef, '.rise', '.hm-showcase');
 
   return (
-    <div className="home-landing">
+    <div className="home-landing" ref={pageRef}>
       <a className="hm-skip" href="#contenu">Aller au contenu</a>
       <PublicNav links={NAV} cta={<PublicSessionCta />} classic />
 
@@ -181,20 +60,17 @@ export default function Home() {
           <p className="hm-eyebrow">ATLAS · GESTION COMMERCIALE OPEN SOURCE</p>
           <div className="hm-hero-copy">
           <h1>
-            Tout votre commerce,
-            <br />
-            <span className="hm-grad">sans un seul tableur.</span>
+            <span className="hm-headline-first">Votre commerce,</span>{' '}
+            <span className="hm-grad hm-headline-second">en toute clarté.</span>
           </h1>
           <p className="hm-sub">
-            Stock, caisse, facturation, créances, fournisseurs, paie, rapports et agent IA — réunis
-            dans une seule application, sur le web, Android et bureau.
+            Stock, ventes, factures et rapports : retrouvez les outils de votre activité dans un espace commun,
+            sur le web, Android et bureau.
           </p>
           <div className="hm-cta">
+            <Link to={isLoggedIn() ? '/dashboard' : '/login'} className="hm-start">Ouvrir Atlas <span aria-hidden="true">↗</span></Link>
             <PublicDownloadCta />
-            <GitHubStarButton />
-            <Link to="/whats-new" className="hm-ghost">
-              Voir les nouveautés
-            </Link>
+            <a href="#features" className="hm-hero-explore">Découvrir les fonctionnalités <span aria-hidden="true">↓</span></a>
           </div>
           <p className="hm-hero-note">
             Gratuit · open source (MIT) · aussi sur <a href="/android">Android</a> et{' '}
@@ -221,52 +97,6 @@ export default function Home() {
           </ul>
         </section>
 
-        {/* ---------------- Dossier : les modules sortent du folder Atlas ---------------- */}
-        <section className="hm-sec hm-folder-sec" aria-label="Un dossier, tout votre commerce">
-          <h2 className="rise">Un dossier. Tout votre commerce.</h2>
-          <p className="hm-sec-sub rise">
-            Caisse, stock, facturation, scan, agent IA, identités WebAuthn, rapports : chaque
-            module sort du même dossier Atlas — même base, même compte, tous vos appareils.
-          </p>
-          <div className="hm-folder-arc" ref={folderArcRef}>
-            <span className="hm-arc-tile p1">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="20" r="1.4" /><circle cx="17" cy="20" r="1.4" /><path d="M3 4h2l2.6 12h10.2L21 8H6" /></svg>
-              <em>Caisse</em>
-            </span>
-            <span className="hm-arc-tile p2">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8" /><path d="M12 13v8" /></svg>
-              <em>Stock</em>
-            </span>
-            <span className="hm-arc-tile p3">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6M9 13h6M9 17h6" /></svg>
-              <em>Facturation</em>
-            </span>
-            <span className="hm-arc-tile p4">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" /><path d="M7 12h10" /></svg>
-              <em>Scan &amp; OCR</em>
-            </span>
-            <span className="hm-arc-tile p5">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" /><path d="M18 16l.9 2.1L21 19l-2.1.9L18 22l-.9-2.1L15 19l2.1-.9z" /></svg>
-              <em>Agent IA</em>
-            </span>
-            <span className="hm-arc-tile p6">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><circle cx="8" cy="14" r="4" /><path d="M11.5 11.5L21 2m-3 3l3 3M15 9l2 2" /></svg>
-              <em>WebAuthn</em>
-            </span>
-            <span className="hm-arc-tile p7">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M21 20H3" /></svg>
-              <em>Rapports</em>
-            </span>
-            <div className="hm-folder">
-              <span className="hm-folder-flap" />
-              <span className="hm-folder-body">
-                <img src="/atlas-icon-light.png" alt="" className="hm-folder-logo hm-folder-logo--light" width="44" height="44" />
-                <img src="/atlas-icon-dark.png" alt="" className="hm-folder-logo hm-folder-logo--dark" width="44" height="44" />
-              </span>
-            </div>
-          </div>
-        </section>
-
         {/* ---------------- Fonctionnalités (bento) ---------------- */}
         <section id="features" className="hm-sec">
           <div className="hm-section-heading rise">
@@ -282,7 +112,7 @@ export default function Home() {
                 <span className="hm-row"><b>Quartz beige</b><i className="hm-chip bad">0 u.</i></span>
               </div>
               <h3>Stock en temps réel</h3>
-              <p>Inventaire complet, alertes de seuil et mouvements datés — plus de stock fantôme.</p>
+              <p>Consultez l’inventaire, les seuils et les mouvements de vos produits.</p>
             </div>
             <div className="hm-bento-card rise">
               <div className="hm-fx hm-fx-pos" aria-hidden="true">
@@ -342,41 +172,28 @@ export default function Home() {
               <p>Vos clients scannent et vérifient l’authenticité d’un reçu en une seconde.</p>
             </div>
             <div className="hm-bento-card rise">
-              <div className="hm-fx hm-fx-agent" aria-hidden="true">
-                <span className="hm-bubble left">23 ventes · 41 250 DH — dont 8 aujourd’hui</span>
-                <span className="hm-bubble right">Combien de ventes cette semaine ?</span>
+              <div className="hm-fx hm-fx-agent" aria-label="Exemple fictif de conversation avec l’agent IA">
+                <span className="hm-bubble right"><b>Vous</b>{' '}Combien de ventes cette semaine ?</span>
+                <span className="hm-bubble left"><b>Agent Atlas</b>{' '}23 ventes, dont 8 aujourd’hui.</span>
               </div>
               <h3>Agent IA intégré</h3>
-              <p>Posez vos questions en français : rapports, actions et réponses instantanées.</p>
+              <p>Posez vos questions en français et explorez vos données selon vos permissions. Exemple fictif ci-dessus.</p>
             </div>
           </div>
         </section>
 
-        {/* ---------------- Tout-en-un (arc d'outils) ---------------- */}
-        <section id="tout-en-un" className="hm-sec hm-one">
-          <h2 className="rise">
-            Cahier, Excel, Word, calculatrice, WhatsApp…
-            <br />
-            <span className="hm-grad">remplacés par un seul produit.</span>
-          </h2>
-          <p className="hm-sec-sub rise">
-            Tout ce que vous utilisez déjà pour gérer votre commerce tient dans Atlas — et rien ne se
-            perd entre deux applications.
-          </p>
-          <div className="hm-arc rise" aria-hidden="false">
-            {ARC_TOOLS.map((t) => (
-              <span key={t.label} className={`hm-arc-tile ${t.pos}`}>
-                <i>{t.icon}</i>
-                <em>{t.label}</em>
-              </span>
-            ))}
-            <div className="hm-arc-core">
-              <img className="theme-logo-dark" src="/atlas-icon-dark.png" alt="" width={34} height={34} />
-              <img className="theme-logo-light" src="/atlas-icon-light.png" alt="" width={34} height={34} />
-              <b>Atlas</b>
-              <em>tout votre commerce, une seule application</em>
-            </div>
+        {/* ---------------- Un parcours clair, du stock à la vente ---------------- */}
+        <section id="tout-en-un" className="hm-sec hm-workflow">
+          <div className="hm-section-heading rise">
+            <p className="hm-section-kicker">02 / AU QUOTIDIEN</p>
+            <h2>Moins d’allers-retours. Plus de clarté.</h2>
+            <p>Une vue d’ensemble pour passer du produit à la vente, puis retrouver les informations qui comptent.</p>
           </div>
+          <ol className="hm-steps rise">
+            <li><span className="hm-step-number">01</span><div><h3>Organisez vos produits</h3><p>Retrouvez le catalogue, les quantités et les mouvements de stock au même endroit.</p></div></li>
+            <li><span className="hm-step-number">02</span><div><h3>Enregistrez vos ventes</h3><p>Suivez les règlements et préparez vos documents commerciaux.</p></div></li>
+            <li><span className="hm-step-number">03</span><div><h3>Gardez une vue d’ensemble</h3><p>Consultez vos rapports et posez vos questions à l’agent IA selon vos accès.</p></div></li>
+          </ol>
         </section>
 
         {/* ---------------- Confiance ---------------- */}
@@ -384,8 +201,8 @@ export default function Home() {
           <h2 className="rise">La confiance, d’abord</h2>
           <div className="dl-trust rise">
             <div><b>Connexion OTP &amp; passkeys</b><span>Codes à usage unique et WebAuthn/FIDO2 pour les parcours pris en charge.</span></div>
-            <div><b>Android hors-ligne</b><span>Vos données tournent sur le téléphone ; la synchronisation reprend toute seule.</span></div>
-            <div><b>Données souveraines</b><span>Cloudflare D1/R2 dans votre propre compte, sauvegardes chiffrées.</span></div>
+            <div><b>Android hors-ligne</b><span>Des fonctions hors ligne avec synchronisation au retour du réseau, selon la version.</span></div>
+            <div><b>Données souveraines</b><span>En auto-hébergement, utilisez D1/R2 dans votre compte Cloudflare et configurez vos sauvegardes.</span></div>
             <div><b>100&nbsp;% open source</b><span>Code MIT auditable, auto-hébergement possible, zéro lock-in.</span></div>
             <div><b>QR public vérifiable</b><span>Les documents compatibles peuvent être vérifiés par QR sans compte.</span></div>
             <div><b>Sans commission</b><span>Aucun pourcentage sur vos ventes : le logiciel ne vit pas de votre chiffre.</span></div>
@@ -395,7 +212,7 @@ export default function Home() {
         {/* ---------------- Plateformes ---------------- */}
         <section id="plateformes" className="hm-sec">
           <div className="hm-section-heading rise">
-            <p className="hm-section-kicker">02 / VOS APPAREILS</p>
+            <p className="hm-section-kicker">03 / VOS APPAREILS</p>
             <h2>Atlas vous suit, du terrain au comptoir.</h2>
             <p>Choisissez l’interface adaptée à votre journée et retrouvez votre espace de travail.</p>
           </div>
@@ -517,7 +334,7 @@ export default function Home() {
         {/* ---------------- CTA final ---------------- */}
         <section className="hm-final rise">
           <h2>Prêt à tenir votre commerce la bonne façon ?</h2>
-          <p>Installez Atlas en deux minutes — vos produits, vos ventes et vos clients au même endroit.</p>
+          <p>Retrouvez vos produits, vos ventes et vos clients au même endroit.</p>
           <div className="hm-cta">
             <PublicDownloadCta />
             {isLoggedIn() ? (

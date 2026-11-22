@@ -5,7 +5,8 @@ import DownloadHeroVisual from '../components/DownloadHeroVisual';
  * Manifeste `latest.json` du CDN pour le binaire,
  * notes de version depuis les GitHub Releases du dépôt android.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useLandingMotion } from '../hooks/useLandingMotion';
 import { Link } from 'react-router-dom';
 import { PublicNav, PublicSessionCta } from '../components/PublicChrome';
 import { APP_NAME, APP_BUILD_DATE, APP_GITHUB } from '../version';
@@ -82,6 +83,8 @@ function mdToHtml(src: string): string {
 }
 
 export default function Download() {
+  const pageRef = useRef<HTMLDivElement>(null);
+  useLandingMotion(pageRef, '.dl-ed-facts, .dl-ed-section, .dl-preview', '.dl-ed-visual-inner');
   const [m, setM] = useState<Manifest | null>(null);
   const [state, setState] = useState<'loading' | 'ok' | 'error'>('loading');
   const [rels, setRels] = useState<GhRelease[]>([]);
@@ -167,7 +170,7 @@ export default function Download() {
   const relDate = rel?.published_at ? String(rel.published_at).slice(0, 10) : m?.buildDate || 'Date non disponible';
 
   return (
-    <div className="download-landing">
+    <div className="download-landing android-landing" ref={pageRef}>
       {/* ── Navbar visible par tous : accueil, légal, contact → À propos ── */}
       <PublicNav
         links={[
@@ -187,7 +190,7 @@ export default function Download() {
             <a className="dl-ed-release-badge" href="#versions"><span aria-hidden="true" />{m?.versionName ? `Version Android · ${m.versionName}` : 'Versions Android'} <b aria-hidden="true">↗</b></a>
             <div className="dl-ed-hero-grid">
               <div className="dl-hero-content">
-                <h1 className="dl-h1 dl-ed-title">Atlas Commerce<br /><span>pour Android.</span></h1>
+                <h1 className="dl-h1 dl-ed-title"><span className="dl-ed-title-first">Atlas Commerce</span>{' '}<span className="dl-ed-title-second">pour Android.</span></h1>
                 <p className="dl-desc">Stock, ventes, factures et trésorerie : les outils Atlas vous accompagnent sur le terrain.</p>
                 <div className="dl-ctas">
                   {apkHref ? <a className="dl-cta-main" href={apkHref} target="_blank" rel="noopener noreferrer">↓ &nbsp; Télécharger l&apos;APK</a> : <span className="dl-cta-main dl-cta-wait" aria-disabled="true">{state === 'loading' ? 'Lecture du manifeste…' : 'Manifeste injoignable'}</span>}

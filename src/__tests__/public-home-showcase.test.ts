@@ -37,3 +37,16 @@ it('shows section content when IntersectionObserver is unavailable', async () =>
   expect(reveals.length).toBeGreaterThan(0);
   expect(reveals.every(element => element.classList.contains('is-in'))).toBe(true);
 });
+
+it('shows the user question before the fictional agent reply', async () => {
+  await act(async () => { root.render(createElement(MemoryRouter, { children: createElement(Home) })); });
+  const conversation = host.querySelector('.hm-fx-agent')!;
+  const bubbles = conversation.querySelectorAll('.hm-bubble');
+  expect(conversation.getAttribute('aria-label')).toContain('fictif');
+  expect(bubbles[0].textContent).toContain('Vous');
+  expect(bubbles[0].textContent).toContain('Combien de ventes');
+  expect(bubbles[1].textContent).toContain('Agent Atlas');
+  expect(bubbles[1].textContent).toContain('23 ventes');
+  expect(host.querySelector('.hm-start')?.getAttribute('href')).toBe('/login');
+  expect(host.querySelectorAll('.hm-steps li')).toHaveLength(3);
+});
