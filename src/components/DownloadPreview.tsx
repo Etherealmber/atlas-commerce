@@ -3,7 +3,7 @@ export default function DownloadPreview({ platform }: { platform: 'android' | 'd
   return <section id="apercu" className={`dl-preview dl-preview--${platform}`} aria-labelledby={`dl-preview-${platform}`}>
     <div className="dl-container">
       <div className="dl-preview-intro">
-        <div><p className="dl-preview-eyebrow">01 / APERÇU</p>
+        <div><p className="dl-preview-eyebrow">03 / APERÇU</p>
           <h2 className="dl-sec-title" id={`dl-preview-${platform}`}>{platform === 'android' ? 'Votre activité en poche.' : 'Un espace pour votre activité.'}</h2>
         </div>
         <p>{platform === 'android' ? 'Consultez votre catalogue et vos mouvements depuis une interface adaptée au téléphone.' : 'Suivez vos produits et leurs niveaux de stock depuis votre ordinateur.'}</p>

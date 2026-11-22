@@ -40,3 +40,37 @@ it('offers the Android versions link and does not invent a release date when off
   expect(host.querySelector<HTMLAnchorElement>('.dl-hero a[href="#versions"]')).not.toBeNull();
   expect(host.querySelectorAll('.dl-stat strong')[2].textContent).toBe('—');
 });
+
+it('filters desktop release assets without losing the official download links', async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => [{ tag_name: 'v2', assets: [
+    { name: 'atlas-setup.exe', browser_download_url: 'https://example.com/atlas-setup.exe' },
+    { name: 'atlas.dmg', browser_download_url: 'https://example.com/atlas.dmg' },
+    { name: 'atlas.AppImage', browser_download_url: 'https://example.com/atlas.AppImage' },
+  ] }] })));
+  await render(Desktop);
+  const buttons = [...host.querySelectorAll<HTMLButtonElement>('.dl-ed-platforms button')];
+  expect(host.querySelectorAll('.dl-ed-download-row')).toHaveLength(3);
+  await act(async () => buttons.find(button => button.textContent === 'macOS')!.click());
+  expect(host.querySelectorAll('.dl-ed-download-row')).toHaveLength(1);
+  expect(host.querySelector<HTMLAnchorElement>('.dl-ed-download-row a')?.href).toBe('https://example.com/atlas.dmg');
+  expect(buttons.find(button => button.textContent === 'macOS')?.getAttribute('aria-pressed')).toBe('true');
+  await act(async () => buttons.find(button => button.textContent === 'Tous')!.click());
+  expect(host.querySelectorAll('.dl-ed-download-row')).toHaveLength(3);
+});
+
+it('uses the Android CDN if the same-origin manifest fails', async () => {
+  const fetchMock = vi.fn(async (url: string) => {
+    if (url.includes('android-update')) throw new Error('offline');
+    return { ok: true, json: async () => url.includes('latest.json') ? { apkUrl: 'https://example.com/fallback.apk' } : [] };
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  await render(Download);
+  expect(host.querySelector<HTMLAnchorElement>('.dl-cta-main')?.href).toBe('https://example.com/fallback.apk');
+});
+
+it('does not create a desktop download link when an asset has no URL', async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => [{ assets: [{ name: 'atlas.AppImage' }, { name: 'atlas-setup.exe' }, { name: 'atlas.dmg' }] }] })));
+  await render(Desktop);
+  expect(host.querySelector('.dl-hero .dl-cta-wait')?.textContent).toContain('Aucun binaire');
+  expect(host.querySelector('.dl-ed-download-row a')).toBeNull();
+});
