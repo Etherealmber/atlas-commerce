@@ -160,16 +160,15 @@ export default function QuickSaleDetail() {
       <div className="page-header dock-page-header">
         <h1 className="sr-only">Ticket {ticket.number}</h1>
         <TopPageActions>
-          <a
-            className="btn secondary"
+          <button
+            type="button"
+            className="secondary"
             title="Imprimer"
-            href={`${BASE}/api/invoices/${ticket.id}/print?token=${encodeURIComponent(token)}`}
-            target="_blank"
-            rel="noreferrer"
+            onClick={() => window.open(`${BASE}/api/invoices/${ticket.id}/print?token=${encodeURIComponent(token)}`, '_blank', 'noopener,noreferrer')}
           >
             <Printer size={16} aria-hidden="true" />
             <span className="tpa-label">Imprimer</span>
-          </a>
+          </button>
           {!cancelled && ticket.status !== 'remboursement' && (
             <button type="button" className="secondary" title="Créer un remboursement" onClick={goRefund}>
               <RotateCcw size={16} aria-hidden="true" />

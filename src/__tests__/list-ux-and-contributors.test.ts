@@ -59,10 +59,16 @@ describe('List UX, danger/dock/slot CSS fixes, pagination (20/page), and release
     const shellCss = readFileSync(path.resolve(process.cwd(), 'src/styles/shell.css'), 'utf8');
     const overridesFinal = readFileSync(path.resolve(process.cwd(), 'src/styles/overrides-final.css'), 'utf8');
     const appCss = readFileSync(path.resolve(process.cwd(), 'src/App.css'), 'utf8');
+    const crmCss = readFileSync(path.resolve(process.cwd(), 'src/components/erp/crm-parties.css'), 'utf8');
     const productsSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Products.tsx'), 'utf8');
+    const quickSaleSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/QuickSale.tsx'), 'utf8');
 
     expect(darkForce).toMatch(/button\.danger:not\(\.ac-timed-delete-btn\):not\(\.ac-timed-undo-btn\):hover:not\(:disabled\)[\s\S]*background:\s*#b91c1c\s*!important;[\s\S]*color:\s*#ffffff\s*!important;[\s\S]*-webkit-text-fill-color:\s*#ffffff\s*!important;/);
     expect(darkForce).toMatch(/@media\s*\(min-width:\s*901px\)[\s\S]*td\.row-actions-cell\s*>\s*\.row-actions[\s\S]*table\.ac-products-table\s*\.row-actions[\s\S]*flex-wrap:\s*nowrap\s*!important/);
+    expect(darkForce).toMatch(/html\s+body\s+a\.btn[\s\S]*text-decoration:\s*none\s*!important/);
+    expect(darkForce).toMatch(/\.ac-desktop-dock\s+\.ac-topbar-icon\s*\{[^}]*width:\s*40px\s*!important[^}]*border-radius:\s*999px\s*!important/s);
+    expect(crmCss).toMatch(/\.atlas-crm\s+\.row-actions\s*\{[^}]*flex-wrap:\s*nowrap;/s);
+    expect(quickSaleSrc).not.toMatch(/<a[^>]*className="btn secondary"/);
     expect(overridesFinal).toMatch(/html\s+\.modal\s+button:[^}]*:not\(\.step-wizard__step-btn\)/);
     expect(appCss).toMatch(/\.modal\s+button:not\(\.secondary\):not\(\.app-toast-close\):not\(\.step-wizard__step-btn\)/);
     expect(darkForce).toMatch(/html\[data-theme\]\s+body\s+\.modal\s+button:[^}]*:not\(\.step-wizard__step-btn\)/);

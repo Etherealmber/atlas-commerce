@@ -271,27 +271,25 @@ export default function InvoiceDetail() {
       <div className="page-header dock-page-header">
         <h1 className="sr-only">{isQuote ? 'Devis' : 'Facture'} {invoice.number}</h1>
         <TopPageActions>
-          <a
-            className="btn secondary"
+          <button
+            type="button"
+            className="secondary"
             title="Imprimer"
-            href={`${BASE}/api/invoices/${invoice.id}/print?token=${encodeURIComponent(getToken() || '')}`}
-            target="_blank"
-            rel="noreferrer"
+            onClick={() => window.open(`${BASE}/api/invoices/${invoice.id}/print?token=${encodeURIComponent(getToken() || '')}`, '_blank', 'noopener,noreferrer')}
           >
             <Printer size={16} aria-hidden="true" />
             <span className="tpa-label">Imprimer</span>
-          </a>
+          </button>
           {invoice.status !== 'quote' && invoice.status !== 'devis' && (
-            <a
-              className="btn secondary"
+            <button
+              type="button"
+              className="secondary"
               title="Export UBL XML"
-              href={`${BASE}/api/invoices/${invoice.id}/ubl?token=${encodeURIComponent(getToken() || '')}`}
-              target="_blank"
-              rel="noreferrer"
+              onClick={() => window.open(`${BASE}/api/invoices/${invoice.id}/ubl?token=${encodeURIComponent(getToken() || '')}`, '_blank', 'noopener,noreferrer')}
             >
               <FileCode2 size={16} aria-hidden="true" />
               <span className="tpa-label">Export UBL XML</span>
-            </a>
+            </button>
           )}
           {canEditLines && !editingLines && (
             <button type="button" title="Modifier lignes & promo" onClick={startEditLines}>

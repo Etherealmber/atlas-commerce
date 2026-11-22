@@ -213,18 +213,30 @@ export default function Receipts() {
                   <td>{r.invoice_id ? <Link to={`/invoices/${r.invoice_id}`} className="ac-number-link"><strong>{r.invoice_number || `#${r.invoice_id}`}</strong></Link> : (r.invoice_number ? <strong>{r.invoice_number}</strong> : '—')}</td>
                   <td className="row-actions-cell">
                     <div className="row-actions" style={{ pointerEvents: 'auto' }}>
-                      <a className="btn secondary" href={`${BASE}/api/receipts/${r.id}/print?layout=full&token=${token}`} target="_blank" rel="noreferrer">
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={() => window.open(`${BASE}/api/receipts/${r.id}/print?layout=full&token=${token}`, '_blank', 'noopener,noreferrer')}
+                      >
                         <Printer size={14} aria-hidden="true" />
                         <span>Reçu détail</span>
-                      </a>
-                      <a className="btn secondary" href={`${BASE}/api/receipts/${r.id}/print?layout=minimal&token=${token}`} target="_blank" rel="noreferrer">
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={() => window.open(`${BASE}/api/receipts/${r.id}/print?layout=minimal&token=${token}`, '_blank', 'noopener,noreferrer')}
+                      >
                         <FileText size={14} aria-hidden="true" />
                         <span>Ticket minimal</span>
-                      </a>
-                      <a className="btn secondary" href={`${BASE}/api/receipts/${r.id}/pdf?token=${token}`} target="_blank" rel="noreferrer">
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={() => window.open(`${BASE}/api/receipts/${r.id}/pdf?token=${token}`, '_blank', 'noopener,noreferrer')}
+                      >
                         <FileDown size={14} aria-hidden="true" />
                         <span>PDF</span>
-                      </a>
+                      </button>
                       <button
                         type="button"
                         className="secondary"

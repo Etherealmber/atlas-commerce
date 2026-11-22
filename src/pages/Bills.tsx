@@ -424,10 +424,14 @@ export default function Bills() {
                     )}
                   </td>
                   <td className="row-actions-cell"><div className="row-actions">
-                    <a className="btn secondary" href={`${BASE}/api/bills/${b.id}/print?token=${encodeURIComponent(getToken() || '')}`} target="_blank" rel="noreferrer">
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={() => window.open(`${BASE}/api/bills/${b.id}/print?token=${encodeURIComponent(getToken() || '')}`, '_blank', 'noopener,noreferrer')}
+                    >
                       <Printer size={14} aria-hidden="true" />
                       <span>Imprimer</span>
-                    </a>
+                    </button>
                     {b.status !== 'cancelled' && (
                       <button type="button" className="secondary" onClick={() => openReceive(b)}>
                         <PackageCheck size={14} aria-hidden="true" />

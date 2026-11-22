@@ -4910,10 +4910,25 @@ html body .atlas-settings .settings-nav-item {
 
 /* Circular profile avatars & topbar user buttons: never squish into vertical capsules or force dark fill in light mode */
 html[data-theme] body .ac-desktop-dock .ac-topbar-right,
-html[data-theme] body .ac-topbar .ac-topbar-right {
+html[data-theme] body .ac-topbar .ac-topbar-right,
+html body .ac-desktop-dock .ac-topbar-right {
   flex: 0 0 auto !important;
+  flex-wrap: nowrap !important;
 }
-html[data-theme] body .ac-topbar-user-wrap {
+html[data-theme] body .ac-desktop-dock .ac-topbar-icon,
+html body .ac-desktop-dock .ac-topbar-icon {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  max-width: 40px !important;
+  min-height: 40px !important;
+  max-height: 40px !important;
+  flex: 0 0 40px !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+}
+html[data-theme] body .ac-topbar-user-wrap,
+html body .ac-desktop-dock .ac-topbar-user-wrap {
   flex: 0 0 auto !important;
   display: inline-flex !important;
   align-items: center !important;
@@ -4927,7 +4942,7 @@ html[data-theme] body .ac-topbar-user-btn {
   max-height: 40px !important;
   flex: 0 0 40px !important;
   aspect-ratio: 1 / 1 !important;
-  padding: 2px !important;
+  padding: 0 !important;
   margin: 0 !important;
   box-sizing: border-box !important;
   border-radius: 999px !important;
@@ -4937,15 +4952,28 @@ html[data-theme] body .ac-topbar-user-btn {
   overflow: hidden !important;
   line-height: 1 !important;
 }
+html body .ac-desktop-dock .ac-topbar-user-btn {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  max-width: 40px !important;
+  min-height: 40px !important;
+  max-height: 40px !important;
+  flex: 0 0 40px !important;
+  aspect-ratio: 1 / 1 !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  overflow: hidden !important;
+}
 html:not([data-theme="dark"]) body .ac-topbar-user-btn {
   background: transparent !important;
-  border: 1px solid transparent !important;
+  border: 1px solid rgba(15, 23, 42, 0.12) !important;
   color: #0f172a !important;
   box-shadow: none !important;
 }
 html:not([data-theme="dark"]) body .ac-topbar-user-btn:hover {
   background: rgba(15, 23, 42, 0.06) !important;
-  border-color: #e4e4e7 !important;
+  border-color: #cbd5e1 !important;
 }
 html[data-theme="dark"] body .ac-topbar-user-btn {
   background: #1c1c1f !important;
@@ -5452,4 +5480,21 @@ html[data-theme] body .wn-contributor-avatar {
   border-radius: 999px;
   object-fit: cover;
   flex: none;
+}
+
+/* Action links styled as buttons never underline like hyperlinks */
+html body a.btn,
+html body a.btn:link,
+html body a.btn:visited,
+html body a.btn:hover,
+html body a.btn:active,
+html body a.btn:focus,
+html body a.btn:focus-visible,
+html body .row-actions a,
+html body .row-actions a:hover,
+html body .top-page-actions a,
+html body .top-page-actions a:hover,
+html body .desktop-catalog-actions-slot a,
+html body .desktop-catalog-actions-slot a:hover {
+  text-decoration: none !important;
 }

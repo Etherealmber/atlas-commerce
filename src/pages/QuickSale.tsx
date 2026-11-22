@@ -595,15 +595,14 @@ export default function QuickSale() {
                             </button>
                           </>
                         )}
-                        <a
-                          className="btn secondary"
-                          href={`${BASE}/api/invoices/${inv.id}/print?token=${encodeURIComponent(token)}`}
-                          target="_blank"
-                          rel="noreferrer"
+                        <button
+                          type="button"
+                          className="secondary"
+                          onClick={() => window.open(`${BASE}/api/invoices/${inv.id}/print?token=${encodeURIComponent(token)}`, '_blank', 'noopener,noreferrer')}
                         >
                           <Printer size={14} aria-hidden="true" />
                           <span>Imprimer</span>
-                        </a>
+                        </button>
                         {inv.status !== 'cancelled' && (
                           <button
                             type="button"

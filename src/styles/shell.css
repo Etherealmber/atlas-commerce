@@ -1498,9 +1498,9 @@ html[data-theme="dark"] .ac-topbar-avatar {
   justify-content: center !important;
   box-sizing: border-box !important;
   overflow: hidden !important;
-  border: 1px solid transparent !important;
+  border: 1px solid rgba(15, 23, 42, 0.12) !important;
   background: transparent !important;
-  padding: 2px !important;
+  padding: 0 !important;
   border-radius: 999px !important;
   cursor: pointer;
 }
