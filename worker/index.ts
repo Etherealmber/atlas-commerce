@@ -21,6 +21,8 @@ import { sendSms, whatsappDeepLink, documentSmsBody } from './sms';
 import {
   kvGetJson,
   kvPutJson,
+  doCacheGet,
+  doCachePut,
   invalidateDashboardCache,
   dashboardCacheKey,
   settingsCacheKey,
@@ -6762,7 +6764,7 @@ app.put('/api/settings', async (c) => {
       detail: String(e?.message || e),
     }, 500);
   }
-  await invalidateDashboardCache(c.env.CACHE);
+  await invalidateDashboardCache(c.env.CACHE, c.env.MOBILE_HUB);
   try {
     const su = sessionUserFromHeader(c.req.header('Authorization'));
     const changed = fields.filter((f) => body[f] !== undefined).slice(0, 24);
@@ -7264,7 +7266,7 @@ app.post('/api/products', async (c) => {
     if (product && (product as any).id) await placeProductStockOnDefault(c.env.DB, Number((product as any).id), pq);
   } catch { /* */ }
   try { const su = sessionUserFromHeader(c.req.header('Authorization')); await writeAudit(c.env.DB, { username: su.username, role: su.role, action: 'product.create', entity: 'products', entity_id: String(result?.meta?.last_row_id || ''), detail: body?.name || '', ip: c.req.header('cf-connecting-ip') || '' }); } catch {}
-  await invalidateDashboardCache(c.env.CACHE);
+  await invalidateDashboardCache(c.env.CACHE, c.env.MOBILE_HUB);
   return c.json({ success: true, data: product ? withInventoryActors(product as any) : product, message: 'Produit enregistré dans la base de données.' }, 201);
 });
 
@@ -7403,7 +7405,7 @@ app.put('/api/products/:id', async (c) => {
       console.error('place product stock', e);
     }
   }
-await invalidateDashboardCache(c.env.CACHE);
+await invalidateDashboardCache(c.env.CACHE, c.env.MOBILE_HUB);
   return c.json({ success: true, data: product ? withInventoryActors(product as any) : product, message: 'Produit modifié dans la base de données.' });
 });
 
@@ -7456,7 +7458,7 @@ app.post('/api/products/:id/adjust-stock', async (c) => {
   );
   const updated = await c.env.DB.prepare(`SELECT * FROM products WHERE id = ?`).bind(id).first();
   // Free-tier friendly: D1 + KV invalidation (no Durable Objects required)
-  await invalidateDashboardCache(c.env.CACHE);
+  await invalidateDashboardCache(c.env.CACHE, c.env.MOBILE_HUB);
   return c.json({
     success: true,
     data: updated,
@@ -7564,7 +7566,7 @@ app.post('/api/products/:id/variants', async (c) => {
   if (stock_quantity > 0) {
     await applyStockDelta(c.env.DB, variantId, stock_quantity, 'Stock initial (variante)', `variant:${variantId}`, { type: 'initial', createdBy: actorName || undefined });
   }
-  await invalidateDashboardCache(c.env.CACHE);
+  await invalidateDashboardCache(c.env.CACHE, c.env.MOBILE_HUB);
   const variant = await c.env.DB.prepare(`SELECT * FROM products WHERE id = ?`).bind(variantId).first();
   return c.json({ success: true, data: variant ? withInventoryActors(variant as any) : variant, message: 'Variante créée.' }, 201);
 });
@@ -7614,7 +7616,7 @@ app.put('/api/products/variants/:vid', async (c) => {
   values.push(vid);
   await c.env.DB.prepare(`UPDATE products SET ${updates.join(', ')} WHERE id = ?`).bind(...values).run();
   const row = await c.env.DB.prepare(`SELECT * FROM products WHERE id = ?`).bind(vid).first();
-  await invalidateDashboardCache(c.env.CACHE);
+  await invalidateDashboardCache(c.env.CACHE, c.env.MOBILE_HUB);
   return c.json({ success: true, data: row, message: 'Variante mise à jour.' });
 });
 
@@ -7820,7 +7822,7 @@ app.post('/api/scan/quick-product', async (c) => {
   if (stock_quantity > 0) {
     await applyStockDelta(c.env.DB, id, stock_quantity, 'Stock initial (scan)', barcode, { type: 'initial', createdBy: actorName || undefined });
   }
-  await invalidateDashboardCache(c.env.CACHE);
+  await invalidateDashboardCache(c.env.CACHE, c.env.MOBILE_HUB);
   const product = await c.env.DB.prepare(`SELECT * FROM products WHERE id = ?`).bind(id).first();
   return c.json({
     success: true,
@@ -10695,7 +10697,7 @@ app.post('/api/invoices/remboursement', async (c) => {
       });
     } catch { /* */ }
 
-    await invalidateDashboardCache(c.env.CACHE).catch(() => {});
+    await invalidateDashboardCache(c.env.CACHE, c.env.MOBILE_HUB).catch(() => {});
 
     const credit = await c.env.DB.prepare(`SELECT * FROM invoices WHERE id = ?`).bind(creditId).first() as any;
     const { results: invItems } = await c.env.DB.prepare(`SELECT * FROM invoice_items WHERE invoice_id = ?`).bind(creditId).all();
@@ -11081,7 +11083,7 @@ app.post('/api/invoices/:id/payments', async (c) => {
   await c.env.DB.prepare(
     `UPDATE invoices SET amount_paid = ?, status = ?, updated_at = datetime('now') WHERE id = ?`
   ).bind(next, status, id).run();
-  await invalidateDashboardCache(c.env.CACHE);
+  await invalidateDashboardCache(c.env.CACHE, c.env.MOBILE_HUB);
 
   // v254 — notify authorized finance recipients that a client payment was
   // recorded (deduped by the durable outbox; re-checks role at delivery).
@@ -15387,81 +15389,91 @@ app.post('/api/bank/reconcile-csv', async (c) => {
   });
 });
 
+async function ensureCoreIndexes(db: D1Database) {
+  await schemaOnce('core_indexes', async () => {
+    const stmts = [
+      `CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status)`,
+      `CREATE INDEX IF NOT EXISTS idx_invoices_doc_kind ON invoices(doc_kind)`,
+      `CREATE INDEX IF NOT EXISTS idx_invoices_due_date ON invoices(due_date)`,
+      `CREATE INDEX IF NOT EXISTS idx_bills_status ON bills(status)`,
+      `CREATE INDEX IF NOT EXISTS idx_bills_receive_status ON bills(receive_status)`,
+      `CREATE INDEX IF NOT EXISTS idx_products_active_track ON products(is_active, track_inventory)`,
+      `CREATE INDEX IF NOT EXISTS idx_stock_movements_prod_created ON stock_movements(product_id, created_at DESC)`,
+      `CREATE INDEX IF NOT EXISTS idx_clients_name ON clients(name)`,
+    ];
+    for (const sql of stmts) {
+      try { await db.prepare(sql).run(); } catch { /* table may not exist yet */ }
+    }
+  });
+}
+
 /** Lightweight counts for sidebar / phone nav badges */
 app.get('/api/nav-badges', async (c) => {
   try {
+    await ensureCoreIndexes(c.env.DB);
     const canSeePayroll = !(await requireEmployeeAdmin(c));
-    const badgeKey = `nav-badges:${await getCacheGen(c.env.CACHE)}`;
-    const cached = await kvGetJson<any>(c.env.CACHE, badgeKey);
+    const NAV_BADGES_TTL = 300;
+    const cached = await doCacheGet<any>(c.env.MOBILE_HUB, c.env.CACHE, 'nav-badges', NAV_BADGES_TTL);
     if (cached) {
       return c.json({ success: true, data: canSeePayroll ? cached : { ...cached, employees_pay_due: 0 }, meta: { cache: 'hit' } }, 200, {
-        'Cache-Control': 'private, max-age=20',
+        'Cache-Control': 'private, max-age=60',
       });
     }
-    const [unpaidInvoices, unpaidBills, lowStock, pendingActions, openQuotes, billsReceive, vrOpen, _empActive] = await Promise.all([
+    const [invRow, billRow, lowStock, pendingActions, employees_pay_due] = await Promise.all([
       c.env.DB.prepare(
-        `SELECT COUNT(*) as n FROM invoices
-         WHERE status NOT IN ('quote','devis','cancelled','remboursement','paid')
-           AND COALESCE(doc_kind,'') NOT IN ('remboursement','quick_sale','ticket')
-           AND IFNULL(number,'') NOT LIKE 'VR-%'
-           AND IFNULL(number,'') NOT LIKE 'VR/%'
-           AND (total - COALESCE(amount_paid, 0)) > 0.001`
-      ).first() as Promise<any>,
+        `SELECT
+           COALESCE(SUM(CASE
+             WHEN status NOT IN ('quote','devis','cancelled','remboursement','paid')
+              AND COALESCE(doc_kind,'') NOT IN ('remboursement','quick_sale','ticket')
+              AND IFNULL(number,'') NOT LIKE 'VR-%'
+              AND IFNULL(number,'') NOT LIKE 'VR/%'
+              AND (total - COALESCE(amount_paid, 0)) > 0.001
+             THEN 1 ELSE 0 END), 0) AS invoices_unpaid,
+           COALESCE(SUM(CASE
+             WHEN status IN ('quote','devis')
+             THEN 1 ELSE 0 END), 0) AS quotes_open,
+           COALESCE(SUM(CASE
+             WHEN status NOT IN ('cancelled','paid')
+              AND (COALESCE(doc_kind,'') IN ('quick_sale','ticket') OR IFNULL(number,'') LIKE 'VR-%' OR IFNULL(number,'') LIKE 'VR/%')
+              AND (total - COALESCE(amount_paid, 0)) > 0.001
+             THEN 1 ELSE 0 END), 0) AS vr_open
+         FROM invoices`
+      ).first().catch(() => ({ invoices_unpaid: 0, quotes_open: 0, vr_open: 0 })) as Promise<any>,
       c.env.DB.prepare(
-        `SELECT COUNT(*) as n FROM bills
-         WHERE status NOT IN ('cancelled','paid')
-           AND (total - COALESCE(amount_paid, 0)) > 0.001`
-      ).first() as Promise<any>,
+        `SELECT
+           COALESCE(SUM(CASE
+             WHEN status NOT IN ('cancelled','paid')
+              AND (total - COALESCE(amount_paid, 0)) > 0.001
+             THEN 1 ELSE 0 END), 0) AS bills_unpaid,
+           COALESCE(SUM(CASE
+             WHEN status NOT IN ('cancelled')
+              AND COALESCE(receive_status, 'pending') IN ('pending', 'partial')
+             THEN 1 ELSE 0 END), 0) AS bills_receive
+         FROM bills`
+      ).first().catch(() => ({ bills_unpaid: 0, bills_receive: 0 })) as Promise<any>,
       c.env.DB.prepare(
         `SELECT COUNT(*) as n FROM products
          WHERE is_active = 1 AND track_inventory = 1
            AND stock_quantity <= COALESCE(low_stock_threshold, 0)`
-      ).first() as Promise<any>,
+      ).first().catch(() => ({ n: 0 })) as Promise<any>,
       c.env.DB.prepare(
         `SELECT COUNT(*) as n FROM mobile_actions WHERE status = 'pending'`
       ).first().catch(() => ({ n: 0 })) as Promise<any>,
-      c.env.DB.prepare(
-        `SELECT COUNT(*) as n FROM invoices WHERE status IN ('quote','devis')`
-      ).first() as Promise<any>,
-      c.env.DB.prepare(
-        `SELECT COUNT(*) as n FROM bills
-         WHERE status NOT IN ('cancelled')
-           AND COALESCE(receive_status, 'pending') IN ('pending', 'partial')`
-      ).first().catch(() => ({ n: 0 })) as Promise<any>,
-      c.env.DB.prepare(
-        `SELECT COUNT(*) as n FROM invoices
-         WHERE status NOT IN ('cancelled','paid')
-           AND (
-             COALESCE(doc_kind,'') IN ('quick_sale','ticket')
-             OR IFNULL(number,'') LIKE 'VR-%'
-             OR IFNULL(number,'') LIKE 'VR/%'
-           )
-           AND (total - COALESCE(amount_paid, 0)) > 0.001`
-      ).first().catch(() => ({ n: 0 })) as Promise<any>,
-      c.env.DB.prepare(
-        `SELECT COUNT(*) as n FROM employees
-         WHERE COALESCE(active, 1) = 1 AND COALESCE(pay_amount, 0) > 0.001`
-      ).first().catch(() => ({ n: 0 })) as Promise<any>,
+      countEmployeesPayDue(c.env.DB).catch(() => 0),
     ]);
 
-    // employees_pay_due — same rules as Employees page (nextDue + Morocco TZ)
-    let employees_pay_due = 0;
-    try {
-      employees_pay_due = await countEmployeesPayDue(c.env.DB);
-    } catch { /* table may not exist yet */ }
-
     const data = {
-      invoices_unpaid: Number(unpaidInvoices?.n || 0),
-      bills_unpaid: Number(unpaidBills?.n || 0),
-      bills_receive: Number(billsReceive?.n || 0),
+      invoices_unpaid: Number(invRow?.invoices_unpaid || 0),
+      bills_unpaid: Number(billRow?.bills_unpaid || 0),
+      bills_receive: Number(billRow?.bills_receive || 0),
       products_low: Number(lowStock?.n || 0),
       actions_pending: Number(pendingActions?.n || 0),
-      quotes_open: Number(openQuotes?.n || 0),
-      vr_open: Number(vrOpen?.n || 0),
-      employees_pay_due,
+      quotes_open: Number(invRow?.quotes_open || 0),
+      vr_open: Number(invRow?.vr_open || 0),
+      employees_pay_due: Number(employees_pay_due || 0),
     };
-    await kvPutJson(c.env.CACHE, badgeKey, data, 30);
-    return c.json({ success: true, data: canSeePayroll ? data : { ...data, employees_pay_due: 0 } }, 200, { 'Cache-Control': 'private, max-age=20' });
+    await doCachePut(c.env.MOBILE_HUB, c.env.CACHE, 'nav-badges', data, NAV_BADGES_TTL);
+    return c.json({ success: true, data: canSeePayroll ? data : { ...data, employees_pay_due: 0 } }, 200, { 'Cache-Control': 'private, max-age=60' });
   } catch (e: any) {
     console.error('nav-badges', e);
     return c.json({
@@ -15506,58 +15518,67 @@ app.get('/api/dashboard', async (c) => {
       meta: { privacy: 'inventory-policy' },
     });
   }
-  // KV short cache reduces D1 free-tier read volume (many heavy aggregates).
+  await ensureCoreIndexes(c.env.DB);
+  // DO + memory cache reduces D1 reads & avoids KV write limits.
   const ttl = Math.max(120, Math.min(1800, Number(c.env.CACHE_TTL_SECONDS || DEFAULT_CACHE_TTL)));
-  const cached = await kvGetJson<any>(c.env.CACHE, await dashboardCacheKey(c.env.CACHE));
+  const cached = await doCacheGet<any>(c.env.MOBILE_HUB, c.env.CACHE, 'dash', ttl);
   if (cached) {
     return c.json({ success: true, data: cached, meta: { cache: 'hit' } });
   }
 
-  const settings = await c.env.DB.prepare(`SELECT starting_balance, currency FROM company_settings WHERE id = 1`).first() as any;
-  const [
-    products,
-    lowStock,
-    unpaidSales,
-    unpaidSalesOpen,
-    unpaidSalesOverdue,
-    unpaidPurchases,
-    unpaidPurchasesOpen,
-    unpaidPurchasesOverdue,
-  ] = await Promise.all([
-    c.env.DB.prepare(`SELECT COUNT(*) as count, COALESCE(SUM(stock_quantity * cost), 0) as stock_value FROM products WHERE is_active = 1`).first(),
-    c.env.DB.prepare(`SELECT COUNT(*) as count FROM products WHERE is_active = 1 AND track_inventory = 1 AND stock_quantity <= low_stock_threshold`).first(),
-    c.env.DB.prepare(
-      `SELECT COUNT(*) as count, COALESCE(SUM(total - COALESCE(amount_paid, 0)), 0) as total FROM invoices
-       WHERE status IN ('sent', 'partial', 'overdue', 'draft')
-         AND status NOT IN ('quote', 'devis', 'cancelled', 'remboursement')
-         AND COALESCE(doc_kind, '') != 'remboursement'`
-    ).first(),
-    c.env.DB.prepare(
-      `SELECT COUNT(*) as count, COALESCE(SUM(total - COALESCE(amount_paid, 0)), 0) as total FROM invoices
-       WHERE status IN ('sent', 'partial', 'draft')
-         AND status NOT IN ('quote', 'devis', 'cancelled', 'remboursement')
-         AND COALESCE(doc_kind, '') != 'remboursement'
-         AND (due_date IS NULL OR due_date >= date('now'))`
-    ).first(),
-    c.env.DB.prepare(
-      `SELECT COUNT(*) as count, COALESCE(SUM(total - COALESCE(amount_paid, 0)), 0) as total FROM invoices
-       WHERE status IN ('sent', 'partial', 'overdue')
-         AND status NOT IN ('quote', 'devis', 'cancelled', 'remboursement')
-         AND COALESCE(doc_kind, '') != 'remboursement'
-         AND due_date IS NOT NULL AND due_date < date('now')`
-    ).first(),
-    c.env.DB.prepare(`SELECT COUNT(*) as count, COALESCE(SUM(total - COALESCE(amount_paid, 0)), 0) as total FROM bills WHERE status IN ('sent', 'partial', 'draft')`).first(),
-    c.env.DB.prepare(
-      `SELECT COUNT(*) as count, COALESCE(SUM(total - COALESCE(amount_paid, 0)), 0) as total FROM bills
-       WHERE status IN ('sent', 'partial', 'draft') AND (due_date IS NULL OR due_date >= date('now'))`
-    ).first(),
-    c.env.DB.prepare(
-      `SELECT COUNT(*) as count, COALESCE(SUM(total - COALESCE(amount_paid, 0)), 0) as total FROM bills
-       WHERE status IN ('sent', 'partial', 'draft') AND due_date IS NOT NULL AND due_date < date('now')`
-    ).first(),
-  ]);
   await ensurePaymentHistoryTable(c.env.DB);
   await ensureInvoiceRefundColumns(c.env.DB);
+  await ensureExpenseTypeColumn(c.env.DB);
+
+  const [settings, prodAgg, invAgg, billAgg] = await Promise.all([
+    c.env.DB.prepare(`SELECT starting_balance, currency FROM company_settings WHERE id = 1`).first() as Promise<any>,
+    c.env.DB.prepare(
+      `SELECT
+         COALESCE(SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END), 0) as count,
+         COALESCE(SUM(CASE WHEN is_active = 1 THEN stock_quantity * cost ELSE 0 END), 0) as stock_value,
+         COALESCE(SUM(CASE WHEN is_active = 1 AND track_inventory = 1 AND stock_quantity <= low_stock_threshold THEN 1 ELSE 0 END), 0) as low_stock_count
+       FROM products`
+    ).first() as Promise<any>,
+    c.env.DB.prepare(
+      `SELECT
+         COALESCE(SUM(CASE
+           WHEN status IN ('sent', 'partial', 'overdue', 'draft')
+            AND status NOT IN ('quote', 'devis', 'cancelled', 'remboursement')
+            AND COALESCE(doc_kind, '') != 'remboursement'
+           THEN 1 ELSE 0 END), 0) as unpaid_count,
+         COALESCE(SUM(CASE
+           WHEN status IN ('sent', 'partial', 'overdue', 'draft')
+            AND status NOT IN ('quote', 'devis', 'cancelled', 'remboursement')
+            AND COALESCE(doc_kind, '') != 'remboursement'
+           THEN (total - COALESCE(amount_paid, 0)) ELSE 0 END), 0) as unpaid_total,
+         COALESCE(SUM(CASE
+           WHEN status IN ('sent', 'partial', 'draft')
+            AND status NOT IN ('quote', 'devis', 'cancelled', 'remboursement')
+            AND COALESCE(doc_kind, '') != 'remboursement'
+            AND (due_date IS NULL OR due_date >= date('now'))
+           THEN (total - COALESCE(amount_paid, 0)) ELSE 0 END), 0) as open_total,
+         COALESCE(SUM(CASE
+           WHEN status IN ('sent', 'partial', 'overdue')
+            AND status NOT IN ('quote', 'devis', 'cancelled', 'remboursement')
+            AND COALESCE(doc_kind, '') != 'remboursement'
+            AND due_date IS NOT NULL AND due_date < date('now')
+           THEN (total - COALESCE(amount_paid, 0)) ELSE 0 END), 0) as overdue_total,
+         COALESCE(SUM(CASE
+           WHEN status = 'remboursement' OR doc_kind = 'remboursement'
+           THEN total ELSE 0 END), 0) as refunds_total
+       FROM invoices`
+    ).first() as Promise<any>,
+    c.env.DB.prepare(
+      `SELECT
+         COALESCE(SUM(CASE WHEN status IN ('sent', 'partial', 'draft') THEN 1 ELSE 0 END), 0) as unpaid_count,
+         COALESCE(SUM(CASE WHEN status IN ('sent', 'partial', 'draft') THEN (total - COALESCE(amount_paid, 0)) ELSE 0 END), 0) as unpaid_total,
+         COALESCE(SUM(CASE WHEN status IN ('sent', 'partial', 'draft') AND (due_date IS NULL OR due_date >= date('now')) THEN (total - COALESCE(amount_paid, 0)) ELSE 0 END), 0) as open_total,
+         COALESCE(SUM(CASE WHEN status IN ('sent', 'partial', 'draft') AND due_date IS NOT NULL AND due_date < date('now') THEN (total - COALESCE(amount_paid, 0)) ELSE 0 END), 0) as overdue_total,
+         COALESCE(SUM(CASE WHEN status IN ('paid', 'partial') THEN amount_paid ELSE 0 END), 0) as paid_total
+       FROM bills`
+    ).first() as Promise<any>,
+  ]);
+
   // Entrées ventes = vrais encaissements uniquement (pas les avoirs WR, pas les lignes « Avoir … »)
   let salesReceivedNet = 0;
   try {
@@ -15580,34 +15601,57 @@ app.get('/api/dashboard', async (c) => {
     ).first() as any;
     salesReceivedNet = Number(salesPaid?.total || 0);
   }
-  const refundsIssued = await c.env.DB.prepare(
-    `SELECT COALESCE(SUM(total), 0) as total FROM invoices
-     WHERE status = 'remboursement' OR doc_kind = 'remboursement'`
-  ).first().catch(() => ({ total: 0 }));
-  const purchasesPaid = await c.env.DB.prepare(`SELECT COALESCE(SUM(amount_paid), 0) as total FROM bills WHERE status IN ('paid', 'partial')`).first();
-  await ensureExpenseTypeColumn(c.env.DB);
-  const expensesTotal = await c.env.DB.prepare(
-    `SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE COALESCE(entry_type, 'expense') = 'expense'`
-  ).first();
-  const otherIncomeTotal = await c.env.DB.prepare(
-    `SELECT COALESCE(SUM(amount), 0) as total FROM expenses
-     WHERE entry_type = 'income' AND COALESCE(category, '') != 'Encaissement client'`
-  ).first();
-  const ownerDrawTotal = await c.env.DB.prepare(
-    `SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE entry_type = 'owner_draw'`
-  ).first();
-  const ownerContribTotal = await c.env.DB.prepare(
-    `SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE entry_type = 'owner_contrib'`
-  ).first();
+
+  // Single-pass expenses monthly + totals query (replaces 9 separate scans)
+  const expByMonth = await c.env.DB.prepare(
+    `SELECT
+       substr(replace(COALESCE(expense_date, created_at, ''), 'T', ' '), 1, 7) as ym,
+       COALESCE(SUM(CASE WHEN COALESCE(entry_type, 'expense') = 'expense' THEN amount ELSE 0 END), 0) as expense_total,
+       COALESCE(SUM(CASE WHEN entry_type = 'income' AND COALESCE(category, '') != 'Encaissement client' THEN amount ELSE 0 END), 0) as income_total,
+       COALESCE(SUM(CASE WHEN entry_type = 'owner_draw' THEN amount ELSE 0 END), 0) as owner_draw_total,
+       COALESCE(SUM(CASE WHEN entry_type = 'owner_contrib' THEN amount ELSE 0 END), 0) as owner_contrib_total,
+       COALESCE(SUM(CASE WHEN COALESCE(entry_type, 'expense') = 'expense' AND (category = 'Salaire' OR notes LIKE 'employee_id:%') THEN amount ELSE 0 END), 0) as salary_total
+     FROM expenses
+     GROUP BY ym`
+  ).all().catch(() => ({ results: [] }));
+
+  let expensesSum = 0;
+  let otherIncomeSum = 0;
+  let ownerDrawSum = 0;
+  let ownerContribSum = 0;
+  const salesMap: Record<string, number> = {};
+  const spendMap: Record<string, number> = {};
+  const salaryMap: Record<string, number> = {};
+  const ownerContribMap: Record<string, number> = {};
+  const ownerDrawMap: Record<string, number> = {};
+  for (const r of (expByMonth.results || []) as any[]) {
+    const exp = Number(r.expense_total || 0);
+    const inc = Number(r.income_total || 0);
+    const draw = Number(r.owner_draw_total || 0);
+    const contrib = Number(r.owner_contrib_total || 0);
+    const sal = Number(r.salary_total || 0);
+    expensesSum += exp;
+    otherIncomeSum += inc;
+    ownerDrawSum += draw;
+    ownerContribSum += contrib;
+    if (r.ym) {
+      salesMap[r.ym] = (salesMap[r.ym] || 0) + inc + contrib;
+      spendMap[r.ym] = (spendMap[r.ym] || 0) + exp + draw;
+      if (sal) salaryMap[r.ym] = sal;
+      if (contrib) ownerContribMap[r.ym] = contrib;
+      if (draw) ownerDrawMap[r.ym] = draw;
+    }
+  }
+
   const starting = settings?.starting_balance || 0;
   // Remboursements client (expense) sortent déjà du solde ; les WR ne sont jamais des entrées.
   const balance = starting
     + salesReceivedNet
-    + (otherIncomeTotal?.total || 0)
-    + (ownerContribTotal?.total || 0)
-    - (purchasesPaid?.total || 0)
-    - (expensesTotal?.total || 0)
-    - (ownerDrawTotal?.total || 0);
+    + otherIncomeSum
+    + ownerContribSum
+    - Number(billAgg?.paid_total || 0)
+    - expensesSum
+    - ownerDrawSum;
   const recentInvoices = await c.env.DB.prepare(`SELECT * FROM invoices ORDER BY created_at DESC LIMIT 5`).all();
   const recentBills = await c.env.DB.prepare(`SELECT * FROM bills ORDER BY created_at DESC LIMIT 5`).all();
   const recentExpenses = await c.env.DB.prepare(`SELECT * FROM expenses ORDER BY expense_date DESC LIMIT 8`).all();
@@ -15646,88 +15690,52 @@ app.get('/api/dashboard', async (c) => {
        GROUP BY ym`
     ).all();
   }
-  const purchasesByMonth = await c.env.DB.prepare(
-    `SELECT substr(replace(COALESCE(issue_date, created_at, ''), 'T', ' '), 1, 7) as ym, COALESCE(SUM(amount_paid), 0) as total
-     FROM bills WHERE status IN ('paid', 'partial') GROUP BY ym`
-  ).all();
-  const expensesByMonth = await c.env.DB.prepare(
-    `SELECT substr(replace(COALESCE(expense_date, created_at, ''), 'T', ' '), 1, 7) as ym, COALESCE(SUM(amount), 0) as total
-     FROM expenses WHERE COALESCE(entry_type, 'expense') = 'expense' GROUP BY ym`
-  ).all();
-  // Only non-invoice income (exclude 'Encaissement client' which already appears in invoices.amount_paid).
-  // Otherwise monthly Entrées / Profit are doubled: the same paid amount is counted twice.
-  const incomeByMonth = await c.env.DB.prepare(
-    `SELECT substr(replace(COALESCE(expense_date, created_at, ''), 'T', ' '), 1, 7) as ym, COALESCE(SUM(amount), 0) as total
-     FROM expenses
-     WHERE entry_type = 'income'
-       AND COALESCE(category, '') != 'Encaissement client'
-     GROUP BY ym`
-  ).all();
-  // Owner capital movements — same ledger as Balance page (must feed charts)
-  let ownerContribByMonth: { results?: any[] } = { results: [] };
-  let ownerDrawByMonth: { results?: any[] } = { results: [] };
-  try {
-    ownerContribByMonth = await c.env.DB.prepare(
-      `SELECT substr(replace(COALESCE(expense_date, created_at, ''), 'T', ' '), 1, 7) as ym, COALESCE(SUM(amount), 0) as total
-       FROM expenses WHERE entry_type = 'owner_contrib' GROUP BY ym`
-    ).all();
-  } catch { /* */ }
-  try {
-    ownerDrawByMonth = await c.env.DB.prepare(
-      `SELECT substr(replace(COALESCE(expense_date, created_at, ''), 'T', ' '), 1, 7) as ym, COALESCE(SUM(amount), 0) as total
-       FROM expenses WHERE entry_type = 'owner_draw' GROUP BY ym`
-    ).all();
-  } catch { /* */ }
-  const salesMap: Record<string, number> = {};
-  const spendMap: Record<string, number> = {};
-  for (const r of (salesByMonth.results || []) as any[]) salesMap[r.ym] = Number(r.total || 0);
-  for (const r of (incomeByMonth.results || []) as any[]) salesMap[r.ym] = (salesMap[r.ym] || 0) + Number(r.total || 0);
-  for (const r of (ownerContribByMonth.results || []) as any[]) salesMap[r.ym] = (salesMap[r.ym] || 0) + Number(r.total || 0);
-  for (const r of (purchasesByMonth.results || []) as any[]) spendMap[r.ym] = (spendMap[r.ym] || 0) + Number(r.total || 0);
-  for (const r of (expensesByMonth.results || []) as any[]) spendMap[r.ym] = (spendMap[r.ym] || 0) + Number(r.total || 0);
-  for (const r of (ownerDrawByMonth.results || []) as any[]) spendMap[r.ym] = (spendMap[r.ym] || 0) + Number(r.total || 0);
+  for (const r of (salesByMonth.results || []) as any[]) {
+    if (r.ym) salesMap[r.ym] = (salesMap[r.ym] || 0) + Number(r.total || 0);
+  }
 
-  // Domain breakdowns for richer dashboard charts
-  const salaryMap: Record<string, number> = {};
+  // Single-pass bills monthly query (purchasesPaidByMonth + billMap)
+  const billsMonthly = await c.env.DB.prepare(
+    `SELECT
+       substr(replace(COALESCE(issue_date, created_at, ''), 'T', ' '), 1, 7) as ym,
+       COALESCE(SUM(CASE WHEN status IN ('paid', 'partial') THEN amount_paid ELSE 0 END), 0) as paid_total,
+       COALESCE(SUM(CASE WHEN status NOT IN ('cancelled') THEN total ELSE 0 END), 0) as billed_total
+     FROM bills
+     GROUP BY ym`
+  ).all().catch(() => ({ results: [] }));
+  const billMap: Record<string, number> = {};
+  for (const r of (billsMonthly.results || []) as any[]) {
+    if (!r.ym) continue;
+    spendMap[r.ym] = (spendMap[r.ym] || 0) + Number(r.paid_total || 0);
+    billMap[r.ym] = Number(r.billed_total || 0);
+  }
+
+  // Single-pass invoices monthly breakdown (faMap + vrMap)
   const faMap: Record<string, number> = {};
   const vrMap: Record<string, number> = {};
-  const billMap: Record<string, number> = {};
+  const invMonthly = await c.env.DB.prepare(
+    `SELECT
+       substr(replace(COALESCE(issue_date, created_at, ''), 'T', ' '), 1, 7) as ym,
+       COALESCE(SUM(CASE
+         WHEN status NOT IN ('cancelled','quote','devis','remboursement')
+          AND COALESCE(doc_kind,'') NOT IN ('quick_sale','ticket','remboursement')
+          AND IFNULL(number,'') NOT LIKE 'VR-%' AND IFNULL(number,'') NOT LIKE 'VR/%'
+         THEN total ELSE 0 END), 0) as fa_total,
+       COALESCE(SUM(CASE
+         WHEN status NOT IN ('cancelled')
+          AND (COALESCE(doc_kind,'') IN ('quick_sale','ticket') OR IFNULL(number,'') LIKE 'VR-%' OR IFNULL(number,'') LIKE 'VR/%')
+         THEN total ELSE 0 END), 0) as vr_total
+     FROM invoices
+     GROUP BY ym`
+  ).all().catch(() => ({ results: [] }));
+  for (const r of (invMonthly.results || []) as any[]) {
+    if (!r.ym) continue;
+    faMap[r.ym] = Number(r.fa_total || 0);
+    vrMap[r.ym] = Number(r.vr_total || 0);
+  }
+
   const clientMap: Record<string, number> = {};
   const receiptMap: Record<string, number> = {};
-  try {
-    const sal = await c.env.DB.prepare(
-      `SELECT substr(replace(COALESCE(expense_date, created_at, ''), 'T', ' '), 1, 7) as ym, COALESCE(SUM(amount),0) as total
-       FROM expenses WHERE COALESCE(entry_type,'expense')='expense' AND (category='Salaire' OR notes LIKE 'employee_id:%')
-       GROUP BY ym`
-    ).all();
-    for (const r of (sal.results || []) as any[]) salaryMap[r.ym] = Number(r.total || 0);
-  } catch { /* */ }
-  try {
-    const fa = await c.env.DB.prepare(
-      `SELECT substr(replace(COALESCE(issue_date, created_at, ''), 'T', ' '), 1, 7) as ym, COALESCE(SUM(total),0) as total
-       FROM invoices WHERE status NOT IN ('cancelled','quote','devis','remboursement')
-         AND COALESCE(doc_kind,'') NOT IN ('quick_sale','ticket','remboursement')
-         AND IFNULL(number,'') NOT LIKE 'VR-%' AND IFNULL(number,'') NOT LIKE 'VR/%'
-       GROUP BY ym`
-    ).all();
-    for (const r of (fa.results || []) as any[]) faMap[r.ym] = Number(r.total || 0);
-  } catch { /* */ }
-  try {
-    const vr = await c.env.DB.prepare(
-      `SELECT substr(replace(COALESCE(issue_date, created_at, ''), 'T', ' '), 1, 7) as ym, COALESCE(SUM(total),0) as total
-       FROM invoices WHERE status NOT IN ('cancelled')
-         AND (COALESCE(doc_kind,'') IN ('quick_sale','ticket') OR IFNULL(number,'') LIKE 'VR-%' OR IFNULL(number,'') LIKE 'VR/%')
-       GROUP BY ym`
-    ).all();
-    for (const r of (vr.results || []) as any[]) vrMap[r.ym] = Number(r.total || 0);
-  } catch { /* */ }
-  try {
-    const bi = await c.env.DB.prepare(
-      `SELECT substr(replace(COALESCE(issue_date, created_at, ''), 'T', ' '), 1, 7) as ym, COALESCE(SUM(total),0) as total
-       FROM bills WHERE status NOT IN ('cancelled') GROUP BY ym`
-    ).all();
-    for (const r of (bi.results || []) as any[]) billMap[r.ym] = Number(r.total || 0);
-  } catch { /* */ }
   try {
     const cl = await c.env.DB.prepare(
       `SELECT substr(replace(COALESCE(created_at, ''), 'T', ' '), 1, 7) as ym, COUNT(*) as total FROM clients GROUP BY ym`
@@ -15756,8 +15764,8 @@ app.get('/api/dashboard', async (c) => {
     bills: billMap[k] || 0,
     clients_new: clientMap[k] || 0,
     receipts: receiptMap[k] || 0,
-    owner_contrib: Number((ownerContribByMonth.results || []).find((r: any) => r.ym === k)?.total || 0),
-    owner_draw: Number((ownerDrawByMonth.results || []).find((r: any) => r.ym === k)?.total || 0),
+    owner_contrib: ownerContribMap[k] || 0,
+    owner_draw: ownerDrawMap[k] || 0,
   }));
   // Charges only: never mix income rows (e.g. Encaissement client) into expense breakdown
   const expenseCats = await c.env.DB.prepare(
@@ -15773,28 +15781,28 @@ app.get('/api/dashboard', async (c) => {
       currency: settings?.currency || 'MAD',
       startingBalance: starting,
       currentBalance: balance,
-      productCount: products?.count || 0,
-      stockValue: products?.stock_value || 0,
-      lowStockCount: lowStock?.count || 0,
+      productCount: Number(prodAgg?.count || 0),
+      stockValue: Number(prodAgg?.stock_value || 0),
+      lowStockCount: Number(prodAgg?.low_stock_count || 0),
       unpaidSales: {
-        count: unpaidSales?.count || 0,
-        total: unpaidSales?.total || 0,
-        open: Number(unpaidSalesOpen?.total || 0),
-        overdue: Number(unpaidSalesOverdue?.total || 0),
+        count: Number(invAgg?.unpaid_count || 0),
+        total: Number(invAgg?.unpaid_total || 0),
+        open: Number(invAgg?.open_total || 0),
+        overdue: Number(invAgg?.overdue_total || 0),
       },
       unpaidPurchases: {
-        count: unpaidPurchases?.count || 0,
-        total: unpaidPurchases?.total || 0,
-        open: Number(unpaidPurchasesOpen?.total || 0),
-        overdue: Number(unpaidPurchasesOverdue?.total || 0),
+        count: Number(billAgg?.unpaid_count || 0),
+        total: Number(billAgg?.unpaid_total || 0),
+        open: Number(billAgg?.open_total || 0),
+        overdue: Number(billAgg?.overdue_total || 0),
       },
       salesReceived: salesReceivedNet,
-      refundsTotal: Number((refundsIssued as any)?.total || 0),
-      purchasesPaid: purchasesPaid?.total || 0,
-      expensesTotal: expensesTotal?.total || 0,
-      otherIncomeTotal: otherIncomeTotal?.total || 0,
-      ownerDrawTotal: ownerDrawTotal?.total || 0,
-      ownerContribTotal: ownerContribTotal?.total || 0,
+      refundsTotal: Number(invAgg?.refunds_total || 0),
+      purchasesPaid: Number(billAgg?.paid_total || 0),
+      expensesTotal: expensesSum,
+      otherIncomeTotal: otherIncomeSum,
+      ownerDrawTotal: ownerDrawSum,
+      ownerContribTotal: ownerContribSum,
       recentInvoices: recentInvoices.results || [],
       recentBills: recentBills.results || [],
       recentExpenses: recentExpenses.results || [],
@@ -15810,7 +15818,7 @@ app.get('/api/dashboard', async (c) => {
         total: Number(r.total || 0),
       })),
     };
-  await kvPutJson(c.env.CACHE, await dashboardCacheKey(c.env.CACHE), payload, ttl);
+  await doCachePut(c.env.MOBILE_HUB, c.env.CACHE, 'dash', payload, ttl);
   return c.json({
     success: true,
     data: payload,
@@ -20435,7 +20443,7 @@ app.post('/api/mobile-actions/:id/complete', async (c) => {
     `UPDATE mobile_actions SET status = 'done', completed_by = ?, completed_at = datetime('now') WHERE id = ?`
   ).bind(completed_by, id).run();
   if (body.apply_stock) {
-    await invalidateDashboardCache(c.env.CACHE);
+    await invalidateDashboardCache(c.env.CACHE, c.env.MOBILE_HUB);
   }
   await syncMobileHubPending(c.env);
   const row = await c.env.DB.prepare(`SELECT * FROM mobile_actions WHERE id = ?`).bind(id).first() as any;

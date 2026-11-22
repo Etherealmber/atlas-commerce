@@ -300,7 +300,7 @@ export default function PhoneApp() {
     const bootTimer = window.setTimeout(() => setBooting(false), 6000);
     void refresh();
     // Refresh pending activity while the app is visible; do not repeatedly reload the catalog or locations.
-    const t = window.setInterval(() => { if (document.visibilityState === 'visible') void refresh('actions'); }, 15000);
+    const t = window.setInterval(() => { if (document.visibilityState === 'visible') void refresh('actions'); }, 30000);
     void api.getStockLocations().then(loc => cacheLocations((loc as any).data || [])).catch(() => {});
     const flush = async () => {
       if (!isOnline()) return;
@@ -597,10 +597,18 @@ function PhoneScan({
       } catch { /* */ }
     };
     void tick();
-    const id = window.setInterval(tick, 20000);
+    const id = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void tick();
+    }, 30000);
+    const onVisibility = () => { if (document.visibilityState === 'visible') void tick(); };
+    document.addEventListener('visibilitychange', onVisibility);
     // Preload WASM scanner engine (P3)
     void prepareZXing().catch(() => { /* scanner fallback stays available */ });
-    return () => { stopped = true; window.clearInterval(id); };
+    return () => {
+      stopped = true;
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, []);
 
   const startCamera = async () => {

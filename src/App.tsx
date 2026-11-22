@@ -1031,16 +1031,21 @@ function DesktopShell() {
         .catch(() => { /* keep last */ });
     };
     load();
-    const t = window.setInterval(load, 60_000);
+    const t = window.setInterval(() => {
+      if (document.visibilityState === 'visible') load();
+    }, 120_000);
     const onFocus = () => load();
     const onRefresh = () => load();
+    const onVisibility = () => { if (document.visibilityState === 'visible') load(); };
     window.addEventListener('focus', onFocus);
     window.addEventListener('atlas-nav-badges-refresh', onRefresh as EventListener);
+    document.addEventListener('visibilitychange', onVisibility);
     return () => {
       cancelled = true;
       window.clearInterval(t);
       window.removeEventListener('focus', onFocus);
       window.removeEventListener('atlas-nav-badges-refresh', onRefresh as EventListener);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, []);
 

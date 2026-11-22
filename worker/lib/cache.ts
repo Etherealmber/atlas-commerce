@@ -96,15 +96,23 @@ export async function getCacheGen(kv: KVNamespace | undefined): Promise<number> 
   }
 }
 
-export async function bumpCacheGen(kv: KVNamespace | undefined): Promise<void> {
+export async function bumpCacheGen(kv: KVNamespace | undefined, hub?: DurableObjectNamespace): Promise<void> {
   const cur = memGen?.value || 1;
   const next = cur + 1;
   memGen = { value: next, fetchedAt: Date.now() };
   // Drop versioned memory keys so this isolate sees fresh data
   memDelPrefix('dash');
+  memDelPrefix('nav-badges');
   memDelPrefix('settings');
   memDelPrefix(PRODUCTS_PREFIX);
   memDelPrefix('g');
+
+  if (hub) {
+    try {
+      const stub = hub.get(hub.idFromName('atlas-main'));
+      await stub.fetch('https://hub/cache/invalidate', { method: 'POST' });
+    } catch { /* best-effort */ }
+  }
 
   if (!kv || !canKvWrite()) return;
   const now = Date.now();
@@ -182,10 +190,59 @@ export function configCacheKey(k: string): string {
   return `cfg:${k}`;
 }
 
-export async function invalidateDashboardCache(kv: KVNamespace | undefined): Promise<void> {
-  await bumpCacheGen(kv);
+export async function doCacheGet<T>(
+  hub: DurableObjectNamespace | undefined,
+  kv: KVNamespace | undefined,
+  key: string,
+  ttlSeconds: number,
+): Promise<T | null> {
+  if (hub) {
+    try {
+      const stub = hub.get(hub.idFromName('atlas-main'));
+      const res = await stub.fetch(`https://hub/cache?key=${encodeURIComponent(key)}`);
+      if (res.ok) {
+        const body = (await res.json()) as { hit?: boolean; data?: T };
+        if (body.hit && body.data !== undefined) {
+          return body.data;
+        }
+        return null;
+      }
+    } catch { /* fall through to in-isolate memory / KV */ }
+  }
+  const memKey = `${key}:g${await getCacheGen(kv)}`;
+  const hit = await kvGetJson<T>(kv, memKey);
+  if (hit != null) memPut(memKey, hit, ttlSeconds);
+  return hit;
 }
 
-export async function invalidateAllBusinessCache(kv: KVNamespace | undefined): Promise<void> {
-  await bumpCacheGen(kv);
+export async function doCachePut(
+  hub: DurableObjectNamespace | undefined,
+  kv: KVNamespace | undefined,
+  key: string,
+  value: unknown,
+  ttlSeconds: number,
+): Promise<void> {
+  const ttl = Math.max(30, Math.min(3600, Math.floor(ttlSeconds || DEFAULT_CACHE_TTL)));
+  if (hub) {
+    try {
+      const stub = hub.get(hub.idFromName('atlas-main'));
+      await stub.fetch(`https://hub/cache?key=${encodeURIComponent(key)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value, ttl }),
+      });
+      return;
+    } catch { /* fall through to KV */ }
+  }
+  const memKey = `${key}:g${await getCacheGen(kv)}`;
+  memPut(memKey, value, ttl);
+  await kvPutJson(kv, memKey, value, ttl);
+}
+
+export async function invalidateDashboardCache(kv: KVNamespace | undefined, hub?: DurableObjectNamespace): Promise<void> {
+  await bumpCacheGen(kv, hub);
+}
+
+export async function invalidateAllBusinessCache(kv: KVNamespace | undefined, hub?: DurableObjectNamespace): Promise<void> {
+  await bumpCacheGen(kv, hub);
 }

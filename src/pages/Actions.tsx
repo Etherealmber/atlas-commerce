@@ -123,8 +123,15 @@ export default function Actions() {
   useEffect(() => {
     load();
     void loadUnits();
-    const t = setInterval(() => load(true), 10000);
-    return () => clearInterval(t);
+    const t = setInterval(() => {
+      if (document.visibilityState === 'visible') load(true);
+    }, 30000);
+    const onVisibility = () => { if (document.visibilityState === 'visible') load(true); };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, [load, loadUnits]);
 
   const complete = async (id: number) => {

@@ -313,7 +313,9 @@ export function startSessionGuard(): () => void {
   };
 
   check();
-  const interval = window.setInterval(check, 20_000);
+  const interval = window.setInterval(() => {
+    if (document.visibilityState === 'visible') check();
+  }, 60_000);
   const onFocus = () => check();
   window.addEventListener('focus', onFocus);
   const onVisibility = () => { if (document.visibilityState === 'visible') check(); };
