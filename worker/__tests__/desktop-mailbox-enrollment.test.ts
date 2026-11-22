@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMailboxEnrollment } from '../lib/desktop-mailbox-enrollment';
+import { createConfiguredNativeMailbox } from '../lib/desktop-mail-transport';
 const SQLITE_MODULE = ['node:', 'sqlite'].join('');
 const { DatabaseSync } = await import(SQLITE_MODULE);
 let sqlite: any; let db: any; let send: any; let authorize: any;
@@ -45,6 +46,16 @@ describe('unwired verified-mailbox building block', () => {
     expect(createMailboxEnrollment(db, 'short', {send,authorize})).toBeNull();
     expect(createMailboxEnrollment({...db,batch:undefined}, key, {send,authorize})).toBeNull();
     expect(sqlite.prepare("SELECT name FROM sqlite_master WHERE name='desktop_mailbox_pending_v1'").get()).toBeUndefined();
+  });
+  it('integrates explicitly injected authorization with configured direct-recipient transport', async () => {
+    const calls: any[] = [];
+    const fetcher = vi.fn(async (_url: any, init: any) => { calls.push(JSON.parse(init.body)); return new Response('{}', {status:200}); });
+    const configured = createConfiguredNativeMailbox(db, {DESKTOP_NATIVE_MAIL_TRANSPORT:'resend-v1', DESKTOP_NATIVE_RESEND_API_KEY:'re_testkey12345', DESKTOP_NATIVE_MAIL_FROM:'security@example.test', DESKTOP_NATIVE_MAILBOX_MAC_KEY:key}, authorize, fetcher as any)!;
+    const pending = await configured.start(context,'real-recipient@example.test',ip); expect(pending).not.toBeNull();
+    expect(calls[0].to).toEqual(['real-recipient@example.test']);
+    const otp = calls[0].text.match(/\b\d{6}\b/)[0];
+    expect(await configured.confirm(context,pending!.request_id,otp,undefined,ip)).toBe(true);
+    expect((sqlite.prepare('SELECT address FROM desktop_mailbox_verified_v1 WHERE user_id=1').get() as any).address).toBe('real-recipient@example.test');
   });
   it('never treats an editable existing address as verified and requires session plus reauthentication', async () => {
     const s = service();

@@ -1,6 +1,6 @@
 # Desktop device-key protocol proposal v0.1 (not implemented)
 
-This is an interoperable **proposal for security review**, not an active capability, promised wire contract, attestation scheme or permission to deploy. The existing staging pilot issues bearer tokens and does not enforce any of the proof requirements below. No endpoint or flag below exists. Review the binding, throughput, recovery and OS integration before choosing it.
+This is a **proposal for security review**, not an active capability, promised wire contract, attestation scheme or permission to deploy. A strict cryptographic verification primitive is implemented in `worker/lib/desktop-device-proof.ts`, but it is unwired and does not consume nonces or prevent replay; it is intentionally a narrower profile than generic DPoP. The existing staging pilot issues bearer tokens and does not enforce any of the proof requirements below. No endpoint or flag below exists. Review the binding, throughput, recovery and OS integration before choosing it. See the [cross-platform audit](desktop-native-cross-platform-audit.md).
 
 ## Candidate profile
 

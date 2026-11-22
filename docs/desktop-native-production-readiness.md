@@ -1,6 +1,6 @@
 # Native Desktop production readiness: engineering record
 
-**Not production-ready. No production native password/OTP protocol is implemented or advertised.** This is a reviewable engineering record, not permission to deploy or evidence of independent security review. The only implemented native password/OTP path is the [staging pilot contract](desktop-native-auth-v2-client.md). It retains its named test account, fixed test mailbox, two staging flags, HTTPS origin and server-side Turnstile validation. There is no hidden production switch to turn on. The normal website login and its UI have not been replaced.
+**Not production-ready. No production native password/OTP protocol is implemented or advertised.** This is a reviewable engineering record, not permission to deploy or evidence of independent security review. The only implemented native password/OTP path is the [staging pilot contract](desktop-native-auth-v2-client.md). It retains its named test account, fixed test mailbox, two staging flags, HTTPS origin and server-side Turnstile validation. There is no hidden production switch to turn on. The normal website login and its UI have not been replaced. The [cross-platform audit](desktop-native-cross-platform-audit.md) records the dedicated but unwired mail adapter, candidate proof verifier, policy decisions and Rust requirements for Windows, Linux and macOS.
 
 ## Account and mailbox decisions required
 
