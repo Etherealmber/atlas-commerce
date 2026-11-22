@@ -164,7 +164,7 @@ export default function Download() {
   const relBody = String(rel?.body || '').trim();
   const notesBody = relBody || String(m?.notes || '').trim();
   const relTitle = rel?.name || rel?.tag_name || (m ? `v${m.versionName}` : APP_NAME);
-  const relDate = rel?.published_at ? String(rel.published_at).slice(0, 10) : m?.buildDate || APP_BUILD_DATE;
+  const relDate = rel?.published_at ? String(rel.published_at).slice(0, 10) : m?.buildDate || 'Date non disponible';
 
   return (
     <div className="download-landing">
@@ -172,10 +172,10 @@ export default function Download() {
       <PublicNav
         links={[
           { href: '/', label: 'Accueil' },
+          { href: '#apercu', label: 'Aperçu' },
+          { href: '#versions', label: 'Versions' },
           { href: '/desktop', label: 'Bureau' },
           { href: '/whats-new', label: 'Nouveautés' },
-          { href: '/privacy', label: 'Confidentialité' },
-          { href: '/about', label: 'À propos' },
         ]}
         cta={<PublicSessionCta />}
         classic
@@ -207,16 +207,15 @@ export default function Download() {
                   {state === 'loading' ? 'Lecture du manifeste…' : 'Manifeste injoignable'}
                 </span>
               )}
-              <a className="dl-cta-ghost" href={ANDROID_REPO} target="_blank" rel="noopener noreferrer">
-                Voir sur GitHub
-              </a>
+              <a className="dl-cta-ghost" href="#versions">Voir les versions</a>
+              <a className="dl-repo-link" href={ANDROID_REPO} target="_blank" rel="noopener noreferrer">GitHub ↗</a>
             </div>
             <p className="dl-note">
               <span className="dl-note-dot" aria-hidden />
               {state === 'ok' ? 'APK officielle · aucune connexion nécessaire pour télécharger' : state === 'loading' ? 'Vérification de la version officielle' : 'Consultez le dépôt pour les versions disponibles'}
             </p>
           </div>
-          <figure className="dl-hero-art dl-hero-art--android"><img src="/shots/android-scan-demo.webp" alt="Écran de scan de l’application Android" /><figcaption>Application Android · capture anonymisée</figcaption></figure>
+          <figure className="dl-hero-art dl-hero-art--android"><img src="/shots/phone-home-demo.webp" width="390" height="844" alt="Tableau de bord web mobile avec données fictives" /><figcaption>Interface web mobile · données fictives</figcaption></figure>
         </div>
       </section>
 
@@ -227,7 +226,7 @@ export default function Download() {
         <div className="dl-container">
           <div className="dl-stats" aria-label="Informations de version">
             <div className="dl-stat">
-              <strong>{m ? `v${m.versionName || APP_NAME}` : '…'}</strong>
+              <strong>{m?.versionName ? `v${m.versionName}` : '—'}</strong>
               <span>Version</span>
             </div>
             <div className="dl-stat">
@@ -235,7 +234,7 @@ export default function Download() {
               <span>Build</span>
             </div>
             <div className="dl-stat">
-              <strong>{m?.buildDate || APP_BUILD_DATE}</strong>
+              <strong>{m?.buildDate || '—'}</strong>
               <span>Publiée le</span>
             </div>
           </div>
@@ -276,7 +275,7 @@ export default function Download() {
             ) : null}
           </div>
 
-          <h2 className="dl-sec-title" style={{ marginTop: 56 }}>Toutes les versions</h2>
+          <h2 id="versions" className="dl-sec-title" style={{ marginTop: 56 }}>Toutes les versions</h2>
           <p className="dl-sec-sub">
             Historique complet, mis à jour automatiquement depuis GitHub Releases —
             aucune publication manuelle nécessaire.

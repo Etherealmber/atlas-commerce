@@ -173,7 +173,7 @@ export default function Desktop() {
   const latest = rels[0] || null;
   const relBody = String(latest?.body || '').trim();
   const relTitle = latest?.name || latest?.tag_name || 'Atlas Commerce Desktop';
-  const relDate = latest?.published_at ? String(latest.published_at).slice(0, 10) : APP_BUILD_DATE;
+  const relDate = latest?.published_at ? String(latest.published_at).slice(0, 10) : 'Date non disponible';
   const mainAsset = osAsset(latest, os);
   const otherOs = (['windows', 'macos', 'linux'] as OsKey[]).filter((k) => k !== os);
 
@@ -183,10 +183,9 @@ export default function Desktop() {
         links={[
           { href: '/', label: 'Accueil' },
           { href: '/android', label: 'Android' },
+          { href: '#apercu', label: 'Aperçu' },
           { href: '#assets', label: 'Téléchargements' },
           { href: '/whats-new', label: 'Nouveautés' },
-          { href: '/privacy', label: 'Confidentialité' },
-          { href: '/about', label: 'À propos' },
         ]}
         cta={<PublicSessionCta />}
         classic
@@ -239,7 +238,7 @@ export default function Desktop() {
               depuis cette page ou le dépôt officiel.
             </p>
           </div>
-          <figure className="dl-hero-art dl-hero-art--desktop"><img src="/shots/desktop-demo.webp" alt="Tableau de bord web sur ordinateur avec données fictives" /><figcaption>Interface web sur ordinateur · données fictives</figcaption></figure>
+          <figure className="dl-hero-art dl-hero-art--desktop"><img src="/shots/desktop-demo.webp" width="1280" height="800" alt="Tableau de bord web sur ordinateur avec données fictives" /><figcaption>Interface web sur ordinateur · données fictives</figcaption></figure>
         </div>
       </section>
 
@@ -253,11 +252,11 @@ export default function Desktop() {
               <span>Version</span>
             </div>
             <div className="dl-stat">
-              <strong>{relDate}</strong>
+              <strong>{latest?.published_at ? relDate : '—'}</strong>
               <span>Publiée le</span>
             </div>
             <div className="dl-stat">
-              <strong>{latest?.assets?.length || 0}</strong>
+              <strong>{latest ? (latest.assets?.length ?? 0) : '—'}</strong>
               <span>Fichiers</span>
             </div>
           </div>
@@ -275,7 +274,7 @@ export default function Desktop() {
           </div>
 
           <p className="dl-section-index dl-section-index--spaced">03 / TÉLÉCHARGEMENTS</p>
-          <h2 className="dl-sec-title">Fichiers de la dernière version</h2>
+          <h2 id="assets" className="dl-sec-title">Fichiers de la dernière version</h2>
           <p className="dl-sec-sub">Choisissez selon votre système — checksums et .zsync disponibles sur la release.</p>
           <div className="dl-rel-list">
             {(latest?.assets || [])
@@ -317,7 +316,7 @@ export default function Desktop() {
             ) : null}
           </div>
 
-          <h2 className="dl-sec-title" id="assets" style={{ marginTop: 56 }}>Toutes les versions</h2>
+          <h2 className="dl-sec-title" style={{ marginTop: 56 }}>Toutes les versions</h2>
           <p className="dl-sec-sub">Historique complet, mis à jour automatiquement depuis GitHub Releases.</p>
           <div className="dl-rel-list">
             {rels.map((r, i) => (

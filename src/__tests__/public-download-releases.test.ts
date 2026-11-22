@@ -28,4 +28,15 @@ it('does not show a perpetual loading state when the selected desktop platform h
   vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => [{ tag_name: 'v1', assets: [] }] })));
   await render(Desktop);
   expect(host.querySelector('.dl-hero .dl-cta-wait')?.textContent).toContain('Aucun binaire');
+  expect(host.querySelectorAll('.dl-stat strong')[1].textContent).toBe('—');
+  expect(host.querySelector('.dl-release-date')?.textContent).toBe('Date non disponible');
+});
+
+
+it('offers the Android versions link and does not invent a release date when offline', async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('offline'); }));
+  await render(Download);
+  expect(host.querySelector('.dl-hero .dl-cta-wait')?.textContent).toContain('Manifeste injoignable');
+  expect(host.querySelector<HTMLAnchorElement>('.dl-hero a[href="#versions"]')).not.toBeNull();
+  expect(host.querySelectorAll('.dl-stat strong')[2].textContent).toBe('—');
 });
