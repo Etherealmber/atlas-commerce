@@ -54,7 +54,7 @@ const script = String.raw`(() => {
     if (challenge?.presentation !== 'embedded_webview' || challenge.origin !== origin || challenge.request_id !== context.request_id ||
         typeof challenge.site_key !== 'string' || !challenge.site_key || challenge.site_key.length > 255 ||
         challenge.action !== 'atlas_desktop_v2' || !/^[a-f0-9]{64}$/.test(challenge.cdata || '') ||
-        !Number.isFinite(expiry) || expiry <= Date.now() || expiry > Date.now() + 300000) { unavailable(); return; }
+        !Number.isFinite(expiry)) { unavailable(); return; }
     status.textContent = 'Terminez le contrôle de sécurité. Une interaction peut être demandée.';
     let rendered = false;
     const provider = document.createElement('script');
@@ -83,7 +83,9 @@ const script = String.raw`(() => {
     };
     document.head.appendChild(provider);
     setTimeout(() => { if (!rendered) unavailable(); }, 10000);
-    setTimeout(unavailable, Math.max(0, expiry - Date.now()));
+    // The server is authoritative for expiration. Device wall clocks can be
+    // skewed; bound this view locally without treating its clock as proof.
+    setTimeout(unavailable, 300000);
   }).catch(unavailable);
 })();`;
 

@@ -1047,15 +1047,93 @@ describe('staging native password + OTP pilot', () => {
     expect((await call('/api/auth/me',undefined,{method:'GET',headers:{Authorization:`Bearer ${rotated.body.data.access_token}`}})).status).toBe(401);
     expect((await p('session/refresh',{origin:ORIGIN,refresh_token:rotated.body.data.refresh_token})).status).toBe(401);
   });
+  it('revokes on replay of any refresh consumed after upgrade, not just the last one', async () => {
+    const initial = await logIn();
+    const one = await p('session/refresh', {origin:ORIGIN,refresh_token:initial.refresh_token});
+    const two = await p('session/refresh', {origin:ORIGIN,refresh_token:one.body.data.refresh_token});
+    const three = await p('session/refresh', {origin:ORIGIN,refresh_token:two.body.data.refresh_token});
+    expect([one.status, two.status, three.status]).toEqual([200,200,200]);
+    const history = JSON.stringify(sqlite.prepare('SELECT * FROM desktop_native_refresh_history_v1').all());
+    expect(history).not.toContain(initial.refresh_token);
+    expect(history).not.toContain(one.body.data.refresh_token);
+    expect((await p('session/refresh', {origin:ORIGIN,refresh_token:initial.refresh_token})).status).toBe(401);
+    expect((await p('session/refresh', {origin:ORIGIN,refresh_token:three.body.data.refresh_token})).status).toBe(401);
+    expect((await call('/api/auth/me',undefined,{method:'GET',headers:{Authorization:`Bearer ${three.body.data.access_token}`}})).status).toBe(401);
+  });
+  it('preserves the last pre-upgrade refresh hash on the first rotation without modifying existing rows', async () => {
+    const initial = await logIn();
+    const legacy = 'b'.repeat(64);
+    const legacyHash = await desktopHash(legacy);
+    sqlite.prepare('UPDATE desktop_native_sessions_pilot_v1 SET previous_refresh_hash=?').run(legacyHash);
+    const rotated = await p('session/refresh',{origin:ORIGIN,refresh_token:initial.refresh_token});
+    expect(rotated.status).toBe(200);
+    const again = await p('session/refresh',{origin:ORIGIN,refresh_token:rotated.body.data.refresh_token});
+    expect(again.status).toBe(200);
+    expect((await p('session/refresh',{origin:ORIGIN,refresh_token:legacy})).status).toBe(401);
+    expect((await p('session/refresh',{origin:ORIGIN,refresh_token:again.body.data.refresh_token})).status).toBe(401);
+  });
+  it('allows an old refresh to revoke, but not recover, a family after a lost response', async () => {
+    const initial = await logIn();
+    const rotated = await p('session/refresh',{origin:ORIGIN,refresh_token:initial.refresh_token});
+    const next = await p('session/refresh',{origin:ORIGIN,refresh_token:rotated.body.data.refresh_token});
+    expect((await p('session/logout',{origin:ORIGIN,refresh_token:initial.refresh_token})).body.data.status).toBe('revoked');
+    expect((await call('/api/auth/me',undefined,{method:'GET',headers:{Authorization:`Bearer ${next.body.data.access_token}`}})).status).toBe(401);
+    expect((await p('session/refresh',{origin:ORIGIN,refresh_token:next.body.data.refresh_token})).status).toBe(401);
+    expect((await p('session/logout',{origin:ORIGIN,refresh_token:initial.refresh_token})).status).toBe(401);
+  });
+  it('revokes the family even if logout races refresh with the old token', async () => {
+    const initial = await logIn();
+    const request = {origin:ORIGIN,refresh_token:initial.refresh_token};
+    const [refresh, logout] = await Promise.all([p('session/refresh',request), p('session/logout',request)]);
+    expect(logout.status).toBe(200);
+    expect([200,401]).toContain(refresh.status);
+    if (refresh.status === 200) {
+      expect((await p('session/refresh',{origin:ORIGIN,refresh_token:refresh.body.data.refresh_token})).status).toBe(401);
+      expect((await call('/api/auth/me',undefined,{method:'GET',headers:{Authorization:`Bearer ${refresh.body.data.access_token}`}})).status).toBe(401);
+    }
+  });
+  it('does not revoke a family for an unknown token or a mismatched origin', async () => {
+    const initial = await logIn();
+    expect((await p('session/logout',{origin:ORIGIN,refresh_token:'f'.repeat(64)})).status).toBe(401);
+    expect((await p('session/logout',{origin:'https://inventaire.self-hosted.example',refresh_token:initial.refresh_token})).body.code).toBe('ORIGIN_MISMATCH');
+    expect((await p('session/refresh',{origin:ORIGIN,refresh_token:initial.refresh_token})).status).toBe(200);
+  });
+  it('bounds refresh churn per family even when source IP changes', async () => {
+    const initial = await logIn(); let refreshToken = initial.refresh_token;
+    for (let i = 0; i < 8; i++) {
+      const response = await p('session/refresh', {origin:ORIGIN,refresh_token:refreshToken}, {headers:{'CF-Connecting-IP':`198.51.100.${i + 1}`}});
+      expect(response.status).toBe(200);
+      refreshToken = response.body.data.refresh_token;
+    }
+    const denied = await p('session/refresh', {origin:ORIGIN,refresh_token:refreshToken}, {headers:{'CF-Connecting-IP':'198.51.100.40'}});
+    expect(denied.status).toBe(429); expect(denied.body.code).toBe('RATE_LIMITED');
+    expect(denied.headers.get('retry-after')).toBe('600');
+    expect((await p('session/logout', {origin:ORIGIN,refresh_token:refreshToken})).status).toBe(200);
+  });
+  it('rolls back the rotation when refresh-history storage fails', async () => {
+    const initial = await logIn();
+    const original = env.DB;
+    env.DB = { ...original, batch: async (statements: any[]) => {
+      if (statements.length === 3) return original.batch([statements[0], original.prepare('INSERT INTO nonexistent_refresh_table VALUES (1)'), statements[2]]);
+      return original.batch(statements);
+    } };
+    expect((await p('session/refresh',{origin:ORIGIN,refresh_token:initial.refresh_token})).status).toBe(503);
+    env.DB = original;
+    expect((await p('session/refresh',{origin:ORIGIN,refresh_token:initial.refresh_token})).status).toBe(200);
+    expect(JSON.stringify(logs)).not.toContain('private storage error');
+  });
   it('expires access and the absolute refresh lifetime, and permits only one concurrent refresh', async () => {
     const session = await logIn();
     const results = await Promise.all([p('session/refresh',{origin:ORIGIN,refresh_token:session.refresh_token}),p('session/refresh',{origin:ORIGIN,refresh_token:session.refresh_token})]);
     expect(results.filter(x => x.status===200)).toHaveLength(1);
     const next = results.find(x => x.status===200)!.body.data;
-    sqlite.prepare('UPDATE desktop_native_sessions_pilot_v1 SET access_expires_at=?').run(Date.now()-1);
     expect((await call('/api/auth/me',undefined,{method:'GET',headers:{Authorization:`Bearer ${next.access_token}`}})).status).toBe(401);
-    sqlite.prepare('UPDATE desktop_native_sessions_pilot_v1 SET absolute_expires_at=?').run(Date.now()-1);
     expect((await p('session/refresh',{origin:ORIGIN,refresh_token:next.refresh_token})).status).toBe(401);
+    const expirySession = await logIn();
+    sqlite.prepare('UPDATE desktop_native_sessions_pilot_v1 SET access_expires_at=? WHERE refresh_hash=?').run(Date.now()-1, await desktopHash(expirySession.refresh_token));
+    expect((await call('/api/auth/me',undefined,{method:'GET',headers:{Authorization:`Bearer ${expirySession.access_token}`}})).status).toBe(401);
+    sqlite.prepare('UPDATE desktop_native_sessions_pilot_v1 SET absolute_expires_at=? WHERE refresh_hash=?').run(Date.now()-1, await desktopHash(expirySession.refresh_token));
+    expect((await p('session/refresh',{origin:ORIGIN,refresh_token:expirySession.refresh_token})).status).toBe(401);
   });
   it('does not allow denial or verifier outage to progress to password authentication', async () => {
     const r = await p('requests',{origin:ORIGIN,state:STATE,code_challenge:await desktopHash(VERIFIER),code_challenge_method:'S256',device_label:'PC'}); req=r.body.data;
@@ -1081,6 +1159,47 @@ describe('staging native password + OTP pilot', () => {
     for (let i=0; i<5; i++) { await start(); expect((await password('alice','wrong-password')).status).toBe(200); }
     ipSeq += 1; IP = `203.0.113.${100 + ipSeq}`;
     await start(); expect((await password('alice','wrong-password')).body.code).toBe('RATE_LIMITED');
+  });
+  it('does not spend the shared website budget before a verified challenge', async () => {
+    const created = await p('requests', {origin:ORIGIN,state:STATE,code_challenge:await desktopHash(VERIFIER),code_challenge_method:'S256',device_label:'PC',presentation:'embedded_webview'});
+    req = created.body.data;
+    for (let i=0; i<4; i++) expect((await password('alice','wrong-password')).body.code).toBe('NOT_APPROVED');
+    expect(sqlite.prepare("SELECT name FROM sqlite_master WHERE name='credential_attempt_limits_v1'").get()).toBeUndefined();
+  });
+  it('shares password attempt budgets with website login in both directions', async () => {
+    // Same source IP: two native attempts and three website attempts exhaust
+    // the shared account/IP password bucket. No website response is changed
+    // until the shared abuse threshold is reached.
+    for (let i=0; i<2; i++) { await start(); expect((await password('alice','wrong-password')).status).toBe(200); }
+    for (let i=0; i<3; i++) {
+      const web = await call('/api/auth/login', {username:'alice', password:'wrong-password', fingerprint:BROWSER_FP, client:'web', turnstile_token:'web-test'}, {headers:{Origin:ORIGIN}});
+      expect(web.status).toBe(401);
+    }
+    const blockedWeb = await call('/api/auth/login', {username:'alice',password:'wrong-password',fingerprint:BROWSER_FP,client:'web',turnstile_token:'web-test'}, {headers:{Origin:ORIGIN}});
+    expect(blockedWeb.status).toBe(429);
+    await start();
+    expect((await password('alice','wrong-password')).body.code).toBe('RATE_LIMITED');
+  });
+  it('shares OTP attempt budgets with website OTP verification', async () => {
+    await start(); expect((await password()).status).toBe(200);
+    const correct = await otpValue(); const wrong = correct === '000000' ? '000001' : '000000';
+    for (let i=0; i<3; i++) {
+      const web = await call('/api/auth/verify-otp', {username:'alice',otp:wrong,fingerprint:BROWSER_FP}, {headers:{Origin:ORIGIN}});
+      expect(web.status).not.toBe(429);
+    }
+    for (let i=0; i<2; i++) expect((await p('login/otp',{...proof(),otp:wrong})).status).toBe(401);
+    expect((await p('login/otp',{...proof(),otp:correct})).body.code).toBe('RATE_LIMITED');
+  });
+  it('fails closed before consuming the challenge when shared abuse storage is unavailable', async () => {
+    await start(); const original = env.DB;
+    env.DB = { ...original, prepare(sql: string) {
+      if (sql.includes('credential_attempt_limits_v1')) throw new Error('private-limit-storage-error');
+      return original.prepare(sql);
+    } };
+    expect((await password()).body.code).toBe('UNAVAILABLE');
+    env.DB = original;
+    expect((await password()).body.data.status).toBe('otp_pending');
+    expect(JSON.stringify(logs)).not.toContain('private-limit-storage-error');
   });
   it('checks native sessions on the primary and rejects token identity substitution', async () => {
     const session = await logIn(); const used: string[] = [];

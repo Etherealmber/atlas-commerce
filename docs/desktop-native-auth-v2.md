@@ -238,12 +238,16 @@ ne vont jamais dans une URL, un callback ou la page de défi.
 5. `POST /session/refresh` : `{"origin":"<origine>","refresh_token":"<refresh>"}`.
    Succès : même objet session que l'OTP avec **deux nouveaux tokens**, expirations
    et identité ; les anciens tokens sont invalidés. Renouveler en une seule
-   requête en vol. Rejeu du refresh immédiatement précédent révoque la famille,
-   y compris après réponse perdue ; les refresh plus anciens ne sont pas suivis.
-   Une course peut donc révoquer le résultat du gagnant : recommencer. Après une réponse refresh perdue ou incertaine, **ne jamais rejouer automatiquement** : effacer localement les jetons et recommencer une connexion ; un opérateur peut révoquer la session orpheline. Une
-   réponse OTP perdue n'est pas récupérable : recommencer ; la session orpheline
+   requête en vol. Le rejeu d'un refresh consommé et enregistré révoque la famille,
+   y compris après réponse perdue. L'historique ne contient que les générations
+   consommées depuis cette modification, plus la dernière génération précédente
+   lors de la première rotation ; les générations antérieures sont irrécupérables.
+   Une course peut révoquer le résultat du gagnant : recommencer. Après une
+   réponse refresh perdue ou incertaine, **ne jamais rejouer automatiquement** :
+   tenter logout avec le dernier refresh local, effacer les jetons et recommencer.
+   Une réponse OTP perdue n'est pas récupérable : recommencer ; la session orpheline
    expirera au plus tard après 12 h, ou l'opérateur la révoque en D1.
-6. `POST /session/logout` : `{"origin":"<origine>","refresh_token":"<refresh courant>"}`
+6. `POST /session/logout` : `{"origin":"<origine>","refresh_token":"<refresh courant ou consommé enregistré>"}`
    renvoie `{"success":true,"data":{"status":"revoked"}}`. Effacer les
    tokens localement même en cas de perte réseau ; si nécessaire l'opérateur
    révoque la session dans D1. Modification/suppression/désactivation du compte,
@@ -255,7 +259,9 @@ ne vont jamais dans une URL, un callback ou la page de défi.
 
 Budgets D1 fixes, réservés même en cas d'échec : 5 créations/IP/5 min ;
 90 autres opérations/IP/min ; pour password et OTP séparément, 20/compte/10 min
-et 5/(compte, IP)/10 min ; les noms inconnus ont les mêmes compteurs. OTP :
+et 5/(compte, IP)/10 min ; les noms inconnus ont les mêmes compteurs. Après défi vérifié, les opérations pilot password/OTP partagent aussi les compteurs persistants du site : 60/IP/min, 300/IP/10 min, 20/compte/10 min (password et OTP ensemble), 5/compte+IP+type/10 min. Ceci peut freiner l'autre canal au seuil d'abus ; un défi non vérifié ne consomme pas ces compteurs partagés. Le refresh
+est également limité à 8 tentatives par famille sur 10 minutes, sans bloquer logout.
+OTP :
 maximum 5 essais par transaction. La réponse `RATE_LIMITED` est 429 avec
 `Retry-After: 600`, conservateur ; les fenêtres fixes autorisent une rafale à
 leur frontière. Un attaquant peut épuiser le quota d'un compte ciblé ou déduire

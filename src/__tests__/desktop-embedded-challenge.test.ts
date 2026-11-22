@@ -37,3 +37,19 @@ it('renders an interactive challenge and posts the provider result directly, wit
   await widget.callback('duplicate');
   expect(calls).toHaveLength(2);
 });
+
+it.each([-3600000, 3600000])('does not reject server expiry because the local wall clock differs by %i ms', async (offset) => {
+  const app = new Hono<any>(); registerDesktopPilotWebView(app);
+  const script = await (await app.request(`${origin}/login/desktop-challenge-embedded.js`, {}, env)).text();
+  (window as any).happyDOM.setURL(`${origin}/login/desktop-challenge-embedded#request_id=${id}`);
+  document.body.innerHTML = '<p id="status"></p><div id="challenge"></div>';
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({success:true,data:{
+    origin, request_id:id, presentation:'embedded_webview', site_key:'site', action:'atlas_desktop_v2', cdata:'b'.repeat(64),
+    expires_at:new Date(Date.now() + offset).toISOString(),
+  }}))));
+  const render = vi.fn(); (window as any).turnstile = {render};
+  vi.spyOn(document.head, 'appendChild').mockImplementation((node: any) => { queueMicrotask(() => node.dispatchEvent(new Event('load'))); return node; });
+  window.eval(script);
+  for (let i=0; i<20 && !render.mock.calls.length; i++) await new Promise(resolve => setTimeout(resolve, 0));
+  expect(render).toHaveBeenCalledOnce();
+});

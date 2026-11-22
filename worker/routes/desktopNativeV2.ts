@@ -2,6 +2,7 @@ import { Hono, type Context } from 'hono';
 import { desktopHash } from './desktopAuth';
 import { verifyDesktopTurnstile } from '../lib/desktop-native-turnstile';
 import { makeNativePilotToken, pilotLoginConfigured } from '../lib/desktop-native-session';
+import { reserveCredentialAttempt, type CredentialAttemptPurpose } from '../lib/credential-attempt-limits';
 
 export const NATIVE_V2 = '/api/auth/desktop/v2';
 export const V2_PUBLIC_POSTS = new Set(['requests', 'poll', 'cancel', 'exchange'].map(x => `${NATIVE_V2}/${x}`));
@@ -97,6 +98,12 @@ async function pilotLoginSchema(db: D1Database) {
   )`).run();
   await db.prepare('CREATE INDEX IF NOT EXISTS native_pilot_previous_refresh_idx ON desktop_native_sessions_pilot_v1(previous_refresh_hash)').run();
   await db.prepare('CREATE INDEX IF NOT EXISTS native_pilot_session_expiry_idx ON desktop_native_sessions_pilot_v1(absolute_expires_at)').run();
+  // Additive history for refresh generations consumed after this upgrade. The
+  // existing previous_refresh_hash is preserved on the first new rotation.
+  await db.prepare(`CREATE TABLE IF NOT EXISTS desktop_native_refresh_history_v1 (
+    refresh_hash TEXT PRIMARY KEY, session_id TEXT NOT NULL, origin TEXT NOT NULL, expires_at INTEGER NOT NULL
+  )`).run();
+  await db.prepare('CREATE INDEX IF NOT EXISTS native_pilot_refresh_history_expiry_idx ON desktop_native_refresh_history_v1(expires_at)').run();
   await db.prepare('CREATE INDEX IF NOT EXISTS native_pilot_login_expiry_idx ON desktop_native_login_pilot_v1(expires_at)').run();
   await db.prepare(`CREATE TRIGGER IF NOT EXISTS native_pilot_account_update AFTER UPDATE OF username, role, password_hash, password_salt, active ON app_users
     WHEN OLD.username IS NOT NEW.username OR OLD.role IS NOT NEW.role OR OLD.password_hash IS NOT NEW.password_hash OR OLD.password_salt IS NOT NEW.password_salt OR OLD.active IS NOT NEW.active BEGIN
@@ -265,6 +272,7 @@ export function registerDesktopNativeV2(root: Hono<any>, deps: Dependencies) {
       await c.env.DB.prepare('DELETE FROM desktop_native_challenge_binding_v1 WHERE id IN (SELECT b.id FROM desktop_native_challenge_binding_v1 b LEFT JOIN desktop_challenge_pilot_v2 c ON c.id=b.id WHERE c.id IS NULL OR c.expires_at < ? LIMIT 100)').bind(cutoff).run();
       await c.env.DB.prepare('DELETE FROM desktop_native_login_pilot_v1 WHERE id IN (SELECT id FROM desktop_native_login_pilot_v1 WHERE expires_at < ? LIMIT 100)').bind(cutoff).run();
       await c.env.DB.prepare('DELETE FROM desktop_native_sessions_pilot_v1 WHERE id IN (SELECT id FROM desktop_native_sessions_pilot_v1 WHERE absolute_expires_at < ? LIMIT 100)').bind(cutoff).run();
+      await c.env.DB.prepare('DELETE FROM desktop_native_refresh_history_v1 WHERE refresh_hash IN (SELECT refresh_hash FROM desktop_native_refresh_history_v1 WHERE expires_at < ? LIMIT 100)').bind(cutoff).run();
     }
     await c.env.DB.prepare('DELETE FROM desktop_challenge_pilot_v2 WHERE id IN (SELECT id FROM desktop_challenge_pilot_v2 WHERE expires_at < ? LIMIT 100)').bind(Date.now() - 3_600_000).run();
     await c.env.DB.prepare('DELETE FROM desktop_challenge_presentation_v1 WHERE id IN (SELECT p.id FROM desktop_challenge_presentation_v1 p LEFT JOIN desktop_challenge_pilot_v2 c ON c.id=p.id WHERE c.id IS NULL LIMIT 100)').run();
@@ -339,6 +347,13 @@ export function registerDesktopNativeV2(root: Hono<any>, deps: Dependencies) {
   const loginBase = `${pilotBase}/login`;
   const proofFields = ['origin', 'request_id', 'state', 'code_verifier'];
   const genericAuthFailure = () => fail('AUTH_FAILED', 401);
+  async function sharedCredentialBudget(c: Context<any>, username: string, purpose: CredentialAttemptPurpose) {
+    // The website already uses these durable counters. Sharing them prevents
+    // attempts split across the two channels from evading account/IP budgets.
+    // Do not include account existence, OTP values or client fingerprints.
+    const result = await reserveCredentialAttempt(c.env.DB, c.req.header('CF-Connecting-IP') || '', username, purpose);
+    if (!result.allowed) fail('RATE_LIMITED', 429);
+  }
   async function loginRow(c: Context<any>, id: string) {
     const row: any = await c.env.DB.prepare('SELECT * FROM desktop_native_login_pilot_v1 WHERE id=?').bind(id).first();
     if (!row || row.expires_at <= Date.now()) return genericAuthFailure();
@@ -353,7 +368,9 @@ export function registerDesktopNativeV2(root: Hono<any>, deps: Dependencies) {
     await budget(c.env.DB, 'pilot-password-account', username, 600_000, 20);
     await budget(c.env.DB, 'pilot-password-pair', JSON.stringify([username, ip]), 600_000, 5);
     const binding: any = await c.env.DB.prepare('SELECT browser_ip_hash FROM desktop_native_challenge_binding_v1 WHERE id=?').bind(request.id).first();
-    if (!binding || !same(binding.browser_ip_hash, request.ip_hash)) fail('NOT_APPROVED', 409);
+    if (!binding || !same(binding.browser_ip_hash, request.ip_hash) || request.status !== 'verified') fail('NOT_APPROVED', 409);
+    // Do not let an unverified challenge consume the website's shared budget.
+    await sharedCredentialBudget(c, username, 'password');
     // A D1 batch makes reservation and consumption a single transaction. The
     // unique row and status condition prevent concurrent reuse of the challenge.
     const reserved: any[] = await c.env.DB.batch([
@@ -398,6 +415,7 @@ export function registerDesktopNativeV2(root: Hono<any>, deps: Dependencies) {
     if (!pattern(b.otp, /^[0-9]{6}$/)) return genericAuthFailure();
     const login = await loginRow(c, request.id);
     const ip = c.req.header('CF-Connecting-IP')!;
+    await sharedCredentialBudget(c, login.username, 'otp');
     await budget(c.env.DB, 'pilot-otp-account', login.username, 600_000, 20);
     await budget(c.env.DB, 'pilot-otp-pair', JSON.stringify([login.username, ip]), 600_000, 5);
     const attempted: any = await c.env.DB.prepare("UPDATE desktop_native_login_pilot_v1 SET attempts=attempts+1 WHERE id=? AND status='pending' AND attempts<5 AND expires_at>? RETURNING *").bind(request.id, Date.now()).first();
@@ -424,20 +442,40 @@ export function registerDesktopNativeV2(root: Hono<any>, deps: Dependencies) {
     const old = await desktopHash(b.refresh_token);
     const row: any = await c.env.DB.prepare('SELECT * FROM desktop_native_sessions_pilot_v1 WHERE refresh_hash=?').bind(old).first();
     if (!row) {
-      // Reuse of the immediately previous rotated refresh revokes the family.
-      await c.env.DB.prepare('UPDATE desktop_native_sessions_pilot_v1 SET revoked=1 WHERE previous_refresh_hash=? AND origin=? AND revoked=0').bind(old, b.origin).run();
+      // Include legacy immediately-previous hashes as well as retained history.
+      await c.env.DB.prepare(`UPDATE desktop_native_sessions_pilot_v1 SET revoked=1
+        WHERE origin=? AND revoked=0 AND (previous_refresh_hash=? OR id IN
+          (SELECT session_id FROM desktop_native_refresh_history_v1 WHERE refresh_hash=? AND origin=?))`)
+        .bind(b.origin, old, old, b.origin).run();
       return genericAuthFailure();
     }
     if (row.revoked !== 0 || row.origin !== b.origin || row.username !== c.env.DESKTOP_NATIVE_V2_PILOT_USERNAME || row.absolute_expires_at <= Date.now()) return genericAuthFailure();
     const id = await deps.currentIdentity(c.env, row.username, row.role);
     if (!id || id.userId !== row.user_id || !same(await desktopHash(id.material), row.credential_tag)) return genericAuthFailure();
+    // Bound history growth and churn independently of source-IP rotation. Slots
+    // are never refunded; normal 15-minute access renewal is below this budget.
+    await budget(c.env.DB, 'pilot-refresh-family', row.id, 600_000, 8);
     const access = makeNativePilotToken(row.username, row.role, rand()); const refresh = rand();
     const now = Date.now(); const expiry = Math.min(now + 900_000, row.absolute_expires_at);
-    const updated = await c.env.DB.prepare(`UPDATE desktop_native_sessions_pilot_v1 SET access_hash=?, refresh_hash=?, previous_refresh_hash=?, access_expires_at=?
-      WHERE id=? AND refresh_hash=? AND revoked=0 AND absolute_expires_at>? RETURNING id`)
-      .bind(await desktopHash(access), await desktopHash(refresh), old, expiry, row.id, old, now).first();
-    if (!updated) {
-      await c.env.DB.prepare('UPDATE desktop_native_sessions_pilot_v1 SET revoked=1 WHERE id=? AND previous_refresh_hash=? AND revoked=0').bind(row.id, old).run();
+    // History and rotation commit in one D1 transaction. A losing concurrent
+    // refresh records nothing, then revokes the winning family below.
+    const result: any[] = await c.env.DB.batch([
+      c.env.DB.prepare(`INSERT INTO desktop_native_refresh_history_v1 (refresh_hash,session_id,origin,expires_at)
+        SELECT refresh_hash,id,origin,absolute_expires_at FROM desktop_native_sessions_pilot_v1
+        WHERE id=? AND origin=? AND refresh_hash=? AND revoked=0 AND absolute_expires_at>?`)
+        .bind(row.id, b.origin, old, now),
+      c.env.DB.prepare(`INSERT OR IGNORE INTO desktop_native_refresh_history_v1 (refresh_hash,session_id,origin,expires_at)
+        SELECT previous_refresh_hash,id,origin,absolute_expires_at FROM desktop_native_sessions_pilot_v1
+        WHERE id=? AND origin=? AND refresh_hash=? AND previous_refresh_hash IS NOT NULL AND revoked=0 AND absolute_expires_at>?`)
+        .bind(row.id, b.origin, old, now),
+      c.env.DB.prepare(`UPDATE desktop_native_sessions_pilot_v1 SET access_hash=?, refresh_hash=?, previous_refresh_hash=?, access_expires_at=?
+        WHERE id=? AND origin=? AND refresh_hash=? AND revoked=0 AND absolute_expires_at>?`)
+        .bind(await desktopHash(access), await desktopHash(refresh), old, expiry, row.id, b.origin, old, now),
+    ]);
+    if (Number(result[0]?.meta?.changes || 0) !== 1 || Number(result[2]?.meta?.changes || 0) !== 1) {
+      await c.env.DB.prepare(`UPDATE desktop_native_sessions_pilot_v1 SET revoked=1 WHERE id=? AND origin=? AND revoked=0 AND
+        (previous_refresh_hash=? OR id IN (SELECT session_id FROM desktop_native_refresh_history_v1 WHERE refresh_hash=? AND origin=?))`)
+        .bind(row.id, b.origin, old, old, b.origin).run();
       return genericAuthFailure();
     }
     return c.json({ success: true, data: { token_type: 'Bearer', access_token: access, refresh_token: refresh, access_expires_at: new Date(expiry).toISOString(), session_expires_at: new Date(row.absolute_expires_at).toISOString(), origin: row.origin, username: row.username, role: row.role } });
@@ -445,7 +483,13 @@ export function registerDesktopNativeV2(root: Hono<any>, deps: Dependencies) {
   app.post(`${pilotBase}/session/logout`, async c => {
     const b = await body(c, ['origin', 'refresh_token']); origin(c, b.origin);
     if (b.origin !== c.env.DESKTOP_NATIVE_V2_PILOT_ORIGIN || !pattern(b.refresh_token, ID)) return genericAuthFailure();
-    const changed = await c.env.DB.prepare("UPDATE desktop_native_sessions_pilot_v1 SET revoked=1 WHERE refresh_hash=? AND origin=? AND revoked=0 RETURNING id").bind(await desktopHash(b.refresh_token), b.origin).first();
+    const presented = await desktopHash(b.refresh_token);
+    // A client that lost a successful refresh response still knows the old
+    // token. Permit it to revoke the family, never to obtain new tokens.
+    const changed = await c.env.DB.prepare(`UPDATE desktop_native_sessions_pilot_v1 SET revoked=1
+      WHERE origin=? AND revoked=0 AND (refresh_hash=? OR previous_refresh_hash=? OR id IN
+        (SELECT session_id FROM desktop_native_refresh_history_v1 WHERE refresh_hash=? AND origin=?)) RETURNING id`)
+      .bind(b.origin, presented, presented, presented, b.origin).first();
     if (!changed) return genericAuthFailure();
     return c.json({ success: true, data: { status: 'revoked' } });
   });
