@@ -1,3 +1,4 @@
+import TopPageActions from '../components/TopPageActions';
 import { TimedUndoDelete } from '../components/ui';
 import { downloadExport } from '../lib/export';
 import { onAgentDraft } from '../lib/agentDraft';
@@ -227,7 +228,7 @@ export default function Clients() {
     <div className="atlas-crm clients-page">
       <div className="page-header">
         <h1>Clients</h1>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <TopPageActions enabled={selected.size === 0}>
           <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
           {selected.size > 0 && (
             <TimedUndoDelete
@@ -238,7 +239,7 @@ export default function Clients() {
             />
           )}
           <button type="button" onClick={openCreate}>Ajouter un client</button>
-        </div>
+        </TopPageActions>
       </div>
 
       <SaveFeedback message={saveMsg} type={saveMsgType} />

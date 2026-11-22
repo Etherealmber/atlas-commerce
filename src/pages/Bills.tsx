@@ -1,3 +1,5 @@
+import DocumentActors from '../components/DocumentActors';
+import TopPageActions from '../components/TopPageActions';
 import { TimedUndoDelete } from '../components/ui';
 import { useEffect, useState } from 'react';
 import DatePicker from '../components/DatePicker';
@@ -322,9 +324,9 @@ export default function Bills() {
 
   return (
     <div className="bills-page">
-      <div className="page-header">
-        <h1>Factures d'achat</h1>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div className="page-header dock-page-header">
+        <h1 className="sr-only">Factures d'achat</h1>
+        <TopPageActions enabled={selected.size === 0}>
           <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
 
           {selected.size > 0 && (
@@ -337,7 +339,7 @@ export default function Bills() {
           )}
           <button className="secondary" onClick={() => openReport('/api/reports/payables')}>PDF Dettes</button>
           <button onClick={() => { setModalError(''); setShowModal(true); }}>+ Nouvelle facture d'achat</button>
-        </div>
+        </TopPageActions>
       </div>
 
       <SaveFeedback message={saveMsg} type={saveMsgType} />
@@ -389,7 +391,7 @@ export default function Bills() {
                       aria-label={`Sélectionner ${b.number}`}
                     />
                   </td>
-                  <td>{b.number}</td>
+                  <td>{b.number}<DocumentActors document={b} /></td>
                   <td>
                     {b.vendor_name}
                     {b.vendor_id && <small style={{ display: 'block', color: 'var(--muted)', fontSize: 11 }}>Fiche fournisseur #{b.vendor_id}</small>}

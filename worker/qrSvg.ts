@@ -34,7 +34,7 @@ export function qrToSvg(text: string, px = 120, marginModules = 2): string {
   if (!n) {
     return `<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}"><text x="8" y="20" font-size="12">QR error</text></svg>`;
   }
-  const margin = marginModules;
+  const margin = Math.max(4, marginModules);
   const total = n + margin * 2;
   // Clear ~22% center for logo (H ECC tolerates)
   const logoMods = Math.max(7, Math.round(n * 0.22));
@@ -65,7 +65,7 @@ export function qrToSvg(text: string, px = 120, marginModules = 2): string {
 <svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 ${total} ${total}" shape-rendering="crispEdges">
   <rect width="100%" height="100%" fill="#ffffff"/>
   <path fill="#0a0a0a" d="${parts.join('')}"/>
-  <rect x="${plateX}" y="${plateY}" width="${plateS}" height="${plateS}" rx="${rx}" fill="#ffffff"/>
+  <rect x="${plateX}" y="${plateY}" width="${plateS}" height="${plateS}" rx="${rx}" fill="#0a0a0a"/>
   <image x="${plateX}" y="${plateY}" width="${plateS}" height="${plateS}" href="${ATLAS_LOGO_DATA_URL}" preserveAspectRatio="xMidYMid meet"/>
 </svg>`;
 }

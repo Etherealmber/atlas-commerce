@@ -49,6 +49,7 @@ import PhoneHome from './PhoneHome';
 import ProductArtwork from '../components/ProductArtwork';
 import ProductHistory from '../pages/ProductHistory';
 import PhoneProductCreate from './PhoneProductCreate';
+import { dualStockLabel } from '../lib/dualUnit';
 import PhoneSkeleton from './PhoneSkeleton';
 import PhoneQuickActions from './PhoneQuickActions';
 import AtlasAgentMascot from './AtlasAgentMascot';
@@ -62,6 +63,9 @@ type Product = {
   barcode?: string;
   category?: string;
   stock_quantity?: number;
+  unit?: string | null;
+  secondary_unit?: string | null;
+  secondary_unit_factor?: number | null;
   stock?: number;
   min_stock?: number;
   low_stock_threshold?: number | null;
@@ -1169,7 +1173,7 @@ export function PhoneProduits({ products, actions, onRefresh, onToast, loading =
       <div className="ph-catalog-summary" aria-live="polite"><span>{visible.length} résultat{visible.length === 1 ? '' : 's'}</span></div>
       <div className={`ph-catalog-list${grid ? ' is-grid' : ''}`}>{visible.map(p => <NavLink className="ph-catalog-card ph-catalog-product" to={`/m/products/${p.id}/historique`} key={p.id}>
         <ProductArtwork url={p.image_url} largeImageProductId={p.image_inline_large ? p.id : undefined} className="ph-catalog-art" />
-        <div className="ph-catalog-info"><strong>{p.name}</strong><p>{p.sku || p.barcode || 'Sans référence'}</p><small className={phoneStockIsLow(p) ? 'ph-low' : ''}>{p.track_inventory != null && !Number(p.track_inventory) ? 'Stock non suivi' : `Stock : ${stockOf(p)} · min ${minOf(p)}`}</small></div>
+        <div className="ph-catalog-info"><strong>{p.name}</strong><p>{p.sku || p.barcode || 'Sans référence'}</p><small className={phoneStockIsLow(p) ? 'ph-low' : ''}>{p.track_inventory != null && !Number(p.track_inventory) ? 'Stock non suivi' : `Stock : ${dualStockLabel(p)} · min ${minOf(p)}`}</small></div>
         {canSell() && typeof (p.unit_price ?? p.price) === 'number' && <strong className="ph-catalog-price">{priceOf(p).toLocaleString('fr-FR')} MAD</strong>}
       </NavLink>)}</div>
       {visible.length === 0 && <div className="ph-empty"><h2>Aucun produit</h2><p>Essayez une autre recherche ou actualisez le catalogue.</p></div>}

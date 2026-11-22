@@ -52,6 +52,8 @@ describe('product history', () => {
     expect(host.querySelector('h1')?.classList.contains('sr-only')).toBe(true);
     expect(host.querySelector('[aria-label="Modifier la photo du produit"] svg')).not.toBeNull();
     expect(host.querySelector('[aria-label="Actualiser l’historique"] svg')).not.toBeNull();
+    expect(host.textContent).toContain('Ajuster le stock'); expect(host.textContent).toContain('Modifier les détails');
+    expect(host.textContent).not.toContain('Approuvé par');
     await act(async () => [...host.querySelectorAll('button')].find(b => b.textContent === 'Charger la suite')!.click());
     expect(getMovements).toHaveBeenLastCalledWith(7, 40, { full: true, offset: 40 }); expect(host.textContent).toContain('Vente'); expect(host.textContent).not.toContain('Charger la suite');
   });
@@ -82,4 +84,10 @@ describe('product history', () => {
     vi.spyOn(api, 'getProduct').mockResolvedValue({ data: product }); vi.spyOn(api, 'getProductMovements').mockRejectedValue(new Error('offline'));
     await renderHistory(true); expect(host.textContent).toContain('Impossible de charger les mouvements'); expect(host.textContent).not.toContain('Aucun mouvement enregistré');
   });
+});
+it.each([false, true])('shows derived carton and square-metre stock on product detail (mobile=%s)', async mobile => {
+  vi.spyOn(api, 'getProduct').mockResolvedValue({ data: { ...product, unit:'carton', stock_quantity:6, secondary_unit:'m²', secondary_unit_factor:1.59 } });
+  vi.spyOn(api, 'getProductMovements').mockResolvedValue({ data: [] });
+  await renderHistory(mobile);
+  expect(host.textContent).toContain('6 carton · 9,54 m²');
 });

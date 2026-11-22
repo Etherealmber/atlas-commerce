@@ -1,7 +1,7 @@
 import { SwitchMode } from './components/ui/SwitchMode';
 import MobileBottomNav from './components/erp/MobileBottomNav';
 import { useEffect, useState, useRef, lazy, Suspense } from 'react';
-import { User, CreditCard, Mail, Sparkles, LogOut, Sun, Moon, Monitor, Type, ArrowLeft } from 'lucide-react';
+import { User, CreditCard, Mail, Sparkles, LogOut, Sun, Moon, Monitor, Type, ArrowLeft, Settings as SettingsIcon, Info } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, Link, useNavigate, useLocation } from 'react-router-dom';
 import { applyPageTitle, titleForPath } from './lib/pageTitle';
@@ -364,7 +364,7 @@ function AccountMenu({
               </div>
 
               <button type="button" role="menuitem" className="account-menu-item" onClick={() => { setOpen(false); window.location.assign('/settings'); }}>
-                <MenuSvg d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.98 1.01 1.64 1.01H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                <SettingsIcon className="account-menu-svg" size={16} aria-hidden="true" />
                 Paramètres
               </button>
               <button type="button" role="menuitem" className="account-menu-item account-menu-item--novelties" onClick={() => { setOpen(false); window.location.assign('/whats-new'); }}>
@@ -373,7 +373,7 @@ function AccountMenu({
                 {whatsNewUnread ? <span className="whats-new-badge" aria-label="Nouveautés non lues">1</span> : null}
               </button>
               <button type="button" role="menuitem" className="account-menu-item" onClick={() => { setOpen(false); window.location.assign('/about'); }}>
-                <MenuSvg d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 16v-4M12 8h.01" />
+                <Info className="account-menu-svg" size={16} aria-hidden="true" />
                 À propos
               </button>
               <button type="button" role="menuitem" className="account-menu-item" onClick={() => { onToggleSidebar(); }}>
@@ -846,10 +846,12 @@ function DesktopShell() {
   const compactRef = useRef(false);
   const dockExpansionUntil = useRef(0);
   const desktopDockTitleRef = useRef<HTMLButtonElement>(null);
+  const dockHovered = useRef(false);
   useEffect(() => {
     // Start each page expanded; retain hysteresis once the user scrolls.
     setSettingsBarCompact(false);
     compactRef.current = false;
+    dockHovered.current = false;
     dockExpansionUntil.current = 0;
     let last = window.scrollY;
     let acc = 0;
@@ -862,7 +864,7 @@ function DesktopShell() {
         if (compactRef.current) { compactRef.current = false; setSettingsBarCompact(false); }
         return;
       }
-      if (Date.now() < dockExpansionUntil.current || document.querySelector('.ac-desktop-dock .ac-topbar-user-btn[aria-expanded="true"], .ac-desktop-dock .ac-topbar-bell[aria-expanded="true"]')) { acc = 0; return; }
+      if (dockHovered.current || Date.now() < dockExpansionUntil.current || document.querySelector('.ac-desktop-dock .ac-topbar-user-btn[aria-expanded="true"], .ac-desktop-dock .ac-topbar-bell[aria-expanded="true"]')) { acc = 0; return; }
       if (d > 0) {
         acc = acc > 0 ? acc + d : d;
         if (!compactRef.current && y > 140 && acc > 48) {
@@ -1214,7 +1216,9 @@ function DesktopShell() {
         <div className="ac-main-column">
         {!isFocusRoute && <div id="desktop-catalog-actions" className="desktop-catalog-actions-slot" />}
         {!isFocusRoute && (
-        <header className={`ac-topbar ac-topbar--bionis ac-desktop-dock${settingsBarCompact && !shellNotifOpen && !shellUserOpen ? ' ac-topbar--compact' : ''}`} role="banner">
+        <header className={`ac-topbar ac-topbar--bionis ac-desktop-dock${settingsBarCompact && !shellNotifOpen && !shellUserOpen ? ' ac-topbar--compact' : ''}`} role="banner"
+          onPointerEnter={(event) => { if (event.pointerType === 'mouse') { dockHovered.current = true; expandDesktopDock(); } }}
+          onPointerLeave={(event) => { if (event.pointerType === 'mouse') dockHovered.current = false; }}>
           <div className="ac-topbar-left">
             {!settingsBarCompact && <button
               type="button"
@@ -1770,13 +1774,13 @@ function DesktopShell() {
                 <div className="settings-topbar-menu" role="menu">
                   {location.pathname !== '/settings' && !location.pathname.startsWith('/settings/') && (
                     <button type="button" role="menuitem" className="secondary settings-topbar-menu-item" onClick={() => { setFocusUserMenuOpen(false); window.location.assign('/settings'); }}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" aria-hidden><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82V9c.26-.6.98-1.01 1.64-1.01H21a2 2 0 1 0 0-4h-.09a1.65 1.65 0 0 1-1.51-1z" /></svg>
+                      <SettingsIcon size={16} aria-hidden="true" />
                       Paramètres
                     </button>
                   )}
                   {location.pathname !== '/about' && (
                     <button type="button" role="menuitem" className="secondary settings-topbar-menu-item" onClick={() => { setFocusUserMenuOpen(false); window.location.assign('/about'); }}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" aria-hidden><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                      <Info size={16} aria-hidden="true" />
                       À propos
                     </button>
                   )}

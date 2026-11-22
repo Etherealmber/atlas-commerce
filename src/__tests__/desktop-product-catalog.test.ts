@@ -12,20 +12,26 @@ beforeEach(() => {
   vi.spyOn(api, 'getStockLocations').mockResolvedValue({ data: [] }); vi.spyOn(api, 'getCategories').mockResolvedValue({ data: [] }); vi.spyOn(api, 'getUnits').mockResolvedValue({ data: [] });
 });
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); document.getElementById('desktop-catalog-actions')?.remove(); localStorage.removeItem('stock_role'); localStorage.removeItem('atlas_desktop_products_view'); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
-it('moves actions to the separate top slot on wide screens, and back for bulk selection or narrow screens', async () => {
-  const slot = document.createElement('div'); slot.id = 'desktop-catalog-actions'; document.body.appendChild(slot);
-  let change: () => void = () => {};
-  const media = {matches:true, addEventListener: (_: string, fn: () => void) => { change = fn; }, removeEventListener: vi.fn()};
-  vi.stubGlobal('matchMedia', () => media);
+it('moves actions to the separate top slot on wide screens, and keeps bulk selection separate before falling back on narrow screens', async () => {
+  const column = document.createElement('div'); column.className = 'ac-main-column';
+  const slot = document.createElement('div'); slot.id = 'desktop-catalog-actions';
+  const dock = document.createElement('header'); dock.className = 'ac-desktop-dock';
+  column.appendChild(slot); column.appendChild(dock); document.body.appendChild(column);
+  vi.stubGlobal('innerWidth', 1800);
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+    const width = this === column ? 1300 : this === dock ? 320 : 100;
+    return {width, height: 40, top: 0, left: 0, right: width, bottom: 40, x: 0, y: 0, toJSON: () => ({})};
+  });
   await act(async () => root.render(createElement(MemoryRouter, {initialEntries:['/products']}, createElement(Products))));
   expect(slot.textContent).toContain('Ajouter un produit');
-  expect(host.querySelector('.product-page-actions.is-docked')).not.toBeNull();
+  expect(host.querySelector('.product-page-actions [data-docked="true"]')).not.toBeNull();
   const selection = host.querySelector<HTMLInputElement>('.product-table-row input[type="checkbox"]')!;
   await act(async () => selection.click());
-  expect(slot.textContent).toBe(''); expect(host.querySelector('.product-page-actions')?.textContent).toContain('Supprimer');
+  expect(slot.textContent).toContain('Ajouter un produit'); expect(host.querySelector('.product-selection-bar')?.textContent).toContain('Supprimer');
   await act(async () => selection.click()); expect(slot.textContent).toContain('Ajouter un produit');
-  await act(async () => { media.matches=false; change(); });
+  await act(async () => { vi.stubGlobal('innerWidth', 1200); window.dispatchEvent(new Event('resize')); });
   expect(slot.textContent).toBe(''); expect(host.querySelector('.product-page-actions')?.textContent).toContain('Ajouter un produit');
+  column.remove();
 });
 it('offers list and grid, preserves actions, and opens product history from a card', async () => {
   await act(async () => root.render(createElement(MemoryRouter, { initialEntries: ['/products'] }, createElement(Routes, null, createElement(Route, { path: '/products', element: createElement(Products) }), createElement(Route, { path: '/products/:id/historique', element: createElement('p', null, 'Product destination') })) )));
@@ -43,6 +49,7 @@ it('offers list and grid, preserves actions, and opens product history from a ca
   await act(async () => rowDelete.click());
   await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Affichage en grille"]')!.click());
   expect(host.querySelector('.desktop-product-card img')?.getAttribute('src')).toContain('/cdn/marbre.webp');
+  expect(host.querySelector('.desktop-product-chips .product-stock-chip')?.classList.contains('ok')).toBe(true);
   expect(localStorage.getItem('atlas_desktop_products_view')).toBe('grid');
   expect(host.querySelector('.ac-products-filters [aria-label="Affichage en grille"]')).not.toBeNull();
   expect(host.querySelector('[aria-label="Ajuster le stock de Marbre"] svg')).not.toBeNull();
@@ -56,4 +63,18 @@ it('offers list and grid, preserves actions, and opens product history from a ca
   await act(async () => selection.click()); expect(selection.checked).toBe(true);
   await act(async () => (host.querySelector('.desktop-product-card-link') as HTMLAnchorElement).click());
   expect(host.textContent).toContain('Product destination');
+});
+
+it('keeps the staged product photo editor accessible', async () => {
+  vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:product-photo');
+  vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+  await act(async () => root.render(createElement(MemoryRouter, {initialEntries:['/products']}, createElement(Products))));
+  await act(async () => [...host.querySelectorAll<HTMLButtonElement>('button')].find(b => b.textContent?.includes('Ajouter un produit'))!.click());
+  const picker = document.querySelector<HTMLInputElement>('.modal input[type="file"][multiple]')!;
+  const files = new DataTransfer(); files.items.add(new File(['x'], 'photo.png', {type:'image/png'})); picker.files=files.files;
+  await act(async () => picker.dispatchEvent(new Event('change', {bubbles:true})));
+  const edit = document.querySelector<HTMLButtonElement>('[title="Modifier la photo (recadrage)"]')!;
+  expect(edit).not.toBeNull();
+  await act(async () => edit.click());
+  expect(document.body.textContent).toContain('Modifier la photo — recadrage');
 });

@@ -428,7 +428,7 @@ export async function buildInvoicePdfLib(input: PdfLibDocInput): Promise<Uint8Ar
       const qy = y - boxH + 14;
       const n = matrix.length || 1;
       const cell = qs / n;
-      page.drawRectangle({ x: qx, y: qy, width: qs, height: qs, color: rgb(1, 1, 1) });
+      page.drawRectangle({ x: qx - 4 * cell, y: qy - 4 * cell, width: qs + 8 * cell, height: qs + 8 * cell, color: rgb(1, 1, 1) });
       for (let r = 0; r < n; r++) {
         for (let c = 0; c < n; c++) {
           if (matrix[r][c]) {

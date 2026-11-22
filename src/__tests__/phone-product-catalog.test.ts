@@ -29,3 +29,8 @@ it('shows a skeleton on first load and keeps the catalog on refresh failure', as
   await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent?.includes('À valider'))!.click());
   await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Actualiser le catalogue"]')!.click()); expect(refresh).toHaveBeenLastCalledWith('actions');
 });
+it('shows primary and converted stock for a dual-unit product', async () => {
+  const products = [{ id: 8, name:'Marbre', sku:'M-8', stock_quantity:6, unit:'carton', secondary_unit:'m²', secondary_unit_factor:1.59, track_inventory:1 }];
+  await act(async () => root.render(createElement(MemoryRouter, { children: createElement(PhoneProduits, { products, actions: [], onRefresh: vi.fn(), onToast: vi.fn() }) })));
+  expect(host.textContent).toContain('6 carton · 9,54 m²');
+});

@@ -1,0 +1,5 @@
+html body .quotes-page .quote-number-link { display: inline; background: transparent !important; border: 0 !important; padding: 0 !important; color: #2563eb !important; -webkit-text-fill-color: #2563eb !important; font-weight: 700; cursor: pointer; }
+html body .quotes-page .quote-number-link:hover { text-decoration: underline; }
+html[data-theme="dark"] body .quotes-page .quote-number-link { color: #93c5fd !important; -webkit-text-fill-color: #93c5fd !important; }
+html body .quotes-page table button.secondary { display: inline-flex; align-items: center; gap: 5px; }
+html body .quotes-page table button.danger { background: #dc2626 !important; color: #fff !important; -webkit-text-fill-color: #fff !important; border-color: #dc2626 !important; }

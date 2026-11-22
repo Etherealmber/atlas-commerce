@@ -1,3 +1,5 @@
+import DocumentActors from '../components/DocumentActors';
+import TopPageActions from '../components/TopPageActions';
 import { onAgentDraft } from '../lib/agentDraft';
 import { useEffect, useState } from 'react';
 import DatePicker from '../components/DatePicker';
@@ -161,12 +163,12 @@ export default function Receipts() {
 
   return (
     <div className="receipts-page">
-      <div className="page-header">
-        <h1>Reçus</h1>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div className="page-header dock-page-header">
+        <h1 className="sr-only">Reçus</h1>
+        <TopPageActions>
           <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
           <button onClick={() => { setModalError(''); setShowModal(true); }}>+ Nouveau reçu</button>
-        </div>
+        </TopPageActions>
       </div>
 
       <SaveFeedback message={saveMsg} type={saveMsgType} />
@@ -184,7 +186,7 @@ export default function Receipts() {
             <tbody>
               {filtered.map((r) => (
                 <tr key={r.id}>
-                  <td><strong>{r.number}</strong></td>
+                  <td><strong>{r.number}</strong><DocumentActors document={r} /></td>
                   <td>{r.client_name}</td>
                   <td style={{ fontWeight: 700, color: 'var(--success)' }}>{fmt(r.amount)}</td>
                   <td><span className="badge info">{paymentMethodFr(r.payment_method)}</span></td>

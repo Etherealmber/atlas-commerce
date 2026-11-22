@@ -30,6 +30,10 @@ it('keeps the original desktop table', async () => {
   await act(async () => root.render(createElement(Employees)));
   expect(host.querySelector('table tbody')?.textContent).toContain('Samira Test');
   expect(host.querySelector('.ph-employee-card')).toBeNull();
+  const paid = [...host.querySelectorAll<HTMLButtonElement>('table button')].find(b => b.textContent?.trim() === 'Marquer payé');
+  expect(paid?.classList.contains('secondary')).toBe(true);
+  expect(host.querySelector('.page-header h1')?.classList.contains('sr-only')).toBe(true);
+  expect(host.querySelector('.page-header .dock-page-actions')).not.toBeNull();
 });
 
 it('opens the existing payment confirmation without submitting a payment', async () => {

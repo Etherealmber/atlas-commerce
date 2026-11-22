@@ -1,3 +1,4 @@
+import TopPageActions from '../components/TopPageActions';
 import { onAgentDraft } from '../lib/agentDraft';
 import { useEffect, useState } from 'react';
 import DatePicker from '../components/DatePicker';
@@ -8,10 +9,8 @@ import TypeaheadField, { productTypeaheadOptions, partyTypeaheadOptions } from '
 import PasswordConfirm from '../components/PasswordConfirm';
 import { getToken } from '../auth';
 import SaveFeedback from '../components/SaveFeedback';
-import { openReport } from '../lib/reports';
 import { statusFr, statusBadgeClass, REFUND_REASON_OPTIONS, STOCK_DISPOSITION_OPTIONS } from '../lib/labels';
 import { fmtMoney, PAYMENT_METHODS } from '../lib/money';
-import { downloadExport } from '../lib/export';
 import { useUi } from '../components/AppDialogs';
 import { matchProducts, polishRefundReason, priceAnomaly, clientRisk } from '../lib/assist';
 import { NoteChips, SuggestList } from '../components/AssistBits';
@@ -85,6 +84,8 @@ export default function Invoices() {
   const [saveMsgType, setSaveMsgType] = useState<'success' | 'error'>('success');
   const [items, setItems] = useState<{ product_id?: number; product_name: string; sku?: string; quantity: number; list_price: number; unit_price: number; product_query?: string }[]>([{ product_name: '', quantity: 1, list_price: 0, unit_price: 0, product_query: '' }]);
   const [taxExempt, setTaxExempt] = useState(false);
+  const [defaultTax, setDefaultTax] = useState(20);
+  useEffect(() => { api.getSettings().then(r => { const rate = Number(r.data?.tax_rate); if (Number.isFinite(rate) && rate > 0) setDefaultTax(rate); }).catch(() => {}); }, []);
 
   // Delete OTP state
   const [payTarget, setPayTarget] = useState<any>(null);
@@ -235,6 +236,13 @@ export default function Invoices() {
     setItems(next);
   };
 
+  const estimateLine = (item: (typeof items)[number]) => {
+    const p = products.find(x => Number(x.id) === Number(item.product_id));
+    const amount = Number(item.quantity || 0) * Number(item.unit_price || 0);
+    const rate = Number(p?.tax_rate) > 0 ? Number(p.tax_rate) : defaultTax;
+    return !taxExempt && (docMode === 'quote' || p?.invoice_price_mode === 'exclusive') ? amount * (1 + rate / 100) : amount;
+  };
+
   const resetForm = () => {
     setClientId(''); setClientName(''); setClientIce(''); setClientAddress(''); setClientCity('');
     setClientEmail(''); setClientPhone(''); setDueDate(''); setNotes('');
@@ -255,7 +263,7 @@ export default function Invoices() {
     try {
       const idem = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `inv-${Date.now()}`;
       const res: any = await api.createInvoice({
-        prices_ttc: true,
+        prices_ttc: docMode === 'invoice',
         client_id: clientId || undefined, client_name: clientName, client_ice: clientIce,
         client_address: clientAddress, client_city: clientCity, client_email: clientEmail, client_phone: clientPhone,
         issue_date: issueDate, due_date: dueDate || null, notes, items,
@@ -448,17 +456,11 @@ export default function Invoices() {
 
   return (
     <div className="atlas-orders invoices-page">
-      <div className="page-header">
-        <div>
-          <h1>Factures de vente</h1>
-          {clientFilter && <p style={{ color: 'var(--muted)', fontSize: 14, marginTop: 4 }}>Filtré par client #{clientFilter}</p>}
-        </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div className="page-header dock-page-header">
+        <h1 className="sr-only">Factures de vente</h1>
+        <TopPageActions>
           <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
 
-          <button className="secondary" onClick={() => openReport('/api/reports/receivables')}>Exporter les créances</button>
-          <button className="secondary" onClick={() => downloadExport('/api/export/invoices', 'factures.csv')}>Télécharger le CSV</button>
-          <button onClick={() => { setDocMode('invoice'); setShowModal(true); }}>Créer une facture</button>
           <button
             className="secondary"
             style={{ borderColor: 'var(--copper, #b87333)', color: 'var(--copper-dark, #8a5520)' }}
@@ -477,8 +479,10 @@ export default function Invoices() {
           >
             + Remboursement (WR)
           </button>
-        </div>
+          <button onClick={() => { setDocMode('invoice'); setShowModal(true); }}>Créer une facture</button>
+        </TopPageActions>
       </div>
+      {clientFilter && <p style={{ color: 'var(--muted)', fontSize: 14, marginTop: 4 }}>Filtré par client #{clientFilter}</p>}
 
       
       <div className="ac-metric-grid" style={{ marginBottom: 16 }}>
@@ -714,7 +718,7 @@ export default function Invoices() {
             </>)}
 
             {docStep === 1 && (<>
-            <h3 style={{ margin: '16px 0 8px', fontSize: 14 }}>Lignes — prix TTC · TVA calculée en bas (style facture marbre)</h3>
+            <h3 style={{ margin: '16px 0 8px', fontSize: 14 }}>Lignes — prix selon le mode TVA du produit</h3>
             {fieldErrors.items ? <span className="field-error-msg" style={{ display: 'block', marginBottom: 8 }}>{fieldErrors.items}</span> : null}
             <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10, lineHeight: 1.4 }}>
               Choisissez un produit (recherche), le <strong>prix catalogue</strong> se remplit automatiquement. Saisissez ensuite le <strong>prix client</strong> si une promo / remise s&apos;applique.
@@ -723,13 +727,13 @@ export default function Invoices() {
               <span>Recherche / produit</span>
               <span>Désignation</span>
               <span>Qté</span>
-              <span>P.U. catalogue TTC</span>
-              <span>P.U. client TTC</span>
+              <span>P.U. catalogue</span>
+              <span>P.U. client</span>
               <span>Total TTC</span>
               <span></span>
             </div>
             {items.map((item, idx) => {
-              const lineTotal = Number(item.quantity || 0) * Number(item.unit_price || 0);
+              const lineTotal = estimateLine(item);
               const listP = Number(item.list_price || 0);
               const unitP = Number(item.unit_price || 0);
               const promo = listP > 0 && unitP < listP;
@@ -783,6 +787,7 @@ export default function Invoices() {
                   <div style={{ fontWeight: 700, textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{lineTotal.toLocaleString('fr-FR', { maximumFractionDigits: 0 })}</div>
                   <button type="button" className="danger" style={{ padding: '6px 8px' }} onClick={() => setItems((prev) => prev.length <= 1 ? [{ product_name: '', quantity: 1, list_price: 0, unit_price: 0, product_query: '' }] : prev.filter((_, i) => i !== idx))} aria-label="Supprimer">×</button>
                 </div>
+                {item.product_id && <small>{products.find(p => Number(p.id) === Number(item.product_id))?.invoice_price_mode === 'exclusive' ? 'Facture : TVA ajoutée au prix' : 'Facture : TVA incluse ou mode historique'}</small>}
                 {(fieldErrors[`item_qty_${idx}`] || fieldErrors[`item_price_${idx}`]) ? (
                   <span className="field-error-msg" style={{ display: 'block', marginTop: 4 }}>
                     {fieldErrors[`item_qty_${idx}`] || fieldErrors[`item_price_${idx}`]}
@@ -798,7 +803,7 @@ export default function Invoices() {
               );
             })}
             <div style={{ fontSize: 14, fontWeight: 700, textAlign: 'right', marginBottom: 12 }}>
-              Total estimé TTC : {items.reduce((s, it) => s + Number(it.quantity || 0) * Number(it.unit_price || 0), 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })}
+              Total estimé TTC : {items.reduce((s, it) => s + estimateLine(it), 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })}
               {items.some((it) => Number(it.list_price || 0) > Number(it.unit_price || 0)) && (
                 <span style={{ fontWeight: 500, color: 'var(--muted)', marginLeft: 10, fontSize: 12 }}>
                   (catalogue {items.reduce((s, it) => s + Number(it.quantity || 0) * Number(it.list_price || it.unit_price || 0), 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} · promo active)

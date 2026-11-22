@@ -1,3 +1,6 @@
+import TopPageActions from '../components/TopPageActions';
+import { ExternalLink } from 'lucide-react';
+import './quote-actions.css';
 import TypeaheadField, { productTypeaheadOptions, partyTypeaheadOptions } from '../components/TypeaheadField';
 import DatePicker from '../components/DatePicker';
 import { useEffect, useState } from 'react';
@@ -332,12 +335,12 @@ export default function Quotes() {
 
   return (
     <div className="atlas-crm quotes-page">
-      <div className="page-header">
+      <div className="page-header dock-page-header">
         <h1 className="sr-only">Devis</h1>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <TopPageActions>
           <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
           <button onClick={() => { resetForm(); wz.reset(); setShowModal(true); }}>+ Nouveau devis</button>
-        </div>
+        </TopPageActions>
       </div>
 
       <SaveFeedback message={saveMsg} type={saveMsgType} />
@@ -369,7 +372,7 @@ export default function Quotes() {
             <tbody>
               {filteredQuotes.map((q) => (
                 <tr key={q.id}>
-                  <td><strong>{q.number}</strong></td>
+                  <td><button type="button" className="quote-number-link" onClick={() => openDetail(q.id)} disabled={detailLoading}>{q.number}</button></td>
                   <td>{q.client_name}</td>
                   <td>{q.issue_date}</td>
                   <td><span className={`badge ${statusBadgeClass(q.status)}`}>{statusFr(q.status)}</span></td>
@@ -377,7 +380,7 @@ export default function Quotes() {
                   <td style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                       <button type="button" className="secondary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => openDetail(q.id)} disabled={detailLoading}>
-                        Ouvrir
+                        <ExternalLink size={15} aria-hidden="true" /> Ouvrir
                       </button>
                       {q.status !== 'cancelled' && (
                         <button type="button" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => setConvertId(q.id)} disabled={saving}>
@@ -577,7 +580,7 @@ export default function Quotes() {
           <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-labelledby="convert-quote-title">
             <h2 id="convert-quote-title" style={{ marginTop: 0 }}>Convertir le devis</h2>
             <p style={{ color: 'var(--muted)', fontSize: 14 }}>
-              Choisissez le document cible. Le stock sera déduit dans les deux cas.
+              Choisissez le document cible. Le stock sera déduit dans les deux cas. Pour une vente rapide, les prix unitaires du devis sont conservés et la TVA est supprimée.
             </p>
             <div className="form-actions" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
               <button type="button" disabled={saving} onClick={() => convertTo(convertId, 'invoice')}>

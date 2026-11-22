@@ -5,7 +5,7 @@ export type WorkStatusSource = {
   error?: string | null;
 };
 
-import { getToken, clearToken } from './auth';
+import { getToken, clearToken, refreshSessionRole, getRefreshedTokenFor } from './auth';
 import { getCachedFingerprint } from './fingerprint';
 import { getApiBase } from './config';
 import { uiToast } from './components/AppDialogs';
@@ -33,6 +33,7 @@ function cacheTtlForPath(path: string): number {
 
 async function requestRaw<T>(path: string, options?: RequestInit & { silent?: boolean }): Promise<T> {
   const token = getToken();
+  let requestToken = token;
   const fp = await getCachedFingerprint().catch(() => 'none');
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -49,6 +50,23 @@ async function requestRaw<T>(path: string, options?: RequestInit & { silent?: bo
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
       res = await fetch(`${getApiBase()}${path}`, { ...options, headers });
+      if (res.status === 409 && token && ((await res.clone().json().catch(() => ({}))) as { code?: string })?.code === 'ROLE_CHANGED') {
+        const refreshed = await refreshSessionRole(token, fp);
+        if (refreshed === 'updated') {
+          // A delayed response must never be retried under a different account.
+          const nextToken = getRefreshedTokenFor(token);
+          if (!nextToken) throw Object.assign(new Error('La session a changé. Réessayez.'), { roleRefreshFailure: true });
+          headers.Authorization = `Bearer ${nextToken}`;
+          requestToken = nextToken;
+          res = await fetch(`${getApiBase()}${path}`, { ...options, headers });
+        } else if (refreshed === 'invalid' && getToken() === token) {
+          clearToken();
+          if (!window.location.pathname.includes('/login')) window.location.href = '/login?reason=UNAUTHORIZED';
+          throw Object.assign(new Error('Session invalide. Reconnectez-vous.'), { roleRefreshFailure: true });
+        } else {
+          throw Object.assign(new Error('Impossible d’actualiser les permissions. Réessayez.'), { roleRefreshFailure: true });
+        }
+      }
       // Retry transient upstream / edge errors on GET only
       if (isIdempotentGet && (res.status === 502 || res.status === 503 || res.status === 504) && attempt < maxAttempts - 1) {
         await new Promise((r) => setTimeout(r, 250 * 2 ** attempt));
@@ -57,6 +75,7 @@ async function requestRaw<T>(path: string, options?: RequestInit & { silent?: bo
       lastNetErr = null;
       break;
     } catch (e) {
+      if ((e as any)?.roleRefreshFailure) throw e;
       lastNetErr = e;
       if (isIdempotentGet && attempt < maxAttempts - 1) {
         await new Promise((r) => setTimeout(r, 250 * 2 ** attempt));
@@ -72,7 +91,13 @@ async function requestRaw<T>(path: string, options?: RequestInit & { silent?: bo
     try { uiToast(msg, 'error'); } catch { /* */ }
     throw new Error(msg);
   }
+  // Discard late responses from a session that has since been replaced. This
+  // also prevents old-account responses from warming the new account's cache.
+  if (requestToken && getToken() !== requestToken) {
+    throw new Error('La session a changé. Réessayez.');
+  }
   const text = await res.text();
+  if (requestToken && getToken() !== requestToken) throw new Error('La session a changé. Réessayez.');
   let data: any = {};
   try {
     data = text ? JSON.parse(text) : {};
@@ -80,7 +105,7 @@ async function requestRaw<T>(path: string, options?: RequestInit & { silent?: bo
     // Server returned non-JSON (HTML login page, empty body, etc.)
     const preview = (text || '').slice(0, 80).replace(/\s+/g, ' ');
     if (!res.ok) {
-      if (res.status === 401 || res.status === 403) {
+      if (res.status === 401) {
         clearToken();
         if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
           window.location.href = '/login?reason=UNAUTHORIZED';
@@ -88,6 +113,9 @@ async function requestRaw<T>(path: string, options?: RequestInit & { silent?: bo
         const msg = 'Session expirée ou accès refusé. Reconnectez-vous.';
         try { uiToast(msg, 'error'); } catch { /* */ }
         throw new Error(msg);
+      }
+      if (res.status === 403) {
+        throw new Error('Accès refusé. Votre session reste active.');
       }
       const msg =
         res.status >= 500
@@ -216,7 +244,8 @@ async function request<T>(path: string, options?: RequestInit & { silent?: boole
     // Explicit refreshes must not reuse a request that started before a mutation.
     if (options?.cache === 'no-store') return requestRaw<T>(path, options);
     const ttl = cacheTtlForPath(path);
-    return dedupedGet(`GET:${path}`, () => requestRaw<T>(path, options), ttl);
+    // A cached or in-flight response belongs to the exact authenticated session.
+    return dedupedGet(`GET:${path}:session:${getToken() || ''}`, () => requestRaw<T>(path, options), ttl);
   }
   const result = await requestRaw<T>(path, options);
   // Invalidate list/reference caches after writes

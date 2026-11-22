@@ -247,11 +247,13 @@ describe('inventory actor responses', () => {
   it('uses the session rather than a client supplied handoff completer for new movements', async () => {
     const id = sqlite.prepare("SELECT id FROM products WHERE sku='ACTOR-1'").get().id;
     const alice = await token('alice', 'stock'), owner = await token('admin', 'owner');
-    const created: any = await (await call('/api/mobile-actions', alice, 'POST', { type: 'stock_check', title: 'Count', product_id: id })).json();
+    const created: any = await (await call('/api/mobile-actions', alice, 'POST', { type: 'stock_check', title: 'Count', product_id: id, created_by: 'forged' })).json();
+    expect(created.data.created_by).toBe('alice');
     const r = await call(`/api/mobile-actions/${created.data.id}/complete`, owner, 'POST', { apply_stock: true, product_id: id, proposed_stock: 3, completed_by: 'forged' });
     expect(r.status).toBe(200);
+    expect((await r.json() as any).data.completed_by).toBe('admin');
     const rows: any = await (await call(`/api/products/${id}/movements?full=1`, alice)).json();
-    expect(rows.data.find((x: any) => x.reference === `mobile_action:${created.data.id}`)).toMatchObject({ created_by: 'admin', approved_by: null });
+    expect(rows.data.find((x: any) => x.reference === `mobile_action:${created.data.id}`)).toMatchObject({ created_by: 'admin', approved_by: 'admin' });
   });
   it('automatically attributes direct cycle counts without inventing an approver', async () => {
     const productId = sqlite.prepare("SELECT id FROM products WHERE sku='ACTOR-1'").get().id;

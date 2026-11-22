@@ -70,6 +70,8 @@ CREATE TABLE IF NOT EXISTS products (
   category_id INTEGER,
   category TEXT DEFAULT 'General',
   unit TEXT DEFAULT 'unit',
+  secondary_unit TEXT DEFAULT NULL,
+  secondary_unit_factor REAL DEFAULT NULL,
   price REAL NOT NULL DEFAULT 0,
   cost REAL DEFAULT 0,
   stock_quantity REAL NOT NULL DEFAULT 0,

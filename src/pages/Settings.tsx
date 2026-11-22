@@ -1,4 +1,5 @@
 import QrLoginPanel from '../components/settings/QrLoginPanel';
+import SettingsUserDialog from '../components/SettingsUserDialog';
 import { isFeatureEnabled } from '../lib/featureFlags';
 import { EditProfile, type ProfileData } from '../components/ui/EditProfile';
 import { TimedUndoDelete, SaveToggle } from '../components/ui';
@@ -220,6 +221,9 @@ export default function Settings() {
   const [ownerInfo, setOwnerInfo] = useState<any>(null);
   const [adminConfig, setAdminConfig] = useState<any>(null);
   const [newUser, setNewUser] = useState({ username: '', password: '', display_name: '', role: 'secretaire', email: '' });
+  const [userCreateOpen, setUserCreateOpen] = useState(false);
+  const [newUserError, setNewUserError] = useState('');
+  const closeUserCreate = () => { setUserCreateOpen(false); setNewUserError(''); setNewUser({ username: '', password: '', display_name: '', role: 'secretaire', email: '' }); };
   const [pwOpen, setPwOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<null | ((password: string) => Promise<void>)>(null);
   const [pwTitle, setPwTitle] = useState('');
@@ -695,14 +699,15 @@ if (loading) return (
 
   const createUser = () => {
     if (!newUser.username.trim() || !newUser.password) {
-      flash('Nom d\'utilisateur et mot de passe obligatoires.', 'error');
+      setNewUserError('Nom d\'utilisateur et mot de passe obligatoires.');
       return;
     }
+    setNewUserError('');
     setPwTitle('Créer un utilisateur');
     setPendingAction(() => async (password: string) => {
       await api.createAdminUser({ ...newUser, confirm_password: password });
       flash('Utilisateur créé.');
-      setNewUser({ username: '', password: '', display_name: '', role: 'secretaire', email: '' });
+      closeUserCreate();
       setPwOpen(false); setPendingAction(null);
       await reloadAdmin();
     });
@@ -2810,22 +2815,25 @@ if (loading) return (
               Les suppressions (facture, produit, etc.) demandent une simple confirmation — la session et le code OTP protègent déjà le compte.
               Seul le compte propriétaire voit cet onglet.
             </p>
+            <button type="button" onClick={() => setUserCreateOpen(true)}>+ Ajouter un utilisateur</button>
+            {userCreateOpen && <SettingsUserDialog onClose={closeUserCreate}><form autoComplete="off" onSubmit={e => { e.preventDefault(); createUser(); }}>
+              <h2 id="create-team-user-title">Créer un utilisateur</h2>
             <div className="grid grid-2" style={{ marginBottom: 12 }}>
               <div className="form-row">
                 <label>Identifiant</label>
-                <input value={newUser.username} onChange={(e) => setNewUser({ ...newUser, username: e.target.value })} placeholder="ex: secretaire" />
+                <input name="team-new-identifier" autoComplete="off" value={newUser.username} onChange={(e) => setNewUser({ ...newUser, username: e.target.value })} placeholder="ex: secretaire" />
               </div>
               <div className="form-row" data-settings-anchor="display_name">
                 <label>Nom affiché</label>
-                <input value={newUser.display_name} onChange={(e) => setNewUser({ ...newUser, display_name: e.target.value })} placeholder="ex: Fatima — secrétariat" />
+                <input name="team-new-display" autoComplete="off" value={newUser.display_name} onChange={(e) => setNewUser({ ...newUser, display_name: e.target.value })} placeholder="ex: Fatima — secrétariat" />
               </div>
               <div className="form-row">
                 <label>Mot de passe</label>
-                <input type="password" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} />
+                <input name="team-new-secret" autoComplete="new-password" type="password" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} />
               </div>
               <div className="form-row">
                 <label>E-mail (OTP) — optionnel</label>
-                <input type="email" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} placeholder="vide = OTP sur l'e-mail principal" />
+                <input name="team-new-email" autoComplete="off" type="email" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} placeholder="vide = OTP sur l'e-mail principal" />
               </div>
               <div className="form-row">
                 <label>Rôle</label>
@@ -2837,7 +2845,9 @@ if (loading) return (
                 </select>
               </div>
             </div>
-            <button type="button" onClick={createUser}>Créer l&apos;utilisateur</button>
+            {newUserError && <p role="alert">{newUserError}</p>}
+            <div className="modal-actions"><button type="button" className="secondary" onClick={closeUserCreate}>Annuler</button><button type="submit">Créer l&apos;utilisateur</button></div>
+            </form></SettingsUserDialog>}
 
             {editingUser && (
               <div className="atlas-card" style={{ marginTop: 16 }}>
@@ -2858,7 +2868,7 @@ if (loading) return (
                   </div>
                   <div className="form-row">
                     <label>Nouveau mot de passe (optionnel)</label>
-                    <input type="password" value={editingUser.password || ''} onChange={(e) => setEditingUser({ ...editingUser, password: e.target.value })} placeholder="Laisser vide = inchangé" />
+                    <input autoComplete="new-password" name="team-edit-new-secret" type="password" value={editingUser.password || ''} onChange={(e) => setEditingUser({ ...editingUser, password: e.target.value })} placeholder="Laisser vide = inchangé" />
                   </div>
                   <div className="form-row">
                     <label>E-mail (OTP) — optionnel</label>

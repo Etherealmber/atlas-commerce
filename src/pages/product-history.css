@@ -39,3 +39,4 @@ html body .product-history button.product-history-refresh svg {
 }
 html body .product-history button.product-history-photo-action svg *,
 html body .product-history button.product-history-refresh svg * { stroke: currentColor !important; fill: none !important; }
+.product-history-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0; }
