@@ -11,8 +11,8 @@
  * `CI`, or `ATLAS_AUTO_INSTALL_RUST=1`).
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
+import { existsSync, readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -22,7 +22,6 @@ const toolchainTomlPath = resolve(rootDir, 'rust-toolchain.toml');
 
 const PINNED_CHANNELS = new Map([['1.82.0', '1.82.0']]);
 const PINNED_TARGETS = new Map([['wasm32-unknown-unknown', 'wasm32-unknown-unknown']]);
-const RUSTUP_INSTALLER_URL = 'https://sh.rustup.rs';
 
 export function readPinnedToolchain() {
   if (!existsSync(toolchainTomlPath)) {
@@ -82,39 +81,21 @@ export function isAutomatedBuildEnv() {
   );
 }
 
-async function downloadAndRunRustupInstaller(channel, target) {
-  const res = await fetch(RUSTUP_INSTALLER_URL, { redirect: 'follow' });
-  if (!res.ok) {
-    throw new Error(`Failed to download rustup installer (${res.status} ${res.statusText}).`);
+function installPinnedRustup(channel, target) {
+  if (channel !== '1.82.0' || target !== 'wasm32-unknown-unknown') {
+    throw new Error(`Unsupported pinned Rust toolchain ${channel} (${target}).`);
   }
-  const script = await res.text();
-  if (!script.startsWith('#!')) {
-    throw new Error('Downloaded rustup installer failed sanity check.');
-  }
-  const tempDir = mkdtempSync(join(tmpdir(), 'atlas-rustup-'));
-  const installerPath = join(tempDir, 'rustup-init.sh');
-  try {
-    writeFileSync(installerPath, script, { mode: 0o700 });
-    execFileSync(
-      'sh',
-      [
-        installerPath,
-        '-y',
-        '--default-toolchain',
-        channel,
-        '--profile',
-        'minimal',
-        '--target',
-        target,
-      ],
-      {
-        stdio: 'inherit',
-        env: { ...process.env, RUSTUP_INIT_SKIP_PATH_CHECK: 'yes' },
-      },
-    );
-  } finally {
-    rmSync(tempDir, { recursive: true, force: true });
-  }
+  execFileSync(
+    'sh',
+    [
+      '-c',
+      "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.82.0 --profile minimal --target wasm32-unknown-unknown",
+    ],
+    {
+      stdio: 'inherit',
+      env: { ...process.env, RUSTUP_INIT_SKIP_PATH_CHECK: 'yes' },
+    },
+  );
 }
 
 export async function ensureRustWasmToolchain({ autoInstall = false, quiet = false } = {}) {
@@ -142,7 +123,7 @@ export async function ensureRustWasmToolchain({ autoInstall = false, quiet = fal
       throw new Error('Automatic rustup shell bootstrap is only supported on Linux/macOS CI runners.');
     }
     log(`Installing rustup + pinned toolchain ${channel} (${target})...`);
-    await downloadAndRunRustupInstaller(channel, target);
+    installPinnedRustup(channel, target);
     augmentCargoPath();
     rustcVer = runCapture('rustc', ['--version']);
     cargoVer = runCapture('cargo', ['--version']);

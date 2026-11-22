@@ -24,12 +24,18 @@ let initialized = false;
 let loggedOutcome = false;
 let wasDetachedForFallback = false;
 
-const bundledWasmModules: WasmModuleMap =
-  typeof import.meta !== 'undefined' && typeof (import.meta as unknown as { glob?: unknown }).glob === 'function'
-    ? (import.meta as unknown as {
-        glob: (pattern: string, opts: { eager: boolean; import?: string }) => WasmModuleMap;
-      }).glob('./wasm/atlas_finance_core.wasm', { eager: true, import: 'default' })
-    : {};
+function loadBundledWasmModules(): WasmModuleMap {
+  try {
+    return import.meta.glob('../wasm/atlas_finance_core.wasm', {
+      eager: true,
+      import: 'default',
+    }) as WasmModuleMap;
+  } catch {
+    return {};
+  }
+}
+
+const bundledWasmModules: WasmModuleMap = loadBundledWasmModules();
 
 function resolveBundledWasmModule(): WebAssembly.Module | null {
   const values = Object.values(bundledWasmModules);

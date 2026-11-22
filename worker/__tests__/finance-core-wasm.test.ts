@@ -343,21 +343,23 @@ describe('Finance Core — Compiled Rust WASM Binary Parity & Benchmarks', () =>
       const paidAmt = Number((rand() * wRes.totals.total).toFixed(2));
       const wRefund = computeRefundSplit(reqRef, wRes.totals.total, paidAmt, paidAmt >= wRes.totals.total ? 'paid' : 'partial', cur);
       const wClass = classifyDoc(wRes.totals.total, paidAmt, '2026-10-10', '2026-10-20');
-      const wPay = computePayrollObligation(
-        { id: 1, first_name: 'T', last_name: 'U', pay_amount: 1000 + Math.round(rand() * 9000), pay_cycle_type: i % 2 === 0 ? 'monthly' : 'weekly', joined_date: '2026-10-01', active: 1 },
-        '2026-10-18',
-        Number((rand() * 500).toFixed(2)),
-      );
+      const empRow = {
+        id: 1,
+        first_name: 'T',
+        last_name: 'U',
+        pay_amount: 1000 + Math.round(rand() * 9000),
+        pay_cycle_type: i % 2 === 0 ? 'monthly' : 'weekly',
+        joined_date: '2026-10-01',
+        active: 1,
+      };
+      const advAmt = Number((rand() * 500).toFixed(2));
+      const wPay = computePayrollObligation(empRow, '2026-10-18', advAmt);
 
       detachFinanceWasm(null);
       const tRes = computeInvoiceLinesAndTotals(lines, { defaultTax: 20, isQuickSale, taxExempt, currency: cur });
       const tRefund = computeRefundSplit(reqRef, tRes.totals.total, paidAmt, paidAmt >= tRes.totals.total ? 'paid' : 'partial', cur);
       const tClass = classifyDoc(tRes.totals.total, paidAmt, '2026-10-10', '2026-10-20');
-      const tPay = computePayrollObligation(
-        { id: 1, first_name: 'T', last_name: 'U', pay_amount: 1000 + Math.round(rand() * 9000), pay_cycle_type: i % 2 === 0 ? 'monthly' : 'weekly', joined_date: '2026-10-01', active: 1 },
-        '2026-10-18',
-        Number((rand() * 500).toFixed(2)),
-      );
+      const tPay = computePayrollObligation(empRow, '2026-10-18', advAmt);
 
       expect(wRes.totals).toEqual(tRes.totals);
       expect(wRes.lines).toEqual(tRes.lines);
