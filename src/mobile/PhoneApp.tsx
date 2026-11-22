@@ -16,6 +16,9 @@ import PhoneDock, { canOpenPhoneBalance, canOpenPhoneEmployees, phoneBackTarget,
 import { usePhoneTheme } from './usePhoneTheme';
 import { usePhoneTopBar } from './usePhoneTopBar';
 import { api, getBase } from '../api';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import PhoneAgentActivity from './PhoneAgentActivity';
 import { clearToken, getUsername, getDisplayInitials, hasAvatarUrl, getRole, setProfileCache, isStockRole, canSell, canAccessSettings, canAccessSettingsBeyondProfile } from '../auth';
 import { setDensity, type UiScale } from '../lib/density';
 import { APP_VERSION } from '../version';
@@ -419,7 +422,7 @@ export default function PhoneApp() {
         </div>
       )}
       <main className={`phone-main${location.pathname.replace(/\/+$/, '') === '/m/agent' ? ' phone-main--agent' : ''}`}>
-        <PageTransition disabled={!animations}>
+        <PhonePageFrame agent={pathname === '/m/agent'} disabled={!animations}>
         <Routes>
           <Route
             path="/"
@@ -494,7 +497,7 @@ export default function PhoneApp() {
           <Route path="/settings/whats-new" element={<Suspense fallback={<PageSkeleton variant="phone" />}><PhoneWhatsNew /></Suspense>} />
           <Route path="/bills" element={allowSell ? <PhoneBills onToast={show} /> : <div className="phone-panel"><p className="ph-perm-banner">Rôle magasinier : pas d’achats.</p></div>} />
           <Route path="/warehouse" element={<PhoneWarehouse onToast={show} />} />
-          <Route path="/agent" element={<PhoneAgentMobile onNavigate={path => navigate(path)} onBack={() => navigate(backTarget)} onTheme={applyTheme} />} />
+          <Route path="/agent" element={<PhoneAgentMobile onNavigate={path => navigate(path)} onBack={() => navigate(backTarget)} onTheme={applyTheme} onProductCreated={direct => { show(direct ? 'Produit créé au catalogue' : 'Demande envoyée à l’Admin'); void refresh(direct ? 'products' : 'actions'); }} />} />
           <Route path="/device-scan" element={<PhoneDeviceScan />} />
 
           <Route
@@ -513,7 +516,7 @@ export default function PhoneApp() {
             }
           />
         </Routes>
-        </PageTransition>
+        </PhonePageFrame>
       </main>
 
       {hasDock && <PhoneDock role={getRole()} />}
@@ -1480,7 +1483,18 @@ function AgentMark() {
   return <span className="ph-agent-avatar" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.1">{Array.from({ length: 16 }, (_, index) => index).filter(index => index !== 4).map(index => <line key={index} x1="10" y1="4" x2="10" y2=".8" transform={`rotate(${index * 22.5} 10 10)`} />)}<line x1="10" y1="10" x2="19.6" y2="10" /></svg></span>;
 }
 
-export function PhoneAgentMobile({ onNavigate, onBack, onTheme }: { onNavigate?: (path: string) => void; onBack?: () => void; onTheme?: (theme: 'light' | 'dark' | 'system') => void } = {}) {
+function agentMarkdownUrl(url: string): string {
+  const trimmed = url.trim();
+  return /^(https?:\/\/|#|\/(?!\/))/i.test(trimmed) ? trimmed : '';
+}
+
+function PhonePageFrame({ agent, disabled, children }: { agent: boolean; disabled: boolean; children: ReactNode }) {
+  // A transformed route wrapper can become the containing block for a fixed chat
+  // and clip it to the zero-height phone main. Do not animate that wrapper here.
+  return agent ? <>{children}</> : <PageTransition disabled={disabled}>{children}</PageTransition>;
+}
+
+export function PhoneAgentMobile({ onNavigate, onBack, onTheme, onProductCreated }: { onNavigate?: (path: string) => void; onBack?: () => void; onTheme?: (theme: 'light' | 'dark' | 'system') => void; onProductCreated?: (direct: boolean) => void } = {}) {
   type Msg = { role: 'user' | 'assistant'; text: string };
   // Never display the old unscoped local conversation for a different account.
   const storageKey = useMemo(() => {
@@ -1518,7 +1532,9 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme }: { onNavigate?:
   const [history, setHistory] = useState<SavedThread[]>(() => {
     try { const value = historyKey && JSON.parse(localStorage.getItem(historyKey) || '[]'); return Array.isArray(value) ? value.filter(t => typeof t?.threadId === 'string' && Array.isArray(t.messages)).map(t => ({ threadId: t.threadId, messages: t.messages.filter((m: Msg) => (m?.role === 'user' || m?.role === 'assistant') && typeof m.text === 'string').slice(-40) })) : []; } catch { return []; }
   });
-  const [dialog, setDialog] = useState<'history' | 'quota' | null>(null);
+  const [dialog, setDialog] = useState<'history' | 'quota' | 'activity' | 'language' | 'unlock' | 'photo' | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(() => msgs.length === 0);
   const [policy, setPolicy] = useState<Awaited<ReturnType<typeof api.getAgentPolicy>>['data'] | null>(null);
   const [policyStatus, setPolicyStatus] = useState('');
   const [contextActions, setContextActions] = useState<{ title: string; detail: string }[]>([]);
@@ -1563,7 +1579,7 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme }: { onNavigate?:
   };
   const newConversation = () => {
     if (!archiveCurrent()) return;
-    followMessages.current = true; setThreadId(newPhoneAgentThreadId()); setMsgs([]); setInput(''); setShowLatest(false); setQuickNotice('');
+    followMessages.current = true; setThreadId(newPhoneAgentThreadId()); setMsgs([]); setShowShortcuts(true); setInput(''); setShowLatest(false); setQuickNotice('');
   };
   const refreshContext = async () => {
     setRefreshing(true); setQuickNotice('Actualisation du contexte…');
@@ -1587,7 +1603,7 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme }: { onNavigate?:
     const text = (prompt ?? input).trim();
     if (!text || sending.current) return;
     sending.current = true;
-    setQuickNotice('');
+    setQuickNotice(''); setShowShortcuts(false);
     followMessages.current = true; setShowLatest(false);
     if (inputRef.current) inputRef.current.style.height = '';
     setInput('');
@@ -1622,27 +1638,42 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme }: { onNavigate?:
         <button type="button" disabled={busy} title="Nouvelle discussion" aria-label="Nouvelle discussion" onClick={newConversation}><MessageSquarePlus size={20} /></button>
         <button type="button" disabled={refreshing} title="Actualiser le contexte" aria-label="Actualiser le contexte" onClick={() => void refreshContext()}><RefreshCw size={20} /></button>
         <button type="button" title="Quota IA" aria-label="Quota IA" onClick={() => void openQuota()}><Hourglass size={20} /></button>
+        <button type="button" title="Raccourcis" aria-label="Raccourcis Atlas Agent" aria-expanded={showShortcuts} onClick={() => { setShowShortcuts(open => !open); if (!showShortcuts && listRef.current) listRef.current.scrollTop = 0; }}><Grid2X2 size={20} /></button>
       </nav>
       <div className="ph-agent-msgs" ref={listRef} role="log" aria-live="polite" aria-label="Conversation" onScroll={e => { const el = e.currentTarget; followMessages.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40; setShowLatest(!followMessages.current); }}>
         {quickNotice && <p className="ph-agent-quick-notice" role="status">{quickNotice}</p>}
-        {msgs.length === 0 && <>
-          {(onNavigate || onTheme) && <div className="ph-agent-quick" role="group" aria-label="Raccourcis Atlas Agent">
+        {showShortcuts && <div className="ph-agent-quick" role="group" aria-label="Actions rapides">
+            {onNavigate && <button type="button" onClick={() => onNavigate('/m/settings/whats-new')}>Mises à jour</button>}
             {onTheme && ([['light', 'Thème clair'], ['dark', 'Thème sombre'], ['system', 'Thème système']] as const).map(([theme, label]) => <button type="button" key={theme} onClick={() => { onTheme(theme); setQuickNotice(`${label} activé.`); }}>{label}</button>)}
-            {onNavigate && <><button type="button" onClick={() => onNavigate('/m/settings/whats-new')}>Mises à jour</button><button type="button" onClick={() => onNavigate('/m/profile')}>Modifier mon profil</button><button type="button" onClick={() => onNavigate('/m/products')}>Produits</button><button type="button" onClick={() => onNavigate('/m/scan')}>Scanner</button></>}
+            <button type="button" onClick={() => setDialog('activity')}>Mon activité</button>
+            <button type="button" onClick={() => setDialog('unlock')}>Déverrouillage</button>
+            <button type="button" onClick={() => setDialog('language')}>Langue</button>
+            {onNavigate && <button type="button" onClick={() => onNavigate('/m/profile')}>Modifier mon profil</button>}
+            <button type="button" onClick={() => setDialog('photo')}>Changer ma photo</button>
+            <button type="button" onClick={() => setShowCreate(true)}>{getRole() === 'owner' || getRole() === 'admin' ? 'Créer un produit' : 'Demander un produit'}</button>
+            {onNavigate && <><button type="button" onClick={() => onNavigate('/m/scan')}>Modifier le stock</button><button type="button" onClick={() => onNavigate('/m/products')}>Produits</button><button type="button" onClick={() => onNavigate('/m/scan')}>Scanner</button></>}
           </div>}
+        {msgs.length === 0 && <>
           {contextActions.length > 0 && <div className="ph-agent-prompts" aria-label="Suggestions actualisées">{contextActions.map((item, i) => <button type="button" disabled={busy} key={`${item.title}-${i}`} onClick={() => void send(item.detail ? `${item.title} : ${item.detail}` : item.title)}>{item.title}</button>)}</div>}
           <div className="ph-agent-prompts" aria-label="Questions suggérées"><button type="button" disabled={busy} onClick={() => void send('Quels articles sont en rupture ou à réapprovisionner ?')}>Quels articles sont en rupture ou à réapprovisionner ?</button><button type="button" disabled={busy} onClick={() => void send('Quelles demandes scan sont en attente ?')}>Quelles demandes scan sont en attente ?</button></div>
         </>}
         {msgs.map((m, i) => (
           <div key={i} className={`ph-agent-message ${m.role}`}>
             {m.role === 'assistant' && <AgentMark />}
-            <div className="ph-agent-message-content"><span className="ph-agent-message-label">{m.role === 'user' ? 'Vous' : 'Assistant Atlas'}</span><div className={'ph-agent-bubble ' + m.role} dir="auto">{m.text}</div>{m.role === 'assistant' && <button type="button" className="theme-toggle ph-agent-copy" aria-label="Copier la réponse" onClick={() => { if (!navigator.clipboard?.writeText) { setCopyNotice('Copie indisponible dans ce navigateur.'); return; } void navigator.clipboard.writeText(m.text).then(() => setCopyNotice('Réponse copiée.'), () => setCopyNotice('Impossible de copier la réponse.')); }}><Copy size={15} aria-hidden="true" /> Copier</button>}</div>
+            <div className="ph-agent-message-content"><span className="ph-agent-message-label">{m.role === 'user' ? 'Vous' : 'Assistant Atlas'}</span><div className={'ph-agent-bubble ' + m.role} dir="auto">{m.role === 'assistant' ? <ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={agentMarkdownUrl} components={{ a: ({ href, children }) => href ? <a href={href} target={/^https?:/i.test(href) ? '_blank' : undefined} rel="noopener noreferrer">{children}</a> : <span>{children}</span>, img: ({ alt }) => <span>{alt || 'Image non affichée'}</span> }}>{m.text}</ReactMarkdown> : m.text}</div>{m.role === 'assistant' && <button type="button" className="theme-toggle ph-agent-copy" aria-label="Copier la réponse" onClick={() => { if (!navigator.clipboard?.writeText) { setCopyNotice('Copie indisponible dans ce navigateur.'); return; } void navigator.clipboard.writeText(m.text).then(() => setCopyNotice('Réponse copiée.'), () => setCopyNotice('Impossible de copier la réponse.')); }}><Copy size={15} aria-hidden="true" /> Copier</button>}</div>
           </div>
         ))}
         {copyNotice && <p className="ph-agent-copy-notice" role="status">{copyNotice}</p>}
         {busy ? <div className="ph-agent-typing" role="status"><AtlasAgentMascot size={30} engaged /><span className="ph-agent-dots" aria-hidden="true"><i /><i /><i /></span> Atlas Agent réfléchit…</div> : null}
         <p className="ph-agent-disclaimer">Atlas Agent peut se tromper. Votre message est transmis au serveur Atlas et au fournisseur IA configuré. Ne partagez pas de mots de passe ni de données personnelles inutiles.</p>
       </div>
+      {showCreate && <PhoneProductCreate onClose={() => setShowCreate(false)} onCreated={direct => { setShowCreate(false); onProductCreated?.(direct); setQuickNotice(direct ? 'Produit créé au catalogue.' : 'Demande envoyée à l’administrateur.'); }} />}
+      {dialog === 'activity' && <PhoneAgentActivity onClose={() => setDialog(null)} />}
+      {(dialog === 'language' || dialog === 'unlock' || dialog === 'photo') && <PhoneDialog titleId="ph-agent-info-title" onClose={() => setDialog(null)}>
+        <h2 id="ph-agent-info-title">{dialog === 'language' ? 'Langue' : dialog === 'unlock' ? 'Déverrouillage' : 'Changer ma photo'}</h2>
+        <p>{dialog === 'language' ? 'La version web est disponible en français. Les autres langues arrivent bientôt.' : dialog === 'unlock' ? 'Le déverrouillage de l’appareil est disponible dans l’application Android, pas dans ce navigateur.' : 'Le changement de photo n’est pas encore disponible dans le profil mobile web.'}</p>
+        <button type="button" className="ph-btn" onClick={() => setDialog(null)}>Fermer</button>
+      </PhoneDialog>}
       {dialog === 'history' && <PhoneDialog titleId="ph-agent-history-title" onClose={() => setDialog(null)}>
         <h2 id="ph-agent-history-title">Historique des discussions</h2><p>Discussions enregistrées sur cet appareil pour ce compte.</p>{quickNotice && <p role="status">{quickNotice}</p>}
         {history.filter(t => t.threadId !== threadId).length === 0 && <p>Aucune autre discussion enregistrée.</p>}

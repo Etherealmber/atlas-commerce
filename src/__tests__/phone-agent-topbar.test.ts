@@ -176,3 +176,52 @@ it('shows refreshed AI suggestions only for an administrator', async () => {
   await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Actualiser le contexte"]')!.click());
   expect(host.textContent).toContain('Suggestion sensible');
 });
+
+it('renders assistant Markdown safely, leaves user text untouched and copies the original reply', async () => {
+  const original = '# Résumé\n\n**Important** et *texte*\n\n- Un\n- Deux\n\n| Stock | Qté |\n| --- | --- |\n| A | 2 |\n\n```js\nconst x = 1;\n```\n\n[Site](https://example.com) [dangereux](javascript:alert(1))\n\n<img src=x onerror=alert(1)> ![externe](https://example.com/tracker.png)';
+  vi.spyOn(api, 'assistChat').mockResolvedValue({ data: { reply: original } } as any);
+  const copy = vi.fn().mockResolvedValue(undefined);
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: copy } });
+  await act(async () => root.render(createElement(PhoneAgentMobile)));
+  const input = host.querySelector<HTMLTextAreaElement>('textarea')!;
+  await act(async () => { Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(input, '**texte utilisateur**'); input.dispatchEvent(new Event('input', { bubbles: true })); });
+  await act(async () => host.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+  const answer = host.querySelector('.ph-agent-bubble.assistant')!;
+  expect(answer.querySelector('h1')?.textContent).toBe('Résumé');
+  expect(answer.querySelector('strong')?.textContent).toBe('Important');
+  expect(answer.querySelectorAll('li')).toHaveLength(2); expect(answer.querySelector('table')).not.toBeNull();
+  expect(answer.querySelector('pre code')?.textContent).toContain('const x = 1');
+  expect(answer.querySelector<HTMLAnchorElement>('a')?.href).toBe('https://example.com/');
+  expect(answer.querySelector('a[href^="javascript:"]')).toBeNull(); expect(answer.querySelector('img')).toBeNull();
+  expect(host.querySelector('.ph-agent-bubble.user')?.textContent).toBe('**texte utilisateur**');
+  await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Copier la réponse"]')!.click());
+  expect(copy).toHaveBeenCalledWith(original);
+});
+
+it('keeps quick actions reachable in an existing conversation without changing data', async () => {
+  const create = vi.spyOn(api, 'createProduct');
+  const onNavigate = vi.fn();
+  vi.spyOn(api, 'assistChat').mockResolvedValue({ data: { reply: 'Réponse' } } as any);
+  await act(async () => root.render(createElement(PhoneAgentMobile as ComponentType<{ onNavigate: typeof onNavigate }>, { onNavigate })));
+  await act(async () => host.querySelector<HTMLButtonElement>('.ph-agent-prompts button')!.click());
+  expect(host.querySelector('[aria-label="Actions rapides"]')).toBeNull();
+  await act(async () => host.querySelector<HTMLButtonElement>('button[aria-label="Raccourcis Atlas Agent"]')!.click());
+  expect(host.querySelector('[aria-label="Actions rapides"]')?.textContent).toContain('Mon activité');
+  await act(async () => [...host.querySelectorAll('button')].find(b => b.textContent === 'Demander un produit')!.click());
+  expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain('produit');
+  expect(create).not.toHaveBeenCalled();
+});
+
+it('loads only read-only personal activity and preserves partial source failures', async () => {
+  const activity = vi.spyOn(api, 'mobileWorkStatus').mockResolvedValue({ success: true, in_app: { availability: 'available', items: [{ id: '7', title: 'Marbre', status: 'pending' }], next_cursor: '7' }, trackers: { github: { availability: 'unavailable', items: [], next_cursor: null } } });
+  await act(async () => root.render(createElement(PhoneAgentMobile)));
+  await act(async () => [...host.querySelectorAll('button')].find(b => b.textContent === 'Mon activité')!.click());
+  expect(activity).toHaveBeenCalledWith(undefined);
+  expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain('Marbre');
+  expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain('Source indisponible');
+  activity.mockRejectedValueOnce(new Error('offline'));
+  await act(async () => [...document.body.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find(b => b.textContent === 'Afficher plus')!.click());
+  expect(activity).toHaveBeenLastCalledWith({ source: 'in_app', value: '7' });
+  expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain('Marbre');
+  expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain('Impossible de charger');
+});
