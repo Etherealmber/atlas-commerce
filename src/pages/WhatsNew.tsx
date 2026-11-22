@@ -10,7 +10,7 @@ type SectionKind = 'features' | 'improvements' | 'fixes' | 'breaking';
 
 type Platform = 'web' | 'android' | 'desktop' | 'server';
 
-const PLAT_LABEL: Record<Platform, string> = {
+export const PLAT_LABEL: Record<Platform, string> = {
   web: 'Web',
   android: 'Android',
   desktop: 'Desktop',
@@ -46,6 +46,11 @@ export const RELEASES: Release[] = [
       { id: '091ui2', platforms: ['web', 'server'], text: 'Détails de vente rapide et de facture simplifiés, remboursement conservé dans les actions ; contraste du logo QR imprimé amélioré.' },
       { id: '091ui3', platforms: ['web', 'server'], text: 'Rapports TVA : les ventes rapides sont classées sans TVA ; les anciens montants enregistrés ne sont pas réécrits. Les devis convertis en vente rapide conservent leurs prix unitaires sans TVA ; les devis déjà payés exigent une régularisation préalable.' },
       { id: '091ui4', platforms: ['web', 'server'], text: 'Demandes mobiles de stock : l’utilisateur connecté qui les traite est enregistré comme approbateur du mouvement ; les identités absentes des anciens enregistrements restent inconnues.' },
+      { id: '091ui9', platforms: ['web'], text: 'Nouveautés sur mobile : les plateformes concernées et les icônes des catégories suivent la présentation du journal sur ordinateur.' },
+    ] }, { kind: 'fixes', items: [
+      { id: '091c1', platforms: ['web', 'server'], text: 'Ventes rapides : aucun calcul de TVA, quel que soit le mode de prix des produits ; les anciennes ventes avec TVA enregistrée ne sont pas modifiées automatiquement.' },
+      { id: '091c2', platforms: ['web', 'server'], text: 'Sessions : les anciens droits sont refusés après un changement de rôle et la session web peut être actualisée sans déconnexion. Les liens d’impression utilisent une autorisation distincte des rapports.' },
+      { id: '091c3', platforms: ['web', 'server'], text: 'Conversion de devis : les mises à jour du document et du stock sont regroupées ; une erreur de stock ne laisse pas de conversion partielle.' },
     ] }],
   },
   {
@@ -1210,7 +1215,7 @@ export const RELEASES: Release[] = [
   },
 ];
 
-const KIND_META: Record<
+export const KIND_META: Record<
   SectionKind,
   { title: string; icon: typeof Sparkles; color: string; bg: string; filter: string; tone: string }
 > = {
