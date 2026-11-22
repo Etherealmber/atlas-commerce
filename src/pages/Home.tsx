@@ -21,7 +21,10 @@ const NAV: NavLink[] = [
 /** Révélation douce au scroll (IntersectionObserver, une seule fois). */
 function useRiseObserver() {
   useEffect(() => {
-    if (typeof IntersectionObserver === 'undefined') return;
+    if (typeof IntersectionObserver === 'undefined') {
+      document.querySelectorAll<HTMLElement>('.home-landing .rise').forEach((el) => el.classList.add('is-in'));
+      return;
+    }
     const io = new IntersectionObserver(
       (entries) => {
         for (const en of entries) {
@@ -169,9 +172,10 @@ export default function Home() {
 
   return (
     <div className="home-landing">
+      <a className="hm-skip" href="#contenu">Aller au contenu</a>
       <PublicNav links={NAV} cta={<PublicSessionCta />} classic />
 
-      <main className="hm-main">
+      <main className="hm-main" id="contenu">
         {/* ---------------- Hero ---------------- */}
         <section className="hm-hero">
           <p className="hm-eyebrow">ATLAS · GESTION COMMERCIALE OPEN SOURCE</p>
@@ -265,11 +269,11 @@ export default function Home() {
 
         {/* ---------------- Fonctionnalités (bento) ---------------- */}
         <section id="features" className="hm-sec">
-          <h2 className="rise">Un back-office complet, pas une fiche de plus</h2>
-          <p className="hm-sec-sub rise">
-            Chaque module remplace un outil éparpillé — et tout se tient dans la même base, sur tous
-            vos appareils.
-          </p>
+          <div className="hm-section-heading rise">
+            <p className="hm-section-kicker">01 / VOTRE ACTIVITÉ</p>
+            <h2>Les outils essentiels, réunis dans Atlas.</h2>
+            <p>Du catalogue à la facture, retrouvez les informations utiles à chaque étape de votre journée.</p>
+          </div>
           <div className="hm-bento">
             <div className="hm-bento-card rise">
               <div className="hm-fx hm-fx-stock" aria-hidden="true">
@@ -379,20 +383,25 @@ export default function Home() {
         <section className="hm-sec">
           <h2 className="rise">La confiance, d’abord</h2>
           <div className="dl-trust rise">
-            <div><b>Connexion OTP &amp; passkeys</b><span>Codes à usage unique + WebAuthn/FIDO2, sans mot de passe à réutiliser.</span></div>
+            <div><b>Connexion OTP &amp; passkeys</b><span>Codes à usage unique et WebAuthn/FIDO2 pour les parcours pris en charge.</span></div>
             <div><b>Android hors-ligne</b><span>Vos données tournent sur le téléphone ; la synchronisation reprend toute seule.</span></div>
             <div><b>Données souveraines</b><span>Cloudflare D1/R2 dans votre propre compte, sauvegardes chiffrées.</span></div>
             <div><b>100&nbsp;% open source</b><span>Code MIT auditable, auto-hébergement possible, zéro lock-in.</span></div>
-            <div><b>QR public vérifiable</b><span>Chaque document imprimé porte un QR infalsifiable, vérifiable sans compte.</span></div>
+            <div><b>QR public vérifiable</b><span>Les documents compatibles peuvent être vérifiés par QR sans compte.</span></div>
             <div><b>Sans commission</b><span>Aucun pourcentage sur vos ventes : le logiciel ne vit pas de votre chiffre.</span></div>
           </div>
         </section>
 
         {/* ---------------- Plateformes ---------------- */}
         <section id="plateformes" className="hm-sec">
-          <h2 className="rise">Une application, tous vos écrans</h2>
-          <div className="dl-grid rise">
-            <div className="dl-card">
+          <div className="hm-section-heading rise">
+            <p className="hm-section-kicker">02 / VOS APPAREILS</p>
+            <h2>Atlas vous suit, du terrain au comptoir.</h2>
+            <p>Choisissez l’interface adaptée à votre journée et retrouvez votre espace de travail.</p>
+          </div>
+          <div className="dl-grid hm-platform-grid rise">
+            <div className="dl-card hm-platform-card">
+              <figure className="hm-platform-visual hm-platform-visual--phone"><img src="/shots/phone-products-demo.webp" alt="Catalogue web mobile avec produits fictifs" width="390" height="844" loading="lazy" /><figcaption>Web mobile · données fictives</figcaption></figure>
               <div className="dl-ico">{IC_GLOBE}</div>
               <h3>Web</h3>
               <p>
@@ -402,22 +411,23 @@ export default function Home() {
               </p>
               <Link to="/login" className="dl-link dl-chip">Ouvrir l’application →</Link>
             </div>
-            <div className="dl-card">
+            <div className="dl-card hm-platform-card">
+              <figure className="hm-platform-visual hm-platform-visual--phone"><img src="/shots/android-balance-demo.webp" alt="Balance dans l’application Android, capture anonymisée" width="538" height="799" loading="lazy" /><figcaption>Android natif · capture anonymisée</figcaption></figure>
               <div className="dl-ico">{IC_PHONE}</div>
               <h3>Android</h3>
               <p>
-                Application native hors-ligne : caisse, stock, factures et scan QR sans réseau, avec
-                synchronisation chiffrée dès la connexion retrouvée. APK signé, installable en deux
-                touches.
+                Application native pour le stock, les ventes et le scan, avec des fonctions hors ligne
+                et une synchronisation au retour du réseau. Téléchargez l’APK depuis la page officielle.
               </p>
               <Link to="/android" className="dl-link dl-chip">Télécharger l’APK →</Link>
             </div>
-            <div className="dl-card">
+            <div className="dl-card hm-platform-card">
+              <figure className="hm-platform-visual hm-platform-visual--desktop"><img src="/shots/desktop-demo.webp" alt="Tableau de bord web sur ordinateur avec données fictives" width="1280" height="800" loading="lazy" /><figcaption>Web sur ordinateur · données fictives</figcaption></figure>
               <div className="dl-ico">{IC_DESK}</div>
               <h3>Bureau</h3>
               <p>
-                Windows, macOS et Linux : la même application dans une fenêtre native, mises à jour
-                automatiques et accès direct aux imprimantes pour vos documents PDF.
+                Windows, macOS et Linux : retrouvez votre espace Atlas dans une fenêtre dédiée.
+                Consultez les versions disponibles pour votre ordinateur.
               </p>
               <Link to="/desktop" className="dl-link dl-chip">Version bureau →</Link>
             </div>
@@ -481,15 +491,15 @@ export default function Home() {
             <details>
               <summary>Puis-je travailler sans connexion ?<i aria-hidden="true" /></summary>
               <p>
-                Oui sur Android et sur l’application bureau : vos données continuent de tourner en
-                local et la synchronisation reprend automatiquement dès que le réseau revient.
+                L’application Android propose des fonctions hors ligne avec synchronisation au retour
+                du réseau. La disponibilité dépend de la version et des opérations utilisées.
               </p>
             </details>
             <details>
               <summary>Mes données sont-elles en sécurité ?<i aria-hidden="true" /></summary>
               <p>
-                La connexion repose sur des codes OTP et des passkeys (WebAuthn/FIDO2) — jamais de
-                mot de passe réutilisé. Les données vivent dans votre propre compte Cloudflare
+                La connexion utilise notamment des codes OTP et, pour les parcours compatibles, des
+                passkeys (WebAuthn/FIDO2). En auto-hébergement, les données vivent dans votre compte Cloudflare
                 (D1/R2), avec sauvegardes chiffrées et politique de divulgation responsable.
               </p>
             </details>
