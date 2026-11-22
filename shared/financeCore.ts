@@ -124,6 +124,7 @@ export function markIntentionalTsFallback(enabled: boolean): void {
 }
 
 export function attachFinanceWasmInstance(instance: WebAssembly.Instance): boolean {
+  intentionalFallbackFlag = false;
   const raw = instance?.exports as Record<string, unknown> | undefined;
   if (!raw) {
     wasmInitError = 'NO_EXPORTS';
@@ -164,6 +165,7 @@ export function attachFinanceWasmInstance(instance: WebAssembly.Instance): boole
 }
 
 export function initFinanceWasmFromModule(mod: WebAssembly.Module): boolean {
+  intentionalFallbackFlag = false;
   try {
     const imports = WebAssembly.Module.imports(mod);
     if (imports.length > 0) {
@@ -202,6 +204,8 @@ export function getFinanceCoreStats(): {
   let status: FinanceEngineStatus;
   if (activeWasm) {
     status = 'wasm_active';
+  } else if (intentionalFallbackFlag) {
+    status = 'typescript_fallback';
   } else if (
     wasmInitError?.startsWith('ABI_MISMATCH') ||
     wasmInitError?.startsWith('MISSING_EXPORTS') ||
@@ -210,8 +214,6 @@ export function getFinanceCoreStats(): {
     status = 'abi_incompatible';
   } else if (wasmBundledFlag || wasmInitError?.startsWith('INSTANTIATE_FAILED') || wasmInitError === 'NO_EXPORTS' || wasmInitError?.startsWith('ABI_PROBE_FAILED')) {
     status = 'wasm_initialization_failed';
-  } else if (intentionalFallbackFlag) {
-    status = 'typescript_fallback';
   } else {
     status = 'wasm_not_bundled';
   }
