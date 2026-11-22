@@ -5,7 +5,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense, type ReactNode } from 'react';
 import { NavLink, Route, Routes, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Settings, Sparkles, ShoppingCart, Search, ScanLine, RefreshCw, Grid2X2, List, Package, MessageSquarePlus, Plus, Send, ChevronRight, Home, Bell, Bot, Wallet, Users, Receipt, Warehouse, FileText, Monitor, UserRound } from 'lucide-react';
+import { ArrowLeft, Settings, Sparkles, ShoppingCart, Search, ScanLine, RefreshCw, Grid2X2, List, Package, MessageSquarePlus, Plus, Send, ChevronRight, Home, Bell, Bot, Wallet, Users, Receipt, Warehouse, FileText, Monitor, UserRound, Minus, Trash2, CircleAlert, CircleCheck, CreditCard, ShieldCheck, Copy, ChevronDown } from 'lucide-react';
 import PhoneDeviceScan from './PhoneDeviceScan';
 import PhoneBills from './PhoneBills';
 import PhoneWarehouse from './PhoneWarehouse';
@@ -78,6 +78,8 @@ type Action = {
   created_at: string;
   barcode?: string;
   meta_json?: string | null;
+  created_by?: string | null;
+  completed_by?: string | null;
 };
 
 const Balance = lazy(() => import('../pages/Balance'));
@@ -448,14 +450,14 @@ export default function PhoneApp() {
           <Route path="/products/:id/historique" element={<ProductHistory mobile onProductUpdated={() => void refresh('products')} />} />
           <Route
             path="/inbox"
-            element={<PhoneBoîte actions={actions} onRefresh={() => void refresh('actions')} />}
+            element={<PhoneBoîte actions={actions} actionsLoading={actionsLoading} actionsReady={actionsReady} actionsError={actionsError} onRefresh={() => void refresh('actions')} />}
           />
           <Route
             path="/vente"
             element={
               allowSell ? (
                 <PhoneVente
-                  products={products}
+                  products={products} ready={productReady} error={productError} onRefresh={() => void refresh('products')}
                   onDone={async (msg) => {
                     show(msg || 'Vente encaissée');
                     await refresh('products');
@@ -488,12 +490,12 @@ export default function PhoneApp() {
           <Route path="/balance/classic" element={canOpenPhoneBalance(getRole()) ? <div className="phone-web-page"><Suspense fallback={<PageSkeleton variant="phone" />}><Balance /></Suspense></div> : <div className="phone-panel"><p>Cette page n’est pas disponible pour votre rôle.</p></div>} />
           <Route path="/employees" element={canOpenPhoneEmployees(getRole()) ? <div className="phone-web-page"><Suspense fallback={<PageSkeleton variant="phone" />}><Employees /></Suspense></div> : <div className="phone-panel"><p>Cette page n’est pas disponible pour votre rôle.</p></div>} />
           <Route path="/more" element={<PhoneMore />} />
-          <Route path="/profile" element={<PhoneProfile onChanged={() => setProfileTick(tick => tick + 1)} />} />
+          <Route path="/profile" element={<PhoneProfile onChanged={() => setProfileTick(tick => tick + 1)} preferences={{ theme, onTheme: applyTheme, animations, onAnimations: applyAnimations, compact, onCompact: applyCompact, scale: phoneScale, onScale: applyPhoneScale, startTab, onStartTab: applyStartTab }} />} />
           <Route path="/settings" element={<PhoneSettings theme={theme} onTheme={applyTheme} animations={animations} onAnimations={applyAnimations} compact={compact} onCompact={applyCompact} scale={phoneScale} onScale={applyPhoneScale} startTab={startTab} onStartTab={applyStartTab} />} />
           <Route path="/settings/whats-new" element={<Suspense fallback={<PageSkeleton variant="phone" />}><PhoneWhatsNew /></Suspense>} />
           <Route path="/bills" element={allowSell ? <PhoneBills onToast={show} /> : <div className="phone-panel"><p className="ph-perm-banner">Rôle magasinier : pas d’achats.</p></div>} />
           <Route path="/warehouse" element={<PhoneWarehouse onToast={show} />} />
-          <Route path="/agent" element={<PhoneAgentMobile />} />
+          <Route path="/agent" element={<PhoneAgentMobile onNavigate={path => navigate(path)} onTheme={applyTheme} />} />
           <Route path="/device-scan" element={<PhoneDeviceScan />} />
 
           <Route
@@ -515,7 +517,7 @@ export default function PhoneApp() {
         </PageTransition>
       </main>
 
-      {hasDock && <PhoneDock role={getRole()} lastMainTab={lastMainTab.current} />}
+      {hasDock && <PhoneDock role={getRole()} />}
       {toast && <div className="phone-toast">{toast}</div>}
     </div>
   );
@@ -549,6 +551,7 @@ function PhoneScan({
   const [countedStock, setCountedStock] = useState('');
   const [np, setNp] = useState({ name: '', sku: '', barcode: '', price: '', stock: '0', image_data_url: '' });
   const navigate = useNavigate();
+  const scanLocation = useLocation();
 
   // Warm scanner script while the user is on this screen (faster first Caméra).
   useEffect(() => {
@@ -736,7 +739,7 @@ function PhoneScan({
       onToast(`${f.name} ajouté au panier`);
       setDecision(null);
       setAddNow(false);
-      navigate('/m/invoice');
+      navigate(scanLocation.state?.returnToSale === true ? '/m/vente' : '/m/invoice');
       setCode('');
     } catch (e: any) {
       onToast(e.message || 'Erreur envoi');
@@ -1172,288 +1175,123 @@ export function PhoneProduits({ products, actions, onRefresh, onToast, loading =
   </section>;
 }
 
-function PhoneBoîte({ actions, onRefresh }: { actions: Action[]; onRefresh: () => void }) {
-  const [tab, setTab] = useState<'pending' | 'done' | 'all'>('pending');
-  const [alerts, setAlerts] = useState<any[]>([]);
-  const [alertError, setAlertError] = useState(false);
-  const [loadingAlerts, setLoadingAlerts] = useState(true);
-  const loadAlerts = useCallback(async () => {
-    setLoadingAlerts(true);
-    try { const result = await api.getAlerts(); setAlerts(result.data || []); setAlertError(false); }
-    catch { setAlertError(true); }
-    finally { setLoadingAlerts(false); }
-  }, []);
-  useEffect(() => { void loadAlerts(); }, [loadAlerts]);
-  const list = actions.filter((a) => {
-    if (tab === 'pending') return a.status === 'pending';
-    if (tab === 'done') return a.status === 'done' || a.status === 'cancelled';
-    return true;
-  });
-  const rejectReason = (a: Action) => {
-    try {
-      const m = a.meta_json ? JSON.parse(a.meta_json) : {};
-      return m.reject_reason || '';
-    } catch {
-      return '';
-    }
-  };
-  const statusLabel = (s: string) =>
-    s === 'pending' ? 'En attente' : s === 'done' ? 'Traité' : s === 'cancelled' ? 'Refusé' : s;
-  return (
-    <div>
-      <div className="ph-inbox-header"><div><h1>Info Box &amp; Notifications</h1><p>{androidRoleLabel(getRole())} · {alerts.length} alerte(s) · {actions.filter(a => a.status === 'pending').length} en attente</p></div><button type="button" aria-label="Actualiser les notifications" onClick={() => { onRefresh(); void loadAlerts(); }}><RefreshCw size={20} /></button></div>
-      <section className="ph-inbox-intro"><strong>Info Box · {androidRoleLabel(getRole())}</strong><p>{androidScopeSummary(getRole())}</p></section>
-      <h2 className="ph-section">Alertes</h2>
-      {loadingAlerts && !alerts.length ? <PhoneSkeleton variant="rows" label="Chargement des alertes" /> : alertError ? <p role="alert">Impossible de charger les alertes. Réessayez.</p> : alerts.length ? <div className="ph-card-list">{alerts.map((alert, i) => <div className="ph-row ph-card" key={`${alert.kind}-${i}`}><div className={`ph-inbox-dot ${alert.severity === 'high' ? 'danger' : 'warn'}`} /><div className="ph-row-title">{alert.label}</div></div>)}</div> : <p className="ph-sub">Aucune alerte pour votre rôle.</p>}
-      <h2 className="ph-section">Actions envoyées</h2>
-      <p className="ph-sub">Vos envois vers le PC (lecture seule).</p>
-      <div className="ph-tabs-row">
-        <div className="ph-tabs">
-          {(['pending', 'done', 'all'] as const).map((tk) => (
-            <button key={tk} type="button" className={tab === tk ? 'on' : ''} onClick={() => setTab(tk)}>{tk === 'pending' ? 'En attente' : tk === 'done' ? 'Terminées' : 'Toutes'}</button>
-          ))}
-        </div>
-        <button type="button" className="ph-chip ph-refresh-inline" onClick={onRefresh} aria-label="Actualiser" title="Actualiser"><RefreshCw size={18} aria-hidden="true" /></button>
-      </div>
-      <div className="ph-card-list">
-      {list.map((a) => (
-        <div className="ph-row ph-card" key={a.id}>
-          <div className={`ph-ico ${a.type}`}>{a.type.slice(0, 2).toUpperCase()}</div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="ph-meta">{a.type} · {a.created_at?.slice(0, 16)}</div>
-            <div className="ph-row-title">{a.title}</div>
-            <div className="ph-row-detail">{a.detail}</div>
-            {a.status === 'cancelled' && rejectReason(a) ? (
-              <div className="ph-row-detail" style={{ color: '#b45309', marginTop: 4 }}>
-                Refus PC : {rejectReason(a)}
-              </div>
-            ) : null}
-          </div>
-          <span className={`ph-badge ${a.status === 'done' ? 'ok' : 'bad'}`}>{statusLabel(a.status)}</span>
-        </div>
-      ))}
-      </div>
-      {list.length === 0 && (
-        <div className="ph-empty">
-          <div className="ph-empty-ico" aria-hidden><IconInbox size={28} /></div>
-          <h2>Vide</h2>
-          <p>Aucun élément à afficher.</p>
-        </div>
-      )}
-    </div>
-  );
+function alertDestination(href: unknown) {
+    if (typeof href !== 'string' || !href.startsWith('/') || href.startsWith('//')) return null;
+    if (/^\/products(?:[/?#]|$)/.test(href)) return '/m/products';
+    if (/^\/scan(?:[/?#]|$)/.test(href)) return '/m/scan';
+    if (/^\/quick-sale(?:[/?#]|$)/.test(href) && canSell()) return '/m/vente';
+    if (/^\/bills(?:[/?#]|$)/.test(href) && canSell()) return '/m/bills';
+    if (/^\/balance(?:[/?#]|$)/.test(href) && canOpenPhoneBalance(getRole())) return '/m/balance';
+    return null;
 }
 
+function notificationMetadata(action: Action): { target?: string; urgent: boolean; reason: string } {
+  let meta: any = {};
+  try { meta = action.meta_json ? JSON.parse(action.meta_json) : {}; } catch { /* legacy data */ }
+  const targets: Record<string, string> = { admin: 'Administrateurs', owner: 'Propriétaire', secretary: 'Secrétariat & ventes', stock: 'Magasiniers & stock', all: 'Tous les rôles' };
+  const key = typeof meta?.target_role === 'string' ? meta.target_role.toLowerCase() : '';
+  return { target: Object.prototype.hasOwnProperty.call(targets, key) ? targets[key] : undefined, urgent: String(meta?.priority || '').toLowerCase() === 'urgent' || /^\[URGENT\]/i.test(action.title || ''), reason: typeof meta?.reject_reason === 'string' ? meta.reject_reason : '' };
+}
 
-function PhoneVente({
-  products, onDone, onToast,
-}: {
-  products: Product[];
-  onDone: (msg?: string) => void | Promise<void>;
-  onToast: (m: string) => void;
+export function PhoneBoîte({ actions, onRefresh, actionsLoading = false, actionsReady = true, actionsError = false }: { actions: Action[]; onRefresh: () => void; actionsLoading?: boolean; actionsReady?: boolean; actionsError?: boolean }) {
+  const navigate = useNavigate();
+  const [tab, setTab] = useState<'all' | 'pending' | 'done'>('all');
+  const [alerts, setAlerts] = useState<any[]>([]); const [alertReady, setAlertReady] = useState(false);
+  const [alertError, setAlertError] = useState(false); const [loadingAlerts, setLoadingAlerts] = useState(true);
+  const generation = useRef(0);
+  const loadAlerts = useCallback(async () => {
+    const id = ++generation.current; setLoadingAlerts(true); setAlertError(false);
+    try { const result = await api.getAlerts(); if (!Array.isArray(result.data)) throw new Error('invalid alerts'); if (id === generation.current) { setAlerts(result.data); setAlertReady(true); } }
+    catch { if (id === generation.current) setAlertError(true); }
+    finally { if (id === generation.current) setLoadingAlerts(false); }
+  }, []);
+  useEffect(() => { void loadAlerts(); return () => { generation.current++; }; }, [loadAlerts]);
+  const pending = actions.filter(a => a.status === 'pending').length;
+  const list = actions.filter(a => tab === 'all' || (tab === 'pending' ? a.status === 'pending' : a.status === 'done' || a.status === 'cancelled'));
+
+  const refreshAll = () => { onRefresh(); void loadAlerts(); };
+  return <div className="ph-notifications">
+    <section className="ph-native-card ph-notifications-intro"><div className="ph-notifications-intro-row"><ShieldCheck size={22} aria-hidden="true" /><div><h1>Info Box · {androidRoleLabel(getRole())}</h1><p>{androidScopeSummary(getRole())}</p><small>{alertReady ? `${alerts.length} alerte(s)` : 'Alertes indisponibles'} · {actionsReady ? `${pending} en attente` : 'Demandes indisponibles'}</small></div><span className="ph-native-badge">{getRole() === 'owner' || getRole() === 'admin' ? 'Admin' : 'Rôle'}</span><button type="button" className="ph-native-icon" aria-label="Actualiser les notifications" onClick={refreshAll}><RefreshCw size={20} /></button></div><p className="ph-native-sub">Les demandes affichées proviennent du serveur. Les validations restent disponibles sur le PC.</p></section>
+    {(loadingAlerts && !alertReady) ? <PhoneSkeleton variant="rows" label="Chargement des alertes" /> : <>
+      {alertError && <div className="ph-sale-error" role="alert">Impossible de charger les alertes. <button type="button" className="ph-native-text" onClick={() => void loadAlerts()}>Réessayer</button></div>}
+      {alertReady && <section className="ph-notifications-section"><h2>Alertes {androidRoleLabel(getRole())} ({alerts.length})</h2><p>Alertes accessibles selon vos permissions.</p>{alerts.map((alert, i) => { const dest = alertDestination(alert.href); const content = <><CircleAlert size={20} aria-hidden="true" /><strong>{String(alert.label || 'Alerte')}</strong>{Number(alert.count) > 0 && <span className="ph-native-badge">{alert.count}</span>}{dest && <ChevronRight size={18} aria-hidden="true" />}</>; return dest ? <button type="button" className="ph-native-card ph-alert-row" key={`${alert.kind}-${i}`} onClick={() => navigate(dest)}>{content}</button> : <div className="ph-native-card ph-alert-row" key={`${alert.kind}-${i}`}>{content}</div>; })}{alerts.length === 0 && <div className="ph-native-card ph-notifications-empty"><Bell size={26} /><strong>Aucune alerte</strong><p>Votre flux est à jour.</p></div>}</section>}
+    </>}
+    <section className="ph-notifications-section"><h2>Demandes &amp; notifications</h2><p>Suivi des demandes disponibles sur ce compte. Validation au PC.</p><div className="ph-native-chips" role="group" aria-label="Filtrer les demandes">{([['all', actionsReady ? `Toutes (${actions.length})` : 'Toutes'], ['pending', actionsReady ? `En attente (${pending})` : 'En attente'], ['done', 'Terminées']] as const).map(([key, label]) => <button key={key} type="button" aria-pressed={tab === key} onClick={() => setTab(key)}>{label}</button>)}</div>
+      {actionsLoading && !actionsReady && <PhoneSkeleton variant="rows" label="Chargement des demandes" />}
+      {actionsError && <div className="ph-sale-error" role="alert">Impossible de charger les demandes. <button type="button" className="ph-native-text" onClick={onRefresh}>Réessayer</button></div>}
+      {actionsReady && list.map(a => { const meta = notificationMetadata(a); return <article className="ph-native-card ph-notification-action" key={a.id}><div className="ph-native-badges"><span className={a.status === 'done' ? 'positive' : a.status === 'cancelled' ? 'danger' : 'warning'}>{a.status === 'pending' ? 'En attente' : a.status === 'done' ? 'Validée ✓' : a.status === 'cancelled' ? 'Refusée' : a.status}</span>{a.status === 'pending' && meta.urgent && <span className="danger">Urgent</span>}{meta.target && <span className="neutral">→ {meta.target}</span>}</div><strong>{a.title || `Demande #${a.id}`}</strong>{a.detail && <p>{a.detail}</p>}<small>{a.type} · {a.created_at?.slice(0, 16)}{a.barcode ? ` · Code : ${a.barcode}` : ''}{a.created_by ? ` · Par ${a.created_by}` : ''}{a.completed_by ? ` · Traité par ${a.completed_by}` : ''}</small>{a.status === 'cancelled' && meta.reason && <p>Refus PC : {meta.reason}</p>}</article>; })}
+      {actionsReady && !list.length && <div className="ph-native-card ph-notifications-empty"><IconInbox size={26} /><strong>Aucune demande à afficher</strong><p>Modifiez le filtre ou actualisez.</p></div>}
+    </section>
+  </div>;
+}
+
+const saleMoney = (value: number) => `${value.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MAD`;
+
+export function PhoneVente({ products, ready = true, error = false, onRefresh, onDone, onToast }: {
+  products: Product[]; ready?: boolean; error?: boolean; onRefresh?: () => void;
+  onDone: (msg?: string) => void | Promise<void>; onToast: (m: string) => void;
 }) {
+  const navigate = useNavigate();
   const [sel, setSel] = useState<Record<number, number>>(() => loadPhoneCart());
   const [payMode, setPayMode] = useState<'cash' | 'card' | 'credit'>('cash');
-  const [busy, setBusy] = useState(false);
-  const [q, setQ] = useState('');
-
-  const lines = Object.entries(sel)
-    .filter(([, qty]) => qty > 0)
-    .map(([id, qty]) => {
-      const p = products.find((x) => x.id === Number(id))!;
-      const unit = priceOf(p);
-      return {
-        product_id: p.id,
-        product_name: p.name,
-        quantity: qty,
-        unit_price: unit,
-        tax_rate: 0,
-        line_ht: qty * unit,
-      };
-    });
-  const subtotal = lines.reduce((s, i) => s + i.line_ht, 0);
-  const total = subtotal;
-  const count = lines.reduce((s, i) => s + i.quantity, 0);
-
-  const filtered = products.filter((p) => {
-    if (!q.trim()) return true;
-    const s = q.toLowerCase();
-    return (p.name || '').toLowerCase().includes(s) || (p.sku || '').toLowerCase().includes(s);
-  }).slice(0, 40);
-
-  const add = (id: number) => {
-    setSel((prev) => {
-      const next = { ...prev, [id]: (prev[id] || 0) + 1 };
-      try { savePhoneCart(next); } catch { /* */ }
-      return next;
-    });
-  };
-  const dec = (id: number) => {
-    setSel((prev) => {
-      const n = { ...prev };
-      const v = (n[id] || 0) - 1;
-      if (v <= 0) delete n[id];
-      else n[id] = v;
-      try { savePhoneCart(n); } catch { /* */ }
-      return n;
-    });
-  };
-
-  const encaisser = async () => {
-    if (!lines.length || busy) return;
-    setBusy(true);
+  const [client, setClient] = useState('Client de passage'); const [phone, setPhone] = useState(''); const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false); const busyRef = useRef(false); const [confirm, setConfirm] = useState(false);
+  const [submitError, setSubmitError] = useState(''); const [sent, setSent] = useState(false); const [q, setQ] = useState('');
+  const [showCatalog, setShowCatalog] = useState(false);
+  const cart = Object.entries(sel).filter(([, qty]) => Number.isFinite(qty) && qty > 0);
+  const lines = cart.flatMap(([id, quantity]) => {
+    const product = products.find(p => p.id === Number(id));
+    if (!product) return [];
+    const unit = priceOf(product);
+    return [{ product_id: product.id, product_name: product.name, quantity, unit_price: unit, line_ht: quantity * unit, has_price: product.unit_price != null || product.price != null }];
+  });
+  const missing = cart.length - lines.length;
+  const validPrices = lines.every(line => line.has_price && Number.isFinite(line.unit_price) && line.unit_price >= 0 && Number.isFinite(line.line_ht));
+  const total = lines.reduce((sum, line) => sum + line.line_ht, 0);
+  const count = lines.reduce((sum, line) => sum + line.quantity, 0);
+  const matchingProducts = products.filter(p => !q.trim() || `${p.name || ''} ${p.sku || ''} ${p.barcode || ''}`.toLowerCase().includes(q.trim().toLowerCase()));
+  const filtered = matchingProducts.slice(0, 40);
+  const changeCart = (update: (cart: Record<number, number>) => Record<number, number>) => setSel(previous => { const next = update(previous); savePhoneCart(next); return next; });
+  const add = (id: number) => changeCart(previous => ({ ...previous, [id]: (previous[id] || 0) + 1 }));
+  const dec = (id: number) => changeCart(previous => { const next = { ...previous }; if ((next[id] || 0) <= 1) delete next[id]; else next[id]--; return next; });
+  const remove = (id: number) => changeCart(previous => { const next = { ...previous }; delete next[id]; return next; });
+  const canSend = ready && !error && !missing && validPrices && lines.length > 0 && client.trim().length > 0 && !busy;
+  const send = async () => {
+    if (!canSend || busyRef.current) return;
+    busyRef.current = true; setBusy(true); setSubmitError('');
+    const clientName = client.trim();
+    const notes = [`Vente rapide téléphone · mode prévu : ${payMode === 'cash' ? 'Espèces' : payMode === 'card' ? 'Carte' : 'Crédit'} · en attente validation PC`, phone.trim() ? `Téléphone : ${phone.trim()}` : '', note.trim() ? `Note : ${note.trim()}` : ''].filter(Boolean).join(' · ');
     try {
-      // Part B: phone only queues a request — NOT paid until PC validates
-      const clientName = payMode === 'credit' ? 'Client crédit (terrain)' : 'Client de passage';
-      const invBody = {
-        client_name: clientName,
-        status: 'sent',
-        quick_sale: true,
-        doc_kind: 'quick_sale',
-        tax_exempt: true,
-        notes: `Vente rapide téléphone · mode prévu : ${payMode === 'cash' ? 'Espèces' : payMode === 'card' ? 'Carte' : 'Crédit'} · en attente validation PC`,
-        items: lines.map((i) => ({
-          product_id: i.product_id,
-          product_name: i.product_name,
-          quantity: i.quantity,
-          unit_price: i.unit_price,
-          list_price: i.unit_price,
-          tax_rate: 0,
-        })),
-      };
-      const detail = `${count} article(s) · ${clientName} · ${Math.round(total)} MAD · ${payMode} · en attente PC`;
-      await api.createMobileAction({
-        type: 'invoice',
-        title: `Vente rapide ${Math.round(total)} MAD`,
-        detail,
-        created_by: getUsername(),
-        meta: {
-          needs_approval: true,
-          quick_sale: true,
-          pay_mode: payMode,
-          total,
-          create_invoice_body: invBody,
-        },
-      });
-      setSel({});
-      try { savePhoneCart({}); } catch { /* */ }
-      await onDone(`Envoyée au bureau — pas payée tant que le PC n’a pas validé (${Math.round(total)} MAD)`);
-    } catch (e: any) {
-      onToast(e.message || 'Échec envoi au PC');
-    } finally {
-      setBusy(false);
-    }
+      await api.createMobileAction({ type: 'invoice', title: `Vente rapide ${Math.round(total)} MAD`, detail: `${count} article(s) · ${clientName} · ${saleMoney(total)} · ${payMode} · en attente PC`, created_by: getUsername(), source: 'mobile', meta: {
+        needs_approval: true, quick_sale: true, pay_mode: payMode, total,
+        create_invoice_body: { client_name: clientName, status: 'sent', quick_sale: true, doc_kind: 'quick_sale', tax_exempt: true, notes,
+          items: lines.map(i => ({ product_id: i.product_id, product_name: i.product_name, quantity: i.quantity, unit_price: i.unit_price, list_price: i.unit_price, tax_rate: 0 })) },
+      } });
+    } catch (e) { setSubmitError(e instanceof Error ? e.message : 'Échec de l’envoi au PC.'); setBusy(false); busyRef.current = false; return; }
+    setConfirm(false); setSel({}); savePhoneCart({}); setClient('Client de passage'); setPhone(''); setNote(''); setPayMode('cash'); setSent(true); setBusy(false); busyRef.current = false;
+    try { await onDone('Demande envoyée au PC. Elle n’est pas encore payée.'); } catch { onToast('Demande envoyée ; actualisation du catalogue impossible.'); }
   };
+  return <div className="ph-sale">
+    <section className="ph-native-card ph-sale-cart"><div className="ph-native-section-head"><div><h2>Panier</h2>{cart.length > 0 && <p>{cart.length} article(s)</p>}</div>{cart.length > 0 && <button type="button" className="ph-native-text" disabled={busy} onClick={() => changeCart(() => ({}))}>Vider</button>}</div>
+      {!ready && <p role="status">Chargement des produits…</p>}
+      {error && <p role="alert">Catalogue indisponible. <button type="button" className="ph-native-text" onClick={onRefresh}>Réessayer</button></p>}
+      {ready && !cart.length && <div className="ph-sale-empty"><span><ShoppingCart size={27} aria-hidden="true" /></span><strong>Panier vide</strong><p>Ajoutez des produits depuis le catalogue ou en scannant un code-barres.</p><div className="ph-sale-empty-actions"><button type="button" className="ph-native-tonal" onClick={() => setShowCatalog(true)}>Parcourir les produits</button><button type="button" className="ph-native-tonal" onClick={() => navigate('/m/scan', { state: { returnToSale: true } })}><ScanLine size={17} /> Scanner</button></div></div>}
+      {lines.map(line => <div className="ph-sale-line" key={line.product_id}><div className="ph-sale-line-main"><strong>{line.product_name}</strong><small>{line.has_price && Number.isFinite(line.unit_price) ? `${line.quantity} × ${saleMoney(line.unit_price)} = ${saleMoney(line.line_ht)}` : 'Prix indisponible'}</small><div className="ph-sale-quantity"><button type="button" disabled={busy} aria-label={`Diminuer ${line.product_name}`} onClick={() => dec(line.product_id)}><Minus size={17} /></button><span>{line.quantity}</span><button type="button" disabled={busy} aria-label={`Augmenter ${line.product_name}`} onClick={() => add(line.product_id)}><Plus size={17} /></button></div></div><button type="button" className="ph-sale-remove" disabled={busy} aria-label={`Retirer ${line.product_name}`} onClick={() => remove(line.product_id)}><Trash2 size={19} /></button></div>)}
+      {ready && missing > 0 && <div role="alert" className="ph-sale-missing">{missing} produit(s) du panier ne sont pas dans le catalogue chargé. Actualisez ou retirez-les avant l’envoi.{cart.filter(([id]) => !products.some(p => p.id === Number(id))).map(([id]) => <button type="button" className="ph-native-text" key={id} onClick={() => remove(Number(id))}>Retirer #{id}</button>)}</div>}
+      {ready && !validPrices && <p role="alert">Prix indisponible pour un article. Actualisez le catalogue avant l’envoi.</p>}
+      {cart.length > 0 && <div className="ph-sale-add-actions"><button type="button" className="ph-native-tonal ph-sale-add" aria-expanded={showCatalog} onClick={() => setShowCatalog(!showCatalog)}><Plus size={17} /> Ajouter un produit</button><button type="button" className="ph-native-tonal ph-sale-add" onClick={() => navigate('/m/scan', { state: { returnToSale: true } })}><ScanLine size={17} /> Scanner</button></div>}
 
-  return (
-    <div>
-      <p className="ph-eyebrow">Vente rapide</p>
-      <h1 className="ph-title" style={{ fontSize: 24 }}>Panier</h1>
-      <p className="ph-sub" style={{ marginBottom: 12 }}>{count} article{count !== 1 ? 's' : ''}</p>
-
-      <div className="ph-panel" style={{ marginBottom: 12 }}>
-        {lines.length === 0 && (
-          <p style={{ color: '#9aa3b5', fontSize: 14, margin: 0 }}>Ajoutez des produits ci-dessous.</p>
-        )}
-        {lines.map((i) => (
-          <div key={i.product_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #eee' }}>
-            <div>
-              <div style={{ fontWeight: 600 }}>{i.product_name}</div>
-              <div style={{ fontSize: 12, color: '#9aa3b5' }}>{i.quantity}</div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <button type="button" className="ph-chip" onClick={() => dec(i.product_id)} aria-label="Retirer">−</button>
-              <strong>{Math.round(i.line_ht).toLocaleString('fr-FR')} MAD</strong>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-        {([
-          ['cash', 'Espèces'],
-          ['card', 'Carte'],
-          ['credit', 'Crédit'],
-        ] as const).map(([k, lab]) => (
-          <button
-            key={k}
-            type="button"
-            onClick={() => setPayMode(k)}
-            style={{
-              flex: 1,
-              padding: '10px 8px',
-              borderRadius: 999,
-              border: payMode === k ? 'none' : '1px solid #e5e0d6',
-              background: payMode === k ? '#0a0a0a' : '#fff',
-              color: payMode === k ? '#fff' : '#1a1814',
-              fontWeight: 700,
-              fontSize: 13,
-            }}
-          >
-            {lab}
-          </button>
-        ))}
-      </div>
-
-      <div className="ph-panel" style={{ background: '#0a0a0a', color: '#fff', marginBottom: 12 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: 20 }}>
-          <span>Total</span><span>{Math.round(total).toLocaleString('fr-FR')} MAD</span>
-        </div>
-      </div>
-
-      <button
-        type="button"
-        disabled={!lines.length || busy}
-        onClick={() => void encaisser()}
-        style={{
-          width: '100%',
-          padding: '16px',
-          border: 0,
-          borderRadius: 14,
-          background: '#e8a317',
-          color: '#1a1814',
-          /* label below: Envoyer au PC (pas payé) */
-          fontWeight: 800,
-          fontSize: 16,
-          marginBottom: 16,
-          opacity: !lines.length || busy ? 0.5 : 1,
-        }}
-      >
-        {busy ? 'Envoi…' : 'Envoyer au PC (pas encore payé)'}
-      </button>
-
-      <input
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder="Rechercher un produit…"
-        style={{ width: '100%', height: 44, borderRadius: 12, border: '1px solid #e5e0d6', padding: '0 12px', marginBottom: 10 }}
-      />
-      <div className="ph-panel">
-        {filtered.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            onClick={() => add(p.id)}
-            style={{
-              display: 'flex',
-              width: '100%',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '12px 0',
-              border: 0,
-              borderBottom: '1px solid #f0ebe3',
-              background: 'transparent',
-              textAlign: 'left',
-              cursor: 'pointer',
-            }}
-          >
-            <span style={{ fontWeight: 600 }}>{p.name}</span>
-            <span style={{ color: '#171717', fontWeight: 700 }}>{Math.round(priceOf(p)).toLocaleString('fr-FR')} MAD</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
+    </section>
+    <section className="ph-native-card ph-sale-fields"><div className="ph-native-section-head"><div><h2>Client du ticket</h2><p>Le nom apparaît sur la demande envoyée au PC.</p></div></div><label>Nom du client *<input value={client} maxLength={120} disabled={busy} onChange={e => setClient(e.target.value)} /></label><label>Téléphone (facultatif)<input type="tel" value={phone} maxLength={40} disabled={busy} onChange={e => setPhone(e.target.value)} /></label></section>
+    <section className="ph-native-card ph-sale-fields"><h2>Note interne (facultatif)</h2><label>Note<textarea value={note} maxLength={500} rows={2} disabled={busy} onChange={e => setNote(e.target.value)} /></label></section>
+    <details className="ph-native-card ph-sale-payment"><summary>Mode prévu · {payMode === 'cash' ? 'Espèces' : payMode === 'card' ? 'Carte' : 'Crédit'}</summary><p className="ph-native-sub">Indicatif : la validation rapide actuelle sur PC enregistre un paiement en espèces. Aucun paiement n’est enregistré ici.</p><div className="ph-native-chips" role="group" aria-label="Mode de paiement prévu">{([['cash', 'Espèces'], ['card', 'Carte'], ['credit', 'Crédit']] as const).map(([value, label]) => <button type="button" key={value} aria-pressed={payMode === value} onClick={() => setPayMode(value)} disabled={busy}>{label}</button>)}</div></details>
+    {submitError && <div className="ph-sale-error" role="alert"><strong>Demande non envoyée</strong><p>{submitError}</p></div>}
+    <div className="ph-native-badges"><span>Vente rapide</span><span>Sans TVA</span><span>En attente PC</span></div>
+    <section className="ph-sale-total"><div><div><small>TOTAL</small><strong>{saleMoney(total)}</strong></div><span>Sans TVA</span></div><button type="button" className="ph-native-primary" disabled={!canSend} onClick={() => setConfirm(true)}><CreditCard size={18} /> Envoyer au PC</button><p>La demande doit être validée au bureau. Elle n’est pas encore payée.</p></section>
+    {showCatalog && <PhoneDialog className="ph-native-dialog ph-sale-picker" titleId="ph-sale-picker-title" onClose={() => { setShowCatalog(false); setQ(''); }}><div className="ph-sale-picker-content"><h2 id="ph-sale-picker-title">Ajouter un produit</h2><p>Choisissez un article du catalogue chargé.</p><div className="ph-sale-catalog"><label><span className="ph-sr-only">Rechercher un produit</span><input value={q} onChange={e => setQ(e.target.value)} placeholder="Nom, SKU ou code-barres" /></label><div className="ph-sale-picker-list">{filtered.map(p => <button type="button" key={p.id} disabled={busy} onClick={() => { add(p.id); setShowCatalog(false); setQ(''); }}><span>{p.name}</span><strong>{(p.unit_price != null || p.price != null) && Number.isFinite(priceOf(p)) ? saleMoney(priceOf(p)) : 'Prix indisponible'}</strong><Plus size={18} /></button>)}{!filtered.length && <p>Aucun produit trouvé.</p>}{matchingProducts.length > filtered.length && <p className="ph-sale-picker-more">Affichage des 40 premiers résultats. Affinez la recherche.</p>}</div></div><div className="ph-native-dialog-actions"><button type="button" onClick={() => { setShowCatalog(false); setQ(''); }}>Fermer</button></div></div></PhoneDialog>}
+    {confirm && <PhoneDialog className="ph-native-dialog" titleId="ph-sale-confirm-title" onClose={() => { if (!busy) setConfirm(false); }}><h2 id="ph-sale-confirm-title">Confirmer l’envoi ?</h2><p>Client : {client.trim()}<br />Articles : {cart.length} · Total : {saleMoney(total)}</p><p>Cette demande sera envoyée au PC ; aucun paiement n’est enregistré maintenant. La validation rapide au PC enregistre un paiement en espèces.</p>{submitError && <p role="alert">{submitError}</p>}<div className="ph-native-dialog-actions"><button type="button" disabled={busy} onClick={() => setConfirm(false)}>Annuler</button><button type="button" disabled={busy || !canSend} onClick={() => void send()}>{busy ? 'Envoi…' : 'Envoyer'}</button></div></PhoneDialog>}
+    {sent && <PhoneDialog className="ph-native-dialog" titleId="ph-sale-sent-title" onClose={() => setSent(false)}><h2 id="ph-sale-sent-title"><CircleCheck size={21} /> Demande envoyée</h2><p>La vente attend la validation au PC et n’est pas encore payée.</p><div className="ph-native-dialog-actions"><button type="button" onClick={() => setSent(false)}>Nouveau panier</button></div></PhoneDialog>}
+  </div>;
 }
 
 function PhoneInvoice({
@@ -1639,7 +1477,11 @@ function newPhoneAgentThreadId() {
   return `mobile-${globalThis.crypto?.randomUUID?.() || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`}`;
 }
 
-export function PhoneAgentMobile() {
+function AgentMark() {
+  return <span className="ph-agent-avatar" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.1">{Array.from({ length: 16 }, (_, index) => index).filter(index => index !== 4).map(index => <line key={index} x1="10" y1="4" x2="10" y2=".8" transform={`rotate(${index * 22.5} 10 10)`} />)}<line x1="10" y1="10" x2="19.6" y2="10" /></svg></span>;
+}
+
+export function PhoneAgentMobile({ onNavigate, onTheme }: { onNavigate?: (path: string) => void; onTheme?: (theme: 'light' | 'dark' | 'system') => void } = {}) {
   type Msg = { role: 'user' | 'assistant'; text: string };
   // Never display the old unscoped local conversation for a different account.
   const storageKey = useMemo(() => {
@@ -1665,19 +1507,17 @@ export function PhoneAgentMobile() {
         const p = Array.isArray(saved) ? saved : saved?.messages;
         if (Array.isArray(p)) {
           const valid = p.filter((m): m is Msg => m && (m.role === 'user' || m.role === 'assistant') && typeof m.text === 'string');
+          if (valid.length === 1 && valid[0].role === 'assistant' && ['Bonjour — je suis Atlas Agent (mobile). Posez une question sur le stock, les produits ou les actions terrain.', 'Bonjour, comment puis-je vous aider ?'].includes(valid[0].text)) return [];
           if (valid.length) return valid.slice(-40);
         }
       }
     } catch { /* */ }
-    return [
-      {
-        role: 'assistant',
-        text: 'Bonjour — je suis Atlas Agent (mobile). Posez une question sur le stock, les produits ou les actions terrain.',
-      },
-    ];
+    return [];
   });
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
+  const [showLatest, setShowLatest] = useState(false); const [quickNotice, setQuickNotice] = useState(''); const [copyNotice, setCopyNotice] = useState('');
+  const shellRef = useRef<HTMLDivElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const followMessages = useRef(true);
@@ -1688,17 +1528,25 @@ export function PhoneAgentMobile() {
       if (storageKey) localStorage.setItem(storageKey, JSON.stringify({ threadId, messages: msgs.slice(-40) }));
     } catch { /* conversation remains available for this session */ }
     const el = listRef.current;
-    if (el && followMessages.current) {
-      const frame = requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
+    if (el && msgs.length && followMessages.current) {
+      const frame = requestAnimationFrame(() => { el.dataset.phoneProgrammaticScroll = 'true'; el.scrollTop = el.scrollHeight; window.setTimeout(() => { delete el.dataset.phoneProgrammaticScroll; }, 150); });
       return () => cancelAnimationFrame(frame);
     }
   }, [msgs, busy, storageKey, threadId]);
 
-  const send = async () => {
-    const text = input.trim();
+  useEffect(() => {
+    const viewport = window.visualViewport; const shell = shellRef.current;
+    if (!viewport || !shell) return;
+    const update = () => shell.style.setProperty('--ph-agent-keyboard-inset', `${Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)}px`);
+    update(); viewport.addEventListener('resize', update); viewport.addEventListener('scroll', update);
+    return () => { viewport.removeEventListener('resize', update); viewport.removeEventListener('scroll', update); };
+  }, []);
+
+  const send = async (prompt?: string) => {
+    const text = (prompt ?? input).trim();
     if (!text || sending.current) return;
     sending.current = true;
-    followMessages.current = true;
+    followMessages.current = true; setShowLatest(false);
     if (inputRef.current) inputRef.current.style.height = '';
     setInput('');
     setMsgs((m) => [...m, { role: 'user', text }]);
@@ -1724,21 +1572,31 @@ export function PhoneAgentMobile() {
   };
 
   return (
-    <div className="ph-agent-shell" data-agent-mobile="1">
+    <div className="ph-agent-shell" data-agent-mobile="1" ref={shellRef}>
       <header className="ph-agent-head">
-        <span className="ph-agent-status"><AtlasAgentMascot size={30} engaged={busy || !!input.trim()} /> Conversation sur cet appareil</span>
-        <button type="button" disabled={busy} className="ph-agent-new" title="Nouvelle discussion" aria-label="Nouvelle discussion" onClick={() => { followMessages.current = true; setThreadId(newPhoneAgentThreadId()); setMsgs([{ role: 'assistant', text: 'Bonjour, comment puis-je vous aider ?' }]); }}><MessageSquarePlus size={20} aria-hidden="true" /></button>
+        <span className="ph-agent-status">Conversation sur cet appareil</span>
+        <button type="button" disabled={busy} className="ph-agent-new" title="Nouvelle discussion" aria-label="Nouvelle discussion" onClick={() => { followMessages.current = true; setThreadId(newPhoneAgentThreadId()); setMsgs([]); setShowLatest(false); setQuickNotice(''); }}><MessageSquarePlus size={20} aria-hidden="true" /></button>
       </header>
-      <div className="ph-agent-msgs" ref={listRef} aria-label="Conversation" onScroll={e => { const el = e.currentTarget; followMessages.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40; }}>
+      <div className="ph-agent-msgs" ref={listRef} role="log" aria-live="polite" aria-label="Conversation" onScroll={e => { const el = e.currentTarget; followMessages.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40; setShowLatest(!followMessages.current); }}>
+        {msgs.length === 0 && <>
+          {(onNavigate || onTheme) && <div className="ph-agent-quick" role="group" aria-label="Raccourcis Atlas Agent">
+            {onTheme && ([['light', 'Thème clair'], ['dark', 'Thème sombre'], ['system', 'Thème système']] as const).map(([theme, label]) => <button type="button" key={theme} onClick={() => { onTheme(theme); setQuickNotice(`${label} activé.`); }}>{label}</button>)}
+            {onNavigate && <><button type="button" onClick={() => onNavigate('/m/settings/whats-new')}>Mises à jour</button><button type="button" onClick={() => onNavigate('/m/profile')}>Modifier mon profil</button><button type="button" onClick={() => onNavigate('/m/products')}>Produits</button><button type="button" onClick={() => onNavigate('/m/scan')}>Scanner</button></>}
+          </div>}
+          {quickNotice && <p className="ph-agent-quick-notice" role="status">{quickNotice}</p>}
+          <div className="ph-agent-prompts" aria-label="Questions suggérées"><button type="button" disabled={busy} onClick={() => void send('Quels articles sont en rupture ou à réapprovisionner ?')}>Quels articles sont en rupture ou à réapprovisionner ?</button><button type="button" disabled={busy} onClick={() => void send('Quelles demandes scan sont en attente ?')}>Quelles demandes scan sont en attente ?</button></div>
+        </>}
         {msgs.map((m, i) => (
           <div key={i} className={`ph-agent-message ${m.role}`}>
-            {m.role === 'assistant' && <AtlasAgentMascot size={32} />}
-            <div className="ph-agent-message-content"><span className="ph-agent-message-label">{m.role === 'user' ? 'Vous' : 'Assistant Atlas'}</span><div className={'ph-agent-bubble ' + m.role}>{m.text}</div></div>
+            {m.role === 'assistant' && <AgentMark />}
+            <div className="ph-agent-message-content"><span className="ph-agent-message-label">{m.role === 'user' ? 'Vous' : 'Assistant Atlas'}</span><div className={'ph-agent-bubble ' + m.role} dir="auto">{m.text}</div>{m.role === 'assistant' && <button type="button" className="theme-toggle ph-agent-copy" aria-label="Copier la réponse" onClick={() => { if (!navigator.clipboard?.writeText) { setCopyNotice('Copie indisponible dans ce navigateur.'); return; } void navigator.clipboard.writeText(m.text).then(() => setCopyNotice('Réponse copiée.'), () => setCopyNotice('Impossible de copier la réponse.')); }}><Copy size={15} aria-hidden="true" /> Copier</button>}</div>
           </div>
         ))}
-        {busy ? <div className="ph-agent-typing" role="status">Atlas Agent réfléchit…</div> : null}
+        {copyNotice && <p className="ph-agent-copy-notice" role="status">{copyNotice}</p>}
+        {busy ? <div className="ph-agent-typing" role="status"><AtlasAgentMascot size={30} engaged /><span className="ph-agent-dots" aria-hidden="true"><i /><i /><i /></span> Atlas Agent réfléchit…</div> : null}
         <p className="ph-agent-disclaimer">Atlas Agent peut se tromper. Votre message est transmis au serveur Atlas et au fournisseur IA configuré. Ne partagez pas de mots de passe ni de données personnelles inutiles.</p>
       </div>
+      {showLatest && msgs.length > 0 && <button type="button" className="theme-toggle ph-agent-latest" aria-label="Aller aux derniers messages" onClick={() => { const el = listRef.current; followMessages.current = true; setShowLatest(false); if (el) { el.dataset.phoneProgrammaticScroll = 'true'; el.scrollTop = el.scrollHeight; window.setTimeout(() => { delete el.dataset.phoneProgrammaticScroll; }, 150); } }}><ChevronDown size={20} /></button>}
       <form
         className="ph-agent-composer"
         onSubmit={(e) => {
@@ -1761,7 +1619,7 @@ export function PhoneAgentMobile() {
         />
         <button
           type="submit"
-          className="ph-agent-send"
+          className="theme-toggle ph-agent-send"
           disabled={busy || !input.trim()}
           aria-label="Envoyer"
         >

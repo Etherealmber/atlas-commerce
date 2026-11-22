@@ -1,15 +1,15 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { Home, Package, ScanLine, Wallet, Users } from 'lucide-react';
 
-/** Android keeps the dock on primary tabs and the sales/notifications overlays. */
+/** Keep the dock on main tabs only; pushed pages use the back button. */
 export function showPhoneDock(pathname: string): boolean {
   const path = pathname.replace(/\/+$/, '') || '/m';
-  return ['/m', '/m/scan', '/m/products', '/m/balance', '/m/employees', '/m/vente', '/m/inbox'].includes(path);
+  return ['/m', '/m/scan', '/m/products', '/m/balance', '/m/employees'].includes(path);
 }
 
 export function phoneShowsBack(pathname: string): boolean {
   const path = pathname.replace(/\/+$/, '') || '/m';
-  return !showPhoneDock(path) || path === '/m/vente' || path === '/m/inbox';
+  return !showPhoneDock(path);
 }
 
 export function phoneBackTarget(pathname: string): string {
@@ -42,15 +42,12 @@ export function phoneDockItems(role: string) {
   return [home, products, scan];
 }
 
-export default function PhoneDock({ role, lastMainTab = '/m' }: { role: string; lastMainTab?: string }) {
+export default function PhoneDock({ role }: { role: string }) {
   const items = phoneDockItems(role);
-  const path = useLocation().pathname.replace(/\/+$/, '') || '/m';
-  const overlay = path === '/m/vente' || path === '/m/inbox';
-  const selectedOverlayTab = items.some(item => item.path === lastMainTab) ? lastMainTab : '/m';
   const center = items.findIndex((item) => item.id === 'scan');
   const renderItem = (item: typeof items[number]) => (
     <NavLink key={item.id} to={item.path} end={item.id === 'home'}
-      className={({ isActive }) => `ptab${item.id === 'scan' ? ' ptab-scan' : ''}${isActive || (overlay && item.path === selectedOverlayTab) ? ' active' : ''}`}>
+      className={({ isActive }) => `ptab${item.id === 'scan' ? ' ptab-scan' : ''}${isActive ? ' active' : ''}`}>
       <span className="ptab-ico"><item.icon size={22} strokeWidth={2} aria-hidden="true" /></span>
       <span className="ptab-lbl">{item.label}</span>
     </NavLink>

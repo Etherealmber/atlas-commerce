@@ -28,23 +28,19 @@
 
 ---
 
-## 📸 Captures d'écran réelles
+## 📸 Aperçu de l’application
 
-Captures et enregistrement générés depuis l'application elle-même (Chromium headless, `scripts/capture-shots.mjs`).
+Aperçus en thème clair : données et identité de démonstration. Les écrans et les permissions peuvent varier selon la version.
 
-| Tableau de bord — sombre | Tableau de bord — clair |
+| Mobile Android — scan | Mobile Android — balance |
 | --- | --- |
-| ![Tableau de bord sombre](public/shots/dashboard-dark.png) | ![Tableau de bord clair](public/shots/dashboard-light.png) |
+| ![Écran de scan Android](public/shots/android-scan-demo.webp) | ![Écran de balance Android](public/shots/android-balance-demo.webp) |
 
-| Assistant devis (sombre) | Paramètres — apparence |
-| --- | --- |
-| ![Assistant devis](public/shots/devis-modal-dark.png) | ![Paramètres apparence](public/shots/settings-dark.png) |
+### Version ordinateur
 
-Enregistrement d'une session complète (connexion → tableau de bord → devis) :
+![Tableau de bord ordinateur avec données fictives](public/shots/desktop-demo.webp)
 
-Captures desktop **et téléphone** (coque mobile réelle) dans `public/shots/` ; posters Instagram 1:1 avec vrais écrans dans `marketing/atlas-instagram-posters.zip`.
-
-![Session Atlas Commerce](public/shots/demo.gif)
+La capture ordinateur est produite dans Chromium avec des réponses API fictives ; les captures Android fournies ont été anonymisées. Aucune connexion à une base de production n'a servi à la capture.
 
 ## Intégration Android — 0.8.1
 
@@ -59,6 +55,10 @@ Aucun bump suivant ni publication sans nouvel accord explicite.
 Le [correctif de limitation des connexions sur IP partagée](docs/login-rate-limits.md)
 isole les budgets par compte tout en conservant des plafonds globaux par IP,
 les blocages explicites et le parcours OTP existant.
+
+## Pilote desktop natif staging
+
+Le [contrat exact Rust / OTP / Turnstile](docs/desktop-native-auth-v2-client.md) est expérimental, désactivé par défaut et ne constitue pas une validation de WebView2 ni une autorisation de production.
 
 ## Connexion desktop par navigateur système
 

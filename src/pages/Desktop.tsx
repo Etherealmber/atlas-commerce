@@ -1,3 +1,4 @@
+import DownloadPreview from '../components/DownloadPreview';
 /**
  * Desktop — page de téléchargement de l'application bureau (v0.7.3).
  *
@@ -238,6 +239,8 @@ export default function Desktop() {
           </div>
         </div>
       </section>
+
+      <DownloadPreview platform="desktop" />
 
       <section className="dl-band">
         <div className="dl-container">

@@ -21161,3 +21161,41 @@ html body .public-settings-topbar {
   .welcome-preview-step .welcome-preview-media { padding: 6px; margin: 16px 0; }
   .welcome-preview-media img { height: min(42vh, 360px); }
 }
+
+/* Public download pages: the menu floats without pushing the page on touch. */
+.download-landing .pn-mobile-menu {
+  position: absolute; inset-inline: 16px; top: 100%; z-index: 65;
+  max-height: min(70dvh, 480px); overflow-y: auto; overscroll-behavior: contain;
+}
+.download-landing :is(.dl-rel-row strong, .dl-tech, .dl-md, .dl-release) { min-width: 0; overflow-wrap: anywhere; }
+.download-landing :is(a, button):focus-visible { outline: 3px solid #c45c26; outline-offset: 3px; }
+@media (max-width: 540px) {
+  .download-landing .dl-hero { min-width: 0; }
+  .download-landing .dl-container { min-width: 0; }
+  .download-landing .dl-ctas { align-items: stretch; }
+  .download-landing :is(.dl-cta-main, .dl-cta-ghost) { max-width: 100%; min-height: 44px; text-align: center; }
+  .download-landing .dl-rel-row { min-width: 0; flex-wrap: wrap; gap: 8px; }
+  .download-landing .pn-mobile-menu { inset-inline: 12px; }
+}
+
+.dl-preview { padding: 72px 24px; background: var(--dl-bg); color: var(--dl-ink); }
+.dl-preview-eyebrow { text-align: center; color: var(--dl-accent); font-size: 12px; font-weight: 700; letter-spacing: .12em; }
+.dl-preview-phones { display: flex; flex-wrap: wrap; justify-content: center; gap: clamp(16px, 4vw, 40px); }
+.dl-preview figure { margin: 0; min-width: 0; }
+.dl-preview-phones figure { width: min(100%, 260px); }
+.dl-preview img { display: block; width: 100%; height: auto; border-radius: 18px; border: 1px solid var(--dl-line); box-shadow: 0 16px 38px #0002; }
+.dl-preview-desktop { max-width: 960px; margin-inline: auto !important; }
+.dl-preview figcaption, .dl-preview-note { text-align: center; color: var(--dl-sub); font-size: 12px; margin-top: 12px; }
+.dl-preview-note { margin: 24px auto 0; max-width: 600px; }
+@media (max-width: 540px) {
+  .dl-preview { padding: 52px 18px; }
+  .dl-preview-phones { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .dl-preview img { border-radius: 12px; }
+}
+.pn-main-actions { display: flex; align-items: center; gap: 8px; }
+.pn-mobile-actions { display: none; }
+@media (max-width: 600px) {
+  .pn-main-actions { display: none; }
+  .pn-mobile-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 14px 12px; }
+  .pn-mobile-actions > a { white-space: nowrap; }
+}

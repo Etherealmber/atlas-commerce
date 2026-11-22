@@ -8,16 +8,30 @@ import { getRole } from '../auth';
 import { phoneDockItems } from './PhoneDock';
 import { getScanPreference, setScanPreference, type ScanPreference } from './phoneScanPreferences';
 
-type Props = { theme: string; onTheme: (t: 'light' | 'dark' | 'system') => void; animations: boolean; onAnimations: (v: boolean) => void; compact: boolean; onCompact: (v: boolean) => void; scale: UiScale; onScale: (v: UiScale) => void; startTab: string; onStartTab: (path: string) => void };
+export type PhonePreferenceProps = { theme: string; onTheme: (t: 'light' | 'dark' | 'system') => void; animations: boolean; onAnimations: (v: boolean) => void; compact: boolean; onCompact: (v: boolean) => void; scale: UiScale; onScale: (v: UiScale) => void; startTab: string; onStartTab: (path: string) => void };
 function SettingSwitch({ title, description, checked, onChange }: { title: string; description: string; checked: boolean; onChange: (value: boolean) => void }) {
   return <label className="ph-setting-toggle"><span><strong>{title}</strong><small>{description}</small></span><input type="checkbox" role="switch" checked={checked} onChange={e => onChange(e.target.checked)} /></label>;
 }
 function ExternalSetting({ href, icon, title, description }: { href: string; icon: ReactNode; title: string; description: string }) {
   return <a className="ph-setting-link" href={href} target="_blank" rel="noopener noreferrer">{icon}<span><strong>{title}</strong><small>{description} · nouvel onglet</small></span><ExternalLink size={18} aria-hidden="true" /></a>;
 }
-export default function PhoneSettings({ theme, onTheme, animations, onAnimations, compact, onCompact, scale, onScale, startTab, onStartTab }: Props) {
-  const nav = useNavigate();
+export function PhoneAppearanceSettings({ theme, onTheme, animations, onAnimations, compact, onCompact, scale, onScale, startTab, onStartTab }: PhonePreferenceProps) {
   const [language, setLanguage] = useState(false);
+  return <>
+    <section className="ph-settings-card"><h2><Palette size={19} aria-hidden="true" /> Apparence et navigation</h2>
+      <div className="ph-setting-block"><strong>Thème</strong><small>Choisissez l’apparence de l’application.</small><div className="ph-seg" role="group" aria-label="Thème de l’application">{([['light', 'Clair'], ['dark', 'Sombre'], ['system', 'Système']] as const).map(([value, label]) => <button type="button" key={value} className={`theme-toggle${theme === value ? ' on' : ''}`} aria-pressed={theme === value} onClick={() => onTheme(value)}>{label}</button>)}</div></div>
+      <button type="button" className="ph-setting-link" onClick={() => setLanguage(true)}><Globe size={20} aria-hidden="true" /><span><strong>Langue</strong><small>Français · autres langues bientôt disponibles</small></span><ChevronRight size={18} aria-hidden="true" /></button>
+      <div className="ph-setting-block"><strong>Taille du texte</strong><small>Adaptée aux préférences de votre navigateur.</small><div className="ph-seg" role="group" aria-label="Taille du texte">{([['sm', 'Petite'], ['md', 'Normale'], ['lg', 'Grande']] as const).map(([value, label]) => <button type="button" key={value} className={`theme-toggle${scale === value ? ' on' : ''}`} aria-pressed={scale === value} onClick={() => onScale(value)}>{label}</button>)}</div></div>
+      <div className="ph-setting-block"><strong>Densité d’affichage</strong><small>Espacement des cartes sur mobile.</small><div className="ph-seg ph-seg--two" role="group" aria-label="Densité d’affichage"><button type="button" className={`theme-toggle${!compact ? ' on' : ''}`} aria-pressed={!compact} onClick={() => onCompact(false)}>Confort</button><button type="button" className={`theme-toggle${compact ? ' on' : ''}`} aria-pressed={compact} onClick={() => onCompact(true)}>Compact</button></div></div>
+      <label className="ph-setting-block"><strong>Onglet d’ouverture au lancement</strong><small>Utilisé à l’ouverture de l’accueil mobile.</small><select aria-label="Onglet d’ouverture au lancement" value={phoneDockItems(getRole()).some(item => item.path === startTab) ? startTab : '/m'} onChange={e => onStartTab(e.target.value)}>{phoneDockItems(getRole()).map(item => <option key={item.id} value={item.path}>{item.label}</option>)}</select></label>
+      <SettingSwitch title="Animations fluides" description="Transitions et effets de mouvement." checked={animations} onChange={onAnimations} />
+      <p className="ph-settings-hint">Le navigateur respecte aussi la préférence système de réduction des animations.</p>
+    </section>
+    {language && <PhoneDialog titleId="ph-language-title" onClose={() => setLanguage(false)}><h2 id="ph-language-title">Langue</h2><p>Les autres langues arrivent bientôt sur la version web.</p><button type="button" className="ph-primary" onClick={() => setLanguage(false)}>Compris</button></PhoneDialog>}
+  </>;
+}
+export default function PhoneSettings({ theme, onTheme, animations, onAnimations, compact, onCompact, scale, onScale, startTab, onStartTab }: PhonePreferenceProps) {
+  const nav = useNavigate();
   const [scan, setScan] = useState(() => ({ autoCamera: getScanPreference('autoCamera'), vibrate: getScanPreference('vibrate'), sound: getScanPreference('sound') }));
   const [scanNotice, setScanNotice] = useState('');
   const [shareNotice, setShareNotice] = useState('');
@@ -35,15 +49,7 @@ export default function PhoneSettings({ theme, onTheme, animations, onAnimations
   };
   return <div className="ph-settings ph-native-settings">
     <div className="ph-settings-intro"><span className="ph-settings-intro-icon"><Palette size={22} aria-hidden="true" /></span><div><strong>À votre façon</strong><p>Personnalisez Atlas sur cet appareil.</p></div></div>
-    <section className="ph-settings-card"><h2><Palette size={19} aria-hidden="true" /> Apparence et navigation</h2>
-      <div className="ph-setting-block"><strong>Thème</strong><small>Choisissez l’apparence de l’application.</small><div className="ph-seg" role="group" aria-label="Thème de l’application">{([['light', 'Clair'], ['dark', 'Sombre'], ['system', 'Système']] as const).map(([value, label]) => <button type="button" key={value} className={`theme-toggle${theme === value ? ' on' : ''}`} aria-pressed={theme === value} onClick={() => onTheme(value)}>{label}</button>)}</div></div>
-      <button type="button" className="ph-setting-link" onClick={() => setLanguage(true)}><Globe size={20} aria-hidden="true" /><span><strong>Langue</strong><small>Français · autres langues bientôt disponibles</small></span><ChevronRight size={18} aria-hidden="true" /></button>
-      <div className="ph-setting-block"><strong>Taille du texte</strong><small>Adaptée aux préférences de votre navigateur.</small><div className="ph-seg" role="group" aria-label="Taille du texte">{([['sm', 'Petite'], ['md', 'Normale'], ['lg', 'Grande']] as const).map(([value, label]) => <button type="button" key={value} className={`theme-toggle${scale === value ? ' on' : ''}`} aria-pressed={scale === value} onClick={() => onScale(value)}>{label}</button>)}</div></div>
-      <div className="ph-setting-block"><strong>Densité d’affichage</strong><small>Espacement des cartes sur mobile.</small><div className="ph-seg ph-seg--two" role="group" aria-label="Densité d’affichage"><button type="button" className={`theme-toggle${!compact ? ' on' : ''}`} aria-pressed={!compact} onClick={() => onCompact(false)}>Confort</button><button type="button" className={`theme-toggle${compact ? ' on' : ''}`} aria-pressed={compact} onClick={() => onCompact(true)}>Compact</button></div></div>
-      <label className="ph-setting-block"><strong>Onglet d’ouverture au lancement</strong><small>Utilisé à l’ouverture de l’accueil mobile.</small><select aria-label="Onglet d’ouverture au lancement" value={phoneDockItems(getRole()).some(item => item.path === startTab) ? startTab : '/m'} onChange={e => onStartTab(e.target.value)}>{phoneDockItems(getRole()).map(item => <option key={item.id} value={item.path}>{item.label}</option>)}</select></label>
-      <SettingSwitch title="Animations fluides" description="Transitions et effets de mouvement." checked={animations} onChange={onAnimations} />
-      <p className="ph-settings-hint">Le navigateur respecte aussi la préférence système de réduction des animations.</p>
-    </section>
+    <PhoneAppearanceSettings theme={theme} onTheme={onTheme} animations={animations} onAnimations={onAnimations} compact={compact} onCompact={onCompact} scale={scale} onScale={onScale} startTab={startTab} onStartTab={onStartTab} />
     <section className="ph-settings-card"><h2><Camera size={19} aria-hidden="true" /> Caméra et scanner</h2>
       <SettingSwitch title="Ouvrir la caméra automatiquement" description="Au lancement du scanner produit ou QR appareil. Le navigateur peut demander l’autorisation." checked={scan.autoCamera} onChange={v => updateScan('autoCamera', v)} />
       <SettingSwitch title="Vibration au scan" description="Après la lecture d’un code compatible, si l’appareil le permet." checked={scan.vibrate} onChange={v => updateScan('vibrate', v)} />
@@ -57,6 +63,5 @@ export default function PhoneSettings({ theme, onTheme, animations, onAnimations
       <ExternalSetting href="/terms" icon={<FileText size={20} aria-hidden="true" />} title="Conditions d’utilisation" description="Conditions du service" />
       <ExternalSetting href="/licenses" icon={<FileText size={20} aria-hidden="true" />} title="Licences open source" description="Logiciels et licences" />
     </section>
-    {language && <PhoneDialog titleId="ph-language-title" onClose={() => setLanguage(false)}><h2 id="ph-language-title">Langue</h2><p>Les autres langues arrivent bientôt sur la version web.</p><button type="button" className="ph-primary" onClick={() => setLanguage(false)}>Compris</button></PhoneDialog>}
   </div>;
 }

@@ -1,3 +1,4 @@
+import DownloadPreview from '../components/DownloadPreview';
 /**
  * Download — landing sombre PLEINEMENT autonome de l'APK Android.
  * Ni topbar, ni sidebar, ni FAB, ni Agent : connecté ou non, la page se
@@ -96,7 +97,7 @@ export default function Download() {
         if (!man || !String(man.apkUrl || '')) throw new Error('empty');
         return man;
       });
-    const fromCdn = fetch(LATEST_JSON, { cache: 'no-store' })
+    const fromCdn = () => fetch(LATEST_JSON, { cache: 'no-store' })
       .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
       .then((j: any) => {
         const man = (j && (j.manifest || j)) as Manifest;
@@ -104,7 +105,7 @@ export default function Download() {
         return man;
       });
     fromApi
-      .catch(() => fromCdn)
+      .catch(() => fromCdn())
       .then((man) => { setM(man); setState('ok'); })
       .catch(() => setState('error'));
     // Toutes les versions : GitHub Releases du dépôt android (auto-update).
@@ -219,6 +220,8 @@ export default function Download() {
       </section>
 
       {/* ── Stats + fonctionnalités + release ─ */}
+      <DownloadPreview platform="android" />
+
       <section className="dl-band">
         <div className="dl-container">
           <div className="dl-stats" aria-label="Informations de version">
