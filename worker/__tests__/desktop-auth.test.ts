@@ -1160,6 +1160,18 @@ describe('staging native password + OTP pilot', () => {
     ipSeq += 1; IP = `203.0.113.${100 + ipSeq}`;
     await start(); expect((await password('alice','wrong-password')).body.code).toBe('RATE_LIMITED');
   });
+  it('shares a staging IP creation budget across v1, phone v2 and pilot v2 without changing website login', async () => {
+    const createPayload = {origin:ORIGIN,state:STATE,code_challenge:await desktopHash(VERIFIER),code_challenge_method:'S256',device_label:'PC'};
+    env.DESKTOP_NATIVE_V2_DISCOVERY = 'true'; env.DESKTOP_NATIVE_V2_PHONE_APPROVAL = 'true';
+    for (let i=0; i<2; i++) expect((await call(`${DESKTOP_AUTH}/requests`,createPayload)).status).toBe(201);
+    for (let i=0; i<3; i++) expect((await call('/api/auth/desktop/v2/requests',createPayload)).status).toBe(201);
+    for (let i=0; i<3; i++) expect((await p('requests',{...createPayload,presentation:'embedded_webview'})).status).toBe(201);
+    expect((await p('requests',{...createPayload,presentation:'embedded_webview'})).body.code).toBe('RATE_LIMITED');
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({success:true}))));
+    expect((await call('/api/auth/login',{username:'alice',password:'wrong-password',fingerprint:BROWSER_FP,client:'web',turnstile_token:'web-test'}, {headers:{Origin:ORIGIN}})).status).not.toBe(429);
+    const rows = JSON.stringify(sqlite.prepare('SELECT * FROM desktop_shared_create_limits_v1').all());
+    expect(rows).not.toContain(IP);
+  });
   it('does not spend the shared website budget before a verified challenge', async () => {
     const created = await p('requests', {origin:ORIGIN,state:STATE,code_challenge:await desktopHash(VERIFIER),code_challenge_method:'S256',device_label:'PC',presentation:'embedded_webview'});
     req = created.body.data;

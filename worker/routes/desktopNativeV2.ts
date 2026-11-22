@@ -3,6 +3,7 @@ import { desktopHash } from './desktopAuth';
 import { verifyDesktopTurnstile } from '../lib/desktop-native-turnstile';
 import { makeNativePilotToken, pilotLoginConfigured } from '../lib/desktop-native-session';
 import { reserveCredentialAttempt, type CredentialAttemptPurpose } from '../lib/credential-attempt-limits';
+import { reserveDesktopCreate } from '../lib/desktop-create-budget';
 
 export const NATIVE_V2 = '/api/auth/desktop/v2';
 export const V2_PUBLIC_POSTS = new Set(['requests', 'poll', 'cancel', 'exchange'].map(x => `${NATIVE_V2}/${x}`));
@@ -219,6 +220,7 @@ export function registerDesktopNativeV2(root: Hono<any>, deps: Dependencies) {
     }
     const create = c.req.path === `${NATIVE_V2}/requests` || c.req.path === `${NATIVE_V2}/pilot/requests`;
     await budget(c.env.DB, pilot ? (create ? 'pilot-create-ip' : 'pilot-operation-ip') : (create ? 'create-ip' : 'operation-ip'), ip, create ? 300_000 : 60_000, create ? 5 : 90);
+    if (create && c.env.ENVIRONMENT === 'staging' && c.env.DESKTOP_NATIVE_V2_PILOT_CHALLENGE === 'true' && !(await reserveDesktopCreate(c.env.DB, ip))) fail('RATE_LIMITED', 429);
     await next();
   });
   // Reserved, deliberately unavailable endpoints: never parse credentials, look

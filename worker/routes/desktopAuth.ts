@@ -1,4 +1,5 @@
 import { Hono, type Context } from 'hono';
+import { reserveDesktopCreate } from '../lib/desktop-create-budget';
 
 export const DESKTOP_AUTH = '/api/auth/desktop/v1';
 export const DESKTOP_TTL = 300;
@@ -149,6 +150,11 @@ export function registerDesktopAuthRoutes(root: Hono<any>, deps: Dependencies): 
         ON CONFLICT(bucket) DO UPDATE SET attempts = attempts + 1 RETURNING attempts`).bind(bucket, now + window).first();
       if (Number(rate?.attempts) > (create ? 5 : 90)) {
         c.header('Retry-After', String(Math.ceil(window / 1000)));
+        reject('RATE_LIMITED', 429);
+      }
+      if (create && c.env.ENVIRONMENT === 'staging' && c.env.DESKTOP_NATIVE_V2_PILOT_CHALLENGE === 'true' &&
+          !(await reserveDesktopCreate(c.env.DB, deps.ip(c)))) {
+        c.header('Retry-After', '300');
         reject('RATE_LIMITED', 429);
       }
       await next();
