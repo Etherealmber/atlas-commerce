@@ -2,6 +2,8 @@
 
 ## État et limites
 
+**Mise à jour 0.9.1 :** le contrat opérationnel des modes `embedded_webview` et `system_browser`, leurs schémas exacts et les contraintes du client figurent dans le [contrat client](desktop-native-auth-v2-client.md). Les indications historiques ci-dessous sur le défi navigateur sont complétées par ce contrat. Le mode intégré est servi par un document autonome strictement limité au staging ; aucun client Rust ou essai réel n'est livré ici.
+
 Le backend implémente un **parcours d'approbation téléphone distinct**, avec
 PKCE S256, consentement et échange atomique. Une page mobile web séparée
 `/login/desktop-phone` affiche le compte, l'appareil et le code et permet une
@@ -20,7 +22,7 @@ fixe de test. Il est désactivé par défaut et n'est ni validé en staging rée
 prêt pour la production. Le client desktop Rust et ses champs natifs ne sont pas
 présents dans ce dépôt. Le prototype passkey Windows est séparé et indisponible.
 Le navigateur système v1 reste un choix explicite, jamais un repli automatique.
-Aucune release ni aucun déploiement effectué.
+Aucun déploiement du pilote n'a été effectué ici.
 
 ### Activation opérateur — staging uniquement tant que les clients manquent
 
@@ -171,7 +173,7 @@ aléatoirement par l'opérateur et stocké exclusivement en secret staging, clé
 Turnstile et D1 fonctionnels. Aucun de ces secrets n'a été créé ici. Le compte
 isolé doit être actif et utiliser `pbkdf2$100000$...` ; comptes historiques,
 owner et autres comptes ne peuvent pas se connecter par ce pilote. La capacité
-annonce `{ "available":true,"version":2,"experimental":true,"staging_only":true,"challenge":"system_browser_turnstile","otp_required":true,"challenge_presentation":{"hosted_path":"/login/desktop-challenge","webview2":"unverified_requires_client_validation","system_browser":"explicit_choice_only","same_ip_required":true,"server_verified":true} }`
+annonce `{ "available":true,"version":2,"experimental":true,"staging_only":true,"challenge":"system_browser_turnstile","otp_required":true,"challenge_presentation":{"hosted_path":"/login/desktop-challenge","embedded_path":"/login/desktop-challenge-embedded","modes":["embedded_webview","system_browser"],"webview2":"staging_supported_requires_client_validation","system_browser":"explicit_choice_only","same_ip_required":true,"server_verified":true} }`
 uniquement lorsque ces paramètres et l'origine reçue conviennent ; elle ne
 vérifie ni la disponibilité réelle du compte, D1, mail ou Siteverify, ni la
 configuration effective de l'infrastructure. Aucun header ou fingerprint ne
@@ -182,9 +184,9 @@ actuelle, aucune exemption basée sur l'appareil n'existe. Le client génère en
 mémoire un state et un verifier CSPRNG distincts (32 octets ou plus, base64url
 sans padding), calcule S256, appelle `/pilot/requests`, montre le code, ouvre
 l'URL de défi de la section suivante dans une WebView2 temporaire **si le client
-Windows applique et valide le contrat ci-dessous**, ou dans le navigateur système
+Windows applique les contrôles ci-dessous**, ou dans le navigateur système
 sur choix explicite, puis poll à 5 secondes minimum. La valeur de capacité
-historique `system_browser_turnstile` reste inchangée pour compatibilité. Le nouveau champ `challenge_presentation` décrit les présentations envisagées et les prérequis, pas une validation de WebView2 ni une garantie de disponibilité réelle : `webview2: unverified_requires_client_validation` impose les essais décrits ci-dessous. Il ne lit ni
+historique `system_browser_turnstile` reste inchangée pour compatibilité. Le champ `challenge_presentation` annonce les deux modes disponibles en staging, sans garantir le fonctionnement réel du client : `webview2: staging_supported_requires_client_validation` impose les contrôles et essais décrits ci-dessous. Il ne lit ni
 cookies ni stockage ni JS ni token navigateur. Échec,
 refus, expiration ou changement d'IP => recommencer, sans fallback automatique.
 Ne **pas** appeler `/pilot/consume` pour un login : `/pilot/login/password`
@@ -338,27 +340,27 @@ impose de recommencer. Le hash d'IP ne constitue ni anonymisation robuste ni
 attestation ; aucune empreinte ni en-tête client n'est une attestation.
 
 - `POST /api/auth/desktop/v2/pilot/requests` :
-  `{"origin":"<origine exacte>","state":"<state>","code_challenge":"<S256>","code_challenge_method":"S256","device_label":"<nom>"}`.
+  `{"origin":"<origine exacte>","state":"<state>","code_challenge":"<S256>","code_challenge_method":"S256","device_label":"<nom>","presentation":"embedded_webview"}`. `presentation` est `embedded_webview` ou `system_browser` (omission = navigateur système historique). Le choix est lié à la demande.
   201 : `{"success":true,"data":{"version":2,"request_id":"<id>","origin":"<origine exacte>","pairing_code":"<5 caractères>-<5 caractères>","expires_in":300,"interval":5}}`.
   Le serveur génère aussi un `cdata` aléatoire, stocke le hash de state, le
-  challenge, le hash IP et le label ; jamais le verifier brut. Le client futur
-  construit `/login/desktop-challenge#request_id=<id>` sur l'origine exacte et
-  ouvre la WebView2 temporaire conforme ci-dessous ou, sur choix explicite, le
-  navigateur système. Aucun state, verifier, mot de passe, OTP ni
-  jeton dans l'URL. Le fragment est retiré de l'historique par le composant avant
-  sa requête `prepare`, après le chargement du bootstrap partagé ; la référence
-  peut néanmoins être copiée ou vue par le système,
-  les extensions ou le presse-papiers et ne doit pas être journalisée.
+  challenge, le hash IP et le label ; jamais le verifier brut. En mode intégré,
+  construire `/login/desktop-challenge-embedded#request_id=<id>` ; en mode
+  navigateur système, construire `/login/desktop-challenge#request_id=<id>`.
+  Aucun state, verifier, mot de passe, OTP ni jeton dans l'URL. Le fragment est
+  retiré de l'historique avant `prepare` et la référence ne doit pas être journalisée.
 - `POST /api/auth/desktop/v2/pilot/browser/prepare` :
   `{"origin":"<origine exacte>","request_id":"<id>"}` et en-tête Origin
-  exactement égal à l'origine. 200 : `{"success":true,"data":{"request_id":"<id>","origin":"<origine exacte>","device_label":"<nom>","pairing_code":"<code>","site_key":"<clé publique>","action":"atlas_desktop_v2","cdata":"<hex aléatoire 64>","expires_at":"<date ISO UTC>"}}`.
-  La page affiche origine, nom non attesté et code et exécute Turnstile dans
-  le navigateur ; le client Rust ne lit ni cookies, JS ni token navigateur.
+  exactement égal à l'origine. 200 : `{"success":true,"data":{"request_id":"<id>","origin":"<origine exacte>","device_label":"<nom>","pairing_code":"<code>","presentation":"<embedded_webview ou system_browser>","site_key":"<clé publique>","action":"atlas_desktop_v2","cdata":"<hex aléatoire 64>","expires_at":"<date ISO UTC>"}}`.
+  Le navigateur système affiche origine, nom non attesté et code ; la page
+  intégrée autonome affiche uniquement le défi et son état. Le client Rust ne
+  lit ni cookies, stockage, JS, trafic ni token navigateur.
 - `POST /api/auth/desktop/v2/pilot/browser/decision` : même en-tête Origin et
   soit `{"origin":"<origine>","request_id":"<id>","decision":"deny"}`,
   soit `{"origin":"<origine>","request_id":"<id>","decision":"approve","compare_confirmed":true,"turnstile_token":"<token>"}`.
   200 : `{"success":true,"data":{"status":"denied"}}` ou `verified`.
-  L'approbation exige la case de comparaison et un token ; le serveur revendique
+  En mode système l'approbation exige la comparaison ; en mode intégré elle
+  contient seulement `origin`, `request_id`, `decision` et `turnstile_token`.
+  Dans les deux cas le token est obligatoire ; le serveur revendique
   atomiquement pending→verifying puis appelle directement Siteverify et compare
   strictement hostname, action et cdata stockés. Port et PKCE sont liés à la
   ligne serveur, pas attestés par Siteverify. Échec, réponse malformée, timeout
@@ -389,7 +391,7 @@ mode. Ne pas journaliser requêtes, réponses, URL, token fournisseur ou preuves
 Ce dépôt ne contient pas le client Rust de connexion desktop. La liste suivante
 est une **spécification d'implémentation**, pas du code exécuté ni une preuve de
 compatibilité Turnstile/WebView2. Tant que ces contrôles et essais ne sont pas
-réalisés, garder ce mode désactivé, y compris en staging. Le choix de navigateur
+réalisés, ne l'activer que sur un serveur de test isolé et seulement pour les essais explicitement autorisés. Le choix de navigateur
 système doit rester une action native explicite ; créer une nouvelle transaction
 après abandon/échec, jamais un basculement automatique ou un contournement.
 
@@ -422,7 +424,7 @@ après abandon/échec, jamais un basculement automatique ou un contournement.
 4. Installer les handlers **avant toute navigation**. Dans
    `CoreWebView2.NavigationStarting`, autoriser seulement l'URL de départ
    construite ci-dessus et, pour la navigation principale, HTTPS sur l'origine
-   exacte avec chemin `/login/desktop-challenge`, sans query et sans fragment
+   exacte avec chemin `/login/desktop-challenge-embedded`, sans query et sans fragment
    supplémentaire. Contrôler chaque redirection et annuler toute autre URL ou
    schéma, même si initiée par une sous-frame ; la suppression du fragment par
    `history.replaceState` ne doit pas être prise pour une preuve de succès.
@@ -455,22 +457,18 @@ après abandon/échec, jamais un basculement automatique ou un contournement.
    correctifs Runtime et les versions OS supportées. Aucun crate ni version n'a
    été ajouté ici, aucun comportement API Windows n'est garanti par ce texte.
 
-**CSP et dépendances actuelles.** Le Worker sert `no-store`, `no-referrer`,
-`X-Frame-Options: DENY` pour la page. La CSP globale actuelle autorise
-`script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://challenges.cloudflare.com https://static.cloudflareinsights.com`,
-`connect-src 'self' https://challenges.cloudflare.com` et d'autres domaines,
-`frame-src 'self' blob: https://challenges.cloudflare.com https://docs.google.com` ;
-fonts Google, images et styles sont également autorisés. C'est la CSP partagée
-de l'application, **pas** une politique minimale spécifique au pilote et elle
-n'empêche pas une navigation principale ; `unsafe-inline` et scripts same-origin
-restent un risque XSS. La page dépend de l'HTML/JS/CSS de l'application, du script
-Turnstile et de son iframe fournisseur. Pour Turnstile, l’origine de frame minimale attendue est `https://challenges.cloudflare.com` (et `about:blank` transitoire interne au navigateur) ; ne pas confondre cette sous-frame avec la navigation principale ni supposer que la CSP globale actuelle est minimale. Vérifier les éventuelles évolutions du fournisseur en staging, sans ouvrir arbitrairement d’autres origines. Un profil frais évite un ancien service
-worker. `reportCrash` ignore désormais cette page, mais l'HTML et le bootstrap
-partagés exécutent encore du code et peuvent utiliser du stockage web. Le client
-n'en lit pas le contenu. Valider les ressources effectives en staging sans
-capture des corps/URL sensibles ; ne pas élargir CSP aveuglément pour faire
-passer un test. Une page bootstrap dédiée et une CSP plus stricte sont à étudier
-avant production ; la navigation WebView reste contrôlée séparément.
+**CSP et dépendances.** La page intégrée est un document autonome, sans SPA,
+service worker ni pont desktop, servi `no-store`, `no-referrer`, avec une CSP
+spécifique. `script-src` autorise seulement la même origine et
+`https://challenges.cloudflare.com`, `connect-src` la même origine et ce
+fournisseur, `frame-src` le seul fournisseur ; `frame-ancestors 'none'`,
+`base-uri 'none'`, `form-action 'none'` et `object-src 'none'`. La sous-frame
+fournisseur et l'éventuel `about:blank` transitoire ne sont pas des navigations
+principales autorisées. Le profil doit être vierge pour éviter un service worker
+préexistant. Le navigateur système garde la page SPA et sa CSP partagée. Ni la
+CSP ni les handlers ne protègent contre un serveur de même origine compromis.
+Consulter le [contrat client](desktop-native-auth-v2-client.md) pour la CSP
+complète et vérifier les dépendances réelles en test sans capturer les secrets.
 
 **Plan de validation bloquant.** Sur Windows 10 et 11 réels, Runtime installé et
 absent, tester lancement visible, interaction Turnstile réelle, succès,

@@ -20,8 +20,8 @@ it('does not show the removed search in the desktop dock while keeping its other
   localStorage.setItem('stock_role', 'owner');
   localStorage.setItem('stock_auth_user', 'test');
   localStorage.setItem('atlas_welcome_completed', 'true');
-  localStorage.setItem('atlas-whats-new-modal-seen', '0.9.0');
-  localStorage.setItem('atlas-whats-new-seen', '0.9.0');
+  localStorage.setItem('atlas-whats-new-modal-seen', '0.9.1');
+  localStorage.setItem('atlas-whats-new-seen', '0.9.1');
   window.history.replaceState({}, '', '/dashboard?mode=pc');
   vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ success: true, data: [] }), { headers: { 'Content-Type': 'application/json' } })));
   host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host);

@@ -75,6 +75,8 @@ async function pilotSchema(db: D1Database) {
     status TEXT NOT NULL DEFAULT 'pending', polls INTEGER NOT NULL DEFAULT 0, last_poll INTEGER NOT NULL DEFAULT 0
   )`).run();
   await db.prepare('CREATE INDEX IF NOT EXISTS desktop_challenge_pilot_expiry ON desktop_challenge_pilot_v2(expires_at)').run();
+  // Separate additive table preserves existing requests and their browser-comparison requirement.
+  await db.prepare("CREATE TABLE IF NOT EXISTS desktop_challenge_presentation_v1 (id TEXT PRIMARY KEY, presentation TEXT NOT NULL CHECK(presentation IN ('embedded_webview','system_browser')))").run();
   await db.prepare('CREATE TABLE IF NOT EXISTS desktop_auth_limits_v2 (bucket TEXT PRIMARY KEY, attempts INTEGER NOT NULL, expires_at INTEGER NOT NULL)').run();
   await db.prepare('CREATE INDEX IF NOT EXISTS desktop_auth_limits_v2_expiry ON desktop_auth_limits_v2(expires_at)').run();
   pilotReady.add(db);
@@ -248,12 +250,15 @@ export function registerDesktopNativeV2(root: Hono<any>, deps: Dependencies) {
     return `${h.slice(0, 5).toUpperCase()}-${h.slice(5, 10).toUpperCase()}`;
   }
   app.post(`${pilotBase}/requests`, async c => {
-    const b = await body(c, ['origin', 'state', 'code_challenge', 'code_challenge_method', 'device_label']);
+    const b = await body(c, ['origin', 'state', 'code_challenge', 'code_challenge_method', 'device_label', 'presentation']);
     const server = origin(c, b.origin);
-    if (typeof b.origin !== 'string' || !pattern(b.state, STATE) || !pattern(b.code_challenge, CHALLENGE) || b.code_challenge_method !== 'S256' || !validLabel(b.device_label)) fail('INVALID_REQUEST');
+    if (typeof b.origin !== 'string' || !pattern(b.state, STATE) || !pattern(b.code_challenge, CHALLENGE) || b.code_challenge_method !== 'S256' || !validLabel(b.device_label) || (b.presentation !== undefined && b.presentation !== 'embedded_webview' && b.presentation !== 'system_browser')) fail('INVALID_REQUEST');
+    const presentation = b.presentation || 'system_browser';
+    if (presentation === 'embedded_webview' && (!pilotLoginConfigured(c.env) || server !== c.env.DESKTOP_NATIVE_V2_PILOT_ORIGIN)) fail('METHOD_DISABLED', 503);
     const id = rand(); const cdata = rand(); const expires = Date.now() + TTL;
-    await c.env.DB.prepare(`INSERT INTO desktop_challenge_pilot_v2 (id, origin, state_hash, challenge, ip_hash, label, cdata, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind(id, server, await desktopHash(b.state), b.code_challenge, await desktopHash(c.req.header('CF-Connecting-IP')!), b.device_label, cdata, expires).run();
+    const challengeInsert = c.env.DB.prepare(`INSERT INTO desktop_challenge_pilot_v2 (id, origin, state_hash, challenge, ip_hash, label, cdata, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+      .bind(id, server, await desktopHash(b.state), b.code_challenge, await desktopHash(c.req.header('CF-Connecting-IP')!), b.device_label, cdata, expires);
+    await c.env.DB.batch([challengeInsert, c.env.DB.prepare('INSERT INTO desktop_challenge_presentation_v1 (id,presentation) VALUES (?,?)').bind(id, presentation)]);
     if (pilotLoginConfigured(c.env) && server === c.env.DESKTOP_NATIVE_V2_PILOT_ORIGIN) {
       await pilotLoginSchema(c.env.DB);
       const cutoff = Date.now() - 3_600_000;
@@ -262,20 +267,28 @@ export function registerDesktopNativeV2(root: Hono<any>, deps: Dependencies) {
       await c.env.DB.prepare('DELETE FROM desktop_native_sessions_pilot_v1 WHERE id IN (SELECT id FROM desktop_native_sessions_pilot_v1 WHERE absolute_expires_at < ? LIMIT 100)').bind(cutoff).run();
     }
     await c.env.DB.prepare('DELETE FROM desktop_challenge_pilot_v2 WHERE id IN (SELECT id FROM desktop_challenge_pilot_v2 WHERE expires_at < ? LIMIT 100)').bind(Date.now() - 3_600_000).run();
+    await c.env.DB.prepare('DELETE FROM desktop_challenge_presentation_v1 WHERE id IN (SELECT p.id FROM desktop_challenge_presentation_v1 p LEFT JOIN desktop_challenge_pilot_v2 c ON c.id=p.id WHERE c.id IS NULL LIMIT 100)').run();
     await c.env.DB.prepare('DELETE FROM desktop_auth_limits_v2 WHERE bucket IN (SELECT bucket FROM desktop_auth_limits_v2 WHERE expires_at < ? LIMIT 100)').bind(Date.now()).run();
     return c.json({ success: true, data: { version: 2, request_id: id, origin: server, pairing_code: await pilotPair({ id, origin: server, challenge: b.code_challenge }), expires_in: 300, interval: 5 } }, 201);
   });
+  async function pilotPresentation(c: Context<any>, id: string): Promise<'system_browser' | 'embedded_webview'> {
+    const mode: any = await c.env.DB.prepare('SELECT presentation FROM desktop_challenge_presentation_v1 WHERE id=?').bind(id).first();
+    // Requests created before this table existed retain the original comparison ceremony.
+    return mode?.presentation === 'embedded_webview' ? 'embedded_webview' : 'system_browser';
+  }
   app.post(`${pilotBase}/browser/prepare`, async c => {
     browserOrigin(c);
     const b = await body(c, ['origin', 'request_id']); const row = await pilotRow(c, b);
     if (row.status !== 'pending') fail('USED', 409);
-    return c.json({ success: true, data: { request_id: row.id, origin: row.origin, device_label: row.label, pairing_code: await pilotPair(row), site_key: String(c.env.TURNSTILE_SITE_KEY).trim(), action: pilotAction, cdata: row.cdata, expires_at: new Date(row.expires_at).toISOString() } });
+    return c.json({ success: true, data: { request_id: row.id, origin: row.origin, device_label: row.label, pairing_code: await pilotPair(row), presentation: await pilotPresentation(c, row.id), site_key: String(c.env.TURNSTILE_SITE_KEY).trim(), action: pilotAction, cdata: row.cdata, expires_at: new Date(row.expires_at).toISOString() } });
   });
   app.post(`${pilotBase}/browser/decision`, async c => {
     browserOrigin(c);
     const b = await body(c, ['origin', 'request_id', 'decision', 'compare_confirmed', 'turnstile_token']); const row = await pilotRow(c, b);
     if (b.decision !== 'approve' && b.decision !== 'deny') fail('INVALID_REQUEST');
-    if (b.decision === 'approve' && (b.compare_confirmed !== true || typeof b.turnstile_token !== 'string' || !b.turnstile_token || b.turnstile_token.length > 2048)) fail('INVALID_REQUEST');
+    const presentation = await pilotPresentation(c, row.id);
+    if (presentation === 'embedded_webview' && (!pilotLoginConfigured(c.env) || row.origin !== c.env.DESKTOP_NATIVE_V2_PILOT_ORIGIN)) fail('METHOD_DISABLED', 503);
+    if (b.decision === 'approve' && ((presentation === 'system_browser' && b.compare_confirmed !== true) || typeof b.turnstile_token !== 'string' || !b.turnstile_token || b.turnstile_token.length > 2048)) fail('INVALID_REQUEST');
     if (b.decision === 'deny') {
       const changed = await c.env.DB.prepare("UPDATE desktop_challenge_pilot_v2 SET status='denied' WHERE id=? AND status='pending' AND expires_at>? RETURNING id").bind(row.id, Date.now()).first();
       if (!changed) fail('USED', 409);
