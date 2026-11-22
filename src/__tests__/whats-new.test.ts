@@ -9,24 +9,28 @@ import { APP_VERSION, DISPLAY_VERSION, RELEASE_VISIBLE_CAP, WHATS_NEW_VERSION, s
  * so the "Nouveautés" badge pointed at an empty section).
  */
 describe('WhatsNew releases', () => {
-  it('publishes the 0.9.0 notes and retains previous releases', () => {
-    expect(DISPLAY_VERSION).toBe('0.9.0');
-    expect(RELEASE_VISIBLE_CAP).toBe('0.9.0');
-    expect(APP_VERSION).toBe('0.9.0-beta');
-    expect(RELEASES[0].version).toBe('0.9.0');
+  it('publishes 0.9.1 and retains the unchanged 0.9.0 notes', () => {
+    expect(DISPLAY_VERSION).toBe('0.9.1');
+    expect(RELEASE_VISIBLE_CAP).toBe('0.9.1');
+    expect(APP_VERSION).toBe('0.9.1-beta');
+    expect(RELEASES[0].version).toBe('0.9.1');
     expect(WHATS_NEW_VERSION).toBe(RELEASES[0].version);
-    expect(RELEASES[0].date).toBe('19 novembre 2026');
-    const ids = RELEASES[0].sections.flatMap((s) => s.items).map((i) => i.id);
+    expect(RELEASES[0].date).toBe('20 octobre 2026');
+    expect(JSON.stringify(RELEASES[0])).not.toMatch(/cloudflare|google|microsoft|flclash/i);
+    expect(RELEASES[0].sections[0].items.map(i => i.id)).toEqual(['091f1', '091f2', '091f3']);
+    const old090 = RELEASES.find(r => r.version === '0.9.0')!;
+    expect(old090.date).toBe('19 novembre 2026');
+    const ids = old090.sections.flatMap((s) => s.items).map((i) => i.id);
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids.length).toBeLessThanOrEqual(20);
     expect(ids).toContain('090i9');
     expect(ids).toContain('090i10');
     expect(JSON.stringify(RELEASES[0])).not.toMatch(/flclash/i);
-    const additions = RELEASES[0].sections[0].items;
+    const additions = old090.sections[0].items;
     expect(additions.every((item) => item.platforms?.includes('web'))).toBe(true);
     const addedText = additions.map((item) => item.text).join(' ');
     for (const detail of ['Accueil mobile et balance', 'Navigation mobile', 'Paramètres mobiles', 'Nouveautés mobiles', 'Rapports mobiles', 'Produits sur mobile et PC', 'deux étapes']) expect(addedText).toContain(detail);
-    const currentText = RELEASES[0].sections.flatMap((section) => section.items).map((item) => item.text).join(' ');
+    const currentText = old090.sections.flatMap((section) => section.items).map((item) => item.text).join(' ');
     for (const detail of ['solde, stock, créances, dettes, employés, balance âgée et TVA', 'tickets signés', '30 minutes', 'sans JavaScript', 'impression multipage', 'échecs de génération', 'sans archivage immuable']) expect(currentText).toContain(detail);
     for (const detail of ['découverte v2 expérimentaux', 'QR contenant seulement une référence temporaire', 'PKCE S256', 'échange atomique à usage unique', 'limites persistantes par IP et compte', 'passkeys Windows restent indisponibles', 'desktop v1 restent inchangés']) expect(currentText).toContain(detail);
     for (const detail of ['contrôles serveur renforcés', 'sans créer de paiement', 'historique de paiements', 'isolation entre entreprises partageant une base n’est pas garantie', 'avant déploiement']) expect(currentText).toContain(detail);

@@ -29,12 +29,12 @@ it('opens the mobile web version history from settings and filters Android-only 
   const settings = createElement(PhoneSettings, { theme: 'system', onTheme: vi.fn(), animations: true, onAnimations: vi.fn(), compact: false, onCompact: vi.fn(), scale: 'md', onScale: vi.fn(), startTab: '/m', onStartTab: vi.fn() });
   await act(async () => root.render(createElement(MemoryRouter, { initialEntries: ['/m/settings'] }, createElement(Routes, null, createElement(Route, { path: '/m/settings', element: settings }), createElement(Route, { path: '/m/settings/whats-new', element: createElement(PhoneWhatsNew) })) )));
   await act(async () => [...host.querySelectorAll('button')].find(b => b.textContent?.includes('Nouveautés des versions'))!.click());
-  expect(host.textContent).toContain('Atlas Commerce Web 0.9.0');
-  expect(host.textContent).toContain('19 novembre 2026');
+  expect(host.textContent).toContain('Atlas Commerce Web 0.9.1');
+  expect(host.textContent).toContain('20 octobre 2026');
   expect(host.textContent).toContain('Produits sur mobile et PC');
   expect(host.textContent).toContain('Rapports mobiles');
   expect(host.textContent).not.toContain('API de suivi en lecture seule : demandes de stock personnelles');
-  expect(localStorage.getItem('atlas-whats-new-seen')).toBe('0.9.0');
+  expect(localStorage.getItem('atlas-whats-new-seen')).toBe('0.9.1');
 });
 it('updates only editable profile fields and reports failure without claiming success', async () => {
   vi.spyOn(api, 'getMe').mockResolvedValue({ data: { display_name: 'Atlas', email: 'a@example.com', phone: '123', avatar_url: '/avatar.jpg', notes: 'private' } });

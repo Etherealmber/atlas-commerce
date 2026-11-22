@@ -53,6 +53,7 @@ import { androidReleaseRouter, serveAppUpdatesAsset } from './routes/androidRele
 import { registerDeviceTokenRoutes } from './routes/deviceToken';
 import { registerDesktopAuthRoutes, isDesktopAuthPath, isPublicDesktopAuthPath, DESKTOP_AUTH } from './routes/desktopAuth';
 import { registerDesktopNativeDiscovery, DESKTOP_NATIVE_V2_CAPABILITIES } from './routes/desktopNativeDiscovery';
+import { registerDesktopPilotWebView, EMBEDDED_CHALLENGE_PATH, EMBEDDED_CHALLENGE_CSP } from './lib/desktop-pilot-webview';
 import { registerDesktopNativeV2, isNativeV2Operation, NATIVE_V2 } from './routes/desktopNativeV2';
 import { parseNativePilotToken, validateNativePilotToken } from './lib/desktop-native-session';
 import {
@@ -1207,7 +1208,7 @@ app.use('*', async (c, next) => {
   //    Cloudflare edge with CDN-Cache-Control: no-store (CF-specific header
   //    that survives even misconfigured cache rules)
   //  - public Cache-Control → deliberate (public images/SVG); left as-is.
-  if (path === '/login/desktop' || path === '/login/desktop-phone' || path === '/login/desktop-challenge') {
+  if (path === '/login/desktop' || path === '/login/desktop-phone' || path === '/login/desktop-challenge' || path === EMBEDDED_CHALLENGE_PATH || path === `${EMBEDDED_CHALLENGE_PATH}.js`) {
     c.header('Cache-Control', 'no-store');
     c.header('CDN-Cache-Control', 'no-store');
   }
@@ -1228,7 +1229,7 @@ app.use('*', async (c, next) => {
   // SAMEORIGIN suffit à bloquer le clickjacking externe tout en laissant
   // passer notre propre modal. Tout le reste reste DENY.
   c.header('X-Frame-Options', c.req.path === '/api/settings/invoice-preview' ? 'SAMEORIGIN' : 'DENY');
-  c.header('Referrer-Policy', path === '/login/desktop' || path === '/login/desktop-phone' || path === '/login/desktop-challenge' || isDesktopAuthPath(path) || path.startsWith(`${NATIVE_V2}/`) ? 'no-referrer' : 'strict-origin-when-cross-origin');
+  c.header('Referrer-Policy', path === '/login/desktop' || path === '/login/desktop-phone' || path === '/login/desktop-challenge' || path === EMBEDDED_CHALLENGE_PATH || path === `${EMBEDDED_CHALLENGE_PATH}.js` || isDesktopAuthPath(path) || path.startsWith(`${NATIVE_V2}/`) ? 'no-referrer' : 'strict-origin-when-cross-origin');
   c.header('Permissions-Policy', 'camera=(self), microphone=(), geolocation=(), payment=()');
   c.header('X-Robots-Tag', 'noindex, nofollow');
   c.header('Cross-Origin-Opener-Policy', 'same-origin');
@@ -1240,7 +1241,7 @@ app.use('*', async (c, next) => {
   // Report-only style violations from browser extensions are expected and harmless.
   c.header(
     'Content-Security-Policy',
-    [
+    path === EMBEDDED_CHALLENGE_PATH ? EMBEDDED_CHALLENGE_CSP : [
       "default-src 'self'",
       // The bundled barcode decoder uses WebAssembly; do not enable JavaScript unsafe-eval.
       "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://challenges.cloudflare.com https://static.cloudflareinsights.com",
@@ -1347,8 +1348,8 @@ app.onError(async (err, c) => {
     return c.json({ success: false, code: 'UNAVAILABLE', error: 'Connexion indisponible.' }, 503);
   }
   // Authentication errors may contain request secrets; never log their raw exceptions.
-  try { if (!new URL(c.req.url).pathname.startsWith('/api/reports/') && !new URL(c.req.url).pathname.startsWith('/api/auth/')) console.error('[onError]', c.req.method, new URL(c.req.url).pathname, String((err as any)?.stack || err || '').slice(0, 500)); } catch { /* */ }
-  const safe = toClientError(err, { log: !new URL(c.req.url).pathname.startsWith('/api/auth/') });
+  try { if (!new URL(c.req.url).pathname.startsWith('/api/reports/') && !new URL(c.req.url).pathname.startsWith('/api/auth/') && !new URL(c.req.url).pathname.startsWith(EMBEDDED_CHALLENGE_PATH)) console.error('[onError]', c.req.method, new URL(c.req.url).pathname, String((err as any)?.stack || err || '').slice(0, 500)); } catch { /* */ }
+  const safe = toClientError(err, { log: !new URL(c.req.url).pathname.startsWith('/api/auth/') && !new URL(c.req.url).pathname.startsWith(EMBEDDED_CHALLENGE_PATH) });
   // v243.4: SQLITE_CORRUPT(_VTAB) on this app almost always means the
   // products_fts FTS5 shadow pages — derived data we can rebuild ourselves.
   // Heal now, tell the client to retry; a TimeTravel restore is NOT needed.
@@ -3342,6 +3343,7 @@ function randomQrToken(): string {
 
 /** Versioned desktop flow: reuse existing proof validation, trust and v2 format. */
 registerDesktopNativeDiscovery(app);
+registerDesktopPilotWebView(app);
 
 // Verify the actual token fingerprint and database role; neither the declared
 // fingerprint nor the parsed role alone constitutes an identity.
