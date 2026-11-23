@@ -94,7 +94,7 @@ it.each([false, true])('shows derived carton and square-metre stock on product d
   expect(host.textContent).toContain('6 carton · 9,54 m²');
 });
 
-it('adjusts stock and edits product details in-place without navigating away', async () => {
+it('adjusts stock and edits product details in-place using FormWizard without navigating away', async () => {
   const getProduct = vi.spyOn(api, 'getProduct').mockResolvedValue({ data: product });
   vi.spyOn(api, 'getProductMovements').mockResolvedValue({ data: [] });
   vi.spyOn(api, 'getCategories').mockResolvedValue({ data: [{ name: 'Pierre' }] } as any);
@@ -106,6 +106,9 @@ it('adjusts stock and edits product details in-place without navigating away', a
   const stockBtn = host.querySelector<HTMLButtonElement>('.product-history-action-stock')!;
   await act(async () => stockBtn.click());
   expect(document.body.textContent).toContain('Ajuster le stock — Marbre');
+  expect(document.body.querySelector('.step-wizard__progress')).not.toBeNull();
+  const nextAdjust = [...document.body.querySelectorAll('button')].find((b) => b.textContent === 'Continuer')!;
+  await act(async () => nextAdjust.click());
   const adjustSubmit = [...document.body.querySelectorAll('button')].find((b) => b.textContent === 'Enregistrer')!;
   await act(async () => adjustSubmit.click());
   expect(adjustStock).toHaveBeenCalledWith(7, expect.objectContaining({ type: 'in', quantity: 1 }));
@@ -113,6 +116,9 @@ it('adjusts stock and edits product details in-place without navigating away', a
   const editBtn = host.querySelector<HTMLButtonElement>('.product-history-action-edit')!;
   await act(async () => editBtn.click());
   expect(document.body.textContent).toContain('Modifier les détails — Marbre');
+  expect(document.body.querySelectorAll('.step-wizard__progress li')).toHaveLength(3);
+  await act(async () => [...document.body.querySelectorAll('button')].find((b) => b.textContent === 'Continuer')!.click());
+  await act(async () => [...document.body.querySelectorAll('button')].find((b) => b.textContent === 'Continuer')!.click());
   const saveBtn = [...document.body.querySelectorAll('button')].find((b) => b.textContent === 'Enregistrer les modifications')!;
   await act(async () => saveBtn.click());
   expect(updateProduct).toHaveBeenCalledWith(7, expect.objectContaining({ name: 'Marbre', sku: 'MAR-7' }));

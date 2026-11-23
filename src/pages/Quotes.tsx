@@ -351,6 +351,34 @@ export default function Quotes() {
 
       <SaveFeedback message={saveMsg} type={saveMsgType} />
 
+      {(() => {
+        const today = new Date().toISOString().slice(0, 10);
+        const expiredCount = list.filter((q) => q.due_date && String(q.due_date).slice(0, 10) < today).length;
+        const activeCount = list.length - expiredCount;
+        const totalAmount = list.reduce((s, q) => s + Number(q.total || 0), 0);
+        return (
+          <div className="ac-metric-grid" style={{ marginBottom: 16 }}>
+            <div className="ac-metric">
+              <div className="as-label">Devis</div>
+              <div className="as-value">{list.length}</div>
+            </div>
+            <div className="ac-metric">
+              <div className="as-label">En cours</div>
+              <div className="as-value">{activeCount}</div>
+            </div>
+            <div className="ac-metric">
+              <div className="as-label">Expirés</div>
+              <div className="as-value">{expiredCount}</div>
+            </div>
+            <div className="ac-metric ac-metric--solde">
+              <div className="as-label">Montant devis</div>
+              <div className="as-value">{fmt(totalAmount)} <small>MAD</small></div>
+              <div className="as-hint">{filteredQuotes.length} affiché{filteredQuotes.length === 1 ? '' : 's'}</div>
+            </div>
+          </div>
+        );
+      })()}
+
       <div className="ac-panel ac-products-filters">
         <div className="ac-products-filters-row">
           <div className="ac-search-field">

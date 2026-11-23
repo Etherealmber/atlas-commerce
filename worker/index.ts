@@ -944,6 +944,27 @@ app.use('/api/print/link-ticket', async (c, next) => {
   c.header('CDN-Cache-Control', 'no-store');
   c.header('Referrer-Policy', 'no-referrer');
 });
+function extractQueryToken(rawUrl: string): string | null {
+  try {
+    const u = new URL(rawUrl);
+    let t = u.searchParams.get('token');
+    if (!t) {
+      const m = rawUrl.match(/[?&]token=([^&]+)/);
+      if (m) t = m[1];
+    }
+    if (!t) return null;
+    t = t.replace(/ /g, '+');
+    try { t = decodeURIComponent(t); } catch { /* already decoded */ }
+    t = t.replace(/ /g, '+');
+    if (t.includes('-') || t.includes('_')) {
+      t = t.replace(/-/g, '+').replace(/_/g, '/');
+    }
+    return t || null;
+  } catch {
+    return null;
+  }
+}
+
 app.use('/api/reports/*', async (c, next) => {
   await next();
   c.header('Cache-Control', 'no-store');
@@ -1015,31 +1036,6 @@ app.use('/api/*', async (c, next) => {
     return next();
   }
   if (c.req.header('Authorization')?.slice(7).startsWith('np1.') && new URL(c.req.url).origin !== c.env.DESKTOP_NATIVE_V2_PILOT_ORIGIN) return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Non autorisé' }, 401);
-
-  // ─── Extract session token from query (print / PDF / reports in new tab) ───
-  function extractQueryToken(rawUrl: string): string | null {
-    try {
-      const u = new URL(rawUrl);
-      let t = u.searchParams.get('token');
-      if (!t) {
-        // Manual parse if + was treated as space or param mangled
-        const m = rawUrl.match(/[?&]token=([^&]+)/);
-        if (m) t = m[1];
-      }
-      if (!t) return null;
-      // Spaces from form-encoding of + ; repeated decode safety
-      t = t.replace(/ /g, '+');
-      try { t = decodeURIComponent(t); } catch { /* already decoded */ }
-      t = t.replace(/ /g, '+');
-      // base64url → base64
-      if (t.includes('-') || t.includes('_')) {
-        t = t.replace(/-/g, '+').replace(/_/g, '/');
-      }
-      return t || null;
-    } catch {
-      return null;
-    }
-  }
 
   function reportDeniedHtml(title: string, message: string, reason?: string): Response {
     const detail = reason ? `<p style="color:#666;font-size:13px">Code : <code>${reason}</code></p>` : '';
@@ -1129,6 +1125,7 @@ app.use('/api/*', async (c, next) => {
       const u = new URL(c.req.url);
       const rt = u.searchParams.get('rt');
       if (rt && (await verifyReportLinkTicket(c.env, rt, path))) {
+        (c as any).set('printTicketOk', true);
         return next();
       }
     } catch { /* */ }
@@ -1466,8 +1463,17 @@ registerMailboxRoutes(app, {
   sessionUserFromHeader,
 });
 async function requireEmployeeAdmin(c: any): Promise<Response | null> {
-  const result = await verifyArchiveIdentity(c.env, c.req.header('Authorization'), clientIp(c), c.req.header('X-Device-Fingerprint'), {
-    authFailReason: (header, env, db, ip, fp) => authFailReason(header, env as Env, db, ip, fp),
+  if ((c as any).get('printTicketOk') === true) return null;
+  const path = c.req.path;
+  const isPrintRoute =
+    path === '/api/settings/invoice-preview' ||
+    path === '/api/employees/form/print' ||
+    /^\/api\/employees\/\d+\/form\/print$/.test(path);
+  const authHeader = c.req.header('Authorization');
+  const queryToken = isPrintRoute ? extractQueryToken(c.req.url) : undefined;
+  const effectiveHeader = authHeader || (queryToken && !queryToken.startsWith('np1.') ? `Bearer ${queryToken}` : undefined);
+  const result = await verifyArchiveIdentity(c.env, effectiveHeader, clientIp(c), authHeader ? c.req.header('X-Device-Fingerprint') : undefined, {
+    authFailReason: (header, env, db, ip, fp) => authFailReason(header, env as Env, db, ip, fp, isPrintRoute && !authHeader ? { relaxSession: true } : undefined),
     sessionUserFromHeader,
     ownerUsername: env => getOwnerUsername(env as Env),
   });

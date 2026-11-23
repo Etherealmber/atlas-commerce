@@ -340,7 +340,7 @@ export default function Bills() {
     <div className="bills-page">
       <div className="page-header dock-page-header">
         <h1 className="sr-only">Factures d'achat</h1>
-        <TopPageActions enabled={selected.size === 0}>
+        <TopPageActions>
           <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
 
           {selected.size > 0 && (

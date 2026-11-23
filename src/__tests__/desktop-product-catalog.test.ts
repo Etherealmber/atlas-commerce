@@ -27,7 +27,7 @@ it('moves actions to the separate top slot on wide screens, and keeps bulk selec
   expect(host.querySelector('.product-page-actions [data-docked="true"]')).not.toBeNull();
   const selection = host.querySelector<HTMLInputElement>('.product-table-row input[type="checkbox"]')!;
   await act(async () => selection.click());
-  expect(slot.textContent).toContain('Ajouter un produit'); expect(host.querySelector('.product-selection-bar')?.textContent).toContain('Supprimer');
+  expect(slot.textContent).toContain('Ajouter un produit'); expect(slot.textContent).toContain('Supprimer');
   await act(async () => selection.click()); expect(slot.textContent).toContain('Ajouter un produit');
   await act(async () => { vi.stubGlobal('innerWidth', 1200); window.dispatchEvent(new Event('resize')); });
   expect(slot.textContent).toBe(''); expect(host.querySelector('.product-page-actions')?.textContent).toContain('Ajouter un produit');
