@@ -279,6 +279,7 @@ import {
   registerFecRoutes,
   registerDunningRoutes,
   runDailyDunning,
+  registerDgiRoutes,
   ensureBillPaymentsTable,
 } from './routes';
 import { countEmployeesPayDue } from './routes/employees';
@@ -1071,6 +1072,7 @@ app.use('/api/*', async (c, next) => {
     path.match(/^\/api\/payroll\/runs\/\d+\/lines\/\d+\/bulletin$/) ||
     path.match(/^\/api\/payroll\/runs\/\d+\/declaration$/) ||
     path === '/api/accounting/fec/export' ||
+    path.match(/^\/api\/invoices\/\d+\/dgi\/archive$/) ||
     path === '/api/settings/invoice-preview' ||
     path.startsWith('/api/attendance/export') ||
     path === '/api/employees/form/print' ||

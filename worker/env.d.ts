@@ -39,4 +39,7 @@ interface Env {
   SMS_API_URL?: string;
   SMS_API_KEY?: string;
   SMS_SENDER?: string;
+  DGI_BASE_URL?: string;
+  DGI_CLIENT_ID?: string;
+  DGI_CLIENT_SECRET?: string;
 }

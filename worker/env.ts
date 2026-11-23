@@ -71,5 +71,9 @@ export interface Env {
   /** Cloudflare Turnstile (optional). If unset, login skips captcha check. */
   TURNSTILE_SITE_KEY?: string;
   TURNSTILE_SECRET_KEY?: string;
+  /** Optional Moroccan DGI e-invoicing clearance credentials (when unset, StubDgiAdapter is used). */
+  DGI_BASE_URL?: string;
+  DGI_CLIENT_ID?: string;
+  DGI_CLIENT_SECRET?: string;
 }
 

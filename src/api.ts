@@ -1264,5 +1264,17 @@ export const api = {
     }),
   runDunningNow: (body?: { today?: string; force?: boolean }) =>
     request<{ data: any }>('/api/dunning/run-now', { method: 'POST', body: JSON.stringify(body || {}) }),
+
+  // Part 7 — DGI e-invoicing clearance
+  getDgiClearance: (invoiceId: number) =>
+    request<{ data: any }>(`/api/invoices/${invoiceId}/dgi`),
+  prepareDgiUbl: (invoiceId: number) =>
+    request<{ data: any }>(`/api/invoices/${invoiceId}/dgi/prepare`, { method: 'POST', body: JSON.stringify({}) }),
+  submitDgiInvoice: (invoiceId: number) =>
+    request<{ data: any }>(`/api/invoices/${invoiceId}/dgi/submit`, { method: 'POST', body: JSON.stringify({}) }),
+  retryDgiInvoice: (invoiceId: number) =>
+    request<{ data: any }>(`/api/invoices/${invoiceId}/dgi/retry`, { method: 'POST', body: JSON.stringify({}) }),
+  dgiArchiveUrl: (invoiceId: number, kind: 'xml' | 'pdf' = 'xml') =>
+    `/api/invoices/${invoiceId}/dgi/archive?kind=${kind}`,
 };
 

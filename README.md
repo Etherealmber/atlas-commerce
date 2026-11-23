@@ -344,6 +344,15 @@ Atlas Commerce est développé et maintenu par **[Etherealmber](https://github.c
 </details>
 
 <details>
+<summary><strong>Facturation électronique DGI (Maroc) — Mode Stub vs Live</strong></summary>
+
+- Couche DGI construite sur [`worker/ubl.ts`](worker/ubl.ts) (`StubDgiAdapter` par défaut, `HttpDgiAdapter` pour la DGI officielle).
+- Machine à états suivie dans `dgi_clearance` + `dgi_status_events` : `draft → ubl_ready → queued → submitted → cleared | rejected | retrying`.
+- **Aucune facturation bloquée** : tant que les identifiants officiels ne sont pas configurés, `StubDgiAdapter` valide le XML UBL 2.1, génère un visa/QR simulé (`is_stub: true`), archive le XML et le PDF dans R2 avec métadonnées de rétention **10 ans** (`retention_until`), et ne bloque jamais la création de factures normales.
+- **Activation DGI Live** : le passage en mode réel s’active automatiquement dès que les secrets Cloudflare Workers `DGI_BASE_URL`, `DGI_CLIENT_ID` et `DGI_CLIENT_SECRET` sont définis (`wrangler secret put`).
+</details>
+
+<details>
 <summary><strong>Troubleshooting</strong></summary>
 
 - `vite: not found` → `npm install` (node_modules non persisté)
