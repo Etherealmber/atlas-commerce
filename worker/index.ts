@@ -1221,6 +1221,34 @@ app.use('/api/*', async (c, next) => {
         : 'UNAUTHORIZED',
     }, 401);
   }
+  if (
+    path !== '/api/auth/logout' &&
+    path !== '/api/auth/devices/revoke' &&
+    !path.startsWith('/api/auth/trusted-devices/')
+  ) {
+    try {
+      const authStr = c.req.header('Authorization');
+      const parsedTok =
+        authStr?.startsWith('Bearer ') && !authStr.slice(7).startsWith('np1.')
+          ? parseToken(authStr.slice(7))
+          : null;
+      const effectiveFp =
+        (fp && fp !== 'none' ? fp : '') ||
+        (parsedTok?.fingerprint && parsedTok.fingerprint !== 'none' ? parsedTok.fingerprint : '');
+      const sess = sessionUserFromHeader(authStr);
+      if (effectiveFp && sess.username) {
+        await touchTrustedDevice(
+          c.env.DB,
+          sess.username,
+          effectiveFp,
+          ip,
+          c.req.header('User-Agent') || '',
+          cfGeo(c),
+          { updateOnly: true },
+        );
+      }
+    } catch { /* best-effort */ }
+  }
   return next();
 });
 

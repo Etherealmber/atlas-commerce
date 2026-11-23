@@ -560,11 +560,12 @@ export function registerDesktopNativeV2(root: Hono<any>, deps: Dependencies) {
       AND (?=1 OR EXISTS (SELECT 1 FROM app_users WHERE id=? AND username=? AND role=? AND active=1 AND password_hash=?))
       AND NOT EXISTS (SELECT 1 FROM trusted_devices WHERE fingerprint=? AND lower(COALESCE(username,''))<>lower(?))`)
       .bind(nonce, row.id, Date.now(), row.phone_fp, id.username, id.role, row.credential_tag, row.phone_fp, id.username, id.userId === null ? 1 : 0, id.userId, id.username, id.role, id.material, row.desktop_fp, id.username);
+    const desktopUa = String(c.req.header('User-Agent') || 'Atlas Desktop v2').slice(0, 200);
     const trust = c.env.DB.prepare(`INSERT INTO trusted_devices (fingerprint,last_ip,last_seen,username,user_agent)
       SELECT ?,?,datetime('now'),?,? FROM desktop_auth_v2 WHERE id=? AND status='consumed' AND consumed_nonce=?
       ON CONFLICT(fingerprint) DO UPDATE SET last_ip=excluded.last_ip,last_seen=excluded.last_seen,user_agent=excluded.user_agent
       WHERE lower(trusted_devices.username)=lower(excluded.username)`)
-      .bind(row.desktop_fp, ip, id.username, 'Atlas Desktop v2', row.id, nonce);
+      .bind(row.desktop_fp, ip, id.username, desktopUa, row.id, nonce);
     const result = await c.env.DB.batch([claim, trust]);
     if (Number(result[0]?.meta?.changes) !== 1 || Number(result[1]?.meta?.changes) !== 1) fail('ACCOUNT_CHANGED', 409);
     return c.json({ success: true, data: { token, token_type: 'Bearer', username: id.username, role: id.role, request_id: row.id, origin: row.origin } });
