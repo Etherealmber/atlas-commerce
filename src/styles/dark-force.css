@@ -6986,124 +6986,32 @@ html[data-theme="dark"] body .ac-chart-tooltip {
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5) !important;
 }
 
-/* Welcome Bento controls & FeatureTour modal buttons — never solid-black overridden */
-html body .welcome-skip-btn,
-html:not([data-theme="dark"]) body .welcome-skip-btn {
-  background: #ffffff !important;
-  background-image: none !important;
-  color: #475569 !important;
-  -webkit-text-fill-color: #475569 !important;
-  border: 1px solid rgba(15, 23, 42, 0.14) !important;
+/* Welcome Bento controls & FeatureTour modal buttons — theme-isolated & never solid-black overridden */
+/* Shared structural layout (theme-agnostic) */
+.welcome-skip-btn {
   border-radius: 999px !important;
   box-shadow: none !important;
   min-height: 36px !important;
   padding: 6px 14px !important;
 }
-html body .welcome-skip-btn:hover,
-html:not([data-theme="dark"]) body .welcome-skip-btn:hover {
-  background: #f1f5f9 !important;
-  color: #0f172a !important;
-  -webkit-text-fill-color: #0f172a !important;
-}
-html[data-theme="dark"] body .welcome-skip-btn {
-  background: #1c1d22 !important;
-  color: #cbd5e1 !important;
-  -webkit-text-fill-color: #cbd5e1 !important;
-  border-color: rgba(255, 255, 255, 0.14) !important;
-}
-
-html body .welcome-density-pill,
-html:not([data-theme="dark"]) body .welcome-density-pill {
-  background: transparent !important;
-  background-image: none !important;
-  color: #475569 !important;
-  -webkit-text-fill-color: #475569 !important;
+.welcome-density-pill {
   border: 0 !important;
   box-shadow: none !important;
   min-height: 30px !important;
   padding: 6px 14px !important;
   border-radius: 999px !important;
 }
-html body .welcome-density-pill:hover:not(.is-active),
-html:not([data-theme="dark"]) body .welcome-density-pill:hover:not(.is-active) {
-  background: rgba(15, 23, 42, 0.06) !important;
-  color: #0f172a !important;
-  -webkit-text-fill-color: #0f172a !important;
-}
-html body .welcome-density-pill.is-active,
-html:not([data-theme="dark"]) body .welcome-density-pill.is-active {
-  background: #0f172a !important;
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
-}
-html[data-theme="dark"] body .welcome-density-pill {
-  color: #a1a1aa !important;
-  -webkit-text-fill-color: #a1a1aa !important;
-}
-html[data-theme="dark"] body .welcome-density-pill.is-active {
-  background: #f4f4f6 !important;
-  color: #111113 !important;
-  -webkit-text-fill-color: #111113 !important;
-}
-
-html body .welcome-segment .welcome-seg-btn,
-html:not([data-theme="dark"]) body .welcome-segment .welcome-seg-btn {
-  background: transparent !important;
-  background-image: none !important;
-  color: #475569 !important;
-  -webkit-text-fill-color: #475569 !important;
+.welcome-segment .welcome-seg-btn {
   border: 0 !important;
   box-shadow: none !important;
   min-height: 32px !important;
   padding: 7px 14px !important;
   border-radius: 999px !important;
 }
-html body .welcome-segment .welcome-seg-btn:hover:not(.active),
-html:not([data-theme="dark"]) body .welcome-segment .welcome-seg-btn:hover:not(.active) {
-  background: rgba(15, 23, 42, 0.06) !important;
-  color: #0f172a !important;
-  -webkit-text-fill-color: #0f172a !important;
-}
-html body .welcome-segment .welcome-seg-btn.active,
-html:not([data-theme="dark"]) body .welcome-segment .welcome-seg-btn.active {
-  background: #0f172a !important;
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
-}
-html[data-theme="dark"] body .welcome-segment .welcome-seg-btn {
-  color: #a1a1aa !important;
-  -webkit-text-fill-color: #a1a1aa !important;
-}
-html[data-theme="dark"] body .welcome-segment .welcome-seg-btn.active {
-  background: #f4f4f6 !important;
-  color: #111113 !important;
-  -webkit-text-fill-color: #111113 !important;
-}
-
-html body .welcome-tour-trigger,
-html:not([data-theme="dark"]) body .welcome-tour-trigger {
-  background: #ffffff !important;
-  background-image: none !important;
-  color: #0f172a !important;
-  -webkit-text-fill-color: #0f172a !important;
-  border: 1px solid rgba(15, 23, 42, 0.16) !important;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+.welcome-tour-trigger {
   border-radius: 999px !important;
 }
-html body .welcome-tour-trigger:hover,
-html:not([data-theme="dark"]) body .welcome-tour-trigger:hover {
-  background: #f1f5f9 !important;
-  border-color: rgba(15, 23, 42, 0.28) !important;
-}
-html[data-theme="dark"] body .welcome-tour-trigger {
-  background: #1c1d22 !important;
-  color: #f4f4f6 !important;
-  -webkit-text-fill-color: #f4f4f6 !important;
-  border-color: rgba(255, 255, 255, 0.16) !important;
-}
-
-html body .ac-feature-tour-close,
-html:not([data-theme="dark"]) body .ac-feature-tour-close {
+.ac-feature-tour-close {
   width: 34px !important;
   height: 34px !important;
   min-width: 34px !important;
@@ -7113,26 +7021,9 @@ html:not([data-theme="dark"]) body .ac-feature-tour-close {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  background: #f1f5f9 !important;
-  background-image: none !important;
-  color: #0f172a !important;
-  -webkit-text-fill-color: #0f172a !important;
-  border: 1px solid #e2e8f0 !important;
   box-shadow: none !important;
 }
-html body .ac-feature-tour-close:hover,
-html:not([data-theme="dark"]) body .ac-feature-tour-close:hover {
-  background: #e2e8f0 !important;
-}
-html[data-theme="dark"] body .ac-feature-tour-close {
-  background: #23252c !important;
-  color: #f4f4f6 !important;
-  -webkit-text-fill-color: #f4f4f6 !important;
-  border-color: rgba(255, 255, 255, 0.14) !important;
-}
-
-html body .ac-feature-tour-dots .ac-feature-tour-dot,
-html:not([data-theme="dark"]) body .ac-feature-tour-dots .ac-feature-tour-dot {
+.ac-feature-tour-dots .ac-feature-tour-dot {
   width: 10px !important;
   height: 10px !important;
   min-width: 0 !important;
@@ -7141,20 +7032,164 @@ html:not([data-theme="dark"]) body .ac-feature-tour-dots .ac-feature-tour-dot {
   border: 0 !important;
   border-radius: 999px !important;
   box-shadow: none !important;
-  background: #cbd5e1 !important;
-  background-image: none !important;
   transition: width 0.18s ease, background-color 0.18s ease !important;
 }
-html body .ac-feature-tour-dots .ac-feature-tour-dot.on,
-html:not([data-theme="dark"]) body .ac-feature-tour-dots .ac-feature-tour-dot.on {
+.ac-feature-tour-dots .ac-feature-tour-dot.on {
   width: 24px !important;
+}
+
+/* Light & unset theme colors */
+html:not([data-theme="dark"]) body .welcome-skip-btn {
+  background: #ffffff !important;
+  background-image: none !important;
+  color: #475569 !important;
+  -webkit-text-fill-color: #475569 !important;
+  border: 1px solid rgba(15, 23, 42, 0.14) !important;
+}
+html:not([data-theme="dark"]) body .welcome-skip-btn:hover {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+html:not([data-theme="dark"]) body .welcome-density-pill {
+  background: transparent !important;
+  background-image: none !important;
+  color: #475569 !important;
+  -webkit-text-fill-color: #475569 !important;
+}
+html:not([data-theme="dark"]) body .welcome-density-pill:hover:not(.is-active) {
+  background: rgba(15, 23, 42, 0.06) !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+html:not([data-theme="dark"]) body .welcome-density-pill.is-active {
+  background: #0f172a !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html:not([data-theme="dark"]) body .welcome-segment .welcome-seg-btn {
+  background: transparent !important;
+  background-image: none !important;
+  color: #475569 !important;
+  -webkit-text-fill-color: #475569 !important;
+}
+html:not([data-theme="dark"]) body .welcome-segment .welcome-seg-btn:hover:not(.active) {
+  background: rgba(15, 23, 42, 0.06) !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+html:not([data-theme="dark"]) body .welcome-segment .welcome-seg-btn.active {
+  background: #0f172a !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html:not([data-theme="dark"]) body .welcome-tour-trigger {
+  background: #ffffff !important;
+  background-image: none !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  border: 1px solid rgba(15, 23, 42, 0.16) !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+html:not([data-theme="dark"]) body .welcome-tour-trigger:hover {
+  background: #f1f5f9 !important;
+  border-color: rgba(15, 23, 42, 0.28) !important;
+}
+html:not([data-theme="dark"]) body .ac-feature-tour-close {
+  background: #f1f5f9 !important;
+  background-image: none !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+}
+html:not([data-theme="dark"]) body .ac-feature-tour-close:hover {
+  background: #e2e8f0 !important;
+}
+html:not([data-theme="dark"]) body .ac-feature-tour-dots .ac-feature-tour-dot {
+  background: #cbd5e1 !important;
+  background-image: none !important;
+}
+html:not([data-theme="dark"]) body .ac-feature-tour-dots .ac-feature-tour-dot.on {
   background: #0f172a !important;
 }
+
+/* Dark theme colors (Dimmed Charcoal ramp) */
+html[data-theme="dark"] body .welcome-skip-btn {
+  background: #1d2027 !important;
+  background-image: none !important;
+  color: #b4b9c6 !important;
+  -webkit-text-fill-color: #b4b9c6 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+html[data-theme="dark"] body .welcome-skip-btn:hover {
+  background: #282c36 !important;
+  color: #e4e7ef !important;
+  -webkit-text-fill-color: #e4e7ef !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+html[data-theme="dark"] body .welcome-density-pill {
+  background: transparent !important;
+  background-image: none !important;
+  color: #8a909e !important;
+  -webkit-text-fill-color: #8a909e !important;
+}
+html[data-theme="dark"] body .welcome-density-pill:hover:not(.is-active) {
+  background: rgba(255, 255, 255, 0.07) !important;
+  color: #dfe2ea !important;
+  -webkit-text-fill-color: #dfe2ea !important;
+}
+html[data-theme="dark"] body .welcome-density-pill.is-active {
+  background: #d5d8e2 !important;
+  color: #121317 !important;
+  -webkit-text-fill-color: #121317 !important;
+}
+html[data-theme="dark"] body .welcome-segment .welcome-seg-btn {
+  background: transparent !important;
+  background-image: none !important;
+  color: #8a909e !important;
+  -webkit-text-fill-color: #8a909e !important;
+}
+html[data-theme="dark"] body .welcome-segment .welcome-seg-btn:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.07) !important;
+  color: #dfe2ea !important;
+  -webkit-text-fill-color: #dfe2ea !important;
+}
+html[data-theme="dark"] body .welcome-segment .welcome-seg-btn.active {
+  background: #d5d8e2 !important;
+  color: #121317 !important;
+  -webkit-text-fill-color: #121317 !important;
+}
+html[data-theme="dark"] body .welcome-tour-trigger {
+  background: #21242c !important;
+  background-image: none !important;
+  color: #dfe2ea !important;
+  -webkit-text-fill-color: #dfe2ea !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+}
+html[data-theme="dark"] body .welcome-tour-trigger:hover {
+  background: #282c36 !important;
+  color: #f4f4f6 !important;
+  -webkit-text-fill-color: #f4f4f6 !important;
+  border-color: rgba(255, 255, 255, 0.24) !important;
+}
+html[data-theme="dark"] body .ac-feature-tour-close {
+  background: #21242c !important;
+  background-image: none !important;
+  color: #dfe2ea !important;
+  -webkit-text-fill-color: #dfe2ea !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+html[data-theme="dark"] body .ac-feature-tour-close:hover {
+  background: #282c36 !important;
+  color: #f4f4f6 !important;
+  -webkit-text-fill-color: #f4f4f6 !important;
+}
 html[data-theme="dark"] body .ac-feature-tour-dots .ac-feature-tour-dot {
-  background: #3f3f46 !important;
+  background: #363a45 !important;
+  background-image: none !important;
 }
 html[data-theme="dark"] body .ac-feature-tour-dots .ac-feature-tour-dot.on {
-  background: #f4f4f6 !important;
+  background: #d5d8e2 !important;
 }
 
 /* Complete Dimmed Charcoal unification across Settings, ProductHistory, Products, Onboarding, Welcome & Wizards */

@@ -680,4 +680,35 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     expect(focusCss).not.toMatch(/#171a24|#13151d|#1f2330|#1f2433/i);
     expect(overridesCss).not.toContain('html .settings-main button:not(.danger)');
   });
+
+  it('scopes Welcome/FeatureTour light rules out of dark mode and uses responsive desktop-table shimmer skeletons across Settings, About, and WhatsNew', () => {
+    const darkCss = readFileSync(path.resolve(process.cwd(), 'src/styles/dark-force.css'), 'utf8');
+    const focusCss = readFileSync(path.resolve(process.cwd(), 'src/styles/focus-sidebar.css'), 'utf8');
+    const skeletonSrc = readFileSync(path.resolve(process.cwd(), 'src/components/PageSkeleton.tsx'), 'utf8');
+    const settingsSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Settings.tsx'), 'utf8');
+    const aboutSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/About.tsx'), 'utf8');
+    const whatsNewSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/WhatsNew.tsx'), 'utf8');
+    const appSrc = readFileSync(path.resolve(process.cwd(), 'src/App.tsx'), 'utf8');
+
+    // No unscoped html body welcome/feature-tour button color overrides leaking into dark mode
+    expect(darkCss).not.toMatch(/^html body (?:\.welcome-(?:skip-btn|density-pill|seg-btn|tour-trigger)|\.ac-feature-tour-)/m);
+    expect(darkCss).toContain('html:not([data-theme="dark"]) body .welcome-density-pill:hover:not(.is-active)');
+    expect(darkCss).toContain('html[data-theme="dark"] body .welcome-density-pill:hover:not(.is-active)');
+
+    // Responsive desktop-table & Bento shimmer skeletons
+    expect(skeletonSrc).toContain('DesktopTableSkeleton');
+    expect(skeletonSrc).toContain("variant === 'settings'");
+    expect(skeletonSrc).toContain("variant === 'about'");
+    expect(skeletonSrc).toContain("variant === 'changelog'");
+    expect(focusCss).toContain('.ac-skeleton-table-wrap');
+    expect(focusCss).toContain('.ac-skeleton-thead');
+    expect(settingsSrc).toContain('<PageSkeleton variant="settings" />');
+    expect(settingsSrc).toContain('<DesktopTableSkeleton rows={3} cols={5} />');
+    expect(settingsSrc).not.toContain('Chargement du journal…');
+    expect(aboutSrc).toContain('ghLoading');
+    expect(aboutSrc).toContain('contribLoading');
+    expect(whatsNewSrc).toContain('contribLoading');
+    expect(appSrc).toContain('<PageSkeleton variant="about" />');
+    expect(appSrc).toContain('<PageSkeleton variant="changelog" />');
+  });
 });

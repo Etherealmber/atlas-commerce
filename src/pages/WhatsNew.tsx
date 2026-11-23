@@ -1279,13 +1279,18 @@ export default function WhatsNew() {
   const [params] = useSearchParams();
   const filter = params.get('f') || 'all';
   const [contributors, setContributors] = useState<Contributor[]>(REPO_CONTRIBUTORS);
+  const [contribLoading, setContribLoading] = useState(true);
 
   useEffect(() => {
     markWhatsNewSeen();
     let alive = true;
-    fetchRepoContributors().then((list) => {
-      if (alive) setContributors(list);
-    });
+    fetchRepoContributors()
+      .then((list) => {
+        if (alive) setContributors(list);
+      })
+      .finally(() => {
+        if (alive) setContribLoading(false);
+      });
     return () => { alive = false; };
   }, []);
 
@@ -1359,6 +1364,12 @@ export default function WhatsNew() {
               <span className="wn-contributor-name">{c.name !== c.login ? `${c.name} (${c.handle})` : c.handle}</span>
             </a>
           ))}
+          {contribLoading && (
+            <>
+              <span className="skeleton ac-skeleton-pill" style={{ width: 124 }} aria-hidden="true" />
+              <span className="skeleton ac-skeleton-pill" style={{ width: 112 }} aria-hidden="true" />
+            </>
+          )}
         </div>
       </motion.section>
 

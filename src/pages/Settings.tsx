@@ -38,6 +38,7 @@ import { getDensity, setDensity, getUiScale, setUiScale, subscribeUiPrefs, type 
 import { startAtlasLoading, setAtlasLoading, doneAtlasLoading } from '../components/AtlasLoadingBar';
 import { VALUATION_METHOD_OPTIONS } from '../lib/labels';
 import IntegrationsPanel from '../components/IntegrationsPanel';
+import PageSkeleton, { DesktopTableSkeleton } from '../components/PageSkeleton';
 import GithubReportsPanel from '../components/settings/GithubReportsPanel';
 import { AlertsPanel } from '../components/atlas-v209-panels';
 import AgentPermissionsPanel from '../components/AgentPermissionsPanel';
@@ -689,12 +690,8 @@ export default function Settings() {
 if (loading) return (
     <div className="atlas-page atlas-settings">
       <p className="atlas-eyebrow">Espace de travail</p>
-      <h1 className="atlas-hello" style={{ fontSize: '1.75rem' }}>Paramètres</h1>
-      <div className="atlas-card" style={{ marginTop: 16 }}>
-        <div className="skeleton" style={{ height: 16, width: '40%', marginBottom: 12 }} />
-        <div className="skeleton" style={{ height: 40, width: '100%', marginBottom: 8 }} />
-        <div className="skeleton" style={{ height: 40, width: '100%' }} />
-      </div>
+      <h1 className="atlas-hello" style={{ fontSize: '1.75rem', marginBottom: 16 }}>Paramètres</h1>
+      <PageSkeleton variant="settings" />
     </div>
   );
   const s = settings || {
@@ -1120,6 +1117,9 @@ if (loading) return (
             </div>
             {passkeyMsg && (
               <p style={{ fontSize: 13, marginBottom: 10, color: passkeyMsg.ok ? 'var(--muted)' : '#b91c1c' }} role="status">{passkeyMsg.text}</p>
+            )}
+            {passkeysLoading && passkeys.length === 0 && (
+              <DesktopTableSkeleton rows={3} cols={5} />
             )}
             {passkeys.length === 0 && !passkeysLoading && (
               <p style={{ fontSize: 13, color: 'var(--muted)' }}>Aucune clé enregistrée sur cet appareil. Utilisez « + Ajouter une passkey » (biométrie ou clé de sécurité), comme sur mobile.</p>
@@ -2905,11 +2905,18 @@ if (loading) return (
                   </thead>
                   <tbody>
                     {auditLoading && auditLog.length === 0 && (
-                      <tr>
-                        <td colSpan={6} className="audit-empty">
-                          Chargement du journal…
-                        </td>
-                      </tr>
+                      <>
+                        {[0, 1, 2, 3, 4, 5].map((idx) => (
+                          <tr key={idx} className="ac-skeleton-inline-row" aria-hidden="true">
+                            <td><span className="skeleton ac-skeleton-bar" style={{ width: '78%' }} /></td>
+                            <td><span className="skeleton ac-skeleton-bar ac-skeleton-bar--pill" style={{ width: 88 }} /></td>
+                            <td><span className="skeleton ac-skeleton-bar" style={{ width: '72%' }} /></td>
+                            <td><span className="skeleton ac-skeleton-bar" style={{ width: '64%' }} /></td>
+                            <td><span className="skeleton ac-skeleton-bar" style={{ width: '58%' }} /></td>
+                            <td><span className="skeleton ac-skeleton-bar" style={{ width: '82%' }} /></td>
+                          </tr>
+                        ))}
+                      </>
                     )}
                     {!auditLoading && auditLog.length === 0 && (
                       <tr>
