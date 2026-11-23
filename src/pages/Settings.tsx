@@ -261,6 +261,8 @@ export default function Settings() {
   const [payrollSaving, setPayrollSaving] = useState(false);
   const [fecAccounts, setFecAccounts] = useState<any[] | null>(null);
   const [fecSaving, setFecSaving] = useState(false);
+  const [dunningCfg, setDunningCfg] = useState<any>(null);
+  const [dunningSaving, setDunningSaving] = useState(false);
   const AUDIT_PAGE = 80;
 
   const roleLabel = (r: string) => {
@@ -672,6 +674,7 @@ export default function Settings() {
       ...(isOwner ? [{ id: 'fec', label: 'Plan comptable (FEC)', group: 'Entreprise', icon: 'M4 4h16v16H4zM8 8h8M8 12h8M8 16h5' }] : []),
       { id: 'legal', label: 'Légal', group: 'Entreprise', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M9 13h6M9 17h4' },
       { id: 'invoicing', label: 'Facturation', group: 'Documents', icon: 'M8 2h8a2 2 0 0 1 2 2v16l-3-1.5L12 21l-3-1.5L6 20V4a2 2 0 0 1 2-2z' },
+      { id: 'dunning', label: 'Relances impayés', group: 'Documents', icon: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z' },
       { id: 'documents', label: 'PDF', group: 'Documents', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6' },
       { id: 'warehouse', label: 'Entrepôts', group: 'Stock', icon: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z' },
       { id: 'categories', label: 'Catégories', group: 'Stock', icon: 'M4 6h16M4 12h16M4 18h10' },
@@ -1862,6 +1865,144 @@ if (loading) return (
               >
                 {fecSaving ? 'Enregistrement…' : 'Enregistrer le plan comptable'}
               </button>
+            </div>
+          )}
+        </div>
+      )}
+{activeTab === 'dunning' && officeSettings && (
+        <div className="atlas-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <h2 style={{ margin: 0 }}>Relances factures impayées</h2>
+              <p className="muted" style={{ fontSize: 13, margin: '4px 0 0' }}>
+                Relances automatiques par e-mail (cron 07h35) et liens WhatsApp directs (<code>wa.me</code>). Variables disponibles :{' '}
+                <code>{'{{client}}'}</code>, <code>{'{{amount}}'}</code>, <code>{'{{due_date}}'}</code>, <code>{'{{invoice_number}}'}</code>, <code>{'{{ice}}'}</code>.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="secondary"
+              onClick={async () => {
+                try {
+                  const res = await api.getDunningSettings();
+                  setDunningCfg({
+                    ...res.data,
+                    stages_text: (res.data?.stages || ['D-3', 'D+1', 'D+7', 'D+15']).join(', '),
+                  });
+                } catch (e: any) {
+                  flash(e?.message || 'Chargement impossible', 'error');
+                }
+              }}
+            >
+              Charger la config relances
+            </button>
+          </div>
+          {!dunningCfg ? (
+            <div style={{ marginTop: 14 }}>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const res = await api.getDunningSettings();
+                    setDunningCfg({
+                      ...res.data,
+                      stages_text: (res.data?.stages || ['D-3', 'D+1', 'D+7', 'D+15']).join(', '),
+                    });
+                  } catch (e: any) {
+                    flash(e?.message || 'Chargement impossible', 'error');
+                  }
+                }}
+              >
+                Afficher &amp; configurer les relances
+              </button>
+            </div>
+          ) : (
+            <div style={{ marginTop: 14 }}>
+              <div className="form-row" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <label style={{ margin: 0 }}>Relances automatiques activées</label>
+                <input
+                  type="checkbox"
+                  checked={!!dunningCfg.enabled}
+                  onChange={(e) => setDunningCfg((d: any) => ({ ...d, enabled: e.target.checked }))}
+                />
+              </div>
+              <div className="form-row">
+                <label>Calendrier des relances (séparé par des virgules, ex : D-3, D+1, D+7, D+15)</label>
+                <input
+                  value={dunningCfg.stages_text || ''}
+                  onChange={(e) => setDunningCfg((d: any) => ({ ...d, stages_text: e.target.value }))}
+                />
+              </div>
+              <div className="form-row">
+                <label>Objet e-mail</label>
+                <input
+                  value={dunningCfg.email_subject_template || ''}
+                  onChange={(e) => setDunningCfg((d: any) => ({ ...d, email_subject_template: e.target.value }))}
+                />
+              </div>
+              <div className="form-row">
+                <label>Modèle e-mail (français)</label>
+                <textarea
+                  rows={5}
+                  value={dunningCfg.email_body_template || ''}
+                  onChange={(e) => setDunningCfg((d: any) => ({ ...d, email_body_template: e.target.value }))}
+                />
+              </div>
+              <div className="form-row">
+                <label>Modèle WhatsApp (français)</label>
+                <textarea
+                  rows={3}
+                  value={dunningCfg.whatsapp_template || ''}
+                  onChange={(e) => setDunningCfg((d: any) => ({ ...d, whatsapp_template: e.target.value }))}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  disabled={dunningSaving}
+                  onClick={async () => {
+                    setDunningSaving(true);
+                    try {
+                      const stages = String(dunningCfg.stages_text || '')
+                        .split(',')
+                        .map((s) => s.trim().toUpperCase())
+                        .filter(Boolean);
+                      const res = await api.updateDunningSettings({
+                        enabled: Boolean(dunningCfg.enabled),
+                        stages,
+                        email_subject_template: dunningCfg.email_subject_template,
+                        email_body_template: dunningCfg.email_body_template,
+                        whatsapp_template: dunningCfg.whatsapp_template,
+                      });
+                      setDunningCfg({
+                        ...res.data,
+                        stages_text: (res.data?.stages || []).join(', '),
+                      });
+                      flash('Configuration des relances enregistrée');
+                    } catch (e: any) {
+                      flash(e?.message || 'Erreur lors de la sauvegarde', 'error');
+                    } finally {
+                      setDunningSaving(false);
+                    }
+                  }}
+                >
+                  {dunningSaving ? 'Enregistrement…' : 'Enregistrer les relances'}
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={async () => {
+                    try {
+                      const res = await api.runDunningNow({ force: true });
+                      flash(`Relances exécutées : ${res.data?.sent ?? 0} envoyée(s), ${res.data?.failed ?? 0} en échec`);
+                    } catch (e: any) {
+                      flash(e?.message || 'Erreur lors de l’exécution', 'error');
+                    }
+                  }}
+                >
+                  Exécuter maintenant
+                </button>
+              </div>
             </div>
           )}
         </div>

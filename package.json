@@ -26,6 +26,7 @@
     "smoke:attendance": "node scripts/smoke-attendance.mjs",
     "smoke:payroll": "node scripts/smoke-payroll.mjs",
     "smoke:fec": "node scripts/smoke-fec.mjs",
+    "smoke:dunning": "node scripts/smoke-dunning.mjs",
     "test": "vitest run",
     "test:finance-wasm": "ATLAS_REQUIRE_WASM=1 vitest run worker/__tests__/finance-core-wasm.test.ts",
     "lint": "oxlint -c .oxlintrc.json src worker",

@@ -1245,5 +1245,24 @@ export const api = {
     request<{ data: any }>(`/api/accounting/fec/preview?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
   fecExportUrl: (from: string, to: string) =>
     `/api/accounting/fec/export?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+
+  // Part 6 — unpaid invoice dunning
+  getDunningSettings: () => request<{ data: any }>('/api/dunning/settings'),
+  updateDunningSettings: (body: any) =>
+    request<{ data: any }>('/api/dunning/settings', { method: 'PUT', body: JSON.stringify(body) }),
+  getInvoiceDunning: (invoiceId: number) =>
+    request<{ data: any }>(`/api/dunning/invoices/${invoiceId}`),
+  setInvoiceDunningPause: (invoiceId: number, paused: boolean, reason?: string) =>
+    request<{ data: any }>(`/api/dunning/invoices/${invoiceId}/pause`, {
+      method: 'POST',
+      body: JSON.stringify({ paused, reason }),
+    }),
+  sendInvoiceDunning: (invoiceId: number, body: { channel: 'email' | 'whatsapp'; stage?: string }) =>
+    request<{ data: any }>(`/api/dunning/invoices/${invoiceId}/send`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  runDunningNow: (body?: { today?: string; force?: boolean }) =>
+    request<{ data: any }>('/api/dunning/run-now', { method: 'POST', body: JSON.stringify(body || {}) }),
 };
 

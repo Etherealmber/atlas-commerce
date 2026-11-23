@@ -68,6 +68,8 @@ export default function InvoiceDetail() {
   const [notesEdit, setNotesEdit] = useState('');
   const [clearance, setClearance] = useState<any>(null);
   const [ublBusy, setUblBusy] = useState(false);
+  const [dunningInfo, setDunningInfo] = useState<any>(null);
+  const [dunningBusy, setDunningBusy] = useState(false);
   const [pwOpen, setPwOpen] = useState(false);
   const [pwDesc, setPwDesc] = useState('');
   const [pendingDelete, setPendingDelete] = useState<null | ((password: string) => Promise<void>)>(null);
@@ -83,8 +85,10 @@ export default function InvoiceDetail() {
     setInvoice(res.data);
     if (res.data && res.data.status !== 'quote' && res.data.status !== 'devis') {
       api.ublClearance(+id!).then((r) => setClearance(r.data)).catch(() => setClearance(null));
+      api.getInvoiceDunning(+id!).then((r) => setDunningInfo(r.data)).catch(() => setDunningInfo(null));
     } else {
       setClearance(null);
+      setDunningInfo(null);
     }
     if (res.data.client_email) setEmail(res.data.client_email);
     setPayments(pays.data || []);
@@ -491,6 +495,84 @@ export default function InvoiceDetail() {
               Simuler rejeté
             </button>
           </div>
+        </div>
+      )}
+
+      {dunningInfo && Number(dunningInfo.remaining || 0) > 0 && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <strong>Relance impayé</strong> · Reste dû : {fmtMoney(dunningInfo.remaining)} ·{' '}
+              <span>{dunningInfo.paused ? 'Relances en pause' : 'Relances actives'}</span>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="secondary"
+                disabled={dunningBusy}
+                onClick={async () => {
+                  setDunningBusy(true);
+                  try {
+                    const next = !dunningInfo.paused;
+                    await api.setInvoiceDunningPause(invoice.id, next);
+                    const ref = await api.getInvoiceDunning(invoice.id);
+                    setDunningInfo(ref.data);
+                    toast(next ? 'Relances mises en pause' : 'Relances réactivées', 'success');
+                  } catch (e: any) {
+                    toast(e?.message || 'Action impossible', 'error');
+                  } finally {
+                    setDunningBusy(false);
+                  }
+                }}
+              >
+                {dunningInfo.paused ? 'Reprendre relances' : 'Mettre en pause'}
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled={dunningBusy || !dunningInfo.client_email}
+                onClick={async () => {
+                  setDunningBusy(true);
+                  try {
+                    await api.sendInvoiceDunning(invoice.id, { channel: 'email' });
+                    const ref = await api.getInvoiceDunning(invoice.id);
+                    setDunningInfo(ref.data);
+                    toast('Relance e-mail envoyée', 'success');
+                  } catch (e: any) {
+                    toast(e?.message || 'Envoi e-mail impossible', 'error');
+                  } finally {
+                    setDunningBusy(false);
+                  }
+                }}
+              >
+                Envoyer relance e-mail
+              </button>
+              {dunningInfo.whatsapp_url && (
+                <button
+                  type="button"
+                  disabled={dunningBusy}
+                  onClick={async () => {
+                    window.open(dunningInfo.whatsapp_url, '_blank', 'noopener,noreferrer');
+                    try {
+                      await api.sendInvoiceDunning(invoice.id, { channel: 'whatsapp' });
+                      const ref = await api.getInvoiceDunning(invoice.id);
+                      setDunningInfo(ref.data);
+                    } catch {
+                      /* non-blocking */
+                    }
+                  }}
+                >
+                  Relancer via WhatsApp
+                </button>
+              )}
+            </div>
+          </div>
+          {Array.isArray(dunningInfo.events) && dunningInfo.events.length > 0 && (
+            <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }}>
+              Historique ({dunningInfo.events.length}) :{' '}
+              {dunningInfo.events.slice(0, 4).map((ev: any) => `${ev.stage} (${ev.channel}/${ev.status})`).join(' · ')}
+            </p>
+          )}
         </div>
       )}
 

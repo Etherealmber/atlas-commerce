@@ -277,6 +277,8 @@ import {
   registerCashShiftRoutes,
   registerPayrollRoutes,
   registerFecRoutes,
+  registerDunningRoutes,
+  runDailyDunning,
   ensureBillPaymentsTable,
 } from './routes';
 import { countEmployeesPayDue } from './routes/employees';
@@ -1546,6 +1548,7 @@ registerFinanceRoutes(app, { sessionUserFromHeader, authFailReason, clientIp, wr
 registerCashShiftRoutes(app, { sessionUserFromHeader, writeAudit, reportShell });
 registerPayrollRoutes(app, { requireEmployeeAdmin, loadAttendanceRules, writeAudit, sessionUserFromHeader, clientIp });
 registerFecRoutes(app, { requireOwner, writeAudit, clientIp });
+registerDunningRoutes(app, { requireEmployeeAdmin, sessionUserFromHeader, writeAudit, clientIp });
 registerAtlasV209Routes(app, { sessionUserFromHeader, applyStockDelta, adjustLocationStock, getDefaultLocationId });
 // Admin read routes need helpers defined later — registered near Users & Admin section
 
@@ -2850,6 +2853,13 @@ export default {
       if (!r.skipped && (r.crashes || r.user_reports)) console.log('[cron-reports]', JSON.stringify(r));
     } catch (e) {
       console.error('[cron-reports] retry failed:', String((e as any)?.message || e));
+    }
+    // Part 6 — daily unpaid invoice dunning (Email / RESEND_API_KEY + dedup)
+    try {
+      const dun = await runDailyDunning(env as any);
+      if (!dun.skipped) console.log('[cron-dunning]', JSON.stringify(dun));
+    } catch (e) {
+      console.error('[cron-dunning] failed:', String((e as any)?.message || e));
     }
   },
 
