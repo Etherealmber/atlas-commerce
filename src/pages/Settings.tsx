@@ -61,7 +61,7 @@ export default function Settings() {
   const { confirm, prompt, toast } = useUi();
   const [settings, setSettings] = useState<any>(null);
   const [assistProvider, setAssistProvider] = useState<'groq'>('groq');
-  const [assistMeta, setAssistMeta] = useState<{ mistralConfigured?: boolean; geminiConfigured?: boolean; groqConfigured?: boolean }>({});
+  const [assistMeta, setAssistMeta] = useState<{ groqConfigured?: boolean }>({});
   const [assistBusy, setAssistBusy] = useState(false);
   const [passkeys, setPasskeys] = useState<any[]>([]);
   const [passkeysLoading, setPasskeysLoading] = useState(false);
@@ -292,7 +292,6 @@ export default function Settings() {
       .then((r: any) => {
         setAssistProvider('groq');
         setAssistMeta({
-                    geminiConfigured: !!r?.data?.geminiConfigured,
           groqConfigured: !!r?.data?.groqConfigured,
         });
       })

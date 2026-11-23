@@ -1,12 +1,12 @@
 import TopPageActions from '../components/TopPageActions';
-import { Plus, RotateCcw, CheckCircle2, CreditCard, Printer, Ban } from 'lucide-react';
+import { Plus, RotateCcw, CheckCircle2, CreditCard, Printer, Ban, Pencil } from 'lucide-react';
 import { TimedUndoDelete } from '../components/ui';
 import ListPager from '../components/ui/ListPager';
 import { useEffect, useState } from 'react';
 import DatePicker from '../components/DatePicker';
 import { matchProducts } from '../lib/assist';
 import { SuggestList } from '../components/AssistBits';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api, BASE } from '../api';
 import TypeaheadField, { productTypeaheadOptions, partyTypeaheadOptions } from '../components/TypeaheadField';
 import { getToken } from '../auth';
@@ -54,6 +54,7 @@ type Line = {
 const today = () => new Date().toISOString().slice(0, 10);
 
 export default function QuickSale() {
+  const navigate = useNavigate();
   const { toast, confirm, prompt } = useUi();
   const [modalError, setModalError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -575,6 +576,14 @@ export default function QuickSale() {
                     </td>
                     <td className="row-actions-cell">
                       <div className="row-actions">
+                        <button
+                          type="button"
+                          className="secondary"
+                          onClick={() => navigate(`/quick-sale/${inv.id}`)}
+                        >
+                          <Pencil size={14} aria-hidden="true" />
+                          <span>{inv.status === 'cancelled' ? 'Consulter' : 'Modifier'}</span>
+                        </button>
                         {inv.status !== 'cancelled' && remainingOf(inv) > 0.001 && (
                           <>
                             <button

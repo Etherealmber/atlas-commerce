@@ -17,7 +17,7 @@ import { numStr, numFromInput } from '../lib/numInput';
 import NumberField from '../components/NumberField';
 import VirtualTableBody, { VirtualScroll } from '../components/VirtualTableBody';
 import { canAccessAdminSettings, canSell, sanitizePreviewUrl } from '../auth';
-import { Grid2X2, List, Pencil, Plus, SlidersHorizontal, Tags, ZoomIn } from 'lucide-react';
+import { Grid2X2, List, Pencil, Plus, SlidersHorizontal, Sparkles, Tags, ZoomIn } from 'lucide-react';
 import ProductArtwork, { productImageUrl } from '../components/ProductArtwork';
 import ImageLightbox from '../components/ui/ImageLightbox';
 import { phoneStockIsLow, phoneStockQuantity } from '../mobile/phoneStock';
@@ -129,6 +129,8 @@ export default function Products() {
   const PAGE_SIZE = 20;
   useEffect(() => { setPage(0); }, [debouncedSearch, stockFilter, categoryFilter]);
   const [saving, setSaving] = useState(false);
+  const [descGenerating, setDescGenerating] = useState(false);
+  const [descFeedback, setDescFeedback] = useState('');
   const [stagedPhotos, setStagedPhotos] = useState<{ file: File; url: string; edited?: string }[]>([]);
   // v256 — in-wizard photo editing: index of the staged photo being edited and
   // the working data URL inside the crop workbench.
@@ -699,11 +701,7 @@ export default function Products() {
               onChange={(e) => setSearch(e.target.value)}
               aria-label="Rechercher produits"
             />
-            <span className="desktop-product-result-count ac-search-result-count" aria-live="polite">
-              {filtered.length} résultat{filtered.length === 1 ? '' : 's'}
-            </span>
           </div>
-          <div className="desktop-product-viewbar" role="group" aria-label="Affichage des produits"><button type="button" className="secondary" title="Affichage en grille" aria-label="Affichage en grille" aria-pressed={catalogView === 'grid'} onClick={() => changeCatalogView('grid')}><Grid2X2 size={18} /></button><button type="button" className="secondary" title="Affichage en liste" aria-label="Affichage en liste" aria-pressed={catalogView === 'list'} onClick={() => changeCatalogView('list')}><List size={18} /></button></div>
           <select className="ac-filter-select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} aria-label="Catégorie">
             <option value="">Toutes catégories</option>
             {categories.map((c) => (
@@ -727,7 +725,13 @@ export default function Products() {
       <div className={`ac-panel ac-products-table-panel${catalogView === 'grid' ? ' ac-products-table-panel--grid' : ''}`}>
         <div className="ac-table-pager-bar">
           <span className="ac-table-pager-meta">{filtered.length} élément{filtered.length === 1 ? '' : 's'} · 20 par page</span>
-          <ListPager page={safePage} pageSize={PAGE_SIZE} total={filtered.length} onPageChange={setPage} />
+          <div className="ac-table-pager-controls">
+            <div className="desktop-product-viewbar" role="group" aria-label="Affichage des produits">
+              <button type="button" className="secondary" title="Affichage en grille" aria-label="Affichage en grille" aria-pressed={catalogView === 'grid'} onClick={() => changeCatalogView('grid')}><Grid2X2 size={16} /></button>
+              <button type="button" className="secondary" title="Affichage en liste" aria-label="Affichage en liste" aria-pressed={catalogView === 'list'} onClick={() => changeCatalogView('list')}><List size={16} /></button>
+            </div>
+            <ListPager page={safePage} pageSize={PAGE_SIZE} total={filtered.length} onPageChange={setPage} />
+          </div>
         </div>
         {catalogView === 'grid' ? <>
           {paged.length > 0 && <label className="desktop-product-select-all"><input type="checkbox" checked={paged.every(p => selected.has(p.id))} onChange={() => setSelected(prev => { const next = new Set(prev); const all = paged.every(p => next.has(p.id)); paged.forEach(p => all ? next.delete(p.id) : next.add(p.id)); return next; })} /> Tout sélectionner</label>}
@@ -878,7 +882,7 @@ export default function Products() {
         const productSteps = editing ? PRODUCT_EDIT_STEPS : PRODUCT_CREATE_STEPS;
         const currentStepDef = productSteps[wz.step - 1] || productSteps[0];
         return (
-        <FloatingPortal><div className="modal-overlay" onClick={() => { setShow(false); setForm(emptyForm); setEditing(null); setModalError(''); setFieldErrors({}); clearStagedPhotos(); wz.reset(); }}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => { setShow(false); setForm(emptyForm); setEditing(null); setModalError(''); setFieldErrors({}); setDescFeedback(''); setDescGenerating(false); clearStagedPhotos(); wz.reset(); }}>
           <div className="modal step-wizard step-wizard--wide" role="dialog" aria-modal="true" aria-labelledby="product-wizard-title" onClick={(e) => e.stopPropagation()}>
             <WizardHeader
               eyebrow="CATALOGUE PRODUIT"
@@ -891,30 +895,102 @@ export default function Products() {
             <WizardIntro step={currentStepDef} />
             <StepBody active={wz.step === 1}>
             <div className="grid grid-2">
-              <div className="form-row"><label>Nom *</label><input className={fieldErrors.name ? 'field-error' : undefined} value={form.name} onChange={(e) => { setForm({ ...form, name: e.target.value }); setFieldErrors((x) => ({ ...x, name: '' })); if (modalError) setModalError(''); }} placeholder="Ex. Carrelage 60×60" /><span className="field-error-msg">{fieldErrors.name || ''}</span></div>
+              <div className="form-row"><label>Nom *</label><input className={fieldErrors.name ? 'field-error' : undefined} value={form.name} onChange={(e) => { setForm({ ...form, name: e.target.value }); setFieldErrors((x) => ({ ...x, name: '' })); if (modalError) setModalError(''); if (descFeedback) setDescFeedback(''); }} placeholder="Ex. Carrelage 60×60" /><span className="field-error-msg">{fieldErrors.name || ''}</span></div>
               <div className="form-row"><label>Référence (SKU)</label><input value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} /></div>
             </div>
-            <div className="form-row">
-              <label>Description</label>
-              <textarea rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Courte description catalogue…" />
-              <button
-                type="button"
-                className="secondary"
-                style={{ marginTop: 6, fontSize: 12 }}
-                onClick={async () => {
-                  const hint = [form.name, form.category, form.sku].filter(Boolean).join(' · ') || 'produit marbre';
-                  try {
-                    const res = await api.assistChat(
-                      `Rédige la description catalogue pour: ${hint}. ${form.description || ''}`.trim(),
-                      { task: 'description', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
-                    );
-                    if (res.data?.reply) setForm((f: any) => ({ ...f, description: res.data.reply.trim() }));
-                  } catch { /* local silent */ }
-                }}
-              >
-                Générer la description (IA)
-              </button>
-            </div>
+            {(() => {
+              const productName = String(form.name || '').trim();
+              const hasProductName = productName.length > 0;
+              return (
+                <div className="form-row">
+                  <label>Description</label>
+                  <textarea
+                    rows={2}
+                    value={form.description}
+                    onChange={(e) => {
+                      setForm({ ...form, description: e.target.value });
+                      if (descFeedback) setDescFeedback('');
+                    }}
+                    placeholder="Courte description catalogue…"
+                  />
+                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginTop: 8 }}>
+                    <button
+                      type="button"
+                      className="secondary"
+                      disabled={!hasProductName || descGenerating}
+                      aria-busy={descGenerating}
+                      title={!hasProductName ? 'Saisissez d’abord le nom du produit' : 'Générer une courte description catalogue factuelle'}
+                      style={{ fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                      onClick={async () => {
+                        const cleanName = String(form.name || '').trim();
+                        if (!cleanName) {
+                          setFieldErrors((x) => ({ ...x, name: 'Saisissez le nom du produit avant de générer une description.' }));
+                          return;
+                        }
+                        setDescGenerating(true);
+                        setDescFeedback('');
+                        const category = String(form.category || '').trim();
+                        const sku = String(form.sku || '').trim();
+                        const unit = String(form.unit || '').trim();
+                        const secondaryUnit = String(form.secondary_unit || '').trim();
+                        const secondaryFactor = String(form.secondary_unit_factor ?? '').trim();
+                        const draft = String(form.description || '').trim();
+                        const details = [
+                          `Nom : ${cleanName}`,
+                          category ? `Catégorie : ${category}` : '',
+                          sku ? `SKU : ${sku}` : '',
+                          unit ? `Unité : ${unit}` : '',
+                          secondaryUnit && secondaryFactor ? `Conditionnement : 1 ${unit || 'unité'} = ${secondaryFactor} ${secondaryUnit}` : '',
+                          draft ? `Notes : ${draft}` : '',
+                        ].filter(Boolean).join('\n');
+                        try {
+                          const res = await api.assistChat(
+                            `Rédige une courte description catalogue réelle et factuelle (sans inventer de caractéristiques absentes) pour ce produit :\n${details}`,
+                            {
+                              task: 'description',
+                              thread_id: 'product-description',
+                              timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                              product: {
+                                name: cleanName,
+                                category: category || undefined,
+                                sku: sku || undefined,
+                                unit: unit || undefined,
+                                secondary_unit: secondaryUnit || undefined,
+                                secondary_unit_factor: secondaryFactor || undefined,
+                                draft: draft || undefined,
+                              },
+                            },
+                          );
+                          const generated = String(res.data?.reply || '').trim();
+                          if (generated) {
+                            setForm((f: any) => ({ ...f, description: generated }));
+                          } else {
+                            setDescFeedback('Aucune description générée. Réessayez.');
+                          }
+                        } catch (e: any) {
+                          setDescFeedback(e?.message || 'Impossible de générer la description pour le moment.');
+                        } finally {
+                          setDescGenerating(false);
+                        }
+                      }}
+                    >
+                      <Sparkles size={14} aria-hidden="true" />
+                      <span>{descGenerating ? 'Génération…' : 'Générer la description (IA)'}</span>
+                    </button>
+                    {!hasProductName && (
+                      <small style={{ color: 'var(--muted)' }}>
+                        Saisissez d’abord le nom du produit pour activer la génération.
+                      </small>
+                    )}
+                  </div>
+                  {descFeedback && (
+                    <span className="field-error-msg" role="alert" style={{ marginTop: 4, display: 'block' }}>
+                      {descFeedback}
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
               </StepBody>
             <StepBody active={wz.step === 2}>
             <div className="grid grid-2">

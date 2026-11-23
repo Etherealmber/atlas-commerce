@@ -5,7 +5,9 @@ import { describe, expect, it } from 'vitest';
 describe('mobile theme stylesheets', () => {
   it('lets Agent conversation content scroll behind the floating dock', () => {
     const css = readFileSync('src/mobile/phone.css', 'utf8');
-    expect(css).toMatch(/\.ph-agent-msgs\s*\{\s*margin-top:\s*0\s*!important;\s*padding-top:\s*calc\(76px\s*\+\s*env\(safe-area-inset-top,\s*0px\)\)/);
+    expect(css).toMatch(/\.ph-agent-msgs\s*\{\s*margin-top:\s*0\s*!important;\s*padding-top:\s*calc\(92px\s*\+\s*env\(safe-area-inset-top,\s*0px\)\)/);
+    expect(css).toMatch(/\.ph-agent-dock:not\(\.is-collapsed\)\s*\{[^}]*width:\s*calc\(100%\s*-\s*28px\)/s);
+    expect(css).toMatch(/\.employees-page--phone\s+\.ph-employee-more\s+\.row-actions\s*\{[^}]*flex-wrap:\s*wrap\s*!important;\s*justify-content:\s*flex-start\s*!important/s);
   });
   it('constrains the live scanner and keeps its canvas over the preview', () => {
     const css = readFileSync('src/mobile/phone.css', 'utf8');

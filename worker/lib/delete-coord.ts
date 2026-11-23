@@ -43,8 +43,11 @@ export async function deleteProductImagesFromR2(
   return n;
 }
 
-export async function afterBusinessMutation(kv: KVNamespace | undefined): Promise<void> {
-  await invalidateDashboardCache(kv);
+export async function afterBusinessMutation(
+  kv: KVNamespace | undefined,
+  hub?: DurableObjectNamespace,
+): Promise<void> {
+  await invalidateDashboardCache(kv, hub);
 }
 
 /** List R2 objects under a prefix (for admin inventory / catalog of stored files). */

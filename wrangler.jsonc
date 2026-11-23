@@ -2,7 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "company-stock",
   "main": "worker/index.ts",
-  "compatibility_date": "2025-09-01",
+  "compatibility_date": "2026-11-19",
   "compatibility_flags": ["nodejs_compat"],
   // Rebuilds and verifies `worker/wasm/atlas_finance_core.wasm` (cached when unchanged)
   // whenever `wrangler dev` watches Rust source changes or `wrangler deploy --config wrangler.jsonc` runs.
@@ -76,7 +76,7 @@
   // Public / non-secret config only. Everything sensitive → `wrangler secret put`
   "vars": {
     "ENVIRONMENT": "production",
-    "CACHE_TTL_SECONDS": "300",
+    "CACHE_TTL_SECONDS": "900",
     "TURNSTILE_SITE_KEY": "0x4AAAAAAEco33YS31FvWems",
     // v259 — WebAuthn/passkeys capability config (non-secret). Hardened
     // verifier (worker/lib/webauthn.ts) deployed & reviewed (168 tests dont

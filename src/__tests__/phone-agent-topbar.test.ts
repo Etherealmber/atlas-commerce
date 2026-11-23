@@ -252,3 +252,18 @@ it('loads only read-only personal activity and preserves partial source failures
   expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain('Marbre');
   expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain('Impossible de charger');
 });
+
+it('shows the full labeled agent dock before scrolling and collapses on deliberate scroll', async () => {
+  await act(async () => root.render(createElement(PhoneAgentMobile)));
+  const dock = host.querySelector<HTMLElement>('.ph-agent-dock')!;
+  expect(dock.classList.contains('is-collapsed')).toBe(false);
+  expect(dock.querySelector('.ph-agent-dock-title')?.textContent).toBe('Atlas Agent');
+  expect(dock.querySelector('.ph-agent-dock-actions')?.querySelectorAll('button').length).toBe(4);
+  const msgs = host.querySelector<HTMLElement>('.ph-agent-msgs')!;
+  await act(async () => { msgs.scrollTop = 80; msgs.dispatchEvent(new Event('scroll')); });
+  expect(dock.classList.contains('is-collapsed')).toBe(true);
+  expect(dock.querySelector('.ph-agent-dock-expand')?.textContent).toBe('Atlas Agent');
+  await act(async () => dock.querySelector<HTMLButtonElement>('.ph-agent-dock-expand')!.click());
+  expect(dock.classList.contains('is-collapsed')).toBe(false);
+});
+

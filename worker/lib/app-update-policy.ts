@@ -27,8 +27,8 @@ export const MIN_VERSION_CONFIG_KEYS = {
   code: 'android_min_version_code',
 } as const;
 
-/** Short TTL cache so every Android API request doesn't hit D1. */
-const CACHE_TTL_MS = 60_000;
+/** TTL cache (5 min) so every Android API request doesn't hit D1. */
+const CACHE_TTL_MS = 300_000;
 let cache: { at: number; policy: MinVersionPolicy } | null = null;
 
 /** Test-only: drop the TTL cache between in-process databases. */

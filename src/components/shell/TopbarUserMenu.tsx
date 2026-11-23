@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FC } from 'react';
 import { createPortal } from 'react-dom';
-import { LogOut, Sparkles, Settings, Info } from 'lucide-react';
+import { LogOut, Sparkles, Settings, Info, Plus, ChevronRight } from 'lucide-react';
 import { AvatarImage } from '../ui/AvatarImage';
 import { listSavedAccounts, switchSavedAccount, getUsername, clearToken, type SavedAccount } from '../../auth';
 
@@ -51,7 +51,7 @@ export const TopbarUserMenu: FC<Props> = ({
     };
   }, [open]);
 
-  // Pin the dropdown under the trigger, clamped to the viewport.
+  // Pin the dropdown neatly beneath the floating dock (or trigger), clamped to the viewport.
   useEffect(() => {
     if (!open) {
       setPos(null);
@@ -60,12 +60,16 @@ export const TopbarUserMenu: FC<Props> = ({
     const place = () => {
       const r = btnRef.current?.getBoundingClientRect();
       if (!r) return;
-      const width = 288;
+      const dock = btnRef.current?.closest('.ac-desktop-dock');
+      const dockRect = dock && window.innerWidth > 900 ? dock.getBoundingClientRect() : null;
+      const width = Math.min(296, window.innerWidth - 16);
+      const anchorRight = dockRect ? dockRect.right : r.right;
+      const anchorBottom = dockRect ? dockRect.bottom : r.bottom;
       const right = Math.min(
-        Math.max(window.innerWidth - r.right, 8),
+        Math.max(window.innerWidth - anchorRight, 8),
         Math.max(window.innerWidth - width - 8, 8),
       );
-      const top = Math.min(r.bottom + 8, Math.max(window.innerHeight - 120, 8));
+      const top = Math.min(anchorBottom + 10, Math.max(window.innerHeight - 140, 8));
       setPos({ top, right });
     };
     place();
@@ -85,6 +89,8 @@ export const TopbarUserMenu: FC<Props> = ({
   const avatarFallback = (
     <span className="ac-topbar-avatar ac-topbar-avatar--ini">{initials}</span>
   );
+  const currentUsername = getUsername().toLowerCase();
+  const otherAccounts = accounts.filter((a) => a.username.toLowerCase() !== currentUsername);
 
   return (
     <div className="ac-topbar-user-wrap" ref={wrapRef}>
@@ -120,62 +126,75 @@ export const TopbarUserMenu: FC<Props> = ({
               }}
             >
               <div className="ac-user-dropdown-head">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <AvatarImage className="ac-topbar-avatar" fallback={avatarFallback} />
-                  <div style={{ minWidth: 0 }}>
+                <div className="ac-user-dropdown-identity">
+                  <AvatarImage className="ac-topbar-avatar ac-user-dropdown-avatar" fallback={avatarFallback} />
+                  <div className="ac-user-dropdown-meta">
                     <p className="ac-user-dropdown-hello">Bonjour</p>
                     <p className="ac-user-dropdown-name">{displayName}</p>
                     <p className="ac-user-dropdown-role">{roleLabel}</p>
                   </div>
                 </div>
               </div>
-              {accounts.filter((a) => a.username.toLowerCase() !== getUsername().toLowerCase()).length > 0 && (
+              {otherAccounts.length > 0 && (
                 <div className="ac-user-dropdown-list ac-user-dropdown-accounts">
-                  <p className="ac-user-dropdown-label">Comptes enregistrés — basculer</p>
-                  {accounts
-                    .filter((a) => a.username.toLowerCase() !== getUsername().toLowerCase())
-                    .map((a) => (
-                      <button
-                        key={a.username}
-                        type="button"
-                        role="menuitem"
-                        className="ac-user-dropdown-item secondary"
-                        onClick={() => switchSavedAccount(a.username)}
-                      >
-                        <span className="ac-topbar-avatar ac-topbar-avatar--ini" aria-hidden>
-                          {(a.display_name || a.username).slice(0, 2).toUpperCase()}
-                        </span>
-                        <span><b>{a.display_name || a.username}</b><i>{a.username} · changer de compte</i></span>
-                      </button>
-                    ))}
+                  <p className="ac-user-dropdown-label">Comptes enregistrés</p>
+                  {otherAccounts.map((a) => (
+                    <button
+                      key={a.username}
+                      type="button"
+                      role="menuitem"
+                      className="ac-user-dropdown-item"
+                      onClick={() => switchSavedAccount(a.username)}
+                    >
+                      <span className="ac-user-dropdown-ico ac-user-dropdown-ico--avatar" aria-hidden>
+                        {(a.display_name || a.username).slice(0, 2).toUpperCase()}
+                      </span>
+                      <span><b>{a.display_name || a.username}</b><i>@{a.username} · Basculer</i></span>
+                      <ChevronRight className="ac-user-dropdown-chev" size={14} aria-hidden />
+                    </button>
+                  ))}
                 </div>
               )}
               <div className="ac-user-dropdown-list">
                 <button
                   type="button"
                   role="menuitem"
-                  className="ac-user-dropdown-item secondary"
+                  className="ac-user-dropdown-item"
                   onClick={() => { setOpen(false); clearToken(); window.location.assign('/login'); }}
                 >
-                  <span className="ac-user-dropdown-ico" aria-hidden style={{ display: 'grid', placeItems: 'center' }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" aria-hidden><path d="M12 5v14M5 12h14" /></svg>
+                  <span className="ac-user-dropdown-ico" aria-hidden>
+                    <Plus size={16} strokeWidth={2} />
                   </span>
                   <span><b>Ajouter un compte</b><i>Se connecter avec un autre compte</i></span>
+                  <ChevronRight className="ac-user-dropdown-chev" size={14} aria-hidden />
                 </button>
-                <button type="button" role="menuitem" className="ac-user-dropdown-item secondary" onClick={() => go('/settings')}>
-                  <Settings className="ac-user-dropdown-ico" size={16} />
+                <div className="ac-user-dropdown-sep" role="separator" />
+                <button type="button" role="menuitem" className="ac-user-dropdown-item" onClick={() => go('/settings')}>
+                  <span className="ac-user-dropdown-ico" aria-hidden>
+                    <Settings size={16} strokeWidth={1.9} />
+                  </span>
                   <span><b>Paramètres</b><i>Compte et préférences</i></span>
+                  <ChevronRight className="ac-user-dropdown-chev" size={14} aria-hidden />
                 </button>
-                <button type="button" role="menuitem" className="ac-user-dropdown-item secondary" onClick={() => go('/whats-new')}>
-                  <Sparkles className="ac-user-dropdown-ico" size={16} />
+                <button type="button" role="menuitem" className="ac-user-dropdown-item" onClick={() => go('/whats-new')}>
+                  <span className="ac-user-dropdown-ico" aria-hidden>
+                    <Sparkles size={16} strokeWidth={1.9} />
+                  </span>
                   <span><b>Nouveautés</b><i>Journal des versions</i></span>
+                  <ChevronRight className="ac-user-dropdown-chev" size={14} aria-hidden />
                 </button>
-                <button type="button" role="menuitem" className="ac-user-dropdown-item secondary" onClick={() => go('/about')}>
-                  <Info className="ac-user-dropdown-ico" size={16} />
+                <button type="button" role="menuitem" className="ac-user-dropdown-item" onClick={() => go('/about')}>
+                  <span className="ac-user-dropdown-ico" aria-hidden>
+                    <Info size={16} strokeWidth={1.9} />
+                  </span>
                   <span><b>À propos</b><i>Version et légal</i></span>
+                  <ChevronRight className="ac-user-dropdown-chev" size={14} aria-hidden />
                 </button>
-                <button type="button" role="menuitem" className="ac-user-dropdown-item ac-user-dropdown-logout secondary" onClick={() => { setOpen(false); onLogout(); }}>
-                  <LogOut className="ac-user-dropdown-ico" size={16} />
+                <div className="ac-user-dropdown-sep" role="separator" />
+                <button type="button" role="menuitem" className="ac-user-dropdown-item ac-user-dropdown-item--danger ac-user-dropdown-logout" onClick={() => { setOpen(false); onLogout(); }}>
+                  <span className="ac-user-dropdown-ico" aria-hidden>
+                    <LogOut size={16} strokeWidth={1.9} />
+                  </span>
                   <span><b>Déconnexion</b><i>Terminer la session</i></span>
                 </button>
               </div>

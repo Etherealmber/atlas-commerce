@@ -98,6 +98,24 @@ function niceMax(raw: number) {
   return nice * mag;
 }
 
+function smoothAreaPath(pts: { x: number; y: number }[]) {
+  if (!pts.length) return '';
+  if (pts.length === 1) return `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
+  let d = `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[Math.max(0, i - 1)];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[Math.min(pts.length - 1, i + 2)];
+    const c1x = p1.x + (p2.x - p0.x) / 6;
+    const c1y = p1.y + (p2.y - p0.y) / 6;
+    const c2x = p2.x - (p3.x - p1.x) / 6;
+    const c2y = p2.y - (p3.y - p1.y) / 6;
+    d += ` C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
+  }
+  return d;
+}
+
 function BarChart({
   series,
   keys,
@@ -106,12 +124,7 @@ function BarChart({
   keys: { key: string; label: string; color: string }[];
   colors?: string[];
 }) {
-  // Dual-tone greyscale pairs (reference Total Revenue style)
-  const toneKeys = keys.map((k, i) => ({
-    ...k,
-    color: i % 2 === 0 ? '#d4d4d8' : '#52525b',
-  }));
-  keys = toneKeys;
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   if (!series.length) {
     return (
       <div className="ac-dash-empty" style={{ minHeight: 160 }}>
@@ -125,15 +138,15 @@ function BarChart({
   const n = series.length;
   const labelEvery = n <= 6 ? 1 : n <= 12 ? 1 : n <= 18 ? 2 : 3;
   const leftPad = 44;
-  const rightPad = 12;
-  const topPad = 12;
+  const rightPad = 14;
+  const topPad = 14;
   const bottomPad = 28;
-  const barAreaMinW = Math.max(28, Math.min(48, Math.floor(720 / Math.max(n, 1))));
+  const barAreaMinW = Math.max(32, Math.min(54, Math.floor(720 / Math.max(n, 1))));
   const w = leftPad + rightPad + n * barAreaMinW;
-  const h = 200;
+  const h = 210;
   const plotH = h - topPad - bottomPad;
   const groupW = (w - leftPad - rightPad) / Math.max(1, n);
-  const barW = Math.min(14, Math.max(3, (groupW - 6) / Math.max(1, keys.length)));
+  const barW = Math.min(16, Math.max(4, (groupW - 8) / Math.max(1, keys.length)));
 
   const yearStarts = new Set<number>();
   series.forEach((s, i) => {
@@ -147,91 +160,130 @@ function BarChart({
     y: topPad + plotH * (1 - t),
   }));
 
+  const activePoint = hoverIdx != null ? series[hoverIdx] : null;
 
   return (
-    <div style={{ width: '100%', overflowX: n > 14 ? 'auto' : 'visible' }}>
-      {allZero && (
-        <p style={{ margin: '0 0 8px', fontSize: 12, color: 'var(--ac-muted)', textAlign: 'center' }}>
-          Aucun mouvement sur cette période — les barres resteront à 0.
-        </p>
-      )}
-      <svg
-        viewBox={`0 0 ${w} ${h}`}
-        width="100%"
-        style={{ maxHeight: 280, minWidth: n > 14 ? w : undefined, display: 'block' }}
-        role="img"
-        aria-label="Graphique"
-        className="ac-bionis-chart"
-      >
-        <defs>
+    <div style={{ width: '100%' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+        <div className="ac-chart-legend" style={{ margin: 0 }}>
           {keys.map((k) => (
-            <linearGradient key={`g-${k.key}`} id={`ac-bar-${k.key}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={k.color} stopOpacity="1" />
-              <stop offset="100%" stopColor={k.color} stopOpacity="0.75" />
-            </linearGradient>
+            <span key={k.key} className="ac-chart-legend-item">
+              <i style={{ background: k.color }} />
+              {k.label}
+            </span>
           ))}
-        </defs>
-        {ticks.map(({ t, v, y }) => (
-          <g key={t}>
-            <line x1={leftPad} x2={w - rightPad} y1={y} y2={y} stroke="var(--ac-line)" strokeWidth="1" strokeDasharray={t === 0 ? undefined : '4 4'} opacity={t === 0 ? 1 : 0.7} />
-            <text x={leftPad - 6} y={y + 3} fontSize="10" fill="var(--ac-muted)" textAnchor="end">
-              {formatAxisVal(v, max)}
-            </text>
-          </g>
-        ))}
-        {series.map((s, i) => {
-          const x0 = leftPad + i * groupW + groupW / 2;
-          const lab = shortMonthLabel(s);
-          const showLabel = i % labelEvery === 0 || i === n - 1 || yearStarts.has(i);
-          return (
-            <g key={s.key || i}>
-              {yearStarts.has(i) && (
-                <line
-                  x1={x0 - groupW / 2}
-                  x2={x0 - groupW / 2}
-                  y1={topPad}
-                  y2={topPad + plotH}
-                  stroke="var(--ac-line)"
-                  strokeWidth="1"
-                  strokeDasharray="3 3"
-                />
-              )}
-              {keys.map((k, ki) => {
-                const val = Number(s[k.key] || 0);
-                const bh = max > 0 ? (val / max) * plotH : 0;
-                const x = x0 - (keys.length * barW) / 2 + ki * barW;
-                const y = topPad + plotH - bh;
-                return (
-                  <rect
-                    key={k.key}
-                    x={x}
-                    y={y}
-                    width={Math.max(2, barW - 1)}
-                    height={Math.max(0, bh)}
-                    rx={6}
-                    fill={`url(#ac-bar-${k.key})`}
-                    className="ac-chart-bar"
-                  >
-                    <title>{`${lab} · ${k.label}: ${val}`}</title>
-                  </rect>
-                );
-              })}
-              {showLabel && (
-                <text
-                  x={x0}
-                  y={h - 8}
-                  fontSize={n > 18 ? 9 : 10}
-                  fill="#9aa3b5"
-                  textAnchor="middle"
-                  fontWeight={yearStarts.has(i) ? 700 : 500}
-                >
-                  {lab}
-                </text>
-              )}
+        </div>
+        {activePoint && (
+          <div style={{ fontSize: 12, color: 'var(--ac-muted)', display: 'flex', gap: 10, alignItems: 'center' }}>
+            <strong style={{ color: 'var(--ac-ink)' }}>{shortMonthLabel(activePoint)}</strong>
+            {keys.map((k) => (
+              <span key={k.key}>
+                {k.label}: <strong style={{ color: k.color }}>{Math.round(Number(activePoint[k.key] || 0)).toLocaleString('fr-FR')}</strong>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+      <div style={{ width: '100%', overflowX: n > 14 ? 'auto' : 'visible' }}>
+        {allZero && (
+          <p style={{ margin: '0 0 8px', fontSize: 12, color: 'var(--ac-muted)', textAlign: 'center' }}>
+            Aucun mouvement sur cette période — les barres resteront à 0.
+          </p>
+        )}
+        <svg
+          viewBox={`0 0 ${w} ${h}`}
+          width="100%"
+          style={{ maxHeight: 280, minWidth: n > 14 ? w : undefined, display: 'block' }}
+          role="img"
+          aria-label="Graphique"
+          className="ac-bionis-chart"
+          onMouseLeave={() => setHoverIdx(null)}
+        >
+          <defs>
+            {keys.map((k) => (
+              <linearGradient key={`g-${k.key}`} id={`ac-bar-${k.key}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={k.color} stopOpacity="0.96" />
+                <stop offset="100%" stopColor={k.color} stopOpacity="0.68" />
+              </linearGradient>
+            ))}
+          </defs>
+          {ticks.map(({ t, v, y }) => (
+            <g key={t}>
+              <line x1={leftPad} x2={w - rightPad} y1={y} y2={y} stroke="var(--ac-line)" strokeWidth="1" strokeDasharray={t === 0 ? undefined : '4 4'} opacity={t === 0 ? 1 : 0.55} />
+              <text x={leftPad - 6} y={y + 3} fontSize="10" fill="var(--ac-muted)" textAnchor="end">
+                {formatAxisVal(v, max)}
+              </text>
             </g>
-          );
-        })}
-      </svg>
+          ))}
+          {series.map((s, i) => {
+            const x0 = leftPad + i * groupW + groupW / 2;
+            const lab = shortMonthLabel(s);
+            const showLabel = i % labelEvery === 0 || i === n - 1 || yearStarts.has(i);
+            const isActive = hoverIdx === i;
+            return (
+              <g
+                key={s.key || i}
+                onMouseEnter={() => setHoverIdx(i)}
+                style={{ cursor: 'pointer' }}
+              >
+                <rect
+                  x={leftPad + i * groupW}
+                  y={topPad}
+                  width={groupW}
+                  height={plotH}
+                  rx={6}
+                  fill={isActive ? 'var(--ac-line)' : 'transparent'}
+                  opacity={isActive ? 0.22 : 0}
+                />
+                {yearStarts.has(i) && (
+                  <line
+                    x1={x0 - groupW / 2}
+                    x2={x0 - groupW / 2}
+                    y1={topPad}
+                    y2={topPad + plotH}
+                    stroke="var(--ac-line)"
+                    strokeWidth="1"
+                    strokeDasharray="3 3"
+                  />
+                )}
+                {keys.map((k, ki) => {
+                  const val = Number(s[k.key] || 0);
+                  const bh = max > 0 ? (val / max) * plotH : 0;
+                  const x = x0 - (keys.length * barW) / 2 + ki * barW;
+                  const y = topPad + plotH - bh;
+                  return (
+                    <rect
+                      key={k.key}
+                      x={x}
+                      y={y}
+                      width={Math.max(3, barW - 2)}
+                      height={Math.max(0, bh)}
+                      rx={4}
+                      fill={`url(#ac-bar-${k.key})`}
+                      opacity={hoverIdx == null || isActive ? 1 : 0.55}
+                      className="ac-chart-bar"
+                    >
+                      <title>{`${lab} · ${k.label}: ${Math.round(val).toLocaleString('fr-FR')}`}</title>
+                    </rect>
+                  );
+                })}
+                {showLabel && (
+                  <text
+                    x={x0}
+                    y={h - 8}
+                    fontSize={n > 18 ? 9 : 10}
+                    fill={isActive ? 'var(--ac-ink)' : 'var(--ac-muted)'}
+                    textAnchor="middle"
+                    fontWeight={isActive || yearStarts.has(i) ? 700 : 500}
+                  >
+                    {lab}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+        </svg>
+      </div>
     </div>
   );
 }
@@ -295,7 +347,7 @@ function LineChart({
 }
 
 
-/** Bionis-style area chart (filled path + stroke). */
+/** Smooth area chart with hover crosshair and crisp gradient fills. */
 function AreaChart({
   series,
   keys,
@@ -305,7 +357,7 @@ function AreaChart({
   keys: { key: string; label: string; color: string }[];
   height?: number;
 }) {
-  // Always draw axes + baseline — even when every value is 0
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const safeSeries =
     series.length > 0
       ? series
@@ -318,16 +370,16 @@ function AreaChart({
   const max = niceMax(rawMax || 0) || 1;
   const n = safeSeries.length;
   const leftPad = 44;
-  const rightPad = 12;
+  const rightPad = 14;
   const topPad = 16;
   const bottomPad = 28;
-  const w = Math.max(320, leftPad + rightPad + n * 36);
+  const w = Math.max(320, leftPad + rightPad + n * 38);
   const h = height;
   const plotH = h - topPad - bottomPad;
   const plotW = w - leftPad - rightPad;
 
   const xAt = (i: number) => leftPad + (n <= 1 ? plotW / 2 : (i / (n - 1)) * plotW);
-  const yAt = (v: number) => topPad + plotH * (1 - (max > 0 ? Number(v) / max : 0));
+  const yAt = (v: number) => topPad + plotH * (1 - Math.max(0, Math.min(1, max > 0 ? Number(v) / max : 0)));
 
   const ticks = [0, 0.25, 0.5, 0.75, 1].map((t) => ({
     t,
@@ -337,7 +389,7 @@ function AreaChart({
 
   const paths = keys.map((k) => {
     const pts = safeSeries.map((s, i) => ({ x: xAt(i), y: yAt(Number(s[k.key] || 0)), v: Number(s[k.key] || 0) }));
-    const line = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+    const line = smoothAreaPath(pts);
     const area =
       pts.length > 0
         ? `${line} L${pts[pts.length - 1].x.toFixed(1)},${(topPad + plotH).toFixed(1)} L${pts[0].x.toFixed(1)},${(topPad + plotH).toFixed(1)} Z`
@@ -345,75 +397,132 @@ function AreaChart({
     return { k, pts, line, area };
   });
 
+  const activePoint = hoverIdx != null ? safeSeries[hoverIdx] : null;
+  const colW = n > 1 ? plotW / (n - 1) : plotW;
+
   return (
-    <div style={{ width: '100%', overflowX: n > 14 ? 'auto' : 'visible' }}>
-      {allZero && (
-        <p style={{ margin: '0 0 8px', fontSize: 12, color: 'var(--ac-muted, #71717a)', textAlign: 'center' }}>
-          Aucune entrée/sortie sur cette période.
-        </p>
-      )}
-      <svg
-        viewBox={`0 0 ${w} ${h}`}
-        width="100%"
-        style={{ maxHeight: height + 20, minWidth: n > 14 ? w : undefined, display: 'block' }}
-        role="img"
-        aria-label="Graphique aire"
-        className="ac-bionis-chart ac-area-chart"
-      >
-        <defs>
+    <div style={{ width: '100%' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 6 }}>
+        <div className="ac-chart-legend" style={{ margin: 0 }}>
           {keys.map((k) => (
-            <linearGradient key={`ag-${k.key}`} id={`ac-area-${k.key}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={k.color} stopOpacity="0.35" />
-              <stop offset="100%" stopColor={k.color} stopOpacity="0.02" />
-            </linearGradient>
+            <span key={k.key} className="ac-chart-legend-item">
+              <i style={{ background: k.color }} />
+              {k.label}
+            </span>
           ))}
-        </defs>
-        {ticks.map(({ t, v, y }) => (
-          <g key={t}>
-            <line
-              x1={leftPad}
-              x2={w - rightPad}
-              y1={y}
-              y2={y}
-              stroke="var(--ac-line)"
-              strokeWidth="1"
-              strokeDasharray={t === 0 ? undefined : '4 4'}
-              opacity={t === 0 ? 1 : 0.65}
-            />
-            <text x={leftPad - 6} y={y + 3} fontSize="10" fill="var(--ac-muted)" textAnchor="end">
-              {formatAxisVal(v, max)}
-            </text>
-          </g>
-        ))}
-        {paths.map(({ k, line, area, pts }) => (
-          <g key={k.key}>
-            {area && <path d={area} fill={`url(#ac-area-${k.key})`} className="ac-chart-area" />}
-            <path d={line} fill="none" stroke={k.color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="ac-chart-line" />
-            {pts.map((pt, i) => (
-              <circle key={i} cx={pt.x} cy={pt.y} r="3.5" fill="#fff" stroke={k.color} strokeWidth="2" className="ac-chart-dot">
-                <title>{`${shortMonthLabel(safeSeries[i] || {})} · ${k.label}: ${pt.v}`}</title>
-              </circle>
+        </div>
+        {activePoint && (
+          <div style={{ fontSize: 12, color: 'var(--ac-muted)', display: 'flex', gap: 10, alignItems: 'center' }}>
+            <strong style={{ color: 'var(--ac-ink)' }}>{shortMonthLabel(activePoint)}</strong>
+            {keys.map((k) => (
+              <span key={k.key}>
+                {k.label}: <strong style={{ color: k.color }}>{Math.round(Number(activePoint[k.key] || 0)).toLocaleString('fr-FR')}</strong>
+              </span>
             ))}
-          </g>
-        ))}
-        {safeSeries.map((s, i) => {
-          const lab = shortMonthLabel(s);
-          const show = n <= 12 || i % Math.ceil(n / 8) === 0 || i === n - 1;
-          if (!show) return null;
-          return (
-            <text key={s.key || i} x={xAt(i)} y={h - 8} fontSize={n > 18 ? 9 : 10} fill="#71717a" textAnchor="middle">
-              {lab}
-            </text>
-          );
-        })}
-      </svg>
-      <div className="ac-chart-legend">
-        {keys.map((k) => (
-          <span key={k.key} className="ac-chart-legend-item">
-            <i style={{ background: k.color }} />
-            {k.label}
-          </span>
-        ))}
+          </div>
+        )}
+      </div>
+      <div style={{ width: '100%', overflowX: n > 14 ? 'auto' : 'visible' }}>
+        {allZero && (
+          <p style={{ margin: '0 0 8px', fontSize: 12, color: 'var(--ac-muted, #71717a)', textAlign: 'center' }}>
+            Aucune entrée/sortie sur cette période.
+          </p>
+        )}
+        <svg
+          viewBox={`0 0 ${w} ${h}`}
+          width="100%"
+          style={{ maxHeight: height + 20, minWidth: n > 14 ? w : undefined, display: 'block' }}
+          role="img"
+          aria-label="Graphique aire"
+          className="ac-bionis-chart ac-area-chart"
+          onMouseLeave={() => setHoverIdx(null)}
+        >
+          <defs>
+            {keys.map((k) => (
+              <linearGradient key={`ag-${k.key}`} id={`ac-area-${k.key}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={k.color} stopOpacity="0.28" />
+                <stop offset="100%" stopColor={k.color} stopOpacity="0.02" />
+              </linearGradient>
+            ))}
+          </defs>
+          {ticks.map(({ t, v, y }) => (
+            <g key={t}>
+              <line
+                x1={leftPad}
+                x2={w - rightPad}
+                y1={y}
+                y2={y}
+                stroke="var(--ac-line)"
+                strokeWidth="1"
+                strokeDasharray={t === 0 ? undefined : '4 4'}
+                opacity={t === 0 ? 1 : 0.55}
+              />
+              <text x={leftPad - 6} y={y + 3} fontSize="10" fill="var(--ac-muted)" textAnchor="end">
+                {formatAxisVal(v, max)}
+              </text>
+            </g>
+          ))}
+          {hoverIdx != null && (
+            <line
+              x1={xAt(hoverIdx)}
+              x2={xAt(hoverIdx)}
+              y1={topPad}
+              y2={topPad + plotH}
+              stroke="var(--ac-muted)"
+              strokeWidth="1"
+              strokeDasharray="3 3"
+              opacity={0.7}
+            />
+          )}
+          {paths.map(({ k, line, area, pts }) => (
+            <g key={k.key}>
+              {area && <path d={area} fill={`url(#ac-area-${k.key})`} className="ac-chart-area" />}
+              <path d={line} fill="none" stroke={k.color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="ac-chart-line" />
+              {pts.map((pt, i) => (
+                <circle
+                  key={i}
+                  cx={pt.x}
+                  cy={pt.y}
+                  r={hoverIdx === i ? 5 : 3.2}
+                  fill="var(--ac-surface, #fff)"
+                  stroke={k.color}
+                  strokeWidth={hoverIdx === i ? 2.5 : 2}
+                  className="ac-chart-dot"
+                >
+                  <title>{`${shortMonthLabel(safeSeries[i] || {})} · ${k.label}: ${Math.round(pt.v).toLocaleString('fr-FR')}`}</title>
+                </circle>
+              ))}
+            </g>
+          ))}
+          {safeSeries.map((s, i) => {
+            const cx = xAt(i);
+            const lab = shortMonthLabel(s);
+            const show = n <= 12 || i % Math.ceil(n / 8) === 0 || i === n - 1;
+            return (
+              <g key={s.key || i} onMouseEnter={() => setHoverIdx(i)} style={{ cursor: 'pointer' }}>
+                <rect
+                  x={Math.max(leftPad, cx - colW / 2)}
+                  y={topPad}
+                  width={colW}
+                  height={plotH}
+                  fill="transparent"
+                />
+                {show && (
+                  <text
+                    x={cx}
+                    y={h - 8}
+                    fontSize={n > 18 ? 9 : 10}
+                    fill={hoverIdx === i ? 'var(--ac-ink)' : 'var(--ac-muted)'}
+                    fontWeight={hoverIdx === i ? 700 : 500}
+                    textAnchor="middle"
+                  >
+                    {lab}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+        </svg>
       </div>
     </div>
   );
@@ -438,8 +547,8 @@ function HBarChart({
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {items.slice(0, 8).map((it) => (
         <div key={it.label} style={{ display: 'grid', gridTemplateColumns: '100px 1fr 72px', gap: 8, alignItems: 'center' }}>
-          <span style={{ fontSize: 12, color: '#9aa3b5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={it.label}>{it.label}</span>
-          <div style={{ height: 10, background: '#f0ebe3', borderRadius: 99, overflow: 'hidden' }}>
+          <span style={{ fontSize: 12, color: 'var(--ac-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={it.label}>{it.label}</span>
+          <div style={{ height: 10, background: 'var(--ac-line, #e4e4e7)', borderRadius: 99, overflow: 'hidden' }}>
             <div style={{ width: `${Math.min(100, (Math.abs(it.value) / max) * 100)}%`, height: '100%', background: color, borderRadius: 99 }} />
           </div>
           <span style={{ fontSize: 12, fontWeight: 600, textAlign: 'right' }}>{Math.round(it.value).toLocaleString('fr-FR')}</span>
@@ -466,17 +575,16 @@ function DonutChart({
   const size = 160;
   const cx = size / 2;
   const cy = size / 2;
-  // Force greyscale palette like reference
-  const greys = ['#a3a3a3', '#737373', '#525252', '#262626', '#d4d4d4'];
+  const fallbackPalette = ['#2563eb', '#0ea5e9', '#d97706', '#dc2626', '#71717a'];
   return (
     <div className="ac-donut">
       <div className="ac-donut-ring" style={{ width: size, height: size }}>
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-          <circle cx={cx} cy={cy} r={r} fill="none" stroke="#f4f4f5" strokeWidth="18" />
+          <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--ac-line, #e4e4e7)" strokeWidth="16" opacity="0.45" />
           {segments.map((seg, i) => {
             const frac = Math.max(0, seg.value) / total;
             const dash = frac * c;
-            const stroke = greys[i % greys.length];
+            const stroke = seg.color || fallbackPalette[i % fallbackPalette.length];
             const el = (
               <circle
                 key={i}
@@ -485,12 +593,14 @@ function DonutChart({
                 r={r}
                 fill="none"
                 stroke={stroke}
-                strokeWidth="18"
+                strokeWidth="16"
                 strokeDasharray={`${dash} ${c - dash}`}
                 strokeDashoffset={-offset}
                 strokeLinecap="butt"
                 transform={`rotate(-90 ${cx} ${cy})`}
-              />
+              >
+                <title>{`${seg.label}: ${Math.round(seg.value).toLocaleString('fr-FR')}`}</title>
+              </circle>
             );
             offset += dash;
             return el;
@@ -504,7 +614,7 @@ function DonutChart({
       <ul className="ac-donut-legend">
         {segments.map((seg, i) => (
           <li key={i}>
-            <i style={{ background: greys[i % greys.length] }} />
+            <i style={{ background: seg.color || fallbackPalette[i % fallbackPalette.length] }} />
             {seg.label}
           </li>
         ))}
@@ -621,16 +731,17 @@ export default function Dashboard() {
     let stopped = false;
     let timer: number | null = null;
     let failStreak = 0;
-    const baseMs = 90000;
+    let lastLoadedAt = 0;
+    const baseMs = 300_000;
 
     const schedule = () => {
       if (stopped) return;
       if (timer) window.clearTimeout(timer);
-      // Pause when tab hidden; backoff on errors (30s → 60s → 120s max)
+      // Pause when tab hidden; calmer 5-minute refresh + exponential backoff on errors
       const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
       const delay = hidden
-        ? baseMs * 4
-        : Math.min(baseMs * Math.pow(2, Math.min(failStreak, 2)), 120000);
+        ? baseMs * 3
+        : Math.min(baseMs * Math.pow(2, Math.min(failStreak, 2)), 900_000);
       timer = window.setTimeout(() => void load(true), delay);
     };
 
@@ -647,6 +758,7 @@ export default function Dashboard() {
           api.getStockLocations().catch(() => ({ data: [] })),
         ]);
         if (stopped) return;
+        lastLoadedAt = Date.now();
         setData(dash.data);
         setActions(ac.data || []);
         setProducts(pr.data || []);
@@ -669,8 +781,11 @@ export default function Dashboard() {
 
     void load();
     const onVis = () => {
-      if (document.visibilityState === 'visible') void load(true);
-      else schedule();
+      if (document.visibilityState === 'visible') {
+        if (Date.now() - lastLoadedAt > 90_000) void load(true);
+      } else {
+        schedule();
+      }
     };
     document.addEventListener('visibilitychange', onVis);
     return () => {

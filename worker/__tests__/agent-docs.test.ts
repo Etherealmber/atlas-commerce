@@ -24,7 +24,7 @@ import {
   agentDocumentPromptSection,
   type AgentDocExcerpt,
 } from '../lib/agent-docs';
-import { groqChatStream } from '../lib/groq-assist';
+import { groqChatStream } from '../lib/assist';
 
 /* ─────────────────────────── fixtures ─────────────────────────── */
 

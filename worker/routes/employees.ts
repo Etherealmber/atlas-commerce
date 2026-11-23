@@ -1,4 +1,5 @@
 import { afterBusinessMutation } from '../lib/delete-coord';
+import { doCacheGet, doCachePut, hasLiveCache } from '../lib/cache';
 import { addColumnIfMissing } from '../lib/schema';
 import { round2, roundCurrency, roundTo } from '../lib/financeCore';
 import { extractIdempotencyKey, idempotencyGet, idempotencyPut } from '../lib/ledgerHelpers';
@@ -642,6 +643,11 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps): 
       .trim()
       .toLowerCase();
     const category = String(c.req.query('category') || '').trim();
+    const cacheKey = !q ? `employees:list:s=${status}:c=${category}` : '';
+    if (cacheKey && hasLiveCache(c.env)) {
+      const hit = await doCacheGet<{ data: any[]; categories: string[] }>(c.env.MOBILE_HUB, c.env.CACHE, cacheKey, 300);
+      if (hit) return c.json({ success: true, data: hit.data, categories: hit.categories, cached: true });
+    }
     let sql = `SELECT * FROM employees WHERE 1=1`;
     if (status === 'active') sql += ` AND active = 1`;
     else if (status === 'resigned') sql += ` AND active = 0`;
@@ -696,6 +702,9 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps): 
           .filter(Boolean),
       ),
     ].sort((a, b) => a.localeCompare(b, 'fr'));
+    if (cacheKey && hasLiveCache(c.env)) {
+      await doCachePut(c.env.MOBILE_HUB, c.env.CACHE, cacheKey, { data: rows, categories: cats }, 300);
+    }
     return c.json({ success: true, data: rows, categories: cats });
   });
 
@@ -769,7 +778,7 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps): 
         str(body, 'user_username').trim().toLowerCase().slice(0, 64),
       )
       .run();
-    await afterBusinessMutation(c.env.CACHE);
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     const id = r.meta?.last_row_id;
     const row = id
       ? await c.env.DB.prepare(`SELECT * FROM employees WHERE id = ?`).bind(id).first()
@@ -859,7 +868,7 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps): 
         id,
       )
       .run();
-    await afterBusinessMutation(c.env.CACHE);
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     const row = await c.env.DB.prepare(`SELECT * FROM employees WHERE id = ?`).bind(id).first();
     try { await persistHrExtras(c.env.DB, Number(id), body); } catch { /* */ }
     return c.json({ success: true, data: enrich(row), message: 'Employé mis à jour' });
@@ -882,7 +891,7 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps): 
     )
       .bind(day, reason, id)
       .run();
-    await afterBusinessMutation(c.env.CACHE);
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     const row = await c.env.DB.prepare(`SELECT * FROM employees WHERE id = ?`).bind(id).first();
     return c.json({
       success: true,
@@ -903,7 +912,7 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps): 
     )
       .bind(returned, id)
       .run();
-    await afterBusinessMutation(c.env.CACHE);
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     const row = await c.env.DB.prepare(`SELECT * FROM employees WHERE id = ?`).bind(id).first();
     return c.json({ success: true, data: enrich(row), message: 'Employé réactivé' });
   });
@@ -1039,7 +1048,7 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps): 
     )
       .bind(key, fileName, id)
       .run();
-    await afterBusinessMutation(c.env.CACHE);
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
 
     // parse suggestions for client review
     let fields: Record<string, string> = {};
@@ -1237,7 +1246,7 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps): 
         code: 'ADVANCE_CONFLICT',
       }, 409);
     }
-    await afterBusinessMutation(c.env.CACHE);
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     try {
       // Notify list/badge listeners (same channel as other mutations)
       if (typeof (c.env as any).MOBILE_HUB !== 'undefined') {
@@ -1368,7 +1377,7 @@ app.post('/api/employees/:id/pay', async (c) => {
       }, 409);
     }
 
-    await afterBusinessMutation(c.env.CACHE);
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     try {
       if (c.env.CACHE) await c.env.CACHE.delete('dashboard:v1');
     } catch {
@@ -1407,7 +1416,7 @@ app.post('/api/employees/:id/pay', async (c) => {
     if (emp.id_doc_key && c.env.IMAGES) {
       try { await c.env.IMAGES.delete(String(emp.id_doc_key)); } catch { /* best effort */ }
     }
-    await afterBusinessMutation(c.env.CACHE);
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     return c.json({
       success: true,
       message: `Employé ${emp.name || id} supprimé. L’historique des paiements est conservé.`,

@@ -10,6 +10,7 @@ import {
   DEFAULT_CACHE_TTL,
 } from '../lib/cache';
 import { uploadDataUrlImage } from '../lib/r2';
+import { purgeDeletedAccountFromBackups } from './backups';
 import { listAllToolNames } from '../lib/agent';
 import {
   ensureHmacKeyColumns,
@@ -138,7 +139,15 @@ app.delete('/api/admin/users/:id', async (c) => {
   await ensureSecurityTables(c.env.DB);
   const row = await c.env.DB.prepare(`SELECT * FROM app_users WHERE id = ?`).bind(id).first() as any;
   if (!row) return c.json({ success: false, error: 'Utilisateur introuvable' }, 404);
+  const uname = String(row.username || '').trim().toLowerCase();
   await c.env.DB.prepare(`DELETE FROM app_users WHERE id = ?`).bind(id).run();
+  if (uname) {
+    try { await c.env.DB.prepare(`DELETE FROM trusted_devices WHERE lower(username) = ?`).bind(uname).run(); } catch { /* */ }
+    try { await c.env.DB.prepare(`DELETE FROM webauthn_credentials WHERE lower(username) = ?`).bind(uname).run(); } catch { /* */ }
+    try { await c.env.DB.prepare(`DELETE FROM push_tokens WHERE lower(username) = ?`).bind(uname).run(); } catch { /* */ }
+    try { await c.env.DB.prepare(`DELETE FROM device_push_tokens WHERE lower(username) = ?`).bind(uname).run(); } catch { /* */ }
+    try { await purgeDeletedAccountFromBackups(c.env, uname); } catch { /* */ }
+  }
   return c.json({ success: true, message: `Utilisateur « ${row.username} » supprimé.` });
 });
 

@@ -11,7 +11,7 @@ export interface CatalogRouteDeps {
   normalizeProductImageReference: (env: any, productId: any, source: string) => Promise<{ url: string }>;
   isNormalizedProductUrl: (env: any, url: string) => boolean;
   migrateProductImagePage: (db: D1Database, env: any, phase: 'products' | 'images', after: number, limit: number) => Promise<any>;
-  afterBusinessMutation: (kv: any) => Promise<void>;
+  afterBusinessMutation: (kv: any, hub?: any) => Promise<void>;
   sessionUserFromHeader: (authHeader?: string) => { username?: string; role?: string };
   authFailReason: (authHeader: string | undefined, env: any, db: D1Database, ip: string, fp: string) => Promise<string>;
   clientIp: (c: any) => string;
@@ -241,7 +241,7 @@ export function registerCatalogRoutes(app: Hono<any>, deps: CatalogRouteDeps): v
     }
     try {
       const result = await migrateProductImagePage(c.env.DB, c.env, phase, after, limit);
-      if (result.updated) await afterBusinessMutation(c.env.CACHE);
+      if (result.updated) await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
       return c.json({ success: true, data: result });
     } catch { return c.json({ success: false, code: 'SERVICE_UNAVAILABLE' }, 503); }
   });
@@ -291,7 +291,7 @@ export function registerCatalogRoutes(app: Hono<any>, deps: CatalogRouteDeps): v
       : await c.env.DB.prepare(
           `SELECT * FROM product_images WHERE product_id = ? AND url = ? ORDER BY id DESC LIMIT 1`,
         ).bind(id, url).first();
-    await afterBusinessMutation(c.env.CACHE);
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     return c.json({ success: true, data: row ? { ...row, content_type: 'image/webp' } : row, meta: { storage: 'r2', content_type: 'image/webp' } }, 201);
   });
 
@@ -328,7 +328,7 @@ export function registerCatalogRoutes(app: Hono<any>, deps: CatalogRouteDeps): v
     const result = await c.env.DB.batch(statements);
     if (!result[updateIndex].meta?.changes) return c.json({ success: false, code: 'CONFLICT', error: 'Image modifiée entre-temps.' }, 409);
     const row = await c.env.DB.prepare(`SELECT * FROM product_images WHERE id = ?`).bind(imageId).first();
-    await afterBusinessMutation(c.env.CACHE);
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     const normalized = isNormalizedProductUrl(c.env, url);
     return c.json({ success: true, data: row && normalized ? { ...row, content_type: 'image/webp' } : row, message: 'Image mise à jour.' });
   });
@@ -357,7 +357,7 @@ export function registerCatalogRoutes(app: Hono<any>, deps: CatalogRouteDeps): v
         }
       } catch { /* */ }
     }
-    await afterBusinessMutation(c.env.CACHE);
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     return c.json({ success: true, message: 'Image supprimée.' });
   });
 

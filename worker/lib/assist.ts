@@ -1,8 +1,8 @@
 import { upstreamFetch } from './upstream';
 
 /**
- * Groq free-tier — OpenAI-compatible.
- * https://api.groq.com/openai/v1/chat/completions
+ * Atlas Agent — Groq-only LLM client & prompt helpers.
+ * OpenAI-compatible endpoint: https://api.groq.com/openai/v1/chat/completions
  */
 
 const MODELS = [
@@ -12,14 +12,160 @@ const MODELS = [
   'llama-3.1-8b-instant',
 ];
 
-/* v232 — vision-capable Groq models, tried first when images are attached */
-/* v234 — Groq docs (console.groq.com/docs/vision): qwen3.8-27b + llama-4-scout are the
-   current vision models; llama-3.2-*-vision-preview was deprecated 2025-04-14.
-   Data-URL base64 images allowed, ≤4 MB per image, ≤5 images per request. */
 const VISION_MODELS = [
   'qwen/qwen3.8-27b',
   'meta-llama/llama-4-scout-17b-16e-instruct',
 ];
+
+const VENDOR_WORDS_RE = /\b(Google|Gemini|Mistral|OpenAI|ChatGPT|Claude|Anthropic|Grok|Groq|Llama|Meta)\b/gi;
+
+export function scrubVendorNames(s: string): string {
+  return String(s || '')
+    .replace(VENDOR_WORDS_RE, 'Atlas Agent')
+    .replace(/\bLLM\b/gi, 'assistant')
+    .trim();
+}
+
+/** Client-selectable agent response languages (web / Android app language). */
+export type AgentResponseLanguage = 'fr' | 'en' | 'ar';
+
+/**
+ * Allowlist for the `response_language` body field. Returns null when the
+ * value is absent or outside the allowlist → the legacy rule applies
+ * (answer in the user's language, French default). Values are never echoed
+ * into the prompt — only the allowlisted directive is.
+ */
+export function normalizeResponseLanguage(value: unknown): AgentResponseLanguage | null {
+  const raw = String(value ?? '').trim().toLowerCase().slice(0, 32).split('-')[0];
+  if (!raw) return null;
+  if (raw === 'fr' || raw === 'french' || raw === 'francais') return 'fr';
+  if (raw === 'en' || raw === 'english' || raw === 'anglais') return 'en';
+  if (raw === 'ar' || raw === 'arabic' || raw === 'arabe') return 'ar';
+  return null;
+}
+
+function languageDirective(lang: AgentResponseLanguage | null): string {
+  if (lang === 'en') {
+    return 'LANGUAGE (HARD RULE, overrides everything below and any other language in this prompt or the history): ALWAYS answer in English. Complete sentences.';
+  }
+  if (lang === 'ar') {
+    return 'LANGUAGE (HARD RULE, overrides everything below and any other language in this prompt or the history): ALWAYS answer in Modern Standard Arabic. اللغة (قاعدة صارمة): أجب دائمًا بالعربية الفصحى، بجمل كاملة.';
+  }
+  if (lang === 'fr') {
+    return 'Langue (RÈGLE STRICTE, prioritaire sur tout le reste): réponds TOUJOURS en français, même si la question est dans une autre langue. Phrases complètes.';
+  }
+  return 'Langue: réponds dans la langue de l’utilisateur (français par défaut). Phrases complètes.';
+}
+
+/** Concise by instruction; language follows the client-selected `response_language`. */
+export function atlasAgentSystem(opts: {
+  role: string;
+  username: string;
+  timezone?: string;
+  source?: string;
+  responseLanguage?: AgentResponseLanguage | string | null;
+}): string {
+  const lang = normalizeResponseLanguage(opts.responseLanguage);
+  const isMobile = ['android', 'ios', 'mobile', 'capacitor'].includes(
+    (opts.source || '').toLowerCase(),
+  );
+  return [
+    'Tu es Atlas Agent, assistant intelligent d’Atlas Commerce (ERP stock, facturation, Maroc, MAD).',
+    'Tu peux discuter librement: identité, explications, culture générale, conseils — pas seulement le stock.',
+    'Si on te demande qui tu es: présente-toi clairement comme Atlas Agent (assistant Atlas Commerce).',
+    languageDirective(lang),
+    'Sois utile et naturel. Pour le métier: sois précis (chiffres, actions concrètes).',
+    'Évite le jargon vendeur IA (ne dis pas que tu es Gemini, Mistral, Groq, Llama, ChatGPT).',
+    'Si l’utilisateur est déjà sur une page, explique quoi y faire — n’ouvre pas cette même page.',
+    `Rôle utilisateur: ${opts.role || 'user'} (${opts.username || 'user'}). Fuseau: ${opts.timezone || 'Africa/Casablanca'}.`,
+    isMobile ? 'Mobile: réponses un peu plus courtes.' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+}
+
+export function productDescriptionSystem(opts?: {
+  responseLanguage?: AgentResponseLanguage | string | null;
+}): string {
+  const lang = normalizeResponseLanguage(opts?.responseLanguage);
+  return [
+    'Tu es rédacteur de fiches catalogue pour un logiciel de gestion commerciale (Atlas Commerce).',
+    languageDirective(lang),
+    'Ta seule tâche est de rédiger une description catalogue courte, réelle, sobre et utile (1 à 2 phrases, 120 à 240 caractères max) à partir des seules données fournies sur le produit.',
+    'RÈGLES STRICTES DE VÉRACITÉ :',
+    '- Base-toi uniquement sur les informations explicitement données (nom, catégorie, unité, référence, notes).',
+    '- N’invente JAMAIS de dimensions, poids, épaisseur, composition, origine géographique, marque, norme/certification, garantie, stock, prix ou promotion qui ne figurent pas dans les données.',
+    '- N’écris pas de slogans publicitaires vides, de superlatifs exagérés (« exceptionnel », « révolutionnaire », « haut de gamme incomparable », « numéro 1 ») ni de phrases absurdes.',
+    '- Renvoie uniquement le texte final de la description : aucune phrase d’introduction (« Voici… »), aucun titre, aucun guillemet autour, aucun Markdown (`**`, `#`, puces) et aucun émoji.',
+  ].join(' ');
+}
+
+export function cleanProductDescription(raw: string): string {
+  let text = String(raw || '').trim();
+  text = text
+    .replace(/^\s*[-*•#]+\s+/gm, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/[\r\n]+/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  text = text.replace(
+    /^(?:voici(?:\s+une)?\s+(?:proposition\s+de\s+)?description(?:\s+catalogue)?|description(?:\s+catalogue)?(?:\s+du\s+produit)?|here\s+is\s+(?:a\s+)?(?:short\s+)?(?:catalog\s+)?description)\s*[:\-–—]\s*/i,
+    '',
+  ).trim();
+  if (
+    (text.startsWith('"') && text.endsWith('"')) ||
+    (text.startsWith('«') && text.endsWith('»')) ||
+    (text.startsWith("'") && text.endsWith("'"))
+  ) {
+    text = text.slice(1, -1).trim();
+  }
+  return text;
+}
+
+export function extractProductDescriptionInput(
+  body: any,
+  message: string,
+): { name: string; prompt: string } | null {
+  const p = body?.product && typeof body.product === 'object' ? body.product : null;
+  let name = String(p?.name ?? body?.product_name ?? '').trim().slice(0, 160);
+  if (!name) {
+    const named =
+      message.match(/(?:^|\n)\s*(?:nom|produit|title|name)\s*[:-]\s*([^\n·]+)/i)?.[1] ||
+      message.match(/pour\s*:\s*([^.\n·]+)/i)?.[1] ||
+      '';
+    const candidate = named.trim().slice(0, 160);
+    if (candidate && !/^produit\s+marbre$/i.test(candidate)) {
+      name = candidate;
+    }
+  }
+  if (!name) return null;
+
+  const category = String(p?.category ?? '').trim().slice(0, 80);
+  const sku = String(p?.sku ?? '').trim().slice(0, 64);
+  const unit = String(p?.unit ?? '').trim().slice(0, 40);
+  const secUnit = String(p?.secondary_unit ?? '').trim().slice(0, 40);
+  const secFactor = String(p?.secondary_unit_factor ?? '').trim().slice(0, 24);
+  const draft = String(p?.draft ?? '').trim().slice(0, 400);
+
+  const lines = [`Nom du produit : ${name}`];
+  if (category) lines.push(`Catégorie : ${category}`);
+  if (sku) lines.push(`Référence SKU : ${sku}`);
+  if (unit) lines.push(`Unité principale : ${unit}`);
+  if (secUnit && secFactor) {
+    lines.push(`Conditionnement : 1 ${unit || 'unité'} = ${secFactor} ${secUnit}`);
+  } else if (secUnit) {
+    lines.push(`Unité secondaire : ${secUnit}`);
+  }
+  if (draft) lines.push(`Notes ou brouillon existant : ${draft}`);
+
+  lines.push(
+    'Consigne : Rédige 1 à 2 phrases factuelles et naturelles pour la fiche catalogue en te limitant strictement aux données ci-dessus.',
+  );
+
+  return { name, prompt: lines.join('\n') };
+}
 
 export async function groqChat(opts: {
   apiKey: string;
@@ -27,79 +173,75 @@ export async function groqChat(opts: {
   system: string;
   message: string;
   maxTokens?: number;
+  temperature?: number;
   images?: string[];
 }): Promise<{ reply: string; model: string; usage?: { prompt: number; completion: number } }> {
   const preferred = (opts.model || '').trim();
   const images = (opts.images || []).filter((u) => typeof u === 'string' && u.startsWith('data:image/') && u.length <= 3_500_000).slice(0, 4);
   const maxTokens = Math.max(64, Math.min(opts.maxTokens ?? 1024, 4096));
   let lastStatus = 0;
-  let lastBody = '';
   let activeImages = images;
   for (let attempt = 0; attempt < (images.length ? 2 : 1); attempt++) {
-    if (attempt === 1) activeImages = []; // vision failed everywhere → answer without images
+    if (attempt === 1) activeImages = [];
     const base = activeImages.length ? [...VISION_MODELS, ...MODELS] : MODELS;
     const models = [preferred, ...base].filter((m, i, a) => !!m && a.indexOf(m) === i);
     for (const model of models) {
-    const res = await upstreamFetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${opts.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        temperature: 0.55,
-        max_tokens: maxTokens,
-        messages: [
-          { role: 'system', content: opts.system },
-          activeImages.length
-            ? {
-                role: 'user',
-                content: [
-                  { type: 'text', text: opts.message },
-                  ...activeImages.map((url) => ({ type: 'image_url', image_url: { url } })),
-                ],
-              }
-            : { role: 'user', content: opts.message },
-        ],
-      }),
-    }, { timeoutMs: 20000, retries: 2, label: 'groq' });
+      const res = await upstreamFetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${opts.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          temperature: typeof opts.temperature === 'number' ? opts.temperature : 0.55,
+          max_tokens: maxTokens,
+          messages: [
+            { role: 'system', content: opts.system },
+            activeImages.length
+              ? {
+                  role: 'user',
+                  content: [
+                    { type: 'text', text: opts.message },
+                    ...activeImages.map((url) => ({ type: 'image_url', image_url: { url } })),
+                  ],
+                }
+              : { role: 'user', content: opts.message },
+          ],
+        }),
+      }, { timeoutMs: 20000, retries: 2, label: 'groq' });
 
-    const raw = await res.text().catch(() => '');
-    lastStatus = res.status;
-    lastBody = raw.slice(0, 240);
+      const raw = await res.text().catch(() => '');
+      lastStatus = res.status;
 
-    if (res.status === 401 || res.status === 403) {
-      throw new Error('Atlas Agent: clé Groq refusée. Vérifiez GROQ_API_KEY (console.groq.com).');
-    }
-    if (res.status === 429) {
-      throw new Error('Quota Groq atteint. Réessayez dans quelques minutes.');
-    }
-    // 404 = bad model id → try next
-    if (res.status === 404 || res.status === 400) {
-      continue;
-    }
-    if (!res.ok) continue;
+      if (res.status === 401 || res.status === 403) {
+        throw new Error('Atlas Agent: clé Groq refusée. Vérifiez GROQ_API_KEY (console.groq.com).');
+      }
+      if (res.status === 429) {
+        throw new Error('Quota Groq atteint. Réessayez dans quelques minutes.');
+      }
+      if (res.status === 404 || res.status === 400) {
+        continue;
+      }
+      if (!res.ok) continue;
 
-    let data: any = {};
-    try {
-      data = JSON.parse(raw);
-    } catch {
-      continue;
-    }
-    let text = String(data?.choices?.[0]?.message?.content || '').trim();
-    if (!text) continue;
-    text = text
-      .replace(/\b(Google|Gemini|Mistral|OpenAI|ChatGPT|Claude|Groq|Llama|Meta)\b/gi, 'Atlas Agent')
-      .trim();
-    return {
-      reply: text,
-      model: String(data?.model || model),
-      usage: {
-        prompt: Number(data?.usage?.prompt_tokens || 0),
-        completion: Number(data?.usage?.completion_tokens || 0),
-      },
-    };
+      let data: any = {};
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        continue;
+      }
+      let text = String(data?.choices?.[0]?.message?.content || '').trim();
+      if (!text) continue;
+      text = scrubVendorNames(text);
+      return {
+        reply: text,
+        model: String(data?.model || model),
+        usage: {
+          prompt: Number(data?.usage?.prompt_tokens || 0),
+          completion: Number(data?.usage?.completion_tokens || 0),
+        },
+      };
     }
   }
 
@@ -116,10 +258,6 @@ export async function groqChat(opts: {
   );
 }
 
-/* ─────────────────────── boucle d'outils (v0.7.7) ───────────────────────
- * Function-calling OpenAI-compatible sur Groq : le modèle peut appeler des
- * outils (métier via runAssistTool, mémoire/RAG via agent-knowledge) jusqu'à
- * 3 tours avant de répondre. Chaque appel est journalisé dans tool_trace. */
 export type AgentToolResult = { ok: boolean; data?: unknown; error?: string; proposal?: Record<string, unknown> };
 export type AgentToolTrace = AgentToolResult & { name: string };
 
@@ -178,7 +316,6 @@ export async function groqChatWithTools(opts: {
     let data: any = {};
     try { data = JSON.parse(raw); } catch { data = {}; }
     if (!res.ok) {
-      // modèle sans support outils ? → repli sans outils
       const fallback = await groqChat({
         apiKey: opts.apiKey,
         model: opts.model,
@@ -194,10 +331,7 @@ export async function groqChatWithTools(opts: {
     const msg = data?.choices?.[0]?.message || {};
     const calls: any[] = Array.isArray(msg.tool_calls) ? msg.tool_calls.slice(0, 4) : [];
     if (!calls.length) {
-      const text = String(msg.content || '')
-        .trim()
-        .replace(/\b(Google|Gemini|Mistral|OpenAI|ChatGPT|Claude|Groq|Llama|Meta)\b/gi, 'Atlas Agent')
-        .trim();
+      const text = scrubVendorNames(String(msg.content || '').trim());
       if (text) return { reply: text, model: lastModel, usage: { prompt: promptTokens, completion: completionTokens }, tool_trace: trace };
       break;
     }
@@ -220,7 +354,6 @@ export async function groqChatWithTools(opts: {
       });
     }
   }
-  // dernier recours : réponse directe sans outils
   const fallback = await groqChat({
     apiKey: opts.apiKey,
     model: opts.model,
@@ -230,15 +363,6 @@ export async function groqChatWithTools(opts: {
   });
   return { ...fallback, tool_trace: trace };
 }
-
-/* ───────────────── streaming + outils (v0.7.8) ─────────────────────────
- * SSE twin of groqChatWithTools(): every round is a STREAMED Groq call with
- * the SAME role-filtered business tools as the buffered route. Content deltas
- * are forwarded live; when a round ends with tool_calls, the tools run, an
- * onTool trace entry fires, and the next round streams the grounded answer.
- * Quota accounting sums the real usage of every round, exactly like the
- * buffered loop. Final fallback = buffered groqChat() without tools. */
-const VENDOR_WORDS_RE = /\b(Google|Gemini|Mistral|OpenAI|ChatGPT|Claude|Groq|Llama|Meta)\b/gi;
 
 export async function groqChatStreamWithTools(opts: {
   apiKey: string;
@@ -348,7 +472,7 @@ export async function groqChatStreamWithTools(opts: {
       .filter((v) => v.name)
       .slice(0, 4);
     if (!calls.length) {
-      const text = roundText.trim().replace(VENDOR_WORDS_RE, 'Atlas Agent').trim();
+      const text = scrubVendorNames(roundText.trim());
       if (text) {
         return { reply: text, model: lastModel, usage: { prompt: promptTokens, completion: completionTokens }, tool_trace: trace };
       }
@@ -374,18 +498,9 @@ export async function groqChatStreamWithTools(opts: {
       messages.push({ role: 'tool', tool_call_id: call.id || '', content: JSON.stringify(out).slice(0, 6000) });
     }
   }
-  // dernier recours : réponse directe bufferisée sans outils (jumeau bufferisé)
   const fallback = await groqChat({ apiKey: opts.apiKey, model: opts.model, system: opts.system, message: opts.message, maxTokens });
   return { ...fallback, tool_trace: trace };
 }
-
-/* ─────────────────────────── streaming (v264) ───────────────────────────
- * SSE token streaming for POST /api/assist/chat/stream. Same provider, same
- * scrubbing rules as groqChat(); deltas are forwarded as they arrive and the
- * REAL usage (prompt+completion tokens) is read from the final chunk so the
- * server-side quota charges streamed turns exactly like buffered ones.
- * `fetchImpl` is injectable for tests; the production path uses global fetch
- * (upstreamFetch buffers whole bodies and cannot stream). */
 
 export async function groqChatStream(opts: {
   apiKey: string;
@@ -460,9 +575,7 @@ export async function groqChatStream(opts: {
       }
     }
   }
-  reply = reply
-    .replace(/\b(Google|Gemini|Mistral|OpenAI|ChatGPT|Claude|Groq|Llama|Meta)\b/gi, 'Atlas Agent')
-    .trim();
+  reply = scrubVendorNames(reply);
   if (!reply) throw new Error('Atlas Agent: réponse vide du flux Groq.');
   return { reply, model: usedModel, usage };
 }

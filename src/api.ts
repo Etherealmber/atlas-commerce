@@ -400,7 +400,7 @@ export const api = {
     request<{ success: boolean; in_app: WorkStatusSource; trackers: { github: WorkStatusSource } }>(`/api/mobile/work-status${cursor ? `?${cursor.source === 'in_app' ? 'in_app_cursor' : 'github_cursor'}=${encodeURIComponent(cursor.value)}` : ''}`),
   assistStatus: () => request<{ data: { configured: boolean; provider?: string; model?: string; hint?: string } }>('/api/assist/status'),
   getAssistProvider: () =>
-    request<{ data: { provider: string; groqConfigured?: boolean; groqModel?: string; geminiConfigured?: boolean } }>(
+    request<{ data: { provider: string; groqConfigured?: boolean; groqModel?: string } }>(
       '/api/settings/assist-provider',
     ),
   setAssistProvider: (provider: 'groq') =>
@@ -435,7 +435,29 @@ export const api = {
   revokeDevice: (fingerprint: string) => request('/api/auth/devices/revoke', { method: 'POST', body: JSON.stringify({ fingerprint }) }),
   // v0.7.5 — déconnexion volontaire : marque l'appareil reprenable 30 j (sans OTP au retour)
   selfLogout: () => request('/api/auth/logout', { method: 'POST' }),
-  assistChat: (message: string, opts?: { task?: string; timezone?: string; thread_id?: string; user_message?: string; page_path?: string; page_title?: string; exec_mode?: string; agent_perm_mode?: string; images?: string[] }) =>
+  assistChat: (
+    message: string,
+    opts?: {
+      task?: string;
+      timezone?: string;
+      thread_id?: string;
+      user_message?: string;
+      page_path?: string;
+      page_title?: string;
+      exec_mode?: string;
+      agent_perm_mode?: string;
+      images?: string[];
+      product?: {
+        name: string;
+        category?: string;
+        sku?: string;
+        unit?: string;
+        secondary_unit?: string;
+        secondary_unit_factor?: string;
+        draft?: string;
+      };
+    },
+  ) =>
     request<{
       data: {
         reply: string;
@@ -455,6 +477,7 @@ export const api = {
         thread_id: opts?.thread_id || 'live',
         // v234 — images were never sent before: the model could not see them
         images: Array.isArray(opts?.images) ? opts!.images.slice(0, 4) : undefined,
+        product: opts?.product,
         page_path: opts?.page_path,
         page_title: opts?.page_title,
         exec_mode: opts?.exec_mode,

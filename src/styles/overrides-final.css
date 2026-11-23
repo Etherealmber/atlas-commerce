@@ -460,10 +460,11 @@ html body .content button.ac-timed-undo-btn.is-armed {
 
 /* v17 user menu light + delete div */
 html body .ac-user-dropdown-item,
-html body .ac-user-dropdown button {
-  background: #ffffff !important;
+html body .ac-user-dropdown button.ac-user-dropdown-item {
+  background: transparent !important;
   color: #0f172a !important;
-  border: 1px solid #e8eaef !important;
+  border: 1px solid transparent !important;
+  border-radius: 14px !important;
   box-shadow: none !important;
 }
 html body .btn-delete-red {
@@ -583,13 +584,13 @@ html body .atlas-dp-foot {
   border-top: 1px solid #f1f5f9 !important;
 }
 
-/* User menu items — white chips */
+/* User menu items — borderless floating rows */
 html body .ac-user-dropdown-item,
 html body .ac-user-dropdown button.ac-user-dropdown-item {
-  background: #ffffff !important;
+  background: transparent !important;
   color: #0f172a !important;
-  border: 1px solid #e8eaef !important;
-  border-radius: 12px !important;
+  border: 1px solid transparent !important;
+  border-radius: 14px !important;
 }
 
 
@@ -834,11 +835,13 @@ html body .ac-search-icon {
   transform: translateY(-50%) !important;
   color: #94a3b8 !important;
   pointer-events: none !important;
+  z-index: 2 !important;
 }
-html body .ac-search-input {
+html body .ac-search-input,
+html[data-density] body .content .ac-search-input {
   width: 100% !important;
   height: 40px !important;
-  padding: 8px 12px 8px 36px !important;
+  padding: 8px 14px !important;
   border: 1px solid #e8eaef !important;
   border-radius: 12px !important;
   background: #fff !important;
@@ -846,6 +849,12 @@ html body .ac-search-input {
   font-size: 0.875rem !important;
   box-shadow: none !important;
   outline: none !important;
+}
+html body .ac-search-field > .ac-search-icon ~ .ac-search-input,
+html[data-density] body .content .ac-search-field > .ac-search-icon ~ .ac-search-input,
+html body .ac-search-field:has(.ac-search-icon) > .ac-search-input,
+html[data-density] body .content .ac-search-field:has(.ac-search-icon) > .ac-search-input {
+  padding: 8px 12px 8px 38px !important;
 }
 html body .ac-search-input:focus {
   border-color: #94a3b8 !important;

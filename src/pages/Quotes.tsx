@@ -1,5 +1,5 @@
 import TopPageActions from '../components/TopPageActions';
-import { ArrowRight, Ban, FilePlus2 } from 'lucide-react';
+import { ArrowRight, Ban, FilePlus2, Pencil } from 'lucide-react';
 import { TimedUndoDelete } from '../components/ui';
 import ListPager from '../components/ui/ListPager';
 import './quote-actions.css';
@@ -389,6 +389,10 @@ export default function Quotes() {
                   <td style={{ textAlign: 'right', fontWeight: 700 }}>{fmt(q.total)}</td>
                   <td className="row-actions-cell">
                     <div className="row-actions">
+                      <button type="button" className="secondary" onClick={() => openDetail(q.id)} disabled={detailLoading}>
+                        <Pencil size={14} aria-hidden="true" />
+                        <span>{q.status === 'cancelled' ? 'Consulter' : 'Modifier'}</span>
+                      </button>
                       {q.status !== 'cancelled' && (
                         <button type="button" className="secondary" onClick={() => setConvertId(q.id)} disabled={saving}>
                           <ArrowRight size={14} aria-hidden="true" />

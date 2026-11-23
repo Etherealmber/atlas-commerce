@@ -714,16 +714,17 @@ html[data-theme="dark"] .qr-fab svg { stroke: #0a0a0a !important; }
    Single dark palette: bg #111113 · paper #1c1c1f · line #2a2a2e ·
    elevated #27272a · ink #f4f4f5 · muted #a1a1aa. No navy, no periwinkle. */
 
-/* Account dropdown — labels & icons must stay readable on dark chips */
+/* Account dropdown — labels & icons must stay readable on dark floating deck */
 html[data-theme="dark"] body .ac-user-dropdown-item b,
 html[data-theme="dark"] body .ac-user-dropdown-item > span b {
   color: #fafafa !important;
 }
 html[data-theme="dark"] body .ac-user-dropdown-ico,
-html[data-theme="dark"] body .ac-user-dropdown-item > svg {
-  color: #a1a1aa !important;
+html[data-theme="dark"] body .ac-user-dropdown-item > svg:not(.ac-user-dropdown-chev) {
+  color: #e4e4e7 !important;
 }
-html[data-theme="dark"] body .ac-user-dropdown-item:hover {
+html[data-theme="dark"] body .ac-user-dropdown-item:hover,
+html[data-theme="dark"] body .ac-user-dropdown-item:focus-visible {
   background: #27272a !important;
 }
 html[data-theme="dark"] body .ac-type-switch button {
@@ -2281,23 +2282,27 @@ html[data-theme="dark"] body button:disabled:not(.secondary):not(.danger) {
   filter: none !important;
 }
 
-/* Account / user dropdown menu: one readable zinc palette */
-html[data-theme="dark"] body .ac-user-dropdown,
+/* Account / user dropdown menu: sleek floating deck zinc palette */
+html[data-theme="dark"] body .ac-user-dropdown {
+  background: #1c1c1f !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+  box-shadow: 0 22px 54px rgba(0, 0, 0, 0.58), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+}
 html[data-theme="dark"] body .ph-account-menu {
   background: #1c1c1f !important;
   border-color: #2e2e33 !important;
 }
 html[data-theme="dark"] body .ac-user-dropdown-item,
 html[data-theme="dark"] body .ac-user-dropdown-list > button {
-  background: #27272a !important;
-  border-color: #3f3f46 !important;
-  color: #e4e4e7 !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  color: #f4f4f5 !important;
 }
 html[data-theme="dark"] body .ac-user-dropdown-item b,
 html[data-theme="dark"] body .ac-user-dropdown-item > span b,
 html[data-theme="dark"] body .ac-user-dropdown-list > button b {
-  color: #f4f4f5 !important;
-  -webkit-text-fill-color: #f4f4f5 !important;
+  color: #fafafa !important;
+  -webkit-text-fill-color: #fafafa !important;
 }
 html[data-theme="dark"] body .ac-user-dropdown-item i,
 html[data-theme="dark"] body .ac-user-dropdown-item > span i {
@@ -2305,8 +2310,33 @@ html[data-theme="dark"] body .ac-user-dropdown-item > span i {
   -webkit-text-fill-color: #a1a1aa !important;
 }
 html[data-theme="dark"] body .ac-user-dropdown-item:hover,
-html[data-theme="dark"] body .ac-user-dropdown-list > button:hover {
-  background: #323236 !important;
+html[data-theme="dark"] body .ac-user-dropdown-item:focus-visible,
+html[data-theme="dark"] body .ac-user-dropdown-list > button:hover,
+html[data-theme="dark"] body .ac-user-dropdown-list > button:focus-visible {
+  background: #27272a !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+html[data-theme="dark"] body .ac-user-dropdown-item--danger,
+html[data-theme="dark"] body .ac-user-dropdown-item--danger b,
+html[data-theme="dark"] body .ac-user-dropdown-item--danger > span b {
+  color: #f87171 !important;
+  -webkit-text-fill-color: #f87171 !important;
+  background: transparent !important;
+  border-color: transparent !important;
+}
+html[data-theme="dark"] body .ac-user-dropdown-item--danger .ac-user-dropdown-ico {
+  background: rgba(248, 113, 113, 0.12) !important;
+  border-color: rgba(248, 113, 113, 0.22) !important;
+  color: #f87171 !important;
+}
+html[data-theme="dark"] body .ac-user-dropdown-item--danger:hover,
+html[data-theme="dark"] body .ac-user-dropdown-item--danger:focus-visible {
+  background: rgba(239, 68, 68, 0.12) !important;
+  border-color: rgba(248, 113, 113, 0.18) !important;
+}
+html[data-theme="dark"] body .ac-user-dropdown-item--danger:hover .ac-user-dropdown-ico {
+  background: rgba(239, 68, 68, 0.20) !important;
+  color: #fca5a5 !important;
 }
 html[data-theme="dark"] body .ac-theme-seg .ac-seg-btn[aria-pressed="true"],
 html[data-theme="dark"] body .ac-scale-seg .ac-seg-btn[aria-pressed="true"],
@@ -2316,12 +2346,14 @@ html[data-theme="dark"] body .ac-type-switch button[aria-pressed="true"] {
   -webkit-text-fill-color: #18181b !important;
   border-color: #e4e4e7 !important;
 }
-html[data-theme="dark"] body .ac-user-dropdown-hello,
-html[data-theme="dark"] body .ac-user-dropdown-role {
+html[data-theme="dark"] body .ac-user-dropdown-hello {
   color: #a1a1aa !important;
 }
+html[data-theme="dark"] body .ac-user-dropdown-role {
+  color: #d4d4d8 !important;
+}
 html[data-theme="dark"] body .ac-user-dropdown-name {
-  color: #f4f4f5 !important;
+  color: #fafafa !important;
 }
 
 /* Field-level error message (under its input, inside the popup) */
@@ -2732,8 +2764,6 @@ html[data-theme="dark"] body button.login-btn-secondary:hover:not(:disabled),
 html[data-theme="dark"] body .ac-search-input,
 html[data-theme="dark"] body .ac-filter-select,
 html[data-theme="dark"] body .search-bar input,
-html[data-theme="dark"] body .ac-user-dropdown-item--danger,
-html[data-theme="dark"] body .ac-user-dropdown-item--danger b,
 html[data-theme="dark"] body .about-page input,
 html[data-theme="dark"] body .about-page button.secondary,
 html[data-theme="dark"] body .ph-agent-input,
@@ -5384,6 +5414,12 @@ html[data-theme] body .ac-table-pager-meta {
   font-weight: 600;
   color: var(--muted, #64748b);
 }
+html[data-theme] body .ac-table-pager-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 html[data-theme="dark"] body .ac-table-pager-bar {
   border-bottom-color: #27272a;
 }
@@ -5697,8 +5733,8 @@ html body .desktop-catalog-actions-slot a:hover {
     html:not(.phone-shell) body .top-page-actions > button:not(:disabled):hover svg,
     html:not(.phone-shell) body .top-page-actions > a.btn:hover svg,
     html:not(.phone-shell) body .ac-list-pager-btn:not(:disabled):hover svg,
-    html:not(.phone-shell) body .ac-user-dropdown-item:hover svg {
-      transform: scale(1.12) rotate(-5deg) !important;
+    html:not(.phone-shell) body .ac-user-dropdown-item:hover .ac-user-dropdown-ico svg {
+      transform: scale(1.1) rotate(-4deg) !important;
     }
 
     /* Sidebar & Desktop Dock nav micro-motion */
@@ -5714,8 +5750,8 @@ html body .desktop-catalog-actions-slot a:hover {
     html:not(.phone-shell) body .ac-desktop-dock .ac-dock-item:hover svg {
       transform: scale(1.1) rotate(-4deg) !important;
     }
-    html:not(.phone-shell) body .ac-user-dropdown-item:hover {
-      transform: translateX(2px) scale(1.012);
+    html:not(.phone-shell) body .ac-user-dropdown-item:hover .ac-user-dropdown-chev {
+      transform: translateX(2px) !important;
     }
 
     /* Cards, KPI metrics, product grid cards, release notes, about cards */

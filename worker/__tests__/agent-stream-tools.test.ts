@@ -13,7 +13,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 const SQLITE_MODULE = ['node:', 'sqlite'].join('');
 const { DatabaseSync } = (await import(SQLITE_MODULE)) as { DatabaseSync: new (path: string) => any };
-import { groqChatStreamWithTools, proposalsFromToolTrace } from '../lib/groq-assist';
+import { groqChatStreamWithTools, proposalsFromToolTrace } from '../lib/assist';
 import { toolsForRole } from '../lib/agent';
 
 async function sha256(s: string): Promise<string> {

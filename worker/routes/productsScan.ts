@@ -1097,7 +1097,7 @@ export function registerProductsScanRoutes(app: Hono<any>, deps: ProductsScanRou
         await c.env.DB.prepare(
           `UPDATE products SET is_active = 0, updated_at = datetime('now') WHERE id = ?`,
         ).bind(id).run();
-        await afterBusinessMutation(c.env.CACHE);
+        await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
         await writeAudit(c.env.DB, {
           username: gate.username,
           role: gate.role,
@@ -1117,7 +1117,7 @@ export function registerProductsScanRoutes(app: Hono<any>, deps: ProductsScanRou
       const r2n = await deleteProductImagesFromR2(c.env.DB, c.env.IMAGES, c.env, id);
       await purgeProductDependencies(c.env.DB, [id]);
       await c.env.DB.prepare(`DELETE FROM products WHERE id = ?`).bind(id).run();
-      await afterBusinessMutation(c.env.CACHE);
+      await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
   
       await writeAudit(c.env.DB, {
         username: gate.username,
@@ -1177,7 +1177,7 @@ export function registerProductsScanRoutes(app: Hono<any>, deps: ProductsScanRou
       }
       await purgeProductDependencies(c.env.DB, ids);
       await c.env.DB.prepare(`DELETE FROM products WHERE id IN (${placeholders})`).bind(...ids).run();
-      await afterBusinessMutation(c.env.CACHE);
+      await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
   
       await writeAudit(c.env.DB, {
         username: gate.username,

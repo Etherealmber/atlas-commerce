@@ -124,6 +124,7 @@ import {
   kvPutJson,
   doCacheGet,
   doCachePut,
+  hasLiveCache,
   checkRefreshLimit,
   invalidateDashboardCache,
   dashboardCacheKey,
@@ -190,10 +191,19 @@ import {
   runAssistTool,
   auditAssist,
 } from './lib/agent';
-import { geminiSimpleChat, atlasAgentSystem, scrubVendorNames, normalizeResponseLanguage } from './lib/gemini-assist';
+import {
+  atlasAgentSystem,
+  scrubVendorNames,
+  normalizeResponseLanguage,
+  groqChat,
+  groqChatStream,
+  groqChatStreamWithTools,
+  groqChatWithTools,
+  proposalsFromToolTrace,
+  type AgentToolTrace,
+  type AgentToolResult,
+} from './lib/assist';
 import { pickUiLang, tr } from './lib/error-i18n';
-import { tokenraChat } from './lib/tokenra-assist';
-import { groqChat, groqChatStream, groqChatStreamWithTools, groqChatWithTools, proposalsFromToolTrace, type AgentToolTrace, type AgentToolResult } from './lib/groq-assist';
 import {
   loadAgentKnowledge,
   addMemory,
@@ -2298,8 +2308,15 @@ app.get('/api/expenses', async (c) => {
   if (!roleCanSeeFinancial(role)) {
     return c.json({ success: false, error: 'Accès réservé owner/admin.', code: 'FORBIDDEN_ROLE' }, 403);
   }
+  if (hasLiveCache(c.env)) {
+    const hit = await doCacheGet<any[]>(c.env.MOBILE_HUB, c.env.CACHE, 'expenses:list', 300);
+    if (hit) return c.json({ success: true, data: hit, cached: true });
+  }
   await ensureExpenseTypeColumn(c.env.DB);
   const { results } = await c.env.DB.prepare(`SELECT * FROM expenses ORDER BY expense_date DESC, created_at DESC`).all();
+  if (hasLiveCache(c.env)) {
+    await doCachePut(c.env.MOBILE_HUB, c.env.CACHE, 'expenses:list', results || [], 300);
+  }
   return c.json({ success: true, data: results });
 });
 

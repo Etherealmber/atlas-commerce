@@ -32,7 +32,7 @@ export type ExpenseWriteDeps = {
   ): Promise<string>;
   clientIp(c: any): string;
   ensureExpenseTypeColumn(db: D1Database): Promise<void>;
-  invalidateDashboardCache(cache: any): Promise<void>;
+  invalidateDashboardCache(cache: any, hub?: any): Promise<void>;
   writeAudit(
     db: D1Database,
     opts: { username?: string; role?: string; action: string; entity?: string; entity_id?: string | number; detail?: string; ip?: string },
@@ -109,7 +109,7 @@ export function registerExpenseWriteRoutes(app: AtlasApp, deps: ExpenseWriteDeps
       type,
     ).run();
     const expense = await c.env.DB.prepare(`SELECT * FROM expenses WHERE id = ?`).bind(result.meta.last_row_id).first();
-    await deps.invalidateDashboardCache(c.env.CACHE);
+    await deps.invalidateDashboardCache(c.env.CACHE, c.env.MOBILE_HUB);
     void deps.writeAudit(c.env.DB, {
       username: gate.username, role: gate.role, action: 'expense.create', entity: 'expenses',
       entity_id: String((expense as any)?.id ?? ''), detail: `${type}:${safeAmount}`, ip: deps.clientIp(c),
@@ -143,6 +143,7 @@ export function registerExpenseWriteRoutes(app: AtlasApp, deps: ExpenseWriteDeps
       ).bind(category, description, round2(amt), payment_method, expense_date, row.vendor || '', row.reference || 'import', row.notes || '', type).run();
       inserted++;
     }
+    if (inserted > 0) await deps.invalidateDashboardCache(c.env.CACHE, c.env.MOBILE_HUB);
     void deps.writeAudit(c.env.DB, {
       username: gate.username, role: gate.role, action: 'expense.import', entity: 'expenses',
       detail: `inserted=${inserted}`, ip: deps.clientIp(c),

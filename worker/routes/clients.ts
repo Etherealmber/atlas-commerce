@@ -10,6 +10,7 @@ import {
   ensureClientCreditLimit,
   checkClientCreditLimit,
 } from '../lib/clients-schema';
+import { doCacheGet, doCachePut, hasLiveCache } from '../lib/cache';
 import { afterBusinessMutation } from '../lib/delete-coord';
 
 export { ensureClientTaxExempt, ensureClientCreditLimit, checkClientCreditLimit };
@@ -51,27 +52,35 @@ export function registerClientRoutes(app: Hono<any>, deps: ClientRouteDeps): voi
   app.get('/api/clients', async (c) => {
     const gate = gateBiz(c);
     if (!gate.ok) return gate.response;
+    if (hasLiveCache(c.env)) {
+      const hit = await doCacheGet<any[]>(c.env.MOBILE_HUB, c.env.CACHE, 'clients:list', 300);
+      if (hit) return c.json({ success: true, data: hit, cached: true });
+    }
     await ensureClientTaxExempt(c.env.DB);
     await ensureClientCreditLimit(c.env.DB);
     let results: any[] = [];
     try {
       const r = await c.env.DB.prepare(`
-        SELECT c.*,
-          COALESCE((
-            SELECT SUM(i.total - COALESCE(i.amount_paid, 0))
-            FROM invoices i
-            WHERE i.client_id = c.id
-              AND i.status NOT IN ('quote','devis','cancelled','paid','remboursement')
-              AND COALESCE(i.doc_kind,'') != 'remboursement'
-              AND (i.total - COALESCE(i.amount_paid, 0)) > 0.001
-          ), 0) as balance_due
+        SELECT c.*, COALESCE(b.balance_due, 0) as balance_due
         FROM clients c
+        LEFT JOIN (
+          SELECT client_id, SUM(total - COALESCE(amount_paid, 0)) as balance_due
+          FROM invoices
+          WHERE status NOT IN ('quote','devis','cancelled','paid','remboursement')
+            AND COALESCE(doc_kind,'') != 'remboursement'
+            AND (total - COALESCE(amount_paid, 0)) > 0.001
+          GROUP BY client_id
+        ) b ON b.client_id = c.id
         ORDER BY c.name
+        LIMIT 1000
       `).all();
       results = r.results || [];
     } catch {
-      const r = await c.env.DB.prepare(`SELECT * FROM clients ORDER BY name`).all();
+      const r = await c.env.DB.prepare(`SELECT * FROM clients ORDER BY name LIMIT 1000`).all();
       results = r.results || [];
+    }
+    if (hasLiveCache(c.env)) {
+      await doCachePut(c.env.MOBILE_HUB, c.env.CACHE, 'clients:list', results, 300);
     }
     return c.json({ success: true, data: results });
   });
@@ -99,6 +108,7 @@ export function registerClientRoutes(app: Hono<any>, deps: ClientRouteDeps): voi
       ).bind(name, ice, if_number, address, city, phone, email, tax_exempt).run();
     }
     const client = await c.env.DB.prepare(`SELECT * FROM clients WHERE id = ?`).bind(result.meta.last_row_id).first();
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     return c.json({ success: true, data: client, message: 'Client enregistré dans la base de données.' }, 201);
   });
 
@@ -137,6 +147,7 @@ export function registerClientRoutes(app: Hono<any>, deps: ClientRouteDeps): voi
     values.push(id);
     await c.env.DB.prepare(`UPDATE clients SET ${updates.join(', ')} WHERE id = ?`).bind(...values).run();
     const client = await c.env.DB.prepare(`SELECT * FROM clients WHERE id = ?`).bind(id).first();
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     return c.json({ success: true, data: client, message: 'Client mis à jour.' });
   });
 
@@ -166,7 +177,7 @@ export function registerClientRoutes(app: Hono<any>, deps: ClientRouteDeps): voi
         return c.json({ success: false, error: block, code: 'CLIENT_HAS_HISTORY' }, 400);
       }
       await c.env.DB.prepare(`DELETE FROM clients WHERE id = ?`).bind(id).run();
-      await afterBusinessMutation(c.env.CACHE);
+      await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
       await writeAudit(c.env.DB, {
         username: gate.username, role: gate.role, action: 'client.delete',
         entity: 'clients', entity_id: id, detail: client.name || '',
@@ -210,7 +221,7 @@ export function registerClientRoutes(app: Hono<any>, deps: ClientRouteDeps): voi
     }
     const placeholders = ids.map(() => '?').join(',');
     await c.env.DB.prepare(`DELETE FROM clients WHERE id IN (${placeholders})`).bind(...ids).run();
-    await afterBusinessMutation(c.env.CACHE);
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     await writeAudit(c.env.DB, {
       username: gate.username, role: gate.role, action: 'client.bulk_delete',
       entity: 'clients', entity_id: ids.join(','), detail: `${ids.length} client(s)`,

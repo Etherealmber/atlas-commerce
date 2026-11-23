@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MobileHub } from '../durable/MobileHub';
-import { checkRefreshLimit, doCacheGet, doCachePut, invalidateDashboardCache } from '../lib/cache';
+import { checkRefreshLimit, doCacheGet, doCachePut, hasLiveCache, invalidateDashboardCache } from '../lib/cache';
+import { afterBusinessMutation } from '../lib/delete-coord';
 
 function makeDoNamespace() {
   const values = new Map<string, unknown>();
@@ -52,6 +53,19 @@ describe('MobileHub shared snapshot cache (offloads D1 and KV limits)', () => {
 
     await invalidateDashboardCache(undefined, ns);
     expect(await doCacheGet(ns, kv, 'nav-badges', 300)).toBeNull();
+
+    // afterBusinessMutation also invalidates the MobileHub DO cache
+    await doCachePut(ns, kv, 'clients:list', [{ id: 1 }], 300);
+    expect(await doCacheGet(ns, kv, 'clients:list', 300)).toEqual([{ id: 1 }]);
+    await afterBusinessMutation(undefined, ns);
+    expect(await doCacheGet(ns, kv, 'clients:list', 300)).toBeNull();
+  });
+
+  it('detects live DO/KV bindings vs plain mock test objects', () => {
+    expect(hasLiveCache(undefined)).toBe(false);
+    expect(hasLiveCache({ CACHE: {} as any })).toBe(false);
+    expect(hasLiveCache({ CACHE: { get: async () => null } as any })).toBe(true);
+    expect(hasLiveCache({ MOBILE_HUB: { get: () => null } as any })).toBe(true);
   });
 
   it('enforces sliding-window refresh limit without touching D1 or KV', () => {

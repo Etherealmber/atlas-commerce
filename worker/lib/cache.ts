@@ -190,13 +190,20 @@ export function configCacheKey(k: string): string {
   return `cfg:${k}`;
 }
 
+export function hasLiveCache(env: { MOBILE_HUB?: DurableObjectNamespace; CACHE?: KVNamespace } | undefined): boolean {
+  if (!env) return false;
+  if (env.MOBILE_HUB && typeof (env.MOBILE_HUB as any).get === 'function') return true;
+  if (env.CACHE && typeof (env.CACHE as any).get === 'function') return true;
+  return false;
+}
+
 export async function doCacheGet<T>(
   hub: DurableObjectNamespace | undefined,
   kv: KVNamespace | undefined,
   key: string,
   ttlSeconds: number,
 ): Promise<T | null> {
-  if (hub) {
+  if (hub && typeof (hub as any).get === 'function') {
     try {
       const stub = hub.get(hub.idFromName('atlas-main'));
       const res = await stub.fetch(`https://hub/cache?key=${encodeURIComponent(key)}`);
@@ -223,7 +230,7 @@ export async function doCachePut(
   ttlSeconds: number,
 ): Promise<void> {
   const ttl = Math.max(30, Math.min(3600, Math.floor(ttlSeconds || DEFAULT_CACHE_TTL)));
-  if (hub) {
+  if (hub && typeof (hub as any).get === 'function') {
     try {
       const stub = hub.get(hub.idFromName('atlas-main'));
       await stub.fetch(`https://hub/cache?key=${encodeURIComponent(key)}`, {

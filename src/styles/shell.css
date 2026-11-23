@@ -2592,54 +2592,285 @@ html[data-theme="dark"] .ac-edit-profile-backdrop {
 .ac-user-dropdown-switch-row { display: flex; justify-content: center; padding: 4px 0 8px; }
 
 
-/* User menu — light chips like sidebar (never solid black primary) */
+/* User menu — floating deck matched to .ac-desktop-dock */
 html body .ac-user-dropdown,
 html body .ac-user-dropdown * {
   box-sizing: border-box;
 }
 html body .ac-user-dropdown {
+  width: min(296px, calc(100vw - 16px)) !important;
+  padding: 8px !important;
+  border-radius: 22px !important;
   background: #ffffff !important;
-  border: 1px solid #e8eaef !important;
+  border: 1px solid var(--ac-line, #e8eaef) !important;
+  box-shadow: 0 18px 46px rgba(15, 23, 42, 0.13), 0 2px 6px rgba(15, 23, 42, 0.05) !important;
   color: #0f172a !important;
+  text-align: left !important;
+}
+html body .ac-user-dropdown-head {
+  text-align: left !important;
+  padding: 11px 12px !important;
+  margin: 0 0 6px !important;
+  border-radius: 15px !important;
+  background: #f8fafc !important;
+  border: 1px solid rgba(15, 23, 42, 0.06) !important;
+}
+html body .ac-user-dropdown-identity {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+html body .ac-user-dropdown-avatar {
+  width: 42px !important;
+  height: 42px !important;
+  min-width: 42px !important;
+  min-height: 42px !important;
+  flex: 0 0 42px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(15, 23, 42, 0.10) !important;
+  object-fit: cover !important;
+}
+html body .ac-user-dropdown-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  flex: 1 1 auto;
+  gap: 1px;
+}
+html body .ac-user-dropdown-hello {
+  margin: 0 !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  line-height: 1.15 !important;
+  letter-spacing: 0.02em;
+  color: #64748b !important;
+}
+html body .ac-user-dropdown-name {
+  margin: 0 !important;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14.5px !important;
+  font-weight: 700 !important;
+  line-height: 1.25 !important;
+  color: #0f172a !important;
+}
+html body .ac-user-dropdown-role {
+  margin: 4px 0 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  padding: 2px 8px !important;
+  border-radius: 999px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  line-height: 1.3 !important;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #475569 !important;
+}
+html body .ac-user-dropdown-list {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+  padding: 0 !important;
+}
+html body .ac-user-dropdown-accounts {
+  padding-bottom: 6px !important;
+  margin-bottom: 6px !important;
+  border-bottom: 1px solid #eef0f4 !important;
+}
+html body .ac-user-dropdown-label {
+  margin: 4px 10px 4px !important;
+  font-size: 10.5px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  color: #94a3b8 !important;
+}
+html body .ac-user-dropdown-sep {
+  height: 1px;
+  margin: 5px 8px;
+  background: #eef0f4;
 }
 html body .ac-user-dropdown-item,
-html body .ac-user-dropdown button.ac-user-dropdown-item,
+html body button.ac-user-dropdown-item,
+html body .ac-user-dropdown-item.secondary,
 html body .ac-user-dropdown-list > button {
-  background: #ffffff !important;
+  display: grid !important;
+  grid-template-columns: 34px minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  column-gap: 10px !important;
+  width: 100% !important;
+  min-height: 46px !important;
+  padding: 7px 10px !important;
+  margin: 0 !important;
+  border-radius: 14px !important;
+  border: 1px solid transparent !important;
+  background: transparent !important;
   background-image: none !important;
   color: #0f172a !important;
-  border: 1px solid #e8eaef !important;
-  border-radius: 12px !important;
   box-shadow: none !important;
+  text-align: left !important;
+  cursor: pointer !important;
 }
 html body .ac-user-dropdown-item:hover,
-html body .ac-user-dropdown-list > button:hover {
-  background: #f8fafc !important;
+html body .ac-user-dropdown-item:focus-visible,
+html body .ac-user-dropdown-list > button:hover,
+html body .ac-user-dropdown-list > button:focus-visible {
+  background: #f1f5f9 !important;
+  border-color: rgba(15, 23, 42, 0.05) !important;
+  outline: none !important;
 }
-html body .ac-user-dropdown-item b { color: #0f172a !important; }
-html body .ac-user-dropdown-item i { color: #71717a !important; }
+html body .ac-user-dropdown-ico {
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  min-height: 34px !important;
+  border-radius: 999px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: #f1f5f9 !important;
+  border: 1px solid rgba(15, 23, 42, 0.06) !important;
+  color: #334155 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  justify-self: center !important;
+  align-self: center !important;
+  opacity: 1 !important;
+  transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+html body .ac-user-dropdown-ico--avatar {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.02em;
+}
+html body .ac-user-dropdown-item:hover .ac-user-dropdown-ico {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+html body .ac-user-dropdown-ico svg,
+html body .ac-user-dropdown-item svg.ac-user-dropdown-ico,
+html body .ac-user-dropdown-item > svg:not(.ac-user-dropdown-chev) {
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  color: inherit !important;
+  stroke: currentColor !important;
+}
+html body .ac-user-dropdown-chev {
+  width: 14px !important;
+  height: 14px !important;
+  color: #94a3b8 !important;
+  opacity: 0.55;
+  flex-shrink: 0;
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.18s ease, color 0.18s ease !important;
+}
+html body .ac-user-dropdown-item:hover .ac-user-dropdown-chev {
+  opacity: 1;
+  color: #475569 !important;
+  transform: translateX(2px) !important;
+}
+html body .ac-user-dropdown-item > span:not(.ac-user-dropdown-ico) {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: flex-start !important;
+  gap: 1px !important;
+  min-width: 0 !important;
+  text-align: left !important;
+}
+html body .ac-user-dropdown-item b {
+  display: block !important;
+  font-size: 0.855rem !important;
+  font-weight: 620 !important;
+  line-height: 1.25 !important;
+  color: #0f172a !important;
+  text-align: left !important;
+}
+html body .ac-user-dropdown-item i {
+  display: block !important;
+  font-style: normal !important;
+  font-size: 0.72rem !important;
+  font-weight: 500 !important;
+  line-height: 1.25 !important;
+  color: #64748b !important;
+  text-align: left !important;
+}
 html body .ac-user-dropdown-item--danger,
 html body .ac-user-dropdown-item--danger b {
   color: #dc2626 !important;
-  background: #ffffff !important;
-  border-color: #fecaca !important;
+  background: transparent !important;
+  border-color: transparent !important;
 }
-html body .ac-user-dropdown-item--danger:hover {
+html body .ac-user-dropdown-item--danger i {
+  color: #94a3b8 !important;
+}
+html body .ac-user-dropdown-item--danger .ac-user-dropdown-ico {
+  background: rgba(220, 38, 38, 0.08) !important;
+  border-color: rgba(220, 38, 38, 0.14) !important;
+  color: #dc2626 !important;
+}
+html body .ac-user-dropdown-item--danger:hover,
+html body .ac-user-dropdown-item--danger:focus-visible {
   background: #fef2f2 !important;
+  border-color: rgba(220, 38, 38, 0.12) !important;
+}
+html body .ac-user-dropdown-item--danger:hover .ac-user-dropdown-ico {
+  background: #fee2e2 !important;
+  border-color: rgba(220, 38, 38, 0.22) !important;
+  color: #b91c1c !important;
 }
 html[data-theme="dark"] body .ac-user-dropdown {
-  background: #141414 !important;
-  border-color: #27272a !important;
+  background: #1c1c1f !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+  box-shadow: 0 22px 54px rgba(0, 0, 0, 0.58), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
   color: #f4f4f5 !important;
+}
+html[data-theme="dark"] body .ac-user-dropdown-head {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.07) !important;
+}
+html[data-theme="dark"] body .ac-user-dropdown-avatar {
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+html[data-theme="dark"] body .ac-user-dropdown-role {
+  background: #27272a !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+  color: #d4d4d8 !important;
+}
+html[data-theme="dark"] body .ac-user-dropdown-accounts {
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+html[data-theme="dark"] body .ac-user-dropdown-sep {
+  background: rgba(255, 255, 255, 0.08) !important;
 }
 html[data-theme="dark"] body .ac-user-dropdown-item,
 html[data-theme="dark"] body .ac-user-dropdown-list > button {
-  background: #141414 !important;
+  background: transparent !important;
   color: #f4f4f5 !important;
-  border-color: #27272a !important;
+  border-color: transparent !important;
 }
-html[data-theme="dark"] body .ac-user-dropdown-item:hover {
-  background: #1a1a1a !important;
+html[data-theme="dark"] body .ac-user-dropdown-item:hover,
+html[data-theme="dark"] body .ac-user-dropdown-item:focus-visible {
+  background: #27272a !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+html[data-theme="dark"] body .ac-user-dropdown-ico {
+  background: #27272a !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  color: #e4e4e7 !important;
+}
+html[data-theme="dark"] body .ac-user-dropdown-item:hover .ac-user-dropdown-ico {
+  background: #323238 !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: #fafafa !important;
 }
 
 /* Notifications panel / trigger — outline secondary */
@@ -2678,82 +2909,6 @@ html body [role="button"].btn-delete-red.is-armed {
   color: #f87171 !important;
 }
 
-/* ========== USER MENU ALIGN V88 ========== */
-html body .ac-user-dropdown {
-  text-align: left !important;
-}
-html body .ac-user-dropdown-head {
-  text-align: left !important;
-  padding: 14px 16px 10px !important;
-}
-html body .ac-user-dropdown-list {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 6px !important;
-  padding: 8px 10px 12px !important;
-}
-html body .ac-user-dropdown-item,
-html body button.ac-user-dropdown-item,
-html body .ac-user-dropdown-item.secondary {
-  display: grid !important;
-  grid-template-columns: 28px 1fr !important;
-  align-items: center !important;
-  column-gap: 10px !important;
-  width: 100% !important;
-  min-height: 48px !important;
-  padding: 10px 12px !important;
-  margin: 0 !important;
-  border-radius: 12px !important;
-  border: 1px solid #ececf0 !important;
-  background: #fff !important;
-  color: #0a0a0a !important;
-  box-shadow: none !important;
-  text-align: left !important;
-  cursor: pointer !important;
-}
-html body .ac-user-dropdown-item:hover {
-  background: #f8f8fa !important;
-}
-html body .ac-user-dropdown-ico,
-html body .ac-user-dropdown-item svg.ac-user-dropdown-ico,
-html body .ac-user-dropdown-item > svg {
-  width: 18px !important;
-  height: 18px !important;
-  min-width: 18px !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  justify-self: center !important;
-  align-self: center !important;
-  opacity: 1 !important;
-  color: #3f3f46 !important;
-  stroke: currentColor !important;
-}
-html body .ac-user-dropdown-item > span {
-  display: flex !important;
-  flex-direction: column !important;
-  justify-content: center !important;
-  align-items: flex-start !important;
-  gap: 2px !important;
-  min-width: 0 !important;
-  text-align: left !important;
-}
-html body .ac-user-dropdown-item b {
-  display: block !important;
-  font-size: 0.875rem !important;
-  font-weight: 650 !important;
-  line-height: 1.2 !important;
-  color: #0a0a0a !important;
-  text-align: left !important;
-}
-html body .ac-user-dropdown-item i {
-  display: block !important;
-  font-style: normal !important;
-  font-size: 0.72rem !important;
-  font-weight: 500 !important;
-  line-height: 1.2 !important;
-  color: #71717a !important;
-  text-align: left !important;
-}
 html body .ac-user-dropdown-prefs {
   padding: 8px 6px 4px !important;
 }

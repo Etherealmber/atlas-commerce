@@ -1,5 +1,5 @@
 import TopPageActions from '../components/TopPageActions';
-import { ArrowRight, Ban, CheckCircle2, CreditCard, FileCheck2, FilePlus2, RotateCcw, Truck } from 'lucide-react';
+import { ArrowRight, Ban, CheckCircle2, CreditCard, FileCheck2, FilePlus2, Pencil, RotateCcw, Truck } from 'lucide-react';
 import { TimedUndoDelete } from '../components/ui';
 import ListPager from '../components/ui/ListPager';
 import { onAgentDraft } from '../lib/agentDraft';
@@ -600,6 +600,14 @@ export default function Invoices() {
                         : fmt(remainingBalance(inv.total, inv.amount_paid))}
                     </td>
                     <td className="row-actions-cell" onClick={(e) => e.stopPropagation()}><div className="row-actions">
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={() => navigate(`/invoices/${inv.id}`)}
+                      >
+                        <Pencil size={14} aria-hidden="true" />
+                        <span>{inv.status === 'cancelled' ? 'Consulter' : 'Modifier'}</span>
+                      </button>
                       {inv.status !== 'quote' && inv.status !== 'devis' && inv.status !== 'remboursement' && inv.status !== 'cancelled' && (
                         <button
                           type="button"
