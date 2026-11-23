@@ -1,10 +1,58 @@
-import { defineConfig } from 'vite';
+import { execFileSync } from 'node:child_process';
+import { resolve } from 'node:path';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { cloudflare } from '@cloudflare/vite-plugin';
 
+function atlasFinanceWasmPlugin(): Plugin {
+  const rootDir = process.cwd();
+  const buildScript = resolve(rootDir, 'scripts/build-finance-wasm.mjs');
+  const rustSrcDir = resolve(rootDir, 'rust/atlas-finance-core/src');
+  const rustManifest = resolve(rootDir, 'rust/atlas-finance-core/Cargo.toml');
+  const rustToolchain = resolve(rootDir, 'rust-toolchain.toml');
+
+  const runFinanceWasmBuild = () => {
+    execFileSync(process.execPath, [buildScript, '--strict'], {
+      cwd: rootDir,
+      stdio: 'inherit',
+    });
+  };
+
+  let builtInProcess = false;
+  return {
+    name: 'atlas-finance-wasm',
+    buildStart() {
+      // Cache-aware (~15ms on cache hit); ensures even direct `npx vite build` compiles & verifies WASM.
+      if (builtInProcess) return;
+      builtInProcess = true;
+      runFinanceWasmBuild();
+    },
+    configureServer(server) {
+      server.watcher.add([rustSrcDir, rustManifest, rustToolchain]);
+      const onRustChange = (changedPath: string) => {
+        if (
+          changedPath.startsWith(rustSrcDir) ||
+          changedPath === rustManifest ||
+          changedPath === rustToolchain
+        ) {
+          try {
+            runFinanceWasmBuild();
+          } catch (err) {
+            server.config.logger.error(
+              `[atlas-finance-wasm] Rebuild failed: ${err instanceof Error ? err.message : String(err)}`,
+            );
+          }
+        }
+      };
+      server.watcher.on('change', onRustChange);
+      server.watcher.on('add', onRustChange);
+    },
+  };
+}
+
 export default defineConfig({
   base: '/',
-  plugins: [react(), cloudflare()],
+  plugins: [atlasFinanceWasmPlugin(), react(), cloudflare()],
   resolve: {
     // Single instance — do NOT path-alias react-router (breaks react-router/dom subpath)
     dedupe: ['react', 'react-dom', 'react-router', 'react-router-dom'],

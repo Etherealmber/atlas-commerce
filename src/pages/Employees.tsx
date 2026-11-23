@@ -15,6 +15,7 @@ import PasswordConfirm from '../components/PasswordConfirm';
 import { FloatingPortal } from '../components/FloatingPortal';
 import { ModalFormError, FieldHint } from '../components/ModalFormFeedback';
 import { isEmail } from '../lib/formValidate';
+import { round2 } from '../lib/money';
 import './employee-wizard.css';
 
 type Emp = Record<string, any>;
@@ -267,8 +268,8 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
     const name = `${form.first_name} ${form.last_name}`.trim();
     const fe: Record<string, string> = {};
     if (!name) fe.name = 'Indiquez le prénom ou le nom de famille.';
-    if (form.base_salary !== '' && form.base_salary != null && Number.isNaN(Number(form.base_salary))) {
-      fe.base_salary = 'Chiffres uniquement pour le salaire.';
+    if (form.pay_amount != null && Number.isNaN(Number(form.pay_amount))) {
+      fe.pay_amount = 'Chiffres uniquement pour le salaire.';
     }
     setFieldErrors(fe);
     if (Object.keys(fe).length) {
@@ -345,14 +346,14 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
     const salary = Number(e.pay_amount || 0);
     const half = Number((e as any).half_cycle_cap ?? salary * 0.5);
     const already = Number(e.advances_in_period || 0);
-    const hardLeft = Math.max(0, Math.round((half - already) * 100) / 100);
+    const hardLeft = Math.max(0, round2(half - already));
     if (hardLeft <= 0) {
       setAdvanceWarn(null);
       setPlafondWarn(e);
       return;
     }
     // Default amount in the popup = 5% of cycle salary (capped by what remains under 50%)
-    const fivePct = Math.round(salary * 0.05 * 100) / 100;
+    const fivePct = round2(salary * 0.05);
     const suggest = Math.min(fivePct > 0 ? fivePct : hardLeft, hardLeft);
     setPlafondWarn(null);
     setAdvanceTarget(e);
@@ -388,7 +389,7 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
       setAdvanceTarget(null);
       // Patch list immediately then full reload for totals
       if (r?.data?.id != null) {
-        setEmployees((prev: Emp[]) =>
+        setList((prev: Emp[]) =>
           prev.map((x) =>
             x.id === r.data.id
               ? {
@@ -1338,7 +1339,7 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
               </div>
               <div>
                 Montant proposé : <strong>5% du salaire de cycle</strong> (
-                {fmt(Math.round(Number(advanceTarget.pay_amount || 0) * 0.05 * 100) / 100)}
+                {fmt(round2(Number(advanceTarget.pay_amount || 0) * 0.05))}
                 ). Max. autorisé :{' '}
                 {fmt(
                   Math.max(

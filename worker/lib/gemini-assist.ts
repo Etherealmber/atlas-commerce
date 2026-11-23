@@ -1,5 +1,6 @@
-/**
 import { fetchWithTimeout } from './http-client';
+
+/**
  * Atlas Agent — Gemini generateContent path.
  *
  * Auth: header x-goog-api-key (required for current Gemini / auth keys).

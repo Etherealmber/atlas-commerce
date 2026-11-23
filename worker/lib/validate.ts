@@ -108,9 +108,30 @@ export function validateInvoiceWrite(body: any): FieldErrors | null {
     let okLine = false;
     for (const it of body.items) {
       const qty = Number(it?.quantity ?? 0);
+      if (!Number.isFinite(qty) || qty < 0) {
+        errors.items = 'Quantité de ligne invalide';
+        break;
+      }
       if (qty > 0) okLine = true;
+      for (const pf of ['unit_price', 'list_price', 'client_price', 'price'] as const) {
+        if (it?.[pf] != null && it[pf] !== '') {
+          const pv = Number(it[pf]);
+          if (!Number.isFinite(pv) || pv < 0 || pv > 1e12) {
+            errors.items = 'Prix unitaire invalide';
+            break;
+          }
+        }
+      }
+      if (it?.tax_rate != null && it.tax_rate !== '') {
+        const tv = Number(it.tax_rate);
+        if (!Number.isFinite(tv) || tv < 0 || tv > 100) {
+          errors.items = 'Taux de TVA invalide';
+          break;
+        }
+      }
+      if (errors.items) break;
     }
-    if (!okLine) errors.items = 'Chaque ligne doit avoir une quantité > 0';
+    if (!errors.items && !okLine) errors.items = 'Chaque ligne doit avoir une quantité > 0';
   }
   return collectErrors(errors);
 }
@@ -150,6 +171,32 @@ export function validateBillWrite(body: any): FieldErrors | null {
   const errors: FieldErrors = {};
   if (!Array.isArray(body?.items) || !body.items.length) {
     errors.items = 'Au moins une ligne est obligatoire';
+  } else {
+    let okLine = false;
+    for (const it of body.items) {
+      const qty = Number(it?.quantity ?? 0);
+      if (!Number.isFinite(qty) || qty < 0) {
+        errors.items = 'Quantité de ligne invalide';
+        break;
+      }
+      if (qty > 0) okLine = true;
+      const costRaw = it?.unit_cost ?? it?.cost ?? it?.unit_price;
+      if (costRaw != null && costRaw !== '') {
+        const cv = Number(costRaw);
+        if (!Number.isFinite(cv) || cv < 0 || cv > 1e12) {
+          errors.items = 'Coût unitaire invalide';
+          break;
+        }
+      }
+      if (it?.tax_rate != null && it.tax_rate !== '') {
+        const tv = Number(it.tax_rate);
+        if (!Number.isFinite(tv) || tv < 0 || tv > 100) {
+          errors.items = 'Taux de TVA invalide';
+          break;
+        }
+      }
+    }
+    if (!errors.items && !okLine) errors.items = 'Chaque ligne doit avoir une quantité > 0';
   }
   if (body?.vendor_name != null) {
     const e = optionalString(body.vendor_name, 'vendor_name', { max: 200 });

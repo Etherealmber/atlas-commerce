@@ -7,6 +7,8 @@ export type Contributor = {
   role: string;
 };
 
+const HIDDEN_CONTRIBUTORS = new Set(['arena-agent']);
+
 export const REPO_CONTRIBUTORS: Contributor[] = [
   {
     login: 'loxdpsy',
@@ -15,14 +17,6 @@ export const REPO_CONTRIBUTORS: Contributor[] = [
     url: 'https://github.com/loxdpsy',
     avatarUrl: 'https://avatars.githubusercontent.com/u/291979392?v=4',
     role: 'Créateur & contributeur principal',
-  },
-  {
-    login: 'arena-agent',
-    name: 'Arena Agent',
-    handle: '@arena-agent',
-    url: 'https://github.com/arena-agent',
-    avatarUrl: 'https://avatars.githubusercontent.com/u/297053741?v=4',
-    role: 'Contributions & correctifs assistés',
   },
   {
     login: 'Etherealmber',
@@ -34,22 +28,8 @@ export const REPO_CONTRIBUTORS: Contributor[] = [
   },
 ];
 
-const AGENT_RELEASE_VERSIONS = new Set([
-  '0.9.1',
-  '0.9.0',
-  '0.8.9',
-  '0.8.5',
-  '0.8.1',
-  '0.8.0',
-  '0.7.9',
-]);
-
-export function getContributorsForRelease(version: string): Contributor[] {
-  const base = [REPO_CONTRIBUTORS[0]];
-  if (AGENT_RELEASE_VERSIONS.has(version)) {
-    base.push(REPO_CONTRIBUTORS[1]);
-  }
-  return base;
+export function getContributorsForRelease(_version: string): Contributor[] {
+  return [REPO_CONTRIBUTORS[0]];
 }
 
 export async function fetchRepoContributors(): Promise<Contributor[]> {
@@ -68,6 +48,7 @@ export async function fetchRepoContributors(): Promise<Contributor[]> {
       const login = String(item.login || '').trim();
       const type = String(item.type || '');
       if (!login || type === 'Bot' || login.endsWith('[bot]')) continue;
+      if (HIDDEN_CONTRIBUTORS.has(login.toLowerCase())) continue;
       if (known.has(login.toLowerCase())) continue;
       const c: Contributor = {
         login,

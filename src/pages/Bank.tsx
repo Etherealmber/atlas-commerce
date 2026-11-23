@@ -825,8 +825,6 @@ export default function Bank() {
                 }]
               : []
           }
-          selectedId={matchSel}
-          onSelect={setMatchSel}
           onConfirm={() => { setMatchSheetOpen(false); }}
         />
       )}

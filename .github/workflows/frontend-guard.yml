@@ -7,23 +7,29 @@ on:
   pull_request:
     paths:
       - 'src/**'
+      - 'shared/**'
+      - 'rust/**'
+      - 'rust-toolchain.toml'
+      - 'scripts/**'
       - 'index.html'
       - 'vite.config.ts'
       - 'tsconfig.json'
       - 'package.json'
       - 'package-lock.json'
-      - 'scripts/tsc-baseline.txt'
       - '.github/workflows/frontend-guard.yml'
   push:
     branches: [main]
     paths:
       - 'src/**'
+      - 'shared/**'
+      - 'rust/**'
+      - 'rust-toolchain.toml'
+      - 'scripts/**'
       - 'index.html'
       - 'vite.config.ts'
       - 'tsconfig.json'
       - 'package.json'
       - 'package-lock.json'
-      - 'scripts/tsc-baseline.txt'
       - '.github/workflows/frontend-guard.yml'
 
 permissions:
@@ -38,25 +44,34 @@ jobs:
     name: oxlint — correctness gate (zero errors)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
-      - run: npm ci
       # Fails on ANY correctness error in src/ or worker/ (warnings, like the
       # known no-unused-vars backlog, are reported but do not block).
+      - run: npm ci
       - run: npm run lint
 
   client-build:
     name: Vite build + bundle sanity
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
+      - name: Install pinned Rust toolchain (1.82.0 + wasm32-unknown-unknown)
+        uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # master
+        with:
+          toolchain: 1.82.0
+          targets: wasm32-unknown-unknown
+      - name: Cache Cargo registry and Rust target directory
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        with:
+          workspaces: rust/atlas-finance-core
       - run: npm ci
       - run: npm run build
       - name: bundle sanity (index.html + hashed assets present)
@@ -70,10 +85,10 @@ jobs:
     name: src/ TypeScript — no new errors vs baseline
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci
       - name: tsc --noEmit (src scope)

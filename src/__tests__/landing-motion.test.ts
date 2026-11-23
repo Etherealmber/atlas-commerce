@@ -12,7 +12,7 @@ function Example() {
   useLandingMotion(ref, '.reveal', '.preview');
   return createElement('div', { ref }, createElement('div', { className: 'reveal' }, 'Content'), createElement('div', null, createElement('div', { className: 'preview' })));
 }
-async function render() { host = document.createElement('div'); document.body.append(host); root = createRoot(host); await act(async () => root.render(createElement(Example))); }
+async function render() { host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host); await act(async () => root.render(createElement(Example))); }
 afterEach(async () => { if (root) await act(async () => root.unmount()); host?.remove(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 it('leaves all content visible without IntersectionObserver', async () => {

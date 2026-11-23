@@ -26,6 +26,7 @@ import RefreshIconButton from '../components/RefreshIconButton';
 import PasswordConfirm from '../components/PasswordConfirm';
 import { FloatingPortal } from '../components/FloatingPortal';
 import { ModalFormError } from '../components/ModalFormFeedback';
+import { computeQuoteDraftTotals } from '../../shared/financeCore';
 
 export default function Quotes() {
   const [modalError, setModalError] = useState('');
@@ -331,17 +332,7 @@ export default function Quotes() {
   };
 
   /** Live HT / TVA / TTC for the creation drawer */
-  const draftTotals = (() => {
-    let ht = 0;
-    let tax = 0;
-    for (const it of items) {
-      const line = Number(it.quantity || 0) * Number(it.unit_price || 0);
-      ht += line;
-      const rate = taxExempt ? 0 : Number(it.tax_rate ?? 20);
-      tax += line * (rate / 100);
-    }
-    return { ht, tax, ttc: ht + tax };
-  })();
+  const draftTotals = computeQuoteDraftTotals(items, taxExempt);
 
   const fmt = (n: number) =>
     Math.round(Number(n || 0)).toLocaleString('fr-FR');

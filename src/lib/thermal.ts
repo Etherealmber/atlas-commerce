@@ -158,7 +158,7 @@ export async function fetchTicketBytes(
   if (!res.ok) {
     let msg = 'Ticket indisponible (' + res.status + ')';
     try {
-      const data = await res.clone().json();
+      const data = (await res.clone().json()) as { error?: string };
       if (data?.error) msg = data.error + ' (' + res.status + ')';
     } catch {
       /* non-JSON body (raw ESC/POS or plain text) */
@@ -175,7 +175,7 @@ export async function downloadTicket(
   filename?: string
 ): Promise<void> {
   const bytes = await fetchTicketBytes(invoiceId, width);
-  const blob = new Blob([bytes], { type: 'application/octet-stream' });
+  const blob = new Blob([new Uint8Array(bytes)], { type: 'application/octet-stream' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

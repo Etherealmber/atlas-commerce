@@ -184,7 +184,10 @@ export default function About() {
         let r: GhRepo[] = [];
         const proxied = await fetch('/api/public/github-profile');
         if (proxied.ok) {
-          const json = await proxied.json();
+          const json = (await proxied.json()) as {
+            success?: boolean;
+            data?: { user?: GhUser; repos?: GhRepo[] };
+          };
           if (json?.success && json.data?.user) {
             u = json.data.user as GhUser;
             r = (json.data.repos || []) as GhRepo[];

@@ -21,6 +21,12 @@ export interface ListPagerProps {
   className?: string;
 }
 
+const DIGIT_VARIANTS = {
+  enter: (d: number) => ({ y: d > 0 ? 12 : -12, opacity: 0 }),
+  center: { y: 0, opacity: 1 },
+  exit: (d: number) => ({ y: d > 0 ? -12 : 12, opacity: 0 }),
+};
+
 function DigitSlot({ char, dir }: { char: string; dir: 1 | -1 }) {
   return (
     <span className="ac-pager-digit">
@@ -29,9 +35,10 @@ function DigitSlot({ char, dir }: { char: string; dir: 1 | -1 }) {
           key={char}
           className="ac-pager-digit-inner"
           custom={dir}
-          initial={(d: number) => ({ y: d > 0 ? 12 : -12, opacity: 0 })}
-          animate={{ y: 0, opacity: 1 }}
-          exit={(d: number) => ({ y: d > 0 ? -12 : 12, opacity: 0 })}
+          variants={DIGIT_VARIANTS}
+          initial="enter"
+          animate="center"
+          exit="exit"
           transition={{ type: 'spring', stiffness: 400, damping: 30, mass: 0.65 }}
         >
           {char}

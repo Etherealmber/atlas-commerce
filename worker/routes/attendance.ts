@@ -1,4 +1,5 @@
 import type { Hono } from 'hono';
+import { round2 } from '../lib/financeCore';
 
 export interface AttendanceRouteDeps {
   requireEmployeeAdmin: (c: any) => Promise<Response | null>;
@@ -238,9 +239,9 @@ export function registerAttendanceRoutes(app: Hono<any>, deps: AttendanceRouteDe
           const elapsed = Math.max(0, Math.round(
             (new Date(today + 'T12:00:00Z').getTime() - new Date(periodFrom + 'T12:00:00Z').getTime()) / 86400000,
           )) + 1;
-          suggested = Math.round(payAmt * (Math.min(elapsed, cycle * 12) / cycle) * 100) / 100;
+          suggested = round2(payAmt * (Math.min(elapsed, cycle * 12) / cycle));
         } else {
-          suggested = Math.round(Math.min(worked, cycle * 12) * daily * 100) / 100;
+          suggested = round2(Math.min(worked, cycle * 12) * daily);
         }
       }
       let minuteDeduction = 0;
@@ -259,8 +260,8 @@ export function registerAttendanceRoutes(app: Hono<any>, deps: AttendanceRouteDe
           }
         }
         const dayMins = Math.max(60, attRules.workday_hours * 60);
-        minuteDeduction = Math.round((lateMinutesTotal / dayMins) * daily * 100) / 100;
-        suggested = Math.max(0, Math.round((suggested - minuteDeduction) * 100) / 100);
+        minuteDeduction = round2((lateMinutesTotal / dayMins) * daily);
+        suggested = Math.max(0, round2(suggested - minuteDeduction));
       }
       const lateDays = rate?.late || 0;
       const logged = rate?.days || 0;
@@ -491,10 +492,10 @@ export function registerAttendanceRoutes(app: Hono<any>, deps: AttendanceRouteDe
     }
     const dayMins = Math.max(60, rules.workday_hours * 60);
     const minuteDeduction = rules.minute_deduct && daily > 0
-      ? Math.round((lateMinutesTotal / dayMins) * daily * 100) / 100
+      ? round2((lateMinutesTotal / dayMins) * daily)
       : 0;
-    const presencePay = Math.round(Math.min(weight, cycle * 12) * daily * 100) / 100;
-    const netSuggested = Math.max(0, Math.round((presencePay - minuteDeduction) * 100) / 100);
+    const presencePay = round2(Math.min(weight, cycle * 12) * daily);
+    const netSuggested = Math.max(0, round2(presencePay - minuteDeduction));
     const name = [emp.first_name, emp.last_name].filter(Boolean).join(' ') || emp.name || '—';
 
     return c.json({
@@ -517,7 +518,7 @@ export function registerAttendanceRoutes(app: Hono<any>, deps: AttendanceRouteDe
           logged, present, late, half, excused, absent, rate_pct,
           late_pct: logged > 0 ? Math.round((late / logged) * 1000) / 10 : 0,
           worked_days: weight, late_minutes: lateMinutesTotal, late_penalty: minuteDeduction,
-          daily_rate: Math.round(daily * 100) / 100, net_suggested: netSuggested, discipline_hint: disc,
+          daily_rate: round2(daily), net_suggested: netSuggested, discipline_hint: disc,
         },
         days,
       },

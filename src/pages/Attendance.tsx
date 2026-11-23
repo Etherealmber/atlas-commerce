@@ -49,7 +49,7 @@ async function attFetch(path: string, init?: RequestInit) {
       ...(init?.headers as Record<string, string> | undefined),
     },
   });
-  const j = await res.json().catch(() => ({}));
+  const j = (await res.json().catch(() => ({}))) as { error?: string; data?: any };
   if (!res.ok) throw new Error(j?.error || `Erreur ${res.status}`);
   return j;
 }
@@ -226,7 +226,7 @@ export default function Attendance() {
       const res = await fetch(`${base}/api/attendance/record/${r.employee_id}?scope=${scope}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      const j = await res.json().catch(() => null);
+      const j = (await res.json().catch(() => null)) as { error?: string; data?: any } | null;
       if (!res.ok) throw new Error(j?.error || 'Erreur fiche');
       setRecordData(j?.data || null);
     } catch (e: any) {

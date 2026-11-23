@@ -19,6 +19,7 @@ import type { AtlasApp } from './types';
 import { validateExpenseWrite } from '../lib/validate';
 import { normalizeRole } from '../lib/rbac';
 import { apiFail } from '../lib/api-response';
+import { round2, sanitizePositiveAmount } from '../lib/financeCore';
 
 export type ExpenseWriteDeps = {
   sessionUserFromHeader(authHeader: string | undefined): { username: string; role: string };
@@ -89,6 +90,8 @@ export function registerExpenseWriteRoutes(app: AtlasApp, deps: ExpenseWriteDeps
       entry_type = 'expense',
     } = body;
     if (!description || amount == null) return c.json({ success: false, error: 'La description et le montant sont obligatoires' }, 400);
+    const safeAmount = sanitizePositiveAmount(amount, { max: 1e12, decimals: 2 });
+    if (safeAmount == null) return c.json({ success: false, error: 'Montant invalide' }, 400);
     const allowedTypes = ['expense', 'income', 'owner_draw', 'owner_contrib'];
     const type = allowedTypes.includes(entry_type) ? entry_type : 'expense';
     const result = await c.env.DB.prepare(
@@ -97,7 +100,7 @@ export function registerExpenseWriteRoutes(app: AtlasApp, deps: ExpenseWriteDeps
     ).bind(
       category,
       description,
-      amount,
+      safeAmount,
       payment_method,
       expense_date || new Date().toISOString().slice(0, 10),
       vendor_name,
@@ -109,7 +112,7 @@ export function registerExpenseWriteRoutes(app: AtlasApp, deps: ExpenseWriteDeps
     await deps.invalidateDashboardCache(c.env.CACHE);
     void deps.writeAudit(c.env.DB, {
       username: gate.username, role: gate.role, action: 'expense.create', entity: 'expenses',
-      entity_id: String((expense as any)?.id ?? ''), detail: `${type}:${Number(amount)}`, ip: deps.clientIp(c),
+      entity_id: String((expense as any)?.id ?? ''), detail: `${type}:${safeAmount}`, ip: deps.clientIp(c),
     });
     const msg = type === 'income' ? 'Recette enregistrée dans la base de données.' : 'Dépense enregistrée dans la base de données.';
     return c.json({ success: true, data: expense, message: msg }, 201);
@@ -125,12 +128,11 @@ export function registerExpenseWriteRoutes(app: AtlasApp, deps: ExpenseWriteDeps
     if (!rows.length) return c.json({ success: false, error: 'Aucune ligne à importer' }, 400);
     let inserted = 0;
     for (const row of rows) {
-      const amount = Number(row.amount || row.montant || 0);
-      if (!amount || amount <= 0) continue;
+      const rawAmt = row.amount ?? row.montant ?? row.in ?? row['دخول'] ?? row.out ?? row['خروج'];
+      const amt = sanitizePositiveAmount(rawAmt, { max: 1e12, decimals: 2 });
+      if (amt == null) continue;
       const entryType = row.entry_type || row.type || (row.direction === 'in' || row.direction === 'entrée' || row.direction === 'دخول' ? 'income' : 'expense');
       const type = ['expense', 'income', 'owner_draw', 'owner_contrib'].includes(entryType) ? entryType : (Number(row.in || row['دخول'] || 0) > 0 ? 'income' : 'expense');
-      const amt = amount || Number(row.in || row['دخول'] || row.out || row['خروج'] || 0);
-      if (!amt) continue;
       const description = String(row.description || row.label || row.libelle || row['معلومات'] || 'Import').trim();
       const category = String(row.category || row.categorie || 'Import Excel').trim();
       const payment_method = String(row.payment_method || row.mode || 'cash');
@@ -138,7 +140,7 @@ export function registerExpenseWriteRoutes(app: AtlasApp, deps: ExpenseWriteDeps
       await c.env.DB.prepare(
         `INSERT INTO expenses (category, description, amount, payment_method, expense_date, vendor_name, reference, notes, entry_type)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      ).bind(category, description, amt, payment_method, expense_date, row.vendor || '', row.reference || 'import', row.notes || '', type).run();
+      ).bind(category, description, round2(amt), payment_method, expense_date, row.vendor || '', row.reference || 'import', row.notes || '', type).run();
       inserted++;
     }
     void deps.writeAudit(c.env.DB, {

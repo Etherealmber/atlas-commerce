@@ -15,7 +15,7 @@ import NumberField from '../components/NumberField';
 import EmptyState from '../components/EmptyState';
 import VirtualTableBody, { VirtualScroll } from '../components/VirtualTableBody';
 import { statusFr, statusBadgeClass } from '../lib/labels';
-import { fmtMoney, PAYMENT_METHODS } from '../lib/money';
+import { fmtMoney, PAYMENT_METHODS, remainingBalance } from '../lib/money';
 import { useUi } from '../components/AppDialogs';
 import PasswordConfirm from '../components/PasswordConfirm';
 import { friendlyError } from '../lib/errors';
@@ -252,7 +252,7 @@ export default function QuickSale() {
   const fmt = (n: number) => fmtMoney(n, 'MAD');
 
   const remainingOf = (inv: any) =>
-    Math.max(0, Number(inv.total || 0) - Number(inv.amount_paid || 0));
+    remainingBalance(inv.total, inv.amount_paid);
 
   const markPaid = (inv: any) => {
     const rest = remainingOf(inv);
@@ -571,7 +571,7 @@ export default function QuickSale() {
                     <td style={{ fontWeight: 700 }}>{fmt(inv.total)}</td>
                     <td>{fmt(inv.amount_paid || 0)}</td>
                     <td style={{ fontWeight: 700, color: inv.status === 'paid' || inv.status === 'cancelled' ? 'var(--muted)' : 'var(--bad)' }}>
-                      {inv.status === 'cancelled' ? '—' : fmt(Math.max(0, Number(inv.total || 0) - Number(inv.amount_paid || 0)))}
+                      {inv.status === 'cancelled' ? '—' : fmt(remainingBalance(inv.total, inv.amount_paid))}
                     </td>
                     <td className="row-actions-cell">
                       <div className="row-actions">

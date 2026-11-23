@@ -1069,8 +1069,8 @@ export default function Products() {
                 </div>
                 <div className="grid grid-3">
                   <div className="form-row"><label>Code-barres</label><input value={variantForm.barcode} onChange={(e) => setVariantForm({ ...variantForm, barcode: e.target.value })} placeholder="Scan / saisie" /></div>
-                  <div className="form-row"><label>Prix</label><NumberField value={variantForm.price} onValueChange={(n) => setVariantForm({ ...variantForm, price: n })} /></div>
-                  <div className="form-row"><label>Stock initial</label><NumberField value={variantForm.stock_quantity} onValueChange={(n) => setVariantForm({ ...variantForm, stock_quantity: n })} /></div>
+                  <div className="form-row"><label>Prix</label><NumberField value={Number(variantForm.price || 0)} onValueChange={(n) => setVariantForm({ ...variantForm, price: String(n) })} /></div>
+                  <div className="form-row"><label>Stock initial</label><NumberField value={Number(variantForm.stock_quantity || 0)} onValueChange={(n) => setVariantForm({ ...variantForm, stock_quantity: String(n) })} /></div>
                 </div>
                 <button type="button" className="secondary" style={{ marginBottom: 4 }} onClick={saveVariant} disabled={savingVariant}>
                   {savingVariant ? 'Ajout…' : '+ Ajouter la variante'}

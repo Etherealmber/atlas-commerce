@@ -1,5 +1,7 @@
 import type { Hono } from 'hono';
 import { afterBusinessMutation } from '../lib/delete-coord';
+import { roleCanSeeFinancial } from '../lib/inventory-policy';
+import { roundCurrency, sanitizeNonNegativeAmount, sanitizePositiveAmount } from '../lib/financeCore';
 
 export interface DataImportRouteDeps {
   requireBizMutator: (c: any) => { ok: true; username: string; role: string } | { ok: false; response: Response };
@@ -30,6 +32,10 @@ function validateImportProducts(rows: any[]): ImportIssue[] {
     const price = Number(r.price ?? r.unit_price);
     if (r.price != null && (!Number.isFinite(price) || price < 0)) {
       issues.push({ file: 'products', line, field: 'price', rule: 'NUMBER', message: `Prix invalide: ${r.price}` });
+    }
+    const cost = Number(r.cost);
+    if (r.cost != null && (!Number.isFinite(cost) || cost < 0)) {
+      issues.push({ file: 'products', line, field: 'cost', rule: 'NUMBER', message: `Coût invalide: ${r.cost}` });
     }
     const stock = Number(r.stock_quantity ?? r.stock);
     if (r.stock_quantity != null && (!Number.isFinite(stock) || stock < 0)) {
@@ -188,11 +194,19 @@ export function registerDataImportRoutes(app: Hono<any>, deps: DataImportRouteDe
     const gate = requireBizMutator(c);
     if (!gate.ok) return gate.response;
     const body = await c.req.json().catch(() => ({}));
+    const hasLedger = Array.isArray(body.ledger) || Array.isArray(body.expenses);
+    if (hasLedger && !roleCanSeeFinancial(gate.role)) {
+      return c.json({
+        success: false,
+        error: 'Import de trésorerie réservé au propriétaire ou administrateur.',
+        code: 'FORBIDDEN_ROLE',
+      }, 403);
+    }
 
     const issues: ImportIssue[] = [];
     if (Array.isArray(body.clients)) issues.push(...validateImportClients(body.clients));
     if (Array.isArray(body.products)) issues.push(...validateImportProducts(body.products));
-    if (Array.isArray(body.ledger) || Array.isArray(body.expenses)) {
+    if (hasLedger) {
       issues.push(...validateImportLedger(body.ledger || body.expenses));
     }
     if (Array.isArray(body.invoices)) issues.push(...validateImportInvoices(body.invoices));
@@ -205,56 +219,81 @@ export function registerDataImportRoutes(app: Hono<any>, deps: DataImportRouteDe
       }, 400);
     }
 
-    let inserted = 0;
+    let currency = 'MAD';
     try {
-      if (Array.isArray(body.clients)) {
-        for (const r of body.clients) {
-          await c.env.DB.prepare(
+      const settings = await c.env.DB.prepare(`SELECT * FROM company_settings WHERE id = 1`).first() as any;
+      currency = String(settings?.currency || settings?.finance_currency || 'MAD');
+    } catch { /* default MAD */ }
+
+    const stmts: D1PreparedStatement[] = [];
+    if (Array.isArray(body.clients)) {
+      for (const r of body.clients) {
+        stmts.push(
+          c.env.DB.prepare(
             `INSERT INTO clients (name, ice, email, phone, address, city) VALUES (?, ?, ?, ?, ?, ?)`,
           ).bind(
             String(r.name || r.client_name || '').trim(),
-            r.ice || '',
-            r.email || '',
-            r.phone || '',
-            r.address || '',
-            r.city || '',
-          ).run();
-          inserted++;
-        }
+            String(r.ice || ''),
+            String(r.email || ''),
+            String(r.phone || ''),
+            String(r.address || ''),
+            String(r.city || ''),
+          ),
+        );
       }
-      if (Array.isArray(body.products)) {
-        for (const r of body.products) {
-          await c.env.DB.prepare(
-            `INSERT INTO products (name, sku, barcode, price, stock_quantity, is_active, track_inventory) VALUES (?, ?, ?, ?, ?, 1, 1)`,
+    }
+    if (Array.isArray(body.products)) {
+      for (const r of body.products) {
+        const priceVal = sanitizeNonNegativeAmount(r.price ?? r.unit_price ?? 0, { decimals: 2 });
+        const costVal = r.cost != null ? sanitizeNonNegativeAmount(r.cost, { decimals: 2 }) : 0;
+        if (priceVal == null || costVal == null) {
+          return c.json({ success: false, error: 'Prix ou coût produit invalide.', code: 'IMPORT_REJECTED' }, 400);
+        }
+        stmts.push(
+          c.env.DB.prepare(
+            `INSERT INTO products (name, sku, barcode, price, cost, stock_quantity, is_active, track_inventory) VALUES (?, ?, ?, ?, ?, ?, 1, 1)`,
           ).bind(
             String(r.name || '').trim(),
-            r.sku || '',
-            r.barcode || '',
-            Number(r.price ?? r.unit_price ?? 0),
+            String(r.sku || ''),
+            String(r.barcode || ''),
+            roundCurrency(priceVal, currency, 'invoice'),
+            roundCurrency(costVal, currency, 'invoice'),
             Number(r.stock_quantity ?? r.stock ?? 0),
-          ).run();
-          inserted++;
-        }
+          ),
+        );
       }
-      if (Array.isArray(body.ledger) || Array.isArray(body.expenses)) {
-        await ensureExpenseTypeColumn(c.env.DB);
-        for (const r of body.ledger || body.expenses) {
-          await c.env.DB.prepare(
+    }
+    if (hasLedger) {
+      await ensureExpenseTypeColumn(c.env.DB);
+      for (const r of body.ledger || body.expenses) {
+        const amt = sanitizePositiveAmount(r.amount, { decimals: 2 });
+        if (amt == null) {
+          return c.json({ success: false, error: `Montant invalide: ${r.amount}`, code: 'IMPORT_REJECTED' }, 400);
+        }
+        const entryType = r.entry_type === 'income' ? 'income' : 'expense';
+        stmts.push(
+          c.env.DB.prepare(
             `INSERT INTO expenses (category, description, amount, payment_method, expense_date, vendor_name, reference, notes, entry_type)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           ).bind(
-            r.category || 'Import',
-            r.description || 'Import',
-            Number(r.amount),
-            r.payment_method || 'cash',
+            String(r.category || 'Import'),
+            String(r.description || 'Import'),
+            roundCurrency(amt, currency, 'ledger'),
+            String(r.payment_method || 'cash'),
             String(r.date || r.expense_date || new Date().toISOString().slice(0, 10)).slice(0, 10),
-            r.vendor || '',
-            r.reference || 'import',
-            r.notes || '',
-            r.entry_type === 'income' ? 'income' : 'expense',
-          ).run();
-          inserted++;
-        }
+            String(r.vendor || ''),
+            String(r.reference || 'import'),
+            String(r.notes || ''),
+            entryType,
+          ),
+        );
+      }
+    }
+
+    const inserted = stmts.length;
+    try {
+      for (let i = 0; i < stmts.length; i += 100) {
+        await c.env.DB.batch(stmts.slice(i, i + 100));
       }
     } catch (e: any) {
       return c.json({

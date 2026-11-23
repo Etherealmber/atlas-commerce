@@ -6,6 +6,9 @@ node_modules/
 # Build / deploy
 dist/
 /experiments/windows-webauthn/target/
+/rust/atlas-finance-core/target/
+/worker/wasm/*.wasm
+/worker/wasm/.finance-wasm-build.json
 .wrangler/
 .dev.vars
 .mf/

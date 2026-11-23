@@ -1,8 +1,33 @@
 import type { AtlasApp } from './types';
+import { canMutateBusiness } from '../lib/rbac';
+import { sessionUserFromHeader } from '../lib/authHelpers';
+
+export interface InvoiceReadRouteDeps {
+  requireBizMutator?: (
+    c: any,
+  ) => { ok: true; username: string; role: string } | { ok: false; response: Response };
+}
 
 /** Invoice read routes (list/detail). Create/pay/delete remain in worker/index.ts for now. */
-export function registerInvoiceReadRoutes(app: AtlasApp): void {
+export function registerInvoiceReadRoutes(app: AtlasApp, deps?: InvoiceReadRouteDeps): void {
+  const gateBiz = (c: any) => {
+    if (deps?.requireBizMutator) return deps.requireBizMutator(c);
+    const s = sessionUserFromHeader(c.req.header('Authorization'));
+    if (!canMutateBusiness(s.role)) {
+      return {
+        ok: false as const,
+        response: c.json(
+          { success: false, error: 'Accès factures réservé (owner / admin / secrétaire).', code: 'FORBIDDEN_ROLE' },
+          403,
+        ),
+      };
+    }
+    return { ok: true as const, username: s.username, role: s.role };
+  };
+
   app.get('/api/invoices', async (c) => {
+    const gate = gateBiz(c);
+    if (!gate.ok) return gate.response;
     const status = c.req.query('status');
     const clientId = c.req.query('client');
     const kind = String(c.req.query('kind') || '').trim();
@@ -34,6 +59,8 @@ export function registerInvoiceReadRoutes(app: AtlasApp): void {
   });
 
   app.get('/api/invoices/:id', async (c) => {
+    const gate = gateBiz(c);
+    if (!gate.ok) return gate.response;
     const id = c.req.param('id');
     const invoice = await c.env.DB.prepare(`SELECT * FROM invoices WHERE id = ?`).bind(id).first();
     if (!invoice) return c.json({ success: false, error: 'Facture introuvable' }, 404);

@@ -198,10 +198,11 @@ describe('List UX, danger/dock/slot CSS fixes, pagination (20/page), and release
     const thanksCard = host.querySelector('.wn-thanks-card');
     expect(thanksCard?.textContent).toContain('Remerciements');
     expect(thanksCard?.textContent).toContain('@loxdpsy');
-    expect(thanksCard?.textContent).toContain('@arena-agent');
+    expect(thanksCard?.textContent).not.toContain('@arena-agent');
     const firstRelease = host.querySelector('.wn-release');
     expect(firstRelease?.querySelector('.wn-release-contributors')?.textContent).toContain('Merci à');
     expect(firstRelease?.querySelector('.wn-release-contributors')?.textContent).toContain('@loxdpsy');
+    expect(firstRelease?.querySelector('.wn-release-contributors')?.textContent).not.toContain('@arena-agent');
 
     await act(async () => {
       root.render(createElement(MemoryRouter, null, createElement(About)));
@@ -209,6 +210,6 @@ describe('List UX, danger/dock/slot CSS fixes, pagination (20/page), and release
     await act(async () => { await Promise.resolve(); await Promise.resolve(); });
     expect(host.textContent).toContain('Remerciements & contributeurs');
     expect(host.textContent).toContain('@loxdpsy');
-    expect(host.textContent).toContain('@arena-agent');
+    expect(host.textContent).not.toContain('@arena-agent');
   });
 });

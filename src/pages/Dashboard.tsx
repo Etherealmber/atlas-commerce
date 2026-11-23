@@ -586,7 +586,7 @@ export default function Dashboard() {
           return;
         }
         try {
-          const el: any = await api.getEmployees?.({ status: 'active', limit: 200 });
+          const el: any = await api.getEmployees?.({ status: 'active' });
           const list = el?.data?.rows || el?.data || [];
           if (!cancelled && Array.isArray(list)) {
             setAttEmployees(
@@ -604,7 +604,7 @@ export default function Dashboard() {
         const r = await fetch(`${base}/api/attendance/weekly?${q}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
-        const j = await r.json().catch(() => null);
+        const j = (await r.json().catch(() => null)) as { data?: { days?: any[] } } | null;
         if (!cancelled && j?.data?.days) setAttWeek(j.data.days);
         else if (!cancelled) setAttWeek([]);
       } catch {

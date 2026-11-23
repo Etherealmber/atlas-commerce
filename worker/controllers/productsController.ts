@@ -19,7 +19,7 @@ export function listProductsController(c: Context<{ Bindings: Env }>) {
 
 export function getProductController(c: Context<{ Bindings: Env }>) {
   return runController(c, async () => {
-    const data = await productsService.getProductSafe(c.env, c.req.param('id'));
+    const data = await productsService.getProductSafe(c.env, c.req.param('id') || '');
     return { ok: true, data };
   });
 }

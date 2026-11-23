@@ -908,7 +908,7 @@ export async function startBarcodeScan(
       if (!container.id) container.id = 'ph-h5-reader';
       container.innerHTML = '';
       html5Stop = await startHtml5Scan(container, (code) => emit(code), onError);
-      if (html5Stop) {
+      if (typeof html5Stop === 'function') {
         // Also try native BD on the video html5 creates (Chrome Android boost)
         const tryAttachNative = () => {
           if (stopped) return;

@@ -1,0 +1,17 @@
+[package]
+name = "atlas-finance-core"
+version = "0.2.0"
+edition = "2021"
+publish = false
+license = "MIT OR Apache-2.0"
+description = "Deterministic, currency-aware finance, invoice, payroll, and validation core for Atlas Commerce (WASM + native Rust)."
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = "symbols"

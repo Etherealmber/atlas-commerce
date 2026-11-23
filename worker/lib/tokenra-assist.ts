@@ -1,5 +1,6 @@
-/**
 import { fetchWithTimeout } from './http-client';
+
+/**
  * TokenRa OpenAI-compatible gateway (DeepSeek V4 Flash, etc.)
  * https://tokenra.io — POST /v1/chat/completions
  * Auth: Authorization: Bearer sk-...

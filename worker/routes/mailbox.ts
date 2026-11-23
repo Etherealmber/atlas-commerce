@@ -255,7 +255,7 @@ export async function syncResendHistory(env: any, opts?: { limit?: number }): Pr
             headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json' },
           });
           if (dRes.ok) {
-            const dj = await dRes.json().catch(() => null);
+            const dj = (await dRes.json().catch(() => null)) as { data?: Record<string, unknown> } | null;
             // Resend may wrap as { data: {...} }
             if (dj?.data && typeof dj.data === 'object') detail = dj.data;
             else if (dj) detail = dj;

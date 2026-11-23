@@ -26,3 +26,32 @@ export { registerAttendanceRoutes } from './attendance';
 export { registerCatalogRoutes } from './catalog';
 export { registerCategoriesUnitsRoutes } from './categoriesUnits';
 export { registerDataImportRoutes } from './dataImport';
+export { registerBackupRoutes, purgeExpiredBackups, runDailyBackup, makeVerifyBackupAccess } from './backups';
+export { registerReportRoutes, reportShell, type ReportRouteDeps } from './reports';
+export {
+  registerInventoryOpsRoutes,
+  ensureMarbleUnits,
+  ensureStockLocations,
+  placeProductStockOnDefault,
+  getDefaultLocationId,
+  adjustLocationStock,
+  ensureBillReceive,
+  type InventoryOpsRouteDeps,
+} from './inventoryOps';
+export { registerAssistRoutes, purgeAgentConversationsOlderThan, type AssistRouteDeps } from './assist';
+export {
+  registerReportsAndUpdatesRoutes,
+  readAppUpdateState,
+  APP_UPDATE_MAX_APK_BYTES,
+  type ReportsAndUpdatesDeps,
+} from './reportsAndUpdates';
+export {
+  registerPublicSignedRoutes,
+  ensureReceiptPublicToken,
+  renderPublicReceiptVerify,
+  type PublicSignedRouteDeps,
+} from './publicSigned';
+export { registerProductsScanRoutes, type ProductsScanRouteDeps } from './productsScan';
+export { registerDashboardIntegrityRoutes, type DashboardIntegrityRouteDeps } from './dashboardIntegrity';
+export { registerInvoicesWriteRoutes, type InvoicesWriteRouteDeps } from './invoicesWrite';
+export { registerBillsReceiptsRoutes, ensureBillPaymentsTable, type BillsReceiptsRouteDeps } from './billsReceipts';

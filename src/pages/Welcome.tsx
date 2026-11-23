@@ -561,7 +561,7 @@ export default function Welcome() {
     fetch(`https://api.github.com/users/${APP_CREATOR}`, {
       headers: { Accept: 'application/vnd.github+json' },
     })
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => (r.ok ? (r.json() as Promise<{ avatar_url?: string }>) : null))
       .then((u) => {
         if (!cancelled && u?.avatar_url) setAvatar(String(u.avatar_url));
       })

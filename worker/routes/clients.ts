@@ -2,6 +2,7 @@
  * Clients domain routes — peeled from worker/index.ts
  */
 import type { Hono } from 'hono';
+import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import { apiFail } from '../lib/api-response';
 import { validateClientWrite } from '../lib/validate';
 import {
@@ -34,21 +35,22 @@ export type ClientRouteDeps = {
   writeAudit: (db: D1Database, opts: any) => Promise<void>;
 };
 
-export function registerClientRoutes(app: Hono<any>, deps?: ClientRouteDeps): void {
-  const issueDeleteOtp = deps?.issueDeleteOtp;
-  const requireBizMutator = deps?.requireBizMutator;
-  const checkConfirmPassword = deps?.checkConfirmPassword;
-  const clientDeleteBlockers = deps?.clientDeleteBlockers;
-  const writeAudit = deps?.writeAudit;
+export function registerClientRoutes(app: Hono<any>, deps: ClientRouteDeps): void {
+  const issueDeleteOtp = deps.issueDeleteOtp;
+  const requireBizMutator = deps.requireBizMutator;
+  const checkConfirmPassword = deps.checkConfirmPassword;
+  const clientDeleteBlockers = deps.clientDeleteBlockers;
+  const writeAudit = deps.writeAudit;
 
   const gateBiz = (c: any) => {
-    if (!requireBizMutator) return { ok: true as const, username: 'user', role: 'admin' };
     const r = requireBizMutator(c);
     if (!r.ok) return { ok: false as const, response: r.response };
     return { ok: true as const, username: r.username, role: r.role };
   };
 
   app.get('/api/clients', async (c) => {
+    const gate = gateBiz(c);
+    if (!gate.ok) return gate.response;
     await ensureClientTaxExempt(c.env.DB);
     await ensureClientCreditLimit(c.env.DB);
     let results: any[] = [];
@@ -109,6 +111,15 @@ export function registerClientRoutes(app: Hono<any>, deps?: ClientRouteDeps): vo
     const body = await c.req.json().catch(() => ({}));
     const existing = await c.env.DB.prepare(`SELECT * FROM clients WHERE id = ?`).bind(id).first() as any;
     if (!existing) return apiFail(c, 'Client introuvable', 'NOT_FOUND');
+    const verr = validateClientWrite({ name: body.name ?? existing.name, ...body });
+    if (verr) return apiFail(c, verr.name || Object.values(verr)[0] || 'Validation', 'VALIDATION', verr);
+    if (body.credit_limit !== undefined) {
+      const cl = Number(body.credit_limit);
+      if (!Number.isFinite(cl) || cl < 0) {
+        return apiFail(c, 'Plafond de crédit invalide (doit être >= 0)', 'VALIDATION');
+      }
+      body.credit_limit = cl;
+    }
     const fields = ['name', 'ice', 'if_number', 'address', 'city', 'phone', 'email', 'credit_limit'];
     const updates: string[] = [];
     const values: any[] = [];
@@ -147,7 +158,7 @@ export function registerClientRoutes(app: Hono<any>, deps?: ClientRouteDeps): vo
       const id = c.req.param('id');
       const body = await c.req.json().catch(() => ({}));
       const pw = await checkConfirmPassword(c.env, c.env.DB, c.req.header('Authorization'), body);
-      if (!pw.ok) return c.json({ success: false, error: pw.error, code: pw.code }, pw.status);
+      if (!pw.ok) return c.json({ success: false, error: pw.error, code: pw.code }, pw.status as ContentfulStatusCode);
       const client = await c.env.DB.prepare(`SELECT * FROM clients WHERE id = ?`).bind(id).first() as any;
       if (!client) return c.json({ success: false, error: 'Client introuvable' }, 404);
       const block = await clientDeleteBlockers(c.env.DB, id);
@@ -187,13 +198,24 @@ export function registerClientRoutes(app: Hono<any>, deps?: ClientRouteDeps): vo
     const gate = gateBiz(c);
     if (!gate.ok) return gate.response;
     const body = await c.req.json().catch(() => ({}));
-    const ids: number[] = Array.isArray(body.ids) ? body.ids.map((x: any) => Number(x)).filter((n: number) => n > 0) : [];
-      if (!ids.length) return c.json({ success: false, error: 'Aucun client sélectionné' }, 400);
-    const resourceId = ids.slice().sort((a, b) => a - b).join(',');
+    const ids: number[] = Array.isArray(body.ids) ? body.ids.map((x: any) => Number(x)).filter((n: number) => Number.isSafeInteger(n) && n > 0) : [];
+    if (!ids.length) return c.json({ success: false, error: 'Aucun client sélectionné' }, 400);
     const pw = await checkConfirmPassword(c.env, c.env.DB, c.req.header('Authorization'), body);
-    if (!pw.ok) return c.json({ success: false, error: pw.error, code: pw.code }, pw.status);
+    if (!pw.ok) return c.json({ success: false, error: pw.error, code: pw.code }, pw.status as ContentfulStatusCode);
+    for (const cid of ids) {
+      const block = await clientDeleteBlockers(c.env.DB, cid);
+      if (block) {
+        return c.json({ success: false, error: `Client #${cid} : ${block}`, code: 'CLIENT_HAS_HISTORY' }, 400);
+      }
+    }
     const placeholders = ids.map(() => '?').join(',');
     await c.env.DB.prepare(`DELETE FROM clients WHERE id IN (${placeholders})`).bind(...ids).run();
+    await afterBusinessMutation(c.env.CACHE);
+    await writeAudit(c.env.DB, {
+      username: gate.username, role: gate.role, action: 'client.bulk_delete',
+      entity: 'clients', entity_id: ids.join(','), detail: `${ids.length} client(s)`,
+      ip: c.req.header('cf-connecting-ip') || '',
+    });
     return c.json({ success: true, message: `${ids.length} client(s) supprimé(s) de la base de données.` });
   });
 
@@ -201,6 +223,8 @@ export function registerClientRoutes(app: Hono<any>, deps?: ClientRouteDeps): vo
   /* ─── Client import (Part 9) ─── */
 
   app.post('/api/clients/import/preview', async (c) => {
+    const gate = gateBiz(c);
+    if (!gate.ok) return gate.response;
     const body = await c.req.json().catch(() => ({}));
     const rows: any[] = Array.isArray(body.rows) ? body.rows : [];
     if (!rows.length) return c.json({ success: false, error: 'Aucune ligne à analyser' }, 400);

@@ -73,10 +73,10 @@ it('keeps the staged product photo editor accessible', async () => {
   vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
   await act(async () => root.render(createElement(MemoryRouter, {initialEntries:['/products']}, createElement(Products))));
   await act(async () => [...host.querySelectorAll<HTMLButtonElement>('button')].find(b => b.textContent?.includes('Ajouter un produit'))!.click());
-  const secondaryUnitSelect = document.querySelector<HTMLSelectElement>('#product-secondary-unit')!;
+  const secondaryUnitSelect = document.querySelector('#product-secondary-unit') as HTMLSelectElement | null;
   expect(secondaryUnitSelect?.tagName).toBe('SELECT');
-  expect([...secondaryUnitSelect.options].some(o => o.value === 'm²')).toBe(true);
-  expect([...secondaryUnitSelect.options].some(o => o.value === '__new__')).toBe(true);
+  expect([...secondaryUnitSelect!.options].some(o => o.value === 'm²')).toBe(true);
+  expect([...secondaryUnitSelect!.options].some(o => o.value === '__new__')).toBe(true);
   const picker = document.querySelector<HTMLInputElement>('.modal input[type="file"][multiple]')!;
   const files = new DataTransfer(); files.items.add(new File(['x'], 'photo.png', {type:'image/png'})); picker.files=files.files;
   await act(async () => picker.dispatchEvent(new Event('change', {bubbles:true})));

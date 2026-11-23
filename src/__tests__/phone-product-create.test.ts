@@ -43,8 +43,8 @@ it('includes an optional carton-to-area conversion in a price-free request', asy
   localStorage.setItem('stock_role', 'stock');
   const request = vi.spyOn(api, 'createMobileAction').mockResolvedValue({ data: {} } as any);
   await render(); fill();
-  const unitSelect = form().querySelector<HTMLSelectElement>('[name="unit"]')!;
-  const secondSelect = form().querySelector<HTMLSelectElement>('[name="secondary_unit"]')!;
+  const unitSelect = form().querySelector('[name="unit"]') as unknown as HTMLSelectElement;
+  const secondSelect = form().querySelector('[name="secondary_unit"]') as unknown as HTMLSelectElement;
   expect(unitSelect.tagName).toBe('SELECT');
   expect(secondSelect.tagName).toBe('SELECT');
   unitSelect.value = 'carton';
