@@ -6509,6 +6509,312 @@ html[data-theme="dark"] body .btn.ghost:hover:not(:disabled) {
   -webkit-text-fill-color: #ffffff !important;
 }
 
+/* ============================================================================
+   Obsidian Zinc — Unified Dark Mode System (Surface Ramp, Hairlines, Controls)
+   Replaces fragmented legacy brown/navy/slate dark tokens with one cohesive ramp.
+   ============================================================================ */
+html[data-theme="dark"] {
+  --bg: #09090b !important;
+  --ac-bg: #09090b !important;
+  --shell-bg: #09090b !important;
+  --ac-sidebar: #0e0e11 !important;
+  --paper: #131316 !important;
+  --surface: #131316 !important;
+  --ac-paper: #131316 !important;
+  --shell-paper: #131316 !important;
+  --bg-card: #131316 !important;
+  --bg-elevated: #18181c !important;
+  --line: rgba(255, 255, 255, 0.08) !important;
+  --ac-line: rgba(255, 255, 255, 0.08) !important;
+  --ink: #f4f4f5 !important;
+  --ac-ink: #f4f4f5 !important;
+  --muted: #8b8b96 !important;
+  --ac-muted: #8b8b96 !important;
+  --ed-page: #09090b !important;
+  --ed-surface: #131316 !important;
+  --ed-line: rgba(255, 255, 255, 0.085) !important;
+  --ed-text: #f4f4f5 !important;
+  --ed-muted: #9898a3 !important;
+  --dl-page: #09090b !important;
+  --dl-card: #131316 !important;
+  --dl-band: #16161a !important;
+  --dl-line: rgba(255, 255, 255, 0.085) !important;
+  --dl-ink: #f4f4f5 !important;
+  --dl-sub: #9898a3 !important;
+  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+html[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: transparent;
+}
+html[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+}
+html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Unified Page Canvas */
+html[data-theme="dark"] body,
+html[data-theme="dark"] body .layout,
+html[data-theme="dark"] body .layout > .content,
+html[data-theme="dark"] body .ac-main-column,
+html[data-theme="dark"] body .public-about,
+html[data-theme="dark"] body .public-whats-new,
+html[data-theme="dark"] body .public-legal,
+html[data-theme="dark"] body .download-landing,
+html[data-theme="dark"] body .home-landing,
+html[data-theme="dark"] body .desktop-landing,
+html[data-theme="dark"] body .login-page {
+  background: #09090b !important;
+  background-image: none !important;
+  color: #f4f4f5 !important;
+}
+html[data-theme="dark"] body .atlas-focus-main,
+html[data-theme="dark"] body .atlas-focus-main .privacy-page {
+  background: transparent !important;
+}
+
+/* Unified Elevated Cards, Panels, Metrics & Landing Feature Tiles */
+html[data-theme="dark"] body .card,
+html[data-theme="dark"] body .atlas-card,
+html[data-theme="dark"] body .ac-panel,
+html[data-theme="dark"] body .ac-metric,
+html[data-theme="dark"] body .settings-card,
+html[data-theme="dark"] body .about-section,
+html[data-theme="dark"] body .whats-new-card,
+html[data-theme="dark"] body .login-card,
+html[data-theme="dark"] body .atlas-stat,
+html[data-theme="dark"] body .atlas-donut-card,
+html[data-theme="dark"] body .dl-feat,
+html[data-theme="dark"] body .dl-shot-card,
+html[data-theme="dark"] body .dl-support-faq details,
+html[data-theme="dark"] body .dl-ed-content .dl-release,
+html[data-theme="dark"] body .atlas-focus-main .privacy-inner > section,
+html[data-theme="dark"] body .atlas-focus-main .privacy-inner > ul,
+html[data-theme="dark"] body .atlas-focus-main .privacy-nav,
+html[data-theme="dark"] body .atlas-focus-main .privacy-foot {
+  background: #131316 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 1px 3px rgba(0, 0, 0, 0.28) !important;
+  color: #f4f4f5 !important;
+}
+html[data-theme="dark"] body .ac-about-support-item,
+html[data-theme="dark"] body .ac-about-kv-list li,
+html[data-theme="dark"] body .ac-status-pill,
+html[data-theme="dark"] body .about-trust-chip {
+  background: #18181c !important;
+  border-color: rgba(255, 255, 255, 0.085) !important;
+  color: #e4e4e7 !important;
+}
+
+/* Unified Sidebars (Main Left Rail + Floating Focus Sidebar) */
+html[data-theme="dark"] body .sidebar,
+html[data-theme="dark"] body aside.sidebar {
+  background: #0e0e11 !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.075) !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"] body .sidebar nav a {
+  color: #9898a3 !important;
+}
+html[data-theme="dark"] body .sidebar nav a:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: #f4f4f5 !important;
+}
+html[data-theme="dark"] body .sidebar nav a.active {
+  background: #1c1c22 !important;
+  color: #f4f4f5 !important;
+  border: 1px solid rgba(255, 255, 255, 0.09) !important;
+}
+html[data-theme="dark"] #root aside.atlas-focus-sidebar {
+  background: #131316 !important;
+  border: 1px solid rgba(255, 255, 255, 0.085) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 20px 48px rgba(0, 0, 0, 0.56) !important;
+}
+html[data-theme="dark"] #root aside.atlas-focus-sidebar button.atlas-focus-nav-item:hover,
+html[data-theme="dark"] #root aside.atlas-focus-sidebar button.atlas-focus-nav-item:focus {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+}
+
+/* Unified Floating Topbars, Desktop Dock, Bottom Bars & Public Nav */
+html[data-theme="dark"] body .ac-desktop-dock,
+html[data-theme="dark"] body .ac-topbar,
+html[data-theme="dark"] body .settings-topbar,
+html[data-theme="dark"] body .public-nav {
+  background: rgba(15, 15, 18, 0.86) !important;
+  border-color: rgba(255, 255, 255, 0.085) !important;
+  backdrop-filter: blur(16px) saturate(1.2) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(1.2) !important;
+}
+html[data-theme="dark"] body .ac-desktop-dock button.ac-topbar-bell,
+html[data-theme="dark"] body .ac-desktop-dock button.ac-topbar-theme,
+html[data-theme="dark"] body .ac-desktop-dock .ac-topbar-user-btn {
+  background: #1a1a20 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #e4e4e7 !important;
+}
+html[data-theme="dark"] body .ac-desktop-dock button.ac-topbar-bell:hover,
+html[data-theme="dark"] body .ac-desktop-dock button.ac-topbar-theme:hover,
+html[data-theme="dark"] body .ac-desktop-dock .ac-topbar-user-btn:hover {
+  background: #24242c !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+}
+html[data-theme="dark"] body .cookie-consent-card,
+html[data-theme="dark"] body .atlas-dl-teaser-link,
+html[data-theme="dark"] body .atlas-dl-teaser > button {
+  background: #151519 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.62) !important;
+}
+
+/* Unified Modals, Popovers & Dropdown Menus */
+html[data-theme="dark"] body .modal-overlay {
+  background: rgba(0, 0, 0, 0.72) !important;
+  backdrop-filter: blur(6px);
+}
+html[data-theme="dark"] body .modal,
+html[data-theme="dark"] body .modal-card,
+html[data-theme="dark"] body .modal-content,
+html[data-theme="dark"] body .bal-reports-modal,
+html[data-theme="dark"] body .atlas-dp-pop,
+html[data-theme="dark"] body .account-menu-panel,
+html[data-theme="dark"] body .account-menu-panel--portal,
+html[data-theme="dark"] body .ac-notif-panel,
+html[data-theme="dark"] body .public-download-menu,
+html[data-theme="dark"] body .atlas-typeahead-menu {
+  background: #151519 !important;
+  border-color: rgba(255, 255, 255, 0.11) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 24px 64px rgba(0, 0, 0, 0.72) !important;
+  color: #f4f4f5 !important;
+}
+html[data-theme="dark"] body .bal-reports-period-row {
+  background: #101014 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Unified Inputs, Selects, Textareas & Focus Rings */
+html[data-theme="dark"] body input:not([type="checkbox"]):not([type="radio"]),
+html[data-theme="dark"] body select,
+html[data-theme="dark"] body textarea,
+html[data-theme="dark"] body .dl-support-form input,
+html[data-theme="dark"] body .dl-support-form select,
+html[data-theme="dark"] body .dl-support-form textarea,
+html[data-theme="dark"] body .atlas-dp-trigger {
+  background: #16161a !important;
+  background-color: #16161a !important;
+  border: 1px solid rgba(255, 255, 255, 0.11) !important;
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"] body input:not([type="checkbox"]):not([type="radio"]):hover,
+html[data-theme="dark"] body select:hover,
+html[data-theme="dark"] body textarea:hover,
+html[data-theme="dark"] body .atlas-dp-trigger:hover {
+  border-color: rgba(255, 255, 255, 0.19) !important;
+}
+html[data-theme="dark"] body input:not([type="checkbox"]):not([type="radio"]):focus,
+html[data-theme="dark"] body select:focus,
+html[data-theme="dark"] body textarea:focus,
+html[data-theme="dark"] body .atlas-dp-trigger:focus {
+  background: #18181d !important;
+  border-color: rgba(255, 255, 255, 0.34) !important;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.07) !important;
+  outline: none !important;
+}
+html[data-theme="dark"] body input::placeholder,
+html[data-theme="dark"] body textarea::placeholder {
+  color: #6e6e78 !important;
+  -webkit-text-fill-color: #6e6e78 !important;
+}
+
+/* Unified Secondary & Pill Buttons (Soft Hairlines instead of harsh #3f3f46 slabs) */
+html[data-theme="dark"] body button.secondary,
+html[data-theme="dark"] body .btn.secondary,
+html[data-theme="dark"] body .ac-about-pill-btn,
+html[data-theme="dark"] body .about-page a.secondary,
+html[data-theme="dark"] body .dl-cta-ghost {
+  background: #1a1a20 !important;
+  border: 1px solid rgba(255, 255, 255, 0.11) !important;
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03) !important;
+}
+html[data-theme="dark"] body button.secondary:hover:not(:disabled),
+html[data-theme="dark"] body .btn.secondary:hover:not(:disabled),
+html[data-theme="dark"] body .ac-about-pill-btn:hover,
+html[data-theme="dark"] body .about-page a.secondary:hover,
+html[data-theme="dark"] body .dl-cta-ghost:hover {
+  background: #23232b !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: #fafafa !important;
+  -webkit-text-fill-color: #fafafa !important;
+}
+html[data-theme="dark"] body .dl-cta-main,
+html[data-theme="dark"] body .dl-cta-primary,
+html[data-theme="dark"] body button.primary,
+html[data-theme="dark"] body .btn.primary {
+  background: #f4f4f5 !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: #09090b !important;
+  -webkit-text-fill-color: #09090b !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45) !important;
+}
+html[data-theme="dark"] body .dl-cta-main:hover:not(:disabled),
+html[data-theme="dark"] body .dl-cta-primary:hover:not(:disabled),
+html[data-theme="dark"] body button.primary:hover:not(:disabled),
+html[data-theme="dark"] body .btn.primary:hover:not(:disabled) {
+  background: #e4e4e7 !important;
+  color: #09090b !important;
+  -webkit-text-fill-color: #09090b !important;
+}
+
+/* Unified Tables */
+html[data-theme="dark"] body .table-wrap,
+html[data-theme="dark"] body table {
+  background: #131316 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+html[data-theme="dark"] body table thead th {
+  background: #16161b !important;
+  color: #8b8b96 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+html[data-theme="dark"] body table tbody td {
+  background: transparent !important;
+  color: #e4e4e7 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.055) !important;
+}
+html[data-theme="dark"] body table tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.03) !important;
+}
+
+/* Semantic Status Badges & Chart Tooltips in Dark Mode */
+html[data-theme="dark"] body .ac-dash-net-pill.is-pos {
+  background: rgba(16, 185, 129, 0.12) !important;
+  border-color: rgba(16, 185, 129, 0.25) !important;
+  color: #34d399 !important;
+}
+html[data-theme="dark"] body .ac-dash-net-pill.is-neg {
+  background: rgba(239, 68, 68, 0.14) !important;
+  border-color: rgba(239, 68, 68, 0.28) !important;
+  color: #f87171 !important;
+}
+html[data-theme="dark"] body .ac-chart-tooltip {
+  background: #18181d !important;
+  border: 1px solid rgba(255, 255, 255, 0.13) !important;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.65) !important;
+}
+
+
 
 
 

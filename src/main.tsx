@@ -47,7 +47,7 @@ try {
     html[data-theme="dark"] .sidebar, html[data-theme="dark"] aside.sidebar,
     html[data-theme="dark"] .ac-topbar, html[data-theme="dark"] .settings-topbar,
     html[data-theme="dark"] .content, html[data-theme="dark"] body {
-      background: #0b0c10 !important;
+      background: #09090b !important;
       color: #f4f4f5 !important;
       border-color: rgba(255, 255, 255, 0.08) !important;
     }

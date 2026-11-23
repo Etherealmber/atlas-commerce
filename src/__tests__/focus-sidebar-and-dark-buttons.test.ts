@@ -277,10 +277,14 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     expect(darkCss).toContain('.modal-form-alert--error');
     expect(darkCss).toContain('color-scheme: dark');
     expect(darkCss).toContain('html[data-theme] body .privacy-link-btn');
+    expect(darkCss).toContain('--bg: #09090b !important;');
+    expect(darkCss).toContain('--paper: #131316 !important;');
     expect(shellCss).toContain('display: inline-flex !important;');
     expect(shellCss).toContain('white-space: nowrap;');
     expect(overridesCss).toContain('white-space: nowrap !important;');
     expect(appCss).toContain('.atlas-dl-teaser-link');
+    expect(appCss).toContain('minmax(0, 310px) minmax(0, 1fr)');
+    expect(appCss).toContain('.download-landing .dl-ed-heading { min-width: 0;');
 
     const cleanedFiles = [
       'src/styles/theme.css',
