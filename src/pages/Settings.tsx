@@ -5,6 +5,7 @@ import { EditProfile, type ProfileData } from '../components/ui/EditProfile';
 import ImageLightbox from '../components/ui/ImageLightbox';
 import { TimedUndoDelete, SaveToggle } from '../components/ui';
 import { useEffect, useState, useCallback } from 'react';
+import { Settings as SettingsIcon } from 'lucide-react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { APP_VERSION, APP_BUILD_DATE } from '../version';
 import { createPortal } from 'react-dom';
@@ -501,6 +502,22 @@ export default function Settings() {
     }
   };
 
+  const TAB_TITLES: Record<string, string> = {
+    profile: 'Mon profil',
+    company: 'Société',
+    attendance: 'Présence',
+    legal: 'Légal & TVA',
+    invoicing: 'Facturation',
+    documents: 'Documents PDF',
+    warehouse: 'Entrepôts',
+    categories: 'Catégories',
+    integrations: 'API & Clés',
+    app: 'Mise à jour app',
+    admin: 'Administration',
+    audit: 'Journal d’audit',
+    agent: 'Atlas Agent',
+  };
+
   const TAB_BLURBS: Record<string, string> = {
     profile: 'Votre compte, apparence et sécurité personnelle (mot de passe, passkeys).',
     company: 'Nom, adresse, contacts et identité de la société sur les documents.',
@@ -511,8 +528,10 @@ export default function Settings() {
     warehouse: 'Entrepôts, emplacements et organisation du stock.',
     categories: 'Catégories produits pour classer le catalogue.',
     integrations: 'Clés API et connexions externes.',
+    app: 'Version installée, canal de mise à jour et diagnostic applicatif.',
     admin: 'Utilisateurs, rôles et configuration serveur sensible.',
     audit: 'Historique des actions importantes sur ce compte.',
+    agent: 'Comportement, mémoire et garde-fous de votre assistant Atlas Agent.',
   };
 
   const canSaveSection =
@@ -788,16 +807,31 @@ if (loading) return (
 
   return (
     <div className="atlas-page atlas-settings">
-      <div className="page-header settings-page-header" style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
-        {Object.values(fieldErrors).filter(Boolean)[0] && (
-          <span className="save-error-inline">{Object.values(fieldErrors).filter(Boolean)[0]}</span>
-        )}
-      </div>
-
-      <p className="settings-tab-blurb muted">
-        {TAB_BLURBS[activeTab] || 'Configurez cette section selon les besoins de votre activité.'}
-      </p>
-      
+      <section className="ac-settings-hero" aria-label="En-tête de section">
+        <div className="ac-settings-hero-main">
+          <div className="ac-settings-hero-ico" aria-hidden="true">
+            <SettingsIcon size={20} strokeWidth={2} />
+          </div>
+          <div>
+            <h1>{TAB_TITLES[activeTab] || 'Paramètres'}</h1>
+            <p className="settings-tab-blurb">
+              {TAB_BLURBS[activeTab] || 'Configurez cette section selon les besoins de votre activité.'}
+            </p>
+          </div>
+        </div>
+        <div className="ac-settings-hero-meta">
+          {Object.values(fieldErrors).filter(Boolean)[0] ? (
+            <span className="save-error-inline">{Object.values(fieldErrors).filter(Boolean)[0]}</span>
+          ) : null}
+          {canSaveSection ? (
+            <span className={`ac-settings-status-pill${settingsDirty ? ' is-dirty' : ''}`}>
+              {saving ? 'Enregistrement…' : settingsDirty ? 'Modifications non enregistrées' : 'Synchronisé'}
+            </span>
+          ) : (
+            <span className="ac-settings-status-pill">v{APP_VERSION}</span>
+          )}
+        </div>
+      </section>
 
       {/* Errors: one place only — success uses SaveFeedback; field/section errors below */}
       {saveMsgType === 'success' && saveMsg ? (
@@ -901,7 +935,7 @@ if (loading) return (
                     <img src={profileForm.avatar_url} alt="" width={72} height={72} style={{ borderRadius: 16, objectFit: 'cover', border: '1px solid var(--line)', display: 'block' }} />
                   </button>
                 ) : (
-                  <div style={{ width: 72, height: 72, borderRadius: 16, background: '#0b0e14', color: '#71717a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 22, letterSpacing: 0.5 }}>
+                  <div className="ac-settings-avatar-fallback">
                     {(() => {
                       const n = (profileForm.display_name || profileForm.username || '?').trim();
                       const parts = n.split(/[\s._-]+/).filter(Boolean);

@@ -1,0 +1,792 @@
+/* ==========================================================================
+   Focus Sidebar, Clean Focus Topbar, Redesigned Settings & About Bento UI
+   ========================================================================== */
+
+/* ---- Focus Layout Shell (Settings / About / WhatsNew) ---- */
+.atlas-focus-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 18px 24px 48px;
+  box-sizing: border-box;
+}
+
+.atlas-focus-layout > main.content.content-settings-focus {
+  flex: 1 1 0%;
+  min-width: 0;
+  padding: 4px 0 32px !important;
+  background: transparent !important;
+}
+
+/* ---- Topbar Burger (mobile focus drawer trigger) ---- */
+.settings-topbar-burger {
+  display: none !important;
+  align-items: center;
+  justify-content: center;
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  min-height: 36px !important;
+  padding: 0 !important;
+  border-radius: 12px !important;
+  border: 1px solid #e5e7eb !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  cursor: pointer;
+}
+html[data-theme="dark"] .settings-topbar-burger {
+  background: #171922 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #f4f4f6 !important;
+}
+
+/* ---- Floating Sidebar Card (Light + Dark, Expanded + Collapsed Rail) ---- */
+.atlas-focus-sidebar {
+  position: sticky;
+  top: 84px;
+  flex: 0 0 252px;
+  width: 252px;
+  max-height: calc(100dvh - 104px);
+  display: flex;
+  flex-direction: column;
+  padding: 14px 12px;
+  border-radius: 22px;
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow:
+    0 14px 36px rgba(15, 23, 42, 0.07),
+    0 2px 6px rgba(15, 23, 42, 0.04);
+  transition: width 220ms cubic-bezier(0.22, 1, 0.36, 1), flex-basis 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  z-index: 30;
+  box-sizing: border-box;
+}
+
+.atlas-focus-sidebar.is-collapsed {
+  flex: 0 0 64px;
+  width: 64px;
+  padding: 14px 10px;
+  align-items: center;
+}
+
+.atlas-focus-sidebar-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 4px 12px;
+  min-height: 38px;
+}
+
+.atlas-focus-sidebar.is-collapsed .atlas-focus-sidebar-head {
+  justify-content: center;
+  padding: 2px 0 12px;
+}
+
+.atlas-focus-collapse-btn {
+  display: inline-grid !important;
+  place-items: center !important;
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  min-height: 34px !important;
+  padding: 0 !important;
+  border-radius: 10px !important;
+  border: 1px solid rgba(15, 23, 42, 0.1) !important;
+  background: #f8fafc !important;
+  color: #334155 !important;
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease, transform 150ms ease;
+}
+.atlas-focus-collapse-btn:hover {
+  background: #eef2ff !important;
+  color: #3730a3 !important;
+  border-color: rgba(79, 70, 229, 0.28) !important;
+}
+
+.atlas-focus-sidebar-title {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.atlas-focus-sidebar-scroll {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+  width: 100%;
+}
+
+.atlas-focus-sidebar-foot {
+  flex: 0 0 auto;
+  width: 100%;
+  padding-top: 4px;
+}
+
+.atlas-focus-divider {
+  height: 1px;
+  background: rgba(15, 23, 42, 0.07);
+  margin: 10px 6px;
+}
+.atlas-focus-sidebar.is-collapsed .atlas-focus-divider {
+  margin: 10px 4px;
+}
+
+.atlas-focus-group-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 10px 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.atlas-focus-group-items {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.atlas-focus-nav-item {
+  position: relative;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px;
+  width: 100%;
+  min-height: 38px !important;
+  padding: 7px 11px !important;
+  border-radius: 12px !important;
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  background-image: none !important;
+  color: #334155 !important;
+  -webkit-text-fill-color: #334155 !important;
+  font-size: 0.855rem !important;
+  font-weight: 600 !important;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: none !important;
+  transition: background-color 150ms ease, color 150ms ease, transform 150ms ease, border-color 150ms ease;
+}
+
+.atlas-focus-sidebar.is-collapsed .atlas-focus-nav-item {
+  width: 42px !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  padding: 0 !important;
+  margin: 0 auto;
+  justify-content: center !important;
+  border-radius: 13px !important;
+}
+
+.atlas-focus-nav-item:hover {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+.atlas-focus-nav-item.is-active {
+  background: #4f46e5 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  border-color: #4f46e5 !important;
+  box-shadow: 0 6px 18px rgba(79, 70, 229, 0.28) !important;
+}
+.atlas-focus-nav-item.is-active:hover {
+  background: #4338ca !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.atlas-focus-nav-ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.atlas-focus-nav-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.atlas-focus-badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+.atlas-focus-badge--accent {
+  background: rgba(79, 70, 229, 0.12);
+  color: #4338ca;
+}
+.atlas-focus-nav-item.is-active .atlas-focus-badge--accent {
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+.atlas-focus-badge--alert {
+  background: #ef4444;
+  color: #ffffff;
+}
+.atlas-focus-badge--neutral {
+  background: rgba(15, 23, 42, 0.08);
+  color: #475569;
+}
+
+.atlas-focus-dot {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #ef4444;
+  box-shadow: 0 0 0 2px #ffffff;
+}
+
+.atlas-focus-backdrop {
+  display: none;
+}
+
+/* ---- Dark Mode Floating Sidebar ---- */
+html[data-theme="dark"] .atlas-focus-sidebar {
+  background: #0d0e13 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 20px 50px rgba(0, 0, 0, 0.62) !important;
+}
+html[data-theme="dark"] .atlas-focus-sidebar-title {
+  color: #f4f4f6;
+}
+html[data-theme="dark"] .atlas-focus-collapse-btn {
+  background: #171923 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #d4d4d8 !important;
+}
+html[data-theme="dark"] .atlas-focus-collapse-btn:hover {
+  background: #232736 !important;
+  border-color: rgba(99, 102, 241, 0.45) !important;
+  color: #ffffff !important;
+}
+html[data-theme="dark"] .atlas-focus-divider {
+  background: rgba(255, 255, 255, 0.08);
+}
+html[data-theme="dark"] .atlas-focus-group-label {
+  color: #6b7280;
+}
+html[data-theme="dark"] .atlas-focus-nav-item {
+  color: #a1a1aa !important;
+  -webkit-text-fill-color: #a1a1aa !important;
+}
+html[data-theme="dark"] .atlas-focus-nav-item:hover {
+  background: #191b24 !important;
+  color: #f4f4f6 !important;
+  -webkit-text-fill-color: #f4f4f6 !important;
+}
+html[data-theme="dark"] .atlas-focus-nav-item.is-active {
+  background: #4f46e5 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  border-color: #6366f1 !important;
+  box-shadow: 0 8px 24px rgba(79, 70, 229, 0.42) !important;
+}
+html[data-theme="dark"] .atlas-focus-nav-item.is-active:hover {
+  background: #4338ca !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html[data-theme="dark"] .atlas-focus-badge--accent {
+  background: rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+}
+html[data-theme="dark"] .atlas-focus-dot {
+  box-shadow: 0 0 0 2px #0d0e13;
+}
+
+/* ---- Responsive Drawer (< 960px) ---- */
+@media (max-width: 960px) {
+  .settings-topbar-burger {
+    display: inline-grid !important;
+  }
+  .atlas-focus-layout {
+    flex-direction: column;
+    padding: 14px 14px 40px;
+    gap: 14px;
+  }
+  .atlas-focus-sidebar {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    bottom: 12px;
+    width: 268px !important;
+    flex: none !important;
+    max-height: none;
+    z-index: 120;
+    transform: translateX(-115%);
+    transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .atlas-focus-sidebar.is-mobile-open {
+    transform: translateX(0);
+  }
+  .atlas-focus-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    border: 0;
+    background: rgba(5, 7, 12, 0.52);
+    backdrop-filter: blur(4px);
+    z-index: 110;
+  }
+}
+
+/* ==========================================================================
+   Settings Workspace Redesign
+   ========================================================================== */
+html body .atlas-settings {
+  width: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+}
+
+.ac-settings-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 20px 24px;
+  margin-bottom: 18px;
+  border-radius: 20px;
+  background: #ffffff;
+  border: 1px solid #e8eaef;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
+}
+.ac-settings-hero-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  min-width: 0;
+  flex: 1 1 320px;
+}
+.ac-settings-hero-ico {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 14px;
+  background: rgba(79, 70, 229, 0.1);
+  color: #4f46e5;
+}
+.ac-settings-hero h1 {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+}
+.ac-settings-hero p {
+  margin: 4px 0 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #64748b;
+}
+.ac-settings-hero-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ac-settings-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+.ac-settings-status-pill.is-dirty {
+  background: rgba(245, 158, 11, 0.12);
+  color: #b45309;
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+html body .settings-main .card,
+html body .settings-main .atlas-card,
+html body .settings-main .settings-panel {
+  padding: 22px 24px !important;
+  border-radius: 18px !important;
+  margin-bottom: 16px !important;
+}
+
+.ac-settings-info-note {
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: #475569;
+  padding: 11px 14px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 16px;
+}
+
+.ac-settings-avatar-fallback {
+  width: 72px;
+  height: 72px;
+  border-radius: 18px;
+  background: #0f172a;
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 22px;
+  letter-spacing: 0.04em;
+}
+
+.ac-settings-danger-card {
+  border-color: rgba(239, 68, 68, 0.28) !important;
+  background: rgba(239, 68, 68, 0.025) !important;
+}
+.ac-settings-danger-title {
+  color: #dc2626 !important;
+}
+
+html[data-theme="dark"] .ac-settings-hero {
+  background: #13151d !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 12px 32px rgba(0, 0, 0, 0.4) !important;
+}
+html[data-theme="dark"] .ac-settings-hero-ico {
+  background: rgba(99, 102, 241, 0.16);
+  color: #a5b4fc;
+}
+html[data-theme="dark"] .ac-settings-hero h1 {
+  color: #f4f4f6;
+}
+html[data-theme="dark"] .ac-settings-hero p {
+  color: #9ca3af;
+}
+html[data-theme="dark"] .ac-settings-status-pill {
+  background: #1b1e28;
+  color: #cbd5e1;
+  border-color: rgba(255, 255, 255, 0.09);
+}
+html[data-theme="dark"] .ac-settings-status-pill.is-dirty {
+  background: rgba(245, 158, 11, 0.16);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.35);
+}
+html[data-theme="dark"] .ac-settings-info-note {
+  background: #171a24;
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+}
+html[data-theme="dark"] .ac-settings-avatar-fallback {
+  background: #1f2330;
+  color: #f4f4f6;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+html[data-theme="dark"] .ac-settings-danger-card {
+  background: rgba(239, 68, 68, 0.06) !important;
+  border-color: rgba(239, 68, 68, 0.32) !important;
+}
+html[data-theme="dark"] .ac-settings-danger-title {
+  color: #f87171 !important;
+}
+
+/* ==========================================================================
+   About Page Bento Redesign
+   ========================================================================== */
+html body .about-page.ac-about-bento {
+  width: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.ac-about-hero-card {
+  padding: 28px;
+  border-radius: 22px;
+  background: #ffffff;
+  border: 1px solid #e8eaef;
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.04);
+}
+.ac-about-hero-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.ac-about-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: rgba(79, 70, 229, 0.1);
+  color: #4f46e5;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.ac-about-hero-card h1 {
+  margin: 0;
+  font-size: clamp(1.75rem, 2.6vw, 2.25rem);
+  font-weight: 850;
+  letter-spacing: -0.03em;
+  color: #0f172a;
+}
+.ac-about-tagline {
+  margin: 6px 0 0;
+  font-size: 1.02rem;
+  font-weight: 600;
+  color: #334155;
+}
+.ac-about-mission {
+  margin: 14px 0 0;
+  font-size: 0.94rem;
+  line-height: 1.6;
+  color: #475569;
+  max-width: 72ch;
+}
+.ac-about-version-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #334155;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.ac-about-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.ac-about-bento-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 18px;
+}
+@media (max-width: 720px) {
+  .ac-about-bento-pair {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ac-about-subcard {
+  padding: 18px 20px;
+  border-radius: 16px;
+  background: #f8fafc;
+  border: 1px solid #e8eaef;
+}
+.ac-about-subcard-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-weight: 700;
+  color: #0f172a;
+}
+.ac-about-subcard-head svg {
+  color: #4f46e5;
+}
+
+.ac-about-card {
+  padding: 24px !important;
+  border-radius: 20px !important;
+  margin: 0 !important;
+}
+.ac-about-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.ac-about-card-ico {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(79, 70, 229, 0.1);
+  color: #4f46e5;
+  flex-shrink: 0;
+}
+.ac-about-card-head h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+}
+
+.ac-about-features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+@media (max-width: 960px) {
+  .ac-about-features-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  .ac-about-features-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.ac-about-feature-tile {
+  padding: 16px;
+  border-radius: 15px;
+  background: #f8fafc;
+  border: 1px solid #e8eaef;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+.ac-about-feature-tile:hover {
+  transform: translateY(-2px);
+  border-color: #cbd5e1;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+}
+.ac-about-feature-tile-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  color: #0f172a;
+}
+.ac-about-feature-tile-head svg {
+  color: #4f46e5;
+  flex-shrink: 0;
+}
+.ac-about-feature-tile h3 {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+.ac-about-feature-tile p {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: #64748b;
+}
+
+.ac-about-projects-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+}
+@media (max-width: 820px) {
+  .ac-about-projects-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.ac-about-project-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  height: 100%;
+  padding: 16px;
+  border-radius: 15px;
+  background: #f8fafc;
+  border: 1px solid #e8eaef;
+  color: inherit;
+  text-decoration: none;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+.ac-about-project-card:hover {
+  transform: translateY(-2px);
+  border-color: #6366f1;
+  box-shadow: 0 8px 22px rgba(79, 70, 229, 0.09);
+}
+
+/* Dark Mode About Bento */
+html[data-theme="dark"] .ac-about-hero-card {
+  background: #13151d !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 14px 36px rgba(0, 0, 0, 0.45) !important;
+}
+html[data-theme="dark"] .ac-about-eyebrow {
+  background: rgba(99, 102, 241, 0.18);
+  color: #a5b4fc;
+}
+html[data-theme="dark"] .ac-about-hero-card h1 {
+  color: #f4f4f6;
+}
+html[data-theme="dark"] .ac-about-tagline {
+  color: #e4e4e7;
+}
+html[data-theme="dark"] .ac-about-mission {
+  color: #9ca3af;
+}
+html[data-theme="dark"] .ac-about-version-pill {
+  background: #1b1e28;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #e4e4e7;
+}
+html[data-theme="dark"] .ac-about-subcard,
+html[data-theme="dark"] .ac-about-feature-tile,
+html[data-theme="dark"] .ac-about-project-card {
+  background: #171a24 !important;
+  border-color: rgba(255, 255, 255, 0.075) !important;
+}
+html[data-theme="dark"] .ac-about-subcard-head,
+html[data-theme="dark"] .ac-about-feature-tile-head {
+  color: #f4f4f6;
+}
+html[data-theme="dark"] .ac-about-subcard-head svg,
+html[data-theme="dark"] .ac-about-feature-tile-head svg,
+html[data-theme="dark"] .ac-about-card-ico {
+  color: #a5b4fc;
+}
+html[data-theme="dark"] .ac-about-card-ico {
+  background: rgba(99, 102, 241, 0.16);
+}
+html[data-theme="dark"] .ac-about-feature-tile p {
+  color: #9ca3af;
+}
+html[data-theme="dark"] .ac-about-feature-tile:hover,
+html[data-theme="dark"] .ac-about-project-card:hover {
+  border-color: rgba(129, 140, 248, 0.45) !important;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
+}

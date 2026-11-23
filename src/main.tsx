@@ -23,6 +23,7 @@ import './styles/purge-green-glass.css';
 import './styles/motion-polish.css';
 import './styles/overrides-final.css';
 import './styles/bits.css';
+import './styles/focus-sidebar.css';
 import './styles/dark-force.css'; /* absolute last — dark surfaces */
 import { isNativeApp } from './config';
 import { applyDensityFromStorage } from './lib/density';
