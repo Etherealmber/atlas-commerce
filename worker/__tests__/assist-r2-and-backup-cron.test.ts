@@ -378,4 +378,58 @@ describe('R2 agent conversation handling & backup cron D1 read reduction', () =>
     const usersInDb = sqlite.prepare(`SELECT username FROM app_users ORDER BY username`).all() as any[];
     expect(usersInDb.map((u) => u.username)).toEqual(['bob']);
   });
+
+  it('writes compressed ABK2 backups and purgeExpiredBackups preserves at least 2 snapshots while purging >7d and stale restore-work', async () => {
+    const { runDailyBackup, purgeExpiredBackups } = await import('../routes/backups');
+    const r2Store = new Map<string, { bytes: Uint8Array; uploaded: Date }>();
+    const now = Date.now();
+    // 4 snapshots all older than 7 days -> newest 2 must remain, older 2 must be deleted
+    r2Store.set('backups/30m/atlas-1.abk', { bytes: new Uint8Array([1]), uploaded: new Date(now - 12 * 86400_000) });
+    r2Store.set('backups/30m/atlas-2.abk', { bytes: new Uint8Array([2]), uploaded: new Date(now - 10 * 86400_000) });
+    r2Store.set('backups/30m/atlas-3.abk', { bytes: new Uint8Array([3]), uploaded: new Date(now - 9 * 86400_000) });
+    r2Store.set('backups/30m/atlas-4.abk', { bytes: new Uint8Array([4]), uploaded: new Date(now - 8 * 86400_000) });
+    r2Store.set('backups/pre-revert/old.abk', { bytes: new Uint8Array([5]), uploaded: new Date(now - 9 * 86400_000) });
+    r2Store.set('backups/restore-work/stale.json', { bytes: new Uint8Array([6]), uploaded: new Date(now - 36 * 3600_000) });
+    r2Store.set('backups/restore-work/active.json', { bytes: new Uint8Array([7]), uploaded: new Date(now - 2 * 3600_000) });
+
+    const env = {
+      BACKUP_ENCRYPTION_KEY: 'bkp-abk2-test',
+      DB: {
+        prepare: () => ({
+          all: async () => ({ results: [{ name: 'products' }] }),
+          first: async () => null,
+          run: async () => ({ success: true }),
+        }),
+      },
+      IMAGES: {
+        get: async (k: string) => {
+          const entry = r2Store.get(k);
+          if (!entry) return null;
+          return { arrayBuffer: async () => entry.bytes.buffer.slice(entry.bytes.byteOffset, entry.bytes.byteOffset + entry.bytes.byteLength) };
+        },
+        head: async (k: string) => (r2Store.has(k) ? { key: k, size: r2Store.get(k)!.bytes.length } : null),
+        put: async (k: string, data: Uint8Array) => {
+          r2Store.set(k, { bytes: new Uint8Array(data), uploaded: new Date() });
+        },
+        delete: async (k: string) => { r2Store.delete(k); },
+        list: async ({ prefix = '' }: { prefix?: string }) => ({
+          objects: [...r2Store.keys()]
+            .filter((k) => k.startsWith(prefix))
+            .map((k) => ({ key: k, size: r2Store.get(k)!.bytes.length, uploaded: r2Store.get(k)!.uploaded })),
+          truncated: false,
+        }),
+      },
+    };
+
+    const purgeRes = await purgeExpiredBackups(env);
+    expect(purgeRes.deleted).toBe(4); // atlas-1, atlas-2, pre-revert/old, restore-work/stale
+    expect(r2Store.has('backups/30m/atlas-3.abk')).toBe(true);
+    expect(r2Store.has('backups/30m/atlas-4.abk')).toBe(true);
+    expect(r2Store.has('backups/restore-work/active.json')).toBe(true);
+
+    const snap = await runDailyBackup(env, { forceFull: true });
+    expect(snap.ok).toBe(true);
+    const latest = r2Store.get('backups/latest.abk')!.bytes;
+    expect(new TextDecoder().decode(latest.slice(0, 4))).toBe('ABK2');
+  });
 });

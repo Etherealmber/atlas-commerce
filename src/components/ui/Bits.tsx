@@ -65,7 +65,9 @@ type LensProps = {
   zoom?: number;
   /** Lens diameter in px. */
   size?: number;
+  disabled?: boolean;
   imgStyle?: CSSProperties;
+  onImageLoad?: (e: React.SyntheticEvent<HTMLImageElement>) => void;
 };
 
 /**
@@ -74,7 +76,7 @@ type LensProps = {
  * users keep the lightbox' tap-to-zoom instead of fighting a lens under a
  * finger. The lens is pure CSS background-position math — no canvas, no deps.
  */
-export const Lens: FC<LensProps> = ({ src, alt = '', zoom = 2.5, size = 132, imgStyle }) => {
+export const Lens: FC<LensProps> = ({ src, alt = '', zoom = 2.5, size = 132, disabled = false, imgStyle, onImageLoad }) => {
   const wrapRef = useRef<HTMLSpanElement | null>(null);
   const [hover, setHover] = useState(false);
   const [fine, setFine] = useState(false);
@@ -89,7 +91,7 @@ export const Lens: FC<LensProps> = ({ src, alt = '', zoom = 2.5, size = 132, img
     return () => mq.removeEventListener('change', fn);
   }, []);
 
-  const enabled = fine;
+  const enabled = fine && !disabled;
 
   const onMove = (e: React.PointerEvent<HTMLSpanElement>) => {
     if (!enabled) return;
@@ -122,7 +124,7 @@ export const Lens: FC<LensProps> = ({ src, alt = '', zoom = 2.5, size = 132, img
       onPointerLeave={() => setHover(false)}
       onPointerMove={onMove}
     >
-      <img src={src} alt={alt} draggable={false} style={imgStyle} />
+      <img src={src} alt={alt} draggable={false} style={imgStyle} onLoad={onImageLoad} />
       <span className="bits-lens-mag" style={magStyle} aria-hidden />
     </span>
   );

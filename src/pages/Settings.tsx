@@ -2419,7 +2419,7 @@ if (loading) return (
         <div className="card" style={{ marginBottom: 16, padding: 16 }}>
           <h2 style={{ fontSize: 16, marginTop: 0 }} data-settings-anchor="backup">Sauvegarde &amp; restauration</h2>
           <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.45 }}>
-            Snapshot complet chiffré (AES-256-GCM, format .abk) — illisible sur le CDN sans ADMIN_BACKUP_TOKEN. Dossier backups/30m (cron ~30 min). Rétention 7 jours. Une copie de sécurité est créée avant chaque restauration.
+            Snapshot incrémental compressé &amp; chiffré (gzip + AES-256-GCM, format .abk) — illisible sur le CDN sans ADMIN_BACKUP_TOKEN. Planification toutes les 12 h, rétention 7 jours (avec 2 points minimum conservés). Une copie de sécurité est créée avant chaque restauration.
           </p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 14 }}>
             <button type="button" className="secondary" disabled={restoreBusy || backupBusy} onClick={async () => {

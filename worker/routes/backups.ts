@@ -10,7 +10,11 @@ export interface BackupRouteDeps {
   purgeAgentConversationsOlderThan: (env: any, days?: number) => Promise<{ deleted: number }>;
 }
 
-/** D1 snapshot → R2 every 4 hours (00,04,08,12,16,20 UTC). */
+/** D1 snapshot → R2 every 12 hours (external cron → POST /api/cron/backup-execute), 7-day retention. */
+const BACKUP_RETENTION_DAYS = 7;
+const BACKUP_CRON_COOLDOWN_SEC = 11.5 * 3600; // 41400s for 12-hour cron cadence
+const MIN_KEEP_SNAPSHOTS = 2;
+const RESTORE_WORK_MAX_AGE_MS = 24 * 3600_000;
 
 /** Derive AES-256 key from backup secret (ADMIN_BACKUP_TOKEN or BACKUP_ENCRYPTION_KEY). */
 async function backupCryptoKey(env: any): Promise<CryptoKey | null> {
@@ -36,28 +40,63 @@ function b64decode(s: string): Uint8Array {
   return u8;
 }
 
+async function gzipBytes(input: Uint8Array): Promise<Uint8Array<ArrayBuffer>> {
+  if (typeof CompressionStream === 'undefined') return new Uint8Array(input);
+  const cs = new CompressionStream('gzip');
+  const writer = cs.writable.getWriter();
+  await writer.write(new Uint8Array(input));
+  await writer.close();
+  const buf = await new Response(cs.readable).arrayBuffer();
+  return new Uint8Array(buf);
+}
+
+async function gunzipBytes(input: Uint8Array): Promise<Uint8Array<ArrayBuffer>> {
+  if (typeof DecompressionStream === 'undefined') {
+    throw new Error('DecompressionStream unavailable');
+  }
+  const ds = new DecompressionStream('gzip');
+  const writer = ds.writable.getWriter();
+  await writer.write(new Uint8Array(input));
+  await writer.close();
+  const buf = await new Response(ds.readable).arrayBuffer();
+  return new Uint8Array(buf);
+}
+
 /**
- * Encrypt plain JSON → binary .abk (ABK1 + IV + AES-GCM ciphertext).
- * Opaque on CDN: no readable JSON if the object is public.
+ * Compress (gzip) + encrypt plain JSON → binary .abk (ABK2 + IV + AES-GCM ciphertext).
+ * Opaque on CDN: no readable JSON if the object is public, 5-10x smaller than raw JSON.
  */
 async function encryptBackupBody(
   env: any,
   plainJson: string,
-): Promise<{ ok: true; bytes: Uint8Array; envelopeJson: string } | { ok: false; error: string }> {
+): Promise<{
+  ok: true;
+  bytes: Uint8Array;
+  envelopeJson: string;
+  fmt: 'ABK2' | 'ABK1';
+  rawBytes: number;
+  sha256: string;
+} | { ok: false; error: string }> {
   const key = await backupCryptoKey(env);
   if (!key) {
     return { ok: false, error: 'ADMIN_BACKUP_TOKEN (ou BACKUP_ENCRYPTION_KEY) requis pour chiffrer les sauvegardes' };
   }
+  const rawU8 = new TextEncoder().encode(plainJson);
+  const shaDigest = await crypto.subtle.digest('SHA-256', new Uint8Array(rawU8));
+  const sha256 = [...new Uint8Array(shaDigest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  const useGzip = typeof CompressionStream !== 'undefined';
+  const payloadU8: Uint8Array<ArrayBuffer> = useGzip ? await gzipBytes(rawU8) : new Uint8Array(rawU8);
+  const fmt: 'ABK2' | 'ABK1' = useGzip ? 'ABK2' : 'ABK1';
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ct = new Uint8Array(
     await crypto.subtle.encrypt(
       { name: 'AES-GCM', iv },
       key,
-      new TextEncoder().encode(plainJson),
+      payloadU8,
     ),
   );
-  // Binary: magic "ABK1" (4) + iv (12) + ciphertext
-  const magic = new TextEncoder().encode('ABK1');
+  // Binary: magic "ABK2" (or "ABK1") (4) + iv (12) + ciphertext
+  const magic = new TextEncoder().encode(fmt);
   const bytes = new Uint8Array(4 + 12 + ct.length);
   bytes.set(magic, 0);
   bytes.set(iv, 4);
@@ -71,21 +110,23 @@ async function encryptBackupBody(
     app: 'atlas-commerce',
     exported_at: new Date().toISOString(),
   });
-  return { ok: true, bytes, envelopeJson };
+  return { ok: true, bytes, envelopeJson, fmt, rawBytes: rawU8.length, sha256 };
 }
 
 export async function decryptBackupBytes(env: any, data: ArrayBuffer | Uint8Array | string): Promise<any | null> {
   const key = await backupCryptoKey(env);
-  // Binary ABK1
+  // Binary ABK2 (gzip + AES-GCM) or ABK1 (raw UTF-8 + AES-GCM)
   if (typeof data !== 'string') {
     const u8 = data instanceof Uint8Array ? data : new Uint8Array(data);
-    if (u8.length > 16 && u8[0] === 0x41 && u8[1] === 0x42 && u8[2] === 0x4b && u8[3] === 0x31) {
+    const isAbk = u8.length > 16 && u8[0] === 0x41 && u8[1] === 0x42 && u8[2] === 0x4b && (u8[3] === 0x31 || u8[3] === 0x32);
+    if (isAbk) {
       if (!key) return null;
       try {
         const iv = u8.slice(4, 16);
         const ct = u8.slice(16);
-        const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct);
-        return JSON.parse(new TextDecoder().decode(plain));
+        const plain = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct));
+        const raw = u8[3] === 0x32 ? await gunzipBytes(plain) : plain;
+        return JSON.parse(new TextDecoder().decode(raw));
       } catch {
         return null;
       }
@@ -584,16 +625,34 @@ export async function runDailyBackup(
     if (!enc.ok) return { ok: false, error: enc.error };
     const now = new Date();
     const stamp = now.toISOString().replace(/[:.]/g, '-');
-    // Flat 30-minute folder only — no daily/ subdir, no manifest.json, no plain JSON
+    const totalRows = Object.values(nextIndex.tables).reduce((acc, m) => acc + (m?.rowCount || 0), 0);
+    const tablesCount = Object.keys(nextIndex.tables).length;
     const key = `backups/30m/atlas-${stamp}.abk`;
     await env.IMAGES.put(key, enc.bytes, {
       httpMetadata: { contentType: 'application/octet-stream', cacheControl: 'private, no-store' },
-      customMetadata: { type: 'backup_30m_enc', version: '5', fmt: 'ABK1' },
+      customMetadata: {
+        type: 'backup_12h_enc',
+        version: '5',
+        fmt: enc.fmt,
+        sha256: enc.sha256,
+        raw_bytes: String(enc.rawBytes),
+        tables_count: String(tablesCount),
+        total_rows: String(totalRows),
+      },
     });
     // Latest pointer (encrypted binary) — does not touch unrelated R2 objects
     await env.IMAGES.put('backups/latest.abk', enc.bytes, {
       httpMetadata: { contentType: 'application/octet-stream', cacheControl: 'private, no-store' },
-      customMetadata: { type: 'backup_latest_enc', version: '5', source: key },
+      customMetadata: {
+        type: 'backup_latest_enc',
+        version: '5',
+        fmt: enc.fmt,
+        sha256: enc.sha256,
+        raw_bytes: String(enc.rawBytes),
+        tables_count: String(tablesCount),
+        total_rows: String(totalRows),
+        source: key,
+      },
     });
     return {
       ok: true,
@@ -609,7 +668,7 @@ export async function runDailyBackup(
 }
 
 
-/* ─── Backup / restore HMAC gate + 14-day retention ─── */
+/* ─── Backup / restore HMAC gate + 7-day retention ─── */
 
 function backupTokenFromRequest(c: any): string {
   return String(
@@ -620,31 +679,77 @@ function backupTokenFromRequest(c: any): string {
 }
 
 
-/** Purge encrypted 30m + pre-revert backups older than 7 days. Does not touch unrelated R2 objects. */
+/**
+ * Purge encrypted snapshot + pre-revert backups older than 7 days while always retaining
+ * at least MIN_KEEP_SNAPSHOTS newest snapshots in backups/30m/ so quiet weeks never leave 0 history.
+ * Also prunes stale backups/restore-work/ scratch objects (>24h). Does not touch unrelated R2 objects.
+ */
 export async function purgeExpiredBackups(env: any): Promise<{ deleted: number }> {
   if (!env.IMAGES) return { deleted: 0 };
-  const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const nowMs = Date.now();
+  const cutoff = nowMs - BACKUP_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+  const workCutoff = nowMs - RESTORE_WORK_MAX_AGE_MS;
   let deleted = 0;
-  const prefixes = ['backups/30m/', 'backups/pre-revert/'];
-  for (const prefix of prefixes) {
+
+  // 1. Snapshot backups: keep everything <= 7 days old, and always keep the newest MIN_KEEP_SNAPSHOTS
+  {
+    const snaps: Array<{ key: string; uploadedMs: number }> = [];
     let cursor: string | undefined;
     do {
-      const page: any = await env.IMAGES.list({ prefix, cursor, limit: 500 });
+      const page: any = await env.IMAGES.list({ prefix: 'backups/30m/', cursor, limit: 500 });
       for (const obj of page.objects || []) {
         const key = String(obj.key || '');
         if (key.endsWith('manifest.json')) {
           try { await env.IMAGES.delete(key); deleted++; } catch { /* */ }
           continue;
         }
+        const uploadedMs = obj.uploaded ? new Date(obj.uploaded).getTime() : 0;
+        snaps.push({ key, uploadedMs });
+      }
+      cursor = page.truncated ? page.cursor : undefined;
+    } while (cursor);
+    snaps.sort((a, b) => b.uploadedMs - a.uploadedMs);
+    for (let i = MIN_KEEP_SNAPSHOTS; i < snaps.length; i++) {
+      const s = snaps[i];
+      if (s.uploadedMs && s.uploadedMs < cutoff) {
+        try { await env.IMAGES.delete(s.key); deleted++; } catch { /* */ }
+      }
+    }
+  }
+
+  // 2. Pre-revert safety copies older than 7 days
+  {
+    let cursor: string | undefined;
+    do {
+      const page: any = await env.IMAGES.list({ prefix: 'backups/pre-revert/', cursor, limit: 500 });
+      for (const obj of page.objects || []) {
+        const key = String(obj.key || '');
         const uploaded = obj.uploaded ? new Date(obj.uploaded).getTime() : 0;
-        if (uploaded && uploaded < cutoff) {
+        if (key.endsWith('manifest.json') || (uploaded && uploaded < cutoff)) {
           try { await env.IMAGES.delete(key); deleted++; } catch { /* */ }
         }
       }
       cursor = page.truncated ? page.cursor : undefined;
     } while (cursor);
   }
-  // Clean any leftover plain manifests under backups/
+
+  // 3. Stale restore-work scratch files (>24h)
+  try {
+    let cursor: string | undefined;
+    do {
+      const page: any = await env.IMAGES.list({ prefix: 'backups/restore-work/', cursor, limit: 500 });
+      for (const obj of page.objects || []) {
+        const key = String(obj.key || '');
+        const uploaded = obj.uploaded ? new Date(obj.uploaded).getTime() : 0;
+        if (uploaded && uploaded < workCutoff) {
+          try { await env.IMAGES.delete(key); deleted++; } catch { /* */ }
+        }
+      }
+      cursor = page.truncated ? page.cursor : undefined;
+    } while (cursor);
+  } catch { /* */ }
+
+  // 4. Clean any leftover plain manifests under backups/
   try {
     let cursor: string | undefined;
     do {
@@ -659,6 +764,22 @@ export async function purgeExpiredBackups(env: any): Promise<{ deleted: number }
     } while (cursor);
   } catch { /* */ }
   return { deleted };
+}
+
+/** Purge ephemeral DB operational/security rows older than 7 days (never business records). */
+export async function purgeExpiredDbBackupsState(db: D1Database | undefined): Promise<{ purgedRows: number }> {
+  if (!db) return { purgedRows: 0 };
+  let purgedRows = 0;
+  for (const sql of [
+    `DELETE FROM idempotency_keys WHERE created_at < datetime('now', '-7 days')`,
+    `DELETE FROM login_attempts WHERE attempted_at < datetime('now', '-7 days')`,
+  ]) {
+    try {
+      const res: any = await db.prepare(sql).run();
+      purgedRows += Number(res?.meta?.changes ?? 0);
+    } catch { /* table may not exist or use different column in minimal tests */ }
+  }
+  return { purgedRows };
 }
 
 async function loadBackupJson(env: any, key: string): Promise<any | null> {
@@ -1009,12 +1130,18 @@ export function registerBackupRoutes(app: Hono<any>, deps: BackupRouteDeps): voi
     if (!gate.ok) return gate.response;
     try {
       const obj = await c.env.IMAGES.head('backups/latest.abk');
+      const meta = ((obj as any)?.customMetadata || {}) as Record<string, string>;
       return c.json({
         success: true,
         data: {
           has_latest: !!obj,
           uploaded: (obj as any)?.uploaded?.toString?.() || null,
           size: (obj as any)?.size || null,
+          raw_size: meta.raw_bytes ? Number(meta.raw_bytes) : null,
+          fmt: meta.fmt || null,
+          sha256: meta.sha256 || null,
+          tables_count: meta.tables_count ? Number(meta.tables_count) : null,
+          total_rows: meta.total_rows ? Number(meta.total_rows) : null,
         },
       });
     } catch {
@@ -1475,7 +1602,12 @@ export function registerBackupRoutes(app: Hono<any>, deps: BackupRouteDeps): voi
     const gate = await verifyBackupAccess(c);
     if (!gate.ok) return gate.response;
     const r = await purgeExpiredBackups(c.env);
-    return c.json({ success: true, data: r, message: `${r.deleted} sauvegarde(s) >14 j purgée(s).` });
+    const dbPurge = await purgeExpiredDbBackupsState(c.env.DB);
+    return c.json({
+      success: true,
+      data: { ...r, db_purged_rows: dbPurge.purgedRows },
+      message: `${r.deleted} sauvegarde(s) >7 j purgée(s).`,
+    });
   });
 
   app.post('/api/cron/backup-execute', async (c) => {
@@ -1497,13 +1629,14 @@ export function registerBackupRoutes(app: Hono<any>, deps: BackupRouteDeps): voi
     }
   
     const started = new Date().toISOString();
+    const force = c.req.query('force') === '1';
     try {
       const liveCache = hasLiveCache(c.env);
       const gen = liveCache ? await getCacheGen(c.env.CACHE) : 0;
       const lastRun = liveCache
-        ? await doCacheGet<{ gen: number; at: number; key: string }>(c.env.MOBILE_HUB, c.env.CACHE, 'backup:last-run', 14400)
+        ? await doCacheGet<{ gen: number; at: number; key: string }>(c.env.MOBILE_HUB, c.env.CACHE, 'backup:last-run', BACKUP_CRON_COOLDOWN_SEC)
         : null;
-      const unchanged = Boolean(lastRun && lastRun.gen === gen && Date.now() - lastRun.at < 4 * 3600_000);
+      const unchanged = !force && Boolean(lastRun && lastRun.gen === gen && Date.now() - lastRun.at < BACKUP_CRON_COOLDOWN_SEC * 1000);
       let backup: { ok: boolean; key?: string; error?: string; bytes?: number; r2_keys?: number; skipped?: boolean; changed_tables?: number } = {
         ok: true,
         key: lastRun?.key,
@@ -1521,7 +1654,7 @@ export function registerBackupRoutes(app: Hono<any>, deps: BackupRouteDeps): voi
           }, 500);
         }
         if (liveCache && backup.key) {
-          await doCachePut(c.env.MOBILE_HUB, c.env.CACHE, 'backup:last-run', { gen, at: Date.now(), key: backup.key }, 14400);
+          await doCachePut(c.env.MOBILE_HUB, c.env.CACHE, 'backup:last-run', { gen, at: Date.now(), key: backup.key }, BACKUP_CRON_COOLDOWN_SEC);
         }
       }
       const backupSkipped = unchanged || Boolean(backup.skipped);
@@ -1531,6 +1664,14 @@ export function registerBackupRoutes(app: Hono<any>, deps: BackupRouteDeps): voi
       } catch (e: any) {
         console.error('cron_purge_err', String(e));
       }
+      let dbPurge = { purgedRows: 0 };
+      if (!backupSkipped || force) {
+        try {
+          dbPurge = await purgeExpiredDbBackupsState(c.env.DB);
+        } catch (e: any) {
+          console.error('cron_db_purge_err', String(e));
+        }
+      }
       let agentPurge = { deleted: 0 };
       try {
         agentPurge = await purgeAgentConversationsOlderThan(c.env, 30);
@@ -1538,19 +1679,20 @@ export function registerBackupRoutes(app: Hono<any>, deps: BackupRouteDeps): voi
         console.error('cron_agent_purge_err', String(e));
       }
       const finished = new Date().toISOString();
-      console.log('cron_backup_ok', JSON.stringify({ key: backup.key, skipped: backupSkipped, changed_tables: backup.changed_tables ?? 0, purge, agentPurge }));
+      console.log('cron_backup_ok', JSON.stringify({ key: backup.key, skipped: backupSkipped, changed_tables: backup.changed_tables ?? 0, purge, dbPurge, agentPurge }));
       return c.json({
         success: true,
         skipped: backupSkipped,
         message: backupSkipped
-          ? 'Aucune mutation depuis la dernière sauvegarde — purge R2 exécutée'
-          : 'Backup incrémental + purge backups + conversations agent >30j',
+          ? 'Aucune mutation depuis la dernière sauvegarde — purge 7 j exécutée'
+          : 'Backup incrémental compressé + purge backups 7 j + conversations agent >30j',
         timestamp: finished,
         started,
         backup_id: backup.key || null,
         bytes: backup.bytes ?? null,
         changed_tables: backup.changed_tables ?? 0,
         purge_deleted: purge.deleted,
+        db_purged_rows: dbPurge.purgedRows,
         agent_chats_purged: agentPurge.deleted,
         data: backupSkipped ? null : backup,
       });

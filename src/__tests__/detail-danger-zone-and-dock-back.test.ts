@@ -12,6 +12,18 @@ import { api } from '../api';
 let host: HTMLDivElement;
 let root: Root;
 
+async function waitForNode(selector: string): Promise<Element | null> {
+  for (let i = 0; i < 30; i += 1) {
+    const found = host.querySelector(selector);
+    if (found) return found;
+    await act(async () => {
+      await Promise.resolve();
+      await new Promise((r) => setTimeout(r, 0));
+    });
+  }
+  return host.querySelector(selector);
+}
+
 beforeEach(() => {
   (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
   localStorage.clear();
@@ -64,12 +76,7 @@ describe('Detail page TopPageActions, Danger Zone, and ProductHistory layout', (
         ),
       );
     });
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    const topActions = host.querySelector('.top-page-actions');
+    const topActions = await waitForNode('.top-page-actions');
     expect(topActions).toBeTruthy();
     const topText = topActions?.textContent || '';
     expect(topText).toContain('Imprimer');
@@ -119,12 +126,7 @@ describe('Detail page TopPageActions, Danger Zone, and ProductHistory layout', (
         ),
       );
     });
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    const topActions = host.querySelector('.top-page-actions');
+    const topActions = await waitForNode('.top-page-actions');
     expect(topActions).toBeTruthy();
     const topText = topActions?.textContent || '';
     expect(topText).toContain('Imprimer');
@@ -163,12 +165,7 @@ describe('Detail page TopPageActions, Danger Zone, and ProductHistory layout', (
         ),
       );
     });
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    const topActions = host.querySelector('.product-history-actions');
+    const topActions = await waitForNode('.product-history-actions');
     expect(topActions).toBeTruthy();
     expect(topActions?.querySelector('[data-atlas-delete="1"]')).toBeNull();
     const dz = host.querySelector('.ac-danger-zone');

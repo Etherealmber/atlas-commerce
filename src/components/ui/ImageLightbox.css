@@ -2,20 +2,20 @@
 .atlas-lightbox-overlay {
   position: fixed;
   inset: 0;
-  z-index: 1200;
+  z-index: 1400;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 14px;
-  padding: max(16px, env(safe-area-inset-top, 16px)) 16px max(18px, env(safe-area-inset-bottom, 18px));
-  background: rgba(15, 23, 42, 0.72);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  padding: max(16px, env(safe-area-inset-top, 16px)) 18px max(18px, env(safe-area-inset-bottom, 18px));
+  background: rgba(15, 23, 42, 0.78);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   animation: atlas-lightbox-fade 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 html[data-theme='dark'] .atlas-lightbox-overlay {
-  background: rgba(6, 6, 9, 0.82);
+  background: rgba(6, 6, 9, 0.86);
 }
 @keyframes atlas-lightbox-fade {
   from { opacity: 0; }
@@ -24,7 +24,7 @@ html[data-theme='dark'] .atlas-lightbox-overlay {
 @keyframes atlas-lightbox-pop {
   from {
     opacity: 0;
-    transform: translateY(10px) scale(0.96);
+    transform: translateY(8px) scale(0.97);
   }
   to {
     opacity: 1;
@@ -33,7 +33,7 @@ html[data-theme='dark'] .atlas-lightbox-overlay {
 }
 
 .atlas-lightbox-bar {
-  width: min(92vw, 980px);
+  width: min(94vw, 1120px);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -48,108 +48,163 @@ html[data-theme='dark'] .atlas-lightbox-overlay {
 }
 
 .atlas-lightbox-frame {
-  max-width: min(92vw, 980px);
-  max-height: min(76dvh, 78vh);
-  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: min(92vw, 1120px);
+  max-height: calc(100dvh - 108px);
+  overflow: hidden;
   border-radius: 16px;
   background-color: #18181b;
   background-image:
-    linear-gradient(45deg, rgba(255, 255, 255, 0.035) 25%, transparent 25%),
-    linear-gradient(-45deg, rgba(255, 255, 255, 0.035) 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.035) 75%),
-    linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.035) 75%);
+    linear-gradient(45deg, rgba(255, 255, 255, 0.03) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(255, 255, 255, 0.03) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.03) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.03) 75%);
   background-size: 20px 20px;
   background-position: 0 0, 0 10px, 10px -10px, -10px 0;
   border: 1px solid rgba(255, 255, 255, 0.14);
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   cursor: zoom-in;
   animation: atlas-lightbox-pop 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  transition: max-width 200ms ease, max-height 200ms ease, border-color 160ms ease;
+  transition: border-color 160ms ease;
 }
 .atlas-lightbox-frame--zoom {
-  cursor: zoom-out;
-  max-width: 95vw;
-  max-height: 84dvh;
+  display: flex;
+  align-items: safe center;
+  justify-content: safe center;
+  width: fit-content;
+  min-width: min(88vw, 540px);
+  max-width: min(94vw, 1280px);
+  height: calc(100dvh - 108px);
+  max-height: calc(100dvh - 108px);
+  padding: 16px;
+  overflow: auto;
+  cursor: grab;
+  background-image: none;
+  background-color: rgba(18, 18, 22, 0.92);
   border-color: rgba(255, 255, 255, 0.24);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+}
+.atlas-lightbox-frame--zoom.is-dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+.atlas-lightbox-frame--zoom::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.atlas-lightbox-frame--zoom::-webkit-scrollbar-track {
+  background: transparent;
+}
+.atlas-lightbox-frame--zoom::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.26);
+  border-radius: 999px;
 }
 .atlas-lightbox-frame img {
   display: block;
-  max-width: min(92vw, 980px);
-  max-height: min(76dvh, 78vh);
+  max-width: min(92vw, 1120px);
+  max-height: calc(100dvh - 112px);
   width: auto;
   height: auto;
   object-fit: contain;
   border-radius: 15px;
-  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.atlas-lightbox-frame--zoom .bits-lens {
+  max-width: none;
+  margin: auto;
+  flex: none;
 }
 .atlas-lightbox-frame--zoom img {
   max-width: none;
   max-height: none;
-  width: 175%;
+  border-radius: 12px;
+  margin: auto;
 }
 
 .atlas-lightbox-name {
   margin: 0;
-  max-width: min(64vw, 680px);
+  max-width: min(62vw, 680px);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: #f4f4f5;
   font-size: 13px;
   font-weight: 600;
-  background: rgba(24, 24, 27, 0.82);
+  background: rgba(24, 24, 27, 0.84);
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 999px;
   padding: 6px 14px;
 }
 
 .atlas-lightbox-tool {
-  display: inline-flex;
-  align-items: center;
+  position: relative;
+  display: inline-flex !important;
+  align-items: center !important;
   gap: 6px;
-  height: 36px;
-  padding: 0 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(24, 24, 27, 0.86);
-  color: #f4f4f5;
-  -webkit-text-fill-color: #f4f4f5;
-  font-size: 12.5px;
-  font-weight: 600;
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 0 14px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  background: rgba(24, 24, 27, 0.88) !important;
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
   cursor: pointer;
   transition: background-color 150ms ease, border-color 150ms ease, transform 150ms ease;
 }
 .atlas-lightbox-tool:hover {
-  background: rgba(39, 39, 42, 0.96);
-  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(39, 39, 42, 0.96) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
 }
 .atlas-lightbox-tool[aria-pressed='true'] {
-  background: #f4f4f5;
-  color: #111113;
-  -webkit-text-fill-color: #111113;
-  border-color: #f4f4f5;
+  background: #f4f4f5 !important;
+  color: #111113 !important;
+  -webkit-text-fill-color: #111113 !important;
+  border-color: #f4f4f5 !important;
+}
+.atlas-lightbox-tool svg {
+  width: 16px !important;
+  height: 16px !important;
+  stroke: currentColor !important;
+  fill: none !important;
+  flex-shrink: 0;
 }
 
 .atlas-lightbox-close {
-  width: 36px;
-  height: 36px;
-  min-width: 36px;
-  min-height: 36px;
-  padding: 0;
-  display: inline-grid;
-  place-items: center;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(24, 24, 27, 0.86);
-  color: #f4f4f5;
-  -webkit-text-fill-color: #f4f4f5;
+  position: relative !important;
+  top: auto !important;
+  right: auto !important;
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  min-height: 36px !important;
+  padding: 0 !important;
+  display: inline-grid !important;
+  place-items: center !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  background: rgba(24, 24, 27, 0.88) !important;
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
   cursor: pointer;
   transition: background-color 150ms ease, border-color 150ms ease, transform 150ms ease;
 }
+.atlas-lightbox-close svg {
+  width: 16px !important;
+  height: 16px !important;
+  stroke: currentColor !important;
+  fill: none !important;
+  flex-shrink: 0;
+}
 .atlas-lightbox-close:hover {
-  background: rgba(63, 63, 70, 0.96);
-  border-color: rgba(255, 255, 255, 0.3);
-  color: #ffffff;
+  background: rgba(63, 63, 70, 0.96) !important;
+  border-color: rgba(255, 255, 255, 0.34) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
 }
 .atlas-lightbox-tool:focus-visible,
 .atlas-lightbox-close:focus-visible {
