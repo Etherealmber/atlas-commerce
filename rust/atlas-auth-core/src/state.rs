@@ -346,7 +346,7 @@ mod tests {
         )
         .unwrap();
 
-        let synthetic_input = format!("fixture-{}-{}", key.thumbprint().len(), "alpha");
+        let synthetic_input = SoftwareP256Key::generate().unwrap().thumbprint();
         assert!(session.build_password_login("alice", &synthetic_input).is_err());
 
         let req_id = "a".repeat(64);
