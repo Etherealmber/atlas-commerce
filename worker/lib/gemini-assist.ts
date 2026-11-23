@@ -259,3 +259,90 @@ export function atlasAgentSystem(opts: {
     .filter(Boolean)
     .join(' ');
 }
+
+export function productDescriptionSystem(opts?: {
+  responseLanguage?: AgentResponseLanguage | string | null;
+}): string {
+  const lang = normalizeResponseLanguage(opts?.responseLanguage);
+  return [
+    'Tu es rédacteur de fiches catalogue pour un logiciel de gestion commerciale (Atlas Commerce).',
+    languageDirective(lang),
+    'Ta seule tâche est de rédiger une description catalogue courte, réelle, sobre et utile (1 à 2 phrases, 120 à 240 caractères max) à partir des seules données fournies sur le produit.',
+    'RÈGLES STRICTES DE VÉRACITÉ :',
+    '- Base-toi uniquement sur les informations explicitement données (nom, catégorie, unité, référence, notes).',
+    '- N’invente JAMAIS de dimensions, poids, épaisseur, composition, origine géographique, marque, norme/certification, garantie, stock, prix ou promotion qui ne figurent pas dans les données.',
+    '- N’écris pas de slogans publicitaires vides, de superlatifs exagérés (« exceptionnel », « révolutionnaire », « haut de gamme incomparable », « numéro 1 ») ni de phrases absurdes.',
+    '- Renvoie uniquement le texte final de la description : aucune phrase d’introduction (« Voici… »), aucun titre, aucun guillemet autour, aucun Markdown (`**`, `#`, puces) et aucun émoji.',
+  ].join(' ');
+}
+
+export function cleanProductDescription(raw: string): string {
+  let text = String(raw || '').trim();
+  // Remove markdown emphasis/headings/bullets
+  text = text
+    .replace(/^\s*[-*•#]+\s+/gm, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/[\r\n]+/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  // Remove conversational preambles such as "Voici une description :"
+  text = text.replace(
+    /^(?:voici(?:\s+une)?\s+(?:proposition\s+de\s+)?description(?:\s+catalogue)?|description(?:\s+catalogue)?(?:\s+du\s+produit)?|here\s+is\s+(?:a\s+)?(?:short\s+)?(?:catalog\s+)?description)\s*[:\-–—]\s*/i,
+    '',
+  ).trim();
+  // Strip outer matching quotes
+  if (
+    (text.startsWith('"') && text.endsWith('"')) ||
+    (text.startsWith('«') && text.endsWith('»')) ||
+    (text.startsWith("'") && text.endsWith("'"))
+  ) {
+    text = text.slice(1, -1).trim();
+  }
+  return text;
+}
+
+export function extractProductDescriptionInput(
+  body: any,
+  message: string,
+): { name: string; prompt: string } | null {
+  const p = body?.product && typeof body.product === 'object' ? body.product : null;
+  let name = String(p?.name ?? body?.product_name ?? '').trim().slice(0, 160);
+  if (!name) {
+    // Legacy message fallback: "Rédige la description catalogue pour: <hint>." or "Nom : <name>"
+    const named =
+      message.match(/(?:^|\n)\s*(?:nom|produit|title|name)\s*[:-]\s*([^\n·]+)/i)?.[1] ||
+      message.match(/pour\s*:\s*([^.\n·]+)/i)?.[1] ||
+      '';
+    const candidate = named.trim().slice(0, 160);
+    if (candidate && !/^produit\s+marbre$/i.test(candidate)) {
+      name = candidate;
+    }
+  }
+  if (!name) return null;
+
+  const category = String(p?.category ?? '').trim().slice(0, 80);
+  const sku = String(p?.sku ?? '').trim().slice(0, 64);
+  const unit = String(p?.unit ?? '').trim().slice(0, 40);
+  const secUnit = String(p?.secondary_unit ?? '').trim().slice(0, 40);
+  const secFactor = String(p?.secondary_unit_factor ?? '').trim().slice(0, 24);
+  const draft = String(p?.draft ?? '').trim().slice(0, 400);
+
+  const lines = [`Nom du produit : ${name}`];
+  if (category) lines.push(`Catégorie : ${category}`);
+  if (sku) lines.push(`Référence SKU : ${sku}`);
+  if (unit) lines.push(`Unité principale : ${unit}`);
+  if (secUnit && secFactor) {
+    lines.push(`Conditionnement : 1 ${unit || 'unité'} = ${secFactor} ${secUnit}`);
+  } else if (secUnit) {
+    lines.push(`Unité secondaire : ${secUnit}`);
+  }
+  if (draft) lines.push(`Notes ou brouillon existant : ${draft}`);
+
+  lines.push(
+    'Consigne : Rédige 1 à 2 phrases factuelles et naturelles pour la fiche catalogue en te limitant strictement aux données ci-dessus.',
+  );
+
+  return { name, prompt: lines.join('\n') };
+}

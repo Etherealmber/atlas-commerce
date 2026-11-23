@@ -27,6 +27,7 @@ export async function groqChat(opts: {
   system: string;
   message: string;
   maxTokens?: number;
+  temperature?: number;
   images?: string[];
 }): Promise<{ reply: string; model: string; usage?: { prompt: number; completion: number } }> {
   const preferred = (opts.model || '').trim();
@@ -48,7 +49,7 @@ export async function groqChat(opts: {
       },
       body: JSON.stringify({
         model,
-        temperature: 0.55,
+        temperature: typeof opts.temperature === 'number' ? opts.temperature : 0.55,
         max_tokens: maxTokens,
         messages: [
           { role: 'system', content: opts.system },

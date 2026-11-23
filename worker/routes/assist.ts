@@ -11,7 +11,14 @@ import {
   runAssistTool,
   auditAssist,
 } from '../lib/agent';
-import { atlasAgentSystem, scrubVendorNames, normalizeResponseLanguage } from '../lib/gemini-assist';
+import {
+  atlasAgentSystem,
+  cleanProductDescription,
+  extractProductDescriptionInput,
+  normalizeResponseLanguage,
+  productDescriptionSystem,
+  scrubVendorNames,
+} from '../lib/gemini-assist';
 import { pickUiLang, tr } from '../lib/error-i18n';
 import {
   groqChat,
@@ -1006,6 +1013,60 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
     const sourceRefined = source;
     const model = String(body.model || (c.env as any).GROQ_MODEL || 'openai/gpt-oss-20b').slice(0, 80);
     const threadId = String((body as any)?.thread_id || (body as any)?.threadId || 'live').slice(0, 80);
+
+    if (task === 'description') {
+      const descInput = extractProductDescriptionInput(body, message);
+      if (!descInput) {
+        return c.json(
+          {
+            success: false,
+            error: 'Le nom du produit est requis pour générer une description.',
+            code: 'PRODUCT_NAME_REQUIRED',
+          },
+          400,
+        );
+      }
+      try {
+        const outDesc = await groqChat({
+          apiKey: groqKey,
+          model,
+          system: productDescriptionSystem({ responseLanguage }),
+          message: descInput.prompt,
+          maxTokens: 220,
+          temperature: 0.3,
+          images,
+        });
+        const replyDesc = cleanProductDescription(scrubVendorNames(String(outDesc.reply || '').trim()));
+        const usedTokens = Math.max(
+          0,
+          Number(outDesc.usage?.prompt || 0) + Number(outDesc.usage?.completion || 0),
+        );
+        if (usedTokens > 0 && role !== 'owner' && role !== 'admin') {
+          try { await agentQuotaAdd(c.env, c.env.DB, username, usedTokens); } catch { /* quota best-effort */ }
+        }
+        await auditAssist(c.env, { username, role, message: descInput.name, tools: 'groq:description', ok: true });
+        await writeAudit(c.env.DB, {
+          username, role, action: 'assist.description', entity: 'product', detail: descInput.name, ip: clientIp(c),
+        });
+        return c.json({
+          success: true,
+          data: {
+            reply: replyDesc,
+            model: outDesc.model,
+            provider: 'groq',
+            usage: outDesc.usage || null,
+            history_turns: 0,
+            documents: [],
+            tool_trace: [],
+            proposals: [],
+            task,
+          },
+        });
+      } catch {
+        await auditAssist(c.env, { username, role, message: descInput.name, tools: 'error', ok: false });
+        return c.json({ success: false, error: tr(uiLang, 'agent_upstream'), code: 'assist_upstream' }, 502);
+      }
+    }
   
     try {
       // v0.7.7 — savoir persistant (mémoire, contexte, garde-fous, RAG) injecté côté serveur
@@ -1119,6 +1180,16 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
     const responseLanguage = normalizeResponseLanguage(body.response_language ?? body.responseLanguage);
     // v0.7.8 — parité buffer : task + détection salutation pour le raccourci local.
     const task = String(body.task || 'general').toLowerCase();
+    if (task === 'description' && !extractProductDescriptionInput(body, message)) {
+      return c.json(
+        {
+          success: false,
+          error: 'Le nom du produit est requis pour générer une description.',
+          code: 'PRODUCT_NAME_REQUIRED',
+        },
+        400,
+      );
+    }
     const isGreeting = /^(bonjour|bonsoir|salut|hello|hi|hey|coucou|salam|bonne\s*(journée|soirée)|merci)[\s!.?]*$/i.test(
       userMessage.trim(),
     );
