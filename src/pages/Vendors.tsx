@@ -9,6 +9,7 @@ import SaveFeedback from '../components/SaveFeedback';
 import { validateVendorForm, firstError } from '../lib/formValidate';
 import EmptyState from '../components/EmptyState';
 import RefreshIconButton from '../components/RefreshIconButton';
+import PageSkeleton from '../components/PageSkeleton';
 import '../components/erp/crm-parties.css';
 import { FloatingPortal } from '../components/FloatingPortal';
 import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
@@ -116,7 +117,7 @@ export default function Vendors() {
   const safePage = Math.min(page, totalPages - 1);
   const paged = filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
 
-  if (loading) return <div className="empty">Chargement des fournisseurs...</div>;
+  if (loading) return <div className="atlas-crm vendors-page"><PageSkeleton variant="list" /></div>;
 
   const totalDue = list.reduce((s, v) => s + Number(v.balance_due || 0), 0);
   const withDue = list.filter((v) => Number(v.balance_due || 0) > 0.001).length;

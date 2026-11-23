@@ -19,6 +19,7 @@ import { matchProducts, polishRefundReason, priceAnomaly, clientRisk } from '../
 import { NoteChips, SuggestList } from '../components/AssistBits';
 import { friendlyError } from '../lib/errors';
 import EmptyState from '../components/EmptyState';
+import PageSkeleton from '../components/PageSkeleton';
 import { validateInvoiceForm, firstError } from '../lib/formValidate';
 import { estimateInvoiceLineTtc, remainingBalance, round2 } from '../../shared/financeCore';
 
@@ -468,7 +469,7 @@ export default function Invoices() {
   const safePage = Math.min(page, totalPages - 1);
   const paged = filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
 
-  if (loading) return <div className="empty">Chargement des factures...</div>;
+  if (loading) return <div className="atlas-orders invoices-page"><PageSkeleton variant="list" /></div>;
 
   const orderKpis = (() => {
     const open = filtered.filter((i) => i.status !== 'paid' && i.status !== 'cancelled').length;

@@ -97,7 +97,14 @@ export default function IntegrationsPanel() {
     }
   };
 
-  if (loading) return <p className="muted">Chargement des intégrations…</p>;
+  if (loading) {
+    return (
+      <div style={{ display: 'grid', gap: 10, padding: '8px 0' }} aria-busy="true" aria-label="Chargement des intégrations">
+        <div className="skeleton" style={{ height: 48, borderRadius: 12 }} />
+        <div className="skeleton" style={{ height: 72, borderRadius: 14 }} />
+      </div>
+    );
+  }
 
   return (
     <div>

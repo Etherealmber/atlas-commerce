@@ -10,15 +10,17 @@ import { APP_VERSION, DISPLAY_VERSION, RELEASE_VISIBLE_CAP, WHATS_NEW_VERSION, s
  * so the "Nouveautés" badge pointed at an empty section).
  */
 describe('WhatsNew releases', () => {
-  it('publishes 0.9.1 and retains the unchanged 0.9.0 notes', () => {
-    expect(DISPLAY_VERSION).toBe('0.9.1');
-    expect(RELEASE_VISIBLE_CAP).toBe('0.9.1');
-    expect(APP_VERSION).toBe('0.9.1-beta');
-    expect(RELEASES[0].version).toBe('0.9.1');
+  it('publishes 0.9.2 and retains the unchanged 0.9.1 and 0.9.0 notes', () => {
+    expect(DISPLAY_VERSION).toBe('0.9.2');
+    expect(RELEASE_VISIBLE_CAP).toBe('0.9.2');
+    expect(APP_VERSION).toBe('0.9.2-beta');
+    expect(RELEASES[0].version).toBe('0.9.2');
     expect(WHATS_NEW_VERSION).toBe(RELEASES[0].version);
-    expect(RELEASES[0].date).toBe('22 novembre 2026');
+    expect(RELEASES[0].date).toBe('24 novembre 2026');
     expect(JSON.stringify(RELEASES[0])).not.toMatch(/cloudflare|google|microsoft|flclash/i);
-    expect(RELEASES[0].sections[0].items.map(i => i.id)).toEqual(['091f1', '091f2', '091f3']);
+    const old091 = RELEASES.find(r => r.version === '0.9.1')!;
+    expect(old091.date).toBe('22 novembre 2026');
+    expect(old091.sections[0].items.map(i => i.id)).toEqual(['091f1', '091f2', '091f3']);
     const old090 = RELEASES.find(r => r.version === '0.9.0')!;
     expect(old090.date).toBe('19 novembre 2026');
     const ids = old090.sections.flatMap((s) => s.items).map((i) => i.id);
@@ -162,7 +164,7 @@ describe('WhatsNew releases', () => {
   });
 
   it('includes 0.9.1 UI polish, image lightbox, and runtime hardening additions without altering the release date', () => {
-    const r091 = RELEASES[0];
+    const r091 = RELEASES.find((r) => r.version === '0.9.1')!;
     expect(r091.version).toBe('0.9.1');
     expect(r091.date).toBe('22 novembre 2026');
     const items = r091.sections.flatMap((s) => s.items);

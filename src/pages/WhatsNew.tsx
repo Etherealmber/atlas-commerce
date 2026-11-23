@@ -37,6 +37,18 @@ type Release = {
 
 export const RELEASES: Release[] = [
   {
+    version: '0.9.2',
+    date: '24 novembre 2026',
+    sections: [{ kind: 'improvements', items: [
+      { id: '092i1', platforms: ['web'], text: 'Interfaces de chargement harmonisées : squelettes animés (.skeleton et PageSkeleton) sur les listes, détails, rapports, opérations de stock et panneaux de réglages à la place des textes bruts.' },
+      { id: '092i2', platforms: ['web'], text: 'Rapports et filtres de dates : sélecteur DateRangePicker avec raccourcis rapides (7j, 1m, 6m, 1a, 2a, YTD) aligné sur le tableau de bord et menus déroulants corrigés sans rognage de texte.' },
+      { id: '092i3', platforms: ['web'], text: 'Pages publiques, légales et barre supérieure : menu utilisateur unifié avec accès direct au tableau de bord, boutons de recherche globale redondants retirés et mise en page focus/légale centrée.' },
+    ] }, { kind: 'fixes', items: [
+      { id: '092f1', platforms: ['web'], text: 'Connexion mobile : suppression du lien « ••• », centrage de la carte et verrouillage du défilement horizontal.' },
+      { id: '092f2', platforms: ['web'], text: 'Thème sombre unifié (#121317 / #181a20) : contraste de la barre flottante, exclusion des boutons de navigation/date des styles génériques et carte dédiée pour les modules désactivés (Pointage).' },
+    ] }],
+  },
+  {
     version: '0.9.1',
     date: '22 novembre 2026',
     sections: [{ kind: 'features', items: [

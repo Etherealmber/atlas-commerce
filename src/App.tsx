@@ -136,11 +136,13 @@ const Receipts = lazyRetry(() => import('./pages/Receipts'));
 const QuickSale = lazyRetry(() => import('./pages/QuickSale'));
 const QuickSaleDetail = lazyRetry(() => import('./pages/QuickSaleDetail'));
 const Balance = lazyRetry(() => import('./pages/Balance'));
+const CashShifts = lazyRetry(() => import('./pages/CashShifts'));
 const Reports = lazyRetry(() => import('./pages/Reports'));
 const InventoryOps = lazyRetry(() => import('./pages/InventoryOps'));
 const Settings = lazyRetry(() => import('./pages/Settings'));
 const Clients = lazyRetry(() => import('./pages/Clients'));
 const Employees = lazyRetry(() => import('./pages/Employees'));
+const Payroll = lazyRetry(() => import('./pages/Payroll'));
 const Attendance = lazyRetry(() => import('./pages/Attendance'));
 const Vendors = lazyRetry(() => import('./pages/Vendors'));
 const Quotes = lazyRetry(() => import('./pages/Quotes'));
@@ -582,7 +584,7 @@ function AboutRoute() {
       <div className="atlas-focus-layout">
         <FocusSidebar mobileOpen={sidebarOpen} onCloseMobile={() => setSidebarOpen(false)} />
         <main className="content content-settings-focus atlas-focus-main">
-          <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
+          <Suspense fallback={<PageFallback />}>
             <About />
           </Suspense>
         </main>
@@ -604,7 +606,7 @@ function WhatsNewRoute() {
       <div className="atlas-focus-layout">
         <FocusSidebar mobileOpen={sidebarOpen} onCloseMobile={() => setSidebarOpen(false)} />
         <main className="content content-settings-focus atlas-focus-main">
-          <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
+          <Suspense fallback={<PageFallback />}>
             <WhatsNew />
           </Suspense>
         </main>
@@ -1214,6 +1216,12 @@ function DesktopShell() {
           <NavLink to="/balance" className={({ isActive }) => (isActive ? 'active' : '')} data-tooltip="Solde & recettes" title="Solde & recettes">
             <span className="nav-main"><NavIcon d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /><span className="nav-label">Solde &amp; recettes</span></span>
           </NavLink>
+          <NavLink to="/cash-shifts" className={({ isActive }) => (isActive ? 'active' : '')} data-tooltip="Clôtures de caisse" title="Clôtures de caisse">
+            <span className="nav-main"><NavIcon d="M3 7h18v12H3zM7 7V4h10v3M8 13h2M14 13h2" /><span className="nav-label">Clôtures de caisse</span></span>
+          </NavLink>
+          <NavLink to="/payroll" className={({ isActive }) => (isActive ? 'active' : '')} data-tooltip="Paie CNSS / AMO" title="Paie CNSS / AMO">
+            <span className="nav-main"><NavIcon d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /><span className="nav-label">Paie CNSS / AMO</span></span>
+          </NavLink>
           <NavLink to="/reports" className={({ isActive }) => (isActive ? 'active' : '')} data-tooltip="Rapports & clôture" title="Rapports & clôture">
             <span className="nav-main"><NavIcon d="M3 3v18h18M7 14l4-4 3 3 5-6" /><span className="nav-label">Rapports &amp; clôture</span></span>
           </NavLink>
@@ -1576,6 +1584,7 @@ function DesktopShell() {
               <Route path="/products/:id/historique" element={<ProductHistory />} />
               <Route path="/clients" element={<RoleGate allow={canOfficeWork()}><Clients /></RoleGate>} />
               <Route path="/employees" element={<RoleGate allow={canOfficeWork()}><Employees /></RoleGate>} />
+              <Route path="/payroll" element={<RoleGate allow={canOfficeWork()}><Payroll /></RoleGate>} />
               <Route path="/attendance" element={<RoleGate allow={canOfficeWork()}><Attendance /></RoleGate>} />
               <Route path="/vendors" element={<RoleGate allow={canOfficeWork()}><Vendors /></RoleGate>} />
               <Route path="/quotes" element={<RoleGate allow={canOfficeWork()}><Quotes /></RoleGate>} />
@@ -1587,6 +1596,7 @@ function DesktopShell() {
               <Route path="/bills" element={<RoleGate allow={canOfficeWork()}><Bills /></RoleGate>} />
               <Route path="/receipts" element={<RoleGate allow={canOfficeWork()}><Receipts /></RoleGate>} />
               <Route path="/balance" element={<RoleGate allow={canOfficeWork()}><Balance /></RoleGate>} />
+              <Route path="/cash-shifts" element={<RoleGate allow={canSell()}><CashShifts /></RoleGate>} />
               <Route path="/reports" element={<RoleGate allow={canOfficeWork()}><Reports /></RoleGate>} />
               <Route path="/inventory-ops" element={<RoleGate allow={canAccessInventoryOps()}><InventoryOps /></RoleGate>} />
               <Route path="/settings" element={<Settings />} />

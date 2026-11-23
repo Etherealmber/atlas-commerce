@@ -49,6 +49,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Version sync guard (src/version.ts vs package.json)
+        run: npm run check:version
       - name: tsc --noEmit (worker scope)
         run: |
           npx tsc --noEmit > tsc.log || true

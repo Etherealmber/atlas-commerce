@@ -1,5 +1,6 @@
 import type { AtlasApp } from './types';
 import type { Env } from '../env';
+import { APP_BUILD_DATE, APP_CHANNEL, APP_VERSION } from '../../src/version';
 import { getWorkerFinanceHealthStats } from '../lib/financeCore';
 import { addColumnIfMissing } from '../lib/schema';
 import { normalizeRole } from '../lib/rbac';
@@ -257,6 +258,9 @@ app.get('/api/health', async (c) => {
     success: true,
     data: {
       ok: true,
+      app_version: APP_VERSION,
+      build_date: APP_BUILD_DATE,
+      channel: APP_CHANNEL,
       d1,
       kv: !!c.env.CACHE,
       r2: !!c.env.IMAGES,

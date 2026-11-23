@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Sparkles, Settings, Info, Plus, ChevronRight } from 'lucide-react';
+import { LogOut, Sparkles, Settings, Info, Plus, ChevronRight, LayoutDashboard } from 'lucide-react';
 import { AvatarImage } from '../ui/AvatarImage';
 import { listSavedAccounts, switchSavedAccount, getUsername, clearToken, type SavedAccount } from '../../auth';
 
@@ -10,6 +10,7 @@ type Props = {
   roleLabel: string;
   initials: string;
   onLogout: () => void;
+  showDashboardLink?: boolean;
 };
 
 /** Top-bar account menu — portalled to <body> so no ancestor can clip,
@@ -19,6 +20,7 @@ export const TopbarUserMenu: FC<Props> = ({
   roleLabel,
   initials,
   onLogout,
+  showDashboardLink = false,
 }) => {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
@@ -158,6 +160,20 @@ export const TopbarUserMenu: FC<Props> = ({
                 </div>
               )}
               <div className="ac-user-dropdown-list">
+                {showDashboardLink && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="ac-user-dropdown-item"
+                    onClick={() => go('/dashboard')}
+                  >
+                    <span className="ac-user-dropdown-ico" aria-hidden>
+                      <LayoutDashboard size={16} strokeWidth={1.9} />
+                    </span>
+                    <span><b>Tableau de bord</b><i>Ouvrir l’espace de travail</i></span>
+                    <ChevronRight className="ac-user-dropdown-chev" size={14} aria-hidden />
+                  </button>
+                )}
                 <button
                   type="button"
                   role="menuitem"

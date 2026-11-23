@@ -13,6 +13,7 @@ import RemboursementModal from '../components/RemboursementModal';
 import SaveFeedback from '../components/SaveFeedback';
 import NumberField from '../components/NumberField';
 import { TimedUndoDelete } from '../components/ui';
+import PageSkeleton from '../components/PageSkeleton';
 import { friendlyError } from '../lib/errors';
 
 function isVrDoc(inv: any) {
@@ -111,7 +112,7 @@ export default function QuickSaleDetail() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  if (loading) return <div className="empty">Chargement du ticket…</div>;
+  if (loading) return <div className="atlas-orders quicksale-detail-page"><PageSkeleton variant="form" /></div>;
   if (!ticket) return <div className="empty">Ticket introuvable</div>;
   if (!isVrDoc(ticket)) return <Navigate to={`/invoices/${ticket.id}`} replace />;
 

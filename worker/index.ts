@@ -10,7 +10,8 @@ import { registerSnakeScoreRoutes } from './routes/snakeScore';
 import { registerWorkStatusRoute } from './routes/workStatus';
 import { Hono } from 'hono';
 import { isQuickSaleIntent } from './lib/quick-assist-intent';
-import { schemaOnce } from './lib/schema';
+import { schemaOnce, registerDbRoot, resolveRootDb } from './lib/schema';
+import { ensureAutoSqlMigrations } from './lib/autoMigrations';
 import {
   sha256Hex,
   ensurePaymentHistoryTable,
@@ -242,6 +243,7 @@ import {
   registerMailboxRoutes,
   registerPartnerV1Routes,
   registerAtlasV209Routes,
+  dispatchWebhook,
   registerFinanceRoutes,
   registerExpenseWriteRoutes,
   registerVendorRoutes,
@@ -274,6 +276,12 @@ import {
   registerDashboardIntegrityRoutes,
   registerInvoicesWriteRoutes,
   registerBillsReceiptsRoutes,
+  registerCashShiftRoutes,
+  registerPayrollRoutes,
+  registerFecRoutes,
+  registerDunningRoutes,
+  runDailyDunning,
+  registerDgiRoutes,
   ensureBillPaymentsTable,
 } from './routes';
 import { countEmployeesPayDue } from './routes/employees';
@@ -828,6 +836,7 @@ app.use('*', async (c, next) => {
     }
 
     if (session) {
+      registerDbRoot(session, rawDb);
       (c.env as any).DB = session;
     }
   }
@@ -912,8 +921,10 @@ app.use('*', async (c, next) => {
       if (flag === 'target') {
         const target = c.env.DB_TARGET as any;
         if ((new URL(c.req.url).pathname.startsWith(`${NATIVE_V2}/`) || c.req.header('Authorization')?.startsWith('Bearer np1.')) && typeof target.withSession !== 'function') throw new Error('Native v2 requires a primary D1 session');
-        (c.env as any).DB = privateResource && typeof target.withSession === 'function'
+        const targetDb = privateResource && typeof target.withSession === 'function'
           ? target.withSession('first-primary') : target;
+        registerDbRoot(targetDb, target);
+        (c.env as any).DB = targetDb;
       }
     } catch {
       // Never silently switch this private resource back to the source database
@@ -923,6 +934,12 @@ app.use('*', async (c, next) => {
       }
     }
   }
+  await next();
+});
+
+app.use('/api/*', async (c, next) => {
+  const migrationDb = (resolveRootDb((c.env as any).DB) || (c.env as any).DB) as D1Database | undefined;
+  await ensureAutoSqlMigrations(migrationDb);
   await next();
 });
 
@@ -1062,6 +1079,11 @@ app.use('/api/*', async (c, next) => {
     path.match(/^\/api\/receipts\/\d+\/print$/) ||
     path.match(/^\/api\/receipts\/\d+\/pdf$/) ||
     path.match(/^\/api\/print\/thermal\/\d+$/) ||
+    path.match(/^\/api\/cash-shifts\/\d+\/(x-report|z-report)$/) ||
+    path.match(/^\/api\/payroll\/runs\/\d+\/lines\/\d+\/bulletin$/) ||
+    path.match(/^\/api\/payroll\/runs\/\d+\/declaration$/) ||
+    path === '/api/accounting/fec/export' ||
+    path.match(/^\/api\/invoices\/\d+\/dgi\/archive$/) ||
     path === '/api/settings/invoice-preview' ||
     path.startsWith('/api/attendance/export') ||
     path === '/api/employees/form/print' ||
@@ -1473,7 +1495,7 @@ app.post('/api/admin/search-index/rebuild', async (c) => {
 
 /* Domain route modules (extracted from monolith) */
 registerInvoiceReadRoutes(app, { requireBizMutator });
-registerStockReadRoutes(app);
+registerStockReadRoutes(app, { requireFloorStock, sessionUserFromHeader, dispatchWebhook });
 registerWholesaleRoutes(app, { requireBizMutator, sessionUserFromHeader });
 registerPublicRoutes(app);
 registerClientRoutes(app, {
@@ -1536,6 +1558,10 @@ async function requireEmployeeDirectory(c: any): Promise<Response | null> {
 registerEmployeeRoutes(app, { checkConfirmPassword, requireEmployeeAdmin, requireEmployeeDirectory });
 /* v254 — role-safe finance, payroll & reminders (owner/admin gated, server-computed) */
 registerFinanceRoutes(app, { sessionUserFromHeader, authFailReason, clientIp, writeAudit, requireEmployeeAdmin });
+registerCashShiftRoutes(app, { sessionUserFromHeader, writeAudit, reportShell });
+registerPayrollRoutes(app, { requireEmployeeAdmin, loadAttendanceRules, writeAudit, sessionUserFromHeader, clientIp });
+registerFecRoutes(app, { requireOwner, writeAudit, clientIp });
+registerDunningRoutes(app, { requireEmployeeAdmin, sessionUserFromHeader, writeAudit, clientIp });
 registerAtlasV209Routes(app, { sessionUserFromHeader, applyStockDelta, adjustLocationStock, getDefaultLocationId });
 // Admin read routes need helpers defined later — registered near Users & Admin section
 
@@ -1788,6 +1814,9 @@ async function ensureHrSettings(db: D1Database) {
     await addColumnIfMissing(db, 'company_settings', 'attendance_late_block_pct', `REAL DEFAULT 10`);
     await addColumnIfMissing(db, 'company_settings', 'attendance_late_half_days', `REAL DEFAULT 0.5`);
     await addColumnIfMissing(db, 'company_settings', 'attendance_late_threshold', `TEXT DEFAULT '09:15'`);
+    await addColumnIfMissing(db, 'company_settings', 'attendance_early_threshold', `TEXT DEFAULT '18:00'`);
+    await addColumnIfMissing(db, 'company_settings', 'attendance_overtime_after_hours', `REAL DEFAULT 8`);
+    await addColumnIfMissing(db, 'company_settings', 'attendance_overtime_multiplier', `REAL DEFAULT 1.25`);
     await addColumnIfMissing(db, 'company_settings', 'attendance_half_morning', `TEXT DEFAULT '09:00-13:00'`);
     await addColumnIfMissing(db, 'company_settings', 'attendance_half_afternoon', `TEXT DEFAULT '14:00-18:00'`);
     await addColumnIfMissing(db, 'company_settings', 'attendance_workday_hours', `REAL DEFAULT 8`);
@@ -1813,6 +1842,9 @@ export type AttendanceRules = {
   block_pct: number;
   half_days: number;
   late_threshold: string;
+  early_threshold: string;
+  overtime_after_hours: number;
+  overtime_multiplier: number;
   half_morning: string;
   half_afternoon: string;
   workday_hours: number;
@@ -1838,6 +1870,9 @@ async function loadAttendanceRules(db: D1Database): Promise<AttendanceRules> {
     block_pct: 10,
     half_days: 0.5,
     late_threshold: '09:15',
+    early_threshold: '18:00',
+    overtime_after_hours: 8,
+    overtime_multiplier: 1.25,
     half_morning: '09:00-13:00',
     half_afternoon: '14:00-18:00',
     workday_hours: 8,
@@ -1862,6 +1897,9 @@ async function loadAttendanceRules(db: D1Database): Promise<AttendanceRules> {
       block_pct: Math.max(1, Math.min(50, Number(s.attendance_late_block_pct ?? 10))),
       half_days: Math.max(0, Math.min(5, Number(s.attendance_late_half_days ?? 0.5))),
       late_threshold: String(s.attendance_late_threshold || '09:15').slice(0, 5),
+      early_threshold: String(s.attendance_early_threshold || '18:00').slice(0, 5),
+      overtime_after_hours: Math.max(1, Math.min(24, Number(s.attendance_overtime_after_hours ?? s.attendance_workday_hours ?? 8))),
+      overtime_multiplier: Math.max(1, Math.min(3, Number(s.attendance_overtime_multiplier ?? 1.25))),
       half_morning: String(s.attendance_half_morning || '09:00-13:00'),
       half_afternoon: String(s.attendance_half_afternoon || '14:00-18:00'),
       workday_hours: Math.max(1, Math.min(24, Number(s.attendance_workday_hours ?? 8))),
@@ -2816,6 +2854,11 @@ export default {
    */
   async scheduled(event: any, env: Env, ctx: ExecutionContext): Promise<void> {
     try {
+      await ensureAutoSqlMigrations(env.DB);
+    } catch (e) {
+      console.error('[cron-migrations] auto schema failed:', String((e as any)?.message || e));
+    }
+    try {
       const report = await runFinanceReminders(env);
       console.log('[cron-finance]', JSON.stringify(report));
     } catch (e) {
@@ -2828,6 +2871,13 @@ export default {
       if (!r.skipped && (r.crashes || r.user_reports)) console.log('[cron-reports]', JSON.stringify(r));
     } catch (e) {
       console.error('[cron-reports] retry failed:', String((e as any)?.message || e));
+    }
+    // Part 6 — daily unpaid invoice dunning (Email / RESEND_API_KEY + dedup)
+    try {
+      const dun = await runDailyDunning(env as any);
+      if (!dun.skipped) console.log('[cron-dunning]', JSON.stringify(dun));
+    } catch (e) {
+      console.error('[cron-dunning] failed:', String((e as any)?.message || e));
     }
   },
 

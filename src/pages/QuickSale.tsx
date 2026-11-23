@@ -20,6 +20,7 @@ import { useUi } from '../components/AppDialogs';
 import PasswordConfirm from '../components/PasswordConfirm';
 import { friendlyError } from '../lib/errors';
 import RefreshIconButton from '../components/RefreshIconButton';
+import PageSkeleton from '../components/PageSkeleton';
 import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
 
 const QUICKSALE_STEPS: readonly WizardStepDef[] = [
@@ -466,7 +467,7 @@ export default function QuickSale() {
 
   const token = getToken() || '';
 
-  if (loading) return <div className="empty">Chargement des ventes rapides...</div>;
+  if (loading) return <div className="atlas-orders quicksale-page"><PageSkeleton variant="list" /></div>;
 
   const qsKpis = (() => {
     const open = filtered.filter((i: any) => i.status !== 'paid' && i.status !== 'cancelled').length;

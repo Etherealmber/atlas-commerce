@@ -915,6 +915,16 @@ app.put('/api/settings', async (c) => {
     const th = String(body.attendance_late_threshold || '09:15').trim();
     body.attendance_late_threshold = /^\d{1,2}:\d{2}$/.test(th) ? th.padStart(5, '0') : '09:15';
   }
+  if (body.attendance_early_threshold !== undefined) {
+    const eth = String(body.attendance_early_threshold || '18:00').trim();
+    body.attendance_early_threshold = /^\d{1,2}:\d{2}$/.test(eth) ? eth.padStart(5, '0') : '18:00';
+  }
+  if (body.attendance_overtime_after_hours !== undefined) {
+    body.attendance_overtime_after_hours = Math.max(1, Math.min(24, Number(body.attendance_overtime_after_hours) || 8));
+  }
+  if (body.attendance_overtime_multiplier !== undefined) {
+    body.attendance_overtime_multiplier = Math.max(1, Math.min(3, Number(body.attendance_overtime_multiplier) || 1.25));
+  }
 
   if (body.attendance_half_morning !== undefined) body.attendance_half_morning = String(body.attendance_half_morning || '09:00-13:00').slice(0, 20);
   if (body.attendance_half_afternoon !== undefined) body.attendance_half_afternoon = String(body.attendance_half_afternoon || '14:00-18:00').slice(0, 20);
@@ -950,6 +960,9 @@ app.put('/api/settings', async (c) => {
     'secondary_currency', 'secondary_currency_rate',
     'attendance_enabled',
     'attendance_late_threshold',
+    'attendance_early_threshold',
+    'attendance_overtime_after_hours',
+    'attendance_overtime_multiplier',
     'attendance_late_half_days',
     'attendance_late_block_pct',
     'attendance_late_grace_pct',

@@ -23,6 +23,7 @@ const QUOTE_STEPS: readonly WizardStepDef[] = [
   { id: 'notes', label: 'Notes', hint: 'Remarques et vérification des totaux.' },
 ];
 import RefreshIconButton from '../components/RefreshIconButton';
+import PageSkeleton from '../components/PageSkeleton';
 import PasswordConfirm from '../components/PasswordConfirm';
 import { FloatingPortal } from '../components/FloatingPortal';
 import { ModalFormError } from '../components/ModalFormFeedback';
@@ -337,7 +338,7 @@ export default function Quotes() {
   const fmt = (n: number) =>
     Math.round(Number(n || 0)).toLocaleString('fr-FR');
 
-  if (loading) return <div className="empty">Chargement des devis...</div>;
+  if (loading) return <div className="atlas-crm quotes-page"><PageSkeleton variant="list" /></div>;
 
   return (
     <div className="atlas-crm quotes-page">

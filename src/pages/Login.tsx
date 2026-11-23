@@ -929,7 +929,6 @@ export default function Login() {
     <div className={`atlas-login atlas-login--auth7${(isNativeClient() || isMobileLogin() || isPwaLogin()) ? ' atlas-login--phone' : ''}`}>
       <div className="atlas-login-phone-hero">
         <img src="/atlas-logo-dark.png" alt={APP_NAME} width="160" height="52" />
-        <Link to="/about" aria-label="À propos et aide">•••</Link>
       </div>
       {/* Form column */}
       <div className="atlas-login-card">

@@ -260,8 +260,9 @@ export default function AgentPermissionsPanel({ compact = false, onSaved, asTrig
 
   if (loading) {
     return (
-      <div className={`agent-perm-panel${compact ? ' is-compact' : ''}`}>
-        <p className="agent-perm-status muted">Chargement…</p>
+      <div className={`agent-perm-panel${compact ? ' is-compact' : ''}`} aria-busy="true" aria-label="Chargement des permissions">
+        <div className="skeleton" style={{ height: 44, borderRadius: 12, marginBottom: 8 }} />
+        <div className="skeleton" style={{ height: 68, borderRadius: 14 }} />
       </div>
     );
   }

@@ -5,13 +5,14 @@ import { useEffect, useRef, useState } from 'react';
 import { whatsAppDraft } from '../lib/assist';
 import { useParams, Link, Navigate, useNavigate } from 'react-router-dom';
 import { api, BASE } from '../api';
-import { getToken } from '../auth';
+import { getToken, isOwnerRole } from '../auth';
 import { statusFr, statusBadgeClass } from '../lib/labels';
 import { fmtMoney, paymentMethodLabel, remainingBalance } from '../lib/money';
 import { useUi } from '../components/AppDialogs';
 import PasswordConfirm from '../components/PasswordConfirm';
 import RemboursementModal from '../components/RemboursementModal';
 import { TimedUndoDelete } from '../components/ui';
+import PageSkeleton from '../components/PageSkeleton';
 import { numStr, numFromInput } from '../lib/numInput';
 import NumberField from '../components/NumberField';
 
@@ -67,6 +68,10 @@ export default function InvoiceDetail() {
   const [notesEdit, setNotesEdit] = useState('');
   const [clearance, setClearance] = useState<any>(null);
   const [ublBusy, setUblBusy] = useState(false);
+  const [dunningInfo, setDunningInfo] = useState<any>(null);
+  const [dunningBusy, setDunningBusy] = useState(false);
+  const [dgiState, setDgiState] = useState<any>(null);
+  const [dgiBusy, setDgiBusy] = useState(false);
   const [pwOpen, setPwOpen] = useState(false);
   const [pwDesc, setPwDesc] = useState('');
   const [pendingDelete, setPendingDelete] = useState<null | ((password: string) => Promise<void>)>(null);
@@ -82,8 +87,12 @@ export default function InvoiceDetail() {
     setInvoice(res.data);
     if (res.data && res.data.status !== 'quote' && res.data.status !== 'devis') {
       api.ublClearance(+id!).then((r) => setClearance(r.data)).catch(() => setClearance(null));
+      api.getInvoiceDunning(+id!).then((r) => setDunningInfo(r.data)).catch(() => setDunningInfo(null));
+      api.getDgiClearance(+id!).then((r) => setDgiState(r.data)).catch(() => setDgiState(null));
     } else {
       setClearance(null);
+      setDunningInfo(null);
+      setDgiState(null);
     }
     if (res.data.client_email) setEmail(res.data.client_email);
     setPayments(pays.data || []);
@@ -211,7 +220,7 @@ export default function InvoiceDetail() {
     }
   };
 
-  if (loading) return <div className="empty">Chargement…</div>;
+  if (loading) return <div className="atlas-orders invoice-detail-page"><PageSkeleton variant="form" /></div>;
   if (!invoice) return <div className="empty">Facture introuvable</div>;
   if (
     invoice.doc_kind === 'quick_sale' ||
@@ -354,6 +363,140 @@ export default function InvoiceDetail() {
 
       {invoice.status !== 'quote' && invoice.status !== 'devis' && (
         <div className="card" style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+            <h3 style={{ margin: 0, fontSize: 16 }}>Facturation électronique DGI (UBL 2.1)</h3>
+            <span className="badge" style={{ fontSize: 11 }}>
+              {dgiState?.live_configured ? 'DGI Live' : 'Mode Stub (Simulation)'}
+            </span>
+          </div>
+          <p style={{ fontSize: 13, color: 'var(--muted)', margin: '6px 0 8px' }}>
+            Pipeline DGI : <code>draft → ubl_ready → queued → submitted → cleared</code>. La création de facture normale n’est jamais bloquée si la DGI n’est pas configurée.
+          </p>
+          <p style={{ fontSize: 13, marginBottom: 8 }}>
+            Statut DGI : <strong>{dgiState?.status || clearance?.status || 'draft'}</strong>
+            {dgiState?.clearance_ref ? (
+              <span style={{ color: 'var(--muted)', fontSize: 12 }}> · Réf : {dgiState.clearance_ref}</span>
+            ) : null}
+            {dgiState?.retention_until ? (
+              <span style={{ color: 'var(--muted)', fontSize: 12 }}> · Conservation 10 ans jusqu’au {dgiState.retention_until}</span>
+            ) : null}
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+            <button
+              type="button"
+              disabled={dgiBusy || ublBusy}
+              onClick={async () => {
+                setDgiBusy(true);
+                try {
+                  await api.prepareDgiUbl(invoice.id);
+                  const [dgiRes, clrRes] = await Promise.all([
+                    api.getDgiClearance(invoice.id),
+                    api.ublPrepare(invoice.id).catch(() => null),
+                  ]);
+                  setDgiState(dgiRes.data);
+                  if (clrRes?.data) setClearance(clrRes.data);
+                  toast('UBL 2.1 préparé pour la DGI', 'success');
+                } catch (e: any) {
+                  toast(e?.message || 'Préparation UBL impossible', 'error');
+                } finally {
+                  setDgiBusy(false);
+                }
+              }}
+            >
+              {dgiBusy ? '…' : 'Préparer UBL'}
+            </button>
+            <button
+              type="button"
+              disabled={dgiBusy || dgiState?.status === 'cleared'}
+              onClick={async () => {
+                setDgiBusy(true);
+                try {
+                  await api.submitDgiInvoice(invoice.id);
+                  const dgiRes = await api.getDgiClearance(invoice.id);
+                  setDgiState(dgiRes.data);
+                  toast(
+                    dgiRes.data?.status === 'cleared'
+                      ? `Facture validée (${dgiRes.data.is_stub ? 'Stub' : 'DGI'})`
+                      : `Statut DGI : ${dgiRes.data?.status}`,
+                    dgiRes.data?.status === 'cleared' ? 'success' : 'error',
+                  );
+                } catch (e: any) {
+                  toast(e?.message || 'Soumission DGI impossible', 'error');
+                } finally {
+                  setDgiBusy(false);
+                }
+              }}
+            >
+              Soumettre à la DGI
+            </button>
+            {(dgiState?.status === 'rejected' || dgiState?.status === 'retrying') && (
+              <button
+                type="button"
+                className="secondary"
+                disabled={dgiBusy}
+                onClick={async () => {
+                  setDgiBusy(true);
+                  try {
+                    await api.retryDgiInvoice(invoice.id);
+                    const dgiRes = await api.getDgiClearance(invoice.id);
+                    setDgiState(dgiRes.data);
+                    toast('Nouvelle tentative DGI effectuée', 'success');
+                  } catch (e: any) {
+                    toast(e?.message || 'Nouvelle tentative impossible', 'error');
+                  } finally {
+                    setDgiBusy(false);
+                  }
+                }}
+              >
+                Réessayer
+              </button>
+            )}
+            {isOwnerRole() && (dgiState?.has_xml || dgiState?.r2_xml_key) && (
+              <button
+                type="button"
+                className="secondary"
+                onClick={async () => {
+                  try {
+                    const tkn = getToken();
+                    const res = await fetch(`${BASE}${api.dgiArchiveUrl(invoice.id, 'xml')}`, {
+                      headers: tkn ? { Authorization: `Bearer ${tkn}` } : {},
+                    });
+                    if (!res.ok) throw new Error('Archive XML indisponible');
+                    const blob = await res.blob();
+                    const u = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = u;
+                    a.download = `dgi-archive-${invoice.number || invoice.id}.xml`;
+                    a.click();
+                    URL.revokeObjectURL(u);
+                  } catch (e: any) {
+                    toast(e?.message || 'Téléchargement archive impossible', 'error');
+                  }
+                }}
+              >
+                Télécharger XML archivé
+              </button>
+            )}
+          </div>
+          {Array.isArray(dgiState?.events) && dgiState.events.length > 0 && (
+            <div style={{ fontSize: 12, color: 'var(--muted)', borderTop: '1px solid var(--border, #e5e7eb)', paddingTop: 8 }}>
+              <strong>Journal des événements DGI :</strong>
+              <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
+                {dgiState.events.slice(0, 6).map((ev: any) => (
+                  <li key={ev.id}>
+                    <code>{ev.from_status || 'init'} → {ev.to_status}</code>
+                    {ev.note ? ` — ${ev.note}` : ''}
+                    {ev.actor ? ` (${ev.actor})` : ''}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
+      {invoice.status !== 'quote' && invoice.status !== 'devis' && (
+        <div className="card" style={{ marginBottom: 16 }}>
           <h3 style={{ marginTop: 0, fontSize: 16 }}>Clearance UBL (M1 — local)</h3>
           <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 0 }}>
             Prépare un snapshot UBL 2.1 + statut local. Pas d’envoi DGI/PDP tant que les credentials officiels ne sont pas branchés.
@@ -490,6 +633,84 @@ export default function InvoiceDetail() {
               Simuler rejeté
             </button>
           </div>
+        </div>
+      )}
+
+      {dunningInfo && Number(dunningInfo.remaining || 0) > 0 && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <strong>Relance impayé</strong> · Reste dû : {fmtMoney(dunningInfo.remaining)} ·{' '}
+              <span>{dunningInfo.paused ? 'Relances en pause' : 'Relances actives'}</span>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="secondary"
+                disabled={dunningBusy}
+                onClick={async () => {
+                  setDunningBusy(true);
+                  try {
+                    const next = !dunningInfo.paused;
+                    await api.setInvoiceDunningPause(invoice.id, next);
+                    const ref = await api.getInvoiceDunning(invoice.id);
+                    setDunningInfo(ref.data);
+                    toast(next ? 'Relances mises en pause' : 'Relances réactivées', 'success');
+                  } catch (e: any) {
+                    toast(e?.message || 'Action impossible', 'error');
+                  } finally {
+                    setDunningBusy(false);
+                  }
+                }}
+              >
+                {dunningInfo.paused ? 'Reprendre relances' : 'Mettre en pause'}
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled={dunningBusy || !dunningInfo.client_email}
+                onClick={async () => {
+                  setDunningBusy(true);
+                  try {
+                    await api.sendInvoiceDunning(invoice.id, { channel: 'email' });
+                    const ref = await api.getInvoiceDunning(invoice.id);
+                    setDunningInfo(ref.data);
+                    toast('Relance e-mail envoyée', 'success');
+                  } catch (e: any) {
+                    toast(e?.message || 'Envoi e-mail impossible', 'error');
+                  } finally {
+                    setDunningBusy(false);
+                  }
+                }}
+              >
+                Envoyer relance e-mail
+              </button>
+              {dunningInfo.whatsapp_url && (
+                <button
+                  type="button"
+                  disabled={dunningBusy}
+                  onClick={async () => {
+                    window.open(dunningInfo.whatsapp_url, '_blank', 'noopener,noreferrer');
+                    try {
+                      await api.sendInvoiceDunning(invoice.id, { channel: 'whatsapp' });
+                      const ref = await api.getInvoiceDunning(invoice.id);
+                      setDunningInfo(ref.data);
+                    } catch {
+                      /* non-blocking */
+                    }
+                  }}
+                >
+                  Relancer via WhatsApp
+                </button>
+              )}
+            </div>
+          </div>
+          {Array.isArray(dunningInfo.events) && dunningInfo.events.length > 0 && (
+            <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }}>
+              Historique ({dunningInfo.events.length}) :{' '}
+              {dunningInfo.events.slice(0, 4).map((ev: any) => `${ev.stage} (${ev.channel}/${ev.status})`).join(' · ')}
+            </p>
+          )}
         </div>
       )}
 

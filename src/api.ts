@@ -767,6 +767,30 @@ export const api = {
   },
   getReorderList: () => request<{ data: any[] }>('/api/inventory/reorder'),
   getStockLocations: () => request<{ data: any[] }>('/api/inventory/locations'),
+  getStockLocationsForProduct: (productId: number) =>
+    request<{ data: Array<{ location_id: string; id: number; code: string; name: string; quantity: number; revision: number }> }>(
+      `/api/inventory/locations?product_id=${encodeURIComponent(String(productId))}`,
+    ),
+  postOfflineInventoryOp: (
+    body: {
+      operation_id: string;
+      kind: 'receive' | 'issue' | 'count';
+      product_id: number;
+      location_id: number;
+      quantity_delta?: number;
+      counted_quantity?: number;
+      observed_quantity?: number;
+      observed_revision?: number;
+      note?: string;
+      client_occurred_at?: string;
+    },
+    idempotencyKey: string,
+  ) =>
+    request<{ success: boolean; data: any }>('/api/inventory/offline-operations', {
+      method: 'POST',
+      headers: { 'Idempotency-Key': idempotencyKey },
+      body: JSON.stringify(body),
+    }),
   createStockLocation: (body: { code: string; name: string }) =>
     request('/api/inventory/locations', { method: 'POST', body: JSON.stringify(body) }),
   updateStockLocation: (id: number, body: { name?: string; is_default?: boolean; is_active?: boolean }) =>
@@ -1187,5 +1211,94 @@ export const api = {
     request<{ data: { crashes: any[]; user_reports: any[]; pending: number } }>(`/api/admin/reports?limit=${limit}`),
   retryReports: () =>
     request<{ data: { crashes: number; user_reports: number; skipped: boolean } }>('/api/admin/reports/retry', { method: 'POST', body: '{}' }),
+
+  // Part 2 — cash shifts + X/Z-report
+  listCashShifts: (params?: { till_id?: string; status?: 'open' | 'closed' }) => {
+    const q = new URLSearchParams();
+    if (params?.till_id) q.set('till_id', params.till_id);
+    if (params?.status) q.set('status', params.status);
+    const s = q.toString();
+    return request<{ data: any[] }>(`/api/cash-shifts${s ? `?${s}` : ''}`);
+  },
+  openCashShift: (body: { till_id?: string; opening_float: number; notes?: string }) =>
+    request<{ data: any }>('/api/cash-shifts/open', { method: 'POST', body: JSON.stringify(body) }),
+  getCashShift: (id: number) =>
+    request<{ data: any }>(`/api/cash-shifts/${id}`),
+  addCashShiftMovement: (id: number, body: { direction: 'in' | 'out'; payment_method?: string; amount: number; reference?: string; label?: string }) =>
+    request<{ data: any }>(`/api/cash-shifts/${id}/movements`, { method: 'POST', body: JSON.stringify(body) }),
+  closeCashShift: (id: number, body: { counted_amount?: number; denominations?: Record<string, number>; counted_by_method?: Record<string, number>; notes?: string }) =>
+    request<{ data: any }>(`/api/cash-shifts/${id}/close`, { method: 'POST', body: JSON.stringify(body) }),
+  cashShiftReportUrl: (id: number, kind: 'x' | 'z', reprint = false) =>
+    `/api/cash-shifts/${id}/${kind}-report${reprint ? '?reprint=1' : ''}`,
+
+  // Part 3 — attendance (pointage)
+  attendanceBadgeCheck: (body: { badge_code: string; action?: 'auto' | 'in' | 'out'; date?: string; time?: string }) =>
+    request<{ data: any }>('/api/attendance/badge-check', { method: 'POST', body: JSON.stringify(body) }),
+  attendanceSelfCheck: (body: { employee_id: number; action: 'in' | 'out'; source?: 'mobile' | 'manual' | 'badge' }) =>
+    request<{ data: any }>('/api/attendance/self-check', { method: 'POST', body: JSON.stringify(body) }),
+  getMonthlyAttendance: (params?: { month?: string; employee_id?: number | string }) => {
+    const q = new URLSearchParams();
+    if (params?.month) q.set('month', params.month);
+    if (params?.employee_id) q.set('employee_id', String(params.employee_id));
+    const s = q.toString();
+    return request<{ data: any }>(`/api/attendance/monthly${s ? `?${s}` : ''}`);
+  },
+
+  // Part 4 — Moroccan payroll (CNSS / AMO / IGR)
+  getPayrollSettings: () => request<{ data: any }>('/api/payroll/settings'),
+  updatePayrollSettings: (body: any) =>
+    request<{ data: any }>('/api/payroll/settings', { method: 'PUT', body: JSON.stringify(body) }),
+  listPayrollRuns: () => request<{ data: any[] }>('/api/payroll/runs'),
+  createPayrollRun: (body: { period_month: string; run_kind?: 'regular' | 'corrective'; corrects_run_id?: number; notes?: string }) =>
+    request<{ data: any }>('/api/payroll/runs', { method: 'POST', body: JSON.stringify(body) }),
+  getPayrollRun: (id: number) => request<{ data: any }>(`/api/payroll/runs/${id}`),
+  updatePayrollLine: (runId: number, lineId: number, body: any) =>
+    request<{ data: any }>(`/api/payroll/runs/${runId}/lines/${lineId}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  closePayrollRun: (id: number) =>
+    request<{ data: any }>(`/api/payroll/runs/${id}/close`, { method: 'POST', body: '{}' }),
+  payrollBulletinUrl: (runId: number, lineId: number) =>
+    `/api/payroll/runs/${runId}/lines/${lineId}/bulletin`,
+  payrollDeclarationUrl: (runId: number, format: 'csv' | 'xls' = 'csv') =>
+    `/api/payroll/runs/${runId}/declaration?format=${format}`,
+
+  // Part 5 — FEC accounting export & chart of accounts (owner-only)
+  getAccountingAccounts: () => request<{ data: any[] }>('/api/accounting/accounts'),
+  updateAccountingAccounts: (accounts: { account_key: string; code: string; label: string }[]) =>
+    request<{ data: any[] }>('/api/accounting/accounts', { method: 'PUT', body: JSON.stringify({ accounts }) }),
+  previewFecExport: (from: string, to: string) =>
+    request<{ data: any }>(`/api/accounting/fec/preview?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
+  fecExportUrl: (from: string, to: string) =>
+    `/api/accounting/fec/export?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+
+  // Part 6 — unpaid invoice dunning
+  getDunningSettings: () => request<{ data: any }>('/api/dunning/settings'),
+  updateDunningSettings: (body: any) =>
+    request<{ data: any }>('/api/dunning/settings', { method: 'PUT', body: JSON.stringify(body) }),
+  getInvoiceDunning: (invoiceId: number) =>
+    request<{ data: any }>(`/api/dunning/invoices/${invoiceId}`),
+  setInvoiceDunningPause: (invoiceId: number, paused: boolean, reason?: string) =>
+    request<{ data: any }>(`/api/dunning/invoices/${invoiceId}/pause`, {
+      method: 'POST',
+      body: JSON.stringify({ paused, reason }),
+    }),
+  sendInvoiceDunning: (invoiceId: number, body: { channel: 'email' | 'whatsapp'; stage?: string }) =>
+    request<{ data: any }>(`/api/dunning/invoices/${invoiceId}/send`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  runDunningNow: (body?: { today?: string; force?: boolean }) =>
+    request<{ data: any }>('/api/dunning/run-now', { method: 'POST', body: JSON.stringify(body || {}) }),
+
+  // Part 7 — DGI e-invoicing clearance
+  getDgiClearance: (invoiceId: number) =>
+    request<{ data: any }>(`/api/invoices/${invoiceId}/dgi`),
+  prepareDgiUbl: (invoiceId: number) =>
+    request<{ data: any }>(`/api/invoices/${invoiceId}/dgi/prepare`, { method: 'POST', body: JSON.stringify({}) }),
+  submitDgiInvoice: (invoiceId: number) =>
+    request<{ data: any }>(`/api/invoices/${invoiceId}/dgi/submit`, { method: 'POST', body: JSON.stringify({}) }),
+  retryDgiInvoice: (invoiceId: number) =>
+    request<{ data: any }>(`/api/invoices/${invoiceId}/dgi/retry`, { method: 'POST', body: JSON.stringify({}) }),
+  dgiArchiveUrl: (invoiceId: number, kind: 'xml' | 'pdf' = 'xml') =>
+    `/api/invoices/${invoiceId}/dgi/archive?kind=${kind}`,
 };
 

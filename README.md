@@ -11,7 +11,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT license" /></a>
   <a href="LICENSE-APACHE"><img src="https://img.shields.io/badge/License-Apache--2.0-blue.svg" alt="Apache 2.0 license" /></a>
   <!-- SUPPORT-SYNC:badge:start -->
-  <img src="https://img.shields.io/badge/version-0.9.1--beta-blue" alt="Version 0.9.1-beta" />
+  <img src="https://img.shields.io/badge/version-0.9.2--beta-blue" alt="Version 0.9.2-beta" />
 <!-- SUPPORT-SYNC:badge:end -->
 </p>
 <p>
@@ -326,6 +326,33 @@ Atlas Commerce est développé et maintenu par **[Etherealmber](https://github.c
 </details>
 
 <details>
+<summary><strong>Contrat hors-ligne Android (`offline-operations`)</strong></summary>
+
+- Documentation complète : [`docs/offline-operations.md`](docs/offline-operations.md)
+- `GET /api/inventory/locations?product_id=<id>` : retourne `location_id`, `name`, `quantity` et `revision` courante par emplacement actif.
+- `POST /api/inventory/offline-operations` (rôles stock/secrétaire/admin/owner) : exécute un lot d'opérations (`receive`, `issue`, `count`) dans l'ordre avec succès partiel (`HTTP 200`), atomiquement dans un `db.batch()` avec `offline_idempotency` (SHA-256 canonique) et `stock_location_revisions`.
+- Rejeu : même `idempotency_key` + même charge → `replayed` (`Idempotent-Replay: true` via `withIdempotency`) ; charge différente → `409 IDEMPOTENCY_MISMATCH`.
+- Conflit de comptage (`count`) : écart de `expected_revision` → `conflict` (`409`), aucun écrasement silencieux, quantité/révision serveur retournées.
+- Smoke : `npm run smoke:offline` (`scripts/smoke-offline-operations.mjs`).
+</details>
+
+<details>
+<summary><strong>Export comptable FEC (PCGE Maroc) — Avertissement</strong></summary>
+
+- L’export FEC (`GET /api/accounting/fec/export`, réservé au propriétaire) produit une archive `.zip` contenant un extrait CSV au format FEC (17 colonnes, journaux `VE`, `AC`, `CA`, `BQ`, `PA`, `OD`), une balance de contrôle et un manifeste JSON.
+- **Avertissement important** : cet export est un **extrait comptable destiné à votre expert-comptable** ; il **ne constitue pas un FEC légalement certifié** tant qu’il n’a pas été contrôlé et validé par votre comptable.
+</details>
+
+<details>
+<summary><strong>Facturation électronique DGI (Maroc) — Mode Stub vs Live</strong></summary>
+
+- Couche DGI construite sur [`worker/ubl.ts`](worker/ubl.ts) (`StubDgiAdapter` par défaut, `HttpDgiAdapter` pour la DGI officielle).
+- Machine à états suivie dans `dgi_clearance` + `dgi_status_events` : `draft → ubl_ready → queued → submitted → cleared | rejected | retrying`.
+- **Aucune facturation bloquée** : tant que les identifiants officiels ne sont pas configurés, `StubDgiAdapter` valide le XML UBL 2.1, génère un visa/QR simulé (`is_stub: true`), archive le XML et le PDF dans R2 avec métadonnées de rétention **10 ans** (`retention_until`), et ne bloque jamais la création de factures normales.
+- **Activation DGI Live** : le passage en mode réel s’active automatiquement dès que les secrets Cloudflare Workers `DGI_BASE_URL`, `DGI_CLIENT_ID` et `DGI_CLIENT_SECRET` sont définis (`wrangler secret put`).
+</details>
+
+<details>
 <summary><strong>Troubleshooting</strong></summary>
 
 - `vite: not found` → `npm install` (node_modules non persisté)
@@ -354,7 +381,7 @@ Atlas Commerce est développé et maintenu par **[Etherealmber](https://github.c
 - Les trois tournent sur chaque pull request (et sur main) avec filters par chemin : un PR rouge ne devrait jamais être mergé, donc jamais déployé
 
 <!-- SUPPORT-SYNC:support:start -->
-Version actuelle : **0.9.1-beta** (gelée jusqu'au prochain ordre de push).
+Version actuelle : **0.9.2-beta** (gelée jusqu'au prochain ordre de push).
 
 > **Politique de support** : seule la mineure courante (**0.9**) reçoit correctifs et mises à jour de sécurité. Dès la sortie de la mineure suivante (ex. 0.10.0), la mineure précédente passe immédiatement en fin de support — 0.8.x l'est depuis 0.9.0. Les versions 0.8.x et antérieures ne sont plus supportées.
 <!-- SUPPORT-SYNC:support:end -->
@@ -362,7 +389,22 @@ Version actuelle : **0.9.1-beta** (gelée jusqu'au prochain ordre de push).
 Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depuis la première version interne ; le détail complet et vivant est dans l'app (**Nouveautés**), y compris l’ancien cycle bêta pré-renumérotation, renuméroté en **0.x** (0.0.1 → 0.4.4).
 
 <details>
-<summary>📦 Toutes les versions (0.0.1-beta → 0.5.5-beta) — cliquer pour déplier</summary>
+<summary>📦 Historique des versions (0.0.1-beta → 0.9.2-beta) — cliquer pour déplier</summary>
+
+### 0.9.2-beta
+- Chargement par squelettes animés (`PageSkeleton` / `.skeleton`) sur l'ensemble des listes, fiches, rapports, opérations de stock et panneaux de réglages, sélecteur `DateRangePicker` avec raccourcis (`7j`–`YTD`) dans Rapports, menu utilisateur unifié sur les pages publiques (accès Tableau de bord, retrait des boutons de recherche redondants), centrage mobile de la page de connexion, thème sombre unifié (`#121317` / `#181a20`), correction du rognage des `<select>` et centrage des pages focus/légales.
+
+### 0.9.1-beta
+- Connexion desktop expérimentale (fenêtre temporaire dédiée + saisie OTP native), double unité facultative sur les produits (carton / m²), mode de prix TVA HT/TTC configurable sur les factures (ventes rapides sans TVA), moteur financier Rust/WebAssembly ABI v2, idempotence des écritures, et rafraîchissement des vues PC & mobile.
+
+### 0.9.0-beta
+- Refonte complète des interfaces PC et mobile (barre flottante, navigation compacte, aperçus rapports/PDF, produits, vente rapide, Atlas Agent plein écran), rapports combinés complets et durcissement des autorisations paie/employés.
+
+### 0.8.9-beta — 0.8.0-beta
+- Suivi lecture seule des demandes/tickets, Atlas Snake, conversion WebP/carrée des images produits, API préférences Android, réplication globale D1 Sessions API (`first-primary` pour écritures/auth), normalisation IPv4/IPv6 et contrats Android/Desktop.
+
+### 0.7.x-beta
+- Nouvelle barre flottante et thème unifié (clair/sombre), gestion multi-dépôts/opérations stock, pages publiques et téléchargements refondus, amélioration de la sécurité et de la conformité des rapports.
 
 ### 0.6.6-beta
 - Logo visible et propre en thème sombre : l'ancien carreau clair `#f1f5f9` forcé sous l'icône de la sidebar (et le tile blanc encadré de la page À propos) masquait l'artwork blanc — carreaux supprimés pour les images de marque + règles de priorité CSS renforcées ; le README GitHub affiche le lockup blanc en mode sombre via `<picture>`/`prefers-color-scheme`

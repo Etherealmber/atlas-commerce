@@ -93,7 +93,7 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     expect(aboutText).toContain('Confidentialité');
   });
 
-  it('removes horizontal icon-row tabs from PublicSettingsTopbar and App.tsx focus header', async () => {
+  it('removes horizontal icon-row tabs and search buttons from PublicSettingsTopbar, PublicNav, and App.tsx focus header', async () => {
     await act(async () => {
       root.render(
         createElement(
@@ -105,13 +105,18 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     });
 
     expect(host.querySelector('.settings-topbar-tabs')).toBeNull();
-    expect(host.querySelector('.settings-topbar-searchtab')).not.toBeNull();
+    expect(host.querySelector('.settings-topbar-searchtab')).toBeNull();
+    expect(host.querySelector('[aria-label="Recherche globale"]')).toBeNull();
 
     const appSrc = readFileSync(path.resolve(process.cwd(), 'src/App.tsx'), 'utf8');
     expect(appSrc).not.toContain('SETTINGS_TOP_TABS');
     expect(appSrc).not.toContain('settings-topbar');
     expect(appSrc).toContain('<FocusSidebar');
     expect(appSrc).toContain('ac-desktop-dock');
+
+    const publicChromeSrc = readFileSync(path.resolve(process.cwd(), 'src/components/PublicChrome.tsx'), 'utf8');
+    expect(publicChromeSrc).not.toContain('Recherche globale');
+    expect(publicChromeSrc).toContain('<TopbarUserMenu');
   });
 
   it('locks dark-mode button contrast on hover/focus/active and segmented pills without purple', () => {
@@ -321,5 +326,86 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     expect(formatAxisVal(1_500_000_000, 2_000_000_000)).toBe('1.5B');
     expect(formatAxisVal(2_000_000, 4_000_000)).toBe('2M');
     expect(formatAxisVal(45_000, 50_000)).toBe('45k');
+  });
+
+  it('prevents layout--focus collapse under sidebar-collapsed, keeps FocusSidebar light buttons unhijacked, and fixes Reports/InventoryOps bento layout', () => {
+    const shellCss = readFileSync(path.resolve(process.cwd(), 'src/styles/shell.css'), 'utf8');
+    const focusCss = readFileSync(path.resolve(process.cwd(), 'src/styles/focus-sidebar.css'), 'utf8');
+    const indexCss = readFileSync(path.resolve(process.cwd(), 'src/index.css'), 'utf8');
+    const appCss = readFileSync(path.resolve(process.cwd(), 'src/App.css'), 'utf8');
+    const overridesCss = readFileSync(path.resolve(process.cwd(), 'src/styles/overrides-final.css'), 'utf8');
+    const darkCss = readFileSync(path.resolve(process.cwd(), 'src/styles/dark-force.css'), 'utf8');
+    const reportsSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Reports.tsx'), 'utf8');
+    const opsSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/InventoryOps.tsx'), 'utf8');
+
+    // 1. Focus layout stays single-column 1fr even when main sidebar was previously collapsed
+    expect(shellCss).toMatch(/\.layout\.layout--focus\.sidebar-collapsed\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s*!important;/s);
+    expect(appCss).toMatch(/\.page-anim\s*\{\s*opacity:\s*1;/);
+    expect(indexCss).toMatch(/\.page-anim\s*\{\s*opacity:\s*1;/);
+
+    // 2. Global button overrides must exclude FocusSidebar controls so light/dark pills stay styled
+    for (const css of [indexCss, appCss, overridesCss, darkCss, shellCss]) {
+      expect(css).toContain(':not(.atlas-focus-nav-item)');
+      expect(css).toContain(':not(.atlas-focus-collapse-btn)');
+    }
+    expect(focusCss).toContain('html body aside.atlas-focus-sidebar button.atlas-focus-nav-item');
+    expect(focusCss).toContain('html body aside.atlas-focus-sidebar button.atlas-focus-collapse-btn');
+
+    // 3. Reports uses column stacks to eliminate vertical gaps between COGS and Clôture fiscale
+    expect(reportsSrc).toContain('<div className="ac-bento-grid-2">');
+    expect(reportsSrc).toContain('<div className="ac-bento-stack">');
+
+    // 4. InventoryOps uses 2-col compact form grids, single-line row actions, and polished hero
+    expect(opsSrc).toContain('ac-ops-form-grid-2');
+    expect(opsSrc).toContain('ac-ops-row-actions');
+    expect(opsSrc).toContain('ac-ops-scope-control');
+    expect(opsSrc).toContain('<h2 className="ac-dash-hello">Opérations stock</h2>');
+    expect(focusCss).toContain('.ac-ops-row-actions');
+    expect(focusCss).toContain('flex-wrap: nowrap;');
+  });
+
+  it('guards mobile login lock, dark dock pill & backdrop seam, Attendance card, select clipping, skeletons, Reports DateRangePicker, and README version history', () => {
+    const loginSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Login.tsx'), 'utf8');
+    const loginCss = readFileSync(path.resolve(process.cwd(), 'src/styles/login-auth.css'), 'utf8');
+    const indexCss = readFileSync(path.resolve(process.cwd(), 'src/index.css'), 'utf8');
+    const appCss = readFileSync(path.resolve(process.cwd(), 'src/App.css'), 'utf8');
+    const overridesCss = readFileSync(path.resolve(process.cwd(), 'src/styles/overrides-final.css'), 'utf8');
+    const darkCss = readFileSync(path.resolve(process.cwd(), 'src/styles/dark-force.css'), 'utf8');
+    const attendanceSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Attendance.tsx'), 'utf8');
+    const reportsSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Reports.tsx'), 'utf8');
+    const readmeSrc = readFileSync(path.resolve(process.cwd(), 'README.md'), 'utf8');
+
+    // Mobile login: no three-dots link, overflow-x locked
+    expect(loginSrc).not.toContain('>•••<');
+    expect(loginSrc).not.toContain('aria-label="À propos et aide"');
+    expect(loginCss).toContain('overflow-x: hidden !important');
+
+    // Dark mode ac-dock-expand never turns into a bright solid pill, backdrop unified
+    expect(indexCss).toContain(':not(.ac-dock-expand)');
+    expect(overridesCss).toContain(':not(.ac-dock-expand)');
+    expect(darkCss).toContain('html[data-theme="dark"] #root .ac-desktop-dock button.ac-dock-expand');
+    expect(darkCss).toContain('html[data-theme="dark"] body .ac-main-column > .content');
+    expect(darkCss).toContain('html[data-theme="dark"] body .ac-desktop-top-row');
+
+    // Disabled Attendance card uses themed class instead of inline pale-yellow styles
+    expect(attendanceSrc).toContain('ac-disabled-module-card');
+    expect(attendanceSrc).not.toContain('#fffbeb');
+
+    // Global select clipping protection
+    expect(overridesCss).toContain('html body select:not(.atlas-dp-select):not([multiple]):not([size])');
+    expect(overridesCss).toContain('.bal-reports-field select');
+
+    // Skeleton containers are never painted by [class*="skeleton"]
+    expect(appCss).not.toContain('[class*="skeleton"]');
+    expect(overridesCss).not.toContain('[class*="skeleton"]');
+
+    // Reports uses Dashboard-style PRESET_OPTIONS + DateRangePicker
+    expect(reportsSrc).toContain('DateRangePicker');
+    expect(reportsSrc).toContain("'ytd'");
+
+    // README history includes 0.9.2-beta & 0.9.1-beta
+    expect(readmeSrc).toContain('0.0.1-beta → 0.9.2-beta');
+    expect(readmeSrc).toContain('### 0.9.2-beta');
+    expect(readmeSrc).toContain('### 0.9.1-beta');
   });
 });

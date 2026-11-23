@@ -10,6 +10,7 @@ import { openPrintDoc } from '../lib/reports';
 import SaveFeedback from '../components/SaveFeedback';
 import EmptyState from '../components/EmptyState';
 import RefreshIconButton from '../components/RefreshIconButton';
+import PageSkeleton from '../components/PageSkeleton';
 import RemboursementModal from '../components/RemboursementModal';
 import PasswordConfirm from '../components/PasswordConfirm';
 import { useUi } from '../components/AppDialogs';
@@ -143,7 +144,7 @@ export default function Reimbursements() {
     }
   };
 
-  if (loading) return <div className="empty">Chargement des remboursements…</div>;
+  if (loading) return <div><PageSkeleton variant="list" /></div>;
 
   return (
     <div>

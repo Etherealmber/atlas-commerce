@@ -16,6 +16,7 @@ import { numStr, numFromInput } from '../lib/numInput';
 import { openReport } from '../lib/reports';
 import NumberField from '../components/NumberField';
 import RefreshIconButton from '../components/RefreshIconButton';
+import PageSkeleton from '../components/PageSkeleton';
 import '../components/erp/crm-parties.css';
 import { FloatingPortal } from '../components/FloatingPortal';
 import { ModalFormError, FieldHint } from '../components/ModalFormFeedback';
@@ -242,7 +243,7 @@ export default function Clients() {
     setPwOpen(true);
   };
 
-  if (loading) return <div className="empty">Chargement des clients...</div>;
+  if (loading) return <div className="atlas-crm clients-page"><PageSkeleton variant="list" /></div>;
 
   return (
     <div className="atlas-crm clients-page">

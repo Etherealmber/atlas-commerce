@@ -144,6 +144,7 @@ html[data-theme="dark"] .settings-topbar-burger {
   padding: 2px 0 10px;
 }
 
+html body aside.atlas-focus-sidebar button.atlas-focus-collapse-btn,
 .atlas-focus-collapse-btn {
   display: inline-grid !important;
   place-items: center !important;
@@ -155,13 +156,20 @@ html[data-theme="dark"] .settings-topbar-burger {
   border-radius: 10px !important;
   border: 1px solid var(--ac-line, #e2e8f0) !important;
   background: #f8fafc !important;
+  background-color: #f8fafc !important;
+  background-image: none !important;
   color: #334155 !important;
+  -webkit-text-fill-color: #334155 !important;
+  box-shadow: none !important;
   cursor: pointer;
   transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
 }
+html body aside.atlas-focus-sidebar button.atlas-focus-collapse-btn:hover,
 .atlas-focus-collapse-btn:hover {
   background: #f1f5f9 !important;
+  background-color: #f1f5f9 !important;
   color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
   border-color: #cbd5e1 !important;
 }
 
@@ -219,6 +227,7 @@ html[data-theme="dark"] .settings-topbar-burger {
   gap: 2px;
 }
 
+html body aside.atlas-focus-sidebar button.atlas-focus-nav-item,
 .atlas-focus-nav-item {
   position: relative;
   display: flex !important;
@@ -230,6 +239,7 @@ html[data-theme="dark"] .settings-topbar-burger {
   border-radius: 11px !important;
   border: 1px solid transparent !important;
   background: transparent !important;
+  background-color: transparent !important;
   background-image: none !important;
   color: #475569 !important;
   -webkit-text-fill-color: #475569 !important;
@@ -241,6 +251,7 @@ html[data-theme="dark"] .settings-topbar-burger {
   transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
 }
 
+html body aside.atlas-focus-sidebar.is-collapsed button.atlas-focus-nav-item,
 .atlas-focus-sidebar.is-collapsed .atlas-focus-nav-item {
   width: 40px !important;
   height: 40px !important;
@@ -251,21 +262,29 @@ html[data-theme="dark"] .settings-topbar-burger {
   border-radius: 12px !important;
 }
 
+html body aside.atlas-focus-sidebar button.atlas-focus-nav-item:hover,
+html body aside.atlas-focus-sidebar button.atlas-focus-nav-item:focus-visible,
 .atlas-focus-nav-item:hover {
   background: #f1f5f9 !important;
+  background-color: #f1f5f9 !important;
   color: #0f172a !important;
   -webkit-text-fill-color: #0f172a !important;
 }
 
+html body aside.atlas-focus-sidebar button.atlas-focus-nav-item.is-active,
 .atlas-focus-nav-item.is-active {
   background: #0f172a !important;
+  background-color: #0f172a !important;
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
   border-color: #0f172a !important;
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.14) !important;
 }
+html body aside.atlas-focus-sidebar button.atlas-focus-nav-item.is-active:hover,
+html body aside.atlas-focus-sidebar button.atlas-focus-nav-item.is-active:focus-visible,
 .atlas-focus-nav-item.is-active:hover {
   background: #1e293b !important;
+  background-color: #1e293b !important;
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
 }
@@ -342,15 +361,21 @@ html[data-theme="dark"] .atlas-focus-sidebar {
 html[data-theme="dark"] .atlas-focus-sidebar-title {
   color: #f4f4f6;
 }
+html[data-theme="dark"] body aside.atlas-focus-sidebar button.atlas-focus-collapse-btn,
 html[data-theme="dark"] .atlas-focus-collapse-btn {
   background: #1b1e28 !important;
+  background-color: #1b1e28 !important;
   border-color: rgba(255, 255, 255, 0.1) !important;
   color: #d4d4d8 !important;
+  -webkit-text-fill-color: #d4d4d8 !important;
 }
+html[data-theme="dark"] body aside.atlas-focus-sidebar button.atlas-focus-collapse-btn:hover,
 html[data-theme="dark"] .atlas-focus-collapse-btn:hover {
   background: #272b38 !important;
+  background-color: #272b38 !important;
   border-color: rgba(255, 255, 255, 0.18) !important;
   color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
 }
 html[data-theme="dark"] .atlas-focus-divider {
   background: rgba(255, 255, 255, 0.08);
@@ -358,24 +383,33 @@ html[data-theme="dark"] .atlas-focus-divider {
 html[data-theme="dark"] .atlas-focus-group-label {
   color: #71717a;
 }
+html[data-theme="dark"] body aside.atlas-focus-sidebar button.atlas-focus-nav-item,
 html[data-theme="dark"] .atlas-focus-nav-item {
+  background: transparent !important;
+  background-color: transparent !important;
   color: #a1a1aa !important;
   -webkit-text-fill-color: #a1a1aa !important;
 }
+html[data-theme="dark"] body aside.atlas-focus-sidebar button.atlas-focus-nav-item:hover,
 html[data-theme="dark"] .atlas-focus-nav-item:hover {
   background: #1c1f29 !important;
+  background-color: #1c1f29 !important;
   color: #f4f4f6 !important;
   -webkit-text-fill-color: #f4f4f6 !important;
 }
+html[data-theme="dark"] body aside.atlas-focus-sidebar button.atlas-focus-nav-item.is-active,
 html[data-theme="dark"] .atlas-focus-nav-item.is-active {
   background: #f4f4f5 !important;
+  background-color: #f4f4f5 !important;
   color: #0f172a !important;
   -webkit-text-fill-color: #0f172a !important;
   border-color: #f4f4f5 !important;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35) !important;
 }
+html[data-theme="dark"] body aside.atlas-focus-sidebar button.atlas-focus-nav-item.is-active:hover,
 html[data-theme="dark"] .atlas-focus-nav-item.is-active:hover {
   background: #e4e4e7 !important;
+  background-color: #e4e4e7 !important;
   color: #0f172a !important;
   -webkit-text-fill-color: #0f172a !important;
 }
@@ -1155,6 +1189,64 @@ html[data-theme="dark"] .ac-reports-checklist strong {
   color: #f4f4f6;
 }
 
+/* InventoryOps Bento polish, compact 2-col forms, and single-line warehouse actions */
+.ac-bento-grid-2--stretch {
+  align-items: stretch;
+}
+.ac-ops-panel-stretch {
+  display: flex;
+  flex-direction: column;
+}
+.ac-ops-panel-foot {
+  margin-top: auto;
+  padding-top: 6px;
+}
+.ac-ops-form-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (max-width: 640px) {
+  .ac-ops-form-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+.ac-ops-row-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+.ac-ops-row-actions > button {
+  min-height: 36px !important;
+  padding: 0 12px !important;
+  font-size: 0.78rem !important;
+  white-space: nowrap;
+}
+.ac-ops-scope-control {
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--ac-paper, #ffffff);
+  border: 1px solid var(--ac-line, #e8eaef);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  min-width: 240px;
+}
+.ac-ops-scope-control label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ac-muted, #64748b);
+}
+html[data-theme="dark"] .ac-ops-scope-control {
+  background: #181a20;
+  border-color: rgba(255, 255, 255, 0.085);
+}
+
 /* Legal Pages Bento inside Focus Layout (/privacy, /terms, /licenses) */
 .atlas-focus-main .privacy-page {
   min-height: 0 !important;
@@ -1263,7 +1355,7 @@ html[data-theme="dark"] .atlas-focus-main .privacy-inner > ul,
 html[data-theme="dark"] .atlas-focus-main .privacy-inner > p:not(.privacy-nav):not(.privacy-meta):not(.privacy-foot),
 html[data-theme="dark"] .atlas-focus-main .privacy-nav,
 html[data-theme="dark"] .atlas-focus-main .privacy-foot {
-  background: #13151d !important;
+  background: #181a20 !important;
   border-color: rgba(255, 255, 255, 0.085) !important;
 }
 html[data-theme="dark"] .atlas-focus-main .privacy-inner > section p,
@@ -1516,6 +1608,147 @@ html[data-theme="light"] .dl-support-form select option {
   background: #ffffff;
   color: #18181b;
 }
+
+/* ---- Disabled module banner / card (Présence, etc.) ---- */
+.ac-disabled-module-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 22px 24px !important;
+  border-radius: 20px !important;
+  background: #fffbeb !important;
+  border: 1px solid #fde68a !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04) !important;
+}
+.ac-disabled-module-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex: 1 1 320px;
+  min-width: 0;
+}
+.ac-disabled-module-icon {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: rgba(245, 158, 11, 0.14);
+  border: 1px solid rgba(217, 119, 6, 0.24);
+  color: #b45309;
+}
+.ac-disabled-module-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ac-disabled-module-badge {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: rgba(245, 158, 11, 0.16);
+  color: #92400e;
+}
+.ac-disabled-module-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 750;
+  color: #78350f;
+}
+.ac-disabled-module-desc {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: #78350f;
+}
+.ac-disabled-module-actions {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+.ac-disabled-module-cta {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px !important;
+  text-decoration: none !important;
+}
+html[data-theme="dark"] .ac-disabled-module-card {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.09) 0%, #181a20 65%) !important;
+  border: 1px solid rgba(251, 191, 36, 0.24) !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28) !important;
+}
+html[data-theme="dark"] .ac-disabled-module-icon {
+  background: rgba(251, 191, 36, 0.14) !important;
+  border-color: rgba(251, 191, 36, 0.28) !important;
+  color: #fbbf24 !important;
+}
+html[data-theme="dark"] .ac-disabled-module-badge {
+  background: rgba(251, 191, 36, 0.16) !important;
+  color: #fde68a !important;
+}
+html[data-theme="dark"] .ac-disabled-module-title {
+  color: #fef3c7 !important;
+}
+html[data-theme="dark"] .ac-disabled-module-desc,
+html[data-theme="dark"] .ac-disabled-module-desc strong {
+  color: #d4d4d8 !important;
+}
+
+/* ---- Floating public settings topbar (About / WhatsNew / Privacy / Terms / Licenses) ---- */
+.ac-desktop-top-row {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+@media (min-width: 901px) {
+  html body .public-settings-topbar.settings-topbar {
+    position: sticky !important;
+    top: 10px !important;
+    z-index: 45 !important;
+    width: fit-content !important;
+    min-width: min(540px, calc(100% - 32px));
+    max-width: calc(100% - 32px) !important;
+    margin: 10px auto 6px !important;
+    padding: 6px 12px 6px 14px !important;
+    min-height: 52px !important;
+    border-radius: 999px !important;
+    background: rgba(255, 255, 255, 0.92) !important;
+    border: 1px solid var(--ac-line, #e8eaef) !important;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08) !important;
+    backdrop-filter: blur(14px) !important;
+    -webkit-backdrop-filter: blur(14px) !important;
+  }
+  html[data-theme="dark"] body .public-settings-topbar.settings-topbar {
+    background: rgba(20, 22, 29, 0.92) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45) !important;
+  }
+}
+
+.public-about .settings-topbar-brand strong,
+.public-whats-new .settings-topbar-brand strong,
+.public-legal .settings-topbar-brand strong {
+  color: var(--ac-ink, #0f172a);
+}
+html[data-theme="dark"] .public-about .settings-topbar-brand strong,
+html[data-theme="dark"] .public-whats-new .settings-topbar-brand strong,
+html[data-theme="dark"] .public-legal .settings-topbar-brand strong {
+  color: #f4f4f6 !important;
+}
+
 
 
 

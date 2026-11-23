@@ -5,10 +5,18 @@ import { friendlyError } from '../lib/errors';
 import { isStockRole } from '../auth';
 import {
   cacheLocations,
+  countOfflineInventoryOps,
   listCachedLocations,
+  listOfflineInventoryOps,
+  removeOfflineInventoryOpBySeq,
   isOnline,
   listLowStockOffline,
+  type QueuedOfflineInventoryOp,
 } from '../lib/offlineCatalog';
+import {
+  executeOrQueueOfflineInventoryOp,
+  replayOfflineInventoryQueue,
+} from '../lib/offlineInventoryClient';
 
 const fmt = (n: number) => Math.round(Number(n || 0)).toLocaleString('fr-FR');
 
@@ -34,7 +42,7 @@ type CountLine = { product_id: number; name: string; sku?: string; system_qty: n
 
 export default function PhoneWarehouse({ onToast }: Props) {
   const stockOnly = isStockRole();
-  const [tab, setTab] = useState<'view' | 'count' | 'transfer'>('view');
+  const [tab, setTab] = useState<'view' | 'ops' | 'count' | 'transfer'>('view');
   const [locations, setLocations] = useState<any[]>([]);
   const [selected, setSelected] = useState(getPhoneLocationId);
   const [report, setReport] = useState<any>(null);
@@ -45,6 +53,22 @@ export default function PhoneWarehouse({ onToast }: Props) {
   const [pq, setPq] = useState('');
   const [lines, setLines] = useState<CountLine[]>([]);
   const [busy, setBusy] = useState(false);
+
+  // Part 3: offline-operations field movement state (receive / issue / count)
+  const [opKind, setOpKind] = useState<'receive' | 'issue' | 'count'>('receive');
+  const [opProduct, setOpProduct] = useState<any>(null);
+  const [opLocId, setOpLocId] = useState<number>(getPhoneLocationId);
+  const [opQty, setOpQty] = useState('1');
+  const [opNote, setOpNote] = useState('');
+  const [opRev, setOpRev] = useState<number>(0);
+  const [opCurrentQty, setOpCurrentQty] = useState<number>(0);
+  const [pendingOpsCount, setPendingOpsCount] = useState(0);
+  const [queuedOps, setQueuedOps] = useState<QueuedOfflineInventoryOp[]>([]);
+  const [conflictAlert, setConflictAlert] = useState<{
+    current_quantity: number;
+    current_revision: number;
+    message: string;
+  } | null>(null);
 
   // transfer form
   const [tProduct, setTProduct] = useState<any>(null);
@@ -98,9 +122,27 @@ export default function PhoneWarehouse({ onToast }: Props) {
     }
   };
 
+  const refreshQueueBadge = async () => {
+    try {
+      const [counts, items] = await Promise.all([countOfflineInventoryOps(), listOfflineInventoryOps()]);
+      setPendingOpsCount(counts.pending);
+      setQueuedOps(items);
+    } catch { /* */ }
+  };
+
   useEffect(() => {
     load(selected || 'all');
-    const on = () => { setOffline(false); load(selected || 'all'); };
+    void refreshQueueBadge();
+    const on = async () => {
+      setOffline(false);
+      try {
+        const res = await replayOfflineInventoryQueue();
+        if (res.applied > 0) onToast(`${res.applied} opération(s) synchronisée(s)`);
+        if (res.conflicts > 0) onToast(`${res.conflicts} conflit(s) de comptage détecté(s)`);
+      } catch { /* */ }
+      await refreshQueueBadge();
+      load(selected || 'all');
+    };
     const off = () => setOffline(true);
     window.addEventListener('online', on);
     window.addEventListener('offline', off);
@@ -109,6 +151,20 @@ export default function PhoneWarehouse({ onToast }: Props) {
       window.removeEventListener('offline', off);
     };
   }, []);
+
+  useEffect(() => {
+    if (!opProduct?.id || !opLocId || !isOnline()) return;
+    api
+      .getStockLocationsForProduct(Number(opProduct.id))
+      .then((res) => {
+        const match = (res.data || []).find((l) => Number(l.id) === Number(opLocId));
+        if (match) {
+          setOpRev(Number(match.revision ?? 0));
+          setOpCurrentQty(Number(match.quantity ?? 0));
+        }
+      })
+      .catch(() => { /* */ });
+  }, [opProduct, opLocId]);
 
   const pick = (id: number) => {
     setSelected(id);
@@ -204,9 +260,68 @@ export default function PhoneWarehouse({ onToast }: Props) {
     }
   };
 
+  const submitFieldOp = async () => {
+    if (!opProduct?.id || !opLocId) {
+      onToast('Sélectionnez un produit et un emplacement');
+      return;
+    }
+    const qtyVal = Number(opQty);
+    if (!Number.isFinite(qtyVal) || (opKind === 'count' ? qtyVal < 0 : qtyVal <= 0)) {
+      onToast(opKind === 'count' ? 'Quantité comptée invalide (>= 0)' : 'Quantité invalide (> 0)');
+      return;
+    }
+    setBusy(true);
+    setConflictAlert(null);
+    try {
+      const locName = locations.find((l) => Number(l.id) === Number(opLocId))?.name || '';
+      const outcome = await executeOrQueueOfflineInventoryOp({
+        kind: opKind,
+        product_id: Number(opProduct.id),
+        location_id: Number(opLocId),
+        quantity_delta: opKind === 'count' ? undefined : qtyVal,
+        counted_quantity: opKind === 'count' ? qtyVal : undefined,
+        observed_quantity: opKind === 'count' ? opCurrentQty : undefined,
+        observed_revision: opKind === 'count' ? opRev : undefined,
+        note: opNote || undefined,
+        product_name: opProduct.name,
+        location_name: locName,
+      });
+      if (outcome.state === 'applied') {
+        setOpRev(Number(outcome.data?.revision ?? opRev + 1));
+        setOpCurrentQty(Number(outcome.data?.new_quantity ?? qtyVal));
+        setOpNote('');
+        onToast(`Mouvement appliqué (rév. ${outcome.data?.revision})`);
+        void load(selected || 'all');
+      } else if (outcome.state === 'queued') {
+        onToast('Hors ligne — opération mise en file d’attente');
+      } else if (outcome.state === 'conflict') {
+        setConflictAlert({
+          current_quantity: outcome.current_quantity,
+          current_revision: outcome.current_revision,
+          message: outcome.message,
+        });
+        setOpRev(outcome.current_revision);
+        setOpCurrentQty(outcome.current_quantity);
+        onToast('Conflit de comptage détecté (409)');
+      }
+      await refreshQueueBadge();
+    } catch (e: any) {
+      onToast(friendlyError(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="phone-panel">
-      <h1 className="ph-title" style={{ fontSize: 22 }}>Entrepôts</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <h1 className="ph-title" style={{ fontSize: 22, margin: 0 }}>Entrepôts</h1>
+        {(pendingOpsCount > 0 || queuedOps.some((q) => q.status === 'conflict')) && (
+          <span className="ph-chip on" style={{ fontSize: 12 }}>
+            {pendingOpsCount} en attente
+          </span>
+        )}
+      </div>
       <p className="ph-sub">
         Emplacement, inventaire et transferts.
         {offline && <span style={{ color: '#b45309' }}> · Hors ligne</span>}
@@ -215,6 +330,7 @@ export default function PhoneWarehouse({ onToast }: Props) {
       <div className="ph-seg" style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
         {([
           ['view', 'Aperçu'],
+          ['ops', 'Mouvements'],
           ['count', 'Inventaire'],
           ['transfer', 'Transfert'],
         ] as const).map(([k, label]) => (
@@ -312,6 +428,165 @@ export default function PhoneWarehouse({ onToast }: Props) {
             </div>
           )}
         </>
+      )}
+
+      {tab === 'ops' && (
+        <div style={{ display: 'grid', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {([
+              ['receive', 'Réception'],
+              ['issue', 'Sortie'],
+              ['count', 'Comptage'],
+            ] as const).map(([k, label]) => (
+              <button
+                key={k}
+                type="button"
+                className={`ph-chip ${opKind === k ? 'on' : ''}`}
+                onClick={() => {
+                  setOpKind(k);
+                  setConflictAlert(null);
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <select
+            aria-label="Emplacement du mouvement"
+            value={opLocId}
+            onChange={(e) => setOpLocId(Number(e.target.value))}
+            style={{ width: '100%', height: 44, borderRadius: 12 }}
+          >
+            <option value={0}>Choisir un entrepôt…</option>
+            {locations.map((l) => (
+              <option key={l.id} value={l.id}>{l.code} — {l.name}</option>
+            ))}
+          </select>
+
+          <input
+            className="ph-search"
+            value={pq}
+            onChange={(e) => setPq(e.target.value)}
+            placeholder="Produit…"
+          />
+          {!opProduct ? (
+            <div className="ph-panel" style={{ padding: 0, maxHeight: 160, overflow: 'auto' }}>
+              {filtered.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className="ph-row ph-card"
+                  style={{ width: '100%', textAlign: 'left', border: 'none', background: 'transparent' }}
+                  onClick={() => setOpProduct(p)}
+                >
+                  <div>
+                    <div className="ph-row-title">{p.name}</div>
+                    <div className="ph-row-detail">{p.sku || '—'} · total {Number(p.stock_quantity ?? 0)}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="ph-panel" style={{ padding: 10 }}>
+              <div className="ph-row-title">{opProduct.name}</div>
+              <div className="ph-row-detail">
+                Emplacement qté : {opCurrentQty} · révision {opRev}
+              </div>
+              <button type="button" className="ph-chip" style={{ marginTop: 6 }} onClick={() => setOpProduct(null)}>
+                Changer de produit
+              </button>
+            </div>
+          )}
+
+          <input
+            type="number"
+            inputMode="decimal"
+            aria-label={opKind === 'count' ? 'Quantité comptée' : 'Quantité'}
+            value={opQty}
+            onChange={(e) => setOpQty(e.target.value)}
+            placeholder={opKind === 'count' ? 'Quantité comptée' : 'Quantité'}
+            style={{ width: '100%', height: 44, borderRadius: 12, padding: '0 12px' }}
+          />
+          <input
+            value={opNote}
+            onChange={(e) => setOpNote(e.target.value)}
+            placeholder="Note (optionnel)"
+            style={{ width: '100%', height: 44, borderRadius: 12, padding: '0 12px' }}
+          />
+
+          {conflictAlert && (
+            <div role="alert" className="ph-sale-error" style={{ padding: 10, borderRadius: 10 }}>
+              <strong>Conflit de révision (409)</strong>
+              <p style={{ margin: '4px 0', fontSize: 12 }}>
+                {conflictAlert.message} — Serveur : qté {conflictAlert.current_quantity}, rév. {conflictAlert.current_revision}.
+              </p>
+              <button
+                type="button"
+                className="ph-chip on"
+                onClick={() => {
+                  setOpRev(conflictAlert.current_revision);
+                  setOpCurrentQty(conflictAlert.current_quantity);
+                  setConflictAlert(null);
+                }}
+              >
+                Utiliser la révision {conflictAlert.current_revision}
+              </button>
+            </div>
+          )}
+
+          <button type="button" className="ph-inv-go" disabled={busy} onClick={() => void submitFieldOp()}>
+            {busy ? 'Envoi…' : opKind === 'receive' ? 'Enregistrer réception →' : opKind === 'issue' ? 'Enregistrer sortie →' : 'Valider comptage →'}
+          </button>
+
+          {queuedOps.length > 0 && (
+            <div className="ph-panel" style={{ padding: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <strong style={{ fontSize: 13 }}>File hors ligne ({queuedOps.length})</strong>
+                {isOnline() && (
+                  <button
+                    type="button"
+                    className="ph-chip on"
+                    onClick={async () => {
+                      await replayOfflineInventoryQueue();
+                      await refreshQueueBadge();
+                    }}
+                  >
+                    Synchroniser
+                  </button>
+                )}
+              </div>
+              {queuedOps.map((q) => (
+                <div key={q.operation_id} style={{ fontSize: 12, padding: '6px 0', borderTop: '1px solid rgba(0,0,0,0.06)' }}>
+                  <div>
+                    <strong>{q.kind}</strong> · {q.product_name || `#${q.product_id}`} · <span>{q.status}</span>
+                  </div>
+                  {q.status === 'conflict' && q.conflict && (
+                    <div style={{ color: '#b91c1c' }}>
+                      Conflit : serveur qté {q.conflict.current_quantity} (rév. {q.conflict.current_revision})
+                    </div>
+                  )}
+                  {q.error_message && q.status !== 'pending' && (
+                    <div style={{ color: '#b91c1c' }}>{q.error_message}</div>
+                  )}
+                  {q.seq != null && q.status !== 'pending' && (
+                    <button
+                      type="button"
+                      className="ph-chip"
+                      style={{ marginTop: 4 }}
+                      onClick={async () => {
+                        await removeOfflineInventoryOpBySeq(q.seq!);
+                        await refreshQueueBadge();
+                      }}
+                    >
+                      Ignorer
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {tab === 'count' && (

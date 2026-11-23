@@ -50,13 +50,13 @@ async function render(node: ReactNode, path = '/dashboard') {
 }
 
 describe('published release notification state', () => {
-  it('announces the new 0.9.1 notes to someone who has seen 0.9.0', () => {
-    localStorage.setItem(SEEN, '0.9.0-beta');
-    localStorage.setItem(MODAL, '0.9.0-beta');
+  it('announces the new 0.9.2 notes to someone who has seen 0.9.1', () => {
+    localStorage.setItem(SEEN, '0.9.1-beta');
+    localStorage.setItem(MODAL, '0.9.1-beta');
     expect(hasUnreadWhatsNew()).toBe(true);
     expect(shouldShowWhatsNewModal()).toBe(true);
   });
-  it.each(['0.9.1', '0.9.1-beta'])('preserves an existing %s marker across build changes', (version) => {
+  it.each(['0.9.2', '0.9.2-beta'])('preserves an existing %s marker across build changes', (version) => {
     localStorage.setItem(SEEN, version);
     localStorage.setItem(MODAL, version);
     expect(hasUnreadWhatsNew()).toBe(false);
@@ -67,19 +67,19 @@ describe('published release notification state', () => {
     expect(localStorage.getItem(MODAL)).toBe(version);
   });
   it('does not reopen a modal when the page-seen marker already covers the release', () => {
-    localStorage.setItem(SEEN, '0.9.1-beta');
+    localStorage.setItem(SEEN, '0.9.2-beta');
     expect(shouldShowWhatsNewModal()).toBe(false);
   });
   it('dismissing only the modal leaves the page unread badge intact', () => {
     markWhatsNewModalSeen();
     expect(shouldShowWhatsNewModal()).toBe(false);
     expect(hasUnreadWhatsNew()).toBe(true);
-    expect(localStorage.getItem(MODAL)).toBe('0.9.1');
+    expect(localStorage.getItem(MODAL)).toBe('0.9.2');
   });
   it('visiting the notes records the published version, not the build version', () => {
     markWhatsNewSeen();
-    expect(localStorage.getItem(SEEN)).toBe('0.9.1');
-    expect(localStorage.getItem(MODAL)).toBe('0.9.1');
+    expect(localStorage.getItem(SEEN)).toBe('0.9.2');
+    expect(localStorage.getItem(MODAL)).toBe('0.9.2');
     expect(hasUnreadWhatsNew()).toBe(false);
   });
   it('preserves newer seen markers when running an older build', () => {
@@ -105,25 +105,27 @@ describe('published release notification state', () => {
 });
 
 describe('release page and popup content', () => {
-  it('shows 0.9.1 first while retaining prior releases', async () => {
+  it('shows 0.9.2 first while retaining prior releases', async () => {
     await render(createElement(WhatsNew), '/whats-new');
     const releases = host.querySelectorAll('.wn-release');
-    expect(releases[0].textContent).toContain('0.9.1');
-    expect(releases[0].textContent).toContain('Connexion desktop expérimentale');
-    expect(releases[1].textContent).toContain('0.9.0');
-    expect(releases[1].textContent).toContain('Cookies et données locales');
-    expect(releases[2].textContent).toContain('0.8.9');
-    expect(releases[2].textContent).toContain('API de suivi');
-    expect(localStorage.getItem(SEEN)).toBe('0.9.1');
+    expect(releases[0].textContent).toContain('0.9.2');
+    expect(releases[0].textContent).toContain('Interfaces de chargement harmonisées');
+    expect(releases[1].textContent).toContain('0.9.1');
+    expect(releases[1].textContent).toContain('Connexion desktop expérimentale');
+    expect(releases[2].textContent).toContain('0.9.0');
+    expect(releases[2].textContent).toContain('Cookies et données locales');
+    expect(releases[3].textContent).toContain('0.8.9');
+    expect(releases[3].textContent).toContain('API de suivi');
+    expect(localStorage.getItem(SEEN)).toBe('0.9.2');
   });
   it('pairs popup title, date and bullets with the published release', async () => {
     await render(createElement(WhatsNewModal));
     const dialog = host.querySelector('[role="dialog"]');
-    expect(dialog?.textContent).toContain('Atlas Commerce 0.9.1');
-    expect(dialog?.textContent).toContain('22 novembre 2026');
-    expect(dialog?.textContent).toContain('Connexion desktop expérimentale');
-    expect(dialog?.textContent).toContain('Le serveur vérifie');
-    expect(dialog?.textContent).toContain('navigateur externe');
+    expect(dialog?.textContent).toContain('Atlas Commerce 0.9.2');
+    expect(dialog?.textContent).toContain('24 novembre 2026');
+    expect(dialog?.textContent).toContain('Interfaces de chargement harmonisées');
+    expect(dialog?.textContent).toContain('DateRangePicker');
+    expect(dialog?.textContent).toContain('menu utilisateur unifié');
     expect(dialog?.textContent).not.toContain('build-only-test');
     expect(dialog?.textContent).not.toContain('API de suivi');
     expect(dialog?.querySelectorAll('li')).toHaveLength(3);
@@ -131,7 +133,7 @@ describe('release page and popup content', () => {
     if (!dismissButton) throw new Error('Missing release popup dismiss button');
     await act(async () => dismissButton.click());
     expect(host.querySelector('[role="dialog"]')).toBeNull();
-    expect(localStorage.getItem(MODAL)).toBe('0.9.1');
+    expect(localStorage.getItem(MODAL)).toBe('0.9.2');
   });
   it('does not display the modal on the notes page itself', async () => {
     await render(createElement(WhatsNewModal), '/whats-new');

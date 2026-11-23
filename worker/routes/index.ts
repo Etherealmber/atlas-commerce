@@ -55,3 +55,8 @@ export { registerProductsScanRoutes, type ProductsScanRouteDeps } from './produc
 export { registerDashboardIntegrityRoutes, type DashboardIntegrityRouteDeps } from './dashboardIntegrity';
 export { registerInvoicesWriteRoutes, type InvoicesWriteRouteDeps } from './invoicesWrite';
 export { registerBillsReceiptsRoutes, ensureBillPaymentsTable, type BillsReceiptsRouteDeps } from './billsReceipts';
+export { registerCashShiftRoutes, type CashShiftRouteDeps } from './cashShifts';
+export { registerPayrollRoutes, type PayrollRouteDeps } from './payroll';
+export { registerFecRoutes, type FecRouteDeps } from './fec';
+export { registerDunningRoutes, runDailyDunning, type DunningRouteDeps } from './dunning';
+export { registerDgiRoutes, type DgiRouteDeps } from './dgi';

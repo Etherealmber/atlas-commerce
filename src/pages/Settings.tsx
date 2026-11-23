@@ -257,6 +257,12 @@ export default function Settings() {
   const [auditRange, setAuditRange] = useState<'24h' | '7d' | '30d' | 'all'>('7d');
   const [auditAction, setAuditAction] = useState('');
   const [auditStats, setAuditStats] = useState<any>(null);
+  const [payrollRates, setPayrollRates] = useState<any>(null);
+  const [payrollSaving, setPayrollSaving] = useState(false);
+  const [fecAccounts, setFecAccounts] = useState<any[] | null>(null);
+  const [fecSaving, setFecSaving] = useState(false);
+  const [dunningCfg, setDunningCfg] = useState<any>(null);
+  const [dunningSaving, setDunningSaving] = useState(false);
   const AUDIT_PAGE = 80;
 
   const roleLabel = (r: string) => {
@@ -664,8 +670,11 @@ export default function Settings() {
     ...(officeSettings ? [
       { id: 'company', label: 'Société', group: 'Entreprise', icon: 'M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6' },
       { id: 'attendance', label: 'Présence', group: 'Entreprise', icon: 'M12 8v4l3 3M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z' },
+      { id: 'payroll', label: 'Paie CNSS / AMO', group: 'Entreprise', icon: 'M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6' },
+      ...(isOwner ? [{ id: 'fec', label: 'Plan comptable (FEC)', group: 'Entreprise', icon: 'M4 4h16v16H4zM8 8h8M8 12h8M8 16h5' }] : []),
       { id: 'legal', label: 'Légal', group: 'Entreprise', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M9 13h6M9 17h4' },
       { id: 'invoicing', label: 'Facturation', group: 'Documents', icon: 'M8 2h8a2 2 0 0 1 2 2v16l-3-1.5L12 21l-3-1.5L6 20V4a2 2 0 0 1 2-2z' },
+      { id: 'dunning', label: 'Relances impayés', group: 'Documents', icon: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z' },
       { id: 'documents', label: 'PDF', group: 'Documents', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6' },
       { id: 'warehouse', label: 'Entrepôts', group: 'Stock', icon: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z' },
       { id: 'categories', label: 'Catégories', group: 'Stock', icon: 'M4 6h16M4 12h16M4 18h10' },
@@ -1302,6 +1311,17 @@ if (loading) return (
               />
             </div>
             <div className="form-row">
+              <label>Départ anticipé avant</label>
+              <input
+                type="text"
+                placeholder="18:00"
+                value={String((settings as any)?.attendance_early_threshold || '18:00')}
+                onChange={(e) =>
+                  setSettings((s: any) => ({ ...s, attendance_early_threshold: e.target.value }))
+                }
+              />
+            </div>
+            <div className="form-row">
               <label>Heures / jour ouvrable</label>
               <input
                 type="number"
@@ -1311,6 +1331,32 @@ if (loading) return (
                 value={Number((settings as any)?.attendance_workday_hours ?? 8)}
                 onChange={(e) =>
                   setSettings((s: any) => ({ ...s, attendance_workday_hours: Number(e.target.value) }))
+                }
+              />
+            </div>
+            <div className="form-row">
+              <label>Heures sup. au-delà de (h/j)</label>
+              <input
+                type="number"
+                min={1}
+                max={24}
+                step={0.5}
+                value={Number((settings as any)?.attendance_overtime_after_hours ?? (settings as any)?.attendance_workday_hours ?? 8)}
+                onChange={(e) =>
+                  setSettings((s: any) => ({ ...s, attendance_overtime_after_hours: Number(e.target.value) }))
+                }
+              />
+            </div>
+            <div className="form-row">
+              <label>Majoration heures sup. (coeff.)</label>
+              <input
+                type="number"
+                min={1}
+                max={3}
+                step={0.05}
+                value={Number((settings as any)?.attendance_overtime_multiplier ?? 1.25)}
+                onChange={(e) =>
+                  setSettings((s: any) => ({ ...s, attendance_overtime_multiplier: Number(e.target.value) }))
                 }
               />
             </div>
@@ -1535,6 +1581,9 @@ if (loading) return (
                       ? 1
                       : 0,
                     attendance_late_threshold: String((settings as any)?.attendance_late_threshold || '09:15'),
+                    attendance_early_threshold: String((settings as any)?.attendance_early_threshold || '18:00'),
+                    attendance_overtime_after_hours: Number((settings as any)?.attendance_overtime_after_hours ?? 8),
+                    attendance_overtime_multiplier: Number((settings as any)?.attendance_overtime_multiplier ?? 1.25),
                     attendance_half_morning: String((settings as any)?.attendance_half_morning || '09:00-13:00'),
                     attendance_half_afternoon: String((settings as any)?.attendance_half_afternoon || '14:00-18:00'),
                     attendance_workday_hours: Number((settings as any)?.attendance_workday_hours ?? 8),
@@ -1564,6 +1613,398 @@ if (loading) return (
               Enregistrer toutes les règles
             </button>
           </div>
+        </div>
+      )}
+{activeTab === 'payroll' && officeSettings && (
+        <div className="atlas-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <h2 style={{ margin: 0 }}>Barème paie Maroc (CNSS / AMO / IGR)</h2>
+              <p className="muted" style={{ fontSize: 13, margin: '4px 0 0' }}>
+                Barème indicatif pré-rempli — <strong>à vérifier avec votre comptable</strong> avant clôture de paie.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="secondary"
+              onClick={async () => {
+                try {
+                  const r = await api.getPayrollSettings();
+                  setPayrollRates(r.data);
+                } catch (e: any) {
+                  flash(e?.message || 'Chargement impossible', 'error');
+                }
+              }}
+            >
+              Charger les taux
+            </button>
+          </div>
+
+          {!payrollRates ? (
+            <div style={{ marginTop: 14 }}>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const r = await api.getPayrollSettings();
+                    setPayrollRates(r.data);
+                  } catch (e: any) {
+                    flash(e?.message || 'Chargement impossible', 'error');
+                  }
+                }}
+              >
+                Afficher &amp; modifier les taux CNSS / AMO
+              </button>
+            </div>
+          ) : (
+            <div style={{ marginTop: 14 }}>
+              <div className="grid grid-2">
+                <div className="form-row">
+                  <label>CNSS salarié (taux, ex: 0.0448 = 4,48 %)</label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    value={payrollRates.cnss_emp_rate ?? 0.0448}
+                    onChange={(e) => setPayrollRates((p: any) => ({ ...p, cnss_emp_rate: Number(e.target.value) }))}
+                  />
+                </div>
+                <div className="form-row">
+                  <label>Plafond CNSS mensuel (MAD)</label>
+                  <input
+                    type="number"
+                    step="1"
+                    value={payrollRates.cnss_ceiling ?? 6000}
+                    onChange={(e) => setPayrollRates((p: any) => ({ ...p, cnss_ceiling: Number(e.target.value) }))}
+                  />
+                </div>
+                <div className="form-row">
+                  <label>CNSS patronale sociale plafonnée (ex: 0.0898)</label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    value={payrollRates.cnss_employer_social_rate ?? 0.0898}
+                    onChange={(e) => setPayrollRates((p: any) => ({ ...p, cnss_employer_social_rate: Number(e.target.value) }))}
+                  />
+                </div>
+                <div className="form-row">
+                  <label>CNSS patronale AF non plafonnée (ex: 0.064)</label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    value={payrollRates.cnss_employer_af_rate ?? 0.064}
+                    onChange={(e) => setPayrollRates((p: any) => ({ ...p, cnss_employer_af_rate: Number(e.target.value) }))}
+                  />
+                </div>
+                <div className="form-row">
+                  <label>TFP formation prof. employeur (ex: 0.016)</label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    value={payrollRates.cnss_employer_tfp_rate ?? 0.016}
+                    onChange={(e) => setPayrollRates((p: any) => ({ ...p, cnss_employer_tfp_rate: Number(e.target.value) }))}
+                  />
+                </div>
+                <div className="form-row">
+                  <label>AMO salarié (ex: 0.0226 = 2,26 %)</label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    value={payrollRates.amo_emp_rate ?? 0.0226}
+                    onChange={(e) => setPayrollRates((p: any) => ({ ...p, amo_emp_rate: Number(e.target.value) }))}
+                  />
+                </div>
+                <div className="form-row">
+                  <label>AMO patronale + solidarité (ex: 0.0411)</label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    value={payrollRates.amo_employer_rate ?? 0.0411}
+                    onChange={(e) => setPayrollRates((p: any) => ({ ...p, amo_employer_rate: Number(e.target.value) }))}
+                  />
+                </div>
+                <div className="form-row">
+                  <label>Frais professionnels (taux, ex: 0.25 = 25 %)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={payrollRates.prof_expenses_rate ?? 0.25}
+                    onChange={(e) => setPayrollRates((p: any) => ({ ...p, prof_expenses_rate: Number(e.target.value) }))}
+                  />
+                </div>
+                <div className="form-row">
+                  <label>Plafond mensuel frais prof. (MAD)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={payrollRates.prof_expenses_monthly_cap ?? 2916.67}
+                    onChange={(e) => setPayrollRates((p: any) => ({ ...p, prof_expenses_monthly_cap: Number(e.target.value) }))}
+                  />
+                </div>
+              </div>
+              <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
+                Barème indicatif Maroc — <strong>à vérifier avec votre comptable</strong>.
+              </p>
+              <button
+                type="button"
+                disabled={payrollSaving}
+                onClick={async () => {
+                  setPayrollSaving(true);
+                  try {
+                    const res = await api.updatePayrollSettings(payrollRates);
+                    setPayrollRates(res.data);
+                    flash('Barème paie CNSS / AMO enregistré');
+                  } catch (e: any) {
+                    flash(e?.message || 'Erreur lors de la sauvegarde', 'error');
+                  } finally {
+                    setPayrollSaving(false);
+                  }
+                }}
+              >
+                {payrollSaving ? 'Enregistrement…' : 'Enregistrer le barème paie'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+{activeTab === 'fec' && isOwner && (
+        <div className="atlas-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <h2 style={{ margin: 0 }}>Plan comptable FEC (PCGE Maroc)</h2>
+              <p className="muted" style={{ fontSize: 13, margin: '4px 0 0' }}>
+                Comptes utilisés lors de l’export FEC (.zip). Extrait comptable non certifié jusqu’à validation par votre expert-comptable.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="secondary"
+              onClick={async () => {
+                try {
+                  const res = await api.getAccountingAccounts();
+                  setFecAccounts(res.data || []);
+                } catch (e: any) {
+                  flash(e?.message || 'Chargement impossible', 'error');
+                }
+              }}
+            >
+              Charger les comptes
+            </button>
+          </div>
+          {!fecAccounts ? (
+            <div style={{ marginTop: 14 }}>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const res = await api.getAccountingAccounts();
+                    setFecAccounts(res.data || []);
+                  } catch (e: any) {
+                    flash(e?.message || 'Chargement impossible', 'error');
+                  }
+                }}
+              >
+                Afficher &amp; configurer le plan comptable
+              </button>
+            </div>
+          ) : (
+            <div style={{ marginTop: 14 }}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Clé</th>
+                    <th>N° Compte</th>
+                    <th>Libellé</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {fecAccounts.map((acc, idx) => (
+                    <tr key={acc.account_key}>
+                      <td><code>{acc.account_key}</code></td>
+                      <td>
+                        <input
+                          value={acc.code}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setFecAccounts((prev) =>
+                              (prev || []).map((x, i) => (i === idx ? { ...x, code: val } : x)),
+                            );
+                          }}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          value={acc.label}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setFecAccounts((prev) =>
+                              (prev || []).map((x, i) => (i === idx ? { ...x, label: val } : x)),
+                            );
+                          }}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <button
+                type="button"
+                style={{ marginTop: 12 }}
+                disabled={fecSaving}
+                onClick={async () => {
+                  setFecSaving(true);
+                  try {
+                    const res = await api.updateAccountingAccounts(fecAccounts);
+                    setFecAccounts(res.data || fecAccounts);
+                    flash('Plan comptable FEC enregistré');
+                  } catch (e: any) {
+                    flash(e?.message || 'Erreur lors de la sauvegarde', 'error');
+                  } finally {
+                    setFecSaving(false);
+                  }
+                }}
+              >
+                {fecSaving ? 'Enregistrement…' : 'Enregistrer le plan comptable'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+{activeTab === 'dunning' && officeSettings && (
+        <div className="atlas-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <h2 style={{ margin: 0 }}>Relances factures impayées</h2>
+              <p className="muted" style={{ fontSize: 13, margin: '4px 0 0' }}>
+                Relances automatiques par e-mail (cron 07h35) et liens WhatsApp directs (<code>wa.me</code>). Variables disponibles :{' '}
+                <code>{'{{client}}'}</code>, <code>{'{{amount}}'}</code>, <code>{'{{due_date}}'}</code>, <code>{'{{invoice_number}}'}</code>, <code>{'{{ice}}'}</code>.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="secondary"
+              onClick={async () => {
+                try {
+                  const res = await api.getDunningSettings();
+                  setDunningCfg({
+                    ...res.data,
+                    stages_text: (res.data?.stages || ['D-3', 'D+1', 'D+7', 'D+15']).join(', '),
+                  });
+                } catch (e: any) {
+                  flash(e?.message || 'Chargement impossible', 'error');
+                }
+              }}
+            >
+              Charger la config relances
+            </button>
+          </div>
+          {!dunningCfg ? (
+            <div style={{ marginTop: 14 }}>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const res = await api.getDunningSettings();
+                    setDunningCfg({
+                      ...res.data,
+                      stages_text: (res.data?.stages || ['D-3', 'D+1', 'D+7', 'D+15']).join(', '),
+                    });
+                  } catch (e: any) {
+                    flash(e?.message || 'Chargement impossible', 'error');
+                  }
+                }}
+              >
+                Afficher &amp; configurer les relances
+              </button>
+            </div>
+          ) : (
+            <div style={{ marginTop: 14 }}>
+              <div className="form-row" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <label style={{ margin: 0 }}>Relances automatiques activées</label>
+                <input
+                  type="checkbox"
+                  checked={!!dunningCfg.enabled}
+                  onChange={(e) => setDunningCfg((d: any) => ({ ...d, enabled: e.target.checked }))}
+                />
+              </div>
+              <div className="form-row">
+                <label>Calendrier des relances (séparé par des virgules, ex : D-3, D+1, D+7, D+15)</label>
+                <input
+                  value={dunningCfg.stages_text || ''}
+                  onChange={(e) => setDunningCfg((d: any) => ({ ...d, stages_text: e.target.value }))}
+                />
+              </div>
+              <div className="form-row">
+                <label>Objet e-mail</label>
+                <input
+                  value={dunningCfg.email_subject_template || ''}
+                  onChange={(e) => setDunningCfg((d: any) => ({ ...d, email_subject_template: e.target.value }))}
+                />
+              </div>
+              <div className="form-row">
+                <label>Modèle e-mail (français)</label>
+                <textarea
+                  rows={5}
+                  value={dunningCfg.email_body_template || ''}
+                  onChange={(e) => setDunningCfg((d: any) => ({ ...d, email_body_template: e.target.value }))}
+                />
+              </div>
+              <div className="form-row">
+                <label>Modèle WhatsApp (français)</label>
+                <textarea
+                  rows={3}
+                  value={dunningCfg.whatsapp_template || ''}
+                  onChange={(e) => setDunningCfg((d: any) => ({ ...d, whatsapp_template: e.target.value }))}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  disabled={dunningSaving}
+                  onClick={async () => {
+                    setDunningSaving(true);
+                    try {
+                      const stages = String(dunningCfg.stages_text || '')
+                        .split(',')
+                        .map((s) => s.trim().toUpperCase())
+                        .filter(Boolean);
+                      const res = await api.updateDunningSettings({
+                        enabled: Boolean(dunningCfg.enabled),
+                        stages,
+                        email_subject_template: dunningCfg.email_subject_template,
+                        email_body_template: dunningCfg.email_body_template,
+                        whatsapp_template: dunningCfg.whatsapp_template,
+                      });
+                      setDunningCfg({
+                        ...res.data,
+                        stages_text: (res.data?.stages || []).join(', '),
+                      });
+                      flash('Configuration des relances enregistrée');
+                    } catch (e: any) {
+                      flash(e?.message || 'Erreur lors de la sauvegarde', 'error');
+                    } finally {
+                      setDunningSaving(false);
+                    }
+                  }}
+                >
+                  {dunningSaving ? 'Enregistrement…' : 'Enregistrer les relances'}
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={async () => {
+                    try {
+                      const res = await api.runDunningNow({ force: true });
+                      flash(`Relances exécutées : ${res.data?.sent ?? 0} envoyée(s), ${res.data?.failed ?? 0} en échec`);
+                    } catch (e: any) {
+                      flash(e?.message || 'Erreur lors de l’exécution', 'error');
+                    }
+                  }}
+                >
+                  Exécuter maintenant
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 {activeTab === 'legal' && officeSettings && (

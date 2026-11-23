@@ -11,6 +11,7 @@ import { canMutateBusiness, normalizeRole } from '../lib/rbac';
 import { roleCanSeeSellPrices } from '../lib/inventory-policy';
 import { getCurrencySpec, roundCurrency } from '../lib/financeCore';
 import { addColumnIfMissing } from '../lib/schema';
+import { bumpPlacementRevision } from '../lib/idempotency';
 
 const once = new Set<string>();
 async function ensure(db: D1Database, key: string, ddl: string): Promise<void> {
@@ -169,10 +170,14 @@ export function registerAtlasV209Routes(app: AtlasApp, deps: V209Deps): void {
     if (!p) return c.json({ success: false, error: 'PRODUCT_NOT_FOUND' }, 404);
     const loc = b.location_id ? Number(b.location_id) : (deps.getDefaultLocationId ? await deps.getDefaultLocationId(db) : null);
     if (deps.applyStockDelta) {
-      await deps.applyStockDelta(db, pid, qty, String(b.note || 'Réception'), 'receive', { createdBy: g.username });
+      await deps.applyStockDelta(db, pid, qty, String(b.note || 'Réception'), 'receive', {
+        createdBy: g.username,
+        locationId: loc || undefined,
+      });
       if (loc && deps.adjustLocationStock) { try { await deps.adjustLocationStock(db, pid, loc, qty, {}); } catch { /* location optional */ } }
     } else {
       await applyDelta(db, pid, loc, qty, 'receive', String(b.note || 'Réception'), g.username, Number(p.stock_quantity), Number(p.stock_quantity) + qty);
+      if (loc) { try { await bumpPlacementRevision(db, null, pid, loc); } catch { /* */ } }
     }
     const after = await db.prepare(`SELECT stock_quantity FROM products WHERE id = ?`).bind(pid).first() as any;
     const newTotal = Number(after?.stock_quantity ?? Number(p.stock_quantity) + qty);
@@ -192,10 +197,15 @@ export function registerAtlasV209Routes(app: AtlasApp, deps: V209Deps): void {
     const p = await db.prepare(`SELECT stock_quantity FROM products WHERE id = ?`).bind(pid).first() as any;
     if (!p) return c.json({ success: false, error: 'PRODUCT_NOT_FOUND' }, 404);
     const delta = qty - Number(p.stock_quantity);
+    const loc = b.location_id ? Number(b.location_id) : (deps.getDefaultLocationId ? await deps.getDefaultLocationId(db) : null);
     if (deps.applyStockDelta) {
-      await deps.applyStockDelta(db, pid, delta, 'Inventaire tournant (scan)', 'adjustment', { createdBy: g.username });
+      await deps.applyStockDelta(db, pid, delta, 'Inventaire tournant (scan)', 'adjustment', {
+        createdBy: g.username,
+        locationId: loc || undefined,
+      });
     } else {
-      await applyDelta(db, pid, null, delta, 'count', 'Inventaire tournant', g.username, Number(p.stock_quantity), qty);
+      await applyDelta(db, pid, loc, delta, 'count', 'Inventaire tournant', g.username, Number(p.stock_quantity), qty);
+      if (loc) { try { await bumpPlacementRevision(db, null, pid, loc); } catch { /* */ } }
     }
     await dispatchWebhook(c.env, c.executionCtx, 'stock.count', { product_id: pid, quantity: qty });
     return c.json({ success: true, data: { stock_quantity: qty } });
