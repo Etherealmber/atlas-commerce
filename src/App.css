@@ -1270,13 +1270,13 @@ html[data-theme="dark"] .cookie-btn.secondary {
 /* Privacy page */
 .privacy-page {
   min-height: 100vh;
-  background: var(--bg, #f5f1ea);
-  color: var(--ink, #1a1814);
+  background: var(--bg, #f8fafc);
+  color: var(--ink, #0f172a);
   padding: 16px 14px 40px;
 }
 html[data-theme="dark"] .privacy-page {
-  background: #0f1117;
-  color: #eef3f0;
+  background: #0b0c10;
+  color: #f4f4f6;
 }
 .privacy-inner {
   max-width: 740px;

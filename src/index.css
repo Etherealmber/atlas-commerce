@@ -1665,38 +1665,32 @@ html[data-theme="dark"] .atlas-empty {
    Avoid #fff / high-alpha white panels that kill the effect.
 */
 html[data-density="comfortable"] {
-  --glass-tint: rgba(232, 242, 238, 0.42);
-  --glass-tint-strong: rgba(240, 248, 245, 0.55);
-  --glass-edge: rgba(255, 255, 255, 0.55);
-  --glass-edge-dark: rgba(15, 23, 42, 0.08);
-  --glass-shadow: 0 4px 24px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  --glass-tint: rgba(248, 250, 252, 0.78);
+  --glass-tint-strong: rgba(255, 255, 255, 0.86);
+  --glass-edge: rgba(226, 232, 240, 0.9);
+  --glass-edge-dark: rgba(15, 23, 42, 0.1);
+  --glass-shadow: 0 4px 24px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.75);
   --glass-blur: 22px;
   --paper: transparent;
   --bg-elevated: transparent;
 }
 
 html[data-theme="dark"][data-density="comfortable"] {
-  --glass-tint: rgba(18, 46, 39, 0.45);
-  --glass-tint-strong: rgba(18, 46, 39, 0.6);
-  --glass-edge: rgba(255, 255, 255, 0.1);
-  --glass-edge-dark: rgba(0, 0, 0, 0.25);
-  --glass-shadow: 0 8px 28px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --glass-tint: rgba(24, 24, 27, 0.78);
+  --glass-tint-strong: rgba(24, 24, 27, 0.88);
+  --glass-edge: rgba(255, 255, 255, 0.09);
+  --glass-edge-dark: rgba(0, 0, 0, 0.3);
+  --glass-shadow: 0 8px 28px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 html[data-density="comfortable"] body {
-  background:
-    radial-gradient(ellipse 900px 500px at 15% -5%, rgba(148, 163, 184, 0.18), transparent 55%),
-    radial-gradient(ellipse 700px 400px at 95% 10%, rgba(232, 163, 23, 0.12), transparent 50%),
-    radial-gradient(ellipse 600px 400px at 50% 100%, rgba(148, 163, 184, 0.1), transparent 45%),
-    linear-gradient(165deg, #f1f5f9 0%, #e8eaf0 40%, #e4efe9 100%);
-  background-attachment: fixed;
+  background: #f8fafc;
+  background-attachment: scroll;
 }
 
 html[data-theme="dark"][data-density="comfortable"] body {
-  background:
-    radial-gradient(ellipse 800px 500px at 10% 0%, rgba(148, 163, 184, 0.12), transparent 50%),
-    #0a0a0a;
-  background-attachment: fixed;
+  background: #0b0c10;
+  background-attachment: scroll;
 }
 
 /* Generic glass surface */
@@ -1805,7 +1799,9 @@ html[data-density="comfortable"] textarea {
 html[data-theme="dark"][data-density="comfortable"] input,
 html[data-theme="dark"][data-density="comfortable"] select,
 html[data-theme="dark"][data-density="comfortable"] textarea {
-  background: rgba(18, 46, 39, 0.4) !important;
+  background: #18181b !important;
+  border-color: #3f3f46 !important;
+  color: #e4e4e7 !important;
 }
 
 html[data-density="comfortable"] .table-wrap,
@@ -2112,12 +2108,12 @@ html[data-theme="dark"][data-glass="off"],
 html[data-theme="dark"][data-liquid-glass="off"],
 html[data-theme="dark"].liquid-glass-off,
 html[data-theme="dark"][data-density="compact"] {
-  --glass-tint: hsl(222.2, 84%, 4.9%);
-  --glass-tint-strong: hsl(222.2, 84%, 4.9%);
-  --glass-edge: hsl(217.2, 32.6%, 17.5%);
-  --paper: hsl(222.2, 84%, 4.9%);
-  --bg-elevated: hsl(222.2, 47%, 8%);
-  --bg-card: hsl(222.2, 84%, 4.9%);
+  --glass-tint: #13151d;
+  --glass-tint-strong: #13151d;
+  --glass-edge: rgba(255, 255, 255, 0.085);
+  --paper: #13151d;
+  --bg-elevated: #18181b;
+  --bg-card: #13151d;
 }
 html[data-glass="off"] body,
 html[data-density="compact"] body {

@@ -4,7 +4,6 @@ import {
   Boxes,
   ClipboardCheck,
   Play,
-  Sparkles,
   Warehouse,
 } from 'lucide-react';
 import { api } from '../api';
@@ -187,7 +186,6 @@ export default function InventoryOps() {
       <header className="ac-dash-hero">
         <div className="ac-dash-hero-text">
           <p className="ac-dash-eyebrow">
-            <Sparkles size={13} strokeWidth={2.2} aria-hidden="true" />
             <span>Logistique &amp; entrepôts</span>
           </p>
           <h2>Opérations stock</h2>

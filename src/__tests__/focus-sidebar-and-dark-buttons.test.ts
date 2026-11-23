@@ -255,24 +255,31 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     const indexCss = readFileSync(path.resolve(process.cwd(), 'src/index.css'), 'utf8');
     const darkCss = readFileSync(path.resolve(process.cwd(), 'src/styles/dark-force.css'), 'utf8');
     const appCss = readFileSync(path.resolve(process.cwd(), 'src/App.css'), 'utf8');
+    const overridesCss = readFileSync(path.resolve(process.cwd(), 'src/styles/overrides-final.css'), 'utf8');
 
     expect(focusCss).toContain('text-decoration: none !important;');
     expect(focusCss).toContain('transform: translateY(-50%);');
     expect(focusCss).toContain('.ac-metric-label');
     expect(focusCss).toContain('.ac-metric-val');
     expect(focusCss).toContain('.ac-metric-meta');
+    expect(focusCss).toContain('.atlas-focus-main .privacy-page');
     expect(shellCss).toContain('.layout.layout--focus');
     expect(shellCss).toContain(':not(.atlas-focus-nav-item)');
+    expect(shellCss).toContain('.ac-dash-hero:has(.ac-dash-hero-side)');
     expect(indexCss).toContain('background: transparent !important;');
     expect(indexCss).toContain(':not(.public-download-toggle)');
+    expect(indexCss).not.toContain('rgba(18, 46, 39');
     expect(darkCss).toContain('.public-download-menu-item');
     expect(darkCss).toContain('.atlas-dl-teaser-link');
     expect(darkCss).toContain('html body .cookie-consent-head a { color: #18181b !important;');
     expect(darkCss).toContain('outline: 2px solid #18181b !important;');
     expect(darkCss).toContain('.ac-topbar-notif-wrap');
     expect(darkCss).toContain('.modal-form-alert--error');
-    expect(shellCss).toContain('display: inline-flex;');
+    expect(darkCss).toContain('color-scheme: dark');
+    expect(darkCss).toContain('html[data-theme] body .privacy-link-btn');
+    expect(shellCss).toContain('display: inline-flex !important;');
     expect(shellCss).toContain('white-space: nowrap;');
+    expect(overridesCss).toContain('white-space: nowrap !important;');
     expect(appCss).toContain('.atlas-dl-teaser-link');
 
     const cleanedFiles = [

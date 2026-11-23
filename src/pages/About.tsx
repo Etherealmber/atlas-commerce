@@ -343,7 +343,6 @@ export default function About() {
       <header className="ac-dash-hero" id="about-overview">
         <div className="ac-dash-hero-text">
           <p className="ac-dash-eyebrow">
-            <Sparkles size={13} strokeWidth={2.2} aria-hidden="true" />
             <span>À propos · v{APP_VERSION}</span>
           </p>
           <h1>{APP_NAME}</h1>

@@ -1,13 +1,11 @@
 import { Link } from 'react-router-dom';
-import { isLoggedIn, isStockRole } from '../auth';
 
 export default function Licenses() {
   return (
     <div className="privacy-page">
       <div className="privacy-inner">
         <p className="privacy-nav">
-          <Link to={isLoggedIn() ? (isStockRole() ? '/products' : '/') : '/login'}>← Retour</Link>
-          {' · '}<Link to="/privacy">Confidentialité</Link>
+          <Link to="/privacy">Confidentialité</Link>
           {' · '}<Link to="/terms">Conditions</Link>
         </p>
         <h1>Licences</h1>

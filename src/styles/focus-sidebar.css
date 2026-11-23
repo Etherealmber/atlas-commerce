@@ -25,7 +25,7 @@
 html[data-theme="dark"] .public-about,
 html[data-theme="dark"] .public-whats-new,
 html[data-theme="dark"] .public-legal {
-  background: #0b0d13;
+  background: #0b0c10;
   color: #f4f4f6;
 }
 
@@ -745,6 +745,13 @@ html body .about-page.ac-about-bento {
   gap: 8px;
   margin-top: 14px;
 }
+.ac-about-owner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
 
 .ac-about-support-list {
   display: flex;
@@ -1165,6 +1172,13 @@ html[data-theme="dark"] .ac-reports-checklist strong {
   flex-direction: column;
   gap: 14px;
 }
+.atlas-focus-main .privacy-page,
+.public-legal .privacy-page,
+.layout .privacy-page {
+  background: transparent !important;
+  padding: 0 !important;
+  min-height: 0 !important;
+}
 .atlas-focus-main .privacy-inner > h1 {
   margin: 0;
   padding: 20px 24px 0;
@@ -1304,12 +1318,13 @@ html[data-theme="dark"] .atlas-focus-main .privacy-link-btn {
   width: 100%;
   padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.04);
-  color: inherit;
+  border: 1px solid #3f3f46;
+  background: #18181b;
+  color: #e4e4e7;
   font: inherit;
   font-size: 14px;
   box-sizing: border-box;
+  color-scheme: dark;
 }
 html[data-theme="light"] .dl-support-form input,
 html[data-theme="light"] .dl-support-form select,
@@ -1318,6 +1333,7 @@ html[data-theme="light"] .dl-support-lookup input {
   border-color: #d4d4d8;
   background: #ffffff;
   color: #18181b;
+  color-scheme: light;
 }
 .dl-support-actions {
   display: flex;

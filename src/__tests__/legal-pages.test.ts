@@ -26,7 +26,11 @@ describe('legal pages', () => {
     expect(readFileSync('LICENSE-APACHE', 'utf8')).toContain('Apache License');
   });
 
-  it('links the updated terms and privacy pages to the license page', () => {
+  it('links the updated terms and privacy pages to the license page and omits the redundant Retour link', () => {
+    for (const page of [Terms, Privacy, Licenses]) {
+      const html = render(page);
+      expect(html).not.toContain('← Retour');
+    }
     for (const page of [Terms, Privacy]) {
       const html = render(page);
       expect(html).toContain('href="/licenses"');

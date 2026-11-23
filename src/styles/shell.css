@@ -1061,8 +1061,27 @@ html body .atlas-page.ac-dash-page {
 .ac-dash-hero {
   margin-bottom: 20px;
 }
+.ac-dash-hero:has(.ac-dash-hero-side) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px 24px;
+}
+.ac-dash-hero-text {
+  flex: 1 1 360px;
+  min-width: 0;
+}
+.ac-dash-hero-side {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding-top: 2px;
+}
 .ac-dash-eyebrow {
-  display: inline-flex;
+  display: inline-flex !important;
   align-items: center;
   gap: 6px;
   margin: 0 0 6px;

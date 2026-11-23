@@ -2215,16 +2215,23 @@ html[data-theme="dark"] body .wizard-foot button.secondary:active {
   border-color: #52525b !important;
 }
 
-/* Inputs / selects / textareas / file: zinc, not slate-navy; neutral focus ring */
+/* Inputs / selects / textareas / file: zinc, not slate-navy or green glass; neutral focus ring */
 html[data-theme="dark"] body input:not([type="checkbox"]):not([type="radio"]),
 html[data-theme="dark"] body select,
 html[data-theme="dark"] body textarea,
-html[data-theme="dark"] body input[type="file"] {
+html[data-theme="dark"] body input[type="file"],
+html[data-theme="dark"][data-density="comfortable"] body input:not([type="checkbox"]):not([type="radio"]),
+html[data-theme="dark"][data-density="comfortable"] body select,
+html[data-theme="dark"][data-density="comfortable"] body textarea,
+html[data-theme="dark"][data-density="compact"] body input:not([type="checkbox"]):not([type="radio"]),
+html[data-theme="dark"][data-density="compact"] body select,
+html[data-theme="dark"][data-density="compact"] body textarea {
   background: #18181b !important;
   background-color: #18181b !important;
   border-color: #3f3f46 !important;
   color: #e4e4e7 !important;
   -webkit-text-fill-color: #e4e4e7 !important;
+  color-scheme: dark;
 }
 html[data-theme="dark"] body input:not([type="checkbox"]):not([type="radio"]):focus,
 html[data-theme="dark"] body select:focus,
@@ -6352,6 +6359,156 @@ html[data-theme="dark"] body .modal-form-alert--info {
   color: #e4e4e7 !important;
   border-color: rgba(161, 161, 170, 0.3) !important;
 }
+
+/* ── Global Color-Scheme, Inline Link Buttons, Support Forms & Dark Mode Consistency ── */
+html {
+  color-scheme: light;
+}
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* Inline text-link buttons & full-screen backdrops must NEVER inherit rounded pill button chrome */
+html[data-theme] body .privacy-link-btn,
+html[data-theme] body .privacy-link-btn:hover,
+html[data-theme] body .privacy-link-btn:focus,
+html[data-theme] body .privacy-link-btn:active,
+html[data-theme] body .atlas-focus-main .privacy-link-btn,
+html[data-theme] body button.cookie-btn.linkish,
+html[data-theme] body button.cookie-btn.linkish:hover,
+html[data-theme] body button.quote-number-link,
+html[data-theme] body button.quote-number-link:hover,
+html[data-theme] body button.about-link-action,
+html[data-theme] body button.about-link-action:hover {
+  appearance: none !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: auto !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  display: inline !important;
+  vertical-align: baseline !important;
+  font: inherit !important;
+  font-weight: 600 !important;
+  text-decoration: underline !important;
+  text-underline-offset: 3px !important;
+  transform: none !important;
+}
+html:not([data-theme="dark"]) body .privacy-link-btn,
+html:not([data-theme="dark"]) body button.cookie-btn.linkish,
+html:not([data-theme="dark"]) body button.quote-number-link {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+html[data-theme="dark"] body .privacy-link-btn,
+html[data-theme="dark"] body button.cookie-btn.linkish,
+html[data-theme="dark"] body button.quote-number-link {
+  color: #f4f4f6 !important;
+  -webkit-text-fill-color: #f4f4f6 !important;
+}
+html[data-theme] body .privacy-link-btn:hover,
+html[data-theme] body button.cookie-btn.linkish:hover {
+  opacity: 0.78;
+}
+html[data-theme] body .privacy-link-btn:focus-visible,
+html[data-theme] body button.cookie-btn.linkish:focus-visible {
+  outline: 2px solid currentColor !important;
+  outline-offset: 2px !important;
+  border-radius: 4px !important;
+}
+
+/* Fullscreen modal/tour backdrop buttons must always stay transparent */
+html[data-theme] body button.ac-feature-tour-backdrop,
+html[data-theme] body button.qr-fab-backdrop {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+
+/* Support & public forms: match neutral dark zinc across input, select & textarea */
+html[data-theme="dark"] body .dl-support-form input,
+html[data-theme="dark"] body .dl-support-form select,
+html[data-theme="dark"] body .dl-support-form textarea,
+html[data-theme="dark"] body .dl-support-lookup input {
+  background: #18181b !important;
+  background-color: #18181b !important;
+  border: 1px solid #3f3f46 !important;
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+  color-scheme: dark;
+}
+html[data-theme="dark"] body .dl-support-form select option {
+  background: #1c1c1f !important;
+  color: #e4e4e7 !important;
+}
+
+/* Dark mode ghost/outline/secondary buttons inside modals & reports dialog */
+html[data-theme="dark"] body .modal .bal-reports-grid button.secondary,
+html[data-theme="dark"] body .bal-reports-modal .bal-reports-grid button.secondary {
+  background: #1c1e26 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #f4f4f6 !important;
+  -webkit-text-fill-color: #f4f4f6 !important;
+}
+html[data-theme="dark"] body .modal .bal-reports-grid button.secondary:hover,
+html[data-theme="dark"] body .bal-reports-modal .bal-reports-grid button.secondary:hover {
+  background: #272a35 !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+html[data-theme="dark"] body .modal .bal-reports-grid button.bal-reports-all-btn {
+  border-color: rgba(212, 165, 116, 0.36) !important;
+  background: rgba(212, 165, 116, 0.14) !important;
+  color: #f0c99d !important;
+  -webkit-text-fill-color: #f0c99d !important;
+}
+html[data-theme="dark"] body .modal .bal-reports-grid button.bal-reports-all-btn:hover {
+  background: rgba(212, 165, 116, 0.22) !important;
+}
+
+/* Desktop dock & floating bars: crisp surface & border separation in dark mode */
+html[data-theme="dark"] body .ac-desktop-dock {
+  background: rgba(20, 22, 29, 0.92) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45) !important;
+}
+html[data-theme="dark"] body .ac-desktop-dock button.ac-dock-expand {
+  background: transparent !important;
+  color: #f4f4f6 !important;
+  -webkit-text-fill-color: #f4f4f6 !important;
+}
+html[data-theme="dark"] body .ac-desktop-dock .ac-topbar-user-btn {
+  background: #27272a !important;
+  border: 1px solid #3f3f46 !important;
+  color: #f4f4f6 !important;
+}
+html[data-theme="dark"] body .ac-desktop-dock .ac-topbar-user-btn:hover {
+  background: #323236 !important;
+  border-color: #52525b !important;
+}
+
+/* Ghost & close buttons in dark mode never turn into solid gray slabs */
+html[data-theme="dark"] body button.ghost,
+html[data-theme="dark"] body .btn.ghost {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: #d4d4d8 !important;
+  -webkit-text-fill-color: #d4d4d8 !important;
+}
+html[data-theme="dark"] body button.ghost:hover:not(:disabled),
+html[data-theme="dark"] body .btn.ghost:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
 
 
 

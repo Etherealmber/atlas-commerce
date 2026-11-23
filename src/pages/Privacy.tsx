@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import { isLoggedIn, isStockRole } from '../auth';
 import { APP_NAME } from '../version';
 import { openConsentSettings } from '../lib/cookieConsent';
 
@@ -8,8 +7,7 @@ export default function Privacy() {
     <div className="privacy-page">
       <div className="privacy-inner">
         <p className="privacy-nav">
-          <Link to={isLoggedIn() ? (isStockRole() ? '/products' : '/') : '/login'}>← Retour</Link>
-          {' · '}<Link to="/terms">Conditions</Link>{' · '}<Link to="/licenses">Licences</Link>
+          <Link to="/terms">Conditions</Link>{' · '}<Link to="/licenses">Licences</Link>
           {' · '}<button type="button" className="privacy-link-btn" onClick={() => openConsentSettings()}>Gérer les cookies</button>
         </p>
         <h1>Politique de confidentialité</h1>
