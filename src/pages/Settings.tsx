@@ -15,7 +15,6 @@ import {
   RefreshCw,
   RotateCcw,
   Search,
-  Settings as SettingsIcon,
   ShieldCheck,
   Users,
   X,
@@ -538,22 +537,6 @@ export default function Settings() {
     agent: 'Atlas Agent',
   };
 
-  const TAB_BLURBS: Record<string, string> = {
-    profile: 'Votre compte, apparence et sécurité personnelle (mot de passe, passkeys).',
-    company: 'Nom, adresse, contacts et identité de la société sur les documents.',
-    attendance: 'Pointage, cycles de présence et règles de paie liées aux employés.',
-    legal: 'Mentions légales, ICE, RC, patente et textes affichés sur les documents.',
-    invoicing: 'Préfixes, numérotation, TVA et options de facturation.',
-    documents: 'Pied de page PDF, notes par défaut et modèles d’impression.',
-    warehouse: 'Entrepôts, emplacements et organisation du stock.',
-    categories: 'Catégories produits pour classer le catalogue.',
-    integrations: 'Clés API et connexions externes.',
-    app: 'Version installée, canal de mise à jour et diagnostic applicatif.',
-    admin: 'Utilisateurs, rôles et configuration serveur sensible.',
-    audit: 'Historique des actions importantes sur ce compte.',
-    agent: 'Comportement, mémoire et garde-fous de votre assistant Atlas Agent.',
-  };
-
   const canSaveSection =
     activeTab !== 'profile' &&
     activeTab !== 'admin' &&
@@ -839,30 +822,12 @@ if (loading) return (
 
   return (
     <div className="atlas-page ac-dash ac-settings-bento">
-      <header className="ac-dash-hero" aria-label="En-tête de section">
-        <div className="ac-dash-hero-text">
-          <p className="ac-dash-eyebrow">
-            <SettingsIcon size={13} strokeWidth={2.2} aria-hidden="true" />
-            <span>Paramètres · {TAB_TITLES[activeTab] || 'Configuration'}</span>
-          </p>
-          <h1>{TAB_TITLES[activeTab] || 'Paramètres'}</h1>
-          <p className="ac-dash-lead">
-            {TAB_BLURBS[activeTab] || 'Configurez cette section selon les besoins de votre activité.'}
-          </p>
+      <h1 className="sr-only">{TAB_TITLES[activeTab] || 'Paramètres'}</h1>
+      {Object.values(fieldErrors).filter(Boolean)[0] ? (
+        <div className="save-error-inline" role="alert" style={{ marginBottom: 10 }}>
+          {Object.values(fieldErrors).filter(Boolean)[0]}
         </div>
-        <div className="ac-dash-hero-side">
-          {Object.values(fieldErrors).filter(Boolean)[0] ? (
-            <span className="save-error-inline">{Object.values(fieldErrors).filter(Boolean)[0]}</span>
-          ) : null}
-          {canSaveSection ? (
-            <span className={`ac-status-pill${settingsDirty ? ' is-dirty' : ''}`}>
-              {saving ? 'Enregistrement…' : settingsDirty ? 'Modifications non enregistrées' : 'Synchronisé'}
-            </span>
-          ) : (
-            <span className="ac-status-pill">v{APP_VERSION}</span>
-          )}
-        </div>
-      </header>
+      ) : null}
 
       <section className="ac-metric-grid" aria-label="État de la configuration">
         <article className="ac-metric">

@@ -865,6 +865,7 @@ function DesktopShell() {
   const compactRef = useRef(false);
   const dockExpansionUntil = useRef(0);
   const desktopDockTitleRef = useRef<HTMLButtonElement>(null);
+  const dockRef = useRef<HTMLElement>(null);
   const dockHovered = useRef(false);
   const dockHoverExpanded = useRef(false);
 
@@ -873,7 +874,39 @@ function DesktopShell() {
   const actionsExpansionUntil = useRef(0);
   const actionsHovered = useRef(false);
   const actionsHoverExpanded = useRef(false);
+  const actionsPinnedRef = useRef(false);
+  const actionsMouseFocusRef = useRef(false);
   const actionsSlotRef = useRef<HTMLDivElement>(null);
+
+  const hasActionsKeyboardFocus = () => {
+    const slot = actionsSlotRef.current;
+    const active = document.activeElement as HTMLElement | null;
+    if (!slot || !active || !slot.contains(active)) return false;
+    if (actionsMouseFocusRef.current) return false;
+    return true;
+  };
+
+  const hasActionsOpenPopover = () => {
+    const slot = actionsSlotRef.current;
+    if (!slot) return false;
+    return !!slot.querySelector('.atlas-dp-popover, [aria-expanded="true"]');
+  };
+
+  const collapseActionsIfEligible = () => {
+    if (actionsPinnedRef.current || actionsHovered.current || Date.now() < actionsExpansionUntil.current) return;
+    if (hasActionsOpenPopover()) return;
+    const slot = actionsSlotRef.current;
+    const active = document.activeElement as HTMLElement | null;
+    if (slot && active && slot.contains(active) && actionsMouseFocusRef.current) {
+      active.blur?.();
+    }
+    if (hasActionsKeyboardFocus()) return;
+    if (actionsHoverExpanded.current || compactRef.current || window.scrollY > 140) {
+      actionsHoverExpanded.current = false;
+      actionsCompactRef.current = true;
+      setActionsCompact(true);
+    }
+  };
 
   useEffect(() => {
     // Start each page expanded; retain hysteresis once the user scrolls.
@@ -887,6 +920,8 @@ function DesktopShell() {
     actionsCompactRef.current = false;
     actionsHovered.current = false;
     actionsHoverExpanded.current = false;
+    actionsPinnedRef.current = false;
+    actionsMouseFocusRef.current = false;
     actionsExpansionUntil.current = 0;
 
     let last = window.scrollY;
@@ -899,12 +934,13 @@ function DesktopShell() {
       if (y <= 60) {
         dockAcc = 0;
         actionsAcc = 0;
+        actionsPinnedRef.current = false;
         if (compactRef.current) { compactRef.current = false; dockHoverExpanded.current = false; setSettingsBarCompact(false); }
         if (actionsCompactRef.current) { actionsCompactRef.current = false; actionsHoverExpanded.current = false; setActionsCompact(false); }
         return;
       }
       const dockLocked = dockHovered.current || Date.now() < dockExpansionUntil.current || !!document.querySelector('.ac-desktop-dock .ac-topbar-user-btn[aria-expanded="true"], .ac-desktop-dock .ac-topbar-bell[aria-expanded="true"]');
-      const actionsLocked = actionsHovered.current || Date.now() < actionsExpansionUntil.current || !!(actionsSlotRef.current && document.activeElement && actionsSlotRef.current.contains(document.activeElement));
+      const actionsLocked = actionsHovered.current || Date.now() < actionsExpansionUntil.current || hasActionsKeyboardFocus() || hasActionsOpenPopover();
 
       if (d > 0) {
         if (dockLocked) dockAcc = 0;
@@ -920,6 +956,7 @@ function DesktopShell() {
         else {
           actionsAcc = actionsAcc > 0 ? actionsAcc + d : d;
           if (!actionsCompactRef.current && y > 140 && actionsAcc > 48) {
+            actionsPinnedRef.current = false;
             actionsHoverExpanded.current = false;
             actionsCompactRef.current = true; setActionsCompact(true);
           }
@@ -928,15 +965,43 @@ function DesktopShell() {
         dockAcc = dockAcc < 0 ? dockAcc + d : d;
         actionsAcc = actionsAcc < 0 ? actionsAcc + d : d;
         if (compactRef.current && dockAcc < -48) { compactRef.current = false; dockHoverExpanded.current = false; setSettingsBarCompact(false); }
-        if (actionsCompactRef.current && actionsAcc < -48) { actionsCompactRef.current = false; actionsHoverExpanded.current = false; setActionsCompact(false); }
+        if (actionsCompactRef.current && actionsAcc < -48) { actionsCompactRef.current = false; actionsHoverExpanded.current = false; actionsPinnedRef.current = false; setActionsCompact(false); }
       }
     };
+
+    const onDocPointerMove = (event: PointerEvent) => {
+      if (event.pointerType !== 'mouse') return;
+      const target = event.target as Node | null;
+      if (actionsHovered.current && actionsSlotRef.current && target && !actionsSlotRef.current.contains(target)) {
+        actionsHovered.current = false;
+        collapseActionsIfEligible();
+      }
+      if (dockHovered.current && dockRef.current && target && !dockRef.current.contains(target)) {
+        dockHovered.current = false;
+        if ((dockHoverExpanded.current || window.scrollY > 140) && Date.now() >= dockExpansionUntil.current && !document.querySelector('.ac-desktop-dock .ac-topbar-user-btn[aria-expanded="true"], .ac-desktop-dock .ac-topbar-bell[aria-expanded="true"]')) {
+          dockHoverExpanded.current = false;
+          compactRef.current = true;
+          setSettingsBarCompact(true);
+        }
+      }
+    };
+
+    const onDocKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Tab') actionsMouseFocusRef.current = false;
+    };
+
     window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
+    document.addEventListener('pointermove', onDocPointerMove, { passive: true });
+    document.addEventListener('keydown', onDocKeyDown, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      document.removeEventListener('pointermove', onDocPointerMove);
+      document.removeEventListener('keydown', onDocKeyDown);
+    };
   }, [location.pathname]);
 
   useEffect(() => {
-    if (!shellNotifOpen && !shellUserOpen && !dockHovered.current && dockHoverExpanded.current) {
+    if (!shellNotifOpen && !shellUserOpen && !dockHovered.current && (dockHoverExpanded.current || (window.scrollY > 140 && Date.now() >= dockExpansionUntil.current && compactRef.current))) {
       dockHoverExpanded.current = false;
       compactRef.current = true;
       setSettingsBarCompact(true);
@@ -1279,6 +1344,9 @@ function DesktopShell() {
           id="desktop-catalog-actions"
           className={`desktop-catalog-actions-slot${actionsCompact ? ' desktop-catalog-actions-slot--compact' : ''}`}
           data-compact={actionsCompact ? 'true' : 'false'}
+          onPointerDown={(event) => {
+            actionsMouseFocusRef.current = event.pointerType === 'mouse';
+          }}
           onPointerEnter={(event) => {
             if (event.pointerType === 'mouse') {
               actionsHovered.current = true;
@@ -1293,25 +1361,8 @@ function DesktopShell() {
             if (event.pointerType === 'mouse') {
               const related = event.relatedTarget as Node | null;
               if (related && event.currentTarget.contains(related)) return;
-              if (event.clientX !== 0 || event.clientY !== 0) {
-                const rect = event.currentTarget.getBoundingClientRect();
-                if (
-                  rect.width > 0 &&
-                  rect.height > 0 &&
-                  event.clientX >= rect.left - 6 &&
-                  event.clientX <= rect.right + 6 &&
-                  event.clientY >= rect.top - 6 &&
-                  event.clientY <= rect.bottom + 6
-                ) {
-                  return;
-                }
-              }
               actionsHovered.current = false;
-              if (actionsHoverExpanded.current && !actionsSlotRef.current?.contains(document.activeElement)) {
-                actionsHoverExpanded.current = false;
-                actionsCompactRef.current = true;
-                setActionsCompact(true);
-              }
+              collapseActionsIfEligible();
             }
           }}
           onFocus={() => {
@@ -1324,14 +1375,16 @@ function DesktopShell() {
           onBlur={(event) => {
             const next = event.relatedTarget as Node | null;
             if (next && event.currentTarget.contains(next)) return;
-            if (actionsHoverExpanded.current && !actionsHovered.current && Date.now() >= actionsExpansionUntil.current) {
+            actionsMouseFocusRef.current = false;
+            if ((actionsHoverExpanded.current || compactRef.current || window.scrollY > 140) && !actionsPinnedRef.current && !actionsHovered.current && Date.now() >= actionsExpansionUntil.current && !hasActionsOpenPopover()) {
               actionsHoverExpanded.current = false;
               actionsCompactRef.current = true;
               setActionsCompact(true);
             }
           }}
-          onClick={() => {
-            if (actionsHoverExpanded.current || actionsCompactRef.current) {
+          onClick={(event) => {
+            if (event.target === event.currentTarget && (actionsHoverExpanded.current || actionsCompactRef.current)) {
+              actionsPinnedRef.current = true;
               actionsHoverExpanded.current = false;
               actionsCompactRef.current = false;
               actionsExpansionUntil.current = Date.now() + 400;
@@ -1339,7 +1392,7 @@ function DesktopShell() {
             }
           }}
         />
-        <header className={`ac-topbar ac-topbar--bionis ac-desktop-dock${settingsBarCompact && !shellNotifOpen && !shellUserOpen ? ' ac-topbar--compact' : ''}`} role="banner"
+        <header ref={dockRef} className={`ac-topbar ac-topbar--bionis ac-desktop-dock${settingsBarCompact && !shellNotifOpen && !shellUserOpen ? ' ac-topbar--compact' : ''}`} role="banner"
           onPointerEnter={(event) => {
             if (event.pointerType === 'mouse') {
               dockHovered.current = true;
@@ -1354,21 +1407,8 @@ function DesktopShell() {
             if (event.pointerType === 'mouse') {
               const related = event.relatedTarget as Node | null;
               if (related && event.currentTarget.contains(related)) return;
-              if (event.clientX !== 0 || event.clientY !== 0) {
-                const rect = event.currentTarget.getBoundingClientRect();
-                if (
-                  rect.width > 0 &&
-                  rect.height > 0 &&
-                  event.clientX >= rect.left - 6 &&
-                  event.clientX <= rect.right + 6 &&
-                  event.clientY >= rect.top - 6 &&
-                  event.clientY <= rect.bottom + 6
-                ) {
-                  return;
-                }
-              }
               dockHovered.current = false;
-              if (dockHoverExpanded.current && !shellNotifOpen && !shellUserOpen) {
+              if ((dockHoverExpanded.current || window.scrollY > 140) && !shellNotifOpen && !shellUserOpen && Date.now() >= dockExpansionUntil.current) {
                 dockHoverExpanded.current = false;
                 compactRef.current = true;
                 setSettingsBarCompact(true);

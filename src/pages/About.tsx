@@ -530,8 +530,8 @@ export default function About() {
         </section>
       </div>
 
-      {/* Creator & Contributors Bento Pair */}
-      <div className="ac-bento-grid-2" id="about-creator">
+      {/* Creator & Contributors Bento Stack */}
+      <div className="ac-bento-stack" id="about-creator">
         <section className="ac-panel about-owner">
           <div className="ac-panel-head">
             <div>

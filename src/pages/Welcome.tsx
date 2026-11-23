@@ -1,9 +1,28 @@
 import { WelcomePreview } from '../components/WelcomePreview';
 import { FeatureTour } from '../components/ui/FeatureTour';
-import { Package, FileText, Users, Bot, BarChart3 } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  BadgeCheck,
+  BarChart3,
+  Bot,
+  Boxes,
+  Check,
+  Compass,
+  FileText,
+  Globe,
+  LayoutGrid,
+  Package,
+  ScanLine,
+  ShieldCheck,
+  Smartphone,
+  Sparkles,
+  Users,
+  Wallet,
+} from 'lucide-react';
 /**
- * Full-screen Atlas Commerce welcome — comparison engine, mastery tips, theme/density.
- * No legacy modals. State survives refresh via localStorage.
+ * Full-screen Atlas Commerce welcome — Bento UI onboarding, theme & density,
+ * real captures, comparisons, and optional interactive feature tour.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -29,7 +48,7 @@ import {
   APP_CREATOR_NAME,
   APP_GITHUB,
   APP_NAME,
-  APP_PROFILE,
+  APP_VERSION,
 } from '../version';
 
 function applyThemeMode(mode: WelcomeTheme) {
@@ -47,240 +66,142 @@ function applyThemeMode(mode: WelcomeTheme) {
   document.documentElement.setAttribute('data-theme', resolved);
 }
 
+/** Bento dashboard wireframe matching the Focus sidebar + floating dock + 4-KPI Bento grid. */
 function ThemeMock({ mode }: { mode: WelcomeTheme }) {
   const isDark =
     mode === 'dark' ||
     (mode === 'system' &&
       typeof window !== 'undefined' &&
       window.matchMedia('(prefers-color-scheme: dark)').matches);
-  const bg = isDark ? '#0f172a' : '#f8fafc';
-  const card = isDark ? '#1e293b' : '#ffffff';
-  const line = isDark ? '#334155' : '#e2e8f0';
-  const accent = '#71717a';
+  const bg = isDark ? '#111113' : '#f5f6f8';
+  const card = isDark ? '#1c1c1f' : '#ffffff';
+  const line = isDark ? '#2a2a2e' : '#e2e8f0';
+  const accent = isDark ? '#e4e4e7' : '#0f172a';
+  const muted = isDark ? '#52525b' : '#cbd5e1';
   return (
     <div className="welcome-pick-preview" data-theme-preview={isDark ? 'dark' : 'light'}>
-      <svg viewBox="0 0 160 100" className="welcome-mock-svg" aria-hidden>
-        <rect width="160" height="100" rx="8" fill={bg} />
-        <rect x="8" y="8" width="36" height="84" rx="6" fill={card} stroke={line} strokeWidth="1" />
-        <rect x="52" y="8" width="100" height="22" rx="5" fill={card} stroke={line} strokeWidth="1" />
-        <rect x="52" y="38" width="100" height="54" rx="5" fill={card} stroke={line} strokeWidth="1" />
-        <rect x="62" y="48" width="48" height="8" rx="2" fill={accent} opacity="0.9" />
-        <rect x="62" y="62" width="72" height="5" rx="2" fill={line} />
-        <rect x="62" y="72" width="56" height="5" rx="2" fill={line} />
+      <svg viewBox="0 0 180 112" className="welcome-mock-svg" aria-hidden>
+        <rect width="180" height="112" rx="10" fill={bg} />
+        {/* Floating Bento sidebar */}
+        <rect x="8" y="8" width="34" height="96" rx="8" fill={card} stroke={line} strokeWidth="1" />
+        <rect x="13" y="16" width="24" height="6" rx="3" fill={accent} opacity="0.85" />
+        <rect x="13" y="28" width="24" height="5" rx="2.5" fill={muted} />
+        <rect x="13" y="37" width="20" height="5" rx="2.5" fill={muted} />
+        <rect x="13" y="46" width="24" height="5" rx="2.5" fill={muted} />
+        {/* Floating centered dock */}
+        <rect x="74" y="8" width="60" height="12" rx="6" fill={card} stroke={line} strokeWidth="1" />
+        <rect x="82" y="12.5" width="26" height="3" rx="1.5" fill={accent} opacity="0.85" />
+        <circle cx="126" cy="14" r="2.5" fill={muted} />
+        {/* 4 Bento KPI tiles */}
+        {[0, 1, 2, 3].map((i) => (
+          <g key={i}>
+            <rect
+              x={50 + i * 31}
+              y="26"
+              width="27"
+              height="24"
+              rx="6"
+              fill={card}
+              stroke={line}
+              strokeWidth="1"
+            />
+            <rect x={54 + i * 31} y="32" width="12" height="3" rx="1.5" fill={muted} />
+            <rect x={54 + i * 31} y="39" width="17" height="5" rx="2" fill={accent} opacity="0.85" />
+          </g>
+        ))}
+        {/* 2 Bento main panels */}
+        <rect x="50" y="56" width="76" height="48" rx="8" fill={card} stroke={line} strokeWidth="1" />
+        <path
+          d="M58 92 C68 85, 76 72, 88 76 S106 86, 118 68"
+          fill="none"
+          stroke={accent}
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        />
+        <rect x="132" y="56" width="40" height="48" rx="8" fill={card} stroke={line} strokeWidth="1" />
+        <rect x="138" y="64" width="28" height="4" rx="2" fill={accent} opacity="0.8" />
+        <rect x="138" y="73" width="24" height="4" rx="2" fill={muted} />
+        <rect x="138" y="82" width="28" height="4" rx="2" fill={muted} />
+        <rect x="138" y="91" width="19" height="4" rx="2" fill={muted} />
       </svg>
     </div>
   );
 }
 
-
-const WELCOME_FEATURES: {
-  title: string;
-  blurb: string;
-  pages: string;
-  icon: 'stock' | 'invoice' | 'purchase' | 'clients' | 'balance' | 'hr' | 'mail' | 'agent' | 'security' | 'mobile' | 'reports' | 'morocco';
-}[] = [
+const WELCOME_FEATURES = [
   {
-    title: 'Stock & entrepôt',
-    blurb: 'Produits, catégories, mouvements, alertes stock bas, images R2, historique 90 jours.',
-    pages: 'Produits · Inventaire · Mouvements',
-    icon: 'stock',
+    title: 'Stock & entrepôts',
+    blurb: 'Produits, alertes seuils bas, transferts multi-dépôts, inventaire et historique 90 jours.',
+    pages: 'Produits · Opérations stock',
+    Icon: Boxes,
   },
   {
     title: 'Ventes FA / VR / Devis',
-    blurb: 'Factures, ventes rapides, devis convertibles, paiements partiels, numérotation atomique.',
+    blurb: 'Factures, ventes rapides, devis convertibles en 1 clic et numérotation atomique.',
     pages: 'Factures · Vente rapide · Devis',
-    icon: 'invoice',
+    Icon: FileText,
   },
   {
-    title: 'Achats & fournisseurs',
-    blurb: 'Factures d’achat, réceptions, fournisseurs, impact stock à la réception.',
-    pages: 'Achats · Fournisseurs',
-    icon: 'purchase',
+    title: 'Achats & scan OCR IA',
+    blurb: 'Factures d’achat en 3 étapes avec lecture automatique par vision IA Qwen et contrôle.',
+    pages: 'Factures d’achat · Fournisseurs',
+    Icon: ScanLine,
   },
   {
     title: 'Clients & crédit',
-    blurb: 'Fiches, ICE, soldes, plafonds de crédit, situation client et relances.',
-    pages: 'Clients · Situation',
-    icon: 'clients',
+    blurb: 'Fiches, ICE, soldes, plafonds de crédit, situation client et suivi des règlements.',
+    pages: 'Clients · Situation client',
+    Icon: Users,
   },
   {
-    title: 'Solde & trésorerie',
-    blurb: 'Caisse, banque, dépenses, recettes, salaires — le solde suit chaque mouvement.',
-    pages: 'Solde · Dépenses',
-    icon: 'balance',
+    title: 'Solde & caisse X / Z',
+    blurb: 'Recettes, dépenses, apports, prélèvements et clôtures de caisse X / Z contrôlées.',
+    pages: 'Solde · Clôtures X / Z',
+    Icon: Wallet,
   },
   {
     title: 'Employés & paie',
-    blurb: 'Salaire mensuel ou tous les N jours, démission, pièce d’identité chiffrée.',
-    pages: 'Employés',
-    icon: 'hr',
+    blurb: 'Présences, acomptes, bulletins et déclarations CNSS / AMO depuis un seul espace.',
+    pages: 'Employés · Paie CNSS / AMO',
+    Icon: BadgeCheck,
   },
   {
-    title: 'Atlas Agent',
-    blurb: 'Assistant pour créer clients, produits, documents et interroger le stock.',
+    title: 'Atlas Agent IA',
+    blurb: 'Assistant connecté aux outils métier pour créer, chercher et analyser vos données.',
     pages: 'Agent (panneau latéral)',
-    icon: 'agent',
+    Icon: Bot,
   },
   {
-    title: 'Sécurité',
-    blurb: 'Rôles, OTP nouvel appareil, WebAuthn, confirmations, audit, sauvegardes chiffrées.',
-    pages: 'Paramètres · Accès',
-    icon: 'security',
+    title: 'Sécurité & audit',
+    blurb: 'Rôles, passkeys WebAuthn, OTP nouvel appareil, journal d’audit et sauvegardes.',
+    pages: 'Paramètres · Journal d’audit',
+    Icon: ShieldCheck,
   },
   {
-    title: 'Mobile & caisse',
-    blurb: 'Parcours téléphone, vente rapide, tickets et workflows magasin.',
-    pages: 'App téléphone · VR',
-    icon: 'mobile',
+    title: 'Mobile & terrain',
+    blurb: 'App téléphone pour scanner et proposer des actions validées ensuite sur le bureau.',
+    pages: 'App téléphone · Boîte d’actions',
+    Icon: Smartphone,
   },
   {
-    title: 'Rapports',
-    blurb: 'Tableaux de bord, ventes, stock, créances, exports sans tableur parallèle.',
+    title: 'Rapports & TVA',
+    blurb: 'Balance âgée, récapitulatif TVA, coût des ventes (COGS) et clôture de période.',
     pages: 'Rapports · Tableau de bord',
-    icon: 'reports',
+    Icon: BarChart3,
+  },
+  {
+    title: 'Interface Bento & Focus',
+    blurb: 'Dock adaptatif qui s’efface au défilement et barre latérale Focus sur les réglages.',
+    pages: 'Navigation · Paramètres',
+    Icon: LayoutGrid,
   },
   {
     title: 'Contexte Maroc',
-    blurb: 'HT/TTC, TVA, mentions légales, numéros séquentiels, archives longue durée.',
-    pages: 'Factures · Paramètres société',
-    icon: 'morocco',
+    blurb: 'HT / TTC, TVA multi-taux, ICE / RC / Patente, dirhams (MAD) et mentions légales.',
+    pages: 'Légal & TVA · Documents PDF',
+    Icon: Globe,
   },
-];
-
-function FeatureIcon({ name }: { name: (typeof WELCOME_FEATURES)[number]['icon'] }) {
-  const common = {
-    width: 22,
-    height: 22,
-    viewBox: '0 0 24 24',
-    fill: 'none',
-    stroke: 'currentColor',
-    strokeWidth: 1.75,
-    strokeLinecap: 'round' as const,
-    strokeLinejoin: 'round' as const,
-    'aria-hidden': true as const,
-  };
-  switch (name) {
-    case 'stock':
-      return (
-        <svg {...common}>
-          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-          <path d="M3.27 6.96 12 12.01l8.73-5.05" />
-          <path d="M12 22.08V12" />
-        </svg>
-      );
-    case 'invoice':
-      return (
-        <svg {...common}>
-          <path d="M14 2H6a2 2 0 0 0-2 2v16l4-2 4 2 4-2 4 2V8z" />
-          <path d="M14 2v6h6" />
-          <path d="M8 13h8M8 17h5" />
-        </svg>
-      );
-    case 'purchase':
-      return (
-        <svg {...common}>
-          <circle cx="9" cy="21" r="1" />
-          <circle cx="20" cy="21" r="1" />
-          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-        </svg>
-      );
-    case 'clients':
-      return (
-        <svg {...common}>
-          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-          <circle cx="9" cy="7" r="4" />
-          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-        </svg>
-      );
-    case 'balance':
-      return (
-        <svg {...common}>
-          <path d="M12 1v22" />
-          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-        </svg>
-      );
-    case 'hr':
-      return (
-        <svg {...common}>
-          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-          <circle cx="9" cy="7" r="4" />
-          <path d="M22 11h-6M19 8v6" />
-        </svg>
-      );
-    case 'mail':
-      return (
-        <svg {...common}>
-          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-          <path d="m22 6-10 7L2 6" />
-        </svg>
-      );
-    case 'agent':
-      return (
-        <svg {...common}>
-          <path d="M12 2a4 4 0 0 1 4 4v1h1a3 3 0 0 1 3 3v2a3 3 0 0 1-3 3h-1v1a4 4 0 0 1-8 0v-1H7a3 3 0 0 1-3-3v-2a3 3 0 0 1 3-3h1V6a4 4 0 0 1 4-4z" />
-          <circle cx="9" cy="12" r="1" fill="currentColor" stroke="none" />
-          <circle cx="15" cy="12" r="1" fill="currentColor" stroke="none" />
-        </svg>
-      );
-    case 'security':
-      return (
-        <svg {...common}>
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-          <path d="m9 12 2 2 4-4" />
-        </svg>
-      );
-    case 'mobile':
-      return (
-        <svg {...common}>
-          <rect x="7" y="2" width="10" height="20" rx="2" />
-          <path d="M11 18h2" />
-        </svg>
-      );
-    case 'reports':
-      return (
-        <svg {...common}>
-          <path d="M3 3v18h18" />
-          <path d="m7 14 4-4 3 3 5-6" />
-        </svg>
-      );
-    case 'morocco':
-      return (
-        <svg {...common}>
-          <circle cx="12" cy="12" r="10" />
-          <path d="M2 12h20" />
-          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-        </svg>
-      );
-    default:
-      return null;
-  }
-}
-
-function DensityMock({ density }: { density: WelcomeDensity }) {
-  const gap = density === 'comfortable' ? 14 : 6;
-  const rowH = density === 'comfortable' ? 16 : 10;
-  const rows = density === 'comfortable' ? 3 : 5;
-  return (
-    <div className="welcome-pick-preview">
-      <svg viewBox="0 0 160 100" className="welcome-mock-svg" aria-hidden>
-        <rect width="160" height="100" rx="8" fill="#f8fafc" />
-        {Array.from({ length: rows }).map((_, i) => (
-          <rect
-            key={i}
-            x="16"
-            y={14 + i * (rowH + gap)}
-            width="128"
-            height={rowH}
-            rx="4"
-            fill="#71717a"
-            opacity={0.25 + i * 0.12}
-          />
-        ))}
-      </svg>
-    </div>
-  );
-}
+] as const;
 
 function ComparePaperVsAtlas() {
   return (
@@ -337,7 +258,7 @@ function ComparePaperVsAtlas() {
             <circle key={i} cx={100 + i * 8} cy={70 - i * 2} r="1.6" fill="#71717a" className="welcome-particle" style={{ animationDelay: `${i * 0.12}s` }} />
           ))}
           <rect x="118" y="28" width="68" height="84" rx="8" fill="#0b0e14" stroke="#71717a" strokeWidth="1.2" />
-          <text x="152" y="46" textAnchor="middle" fill="#71717a" fontSize="8" fontWeight="600">
+          <text x="152" y="46" textAnchor="middle" fill="#a1a1aa" fontSize="8" fontWeight="600">
             Ledger
           </text>
           <rect x="128" y="54" width="48" height="5" rx="2" fill="#64748b" className="welcome-ledger-bar" />
@@ -347,7 +268,7 @@ function ComparePaperVsAtlas() {
             1 240 DH
           </text>
         </svg>
-        <p className="welcome-compare-caption">Scan laser, sync instantanée, solde auto.</p>
+        <p className="welcome-compare-caption">Scan laser, sync instantanée, solde automatique.</p>
       </div>
     </div>
   );
@@ -363,8 +284,8 @@ function CompareErpVsAtlas() {
           {Array.from({ length: 12 }).map((_, i) => (
             <rect key={`h${i}`} x={14 + i * 15} y="16" width="14" height="10" fill="#2a3040" opacity="0.8" />
           ))}
-          {Array.from({ length: 8 }).map((_, r) =>
-            Array.from({ length: 12 }).map((_, c) => (
+          {Array.from({ length: 8 }).map((_row, r) =>
+            Array.from({ length: 12 }).map((_col, c) => (
               <rect
                 key={`${r}-${c}`}
                 x={14 + c * 15}
@@ -388,7 +309,7 @@ function CompareErpVsAtlas() {
         →
       </div>
       <div className="welcome-compare-side atlas">
-        <span className="welcome-compare-badge good">Tableau de bord Atlas</span>
+        <span className="welcome-compare-badge good">Bento Atlas Commerce</span>
         <svg viewBox="0 0 200 140" className="welcome-scene-svg" aria-hidden>
           <rect x="12" y="12" width="176" height="116" rx="10" fill="#0b0e14" />
           <rect x="22" y="22" width="48" height="18" rx="9" fill="#12141a" stroke="#64748b" className="welcome-pill" />
@@ -397,7 +318,7 @@ function CompareErpVsAtlas() {
           <path
             d="M28 100 C48 90, 58 70, 78 75 S108 110, 128 85 S158 60, 178 55"
             fill="none"
-            stroke="#71717a"
+            stroke="#a1a1aa"
             strokeWidth="2.2"
             strokeLinecap="round"
             className="welcome-chart-path"
@@ -406,7 +327,7 @@ function CompareErpVsAtlas() {
           <rect x="22" y="112" width="70" height="6" rx="2" fill="#1a1d26" className="welcome-feed" />
           <rect x="98" y="112" width="50" height="6" rx="2" fill="#64748b" className="welcome-feed" style={{ animationDelay: '0.2s' }} />
         </svg>
-        <p className="welcome-compare-caption">Vue claire, flux en direct, zéro friction.</p>
+        <p className="welcome-compare-caption">Vue Bento claire, flux en direct, zéro friction.</p>
       </div>
     </div>
   );
@@ -415,68 +336,37 @@ function CompareErpVsAtlas() {
 function MasteryTips() {
   const tips = [
     {
-      title: 'Workflow code-barres',
-      body: 'PC : scan USB. Mobile : caméra ou photo de secours si le cadre rate le code.',
-      svg: (
-        <svg viewBox="0 0 64 40" className="welcome-tip-svg" aria-hidden>
-          <rect x="4" y="8" width="28" height="24" rx="3" fill="#12141a" stroke="#64748b" />
-          {[0, 1, 2, 3, 4].map((i) => (
-            <rect key={i} x={8 + i * 4.5} y="14" width={i % 2 ? 2 : 1.2} height="12" fill="#e8f5f0" />
-          ))}
-          <rect x="36" y="10" width="24" height="20" rx="4" fill="#0b0e14" stroke="#71717a" />
-          <circle cx="48" cy="20" r="6" fill="none" stroke="#71717a" strokeWidth="1.5" className="welcome-cam-pulse" />
-        </svg>
-      ),
+      title: 'OCR & assistants guidés',
+      body: 'Déposez une facture fournisseur : Qwen Vision pré-remplit lignes, montants et TVA étape par étape.',
+      Icon: ScanLine,
     },
     {
-      title: 'Récupération intelligente',
-      body: "Scan impossible ? Image de l'étiquette ou saisie manuelle — le PC reçoit quand même la proposition.",
-      svg: (
-        <svg viewBox="0 0 64 40" className="welcome-tip-svg" aria-hidden>
-          <rect x="10" y="6" width="32" height="28" rx="3" fill="#12141a" stroke="#64748b" />
-          <path d="M18 26 L24 20 L30 24 L36 16" fill="none" stroke="#71717a" strokeWidth="1.5" className="welcome-path-draw" />
-          <circle cx="48" cy="28" r="8" fill="#0a0a0a" opacity="0.9" />
-          <path d="M45 28 L47.5 30.5 L52 25" fill="none" stroke="#e8f5f0" strokeWidth="1.6" strokeLinecap="round" />
-        </svg>
-      ),
+      title: 'Dock & navigation Focus',
+      body: 'Les barres hautes se minimisent au défilement et se déplient au survol ; la barre Focus isole les réglages.',
+      Icon: LayoutGrid,
     },
     {
-      title: 'Intégrité du stock',
-      body: "Le téléphone propose ; le bureau valide. L'historique produit montre avant / après en direct.",
-      svg: (
-        <svg viewBox="0 0 64 40" className="welcome-tip-svg" aria-hidden>
-          <rect x="6" y="8" width="24" height="24" rx="4" fill="#0b0e14" stroke="#64748b" />
-          <text x="18" y="24" textAnchor="middle" fill="#94a3b8" fontSize="8">
-            12
-          </text>
-          <path d="M34 20 H42" stroke="#71717a" strokeWidth="1.5" className="welcome-sync-arrow" />
-          <rect x="44" y="8" width="14" height="24" rx="3" fill="#12141a" stroke="#71717a" />
-          <text x="51" y="24" textAnchor="middle" fill="#e2e8f0" fontSize="8" className="welcome-stock-live">
-            15
-          </text>
-        </svg>
-      ),
+      title: 'Mobile → Bureau en direct',
+      body: 'Scannez depuis l’app téléphone : la boîte d’actions du PC reçoit et valide chaque mouvement.',
+      Icon: Smartphone,
     },
   ];
   return (
     <div className="welcome-mastery">
-      <h3 className="welcome-mastery-title">Prise en main rapide</h3>
+      <h3 className="welcome-mastery-title">Réflexes Bento à connaître</h3>
       <div className="welcome-mastery-grid">
-        {tips.map((t, i) => (
-          <article key={t.title} className="welcome-mastery-card" style={{ animationDelay: `${0.08 + i * 0.08}s` }}>
-            {t.svg}
-            <h4>{t.title}</h4>
-            <p>{t.body}</p>
+        {tips.map(({ title, body, Icon }, i) => (
+          <article key={title} className="welcome-mastery-card" style={{ animationDelay: `${0.08 + i * 0.08}s` }}>
+            <div className="welcome-mastery-icon" aria-hidden="true">
+              <Icon size={18} strokeWidth={1.9} />
+            </div>
+            <h4>{title}</h4>
+            <p>{body}</p>
           </article>
         ))}
       </div>
     </div>
   );
-}
-
-function WelcomeTourGate({ show, onClose, steps }: { show: boolean; onClose: () => void; steps: any[] }) {
-  if (!show) return null;
-  return <FeatureTour steps={steps} onClose={onClose} />;
 }
 
 export default function Welcome() {
@@ -487,31 +377,31 @@ export default function Welcome() {
       {
         id: 'stock',
         title: 'Stock & produits',
-        description: 'Catalogue, seuils bas, scan code-barres et mouvements d’entrepôt.',
+        description: 'Catalogue, seuils bas, transferts inter-entrepôts, inventaire et historique.',
         icon: <Package size={40} strokeWidth={1.5} />,
       },
       {
         id: 'sales',
-        title: 'Ventes & factures',
-        description: 'Devis, FA, VR, reçus et TVA — numérotation centralisée.',
+        title: 'Ventes, achats & OCR',
+        description: 'Devis, factures, ventes rapides et scan OCR des factures d’achat.',
         icon: <FileText size={40} strokeWidth={1.5} />,
       },
       {
         id: 'people',
-        title: 'Clients & équipe',
-        description: 'Fiches clients, employés, présence et acomptes.',
+        title: 'Clients, équipe & paie',
+        description: 'Fiches clients, employés, présences, acomptes et bulletins CNSS / AMO.',
         icon: <Users size={40} strokeWidth={1.5} />,
       },
       {
         id: 'agent',
-        title: 'Atlas Agent',
-        description: 'Assistant connecté aux API : créer, chercher, expliquer.',
+        title: 'Atlas Agent IA',
+        description: 'Assistant connecté aux outils métier pour créer, chercher et résumer.',
         icon: <Bot size={40} strokeWidth={1.5} />,
       },
       {
         id: 'reports',
-        title: 'Pilotage',
-        description: 'Tableau de bord, rapports et clôture de période.',
+        title: 'Pilotage Bento',
+        description: 'Tableau de bord, clôtures X / Z, rapports TVA / COGS et clôture de période.',
         icon: <BarChart3 size={40} strokeWidth={1.5} />,
       },
     ],
@@ -542,7 +432,7 @@ export default function Welcome() {
 
   useEffect(() => {
     applyThemeMode(prefs.theme);
-    setDensity('comfortable');
+    setDensity(prefs.density);
     setGlassEnabled(false);
   }, [prefs]);
 
@@ -552,7 +442,7 @@ export default function Welcome() {
       return;
     }
     setShowNext(false);
-    const t = window.setTimeout(() => setShowNext(true), 1200);
+    const t = window.setTimeout(() => setShowNext(true), 900);
     return () => window.clearTimeout(t);
   }, [step]);
 
@@ -577,9 +467,18 @@ export default function Welcome() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Enter') return;
+      if (showTour || e.key !== 'Enter') return;
       const t = e.target as HTMLElement | null;
-      if (t && (t.closest('button, a, [role="tab"]') || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || (t.tagName === 'INPUT' && (t as HTMLInputElement).type !== 'checkbox' && (t as HTMLInputElement).type !== 'radio' && (t as HTMLInputElement).type !== 'button'))) {
+      if (
+        t &&
+        (t.closest('button, a, [role="tab"]') ||
+          t.tagName === 'TEXTAREA' ||
+          t.tagName === 'SELECT' ||
+          (t.tagName === 'INPUT' &&
+            (t as HTMLInputElement).type !== 'checkbox' &&
+            (t as HTMLInputElement).type !== 'radio' &&
+            (t as HTMLInputElement).type !== 'button'))
+      ) {
         return;
       }
       if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -594,7 +493,7 @@ export default function Welcome() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [step, showNext, leaving, go]);
+  }, [step, showNext, leaving, showTour, go]);
 
   const pickTheme = (theme: WelcomeTheme) => {
     setPrefs(saveWelcomePrefs({ theme }));
@@ -606,29 +505,30 @@ export default function Welcome() {
     setDensity(density);
   };
 
-
-  const finish = () => {
+  const finish = useCallback(() => {
+    if (leaving) return;
     setLeaving(true);
     applyThemeMode(prefs.theme);
-    setDensity('comfortable');
+    setDensity(prefs.density);
     setGlassEnabled(false);
     markWelcomeCompleted();
-    setShowTour(true);
     window.setTimeout(() => {
       navigate('/dashboard', { replace: true });
-      try {
-        window.location.reload();
-      } catch {
-        /* */
-      }
-    }, 480);
-  };
+    }, 260);
+  }, [leaving, navigate, prefs.density, prefs.theme]);
 
   const progress = useMemo(() => ((step + 1) / WELCOME_STEP_COUNT) * 100, [step]);
+  const themeLabel = prefs.theme === 'dark' ? 'Sombre' : prefs.theme === 'light' ? 'Clair' : 'Système';
+  const densityLabel = prefs.density === 'comfortable' ? 'Confortable' : 'Compacte';
 
   return (
     <div className={`welcome-stage${leaving ? ' welcome-leaving' : ''}`} data-step={step}>
-      {showTour ? <FeatureTour steps={tourSteps} onClose={() => { setShowTour(false); navigate('/dashboard'); }} /> : null}
+      {showTour ? (
+        <FeatureTour
+          steps={tourSteps}
+          onClose={() => setShowTour(false)}
+        />
+      ) : null}
 
       <div className="welcome-ambient" aria-hidden />
       <div
@@ -642,38 +542,56 @@ export default function Welcome() {
         <div className="welcome-progress-bar" style={{ width: `${progress}%` }} />
       </div>
 
+      <header className="welcome-top-bar">
+        <span className="welcome-brand-pill">
+          <Sparkles size={13} strokeWidth={2.2} aria-hidden="true" />
+          <span>{APP_NAME}</span>
+          <span className="welcome-ver-tag">v{APP_VERSION}</span>
+        </span>
+        <span className="welcome-step-pill" aria-live="polite">
+          Étape {step + 1} / {WELCOME_STEP_COUNT}
+        </span>
+        {step < WELCOME_FINAL_STEP ? (
+          <button type="button" className="welcome-skip-btn" onClick={finish}>
+            Passer l&apos;intro
+          </button>
+        ) : (
+          <span className="welcome-skip-spacer" aria-hidden="true" />
+        )}
+      </header>
+
       <div className="welcome-inner" ref={panelRef}>
         {step === 0 && (
           <section className="welcome-panel welcome-hello" key="hello">
-            <p className="welcome-kicker">{APP_NAME}</p>
+            <p className="welcome-kicker">{APP_NAME} · Édition Bento</p>
             <h1 className="welcome-bonjour">
               {'Bonjour'.split('').map((ch, i) => (
-                <span key={i} style={{ animationDelay: `${0.08 + i * 0.06}s` }}>
+                <span key={i} style={{ animationDelay: `${0.06 + i * 0.05}s` }}>
                   {ch}
                 </span>
               ))}
             </h1>
             <p className="welcome-sub welcome-fade-late">
-              Configurons votre espace — thème, style, et ce qui change vraiment face au papier et aux outils lourds.
+              Configurons votre espace — apparence Bento, aperçus réels, caisse X / Z, OCR et pilotage complet de votre activité.
             </p>
             {showNext && (
               <button type="button" className="welcome-cta welcome-cta-glow" onClick={() => go(1)}>
-                Suivant
+                Commencer <ArrowRight size={16} aria-hidden="true" />
               </button>
             )}
           </section>
         )}
 
         {step === 1 && (
-          <section className="welcome-panel" key="theme">
-            <h2 className="welcome-title">Choisissez votre thème</h2>
-            <p className="welcome-sub">Aperçu en direct sur l&apos;interface.</p>
+          <section className="welcome-panel welcome-panel-wide" key="theme">
+            <h2 className="welcome-title">Choisissez votre apparence</h2>
+            <p className="welcome-sub">Aperçu en direct de l&apos;interface Bento et du confort d&apos;affichage.</p>
             <div className="welcome-picks welcome-picks-3">
               {(
                 [
-                  { id: 'dark' as const, label: 'Sombre' },
-                  { id: 'light' as const, label: 'Clair' },
-                  { id: 'system' as const, label: 'Système' },
+                  { id: 'dark' as const, label: 'Sombre', hint: 'Contraste doux pour longues sessions' },
+                  { id: 'light' as const, label: 'Clair', hint: 'Surface nette et lisible en magasin' },
+                  { id: 'system' as const, label: 'Système', hint: 'Suit automatiquement votre appareil' },
                 ] as const
               ).map((opt, i) => (
                 <button
@@ -684,16 +602,46 @@ export default function Welcome() {
                   style={{ animationDelay: `${0.05 + i * 0.06}s` }}
                 >
                   <ThemeMock mode={opt.id} />
-                  <span className="welcome-pick-label">{opt.label}</span>
+                  <span className="welcome-pick-meta">
+                    <span className="welcome-pick-label">{opt.label}</span>
+                    <span className="welcome-pick-hint">{opt.hint}</span>
+                  </span>
                 </button>
               ))}
             </div>
+
+            <div className="welcome-density-row" role="group" aria-label="Densité d’affichage">
+              <div className="welcome-density-copy">
+                <strong>Densité de l&apos;interface</strong>
+                <span>Ajustez l&apos;espacement des tableaux et panneaux Bento.</span>
+              </div>
+              <div className="welcome-density-pills">
+                {(
+                  [
+                    { id: 'comfortable' as const, label: 'Confortable' },
+                    { id: 'compact' as const, label: 'Compacte' },
+                  ] as const
+                ).map((d) => (
+                  <button
+                    key={d.id}
+                    type="button"
+                    className={`welcome-density-pill${prefs.density === d.id ? ' is-active' : ''}`}
+                    aria-pressed={prefs.density === d.id}
+                    onClick={() => pickDensity(d.id)}
+                  >
+                    {prefs.density === d.id ? <Check size={13} strokeWidth={2.5} aria-hidden="true" /> : null}
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="welcome-nav">
               <button type="button" className="welcome-btn-ghost" onClick={() => go(0)}>
-                Retour
+                <ArrowLeft size={16} aria-hidden="true" /> Retour
               </button>
               <button type="button" className="welcome-cta" onClick={() => go(2)}>
-                Suivant
+                Suivant <ArrowRight size={16} aria-hidden="true" />
               </button>
             </div>
           </section>
@@ -710,32 +658,32 @@ export default function Welcome() {
 
         {step === WELCOME_FEATURES_STEP && (
           <section className="welcome-panel welcome-panel-wide" key="features">
-            <h2 className="welcome-title">Tout pour vendre et gérer plus vite</h2>
-            <p className="welcome-sub">Du stock à la facture, de la caisse aux employés — un seul outil clair.</p>
+            <h2 className="welcome-title">Un écosystème Bento complet</h2>
+            <p className="welcome-sub">Stock, ventes, achats OCR, caisse X / Z, paie et agent IA — réunis sans complexité.</p>
             <div className="welcome-features-grid">
-              {WELCOME_FEATURES.map((f, i) => (
+              {WELCOME_FEATURES.map(({ title, blurb, pages, Icon }, i) => (
                 <article
-                  key={f.title}
+                  key={title}
                   className="welcome-feature-card"
-                  style={{ animationDelay: `${0.04 + i * 0.03}s` }}
+                  style={{ animationDelay: `${0.03 + i * 0.025}s` }}
                 >
-                  <div className="welcome-feature-icon" aria-hidden>
-                    <FeatureIcon name={f.icon} />
+                  <div className="welcome-feature-icon" aria-hidden="true">
+                    <Icon size={20} strokeWidth={1.85} />
                   </div>
                   <div className="welcome-feature-body">
-                    <strong>{f.title}</strong>
-                    <span className="welcome-feature-blurb">{f.blurb}</span>
-                    <span className="welcome-feature-pages">{f.pages}</span>
+                    <strong>{title}</strong>
+                    <span className="welcome-feature-blurb">{blurb}</span>
+                    <span className="welcome-feature-pages">{pages}</span>
                   </div>
                 </article>
               ))}
             </div>
             <div className="welcome-nav">
               <button type="button" className="welcome-btn-ghost" onClick={() => go(WELCOME_FEATURES_STEP - 1)}>
-                Retour
+                <ArrowLeft size={16} aria-hidden="true" /> Retour
               </button>
               <button type="button" className="welcome-cta" onClick={() => go(WELCOME_COMPARE_STEP)}>
-                Suivant
+                Suivant <ArrowRight size={16} aria-hidden="true" />
               </button>
             </div>
           </section>
@@ -744,7 +692,7 @@ export default function Welcome() {
         {step === WELCOME_COMPARE_STEP && (
           <section className="welcome-panel welcome-panel-wide" key="compare">
             <h2 className="welcome-title">Pourquoi {APP_NAME} change la donne</h2>
-            <p className="welcome-sub">Comparaisons animées — papier &amp; outils lourds face à Atlas.</p>
+            <p className="welcome-sub">Comparaisons visuelles et réflexes clés pour démarrer vite.</p>
             <div className="welcome-segment" role="tablist">
               <button
                 type="button"
@@ -775,51 +723,64 @@ export default function Welcome() {
             <MasteryTips />
             <div className="welcome-nav">
               <button type="button" className="welcome-btn-ghost" onClick={() => go(WELCOME_FEATURES_STEP)}>
-                Retour
+                <ArrowLeft size={16} aria-hidden="true" /> Retour
               </button>
               <button type="button" className="welcome-cta" onClick={() => go(WELCOME_FINAL_STEP)}>
-                Suivant
+                Suivant <ArrowRight size={16} aria-hidden="true" />
               </button>
             </div>
           </section>
         )}
 
         {step === WELCOME_FINAL_STEP && (
-          <section className="welcome-panel welcome-close" key="close">
-            <p className="welcome-thanks welcome-fade-up">Merci de nous faire confiance</p>
-            <h2 className="welcome-title welcome-fade-up" style={{ animationDelay: '0.08s' }}>
+          <section className="welcome-panel welcome-panel-wide welcome-close" key="close">
+            <p className="welcome-thanks welcome-fade-up">Tout est prêt</p>
+            <h2 className="welcome-title welcome-fade-up" style={{ animationDelay: '0.06s' }}>
               Bienvenue dans {APP_NAME}
             </h2>
-            <p className="welcome-sub welcome-fade-up" style={{ animationDelay: '0.14s', marginLeft: 'auto', marginRight: 'auto' }}>
-              Merci d&apos;avoir choisi Atlas — stock, factures et caisse, sans abonnement et sous votre contrôle.
+            <p className="welcome-sub welcome-fade-up" style={{ animationDelay: '0.12s', marginLeft: 'auto', marginRight: 'auto' }}>
+              Votre espace Bento est configuré — stock, factures, caisse et pilotage, sous votre contrôle.
             </p>
 
-            <div className="welcome-creator-badge welcome-fade-up" style={{ animationDelay: '0.2s' }}>
+            <div className="welcome-summary-bento welcome-fade-up" style={{ animationDelay: '0.16s' }}>
+              <div className="welcome-summary-chips">
+                <span className="welcome-summary-chip">Thème : <strong>{themeLabel}</strong></span>
+                <span className="welcome-summary-chip">Densité : <strong>{densityLabel}</strong></span>
+                <span className="welcome-summary-chip">Version : <strong>{APP_VERSION}</strong></span>
+              </div>
+              <button
+                type="button"
+                className="welcome-tour-trigger"
+                onClick={() => setShowTour(true)}
+              >
+                <Compass size={15} strokeWidth={2} aria-hidden="true" />
+                Visite rapide des modules
+              </button>
+            </div>
+
+            <div className="welcome-creator-badge welcome-fade-up" style={{ animationDelay: '0.22s' }}>
               {avatar ? (
-                <img src={avatar} alt="" className="welcome-avatar" width={72} height={72} />
+                <img src={avatar} alt="" className="welcome-avatar" width={64} height={64} />
               ) : (
                 <div className="welcome-avatar welcome-avatar-fallback">{APP_CREATOR_NAME.slice(0, 1)}</div>
               )}
               <div>
-                <p className="welcome-kicker">Créateur</p>
-                <h2 className="welcome-title" style={{ margin: 0, fontSize: '1.25rem' }}>
+                <p className="welcome-kicker" style={{ opacity: 1, animation: 'none', marginBottom: 4 }}>Créateur</p>
+                <h3 className="welcome-title" style={{ margin: 0, fontSize: '1.15rem' }}>
                   {APP_CREATOR_NAME}
-                </h2>
+                </h3>
                 <a href={APP_GITHUB} target="_blank" rel="noreferrer" className="welcome-gh-link">
                   @{APP_CREATOR} · GitHub
                 </a>
               </div>
             </div>
-            <p className="welcome-craft welcome-fade-up" style={{ animationDelay: '0.26s' }}>
-              Conçu avec passion pour simplifier la gestion commerciale — sans compromis.
-            </p>
 
-            <div className="welcome-projects welcome-fade-up" style={{ animationDelay: '0.32s' }}>
-              <p className="welcome-projects-title">Autres projets</p>
+            <div className="welcome-projects welcome-fade-up" style={{ animationDelay: '0.28s' }}>
+              <p className="welcome-projects-title">Écosystème Atlas</p>
               <div className="welcome-projects-grid">
                 <a className="welcome-project-card" href="https://github.com/Etherealmber/atlas-commerce" target="_blank" rel="noreferrer">
                   <strong>atlas-commerce</strong>
-                  <span>Web, API Edge &amp; moteur WASM</span>
+                  <span>Web Bento, API Edge &amp; moteur WASM</span>
                 </a>
                 <a className="welcome-project-card" href="https://github.com/Etherealmber/atlas-commerce-android" target="_blank" rel="noreferrer">
                   <strong>atlas-commerce-android</strong>
@@ -834,10 +795,10 @@ export default function Welcome() {
 
             <div className="welcome-nav">
               <button type="button" className="welcome-btn-ghost" onClick={() => go(WELCOME_COMPARE_STEP)}>
-                Retour
+                <ArrowLeft size={16} aria-hidden="true" /> Retour
               </button>
               <button type="button" className="welcome-cta welcome-cta-glow" onClick={finish} disabled={leaving}>
-                {leaving ? 'Ouverture…' : 'Explorer Atlas Commerce'}
+                {leaving ? 'Ouverture…' : 'Explorer Atlas Commerce'} <ArrowRight size={16} aria-hidden="true" />
               </button>
             </div>
           </section>
