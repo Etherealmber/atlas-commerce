@@ -1,4 +1,4 @@
-import { useEffect, useState, type ComponentType } from 'react';
+import { useEffect, useRef, useState, type ComponentType } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Bot,
@@ -142,6 +142,7 @@ export default function FocusSidebar({
   const wnFilter = searchParams.get('f') || 'all';
 
   const [activeAboutSection, setActiveAboutSection] = useState<string>('overview');
+  const aboutClickLockRef = useRef<{ key: string; until: number } | null>(null);
 
   useEffect(() => {
     setPendingSettingsTab(null);
@@ -156,19 +157,46 @@ export default function FocusSidebar({
       { key: 'creator', elId: 'about-creator' },
       { key: 'projects', elId: 'about-projects' },
     ];
-    const onScroll = () => {
+    const isNearScrollBottom = (target?: EventTarget | null) => {
+      if (target instanceof HTMLElement && target.scrollHeight > target.clientHeight + 8) {
+        return target.scrollTop + target.clientHeight >= target.scrollHeight - 48;
+      }
+      const doc = document.documentElement;
+      return window.innerHeight + window.scrollY >= doc.scrollHeight - 48;
+    };
+    const computeActive = (target?: EventTarget | null) => {
+      const lock = aboutClickLockRef.current;
+      if (lock && Date.now() < lock.until) {
+        setActiveAboutSection((prev) => (prev === lock.key ? prev : lock.key));
+        return;
+      }
+      aboutClickLockRef.current = null;
+      const lastItem = ids[ids.length - 1];
+      const lastEl = lastItem ? document.getElementById(lastItem.elId) : null;
+      if (lastEl && (isNearScrollBottom(target) || lastEl.getBoundingClientRect().top <= Math.max(240, Math.round(window.innerHeight * 0.45)))) {
+        setActiveAboutSection((prev) => (prev === lastItem.key ? prev : lastItem.key));
+        return;
+      }
+      const threshold = Math.max(200, Math.round(window.innerHeight * 0.34));
       let current = 'overview';
       for (const item of ids) {
         const el = document.getElementById(item.elId);
         if (!el) continue;
         const rect = el.getBoundingClientRect();
-        if (rect.top <= 180) current = item.key;
+        if (rect.top <= threshold) current = item.key;
       }
       setActiveAboutSection((prev) => (prev === current ? prev : current));
     };
+    const onScroll = (e?: Event) => computeActive(e?.target);
     window.addEventListener('scroll', onScroll, { passive: true });
-    onScroll();
-    return () => window.removeEventListener('scroll', onScroll);
+    document.addEventListener('scroll', onScroll, { passive: true, capture: true });
+    window.addEventListener('resize', onScroll, { passive: true });
+    computeActive();
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      document.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', onScroll);
+    };
   }, [isAbout, loggedIn]);
 
   const canCompany = typeof canAccessCompanySettings === 'function' ? canAccessCompanySettings() : false;
@@ -373,17 +401,19 @@ export default function FocusSidebar({
     ];
   } else if (isAbout) {
     sidebarTitle = 'À propos';
+    const selectAboutSection = (key: string, elId: string) => {
+      aboutClickLockRef.current = { key, until: Date.now() + 650 };
+      setActiveAboutSection(key);
+      onCloseMobile?.();
+      scrollToAnchor(elId);
+    };
     const sectionItems: FocusItem[] = [
       {
         id: 'overview',
         label: 'Présentation',
         icon: Layers,
         active: activeAboutSection === 'overview',
-        onClick: () => {
-          setActiveAboutSection('overview');
-          onCloseMobile?.();
-          scrollToAnchor('about-overview');
-        },
+        onClick: () => selectAboutSection('overview', 'about-overview'),
       },
     ];
     if (loggedIn) {
@@ -392,11 +422,7 @@ export default function FocusSidebar({
         label: 'Signaler un bug',
         icon: Bug,
         active: activeAboutSection === 'signaler',
-        onClick: () => {
-          setActiveAboutSection('signaler');
-          onCloseMobile?.();
-          scrollToAnchor('signaler');
-        },
+        onClick: () => selectAboutSection('signaler', 'signaler'),
       });
     }
     sectionItems.push(
@@ -405,33 +431,21 @@ export default function FocusSidebar({
         label: 'Fonctionnalités',
         icon: Boxes,
         active: activeAboutSection === 'features',
-        onClick: () => {
-          setActiveAboutSection('features');
-          onCloseMobile?.();
-          scrollToAnchor('about-features');
-        },
+        onClick: () => selectAboutSection('features', 'about-features'),
       },
       {
         id: 'creator',
         label: 'Créateur & Équipe',
         icon: Users,
         active: activeAboutSection === 'creator',
-        onClick: () => {
-          setActiveAboutSection('creator');
-          onCloseMobile?.();
-          scrollToAnchor('about-creator');
-        },
+        onClick: () => selectAboutSection('creator', 'about-creator'),
       },
       {
         id: 'projects',
         label: 'Dépôts & Projets',
         icon: Github,
         active: activeAboutSection === 'projects',
-        onClick: () => {
-          setActiveAboutSection('projects');
-          onCloseMobile?.();
-          scrollToAnchor('about-projects');
-        },
+        onClick: () => selectAboutSection('projects', 'about-projects'),
       },
     );
 

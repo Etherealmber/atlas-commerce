@@ -79,6 +79,14 @@ html[data-theme="dark"] .public-legal {
   background: transparent !important;
 }
 
+[id="about-overview"],
+[id="signaler"],
+[id="about-features"],
+[id="about-creator"],
+[id="about-projects"] {
+  scroll-margin-top: 84px;
+}
+
 .atlas-focus-mobile-bar {
   display: none;
 }

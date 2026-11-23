@@ -510,6 +510,22 @@ describe('controlled two-account shared-egress regression (local, not staging)',
     expect(accountA.body.needs_otp).toBe(true);
     expect(accountA.body.token).toBeUndefined();
   });
+
+  it('formats the login OTP email for mobile autofill and adaptive light/dark mode logos', async () => {
+    await seedControlledAccounts();
+    const res = await login({ username: 'alice', password: 'Test1234!', fingerprint: 'fp-alice-mail' });
+    expect(res.status).toBe(200);
+    expect(sendSpy).toHaveBeenCalledOnce();
+    const sent = sendSpy.mock.calls[0][0];
+    const otp = sqlite.prepare(`SELECT code FROM otp_codes WHERE resource_type = 'login' AND resource_id = 'fp:fp-alice-mail'`).get().code;
+    expect(sent.subject).toMatch(new RegExp(`^${otp}\\b`));
+    expect(sent.text).toMatch(new RegExp(`^Code de vérification : ${otp}`));
+    expect(sent.html).toContain('name="color-scheme" content="light dark"');
+    expect(sent.html).toContain('@media (prefers-color-scheme: dark)');
+    expect(sent.html).toContain('atlas-logo-light.png');
+    expect(sent.html).toContain('atlas-logo-dark.png');
+    expect(sent.html).toContain(`>${otp}</code>`);
+  });
 });
 
 /* eslint-enable no-await-in-loop */

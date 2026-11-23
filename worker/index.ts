@@ -95,6 +95,7 @@ import {
   sessionUserFromHeader,
   secretMaterialForUsername,
   nativeCurrentIdentity,
+  runWithRequestAuthContext,
 } from './lib/authHelpers';
 import { registerAuthRoutes } from './routes/authRoutes';
 import { registerUsersAdminRoutes, registerSettingsRoutes } from './routes/usersAdmin';
@@ -161,6 +162,8 @@ import { registerDesktopAuthRoutes, isDesktopAuthPath, isPublicDesktopAuthPath, 
 import { registerDesktopNativeDiscovery, DESKTOP_NATIVE_V2_CAPABILITIES, DESKTOP_NATIVE_V3_CAPABILITIES } from './routes/desktopNativeDiscovery';
 import { registerDesktopPilotWebView, EMBEDDED_CHALLENGE_PATH, EMBEDDED_CHALLENGE_CSP } from './lib/desktop-pilot-webview';
 import { registerDesktopNativeV2, isNativeV2Operation, NATIVE_V2 } from './routes/desktopNativeV2';
+import { isNativeV3PublicPost, NATIVE_V3 } from './routes/desktopNativeV3';
+import { V3_WEBVIEW_CHALLENGE_PATH, V3_BROWSER_CHALLENGE_PATH, V3_CHALLENGE_CSP } from './lib/desktop-v3-webview';
 import { parseNativePilotToken, validateNativePilotToken } from './lib/desktop-native-session';
 import {
   androidMinVersionGuard,
@@ -811,7 +814,7 @@ app.use('*', async (c, next) => {
     const bm = readD1BookmarkFromReq(c);
 
     try {
-      if (path.startsWith('/api/reports/') || path.startsWith(`${NATIVE_V2}/`) || c.req.header('Authorization')?.startsWith('Bearer np1.') || path === '/api/mobile/work-status' || path === '/api/mobile/snake-score' || path === '/api/mobile/preferences' || path === '/api/reports' || path === '/api/admin/product-images/normalize') {
+      if (path.startsWith('/api/reports/') || path.startsWith(`${NATIVE_V2}/`) || path.startsWith(`${NATIVE_V3}/`) || c.req.header('Authorization')?.startsWith('Bearer np1.') || c.req.header('Authorization')?.startsWith('Bearer nv3.') || path === '/api/mobile/work-status' || path === '/api/mobile/snake-score' || path === '/api/mobile/preferences' || path === '/api/reports' || path === '/api/admin/product-images/normalize') {
         session = rawDb.withSession('first-primary');
       } else if (path === '/api/health') {
         // Health check: can use unconstrained replica or available session
@@ -824,8 +827,8 @@ app.use('*', async (c, next) => {
         session = bm ? rawDb.withSession(bm) : rawDb.withSession();
       }
     } catch {
-      // Native v2 must never silently fall back to an unconstrained D1 replica.
-      if (path.startsWith(`${NATIVE_V2}/`) || c.req.header('Authorization')?.startsWith('Bearer np1.')) {
+      // Native v2/v3 must never silently fall back to an unconstrained D1 replica.
+      if (path.startsWith(`${NATIVE_V2}/`) || path.startsWith(`${NATIVE_V3}/`) || c.req.header('Authorization')?.startsWith('Bearer np1.') || c.req.header('Authorization')?.startsWith('Bearer nv3.')) {
         return c.json({ success: false, code: 'UNAVAILABLE', error: 'Connexion indisponible.' }, 503);
       }
       try {
@@ -912,7 +915,7 @@ app.use('*', async (c, next) => {
   if (c.env.DB_TARGET) {
     (c.env as any).DB_SOURCE = c.env.DB; // remember the physical source before any swap
     try {
-      const privateResource = new URL(c.req.url).pathname === '/api/mobile/preferences' || new URL(c.req.url).pathname.startsWith('/api/reports/') || new URL(c.req.url).pathname.startsWith(`${NATIVE_V2}/`) || !!c.req.header('Authorization')?.startsWith('Bearer np1.');
+      const privateResource = new URL(c.req.url).pathname === '/api/mobile/preferences' || new URL(c.req.url).pathname.startsWith('/api/reports/') || new URL(c.req.url).pathname.startsWith(`${NATIVE_V2}/`) || new URL(c.req.url).pathname.startsWith(`${NATIVE_V3}/`) || !!c.req.header('Authorization')?.startsWith('Bearer np1.') || !!c.req.header('Authorization')?.startsWith('Bearer nv3.');
       // These resources must not fall back to the wrong database if
       // cutover state cannot be read; do not use the cached, fail-open flag.
       const flag = privateResource
@@ -920,7 +923,7 @@ app.use('*', async (c, next) => {
         : await dbPrimaryFlag(c.env);
       if (flag === 'target') {
         const target = c.env.DB_TARGET as any;
-        if ((new URL(c.req.url).pathname.startsWith(`${NATIVE_V2}/`) || c.req.header('Authorization')?.startsWith('Bearer np1.')) && typeof target.withSession !== 'function') throw new Error('Native v2 requires a primary D1 session');
+        if ((new URL(c.req.url).pathname.startsWith(`${NATIVE_V2}/`) || new URL(c.req.url).pathname.startsWith(`${NATIVE_V3}/`) || c.req.header('Authorization')?.startsWith('Bearer np1.') || c.req.header('Authorization')?.startsWith('Bearer nv3.')) && typeof target.withSession !== 'function') throw new Error('Native auth requires a primary D1 session');
         const targetDb = privateResource && typeof target.withSession === 'function'
           ? target.withSession('first-primary') : target;
         registerDbRoot(targetDb, target);
@@ -929,7 +932,7 @@ app.use('*', async (c, next) => {
     } catch {
       // Never silently switch this private resource back to the source database
       // if the configured target's primary session cannot be established.
-      if (new URL(c.req.url).pathname === '/api/mobile/preferences' || new URL(c.req.url).pathname.startsWith('/api/reports/') || new URL(c.req.url).pathname.startsWith(`${NATIVE_V2}/`) || c.req.header('Authorization')?.startsWith('Bearer np1.')) {
+      if (new URL(c.req.url).pathname === '/api/mobile/preferences' || new URL(c.req.url).pathname.startsWith('/api/reports/') || new URL(c.req.url).pathname.startsWith(`${NATIVE_V2}/`) || new URL(c.req.url).pathname.startsWith(`${NATIVE_V3}/`) || c.req.header('Authorization')?.startsWith('Bearer np1.') || c.req.header('Authorization')?.startsWith('Bearer nv3.')) {
         return c.json({ success: false, code: 'SERVICE_UNAVAILABLE', error: 'Service indisponible' }, 503);
       }
     }
@@ -1005,14 +1008,25 @@ app.use(`${NATIVE_V2}/*`, async (c, next) => {
   c.header('Referrer-Policy', 'no-referrer');
 });
 
+app.use(`${NATIVE_V3}/*`, async (c, next) => {
+  await next();
+  c.header('Cache-Control', 'no-store');
+  c.header('CDN-Cache-Control', 'no-store');
+  c.header('Referrer-Policy', 'no-referrer');
+});
+
 app.use('/api/*', async (c, next) => {
   const path = new URL(c.req.url).pathname;
-  // A staging native session must not be used to bootstrap a legacy web/QR
+  // A staging/v3 native session must not be used to bootstrap a legacy web/QR
   // session or to activate fingerprint-based trust. Native refresh/logout use
   // their own proof-bearing POST bodies instead of Authorization.
-  const nativeHeader = c.req.header('Authorization')?.startsWith('Bearer np1.');
+  const authTok = c.req.header('Authorization')?.slice(7) || '';
+  const nativeHeader = authTok.startsWith('np1.');
+  const nv3Header = authTok.startsWith('nv3.');
   if (nativeHeader && path.startsWith('/api/auth/') && path !== '/api/auth/me') return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Non autorisé' }, 401);
-  if ((c.req.query('token') || '').startsWith('np1.')) return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Non autorisé' }, 401);
+  if (nv3Header && path.startsWith('/api/auth/') && path !== '/api/auth/me' && !path.startsWith(`${NATIVE_V3}/`)) return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Non autorisé' }, 401);
+  const queryTok = c.req.query('token') || '';
+  if (queryTok.startsWith('np1.') || queryTok.startsWith('nv3.')) return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Non autorisé' }, 401);
   if (
     path.startsWith('/api/public/') ||
     path.startsWith('/api/cron/') ||
@@ -1033,9 +1047,10 @@ app.use('/api/*', async (c, next) => {
     // Exact public desktop endpoints verify PKCE + state + creation IP/FP themselves.
     // prepare/authorize stay behind this normal web session gate.
     isPublicDesktopAuthPath(path) ||
-    // Exact v2 operations enforce their own PKCE or authenticated-phone checks and D1 budgets.
+    // Exact v2/v3 operations enforce their own PKCE/DPoP or authenticated-phone checks and D1 budgets.
     ((path === DESKTOP_NATIVE_V2_CAPABILITIES || path === DESKTOP_NATIVE_V3_CAPABILITIES) && c.req.method === 'GET') ||
     (isNativeV2Operation(path) && c.req.method === 'POST') ||
+    (isNativeV3PublicPost(path) && c.req.method === 'POST') ||
     path === '/api/auth/login' ||
     path === '/api/auth/verify-otp' ||
     path === '/api/auth/verify-link' ||
@@ -1226,52 +1241,67 @@ app.use('/api/*', async (c, next) => {
   const fp = c.req.header('X-Device-Fingerprint') || undefined;
   if (c.req.header('Authorization')?.slice(7).startsWith('np1.') && new URL(c.req.url).origin !== c.env.DESKTOP_NATIVE_V2_PILOT_ORIGIN) return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Non autorisé' }, 401);
   const roleRefreshPath = path === '/api/auth/role-refresh' && c.req.method === 'POST';
-  const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, ip, fp, { allowRoleRefresh: roleRefreshPath });
-  if (reason === 'role_changed') return c.json({ success: false, error: 'Votre rôle a changé. Actualisez votre session.', code: 'ROLE_CHANGED' }, 409);
-  if (reason !== 'ok') {
-    return c.json({
-      success: false,
-      error:
-        reason === 'ip_changed' ? 'Adresse IP modifiée — reconnexion requise'
-        : reason === 'fp_changed' ? 'Appareil différent — reconnexion requise'
-        : reason === 'device_revoked' ? 'Appareil révoqué — reconnexion requise'
-        : 'Non autorisé',
-      code:
-        reason === 'ip_changed' ? 'IP_CHANGED'
-        : reason === 'fp_changed' ? 'DEVICE_CHANGED'
-        : reason === 'device_revoked' ? 'DEVICE_REVOKED'
-        : 'UNAUTHORIZED',
-    }, 401);
-  }
-  if (
-    path !== '/api/auth/logout' &&
-    path !== '/api/auth/devices/revoke' &&
-    !path.startsWith('/api/auth/trusted-devices/')
-  ) {
-    try {
-      const authStr = c.req.header('Authorization');
-      const parsedTok =
-        authStr?.startsWith('Bearer ') && !authStr.slice(7).startsWith('np1.')
-          ? parseToken(authStr.slice(7))
-          : null;
-      const effectiveFp =
-        (fp && fp !== 'none' ? fp : '') ||
-        (parsedTok?.fingerprint && parsedTok.fingerprint !== 'none' ? parsedTok.fingerprint : '');
-      const sess = sessionUserFromHeader(authStr);
-      if (effectiveFp && sess.username) {
-        await touchTrustedDevice(
-          c.env.DB,
-          sess.username,
-          effectiveFp,
-          ip,
-          c.req.header('User-Agent') || '',
-          cfGeo(c),
-          { updateOnly: true },
-        );
-      }
-    } catch { /* best-effort */ }
-  }
-  return next();
+  const reqAuthCtx = {
+    dpopHeader: c.req.header('DPoP'),
+    method: c.req.method.toUpperCase(),
+    requestUrl: c.req.url,
+  };
+  return runWithRequestAuthContext(reqAuthCtx, async () => {
+    const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, ip, fp, {
+      allowRoleRefresh: roleRefreshPath,
+      dpopHeader: reqAuthCtx.dpopHeader,
+      method: reqAuthCtx.method,
+      requestUrl: reqAuthCtx.requestUrl,
+    });
+    if (reason === 'role_changed') return c.json({ success: false, error: 'Votre rôle a changé. Actualisez votre session.', code: 'ROLE_CHANGED' }, 409);
+    if (reason !== 'ok') {
+      return c.json({
+        success: false,
+        error:
+          reason === 'ip_changed' ? 'Adresse IP modifiée — reconnexion requise'
+          : reason === 'fp_changed' ? 'Appareil différent — reconnexion requise'
+          : reason === 'device_revoked' ? 'Appareil révoqué — reconnexion requise'
+          : reason === 'invalid_dpop' ? 'Preuve DPoP invalide ou expirée'
+          : 'Non autorisé',
+        code:
+          reason === 'ip_changed' ? 'IP_CHANGED'
+          : reason === 'fp_changed' ? 'DEVICE_CHANGED'
+          : reason === 'device_revoked' ? 'DEVICE_REVOKED'
+          : reason === 'invalid_dpop' ? 'INVALID_DPOP'
+          : 'UNAUTHORIZED',
+      }, 401);
+    }
+    if (
+      path !== '/api/auth/logout' &&
+      path !== '/api/auth/devices/revoke' &&
+      !path.startsWith('/api/auth/trusted-devices/')
+    ) {
+      try {
+        const authStr = c.req.header('Authorization');
+        const rawAuthTok = authStr?.startsWith('Bearer ') ? authStr.slice(7) : '';
+        const parsedTok =
+          rawAuthTok && !rawAuthTok.startsWith('np1.') && !rawAuthTok.startsWith('nv3.')
+            ? parseToken(rawAuthTok)
+            : null;
+        const effectiveFp =
+          (fp && fp !== 'none' ? fp : '') ||
+          (parsedTok?.fingerprint && parsedTok.fingerprint !== 'none' ? parsedTok.fingerprint : '');
+        const sess = sessionUserFromHeader(authStr);
+        if (effectiveFp && sess.username && !rawAuthTok.startsWith('nv3.')) {
+          await touchTrustedDevice(
+            c.env.DB,
+            sess.username,
+            effectiveFp,
+            ip,
+            c.req.header('User-Agent') || '',
+            cfGeo(c),
+            { updateOnly: true },
+          );
+        }
+      } catch { /* best-effort */ }
+    }
+    return next();
+  });
 });
 
 app.use('*', async (c, next) => {
@@ -1308,7 +1338,7 @@ app.use('*', async (c, next) => {
   //    Cloudflare edge with CDN-Cache-Control: no-store (CF-specific header
   //    that survives even misconfigured cache rules)
   //  - public Cache-Control → deliberate (public images/SVG); left as-is.
-  if (path === '/login/desktop' || path === '/login/desktop-phone' || path === '/login/desktop-challenge' || path === EMBEDDED_CHALLENGE_PATH || path === `${EMBEDDED_CHALLENGE_PATH}.js`) {
+  if (path === '/login/desktop' || path === '/login/desktop-phone' || path === '/login/desktop-challenge' || path === EMBEDDED_CHALLENGE_PATH || path === `${EMBEDDED_CHALLENGE_PATH}.js` || path === V3_WEBVIEW_CHALLENGE_PATH || path === `${V3_WEBVIEW_CHALLENGE_PATH}.js` || path === V3_BROWSER_CHALLENGE_PATH || path === `${V3_BROWSER_CHALLENGE_PATH}.js`) {
     c.header('Cache-Control', 'no-store');
     c.header('CDN-Cache-Control', 'no-store');
   }
@@ -1329,7 +1359,7 @@ app.use('*', async (c, next) => {
   // SAMEORIGIN suffit à bloquer le clickjacking externe tout en laissant
   // passer notre propre modal. Tout le reste reste DENY.
   c.header('X-Frame-Options', c.req.path === '/api/settings/invoice-preview' ? 'SAMEORIGIN' : 'DENY');
-  c.header('Referrer-Policy', path === '/login/desktop' || path === '/login/desktop-phone' || path === '/login/desktop-challenge' || path === EMBEDDED_CHALLENGE_PATH || path === `${EMBEDDED_CHALLENGE_PATH}.js` || isDesktopAuthPath(path) || path.startsWith(`${NATIVE_V2}/`) ? 'no-referrer' : 'strict-origin-when-cross-origin');
+  c.header('Referrer-Policy', path === '/login/desktop' || path === '/login/desktop-phone' || path === '/login/desktop-challenge' || path === EMBEDDED_CHALLENGE_PATH || path === `${EMBEDDED_CHALLENGE_PATH}.js` || path === V3_WEBVIEW_CHALLENGE_PATH || path === `${V3_WEBVIEW_CHALLENGE_PATH}.js` || path === V3_BROWSER_CHALLENGE_PATH || path === `${V3_BROWSER_CHALLENGE_PATH}.js` || isDesktopAuthPath(path) || path.startsWith(`${NATIVE_V2}/`) || path.startsWith(`${NATIVE_V3}/`) ? 'no-referrer' : 'strict-origin-when-cross-origin');
   c.header('Permissions-Policy', 'camera=(self), microphone=(), geolocation=(), payment=()');
   c.header('X-Robots-Tag', 'noindex, nofollow');
   c.header('Cross-Origin-Opener-Policy', 'same-origin');
@@ -1341,7 +1371,11 @@ app.use('*', async (c, next) => {
   // Report-only style violations from browser extensions are expected and harmless.
   c.header(
     'Content-Security-Policy',
-    path === EMBEDDED_CHALLENGE_PATH ? EMBEDDED_CHALLENGE_CSP : [
+    path === EMBEDDED_CHALLENGE_PATH
+      ? EMBEDDED_CHALLENGE_CSP
+      : (path === V3_WEBVIEW_CHALLENGE_PATH || path === V3_BROWSER_CHALLENGE_PATH)
+        ? V3_CHALLENGE_CSP
+        : [
       "default-src 'self'",
       // The bundled barcode decoder uses WebAssembly; do not enable JavaScript unsafe-eval.
       "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://challenges.cloudflare.com https://static.cloudflareinsights.com",
@@ -1412,7 +1446,7 @@ app.use('/api/auth/*', async (c, next) => {
   if (c.req.method === 'OPTIONS' || c.req.method === 'GET') return next();
   // Desktop PKCE has separate atomic D1 budgets and a per-request poll cap.
   // Credential paths below have account-aware budgets; legacy auth retains 8/min.
-  if (isDesktopAuthPath(c.req.path) || isNativeV2Operation(c.req.path)) return next();
+  if (isDesktopAuthPath(c.req.path) || isNativeV2Operation(c.req.path) || c.req.path.startsWith(`${NATIVE_V3}/`)) return next();
   // These exact handlers reserve persistent per-account and shared-IP budgets.
   // Do not apply the old 8/min shared-IP gate on top of those budgets.
   if (hasCredentialAttemptBudget(c.req.path)) return next();
@@ -1444,12 +1478,13 @@ app.use('/api/public/*', async (c, next) => {
 
 /** Never leak SQL / D1 / stack traces — always safe JSON. */
 app.onError(async (err, c) => {
-  if (new URL(c.req.url).pathname.startsWith(`${NATIVE_V2}/`)) {
+  const errPath = new URL(c.req.url).pathname;
+  if (errPath.startsWith(`${NATIVE_V2}/`) || errPath.startsWith(`${NATIVE_V3}/`)) {
     return c.json({ success: false, code: 'UNAVAILABLE', error: 'Connexion indisponible.' }, 503);
   }
   // Authentication errors may contain request secrets; never log their raw exceptions.
-  try { if (!new URL(c.req.url).pathname.startsWith('/api/reports/') && !new URL(c.req.url).pathname.startsWith('/api/auth/') && !new URL(c.req.url).pathname.startsWith(EMBEDDED_CHALLENGE_PATH)) console.error('[onError]', c.get('requestId') || '-', c.req.method, new URL(c.req.url).pathname, String((err as any)?.stack || err || '').slice(0, 500)); } catch { /* */ }
-  const safe = toClientError(err, { log: !new URL(c.req.url).pathname.startsWith('/api/auth/') && !new URL(c.req.url).pathname.startsWith(EMBEDDED_CHALLENGE_PATH) });
+  try { if (!errPath.startsWith('/api/reports/') && !errPath.startsWith('/api/auth/') && !errPath.startsWith(EMBEDDED_CHALLENGE_PATH) && !errPath.startsWith(V3_WEBVIEW_CHALLENGE_PATH) && !errPath.startsWith(V3_BROWSER_CHALLENGE_PATH)) console.error('[onError]', c.get('requestId') || '-', c.req.method, errPath, String((err as any)?.stack || err || '').slice(0, 500)); } catch { /* */ }
+  const safe = toClientError(err, { log: !errPath.startsWith('/api/auth/') && !errPath.startsWith(EMBEDDED_CHALLENGE_PATH) && !errPath.startsWith(V3_WEBVIEW_CHALLENGE_PATH) && !errPath.startsWith(V3_BROWSER_CHALLENGE_PATH) });
   // v243.4: SQLITE_CORRUPT(_VTAB) on this app almost always means the
   // products_fts FTS5 shadow pages — derived data we can rebuild ourselves.
   // Heal now, tell the client to retry; a TimeTravel restore is NOT needed.
@@ -2112,85 +2147,141 @@ function otpEmailHTML(
     verifyUrl?: string;
   },
 ): string {
+  const esc = (s: string) =>
+    String(s || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  const safeOtp = esc(otp.trim());
+  const safeResource = esc(resourceLabel);
+  const safeCompany = esc(companyName || 'Atlas Commerce');
   const isLogin = purpose === 'login';
   const tag = isLogin ? 'VÉRIFICATION DE CONNEXION' : 'VÉRIFICATION DU COMPTE';
   const h1 = isLogin
     ? 'Confirmez cette connexion pour sécuriser votre'
     : 'Confirmez votre e-mail pour sécuriser votre';
   const intro = isLogin
-    ? 'Une nouvelle connexion vient d’être demandée sur votre compte. Confirmez-la en tapant le code ci-dessous, ou en un seul tap sur le bouton.'
-    : `Une opération sensible concernant ${resourceLabel} nécessite votre confirmation. Utilisez le code ci-dessous depuis l’application.`;
+    ? 'Une nouvelle connexion vient d’être demandée sur votre compte. Saisissez le code de vérification ci-dessous, ou appuyez sur le bouton.'
+    : `Une opération sensible concernant ${safeResource} nécessite votre confirmation. Utilisez le code de vérification ci-dessous depuis l’application.`;
   const ORANGE = '#c45c26'; /* terracotta Atlas */
-  const SALMON = '#d4a017'; /* saffron Atlas */
-  // v0.7.2 — le mail suit le thème du serveur : palette zinc sombre de l'app.
-  const CANVAS = '#09090b'; /* zinc-950 */
-  const CARD = '#18181b'; /* zinc-900 */
-  const LINE = '#27272a'; /* zinc-800 */
-  const INK = '#fafafa'; /* zinc-50 */
-  const VAL = '#e4e4e7'; /* zinc-200 */
-  const GREY = '#a1a1aa'; /* zinc-400 */
-  const FAINT = '#71717a'; /* zinc-500 */
+  const LIGHT_TAG = '#9a461c';
+  const DARK_SALMON = '#d4a017';
+  const LIGHT_CANVAS = '#f4f4f5';
+  const LIGHT_CARD = '#ffffff';
+  const LIGHT_LINE = '#e4e4e7';
+  const LIGHT_INK = '#09090b';
+  const LIGHT_VAL = '#18181b';
+  const LIGHT_GREY = '#52525b';
+  const LIGHT_FAINT = '#71717a';
+  const DARK_CANVAS = '#09090b';
+  const DARK_CARD = '#18181b';
+  const DARK_LINE = '#27272a';
+  const DARK_INK = '#fafafa';
+  const DARK_VAL = '#e4e4e7';
+  const DARK_GREY = '#a1a1aa';
+  const DARK_FAINT = '#71717a';
   const rows = [
-    meta?.username ? ['Compte', meta.username] : null,
-    meta?.ip ? ['Adresse IP', meta.ip] : null,
-    meta?.ua ? ['Appareil', meta.ua.slice(0, 120)] : null,
-    meta?.fingerprint ? ['Empreinte', meta.fingerprint.slice(0, 24)] : null,
+    meta?.username ? ['Compte', esc(meta.username)] : null,
+    meta?.ip ? ['Adresse IP', esc(meta.ip)] : null,
+    meta?.ua ? ['Appareil', esc(meta.ua.slice(0, 120))] : null,
+    meta?.fingerprint ? ['Empreinte', esc(meta.fingerprint.slice(0, 24))] : null,
   ].filter(Boolean) as [string, string][];
-  // v0.7.2 — tableau role=presentation : les clients mail (Gmail…) cassent
-  // display:flex et collaient libellé + valeur (« Compteadmin »).
+  // tableau role=presentation : évite que Gmail colle libellé et valeur.
   const deviceBlock = rows.length
-    ? `<div style="margin:26px 0 0;background:${CARD};border:1px solid ${LINE};border-radius:12px;padding:10px 16px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">${rows
+    ? `<div class="ac-mail-card" style="margin:24px 0 0;background:${LIGHT_CARD};border:1px solid ${LIGHT_LINE};border-radius:12px;padding:10px 16px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">${rows
         .map(
           ([k, v]) =>
-            `<tr><td style="padding:5px 14px 5px 0;font-size:12px;color:${GREY};white-space:nowrap;vertical-align:top">${k}</td><td style="padding:5px 0;font-size:12px;font-weight:600;color:${VAL};text-align:right;word-break:break-word">${v}</td></tr>`,
+            `<tr><td class="ac-mail-muted" style="padding:5px 14px 5px 0;font-size:12px;color:${LIGHT_GREY};white-space:nowrap;vertical-align:top;text-align:left">${k}</td><td class="ac-mail-val" style="padding:5px 0;font-size:12px;font-weight:600;color:${LIGHT_VAL};text-align:right;word-break:break-word">${v}</td></tr>`,
         )
         .join('')}</table></div>`
     : '';
   const button = meta?.verifyUrl
-    ? `<a href="${meta.verifyUrl}" style="display:block;width:100%;box-sizing:border-box;background:${ORANGE};border-radius:10px;padding:18px 12px;text-align:center;color:#ffffff;font-size:15px;font-weight:800;letter-spacing:1.5px;text-decoration:none;text-transform:uppercase">Vérifier &amp; continuer</a>`
+    ? `<a href="${esc(meta.verifyUrl)}" style="display:block;width:100%;box-sizing:border-box;background:${ORANGE};border-radius:10px;padding:16px 12px;text-align:center;color:#ffffff;font-size:15px;font-weight:800;letter-spacing:1.2px;text-decoration:none;text-transform:uppercase">Vérifier &amp; continuer</a>`
     : '';
   const social = (href: string, d: string) =>
-    `<a href="${href}" style="display:inline-block;margin-left:14px;text-decoration:none"><svg width="17" height="17" viewBox="0 0 24 24" fill="#6b7280" xmlns="http://www.w3.org/2000/svg"><path d="${d}"/></svg></a>`;
+    `<a href="${href}" style="display:inline-block;margin-left:14px;text-decoration:none"><svg width="17" height="17" viewBox="0 0 24 24" fill="#71717a" xmlns="http://www.w3.org/2000/svg"><path d="${d}"/></svg></a>`;
   return `<!doctype html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${tag}</title></head>
-<body style="margin:0;padding:0;background:${CANVAS};font-family:-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;color:${INK}">
-  <div style="display:none;max-height:0;overflow:hidden">Votre code : ${otp}</div>
-  <div style="max-width:600px;margin:0 auto;padding:38px 22px 30px;text-align:center">
-    <img src="https://stock.afmarbre.com/atlas-logo-dark.png" alt="Atlas" width="173" height="56" style="display:block;height:42px;width:auto;max-width:100%;margin:0 auto" />
-    <div style="height:34px"></div>
-    <div style="font-size:12px;font-weight:800;letter-spacing:2px;color:${SALMON};text-transform:uppercase">${tag}</div>
-    <h1 style="margin:14px 0 0;font-size:33px;line-height:1.18;font-weight:800;color:${INK}">${h1} <em style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-weight:600;color:${SALMON}">compte</em></h1>
-    <p style="margin:18px auto 0;max-width:420px;font-size:15px;line-height:1.7;color:${GREY}">${intro}</p>
-    <div style="margin:30px 0 0;background:${CARD};border:1px solid ${LINE};border-radius:12px;padding:30px 16px">
-      <div style="font-size:34px;font-weight:800;letter-spacing:3px;color:${VAL}">${otp}</div>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>${safeOtp} — ${tag}</title>
+<style>
+  :root { color-scheme: light dark; supported-color-schemes: light dark; }
+  .ac-logo-dark { display: none !important; }
+  .ac-logo-light { display: block !important; }
+  @media (prefers-color-scheme: dark) {
+    .ac-mail-body, .ac-mail-canvas { background-color: ${DARK_CANVAS} !important; color: ${DARK_INK} !important; }
+    .ac-mail-card { background-color: ${DARK_CARD} !important; border-color: ${DARK_LINE} !important; }
+    .ac-mail-ink, .ac-otp-code { color: ${DARK_INK} !important; }
+    .ac-mail-val { color: ${DARK_VAL} !important; }
+    .ac-mail-muted { color: ${DARK_GREY} !important; }
+    .ac-mail-faint { color: ${DARK_FAINT} !important; }
+    .ac-mail-tag, .ac-mail-em { color: ${DARK_SALMON} !important; }
+    .ac-logo-pill { background-color: ${DARK_CARD} !important; background-image: none !important; border-color: ${DARK_LINE} !important; }
+    .ac-logo-light { display: none !important; }
+    .ac-logo-dark { display: block !important; }
+    .ac-mail-footer { background-color: #0b0b0d !important; border-top-color: ${DARK_LINE} !important; }
+    .ac-mail-footer-ink { color: #a1a1aa !important; }
+  }
+  [data-ogsc] .ac-mail-body, [data-ogsc] .ac-mail-canvas, [data-ogsb] .ac-mail-body, [data-ogsb] .ac-mail-canvas { background-color: ${DARK_CANVAS} !important; color: ${DARK_INK} !important; }
+  [data-ogsc] .ac-mail-card, [data-ogsb] .ac-mail-card { background-color: ${DARK_CARD} !important; border-color: ${DARK_LINE} !important; }
+  [data-ogsc] .ac-mail-ink, [data-ogsc] .ac-otp-code { color: ${DARK_INK} !important; }
+  [data-ogsc] .ac-mail-val { color: ${DARK_VAL} !important; }
+  [data-ogsc] .ac-mail-muted { color: ${DARK_GREY} !important; }
+  [data-ogsc] .ac-mail-faint { color: ${DARK_FAINT} !important; }
+  [data-ogsc] .ac-mail-tag, [data-ogsc] .ac-mail-em { color: ${DARK_SALMON} !important; }
+  [data-ogsc] .ac-logo-pill, [data-ogsb] .ac-logo-pill { background-color: ${DARK_CARD} !important; background-image: none !important; border-color: ${DARK_LINE} !important; }
+  [data-ogsc] .ac-logo-light { display: none !important; }
+  [data-ogsc] .ac-logo-dark { display: block !important; }
+</style>
+</head>
+<body class="ac-mail-body" style="margin:0;padding:0;background-color:${LIGHT_CANVAS};font-family:-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;color:${LIGHT_INK}">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all">Votre code de vérification : ${safeOtp}. Valable 10 minutes.&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;</div>
+  <div class="ac-mail-canvas" style="background-color:${LIGHT_CANVAS};padding:28px 16px 24px">
+    <div style="max-width:580px;margin:0 auto;text-align:center">
+      <div class="ac-logo-pill" style="display:inline-block;padding:10px 18px;border-radius:14px;background-color:${LIGHT_CARD};background-image:linear-gradient(${LIGHT_CARD},${LIGHT_CARD});border:1px solid ${LIGHT_LINE}">
+        <img src="https://stock.afmarbre.com/atlas-logo-light.png" alt="Atlas" class="ac-logo-light" width="148" height="48" style="display:block;height:36px;width:auto;max-width:100%;margin:0 auto" />
+        <!--[if !mso]><!--><img src="https://stock.afmarbre.com/atlas-logo-dark.png" alt="Atlas" class="ac-logo-dark" width="148" height="48" style="display:none;height:36px;width:auto;max-width:100%;margin:0 auto" /><!--<![endif]-->
+      </div>
+      <div style="height:26px"></div>
+      <div class="ac-mail-tag" style="font-size:12px;font-weight:800;letter-spacing:2px;color:${LIGHT_TAG};text-transform:uppercase">${tag}</div>
+      <h1 class="ac-mail-ink" style="margin:12px 0 0;font-size:30px;line-height:1.2;font-weight:800;color:${LIGHT_INK}">${h1} <em class="ac-mail-em" style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-weight:600;color:${ORANGE}">compte</em></h1>
+      <p class="ac-mail-muted" style="margin:16px auto 0;max-width:440px;font-size:15px;line-height:1.65;color:${LIGHT_GREY}">${intro}</p>
+      <div class="ac-mail-card" style="margin:26px 0 0;background:${LIGHT_CARD};border:1px solid ${LIGHT_LINE};border-radius:14px;padding:24px 16px">
+        <div class="ac-mail-muted" style="font-size:12px;font-weight:600;letter-spacing:0.6px;text-transform:uppercase;color:${LIGHT_GREY};margin-bottom:8px">Votre code de vérification</div>
+        <code class="ac-otp-code" style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:36px;font-weight:800;letter-spacing:6px;font-variant-numeric:tabular-nums;color:${LIGHT_INK};background:transparent;display:inline-block;user-select:all;-webkit-user-select:all">${safeOtp}</code>
+      </div>
+      ${button ? `<div style="margin:20px 0 0">${button}</div>` : ''}
+      ${deviceBlock}
+      <p class="ac-mail-muted" style="margin:24px auto 0;max-width:400px;font-size:14px;line-height:1.6;color:${LIGHT_GREY}">Vous n’êtes pas à l’origine de cette demande ? Ignorez simplement ce message.</p>
+      <p class="ac-mail-faint" style="margin:8px auto 0;max-width:440px;font-size:12px;line-height:1.6;color:${LIGHT_FAINT}">Code à usage unique, valable 10 minutes. Ne le partagez jamais, y compris avec un membre de votre équipe. · ${safeCompany}</p>
     </div>
-    <div style="margin:22px 0 0">${button}</div>
-    ${deviceBlock}
-    <p style="margin:28px auto 0;max-width:380px;font-size:14px;line-height:1.65;color:${GREY}">Vous n’êtes pas à l’origine de cette demande ? Ignorez simplement ce message.</p>
-    <p style="margin:10px auto 0;max-width:420px;font-size:12px;line-height:1.6;color:${FAINT}">Code à usage unique, valable 10 minutes. Ne le partagez jamais, y compris avec un membre de votre équipe. · ${companyName}</p>
   </div>
-  <div style="background:#0b0b0d;padding:34px 22px 30px;text-align:center">
-    <div style="max-width:600px;margin:0 auto">
+  <div class="ac-mail-footer" style="background-color:${LIGHT_CARD};border-top:1px solid ${LIGHT_LINE};padding:26px 22px 24px;text-align:center">
+    <div style="max-width:580px;margin:0 auto">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-        <div style="display:flex;align-items:center;gap:9px;font-size:19px;font-weight:800;color:#9aa2b1"><span style="font-size:22px">🏬</span>Atlas</div>
+        <div class="ac-mail-footer-ink" style="display:flex;align-items:center;gap:9px;font-size:18px;font-weight:800;color:${LIGHT_GREY}">Atlas</div>
         <div style="white-space:nowrap">${social('https://www.facebook.com/', 'M22 12a10 10 0 1 0-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.4h-1.2c-1.2 0-1.6.8-1.6 1.6V12h2.7l-.4 2.9h-2.3v7A10 10 0 0 0 22 12Z')}
 ${social('https://x.com/', 'M18.9 2H22l-6.8 7.8L23.2 22h-6.3l-4.9-6.4L6.4 22H3.3l7.3-8.3L1 2h6.4l4.4 5.9L18.9 2Zm-1.1 18h1.7L7.7 3.9H5.9L17.8 20Z')}
 ${social('https://www.linkedin.com/', 'M20.4 20.4h-3.6v-5.6c0-1.3 0-3-1.9-3s-2.1 1.4-2.1 2.9v5.7H9.4V9h3.4v1.6h.1c.5-.9 1.6-1.9 3.4-1.9 3.6 0 4.3 2.4 4.3 5.5v6.2ZM5.3 7.4a2.1 2.1 0 1 1 0-4.2 2.1 2.1 0 0 1 0 4.2Zm1.8 13H3.5V9h3.6v11.4Z')}
 ${social('https://www.youtube.com/', 'M23 12s0-3.9-.5-5.7c-.3-1-1.1-1.8-2.1-2.1C18.6 3.7 12 3.7 12 3.7s-6.6 0-8.4.5c-1 .3-1.8 1.1-2.1 2.1C1 8.1 1 12 1 12s0 3.9.5 5.7c.3 1 1.1 1.8 2.1 2.1 1.8.5 8.4.5 8.4.5s6.6 0 8.4-.5c1-.3 1.8-1.1 2.1-2.1.5-1.8.5-5.7.5-5.7ZM9.8 15.5v-7l6 3.5-6 3.5Z')}
 ${social('https://www.instagram.com/', 'M12 2.2c3.2 0 3.6 0 4.9.1 1.2.1 1.9.2 2.3.4.6.2 1 .5 1.4.9.4.4.7.8.9 1.4.2.4.4 1.1.4 2.3.1 1.3.1 1.7.1 4.9s0 3.6-.1 4.9c-.1 1.2-.2 1.9-.4 2.3-.2.6-.5 1-.9 1.4-.4.4-.8.7-1.4.9-.4.2-1.1.4-2.3.4-1.3.1-1.7.1-4.9.1s-3.6 0-4.9-.1c-1.2-.1-1.9-.2-2.3-.4-.6-.2-1-.5-1.4-.9-.4-.4-.7-.8-.9-1.4-.2-.4-.4-1.1-.4-2.3-.1-1.3-.1-1.7-.1-4.9s0-3.6.1-4.9c.1-1.2.2-1.9.4-2.3.2-.6.5-1 .9-1.4.4-.4.8-.7 1.4-.9.4-.2 1.1-.4 2.3-.4 1.3-.1 1.7-.1 4.9-.1Zm0 3.8a6 6 0 1 0 0 12 6 6 0 0 0 0-12Zm0 9.9a3.9 3.9 0 1 1 0-7.8 3.9 3.9 0 0 1 0 7.8Zm6.2-10.1a1.4 1.4 0 1 1-2.8 0 1.4 1.4 0 0 1 2.8 0Z')}</div>
       </div>
-      <div style="margin-top:26px;font-size:13px;color:#9aa2b1">
-        <a href="https://stock.afmarbre.com/" style="color:#9aa2b1;text-decoration:underline">Notre blog</a>
-        <span style="margin:0 8px;color:#3a3f4a">|</span>
-        <a href="https://stock.afmarbre.com/" style="color:#9aa2b1;text-decoration:underline">À propos</a>
-        <span style="margin:0 8px;color:#3a3f4a">|</span>
-        <a href="https://stock.afmarbre.com/" style="color:#9aa2b1;text-decoration:underline">Contact</a>
-        <span style="margin:0 8px;color:#3a3f4a">|</span>
-        <a href="https://stock.afmarbre.com/" style="color:#9aa2b1;text-decoration:underline">Centre d’aide</a>
+      <div class="ac-mail-footer-ink" style="margin-top:20px;font-size:13px;color:${LIGHT_GREY}">
+        <a href="https://stock.afmarbre.com/" style="color:inherit;text-decoration:underline">Accueil</a>
+        <span style="margin:0 8px;opacity:0.45">|</span>
+        <a href="https://stock.afmarbre.com/about" style="color:inherit;text-decoration:underline">À propos</a>
+        <span style="margin:0 8px;opacity:0.45">|</span>
+        <a href="https://stock.afmarbre.com/whats-new" style="color:inherit;text-decoration:underline">Nouveautés</a>
+        <span style="margin:0 8px;opacity:0.45">|</span>
+        <a href="https://stock.afmarbre.com/privacy" style="color:inherit;text-decoration:underline">Confidentialité</a>
       </div>
-      <div style="margin-top:14px;font-size:12px;line-height:1.6;color:#7c8494">Atlas — stock.afmarbre.com<br/>© ${new Date().getUTCFullYear()} Etherealmber · MIT ou Apache-2.0</div>
-      <div style="margin-top:10px"><a href="https://stock.afmarbre.com/settings" style="font-size:12px;color:#9aa2b1;text-decoration:underline">Se désabonner</a></div>
+      <div class="ac-mail-faint" style="margin-top:12px;font-size:12px;line-height:1.6;color:${LIGHT_FAINT}">Atlas — stock.afmarbre.com<br/>© ${new Date().getUTCFullYear()} Etherealmber · MIT ou Apache-2.0</div>
+      <div style="margin-top:8px"><a href="https://stock.afmarbre.com/settings" class="ac-mail-footer-ink" style="font-size:12px;color:${LIGHT_GREY};text-decoration:underline">Paramètres du compte</a></div>
     </div>
   </div>
 </body>
@@ -2919,11 +3010,11 @@ export default {
       try {
         return await app.fetch(request, env, ctx);
       } catch (err: any) {
-        if (!url.pathname.startsWith('/api/reports/') && !url.pathname.startsWith(`${NATIVE_V2}/`)) console.error('api_fetch_fatal', String(err?.message || err));
+        if (!url.pathname.startsWith('/api/reports/') && !url.pathname.startsWith(`${NATIVE_V2}/`) && !url.pathname.startsWith(`${NATIVE_V3}/`)) console.error('api_fetch_fatal', String(err?.message || err));
         return new Response(
           JSON.stringify({
             success: false,
-            error: url.pathname.startsWith('/api/reports/') ? 'Rapport indisponible' : url.pathname.startsWith(`${NATIVE_V2}/`) ? 'Connexion indisponible' : String(err?.message || 'Erreur interne').slice(0, 300),
+            error: url.pathname.startsWith('/api/reports/') ? 'Rapport indisponible' : (url.pathname.startsWith(`${NATIVE_V2}/`) || url.pathname.startsWith(`${NATIVE_V3}/`)) ? 'Connexion indisponible' : String(err?.message || 'Erreur interne').slice(0, 300),
             code: 'INTERNAL_ERROR',
           }),
           { status: 500, headers: { 'Content-Type': 'application/json' } }

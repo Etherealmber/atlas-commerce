@@ -1,10 +1,34 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import type { Env } from '../env';
 import { schemaOnce, addColumnIfMissing } from './schema';
 import { normalizeIp } from './security';
 import { normalizeRole } from './rbac';
 import { reserveCredentialAttempt, type CredentialAttemptPurpose } from './credential-attempt-limits';
 import { parseNativePilotToken, validateNativePilotToken } from './desktop-native-session';
+import { parseDesktopV3Token, validateDesktopV3AccessToken } from './desktop-v3-session';
 import { sha256Hex } from './ledgerHelpers';
+
+export type RequestAuthContext = {
+  dpopHeader?: string;
+  method?: string;
+  requestUrl?: string;
+  verifiedNv3?: {
+    token: string;
+    dpopHeader: string;
+    method: string;
+    target: string;
+    sessionId: string;
+    username: string;
+    role: string;
+    thumbprint: string;
+  };
+};
+
+const requestAuthStorage = new AsyncLocalStorage<RequestAuthContext>();
+
+export function runWithRequestAuthContext<T>(ctx: RequestAuthContext, fn: () => T): T {
+  return requestAuthStorage.run(ctx, fn);
+}
 
 export function cfGeo(c: any): { city: string; country: string } {
   const cf = (c?.req?.raw as any)?.cf || {};
@@ -684,11 +708,61 @@ export async function authFailReason(
   db: D1Database,
   ip: string,
   fingerprint: string | undefined,
-  opts?: { relaxSession?: boolean; allowRoleRefresh?: boolean },
+  opts?: { relaxSession?: boolean; allowRoleRefresh?: boolean; dpopHeader?: string; method?: string; requestUrl?: string },
 ): Promise<string> {
   if (!authHeader?.startsWith('Bearer ')) return 'missing';
-  if (authHeader.slice(7).startsWith('np1.')) return await validateNativePilotToken(env, authHeader.slice(7), nativeCurrentIdentity) ? 'ok' : 'bad_token';
-  const parsed = parseToken(authHeader.slice(7));
+  const rawToken = authHeader.slice(7);
+  if (rawToken.startsWith('np1.')) return await validateNativePilotToken(env, rawToken, nativeCurrentIdentity) ? 'ok' : 'bad_token';
+  if (rawToken.startsWith('nv3.')) {
+    if (opts?.relaxSession || opts?.allowRoleRefresh) return 'bad_token';
+    const ctx = requestAuthStorage.getStore();
+    const dpopHeader = opts?.dpopHeader ?? ctx?.dpopHeader;
+    const method = opts?.method ?? ctx?.method;
+    const requestUrl = opts?.requestUrl ?? ctx?.requestUrl;
+    if (!dpopHeader || !method || !requestUrl) return 'bad_token';
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(requestUrl);
+    } catch {
+      return 'bad_token';
+    }
+    if (parsedUrl.protocol !== 'https:') return 'bad_token';
+    const normalizedMethod = method.toUpperCase();
+    const target = `${parsedUrl.origin}${parsedUrl.pathname}`;
+    const alreadyVerifiedProof = !!(
+      ctx?.verifiedNv3 &&
+      ctx.verifiedNv3.token === rawToken &&
+      ctx.verifiedNv3.dpopHeader === dpopHeader &&
+      ctx.verifiedNv3.method === normalizedMethod &&
+      ctx.verifiedNv3.target === target
+    );
+    const verified = await validateDesktopV3AccessToken(env, rawToken, {
+      origin: parsedUrl.origin,
+      method: normalizedMethod,
+      target,
+      dpopHeader,
+      skipDpopReplayInsert: alreadyVerifiedProof,
+      currentIdentity: nativeCurrentIdentity,
+    });
+    if (!verified.ok) {
+      if (ctx?.verifiedNv3?.token === rawToken) delete ctx.verifiedNv3;
+      return verified.reason;
+    }
+    if (ctx) {
+      ctx.verifiedNv3 = {
+        token: rawToken,
+        dpopHeader,
+        method: normalizedMethod,
+        target,
+        sessionId: verified.sessionId,
+        username: verified.username,
+        role: verified.role,
+        thumbprint: verified.thumbprint,
+      };
+    }
+    return 'ok';
+  }
+  const parsed = parseToken(rawToken);
   if (!parsed) return 'bad_token';
 
   let roleChanged = false;
@@ -782,9 +856,12 @@ export async function requireOwnerOrAdmin(c: any): Promise<{ ok: true } | { ok: 
 export function sessionUserFromHeader(authHeader: string | undefined): { username: string; role: string } {
   const ANONYMOUS = { username: '', role: '' };
   if (!authHeader?.startsWith('Bearer ')) return ANONYMOUS;
-  const native = parseNativePilotToken(authHeader.slice(7));
+  const rawToken = authHeader.slice(7);
+  const native = parseNativePilotToken(rawToken);
   if (native) return native; // only after the global authentication gate verifies its full hash
-  const parsed = parseToken(authHeader.slice(7));
+  const nativeV3 = parseDesktopV3Token(rawToken);
+  if (nativeV3) return nativeV3; // only after authFailReason verifies token + DPoP proof
+  const parsed = parseToken(rawToken);
   if (!parsed) return ANONYMOUS;
   if (parsed.version === 2) {
     return { username: parsed.username || '', role: parsed.role || '' };

@@ -99,7 +99,7 @@ export async function dispatchWebhook(env: any, ctx: any, event: string, payload
 
 /* CODE128-B barcode → SVG paths (compact implementation) */
 const C128_PATTERNS = ['11011001100','11001101100','11001100110','10010011000','10010001100','10001001100','10011001000','10011000100','10001100100','11001001000','11001000100','11000100100','10110011100','10011011100','10011001110','10111001100','10011101100','10011100110','11001110010','11001011100','11001001110','11011100100','11001110100','11101101110','11101001100','11100101100','11100100110','11101100100','11100110100','11100110010','11011011000','11011000110','11000110110','10100011000','10001011000','10001000110','10110001000','10001101000','10001100010','11010001000','11000101000','11000100010','10110111000','10110001110','10001101110','10111011000','10111000110','10001110110','11101110110','11010001110','11000101110','11011101000','11011100010','11011101110','11101011000','11101000110','11100010110','11101101000','11101100010','11100011010','11101011110','11101110100','11101110010','11011011110','11110101110','11110111010','11101011110','11110101110','11110111010','11010011110','11011110100','11011110010','11110110100','11110110010','11011110110','11110101100','11110100110','11110010110','11110011010','11011011110','11011110110','11110110110','10101111000','10100011110','10001011110','10111101000','10111100010','11110101000','11110100010','10111011110','10111101110','11101011110','11110101110'];
-function code128Svg(text: string, height = 46): string {
+function code128Svg(text: string, height = 46, maxWidth?: number): string {
   const vals: number[] = [104];
   for (const ch of text) vals.push(Math.max(0, Math.min(94, ch.charCodeAt(0) - 32)));
   let sum = 104;
@@ -107,14 +107,28 @@ function code128Svg(text: string, height = 46): string {
   vals.push(sum % 103, 106);
   let bits = '';
   for (const v of vals) bits += C128_PATTERNS[v] || C128_PATTERNS[0];
-  let x = 0;
   let rects = '';
   bits.split('').forEach((b, i) => {
     if (b === '1') rects += `<rect x="${i * 2}" y="0" width="2" height="${height}"/>`;
-    x = i;
   });
-  void x;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${bits.length * 2} ${height}" width="${bits.length * 2}" height="${height}" fill="#0a0a0a">${rects}</svg>`;
+  const naturalW = bits.length * 2;
+  const displayW = maxWidth ? Math.min(naturalW, maxWidth) : naturalW;
+  const aspect = maxWidth && naturalW > maxWidth ? ' preserveAspectRatio="none"' : '';
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${naturalW} ${height}" width="${displayW}" height="${height}"${aspect} fill="#0a0a0a">${rects}</svg>`;
+}
+
+function positionNestedSvg(rawSvg: string, x: number, y: number, width?: number, height?: number): string {
+  const clean = rawSvg.replace(/^\s*(?:<\?xml[\s\S]*?\?>\s*)+/i, '').trim();
+  return clean.replace(/^<svg\b([^>]*)>/i, (_m, attrs: string) => {
+    let next = String(attrs || '');
+    next = next.replace(/\s+x="[^"]*"/gi, '').replace(/\s+y="[^"]*"/gi, '');
+    if (width !== undefined) next = next.replace(/\s+width="[^"]*"/gi, '');
+    if (height !== undefined) next = next.replace(/\s+height="[^"]*"/gi, '');
+    const sizeAttrs =
+      (width !== undefined ? ` width="${width}"` : '') +
+      (height !== undefined ? ` height="${height}"` : '');
+    return `<svg x="${x}" y="${y}"${sizeAttrs}${next}>`;
+  });
 }
 
 const PIPELINE = ['pending', 'approved', 'shipped', 'delivered'];
@@ -389,7 +403,7 @@ export function registerAtlasV209Routes(app: AtlasApp, deps: V209Deps): void {
     const code = String(p.barcode || p.sku || `P${p.id}`);
     const origin = new URL(c.req.url).origin;
     const qr = qrToSvg(`${origin}/scan?code=${encodeURIComponent(code)}`, 88, 2);
-    const barcode = code128Svg(code, 40);
+    const barcode = code128Svg(code, 42, 194);
     const settings = await db.prepare(`SELECT * FROM company_settings WHERE id = 1`).first() as any;
     const cur = String(settings?.currency || settings?.finance_currency || 'MAD');
     const dec = getCurrencySpec(cur).invoiceDecimals;
@@ -397,15 +411,18 @@ export function registerAtlasV209Routes(app: AtlasApp, deps: V209Deps): void {
     const priceText = canSeePrice
       ? `${roundCurrency(Number(p.price || 0), cur, 'invoice').toLocaleString('fr-FR', { minimumFractionDigits: dec, maximumFractionDigits: dec })} ${escapeHtml(cur)}`
       : '';
+    const subParts = [code, String(p.unit || ''), p.location ? String(p.location) : ''].filter(Boolean).join(' · ');
+    const qrNested = positionNestedSvg(qr, 218, 46, 88, 88);
+    const barcodeNested = positionNestedSvg(barcode, 12, 106);
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180">
 <rect width="320" height="180" fill="#ffffff" stroke="#d4d4d8"/>
-<text x="12" y="26" font-family="sans-serif" font-size="15" font-weight="700" fill="#0a0a0a">${escapeHtml(String(p.name || '')).slice(0, 34)}</text>
-<text x="12" y="44" font-family="sans-serif" font-size="11" fill="#52525b">${escapeHtml(code)} · ${escapeHtml(String(p.unit || ''))}${p.location ? ` · ${escapeHtml(String(p.location))}` : ''}</text>
-${priceText ? `<text x="12" y="76" font-family="sans-serif" font-size="22" font-weight="800" fill="#0a0a0a">${priceText}</text>` : ''}
-<g transform="translate(220,52)">${qr.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '')}</g>
-<g transform="translate(12,120)">${barcode}</g>
-<text x="12" y="172" font-family="monospace" font-size="10" fill="#0a0a0a">${escapeHtml(code)}</text>
+<text x="12" y="24" font-family="sans-serif" font-size="15" font-weight="700" fill="#0a0a0a">${escapeHtml(String(p.name || '')).slice(0, 32)}</text>
+<text x="12" y="41" font-family="sans-serif" font-size="11" fill="#52525b">${escapeHtml(subParts.slice(0, 34))}</text>
+${priceText ? `<text x="12" y="76" font-family="sans-serif" font-size="20" font-weight="800" fill="#0a0a0a">${priceText}</text>` : ''}
+${qrNested}
+${barcodeNested}
+<text x="12" y="166" font-family="monospace" font-size="10" fill="#0a0a0a">${escapeHtml(code)}</text>
 </svg>`;
-    return c.text(svg, 200, { 'content-type': 'image/svg+xml' });
+    return c.text(svg, 200, { 'content-type': 'image/svg+xml; charset=utf-8' });
   });
 }

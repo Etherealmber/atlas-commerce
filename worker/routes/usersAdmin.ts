@@ -550,7 +550,8 @@ app.get('/api/me/avatar', async (c) => {
  *  marqué « reprenable » 30 j pour le MÊME compte → reconnexion mot de passe seul
  *  (2FA désactivée). Un appareil révoqué ou un autre compte restent exclus. */
 app.post('/api/auth/logout', async (c) => {
-  if (c.req.header('Authorization')?.slice(7).startsWith('np1.')) return c.json({ success: false, code: 'USE_NATIVE_LOGOUT', error: 'Utilisez la déconnexion native.' }, 400);
+  const tok = c.req.header('Authorization')?.slice(7) || '';
+  if (tok.startsWith('np1.') || tok.startsWith('nv3.')) return c.json({ success: false, code: 'USE_NATIVE_LOGOUT', error: 'Utilisez la déconnexion native.' }, 400);
   const fingerprint = String(c.req.header('X-Device-Fingerprint') || '').slice(0, 128);
   const sess = sessionUserFromHeader(c.req.header('Authorization'));
   await ensureSecurityTables(c.env.DB);
@@ -580,7 +581,7 @@ app.post('/api/auth/logout', async (c) => {
 // reject it, including print/report paths, until a current token is issued.
 app.post('/api/auth/role-refresh', async (c) => {
   const header = c.req.header('Authorization');
-  if (!header?.startsWith('Bearer ') || header.slice(7).startsWith('np1.')) return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Session invalide' }, 401);
+  if (!header?.startsWith('Bearer ') || header.slice(7).startsWith('np1.') || header.slice(7).startsWith('nv3.')) return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Session invalide' }, 401);
   const token = parseToken(header.slice(7));
   if (!token || token.version !== 2) return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Session invalide' }, 401);
   // Verify again here: do not rely on an unverified routing identity or body.
@@ -619,8 +620,12 @@ app.get('/api/auth/me', async (c) => {
   const session = sessionUserFromHeader(c.req.header('Authorization'));
   // v243.2 — every active device (web/phone/desktop) keeps its IP & app version up to date immediately.
   try {
-    const isPilot = !!c.req.header('Authorization')?.slice(7).startsWith('np1.');
-    await touchTrustedDevice(c.env.DB, session.username, fp || '', ip, c.req.header('User-Agent') || '', cfGeo(c), isPilot ? { updateOnly: true } : undefined);
+    const tok = c.req.header('Authorization')?.slice(7) || '';
+    const isPilot = tok.startsWith('np1.');
+    const isNativeV3 = tok.startsWith('nv3.');
+    if (!isNativeV3) {
+      await touchTrustedDevice(c.env.DB, session.username, fp || '', ip, c.req.header('User-Agent') || '', cfGeo(c), isPilot ? { updateOnly: true } : undefined);
+    }
   } catch { /* best-effort */ }
   const ownerUser = getOwnerUsername(c.env);
   const rep = await getReputation(c.env.DB, ip).catch(() => ({ score: 50 })) as any;
@@ -664,6 +669,7 @@ app.get('/api/auth/me', async (c) => {
       };
     }
   }
+  const nativeV3Session = (c.req.header('Authorization')?.slice(7) || '').startsWith('nv3.');
   return c.json({
     success: true,
     data: {
@@ -673,15 +679,19 @@ app.get('/api/auth/me', async (c) => {
       role: session.role,
       is_owner: session.role === 'owner' || session.role === 'admin',
       reputationScore: rep.score,
-      token: await makeTokenV2(
-        session.username,
-        session.role,
-        session.username === ownerUser
-          ? await sha256Hex(`owner-key|${session.username}|${normalizePassword(getPassword(c.env))}`)
-          : String((await c.env.DB.prepare(`SELECT password_hash FROM app_users WHERE username = ?`).bind(session.username).first() as any)?.password_hash || ''),
-        ip,
-        fp || 'none',
-      ),
+      ...(nativeV3Session
+        ? {}
+        : {
+            token: await makeTokenV2(
+              session.username,
+              session.role,
+              session.username === ownerUser
+                ? await sha256Hex(`owner-key|${session.username}|${normalizePassword(getPassword(c.env))}`)
+                : String((await c.env.DB.prepare(`SELECT password_hash FROM app_users WHERE username = ?`).bind(session.username).first() as any)?.password_hash || ''),
+              ip,
+              fp || 'none',
+            ),
+          }),
       ...profile,
     },
   });

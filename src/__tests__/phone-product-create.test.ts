@@ -36,8 +36,13 @@ it('includes a selected photo in a direct product write', async () => {
   const create = vi.spyOn(api, 'createProduct').mockResolvedValue({ data: { id: 1 } }); const done = await render(); fill();
   const input = form().querySelector<HTMLInputElement>('[name="photo"]')!;
   const dt = new DataTransfer(); dt.items.add(new File(['image'], 'photo.png', { type: 'image/png' })); input.files = dt.files;
-  await act(async () => { form().dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); await new Promise(resolve => setTimeout(resolve, 10)); });
-  expect(create).toHaveBeenCalledWith(expect.objectContaining({ image_url: expect.stringMatching(/^data:image\/png;base64,/) })); expect(done).toHaveBeenCalledWith(true);
+  await act(async () => {
+    form().dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => {
+      expect(create).toHaveBeenCalledWith(expect.objectContaining({ image_url: expect.stringMatching(/^data:image\/png;base64,/) }));
+      expect(done).toHaveBeenCalledWith(true);
+    });
+  });
 });
 it('includes an optional carton-to-area conversion in a price-free request', async () => {
   localStorage.setItem('stock_role', 'stock');
