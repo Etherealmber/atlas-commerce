@@ -259,6 +259,8 @@ export default function Settings() {
   const [auditStats, setAuditStats] = useState<any>(null);
   const [payrollRates, setPayrollRates] = useState<any>(null);
   const [payrollSaving, setPayrollSaving] = useState(false);
+  const [fecAccounts, setFecAccounts] = useState<any[] | null>(null);
+  const [fecSaving, setFecSaving] = useState(false);
   const AUDIT_PAGE = 80;
 
   const roleLabel = (r: string) => {
@@ -667,6 +669,7 @@ export default function Settings() {
       { id: 'company', label: 'Société', group: 'Entreprise', icon: 'M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6' },
       { id: 'attendance', label: 'Présence', group: 'Entreprise', icon: 'M12 8v4l3 3M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z' },
       { id: 'payroll', label: 'Paie CNSS / AMO', group: 'Entreprise', icon: 'M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6' },
+      ...(isOwner ? [{ id: 'fec', label: 'Plan comptable (FEC)', group: 'Entreprise', icon: 'M4 4h16v16H4zM8 8h8M8 12h8M8 16h5' }] : []),
       { id: 'legal', label: 'Légal', group: 'Entreprise', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M9 13h6M9 17h4' },
       { id: 'invoicing', label: 'Facturation', group: 'Documents', icon: 'M8 2h8a2 2 0 0 1 2 2v16l-3-1.5L12 21l-3-1.5L6 20V4a2 2 0 0 1 2-2z' },
       { id: 'documents', label: 'PDF', group: 'Documents', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6' },
@@ -1755,6 +1758,109 @@ if (loading) return (
                 }}
               >
                 {payrollSaving ? 'Enregistrement…' : 'Enregistrer le barème paie'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+{activeTab === 'fec' && isOwner && (
+        <div className="atlas-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <h2 style={{ margin: 0 }}>Plan comptable FEC (PCGE Maroc)</h2>
+              <p className="muted" style={{ fontSize: 13, margin: '4px 0 0' }}>
+                Comptes utilisés lors de l’export FEC (.zip). Extrait comptable non certifié jusqu’à validation par votre expert-comptable.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="secondary"
+              onClick={async () => {
+                try {
+                  const res = await api.getAccountingAccounts();
+                  setFecAccounts(res.data || []);
+                } catch (e: any) {
+                  flash(e?.message || 'Chargement impossible', 'error');
+                }
+              }}
+            >
+              Charger les comptes
+            </button>
+          </div>
+          {!fecAccounts ? (
+            <div style={{ marginTop: 14 }}>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const res = await api.getAccountingAccounts();
+                    setFecAccounts(res.data || []);
+                  } catch (e: any) {
+                    flash(e?.message || 'Chargement impossible', 'error');
+                  }
+                }}
+              >
+                Afficher &amp; configurer le plan comptable
+              </button>
+            </div>
+          ) : (
+            <div style={{ marginTop: 14 }}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Clé</th>
+                    <th>N° Compte</th>
+                    <th>Libellé</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {fecAccounts.map((acc, idx) => (
+                    <tr key={acc.account_key}>
+                      <td><code>{acc.account_key}</code></td>
+                      <td>
+                        <input
+                          value={acc.code}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setFecAccounts((prev) =>
+                              (prev || []).map((x, i) => (i === idx ? { ...x, code: val } : x)),
+                            );
+                          }}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          value={acc.label}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setFecAccounts((prev) =>
+                              (prev || []).map((x, i) => (i === idx ? { ...x, label: val } : x)),
+                            );
+                          }}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <button
+                type="button"
+                style={{ marginTop: 12 }}
+                disabled={fecSaving}
+                onClick={async () => {
+                  setFecSaving(true);
+                  try {
+                    const res = await api.updateAccountingAccounts(fecAccounts);
+                    setFecAccounts(res.data || fecAccounts);
+                    flash('Plan comptable FEC enregistré');
+                  } catch (e: any) {
+                    flash(e?.message || 'Erreur lors de la sauvegarde', 'error');
+                  } finally {
+                    setFecSaving(false);
+                  }
+                }}
+              >
+                {fecSaving ? 'Enregistrement…' : 'Enregistrer le plan comptable'}
               </button>
             </div>
           )}

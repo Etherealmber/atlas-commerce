@@ -19,7 +19,7 @@ import { friendlyError } from '../lib/errors';
 import { downloadExport } from '../lib/export';
 import { RunActionButton, EXPORT_REPORT_STEPS } from '../components/ui';
 import { draftReorderMessage, demandHint } from '../lib/assist';
-import { canAccessCompanySettings, getRole } from '../auth';
+import { canAccessCompanySettings, getRole, getToken } from '../auth';
 import RefreshIconButton from '../components/RefreshIconButton';
 
 const fmt = (n: number) => Math.round(Number(n || 0)).toLocaleString('fr-FR');
@@ -67,6 +67,9 @@ export default function Reports() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const isOwner = getRole() === 'owner' || canAccessCompanySettings();
+  const isStrictOwner = getRole() === 'owner';
+  const [fecPreview, setFecPreview] = useState<any>(null);
+  const [fecBusy, setFecBusy] = useState(false);
 
   const openHtmlReport = (path: string) => {
     const [p, qs] = path.split('?');
@@ -618,6 +621,70 @@ export default function Reports() {
             </div>
           ) : (
             <p className="muted" style={{ fontSize: 13, margin: 0 }}>Lecture seule — contactez le propriétaire.</p>
+          )}
+        </section>
+
+        <section className="ac-panel">
+          <div className="ac-panel-head">
+            <div>
+              <h2>Export comptable FEC (PCGE)</h2>
+              <span className="ac-panel-sub">
+                Journaux VE (ventes), AC (achats), CA (caisse), BQ (banque), PA (paie), OD · balance de contrôle + manifeste (.zip).
+              </span>
+            </div>
+            <span className="ac-status-pill">Propriétaire</span>
+          </div>
+          <p className="muted" style={{ fontSize: 12.5, marginTop: 0 }}>
+            Extrait comptable au format FEC à destination de votre expert-comptable — non certifié légalement tant qu’il n’est pas validé par votre comptable.
+          </p>
+          {isStrictOwner ? (
+            <>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={fecBusy}
+                  onClick={async () => {
+                    setFecBusy(true);
+                    try {
+                      const f = from || `${new Date().getFullYear()}-01-01`;
+                      const t = to || toLocalYMD(new Date());
+                      const res = await api.previewFecExport(f, t);
+                      setFecPreview(res.data);
+                    } catch (e: any) {
+                      toast(friendlyError(e), 'error');
+                    } finally {
+                      setFecBusy(false);
+                    }
+                  }}
+                >
+                  {fecBusy ? 'Vérification…' : 'Vérifier l’équilibre (aperçu)'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const f = from || `${new Date().getFullYear()}-01-01`;
+                    const t = to || toLocalYMD(new Date());
+                    const token = getToken();
+                    const url = api.fecExportUrl(f, t);
+                    window.open(token ? `${url}&token=${encodeURIComponent(token)}` : url, '_blank', 'noopener');
+                  }}
+                >
+                  Télécharger l’archive FEC (.zip)
+                </button>
+              </div>
+              {fecPreview && (
+                <div style={{ fontSize: 12.5 }}>
+                  <p style={{ margin: '0 0 6px' }}>
+                    Période {fecPreview.from} → {fecPreview.to} · {fecPreview.entry_count} écriture(s) · Débit{' '}
+                    <strong>{fmt(fecPreview.total_debit)}</strong> · Crédit <strong>{fmt(fecPreview.total_credit)}</strong> ·{' '}
+                    {fecPreview.balanced ? 'Équilibré' : 'Écart détecté'}
+                  </p>
+                </div>
+              )}
+            </>
+          ) : (
+            <p className="muted" style={{ fontSize: 13, margin: 0 }}>Réservé au propriétaire (owner).</p>
           )}
         </section>
         </div>

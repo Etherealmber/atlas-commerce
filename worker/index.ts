@@ -276,6 +276,7 @@ import {
   registerBillsReceiptsRoutes,
   registerCashShiftRoutes,
   registerPayrollRoutes,
+  registerFecRoutes,
   ensureBillPaymentsTable,
 } from './routes';
 import { countEmployeesPayDue } from './routes/employees';
@@ -1067,6 +1068,7 @@ app.use('/api/*', async (c, next) => {
     path.match(/^\/api\/cash-shifts\/\d+\/(x-report|z-report)$/) ||
     path.match(/^\/api\/payroll\/runs\/\d+\/lines\/\d+\/bulletin$/) ||
     path.match(/^\/api\/payroll\/runs\/\d+\/declaration$/) ||
+    path === '/api/accounting/fec/export' ||
     path === '/api/settings/invoice-preview' ||
     path.startsWith('/api/attendance/export') ||
     path === '/api/employees/form/print' ||
@@ -1543,6 +1545,7 @@ registerEmployeeRoutes(app, { checkConfirmPassword, requireEmployeeAdmin, requir
 registerFinanceRoutes(app, { sessionUserFromHeader, authFailReason, clientIp, writeAudit, requireEmployeeAdmin });
 registerCashShiftRoutes(app, { sessionUserFromHeader, writeAudit, reportShell });
 registerPayrollRoutes(app, { requireEmployeeAdmin, loadAttendanceRules, writeAudit, sessionUserFromHeader, clientIp });
+registerFecRoutes(app, { requireOwner, writeAudit, clientIp });
 registerAtlasV209Routes(app, { sessionUserFromHeader, applyStockDelta, adjustLocationStock, getDefaultLocationId });
 // Admin read routes need helpers defined later — registered near Users & Admin section
 

@@ -57,3 +57,4 @@ export { registerInvoicesWriteRoutes, type InvoicesWriteRouteDeps } from './invo
 export { registerBillsReceiptsRoutes, ensureBillPaymentsTable, type BillsReceiptsRouteDeps } from './billsReceipts';
 export { registerCashShiftRoutes, type CashShiftRouteDeps } from './cashShifts';
 export { registerPayrollRoutes, type PayrollRouteDeps } from './payroll';
+export { registerFecRoutes, type FecRouteDeps } from './fec';

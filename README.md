@@ -337,6 +337,13 @@ Atlas Commerce est développé et maintenu par **[Etherealmber](https://github.c
 </details>
 
 <details>
+<summary><strong>Export comptable FEC (PCGE Maroc) — Avertissement</strong></summary>
+
+- L’export FEC (`GET /api/accounting/fec/export`, réservé au propriétaire) produit une archive `.zip` contenant un extrait CSV au format FEC (17 colonnes, journaux `VE`, `AC`, `CA`, `BQ`, `PA`, `OD`), une balance de contrôle et un manifeste JSON.
+- **Avertissement important** : cet export est un **extrait comptable destiné à votre expert-comptable** ; il **ne constitue pas un FEC légalement certifié** tant qu’il n’a pas été contrôlé et validé par votre comptable.
+</details>
+
+<details>
 <summary><strong>Troubleshooting</strong></summary>
 
 - `vite: not found` → `npm install` (node_modules non persisté)

@@ -1236,5 +1236,14 @@ export const api = {
     `/api/payroll/runs/${runId}/lines/${lineId}/bulletin`,
   payrollDeclarationUrl: (runId: number, format: 'csv' | 'xls' = 'csv') =>
     `/api/payroll/runs/${runId}/declaration?format=${format}`,
+
+  // Part 5 — FEC accounting export & chart of accounts (owner-only)
+  getAccountingAccounts: () => request<{ data: any[] }>('/api/accounting/accounts'),
+  updateAccountingAccounts: (accounts: { account_key: string; code: string; label: string }[]) =>
+    request<{ data: any[] }>('/api/accounting/accounts', { method: 'PUT', body: JSON.stringify({ accounts }) }),
+  previewFecExport: (from: string, to: string) =>
+    request<{ data: any }>(`/api/accounting/fec/preview?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
+  fecExportUrl: (from: string, to: string) =>
+    `/api/accounting/fec/export?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
 };
 
