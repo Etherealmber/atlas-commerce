@@ -685,7 +685,7 @@ export async function authFailReason(
     } else {
       await ensureSecurityTables(db);
       const row = await db.prepare(
-        `SELECT * FROM app_users WHERE username = ? AND active = 1`
+        `SELECT id, role, password_hash FROM app_users WHERE username = ? AND active = 1`
       ).bind(user).first() as any;
       if (!row) return 'bad_password';
       // A stale role is proof of the same credential, not authority to use it.

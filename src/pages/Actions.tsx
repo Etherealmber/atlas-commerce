@@ -125,7 +125,7 @@ export default function Actions() {
     void loadUnits();
     const t = setInterval(() => {
       if (document.visibilityState === 'visible') load(true);
-    }, 30000);
+    }, 90000);
     const onVisibility = () => { if (document.visibilityState === 'visible') load(true); };
     document.addEventListener('visibilitychange', onVisibility);
     return () => {

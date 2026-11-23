@@ -1,5 +1,5 @@
 import type { Hono } from 'hono';
-import { bumpCacheGen } from '../lib/cache';
+import { bumpCacheGen, doCacheGet, doCachePut, hasLiveCache } from '../lib/cache';
 import { afterBusinessMutation } from '../lib/delete-coord';
 import { validateVendorWrite } from '../lib/validate';
 import { apiFail } from '../lib/api-response';
@@ -14,24 +14,32 @@ export function registerVendorRoutes(app: Hono<any>, deps: VendorRouteDeps): voi
   const { requireBizMutator, checkConfirmPassword, writeAudit } = deps;
 
   app.get('/api/vendors', async (c) => {
+    if (hasLiveCache(c.env)) {
+      const hit = await doCacheGet<any[]>(c.env.MOBILE_HUB, c.env.CACHE, 'vendors:list', 300);
+      if (hit) return c.json({ success: true, data: hit, cached: true });
+    }
     let results: any[] = [];
     try {
       const r = await c.env.DB.prepare(`
-        SELECT v.*,
-          COALESCE((
-            SELECT SUM(b.total - COALESCE(b.amount_paid, 0))
-            FROM bills b
-            WHERE b.vendor_id = v.id
-              AND b.status NOT IN ('cancelled','paid','draft')
-              AND (b.total - COALESCE(b.amount_paid, 0)) > 0.001
-          ), 0) as balance_due
+        SELECT v.*, COALESCE(b.balance_due, 0) as balance_due
         FROM vendors v
+        LEFT JOIN (
+          SELECT vendor_id, SUM(total - COALESCE(amount_paid, 0)) as balance_due
+          FROM bills
+          WHERE status NOT IN ('cancelled','paid','draft')
+            AND (total - COALESCE(amount_paid, 0)) > 0.001
+          GROUP BY vendor_id
+        ) b ON b.vendor_id = v.id
         ORDER BY v.name
+        LIMIT 1000
       `).all();
       results = r.results || [];
     } catch {
-      const r = await c.env.DB.prepare(`SELECT * FROM vendors ORDER BY name`).all();
+      const r = await c.env.DB.prepare(`SELECT * FROM vendors ORDER BY name LIMIT 1000`).all();
       results = r.results || [];
+    }
+    if (hasLiveCache(c.env)) {
+      await doCachePut(c.env.MOBILE_HUB, c.env.CACHE, 'vendors:list', results, 300);
     }
     return c.json({ success: true, data: results });
   });
@@ -48,6 +56,7 @@ export function registerVendorRoutes(app: Hono<any>, deps: VendorRouteDeps): voi
       `INSERT INTO vendors (name, ice, if_number, address, city, phone, email) VALUES (?, ?, ?, ?, ?, ?, ?)`,
     ).bind(name, ice, if_number, address, city, phone, email).run();
     const vendor = await c.env.DB.prepare(`SELECT * FROM vendors WHERE id = ?`).bind(result.meta.last_row_id).first();
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     return c.json({ success: true, data: vendor, message: 'Fournisseur enregistré dans la base de données.' }, 201);
   });
 
@@ -81,7 +90,7 @@ export function registerVendorRoutes(app: Hono<any>, deps: VendorRouteDeps): voi
       if (!pw.ok) return c.json({ success: false, error: pw.error, code: pw.code }, pw.status);
       const id = c.req.param('id');
       await c.env.DB.prepare(`DELETE FROM vendors WHERE id = ?`).bind(id).run();
-      await afterBusinessMutation(c.env.CACHE);
+      await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
       await writeAudit(c.env.DB, {
         username: gate.username, role: gate.role, action: 'vendor.delete',
         entity: 'vendors', entity_id: id, ip: c.req.header('cf-connecting-ip') || '',

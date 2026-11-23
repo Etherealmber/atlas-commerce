@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { Hono } from 'hono';
-import { cleanProductDescription, extractProductDescriptionInput, productDescriptionSystem } from '../lib/gemini-assist';
+import { cleanProductDescription, extractProductDescriptionInput, productDescriptionSystem } from '../lib/assist';
 
 describe('product description AI helpers & route behavior', () => {
   it('rejects empty product names and the legacy "produit marbre" fallback', () => {

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   atlasAgentSystem,
   normalizeResponseLanguage,
-} from '../lib/gemini-assist';
+} from '../lib/assist';
 
 /**
  * v0.7 — Agent response language (Android app language).

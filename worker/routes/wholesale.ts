@@ -73,7 +73,7 @@ export function registerWholesaleRoutes(app: AtlasApp, deps?: WholesaleDeps): vo
     )
       .bind(clientId, productId, round2(unit_price))
       .run();
-    await afterBusinessMutation(c.env.CACHE);
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     return c.json({ success: true, message: 'Prix client enregistré' });
   });
 

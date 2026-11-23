@@ -1,4 +1,5 @@
 import type { Hono } from 'hono';
+import { doCacheGet, doCachePut, getCacheGen, hasLiveCache } from '../lib/cache';
 import { afterBusinessMutation } from '../lib/delete-coord';
 import { enqueue } from '../lib/job-queue';
 
@@ -125,7 +126,273 @@ async function decryptBackupBody(env: any, raw: string): Promise<any | null> {
   return decryptBackupBytes(env, raw);
 }
 
-export async function runDailyBackup(env: any): Promise<{ ok: boolean; key?: string; error?: string; bytes?: number; r2_keys?: number }> {
+const DELETED_ACCOUNTS_CONFIG_KEY = 'deleted_accounts_tombstones';
+const V5_INDEX_KEY = 'backups/v5/index.abk';
+const V5_TABLE_PREFIX = 'backups/v5/tables/';
+const APPEND_ONLY_BACKUP_TABLES = new Set([
+  'stock_movements',
+  'audit_log',
+  'assist_audit',
+  'invoice_payments',
+  'bill_payments',
+  'idempotency_keys',
+  'login_attempts',
+]);
+const LOG_CAPPED_BACKUP_TABLES = new Set([
+  'login_attempts',
+  'ip_reputation',
+  'idempotency_keys',
+  'audit_log',
+  'assist_audit',
+]);
+const ACCOUNT_SCRUB_TABLES = new Set([
+  'app_users',
+  'trusted_devices',
+  'webauthn_credentials',
+  'push_tokens',
+  'device_push_tokens',
+  'mobile_preferences',
+  'snake_scores',
+  'assist_audit',
+  'assist_approval',
+  'assist_prop',
+  'audit_log',
+]);
+
+async function sha256TextHex(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+export async function loadDeletedAccountTombstones(db: D1Database | undefined): Promise<string[]> {
+  if (!db) return [];
+  try {
+    const row = (await db
+      .prepare(`SELECT value FROM app_config WHERE key = ?`)
+      .bind(DELETED_ACCOUNTS_CONFIG_KEY)
+      .first()) as { value?: string } | null;
+    if (!row?.value) return [];
+    const parsed = JSON.parse(String(row.value));
+    if (!Array.isArray(parsed)) return [];
+    return [...new Set(parsed.map((u) => String(u || '').trim().toLowerCase()).filter(Boolean))];
+  } catch {
+    return [];
+  }
+}
+
+async function recordDeletedAccountTombstone(db: D1Database | undefined, username: string): Promise<void> {
+  const clean = String(username || '').trim().toLowerCase();
+  if (!db || !clean) return;
+  try {
+    const existing = await loadDeletedAccountTombstones(db);
+    if (existing.includes(clean)) return;
+    const next = [...existing, clean].slice(-500);
+    await db
+      .prepare(
+        `INSERT INTO app_config (key, value) VALUES (?, ?)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+      )
+      .bind(DELETED_ACCOUNTS_CONFIG_KEY, JSON.stringify(next))
+      .run();
+  } catch {
+    /* best effort if app_config absent in minimal test schemas */
+  }
+}
+
+export function scrubAccountFromBackupPayload(
+  payload: any,
+  usernames: string | string[],
+): { payload: any; changed: boolean } {
+  const targets = new Set(
+    (Array.isArray(usernames) ? usernames : [usernames])
+      .map((u) => String(u || '').trim().toLowerCase())
+      .filter(Boolean),
+  );
+  if (!payload || typeof payload !== 'object' || !targets.size) {
+    return { payload, changed: false };
+  }
+  let changed = false;
+  if (payload.tables && typeof payload.tables === 'object') {
+    for (const tableName of ACCOUNT_SCRUB_TABLES) {
+      const rows = payload.tables[tableName];
+      if (!Array.isArray(rows) || !rows.length) continue;
+      const filtered = rows.filter((row: any) => {
+        if (!row || typeof row !== 'object') return true;
+        const uname = String(row.username || row.requested_by || '').trim().toLowerCase();
+        if (uname && targets.has(uname)) return false;
+        if (tableName === 'audit_log') {
+          const ent = String(row.entity || '').trim().toLowerCase();
+          if (ent && targets.has(ent)) return false;
+        }
+        return true;
+      });
+      if (filtered.length !== rows.length) {
+        payload.tables[tableName] = filtered;
+        changed = true;
+      }
+    }
+  }
+  if (Array.isArray(payload.r2_object_keys)) {
+    const filteredKeys = payload.r2_object_keys.filter((k: unknown) => {
+      const key = String(k || '').toLowerCase();
+      for (const u of targets) {
+        if (key.startsWith(`agent-chats/v2/${u}/`) || key.startsWith(`agent-chats/${u}/`)) {
+          return false;
+        }
+      }
+      return true;
+    });
+    if (filteredKeys.length !== payload.r2_object_keys.length) {
+      payload.r2_object_keys = filteredKeys;
+      changed = true;
+    }
+  }
+  return { payload, changed };
+}
+
+/**
+ * Remove a deleted account from R2 chat transcripts and encrypted backups (latest, v5 incremental chunks,
+ * and recent snapshots) and record a tombstone so future backups/restores never re-introduce it.
+ */
+export async function purgeDeletedAccountFromBackups(
+  env: any,
+  username: string,
+): Promise<{ scrubbed: number; deletedObjects: number }> {
+  const clean = String(username || '').trim().toLowerCase();
+  if (!clean) return { scrubbed: 0, deletedObjects: 0 };
+  await recordDeletedAccountTombstone(env?.DB, clean);
+  let scrubbed = 0;
+  let deletedObjects = 0;
+  if (!env?.IMAGES) return { scrubbed, deletedObjects };
+
+  // 1. Delete encrypted Agent chat transcripts belonging to this user
+  const safeUser = clean.replace(/[^a-zA-Z0-9._@-]/g, '_').slice(0, 64);
+  for (const prefix of [`agent-chats/v2/${safeUser}/`, `agent-chats/${safeUser}/`, `agent-chats/v2/${clean}/`, `agent-chats/${clean}/`]) {
+    try {
+      let cursor: string | undefined;
+      do {
+        const page: any = await env.IMAGES.list({ prefix, cursor, limit: 200 });
+        for (const obj of page?.objects || []) {
+          try {
+            await env.IMAGES.delete(obj.key);
+            deletedObjects++;
+          } catch { /* */ }
+        }
+        cursor = page?.truncated ? page.cursor : undefined;
+      } while (cursor);
+    } catch { /* */ }
+  }
+
+  const scrubAbkObject = async (key: string, customType = 'backup_scrubbed'): Promise<boolean> => {
+    try {
+      const obj = await env.IMAGES.get(key);
+      if (!obj) return false;
+      const buf = await obj.arrayBuffer();
+      const dec = await decryptBackupBytes(env, buf);
+      if (!dec) return false;
+      const { payload, changed } = scrubAccountFromBackupPayload(dec, clean);
+      if (!changed) return false;
+      const enc = await encryptBackupBody(env, JSON.stringify(payload));
+      if (!enc.ok) return false;
+      await env.IMAGES.put(key, enc.bytes, {
+        httpMetadata: { contentType: 'application/octet-stream', cacheControl: 'private, no-store' },
+        customMetadata: { type: customType, fmt: 'ABK1' },
+      });
+      scrubbed++;
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  // 2. Scrub latest pointer + v5 per-table chunks so incremental state never retains the user
+  await scrubAbkObject('backups/latest.abk', 'backup_latest_enc');
+  for (const tbl of ACCOUNT_SCRUB_TABLES) {
+    try {
+      const chunkKey = `${V5_TABLE_PREFIX}${tbl}.abk`;
+      const obj = await env.IMAGES.get(chunkKey);
+      if (!obj) continue;
+      const dec = await decryptBackupBytes(env, await obj.arrayBuffer());
+      if (!dec || !Array.isArray(dec.rows)) continue;
+      const fakePayload = { tables: { [tbl]: dec.rows } };
+      const { payload, changed } = scrubAccountFromBackupPayload(fakePayload, clean);
+      if (!changed) continue;
+      const nextRows = payload.tables[tbl];
+      const nextHash = await sha256TextHex(JSON.stringify(nextRows));
+      const enc = await encryptBackupBody(env, JSON.stringify({ ...dec, rows: nextRows, hash: nextHash }));
+      if (enc.ok) {
+        await env.IMAGES.put(chunkKey, enc.bytes, {
+          httpMetadata: { contentType: 'application/octet-stream', cacheControl: 'private, no-store' },
+          customMetadata: { type: 'backup_v5_table', fmt: 'ABK1' },
+        });
+        scrubbed++;
+      }
+    } catch { /* */ }
+  }
+
+  // 3. Scrub recent 30m/pre-revert snapshots and delete older pre-erasure snapshots so no un-scrubbed copies remain
+  for (const prefix of ['backups/30m/', 'backups/pre-revert/']) {
+    try {
+      const allObjs: Array<{ key: string; uploadedMs: number }> = [];
+      let cursor: string | undefined;
+      do {
+        const page: any = await env.IMAGES.list({ prefix, cursor, limit: 500 });
+        for (const o of page?.objects || []) {
+          if (!String(o?.key || '').endsWith('.abk')) continue;
+          allObjs.push({
+            key: String(o.key),
+            uploadedMs: o.uploaded ? new Date(o.uploaded).getTime() : 0,
+          });
+        }
+        cursor = page?.truncated ? page.cursor : undefined;
+      } while (cursor);
+      allObjs.sort((a, b) => b.uploadedMs - a.uploadedMs);
+      const keepRecent = allObjs.slice(0, 6);
+      const purgeOlder = allObjs.slice(6);
+      for (const item of keepRecent) {
+        await scrubAbkObject(item.key, prefix.includes('pre-revert') ? 'pre_revert_enc' : 'backup_30m_enc');
+      }
+      for (const item of purgeOlder) {
+        try {
+          await env.IMAGES.delete(item.key);
+          deletedObjects++;
+        } catch { /* */ }
+      }
+    } catch { /* */ }
+  }
+
+  // Force next cron backup to re-evaluate cleanly
+  try {
+    if (env.CACHE) await env.CACHE.delete('g1:backup:last-run');
+  } catch { /* */ }
+  await afterBusinessMutation(env.CACHE, env.MOBILE_HUB);
+  return { scrubbed, deletedObjects };
+}
+
+interface V5TableMeta {
+  maxId: number;
+  hash: string;
+  rowCount: number;
+}
+interface V5BackupIndex {
+  version: 5;
+  lastFullAt: number;
+  r2KeysHash: string;
+  tables: Record<string, V5TableMeta>;
+}
+
+export async function runDailyBackup(
+  env: any,
+  opts?: { forceFull?: boolean },
+): Promise<{
+  ok: boolean;
+  key?: string;
+  error?: string;
+  bytes?: number;
+  r2_keys?: number;
+  skipped?: boolean;
+  changed_tables?: number;
+}> {
   try {
     if (!env.IMAGES) return { ok: false, error: 'R2 IMAGES binding missing' };
     // Full snapshot — every business + Atlas table we know about (missing tables are skipped)
@@ -146,6 +413,22 @@ export async function runDailyBackup(env: any): Promise<{ ok: boolean; key?: str
       // security noise optional but kept for full restore
       'login_attempts', 'ip_reputation',
     ];
+    const tombstones = await loadDeletedAccountTombstones(env.DB);
+    let prevIndex: V5BackupIndex | null = null;
+    if (!opts?.forceFull) {
+      try {
+        const idxObj = await env.IMAGES.get(V5_INDEX_KEY);
+        if (idxObj) {
+          const dec = await decryptBackupBytes(env, await idxObj.arrayBuffer());
+          if (dec?.version === 5 && dec.tables && typeof dec.tables === 'object') {
+            prevIndex = dec as V5BackupIndex;
+          }
+        }
+      } catch {
+        prevIndex = null;
+      }
+    }
+
     const payload: Record<string, any> = {
       exported_at: new Date().toISOString(),
       version: 2,
@@ -154,15 +437,23 @@ export async function runDailyBackup(env: any): Promise<{ ok: boolean; key?: str
       r2_object_keys: [] as string[],
     };
     // Query existing tables dynamically so absent legacy tables don't spam D1 error logs
-    let existingTables = new Set<string>();
+    const existingTables = new Set<string>();
     try {
       const { results: tblResults } = await env.DB.prepare(
-        `SELECT name FROM sqlite_master WHERE type = 'table'`
+        `SELECT name FROM sqlite_master WHERE type = 'table'`,
       ).all();
       for (const r of (tblResults || []) as any[]) {
         if (r?.name) existingTables.add(String(r.name));
       }
     } catch { /* fallback to checking each table */ }
+
+    const nextIndex: V5BackupIndex = {
+      version: 5,
+      lastFullAt: prevIndex && !opts?.forceFull ? prevIndex.lastFullAt : Date.now(),
+      r2KeysHash: '',
+      tables: {},
+    };
+    let changedTables = 0;
 
     for (const t of tables) {
       if (existingTables.size > 0 && !existingTables.has(t)) {
@@ -170,12 +461,77 @@ export async function runDailyBackup(env: any): Promise<{ ok: boolean; key?: str
         continue;
       }
       try {
-        const { results } = await env.DB.prepare(`SELECT * FROM ${t} LIMIT 200000`).all();
-        payload.tables[t] = results || [];
+        const prevMeta = prevIndex?.tables?.[t];
+        const logCapped = LOG_CAPPED_BACKUP_TABLES.has(t);
+        const isAppendOnly = APPEND_ONLY_BACKUP_TABLES.has(t);
+        let rows: any[] | null = null;
+        let maxId = 0;
+
+        if (!opts?.forceFull && isAppendOnly && prevMeta) {
+          // 1-row O(1) B-tree check: skip full table read when no new rows were appended
+          try {
+            const probe = (await env.DB.prepare(`SELECT COALESCE(MAX(id), 0) AS max_id FROM ${t}`).first()) as {
+              max_id?: number;
+            } | null;
+            maxId = Number(probe?.max_id || 0);
+            const chunkObj = await env.IMAGES.get(`${V5_TABLE_PREFIX}${t}.abk`);
+            const chunkDec = chunkObj ? await decryptBackupBytes(env, await chunkObj.arrayBuffer()) : null;
+            if (Array.isArray(chunkDec?.rows)) {
+              if (maxId === prevMeta.maxId) {
+                rows = chunkDec.rows;
+              } else if (maxId > prevMeta.maxId) {
+                const { results: delta } = await env.DB.prepare(
+                  `SELECT * FROM ${t} WHERE id > ? ORDER BY id ASC LIMIT 50000`,
+                )
+                  .bind(prevMeta.maxId)
+                  .all();
+                rows = [...chunkDec.rows, ...(delta || [])];
+                if (logCapped && rows.length > 5000) rows = rows.slice(-5000);
+              }
+            }
+          } catch {
+            rows = null;
+          }
+        }
+
+        if (rows === null) {
+          const sql = logCapped
+            ? `SELECT * FROM ${t} ORDER BY id DESC LIMIT 5000`
+            : `SELECT * FROM ${t} LIMIT 200000`;
+          const { results } = await env.DB.prepare(sql).all();
+          const fetched: any[] = results || [];
+          rows = logCapped && fetched.length > 1 ? [...fetched].reverse() : fetched;
+          for (const r of rows) {
+            const idNum = Number(r?.id || 0);
+            if (idNum > maxId) maxId = idNum;
+          }
+        }
+
+        let finalRows: any[] = rows ?? [];
+        // Apply deleted-account tombstones before hashing or storing
+        if (tombstones.length && ACCOUNT_SCRUB_TABLES.has(t) && finalRows.length) {
+          const scrubbed = scrubAccountFromBackupPayload({ tables: { [t]: finalRows } }, tombstones);
+          finalRows = scrubbed.payload.tables[t];
+        }
+
+        payload.tables[t] = finalRows;
+        const hash = await sha256TextHex(JSON.stringify(finalRows));
+        nextIndex.tables[t] = { maxId, hash, rowCount: finalRows.length };
+        if (!prevMeta || prevMeta.hash !== hash) {
+          changedTables++;
+          const chunkEnc = await encryptBackupBody(env, JSON.stringify({ table: t, maxId, hash, rows: finalRows }));
+          if (chunkEnc.ok) {
+            await env.IMAGES.put(`${V5_TABLE_PREFIX}${t}.abk`, chunkEnc.bytes, {
+              httpMetadata: { contentType: 'application/octet-stream', cacheControl: 'private, no-store' },
+              customMetadata: { type: 'backup_v5_table', table: t, fmt: 'ABK1' },
+            });
+          }
+        }
       } catch {
         payload.tables[t] = { error: 'table_missing_or_skip' };
       }
     }
+
     // Index of R2 objects (images + prior backups) — not full binary re-copy
     try {
       let cursor: string | undefined;
@@ -183,8 +539,12 @@ export async function runDailyBackup(env: any): Promise<{ ok: boolean; key?: str
       do {
         const page: any = await env.IMAGES.list({ cursor, limit: 500, prefix: '' });
         for (const obj of page.objects || []) {
-          if (String(obj.key || '').startsWith('backups/')) continue; // skip nested backup noise
-          payload.r2_object_keys.push(obj.key);
+          const objKey = String(obj.key || '');
+          if (objKey.startsWith('backups/')) continue; // skip nested backup noise
+          if (tombstones.some((u) => objKey.toLowerCase().startsWith(`agent-chats/v2/${u}/`) || objKey.toLowerCase().startsWith(`agent-chats/${u}/`))) {
+            continue;
+          }
+          payload.r2_object_keys.push(objKey);
           listed++;
           if (listed >= 5000) break;
         }
@@ -192,6 +552,32 @@ export async function runDailyBackup(env: any): Promise<{ ok: boolean; key?: str
         if (listed >= 5000) break;
       } while (cursor);
     } catch { /* */ }
+
+    nextIndex.r2KeysHash = await sha256TextHex(JSON.stringify(payload.r2_object_keys));
+    const r2Changed = !prevIndex || prevIndex.r2KeysHash !== nextIndex.r2KeysHash;
+
+    // Persist updated v5 index
+    const idxEnc = await encryptBackupBody(env, JSON.stringify(nextIndex));
+    if (idxEnc.ok) {
+      await env.IMAGES.put(V5_INDEX_KEY, idxEnc.bytes, {
+        httpMetadata: { contentType: 'application/octet-stream', cacheControl: 'private, no-store' },
+        customMetadata: { type: 'backup_v5_index', fmt: 'ABK1' },
+      });
+    }
+
+    // Avoid writing duplicate full .abk snapshots to R2 when nothing changed since last snapshot
+    if (!opts?.forceFull && prevIndex && changedTables === 0 && !r2Changed) {
+      const latestHead = await env.IMAGES.head('backups/latest.abk').catch(() => null);
+      if (latestHead) {
+        return {
+          ok: true,
+          skipped: true,
+          changed_tables: 0,
+          key: 'backups/latest.abk',
+          r2_keys: payload.r2_object_keys.length,
+        };
+      }
+    }
 
     const plain = JSON.stringify(payload);
     const enc = await encryptBackupBody(env, plain);
@@ -202,14 +588,21 @@ export async function runDailyBackup(env: any): Promise<{ ok: boolean; key?: str
     const key = `backups/30m/atlas-${stamp}.abk`;
     await env.IMAGES.put(key, enc.bytes, {
       httpMetadata: { contentType: 'application/octet-stream', cacheControl: 'private, no-store' },
-      customMetadata: { type: 'backup_30m_enc', version: '4', fmt: 'ABK1' },
+      customMetadata: { type: 'backup_30m_enc', version: '5', fmt: 'ABK1' },
     });
     // Latest pointer (encrypted binary) — does not touch unrelated R2 objects
     await env.IMAGES.put('backups/latest.abk', enc.bytes, {
       httpMetadata: { contentType: 'application/octet-stream', cacheControl: 'private, no-store' },
-      customMetadata: { type: 'backup_latest_enc', version: '4', source: key },
+      customMetadata: { type: 'backup_latest_enc', version: '5', source: key },
     });
-    return { ok: true, key, bytes: enc.bytes.length, r2_keys: payload.r2_object_keys.length };
+    return {
+      ok: true,
+      skipped: false,
+      changed_tables: changedTables,
+      key,
+      bytes: enc.bytes.length,
+      r2_keys: payload.r2_object_keys.length,
+    };
   } catch (e: any) {
     return { ok: false, error: e?.message || 'backup failed' };
   }
@@ -308,7 +701,11 @@ export async function restoreFromBackupPayload(
   payload: any,
   onProgress?: (info: { table: string; index: number; total: number; rows: number; message: string; progress: number }) => Promise<void> | void,
 ): Promise<{ tables: string[]; rows: number }> {
-  const tables = payload?.tables && typeof payload.tables === 'object' ? payload.tables : {};
+  const tombstones = await loadDeletedAccountTombstones(db);
+  const effectivePayload = tombstones.length
+    ? scrubAccountFromBackupPayload(structuredClone(payload), tombstones).payload
+    : payload;
+  const tables = effectivePayload?.tables && typeof effectivePayload.tables === 'object' ? effectivePayload.tables : {};
   // Prefer a stable order so progress is predictable; only allowlisted table names are permitted.
   const preferred = [
     'product_units', 'units', 'categories', 'product_categories', 'product_catalog', 'catalog_settings',
@@ -596,7 +993,7 @@ export function registerBackupRoutes(app: Hono<any>, deps: BackupRouteDeps): voi
   app.post('/api/admin/backup-now', async (c) => {
     const gate = await verifyBackupAccess(c, { requireBackupToken: false });
     if (!gate.ok) return gate.response;
-    const result = await runDailyBackup(c.env);
+    const result = await runDailyBackup(c.env, { forceFull: true });
     if (!result.ok) return c.json({ success: false, error: result.error }, 500);
     // Background: purge old backups without blocking the response
     try {
@@ -912,6 +1309,10 @@ export function registerBackupRoutes(app: Hono<any>, deps: BackupRouteDeps): voi
           });
           return;
         }
+        const tombstones = await loadDeletedAccountTombstones(env.DB);
+        if (tombstones.length) {
+          scrubAccountFromBackupPayload(payload, tombstones);
+        }
   
         const preferred = [
           'product_units', 'units', 'categories', 'product_categories', 'product_catalog', 'catalog_settings',
@@ -1097,16 +1498,33 @@ export function registerBackupRoutes(app: Hono<any>, deps: BackupRouteDeps): voi
   
     const started = new Date().toISOString();
     try {
-      const backup = await runDailyBackup(c.env);
-      if (!backup.ok) {
-        console.error('cron_backup_fail', backup.error);
-        return c.json({
-          success: false,
-          error: backup.error || 'Backup failed',
-          code: 'BACKUP_FAILED',
-          timestamp: started,
-        }, 500);
+      const liveCache = hasLiveCache(c.env);
+      const gen = liveCache ? await getCacheGen(c.env.CACHE) : 0;
+      const lastRun = liveCache
+        ? await doCacheGet<{ gen: number; at: number; key: string }>(c.env.MOBILE_HUB, c.env.CACHE, 'backup:last-run', 14400)
+        : null;
+      const unchanged = Boolean(lastRun && lastRun.gen === gen && Date.now() - lastRun.at < 4 * 3600_000);
+      let backup: { ok: boolean; key?: string; error?: string; bytes?: number; r2_keys?: number; skipped?: boolean; changed_tables?: number } = {
+        ok: true,
+        key: lastRun?.key,
+        skipped: true,
+      };
+      if (!unchanged) {
+        backup = await runDailyBackup(c.env, { forceFull: false });
+        if (!backup.ok) {
+          console.error('cron_backup_fail', backup.error);
+          return c.json({
+            success: false,
+            error: backup.error || 'Backup failed',
+            code: 'BACKUP_FAILED',
+            timestamp: started,
+          }, 500);
+        }
+        if (liveCache && backup.key) {
+          await doCachePut(c.env.MOBILE_HUB, c.env.CACHE, 'backup:last-run', { gen, at: Date.now(), key: backup.key }, 14400);
+        }
       }
+      const backupSkipped = unchanged || Boolean(backup.skipped);
       let purge = { deleted: 0 };
       try {
         purge = await purgeExpiredBackups(c.env);
@@ -1120,17 +1538,21 @@ export function registerBackupRoutes(app: Hono<any>, deps: BackupRouteDeps): voi
         console.error('cron_agent_purge_err', String(e));
       }
       const finished = new Date().toISOString();
-      console.log('cron_backup_ok', JSON.stringify({ key: backup.key, purge, agentPurge }));
+      console.log('cron_backup_ok', JSON.stringify({ key: backup.key, skipped: backupSkipped, changed_tables: backup.changed_tables ?? 0, purge, agentPurge }));
       return c.json({
         success: true,
-        message: 'Backup + purge backups + conversations agent >30j',
+        skipped: backupSkipped,
+        message: backupSkipped
+          ? 'Aucune mutation depuis la dernière sauvegarde — purge R2 exécutée'
+          : 'Backup incrémental + purge backups + conversations agent >30j',
         timestamp: finished,
         started,
         backup_id: backup.key || null,
         bytes: backup.bytes ?? null,
+        changed_tables: backup.changed_tables ?? 0,
         purge_deleted: purge.deleted,
         agent_chats_purged: agentPurge.deleted,
-        data: backup,
+        data: backupSkipped ? null : backup,
       });
     } catch (e: any) {
       console.error('cron_backup_exception', e);

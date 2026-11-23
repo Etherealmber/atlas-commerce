@@ -277,7 +277,7 @@ export function registerDashboardIntegrityRoutes(app: Hono<any>, deps: Dashboard
     }
     if (body.clear) through = '';
     await c.env.DB.prepare(`UPDATE company_settings SET fiscal_locked_through = ? WHERE id = 1`).bind(through).run();
-    await afterBusinessMutation(c.env.CACHE);
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     return c.json({
       success: true,
       data: { fiscal_locked_through: through || null },
@@ -465,26 +465,31 @@ export function registerDashboardIntegrityRoutes(app: Hono<any>, deps: Dashboard
     ]);
   
     // Entrées ventes = vrais encaissements uniquement (pas les avoirs WR, pas les lignes « Avoir … »)
+    // Single-pass query used for both salesReceivedNet and monthly salesMap
     let salesReceivedNet = 0;
+    let salesByMonth: { results?: any[] } = { results: [] };
     try {
-      const fromPayments = await c.env.DB.prepare(
-        `SELECT COALESCE(SUM(p.amount), 0) as total
+      salesByMonth = await c.env.DB.prepare(
+        `SELECT substr(replace(COALESCE(p.paid_at, p.created_at, ''), 'T', ' '), 1, 7) as ym, COALESCE(SUM(p.amount), 0) as total
          FROM invoice_payments p
          INNER JOIN invoices i ON i.id = p.invoice_id
          WHERE COALESCE(i.status, '') NOT IN ('quote', 'devis', 'cancelled', 'remboursement')
            AND COALESCE(i.doc_kind, '') != 'remboursement'
-           AND COALESCE(p.note, '') NOT LIKE 'Avoir %'`
-      ).first() as any;
-      salesReceivedNet = Number(fromPayments?.total || 0);
+           AND COALESCE(p.note, '') NOT LIKE 'Avoir %'
+         GROUP BY ym`
+      ).all();
     } catch {
-      // Fallback if payments table empty / missing
-      const salesPaid = await c.env.DB.prepare(
-        `SELECT COALESCE(SUM(amount_paid), 0) as total FROM invoices
+      salesByMonth = await c.env.DB.prepare(
+        `SELECT substr(replace(COALESCE(issue_date, created_at, ''), 'T', ' '), 1, 7) as ym, COALESCE(SUM(amount_paid), 0) as total
+         FROM invoices
          WHERE status IN ('paid', 'partial')
            AND COALESCE(status, '') != 'remboursement'
-           AND COALESCE(doc_kind, '') != 'remboursement'`
-      ).first() as any;
-      salesReceivedNet = Number(salesPaid?.total || 0);
+           AND COALESCE(doc_kind, '') != 'remboursement'
+         GROUP BY ym`
+      ).all();
+    }
+    for (const r of (salesByMonth.results || []) as any[]) {
+      salesReceivedNet += Number(r.total || 0);
     }
   
     // Single-pass expenses monthly + totals query (replaces 9 separate scans)
@@ -553,27 +558,6 @@ export function registerDashboardIntegrityRoutes(app: Hono<any>, deps: Dashboard
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       monthKeys.push(key);
       monthLabels.push(`${frMonths[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`);
-    }
-    let salesByMonth: { results?: any[] } = { results: [] };
-    try {
-      salesByMonth = await c.env.DB.prepare(
-        `SELECT substr(replace(COALESCE(p.paid_at, p.created_at, ''), 'T', ' '), 1, 7) as ym, COALESCE(SUM(p.amount), 0) as total
-         FROM invoice_payments p
-         INNER JOIN invoices i ON i.id = p.invoice_id
-         WHERE COALESCE(i.status, '') NOT IN ('quote', 'devis', 'cancelled', 'remboursement')
-           AND COALESCE(i.doc_kind, '') != 'remboursement'
-           AND COALESCE(p.note, '') NOT LIKE 'Avoir %'
-         GROUP BY ym`
-      ).all();
-    } catch {
-      salesByMonth = await c.env.DB.prepare(
-        `SELECT substr(replace(COALESCE(issue_date, created_at, ''), 'T', ' '), 1, 7) as ym, COALESCE(SUM(amount_paid), 0) as total
-         FROM invoices
-         WHERE status IN ('paid', 'partial')
-           AND COALESCE(status, '') != 'remboursement'
-           AND COALESCE(doc_kind, '') != 'remboursement'
-         GROUP BY ym`
-      ).all();
     }
     for (const r of (salesByMonth.results || []) as any[]) {
       if (r.ym) salesMap[r.ym] = (salesMap[r.ym] || 0) + Number(r.total || 0);

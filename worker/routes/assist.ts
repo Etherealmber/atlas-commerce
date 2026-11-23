@@ -18,16 +18,14 @@ import {
   normalizeResponseLanguage,
   productDescriptionSystem,
   scrubVendorNames,
-} from '../lib/gemini-assist';
-import { pickUiLang, tr } from '../lib/error-i18n';
-import {
   groqChat,
   groqChatStreamWithTools,
   groqChatWithTools,
   proposalsFromToolTrace,
   type AgentToolTrace,
   type AgentToolResult,
-} from '../lib/groq-assist';
+} from '../lib/assist';
+import { pickUiLang, tr } from '../lib/error-i18n';
 import {
   loadAgentKnowledge,
   addMemory,
@@ -420,7 +418,7 @@ export async function purgeAgentConversationsOlderThan(env: any, days = 30): Pro
             } catch { /* */ }
           }
         }
-        cursor = listed.truncated;
+        cursor = listed.truncated ? listed.cursor : undefined;
       } while (cursor);
     } catch (e) {
       console.error('purgeAgentConversations', prefix, e);
@@ -495,17 +493,30 @@ function agentConvKey(username: string, threadId: string): string {
 }
 
 /* v233 — token-cheap conversation memory: last turns, heavily truncated, from the encrypted R2 transcript */
-async function loadCompactHistory(env: Env, username: string, thread: string, maxTurns = 6): Promise<string> {
-  if (!env.IMAGES) return '';
+async function loadCompactHistoryWithTranscript(
+  env: Env,
+  username: string,
+  thread: string,
+  maxTurns = 6,
+): Promise<{ history: string; existingPlain: string }> {
+  if (!env.IMAGES) return { history: '', existingPlain: '' };
+  const key = agentConvKey(username, thread);
   try {
-    const obj = await env.IMAGES.get(agentConvKey(username, thread));
-    if (!obj) return '';
+    // Avoid emitting an R2 NoSuchKey (10007) error span when a brand-new thread has no transcript yet.
+    if (typeof (env.IMAGES as any).list === 'function') {
+      const listed = await (env.IMAGES as any).list({ prefix: key, limit: 1 });
+      if (!listed?.objects?.some((o: any) => o.key === key)) {
+        return { history: '', existingPlain: '' };
+      }
+    }
+    const obj = await env.IMAGES.get(key);
+    if (!obj) return { history: '', existingPlain: '' };
     const buf = await obj.arrayBuffer();
     const plain = await decryptAgentConv(env, buf);
-    if (!plain || plain.trimStart().startsWith('{')) return '';
+    if (!plain || plain.trimStart().startsWith('{')) return { history: '', existingPlain: '' };
     const lines = plain.split('\n').filter((l) => l.startsWith('U|') || l.startsWith('A|'));
-    if (!lines.length) return '';
-    return lines
+    if (!lines.length) return { history: '', existingPlain: plain };
+    const history = lines
       .slice(-maxTurns * 2)
       .map((l) => {
         const parts = l.split('|');
@@ -514,7 +525,10 @@ async function loadCompactHistory(env: Env, username: string, thread: string, ma
         return `${who}: ${txt.slice(0, who === 'U' ? 160 : 200)}`;
       })
       .join('\n');
-  } catch { return ''; }
+    return { history, existingPlain: plain };
+  } catch {
+    return { history: '', existingPlain: '' };
+  }
 }
 
 async function putAgentChatTurn(
@@ -527,6 +541,7 @@ async function putAgentChatTurn(
     tools?: string;
     model?: string;
     thread_id?: string;
+    prefetchedPlain?: string;
   },
 ) {
   try {
@@ -536,15 +551,22 @@ async function putAgentChatTurn(
     const ts = new Date().toISOString();
     const userLine = `U|${ts}|${String(row.message || '').replace(/\|/g, '/').replace(/\n/g, ' ').slice(0, 4000)}`;
     const asstLine = `A|${ts}|${String(row.reply || '').replace(/\|/g, '/').replace(/\n/g, ' ').slice(0, 8000)}`;
-    let body = '';
-    try {
-      const existing = await env.IMAGES.get(key);
-      if (existing) {
-        const buf = await existing.arrayBuffer();
-        const prev = await decryptAgentConv(env, buf);
-        if (prev && !prev.trimStart().startsWith('{')) body = prev;
-      }
-    } catch { /* */ }
+    let body = typeof row.prefetchedPlain === 'string' ? row.prefetchedPlain : '';
+    if (row.prefetchedPlain === undefined) {
+      try {
+        let shouldGet = true;
+        if (typeof (env.IMAGES as any).list === 'function') {
+          const listed = await (env.IMAGES as any).list({ prefix: key, limit: 1 });
+          shouldGet = Boolean(listed?.objects?.some((o: any) => o.key === key));
+        }
+        const existing = shouldGet ? await env.IMAGES.get(key) : null;
+        if (existing) {
+          const buf = await existing.arrayBuffer();
+          const prev = await decryptAgentConv(env, buf);
+          if (prev && !prev.trimStart().startsWith('{')) body = prev;
+        }
+      } catch { /* */ }
+    }
     if (body && !body.endsWith('\n')) body += '\n';
     body += userLine + '\n' + asstLine + '\n';
     // Cap file size (~400KB plain) — drop oldest lines
@@ -1076,7 +1098,7 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
       const system =
         atlasAgentSystem({ role, username, timezone: tz, source: sourceRefined, responseLanguage }) + knowSection;
       // v233 — compact memory: the agent reads its recent conversation without replaying full turns
-      const history = await loadCompactHistory(c.env, username, threadId, 6);
+      const { history, existingPlain } = await loadCompactHistoryWithTranscript(c.env, username, threadId, 6);
       const finalMessage = (history
         ? `Historique récent de la conversation (contexte uniquement — ne pas recopier):\n${history}\n\n${message}`
         : message) + docSection;
@@ -1108,7 +1130,7 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
       }
       await auditAssist(c.env, { username, role, message, tools: 'groq', ok: true });
       await putAgentChatTurn(c.env, {
-        username, role, message, reply: replyGq, tools: 'groq', model: outGq.model, thread_id: threadId,
+        username, role, message, reply: replyGq, tools: 'groq', model: outGq.model, thread_id: threadId, prefetchedPlain: existingPlain,
       });
       await writeAudit(c.env.DB, {
         username, role, action: 'assist.chat', entity: 'atlas_agent', detail: 'groq', ip: clientIp(c),
@@ -1219,7 +1241,7 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
           const knowSection = knowledge ? knowledgePromptSections(knowledge, userMessage) : '';
           const system =
             atlasAgentSystem({ role, username, timezone: tz, source, responseLanguage }) + knowSection;
-          const history = await loadCompactHistory(c.env, username, threadId, 6);
+          const { history, existingPlain } = await loadCompactHistoryWithTranscript(c.env, username, threadId, 6);
           const finalMessage = (history
             ? `Historique récent de la conversation (contexte uniquement — ne pas recopier):\n${history}\n\n${message}`
             : message) + docSection;
@@ -1260,7 +1282,7 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
           }
           await auditAssist(c.env, { username, role, message, tools: 'groq-stream', ok: true });
           await putAgentChatTurn(c.env, {
-            username, role, message, reply, tools: 'groq-stream', model: usedModel, thread_id: threadId,
+            username, role, message, reply, tools: 'groq-stream', model: usedModel, thread_id: threadId, prefetchedPlain: existingPlain,
           });
           await writeAudit(c.env.DB, {
             username, role, action: 'assist.chat.stream', entity: 'atlas_agent', detail: 'groq', ip: clientIp(c),
@@ -1426,15 +1448,13 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
         provider,
         model,
         groqConfigured: configured,
-        mistralConfigured: false,
-        geminiConfigured: false,
         hint: configured
           ? 'Assistant IA actif (Groq)'
           : 'Définissez: npx wrangler secret put GROQ_API_KEY',
       },
     });
   });
-  
+
   /** Admin: Atlas Agent provider (Groq only). */
   app.get('/api/settings/assist-provider', async (c) => {
     const session = sessionUserFromHeader(c.req.header('Authorization'));
@@ -1445,8 +1465,6 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
       data: {
         provider: 'groq',
         groqConfigured,
-        mistralConfigured: false,
-        geminiConfigured: false,
       },
     });
   });

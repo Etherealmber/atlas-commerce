@@ -300,7 +300,7 @@ export default function PhoneApp() {
     const bootTimer = window.setTimeout(() => setBooting(false), 6000);
     void refresh();
     // Refresh pending activity while the app is visible; do not repeatedly reload the catalog or locations.
-    const t = window.setInterval(() => { if (document.visibilityState === 'visible') void refresh('actions'); }, 30000);
+    const t = window.setInterval(() => { if (document.visibilityState === 'visible') void refresh('actions'); }, 90000);
     void api.getStockLocations().then(loc => cacheLocations((loc as any).data || [])).catch(() => {});
     const flush = async () => {
       if (!isOnline()) return;
@@ -599,7 +599,7 @@ function PhoneScan({
     void tick();
     const id = window.setInterval(() => {
       if (document.visibilityState === 'visible') void tick();
-    }, 30000);
+    }, 90000);
     const onVisibility = () => { if (document.visibilityState === 'visible') void tick(); };
     document.addEventListener('visibilitychange', onVisibility);
     // Preload WASM scanner engine (P3)
@@ -1682,12 +1682,17 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme, onProductCreated
     <div className="ph-agent-shell" data-agent-mobile="1" ref={shellRef}>
       <nav ref={dockRef} className={`ph-agent-dock${dockCollapsed ? ' is-collapsed' : ''}`} aria-label="Actions Atlas Agent">
         {dockCollapsed ? <button type="button" className="ph-agent-dock-expand" aria-expanded="false" onClick={expandAgentDock}>Atlas Agent</button> : <>
-        {(onBack || onNavigate) && <button type="button" aria-label="Retour" title="Retour" onClick={() => onBack ? onBack() : onNavigate?.('/m')}><ArrowLeft size={20} /></button>}
-        <span className="ph-agent-dock-mark" aria-label="Atlas Agent"><AtlasAgentMascot size={27} /></span>
-        <button type="button" disabled={busy} title="Historique" aria-label="Historique des discussions" onClick={() => setDialog('history')}><History size={20} /></button>
-        <button type="button" disabled={busy} title="Nouvelle discussion" aria-label="Nouvelle discussion" onClick={newConversation}><MessageSquarePlus size={20} /></button>
-        <button type="button" disabled={refreshing} title="Actualiser le contexte" aria-label="Actualiser le contexte" onClick={() => void refreshContext()}><RefreshCw size={20} /></button>
-        <button type="button" title="Quota IA" aria-label="Quota IA" onClick={() => void openQuota()}><Hourglass size={20} /></button>
+        <div className="ph-agent-dock-brand">
+          {(onBack || onNavigate) && <button type="button" aria-label="Retour" title="Retour" onClick={() => onBack ? onBack() : onNavigate?.('/m')}><ArrowLeft size={21} /></button>}
+          <span className="ph-agent-dock-mark" aria-label="Atlas Agent"><AtlasAgentMascot size={30} /></span>
+          <span className="ph-agent-dock-title">Atlas Agent</span>
+        </div>
+        <div className="ph-agent-dock-actions">
+          <button type="button" disabled={busy} title="Historique" aria-label="Historique des discussions" onClick={() => setDialog('history')}><History size={21} /></button>
+          <button type="button" disabled={busy} title="Nouvelle discussion" aria-label="Nouvelle discussion" onClick={newConversation}><MessageSquarePlus size={21} /></button>
+          <button type="button" disabled={refreshing} title="Actualiser le contexte" aria-label="Actualiser le contexte" onClick={() => void refreshContext()}><RefreshCw size={21} /></button>
+          <button type="button" title="Quota IA" aria-label="Quota IA" onClick={() => void openQuota()}><Hourglass size={21} /></button>
+        </div>
         </>}
       </nav>
       <div className="ph-agent-msgs" ref={listRef} role="log" aria-live="polite" aria-label="Conversation" onScroll={e => onConversationScroll(e.currentTarget)}>

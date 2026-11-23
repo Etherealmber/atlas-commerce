@@ -1,6 +1,8 @@
 import type { Hono } from 'hono';
 import { canFloorStock, canMutateBusiness } from '../lib/rbac';
 import { sessionUserFromHeader } from '../lib/authHelpers';
+import { doCacheGet, doCachePut, hasLiveCache } from '../lib/cache';
+import { afterBusinessMutation } from '../lib/delete-coord';
 
 export interface CategoriesUnitsRouteDeps {
   ensureCategoriesTable: (db: D1Database) => Promise<void>;
@@ -27,6 +29,10 @@ export function registerCategoriesUnitsRoutes(app: Hono<any>, deps: CategoriesUn
   };
 
   app.get('/api/categories', async (c) => {
+    if (hasLiveCache(c.env)) {
+      const hit = await doCacheGet<any[]>(c.env.MOBILE_HUB, c.env.CACHE, 'categories:list', 600);
+      if (hit) return c.json({ success: true, data: hit, cached: true });
+    }
     await ensureCategoriesTable(c.env.DB);
     const { results } = await c.env.DB.prepare(
       `SELECT * FROM product_categories ORDER BY sort_order ASC, name ASC`,
@@ -38,7 +44,11 @@ export function registerCategoriesUnitsRoutes(app: Hono<any>, deps: CategoriesUn
     const extra = ((used || []) as any[])
       .filter((u) => u.name && !names.has(String(u.name).toLowerCase()))
       .map((u) => ({ id: null, name: u.name, description: '', sort_order: 999, from_products: true }));
-    return c.json({ success: true, data: [...(results || []), ...extra] });
+    const data = [...(results || []), ...extra];
+    if (hasLiveCache(c.env)) {
+      await doCachePut(c.env.MOBILE_HUB, c.env.CACHE, 'categories:list', data, 600);
+    }
+    return c.json({ success: true, data });
   });
 
   app.post('/api/categories', async (c) => {
@@ -53,6 +63,7 @@ export function registerCategoriesUnitsRoutes(app: Hono<any>, deps: CategoriesUn
         `INSERT INTO product_categories (name, description, sort_order) VALUES (?, ?, ?)`,
       ).bind(name, String(body.description || ''), Number(body.sort_order || 0)).run();
       const row = await c.env.DB.prepare(`SELECT * FROM product_categories WHERE id = ?`).bind(r.meta.last_row_id).first();
+      await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
       return c.json({ success: true, data: row, message: 'Catégorie créée.' }, 201);
     } catch (e: any) {
       if (String(e?.message || e).includes('UNIQUE')) {
@@ -81,6 +92,7 @@ export function registerCategoriesUnitsRoutes(app: Hono<any>, deps: CategoriesUn
       await c.env.DB.prepare(`UPDATE products SET category = ? WHERE category = ?`).bind(name, existing.name).run();
     }
     const row = await c.env.DB.prepare(`SELECT * FROM product_categories WHERE id = ?`).bind(id).first();
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     return c.json({ success: true, data: row, message: 'Catégorie mise à jour.' });
   });
 
@@ -100,11 +112,13 @@ export function registerCategoriesUnitsRoutes(app: Hono<any>, deps: CategoriesUn
       if (row) {
         await c.env.DB.prepare(`UPDATE products SET category = NULL WHERE category = ? OR LOWER(category) = LOWER(?)`).bind(row.name, row.name).run();
         await c.env.DB.prepare(`DELETE FROM product_categories WHERE id = ?`).bind(row.id).run();
+        await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
         return c.json({ success: true, message: `Catégorie « ${row.name} » supprimée.` });
       }
       const cleared = await c.env.DB.prepare(
         `UPDATE products SET category = NULL WHERE category = ? OR LOWER(category) = LOWER(?)`,
       ).bind(name, name).run();
+      await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
       return c.json({
         success: true,
         message: `Libellé « ${name} » retiré des produits.`,
@@ -118,10 +132,15 @@ export function registerCategoriesUnitsRoutes(app: Hono<any>, deps: CategoriesUn
       `UPDATE products SET category = NULL WHERE category = ? OR LOWER(category) = LOWER(?)`,
     ).bind(existing.name, existing.name).run();
     await c.env.DB.prepare(`DELETE FROM product_categories WHERE id = ?`).bind(id).run();
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     return c.json({ success: true, message: `Catégorie « ${existing.name} » supprimée.` });
   });
 
   app.get('/api/units', async (c) => {
+    if (hasLiveCache(c.env)) {
+      const hit = await doCacheGet<any[]>(c.env.MOBILE_HUB, c.env.CACHE, 'units:list', 600);
+      if (hit) return c.json({ success: true, data: hit, cached: true });
+    }
     await ensureUnitsTable(c.env.DB);
     const { results } = await c.env.DB.prepare(
       `SELECT * FROM product_units ORDER BY sort_order ASC, name ASC`,
@@ -133,7 +152,11 @@ export function registerCategoriesUnitsRoutes(app: Hono<any>, deps: CategoriesUn
     const extra = ((used || []) as any[])
       .filter((u) => u.name && !names.has(String(u.name).toLowerCase()))
       .map((u) => ({ id: null, name: u.name, symbol: '', sort_order: 999, from_products: true }));
-    return c.json({ success: true, data: [...(results || []), ...extra] });
+    const data = [...(results || []), ...extra];
+    if (hasLiveCache(c.env)) {
+      await doCachePut(c.env.MOBILE_HUB, c.env.CACHE, 'units:list', data, 600);
+    }
+    return c.json({ success: true, data });
   });
 
   app.post('/api/units', async (c) => {
@@ -148,6 +171,7 @@ export function registerCategoriesUnitsRoutes(app: Hono<any>, deps: CategoriesUn
         `INSERT INTO product_units (name, symbol, sort_order) VALUES (?, ?, ?)`,
       ).bind(name, String(body.symbol || ''), Number(body.sort_order || 0)).run();
       const row = await c.env.DB.prepare(`SELECT * FROM product_units WHERE id = ?`).bind(r.meta.last_row_id).first();
+      await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
       return c.json({ success: true, data: row, message: 'Unité créée.' }, 201);
     } catch (e: any) {
       if (String(e?.message || e).includes('UNIQUE')) {
@@ -176,6 +200,7 @@ export function registerCategoriesUnitsRoutes(app: Hono<any>, deps: CategoriesUn
       await c.env.DB.prepare(`UPDATE products SET unit = ? WHERE unit = ?`).bind(name, existing.name).run();
     }
     const row = await c.env.DB.prepare(`SELECT * FROM product_units WHERE id = ?`).bind(id).first();
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     return c.json({ success: true, data: row, message: 'Unité mise à jour.' });
   });
 
@@ -195,9 +220,11 @@ export function registerCategoriesUnitsRoutes(app: Hono<any>, deps: CategoriesUn
       if (row) {
         await c.env.DB.prepare(`UPDATE products SET unit = 'unité' WHERE unit = ? OR LOWER(unit) = LOWER(?)`).bind(row.name, row.name).run();
         await c.env.DB.prepare(`DELETE FROM product_units WHERE id = ?`).bind(row.id).run();
+        await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
         return c.json({ success: true, message: `Unité « ${row.name} » supprimée.` });
       }
       await c.env.DB.prepare(`UPDATE products SET unit = 'unité' WHERE unit = ? OR LOWER(unit) = LOWER(?)`).bind(name, name).run();
+      await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
       return c.json({ success: true, message: `Libellé unité « ${name} » retiré des produits.` });
     }
 
@@ -205,6 +232,7 @@ export function registerCategoriesUnitsRoutes(app: Hono<any>, deps: CategoriesUn
     if (!existing) return c.json({ success: false, error: 'Unité introuvable' }, 404);
     await c.env.DB.prepare(`UPDATE products SET unit = 'unité' WHERE unit = ? OR LOWER(unit) = LOWER(?)`).bind(existing.name, existing.name).run();
     await c.env.DB.prepare(`DELETE FROM product_units WHERE id = ?`).bind(id).run();
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     return c.json({ success: true, message: `Unité « ${existing.name} » supprimée.` });
   });
 }

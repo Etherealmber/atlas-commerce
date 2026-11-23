@@ -1,6 +1,7 @@
 import type { Hono } from 'hono';
 import { schemaOnce, addColumnIfMissing } from '../lib/schema';
 import { afterBusinessMutation } from '../lib/delete-coord';
+import { doCacheGet, doCachePut, hasLiveCache } from '../lib/cache';
 import { tr } from '../lib/error-i18n';
 import { round2, roundCurrency } from '../lib/financeCore';
 import { nextDocumentNumber } from '../lib/numbering';
@@ -354,6 +355,10 @@ export function registerInventoryOpsRoutes(app: Hono<any>, deps: InventoryOpsRou
 
   app.get('/api/inventory/locations', async (c) => {
     try {
+      if (hasLiveCache(c.env)) {
+        const hit = await doCacheGet<any[]>(c.env.MOBILE_HUB, c.env.CACHE, 'inventory:locations', 300);
+        if (hit) return c.json({ success: true, data: hit, cached: true });
+      }
       await ensureStockLocations(c.env.DB);
       // reconcile only on stock mutations — not on every GET
       let results: any[] = [];
@@ -371,6 +376,9 @@ export function registerInventoryOpsRoutes(app: Hono<any>, deps: InventoryOpsRou
         console.error('locations query fallback', e1?.message);
         const r2 = await c.env.DB.prepare(`SELECT * FROM stock_locations ORDER BY name`).all();
         results = r2.results || [];
+      }
+      if (hasLiveCache(c.env)) {
+        await doCachePut(c.env.MOBILE_HUB, c.env.CACHE, 'inventory:locations', results, 300);
       }
       return c.json({ success: true, data: results });
     } catch (e: any) {
@@ -470,7 +478,7 @@ export function registerInventoryOpsRoutes(app: Hono<any>, deps: InventoryOpsRou
     for (let i = 0; i < itemStmts.length; i += 100) {
       await c.env.DB.batch(itemStmts.slice(i, i + 100));
     }
-    await afterBusinessMutation(c.env.CACHE);
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     return c.json({
       success: true,
       data: { id: billId, number, lines: lineItems.length, total: subtotal },
@@ -560,7 +568,7 @@ export function registerInventoryOpsRoutes(app: Hono<any>, deps: InventoryOpsRou
         `UPDATE company_settings SET purchase_location_id = NULL WHERE purchase_location_id = ?`
       ).bind(id).run();
     } catch { /* */ }
-    await afterBusinessMutation(c.env.CACHE);
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     return c.json({ success: true, message: `Emplacement « ${loc.name} » supprimé.` });
   });
   
@@ -790,7 +798,7 @@ export function registerInventoryOpsRoutes(app: Hono<any>, deps: InventoryOpsRou
     } catch (e: any) {
       return c.json({ success: false, error: e?.message || 'Transfert impossible', code: e?.code }, 400);
     }
-    await afterBusinessMutation(c.env.CACHE);
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     return c.json({ success: true, message: `Transfert de ${qty} enregistré entre emplacements.` });
   });
   
@@ -820,7 +828,7 @@ export function registerInventoryOpsRoutes(app: Hono<any>, deps: InventoryOpsRou
     } catch (e: any) {
       return c.json({ success: false, error: e?.message || 'Ajustement impossible' }, 400);
     }
-    await afterBusinessMutation(c.env.CACHE);
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     return c.json({ success: true, message: `Écart ${delta > 0 ? '+' : ''}${delta} sur « ${prod.name} ».`, data: { delta, counted, theoretical } });
   });
   
@@ -937,7 +945,7 @@ export function registerInventoryOpsRoutes(app: Hono<any>, deps: InventoryOpsRou
       pids = (results || []).map((r: any) => r.id);
     }
     const result = await runAutoTransfers(c.env.DB, pids);
-    await afterBusinessMutation(c.env.CACHE);
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     return c.json({
       success: true,
       data: result,
@@ -1132,7 +1140,7 @@ export function registerInventoryOpsRoutes(app: Hono<any>, deps: InventoryOpsRou
     }
     const receive_status = all ? 'matched' : any ? 'partial' : 'pending';
     try { await c.env.DB.prepare(`UPDATE bills SET receive_status = ? WHERE id = ?`).bind(receive_status, id).run(); } catch { /* */ }
-    await afterBusinessMutation(c.env.CACHE);
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     return c.json({
       success: true,
       data: await c.env.DB.prepare(`SELECT * FROM bills WHERE id = ?`).bind(id).first(),

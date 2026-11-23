@@ -1,5 +1,5 @@
 import type { Hono } from 'hono';
-import { invalidateDashboardCache } from '../lib/cache';
+import { doCacheGet, doCachePut, hasLiveCache, invalidateDashboardCache } from '../lib/cache';
 import { afterBusinessMutation } from '../lib/delete-coord';
 import { canMutateBusiness, normalizeRole } from '../lib/rbac';
 
@@ -62,17 +62,26 @@ export function registerMobileActionsRoutes(app: Hono<any>, deps: MobileActionsR
   app.get('/api/mobile-actions', async (c) => {
     const limited = refreshLimitGate(c, 'mobile-actions', 60);
     if (limited) return limited;
-    await ensureMobileActionsTable(c.env.DB);
-    const status = c.req.query('status');
+    const status = c.req.query('status') || '';
     const limit = Math.min(Number(c.req.query('limit') || 50), 200);
     const compact = c.req.query('compact') !== '0';
+    const cacheKey = `mobile-actions:list:s=${status}:l=${limit}:c=${compact ? 1 : 0}`;
+    if (hasLiveCache(c.env)) {
+      const hit = await doCacheGet<any[]>(c.env.MOBILE_HUB, c.env.CACHE, cacheKey, 120);
+      if (hit) {
+        return c.json({ success: true, data: hit, meta: { compact }, cached: true }, 200, {
+          'Cache-Control': 'private, max-age=8',
+        });
+      }
+    }
+    await ensureMobileActionsTable(c.env.DB);
     let sql = `SELECT * FROM mobile_actions`;
     const binds: any[] = [];
     if (status && status !== 'all') {
       sql += ` WHERE status = ?`;
       binds.push(status);
     }
-    sql += ` ORDER BY datetime(created_at) DESC LIMIT ?`;
+    sql += ` ORDER BY id DESC LIMIT ?`;
     binds.push(limit);
     const { results } = await c.env.DB.prepare(sql).bind(...binds).all();
     const rows = (results || []).map((row: any) => {
@@ -99,6 +108,9 @@ export function registerMobileActionsRoutes(app: Hono<any>, deps: MobileActionsR
         return row;
       }
     });
+    if (hasLiveCache(c.env)) {
+      await doCachePut(c.env.MOBILE_HUB, c.env.CACHE, cacheKey, rows, 120);
+    }
     return c.json({ success: true, data: rows, meta: { compact } }, 200, {
       'Cache-Control': 'private, max-age=8',
     });
@@ -107,6 +119,10 @@ export function registerMobileActionsRoutes(app: Hono<any>, deps: MobileActionsR
   app.get('/api/mobile-actions/stats', async (c) => {
     const limited = refreshLimitGate(c, 'mobile-actions-stats', 60);
     if (limited) return limited;
+    if (hasLiveCache(c.env)) {
+      const hit = await doCacheGet<any>(c.env.MOBILE_HUB, c.env.CACHE, 'mobile-actions:stats', 120);
+      if (hit) return c.json({ success: true, data: hit, cached: true });
+    }
     await ensureMobileActionsTable(c.env.DB);
     let pendingN: number | null = null;
     try {
@@ -127,15 +143,19 @@ export function registerMobileActionsRoutes(app: Hono<any>, deps: MobileActionsR
       pendingN = Number(pending?.n || 0);
     }
     const today = await c.env.DB.prepare(
-      `SELECT COUNT(*) as n FROM mobile_actions WHERE date(created_at) = date('now')`,
+      `SELECT COUNT(*) as n FROM mobile_actions WHERE created_at >= date('now') AND created_at < date('now', '+1 day')`,
     ).first() as any;
+    const statsData = {
+      pending: pendingN,
+      today: Number(today?.n || 0),
+      source: pendingN != null ? 'do-or-d1' : 'd1',
+    };
+    if (hasLiveCache(c.env)) {
+      await doCachePut(c.env.MOBILE_HUB, c.env.CACHE, 'mobile-actions:stats', statsData, 120);
+    }
     return c.json({
       success: true,
-      data: {
-        pending: pendingN,
-        today: Number(today?.n || 0),
-        source: pendingN != null ? 'do-or-d1' : 'd1',
-      },
+      data: statsData,
     });
   });
 
@@ -209,6 +229,7 @@ export function registerMobileActionsRoutes(app: Hono<any>, deps: MobileActionsR
       lastBarcode: barcode || null,
       lastProductId: product_id,
     });
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     return c.json({ success: true, data: row }, 201);
   });
 
@@ -408,6 +429,10 @@ export function registerMobileActionsRoutes(app: Hono<any>, deps: MobileActionsR
         }
       }
     } catch { /* fall through */ }
+    if (hasLiveCache(c.env)) {
+      const hit = await doCacheGet<any>(c.env.MOBILE_HUB, c.env.CACHE, 'hub:snapshot', 120);
+      if (hit) return c.json({ success: true, data: hit, meta: { source: 'cache' } });
+    }
     await ensureMobileActionsTable(c.env.DB);
     const pending = await c.env.DB.prepare(`SELECT COUNT(*) as n FROM mobile_actions WHERE status = 'pending'`).first() as any;
     const products = await c.env.DB.prepare(
@@ -416,18 +441,22 @@ export function registerMobileActionsRoutes(app: Hono<any>, deps: MobileActionsR
               COALESCE(SUM(CASE WHEN is_active = 1 THEN stock_quantity * cost ELSE 0 END), 0) as stock_value
        FROM products`,
     ).first() as any;
+    const snap = {
+      pending: Number(pending?.n || 0),
+      productCount: Number(products?.count || 0),
+      lowStock: Number(products?.low || 0),
+      stockValue: Number(products?.stock_value || 0),
+      lastBarcode: null,
+      lastProductId: null,
+      lastActionAt: null,
+      updatedAt: null,
+    };
+    if (hasLiveCache(c.env)) {
+      await doCachePut(c.env.MOBILE_HUB, c.env.CACHE, 'hub:snapshot', snap, 120);
+    }
     return c.json({
       success: true,
-      data: {
-        pending: Number(pending?.n || 0),
-        productCount: Number(products?.count || 0),
-        lowStock: Number(products?.low || 0),
-        stockValue: Number(products?.stock_value || 0),
-        lastBarcode: null,
-        lastProductId: null,
-        lastActionAt: null,
-        updatedAt: null,
-      },
+      data: snap,
       meta: { source: 'd1' },
     });
   });

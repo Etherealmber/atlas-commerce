@@ -54,8 +54,10 @@ export default function InvoiceDetail() {
   const [receipts, setReceipts] = useState<any[]>([]);
   const [editingClient, setEditingClient] = useState(false);
   const [clientForm, setClientForm] = useState({
-    client_name: '', client_ice: '', client_address: '', client_city: '', client_email: '', client_phone: '',
+    client_id: '', client_name: '', client_ice: '', client_address: '', client_city: '', client_email: '', client_phone: '',
+    issue_date: '', due_date: '', notes: '',
   });
+  const [clients, setClients] = useState<any[]>([]);
   const [savingClient, setSavingClient] = useState(false);
   const [editingLines, setEditingLines] = useState(false);
   const [editLines, setEditLines] = useState<EditLine[]>([]);
@@ -83,12 +85,16 @@ export default function InvoiceDetail() {
     if (res.data.client_email) setEmail(res.data.client_email);
     setPayments(pays.data || []);
     setClientForm({
+      client_id: res.data.client_id ? String(res.data.client_id) : '',
       client_name: res.data.client_name || '',
       client_ice: res.data.client_ice || '',
       client_address: res.data.client_address || '',
       client_city: res.data.client_city || '',
       client_email: res.data.client_email || '',
       client_phone: res.data.client_phone || '',
+      issue_date: String(res.data.issue_date || '').slice(0, 10),
+      due_date: String(res.data.due_date || '').slice(0, 10),
+      notes: res.data.notes || '',
     });
     setNotesEdit(res.data.notes || '');
     try {
@@ -103,7 +109,10 @@ export default function InvoiceDetail() {
     if (!id) return;
     setLoading(true);
     reload()
-      .then(() => api.getProducts().then((p) => setProducts(p.data || [])).catch(() => {}))
+      .then(() => Promise.all([
+        api.getProducts().then((p) => setProducts(p.data || [])).catch(() => {}),
+        api.getClients().then((c) => setClients(c.data || [])).catch(() => {}),
+      ]))
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -212,12 +221,28 @@ export default function InvoiceDetail() {
   const fmt = (n: number) => fmtMoney(n, 'MAD');
   const saveClient = async () => {
     if (!invoice) return;
+    if (!String(clientForm.client_name || '').trim()) {
+      setMsg('Erreur : le nom du client est obligatoire.');
+      return;
+    }
     setSavingClient(true);
     try {
-      const res = (await api.updateInvoice(invoice.id, clientForm)) as { data?: Record<string, any> };
+      const payload: Record<string, any> = {
+        client_id: clientForm.client_id ? Number(clientForm.client_id) : null,
+        client_name: clientForm.client_name,
+        client_ice: clientForm.client_ice,
+        client_address: clientForm.client_address,
+        client_city: clientForm.client_city,
+        client_email: clientForm.client_email,
+        client_phone: clientForm.client_phone,
+        notes: clientForm.notes,
+      };
+      if (clientForm.issue_date) payload.issue_date = clientForm.issue_date;
+      if (clientForm.due_date) payload.due_date = clientForm.due_date;
+      const res = (await api.updateInvoice(invoice.id, payload)) as { data?: Record<string, any> };
       setInvoice({ ...invoice, ...res.data });
       setEditingClient(false);
-      setMsg('Coordonnées client enregistrées.');
+      setMsg('Informations de la facture enregistrées.');
     } catch (e: any) {
       setMsg(e.message || 'Erreur');
     } finally {
@@ -470,6 +495,37 @@ export default function InvoiceDetail() {
         </div>
         {editingClient ? (
           <div className="grid grid-2">
+            <div className="form-row" style={{ gridColumn: '1 / -1' }}>
+              <label>Client enregistré (optionnel)</label>
+              <select
+                value={clientForm.client_id}
+                onChange={(e) => {
+                  const cid = e.target.value;
+                  const c = clients.find((x) => String(x.id) === cid);
+                  if (c) {
+                    setClientForm((f) => ({
+                      ...f,
+                      client_id: cid,
+                      client_name: c.name || f.client_name,
+                      client_ice: c.ice || '',
+                      client_address: c.address || '',
+                      client_city: c.city || '',
+                      client_email: c.email || '',
+                      client_phone: c.phone || '',
+                    }));
+                  } else {
+                    setClientForm((f) => ({ ...f, client_id: '' }));
+                  }
+                }}
+              >
+                <option value="">— Saisie libre / inchangé —</option>
+                {clients.map((c) => (
+                  <option key={c.id} value={String(c.id)}>
+                    {c.name}{c.ice ? ` · ${c.ice}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
             {(['client_name', 'client_ice', 'client_address', 'client_city', 'client_email', 'client_phone'] as const).map((k) => (
               <div className="form-row" key={k}>
                 <label>{k.replace('client_', '')}</label>
@@ -479,6 +535,18 @@ export default function InvoiceDetail() {
                 />
               </div>
             ))}
+            <div className="form-row">
+              <label>Date d’émission</label>
+              <input type="date" value={clientForm.issue_date} onChange={(e) => setClientForm({ ...clientForm, issue_date: e.target.value })} />
+            </div>
+            <div className="form-row">
+              <label>Date d’échéance</label>
+              <input type="date" value={clientForm.due_date} onChange={(e) => setClientForm({ ...clientForm, due_date: e.target.value })} />
+            </div>
+            <div className="form-row" style={{ gridColumn: '1 / -1' }}>
+              <label>Notes</label>
+              <textarea rows={2} value={clientForm.notes} onChange={(e) => setClientForm({ ...clientForm, notes: e.target.value })} />
+            </div>
           </div>
         ) : (
           <div style={{ fontSize: 14, lineHeight: 1.5 }}>
@@ -491,6 +559,11 @@ export default function InvoiceDetail() {
             )}
             {invoice.client_email && <div>{invoice.client_email}</div>}
             {invoice.client_phone && <div>{invoice.client_phone}</div>}
+            {(invoice.issue_date || invoice.due_date) && (
+              <div style={{ color: 'var(--muted)', fontSize: 13, marginTop: 4 }}>
+                Émise le {invoice.issue_date || '—'}{invoice.due_date ? ` · Échéance ${invoice.due_date}` : ''}
+              </div>
+            )}
           </div>
         )}
         {!isQuote && (

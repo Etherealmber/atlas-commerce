@@ -15,6 +15,7 @@ import { normalizeRole, canMutateBusiness } from '../lib/rbac';
 import { apiFail } from '../lib/api-response';
 import { validateReceiptWrite, validateBillWrite } from '../lib/validate';
 import { afterBusinessMutation } from '../lib/delete-coord';
+import { doCacheGet, doCachePut, hasLiveCache } from '../lib/cache';
 import { ensureBillReceive } from './inventoryOps';
 import { ensureReceiptPublicToken } from './publicSigned';
 import {
@@ -698,12 +699,25 @@ export function registerBillsReceiptsRoutes(app: Hono<any>, deps: BillsReceiptsR
     if (!canMutateBusiness(role)) {
       return c.json({ success: false, error: 'Accès non autorisé pour ce rôle.', code: 'FORBIDDEN_ROLE' }, 403);
     }
-    const status = c.req.query('status');
+    const status = c.req.query('status') || '';
+    const limit = Math.max(1, Math.min(2000, Number(c.req.query('limit') || 500)));
+    const cacheKey = `bills:list:s=${status}:l=${limit}`;
+    if (hasLiveCache(c.env)) {
+      const hit = await doCacheGet<any[]>(c.env.MOBILE_HUB, c.env.CACHE, cacheKey, 300);
+      if (hit) return c.json({ success: true, data: hit, cached: true });
+    }
     let sql = `SELECT * FROM bills`;
-    if (status) sql += ` WHERE status = ?`;
-    sql += ` ORDER BY created_at DESC`;
-    const stmt = status ? c.env.DB.prepare(sql).bind(status) : c.env.DB.prepare(sql);
-    const { results } = await stmt.all();
+    const binds: any[] = [];
+    if (status) {
+      sql += ` WHERE status = ?`;
+      binds.push(status);
+    }
+    sql += ` ORDER BY id DESC LIMIT ?`;
+    binds.push(limit);
+    const { results } = await c.env.DB.prepare(sql).bind(...binds).all();
+    if (hasLiveCache(c.env)) {
+      await doCachePut(c.env.MOBILE_HUB, c.env.CACHE, cacheKey, results || [], 300);
+    }
     return c.json({ success: true, data: results });
   });
   
@@ -915,7 +929,7 @@ export function registerBillsReceiptsRoutes(app: Hono<any>, deps: BillsReceiptsR
       }
       values.push(id);
       await c.env.DB.prepare(`UPDATE bills SET ${updates.join(', ')} WHERE id = ?`).bind(...values).run();
-      await afterBusinessMutation(c.env.CACHE);
+      await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
       const bill = await c.env.DB.prepare(`SELECT * FROM bills WHERE id = ?`).bind(id).first();
       return c.json({
         success: true,
@@ -1057,7 +1071,7 @@ export function registerBillsReceiptsRoutes(app: Hono<any>, deps: BillsReceiptsR
         code: 'PAYMENT_CONFLICT',
       }, 409);
     }
-    await afterBusinessMutation(c.env.CACHE);
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
 
     const payload = {
       success: true,
@@ -1139,7 +1153,7 @@ export function registerBillsReceiptsRoutes(app: Hono<any>, deps: BillsReceiptsR
       }
       await c.env.DB.prepare(`DELETE FROM bill_items WHERE bill_id = ?`).bind(id).run();
       await c.env.DB.prepare(`DELETE FROM bills WHERE id = ?`).bind(id).run();
-      await afterBusinessMutation(c.env.CACHE);
+      await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
       await writeAudit(c.env.DB, {
         username: gate.username, role: gate.role, action: 'bill.delete',
         entity: 'bills', entity_id: id, detail: bill.number || '',
@@ -1187,6 +1201,12 @@ export function registerBillsReceiptsRoutes(app: Hono<any>, deps: BillsReceiptsR
     if (!canMutateBusiness(role)) {
       return c.json({ success: false, error: 'Accès non autorisé pour ce rôle.', code: 'FORBIDDEN_ROLE' }, 403);
     }
+    const limit = Math.max(1, Math.min(2000, Number(c.req.query('limit') || 500)));
+    const cacheKey = `receipts:list:l=${limit}`;
+    if (hasLiveCache(c.env)) {
+      const hit = await doCacheGet<any[]>(c.env.MOBILE_HUB, c.env.CACHE, cacheKey, 300);
+      if (hit) return c.json({ success: true, data: hit, count: hit.length, cached: true });
+    }
     await ensureReceiptSituationColumn(c.env.DB);
     await ensureReceiptsTable(c.env.DB);
     let results: any[] = [];
@@ -1195,12 +1215,16 @@ export function registerBillsReceiptsRoutes(app: Hono<any>, deps: BillsReceiptsR
         `SELECT r.*, i.number AS invoice_number, i.status AS invoice_status
          FROM receipts r
          LEFT JOIN invoices i ON i.id = r.invoice_id
-         ORDER BY COALESCE(r.issue_date, r.created_at) DESC, r.id DESC`
-      ).all();
+         ORDER BY r.id DESC
+         LIMIT ?`
+      ).bind(limit).all();
       results = q.results || [];
     } catch {
-      const q = await c.env.DB.prepare(`SELECT * FROM receipts ORDER BY id DESC`).all();
+      const q = await c.env.DB.prepare(`SELECT * FROM receipts ORDER BY id DESC LIMIT ?`).bind(limit).all();
       results = q.results || [];
+    }
+    if (hasLiveCache(c.env)) {
+      await doCachePut(c.env.MOBILE_HUB, c.env.CACHE, cacheKey, results, 300);
     }
     return c.json({ success: true, data: results, count: results.length });
   });
@@ -1643,7 +1667,7 @@ export function registerBillsReceiptsRoutes(app: Hono<any>, deps: BillsReceiptsR
       } catch { /* */ }
   
       const ar = await recalcInvoicePaidFromPayments(c.env.DB, invId);
-      await afterBusinessMutation(c.env.CACHE);
+      await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
       return c.json({
         success: true,
         message: `Paiement annulé (${amt}). Dette rétablie — payé ${ar?.paid ?? 0} / ${ar?.total ?? 0}.`,
@@ -1689,7 +1713,7 @@ export function registerBillsReceiptsRoutes(app: Hono<any>, deps: BillsReceiptsR
   
     await c.env.DB.prepare(`DELETE FROM receipts WHERE id = ?`).bind(id).run();
   
-    await afterBusinessMutation(c.env.CACHE);
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     return c.json({
       success: true,
       message: `Reçu ${receipt.number} supprimé` + (expenses.length ? ` et ${expenses.length} écriture(s) solde.` : '.') + invMsg,

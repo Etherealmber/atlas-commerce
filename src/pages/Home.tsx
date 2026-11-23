@@ -140,9 +140,19 @@ export default function Home() {
             </div>
             <div className="hm-bento-card rise">
               <div className="hm-fx hm-fx-aging" aria-hidden="true">
-                <span className="hm-bar" style={{ width: '78%' }} />
-                <span className="hm-bar" style={{ width: '52%' }} />
-                <span className="hm-bar" style={{ width: '30%' }} />
+                <svg viewBox="0 0 220 68" width="100%" height="68" style={{ display: 'block' }}>
+                  <defs>
+                    <linearGradient id="hm-aging-grad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#2563eb" stopOpacity="0.28" />
+                      <stop offset="100%" stopColor="#2563eb" stopOpacity="0.02" />
+                    </linearGradient>
+                  </defs>
+                  <line x1="6" y1="54" x2="214" y2="54" stroke="currentColor" strokeOpacity="0.12" strokeWidth="1" />
+                  <path d="M10,46 C44,44 68,26 102,30 C138,34 162,14 210,12 L210,54 L10,54 Z" fill="url(#hm-aging-grad)" />
+                  <path d="M10,46 C44,44 68,26 102,30 C138,34 162,14 210,12" fill="none" stroke="#2563eb" strokeWidth="2.4" strokeLinecap="round" />
+                  <circle cx="102" cy="30" r="3.2" fill="#fff" stroke="#2563eb" strokeWidth="2" />
+                  <circle cx="210" cy="12" r="3.6" fill="#fff" stroke="#2563eb" strokeWidth="2" />
+                </svg>
               </div>
               <h3>Créances &amp; relances</h3>
               <p>Balance âgée, clients à relancer et historique de paiement — sans Post-it.</p>

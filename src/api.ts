@@ -400,7 +400,7 @@ export const api = {
     request<{ success: boolean; in_app: WorkStatusSource; trackers: { github: WorkStatusSource } }>(`/api/mobile/work-status${cursor ? `?${cursor.source === 'in_app' ? 'in_app_cursor' : 'github_cursor'}=${encodeURIComponent(cursor.value)}` : ''}`),
   assistStatus: () => request<{ data: { configured: boolean; provider?: string; model?: string; hint?: string } }>('/api/assist/status'),
   getAssistProvider: () =>
-    request<{ data: { provider: string; groqConfigured?: boolean; groqModel?: string; geminiConfigured?: boolean } }>(
+    request<{ data: { provider: string; groqConfigured?: boolean; groqModel?: string } }>(
       '/api/settings/assist-provider',
     ),
   setAssistProvider: (provider: 'groq') =>

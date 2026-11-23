@@ -8,6 +8,7 @@ import { nextDocumentNumber } from '../lib/numbering';
 import { normalizeProductImageReference } from '../lib/product-images';
 import { proactiveFtsHealth } from '../lib/reliability';
 import { afterBusinessMutation, listR2Prefix } from '../lib/delete-coord';
+import { purgeDeletedAccountFromBackups } from './backups';
 import {
   cascadeDeleteInvoice,
   ensurePaymentHistoryTable,
@@ -209,6 +210,9 @@ app.post('/api/settings/account/delete', async (c) => {
   await c.env.DB.prepare(`DELETE FROM app_users WHERE lower(username) = ?`).bind(username).run();
   await c.env.DB.prepare(`DELETE FROM trusted_devices WHERE lower(username) = ?`).bind(username).run();
   await c.env.DB.prepare(`DELETE FROM webauthn_credentials WHERE lower(username) = ?`).bind(username).run();
+  try { await c.env.DB.prepare(`DELETE FROM push_tokens WHERE lower(username) = ?`).bind(username).run(); } catch { /* */ }
+  try { await c.env.DB.prepare(`DELETE FROM device_push_tokens WHERE lower(username) = ?`).bind(username).run(); } catch { /* */ }
+  try { await purgeDeletedAccountFromBackups(c.env, username); } catch { /* */ }
   await writeAudit(c.env.DB, { username, role: session.role, action: 'account.delete', entity: username, detail: 'otp-verified' });
   return c.json({ success: true });
 });
@@ -373,7 +377,7 @@ app.delete('/api/expenses/:id', async (c) => {
     }
 
     await c.env.DB.prepare(`DELETE FROM expenses WHERE id = ?`).bind(id).run();
-    await afterBusinessMutation(c.env.CACHE);
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     return c.json({ success: true, message: 'Écriture solde supprimée. Le solde a été recalculé.' });
   } catch (err: any) {
     console.error('DELETE /api/expenses/:id', err);

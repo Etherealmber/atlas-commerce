@@ -590,10 +590,10 @@ html[data-density] .modal .btn {
   font-size: var(--d-btn-font) !important;
   min-height: var(--d-row-min);
 }
-html[data-density] .content input:not([type="checkbox"]):not([type="radio"]),
+html[data-density] .content input:not([type="checkbox"]):not([type="radio"]):not(.ac-search-input):not(.settings-search-input):not(.gsp-input):not(.ac-topbar-search-input),
 html[data-density] .content select,
 html[data-density] .content textarea,
-html[data-density] .modal input:not([type="checkbox"]):not([type="radio"]),
+html[data-density] .modal input:not([type="checkbox"]):not([type="radio"]):not(.ac-search-input):not(.settings-search-input):not(.gsp-input):not(.ac-topbar-search-input),
 html[data-density] .modal select,
 html[data-density] .modal textarea {
   padding: var(--d-input-pad) !important;
@@ -8309,7 +8309,7 @@ html[data-density] table th {
 html[data-density] table td {
   font-variant-numeric: tabular-nums;
 }
-html[data-density] .content input:not([type="checkbox"]):not([type="radio"]),
+html[data-density] .content input:not([type="checkbox"]):not([type="radio"]):not(.ac-search-input):not(.settings-search-input):not(.gsp-input):not(.ac-topbar-search-input),
 html[data-density] .content select,
 html[data-density] .content textarea {
   padding: var(--d-input-pad) !important;

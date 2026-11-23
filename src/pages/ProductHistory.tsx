@@ -1,12 +1,14 @@
 import { dualStockLabel } from '../lib/dualUnit';
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Camera, History, Maximize2, Pencil, RefreshCw, SlidersHorizontal } from 'lucide-react';
+import { Camera, History, Maximize2, Pencil, RefreshCw, SlidersHorizontal, Sparkles } from 'lucide-react';
 import { api } from '../api';
 import { canSell } from '../auth';
 import { TimedUndoDelete } from '../components/ui';
+import { FloatingPortal } from '../components/FloatingPortal';
 import ImageLightbox from '../components/ui/ImageLightbox';
 import ProductArtwork, { productImageUrl } from '../components/ProductArtwork';
+import NumberField from '../components/NumberField';
 import PhoneSkeleton from '../mobile/PhoneSkeleton';
 import './product-history.css';
 
@@ -24,6 +26,24 @@ export default function ProductHistory({ mobile = false, onProductUpdated }: Pro
   const [loading, setLoading] = useState(true); const [loadingMore, setLoadingMore] = useState(false);
   const [productError, setProductError] = useState(''); const [error, setError] = useState(''); const [hasMore, setHasMore] = useState(false);
   const [imageBusy, setImageBusy] = useState(false); const [imageMessage, setImageMessage] = useState(''); const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  // In-place stock adjustment modal
+  const [adjustOpen, setAdjustOpen] = useState(false);
+  const [adjustQty, setAdjustQty] = useState<number>(1);
+  const [adjustType, setAdjustType] = useState<'in' | 'out' | 'adjust'>('in');
+  const [adjustReason, setAdjustReason] = useState('');
+  const [adjustBusy, setAdjustBusy] = useState(false);
+  const [adjustError, setAdjustError] = useState('');
+
+  // In-place product details edit modal
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState<any>(null);
+  const [editBusy, setEditBusy] = useState(false);
+  const [editError, setEditError] = useState('');
+  const [descGenerating, setDescGenerating] = useState(false);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [units, setUnits] = useState<any[]>([]);
+
   const generation = useRef(0); const movementGeneration = useRef(0); const imageInput = useRef<HTMLInputElement>(null);
   const load = useCallback(async () => {
     const current = ++generation.current; const movementCurrent = ++movementGeneration.current; setLoading(true); setLoadingMore(false); setImageBusy(false); setImageMessage(''); setProduct(null); setRows([]); setError(''); setProductError(''); setHasMore(false);
@@ -64,6 +84,149 @@ export default function ProductHistory({ mobile = false, onProductUpdated }: Pro
     } catch { if (generation.current === current) setImageMessage('Impossible d’enregistrer la photo. Réessayez.'); }
     finally { if (generation.current === current) setImageBusy(false); }
   };
+
+  const openAdjustModal = () => {
+    setAdjustQty(1);
+    setAdjustType('in');
+    setAdjustReason('');
+    setAdjustError('');
+    setAdjustOpen(true);
+  };
+
+  const submitAdjust = async () => {
+    if (!product || adjustQty <= 0) {
+      setAdjustError('Saisissez une quantité valide.');
+      return;
+    }
+    setAdjustBusy(true);
+    setAdjustError('');
+    try {
+      await api.adjustStock(productId, { quantity: adjustQty, type: adjustType, reason: adjustReason });
+      setAdjustOpen(false);
+      await load();
+      setImageMessage('Stock ajusté et enregistré.');
+      onProductUpdated?.();
+    } catch (e: any) {
+      setAdjustError(e?.message || 'Ajustement impossible — réessayez.');
+    } finally {
+      setAdjustBusy(false);
+    }
+  };
+
+  const openEditModal = () => {
+    if (!product) return;
+    setEditError('');
+    setEditForm({
+      name: product.name || '',
+      sku: product.sku || '',
+      barcode: product.barcode || '',
+      category: product.category || '',
+      unit: product.unit || 'pièce',
+      secondary_unit: product.secondary_unit || '',
+      secondary_unit_factor: product.secondary_unit_factor != null && product.secondary_unit_factor !== '' ? String(product.secondary_unit_factor) : '',
+      description: product.description || '',
+      price: Number(product.price ?? product.unit_price ?? 0),
+      cost: Number(product.cost ?? 0),
+      low_stock_threshold: Number(product.low_stock_threshold ?? 0),
+      tax_rate: product.tax_rate != null ? String(product.tax_rate) : '',
+      invoice_price_mode: product.invoice_price_mode || '',
+      track_inventory: Number(product.track_inventory) !== 0,
+    });
+    setEditOpen(true);
+    if (!categories.length) {
+      api.getCategories().then((r: any) => setCategories(r?.data || [])).catch(() => {});
+    }
+    if (!units.length) {
+      api.getUnits().then((r: any) => setUnits(r?.data || [])).catch(() => {});
+    }
+  };
+
+  const generateEditDescription = async () => {
+    if (!editForm || descGenerating) return;
+    const title = String(editForm.name || '').trim();
+    if (!title) {
+      setEditError('Renseignez d’abord le titre du produit avant de générer la description.');
+      return;
+    }
+    setEditError('');
+    setDescGenerating(true);
+    try {
+      const r = await api.assistChat(
+        `Rédige une description catalogue factuelle pour le produit "${title}".`,
+        {
+          task: 'description',
+          product: {
+            name: title,
+            category: String(editForm.category || '').trim(),
+            sku: String(editForm.sku || '').trim(),
+            unit: String(editForm.unit || '').trim(),
+            secondary_unit: String(editForm.secondary_unit || '').trim(),
+            secondary_unit_factor: String(editForm.secondary_unit_factor || '').trim(),
+            draft: String(editForm.description || '').trim(),
+          },
+        },
+      );
+      if (r.data?.reply) {
+        setEditForm((f: any) => (f ? { ...f, description: r.data.reply } : f));
+      }
+    } catch (e: any) {
+      setEditError(e?.message || 'Génération de description indisponible.');
+    } finally {
+      setDescGenerating(false);
+    }
+  };
+
+  const submitEdit = async () => {
+    if (!editForm || editBusy) return;
+    const name = String(editForm.name || '').trim();
+    if (!name) {
+      setEditError('Le nom du produit est obligatoire.');
+      return;
+    }
+    const price = Number(editForm.price);
+    if (!Number.isFinite(price) || price < 0) {
+      setEditError('Prix de vente invalide.');
+      return;
+    }
+    const secondUnit = String(editForm.secondary_unit || '').trim();
+    const rawFactor = String(editForm.secondary_unit_factor ?? '').trim();
+    const factor = Number(rawFactor.replace(',', '.'));
+    if ((secondUnit || rawFactor) && (!secondUnit || !rawFactor || !Number.isFinite(factor) || factor <= 0 || factor > 1_000_000_000 || secondUnit.toLowerCase() === String(editForm.unit || '').trim().toLowerCase())) {
+      setEditError('Indiquez une deuxième unité différente et un coefficient positif valide.');
+      return;
+    }
+    setEditBusy(true);
+    setEditError('');
+    try {
+      const cost = Number(editForm.cost);
+      await api.updateProduct(productId, {
+        name,
+        sku: String(editForm.sku || '').trim(),
+        barcode: String(editForm.barcode || '').trim(),
+        category: String(editForm.category || '').trim(),
+        unit: String(editForm.unit || 'pièce').trim() || 'pièce',
+        secondary_unit: secondUnit || null,
+        secondary_unit_factor: secondUnit ? factor : null,
+        description: String(editForm.description || '').trim(),
+        price,
+        unit_price: price,
+        cost: Number.isFinite(cost) ? cost : 0,
+        low_stock_threshold: Number(editForm.low_stock_threshold) || 0,
+        track_inventory: editForm.track_inventory ? 1 : 0,
+        tax_rate: editForm.tax_rate === '' || editForm.tax_rate == null ? null : Number(editForm.tax_rate),
+        invoice_price_mode: editForm.invoice_price_mode || null,
+      });
+      setEditOpen(false);
+      await load();
+      setImageMessage('Détails du produit mis à jour.');
+      onProductUpdated?.();
+    } catch (e: any) {
+      setEditError(e?.message || 'Enregistrement impossible — réessayez.');
+    } finally {
+      setEditBusy(false);
+    }
+  };
+
   return <div className={`product-history${mobile ? ' product-history--phone' : ''}`}>
     {!mobile && <h1 className="sr-only">Historique du produit</h1>}
     {productError && <div className="product-history-card" role="alert">{productError} {valid && <button type="button" onClick={() => void load()}>Réessayer</button>}</div>}
@@ -71,8 +234,8 @@ export default function ProductHistory({ mobile = false, onProductUpdated }: Pro
     {product && <section className="product-history-card"><div className="product-history-hero"><div className="product-history-photo">{productImageUrl(product.image_url) ? <button type="button" className="product-history-photo-zoom" aria-label="Agrandir la photo du produit" title="Agrandir la photo" onClick={() => setLightboxOpen(true)}><ProductArtwork url={product.image_url} alt={product.name || ''} /><span className="product-history-photo-zoom-badge" aria-hidden="true"><Maximize2 size={12} strokeWidth={2.3} /></span></button> : <ProductArtwork url={product.image_url} />}{canSell() && <><input ref={imageInput} type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onChange={changePhoto} /><button type="button" className="secondary product-history-photo-action" aria-label="Modifier la photo du produit" title="Modifier la photo du produit" disabled={imageBusy} onClick={() => imageInput.current?.click()}><Camera size={16} /></button></>}</div><div><span className="product-history-tag">Fiche produit</span><h2>{product.name}</h2><p>{[product.sku, product.barcode, product.category].filter(Boolean).join(' · ') || 'Sans référence'}</p></div></div>
       <p className="product-history-actors">Créé par {actor(product.created_by, 'non renseigné')}{product.approved_by && <> · Approuvé par {product.approved_by}</>}</p>
       {!mobile && canSell() && <div className="product-history-actions">
-        {Number(product.track_inventory) !== 0 && <button type="button" className="secondary product-history-action-stock" onClick={() => navigate('/products', { state: { productAction: 'stock', productId } })}><SlidersHorizontal size={16} aria-hidden="true" />Ajuster le stock</button>}
-        <button type="button" className="secondary product-history-action-edit" onClick={() => navigate('/products', { state: { productAction: 'edit', productId } })}><Pencil size={16} aria-hidden="true" />Modifier les détails</button>
+        {Number(product.track_inventory) !== 0 && <button type="button" className="secondary product-history-action-stock" onClick={openAdjustModal}><SlidersHorizontal size={16} aria-hidden="true" />Ajuster le stock</button>}
+        <button type="button" className="secondary product-history-action-edit" onClick={openEditModal}><Pencil size={16} aria-hidden="true" />Modifier les détails</button>
       </div>}
       {imageMessage && <p role="status">{imageMessage}</p>}
       <div className="product-history-chips"><span>{product.track_inventory != null && !Number(product.track_inventory) ? 'Stock non suivi' : `Stock ${dualStockLabel(product)}`}</span>{canSell() && typeof product.price === 'number' && <span>{product.price.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MAD</span>}</div>
@@ -96,6 +259,106 @@ export default function ProductHistory({ mobile = false, onProductUpdated }: Pro
           </div>
         </div>
       </section>
+    )}
+    {adjustOpen && product && (
+      <FloatingPortal><div className="modal-overlay" onClick={() => { if (!adjustBusy) setAdjustOpen(false); }}>
+        <div className="modal" role="dialog" aria-modal="true" aria-labelledby="ph-adjust-title" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 460 }}>
+          <h2 id="ph-adjust-title">Ajuster le stock — {product.name}</h2>
+          <p className="muted" style={{ marginTop: 0 }}>Stock actuel : <strong>{dualStockLabel(product)}</strong></p>
+          {adjustError && <div className="error-msg" style={{ marginBottom: 10 }}>{adjustError}</div>}
+          <div className="form-row">
+            <label>Type de mouvement</label>
+            <select value={adjustType} onChange={(e) => setAdjustType(e.target.value as any)} disabled={adjustBusy}>
+              <option value="in">Entrée (ajouter au stock)</option>
+              <option value="out">Sortie (retirer du stock)</option>
+              <option value="adjust">Définir le stock exact</option>
+            </select>
+          </div>
+          <div className="form-row">
+            <label>{adjustType === 'adjust' ? 'Nouveau stock exact' : 'Quantité'}</label>
+            <NumberField value={adjustQty} onValueChange={setAdjustQty} min={0} step="0.01" disabled={adjustBusy} />
+          </div>
+          <div className="form-row">
+            <label>Motif / note</label>
+            <input value={adjustReason} onChange={(e) => setAdjustReason(e.target.value)} placeholder="Ex. inventaire physique, casse, réapprovisionnement…" disabled={adjustBusy} />
+          </div>
+          <div className="form-actions">
+            <button type="button" className="secondary" onClick={() => setAdjustOpen(false)} disabled={adjustBusy}>Annuler</button>
+            <button type="button" onClick={() => void submitAdjust()} disabled={adjustBusy}>{adjustBusy ? 'Enregistrement…' : 'Enregistrer'}</button>
+          </div>
+        </div>
+      </div></FloatingPortal>
+    )}
+    {editOpen && product && editForm && (
+      <FloatingPortal><div className="modal-overlay" onClick={() => { if (!editBusy) setEditOpen(false); }}>
+        <div className="modal step-wizard step-wizard--wide" role="dialog" aria-modal="true" aria-labelledby="ph-edit-title" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 680 }}>
+          <h2 id="ph-edit-title">Modifier les détails — {product.name}</h2>
+          {editError && <div className="error-msg" style={{ marginBottom: 10 }}>{editError}</div>}
+          <div className="grid grid-2">
+            <div className="form-row"><label>Nom *</label><input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} disabled={editBusy} /></div>
+            <div className="form-row"><label>Catégorie</label>
+              <select value={editForm.category} onChange={(e) => setEditForm({ ...editForm, category: e.target.value })} disabled={editBusy}>
+                <option value="">Sans catégorie</option>
+                {categories.map((c: any) => <option key={c.id ?? c.name} value={c.name}>{c.name}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-3">
+            <div className="form-row"><label>SKU / Référence</label><input value={editForm.sku} onChange={(e) => setEditForm({ ...editForm, sku: e.target.value })} disabled={editBusy} /></div>
+            <div className="form-row"><label>Code-barres</label><input value={editForm.barcode} onChange={(e) => setEditForm({ ...editForm, barcode: e.target.value })} disabled={editBusy} /></div>
+            <div className="form-row"><label>Unité principale</label>
+              <select value={editForm.unit} onChange={(e) => setEditForm({ ...editForm, unit: e.target.value })} disabled={editBusy}>
+                {units.length ? units.map((u: any) => <option key={u.id ?? u.name} value={u.name}>{u.name}</option>) : (
+                  <>
+                    <option value="pièce">pièce</option>
+                    <option value="m²">m²</option>
+                    <option value="kg">kg</option>
+                    <option value="carton">carton</option>
+                  </>
+                )}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-2">
+            <div className="form-row"><label>Deuxième unité (optionnel)</label><input value={editForm.secondary_unit} onChange={(e) => setEditForm({ ...editForm, secondary_unit: e.target.value })} placeholder="ex. m²" disabled={editBusy} /></div>
+            <div className="form-row"><label>Coefficient (1 {editForm.unit || 'unité'} = …)</label><input value={editForm.secondary_unit_factor} onChange={(e) => setEditForm({ ...editForm, secondary_unit_factor: e.target.value })} placeholder="ex. 1.59" disabled={editBusy} /></div>
+          </div>
+          <div className="grid grid-3">
+            <div className="form-row"><label>Prix de vente *</label><NumberField value={editForm.price} onValueChange={(n) => setEditForm({ ...editForm, price: n })} min={0} step="0.01" disabled={editBusy} /></div>
+            <div className="form-row"><label>Coût</label><NumberField value={editForm.cost} onValueChange={(n) => setEditForm({ ...editForm, cost: n })} min={0} step="0.01" disabled={editBusy} /></div>
+            <div className="form-row"><label>Seuil d’alerte</label><NumberField value={editForm.low_stock_threshold} onValueChange={(n) => setEditForm({ ...editForm, low_stock_threshold: n })} min={0} disabled={editBusy} /></div>
+          </div>
+          <div className="grid grid-2">
+            <div className="form-row"><label>Taux TVA %</label><NumberField value={editForm.tax_rate} onValueChange={(n) => setEditForm({ ...editForm, tax_rate: n })} placeholder="Défaut" disabled={editBusy} /></div>
+            <div className="form-row"><label>Prix sur facture</label>
+              <select value={editForm.invoice_price_mode} onChange={(e) => setEditForm({ ...editForm, invoice_price_mode: e.target.value })} disabled={editBusy}>
+                {!editForm.invoice_price_mode && <option value="">Mode historique (inchangé)</option>}
+                <option value="exclusive">TVA ajoutée au prix (HT)</option>
+                <option value="inclusive">TVA incluse dans le prix (TTC)</option>
+              </select>
+            </div>
+          </div>
+          <div className="form-row">
+            <label>Description</label>
+            <textarea rows={2} value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} disabled={editBusy} />
+            <div style={{ marginTop: 6 }}>
+              <button type="button" className="secondary" disabled={descGenerating || editBusy || !String(editForm.name || '').trim()} onClick={() => void generateEditDescription()}>
+                <Sparkles size={14} aria-hidden="true" /> {descGenerating ? 'Génération…' : 'Générer la description (IA)'}
+              </button>
+            </div>
+          </div>
+          <div className="form-row">
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <input type="checkbox" checked={Boolean(editForm.track_inventory)} onChange={(e) => setEditForm({ ...editForm, track_inventory: e.target.checked })} disabled={editBusy} style={{ width: 'auto', display: 'inline' }} />
+              Suivre le stock pour ce produit
+            </label>
+          </div>
+          <div className="form-actions">
+            <button type="button" className="secondary" onClick={() => setEditOpen(false)} disabled={editBusy}>Annuler</button>
+            <button type="button" onClick={() => void submitEdit()} disabled={editBusy}>{editBusy ? 'Enregistrement…' : 'Enregistrer les modifications'}</button>
+          </div>
+        </div>
+      </div></FloatingPortal>
     )}
     {lightboxOpen && product && productImageUrl(product.image_url) && (
       <ImageLightbox

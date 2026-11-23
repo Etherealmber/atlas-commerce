@@ -303,7 +303,7 @@ export function registerDataImportRoutes(app: Hono<any>, deps: DataImportRouteDe
       }, 400);
     }
 
-    await afterBusinessMutation(c.env.CACHE);
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     return c.json({
       success: true,
       message: `Import terminé: ${inserted} enregistrement(s).`,

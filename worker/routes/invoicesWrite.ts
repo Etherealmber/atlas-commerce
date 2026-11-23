@@ -456,7 +456,7 @@ export function registerInvoicesWriteRoutes(app: Hono<any>, deps: InvoicesWriteR
     try {
       await archiveInvoiceSnapshot(c.env, invoice, invItems || []);
     } catch { /* */ }
-    await afterBusinessMutation(c.env.CACHE);
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     if (idemKey) await idempotencyPut(c.env.DB, `inv:${idemKey}`, 'POST /invoices', 201, payload);
     return c.json(payload, 201);
     } catch (e: any) {
@@ -999,7 +999,7 @@ export function registerInvoicesWriteRoutes(app: Hono<any>, deps: InvoicesWriteR
           public_url: pubTok ? `${new URL(c.req.url).origin}/api/public/invoices/${pubTok}` : null,
         },
       };
-      await afterBusinessMutation(c.env.CACHE);
+      await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
       if (idemKey) await idempotencyPut(c.env.DB, `wr:${idemKey}`, 'POST /remboursement', 201, payload);
       return c.json(payload, 201);
     } catch (e: any) {
@@ -1219,11 +1219,11 @@ export function registerInvoicesWriteRoutes(app: Hono<any>, deps: InvoicesWriteR
           taxRate: p.taxRate !== undefined && p.taxRate !== null && p.taxRate !== '' ? Number(p.taxRate) : undefined,
           defaultTax,
           pricesTtc: false,
-          isQuickSale: false,
+          isQuickSale,
           taxExempt,
           explicitInclusive: false,
         })),
-        { defaultTax, isQuickSale: false, taxExempt, currency },
+        { defaultTax, isQuickSale, taxExempt, currency },
       );
       const normalized = preparedEditLines.map((p, idx) => {
         const calc = editCalc.lines[idx];
@@ -1530,7 +1530,7 @@ export function registerInvoicesWriteRoutes(app: Hono<any>, deps: InvoicesWriteR
         ? `Facture soldée. Total payé ${next}. Reçu généré.`
         : `Paiement enregistré (${applied}). Cumul ${next} · Reste ${remaining}.`,
     };
-    await afterBusinessMutation(c.env.CACHE);
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     if (idemKey) await idempotencyPut(c.env.DB, `pay:${id}:${idemKey}`, 'POST /payments', 200, payload);
     return c.json(payload);
   });
@@ -1652,7 +1652,7 @@ export function registerInvoicesWriteRoutes(app: Hono<any>, deps: InvoicesWriteR
       return c.json({ success: false, error: 'Conversion impossible : le devis ou le stock a changé, ou le stock est insuffisant. Actualisez et réessayez.', code: 'QUOTE_CONVERSION_CONFLICT' }, 409);
     }
 
-    await afterBusinessMutation(c.env.CACHE);
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     const updated = await c.env.DB.prepare(`SELECT * FROM invoices WHERE id = ?`).bind(id).first();
     const msg = asQuickSale
       ? `Devis converti en vente rapide ${newNumber}. Stock mis à jour.`
@@ -1759,7 +1759,7 @@ export function registerInvoicesWriteRoutes(app: Hono<any>, deps: InvoicesWriteR
       if (!links) return c.json({ success: false, error: 'Facture introuvable' }, 404);
 
       await cascadeDeleteInvoice(c.env.DB, id);
-      await afterBusinessMutation(c.env.CACHE);
+      await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
 
       await writeAudit(c.env.DB, {
         username: gate.username,
