@@ -127,6 +127,46 @@ describe('UI guards: Rapports modal close button & floating pill stability', () 
     expect(avatar!.textContent).toBe('OE');
   });
 
+  it('TopbarUserMenu dropdown matches floating deck styling without .secondary bleed and highlights logout as danger', async () => {
+    await act(async () => {
+      root.render(
+        createElement(
+          MemoryRouter,
+          null,
+          createElement(TopbarUserMenu, {
+            displayName: 'MY Marbre',
+            roleLabel: 'Propriétaire',
+            initials: 'MM',
+            onLogout: () => {},
+          }),
+        ),
+      );
+    });
+
+    const btn = host.querySelector<HTMLButtonElement>('button.ac-topbar-user-btn')!;
+    await act(async () => {
+      btn.click();
+    });
+
+    const dropdown = document.body.querySelector<HTMLElement>('.ac-user-dropdown');
+    expect(dropdown).toBeTruthy();
+    expect(dropdown!.querySelector('.ac-user-dropdown-identity')).toBeTruthy();
+    expect(dropdown!.querySelector('.ac-user-dropdown-name')?.textContent).toBe('MY Marbre');
+    expect(dropdown!.querySelector('.ac-user-dropdown-role')?.textContent).toBe('Propriétaire');
+
+    const items = Array.from(dropdown!.querySelectorAll<HTMLButtonElement>('button.ac-user-dropdown-item'));
+    expect(items.length).toBeGreaterThanOrEqual(5);
+    for (const item of items) {
+      expect(item.classList.contains('secondary')).toBe(false);
+      expect(item.querySelector('.ac-user-dropdown-ico')).toBeTruthy();
+    }
+
+    const logoutBtn = dropdown!.querySelector<HTMLButtonElement>('button.ac-user-dropdown-logout');
+    expect(logoutBtn).toBeTruthy();
+    expect(logoutBtn!.classList.contains('ac-user-dropdown-item--danger')).toBe(true);
+    expect(dropdown!.querySelectorAll('.ac-user-dropdown-sep').length).toBeGreaterThanOrEqual(2);
+  });
+
   it('scopes desktop hover micro-animations away from mobile shell and keeps mobile theme transitions unified', () => {
     const darkForceCss = readFileSync(path.resolve(process.cwd(), 'src/styles/dark-force.css'), 'utf8');
     const phoneCss = readFileSync(path.resolve(process.cwd(), 'src/mobile/phone.css'), 'utf8');

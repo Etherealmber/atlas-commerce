@@ -460,10 +460,11 @@ html body .content button.ac-timed-undo-btn.is-armed {
 
 /* v17 user menu light + delete div */
 html body .ac-user-dropdown-item,
-html body .ac-user-dropdown button {
-  background: #ffffff !important;
+html body .ac-user-dropdown button.ac-user-dropdown-item {
+  background: transparent !important;
   color: #0f172a !important;
-  border: 1px solid #e8eaef !important;
+  border: 1px solid transparent !important;
+  border-radius: 14px !important;
   box-shadow: none !important;
 }
 html body .btn-delete-red {
@@ -583,13 +584,13 @@ html body .atlas-dp-foot {
   border-top: 1px solid #f1f5f9 !important;
 }
 
-/* User menu items — white chips */
+/* User menu items — borderless floating rows */
 html body .ac-user-dropdown-item,
 html body .ac-user-dropdown button.ac-user-dropdown-item {
-  background: #ffffff !important;
+  background: transparent !important;
   color: #0f172a !important;
-  border: 1px solid #e8eaef !important;
-  border-radius: 12px !important;
+  border: 1px solid transparent !important;
+  border-radius: 14px !important;
 }
 
 
