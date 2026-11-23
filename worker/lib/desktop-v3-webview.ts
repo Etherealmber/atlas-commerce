@@ -63,13 +63,53 @@ function buildChallengeScript(mode: 'turnstile_webview' | 'system_browser'): str
     } finally { clearTimeout(timeout); }
   }
   let finished = false;
-  function unavailable() { if (!finished) { finished = true; fail(); } }
+  let pendingToken = '';
+  let submitting = false;
+  function unavailable() { if (!finished) { finished = true; pendingToken = ''; fail(); } }
+  async function trySubmitApproval() {
+    if (finished || submitting || !pendingToken) return;
+    if (confirmEl && !confirmEl.checked) {
+      status.textContent = 'Cochez la confirmation du code pour terminer la vérification.';
+      return;
+    }
+    submitting = true;
+    const tokenToSend = pendingToken;
+    pendingToken = '';
+    status.textContent = 'Vérification en cours…';
+    try {
+      const payload = { ...context, decision: 'approve', turnstile_token: tokenToSend };
+      if (confirmEl) payload.compare_confirmed = true;
+      const result = await post('verify', payload);
+      if (result?.status === 'verified') {
+        finished = true;
+        status.textContent = 'Vérification terminée. Revenez dans Atlas.';
+      } else {
+        submitting = false;
+        fail();
+      }
+    } catch (_) {
+      submitting = false;
+      fail();
+    }
+  }
+  if (confirmEl) {
+    confirmEl.addEventListener('change', () => {
+      if (confirmEl.checked && pendingToken) void trySubmitApproval();
+    });
+  }
   if (denyEl) {
     denyEl.addEventListener('click', async () => {
       if (finished) return;
-      finished = true;
-      try { await post('verify', { ...context, decision: 'deny' }); } catch (_) {}
-      status.textContent = 'Demande refusée. Revenez dans Atlas.';
+      try {
+        const result = await post('verify', { ...context, decision: 'deny' });
+        if (result?.status === 'denied') {
+          finished = true;
+          pendingToken = '';
+          status.textContent = 'Demande refusée. Revenez dans Atlas.';
+          return;
+        }
+      } catch (_) {}
+      status.textContent = 'Impossible de confirmer le refus. Annulez la connexion depuis Atlas.';
     });
   }
   post('prepare', context).then(challenge => {
@@ -92,22 +132,14 @@ function buildChallengeScript(mode: 'turnstile_webview' | 'system_browser'): str
         if (!window.turnstile?.render) { unavailable(); return; }
         window.turnstile.render(box, {
           sitekey: challenge.site_key, action: challenge.action, cData: challenge.cdata, size: 'normal', appearance: 'always',
-          callback: async token => {
+          callback: token => {
             if (finished || typeof token !== 'string' || !token || token.length > 2048) return;
-            if (confirmEl && !confirmEl.checked) {
-              status.textContent = 'Confirmez d’abord que le code affiché correspond à Atlas Desktop.';
-              return;
-            }
-            finished = true;
-            status.textContent = 'Vérification en cours…';
-            try {
-              const payload = { ...context, decision: 'approve', turnstile_token: token };
-              if (confirmEl) payload.compare_confirmed = true;
-              const result = await post('verify', payload);
-              status.textContent = result?.status === 'verified' ? 'Vérification terminée. Revenez dans Atlas.' : 'Vérification indisponible. Recommencez dans Atlas.';
-            } catch (_) { fail(); }
+            pendingToken = token;
+            void trySubmitApproval();
           },
-          'error-callback': unavailable, 'expired-callback': unavailable, 'timeout-callback': unavailable,
+          'error-callback': unavailable,
+          'expired-callback': () => { pendingToken = ''; unavailable(); },
+          'timeout-callback': () => { pendingToken = ''; unavailable(); },
         });
         rendered = true;
       } catch (_) { unavailable(); }

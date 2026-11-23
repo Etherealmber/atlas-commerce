@@ -707,7 +707,6 @@ export async function authFailReason(
   if (rawToken.startsWith('nv3.')) {
     if (opts?.relaxSession || opts?.allowRoleRefresh) return 'bad_token';
     const ctx = requestAuthStorage.getStore();
-    if (ctx?.verifiedNv3 && ctx.verifiedNv3.token === rawToken) return 'ok';
     const dpopHeader = opts?.dpopHeader ?? ctx?.dpopHeader;
     const method = opts?.method ?? ctx?.method;
     const requestUrl = opts?.requestUrl ?? ctx?.requestUrl;
@@ -719,14 +718,19 @@ export async function authFailReason(
       return 'bad_token';
     }
     if (parsedUrl.protocol !== 'https:') return 'bad_token';
+    const alreadyVerifiedProof = !!(ctx?.verifiedNv3 && ctx.verifiedNv3.token === rawToken);
     const verified = await validateDesktopV3AccessToken(env, rawToken, {
       origin: parsedUrl.origin,
       method: method.toUpperCase(),
       target: `${parsedUrl.origin}${parsedUrl.pathname}`,
       dpopHeader,
+      skipDpopReplayInsert: alreadyVerifiedProof,
       currentIdentity: nativeCurrentIdentity,
     });
-    if (!verified.ok) return verified.reason;
+    if (!verified.ok) {
+      if (ctx?.verifiedNv3?.token === rawToken) delete ctx.verifiedNv3;
+      return verified.reason;
+    }
     if (ctx) {
       ctx.verifiedNv3 = {
         token: rawToken,

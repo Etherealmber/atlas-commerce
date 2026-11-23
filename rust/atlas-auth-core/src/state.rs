@@ -278,9 +278,14 @@ impl DesktopV3AuthSession {
                 action: "apply_authenticated",
             });
         }
+        let expected_thumbprint = self
+            .device_thumbprint
+            .as_deref()
+            .ok_or(AuthCoreError::ResponseMismatch)?;
         if tokens.token_type != "DPoP"
             || tokens.origin != self.origin.as_str()
             || tokens.device_thumbprint != key.thumbprint()
+            || tokens.device_thumbprint != expected_thumbprint
             || !tokens.access_token.starts_with("nv3.")
         {
             return Err(AuthCoreError::ResponseMismatch);
@@ -341,7 +346,8 @@ mod tests {
         )
         .unwrap();
 
-        assert!(session.build_password_login("alice", "pw").is_err());
+        let synthetic_input = format!("fixture-{}-{}", key.thumbprint().len(), "alpha");
+        assert!(session.build_password_login("alice", &synthetic_input).is_err());
 
         let req_id = "a".repeat(64);
         let created = CreateRequestV3Response {
@@ -369,6 +375,6 @@ mod tests {
         };
         session.apply_poll(&poll).unwrap();
         assert_eq!(session.phase(), DesktopV3Phase::ChallengeVerified);
-        assert!(session.build_password_login("alice", "pw").is_ok());
+        assert!(session.build_password_login("alice", &synthetic_input).is_ok());
     }
 }

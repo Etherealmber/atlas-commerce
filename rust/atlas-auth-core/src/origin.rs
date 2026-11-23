@@ -1,11 +1,18 @@
 use crate::error::{AuthCoreError, Result};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use url::Url;
 
 /// Strict bare HTTPS server origin (e.g. `https://stock.afmarbre.com` or
 /// `https://staging.example:8443`).
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize)]
 pub struct ServerOrigin(String);
+
+impl<'de> Deserialize<'de> for ServerOrigin {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> std::result::Result<Self, D::Error> {
+        let raw = String::deserialize(deserializer)?;
+        Self::parse(&raw).map_err(serde::de::Error::custom)
+    }
+}
 
 impl ServerOrigin {
     pub fn parse(raw: &str) -> Result<Self> {

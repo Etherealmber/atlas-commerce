@@ -26,6 +26,7 @@ import { reserveDesktopCreate } from '../lib/desktop-create-budget';
 import { issueDpopNonce, prepareDpopVerification, ensureDpopTables } from '../lib/desktop-device-proof-store';
 import { desktopV3Enabled, makeDesktopV3Token } from '../lib/desktop-v3-session';
 import { createConfiguredNativeMailbox, createNativeOtpSender } from '../lib/desktop-mail-transport';
+import { addColumnIfMissing } from '../lib/schema';
 
 export const NATIVE_V3 = '/api/auth/desktop/v3';
 
@@ -204,6 +205,7 @@ async function ensureV3Schema(db: D1Database): Promise<void> {
         role TEXT,
         user_id INTEGER,
         credential_tag TEXT,
+        mailbox_version TEXT,
         device_thumbprint TEXT NOT NULL,
         label TEXT NOT NULL,
         otp_digest TEXT NOT NULL,
@@ -215,6 +217,7 @@ async function ensureV3Schema(db: D1Database): Promise<void> {
       )`,
     )
     .run();
+  await addColumnIfMissing(db, 'desktop_v3_logins', 'mailbox_version', 'TEXT');
   await db.prepare('CREATE INDEX IF NOT EXISTS idx_v3_logins_exp ON desktop_v3_logins(expires_at)').run();
 
   await db
@@ -393,9 +396,15 @@ function strictOrigin(c: Context<any>, supplied?: unknown): string {
   return url.origin;
 }
 
-async function pairingCode(row: { origin: string; id: string; challenge: string }): Promise<string> {
-  const h = await desktopHash(JSON.stringify(['desktop-v3-pairing', row.origin, row.id, row.challenge]));
-  return `${h.slice(0, 5).toUpperCase()}-${h.slice(5, 10).toUpperCase()}`;
+export async function pairingCode(row: { origin: string; id: string; challenge: string }): Promise<string> {
+  const bytes = new Uint8Array(
+    await crypto.subtle.digest(
+      'SHA-256',
+      new TextEncoder().encode(JSON.stringify(['desktop-v3-pairing', row.origin, row.id, row.challenge])),
+    ),
+  );
+  const hex = Array.from(bytes.slice(0, 5), (b) => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+  return `${hex.slice(0, 5)}-${hex.slice(5, 10)}`;
 }
 
 export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): void {
@@ -456,17 +465,17 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
     if (!res.allowed) fail('RATE_LIMITED', 429);
   }
 
-  async function getChallengeRow(c: Context<any>, b: Record<string, any>) {
+  async function getChallengeRow(c: Context<any>, b: Record<string, any>, opts?: { ignoreExpiry?: boolean }) {
     const server = strictOrigin(c, b.origin);
     if (typeof b.origin !== 'string' || !pattern(b.request_id, ID)) fail('INVALID_REQUEST');
     const row: any = await c.env.DB.prepare('SELECT * FROM desktop_v3_requests WHERE id = ?').bind(b.request_id).first();
     if (!row || row.origin !== server) fail('INVALID_REQUEST');
-    if (row.expires_at <= Date.now()) fail('EXPIRED', 410);
+    if (!opts?.ignoreExpiry && row.expires_at <= Date.now()) fail('EXPIRED', 410);
     return row;
   }
 
-  async function verifyDesktopProof(c: Context<any>, b: Record<string, any>) {
-    const row = await getChallengeRow(c, b);
+  async function verifyDesktopProof(c: Context<any>, b: Record<string, any>, opts?: { ignoreRequestExpiry?: boolean }) {
+    const row = await getChallengeRow(c, b, { ignoreExpiry: opts?.ignoreRequestExpiry });
     if (
       !pattern(b.state, STATE) ||
       !pattern(b.code_verifier, VERIFIER) ||
@@ -526,13 +535,17 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
     ]);
     if (results.some((r) => Number(r?.meta?.changes || 0) < 1)) fail('INVALID_PROOF', 401);
 
-    // Best-effort pruning
+    // Best-effort pruning (never fail a committed request creation)
     const cutoff = now - 3_600_000;
-    await c.env.DB.prepare('DELETE FROM desktop_v3_requests WHERE id IN (SELECT id FROM desktop_v3_requests WHERE expires_at < ? LIMIT 100)').bind(cutoff).run();
-    await c.env.DB.prepare('DELETE FROM desktop_v3_logins WHERE id IN (SELECT id FROM desktop_v3_logins WHERE expires_at < ? LIMIT 100)').bind(cutoff).run();
-    await c.env.DB.prepare('DELETE FROM desktop_v3_sessions WHERE id IN (SELECT id FROM desktop_v3_sessions WHERE absolute_expires_at < ? LIMIT 100)').bind(cutoff).run();
-    await c.env.DB.prepare('DELETE FROM desktop_v3_refresh_history WHERE refresh_hash IN (SELECT refresh_hash FROM desktop_v3_refresh_history WHERE expires_at < ? LIMIT 100)').bind(cutoff).run();
-    await c.env.DB.prepare('DELETE FROM desktop_v3_limits WHERE bucket IN (SELECT bucket FROM desktop_v3_limits WHERE expires_at < ? LIMIT 100)').bind(now).run();
+    try {
+      await c.env.DB.prepare('DELETE FROM desktop_v3_requests WHERE id IN (SELECT id FROM desktop_v3_requests WHERE expires_at < ? LIMIT 100)').bind(cutoff).run();
+      await c.env.DB.prepare('DELETE FROM desktop_v3_logins WHERE id IN (SELECT id FROM desktop_v3_logins WHERE expires_at < ? LIMIT 100)').bind(cutoff).run();
+      await c.env.DB.prepare('DELETE FROM desktop_v3_sessions WHERE id IN (SELECT id FROM desktop_v3_sessions WHERE absolute_expires_at < ? LIMIT 100)').bind(cutoff).run();
+      await c.env.DB.prepare('DELETE FROM desktop_v3_refresh_history WHERE refresh_hash IN (SELECT refresh_hash FROM desktop_v3_refresh_history WHERE expires_at < ? LIMIT 100)').bind(cutoff).run();
+      await c.env.DB.prepare('DELETE FROM desktop_v3_limits WHERE bucket IN (SELECT bucket FROM desktop_v3_limits WHERE expires_at < ? LIMIT 100)').bind(now).run();
+    } catch {
+      /* best-effort expiry pruning */
+    }
 
     const code = await pairingCode({ origin: server, id, challenge: b.code_challenge });
     const challengePath = b.presentation === 'turnstile_webview' ? '/login/desktop-v3-challenge' : '/login/desktop-v3-browser';
@@ -716,13 +729,15 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
     const otp = randomOtp();
     const digest = await otpMac(c.env.DESKTOP_NATIVE_V3_OTP_KEY, reqRow.id, otp);
 
-    let verifiedMailbox: string | null = null;
+    let verifiedMailbox: { address: string; version: string } | null = null;
     if (identity && identity.userId !== null) {
       const mbox: any = await c.env.DB
-        .prepare('SELECT address, active FROM desktop_mailbox_verified_v1 WHERE user_id = ? AND active = 1')
+        .prepare('SELECT address, version, active FROM desktop_mailbox_verified_v1 WHERE user_id = ? AND active = 1')
         .bind(identity.userId)
         .first();
-      if (mbox?.address) verifiedMailbox = String(mbox.address);
+      if (mbox?.address && mbox?.version) {
+        verifiedMailbox = { address: String(mbox.address), version: String(mbox.version) };
+      }
     }
 
     let updated: any;
@@ -730,12 +745,28 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
       const tag = await desktopHash(identity.material);
       updated = await c.env.DB
         .prepare(
-          `UPDATE desktop_v3_logins SET role=?, user_id=?, credential_tag=?, otp_digest=?, status='pending'
+          `UPDATE desktop_v3_logins SET role=?, user_id=?, credential_tag=?, mailbox_version=?, otp_digest=?, status='pending'
            WHERE id=? AND status='checking' AND expires_at>?
              AND EXISTS (SELECT 1 FROM app_users WHERE id=? AND username=? AND role=? AND password_hash=? AND active=1)
+             AND EXISTS (SELECT 1 FROM desktop_mailbox_verified_v1 WHERE user_id=? AND active=1 AND address=? AND version=?)
            RETURNING id`,
         )
-        .bind(identity.role, identity.userId, tag, digest, reqRow.id, Date.now(), identity.userId, username, identity.role, identity.material)
+        .bind(
+          identity.role,
+          identity.userId,
+          tag,
+          verifiedMailbox.version,
+          digest,
+          reqRow.id,
+          Date.now(),
+          identity.userId,
+          username,
+          identity.role,
+          identity.material,
+          identity.userId,
+          verifiedMailbox.address,
+          verifiedMailbox.version,
+        )
         .first();
     } else {
       // Anti-enumeration: transition to pending with no deliverable mailbox.
@@ -746,15 +777,32 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
     }
     if (!updated) fail('UNAVAILABLE', 503);
 
-    if (identity && verifiedMailbox) {
+    if (identity && identity.userId !== null && verifiedMailbox) {
       const sendOtp = createNativeOtpSender(c.env, deps.mailFetcher);
       if (sendOtp) {
+        const boundUserId = identity.userId;
+        const boundAddress = verifiedMailbox.address;
+        const boundVersion = verifiedMailbox.version;
         const task = (async () => {
           try {
-            if (await sendOtp(verifiedMailbox!, otp)) {
+            const stillBound = await c.env.DB
+              .prepare(
+                `SELECT 1 AS ok FROM desktop_v3_logins l
+                 JOIN desktop_mailbox_verified_v1 m ON m.user_id = l.user_id
+                 WHERE l.id=? AND l.status='pending' AND l.mailbox_version=? AND l.expires_at>?
+                   AND m.user_id=? AND m.active=1 AND m.address=? AND m.version=?`,
+              )
+              .bind(reqRow.id, boundVersion, Date.now(), boundUserId, boundAddress, boundVersion)
+              .first();
+            if (!stillBound) return;
+            if (await sendOtp(boundAddress, otp)) {
               await c.env.DB
-                .prepare("UPDATE desktop_v3_logins SET delivered=1 WHERE id=? AND status='pending' AND expires_at>?")
-                .bind(reqRow.id, Date.now())
+                .prepare(
+                  `UPDATE desktop_v3_logins SET delivered=1
+                   WHERE id=? AND status='pending' AND mailbox_version=? AND expires_at>?
+                     AND EXISTS (SELECT 1 FROM desktop_mailbox_verified_v1 WHERE user_id=? AND active=1 AND address=? AND version=?)`,
+                )
+                .bind(reqRow.id, boundVersion, Date.now(), boundUserId, boundAddress, boundVersion)
                 .run();
             }
           } catch {
@@ -774,7 +822,7 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
 
   app.post(`${NATIVE_V3}/login/cancel`, async (c) => {
     const b = await readJsonBody(c, proofFields);
-    const { row, dpop } = await verifyDesktopProof(c, b);
+    const { row, dpop } = await verifyDesktopProof(c, b, { ignoreRequestExpiry: true });
     const res: any[] = await c.env.DB.batch([
       ...dpop.consumeStatements,
       c.env.DB
@@ -787,7 +835,7 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
 
   app.post(`${NATIVE_V3}/login/otp`, async (c) => {
     const b = await readJsonBody(c, [...proofFields, 'otp']);
-    const { row: reqRow, dpop } = await verifyDesktopProof(c, b);
+    const { row: reqRow, dpop } = await verifyDesktopProof(c, b, { ignoreRequestExpiry: true });
     if (!pattern(b.otp, CODE)) return genericAuthFailure();
 
     const loginRow: any = await c.env.DB.prepare('SELECT * FROM desktop_v3_logins WHERE id = ?').bind(reqRow.id).first();
@@ -805,7 +853,7 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
     if (!attempted) return genericAuthFailure();
 
     const digest = await otpMac(c.env.DESKTOP_NATIVE_V3_OTP_KEY, reqRow.id, b.otp);
-    if (!same(digest, attempted.otp_digest) || attempted.delivered !== 1 || !attempted.role || !attempted.user_id) {
+    if (!same(digest, attempted.otp_digest) || attempted.delivered !== 1 || !attempted.role || !attempted.user_id || !attempted.mailbox_version) {
       return genericAuthFailure();
     }
 
@@ -813,6 +861,11 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
     if (!identity || identity.userId !== attempted.user_id || !same(await desktopHash(identity.material), attempted.credential_tag)) {
       return genericAuthFailure();
     }
+    const activeMailbox = await c.env.DB
+      .prepare('SELECT 1 AS ok FROM desktop_mailbox_verified_v1 WHERE user_id=? AND active=1 AND version=?')
+      .bind(attempted.user_id, attempted.mailbox_version)
+      .first();
+    if (!activeMailbox) return genericAuthFailure();
 
     const now = Date.now();
     const sid = randHex();
@@ -825,8 +878,12 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
     const committed: any[] = await c.env.DB.batch([
       ...dpop.consumeStatements,
       c.env.DB
-        .prepare("UPDATE desktop_v3_logins SET status='completed', nonce=?, otp_digest='' WHERE id=? AND status='pending' AND delivered=1 AND otp_digest=? AND attempts<=5 AND expires_at>?")
-        .bind(nonce, reqRow.id, digest, now),
+        .prepare(
+          `UPDATE desktop_v3_logins SET status='completed', nonce=?, otp_digest=''
+           WHERE id=? AND status='pending' AND delivered=1 AND otp_digest=? AND mailbox_version=? AND attempts<=5 AND expires_at>?
+             AND EXISTS (SELECT 1 FROM desktop_mailbox_verified_v1 WHERE user_id=? AND active=1 AND version=?)`,
+        )
+        .bind(nonce, reqRow.id, digest, attempted.mailbox_version, now, attempted.user_id, attempted.mailbox_version),
       c.env.DB
         .prepare(
           `INSERT INTO desktop_v3_sessions
@@ -894,14 +951,24 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
     const oldHash = await desktopHash(b.refresh_token);
     const row: any = await c.env.DB.prepare('SELECT * FROM desktop_v3_sessions WHERE refresh_hash = ?').bind(oldHash).first();
     if (!row) {
-      await c.env.DB
+      const retiredFamily: any = await c.env.DB
         .prepare(
-          `UPDATE desktop_v3_sessions SET revoked=1
-           WHERE origin=? AND revoked=0 AND (previous_refresh_hash=? OR id IN
-             (SELECT session_id FROM desktop_v3_refresh_history WHERE refresh_hash=? AND origin=?))`,
+          `SELECT id, device_thumbprint FROM desktop_v3_sessions
+           WHERE origin=? AND (previous_refresh_hash=? OR id IN
+             (SELECT session_id FROM desktop_v3_refresh_history WHERE refresh_hash=? AND origin=?))
+           LIMIT 1`,
         )
         .bind(server, oldHash, oldHash, server)
-        .run();
+        .first();
+      if (retiredFamily) {
+        const proof = await requireDpop(c, { origin: server, thumbprint: retiredFamily.device_thumbprint, singleUseNonce: true });
+        await c.env.DB.batch([
+          ...proof.consumeStatements,
+          c.env.DB
+            .prepare('UPDATE desktop_v3_sessions SET revoked=1 WHERE id=? AND origin=? AND revoked=0')
+            .bind(retiredFamily.id, server),
+        ]);
+      }
       return genericAuthFailure();
     }
     const dpop = await requireDpop(c, { origin: server, thumbprint: row.device_thumbprint, singleUseNonce: true });
@@ -1106,27 +1173,25 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
     if (typeof b.password !== 'string' || typeof b.reason !== 'string' || b.reason.trim().length < 4 || b.reason.length > 200) {
       return fail('INVALID_REQUEST');
     }
+    const ip = c.req.header('CF-Connecting-IP') || '';
+    await sharedBudget(c, sess.username, 'password');
     const actor = await deps.verifySessionPassword(c, b.password);
     if (!actor || !actor.userId) return fail('UNAUTHORIZED', 401);
-    const ip = c.req.header('CF-Connecting-IP') || '';
-    await sharedBudget(c, actor.username, 'password');
 
     const id = randHex();
     const now = Date.now();
     const expiresAt = now + RECOVERY_TTL_MS;
-    await c.env.DB
-      .prepare(
-        `UPDATE desktop_mailbox_recovery_v1 SET status='expired' WHERE user_id=? AND status='pending_admin_approval'`,
-      )
-      .bind(actor.userId)
-      .run();
-    await c.env.DB
-      .prepare(
-        `INSERT INTO desktop_mailbox_recovery_v1 (id, user_id, username, reason, status, created_at, expires_at)
-         VALUES (?, ?, ?, ?, 'pending_admin_approval', ?, ?)`,
-      )
-      .bind(id, actor.userId, actor.username, b.reason.trim(), now, expiresAt)
-      .run();
+    await c.env.DB.batch([
+      c.env.DB
+        .prepare(`UPDATE desktop_mailbox_recovery_v1 SET status='expired' WHERE user_id=? AND status='pending_admin_approval'`)
+        .bind(actor.userId),
+      c.env.DB
+        .prepare(
+          `INSERT INTO desktop_mailbox_recovery_v1 (id, user_id, username, reason, status, created_at, expires_at)
+           VALUES (?, ?, ?, ?, 'pending_admin_approval', ?, ?)`,
+        )
+        .bind(id, actor.userId, actor.username, b.reason.trim(), now, expiresAt),
+    ]);
 
     await deps.audit(c, {
       username: actor.username,
@@ -1154,16 +1219,27 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
       .first();
     if (!row) fail('NOT_FOUND', 404);
 
-    // Clear the suspended/lost mailbox + pending enrollment so the user must
-    // complete fresh mailbox enrollment before receiving v3 login OTPs again.
-    await c.env.DB.batch([
+    // Clear the suspended/lost mailbox + pending enrollment + active pending
+    // OTP grants + sessions ONLY if this request approves the recovery row.
+    const approvalGate = `EXISTS (SELECT 1 FROM desktop_mailbox_recovery_v1 WHERE id=? AND user_id=? AND status='approved' AND reviewed_by=? AND reviewed_at=?)`;
+    const approvedBatch: any[] = await c.env.DB.batch([
       c.env.DB
-        .prepare("UPDATE desktop_mailbox_recovery_v1 SET status='approved', reviewed_by=?, reviewed_at=? WHERE id=? AND status='pending_admin_approval'")
-        .bind(approver.username, now, row.id),
-      c.env.DB.prepare('DELETE FROM desktop_mailbox_verified_v1 WHERE user_id = ?').bind(row.user_id),
-      c.env.DB.prepare('DELETE FROM desktop_mailbox_pending_v1 WHERE user_id = ?').bind(row.user_id),
-      c.env.DB.prepare('UPDATE desktop_v3_sessions SET revoked=1 WHERE user_id = ?').bind(row.user_id),
+        .prepare("UPDATE desktop_mailbox_recovery_v1 SET status='approved', reviewed_by=?, reviewed_at=? WHERE id=? AND status='pending_admin_approval' AND expires_at>?")
+        .bind(approver.username, now, row.id, now),
+      c.env.DB
+        .prepare(`DELETE FROM desktop_mailbox_verified_v1 WHERE user_id = ? AND ${approvalGate}`)
+        .bind(row.user_id, row.id, row.user_id, approver.username, now),
+      c.env.DB
+        .prepare(`DELETE FROM desktop_mailbox_pending_v1 WHERE user_id = ? AND ${approvalGate}`)
+        .bind(row.user_id, row.id, row.user_id, approver.username, now),
+      c.env.DB
+        .prepare(`UPDATE desktop_v3_sessions SET revoked=1 WHERE user_id = ? AND ${approvalGate}`)
+        .bind(row.user_id, row.id, row.user_id, approver.username, now),
+      c.env.DB
+        .prepare(`UPDATE desktop_v3_logins SET status='cancelled', otp_digest='' WHERE user_id = ? AND status IN ('checking','pending') AND ${approvalGate}`)
+        .bind(row.user_id, row.id, row.user_id, approver.username, now),
     ]);
+    if (Number(approvedBatch[0]?.meta?.changes || 0) !== 1) fail('NOT_FOUND', 404);
 
     await deps.audit(c, {
       username: approver.username,

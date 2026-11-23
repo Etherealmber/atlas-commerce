@@ -669,6 +669,7 @@ app.get('/api/auth/me', async (c) => {
       };
     }
   }
+  const nativeV3Session = (c.req.header('Authorization')?.slice(7) || '').startsWith('nv3.');
   return c.json({
     success: true,
     data: {
@@ -678,15 +679,19 @@ app.get('/api/auth/me', async (c) => {
       role: session.role,
       is_owner: session.role === 'owner' || session.role === 'admin',
       reputationScore: rep.score,
-      token: await makeTokenV2(
-        session.username,
-        session.role,
-        session.username === ownerUser
-          ? await sha256Hex(`owner-key|${session.username}|${normalizePassword(getPassword(c.env))}`)
-          : String((await c.env.DB.prepare(`SELECT password_hash FROM app_users WHERE username = ?`).bind(session.username).first() as any)?.password_hash || ''),
-        ip,
-        fp || 'none',
-      ),
+      ...(nativeV3Session
+        ? {}
+        : {
+            token: await makeTokenV2(
+              session.username,
+              session.role,
+              session.username === ownerUser
+                ? await sha256Hex(`owner-key|${session.username}|${normalizePassword(getPassword(c.env))}`)
+                : String((await c.env.DB.prepare(`SELECT password_hash FROM app_users WHERE username = ?`).bind(session.username).first() as any)?.password_hash || ''),
+              ip,
+              fp || 'none',
+            ),
+          }),
       ...profile,
     },
   });

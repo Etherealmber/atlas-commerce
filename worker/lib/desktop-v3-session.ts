@@ -71,6 +71,7 @@ export async function validateDesktopV3AccessToken(
     method: string;
     target: string;
     dpopHeader?: string;
+    skipDpopReplayInsert?: boolean;
     currentIdentity: (env: any, username: string, role: string) => Promise<{
       username: string;
       role: string;
@@ -110,23 +111,35 @@ export async function validateDesktopV3AccessToken(
       return { ok: false, reason: 'bad_token' };
     }
 
-    const verified = await prepareDpopVerification(env.DB, opts.dpopHeader, {
-      origin: opts.origin,
-      method: opts.method,
-      target: opts.target,
-      thumbprint: row.device_thumbprint,
-      accessToken: token,
-      singleUseNonce: false,
-    });
-    if (!verified) {
-      return { ok: false, reason: 'invalid_dpop' };
+    let consumeStatements: D1PreparedStatement[] = [];
+    if (!opts.skipDpopReplayInsert) {
+      const verified = await prepareDpopVerification(env.DB, opts.dpopHeader, {
+        origin: opts.origin,
+        method: opts.method,
+        target: opts.target,
+        thumbprint: row.device_thumbprint,
+        accessToken: token,
+        singleUseNonce: false,
+      });
+      if (!verified) {
+        return { ok: false, reason: 'invalid_dpop' };
+      }
+      consumeStatements = verified.consumeStatements;
     }
 
     try {
-      await env.DB.batch([
-        ...verified.consumeStatements,
-        env.DB.prepare('UPDATE desktop_v3_sessions SET last_used_at = ? WHERE id = ? AND revoked = 0').bind(now, row.id),
+      const results = await env.DB.batch([
+        ...consumeStatements,
+        env.DB
+          .prepare(
+            'UPDATE desktop_v3_sessions SET last_used_at = ? WHERE id = ? AND revoked = 0 AND access_expires_at > ? AND absolute_expires_at > ?',
+          )
+          .bind(now, row.id, now, now),
       ]);
+      const updateRes = Array.isArray(results) ? results[results.length - 1] : null;
+      if (Number(updateRes?.meta?.changes || 0) <= 0) {
+        return { ok: false, reason: 'bad_token' };
+      }
     } catch {
       return { ok: false, reason: 'invalid_dpop' };
     }

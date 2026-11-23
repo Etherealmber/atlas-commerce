@@ -163,10 +163,10 @@ pub fn build_dpop_proof(
     }
     let parsed = Url::parse(target_url).map_err(|_| AuthCoreError::InvalidTargetUrl)?;
     let origin = ServerOrigin::parse(&parsed.origin().ascii_serialization())?;
-    let htu = origin.endpoint_url(parsed.path())?;
-    if parsed.query().is_some() || parsed.fragment().is_some() {
+    if parsed.fragment().is_some() {
         return Err(AuthCoreError::InvalidTargetUrl);
     }
+    let htu = origin.endpoint_url(parsed.path())?;
 
     let mut jti_bytes = [0u8; 24];
     getrandom::getrandom(&mut jti_bytes).map_err(|_| AuthCoreError::CryptoFailure)?;
@@ -246,8 +246,34 @@ mod tests {
 
         let sig_bytes = URL_SAFE_NO_PAD.decode(parts[2]).unwrap();
         let sig = Signature::from_slice(&sig_bytes).unwrap();
-        let vk = VerifyingKey::from_jwk_str(&hdr["jwk"].to_string()).unwrap();
+        let x = URL_SAFE_NO_PAD.decode(hdr["jwk"]["x"].as_str().unwrap()).unwrap();
+        let y = URL_SAFE_NO_PAD.decode(hdr["jwk"]["y"].as_str().unwrap()).unwrap();
+        assert_eq!(x.len(), 32);
+        assert_eq!(y.len(), 32);
+        let mut sec1 = Vec::with_capacity(65);
+        sec1.push(0x04);
+        sec1.extend_from_slice(&x);
+        sec1.extend_from_slice(&y);
+        let vk = VerifyingKey::from_sec1_bytes(&sec1).unwrap();
         let msg = format!("{}.{}", parts[0], parts[1]);
         vk.verify(msg.as_bytes(), &sig).unwrap();
+
+        let query_jwt = build_dpop_proof(
+            &key,
+            "GET",
+            "https://stock.afmarbre.com/api/products?page=2",
+            &nonce,
+            1_760_000_000,
+            None,
+            None,
+        )
+        .unwrap();
+        let q_parts: Vec<&str> = query_jwt.split('.').collect();
+        let q_claims: serde_json::Value =
+            serde_json::from_slice(&URL_SAFE_NO_PAD.decode(q_parts[1]).unwrap()).unwrap();
+        assert_eq!(
+            q_claims["htu"],
+            "https://stock.afmarbre.com/api/products"
+        );
     }
 }

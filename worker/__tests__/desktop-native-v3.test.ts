@@ -35,8 +35,14 @@ function makeD1() {
           return api;
         },
         async run() {
-          const r = sqlite.prepare(sql).run(...(params as any));
-          return { success: true, meta: { changes: Number(r.changes || 0), last_row_id: Number(r.lastInsertRowid || 0) } };
+          const stmt = sqlite.prepare(sql);
+          if (/\bRETURNING\b/i.test(sql)) {
+            const rows = stmt.all(...(params as any)).map((r: any) => ({ ...r }));
+            const ch = sqlite.prepare('SELECT changes() AS c').get() as { c: number };
+            return { success: true, results: rows, meta: { changes: Number(ch?.c ?? rows.length), last_row_id: 0 } };
+          }
+          const r = stmt.run(...(params as any));
+          return { success: true, results: [], meta: { changes: Number(r.changes || 0), last_row_id: Number(r.lastInsertRowid || 0) } };
         },
         async first() {
           const r = sqlite.prepare(sql).get(...(params as any));
@@ -876,5 +882,125 @@ describe('Desktop v3 production safety, discovery, and protocol', () => {
     );
     expect(logoutWeb.status).toBe(200);
     expect(logoutWeb.body.resume_prepared).toBe(true);
+  });
+
+  it('generates uppercase hex pairing codes, omits legacy v2 token on /api/auth/me for nv3., and protects retired refresh families from unauthenticated revocation', async () => {
+    const dev = await createP256Device();
+    const otherDev = await createP256Device();
+
+    // 1. Enroll mailbox
+    await enrollAliceMailbox('alice-v3-fix@example.test');
+
+    // 2. Create request -> pairing_code matches Rust validate_pairing_code ([0-9A-F]{5}-[0-9A-F]{5})
+    const codeChallenge = await sha256B64u(VERIFIER);
+    const reqNonce = await getNonce();
+    const reqRes = await call(
+      '/api/auth/desktop/v3/requests',
+      {
+        origin: ORIGIN,
+        state: STATE,
+        code_challenge: codeChallenge,
+        code_challenge_method: 'S256',
+        device_label: 'Poste Fix Check',
+        presentation: 'system_browser',
+      },
+      { headers: { DPoP: await dev.signDpop({ method: 'POST', target: `${ORIGIN}/api/auth/desktop/v3/requests`, nonce: reqNonce }) } },
+    );
+    expect(reqRes.status).toBe(201);
+    const reqId = reqRes.body.data.request_id;
+    expect(reqRes.body.data.pairing_code).toMatch(/^[0-9A-F]{5}-[0-9A-F]{5}$/);
+
+    // 3. Approve challenge + poll
+    const prep = await call(
+      '/api/auth/desktop/v3/challenge/prepare',
+      { origin: ORIGIN, request_id: reqId },
+      { headers: { Origin: ORIGIN } },
+    );
+    expect(prep.status).toBe(200);
+    env.__lastCdata = prep.body.data.cdata;
+    const ver = await call(
+      '/api/auth/desktop/v3/challenge/verify',
+      {
+        origin: ORIGIN,
+        request_id: reqId,
+        decision: 'approve',
+        turnstile_token: 'ts_valid_token',
+        compare_confirmed: true,
+      },
+      { headers: { Origin: ORIGIN } },
+    );
+    expect(ver.status).toBe(200);
+    const pollNonce = await getNonce();
+    const pollRes = await call(
+      '/api/auth/desktop/v3/challenge/poll',
+      { origin: ORIGIN, request_id: reqId, state: STATE, code_verifier: VERIFIER },
+      {
+        headers: {
+          DPoP: await dev.signDpop({ method: 'POST', target: `${ORIGIN}/api/auth/desktop/v3/challenge/poll`, nonce: pollNonce, atlasTxn: reqId }),
+        },
+      },
+    );
+    expect(pollRes.status).toBe(200);
+    expect(pollRes.body.data.status).toBe('verified');
+
+    // 4. Password + OTP -> nv3. session
+    const pwNonce = await getNonce();
+    const pwRes = await call(
+      '/api/auth/desktop/v3/login/password',
+      { origin: ORIGIN, request_id: reqId, state: STATE, code_verifier: VERIFIER, username: 'alice', password: ALICE_PASSWORD },
+      { headers: { DPoP: await dev.signDpop({ method: 'POST', target: `${ORIGIN}/api/auth/desktop/v3/login/password`, nonce: pwNonce, atlasTxn: reqId }) } },
+    );
+    expect(pwRes.status).toBe(200);
+    const otpCode = extractOtp(sentEmails.at(-1)!.text);
+    const otpNonce = await getNonce();
+    const otpRes = await call(
+      '/api/auth/desktop/v3/login/otp',
+      { origin: ORIGIN, request_id: reqId, state: STATE, code_verifier: VERIFIER, otp: otpCode },
+      { headers: { DPoP: await dev.signDpop({ method: 'POST', target: `${ORIGIN}/api/auth/desktop/v3/login/otp`, nonce: otpNonce, atlasTxn: reqId }) } },
+    );
+    expect(otpRes.status).toBe(200);
+    const { access_token: access1, refresh_token: refresh1 } = otpRes.body.data;
+
+    // 5. /api/auth/me with nv3. must NOT mint a legacy v2 bearer token
+    const meNonce = await getNonce();
+    const meV3 = await call('/api/auth/me', undefined, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${access1}`,
+        DPoP: await dev.signDpop({ method: 'GET', target: `${ORIGIN}/api/auth/me`, nonce: meNonce, accessToken: access1 }),
+      },
+    });
+    expect(meV3.status).toBe(200);
+    expect(meV3.body.data.username).toBe('alice');
+    expect(meV3.body.data.token).toBeUndefined();
+
+    // 6. Rotate once so refresh1 becomes retired; an attacker without dev's DPoP key CANNOT revoke the session
+    const refNonce1 = await getNonce();
+    const rot1 = await call(
+      '/api/auth/desktop/v3/session/refresh',
+      { origin: ORIGIN, refresh_token: refresh1 },
+      { headers: { DPoP: await dev.signDpop({ method: 'POST', target: `${ORIGIN}/api/auth/desktop/v3/session/refresh`, nonce: refNonce1 }) } },
+    );
+    expect(rot1.status).toBe(200);
+    const access2 = rot1.body.data.access_token;
+
+    const badRefNonce = await getNonce();
+    const attackerReplay = await call(
+      '/api/auth/desktop/v3/session/refresh',
+      { origin: ORIGIN, refresh_token: refresh1 },
+      { headers: { DPoP: await otherDev.signDpop({ method: 'POST', target: `${ORIGIN}/api/auth/desktop/v3/session/refresh`, nonce: badRefNonce }) } },
+    );
+    expect(attackerReplay.status).toBe(401);
+
+    // Session MUST still be active for the genuine device
+    const meStillValidNonce = await getNonce();
+    const meStillValid = await call('/api/auth/me', undefined, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${access2}`,
+        DPoP: await dev.signDpop({ method: 'GET', target: `${ORIGIN}/api/auth/me`, nonce: meStillValidNonce, accessToken: access2 }),
+      },
+    });
+    expect(meStillValid.status).toBe(200);
   });
 });

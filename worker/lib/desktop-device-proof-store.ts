@@ -56,14 +56,18 @@ export async function issueDpopNonce(
     .prepare('INSERT INTO desktop_v3_dpop_nonces (nonce, origin, ip_hash, expires_at) VALUES (?, ?, ?, ?)')
     .bind(nonce, origin, ipHash, expiresAt)
     .run();
-  await db
-    .prepare('DELETE FROM desktop_v3_dpop_nonces WHERE nonce IN (SELECT nonce FROM desktop_v3_dpop_nonces WHERE expires_at < ? LIMIT 100)')
-    .bind(now)
-    .run();
-  await db
-    .prepare('DELETE FROM desktop_v3_dpop_jtis WHERE rowid IN (SELECT rowid FROM desktop_v3_dpop_jtis WHERE expires_at < ? LIMIT 100)')
-    .bind(now)
-    .run();
+  try {
+    await db
+      .prepare('DELETE FROM desktop_v3_dpop_nonces WHERE nonce IN (SELECT nonce FROM desktop_v3_dpop_nonces WHERE expires_at < ? LIMIT 100)')
+      .bind(now)
+      .run();
+    await db
+      .prepare('DELETE FROM desktop_v3_dpop_jtis WHERE rowid IN (SELECT rowid FROM desktop_v3_dpop_jtis WHERE expires_at < ? LIMIT 100)')
+      .bind(now)
+      .run();
+  } catch {
+    /* best-effort expiry pruning after nonce issuance */
+  }
   return { nonce, expires_in: Math.floor(NONCE_TTL_MS / 1000) };
 }
 
@@ -132,17 +136,31 @@ export async function prepareDpopVerification(
 
   const consumeStatements: D1PreparedStatement[] = [];
   if (opts.singleUseNonce) {
+    // Enforce atomic single-use nonce claim inside the caller's batch:
+    // if a concurrent request deleted or expired the nonce first,
+    // `expires_at` evaluates to NULL and aborts the entire D1 batch.
     consumeStatements.push(
+      db
+        .prepare(
+          `INSERT INTO desktop_v3_dpop_jtis (thumbprint, jti, expires_at)
+           SELECT ?, ?, CASE
+             WHEN EXISTS (
+               SELECT 1 FROM desktop_v3_dpop_nonces
+               WHERE nonce = ? AND origin = ? AND expires_at > ?
+             ) THEN ? ELSE NULL END`,
+        )
+        .bind(verified.thumbprint, verified.jti, verified.nonce, opts.origin, nowMs, nowMs + JTI_TTL_MS),
       db
         .prepare('DELETE FROM desktop_v3_dpop_nonces WHERE nonce = ? AND origin = ? AND expires_at > ?')
         .bind(verified.nonce, opts.origin, nowMs),
     );
+  } else {
+    consumeStatements.push(
+      db
+        .prepare('INSERT INTO desktop_v3_dpop_jtis (thumbprint, jti, expires_at) VALUES (?, ?, ?)')
+        .bind(verified.thumbprint, verified.jti, nowMs + JTI_TTL_MS),
+    );
   }
-  consumeStatements.push(
-    db
-      .prepare('INSERT INTO desktop_v3_dpop_jtis (thumbprint, jti, expires_at) VALUES (?, ?, ?)')
-      .bind(verified.thumbprint, verified.jti, nowMs + JTI_TTL_MS),
-  );
 
   return { ...verified, consumeStatements };
 }

@@ -79,11 +79,11 @@ html[data-theme="dark"] .public-legal {
   background: transparent !important;
 }
 
-#about-overview,
-#signaler,
-#about-features,
-#about-creator,
-#about-projects {
+[id="about-overview"],
+[id="signaler"],
+[id="about-features"],
+[id="about-creator"],
+[id="about-projects"] {
   scroll-margin-top: 84px;
 }
 

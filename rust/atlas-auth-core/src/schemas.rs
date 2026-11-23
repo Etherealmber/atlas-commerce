@@ -59,7 +59,7 @@ pub struct NonceResponse {
     pub expires_in: u64,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Serialize)]
 pub struct CreateRequestV3Body<'a> {
     pub origin: &'a str,
     pub state: &'a str,
@@ -67,6 +67,19 @@ pub struct CreateRequestV3Body<'a> {
     pub code_challenge_method: &'static str,
     pub device_label: &'a str,
     pub presentation: ChallengePresentation,
+}
+
+impl std::fmt::Debug for CreateRequestV3Body<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CreateRequestV3Body")
+            .field("origin", &self.origin)
+            .field("state", &"[REDACTED]")
+            .field("code_challenge", &self.code_challenge)
+            .field("code_challenge_method", &self.code_challenge_method)
+            .field("device_label", &self.device_label)
+            .field("presentation", &self.presentation)
+            .finish()
+    }
 }
 
 #[derive(Clone, Debug, Deserialize)]
