@@ -3662,12 +3662,14 @@ html body .content button.bal-reports-trigger {
   border: 1px solid #e4e4e7 !important;
   color: #09090b !important;
   text-align: left !important;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05) !important;
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.2s ease, background-color 0.2s ease !important;
 }
 html[data-theme="dark"] body .content button.bal-reports-trigger {
-  background: #18181b !important;
-  border-color: rgba(255, 255, 255, 0.12) !important;
+  background: #1a1a1f !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
   color: #f4f4f5 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 4px 16px rgba(0, 0, 0, 0.28) !important;
 }
 .bal-reports-trigger-main {
   display: inline-flex;
@@ -3677,7 +3679,26 @@ html[data-theme="dark"] body .content button.bal-reports-trigger {
 }
 .bal-reports-trigger-main > svg {
   flex: none;
+  width: 34px;
+  height: 34px;
+  padding: 8px;
+  border-radius: 10px;
+  background: rgba(184, 115, 51, 0.1);
+  border: 1px solid rgba(184, 115, 51, 0.22);
   color: var(--copper, #b87333);
+  transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.2s ease, border-color 0.2s ease;
+}
+html[data-theme="dark"] .bal-reports-trigger-main > svg {
+  background: rgba(212, 165, 116, 0.12);
+  border-color: rgba(212, 165, 116, 0.26);
+  color: #eab37d;
+}
+.bal-reports-trigger:hover .bal-reports-trigger-main > svg {
+  transform: scale(1.06) rotate(-3deg);
+  background: rgba(184, 115, 51, 0.16);
+}
+html[data-theme="dark"] .bal-reports-trigger:hover .bal-reports-trigger-main > svg {
+  background: rgba(212, 165, 116, 0.2);
 }
 .bal-reports-trigger-main > span {
   display: flex;
@@ -3693,7 +3714,7 @@ html[data-theme="dark"] body .content button.bal-reports-trigger {
 .bal-reports-trigger-main small {
   font-size: 12px;
   font-weight: 500;
-  color: #71717a;
+  color: #64748b;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3712,10 +3733,27 @@ html[data-theme="dark"] .bal-reports-trigger-main small {
   background: #f8fafc;
   font-size: 12.5px;
   font-weight: 600;
+  transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.bal-reports-trigger:hover .bal-reports-trigger-cta {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+.bal-reports-trigger-cta svg {
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.bal-reports-trigger:hover .bal-reports-trigger-cta svg {
+  transform: translateX(2px);
 }
 html[data-theme="dark"] .bal-reports-trigger-cta {
-  border-color: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.13);
   background: rgba(255, 255, 255, 0.06);
+  color: #e4e4e7;
+}
+html[data-theme="dark"] .bal-reports-trigger:hover .bal-reports-trigger-cta {
+  border-color: rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fafafa;
 }
 .bal-reports-modal {
   max-width: 620px !important;
@@ -3740,6 +3778,9 @@ html[data-theme="dark"] .bal-reports-trigger-cta {
   color: var(--copper, #b87333);
   margin-bottom: 4px;
 }
+html[data-theme="dark"] .bal-reports-eyebrow {
+  color: #eab37d;
+}
 .bal-reports-modal-head h2 {
   margin: 0;
   font-size: 19px;
@@ -3757,8 +3798,8 @@ html[data-theme="dark"] .bal-reports-trigger-cta {
   margin-bottom: 16px;
 }
 html[data-theme="dark"] .bal-reports-period-row {
-  border-color: rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.035);
 }
 .bal-reports-field {
   display: flex;
@@ -3803,14 +3844,17 @@ html[data-theme="dark"] .bal-reports-active-period {
   color: #8a5520 !important;
 }
 html[data-theme="dark"] .bal-reports-grid button.bal-reports-all-btn {
-  border-color: rgba(212, 165, 116, 0.4) !important;
-  background: rgba(212, 165, 116, 0.12) !important;
+  border-color: rgba(212, 165, 116, 0.36) !important;
+  background: rgba(212, 165, 116, 0.14) !important;
   color: #f0c99d !important;
 }
 .bal-reports-hint {
   margin: 14px 0 0;
   font-size: 12px;
-  color: #71717a;
+  color: #64748b;
+}
+html[data-theme="dark"] .bal-reports-hint {
+  color: #a1a1aa;
 }
 
 /* Guarantee red danger buttons in light & dark mode (never black) */

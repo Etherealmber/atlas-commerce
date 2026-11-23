@@ -1,4 +1,4 @@
-/* v240 — in-app attachment lightbox (see-through backdrop, both themes) */
+/* In-app image viewer (light & dark themes, smooth entrance & zoom) */
 .atlas-lightbox-overlay {
   position: fixed;
   inset: 0;
@@ -7,76 +7,164 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 28px;
-  background: rgba(9, 9, 11, 0.66);
-  backdrop-filter: blur(3px);
-  animation: atlas-lightbox-fade 140ms ease both;
+  gap: 14px;
+  padding: max(16px, env(safe-area-inset-top, 16px)) 16px max(18px, env(safe-area-inset-bottom, 18px));
+  background: rgba(15, 23, 42, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: atlas-lightbox-fade 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 html[data-theme='dark'] .atlas-lightbox-overlay {
-  background: rgba(5, 5, 7, 0.72);
+  background: rgba(6, 6, 9, 0.82);
 }
 @keyframes atlas-lightbox-fade {
   from { opacity: 0; }
   to { opacity: 1; }
 }
+@keyframes atlas-lightbox-pop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.atlas-lightbox-bar {
+  width: min(92vw, 980px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  animation: atlas-lightbox-pop 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.atlas-lightbox-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
 .atlas-lightbox-frame {
-  max-width: min(88vw, 980px);
-  max-height: 78vh;
+  max-width: min(92vw, 980px);
+  max-height: min(76dvh, 78vh);
   overflow: auto;
-  border-radius: 12px;
-  background: #18181b;
-  border: 1px solid #3f3f46;
-  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
+  border-radius: 16px;
+  background-color: #18181b;
+  background-image:
+    linear-gradient(45deg, rgba(255, 255, 255, 0.035) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(255, 255, 255, 0.035) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.035) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.035) 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   cursor: zoom-in;
+  animation: atlas-lightbox-pop 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  transition: max-width 200ms ease, max-height 200ms ease, border-color 160ms ease;
 }
 .atlas-lightbox-frame--zoom {
   cursor: zoom-out;
-  max-width: 94vw;
-  max-height: 88vh;
+  max-width: 95vw;
+  max-height: 84dvh;
+  border-color: rgba(255, 255, 255, 0.24);
 }
 .atlas-lightbox-frame img {
   display: block;
-  max-width: min(88vw, 980px);
-  max-height: 78vh;
+  max-width: min(92vw, 980px);
+  max-height: min(76dvh, 78vh);
   width: auto;
   height: auto;
   object-fit: contain;
-  border-radius: 11px;
+  border-radius: 15px;
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .atlas-lightbox-frame--zoom img {
   max-width: none;
   max-height: none;
-  width: 160%;
+  width: 175%;
 }
+
 .atlas-lightbox-name {
   margin: 0;
-  max-width: 80vw;
+  max-width: min(64vw, 680px);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #e4e4e7;
-  font-size: 12.5px;
-  background: rgba(24, 24, 27, 0.72);
-  border: 1px solid #3f3f46;
+  color: #f4f4f5;
+  font-size: 13px;
+  font-weight: 600;
+  background: rgba(24, 24, 27, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 999px;
-  padding: 4px 12px;
+  padding: 6px 14px;
 }
+
+.atlas-lightbox-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(24, 24, 27, 0.86);
+  color: #f4f4f5;
+  -webkit-text-fill-color: #f4f4f5;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease, transform 150ms ease;
+}
+.atlas-lightbox-tool:hover {
+  background: rgba(39, 39, 42, 0.96);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+.atlas-lightbox-tool[aria-pressed='true'] {
+  background: #f4f4f5;
+  color: #111113;
+  -webkit-text-fill-color: #111113;
+  border-color: #f4f4f5;
+}
+
 .atlas-lightbox-close {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0;
   display: inline-grid;
   place-items: center;
-  border-radius: 10px;
-  border: 1px solid #52525b;
-  background: rgba(39, 39, 42, 0.9);
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(24, 24, 27, 0.86);
   color: #f4f4f5;
+  -webkit-text-fill-color: #f4f4f5;
   cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease, transform 150ms ease;
 }
 .atlas-lightbox-close:hover {
-  background: #3f3f46;
-  color: #fafafa;
+  background: rgba(63, 63, 70, 0.96);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+}
+.atlas-lightbox-tool:focus-visible,
+.atlas-lightbox-close:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atlas-lightbox-overlay,
+  .atlas-lightbox-bar,
+  .atlas-lightbox-frame,
+  .atlas-lightbox-frame img,
+  .atlas-lightbox-tool,
+  .atlas-lightbox-close {
+    animation: none !important;
+    transition: none !important;
+  }
 }

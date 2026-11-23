@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { Heart } from 'lucide-react';
 import { APP_CHANNEL, WHATS_NEW_VERSION } from '../version';
 import { RELEASES } from '../pages/WhatsNew';
 import {
@@ -69,7 +70,7 @@ export default function WhatsNewModal() {
             ))}
         </ul>
         <div className="wn-release-contributors" style={{ marginBottom: 14 }}>
-          <span className="wn-contributors-label">Merci à</span>
+          <span className="wn-contributors-label"><Heart size={13} strokeWidth={2.2} aria-hidden="true" /> Merci à</span>
           {getContributorsForRelease(release.version).map((c) => (
             <a
               key={c.login}
@@ -77,9 +78,10 @@ export default function WhatsNewModal() {
               target="_blank"
               rel="noreferrer noopener"
               className="wn-contributor-pill"
+              title={`${c.name} (${c.handle})`}
             >
-              {c.avatarUrl ? <img src={c.avatarUrl} alt="" width={20} height={20} className="wn-contributor-avatar" loading="lazy" decoding="async" /> : null}
-              <span>{c.handle}</span>
+              {c.avatarUrl ? <img src={c.avatarUrl} alt="" width={20} height={20} className="wn-contributor-avatar" loading="lazy" decoding="async" /> : <span className="wn-contributor-fallback" aria-hidden="true">{c.name.slice(0, 1).toUpperCase()}</span>}
+              <span className="wn-contributor-name">{c.handle}</span>
             </a>
           ))}
         </div>

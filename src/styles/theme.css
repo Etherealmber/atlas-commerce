@@ -27,6 +27,12 @@ html[data-theme="light"] {
   --ac-sidebar-w-collapsed: 4.5rem;
   --ac-topbar-h: 56px;
   --ac-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --ac-surface-elevated: #ffffff;
+  --ac-surface-subtle: #f8fafc;
+  --ac-border-subtle: rgba(15, 23, 42, 0.08);
+  --ac-border-strong: rgba(15, 23, 42, 0.15);
+  --ac-inner-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  --ac-ring: rgba(37, 99, 235, 0.35);
   --bg: var(--ac-bg);
   --paper: var(--ac-paper);
   --ink: var(--ac-ink);
@@ -55,7 +61,13 @@ html[data-theme="dark"] {
   --ac-ok: #a5b4fc;
   --ac-warn: #fbbf24;
   --ac-danger: #f87171;
-  --ac-shadow: none;
+  --ac-shadow: 0 10px 28px rgba(0, 0, 0, 0.36);
+  --ac-surface-elevated: #222226;
+  --ac-surface-subtle: #18181b;
+  --ac-border-subtle: rgba(255, 255, 255, 0.08);
+  --ac-border-strong: rgba(255, 255, 255, 0.16);
+  --ac-inner-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  --ac-ring: rgba(147, 197, 253, 0.65);
   --bg: var(--ac-bg);
   --paper: var(--ac-paper);
   --ink: var(--ac-ink);

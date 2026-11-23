@@ -16,11 +16,17 @@ export function productImageUrl(raw: unknown, base = getApiBase()): string {
   return '';
 }
 
-type Props = { url?: unknown; className?: string; largeImageProductId?: number };
-export default function ProductArtwork({ url, className = '', largeImageProductId }: Props) {
-  const [deferredUrl, setDeferredUrl] = useState(''); const [failed, setFailed] = useState(false); const ref = useRef<HTMLSpanElement>(null);
+type Props = { url?: unknown; className?: string; largeImageProductId?: number; alt?: string };
+export default function ProductArtwork({ url, className = '', largeImageProductId, alt = '' }: Props) {
+  const [deferredUrl, setDeferredUrl] = useState('');
+  const [failed, setFailed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
   const src = productImageUrl(url || deferredUrl);
-  useEffect(() => setFailed(false), [src]);
+  useEffect(() => {
+    setFailed(false);
+    setLoaded(false);
+  }, [src]);
   useEffect(() => {
     setDeferredUrl('');
     if (url || !largeImageProductId || !ref.current) return;
@@ -33,5 +39,22 @@ export default function ProductArtwork({ url, className = '', largeImageProductI
     else { observer = new IntersectionObserver(entries => { if (entries.some(entry => entry.isIntersecting)) load(); }, { rootMargin: '200px' }); observer.observe(ref.current); }
     return () => { active = false; observer?.disconnect(); };
   }, [url, largeImageProductId]);
-  return <span ref={ref} className={`product-artwork ${className}`}>{src && !failed ? <img src={src} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={() => setFailed(true)} /> : <Package size={24} aria-hidden="true" />}</span>;
+  const stateClass = src && !failed ? (loaded ? ' is-loaded' : ' is-loading') : ' is-empty';
+  return (
+    <span ref={ref} className={`product-artwork${stateClass}${className ? ` ${className}` : ''}`}>
+      {src && !failed ? (
+        <img
+          src={src}
+          alt={alt}
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          onLoad={() => setLoaded(true)}
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <Package size={24} aria-hidden="true" />
+      )}
+    </span>
+  );
 }

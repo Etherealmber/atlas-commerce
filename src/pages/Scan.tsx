@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { canManageStock } from '../auth';
+import ImageLightbox from '../components/ui/ImageLightbox';
 import {
   startBarcodeScan,
   decodeImageFile,
@@ -131,6 +132,7 @@ export default function Scan() {
   const [sent, setSent] = useState(false);
   const reqPhotoRef = useRef<HTMLInputElement | null>(null);
   const [requests, setRequests] = useState<ProductRequest[]>([]);
+  const [lightbox, setLightbox] = useState<{ src: string; name?: string } | null>(null);
 
   useEffect(() => {
     if (!canManageStock()) nav('/', { replace: true });
@@ -542,7 +544,14 @@ export default function Scan() {
             {requests.map((r) => (
               <li key={r.id} className="scan-requests-row">
                 {r.photo_url ? (
-                  <img className="scan-requests-photo" src={r.photo_url} alt="" loading="lazy" />
+                  <button
+                    type="button"
+                    className="scan-requests-photo-btn"
+                    aria-label={`Agrandir la photo de ${r.name || r.code}`}
+                    onClick={() => setLightbox({ src: r.photo_url!, name: r.name || r.code })}
+                  >
+                    <img className="scan-requests-photo" src={r.photo_url} alt="" loading="lazy" decoding="async" />
+                  </button>
                 ) : (
                   <span className="scan-requests-photo scan-requests-photo--none" aria-hidden />
                 )}
@@ -662,7 +671,14 @@ export default function Scan() {
                 {reqPhoto ? 'Changer la photo' : 'Prendre / choisir une photo'}
               </button>
               {reqPhoto ? (
-                <img className="scan-req-thumb" src={reqPhoto} alt="Aperçu de la photo" />
+                <button
+                  type="button"
+                  className="scan-requests-photo-btn"
+                  aria-label="Agrandir l’aperçu de la photo"
+                  onClick={() => setLightbox({ src: reqPhoto, name: reqName || q || 'Aperçu de la photo' })}
+                >
+                  <img className="scan-req-thumb" src={reqPhoto} alt="Aperçu de la photo" />
+                </button>
               ) : null}
             </div>
             <input
@@ -708,6 +724,13 @@ export default function Scan() {
             </div>
           </div>
         </div>
+      )}
+      {lightbox && (
+        <ImageLightbox
+          src={lightbox.src}
+          name={lightbox.name}
+          onClose={() => setLightbox(null)}
+        />
       )}
     </div>
   );

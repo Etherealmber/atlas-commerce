@@ -3,6 +3,7 @@
  */
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Heart, Users } from 'lucide-react';
 import {
   APP_NAME,
   APP_TAGLINE,
@@ -479,27 +480,41 @@ export default function About() {
       </section>
 
       {/* Contributors & thanks */}
-      <section className="card about-section" aria-label="Remerciements et contributeurs">
-        <h2>Remerciements &amp; contributeurs</h2>
-        <p className="about-muted" style={{ marginTop: 0 }}>
-          Merci aux contributeurs qui participent aux commits et aux sorties d&apos;Atlas Commerce :
-        </p>
+      <section className="card about-section wn-thanks-card" aria-label="Remerciements et contributeurs">
+        <div className="wn-thanks-head">
+          <span className="wn-thanks-ico" aria-hidden="true">
+            <Users size={16} strokeWidth={2.2} />
+          </span>
+          <div>
+            <h2 className="wn-thanks-title">Remerciements &amp; contributeurs</h2>
+            <p className="wn-thanks-sub">
+              Merci aux contributeurs qui participent aux commits et aux sorties d&apos;Atlas Commerce :
+            </p>
+          </div>
+        </div>
         <div className="wn-contributors">
-          {contributors.map((c) => (
+          {contributors.map((c, idx) => (
             <a
               key={c.login}
               href={c.url}
               target="_blank"
               rel="noreferrer noopener"
               className="wn-contributor-pill"
+              style={{ animationDelay: `${Math.min(idx * 45, 240)}ms` }}
               title={`${c.name} — ${c.role}`}
             >
               {c.avatarUrl ? (
                 <img src={c.avatarUrl} alt="" width={20} height={20} className="wn-contributor-avatar" loading="lazy" decoding="async" />
-              ) : null}
-              <span>{c.name !== c.login ? `${c.name} (${c.handle})` : c.handle}</span>
+              ) : (
+                <span className="wn-contributor-fallback" aria-hidden="true">{c.name.slice(0, 1).toUpperCase()}</span>
+              )}
+              <span className="wn-contributor-name">{c.name !== c.login ? `${c.name} (${c.handle})` : c.handle}</span>
             </a>
           ))}
+        </div>
+        <div className="wn-release-contributors">
+          <span className="wn-contributors-label"><Heart size={13} strokeWidth={2.2} aria-hidden="true" /> Merci à</span>
+          <span className="wn-thanks-sub" style={{ margin: 0 }}>chaque contributeur · voir le journal détaillé dans <Link to="/whats-new">Nouveautés</Link></span>
         </div>
       </section>
 

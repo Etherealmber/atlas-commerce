@@ -103,3 +103,16 @@ it('exposes the same live appearance controls on profile', async () => {
   await act(async () => click('Sombre').click());
   expect(onTheme).toHaveBeenCalledWith('dark'); expect(host.textContent).toContain('Appareils liés');
 });
+
+it('displays thanks and contributors on mobile settings and whats-new', async () => {
+  const settings = createElement(PhoneSettings, { theme: 'system', onTheme: vi.fn(), animations: true, onAnimations: vi.fn(), compact: false, onCompact: vi.fn(), scale: 'md', onScale: vi.fn(), startTab: '/m', onStartTab: vi.fn() });
+  await act(async () => root.render(createElement(MemoryRouter, { initialEntries: ['/m/settings'] }, createElement(Routes, null, createElement(Route, { path: '/m/settings', element: settings }), createElement(Route, { path: '/m/settings/whats-new', element: createElement(PhoneWhatsNew) })) )));
+  expect(host.querySelector('.wn-thanks-card')).not.toBeNull();
+  expect(host.textContent).toContain('Remerciements & contributeurs');
+  expect(host.textContent).toContain('Merci à');
+  expect(host.querySelectorAll('.wn-contributor-pill').length).toBeGreaterThan(0);
+  await act(async () => [...host.querySelectorAll('button')].find(b => b.textContent?.includes('Nouveautés des versions'))!.click());
+  expect(host.querySelector('.ph-version-history .wn-thanks-card')).not.toBeNull();
+  expect(host.querySelector('.ph-release-card .wn-release-contributors')).not.toBeNull();
+  expect(host.textContent).toContain('Merci à');
+});

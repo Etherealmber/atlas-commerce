@@ -2,6 +2,7 @@ import QrLoginPanel from '../components/settings/QrLoginPanel';
 import SettingsUserDialog from '../components/SettingsUserDialog';
 import { isFeatureEnabled } from '../lib/featureFlags';
 import { EditProfile, type ProfileData } from '../components/ui/EditProfile';
+import ImageLightbox from '../components/ui/ImageLightbox';
 import { TimedUndoDelete, SaveToggle } from '../components/ui';
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
@@ -40,6 +41,7 @@ export default function Settings() {
   const [uiDensity, setUiDensity] = useState<Density>(() => getDensity());
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [qrFabOpen, setQrFabOpen] = useState(false);
+  const [lightbox, setLightbox] = useState<{ src: string; name: string } | null>(null);
   const [profileData, setProfileData] = useState<ProfileData>(() => {
     try {
       const raw = localStorage.getItem('atlas-profile');
@@ -890,7 +892,15 @@ if (loading) return (
             <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap', marginBottom: 16 }}>
               <div style={{ textAlign: 'center' }}>
                 {profileForm.avatar_url ? (
-                  <img src={profileForm.avatar_url} alt="" width={72} height={72} style={{ borderRadius: 16, objectFit: 'cover', border: '1px solid var(--line)' }} />
+                  <button
+                    type="button"
+                    className="ac-image-preview-btn"
+                    aria-label="Agrandir la photo de profil"
+                    title="Cliquer pour agrandir"
+                    onClick={() => setLightbox({ src: profileForm.avatar_url, name: profileForm.display_name || 'Photo de profil' })}
+                  >
+                    <img src={profileForm.avatar_url} alt="" width={72} height={72} style={{ borderRadius: 16, objectFit: 'cover', border: '1px solid var(--line)', display: 'block' }} />
+                  </button>
                 ) : (
                   <div style={{ width: 72, height: 72, borderRadius: 16, background: '#0b0e14', color: '#71717a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 22, letterSpacing: 0.5 }}>
                     {(() => {
@@ -1779,7 +1789,15 @@ if (loading) return (
             </div>
             {settings.company_signature_url && (
               <div style={{ marginBottom: 16 }}>
-                <img src={settings.company_signature_url} alt="Signature" style={{ maxHeight: 72, background: '#fff', border: '1px solid var(--line)' }} />
+                <button
+                  type="button"
+                  className="ac-image-preview-btn ac-image-preview-btn--doc"
+                  aria-label="Agrandir la signature"
+                  title="Cliquer pour agrandir"
+                  onClick={() => setLightbox({ src: settings.company_signature_url, name: 'Signature de l’entreprise' })}
+                >
+                  <img src={settings.company_signature_url} alt="Signature" style={{ maxHeight: 72, display: 'block' }} />
+                </button>
               </div>
             )}
             <div className="form-row" data-settings-anchor="pdf_stamp">
@@ -1807,7 +1825,15 @@ if (loading) return (
             </div>
             {settings.company_stamp_url && (
               <div>
-                <img src={settings.company_stamp_url} alt="Cachet" style={{ maxHeight: 88, background: '#fff', border: '1px solid var(--line)' }} />
+                <button
+                  type="button"
+                  className="ac-image-preview-btn ac-image-preview-btn--doc"
+                  aria-label="Agrandir le cachet"
+                  title="Cliquer pour agrandir"
+                  onClick={() => setLightbox({ src: settings.company_stamp_url, name: 'Cachet / tampon de l’entreprise' })}
+                >
+                  <img src={settings.company_stamp_url} alt="Cachet" style={{ maxHeight: 88, display: 'block' }} />
+                </button>
               </div>
             )}
           </div>
@@ -3327,6 +3353,13 @@ if (loading) return (
           <strong>Sécurité :</strong> Le mot de passe administrateur est géré de façon sécurisée côté serveur et n'est jamais stocké dans la base de données ni affiché dans cette interface.
         </p>
       </div>
+      {lightbox && (
+        <ImageLightbox
+          src={lightbox.src}
+          name={lightbox.name}
+          onClose={() => setLightbox(null)}
+        />
+      )}
     </div>
   );
 }

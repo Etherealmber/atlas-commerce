@@ -1,11 +1,12 @@
 import { dualStockLabel } from '../lib/dualUnit';
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Camera, History, Pencil, RefreshCw, SlidersHorizontal } from 'lucide-react';
+import { Camera, History, Maximize2, Pencil, RefreshCw, SlidersHorizontal } from 'lucide-react';
 import { api } from '../api';
 import { canSell } from '../auth';
 import { TimedUndoDelete } from '../components/ui';
-import ProductArtwork from '../components/ProductArtwork';
+import ImageLightbox from '../components/ui/ImageLightbox';
+import ProductArtwork, { productImageUrl } from '../components/ProductArtwork';
 import PhoneSkeleton from '../mobile/PhoneSkeleton';
 import './product-history.css';
 
@@ -22,7 +23,7 @@ export default function ProductHistory({ mobile = false, onProductUpdated }: Pro
   const [product, setProduct] = useState<any>(null); const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true); const [loadingMore, setLoadingMore] = useState(false);
   const [productError, setProductError] = useState(''); const [error, setError] = useState(''); const [hasMore, setHasMore] = useState(false);
-  const [imageBusy, setImageBusy] = useState(false); const [imageMessage, setImageMessage] = useState('');
+  const [imageBusy, setImageBusy] = useState(false); const [imageMessage, setImageMessage] = useState(''); const [lightboxOpen, setLightboxOpen] = useState(false);
   const generation = useRef(0); const movementGeneration = useRef(0); const imageInput = useRef<HTMLInputElement>(null);
   const load = useCallback(async () => {
     const current = ++generation.current; const movementCurrent = ++movementGeneration.current; setLoading(true); setLoadingMore(false); setImageBusy(false); setImageMessage(''); setProduct(null); setRows([]); setError(''); setProductError(''); setHasMore(false);
@@ -67,7 +68,7 @@ export default function ProductHistory({ mobile = false, onProductUpdated }: Pro
     {!mobile && <h1 className="sr-only">Historique du produit</h1>}
     {productError && <div className="product-history-card" role="alert">{productError} {valid && <button type="button" onClick={() => void load()}>Réessayer</button>}</div>}
     {loading && !product && (mobile ? <PhoneSkeleton variant="rows" label="Chargement du produit" /> : <p role="status">Chargement du produit…</p>)}
-    {product && <section className="product-history-card"><div className="product-history-hero"><div className="product-history-photo"><ProductArtwork url={product.image_url} />{canSell() && <><input ref={imageInput} type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onChange={changePhoto} /><button type="button" className="secondary product-history-photo-action" aria-label="Modifier la photo du produit" title="Modifier la photo du produit" disabled={imageBusy} onClick={() => imageInput.current?.click()}><Camera size={16} /></button></>}</div><div><span className="product-history-tag">Fiche produit</span><h2>{product.name}</h2><p>{[product.sku, product.barcode, product.category].filter(Boolean).join(' · ') || 'Sans référence'}</p></div></div>
+    {product && <section className="product-history-card"><div className="product-history-hero"><div className="product-history-photo">{productImageUrl(product.image_url) ? <button type="button" className="product-history-photo-zoom" aria-label="Agrandir la photo du produit" title="Agrandir la photo" onClick={() => setLightboxOpen(true)}><ProductArtwork url={product.image_url} alt={product.name || ''} /><span className="product-history-photo-zoom-badge" aria-hidden="true"><Maximize2 size={12} strokeWidth={2.3} /></span></button> : <ProductArtwork url={product.image_url} />}{canSell() && <><input ref={imageInput} type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onChange={changePhoto} /><button type="button" className="secondary product-history-photo-action" aria-label="Modifier la photo du produit" title="Modifier la photo du produit" disabled={imageBusy} onClick={() => imageInput.current?.click()}><Camera size={16} /></button></>}</div><div><span className="product-history-tag">Fiche produit</span><h2>{product.name}</h2><p>{[product.sku, product.barcode, product.category].filter(Boolean).join(' · ') || 'Sans référence'}</p></div></div>
       <p className="product-history-actors">Créé par {actor(product.created_by, 'non renseigné')}{product.approved_by && <> · Approuvé par {product.approved_by}</>}</p>
       {!mobile && canSell() && <div className="product-history-actions">
         {Number(product.track_inventory) !== 0 && <button type="button" className="secondary product-history-action-stock" onClick={() => navigate('/products', { state: { productAction: 'stock', productId } })}><SlidersHorizontal size={16} aria-hidden="true" />Ajuster le stock</button>}
@@ -95,6 +96,13 @@ export default function ProductHistory({ mobile = false, onProductUpdated }: Pro
           </div>
         </div>
       </section>
+    )}
+    {lightboxOpen && product && productImageUrl(product.image_url) && (
+      <ImageLightbox
+        src={productImageUrl(product.image_url)}
+        name={product.name || 'Photo du produit'}
+        onClose={() => setLightboxOpen(false)}
+      />
     )}
   </div>;
 }
