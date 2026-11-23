@@ -294,13 +294,14 @@ app.post('/api/auth/login', async (c) => {
     verifyUrl,
   });
   const emailText =
-    `Code de connexion Atlas : ${otp}\n` +
+    `Code de vérification : ${otp}\n\n` +
+    `Utilisez ce code pour confirmer votre connexion sur ${companyName} (valable 10 minutes).\n` +
+    `Lien de vérification : ${verifyUrl}\n\n` +
+    `---\n` +
     `Compte : ${username}\n` +
     `IP : ${ip}\n` +
     `Empreinte : ${fingerprint}\n` +
-    `Appareil : ${ua.slice(0, 160)}\n` +
-    `Lien : ${verifyUrl}\n` +
-    `Valable 10 minutes.`;
+    `Appareil : ${ua.slice(0, 160)}`;
 
   // Free tier: no Queues (paid). Background email via waitUntil only — do not block the response.
   if (!c.env.EMAIL?.send) {
@@ -327,7 +328,7 @@ app.post('/api/auth/login', async (c) => {
   const sendTask = sendOtpMail(c.env, {
     to: toAddr,
     from: fromAddr,
-    subject: `Code de connexion — ${companyName} (${username})`,
+    subject: `${otp} — Code de connexion ${companyName}`,
     html: emailHtml,
     text: emailText,
   }).then((ok: any) => {

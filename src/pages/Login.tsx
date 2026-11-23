@@ -1079,6 +1079,7 @@ export default function Login() {
                 <label htmlFor="otp">Code de vérification (OTP)</label>
                 <input
                   id="otp"
+                  name="one-time-code"
                   type="text"
                   inputMode="numeric"
                   pattern="[0-9]*"

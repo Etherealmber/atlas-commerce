@@ -45,6 +45,7 @@ export function createNativeOtpSender(config: Config, fetcher: typeof fetch = fe
     if (!mailbox.test(to) || to.length > 254 || !/^\d{6}$/.test(otp)) return false;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 5000);
+    const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><style>:root{color-scheme:light dark;supported-color-schemes:light dark}.logo-dark{display:none!important}.logo-light{display:block!important}@media (prefers-color-scheme:dark){body,.wrap{background:#09090b!important;color:#fafafa!important}.card{background:#18181b!important;border-color:#27272a!important}.otp{color:#fafafa!important}.muted{color:#a1a1aa!important}.logo-pill{background:#18181b!important;background-image:none!important;border-color:#27272a!important}.logo-light{display:none!important}.logo-dark{display:block!important}}</style></head><body style="margin:0;padding:0;background:#f4f4f5;color:#09090b;font-family:-apple-system,'Segoe UI',Roboto,Arial,sans-serif"><div style="display:none;max-height:0;overflow:hidden;opacity:0">Votre code Atlas Desktop : ${otp}</div><div class="wrap" style="padding:28px 16px;text-align:center"><div class="logo-pill" style="display:inline-block;padding:10px 18px;border-radius:14px;background:#ffffff;background-image:linear-gradient(#ffffff,#ffffff);border:1px solid #e4e4e7"><img src="https://stock.afmarbre.com/atlas-logo-light.png" alt="Atlas" class="logo-light" height="34" style="display:block;height:34px;width:auto" /><img src="https://stock.afmarbre.com/atlas-logo-dark.png" alt="Atlas" class="logo-dark" height="34" style="display:none;height:34px;width:auto" /></div><div class="card" style="max-width:460px;margin:22px auto 0;background:#ffffff;border:1px solid #e4e4e7;border-radius:14px;padding:24px 16px"><div class="muted" style="font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#52525b">Atlas Desktop</div><p class="muted" style="margin:12px 0 16px;font-size:14px;color:#52525b">Votre code de vérification est :</p><code class="otp" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:36px;font-weight:800;letter-spacing:6px;font-variant-numeric:tabular-nums;color:#09090b">${otp}</code><p class="muted" style="margin:16px 0 0;font-size:12px;color:#71717a">Valable pendant 5 minutes. Ne le partagez jamais.</p></div></div></body></html>`;
     try {
       const response = await fetcher('https://api.resend.com/emails', {
         method: 'POST',
@@ -54,8 +55,9 @@ export function createNativeOtpSender(config: Config, fetcher: typeof fetch = fe
         body: JSON.stringify({
           from,
           to: [to],
-          subject: 'Atlas Desktop — code de connexion',
-          text: `Votre code de connexion Atlas Desktop est ${otp}. Valable pendant 5 minutes. Ne le partagez jamais.`,
+          subject: `${otp} — Atlas Desktop — code de connexion`,
+          html,
+          text: `Code de vérification Atlas Desktop : ${otp}\n\nValable pendant 5 minutes. Ne le partagez jamais.`,
         }),
       });
       return response.ok;

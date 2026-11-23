@@ -103,38 +103,18 @@
     "WEBAUTHN_ANDROID_CERT_SHA1": ""
   },
 
-  // Preview isolation: previews MUST NEVER bind production D1, KV, R2, or Email
-  // resources so branch/PR pushes cannot read or mutate production state.
+  // Preview isolation: `wrangler preview` ONLY reads `previews` (it does NOT
+  // inherit top-level bindings). Omitting kv_namespaces, d1_databases,
+  // r2_buckets, and send_email prevents previews from touching production
+  // resources AND avoids Cloudflare API validation failures (code 10042) on
+  // unprovisioned local placeholder IDs.
   "previews": {
     "vars": {
       "ENVIRONMENT": "preview",
       "CACHE_TTL_SECONDS": "300",
       "TURNSTILE_SITE_KEY": "0x4AAAAAAEco33YS31FvWems",
       "DESKTOP_NATIVE_V3_ENABLED": "false"
-    },
-    "kv_namespaces": [
-      {
-        "binding": "CACHE",
-        "id": "local-company-stock-cache",
-        "preview_id": "local-company-stock-cache"
-      }
-    ],
-    "d1_databases": [
-      {
-        "binding": "DB",
-        "database_name": "local-company-stock-db",
-        "database_id": "00000000-0000-0000-0000-000000000000",
-        "preview_database_id": "local-company-stock-db",
-        "migrations_dir": "migrations"
-      }
-    ],
-    "r2_buckets": [
-      {
-        "binding": "IMAGES",
-        "bucket_name": "company-stock-images-preview",
-        "preview_bucket_name": "company-stock-images-preview"
-      }
-    ]
+    }
   },
 
 

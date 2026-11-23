@@ -22,6 +22,9 @@ describe('tracked Worker observability', () => {
     expect(previewsJson).not.toContain('33a5cd31362243138590c446614ffb9b');
     expect(previewsJson).not.toContain('"company-stock-images"');
     expect(previewsJson).not.toContain('admin@afmarbre.com');
+    expect(config.previews?.kv_namespaces).toBeUndefined();
+    expect(config.previews?.d1_databases).toBeUndefined();
+    expect(config.previews?.r2_buckets).toBeUndefined();
     expect(config.previews?.send_email).toBeUndefined();
   });
 });

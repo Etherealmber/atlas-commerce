@@ -27,30 +27,30 @@ export function buildFallbackLabelSvg(p: ProductLabelInfo): string {
       ? `${Number(p.price).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MAD`
       : '';
 
-  // Deterministic pseudo-Code128 bar pattern
+  // Deterministic pseudo-Code128 bar pattern (bounded left of x=204)
   const bars: string[] = [];
   let x = 12;
   const seed = code || '0';
-  for (let i = 0; i < seed.length && x < 296; i++) {
+  for (let i = 0; i < seed.length && x < 204; i++) {
     const ch = seed.charCodeAt(i);
-    for (let b = 0; b < 4 && x < 296; b++) {
+    for (let b = 0; b < 4 && x < 204; b++) {
       const w = ((ch >> b) & 1) === 1 ? 3 : 1.5;
       const gap = ((ch >> (b + 2)) & 1) === 1 ? 2.5 : 1.5;
-      bars.push(`<rect x="${x.toFixed(1)}" y="114" width="${w}" height="42" fill="#0a0a0a"/>`);
+      bars.push(`<rect x="${x.toFixed(1)}" y="108" width="${w}" height="42" fill="#0a0a0a"/>`);
       x += w + gap;
     }
   }
   if (!bars.length) {
-    bars.push('<rect x="12" y="114" width="2" height="42" fill="#0a0a0a"/>');
+    bars.push('<rect x="12" y="108" width="2" height="42" fill="#0a0a0a"/>');
   }
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180">
 <rect width="320" height="180" rx="6" fill="#ffffff" stroke="#d4d4d8"/>
-<text x="14" y="28" font-family="system-ui, sans-serif" font-size="15" font-weight="700" fill="#0a0a0a">${escapeHtml(name)}</text>
-<text x="14" y="47" font-family="system-ui, sans-serif" font-size="11" fill="#52525b">${escapeHtml(sub)}</text>
-${priceText ? `<text x="14" y="82" font-family="system-ui, sans-serif" font-size="22" font-weight="800" fill="#0a0a0a">${escapeHtml(priceText)}</text>` : ''}
+<text x="14" y="24" font-family="system-ui, sans-serif" font-size="15" font-weight="700" fill="#0a0a0a">${escapeHtml(name)}</text>
+<text x="14" y="41" font-family="system-ui, sans-serif" font-size="11" fill="#52525b">${escapeHtml(sub.slice(0, 34))}</text>
+${priceText ? `<text x="14" y="76" font-family="system-ui, sans-serif" font-size="20" font-weight="800" fill="#0a0a0a">${escapeHtml(priceText)}</text>` : ''}
 <g>${bars.join('')}</g>
-<text x="14" y="170" font-family="ui-monospace, monospace" font-size="10" fill="#0a0a0a">${escapeHtml(code)}</text>
+<text x="14" y="166" font-family="ui-monospace, monospace" font-size="10" fill="#0a0a0a">${escapeHtml(code)}</text>
 </svg>`;
 }
 

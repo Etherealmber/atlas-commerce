@@ -2147,85 +2147,141 @@ function otpEmailHTML(
     verifyUrl?: string;
   },
 ): string {
+  const esc = (s: string) =>
+    String(s || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  const safeOtp = esc(otp.trim());
+  const safeResource = esc(resourceLabel);
+  const safeCompany = esc(companyName || 'Atlas Commerce');
   const isLogin = purpose === 'login';
   const tag = isLogin ? 'VÉRIFICATION DE CONNEXION' : 'VÉRIFICATION DU COMPTE';
   const h1 = isLogin
     ? 'Confirmez cette connexion pour sécuriser votre'
     : 'Confirmez votre e-mail pour sécuriser votre';
   const intro = isLogin
-    ? 'Une nouvelle connexion vient d’être demandée sur votre compte. Confirmez-la en tapant le code ci-dessous, ou en un seul tap sur le bouton.'
-    : `Une opération sensible concernant ${resourceLabel} nécessite votre confirmation. Utilisez le code ci-dessous depuis l’application.`;
+    ? 'Une nouvelle connexion vient d’être demandée sur votre compte. Saisissez le code de vérification ci-dessous, ou appuyez sur le bouton.'
+    : `Une opération sensible concernant ${safeResource} nécessite votre confirmation. Utilisez le code de vérification ci-dessous depuis l’application.`;
   const ORANGE = '#c45c26'; /* terracotta Atlas */
-  const SALMON = '#d4a017'; /* saffron Atlas */
-  // v0.7.2 — le mail suit le thème du serveur : palette zinc sombre de l'app.
-  const CANVAS = '#09090b'; /* zinc-950 */
-  const CARD = '#18181b'; /* zinc-900 */
-  const LINE = '#27272a'; /* zinc-800 */
-  const INK = '#fafafa'; /* zinc-50 */
-  const VAL = '#e4e4e7'; /* zinc-200 */
-  const GREY = '#a1a1aa'; /* zinc-400 */
-  const FAINT = '#71717a'; /* zinc-500 */
+  const LIGHT_TAG = '#9a461c';
+  const DARK_SALMON = '#d4a017';
+  const LIGHT_CANVAS = '#f4f4f5';
+  const LIGHT_CARD = '#ffffff';
+  const LIGHT_LINE = '#e4e4e7';
+  const LIGHT_INK = '#09090b';
+  const LIGHT_VAL = '#18181b';
+  const LIGHT_GREY = '#52525b';
+  const LIGHT_FAINT = '#71717a';
+  const DARK_CANVAS = '#09090b';
+  const DARK_CARD = '#18181b';
+  const DARK_LINE = '#27272a';
+  const DARK_INK = '#fafafa';
+  const DARK_VAL = '#e4e4e7';
+  const DARK_GREY = '#a1a1aa';
+  const DARK_FAINT = '#71717a';
   const rows = [
-    meta?.username ? ['Compte', meta.username] : null,
-    meta?.ip ? ['Adresse IP', meta.ip] : null,
-    meta?.ua ? ['Appareil', meta.ua.slice(0, 120)] : null,
-    meta?.fingerprint ? ['Empreinte', meta.fingerprint.slice(0, 24)] : null,
+    meta?.username ? ['Compte', esc(meta.username)] : null,
+    meta?.ip ? ['Adresse IP', esc(meta.ip)] : null,
+    meta?.ua ? ['Appareil', esc(meta.ua.slice(0, 120))] : null,
+    meta?.fingerprint ? ['Empreinte', esc(meta.fingerprint.slice(0, 24))] : null,
   ].filter(Boolean) as [string, string][];
-  // v0.7.2 — tableau role=presentation : les clients mail (Gmail…) cassent
-  // display:flex et collaient libellé + valeur (« Compteadmin »).
+  // tableau role=presentation : évite que Gmail colle libellé et valeur.
   const deviceBlock = rows.length
-    ? `<div style="margin:26px 0 0;background:${CARD};border:1px solid ${LINE};border-radius:12px;padding:10px 16px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">${rows
+    ? `<div class="ac-mail-card" style="margin:24px 0 0;background:${LIGHT_CARD};border:1px solid ${LIGHT_LINE};border-radius:12px;padding:10px 16px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">${rows
         .map(
           ([k, v]) =>
-            `<tr><td style="padding:5px 14px 5px 0;font-size:12px;color:${GREY};white-space:nowrap;vertical-align:top">${k}</td><td style="padding:5px 0;font-size:12px;font-weight:600;color:${VAL};text-align:right;word-break:break-word">${v}</td></tr>`,
+            `<tr><td class="ac-mail-muted" style="padding:5px 14px 5px 0;font-size:12px;color:${LIGHT_GREY};white-space:nowrap;vertical-align:top;text-align:left">${k}</td><td class="ac-mail-val" style="padding:5px 0;font-size:12px;font-weight:600;color:${LIGHT_VAL};text-align:right;word-break:break-word">${v}</td></tr>`,
         )
         .join('')}</table></div>`
     : '';
   const button = meta?.verifyUrl
-    ? `<a href="${meta.verifyUrl}" style="display:block;width:100%;box-sizing:border-box;background:${ORANGE};border-radius:10px;padding:18px 12px;text-align:center;color:#ffffff;font-size:15px;font-weight:800;letter-spacing:1.5px;text-decoration:none;text-transform:uppercase">Vérifier &amp; continuer</a>`
+    ? `<a href="${esc(meta.verifyUrl)}" style="display:block;width:100%;box-sizing:border-box;background:${ORANGE};border-radius:10px;padding:16px 12px;text-align:center;color:#ffffff;font-size:15px;font-weight:800;letter-spacing:1.2px;text-decoration:none;text-transform:uppercase">Vérifier &amp; continuer</a>`
     : '';
   const social = (href: string, d: string) =>
-    `<a href="${href}" style="display:inline-block;margin-left:14px;text-decoration:none"><svg width="17" height="17" viewBox="0 0 24 24" fill="#6b7280" xmlns="http://www.w3.org/2000/svg"><path d="${d}"/></svg></a>`;
+    `<a href="${href}" style="display:inline-block;margin-left:14px;text-decoration:none"><svg width="17" height="17" viewBox="0 0 24 24" fill="#71717a" xmlns="http://www.w3.org/2000/svg"><path d="${d}"/></svg></a>`;
   return `<!doctype html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${tag}</title></head>
-<body style="margin:0;padding:0;background:${CANVAS};font-family:-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;color:${INK}">
-  <div style="display:none;max-height:0;overflow:hidden">Votre code : ${otp}</div>
-  <div style="max-width:600px;margin:0 auto;padding:38px 22px 30px;text-align:center">
-    <img src="https://stock.afmarbre.com/atlas-logo-dark.png" alt="Atlas" width="173" height="56" style="display:block;height:42px;width:auto;max-width:100%;margin:0 auto" />
-    <div style="height:34px"></div>
-    <div style="font-size:12px;font-weight:800;letter-spacing:2px;color:${SALMON};text-transform:uppercase">${tag}</div>
-    <h1 style="margin:14px 0 0;font-size:33px;line-height:1.18;font-weight:800;color:${INK}">${h1} <em style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-weight:600;color:${SALMON}">compte</em></h1>
-    <p style="margin:18px auto 0;max-width:420px;font-size:15px;line-height:1.7;color:${GREY}">${intro}</p>
-    <div style="margin:30px 0 0;background:${CARD};border:1px solid ${LINE};border-radius:12px;padding:30px 16px">
-      <div style="font-size:34px;font-weight:800;letter-spacing:3px;color:${VAL}">${otp}</div>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>${safeOtp} — ${tag}</title>
+<style>
+  :root { color-scheme: light dark; supported-color-schemes: light dark; }
+  .ac-logo-dark { display: none !important; }
+  .ac-logo-light { display: block !important; }
+  @media (prefers-color-scheme: dark) {
+    .ac-mail-body, .ac-mail-canvas { background-color: ${DARK_CANVAS} !important; color: ${DARK_INK} !important; }
+    .ac-mail-card { background-color: ${DARK_CARD} !important; border-color: ${DARK_LINE} !important; }
+    .ac-mail-ink, .ac-otp-code { color: ${DARK_INK} !important; }
+    .ac-mail-val { color: ${DARK_VAL} !important; }
+    .ac-mail-muted { color: ${DARK_GREY} !important; }
+    .ac-mail-faint { color: ${DARK_FAINT} !important; }
+    .ac-mail-tag, .ac-mail-em { color: ${DARK_SALMON} !important; }
+    .ac-logo-pill { background-color: ${DARK_CARD} !important; background-image: none !important; border-color: ${DARK_LINE} !important; }
+    .ac-logo-light { display: none !important; }
+    .ac-logo-dark { display: block !important; }
+    .ac-mail-footer { background-color: #0b0b0d !important; border-top-color: ${DARK_LINE} !important; }
+    .ac-mail-footer-ink { color: #a1a1aa !important; }
+  }
+  [data-ogsc] .ac-mail-body, [data-ogsc] .ac-mail-canvas, [data-ogsb] .ac-mail-body, [data-ogsb] .ac-mail-canvas { background-color: ${DARK_CANVAS} !important; color: ${DARK_INK} !important; }
+  [data-ogsc] .ac-mail-card, [data-ogsb] .ac-mail-card { background-color: ${DARK_CARD} !important; border-color: ${DARK_LINE} !important; }
+  [data-ogsc] .ac-mail-ink, [data-ogsc] .ac-otp-code { color: ${DARK_INK} !important; }
+  [data-ogsc] .ac-mail-val { color: ${DARK_VAL} !important; }
+  [data-ogsc] .ac-mail-muted { color: ${DARK_GREY} !important; }
+  [data-ogsc] .ac-mail-faint { color: ${DARK_FAINT} !important; }
+  [data-ogsc] .ac-mail-tag, [data-ogsc] .ac-mail-em { color: ${DARK_SALMON} !important; }
+  [data-ogsc] .ac-logo-pill, [data-ogsb] .ac-logo-pill { background-color: ${DARK_CARD} !important; background-image: none !important; border-color: ${DARK_LINE} !important; }
+  [data-ogsc] .ac-logo-light { display: none !important; }
+  [data-ogsc] .ac-logo-dark { display: block !important; }
+</style>
+</head>
+<body class="ac-mail-body" style="margin:0;padding:0;background-color:${LIGHT_CANVAS};font-family:-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;color:${LIGHT_INK}">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all">Votre code de vérification : ${safeOtp}. Valable 10 minutes.&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;</div>
+  <div class="ac-mail-canvas" style="background-color:${LIGHT_CANVAS};padding:28px 16px 24px">
+    <div style="max-width:580px;margin:0 auto;text-align:center">
+      <div class="ac-logo-pill" style="display:inline-block;padding:10px 18px;border-radius:14px;background-color:${LIGHT_CARD};background-image:linear-gradient(${LIGHT_CARD},${LIGHT_CARD});border:1px solid ${LIGHT_LINE}">
+        <img src="https://stock.afmarbre.com/atlas-logo-light.png" alt="Atlas" class="ac-logo-light" width="148" height="48" style="display:block;height:36px;width:auto;max-width:100%;margin:0 auto" />
+        <!--[if !mso]><!--><img src="https://stock.afmarbre.com/atlas-logo-dark.png" alt="Atlas" class="ac-logo-dark" width="148" height="48" style="display:none;height:36px;width:auto;max-width:100%;margin:0 auto" /><!--<![endif]-->
+      </div>
+      <div style="height:26px"></div>
+      <div class="ac-mail-tag" style="font-size:12px;font-weight:800;letter-spacing:2px;color:${LIGHT_TAG};text-transform:uppercase">${tag}</div>
+      <h1 class="ac-mail-ink" style="margin:12px 0 0;font-size:30px;line-height:1.2;font-weight:800;color:${LIGHT_INK}">${h1} <em class="ac-mail-em" style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-weight:600;color:${ORANGE}">compte</em></h1>
+      <p class="ac-mail-muted" style="margin:16px auto 0;max-width:440px;font-size:15px;line-height:1.65;color:${LIGHT_GREY}">${intro}</p>
+      <div class="ac-mail-card" style="margin:26px 0 0;background:${LIGHT_CARD};border:1px solid ${LIGHT_LINE};border-radius:14px;padding:24px 16px">
+        <div class="ac-mail-muted" style="font-size:12px;font-weight:600;letter-spacing:0.6px;text-transform:uppercase;color:${LIGHT_GREY};margin-bottom:8px">Votre code de vérification</div>
+        <code class="ac-otp-code" style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:36px;font-weight:800;letter-spacing:6px;font-variant-numeric:tabular-nums;color:${LIGHT_INK};background:transparent;display:inline-block;user-select:all;-webkit-user-select:all">${safeOtp}</code>
+      </div>
+      ${button ? `<div style="margin:20px 0 0">${button}</div>` : ''}
+      ${deviceBlock}
+      <p class="ac-mail-muted" style="margin:24px auto 0;max-width:400px;font-size:14px;line-height:1.6;color:${LIGHT_GREY}">Vous n’êtes pas à l’origine de cette demande ? Ignorez simplement ce message.</p>
+      <p class="ac-mail-faint" style="margin:8px auto 0;max-width:440px;font-size:12px;line-height:1.6;color:${LIGHT_FAINT}">Code à usage unique, valable 10 minutes. Ne le partagez jamais, y compris avec un membre de votre équipe. · ${safeCompany}</p>
     </div>
-    <div style="margin:22px 0 0">${button}</div>
-    ${deviceBlock}
-    <p style="margin:28px auto 0;max-width:380px;font-size:14px;line-height:1.65;color:${GREY}">Vous n’êtes pas à l’origine de cette demande ? Ignorez simplement ce message.</p>
-    <p style="margin:10px auto 0;max-width:420px;font-size:12px;line-height:1.6;color:${FAINT}">Code à usage unique, valable 10 minutes. Ne le partagez jamais, y compris avec un membre de votre équipe. · ${companyName}</p>
   </div>
-  <div style="background:#0b0b0d;padding:34px 22px 30px;text-align:center">
-    <div style="max-width:600px;margin:0 auto">
+  <div class="ac-mail-footer" style="background-color:${LIGHT_CARD};border-top:1px solid ${LIGHT_LINE};padding:26px 22px 24px;text-align:center">
+    <div style="max-width:580px;margin:0 auto">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-        <div style="display:flex;align-items:center;gap:9px;font-size:19px;font-weight:800;color:#9aa2b1"><span style="font-size:22px">🏬</span>Atlas</div>
+        <div class="ac-mail-footer-ink" style="display:flex;align-items:center;gap:9px;font-size:18px;font-weight:800;color:${LIGHT_GREY}">Atlas</div>
         <div style="white-space:nowrap">${social('https://www.facebook.com/', 'M22 12a10 10 0 1 0-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.4h-1.2c-1.2 0-1.6.8-1.6 1.6V12h2.7l-.4 2.9h-2.3v7A10 10 0 0 0 22 12Z')}
 ${social('https://x.com/', 'M18.9 2H22l-6.8 7.8L23.2 22h-6.3l-4.9-6.4L6.4 22H3.3l7.3-8.3L1 2h6.4l4.4 5.9L18.9 2Zm-1.1 18h1.7L7.7 3.9H5.9L17.8 20Z')}
 ${social('https://www.linkedin.com/', 'M20.4 20.4h-3.6v-5.6c0-1.3 0-3-1.9-3s-2.1 1.4-2.1 2.9v5.7H9.4V9h3.4v1.6h.1c.5-.9 1.6-1.9 3.4-1.9 3.6 0 4.3 2.4 4.3 5.5v6.2ZM5.3 7.4a2.1 2.1 0 1 1 0-4.2 2.1 2.1 0 0 1 0 4.2Zm1.8 13H3.5V9h3.6v11.4Z')}
 ${social('https://www.youtube.com/', 'M23 12s0-3.9-.5-5.7c-.3-1-1.1-1.8-2.1-2.1C18.6 3.7 12 3.7 12 3.7s-6.6 0-8.4.5c-1 .3-1.8 1.1-2.1 2.1C1 8.1 1 12 1 12s0 3.9.5 5.7c.3 1 1.1 1.8 2.1 2.1 1.8.5 8.4.5 8.4.5s6.6 0 8.4-.5c1-.3 1.8-1.1 2.1-2.1.5-1.8.5-5.7.5-5.7ZM9.8 15.5v-7l6 3.5-6 3.5Z')}
 ${social('https://www.instagram.com/', 'M12 2.2c3.2 0 3.6 0 4.9.1 1.2.1 1.9.2 2.3.4.6.2 1 .5 1.4.9.4.4.7.8.9 1.4.2.4.4 1.1.4 2.3.1 1.3.1 1.7.1 4.9s0 3.6-.1 4.9c-.1 1.2-.2 1.9-.4 2.3-.2.6-.5 1-.9 1.4-.4.4-.8.7-1.4.9-.4.2-1.1.4-2.3.4-1.3.1-1.7.1-4.9.1s-3.6 0-4.9-.1c-1.2-.1-1.9-.2-2.3-.4-.6-.2-1-.5-1.4-.9-.4-.4-.7-.8-.9-1.4-.2-.4-.4-1.1-.4-2.3-.1-1.3-.1-1.7-.1-4.9s0-3.6.1-4.9c.1-1.2.2-1.9.4-2.3.2-.6.5-1 .9-1.4.4-.4.8-.7 1.4-.9.4-.2 1.1-.4 2.3-.4 1.3-.1 1.7-.1 4.9-.1Zm0 3.8a6 6 0 1 0 0 12 6 6 0 0 0 0-12Zm0 9.9a3.9 3.9 0 1 1 0-7.8 3.9 3.9 0 0 1 0 7.8Zm6.2-10.1a1.4 1.4 0 1 1-2.8 0 1.4 1.4 0 0 1 2.8 0Z')}</div>
       </div>
-      <div style="margin-top:26px;font-size:13px;color:#9aa2b1">
-        <a href="https://stock.afmarbre.com/" style="color:#9aa2b1;text-decoration:underline">Notre blog</a>
-        <span style="margin:0 8px;color:#3a3f4a">|</span>
-        <a href="https://stock.afmarbre.com/" style="color:#9aa2b1;text-decoration:underline">À propos</a>
-        <span style="margin:0 8px;color:#3a3f4a">|</span>
-        <a href="https://stock.afmarbre.com/" style="color:#9aa2b1;text-decoration:underline">Contact</a>
-        <span style="margin:0 8px;color:#3a3f4a">|</span>
-        <a href="https://stock.afmarbre.com/" style="color:#9aa2b1;text-decoration:underline">Centre d’aide</a>
+      <div class="ac-mail-footer-ink" style="margin-top:20px;font-size:13px;color:${LIGHT_GREY}">
+        <a href="https://stock.afmarbre.com/" style="color:inherit;text-decoration:underline">Accueil</a>
+        <span style="margin:0 8px;opacity:0.45">|</span>
+        <a href="https://stock.afmarbre.com/about" style="color:inherit;text-decoration:underline">À propos</a>
+        <span style="margin:0 8px;opacity:0.45">|</span>
+        <a href="https://stock.afmarbre.com/whats-new" style="color:inherit;text-decoration:underline">Nouveautés</a>
+        <span style="margin:0 8px;opacity:0.45">|</span>
+        <a href="https://stock.afmarbre.com/privacy" style="color:inherit;text-decoration:underline">Confidentialité</a>
       </div>
-      <div style="margin-top:14px;font-size:12px;line-height:1.6;color:#7c8494">Atlas — stock.afmarbre.com<br/>© ${new Date().getUTCFullYear()} Etherealmber · MIT ou Apache-2.0</div>
-      <div style="margin-top:10px"><a href="https://stock.afmarbre.com/settings" style="font-size:12px;color:#9aa2b1;text-decoration:underline">Se désabonner</a></div>
+      <div class="ac-mail-faint" style="margin-top:12px;font-size:12px;line-height:1.6;color:${LIGHT_FAINT}">Atlas — stock.afmarbre.com<br/>© ${new Date().getUTCFullYear()} Etherealmber · MIT ou Apache-2.0</div>
+      <div style="margin-top:8px"><a href="https://stock.afmarbre.com/settings" class="ac-mail-footer-ink" style="font-size:12px;color:${LIGHT_GREY};text-decoration:underline">Paramètres du compte</a></div>
     </div>
   </div>
 </body>
