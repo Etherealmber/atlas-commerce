@@ -60,6 +60,14 @@ export interface Env {
   FINANCE_ENGINE_MODE?: string;
   /** Enable v2 phone approval in addition to discovery; use only after client/staging validation. */
   DESKTOP_NATIVE_V2_PHONE_APPROVAL?: string;
+  /** Desktop v3 production auth gates — keep disabled until full protocol & clients are ready. */
+  DESKTOP_NATIVE_V3_ENABLED?: string;
+  DESKTOP_NATIVE_V3_PROD_APPROVED?: string;
+  DESKTOP_NATIVE_V3_OTP_KEY?: string;
+  DESKTOP_NATIVE_MAIL_TRANSPORT?: string;
+  DESKTOP_NATIVE_RESEND_API_KEY?: string;
+  DESKTOP_NATIVE_MAIL_FROM?: string;
+  DESKTOP_NATIVE_MAILBOX_MAC_KEY?: string;
   /** Staging-only challenge; native password additionally requires its own pilot flag and configuration. */
   DESKTOP_NATIVE_V2_PILOT_CHALLENGE?: string;
   DESKTOP_NATIVE_V2_PILOT_LOGIN?: string;

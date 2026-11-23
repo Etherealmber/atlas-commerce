@@ -7,6 +7,8 @@ import { registerDesktopAuthRoutes } from './desktopAuth';
 import { registerDesktopNativeDiscovery } from './desktopNativeDiscovery';
 import { registerDesktopPilotWebView } from '../lib/desktop-pilot-webview';
 import { registerDesktopNativeV2 } from './desktopNativeV2';
+import { registerDesktopV3WebView } from '../lib/desktop-v3-webview';
+import { registerDesktopNativeV3 } from './desktopNativeV3';
 import { registerReportsAndUpdatesRoutes } from './index';
 import {
   consumeChallenge as waConsumeChallenge,
@@ -579,9 +581,59 @@ function randomQrToken(): string {
 /** Versioned desktop flow: reuse existing proof validation, trust and v2 format. */
 registerDesktopNativeDiscovery(app);
 registerDesktopPilotWebView(app);
+registerDesktopV3WebView(app);
 
 // Verify the actual token fingerprint and database role; neither the declared
 // fingerprint nor the parsed role alone constitutes an identity.
+
+registerDesktopNativeV3(app, {
+  currentIdentity: nativeCurrentIdentity,
+  verifyAppUserPassword: async (env, username, password) => {
+    const cleanUser = String(username || '').trim().toLowerCase();
+    const row: any = cleanUser && cleanUser !== getOwnerUsername(env)
+      ? await env.DB.prepare('SELECT id, username, role, password_salt, password_hash FROM app_users WHERE username=? AND active=1').bind(cleanUser).first()
+      : null;
+    const validRow = row && ['admin', 'secretaire', 'stock', 'user'].includes(row.role) && /^pbkdf2\$100000\$[a-f0-9]{64}$/i.test(String(row.password_hash || ''));
+    const salt = validRow ? String(row.password_salt) : 'atlas-native-v3-dummy-salt';
+    const actual = await derivePbkdf2Bits(password, salt, 100000);
+    const expected = validRow ? String(row.password_hash).split('$')[2].toLowerCase() : '0'.repeat(64);
+    let diff = 0;
+    for (let i = 0; i < 64; i++) diff |= actual.charCodeAt(i) ^ expected.charCodeAt(i);
+    return validRow && diff === 0
+      ? { username: cleanUser, role: String(row.role), material: String(row.password_hash), userId: Number(row.id) }
+      : null;
+  },
+  verifySessionPassword: async (c, password) => {
+    const header = c.req.header('Authorization');
+    const fp = c.req.header('X-Device-Fingerprint') || '';
+    if (await authFailReason(header, c.env, c.env.DB, clientIp(c), fp) !== 'ok') return null;
+    const sess = sessionUserFromHeader(header);
+    const uname = String(sess.username || '').trim().toLowerCase();
+    if (!uname) return null;
+    if (uname === getOwnerUsername(c.env) && sess.role === 'owner') {
+      const expected = getPassword(c.env);
+      const ok = !!(expected && passwordsMatch(password, expected));
+      return ok ? { username: uname, role: 'owner', userId: null } : null;
+    }
+    const row: any = await c.env.DB.prepare('SELECT id, role, password_salt, password_hash FROM app_users WHERE username=? AND active=1').bind(uname).first();
+    if (!row || row.role !== sess.role || !/^pbkdf2\$100000\$[a-f0-9]{64}$/i.test(String(row.password_hash || ''))) return null;
+    const actual = await derivePbkdf2Bits(password, String(row.password_salt), 100000);
+    const expected = String(row.password_hash).split('$')[2].toLowerCase();
+    let diff = 0;
+    for (let i = 0; i < 64; i++) diff |= actual.charCodeAt(i) ^ expected.charCodeAt(i);
+    return diff === 0 ? { username: uname, role: String(row.role), userId: Number(row.id) } : null;
+  },
+  authenticatedSession: async (c) => {
+    const header = c.req.header('Authorization');
+    const fp = c.req.header('X-Device-Fingerprint') || '';
+    if (await authFailReason(header, c.env, c.env.DB, clientIp(c), fp) !== 'ok') return null;
+    const sess = sessionUserFromHeader(header);
+    return sess.username ? sess : null;
+  },
+  audit: async (c, entry) => {
+    await writeAudit(c.env.DB, entry);
+  },
+});
 
 registerDesktopNativeV2(app, {
   currentIdentity: nativeCurrentIdentity,

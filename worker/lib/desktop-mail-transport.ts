@@ -34,3 +34,35 @@ export function createConfiguredNativeMailbox(db: D1Database, config: Config, au
   if (!send || !authorize) return null;
   return createMailboxEnrollment(db, config.DESKTOP_NATIVE_MAILBOX_MAC_KEY || '', { authorize, send });
 }
+
+/** Dedicated per-account login OTP sender; uses only the verified mailbox address. */
+export function createNativeOtpSender(config: Config, fetcher: typeof fetch = fetch): ((to: string, otp: string) => Promise<boolean>) | null {
+  const key = config.DESKTOP_NATIVE_RESEND_API_KEY;
+  const from = config.DESKTOP_NATIVE_MAIL_FROM;
+  if (config.DESKTOP_NATIVE_MAIL_TRANSPORT !== 'resend-v1' || typeof key !== 'string' || !/^re_[A-Za-z0-9_-]{8,200}$/.test(key) ||
+      typeof from !== 'string' || from.length > 254 || !mailbox.test(from)) return null;
+  return async (to, otp) => {
+    if (!mailbox.test(to) || to.length > 254 || !/^\d{6}$/.test(otp)) return false;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    try {
+      const response = await fetcher('https://api.resend.com/emails', {
+        method: 'POST',
+        redirect: 'error',
+        signal: controller.signal,
+        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from,
+          to: [to],
+          subject: 'Atlas Desktop — code de connexion',
+          text: `Votre code de connexion Atlas Desktop est ${otp}. Valable pendant 5 minutes. Ne le partagez jamais.`,
+        }),
+      });
+      return response.ok;
+    } catch {
+      return false;
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+}

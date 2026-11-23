@@ -1,16 +1,17 @@
 import { Hono } from 'hono';
 import { pilotLoginConfigured } from '../lib/desktop-native-session';
+import { desktopV3Readiness } from '../lib/desktop-v3-session';
 
 /**
- * Discovery alone enables nothing. Phone and staging password pilots each
+ * Discovery alone enables nothing. Phone, staging password pilots, and v3 each
  * require their own independent gates and runtime dependencies.
  */
 export const DESKTOP_NATIVE_V2_CAPABILITIES = '/api/auth/desktop/v2/capabilities';
 export const DESKTOP_NATIVE_V3_CAPABILITIES = '/api/auth/desktop/v3/capabilities';
 
 export function registerDesktopNativeDiscovery(app: Hono<any>): void {
-  // Production v3 is not yet implemented: configuration alone must never
-  // advertise a method or enable a partial authentication protocol.
+  // Production v3 stays disabled unless all server gates, dedicated mail
+  // transport, Turnstile keys, MAC keys, and production approval are ready.
   app.get(DESKTOP_NATIVE_V3_CAPABILITIES, c => {
     c.header('Cache-Control', 'no-store');
     c.header('CDN-Cache-Control', 'no-store');
@@ -19,11 +20,51 @@ export function registerDesktopNativeDiscovery(app: Hono<any>): void {
     const originHeader = c.req.header('Origin');
     if (url.protocol !== 'https:') return c.json({ success: false, code: 'HTTPS_REQUIRED', error: 'HTTPS requis.' }, 400);
     if (url.search || (originHeader !== undefined && originHeader !== url.origin)) return c.json({ success: false, code: 'INVALID_REQUEST', error: 'Requête invalide.' }, 400);
-    return c.json({ success: true, data: {
-      version: 3, enabled: false, reason: 'NOT_READY',
-      methods: { password_otp: { available: false }, mailbox_enrollment: { available: false }, recovery: { available: false }, device_proof: { available: false } },
-      browser_fallback: { version: 1, capabilities_path: '/api/auth/desktop/v1/capabilities', automatic: false },
-    } });
+    const gate = desktopV3Readiness(c.env);
+    if (!gate.ready) {
+      return c.json({
+        success: true,
+        data: {
+          version: 3,
+          enabled: false,
+          reason: gate.reason,
+          methods: { password_otp: { available: false }, mailbox_enrollment: { available: false }, recovery: { available: false }, device_proof: { available: false } },
+          browser_fallback: { version: 1, capabilities_path: '/api/auth/desktop/v1/capabilities', automatic: false },
+        },
+      });
+    }
+    return c.json({
+      success: true,
+      data: {
+        version: 3,
+        enabled: true,
+        methods: {
+          password_otp: {
+            available: true,
+            version: 3,
+            challenge_modes: ['turnstile_webview', 'system_browser'],
+            automatic_fallback: false,
+            otp_required: true,
+            dpop_required: true,
+            dpop_alg: 'ES256',
+            verified_mailbox_required: true,
+            challenge_paths: {
+              turnstile_webview: '/login/desktop-v3-challenge',
+              system_browser: '/login/desktop-v3-browser',
+            },
+          },
+          mailbox_enrollment: { available: true, version: 1 },
+          recovery: { available: true, version: 1, admin_approval_required: true },
+          device_proof: {
+            available: true,
+            alg: 'ES256',
+            format: 'dpop+jwt',
+            hardware_attestation_claimed: false,
+          },
+        },
+        browser_fallback: { version: 1, capabilities_path: '/api/auth/desktop/v1/capabilities', automatic: false },
+      },
+    });
   });
   app.get(DESKTOP_NATIVE_V2_CAPABILITIES, c => {
     c.header('Cache-Control', 'no-store');

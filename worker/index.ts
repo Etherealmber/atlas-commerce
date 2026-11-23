@@ -95,6 +95,7 @@ import {
   sessionUserFromHeader,
   secretMaterialForUsername,
   nativeCurrentIdentity,
+  runWithRequestAuthContext,
 } from './lib/authHelpers';
 import { registerAuthRoutes } from './routes/authRoutes';
 import { registerUsersAdminRoutes, registerSettingsRoutes } from './routes/usersAdmin';
@@ -161,6 +162,8 @@ import { registerDesktopAuthRoutes, isDesktopAuthPath, isPublicDesktopAuthPath, 
 import { registerDesktopNativeDiscovery, DESKTOP_NATIVE_V2_CAPABILITIES, DESKTOP_NATIVE_V3_CAPABILITIES } from './routes/desktopNativeDiscovery';
 import { registerDesktopPilotWebView, EMBEDDED_CHALLENGE_PATH, EMBEDDED_CHALLENGE_CSP } from './lib/desktop-pilot-webview';
 import { registerDesktopNativeV2, isNativeV2Operation, NATIVE_V2 } from './routes/desktopNativeV2';
+import { isNativeV3PublicPost, NATIVE_V3 } from './routes/desktopNativeV3';
+import { V3_WEBVIEW_CHALLENGE_PATH, V3_BROWSER_CHALLENGE_PATH, V3_CHALLENGE_CSP } from './lib/desktop-v3-webview';
 import { parseNativePilotToken, validateNativePilotToken } from './lib/desktop-native-session';
 import {
   androidMinVersionGuard,
@@ -811,7 +814,7 @@ app.use('*', async (c, next) => {
     const bm = readD1BookmarkFromReq(c);
 
     try {
-      if (path.startsWith('/api/reports/') || path.startsWith(`${NATIVE_V2}/`) || c.req.header('Authorization')?.startsWith('Bearer np1.') || path === '/api/mobile/work-status' || path === '/api/mobile/snake-score' || path === '/api/mobile/preferences' || path === '/api/reports' || path === '/api/admin/product-images/normalize') {
+      if (path.startsWith('/api/reports/') || path.startsWith(`${NATIVE_V2}/`) || path.startsWith(`${NATIVE_V3}/`) || c.req.header('Authorization')?.startsWith('Bearer np1.') || c.req.header('Authorization')?.startsWith('Bearer nv3.') || path === '/api/mobile/work-status' || path === '/api/mobile/snake-score' || path === '/api/mobile/preferences' || path === '/api/reports' || path === '/api/admin/product-images/normalize') {
         session = rawDb.withSession('first-primary');
       } else if (path === '/api/health') {
         // Health check: can use unconstrained replica or available session
@@ -824,8 +827,8 @@ app.use('*', async (c, next) => {
         session = bm ? rawDb.withSession(bm) : rawDb.withSession();
       }
     } catch {
-      // Native v2 must never silently fall back to an unconstrained D1 replica.
-      if (path.startsWith(`${NATIVE_V2}/`) || c.req.header('Authorization')?.startsWith('Bearer np1.')) {
+      // Native v2/v3 must never silently fall back to an unconstrained D1 replica.
+      if (path.startsWith(`${NATIVE_V2}/`) || path.startsWith(`${NATIVE_V3}/`) || c.req.header('Authorization')?.startsWith('Bearer np1.') || c.req.header('Authorization')?.startsWith('Bearer nv3.')) {
         return c.json({ success: false, code: 'UNAVAILABLE', error: 'Connexion indisponible.' }, 503);
       }
       try {
@@ -912,7 +915,7 @@ app.use('*', async (c, next) => {
   if (c.env.DB_TARGET) {
     (c.env as any).DB_SOURCE = c.env.DB; // remember the physical source before any swap
     try {
-      const privateResource = new URL(c.req.url).pathname === '/api/mobile/preferences' || new URL(c.req.url).pathname.startsWith('/api/reports/') || new URL(c.req.url).pathname.startsWith(`${NATIVE_V2}/`) || !!c.req.header('Authorization')?.startsWith('Bearer np1.');
+      const privateResource = new URL(c.req.url).pathname === '/api/mobile/preferences' || new URL(c.req.url).pathname.startsWith('/api/reports/') || new URL(c.req.url).pathname.startsWith(`${NATIVE_V2}/`) || new URL(c.req.url).pathname.startsWith(`${NATIVE_V3}/`) || !!c.req.header('Authorization')?.startsWith('Bearer np1.') || !!c.req.header('Authorization')?.startsWith('Bearer nv3.');
       // These resources must not fall back to the wrong database if
       // cutover state cannot be read; do not use the cached, fail-open flag.
       const flag = privateResource
@@ -920,7 +923,7 @@ app.use('*', async (c, next) => {
         : await dbPrimaryFlag(c.env);
       if (flag === 'target') {
         const target = c.env.DB_TARGET as any;
-        if ((new URL(c.req.url).pathname.startsWith(`${NATIVE_V2}/`) || c.req.header('Authorization')?.startsWith('Bearer np1.')) && typeof target.withSession !== 'function') throw new Error('Native v2 requires a primary D1 session');
+        if ((new URL(c.req.url).pathname.startsWith(`${NATIVE_V2}/`) || new URL(c.req.url).pathname.startsWith(`${NATIVE_V3}/`) || c.req.header('Authorization')?.startsWith('Bearer np1.') || c.req.header('Authorization')?.startsWith('Bearer nv3.')) && typeof target.withSession !== 'function') throw new Error('Native auth requires a primary D1 session');
         const targetDb = privateResource && typeof target.withSession === 'function'
           ? target.withSession('first-primary') : target;
         registerDbRoot(targetDb, target);
@@ -929,7 +932,7 @@ app.use('*', async (c, next) => {
     } catch {
       // Never silently switch this private resource back to the source database
       // if the configured target's primary session cannot be established.
-      if (new URL(c.req.url).pathname === '/api/mobile/preferences' || new URL(c.req.url).pathname.startsWith('/api/reports/') || new URL(c.req.url).pathname.startsWith(`${NATIVE_V2}/`) || c.req.header('Authorization')?.startsWith('Bearer np1.')) {
+      if (new URL(c.req.url).pathname === '/api/mobile/preferences' || new URL(c.req.url).pathname.startsWith('/api/reports/') || new URL(c.req.url).pathname.startsWith(`${NATIVE_V2}/`) || new URL(c.req.url).pathname.startsWith(`${NATIVE_V3}/`) || c.req.header('Authorization')?.startsWith('Bearer np1.') || c.req.header('Authorization')?.startsWith('Bearer nv3.')) {
         return c.json({ success: false, code: 'SERVICE_UNAVAILABLE', error: 'Service indisponible' }, 503);
       }
     }
@@ -1005,14 +1008,25 @@ app.use(`${NATIVE_V2}/*`, async (c, next) => {
   c.header('Referrer-Policy', 'no-referrer');
 });
 
+app.use(`${NATIVE_V3}/*`, async (c, next) => {
+  await next();
+  c.header('Cache-Control', 'no-store');
+  c.header('CDN-Cache-Control', 'no-store');
+  c.header('Referrer-Policy', 'no-referrer');
+});
+
 app.use('/api/*', async (c, next) => {
   const path = new URL(c.req.url).pathname;
-  // A staging native session must not be used to bootstrap a legacy web/QR
+  // A staging/v3 native session must not be used to bootstrap a legacy web/QR
   // session or to activate fingerprint-based trust. Native refresh/logout use
   // their own proof-bearing POST bodies instead of Authorization.
-  const nativeHeader = c.req.header('Authorization')?.startsWith('Bearer np1.');
+  const authTok = c.req.header('Authorization')?.slice(7) || '';
+  const nativeHeader = authTok.startsWith('np1.');
+  const nv3Header = authTok.startsWith('nv3.');
   if (nativeHeader && path.startsWith('/api/auth/') && path !== '/api/auth/me') return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Non autorisé' }, 401);
-  if ((c.req.query('token') || '').startsWith('np1.')) return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Non autorisé' }, 401);
+  if (nv3Header && path.startsWith('/api/auth/') && path !== '/api/auth/me' && !path.startsWith(`${NATIVE_V3}/`)) return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Non autorisé' }, 401);
+  const queryTok = c.req.query('token') || '';
+  if (queryTok.startsWith('np1.') || queryTok.startsWith('nv3.')) return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Non autorisé' }, 401);
   if (
     path.startsWith('/api/public/') ||
     path.startsWith('/api/cron/') ||
@@ -1033,9 +1047,10 @@ app.use('/api/*', async (c, next) => {
     // Exact public desktop endpoints verify PKCE + state + creation IP/FP themselves.
     // prepare/authorize stay behind this normal web session gate.
     isPublicDesktopAuthPath(path) ||
-    // Exact v2 operations enforce their own PKCE or authenticated-phone checks and D1 budgets.
+    // Exact v2/v3 operations enforce their own PKCE/DPoP or authenticated-phone checks and D1 budgets.
     ((path === DESKTOP_NATIVE_V2_CAPABILITIES || path === DESKTOP_NATIVE_V3_CAPABILITIES) && c.req.method === 'GET') ||
     (isNativeV2Operation(path) && c.req.method === 'POST') ||
+    (isNativeV3PublicPost(path) && c.req.method === 'POST') ||
     path === '/api/auth/login' ||
     path === '/api/auth/verify-otp' ||
     path === '/api/auth/verify-link' ||
@@ -1226,52 +1241,67 @@ app.use('/api/*', async (c, next) => {
   const fp = c.req.header('X-Device-Fingerprint') || undefined;
   if (c.req.header('Authorization')?.slice(7).startsWith('np1.') && new URL(c.req.url).origin !== c.env.DESKTOP_NATIVE_V2_PILOT_ORIGIN) return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Non autorisé' }, 401);
   const roleRefreshPath = path === '/api/auth/role-refresh' && c.req.method === 'POST';
-  const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, ip, fp, { allowRoleRefresh: roleRefreshPath });
-  if (reason === 'role_changed') return c.json({ success: false, error: 'Votre rôle a changé. Actualisez votre session.', code: 'ROLE_CHANGED' }, 409);
-  if (reason !== 'ok') {
-    return c.json({
-      success: false,
-      error:
-        reason === 'ip_changed' ? 'Adresse IP modifiée — reconnexion requise'
-        : reason === 'fp_changed' ? 'Appareil différent — reconnexion requise'
-        : reason === 'device_revoked' ? 'Appareil révoqué — reconnexion requise'
-        : 'Non autorisé',
-      code:
-        reason === 'ip_changed' ? 'IP_CHANGED'
-        : reason === 'fp_changed' ? 'DEVICE_CHANGED'
-        : reason === 'device_revoked' ? 'DEVICE_REVOKED'
-        : 'UNAUTHORIZED',
-    }, 401);
-  }
-  if (
-    path !== '/api/auth/logout' &&
-    path !== '/api/auth/devices/revoke' &&
-    !path.startsWith('/api/auth/trusted-devices/')
-  ) {
-    try {
-      const authStr = c.req.header('Authorization');
-      const parsedTok =
-        authStr?.startsWith('Bearer ') && !authStr.slice(7).startsWith('np1.')
-          ? parseToken(authStr.slice(7))
-          : null;
-      const effectiveFp =
-        (fp && fp !== 'none' ? fp : '') ||
-        (parsedTok?.fingerprint && parsedTok.fingerprint !== 'none' ? parsedTok.fingerprint : '');
-      const sess = sessionUserFromHeader(authStr);
-      if (effectiveFp && sess.username) {
-        await touchTrustedDevice(
-          c.env.DB,
-          sess.username,
-          effectiveFp,
-          ip,
-          c.req.header('User-Agent') || '',
-          cfGeo(c),
-          { updateOnly: true },
-        );
-      }
-    } catch { /* best-effort */ }
-  }
-  return next();
+  const reqAuthCtx = {
+    dpopHeader: c.req.header('DPoP'),
+    method: c.req.method.toUpperCase(),
+    requestUrl: c.req.url,
+  };
+  return runWithRequestAuthContext(reqAuthCtx, async () => {
+    const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, ip, fp, {
+      allowRoleRefresh: roleRefreshPath,
+      dpopHeader: reqAuthCtx.dpopHeader,
+      method: reqAuthCtx.method,
+      requestUrl: reqAuthCtx.requestUrl,
+    });
+    if (reason === 'role_changed') return c.json({ success: false, error: 'Votre rôle a changé. Actualisez votre session.', code: 'ROLE_CHANGED' }, 409);
+    if (reason !== 'ok') {
+      return c.json({
+        success: false,
+        error:
+          reason === 'ip_changed' ? 'Adresse IP modifiée — reconnexion requise'
+          : reason === 'fp_changed' ? 'Appareil différent — reconnexion requise'
+          : reason === 'device_revoked' ? 'Appareil révoqué — reconnexion requise'
+          : reason === 'invalid_dpop' ? 'Preuve DPoP invalide ou expirée'
+          : 'Non autorisé',
+        code:
+          reason === 'ip_changed' ? 'IP_CHANGED'
+          : reason === 'fp_changed' ? 'DEVICE_CHANGED'
+          : reason === 'device_revoked' ? 'DEVICE_REVOKED'
+          : reason === 'invalid_dpop' ? 'INVALID_DPOP'
+          : 'UNAUTHORIZED',
+      }, 401);
+    }
+    if (
+      path !== '/api/auth/logout' &&
+      path !== '/api/auth/devices/revoke' &&
+      !path.startsWith('/api/auth/trusted-devices/')
+    ) {
+      try {
+        const authStr = c.req.header('Authorization');
+        const rawAuthTok = authStr?.startsWith('Bearer ') ? authStr.slice(7) : '';
+        const parsedTok =
+          rawAuthTok && !rawAuthTok.startsWith('np1.') && !rawAuthTok.startsWith('nv3.')
+            ? parseToken(rawAuthTok)
+            : null;
+        const effectiveFp =
+          (fp && fp !== 'none' ? fp : '') ||
+          (parsedTok?.fingerprint && parsedTok.fingerprint !== 'none' ? parsedTok.fingerprint : '');
+        const sess = sessionUserFromHeader(authStr);
+        if (effectiveFp && sess.username && !rawAuthTok.startsWith('nv3.')) {
+          await touchTrustedDevice(
+            c.env.DB,
+            sess.username,
+            effectiveFp,
+            ip,
+            c.req.header('User-Agent') || '',
+            cfGeo(c),
+            { updateOnly: true },
+          );
+        }
+      } catch { /* best-effort */ }
+    }
+    return next();
+  });
 });
 
 app.use('*', async (c, next) => {
@@ -1308,7 +1338,7 @@ app.use('*', async (c, next) => {
   //    Cloudflare edge with CDN-Cache-Control: no-store (CF-specific header
   //    that survives even misconfigured cache rules)
   //  - public Cache-Control → deliberate (public images/SVG); left as-is.
-  if (path === '/login/desktop' || path === '/login/desktop-phone' || path === '/login/desktop-challenge' || path === EMBEDDED_CHALLENGE_PATH || path === `${EMBEDDED_CHALLENGE_PATH}.js`) {
+  if (path === '/login/desktop' || path === '/login/desktop-phone' || path === '/login/desktop-challenge' || path === EMBEDDED_CHALLENGE_PATH || path === `${EMBEDDED_CHALLENGE_PATH}.js` || path === V3_WEBVIEW_CHALLENGE_PATH || path === `${V3_WEBVIEW_CHALLENGE_PATH}.js` || path === V3_BROWSER_CHALLENGE_PATH || path === `${V3_BROWSER_CHALLENGE_PATH}.js`) {
     c.header('Cache-Control', 'no-store');
     c.header('CDN-Cache-Control', 'no-store');
   }
@@ -1329,7 +1359,7 @@ app.use('*', async (c, next) => {
   // SAMEORIGIN suffit à bloquer le clickjacking externe tout en laissant
   // passer notre propre modal. Tout le reste reste DENY.
   c.header('X-Frame-Options', c.req.path === '/api/settings/invoice-preview' ? 'SAMEORIGIN' : 'DENY');
-  c.header('Referrer-Policy', path === '/login/desktop' || path === '/login/desktop-phone' || path === '/login/desktop-challenge' || path === EMBEDDED_CHALLENGE_PATH || path === `${EMBEDDED_CHALLENGE_PATH}.js` || isDesktopAuthPath(path) || path.startsWith(`${NATIVE_V2}/`) ? 'no-referrer' : 'strict-origin-when-cross-origin');
+  c.header('Referrer-Policy', path === '/login/desktop' || path === '/login/desktop-phone' || path === '/login/desktop-challenge' || path === EMBEDDED_CHALLENGE_PATH || path === `${EMBEDDED_CHALLENGE_PATH}.js` || path === V3_WEBVIEW_CHALLENGE_PATH || path === `${V3_WEBVIEW_CHALLENGE_PATH}.js` || path === V3_BROWSER_CHALLENGE_PATH || path === `${V3_BROWSER_CHALLENGE_PATH}.js` || isDesktopAuthPath(path) || path.startsWith(`${NATIVE_V2}/`) || path.startsWith(`${NATIVE_V3}/`) ? 'no-referrer' : 'strict-origin-when-cross-origin');
   c.header('Permissions-Policy', 'camera=(self), microphone=(), geolocation=(), payment=()');
   c.header('X-Robots-Tag', 'noindex, nofollow');
   c.header('Cross-Origin-Opener-Policy', 'same-origin');
@@ -1341,7 +1371,11 @@ app.use('*', async (c, next) => {
   // Report-only style violations from browser extensions are expected and harmless.
   c.header(
     'Content-Security-Policy',
-    path === EMBEDDED_CHALLENGE_PATH ? EMBEDDED_CHALLENGE_CSP : [
+    path === EMBEDDED_CHALLENGE_PATH
+      ? EMBEDDED_CHALLENGE_CSP
+      : (path === V3_WEBVIEW_CHALLENGE_PATH || path === V3_BROWSER_CHALLENGE_PATH)
+        ? V3_CHALLENGE_CSP
+        : [
       "default-src 'self'",
       // The bundled barcode decoder uses WebAssembly; do not enable JavaScript unsafe-eval.
       "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://challenges.cloudflare.com https://static.cloudflareinsights.com",
@@ -1412,7 +1446,7 @@ app.use('/api/auth/*', async (c, next) => {
   if (c.req.method === 'OPTIONS' || c.req.method === 'GET') return next();
   // Desktop PKCE has separate atomic D1 budgets and a per-request poll cap.
   // Credential paths below have account-aware budgets; legacy auth retains 8/min.
-  if (isDesktopAuthPath(c.req.path) || isNativeV2Operation(c.req.path)) return next();
+  if (isDesktopAuthPath(c.req.path) || isNativeV2Operation(c.req.path) || c.req.path.startsWith(`${NATIVE_V3}/`)) return next();
   // These exact handlers reserve persistent per-account and shared-IP budgets.
   // Do not apply the old 8/min shared-IP gate on top of those budgets.
   if (hasCredentialAttemptBudget(c.req.path)) return next();
@@ -1444,12 +1478,13 @@ app.use('/api/public/*', async (c, next) => {
 
 /** Never leak SQL / D1 / stack traces — always safe JSON. */
 app.onError(async (err, c) => {
-  if (new URL(c.req.url).pathname.startsWith(`${NATIVE_V2}/`)) {
+  const errPath = new URL(c.req.url).pathname;
+  if (errPath.startsWith(`${NATIVE_V2}/`) || errPath.startsWith(`${NATIVE_V3}/`)) {
     return c.json({ success: false, code: 'UNAVAILABLE', error: 'Connexion indisponible.' }, 503);
   }
   // Authentication errors may contain request secrets; never log their raw exceptions.
-  try { if (!new URL(c.req.url).pathname.startsWith('/api/reports/') && !new URL(c.req.url).pathname.startsWith('/api/auth/') && !new URL(c.req.url).pathname.startsWith(EMBEDDED_CHALLENGE_PATH)) console.error('[onError]', c.get('requestId') || '-', c.req.method, new URL(c.req.url).pathname, String((err as any)?.stack || err || '').slice(0, 500)); } catch { /* */ }
-  const safe = toClientError(err, { log: !new URL(c.req.url).pathname.startsWith('/api/auth/') && !new URL(c.req.url).pathname.startsWith(EMBEDDED_CHALLENGE_PATH) });
+  try { if (!errPath.startsWith('/api/reports/') && !errPath.startsWith('/api/auth/') && !errPath.startsWith(EMBEDDED_CHALLENGE_PATH) && !errPath.startsWith(V3_WEBVIEW_CHALLENGE_PATH) && !errPath.startsWith(V3_BROWSER_CHALLENGE_PATH)) console.error('[onError]', c.get('requestId') || '-', c.req.method, errPath, String((err as any)?.stack || err || '').slice(0, 500)); } catch { /* */ }
+  const safe = toClientError(err, { log: !errPath.startsWith('/api/auth/') && !errPath.startsWith(EMBEDDED_CHALLENGE_PATH) && !errPath.startsWith(V3_WEBVIEW_CHALLENGE_PATH) && !errPath.startsWith(V3_BROWSER_CHALLENGE_PATH) });
   // v243.4: SQLITE_CORRUPT(_VTAB) on this app almost always means the
   // products_fts FTS5 shadow pages — derived data we can rebuild ourselves.
   // Heal now, tell the client to retry; a TimeTravel restore is NOT needed.
@@ -2919,11 +2954,11 @@ export default {
       try {
         return await app.fetch(request, env, ctx);
       } catch (err: any) {
-        if (!url.pathname.startsWith('/api/reports/') && !url.pathname.startsWith(`${NATIVE_V2}/`)) console.error('api_fetch_fatal', String(err?.message || err));
+        if (!url.pathname.startsWith('/api/reports/') && !url.pathname.startsWith(`${NATIVE_V2}/`) && !url.pathname.startsWith(`${NATIVE_V3}/`)) console.error('api_fetch_fatal', String(err?.message || err));
         return new Response(
           JSON.stringify({
             success: false,
-            error: url.pathname.startsWith('/api/reports/') ? 'Rapport indisponible' : url.pathname.startsWith(`${NATIVE_V2}/`) ? 'Connexion indisponible' : String(err?.message || 'Erreur interne').slice(0, 300),
+            error: url.pathname.startsWith('/api/reports/') ? 'Rapport indisponible' : (url.pathname.startsWith(`${NATIVE_V2}/`) || url.pathname.startsWith(`${NATIVE_V3}/`)) ? 'Connexion indisponible' : String(err?.message || 'Erreur interne').slice(0, 300),
             code: 'INTERNAL_ERROR',
           }),
           { status: 500, headers: { 'Content-Type': 'application/json' } }
