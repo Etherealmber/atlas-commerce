@@ -138,7 +138,10 @@ describe('Desktop v3 Worker <-> Rust atlas-auth-core Contract & DPoP Replay', ()
         low_stock_threshold REAL DEFAULT 5,
         track_inventory INTEGER DEFAULT 1,
         barcode TEXT DEFAULT '',
-        active INTEGER DEFAULT 1
+        parent_id INTEGER DEFAULT 0,
+        variant_label TEXT DEFAULT '',
+        is_active INTEGER DEFAULT 1,
+        updated_at TEXT DEFAULT (datetime('now'))
       );
       INSERT INTO products (sku, name, price, stock_quantity) VALUES ('MAR-01', 'Crema Marfil', 450, 20);
       CREATE TABLE IF NOT EXISTS login_attempts (id INTEGER PRIMARY KEY AUTOINCREMENT, ip TEXT NOT NULL, fingerprint TEXT DEFAULT '', success INTEGER DEFAULT 0, reputation_delta INTEGER DEFAULT 0, user_agent TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now')));
