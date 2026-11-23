@@ -650,4 +650,34 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
       expect(darkCss).toContain(`:not(${cls})`);
     }
   });
+
+  it('records invoice deletion actor for stock movements with Système fallback, enables authenticated Étiquette modal, and unifies Settings Bento + dark palette', () => {
+    const ledgerSrc = readFileSync(path.resolve(process.cwd(), 'worker/lib/ledgerHelpers.ts'), 'utf8');
+    const invWriteSrc = readFileSync(path.resolve(process.cwd(), 'worker/routes/invoicesWrite.ts'), 'utf8');
+    const prodHistSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/ProductHistory.tsx'), 'utf8');
+    const productsSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Products.tsx'), 'utf8');
+    const apiSrc = readFileSync(path.resolve(process.cwd(), 'src/api.ts'), 'utf8');
+    const settingsSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Settings.tsx'), 'utf8');
+    const focusCss = readFileSync(path.resolve(process.cwd(), 'src/styles/focus-sidebar.css'), 'utf8');
+    const overridesCss = readFileSync(path.resolve(process.cwd(), 'src/styles/overrides-final.css'), 'utf8');
+
+    // 1. Movement deletion actor & Système fallback
+    expect(ledgerSrc).toContain('cascadeDeleteInvoice(\n  db: D1Database,\n  invoiceId: string | number,\n  opts?: { createdBy?: string }');
+    expect(ledgerSrc).toContain("createdBy: opts?.createdBy || undefined");
+    expect(invWriteSrc).toContain('cascadeDeleteInvoice(c.env.DB, id, { createdBy: gate.username || undefined })');
+    expect(prodHistSrc).not.toContain('non renseigné');
+    expect(prodHistSrc).toContain("actor(m.created_by, 'Système')");
+
+    // 2. Étiquette uses authenticated ProductLabelModal (not unauthenticated window.open)
+    expect(apiSrc).toContain('fetchLabelSvg:');
+    expect(productsSrc).toContain('ProductLabelModal');
+    expect(productsSrc).not.toContain('window.open(api.labelUrl(');
+    expect(prodHistSrc).toContain('ProductLabelModal');
+
+    // 3. Settings Bento & unified Dimmed Charcoal dark palette
+    expect(settingsSrc).not.toContain("var(--stone)");
+    expect(settingsSrc).toContain('ac-settings-panel-head');
+    expect(focusCss).not.toMatch(/#171a24|#13151d|#1f2330|#1f2433/i);
+    expect(overridesCss).not.toContain('html .settings-main button:not(.danger)');
+  });
 });

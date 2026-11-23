@@ -1,13 +1,14 @@
 import { dualStockLabel } from '../lib/dualUnit';
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Camera, History, Maximize2, Pencil, RefreshCw, SlidersHorizontal, Sparkles } from 'lucide-react';
+import { Camera, History, Maximize2, Pencil, RefreshCw, SlidersHorizontal, Sparkles, Tags } from 'lucide-react';
 import { api } from '../api';
 import { canSell } from '../auth';
 import { TimedUndoDelete } from '../components/ui';
 import { FloatingPortal } from '../components/FloatingPortal';
 import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
 import ImageLightbox from '../components/ui/ImageLightbox';
+import ProductLabelModal from '../components/ProductLabelModal';
 import ProductArtwork, { productImageUrl } from '../components/ProductArtwork';
 import NumberField from '../components/NumberField';
 import PageSkeleton from '../components/PageSkeleton';
@@ -39,6 +40,7 @@ export default function ProductHistory({ mobile = false, onProductUpdated }: Pro
   const [loading, setLoading] = useState(true); const [loadingMore, setLoadingMore] = useState(false);
   const [productError, setProductError] = useState(''); const [error, setError] = useState(''); const [hasMore, setHasMore] = useState(false);
   const [imageBusy, setImageBusy] = useState(false); const [imageMessage, setImageMessage] = useState(''); const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [labelOpen, setLabelOpen] = useState(false);
 
   // In-place stock adjustment modal
   const [adjustOpen, setAdjustOpen] = useState(false);
@@ -249,10 +251,11 @@ export default function ProductHistory({ mobile = false, onProductUpdated }: Pro
     {productError && <div className="product-history-card" role="alert">{productError} {valid && <button type="button" onClick={() => void load()}>Réessayer</button>}</div>}
     {loading && !product && (mobile ? <PhoneSkeleton variant="rows" label="Chargement du produit" /> : <PageSkeleton variant="form" />)}
     {product && <section className="product-history-card"><div className="product-history-hero"><div className="product-history-photo">{productImageUrl(product.image_url) ? <button type="button" className="product-history-photo-zoom" aria-label="Agrandir la photo du produit" title="Agrandir la photo" onClick={() => setLightboxOpen(true)}><ProductArtwork url={product.image_url} alt={product.name || ''} /><span className="product-history-photo-zoom-badge" aria-hidden="true"><Maximize2 size={12} strokeWidth={2.3} /></span></button> : <ProductArtwork url={product.image_url} />}{canSell() && <><input ref={imageInput} type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onChange={changePhoto} /><button type="button" className="secondary product-history-photo-action" aria-label="Modifier la photo du produit" title="Modifier la photo du produit" disabled={imageBusy} onClick={() => imageInput.current?.click()}><Camera size={16} /></button></>}</div><div><span className="product-history-tag">Fiche produit</span><h2>{product.name}</h2><p>{[product.sku, product.barcode, product.category].filter(Boolean).join(' · ') || 'Sans référence'}</p></div></div>
-      <p className="product-history-actors">Créé par {actor(product.created_by, 'non renseigné')}{product.approved_by && <> · Approuvé par {product.approved_by}</>}</p>
+      <p className="product-history-actors">Créé par {actor(product.created_by, 'Système')}{product.approved_by && <> · Approuvé par {product.approved_by}</>}</p>
       {!mobile && canSell() && <div className="product-history-actions">
         {Number(product.track_inventory) !== 0 && <button type="button" className="secondary product-history-action-stock" onClick={openAdjustModal}><SlidersHorizontal size={16} aria-hidden="true" />Ajuster le stock</button>}
         <button type="button" className="secondary product-history-action-edit" onClick={openEditModal}><Pencil size={16} aria-hidden="true" />Modifier les détails</button>
+        <button type="button" className="secondary product-history-action-label" onClick={() => setLabelOpen(true)}><Tags size={16} aria-hidden="true" />Étiquette</button>
       </div>}
       {imageMessage && <p role="status">{imageMessage}</p>}
       <div className="product-history-chips"><span>{product.track_inventory != null && !Number(product.track_inventory) ? 'Stock non suivi' : `Stock ${dualStockLabel(product)}`}</span>{canSell() && typeof product.price === 'number' && <span>{product.price.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MAD</span>}</div>
@@ -267,7 +270,7 @@ export default function ProductHistory({ mobile = false, onProductUpdated }: Pro
       ))}
       {error && <p role="alert">{error} <button type="button" onClick={() => void refreshMovements()}>Réessayer</button></p>}
       {!loading && !error && rows.length === 0 && <p>Aucun mouvement enregistré pour ce produit.</p>}
-      {rows.map((m, index) => <div className="product-history-movement" key={m.id ?? `${m.created_at}-${index}`}><div><strong>{types[String(m.type || '').toLowerCase()] || m.type || 'Mouvement'}</strong><time>{String(m.created_at || '—').replace('T', ' ').slice(0, 16)}</time></div><p>Qté {quantity(m.quantity)} · {quantity(m.previous_quantity)} → {quantity(m.new_quantity)}</p>{(m.reason || m.reference) && <p>{[m.reason, m.reference].filter(Boolean).join(' · ')}</p>}<small>Créé par {actor(m.created_by, 'non renseigné')}{m.approved_by && <> · Approuvé par {m.approved_by}</>}</small></div>)}
+      {rows.map((m, index) => <div className="product-history-movement" key={m.id ?? `${m.created_at}-${index}`}><div><strong>{types[String(m.type || '').toLowerCase()] || m.type || 'Mouvement'}</strong><time>{String(m.created_at || '—').replace('T', ' ').slice(0, 16)}</time></div><p>Qté {quantity(m.quantity)} · {quantity(m.previous_quantity)} → {quantity(m.new_quantity)}</p>{(m.reason || m.reference) && <p>{[m.reason, m.reference].filter(Boolean).join(' · ')}</p>}<small>Créé par {actor(m.created_by, 'Système')}{m.approved_by && <> · Approuvé par {m.approved_by}</>}</small></div>)}
       {hasMore && <button type="button" className="product-history-more" disabled={loadingMore} onClick={() => void more()}>{loadingMore ? 'Chargement…' : 'Charger la suite'}</button>}
     </section>
     {!mobile && canSell() && product && (
@@ -446,5 +449,9 @@ export default function ProductHistory({ mobile = false, onProductUpdated }: Pro
         onClose={() => setLightboxOpen(false)}
       />
     )}
+    <ProductLabelModal
+      product={labelOpen ? product : null}
+      onClose={() => setLabelOpen(false)}
+    />
   </div>;
 }

@@ -94,7 +94,11 @@ export async function getInvoiceLinks(db: D1Database, invoiceId: string | number
   };
 }
 
-export async function cascadeDeleteInvoice(db: D1Database, invoiceId: string | number) {
+export async function cascadeDeleteInvoice(
+  db: D1Database,
+  invoiceId: string | number,
+  opts?: { createdBy?: string },
+) {
   await ensureInvoiceRefundColumns(db);
   const links = await getInvoiceLinks(db, invoiceId);
   if (!links) return null;
@@ -118,7 +122,7 @@ export async function cascadeDeleteInvoice(db: D1Database, invoiceId: string | n
         -Number(it.quantity || 0),
         'WR deleted (annuler retour stock)',
         inv.number,
-        { type: 'sale' },
+        { type: 'sale', createdBy: opts?.createdBy || undefined },
       );
     }
 
@@ -171,7 +175,14 @@ export async function cascadeDeleteInvoice(db: D1Database, invoiceId: string | n
     // Normal sale invoice: deleting restores stock
     for (const it of (items || []) as any[]) {
       if (it.product_id) {
-        await applyStockDelta(db, it.product_id, Number(it.quantity || 0), 'Ticket / facture supprimé (retour stock)', inv.number);
+        await applyStockDelta(
+          db,
+          it.product_id,
+          Number(it.quantity || 0),
+          'Ticket / facture supprimé (retour stock)',
+          inv.number,
+          { createdBy: opts?.createdBy || undefined },
+        );
       }
     }
   }

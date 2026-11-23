@@ -2,39 +2,42 @@
 html[data-theme="dark"],
 html[data-theme="dark"] body,
 html[data-theme="dark"] #root {
-  --ac-bg: #111113 !important;
-  --ac-paper: #1c1c1f !important;
-  --ac-ink: #f4f4f5 !important;
-  --ac-muted: #a1a1aa !important;
-  --ac-line: #2a2a2e !important;
-  --ac-sidebar: #111113 !important;
-  --ac-sidebar-border: #2a2a2e !important;
-  --ac-nav-hover: #27272a !important;
-  --ac-nav-active-bg: #27272a !important;
-  --bg: #111113 !important;
-  --paper: #1c1c1f !important;
-  --shell-bg: #111113 !important;
-  --shell-paper: #1c1c1f !important;
-  --shell-line: #2a2a2e !important;
-  --muted: #a1a1aa !important;
-  color: #f4f4f5 !important;
-  background: #111113 !important;
+  --ac-bg: #121317 !important;
+  --ac-paper: #181a20 !important;
+  --ac-ink: #dfe2ea !important;
+  --ac-muted: #8a909e !important;
+  --ac-line: rgba(255, 255, 255, 0.08) !important;
+  --ac-sidebar: #15171c !important;
+  --ac-sidebar-border: rgba(255, 255, 255, 0.08) !important;
+  --ac-nav-hover: #21242c !important;
+  --ac-nav-active-bg: #21242c !important;
+  --bg: #121317 !important;
+  --paper: #181a20 !important;
+  --shell-bg: #121317 !important;
+  --shell-paper: #181a20 !important;
+  --shell-line: rgba(255, 255, 255, 0.08) !important;
+  --muted: #8a909e !important;
+  color: #dfe2ea !important;
+  background: #121317 !important;
 }
 
 /* Sidebar = topbar = page */
 html[data-theme="dark"] body .sidebar,
 html[data-theme="dark"] body aside.sidebar,
-html[data-theme="dark"] body .ac-sidebar,
-html[data-theme="dark"] body .layout > .sidebar,
+html[data-theme="dark"] body .layout > .sidebar {
+  background: #15171c !important;
+  background-color: #15171c !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
 html[data-theme="dark"] body .ac-topbar,
 html[data-theme="dark"] body .settings-topbar,
 html[data-theme="dark"] body .atlas-shell-topbar,
 html[data-theme="dark"] body .content,
 html[data-theme="dark"] body .atlas-page,
 html[data-theme="dark"] body .layout {
-  background: #111113 !important;
-  background-color: #111113 !important;
-  border-color: #2a2a2e !important;
+  background: #121317 !important;
+  background-color: #121317 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
 }
 
 /* Cards / panels */
@@ -50,22 +53,22 @@ html[data-theme="dark"] body .ac-notif-panel,
 html[data-theme="dark"] body .account-menu-panel,
 html[data-theme="dark"] body .account-menu-panel--portal,
 html[data-theme="dark"] .account-menu-panel--portal {
-  background: #1c1c1f !important;
-  border-color: #2a2a2e !important;
-  color: #f4f4f5 !important;
-  box-shadow: 0 16px 40px rgba(0,0,0,.45) !important;
+  background: #181a20 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  color: #dfe2ea !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 1px 3px rgba(0, 0, 0, 0.22) !important;
 }
 
-/* Mail / notif rows — never white */
+/* Mail / notif rows — unified Dimmed Charcoal */
 html[data-theme="dark"] body .ac-notif-item,
 html[data-theme="dark"] body button.ac-notif-item,
 html[data-theme="dark"] body .ac-mail-panel .ac-notif-item,
 html[data-theme="dark"] body .ac-mail-panel button.ac-notif-item,
 html[data-theme="dark"] body .ac-mail-panel button.ac-notif-item.secondary,
 html[data-theme="dark"] body .ac-notif-panel .ac-notif-item {
-  background: #27272a !important;
-  color: #e4e4e7 !important;
-  border: 1px solid #3f3f46 !important;
+  background: #21242c !important;
+  color: #dfe2ea !important;
+  border: 1px solid rgba(255, 255, 255, 0.09) !important;
   box-shadow: none !important;
 }
 html[data-theme="dark"] body .ac-notif-item:hover,
@@ -74,13 +77,13 @@ html[data-theme="dark"] body .ac-notif-item:active,
 html[data-theme="dark"] body button.ac-notif-item:hover,
 html[data-theme="dark"] body button.ac-notif-item:focus,
 html[data-theme="dark"] body button.ac-notif-item:active {
-  background: #3f3f46 !important;
-  color: #fafafa !important;
+  background: #282c36 !important;
+  color: #f4f4f6 !important;
 }
 html[data-theme="dark"] body .ac-notif-item strong,
-html[data-theme="dark"] body .ac-notif-item-body strong { color: #fafafa !important; }
+html[data-theme="dark"] body .ac-notif-item-body strong { color: #f4f4f6 !important; }
 html[data-theme="dark"] body .ac-notif-item em,
-html[data-theme="dark"] body .ac-notif-item-body em { color: #a1a1aa !important; }
+html[data-theme="dark"] body .ac-notif-item-body em { color: #8a909e !important; }
 
 /* Account menu items */
 html[data-theme="dark"] body .account-menu-item,
@@ -88,17 +91,17 @@ html[data-theme="dark"] body button.account-menu-item,
 html[data-theme="dark"] .account-menu-panel--portal .account-menu-item,
 html[data-theme="dark"] .account-menu-panel--portal button.account-menu-item,
 html[data-theme="dark"] body .ac-topbar-mi {
-  background: #27272a !important;
-  color: #f4f4f5 !important;
-  border: 1px solid #3f3f46 !important;
-  -webkit-text-fill-color: #f4f4f5 !important;
+  background: #21242c !important;
+  color: #dfe2ea !important;
+  border: 1px solid rgba(255, 255, 255, 0.09) !important;
+  -webkit-text-fill-color: #dfe2ea !important;
 }
 html[data-theme="dark"] body .account-menu-item:hover,
 html[data-theme="dark"] body .account-menu-item:active,
 html[data-theme="dark"] body .ac-topbar-mi:hover,
 html[data-theme="dark"] body .ac-topbar-mi:active,
 html[data-theme="dark"] .account-menu-panel--portal .account-menu-item:hover {
-  background: #3f3f46 !important;
+  background: #282c36 !important;
   color: #fff !important;
   -webkit-text-fill-color: #fff !important;
 }
@@ -112,14 +115,14 @@ html[data-theme="dark"] body .ac-topbar-mi--danger {
 
 /* Theme / size chips in user menu */
 html[data-theme="dark"] body .account-seg button {
-  background: #27272a !important;
-  color: #a1a1aa !important;
-  border: 1px solid #3f3f46 !important;
+  background: #21242c !important;
+  color: #8a909e !important;
+  border: 1px solid rgba(255, 255, 255, 0.09) !important;
 }
 html[data-theme="dark"] body .account-seg button.active {
-  background: #fafafa !important;
-  color: #0a0a0a !important;
-  -webkit-text-fill-color: #0a0a0a !important;
+  background: #d5d8e2 !important;
+  color: #121317 !important;
+  -webkit-text-fill-color: #121317 !important;
 }
 
 /* Global: no white flash on hover/active for dark buttons */
@@ -131,59 +134,71 @@ html[data-theme="dark"] body .btn:active:not(.danger) {
 }
 html[data-theme="dark"] body button.secondary,
 html[data-theme="dark"] body .secondary {
-  background: #27272a !important;
-  color: #e4e4e7 !important;
-  border: 1px solid #3f3f46 !important;
+  background: #21242c !important;
+  color: #dfe2ea !important;
+  border: 1px solid rgba(255, 255, 255, 0.105) !important;
 }
 html[data-theme="dark"] body button.secondary:hover,
 html[data-theme="dark"] body button.secondary:active,
 html[data-theme="dark"] body .secondary:hover {
-  background: #3f3f46 !important;
-  color: #fafafa !important;
+  background: #282c36 !important;
+  color: #f4f4f6 !important;
 }
 
 /* Inputs */
 html[data-theme="dark"] body input,
 html[data-theme="dark"] body select,
 html[data-theme="dark"] body textarea {
-  background: #1c1c1f !important;
-  color: #f4f4f5 !important;
-  border-color: #3f3f46 !important;
+  background: #1d2027 !important;
+  color: #dfe2ea !important;
+  border-color: rgba(255, 255, 255, 0.11) !important;
 }
 html[data-theme="dark"] body input::placeholder,
 html[data-theme="dark"] body textarea::placeholder {
-  color: #71717a !important;
+  color: #777d8d !important;
 }
 
 /* Tables */
 html[data-theme="dark"] body table,
 html[data-theme="dark"] body th,
 html[data-theme="dark"] body td {
-  background: #1c1c1f !important;
-  color: #e4e4e7 !important;
-  border-color: #2a2a2e !important;
+  background: #181a20 !important;
+  color: #dfe2ea !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
 }
 html[data-theme="dark"] body th {
-  background: #27272a !important;
-  color: #a1a1aa !important;
+  background: #1b1d24 !important;
+  color: #8a909e !important;
 }
 
-/* Settings forced-white from focus-pages-chrome */
+/* Settings forced-white from focus-pages-chrome — unified Dimmed Charcoal */
 html[data-theme="dark"] body .settings-main .card,
-html[data-theme="dark"] body .settings-main table,
-html[data-theme="dark"] body .settings-main table thead th,
-html[data-theme="dark"] body .settings-main table tbody td,
-html[data-theme="dark"] body .settings-main button.secondary,
+html[data-theme="dark"] body .settings-main .ac-panel,
+html[data-theme="dark"] body .settings-main table {
+  background: #181a20 !important;
+  color: #dfe2ea !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+html[data-theme="dark"] body .settings-main table tbody td {
+  background: transparent !important;
+  color: #d6dae4 !important;
+  border-color: rgba(255, 255, 255, 0.055) !important;
+}
+html[data-theme="dark"] body .settings-main button.secondary {
+  background: #21242c !important;
+  color: #dfe2ea !important;
+  border-color: rgba(255, 255, 255, 0.105) !important;
+}
 html[data-theme="dark"] body .settings-main input,
 html[data-theme="dark"] body .settings-main select,
 html[data-theme="dark"] body .settings-main textarea {
-  background: #1c1c1f !important;
-  color: #e4e4e7 !important;
-  border-color: #2a2a2e !important;
+  background: #1d2027 !important;
+  color: #dfe2ea !important;
+  border-color: rgba(255, 255, 255, 0.11) !important;
 }
 html[data-theme="dark"] body .settings-main table thead th {
-  background: #27272a !important;
-  color: #a1a1aa !important;
+  background: #1b1d24 !important;
+  color: #8a909e !important;
 }
 
 /* v181 whats-new + kill purple text */
@@ -7140,6 +7155,84 @@ html[data-theme="dark"] body .ac-feature-tour-dots .ac-feature-tour-dot {
 }
 html[data-theme="dark"] body .ac-feature-tour-dots .ac-feature-tour-dot.on {
   background: #f4f4f6 !important;
+}
+
+/* Complete Dimmed Charcoal unification across Settings, ProductHistory, Products, Onboarding, Welcome & Wizards */
+html[data-theme="dark"] body .settings-main .card,
+html[data-theme="dark"] body .settings-main .ac-panel,
+html[data-theme="dark"] body .settings-main .settings-panel,
+html[data-theme="dark"] body .ac-audit-header-panel,
+html[data-theme="dark"] body .ac-audit-kpi,
+html[data-theme="dark"] body .ac-audit-chart-card,
+html[data-theme="dark"] body .ac-audit-table-panel,
+html[data-theme="dark"] body .ac-audit-empty,
+html[data-theme="dark"] body .product-history-card,
+html[data-theme="dark"] body .desktop-product-card,
+html[data-theme="dark"] body .ac-onboard,
+html[data-theme="dark"] body .ac-feature-tour-card,
+html[data-theme="dark"] body .welcome-card,
+html[data-theme="dark"] body .welcome-compare-card,
+html[data-theme="dark"] body .audit-detail-modal,
+html[data-theme="dark"] body .atlas-restore-dialog,
+html[data-theme="dark"] body .step-wizard {
+  background: #181a20 !important;
+  background-color: #181a20 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  color: #dfe2ea !important;
+}
+html[data-theme="dark"] body .ac-settings-subbox,
+html[data-theme="dark"] body .ac-settings-info-note,
+html[data-theme="dark"] body .product-history-movement,
+html[data-theme="dark"] body .welcome-pick,
+html[data-theme="dark"] body .welcome-summary-card,
+html[data-theme="dark"] body .ac-onboard-step,
+html[data-theme="dark"] body .settings-sticky-save {
+  background: #1d2027 !important;
+  background-color: #1d2027 !important;
+  border-color: rgba(255, 255, 255, 0.085) !important;
+  color: #dfe2ea !important;
+}
+html[data-theme="dark"] body .welcome-stage {
+  background: #121317 !important;
+}
+html[data-theme="dark"] body .welcome-pick.is-selected {
+  background: #21242c !important;
+  border-color: rgba(255, 255, 255, 0.28) !important;
+}
+html[data-theme="dark"] body .ac-danger-zone,
+html[data-theme="dark"] body .settings-danger-zone {
+  background: rgba(239, 68, 68, 0.06) !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+html[data-theme="dark"] body .step-wizard__step-btn {
+  background: #1d2027 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #b4b9c6 !important;
+  -webkit-text-fill-color: #b4b9c6 !important;
+}
+html[data-theme="dark"] body .step-wizard__step-btn.is-active {
+  background: #d5d8e2 !important;
+  border-color: #d5d8e2 !important;
+  color: #121317 !important;
+  -webkit-text-fill-color: #121317 !important;
+}
+html[data-theme="dark"] body .settings-main button:not(.secondary):not(.ghost):not(.danger):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.ac-seg-btn):not(.ac-audit-hbar-btn):not(.ac-audit-clear-btn):not(.ac-audit-detail-link):not(.step-wizard__step-btn) {
+  background: #d5d8e2 !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  color: #121317 !important;
+  -webkit-text-fill-color: #121317 !important;
+}
+html[data-theme="dark"] body .settings-main button:not(.secondary):not(.ghost):not(.danger):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.ac-seg-btn):not(.ac-audit-hbar-btn):not(.ac-audit-clear-btn):not(.ac-audit-detail-link):not(.step-wizard__step-btn):hover:not(:disabled) {
+  background: #e2e5ee !important;
+}
+html:not([data-theme="dark"]) body .settings-main button:not(.secondary):not(.ghost):not(.danger):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.ac-seg-btn):not(.ac-audit-hbar-btn):not(.ac-audit-clear-btn):not(.ac-audit-detail-link):not(.step-wizard__step-btn) {
+  background: #0f172a !important;
+  border-color: #0f172a !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html:not([data-theme="dark"]) body .settings-main button:not(.secondary):not(.ghost):not(.danger):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.ac-seg-btn):not(.ac-audit-hbar-btn):not(.ac-audit-clear-btn):not(.ac-audit-detail-link):not(.step-wizard__step-btn):hover:not(:disabled) {
+  background: #1e293b !important;
 }
 
 

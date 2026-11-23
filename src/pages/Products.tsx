@@ -26,7 +26,7 @@ import './product-history.css';
 import './products-mobile-style.css';
 import './catalog-actions.css';
 import ProductImageEditor, { ImageWorkbench } from '../components/ProductImageEditor';
-import { printProductLabel } from '../lib/printProductLabel';
+import ProductLabelModal from '../components/ProductLabelModal';
 import RefreshIconButton from '../components/RefreshIconButton';
 import '../components/erp/catalog-inventory.css';
 import { FloatingPortal } from '../components/FloatingPortal';
@@ -145,6 +145,7 @@ export default function Products() {
   const [adjustQty, setAdjustQty] = useState(1);
   const [adjustType, setAdjustType] = useState('in');
   const [adjustReason, setAdjustReason] = useState('');
+  const [labelProduct, setLabelProduct] = useState<any>(null);
   const [catalogView, setCatalogView] = useState<'list' | 'grid'>(() => { try { return localStorage.getItem('atlas_desktop_products_view') === 'grid' ? 'grid' : 'list'; } catch { return 'list'; } });
   const changeCatalogView = (view: 'list' | 'grid') => { setCatalogView(view); try { localStorage.setItem('atlas_desktop_products_view', view); } catch { /* session only */ } };
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -749,7 +750,7 @@ export default function Products() {
               </button>
             )}
             <Link to={`/products/${p.id}/historique`} className="desktop-product-card-link"><ProductArtwork url={p.image_url} /><strong>{p.name}</strong><span>{p.sku || p.barcode || 'Sans référence'}</span><div className="desktop-product-chips"><span className={`product-stock-chip ${!p.track_inventory ? 'untracked' : phoneStockQuantity(p) <= 0 ? 'out' : phoneStockIsLow(p) ? 'low' : 'ok'}`}>{p.track_inventory ? `Stock ${dualStockLabel(p)}` : 'Stock non suivi'}</span>{!hideMoney && p.price != null && <span>{fmt(p.price)} MAD</span>}</div></Link>
-            <div className="desktop-product-actions"><label title="Sélectionner le produit"><input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleOne(p.id)} aria-label={`Sélectionner ${p.name}`} /><span>Sélectionner</span></label>{p.track_inventory && <button type="button" className="secondary" title="Ajuster le stock" aria-label={`Ajuster le stock de ${p.name}`} onClick={() => { setModalError(''); setAdjustProduct(p); }}><SlidersHorizontal size={18} aria-hidden="true" /></button>}<button type="button" className="secondary" title="Modifier" aria-label={`Modifier ${p.name}`} onClick={() => openEdit(p)}><Pencil size={18} aria-hidden="true" /></button><button type="button" className="secondary" title="Étiquette" aria-label={`Étiquette de ${p.name}`} onClick={() => window.open(api.labelUrl(p.id), '_blank', 'noopener')}><Tags size={18} aria-hidden="true" /></button><TimedUndoDelete iconOnly width="44px" deleteLabel={`Supprimer ${p.name}`} undoLabel="Annuler la suppression" initialSeconds={10} onConfirm={() => deleteOne(p.id)} /></div>
+            <div className="desktop-product-actions"><label title="Sélectionner le produit"><input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleOne(p.id)} aria-label={`Sélectionner ${p.name}`} /><span>Sélectionner</span></label>{p.track_inventory && <button type="button" className="secondary" title="Ajuster le stock" aria-label={`Ajuster le stock de ${p.name}`} onClick={() => { setModalError(''); setAdjustProduct(p); }}><SlidersHorizontal size={18} aria-hidden="true" /></button>}<button type="button" className="secondary" title="Modifier" aria-label={`Modifier ${p.name}`} onClick={() => openEdit(p)}><Pencil size={18} aria-hidden="true" /></button><button type="button" className="secondary" title="Étiquette" aria-label={`Étiquette de ${p.name}`} onClick={() => setLabelProduct(p)}><Tags size={18} aria-hidden="true" /></button><TimedUndoDelete iconOnly width="44px" deleteLabel={`Supprimer ${p.name}`} undoLabel="Annuler la suppression" initialSeconds={10} onConfirm={() => deleteOne(p.id)} /></div>
           </article>; })}</div>}
         </> : <VirtualScroll maxHeight={paged.length > 60 ? 560 : undefined}>
           <table className="data-dense ac-products-table">
@@ -853,7 +854,7 @@ export default function Products() {
                       <button
                         type="button"
                         className="secondary"
-                        onClick={() => window.open(api.labelUrl(p.id), '_blank', 'noopener')}
+                        onClick={() => setLabelProduct(p)}
                       >
                         <Tags size={14} aria-hidden="true" />
                         <span>Étiquette</span>
@@ -1354,6 +1355,10 @@ export default function Products() {
           onClose={() => setPreviewImage(null)}
         />
       )}
+      <ProductLabelModal
+        product={labelProduct}
+        onClose={() => setLabelProduct(null)}
+      />
     </div>
   );
 }
