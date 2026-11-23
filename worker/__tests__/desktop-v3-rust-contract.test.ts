@@ -44,9 +44,20 @@ function makeSqliteD1() {
           return stmtApi;
         },
         async run() {
-          const r = sqlite.prepare(sql).run(...params);
+          const stmt = sqlite.prepare(sql);
+          if (/\bRETURNING\b/i.test(sql)) {
+            const rows = stmt.all(...params).map((r: any) => ({ ...r }));
+            const ch = sqlite.prepare('SELECT changes() AS c').get() as { c: number };
+            return {
+              success: true,
+              results: rows,
+              meta: { changes: Number(ch?.c ?? rows.length), last_row_id: 0 },
+            };
+          }
+          const r = stmt.run(...params);
           return {
             success: true,
+            results: [],
             meta: { changes: Number(r.changes || 0), last_row_id: Number(r.lastInsertRowid || 0) },
           };
         },
