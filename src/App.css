@@ -14741,9 +14741,10 @@ html[data-theme="dark"] .ac-pill-pager-of {
   padding: 8px 14px !important;
   background: #fff !important;
   font-size: 13px !important;
-  min-width: 160px;
-  flex: 1;
-  max-width: 240px;
+  min-width: 220px;
+  flex: 1 1 280px;
+  max-width: none;
+  width: auto;
 }
 .bal-tx-head-title {
   padding: 12px 16px 4px;

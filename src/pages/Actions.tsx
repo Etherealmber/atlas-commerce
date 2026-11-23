@@ -1,6 +1,13 @@
 import TopPageActions from '../components/TopPageActions';
-import { Package } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import {
+  CheckCircle2,
+  ClipboardCheck,
+  Package,
+  PackagePlus,
+  X,
+  XCircle,
+} from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
 import { useUi } from '../components/AppDialogs';
@@ -9,6 +16,7 @@ import RefreshIconButton from '../components/RefreshIconButton';
 import { ModalFormError } from '../components/ModalFormFeedback';
 import { mergeUnitOptions, type UnitOption } from '../lib/dualUnit';
 import ListPager from '../components/ui/ListPager';
+import EmptyState from '../components/EmptyState';
 
 type Action = {
   id: number;
@@ -57,6 +65,7 @@ export default function Actions() {
   const PAGE_SIZE = 20;
   useEffect(() => { setPage(0); }, [tab]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [err, setErr] = useState('');
   const [approve, setApprove] = useState<Action | null>(null);
   const [stockApprove, setStockApprove] = useState<Action | null>(null);
@@ -105,7 +114,8 @@ export default function Actions() {
   };
 
   const load = useCallback(async (soft = false) => {
-    if (!soft) setLoading(true);
+    if (soft) setRefreshing(true);
+    else setLoading(true);
     setErr('');
     try {
       const res = await api.listMobileActions({
@@ -117,6 +127,7 @@ export default function Actions() {
       setErr(e.message || 'Erreur chargement');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [tab]);
 
@@ -225,7 +236,6 @@ export default function Actions() {
       setApprove(null);
       load(true);
     } catch (e: any) {
-      // Allow force duplicate if API supports it
       if (e.code === 'DUPLICATE_PRODUCT') {
         try {
           await api.createProduct({
@@ -326,7 +336,7 @@ export default function Actions() {
   const openStockApprove = (a: Action) => {
     const meta = parseMeta(a);
     setStockQty(
-      meta.proposed_stock != null ? String(meta.proposed_stock) : meta.stock != null ? String(meta.stock) : '0'
+      meta.proposed_stock != null ? String(meta.proposed_stock) : meta.stock != null ? String(meta.stock) : '0',
     );
     setErr('');
     setStockApprove(a);
@@ -392,183 +402,255 @@ export default function Actions() {
     }
   };
 
+  const stats = useMemo(() => {
+    let pending = 0;
+    let newProducts = 0;
+    let stockChecks = 0;
+    let resolved = 0;
+    for (const r of rows) {
+      if (r.status === 'pending') pending++;
+      else resolved++;
+      if (r.type === 'new_product') newProducts++;
+      else if (r.type === 'stock_check') stockChecks++;
+    }
+    return { pending, newProducts, stockChecks, resolved };
+  }, [rows]);
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const pagedRows = rows.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
+
   return (
-    <div className="atlas-page">
-      <div className="page-header">
-        <div>
-          <p className="atlas-eyebrow">Espace partagé</p>
-          <h1 className="atlas-hello" style={{ fontSize: '1.75rem' }}>Boîte d&apos;actions</h1>
-          <p className="atlas-lead" style={{ marginBottom: 0 }}>
-            Scans et demandes du téléphone — validez ici.
-          </p>
-        </div>
+    <div className="atlas-page ac-dash actions-page ac-erp-page">
+      <div className="page-header dock-page-header">
+        <h1 className="sr-only">Boîte d&apos;actions</h1>
         <TopPageActions>
+          <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
           <Link to="/products" className="btn secondary" title="Produits" style={{ textDecoration: 'none' }}>
             <Package size={16} aria-hidden="true" />
             <span className="tpa-label">Produits</span>
           </Link>
-          <RefreshIconButton onClick={() => load(true)} />
         </TopPageActions>
       </div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-        {(['pending', 'done', 'all'] as const).map((t) => (
-          <button
-            key={t}
-            type="button"
-            className={tab === t ? '' : 'secondary'}
-            onClick={() => setTab(t)}
-            style={{ borderRadius: 999, padding: '8px 16px' }}
-          >
-            {t === 'pending' ? 'En attente' : t === 'done' ? 'Terminées' : 'Toutes'}
-          </button>
-        ))}
-        <span className="muted" style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 600 }}>
-          {rows.length} ENREGISTREMENTS · 20 par page
-        </span>
-        <ListPager
-          page={Math.min(page, Math.max(1, Math.ceil(rows.length / PAGE_SIZE)) - 1)}
-          pageSize={PAGE_SIZE}
-          total={rows.length}
-          onPageChange={setPage}
-        />
-      </div>
 
-      {loading && rows.length === 0 && (
-        <div className="empty-state">
-          <div className="skeleton" style={{ height: 16, width: 160, margin: '0 auto' }} />
-        </div>
-      )}
-      {err && (
-        <div className="empty-state" style={{ color: 'var(--bad)' }}>
-          {err}
-        </div>
-      )}
-      {!loading && !err && rows.length === 0 && (
-        <div className="empty-state">
-          <div className="empty-state__title">Aucune action</div>
-          <div className="empty-state__desc">
-            Quand le téléphone envoie un scan ou une demande produit, elle apparaît ici.
+      {/* Bento Hero */}
+      <header className="ac-dash-hero">
+        <div className="ac-dash-hero-row">
+          <div className="ac-dash-hero-text">
+            <h2 className="ac-dash-hello">Boîte d&apos;actions</h2>
+            <p className="ac-dash-lead">
+              Validation des demandes terrain, créations produit et ajustements de stock.
+            </p>
+          </div>
+          <div className="ac-dash-hero-side">
+            <span className={`ac-status-pill ${stats.pending > 0 ? 'is-dirty' : 'is-ok'}`}>
+              {stats.pending > 0 ? (
+                <ClipboardCheck size={13} aria-hidden="true" />
+              ) : (
+                <CheckCircle2 size={13} aria-hidden="true" />
+              )}
+              {stats.pending > 0 ? `${stats.pending} en attente` : 'Tout est à jour'}
+            </span>
           </div>
         </div>
-      )}
+      </header>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {rows.slice(Math.min(page, Math.max(1, Math.ceil(rows.length / PAGE_SIZE)) - 1) * PAGE_SIZE, (Math.min(page, Math.max(1, Math.ceil(rows.length / PAGE_SIZE)) - 1) + 1) * PAGE_SIZE).map((a) => {
-          const approveNeeded = needsProductApproval(a);
-          const stockNeeded = needsStockApproval(a);
-          const meta = parseMeta(a);
-          return (
-            <div
-              key={a.id}
-              className="ac-panel"
-              style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', flexWrap: 'wrap' }}
-            >
-              <div
-                style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: '50%',
-                  background:
-                    a.type === 'stock_check'
-                      ? 'var(--bad-bg)'
-                      : a.type === 'new_product'
-                        ? 'var(--warn-bg)'
-                        : 'var(--zellij-soft)',
-                  display: 'grid',
-                  placeItems: 'center',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  flexShrink: 0,
-                }}
+      {/* 4 Dashboard KPI Bento Cards */}
+      <section className="ac-metric-grid" aria-label="Résumé des actions">
+        <article className="ac-metric">
+          <span className="ac-metric-label">En attente</span>
+          <strong className="ac-metric-val">{stats.pending}</strong>
+          <span className="ac-metric-meta">demande(s) à valider</span>
+        </article>
+        <article className="ac-metric">
+          <span className="ac-metric-label">Nouveaux produits</span>
+          <strong className="ac-metric-val">{stats.newProducts}</strong>
+          <span className="ac-metric-meta">créations proposées</span>
+        </article>
+        <article className="ac-metric">
+          <span className="ac-metric-label">Contrôles stock</span>
+          <strong className="ac-metric-val">{stats.stockChecks}</strong>
+          <span className="ac-metric-meta">inventaires &amp; écarts</span>
+        </article>
+        <article className="ac-metric">
+          <span className="ac-metric-label">Clôturées</span>
+          <strong className="ac-metric-val">{stats.resolved}</strong>
+          <span className="ac-metric-meta">sur {rows.length} affichée(s)</span>
+        </article>
+      </section>
+
+      {/* Main Bento Panel */}
+      <section className="ac-panel">
+        <div className="ac-panel-head" style={{ gap: '12px' }}>
+          <div className="ac-dash-period-pills" role="group" aria-label="Filtrer les actions">
+            {(['pending', 'done', 'all'] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                className="ac-seg-btn"
+                aria-pressed={tab === t}
+                onClick={() => setTab(t)}
               >
-                {(a.type || 'AC').slice(0, 2).toUpperCase()}
-              </div>
-              <div style={{ flex: 1, minWidth: 160 }}>
-                <div
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    letterSpacing: '0.04em',
-                    color: 'var(--muted)',
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  {a.type} · {a.created_at?.replace('T', ' ').slice(0, 16)}
-                </div>
-                <div style={{ fontWeight: 600 }}>{a.title}</div>
-                <div className="muted" style={{ fontSize: 13 }}>
-                  {a.detail}
-                </div>
-                {(a.created_by && !['mobile', 'mobile-offline', 'pc'].includes(a.created_by.toLowerCase()) || a.completed_by && a.completed_by.toLowerCase() !== 'pc') && <div className="muted" style={{ fontSize: 12 }}>
-                  {a.created_by && !['mobile', 'mobile-offline', 'pc'].includes(a.created_by.toLowerCase()) && <span>Demandé par {a.created_by}</span>}
-                  {a.completed_by && a.completed_by.toLowerCase() !== 'pc' && <span> · {a.status === 'cancelled' ? 'Refusé' : 'Traité'} par {a.completed_by}</span>}
-                </div>}
-                {stockNeeded && meta.proposed_stock != null && (
-                  <div style={{ fontSize: 13, marginTop: 4 }}>
-                    Stock proposé : <strong>{meta.proposed_stock}</strong>
-                    {meta.stock != null ? ` (système ${meta.stock})` : ''}
+                {t === 'pending' ? 'En attente' : t === 'done' ? 'Terminées' : 'Toutes'}
+              </button>
+            ))}
+          </div>
+          <div className="ac-erp-actions-row">
+            <span className="ac-panel-count">{rows.length} enregistrement(s)</span>
+            <ListPager
+              page={safePage}
+              pageSize={PAGE_SIZE}
+              total={rows.length}
+              onPageChange={setPage}
+            />
+          </div>
+        </div>
+
+        {err && (
+          <p className="msg-error" role="alert">
+            {err}
+          </p>
+        )}
+
+        {!loading && !err && rows.length === 0 && (
+          <EmptyState
+            title="Aucune action"
+            description="Les nouvelles demandes produit, ventes rapides et contrôles de stock apparaissent ici."
+            icon="package"
+          />
+        )}
+
+        {loading && rows.length === 0 && (
+          <p className="muted" style={{ margin: '12px 0' }}>
+            Chargement des actions…
+          </p>
+        )}
+
+        {pagedRows.length > 0 && (
+          <ul className="ac-erp-open-list">
+            {pagedRows.map((a) => {
+              const approveNeeded = needsProductApproval(a);
+              const stockNeeded = needsStockApproval(a);
+              const meta = parseMeta(a);
+              const iconBg =
+                a.type === 'stock_check'
+                  ? 'var(--bad-bg)'
+                  : a.type === 'new_product'
+                    ? 'var(--warn-bg)'
+                    : 'var(--zellij-soft)';
+              return (
+                <li key={a.id} className="ac-erp-open-item">
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', flex: '1 1 260px', minWidth: 0 }}>
+                    <div
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: '12px',
+                        background: iconBg,
+                        display: 'grid',
+                        placeItems: 'center',
+                        fontSize: 11,
+                        fontWeight: 750,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {a.type === 'new_product' ? (
+                        <PackagePlus size={17} aria-hidden="true" />
+                      ) : (
+                        (a.type || 'AC').slice(0, 2).toUpperCase()
+                      )}
+                    </div>
+                    <div className="ac-erp-open-meta">
+                      <span style={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.7rem', fontWeight: 700 }}>
+                        {a.type} · {a.created_at?.replace('T', ' ').slice(0, 16)}
+                      </span>
+                      <strong>{a.title}</strong>
+                      <span>{a.detail}</span>
+                      {((a.created_by && !['mobile', 'mobile-offline', 'pc'].includes(a.created_by.toLowerCase())) ||
+                        (a.completed_by && a.completed_by.toLowerCase() !== 'pc')) && (
+                        <span>
+                          {a.created_by && !['mobile', 'mobile-offline', 'pc'].includes(a.created_by.toLowerCase())
+                            ? `Demandé par ${a.created_by}`
+                            : ''}
+                          {a.completed_by && a.completed_by.toLowerCase() !== 'pc'
+                            ? ` · ${a.status === 'cancelled' ? 'Refusé' : 'Traité'} par ${a.completed_by}`
+                            : ''}
+                        </span>
+                      )}
+                      {stockNeeded && meta.proposed_stock != null && (
+                        <span>
+                          Stock proposé : <strong>{meta.proposed_stock}</strong>
+                          {meta.stock != null ? ` (système ${meta.stock})` : ''}
+                        </span>
+                      )}
+                      {stockNeeded && meta.cycle_batch && Array.isArray(meta.lines) && (
+                        <span>
+                          Inventaire lot : <strong>{meta.lines.length}</strong> ligne(s)
+                        </span>
+                      )}
+                      {a.barcode && (
+                        <span style={{ fontFamily: 'monospace' }}>#{a.barcode}</span>
+                      )}
+                      {a.status === 'cancelled' && meta.reject_reason && (
+                        <span style={{ color: 'var(--bad)' }}>Refus : {meta.reject_reason}</span>
+                      )}
+                    </div>
                   </div>
-                )}
-                {stockNeeded && meta.cycle_batch && Array.isArray(meta.lines) && (
-                  <div style={{ fontSize: 13, marginTop: 4 }}>
-                    Inventaire lot : <strong>{meta.lines.length}</strong> ligne(s)
-                  </div>
-                )}
-                {a.barcode && (
-                  <div className="muted" style={{ fontSize: 12, fontFamily: 'monospace' }}>
-                    #{a.barcode}
-                  </div>
-                )}
-                {(a as any).source && (
-                  <p style={{ fontSize: 11, color: 'var(--muted)', margin: '0 0 4px' }}>
-                    Source : {(a as any).source}
-                  </p>
-                )}
-                {a.status === 'cancelled' && meta.reject_reason && (
-                  <div style={{ fontSize: 12, color: 'var(--bad)', marginTop: 4 }}>
-                    Refus : {meta.reject_reason}
-                  </div>
-                )}
-              </div>
-              {a.status === 'pending' ? (
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {approveNeeded && (
-                    <button type="button" onClick={() => openApprove(a)}>
-                      Approuver le produit
-                    </button>
+
+                  {a.status === 'pending' ? (
+                    <div className="ac-erp-actions-row">
+                      {approveNeeded && (
+                        <button type="button" onClick={() => openApprove(a)}>
+                          Approuver le produit
+                        </button>
+                      )}
+                      {stockNeeded && (
+                        <button type="button" onClick={() => openStockApprove(a)}>
+                          {meta.cycle_batch ? 'Appliquer inventaire' : 'Approuver le stock'}
+                        </button>
+                      )}
+                      {needsInvoiceApproval(a) && (
+                        <button type="button" disabled={busy} onClick={() => submitInvoiceApprove(a)}>
+                          Marquer payé
+                        </button>
+                      )}
+                      <button type="button" className="secondary" onClick={() => complete(a.id)}>
+                        Marquer traité
+                      </button>
+                      <button type="button" className="danger" disabled={busy} onClick={() => rejectAction(a)}>
+                        Refuser
+                      </button>
+                    </div>
+                  ) : a.status === 'cancelled' ? (
+                    <span className="ac-status-pill is-warn">
+                      <XCircle size={13} aria-hidden="true" />
+                      Refusé
+                    </span>
+                  ) : (
+                    <span className="ac-status-pill is-ok">
+                      <CheckCircle2 size={13} aria-hidden="true" />
+                      Traité
+                    </span>
                   )}
-                  {stockNeeded && (
-                    <button type="button" onClick={() => openStockApprove(a)}>
-                      {meta.cycle_batch ? 'Appliquer inventaire' : 'Approuver le stock'}
-                    </button>
-                  )}
-                  {needsInvoiceApproval(a) && (
-                    <button type="button" className="primary" disabled={busy} onClick={() => submitInvoiceApprove(a)}>
-                      Marquer payé
-                    </button>
-                  )}
-                  <button type="button" className="secondary" onClick={() => complete(a.id)}>
-                    Marquer traité
-                  </button>
-                  <button type="button" className="danger" disabled={busy} onClick={() => rejectAction(a)}>
-                    Refuser
-                  </button>
-                </div>
-              ) : a.status === 'cancelled' ? (
-                <span className="badge" style={{ background: 'var(--bad-bg)' }}>Refusé</span>
-              ) : (
-                <span className="badge success">Traité</span>
-              )}
-            </div>
-          );
-        })}
-      </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
 
       {approve && (
         <div className="modal-overlay" onClick={() => { if (busy) return; setErr(''); setApprove(null); }}>
-          <div className="modal-card" style={{ maxWidth: 560 }} onClick={(e) => e.stopPropagation()}>
-            <h3>Approuver la création produit</h3>
-            <p>Même formulaire que Produits. Le produit est ajouté au catalogue, puis la demande est clôturée.</p>
+          <div className="modal" style={{ maxWidth: 560 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <h2>Approuver la création produit</h2>
+              <button type="button" className="modal-x" aria-label="Fermer" onClick={() => { if (!busy) { setErr(''); setApprove(null); } }}>
+                <X size={18} aria-hidden="true" />
+              </button>
+            </div>
+            <p className="muted" style={{ marginTop: 0 }}>
+              Même formulaire que Produits. Le produit est ajouté au catalogue, puis la demande est clôturée.
+            </p>
             <div className="form-row">
               <label>Nom *</label>
               <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
@@ -585,72 +667,89 @@ export default function Actions() {
               <label>Code-barres</label>
               <input value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} />
             </div>
-            <div className="form-row">
-              <label>Prix (MAD)</label>
-              <input value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} inputMode="decimal" />
-            </div>
-            <div className="form-row"><label>Prix sur facture</label><select value={form.invoice_price_mode} onChange={(e) => setForm({ ...form, invoice_price_mode: e.target.value })}><option value="exclusive">TVA ajoutée au prix (HT)</option><option value="inclusive">TVA incluse dans le prix (TTC)</option></select><small>Pour les ventes rapides, le prix reste sans TVA.</small></div>
-            <div className="form-row">
-              <label>Coût (MAD)</label>
-              <input value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} inputMode="decimal" />
-            </div>
-            <div className="form-row">
-              <label>Stock initial</label>
-              <input value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} inputMode="numeric" />
+            <div className="grid grid-2">
+              <div className="form-row">
+                <label>Prix (MAD)</label>
+                <input value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} inputMode="decimal" />
+              </div>
+              <div className="form-row">
+                <label>Coût (MAD)</label>
+                <input value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} inputMode="decimal" />
+              </div>
             </div>
             <div className="form-row">
-              <label>Catégorie</label>
-              <input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
-            </div>
-            <div className="form-row">
-              <label>Unité</label>
-              <select
-                value={form.unit || ''}
-                onChange={(e) => {
-                  if (e.target.value === '__new__') { void addUnit('unit'); return; }
-                  setForm({ ...form, unit: e.target.value });
-                }}
-              >
-                <option value="">— Choisir —</option>
-                {units.map((u) => (
-                  <option key={u.id ?? u.name} value={u.name}>
-                    {u.symbol ? `${u.name} (${u.symbol})` : u.name}
-                  </option>
-                ))}
-                {form.unit && !units.some((u) => u.name.toLowerCase() === form.unit.trim().toLowerCase()) && (
-                  <option value={form.unit}>{form.unit}</option>
-                )}
-                <option value="__new__">+ Nouvelle unité…</option>
+              <label>Prix sur facture</label>
+              <select value={form.invoice_price_mode} onChange={(e) => setForm({ ...form, invoice_price_mode: e.target.value })}>
+                <option value="exclusive">TVA ajoutée au prix (HT)</option>
+                <option value="inclusive">TVA incluse dans le prix (TTC)</option>
               </select>
+              <small>Pour les ventes rapides, le prix reste sans TVA.</small>
+            </div>
+            <div className="grid grid-2">
+              <div className="form-row">
+                <label>Stock initial</label>
+                <input value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} inputMode="numeric" />
+              </div>
+              <div className="form-row">
+                <label>Catégorie</label>
+                <input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
+              </div>
+            </div>
+            <div className="grid grid-2">
+              <div className="form-row">
+                <label>Unité</label>
+                <select
+                  value={form.unit || ''}
+                  onChange={(e) => {
+                    if (e.target.value === '__new__') { void addUnit('unit'); return; }
+                    setForm({ ...form, unit: e.target.value });
+                  }}
+                >
+                  <option value="">— Choisir —</option>
+                  {units.map((u) => (
+                    <option key={u.id ?? u.name} value={u.name}>
+                      {u.symbol ? `${u.name} (${u.symbol})` : u.name}
+                    </option>
+                  ))}
+                  {form.unit && !units.some((u) => u.name.toLowerCase() === form.unit.trim().toLowerCase()) && (
+                    <option value={form.unit}>{form.unit}</option>
+                  )}
+                  <option value="__new__">+ Nouvelle unité…</option>
+                </select>
+              </div>
+              <div className="form-row">
+                <label>Deuxième unité (facultatif)</label>
+                <select
+                  value={form.secondary_unit || ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '__new__') { void addUnit('secondary_unit'); return; }
+                    if (!val) { setForm({ ...form, secondary_unit: '', secondary_unit_factor: '' }); return; }
+                    setForm({ ...form, secondary_unit: val });
+                  }}
+                >
+                  <option value="">— Aucune —</option>
+                  {units.map((u) => (
+                    <option
+                      key={u.id ?? u.name}
+                      value={u.name}
+                      disabled={Boolean(form.unit) && u.name.toLowerCase() === form.unit.trim().toLowerCase()}
+                    >
+                      {u.symbol ? `${u.name} (${u.symbol})` : u.name}
+                    </option>
+                  ))}
+                  {form.secondary_unit && !units.some((u) => u.name.toLowerCase() === form.secondary_unit.trim().toLowerCase()) && (
+                    <option value={form.secondary_unit}>{form.secondary_unit}</option>
+                  )}
+                  <option value="__new__">+ Nouvelle unité…</option>
+                </select>
+              </div>
             </div>
             <div className="form-row">
-              <label>Deuxième unité (facultatif)</label>
-              <select
-                value={form.secondary_unit || ''}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === '__new__') { void addUnit('secondary_unit'); return; }
-                  if (!val) { setForm({ ...form, secondary_unit: '', secondary_unit_factor: '' }); return; }
-                  setForm({ ...form, secondary_unit: val });
-                }}
-              >
-                <option value="">— Aucune —</option>
-                {units.map((u) => (
-                  <option
-                    key={u.id ?? u.name}
-                    value={u.name}
-                    disabled={Boolean(form.unit) && u.name.toLowerCase() === form.unit.trim().toLowerCase()}
-                  >
-                    {u.symbol ? `${u.name} (${u.symbol})` : u.name}
-                  </option>
-                ))}
-                {form.secondary_unit && !units.some((u) => u.name.toLowerCase() === form.secondary_unit.trim().toLowerCase()) && (
-                  <option value={form.secondary_unit}>{form.secondary_unit}</option>
-                )}
-                <option value="__new__">+ Nouvelle unité…</option>
-              </select>
+              <label>Quantité par {form.unit || 'unité'}</label>
+              <input value={form.secondary_unit_factor} inputMode="decimal" onChange={(e) => setForm({ ...form, secondary_unit_factor: e.target.value })} placeholder="Ex. 1,59" />
+              <small>Le stock et le prix restent enregistrés par unité principale.</small>
             </div>
-            <div className="form-row"><label>Quantité par {form.unit || 'unité'}</label><input value={form.secondary_unit_factor} inputMode="decimal" onChange={e => setForm({ ...form, secondary_unit_factor: e.target.value })} placeholder="Ex. 1,59" /><small>Le stock et le prix restent enregistrés par unité principale.</small></div>
             {(form.image_data_url || form.image_url) && (
               <div className="form-row">
                 <label>Photo (téléphone) — recadrez / tournez avant d’approuver</label>
@@ -676,12 +775,17 @@ export default function Actions() {
 
       {stockApprove && (
         <div className="modal-overlay" onClick={() => { if (busy) return; setErr(''); setStockApprove(null); }}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-            <h3>
-              {parseMeta(stockApprove).cycle_batch
-                ? 'Appliquer l’inventaire lot'
-                : 'Approuver l’ajustement de stock'}
-            </h3>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <h2>
+                {parseMeta(stockApprove).cycle_batch
+                  ? 'Appliquer l’inventaire lot'
+                  : 'Approuver l’ajustement de stock'}
+              </h2>
+              <button type="button" className="modal-x" aria-label="Fermer" onClick={() => { if (!busy) { setErr(''); setStockApprove(null); } }}>
+                <X size={18} aria-hidden="true" />
+              </button>
+            </div>
             <p>
               {stockApprove.title}
               <br />

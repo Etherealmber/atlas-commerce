@@ -13,6 +13,7 @@ import InventoryOps from '../pages/InventoryOps';
 import Settings from '../pages/Settings';
 import Payroll from '../pages/Payroll';
 import CashShifts from '../pages/CashShifts';
+import Actions from '../pages/Actions';
 import Support from '../pages/Support';
 import { api } from '../api';
 import { vi } from 'vitest';
@@ -552,6 +553,50 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     expect(host.querySelector('.ac-dash-hero')).not.toBeNull();
     expect(host.querySelectorAll('.ac-metric-grid .ac-metric').length).toBe(4);
     expect(host.querySelector('h1.sr-only')?.textContent).toBe('Clôtures de caisse (X / Z)');
+
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it('rewrites Actions page in Bento UI, swaps TopPageActions icons, stretches Balance search, locks wizard step skipping, and surfaces Qwen OCR failure inside Bill dialog', async () => {
+    const actionsSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Actions.tsx'), 'utf8');
+    const appCss = readFileSync(path.resolve(process.cwd(), 'src/App.css'), 'utf8');
+    const billsSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Bills.tsx'), 'utf8');
+    const billsWorkerSrc = readFileSync(path.resolve(process.cwd(), 'worker/routes/billsReceipts.ts'), 'utf8');
+
+    // 1. Actions.tsx: no "Espace partagé", Bento UI, RefreshIconButton before Produits link
+    expect(actionsSrc).not.toContain('Espace partagé');
+    expect(actionsSrc).not.toContain('Scans et demandes du téléphone');
+    expect(actionsSrc).toContain('atlas-page ac-dash actions-page');
+    expect(actionsSrc).toContain('ac-metric-grid');
+    const tpaBlock = actionsSrc.match(/<TopPageActions>[\s\S]*?<\/TopPageActions>/)?.[0] || '';
+    expect(tpaBlock.indexOf('<RefreshIconButton')).toBeGreaterThan(-1);
+    expect(tpaBlock.indexOf('to="/products"')).toBeGreaterThan(tpaBlock.indexOf('<RefreshIconButton'));
+
+    // Render Actions and verify Bento structure + no Espace partagé
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ success: true, data: [] }), { headers: { 'Content-Type': 'application/json' } })));
+    vi.spyOn(api, 'listMobileActions').mockResolvedValue({ data: [] } as any);
+    vi.spyOn(api, 'getUnits').mockResolvedValue({ data: [] } as any);
+    await act(async () => {
+      root.render(createElement(MemoryRouter, { initialEntries: ['/actions'] }, createElement(Actions)));
+    });
+    expect(host.querySelector('.atlas-page.ac-dash.actions-page')).not.toBeNull();
+    expect(host.querySelectorAll('.ac-metric-grid .ac-metric').length).toBe(4);
+    expect(host.textContent).not.toContain('ESPACE PARTAGÉ');
+    expect(host.textContent).not.toContain('Scans et demandes du téléphone');
+
+    // 2. Balance search bar stretches freely instead of capping at 240px
+    const balSearchRule = appCss.match(/\.bal-tx-search\s*\{[^}]*\}/)?.[0] || '';
+    expect(balSearchRule).toContain('max-width: none');
+    expect(balSearchRule).not.toContain('max-width: 240px');
+
+    // 3. Bill OCR uses Workers AI Qwen vision (never Groq) and emits step trace + failing_step
+    expect(billsWorkerSrc).toContain('@cf/qwen/qwen2.5-vl-32b-instruct');
+    expect(billsWorkerSrc).toContain('failing_step');
+    expect(billsWorkerSrc).not.toContain('groqChat');
+    expect(billsSrc).toContain('wz-ocr-panel');
+    expect(billsSrc).toContain('onBeforeJump');
+    expect(billsSrc).toContain('wz-recap-card');
 
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
