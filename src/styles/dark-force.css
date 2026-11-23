@@ -3562,7 +3562,7 @@ html body a.btn {
 }
 
 /* — PRIMARY (default) buttons — */
-html[data-theme] body .content button:not(.secondary):not(.ghost):not(.danger):not(.welcome-btn-ghost):not(.theme-toggle):not(.icon-refresh-btn):not(.mailbox-folder-item):not(.mailbox-menu-item):not(.mailbox-icon-btn):not(.settings-nav-item):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__chip-x):not(.ac-seg-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.modal-x):not(.modal-close):not(.ac-topbar-icon):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.ac-shell-icon-btn):not(.ac-notif-all):not([class*="close"]):not([class*="toggle"]):not([class*="iconbtn"]):not(.density-toggle button):not(.dash-range-select):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action),
+html[data-theme] body .content button:not(.secondary):not(.ghost):not(.danger):not(.welcome-btn-ghost):not(.welcome-skip-btn):not(.welcome-density-pill):not(.welcome-tour-trigger):not(.welcome-seg-btn):not(.ac-feature-tour-close):not(.ac-feature-tour-backdrop):not(.ac-feature-tour-dot):not(.theme-toggle):not(.icon-refresh-btn):not(.mailbox-folder-item):not(.mailbox-menu-item):not(.mailbox-icon-btn):not(.settings-nav-item):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__chip-x):not(.ac-seg-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.modal-x):not(.modal-close):not(.ac-topbar-icon):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.ac-shell-icon-btn):not(.ac-notif-all):not([class*="close"]):not([class*="toggle"]):not([class*="iconbtn"]):not(.density-toggle button):not(.dash-range-select):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action),
 html[data-theme] body .modal button:not(.secondary):not(.ghost):not(.danger):not(.modal-x):not(.modal-close):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.ac-seg-btn):not(.ac-pill-pager-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__chip-x):not(.step-wizard__step-btn):not([class*="close"]):not([class*="toggle"]):not([class*="iconbtn"]):not(.density-toggle button):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action),
 html[data-theme] body .modal-overlay .modal button:not(.secondary):not(.ghost):not(.danger):not(.modal-x):not(.modal-close):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.ac-seg-btn):not(.ac-pill-pager-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__chip-x):not(.step-wizard__step-btn):not([class*="close"]):not([class*="toggle"]):not([class*="iconbtn"]):not(.density-toggle button):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action),
 html[data-theme] body .content .btn:not(.secondary):not(.ghost):not(.danger),
@@ -3575,7 +3575,7 @@ html[data-theme] body .modal .btn:not(.secondary):not(.ghost):not(.danger) {
   box-shadow: none !important;
   text-decoration: none !important;
 }
-html[data-theme] body .content button:not(.secondary):not(.ghost):not(.danger):not(.welcome-btn-ghost):not(.theme-toggle):not(.icon-refresh-btn):not(.mailbox-folder-item):not(.mailbox-menu-item):not(.mailbox-icon-btn):not(.settings-nav-item):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__chip-x):not(.ac-seg-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.modal-x):not(.modal-close):not(.ac-topbar-icon):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.ac-shell-icon-btn):not(.ac-notif-all):not([class*="close"]):not([class*="toggle"]):not([class*="iconbtn"]):not(.density-toggle button):not(.dash-range-select):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action):hover,
+html[data-theme] body .content button:not(.secondary):not(.ghost):not(.danger):not(.welcome-btn-ghost):not(.welcome-skip-btn):not(.welcome-density-pill):not(.welcome-tour-trigger):not(.welcome-seg-btn):not(.ac-feature-tour-close):not(.ac-feature-tour-backdrop):not(.ac-feature-tour-dot):not(.theme-toggle):not(.icon-refresh-btn):not(.mailbox-folder-item):not(.mailbox-menu-item):not(.mailbox-icon-btn):not(.settings-nav-item):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__chip-x):not(.ac-seg-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.modal-x):not(.modal-close):not(.ac-topbar-icon):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.ac-shell-icon-btn):not(.ac-notif-all):not([class*="close"]):not([class*="toggle"]):not([class*="iconbtn"]):not(.density-toggle button):not(.dash-range-select):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action):hover,
 html[data-theme] body .modal button:not(.secondary):not(.ghost):not(.danger):not(.modal-x):not(.modal-close):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.ac-seg-btn):not(.ac-pill-pager-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__chip-x):not(.step-wizard__step-btn):not([class*="close"]):not([class*="toggle"]):not([class*="iconbtn"]):not(.density-toggle button):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action):hover,
 html[data-theme] body .content .btn:not(.secondary):not(.ghost):not(.danger):hover,
 html[data-theme] body .modal .btn:not(.secondary):not(.ghost):not(.danger):hover {
@@ -3585,7 +3585,7 @@ html[data-theme] body .modal .btn:not(.secondary):not(.ghost):not(.danger):hover
   border-color: var(--btn-p-h-bd) !important;
   text-decoration: none !important;
 }
-html[data-theme] body .content button:not(.secondary):not(.ghost):not(.danger):not(.ac-topbar-icon):not(.ac-seg-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not([class*="close"]):not([class*="toggle"]):not([class*="iconbtn"]):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action):active,
+html[data-theme] body .content button:not(.secondary):not(.ghost):not(.danger):not(.welcome-btn-ghost):not(.welcome-skip-btn):not(.welcome-density-pill):not(.welcome-tour-trigger):not(.welcome-seg-btn):not(.ac-feature-tour-dot):not(.ac-topbar-icon):not(.ac-seg-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not([class*="close"]):not([class*="toggle"]):not([class*="iconbtn"]):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action):active,
 html[data-theme] body .modal button:not(.secondary):not(.ghost):not(.danger):not(.modal-x):not(.modal-close):not(.ac-seg-btn):not(.step-wizard__step-btn):not([class*="close"]):not([class*="toggle"]):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action):active {
   background: var(--btn-p-a) !important;
   color: var(--btn-p-fg) !important;
@@ -6391,6 +6391,10 @@ html[data-theme="dark"] {
 }
 
 /* Inline action buttons in legal prose render as crisp pill buttons (never underlined links) */
+html body .privacy-link-btn,
+html body .privacy-link-btn:focus,
+html body .privacy-link-btn:active,
+html body .atlas-focus-main .privacy-link-btn,
 html[data-theme] body .privacy-link-btn,
 html[data-theme] body .privacy-link-btn:focus,
 html[data-theme] body .privacy-link-btn:active,
@@ -6965,6 +6969,177 @@ html[data-theme="dark"] body .ac-chart-tooltip {
   background: #1d2027 !important;
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Welcome Bento controls & FeatureTour modal buttons — never solid-black overridden */
+html body .welcome-skip-btn,
+html:not([data-theme="dark"]) body .welcome-skip-btn {
+  background: #ffffff !important;
+  background-image: none !important;
+  color: #475569 !important;
+  -webkit-text-fill-color: #475569 !important;
+  border: 1px solid rgba(15, 23, 42, 0.14) !important;
+  border-radius: 999px !important;
+  box-shadow: none !important;
+  min-height: 36px !important;
+  padding: 6px 14px !important;
+}
+html body .welcome-skip-btn:hover,
+html:not([data-theme="dark"]) body .welcome-skip-btn:hover {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+html[data-theme="dark"] body .welcome-skip-btn {
+  background: #1c1d22 !important;
+  color: #cbd5e1 !important;
+  -webkit-text-fill-color: #cbd5e1 !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+
+html body .welcome-density-pill,
+html:not([data-theme="dark"]) body .welcome-density-pill {
+  background: transparent !important;
+  background-image: none !important;
+  color: #475569 !important;
+  -webkit-text-fill-color: #475569 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  min-height: 30px !important;
+  padding: 6px 14px !important;
+  border-radius: 999px !important;
+}
+html body .welcome-density-pill:hover:not(.is-active),
+html:not([data-theme="dark"]) body .welcome-density-pill:hover:not(.is-active) {
+  background: rgba(15, 23, 42, 0.06) !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+html body .welcome-density-pill.is-active,
+html:not([data-theme="dark"]) body .welcome-density-pill.is-active {
+  background: #0f172a !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html[data-theme="dark"] body .welcome-density-pill {
+  color: #a1a1aa !important;
+  -webkit-text-fill-color: #a1a1aa !important;
+}
+html[data-theme="dark"] body .welcome-density-pill.is-active {
+  background: #f4f4f6 !important;
+  color: #111113 !important;
+  -webkit-text-fill-color: #111113 !important;
+}
+
+html body .welcome-segment .welcome-seg-btn,
+html:not([data-theme="dark"]) body .welcome-segment .welcome-seg-btn {
+  background: transparent !important;
+  background-image: none !important;
+  color: #475569 !important;
+  -webkit-text-fill-color: #475569 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  min-height: 32px !important;
+  padding: 7px 14px !important;
+  border-radius: 999px !important;
+}
+html body .welcome-segment .welcome-seg-btn:hover:not(.active),
+html:not([data-theme="dark"]) body .welcome-segment .welcome-seg-btn:hover:not(.active) {
+  background: rgba(15, 23, 42, 0.06) !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+html body .welcome-segment .welcome-seg-btn.active,
+html:not([data-theme="dark"]) body .welcome-segment .welcome-seg-btn.active {
+  background: #0f172a !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html[data-theme="dark"] body .welcome-segment .welcome-seg-btn {
+  color: #a1a1aa !important;
+  -webkit-text-fill-color: #a1a1aa !important;
+}
+html[data-theme="dark"] body .welcome-segment .welcome-seg-btn.active {
+  background: #f4f4f6 !important;
+  color: #111113 !important;
+  -webkit-text-fill-color: #111113 !important;
+}
+
+html body .welcome-tour-trigger,
+html:not([data-theme="dark"]) body .welcome-tour-trigger {
+  background: #ffffff !important;
+  background-image: none !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  border: 1px solid rgba(15, 23, 42, 0.16) !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+  border-radius: 999px !important;
+}
+html body .welcome-tour-trigger:hover,
+html:not([data-theme="dark"]) body .welcome-tour-trigger:hover {
+  background: #f1f5f9 !important;
+  border-color: rgba(15, 23, 42, 0.28) !important;
+}
+html[data-theme="dark"] body .welcome-tour-trigger {
+  background: #1c1d22 !important;
+  color: #f4f4f6 !important;
+  -webkit-text-fill-color: #f4f4f6 !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+}
+
+html body .ac-feature-tour-close,
+html:not([data-theme="dark"]) body .ac-feature-tour-close {
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  min-height: 34px !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: #f1f5f9 !important;
+  background-image: none !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: none !important;
+}
+html body .ac-feature-tour-close:hover,
+html:not([data-theme="dark"]) body .ac-feature-tour-close:hover {
+  background: #e2e8f0 !important;
+}
+html[data-theme="dark"] body .ac-feature-tour-close {
+  background: #23252c !important;
+  color: #f4f4f6 !important;
+  -webkit-text-fill-color: #f4f4f6 !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+
+html body .ac-feature-tour-dots .ac-feature-tour-dot,
+html:not([data-theme="dark"]) body .ac-feature-tour-dots .ac-feature-tour-dot {
+  width: 10px !important;
+  height: 10px !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  box-shadow: none !important;
+  background: #cbd5e1 !important;
+  background-image: none !important;
+  transition: width 0.18s ease, background-color 0.18s ease !important;
+}
+html body .ac-feature-tour-dots .ac-feature-tour-dot.on,
+html:not([data-theme="dark"]) body .ac-feature-tour-dots .ac-feature-tour-dot.on {
+  width: 24px !important;
+  background: #0f172a !important;
+}
+html[data-theme="dark"] body .ac-feature-tour-dots .ac-feature-tour-dot {
+  background: #3f3f46 !important;
+}
+html[data-theme="dark"] body .ac-feature-tour-dots .ac-feature-tour-dot.on {
+  background: #f4f4f6 !important;
 }
 
 

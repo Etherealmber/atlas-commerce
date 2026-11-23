@@ -621,9 +621,13 @@ html[data-theme="dark"] body .about-page a.secondary:hover {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  width: 100%;
+  margin-bottom: 14px;
 }
 .ac-bento-stack > .ac-panel,
 .ac-bento-stack > .card {
+  width: 100%;
+  max-width: none;
   margin-bottom: 0 !important;
 }
 

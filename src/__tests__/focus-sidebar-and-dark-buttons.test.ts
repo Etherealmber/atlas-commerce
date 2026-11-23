@@ -606,25 +606,48 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
   it('removes Settings hero header, stacks About creator/contributors, styles cookie preference control as a pill button, and modernizes Welcome Bento UI', async () => {
     const settingsSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Settings.tsx'), 'utf8');
     const aboutSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/About.tsx'), 'utf8');
+    const privacySrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Privacy.tsx'), 'utf8');
     const darkCss = readFileSync(path.resolve(process.cwd(), 'src/styles/dark-force.css'), 'utf8');
+    const overridesCss = readFileSync(path.resolve(process.cwd(), 'src/styles/overrides-final.css'), 'utf8');
+    const focusCss = readFileSync(path.resolve(process.cwd(), 'src/styles/focus-sidebar.css'), 'utf8');
     const welcomeSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Welcome.tsx'), 'utf8');
+    const welcomeLibSrc = readFileSync(path.resolve(process.cwd(), 'src/lib/welcome.ts'), 'utf8');
+    const tourSrc = readFileSync(path.resolve(process.cwd(), 'src/components/ui/FeatureTour.tsx'), 'utf8');
 
     // 1. Settings.tsx: no top .ac-dash-hero block while preserving sr-only h1
     expect(settingsSrc).not.toContain('className="ac-dash-hero"');
     expect(settingsSrc).toContain('<h1 className="sr-only">');
 
-    // 2. About.tsx: Créateur & Remerciements stack vertically one after another
+    // 2. About.tsx: Créateur & Remerciements stack vertically full-width one after another
     expect(aboutSrc).toContain('<div className="ac-bento-stack" id="about-creator">');
+    expect(focusCss).toMatch(/\.ac-bento-stack\s*\{[\s\S]*width:\s*100%/);
 
-    // 3. Privacy cookie preferences button renders as a pill button without link underline
-    const privacyBtnBlock = darkCss.match(/html\[data-theme\] body \.privacy-link-btn[\s\S]*?\}/)?.[0] || '';
+    // 3. Privacy cookie preferences button renders as a pill button without link underline (even without data-theme)
+    expect(privacySrc).toContain('className="secondary privacy-link-btn"');
+    expect(overridesCss).toContain(':not(.privacy-link-btn)');
+    const privacyBtnBlock = darkCss.match(/html body \.privacy-link-btn[\s\S]*?\}/)?.[0] || '';
+    expect(privacyBtnBlock).toContain('html[data-theme] body .privacy-link-btn');
     expect(privacyBtnBlock).toContain('text-decoration: none !important');
     expect(privacyBtnBlock).toContain('border-radius: 999px !important');
 
-    // 4. Welcome.tsx: Bento top chrome, density switcher, and on-demand FeatureTour trigger
+    // 4. Welcome.tsx & WELCOME_PREVIEWS: light-only Bento screenshots, Bento chrome, explicit non-black control styles
+    expect(welcomeLibSrc).not.toContain('-dark.png');
     expect(welcomeSrc).toContain('welcome-top-bar');
     expect(welcomeSrc).toContain('welcome-density-row');
     expect(welcomeSrc).toContain('welcome-summary-bento');
+    expect(welcomeSrc).toContain('welcome-seg-btn');
     expect(welcomeSrc).toContain('Visite rapide des modules');
+    expect(tourSrc).toContain('ac-feature-tour-dot');
+    for (const cls of [
+      '.welcome-skip-btn',
+      '.welcome-density-pill',
+      '.welcome-tour-trigger',
+      '.welcome-seg-btn',
+      '.ac-feature-tour-close',
+      '.ac-feature-tour-dot',
+    ]) {
+      expect(overridesCss).toContain(`:not(${cls})`);
+      expect(darkCss).toContain(`:not(${cls})`);
+    }
   });
 });

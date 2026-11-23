@@ -47,7 +47,7 @@ describe('welcome capture steps', () => {
   it('has a still-image alternative for the demo when reduced motion is requested', () => {
     const html = renderToStaticMarkup(createElement(WelcomePreview, { index: 0, onPrevious() {}, onNext() {} }));
     expect(html).toContain('(prefers-reduced-motion: reduce)');
-    expect(html).toContain('srcSet="/shots/devis-modal-dark.png"');
+    expect(html).toContain('srcSet="/shots/dashboard-light.png"');
   });
 
   it('persists each new step including the inserted previews across refreshes', () => {
