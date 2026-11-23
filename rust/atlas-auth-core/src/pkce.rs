@@ -5,13 +5,27 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// Client-generated PKCE S256 verifier/challenge + high-entropy request `state`.
 /// Secret fields are zeroized when dropped.
-#[derive(Clone, Zeroize, ZeroizeOnDrop)]
+#[derive(Clone)]
 pub struct PkcePair {
     state: String,
     code_verifier: String,
-    #[zeroize(skip)]
     code_challenge: String,
 }
+
+impl Zeroize for PkcePair {
+    fn zeroize(&mut self) {
+        self.state.zeroize();
+        self.code_verifier.zeroize();
+    }
+}
+
+impl Drop for PkcePair {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
+impl ZeroizeOnDrop for PkcePair {}
 
 impl std::fmt::Debug for PkcePair {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

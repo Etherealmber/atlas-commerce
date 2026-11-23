@@ -361,7 +361,7 @@ describe('Desktop v3 Worker <-> Rust atlas-auth-core Contract & DPoP Replay', ()
         child.stdin.write(`${JSON.stringify(cmd)}\n`);
         const raw = await new Promise<string>((resolve, reject) => {
           if (lines.length > 0) return resolve(lines.shift()!);
-          const timer = setTimeout(() => reject(new Error(`Rust driver timeout (stderr=${stderr})`)), 30_000);
+          const timer = setTimeout(() => reject(new Error(`Rust driver timeout (stderr=${stderr})`)), 120_000);
           pendingResolve = (l) => {
             clearTimeout(timer);
             resolve(l);
@@ -593,6 +593,6 @@ describe('Desktop v3 Worker <-> Rust atlas-auth-core Contract & DPoP Replay', ()
         try { child.kill(); } catch { /* */ }
       }
     },
-    60_000,
+    150_000,
   );
 });

@@ -115,53 +115,86 @@ pub enum ChallengeVerifyStatus {
     Consumed,
 }
 
-#[derive(Clone, Serialize, Zeroize, ZeroizeOnDrop)]
+#[derive(Clone, Serialize)]
 pub struct PasswordLoginRequestV3 {
-    #[zeroize(skip)]
     pub origin: String,
-    #[zeroize(skip)]
     pub request_id: String,
     pub state: String,
     pub code_verifier: String,
-    #[zeroize(skip)]
     pub username: String,
     pub password: String,
 }
 
-#[derive(Clone, Serialize, Zeroize, ZeroizeOnDrop)]
+impl Zeroize for PasswordLoginRequestV3 {
+    fn zeroize(&mut self) {
+        self.state.zeroize();
+        self.code_verifier.zeroize();
+        self.password.zeroize();
+    }
+}
+
+impl Drop for PasswordLoginRequestV3 {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
+impl ZeroizeOnDrop for PasswordLoginRequestV3 {}
+
+#[derive(Clone, Serialize)]
 pub struct OtpLoginRequestV3 {
-    #[zeroize(skip)]
     pub origin: String,
-    #[zeroize(skip)]
     pub request_id: String,
     pub state: String,
     pub code_verifier: String,
     pub otp: String,
 }
 
-#[derive(Clone, Deserialize, Zeroize, ZeroizeOnDrop)]
+impl Zeroize for OtpLoginRequestV3 {
+    fn zeroize(&mut self) {
+        self.state.zeroize();
+        self.code_verifier.zeroize();
+        self.otp.zeroize();
+    }
+}
+
+impl Drop for OtpLoginRequestV3 {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
+impl ZeroizeOnDrop for OtpLoginRequestV3 {}
+
+#[derive(Clone, Deserialize)]
 pub struct SessionTokensV3 {
-    #[zeroize(skip)]
     pub token_type: String,
     pub access_token: String,
     pub refresh_token: String,
-    #[zeroize(skip)]
     pub access_expires_at: String,
-    #[zeroize(skip)]
     pub session_expires_at: String,
-    #[zeroize(skip)]
     pub origin: String,
-    #[zeroize(skip)]
     pub username: String,
-    #[zeroize(skip)]
     pub role: String,
-    #[zeroize(skip)]
     pub session_id: String,
-    #[zeroize(skip)]
     pub device_thumbprint: String,
-    #[zeroize(skip)]
     pub attestation: Option<String>,
 }
+
+impl Zeroize for SessionTokensV3 {
+    fn zeroize(&mut self) {
+        self.access_token.zeroize();
+        self.refresh_token.zeroize();
+    }
+}
+
+impl Drop for SessionTokensV3 {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
+impl ZeroizeOnDrop for SessionTokensV3 {}
 
 impl std::fmt::Debug for SessionTokensV3 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -182,12 +215,25 @@ pub struct PasswordLoginResponseV3 {
     pub status: String,
 }
 
-#[derive(Clone, Serialize, Zeroize, ZeroizeOnDrop)]
+#[derive(Clone, Serialize)]
 pub struct RefreshRequestV3 {
-    #[zeroize(skip)]
     pub origin: String,
     pub refresh_token: String,
 }
+
+impl Zeroize for RefreshRequestV3 {
+    fn zeroize(&mut self) {
+        self.refresh_token.zeroize();
+    }
+}
+
+impl Drop for RefreshRequestV3 {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
+impl ZeroizeOnDrop for RefreshRequestV3 {}
 
 impl std::fmt::Debug for RefreshRequestV3 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -198,12 +244,25 @@ impl std::fmt::Debug for RefreshRequestV3 {
     }
 }
 
-#[derive(Clone, Serialize, Zeroize, ZeroizeOnDrop)]
+#[derive(Clone, Serialize)]
 pub struct LogoutRequestV3 {
-    #[zeroize(skip)]
     pub origin: String,
     pub refresh_token: String,
 }
+
+impl Zeroize for LogoutRequestV3 {
+    fn zeroize(&mut self) {
+        self.refresh_token.zeroize();
+    }
+}
+
+impl Drop for LogoutRequestV3 {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
+impl ZeroizeOnDrop for LogoutRequestV3 {}
 
 impl std::fmt::Debug for LogoutRequestV3 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

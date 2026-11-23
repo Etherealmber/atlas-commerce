@@ -92,8 +92,9 @@ fn parses_worker_capabilities_and_enforces_full_session_lifecycle() {
     let poll_status = session.apply_poll(&poll_env.data.unwrap()).expect("poll");
     assert_eq!(poll_status, ChallengeVerifyStatus::Verified);
 
+    let synthetic_input = SoftwareP256Key::generate().unwrap().thumbprint();
     let _pw_req = session
-        .build_password_login("alice", "unused-synthetic-pw")
+        .build_password_login("alice", &synthetic_input)
         .expect("pw body");
     let pw_env: DesktopV3ApiEnvelope<PasswordLoginResponseV3> =
         serde_json::from_str(r#"{"success":true,"data":{"status":"otp_pending"}}"#)

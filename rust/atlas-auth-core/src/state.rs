@@ -8,7 +8,7 @@ use crate::schemas::{
     SessionTokensV3,
 };
 use serde::{Deserialize, Serialize};
-use zeroize::ZeroizeOnDrop;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -47,26 +47,25 @@ impl DesktopV3Phase {
 /// Explicit state machine for a single Desktop v3 authentication attempt.
 /// Never silently switches between `TurnstileWebview` and `SystemBrowser`,
 /// and never inspects WebView cookies, storage, or Turnstile tokens.
-#[derive(ZeroizeOnDrop)]
 pub struct DesktopV3AuthSession {
-    #[zeroize(skip)]
     origin: ServerOrigin,
-    #[zeroize(skip)]
     presentation: ChallengePresentation,
-    #[zeroize(skip)]
     phase: DesktopV3Phase,
     pkce: PkcePair,
-    #[zeroize(skip)]
     device_label: String,
-    #[zeroize(skip)]
     request_id: Option<String>,
-    #[zeroize(skip)]
     pairing_code: Option<String>,
-    #[zeroize(skip)]
     challenge_url: Option<String>,
-    #[zeroize(skip)]
     device_thumbprint: Option<String>,
 }
+
+impl Drop for DesktopV3AuthSession {
+    fn drop(&mut self) {
+        self.pkce.zeroize();
+    }
+}
+
+impl ZeroizeOnDrop for DesktopV3AuthSession {}
 
 impl std::fmt::Debug for DesktopV3AuthSession {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
