@@ -1,5 +1,6 @@
 import type { Hono } from 'hono';
 import { round2 } from '../lib/financeCore';
+import { schemaOnceForDb } from '../lib/schema';
 
 export interface DunningRouteDeps {
   requireEmployeeAdmin: (c: any) => Promise<Response | null>;
@@ -18,64 +19,62 @@ const DEFAULT_EMAIL_BODY =
 const DEFAULT_WA_TEMPLATE =
   'Bonjour {{client}}, rappel concernant la facture {{invoice_number}} (reste dû : {{amount}}, échéance : {{due_date}}, ICE : {{ice}}). Merci — {{company}}.';
 
-const _dunningDbs = new WeakSet<object>();
-
 export async function ensureDunningSchema(db: D1Database): Promise<void> {
-  if (_dunningDbs.has(db as unknown as object)) return;
-  await db
-    .prepare(
-      `CREATE TABLE IF NOT EXISTS dunning_settings (
-        id INTEGER PRIMARY KEY CHECK (id = 1),
-        enabled INTEGER NOT NULL DEFAULT 0,
-        stages_json TEXT NOT NULL DEFAULT '["D-3","D+1","D+7","D+15"]',
-        email_subject_template TEXT NOT NULL DEFAULT '',
-        email_body_template TEXT NOT NULL DEFAULT '',
-        whatsapp_template TEXT NOT NULL DEFAULT '',
-        updated_at TEXT DEFAULT (datetime('now')),
-        updated_by TEXT DEFAULT ''
-      )`,
-    )
-    .run();
-  await db
-    .prepare(
-      `INSERT OR IGNORE INTO dunning_settings (id, enabled, stages_json, email_subject_template, email_body_template, whatsapp_template)
-       VALUES (1, 0, ?, ?, ?, ?)`,
-    )
-    .bind(JSON.stringify(DEFAULT_STAGES), DEFAULT_EMAIL_SUBJECT, DEFAULT_EMAIL_BODY, DEFAULT_WA_TEMPLATE)
-    .run();
-  await db
-    .prepare(
-      `CREATE TABLE IF NOT EXISTS dunning_invoice_overrides (
-        invoice_id INTEGER PRIMARY KEY,
-        paused INTEGER NOT NULL DEFAULT 0,
-        reason TEXT DEFAULT '',
-        paused_by TEXT DEFAULT '',
-        paused_at TEXT DEFAULT (datetime('now'))
-      )`,
-    )
-    .run();
-  await db
-    .prepare(
-      `CREATE TABLE IF NOT EXISTS dunning_events (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        invoice_id INTEGER NOT NULL,
-        stage TEXT NOT NULL,
-        channel TEXT NOT NULL,
-        recipient TEXT DEFAULT '',
-        status TEXT NOT NULL DEFAULT 'sent',
-        message_preview TEXT DEFAULT '',
-        error_text TEXT DEFAULT '',
-        sent_at TEXT DEFAULT (datetime('now')),
-        UNIQUE(invoice_id, stage)
-      )`,
-    )
-    .run();
-  try {
-    await db.prepare(`CREATE INDEX IF NOT EXISTS idx_dunning_events_inv ON dunning_events(invoice_id, sent_at DESC)`).run();
-  } catch {
-    /* */
-  }
-  _dunningDbs.add(db as unknown as object);
+  await schemaOnceForDb(db, 'dunning_schema_v18', async () => {
+    await db
+      .prepare(
+        `CREATE TABLE IF NOT EXISTS dunning_settings (
+          id INTEGER PRIMARY KEY CHECK (id = 1),
+          enabled INTEGER NOT NULL DEFAULT 0,
+          stages_json TEXT NOT NULL DEFAULT '["D-3","D+1","D+7","D+15"]',
+          email_subject_template TEXT NOT NULL DEFAULT '',
+          email_body_template TEXT NOT NULL DEFAULT '',
+          whatsapp_template TEXT NOT NULL DEFAULT '',
+          updated_at TEXT DEFAULT (datetime('now')),
+          updated_by TEXT DEFAULT ''
+        )`,
+      )
+      .run();
+    await db
+      .prepare(
+        `INSERT OR IGNORE INTO dunning_settings (id, enabled, stages_json, email_subject_template, email_body_template, whatsapp_template)
+         VALUES (1, 0, ?, ?, ?, ?)`,
+      )
+      .bind(JSON.stringify(DEFAULT_STAGES), DEFAULT_EMAIL_SUBJECT, DEFAULT_EMAIL_BODY, DEFAULT_WA_TEMPLATE)
+      .run();
+    await db
+      .prepare(
+        `CREATE TABLE IF NOT EXISTS dunning_invoice_overrides (
+          invoice_id INTEGER PRIMARY KEY,
+          paused INTEGER NOT NULL DEFAULT 0,
+          reason TEXT DEFAULT '',
+          paused_by TEXT DEFAULT '',
+          paused_at TEXT DEFAULT (datetime('now'))
+        )`,
+      )
+      .run();
+    await db
+      .prepare(
+        `CREATE TABLE IF NOT EXISTS dunning_events (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          invoice_id INTEGER NOT NULL,
+          stage TEXT NOT NULL,
+          channel TEXT NOT NULL,
+          recipient TEXT DEFAULT '',
+          status TEXT NOT NULL DEFAULT 'sent',
+          message_preview TEXT DEFAULT '',
+          error_text TEXT DEFAULT '',
+          sent_at TEXT DEFAULT (datetime('now')),
+          UNIQUE(invoice_id, stage)
+        )`,
+      )
+      .run();
+    try {
+      await db.prepare(`CREATE INDEX IF NOT EXISTS idx_dunning_events_inv ON dunning_events(invoice_id, sent_at DESC)`).run();
+    } catch {
+      /* */
+    }
+  });
 }
 
 export function renderDunningTemplate(

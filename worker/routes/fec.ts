@@ -1,6 +1,7 @@
 import type { Hono } from 'hono';
 import { round2 } from '../lib/financeCore';
 import { buildZip } from '../lib/zip';
+import { schemaOnceForDb } from '../lib/schema';
 
 export interface FecRouteDeps {
   requireOwner: (c: any) => { ok: true; username: string; role?: string } | { ok: false; response: Response };
@@ -29,28 +30,26 @@ const DEFAULT_ACCOUNTS: { account_key: string; code: string; label: string }[] =
   { account_key: 'cash_variance', code: '6585', label: 'Écarts de caisse' },
 ];
 
-const _fecDbs = new WeakSet<object>();
-
 export async function ensureAccountingAccountsSchema(db: D1Database): Promise<void> {
-  if (_fecDbs.has(db as unknown as object)) return;
-  await db
-    .prepare(
-      `CREATE TABLE IF NOT EXISTS accounting_accounts (
-        account_key TEXT PRIMARY KEY,
-        code TEXT NOT NULL,
-        label TEXT NOT NULL,
-        updated_at TEXT DEFAULT (datetime('now')),
-        updated_by TEXT DEFAULT ''
-      )`,
-    )
-    .run();
-  for (const a of DEFAULT_ACCOUNTS) {
+  await schemaOnceForDb(db, 'fec_accounts_schema_v17', async () => {
     await db
-      .prepare(`INSERT OR IGNORE INTO accounting_accounts (account_key, code, label) VALUES (?, ?, ?)`)
-      .bind(a.account_key, a.code, a.label)
+      .prepare(
+        `CREATE TABLE IF NOT EXISTS accounting_accounts (
+          account_key TEXT PRIMARY KEY,
+          code TEXT NOT NULL,
+          label TEXT NOT NULL,
+          updated_at TEXT DEFAULT (datetime('now')),
+          updated_by TEXT DEFAULT ''
+        )`,
+      )
       .run();
-  }
-  _fecDbs.add(db as unknown as object);
+    for (const a of DEFAULT_ACCOUNTS) {
+      await db
+        .prepare(`INSERT OR IGNORE INTO accounting_accounts (account_key, code, label) VALUES (?, ?, ?)`)
+        .bind(a.account_key, a.code, a.label)
+        .run();
+    }
+  });
 }
 
 type FecRow = {

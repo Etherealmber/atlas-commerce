@@ -1,5 +1,6 @@
 import type { Hono } from 'hono';
 import { round2 } from '../lib/financeCore';
+import { addColumnIfMissing as sharedAddColumnIfMissing, schemaOnceForDb } from '../lib/schema';
 
 export interface AttendanceRulesInfo {
   enabled: boolean;
@@ -25,7 +26,38 @@ export interface AttendanceRouteDeps {
   moroccoTodayStr: () => string;
 }
 
-const attDbs = new WeakSet<object>();
+export async function ensureAttendanceTableSchema(
+  db: D1Database,
+  colHelper: (db: D1Database, table: string, col: string, def: string) => Promise<void> = sharedAddColumnIfMissing,
+): Promise<void> {
+  await schemaOnceForDb(db, 'attendance_schema_v15', async () => {
+    await db.prepare(`CREATE TABLE IF NOT EXISTS employee_attendance (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      employee_id INTEGER NOT NULL,
+      work_date TEXT NOT NULL,
+      check_in TEXT,
+      check_out TEXT,
+      status TEXT DEFAULT '',
+      source TEXT DEFAULT 'manual',
+      note TEXT DEFAULT '',
+      created_at TEXT,
+      updated_at TEXT,
+      UNIQUE(employee_id, work_date)
+    )`).run();
+    await colHelper(db, 'employee_attendance', 'status', `TEXT DEFAULT ''`);
+    await colHelper(db, 'employee_attendance', 'source', `TEXT DEFAULT 'manual'`);
+    await colHelper(db, 'employee_attendance', 'updated_at', `TEXT`);
+    await colHelper(db, 'employee_attendance', 'created_at', `TEXT`);
+    try {
+      const empTbl = await db.prepare(`SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = 'employees'`).first();
+      if (empTbl) {
+        await colHelper(db, 'employees', 'badge_code', `TEXT DEFAULT ''`);
+      }
+    } catch { /* */ }
+    try { await db.prepare(`CREATE INDEX IF NOT EXISTS idx_att_date ON employee_attendance(work_date)`).run(); } catch { /* */ }
+    try { await db.prepare(`CREATE INDEX IF NOT EXISTS idx_att_emp ON employee_attendance(employee_id)`).run(); } catch { /* */ }
+  });
+}
 
 function moroccoNowTime(): string {
   try {
@@ -175,28 +207,7 @@ export function registerAttendanceRoutes(app: Hono<any>, deps: AttendanceRouteDe
   } = deps;
 
   async function ensureAttendanceSchema(db: D1Database) {
-    if (attDbs.has(db as unknown as object)) return;
-    await db.prepare(`CREATE TABLE IF NOT EXISTS employee_attendance (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      employee_id INTEGER NOT NULL,
-      work_date TEXT NOT NULL,
-      check_in TEXT,
-      check_out TEXT,
-      status TEXT DEFAULT '',
-      source TEXT DEFAULT 'manual',
-      note TEXT DEFAULT '',
-      created_at TEXT,
-      updated_at TEXT,
-      UNIQUE(employee_id, work_date)
-    )`).run();
-    await addColumnIfMissing(db, 'employee_attendance', 'status', `TEXT DEFAULT ''`);
-    await addColumnIfMissing(db, 'employee_attendance', 'source', `TEXT DEFAULT 'manual'`);
-    await addColumnIfMissing(db, 'employee_attendance', 'updated_at', `TEXT`);
-    await addColumnIfMissing(db, 'employee_attendance', 'created_at', `TEXT`);
-    try { await addColumnIfMissing(db, 'employees', 'badge_code', `TEXT DEFAULT ''`); } catch { /* */ }
-    try { await db.prepare(`CREATE INDEX IF NOT EXISTS idx_att_date ON employee_attendance(work_date)`).run(); } catch { /* */ }
-    try { await db.prepare(`CREATE INDEX IF NOT EXISTS idx_att_emp ON employee_attendance(employee_id)`).run(); } catch { /* */ }
-    attDbs.add(db as unknown as object);
+    await ensureAttendanceTableSchema(db, addColumnIfMissing);
   }
 
   async function requireAttendanceEnabled(c: any): Promise<Response | null> {

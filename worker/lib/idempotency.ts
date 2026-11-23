@@ -1,8 +1,7 @@
-import { addColumnIfMissing } from './schema';
+import { addColumnIfMissing, schemaOnceForDb } from './schema';
 import { enqueue } from './job-queue';
 
 const IDEMPOTENCY_TTL_DAYS = 7;
-const _initializedDbs = new WeakSet<object>();
 
 function getExecCtx(c: any): { waitUntil: (p: Promise<unknown>) => void } | undefined {
   try {
@@ -13,97 +12,139 @@ function getExecCtx(c: any): { waitUntil: (p: Promise<unknown>) => void } | unde
 }
 
 export async function ensureOfflineOpsSchema(db: D1Database): Promise<void> {
-  if (_initializedDbs.has(db as unknown as object)) return;
-  await db
-    .prepare(
-      `CREATE TABLE IF NOT EXISTS offline_idempotency (
-        key          TEXT NOT NULL,
-        account_id   TEXT NOT NULL DEFAULT 'default',
-        device_id    TEXT NOT NULL DEFAULT '',
-        kind         TEXT NOT NULL DEFAULT '',
-        op           TEXT NOT NULL DEFAULT '',
-        request_hash TEXT NOT NULL,
-        status       INTEGER NOT NULL,
-        response     TEXT NOT NULL,
-        created_at   TEXT NOT NULL,
-        PRIMARY KEY (account_id, key)
-      )`,
-    )
-    .run();
+  await schemaOnceForDb(db, 'offline_ops_schema_v20', async () => {
+    await db
+      .prepare(
+        `CREATE TABLE IF NOT EXISTS offline_idempotency (
+          key          TEXT NOT NULL,
+          account_id   TEXT NOT NULL DEFAULT 'default',
+          device_id    TEXT NOT NULL DEFAULT '',
+          kind         TEXT NOT NULL DEFAULT '',
+          op           TEXT NOT NULL DEFAULT '',
+          request_hash TEXT NOT NULL,
+          status       INTEGER NOT NULL,
+          response     TEXT NOT NULL,
+          created_at   TEXT NOT NULL,
+          PRIMARY KEY (account_id, key)
+        )`,
+      )
+      .run();
 
-  // Upgrade older 0013 table shape in-place if account_id column does not exist yet
-  try {
-    const info = await db.prepare(`PRAGMA table_info(offline_idempotency)`).all();
-    const cols = new Set((info.results || []).map((r: any) => String(r.name)));
-    if (!cols.has('account_id')) {
-      await db
-        .prepare(
-          `CREATE TABLE IF NOT EXISTS offline_idempotency_v2 (
-            key          TEXT NOT NULL,
-            account_id   TEXT NOT NULL DEFAULT 'default',
-            device_id    TEXT NOT NULL DEFAULT '',
-            kind         TEXT NOT NULL DEFAULT '',
-            op           TEXT NOT NULL DEFAULT '',
-            request_hash TEXT NOT NULL,
-            status       INTEGER NOT NULL,
-            response     TEXT NOT NULL,
-            created_at   TEXT NOT NULL,
-            PRIMARY KEY (account_id, key)
-          )`,
-        )
-        .run();
-      await db
-        .prepare(
-          `INSERT OR IGNORE INTO offline_idempotency_v2 (key, account_id, device_id, kind, op, request_hash, status, response, created_at)
-           SELECT key, 'default', COALESCE(device_id, ''), COALESCE(op, ''), COALESCE(op, ''), request_hash, status, response, created_at FROM offline_idempotency`,
-        )
-        .run();
-      await db.prepare(`DROP TABLE offline_idempotency`).run();
-      await db.prepare(`ALTER TABLE offline_idempotency_v2 RENAME TO offline_idempotency`).run();
-    } else if (!cols.has('kind')) {
-      await addColumnIfMissing(db, 'offline_idempotency', 'kind', `TEXT NOT NULL DEFAULT ''`);
+    // Auto-upgrade older 0013 table shape (missing account_id or single-column PK on key)
+    try {
+      const info = await db.prepare(`PRAGMA table_info(offline_idempotency)`).all();
+      const rows = (info.results || []) as Array<{ name?: string; pk?: number }>;
+      if (rows.length > 0) {
+        const cols = new Set(rows.map((r) => String(r.name)));
+        const accountPk = Number(rows.find((r) => String(r.name) === 'account_id')?.pk || 0);
+        const keyPk = Number(rows.find((r) => String(r.name) === 'key')?.pk || 0);
+        if (!cols.has('account_id') || accountPk === 0 || keyPk === 0) {
+          const accountExpr = cols.has('account_id') ? `COALESCE(NULLIF(account_id, ''), 'default')` : `'default'`;
+          const kindExpr = cols.has('kind') ? `COALESCE(NULLIF(kind, ''), op, '')` : `COALESCE(op, '')`;
+          await db
+            .prepare(
+              `CREATE TABLE IF NOT EXISTS offline_idempotency_v2 (
+                key          TEXT NOT NULL,
+                account_id   TEXT NOT NULL DEFAULT 'default',
+                device_id    TEXT NOT NULL DEFAULT '',
+                kind         TEXT NOT NULL DEFAULT '',
+                op           TEXT NOT NULL DEFAULT '',
+                request_hash TEXT NOT NULL,
+                status       INTEGER NOT NULL,
+                response     TEXT NOT NULL,
+                created_at   TEXT NOT NULL,
+                PRIMARY KEY (account_id, key)
+              )`,
+            )
+            .run();
+          await db
+            .prepare(
+              `INSERT OR IGNORE INTO offline_idempotency_v2 (key, account_id, device_id, kind, op, request_hash, status, response, created_at)
+               SELECT key, ${accountExpr}, COALESCE(device_id, ''), ${kindExpr}, COALESCE(op, ''), request_hash, status, response, created_at FROM offline_idempotency`,
+            )
+            .run();
+          await db.prepare(`DROP TABLE offline_idempotency`).run();
+          await db.prepare(`ALTER TABLE offline_idempotency_v2 RENAME TO offline_idempotency`).run();
+        } else if (!cols.has('kind')) {
+          await addColumnIfMissing(db, 'offline_idempotency', 'kind', `TEXT NOT NULL DEFAULT ''`);
+        }
+      }
+    } catch {
+      /* */
     }
-  } catch {
-    /* */
-  }
 
-  await db
-    .prepare(`CREATE INDEX IF NOT EXISTS idx_offline_idem_created ON offline_idempotency(created_at)`)
-    .run();
+    await db
+      .prepare(`CREATE INDEX IF NOT EXISTS idx_offline_idem_created ON offline_idempotency(created_at)`)
+      .run();
 
-  await db
-    .prepare(
-      `CREATE TABLE IF NOT EXISTS stock_location_revisions (
-        product_id  INTEGER NOT NULL,
-        location_id INTEGER NOT NULL,
-        revision    INTEGER NOT NULL DEFAULT 1,
-        updated_at  TEXT NOT NULL,
-        PRIMARY KEY (product_id, location_id)
-      )`,
-    )
-    .run();
+    await db
+      .prepare(
+        `CREATE TABLE IF NOT EXISTS stock_location_revisions (
+          product_id  INTEGER NOT NULL,
+          location_id INTEGER NOT NULL,
+          revision    INTEGER NOT NULL DEFAULT 1,
+          updated_at  TEXT NOT NULL,
+          PRIMARY KEY (product_id, location_id)
+        )`,
+      )
+      .run();
 
-  await db
-    .prepare(
-      `CREATE TABLE IF NOT EXISTS stock_movements (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        product_id INTEGER NOT NULL,
-        type TEXT DEFAULT '',
-        quantity REAL DEFAULT 0,
-        previous_quantity REAL DEFAULT 0,
-        new_quantity REAL DEFAULT 0,
-        reason TEXT DEFAULT '',
-        reference TEXT DEFAULT '',
-        created_by TEXT DEFAULT '',
-        created_at TEXT DEFAULT (datetime('now'))
-      )`,
-    )
-    .run();
-  await addColumnIfMissing(db, 'stock_movements', 'location_id', 'TEXT');
-  await addColumnIfMissing(db, 'stock_movements', 'device_id', 'TEXT');
-  await addColumnIfMissing(db, 'stock_movements', 'client_ts', 'TEXT');
-  await addColumnIfMissing(db, 'stock_movements', 'client_occurred_at', 'TEXT');
-  _initializedDbs.add(db as unknown as object);
+    // Auto-upgrade older 0013 TEXT keys on stock_location_revisions -> INTEGER keys
+    try {
+      const revInfo = await db.prepare(`PRAGMA table_info(stock_location_revisions)`).all();
+      const revCols = (revInfo.results || []) as Array<{ name?: string; type?: string }>;
+      if (revCols.length > 0) {
+        const pidType = String(revCols.find((r) => String(r.name) === 'product_id')?.type || '').toUpperCase();
+        const lidType = String(revCols.find((r) => String(r.name) === 'location_id')?.type || '').toUpperCase();
+        if (pidType !== 'INTEGER' || lidType !== 'INTEGER') {
+          await db
+            .prepare(
+              `CREATE TABLE IF NOT EXISTS stock_location_revisions_v2 (
+                product_id  INTEGER NOT NULL,
+                location_id INTEGER NOT NULL,
+                revision    INTEGER NOT NULL DEFAULT 1,
+                updated_at  TEXT NOT NULL,
+                PRIMARY KEY (product_id, location_id)
+              )`,
+            )
+            .run();
+          await db
+            .prepare(
+              `INSERT OR IGNORE INTO stock_location_revisions_v2 (product_id, location_id, revision, updated_at)
+               SELECT CAST(product_id AS INTEGER), CAST(location_id AS INTEGER), revision, updated_at
+               FROM stock_location_revisions
+               WHERE CAST(product_id AS INTEGER) > 0 AND CAST(location_id AS INTEGER) > 0`,
+            )
+            .run();
+          await db.prepare(`DROP TABLE stock_location_revisions`).run();
+          await db.prepare(`ALTER TABLE stock_location_revisions_v2 RENAME TO stock_location_revisions`).run();
+        }
+      }
+    } catch {
+      /* */
+    }
+
+    await db
+      .prepare(
+        `CREATE TABLE IF NOT EXISTS stock_movements (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          product_id INTEGER NOT NULL,
+          type TEXT DEFAULT '',
+          quantity REAL DEFAULT 0,
+          previous_quantity REAL DEFAULT 0,
+          new_quantity REAL DEFAULT 0,
+          reason TEXT DEFAULT '',
+          reference TEXT DEFAULT '',
+          created_by TEXT DEFAULT '',
+          created_at TEXT DEFAULT (datetime('now'))
+        )`,
+      )
+      .run();
+    await addColumnIfMissing(db, 'stock_movements', 'location_id', 'TEXT');
+    await addColumnIfMissing(db, 'stock_movements', 'device_id', 'TEXT');
+    await addColumnIfMissing(db, 'stock_movements', 'client_ts', 'TEXT');
+    await addColumnIfMissing(db, 'stock_movements', 'client_occurred_at', 'TEXT');
+  });
 }
 
 /**

@@ -10,7 +10,8 @@ import { registerSnakeScoreRoutes } from './routes/snakeScore';
 import { registerWorkStatusRoute } from './routes/workStatus';
 import { Hono } from 'hono';
 import { isQuickSaleIntent } from './lib/quick-assist-intent';
-import { schemaOnce } from './lib/schema';
+import { schemaOnce, registerDbRoot, resolveRootDb } from './lib/schema';
+import { ensureAutoSqlMigrations } from './lib/autoMigrations';
 import {
   sha256Hex,
   ensurePaymentHistoryTable,
@@ -835,6 +836,7 @@ app.use('*', async (c, next) => {
     }
 
     if (session) {
+      registerDbRoot(session, rawDb);
       (c.env as any).DB = session;
     }
   }
@@ -919,8 +921,10 @@ app.use('*', async (c, next) => {
       if (flag === 'target') {
         const target = c.env.DB_TARGET as any;
         if ((new URL(c.req.url).pathname.startsWith(`${NATIVE_V2}/`) || c.req.header('Authorization')?.startsWith('Bearer np1.')) && typeof target.withSession !== 'function') throw new Error('Native v2 requires a primary D1 session');
-        (c.env as any).DB = privateResource && typeof target.withSession === 'function'
+        const targetDb = privateResource && typeof target.withSession === 'function'
           ? target.withSession('first-primary') : target;
+        registerDbRoot(targetDb, target);
+        (c.env as any).DB = targetDb;
       }
     } catch {
       // Never silently switch this private resource back to the source database
@@ -930,6 +934,12 @@ app.use('*', async (c, next) => {
       }
     }
   }
+  await next();
+});
+
+app.use('/api/*', async (c, next) => {
+  const migrationDb = (resolveRootDb((c.env as any).DB) || (c.env as any).DB) as D1Database | undefined;
+  await ensureAutoSqlMigrations(migrationDb);
   await next();
 });
 
@@ -2843,6 +2853,11 @@ export default {
    * failures stay 'pending' with exponential backoff (max 5 attempts).
    */
   async scheduled(event: any, env: Env, ctx: ExecutionContext): Promise<void> {
+    try {
+      await ensureAutoSqlMigrations(env.DB);
+    } catch (e) {
+      console.error('[cron-migrations] auto schema failed:', String((e as any)?.message || e));
+    }
     try {
       const report = await runFinanceReminders(env);
       console.log('[cron-finance]', JSON.stringify(report));
