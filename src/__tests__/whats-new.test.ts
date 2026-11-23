@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { RELEASES } from '../pages/WhatsNew';
+import { REPO_CONTRIBUTORS, getContributorsForRelease } from '../lib/contributors';
 import { APP_VERSION, DISPLAY_VERSION, RELEASE_VISIBLE_CAP, WHATS_NEW_VERSION, semverAtMost } from '../version';
 
 /**
@@ -158,5 +159,19 @@ describe('WhatsNew releases', () => {
     ]) {
       expect(versions).toContain(kept);
     }
+  });
+
+  it('includes 0.9.1 UI polish, image lightbox, and runtime hardening additions without altering the release date', () => {
+    const r091 = RELEASES[0];
+    expect(r091.version).toBe('0.9.1');
+    expect(r091.date).toBe('22 novembre 2026');
+    const items = r091.sections.flatMap((s) => s.items);
+    const ids = items.map((i) => i.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const id of ['091ui10', '091ui11', '091ui12', '091c4']) {
+      expect(ids).toContain(id);
+    }
+    expect(REPO_CONTRIBUTORS.length).toBeGreaterThan(0);
+    expect(getContributorsForRelease('0.9.1').length).toBeGreaterThan(0);
   });
 });

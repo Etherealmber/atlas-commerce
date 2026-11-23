@@ -1,7 +1,7 @@
 import { Link, useSearchParams } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
-import { Sparkles, Wrench, AlertCircle, ArrowUpCircle } from 'lucide-react';
+import { Sparkles, Wrench, AlertCircle, ArrowUpCircle, Heart, Users } from 'lucide-react';
 import { RELEASE_VISIBLE_CAP, semverAtMost } from '../version';
 import { markWhatsNewSeen } from '../lib/whatsNew';
 import { isLoggedIn, getToken } from '../auth';
@@ -53,10 +53,14 @@ export const RELEASES: Release[] = [
       { id: '091ui3', platforms: ['web', 'server'], text: 'Rapports TVA : les ventes rapides sont classées sans TVA ; les anciens montants enregistrés ne sont pas réécrits. Les devis convertis en vente rapide conservent leurs prix unitaires sans TVA ; les devis déjà payés exigent une régularisation préalable.' },
       { id: '091ui4', platforms: ['web', 'server'], text: 'Demandes mobiles de stock : l’utilisateur connecté qui les traite est enregistré comme approbateur du mouvement ; les identités absentes des anciens enregistrements restent inconnues.' },
       { id: '091ui9', platforms: ['web'], text: 'Nouveautés sur mobile : les plateformes concernées et les icônes des catégories suivent la présentation du journal sur ordinateur.' },
+      { id: '091ui10', platforms: ['server', 'web'], text: 'Moteur financier Rust compilé en WebAssembly (ABI v2) : calculs des factures, achats, paiements, remboursements, remises et arrondis vérifiés à l’identique entre le serveur et l’interface web, avec contrôle strict au démarrage.' },
+      { id: '091ui11', platforms: ['server', 'web'], text: 'Fiabilité et concurrence des écritures : clés d’idempotence sur les factures, achats, reçus et paies, protection contre les doubles paiements ou avances concurrentes, contrôle des imports/sauvegardes et corrélation des requêtes (X-Request-Id).' },
+      { id: '091ui12', platforms: ['web'], text: 'Thème sombre, animations et aperçu d’images : élévations de surfaces et contrastes affinés sur ordinateur et mobile, micro-animations sur les bannières et cartes, visionneuse d’images avec zoom et attribution « Remerciements & contributeurs » / « Merci à » enrichie sur PC et mobile.' },
     ] }, { kind: 'fixes', items: [
       { id: '091c1', platforms: ['web', 'server'], text: 'Ventes rapides : aucun calcul de TVA, quel que soit le mode de prix des produits ; les anciennes ventes avec TVA enregistrée ne sont pas modifiées automatiquement.' },
       { id: '091c2', platforms: ['web', 'server'], text: 'Sessions : les anciens droits sont refusés après un changement de rôle et la session web peut être actualisée sans déconnexion. Les liens d’impression utilisent une autorisation distincte des rapports.' },
       { id: '091c3', platforms: ['web', 'server'], text: 'Conversion de devis : les mises à jour du document et du stock sont regroupées ; une erreur de stock ne laisse pas de conversion partielle.' },
+      { id: '091c4', platforms: ['server', 'web'], text: 'Sécurité et précision numérique : normalisation stricte des nombres et montants négatifs, neutralisation des formules dans les exports CSV, limite de taille des requêtes API (2 Mo) et confidentialité des prix/coûts maintenue pour le rôle magasinier.' },
     ] }],
   },
   {
@@ -1306,29 +1310,45 @@ export default function WhatsNew() {
         Nouveautés
       </motion.h1>
 
-      <section className="wn-thanks-card" aria-label="Remerciements et contributeurs">
-        <h2 className="wn-thanks-title">Remerciements &amp; contributeurs</h2>
-        <p className="wn-thanks-sub">
-          Merci à toutes les personnes qui ont contribué par leurs commits et améliorations à Atlas Commerce :
-        </p>
+      <motion.section
+        className="wn-thanks-card"
+        aria-label="Remerciements et contributeurs"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.04, duration: 0.3 }}
+      >
+        <div className="wn-thanks-head">
+          <span className="wn-thanks-ico" aria-hidden="true">
+            <Users size={16} strokeWidth={2.2} />
+          </span>
+          <div>
+            <h2 className="wn-thanks-title">Remerciements &amp; contributeurs</h2>
+            <p className="wn-thanks-sub">
+              Merci à toutes les personnes qui ont contribué par leurs commits et améliorations à Atlas Commerce :
+            </p>
+          </div>
+        </div>
         <div className="wn-contributors">
-          {contributors.map((c) => (
+          {contributors.map((c, idx) => (
             <a
               key={c.login}
               href={c.url}
               target="_blank"
               rel="noreferrer noopener"
               className="wn-contributor-pill"
+              style={{ animationDelay: `${Math.min(idx * 45, 240)}ms` }}
               title={`${c.name} — ${c.role}`}
             >
               {c.avatarUrl ? (
                 <img src={c.avatarUrl} alt="" width={20} height={20} className="wn-contributor-avatar" loading="lazy" decoding="async" />
-              ) : null}
-              <span>{c.name !== c.login ? `${c.name} (${c.handle})` : c.handle}</span>
+              ) : (
+                <span className="wn-contributor-fallback" aria-hidden="true">{c.name.slice(0, 1).toUpperCase()}</span>
+              )}
+              <span className="wn-contributor-name">{c.name !== c.login ? `${c.name} (${c.handle})` : c.handle}</span>
             </a>
           ))}
         </div>
-      </section>
+      </motion.section>
 
       <div className="wn-releases">
         {releases.map((rel, ri) => {
@@ -1373,7 +1393,7 @@ export default function WhatsNew() {
               );
             })}
             <div className="wn-release-contributors" aria-label={`Contributeurs de la version ${rel.version}`}>
-              <span className="wn-contributors-label">Merci à</span>
+              <span className="wn-contributors-label"><Heart size={13} strokeWidth={2.2} aria-hidden="true" /> Merci à</span>
               {relContributors.map((c) => (
                 <a
                   key={`${rel.version}-${c.login}`}
@@ -1385,8 +1405,10 @@ export default function WhatsNew() {
                 >
                   {c.avatarUrl ? (
                     <img src={c.avatarUrl} alt="" width={20} height={20} className="wn-contributor-avatar" loading="lazy" decoding="async" />
-                  ) : null}
-                  <span>{c.handle}</span>
+                  ) : (
+                    <span className="wn-contributor-fallback" aria-hidden="true">{c.name.slice(0, 1).toUpperCase()}</span>
+                  )}
+                  <span className="wn-contributor-name">{c.handle}</span>
                 </a>
               ))}
             </div>

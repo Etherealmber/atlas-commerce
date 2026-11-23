@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Heart, Users } from 'lucide-react';
 import { KIND_META, PLAT_LABEL, RELEASES } from '../pages/WhatsNew';
 import { RELEASE_VISIBLE_CAP, semverAtMost } from '../version';
 import { markWhatsNewSeen } from '../lib/whatsNew';
@@ -24,13 +25,28 @@ export default function PhoneWhatsNew() {
     <div className="ph-version-history">
       <p>Historique des changements publiés et des plateformes concernées.</p>
       <section className="ph-settings-card wn-thanks-card" aria-label="Remerciements et contributeurs">
-        <h2 className="wn-thanks-title">Remerciements &amp; contributeurs</h2>
-        <p className="wn-thanks-sub">Merci aux personnes ayant contribué à Atlas Commerce :</p>
+        <div className="wn-thanks-head">
+          <span className="wn-thanks-ico" aria-hidden="true">
+            <Users size={16} strokeWidth={2.2} />
+          </span>
+          <div>
+            <h2 className="wn-thanks-title">Remerciements &amp; contributeurs</h2>
+            <p className="wn-thanks-sub">Merci à toutes les personnes qui ont contribué par leurs commits et améliorations à Atlas Commerce :</p>
+          </div>
+        </div>
         <div className="wn-contributors">
-          {contributors.map((c) => (
-            <a key={c.login} href={c.url} target="_blank" rel="noreferrer noopener" className="wn-contributor-pill">
-              {c.avatarUrl ? <img src={c.avatarUrl} alt="" width={20} height={20} className="wn-contributor-avatar" loading="lazy" decoding="async" /> : null}
-              <span>{c.name !== c.login ? `${c.name} (${c.handle})` : c.handle}</span>
+          {contributors.map((c, idx) => (
+            <a
+              key={c.login}
+              href={c.url}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="wn-contributor-pill"
+              style={{ animationDelay: `${Math.min(idx * 45, 240)}ms` }}
+              title={`${c.name} — ${c.role}`}
+            >
+              {c.avatarUrl ? <img src={c.avatarUrl} alt="" width={20} height={20} className="wn-contributor-avatar" loading="lazy" decoding="async" /> : <span className="wn-contributor-fallback" aria-hidden="true">{c.name.slice(0, 1).toUpperCase()}</span>}
+              <span className="wn-contributor-name">{c.name !== c.login ? `${c.name} (${c.handle})` : c.handle}</span>
             </a>
           ))}
         </div>
@@ -61,11 +77,11 @@ export default function PhoneWhatsNew() {
             );
           })}
           <div className="wn-release-contributors" aria-label={`Contributeurs de la version ${release.version}`}>
-            <span className="wn-contributors-label">Merci à</span>
+            <span className="wn-contributors-label"><Heart size={13} strokeWidth={2.2} aria-hidden="true" /> Merci à</span>
             {relContributors.map((c) => (
-              <a key={`${release.version}-${c.login}`} href={c.url} target="_blank" rel="noreferrer noopener" className="wn-contributor-pill">
-                {c.avatarUrl ? <img src={c.avatarUrl} alt="" width={20} height={20} className="wn-contributor-avatar" loading="lazy" decoding="async" /> : null}
-                <span>{c.handle}</span>
+              <a key={`${release.version}-${c.login}`} href={c.url} target="_blank" rel="noreferrer noopener" className="wn-contributor-pill" title={`${c.name} (${c.handle})`}>
+                {c.avatarUrl ? <img src={c.avatarUrl} alt="" width={20} height={20} className="wn-contributor-avatar" loading="lazy" decoding="async" /> : <span className="wn-contributor-fallback" aria-hidden="true">{c.name.slice(0, 1).toUpperCase()}</span>}
+                <span className="wn-contributor-name">{c.handle}</span>
               </a>
             ))}
           </div>

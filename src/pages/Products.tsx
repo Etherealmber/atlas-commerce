@@ -17,8 +17,9 @@ import { numStr, numFromInput } from '../lib/numInput';
 import NumberField from '../components/NumberField';
 import VirtualTableBody, { VirtualScroll } from '../components/VirtualTableBody';
 import { canAccessAdminSettings, canSell, sanitizePreviewUrl } from '../auth';
-import { Grid2X2, List, Pencil, Plus, SlidersHorizontal, Tags } from 'lucide-react';
-import ProductArtwork from '../components/ProductArtwork';
+import { Grid2X2, List, Pencil, Plus, SlidersHorizontal, Tags, ZoomIn } from 'lucide-react';
+import ProductArtwork, { productImageUrl } from '../components/ProductArtwork';
+import ImageLightbox from '../components/ui/ImageLightbox';
 import { phoneStockIsLow, phoneStockQuantity } from '../mobile/phoneStock';
 import { dualStockLabel, mergeUnitOptions, type UnitOption } from '../lib/dualUnit';
 import './product-history.css';
@@ -107,6 +108,7 @@ function StagedPhotoThumb({ url }: { url: string }) {
 export default function Products() {
   const navigate = useNavigate();
   const [modalError, setModalError] = useState('');
+  const [previewImage, setPreviewImage] = useState<{ src: string; name: string } | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const { confirm, prompt } = useUi();
   const hideMoney = !canSell();
@@ -729,10 +731,25 @@ export default function Products() {
         </div>
         {catalogView === 'grid' ? <>
           {paged.length > 0 && <label className="desktop-product-select-all"><input type="checkbox" checked={paged.every(p => selected.has(p.id))} onChange={() => setSelected(prev => { const next = new Set(prev); const all = paged.every(p => next.has(p.id)); paged.forEach(p => all ? next.delete(p.id) : next.add(p.id)); return next; })} /> Tout sélectionner</label>}
-          {filtered.length === 0 ? <EmptyState title="Aucun produit" description="Essayez une autre recherche ou ajoutez un produit." actionLabel="Ajouter un produit" onAction={openNew} icon="package" /> : <div className="desktop-product-grid">{paged.map(p => <article className="desktop-product-card" key={p.id}>
+          {filtered.length === 0 ? <EmptyState title="Aucun produit" description="Essayez une autre recherche ou ajoutez un produit." actionLabel="Ajouter un produit" onAction={openNew} icon="package" /> : <div className="desktop-product-grid">{paged.map(p => { const imgUrl = productImageUrl(p.image_url); return <article className="desktop-product-card" key={p.id}>
+            {imgUrl && (
+              <button
+                type="button"
+                className="desktop-product-zoom-btn"
+                title={`Agrandir la photo de ${p.name}`}
+                aria-label={`Agrandir la photo de ${p.name}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setPreviewImage({ src: imgUrl, name: p.name });
+                }}
+              >
+                <ZoomIn size={15} aria-hidden="true" />
+              </button>
+            )}
             <Link to={`/products/${p.id}/historique`} className="desktop-product-card-link"><ProductArtwork url={p.image_url} /><strong>{p.name}</strong><span>{p.sku || p.barcode || 'Sans référence'}</span><div className="desktop-product-chips"><span className={`product-stock-chip ${!p.track_inventory ? 'untracked' : phoneStockQuantity(p) <= 0 ? 'out' : phoneStockIsLow(p) ? 'low' : 'ok'}`}>{p.track_inventory ? `Stock ${dualStockLabel(p)}` : 'Stock non suivi'}</span>{!hideMoney && p.price != null && <span>{fmt(p.price)} MAD</span>}</div></Link>
             <div className="desktop-product-actions"><label title="Sélectionner le produit"><input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleOne(p.id)} aria-label={`Sélectionner ${p.name}`} /><span>Sélectionner</span></label>{p.track_inventory && <button type="button" className="secondary" title="Ajuster le stock" aria-label={`Ajuster le stock de ${p.name}`} onClick={() => { setModalError(''); setAdjustProduct(p); }}><SlidersHorizontal size={18} aria-hidden="true" /></button>}<button type="button" className="secondary" title="Modifier" aria-label={`Modifier ${p.name}`} onClick={() => openEdit(p)}><Pencil size={18} aria-hidden="true" /></button><button type="button" className="secondary" title="Étiquette" aria-label={`Étiquette de ${p.name}`} onClick={() => window.open(api.labelUrl(p.id), '_blank', 'noopener')}><Tags size={18} aria-hidden="true" /></button><TimedUndoDelete iconOnly width="44px" deleteLabel={`Supprimer ${p.name}`} undoLabel="Annuler la suppression" initialSeconds={10} onConfirm={() => deleteOne(p.id)} /></div>
-          </article>)}</div>}
+          </article>; })}</div>}
         </> : <VirtualScroll maxHeight={paged.length > 60 ? 560 : undefined}>
           <table className="data-dense ac-products-table">
             <thead>
@@ -1256,6 +1273,13 @@ export default function Products() {
             </div>
           </div>
         </div></FloatingPortal>
+      )}
+      {previewImage && (
+        <ImageLightbox
+          src={previewImage.src}
+          name={previewImage.name}
+          onClose={() => setPreviewImage(null)}
+        />
       )}
     </div>
   );

@@ -67,7 +67,10 @@ html[data-theme="dark"] .ac-nav-item:hover {
 .atlas-page .card,
 .atlas-crm .card,
 .ac-products-table-panel,
-.whats-new-list {
+.whats-new-list,
+.bal-reports-bar,
+.wn-thanks-card,
+.about-section {
   animation: ac-panel-in 0.32s cubic-bezier(0.2, 0, 0, 1) both;
 }
 @keyframes ac-panel-in {
@@ -78,6 +81,16 @@ html[data-theme="dark"] .ac-nav-item:hover {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+@keyframes ac-img-fade {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 
@@ -107,19 +120,30 @@ h1, h2, .atlas-page h1, .page-title {
   text-wrap: balance;
 }
 
-/* Image outline */
+/* Image outline & smooth reveal */
 img.ac-topbar-avatar,
 .product-thumb img,
 .thumb img,
 .product-image-editor img {
-  outline: 1px solid var(--line, rgba(15, 23, 42, 0.14));
-  background: #ffffff;
+  outline: 1px solid var(--ac-border-subtle, rgba(15, 23, 42, 0.14));
+  background: var(--ac-surface-subtle, #f8fafc);
 }
 html[data-theme="dark"] img.ac-topbar-avatar,
 html[data-theme="dark"] .product-thumb img,
+html[data-theme="dark"] .thumb img,
 html[data-theme="dark"] .product-image-editor img {
-  outline-color: #3f3f46;
-  background: #26262a;
+  outline-color: rgba(255, 255, 255, 0.1);
+  background: #222227;
+}
+.product-artwork.is-loaded img {
+  animation: ac-img-fade 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.dl-shot-card img,
+.welcome-preview-media img {
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), filter 0.2s ease;
+}
+.dl-shot-card:hover img {
+  transform: scale(1.018);
 }
 
 /* Prefer reduced motion */

@@ -1,12 +1,13 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, ChevronRight, ExternalLink, FileText, Globe, Info, Palette, Share2, Sparkles } from 'lucide-react';
+import { Camera, ChevronRight, ExternalLink, FileText, Globe, Heart, Info, Palette, Share2, Sparkles, Users } from 'lucide-react';
 import { DISPLAY_VERSION } from '../version';
 import type { UiScale } from '../lib/density';
 import PhoneDialog from './PhoneDialog';
 import { getRole } from '../auth';
 import { phoneDockItems } from './PhoneDock';
 import { getScanPreference, setScanPreference, type ScanPreference } from './phoneScanPreferences';
+import { REPO_CONTRIBUTORS, fetchRepoContributors, type Contributor } from '../lib/contributors';
 
 export type PhonePreferenceProps = { theme: string; onTheme: (t: 'light' | 'dark' | 'system') => void; animations: boolean; onAnimations: (v: boolean) => void; compact: boolean; onCompact: (v: boolean) => void; scale: UiScale; onScale: (v: UiScale) => void; startTab: string; onStartTab: (path: string) => void };
 function SettingSwitch({ title, description, checked, onChange }: { title: string; description: string; checked: boolean; onChange: (value: boolean) => void }) {
@@ -35,6 +36,14 @@ export default function PhoneSettings({ theme, onTheme, animations, onAnimations
   const [scan, setScan] = useState(() => ({ autoCamera: getScanPreference('autoCamera'), vibrate: getScanPreference('vibrate'), sound: getScanPreference('sound') }));
   const [scanNotice, setScanNotice] = useState('');
   const [shareNotice, setShareNotice] = useState('');
+  const [contributors, setContributors] = useState<Contributor[]>(REPO_CONTRIBUTORS);
+  useEffect(() => {
+    let alive = true;
+    fetchRepoContributors().then((list) => {
+      if (alive) setContributors(list);
+    });
+    return () => { alive = false; };
+  }, []);
   const updateScan = (key: ScanPreference, value: boolean) => {
     if (!setScanPreference(key, value)) { setScanNotice('Impossible de sauvegarder cette préférence dans ce navigateur.'); return; }
     setScanNotice(''); setScan(current => ({ ...current, [key]: value }));
@@ -62,6 +71,30 @@ export default function PhoneSettings({ theme, onTheme, animations, onAnimations
       <ExternalSetting href="/privacy" icon={<FileText size={20} aria-hidden="true" />} title="Confidentialité" description="Politique de confidentialité" />
       <ExternalSetting href="/terms" icon={<FileText size={20} aria-hidden="true" />} title="Conditions d’utilisation" description="Conditions du service" />
       <ExternalSetting href="/licenses" icon={<FileText size={20} aria-hidden="true" />} title="Licences open source" description="Logiciels et licences" />
+    </section>
+    <section className="ph-settings-card wn-thanks-card" aria-label="Remerciements et contributeurs">
+      <h2><Users size={19} aria-hidden="true" /> Remerciements &amp; contributeurs</h2>
+      <p className="wn-thanks-sub">Merci à toutes les personnes qui contribuent à Atlas Commerce :</p>
+      <div className="wn-contributors">
+        {contributors.map((c, idx) => (
+          <a
+            key={c.login}
+            href={c.url}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="wn-contributor-pill"
+            style={{ animationDelay: `${Math.min(idx * 45, 240)}ms` }}
+            title={`${c.name} — ${c.role}`}
+          >
+            {c.avatarUrl ? <img src={c.avatarUrl} alt="" width={20} height={20} className="wn-contributor-avatar" loading="lazy" decoding="async" /> : <span className="wn-contributor-fallback" aria-hidden="true">{c.name.slice(0, 1).toUpperCase()}</span>}
+            <span className="wn-contributor-name">{c.name !== c.login ? `${c.name} (${c.handle})` : c.handle}</span>
+          </a>
+        ))}
+      </div>
+      <div className="wn-release-contributors">
+        <span className="wn-contributors-label"><Heart size={13} strokeWidth={2.2} aria-hidden="true" /> Merci à</span>
+        <span className="wn-thanks-sub" style={{ margin: 0 }}>l’équipe et aux contributeurs · voir chaque version dans Nouveautés</span>
+      </div>
     </section>
   </div>;
 }

@@ -30,16 +30,16 @@
 
 html.dark,
 [data-theme="dark"] {
-  --atlas-bg-app: #0f172a;
-  --atlas-bg-surface: #1e293b;
-  --atlas-bg-hover: #334155;
-  --atlas-border: #334155;
-  --atlas-text-primary: #f8fafc;
-  --atlas-text-secondary: #94a3b8;
-  --atlas-accent: #71717a;
-  --atlas-accent-hover: #a5b4fc;
-  --atlas-accent-soft: rgba(139, 156, 255, 0.14);
-  --atlas-success: #a1a1aa;
+  --atlas-bg-app: #111113;
+  --atlas-bg-surface: #1c1c1f;
+  --atlas-bg-hover: #27272a;
+  --atlas-border: rgba(255, 255, 255, 0.09);
+  --atlas-text-primary: #f4f4f5;
+  --atlas-text-secondary: #a1a1aa;
+  --atlas-accent: #e4e4e7;
+  --atlas-accent-hover: #fafafa;
+  --atlas-accent-soft: rgba(255, 255, 255, 0.08);
+  --atlas-success: #86efac;
   --atlas-warning: #fbbf24;
   --atlas-danger: #f87171;
 }
