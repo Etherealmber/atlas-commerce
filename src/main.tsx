@@ -47,8 +47,8 @@ try {
     html[data-theme="dark"] .sidebar, html[data-theme="dark"] aside.sidebar,
     html[data-theme="dark"] .ac-topbar, html[data-theme="dark"] .settings-topbar,
     html[data-theme="dark"] .content, html[data-theme="dark"] body {
-      background: #09090b !important;
-      color: #f4f4f5 !important;
+      background: #121317 !important;
+      color: #e3e5eb !important;
       border-color: rgba(255, 255, 255, 0.08) !important;
     }
     html[data-theme="dark"] .ac-mail-panel .ac-notif-item,

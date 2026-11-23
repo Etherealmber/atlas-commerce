@@ -6,10 +6,6 @@ export default function Privacy() {
   return (
     <div className="privacy-page">
       <div className="privacy-inner">
-        <p className="privacy-nav">
-          <Link to="/terms">Conditions</Link>{' · '}<Link to="/licenses">Licences</Link>
-          {' · '}<button type="button" className="privacy-link-btn" onClick={() => openConsentSettings()}>Gérer les cookies</button>
-        </p>
         <h1>Politique de confidentialité</h1>
         <p className="privacy-meta">{APP_NAME} · Dernière mise à jour : 20 octobre 2026</p>
         <section>

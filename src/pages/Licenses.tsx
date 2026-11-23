@@ -1,13 +1,7 @@
-import { Link } from 'react-router-dom';
-
 export default function Licenses() {
   return (
     <div className="privacy-page">
       <div className="privacy-inner">
-        <p className="privacy-nav">
-          <Link to="/privacy">Confidentialité</Link>
-          {' · '}<Link to="/terms">Conditions</Link>
-        </p>
         <h1>Licences</h1>
         <p>Atlas Commerce est proposé au choix sous la licence MIT ou la licence Apache 2.0
           (<code>MIT OR Apache-2.0</code>). Les composants tiers peuvent être soumis à leurs propres licences et avis.</p>

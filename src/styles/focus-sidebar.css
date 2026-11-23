@@ -25,8 +25,8 @@
 html[data-theme="dark"] .public-about,
 html[data-theme="dark"] .public-whats-new,
 html[data-theme="dark"] .public-legal {
-  background: #09090b;
-  color: #f4f4f5;
+  background: #121317;
+  color: #e3e5eb;
 }
 
 .public-about .atlas-focus-layout,

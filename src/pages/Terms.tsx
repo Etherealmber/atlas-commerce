@@ -5,10 +5,6 @@ export default function Terms() {
   return (
     <div className="privacy-page terms-page">
       <div className="privacy-inner">
-        <p className="privacy-nav">
-          <Link to="/privacy">Confidentialité</Link>
-          {' · '}<Link to="/licenses">Licences</Link>
-        </p>
         <h1>Conditions d’utilisation</h1>
         <p className="privacy-meta">{APP_NAME} · Dernière mise à jour : 20 octobre 2026</p>
         <section>
