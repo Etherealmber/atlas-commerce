@@ -20,6 +20,7 @@ import { friendlyError } from '../lib/errors';
 import { validateBillForm, firstError } from '../lib/formValidate';
 import { PAYMENT_METHODS, paymentMethodLabel, remainingBalance } from '../lib/money';
 import RefreshIconButton from '../components/RefreshIconButton';
+import PageSkeleton from '../components/PageSkeleton';
 import { FloatingPortal } from '../components/FloatingPortal';
 import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
 import { ModalFormError, FieldHint } from '../components/ModalFormFeedback';
@@ -334,7 +335,7 @@ export default function Bills() {
   const safePage = Math.min(page, totalPages - 1);
   const paged = filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
 
-  if (loading) return <div className="empty">Chargement des factures d'achat...</div>;
+  if (loading) return <div className="bills-page"><PageSkeleton variant="list" /></div>;
 
   return (
     <div className="bills-page">

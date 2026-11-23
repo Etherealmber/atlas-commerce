@@ -582,7 +582,7 @@ html[data-density] .badge {
   padding: var(--d-badge-pad);
   font-size: calc(var(--d-table-font) * 0.85);
 }
-html[data-density] .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.mailbox-folder-item):not(.theme-toggle):not(.density-toggle button):not(.mailbox-icon-btn):not(.mailbox-menu-item):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom),
+html[data-density] .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.mailbox-folder-item):not(.theme-toggle):not(.density-toggle button):not(.mailbox-icon-btn):not(.mailbox-menu-item):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.ac-dock-expand):not(.ac-topbar-user-btn):not(.ac-topbar-icon):not(.ac-topbar-bell):not(.ac-topbar-theme):not(.ac-user-dropdown-item):not(.ac-dash-preset):not(.ac-dock-item),
 html[data-density] .content .btn,
 html[data-density] .modal button:not(.density-toggle button),
 html[data-density] .modal .btn {
@@ -591,14 +591,20 @@ html[data-density] .modal .btn {
   min-height: var(--d-row-min);
 }
 html[data-density] .content input:not([type="checkbox"]):not([type="radio"]):not(.ac-search-input):not(.settings-search-input):not(.gsp-input):not(.ac-topbar-search-input),
-html[data-density] .content select,
 html[data-density] .content textarea,
 html[data-density] .modal input:not([type="checkbox"]):not([type="radio"]):not(.ac-search-input):not(.settings-search-input):not(.gsp-input):not(.ac-topbar-search-input),
-html[data-density] .modal select,
 html[data-density] .modal textarea {
   padding: var(--d-input-pad) !important;
   font-size: var(--d-input-font) !important;
   line-height: var(--d-line);
+}
+html[data-density] .content select:not(.atlas-dp-select):not([multiple]):not([size]),
+html[data-density] .modal select:not(.atlas-dp-select):not([multiple]):not([size]) {
+  padding: 0 32px 0 12px !important;
+  font-size: var(--d-input-font) !important;
+  line-height: normal !important;
+  min-height: var(--atlas-control-h, 40px);
+  box-sizing: border-box !important;
 }
 html[data-density] .form-row {
   margin-bottom: var(--d-form-gap);
@@ -5806,10 +5812,10 @@ html[data-density="compact"] .atlas-stat-grid {
 html[data-density="compact"] h1 { font-size: 1.35rem !important; }
 html[data-density="compact"] h2 { font-size: 1.05rem !important; }
 html[data-density="compact"] .content { padding: 12px 14px !important; }
-html[data-density="compact"] input,
-html[data-density="compact"] select,
+html[data-density="compact"] input:not([type="checkbox"]):not([type="radio"]),
+html[data-density="compact"] select:not(.atlas-dp-select),
 html[data-density="compact"] textarea,
-html[data-density="compact"] button {
+html[data-density="compact"] button:not(.ac-dock-expand):not(.ac-topbar-user-btn):not(.ac-topbar-icon):not(.ac-topbar-bell):not(.ac-topbar-theme):not(.ac-dash-preset):not(.atlas-dp-day):not(.atlas-dp-nav):not(.pn-burger-btn) {
   min-height: 36px;
   border-radius: 8px !important;
 }
@@ -6770,7 +6776,7 @@ html[data-density="compact"] button.danger {
   /* tighter footprint — do not change colors here */
   border-radius: 10px !important;
 }
-html[data-density="comfortable"] .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.mailbox-folder-item):not(.atlas-password-toggle):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action),
+html[data-density="comfortable"] .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.mailbox-folder-item):not(.atlas-password-toggle):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action),
 html[data-density="comfortable"] button.primary,
 html[data-density="comfortable"] button.secondary,
 html[data-density="comfortable"] button.danger {
@@ -7670,7 +7676,7 @@ html[data-density="compact"] .content button.secondary:hover {
   background: #f8fafc !important;
   border-color: #cbd5e1 !important;
 }
-html[data-density="compact"] .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.mailbox-folder-item):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.atlas-dp-trigger):not(.mailbox-menu-item):not(.account-menu-item):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action){
+html[data-density="compact"] .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.mailbox-folder-item):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.atlas-dp-trigger):not(.mailbox-menu-item):not(.account-menu-item):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action){
   border-radius: 10px !important;
   font-weight: 600 !important;
 }
@@ -8310,14 +8316,21 @@ html[data-density] table td {
   font-variant-numeric: tabular-nums;
 }
 html[data-density] .content input:not([type="checkbox"]):not([type="radio"]):not(.ac-search-input):not(.settings-search-input):not(.gsp-input):not(.ac-topbar-search-input),
-html[data-density] .content select,
 html[data-density] .content textarea {
   padding: var(--d-input-pad) !important;
   font-size: var(--d-input-font) !important;
   min-height: var(--atlas-control-h);
   border-radius: var(--atlas-radius);
 }
-html[data-density] .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.theme-toggle):not(.settings-nav-item):not(.mailbox-folder-item):not(.icon-refresh-btn):not(.atlas-dp-trigger):not(.mailbox-menu-item):not(.mailbox-icon-btn):not(.ghost):not(.account-menu-item):not(.account-menu-trigger):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action),
+html[data-density] .content select:not(.atlas-dp-select):not([multiple]):not([size]) {
+  padding: 0 32px 0 12px !important;
+  font-size: var(--d-input-font) !important;
+  line-height: normal !important;
+  min-height: var(--atlas-control-h);
+  border-radius: var(--atlas-radius);
+  box-sizing: border-box !important;
+}
+html[data-density] .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.theme-toggle):not(.settings-nav-item):not(.mailbox-folder-item):not(.icon-refresh-btn):not(.atlas-dp-trigger):not(.mailbox-menu-item):not(.mailbox-icon-btn):not(.ghost):not(.account-menu-item):not(.account-menu-trigger):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action):not(.ac-dock-expand):not(.ac-topbar-user-btn):not(.ac-topbar-icon):not(.ac-topbar-bell):not(.ac-topbar-theme):not(.ac-user-dropdown-item):not(.ac-dash-preset):not(.ac-dock-item),
 html[data-density] .content .btn {
   padding: var(--d-btn-pad) !important;
   font-size: var(--d-btn-font) !important;
@@ -9865,8 +9878,8 @@ html[data-theme="dark"] .atlas-tp-footer .atlas-dp-btn {
 
 /* ═══ Smooth page transitions — NO filter:blur (was sticking on some devices) ═══ */
 .page-anim {
-  opacity: 0;
-  transform: translate3d(0, 12px, 0);
+  opacity: 1;
+  transform: none;
   filter: none !important;
   will-change: opacity, transform;
 }
@@ -9940,11 +9953,19 @@ main.phone-main > .page-anim {
   margin: 12px 0 16px;
   flex-wrap: wrap;
 }
+.page-skeleton-kpis,
+.page-skeleton-grid,
+.page-skeleton-toolbar,
+.page-skeleton {
+  background: transparent !important;
+  background-image: none !important;
+  animation: none !important;
+}
 .skeleton {
-  background: linear-gradient(90deg, #e8eaef 0%, #f1f3f7 45%, #e8eaef 90%);
+  background: linear-gradient(100deg, #e5e8ef 20%, #f8fafc 45%, #e5e8ef 70%);
   background-size: 200% 100%;
-  border-radius: 10px;
-  animation: skeleton-shimmer 1.15s ease-in-out infinite;
+  border-radius: 12px;
+  animation: skeleton-shimmer 1.35s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 @keyframes skeleton-shimmer {
   0% { background-position: 100% 0; }
@@ -9968,8 +9989,14 @@ main.phone-main > .page-anim {
 
 html[data-theme="dark"] .skeleton,
 html.theme-dark .skeleton {
-  background: linear-gradient(90deg, #1c1c1f 0%, #2a2a2e 50%, #1c1c1f 100%) !important;
+  background: linear-gradient(100deg, #1b1e26 20%, #2a303f 45%, #1b1e26 70%) !important;
   background-size: 200% 100% !important;
+  animation: skeleton-shimmer 1.35s cubic-bezier(0.4, 0, 0.2, 1) infinite !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none !important;
+  }
 }
 
 /* Soft fade for main content shells */
@@ -12371,7 +12398,7 @@ html[data-theme="dark"] .nav-count-danger {
 }
 
 /* Primary actions — near black (light) / white (dark) */
-.content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.secondary):not(.theme-toggle):not(.icon-refresh-btn):not(.mailbox-icon-btn):not(.atlas-dp-day):not(.atlas-dp-nav):not(.atlas-dp-preset):not(.atlas-dp-btn):not(.account-menu-item):not(.agent-perm-mode):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action),
+.content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.secondary):not(.theme-toggle):not(.icon-refresh-btn):not(.mailbox-icon-btn):not(.atlas-dp-day):not(.atlas-dp-nav):not(.atlas-dp-preset):not(.atlas-dp-btn):not(.account-menu-item):not(.agent-perm-mode):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action),
 .content .btn:not(.secondary),
 .modal button:not(.secondary):not(.app-toast-close):not(.step-wizard__step-btn) {
   background: var(--shell-primary) !important;
@@ -18045,7 +18072,7 @@ html[data-theme="dark"] body .content .grid > .card {
 }
 
 /* Active period pill stays elevated, not pure black */
-html[data-theme="dark"] body .content button:not(.secondary):not(.ghost) {
+html[data-theme="dark"] body .content button:not(.secondary):not(.ghost):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop) {
   background: #2a2a2e !important;
   color: #f5f6fa !important;
 }
@@ -18523,20 +18550,33 @@ html[data-theme="dark"] body .ac-mail-panel .ac-notif-item {
 }
 
 /* ═══ v170 skeleton + final green kill ═══ */
+html body .page-skeleton,
+html body .page-skeleton-kpis,
+html body .page-skeleton-grid,
+html body .page-skeleton-toolbar,
+html[data-theme="dark"] body .page-skeleton,
+html[data-theme="dark"] body .page-skeleton-kpis,
+html[data-theme="dark"] body .page-skeleton-grid,
+html[data-theme="dark"] body .page-skeleton-toolbar {
+  background: transparent !important;
+  background-image: none !important;
+  animation: none !important;
+}
 html body .skeleton,
 html body .page-skeleton .skeleton,
-html body [class*="skeleton"] {
-  background: linear-gradient(90deg, #e8eaef 0%, #f1f3f7 45%, #e8eaef 90%) !important;
+html body .ac-sk {
+  background: linear-gradient(100deg, #e5e8ef 20%, #f8fafc 45%, #e5e8ef 70%) !important;
   background-size: 200% 100% !important;
-  animation: skeleton-shimmer 1.15s ease-in-out infinite !important;
+  animation: skeleton-shimmer 1.35s cubic-bezier(0.4, 0, 0.2, 1) infinite !important;
 }
 html[data-theme="dark"] body .skeleton,
 html[data-theme="dark"] body .page-skeleton .skeleton,
-html[data-theme="dark"] body [class*="skeleton"],
+html[data-theme="dark"] body .ac-sk,
 html.theme-dark body .skeleton {
-  background: linear-gradient(90deg, #1c1c1f 0%, #2a2a2e 50%, #1c1c1f 100%) !important;
+  background: linear-gradient(100deg, #1b1e26 20%, #2a303f 45%, #1b1e26 70%) !important;
   background-size: 200% 100% !important;
-  background-color: #1c1c1f !important;
+  background-color: #1b1e26 !important;
+  animation: skeleton-shimmer 1.35s cubic-bezier(0.4, 0, 0.2, 1) infinite !important;
 }
 
 /* v179 APP END — last resort dark mail/account/sidebar */

@@ -12,6 +12,7 @@ import { useUi } from '../components/AppDialogs';
 import PasswordConfirm from '../components/PasswordConfirm';
 import RemboursementModal from '../components/RemboursementModal';
 import { TimedUndoDelete } from '../components/ui';
+import PageSkeleton from '../components/PageSkeleton';
 import { numStr, numFromInput } from '../lib/numInput';
 import NumberField from '../components/NumberField';
 
@@ -211,7 +212,7 @@ export default function InvoiceDetail() {
     }
   };
 
-  if (loading) return <div className="empty">Chargement…</div>;
+  if (loading) return <div className="atlas-orders invoice-detail-page"><PageSkeleton variant="form" /></div>;
   if (!invoice) return <div className="empty">Facture introuvable</div>;
   if (
     invoice.doc_kind === 'quick_sale' ||

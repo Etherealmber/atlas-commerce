@@ -582,7 +582,7 @@ function AboutRoute() {
       <div className="atlas-focus-layout">
         <FocusSidebar mobileOpen={sidebarOpen} onCloseMobile={() => setSidebarOpen(false)} />
         <main className="content content-settings-focus atlas-focus-main">
-          <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
+          <Suspense fallback={<PageFallback />}>
             <About />
           </Suspense>
         </main>
@@ -604,7 +604,7 @@ function WhatsNewRoute() {
       <div className="atlas-focus-layout">
         <FocusSidebar mobileOpen={sidebarOpen} onCloseMobile={() => setSidebarOpen(false)} />
         <main className="content content-settings-focus atlas-focus-main">
-          <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
+          <Suspense fallback={<PageFallback />}>
             <WhatsNew />
           </Suspense>
         </main>

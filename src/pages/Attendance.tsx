@@ -1,5 +1,5 @@
 import TopPageActions from '../components/TopPageActions';
-import { Download, FileText, LogIn, LogOut, Pencil, Users, UserX } from 'lucide-react';
+import { Clock, Download, FileText, LogIn, LogOut, Pencil, Settings, Users, UserX } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, BASE } from '../api';
@@ -8,6 +8,7 @@ import DatePicker from '../components/DatePicker';
 import TimePicker from '../components/TimePicker';
 import RefreshIconButton from '../components/RefreshIconButton';
 import SaveFeedback from '../components/SaveFeedback';
+import PageSkeleton from '../components/PageSkeleton';
 import { getCachedFingerprint } from '../fingerprint';
 import { openReport } from '../lib/reports';
 import ListPager from '../components/ui/ListPager';
@@ -332,9 +333,7 @@ export default function Attendance() {
         <div className="page-header dock-page-header">
           <h1 className="sr-only">Présence</h1>
         </div>
-        <div className="ac-panel" style={{ padding: 24 }}>
-          <p className="muted" style={{ margin: 0 }}>Chargement…</p>
-        </div>
+        <PageSkeleton variant="list" />
       </div>
     );
   }
@@ -345,15 +344,27 @@ export default function Attendance() {
         <div className="page-header dock-page-header">
           <h1 className="sr-only">Présence</h1>
         </div>
-        <div className="ac-panel" style={{ padding: 24 }}>
-          <p style={{ margin: '0 0 14px' }}>
-            Le module présence est <strong>désactivé</strong> (réglage enregistré en base).
-            Activez-le dans <strong>Paramètres → Présence</strong> pour charger le pointage.
-          </p>
-          <Link to="/settings?tab=attendance" className="btn" style={{ display: 'inline-flex' }}>
-            Ouvrir les paramètres Présence
-          </Link>
-        </div>
+        <section className="ac-panel ac-disabled-module-card" aria-label="Module Présence désactivé">
+          <div className="ac-disabled-module-body">
+            <div className="ac-disabled-module-icon" aria-hidden="true">
+              <Clock size={22} strokeWidth={1.9} />
+            </div>
+            <div className="ac-disabled-module-copy">
+              <span className="ac-disabled-module-badge">Module inactif</span>
+              <h2 className="ac-disabled-module-title">Module Présence désactivé</h2>
+              <p className="ac-disabled-module-desc">
+                Le module présence est <strong>désactivé</strong> (réglage enregistré en base).
+                Activez-le dans <strong>Paramètres → Présence</strong> pour charger et enregistrer le pointage de l’équipe.
+              </p>
+            </div>
+          </div>
+          <div className="ac-disabled-module-actions">
+            <Link to="/settings?tab=attendance" className="btn ac-disabled-module-cta">
+              <Settings size={15} aria-hidden="true" />
+              <span>Ouvrir les paramètres Présence</span>
+            </Link>
+          </div>
+        </section>
       </div>
     );
   }
@@ -464,7 +475,12 @@ export default function Attendance() {
           <ListPager page={safePage} pageSize={PAGE_SIZE} total={filtered.length} onPageChange={setPage} />
         </div>
         {loading ? (
-          <div style={{ padding: 24 }}>Chargement…</div>
+          <div style={{ padding: 20, display: 'grid', gap: 10 }} aria-busy="true" aria-label="Chargement des pointages">
+            <div className="skeleton" style={{ height: 38, borderRadius: 10 }} />
+            <div className="skeleton" style={{ height: 48, borderRadius: 10 }} />
+            <div className="skeleton" style={{ height: 48, borderRadius: 10 }} />
+            <div className="skeleton" style={{ height: 48, borderRadius: 10 }} />
+          </div>
         ) : filtered.length === 0 ? (
           <div className="empty" style={{ padding: 24 }}>
             Aucun résultat.
@@ -653,7 +669,13 @@ export default function Attendance() {
                 Toute la carrière
               </button>
             </div>
-            {recordLoading && <p className="muted">Chargement…</p>}
+            {recordLoading && (
+              <div style={{ display: 'grid', gap: 8, margin: '8px 0 12px' }} aria-busy="true" aria-label="Chargement de l'historique">
+                <div className="skeleton" style={{ height: 14, width: '45%' }} />
+                <div className="skeleton" style={{ height: 64, borderRadius: 12 }} />
+                <div className="skeleton" style={{ height: 96, borderRadius: 12 }} />
+              </div>
+            )}
             {recordData && (
               <>
                 <p className="muted" style={{ fontSize: 13 }}>

@@ -1,12 +1,11 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { getTheme, setTheme as applyTheme, subscribeTheme, type ThemeChoice } from '../theme';
-import { isLoggedIn, getDisplayName, getUsername, getRole, getDisplayInitials, hasAvatarUrl, clearToken } from '../auth';
+import { isLoggedIn, getDisplayName, getUsername, getRole, getDisplayInitials, clearToken } from '../auth';
 import { invalidateAvatarCache } from '../lib/avatarCache';
 import { resetWelcome } from '../lib/welcome';
 import { useProfileWarm, useProfileTick } from '../lib/useProfileWarm';
-import { AvatarImage } from './ui/AvatarImage';
-import { Settings as SettingsIcon, Info } from 'lucide-react';
+import { TopbarUserMenu } from './shell/TopbarUserMenu';
 
 const LOGO_DARK = '/atlas-logo-dark.png';
 const LOGO_LIGHT = '/atlas-logo-light.png';
@@ -152,101 +151,34 @@ export function PublicThemeToggle() {
   );
 }
 
-/** v0.7.7 — chip profil (comme celle des Paramètres) pour les pages publiques
- *  quand un appareil est connecté ; remplace le CTA « Ouvrir l'app ». */
+function publicRoleLabelFr(role: string | null | undefined) {
+  if (role === 'owner') return 'Propriétaire';
+  if (role === 'admin') return 'Admin';
+  if (role === 'secretaire') return 'Secrétaire';
+  if (role === 'stock') return 'Magasinier';
+  return 'Utilisateur';
+}
+
+/** Menu utilisateur unifié (TopbarUserMenu) pour les pages publiques quand un appareil est connecté. */
 export function PublicProfileChip() {
   useProfileWarm();
   useProfileTick();
-  const c = useChromeColors();
-  const [open, setOpen] = useState(false);
-  const box = useRef<HTMLSpanElement | null>(null);
-  useEffect(() => {
-    if (!open) return;
-    const onDoc = (ev: MouseEvent) => {
-      if (box.current && !box.current.contains(ev.target as Node)) setOpen(false);
-    };
-    const onKey = (ev: KeyboardEvent) => { if (ev.key === 'Escape') setOpen(false); };
-    document.addEventListener('mousedown', onDoc);
-    document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
-  }, [open]);
   if (!isLoggedIn()) return null;
-  const name = getDisplayName() || getUsername() || 'utilisateur';
-  const role = getRole() || 'utilisateur';
-  const mi = (href: string, label: string): ReactNode => (
-    <Link
-      key={href}
-      to={href}
-      role="menuitem"
-      style={{
-        display: 'block', padding: '10px 14px', borderRadius: 10, color: c.ink,
-        textDecoration: 'none', fontSize: 13.5, fontWeight: 600,
-      }}
-    >
-      {label}
-    </Link>
-  );
+  const name = getDisplayName() || getUsername() || 'Utilisateur';
+  const role = publicRoleLabelFr(getRole());
+  const initials = getDisplayInitials() || '?';
   return (
-    <span ref={box} style={{ position: 'relative', display: 'inline-flex' }}>
-      <button
-        type="button"
-        className="pn-chip"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-        style={{ background: c.ghostBg, border: `1px solid ${c.ghostBorder}`, cursor: 'pointer', font: 'inherit' }}
-      >
-        <span className="pn-chip-avatar-slot" style={{ color: c.navBg }}>
-          <span className="pn-chip-ini pn-chip-ini--base" style={{ background: c.ink }} aria-hidden="true">
-            {getDisplayInitials() || '?'}
-          </span>
-          {hasAvatarUrl() ? <AvatarImage className="pn-chip-avatar" width={26} height={26} fallback={null} /> : null}
-        </span>
-        <span className="pn-chip-meta">
-          <strong style={{ color: c.ink }}>{name}</strong>
-          <span style={{ color: c.sub }}>{role}</span>
-        </span>
-      </button>
-      {open && (
-        <>
-          <button
-            type="button"
-            className="settings-topbar-menu-backdrop"
-            aria-label="Fermer le menu"
-            onClick={() => setOpen(false)}
-            style={{ position: 'fixed', inset: 0, border: 0, background: 'transparent', zIndex: 70 }}
-          />
-          <div className="settings-topbar-menu" role="menu">
-            <button type="button" role="menuitem" className="secondary settings-topbar-menu-item" onClick={() => { setOpen(false); window.location.assign('/settings'); }}>
-              <SettingsIcon size={16} aria-hidden="true" />
-              Paramètres
-            </button>
-            {window.location.pathname !== '/about' && (
-            <button type="button" role="menuitem" className="secondary settings-topbar-menu-item" onClick={() => { setOpen(false); window.location.assign('/about'); }}>
-              <Info size={16} aria-hidden="true" />
-              À propos
-            </button>
-            )}
-            {window.location.pathname !== '/whats-new' && (
-            <button type="button" role="menuitem" className="secondary settings-topbar-menu-item settings-topbar-menu-item--novelties" onClick={() => { setOpen(false); window.location.assign('/whats-new'); }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" aria-hidden><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
-              <span className="account-menu-item-label">Nouveautés</span>
-            </button>
-            )}
-            <button
-              type="button"
-              role="menuitem"
-              className="secondary settings-topbar-menu-item"
-              style={{ color: '#c45c26' }}
-              onClick={() => { setOpen(false); clearToken(); invalidateAvatarCache(); window.location.replace('/login'); }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" aria-hidden><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" /></svg>
-              Déconnexion
-            </button>
-          </div>
-        </>
-      )}
-    </span>
+    <TopbarUserMenu
+      displayName={name}
+      roleLabel={role}
+      initials={initials}
+      showDashboardLink
+      onLogout={() => {
+        clearToken();
+        invalidateAvatarCache();
+        window.location.replace('/login');
+      }}
+    />
   );
 }
 
@@ -441,22 +373,6 @@ export function PublicNav({ links, cta, classic = false }: { links: NavLink[]; c
           </div>
         )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto', flex: '0 0 auto' }}>
-          {!classic && (
-            <button
-              type="button"
-              aria-label="Recherche globale"
-              title="Recherche globale"
-              onClick={() => window.dispatchEvent(new Event('atlas-search-open'))}
-              style={{
-                display: 'grid', placeItems: 'center', width: 32, height: 32, borderRadius: 999,
-                border: 0, background: 'transparent', color: c.sub, cursor: 'pointer', padding: 0,
-              }}
-            >
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true" style={{ display: 'block' }}>
-                <circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" />
-              </svg>
-            </button>
-          )}
           <div className="pn-main-actions"><PublicThemeToggle />{isLoggedIn() ? <PublicProfileChip /> : cta}</div>
           <button
             type="button"
@@ -578,15 +494,6 @@ export function PublicSettingsTopbar({ onOpenSidebar }: { onOpenSidebar?: () => 
         </div>
       </div>
       <div className="settings-topbar-right">
-        <button
-          type="button"
-          className="settings-topbar-tab secondary settings-topbar-searchtab"
-          aria-label="Recherche globale"
-          title="Recherche globale"
-          onClick={() => window.dispatchEvent(new Event('atlas-search-open'))}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" aria-hidden><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
-        </button>
         <PublicThemeToggle />
         {loggedIn ? <PublicProfileChip /> : <PublicSessionCta />}
       </div>

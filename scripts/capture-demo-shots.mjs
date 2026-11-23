@@ -18,7 +18,7 @@ try {
     else void req.continue();
   });
   await page.evaluateOnNewDocument((origin, ver) => {
-    const values = { 'stock_auth_token': 'demo-token', 'stock_role': 'owner', 'stock_auth_user': 'demo', 'stock_display_name': 'Démo', 'atlas-theme': 'light', 'atlas_welcome_completed': 'true', 'atlas-whats-new-modal-seen': ver, 'atlas-whats-new-seen': ver, 'atlas-dl-teaser': 'off', 'atlas_phone_animations': 'off' };
+    const values = { 'stock_auth_token': 'demo-token', 'stock_role': 'owner', 'stock_auth_user': 'demo', 'stock_display_name': 'Démo', 'atlas-theme': 'light', 'atlas-sidebar-collapsed': '0', 'atlas_welcome_completed': 'true', 'atlas-whats-new-modal-seen': ver, 'atlas-whats-new-seen': ver, 'atlas-dl-teaser': 'off', 'atlas_phone_animations': 'off' };
     for (const [key, value] of Object.entries(values)) localStorage.setItem(key, value);
     localStorage.setItem('atlas_cookie_consent_v1', JSON.stringify({ version: 1, necessary: true, preferences: false, analytics: false, method: 'necessary_only', decidedAt: '2026-01-01T00:00:00Z' }));
     const products = [

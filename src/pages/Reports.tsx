@@ -9,8 +9,9 @@ import {
   PackageCheck,
   Receipt,
 } from 'lucide-react';
-import DatePicker from '../components/DatePicker';
+import { DateRangePicker } from '../components/DatePicker';
 import TopPageActions from '../components/TopPageActions';
+import PageSkeleton from '../components/PageSkeleton';
 import { openReport } from '../lib/reports';
 import { api } from '../api';
 import { useUi } from '../components/AppDialogs';
@@ -23,6 +24,37 @@ import RefreshIconButton from '../components/RefreshIconButton';
 
 const fmt = (n: number) => Math.round(Number(n || 0)).toLocaleString('fr-FR');
 
+function toLocalYMD(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function presetRange(preset: string): { from: string; to: string } {
+  const to = new Date();
+  to.setHours(12, 0, 0, 0);
+  let from = new Date(to);
+  if (preset === '7d') from = new Date(to.getFullYear(), to.getMonth(), to.getDate() - 6);
+  else if (preset === '1m') from = new Date(to.getFullYear(), to.getMonth(), 1);
+  else if (preset === '6m') from = new Date(to.getFullYear(), to.getMonth() - 5, 1);
+  else if (preset === '12m' || preset === '1y') from = new Date(to.getFullYear(), to.getMonth() - 11, 1);
+  else if (preset === '24m' || preset === '2y') from = new Date(to.getFullYear(), to.getMonth() - 23, 1);
+  else if (preset === 'ytd' || preset === 'year') from = new Date(to.getFullYear(), 0, 1);
+  else from = new Date(to.getFullYear(), to.getMonth() - 5, 1);
+  from.setHours(12, 0, 0, 0);
+  return { from: toLocalYMD(from), to: toLocalYMD(to) };
+}
+
+const PRESET_OPTIONS = [
+  ['7d', '7j', '7 jours'],
+  ['1m', '1m', '1 mois'],
+  ['6m', '6m', '6 mois'],
+  ['12m', '1a', '1 an'],
+  ['24m', '2a', '2 ans'],
+  ['ytd', 'YTD', 'Cette année'],
+] as const;
+
 export default function Reports() {
   const { toast, alert } = useUi();
   const [loading, setLoading] = useState(false);
@@ -31,6 +63,7 @@ export default function Reports() {
   const [reorder, setReorder] = useState<any[]>([]);
   const [cogs, setCogs] = useState<any>(null);
   const [period, setPeriod] = useState('');
+  const [rangePreset, setRangePreset] = useState<string>('custom');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const isOwner = getRole() === 'owner' || canAccessCompanySettings();
@@ -130,6 +163,17 @@ export default function Reports() {
     );
   }, [aging]);
 
+  if (loading && !aging && !tva && !cogs && !reorder.length) {
+    return (
+      <div className="atlas-page ac-dash reports-page">
+        <div className="page-header dock-page-header">
+          <h1 className="sr-only">Rapports &amp; clôture</h1>
+        </div>
+        <PageSkeleton variant="dashboard" />
+      </div>
+    );
+  }
+
   return (
     <div className="atlas-page ac-dash reports-page">
       <div className="page-header dock-page-header">
@@ -177,23 +221,40 @@ export default function Reports() {
           </p>
         </div>
         <div className="ac-dash-hero-side">
-          <div className="ac-reports-range-bar">
-            <div className="form-row" style={{ margin: 0 }}>
-              <label>Du</label>
-              <DatePicker value={from} onChange={setFrom} />
+          <div className="ac-dash-range">
+            <div className="ac-dash-presets" role="group" aria-label="Périodes rapides">
+              {PRESET_OPTIONS.map(([key, short, title]) => (
+                <button
+                  key={key}
+                  type="button"
+                  title={title}
+                  className={`ac-dash-preset${rangePreset === key ? ' is-active' : ''}`}
+                  disabled={loading}
+                  onClick={() => {
+                    const r = presetRange(key);
+                    setRangePreset(key);
+                    setFrom(r.from);
+                    setTo(r.to);
+                    void loadTvaAndCogs(r.from, r.to);
+                  }}
+                >
+                  {short}
+                </button>
+              ))}
             </div>
-            <div className="form-row" style={{ margin: 0 }}>
-              <label>Au</label>
-              <DatePicker value={to} onChange={setTo} />
-            </div>
-            <button
-              type="button"
-              className="secondary"
+            <DateRangePicker
+              size="sm"
+              from={from}
+              to={to}
+              showPresets
               disabled={loading}
-              onClick={() => void loadTvaAndCogs(from, to)}
-            >
-              Appliquer
-            </button>
+              onChange={(nextFrom, nextTo) => {
+                setRangePreset('custom');
+                setFrom(nextFrom);
+                setTo(nextTo);
+                void loadTvaAndCogs(nextFrom, nextTo);
+              }}
+            />
           </div>
         </div>
       </header>
@@ -297,8 +358,9 @@ export default function Reports() {
         </div>
       </section>
 
-      {/* Section 2 & 3: TVA + COGS / FIFO (2-column Bento grid) */}
+      {/* Sections 2–5: TVA + Réassort (left column) & COGS + Clôture fiscale (right column) */}
       <div className="ac-bento-grid-2">
+        <div className="ac-bento-stack">
         <section className="ac-panel">
           <div className="ac-panel-head">
             <div>
@@ -389,50 +451,6 @@ export default function Reports() {
         <section className="ac-panel">
           <div className="ac-panel-head">
             <div>
-              <h2>Coût des ventes (COGS) &amp; couches FIFO</h2>
-              <span className="ac-panel-sub">
-                Méthode active : <strong>{cogs?.method || '…'}</strong>
-                {cogs?.method === 'fifo'
-                  ? ` · Couches restantes : ${fmt(cogs.fifo_layers_qty)} u. / ${fmt(cogs.fifo_layers_value)} MAD`
-                  : ''}
-              </span>
-            </div>
-            <span className="ac-status-pill">
-              <Receipt size={13} strokeWidth={2} aria-hidden="true" />
-              {fmt(cogs?.total_cogs ?? 0)} MAD
-            </span>
-          </div>
-          {cogs?.note && (
-            <p className="muted" style={{ fontSize: 12.5, marginTop: 0, marginBottom: 12 }}>{cogs.note}</p>
-          )}
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr><th>Produit</th><th>Qté vendue</th><th>Coût u.</th><th>COGS</th></tr>
-              </thead>
-              <tbody>
-                {(cogs?.lines || []).map((l: any) => (
-                  <tr key={l.product_id}>
-                    <td>{l.name}</td>
-                    <td>{l.qty_sold}</td>
-                    <td>{fmt(l.unit_cost)}</td>
-                    <td style={{ fontWeight: 700 }}>{fmt(l.cogs)}</td>
-                  </tr>
-                ))}
-                {!(cogs?.lines || []).length && (
-                  <tr><td colSpan={4} style={{ color: 'var(--muted)' }}>Aucun mouvement de vente sur la période.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-
-      {/* Section 4 & 5: Réassort + Clôture fiscale (2-column Bento grid) */}
-      <div className="ac-bento-grid-2">
-        <section className="ac-panel">
-          <div className="ac-panel-head">
-            <div>
               <h2>À réapprovisionner</h2>
               <span className="ac-panel-sub">
                 Génère un brouillon d&apos;achat avec les quantités suggérées (2× seuil − stock).
@@ -508,6 +526,49 @@ export default function Reports() {
             </p>
           </div>
         </section>
+        </div>
+
+        <div className="ac-bento-stack">
+        <section className="ac-panel">
+          <div className="ac-panel-head">
+            <div>
+              <h2>Coût des ventes (COGS) &amp; couches FIFO</h2>
+              <span className="ac-panel-sub">
+                Méthode active : <strong>{cogs?.method || '…'}</strong>
+                {cogs?.method === 'fifo'
+                  ? ` · Couches restantes : ${fmt(cogs.fifo_layers_qty)} u. / ${fmt(cogs.fifo_layers_value)} MAD`
+                  : ''}
+              </span>
+            </div>
+            <span className="ac-status-pill">
+              <Receipt size={13} strokeWidth={2} aria-hidden="true" />
+              {fmt(cogs?.total_cogs ?? 0)} MAD
+            </span>
+          </div>
+          {cogs?.note && (
+            <p className="muted" style={{ fontSize: 12.5, marginTop: 0, marginBottom: 12 }}>{cogs.note}</p>
+          )}
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Produit</th><th>Qté vendue</th><th>Coût u.</th><th>COGS</th></tr>
+              </thead>
+              <tbody>
+                {(cogs?.lines || []).map((l: any) => (
+                  <tr key={l.product_id}>
+                    <td>{l.name}</td>
+                    <td>{l.qty_sold}</td>
+                    <td>{fmt(l.unit_cost)}</td>
+                    <td style={{ fontWeight: 700 }}>{fmt(l.cogs)}</td>
+                  </tr>
+                ))}
+                {!(cogs?.lines || []).length && (
+                  <tr><td colSpan={4} style={{ color: 'var(--muted)' }}>Aucun mouvement de vente sur la période.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
 
         <section className="ac-panel">
           <div className="ac-panel-head">
@@ -559,6 +620,7 @@ export default function Reports() {
             <p className="muted" style={{ fontSize: 13, margin: 0 }}>Lecture seule — contactez le propriétaire.</p>
           )}
         </section>
+        </div>
       </div>
     </div>
   );

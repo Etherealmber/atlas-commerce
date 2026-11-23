@@ -2408,8 +2408,8 @@ html[data-theme="dark"] {
 /* v214b END */
 
 /* v215 — dark primary button colors, independent of density. */
-html[data-theme="dark"][data-density="compact"] .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.mailbox-folder-item):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.atlas-dp-trigger):not(.mailbox-icon-btn):not(.mailbox-menu-item):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.atlas-password-toggle):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action),
-html[data-theme="dark"][data-density="comfortable"] .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.atlas-dp-trigger):not(.mailbox-icon-btn):not(.mailbox-menu-item):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.atlas-password-toggle):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action),
+html[data-theme="dark"][data-density="compact"] .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.mailbox-folder-item):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.atlas-dp-trigger):not(.mailbox-icon-btn):not(.mailbox-menu-item):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.atlas-password-toggle):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action),
+html[data-theme="dark"][data-density="comfortable"] .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.atlas-dp-trigger):not(.mailbox-icon-btn):not(.mailbox-menu-item):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.atlas-password-toggle):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action),
 html[data-theme="dark"][data-density="compact"] button.primary,
 html[data-theme="dark"][data-density="comfortable"] button.primary,
 html[data-theme="dark"][data-density="compact"] .btn:not(.secondary):not(.danger):not(.ghost),
@@ -2427,8 +2427,8 @@ html[data-theme="dark"][data-density="comfortable"] table td button:not(.seconda
   -webkit-text-fill-color: #121317 !important;
   border-color: #d5d8e2 !important;
 }
-html[data-theme="dark"] body .content button:hover:not(:disabled):not(.secondary):not(.danger):not(.ghost):not(.ac-seg-btn):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.settings-topbar-burger):not(.wn-filter):not(.ac-fluid-tab):not(.desktop-product-zoom-btn):not(.ac-image-preview-btn):not(.scan-requests-photo-btn):not(.step-wizard__step-btn):not(.bal-reports-trigger):not(.modal-x):not(.modal-close):not(.wz-chip):not(.atlas-typeahead-item):not(.phone-avatar):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action),
-html[data-theme="dark"] body button:hover:not(:disabled):not(.secondary):not(.danger):not(.ghost):not(.ac-seg-btn):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.settings-topbar-burger):not(.wn-filter):not(.ac-fluid-tab):not(.desktop-product-zoom-btn):not(.ac-image-preview-btn):not(.scan-requests-photo-btn):not(.step-wizard__step-btn):not(.bal-reports-trigger):not(.modal-x):not(.modal-close):not(.wz-chip):not(.atlas-typeahead-item):not(.phone-avatar):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action) {
+html[data-theme="dark"] body .content button:hover:not(:disabled):not(.secondary):not(.danger):not(.ghost):not(.ac-seg-btn):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.settings-topbar-burger):not(.wn-filter):not(.ac-fluid-tab):not(.desktop-product-zoom-btn):not(.ac-image-preview-btn):not(.scan-requests-photo-btn):not(.step-wizard__step-btn):not(.bal-reports-trigger):not(.modal-x):not(.modal-close):not(.wz-chip):not(.atlas-typeahead-item):not(.phone-avatar):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action),
+html[data-theme="dark"] body button:hover:not(:disabled):not(.secondary):not(.danger):not(.ghost):not(.ac-seg-btn):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.settings-topbar-burger):not(.wn-filter):not(.ac-fluid-tab):not(.desktop-product-zoom-btn):not(.ac-image-preview-btn):not(.scan-requests-photo-btn):not(.step-wizard__step-btn):not(.bal-reports-trigger):not(.modal-x):not(.modal-close):not(.wz-chip):not(.atlas-typeahead-item):not(.phone-avatar):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action) {
   background: #c7cbd6 !important;
   color: #18181b !important;
   -webkit-text-fill-color: #18181b !important;
@@ -3100,8 +3100,8 @@ html[data-theme="dark"] body .balance-chart-val {
 /* v220 END */
 
 /* v220b — zinc beats the near-black density rules (mirrored selectors + body) */
-html[data-theme="dark"][data-density="compact"] body .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.mailbox-folder-item):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action),
-html[data-theme="dark"][data-density="comfortable"] body .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action){
+html[data-theme="dark"][data-density="compact"] body .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.mailbox-folder-item):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action),
+html[data-theme="dark"][data-density="comfortable"] body .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action){
   background: #3f3f46 !important;
   background-color: #3f3f46 !important;
   background-image: none !important;
@@ -3120,13 +3120,13 @@ html[data-theme="dark"] body button.atlas-dp-trigger.secondary {
   -webkit-text-fill-color: #dfe2ea !important;
   border: 1px solid rgba(255, 255, 255, 0.11) !important;
 }
-html[data-theme="dark"] body .content button:not(.secondary):not(.ghost):not(.danger):not(.ac-seg-btn):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.settings-topbar-burger):not(.wn-filter):not(.ac-fluid-tab):not(.desktop-product-zoom-btn):not(.ac-image-preview-btn):not(.scan-requests-photo-btn):not(.step-wizard__step-btn):not(.bal-reports-trigger):not(.modal-x):not(.modal-close):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action):active,
-html[data-theme="dark"] body .content button:not(.secondary):not(.ghost):not(.danger):not(.ac-seg-btn):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.settings-topbar-burger):not(.wn-filter):not(.ac-fluid-tab):not(.desktop-product-zoom-btn):not(.ac-image-preview-btn):not(.scan-requests-photo-btn):not(.step-wizard__step-btn):not(.bal-reports-trigger):not(.modal-x):not(.modal-close):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action):focus {
+html[data-theme="dark"] body .content button:not(.secondary):not(.ghost):not(.danger):not(.ac-seg-btn):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.settings-topbar-burger):not(.wn-filter):not(.ac-fluid-tab):not(.desktop-product-zoom-btn):not(.ac-image-preview-btn):not(.scan-requests-photo-btn):not(.step-wizard__step-btn):not(.bal-reports-trigger):not(.modal-x):not(.modal-close):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action):active,
+html[data-theme="dark"] body .content button:not(.secondary):not(.ghost):not(.danger):not(.ac-seg-btn):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.settings-topbar-burger):not(.wn-filter):not(.ac-fluid-tab):not(.desktop-product-zoom-btn):not(.ac-image-preview-btn):not(.scan-requests-photo-btn):not(.step-wizard__step-btn):not(.bal-reports-trigger):not(.modal-x):not(.modal-close):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action):focus {
   background: #3f3f46 !important;
   color: #e4e6ed !important;
   -webkit-text-fill-color: #e4e6ed !important;
 }
-html[data-theme="dark"] body .content button:not(.secondary):not(.ghost):not(.danger):not(.ac-seg-btn):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.settings-topbar-burger):not(.wn-filter):not(.ac-fluid-tab):not(.desktop-product-zoom-btn):not(.ac-image-preview-btn):not(.scan-requests-photo-btn):not(.step-wizard__step-btn):not(.bal-reports-trigger):not(.modal-x):not(.modal-close):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action):focus:hover {
+html[data-theme="dark"] body .content button:not(.secondary):not(.ghost):not(.danger):not(.ac-seg-btn):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.settings-topbar-burger):not(.wn-filter):not(.ac-fluid-tab):not(.desktop-product-zoom-btn):not(.ac-image-preview-btn):not(.scan-requests-photo-btn):not(.step-wizard__step-btn):not(.bal-reports-trigger):not(.modal-x):not(.modal-close):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action):focus:hover {
   background: #52525b !important;
   color: #e4e6ed !important;
   -webkit-text-fill-color: #e4e6ed !important;
@@ -6493,10 +6493,28 @@ html[data-theme="dark"] body .ac-desktop-dock {
   border-color: rgba(255, 255, 255, 0.1) !important;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45) !important;
 }
-html[data-theme="dark"] body .ac-desktop-dock button.ac-dock-expand {
+html[data-theme="dark"] #root .ac-desktop-dock button.ac-dock-expand,
+html[data-theme="dark"] body .ac-desktop-dock button.ac-dock-expand,
+html[data-theme="dark"] #root .ac-desktop-dock button.ac-dock-expand:focus,
+html[data-theme="dark"] #root .ac-desktop-dock button.ac-dock-expand:focus-visible,
+html[data-theme="dark"] #root .ac-desktop-dock button.ac-dock-expand:active {
   background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 999px !important;
   color: #f4f4f6 !important;
   -webkit-text-fill-color: #f4f4f6 !important;
+}
+html[data-theme="dark"] #root .ac-desktop-dock button.ac-dock-expand:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
 }
 html[data-theme="dark"] body .ac-desktop-dock .ac-topbar-user-btn {
   background: #27272a !important;
@@ -6575,9 +6593,13 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
 
 /* Unified Page Canvas */
 html[data-theme="dark"] body,
+html[data-theme="dark"] #root,
 html[data-theme="dark"] body .layout,
 html[data-theme="dark"] body .layout > .content,
 html[data-theme="dark"] body .ac-main-column,
+html[data-theme="dark"] body .ac-main-column > .content,
+html[data-theme="dark"] body .content,
+html[data-theme="dark"] #root .content,
 html[data-theme="dark"] body .public-about,
 html[data-theme="dark"] body .public-whats-new,
 html[data-theme="dark"] body .public-legal,
@@ -6586,12 +6608,17 @@ html[data-theme="dark"] body .home-landing,
 html[data-theme="dark"] body .desktop-landing,
 html[data-theme="dark"] body .login-page {
   background: #121317 !important;
+  background-color: #121317 !important;
   background-image: none !important;
   color: #dfe2ea !important;
 }
+html[data-theme="dark"] body .ac-desktop-top-row,
 html[data-theme="dark"] body .atlas-focus-main,
 html[data-theme="dark"] body .atlas-focus-main .privacy-page {
   background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
 }
 html[data-theme="dark"] body h1,
 html[data-theme="dark"] body h2,
@@ -6698,6 +6725,24 @@ html[data-theme="dark"] body .ac-desktop-dock button.ac-topbar-theme:hover,
 html[data-theme="dark"] body .ac-desktop-dock .ac-topbar-user-btn:hover {
   background: #272b35 !important;
   border-color: rgba(255, 255, 255, 0.18) !important;
+}
+html[data-theme="dark"] body .ac-panel.ac-disabled-module-card,
+html[data-theme="dark"] #root .ac-disabled-module-card {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, #181a20 62%) !important;
+  background-color: #181a20 !important;
+  border: 1px solid rgba(251, 191, 36, 0.26) !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.34) !important;
+}
+html[data-theme="dark"] body .ac-disabled-module-card .ac-disabled-module-title {
+  color: #fef3c7 !important;
+}
+html[data-theme="dark"] body .ac-disabled-module-card .ac-disabled-module-desc,
+html[data-theme="dark"] body .ac-disabled-module-card .ac-disabled-module-desc strong {
+  color: #d4d4d8 !important;
+}
+html[data-theme="dark"] body .public-settings-topbar.settings-topbar {
+  background: rgba(22, 24, 30, 0.9) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
 }
 html[data-theme="dark"] body .cookie-consent-card,
 html[data-theme="dark"] body .atlas-dl-teaser-link,

@@ -18,6 +18,7 @@ import { numStr, numFromInput } from '../lib/numInput';
 import NumberField from '../components/NumberField';
 import EmptyState from '../components/EmptyState';
 import RefreshIconButton from '../components/RefreshIconButton';
+import PageSkeleton from '../components/PageSkeleton';
 import { FloatingPortal } from '../components/FloatingPortal';
 import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
 import { ModalFormError, FieldHint } from '../components/ModalFormFeedback';
@@ -175,7 +176,7 @@ export default function Receipts() {
   const paged = filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
   const token = encodeURIComponent(getToken() || '');
 
-  if (loading) return <div className="empty">Chargement des reçus...</div>;
+  if (loading) return <div className="receipts-page"><PageSkeleton variant="list" /></div>;
 
   return (
     <div className="receipts-page">

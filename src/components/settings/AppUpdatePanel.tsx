@@ -215,7 +215,12 @@ export default function AppUpdatePanel() {
   };
 
   if (loading && !state) {
-    return <div className="card" style={{ padding: 16, color: 'var(--muted)' }}>Chargement de l’état R2…</div>;
+    return (
+      <div className="card" style={{ padding: 16, display: 'grid', gap: 10 }} aria-busy="true" aria-label="Chargement de l'état R2">
+        <div className="skeleton" style={{ height: 18, width: '40%' }} />
+        <div className="skeleton" style={{ height: 52, borderRadius: 12 }} />
+      </div>
+    );
   }
   if (loadError && !state) {
     return (

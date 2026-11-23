@@ -362,7 +362,19 @@ Version actuelle : **0.9.1-beta** (gelée jusqu'au prochain ordre de push).
 Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depuis la première version interne ; le détail complet et vivant est dans l'app (**Nouveautés**), y compris l’ancien cycle bêta pré-renumérotation, renuméroté en **0.x** (0.0.1 → 0.4.4).
 
 <details>
-<summary>📦 Toutes les versions (0.0.1-beta → 0.5.5-beta) — cliquer pour déplier</summary>
+<summary>📦 Historique des versions (0.0.1-beta → 0.9.1-beta) — cliquer pour déplier</summary>
+
+### 0.9.1-beta
+- Connexion desktop expérimentale (fenêtre temporaire dédiée + saisie OTP native), double unité facultative sur les produits (carton / m²), mode de prix TVA HT/TTC configurable sur les factures (ventes rapides sans TVA), moteur financier Rust/WebAssembly ABI v2, idempotence des écritures, et rafraîchissement des vues PC & mobile.
+
+### 0.9.0-beta
+- Refonte complète des interfaces PC et mobile (barre flottante, navigation compacte, aperçus rapports/PDF, produits, vente rapide, Atlas Agent plein écran), rapports combinés complets et durcissement des autorisations paie/employés.
+
+### 0.8.9-beta — 0.8.0-beta
+- Suivi lecture seule des demandes/tickets, Atlas Snake, conversion WebP/carrée des images produits, API préférences Android, réplication globale D1 Sessions API (`first-primary` pour écritures/auth), normalisation IPv4/IPv6 et contrats Android/Desktop.
+
+### 0.7.x-beta
+- Nouvelle barre flottante et thème unifié (clair/sombre), gestion multi-dépôts/opérations stock, pages publiques et téléchargements refondus, amélioration de la sécurité et de la conformité des rapports.
 
 ### 0.6.6-beta
 - Logo visible et propre en thème sombre : l'ancien carreau clair `#f1f5f9` forcé sous l'icône de la sidebar (et le tile blanc encadré de la page À propos) masquait l'artwork blanc — carreaux supprimés pour les images de marque + règles de priorité CSS renforcées ; le README GitHub affiche le lockup blanc en mode sombre via `<picture>`/`prefers-color-scheme`

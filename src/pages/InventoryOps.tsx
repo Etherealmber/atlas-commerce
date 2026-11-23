@@ -12,6 +12,7 @@ import { friendlyError } from '../lib/errors';
 import NumberField from '../components/NumberField';
 import TopPageActions from '../components/TopPageActions';
 import RefreshIconButton from '../components/RefreshIconButton';
+import PageSkeleton from '../components/PageSkeleton';
 import { TimedUndoDelete } from '../components/ui';
 
 const fmt = (n: number) => Math.round(Number(n || 0)).toLocaleString('fr-FR');
@@ -169,6 +170,17 @@ export default function InventoryOps() {
     }
   };
 
+  if (loading && !locations.length && !products.length && !valuation) {
+    return (
+      <div className="atlas-page ac-dash inventory-ops-page">
+        <div className="page-header dock-page-header">
+          <h1 className="sr-only">Opérations stock</h1>
+        </div>
+        <PageSkeleton variant="dashboard" />
+      </div>
+    );
+  }
+
   return (
     <div className="atlas-page ac-dash inventory-ops-page">
       <div className="page-header dock-page-header">
@@ -186,17 +198,18 @@ export default function InventoryOps() {
       <header className="ac-dash-hero">
         <div className="ac-dash-hero-text">
           <p className="ac-dash-eyebrow">
+            <Warehouse size={13} strokeWidth={2.2} aria-hidden="true" />
             <span>Logistique &amp; entrepôts</span>
           </p>
-          <h2>Opérations stock</h2>
+          <h2 className="ac-dash-hello">Opérations stock</h2>
           <p className="ac-dash-lead">
             Vue unifiée des entrepôts, transferts inter-sites, inventaire physique, valorisation et règles de réapprovisionnement automatique.
           </p>
         </div>
         <div className="ac-dash-hero-side">
-          <div className="form-row" style={{ margin: 0, minWidth: 220 }}>
-            <label>Périmètre entrepôt</label>
-            <select value={reportLoc} onChange={(e) => setReportLoc(e.target.value)}>
+          <div className="form-row ac-ops-scope-control" style={{ margin: 0 }}>
+            <label htmlFor="ops-scope-select">Périmètre entrepôt</label>
+            <select id="ops-scope-select" value={reportLoc} onChange={(e) => setReportLoc(e.target.value)}>
               <option value="all">Tous les entrepôts (consolidé)</option>
               {locations.map((l) => (
                 <option key={l.id} value={String(l.id)}>
@@ -235,8 +248,8 @@ export default function InventoryOps() {
       </section>
 
       {/* Quick Ops: Transfer + Cycle Count (2-column Bento grid) */}
-      <div className="ac-bento-grid-2">
-        <section className="ac-panel">
+      <div className="ac-bento-grid-2 ac-bento-grid-2--stretch">
+        <section className="ac-panel ac-ops-panel-stretch">
           <div className="ac-panel-head">
             <div>
               <h2>Transfert inter-emplacements</h2>
@@ -259,7 +272,7 @@ export default function InventoryOps() {
               ))}
             </select>
           </div>
-          <div className="grid grid-2" style={{ gap: 12 }}>
+          <div className="ac-ops-form-grid-2">
             <div className="form-row">
               <label>De</label>
               <select
@@ -281,7 +294,7 @@ export default function InventoryOps() {
               </select>
             </div>
           </div>
-          <div className="grid grid-2" style={{ gap: 12 }}>
+          <div className="ac-ops-form-grid-2">
             <div className="form-row">
               <label>Quantité</label>
               <NumberField min={0.01} step="0.01" value={transfer.quantity} onValueChange={(n) => setTransfer({ ...transfer, quantity: n })} />
@@ -291,10 +304,12 @@ export default function InventoryOps() {
               <input value={transfer.note} onChange={(e) => setTransfer({ ...transfer, note: e.target.value })} placeholder="Motif ou bon interne" />
             </div>
           </div>
-          <button type="button" disabled={busy} onClick={() => void doTransfer()}>Transférer</button>
+          <div className="ac-ops-panel-foot">
+            <button type="button" disabled={busy} onClick={() => void doTransfer()}>Transférer</button>
+          </div>
         </section>
 
-        <section className="ac-panel">
+        <section className="ac-panel ac-ops-panel-stretch">
           <div className="ac-panel-head">
             <div>
               <h2>Inventaire physique (cycle count)</h2>
@@ -321,7 +336,7 @@ export default function InventoryOps() {
               ))}
             </select>
           </div>
-          <div className="grid grid-2" style={{ gap: 12 }}>
+          <div className="ac-ops-form-grid-2">
             <div className="form-row">
               <label>Quantité comptée</label>
               <NumberField min={0} step="0.01" value={cycle.counted_qty} onValueChange={(n) => setCycle({ ...cycle, counted_qty: n })} />
@@ -331,7 +346,9 @@ export default function InventoryOps() {
               <input value={cycle.note} onChange={(e) => setCycle({ ...cycle, note: e.target.value })} placeholder="Ex. Contrôle rayon" />
             </div>
           </div>
-          <button type="button" disabled={busy} onClick={() => void doCycle()}>Enregistrer le comptage</button>
+          <div className="ac-ops-panel-foot">
+            <button type="button" disabled={busy} onClick={() => void doCycle()}>Enregistrer le comptage</button>
+          </div>
         </section>
       </div>
 
@@ -476,39 +493,39 @@ export default function InventoryOps() {
         </div>
       </section>
 
-      {/* Locations & Valuation (2-column Bento grid) */}
-      <div className="ac-bento-grid-2">
-        <section className="ac-panel">
-          <div className="ac-panel-head">
-            <div>
-              <h2>Emplacements / entrepôts</h2>
-              <span className="ac-panel-sub">Gérez vos magasins, réserves et dépôts</span>
-            </div>
-            <span className="ac-status-pill">
-              <Warehouse size={13} strokeWidth={2} aria-hidden="true" />
-              {locations.length}
-            </span>
+      {/* Locations (full-width Bento panel — prevents cramped vertical wrapping of row actions) */}
+      <section className="ac-panel" style={{ marginBottom: 14 }}>
+        <div className="ac-panel-head">
+          <div>
+            <h2>Emplacements / entrepôts</h2>
+            <span className="ac-panel-sub">Gérez vos magasins, réserves et dépôts</span>
           </div>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr><th>Code</th><th>Nom</th><th>Unités</th><th>SKU</th><th>Défaut</th><th></th></tr>
-              </thead>
-              <tbody>
-                {locations.map((l) => (
-                  <tr key={l.id}>
-                    <td>{l.code}</td>
-                    <td>{l.name}</td>
-                    <td style={{ fontWeight: 700 }}>{fmt(Number(l.total_units || 0))}</td>
-                    <td>{l.sku_count ?? '—'}</td>
-                    <td>{l.is_default ? 'Oui' : '—'}</td>
-                    <td style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <span className="ac-status-pill">
+            <Warehouse size={13} strokeWidth={2} aria-hidden="true" />
+            {locations.length}
+          </span>
+        </div>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Code</th><th>Nom</th><th>Unités</th><th>SKU</th><th>Défaut</th><th style={{ textAlign: 'right' }}>Actions</th></tr>
+            </thead>
+            <tbody>
+              {locations.map((l) => (
+                <tr key={l.id}>
+                  <td>{l.code}</td>
+                  <td>{l.name}</td>
+                  <td style={{ fontWeight: 700 }}>{fmt(Number(l.total_units || 0))}</td>
+                  <td>{l.sku_count ?? '—'}</td>
+                  <td>{l.is_default ? 'Oui' : '—'}</td>
+                  <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    <div className="ac-ops-row-actions">
                       {!l.is_default && (
-                        <button type="button" className="secondary" style={{ fontSize: 12, padding: '4px 8px' }} onClick={() => void setDefaultLoc(l.id)}>
+                        <button type="button" className="secondary" onClick={() => void setDefaultLoc(l.id)}>
                           Défaut
                         </button>
                       )}
-                      <button type="button" className="secondary" style={{ fontSize: 12, padding: '4px 8px' }} onClick={async () => {
+                      <button type="button" className="secondary" onClick={async () => {
                         const name = await prompt({ title: "Renommer l'emplacement", placeholder: 'Nom', defaultValue: l.name });
                         if (!name?.trim()) return;
                         try {
@@ -518,6 +535,7 @@ export default function InventoryOps() {
                         } catch (e: any) { toast(friendlyError(e), 'error'); }
                       }}>Renommer</button>
                       <TimedUndoDelete
+                        width="8.75rem"
                         deleteLabel="Supprimer"
                         undoLabel="Annuler"
                         initialSeconds={10}
@@ -529,57 +547,58 @@ export default function InventoryOps() {
                           } catch (e: any) { toast(friendlyError(e), 'error'); }
                         }}
                       />
-                    </td>
-                  </tr>
-                ))}
-                {!locations.length && (
-                  <tr><td colSpan={6} style={{ color: 'var(--muted)' }}>Aucun — créez Magasin / Réserve.</td></tr>
-                )}
-              </tbody>
-            </table>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {!locations.length && (
+                <tr><td colSpan={6} style={{ color: 'var(--muted)' }}>Aucun — créez Magasin / Réserve.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        <div className="ac-ops-form-grid-2" style={{ marginTop: 14 }}>
+          <div className="form-row"><label>Code</label>
+            <input value={newLoc.code} onChange={(e) => setNewLoc({ ...newLoc, code: e.target.value })} placeholder="MAG2" />
           </div>
-          <div className="grid grid-2" style={{ marginTop: 14, gap: 12 }}>
-            <div className="form-row"><label>Code</label>
-              <input value={newLoc.code} onChange={(e) => setNewLoc({ ...newLoc, code: e.target.value })} placeholder="MAG2" />
-            </div>
-            <div className="form-row"><label>Nom</label>
-              <input value={newLoc.name} onChange={(e) => setNewLoc({ ...newLoc, name: e.target.value })} placeholder="Dépôt Casablanca" />
-            </div>
+          <div className="form-row"><label>Nom</label>
+            <input value={newLoc.name} onChange={(e) => setNewLoc({ ...newLoc, name: e.target.value })} placeholder="Dépôt Casablanca" />
           </div>
-          <button type="button" disabled={busy} onClick={() => void createLoc()}>Ajouter un entrepôt</button>
-        </section>
+        </div>
+        <button type="button" disabled={busy} onClick={() => void createLoc()}>Ajouter un entrepôt</button>
+      </section>
 
-        <section className="ac-panel">
-          <div className="ac-panel-head">
-            <div>
-              <h2>Valorisation stock (coût moyen)</h2>
-              <span className="ac-panel-sub">
-                Valeur totale : <strong>{fmt(valuation?.total_value || 0)} MAD</strong> · {valuation?.lines?.length || 0} référence(s)
-              </span>
-            </div>
+      {/* Valuation (full-width Bento panel — stacks cleanly without leaving blank column voids) */}
+      <section className="ac-panel" style={{ marginBottom: 14 }}>
+        <div className="ac-panel-head">
+          <div>
+            <h2>Valorisation stock (coût moyen)</h2>
+            <span className="ac-panel-sub">
+              Valeur totale : <strong>{fmt(valuation?.total_value || 0)} MAD</strong> · {valuation?.lines?.length || 0} référence(s)
+            </span>
           </div>
-          <div className="table-wrap" style={{ maxHeight: 360, overflow: 'auto' }}>
-            <table>
-              <thead>
-                <tr><th>Produit</th><th>Qté</th><th>Coût u.</th><th>Valeur</th></tr>
-              </thead>
-              <tbody>
-                {(valuation?.lines || []).map((l: any) => (
-                  <tr key={l.product_id}>
-                    <td>{l.name}</td>
-                    <td>{l.qty}</td>
-                    <td>{fmt(l.unit_cost)}</td>
-                    <td style={{ fontWeight: 700 }}>{fmt(l.value)}</td>
-                  </tr>
-                ))}
-                {!(valuation?.lines || []).length && (
-                  <tr><td colSpan={4} style={{ color: 'var(--muted)' }}>Aucune ligne valorisée.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
+        </div>
+        <div className="table-wrap" style={{ maxHeight: 360, overflow: 'auto' }}>
+          <table>
+            <thead>
+              <tr><th>Produit</th><th>Qté</th><th>Coût u.</th><th>Valeur</th></tr>
+            </thead>
+            <tbody>
+              {(valuation?.lines || []).map((l: any) => (
+                <tr key={l.product_id}>
+                  <td>{l.name}</td>
+                  <td>{l.qty}</td>
+                  <td>{fmt(l.unit_cost)}</td>
+                  <td style={{ fontWeight: 700 }}>{fmt(l.value)}</td>
+                </tr>
+              ))}
+              {!(valuation?.lines || []).length && (
+                <tr><td colSpan={4} style={{ color: 'var(--muted)' }}>Aucune ligne valorisée.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       {/* Auto-transfer rules (full-width Bento panel) */}
       <section className="ac-panel">
@@ -638,7 +657,7 @@ export default function InventoryOps() {
         </div>
 
         <h3 style={{ fontSize: 13.5, margin: '18px 0 10px' }}>Nouvelle règle</h3>
-        <div className="grid grid-2" style={{ gap: 12 }}>
+        <div className="ac-ops-form-grid-2">
           <div className="form-row"><label>Nom</label>
             <input value={newRule.name} onChange={(e) => setNewRule({ ...newRule, name: e.target.value })} />
           </div>
