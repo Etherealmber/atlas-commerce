@@ -4753,11 +4753,12 @@ html body .modal-overlay .modal.employee-wizard > .wizard-foot {
   }
 }
 
-/* Table row action buttons across ALL pages: right-aligned + pill shape matching TimedUndoDelete */
+/* Table row action buttons across ALL pages: centered Actions header + right-aligned pills */
 html body .content table:has(tbody td.row-actions-cell) thead th:last-child,
 html body .content table:has(tbody td:last-child [data-atlas-delete="1"]) thead th:last-child,
-html body .content table:has(tbody td:last-child button) thead th:last-child {
-  text-align: right !important;
+html body .content table:has(tbody td:last-child button) thead th:last-child,
+html body .content table:has(tbody td:last-child a.btn) thead th:last-child {
+  text-align: center !important;
 }
 html body .content table td.row-actions-cell,
 html body .content table td.row-actions-cell > .row-actions,

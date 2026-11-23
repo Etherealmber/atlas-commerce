@@ -417,8 +417,23 @@ export default function Login() {
   const [turnstileHint, setTurnstileHint] = useState(false);
   // v0.7.7 — retry manuel du widget Turnstile (re-render complet)
   const [turnstileNonce, setTurnstileNonce] = useState(0);
+  const [turnstileTheme, setTurnstileTheme] = useState<'light' | 'dark'>(() =>
+    typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light',
+  );
   const turnstileTokenRef = useRef('');
   const turnstileWidgetId = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (typeof MutationObserver === 'undefined' || typeof document === 'undefined') return;
+    const sync = () => {
+      const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+      setTurnstileTheme((prev) => (prev === next ? prev : next));
+    };
+    sync();
+    const obs = new MutationObserver(sync);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => obs.disconnect();
+  }, []);
   const [showPassword, setShowPassword] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [loginFailed, setLoginFailed] = useState(false);
@@ -544,8 +559,9 @@ export default function Login() {
       const ts = (window as any).turnstile;
       if (!ts?.render) return;
       try {
-        // Flexible widgets have a 300px minimum; compact fits narrow phones.
-        const size = el.clientWidth < 300 ? 'compact' : 'flexible';
+        // Flexible widgets fit cleanly on 280px+ containers; compact is only for ultra-narrow boxes.
+        const measuredWidth = Math.max(el.clientWidth || 0, el.parentElement?.clientWidth || 0);
+        const size = measuredWidth < 280 ? 'compact' : 'flexible';
         widgetId = ts.render(el, {
           sitekey: turnstileSiteKey,
           callback: (token: string) => {
@@ -557,7 +573,8 @@ export default function Login() {
           'expired-callback': fail,
           'error-callback': fail,
           'timeout-callback': fail,
-          theme: 'auto', size,
+          theme: turnstileTheme,
+          size,
         });
         rendered = true;
         window.clearInterval(poll);
@@ -587,7 +604,7 @@ export default function Login() {
       if (turnstileWidgetId.current === widgetId) turnstileWidgetId.current = undefined;
       turnstileTokenRef.current = '';
     };
-  }, [turnstileSiteKey, turnstileNonce, step, offerBioSetup]);
+  }, [turnstileSiteKey, turnstileNonce, turnstileTheme, step, offerBioSetup]);
 
   const afterToken = (data: any, justTrusted?: boolean) => {
     setToken(data.token, data.ip, (data.username || username).trim().toLowerCase(), data.role || 'user');

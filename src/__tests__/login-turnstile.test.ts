@@ -112,6 +112,15 @@ describe('login Turnstile', () => {
     await submit();
     expect(fetchMock.mock.calls.filter(([url]) => String(url).includes('/api/auth/login'))).toHaveLength(1);
   });
+  it('renders flexible light-matched widget on normal phone widths instead of dark compact square', async () => {
+    document.documentElement.setAttribute('data-theme', 'light');
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(320);
+    const render = vi.fn((_el: HTMLElement, _options: any) => 'widget-id');
+    (window as any).turnstile = { render, remove: vi.fn() };
+    await mount();
+    expect(render).toHaveBeenCalledOnce();
+    expect(render.mock.calls[0][1]).toMatchObject({ sitekey: 'test-site-key', size: 'flexible', theme: 'light' });
+  });
   it('shows retry if the script hangs without firing an error', async () => {
     vi.useFakeTimers();
     await mount();

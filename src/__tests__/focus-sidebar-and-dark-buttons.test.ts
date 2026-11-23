@@ -280,6 +280,7 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     expect(darkCss).toContain('--bg: #121317 !important;');
     expect(darkCss).toContain('--paper: #181a20 !important;');
     expect(darkCss).toContain(':not(.privacy-link-btn)');
+    expect(darkCss).toMatch(/thead\s+th:last-child\s*\{[^}]*text-align:\s*center\s*!important;/s);
     for (const legal of ['src/pages/Privacy.tsx', 'src/pages/Terms.tsx', 'src/pages/Licenses.tsx']) {
       expect(readFileSync(path.resolve(process.cwd(), legal), 'utf8')).not.toContain('privacy-nav');
     }

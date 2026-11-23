@@ -1,7 +1,7 @@
 import DocumentActors from '../components/DocumentActors';
 import TopPageActions from '../components/TopPageActions';
 import { Ban, Pencil, Printer, RotateCcw } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { api, BASE } from '../api';
 import { getToken } from '../auth';
@@ -9,6 +9,7 @@ import { statusFr, statusBadgeClass } from '../lib/labels';
 import { fmtMoney, paymentMethodLabel, remainingBalance } from '../lib/money';
 import { useUi } from '../components/AppDialogs';
 import PasswordConfirm from '../components/PasswordConfirm';
+import RemboursementModal from '../components/RemboursementModal';
 import SaveFeedback from '../components/SaveFeedback';
 import NumberField from '../components/NumberField';
 import { TimedUndoDelete } from '../components/ui';
@@ -66,6 +67,9 @@ export default function QuickSaleDetail() {
   const [savingLines, setSavingLines] = useState(false);
   const [editLines, setEditLines] = useState<VrEditLine[]>([]);
   const [notesEdit, setNotesEdit] = useState('');
+  const [showRefund, setShowRefund] = useState(false);
+  const infoCardRef = useRef<HTMLDivElement>(null);
+  const linesCardRef = useRef<HTMLDivElement>(null);
 
   const flash = (m: string, type: 'success' | 'error' = 'success') => {
     setMsg(m);
@@ -209,7 +213,7 @@ export default function QuickSaleDetail() {
   };
 
   const goRefund = () => {
-    nav(`/invoices?refund=${ticket.id}`);
+    setShowRefund(true);
   };
 
   const cancelTicket = async () => {
@@ -306,13 +310,28 @@ export default function QuickSaleDetail() {
             <span className="tpa-label">Imprimer</span>
           </button>
           {!cancelled && !editingInfo && (
-            <button type="button" className="secondary" title="Modifier le client et les infos" onClick={() => setEditingInfo(true)}>
+            <button
+              type="button"
+              className="secondary"
+              title="Modifier le client et les infos"
+              onClick={() => {
+                setEditingInfo(true);
+                requestAnimationFrame(() => infoCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
+              }}
+            >
               <Pencil size={16} aria-hidden="true" />
               <span className="tpa-label">Modifier infos</span>
             </button>
           )}
           {canEditLines && !editingLines && (
-            <button type="button" title="Modifier les lignes" onClick={startEditLines}>
+            <button
+              type="button"
+              title="Modifier les lignes"
+              onClick={() => {
+                startEditLines();
+                requestAnimationFrame(() => linesCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
+              }}
+            >
               <Pencil size={16} aria-hidden="true" />
               <span className="tpa-label">Modifier lignes</span>
             </button>
@@ -329,7 +348,7 @@ export default function QuickSaleDetail() {
       <SaveFeedback message={msg} type={msgType} />
 
       <div className="grid grid-2" style={{ marginBottom: 16 }}>
-        <div className="card">
+        <div className="card" ref={infoCardRef}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <h3 style={{ fontSize: 15, margin: 0 }}>Client &amp; infos</h3>
             {!cancelled && !editingInfo ? (
@@ -437,7 +456,7 @@ export default function QuickSaleDetail() {
       </div>
 
       {Math.abs(Number(ticket.tax_amount || 0)) > 0.001 && <p role="alert">Ce ticket historique contient une TVA enregistrée. Ses montants et paiements n’ont pas été modifiés ; une régularisation est nécessaire.</p>}
-      <div className="card" style={{ marginBottom: 16 }}>
+      <div className="card" style={{ marginBottom: 16 }} ref={linesCardRef}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
           <h3 style={{ fontSize: 15, margin: 0 }}>Lignes (sans TVA)</h3>
           {canEditLines && !editingLines && (
@@ -631,6 +650,14 @@ export default function QuickSaleDetail() {
           </div>
         </div>
       </section>
+
+      <RemboursementModal
+        open={showRefund}
+        initialSourceId={ticket.id}
+        preferQuickSale
+        onClose={() => setShowRefund(false)}
+        onCreated={() => void reload()}
+      />
 
       {pwOpen && pendingDelete && (
         <PasswordConfirm

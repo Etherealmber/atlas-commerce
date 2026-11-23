@@ -15,6 +15,8 @@ type Props = {
   onCreated?: () => void;
   /** Prefer VR tickets when opened from Quick Sale */
   preferQuickSale?: boolean;
+  /** Pre-select a source invoice / ticket ID and open directly on step 2 */
+  initialSourceId?: number;
 };
 
 const WR_STEPS: readonly WizardStepDef[] = [
@@ -33,7 +35,7 @@ const REASON_CODES = [
 /**
  * Shared WR create dialog — used from Factures, Vente rapide, Remboursements.
  */
-export default function RemboursementModal({ open, onClose, onCreated, preferQuickSale }: Props) {
+export default function RemboursementModal({ open, onClose, onCreated, preferQuickSale, initialSourceId }: Props) {
   const { confirm, toast } = useUi();
   const [sources, setSources] = useState<any[]>([]);
   const [sourceId, setSourceId] = useState<number | ''>('');
@@ -95,13 +97,15 @@ export default function RemboursementModal({ open, onClose, onCreated, preferQui
 
   useEffect(() => {
     if (!open) return;
-    setSourceId('');
+    let cancelled = false;
+    setSourceId(initialSourceId || '');
     setSource(null);
     setLines([]);
     setReasonCode('');
     setReasonDetail('');
     setPayMethod('cash');
     setErr('');
+    wz.go(initialSourceId ? 2 : 1);
     void (async () => {
       try {
         const [all, qs] = await Promise.all([
@@ -126,12 +130,22 @@ export default function RemboursementModal({ open, onClose, onCreated, preferQui
             return av - bv;
           });
         }
-        setSources(list);
+        if (!cancelled) setSources(list);
+        if (initialSourceId) {
+          const det = await api.getInvoice(initialSourceId);
+          if (!cancelled && det?.data) {
+            setSource(det.data);
+            setLines(await buildLines(det.data));
+          }
+        }
       } catch (e: any) {
-        setErr(e?.message || 'Impossible de charger les documents');
+        if (!cancelled) setErr(e?.message || 'Impossible de charger les documents');
       }
     })();
-  }, [open, preferQuickSale]);
+    return () => {
+      cancelled = true;
+    };
+  }, [open, preferQuickSale, initialSourceId]);
 
   const submitWr = async () => {
               if (!sourceId) {

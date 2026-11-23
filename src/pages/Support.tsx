@@ -200,7 +200,9 @@ export default function Support() {
       const ts = (window as any).turnstile;
       if (!ts?.render) return;
       try {
-        const size = el.clientWidth < 300 ? 'compact' : 'flexible';
+        const measuredWidth = Math.max(el.clientWidth || 0, el.parentElement?.clientWidth || 0);
+        const size = measuredWidth < 280 ? 'compact' : 'flexible';
+        const resolvedTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
         widgetId = ts.render(el, {
           sitekey: turnstileSiteKey,
           callback: (token: string) => {
@@ -212,7 +214,7 @@ export default function Support() {
           'expired-callback': fail,
           'error-callback': fail,
           'timeout-callback': fail,
-          theme: 'auto',
+          theme: resolvedTheme,
           size,
         });
         rendered = true;
