@@ -14,6 +14,7 @@ import { validateBalanceEntry } from '../lib/formValidate';
 import RefreshIconButton from '../components/RefreshIconButton';
 import { FloatingPortal } from '../components/FloatingPortal';
 import { ModalFormError } from '../components/ModalFormFeedback';
+import { formatCompactNum } from '../components/DashboardCharts';
 import { ListPager } from '../components/ui/ListPager';
 import { TimedUndoDelete } from '../components/ui/TimedUndoDelete';
 import {
@@ -64,7 +65,9 @@ function BalanceMiniBars({ title, rows }: { title: string; rows: { label: string
                   }}
                 />
               </div>
-              <span className="balance-chart-val">{Math.round(r.value).toLocaleString('fr-FR')}</span>
+              <span className="balance-chart-val" title={Math.round(r.value).toLocaleString('fr-FR')}>
+                {formatCompactNum(r.value, '', 100_000)}
+              </span>
             </div>
           ))
         )}

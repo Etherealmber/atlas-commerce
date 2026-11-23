@@ -1062,12 +1062,19 @@ html body .atlas-page.ac-dash-page {
   margin-bottom: 20px;
 }
 .ac-dash-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   margin: 0 0 6px;
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ac-muted);
+  line-height: 1.25;
+}
+.ac-dash-eyebrow svg {
+  flex-shrink: 0;
 }
 .ac-dash-hello {
   margin: 0 0 6px;
@@ -3568,6 +3575,7 @@ html body .ac-dash-period-pills .ac-seg-btn[aria-pressed="true"] {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
 }
 .ac-chart-tooltip-row i {
   width: 8px;
@@ -3579,6 +3587,8 @@ html body .ac-dash-period-pills .ac-seg-btn[aria-pressed="true"] {
 .ac-chart-tooltip-row strong {
   color: var(--ac-ink, #0f172a);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .ac-chart-tooltip-net {
   margin-top: 3px;
@@ -3617,10 +3627,12 @@ html body .ac-dash-period-pills .ac-seg-btn[aria-pressed="true"] {
   gap: 7px;
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;
+  white-space: nowrap;
 }
 .ac-hbar-val strong {
   color: var(--ac-ink, #0f172a);
   font-weight: 700;
+  white-space: nowrap;
 }
 .ac-hbar-val em {
   font-style: normal;

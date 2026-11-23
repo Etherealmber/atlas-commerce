@@ -269,6 +269,10 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     expect(darkCss).toContain('.atlas-dl-teaser-link');
     expect(darkCss).toContain('html body .cookie-consent-head a { color: #18181b !important;');
     expect(darkCss).toContain('outline: 2px solid #18181b !important;');
+    expect(darkCss).toContain('.ac-topbar-notif-wrap');
+    expect(darkCss).toContain('.modal-form-alert--error');
+    expect(shellCss).toContain('display: inline-flex;');
+    expect(shellCss).toContain('white-space: nowrap;');
     expect(appCss).toContain('.atlas-dl-teaser-link');
 
     const cleanedFiles = [
@@ -286,5 +290,20 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
       const content = readFileSync(path.resolve(process.cwd(), rel), 'utf8');
       expect(content).not.toMatch(/#4f46e5|#6366f1|#8b5cf6|#a5b4fc|#c4b5fd|#eef2ff|rgba\(99,\s*102,\s*241|rgba\(124,\s*58,\s*237|rgba\(139,\s*156,\s*255/i);
     }
+  });
+
+  it('formats chart money compactly as 1k / 1M / 1B when large or tight while keeping normal values intact', async () => {
+    const { formatCompactNum, formatAxisVal } = await import('../components/DashboardCharts');
+
+    expect(formatCompactNum(0, 'MAD')).toBe('0 MAD');
+    expect(formatCompactNum(12500, 'MAD', 100_000)).toMatch(/12[\s\u202f\u00a0]?500 MAD/);
+    expect(formatCompactNum(12500, 'MAD', 10_000)).toBe('12.5k MAD');
+    expect(formatCompactNum(150_000, 'MAD')).toBe('150k MAD');
+    expect(formatCompactNum(2_500_000, 'MAD')).toBe('2.5M MAD');
+    expect(formatCompactNum(1_200_000_000, 'MAD')).toBe('1.2B MAD');
+
+    expect(formatAxisVal(1_500_000_000, 2_000_000_000)).toBe('1.5B');
+    expect(formatAxisVal(2_000_000, 4_000_000)).toBe('2M');
+    expect(formatAxisVal(45_000, 50_000)).toBe('45k');
   });
 });

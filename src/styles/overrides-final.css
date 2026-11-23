@@ -2196,6 +2196,7 @@ html body .balance-chart-val {
   font-weight: 600 !important;
   font-variant-numeric: tabular-nums !important;
   text-align: right !important;
+  white-space: nowrap !important;
   color: #0f172a !important;
 }
 /* Balance table delete: red not black pill */

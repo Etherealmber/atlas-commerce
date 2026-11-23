@@ -464,13 +464,13 @@ html[data-theme="dark"] .atlas-focus-dot {
    Shared Bento Metric Card Typography (About, Balance, Reports, Ops, Settings)
    ========================================================================== */
 html body .ac-metric {
-  display: flex;
-  flex-direction: column;
+  display: flex !important;
+  flex-direction: column !important;
   justify-content: space-between;
   gap: 6px;
 }
 html body .ac-metric .ac-metric-label {
-  display: block;
+  display: block !important;
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -479,7 +479,7 @@ html body .ac-metric .ac-metric-label {
   line-height: 1.25;
 }
 html body .ac-metric .ac-metric-val {
-  display: block;
+  display: block !important;
   font-size: 1.42rem;
   font-weight: 800;
   letter-spacing: -0.025em;
@@ -488,7 +488,7 @@ html body .ac-metric .ac-metric-val {
   font-variant-numeric: tabular-nums;
 }
 html body .ac-metric .ac-metric-meta {
-  display: block;
+  display: block !important;
   font-size: 0.76rem;
   color: var(--ac-muted, #64748b);
   line-height: 1.35;
@@ -1081,6 +1081,24 @@ html body .ac-settings-bento .settings-main--wide {
   align-items: flex-end;
   gap: 10px;
   flex-wrap: wrap;
+}
+.ac-reports-range-bar .form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0 !important;
+}
+.ac-reports-range-bar .form-row label {
+  margin: 0;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--ac-muted, #64748b);
+}
+.ac-reports-range-bar > button {
+  min-height: 40px !important;
+  padding: 0 18px !important;
+  border-radius: 10px !important;
+  align-self: flex-end;
 }
 .ac-reports-assist-box {
   margin-top: 14px;
