@@ -2281,7 +2281,7 @@ html[data-density="compact"] {
 }
 
 /* ── Global button system ── */
-button:not(.danger):not(.account-glass-switch):not(.theme-toggle):not(.settings-nav-item):not(.app-toast-close):not(.account-menu-backdrop):not(.atlas-agent-float-backdrop):not(.phone-account-backdrop):not(.account-menu-item):not(.account-menu-trigger):not(.agent-perm-mode):not(.atlas-agent-history-item):not(.ph-menu-item):not(.ptab):not(.icon-refresh-btn):not(.mailbox-icon-btn):not(.mailbox-menu-item):not(.account-seg button):not(.atlas-dp-day):not(.atlas-dp-nav):not(.atlas-dp-preset):not(.atlas-dp-btn):not(.atlas-dp-trigger),
+button:not(.danger):not(.account-glass-switch):not(.theme-toggle):not(.settings-nav-item):not(.app-toast-close):not(.account-menu-backdrop):not(.atlas-agent-float-backdrop):not(.phone-account-backdrop):not(.account-menu-item):not(.account-menu-trigger):not(.agent-perm-mode):not(.atlas-agent-history-item):not(.ph-menu-item):not(.ptab):not(.icon-refresh-btn):not(.mailbox-icon-btn):not(.mailbox-menu-item):not(.account-seg button):not(.atlas-dp-day):not(.atlas-dp-nav):not(.atlas-dp-preset):not(.atlas-dp-btn):not(.atlas-dp-trigger):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.public-download-toggle):not(.public-download-menu-item),
 .btn {
   display: inline-flex;
   align-items: center;
@@ -2635,9 +2635,9 @@ html[data-theme="dark"] .phone-account-menu a {
   color: #f1f5f9 !important;
 }
 
-/* Cookie consent — overlay stays dim; card is solid (see App.css) */
+/* Cookie consent — floating bottom card with no dark corner backdrop */
 .cookie-consent {
-  background: rgba(15, 23, 22, 0.55) !important;
+  background: transparent !important;
   border: none !important;
   box-shadow: none !important;
   color: inherit !important;

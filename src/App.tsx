@@ -581,7 +581,7 @@ function AboutRoute() {
       <PublicSettingsTopbar onOpenSidebar={() => setSidebarOpen(true)} />
       <div className="atlas-focus-layout">
         <FocusSidebar mobileOpen={sidebarOpen} onCloseMobile={() => setSidebarOpen(false)} />
-        <main className="content content-settings-focus">
+        <main className="content content-settings-focus atlas-focus-main">
           <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
             <About />
           </Suspense>
@@ -603,7 +603,7 @@ function WhatsNewRoute() {
       <PublicSettingsTopbar onOpenSidebar={() => setSidebarOpen(true)} />
       <div className="atlas-focus-layout">
         <FocusSidebar mobileOpen={sidebarOpen} onCloseMobile={() => setSidebarOpen(false)} />
-        <main className="content content-settings-focus">
+        <main className="content content-settings-focus atlas-focus-main">
           <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
             <WhatsNew />
           </Suspense>
@@ -1067,9 +1067,11 @@ function DesktopShell() {
     <>
       <ScrollToTop />
       <AtlasLoadingBar />
-      <div className={`layout${sidebarCollapsed ? ' sidebar-collapsed' : ''}${mobileNavOpen ? ' mobile-nav-open' : ''}`}>
+      <div className={`layout${sidebarCollapsed ? ' sidebar-collapsed' : ''}${mobileNavOpen ? ' mobile-nav-open' : ''}${isFocusRoute ? ' layout--focus' : ''}`}>
       <OfflineBanner />
 
+      {!isFocusRoute && (
+      <>
       <button
         type="button"
         className="mobile-nav-toggle"
@@ -1259,6 +1261,8 @@ function DesktopShell() {
             )}
           </div>
         )}
+      </>
+      )}
 
         <div className="ac-main-column">
         <div className="ac-desktop-top-row">
@@ -1364,7 +1368,7 @@ function DesktopShell() {
             }
           }}>
           <div className="ac-topbar-left">
-            {!settingsBarCompact && <button
+            {!settingsBarCompact && !isFocusRoute && <button
               type="button"
               className="ac-topbar-icon ac-topbar-menu-btn secondary ac-topbar-menu-mobile"
               aria-label={mobileNavOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
@@ -1380,6 +1384,11 @@ function DesktopShell() {
                 <path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" />
               </svg>
             </button>}
+            {isFocusRoute && (
+              <Link className="ac-dock-back" to="/dashboard" aria-label="Retour au tableau de bord" title="Retour au tableau de bord">
+                <ArrowLeft size={18} aria-hidden="true" />
+              </Link>
+            )}
             {/^\/products\/[^/]+\/historique\/?$/.test(location.pathname) && (
               <Link className="ac-dock-back" to="/products" aria-label="Retour aux produits" title="Retour aux produits">
                 <ArrowLeft size={18} aria-hidden="true" />
@@ -1527,7 +1536,6 @@ function DesktopShell() {
       <main className="content">
         <ErrorBoundary label="desktop">
           <Suspense fallback={<PageFallback />}>
-            <PageTransition>
             {isFocusRoute ? (
               <div className="atlas-focus-layout">
                 <FocusSidebar
@@ -1537,22 +1545,25 @@ function DesktopShell() {
                   authenticated
                 />
                 <div className="atlas-focus-main">
-                  {location.pathname === '/whats-new' ? (
-                    <WhatsNew />
-                  ) : location.pathname === '/about' ? (
-                    <About />
-                  ) : location.pathname === '/privacy' ? (
-                    <Privacy />
-                  ) : location.pathname === '/terms' ? (
-                    <Terms />
-                  ) : location.pathname === '/licenses' ? (
-                    <Licenses />
-                  ) : (
-                    <Settings />
-                  )}
+                  <PageTransition>
+                    {location.pathname === '/whats-new' ? (
+                      <WhatsNew />
+                    ) : location.pathname === '/about' ? (
+                      <About />
+                    ) : location.pathname === '/privacy' ? (
+                      <Privacy />
+                    ) : location.pathname === '/terms' ? (
+                      <Terms />
+                    ) : location.pathname === '/licenses' ? (
+                      <Licenses />
+                    ) : (
+                      <Settings />
+                    )}
+                  </PageTransition>
                 </div>
               </div>
             ) : (
+            <PageTransition>
             <Routes>
               <Route path="/dashboard" element={<Dashboard />} />
               {/* v0.7.5 — parent "/dashboard/*" : le reste "/" EST le dashboard
@@ -1600,8 +1611,8 @@ function DesktopShell() {
               <Route path="/m-legacy" element={<Navigate to="/dashboard" replace />} />
               <Route path="*" element={<NotFoundRedirect />} />
             </Routes>
-            )}
             </PageTransition>
+            )}
           </Suspense>
         </ErrorBoundary>
       </main>

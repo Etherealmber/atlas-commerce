@@ -12752,6 +12752,9 @@ html[data-theme="dark"] .sidebar {
   flex-direction: column !important;
   min-height: 100vh !important;
 }
+.layout.layout--focus > .ac-main-column {
+  grid-column: 1 !important;
+}
 .ac-main-column > .content {
   grid-column: unset !important;
   background: var(--ac-bg) !important;
@@ -17850,14 +17853,14 @@ html[data-theme="dark"] body .content table tbody tr:hover td {
 }
 
 /* Primary buttons: soft charcoal, not pure #000 */
-html[data-theme="dark"] body .content button:not(.secondary):not(.ghost):not(.danger):not(.theme-toggle):not(.settings-nav-item):not(.ac-seg-btn):not(.wn-filter):not(.ac-fluid-tab):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.settings-topbar-burger):not(.desktop-product-zoom-btn),
+html[data-theme="dark"] body .content button:not(.secondary):not(.ghost):not(.danger):not(.theme-toggle):not(.settings-nav-item):not(.ac-seg-btn):not(.wn-filter):not(.ac-fluid-tab):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.settings-topbar-burger):not(.desktop-product-zoom-btn):not(.public-download-toggle):not(.public-download-menu-item),
 html[data-theme="dark"] body .content .btn-primary,
 html[data-theme="dark"] body button.primary {
   background: #2a2a2e !important;
   color: #f5f6fa !important;
   border: 1px solid #3a4154 !important;
 }
-html[data-theme="dark"] body .content button:not(.secondary):not(.ghost):not(.danger):not(.ac-seg-btn):not(.wn-filter):not(.ac-fluid-tab):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.settings-topbar-burger):not(.desktop-product-zoom-btn):hover {
+html[data-theme="dark"] body .content button:not(.secondary):not(.ghost):not(.danger):not(.ac-seg-btn):not(.wn-filter):not(.ac-fluid-tab):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.settings-topbar-burger):not(.desktop-product-zoom-btn):not(.public-download-toggle):not(.public-download-menu-item):hover {
   background: #343b4f !important;
 }
 html[data-theme="dark"] body .content button.danger {
@@ -18934,9 +18937,15 @@ html[data-theme="dark"] .scan-req-label { color: #a1a1aa; }
   border: 1px solid #ded8cf;
   font-weight: 600;
   font-size: 13px;
-  text-decoration: none;
+  text-decoration: none !important;
   box-shadow: 0 10px 28px rgba(45, 35, 25, .14);
   animation: atlas-teaser-bob 2.6s ease-in-out infinite;
+}
+.atlas-dl-teaser-link:hover,
+.atlas-dl-teaser-link:focus,
+.atlas-dl-teaser-link:focus-visible,
+.atlas-dl-teaser-link * {
+  text-decoration: none !important;
 }
 .atlas-dl-teaser-dot {
   width: 9px;

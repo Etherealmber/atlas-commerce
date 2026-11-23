@@ -221,27 +221,55 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     expect(privacyBtn?.classList.contains('is-active')).toBe(false);
   });
 
-  it('renders /support page in /desktop style with AF Marbre support content and routes', async () => {
+  it('renders /support page strictly for Atlas Commerce & Etherealmber with Cloudflare Turnstile', async () => {
     await act(async () => {
       root.render(createElement(MemoryRouter, { initialEntries: ['/support'] }, createElement(Support)));
     });
     const txt = host.textContent || '';
     expect(host.querySelector('.download-landing.desktop-landing.support-landing')).not.toBeNull();
-    expect(txt).toContain('Votre projet mérite');
-    expect(txt).toContain('05 22 96 97 36');
-    expect(txt).toContain('support@afmarbre.com');
-    expect(host.querySelectorAll('.dl-support-faq details')).toHaveLength(7);
+    expect(txt).toContain('Atlas Commerce');
+    expect(txt).toContain('Etherealmber');
+    expect(txt).not.toMatch(/afmarbre|05 22 96 97 36|06 61 12 45 78|El Jadida|Berahma|WhatsApp/i);
+    expect(host.querySelectorAll('.dl-support-faq details')).toHaveLength(6);
+
+    const supportSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Support.tsx'), 'utf8');
+    expect(supportSrc).toContain('id="cf-turnstile"');
+    expect(supportSrc).toContain('/api/auth/turnstile-config');
+    expect(supportSrc).toContain('/api/reports');
+
+    const aboutSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/About.tsx'), 'utf8');
+    expect(aboutSrc).not.toMatch(/afmarbre|APP_LOCATION|Conformité Maroc/i);
+    expect(aboutSrc).toContain('about-page');
 
     const appSrc = readFileSync(path.resolve(process.cwd(), 'src/App.tsx'), 'utf8');
     expect(appSrc).toContain('path="/support"');
     expect(appSrc).toContain('path="/supprot"');
     expect(appSrc).toContain('PublicLegalOutlet');
+    expect(appSrc).toContain('layout--focus');
+    expect(appSrc).toContain('{!isFocusRoute && (');
   });
 
-  it('keeps project cards non-underlined, FocusSidebar left-centered, and zero purple in updated modules', () => {
+  it('keeps FocusSidebar, Bento metrics, CookieConsent, and split download CTAs properly styled', () => {
     const focusCss = readFileSync(path.resolve(process.cwd(), 'src/styles/focus-sidebar.css'), 'utf8');
+    const shellCss = readFileSync(path.resolve(process.cwd(), 'src/styles/shell.css'), 'utf8');
+    const indexCss = readFileSync(path.resolve(process.cwd(), 'src/index.css'), 'utf8');
+    const darkCss = readFileSync(path.resolve(process.cwd(), 'src/styles/dark-force.css'), 'utf8');
+    const appCss = readFileSync(path.resolve(process.cwd(), 'src/App.css'), 'utf8');
+
     expect(focusCss).toContain('text-decoration: none !important;');
     expect(focusCss).toContain('transform: translateY(-50%);');
+    expect(focusCss).toContain('.ac-metric-label');
+    expect(focusCss).toContain('.ac-metric-val');
+    expect(focusCss).toContain('.ac-metric-meta');
+    expect(shellCss).toContain('.layout.layout--focus');
+    expect(shellCss).toContain(':not(.atlas-focus-nav-item)');
+    expect(indexCss).toContain('background: transparent !important;');
+    expect(indexCss).toContain(':not(.public-download-toggle)');
+    expect(darkCss).toContain('.public-download-menu-item');
+    expect(darkCss).toContain('.atlas-dl-teaser-link');
+    expect(darkCss).toContain('html body .cookie-consent-head a { color: #18181b !important;');
+    expect(darkCss).toContain('outline: 2px solid #18181b !important;');
+    expect(appCss).toContain('.atlas-dl-teaser-link');
 
     const cleanedFiles = [
       'src/styles/theme.css',

@@ -1,89 +1,104 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useLandingMotion } from '../hooks/useLandingMotion';
 import { PublicNav, PublicSessionCta, GitHubStarButton } from '../components/PublicChrome';
-import { APP_BUILD_DATE, APP_NAME } from '../version';
+import { getApiBase } from '../config';
+import { APP_BUILD_DATE, APP_CREATOR_NAME, APP_NAME, APP_VERSION } from '../version';
 
-const SUPPORT_SITE = 'https://support.afmarbre.com';
-const SUPPORT_CHAT = 'https://chat.afmarbre.com/';
-const SUPPORT_STATUS = 'https://status.afmarbre.com/';
-const AFMARBRE_SITE = 'https://afmarbre.com/';
-const SUPPORT_EMAIL = 'support@afmarbre.com';
-const SUPPORT_PHONE_TEL = 'tel:+212522969736';
-const SUPPORT_PHONE_LABEL = '05 22 96 97 36';
-const SUPPORT_WA = 'https://wa.me/212661959239';
-const SUPPORT_WA_LABEL = '06 61 95 92 39';
-const SHOWROOM_MAP = 'https://maps.app.goo.gl/oAFFAobrUDsu5sAE6';
+const GITHUB_ORG = 'https://github.com/Etherealmber';
+const GITHUB_REPO = 'Etherealmber/atlas-commerce';
+const GITHUB_REPO_URL = `https://github.com/${GITHUB_REPO}`;
+const GITHUB_ISSUES = `${GITHUB_REPO_URL}/issues`;
+const GITHUB_NEW_ISSUE = `${GITHUB_REPO_URL}/issues/new`;
+const GITHUB_RELEASES = `${GITHUB_REPO_URL}/releases`;
+
+function isNativeClient(): boolean {
+  try {
+    const cap = (window as any).Capacitor;
+    if (cap?.isNativePlatform?.()) return true;
+    if (cap?.getPlatform) {
+      const plat = String(cap.getPlatform() || '').toLowerCase();
+      if (plat === 'android' || plat === 'ios') return true;
+    }
+    if (cap && typeof cap.isNativePlatform === 'function') return true;
+    const ua = navigator.userAgent || '';
+    if (/Atlas-Android|Atlas-iOS/i.test(ua)) return true;
+  } catch { /* */ }
+  return false;
+}
+
+function shouldLoadTurnstile(): boolean {
+  return !isNativeClient();
+}
+
+function isPwaClient(): boolean {
+  try {
+    if (typeof window === 'undefined') return false;
+    return (
+      window.matchMedia('(display-mode: standalone)').matches ||
+      !!(navigator as any).standalone
+    );
+  } catch {
+    return false;
+  }
+}
+
+function isMobileViewport(): boolean {
+  try {
+    if (typeof window === 'undefined') return false;
+    return (
+      window.matchMedia('(max-width: 768px)').matches ||
+      /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '')
+    );
+  } catch {
+    return false;
+  }
+}
 
 const WORKFLOW_STEPS: { code: string; title: string; text: string }[] = [
   {
-    code: '01 / Avant le projet',
-    title: 'Étude, mesures & devis',
-    text: 'Choix des pierres (marbre, granit, quartz), prise de cotes sur plan ou sur site et devis détaillé adapté au chantier.',
+    code: '01 / Déploiement & accès',
+    title: 'Mise en route de votre instance',
+    text: 'Configuration de votre espace Atlas Commerce sur Cloudflare Workers, base D1 SQLite, stockage R2 et sécurisation des comptes (WebAuthn, OTP).',
   },
   {
-    code: '02 / Pendant la réalisation',
-    title: 'Façonnage & pose',
-    text: 'Découpe en atelier, contrôle qualité, coordination de livraison et suivi d’avancement jusqu’à la pose finale.',
+    code: '02 / Exploitation quotidienne',
+    title: 'Stock, caisse, devis & factures',
+    text: 'Accompagnement sur le catalogue produits, les transferts entre entrepôts, les ventes rapides, les devis convertibles et les exports PDF / CSV.',
   },
   {
-    code: '03 / Après la pose',
-    title: 'SAV, facture & entretien',
-    text: 'Assistance post-pose, duplicata de facture, conseils de cristallisation et maintenance durable des surfaces.',
+    code: '03 / Mises à jour & sécurité',
+    title: 'Web, Android & bureau Tauri',
+    text: 'Suivi des versions bêta, remontée des anomalies vers GitHub Issues, vérification d’intégrité du moteur financier WebAssembly et sauvegardes.',
   },
 ];
 
 const FAQ_ITEMS: { q: string; a: string }[] = [
   {
-    q: 'Comment demander un devis pour un projet marbre, granit ou quartz ?',
-    a: 'Utilisez le formulaire ci-dessus en sélectionnant « Demande de devis », précisez le type d’ouvrage (plan de travail, escalier, revêtement, vasque) et vos dimensions approximatives.',
+    q: 'Comment signaler un bug ou demander une fonctionnalité sur Atlas Commerce ?',
+    a: 'Remplissez le formulaire ci-dessus après avoir validé la vérification Cloudflare Turnstile, ou ouvrez directement un ticket sur le dépôt GitHub Etherealmber/atlas-commerce.',
   },
   {
-    q: 'Puis-je envoyer des photos ou un plan après ma demande ?',
-    a: 'Oui. Répondez à l’e-mail de confirmation avec vos photos/plans, ou envoyez-les directement sur WhatsApp au 06 61 95 92 39 en rappelant votre référence AFM.',
+    q: 'Où sont hébergées les données de mon instance Atlas Commerce ?',
+    a: 'Atlas Commerce est un logiciel auto-hébergé maintenu par Etherealmber : vos données restent sur votre propre compte Cloudflare (Workers, D1 SQLite et R2 Storage).',
   },
   {
-    q: 'Quels sont les délais habituels de façonnage et de pose ?',
-    a: 'Selon la pierre retenue et la complexité du chantier, le délai est précisé dès la validation du devis et suivi avec notre équipe atelier.',
+    q: 'Comment installer Atlas Commerce sur Android, Windows, macOS ou Linux ?',
+    a: 'Téléchargez l’APK officiel depuis la page Android (/android) ou les installateurs bureau Tauri (MSI/EXE, DMG, AppImage) depuis la page Bureau (/desktop).',
   },
   {
-    q: 'Comment suivre l’avancement d’une commande ou d’une intervention ?',
-    a: 'Renseignez votre référence AFM (ex. AFM-2026-0142) dans le module de suivi ci-dessous ou contactez-nous par téléphone / WhatsApp aux horaires d’ouverture.',
+    q: 'Comment fonctionnent la connexion OTP, les passkeys WebAuthn et les appareils de confiance ?',
+    a: 'Chaque nouvel appareil est validé par code OTP ou clé biométrique WebAuthn. Vous pouvez consulter et révoquer vos appareils actifs depuis Paramètres → Mon profil.',
   },
   {
-    q: 'Quels modes de paiement et documents comptables sont disponibles ?',
-    a: 'Virement, chèque ou règlement au showroom. Les factures et reçus détaillés sont émis via Atlas Commerce et ré-éditables à la demande.',
+    q: 'Comment vérifier l’authenticité d’un reçu ou d’une facture émise par Atlas ?',
+    a: 'Chaque document généré peut inclure un QR code pointant vers /verify afin de contrôler les informations essentielles du document.',
   },
   {
-    q: 'Comment entretenir et cristalliser un marbre ou un plan en pierre ?',
-    a: 'Évitez les produits acides ou abrasifs ; utilisez un savon neutre pH 7. Pour une cristallisation ou rénovation, sélectionnez « Entretien & cristallisation ».',
-  },
-  {
-    q: 'Où se situe le showroom AF Marbre ?',
-    a: 'Route Azemmour Km 24, Berahma. Ouvert du lundi au samedi de 09h00 à 13h00 et de 14h30 à 18h30.',
+    q: 'Sous quelles licences Atlas Commerce est-il distribué ?',
+    a: 'Atlas Commerce est un projet open source publié par Etherealmber sous double licence MIT ou Apache-2.0. Consultez la page Licences (/licenses) pour les textes complets.',
   },
 ];
-
-function isShowroomOpenNow(): boolean {
-  try {
-    const now = new Date();
-    const parts = new Intl.DateTimeFormat('fr-FR', {
-      timeZone: 'Africa/Casablanca',
-      weekday: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    }).formatToParts(now);
-    const weekday = (parts.find((p) => p.type === 'weekday')?.value || '').toLowerCase();
-    if (weekday.startsWith('dim')) return false;
-    const hour = Number(parts.find((p) => p.type === 'hour')?.value || 0);
-    const minute = Number(parts.find((p) => p.type === 'minute')?.value || 0);
-    const mins = hour * 60 + minute;
-    return (mins >= 9 * 60 && mins < 13 * 60) || (mins >= 14 * 60 + 30 && mins < 18 * 60 + 30);
-  } catch {
-    return false;
-  }
-}
 
 export default function Support() {
   const pageRef = useRef<HTMLDivElement>(null);
@@ -91,25 +106,152 @@ export default function Support() {
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [reference, setReference] = useState('');
-  const [type, setType] = useState<'devis' | 'livraison' | 'sav' | 'entretien' | 'facture' | 'autre'>('sav');
-  const [contactPref, setContactPref] = useState<'email' | 'telephone' | 'whatsapp'>('email');
+  const [environment, setEnvironment] = useState<'web' | 'android' | 'desktop' | 'cloudflare'>('web');
+  const [category, setCategory] = useState<'support' | 'auth' | 'billing' | 'bug' | 'feedback' | 'other'>('support');
+  const [versionInfo, setVersionInfo] = useState(`v${APP_VERSION}`);
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [submitOk, setSubmitOk] = useState<{ ref: string; fallbackMailto?: string } | null>(null);
+  const [submitOk, setSubmitOk] = useState<{ ref: string; issueUrl?: string } | null>(null);
   const [submitErr, setSubmitErr] = useState('');
 
-  const [lookupRef, setLookupRef] = useState('');
-  const [lookupState, setLookupState] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
-  const [lookupMsg, setLookupMsg] = useState('');
+  // Cloudflare Turnstile — exact same explicit widget lifecycle as Login.tsx
+  const [turnstileSiteKey, setTurnstileSiteKey] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const turnstileTokenRef = useRef('');
+  const turnstileWidgetId = useRef<string | undefined>(undefined);
+  const [turnstileHint, setTurnstileHint] = useState(false);
+  const [turnstileNonce, setTurnstileNonce] = useState(0);
 
-  const showroomOpen = useMemo(() => isShowroomOpenNow(), []);
+  const retryTurnstile = () => {
+    turnstileTokenRef.current = '';
+    setTurnstileToken('');
+    setTurnstileHint(false);
+    try {
+      const ts = (window as any).turnstile;
+      if (ts && turnstileWidgetId.current != null && ts.reset) {
+        ts.reset(turnstileWidgetId.current);
+        return;
+      }
+    } catch { /* fall back to full remount */ }
+    setTurnstileNonce((n) => n + 1);
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        if (!shouldLoadTurnstile()) {
+          if (!cancelled) {
+            setTurnstileSiteKey(null);
+            setTurnstileToken('');
+          }
+          return;
+        }
+        const client = isPwaClient() ? 'pwa' : isMobileViewport() ? 'mobile-web' : 'web';
+        const tr = await fetch(`${getApiBase()}/api/auth/turnstile-config`, {
+          headers: { 'X-Atlas-Client': client },
+        });
+        const tj = (await tr.json().catch(() => ({}))) as {
+          data?: { enabled?: boolean; site_key?: string };
+        };
+        const key = tj?.data?.enabled && tj?.data?.site_key ? String(tj.data.site_key) : '';
+        if (!cancelled && key) setTurnstileSiteKey(key);
+      } catch {
+        /* Turnstile config optional when offline/unreachable */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!turnstileSiteKey || !shouldLoadTurnstile()) return;
+    let cancelled = false;
+    let widgetId: string | undefined;
+    let rendered = false;
+    let poll: number | undefined;
+    const timers: number[] = [];
+    const el = document.getElementById('cf-turnstile');
+    if (!el) return;
+    turnstileTokenRef.current = '';
+    setTurnstileToken('');
+    setTurnstileHint(false);
+
+    const scriptSelector = 'script[src*="challenges.cloudflare.com/turnstile/v0/api.js"]';
+    let script = document.querySelector<HTMLScriptElement>(scriptSelector);
+    if (!(window as any).turnstile && !script) {
+      script = document.createElement('script');
+      script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+      script.async = true;
+      script.defer = true;
+    }
+    const fail = () => {
+      if (!cancelled) {
+        window.clearInterval(poll);
+        turnstileTokenRef.current = '';
+        setTurnstileToken('');
+        setTurnstileHint(true);
+      }
+    };
+    const tryRender = () => {
+      if (cancelled || rendered) return;
+      const ts = (window as any).turnstile;
+      if (!ts?.render) return;
+      try {
+        const size = el.clientWidth < 300 ? 'compact' : 'flexible';
+        widgetId = ts.render(el, {
+          sitekey: turnstileSiteKey,
+          callback: (token: string) => {
+            if (cancelled) return;
+            turnstileTokenRef.current = token;
+            setTurnstileToken(token);
+            setTurnstileHint(false);
+          },
+          'expired-callback': fail,
+          'error-callback': fail,
+          'timeout-callback': fail,
+          theme: 'auto',
+          size,
+        });
+        rendered = true;
+        window.clearInterval(poll);
+        turnstileWidgetId.current = widgetId;
+        timers.push(window.setTimeout(() => {
+          if (!cancelled && !turnstileTokenRef.current) setTurnstileHint(true);
+        }, 15000));
+      } catch {
+        fail();
+      }
+    };
+    script?.addEventListener('load', tryRender);
+    script?.addEventListener('error', fail);
+    if (script && !script.isConnected) document.head.appendChild(script);
+    poll = window.setInterval(tryRender, 200);
+    tryRender();
+    timers.push(window.setTimeout(() => {
+      window.clearInterval(poll);
+      if (!rendered) fail();
+    }, 10000));
+    return () => {
+      cancelled = true;
+      window.clearInterval(poll);
+      timers.forEach((timer) => window.clearTimeout(timer));
+      script?.removeEventListener('load', tryRender);
+      script?.removeEventListener('error', fail);
+      try {
+        if (widgetId != null) (window as any).turnstile?.remove?.(widgetId);
+      } catch { /* */ }
+      el.replaceChildren();
+      if (turnstileWidgetId.current === widgetId) turnstileWidgetId.current = undefined;
+      turnstileTokenRef.current = '';
+    };
+  }, [turnstileSiteKey, turnstileNonce]);
 
   useEffect(() => {
     const prevTitle = document.title;
-    document.title = `Support & assistance — ${APP_NAME}`;
+    document.title = `Support — ${APP_NAME}`;
     return () => {
       document.title = prevTitle;
     };
@@ -123,75 +265,67 @@ export default function Support() {
       setSubmitErr('Merci de renseigner votre nom, votre e-mail, l’objet et le détail de votre demande.');
       return;
     }
+    const token = turnstileTokenRef.current || turnstileToken;
+    if (turnstileSiteKey && shouldLoadTurnstile() && !token) {
+      setSubmitErr('Veuillez compléter la vérification de sécurité Cloudflare Turnstile avant d’envoyer.');
+      return;
+    }
+
+    const formattedBody = [
+      `Demandeur : ${name.trim()}`,
+      `Contact : ${email.trim()}`,
+      `Environnement : ${environment}`,
+      `Catégorie : ${category}`,
+      versionInfo.trim() ? `Version : ${versionInfo.trim()}` : '',
+      '',
+      `Objet : ${subject.trim()}`,
+      '',
+      message.trim(),
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    const issueTitle = `[Support:${category}] ${subject.trim()}`;
+    const issueUrl = `${GITHUB_NEW_ISSUE}?title=${encodeURIComponent(issueTitle)}&body=${encodeURIComponent(formattedBody)}`;
+    const localRef = `ATLAS-${new Date().getUTCFullYear()}-${String(Date.now()).slice(-4)}`;
+
     setSubmitting(true);
     try {
-      const res = await fetch(`${SUPPORT_SITE}/api/requests`, {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      try {
+        const authToken = localStorage.getItem('stock_token');
+        if (authToken) headers.Authorization = `Bearer ${authToken}`;
+      } catch { /* ignore */ }
+
+      const res = await fetch(`${getApiBase()}/api/reports`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
-          name: name.trim(),
-          email: email.trim(),
-          phone: phone.trim(),
-          reference: reference.trim(),
-          type,
-          contact: contactPref,
-          subject: subject.trim(),
-          message: message.trim(),
+          kind: category === 'bug' ? 'bug' : category === 'feedback' ? 'feedback' : 'other',
+          message: formattedBody,
+          contact: `${name.trim()} <${email.trim()}>`,
+          page: '/support',
+          version: versionInfo.trim() || APP_VERSION,
+          turnstile_token: token || undefined,
         }),
       });
       if (res.ok) {
         const data: any = await res.json().catch(() => ({}));
-        const refId = String(data?.reference || data?.id || `AFM-${new Date().getUTCFullYear()}-${String(Date.now()).slice(-4)}`);
-        setSubmitOk({ ref: refId });
+        const refId = String(data?.data?.reference || data?.reference || localRef);
+        setSubmitOk({
+          ref: refId,
+          issueUrl: data?.data?.issue_url ? String(data.data.issue_url) : undefined,
+        });
         setSubject('');
         setMessage('');
+        if (turnstileSiteKey && shouldLoadTurnstile()) retryTurnstile();
         return;
       }
       throw new Error(`HTTP ${res.status}`);
     } catch {
-      const localRef = reference.trim() || `AFM-${new Date().getUTCFullYear()}-${String(Date.now()).slice(-4)}`;
-      const mailBody = [
-        `Nom : ${name.trim()}`,
-        `E-mail : ${email.trim()}`,
-        phone.trim() ? `Téléphone : ${phone.trim()}` : '',
-        `Type : ${type}`,
-        `Canal préféré : ${contactPref}`,
-        `Référence : ${localRef}`,
-        '',
-        message.trim(),
-      ]
-        .filter(Boolean)
-        .join('\n');
-      const mailto = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`[${type.toUpperCase()}] ${subject.trim()} (${localRef})`)}&body=${encodeURIComponent(mailBody)}`;
-      setSubmitOk({ ref: localRef, fallbackMailto: mailto });
+      setSubmitOk({ ref: localRef, issueUrl });
     } finally {
       setSubmitting(false);
-    }
-  }
-
-  async function handleLookup(e: FormEvent) {
-    e.preventDefault();
-    const q = lookupRef.trim();
-    if (!q) {
-      setLookupState('error');
-      setLookupMsg('Saisissez une référence AFM (ex. AFM-2026-0142).');
-      return;
-    }
-    setLookupState('loading');
-    setLookupMsg('');
-    try {
-      const res = await fetch(`${SUPPORT_SITE}/api/requests/${encodeURIComponent(q)}`);
-      if (res.ok) {
-        const data: any = await res.json().catch(() => ({}));
-        const status = String(data?.status || 'En cours de traitement');
-        setLookupState('done');
-        setLookupMsg(`Référence ${q} — Statut : ${status}`);
-        return;
-      }
-      throw new Error(`HTTP ${res.status}`);
-    } catch {
-      setLookupState('error');
-      setLookupMsg(`Suivi en ligne indisponible pour ${q}. Contactez ${SUPPORT_EMAIL} ou WhatsApp (${SUPPORT_WA_LABEL}).`);
     }
   }
 
@@ -201,10 +335,10 @@ export default function Support() {
         links={[
           { href: '/', label: 'Accueil' },
           { href: '/desktop', label: 'Bureau' },
+          { href: '/android', label: 'Android' },
           { href: '#demande', label: 'Demande' },
-          { href: '#suivi', label: 'Suivi' },
           { href: '#faq', label: 'FAQ' },
-          { href: '/whats-new', label: 'Nouveautés' },
+          { href: '/about', label: 'À propos' },
         ]}
         cta={<PublicSessionCta />}
         classic
@@ -213,33 +347,33 @@ export default function Support() {
       <main className="dl-ed-main">
         <section className="dl-hero dl-ed-hero">
           <div className="dl-container">
-            <a className="dl-ed-release-badge" href={SUPPORT_SITE} target="_blank" rel="noopener noreferrer">
+            <a className="dl-ed-release-badge" href={GITHUB_ISSUES} target="_blank" rel="noopener noreferrer">
               <span aria-hidden="true" />
-              Portail Support · support.afmarbre.com <b aria-hidden="true">↗</b>
+              {APP_NAME} · {APP_CREATOR_NAME} · Support <b aria-hidden="true">↗</b>
             </a>
             <div className="dl-ed-hero-grid">
               <div className="dl-hero-content">
                 <h1 className="dl-h1 dl-ed-title">
-                  <span className="dl-ed-title-first">Votre projet mérite</span>{' '}
-                  <span className="dl-ed-title-second">un suivi précis.</span>
+                  <span className="dl-ed-title-first">Support officiel</span>{' '}
+                  <span className="dl-ed-title-second">{APP_NAME}.</span>
                 </h1>
                 <p className="dl-desc">
-                  Assistance commerciale et technique Atlas Commerce &amp; AF Marbre : devis, livraison, SAV, factures et showroom.
+                  Assistance technique et produit pour {APP_NAME} ({APP_CREATOR_NAME}) : déploiement, gestion de stock,
+                  caisse, facturation, comptes sécurisés, application Android et client bureau.
                 </p>
                 <div className="dl-ctas">
-                  <a className="dl-cta-main" href="#demande">
+                  <a className="dl-cta-main support-cta-btn" href="#demande">
                     Ouvrir une demande <span className="dl-cta-arrow" aria-hidden="true">↓</span>
                   </a>
-                  <a className="dl-cta-ghost" href={SUPPORT_CHAT} target="_blank" rel="noopener noreferrer">
-                    Assistant IA <span className="dl-cta-arrow" aria-hidden="true">↗</span>
+                  <a className="dl-cta-ghost support-cta-btn" href={GITHUB_ISSUES} target="_blank" rel="noopener noreferrer">
+                    Tickets GitHub <span className="dl-cta-arrow" aria-hidden="true">↗</span>
                   </a>
-                  <a className="dl-cta-ghost" href={SUPPORT_WA} target="_blank" rel="noopener noreferrer">
-                    WhatsApp <span className="dl-cta-arrow" aria-hidden="true">↗</span>
-                  </a>
+                  <Link className="dl-cta-ghost support-cta-btn" to="/about">
+                    À propos d’Atlas <span className="dl-cta-arrow" aria-hidden="true">→</span>
+                  </Link>
                 </div>
                 <p className="dl-note">
-                  Showroom Route Azemmour Km 24, Berahma ·{' '}
-                  <strong>{showroomOpen ? 'Ouvert actuellement' : 'Hors horaires d’ouverture'}</strong> (Lun. – Sam. 09:00–13:00 · 14:30–18:30).
+                  Projet open source maintenu par <strong>{APP_CREATOR_NAME}</strong> · Version <strong>v{APP_VERSION}</strong> · Web, Android &amp; Bureau.
                 </p>
               </div>
               <div className="dl-ed-mark" aria-hidden="true">
@@ -252,27 +386,25 @@ export default function Support() {
 
             <ul className="dl-ed-facts">
               <li>
-                <b>Assistant IA 24/7</b>
+                <b>Application Web</b>
+                <span>Cloudflare Workers, D1 SQLite &amp; R2 Storage</span>
+              </li>
+              <li>
+                <b>Mobile Android</b>
                 <span>
-                  <a href={SUPPORT_CHAT} target="_blank" rel="noopener noreferrer">chat.afmarbre.com ↗</a>
+                  <Link to="/android">Télécharger l’APK →</Link>
                 </span>
               </li>
               <li>
-                <b>Téléphone</b>
+                <b>Client Bureau</b>
                 <span>
-                  <a href={SUPPORT_PHONE_TEL}>{SUPPORT_PHONE_LABEL}</a>
+                  <Link to="/desktop">Windows, macOS &amp; Linux →</Link>
                 </span>
               </li>
               <li>
-                <b>WhatsApp</b>
+                <b>Dépôt officiel</b>
                 <span>
-                  <a href={SUPPORT_WA} target="_blank" rel="noopener noreferrer">{SUPPORT_WA_LABEL} ↗</a>
-                </span>
-              </li>
-              <li>
-                <b>Showroom</b>
-                <span>
-                  <a href={SHOWROOM_MAP} target="_blank" rel="noopener noreferrer">Berahma · Itinéraire ↗</a>
+                  <a href={GITHUB_REPO_URL} target="_blank" rel="noopener noreferrer">{GITHUB_REPO} ↗</a>
                 </span>
               </li>
             </ul>
@@ -284,78 +416,99 @@ export default function Support() {
             <div className="dl-ed-heading">
               <p className="dl-ed-kicker">01 / ASSISTANCE</p>
               <h2 id="support-form-title">Nouvelle demande</h2>
-              <p>Décrivez votre besoin (devis, livraison, SAV, entretien ou facture). Notre équipe vous répond sous 24 h ouvrées.</p>
-              <a href={SUPPORT_STATUS} target="_blank" rel="noopener noreferrer">État des services ↗</a>
+              <p>
+                Décrivez votre question technique, anomalie ou besoin de configuration sur {APP_NAME}. Protégé par Cloudflare Turnstile.
+              </p>
+              <a href={GITHUB_ISSUES} target="_blank" rel="noopener noreferrer">Suivre les tickets GitHub ↗</a>
             </div>
             <div className="dl-ed-content">
               <form className="dl-support-form" onSubmit={handleSubmit}>
                 <div className="dl-support-grid">
                   <label>
                     <span>Nom complet *</span>
-                    <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex. Karim Benali" required />
+                    <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex. Nadia El Amrani" required />
                   </label>
                   <label>
                     <span>E-mail *</span>
                     <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nom@exemple.com" required />
                   </label>
                   <label>
-                    <span>Téléphone</span>
-                    <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="06 00 00 00 00" />
-                  </label>
-                  <label>
-                    <span>Référence (optionnel)</span>
-                    <input type="text" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="AFM-2026-..." />
-                  </label>
-                  <label>
-                    <span>Type de demande</span>
-                    <select value={type} onChange={(e) => setType(e.target.value as typeof type)}>
-                      <option value="devis">Demande de devis</option>
-                      <option value="livraison">Livraison &amp; chantier</option>
-                      <option value="sav">Service après-vente (SAV)</option>
-                      <option value="entretien">Entretien &amp; cristallisation</option>
-                      <option value="facture">Facture &amp; comptabilité</option>
-                      <option value="autre">Autre demande</option>
+                    <span>Environnement</span>
+                    <select value={environment} onChange={(e) => setEnvironment(e.target.value as typeof environment)}>
+                      <option value="web">Web (navigateur)</option>
+                      <option value="android">Application Android</option>
+                      <option value="desktop">Application bureau (Windows / macOS / Linux)</option>
+                      <option value="cloudflare">Instance Cloudflare (Workers / D1 / R2)</option>
                     </select>
                   </label>
                   <label>
-                    <span>Canal de réponse préféré</span>
-                    <select value={contactPref} onChange={(e) => setContactPref(e.target.value as typeof contactPref)}>
-                      <option value="email">E-mail</option>
-                      <option value="telephone">Téléphone</option>
-                      <option value="whatsapp">WhatsApp</option>
+                    <span>Catégorie</span>
+                    <select value={category} onChange={(e) => setCategory(e.target.value as typeof category)}>
+                      <option value="support">Assistance technique &amp; déploiement</option>
+                      <option value="auth">Compte, rôles, WebAuthn &amp; OTP</option>
+                      <option value="billing">Stock, caisse &amp; facturation</option>
+                      <option value="bug">Signalement de bug</option>
+                      <option value="feedback">Suggestion d’amélioration</option>
+                      <option value="other">Autre demande</option>
                     </select>
+                  </label>
+                  <label>
+                    <span>Version (optionnel)</span>
+                    <input type="text" value={versionInfo} onChange={(e) => setVersionInfo(e.target.value)} placeholder={`v${APP_VERSION}`} />
+                  </label>
+                  <label>
+                    <span>Objet *</span>
+                    <input type="text" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Résumé court de votre demande" required />
                   </label>
                 </div>
                 <label className="dl-support-full">
-                  <span>Objet *</span>
-                  <input type="text" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Résumé court de votre demande" required />
-                </label>
-                <label className="dl-support-full">
                   <span>Message *</span>
-                  <textarea rows={4} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Précisez les dimensions, la pierre ou le numéro de facture..." required />
+                  <textarea
+                    rows={4}
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    placeholder="Décrivez le module concerné, les étapes effectuées et le résultat attendu..."
+                    required
+                  />
                 </label>
+
+                {turnstileSiteKey && shouldLoadTurnstile() ? (
+                  <div id="cf-turnstile" className="atlas-turnstile" />
+                ) : null}
+                {turnstileHint ? (
+                  <div className="atlas-turnstile-hint" role="status">
+                    <p style={{ margin: 0 }}>
+                      Vérification Cloudflare indisponible sur cette connexion — réessayez depuis un autre réseau ou relancez la vérification.
+                    </p>
+                    <button type="button" className="atlas-turnstile-retry" onClick={retryTurnstile}>
+                      Réessayer la vérification
+                    </button>
+                  </div>
+                ) : null}
 
                 {submitErr && <p className="dl-support-err">{submitErr}</p>}
                 {submitOk && (
                   <div className="dl-support-ok" role="status">
                     <strong>Demande préparée — Référence {submitOk.ref}</strong>
-                    {submitOk.fallbackMailto ? (
+                    {submitOk.issueUrl ? (
                       <p>
-                        L’envoi direct au portail distant n’est pas joignable depuis ce navigateur :{' '}
-                        <a href={submitOk.fallbackMailto}>Envoyer par e-mail à {SUPPORT_EMAIL} ↗</a>
+                        Suivi GitHub disponible :{' '}
+                        <a href={submitOk.issueUrl} target="_blank" rel="noopener noreferrer">
+                          Ouvrir le ticket pré-rempli sur {GITHUB_REPO} ↗
+                        </a>
                       </p>
                     ) : (
-                      <p>Votre demande a bien été transmise au support ({SUPPORT_EMAIL}).</p>
+                      <p>Votre demande a bien été transmise au support {APP_NAME} ({APP_CREATOR_NAME}).</p>
                     )}
                   </div>
                 )}
 
                 <div className="dl-support-actions">
-                  <button type="submit" className="dl-cta-main" disabled={submitting}>
+                  <button type="submit" className="dl-cta-main support-cta-btn" disabled={submitting}>
                     {submitting ? 'Envoi en cours…' : 'Envoyer la demande'}
                   </button>
-                  <a className="dl-cta-ghost" href={`mailto:${SUPPORT_EMAIL}`}>
-                    {SUPPORT_EMAIL} ↗
+                  <a className="dl-cta-ghost support-cta-btn" href={GITHUB_NEW_ISSUE} target="_blank" rel="noopener noreferrer">
+                    Ouvrir un ticket GitHub ↗
                   </a>
                 </div>
               </form>
@@ -363,44 +516,27 @@ export default function Support() {
           </div>
         </section>
 
-        <section className="dl-ed-section dl-container" id="suivi" aria-labelledby="support-lookup-title">
+        <section className="dl-ed-section dl-container" id="suivi" aria-labelledby="support-ecosystem-title">
           <div className="dl-ed-rail">
             <div className="dl-ed-heading">
-              <p className="dl-ed-kicker">02 / SUIVI</p>
-              <h2 id="support-lookup-title">Suivi de dossier</h2>
-              <p>Consultez l’état d’avancement d’une demande enregistrée sur le portail.</p>
-              <a href={AFMARBRE_SITE} target="_blank" rel="noopener noreferrer">Site afmarbre.com ↗</a>
+              <p className="dl-ed-kicker">02 / ÉCOSYSTÈME</p>
+              <h2 id="support-ecosystem-title">Plateformes &amp; versions</h2>
+              <p>Retrouvez les notes de version, téléchargements et dépôts maintenus par {APP_CREATOR_NAME}.</p>
+              <a href={GITHUB_RELEASES} target="_blank" rel="noopener noreferrer">Toutes les versions GitHub ↗</a>
             </div>
             <div className="dl-ed-content">
-              <form className="dl-support-lookup" onSubmit={handleLookup}>
-                <input
-                  type="text"
-                  value={lookupRef}
-                  onChange={(e) => setLookupRef(e.target.value)}
-                  placeholder="Référence (ex. AFM-2026-0142)"
-                  aria-label="Référence de suivi"
-                />
-                <button type="submit" className="secondary" disabled={lookupState === 'loading'}>
-                  {lookupState === 'loading' ? 'Recherche…' : 'Vérifier le statut'}
-                </button>
-              </form>
-              {lookupMsg && (
-                <p className={lookupState === 'done' ? 'dl-support-lookup-ok' : 'dl-support-lookup-msg'}>
-                  {lookupMsg}
-                </p>
-              )}
               <div className="dl-stats">
                 <div className="dl-stat">
-                  <strong>24 h</strong>
-                  <span>Délai cible ouvré</span>
+                  <strong>v{APP_VERSION}</strong>
+                  <span>Version courante</span>
                 </div>
                 <div className="dl-stat">
-                  <strong>6 jours</strong>
-                  <span>Lun. – Sam.</span>
+                  <strong>{APP_CREATOR_NAME}</strong>
+                  <span>Équipe &amp; maintenance</span>
                 </div>
                 <div className="dl-stat">
-                  <strong>3 canaux</strong>
-                  <span>E-mail · Tél · WhatsApp</span>
+                  <strong>MIT / Apache-2.0</strong>
+                  <span>Double licence ouverte</span>
                 </div>
               </div>
             </div>
@@ -411,9 +547,9 @@ export default function Support() {
           <div className="dl-ed-rail">
             <div className="dl-ed-heading">
               <p className="dl-ed-kicker">03 / PARCOURS</p>
-              <h2 id="support-workflow-title">Accompagnement complet.</h2>
-              <p>Du premier plan jusqu’à l’entretien après pose.</p>
-              <GitHubStarButton repo="loxdpsy/support-page" />
+              <h2 id="support-workflow-title">Accompagnement {APP_NAME}.</h2>
+              <p>Du déploiement Cloudflare jusqu’aux opérations quotidiennes sur Web, mobile et bureau.</p>
+              <GitHubStarButton repo={GITHUB_REPO} />
             </div>
             <div className="dl-feats">
               {WORKFLOW_STEPS.map((s) => (
@@ -431,7 +567,7 @@ export default function Support() {
             <div className="dl-ed-heading">
               <p className="dl-ed-kicker">04 / FAQ</p>
               <h2 id="support-faq-title">Questions fréquentes</h2>
-              <p>Réponses rapides sur les devis, délais, règlements et showroom.</p>
+              <p>Réponses rapides sur le fonctionnement, la sécurité et le déploiement d’{APP_NAME}.</p>
               <Link to="/about">À propos d’Atlas ↗</Link>
             </div>
             <div className="dl-ed-content dl-support-faq">
@@ -451,7 +587,7 @@ export default function Support() {
           <div className="dl-foot-brand">
             <img src="/atlas-logo-dark.png" alt={APP_NAME} className="theme-logo-dark" width={117} height={38} style={{ height: 38, width: 117 }} />
             <img src="/atlas-logo-light.png" alt={APP_NAME} className="theme-logo-light" width={117} height={38} style={{ height: 38, width: 117 }} />
-            <p>Support AF Marbre &amp; {APP_NAME} : devis, suivi de chantier, facturation et assistance technique.</p>
+            <p>{APP_NAME} par {APP_CREATOR_NAME} — logiciel de gestion stock, caisse et facturation.</p>
           </div>
           <nav aria-label="Liens support et produit">
             <Link to="/">Accueil</Link>
@@ -462,11 +598,12 @@ export default function Support() {
             <Link to="/privacy">Confidentialité</Link>
             <Link to="/terms">Conditions</Link>
             <Link to="/licenses">Licences</Link>
+            <a href={GITHUB_ORG} target="_blank" rel="noopener noreferrer">{APP_CREATOR_NAME}</a>
             <Link to="/login">Se connecter</Link>
           </nav>
         </div>
         <div className="dl-foot-bottom">
-          <span>© {new Date().getFullYear()} {APP_NAME} — tous droits réservés</span>
+          <span>© {new Date().getFullYear()} {APP_NAME} · {APP_CREATOR_NAME}</span>
           <span>{APP_BUILD_DATE}</span>
         </div>
       </footer>

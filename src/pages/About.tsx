@@ -34,9 +34,7 @@ import {
   APP_GITHUB,
   APP_TEAM_GITHUB,
   APP_INSTAGRAM,
-  APP_LOCATION,
   APP_DESCRIPTION,
-  APP_PROFILE,
 } from '../version';
 import { api } from '../api';
 import { isLoggedIn } from '../auth';
@@ -69,10 +67,10 @@ const PROJECT_SHOWCASE: {
   badge?: string;
 }[] = [
   {
-    repo: 'afmarbre-main',
-    title: 'afmarbre-main',
-    href: 'https://github.com/Etherealmber/afmarbre-main',
-    blurb: 'Vitrine & infrastructure afmarbre.com.',
+    repo: 'atlas-commerce',
+    title: 'atlas-commerce',
+    href: 'https://github.com/Etherealmber/atlas-commerce',
+    blurb: 'Application web, API Edge Cloudflare Workers et moteur financier WebAssembly.',
     badge: 'GitHub',
   },
   {
@@ -139,7 +137,7 @@ const FEATURE_TILES = [
   },
   {
     icon: FileText,
-    title: 'Conformité Maroc',
+    title: 'Conformité & TVA',
     body: 'HT/TTC, TVA, mentions légales, numéros séquentiels, préparation e-facturation UBL et archives.',
   },
   {
@@ -340,7 +338,7 @@ export default function About() {
   const byName = Object.fromEntries(repos.map((r) => [r.name, r]));
 
   return (
-    <div className="atlas-page ac-dash ac-about-bento">
+    <div className="atlas-page about-page ac-dash ac-about-bento">
       {/* Bento Hero — matches Dashboard ac-dash-hero */}
       <header className="ac-dash-hero" id="about-overview">
         <div className="ac-dash-hero-text">
@@ -350,7 +348,7 @@ export default function About() {
           </p>
           <h1>{APP_NAME}</h1>
           <p className="ac-dash-lead">
-            {APP_TAGLINE}. {APP_DESCRIPTION || 'Logiciel interne de stock, caisse et facturation pour commerces au Maroc.'}
+            {APP_TAGLINE}. {APP_DESCRIPTION}
           </p>
           <div className="ac-about-chips" aria-label="Technologies">
             {['Cloudflare Workers', 'D1 SQLite', 'R2 Storage', 'Durable Objects', 'WebAuthn'].map((tech) => (
@@ -361,7 +359,7 @@ export default function About() {
           </div>
         </div>
         <div className="ac-dash-hero-side">
-          <Link to="/whats-new" className="secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}>
+          <Link to="/whats-new" className="secondary ac-about-pill-btn">
             <Sparkles size={14} strokeWidth={2} aria-hidden="true" />
             Voir les nouveautés
           </Link>
@@ -402,24 +400,24 @@ export default function About() {
             </div>
             <span className="ac-status-pill">
               <LifeBuoy size={13} strokeWidth={2} aria-hidden="true" />
-              Métier
+              Support
             </span>
           </div>
           <ul className="ac-about-kv-list">
             <li>
               <span className="muted">Portail</span>
-              <a href="https://support.afmarbre.com" target="_blank" rel="noreferrer">
-                support.afmarbre.com <ExternalLink size={12} aria-hidden="true" />
+              <Link to="/support">Support {APP_NAME}</Link>
+            </li>
+            <li>
+              <span className="muted">Tickets</span>
+              <a href="https://github.com/Etherealmber/atlas-commerce/issues" target="_blank" rel="noreferrer">
+                GitHub Issues <ExternalLink size={12} aria-hidden="true" />
               </a>
             </li>
             <li>
-              <span className="muted">Email</span>
-              <a href="mailto:support@afmarbre.com">support@afmarbre.com</a>
-            </li>
-            <li>
-              <span className="muted">WhatsApp</span>
-              <a href="https://wa.me/212600000000" target="_blank" rel="noreferrer">
-                Ligne support <ExternalLink size={12} aria-hidden="true" />
+              <span className="muted">Éditeur</span>
+              <a href={APP_GITHUB} target="_blank" rel="noreferrer">
+                {APP_CREATOR_NAME} <ExternalLink size={12} aria-hidden="true" />
               </a>
             </li>
           </ul>
@@ -539,7 +537,7 @@ export default function About() {
           <div className="ac-panel-head">
             <div>
               <h2>Créateur</h2>
-              <span className="ac-panel-sub">Développement produit &amp; infrastructure · {APP_LOCATION}</span>
+              <span className="ac-panel-sub">Développement produit &amp; infrastructure · {APP_CREATOR_NAME}</span>
             </div>
           </div>
           <div className="about-owner-head">
@@ -565,7 +563,7 @@ export default function About() {
               )}
               <div className="ac-about-owner-actions">
                 <a
-                  className="secondary"
+                  className="secondary ac-about-pill-btn"
                   href={`https://github.com/${APP_CREATOR}`}
                   target="_blank"
                   rel="noreferrer noopener"
@@ -573,18 +571,18 @@ export default function About() {
                   <Github size={14} strokeWidth={2} aria-hidden="true" />
                   Profil GitHub
                 </a>
-                {APP_PROFILE && (
-                  <a className="secondary" href={APP_PROFILE} target="_blank" rel="noreferrer">
-                    Profil
-                  </a>
-                )}
                 {APP_TEAM_GITHUB && (
-                  <a className="secondary" href={APP_TEAM_GITHUB} target="_blank" rel="noreferrer">
-                    Équipe {APP_TEAM}
+                  <a
+                    className="secondary ac-about-pill-btn"
+                    href={`${APP_TEAM_GITHUB}?tab=repositories`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Dépôts {APP_TEAM}
                   </a>
                 )}
                 {APP_INSTAGRAM && (
-                  <a className="secondary" href={APP_INSTAGRAM} target="_blank" rel="noreferrer">
+                  <a className="secondary ac-about-pill-btn" href={APP_INSTAGRAM} target="_blank" rel="noreferrer">
                     Instagram
                   </a>
                 )}

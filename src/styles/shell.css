@@ -10,6 +10,12 @@
 .layout.sidebar-collapsed {
   grid-template-columns: var(--ac-sidebar-w-collapsed) minmax(0, 1fr) !important;
 }
+.layout.layout--focus {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+.layout.layout--focus > .ac-main-column {
+  grid-column: 1 !important;
+}
 .layout .sidebar,
 .ac-sidebar {
   background: var(--ac-sidebar) !important;
@@ -140,7 +146,7 @@
   border: 1px solid var(--ac-line); display: flex; align-items: center; justify-content: center;
   background: var(--ac-nav-hover); font-weight: 700; font-size: 0.8rem;
 }
-.content button:not(.secondary):not(.danger):not(.ac-timed-undo-btn):not(.btn-delete-red):not(.theme-toggle):not(.icon-refresh-btn):not(.ac-topbar-icon):not(.mailbox-icon-btn):not(.ghost):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-seg-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom),
+.content button:not(.secondary):not(.danger):not(.ac-timed-undo-btn):not(.btn-delete-red):not(.theme-toggle):not(.icon-refresh-btn):not(.ac-topbar-icon):not(.mailbox-icon-btn):not(.ghost):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-seg-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.public-download-toggle):not(.public-download-menu-item),
 .content .btn:not(.secondary):not(.danger) {
   background: var(--ac-primary) !important;
   color: var(--ac-primary-fg) !important;
