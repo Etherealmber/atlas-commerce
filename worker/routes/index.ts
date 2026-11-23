@@ -55,3 +55,4 @@ export { registerProductsScanRoutes, type ProductsScanRouteDeps } from './produc
 export { registerDashboardIntegrityRoutes, type DashboardIntegrityRouteDeps } from './dashboardIntegrity';
 export { registerInvoicesWriteRoutes, type InvoicesWriteRouteDeps } from './invoicesWrite';
 export { registerBillsReceiptsRoutes, ensureBillPaymentsTable, type BillsReceiptsRouteDeps } from './billsReceipts';
+export { registerCashShiftRoutes, type CashShiftRouteDeps } from './cashShifts';

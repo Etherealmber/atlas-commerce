@@ -20,6 +20,7 @@ const EXACT: Record<string, string> = {
   '/bills': "Factures d'achat",
   '/receipts': 'Reçus',
   '/balance': 'Solde & mouvements',
+  '/cash-shifts': 'Clôtures de caisse (X / Z)',
   '/reports': 'Rapports & clôture',
   '/inventory-ops': 'Opérations stock',
   '/settings': 'Paramètres',

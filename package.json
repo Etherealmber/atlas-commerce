@@ -22,6 +22,7 @@
     "smoke:prod": "ATLAS_SMOKE_BASE=https://stock.afmarbre.com node scripts/smoke-all.mjs",
     "smoke:partner": "node scripts/smoke-partner-v1.mjs",
     "smoke:offline": "node scripts/smoke-offline-operations.mjs",
+    "smoke:cash-shifts": "node scripts/smoke-cash-shifts.mjs",
     "test": "vitest run",
     "test:finance-wasm": "ATLAS_REQUIRE_WASM=1 vitest run worker/__tests__/finance-core-wasm.test.ts",
     "lint": "oxlint -c .oxlintrc.json src worker",

@@ -136,6 +136,7 @@ const Receipts = lazyRetry(() => import('./pages/Receipts'));
 const QuickSale = lazyRetry(() => import('./pages/QuickSale'));
 const QuickSaleDetail = lazyRetry(() => import('./pages/QuickSaleDetail'));
 const Balance = lazyRetry(() => import('./pages/Balance'));
+const CashShifts = lazyRetry(() => import('./pages/CashShifts'));
 const Reports = lazyRetry(() => import('./pages/Reports'));
 const InventoryOps = lazyRetry(() => import('./pages/InventoryOps'));
 const Settings = lazyRetry(() => import('./pages/Settings'));
@@ -1214,6 +1215,9 @@ function DesktopShell() {
           <NavLink to="/balance" className={({ isActive }) => (isActive ? 'active' : '')} data-tooltip="Solde & recettes" title="Solde & recettes">
             <span className="nav-main"><NavIcon d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /><span className="nav-label">Solde &amp; recettes</span></span>
           </NavLink>
+          <NavLink to="/cash-shifts" className={({ isActive }) => (isActive ? 'active' : '')} data-tooltip="Clôtures de caisse" title="Clôtures de caisse">
+            <span className="nav-main"><NavIcon d="M3 7h18v12H3zM7 7V4h10v3M8 13h2M14 13h2" /><span className="nav-label">Clôtures de caisse</span></span>
+          </NavLink>
           <NavLink to="/reports" className={({ isActive }) => (isActive ? 'active' : '')} data-tooltip="Rapports & clôture" title="Rapports & clôture">
             <span className="nav-main"><NavIcon d="M3 3v18h18M7 14l4-4 3 3 5-6" /><span className="nav-label">Rapports &amp; clôture</span></span>
           </NavLink>
@@ -1587,6 +1591,7 @@ function DesktopShell() {
               <Route path="/bills" element={<RoleGate allow={canOfficeWork()}><Bills /></RoleGate>} />
               <Route path="/receipts" element={<RoleGate allow={canOfficeWork()}><Receipts /></RoleGate>} />
               <Route path="/balance" element={<RoleGate allow={canOfficeWork()}><Balance /></RoleGate>} />
+              <Route path="/cash-shifts" element={<RoleGate allow={canSell()}><CashShifts /></RoleGate>} />
               <Route path="/reports" element={<RoleGate allow={canOfficeWork()}><Reports /></RoleGate>} />
               <Route path="/inventory-ops" element={<RoleGate allow={canAccessInventoryOps()}><InventoryOps /></RoleGate>} />
               <Route path="/settings" element={<Settings />} />

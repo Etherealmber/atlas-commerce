@@ -1187,5 +1187,24 @@ export const api = {
     request<{ data: { crashes: any[]; user_reports: any[]; pending: number } }>(`/api/admin/reports?limit=${limit}`),
   retryReports: () =>
     request<{ data: { crashes: number; user_reports: number; skipped: boolean } }>('/api/admin/reports/retry', { method: 'POST', body: '{}' }),
+
+  // Part 2 — cash shifts + X/Z-report
+  listCashShifts: (params?: { till_id?: string; status?: 'open' | 'closed' }) => {
+    const q = new URLSearchParams();
+    if (params?.till_id) q.set('till_id', params.till_id);
+    if (params?.status) q.set('status', params.status);
+    const s = q.toString();
+    return request<{ data: any[] }>(`/api/cash-shifts${s ? `?${s}` : ''}`);
+  },
+  openCashShift: (body: { till_id?: string; opening_float: number; notes?: string }) =>
+    request<{ data: any }>('/api/cash-shifts/open', { method: 'POST', body: JSON.stringify(body) }),
+  getCashShift: (id: number) =>
+    request<{ data: any }>(`/api/cash-shifts/${id}`),
+  addCashShiftMovement: (id: number, body: { direction: 'in' | 'out'; payment_method?: string; amount: number; reference?: string; label?: string }) =>
+    request<{ data: any }>(`/api/cash-shifts/${id}/movements`, { method: 'POST', body: JSON.stringify(body) }),
+  closeCashShift: (id: number, body: { counted_amount?: number; denominations?: Record<string, number>; counted_by_method?: Record<string, number>; notes?: string }) =>
+    request<{ data: any }>(`/api/cash-shifts/${id}/close`, { method: 'POST', body: JSON.stringify(body) }),
+  cashShiftReportUrl: (id: number, kind: 'x' | 'z', reprint = false) =>
+    `/api/cash-shifts/${id}/${kind}-report${reprint ? '?reprint=1' : ''}`,
 };
 
