@@ -10,6 +10,7 @@ import { PublicSettingsTopbar } from '../components/PublicChrome';
 import About from '../pages/About';
 import Reports from '../pages/Reports';
 import InventoryOps from '../pages/InventoryOps';
+import Settings from '../pages/Settings';
 import Support from '../pages/Support';
 import { api } from '../api';
 import { vi } from 'vitest';
@@ -407,5 +408,92 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     expect(readmeSrc).toContain('0.0.1-beta → 0.9.2-beta');
     expect(readmeSrc).toContain('### 0.9.2-beta');
     expect(readmeSrc).toContain('### 0.9.1-beta');
+  });
+
+  it('prevents App.css density button selectors from blacking out FocusSidebar items and renders Journal d’audit in Dashboard Bento layout', async () => {
+    const appCss = readFileSync(path.resolve(process.cwd(), 'src/App.css'), 'utf8');
+    const focusCss = readFileSync(path.resolve(process.cwd(), 'src/styles/focus-sidebar.css'), 'utf8');
+
+    // Every generic .content button:not(...) rule in App.css must exclude FocusSidebar controls
+    const densityButtonRules = appCss
+      .split('\n')
+      .filter((line) => /\.content button:not\(/.test(line) && !/\.content button\.(secondary|danger|ghost)/.test(line));
+    expect(densityButtonRules.length).toBeGreaterThan(0);
+    for (const rule of densityButtonRules) {
+      expect(rule).toContain(':not(.atlas-focus-nav-item)');
+      expect(rule).toContain(':not(.atlas-focus-collapse-btn)');
+    }
+
+    // FocusSidebar fits all Settings tabs in one panel and locks IA badge contrast
+    expect(focusCss).toContain('min-height: 29px !important;');
+    expect(focusCss).toMatch(/\.atlas-focus-badge--accent[\s\S]*-webkit-text-fill-color:\s*#1e293b\s*!important;/);
+
+    // Render Settings on ?tab=audit and verify Dashboard Bento structure
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ success: true, data: {} }), { headers: { 'Content-Type': 'application/json' } })));
+    vi.spyOn(api, 'getSettings').mockResolvedValue({ data: { company_name: 'Atlas', currency: 'MAD', tax_rate: 20 } } as any);
+    vi.spyOn(api, 'getCategories').mockResolvedValue({ data: [] } as any);
+    vi.spyOn(api, 'getUnits').mockResolvedValue({ data: [] } as any);
+    vi.spyOn(api, 'getMe').mockResolvedValue({ data: { is_owner: true, role: 'owner', username: 'admin' } } as any);
+    vi.spyOn(api, 'getAdminUsers').mockResolvedValue({ data: { owner: null, users: [] } } as any);
+    vi.spyOn(api, 'getAdminConfig').mockResolvedValue({ data: {} } as any);
+    const auditSpy = vi.spyOn(api, 'getAuditLog').mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          created_at: '2026-10-20 10:00:00',
+          action: 'invoice.create',
+          entity: 'invoice',
+          entity_id: 'FA-101',
+          username: 'admin',
+          role: 'owner',
+          ip: '127.0.0.1',
+          detail: 'Facture créée',
+        },
+      ],
+      meta: {
+        has_more: false,
+        next_cursor: null,
+        stats: {
+          total: 12,
+          unique_actors: 3,
+          by_day: [{ day: '2026-10-19', n: 5 }, { day: '2026-10-20', n: 7 }],
+          top_actions: [{ action: 'invoice.create', n: 7 }, { action: 'settings.update', n: 5 }],
+        },
+      },
+    } as any);
+
+    await act(async () => {
+      root.render(
+        createElement(
+          MemoryRouter,
+          { initialEntries: ['/settings?tab=audit'] },
+          createElement(Settings),
+        ),
+      );
+    });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 20));
+    });
+
+    expect(host.querySelector('.ac-audit-header-panel')).not.toBeNull();
+    expect(host.querySelector('.ac-audit-kpis')).not.toBeNull();
+    expect(host.querySelector('.ac-audit-charts-grid')).not.toBeNull();
+    expect(host.querySelector('.ac-audit-table-panel')).not.toBeNull();
+    expect(host.querySelector('.ac-dash-period-pills')).not.toBeNull();
+    expect(host.textContent).toContain('Journal d’audit & Traçabilité');
+    expect(host.textContent).toContain('invoice.create');
+    expect(host.textContent).toContain('FA-101');
+
+    // Clicking an action breakdown bar toggles the action filter
+    const hbarBtn = host.querySelector<HTMLButtonElement>('button.ac-audit-hbar-btn');
+    expect(hbarBtn).not.toBeNull();
+    await act(async () => {
+      hbarBtn!.click();
+    });
+    expect(hbarBtn!.classList.contains('is-selected')).toBe(true);
+    expect(auditSpy).toHaveBeenCalled();
+
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 });
