@@ -1473,7 +1473,7 @@ app.post('/api/admin/search-index/rebuild', async (c) => {
 
 /* Domain route modules (extracted from monolith) */
 registerInvoiceReadRoutes(app, { requireBizMutator });
-registerStockReadRoutes(app);
+registerStockReadRoutes(app, { requireFloorStock, sessionUserFromHeader });
 registerWholesaleRoutes(app, { requireBizMutator, sessionUserFromHeader });
 registerPublicRoutes(app);
 registerClientRoutes(app, {

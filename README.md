@@ -326,6 +326,17 @@ Atlas Commerce est développé et maintenu par **[Etherealmber](https://github.c
 </details>
 
 <details>
+<summary><strong>Contrat hors-ligne Android (`offline-operations`)</strong></summary>
+
+- Documentation complète : [`docs/offline-operations.md`](docs/offline-operations.md)
+- `GET /api/inventory/locations?product_id=<id>` : retourne `location_id`, `name`, `quantity` et `revision` courante par emplacement actif.
+- `POST /api/inventory/offline-operations` (rôles stock/secrétaire/admin/owner) : exécute un lot d'opérations (`receive`, `issue`, `count`) dans l'ordre avec succès partiel (`HTTP 200`), atomiquement dans un `db.batch()` avec `offline_idempotency` (SHA-256 canonique) et `stock_location_revisions`.
+- Rejeu : même `idempotency_key` + même charge → `replayed` (`Idempotent-Replay: true` via `withIdempotency`) ; charge différente → `409 IDEMPOTENCY_MISMATCH`.
+- Conflit de comptage (`count`) : écart de `expected_revision` → `conflict` (`409`), aucun écrasement silencieux, quantité/révision serveur retournées.
+- Smoke : `npm run smoke:offline` (`scripts/smoke-offline-operations.mjs`).
+</details>
+
+<details>
 <summary><strong>Troubleshooting</strong></summary>
 
 - `vite: not found` → `npm install` (node_modules non persisté)

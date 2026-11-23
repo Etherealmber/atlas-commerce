@@ -1,5 +1,6 @@
 import type { Hono } from 'hono';
 import { schemaOnce, addColumnIfMissing } from '../lib/schema';
+import { ensureOfflineOpsSchema } from '../lib/idempotency';
 import { afterBusinessMutation } from '../lib/delete-coord';
 import { doCacheGet, doCachePut, hasLiveCache } from '../lib/cache';
 import { tr } from '../lib/error-i18n';
@@ -355,6 +356,60 @@ export function registerInventoryOpsRoutes(app: Hono<any>, deps: InventoryOpsRou
 
   app.get('/api/inventory/locations', async (c) => {
     try {
+      const productIdParam = String(c.req.query('product_id') || '').trim();
+      if (productIdParam) {
+        await ensureStockLocations(c.env.DB);
+        await ensureOfflineOpsSchema(c.env.DB);
+        const prodIdNum = Number(productIdParam);
+        const prodRow = Number.isInteger(prodIdNum) && prodIdNum > 0
+          ? (await c.env.DB.prepare(`SELECT id, COALESCE(stock_quantity, 0) AS stock_quantity FROM products WHERE id = ?`).bind(prodIdNum).first() as any)
+          : null;
+        const locsRes = await c.env.DB.prepare(
+          `SELECT id, code, name, is_default, COALESCE(is_active, 1) AS is_active
+           FROM stock_locations
+           WHERE COALESCE(is_active, 1) = 1
+           ORDER BY COALESCE(is_default, 0) DESC, name`,
+        ).all();
+        const locs = (locsRes.results || []) as any[];
+        const qtyRes = Number.isInteger(prodIdNum) && prodIdNum > 0
+          ? await c.env.DB.prepare(`SELECT location_id, quantity FROM stock_location_qty WHERE product_id = ?`).bind(prodIdNum).all()
+          : { results: [] };
+        const qtyMap = new Map<number, number>();
+        for (const r of (qtyRes.results || []) as any[]) {
+          qtyMap.set(Number(r.location_id), Number(r.quantity || 0));
+        }
+        const hasAnyQtyRows = qtyMap.size > 0;
+        const unallocatedQty = !hasAnyQtyRows && prodRow ? Number(prodRow.stock_quantity || 0) : 0;
+
+        const revRes = await c.env.DB.prepare(
+          `SELECT location_id, revision FROM stock_location_revisions WHERE product_id = ?`,
+        ).bind(String(prodIdNum || productIdParam)).all();
+        const revMap = new Map<string, number>();
+        for (const r of (revRes.results || []) as any[]) {
+          revMap.set(String(r.location_id), Number(r.revision || 1));
+        }
+
+        const data = locs.map((l: any) => {
+          const lid = Number(l.id);
+          const lidText = String(lid);
+          const quantity = qtyMap.has(lid)
+            ? Number(qtyMap.get(lid) || 0)
+            : Number(l.is_default || 0) === 1
+              ? unallocatedQty
+              : 0;
+          return {
+            location_id: lidText,
+            id: lid,
+            code: l.code,
+            name: l.name,
+            is_default: l.is_default,
+            quantity,
+            revision: revMap.get(lidText) ?? 1,
+          };
+        });
+        return c.json({ success: true, data });
+      }
+
       if (hasLiveCache(c.env)) {
         const hit = await doCacheGet<any[]>(c.env.MOBILE_HUB, c.env.CACHE, 'inventory:locations', 300);
         if (hit) return c.json({ success: true, data: hit, cached: true });

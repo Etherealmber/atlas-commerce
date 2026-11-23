@@ -21,6 +21,7 @@
     "smoke:local": "ATLAS_SMOKE_BASE=http://127.0.0.1:8787 node scripts/smoke-all.mjs",
     "smoke:prod": "ATLAS_SMOKE_BASE=https://stock.afmarbre.com node scripts/smoke-all.mjs",
     "smoke:partner": "node scripts/smoke-partner-v1.mjs",
+    "smoke:offline": "node scripts/smoke-offline-operations.mjs",
     "test": "vitest run",
     "test:finance-wasm": "ATLAS_REQUIRE_WASM=1 vitest run worker/__tests__/finance-core-wasm.test.ts",
     "lint": "oxlint -c .oxlintrc.json src worker",
