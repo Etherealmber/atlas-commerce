@@ -85,11 +85,11 @@ function buildChallengeScript(mode: 'turnstile_webview' | 'system_browser'): str
         status.textContent = 'Vérification terminée. Revenez dans Atlas.';
       } else {
         submitting = false;
-        fail();
+        unavailable();
       }
     } catch (_) {
       submitting = false;
-      fail();
+      unavailable();
     }
   }
   if (confirmEl) {

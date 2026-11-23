@@ -12,7 +12,16 @@ export type RequestAuthContext = {
   dpopHeader?: string;
   method?: string;
   requestUrl?: string;
-  verifiedNv3?: { token: string; sessionId: string; username: string; role: string; thumbprint: string };
+  verifiedNv3?: {
+    token: string;
+    dpopHeader: string;
+    method: string;
+    target: string;
+    sessionId: string;
+    username: string;
+    role: string;
+    thumbprint: string;
+  };
 };
 
 const requestAuthStorage = new AsyncLocalStorage<RequestAuthContext>();
@@ -718,11 +727,19 @@ export async function authFailReason(
       return 'bad_token';
     }
     if (parsedUrl.protocol !== 'https:') return 'bad_token';
-    const alreadyVerifiedProof = !!(ctx?.verifiedNv3 && ctx.verifiedNv3.token === rawToken);
+    const normalizedMethod = method.toUpperCase();
+    const target = `${parsedUrl.origin}${parsedUrl.pathname}`;
+    const alreadyVerifiedProof = !!(
+      ctx?.verifiedNv3 &&
+      ctx.verifiedNv3.token === rawToken &&
+      ctx.verifiedNv3.dpopHeader === dpopHeader &&
+      ctx.verifiedNv3.method === normalizedMethod &&
+      ctx.verifiedNv3.target === target
+    );
     const verified = await validateDesktopV3AccessToken(env, rawToken, {
       origin: parsedUrl.origin,
-      method: method.toUpperCase(),
-      target: `${parsedUrl.origin}${parsedUrl.pathname}`,
+      method: normalizedMethod,
+      target,
       dpopHeader,
       skipDpopReplayInsert: alreadyVerifiedProof,
       currentIdentity: nativeCurrentIdentity,
@@ -734,6 +751,9 @@ export async function authFailReason(
     if (ctx) {
       ctx.verifiedNv3 = {
         token: rawToken,
+        dpopHeader,
+        method: normalizedMethod,
+        target,
         sessionId: verified.sessionId,
         username: verified.username,
         role: verified.role,

@@ -103,6 +103,7 @@ export async function prepareDpopVerification(
     accessToken?: string;
     transactionId?: string;
     singleUseNonce: boolean;
+    skipReplayCheckAndInsert?: boolean;
   },
 ): Promise<VerifiedProofWithStatements | null> {
   if (!proof || typeof proof !== 'string') return null;
@@ -127,6 +128,10 @@ export async function prepareDpopVerification(
     transactionId: opts.transactionId,
   });
   if (!verified) return null;
+
+  if (opts.skipReplayCheckAndInsert && !opts.singleUseNonce) {
+    return { ...verified, consumeStatements: [] };
+  }
 
   const existingJti: any = await db
     .prepare('SELECT 1 AS used FROM desktop_v3_dpop_jtis WHERE thumbprint = ? AND jti = ?')

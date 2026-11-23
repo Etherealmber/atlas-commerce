@@ -111,25 +111,22 @@ export async function validateDesktopV3AccessToken(
       return { ok: false, reason: 'bad_token' };
     }
 
-    let consumeStatements: D1PreparedStatement[] = [];
-    if (!opts.skipDpopReplayInsert) {
-      const verified = await prepareDpopVerification(env.DB, opts.dpopHeader, {
-        origin: opts.origin,
-        method: opts.method,
-        target: opts.target,
-        thumbprint: row.device_thumbprint,
-        accessToken: token,
-        singleUseNonce: false,
-      });
-      if (!verified) {
-        return { ok: false, reason: 'invalid_dpop' };
-      }
-      consumeStatements = verified.consumeStatements;
+    const verified = await prepareDpopVerification(env.DB, opts.dpopHeader, {
+      origin: opts.origin,
+      method: opts.method,
+      target: opts.target,
+      thumbprint: row.device_thumbprint,
+      accessToken: token,
+      singleUseNonce: false,
+      skipReplayCheckAndInsert: opts.skipDpopReplayInsert,
+    });
+    if (!verified) {
+      return { ok: false, reason: 'invalid_dpop' };
     }
 
     try {
       const results = await env.DB.batch([
-        ...consumeStatements,
+        ...verified.consumeStatements,
         env.DB
           .prepare(
             'UPDATE desktop_v3_sessions SET last_used_at = ? WHERE id = ? AND revoked = 0 AND access_expires_at > ? AND absolute_expires_at > ?',

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { hashUserPassword } from '../lib/authHelpers';
+import { authFailReason, hashUserPassword, runWithRequestAuthContext } from '../lib/authHelpers';
 
 const SQLITE_MODULE = ['node:', 'sqlite'].join('');
 const { DatabaseSync } = await import(SQLITE_MODULE);
@@ -1002,5 +1002,23 @@ describe('Desktop v3 production safety, discovery, and protocol', () => {
       },
     });
     expect(meStillValid.status).toBe(200);
+
+    // 7. Same-request authFailReason recheck reuses proof without JTI replay, yet catches credential changes live
+    const recheckNonce = await getNonce();
+    const recheckDpop = await dev.signDpop({
+      method: 'GET',
+      target: `${ORIGIN}/api/reports/export`,
+      nonce: recheckNonce,
+      accessToken: access2,
+    });
+    await runWithRequestAuthContext(
+      { dpopHeader: recheckDpop, method: 'GET', requestUrl: `${ORIGIN}/api/reports/export` },
+      async () => {
+        expect(await authFailReason(`Bearer ${access2}`, env, env.DB, '203.0.113.10', undefined)).toBe('ok');
+        expect(await authFailReason(`Bearer ${access2}`, env, env.DB, '203.0.113.10', undefined)).toBe('ok');
+        await env.DB.prepare("UPDATE app_users SET password_hash = ? WHERE username = 'alice'").bind(await hashUserPassword('new-rotated-pass-1', 'rotated-salt-01')).run();
+        expect(await authFailReason(`Bearer ${access2}`, env, env.DB, '203.0.113.10', undefined)).toBe('bad_token');
+      },
+    );
   });
 });

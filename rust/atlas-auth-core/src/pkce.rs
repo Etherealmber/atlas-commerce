@@ -90,5 +90,20 @@ mod tests {
         assert!(validate_pairing_code("A1B2C-3D4E5").is_ok());
         assert!(validate_pairing_code("a1b2c-3d4e5").is_err());
         assert!(validate_pairing_code("1234-56789").is_err());
+
+        // Match Worker pairingCode() SHA-256 hex format across varied inputs.
+        for i in 0..8 {
+            let payload = serde_json::to_string(&(
+                "desktop-v3-pairing",
+                "https://stock.afmarbre.com",
+                format!("{:064x}", i + 1),
+                format!("challenge-{}", i),
+            ))
+            .unwrap();
+            let digest = Sha256::digest(payload.as_bytes());
+            let hex: String = digest[..5].iter().map(|b| format!("{:02X}", b)).collect();
+            let formatted = format!("{}-{}", &hex[..5], &hex[5..10]);
+            assert!(validate_pairing_code(&formatted).is_ok());
+        }
     }
 }
