@@ -4,6 +4,7 @@
   "main": "worker/index.ts",
   "compatibility_date": "2026-11-19",
   "compatibility_flags": ["nodejs_compat"],
+  "preview_urls": false,
   // Rebuilds and verifies `worker/wasm/atlas_finance_core.wasm` (cached when unchanged)
   // whenever `wrangler dev` watches Rust source changes or `wrangler deploy --config wrangler.jsonc` runs.
   "build": {
@@ -102,39 +103,36 @@
     "WEBAUTHN_ANDROID_CERT_SHA1": ""
   },
 
-  // Required by `wrangler preview` (Workers Builds deploy command).
-  // Mirrors the production bindings above so preview deployments run with the
-  // same resources; only ENVIRONMENT differs. Durable Objects are intentionally
-  // omitted here — wrangler excludes them from previews (warning only).
+  // Preview isolation: previews MUST NEVER bind production D1, KV, R2, or Email
+  // resources so branch/PR pushes cannot read or mutate production state.
   "previews": {
     "vars": {
       "ENVIRONMENT": "preview",
       "CACHE_TTL_SECONDS": "300",
-      "TURNSTILE_SITE_KEY": "0x4AAAAAAEco33YS31FvWems"
+      "TURNSTILE_SITE_KEY": "0x4AAAAAAEco33YS31FvWems",
+      "DESKTOP_NATIVE_V3_ENABLED": "false"
     },
     "kv_namespaces": [
       {
         "binding": "CACHE",
-        "id": "33a5cd31362243138590c446614ffb9b"
+        "id": "local-company-stock-cache",
+        "preview_id": "local-company-stock-cache"
       }
     ],
     "d1_databases": [
       {
         "binding": "DB",
-        "database_name": "company-stock-db",
-        "database_id": "aba10fd7-bb8b-432c-a5ec-1701e43654c6"
+        "database_name": "local-company-stock-db",
+        "database_id": "00000000-0000-0000-0000-000000000000",
+        "preview_database_id": "local-company-stock-db",
+        "migrations_dir": "migrations"
       }
     ],
     "r2_buckets": [
       {
         "binding": "IMAGES",
-        "bucket_name": "company-stock-images"
-      }
-    ],
-    "send_email": [
-      {
-        "name": "EMAIL",
-        "destination_address": "admin@afmarbre.com"
+        "bucket_name": "company-stock-images-preview",
+        "preview_bucket_name": "company-stock-images-preview"
       }
     ]
   },

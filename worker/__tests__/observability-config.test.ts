@@ -11,4 +11,17 @@ describe('tracked Worker observability', () => {
     // This repository does not override observability in its preview block.
     expect(config.previews?.observability).toBeUndefined();
   });
+
+  it('prevents previews from using production D1, KV, R2, or Email bindings', () => {
+    const result = ts.parseConfigFileTextToJson('wrangler.jsonc', readFileSync('wrangler.jsonc', 'utf8'));
+    expect(result.error).toBeUndefined();
+    const config = result.config;
+    expect(config.preview_urls).toBe(false);
+    const previewsJson = JSON.stringify(config.previews || {});
+    expect(previewsJson).not.toContain('aba10fd7-bb8b-432c-a5ec-1701e43654c6');
+    expect(previewsJson).not.toContain('33a5cd31362243138590c446614ffb9b');
+    expect(previewsJson).not.toContain('"company-stock-images"');
+    expect(previewsJson).not.toContain('admin@afmarbre.com');
+    expect(config.previews?.send_email).toBeUndefined();
+  });
 });
