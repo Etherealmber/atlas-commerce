@@ -1,5 +1,6 @@
 use crate::error::{AuthCoreError, Result};
 use crate::origin::ServerOrigin;
+use crate::schemas::SessionTokensV3;
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use p256::ecdsa::{signature::Signer, Signature, SigningKey};
 use p256::elliptic_curve::sec1::ToEncodedPoint;
@@ -201,6 +202,38 @@ pub fn build_dpop_proof(
     let s_b64 = URL_SAFE_NO_PAD.encode(sig);
 
     Ok(format!("{}.{}", signing_input, s_b64))
+}
+
+/// Formats the RFC 9449 `Authorization` header required by Atlas Desktop v3
+/// protected endpoints: `Authorization: DPoP nv3.<...>`.
+pub fn authorization_header_for_token(tokens: &SessionTokensV3) -> Result<String> {
+    if tokens.token_type != "DPoP" || !tokens.access_token.starts_with("nv3.") {
+        return Err(AuthCoreError::ResponseMismatch);
+    }
+    Ok(format!("DPoP {}", tokens.access_token))
+}
+
+/// Builds both headers required on every Desktop v3 protected resource request:
+/// `(Authorization: DPoP nv3.<...>, DPoP: <dpop+jwt bound with ath>)`.
+pub fn build_protected_request_headers(
+    key: &dyn DeviceKeyAdapter,
+    method: &str,
+    target_url: &str,
+    nonce: &str,
+    iat_secs: u64,
+    tokens: &SessionTokensV3,
+) -> Result<(String, String)> {
+    let auth = authorization_header_for_token(tokens)?;
+    let dpop = build_dpop_proof(
+        key,
+        method,
+        target_url,
+        nonce,
+        iat_secs,
+        Some(&tokens.access_token),
+        None,
+    )?;
+    Ok((auth, dpop))
 }
 
 #[cfg(test)]

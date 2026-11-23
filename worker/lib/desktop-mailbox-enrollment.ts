@@ -7,13 +7,14 @@
  */
 import { reserveCredentialAttempt } from './credential-attempt-limits';
 
-type Actor = { userId: number };
+type CommitGuard = { sql: string; params: unknown[] };
+type Actor = { userId: number; commitGuard?: () => CommitGuard };
 type Message = { to: string; code: string; purpose: 'new_mailbox' | 'old_mailbox_change' };
 export type MailboxEnrollmentAdapters = {
   // Must verify an existing account session AND recent, explicit reauthentication
   // plus the approved first-enrollment/recovery policy for each call. Never
-  // trust caller-supplied IDs or roles. This check alone is not atomic with
-  // session revocation; an integration must close that race before exposure.
+  // trust caller-supplied IDs or roles. `commitGuard` closes the TOCTOU race
+  // between authorization/mail-delivery and session revocation at commit time.
   authorize: (context: unknown, operation: 'start' | 'confirm') => Promise<Actor | null>;
   // Must send only to the supplied address; no fallback or secret logging.
   send: (message: Message, signal: AbortSignal) => Promise<boolean>;
@@ -90,7 +91,7 @@ export function createMailboxEnrollment(db: D1Database, key: string, adapters?: 
     if (!identity || !Number.isSafeInteger(identity.userId) || identity.userId <= 0) return null;
     const row: any = await db.prepare('SELECT id,username,role,password_hash,password_salt FROM app_users WHERE id=? AND active=1').bind(identity.userId).first();
     if (!row || !row.username || !row.password_hash || !row.role) return null;
-    return row;
+    return { user: row, commitGuard: identity.commitGuard };
   }
   async function budget(ip: string, username: string, purpose: 'password' | 'otp') {
     if (!ip || ip === 'unknown') return false;
@@ -112,20 +113,26 @@ export function createMailboxEnrollment(db: D1Database, key: string, adapters?: 
       const dest = address(candidate);
       if (!dest) return null;
       await schema(db);
-      const user = await actor(context, 'start');
-      if (!user || !(await budget(ip, user.username, 'password'))) return null;
+      const auth = await actor(context, 'start');
+      if (!auth || !(await budget(ip, auth.user.username, 'password'))) return null;
+      const { user, commitGuard } = auth;
       await db.prepare(`DELETE FROM desktop_mailbox_pending_v1 WHERE id IN
         (SELECT id FROM desktop_mailbox_pending_v1 WHERE expires_at<? LIMIT 100)`).bind(Date.now() - 86_400_000).run();
       const prior: any = await db.prepare('SELECT * FROM desktop_mailbox_verified_v1 WHERE user_id=?').bind(user.id).first();
       if (prior && (prior.active !== 1 || prior.address === dest)) return null; // recovery or no change
       const id = randomHex(); const next = code(); const previous = prior ? code() : null; const expires = Date.now() + TTL;
+      const preGuard = commitGuard?.();
+      const preGuardClause = preGuard ? ` AND ${preGuard.sql}` : '';
       const inserted: any = await db.prepare(`INSERT INTO desktop_mailbox_pending_v1 (id,user_id,candidate,previous_version,new_digest,old_digest,expires_at,status)
-        SELECT ?,id,?,?,?,?,?,'sending' FROM app_users WHERE id=? AND username=? AND role=? AND password_hash=? AND password_salt=? AND active=1
+        SELECT ?,id,?,?,?,?,?,'sending' FROM app_users WHERE id=? AND username=? AND role=? AND password_hash=? AND password_salt=? AND active=1${preGuardClause}
         ON CONFLICT(user_id) DO UPDATE SET id=excluded.id,candidate=excluded.candidate,previous_version=excluded.previous_version,
           new_digest=excluded.new_digest,old_digest=excluded.old_digest,expires_at=excluded.expires_at,attempts=0,status='sending',completion_nonce=NULL
-        WHERE desktop_mailbox_pending_v1.status IN ('failed','completed','cancelled') OR desktop_mailbox_pending_v1.expires_at<=? RETURNING id`)
+        WHERE (desktop_mailbox_pending_v1.status IN ('failed','completed','cancelled') OR desktop_mailbox_pending_v1.expires_at<=?)${preGuardClause} RETURNING id`)
         .bind(id, dest, prior?.version || null, await mac(key, id, 'new', next), previous ? await mac(key, id, 'old', previous) : null, expires,
-          user.id, user.username, user.role, user.password_hash, user.password_salt, Date.now()).first();
+          user.id, user.username, user.role, user.password_hash, user.password_salt,
+          ...(preGuard?.params || []),
+          Date.now(),
+          ...(preGuard?.params || [])).first();
       if (!inserted) return null;
       let sent = false;
       try {
@@ -135,33 +142,45 @@ export function createMailboxEnrollment(db: D1Database, key: string, adapters?: 
         const newSent = oldSent && await deliver({to:dest, code:next, purpose:'new_mailbox'});
         sent = !!newSent;
       } catch { /* fail closed; never log adapter exceptions */ }
+      const postGuard = commitGuard?.();
+      const postGuardClause = postGuard ? ` AND ${postGuard.sql}` : '';
       const transitioned = await db.prepare(`UPDATE desktop_mailbox_pending_v1 SET status=?,
         new_digest=CASE WHEN ?=1 THEN new_digest ELSE '' END,old_digest=CASE WHEN ?=1 THEN old_digest ELSE NULL END
-        WHERE id=? AND user_id=? AND status='sending' AND expires_at>? RETURNING id`)
-        .bind(sent ? 'pending' : 'failed', sent ? 1 : 0, sent ? 1 : 0, id, user.id, Date.now()).first();
+        WHERE id=? AND user_id=? AND status='sending' AND expires_at>?${postGuardClause} RETURNING id`)
+        .bind(sent ? 'pending' : 'failed', sent ? 1 : 0, sent ? 1 : 0, id, user.id, Date.now(), ...(postGuard?.params || [])).first();
+      if (sent && !transitioned) {
+        await db.prepare(`UPDATE desktop_mailbox_pending_v1 SET status='cancelled', new_digest='', old_digest=NULL
+          WHERE id=? AND user_id=? AND status='sending'`).bind(id, user.id).run().catch(() => undefined);
+      }
       return sent && transitioned ? {request_id:id, expires_in:TTL / 1000} : null;
     },
     async confirm(context, requestId, newCode, oldCode, ip) {
       if (!ID.test(requestId) || !CODE.test(newCode) || (oldCode !== undefined && !CODE.test(oldCode))) return false;
       await schema(db);
-      const user = await actor(context, 'confirm');
-      if (!user || !(await budget(ip, user.username, 'otp'))) return false;
+      const auth = await actor(context, 'confirm');
+      if (!auth || !(await budget(ip, auth.user.username, 'otp'))) return false;
+      const { user, commitGuard } = auth;
+      const attemptGuard = commitGuard?.();
+      const attemptGuardClause = attemptGuard ? ` AND ${attemptGuard.sql}` : '';
       const row: any = await db.prepare(`UPDATE desktop_mailbox_pending_v1 SET attempts=attempts+1
-        WHERE id=? AND user_id=? AND status='pending' AND expires_at>? AND attempts<5 RETURNING *`).bind(requestId, user.id, Date.now()).first();
+        WHERE id=? AND user_id=? AND status='pending' AND expires_at>? AND attempts<5${attemptGuardClause} RETURNING *`)
+        .bind(requestId, user.id, Date.now(), ...(attemptGuard?.params || [])).first();
       if (!row || !same(row.new_digest, await mac(key, requestId, 'new', newCode)) ||
           (row.old_digest !== null && (!oldCode || !same(row.old_digest, await mac(key, requestId, 'old', oldCode))))) return false;
       const nonce = randomHex(); const now = Date.now();
+      const batchGuard = commitGuard?.();
+      const batchGuardClause = batchGuard ? ` AND ${batchGuard.sql}` : '';
       const results: any[] = await db.batch([
         db.prepare(`UPDATE desktop_mailbox_pending_v1 SET status='completed',completion_nonce=?,new_digest='',old_digest=NULL
           WHERE id=? AND user_id=? AND status='pending' AND expires_at>? AND attempts<=5
-          AND EXISTS (SELECT 1 FROM app_users WHERE id=? AND username=? AND role=? AND password_hash=? AND password_salt=? AND active=1)`)
-          .bind(nonce, requestId, user.id, now, user.id, user.username, user.role, user.password_hash, user.password_salt),
+          AND EXISTS (SELECT 1 FROM app_users WHERE id=? AND username=? AND role=? AND password_hash=? AND password_salt=? AND active=1)${batchGuardClause}`)
+          .bind(nonce, requestId, user.id, now, user.id, user.username, user.role, user.password_hash, user.password_salt, ...(batchGuard?.params || [])),
         db.prepare(`INSERT INTO desktop_mailbox_verified_v1 (user_id,address,version,active,verified_at)
           SELECT p.user_id,p.candidate,?,1,? FROM desktop_mailbox_pending_v1 p WHERE p.id=? AND p.user_id=? AND p.status='completed' AND p.completion_nonce=?
           AND ((p.previous_version IS NULL AND NOT EXISTS (SELECT 1 FROM desktop_mailbox_verified_v1 v WHERE v.user_id=p.user_id))
-            OR EXISTS (SELECT 1 FROM desktop_mailbox_verified_v1 v WHERE v.user_id=p.user_id AND v.version=p.previous_version AND v.active=1))
+            OR EXISTS (SELECT 1 FROM desktop_mailbox_verified_v1 v WHERE v.user_id=p.user_id AND v.version=p.previous_version AND v.active=1))${batchGuardClause}
           ON CONFLICT(user_id) DO UPDATE SET address=excluded.address,version=excluded.version,active=1,verified_at=excluded.verified_at`)
-          .bind(nonce, now, requestId, user.id, nonce),
+          .bind(nonce, now, requestId, user.id, nonce, ...(batchGuard?.params || [])),
       ]);
       return Number(results[0]?.meta?.changes || 0) === 1 && Number(results[1]?.meta?.changes || 0) === 1;
     },

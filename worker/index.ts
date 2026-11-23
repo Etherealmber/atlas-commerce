@@ -96,6 +96,9 @@ import {
   secretMaterialForUsername,
   nativeCurrentIdentity,
   runWithRequestAuthContext,
+  parseAuthorizationHeader,
+  isNativeV3AuthHeader,
+  isAnyNativeV3TokenHeader,
 } from './lib/authHelpers';
 import { registerAuthRoutes } from './routes/authRoutes';
 import { registerUsersAdminRoutes, registerSettingsRoutes } from './routes/usersAdmin';
@@ -760,7 +763,7 @@ app.use('*', cors({
     return 'https://stock.afmarbre.com';
   },
   allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization', 'X-Api-Key', 'Idempotency-Key', 'X-Device-Fingerprint', 'X-Admin-Backup-Token', 'X-Backup-Signature', 'X-Backup-Timestamp'],
+  allowHeaders: ['Content-Type', 'Authorization', 'DPoP', 'X-Api-Key', 'Idempotency-Key', 'X-Device-Fingerprint', 'X-Admin-Backup-Token', 'X-Backup-Signature', 'X-Backup-Timestamp'],
   maxAge: 86400,
 }));
 
@@ -813,8 +816,14 @@ app.use('*', async (c, next) => {
     const method = c.req.method.toUpperCase();
     const bm = readD1BookmarkFromReq(c);
 
+    const authHeader = c.req.header('Authorization');
+    const isNativeAuth =
+      path.startsWith(`${NATIVE_V2}/`) ||
+      path.startsWith(`${NATIVE_V3}/`) ||
+      !!authHeader?.startsWith('Bearer np1.') ||
+      isAnyNativeV3TokenHeader(authHeader);
     try {
-      if (path.startsWith('/api/reports/') || path.startsWith(`${NATIVE_V2}/`) || path.startsWith(`${NATIVE_V3}/`) || c.req.header('Authorization')?.startsWith('Bearer np1.') || c.req.header('Authorization')?.startsWith('Bearer nv3.') || path === '/api/mobile/work-status' || path === '/api/mobile/snake-score' || path === '/api/mobile/preferences' || path === '/api/reports' || path === '/api/admin/product-images/normalize') {
+      if (path.startsWith('/api/reports/') || isNativeAuth || path === '/api/auth/logout' || path === '/api/auth/role-refresh' || path === '/api/mobile/work-status' || path === '/api/mobile/snake-score' || path === '/api/mobile/preferences' || path === '/api/reports' || path === '/api/admin/product-images/normalize') {
         session = rawDb.withSession('first-primary');
       } else if (path === '/api/health') {
         // Health check: can use unconstrained replica or available session
@@ -827,8 +836,8 @@ app.use('*', async (c, next) => {
         session = bm ? rawDb.withSession(bm) : rawDb.withSession();
       }
     } catch {
-      // Native v2/v3 must never silently fall back to an unconstrained D1 replica.
-      if (path.startsWith(`${NATIVE_V2}/`) || path.startsWith(`${NATIVE_V3}/`) || c.req.header('Authorization')?.startsWith('Bearer np1.') || c.req.header('Authorization')?.startsWith('Bearer nv3.')) {
+      // Native v2/v3 and session revocation paths must never silently fall back to an unconstrained D1 replica.
+      if (isNativeAuth || path === '/api/auth/logout') {
         return c.json({ success: false, code: 'UNAVAILABLE', error: 'Connexion indisponible.' }, 503);
       }
       try {
@@ -915,7 +924,14 @@ app.use('*', async (c, next) => {
   if (c.env.DB_TARGET) {
     (c.env as any).DB_SOURCE = c.env.DB; // remember the physical source before any swap
     try {
-      const privateResource = new URL(c.req.url).pathname === '/api/mobile/preferences' || new URL(c.req.url).pathname.startsWith('/api/reports/') || new URL(c.req.url).pathname.startsWith(`${NATIVE_V2}/`) || new URL(c.req.url).pathname.startsWith(`${NATIVE_V3}/`) || !!c.req.header('Authorization')?.startsWith('Bearer np1.') || !!c.req.header('Authorization')?.startsWith('Bearer nv3.');
+      const reqPath = new URL(c.req.url).pathname;
+      const authHeader = c.req.header('Authorization');
+      const isNativeReq =
+        reqPath.startsWith(`${NATIVE_V2}/`) ||
+        reqPath.startsWith(`${NATIVE_V3}/`) ||
+        !!authHeader?.startsWith('Bearer np1.') ||
+        isAnyNativeV3TokenHeader(authHeader);
+      const privateResource = reqPath === '/api/mobile/preferences' || reqPath.startsWith('/api/reports/') || reqPath === '/api/auth/logout' || reqPath === '/api/auth/role-refresh' || isNativeReq;
       // These resources must not fall back to the wrong database if
       // cutover state cannot be read; do not use the cached, fail-open flag.
       const flag = privateResource
@@ -923,7 +939,7 @@ app.use('*', async (c, next) => {
         : await dbPrimaryFlag(c.env);
       if (flag === 'target') {
         const target = c.env.DB_TARGET as any;
-        if ((new URL(c.req.url).pathname.startsWith(`${NATIVE_V2}/`) || new URL(c.req.url).pathname.startsWith(`${NATIVE_V3}/`) || c.req.header('Authorization')?.startsWith('Bearer np1.') || c.req.header('Authorization')?.startsWith('Bearer nv3.')) && typeof target.withSession !== 'function') throw new Error('Native auth requires a primary D1 session');
+        if (isNativeReq && typeof target.withSession !== 'function') throw new Error('Native auth requires a primary D1 session');
         const targetDb = privateResource && typeof target.withSession === 'function'
           ? target.withSession('first-primary') : target;
         registerDbRoot(targetDb, target);
@@ -932,7 +948,9 @@ app.use('*', async (c, next) => {
     } catch {
       // Never silently switch this private resource back to the source database
       // if the configured target's primary session cannot be established.
-      if (new URL(c.req.url).pathname === '/api/mobile/preferences' || new URL(c.req.url).pathname.startsWith('/api/reports/') || new URL(c.req.url).pathname.startsWith(`${NATIVE_V2}/`) || new URL(c.req.url).pathname.startsWith(`${NATIVE_V3}/`) || c.req.header('Authorization')?.startsWith('Bearer np1.') || c.req.header('Authorization')?.startsWith('Bearer nv3.')) {
+      const reqPath = new URL(c.req.url).pathname;
+      const authHeader = c.req.header('Authorization');
+      if (reqPath === '/api/mobile/preferences' || reqPath.startsWith('/api/reports/') || reqPath === '/api/auth/logout' || reqPath === '/api/auth/role-refresh' || reqPath.startsWith(`${NATIVE_V2}/`) || reqPath.startsWith(`${NATIVE_V3}/`) || authHeader?.startsWith('Bearer np1.') || isAnyNativeV3TokenHeader(authHeader)) {
         return c.json({ success: false, code: 'SERVICE_UNAVAILABLE', error: 'Service indisponible' }, 503);
       }
     }
@@ -1020,9 +1038,12 @@ app.use('/api/*', async (c, next) => {
   // A staging/v3 native session must not be used to bootstrap a legacy web/QR
   // session or to activate fingerprint-based trust. Native refresh/logout use
   // their own proof-bearing POST bodies instead of Authorization.
-  const authTok = c.req.header('Authorization')?.slice(7) || '';
-  const nativeHeader = authTok.startsWith('np1.');
-  const nv3Header = authTok.startsWith('nv3.');
+  const parsedAuth = parseAuthorizationHeader(c.req.header('Authorization'));
+  const authTok = parsedAuth?.token || '';
+  const nativeHeader = parsedAuth?.scheme === 'Bearer' && authTok.startsWith('np1.');
+  const nv3Header = isNativeV3AuthHeader(c.req.header('Authorization'));
+  const nv3MisusedBearer = parsedAuth?.scheme === 'Bearer' && authTok.startsWith('nv3.');
+  if (nv3MisusedBearer) return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Non autorisé' }, 401);
   if (nativeHeader && path.startsWith('/api/auth/') && path !== '/api/auth/me') return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Non autorisé' }, 401);
   if (nv3Header && path.startsWith('/api/auth/') && path !== '/api/auth/me' && !path.startsWith(`${NATIVE_V3}/`)) return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Non autorisé' }, 401);
   const queryTok = c.req.query('token') || '';
@@ -1112,7 +1133,8 @@ app.use('/api/*', async (c, next) => {
     if (c.req.method !== 'GET') return deny(403, 'FORBIDDEN');
     const auth = c.req.header('Authorization');
     const queryToken = extractQueryToken(c.req.url);
-    if (queryToken?.startsWith('np1.')) return deny(401, 'INVALID_TOKEN');
+    if (queryToken?.startsWith('np1.') || queryToken?.startsWith('nv3.')) return deny(401, 'INVALID_TOKEN');
+    if (isAnyNativeV3TokenHeader(auth)) return deny(401, 'INVALID_TOKEN');
     const rt = c.req.query('rt');
     if (rt && !auth && !queryToken && path !== '/api/reports/link-ticket') {
       const verified = await verifyScopedReportTicket(reportTicketEnvironment(c.env), rt, getOwnerUsername(c.env));
@@ -1168,7 +1190,7 @@ app.use('/api/*', async (c, next) => {
     } catch { /* */ }
 
     // 1) Query token (PDF tab / openReport)
-    if (queryToken && !queryToken.startsWith('np1.')) {
+    if (queryToken && !queryToken.startsWith('np1.') && !queryToken.startsWith('nv3.')) {
       const reason = await authFailReason(`Bearer ${queryToken}`, c.env, c.env.DB, ip, undefined, { relaxSession: true });
       if (reason === 'ok') {
         if (isReport) {
@@ -1278,7 +1300,8 @@ app.use('/api/*', async (c, next) => {
     ) {
       try {
         const authStr = c.req.header('Authorization');
-        const rawAuthTok = authStr?.startsWith('Bearer ') ? authStr.slice(7) : '';
+        const pAuth = parseAuthorizationHeader(authStr);
+        const rawAuthTok = pAuth?.scheme === 'Bearer' ? pAuth.token : '';
         const parsedTok =
           rawAuthTok && !rawAuthTok.startsWith('np1.') && !rawAuthTok.startsWith('nv3.')
             ? parseToken(rawAuthTok)
@@ -1287,7 +1310,7 @@ app.use('/api/*', async (c, next) => {
           (fp && fp !== 'none' ? fp : '') ||
           (parsedTok?.fingerprint && parsedTok.fingerprint !== 'none' ? parsedTok.fingerprint : '');
         const sess = sessionUserFromHeader(authStr);
-        if (effectiveFp && sess.username && !rawAuthTok.startsWith('nv3.')) {
+        if (effectiveFp && sess.username && !isAnyNativeV3TokenHeader(authStr) && !rawAuthTok.startsWith('nv3.')) {
           await touchTrustedDevice(
             c.env.DB,
             sess.username,

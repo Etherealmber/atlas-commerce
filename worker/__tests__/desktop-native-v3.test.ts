@@ -581,17 +581,31 @@ describe('Desktop v3 production safety, discovery, and protocol', () => {
     expect(session.access_token.startsWith('nv3.')).toBe(true);
     expect(session.attestation).toBe('client_key_unattested');
 
-    // 5. Authenticated /api/auth/me requires matching DPoP proof (ath + thumbprint)
+    // 5. Authenticated /api/auth/me requires Authorization: DPoP nv3.<...> + DPoP proof (ath + thumbprint)
+    const bearerMisuse = await call('/api/auth/me', undefined, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        DPoP: await dev.signDpop({
+          method: 'GET',
+          target: `${ORIGIN}/api/auth/me`,
+          nonce: await getNonce(),
+          accessToken: session.access_token,
+        }),
+      },
+    });
+    expect(bearerMisuse.status).toBe(401);
+
     const noDpop = await call('/api/auth/me', undefined, {
       method: 'GET',
-      headers: { Authorization: `Bearer ${session.access_token}` },
+      headers: { Authorization: `DPoP ${session.access_token}` },
     });
     expect(noDpop.status).toBe(401);
 
     const wrongDpop = await call('/api/auth/me', undefined, {
       method: 'GET',
       headers: {
-        Authorization: `Bearer ${session.access_token}`,
+        Authorization: `DPoP ${session.access_token}`,
         DPoP: await otherDev.signDpop({
           method: 'GET',
           target: `${ORIGIN}/api/auth/me`,
@@ -605,7 +619,7 @@ describe('Desktop v3 production safety, discovery, and protocol', () => {
     const meOk = await call('/api/auth/me', undefined, {
       method: 'GET',
       headers: {
-        Authorization: `Bearer ${session.access_token}`,
+        Authorization: `DPoP ${session.access_token}`,
         DPoP: await dev.signDpop({
           method: 'GET',
           target: `${ORIGIN}/api/auth/me`,
@@ -621,7 +635,7 @@ describe('Desktop v3 production safety, discovery, and protocol', () => {
     // Legacy /api/auth/logout rejects nv3. at the /api/* boundary (401)
     const legacyLogout = await call('/api/auth/logout', {}, {
       headers: {
-        Authorization: `Bearer ${session.access_token}`,
+        Authorization: `DPoP ${session.access_token}`,
         DPoP: await dev.signDpop({
           method: 'POST',
           target: `${ORIGIN}/api/auth/logout`,
@@ -636,7 +650,7 @@ describe('Desktop v3 production safety, discovery, and protocol', () => {
     const listed = await call('/api/auth/desktop/v3/sessions', undefined, {
       method: 'GET',
       headers: {
-        Authorization: `Bearer ${session.access_token}`,
+        Authorization: `DPoP ${session.access_token}`,
         DPoP: await dev.signDpop({
           method: 'GET',
           target: `${ORIGIN}/api/auth/desktop/v3/sessions`,
@@ -648,6 +662,17 @@ describe('Desktop v3 production safety, discovery, and protocol', () => {
     expect(listed.status).toBe(200);
     expect(listed.body.data.length).toBe(1);
     expect(listed.body.data[0].device_thumbprint).toBe(dev.thumbprint);
+
+    // CORS preflight advertises DPoP header
+    const preflightRes = await app.fetch(
+      new Request(`${ORIGIN}/api/auth/me`, {
+        method: 'OPTIONS',
+        headers: { Origin: ORIGIN, 'Access-Control-Request-Method': 'GET', 'Access-Control-Request-Headers': 'Authorization, DPoP' },
+      }),
+      env,
+      { waitUntil: () => {} },
+    );
+    expect(preflightRes.headers.get('Access-Control-Allow-Headers') || '').toContain('DPoP');
 
     // 6. Refresh rotation
     const rotated = await call(
@@ -814,7 +839,7 @@ describe('Desktop v3 production safety, discovery, and protocol', () => {
     const afterLogout = await call('/api/auth/me', undefined, {
       method: 'GET',
       headers: {
-        Authorization: `Bearer ${session.access_token}`,
+        Authorization: `DPoP ${session.access_token}`,
         DPoP: await dev.signDpop({
           method: 'GET',
           target: `${ORIGIN}/api/auth/me`,
@@ -966,7 +991,7 @@ describe('Desktop v3 production safety, discovery, and protocol', () => {
     const meV3 = await call('/api/auth/me', undefined, {
       method: 'GET',
       headers: {
-        Authorization: `Bearer ${access1}`,
+        Authorization: `DPoP ${access1}`,
         DPoP: await dev.signDpop({ method: 'GET', target: `${ORIGIN}/api/auth/me`, nonce: meNonce, accessToken: access1 }),
       },
     });
@@ -997,13 +1022,14 @@ describe('Desktop v3 production safety, discovery, and protocol', () => {
     const meStillValid = await call('/api/auth/me', undefined, {
       method: 'GET',
       headers: {
-        Authorization: `Bearer ${access2}`,
+        Authorization: `DPoP ${access2}`,
         DPoP: await dev.signDpop({ method: 'GET', target: `${ORIGIN}/api/auth/me`, nonce: meStillValidNonce, accessToken: access2 }),
       },
     });
     expect(meStillValid.status).toBe(200);
 
     // 7. Same-request authFailReason recheck reuses proof without JTI replay, yet catches credential changes live
+    //    and rejects Bearer nv3. misuse.
     const recheckNonce = await getNonce();
     const recheckDpop = await dev.signDpop({
       method: 'GET',
@@ -1014,11 +1040,197 @@ describe('Desktop v3 production safety, discovery, and protocol', () => {
     await runWithRequestAuthContext(
       { dpopHeader: recheckDpop, method: 'GET', requestUrl: `${ORIGIN}/api/reports/export` },
       async () => {
-        expect(await authFailReason(`Bearer ${access2}`, env, env.DB, '203.0.113.10', undefined)).toBe('ok');
-        expect(await authFailReason(`Bearer ${access2}`, env, env.DB, '203.0.113.10', undefined)).toBe('ok');
-        await env.DB.prepare("UPDATE app_users SET password_hash = ? WHERE username = 'alice'").bind(await hashUserPassword('new-rotated-pass-1', 'rotated-salt-01')).run();
         expect(await authFailReason(`Bearer ${access2}`, env, env.DB, '203.0.113.10', undefined)).toBe('bad_token');
+        expect(await authFailReason(`DPoP ${access2}`, env, env.DB, '203.0.113.10', undefined)).toBe('ok');
+        expect(await authFailReason(`DPoP ${access2}`, env, env.DB, '203.0.113.10', undefined)).toBe('ok');
+        await env.DB.prepare("UPDATE app_users SET password_hash = ? WHERE username = 'alice'").bind(await hashUserPassword('new-rotated-pass-1', 'rotated-salt-01')).run();
+        expect(await authFailReason(`DPoP ${access2}`, env, env.DB, '203.0.113.10', undefined)).toBe('bad_token');
       },
     );
+  });
+
+  it('revokes web bearer tokens on logout, closes concurrent mailbox enrollment races, and enforces independent recovery policy', async () => {
+    const salt1 = 'bob-admin-salt-001';
+    const hash1 = await hashUserPassword(ALICE_PASSWORD, salt1);
+    const ins1 = sqlite
+      .prepare('INSERT INTO app_users (username, role, password_salt, password_hash) VALUES (?, ?, ?, ?)')
+      .run('bob_admin', 'admin', salt1, hash1);
+    const bobId = Number(ins1.lastInsertRowid);
+
+    const salt2 = 'carol-admin-salt-001';
+    const hash2 = await hashUserPassword(ALICE_PASSWORD, salt2);
+    sqlite
+      .prepare('INSERT INTO app_users (username, role, password_salt, password_hash) VALUES (?, ?, ?, ?)')
+      .run('carol_admin', 'admin', salt2, hash2);
+
+    sqlite.prepare('INSERT INTO trusted_devices (fingerprint, username) VALUES (?, ?)').run('bob-fp', 'bob_admin');
+    sqlite.prepare('INSERT INTO trusted_devices (fingerprint, username) VALUES (?, ?)').run('carol-fp', 'carol_admin');
+
+    const bobToken = await tokenFor('bob_admin', 'admin', hash1, 'bob-fp', IP);
+    const carolToken = await tokenFor('carol_admin', 'admin', hash2, 'carol-fp', IP);
+
+    // A) Logged-out web bearer token MUST NOT authorize /api/auth/me or mailbox enrollment/recovery
+    const logoutRes = await call('/api/auth/logout', {}, {
+      headers: { Authorization: `Bearer ${aliceToken}`, 'X-Device-Fingerprint': 'alice-web-fp' },
+    });
+    expect(logoutRes.status).toBe(200);
+    expect(logoutRes.body.resume_prepared).toBe(true);
+
+    const meAfterLogout = await call('/api/auth/me', undefined, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${aliceToken}`, 'X-Device-Fingerprint': 'alice-web-fp' },
+    });
+    expect(meAfterLogout.status).toBe(401);
+
+    const enrollAfterLogout = await call(
+      '/api/auth/desktop/v3/mailbox/enroll/start',
+      { password: ALICE_PASSWORD, email: 'alice-late@afmarbre.com' },
+      { headers: { Authorization: `Bearer ${aliceToken}`, 'X-Device-Fingerprint': 'alice-web-fp' } },
+    );
+    expect(enrollAfterLogout.status).toBe(401);
+
+    // Same-device password re-login (30d resume_until) still works and mints a NEW token while old token stays dead
+    const savedTsSecret = env.TURNSTILE_SECRET_KEY;
+    env.TURNSTILE_SECRET_KEY = '';
+    const relogin = await call('/api/auth/login', { username: 'alice', password: ALICE_PASSWORD }, {
+      headers: { 'X-Device-Fingerprint': 'alice-web-fp' },
+    });
+    env.TURNSTILE_SECRET_KEY = savedTsSecret;
+    expect(relogin.status).toBe(200);
+    expect(relogin.body.needs_otp).toBe(false);
+    const freshAliceToken = relogin.body.token;
+    expect(freshAliceToken).toBeTruthy();
+    expect(freshAliceToken).not.toBe(aliceToken);
+
+    const oldStillDead = await call('/api/auth/me', undefined, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${aliceToken}`, 'X-Device-Fingerprint': 'alice-web-fp' },
+    });
+    expect(oldStillDead.status).toBe(401);
+
+    // B) Concurrent logout DURING mailbox/enroll/start delivery MUST abort enrollment atomically
+    const origFetch = globalThis.fetch;
+    let injectedConcurrentLogout = false;
+    globalThis.fetch = vi.fn(async (input: any, init?: any) => {
+      const url = typeof input === 'string' ? input : input?.url || '';
+      if (url === 'https://api.resend.com/emails') {
+        if (!injectedConcurrentLogout) {
+          injectedConcurrentLogout = true;
+          // Simulate user logging out in another tab while Resend delivery is in flight
+          const concurrentOut = await call('/api/auth/logout', {}, {
+            headers: { Authorization: `Bearer ${freshAliceToken}`, 'X-Device-Fingerprint': 'alice-web-fp' },
+          });
+          expect(concurrentOut.status).toBe(200);
+        }
+        return new Response(JSON.stringify({ id: 'msg_race' }), { status: 200 });
+      }
+      return origFetch(input, init);
+    }) as any;
+
+    const racedStart = await call(
+      '/api/auth/desktop/v3/mailbox/enroll/start',
+      { password: ALICE_PASSWORD, email: 'alice-race@afmarbre.com' },
+      { headers: { Authorization: `Bearer ${freshAliceToken}`, 'X-Device-Fingerprint': 'alice-web-fp' } },
+    );
+    expect(racedStart.status).toBe(400);
+    expect(racedStart.body.code).toBe('ENROLLMENT_REJECTED');
+    const pendingRow = sqlite
+      .prepare('SELECT status, new_digest FROM desktop_mailbox_pending_v1 WHERE user_id = ?')
+      .get(aliceId) as any;
+    expect(pendingRow.status).toBe('cancelled');
+    expect(pendingRow.new_digest).toBe('');
+
+    // Restore normal mock fetch for enrollment of bob_admin
+    globalThis.fetch = vi.fn(async (input: any, init?: any) => {
+      const url = typeof input === 'string' ? input : input?.url || '';
+      if (url === 'https://api.resend.com/emails') {
+        const payload = JSON.parse(String(init?.body || '{}'));
+        sentEmails.push({ to: payload.to, subject: payload.subject, text: payload.text });
+        return new Response(JSON.stringify({ id: `msg_${sentEmails.length}` }), { status: 200 });
+      }
+      return origFetch(input, init);
+    }) as any;
+
+    // C) Owner native enrollment/recovery fails closed (403)
+    const ownerStatus = await call('/api/auth/desktop/v3/mailbox/status', undefined, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${ownerToken}`, 'X-Device-Fingerprint': 'owner-web-fp' },
+    });
+    expect(ownerStatus.status).toBe(200);
+    expect(ownerStatus.body.data.owner_supported).toBe(false);
+
+    const ownerEnroll = await call(
+      '/api/auth/desktop/v3/mailbox/enroll/start',
+      { password: OWNER_PASSWORD, email: 'owner@afmarbre.com' },
+      { headers: { Authorization: `Bearer ${ownerToken}`, 'X-Device-Fingerprint': 'owner-web-fp' } },
+    );
+    expect(ownerEnroll.status).toBe(403);
+
+    const ownerRecReq = await call(
+      '/api/auth/desktop/v3/mailbox/recovery/request',
+      { password: OWNER_PASSWORD, reason: 'Owner break glass attempt' },
+      { headers: { Authorization: `Bearer ${ownerToken}`, 'X-Device-Fingerprint': 'owner-web-fp' } },
+    );
+    expect(ownerRecReq.status).toBe(403);
+
+    // D) Enroll bob_admin, then test self-approval & peer-admin approval rejection vs owner approval
+    const bobStart = await call(
+      '/api/auth/desktop/v3/mailbox/enroll/start',
+      { password: ALICE_PASSWORD, email: 'bob.pro@afmarbre.com' },
+      { headers: { Authorization: `Bearer ${bobToken}`, 'X-Device-Fingerprint': 'bob-fp' } },
+    );
+    expect(bobStart.status).toBe(201);
+    const bobConfirm = await call(
+      '/api/auth/desktop/v3/mailbox/enroll/confirm',
+      {
+        password: ALICE_PASSWORD,
+        request_id: bobStart.body.data.request_id,
+        new_code: extractOtp(sentEmails.at(-1)!.text),
+      },
+      { headers: { Authorization: `Bearer ${bobToken}`, 'X-Device-Fingerprint': 'bob-fp' } },
+    );
+    expect(bobConfirm.status).toBe(200);
+
+    const bobRecReq = await call(
+      '/api/auth/desktop/v3/mailbox/recovery/request',
+      { password: ALICE_PASSWORD, reason: 'Lost corporate mailbox access' },
+      { headers: { Authorization: `Bearer ${bobToken}`, 'X-Device-Fingerprint': 'bob-fp' } },
+    );
+    expect(bobRecReq.status).toBe(201);
+    const bobRecId = bobRecReq.body.data.recovery_id;
+
+    // Self-approval MUST fail (403)
+    const selfApprove = await call(
+      '/api/auth/desktop/v3/mailbox/recovery/approve',
+      { password: ALICE_PASSWORD, recovery_id: bobRecId },
+      { headers: { Authorization: `Bearer ${bobToken}`, 'X-Device-Fingerprint': 'bob-fp' } },
+    );
+    expect(selfApprove.status).toBe(403);
+
+    // Peer-admin approval of privileged admin account MUST fail (403)
+    const peerApprove = await call(
+      '/api/auth/desktop/v3/mailbox/recovery/approve',
+      { password: ALICE_PASSWORD, recovery_id: bobRecId },
+      { headers: { Authorization: `Bearer ${carolToken}`, 'X-Device-Fingerprint': 'carol-fp' } },
+    );
+    expect(peerApprove.status).toBe(403);
+
+    // Verified mailbox for bob_admin must still be intact
+    const bobVerifiedBefore = sqlite
+      .prepare('SELECT active FROM desktop_mailbox_verified_v1 WHERE user_id = ?')
+      .get(bobId) as any;
+    expect(bobVerifiedBefore?.active).toBe(1);
+
+    // Independent owner approval succeeds (200) and clears bob_admin's verified mailbox
+    const ownerApproveBob = await call(
+      '/api/auth/desktop/v3/mailbox/recovery/approve',
+      { password: OWNER_PASSWORD, recovery_id: bobRecId },
+      { headers: { Authorization: `Bearer ${ownerToken}`, 'X-Device-Fingerprint': 'owner-web-fp' } },
+    );
+    expect(ownerApproveBob.status).toBe(200);
+    const bobVerifiedAfter = sqlite
+      .prepare('SELECT active FROM desktop_mailbox_verified_v1 WHERE user_id = ?')
+      .get(bobId) as any;
+    expect(bobVerifiedAfter).toBeUndefined();
   });
 });

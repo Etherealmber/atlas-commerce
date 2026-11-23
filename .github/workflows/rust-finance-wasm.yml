@@ -45,6 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ATLAS_REQUIRE_WASM: '1'
+      ATLAS_REQUIRE_AUTH_CORE_CONTRACT: '1'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
@@ -62,7 +63,9 @@ jobs:
       - name: Cache Cargo registry and Rust target directory
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
-          workspaces: rust/atlas-finance-core
+          workspaces: |
+            rust/atlas-finance-core
+            rust/atlas-auth-core
 
       - run: npm ci
 
@@ -71,6 +74,11 @@ jobs:
 
       - name: Strict compiled-WASM <-> TypeScript parity & benchmark tests
         run: npm run test:finance-wasm
+
+      - name: Rust Auth Core (atlas-auth-core) unit, contract-vector tests & example build
+        run: |
+          cargo test --manifest-path rust/atlas-auth-core/Cargo.toml --all-targets
+          cargo build --manifest-path rust/atlas-auth-core/Cargo.toml --example contract_driver
 
       - name: TypeScript check (Worker + Frontend — 0 errors required)
         run: npx tsc --noEmit

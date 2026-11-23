@@ -4,7 +4,8 @@ use crate::origin::ServerOrigin;
 use crate::pkce::{validate_pairing_code, PkcePair};
 use crate::schemas::{
     CapabilitiesV3Response, ChallengePollResponse, ChallengeVerifyStatus, CreateRequestV3Body,
-    CreateRequestV3Response, OtpLoginRequestV3, PasswordLoginRequestV3, SessionTokensV3,
+    CreateRequestV3Response, LogoutResponseV3, OtpLoginRequestV3, PasswordLoginRequestV3,
+    SessionTokensV3,
 };
 use serde::{Deserialize, Serialize};
 use zeroize::ZeroizeOnDrop;
@@ -23,6 +24,7 @@ pub enum DesktopV3Phase {
     ChallengeVerified,
     AwaitingOtp,
     Authenticated,
+    LoggedOut,
     Cancelled,
     Failed,
 }
@@ -35,6 +37,7 @@ impl DesktopV3Phase {
             Self::ChallengeVerified => "challenge_verified",
             Self::AwaitingOtp => "awaiting_otp",
             Self::Authenticated => "authenticated",
+            Self::LoggedOut => "logged_out",
             Self::Cancelled => "cancelled",
             Self::Failed => "failed",
         }
@@ -291,6 +294,46 @@ impl DesktopV3AuthSession {
             return Err(AuthCoreError::ResponseMismatch);
         }
         self.phase = DesktopV3Phase::Authenticated;
+        Ok(())
+    }
+
+    pub fn apply_refreshed(
+        &mut self,
+        tokens: &SessionTokensV3,
+        key: &dyn DeviceKeyAdapter,
+    ) -> Result<()> {
+        if self.phase != DesktopV3Phase::Authenticated {
+            return Err(AuthCoreError::InvalidTransition {
+                from: self.phase.as_str(),
+                action: "apply_refreshed",
+            });
+        }
+        let expected_thumbprint = self
+            .device_thumbprint
+            .as_deref()
+            .ok_or(AuthCoreError::ResponseMismatch)?;
+        if tokens.token_type != "DPoP"
+            || tokens.origin != self.origin.as_str()
+            || tokens.device_thumbprint != key.thumbprint()
+            || tokens.device_thumbprint != expected_thumbprint
+            || !tokens.access_token.starts_with("nv3.")
+        {
+            return Err(AuthCoreError::ResponseMismatch);
+        }
+        Ok(())
+    }
+
+    pub fn mark_logged_out(&mut self, resp: &LogoutResponseV3) -> Result<()> {
+        if self.phase != DesktopV3Phase::Authenticated {
+            return Err(AuthCoreError::InvalidTransition {
+                from: self.phase.as_str(),
+                action: "mark_logged_out",
+            });
+        }
+        if resp.status != "revoked" {
+            return Err(AuthCoreError::ResponseMismatch);
+        }
+        self.phase = DesktopV3Phase::LoggedOut;
         Ok(())
     }
 

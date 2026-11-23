@@ -27,6 +27,12 @@ import { issueDpopNonce, prepareDpopVerification, ensureDpopTables } from '../li
 import { desktopV3Enabled, makeDesktopV3Token } from '../lib/desktop-v3-session';
 import { createConfiguredNativeMailbox, createNativeOtpSender } from '../lib/desktop-mail-transport';
 import { addColumnIfMissing } from '../lib/schema';
+import {
+  ensureRevokedWebTokensTable,
+  getRequestAuthContext,
+  parseAuthorizationHeader,
+  webTokenHash,
+} from '../lib/authHelpers';
 
 export const NATIVE_V3 = '/api/auth/desktop/v3';
 
@@ -1079,14 +1085,47 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
 
   // 7. Authenticated Mailbox Enrollment & Recovery + Session Revocation
   //    (All routes below pass through the global /api/* auth middleware first.)
-  function mailboxService(c: Context<any>) {
+  async function buildSessionCommitGuard(c: Context<any>) {
+    const parsedAuth = parseAuthorizationHeader(c.req.header('Authorization'));
+    if (!parsedAuth) return () => ({ sql: '1 = 0', params: [] as unknown[] });
+    if (parsedAuth.scheme === 'DPoP' && parsedAuth.token.startsWith('nv3.')) {
+      let sid = getRequestAuthContext()?.verifiedNv3?.sessionId || '';
+      if (!sid) {
+        const accessHash = await desktopHash(parsedAuth.token);
+        const row: any = await c.env.DB
+          .prepare('SELECT id FROM desktop_v3_sessions WHERE access_hash = ? AND revoked = 0 LIMIT 1')
+          .bind(accessHash)
+          .first();
+        sid = row?.id ? String(row.id) : '';
+      }
+      if (!sid) return () => ({ sql: '1 = 0', params: [] as unknown[] });
+      return () => {
+        const now = Date.now();
+        return {
+          sql: 'EXISTS (SELECT 1 FROM desktop_v3_sessions s WHERE s.id = ? AND s.revoked = 0 AND s.access_expires_at > ? AND s.absolute_expires_at > ?)',
+          params: [sid, now, now] as unknown[],
+        };
+      };
+    }
+    if (parsedAuth.scheme === 'Bearer' && !parsedAuth.token.startsWith('nv3.') && !parsedAuth.token.startsWith('np1.')) {
+      await ensureRevokedWebTokensTable(c.env.DB);
+      const tokenHash = await webTokenHash(parsedAuth.token);
+      return () => ({
+        sql: 'NOT EXISTS (SELECT 1 FROM revoked_web_tokens r WHERE r.token_hash = ?)',
+        params: [tokenHash] as unknown[],
+      });
+    }
+    return () => ({ sql: '1 = 0', params: [] as unknown[] });
+  }
+
+  function mailboxService(c: Context<any>, commitGuard: () => { sql: string; params: unknown[] }) {
     return createConfiguredNativeMailbox(
       c.env.DB,
       c.env,
       async (ctx: any) => {
         const verified = await deps.verifySessionPassword(c, String(ctx?.password || ''));
         if (!verified || !verified.userId) return null;
-        return { userId: verified.userId };
+        return { userId: verified.userId, commitGuard };
       },
       deps.mailFetcher,
     );
@@ -1097,7 +1136,16 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
     if (!sess) return fail('UNAUTHORIZED', 401);
     const identity = await deps.currentIdentity(c.env, sess.username, sess.role);
     if (!identity || !identity.userId) {
-      return c.json({ success: true, data: { enrolled: false, active: false, masked_address: null, recovery_pending: false } });
+      return c.json({
+        success: true,
+        data: {
+          enrolled: false,
+          active: false,
+          masked_address: null,
+          recovery_pending: false,
+          owner_supported: false,
+        },
+      });
     }
     const row: any = await c.env.DB
       .prepare('SELECT address, active, verified_at FROM desktop_mailbox_verified_v1 WHERE user_id = ?')
@@ -1125,9 +1173,11 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
   app.post(`${NATIVE_V3}/mailbox/enroll/start`, async (c) => {
     const sess = await deps.authenticatedSession(c);
     if (!sess) return fail('UNAUTHORIZED', 401);
+    if (sess.role === 'owner') return fail('FORBIDDEN', 403);
     const b = await readJsonBody(c, ['password', 'email']);
     if (typeof b.password !== 'string' || typeof b.email !== 'string') return fail('INVALID_REQUEST');
-    const svc = mailboxService(c);
+    const commitGuard = await buildSessionCommitGuard(c);
+    const svc = mailboxService(c, commitGuard);
     if (!svc) return fail('METHOD_DISABLED', 503);
     const ip = c.req.header('CF-Connecting-IP') || '';
     const started = await svc.start({ password: b.password }, b.email, ip);
@@ -1146,11 +1196,13 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
   app.post(`${NATIVE_V3}/mailbox/enroll/confirm`, async (c) => {
     const sess = await deps.authenticatedSession(c);
     if (!sess) return fail('UNAUTHORIZED', 401);
+    if (sess.role === 'owner') return fail('FORBIDDEN', 403);
     const b = await readJsonBody(c, ['password', 'request_id', 'new_code', 'old_code']);
     if (typeof b.password !== 'string' || !pattern(b.request_id, ID) || !pattern(b.new_code, CODE) || (b.old_code !== undefined && !pattern(b.old_code, CODE))) {
       return fail('INVALID_REQUEST');
     }
-    const svc = mailboxService(c);
+    const commitGuard = await buildSessionCommitGuard(c);
+    const svc = mailboxService(c, commitGuard);
     if (!svc) return fail('METHOD_DISABLED', 503);
     const ip = c.req.header('CF-Connecting-IP') || '';
     const ok = await svc.confirm({ password: b.password }, b.request_id, b.new_code, b.old_code, ip);
@@ -1169,6 +1221,10 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
   app.post(`${NATIVE_V3}/mailbox/recovery/request`, async (c) => {
     const sess = await deps.authenticatedSession(c);
     if (!sess) return fail('UNAUTHORIZED', 401);
+    // Lost-owner recovery is intentionally disabled here: the configured sole
+    // owner has no app_users ID and requires pre-enrolled offline recovery
+    // codes + a separate break-glass controller before ever exposing owner recovery.
+    if (sess.role === 'owner') return fail('FORBIDDEN', 403);
     const b = await readJsonBody(c, ['password', 'reason']);
     if (typeof b.password !== 'string' || typeof b.reason !== 'string' || b.reason.trim().length < 4 || b.reason.length > 200) {
       return fail('INVALID_REQUEST');
@@ -1177,21 +1233,25 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
     await sharedBudget(c, sess.username, 'password');
     const actor = await deps.verifySessionPassword(c, b.password);
     if (!actor || !actor.userId) return fail('UNAUTHORIZED', 401);
+    const commitGuard = await buildSessionCommitGuard(c);
+    const guard = commitGuard();
 
     const id = randHex();
     const now = Date.now();
     const expiresAt = now + RECOVERY_TTL_MS;
-    await c.env.DB.batch([
+    const reqBatch: any[] = await c.env.DB.batch([
       c.env.DB
-        .prepare(`UPDATE desktop_mailbox_recovery_v1 SET status='expired' WHERE user_id=? AND status='pending_admin_approval'`)
-        .bind(actor.userId),
+        .prepare(`UPDATE desktop_mailbox_recovery_v1 SET status='expired' WHERE user_id=? AND status='pending_admin_approval' AND ${guard.sql}`)
+        .bind(actor.userId, ...guard.params),
       c.env.DB
         .prepare(
           `INSERT INTO desktop_mailbox_recovery_v1 (id, user_id, username, reason, status, created_at, expires_at)
-           VALUES (?, ?, ?, ?, 'pending_admin_approval', ?, ?)`,
+           SELECT ?, ?, ?, ?, 'pending_admin_approval', ?, ?
+           WHERE EXISTS (SELECT 1 FROM app_users WHERE id=? AND active=1) AND ${guard.sql}`,
         )
-        .bind(id, actor.userId, actor.username, b.reason.trim(), now, expiresAt),
+        .bind(id, actor.userId, actor.username, b.reason.trim(), now, expiresAt, actor.userId, ...guard.params),
     ]);
+    if (Number(reqBatch[1]?.meta?.changes || 0) !== 1) return fail('UNAUTHORIZED', 401);
 
     await deps.audit(c, {
       username: actor.username,
@@ -1219,13 +1279,53 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
       .first();
     if (!row) fail('NOT_FOUND', 404);
 
+    const targetUser: any = await c.env.DB
+      .prepare('SELECT id, username, role, active FROM app_users WHERE id = ? AND active = 1')
+      .bind(row.user_id)
+      .first();
+    if (!targetUser) fail('NOT_FOUND', 404);
+
+    const approverName = approver.username.toLowerCase();
+    const rowName = String(row.username || '').toLowerCase();
+    const targetName = String(targetUser.username || '').toLowerCase();
+    // Policy: self-approval is unconditionally forbidden for every role.
+    if (approverName === rowName || approverName === targetName || (approver.userId !== null && approver.userId === Number(row.user_id))) {
+      fail('FORBIDDEN', 403);
+    }
+    // Policy: privileged (`admin`) mailbox recovery requires independent `owner`
+    // approval — peer `admin` approval is forbidden. Non-privileged accounts
+    // (`user`, `stock`, `secretaire`) may be approved by an independent `owner` or `admin`.
+    const targetRole = String(targetUser.role || '');
+    if (!['user', 'stock', 'secretaire', 'admin'].includes(targetRole)) {
+      fail('FORBIDDEN', 403);
+    }
+    if (targetRole === 'admin' && approver.role !== 'owner') {
+      fail('FORBIDDEN', 403);
+    }
+
+    const commitGuard = await buildSessionCommitGuard(c);
+    const guard = commitGuard();
+
     // Clear the suspended/lost mailbox + pending enrollment + active pending
-    // OTP grants + sessions ONLY if this request approves the recovery row.
+    // OTP grants + sessions ONLY if this request approves the recovery row
+    // atomically while enforcing non-self, privileged-role, and live-session guards.
     const approvalGate = `EXISTS (SELECT 1 FROM desktop_mailbox_recovery_v1 WHERE id=? AND user_id=? AND status='approved' AND reviewed_by=? AND reviewed_at=?)`;
     const approvedBatch: any[] = await c.env.DB.batch([
       c.env.DB
-        .prepare("UPDATE desktop_mailbox_recovery_v1 SET status='approved', reviewed_by=?, reviewed_at=? WHERE id=? AND status='pending_admin_approval' AND expires_at>?")
-        .bind(approver.username, now, row.id, now),
+        .prepare(
+          `UPDATE desktop_mailbox_recovery_v1 SET status='approved', reviewed_by=?, reviewed_at=?
+           WHERE id=? AND status='pending_admin_approval' AND expires_at>?
+             AND lower(username) != ?
+             AND EXISTS (
+               SELECT 1 FROM app_users u
+               WHERE u.id = desktop_mailbox_recovery_v1.user_id
+                 AND u.active = 1
+                 AND lower(u.username) != ?
+                 AND (? = 'owner' OR u.role IN ('user', 'stock', 'secretaire'))
+             )
+             AND ${guard.sql}`,
+        )
+        .bind(approver.username, now, row.id, now, approverName, approverName, approver.role, ...guard.params),
       c.env.DB
         .prepare(`DELETE FROM desktop_mailbox_verified_v1 WHERE user_id = ? AND ${approvalGate}`)
         .bind(row.user_id, row.id, row.user_id, approver.username, now),
@@ -1239,14 +1339,14 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
         .prepare(`UPDATE desktop_v3_logins SET status='cancelled', otp_digest='' WHERE user_id = ? AND status IN ('checking','pending') AND ${approvalGate}`)
         .bind(row.user_id, row.id, row.user_id, approver.username, now),
     ]);
-    if (Number(approvedBatch[0]?.meta?.changes || 0) !== 1) fail('NOT_FOUND', 404);
+    if (Number(approvedBatch[0]?.meta?.changes || 0) !== 1) fail('FORBIDDEN', 403);
 
     await deps.audit(c, {
       username: approver.username,
       role: approver.role,
       action: 'auth.mailbox_recovery_approve',
       entity: 'mailbox',
-      detail: `target=${row.username}`,
+      detail: `target=${row.username} target_role=${targetRole}`,
       ip: c.req.header('CF-Connecting-IP') || '',
     });
     return c.json({ success: true, data: { status: 'approved', username: row.username } });

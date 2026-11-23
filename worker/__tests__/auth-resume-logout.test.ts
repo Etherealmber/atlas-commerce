@@ -167,15 +167,18 @@ describe('v0.7.5 — reprise après auto-déconnexion (resume_until)', () => {
     expect(resumeOf('fpA2')).toBe(''); // other account, untouched
   });
 
-  it('documents that voluntary logout does not revoke the existing web bearer', async () => {
+  it('voluntary logout revokes the existing web bearer token while preserving resume_until', async () => {
     const secret = await seedUser('alice', 'Test1234!');
     seedDevice('fpA', 'alice');
     const token = await tokenFor('alice', 'user', secret, 'fpA');
     expect((await logout(`Bearer ${token}`, 'fpA')).status).toBe(200);
-    // Logout itself is behind the normal web authentication gate. The same
-    // bearer can still reach and complete it again after the first logout.
-    // This documents existing behavior, not a security guarantee for enrollment.
-    expect((await logout(`Bearer ${token}`, 'fpA')).status).toBe(200);
+    // The logged-out bearer token is now revoked server-side and rejected (401).
+    expect((await logout(`Bearer ${token}`, 'fpA')).status).toBe(401);
+    const me = await app.fetch(new Request('https://test.local/api/auth/me', {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}`, 'X-Device-Fingerprint': 'fpA', 'CF-Connecting-IP': IP },
+    }), env);
+    expect(me.status).toBe(401);
   });
 
   it('2. same account + device + unexpired marker + 2FA off → password-only, marker consumed', async () => {

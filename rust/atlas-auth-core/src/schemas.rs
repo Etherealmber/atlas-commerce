@@ -177,6 +177,11 @@ impl std::fmt::Debug for SessionTokensV3 {
     }
 }
 
+#[derive(Clone, Debug, Deserialize)]
+pub struct PasswordLoginResponseV3 {
+    pub status: String,
+}
+
 #[derive(Clone, Serialize, Zeroize, ZeroizeOnDrop)]
 pub struct RefreshRequestV3 {
     #[zeroize(skip)]
@@ -184,9 +189,32 @@ pub struct RefreshRequestV3 {
     pub refresh_token: String,
 }
 
+impl std::fmt::Debug for RefreshRequestV3 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RefreshRequestV3")
+            .field("origin", &self.origin)
+            .field("refresh_token", &"[REDACTED]")
+            .finish()
+    }
+}
+
 #[derive(Clone, Serialize, Zeroize, ZeroizeOnDrop)]
 pub struct LogoutRequestV3 {
     #[zeroize(skip)]
     pub origin: String,
     pub refresh_token: String,
+}
+
+impl std::fmt::Debug for LogoutRequestV3 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LogoutRequestV3")
+            .field("origin", &self.origin)
+            .field("refresh_token", &"[REDACTED]")
+            .finish()
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct LogoutResponseV3 {
+    pub status: String,
 }
