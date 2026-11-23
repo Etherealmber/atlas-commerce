@@ -335,8 +335,10 @@ describe('Desktop v3 Worker <-> Rust atlas-auth-core Contract & DPoP Replay', ()
 
       const lines: string[] = [];
       let pendingResolve: ((line: string) => void) | null = null;
+      let pendingReject: ((err: Error) => void) | null = null;
       let buf = '';
       let stderr = '';
+      let exitCode: number | null = null;
       child.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString('utf8'); });
       child.stdout.on('data', (chunk: Buffer) => {
         buf += chunk.toString('utf8');
@@ -348,6 +350,7 @@ describe('Desktop v3 Worker <-> Rust atlas-auth-core Contract & DPoP Replay', ()
             if (pendingResolve) {
               const r = pendingResolve;
               pendingResolve = null;
+              pendingReject = null;
               r(line);
             } else {
               lines.push(line);
@@ -356,15 +359,35 @@ describe('Desktop v3 Worker <-> Rust atlas-auth-core Contract & DPoP Replay', ()
           idx = buf.indexOf('\n');
         }
       });
+      child.on('exit', (code: number | null) => {
+        exitCode = code;
+        if (pendingReject) {
+          const rej = pendingReject;
+          pendingResolve = null;
+          pendingReject = null;
+          rej(new Error(`Rust driver exited (${code}) (stderr=${stderr})`));
+        }
+      });
 
       const sendCmd = async (cmd: Record<string, unknown>) => {
         child.stdin.write(`${JSON.stringify(cmd)}\n`);
         const raw = await new Promise<string>((resolve, reject) => {
           if (lines.length > 0) return resolve(lines.shift()!);
-          const timer = setTimeout(() => reject(new Error(`Rust driver timeout (stderr=${stderr})`)), 120_000);
+          if (exitCode !== null) {
+            return reject(new Error(`Rust driver already exited (${exitCode}) (stderr=${stderr})`));
+          }
+          const timer = setTimeout(() => {
+            pendingResolve = null;
+            pendingReject = null;
+            reject(new Error(`Rust driver timeout (stderr=${stderr})`));
+          }, 120_000);
           pendingResolve = (l) => {
             clearTimeout(timer);
             resolve(l);
+          };
+          pendingReject = (err) => {
+            clearTimeout(timer);
+            reject(err);
           };
         });
         return JSON.parse(raw);
