@@ -52,6 +52,8 @@ jobs:
       # Fails on ANY correctness error in src/ or worker/ (warnings, like the
       # known no-unused-vars backlog, are reported but do not block).
       - run: npm ci
+      - name: Version sync guard (src/version.ts vs package.json)
+        run: npm run check:version
       - run: npm run lint
 
   client-build:
