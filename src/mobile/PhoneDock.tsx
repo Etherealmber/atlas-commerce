@@ -13,10 +13,12 @@ export function phoneShowsBack(pathname: string): boolean {
 }
 
 export function phoneBackTarget(pathname: string): string {
-  if (pathname.replace(/\/+$/, '') === '/m/device-scan') return '/m/profile';
-  if (pathname.startsWith('/m/settings/')) return '/m/settings';
-  if (pathname.startsWith('/m/products/')) return '/m/products';
-  if (pathname.startsWith('/m/balance/')) return '/m/balance';
+  const clean = pathname.replace(/\/+$/, '');
+  if (clean === '/m/device-scan') return '/m/profile';
+  if (clean.startsWith('/m/settings/')) return '/m/settings';
+  if (clean.startsWith('/m/products/')) return '/m/products';
+  if (clean.startsWith('/m/balance/')) return '/m/balance';
+  if (/^\/m\/employees\/\d+$/.test(clean)) return '/m/employees';
   return '/m';
 }
 
@@ -25,6 +27,9 @@ export function canOpenPhoneBalance(role: string) {
 }
 export function canOpenPhoneEmployees(role: string) {
   return role === 'owner' || role === 'admin';
+}
+export function canOpenPhoneClients(role: string) {
+  return role === 'owner' || role === 'admin' || role === 'secretaire';
 }
 
 /** Match the Android dock where the web role permits the corresponding page.

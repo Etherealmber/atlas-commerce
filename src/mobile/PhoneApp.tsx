@@ -9,10 +9,12 @@ import { ArrowLeft, Settings, Sparkles, ShoppingCart, Search, ScanLine, RefreshC
 import PhoneDeviceScan from './PhoneDeviceScan';
 import PhoneBills from './PhoneBills';
 import PhoneWarehouse from './PhoneWarehouse';
+import PhoneClients from './PhoneClients';
+import { PhoneEmployeeDetail, PhoneEmployeeDirectory } from './PhoneEmployees';
 import PhoneSettings from './PhoneSettings';
 import PhoneProfile from './PhoneProfile';
 const PhoneWhatsNew = lazy(() => import('./PhoneWhatsNew'));
-import PhoneDock, { canOpenPhoneBalance, canOpenPhoneEmployees, phoneBackTarget, phoneDockItems, phoneShowsBack, showPhoneDock } from './PhoneDock';
+import PhoneDock, { canOpenPhoneBalance, canOpenPhoneClients, canOpenPhoneEmployees, phoneBackTarget, phoneDockItems, phoneShowsBack, showPhoneDock } from './PhoneDock';
 import { usePhoneTheme } from './usePhoneTheme';
 import { usePhoneTopBar } from './usePhoneTopBar';
 import { api, getBase } from '../api';
@@ -33,15 +35,21 @@ import { useProfileWarm } from '../lib/useProfileWarm';
 import {
   cacheProducts,
   cacheLocations,
+  listCachedLocations,
   lookupOffline,
   enqueueOutbox,
   enqueueOutboxAndSync,
   countOutbox,
+  countOfflineInventoryOps,
   listOutbox,
   flushOutbox,
   isOnline,
   cacheCount,
 } from '../lib/offlineCatalog';
+import {
+  executeOrQueueOfflineInventoryOp,
+  replayOfflineInventoryQueue,
+} from '../lib/offlineInventoryClient';
 import { startBarcodeScan, isBarcodeLike, captureAndDecode, decodeImageFile, preloadBarcodeScanner, prepareZXing } from '../lib/barcodeScan';
 import { IconPackage, IconInbox } from '../components/Icons';
 import OfflineBanner from '../components/OfflineBanner';
@@ -91,7 +99,6 @@ type Action = {
 
 const Balance = lazy(() => import('../pages/Balance'));
 const PhoneBalance = lazy(() => import('./PhoneBalance'));
-const Employees = lazy(() => import('../pages/Employees'));
 
 const PHONE_CART_KEY = 'atlas-phone-cart';
 
@@ -174,6 +181,7 @@ const TAB_TITLES: [string, string][] = [
   ['/m/warehouse', 'Entrepôt'],
   ['/m/bills', 'Achats'],
   ['/m/balance', 'Balance'],
+  ['/m/clients', 'Clients'],
   ['/m/employees', 'Employés'],
   ['/m/invoice', 'Devis'],
   ['/m/more', 'Plus'],
@@ -198,6 +206,7 @@ function PhoneMore() {
       { to: '/m/scan', label: 'Scan code-barres', icon: ScanLine }, { to: '/m/inbox', label: 'Notifications', icon: Bell },
       { to: '/m/agent', label: 'Atlas Agent', icon: Bot },
       ...(canOpenPhoneBalance(getRole()) ? [{ to: '/m/balance', label: 'Balance', icon: Wallet }] : []),
+      ...(canOpenPhoneClients(getRole()) ? [{ to: '/m/clients', label: 'Clients', icon: Users }] : []),
       ...(canOpenPhoneEmployees(getRole()) ? [{ to: '/m/employees', label: 'Employés', icon: Users }] : []),
     ] },
     { title: 'Outils', items: [
@@ -494,7 +503,9 @@ export default function PhoneApp() {
           />
           <Route path="/balance" element={canOpenPhoneBalance(getRole()) ? <Suspense fallback={<PageSkeleton variant="phone" />}>{canOpenPhoneEmployees(getRole()) ? <PhoneBalance /> : <div className="phone-web-page"><Balance /></div>}</Suspense> : <div className="phone-panel"><p>Cette page n’est pas disponible pour votre rôle.</p></div>} />
           <Route path="/balance/classic" element={canOpenPhoneBalance(getRole()) ? <div className="phone-web-page"><Suspense fallback={<PageSkeleton variant="phone" />}><Balance /></Suspense></div> : <div className="phone-panel"><p>Cette page n’est pas disponible pour votre rôle.</p></div>} />
-          <Route path="/employees" element={canOpenPhoneEmployees(getRole()) ? <div className="phone-web-page"><Suspense fallback={<PageSkeleton variant="phone" />}><Employees phone /></Suspense></div> : <div className="phone-panel"><p>Cette page n’est pas disponible pour votre rôle.</p></div>} />
+          <Route path="/clients" element={canOpenPhoneClients(getRole()) ? <PhoneClients onToast={show} /> : <div className="phone-panel"><p>Cette page n’est pas disponible pour votre rôle.</p></div>} />
+          <Route path="/employees" element={canOpenPhoneEmployees(getRole()) ? <PhoneEmployeeDirectory /> : <div className="phone-panel"><p>Cette page n’est pas disponible pour votre rôle.</p></div>} />
+          <Route path="/employees/:id" element={canOpenPhoneEmployees(getRole()) ? <PhoneEmployeeDetail /> : <div className="phone-panel"><p>Cette page n’est pas disponible pour votre rôle.</p></div>} />
           <Route path="/more" element={<PhoneMore />} />
           <Route path="/profile" element={<PhoneProfile onChanged={() => setProfileTick(tick => tick + 1)} preferences={{ theme, onTheme: applyTheme, animations, onAnimations: applyAnimations, compact, onCompact: applyCompact, scale: phoneScale, onScale: applyPhoneScale, startTab, onStartTab: applyStartTab }} />} />
           <Route path="/settings" element={<PhoneSettings theme={theme} onTheme={applyTheme} animations={animations} onAnimations={applyAnimations} compact={compact} onCompact={applyCompact} scale={phoneScale} onScale={applyPhoneScale} startTab={startTab} onStartTab={applyStartTab} />} />
@@ -555,6 +566,11 @@ function PhoneScan({
     return () => onDecisionVisibilityChange(false);
   }, [decision, addNow, onDecisionVisibilityChange]);
   const [countedStock, setCountedStock] = useState('');
+  const [scanOpKind, setScanOpKind] = useState<'count' | 'receive' | 'issue'>('count');
+  const [scanLocs, setScanLocs] = useState<Array<{ id: number; name: string; code: string; quantity?: number; revision?: number }>>([]);
+  const [scanLocId, setScanLocId] = useState<number>(0);
+  const [scanPendingOps, setScanPendingOps] = useState(0);
+  const [scanConflict, setScanConflict] = useState<{ current_quantity: number; current_revision: number; message: string } | null>(null);
   const [np, setNp] = useState({ name: '', sku: '', barcode: '', price: '', stock: '0', image_data_url: '' });
   const navigate = useNavigate();
   const scanLocation = useLocation();
@@ -586,8 +602,11 @@ function PhoneScan({
     let stopped = false;
     const tick = async () => {
       try {
-        const n = await countOutbox();
-        if (!stopped) setOutboxN(n);
+        const [n, inv] = await Promise.all([countOutbox(), countOfflineInventoryOps()]);
+        if (!stopped) {
+          setOutboxN(n);
+          setScanPendingOps(inv.pending);
+        }
       } catch { /* */ }
       try {
         if (isOnline()) {
@@ -597,6 +616,15 @@ function PhoneScan({
       } catch { /* */ }
     };
     void tick();
+    const onOnline = async () => {
+      try {
+        const res = await replayOfflineInventoryQueue();
+        if (res.applied > 0) onToast(`${res.applied} mouvement(s) synchronisé(s)`);
+        if (res.conflicts > 0) onToast(`${res.conflicts} conflit(s) de comptage détecté(s)`);
+      } catch { /* */ }
+      void tick();
+    };
+    window.addEventListener('online', onOnline);
     const id = window.setInterval(() => {
       if (document.visibilityState === 'visible') void tick();
     }, 90000);
@@ -606,10 +634,43 @@ function PhoneScan({
     void prepareZXing().catch(() => { /* scanner fallback stays available */ });
     return () => {
       stopped = true;
+      window.removeEventListener('online', onOnline);
       window.clearInterval(id);
       document.removeEventListener('visibilitychange', onVisibility);
     };
   }, []);
+
+  useEffect(() => {
+    const pid = decision?.found?.id;
+    if (!pid) return;
+    setScanConflict(null);
+    if (isOnline()) {
+      api
+        .getStockLocationsForProduct(pid)
+        .then((res) => {
+          const list = (res.data || []).map((l) => ({
+            id: Number(l.id),
+            name: l.name,
+            code: l.code,
+            quantity: Number(l.quantity ?? 0),
+            revision: Number(l.revision ?? 0),
+          }));
+          setScanLocs(list);
+          if (list.length && !list.some((x) => x.id === scanLocId)) {
+            setScanLocId(list[0].id);
+          }
+        })
+        .catch(() => { /* */ });
+    } else {
+      listCachedLocations()
+        .then((cached) => {
+          const list = (cached || []).map((l: any) => ({ id: Number(l.id), name: l.name, code: l.code, quantity: 0, revision: 0 }));
+          setScanLocs(list);
+          if (list.length && !scanLocId) setScanLocId(list[0].id);
+        })
+        .catch(() => { /* */ });
+    }
+  }, [decision?.found?.id]);
 
   const startCamera = async () => {
     if (busy) return;
@@ -762,6 +823,65 @@ function PhoneScan({
     }
   };
 
+  /** Exécuter un mouvement terrain (receive / issue / count) sur l'emplacement choisi */
+  const submitScanOfflineOp = async () => {
+    if (!decision?.found) return;
+    if (!scanLocId) {
+      onToast('Sélectionnez un emplacement');
+      return;
+    }
+    const val = Number(countedStock);
+    if (!Number.isFinite(val) || (scanOpKind === 'count' ? val < 0 : val <= 0)) {
+      onToast(scanOpKind === 'count' ? 'Saisissez une quantité comptée (≥ 0)' : 'Saisissez une quantité (> 0)');
+      return;
+    }
+    const loc = scanLocs.find((l) => l.id === scanLocId);
+    setBusy(true);
+    setScanConflict(null);
+    try {
+      const outcome = await executeOrQueueOfflineInventoryOp({
+        kind: scanOpKind,
+        product_id: decision.found.id,
+        location_id: scanLocId,
+        quantity_delta: scanOpKind === 'count' ? undefined : val,
+        counted_quantity: scanOpKind === 'count' ? val : undefined,
+        observed_quantity: scanOpKind === 'count' ? Number(loc?.quantity ?? 0) : undefined,
+        observed_revision: scanOpKind === 'count' ? Number(loc?.revision ?? 0) : undefined,
+        note: `Scan mobile · ${decision.code}`,
+        product_name: decision.found.name,
+        location_name: loc?.name,
+      });
+      const counts = await countOfflineInventoryOps();
+      setScanPendingOps(counts.pending);
+      if (outcome.state === 'applied') {
+        setDecision(null);
+        setCountedStock('');
+        setCode('');
+        onSent();
+        onToast(`Stock mis à jour (rév. ${outcome.data?.revision})`);
+      } else if (outcome.state === 'queued') {
+        setDecision(null);
+        setCountedStock('');
+        setCode('');
+        onToast('Hors ligne — mouvement mis en file d’attente');
+      } else if (outcome.state === 'conflict') {
+        setScanConflict({
+          current_quantity: outcome.current_quantity,
+          current_revision: outcome.current_revision,
+          message: outcome.message,
+        });
+        setScanLocs((prev) =>
+          prev.map((l) => (l.id === scanLocId ? { ...l, quantity: outcome.current_quantity, revision: outcome.current_revision } : l)),
+        );
+        onToast('Conflit de comptage détecté (409)');
+      }
+    } catch (e: any) {
+      onToast(e?.message || 'Erreur mouvement stock');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   /** Ajuster le stock: send counted qty to PC for approval (does not change stock until PC approves). */
   const adjustStock = async () => {
     if (!decision?.found) return;
@@ -886,11 +1006,13 @@ function PhoneScan({
     <div>
       <div className="ph-scan-native">
         <div className="ph-scan-status">{isOnline() ? 'En ligne' : 'Hors ligne'}</div>
-        {(outboxN > 0 || (hubSnap && hubSnap.pending > 0)) && (
+        {(outboxN > 0 || scanPendingOps > 0 || (hubSnap && hubSnap.pending > 0)) && (
           <p className="ph-hub-badge" role="status" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
             <span>
+              {scanPendingOps > 0 && <span>{scanPendingOps} en attente</span>}
+              {scanPendingOps > 0 && outboxN > 0 && ' · '}
               {outboxN > 0 && <span>{outboxN} action(s) hors ligne en attente de sync</span>}
-              {outboxN > 0 && hubSnap?.pending > 0 && ' · '}
+              {(outboxN > 0 || scanPendingOps > 0) && hubSnap?.pending > 0 && ' · '}
               {hubSnap?.pending > 0 && <span>{hubSnap.pending} en attente sur le PC</span>}
               {hubSnap?.lowStock > 0 && <span> · {hubSnap.lowStock} stock bas</span>}
             </span>
@@ -1056,19 +1178,59 @@ function PhoneScan({
               Stock système : <strong>{stockOf(decision.found)}</strong> · min {minOf(decision.found)}
               {!isStockRole() && <> · {priceOf(decision.found)} MAD</>}
             </div>
-            <label htmlFor="phone-counted-stock">Stock compté en rayon</label>
+            {scanLocs.length > 0 && (
+              <>
+                <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+                  {([
+                    ['count', 'Comptage'],
+                    ['receive', 'Réception'],
+                    ['issue', 'Sortie'],
+                  ] as const).map(([k, label]) => (
+                    <button key={k} type="button" className={`ph-chip ${scanOpKind === k ? 'on' : ''}`} onClick={() => { setScanOpKind(k); setScanConflict(null); }}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <label htmlFor="phone-scan-loc">Emplacement</label>
+                <select
+                  id="phone-scan-loc"
+                  value={scanLocId}
+                  onChange={(e) => setScanLocId(Number(e.target.value))}
+                  style={{ width: '100%', height: 42, borderRadius: 10, marginBottom: 8 }}
+                >
+                  {scanLocs.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.code} — {l.name} (qté {l.quantity ?? 0}, rév. {l.revision ?? 0})
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
+            <label htmlFor="phone-counted-stock">
+              {scanOpKind === 'count' ? 'Quantité comptée en rayon' : scanOpKind === 'receive' ? 'Quantité reçue' : 'Quantité sortie'}
+            </label>
             <input
               id="phone-counted-stock"
               value={countedStock}
               onChange={(e) => setCountedStock(e.target.value)}
               inputMode="numeric"
-              placeholder="Quantité réelle"
+              placeholder={scanOpKind === 'count' ? 'Quantité réelle' : 'Quantité'}
             />
+            {scanConflict && (
+              <div role="alert" className="ph-sale-error" style={{ marginTop: 8, padding: 8, borderRadius: 8 }}>
+                <strong>Conflit de révision (409)</strong> : serveur qté {scanConflict.current_quantity} (rév. {scanConflict.current_revision}).
+              </div>
+            )}
             <p className="ph-sub" style={{ marginTop: 8, marginBottom: 12 }}>
-              L&apos;ajustement est envoyé au PC pour approbation avant d&apos;être appliqué.
+              Applique sur l’emplacement choisi (ou met en file hors ligne) ; ou proposez un ajustement au PC.
             </p>
             <div className="ph-modal-actions" style={{ flexDirection: 'column' }}>
-              <button type="button" className="ph-cta" style={{ margin: 0 }} disabled={busy} onClick={adjustStock}>
+              {scanLocs.length > 0 && (
+                <button type="button" className="ph-cta" style={{ margin: 0 }} disabled={busy} onClick={submitScanOfflineOp}>
+                  {scanOpKind === 'count' ? 'Valider comptage' : scanOpKind === 'receive' ? 'Enregistrer réception' : 'Enregistrer sortie'}
+                </button>
+              )}
+              <button type="button" className="ph-chip" style={{ width: '100%' }} disabled={busy} onClick={adjustStock}>
                 Ajuster le stock → PC
               </button>
               {canSell() && (

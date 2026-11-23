@@ -2,10 +2,13 @@ const _localSchemaOnce = new Set<string>();
 
 import type { AtlasApp } from './types';
 import { withInventoryActors } from '../lib/inventory-actors';
+import { normalizeInventoryRole } from '../lib/inventory-policy';
 import {
   buildIdempotencyInsertStmt,
+  bumpPlacementRevision,
   ensureOfflineOpsSchema,
   hashCanonicalPayload,
+  resolveAccountIdFromContext,
   scheduleOfflineIdempotencyPurge,
   withIdempotency,
   type IdempotentHandlerResult,
@@ -36,7 +39,8 @@ async function ensureStockMovementsTable(db: D1Database): Promise<void> {
 
 export interface StockRoutesDeps {
   requireFloorStock?: (c: any) => { ok: true; username: string; role: string } | { ok: false; response: Response };
-  sessionUserFromHeader?: (authHeader?: string) => { username?: string; role?: string };
+  sessionUserFromHeader?: (authHeader?: string) => { username?: string; role?: string; account_id?: string };
+  dispatchWebhook?: (env: any, ctx: any, event: string, payload: any) => Promise<void>;
 }
 
 type OfflineOpName = 'receive' | 'issue' | 'count';
@@ -66,6 +70,20 @@ interface OfflineOpResult {
   message: string;
 }
 
+interface SingleOfflineOpInput {
+  operation_id?: string;
+  kind?: string;
+  product_id?: number | string;
+  location_id?: number | string;
+  quantity_delta?: number;
+  counted_quantity?: number;
+  observed_quantity?: number;
+  observed_revision?: number;
+  note?: string;
+  client_occurred_at?: string;
+  device_id?: string;
+}
+
 function opCanonicalBody(op: OfflineOpInput) {
   return {
     op: String(op.op || '').trim().toLowerCase(),
@@ -77,6 +95,19 @@ function opCanonicalBody(op: OfflineOpInput) {
     reason: op.reason != null ? String(op.reason) : '',
     reference: op.reference != null ? String(op.reference) : '',
   };
+}
+
+function parseStrictIntId(v: unknown): number | null {
+  if (typeof v === 'number') {
+    return Number.isInteger(v) && v > 0 ? v : null;
+  }
+  if (typeof v === 'string') {
+    const t = v.trim();
+    if (!/^\d+$/.test(t)) return null;
+    const n = Number(t);
+    return Number.isInteger(n) && n > 0 ? n : null;
+  }
+  return null;
 }
 
 /** Stock read APIs (movements) + offline-operations contract. */
@@ -144,26 +175,358 @@ export function registerStockReadRoutes(app: AtlasApp, deps?: StockRoutesDeps): 
   });
 
   app.post('/api/inventory/offline-operations', async (c) => {
+    const session = deps?.sessionUserFromHeader?.(c.req.header('Authorization')) || {};
     const gate = deps?.requireFloorStock
       ? deps.requireFloorStock(c)
-      : { ok: true as const, username: deps?.sessionUserFromHeader?.(c.req.header('Authorization')).username || 'user', role: 'owner' };
+      : { ok: true as const, username: session.username || 'user', role: normalizeInventoryRole(session.role || 'user') };
     if (!gate.ok) return gate.response;
 
-    const rawBody = (await c.req.json().catch(() => null)) as {
-      device_id?: string;
-      client_ts?: string;
-      operations?: OfflineOpInput[];
-    } | null;
-    if (!rawBody || !Array.isArray(rawBody.operations)) {
-      return c.json(
-        {
-          success: false,
-          code: 'INVALID_BODY',
-          error: 'Le corps doit contenir un tableau operations.',
-        },
-        400,
-      );
+    // Enforce stock-role policy from inventory-policy.ts: 'user' operator cannot mutate inventory directly
+    const normalizedRole = normalizeInventoryRole(gate.role);
+    if (!['owner', 'admin', 'secretaire', 'stock'].includes(normalizedRole)) {
+      return c.json({ success: false, code: 'FORBIDDEN_ROLE', error: 'Rôle insuffisant pour cette opération.' }, 403);
     }
+
+    const accountId = resolveAccountIdFromContext(c, (session as any)?.account_id);
+    const rawBody = (await c.req.json().catch(() => null)) as any;
+
+    if (!rawBody || typeof rawBody !== 'object') {
+      return c.json({ success: false, code: 'QTY_INVALID', error: 'Corps JSON requis.' }, 400);
+    }
+
+    // ------------------------------------------------------------------
+    // Mode A (Android PR #127 single-operation contract):
+    // body has no `operations` array -> requires Idempotency-Key header
+    // ------------------------------------------------------------------
+    if (!Array.isArray(rawBody.operations)) {
+      const body = rawBody as SingleOfflineOpInput;
+      const deviceId = String(c.req.header('X-Device-Id') || body.device_id || 'android').trim().slice(0, 128) || 'android';
+
+      let webhookEvent: { event: string; payload: any } | null = null;
+      const resp = await withIdempotency(c, {
+        kind: 'offline-operation',
+        accountId,
+        deviceId,
+        payload: body,
+        handler: async ({ key }) => {
+          const opId = String(body.operation_id || '').trim();
+          if (!opId || opId !== key) {
+            return {
+              status: 400,
+              persist: false,
+              body: {
+                success: false,
+                code: 'OPERATION_ID_MISMATCH',
+                error: 'operation_id doit correspondre à l’en-tête Idempotency-Key.',
+              },
+            };
+          }
+
+          const kind = String(body.kind || '').trim().toLowerCase() as OfflineOpName;
+          if (kind !== 'receive' && kind !== 'issue' && kind !== 'count') {
+            return {
+              status: 400,
+              persist: false,
+              body: {
+                success: false,
+                code: 'QTY_INVALID',
+                error: 'kind doit être receive, issue ou count.',
+              },
+            };
+          }
+
+          const db = c.env.DB;
+          await ensureStockLocations(db);
+          await ensureOfflineOpsSchema(db);
+
+          // Integer location_id ONLY (never `code`)
+          const locId = parseStrictIntId(body.location_id);
+          if (!locId) {
+            return {
+              status: 404,
+              persist: false,
+              body: {
+                success: false,
+                code: 'LOCATION_NOT_FOUND',
+                error: 'Emplacement introuvable (location_id entier obligatoire).',
+              },
+            };
+          }
+
+          const locRow = (await db
+            .prepare(`SELECT * FROM stock_locations WHERE id = ?`)
+            .bind(locId)
+            .first()) as any;
+          if (
+            !locRow ||
+            Number(locRow.is_active ?? 1) !== 1 ||
+            (locRow.account_id && String(locRow.account_id) !== 'default' && String(locRow.account_id) !== accountId)
+          ) {
+            return {
+              status: 404,
+              persist: false,
+              body: {
+                success: false,
+                code: 'LOCATION_NOT_FOUND',
+                error: 'Emplacement introuvable ou inactif.',
+              },
+            };
+          }
+
+          const prodId = parseStrictIntId(body.product_id);
+          if (!prodId) {
+            return {
+              status: 404,
+              persist: false,
+              body: {
+                success: false,
+                code: 'PRODUCT_NOT_FOUND',
+                error: 'Produit introuvable.',
+              },
+            };
+          }
+          const prodRow = (await db
+            .prepare(`SELECT id, name, COALESCE(stock_quantity, 0) AS stock_quantity, COALESCE(track_inventory, 1) AS track_inventory FROM products WHERE id = ?`)
+            .bind(prodId)
+            .first()) as any;
+          if (!prodRow) {
+            return {
+              status: 404,
+              persist: false,
+              body: {
+                success: false,
+                code: 'PRODUCT_NOT_FOUND',
+                error: 'Produit introuvable.',
+              },
+            };
+          }
+
+          // Check negative stock policy on company_settings if column exists
+          let allowNegative = false;
+          try {
+            const cfg = (await db.prepare(`SELECT * FROM company_settings WHERE id = 1`).first()) as any;
+            allowNegative = Number(cfg?.allow_negative_stock || 0) === 1;
+          } catch {
+            allowNegative = false;
+          }
+
+          // Seed unallocated product stock onto default location if product has no placement rows yet
+          const locCountRow = (await db
+            .prepare(`SELECT COUNT(*) AS c FROM stock_location_qty WHERE product_id = ?`)
+            .bind(prodId)
+            .first()) as { c: number } | null;
+          const preStatements: D1PreparedStatement[] = [];
+          let seededDefaultQty = 0;
+          let seededLocId = 0;
+          if (!Number(locCountRow?.c || 0) && Number(prodRow.stock_quantity || 0) > 0) {
+            const defId = (await getDefaultLocationId(db)) || locId;
+            seededDefaultQty = Number(prodRow.stock_quantity || 0);
+            seededLocId = defId;
+            preStatements.push(
+              db
+                .prepare(`INSERT INTO stock_location_qty (location_id, product_id, quantity) VALUES (?, ?, ?)`)
+                .bind(defId, prodId, seededDefaultQty),
+            );
+          }
+
+          const qtyRow = (await db
+            .prepare(`SELECT quantity FROM stock_location_qty WHERE location_id = ? AND product_id = ?`)
+            .bind(locId, prodId)
+            .first()) as { quantity: number } | null;
+          const prevLocQty = qtyRow ? Number(qtyRow.quantity || 0) : seededLocId === locId ? seededDefaultQty : 0;
+
+          const sumRow = (await db
+            .prepare(`SELECT COALESCE(SUM(quantity), 0) AS s FROM stock_location_qty WHERE product_id = ?`)
+            .bind(prodId)
+            .first()) as { s: number } | null;
+          const currentPlacementSum = Number(locCountRow?.c || 0) > 0 ? Number(sumRow?.s || 0) : Number(prodRow.stock_quantity || 0);
+
+          const revRow = (await db
+            .prepare(`SELECT revision FROM stock_location_revisions WHERE CAST(product_id AS INTEGER) = ? AND CAST(location_id AS INTEGER) = ?`)
+            .bind(prodId, locId)
+            .first()) as { revision: number } | null;
+          const currentRev = revRow ? Number(revRow.revision) : 0;
+
+          let delta = 0;
+          let newLocQty = prevLocQty;
+          let movementType = 'adjustment';
+          const noteText = String(body.note || '').trim().slice(0, 200);
+          let reason = noteText;
+
+          if (kind === 'receive') {
+            const qDelta = Number(body.quantity_delta);
+            if (!Number.isFinite(qDelta) || qDelta <= 0) {
+              return {
+                status: 400,
+                persist: false,
+                body: { success: false, code: 'QTY_INVALID', error: 'quantity_delta doit être > 0.' },
+              };
+            }
+            delta = qDelta;
+            newLocQty = prevLocQty + delta;
+            movementType = 'in';
+            reason = reason || `Réception hors-ligne (${locRow.name})`;
+          } else if (kind === 'issue') {
+            const qDelta = Number(body.quantity_delta);
+            if (!Number.isFinite(qDelta) || qDelta <= 0) {
+              return {
+                status: 400,
+                persist: false,
+                body: { success: false, code: 'QTY_INVALID', error: 'quantity_delta doit être > 0.' },
+              };
+            }
+            if (!allowNegative && prevLocQty - qDelta < -1e-9) {
+              return {
+                status: 400,
+                persist: false,
+                body: {
+                  success: false,
+                  code: 'QTY_INVALID',
+                  error: `Stock insuffisant sur ${locRow.name} (disponible : ${prevLocQty}, demandé : ${qDelta}).`,
+                },
+              };
+            }
+            delta = -qDelta;
+            newLocQty = allowNegative ? prevLocQty + delta : Math.max(0, prevLocQty + delta);
+            movementType = 'out';
+            reason = reason || `Sortie hors-ligne (${locRow.name})`;
+          } else {
+            const counted = Number(body.counted_quantity);
+            if (!Number.isFinite(counted) || counted < 0) {
+              return {
+                status: 400,
+                persist: false,
+                body: { success: false, code: 'QTY_INVALID', error: 'counted_quantity doit être >= 0.' },
+              };
+            }
+            const obsRev = body.observed_revision === undefined || body.observed_revision === null
+              ? NaN
+              : Number(body.observed_revision);
+            if (!Number.isInteger(obsRev) || obsRev < 0) {
+              return {
+                status: 400,
+                persist: false,
+                body: { success: false, code: 'QTY_INVALID', error: 'observed_revision entier requis.' },
+              };
+            }
+            if (obsRev !== currentRev) {
+              return {
+                status: 409,
+                persist: false,
+                body: {
+                  success: false,
+                  code: 'COUNT_CONFLICT',
+                  current_quantity: prevLocQty,
+                  current_revision: currentRev,
+                  product_total: currentPlacementSum,
+                  data: {
+                    current_quantity: prevLocQty,
+                    current_revision: currentRev,
+                    product_total: currentPlacementSum,
+                  },
+                  error: `Conflit de révision : observée ${obsRev}, actuelle ${currentRev}.`,
+                },
+              };
+            }
+            delta = counted - prevLocQty;
+            newLocQty = counted;
+            movementType = 'cycle-count';
+            reason = reason || `Comptage hors-ligne ${prevLocQty}→${counted} (${locRow.name})`;
+          }
+
+          const newProductTotal = allowNegative
+            ? currentPlacementSum + delta
+            : Math.max(0, currentPlacementSum + delta);
+          const nextRev = currentRev + 1;
+          const appliedAt = new Date().toISOString();
+          const clientOccurredAt = String(body.client_occurred_at || appliedAt).slice(0, 64);
+
+          const maxMvRow = (await db.prepare(`SELECT COALESCE(MAX(id), 0) AS max_id FROM stock_movements`).first()) as { max_id: number } | null;
+          const predictedMovementId = Number(maxMvRow?.max_id || 0) + 1;
+
+          const stmts: D1PreparedStatement[] = [
+            ...preStatements,
+            db
+              .prepare(
+                `INSERT INTO stock_location_qty (location_id, product_id, quantity)
+                 VALUES (?, ?, ?)
+                 ON CONFLICT(location_id, product_id) DO UPDATE SET quantity = excluded.quantity`,
+              )
+              .bind(locId, prodId, newLocQty),
+            db
+              .prepare(`UPDATE products SET stock_quantity = ?, updated_at = datetime('now') WHERE id = ?`)
+              .bind(newProductTotal, prodId),
+          ];
+          await bumpPlacementRevision(db, stmts, prodId, locId);
+          stmts.push(
+            db
+              .prepare(
+                `INSERT INTO stock_movements (product_id, type, quantity, previous_quantity, new_quantity, reason, reference, created_by, location_id, device_id, client_ts, client_occurred_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              )
+              .bind(
+                prodId,
+                movementType,
+                delta,
+                prevLocQty,
+                newLocQty,
+                reason,
+                `offline:${opId}`,
+                gate.username || 'user',
+                String(locId),
+                deviceId,
+                clientOccurredAt,
+                clientOccurredAt,
+              ),
+          );
+
+          const responseData = {
+            operation_id: opId,
+            kind,
+            product_id: prodId,
+            location_id: locId,
+            previous_quantity: prevLocQty,
+            new_quantity: newLocQty,
+            product_total: newProductTotal,
+            movement_id: predictedMovementId,
+            revision: nextRev,
+            applied_at: appliedAt,
+            replayed: false,
+          };
+
+          webhookEvent = {
+            event: kind === 'receive' ? 'stock.receive' : kind === 'count' ? 'stock.count' : 'stock.issue',
+            payload: {
+              product_id: prodId,
+              location_id: locId,
+              quantity: kind === 'count' ? newLocQty : delta,
+              by: gate.username,
+              operation_id: opId,
+            },
+          };
+
+          return {
+            status: 200,
+            body: { success: true, data: responseData },
+            statements: stmts,
+          };
+        },
+      });
+
+      if (resp.status === 200 && !resp.headers.get('Idempotent-Replay')) {
+        await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
+        if (webhookEvent && deps?.dispatchWebhook) {
+          let execCtx: any;
+          try { execCtx = c.executionCtx; } catch { execCtx = undefined; }
+          await deps.dispatchWebhook(c.env, execCtx, (webhookEvent as any).event, (webhookEvent as any).payload);
+        }
+      }
+      return resp;
+    }
+
+    // ------------------------------------------------------------------
+    // Mode B (Batch operations array compatibility mode)
+    // ------------------------------------------------------------------
     if (rawBody.operations.length > 200) {
       return c.json(
         {
@@ -217,10 +580,9 @@ export function registerStockReadRoutes(app: AtlasApp, deps?: StockRoutesDeps): 
         const canonical = opCanonicalBody(item);
         const opHash = await hashCanonicalPayload(canonical);
 
-        // 1. Check per-operation idempotency
         const existingIdem = (await db
-          .prepare(`SELECT request_hash, status, response FROM offline_idempotency WHERE key = ?`)
-          .bind(idemKey)
+          .prepare(`SELECT request_hash, status, response FROM offline_idempotency WHERE account_id = ? AND key = ?`)
+          .bind(accountId, idemKey)
           .first()) as { request_hash: string; status: number; response: string } | null;
 
         if (existingIdem) {
@@ -230,7 +592,7 @@ export function registerStockReadRoutes(app: AtlasApp, deps?: StockRoutesDeps): 
               idempotency_key: idemKey,
               status: 'rejected',
               http: 409,
-              code: 'IDEMPOTENCY_MISMATCH',
+              code: 'IDEMPOTENCY_KEY_REUSED',
               message: 'Clé d’idempotence déjà utilisée avec un contenu différent.',
             });
             continue;
@@ -254,7 +616,6 @@ export function registerStockReadRoutes(app: AtlasApp, deps?: StockRoutesDeps): 
           continue;
         }
 
-        // 2. Validate required location_id and product_id
         const rawLocId = canonical.location_id;
         if (!rawLocId) {
           results.push({
@@ -267,16 +628,13 @@ export function registerStockReadRoutes(app: AtlasApp, deps?: StockRoutesDeps): 
           });
           continue;
         }
-        const locNum = Number(rawLocId);
-        const locRow = (Number.isInteger(locNum) && locNum > 0
+        const locNum = parseStrictIntId(rawLocId);
+        const locRow = (locNum
           ? await db
               .prepare(`SELECT id, code, name, COALESCE(is_active, 1) AS is_active FROM stock_locations WHERE id = ?`)
               .bind(locNum)
               .first()
-          : await db
-              .prepare(`SELECT id, code, name, COALESCE(is_active, 1) AS is_active FROM stock_locations WHERE code = ?`)
-              .bind(rawLocId)
-              .first()) as { id: number; code: string; name: string; is_active: number } | null;
+          : null) as { id: number; code: string; name: string; is_active: number } | null;
 
         if (!locRow || Number(locRow.is_active ?? 1) !== 1) {
           results.push({
@@ -322,9 +680,7 @@ export function registerStockReadRoutes(app: AtlasApp, deps?: StockRoutesDeps): 
 
         const locIdNum = Number(locRow.id);
         const locIdText = String(locIdNum);
-        const prodIdText = String(prodIdNum);
 
-        // Seed unallocated product stock onto default location if needed before computing location balance
         const locCountRow = (await db
           .prepare(`SELECT COUNT(*) AS c FROM stock_location_qty WHERE product_id = ?`)
           .bind(prodIdNum)
@@ -351,10 +707,10 @@ export function registerStockReadRoutes(app: AtlasApp, deps?: StockRoutesDeps): 
         const prevProdQty = Number(prodRow.stock_quantity || 0);
 
         const revRow = (await db
-          .prepare(`SELECT revision FROM stock_location_revisions WHERE product_id = ? AND location_id = ?`)
-          .bind(prodIdText, locIdText)
+          .prepare(`SELECT revision FROM stock_location_revisions WHERE CAST(product_id AS INTEGER) = ? AND CAST(location_id AS INTEGER) = ?`)
+          .bind(prodIdNum, locIdNum)
           .first()) as { revision: number } | null;
-        const currentRev = revRow ? Number(revRow.revision) : 1;
+        const currentRev = revRow ? Number(revRow.revision) : 0;
 
         let delta = 0;
         let nextLocQty = prevLocQty;
@@ -422,7 +778,7 @@ export function registerStockReadRoutes(app: AtlasApp, deps?: StockRoutesDeps): 
             });
             continue;
           }
-          if (!Number.isInteger(expectedRev) || expectedRev < 1) {
+          if (!Number.isInteger(expectedRev) || expectedRev < 0) {
             results.push({
               op: opName,
               idempotency_key: idemKey,
@@ -478,17 +834,13 @@ export function registerStockReadRoutes(app: AtlasApp, deps?: StockRoutesDeps): 
           db
             .prepare(`UPDATE products SET stock_quantity = ?, updated_at = datetime('now') WHERE id = ?`)
             .bind(nextProdQty, prodIdNum),
+        ];
+        await bumpPlacementRevision(db, stmts, prodIdNum, locIdNum);
+        stmts.push(
           db
             .prepare(
-              `INSERT INTO stock_location_revisions (product_id, location_id, revision, updated_at)
-               VALUES (?, ?, ?, ?)
-               ON CONFLICT(product_id, location_id) DO UPDATE SET revision = excluded.revision, updated_at = excluded.updated_at`,
-            )
-            .bind(prodIdText, locIdText, nextRev, nowIso),
-          db
-            .prepare(
-              `INSERT INTO stock_movements (product_id, type, quantity, previous_quantity, new_quantity, reason, reference, created_by, location_id, device_id, client_ts)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              `INSERT INTO stock_movements (product_id, type, quantity, previous_quantity, new_quantity, reason, reference, created_by, location_id, device_id, client_ts, client_occurred_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             )
             .bind(
               prodIdNum,
@@ -502,17 +854,20 @@ export function registerStockReadRoutes(app: AtlasApp, deps?: StockRoutesDeps): 
               locIdText,
               batchDeviceId,
               opClientTs,
+              opClientTs,
             ),
           buildIdempotencyInsertStmt(db, {
             key: idemKey,
+            accountId,
             deviceId: batchDeviceId,
+            kind: opName,
             op: opName,
             requestHash: opHash,
             status: 200,
             responseJson: JSON.stringify(opResult),
             createdAt: nowIso,
           }),
-        ];
+        );
 
         await db.batch(stmts);
         anyApplied = true;
@@ -543,7 +898,8 @@ export function registerStockReadRoutes(app: AtlasApp, deps?: StockRoutesDeps): 
 
     if (c.req.header('Idempotency-Key')) {
       return withIdempotency(c, {
-        op: 'offline-operations-batch',
+        kind: 'offline-operations-batch',
+        accountId,
         deviceId: String(rawBody.device_id || 'unknown'),
         payload: rawBody,
         handler: async () => executeBatch(),

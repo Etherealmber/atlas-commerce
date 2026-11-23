@@ -767,6 +767,30 @@ export const api = {
   },
   getReorderList: () => request<{ data: any[] }>('/api/inventory/reorder'),
   getStockLocations: () => request<{ data: any[] }>('/api/inventory/locations'),
+  getStockLocationsForProduct: (productId: number) =>
+    request<{ data: Array<{ location_id: string; id: number; code: string; name: string; quantity: number; revision: number }> }>(
+      `/api/inventory/locations?product_id=${encodeURIComponent(String(productId))}`,
+    ),
+  postOfflineInventoryOp: (
+    body: {
+      operation_id: string;
+      kind: 'receive' | 'issue' | 'count';
+      product_id: number;
+      location_id: number;
+      quantity_delta?: number;
+      counted_quantity?: number;
+      observed_quantity?: number;
+      observed_revision?: number;
+      note?: string;
+      client_occurred_at?: string;
+    },
+    idempotencyKey: string,
+  ) =>
+    request<{ success: boolean; data: any }>('/api/inventory/offline-operations', {
+      method: 'POST',
+      headers: { 'Idempotency-Key': idempotencyKey },
+      body: JSON.stringify(body),
+    }),
   createStockLocation: (body: { code: string; name: string }) =>
     request('/api/inventory/locations', { method: 'POST', body: JSON.stringify(body) }),
   updateStockLocation: (id: number, body: { name?: string; is_default?: boolean; is_active?: boolean }) =>

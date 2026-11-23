@@ -1,6 +1,7 @@
 import type { Env } from '../env';
 import { schemaOnce, addColumnIfMissing } from './schema';
 import { ensureMovementApprover } from './inventory-actors';
+import { bumpPlacementRevision } from './idempotency';
 import { notifyLowStock as fcmNotifyLowStock } from './fcm';
 import {
   applyBulkDiscount as coreApplyBulkDiscount,
@@ -1097,10 +1098,17 @@ export async function applyStockDelta(
             `INSERT INTO stock_location_qty (location_id, product_id, quantity) VALUES (?, ?, ?)`
           ).bind(locId, productId, Math.max(0, locNext)).run();
         }
+        try {
+          await bumpPlacementRevision(db, null, productId, locId);
+        } catch { /* */ }
       }
     } catch (e) {
       console.error('location mirror', e);
     }
+  } else if (opts?.locationId) {
+    try {
+      await bumpPlacementRevision(db, null, productId, opts.locationId);
+    } catch { /* */ }
   }
 
   await db.prepare(

@@ -4,7 +4,8 @@ import { readFileSync } from 'node:fs';
 import { Hono } from 'hono';
 import { describe, expect, it } from 'vitest';
 import { registerStockReadRoutes } from '../routes/stock';
-import { registerInventoryOpsRoutes } from '../routes/inventoryOps';
+import { registerInventoryOpsRoutes, adjustLocationStock } from '../routes/inventoryOps';
+import { registerAtlasV209Routes } from '../routes/atlas-v209';
 import { canonicalJson, purgeExpiredOfflineIdempotency, withIdempotency } from '../lib/idempotency';
 
 function makeSqliteD1(sqlite: DatabaseSync) {
@@ -68,14 +69,15 @@ function setupTestApp(role: 'owner' | 'stock' | 'user' = 'stock') {
       is_active INTEGER DEFAULT 1,
       updated_at TEXT
     );
-    CREATE TABLE company_settings (id INTEGER PRIMARY KEY, multi_warehouse INTEGER DEFAULT 1, sales_location_id INTEGER, purchase_location_id INTEGER);
-    INSERT INTO company_settings (id) VALUES (1);
+    CREATE TABLE company_settings (id INTEGER PRIMARY KEY, multi_warehouse INTEGER DEFAULT 1, sales_location_id INTEGER, purchase_location_id INTEGER, allow_negative_stock INTEGER DEFAULT 0);
+    INSERT INTO company_settings (id, allow_negative_stock) VALUES (1, 0);
     CREATE TABLE stock_locations (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       code TEXT NOT NULL UNIQUE,
       name TEXT NOT NULL,
       is_default INTEGER DEFAULT 0,
       is_active INTEGER DEFAULT 1,
+      account_id TEXT DEFAULT 'default',
       created_at TEXT DEFAULT (datetime('now'))
     );
     CREATE TABLE stock_location_qty (
@@ -92,24 +94,39 @@ function setupTestApp(role: 'owner' | 'stock' | 'user' = 'stock') {
     INSERT INTO stock_location_qty (location_id, product_id, quantity) VALUES (1, 10, 20), (2, 10, 5);
   `);
   sqlite.exec(readFileSync('migrations/0013_offline_operations.sql', 'utf8'));
+  sqlite.exec(readFileSync('migrations/0020_offline_inventory_contract.sql', 'utf8'));
 
   const db = makeSqliteD1(sqlite);
   const app = new Hono<any>();
+  const webhooks: Array<{ event: string; payload: any }> = [];
+
+  const sessionUserFromHeader = (authHeader?: string) => {
+    const token = String(authHeader || '').replace(/^Bearer\s+/i, '').trim();
+    const accountId = token.startsWith('acc:') ? token.slice(4) : 'default';
+    return { username: `user-${accountId}`, role, account_id: accountId };
+  };
+
   const requireFloorStock = (c: any) => {
+    const s = sessionUserFromHeader(c.req.header('Authorization'));
     if (role === 'user') {
       return { ok: false as const, response: c.json({ success: false, code: 'FORBIDDEN_ROLE' }, 403) };
     }
-    return { ok: true as const, username: 'magasinier-test', role };
+    return { ok: true as const, username: s.username, role };
   };
+
   registerStockReadRoutes(app as any, {
     requireFloorStock,
-    sessionUserFromHeader: () => ({ username: 'magasinier-test', role }),
+    sessionUserFromHeader,
+    dispatchWebhook: async (_env, _ctx, event, payload) => {
+      webhooks.push({ event, payload });
+    },
   });
+
   registerInventoryOpsRoutes(app as any, {
     requireOwner: (c: any) => ({ ok: true, username: 'owner', role: 'owner' }),
     requireBizMutator: (c: any) => ({ ok: true, username: 'owner', role: 'owner' }),
     requireFloorStock,
-    sessionUserFromHeader: () => ({ username: 'magasinier-test', role }),
+    sessionUserFromHeader,
     applyStockDelta: async () => null,
     ensureValuationTables: async () => {},
     getValuationMethod: async () => 'average',
@@ -118,10 +135,13 @@ function setupTestApp(role: 'owner' | 'stock' | 'user' = 'stock') {
     ensurePaymentHistoryTable: async () => {},
   });
 
-  // Mount a standalone test route exercising withIdempotency directly
+  registerAtlasV209Routes(app as any, {
+    sessionUserFromHeader,
+  });
+
   app.post('/api/test/idem-endpoint', async (c) => {
     return withIdempotency(c, {
-      op: 'test-write',
+      kind: 'test-write',
       deviceId: 'dev-1',
       handler: async ({ payload }: any) => ({
         status: 200,
@@ -134,160 +154,263 @@ function setupTestApp(role: 'owner' | 'stock' | 'user' = 'stock') {
   });
 
   const env = { DB: db };
-  return { app, env, sqlite, db };
+  return { app, env, sqlite, db, webhooks };
 }
 
-describe('Part 1 — offline operations contract + server idempotency', () => {
+describe('Android & Web offline inventory contract + server idempotency', () => {
   it('canonicalizes JSON keys and normalized numbers deterministically', () => {
     expect(canonicalJson({ b: 12.0, a: -0, nested: { z: 1, a: 2 } })).toBe(
       canonicalJson({ nested: { a: 2, z: 1 }, a: 0, b: 12 }),
     );
   });
 
-  it('withIdempotency enforces missing key (400), replay with Idempotent-Replay header, and 409 mismatch', async () => {
-    const { app, env, sqlite } = setupTestApp('stock');
-    const noKey = await app.fetch(
-      new Request('http://test.local/api/test/idem-endpoint', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ qty: 5 }),
-      }),
-      env as any,
-    );
-    expect(noKey.status).toBe(400);
-    expect(((await noKey.json()) as any).code).toBe('MISSING_IDEMPOTENCY_KEY');
+  it('same key + same body -> one movement, replay returns replayed:true, identical movement_id, quantity unchanged; same key + diff body -> 409 IDEMPOTENCY_KEY_REUSED', async () => {
+    const { app, env, sqlite, webhooks } = setupTestApp('stock');
+    const opId = '11111111-1111-4111-8111-111111111111';
+    const body = {
+      operation_id: opId,
+      kind: 'receive',
+      product_id: 10,
+      location_id: 1,
+      quantity_delta: 5,
+      note: 'Livraison matin',
+      client_occurred_at: '2026-10-21T09:30:00Z',
+    };
 
-    const first = await app.fetch(
-      new Request('http://test.local/api/test/idem-endpoint', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': 'hdr-key-1' },
-        body: JSON.stringify({ qty: 5 }),
-      }),
-      env as any,
-    );
-    expect(first.status).toBe(200);
-    expect(first.headers.get('Idempotent-Replay')).toBeNull();
-
-    const replay = await app.fetch(
-      new Request('http://test.local/api/test/idem-endpoint', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': 'hdr-key-1' },
-        body: JSON.stringify({ qty: 5.0 }),
-      }),
-      env as any,
-    );
-    expect(replay.status).toBe(200);
-    expect(replay.headers.get('Idempotent-Replay')).toBe('true');
-    expect((sqlite.prepare(`SELECT stock_quantity FROM products WHERE id = 10`).get() as any).stock_quantity).toBe(30);
-
-    const mismatch = await app.fetch(
-      new Request('http://test.local/api/test/idem-endpoint', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': 'hdr-key-1' },
-        body: JSON.stringify({ qty: 9 }),
-      }),
-      env as any,
-    );
-    expect(mismatch.status).toBe(409);
-    expect(((await mismatch.json()) as any).code).toBe('IDEMPOTENCY_MISMATCH');
-    expect((sqlite.prepare(`SELECT stock_quantity FROM products WHERE id = 10`).get() as any).stock_quantity).toBe(30);
-  });
-
-  it('rejects unauthorized roles on POST /api/inventory/offline-operations', async () => {
-    const { app, env } = setupTestApp('user');
-    const res = await app.fetch(
+    const res1 = await app.fetch(
       new Request('http://test.local/api/inventory/offline-operations', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ device_id: 'd1', operations: [] }),
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': opId, 'X-Device-Id': 'pixel-8' },
+        body: JSON.stringify(body),
       }),
       env as any,
     );
-    expect(res.status).toBe(403);
+    expect(res1.status).toBe(200);
+    expect(res1.headers.get('Idempotent-Replay')).toBeNull();
+    const json1 = (await res1.json()) as any;
+    expect(json1.data.replayed).toBe(false);
+    expect(json1.data.previous_quantity).toBe(20);
+    expect(json1.data.new_quantity).toBe(25);
+    expect(json1.data.product_total).toBe(30);
+    expect(json1.data.revision).toBe(1);
+    expect(webhooks).toHaveLength(1);
+    expect(webhooks[0].event).toBe('stock.receive');
+
+    // Replay with identical body (numeric 5.0 canonicalizes equal to 5)
+    const res2 = await app.fetch(
+      new Request('http://test.local/api/inventory/offline-operations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': opId },
+        body: JSON.stringify({ ...body, quantity_delta: 5.0 }),
+      }),
+      env as any,
+    );
+    expect(res2.status).toBe(200);
+    expect(res2.headers.get('Idempotent-Replay')).toBe('true');
+    const json2 = (await res2.json()) as any;
+    expect(json2.data.replayed).toBe(true);
+    expect(json2.data.movement_id).toBe(json1.data.movement_id);
+    expect(json2.data.new_quantity).toBe(25);
+    expect(webhooks).toHaveLength(1); // webhook not re-fired on replay
+
+    const movements = sqlite.prepare(`SELECT * FROM stock_movements`).all() as any[];
+    expect(movements).toHaveLength(1);
+    expect(movements[0].device_id).toBe('pixel-8');
+    expect(movements[0].client_occurred_at).toBe('2026-10-21T09:30:00Z');
+
+    // Same key + different body -> 409 IDEMPOTENCY_KEY_REUSED, no new movement
+    const resMismatch = await app.fetch(
+      new Request('http://test.local/api/inventory/offline-operations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': opId },
+        body: JSON.stringify({ ...body, quantity_delta: 99 }),
+      }),
+      env as any,
+    );
+    expect(resMismatch.status).toBe(409);
+    expect(((await resMismatch.json()) as any).code).toBe('IDEMPOTENCY_KEY_REUSED');
+    expect((sqlite.prepare(`SELECT COUNT(*) AS c FROM stock_movements`).get() as any).c).toBe(1);
   });
 
-  it('handles receive, issue, count conflict/success, replay, 409 mismatch, missing/inactive location, and GET locations', async () => {
+  it('same key across two different accounts -> both apply (key is account-scoped)', async () => {
+    const { app, env, sqlite } = setupTestApp('stock');
+    const sharedKey = '22222222-2222-4222-8222-222222222222';
+    const body = { operation_id: sharedKey, kind: 'receive', product_id: 10, location_id: 1, quantity_delta: 3 };
+
+    const accA = await app.fetch(
+      new Request('http://test.local/api/inventory/offline-operations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': sharedKey, Authorization: 'Bearer acc:alpha' },
+        body: JSON.stringify(body),
+      }),
+      env as any,
+    );
+    expect(accA.status).toBe(200);
+    expect(((await accA.json()) as any).data.replayed).toBe(false);
+
+    const accB = await app.fetch(
+      new Request('http://test.local/api/inventory/offline-operations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': sharedKey, Authorization: 'Bearer acc:beta' },
+        body: JSON.stringify(body),
+      }),
+      env as any,
+    );
+    expect(accB.status).toBe(200);
+    expect(((await accB.json()) as any).data.replayed).toBe(false);
+    expect((sqlite.prepare(`SELECT stock_quantity FROM products WHERE id = 10`).get() as any).stock_quantity).toBe(31);
+  });
+
+  it('enforces count conflict/success, issue below zero policy, missing/code location rejection, placements revision, and keeps product total == placement sum', async () => {
     const { app, env, sqlite, db } = setupTestApp('stock');
 
-    // GET /api/inventory/locations?product_id=10
-    const locRes1 = await app.fetch(new Request('http://test.local/api/inventory/locations?product_id=10'), env as any);
-    expect(locRes1.status).toBe(200);
-    const locBody1 = (await locRes1.json()) as any;
-    expect(locBody1.data).toHaveLength(2); // inactive location excluded
-    expect(locBody1.data[0]).toMatchObject({ location_id: '1', name: 'Magasin principal', quantity: 20, revision: 1 });
-    expect(locBody1.data[1]).toMatchObject({ location_id: '2', name: 'Réserve', quantity: 5, revision: 1 });
+    // Initial placements: revision 0 before any write
+    const pl1 = await app.fetch(new Request('http://test.local/api/inventory/products/10/placements'), env as any);
+    expect(pl1.status).toBe(200);
+    const pl1Json = (await pl1.json()) as any;
+    expect(pl1Json.data.placements.find((p: any) => p.location_id === 1).revision).toBe(0);
 
-    // Partial success batch: valid receive + valid issue + missing location + inactive location
-    const batch1 = await app.fetch(
+    // Count with current revision 0 -> applied, revision becomes 1
+    const cOkKey = '33333333-3333-4333-8333-333333333333';
+    const cOk = await app.fetch(
       new Request('http://test.local/api/inventory/offline-operations', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': cOkKey },
         body: JSON.stringify({
-          device_id: 'android-01',
-          client_ts: '2026-11-24T10:00:00Z',
-          operations: [
-            { op: 'receive', product_id: '10', location_id: '1', quantity: 12, idempotency_key: 'op-1', client_ts: '2026-11-24T09:58:00Z' },
-            { op: 'issue', product_id: '10', location_id: '1', quantity: 3, idempotency_key: 'op-2', client_ts: '2026-11-24T09:59:00Z' },
-            { op: 'receive', product_id: '10', quantity: 4, idempotency_key: 'op-no-loc' },
-            { op: 'receive', product_id: '10', location_id: '3', quantity: 2, idempotency_key: 'op-inactive' },
-          ],
+          operation_id: cOkKey,
+          kind: 'count',
+          product_id: 10,
+          location_id: 1,
+          counted_quantity: 17,
+          observed_revision: 0,
         }),
       }),
       env as any,
     );
-    expect(batch1.status).toBe(200);
-    const b1 = (await batch1.json()) as any;
-    expect(b1.data.map((r: any) => r.status)).toEqual(['applied', 'applied', 'rejected', 'rejected']);
-    expect(b1.data[0].revision).toBe(2);
-    expect(b1.data[0].quantity).toBe(32);
-    expect(b1.data[1].revision).toBe(3);
-    expect(b1.data[1].quantity).toBe(29);
-    expect(b1.data[2].code).toBe('LOCATION_REQUIRED');
-    expect(b1.data[3].code).toBe('INVALID_LOCATION');
+    expect(cOk.status).toBe(200);
+    const cOkJson = (await cOk.json()) as any;
+    expect(cOkJson.data.revision).toBe(1);
+    expect(cOkJson.data.new_quantity).toBe(17);
+    expect(cOkJson.data.product_total).toBe(22); // 17 + 5
 
-    // Audited stock movements contain device_id, client_ts, location_id
-    const mv = sqlite.prepare(`SELECT * FROM stock_movements ORDER BY id`).all() as any[];
-    expect(mv).toHaveLength(2);
-    expect(mv[0].device_id).toBe('android-01');
-    expect(mv[0].client_ts).toBe('2026-11-24T09:58:00Z');
-    expect(mv[0].location_id).toBe('1');
-
-    // Replay op-1 + mismatch op-1 + stale count + current count (rev 3)
-    const batch2 = await app.fetch(
+    // Stale count with observed_revision 0 -> 409 COUNT_CONFLICT, quantity unchanged, returns current_revision=1
+    const cStaleKey = '44444444-4444-4444-8444-444444444444';
+    const cStale = await app.fetch(
       new Request('http://test.local/api/inventory/offline-operations', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': cStaleKey },
         body: JSON.stringify({
-          device_id: 'android-01',
-          operations: [
-            { op: 'receive', product_id: '10', location_id: '1', quantity: 12.0, idempotency_key: 'op-1' },
-            { op: 'receive', product_id: '10', location_id: '1', quantity: 99, idempotency_key: 'op-1' },
-            { op: 'count', product_id: '10', location_id: '1', counted_on_hand: 100, expected_revision: 1, idempotency_key: 'op-count-stale' },
-            { op: 'count', product_id: '10', location_id: '1', counted_on_hand: 40, expected_revision: 3, idempotency_key: 'op-count-ok' },
-          ],
+          operation_id: cStaleKey,
+          kind: 'count',
+          product_id: 10,
+          location_id: 1,
+          counted_quantity: 99,
+          observed_revision: 0,
         }),
       }),
       env as any,
     );
-    expect(batch2.status).toBe(200);
-    const b2 = (await batch2.json()) as any;
-    expect(b2.data[0].status).toBe('replayed');
-    expect(b2.data[1].http).toBe(409);
-    expect(b2.data[1].code).toBe('IDEMPOTENCY_MISMATCH');
-    expect(b2.data[2].status).toBe('conflict');
-    expect(b2.data[2].revision).toBe(3);
-    expect(b2.data[2].quantity).toBe(29);
-    expect(b2.data[3].status).toBe('applied');
-    expect(b2.data[3].revision).toBe(4);
-    expect(b2.data[3].quantity).toBe(40);
+    expect(cStale.status).toBe(409);
+    const cStaleJson = (await cStale.json()) as any;
+    expect(cStaleJson.code).toBe('COUNT_CONFLICT');
+    expect(cStaleJson.current_revision).toBe(1);
+    expect(cStaleJson.current_quantity).toBe(17);
+    expect(cStaleJson.product_total).toBe(22);
 
-    // Purge rows older than 7 days
+    // Issue below zero -> rejected (400 QTY_INVALID)
+    const issBadKey = '55555555-5555-4555-8555-555555555555';
+    const issBad = await app.fetch(
+      new Request('http://test.local/api/inventory/offline-operations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': issBadKey },
+        body: JSON.stringify({
+          operation_id: issBadKey,
+          kind: 'issue',
+          product_id: 10,
+          location_id: 1,
+          quantity_delta: 99,
+        }),
+      }),
+      env as any,
+    );
+    expect(issBad.status).toBe(400);
+    expect(((await issBad.json()) as any).code).toBe('QTY_INVALID');
+
+    // Receive without location_id or with code string instead of integer -> 404 LOCATION_NOT_FOUND
+    const noLocKey = '66666666-6666-4666-8666-666666666666';
+    const noLoc = await app.fetch(
+      new Request('http://test.local/api/inventory/offline-operations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': noLocKey },
+        body: JSON.stringify({ operation_id: noLocKey, kind: 'receive', product_id: 10, quantity_delta: 4 }),
+      }),
+      env as any,
+    );
+    expect(noLoc.status).toBe(404);
+    expect(((await noLoc.json()) as any).code).toBe('LOCATION_NOT_FOUND');
+
+    const codeLocKey = '77777777-7777-4777-8777-777777777777';
+    const codeLoc = await app.fetch(
+      new Request('http://test.local/api/inventory/offline-operations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': codeLocKey },
+        body: JSON.stringify({ operation_id: codeLocKey, kind: 'receive', product_id: 10, location_id: 'MAG', quantity_delta: 4 }),
+      }),
+      env as any,
+    );
+    expect(codeLoc.status).toBe(404);
+
+    // Other writer (adjustLocationStock) bumps revision from 1 -> 2 and preserves placement sum == stock_quantity
+    await adjustLocationStock(db, 10, 1, 3);
+    const pl2 = await app.fetch(new Request('http://test.local/api/inventory/products/10/placements'), env as any);
+    const pl2Json = (await pl2.json()) as any;
+    expect(pl2Json.data.placements.find((p: any) => p.location_id === 1).revision).toBe(2);
+
+    const prodTotal = (sqlite.prepare(`SELECT stock_quantity FROM products WHERE id = 10`).get() as any).stock_quantity;
+    const placementSum = (sqlite.prepare(`SELECT SUM(quantity) AS s FROM stock_location_qty WHERE product_id = 10`).get() as any).s;
+    expect(prodTotal).toBe(placementSum);
+
+    // Purge > 7 days
     sqlite
-      .prepare(`INSERT INTO offline_idempotency (key, device_id, op, request_hash, status, response, created_at) VALUES ('old-key', 'd', 'receive', 'h', 200, '{}', datetime('now', '-8 days'))`)
+      .prepare(`INSERT INTO offline_idempotency (key, account_id, device_id, kind, op, request_hash, status, response, created_at) VALUES ('old-key', 'default', 'd', 'receive', 'receive', 'h', 200, '{}', datetime('now', '-8 days'))`)
       .run();
     const deleted = await purgeExpiredOfflineIdempotency(db);
     expect(deleted).toBe(1);
-    expect(sqlite.prepare(`SELECT key FROM offline_idempotency WHERE key = 'old-key'`).get()).toBeUndefined();
-    expect(sqlite.prepare(`SELECT key FROM offline_idempotency WHERE key = 'op-1'`).get()).toBeDefined();
+  });
+
+  it('rejects missing header (400), operation_id mismatch (400), and unauthorized role (403)', async () => {
+    const { app: userApp, env: userEnv } = setupTestApp('user');
+    const roleRes = await userApp.fetch(
+      new Request('http://test.local/api/inventory/offline-operations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': 'k1' },
+        body: JSON.stringify({ operation_id: 'k1', kind: 'receive', product_id: 10, location_id: 1, quantity_delta: 1 }),
+      }),
+      userEnv as any,
+    );
+    expect(roleRes.status).toBe(403);
+
+    const { app, env } = setupTestApp('stock');
+    const noHdr = await app.fetch(
+      new Request('http://test.local/api/inventory/offline-operations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ operation_id: 'k1', kind: 'receive', product_id: 10, location_id: 1, quantity_delta: 1 }),
+      }),
+      env as any,
+    );
+    expect(noHdr.status).toBe(400);
+    expect(((await noHdr.json()) as any).code).toBe('MISSING_IDEMPOTENCY_KEY');
+
+    const mismatch = await app.fetch(
+      new Request('http://test.local/api/inventory/offline-operations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': 'k1' },
+        body: JSON.stringify({ operation_id: 'k2', kind: 'receive', product_id: 10, location_id: 1, quantity_delta: 1 }),
+      }),
+      env as any,
+    );
+    expect(mismatch.status).toBe(400);
+    expect(((await mismatch.json()) as any).code).toBe('OPERATION_ID_MISMATCH');
   });
 });

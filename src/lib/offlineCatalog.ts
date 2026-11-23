@@ -4,11 +4,12 @@
  */
 
 const DB_NAME = 'atlas-commerce-offline';
-const DB_VER = 3;
+const DB_VER = 4;
 const STORE = 'products';
 const OUTBOX = 'outbox';
 const META = 'meta';
 const LOCATIONS = 'locations';
+const OFFLINE_INV_OPS = 'offline_inv_ops';
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -36,6 +37,10 @@ function openDb(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(LOCATIONS)) {
         db.createObjectStore(LOCATIONS, { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains(OFFLINE_INV_OPS)) {
+        const s = db.createObjectStore(OFFLINE_INV_OPS, { keyPath: 'seq', autoIncrement: true });
+        s.createIndex('operation_id', 'operation_id', { unique: true });
       }
     };
   });
@@ -317,4 +322,145 @@ export async function listLowStockOffline(): Promise<any[]> {
     };
     req.onerror = () => reject(req.error);
   });
+}
+
+export interface QueuedOfflineInventoryOp {
+  seq?: number;
+  operation_id: string;
+  kind: 'receive' | 'issue' | 'count';
+  product_id: number;
+  location_id: number;
+  quantity_delta?: number;
+  counted_quantity?: number;
+  observed_quantity?: number;
+  observed_revision?: number;
+  note?: string;
+  client_occurred_at: string;
+  product_name?: string;
+  location_name?: string;
+  status: 'pending' | 'conflict' | 'failed';
+  conflict?: { current_quantity: number; current_revision: number; product_total?: number };
+  error_message?: string;
+}
+
+export function newOperationUuid(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `op-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+export async function enqueueOfflineInventoryOp(
+  op: Omit<QueuedOfflineInventoryOp, 'seq' | 'status'>,
+): Promise<QueuedOfflineInventoryOp> {
+  const item: QueuedOfflineInventoryOp = { ...op, status: 'pending' };
+  const db = await openDb();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(OFFLINE_INV_OPS, 'readwrite');
+    tx.objectStore(OFFLINE_INV_OPS).add(item);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+  await requestBackgroundSync('atlas-offline-inv-ops');
+  return item;
+}
+
+export async function listOfflineInventoryOps(): Promise<QueuedOfflineInventoryOp[]> {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(OFFLINE_INV_OPS, 'readonly').objectStore(OFFLINE_INV_OPS).getAll();
+    req.onsuccess = () => {
+      const rows = (req.result || []) as QueuedOfflineInventoryOp[];
+      rows.sort((a, b) => Number(a.seq || 0) - Number(b.seq || 0));
+      resolve(rows);
+    };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+export async function countOfflineInventoryOps(): Promise<{ pending: number; conflicts: number; total: number }> {
+  const rows = await listOfflineInventoryOps();
+  const pending = rows.filter((r) => r.status === 'pending').length;
+  const conflicts = rows.filter((r) => r.status === 'conflict').length;
+  return { pending, conflicts, total: rows.length };
+}
+
+export async function removeOfflineInventoryOpBySeq(seq: number): Promise<void> {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(OFFLINE_INV_OPS, 'readwrite');
+    tx.objectStore(OFFLINE_INV_OPS).delete(seq);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+export async function updateOfflineInventoryOp(item: QueuedOfflineInventoryOp): Promise<void> {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(OFFLINE_INV_OPS, 'readwrite');
+    tx.objectStore(OFFLINE_INV_OPS).put(item);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+export type OfflineOpSendOutcome =
+  | { kind: 'applied'; data: any }
+  | { kind: 'conflict'; current_quantity: number; current_revision: number; product_total?: number; message: string }
+  | { kind: 'terminal_error'; status: number; code?: string; message: string }
+  | { kind: 'retryable_error'; message: string };
+
+/**
+ * Flush pending offline inventory operations in strict FIFO order.
+ * - 200 -> delete from queue
+ * - 409 COUNT_CONFLICT -> mark status='conflict' (visible, never retried in a loop)
+ * - Other 4xx -> mark status='failed' (terminal, never retried in a loop)
+ * - 5xx / network error -> keep status='pending' with same operation_id to retry later
+ */
+export async function flushOfflineInventoryOps(
+  sender: (op: QueuedOfflineInventoryOp) => Promise<OfflineOpSendOutcome>,
+): Promise<{ applied: number; conflicts: number; failed: number; remaining: number }> {
+  const rows = await listOfflineInventoryOps();
+  let applied = 0;
+  let conflicts = 0;
+  let failed = 0;
+  let remaining = 0;
+
+  for (const item of rows) {
+    if (item.status !== 'pending' || item.seq == null) {
+      if (item.status === 'conflict') conflicts++;
+      continue;
+    }
+    const outcome = await sender(item);
+    if (outcome.kind === 'applied') {
+      await removeOfflineInventoryOpBySeq(item.seq);
+      applied++;
+    } else if (outcome.kind === 'conflict') {
+      await updateOfflineInventoryOp({
+        ...item,
+        status: 'conflict',
+        conflict: {
+          current_quantity: outcome.current_quantity,
+          current_revision: outcome.current_revision,
+          product_total: outcome.product_total,
+        },
+        error_message: outcome.message,
+      });
+      conflicts++;
+    } else if (outcome.kind === 'terminal_error') {
+      await updateOfflineInventoryOp({
+        ...item,
+        status: 'failed',
+        error_message: outcome.message,
+      });
+      failed++;
+    } else {
+      remaining++;
+      // Stop FIFO replay so later operations preserve causal order
+      break;
+    }
+  }
+
+  return { applied, conflicts, failed, remaining };
 }

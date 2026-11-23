@@ -1,6 +1,6 @@
 import type { Hono } from 'hono';
 import { schemaOnce, addColumnIfMissing } from '../lib/schema';
-import { ensureOfflineOpsSchema } from '../lib/idempotency';
+import { bumpPlacementRevision, ensureOfflineOpsSchema } from '../lib/idempotency';
 import { afterBusinessMutation } from '../lib/delete-coord';
 import { doCacheGet, doCachePut, hasLiveCache } from '../lib/cache';
 import { tr } from '../lib/error-i18n';
@@ -280,6 +280,9 @@ export async function adjustLocationStock(
     ).bind(locationId, productId, next).run();
   }
   const total = await syncProductTotalFromLocations(db, productId);
+  try {
+    await bumpPlacementRevision(db, null, productId, locationId);
+  } catch { /* */ }
   return { location_qty: next, product_total: total };
 }
 
@@ -404,7 +407,7 @@ export function registerInventoryOpsRoutes(app: Hono<any>, deps: InventoryOpsRou
             name: l.name,
             is_default: l.is_default,
             quantity,
-            revision: revMap.get(lidText) ?? 1,
+            revision: revMap.get(lidText) ?? 0,
           };
         });
         return c.json({ success: true, data });
@@ -630,6 +633,7 @@ export function registerInventoryOpsRoutes(app: Hono<any>, deps: InventoryOpsRou
   /** Product placements (qty per warehouse) */
   app.get('/api/inventory/products/:id/placements', async (c) => {
     await ensureStockLocations(c.env.DB);
+    await ensureOfflineOpsSchema(c.env.DB);
     const productId = c.req.param('id');
     // Seed from global if needed
     const prod = await c.env.DB.prepare(`SELECT id, name, stock_quantity, track_inventory, category, cost FROM products WHERE id = ?`).bind(productId).first() as any;
@@ -647,14 +651,25 @@ export function registerInventoryOpsRoutes(app: Hono<any>, deps: InventoryOpsRou
       `SELECT l.id as location_id, l.code, l.name, l.is_default, COALESCE(q.quantity, 0) as quantity
        FROM stock_locations l
        LEFT JOIN stock_location_qty q ON q.location_id = l.id AND q.product_id = ?
+       WHERE COALESCE(l.is_active, 1) = 1
        ORDER BY COALESCE(l.is_default, 0) DESC, l.name`
     ).bind(productId).all();
+    const revMap = new Map<number, number>();
+    try {
+      const revRows = await c.env.DB.prepare(
+        `SELECT location_id, revision FROM stock_location_revisions WHERE CAST(product_id AS INTEGER) = ?`
+      ).bind(Number(productId)).all();
+      for (const rr of (revRows.results || []) as any[]) {
+        revMap.set(Number(rr.location_id), Number(rr.revision || 0));
+      }
+    } catch { /* */ }
     const placements = (results || []).map((r: any) => ({
       location_id: r.location_id,
       code: r.code,
       name: r.name,
       is_default: !!r.is_default,
       quantity: Number(r.quantity || 0),
+      revision: revMap.get(Number(r.location_id)) ?? 0,
     }));
     const total = placements.reduce((s: number, p: any) => s + p.quantity, 0);
     return c.json({
@@ -878,8 +893,12 @@ export function registerInventoryOpsRoutes(app: Hono<any>, deps: InventoryOpsRou
       await applyStockDelta(c.env.DB, productId, delta, `Inventaire ${theoretical}→${counted} — ${note}`, 'cycle-count', {
         type: 'adjustment',
         allowNegative: true,
+        locationId: body.location_id ? Number(body.location_id) : undefined,
         createdBy: gate.username,
       });
+      if (body.location_id) {
+        try { await bumpPlacementRevision(c.env.DB, null, productId, Number(body.location_id)); } catch { /* */ }
+      }
     } catch (e: any) {
       return c.json({ success: false, error: e?.message || 'Ajustement impossible' }, 400);
     }
