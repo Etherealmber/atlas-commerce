@@ -17850,14 +17850,14 @@ html[data-theme="dark"] body .content table tbody tr:hover td {
 }
 
 /* Primary buttons: soft charcoal, not pure #000 */
-html[data-theme="dark"] body .content button:not(.secondary):not(.ghost):not(.danger):not(.theme-toggle):not(.settings-nav-item),
+html[data-theme="dark"] body .content button:not(.secondary):not(.ghost):not(.danger):not(.theme-toggle):not(.settings-nav-item):not(.ac-seg-btn):not(.wn-filter):not(.ac-fluid-tab):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.settings-topbar-burger):not(.desktop-product-zoom-btn),
 html[data-theme="dark"] body .content .btn-primary,
 html[data-theme="dark"] body button.primary {
   background: #2a2a2e !important;
   color: #f5f6fa !important;
   border: 1px solid #3a4154 !important;
 }
-html[data-theme="dark"] body .content button:not(.secondary):not(.ghost):not(.danger):hover {
+html[data-theme="dark"] body .content button:not(.secondary):not(.ghost):not(.danger):not(.ac-seg-btn):not(.wn-filter):not(.ac-fluid-tab):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.settings-topbar-burger):not(.desktop-product-zoom-btn):hover {
   background: #343b4f !important;
 }
 html[data-theme="dark"] body .content button.danger {

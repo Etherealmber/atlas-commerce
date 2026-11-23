@@ -1,14 +1,31 @@
 /**
- * About — product identity + owner GitHub showcase + legal links.
+ * About — product identity + owner GitHub showcase + contributors + legal links.
  */
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, Users } from 'lucide-react';
+import {
+  BarChart3,
+  Bot,
+  Boxes,
+  Bug,
+  Building2,
+  Cloud,
+  FileText,
+  Github,
+  Heart,
+  LifeBuoy,
+  Package,
+  Receipt,
+  ShieldCheck,
+  Smartphone,
+  Sparkles,
+  Users,
+  Wallet,
+} from 'lucide-react';
 import {
   APP_NAME,
   APP_TAGLINE,
   APP_VERSION,
-  APP_BUILD,
   APP_CREATOR,
   APP_CREATOR_NAME,
   APP_TEAM,
@@ -19,8 +36,6 @@ import {
   APP_DESCRIPTION,
   APP_PROFILE,
 } from '../version';
-import { openConsentSettings } from '../lib/cookieConsent';
-import { resetWelcome } from '../lib/welcome';
 import { api } from '../api';
 import { isLoggedIn } from '../auth';
 import { REPO_CONTRIBUTORS, fetchRepoContributors, type Contributor } from '../lib/contributors';
@@ -74,11 +89,70 @@ const PROJECT_SHOWCASE: {
   },
 ];
 
+const FEATURE_TILES = [
+  {
+    icon: Package,
+    title: 'Stock & entrepôt',
+    body: 'Produits, catégories, mouvements, alertes stock bas, images R2, historique 90 jours, transferts et règles auto.',
+  },
+  {
+    icon: Receipt,
+    title: 'Ventes (FA / VR / devis)',
+    body: 'Factures, ventes rapides, devis convertibles, paiements partiels, numérotation atomique et archivage PDF / R2.',
+  },
+  {
+    icon: Boxes,
+    title: 'Achats & fournisseurs',
+    body: 'Factures d’achat, réceptions, fournisseurs, suivi des impayés et impact stock à la réception.',
+  },
+  {
+    icon: Users,
+    title: 'Clients & crédit',
+    body: 'Fiches clients, ICE, soldes, plafonds de crédit, situation client et relances.',
+  },
+  {
+    icon: Wallet,
+    title: 'Solde & trésorerie',
+    body: 'Caisse / banque, dépenses et recettes, salaires employés, remboursements et exports quotidiens.',
+  },
+  {
+    icon: Building2,
+    title: 'Employés & paie',
+    body: 'Fiches collaborateur, salaire mensuel ou périodique, pièce d’identité chiffrée et débit solde.',
+  },
+  {
+    icon: Bug,
+    title: 'Signalements & crashs',
+    body: 'Détection automatique des erreurs et signalements envoyés directement dans les issues GitHub.',
+  },
+  {
+    icon: Bot,
+    title: 'Atlas Agent',
+    body: 'Assistant intégré pour créer clients, produits ou documents, interroger le stock et accélérer les tâches.',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Sécurité',
+    body: 'Rôles, OTP nouvel appareil, WebAuthn, confirmation mot de passe, audit et sauvegardes chiffrées.',
+  },
+  {
+    icon: FileText,
+    title: 'Conformité Maroc',
+    body: 'HT/TTC, TVA, mentions légales, numéros séquentiels, préparation e-facturation UBL et archives.',
+  },
+  {
+    icon: Smartphone,
+    title: 'Mobile & caisse',
+    body: 'Parcours téléphone, vente rapide, tickets, reçus et workflows terrain pour l’équipe magasin.',
+  },
+  {
+    icon: BarChart3,
+    title: 'Rapports',
+    body: 'Tableaux de bord, ventes, stock, créances et exports pour piloter sans tableur parallèle.',
+  },
+];
 
-/** v260 — "Signaler un problème" : user report → GitHub issue (docs/reports-github.md). */
 function ReportProblemForm() {
-  // v0.7.4 — le signalement de bug est réservé aux utilisateurs connectés :
-  // aucun formulaire ni rapport automatique pour les visiteurs non connectés.
   const canReport = isLoggedIn();
   const [kind, setKind] = useState('bug');
   const [message, setMessage] = useState('');
@@ -89,8 +163,13 @@ function ReportProblemForm() {
 
   async function submit() {
     const text = message.trim();
-    if (text.length < 5) { setErr('Décrivez le problème en quelques mots (5 caractères minimum).'); return; }
-    setBusy(true); setErr(null); setDone(null);
+    if (text.length < 5) {
+      setErr('Décrivez le problème en quelques mots (5 caractères minimum).');
+      return;
+    }
+    setBusy(true);
+    setErr(null);
+    setDone(null);
     try {
       const res = await api.submitUserReport({
         kind,
@@ -101,7 +180,8 @@ function ReportProblemForm() {
       });
       const ref = res?.data?.reference || 'OK';
       setDone(`Merci ! Signalement envoyé — référence ${ref}. Il arrive dans les issues GitHub du projet.`);
-      setMessage(''); setContact('');
+      setMessage('');
+      setContact('');
     } catch (e: any) {
       setErr(String(e?.message || 'Envoi impossible. Réessayez ou contactez le support.'));
     } finally {
@@ -111,15 +191,24 @@ function ReportProblemForm() {
 
   if (!canReport) return null;
   return (
-    <section className="card about-section" id="signaler">
-      <h2>Signaler un problème</h2>
+    <section className="card about-section ac-about-card" id="signaler">
+      <div className="ac-about-card-head">
+        <span className="ac-about-card-ico" aria-hidden="true">
+          <Bug size={18} strokeWidth={2} />
+        </span>
+        <h2>Signaler un problème</h2>
+      </div>
       <p className="about-muted" style={{ marginTop: 0 }}>
         Bug, idée ou question : votre message est envoyé directement dans les <strong>issues GitHub</strong> du
-        projet Atlas Commerce (sans compte GitHub nécessaire). Les plantages de l’application sont aussi
-        signalés automatiquement — jamais de données personnelles ni de mots de passe dans ces rapports.
+        projet Atlas Commerce (sans compte GitHub nécessaire). Les plantages sont signalés automatiquement sans
+        données personnelles ni mots de passe.
       </p>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
-        {[['bug', '🐛 Bug'], ['feedback', '💡 Idée / amélioration'], ['other', '❓ Autre']].map(([v, label]) => (
+        {[
+          ['bug', 'Bug'],
+          ['feedback', 'Idée / amélioration'],
+          ['other', 'Autre'],
+        ].map(([v, label]) => (
           <button
             key={v}
             type="button"
@@ -147,12 +236,18 @@ function ReportProblemForm() {
           maxLength={120}
           style={{ flex: '1 1 220px', borderRadius: 12, padding: '10px 12px', fontSize: 13 }}
         />
-        <button type="button" className="primary" disabled={busy} onClick={submit} style={{ borderRadius: 12, minHeight: 44, padding: '0 20px' }}>
+        <button
+          type="button"
+          className="primary"
+          disabled={busy}
+          onClick={submit}
+          style={{ borderRadius: 12, minHeight: 44, padding: '0 20px' }}
+        >
           {busy ? 'Envoi…' : 'Envoyer le signalement'}
         </button>
       </div>
-      {err && <p style={{ color: '#b91c1c', fontSize: 13, marginTop: 10 }}>{err}</p>}
-      {done && <p style={{ color: '#15803d', fontSize: 13, marginTop: 10 }}>{done}</p>}
+      {err && <p style={{ color: '#ef4444', fontSize: 13, marginTop: 10 }}>{err}</p>}
+      {done && <p style={{ color: '#22c55e', fontSize: 13, marginTop: 10 }}>{done}</p>}
     </section>
   );
 }
@@ -161,8 +256,8 @@ export default function About() {
   const [year] = useState(() => new Date().getFullYear());
   const [user, setUser] = useState<GhUser | null>(null);
   const [repos, setRepos] = useState<GhRepo[]>([]);
-  const [loading, setLoading] = useState(true);
   const [contributors, setContributors] = useState<Contributor[]>(REPO_CONTRIBUTORS);
+  const [ghProfile, setGhProfile] = useState<{ followers: number; repos: number; stars: number } | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -173,14 +268,9 @@ export default function About() {
   }, []);
 
   useEffect(() => {
-    /* title set by PageTitleSync */
-  }, []);
-
-  useEffect(() => {
     let stopped = false;
     (async () => {
       try {
-        // Prefer same-origin proxy (CSP-safe). Fallback to GitHub API if allowed.
         let u: GhUser | null = null;
         let r: GhRepo[] = [];
         const proxied = await fetch('/api/public/github-profile');
@@ -212,8 +302,6 @@ export default function About() {
         setRepos((r || []).filter((x) => !x.fork));
       } catch {
         /* static showcase remains */
-      } finally {
-        if (!stopped) setLoading(false);
       }
     })();
     return () => {
@@ -221,67 +309,73 @@ export default function About() {
     };
   }, []);
 
-  const byName = Object.fromEntries(repos.map((r) => [r.name, r]));
-  // v0.7.7 — compteurs publics du créateur (best-effort : silencieux si hors-ligne)
-  const [ghProfile, setGhProfile] = useState<{ followers: number; repos: number; stars: number } | null>(null);
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
-        const r = await fetch(`https://api.github.com/users/${APP_CREATOR}`, { headers: { Accept: 'application/vnd.github+json' } });
+        const r = await fetch(`https://api.github.com/users/${APP_CREATOR}`, {
+          headers: { Accept: 'application/vnd.github+json' },
+        });
         if (!r.ok) return;
         const j: any = await r.json();
-        const reposRes = await fetch(`https://api.github.com/users/${APP_CREATOR}/repos?per_page=100`, { headers: { Accept: 'application/vnd.github+json' } });
+        const reposRes = await fetch(`https://api.github.com/users/${APP_CREATOR}/repos?per_page=100`, {
+          headers: { Accept: 'application/vnd.github+json' },
+        });
         let stars = 0;
         if (reposRes.ok) {
           const list: any[] = await reposRes.json();
           stars = list.reduce((acc, x) => acc + Number(x?.stargazers_count || 0), 0);
         }
         if (alive) {
-          setGhProfile({ followers: Number(j?.followers || 0), repos: Number(j?.public_repos || 0), stars });
+          setGhProfile({
+            followers: Number(j?.followers || 0),
+            repos: Number(j?.public_repos || 0),
+            stars,
+          });
         }
       } catch { /* best-effort */ }
     })();
     return () => { alive = false; };
   }, []);
-  // v0.7.7 — directive : uniquement les 3 dépôts demandés (afmarbre-main,
-  // atlas-commerce-android, atlas-commerce-desktop) ; plus de liste API.
+
+  const byName = Object.fromEntries(repos.map((r) => [r.name, r]));
 
   return (
-    <div className="atlas-page about-page atlas-crm">
-      <header className="about-hero">
-        <div className="about-hero-brand">
-          {/* v0.7.7 — le hero ne duplicate plus le logo : la nav publique porte la marque */}
+    <div className="atlas-page about-page ac-about-bento atlas-crm">
+      <header className="ac-about-hero-card" id="about-overview">
+        <div className="ac-about-hero-top">
           <div>
-            <p className="atlas-eyebrow" style={{ margin: 0 }}>
+            <span className="ac-about-eyebrow">
+              <Sparkles size={13} strokeWidth={2.2} aria-hidden="true" />
               Produit
-            </p>
+            </span>
             <h1 className="about-title">{APP_NAME}</h1>
-            <p className="about-tag">{APP_TAGLINE}</p>
+            <p className="ac-about-tagline">{APP_TAGLINE}</p>
           </div>
+          <span className="ac-about-version-pill">v{APP_VERSION}</span>
         </div>
-        <p className="about-mission">
+
+        <p className="ac-about-mission">
           Conçu pour les commerces et grossistes au Maroc — gérer stock, caisse et facturation
-          sans dépendre d’un abonnement SaaS opaque.
-        </p>
-        <p className="about-lead">
-          {APP_DESCRIPTION ||
-            'Logiciel interne de stock, caisse et facturation pour commerces au Maroc.'}
+          sans dépendre d’un abonnement SaaS opaque.{' '}
+          {APP_DESCRIPTION || 'Logiciel interne de stock, caisse et facturation pour commerces au Maroc.'}
         </p>
 
-        <div className="about-trust-strip" aria-label="Technologies">
-          <span className="about-trust-chip">Cloudflare</span>
-          <span className="about-trust-chip">D1</span>
-          <span className="about-trust-chip">R2</span>
-          <span className="about-trust-chip">Durable Objects</span>
-          <span className="about-trust-chip">WebAuthn</span>
+        <div className="ac-about-chips" aria-label="Technologies">
+          {['Cloudflare Workers', 'D1 SQLite', 'R2 Storage', 'Durable Objects', 'WebAuthn'].map((tech) => (
+            <span key={tech} className="about-trust-chip">
+              {tech}
+            </span>
+          ))}
         </div>
 
-        <div className="about-meta-row">
-
-        <section className="card about-section about-support about-meta-card" style={{ margin: 0 }}>
-            <h2 style={{ marginTop: 0, fontSize: '1.05rem' }}>Support</h2>
-            <p className="about-muted" style={{ marginTop: 0, fontSize: 14 }}>
+        <div className="ac-about-bento-pair">
+          <div className="ac-about-subcard">
+            <div className="ac-about-subcard-head">
+              <LifeBuoy size={17} strokeWidth={2} aria-hidden="true" />
+              <span>Support</span>
+            </div>
+            <p className="about-muted" style={{ marginTop: 0, fontSize: 13.5 }}>
               Accès, configuration ou question produit — on répond côté métier, pas en jargon technique.
             </p>
             <ul className="about-stack-list">
@@ -299,121 +393,88 @@ export default function About() {
                 <a href="mailto:support@afmarbre.com">support@afmarbre.com</a>
               </li>
             </ul>
-          </section>
-          <section className="card about-section about-stack about-meta-card" style={{ margin: 0 }}>
-            <h2 style={{ marginTop: 0, fontSize: '1.05rem' }}>Hébergement</h2>
-            <p className="about-muted" style={{ marginTop: 0, fontSize: 14 }}>
+          </div>
+
+          <div className="ac-about-subcard">
+            <div className="ac-about-subcard-head">
+              <Cloud size={17} strokeWidth={2} aria-hidden="true" />
+              <span>Hébergement</span>
+            </div>
+            <p className="about-muted" style={{ marginTop: 0, fontSize: 13.5 }}>
               Vos données restent sur votre compte Cloudflare (Workers, base, fichiers).
             </p>
             <ul className="about-stack-list">
-              <li>Workers — application & API</li>
+              <li>Workers — application &amp; API</li>
               <li>D1 — données métier</li>
-              <li>R2 — pièces jointes & sauvegardes</li>
+              <li>R2 — pièces jointes &amp; sauvegardes</li>
               <li>Passkeys (WebAuthn) en option</li>
             </ul>
-          </section>
+          </div>
         </div>
       </header>
 
       <ReportProblemForm />
 
-      <section className="card about-section">
-        <h2>Ce que fait Atlas Commerce</h2>
+      <section className="card about-section ac-about-card" id="about-features">
+        <div className="ac-about-card-head">
+          <span className="ac-about-card-ico" aria-hidden="true">
+            <Boxes size={18} strokeWidth={2} />
+          </span>
+          <h2>Ce que fait Atlas Commerce</h2>
+        </div>
         <p className="about-muted" style={{ marginTop: 0 }}>
-          Logiciel de gestion pour commerces et grossistes au Maroc — stock, ventes, achats, caisse et conformité,
-          hébergé sous votre contrôle (Cloudflare), sans abonnement SaaS obligatoire.
+          Stock, ventes, achats, caisse et conformité dans un seul outil rapide, hébergé sous votre contrôle.
         </p>
-        <div className="about-features-grid">
-          <div className="about-feature">
-            <h3>Stock & entrepôt</h3>
-            <p>Produits, catégories, mouvements, alertes stock bas, images R2, historique 90 jours, transferts et règles auto.</p>
-          </div>
-          <div className="about-feature">
-            <h3>Ventes (FA / VR / devis)</h3>
-            <p>Factures, ventes rapides, devis convertibles, paiements partiels, numérotation atomique, archivage PDF / R2.</p>
-          </div>
-          <div className="about-feature">
-            <h3>Achats & fournisseurs</h3>
-            <p>Factures d’achat, réceptions, fournisseurs, suivi des impayés et impact stock à la réception.</p>
-          </div>
-          <div className="about-feature">
-            <h3>Clients & crédit</h3>
-            <p>Fiches clients, ICE, soldes, plafonds de crédit, situation client et relances.</p>
-          </div>
-          <div className="about-feature">
-            <h3>Solde & trésorerie</h3>
-            <p>Caisse / banque, dépenses et recettes, salaires employés, remboursement, export pour le suivi quotidien.</p>
-          </div>
-          <div className="about-feature">
-            <h3>Employés & paie</h3>
-            <p>Fiches collaborateur, salaire mensuel ou tous les N jours, démission, pièce d’identité chiffrée, débit solde à chaque paiement.</p>
-          </div>
-          <div className="about-feature">
-            <h3>Signalements & crashs</h3>
-            <p>Un bug ? L’application le détecte et le signale automatiquement. Vous pouvez aussi envoyer un signalement qui arrive directement dans les issues GitHub du projet.</p>
-          </div>
-          <div className="about-feature">
-            <h3>Atlas Agent</h3>
-            <p>Assistant intégré pour créer clients, produits ou documents, interroger le stock et accélérer les tâches répétitives.</p>
-          </div>
-          <div className="about-feature">
-            <h3>Sécurité</h3>
-            <p>Rôles, OTP nouvel appareil, WebAuthn, confirmation mot de passe sur suppressions, audit, sauvegardes chiffrées.</p>
-          </div>
-          <div className="about-feature">
-            <h3>Maroc</h3>
-            <p>HT/TTC, TVA, mentions légales, numéros séquentiels, préparation e-facturation / UBL et archives longue durée.</p>
-          </div>
-          <div className="about-feature">
-            <h3>Mobile & caisse</h3>
-            <p>Parcours téléphone, vente rapide, tickets, reçus et workflows terrain pour l’équipe magasin.</p>
-          </div>
-          <div className="about-feature">
-            <h3>Rapports</h3>
-            <p>Tableaux de bord, ventes, stock, créances, exports — pour piloter sans tableur parallèle.</p>
-          </div>
+        <div className="ac-about-features-grid">
+          {FEATURE_TILES.map((tile) => {
+            const Icon = tile.icon;
+            return (
+              <div key={tile.title} className="ac-about-feature-tile">
+                <div className="ac-about-feature-tile-head">
+                  <Icon size={16} strokeWidth={2} aria-hidden="true" />
+                  <h3>{tile.title}</h3>
+                </div>
+                <p>{tile.body}</p>
+              </div>
+            );
+          })}
         </div>
       </section>
 
-      <section className="card about-section">
-        <h2>Pour qui</h2>
-        <ul className="about-list">
-          <li>
-            <strong>Magasin / dépôt</strong> — scan, inventaire, transferts, propositions produit.
-          </li>
-          <li>
-            <strong>Bureau</strong> — devis, factures, caisse, boîte d’actions, rapports.
-          </li>
-          <li>
-            <strong>Rôles</strong> — propriétaire, secrétaire, magasinier (sans accès argent).
-          </li>
-        </ul>
-      </section>
+      <div className="ac-about-bento-pair" style={{ marginTop: 0 }}>
+        <section className="card about-section ac-about-card">
+          <h2>Pour qui</h2>
+          <ul className="about-list" style={{ marginBottom: 0 }}>
+            <li>
+              <strong>Magasin / dépôt</strong> — scan, inventaire, transferts, propositions produit.
+            </li>
+            <li>
+              <strong>Bureau</strong> — devis, factures, caisse, boîte d’actions, rapports.
+            </li>
+            <li>
+              <strong>Rôles</strong> — propriétaire, secrétaire, magasinier (sans accès argent).
+            </li>
+          </ul>
+        </section>
 
-      <section className="card about-section">
-        <h2>Fonctions clés</h2>
-        <div className="about-grid">
-          <div>
-            <h3>Stock</h3>
-            <p>Produits, seuils, entrepôts, inventaire mobile, photos et lots.</p>
-          </div>
-          <div>
-            <h3>Vente</h3>
-            <p>Vente rapide, devis, factures, reçus, impression thermique.</p>
-          </div>
-          <div>
-            <h3>Équipe</h3>
-            <p>Boîte d’actions PC ↔ téléphone, Atlas Agent contextuel.</p>
-          </div>
-          <div>
-            <h3>Conformité</h3>
-            <p>UBL local, confidentialité, sessions sécurisées.</p>
-          </div>
-        </div>
-      </section>
+        <section className="card about-section ac-about-card">
+          <h2>Fonctions clés</h2>
+          <ul className="about-list" style={{ marginBottom: 0 }}>
+            <li>
+              <strong>Stock</strong> — produits, seuils, entrepôts, inventaire mobile, photos et lots.
+            </li>
+            <li>
+              <strong>Vente</strong> — vente rapide, devis, factures, reçus, impression thermique.
+            </li>
+            <li>
+              <strong>Équipe &amp; Conformité</strong> — boîte d’actions PC ↔ téléphone, UBL local, sessions sécurisées.
+            </li>
+          </ul>
+        </section>
+      </div>
 
       {/* Owner — GitHub profile */}
-      <section className="card about-section about-owner">
+      <section className="card about-section ac-about-card about-owner" id="about-creator">
         <div className="about-owner-head">
           {user?.avatar_url ? (
             <img src={user.avatar_url} alt="" width={56} height={56} className="about-owner-avatar" loading="lazy" decoding="async" />
@@ -430,7 +491,7 @@ export default function About() {
               </a>
             </p>
             <p className="about-muted about-owner-bio">
-              Développement produit & infrastructure · {APP_LOCATION}
+              Développement produit &amp; infrastructure · {APP_LOCATION}
             </p>
             {ghProfile && (
               <p className="about-owner-stats" style={{ display: 'flex', gap: 14, margin: '8px 0 0', fontSize: 12.5, color: 'var(--muted, #52525b)' }}>
@@ -446,12 +507,19 @@ export default function About() {
                 target="_blank"
                 rel="noreferrer noopener"
                 style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 16px',
-                  borderRadius: 999, border: '1px solid var(--line, #e4e4e7)', background: 'var(--paper, #fff)',
-                  color: 'inherit', textDecoration: 'none', fontSize: 13, fontWeight: 700,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '8px 16px',
+                  borderRadius: 999,
+                  border: '1px solid var(--line, #e4e4e7)',
+                  color: 'inherit',
+                  textDecoration: 'none',
+                  fontSize: 13,
+                  fontWeight: 700,
                 }}
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" /></svg>
+                <Github size={15} strokeWidth={1.9} aria-hidden="true" />
                 Profil GitHub
               </a>
             </p>
@@ -480,7 +548,7 @@ export default function About() {
       </section>
 
       {/* Contributors & thanks */}
-      <section className="card about-section wn-thanks-card" aria-label="Remerciements et contributeurs">
+      <section className="card about-section ac-about-card wn-thanks-card" aria-label="Remerciements et contributeurs">
         <div className="wn-thanks-head">
           <span className="wn-thanks-ico" aria-hidden="true">
             <Users size={16} strokeWidth={2.2} />
@@ -519,17 +587,22 @@ export default function About() {
       </section>
 
       {/* Projects */}
-      <section className="card about-section about-secondary">
-        <h2>Autour d’Atlas</h2>
-        <p className="about-muted" style={{ marginBottom: 12 }}>
-          Projets et dépôts publics (secondaire) — @{APP_CREATOR}.
+      <section className="card about-section ac-about-card about-secondary" id="about-projects">
+        <div className="ac-about-card-head">
+          <span className="ac-about-card-ico" aria-hidden="true">
+            <Github size={18} strokeWidth={2} />
+          </span>
+          <h2>Autour d’Atlas</h2>
+        </div>
+        <p className="about-muted" style={{ marginTop: 0, marginBottom: 12 }}>
+          Dépôts et applications compagnons — @{APP_CREATOR}.
         </p>
-        <ul className="about-projects">
+        <ul className="ac-about-projects-grid">
           {PROJECT_SHOWCASE.map((p) => {
             const live = byName[p.repo];
             return (
               <li key={p.repo}>
-                <a href={p.href} target="_blank" rel="noreferrer" className="about-project-link">
+                <a href={p.href} target="_blank" rel="noreferrer" className="ac-about-project-card">
                   <span className="about-project-title">
                     {p.title}
                     {p.badge ? <span className="about-project-badge">{p.badge}</span> : null}
@@ -546,13 +619,6 @@ export default function About() {
             );
           })}
         </ul>
-      </section>
-
-            <section className="card about-section about-legal-hint">
-        <h2>Liens & confidentialité</h2>
-        <p className="about-muted" style={{ margin: 0 }}>
-          Confidentialité, conditions, cookies, nouveautés et guide — icônes dans la barre du haut.
-        </p>
       </section>
 
       <footer className="about-foot">

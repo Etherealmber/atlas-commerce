@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { getTheme, setTheme as applyTheme, subscribeTheme, type ThemeChoice } from '../theme';
 import { isLoggedIn, getDisplayName, getUsername, getRole, getDisplayInitials, hasAvatarUrl, clearToken } from '../auth';
 import { invalidateAvatarCache } from '../lib/avatarCache';
@@ -512,7 +512,7 @@ type ReleaseAssets = Record<string, string>;
 /** v0.7.7 — /about et /whats-new : la pill publique est SUPPRIMÉE au profit de
  *  la topbar Paramètres LITTÉRALE (mêmes classes) : sticky, visible au scroll,
  *  compacte (hystérésis 48 px, aucun scintillement). Un SEUL bouton recherche. */
-export function PublicSettingsTopbar() {
+export function PublicSettingsTopbar({ onOpenSidebar }: { onOpenSidebar?: () => void } = {}) {
   const [compact, setCompact] = useState(false);
   useEffect(() => {
     let last = window.scrollY;
@@ -539,12 +539,24 @@ export function PublicSettingsTopbar() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
   const location = useLocation();
-  const [params, setParams] = useSearchParams();
   const loggedIn = isLoggedIn();
   const title = location.pathname === '/whats-new' ? 'Nouveautés' : 'À propos';
   return (
     <header className={`settings-topbar public-settings-topbar${compact ? ' settings-topbar--compact' : ''}`} role="banner">
       <div className="settings-topbar-left">
+        {onOpenSidebar && (
+          <button
+            type="button"
+            className="settings-topbar-burger"
+            aria-label="Ouvrir le menu"
+            title="Ouvrir le menu"
+            onClick={onOpenSidebar}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+              <path d="M4 7h16M4 12h16M4 17h16" />
+            </svg>
+          </button>
+        )}
         {loggedIn && (
           <>
             <button type="button" className="settings-topbar-back" onClick={() => window.location.assign('/dashboard')}>
@@ -565,31 +577,7 @@ export function PublicSettingsTopbar() {
           </div>
         </div>
       </div>
-      {location.pathname === '/whats-new' ? (
-        <div className="settings-topbar-tabs pst-filters" role="group" aria-label="Filtrer le journal">
-          {[
-            { id: 'all', label: 'Tout' },
-            { id: 'added', label: 'Nouveautés' },
-            { id: 'improved', label: 'Améliorations' },
-            { id: 'fixed', label: 'Corrections' },
-          ].map((f) => (
-            <button
-              key={f.id}
-              type="button"
-              className={`wn-filter${(params.get('f') || 'all') === f.id ? ' active' : ''}`}
-              aria-pressed={(params.get('f') || 'all') === f.id}
-              onClick={() => setParams(f.id === 'all' ? {} : { f: f.id })}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-      ) : null}
-      {/* v0.7.7 — le journal n’a pas besoin des liens legacy : filtres seulement */}
-      {loggedIn && location.pathname !== '/whats-new' && <PnLegacyTabs />}
       <div className="settings-topbar-right">
-        {/* v0.7.7 — même gabarit d'icône que la topbar Paramètres, collé au sélecteur
-            de thème, jamais masqué (ni en compact, ni en scroll) */}
         <button
           type="button"
           className="settings-topbar-tab secondary settings-topbar-searchtab"

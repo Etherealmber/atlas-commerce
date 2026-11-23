@@ -1,7 +1,7 @@
 import { SwitchMode } from './components/ui/SwitchMode';
 import MobileBottomNav from './components/erp/MobileBottomNav';
 import { useEffect, useState, useRef, lazy, Suspense } from 'react';
-import { User, CreditCard, Mail, Sparkles, LogOut, Sun, Moon, Monitor, Type, ArrowLeft, Settings as SettingsIcon, Info } from 'lucide-react';
+import { User, CreditCard, Mail, Sparkles, LogOut, Sun, Moon, Monitor, Type, ArrowLeft, Settings as SettingsIcon, Info, Menu } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, Link, useNavigate, useLocation } from 'react-router-dom';
 import { applyPageTitle, titleForPath } from './lib/pageTitle';
@@ -26,15 +26,14 @@ import {
   setProfileCache,
   canManageStock,
   canOfficeWork,
-  canAccessCompanySettings,
   canAccessInventoryOps,
-  canAccessAdminSettings,
   canAccessSettingsBeyondProfile,
   isStockRole,
   canSell,
   isOwnerRole,
 } from './auth';
 import { PublicSettingsTopbar } from './components/PublicChrome';
+import FocusSidebar from './components/FocusSidebar';
 import GlobalSearchPanel from './components/GlobalSearchPanel';
 import { startDestination } from './lib/startPage';
 import { desktopLoginReturn } from './lib/desktopApproval';
@@ -67,7 +66,6 @@ import { applyDensityFromStorage, getDensity, setDensity, getUiScale, setUiScale
 import AtlasLoadingBar from './components/AtlasLoadingBar';
 import { isWelcomeCompleted } from './lib/welcome';
 import { hasUnreadWhatsNew } from './lib/whatsNew';
-import { openConsentSettings } from './lib/cookieConsent';
 import {
   filterSettingsHits,
   searchSettings,
@@ -559,16 +557,18 @@ function DesktopRoute() {
 /** v0.7 — /about readable WITHOUT an account: standalone layout (no topbar,
  * no Agent, no session access). Logged-in users keep the exact same Shell. */
 function AboutRoute() {
-  // v0.7.6 — même barre pill que l'accueil ; v0.7.7 — liens identiques pour
-  // tous, seul le CTA suit la session.
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   return (
     <div className="public-about">
-      {/* v0.7.7 — la pill publique est supprimée : topbar Paramètres LITTÉRALE
-          (sticky, compacte au scroll), un seul bouton recherche. */}
-      <PublicSettingsTopbar />
-      <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
-        <About />
-      </Suspense>
+      <PublicSettingsTopbar onOpenSidebar={() => setSidebarOpen(true)} />
+      <div className="atlas-focus-layout">
+        <FocusSidebar mobileOpen={sidebarOpen} onCloseMobile={() => setSidebarOpen(false)} />
+        <main className="content content-settings-focus">
+          <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
+            <About />
+          </Suspense>
+        </main>
+      </div>
     </div>
   );
 }
@@ -577,14 +577,18 @@ function AboutRoute() {
  * dedicated standalone layout (no topbar, no Agent, no API call, no session
  * access). Logged-in users keep the exact same Shell experience as before. */
 function WhatsNewRoute() {
-  // v0.7.6 — barre pill commune ; v0.7.7 — liens identiques pour tous.
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   return (
     <div className="public-whats-new">
-      {/* v0.7.7 — topbar Paramètres littérale (sticky + compacte au scroll). */}
-      <PublicSettingsTopbar />
-      <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
-        <WhatsNew />
-      </Suspense>
+      <PublicSettingsTopbar onOpenSidebar={() => setSidebarOpen(true)} />
+      <div className="atlas-focus-layout">
+        <FocusSidebar mobileOpen={sidebarOpen} onCloseMobile={() => setSidebarOpen(false)} />
+        <main className="content content-settings-focus">
+          <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
+            <WhatsNew />
+          </Suspense>
+        </main>
+      </div>
     </div>
   );
 }
@@ -826,8 +830,8 @@ function DesktopShell() {
     location.pathname === '/about' ||
     location.pathname === '/whats-new';
   const isSettingsRoute = location.pathname === '/settings' || location.pathname.startsWith('/settings/');
-  const settingsTab = new URLSearchParams(location.search).get('tab') || 'profile';
   const [focusUserMenuOpen, setFocusUserMenuOpen] = useState(false);
+  const [focusSidebarOpen, setFocusSidebarOpen] = useState(false);
   const [shellAlerts, setShellAlerts] = useState<any[]>([]);
   const [shellUserOpen, setShellUserOpen] = useState(false);
   
@@ -942,27 +946,12 @@ function DesktopShell() {
   }, [shellNotifOpen]);
 
   useEffect(() => {
-    // Close focus user menu when route changes
+    // Close focus user menu & mobile focus sidebar when route changes
     setFocusUserMenuOpen(false);
+    setFocusSidebarOpen(false);
     setShellUserOpen(false);
   }, [location.pathname, location.search]);
 
-  const SETTINGS_TOP_TABS: { id: string; label: string; icon: string }[] = [
-    { id: 'profile', label: 'Mon profil', icon: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z' },
-    { id: 'company', label: 'Société', icon: 'M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6' },
-    { id: 'attendance', label: 'Présence', icon: 'M12 6v6l4 2M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z' },
-    { id: 'legal', label: 'Légal', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6' },
-    { id: 'invoicing', label: 'Facturation', icon: 'M8 2h8a2 2 0 0 1 2 2v16l-3-1.5L12 21l-3-1.5L6 20V4a2 2 0 0 1 2-2z' },
-    { id: 'documents', label: 'PDF', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M9 13h6M9 17h4' },
-    { id: 'warehouse', label: 'Entrepôts', icon: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z' },
-    { id: 'categories', label: 'Catégories', icon: 'M4 6h16M4 12h16M4 18h10' },
-    { id: 'integrations', label: 'API', icon: 'M10 13a5 5 0 0 0 7.07 0l1.41-1.41a5 5 0 0 0-7.07-7.07L10 5.5M14 11a5 5 0 0 0-7.07 0L5.5 12.43a5 5 0 0 0 7.07 7.07L14 18.5' },
-    { id: 'app', label: 'Mise à jour app', icon: 'M7 2h10a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1zM11 18h2M12 2v0' },
-    { id: 'admin', label: 'Admin', icon: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68V3a2 2 0 1 1 4 0v.09c0 .66.39 1.26 1 1.51.6.26 1.3.12 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.66 0 1.26.39 1.51 1H21a2 2 0 1 1 0 4h-.09c-.25.61-.85 1-1.51 1z' },
-    { id: 'audit', label: 'Journal d’audit', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M9 13h6M9 17h4' },
-    // v0.7.7 — onglet Atlas Agent aussi dans la topbar (même icône bot que Settings)
-    { id: 'agent', label: 'Atlas Agent', icon: 'M12 8V4H8M6 8h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2zM2 14h2M20 14h2M15 13v2M9 13v2' },
-  ];
   const { mode: themeMode, setMode: setThemeMode } = useTheme();
   const [badges, setBadges] = useState<NavBadges>(EMPTY_BADGES);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -1534,6 +1523,15 @@ function DesktopShell() {
           <div className="settings-topbar-left">
             <button
               type="button"
+              className="settings-topbar-burger"
+              aria-label="Ouvrir le menu latéral"
+              title="Menu"
+              onClick={() => setFocusSidebarOpen(true)}
+            >
+              <Menu size={18} strokeWidth={2} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
               className="settings-topbar-back"
               onClick={() => navigate('/dashboard')}
             >
@@ -1558,145 +1556,9 @@ function DesktopShell() {
               </div>
             </div>
           </div>
-          {isSettingsRoute && (
-            <nav className="settings-topbar-tabs" aria-label="Sections paramètres">
-              {SETTINGS_TOP_TABS.filter((tab) => {
-                if (tab.id === 'profile' || tab.id === 'agent') return true;
-                if (tab.id === 'admin' || tab.id === 'audit' || tab.id === 'app') return canAccessAdminSettings();
-                return canAccessCompanySettings();
-              }).map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  className={`settings-topbar-tab secondary${settingsTab === tab.id ? ' active' : ''}`}
-                  title={tab.label}
-                  aria-label={tab.label}
-                  aria-current={settingsTab === tab.id ? 'page' : undefined}
-                  onClick={() => navigate(`/settings?tab=${tab.id}`)}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                    <path d={tab.icon} />
-                  </svg>
-                </button>
-              ))}
-            </nav>
-          )}
-
-          {location.pathname === '/whats-new' && (
-            <nav className="settings-topbar-tabs whats-new-topbar-tabs" aria-label="Filtrer les nouveautés">
-              {(
-                [
-                  { id: 'all', label: 'Tout', icon: 'M4 6h16M4 12h16M4 18h10' },
-                  { id: 'added', label: 'Ajouté', icon: 'M12 5v14M5 12h14' },
-                  { id: 'improved', label: 'Amélioré', icon: 'M12 19V5M5 12l7-7 7 7' },
-                  { id: 'fixed', label: 'Corrigé', icon: 'M20 6L9 17l-5-5' },
-                ] as const
-              ).map((tab) => {
-                const f = new URLSearchParams(location.search).get('f') || 'all';
-                const active = tab.id === 'all' ? f === 'all' : f === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    className={`settings-topbar-tab secondary${active ? ' active' : ''}`}
-                    title={tab.label}
-                    aria-label={tab.label}
-                    aria-current={active ? 'page' : undefined}
-                    onClick={() =>
-                      navigate(tab.id === 'all' ? '/whats-new' : `/whats-new?f=${tab.id}`)
-                    }
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                      <path d={tab.icon} />
-                    </svg>
-                  </button>
-                );
-              })}
-              <button
-                type="button"
-                className="settings-topbar-tab secondary"
-                title="Copier le lien"
-                aria-label="Copier le lien de la page Nouveautés"
-                onClick={async (e) => {
-                  try {
-                    const url = window.location.href;
-                    await navigator.clipboard?.writeText(url);
-                    const btn = e.currentTarget;
-                    const prev = btn.getAttribute('title') || 'Copier le lien';
-                    btn.setAttribute('title', 'Lien copié !');
-                    btn.classList.add('active');
-                    window.setTimeout(() => {
-                      btn.setAttribute('title', prev);
-                      btn.classList.remove('active');
-                    }, 1500);
-                  } catch { /* */ }
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                  <rect x="9" y="9" width="13" height="13" rx="2" />
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                </svg>
-              </button>
-            </nav>
-          )}
-
-          {location.pathname === '/about' && (
-            <nav className="settings-topbar-tabs about-topbar-tabs" aria-label="Liens et confidentialité">
-              <button
-                type="button"
-                className="settings-topbar-tab secondary"
-                title="Politique de confidentialité"
-                aria-label="Politique de confidentialité"
-                onClick={() => navigate('/privacy')}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                className="settings-topbar-tab secondary"
-                title="Conditions d'utilisation"
-                aria-label="Conditions d'utilisation"
-                onClick={() => navigate('/terms')}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <path d="M14 2v6h6" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                className="settings-topbar-tab secondary"
-                title="Cookies"
-                aria-label="Préférences cookies"
-                onClick={() => openConsentSettings()}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                  <circle cx="12" cy="12" r="9" />
-                  <circle cx="9" cy="10" r="1" fill="currentColor" stroke="none" />
-                  <circle cx="14" cy="9" r="1" fill="currentColor" stroke="none" />
-                  <circle cx="11" cy="14" r="1" fill="currentColor" stroke="none" />
-                  <circle cx="15" cy="14" r="1.2" fill="currentColor" stroke="none" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                className="settings-topbar-tab secondary"
-                title="Nouveautés"
-                aria-label="Nouveautés"
-                onClick={() => window.location.assign('/whats-new')}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                  <path d="M12 2l2.4 7.2H22l-6 4.8 2.3 7L12 16.8 5.7 21l2.3-7-6-4.8h7.6z" />
-                </svg>
-              </button>
-            </nav>
-          )}
-
 
           <div className="settings-topbar-right">
-          {isSettingsRoute && (
+          {isFocusRoute && (
             <div className="settings-topbar-search-wrap settings-topbar-search-wrap--icon">
               <div className="settings-topbar-search-inner">
                 <button
@@ -1985,19 +1847,34 @@ function DesktopShell() {
         </header>
       )}
 
-      <main className={`content${isFocusRoute ? ' content-settings-focus' : ''}`}>
+      {isFocusRoute ? (
+        <div className="atlas-focus-layout">
+          <FocusSidebar
+            mobileOpen={focusSidebarOpen}
+            onCloseMobile={() => setFocusSidebarOpen(false)}
+            authenticated
+          />
+          <main className="content content-settings-focus">
+            <ErrorBoundary label="desktop">
+              <Suspense fallback={<PageFallback />}>
+                <PageTransition>
+                {location.pathname === '/whats-new' ? (
+                  <WhatsNew />
+                ) : location.pathname === '/about' ? (
+                  <About />
+                ) : (
+                  <Settings />
+                )}
+                </PageTransition>
+              </Suspense>
+            </ErrorBoundary>
+          </main>
+        </div>
+      ) : (
+      <main className="content">
         <ErrorBoundary label="desktop">
           <Suspense fallback={<PageFallback />}>
             <PageTransition>
-            {location.pathname === '/whats-new' ? (
-              // v0.7 — guaranteed changelog on /whats-new: rendered directly,
-              // independent of the Routes table below (no wrong-page flash).
-              <WhatsNew />
-            ) : location.pathname === '/about' ? (
-              // v0.7.1 — same guarantee for /about (descendant <Routes> would
-              // otherwise fall through to the "/" dashboard route).
-              <About />
-            ) : (
             <Routes>
               <Route path="/dashboard" element={<Dashboard />} />
               {/* v0.7.5 — parent "/dashboard/*" : le reste "/" EST le dashboard
@@ -2045,11 +1922,11 @@ function DesktopShell() {
               <Route path="/m-legacy" element={<Navigate to="/dashboard" replace />} />
               <Route path="*" element={<NotFoundRedirect />} />
             </Routes>
-            )}
             </PageTransition>
           </Suspense>
         </ErrorBoundary>
       </main>
+      )}
       <MobileBottomNav />
       {!isFocusRoute && (
         <Suspense fallback={null}>

@@ -123,11 +123,11 @@ html[data-theme="dark"] body .account-seg button.active {
 }
 
 /* Global: no white flash on hover/active for dark buttons */
-html[data-theme="dark"] body button:hover:not(.danger):not(.account-seg button.active),
-html[data-theme="dark"] body button:active:not(.danger):not(.account-seg button.active),
+html[data-theme="dark"] body button:hover:not(.danger):not(.account-seg button.active):not(.ac-seg-btn):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.settings-topbar-burger):not(.wn-filter):not(.ac-fluid-tab):not(.desktop-product-zoom-btn),
+html[data-theme="dark"] body button:active:not(.danger):not(.account-seg button.active):not(.ac-seg-btn):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.settings-topbar-burger):not(.wn-filter):not(.ac-fluid-tab):not(.desktop-product-zoom-btn),
 html[data-theme="dark"] body .btn:hover:not(.danger),
 html[data-theme="dark"] body .btn:active:not(.danger) {
-  filter: brightness(1.12);
+  filter: none;
 }
 html[data-theme="dark"] body button.secondary,
 html[data-theme="dark"] body .secondary {
@@ -2199,9 +2199,9 @@ html[data-theme="dark"] body .btn.secondary:hover:not(:disabled) {
   color: #fafafa !important;
 }
 /* Tapped = zinc, never white; no brightness flash on dark */
-html[data-theme="dark"] body button:active:not(.danger),
+html[data-theme="dark"] body button:active:not(.danger):not(.ac-seg-btn):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.settings-topbar-burger):not(.wn-filter):not(.ac-fluid-tab):not(.desktop-product-zoom-btn):not(.ac-image-preview-btn):not(.scan-requests-photo-btn):not(.step-wizard__step-btn):not(.modal-x):not(.modal-close),
 html[data-theme="dark"] body .btn:active:not(.danger),
-html[data-theme="dark"] body button.secondary:active,
+html[data-theme="dark"] body button.secondary:active:not(.ac-seg-btn):not(.wn-filter):not(.ac-fluid-tab):not(.settings-topbar-tab),
 html[data-theme="dark"] body .wizard-foot button:active,
 html[data-theme="dark"] body .wizard-foot button.secondary:active {
   background: #3f3f46 !important;
@@ -2420,10 +2420,11 @@ html[data-theme="dark"][data-density="comfortable"] table td button:not(.seconda
   -webkit-text-fill-color: #18181b !important;
   border-color: #e4e4e7 !important;
 }
-html[data-theme="dark"] body .content button:hover:not(:disabled):not(.secondary):not(.danger):not(.ghost),
-html[data-theme="dark"] body button:hover:not(:disabled):not(.secondary):not(.danger):not(.ghost) {
+html[data-theme="dark"] body .content button:hover:not(:disabled):not(.secondary):not(.danger):not(.ghost):not(.ac-seg-btn):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.settings-topbar-burger):not(.wn-filter):not(.ac-fluid-tab):not(.desktop-product-zoom-btn):not(.ac-image-preview-btn):not(.scan-requests-photo-btn):not(.step-wizard__step-btn):not(.bal-reports-trigger):not(.modal-x):not(.modal-close):not(.wz-chip):not(.atlas-typeahead-item):not(.phone-avatar),
+html[data-theme="dark"] body button:hover:not(:disabled):not(.secondary):not(.danger):not(.ghost):not(.ac-seg-btn):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.settings-topbar-burger):not(.wn-filter):not(.ac-fluid-tab):not(.desktop-product-zoom-btn):not(.ac-image-preview-btn):not(.scan-requests-photo-btn):not(.step-wizard__step-btn):not(.bal-reports-trigger):not(.modal-x):not(.modal-close):not(.wz-chip):not(.atlas-typeahead-item):not(.phone-avatar) {
   background: #d4d4d8 !important;
   color: #18181b !important;
+  -webkit-text-fill-color: #18181b !important;
 }
 
 /* v215 — wizard step chip: compact pill, never a stretched gray bar */
@@ -3106,11 +3107,16 @@ html[data-theme="dark"] body button.atlas-dp-trigger.secondary {
   -webkit-text-fill-color: #e4e4e7 !important;
   border: 1px solid #3f3f46 !important;
 }
-html[data-theme="dark"] body .content button:not(.secondary):not(.ghost):not(.danger):active,
-html[data-theme="dark"] body .content button:not(.secondary):not(.ghost):not(.danger):focus {
-  background: #4b4b52 !important;
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
+html[data-theme="dark"] body .content button:not(.secondary):not(.ghost):not(.danger):not(.ac-seg-btn):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.settings-topbar-burger):not(.wn-filter):not(.ac-fluid-tab):not(.desktop-product-zoom-btn):not(.ac-image-preview-btn):not(.scan-requests-photo-btn):not(.step-wizard__step-btn):not(.bal-reports-trigger):not(.modal-x):not(.modal-close):active,
+html[data-theme="dark"] body .content button:not(.secondary):not(.ghost):not(.danger):not(.ac-seg-btn):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.settings-topbar-burger):not(.wn-filter):not(.ac-fluid-tab):not(.desktop-product-zoom-btn):not(.ac-image-preview-btn):not(.scan-requests-photo-btn):not(.step-wizard__step-btn):not(.bal-reports-trigger):not(.modal-x):not(.modal-close):focus {
+  background: #3f3f46 !important;
+  color: #fafafa !important;
+  -webkit-text-fill-color: #fafafa !important;
+}
+html[data-theme="dark"] body .content button:not(.secondary):not(.ghost):not(.danger):not(.ac-seg-btn):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.settings-topbar-burger):not(.wn-filter):not(.ac-fluid-tab):not(.desktop-product-zoom-btn):not(.ac-image-preview-btn):not(.scan-requests-photo-btn):not(.step-wizard__step-btn):not(.bal-reports-trigger):not(.modal-x):not(.modal-close):focus:hover {
+  background: #52525b !important;
+  color: #fafafa !important;
+  -webkit-text-fill-color: #fafafa !important;
 }
 /* v220b END */
 
@@ -4279,9 +4285,9 @@ html[data-theme="dark"] body .wn-ver .wn-ver-date { color: #a1a1aa !important; }
 /* v236 END */
 
 /* v248.2 — tapped/focused buttons NEVER turn white in dark */
-html[data-theme="dark"] body button:active:not(.active):not(.danger),
-html[data-theme="dark"] body button:focus:not(.active),
-html[data-theme="dark"] body button:focus-visible:not(.active) {
+html[data-theme="dark"] body button:active:not(.active):not(.is-active):not(.danger):not(.ac-seg-btn):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.settings-topbar-burger):not(.wn-filter):not(.ac-fluid-tab):not(.desktop-product-zoom-btn):not(.ac-image-preview-btn):not(.scan-requests-photo-btn):not(.step-wizard__step-btn):not(.modal-x):not(.modal-close),
+html[data-theme="dark"] body button:focus:not(.active):not(.is-active):not(.ac-seg-btn):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.settings-topbar-burger):not(.wn-filter):not(.ac-fluid-tab):not(.desktop-product-zoom-btn):not(.ac-image-preview-btn):not(.scan-requests-photo-btn):not(.step-wizard__step-btn):not(.modal-x):not(.modal-close),
+html[data-theme="dark"] body button:focus-visible:not(.active):not(.is-active):not(.ac-seg-btn):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.settings-topbar-burger):not(.wn-filter):not(.ac-fluid-tab):not(.desktop-product-zoom-btn):not(.ac-image-preview-btn):not(.scan-requests-photo-btn):not(.step-wizard__step-btn):not(.modal-x):not(.modal-close) {
   background-color: #3f3f46 !important;
   background-image: none !important;
   color: #fafafa !important;
@@ -6034,4 +6040,192 @@ html[data-theme="dark"] body .ac-hbar-val strong {
 html[data-theme="dark"] body .ac-hbar-track {
   background: rgba(255, 255, 255, 0.08) !important;
 }
+
+/* ── v0.10 Dark Mode Button Contrast Lock & Refined Dark Surfaces ── */
+html[data-theme="dark"] {
+  --bg: #0b0c10;
+  --paper: #13151d;
+  --surface: #13151d;
+  --line: rgba(255, 255, 255, 0.085);
+  --muted: #9ca3af;
+}
+html[data-theme="dark"] body {
+  background: #0b0c10 !important;
+  color: #f4f4f6 !important;
+}
+html[data-theme="dark"] body .card,
+html[data-theme="dark"] body .atlas-card,
+html[data-theme="dark"] body .ac-panel,
+html[data-theme="dark"] body .ac-metric,
+html[data-theme="dark"] body .settings-card,
+html[data-theme="dark"] body .about-section,
+html[data-theme="dark"] body .whats-new-card {
+  background: #13151d !important;
+  border-color: rgba(255, 255, 255, 0.085) !important;
+}
+
+/* Segmented pills & filter buttons (Dashboard 7j/30j/6m, Reports, Settings, WhatsNew) */
+html[data-theme="dark"] #root .content button.ac-seg-btn,
+html[data-theme="dark"] #root .content .ac-dash-period-pills button.ac-seg-btn,
+html[data-theme="dark"] #root .content button.wn-filter,
+html[data-theme="dark"] #root .content button.ac-fluid-tab,
+html[data-theme="dark"] #root .content .bank-tabs button {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border-color: transparent !important;
+  color: #a1a1aa !important;
+  -webkit-text-fill-color: #a1a1aa !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"] #root .content .ac-theme-seg button.ac-seg-btn,
+html[data-theme="dark"] #root .content .ac-scale-seg button.ac-seg-btn {
+  background: #1d202b !important;
+  background-color: #1d202b !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+html[data-theme="dark"] #root .content button.ac-seg-btn:hover,
+html[data-theme="dark"] #root .content button.ac-seg-btn:focus,
+html[data-theme="dark"] #root .content .ac-dash-period-pills button.ac-seg-btn:hover,
+html[data-theme="dark"] #root .content .ac-dash-period-pills button.ac-seg-btn:focus,
+html[data-theme="dark"] #root .content button.wn-filter:hover,
+html[data-theme="dark"] #root .content button.ac-fluid-tab:hover,
+html[data-theme="dark"] #root .content .bank-tabs button:hover {
+  background: rgba(255, 255, 255, 0.09) !important;
+  background-color: rgba(255, 255, 255, 0.09) !important;
+  color: #f4f4f6 !important;
+  -webkit-text-fill-color: #f4f4f6 !important;
+}
+html[data-theme="dark"] #root .content button.ac-seg-btn.active,
+html[data-theme="dark"] #root .content button.ac-seg-btn.active:hover,
+html[data-theme="dark"] #root .content button.ac-seg-btn.active:focus,
+html[data-theme="dark"] #root .content button.ac-seg-btn.active:active,
+html[data-theme="dark"] #root .content button.ac-seg-btn[aria-pressed="true"],
+html[data-theme="dark"] #root .content button.ac-seg-btn[aria-pressed="true"]:hover,
+html[data-theme="dark"] #root .content button.ac-seg-btn[aria-pressed="true"]:focus,
+html[data-theme="dark"] #root .content button.ac-seg-btn[aria-pressed="true"]:active,
+html[data-theme="dark"] #root .content .ac-dash-period-pills button.ac-seg-btn[aria-pressed="true"],
+html[data-theme="dark"] #root .content .ac-dash-period-pills button.ac-seg-btn[aria-pressed="true"]:hover,
+html[data-theme="dark"] #root .content .ac-dash-period-pills button.ac-seg-btn[aria-pressed="true"]:focus,
+html[data-theme="dark"] #root .content button.wn-filter.active,
+html[data-theme="dark"] #root .content button.wn-filter.active:hover,
+html[data-theme="dark"] #root .content button.ac-fluid-tab.active,
+html[data-theme="dark"] #root .content button.ac-fluid-tab.active:hover,
+html[data-theme="dark"] #root .content .bank-tabs button.active,
+html[data-theme="dark"] #root .content .bank-tabs button.active:hover {
+  background: #4f46e5 !important;
+  background-color: #4f46e5 !important;
+  border-color: #6366f1 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.38) !important;
+}
+html[data-theme="dark"] #root .content button.ac-seg-btn.active svg,
+html[data-theme="dark"] #root .content button.ac-seg-btn[aria-pressed="true"] svg {
+  color: #ffffff !important;
+}
+
+/* Floating Focus Sidebar in Dark Mode — authoritative specificity */
+html[data-theme="dark"] #root aside.atlas-focus-sidebar {
+  background: #0d0e13 !important;
+  border-color: rgba(255, 255, 255, 0.085) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 20px 50px rgba(0, 0, 0, 0.62) !important;
+}
+html[data-theme="dark"] #root aside.atlas-focus-sidebar button.atlas-focus-collapse-btn {
+  background: #171923 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #d4d4d8 !important;
+  -webkit-text-fill-color: #d4d4d8 !important;
+}
+html[data-theme="dark"] #root aside.atlas-focus-sidebar button.atlas-focus-collapse-btn:hover {
+  background: #232736 !important;
+  border-color: rgba(99, 102, 241, 0.45) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html[data-theme="dark"] #root aside.atlas-focus-sidebar button.atlas-focus-nav-item {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 1px solid transparent !important;
+  color: #a1a1aa !important;
+  -webkit-text-fill-color: #a1a1aa !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"] #root aside.atlas-focus-sidebar button.atlas-focus-nav-item:hover,
+html[data-theme="dark"] #root aside.atlas-focus-sidebar button.atlas-focus-nav-item:focus {
+  background: #191c26 !important;
+  background-color: #191c26 !important;
+  color: #f4f4f6 !important;
+  -webkit-text-fill-color: #f4f4f6 !important;
+}
+html[data-theme="dark"] #root aside.atlas-focus-sidebar button.atlas-focus-nav-item.is-active,
+html[data-theme="dark"] #root aside.atlas-focus-sidebar button.atlas-focus-nav-item.is-active:hover,
+html[data-theme="dark"] #root aside.atlas-focus-sidebar button.atlas-focus-nav-item.is-active:focus {
+  background: #4f46e5 !important;
+  background-color: #4f46e5 !important;
+  border-color: #6366f1 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: 0 8px 24px rgba(79, 70, 229, 0.42) !important;
+}
+
+/* About tech chips in Dark Mode */
+html[data-theme="dark"] #root .about-trust-chip,
+html[data-theme="dark"] #root .public-about .about-trust-chip {
+  background: #1b1e28 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #e4e4e7 !important;
+}
+
+/* Primary & secondary buttons: never white-on-white when hovered+focused */
+html[data-theme="dark"] #root .content button.primary,
+html[data-theme="dark"] #root .content .btn.primary {
+  background: #f4f4f5 !important;
+  border-color: #f4f4f5 !important;
+  color: #18181b !important;
+  -webkit-text-fill-color: #18181b !important;
+}
+html[data-theme="dark"] #root .content button.primary:hover:not(:disabled),
+html[data-theme="dark"] #root .content button.primary:focus:not(:disabled),
+html[data-theme="dark"] #root .content button.primary:focus:hover:not(:disabled),
+html[data-theme="dark"] #root .content .btn.primary:hover:not(:disabled) {
+  background: #e4e4e7 !important;
+  border-color: #e4e4e7 !important;
+  color: #18181b !important;
+  -webkit-text-fill-color: #18181b !important;
+}
+html[data-theme="dark"] #root .content button.primary:active:not(:disabled) {
+  background: #d4d4d8 !important;
+  color: #18181b !important;
+  -webkit-text-fill-color: #18181b !important;
+}
+html[data-theme="dark"] #root .content button.secondary:hover:not(:disabled):not(.ac-seg-btn):not(.wn-filter):not(.ac-fluid-tab):not(.settings-topbar-tab),
+html[data-theme="dark"] #root .content button.secondary:focus:not(:disabled):not(.ac-seg-btn):not(.wn-filter):not(.ac-fluid-tab):not(.settings-topbar-tab),
+html[data-theme="dark"] #root .content button.secondary:focus:hover:not(:disabled):not(.ac-seg-btn):not(.wn-filter):not(.ac-fluid-tab):not(.settings-topbar-tab) {
+  background: #32343f !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  color: #fafafa !important;
+  -webkit-text-fill-color: #fafafa !important;
+}
+
+/* Focus topbar controls */
+html[data-theme="dark"] .settings-topbar {
+  background: rgba(13, 14, 19, 0.9) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+html[data-theme="dark"] .settings-topbar-searchtab,
+html[data-theme="dark"] .settings-topbar-back {
+  background: #171923 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+}
+html[data-theme="dark"] .settings-topbar-searchtab:hover,
+html[data-theme="dark"] .settings-topbar-back:hover {
+  background: #232736 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
 
