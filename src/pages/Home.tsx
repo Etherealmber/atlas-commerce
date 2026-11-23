@@ -84,7 +84,7 @@ export default function Home() {
               <span /><span /><span />
               <em>Atlas · Tableau de bord</em>
             </div>
-            <img src="/shots/desktop-demo.webp" alt="Tableau de bord web Atlas Commerce avec des données fictives" width="1280" height="800" />
+            <img src="/shots/desktop-demo.webp" alt="Tableau de bord web Atlas Commerce avec des données fictives" width="1440" height="900" />
           </div>
           <img className="hm-phone-shot" src="/shots/phone-products-demo.webp" alt="Catalogue web mobile avec des produits fictifs" width="390" height="844" loading="lazy" />
           </div>
@@ -249,7 +249,7 @@ export default function Home() {
               <Link to="/android" className="dl-link dl-chip">Télécharger l’APK <span aria-hidden="true">→</span></Link>
             </div>
             <div className="dl-card hm-platform-card">
-              <figure className="hm-platform-visual hm-platform-visual--desktop"><img src="/shots/desktop-demo.webp" alt="Tableau de bord web sur ordinateur avec données fictives" width="1280" height="800" loading="lazy" /><figcaption>Web sur ordinateur · données fictives</figcaption></figure>
+              <figure className="hm-platform-visual hm-platform-visual--desktop"><img src="/shots/desktop-demo.webp" alt="Tableau de bord web sur ordinateur avec données fictives" width="1440" height="900" loading="lazy" /><figcaption>Web sur ordinateur · données fictives</figcaption></figure>
               <div className="dl-ico">{IC_DESK}</div>
               <h3>Bureau</h3>
               <p>
