@@ -1791,6 +1791,9 @@ async function ensureHrSettings(db: D1Database) {
     await addColumnIfMissing(db, 'company_settings', 'attendance_late_block_pct', `REAL DEFAULT 10`);
     await addColumnIfMissing(db, 'company_settings', 'attendance_late_half_days', `REAL DEFAULT 0.5`);
     await addColumnIfMissing(db, 'company_settings', 'attendance_late_threshold', `TEXT DEFAULT '09:15'`);
+    await addColumnIfMissing(db, 'company_settings', 'attendance_early_threshold', `TEXT DEFAULT '18:00'`);
+    await addColumnIfMissing(db, 'company_settings', 'attendance_overtime_after_hours', `REAL DEFAULT 8`);
+    await addColumnIfMissing(db, 'company_settings', 'attendance_overtime_multiplier', `REAL DEFAULT 1.25`);
     await addColumnIfMissing(db, 'company_settings', 'attendance_half_morning', `TEXT DEFAULT '09:00-13:00'`);
     await addColumnIfMissing(db, 'company_settings', 'attendance_half_afternoon', `TEXT DEFAULT '14:00-18:00'`);
     await addColumnIfMissing(db, 'company_settings', 'attendance_workday_hours', `REAL DEFAULT 8`);
@@ -1816,6 +1819,9 @@ export type AttendanceRules = {
   block_pct: number;
   half_days: number;
   late_threshold: string;
+  early_threshold: string;
+  overtime_after_hours: number;
+  overtime_multiplier: number;
   half_morning: string;
   half_afternoon: string;
   workday_hours: number;
@@ -1841,6 +1847,9 @@ async function loadAttendanceRules(db: D1Database): Promise<AttendanceRules> {
     block_pct: 10,
     half_days: 0.5,
     late_threshold: '09:15',
+    early_threshold: '18:00',
+    overtime_after_hours: 8,
+    overtime_multiplier: 1.25,
     half_morning: '09:00-13:00',
     half_afternoon: '14:00-18:00',
     workday_hours: 8,
@@ -1865,6 +1874,9 @@ async function loadAttendanceRules(db: D1Database): Promise<AttendanceRules> {
       block_pct: Math.max(1, Math.min(50, Number(s.attendance_late_block_pct ?? 10))),
       half_days: Math.max(0, Math.min(5, Number(s.attendance_late_half_days ?? 0.5))),
       late_threshold: String(s.attendance_late_threshold || '09:15').slice(0, 5),
+      early_threshold: String(s.attendance_early_threshold || '18:00').slice(0, 5),
+      overtime_after_hours: Math.max(1, Math.min(24, Number(s.attendance_overtime_after_hours ?? s.attendance_workday_hours ?? 8))),
+      overtime_multiplier: Math.max(1, Math.min(3, Number(s.attendance_overtime_multiplier ?? 1.25))),
       half_morning: String(s.attendance_half_morning || '09:00-13:00'),
       half_afternoon: String(s.attendance_half_afternoon || '14:00-18:00'),
       workday_hours: Math.max(1, Math.min(24, Number(s.attendance_workday_hours ?? 8))),

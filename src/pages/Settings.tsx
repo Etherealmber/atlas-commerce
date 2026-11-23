@@ -1302,6 +1302,17 @@ if (loading) return (
               />
             </div>
             <div className="form-row">
+              <label>Départ anticipé avant</label>
+              <input
+                type="text"
+                placeholder="18:00"
+                value={String((settings as any)?.attendance_early_threshold || '18:00')}
+                onChange={(e) =>
+                  setSettings((s: any) => ({ ...s, attendance_early_threshold: e.target.value }))
+                }
+              />
+            </div>
+            <div className="form-row">
               <label>Heures / jour ouvrable</label>
               <input
                 type="number"
@@ -1311,6 +1322,32 @@ if (loading) return (
                 value={Number((settings as any)?.attendance_workday_hours ?? 8)}
                 onChange={(e) =>
                   setSettings((s: any) => ({ ...s, attendance_workday_hours: Number(e.target.value) }))
+                }
+              />
+            </div>
+            <div className="form-row">
+              <label>Heures sup. au-delà de (h/j)</label>
+              <input
+                type="number"
+                min={1}
+                max={24}
+                step={0.5}
+                value={Number((settings as any)?.attendance_overtime_after_hours ?? (settings as any)?.attendance_workday_hours ?? 8)}
+                onChange={(e) =>
+                  setSettings((s: any) => ({ ...s, attendance_overtime_after_hours: Number(e.target.value) }))
+                }
+              />
+            </div>
+            <div className="form-row">
+              <label>Majoration heures sup. (coeff.)</label>
+              <input
+                type="number"
+                min={1}
+                max={3}
+                step={0.05}
+                value={Number((settings as any)?.attendance_overtime_multiplier ?? 1.25)}
+                onChange={(e) =>
+                  setSettings((s: any) => ({ ...s, attendance_overtime_multiplier: Number(e.target.value) }))
                 }
               />
             </div>
@@ -1535,6 +1572,9 @@ if (loading) return (
                       ? 1
                       : 0,
                     attendance_late_threshold: String((settings as any)?.attendance_late_threshold || '09:15'),
+                    attendance_early_threshold: String((settings as any)?.attendance_early_threshold || '18:00'),
+                    attendance_overtime_after_hours: Number((settings as any)?.attendance_overtime_after_hours ?? 8),
+                    attendance_overtime_multiplier: Number((settings as any)?.attendance_overtime_multiplier ?? 1.25),
                     attendance_half_morning: String((settings as any)?.attendance_half_morning || '09:00-13:00'),
                     attendance_half_afternoon: String((settings as any)?.attendance_half_afternoon || '14:00-18:00'),
                     attendance_workday_hours: Number((settings as any)?.attendance_workday_hours ?? 8),

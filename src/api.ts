@@ -1206,5 +1206,18 @@ export const api = {
     request<{ data: any }>(`/api/cash-shifts/${id}/close`, { method: 'POST', body: JSON.stringify(body) }),
   cashShiftReportUrl: (id: number, kind: 'x' | 'z', reprint = false) =>
     `/api/cash-shifts/${id}/${kind}-report${reprint ? '?reprint=1' : ''}`,
+
+  // Part 3 — attendance (pointage)
+  attendanceBadgeCheck: (body: { badge_code: string; action?: 'auto' | 'in' | 'out'; date?: string; time?: string }) =>
+    request<{ data: any }>('/api/attendance/badge-check', { method: 'POST', body: JSON.stringify(body) }),
+  attendanceSelfCheck: (body: { employee_id: number; action: 'in' | 'out'; source?: 'mobile' | 'manual' | 'badge' }) =>
+    request<{ data: any }>('/api/attendance/self-check', { method: 'POST', body: JSON.stringify(body) }),
+  getMonthlyAttendance: (params?: { month?: string; employee_id?: number | string }) => {
+    const q = new URLSearchParams();
+    if (params?.month) q.set('month', params.month);
+    if (params?.employee_id) q.set('employee_id', String(params.employee_id));
+    const s = q.toString();
+    return request<{ data: any }>(`/api/attendance/monthly${s ? `?${s}` : ''}`);
+  },
 };
 
