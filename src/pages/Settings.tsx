@@ -38,6 +38,7 @@ import { getDensity, setDensity, getUiScale, setUiScale, subscribeUiPrefs, type 
 import { startAtlasLoading, setAtlasLoading, doneAtlasLoading } from '../components/AtlasLoadingBar';
 import { VALUATION_METHOD_OPTIONS } from '../lib/labels';
 import IntegrationsPanel from '../components/IntegrationsPanel';
+import PageSkeleton, { DesktopTableSkeleton } from '../components/PageSkeleton';
 import GithubReportsPanel from '../components/settings/GithubReportsPanel';
 import { AlertsPanel } from '../components/atlas-v209-panels';
 import AgentPermissionsPanel from '../components/AgentPermissionsPanel';
@@ -689,12 +690,8 @@ export default function Settings() {
 if (loading) return (
     <div className="atlas-page atlas-settings">
       <p className="atlas-eyebrow">Espace de travail</p>
-      <h1 className="atlas-hello" style={{ fontSize: '1.75rem' }}>Paramètres</h1>
-      <div className="atlas-card" style={{ marginTop: 16 }}>
-        <div className="skeleton" style={{ height: 16, width: '40%', marginBottom: 12 }} />
-        <div className="skeleton" style={{ height: 40, width: '100%', marginBottom: 8 }} />
-        <div className="skeleton" style={{ height: 40, width: '100%' }} />
-      </div>
+      <h1 className="atlas-hello" style={{ fontSize: '1.75rem', marginBottom: 16 }}>Paramètres</h1>
+      <PageSkeleton variant="settings" />
     </div>
   );
   const s = settings || {
@@ -923,7 +920,7 @@ if (loading) return (
 
 
       {activeTab === 'profile' && (typeof getRole === 'function' ? getRole() : '') === 'owner' && (
-        <div className="card" style={{ marginBottom: 16 }} data-settings-anchor="db-migration">
+        <div className="ac-panel" data-settings-anchor="db-migration">
           <DbMigrationPanel />
         </div>
       )}
@@ -933,14 +930,16 @@ if (loading) return (
       {activeTab === 'profile' && (
         <div>
           {!isFeatureEnabled('editProfileModal') && (
-        <div className="card" style={{ marginBottom: 16 }}>
-            <div className="settings-section-head">
-              <h2>Mon profil</h2>
-              <p>
-                Nom affiché, photo, téléphone et e-mail. L&apos;identifiant et le rôle se modifient uniquement côté administrateur.
-              </p>
+        <div className="ac-panel">
+            <div className="ac-settings-panel-head">
+              <div>
+                <h2>Mon profil</h2>
+                <span className="ac-settings-panel-sub">
+                  Nom affiché, photo, téléphone et e-mail. L&apos;identifiant et le rôle se modifient uniquement côté administrateur.
+                </span>
+              </div>
             </div>
-            <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 16, padding: '10px 12px', background: 'var(--paper-2, #f7f4ee)', borderRadius: 10, border: '1px solid var(--line)' }}>
+            <p className="ac-settings-info-note">
               Pour modifier votre <strong>identifiant</strong> ou votre <strong>rôle</strong>, contactez un administrateur.
             </p>
             <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap', marginBottom: 16 }}>
@@ -1119,6 +1118,9 @@ if (loading) return (
             {passkeyMsg && (
               <p style={{ fontSize: 13, marginBottom: 10, color: passkeyMsg.ok ? 'var(--muted)' : '#b91c1c' }} role="status">{passkeyMsg.text}</p>
             )}
+            {passkeysLoading && passkeys.length === 0 && (
+              <DesktopTableSkeleton rows={3} cols={5} />
+            )}
             {passkeys.length === 0 && !passkeysLoading && (
               <p style={{ fontSize: 13, color: 'var(--muted)' }}>Aucune clé enregistrée sur cet appareil. Utilisez « + Ajouter une passkey » (biométrie ou clé de sécurité), comme sur mobile.</p>
             )}
@@ -1227,8 +1229,15 @@ if (loading) return (
       )}
 
 {activeTab === 'company' && officeSettings && (
-        <div className="atlas-card">
-          <h2 style={{ fontSize: 16, marginBottom: 20 }} data-settings-anchor="sec-company">Informations de la société</h2>
+        <div className="ac-panel">
+          <div className="ac-settings-panel-head">
+            <div>
+              <h2 data-settings-anchor="sec-company">Informations de la société</h2>
+              <span className="ac-settings-panel-sub">
+                Identité commerciale et coordonnées affichées sur vos devis, factures, reçus et rapports PDF.
+              </span>
+            </div>
+          </div>
 
 
           <div className="grid grid-2">
@@ -1257,13 +1266,17 @@ if (loading) return (
 
       
 {activeTab === 'attendance' && officeSettings && (
-        <div className="settings-panel card" style={{ padding: 20 }}>
-          <h2 style={{ marginTop: 0 }}>Présence, paie & acomptes</h2>
-          <p className="muted" style={{ fontSize: 13 }}>
-            Toutes les règles du module présence : activation, retards, demi-journées, impact paie et acomptes.
-          </p>
+        <div className="ac-panel">
+          <div className="ac-settings-panel-head">
+            <div>
+              <h2>Présence, paie &amp; acomptes</h2>
+              <span className="ac-settings-panel-sub">
+                Toutes les règles du module présence : activation, retards, demi-journées, impact paie et acomptes.
+              </span>
+            </div>
+          </div>
 
-          <h3 style={{ fontSize: 15, marginTop: 20 }}>Module</h3>
+          <h3 className="ac-settings-section-title" style={{ marginTop: 4, paddingTop: 0, borderTop: 0 }}>Module</h3>
           <div className="form-row" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <label style={{ margin: 0 }}>Présence activée</label>
             <input
@@ -1996,8 +2009,15 @@ if (loading) return (
         </div>
       )}
 {activeTab === 'legal' && officeSettings && (
-        <div className="card">
-          <h2 style={{ fontSize: 16, marginBottom: 20 }}>Identifiants légaux et fiscaux</h2>
+        <div className="ac-panel">
+          <div className="ac-settings-panel-head">
+            <div>
+              <h2>Identifiants légaux et fiscaux</h2>
+              <span className="ac-settings-panel-sub">
+                ICE, IF, RC, patente, CNSS, TVA et durées de conservation légales des documents.
+              </span>
+            </div>
+          </div>
           <div className="grid grid-2">
             <div className="form-row" data-settings-anchor="ice"><label>ICE / Identifiant</label><input value={s.ice || ''} onChange={(e) => update('ice', e.target.value)} /></div>
             <div className="form-row"><label>IF / Identifiant fiscal</label><input value={s.if_number || ''} onChange={(e) => update('if_number', e.target.value)} /></div>
@@ -2058,7 +2078,7 @@ if (loading) return (
               <p style={{ fontSize: 12, color: 'var(--muted)' }}>Rappel interne (ex. 5 ans). Appliquez votre politique CNDP.</p>
             </div>
           </div>
-          <div className="card" style={{ marginTop: 12, padding: 12, background: 'var(--stone)' }}>
+          <div className="ac-settings-subbox" style={{ marginTop: 12 }}>
             <p style={{ fontSize: 13, margin: 0, lineHeight: 1.45 }}>
               <strong>Équipe — reçus imprimés :</strong> les reçus avec QR situation sont des documents
               sensibles. Ne les laissez pas accessibles au public. En cas de perte, révoquez le jeton
@@ -2116,12 +2136,17 @@ if (loading) return (
 
       {activeTab === 'invoicing' && officeSettings && (
         <div>
-          <div className="card" style={{ marginBottom: 20 }}>
-            <h2 style={{ fontSize: 16, marginBottom: 12 }}>Numérotation des documents (conformité Maroc)</h2>
+          <div className="ac-panel">
+            <div className="ac-settings-panel-head">
+              <div>
+                <h2>Numérotation des documents (conformité Maroc)</h2>
+                <span className="ac-settings-panel-sub">
+                  Chaque type de document possède sa propre série continue (art. 145 CGI) sans interruption.
+                </span>
+              </div>
+            </div>
             <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16, lineHeight: 1.45 }}>
-              Chaque type de document possède sa propre série continue (art. 145 CGI). Formats recommandés au Maroc :
-              FA-2026-0001, DEV-2026-0001, REC-2026-0001, <strong>WR-2026-0001</strong> (remboursements / avoirs).
-              La séquence ne doit pas comporter de trous.
+              Formats recommandés au Maroc : FA-2026-0001, DEV-2026-0001, REC-2026-0001, <strong>WR-2026-0001</strong> (remboursements / avoirs).
             </p>
             <div className="form-row" data-settings-anchor="numbering" style={{ marginBottom: 16 }}>
               <label>Style de numérotation</label>
@@ -2184,12 +2209,15 @@ if (loading) return (
                 : `-${new Date().getFullYear()}-${String(s.next_credit_number ?? 1).padStart(Number(s.numbering_pad) || 4, '0')}`}
             </p>
           </div>
-          <div className="card" style={{ marginBottom: 20 }}>
-            <h2 style={{ fontSize: 16, marginBottom: 8 }}>Clôture de période fiscale</h2>
-            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12, lineHeight: 1.45 }}>
-              Bloque la création de factures, avoirs WR et achats datés jusqu&apos;au mois inclus (YYYY-MM).
-              Les documents déjà émis restent consultables. Réservé au propriétaire.
-            </p>
+          <div className="ac-panel">
+            <div className="ac-settings-panel-head">
+              <div>
+                <h2>Clôture de période fiscale</h2>
+                <span className="ac-settings-panel-sub">
+                  Verrouille la création de factures, avoirs WR et achats jusqu&apos;au mois inclus (YYYY-MM).
+                </span>
+              </div>
+            </div>
             <PeriodLockPanel />
           </div>
           <DocPreviewPanel />
@@ -2199,11 +2227,15 @@ if (loading) return (
 
       {activeTab === 'documents' && officeSettings && (
         <div>
-          <div className="card" style={{ marginBottom: 16 }}>
-            <h2 style={{ fontSize: 16, marginBottom: 12 }}>Personnalisation PDF / impression</h2>
-            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 14 }}>
-              Options appliquées aux factures, devis, achats et reçus (impression et PDF).
-            </p>
+          <div className="ac-panel">
+            <div className="ac-settings-panel-head">
+              <div>
+                <h2>Personnalisation PDF / impression</h2>
+                <span className="ac-settings-panel-sub">
+                  Options appliquées aux factures, devis, achats et reçus (impression et PDF).
+                </span>
+              </div>
+            </div>
             <div className="grid grid-2" style={{ gap: 12, marginBottom: 16 }}>
               {[
                 { key: 'pdf_show_logo', label: 'Afficher le logo', def: true },
@@ -2329,12 +2361,15 @@ if (loading) return (
       
       {activeTab === 'warehouse' && officeSettings && (
         <div>
-          <div className="card" style={{ marginBottom: 16 }}>
-            <h2 style={{ fontSize: 16, marginBottom: 8 }}>Multi-entrepôts</h2>
-            <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.45 }}>
-              Activez le suivi par emplacement. Les ventes et achats mettent à jour l&apos;emplacement par défaut
-              (magasin principal). Utilisez <strong>Ops stock</strong> pour transférer entre entrepôts et voir les rapports par lieu.
-            </p>
+          <div className="ac-panel">
+            <div className="ac-settings-panel-head">
+              <div>
+                <h2>Multi-entrepôts</h2>
+                <span className="ac-settings-panel-sub">
+                  Suivi des quantités par emplacement. Gérez les entrepôts dans Ops stock → Emplacements.
+                </span>
+              </div>
+            </div>
             <div className="form-row">
               <label>
                 <input
@@ -2368,8 +2403,15 @@ if (loading) return (
               Gérez la liste des entrepôts (code MAG, RES, …) dans <strong>Ops stock → Emplacements</strong>.
             </p>
           </div>
-          <div className="card">
-            <h2 style={{ fontSize: 16, marginBottom: 8 }}>Méthode de valorisation des stocks</h2>
+          <div className="ac-panel">
+            <div className="ac-settings-panel-head">
+              <div>
+                <h2>Méthode de valorisation des stocks</h2>
+                <span className="ac-settings-panel-sub">
+                  Règle de calcul du coût unitaire et de la valeur totale du stock.
+                </span>
+              </div>
+            </div>
             <div className="form-row" data-settings-anchor="valuation">
               <label>Méthode</label>
               <select
@@ -2389,12 +2431,15 @@ if (loading) return (
       )}
 
       {activeTab === 'categories' && officeSettings && (
-        <div className="card">
-          <h2 style={{ fontSize: 16, marginBottom: 8 }}>Catégories de produits</h2>
-          <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16, lineHeight: 1.45 }}>
-            Organisez le stock par catégories. Le rapport PDF stock est regroupé automatiquement par catégorie.
-            La suppression d&apos;une catégorie retire le libellé des produits (les produits restent).
-          </p>
+        <div className="ac-panel">
+          <div className="ac-settings-panel-head">
+            <div>
+              <h2>Catégories de produits &amp; unités</h2>
+              <span className="ac-settings-panel-sub">
+                Classement du catalogue, regroupement des rapports PDF et gestion des unités de mesure.
+              </span>
+            </div>
+          </div>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 20 }}>
             <input
               placeholder="Nom de la catégorie *"
@@ -2860,11 +2905,18 @@ if (loading) return (
                   </thead>
                   <tbody>
                     {auditLoading && auditLog.length === 0 && (
-                      <tr>
-                        <td colSpan={6} className="audit-empty">
-                          Chargement du journal…
-                        </td>
-                      </tr>
+                      <>
+                        {[0, 1, 2, 3, 4, 5].map((idx) => (
+                          <tr key={idx} className="ac-skeleton-inline-row" aria-hidden="true">
+                            <td><span className="skeleton ac-skeleton-bar" style={{ width: '78%' }} /></td>
+                            <td><span className="skeleton ac-skeleton-bar ac-skeleton-bar--pill" style={{ width: 88 }} /></td>
+                            <td><span className="skeleton ac-skeleton-bar" style={{ width: '72%' }} /></td>
+                            <td><span className="skeleton ac-skeleton-bar" style={{ width: '64%' }} /></td>
+                            <td><span className="skeleton ac-skeleton-bar" style={{ width: '58%' }} /></td>
+                            <td><span className="skeleton ac-skeleton-bar" style={{ width: '82%' }} /></td>
+                          </tr>
+                        ))}
+                      </>
                     )}
                     {!auditLoading && auditLog.length === 0 && (
                       <tr>
@@ -2983,22 +3035,29 @@ if (loading) return (
             isOwner={(typeof getRole === 'function' ? getRole() : '') === 'owner'}
             role={typeof getRole === 'function' ? String(getRole() || '') : ''}
           />
-          <div className="card" style={{ marginBottom: 16 }} data-settings-anchor="agent-permissions">
-            <h3 style={{ marginTop: 0 }}>Permissions Atlas Agent</h3>
-            <p className="muted" style={{ marginTop: 0, marginBottom: 12 }}>
-              Outils et actions que l’agent peut exécuter en votre nom. Géré ici (plus dans le panneau de l’agent).
-            </p>
+          <div className="ac-panel" data-settings-anchor="agent-permissions">
+            <div className="ac-settings-panel-head">
+              <div>
+                <h3>Permissions Atlas Agent</h3>
+                <span className="ac-settings-panel-sub">
+                  Outils et actions que l’agent peut exécuter en votre nom.
+                </span>
+              </div>
+            </div>
             {/* v0.7.7 — carte résumé + popup façon « Appareils connectés » */}
             <AgentPermissionsPanel asTrigger />
           </div>
           {(canAccessAdminSettings() || isOwner) && (
-            <div className="card" style={{ marginBottom: 16, padding: 16 }}>
-              <h2 style={{ fontSize: 16, marginTop: 0 }}>Atlas Agent · Groq</h2>
-              <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.45 }}>
-                Atlas Agent utilise uniquement <strong>Groq</strong> (rapide, gratuit avec quota).
-                Il peut parler librement (identité, explications, métier) — pas seulement le stock.
-              </p>
-              <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 10 }}>
+            <div className="ac-panel">
+              <div className="ac-settings-panel-head">
+                <div>
+                  <h2>Atlas Agent · Groq</h2>
+                  <span className="ac-settings-panel-sub">
+                    Atlas Agent utilise Groq (rapide, avec conversations chiffrées sur R2).
+                  </span>
+                </div>
+              </div>
+              <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>
                 Secret requis: <code>GROQ_API_KEY</code> {assistMeta.groqConfigured ? '✓ configuré' : '✗ manquant'}
                 <span className="muted" style={{ display: 'block', marginTop: 6, fontSize: '0.8rem' }}>
                   Optionnel: <code>GROQ_MODEL</code> (défaut llama-3.1-8b-instant). Conversations chiffrées sur R2 (ACH2).
@@ -3011,12 +3070,15 @@ if (loading) return (
 
       {activeTab === 'integrations' && (canAccessAdminSettings() || isOwner) && (
         <div>
-          <div className="card" style={{ marginBottom: 16 }}>
-            <h2 style={{ fontSize: 16 }}>Clés API publiques</h2>
-            <p style={{ fontSize: 13, color: 'var(--muted)' }}>
-              Pour connecter une caisse, un site e-commerce ou un script. En-tête :
-              <code> Authorization: Bearer atlas_…</code> (à venir côté auth) — la clé s&apos;affiche une seule fois à la création.
-            </p>
+          <div className="ac-panel">
+            <div className="ac-settings-panel-head">
+              <div>
+                <h2>Clés API publiques &amp; alertes</h2>
+                <span className="ac-settings-panel-sub">
+                  Connectez une caisse, un site e-commerce ou un script externe avec un jeton Bearer.
+                </span>
+              </div>
+            </div>
             <IntegrationsPanel />
             <AlertsPanel />
           </div>
@@ -3027,15 +3089,13 @@ if (loading) return (
       
 {activeTab === 'admin' && (canAccessAdminSettings() || isOwner) && (
         <div>
-        {/* v0.7.7 — page d'ouverture : réservée à l'onglet Admin (admin/owner uniquement) */}
-      {/* v0.7.6 — page d'ouverture : choix par appareil, auto-hébergement compris */}
-      <div className="card" style={{ marginTop: 14, padding: '14px 16px' }}>
+      <div className="ac-panel">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
           <div style={{ minWidth: 0, flex: '1 1 260px' }}>
-            <strong style={{ fontSize: 14 }}>Page d’ouverture</strong>
+            <strong style={{ fontSize: 15 }}>Page d’ouverture</strong>
             <p className="muted" style={{ margin: '4px 0 0', fontSize: 12.8, lineHeight: 1.55 }}>
               Où arriver après la connexion — et en ouvrant « / » — sur cet appareil.
-              Réglage local : chaque personne (et chaque installation auto-hébergée) choisit la sienne.
+              Réglage local : chaque personne choisit la sienne.
             </p>
           </div>
           <select
@@ -3059,13 +3119,15 @@ if (loading) return (
           </p>
         )}
       </div>
-        {/* v0.7.7 — guide d'accueil : géré depuis l'onglet Admin (plus d'icône topbar) */}
-        <div className="card" style={{ marginBottom: 16, padding: 16 }}>
-          <h2 style={{ fontSize: 16, marginTop: 0 }}>Guide d’accueil</h2>
-          <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.45 }}>
-            Revoir le guide interactif de démarrage (page d’accueil pas-à-pas). Le guide se réaffiche
-            immédiatement pour ce navigateur.
-          </p>
+        <div className="ac-panel">
+          <div className="ac-settings-panel-head">
+            <div>
+              <h2>Guide d’accueil</h2>
+              <span className="ac-settings-panel-sub">
+                Revoir l’assistant interactif de démarrage pour ce navigateur.
+              </span>
+            </div>
+          </div>
           <button
             type="button"
             className="secondary"
@@ -3077,11 +3139,15 @@ if (loading) return (
             Revoir le guide d’accueil
           </button>
         </div>
-        <div className="card" style={{ marginBottom: 16, padding: 16 }}>
-          <h2 style={{ fontSize: 16, marginTop: 0 }} data-settings-anchor="backup">Sauvegarde &amp; restauration</h2>
-          <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.45 }}>
-            Snapshot incrémental compressé &amp; chiffré (gzip + AES-256-GCM, format .abk) — illisible sur le CDN sans ADMIN_BACKUP_TOKEN. Planification toutes les 12 h, rétention 7 jours (avec 2 points minimum conservés). Une copie de sécurité est créée avant chaque restauration.
-          </p>
+        <div className="ac-panel">
+          <div className="ac-settings-panel-head">
+            <div>
+              <h2 data-settings-anchor="backup">Sauvegarde &amp; restauration</h2>
+              <span className="ac-settings-panel-sub">
+                Snapshot incrémental compressé &amp; chiffré (.abk) — planification 12 h et rétention 7 jours.
+              </span>
+            </div>
+          </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 14 }}>
             <button type="button" className="secondary" disabled={restoreBusy || backupBusy} onClick={async () => {
               const t0 = Date.now();
@@ -3425,7 +3491,7 @@ if (loading) return (
                 return (
                   <>
                     <div style={{
-                      height: 12, borderRadius: 99, background: 'var(--stone)', overflow: 'hidden', margin: '16px 0 8px',
+                      height: 12, borderRadius: 99, background: 'var(--ac-line, #e2e8f0)', overflow: 'hidden', margin: '16px 0 8px',
                     }}>
                       <div style={{
                         height: '100%', width: `${pct}%`,
@@ -3472,14 +3538,17 @@ if (loading) return (
           </div>
         , document.body)}
 
-          <div className="card" style={{ marginBottom: 16 }}>
-            <h2 style={{ fontSize: 16, marginBottom: 12 }}>Administrateur principal</h2>
-            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 8 }}>
-              Compte propriétaire : <strong>{ownerInfo?.username || adminConfig?.owner_username || 'admin'}</strong>
-              {' '}(mot de passe = secret Cloudflare <code>ADMIN_PASSWORD</code>)
-            </p>
+          <div className="ac-panel">
+            <div className="ac-settings-panel-head">
+              <div>
+                <h2>Administrateur principal</h2>
+                <span className="ac-settings-panel-sub">
+                  Compte propriétaire : <strong>{ownerInfo?.username || adminConfig?.owner_username || 'admin'}</strong> (secret Cloudflare <code>ADMIN_PASSWORD</code>)
+                </span>
+              </div>
+            </div>
             {adminConfig?.password_secret_format && (
-              <div style={{ background: 'var(--stone)', borderRadius: 8, padding: 14, fontSize: 13, lineHeight: 1.55 }}>
+              <div className="ac-settings-subbox">
                 <strong>Format du secret mot de passe</strong>
                 <ul style={{ margin: '8px 0 0', paddingLeft: 18 }}>
                   {(adminConfig.password_secret_format.rules || []).map((r: string, i: number) => (
@@ -3784,11 +3853,15 @@ if (loading) return (
             </div>
           </div>
 
-          <div className="card settings-danger-zone" data-settings-anchor="danger" style={{ marginBottom: 16, borderColor: 'rgba(180, 50, 40, 0.35)' }}>
-            <h2 style={{ fontSize: 16, marginTop: 0, marginBottom: 8, color: '#8b2e24' }}>Zone sensible</h2>
-            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12, lineHeight: 1.45 }}>
-              Actions réservées au propriétaire. Chaque action demande une confirmation explicite. La restauration complète passe par Sauvegarde (ci-dessus).
-            </p>
+          <div className="ac-panel ac-settings-danger-card settings-danger-zone" data-settings-anchor="danger">
+            <div className="ac-settings-panel-head">
+              <div>
+                <h2 className="ac-settings-danger-title">Zone sensible</h2>
+                <span className="ac-settings-panel-sub">
+                  Actions réservées au propriétaire. Chaque action demande une confirmation explicite.
+                </span>
+              </div>
+            </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               <button
                 type="button"
@@ -3865,9 +3938,9 @@ if (loading) return (
 
 
       {canSaveSection && (
-        <div className="settings-tab-save-bar card">
+        <div className="settings-tab-save-bar ac-panel">
           <span className="muted">
-            {settingsDirty ? 'Modifications non enregistrees dans cette section' : 'Cette section est a jour'}
+            {settingsDirty ? 'Modifications non enregistrées dans cette section' : 'Cette section est à jour'}
           </span>
           <SaveToggle
             size="sm"
@@ -4008,10 +4081,8 @@ if (loading) return (
         document.body,
       ) : null}
 
-      <div className="card" style={{ marginTop: 20, background: 'var(--stone)', borderColor: 'transparent' }}>
-        <p style={{ fontSize: 13, color: 'var(--muted)' }}>
-          <strong>Sécurité :</strong> Le mot de passe administrateur est géré de façon sécurisée côté serveur et n'est jamais stocké dans la base de données ni affiché dans cette interface.
-        </p>
+      <div className="ac-settings-subbox" style={{ marginTop: 14 }}>
+        <strong>Sécurité :</strong> Le mot de passe administrateur est géré de façon sécurisée côté serveur et n&apos;est jamais stocké dans la base de données ni affiché dans cette interface.
       </div>
       {lightbox && (
         <ImageLightbox

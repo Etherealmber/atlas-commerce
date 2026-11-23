@@ -47,7 +47,7 @@ export default function Privacy() {
           <h2>5. Cookies et stockage local</h2>
           <p>Le navigateur ou l’application peuvent conserver des éléments de session, des préférences
             et des données nécessaires aux fonctions utilisées. Les choix disponibles pour le web sont
-            accessibles via <button type="button" className="privacy-link-btn" onClick={() => openConsentSettings()}>les préférences cookies</button>.
+            accessibles via <button type="button" className="secondary privacy-link-btn" onClick={() => openConsentSettings()}>les préférences cookies</button>.
             Les permissions de l’application mobile se gèrent dans les réglages de l’appareil.</p>
         </section>
         <section>

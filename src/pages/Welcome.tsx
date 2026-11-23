@@ -68,11 +68,48 @@ function applyThemeMode(mode: WelcomeTheme) {
 
 /** Bento dashboard wireframe matching the Focus sidebar + floating dock + 4-KPI Bento grid. */
 function ThemeMock({ mode }: { mode: WelcomeTheme }) {
-  const isDark =
-    mode === 'dark' ||
-    (mode === 'system' &&
-      typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-color-scheme: dark)').matches);
+  if (mode === 'system') {
+    return (
+      <div className="welcome-pick-preview" data-theme-preview="system">
+        <svg viewBox="0 0 180 112" className="welcome-mock-svg" aria-hidden>
+          <defs>
+            <clipPath id="welcome-sys-right">
+              <rect x="90" y="0" width="90" height="112" />
+            </clipPath>
+          </defs>
+          {/* Light left half */}
+          <rect width="180" height="112" rx="10" fill="#f5f6f8" />
+          <rect x="8" y="8" width="34" height="96" rx="8" fill="#ffffff" stroke="#e2e8f0" strokeWidth="1" />
+          <rect x="13" y="16" width="24" height="6" rx="3" fill="#0f172a" opacity="0.85" />
+          <rect x="13" y="28" width="24" height="5" rx="2.5" fill="#cbd5e1" />
+          <rect x="13" y="37" width="20" height="5" rx="2.5" fill="#cbd5e1" />
+          <rect x="13" y="46" width="24" height="5" rx="2.5" fill="#cbd5e1" />
+          <rect x="74" y="8" width="60" height="12" rx="6" fill="#ffffff" stroke="#e2e8f0" strokeWidth="1" />
+          {[0, 1, 2, 3].map((i) => (
+            <rect key={`l-${i}`} x={50 + i * 31} y="26" width="27" height="24" rx="6" fill="#ffffff" stroke="#e2e8f0" strokeWidth="1" />
+          ))}
+          <rect x="50" y="56" width="76" height="48" rx="8" fill="#ffffff" stroke="#e2e8f0" strokeWidth="1" />
+          <path d="M58 92 C68 85, 76 72, 88 76 S106 86, 118 68" fill="none" stroke="#0f172a" strokeWidth="1.8" strokeLinecap="round" />
+          {/* Dark right half */}
+          <g clipPath="url(#welcome-sys-right)">
+            <rect width="180" height="112" rx="10" fill="#111113" />
+            <rect x="74" y="8" width="60" height="12" rx="6" fill="#1c1c1f" stroke="#2a2a2e" strokeWidth="1" />
+            {[0, 1, 2, 3].map((i) => (
+              <rect key={`d-${i}`} x={50 + i * 31} y="26" width="27" height="24" rx="6" fill="#1c1c1f" stroke="#2a2a2e" strokeWidth="1" />
+            ))}
+            <rect x="50" y="56" width="76" height="48" rx="8" fill="#1c1c1f" stroke="#2a2a2e" strokeWidth="1" />
+            <path d="M58 92 C68 85, 76 72, 88 76 S106 86, 118 68" fill="none" stroke="#e4e4e7" strokeWidth="1.8" strokeLinecap="round" />
+            <rect x="132" y="56" width="40" height="48" rx="8" fill="#1c1c1f" stroke="#2a2a2e" strokeWidth="1" />
+            <rect x="138" y="64" width="28" height="4" rx="2" fill="#e4e4e7" opacity="0.8" />
+            <rect x="138" y="73" width="24" height="4" rx="2" fill="#52525b" />
+            <rect x="138" y="82" width="28" height="4" rx="2" fill="#52525b" />
+          </g>
+          <line x1="90" y1="0" x2="90" y2="112" stroke="#94a3b8" strokeWidth="1" strokeDasharray="3 3" opacity="0.7" />
+        </svg>
+      </div>
+    );
+  }
+  const isDark = mode === 'dark';
   const bg = isDark ? '#111113' : '#f5f6f8';
   const card = isDark ? '#1c1c1f' : '#ffffff';
   const line = isDark ? '#2a2a2e' : '#e2e8f0';
@@ -698,7 +735,7 @@ export default function Welcome() {
                 type="button"
                 role="tab"
                 aria-selected={compareTab === 'paper'}
-                className={compareTab === 'paper' ? 'active' : ''}
+                className={`welcome-seg-btn${compareTab === 'paper' ? ' active' : ''}`}
                 onClick={() => setCompareTab('paper')}
               >
                 Papier vs Atlas
@@ -707,7 +744,7 @@ export default function Welcome() {
                 type="button"
                 role="tab"
                 aria-selected={compareTab === 'erp'}
-                className={compareTab === 'erp' ? 'active' : ''}
+                className={`welcome-seg-btn${compareTab === 'erp' ? ' active' : ''}`}
                 onClick={() => setCompareTab('erp')}
               >
                 Excel / ERP vs Atlas

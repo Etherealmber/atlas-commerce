@@ -20,13 +20,13 @@ export type WelcomePrefs = {
 
 /** Real captures are individual welcome steps, never a stacked gallery. */
 export const WELCOME_PREVIEWS = [
-  { src: '/shots/demo.gif', title: 'Parcours complet dans Atlas', description: 'Créez un devis, suivez le stock et validez vos opérations en quelques secondes.', alt: 'Enregistrement réel d’une session Atlas Commerce', poster: '/shots/devis-modal-dark.png' },
-  { src: '/shots/dashboard-dark.png', title: 'Tableau de bord Bento — sombre', description: 'Indicateurs clés, graphiques interactifs et trésorerie dans l’interface Bento sombre.', alt: 'Tableau de bord Atlas Commerce en thème sombre' },
-  { src: '/shots/dashboard-light.png', title: 'Tableau de bord Bento — clair', description: 'Retrouvez la même clarté Bento et le dock adaptatif en thème clair.', alt: 'Tableau de bord Atlas Commerce en thème clair' },
-  { src: '/shots/devis-modal-dark.png', title: 'Assistant devis étape par étape', description: 'Client, lignes et récapitulatif guidé pour éviter toute erreur de saisie.', alt: 'Assistant de création de devis Atlas Commerce' },
-  { src: '/shots/settings-dark.png', title: 'Navigation Focus & réglages', description: 'Barre latérale Focus dédiée pour configurer société, légal, IA et sécurité.', alt: 'Paramètres d’apparence Atlas Commerce' },
-  { src: '/shots/phone-dashboard-dark.png', title: 'Votre activité sur téléphone', description: 'Consultez votre tableau de bord et vos alertes depuis l’application mobile.', alt: 'Tableau de bord Atlas Commerce sur téléphone' },
-  { src: '/shots/phone-quotes-dark.png', title: 'Devis et opérations sur mobile', description: 'Retrouvez vos devis et synchronisez le terrain avec le bureau en direct.', alt: 'Liste des devis Atlas Commerce sur téléphone' },
+  { src: '/shots/desktop-demo.webp', title: 'Tableau de bord Bento en direct', description: 'Pilotez trésorerie, ventes du jour, alertes stock et profit en un coup d’œil.', alt: 'Tableau de bord Atlas Commerce en interface Bento claire', poster: '/shots/dashboard-light.png' },
+  { src: '/shots/dashboard-light.png', title: 'Indicateurs et graphiques interactifs', description: 'Suivez flux de trésorerie, évolution du profit, créances et dettes sur chaque période.', alt: 'Graphiques du tableau de bord Atlas Commerce en thème clair' },
+  { src: '/shots/desktop-products-demo.webp', title: 'Catalogue, stock & dock adaptatif', description: 'Gérez produits, seuils bas, étiquettes et actions rapides depuis une table épurée.', alt: 'Liste des produits Atlas Commerce en thème clair' },
+  { src: '/shots/phone-home-demo.webp', title: 'Votre activité sur téléphone', description: 'Consultez trésorerie, alertes et ventes rapides depuis l’interface mobile.', alt: 'Accueil mobile Atlas Commerce en thème clair' },
+  { src: '/shots/phone-products-demo.webp', title: 'Catalogue et réapprovisionnement mobile', description: 'Filtrez les articles à réapprovisionner ou à valider directement depuis le magasin.', alt: 'Produits sur mobile Atlas Commerce en thème clair' },
+  { src: '/shots/phone-balance-demo.webp', title: 'Solde, caisse et mouvements en direct', description: 'Saisissez recettes, dépenses et apports avec suivi caisse et banque séparé.', alt: 'Solde et mouvements sur mobile Atlas Commerce en thème clair' },
+  { src: '/shots/android-scan-demo.webp', title: 'Scan code-barres & terrain', description: 'Scannez les références produit et proposez les ajustements vers le bureau.', alt: 'Écran de scan code-barres Atlas Commerce en thème clair' },
 ] as const;
 
 export const WELCOME_PREVIEW_START = 2;

@@ -683,6 +683,17 @@ export const api = {
   getAlertSettings: () => request<{ data: any[] }>('/api/atlas/alerts'),
   saveAlertSetting: (body: any) => request('/api/atlas/alerts', { method: 'POST', body: JSON.stringify(body) }),
   labelUrl: (id: number) => `/api/products/${id}/label.svg`,
+  fetchLabelSvg: async (id: number): Promise<string> => {
+    const token = getToken();
+    const fp = await getCachedFingerprint().catch(() => 'none');
+    const headers: Record<string, string> = { 'X-Device-Fingerprint': fp };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(`${getApiBase()}/api/products/${id}/label.svg`, { headers });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    if (!text.trim().startsWith('<svg')) throw new Error('Invalid label SVG');
+    return text;
+  },
   createVendor: (body: any) => request('/api/vendors', { method: 'POST', body: JSON.stringify(body) }),
   updateVendor: (id: number, body: any) => request(`/api/vendors/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteVendor: (id: number, confirm_password: string) =>

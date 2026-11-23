@@ -55,7 +55,7 @@ export interface InvoicesWriteRouteDeps {
   generateOTP: () => string;
   otpEmailHTML: (...args: any[]) => string;
   getInvoiceLinks: (db: D1Database, id: string | number) => Promise<any>;
-  cascadeDeleteInvoice: (db: D1Database, id: string | number) => Promise<any>;
+  cascadeDeleteInvoice: (db: D1Database, id: string | number, opts?: { createdBy?: string }) => Promise<any>;
 }
 
 export function registerInvoicesWriteRoutes(app: Hono<any>, deps: InvoicesWriteRouteDeps): void {
@@ -1758,7 +1758,7 @@ export function registerInvoicesWriteRoutes(app: Hono<any>, deps: InvoicesWriteR
       const links = await getInvoiceLinks(c.env.DB, id);
       if (!links) return c.json({ success: false, error: 'Facture introuvable' }, 404);
 
-      await cascadeDeleteInvoice(c.env.DB, id);
+      await cascadeDeleteInvoice(c.env.DB, id, { createdBy: gate.username || undefined });
       await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
 
       await writeAudit(c.env.DB, {

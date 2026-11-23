@@ -103,7 +103,7 @@ export const FeatureTour: FC<Props> = ({ steps, onClose, onLearnMore, loop = fal
               role="tab"
               aria-selected={index === currentIndex}
               aria-label={step.title}
-              className={index === currentIndex ? 'on' : ''}
+              className={`ac-feature-tour-dot${index === currentIndex ? ' on' : ''}`}
               onClick={() => setCurrentIndex(index)}
             />
           ))}

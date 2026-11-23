@@ -254,13 +254,19 @@ export default function About() {
   const [user, setUser] = useState<GhUser | null>(null);
   const [repos, setRepos] = useState<GhRepo[]>([]);
   const [contributors, setContributors] = useState<Contributor[]>(REPO_CONTRIBUTORS);
+  const [contribLoading, setContribLoading] = useState(true);
+  const [ghLoading, setGhLoading] = useState(true);
   const [ghProfile, setGhProfile] = useState<{ followers: number; repos: number; stars: number } | null>(null);
 
   useEffect(() => {
     let alive = true;
-    fetchRepoContributors().then((list) => {
-      if (alive) setContributors(list);
-    });
+    fetchRepoContributors()
+      .then((list) => {
+        if (alive) setContributors(list);
+      })
+      .finally(() => {
+        if (alive) setContribLoading(false);
+      });
     return () => { alive = false; };
   }, []);
 
@@ -331,6 +337,9 @@ export default function About() {
           });
         }
       } catch { /* best-effort */ }
+      finally {
+        if (alive) setGhLoading(false);
+      }
     })();
     return () => { alive = false; };
   }, []);
@@ -542,6 +551,8 @@ export default function About() {
           <div className="about-owner-head">
             {user?.avatar_url ? (
               <img src={user.avatar_url} alt="" width={56} height={56} className="about-owner-avatar" loading="lazy" decoding="async" />
+            ) : ghLoading ? (
+              <div className="skeleton about-owner-avatar" aria-hidden="true" />
             ) : (
               <div className="about-owner-avatar about-owner-avatar-ph" />
             )}
@@ -553,13 +564,19 @@ export default function About() {
                   @{APP_CREATOR}
                 </a>
               </p>
-              {ghProfile && (
+              {ghProfile ? (
                 <p className="ac-about-stats">
                   <span><strong>{ghProfile.followers}</strong> abonnés</span>
                   <span><strong>{ghProfile.repos}</strong> dépôts publics</span>
                   <span><strong>{ghProfile.stars}</strong> étoiles reçues</span>
                 </p>
-              )}
+              ) : ghLoading ? (
+                <div className="ac-about-stats ac-skeleton-pill-row" aria-hidden="true">
+                  <span className="skeleton ac-skeleton-pill ac-skeleton-pill--sm" />
+                  <span className="skeleton ac-skeleton-pill ac-skeleton-pill--sm" />
+                  <span className="skeleton ac-skeleton-pill ac-skeleton-pill--sm" />
+                </div>
+              ) : null}
               <div className="ac-about-owner-actions">
                 <a
                   className="secondary ac-about-pill-btn"
@@ -620,6 +637,12 @@ export default function About() {
                 <span className="wn-contributor-name">{c.name !== c.login ? `${c.name} (${c.handle})` : c.handle}</span>
               </a>
             ))}
+            {contribLoading && (
+              <>
+                <span className="skeleton ac-skeleton-pill" style={{ width: 124 }} aria-hidden="true" />
+                <span className="skeleton ac-skeleton-pill" style={{ width: 112 }} aria-hidden="true" />
+              </>
+            )}
           </div>
           <div className="wn-release-contributors">
             <span className="wn-contributors-label">
@@ -660,6 +683,8 @@ export default function About() {
                       {live.language}
                       {live.stargazers_count ? ` · ★ ${live.stargazers_count}` : ''}
                     </span>
+                  ) : ghLoading ? (
+                    <span className="skeleton ac-skeleton-bar" style={{ width: 78, height: 14, marginTop: 4 }} aria-hidden="true" />
                   ) : null}
                 </a>
               </li>

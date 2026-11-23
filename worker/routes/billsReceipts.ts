@@ -59,7 +59,7 @@ export interface BillsReceiptsRouteDeps {
   generateOTP: () => string;
   otpEmailHTML: (...args: any[]) => string;
   expensesLinkedToReceipt: (db: D1Database, receipt: any) => Promise<any[]>;
-  cascadeDeleteInvoice: (db: D1Database, id: string | number) => Promise<any>;
+  cascadeDeleteInvoice: (db: D1Database, id: string | number, opts?: { createdBy?: string }) => Promise<any>;
 }
 
 function parseBillText(text: string): Record<string, string> {
@@ -1857,7 +1857,7 @@ export function registerBillsReceiptsRoutes(app: Hono<any>, deps: BillsReceiptsR
     let invMsg = '';
     let ar: any = null;
     if (body.cascade_invoice && receipt.invoice_id) {
-      await cascadeDeleteInvoice(c.env.DB, receipt.invoice_id);
+      await cascadeDeleteInvoice(c.env.DB, receipt.invoice_id, { createdBy: gate.username || undefined });
       invMsg = ' Facture/ticket lié et paiements également supprimés.';
     } else if (receipt.invoice_id) {
       // Master rule: void receipt → reopen exact unpaid AR on FA or VR

@@ -363,7 +363,7 @@ app.delete('/api/expenses/:id', async (c) => {
       const m = notes.match(/invoice_id:(\d+)/);
       if (m) {
         try {
-          await cascadeDeleteInvoice(c.env.DB, m[1]);
+          await cascadeDeleteInvoice(c.env.DB, m[1], { createdBy: gate.username || undefined });
         } catch (cascadeErr) {
           console.error('cascadeDeleteInvoice failed', cascadeErr);
           // Still remove the expense entry even if cascade partially fails

@@ -606,25 +606,109 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
   it('removes Settings hero header, stacks About creator/contributors, styles cookie preference control as a pill button, and modernizes Welcome Bento UI', async () => {
     const settingsSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Settings.tsx'), 'utf8');
     const aboutSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/About.tsx'), 'utf8');
+    const privacySrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Privacy.tsx'), 'utf8');
     const darkCss = readFileSync(path.resolve(process.cwd(), 'src/styles/dark-force.css'), 'utf8');
+    const overridesCss = readFileSync(path.resolve(process.cwd(), 'src/styles/overrides-final.css'), 'utf8');
+    const focusCss = readFileSync(path.resolve(process.cwd(), 'src/styles/focus-sidebar.css'), 'utf8');
     const welcomeSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Welcome.tsx'), 'utf8');
+    const welcomeLibSrc = readFileSync(path.resolve(process.cwd(), 'src/lib/welcome.ts'), 'utf8');
+    const tourSrc = readFileSync(path.resolve(process.cwd(), 'src/components/ui/FeatureTour.tsx'), 'utf8');
 
     // 1. Settings.tsx: no top .ac-dash-hero block while preserving sr-only h1
     expect(settingsSrc).not.toContain('className="ac-dash-hero"');
     expect(settingsSrc).toContain('<h1 className="sr-only">');
 
-    // 2. About.tsx: Créateur & Remerciements stack vertically one after another
+    // 2. About.tsx: Créateur & Remerciements stack vertically full-width one after another
     expect(aboutSrc).toContain('<div className="ac-bento-stack" id="about-creator">');
+    expect(focusCss).toMatch(/\.ac-bento-stack\s*\{[\s\S]*width:\s*100%/);
 
-    // 3. Privacy cookie preferences button renders as a pill button without link underline
-    const privacyBtnBlock = darkCss.match(/html\[data-theme\] body \.privacy-link-btn[\s\S]*?\}/)?.[0] || '';
+    // 3. Privacy cookie preferences button renders as a pill button without link underline (even without data-theme)
+    expect(privacySrc).toContain('className="secondary privacy-link-btn"');
+    expect(overridesCss).toContain(':not(.privacy-link-btn)');
+    const privacyBtnBlock = darkCss.match(/html body \.privacy-link-btn[\s\S]*?\}/)?.[0] || '';
+    expect(privacyBtnBlock).toContain('html[data-theme] body .privacy-link-btn');
     expect(privacyBtnBlock).toContain('text-decoration: none !important');
     expect(privacyBtnBlock).toContain('border-radius: 999px !important');
 
-    // 4. Welcome.tsx: Bento top chrome, density switcher, and on-demand FeatureTour trigger
+    // 4. Welcome.tsx & WELCOME_PREVIEWS: light-only Bento screenshots, Bento chrome, explicit non-black control styles
+    expect(welcomeLibSrc).not.toContain('-dark.png');
     expect(welcomeSrc).toContain('welcome-top-bar');
     expect(welcomeSrc).toContain('welcome-density-row');
     expect(welcomeSrc).toContain('welcome-summary-bento');
+    expect(welcomeSrc).toContain('welcome-seg-btn');
     expect(welcomeSrc).toContain('Visite rapide des modules');
+    expect(tourSrc).toContain('ac-feature-tour-dot');
+    for (const cls of [
+      '.welcome-skip-btn',
+      '.welcome-density-pill',
+      '.welcome-tour-trigger',
+      '.welcome-seg-btn',
+      '.ac-feature-tour-close',
+      '.ac-feature-tour-dot',
+    ]) {
+      expect(overridesCss).toContain(`:not(${cls})`);
+      expect(darkCss).toContain(`:not(${cls})`);
+    }
+  });
+
+  it('records invoice deletion actor for stock movements with Système fallback, enables authenticated Étiquette modal, and unifies Settings Bento + dark palette', () => {
+    const ledgerSrc = readFileSync(path.resolve(process.cwd(), 'worker/lib/ledgerHelpers.ts'), 'utf8');
+    const invWriteSrc = readFileSync(path.resolve(process.cwd(), 'worker/routes/invoicesWrite.ts'), 'utf8');
+    const prodHistSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/ProductHistory.tsx'), 'utf8');
+    const productsSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Products.tsx'), 'utf8');
+    const apiSrc = readFileSync(path.resolve(process.cwd(), 'src/api.ts'), 'utf8');
+    const settingsSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Settings.tsx'), 'utf8');
+    const focusCss = readFileSync(path.resolve(process.cwd(), 'src/styles/focus-sidebar.css'), 'utf8');
+    const overridesCss = readFileSync(path.resolve(process.cwd(), 'src/styles/overrides-final.css'), 'utf8');
+
+    // 1. Movement deletion actor & Système fallback
+    expect(ledgerSrc).toContain('cascadeDeleteInvoice(\n  db: D1Database,\n  invoiceId: string | number,\n  opts?: { createdBy?: string }');
+    expect(ledgerSrc).toContain("createdBy: opts?.createdBy || undefined");
+    expect(invWriteSrc).toContain('cascadeDeleteInvoice(c.env.DB, id, { createdBy: gate.username || undefined })');
+    expect(prodHistSrc).not.toContain('non renseigné');
+    expect(prodHistSrc).toContain("actor(m.created_by, 'Système')");
+
+    // 2. Étiquette uses authenticated ProductLabelModal (not unauthenticated window.open)
+    expect(apiSrc).toContain('fetchLabelSvg:');
+    expect(productsSrc).toContain('ProductLabelModal');
+    expect(productsSrc).not.toContain('window.open(api.labelUrl(');
+    expect(prodHistSrc).toContain('ProductLabelModal');
+
+    // 3. Settings Bento & unified Dimmed Charcoal dark palette
+    expect(settingsSrc).not.toContain("var(--stone)");
+    expect(settingsSrc).toContain('ac-settings-panel-head');
+    expect(focusCss).not.toMatch(/#171a24|#13151d|#1f2330|#1f2433/i);
+    expect(overridesCss).not.toContain('html .settings-main button:not(.danger)');
+  });
+
+  it('scopes Welcome/FeatureTour light rules out of dark mode and uses responsive desktop-table shimmer skeletons across Settings, About, and WhatsNew', () => {
+    const darkCss = readFileSync(path.resolve(process.cwd(), 'src/styles/dark-force.css'), 'utf8');
+    const focusCss = readFileSync(path.resolve(process.cwd(), 'src/styles/focus-sidebar.css'), 'utf8');
+    const skeletonSrc = readFileSync(path.resolve(process.cwd(), 'src/components/PageSkeleton.tsx'), 'utf8');
+    const settingsSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Settings.tsx'), 'utf8');
+    const aboutSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/About.tsx'), 'utf8');
+    const whatsNewSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/WhatsNew.tsx'), 'utf8');
+    const appSrc = readFileSync(path.resolve(process.cwd(), 'src/App.tsx'), 'utf8');
+
+    // No unscoped html body welcome/feature-tour button color overrides leaking into dark mode
+    expect(darkCss).not.toMatch(/^html body (?:\.welcome-(?:skip-btn|density-pill|seg-btn|tour-trigger)|\.ac-feature-tour-)/m);
+    expect(darkCss).toContain('html:not([data-theme="dark"]) body .welcome-density-pill:hover:not(.is-active)');
+    expect(darkCss).toContain('html[data-theme="dark"] body .welcome-density-pill:hover:not(.is-active)');
+
+    // Responsive desktop-table & Bento shimmer skeletons
+    expect(skeletonSrc).toContain('DesktopTableSkeleton');
+    expect(skeletonSrc).toContain("variant === 'settings'");
+    expect(skeletonSrc).toContain("variant === 'about'");
+    expect(skeletonSrc).toContain("variant === 'changelog'");
+    expect(focusCss).toContain('.ac-skeleton-table-wrap');
+    expect(focusCss).toContain('.ac-skeleton-thead');
+    expect(settingsSrc).toContain('<PageSkeleton variant="settings" />');
+    expect(settingsSrc).toContain('<DesktopTableSkeleton rows={3} cols={5} />');
+    expect(settingsSrc).not.toContain('Chargement du journal…');
+    expect(aboutSrc).toContain('ghLoading');
+    expect(aboutSrc).toContain('contribLoading');
+    expect(whatsNewSrc).toContain('contribLoading');
+    expect(appSrc).toContain('<PageSkeleton variant="about" />');
+    expect(appSrc).toContain('<PageSkeleton variant="changelog" />');
   });
 });

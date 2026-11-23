@@ -172,9 +172,6 @@ function MobileOnlyGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function PageFallback() {
-  return <PageSkeleton variant="list" />;
-}
 function PhonePageFallback() {
   return <PageSkeleton variant="phone" />;
 }
@@ -584,7 +581,7 @@ function AboutRoute() {
       <div className="atlas-focus-layout">
         <FocusSidebar mobileOpen={sidebarOpen} onCloseMobile={() => setSidebarOpen(false)} />
         <main className="content content-settings-focus atlas-focus-main">
-          <Suspense fallback={<PageFallback />}>
+          <Suspense fallback={<PageSkeleton variant="about" />}>
             <About />
           </Suspense>
         </main>
@@ -606,7 +603,7 @@ function WhatsNewRoute() {
       <div className="atlas-focus-layout">
         <FocusSidebar mobileOpen={sidebarOpen} onCloseMobile={() => setSidebarOpen(false)} />
         <main className="content content-settings-focus atlas-focus-main">
-          <Suspense fallback={<PageFallback />}>
+          <Suspense fallback={<PageSkeleton variant="changelog" />}>
             <WhatsNew />
           </Suspense>
         </main>
@@ -1583,7 +1580,23 @@ function DesktopShell() {
 
       <main className="content">
         <ErrorBoundary label="desktop">
-          <Suspense fallback={<PageFallback />}>
+          <Suspense
+            fallback={
+              <PageSkeleton
+                variant={
+                  location.pathname === '/whats-new'
+                    ? 'changelog'
+                    : location.pathname === '/about'
+                      ? 'about'
+                      : location.pathname === '/settings'
+                        ? 'settings'
+                        : location.pathname === '/' || location.pathname === '/dashboard'
+                          ? 'dashboard'
+                          : 'list'
+                }
+              />
+            }
+          >
             {isFocusRoute ? (
               <div className="atlas-focus-layout">
                 <FocusSidebar
