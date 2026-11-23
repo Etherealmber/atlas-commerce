@@ -8,7 +8,6 @@ import {
   Lock,
   PackageCheck,
   Receipt,
-  Sparkles,
 } from 'lucide-react';
 import DatePicker from '../components/DatePicker';
 import TopPageActions from '../components/TopPageActions';
@@ -170,7 +169,6 @@ export default function Reports() {
       <header className="ac-dash-hero">
         <div className="ac-dash-hero-text">
           <p className="ac-dash-eyebrow">
-            <Sparkles size={13} strokeWidth={2.2} aria-hidden="true" />
             <span>Finance &amp; conformité</span>
           </p>
           <h2>Rapports &amp; clôture</h2>

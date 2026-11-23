@@ -14,12 +14,13 @@ import { validateBalanceEntry } from '../lib/formValidate';
 import RefreshIconButton from '../components/RefreshIconButton';
 import { FloatingPortal } from '../components/FloatingPortal';
 import { ModalFormError } from '../components/ModalFormFeedback';
+import { formatCompactNum } from '../components/DashboardCharts';
 import { ListPager } from '../components/ui/ListPager';
 import { TimedUndoDelete } from '../components/ui/TimedUndoDelete';
 import {
   ShoppingBag, Truck, Fuel, Building2, Wrench, Users, Receipt,
   ArrowDownLeft, ArrowUpRight, ArrowUpFromLine, PiggyBank, Wallet, Package,
-  FileText, FileSpreadsheet, Files, UserCheck, X, ChevronRight, Sparkles,
+  FileText, FileSpreadsheet, Files, UserCheck, X, ChevronRight,
 } from 'lucide-react';
 
 const BALANCE_STEPS: readonly WizardStepDef[] = [
@@ -64,7 +65,9 @@ function BalanceMiniBars({ title, rows }: { title: string; rows: { label: string
                   }}
                 />
               </div>
-              <span className="balance-chart-val">{Math.round(r.value).toLocaleString('fr-FR')}</span>
+              <span className="balance-chart-val" title={Math.round(r.value).toLocaleString('fr-FR')}>
+                {formatCompactNum(r.value, '', 100_000)}
+              </span>
             </div>
           ))
         )}
@@ -428,7 +431,6 @@ export default function Balance() {
       <header className="ac-dash-hero">
         <div className="ac-dash-hero-text">
           <p className="ac-dash-eyebrow">
-            <Sparkles size={13} strokeWidth={2.2} aria-hidden="true" />
             <span>Trésorerie · {cur}</span>
           </p>
           <h2>Solde &amp; mouvements</h2>

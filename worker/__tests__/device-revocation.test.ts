@@ -165,4 +165,36 @@ describe('device revocation kills live sessions', () => {
     const ok = await get('/api/auth/me', { Authorization: `Bearer ${again}`, 'X-Device-Fingerprint': 'fp-c' });
     expect(ok.status).toBe(200);
   });
+
+  it('any authenticated /api/* request immediately updates trusted_devices last_ip and user_agent on change', async () => {
+    const token = await sessionFor('mag', 'fp-live');
+    // Initial login was from 203.0.113.87
+    let row = sqlite.prepare(`SELECT last_ip, user_agent FROM trusted_devices WHERE fingerprint = ?`).get('fp-live') as any;
+    expect(row.last_ip).toBe('203.0.113.87');
+
+    // Subsequent authenticated API request on a general route (/api/settings) from a new IP and updated Atlas Android version
+    const r1 = await get('/api/settings', {
+      Authorization: `Bearer ${token}`,
+      'X-Device-Fingerprint': 'fp-live',
+      'CF-Connecting-IP': '41.141.37.145',
+      'User-Agent': 'Atlas-Android/1.8.1 (Android 14)',
+    });
+    expect(r1.status).toBe(200);
+    row = sqlite.prepare(`SELECT last_ip, user_agent FROM trusted_devices WHERE fingerprint = ?`).get('fp-live') as any;
+    expect(row).toEqual({
+      last_ip: '41.141.37.145',
+      user_agent: 'Atlas-Android/1.8.1 (Android 14)',
+    });
+
+    // Another immediate IP switch (e.g. mobile -> Wi-Fi) without waiting 3 minutes
+    const r2 = await get('/api/settings', {
+      Authorization: `Bearer ${token}`,
+      'X-Device-Fingerprint': 'fp-live',
+      'CF-Connecting-IP': '103.151.173.100',
+      'User-Agent': 'Atlas-Android/1.8.1 (Android 14)',
+    });
+    expect(r2.status).toBe(200);
+    row = sqlite.prepare(`SELECT last_ip, user_agent FROM trusted_devices WHERE fingerprint = ?`).get('fp-live') as any;
+    expect(row.last_ip).toBe('103.151.173.100');
+  });
 });

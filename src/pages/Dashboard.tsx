@@ -4,7 +4,7 @@ import { Link, Navigate } from 'react-router-dom';
 import { api } from '../api';
 import { getUsername, isStockRole } from '../auth';
 import { IconPackage } from '../components/Icons';
-import { AreaChart, BarChart, DonutChart, HBarChart } from '../components/DashboardCharts';
+import { AreaChart, BarChart, DonutChart, HBarChart, formatCompactNum } from '../components/DashboardCharts';
 
 /**
  * Date + place from the *device* clock/timezone only (never IP geolocation).
@@ -460,18 +460,18 @@ export default function Dashboard() {
               <p>Entrées et sorties mensuelles sur la période</p>
             </div>
             <div className="ac-stat-pair">
-              <div>
+              <div title={fmt(incomeSum, cur)}>
                 <span className="ac-stat-pair-lab">ENTRÉES</span>
-                <strong>{fmt(incomeSum, cur)}</strong>
+                <strong>{formatCompactNum(incomeSum, cur, 1_000_000)}</strong>
               </div>
-              <div>
+              <div title={fmt(expenseSum, cur)}>
                 <span className="ac-stat-pair-lab">SORTIES</span>
-                <strong>{fmt(expenseSum, cur)}</strong>
+                <strong>{formatCompactNum(expenseSum, cur, 1_000_000)}</strong>
               </div>
-              <div>
+              <div title={fmt(netPeriod, cur)}>
                 <span className="ac-stat-pair-lab">NET</span>
                 <strong style={{ color: netPeriod > 0 ? '#10b981' : netPeriod < 0 ? '#ef4444' : undefined }}>
-                  {netPeriod > 0 ? '+' : ''}{fmt(netPeriod, cur)}
+                  {netPeriod > 0 ? '+' : ''}{formatCompactNum(netPeriod, cur, 1_000_000)}
                 </strong>
               </div>
             </div>
@@ -495,8 +495,11 @@ export default function Dashboard() {
               <h3>Évolution du profit</h3>
               <p>Résultat net mensuel</p>
             </div>
-            <span className={`ac-dash-net-pill ${netPeriod > 0 ? 'is-pos' : netPeriod < 0 ? 'is-neg' : ''}`}>
-              {netPeriod > 0 ? '+' : ''}{fmt(netPeriod, cur)}
+            <span
+              className={`ac-dash-net-pill ${netPeriod > 0 ? 'is-pos' : netPeriod < 0 ? 'is-neg' : ''}`}
+              title={fmt(netPeriod, cur)}
+            >
+              {netPeriod > 0 ? '+' : ''}{formatCompactNum(netPeriod, cur, 1_000_000)}
             </span>
           </div>
           <AreaChart
@@ -630,7 +633,7 @@ export default function Dashboard() {
               { value: Number(data?.unpaidSales?.overdue ?? 0), color: '#ef4444', label: 'En retard' },
             ]}
             centerLabel={cur}
-            centerValue={fmt(Number(data?.unpaidSales?.total ?? receivablesTotal), '')}
+            centerValue={formatCompactNum(Number(data?.unpaidSales?.total ?? receivablesTotal), '', 10_000)}
             unit={cur}
           />
         </div>
@@ -643,7 +646,7 @@ export default function Dashboard() {
               { value: Number(data?.unpaidPurchases?.overdue ?? 0), color: '#ef4444', label: 'En retard' },
             ]}
             centerLabel={cur}
-            centerValue={fmt(Number(data?.unpaidPurchases?.total ?? payablesTotal), '')}
+            centerValue={formatCompactNum(Number(data?.unpaidPurchases?.total ?? payablesTotal), '', 10_000)}
             unit={cur}
           />
         </div>
@@ -656,7 +659,7 @@ export default function Dashboard() {
               { value: lowCount, color: '#f59e0b', label: 'Bas' },
             ]}
             centerLabel="articles"
-            centerValue={String(productCount)}
+            centerValue={formatCompactNum(productCount, '', 10_000)}
           />
         </div>
         <div className="atlas-donut-card">
@@ -669,9 +672,10 @@ export default function Dashboard() {
               label: c.label,
             }))}
             centerLabel="charges"
-            centerValue={fmt(
+            centerValue={formatCompactNum(
               expenseCategories.reduce((a: number, c: { value: number }) => a + c.value, 0),
               '',
+              10_000,
             )}
             unit={cur}
           />

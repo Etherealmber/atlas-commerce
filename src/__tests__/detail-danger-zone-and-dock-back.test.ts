@@ -171,4 +171,48 @@ describe('Detail page TopPageActions, Danger Zone, and ProductHistory layout', (
     const dz = host.querySelector('.ac-danger-zone');
     expect(dz?.querySelector('[data-atlas-delete="1"]')).toBeTruthy();
   });
+
+  it('opens RemboursementModal in-place on QuickSaleDetail and InvoiceDetail without navigating away', async () => {
+    vi.spyOn(api, 'getInvoice').mockResolvedValue({
+      data: {
+        id: 7,
+        number: 'VR-2026-0007',
+        doc_kind: 'quick_sale',
+        status: 'sent',
+        total: 500,
+        amount_paid: 0,
+        items: [{ id: 1, product_id: 2, product_name: 'Marbre', quantity: 2, unit_price: 250 }],
+      },
+    } as any);
+    vi.spyOn(api, 'getInvoices').mockResolvedValue({ data: [] } as any);
+    vi.spyOn(api, 'getInvoicePayments').mockResolvedValue({ data: [] } as any);
+
+    await act(async () => {
+      root.render(
+        createElement(
+          MemoryRouter,
+          { initialEntries: ['/quick-sale/7'] },
+          createElement(
+            AppDialogsProvider,
+            null,
+            createElement(
+              Routes,
+              null,
+              createElement(Route, { path: '/quick-sale/:id', element: createElement(QuickSaleDetail) }),
+              createElement(Route, { path: '/invoices', element: createElement('div', { id: 'navigated-invoices' }, 'Invoices') }),
+            ),
+          ),
+        ),
+      );
+    });
+    const topActions = await waitForNode('.top-page-actions');
+    const refundBtn = Array.from(topActions!.querySelectorAll('button')).find((b) => b.textContent?.includes('Créer un remboursement'));
+    expect(refundBtn).toBeTruthy();
+    await act(async () => refundBtn!.click());
+
+    expect(host.querySelector('#navigated-invoices')).toBeNull();
+    const dialog = document.body.querySelector('[role="dialog"]');
+    expect(dialog).toBeTruthy();
+    expect(dialog?.textContent).toContain('Créer un remboursement (WR)');
+  });
 });

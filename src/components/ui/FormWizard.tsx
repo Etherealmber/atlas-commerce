@@ -123,8 +123,11 @@ export function WizardFoot(props: {
       </div>
       <div className="wizard-foot-nav">
         <span className="wizard-foot-step">
-          <span className="wz-chip">Étape {wz.step}/{wz.total}<span className="wz-step-label"> · {props.stepLabel}</span></span>
-          {props.title}
+          <span className="wz-chip">
+            <span>Étape {wz.step}/{wz.total}</span>
+            <span className="wz-step-label"> · {props.stepLabel}</span>
+          </span>
+          <span>{props.title}</span>
         </span>
         <div className="wizard-foot-actions">
           <button type="button" className="secondary" onClick={props.onCancel}>Annuler</button>

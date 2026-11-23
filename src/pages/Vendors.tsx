@@ -135,9 +135,6 @@ export default function Vendors() {
       </div>
 
       <SaveFeedback message={saveMsg} type={saveMsgType} />
-<div className="ac-panel ac-products-filters">
-        <div className="search-bar"><input className="ac-search-input" placeholder="Rechercher par nom ou identifiant..." value={search} onChange={(e) => setSearch(e.target.value)} /></div>
-      </div>
 
       <div className="ac-metric-grid" style={{ marginBottom: 16 }}>
         <div className="ac-metric">
@@ -156,6 +153,10 @@ export default function Vendors() {
           <div className="as-value" style={{ fontSize: '1.35rem' }}>{list.length}</div>
           <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>dans le fichier</div>
         </div>
+      </div>
+
+      <div className="ac-panel ac-products-filters">
+        <div className="search-bar"><input className="ac-search-input" placeholder="Rechercher par nom ou identifiant..." value={search} onChange={(e) => setSearch(e.target.value)} /></div>
       </div>
 
       <div className="ac-panel ac-products-table-panel">

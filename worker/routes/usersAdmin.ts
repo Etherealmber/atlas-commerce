@@ -608,12 +608,6 @@ app.post('/api/auth/role-refresh', async (c) => {
 app.get('/api/auth/me', async (c) => {
   const limited = refreshLimitGate(c, 'auth-me', 60);
   if (limited) return limited;
-  // v243.2 — every active device (web/phone) registers itself so the
-  // "appareils connectés" popup always lists yours, current one included.
-  try {
-    const sess = sessionUserFromHeader(c.req.header('Authorization'));
-    if (!c.req.header('Authorization')?.slice(7).startsWith('np1.')) await touchTrustedDevice(c.env.DB, sess.username, c.req.header('X-Device-Fingerprint') || '', clientIp(c), c.req.header('User-Agent') || '', cfGeo(c));
-  } catch { /* best-effort */ }
   const ip = clientIp(c);
   const fp = c.req.header('X-Device-Fingerprint') || undefined;
   const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, ip, fp);
@@ -623,6 +617,11 @@ app.get('/api/auth/me', async (c) => {
   }
   await ensureSecurityTables(c.env.DB);
   const session = sessionUserFromHeader(c.req.header('Authorization'));
+  // v243.2 — every active device (web/phone/desktop) keeps its IP & app version up to date immediately.
+  try {
+    const isPilot = !!c.req.header('Authorization')?.slice(7).startsWith('np1.');
+    await touchTrustedDevice(c.env.DB, session.username, fp || '', ip, c.req.header('User-Agent') || '', cfGeo(c), isPilot ? { updateOnly: true } : undefined);
+  } catch { /* best-effort */ }
   const ownerUser = getOwnerUsername(c.env);
   const rep = await getReputation(c.env.DB, ip).catch(() => ({ score: 50 })) as any;
   let profile: any = {

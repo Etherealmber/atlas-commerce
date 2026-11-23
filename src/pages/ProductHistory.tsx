@@ -6,11 +6,23 @@ import { api } from '../api';
 import { canSell } from '../auth';
 import { TimedUndoDelete } from '../components/ui';
 import { FloatingPortal } from '../components/FloatingPortal';
+import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
 import ImageLightbox from '../components/ui/ImageLightbox';
 import ProductArtwork, { productImageUrl } from '../components/ProductArtwork';
 import NumberField from '../components/NumberField';
 import PhoneSkeleton from '../mobile/PhoneSkeleton';
 import './product-history.css';
+
+const PH_EDIT_STEPS: readonly WizardStepDef[] = [
+  { id: 'identity', label: 'Identité', hint: 'Nom, catégorie, références et description catalogue.' },
+  { id: 'units', label: 'Unités & stock', hint: 'Unité principale, deuxième unité et suivi de stock.' },
+  { id: 'pricing', label: 'Tarifs & TVA', hint: 'Prix de vente, coût d’achat et régime de TVA.' },
+];
+
+const PH_ADJUST_STEPS: readonly WizardStepDef[] = [
+  { id: 'movement', label: 'Mouvement', hint: 'Choisissez le sens du mouvement et la quantité.' },
+  { id: 'reason', label: 'Motif', hint: 'Précisez le motif pour la traçabilité du stock.' },
+];
 
 const PAGE_SIZE = 40;
 const types: Record<string, string> = { initial: 'Stock initial', sale: 'Vente', purchase: 'Achat', restock: 'Réapprovisionnement', refund_restock: 'Réapprovisionnement', in: 'Entrée', out: 'Sortie', adjust: 'Ajustement', adjustment: 'Ajustement', transfer: 'Transfert', return: 'Retour' };
@@ -29,6 +41,7 @@ export default function ProductHistory({ mobile = false, onProductUpdated }: Pro
 
   // In-place stock adjustment modal
   const [adjustOpen, setAdjustOpen] = useState(false);
+  const adjustWz = useWizard(PH_ADJUST_STEPS.length);
   const [adjustQty, setAdjustQty] = useState<number>(1);
   const [adjustType, setAdjustType] = useState<'in' | 'out' | 'adjust'>('in');
   const [adjustReason, setAdjustReason] = useState('');
@@ -37,6 +50,7 @@ export default function ProductHistory({ mobile = false, onProductUpdated }: Pro
 
   // In-place product details edit modal
   const [editOpen, setEditOpen] = useState(false);
+  const editWz = useWizard(PH_EDIT_STEPS.length);
   const [editForm, setEditForm] = useState<any>(null);
   const [editBusy, setEditBusy] = useState(false);
   const [editError, setEditError] = useState('');
@@ -90,6 +104,7 @@ export default function ProductHistory({ mobile = false, onProductUpdated }: Pro
     setAdjustType('in');
     setAdjustReason('');
     setAdjustError('');
+    adjustWz.reset();
     setAdjustOpen(true);
   };
 
@@ -133,6 +148,7 @@ export default function ProductHistory({ mobile = false, onProductUpdated }: Pro
       track_inventory: Number(product.track_inventory) !== 0,
     });
     setEditOpen(true);
+    editWz.reset();
     if (!categories.length) {
       api.getCategories().then((r: any) => setCategories(r?.data || [])).catch(() => {});
     }
@@ -262,101 +278,157 @@ export default function ProductHistory({ mobile = false, onProductUpdated }: Pro
     )}
     {adjustOpen && product && (
       <FloatingPortal><div className="modal-overlay" onClick={() => { if (!adjustBusy) setAdjustOpen(false); }}>
-        <div className="modal" role="dialog" aria-modal="true" aria-labelledby="ph-adjust-title" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 460 }}>
-          <h2 id="ph-adjust-title">Ajuster le stock — {product.name}</h2>
-          <p className="muted" style={{ marginTop: 0 }}>Stock actuel : <strong>{dualStockLabel(product)}</strong></p>
-          {adjustError && <div className="error-msg" style={{ marginBottom: 10 }}>{adjustError}</div>}
-          <div className="form-row">
-            <label>Type de mouvement</label>
-            <select value={adjustType} onChange={(e) => setAdjustType(e.target.value as any)} disabled={adjustBusy}>
-              <option value="in">Entrée (ajouter au stock)</option>
-              <option value="out">Sortie (retirer du stock)</option>
-              <option value="adjust">Définir le stock exact</option>
-            </select>
+        <div className="modal step-wizard" role="dialog" aria-modal="true" aria-labelledby="ph-adjust-title" onClick={(e) => e.stopPropagation()}>
+          <WizardHeader
+            eyebrow="STOCK PRODUIT"
+            title={`Ajuster le stock — ${product.name}`}
+            titleId="ph-adjust-title"
+            wz={adjustWz}
+            steps={PH_ADJUST_STEPS}
+          />
+          <div className="step-wizard__body">
+            <WizardIntro step={PH_ADJUST_STEPS[adjustWz.step - 1] || PH_ADJUST_STEPS[0]} />
+            <p className="muted" style={{ marginTop: 0, marginBottom: 12 }}>Stock actuel : <strong>{dualStockLabel(product)}</strong></p>
+            {adjustError && <div className="error-msg" style={{ marginBottom: 10 }}>{adjustError}</div>}
+            <StepBody active={adjustWz.step === 1}>
+              <div className="form-row">
+                <label>Type de mouvement</label>
+                <select value={adjustType} onChange={(e) => setAdjustType(e.target.value as any)} disabled={adjustBusy}>
+                  <option value="in">Entrée (ajouter au stock)</option>
+                  <option value="out">Sortie (retirer du stock)</option>
+                  <option value="adjust">Définir le stock exact</option>
+                </select>
+              </div>
+              <div className="form-row">
+                <label>{adjustType === 'adjust' ? 'Nouveau stock exact' : 'Quantité'}</label>
+                <NumberField value={adjustQty} onValueChange={setAdjustQty} min={0} step="0.01" disabled={adjustBusy} />
+              </div>
+            </StepBody>
+            <StepBody active={adjustWz.step === 2}>
+              <div className="form-row">
+                <label>Motif / note</label>
+                <input value={adjustReason} onChange={(e) => setAdjustReason(e.target.value)} placeholder="Ex. inventaire physique, casse, réapprovisionnement…" disabled={adjustBusy} />
+              </div>
+            </StepBody>
           </div>
-          <div className="form-row">
-            <label>{adjustType === 'adjust' ? 'Nouveau stock exact' : 'Quantité'}</label>
-            <NumberField value={adjustQty} onValueChange={setAdjustQty} min={0} step="0.01" disabled={adjustBusy} />
-          </div>
-          <div className="form-row">
-            <label>Motif / note</label>
-            <input value={adjustReason} onChange={(e) => setAdjustReason(e.target.value)} placeholder="Ex. inventaire physique, casse, réapprovisionnement…" disabled={adjustBusy} />
-          </div>
-          <div className="form-actions">
-            <button type="button" className="secondary" onClick={() => setAdjustOpen(false)} disabled={adjustBusy}>Annuler</button>
-            <button type="button" onClick={() => void submitAdjust()} disabled={adjustBusy}>{adjustBusy ? 'Enregistrement…' : 'Enregistrer'}</button>
-          </div>
+          <WizardFoot
+            title={product.name}
+            wz={adjustWz}
+            stepLabel={(PH_ADJUST_STEPS[adjustWz.step - 1] || PH_ADJUST_STEPS[0]).label}
+            onCancel={() => { if (!adjustBusy) setAdjustOpen(false); }}
+            onNext={() => {
+              if (adjustWz.step === 1 && (!Number.isFinite(adjustQty) || adjustQty <= 0)) {
+                setAdjustError('Saisissez une quantité valide.');
+                return false;
+              }
+              setAdjustError('');
+              return true;
+            }}
+            onSubmit={() => void submitAdjust()}
+            submitLabel="Enregistrer"
+            saving={adjustBusy}
+          />
         </div>
       </div></FloatingPortal>
     )}
     {editOpen && product && editForm && (
       <FloatingPortal><div className="modal-overlay" onClick={() => { if (!editBusy) setEditOpen(false); }}>
-        <div className="modal step-wizard step-wizard--wide" role="dialog" aria-modal="true" aria-labelledby="ph-edit-title" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 680 }}>
-          <h2 id="ph-edit-title">Modifier les détails — {product.name}</h2>
-          {editError && <div className="error-msg" style={{ marginBottom: 10 }}>{editError}</div>}
-          <div className="grid grid-2">
-            <div className="form-row"><label>Nom *</label><input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} disabled={editBusy} /></div>
-            <div className="form-row"><label>Catégorie</label>
-              <select value={editForm.category} onChange={(e) => setEditForm({ ...editForm, category: e.target.value })} disabled={editBusy}>
-                <option value="">Sans catégorie</option>
-                {categories.map((c: any) => <option key={c.id ?? c.name} value={c.name}>{c.name}</option>)}
-              </select>
-            </div>
+        <div className="modal step-wizard step-wizard--wide" role="dialog" aria-modal="true" aria-labelledby="ph-edit-title" onClick={(e) => e.stopPropagation()}>
+          <WizardHeader
+            eyebrow="CATALOGUE PRODUIT"
+            title={`Modifier les détails — ${product.name}`}
+            titleId="ph-edit-title"
+            wz={editWz}
+            steps={PH_EDIT_STEPS}
+          />
+          <div className="step-wizard__body">
+            <WizardIntro step={PH_EDIT_STEPS[editWz.step - 1] || PH_EDIT_STEPS[0]} />
+            {editError && <div className="error-msg" style={{ marginBottom: 10 }}>{editError}</div>}
+            <StepBody active={editWz.step === 1}>
+              <div className="grid grid-2">
+                <div className="form-row"><label>Nom *</label><input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} disabled={editBusy} /></div>
+                <div className="form-row"><label>Catégorie</label>
+                  <select value={editForm.category} onChange={(e) => setEditForm({ ...editForm, category: e.target.value })} disabled={editBusy}>
+                    <option value="">Sans catégorie</option>
+                    {categories.map((c: any) => <option key={c.id ?? c.name} value={c.name}>{c.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-2">
+                <div className="form-row"><label>SKU / Référence</label><input value={editForm.sku} onChange={(e) => setEditForm({ ...editForm, sku: e.target.value })} disabled={editBusy} /></div>
+                <div className="form-row"><label>Code-barres</label><input value={editForm.barcode} onChange={(e) => setEditForm({ ...editForm, barcode: e.target.value })} disabled={editBusy} /></div>
+              </div>
+              <div className="form-row">
+                <label>Description</label>
+                <textarea rows={2} value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} disabled={editBusy} />
+                <div style={{ marginTop: 6 }}>
+                  <button type="button" className="secondary" disabled={descGenerating || editBusy || !String(editForm.name || '').trim()} onClick={() => void generateEditDescription()}>
+                    <Sparkles size={14} aria-hidden="true" /> {descGenerating ? 'Génération…' : 'Générer la description (IA)'}
+                  </button>
+                </div>
+              </div>
+            </StepBody>
+            <StepBody active={editWz.step === 2}>
+              <div className="grid grid-2">
+                <div className="form-row"><label>Unité principale</label>
+                  <select value={editForm.unit} onChange={(e) => setEditForm({ ...editForm, unit: e.target.value })} disabled={editBusy}>
+                    {units.length ? units.map((u: any) => <option key={u.id ?? u.name} value={u.name}>{u.name}</option>) : (
+                      <>
+                        <option value="pièce">pièce</option>
+                        <option value="m²">m²</option>
+                        <option value="kg">kg</option>
+                        <option value="carton">carton</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+                <div className="form-row"><label>Seuil d’alerte</label><NumberField value={editForm.low_stock_threshold} onValueChange={(n) => setEditForm({ ...editForm, low_stock_threshold: n })} min={0} disabled={editBusy} /></div>
+              </div>
+              <div className="grid grid-2">
+                <div className="form-row"><label>Deuxième unité (optionnel)</label><input value={editForm.secondary_unit} onChange={(e) => setEditForm({ ...editForm, secondary_unit: e.target.value })} placeholder="ex. m²" disabled={editBusy} /></div>
+                <div className="form-row"><label>Coefficient (1 {editForm.unit || 'unité'} = …)</label><input value={editForm.secondary_unit_factor} onChange={(e) => setEditForm({ ...editForm, secondary_unit_factor: e.target.value })} placeholder="ex. 1.59" disabled={editBusy} /></div>
+              </div>
+              <div className="form-row">
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={Boolean(editForm.track_inventory)} onChange={(e) => setEditForm({ ...editForm, track_inventory: e.target.checked })} disabled={editBusy} style={{ width: 'auto', display: 'inline' }} />
+                  Suivre le stock pour ce produit
+                </label>
+              </div>
+            </StepBody>
+            <StepBody active={editWz.step === 3}>
+              <div className="grid grid-2">
+                <div className="form-row"><label>Prix de vente *</label><NumberField value={editForm.price} onValueChange={(n) => setEditForm({ ...editForm, price: n })} min={0} step="0.01" disabled={editBusy} /></div>
+                <div className="form-row"><label>Coût</label><NumberField value={editForm.cost} onValueChange={(n) => setEditForm({ ...editForm, cost: n })} min={0} step="0.01" disabled={editBusy} /></div>
+              </div>
+              <div className="grid grid-2">
+                <div className="form-row"><label>Taux TVA %</label><NumberField value={editForm.tax_rate} onValueChange={(n) => setEditForm({ ...editForm, tax_rate: n })} placeholder="Défaut" disabled={editBusy} /></div>
+                <div className="form-row"><label>Prix sur facture</label>
+                  <select value={editForm.invoice_price_mode} onChange={(e) => setEditForm({ ...editForm, invoice_price_mode: e.target.value })} disabled={editBusy}>
+                    {!editForm.invoice_price_mode && <option value="">Mode historique (inchangé)</option>}
+                    <option value="exclusive">TVA ajoutée au prix (HT)</option>
+                    <option value="inclusive">TVA incluse dans le prix (TTC)</option>
+                  </select>
+                </div>
+              </div>
+            </StepBody>
           </div>
-          <div className="grid grid-3">
-            <div className="form-row"><label>SKU / Référence</label><input value={editForm.sku} onChange={(e) => setEditForm({ ...editForm, sku: e.target.value })} disabled={editBusy} /></div>
-            <div className="form-row"><label>Code-barres</label><input value={editForm.barcode} onChange={(e) => setEditForm({ ...editForm, barcode: e.target.value })} disabled={editBusy} /></div>
-            <div className="form-row"><label>Unité principale</label>
-              <select value={editForm.unit} onChange={(e) => setEditForm({ ...editForm, unit: e.target.value })} disabled={editBusy}>
-                {units.length ? units.map((u: any) => <option key={u.id ?? u.name} value={u.name}>{u.name}</option>) : (
-                  <>
-                    <option value="pièce">pièce</option>
-                    <option value="m²">m²</option>
-                    <option value="kg">kg</option>
-                    <option value="carton">carton</option>
-                  </>
-                )}
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-2">
-            <div className="form-row"><label>Deuxième unité (optionnel)</label><input value={editForm.secondary_unit} onChange={(e) => setEditForm({ ...editForm, secondary_unit: e.target.value })} placeholder="ex. m²" disabled={editBusy} /></div>
-            <div className="form-row"><label>Coefficient (1 {editForm.unit || 'unité'} = …)</label><input value={editForm.secondary_unit_factor} onChange={(e) => setEditForm({ ...editForm, secondary_unit_factor: e.target.value })} placeholder="ex. 1.59" disabled={editBusy} /></div>
-          </div>
-          <div className="grid grid-3">
-            <div className="form-row"><label>Prix de vente *</label><NumberField value={editForm.price} onValueChange={(n) => setEditForm({ ...editForm, price: n })} min={0} step="0.01" disabled={editBusy} /></div>
-            <div className="form-row"><label>Coût</label><NumberField value={editForm.cost} onValueChange={(n) => setEditForm({ ...editForm, cost: n })} min={0} step="0.01" disabled={editBusy} /></div>
-            <div className="form-row"><label>Seuil d’alerte</label><NumberField value={editForm.low_stock_threshold} onValueChange={(n) => setEditForm({ ...editForm, low_stock_threshold: n })} min={0} disabled={editBusy} /></div>
-          </div>
-          <div className="grid grid-2">
-            <div className="form-row"><label>Taux TVA %</label><NumberField value={editForm.tax_rate} onValueChange={(n) => setEditForm({ ...editForm, tax_rate: n })} placeholder="Défaut" disabled={editBusy} /></div>
-            <div className="form-row"><label>Prix sur facture</label>
-              <select value={editForm.invoice_price_mode} onChange={(e) => setEditForm({ ...editForm, invoice_price_mode: e.target.value })} disabled={editBusy}>
-                {!editForm.invoice_price_mode && <option value="">Mode historique (inchangé)</option>}
-                <option value="exclusive">TVA ajoutée au prix (HT)</option>
-                <option value="inclusive">TVA incluse dans le prix (TTC)</option>
-              </select>
-            </div>
-          </div>
-          <div className="form-row">
-            <label>Description</label>
-            <textarea rows={2} value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} disabled={editBusy} />
-            <div style={{ marginTop: 6 }}>
-              <button type="button" className="secondary" disabled={descGenerating || editBusy || !String(editForm.name || '').trim()} onClick={() => void generateEditDescription()}>
-                <Sparkles size={14} aria-hidden="true" /> {descGenerating ? 'Génération…' : 'Générer la description (IA)'}
-              </button>
-            </div>
-          </div>
-          <div className="form-row">
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-              <input type="checkbox" checked={Boolean(editForm.track_inventory)} onChange={(e) => setEditForm({ ...editForm, track_inventory: e.target.checked })} disabled={editBusy} style={{ width: 'auto', display: 'inline' }} />
-              Suivre le stock pour ce produit
-            </label>
-          </div>
-          <div className="form-actions">
-            <button type="button" className="secondary" onClick={() => setEditOpen(false)} disabled={editBusy}>Annuler</button>
-            <button type="button" onClick={() => void submitEdit()} disabled={editBusy}>{editBusy ? 'Enregistrement…' : 'Enregistrer les modifications'}</button>
-          </div>
+          <WizardFoot
+            title={editForm.name || product.name}
+            wz={editWz}
+            stepLabel={(PH_EDIT_STEPS[editWz.step - 1] || PH_EDIT_STEPS[0]).label}
+            onCancel={() => { if (!editBusy) setEditOpen(false); }}
+            onNext={() => {
+              if (editWz.step === 1 && !String(editForm.name || '').trim()) {
+                setEditError('Le nom du produit est obligatoire.');
+                return false;
+              }
+              setEditError('');
+              return true;
+            }}
+            onSubmit={() => void submitEdit()}
+            submitLabel="Enregistrer les modifications"
+            saving={editBusy}
+          />
         </div>
       </div></FloatingPortal>
     )}

@@ -25,8 +25,8 @@
 html[data-theme="dark"] .public-about,
 html[data-theme="dark"] .public-whats-new,
 html[data-theme="dark"] .public-legal {
-  background: #0b0d13;
-  color: #f4f4f6;
+  background: #121317;
+  color: #e3e5eb;
 }
 
 .public-about .atlas-focus-layout,
@@ -45,25 +45,28 @@ html[data-theme="dark"] .public-legal {
 /* Authenticated DesktopShell Focus pages: reserve space for the left-centered floating rail */
 @media (min-width: 961px) {
   .layout .atlas-focus-layout {
-    padding-left: 266px;
+    padding-left: 276px;
     transition: padding-left 220ms cubic-bezier(0.22, 1, 0.36, 1);
   }
   .layout .atlas-focus-layout:has(.atlas-focus-sidebar.is-collapsed) {
-    padding-left: 84px;
+    padding-left: 88px;
   }
   aside.atlas-focus-sidebar {
     position: fixed;
     left: 16px;
-    top: calc(50% + 28px);
+    top: calc(50% + 32px);
     transform: translateY(-50%);
-    max-height: calc(100dvh - 104px);
+    max-height: calc(100dvh - 112px);
     z-index: 35;
   }
-  .layout aside.atlas-focus-sidebar {
+  .layout:not(.layout--focus) aside.atlas-focus-sidebar {
     left: 256px;
   }
-  .layout.sidebar-collapsed aside.atlas-focus-sidebar {
+  .layout.sidebar-collapsed:not(.layout--focus) aside.atlas-focus-sidebar {
     left: 96px;
+  }
+  .layout.layout--focus aside.atlas-focus-sidebar {
+    left: 16px;
   }
 }
 
@@ -458,6 +461,85 @@ html[data-theme="dark"] .atlas-focus-dot {
 }
 
 /* ==========================================================================
+   Shared Bento Metric Card Typography (About, Balance, Reports, Ops, Settings)
+   ========================================================================== */
+html body .ac-metric {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between;
+  gap: 6px;
+}
+html body .ac-metric .ac-metric-label {
+  display: block !important;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ac-muted, #64748b);
+  line-height: 1.25;
+}
+html body .ac-metric .ac-metric-val {
+  display: block !important;
+  font-size: 1.42rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  color: var(--ac-ink, #0f172a);
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+html body .ac-metric .ac-metric-meta {
+  display: block !important;
+  font-size: 0.76rem;
+  color: var(--ac-muted, #64748b);
+  line-height: 1.35;
+}
+html[data-theme="dark"] body .ac-metric .ac-metric-label,
+html[data-theme="dark"] body .ac-metric .ac-metric-meta {
+  color: #a1a1aa;
+}
+html[data-theme="dark"] body .ac-metric .ac-metric-val {
+  color: #f4f4f6;
+}
+
+/* Pill secondary buttons on About & Bento headers */
+html body .ac-about-pill-btn,
+html body .about-page a.secondary {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 7px !important;
+  padding: 9px 16px !important;
+  min-height: 38px !important;
+  border-radius: 999px !important;
+  border: 1px solid var(--ac-line, #e2e8f0) !important;
+  background: var(--ac-paper, #ffffff) !important;
+  color: var(--ac-ink, #0f172a) !important;
+  font-size: 0.84rem !important;
+  font-weight: 650 !important;
+  text-decoration: none !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+  transition: background-color 150ms ease, border-color 150ms ease, transform 150ms ease;
+}
+html body .ac-about-pill-btn:hover,
+html body .about-page a.secondary:hover {
+  background: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  text-decoration: none !important;
+  transform: translateY(-1px);
+}
+html[data-theme="dark"] body .ac-about-pill-btn,
+html[data-theme="dark"] body .about-page a.secondary {
+  background: #171a24 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #f4f4f6 !important;
+}
+html[data-theme="dark"] body .ac-about-pill-btn:hover,
+html[data-theme="dark"] body .about-page a.secondary:hover {
+  background: #222634 !important;
+  border-color: rgba(255, 255, 255, 0.24) !important;
+}
+
+/* ==========================================================================
    Shared Bento Helpers (Dashboard, Settings, About, Balance, Reports, Ops)
    ========================================================================== */
 .ac-bento-grid-2 {
@@ -662,6 +744,13 @@ html body .about-page.ac-about-bento {
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 14px;
+}
+.ac-about-owner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
 }
 
 .ac-about-support-list {
@@ -1000,6 +1089,24 @@ html body .ac-settings-bento .settings-main--wide {
   gap: 10px;
   flex-wrap: wrap;
 }
+.ac-reports-range-bar .form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0 !important;
+}
+.ac-reports-range-bar .form-row label {
+  margin: 0;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--ac-muted, #64748b);
+}
+.ac-reports-range-bar > button {
+  min-height: 40px !important;
+  padding: 0 18px !important;
+  border-radius: 10px !important;
+  align-self: flex-end;
+}
 .ac-reports-assist-box {
   margin-top: 14px;
   padding: 13px 15px;
@@ -1064,6 +1171,13 @@ html[data-theme="dark"] .ac-reports-checklist strong {
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+.atlas-focus-main .privacy-page,
+.public-legal .privacy-page,
+.layout .privacy-page {
+  background: transparent !important;
+  padding: 0 !important;
+  min-height: 0 !important;
 }
 .atlas-focus-main .privacy-inner > h1 {
   margin: 0;
@@ -1204,12 +1318,13 @@ html[data-theme="dark"] .atlas-focus-main .privacy-link-btn {
   width: 100%;
   padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.04);
-  color: inherit;
+  border: 1px solid #3f3f46;
+  background: #18181b;
+  color: #e4e4e7;
   font: inherit;
   font-size: 14px;
   box-sizing: border-box;
+  color-scheme: dark;
 }
 html[data-theme="light"] .dl-support-form input,
 html[data-theme="light"] .dl-support-form select,
@@ -1218,6 +1333,7 @@ html[data-theme="light"] .dl-support-lookup input {
   border-color: #d4d4d8;
   background: #ffffff;
   color: #18181b;
+  color-scheme: light;
 }
 .dl-support-actions {
   display: flex;
@@ -1292,6 +1408,113 @@ html[data-theme="light"] .dl-support-faq details {
 }
 html[data-theme="light"] .dl-support-faq details p {
   color: #52525b;
+}
+
+.support-landing .dl-cta-primary,
+.support-landing .dl-cta-main {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 11px 22px;
+  border-radius: 14px;
+  border: 1px solid #09090b;
+  background: #09090b;
+  color: #fafafa;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none !important;
+  cursor: pointer;
+  transition: transform 150ms ease, background-color 150ms ease, border-color 150ms ease, opacity 150ms ease;
+}
+.support-landing .dl-cta-primary:hover:not(:disabled),
+.support-landing .dl-cta-main:hover:not(:disabled) {
+  background: #27272a;
+  border-color: #27272a;
+  transform: translateY(-1px);
+  text-decoration: none !important;
+}
+.support-landing .dl-cta-primary:disabled,
+.support-landing .dl-cta-main:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+html[data-theme="dark"] .support-landing .dl-cta-primary,
+html[data-theme="dark"] .support-landing .dl-cta-main {
+  background: #fafafa !important;
+  border-color: #fafafa !important;
+  color: #09090b !important;
+  -webkit-text-fill-color: #09090b !important;
+}
+html[data-theme="dark"] .support-landing .dl-cta-primary:hover:not(:disabled),
+html[data-theme="dark"] .support-landing .dl-cta-main:hover:not(:disabled) {
+  background: #e4e4e7 !important;
+  border-color: #e4e4e7 !important;
+  color: #09090b !important;
+  -webkit-text-fill-color: #09090b !important;
+}
+.support-landing .dl-cta-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 11px 18px;
+  border-radius: 14px;
+  border: 1px solid #d4d4d8;
+  background: transparent;
+  color: #27272a;
+  font-size: 14px;
+  font-weight: 650;
+  text-decoration: none !important;
+  cursor: pointer;
+}
+.support-landing .dl-cta-ghost:hover {
+  background: rgba(24, 24, 27, 0.05);
+  border-color: #18181b;
+  color: #09090b;
+  text-decoration: none !important;
+}
+html[data-theme="dark"] .support-landing .dl-cta-ghost {
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  background: transparent !important;
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+}
+html[data-theme="dark"] .support-landing .dl-cta-ghost:hover {
+  background: rgba(255, 255, 255, 0.07) !important;
+  border-color: rgba(255, 255, 255, 0.34) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+.support-turnstile-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.support-turnstile-box {
+  min-height: 65px;
+  display: flex;
+  align-items: center;
+}
+.support-turnstile-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.support-turnstile-status .dl-support-err,
+.support-turnstile-status .dl-support-lookup-msg {
+  margin: 0;
+}
+.dl-support-form select option {
+  background: #18181b;
+  color: #f4f4f6;
+}
+html[data-theme="light"] .dl-support-form select option {
+  background: #ffffff;
+  color: #18181b;
 }
 
 

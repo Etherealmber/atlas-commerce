@@ -443,15 +443,28 @@ export async function buildInvoicePdfLib(input: PdfLibDocInput): Promise<Uint8Ar
           }
         }
       }
-      // Center Atlas plate
+      // Center Atlas mark (light-theme sunburst with dark details, no black box)
       const ls = logoSize * cell;
       const lx = qx + logoFrom * cell;
       const ly = qy + (n - logoFrom - logoSize) * cell;
       page.drawRectangle({
         x: lx, y: ly, width: ls, height: ls,
-        color: rgb(0.04, 0.04, 0.04),
+        color: rgb(1, 1, 1),
       });
-      drawText(page, 'A', lx + ls * 0.28, ly + ls * 0.28, Math.max(8, ls * 0.55), bold, rgb(1, 1, 1));
+      const cx = lx + ls / 2;
+      const cy = ly + ls / 2;
+      const rIn = ls * 0.14;
+      const rOut = ls * 0.38;
+      for (let i = 0; i < 16; i++) {
+        const a = (i * Math.PI * 2) / 16;
+        const inner = i === 0 ? 0 : rIn;
+        page.drawLine({
+          start: { x: cx + Math.cos(a) * inner, y: cy + Math.sin(a) * inner },
+          end: { x: cx + Math.cos(a) * rOut, y: cy + Math.sin(a) * rOut },
+          thickness: Math.max(0.55, ls * 0.055),
+          color: rgb(0.04, 0.04, 0.04),
+        });
+      }
       drawText(page, 'Scanner pour vérifier ce document', M + 72, y - 6, 9, bold);
       drawText(page, `${input.number || ''}  -  Total ${money(input.total)} ${cur}  -  Payé ${money(paid)}  -  Reste ${money(due)}`, M + 72, y - 20, 8, font, muted);
       drawText(page, 'QR officiel Atlas — ne scannez pas d\'autres codes.', M + 72, y - 32, 7, font, muted);

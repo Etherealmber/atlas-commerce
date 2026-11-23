@@ -62,7 +62,7 @@ export function titleForPath(pathname: string): string {
 }
 
 const DEFAULT_DESC =
-  'Atlas Commerce — stock, caisse et facturation pour commerces et entrepôts au Maroc.';
+  'Atlas Commerce — stock, caisse et facturation pour commerces et entrepôts.';
 const OG_IMAGE = '/og-image.png';
 
 function setMeta(attr: 'name' | 'property', key: string, content: string) {

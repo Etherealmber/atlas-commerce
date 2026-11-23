@@ -616,17 +616,7 @@ export default function Products() {
   const actionButtons = (
         <>
           <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
-          <button onClick={openNew} title="Ajouter un produit"><Plus size={16} aria-hidden="true" /><span className="tpa-label">Ajouter un produit</span></button>
-        </>
-  );
-  return (
-    <div className="atlas-catalog ac-products">
-      <div className="page-header ac-page-header product-page-actions dock-page-header">
-        <h1 className="sr-only">Produits &amp; stock</h1>
-        <TopPageActions>{actionButtons}</TopPageActions>
-      </div>
-
-      {selected.size > 0 && <div className="product-selection-bar" role="status"><span>{selected.size} produit{selected.size === 1 ? '' : 's'} sélectionné{selected.size === 1 ? '' : 's'}</span>          {selected.size > 0 && (
+          {selected.size > 0 && (
             <TimedUndoDelete
               deleteLabel={selected.size === 1 ? 'Supprimer' : `Supprimer (${selected.size})`}
               undoLabel="Annuler"
@@ -635,7 +625,6 @@ export default function Products() {
                 const targets = Array.from(selected);
                 if (!targets.length) return;
                 setDeleteTargets(targets);
-                // delete immediately after timer (targets set synchronously before confirm runs async)
                 try {
                   setDeleteBusy(true);
                   if (targets.length === 1) await api.deleteProduct(targets[0], undefined, { timedUndo: true });
@@ -651,7 +640,15 @@ export default function Products() {
               }}
             />
           )}
-<button type="button" className="secondary" onClick={() => setSelected(new Set())}>Tout désélectionner</button></div>}
+          <button onClick={openNew} title="Ajouter un produit"><Plus size={16} aria-hidden="true" /><span className="tpa-label">Ajouter un produit</span></button>
+        </>
+  );
+  return (
+    <div className="atlas-catalog ac-products">
+      <div className="page-header ac-page-header product-page-actions dock-page-header">
+        <h1 className="sr-only">Produits &amp; stock</h1>
+        <TopPageActions>{actionButtons}</TopPageActions>
+      </div>
       <SaveFeedback message={saveMsg} type={saveMsgType} />
 
       

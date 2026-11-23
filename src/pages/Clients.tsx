@@ -248,7 +248,7 @@ export default function Clients() {
     <div className="atlas-crm clients-page">
       <div className="page-header dock-page-header">
         <h1 className="sr-only">Clients</h1>
-        <TopPageActions enabled={selected.size === 0}>
+        <TopPageActions>
           <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
           {selected.size > 0 && (
             <TimedUndoDelete
@@ -263,17 +263,6 @@ export default function Clients() {
       </div>
 
       <SaveFeedback message={saveMsg} type={saveMsgType} />
-
-      <div className="ac-panel ac-products-filters">
-        <div className="ac-products-filters-row">
-          <div className="ac-search-field">
-            <svg className="ac-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-              <circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" strokeLinecap="round" />
-            </svg>
-            <input className="ac-search-input" placeholder="Nom, ICE ou ville…" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Rechercher clients" />
-          </div>
-        </div>
-      </div>
 
       {(() => {
         const totalDue = list.reduce((s, c) => s + Number((c as any).balance_due || 0), 0);
@@ -302,6 +291,17 @@ export default function Clients() {
           </div>
         );
       })()}
+
+      <div className="ac-panel ac-products-filters">
+        <div className="ac-products-filters-row">
+          <div className="ac-search-field">
+            <svg className="ac-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+              <circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" strokeLinecap="round" />
+            </svg>
+            <input className="ac-search-input" placeholder="Nom, ICE ou ville…" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Rechercher clients" />
+          </div>
+        </div>
+      </div>
 
       <div className="ac-panel ac-products-table-panel">
         <div className="ac-table-pager-bar">

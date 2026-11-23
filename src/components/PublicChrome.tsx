@@ -741,6 +741,7 @@ export function PublicDownloadCta({ prefer, full = true }: { prefer?: Platform; 
       {open && (
         <div
           role="menu"
+          className="public-download-menu"
           style={{
             position: 'absolute', top: 'calc(100% + 10px)', left: 0, minWidth: 272,
             display: 'flex', flexDirection: 'column', padding: 6, zIndex: 40,
@@ -753,6 +754,7 @@ export function PublicDownloadCta({ prefer, full = true }: { prefer?: Platform; 
               key={p}
               type="button"
               role="menuitem"
+              className="public-download-menu-item"
               onClick={() => { setOpen(false); startDownload(urlFor(p)); }}
               style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10,
@@ -768,6 +770,7 @@ export function PublicDownloadCta({ prefer, full = true }: { prefer?: Platform; 
           <button
             type="button"
             role="menuitem"
+            className="public-download-menu-item"
             onClick={() => { setOpen(false); navigate('/desktop'); }}
             style={{
               display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10,

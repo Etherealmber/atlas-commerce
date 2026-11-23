@@ -22,8 +22,11 @@ app.get('/api/auth/devices', async (c: any) => {
   const session = deps.sessionUserFromHeader(c.req.header('Authorization'));
   const username = String(session.username || '').toLowerCase();
   const fp = String(c.req.header('X-Device-Fingerprint') || '');
+  const nowIp = deps.clientIp(c);
+  const nowUa = String(c.req.header('User-Agent') || '').slice(0, 200);
+  const cfNow = deps.cfGeo(c);
   await deps.ensureSecurityTables(c.env.DB);
-  const rows = await c.env.DB.prepare(`SELECT fingerprint, last_ip, last_seen, user_agent FROM trusted_devices WHERE lower(username) = ? ORDER BY last_seen DESC LIMIT 25`).bind(username).all() as any;
+  const rows = await c.env.DB.prepare(`SELECT fingerprint, last_ip, last_seen, user_agent, city, country FROM trusted_devices WHERE lower(username) = ? ORDER BY last_seen DESC LIMIT 25`).bind(username).all() as any;
   const data = (rows.results || []).map((r: any) => ({
     fingerprint: String(r.fingerprint || '').slice(0, 12) + '…',
     full: String(r.fingerprint || ''),
@@ -35,22 +38,40 @@ app.get('/api/auth/devices', async (c: any) => {
     country: String(r.country || ''),
     current: fp && String(r.fingerprint || '') === fp,
   }));
-  if (fp && !data.some((d: any) => d.current)) {
+  const currentIdx = fp ? data.findIndex((d: any) => d.current) : -1;
+  if (fp && currentIdx === -1) {
     try {
-      await deps.touchTrustedDevice(c.env.DB, username, fp, deps.clientIp(c), c.req.header('User-Agent') || '', deps.cfGeo(c));
-      const cfNow = deps.cfGeo(c);
+      await deps.touchTrustedDevice(c.env.DB, username, fp, nowIp, nowUa, cfNow, { force: true });
       data.unshift({
         fingerprint: fp.slice(0, 12) + '…',
         full: fp,
-        last_ip: deps.clientIp(c),
+        last_ip: nowIp,
         last_seen: new Date().toISOString(),
-        user_agent: String(c.req.header('User-Agent') || '').slice(0, 90),
-        device_label: deps.deviceLabelFromUA(c.req.header('User-Agent') || ''),
+        user_agent: nowUa.slice(0, 90),
+        device_label: deps.deviceLabelFromUA(nowUa),
         city: cfNow.city,
         country: cfNow.country,
         current: true,
       });
     } catch { /* best-effort */ }
+  } else if (fp && currentIdx >= 0) {
+    const cur = rows.results[currentIdx];
+    const storedIp = String(cur?.last_ip || '');
+    const storedUa = String(cur?.user_agent || '');
+    if ((nowIp && storedIp !== nowIp) || (nowUa && storedUa !== nowUa)) {
+      try {
+        await deps.touchTrustedDevice(c.env.DB, username, fp, nowIp, nowUa, cfNow, { force: true, updateOnly: true });
+        data[currentIdx] = {
+          ...data[currentIdx],
+          last_ip: nowIp || storedIp,
+          last_seen: new Date().toISOString(),
+          user_agent: (nowUa || storedUa).slice(0, 90),
+          device_label: deps.deviceLabelFromUA(nowUa || storedUa),
+          city: cfNow.city || data[currentIdx].city,
+          country: cfNow.country || data[currentIdx].country,
+        };
+      } catch { /* best-effort */ }
+    }
   }
   return c.json({ success: true, data });
 });

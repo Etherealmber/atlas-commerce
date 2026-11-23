@@ -135,7 +135,7 @@ app.get('/api/settings/invoice-preview', async (c: any) => {
       <h2>4. Employés & paie</h2>
       <table><thead><tr><th>N°</th><th>Nom</th><th>Poste</th><th>Salaire</th><th>Cycle</th><th>Dernier paiement</th><th>Statut</th><th></th></tr></thead><tbody>${empRows || `<tr><td colspan="8">Aucun</td></tr>`}</tbody></table>
       <div style="margin:14px 0;padding:10px;border:1px dashed #999;text-align:center">
-        <img src="${rptQr}" width="96" height="96" alt="QR résumé du rapport"/><br/>
+        <div style="display:inline-block">${rptQr}</div><br/>
         <span class="muted">QR résumé — ${demo ? 'aperçu DÉMO' : 'rapport'}</span><br/>
         <a href="${escapeHtml(c.req.url)}">Rouvrir ce rapport dans l'aperçu</a>
       </div>
@@ -192,10 +192,16 @@ app.get('/api/settings/invoice-preview', async (c: any) => {
     } else {
       rVerify = `APERÇU DÉMO — REÇU ${receiptDoc.number} · ${receiptDoc.amount} ${settings?.currency || 'MAD'} · document non réel`;
     }
-    // v0.7.2 — le QR « situation client » s'affiche en aperçu quand l'option
-    // est activée (réglage global ou par reçu), comme sur le vrai reçu.
+    // v0.7.2 — le QR « situation client » s'affiche en aperçu selon le choix
+    // explicite (?qr_situation=1|0), ou sinon selon le réglage global / par reçu.
     let statusUrl = '';
-    const qrSitOn = Number(settings?.qr_client_situation ?? 0) === 1 || Number(rc?.include_client_situation ?? 0) === 1;
+    const qsSit = String(c.req.query('qr_situation') || '').toLowerCase();
+    const qrSitOn =
+      qsSit === '1' || qsSit === 'true'
+        ? true
+        : qsSit === '0' || qsSit === 'false'
+          ? false
+          : Number(settings?.qr_client_situation ?? 0) === 1 || Number(rc?.include_client_situation ?? 0) === 1;
     if (qrSitOn) {
       if (rc) {
         let tok = '';

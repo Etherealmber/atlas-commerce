@@ -659,6 +659,30 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
 
       <SaveFeedback message={msg} type={msgType} />
 
+      <div className="ac-metric-grid ac-metric-grid--3" style={{ marginBottom: 16 }}>
+        <div className="ac-metric">
+          <div className="as-label">Actifs</div>
+          <div className="as-value" style={{ fontSize: '1.35rem' }}>
+            {activeCount}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>dans la liste</div>
+        </div>
+        <div className="ac-metric">
+          <div className="as-label">À payer</div>
+          <div className="as-value" style={{ fontSize: '1.35rem' }}>
+            {payDueCount}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>échéance dépassée</div>
+        </div>
+        <div className="ac-metric">
+          <div className="as-label">Masse (actifs)</div>
+          <div className="as-value" style={{ fontSize: '1.35rem' }}>
+            {Math.round(payroll).toLocaleString('fr-FR')} MAD
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>somme des salaires</div>
+        </div>
+      </div>
+
       <div className="ac-panel ac-products-filters"><div className="ac-products-filters-row employees-toolbar">
           <input
             className="ac-search-input"
@@ -695,30 +719,6 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
             <option value="resigned">Démissionnaires</option>
             <option value="all">Tous</option>
           </select>
-        </div>
-      </div>
-
-      <div className="ac-metric-grid ac-metric-grid--3" style={{ marginBottom: 16 }}>
-        <div className="ac-metric">
-          <div className="as-label">Actifs</div>
-          <div className="as-value" style={{ fontSize: '1.35rem' }}>
-            {activeCount}
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>dans la liste</div>
-        </div>
-        <div className="ac-metric">
-          <div className="as-label">À payer</div>
-          <div className="as-value" style={{ fontSize: '1.35rem' }}>
-            {payDueCount}
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>échéance dépassée</div>
-        </div>
-        <div className="ac-metric">
-          <div className="as-label">Masse (actifs)</div>
-          <div className="as-value" style={{ fontSize: '1.35rem' }}>
-            {Math.round(payroll).toLocaleString('fr-FR')} MAD
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>somme des salaires</div>
         </div>
       </div>
 

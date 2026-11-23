@@ -1,7 +1,7 @@
 import DocumentActors from '../components/DocumentActors';
 import TopPageActions from '../components/TopPageActions';
-import { Ban, FileCode2, Pencil, Printer } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Ban, FileCode2, Pencil, Printer, RotateCcw } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { whatsAppDraft } from '../lib/assist';
 import { useParams, Link, Navigate, useNavigate } from 'react-router-dom';
 import { api, BASE } from '../api';
@@ -10,6 +10,7 @@ import { statusFr, statusBadgeClass } from '../lib/labels';
 import { fmtMoney, paymentMethodLabel, remainingBalance } from '../lib/money';
 import { useUi } from '../components/AppDialogs';
 import PasswordConfirm from '../components/PasswordConfirm';
+import RemboursementModal from '../components/RemboursementModal';
 import { TimedUndoDelete } from '../components/ui';
 import { numStr, numFromInput } from '../lib/numInput';
 import NumberField from '../components/NumberField';
@@ -69,6 +70,8 @@ export default function InvoiceDetail() {
   const [pwOpen, setPwOpen] = useState(false);
   const [pwDesc, setPwDesc] = useState('');
   const [pendingDelete, setPendingDelete] = useState<null | ((password: string) => Promise<void>)>(null);
+  const [showRefund, setShowRefund] = useState(false);
+  const linesCardRef = useRef<HTMLDivElement>(null);
 
   const reload = async () => {
     if (!id) return;
@@ -288,9 +291,13 @@ export default function InvoiceDetail() {
         </div>
       )}
       {invoice && invoice.status !== 'cancelled' && invoice.status !== 'remboursement' && invoice.status !== 'quote' && invoice.status !== 'devis' && (
-        <div className="card" style={{ marginBottom: 12, padding: '10px 14px', fontSize: 13 }}>
-          <strong>Avoir / WR</strong> — pour un retour ou correction, créez un remboursement (WR-) depuis Factures
-          (« + Remboursement »). Si cette facture est déjà payée, le WR génère une sortie de caisse dans Solde.
+        <div className="card" style={{ marginBottom: 12, padding: '10px 14px', fontSize: 13, display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <span>
+            <strong>Avoir / WR</strong> — pour un retour ou correction, créez un remboursement (WR-) directement ici. Si cette facture est déjà payée, le WR génère une sortie de caisse dans Solde.
+          </span>
+          <button type="button" className="secondary" style={{ fontSize: 12 }} onClick={() => setShowRefund(true)}>
+            <RotateCcw size={14} aria-hidden="true" /> Créer un remboursement
+          </button>
         </div>
       )}
       <div className="page-header dock-page-header">
@@ -317,9 +324,22 @@ export default function InvoiceDetail() {
             </button>
           )}
           {canEditLines && !editingLines && (
-            <button type="button" title="Modifier lignes & promo" onClick={startEditLines}>
+            <button
+              type="button"
+              title="Modifier lignes & promo"
+              onClick={() => {
+                startEditLines();
+                requestAnimationFrame(() => linesCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
+              }}
+            >
               <Pencil size={16} aria-hidden="true" />
               <span className="tpa-label">Modifier lignes &amp; promo</span>
+            </button>
+          )}
+          {invoice.status !== 'cancelled' && invoice.status !== 'remboursement' && invoice.status !== 'quote' && invoice.status !== 'devis' && (
+            <button type="button" className="secondary" title="Créer un remboursement" onClick={() => setShowRefund(true)}>
+              <RotateCcw size={16} aria-hidden="true" />
+              <span className="tpa-label">Créer un remboursement</span>
             </button>
           )}
         </TopPageActions>
@@ -640,7 +660,7 @@ export default function InvoiceDetail() {
         </div>
       </div>
 
-      <div className="card">
+      <div className="card" ref={linesCardRef}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <h3 style={{ margin: 0, fontSize: 16 }}>Lignes</h3>
           {canEditLines && !editingLines && (
@@ -893,6 +913,13 @@ export default function InvoiceDetail() {
           </div>
         </div>
       </section>
+
+      <RemboursementModal
+        open={showRefund}
+        initialSourceId={invoice.id}
+        onClose={() => setShowRefund(false)}
+        onCreated={() => void reload()}
+      />
 
       {pwOpen && pendingDelete && (
         <PasswordConfirm

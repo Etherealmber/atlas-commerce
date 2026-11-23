@@ -37,12 +37,39 @@ function longMonthLabel(s: { key?: string; label?: string }) {
   return String(s.label || k || '—');
 }
 
+function trimCompactDecimal(num: number): string {
+  return Math.abs(num) >= 100 ? String(Math.round(num)) : num.toFixed(1).replace(/\.0$/, '');
+}
+
+/**
+ * Format chart values with compact k / M / B suffixes when numbers are large
+ * or space is tight, keeping full exact numbers when there is plenty of room.
+ */
+export function formatCompactNum(v: number, unit = '', compactFrom = 100_000): string {
+  const n = Number(v || 0);
+  if (!Number.isFinite(n) || n === 0) return unit ? `0 ${unit}` : '0';
+  const sign = n < 0 ? '-' : '';
+  const abs = Math.abs(n);
+  let body: string;
+  if (abs >= compactFrom && abs >= 1_000_000_000) {
+    body = `${sign}${trimCompactDecimal(abs / 1_000_000_000)}B`;
+  } else if (abs >= compactFrom && abs >= 1_000_000) {
+    body = `${sign}${trimCompactDecimal(abs / 1_000_000)}M`;
+  } else if (abs >= compactFrom && abs >= 1_000) {
+    body = `${sign}${trimCompactDecimal(abs / 1_000)}k`;
+  } else {
+    body = Math.round(n).toLocaleString('fr-FR');
+  }
+  return unit ? `${body} ${unit}` : body;
+}
+
 export function formatAxisVal(v: number, span: number) {
   if (!Number.isFinite(v)) return '0';
   const abs = Math.abs(v);
   if (abs === 0) return '0';
   const sign = v < 0 ? '-' : '';
-  if (span >= 1_000_000) return `${sign}${(abs / 1_000_000).toFixed(abs % 1_000_000 === 0 ? 0 : 1)}M`;
+  if (span >= 1_000_000_000) return `${sign}${trimCompactDecimal(abs / 1_000_000_000)}B`;
+  if (span >= 1_000_000) return `${sign}${trimCompactDecimal(abs / 1_000_000)}M`;
   if (span >= 20_000) return `${sign}${Math.round(abs / 1000)}k`;
   if (span >= 1000) {
     const k = abs / 1000;
@@ -176,9 +203,8 @@ function useChartWidth(fallback = 720) {
   return { ref, width };
 }
 
-function formatTooltipNum(v: number, unit?: string) {
-  const rounded = Math.round(Number(v || 0)).toLocaleString('fr-FR');
-  return unit ? `${rounded} ${unit}` : rounded;
+function formatTooltipNum(v: number, unit?: string, compactFrom = 100_000) {
+  return formatCompactNum(v, unit || '', compactFrom);
 }
 
 export function AreaChart({
@@ -426,7 +452,7 @@ export function AreaChart({
               {keys.map((k) => (
                 <div key={k.key} className="ac-chart-tooltip-row">
                   <span><i style={{ background: k.color }} />{k.label}</span>
-                  <strong>{formatTooltipNum(Number(activePoint[k.key] || 0), unit)}</strong>
+                  <strong>{formatTooltipNum(Number(activePoint[k.key] || 0), unit, width < 440 ? 10_000 : 100_000)}</strong>
                 </div>
               ))}
               {showNetDelta && keys.length >= 2 && (
@@ -444,6 +470,7 @@ export function AreaChart({
                     {formatTooltipNum(
                       Number(activePoint[keys[0].key] || 0) - Number(activePoint[keys[1].key] || 0),
                       unit,
+                      width < 440 ? 10_000 : 100_000,
                     )}
                   </strong>
                 </div>
@@ -727,13 +754,13 @@ export function BarChart({
               {keys.map((k) => (
                 <div key={k.key} className="ac-chart-tooltip-row">
                   <span><i style={{ background: k.color }} />{k.label}</span>
-                  <strong>{formatTooltipNum(Number(activePoint[k.key] || 0), unit)}</strong>
+                  <strong>{formatTooltipNum(Number(activePoint[k.key] || 0), unit, width < 440 ? 10_000 : 100_000)}</strong>
                 </div>
               ))}
               {secondaryLineKey && (
                 <div className="ac-chart-tooltip-row">
                   <span><i style={{ background: secondaryLineKey.color }} />{secondaryLineKey.label}</span>
-                  <strong>{formatTooltipNum(Number(activePoint[secondaryLineKey.key] || 0), secondaryUnit)}</strong>
+                  <strong>{formatTooltipNum(Number(activePoint[secondaryLineKey.key] || 0), secondaryUnit, width < 440 ? 10_000 : 100_000)}</strong>
                 </div>
               )}
             </div>
@@ -753,27 +780,30 @@ export function HBarChart({
   color?: string;
   unit?: string;
 }) {
+  const { ref, width } = useChartWidth(420);
   if (!items.length) {
     return (
-      <div className="ac-dash-empty" style={{ minHeight: 110 }}>
+      <div className="ac-dash-empty" style={{ minHeight: 110 }} ref={ref}>
         <p>Aucune catégorie.</p>
       </div>
     );
   }
   const total = items.reduce((acc, it) => acc + Math.max(0, Math.abs(it.value)), 0) || 1;
   const max = Math.max(1, ...items.map((i) => Math.abs(i.value)));
+  const compactThreshold = width < 420 ? 10_000 : 100_000;
   return (
-    <div className="ac-hbar-list">
+    <div className="ac-hbar-list" ref={ref}>
       {items.slice(0, 8).map((it) => {
         const val = Math.abs(it.value);
         const pct = Math.round((val / total) * 100);
         const barPct = Math.min(100, (val / max) * 100);
+        const fullStr = `${Math.round(it.value).toLocaleString('fr-FR')}${unit ? ` ${unit}` : ''}`;
         return (
           <div key={it.label} className="ac-hbar-row">
             <div className="ac-hbar-top">
               <span className="ac-hbar-label" title={it.label}>{it.label}</span>
-              <span className="ac-hbar-val">
-                <strong>{Math.round(it.value).toLocaleString('fr-FR')} {unit}</strong>
+              <span className="ac-hbar-val" title={fullStr}>
+                <strong>{formatCompactNum(it.value, unit, compactThreshold)}</strong>
                 <em>{pct}%</em>
               </span>
             </div>
@@ -812,7 +842,7 @@ export function DonutChart({
 
   const activeSeg = hoverIdx != null && segments[hoverIdx] ? segments[hoverIdx] : null;
   const displayValue = activeSeg
-    ? `${Math.round(activeSeg.value).toLocaleString('fr-FR')}${unit ? ` ${unit}` : ''}`
+    ? formatCompactNum(activeSeg.value, unit, 10_000)
     : centerValue;
   const displayLabel = activeSeg
     ? `${activeSeg.label} (${hasValues ? Math.round((Math.max(0, activeSeg.value) / total) * 100) : 0}%)`
@@ -875,8 +905,8 @@ export function DonutChart({
                 <i style={{ background: color }} />
                 <span>{seg.label}</span>
               </span>
-              <span className="ac-donut-leg-val">
-                {Math.round(seg.value).toLocaleString('fr-FR')}{unit ? ` ${unit}` : ''}
+              <span className="ac-donut-leg-val" title={`${Math.round(seg.value).toLocaleString('fr-FR')}${unit ? ` ${unit}` : ''}`}>
+                {formatCompactNum(seg.value, unit, 10_000)}
                 {hasValues ? ` · ${pct}%` : ''}
               </span>
             </li>

@@ -11,7 +11,7 @@ export function cfGeo(c: any): { city: string; country: string } {
   return { city: String(cf.city || ''), country: String(cf.country || '') };
 }
 
-export const _touchDeviceCache = new WeakMap<object, Map<string, number>>();
+export const _touchDeviceCache = new WeakMap<object, Map<string, { sig: string; at: number }>>();
 export const TOUCH_DEVICE_THROTTLE_MS = 180_000;
 
 export async function touchTrustedDevice(
@@ -21,42 +21,55 @@ export async function touchTrustedDevice(
   ip: string,
   userAgent: string,
   geo?: { city?: string; country?: string } | null,
+  opts?: { force?: boolean; updateOnly?: boolean },
 ): Promise<void> {
-  const fp = String(fingerprint || '').trim();
+  const cleanFp = String(fingerprint || '').trim().slice(0, 128);
   const uname = String(username || '').trim().toLowerCase();
-  if (!fp || fp === 'none' || !uname) return;
-  const cacheKey = `${fp}|${uname}|${String(ip || '')}`;
+  if (!cleanFp || cleanFp === 'none' || !uname) return;
+  const cleanIp = String(ip || '').slice(0, 64);
+  const cleanUa = String(userAgent || '').slice(0, 200);
+  const cleanCity = String(geo?.city || '').slice(0, 80);
+  const cleanCountry = String(geo?.country || '').slice(0, 80);
+  const stateSig = `${uname}|${cleanIp}|${cleanUa}`;
   let perDb = _touchDeviceCache.get(db as unknown as object);
   const now = Date.now();
-  const last = perDb?.get(cacheKey);
-  if (last && now - last < TOUCH_DEVICE_THROTTLE_MS) return;
+  const prev = perDb?.get(cleanFp);
+  if (!opts?.force && prev && prev.sig === stateSig && now - prev.at < TOUCH_DEVICE_THROTTLE_MS) return;
   await ensureSecurityTables(db);
-  await db
-    .prepare(
-      `INSERT INTO trusted_devices (fingerprint, username, user_agent, last_ip, last_seen, city, country)
-       VALUES (?, ?, ?, ?, datetime('now'), ?, ?)
-       ON CONFLICT(fingerprint) DO UPDATE SET
-         username = excluded.username,
-         user_agent = excluded.user_agent,
-         last_ip = excluded.last_ip,
-         last_seen = datetime('now'),
-         city = COALESCE(NULLIF(excluded.city, ''), city),
-         country = COALESCE(NULLIF(excluded.country, ''), country)`,
-    )
-    .bind(
-      fp.slice(0, 128),
-      uname,
-      String(userAgent || '').slice(0, 200),
-      String(ip || '').slice(0, 64),
-      String(geo?.city || '').slice(0, 80),
-      String(geo?.country || '').slice(0, 80),
-    )
-    .run();
+  if (opts?.updateOnly) {
+    await db
+      .prepare(
+        `UPDATE trusted_devices
+         SET last_ip = CASE WHEN ? != '' THEN ? ELSE last_ip END,
+             user_agent = CASE WHEN ? != '' THEN ? ELSE user_agent END,
+             last_seen = datetime('now'),
+             city = COALESCE(NULLIF(?, ''), city),
+             country = COALESCE(NULLIF(?, ''), country)
+         WHERE fingerprint = ? AND lower(COALESCE(username, '')) = ?`,
+      )
+      .bind(cleanIp, cleanIp, cleanUa, cleanUa, cleanCity, cleanCountry, cleanFp, uname)
+      .run();
+  } else {
+    await db
+      .prepare(
+        `INSERT INTO trusted_devices (fingerprint, username, user_agent, last_ip, last_seen, city, country)
+         VALUES (?, ?, ?, ?, datetime('now'), ?, ?)
+         ON CONFLICT(fingerprint) DO UPDATE SET
+           username = excluded.username,
+           user_agent = CASE WHEN excluded.user_agent != '' THEN excluded.user_agent ELSE trusted_devices.user_agent END,
+           last_ip = CASE WHEN excluded.last_ip != '' THEN excluded.last_ip ELSE trusted_devices.last_ip END,
+           last_seen = datetime('now'),
+           city = COALESCE(NULLIF(excluded.city, ''), city),
+           country = COALESCE(NULLIF(excluded.country, ''), country)`,
+      )
+      .bind(cleanFp, uname, cleanUa, cleanIp, cleanCity, cleanCountry)
+      .run();
+  }
   if (!perDb) {
-    perDb = new Map<string, number>();
+    perDb = new Map<string, { sig: string; at: number }>();
     _touchDeviceCache.set(db as unknown as object, perDb);
   }
-  perDb.set(cacheKey, now);
+  perDb.set(cleanFp, { sig: stateSig, at: now });
   if (perDb.size > 300) {
     const first = perDb.keys().next().value;
     if (first) perDb.delete(first);
@@ -388,6 +401,12 @@ export async function ensureSecurityTables(db: D1Database) {
     biometric_credential_id TEXT DEFAULT ''
   )`).run();
   await addColumnIfMissing(db, 'trusted_devices', 'biometric_credential_id', "TEXT DEFAULT ''");
+  await addColumnIfMissing(db, 'trusted_devices', 'last_ip', "TEXT DEFAULT ''");
+  await addColumnIfMissing(db, 'trusted_devices', 'last_seen', "TEXT DEFAULT ''");
+  await addColumnIfMissing(db, 'trusted_devices', 'username', "TEXT DEFAULT ''");
+  await addColumnIfMissing(db, 'trusted_devices', 'user_agent', "TEXT DEFAULT ''");
+  await addColumnIfMissing(db, 'trusted_devices', 'city', "TEXT DEFAULT ''");
+  await addColumnIfMissing(db, 'trusted_devices', 'country', "TEXT DEFAULT ''");
 
   // Multiple WebAuthn credentials per device (platform biometric + hardware security keys)
   await db.prepare(`CREATE TABLE IF NOT EXISTS webauthn_credentials (
@@ -502,13 +521,19 @@ export async function trustDevice(db: D1Database, fingerprint: string, ip: strin
   // v0.7.1 — main company email = OTP fallback destination until a user has one.
   await addColumnIfMissing(db, 'company_settings', 'email', "TEXT DEFAULT ''");
   const u = String(username || '').slice(0, 80);
-  const ua = String(userAgent || '').slice(0, 160);
+  const ua = String(userAgent || '').slice(0, 200);
+  const cleanIp = String(ip || '').slice(0, 64);
+  const cleanFp = String(fingerprint || '').trim().slice(0, 128);
   await db.prepare(
     `INSERT INTO trusted_devices (fingerprint, last_ip, last_seen, username, user_agent) VALUES (?, ?, datetime('now'), ?, ?)
-     ON CONFLICT(fingerprint) DO UPDATE SET last_ip = ?, last_seen = datetime('now'),
+     ON CONFLICT(fingerprint) DO UPDATE SET
+       last_ip = CASE WHEN excluded.last_ip != '' THEN excluded.last_ip ELSE trusted_devices.last_ip END,
+       last_seen = datetime('now'),
        username = CASE WHEN excluded.username != '' THEN excluded.username ELSE trusted_devices.username END,
        user_agent = CASE WHEN excluded.user_agent != '' THEN excluded.user_agent ELSE trusted_devices.user_agent END`
-  ).bind(fingerprint, ip, u, ua, ip).run();
+  ).bind(cleanFp, cleanIp, u, ua).run();
+  const perDb = _touchDeviceCache.get(db as unknown as object);
+  if (perDb) perDb.delete(cleanFp);
 }
 
 /** Part 2: re-confirm admin password for create / edit / delete (OTP is login-only). */

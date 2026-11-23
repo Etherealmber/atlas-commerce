@@ -817,9 +817,9 @@ export default function Welcome() {
             <div className="welcome-projects welcome-fade-up" style={{ animationDelay: '0.32s' }}>
               <p className="welcome-projects-title">Autres projets</p>
               <div className="welcome-projects-grid">
-                <a className="welcome-project-card" href="https://github.com/Etherealmber/afmarbre-main" target="_blank" rel="noreferrer">
-                  <strong>afmarbre-main</strong>
-                  <span>Vitrine &amp; infrastructure</span>
+                <a className="welcome-project-card" href="https://github.com/Etherealmber/atlas-commerce" target="_blank" rel="noreferrer">
+                  <strong>atlas-commerce</strong>
+                  <span>Web, API Edge &amp; moteur WASM</span>
                 </a>
                 <a className="welcome-project-card" href="https://github.com/Etherealmber/atlas-commerce-android" target="_blank" rel="noreferrer">
                   <strong>atlas-commerce-android</strong>

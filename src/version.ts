@@ -13,9 +13,9 @@ export const APP_TEAM = 'etherealmber';
 export const APP_GITHUB = 'https://github.com/etherealmber';
 export const APP_TEAM_GITHUB = 'https://github.com/etherealmber';
 export const APP_INSTAGRAM = '';
-export const APP_LOCATION = 'El Jadida, Maroc';
+export const APP_LOCATION = '';
 export const APP_DESCRIPTION =
-  'Logiciel de gestion stock, caisse et facturation pour commerces et entrepôts au Maroc.';
+  'Logiciel de gestion stock, caisse et facturation pour commerces et entrepôts.';
 export const APP_PROFILE = 'https://github.com/etherealmber';
 
 /** Version publique courante. */

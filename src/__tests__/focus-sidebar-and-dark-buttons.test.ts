@@ -221,27 +221,75 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     expect(privacyBtn?.classList.contains('is-active')).toBe(false);
   });
 
-  it('renders /support page in /desktop style with AF Marbre support content and routes', async () => {
+  it('renders /support page strictly for Atlas Commerce & Etherealmber with Cloudflare Turnstile', async () => {
     await act(async () => {
       root.render(createElement(MemoryRouter, { initialEntries: ['/support'] }, createElement(Support)));
     });
     const txt = host.textContent || '';
     expect(host.querySelector('.download-landing.desktop-landing.support-landing')).not.toBeNull();
-    expect(txt).toContain('Votre projet mérite');
-    expect(txt).toContain('05 22 96 97 36');
-    expect(txt).toContain('support@afmarbre.com');
-    expect(host.querySelectorAll('.dl-support-faq details')).toHaveLength(7);
+    expect(txt).toContain('Atlas Commerce');
+    expect(txt).toContain('Etherealmber');
+    expect(txt).not.toMatch(/afmarbre|05 22 96 97 36|06 61 12 45 78|El Jadida|Berahma|WhatsApp/i);
+    expect(host.querySelectorAll('.dl-support-faq details')).toHaveLength(6);
+
+    const supportSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Support.tsx'), 'utf8');
+    expect(supportSrc).toContain('id="cf-turnstile"');
+    expect(supportSrc).toContain('/api/auth/turnstile-config');
+    expect(supportSrc).toContain('/api/reports');
+
+    const aboutSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/About.tsx'), 'utf8');
+    expect(aboutSrc).not.toMatch(/afmarbre|APP_LOCATION|Conformité Maroc/i);
+    expect(aboutSrc).toContain('about-page');
 
     const appSrc = readFileSync(path.resolve(process.cwd(), 'src/App.tsx'), 'utf8');
     expect(appSrc).toContain('path="/support"');
     expect(appSrc).toContain('path="/supprot"');
     expect(appSrc).toContain('PublicLegalOutlet');
+    expect(appSrc).toContain('layout--focus');
+    expect(appSrc).toContain('{!isFocusRoute && (');
   });
 
-  it('keeps project cards non-underlined, FocusSidebar left-centered, and zero purple in updated modules', () => {
+  it('keeps FocusSidebar, Bento metrics, CookieConsent, and split download CTAs properly styled', () => {
     const focusCss = readFileSync(path.resolve(process.cwd(), 'src/styles/focus-sidebar.css'), 'utf8');
+    const shellCss = readFileSync(path.resolve(process.cwd(), 'src/styles/shell.css'), 'utf8');
+    const indexCss = readFileSync(path.resolve(process.cwd(), 'src/index.css'), 'utf8');
+    const darkCss = readFileSync(path.resolve(process.cwd(), 'src/styles/dark-force.css'), 'utf8');
+    const appCss = readFileSync(path.resolve(process.cwd(), 'src/App.css'), 'utf8');
+    const overridesCss = readFileSync(path.resolve(process.cwd(), 'src/styles/overrides-final.css'), 'utf8');
+
     expect(focusCss).toContain('text-decoration: none !important;');
     expect(focusCss).toContain('transform: translateY(-50%);');
+    expect(focusCss).toContain('.ac-metric-label');
+    expect(focusCss).toContain('.ac-metric-val');
+    expect(focusCss).toContain('.ac-metric-meta');
+    expect(focusCss).toContain('.atlas-focus-main .privacy-page');
+    expect(shellCss).toContain('.layout.layout--focus');
+    expect(shellCss).toContain(':not(.atlas-focus-nav-item)');
+    expect(shellCss).toContain('.ac-dash-hero:has(.ac-dash-hero-side)');
+    expect(indexCss).toContain('background: transparent !important;');
+    expect(indexCss).toContain(':not(.public-download-toggle)');
+    expect(indexCss).not.toContain('rgba(18, 46, 39');
+    expect(darkCss).toContain('.public-download-menu-item');
+    expect(darkCss).toContain('.atlas-dl-teaser-link');
+    expect(darkCss).toContain('html body .cookie-consent-head a { color: #18181b !important;');
+    expect(darkCss).toContain('outline: 2px solid #18181b !important;');
+    expect(darkCss).toContain('.ac-topbar-notif-wrap');
+    expect(darkCss).toContain('.modal-form-alert--error');
+    expect(darkCss).toContain('color-scheme: dark');
+    expect(darkCss).toContain('html[data-theme] body .privacy-link-btn');
+    expect(darkCss).toContain('--bg: #121317 !important;');
+    expect(darkCss).toContain('--paper: #181a20 !important;');
+    expect(darkCss).toContain(':not(.privacy-link-btn)');
+    expect(darkCss).toMatch(/thead\s+th:last-child\s*\{[^}]*text-align:\s*center\s*!important;/s);
+    for (const legal of ['src/pages/Privacy.tsx', 'src/pages/Terms.tsx', 'src/pages/Licenses.tsx']) {
+      expect(readFileSync(path.resolve(process.cwd(), legal), 'utf8')).not.toContain('privacy-nav');
+    }
+    expect(shellCss).toContain('display: inline-flex !important;');
+    expect(shellCss).toContain('white-space: nowrap;');
+    expect(overridesCss).toContain('white-space: nowrap !important;');
+    expect(appCss).toContain('.atlas-dl-teaser-link');
+    expect(appCss).toContain('minmax(0, 310px) minmax(0, 1fr)');
+    expect(appCss).toContain('.download-landing .dl-ed-heading { min-width: 0;');
 
     const cleanedFiles = [
       'src/styles/theme.css',
@@ -258,5 +306,20 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
       const content = readFileSync(path.resolve(process.cwd(), rel), 'utf8');
       expect(content).not.toMatch(/#4f46e5|#6366f1|#8b5cf6|#a5b4fc|#c4b5fd|#eef2ff|rgba\(99,\s*102,\s*241|rgba\(124,\s*58,\s*237|rgba\(139,\s*156,\s*255/i);
     }
+  });
+
+  it('formats chart money compactly as 1k / 1M / 1B when large or tight while keeping normal values intact', async () => {
+    const { formatCompactNum, formatAxisVal } = await import('../components/DashboardCharts');
+
+    expect(formatCompactNum(0, 'MAD')).toBe('0 MAD');
+    expect(formatCompactNum(12500, 'MAD', 100_000)).toMatch(/12[\s\u202f\u00a0]?500 MAD/);
+    expect(formatCompactNum(12500, 'MAD', 10_000)).toBe('12.5k MAD');
+    expect(formatCompactNum(150_000, 'MAD')).toBe('150k MAD');
+    expect(formatCompactNum(2_500_000, 'MAD')).toBe('2.5M MAD');
+    expect(formatCompactNum(1_200_000_000, 'MAD')).toBe('1.2B MAD');
+
+    expect(formatAxisVal(1_500_000_000, 2_000_000_000)).toBe('1.5B');
+    expect(formatAxisVal(2_000_000, 4_000_000)).toBe('2M');
+    expect(formatAxisVal(45_000, 50_000)).toBe('45k');
   });
 });
