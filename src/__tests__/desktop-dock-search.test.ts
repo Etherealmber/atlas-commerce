@@ -92,6 +92,26 @@ it('does not show the removed search in the desktop dock while keeping its other
     await act(async () => actionsSlot.dispatchEvent(new PointerEvent('pointerout', { bubbles: true, pointerType: 'mouse' })));
     expect(actionsSlot.classList.contains('desktop-catalog-actions-slot--compact')).toBe(false);
 
+    // Clicking a child action button via mouse and moving the cursor outside still re-minimizes actionsSlot.
+    Object.defineProperty(window, 'scrollY', { configurable: true, value: 460 });
+    clock.mockReturnValue(now + 3000);
+    await act(async () => window.dispatchEvent(new Event('scroll')));
+    expect(actionsSlot.classList.contains('desktop-catalog-actions-slot--compact')).toBe(true);
+    const actionBtn = document.createElement('button');
+    actionBtn.type = 'button';
+    actionBtn.textContent = 'Actualiser';
+    actionsSlot.appendChild(actionBtn);
+    await act(async () => actionsSlot.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, pointerType: 'mouse' })));
+    expect(actionsSlot.classList.contains('desktop-catalog-actions-slot--compact')).toBe(false);
+    await act(async () => {
+      actionBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'mouse' }));
+      actionBtn.focus();
+      actionBtn.click();
+    });
+    await act(async () => document.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pointerType: 'mouse' })));
+    expect(actionsSlot.classList.contains('desktop-catalog-actions-slot--compact')).toBe(true);
+    actionBtn.remove();
+
     clock.mockRestore();
     await act(async () => host.querySelector<HTMLAnchorElement>('aside.sidebar a[href="/products"]')!.click());
     expect(host.querySelector('.ac-desktop-dock')?.classList.contains('ac-topbar--compact')).toBe(false);

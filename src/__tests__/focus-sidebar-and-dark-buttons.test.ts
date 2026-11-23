@@ -478,6 +478,7 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
       await new Promise((r) => setTimeout(r, 20));
     });
 
+    expect(host.querySelector('.ac-dash-hero')).toBeNull();
     expect(host.querySelector('.ac-audit-header-panel')).not.toBeNull();
     expect(host.querySelector('.ac-audit-kpis')).not.toBeNull();
     expect(host.querySelector('.ac-audit-charts-grid')).not.toBeNull();
@@ -600,5 +601,30 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
 
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+  });
+
+  it('removes Settings hero header, stacks About creator/contributors, styles cookie preference control as a pill button, and modernizes Welcome Bento UI', async () => {
+    const settingsSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Settings.tsx'), 'utf8');
+    const aboutSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/About.tsx'), 'utf8');
+    const darkCss = readFileSync(path.resolve(process.cwd(), 'src/styles/dark-force.css'), 'utf8');
+    const welcomeSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Welcome.tsx'), 'utf8');
+
+    // 1. Settings.tsx: no top .ac-dash-hero block while preserving sr-only h1
+    expect(settingsSrc).not.toContain('className="ac-dash-hero"');
+    expect(settingsSrc).toContain('<h1 className="sr-only">');
+
+    // 2. About.tsx: Créateur & Remerciements stack vertically one after another
+    expect(aboutSrc).toContain('<div className="ac-bento-stack" id="about-creator">');
+
+    // 3. Privacy cookie preferences button renders as a pill button without link underline
+    const privacyBtnBlock = darkCss.match(/html\[data-theme\] body \.privacy-link-btn[\s\S]*?\}/)?.[0] || '';
+    expect(privacyBtnBlock).toContain('text-decoration: none !important');
+    expect(privacyBtnBlock).toContain('border-radius: 999px !important');
+
+    // 4. Welcome.tsx: Bento top chrome, density switcher, and on-demand FeatureTour trigger
+    expect(welcomeSrc).toContain('welcome-top-bar');
+    expect(welcomeSrc).toContain('welcome-density-row');
+    expect(welcomeSrc).toContain('welcome-summary-bento');
+    expect(welcomeSrc).toContain('Visite rapide des modules');
   });
 });

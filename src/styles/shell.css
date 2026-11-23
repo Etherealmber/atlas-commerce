@@ -2503,6 +2503,23 @@ html[data-theme="dark"] .ac-edit-profile-backdrop {
   flex-direction: column;
   align-items: center;
 }
+.ac-feature-tour-step-badge {
+  position: absolute;
+  top: 20px;
+  left: 22px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--ac-nav-hover);
+  color: var(--ac-muted);
+}
+.ac-feature-tour-kbd {
+  margin: 10px 0 0;
+  font-size: 0.72rem;
+  color: var(--ac-muted);
+}
 .ac-feature-tour-close {
   position: absolute;
   top: 16px;
@@ -3259,7 +3276,7 @@ html[data-theme="dark"] body .desktop-catalog-actions-slot:focus-within > .top-p
 }
 
 /* Minimized top-right page actions: compact icon-only pill bar on scroll, expands on hover or keyboard focus. */
-@media (min-width: 1500px) {
+@media (min-width: 901px) {
   .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact > .top-page-actions {
     box-shadow: 0 6px 20px rgba(15, 23, 42, 0.09), 0 1px 2px rgba(15, 23, 42, 0.05);
   }
@@ -3295,12 +3312,12 @@ html[data-theme="dark"] body .desktop-catalog-actions-slot:focus-within > .top-p
     box-shadow: 0 12px 32px rgba(15, 23, 42, 0.14), 0 2px 6px rgba(15, 23, 42, 0.08);
   }
 }
-@media (min-width: 1500px) and (hover: hover) and (pointer: fine) {
+@media (min-width: 901px) and (hover: hover) and (pointer: fine) {
   html body .desktop-catalog-actions-slot:hover > .top-page-actions {
     box-shadow: 0 12px 32px rgba(15, 23, 42, 0.14), 0 2px 6px rgba(15, 23, 42, 0.08);
   }
 }
-@media (prefers-reduced-motion: reduce) and (min-width: 1500px) {
+@media (prefers-reduced-motion: reduce) and (min-width: 901px) {
   .desktop-catalog-actions-slot > .top-page-actions { transition: none !important; }
   html body .desktop-catalog-actions-slot:hover > .top-page-actions,
   html body .desktop-catalog-actions-slot:focus-within > .top-page-actions { transform: none !important; }

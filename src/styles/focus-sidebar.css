@@ -1360,14 +1360,21 @@ html[data-theme="dark"] .ac-ops-scope-control {
   text-underline-offset: 2px;
 }
 .atlas-focus-main .privacy-link-btn {
-  border: 0;
-  background: transparent;
-  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid var(--ac-line, rgba(15, 23, 42, 0.16));
+  background: rgba(15, 23, 42, 0.05);
+  border-radius: 999px;
+  padding: 3px 11px;
+  margin: 0 2px;
   font: inherit;
-  font-weight: 650;
+  font-size: 0.9em;
+  font-weight: 600;
+  line-height: 1.3;
   color: var(--ac-ink, #0f172a);
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  text-decoration: none;
   cursor: pointer;
 }
 html[data-theme="dark"] .atlas-focus-main .privacy-inner > h1,
@@ -1389,9 +1396,13 @@ html[data-theme="dark"] .atlas-focus-main .privacy-inner > ul li {
 }
 html[data-theme="dark"] .atlas-focus-main .privacy-nav a,
 html[data-theme="dark"] .atlas-focus-main .privacy-foot a,
-html[data-theme="dark"] .atlas-focus-main .privacy-inner a,
-html[data-theme="dark"] .atlas-focus-main .privacy-link-btn {
+html[data-theme="dark"] .atlas-focus-main .privacy-inner a {
   color: #f4f4f6 !important;
+}
+html[data-theme="dark"] .atlas-focus-main .privacy-link-btn {
+  background: #21242c !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: #eef0f6 !important;
 }
 
 /* Support Editorial Landing (/support, /supprot) matching /desktop */

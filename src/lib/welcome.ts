@@ -20,13 +20,13 @@ export type WelcomePrefs = {
 
 /** Real captures are individual welcome steps, never a stacked gallery. */
 export const WELCOME_PREVIEWS = [
-  { src: '/shots/demo.gif', title: 'Une session Atlas, en pratique', description: 'Découvrez le parcours de création d’un devis dans l’application.', alt: 'Enregistrement réel d’une session Atlas Commerce', poster: '/shots/devis-modal-dark.png' },
-  { src: '/shots/dashboard-dark.png', title: 'Tableau de bord — sombre', description: 'Suivez votre activité dans une interface sombre.', alt: 'Tableau de bord Atlas Commerce en thème sombre' },
-  { src: '/shots/dashboard-light.png', title: 'Tableau de bord — clair', description: 'Retrouvez les mêmes repères dans le thème clair.', alt: 'Tableau de bord Atlas Commerce en thème clair' },
-  { src: '/shots/devis-modal-dark.png', title: 'Un devis, étape par étape', description: 'Renseignez le client, ajoutez les lignes puis vérifiez votre devis.', alt: 'Assistant de création de devis Atlas Commerce' },
-  { src: '/shots/settings-dark.png', title: 'Une interface à votre goût', description: 'Découvrez les réglages d’apparence de votre espace de travail.', alt: 'Paramètres d’apparence Atlas Commerce' },
-  { src: '/shots/phone-dashboard-dark.png', title: 'Votre activité sur téléphone', description: 'Consultez votre tableau de bord dans un format adapté au mobile.', alt: 'Tableau de bord Atlas Commerce sur téléphone' },
-  { src: '/shots/phone-quotes-dark.png', title: 'Les devis, même sur mobile', description: 'Retrouvez vos devis depuis votre téléphone.', alt: 'Liste des devis Atlas Commerce sur téléphone' },
+  { src: '/shots/demo.gif', title: 'Parcours complet dans Atlas', description: 'Créez un devis, suivez le stock et validez vos opérations en quelques secondes.', alt: 'Enregistrement réel d’une session Atlas Commerce', poster: '/shots/devis-modal-dark.png' },
+  { src: '/shots/dashboard-dark.png', title: 'Tableau de bord Bento — sombre', description: 'Indicateurs clés, graphiques interactifs et trésorerie dans l’interface Bento sombre.', alt: 'Tableau de bord Atlas Commerce en thème sombre' },
+  { src: '/shots/dashboard-light.png', title: 'Tableau de bord Bento — clair', description: 'Retrouvez la même clarté Bento et le dock adaptatif en thème clair.', alt: 'Tableau de bord Atlas Commerce en thème clair' },
+  { src: '/shots/devis-modal-dark.png', title: 'Assistant devis étape par étape', description: 'Client, lignes et récapitulatif guidé pour éviter toute erreur de saisie.', alt: 'Assistant de création de devis Atlas Commerce' },
+  { src: '/shots/settings-dark.png', title: 'Navigation Focus & réglages', description: 'Barre latérale Focus dédiée pour configurer société, légal, IA et sécurité.', alt: 'Paramètres d’apparence Atlas Commerce' },
+  { src: '/shots/phone-dashboard-dark.png', title: 'Votre activité sur téléphone', description: 'Consultez votre tableau de bord et vos alertes depuis l’application mobile.', alt: 'Tableau de bord Atlas Commerce sur téléphone' },
+  { src: '/shots/phone-quotes-dark.png', title: 'Devis et opérations sur mobile', description: 'Retrouvez vos devis et synchronisez le terrain avec le bureau en direct.', alt: 'Liste des devis Atlas Commerce sur téléphone' },
 ] as const;
 
 export const WELCOME_PREVIEW_START = 2;

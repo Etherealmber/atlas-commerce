@@ -54,6 +54,9 @@ export const FeatureTour: FC<Props> = ({ steps, onClose, onLearnMore, loop = fal
         exit={{ opacity: 0, scale: 0.98, y: 12 }}
         transition={{ duration: 0.2, ease: EASE_OUT }}
       >
+        <span className="ac-feature-tour-step-badge" aria-live="polite">
+          {currentIndex + 1} / {steps.length}
+        </span>
         <button type="button" className="ac-feature-tour-close" onClick={onClose} aria-label="Fermer">
           <X size={18} strokeWidth={2.5} />
         </button>
@@ -120,6 +123,9 @@ export const FeatureTour: FC<Props> = ({ steps, onClose, onLearnMore, loop = fal
             </button>
           )}
         </div>
+        <p className="ac-feature-tour-kbd" aria-hidden="true">
+          ← / → pour naviguer · Échap pour fermer
+        </p>
       </motion.div>
     </div>
   );
