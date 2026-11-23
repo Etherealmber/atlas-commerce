@@ -1,5 +1,4 @@
 import TopPageActions from '../components/TopPageActions';
-import { suggestExpenseCategory } from '../lib/assist';
 import DatePicker from '../components/DatePicker';
 import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
 import { useEffect, useMemo, useState } from 'react';
@@ -9,19 +8,18 @@ import PasswordConfirm from '../components/PasswordConfirm';
 import { openReport } from '../lib/reports';
 import { downloadExport } from '../lib/export';
 import { useUi } from '../components/AppDialogs';
-import { numStr, numFromInput } from '../lib/numInput';
 import NumberField from '../components/NumberField';
 import EmptyState from '../components/EmptyState';
-import { validateBalanceEntry, firstError } from '../lib/formValidate';
+import { validateBalanceEntry } from '../lib/formValidate';
 import RefreshIconButton from '../components/RefreshIconButton';
 import { FloatingPortal } from '../components/FloatingPortal';
-import { ModalFormError, FieldHint } from '../components/ModalFormFeedback';
+import { ModalFormError } from '../components/ModalFormFeedback';
 import { ListPager } from '../components/ui/ListPager';
 import { TimedUndoDelete } from '../components/ui/TimedUndoDelete';
 import {
-  Banknote, ShoppingBag, Truck, Fuel, Building2, Wrench, Users, Receipt,
+  ShoppingBag, Truck, Fuel, Building2, Wrench, Users, Receipt,
   ArrowDownLeft, ArrowUpRight, ArrowUpFromLine, PiggyBank, Wallet, Package,
-  FileText, FileSpreadsheet, Files, UserCheck, X, ChevronRight,
+  FileText, FileSpreadsheet, Files, UserCheck, X, ChevronRight, Sparkles,
 } from 'lucide-react';
 
 const BALANCE_STEPS: readonly WizardStepDef[] = [
@@ -336,7 +334,7 @@ export default function Balance() {
       if (filterType !== 'all' && filterType !== t) return false;
       if (txQuery.trim()) {
         const q = txQuery.trim().toLowerCase();
-        const hay = `${e.label || ''} ${e.category || ''} ${e.type || ''}`.toLowerCase();
+        const hay = `${e.description || e.label || ''} ${e.category || ''} ${e.entry_type || ''} ${e.vendor_name || ''}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
@@ -411,17 +409,8 @@ export default function Balance() {
   const moneyIn = Number(dashboard?.salesReceived || 0) + Number(dashboard?.otherIncomeTotal || 0) + Number(dashboard?.ownerContribTotal || 0);
   const moneyOut = Number(dashboard?.purchasesPaid || 0) + Number(dashboard?.expensesTotal || 0) + Number(dashboard?.ownerDrawTotal || 0);
 
-
-  const methodLabel = (m?: string) => {
-    if (!m || m === 'cash') return 'Espèces';
-    if (m === 'bank') return 'Banque';
-    if (m === 'card') return 'Carte';
-    if (m === 'check') return 'Chèque';
-    return m;
-  };
-
   return (
-    <div className="atlas-page balance-page">
+    <div className="atlas-page ac-dash balance-page">
       <div className="page-header dock-page-header">
         <h1 className="sr-only">Solde &amp; mouvements</h1>
         <TopPageActions>
@@ -436,42 +425,74 @@ export default function Balance() {
       {loadError && <p role="alert">{loadError}</p>}
       <SaveFeedback message={saveMsg} type={saveMsgType} />
 
-      <div className="ac-metric-grid">
-        <div className="ac-metric">
-          <div className="as-label">Solde actuel</div>
-          <div className="as-value" style={{ fontSize: '1.15rem' }}>
-            {balance.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} MAD
-          </div>
-          <div className="as-hint">caisse &amp; banque</div>
+      <header className="ac-dash-hero">
+        <div className="ac-dash-hero-text">
+          <p className="ac-dash-eyebrow">
+            <Sparkles size={13} strokeWidth={2.2} aria-hidden="true" />
+            <span>Trésorerie · {cur}</span>
+          </p>
+          <h2>Solde &amp; mouvements</h2>
+          <p className="ac-dash-lead">
+            Pilotage temps réel de la caisse, de la banque, des apports et du rapprochement comptable.
+          </p>
         </div>
-        <div className="ac-metric">
-          <div className="as-label">Entrées</div>
-          <div className="as-value" style={{ fontSize: '1.15rem' }}>
-            {moneyIn.toLocaleString('fr-FR', { minimumFractionDigits: 0 })} MAD
-          </div>
-          <div className="as-hint">ventes + recettes + apports</div>
+        <div className="ac-dash-hero-side">
+          <button
+            type="button"
+            className="secondary bal-reports-trigger"
+            onClick={() => setShowReportsDialog(true)}
+          >
+            <span className="bal-reports-trigger-main">
+              <FileText size={18} aria-hidden="true" />
+              <span>
+                <strong>Rapports PDF &amp; exports</strong>
+                <small>Période : {reportPeriodLabel(reportPeriod)} · Solde, Stock, Créances, Dettes, Paie, CSV</small>
+              </span>
+            </span>
+            <span className="bal-reports-trigger-cta">
+              <span>Ouvrir</span>
+              <ChevronRight size={16} aria-hidden="true" />
+            </span>
+          </button>
         </div>
-        <div className="ac-metric">
-          <div className="as-label">Sorties</div>
-          <div className="as-value" style={{ fontSize: '1.15rem' }}>
-            {moneyOut.toLocaleString('fr-FR', { minimumFractionDigits: 0 })} MAD
-          </div>
-          <div className="as-hint">achats + dépenses + prélèvements</div>
-        </div>
-        <div className="ac-metric">
-          <div className="as-label">Flux net</div>
-          <div className="as-value" style={{ fontSize: '1.15rem' }}>
-            {(moneyIn - moneyOut).toLocaleString('fr-FR', { minimumFractionDigits: 0 })} MAD
-          </div>
-          <div className="as-hint">entrées − sorties</div>
-        </div>
-      </div>
+      </header>
 
-      <div className="balance-charts-grid">
+      <section className="ac-metric-grid" aria-label="Indicateurs de trésorerie">
+        <article className="ac-metric">
+          <span className="ac-metric-label">Solde actuel</span>
+          <strong className="ac-metric-val">
+            {balance.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} {cur}
+          </strong>
+          <span className="ac-metric-meta">Caisse &amp; banque</span>
+        </article>
+        <article className="ac-metric">
+          <span className="ac-metric-label">Entrées</span>
+          <strong className="ac-metric-val">
+            {moneyIn.toLocaleString('fr-FR', { minimumFractionDigits: 0 })} {cur}
+          </strong>
+          <span className="ac-metric-meta">Ventes + recettes + apports</span>
+        </article>
+        <article className="ac-metric">
+          <span className="ac-metric-label">Sorties</span>
+          <strong className="ac-metric-val">
+            {moneyOut.toLocaleString('fr-FR', { minimumFractionDigits: 0 })} {cur}
+          </strong>
+          <span className="ac-metric-meta">Achats + dépenses + prélèvements</span>
+        </article>
+        <article className="ac-metric">
+          <span className="ac-metric-label">Flux net</span>
+          <strong className="ac-metric-val">
+            {(moneyIn - moneyOut).toLocaleString('fr-FR', { minimumFractionDigits: 0 })} {cur}
+          </strong>
+          <span className="ac-metric-meta">Entrées − sorties</span>
+        </article>
+      </section>
+
+      <div className="ac-bento-grid-2">
         <BalanceMiniBars title="Sorties par catégorie" rows={byCategoryChart} />
         <BalanceMiniBars title="Répartition par type" rows={byTypeChart} />
       </div>
-      <div className="balance-charts-grid" style={{ marginTop: 12 }}>
+      <div className="ac-bento-grid-2">
         <BalanceMiniBars
           title="Entrées (recettes + apports)"
           rows={byTypeChart.filter((r) => r.label === 'Recettes' || r.label === 'Apports')}
@@ -483,12 +504,12 @@ export default function Balance() {
       </div>
 
       {reconcile && (
-        <div className="card" style={{ marginBottom: 20, padding: 0, overflow: 'hidden' }}>
+        <section className="ac-panel" style={{ marginBottom: 14, padding: 0, overflow: 'hidden' }}>
           <div
             className="balance-reconcile-head"
             style={{
-              padding: '14px 18px',
-              background: reconcile.summary?.ok ? 'var(--card, #ffffff)' : 'rgba(239, 68, 68, 0.06)',
+              padding: '16px 20px',
+              background: reconcile.summary?.ok ? 'transparent' : 'rgba(239, 68, 68, 0.06)',
               borderBottom: '1px solid var(--line, #e8eaef)',
               display: 'flex',
               justifyContent: 'space-between',
@@ -509,7 +530,10 @@ export default function Balance() {
                 {reconcile.summary?.ok ? 'Solde et paiements cohérents' : (reconcile.summary?.message || 'Écarts détectés')}
               </p>
             </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <span className={`ac-status-pill ${reconcile.summary?.ok ? 'is-ok' : 'is-warn'}`}>
+                {reconcile.summary?.ok ? 'Cohérent' : 'Écarts'}
+              </span>
               <RefreshIconButton onClick={loadReconcile} />
               {(reconcile.paid_without_receipt || []).length > 0 && (
                 <button type="button" style={{ fontSize: 12 }} onClick={fixReceipts}>
@@ -529,7 +553,7 @@ export default function Balance() {
             ].map((c) => (
               <div key={c.label} style={{ padding: '14px 16px', borderRight: '1px solid var(--line)', borderBottom: '1px solid var(--line)' }}>
                 <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{c.label}</div>
-                <div style={{ fontSize: 22, fontWeight: 700, marginTop: 4, color: c.warn && Number(c.value) > 0 ? 'var(--bad, #8b2e2e)' : 'inherit' }}>
+                <div style={{ fontSize: 22, fontWeight: 700, marginTop: 4, color: c.warn && Number(c.value) > 0 ? 'var(--bad, #dc2626)' : 'inherit' }}>
                   {c.value ?? 0}
                 </div>
               </div>
@@ -541,29 +565,8 @@ export default function Balance() {
               {(reconcile.unmatched_payments || []).length > 3 ? '…' : ''}
             </div>
           )}
-        </div>
+        </section>
       )}
-
-      {/* Report dialog trigger (compact like mobile — tap to open dialog) */}
-      <div className="bal-reports-bar">
-        <button
-          type="button"
-          className="secondary bal-reports-trigger"
-          onClick={() => setShowReportsDialog(true)}
-        >
-          <span className="bal-reports-trigger-main">
-            <FileText size={18} aria-hidden="true" />
-            <span>
-              <strong>Rapports PDF &amp; exports</strong>
-              <small>Période : {reportPeriodLabel(reportPeriod)} · Solde, Stock, Créances, Dettes, Paie, CSV</small>
-            </span>
-          </span>
-          <span className="bal-reports-trigger-cta">
-            <span>Ouvrir</span>
-            <ChevronRight size={16} aria-hidden="true" />
-          </span>
-        </button>
-      </div>
 
       {showReportsDialog && (
         <FloatingPortal>
@@ -685,34 +688,30 @@ export default function Balance() {
       )}
 
 
-      <div className="atlas-outline-row">
-        <div className="atlas-outline-card">
-          <div className="aoc-title">Caisse</div>
-          <div className="aoc-lines">
-            <span>Entrées <strong className="ok">+{fmt(stats.cashIn)}</strong></span>
-            <span>Sorties <strong className="bad">−{fmt(stats.cashOut)}</strong></span>
-            <span>Net <strong>{fmt(stats.cashIn - stats.cashOut)} {cur}</strong></span>
-          </div>
+      <div className="ac-metric-grid">
+        <div className="ac-metric">
+          <span className="ac-metric-label">Caisse (espèces)</span>
+          <strong className="ac-metric-val">{fmt(stats.cashIn - stats.cashOut)} {cur}</strong>
+          <span className="ac-metric-meta">+{fmt(stats.cashIn)} / −{fmt(stats.cashOut)}</span>
         </div>
-        <div className="atlas-outline-card">
-          <div className="aoc-title">Banque</div>
-          <div className="aoc-lines">
-            <span>Entrées <strong className="ok">+{fmt(stats.bankIn)}</strong></span>
-            <span>Sorties <strong className="bad">−{fmt(stats.bankOut)}</strong></span>
-            <span>Net <strong>{fmt(stats.bankIn - stats.bankOut)} {cur}</strong></span>
-          </div>
+        <div className="ac-metric">
+          <span className="ac-metric-label">Banque &amp; virements</span>
+          <strong className="ac-metric-val">{fmt(stats.bankIn - stats.bankOut)} {cur}</strong>
+          <span className="ac-metric-meta">+{fmt(stats.bankIn)} / −{fmt(stats.bankOut)}</span>
         </div>
-        <div className="atlas-outline-card">
-          <div className="aoc-title">Apports</div>
-          <div className="aoc-value ok">+{fmt(stats.ownerContrib)} {cur}</div>
+        <div className="ac-metric">
+          <span className="ac-metric-label">Apports propriétaire</span>
+          <strong className="ac-metric-val">+{fmt(stats.ownerContrib)} {cur}</strong>
+          <span className="ac-metric-meta">Capital &amp; compte courant</span>
         </div>
-        <div className="atlas-outline-card">
-          <div className="aoc-title">Prélèvements</div>
-          <div className="aoc-value bad">−{fmt(stats.ownerDraw)} {cur}</div>
+        <div className="ac-metric">
+          <span className="ac-metric-label">Prélèvements</span>
+          <strong className="ac-metric-val">−{fmt(stats.ownerDraw)} {cur}</strong>
+          <span className="ac-metric-meta">Associés &amp; dividendes</span>
         </div>
       </div>
 
-<div className="card bal-tx-card">
+      <section className="ac-panel bal-tx-card">
         <div className="bal-tx-toolbar">
           <div className="bal-tx-toolbar-left">
             <label className="bal-tx-filter-label">
@@ -724,9 +723,8 @@ export default function Balance() {
                 <option value="all">Toutes les écritures</option>
                 <option value="income">Recettes</option>
                 <option value="expense">Dépenses</option>
-                <option value="capital">Apports</option>
+                <option value="owner_contrib">Apports</option>
                 <option value="owner_draw">Prélèvements</option>
-                <option value="transfer">Virements</option>
               </select>
             </label>
             <input
@@ -789,7 +787,7 @@ export default function Balance() {
             </div>
           )}
         </div>
-      </div>
+      </section>
 
       {showModal && (
         <FloatingPortal><div className="modal-overlay" onClick={() => { setShowModal(false); setModalError(''); setFieldErrors({}); wz.reset(); }}>

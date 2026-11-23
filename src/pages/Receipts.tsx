@@ -243,7 +243,7 @@ export default function Receipts() {
                         className="secondary"
                         style={{
                           borderColor: Number(r.include_client_situation) === 1 ? 'var(--ok, #3f3f46)' : undefined,
-                          background: Number(r.include_client_situation) === 1 ? 'rgba(99, 102, 241, 0.12)' : undefined,
+                          background: Number(r.include_client_situation) === 1 ? 'rgba(15, 23, 42, 0.08)' : undefined,
                         }}
                         title="Affiche le QR situation client uniquement sur ce reçu (paramètre global reste inchangé)"
                         onClick={() => toggleSituation(r)}

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FC } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { LogOut, Sparkles, Settings, Info, Plus, ChevronRight } from 'lucide-react';
 import { AvatarImage } from '../ui/AvatarImage';
 import { listSavedAccounts, switchSavedAccount, getUsername, clearToken, type SavedAccount } from '../../auth';
@@ -19,6 +20,7 @@ export const TopbarUserMenu: FC<Props> = ({
   initials,
   onLogout,
 }) => {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [accounts, setAccounts] = useState<SavedAccount[]>([]);
   const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
@@ -83,7 +85,7 @@ export const TopbarUserMenu: FC<Props> = ({
 
   const go = (path: string) => {
     setOpen(false);
-    window.location.assign(path);
+    navigate(path);
   };
 
   const avatarFallback = (

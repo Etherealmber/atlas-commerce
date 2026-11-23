@@ -34,7 +34,7 @@ html.atlas-login-page .atlas-login.atlas-login--auth7 {
   overflow: auto !important;
   background:
     radial-gradient(ellipse 70% 50% at 18% 12%, rgba(250, 248, 244, 0.07), transparent 55%),
-    radial-gradient(ellipse 55% 40% at 88% 88%, rgba(99, 102, 241, 0.06), transparent 50%),
+    radial-gradient(ellipse 55% 40% at 88% 88%, rgba(148, 163, 184, 0.06), transparent 50%),
     radial-gradient(ellipse 50% 35% at 50% 100%, rgba(24, 24, 27, 0.9), transparent 60%),
     linear-gradient(160deg, #121214 0%, #0c0c0e 45%, #080809 100%) !important;
   transition: background 0.8s ease, filter 0.8s ease, opacity 0.8s ease !important;

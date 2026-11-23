@@ -600,7 +600,7 @@ export default function Dashboard() {
           <BarChart
             series={filteredSeries}
             keys={[{ key: 'receipts', color: '#10b981', label: 'Encaissements' }]}
-            secondaryLineKey={{ key: 'clients_new', color: '#6366f1', label: 'Nouveaux clients' }}
+            secondaryLineKey={{ key: 'clients_new', color: '#0f172a', label: 'Nouveaux clients' }}
             height={215}
             unit={cur}
             secondaryUnit="clients"
@@ -665,7 +665,7 @@ export default function Dashboard() {
           <DonutChart
             segments={expenseCategories.slice(0, 5).map((c: { label: string; value: number }, i: number) => ({
               value: c.value,
-              color: ['#2563eb', '#0ea5e9', '#f59e0b', '#ef4444', '#8b5cf6'][i % 5],
+              color: ['#2563eb', '#0ea5e9', '#f59e0b', '#ef4444', '#64748b'][i % 5],
               label: c.label,
             }))}
             centerLabel="charges"

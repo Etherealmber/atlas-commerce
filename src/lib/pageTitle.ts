@@ -28,6 +28,8 @@ const EXACT: Record<string, string> = {
   '/privacy': 'Confidentialité',
   '/licenses': 'Licences',
   '/terms': "Conditions d'utilisation",
+  '/support': 'Support & assistance',
+  '/supprot': 'Support & assistance',
   '/login': 'Connexion',
   '/welcome': 'Bienvenue',
   '/404': 'Page introuvable',
