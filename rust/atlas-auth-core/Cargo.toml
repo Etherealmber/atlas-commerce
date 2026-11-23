@@ -12,6 +12,7 @@ crate-type = ["rlib"]
 
 [dependencies]
 base64 = "0.22"
+base64ct = "=1.6.0"
 getrandom = "0.2"
 p256 = { version = "0.13", features = ["ecdsa", "jwk", "pkcs8"] }
 serde = { version = "1", features = ["derive"] }

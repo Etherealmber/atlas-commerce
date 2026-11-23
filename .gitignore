@@ -7,6 +7,7 @@ node_modules/
 dist/
 /experiments/windows-webauthn/target/
 /rust/atlas-finance-core/target/
+/rust/atlas-auth-core/target/
 /worker/wasm/*.wasm
 /worker/wasm/.finance-wasm-build.json
 .wrangler/
