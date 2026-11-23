@@ -9,6 +9,7 @@ import Receipts from '../pages/Receipts';
 import Balance from '../pages/Balance';
 import Products from '../pages/Products';
 import Invoices from '../pages/Invoices';
+import Bills from '../pages/Bills';
 import { api } from '../api';
 
 vi.mock('../lib/reports', () => ({ openReport: vi.fn(), openPrintDoc: vi.fn() }));
@@ -24,6 +25,7 @@ beforeEach(() => {
 
   vi.spyOn(api, 'getClients').mockResolvedValue({ data: [] } as any);
   vi.spyOn(api, 'getVendors').mockResolvedValue({ data: [] } as any);
+  vi.spyOn(api, 'getBills').mockResolvedValue({ data: [] } as any);
   vi.spyOn(api, 'getReceipts').mockResolvedValue({ data: [] } as any);
   vi.spyOn(api, 'getInvoices').mockResolvedValue({ data: [] } as any);
   vi.spyOn(api, 'getExpenses').mockResolvedValue({ data: [] } as any);
@@ -117,4 +119,50 @@ it('Invoice wizard matches employee look and blocks advancing when client name i
   await clickText(dlg(), 'Continuer');
   expect(dlg().querySelector('.step-wizard__count')?.textContent?.trim()).toBe('1 / 3');
   expect(dlg().querySelector('[role="alert"]')?.textContent).toContain('client');
+});
+
+it('Bill wizard blocks skipping steps via top step pills when required fields are empty and renders OCR failure inside the dialog', async () => {
+  vi.spyOn(api, 'parseBillDocument').mockRejectedValueOnce(
+    Object.assign(new Error('Échec de la lecture OCR (modèle indisponible).'), {
+      body: {
+        failing_step: 'analyse_vision',
+        steps: [
+          { id: 'validation_fichier', label: 'Validation du fichier', status: 'ok' },
+          { id: 'moteur_ocr', label: 'Moteur OCR (Qwen)', status: 'ok' },
+          { id: 'analyse_vision', label: 'Analyse visuelle Qwen', status: 'error', detail: 'Timeout' },
+        ],
+      },
+    }),
+  );
+
+  await renderPage(createElement(Bills));
+  await clickText(host, "Nouvelle facture d'achat");
+  assertUnifiedStepShell(3);
+
+  // Step 3 pill on top is locked/disabled until step 2 is reached
+  const topPills = Array.from(dlg().querySelectorAll<HTMLButtonElement>('.step-wizard__step-btn'));
+  expect(topPills).toHaveLength(3);
+  expect(topPills[2].disabled).toBe(true);
+
+  // Clicking Step 2 pill on top while vendor_name is empty stays on 1 / 3 and shows validation error
+  await act(async () => {
+    topPills[1].click();
+  });
+  expect(dlg().querySelector('.step-wizard__count')?.textContent?.trim()).toBe('1 / 3');
+  expect(dlg().querySelector('[role="alert"]')?.textContent).toContain('fournisseur');
+
+  // Triggering OCR with an image that fails displays the failing process right inside the dialog
+  const fileInput = dlg().querySelector<HTMLInputElement>('input[type="file"]');
+  expect(fileInput).toBeTruthy();
+  const fakeFile = new File(['abc'], 'facture.png', { type: 'image/png' });
+  await act(async () => {
+    Object.defineProperty(fileInput!, 'files', { value: [fakeFile], configurable: true });
+    fileInput!.dispatchEvent(new Event('change', { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 40));
+  });
+
+  const ocrPanel = dlg().querySelector('.wz-ocr-panel.is-error');
+  expect(ocrPanel).toBeTruthy();
+  expect(ocrPanel?.textContent).toContain('Analyse visuelle Qwen');
+  expect(ocrPanel?.textContent).toContain('Échec de la lecture OCR');
 });

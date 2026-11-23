@@ -5,7 +5,21 @@ import { EditProfile, type ProfileData } from '../components/ui/EditProfile';
 import ImageLightbox from '../components/ui/ImageLightbox';
 import { TimedUndoDelete, SaveToggle } from '../components/ui';
 import { useEffect, useState, useCallback } from 'react';
-import { Settings as SettingsIcon } from 'lucide-react';
+import {
+  Activity,
+  BarChart3,
+  ChevronRight,
+  Download,
+  Layers,
+  ListFilter,
+  RefreshCw,
+  RotateCcw,
+  Search,
+  Settings as SettingsIcon,
+  ShieldCheck,
+  Users,
+  X,
+} from 'lucide-react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { APP_VERSION, APP_BUILD_DATE } from '../version';
 import { createPortal } from 'react-dom';
@@ -812,6 +826,15 @@ if (loading) return (
       return { title: 'Inconnu', sub: `IP ${row.ip}` };
     }
     return { title: 'Système', sub: 'Processus interne' };
+  };
+
+  const auditPillTone = (action?: string): 'create' | 'update' | 'delete' | 'auth' | 'default' => {
+    const a = String(action || '').toLowerCase();
+    if (/delete|remove|revoke|cancel|fail|reject|block|error/.test(a)) return 'delete';
+    if (/create|add|approve|register|restore|issue|import|complete/.test(a)) return 'create';
+    if (/login|auth|passkey|2fa|otp|session|token/.test(a)) return 'auth';
+    if (/update|edit|save|patch|set|lock|toggle/.test(a)) return 'update';
+    return 'default';
   };
 
   return (
@@ -2573,244 +2596,418 @@ if (loading) return (
         </div>
       )}
 
-      {activeTab === 'audit' && (canAccessAdminSettings() || isOwner) && (
-        <div className="audit-panel settings-audit-full">
-          <header className="audit-panel-head">
-            <div>
-              <h2 className="audit-panel-title">Journal d’audit</h2>
-            <p className="muted" style={{ fontSize: 13, marginBottom: 12 }}>Historique complet des actions — faites défiler la page.</p>
-              <p className="audit-panel-sub">Historique des changements sur ce compte (admin uniquement).</p>
-            </div>
-            <div className="audit-panel-actions">
-              <button type="button" className="secondary" disabled={auditLoading} onClick={() => loadAuditPage(null, auditQ, true)}>
-                Actualiser
-              </button>
-              <button
-                type="button"
-                className="secondary"
-                disabled={auditLoading}
-                onClick={async () => {
-                  try {
-                    await api.exportAuditLog('csv', 500);
-                    flash('Export CSV téléchargé.');
-                  } catch (e: any) {
-                    flash(e?.message || 'Échec export', 'error');
-                  }
-                }}
-              >
-                Export CSV
-              </button>
-            </div>
-          </header>
+      {activeTab === 'audit' && (canAccessAdminSettings() || isOwner) && (() => {
+        const rangeLabels: Record<'24h' | '7d' | '30d' | 'all', string> = {
+          '24h': '24 dernières heures',
+          '7d': '7 derniers jours',
+          '30d': '30 derniers jours',
+          all: 'Tout l’historique',
+        };
+        const rangeShort: Record<'24h' | '7d' | '30d' | 'all', string> = {
+          '24h': '24 h',
+          '7d': '7 j',
+          '30d': '30 j',
+          all: 'Tout',
+        };
+        const days = ((auditStats?.by_day as any[]) || []).slice(-14);
+        const dayMax = Math.max(1, ...days.map((d: any) => Number(d.n || 0)));
+        const topActions = (auditStats?.top_actions as any[]) || [];
+        const actMax = Math.max(1, ...topActions.map((a: any) => Number(a.n || 0)));
+        const topAct = topActions[0];
+        const hasFilters = Boolean(auditQ.trim() || auditAction || auditRange !== '7d');
 
-          <div className="audit-stats">
-            <div className="audit-stat">
-              <span className="audit-stat-label">Actions (période)</span>
-              <strong className="audit-stat-value">{auditStats?.total ?? '—'}</strong>
-            </div>
-            <div className="audit-stat">
-              <span className="audit-stat-label">Acteurs uniques</span>
-              <strong className="audit-stat-value">{auditStats?.unique_actors ?? '—'}</strong>
-            </div>
-            <div className="audit-stat">
-              <span className="audit-stat-label">Sur cette page</span>
-              <strong className="audit-stat-value">{auditLog.length}</strong>
-            </div>
-            <div className="audit-stat">
-              <span className="audit-stat-label">Période</span>
-              <strong className="audit-stat-value" style={{ fontSize: '0.95rem' }}>
-                {auditRange === '24h' ? '24 h' : auditRange === '30d' ? '30 j' : auditRange === 'all' ? 'Tout' : '7 j'}
-              </strong>
-            </div>
-          </div>
-
-
-          <div className="audit-charts">
-            <div className="audit-chart-card">
-              <h3>Actions dans le temps</h3>
-              <div className="audit-bars">
-                {((auditStats?.by_day as any[]) || []).length === 0 && (
-                  <span style={{ fontSize: 12, color: 'var(--muted)' }}>Pas assez de données</span>
-                )}
-                {(() => {
-                  const days = (auditStats?.by_day as any[]) || [];
-                  const max = Math.max(1, ...days.map((d: any) => Number(d.n || 0)));
-                  return days.map((d: any) => (
-                    <div key={d.day} className="audit-bar-col" title={`${d.day}: ${d.n}`}>
-                      <div className="audit-bar" style={{ height: `${Math.max(4, (Number(d.n) / max) * 100)}%` }} />
-                      <span className="audit-bar-lbl">{String(d.day || '').slice(5)}</span>
-                    </div>
-                  ));
-                })()}
+        return (
+          <div className="audit-panel settings-audit-full ac-audit-stack">
+            <div className="ac-panel ac-audit-header-panel">
+              <div className="ac-panel-head">
+                <div>
+                  <h3>
+                    <ShieldCheck className="as-icon" size={17} strokeWidth={2} aria-hidden="true" />
+                    <span>Journal d’audit &amp; Traçabilité</span>
+                  </h3>
+                  <p>Suivi complet des connexions, modifications et opérations sensibles (admin uniquement).</p>
+                </div>
+                <div className="ac-audit-header-controls">
+                  <div className="ac-dash-period-pills" role="group" aria-label="Période d’audit">
+                    {(['24h', '7d', '30d', 'all'] as const).map((rKey) => (
+                      <button
+                        key={rKey}
+                        type="button"
+                        className="ac-seg-btn"
+                        aria-pressed={auditRange === rKey}
+                        onClick={() => setAuditRange(rKey)}
+                      >
+                        {rangeShort[rKey]}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    className="secondary ac-audit-action-btn"
+                    disabled={auditLoading}
+                    onClick={() => loadAuditPage(null, auditQ, true)}
+                  >
+                    <RefreshCw size={14} strokeWidth={2} aria-hidden="true" />
+                    <span>{auditLoading ? 'Chargement…' : 'Actualiser'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary ac-audit-action-btn"
+                    disabled={auditLoading}
+                    onClick={async () => {
+                      try {
+                        await api.exportAuditLog('csv', 500);
+                        flash('Export CSV téléchargé.');
+                      } catch (e: any) {
+                        flash(e?.message || 'Échec export', 'error');
+                      }
+                    }}
+                  >
+                    <Download size={14} strokeWidth={2} aria-hidden="true" />
+                    <span>Export CSV</span>
+                  </button>
+                </div>
               </div>
             </div>
-            <div className="audit-chart-card">
-              <h3>Types d’action</h3>
-              {(() => {
-                const acts = (auditStats?.top_actions as any[]) || [];
-                const max = Math.max(1, ...acts.map((a: any) => Number(a.n || 0)));
-                if (!acts.length) return <span style={{ fontSize: 12, color: 'var(--muted)' }}>Aucune donnée</span>;
-                return acts.map((a: any) => (
-                  <div key={a.action} className="audit-hbar">
-                    <span className="audit-hbar-name">{a.action}</span>
-                    <div className="audit-hbar-track">
-                      <div className="audit-hbar-fill" style={{ width: `${(Number(a.n) / max) * 100}%` }} />
-                    </div>
-                    <span className="audit-hbar-n">{a.n}</span>
-                  </div>
-                ));
-              })()}
+
+            <div className="ac-metric-grid ac-audit-kpis">
+              <article className="ac-metric">
+                <div className="as-label">
+                  <Activity className="as-icon" size={14} strokeWidth={2} aria-hidden="true" />
+                  <span>Actions ({rangeShort[auditRange]})</span>
+                </div>
+                <div className="as-value">{auditStats?.total ?? '—'}</div>
+                <div className="as-hint">{rangeLabels[auditRange]}</div>
+              </article>
+              <article className="ac-metric">
+                <div className="as-label">
+                  <Users className="as-icon" size={14} strokeWidth={2} aria-hidden="true" />
+                  <span>Acteurs uniques</span>
+                </div>
+                <div className="as-value">{auditStats?.unique_actors ?? '—'}</div>
+                <div className="as-hint">utilisateurs &amp; système</div>
+              </article>
+              <article className="ac-metric">
+                <div className="as-label">
+                  <ListFilter className="as-icon" size={14} strokeWidth={2} aria-hidden="true" />
+                  <span>Sur cette page</span>
+                </div>
+                <div className="as-value">{auditLog.length}</div>
+                <div className="as-hint">
+                  page {auditCursorStack.length}
+                  {auditMeta?.has_more ? ' · suite disponible' : ' · fin'}
+                </div>
+              </article>
+              <article className="ac-metric">
+                <div className="as-label">
+                  <ShieldCheck className="as-icon" size={14} strokeWidth={2} aria-hidden="true" />
+                  <span>Type dominant</span>
+                </div>
+                <div className="as-value" style={{ fontSize: '1.05rem', wordBreak: 'break-word' }}>
+                  {auditAction || topAct?.action || '—'}
+                </div>
+                <div className="as-hint">
+                  {auditAction
+                    ? 'filtre actif sur ce type'
+                    : topAct
+                      ? `${topAct.n} événement${Number(topAct.n) > 1 ? 's' : ''}`
+                      : 'aucune activité'}
+                </div>
+              </article>
             </div>
-          </div>
 
-          <div className="audit-filters">
-            <input
-              type="search"
-              placeholder="Rechercher (action, détail, utilisateur…)"
-              value={auditQ}
-              onChange={(e) => setAuditQ(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') loadAuditPage(null, auditQ, true);
-              }}
-            />
-            <select value={auditRange} onChange={(e) => setAuditRange(e.target.value as any)}>
-              <option value="24h">24 dernières heures</option>
-              <option value="7d">7 derniers jours</option>
-              <option value="30d">30 derniers jours</option>
-              <option value="all">Tout</option>
-            </select>
-            <select value={auditAction} onChange={(e) => setAuditAction(e.target.value)}>
-              <option value="">Tous les types</option>
-              {(auditStats?.top_actions || []).map((a: any) => (
-                <option key={a.action} value={a.action}>
-                  {a.action} ({a.n})
-                </option>
-              ))}
-            </select>
-            <button type="button" className="secondary" disabled={auditLoading} onClick={() => loadAuditPage(null, auditQ, true)}>
-              {auditLoading ? '…' : 'Filtrer'}
-            </button>
-          </div>
-
-          <div className="audit-table-wrap audit-table-wrap--wide">
-            <table className="audit-table">
-              <thead>
-                <tr>
-                  <th>Heure</th>
-                  <th>Type d’action</th>
-                  <th>Ressource</th>
-                  <th>Acteur</th>
-                  <th>IP</th>
-                  <th>Détail</th>
-                </tr>
-              </thead>
-              <tbody>
-                {auditLoading && auditLog.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="audit-empty">
-                      Chargement…
-                    </td>
-                  </tr>
+            <div className="ac-audit-charts-grid">
+              <section className="ac-panel" aria-label="Actions dans le temps">
+                <div className="ac-panel-head">
+                  <div>
+                    <h3>
+                      <BarChart3 className="as-icon" size={16} strokeWidth={2} aria-hidden="true" />
+                      <span>Activité dans le temps</span>
+                    </h3>
+                    <p>Volume quotidien d’événements enregistrés</p>
+                  </div>
+                </div>
+                {days.length === 0 ? (
+                  <div className="atlas-empty" style={{ minHeight: 136 }}>
+                    <span className="muted" style={{ fontSize: 13 }}>Pas assez de données sur cette période.</span>
+                  </div>
+                ) : (
+                  <div className="ac-audit-bars">
+                    {days.map((d: any) => {
+                      const count = Number(d.n || 0);
+                      const pct = Math.max(6, Math.round((count / dayMax) * 100));
+                      return (
+                        <div key={d.day} className="ac-audit-bar-col" title={`${d.day} : ${count} action${count > 1 ? 's' : ''}`}>
+                          <span className="ac-audit-bar-val">{count}</span>
+                          <div className="ac-audit-bar-track">
+                            <div className="ac-audit-bar" style={{ height: `${pct}%` }} />
+                          </div>
+                          <span className="ac-audit-bar-lbl">{String(d.day || '').slice(5)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
-                {!auditLoading && auditLog.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="audit-empty">
-                      Aucune entrée pour ces filtres.
-                    </td>
-                  </tr>
-                )}
-                {auditLog.map((row: any) => {
-                  const actor = formatAuditActor(row);
-                  const summary = formatAuditSummary(row);
-                  const resource = (() => {
-                    const ent = String(row.entity || '');
-                    let id = row.entity_id != null ? String(row.entity_id) : '';
-                    if (id.includes('/')) id = id.split('/').pop() || id;
-                    if (id.length > 36) id = id.slice(0, 18) + '…';
-                    return [ent, id ? `#${id}` : ''].filter(Boolean).join(' ') || '—';
-                  })();
-                  return (
-                  <tr key={row.id || `${row.created_at}-${row.action}`}>
-                    <td className="audit-time">
-                      {row.created_at
-                        ? new Date(
-                            row.created_at.includes('T') ? row.created_at : row.created_at.replace(' ', 'T') + 'Z',
-                          ).toLocaleString('fr-MA', {
-                            day: '2-digit',
-                            month: 'short',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            second: '2-digit',
-                          })
-                        : '—'}
-                    </td>
-                    <td>
-                      <span className="audit-action-pill">{row.action || '—'}</span>
-                    </td>
-                    <td className="audit-resource">{resource}</td>
-                    <td>
-                      <div className="audit-actor">
-                        <strong>{actor.title}</strong>
-                        <span>{actor.sub}</span>
-                      </div>
-                    </td>
-                    <td className="audit-ip">{row.ip || '—'}</td>
-                    <td className="audit-detail">
-                      <a
-                        href="#"
-                        className="audit-detail-link"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setAuditDetailRow(row);
-                        }}
-                      >
-                        {summary}
-                      </a>
-                    </td>
-                  </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+              </section>
 
-          <div className="audit-pager">
-            <button
-              type="button"
-              className="secondary"
-              disabled={auditLoading || auditCursorStack.length <= 1}
-              onClick={() => {
-                const stack = auditCursorStack.slice(0, -1);
-                const prev = stack[stack.length - 1] ?? null;
-                setAuditCursorStack(stack);
-                loadAuditPage(prev, auditQ, false);
-              }}
-            >
-              ← Précédent
-            </button>
-            <button
-              type="button"
-              className="secondary"
-              disabled={auditLoading || !auditMeta?.has_more || !auditMeta?.next_cursor}
-              onClick={() => {
-                const next = auditMeta?.next_cursor ?? null;
-                if (!next) return;
-                setAuditCursorStack((s) => [...s, next]);
-                loadAuditPage(next, auditQ, false);
-              }}
-            >
-              Suivant →
-            </button>
-            <span className="audit-pager-meta">
-              {auditMeta
-                ? auditLog.length === 0
-                  ? '0 entrée'
-                  : `Page ${auditCursorStack.length}${auditMeta.has_more ? ' · suite disponible' : ' · fin'}`
-                : ''}
-            </span>
+              <section className="ac-panel" aria-label="Types d’action">
+                <div className="ac-panel-head">
+                  <div>
+                    <h3>
+                      <Layers className="as-icon" size={16} strokeWidth={2} aria-hidden="true" />
+                      <span>Types d’action</span>
+                    </h3>
+                    <p>Cliquez sur une ligne pour filtrer le journal</p>
+                  </div>
+                </div>
+                {topActions.length === 0 ? (
+                  <div className="atlas-empty" style={{ minHeight: 136 }}>
+                    <span className="muted" style={{ fontSize: 13 }}>Aucune action enregistrée.</span>
+                  </div>
+                ) : (
+                  <div className="ac-audit-hbar-list">
+                    {topActions.map((a: any) => {
+                      const selected = auditAction === a.action;
+                      const pct = Math.max(4, Math.round((Number(a.n || 0) / actMax) * 100));
+                      return (
+                        <button
+                          key={a.action}
+                          type="button"
+                          className={`ghost ac-audit-hbar-btn${selected ? ' is-selected' : ''}`}
+                          onClick={() => setAuditAction(selected ? '' : a.action)}
+                          title={selected ? 'Retirer le filtre' : `Filtrer par ${a.action}`}
+                        >
+                          <span className="ac-audit-hbar-name">{a.action}</span>
+                          <span className="ac-audit-hbar-track" aria-hidden="true">
+                            <span className="ac-audit-hbar-fill" style={{ width: `${pct}%`, display: 'block' }} />
+                          </span>
+                          <span className="ac-audit-hbar-n">{a.n}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+            </div>
+
+            <section className="ac-panel ac-audit-table-panel" aria-label="Événements du journal">
+              <div className="ac-panel-head" style={{ marginBottom: 12 }}>
+                <div>
+                  <h3>
+                    <ListFilter className="as-icon" size={16} strokeWidth={2} aria-hidden="true" />
+                    <span>Historique détaillé</span>
+                  </h3>
+                  <p>Recherchez par utilisateur, action, ressource ou adresse IP ; cliquez sur un détail pour l’inspecter.</p>
+                </div>
+              </div>
+
+              <div className="ac-audit-filters">
+                <div className="ac-audit-search-wrap">
+                  <Search className="ac-audit-search-ico" size={15} strokeWidth={2} aria-hidden="true" />
+                  <input
+                    type="search"
+                    placeholder="Rechercher (action, détail, utilisateur, IP…)"
+                    value={auditQ}
+                    onChange={(e) => setAuditQ(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') loadAuditPage(null, auditQ, true);
+                    }}
+                  />
+                  {auditQ ? (
+                    <button
+                      type="button"
+                      className="ghost ac-audit-clear-btn"
+                      aria-label="Effacer la recherche"
+                      onClick={() => {
+                        setAuditQ('');
+                        loadAuditPage(null, '', true);
+                      }}
+                    >
+                      <X size={13} strokeWidth={2.2} aria-hidden="true" />
+                    </button>
+                  ) : null}
+                </div>
+
+                <select
+                  value={auditRange}
+                  onChange={(e) => setAuditRange(e.target.value as any)}
+                  aria-label="Filtrer par période"
+                >
+                  <option value="24h">24 dernières heures</option>
+                  <option value="7d">7 derniers jours</option>
+                  <option value="30d">30 derniers jours</option>
+                  <option value="all">Tout</option>
+                </select>
+
+                <select
+                  value={auditAction}
+                  onChange={(e) => setAuditAction(e.target.value)}
+                  aria-label="Filtrer par type d’action"
+                >
+                  <option value="">Tous les types</option>
+                  {topActions.map((a: any) => (
+                    <option key={a.action} value={a.action}>
+                      {a.action} ({a.n})
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  type="button"
+                  className="secondary ac-audit-action-btn"
+                  disabled={auditLoading}
+                  onClick={() => loadAuditPage(null, auditQ, true)}
+                >
+                  <Search size={14} strokeWidth={2} aria-hidden="true" />
+                  <span>{auditLoading ? '…' : 'Filtrer'}</span>
+                </button>
+
+                {hasFilters && (
+                  <button
+                    type="button"
+                    className="secondary ac-audit-action-btn"
+                    disabled={auditLoading}
+                    onClick={() => {
+                      const needManualReload = auditRange === '7d' && !auditAction;
+                      setAuditQ('');
+                      setAuditAction('');
+                      setAuditRange('7d');
+                      if (needManualReload) void loadAuditPage(null, '', true);
+                    }}
+                  >
+                    <RotateCcw size={14} strokeWidth={2} aria-hidden="true" />
+                    <span>Réinitialiser</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="ac-audit-table-wrap">
+                <table className="audit-table">
+                  <thead>
+                    <tr>
+                      <th>Horodatage</th>
+                      <th>Action</th>
+                      <th>Ressource</th>
+                      <th>Acteur</th>
+                      <th>IP</th>
+                      <th>Détail</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {auditLoading && auditLog.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="audit-empty">
+                          Chargement du journal…
+                        </td>
+                      </tr>
+                    )}
+                    {!auditLoading && auditLog.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="audit-empty">
+                          Aucune entrée pour ces filtres.
+                        </td>
+                      </tr>
+                    )}
+                    {auditLog.map((row: any) => {
+                      const actor = formatAuditActor(row);
+                      const summary = formatAuditSummary(row);
+                      const tone = auditPillTone(row.action);
+                      const resource = (() => {
+                        const ent = String(row.entity || '');
+                        let id = row.entity_id != null ? String(row.entity_id) : '';
+                        if (id.includes('/')) id = id.split('/').pop() || id;
+                        if (id.length > 36) id = id.slice(0, 18) + '…';
+                        return [ent, id ? `#${id}` : ''].filter(Boolean).join(' ') || '—';
+                      })();
+                      return (
+                        <tr key={row.id || `${row.created_at}-${row.action}`}>
+                          <td className="ac-audit-time">
+                            {row.created_at
+                              ? new Date(
+                                  row.created_at.includes('T') ? row.created_at : row.created_at.replace(' ', 'T') + 'Z',
+                                ).toLocaleString('fr-MA', {
+                                  day: '2-digit',
+                                  month: 'short',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  second: '2-digit',
+                                })
+                              : '—'}
+                          </td>
+                          <td>
+                            <span className={`ac-audit-pill ac-audit-pill--${tone}`}>
+                              {row.action || '—'}
+                            </span>
+                          </td>
+                          <td className="ac-audit-resource">{resource}</td>
+                          <td>
+                            <div className="audit-actor">
+                              <strong>{actor.title}</strong>
+                              <span>{actor.sub}</span>
+                            </div>
+                          </td>
+                          <td className="audit-ip">{row.ip || '—'}</td>
+                          <td className="audit-detail">
+                            <a
+                              href="#"
+                              className="ac-audit-detail-link"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setAuditDetailRow(row);
+                              }}
+                            >
+                              <span>{summary}</span>
+                              <ChevronRight size={13} strokeWidth={2} aria-hidden="true" />
+                            </a>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="ac-audit-pager">
+                <div className="ac-audit-pager-btns">
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={auditLoading || auditCursorStack.length <= 1}
+                    onClick={() => {
+                      const stack = auditCursorStack.slice(0, -1);
+                      const prev = stack[stack.length - 1] ?? null;
+                      setAuditCursorStack(stack);
+                      loadAuditPage(prev, auditQ, false);
+                    }}
+                  >
+                    ← Précédent
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={auditLoading || !auditMeta?.has_more || !auditMeta?.next_cursor}
+                    onClick={() => {
+                      const next = auditMeta?.next_cursor ?? null;
+                      if (!next) return;
+                      setAuditCursorStack((s) => [...s, next]);
+                      loadAuditPage(next, auditQ, false);
+                    }}
+                  >
+                    Suivant →
+                  </button>
+                </div>
+                <span className="ac-audit-pager-meta">
+                  {auditMeta
+                    ? auditLog.length === 0
+                      ? '0 entrée'
+                      : `Page ${auditCursorStack.length} · ${auditLog.length} affiché${auditLog.length > 1 ? 's' : ''}${auditMeta.has_more ? ' · suite disponible' : ' · fin'}`
+                    : 'Prêt'}
+                </span>
+              </div>
+            </section>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
 
       {/* v0.7.7 — onglet dédié : TOUT ce qui concerne l'Atlas Agent au même endroit */}

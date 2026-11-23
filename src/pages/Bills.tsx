@@ -65,32 +65,64 @@ export default function Bills() {
   const [pwTitle, setPwTitle] = useState('');
   const [pwDesc, setPwDesc] = useState('');
   const [ocrBusy, setOcrBusy] = useState(false);
+  const [ocrStatus, setOcrStatus] = useState<'idle' | 'running' | 'ok' | 'error'>('idle');
+  const [ocrMessage, setOcrMessage] = useState('');
+  const [ocrFailingStep, setOcrFailingStep] = useState('');
+  const [ocrSteps, setOcrSteps] = useState<{ id: string; label: string; status: 'ok' | 'error' | 'running' | 'skipped'; detail?: string }[]>([]);
+
+  const resetOcrState = () => {
+    setOcrStatus('idle');
+    setOcrMessage('');
+    setOcrFailingStep('');
+    setOcrSteps([]);
+  };
 
   /* OCR : photo/scan d'une facture fournisseur → champs pré-remplis à vérifier. */
   const runBillOcr = async (file: File | null) => {
     if (!file) return;
     if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
-      flash('Format non pris en charge — image ou PDF uniquement.', 'error');
+      setOcrStatus('error');
+      setOcrFailingStep('Validation du fichier');
+      setOcrMessage('Format non pris en charge — image (PNG, JPG, WebP) uniquement.');
+      setOcrSteps([
+        { id: 'validation_fichier', label: 'Validation du fichier', status: 'error', detail: 'Format non pris en charge' },
+      ]);
       return;
     }
     if (file.size > 8 * 1024 * 1024) {
-      flash('Fichier trop volumineux (max 8 Mo).', 'error');
+      setOcrStatus('error');
+      setOcrFailingStep('Validation du fichier');
+      setOcrMessage('Fichier trop volumineux (max 8 Mo).');
+      setOcrSteps([
+        { id: 'validation_fichier', label: 'Validation du fichier', status: 'error', detail: 'Taille > 8 Mo' },
+      ]);
       return;
     }
     setOcrBusy(true);
+    setOcrStatus('running');
+    setOcrFailingStep('');
+    setOcrMessage('Lecture du document et extraction OCR (Qwen)…');
+    setOcrSteps([
+      { id: 'validation_fichier', label: 'Validation du fichier', status: 'ok' },
+      { id: 'moteur_ocr', label: 'Moteur OCR (Qwen)', status: 'running' },
+      { id: 'analyse_vision', label: 'Analyse visuelle', status: 'running' },
+      { id: 'extraction_champs', label: 'Extraction des champs', status: 'running' },
+    ]);
     try {
       const dataUrl: string = await new Promise((res, rej) => {
         const fr = new FileReader();
         fr.onload = () => res(String(fr.result || ''));
-        fr.onerror = () => rej(new Error('lecture impossible'));
+        fr.onerror = () => rej(new Error('Lecture locale du fichier impossible.'));
         fr.readAsDataURL(file);
       });
       const r: any = await api.parseBillDocument({ data_url: dataUrl });
+      const serverSteps = Array.isArray(r?.data?.steps) ? r.data.steps : [];
       const f = r?.data?.fields || {};
       const its = Array.isArray(r?.data?.items) ? r.data.items : [];
       let applied = 0;
       if (f.vendor_name) {
         setVendorName(String(f.vendor_name));
+        setFieldErrors((x) => ({ ...x, vendor_name: '' }));
         const match = vendors.find(
           (v) => String(v.name || '').trim().toLowerCase() === String(f.vendor_name).trim().toLowerCase(),
         );
@@ -107,14 +139,42 @@ export default function Bills() {
         setItems(its.map((it: any) => ({ product_name: String(it.product_name), quantity: Number(it.quantity) || 1, unit_cost: Number(it.unit_cost) || 0 })));
         applied++;
       }
-      flash(
-        applied
-          ? r?.data?.review_message || 'Champs pré-remplis — vérifiez avant d’enregistrer.'
-          : 'Extraction impossible — vérifiez que la photo est nette, puis saisissez les champs.',
-        applied ? 'success' : 'error',
-      );
+      if (serverSteps.length) setOcrSteps(serverSteps);
+      if (applied > 0) {
+        setOcrStatus('ok');
+        setOcrFailingStep('');
+        setOcrMessage(r?.data?.review_message || 'Champs pré-remplis — vérifiez avant d’enregistrer.');
+      } else {
+        setOcrStatus('error');
+        setOcrFailingStep('Extraction des champs');
+        setOcrMessage('Aucun champ exploitable détecté — vérifiez que la photo est nette, puis saisissez les champs.');
+      }
     } catch (e: any) {
-      flash(e?.message || 'OCR indisponible pour le moment.', 'error');
+      const body = e?.body || {};
+      const serverSteps = Array.isArray(body.steps) ? body.steps : [];
+      const failed = serverSteps.find((s: any) => s.status === 'error');
+      setOcrStatus('error');
+      setOcrFailingStep(
+        failed?.label ||
+          (body.failing_step === 'validation_fichier'
+            ? 'Validation du fichier'
+            : body.failing_step === 'moteur_ocr'
+              ? 'Moteur OCR (Qwen)'
+              : body.failing_step === 'analyse_vision'
+                ? 'Analyse visuelle Qwen'
+                : body.failing_step === 'extraction_champs'
+                  ? 'Extraction des champs'
+                  : 'Lecture OCR'),
+      );
+      if (serverSteps.length) {
+        setOcrSteps(serverSteps);
+      } else {
+        setOcrSteps([
+          { id: 'validation_fichier', label: 'Validation du fichier', status: 'ok' },
+          { id: 'analyse_vision', label: 'Analyse OCR (Qwen)', status: 'error', detail: e?.message || 'Erreur OCR' },
+        ]);
+      }
+      setOcrMessage(e?.message || 'OCR indisponible pour le moment.');
     } finally {
       setOcrBusy(false);
     }
@@ -180,6 +240,23 @@ export default function Bills() {
   const resetForm = () => {
     setVendorId(''); setVendorName(''); setVendorIce(''); setVendorAddress(''); setNotes('');
     setItems([{ product_name: '', quantity: 1, unit_cost: 0 }]);
+    resetOcrState();
+  };
+
+  const validateBillForward = (targetStep: number): boolean => {
+    if (targetStep >= 2 && !vendorName.trim()) {
+      setFieldErrors({ vendor_name: 'Le nom du fournisseur est obligatoire.' });
+      setModalError('Le nom du fournisseur est obligatoire.');
+      return false;
+    }
+    if (targetStep >= 3 && !items.some((it) => String(it.product_name || '').trim() && Number(it.quantity) > 0)) {
+      setFieldErrors({ items: "Ajoutez au moins une ligne d'achat." });
+      setModalError("Ajoutez au moins une ligne d'achat avec une quantité > 0.");
+      return false;
+    }
+    setFieldErrors({});
+    setModalError('');
+    return true;
   };
 
   const create = async () => {
@@ -503,9 +580,16 @@ export default function Bills() {
       </div>
 
       {showModal && (
-        <FloatingPortal><div className="modal-overlay" onClick={() => { setShowModal(false); setModalError(''); setFieldErrors({}); wz.reset(); }}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => { setShowModal(false); setModalError(''); setFieldErrors({}); resetOcrState(); wz.reset(); }}>
           <div className="modal step-wizard step-wizard--wide" role="dialog" aria-modal="true" aria-labelledby="bill-wizard-title" onClick={(e) => e.stopPropagation()}>
-            <WizardHeader eyebrow="ACHAT FOURNISSEUR" title="Nouvelle facture d'achat" titleId="bill-wizard-title" wz={wz} steps={BILL_STEPS} />
+            <WizardHeader
+              eyebrow="ACHAT FOURNISSEUR"
+              title="Nouvelle facture d'achat"
+              titleId="bill-wizard-title"
+              wz={wz}
+              steps={BILL_STEPS}
+              onBeforeJump={(targetStep) => validateBillForward(targetStep)}
+            />
             <div className="step-wizard__body">
             <WizardIntro step={BILL_STEPS[wz.step - 1]} />
 
@@ -521,8 +605,8 @@ export default function Bills() {
               }}
             >
               <span className="dropzone-ico" aria-hidden>📷</span>
-              <span className="dropzone-title">Scanner une facture (OCR) — image ou PDF</span>
-              <span className="dropzone-hint">Glissez un fichier ici ou cliquez pour pré-remplir</span>
+              <span className="dropzone-title">Scanner une facture (OCR Qwen) — photo ou capture</span>
+              <span className="dropzone-hint">Glissez une image ici ou cliquez pour pré-remplir automatiquement</span>
               <input
                 type="file"
                 accept="image/*,application/pdf"
@@ -534,8 +618,50 @@ export default function Bills() {
                   runBillOcr(f);
                 }}
               />
-              {ocrBusy && <span className="dropzone-busy">Extraction en cours…</span>}
+              {ocrBusy && <span className="dropzone-busy">Extraction OCR en cours…</span>}
             </label>
+
+            {ocrStatus !== 'idle' && (
+              <div
+                className={`wz-ocr-panel ${
+                  ocrStatus === 'error' ? 'is-error' : ocrStatus === 'ok' ? 'is-ok' : ''
+                }`}
+                role={ocrStatus === 'error' ? 'alert' : 'status'}
+              >
+                <div className="wz-ocr-head">
+                  <strong>
+                    {ocrStatus === 'running'
+                      ? 'Analyse OCR en cours…'
+                      : ocrStatus === 'ok'
+                        ? 'OCR terminé — vérifiez les champs extraits'
+                        : `Échec OCR${ocrFailingStep ? ` · Étape : ${ocrFailingStep}` : ''}`}
+                  </strong>
+                  {ocrStatus !== 'running' && (
+                    <button
+                      type="button"
+                      className="secondary"
+                      style={{ minHeight: '26px', padding: '2px 10px', fontSize: '0.72rem' }}
+                      onClick={resetOcrState}
+                    >
+                      Fermer
+                    </button>
+                  )}
+                </div>
+                {ocrSteps.length > 0 && (
+                  <ul className="wz-ocr-steps">
+                    {ocrSteps.map((s) => (
+                      <li key={s.id} className={`wz-ocr-step is-${s.status}`}>
+                        <span aria-hidden="true">
+                          {s.status === 'ok' ? '✓' : s.status === 'error' ? '✕' : s.status === 'running' ? '⋯' : '–'}
+                        </span>
+                        <span>{s.label}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {ocrMessage && <p className="wz-ocr-detail">{ocrMessage}</p>}
+              </div>
+            )}
 
             <div className="grid grid-2">
               <div className="form-row">
@@ -671,7 +797,34 @@ export default function Bills() {
 
             </StepBody>
             <StepBody active={wz.step === 3}>
-            <div className="form-row"><label>Notes</label><textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
+            <div className="wz-recap-card">
+              <div className="wz-recap-item">
+                <span>Fournisseur</span>
+                <strong>{vendorName.trim() || '—'}</strong>
+              </div>
+              <div className="wz-recap-item">
+                <span>ICE / Identifiant</span>
+                <strong>{vendorIce.trim() || '—'}</strong>
+              </div>
+              <div className="wz-recap-item">
+                <span>Date d&apos;émission</span>
+                <strong>{issueDate || '—'}</strong>
+              </div>
+              <div className="wz-recap-item">
+                <span>Lignes d&apos;achat</span>
+                <strong>{items.filter((it) => String(it.product_name || '').trim()).length} article(s)</strong>
+              </div>
+              <div className="wz-recap-item">
+                <span>Total estimé</span>
+                <strong>
+                  {items
+                    .reduce((s, it) => s + Number(it.quantity || 0) * Number(it.unit_cost || 0), 0)
+                    .toLocaleString('fr-FR', { maximumFractionDigits: 2 })}{' '}
+                  DH
+                </strong>
+              </div>
+            </div>
+            <div className="form-row"><label>Notes</label><textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Référence bon de livraison, remarques de réception…" /></div>
             </StepBody>
             <ModalFormError message={modalError || firstError(fieldErrors)} />
             </div>
@@ -679,23 +832,9 @@ export default function Bills() {
               title="Nouvelle facture d'achat"
               wz={wz}
               stepLabel={BILL_STEPS[wz.step - 1].label}
-              onCancel={() => { setShowModal(false); setModalError(''); setFieldErrors({}); wz.reset(); }}
+              onCancel={() => { setShowModal(false); setModalError(''); setFieldErrors({}); resetOcrState(); wz.reset(); }}
               onBack={() => { setModalError(''); setFieldErrors({}); }}
-              onNext={() => {
-                if (wz.step === 1 && !vendorName.trim()) {
-                  setFieldErrors({ vendor_name: 'Le nom du fournisseur est obligatoire.' });
-                  setModalError('Le nom du fournisseur est obligatoire.');
-                  return false;
-                }
-                if (wz.step === 2 && !items.some((it) => String(it.product_name || '').trim() && Number(it.quantity) > 0)) {
-                  setFieldErrors({ items: "Ajoutez au moins une ligne d'achat." });
-                  setModalError("Ajoutez au moins une ligne d'achat avec une quantité > 0.");
-                  return false;
-                }
-                setFieldErrors({});
-                setModalError('');
-                return true;
-              }}
+              onNext={() => validateBillForward(wz.step + 1)}
               onSubmit={() => void create()}
               submitLabel={saving ? 'Enregistrement…' : 'Créer et enregistrer'}
               saving={saving}

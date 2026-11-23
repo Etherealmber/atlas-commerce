@@ -10,6 +10,10 @@ import { PublicSettingsTopbar } from '../components/PublicChrome';
 import About from '../pages/About';
 import Reports from '../pages/Reports';
 import InventoryOps from '../pages/InventoryOps';
+import Settings from '../pages/Settings';
+import Payroll from '../pages/Payroll';
+import CashShifts from '../pages/CashShifts';
+import Actions from '../pages/Actions';
 import Support from '../pages/Support';
 import { api } from '../api';
 import { vi } from 'vitest';
@@ -407,5 +411,194 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     expect(readmeSrc).toContain('0.0.1-beta → 0.9.2-beta');
     expect(readmeSrc).toContain('### 0.9.2-beta');
     expect(readmeSrc).toContain('### 0.9.1-beta');
+  });
+
+  it('prevents App.css density button selectors from blacking out FocusSidebar items and renders Journal d’audit in Dashboard Bento layout', async () => {
+    const appCss = readFileSync(path.resolve(process.cwd(), 'src/App.css'), 'utf8');
+    const focusCss = readFileSync(path.resolve(process.cwd(), 'src/styles/focus-sidebar.css'), 'utf8');
+
+    // Every generic .content button:not(...) rule in App.css must exclude FocusSidebar controls
+    const densityButtonRules = appCss
+      .split('\n')
+      .filter((line) => /\.content button:not\(/.test(line) && !/\.content button\.(secondary|danger|ghost)/.test(line));
+    expect(densityButtonRules.length).toBeGreaterThan(0);
+    for (const rule of densityButtonRules) {
+      expect(rule).toContain(':not(.atlas-focus-nav-item)');
+      expect(rule).toContain(':not(.atlas-focus-collapse-btn)');
+    }
+
+    // FocusSidebar fits all Settings tabs in one panel and locks IA badge contrast
+    expect(focusCss).toContain('min-height: 29px !important;');
+    expect(focusCss).toMatch(/\.atlas-focus-badge--accent[\s\S]*-webkit-text-fill-color:\s*#1e293b\s*!important;/);
+
+    // Render Settings on ?tab=audit and verify Dashboard Bento structure
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ success: true, data: {} }), { headers: { 'Content-Type': 'application/json' } })));
+    vi.spyOn(api, 'getSettings').mockResolvedValue({ data: { company_name: 'Atlas', currency: 'MAD', tax_rate: 20 } } as any);
+    vi.spyOn(api, 'getCategories').mockResolvedValue({ data: [] } as any);
+    vi.spyOn(api, 'getUnits').mockResolvedValue({ data: [] } as any);
+    vi.spyOn(api, 'getMe').mockResolvedValue({ data: { is_owner: true, role: 'owner', username: 'admin' } } as any);
+    vi.spyOn(api, 'getAdminUsers').mockResolvedValue({ data: { owner: null, users: [] } } as any);
+    vi.spyOn(api, 'getAdminConfig').mockResolvedValue({ data: {} } as any);
+    const auditSpy = vi.spyOn(api, 'getAuditLog').mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          created_at: '2026-10-20 10:00:00',
+          action: 'invoice.create',
+          entity: 'invoice',
+          entity_id: 'FA-101',
+          username: 'admin',
+          role: 'owner',
+          ip: '127.0.0.1',
+          detail: 'Facture créée',
+        },
+      ],
+      meta: {
+        has_more: false,
+        next_cursor: null,
+        stats: {
+          total: 12,
+          unique_actors: 3,
+          by_day: [{ day: '2026-10-19', n: 5 }, { day: '2026-10-20', n: 7 }],
+          top_actions: [{ action: 'invoice.create', n: 7 }, { action: 'settings.update', n: 5 }],
+        },
+      },
+    } as any);
+
+    await act(async () => {
+      root.render(
+        createElement(
+          MemoryRouter,
+          { initialEntries: ['/settings?tab=audit'] },
+          createElement(Settings),
+        ),
+      );
+    });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 20));
+    });
+
+    expect(host.querySelector('.ac-audit-header-panel')).not.toBeNull();
+    expect(host.querySelector('.ac-audit-kpis')).not.toBeNull();
+    expect(host.querySelector('.ac-audit-charts-grid')).not.toBeNull();
+    expect(host.querySelector('.ac-audit-table-panel')).not.toBeNull();
+    expect(host.querySelector('.ac-dash-period-pills')).not.toBeNull();
+    expect(host.textContent).toContain('Journal d’audit & Traçabilité');
+    expect(host.textContent).toContain('invoice.create');
+    expect(host.textContent).toContain('FA-101');
+
+    // Clicking an action breakdown bar toggles the action filter
+    const hbarBtn = host.querySelector<HTMLButtonElement>('button.ac-audit-hbar-btn');
+    expect(hbarBtn).not.toBeNull();
+    await act(async () => {
+      hbarBtn!.click();
+    });
+    expect(hbarBtn!.classList.contains('is-selected')).toBe(true);
+    expect(auditSpy).toHaveBeenCalled();
+
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it('aligns Payroll, CashShifts, Reports hero/pills, and sidebar Finance icons with Dashboard & Balance Bento UI', async () => {
+    const reportsSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Reports.tsx'), 'utf8');
+    const payrollSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Payroll.tsx'), 'utf8');
+    const shiftsSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/CashShifts.tsx'), 'utf8');
+    const appSrc = readFileSync(path.resolve(process.cwd(), 'src/App.tsx'), 'utf8');
+
+    // 1. Reports matches Dashboard period pills & clean hero without verbose eyebrow/subtitle
+    expect(reportsSrc).not.toContain('Finance &amp; conformité');
+    expect(reportsSrc).not.toContain('coût des ventes COGS / FIFO');
+    expect(reportsSrc).not.toContain('ac-dash-presets');
+    expect(reportsSrc).not.toContain('ac-dash-preset');
+    expect(reportsSrc).toContain('ac-dash-period-pills');
+    expect(reportsSrc).toContain('className="ac-seg-btn"');
+
+    // 2. Sidebar Finance & Ops icons are all distinct (no duplicate $ icon between /balance and /payroll)
+    const balanceIcon = appSrc.match(/to="\/balance"[\s\S]*?<NavIcon([^>]+)\/>/)?.[1] ?? '';
+    const cashShiftsIcon = appSrc.match(/to="\/cash-shifts"[\s\S]*?<NavIcon([^>]+)\/>/)?.[1] ?? '';
+    const payrollIcon = appSrc.match(/to="\/payroll"[\s\S]*?<NavIcon([^>]+)\/>/)?.[1] ?? '';
+    const reportsIcon = appSrc.match(/to="\/reports"[\s\S]*?<NavIcon([^>]+)\/>/)?.[1] ?? '';
+    const opsIcon = appSrc.match(/to="\/inventory-ops"[\s\S]*?<NavIcon([^>]+)\/>/)?.[1] ?? '';
+    const icons = [balanceIcon, cashShiftsIcon, payrollIcon, reportsIcon, opsIcon].map((s) => s.trim());
+    expect(icons.every((s) => s.length > 0)).toBe(true);
+    expect(new Set(icons).size).toBe(5);
+
+    // 3. Payroll & CashShifts use Dashboard/Balance Bento UI rather than legacy .page/.page-head
+    for (const src of [payrollSrc, shiftsSrc]) {
+      expect(src).toContain('atlas-page ac-dash');
+      expect(src).toContain('ac-dash-hero');
+      expect(src).toContain('ac-metric-grid');
+      expect(src).toContain('ac-panel');
+      expect(src).not.toContain('className="page-head"');
+    }
+
+    // 4. Render Payroll & CashShifts and verify Bento structure + accessible dock headings
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ success: true, data: [] }), { headers: { 'Content-Type': 'application/json' } })));
+    vi.spyOn(api, 'listPayrollRuns').mockResolvedValue({ data: [] } as any);
+    vi.spyOn(api, 'listCashShifts').mockResolvedValue({ data: [] } as any);
+
+    await act(async () => {
+      root.render(createElement(MemoryRouter, { initialEntries: ['/payroll'] }, createElement(Payroll)));
+    });
+    expect(host.querySelector('.atlas-page.ac-dash.payroll-page')).not.toBeNull();
+    expect(host.querySelector('.ac-dash-hero')).not.toBeNull();
+    expect(host.querySelectorAll('.ac-metric-grid .ac-metric').length).toBe(4);
+    expect(host.querySelector('h1.sr-only')?.textContent).toBe('Paie CNSS / AMO');
+
+    await act(async () => {
+      root.render(createElement(MemoryRouter, { initialEntries: ['/cash-shifts'] }, createElement(CashShifts)));
+    });
+    expect(host.querySelector('.atlas-page.ac-dash.cash-shifts-page')).not.toBeNull();
+    expect(host.querySelector('.ac-dash-hero')).not.toBeNull();
+    expect(host.querySelectorAll('.ac-metric-grid .ac-metric').length).toBe(4);
+    expect(host.querySelector('h1.sr-only')?.textContent).toBe('Clôtures de caisse (X / Z)');
+
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it('rewrites Actions page in Bento UI, swaps TopPageActions icons, stretches Balance search, locks wizard step skipping, and surfaces Qwen OCR failure inside Bill dialog', async () => {
+    const actionsSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Actions.tsx'), 'utf8');
+    const appCss = readFileSync(path.resolve(process.cwd(), 'src/App.css'), 'utf8');
+    const billsSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Bills.tsx'), 'utf8');
+    const billsWorkerSrc = readFileSync(path.resolve(process.cwd(), 'worker/routes/billsReceipts.ts'), 'utf8');
+
+    // 1. Actions.tsx: no "Espace partagé", Bento UI, RefreshIconButton before Produits link
+    expect(actionsSrc).not.toContain('Espace partagé');
+    expect(actionsSrc).not.toContain('Scans et demandes du téléphone');
+    expect(actionsSrc).toContain('atlas-page ac-dash actions-page');
+    expect(actionsSrc).toContain('ac-metric-grid');
+    const tpaBlock = actionsSrc.match(/<TopPageActions>[\s\S]*?<\/TopPageActions>/)?.[0] || '';
+    expect(tpaBlock.indexOf('<RefreshIconButton')).toBeGreaterThan(-1);
+    expect(tpaBlock.indexOf('to="/products"')).toBeGreaterThan(tpaBlock.indexOf('<RefreshIconButton'));
+
+    // Render Actions and verify Bento structure + no Espace partagé
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ success: true, data: [] }), { headers: { 'Content-Type': 'application/json' } })));
+    vi.spyOn(api, 'listMobileActions').mockResolvedValue({ data: [] } as any);
+    vi.spyOn(api, 'getUnits').mockResolvedValue({ data: [] } as any);
+    await act(async () => {
+      root.render(createElement(MemoryRouter, { initialEntries: ['/actions'] }, createElement(Actions)));
+    });
+    expect(host.querySelector('.atlas-page.ac-dash.actions-page')).not.toBeNull();
+    expect(host.querySelectorAll('.ac-metric-grid .ac-metric').length).toBe(4);
+    expect(host.textContent).not.toContain('ESPACE PARTAGÉ');
+    expect(host.textContent).not.toContain('Scans et demandes du téléphone');
+
+    // 2. Balance search bar stretches freely instead of capping at 240px
+    const balSearchRule = appCss.match(/\.bal-tx-search\s*\{[^}]*\}/)?.[0] || '';
+    expect(balSearchRule).toContain('max-width: none');
+    expect(balSearchRule).not.toContain('max-width: 240px');
+
+    // 3. Bill OCR uses Workers AI Qwen vision (never Groq) and emits step trace + failing_step
+    expect(billsWorkerSrc).toContain('@cf/qwen/qwen2.5-vl-32b-instruct');
+    expect(billsWorkerSrc).toContain('failing_step');
+    expect(billsWorkerSrc).not.toContain('groqChat');
+    expect(billsSrc).toContain('wz-ocr-panel');
+    expect(billsSrc).toContain('onBeforeJump');
+    expect(billsSrc).toContain('wz-recap-card');
+
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 });

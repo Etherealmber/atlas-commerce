@@ -733,78 +733,235 @@ export function registerBillsReceiptsRoutes(app: Hono<any>, deps: BillsReceiptsR
     return c.json({ success: true, data: { ...bill, items } });
   });
   
-  /* ─── Bills: OCR / document parse (photo or scan → prefilled fields, human reviews) ─── */
-  
+  /* ─── Bills: OCR / document parse (Workers AI Qwen vision — Groq stays dedicated to Atlas Agent chat) ─── */
+
   app.post('/api/bills/parse-document', async (c) => {
+    type OcrStep = { id: string; label: string; status: 'ok' | 'error' | 'skipped'; detail?: string };
     const body = await c.req.json().catch(() => ({}));
     const dataUrl = String(body.data_url || body.dataUrl || '');
     const textHint = String(body.text || '');
+    const steps: OcrStep[] = [];
     let fields: Record<string, string> = {};
     let items: any[] = [];
     let source = 'none';
-  
+    let usedModel = '';
+
+    // Step 1: Validate input document
+    if (!textHint.trim() && !dataUrl) {
+      steps.push({ id: 'validation_fichier', label: 'Validation du fichier', status: 'error', detail: 'Aucun fichier ou texte transmis.' });
+      return c.json({
+        success: false,
+        error: 'Aucun fichier transmis pour l’analyse OCR.',
+        failing_step: 'validation_fichier',
+        steps,
+      }, 400);
+    }
+
+    if (!textHint.trim() && dataUrl.startsWith('data:application/pdf')) {
+      steps.push({
+        id: 'validation_fichier',
+        label: 'Validation du fichier',
+        status: 'error',
+        detail: 'Les PDF scannés ne peuvent pas être lus en image directe — importez une photo ou capture (JPG / PNG / WebP).',
+      });
+      return c.json({
+        success: false,
+        error: 'PDF scanné non pris en charge par le lecteur optique image — convertissez en photo ou capture (PNG/JPG).',
+        failing_step: 'validation_fichier',
+        steps,
+      }, 422);
+    }
+
+    if (!textHint.trim() && !dataUrl.startsWith('data:image/')) {
+      steps.push({
+        id: 'validation_fichier',
+        label: 'Validation du fichier',
+        status: 'error',
+        detail: 'Format non reconnu comme image (PNG, JPG, WebP).',
+      });
+      return c.json({
+        success: false,
+        error: 'Format de document non pris en charge — image PNG/JPG/WebP requise.',
+        failing_step: 'validation_fichier',
+        steps,
+      }, 422);
+    }
+
+    steps.push({ id: 'validation_fichier', label: 'Validation du fichier', status: 'ok' });
+
     if (textHint.trim()) {
       fields = parseBillText(textHint);
       source = 'text';
-    }
-  
-    // Optional Workers AI vision when the binding exists (same pattern as employee ID parse)
-    try {
+      steps.push({ id: 'moteur_ocr', label: 'Moteur OCR (Qwen)', status: 'skipped', detail: 'Texte fourni directement.' });
+      steps.push({ id: 'analyse_vision', label: 'Analyse visuelle Qwen', status: 'skipped' });
+    } else {
+      // Step 2: Check Workers AI binding (never uses Groq — Groq stays for Atlas Agent in chat)
       const ai = (c.env as any).AI;
-      if (ai && dataUrl.startsWith('data:image')) {
-        const m = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-        if (m) {
-          const result = await ai.run('@cf/llava-hf/llava-1.5-7b-hf', {
-            image: [...Uint8Array.from(atob(m[2]), (ch) => ch.charCodeAt(0))],
-            prompt:
-              'This is a supplier bill/invoice photo. Extract JSON only: {"vendor_name": string, "issue_date": "YYYY-MM-DD", "bill_number": string, "ice": string, "total": number, "items": [{"product_name": string, "quantity": number, "unit_cost": number}]}. Missing field: use "" or 0.',
-            max_tokens: 700,
-          });
-          const raw = String(result?.description || result?.response || result || '');
-          const jm = raw.match(/\{[\s\S]*\}/);
-          if (jm) {
-            try {
-              const j = JSON.parse(jm[0]);
-              fields = {
-                vendor_name: String(j.vendor_name || fields.vendor_name || ''),
-                issue_date: /^\d{4}-\d{2}-\d{2}$/.test(String(j.issue_date || ''))
-                  ? String(j.issue_date)
-                  : fields.issue_date || '',
-                bill_number: String(j.bill_number || fields.bill_number || ''),
-                ice: String(j.ice || fields.ice || ''),
-                total: String(j.total || fields.total || ''),
-              };
-              if (Array.isArray(j.items)) {
-                items = j.items
-                  .slice(0, 30)
-                  .map((it: any) => ({
-                    product_name: String(it?.product_name || it?.name || ''),
-                    quantity: Math.max(1, Number(it?.quantity || 1)),
-                    unit_cost: Math.max(0, Number(it?.unit_cost || it?.cost || it?.unit_price || 0)),
-                  }))
-                  .filter((it: any) => it.product_name);
-              }
-              source = 'ai';
-            } catch {
-              fields = { ...fields, ...parseBillText(raw) };
-              source = 'ai-text';
-            }
-          } else {
-            fields = { ...fields, ...parseBillText(raw) };
-            source = 'ai-text';
+      if (!ai || typeof ai.run !== 'function') {
+        steps.push({
+          id: 'moteur_ocr',
+          label: 'Moteur OCR (Qwen)',
+          status: 'error',
+          detail: 'Binding Workers AI absent sur cet environnement.',
+        });
+        return c.json({
+          success: false,
+          error: 'Moteur OCR Qwen (Workers AI) indisponible sur ce serveur — saisissez les champs manuellement.',
+          failing_step: 'moteur_ocr',
+          steps,
+        }, 422);
+      }
+      steps.push({ id: 'moteur_ocr', label: 'Moteur OCR (Qwen)', status: 'ok' });
+
+      // Step 3: Run Qwen Vision OCR first, with Workers AI vision fallbacks
+      const m = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+      if (!m) {
+        steps.push({
+          id: 'analyse_vision',
+          label: 'Analyse visuelle Qwen',
+          status: 'error',
+          detail: 'Encodage base64 de l’image invalide.',
+        });
+        return c.json({
+          success: false,
+          error: 'Image illisible (encodage base64 invalide).',
+          failing_step: 'analyse_vision',
+          steps,
+        }, 422);
+      }
+
+      const ocrPrompt =
+        'You are an invoice OCR reader. Read all text accurately from this supplier bill/invoice image and return JSON only: {"vendor_name": string, "issue_date": "YYYY-MM-DD", "bill_number": string, "ice": string, "total": number, "items": [{"product_name": string, "quantity": number, "unit_cost": number}]}. Use "" or 0 for missing fields.';
+      const ocrModels = [
+        '@cf/qwen/qwen2.5-vl-32b-instruct',
+        '@cf/meta/llama-3.2-11b-vision-instruct',
+        '@cf/llava-hf/llava-1.5-7b-hf',
+      ];
+      let rawText = '';
+      let lastErr = '';
+      const imgBytes = [...Uint8Array.from(atob(m[2]), (ch) => ch.charCodeAt(0))];
+
+      for (const modelId of ocrModels) {
+        try {
+          const isQwen = modelId.includes('qwen');
+          const result = isQwen
+            ? await ai.run(modelId, {
+                messages: [
+                  {
+                    role: 'user',
+                    content: [
+                      { type: 'text', text: ocrPrompt },
+                      { type: 'image_url', image_url: { url: dataUrl } },
+                    ],
+                  },
+                ],
+                max_tokens: 900,
+              })
+            : await ai.run(modelId, {
+                image: imgBytes,
+                prompt: ocrPrompt,
+                max_tokens: 700,
+              });
+          const candidate = String(
+            result?.response || result?.description || result?.choices?.[0]?.message?.content || '',
+          ).trim();
+          if (candidate) {
+            rawText = candidate;
+            usedModel = modelId;
+            break;
           }
+          lastErr = `Réponse vide de ${modelId}`;
+        } catch (err: any) {
+          lastErr = err?.message ? `${modelId}: ${err.message}` : `Échec modèle ${modelId}`;
         }
       }
-    } catch (e) {
-      console.log('parse-bill ai', e);
+
+      if (!rawText) {
+        steps.push({
+          id: 'analyse_vision',
+          label: 'Analyse visuelle Qwen',
+          status: 'error',
+          detail: lastErr || 'Aucune réponse du moteur OCR.',
+        });
+        return c.json({
+          success: false,
+          error: `Échec de la lecture OCR (${lastErr || 'modèle indisponible'}).`,
+          failing_step: 'analyse_vision',
+          steps,
+        }, 422);
+      }
+      steps.push({
+        id: 'analyse_vision',
+        label: 'Analyse visuelle Qwen',
+        status: 'ok',
+        detail: usedModel,
+      });
+
+      const jm = rawText.match(/\{[\s\S]*\}/);
+      if (jm) {
+        try {
+          const j = JSON.parse(jm[0]);
+          fields = {
+            vendor_name: String(j.vendor_name || fields.vendor_name || ''),
+            issue_date: /^\d{4}-\d{2}-\d{2}$/.test(String(j.issue_date || ''))
+              ? String(j.issue_date)
+              : fields.issue_date || '',
+            bill_number: String(j.bill_number || fields.bill_number || ''),
+            ice: String(j.ice || fields.ice || ''),
+            total: String(j.total || fields.total || ''),
+          };
+          if (Array.isArray(j.items)) {
+            items = j.items
+              .slice(0, 30)
+              .map((it: any) => ({
+                product_name: String(it?.product_name || it?.name || ''),
+                quantity: Math.max(1, Number(it?.quantity || 1)),
+                unit_cost: Math.max(0, Number(it?.unit_cost || it?.cost || it?.unit_price || 0)),
+              }))
+              .filter((it: any) => it.product_name);
+          }
+          source = 'ai';
+        } catch {
+          fields = { ...fields, ...parseBillText(rawText) };
+          source = 'ai-text';
+        }
+      } else {
+        fields = { ...fields, ...parseBillText(rawText) };
+        source = 'ai-text';
+      }
     }
-  
+
+    // Step 4: Verify at least one usable field or line was extracted
+    const hasFields = Object.values(fields).some((v) => String(v || '').trim() !== '' && String(v || '').trim() !== '0');
+    if (!hasFields && items.length === 0) {
+      steps.push({
+        id: 'extraction_champs',
+        label: 'Extraction des champs',
+        status: 'error',
+        detail: 'Aucun fournisseur, numéro, date ou article reconnu.',
+      });
+      return c.json({
+        success: false,
+        error: 'Extraction impossible — aucun champ exploitable détecté sur ce document.',
+        failing_step: 'extraction_champs',
+        steps,
+      }, 422);
+    }
+
+    steps.push({
+      id: 'extraction_champs',
+      label: 'Extraction des champs',
+      status: 'ok',
+    });
+
     return c.json({
       success: true,
       data: {
         fields,
         items,
         source,
+        model: usedModel || undefined,
+        steps,
         review_message:
           'Champs extraits automatiquement — vérifiez fournisseur, date, lignes et total avant d’enregistrer.',
       },

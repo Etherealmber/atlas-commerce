@@ -1,5 +1,5 @@
 /** Kit wizard partagé — étapes guidées uniformes pour tous les formulaires modaux. */
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import './form-wizard.css';
 
 export type WizardStepDef = {
@@ -10,15 +10,38 @@ export type WizardStepDef = {
 
 export function useWizard(total: number) {
   const [step, setStep] = useState(1);
+  const [maxReached, setMaxReached] = useState(1);
+  const guardRef = useRef<(() => boolean | void) | undefined>(undefined);
   return {
     step,
+    maxReached,
     total,
-    reset: () => setStep(1),
-    go: (n: number) => setStep(Math.max(1, Math.min(total, n))),
+    reset: () => {
+      setStep(1);
+      setMaxReached(1);
+    },
+    go: (n: number) => {
+      const clamped = Math.max(1, Math.min(total, n));
+      setStep(clamped);
+      setMaxReached((m) => Math.max(m, clamped));
+    },
     back: () => setStep((s) => Math.max(1, s - 1)),
-    next: () => setStep((s) => Math.min(total, s + 1)),
+    next: () => {
+      setStep((s) => {
+        const nextStep = Math.min(total, s + 1);
+        setMaxReached((m) => Math.max(m, nextStep));
+        return nextStep;
+      });
+    },
     first: step <= 1,
     last: step >= total,
+    _setGuard: (fn: (() => boolean | void) | undefined) => {
+      guardRef.current = fn;
+    },
+    _runGuard: () => {
+      if (!guardRef.current) return true;
+      return guardRef.current() !== false;
+    },
   };
 }
 
@@ -30,8 +53,10 @@ export function WizardHeader(props: {
   titleId?: string;
   wz: WizardApi;
   steps: readonly WizardStepDef[];
+  onBeforeJump?: (targetStep: number) => boolean | void;
 }) {
-  const { wz, steps } = props;
+  const { wz, steps, onBeforeJump } = props;
+  const maxAllowed = wz.maxReached ?? wz.step;
   return (
     <>
       <header className="step-wizard__header">
@@ -48,16 +73,37 @@ export function WizardHeader(props: {
       >
         {steps.map((item, index) => {
           const n = index + 1;
+          const isUnreachedSkip = n > maxAllowed && n > wz.step + 1;
           return (
             <li
               key={item.id}
-              className={n === wz.step ? 'is-current' : n < wz.step ? 'is-complete' : ''}
+              className={
+                n === wz.step
+                  ? 'is-current'
+                  : n < wz.step
+                    ? 'is-complete'
+                    : isUnreachedSkip
+                      ? 'is-locked'
+                      : ''
+              }
               aria-current={n === wz.step ? 'step' : undefined}
             >
               <button
                 type="button"
                 className="step-wizard__step-btn"
-                onClick={() => wz.go(n)}
+                disabled={isUnreachedSkip}
+                title={isUnreachedSkip ? 'Complétez les étapes précédentes avant d’y accéder' : item.label}
+                onClick={() => {
+                  if (n === wz.step || isUnreachedSkip) return;
+                  if (n > wz.step) {
+                    if (onBeforeJump) {
+                      if (onBeforeJump(n) === false) return;
+                    } else if (!wz._runGuard()) {
+                      return;
+                    }
+                  }
+                  wz.go(n);
+                }}
               >
                 <span>{n < wz.step ? '✓' : n}</span>
                 <b>{item.label}</b>
@@ -99,14 +145,18 @@ export function WizardFoot(props: {
   submitLabel: string;
   saving?: boolean;
 }) {
-  const { wz } = props;
+  const { wz, onNext } = props;
+  useEffect(() => {
+    wz._setGuard(onNext);
+    return () => wz._setGuard(undefined);
+  }, [wz, onNext]);
   const pct = Math.round((wz.step / wz.total) * 100);
   const handleBack = () => {
     props.onBack?.();
     wz.back();
   };
   const handleNext = () => {
-    if (props.onNext && props.onNext() === false) return;
+    if (onNext && onNext() === false) return;
     wz.next();
   };
   return (

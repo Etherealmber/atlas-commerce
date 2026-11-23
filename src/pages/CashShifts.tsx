@@ -1,8 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  CheckCircle2,
+  CircleDot,
+  Lock,
+  Plus,
+  Printer,
+  Unlock,
+} from 'lucide-react';
 import { api } from '../api';
 import { getRole, getToken } from '../auth';
-import PageSkeleton from '../components/PageSkeleton';
 import SaveFeedback from '../components/SaveFeedback';
+import TopPageActions from '../components/TopPageActions';
+import RefreshIconButton from '../components/RefreshIconButton';
 import { fmtMoney } from '../lib/money';
 
 const DENOMINATIONS = [200, 100, 50, 20, 10, 5, 2, 1, 0.5];
@@ -39,17 +48,21 @@ export default function CashShifts() {
   const [closeNotes, setCloseNotes] = useState('');
   const [closingBusy, setClosingBusy] = useState(false);
 
-  const loadShifts = useCallback(async () => {
+  const loadShifts = useCallback(async (pickId?: number) => {
     setLoading(true);
     setError('');
     try {
       const res = await api.listCashShifts();
-      const rows = res.data || [];
+      const rows = Array.isArray(res.data) ? res.data : [];
       setShifts(rows);
-      const openOne = rows.find((r: any) => r.status === 'open') || rows[0] || null;
-      if (openOne) {
-        const det = await api.getCashShift(Number(openOne.id));
-        setSelectedShift(det.data);
+      const target =
+        (pickId ? rows.find((r: any) => Number(r.id) === pickId) : null) ||
+        rows.find((r: any) => r.status === 'open') ||
+        rows[0] ||
+        null;
+      if (target) {
+        const det = await api.getCashShift(Number(target.id));
+        setSelectedShift(det.data || null);
       } else {
         setSelectedShift(null);
       }
@@ -65,9 +78,10 @@ export default function CashShifts() {
   }, [loadShifts]);
 
   const selectShift = async (id: number) => {
+    setError('');
     try {
       const det = await api.getCashShift(id);
-      setSelectedShift(det.data);
+      setSelectedShift(det.data || null);
     } catch (e: any) {
       setError(e?.message || 'Erreur lors du chargement de la session.');
     }
@@ -105,8 +119,7 @@ export default function CashShifts() {
       });
       setFeedback('Session de caisse ouverte.');
       setOpenNotes('');
-      await loadShifts();
-      if (res.data?.id) await selectShift(Number(res.data.id));
+      await loadShifts(res.data?.id ? Number(res.data.id) : undefined);
     } catch (err: any) {
       setError(err?.message || 'Impossible d’ouvrir la caisse.');
     } finally {
@@ -167,7 +180,7 @@ export default function CashShifts() {
       setTransferCounted('');
       setCheckCounted('');
       setCloseNotes('');
-      await loadShifts();
+      await loadShifts(Number(selectedShift.id));
     } catch (err: any) {
       setError(err?.message || 'Erreur lors de la clôture.');
     } finally {
@@ -175,102 +188,233 @@ export default function CashShifts() {
     }
   };
 
-  if (loading) return <PageSkeleton variant="dashboard" />;
-
-  const activeOpenShifts = shifts.filter((s) => s.status === 'open');
+  const activeOpenShifts = useMemo(() => shifts.filter((s) => s.status === 'open'), [shifts]);
+  const closedShifts = useMemo(() => shifts.filter((s) => s.status === 'closed'), [shifts]);
+  const totalVariance = useMemo(
+    () => closedShifts.reduce((acc, s) => acc + Number(s.variance || 0), 0),
+    [closedShifts],
+  );
   const expectedCash = Number(selectedShift?.summary?.expectedCash ?? selectedShift?.expected_amount ?? 0);
-  const liveVariance = Math.round(((Number.isFinite(effectiveCounted) ? effectiveCounted : 0) - expectedCash) * 100) / 100;
+  const liveVariance =
+    Math.round(((Number.isFinite(effectiveCounted) ? effectiveCounted : 0) - expectedCash) * 100) / 100;
+  const methodRows: any[] = Object.values(selectedShift?.summary?.methods || {});
 
   return (
-    <div className="page">
-      <div className="page-head">
-        <div>
-          <h1>Clôtures de caisse (X / Z)</h1>
-          <p className="muted">Ouverture de caisse, suivi des mouvements par moyen de paiement et rapport Z audité.</p>
-        </div>
-        <button type="button" className="secondary" onClick={() => void loadShifts()}>
-          Actualiser
-        </button>
+    <div className="atlas-page ac-dash cash-shifts-page ac-erp-page">
+      <div className="page-header dock-page-header">
+        <h1 className="sr-only">Clôtures de caisse (X / Z)</h1>
+        <TopPageActions>
+          <RefreshIconButton onClick={() => void loadShifts(selectedShift?.id)} loading={loading} />
+        </TopPageActions>
       </div>
 
-      {error && <div className="alert error" role="alert">{error}</div>}
+      {error && <p className="msg-error" role="alert">{error}</p>}
       <SaveFeedback message={feedback} />
 
-      <div className="grid-2" style={{ gap: '16px', alignItems: 'start', marginBottom: '16px' }}>
-        <form className="card" onSubmit={handleOpenShift}>
-          <h2 style={{ marginTop: 0 }}>Ouvrir une session de caisse</h2>
-          <div className="form-grid">
-            <label>
-              <span>Caisse</span>
-              <input value={tillId} onChange={(e) => setTillId(e.target.value)} placeholder="CAISSE-1" required />
-            </label>
-            <label>
-              <span>Fond d’ouverture (DH)</span>
-              <input type="number" step="0.01" min="0" value={openingFloat} onChange={(e) => setOpeningFloat(e.target.value)} />
-            </label>
+      {/* Bento Hero */}
+      <header className="ac-dash-hero">
+        <div className="ac-dash-hero-row">
+          <div className="ac-dash-hero-text">
+            <p className="ac-dash-eyebrow">
+              <span>Caisse &amp; trésorerie</span>
+            </p>
+            <h2 className="ac-dash-hello">Clôtures de caisse (X / Z)</h2>
+            <p className="ac-dash-lead">
+              Ouverture de session, suivi des mouvements par moyen de paiement et rapport Z audité.
+            </p>
           </div>
-          <label style={{ display: 'block', marginTop: '10px' }}>
-            <span>Notes d’ouverture</span>
-            <input value={openNotes} onChange={(e) => setOpenNotes(e.target.value)} placeholder="Optionnel" />
-          </label>
-          <div style={{ marginTop: '12px' }}>
-            <button type="submit" disabled={openingBusy}>
-              {openingBusy ? 'Ouverture…' : 'Ouvrir la caisse'}
-            </button>
+          <div className="ac-dash-hero-side">
+            <span className={`ac-status-pill ${activeOpenShifts.length > 0 ? 'is-ok' : 'is-warn'}`}>
+              {activeOpenShifts.length > 0 ? (
+                <CircleDot size={13} aria-hidden="true" />
+              ) : (
+                <Lock size={13} aria-hidden="true" />
+              )}
+              {activeOpenShifts.length > 0
+                ? `${activeOpenShifts.length} session(s) ouverte(s)`
+                : 'Aucune session ouverte'}
+            </span>
           </div>
-        </form>
+        </div>
+      </header>
 
-        <div className="card">
-          <h2 style={{ marginTop: 0 }}>Sessions ouvertes ({activeOpenShifts.length})</h2>
+      {/* 4 Dashboard KPI Bento Cards */}
+      <section className="ac-metric-grid" aria-label="Indicateurs de caisse">
+        <article className="ac-metric">
+          <span className="ac-metric-label">Sessions ouvertes</span>
+          <strong className="ac-metric-val">{activeOpenShifts.length}</strong>
+          <span className="ac-metric-meta">
+            {activeOpenShifts.length > 0
+              ? activeOpenShifts.map((s) => s.till_id).join(', ')
+              : 'Aucune caisse active'}
+          </span>
+        </article>
+        <article className="ac-metric">
+          <span className="ac-metric-label">Attendu espèces</span>
+          <strong className="ac-metric-val">{fmtMoney(expectedCash)}</strong>
+          <span className="ac-metric-meta">
+            {selectedShift
+              ? `Fond ${fmtMoney(selectedShift.opening_float)} · #${selectedShift.id}`
+              : 'Sélectionnez une session'}
+          </span>
+        </article>
+        <article className="ac-metric">
+          <span className="ac-metric-label">Sessions clôturées</span>
+          <strong className="ac-metric-val">{closedShifts.length}</strong>
+          <span className="ac-metric-meta">sur {shifts.length} session(s) au total</span>
+        </article>
+        <article className="ac-metric">
+          <span className="ac-metric-label">Écart cumulé</span>
+          <strong className="ac-metric-val">{fmtMoney(totalVariance)}</strong>
+          <span className="ac-metric-meta">Écarts constatés aux clôtures Z</span>
+        </article>
+      </section>
+
+      {/* Bento 2-column row: Open Shift + Active Open Shifts */}
+      <div className="ac-bento-grid-2 ac-bento-grid-2--stretch">
+        <section className="ac-panel ac-ops-panel-stretch">
+          <div className="ac-panel-head">
+            <div>
+              <h3>Ouvrir une session de caisse</h3>
+              <p className="ac-panel-sub">Déclarez la caisse et le fond initial avant d&apos;encaisser.</p>
+            </div>
+          </div>
+          <form onSubmit={handleOpenShift} style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1 }}>
+            <div className="ac-ops-form-grid-2">
+              <label className="ac-erp-field">
+                <span>Caisse</span>
+                <input
+                  value={tillId}
+                  onChange={(e) => setTillId(e.target.value)}
+                  placeholder="CAISSE-1"
+                  required
+                />
+              </label>
+              <label className="ac-erp-field">
+                <span>Fond d&apos;ouverture (DH)</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={openingFloat}
+                  onChange={(e) => setOpeningFloat(e.target.value)}
+                />
+              </label>
+            </div>
+            <label className="ac-erp-field">
+              <span>Notes d&apos;ouverture</span>
+              <input
+                value={openNotes}
+                onChange={(e) => setOpenNotes(e.target.value)}
+                placeholder="Ex. : Caisse principale matin"
+              />
+            </label>
+            <div className="ac-ops-panel-foot">
+              <button type="submit" className="ac-erp-btn-ico" disabled={openingBusy}>
+                <Unlock size={15} aria-hidden="true" />
+                <span>{openingBusy ? 'Ouverture…' : 'Ouvrir la caisse'}</span>
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <section className="ac-panel ac-ops-panel-stretch">
+          <div className="ac-panel-head">
+            <div>
+              <h3>Sessions ouvertes</h3>
+              <p className="ac-panel-sub">Accès rapide aux caisses en cours d&apos;exploitation.</p>
+            </div>
+            <span className="ac-panel-count">{activeOpenShifts.length}</span>
+          </div>
           {activeOpenShifts.length === 0 ? (
-            <p className="muted">Aucune session de caisse actuellement ouverte.</p>
+            <p className="muted" style={{ margin: '8px 0 0' }}>
+              Aucune session ouverte actuellement. Ouvrez une caisse pour suivre les mouvements en direct.
+            </p>
           ) : (
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: '8px' }}>
+            <ul className="ac-erp-open-list">
               {activeOpenShifts.map((s) => (
-                <li key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                  <div>
-                    <strong>{s.till_id}</strong> · {s.operator} · Fond {fmtMoney(s.opening_float)}
+                <li key={s.id} className="ac-erp-open-item">
+                  <div className="ac-erp-open-meta">
+                    <strong>
+                      #{s.id} · {s.till_id}
+                    </strong>
+                    <span>
+                      {s.operator} · Fond {fmtMoney(s.opening_float)}
+                    </span>
                   </div>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <button type="button" className="secondary" onClick={() => void selectShift(Number(s.id))}>
+                  <div className="ac-ops-row-actions">
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={() => void selectShift(Number(s.id))}
+                    >
                       Détails
                     </button>
-                    <button type="button" className="secondary" onClick={() => openReportWindow(Number(s.id), 'x')}>
-                      Rapport X
+                    <button
+                      type="button"
+                      className="secondary ac-erp-btn-ico"
+                      onClick={() => openReportWindow(Number(s.id), 'x')}
+                    >
+                      <Printer size={13} aria-hidden="true" />
+                      <span>Rapport X</span>
                     </button>
                   </div>
                 </li>
               ))}
             </ul>
           )}
-        </div>
+        </section>
       </div>
 
+      {/* Selected Shift Bento Detail */}
       {selectedShift && (
-        <div className="card" style={{ marginBottom: '16px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+        <section className="ac-panel">
+          <div className="ac-panel-head">
             <div>
-              <h2 style={{ margin: 0 }}>
-                Session #{selectedShift.id} — {selectedShift.till_id} ({selectedShift.status === 'open' ? 'Ouverte' : 'Clôturée'})
-              </h2>
-              <p className="muted" style={{ margin: '4px 0 0' }}>
-                Opérateur : {selectedShift.operator} · Ouverte le {String(selectedShift.opened_at).slice(0, 16).replace('T', ' ')}
+              <h3>
+                Session #{selectedShift.id} — {selectedShift.till_id}
+              </h3>
+              <p className="ac-panel-sub">
+                Opérateur : {selectedShift.operator} · Ouverte le{' '}
+                {String(selectedShift.opened_at).slice(0, 16).replace('T', ' ')}
               </p>
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button type="button" className="secondary" onClick={() => openReportWindow(Number(selectedShift.id), 'x')}>
-                Imprimer Rapport X
+            <div className="ac-erp-actions-row">
+              <span
+                className={`ac-status-pill ${
+                  selectedShift.status === 'open' ? 'is-ok' : 'is-dirty'
+                }`}
+              >
+                {selectedShift.status === 'open' ? (
+                  <CheckCircle2 size={13} aria-hidden="true" />
+                ) : (
+                  <Lock size={13} aria-hidden="true" />
+                )}
+                {selectedShift.status === 'open' ? 'Ouverte' : 'Clôturée'}
+              </span>
+              <button
+                type="button"
+                className="secondary ac-erp-btn-ico"
+                onClick={() => openReportWindow(Number(selectedShift.id), 'x')}
+              >
+                <Printer size={14} aria-hidden="true" />
+                <span>Imprimer Rapport X</span>
               </button>
               {selectedShift.status === 'closed' && isOwnerOrAdmin && (
-                <button type="button" onClick={() => openReportWindow(Number(selectedShift.id), 'z', true)}>
-                  Réimprimer Rapport Z
+                <button
+                  type="button"
+                  className="ac-erp-btn-ico"
+                  onClick={() => openReportWindow(Number(selectedShift.id), 'z', true)}
+                >
+                  <Printer size={14} aria-hidden="true" />
+                  <span>Réimprimer Rapport Z</span>
                 </button>
               )}
             </div>
           </div>
 
-          <div style={{ overflowX: 'auto', marginTop: '12px' }}>
-            <table className="table">
+          <div className="ac-audit-table-wrap">
+            <table className="ac-audit-table">
               <thead>
                 <tr>
                   <th>Moyen</th>
@@ -282,33 +426,38 @@ export default function CashShifts() {
                 </tr>
               </thead>
               <tbody>
-                {Object.values(selectedShift.summary?.methods || {}).map((m: any) => (
+                {methodRows.map((m: any) => (
                   <tr key={m.method}>
-                    <td>{m.label}</td>
+                    <td><strong>{m.label || m.method}</strong></td>
                     <td>{fmtMoney(m.in_total)}</td>
                     <td>{fmtMoney(m.out_total)}</td>
-                    <td>{fmtMoney(m.expected)}</td>
+                    <td><strong>{fmtMoney(m.expected)}</strong></td>
                     <td>{m.counted == null ? '—' : fmtMoney(m.counted)}</td>
                     <td>{m.variance == null ? '—' : fmtMoney(m.variance)}</td>
                   </tr>
                 ))}
+                {methodRows.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="muted">Aucun mouvement sur cette session.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
 
           {selectedShift.status === 'open' && (
-            <div className="grid-2" style={{ gap: '16px', marginTop: '16px', alignItems: 'start' }}>
-              <form onSubmit={handleAddMovement} className="card" style={{ padding: '12px' }}>
-                <h3 style={{ marginTop: 0 }}>Mouvement manuel sur session</h3>
-                <div className="form-grid">
-                  <label>
+            <div className="ac-bento-grid-2" style={{ marginTop: '16px', alignItems: 'start' }}>
+              <form onSubmit={handleAddMovement} className="ac-erp-subpanel">
+                <h4>Mouvement manuel sur session</h4>
+                <div className="ac-ops-form-grid-2">
+                  <label className="ac-erp-field">
                     <span>Sens</span>
                     <select value={mvDir} onChange={(e) => setMvDir(e.target.value as 'in' | 'out')}>
                       <option value="in">Entrée (apport)</option>
                       <option value="out">Sortie (retrait / dépense)</option>
                     </select>
                   </label>
-                  <label>
+                  <label className="ac-erp-field">
                     <span>Moyen</span>
                     <select value={mvMethod} onChange={(e) => setMvMethod(e.target.value)}>
                       <option value="cash">Espèces</option>
@@ -317,41 +466,60 @@ export default function CashShifts() {
                       <option value="check">Chèque</option>
                     </select>
                   </label>
-                  <label>
+                  <label className="ac-erp-field">
                     <span>Montant (DH)</span>
-                    <input type="number" step="0.01" min="0.01" value={mvAmount} onChange={(e) => setMvAmount(e.target.value)} required />
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      value={mvAmount}
+                      onChange={(e) => setMvAmount(e.target.value)}
+                      required
+                    />
                   </label>
-                  <label>
+                  <label className="ac-erp-field">
                     <span>Libellé</span>
-                    <input value={mvLabel} onChange={(e) => setMvLabel(e.target.value)} placeholder="Motif" />
+                    <input
+                      value={mvLabel}
+                      onChange={(e) => setMvLabel(e.target.value)}
+                      placeholder="Motif"
+                    />
                   </label>
                 </div>
-                <button type="submit" className="secondary" disabled={mvBusy} style={{ marginTop: '10px' }}>
-                  {mvBusy ? 'Ajout…' : 'Ajouter le mouvement'}
+                <button
+                  type="submit"
+                  className="secondary ac-erp-btn-ico"
+                  disabled={mvBusy}
+                  style={{ marginTop: '12px' }}
+                >
+                  <Plus size={14} aria-hidden="true" />
+                  <span>{mvBusy ? 'Ajout…' : 'Ajouter le mouvement'}</span>
                 </button>
               </form>
 
               {isOwnerOrAdmin ? (
-                <form onSubmit={handleCloseShift} className="card" style={{ padding: '12px' }}>
-                  <h3 style={{ marginTop: 0 }}>Clôturer la session (Rapport Z)</h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '8px' }}>
+                <form onSubmit={handleCloseShift} className="ac-erp-subpanel">
+                  <h4>Clôturer la session (Rapport Z)</h4>
+                  <div className="ac-erp-denom-grid">
                     {DENOMINATIONS.map((face) => (
-                      <label key={face} style={{ fontSize: '0.85rem' }}>
+                      <label key={face} className="ac-erp-field">
                         <span>{face} DH ×</span>
                         <input
                           type="number"
                           min="0"
                           step="1"
                           value={denoms[String(face)] || ''}
-                          onChange={(e) => setDenoms((d) => ({ ...d, [String(face)]: e.target.value }))}
+                          onChange={(e) =>
+                            setDenoms((d) => ({ ...d, [String(face)]: e.target.value }))
+                          }
                           placeholder="0"
                         />
                       </label>
                     ))}
                   </div>
-                  <div className="form-grid" style={{ marginTop: '10px' }}>
-                    <label>
-                      <span>Compté espèces total (auto : {fmtMoney(denomSum)})</span>
+                  <div className="ac-ops-form-grid-2" style={{ marginTop: '12px' }}>
+                    <label className="ac-erp-field">
+                      <span>Compté espèces (auto : {fmtMoney(denomSum)})</span>
                       <input
                         type="number"
                         step="0.01"
@@ -361,45 +529,82 @@ export default function CashShifts() {
                         placeholder={String(denomSum)}
                       />
                     </label>
-                    <label>
+                    <label className="ac-erp-field">
                       <span>TPE / Carte compté (optionnel)</span>
-                      <input type="number" step="0.01" min="0" value={cardCounted} onChange={(e) => setCardCounted(e.target.value)} />
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={cardCounted}
+                        onChange={(e) => setCardCounted(e.target.value)}
+                      />
                     </label>
-                    <label>
+                    <label className="ac-erp-field">
                       <span>Virements comptés (optionnel)</span>
-                      <input type="number" step="0.01" min="0" value={transferCounted} onChange={(e) => setTransferCounted(e.target.value)} />
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={transferCounted}
+                        onChange={(e) => setTransferCounted(e.target.value)}
+                      />
                     </label>
-                    <label>
+                    <label className="ac-erp-field">
                       <span>Chèques comptés (optionnel)</span>
-                      <input type="number" step="0.01" min="0" value={checkCounted} onChange={(e) => setCheckCounted(e.target.value)} />
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={checkCounted}
+                        onChange={(e) => setCheckCounted(e.target.value)}
+                      />
                     </label>
                   </div>
-                  <label style={{ display: 'block', marginTop: '10px' }}>
+                  <label className="ac-erp-field" style={{ marginTop: '12px' }}>
                     <span>Observations de clôture</span>
-                    <input value={closeNotes} onChange={(e) => setCloseNotes(e.target.value)} placeholder="Écart justifié, remise banque…" />
+                    <input
+                      value={closeNotes}
+                      onChange={(e) => setCloseNotes(e.target.value)}
+                      placeholder="Écart justifié, remise banque…"
+                    />
                   </label>
-                  <p style={{ marginTop: '10px', fontWeight: 600 }}>
-                    Attendu espèces : {fmtMoney(expectedCash)} · Écart estimé : {fmtMoney(liveVariance)}
-                  </p>
-                  <button type="submit" disabled={closingBusy}>
-                    {closingBusy ? 'Clôture…' : 'Clôturer & Générer Rapport Z'}
+                  <div className="ac-erp-variance-bar">
+                    <span>
+                      Attendu espèces : <strong>{fmtMoney(expectedCash)}</strong>
+                    </span>
+                    <span>
+                      Écart estimé : <strong>{fmtMoney(liveVariance)}</strong>
+                    </span>
+                  </div>
+                  <button type="submit" className="ac-erp-btn-ico" disabled={closingBusy}>
+                    <Lock size={14} aria-hidden="true" />
+                    <span>{closingBusy ? 'Clôture…' : 'Clôturer & Générer Rapport Z'}</span>
                   </button>
                 </form>
               ) : (
-                <div className="card" style={{ padding: '12px' }}>
-                  <h3 style={{ marginTop: 0 }}>Clôture (Rapport Z)</h3>
-                  <p className="muted">Seul le propriétaire ou un administrateur peut clôturer la caisse et réimprimer le rapport Z.</p>
+                <div className="ac-erp-subpanel">
+                  <h4>Clôture (Rapport Z)</h4>
+                  <p className="muted" style={{ margin: 0 }}>
+                    Seul le propriétaire ou un administrateur peut clôturer la caisse et réimprimer le rapport Z.
+                  </p>
                 </div>
               )}
             </div>
           )}
-        </div>
+        </section>
       )}
 
-      <div className="card">
-        <h2 style={{ marginTop: 0 }}>Historique des sessions</h2>
-        <div style={{ overflowX: 'auto' }}>
-          <table className="table">
+      {/* History Bento Panel */}
+      <section className="ac-panel">
+        <div className="ac-panel-head">
+          <div>
+            <h3>Historique des sessions</h3>
+            <p className="ac-panel-sub">Journal chronologique des ouvertures et clôtures X / Z.</p>
+          </div>
+          <span className="ac-panel-count">{shifts.length} session(s)</span>
+        </div>
+        <div className="ac-audit-table-wrap">
+          <table className="ac-audit-table">
             <thead>
               <tr>
                 <th>#</th>
@@ -412,13 +617,13 @@ export default function CashShifts() {
                 <th>Compté</th>
                 <th>Écart</th>
                 <th>Statut</th>
-                <th>Rapports</th>
+                <th style={{ textAlign: 'right' }}>Rapports</th>
               </tr>
             </thead>
             <tbody>
               {shifts.map((s) => (
                 <tr key={s.id}>
-                  <td>{s.id}</td>
+                  <td><strong>#{s.id}</strong></td>
                   <td>{s.till_id}</td>
                   <td>{s.operator}</td>
                   <td>{String(s.opened_at).slice(0, 16).replace('T', ' ')}</td>
@@ -427,31 +632,51 @@ export default function CashShifts() {
                   <td>{s.expected_amount == null ? '—' : fmtMoney(s.expected_amount)}</td>
                   <td>{s.counted_amount == null ? '—' : fmtMoney(s.counted_amount)}</td>
                   <td>{s.variance == null ? '—' : fmtMoney(s.variance)}</td>
-                  <td>{s.status === 'open' ? 'Ouverte' : 'Clôturée'}</td>
-                  <td style={{ display: 'flex', gap: '6px' }}>
-                    <button type="button" className="secondary" onClick={() => void selectShift(Number(s.id))}>
-                      Voir
-                    </button>
-                    <button type="button" className="secondary" onClick={() => openReportWindow(Number(s.id), 'x')}>
-                      X
-                    </button>
-                    {s.status === 'closed' && isOwnerOrAdmin && (
-                      <button type="button" className="secondary" onClick={() => openReportWindow(Number(s.id), 'z', true)}>
-                        Réimprimer Z
+                  <td>
+                    <span className={`ac-status-pill ${s.status === 'open' ? 'is-ok' : 'is-dirty'}`}>
+                      {s.status === 'open' ? 'Ouverte' : 'Clôturée'}
+                    </span>
+                  </td>
+                  <td style={{ textAlign: 'right' }}>
+                    <div className="ac-ops-row-actions">
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={() => void selectShift(Number(s.id))}
+                      >
+                        Voir
                       </button>
-                    )}
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={() => openReportWindow(Number(s.id), 'x')}
+                      >
+                        X
+                      </button>
+                      {s.status === 'closed' && isOwnerOrAdmin && (
+                        <button
+                          type="button"
+                          className="secondary"
+                          onClick={() => openReportWindow(Number(s.id), 'z', true)}
+                        >
+                          Réimprimer Z
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
               {shifts.length === 0 && (
                 <tr>
-                  <td colSpan={11} className="muted">Aucune session enregistrée.</td>
+                  <td colSpan={11} className="muted">
+                    {loading ? 'Chargement des sessions…' : 'Aucune session enregistrée.'}
+                  </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-      </div>
+      </section>
     </div>
   );
 }
