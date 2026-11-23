@@ -11,6 +11,7 @@ const EXACT: Record<string, string> = {
   '/scan': 'Scan code-barres',
   '/clients': 'Clients',
   '/employees': 'Employés',
+  '/payroll': 'Paie CNSS / AMO',
   '/attendance': 'Présence',
   '/vendors': 'Fournisseurs',
   '/quotes': 'Devis',

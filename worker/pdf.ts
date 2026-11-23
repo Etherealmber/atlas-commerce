@@ -421,3 +421,189 @@ export function buildFinanceReportPdf(input: FinanceReportInput): Uint8Array {
 
   return new TextEncoder().encode(pdf);
 }
+
+export type PayslipPdfInput = {
+  periodMonth: string;
+  runId: number;
+  runKind: string;
+  status: string;
+  company: {
+    name: string;
+    address?: string;
+    city?: string;
+    ice?: string;
+    if_number?: string;
+    rc?: string;
+    cnss?: string;
+  };
+  employee: {
+    emp_number?: string;
+    name: string;
+    cin?: string;
+    cnss_number?: string;
+    role_title?: string;
+  };
+  line: {
+    base_salary: number;
+    days_worked: number;
+    overtime_hours: number;
+    overtime_amount: number;
+    late_minutes: number;
+    attendance_adjustment: number;
+    bonuses: number;
+    gross_salary: number;
+    cnss_base: number;
+    cnss_emp: number;
+    amo_emp: number;
+    prof_expenses: number;
+    taxable_net: number;
+    igr: number;
+    advances_deducted: number;
+    net_salary: number;
+    cnss_employer: number;
+    amo_employer: number;
+    employer_cost: number;
+  };
+  generatedAt: string;
+};
+
+/** French Bulletin de Paie PDF (Moroccan CNSS/AMO/IGR format, Helvetica PDF 1.4). */
+export function buildPayslipPdf(input: PayslipPdfInput): Uint8Array {
+  const W = 595;
+  const H = 842;
+  const margin = 42;
+  const lines: string[] = [];
+  let y = H - margin;
+  const fmt2 = (n: number) => Number(n || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const push = (cmd: string) => lines.push(cmd);
+  const text = (str: string, x: number, yy: number, size = 10) => {
+    push(`BT /F1 ${size} Tf ${x.toFixed(1)} ${yy.toFixed(1)} Td (${esc(str)}) Tj ET`);
+  };
+  const bold = (str: string, x: number, yy: number, size = 10) => {
+    push(`BT /F2 ${size} Tf ${x.toFixed(1)} ${yy.toFixed(1)} Td (${esc(str)}) Tj ET`);
+  };
+  const hline = (x1: number, x2: number, yy: number) => {
+    push(`${x1} ${yy} m ${x2} ${yy} l S`);
+  };
+
+  bold('BULLETIN DE PAIE', margin, y, 16);
+  bold(`Periode: ${input.periodMonth}`, W - margin - 140, y, 11);
+  y -= 15;
+  text(`Lot paie #${input.runId} (${input.runKind === 'corrective' ? 'Correctif' : 'Mensuel'}) - Statut: ${input.status === 'closed' ? 'Cloture' : 'Brouillon'}`, margin, y, 9);
+  y -= 14;
+  hline(margin, W - margin, y);
+  y -= 16;
+
+  bold('EMPLOYEUR', margin, y, 9);
+  bold('SALARIE', margin + 270, y, 9);
+  y -= 13;
+  bold(input.company.name || 'Societe', margin, y, 11);
+  bold(input.employee.name, margin + 270, y, 11);
+  y -= 12;
+  text(`ICE: ${input.company.ice || '-'}`, margin, y, 9);
+  text(`Matricule: ${input.employee.emp_number || '-'}`, margin + 270, y, 9);
+  y -= 11;
+  text(`Affiliation CNSS: ${input.company.cnss || '-'}`, margin, y, 9);
+  text(`N CNSS salarie: ${input.employee.cnss_number || '-'}`, margin + 270, y, 9);
+  y -= 11;
+  const coLoc = [input.company.address, input.company.city].filter(Boolean).join(', ');
+  if (coLoc) text(coLoc.slice(0, 48), margin, y, 8);
+  text(`CIN: ${input.employee.cin || '-'} | Poste: ${input.employee.role_title || '-'}`, margin + 270, y, 8);
+  y -= 16;
+  hline(margin, W - margin, y);
+  y -= 16;
+
+  bold('Rubrique', margin, y, 9);
+  bold('Base / Quantite', margin + 230, y, 9);
+  bold('Gain (+)', margin + 355, y, 9);
+  bold('Retenue (-)', margin + 440, y, 9);
+  y -= 6;
+  hline(margin, W - margin, y);
+  y -= 14;
+
+  const row = (label: string, base: string, gain: string, deduct: string) => {
+    text(label, margin, y, 9);
+    text(base, margin + 230, y, 9);
+    if (gain) text(gain, margin + 355, y, 9);
+    if (deduct) text(deduct, margin + 440, y, 9);
+    y -= 14;
+  };
+
+  const L = input.line;
+  row('Salaire de base', `${L.days_worked} j`, `${fmt2(L.base_salary)} MAD`, '');
+  if (L.overtime_hours > 0 || L.overtime_amount > 0) {
+    row('Heures supplementaires', `${L.overtime_hours} h`, `${fmt2(L.overtime_amount)} MAD`, '');
+  }
+  if (L.attendance_adjustment !== 0) {
+    const pos = L.attendance_adjustment > 0;
+    row(
+      'Ajustement presence / retard',
+      `${L.late_minutes} min retard`,
+      pos ? `${fmt2(L.attendance_adjustment)} MAD` : '',
+      !pos ? `${fmt2(Math.abs(L.attendance_adjustment))} MAD` : '',
+    );
+  }
+  if (L.bonuses > 0) {
+    row('Primes & indemnites', '-', `${fmt2(L.bonuses)} MAD`, '');
+  }
+  y -= 2;
+  hline(margin, W - margin, y);
+  y -= 14;
+  bold('SALAIRE BRUT IMPOSABLE', margin, y, 9);
+  bold(`${fmt2(L.gross_salary)} MAD`, margin + 355, y, 9);
+  y -= 16;
+
+  row('Cotisation CNSS salariale', `Base ${fmt2(L.cnss_base)}`, '', `${fmt2(L.cnss_emp)} MAD`);
+  row('Cotisation AMO salariale', `Base ${fmt2(L.gross_salary)}`, '', `${fmt2(L.amo_emp)} MAD`);
+  row('Frais professionnels (deduction)', `Net imp. ${fmt2(L.taxable_net)}`, `${fmt2(L.prof_expenses)} MAD`, '');
+  row('Impot sur le revenu (IGR / IR)', `Net imp. ${fmt2(L.taxable_net)}`, '', `${fmt2(L.igr)} MAD`);
+  if (L.advances_deducted > 0) {
+    row('Acomptes / avances deduits', '-', '', `${fmt2(L.advances_deducted)} MAD`);
+  }
+
+  y -= 4;
+  hline(margin, W - margin, y);
+  y -= 18;
+  bold('NET A PAYER (MAD)', margin, y, 13);
+  bold(`${fmt2(L.net_salary)} MAD`, margin + 355, y, 13);
+  y -= 20;
+  hline(margin, W - margin, y);
+  y -= 16;
+
+  bold('CHARGES PATRONALES (INFORMATION)', margin, y, 9);
+  y -= 13;
+  text(`CNSS patronale: ${fmt2(L.cnss_employer)} MAD   |   AMO patronale: ${fmt2(L.amo_employer)} MAD   |   Cout total employeur: ${fmt2(L.employer_cost)} MAD`, margin, y, 9);
+  y -= 24;
+
+  text('Bareme indicatif Maroc — a verifier avec votre comptable.', margin, 54, 8);
+  text(`Document genere le ${String(input.generatedAt).slice(0, 19)} UTC — Atlas Commerce`, margin, 40, 8);
+
+  const contentStream = lines.join('\n');
+  const contentLen = new TextEncoder().encode(contentStream).length;
+
+  const objects: string[] = [];
+  objects.push('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
+  objects.push('2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n');
+  objects.push(
+    `3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>\nendobj\n`,
+  );
+  objects.push(`4 0 obj\n<< /Length ${contentLen} >>\nstream\n${contentStream}\nendstream\nendobj\n`);
+  objects.push('5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n');
+  objects.push('6 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj\n');
+
+  let pdf = '%PDF-1.4\n';
+  const offsets: number[] = [0];
+  for (const obj of objects) {
+    offsets.push(new TextEncoder().encode(pdf).length);
+    pdf += obj;
+  }
+  const xrefPos = new TextEncoder().encode(pdf).length;
+  pdf += `xref\n0 ${objects.length + 1}\n`;
+  pdf += '0000000000 65535 f \n';
+  for (let i = 1; i <= objects.length; i++) {
+    pdf += `${String(offsets[i]).padStart(10, '0')} 00000 n \n`;
+  }
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefPos}\n%%EOF`;
+
+  return new TextEncoder().encode(pdf);
+}

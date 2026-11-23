@@ -275,6 +275,7 @@ import {
   registerInvoicesWriteRoutes,
   registerBillsReceiptsRoutes,
   registerCashShiftRoutes,
+  registerPayrollRoutes,
   ensureBillPaymentsTable,
 } from './routes';
 import { countEmployeesPayDue } from './routes/employees';
@@ -1064,6 +1065,8 @@ app.use('/api/*', async (c, next) => {
     path.match(/^\/api\/receipts\/\d+\/pdf$/) ||
     path.match(/^\/api\/print\/thermal\/\d+$/) ||
     path.match(/^\/api\/cash-shifts\/\d+\/(x-report|z-report)$/) ||
+    path.match(/^\/api\/payroll\/runs\/\d+\/lines\/\d+\/bulletin$/) ||
+    path.match(/^\/api\/payroll\/runs\/\d+\/declaration$/) ||
     path === '/api/settings/invoice-preview' ||
     path.startsWith('/api/attendance/export') ||
     path === '/api/employees/form/print' ||
@@ -1539,6 +1542,7 @@ registerEmployeeRoutes(app, { checkConfirmPassword, requireEmployeeAdmin, requir
 /* v254 — role-safe finance, payroll & reminders (owner/admin gated, server-computed) */
 registerFinanceRoutes(app, { sessionUserFromHeader, authFailReason, clientIp, writeAudit, requireEmployeeAdmin });
 registerCashShiftRoutes(app, { sessionUserFromHeader, writeAudit, reportShell });
+registerPayrollRoutes(app, { requireEmployeeAdmin, loadAttendanceRules, writeAudit, sessionUserFromHeader, clientIp });
 registerAtlasV209Routes(app, { sessionUserFromHeader, applyStockDelta, adjustLocationStock, getDefaultLocationId });
 // Admin read routes need helpers defined later — registered near Users & Admin section
 

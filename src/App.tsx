@@ -142,6 +142,7 @@ const InventoryOps = lazyRetry(() => import('./pages/InventoryOps'));
 const Settings = lazyRetry(() => import('./pages/Settings'));
 const Clients = lazyRetry(() => import('./pages/Clients'));
 const Employees = lazyRetry(() => import('./pages/Employees'));
+const Payroll = lazyRetry(() => import('./pages/Payroll'));
 const Attendance = lazyRetry(() => import('./pages/Attendance'));
 const Vendors = lazyRetry(() => import('./pages/Vendors'));
 const Quotes = lazyRetry(() => import('./pages/Quotes'));
@@ -1218,6 +1219,9 @@ function DesktopShell() {
           <NavLink to="/cash-shifts" className={({ isActive }) => (isActive ? 'active' : '')} data-tooltip="Clôtures de caisse" title="Clôtures de caisse">
             <span className="nav-main"><NavIcon d="M3 7h18v12H3zM7 7V4h10v3M8 13h2M14 13h2" /><span className="nav-label">Clôtures de caisse</span></span>
           </NavLink>
+          <NavLink to="/payroll" className={({ isActive }) => (isActive ? 'active' : '')} data-tooltip="Paie CNSS / AMO" title="Paie CNSS / AMO">
+            <span className="nav-main"><NavIcon d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /><span className="nav-label">Paie CNSS / AMO</span></span>
+          </NavLink>
           <NavLink to="/reports" className={({ isActive }) => (isActive ? 'active' : '')} data-tooltip="Rapports & clôture" title="Rapports & clôture">
             <span className="nav-main"><NavIcon d="M3 3v18h18M7 14l4-4 3 3 5-6" /><span className="nav-label">Rapports &amp; clôture</span></span>
           </NavLink>
@@ -1580,6 +1584,7 @@ function DesktopShell() {
               <Route path="/products/:id/historique" element={<ProductHistory />} />
               <Route path="/clients" element={<RoleGate allow={canOfficeWork()}><Clients /></RoleGate>} />
               <Route path="/employees" element={<RoleGate allow={canOfficeWork()}><Employees /></RoleGate>} />
+              <Route path="/payroll" element={<RoleGate allow={canOfficeWork()}><Payroll /></RoleGate>} />
               <Route path="/attendance" element={<RoleGate allow={canOfficeWork()}><Attendance /></RoleGate>} />
               <Route path="/vendors" element={<RoleGate allow={canOfficeWork()}><Vendors /></RoleGate>} />
               <Route path="/quotes" element={<RoleGate allow={canOfficeWork()}><Quotes /></RoleGate>} />

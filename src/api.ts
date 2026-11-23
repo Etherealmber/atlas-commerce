@@ -1219,5 +1219,22 @@ export const api = {
     const s = q.toString();
     return request<{ data: any }>(`/api/attendance/monthly${s ? `?${s}` : ''}`);
   },
+
+  // Part 4 — Moroccan payroll (CNSS / AMO / IGR)
+  getPayrollSettings: () => request<{ data: any }>('/api/payroll/settings'),
+  updatePayrollSettings: (body: any) =>
+    request<{ data: any }>('/api/payroll/settings', { method: 'PUT', body: JSON.stringify(body) }),
+  listPayrollRuns: () => request<{ data: any[] }>('/api/payroll/runs'),
+  createPayrollRun: (body: { period_month: string; run_kind?: 'regular' | 'corrective'; corrects_run_id?: number; notes?: string }) =>
+    request<{ data: any }>('/api/payroll/runs', { method: 'POST', body: JSON.stringify(body) }),
+  getPayrollRun: (id: number) => request<{ data: any }>(`/api/payroll/runs/${id}`),
+  updatePayrollLine: (runId: number, lineId: number, body: any) =>
+    request<{ data: any }>(`/api/payroll/runs/${runId}/lines/${lineId}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  closePayrollRun: (id: number) =>
+    request<{ data: any }>(`/api/payroll/runs/${id}/close`, { method: 'POST', body: '{}' }),
+  payrollBulletinUrl: (runId: number, lineId: number) =>
+    `/api/payroll/runs/${runId}/lines/${lineId}/bulletin`,
+  payrollDeclarationUrl: (runId: number, format: 'csv' | 'xls' = 'csv') =>
+    `/api/payroll/runs/${runId}/declaration?format=${format}`,
 };
 

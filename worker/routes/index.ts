@@ -56,3 +56,4 @@ export { registerDashboardIntegrityRoutes, type DashboardIntegrityRouteDeps } fr
 export { registerInvoicesWriteRoutes, type InvoicesWriteRouteDeps } from './invoicesWrite';
 export { registerBillsReceiptsRoutes, ensureBillPaymentsTable, type BillsReceiptsRouteDeps } from './billsReceipts';
 export { registerCashShiftRoutes, type CashShiftRouteDeps } from './cashShifts';
+export { registerPayrollRoutes, type PayrollRouteDeps } from './payroll';

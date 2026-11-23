@@ -257,6 +257,8 @@ export default function Settings() {
   const [auditRange, setAuditRange] = useState<'24h' | '7d' | '30d' | 'all'>('7d');
   const [auditAction, setAuditAction] = useState('');
   const [auditStats, setAuditStats] = useState<any>(null);
+  const [payrollRates, setPayrollRates] = useState<any>(null);
+  const [payrollSaving, setPayrollSaving] = useState(false);
   const AUDIT_PAGE = 80;
 
   const roleLabel = (r: string) => {
@@ -664,6 +666,7 @@ export default function Settings() {
     ...(officeSettings ? [
       { id: 'company', label: 'Société', group: 'Entreprise', icon: 'M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6' },
       { id: 'attendance', label: 'Présence', group: 'Entreprise', icon: 'M12 8v4l3 3M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z' },
+      { id: 'payroll', label: 'Paie CNSS / AMO', group: 'Entreprise', icon: 'M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6' },
       { id: 'legal', label: 'Légal', group: 'Entreprise', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M9 13h6M9 17h4' },
       { id: 'invoicing', label: 'Facturation', group: 'Documents', icon: 'M8 2h8a2 2 0 0 1 2 2v16l-3-1.5L12 21l-3-1.5L6 20V4a2 2 0 0 1 2-2z' },
       { id: 'documents', label: 'PDF', group: 'Documents', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6' },
@@ -1604,6 +1607,157 @@ if (loading) return (
               Enregistrer toutes les règles
             </button>
           </div>
+        </div>
+      )}
+{activeTab === 'payroll' && officeSettings && (
+        <div className="atlas-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <h2 style={{ margin: 0 }}>Barème paie Maroc (CNSS / AMO / IGR)</h2>
+              <p className="muted" style={{ fontSize: 13, margin: '4px 0 0' }}>
+                Barème indicatif pré-rempli — <strong>à vérifier avec votre comptable</strong> avant clôture de paie.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="secondary"
+              onClick={async () => {
+                try {
+                  const r = await api.getPayrollSettings();
+                  setPayrollRates(r.data);
+                } catch (e: any) {
+                  flash(e?.message || 'Chargement impossible', 'error');
+                }
+              }}
+            >
+              Charger les taux
+            </button>
+          </div>
+
+          {!payrollRates ? (
+            <div style={{ marginTop: 14 }}>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const r = await api.getPayrollSettings();
+                    setPayrollRates(r.data);
+                  } catch (e: any) {
+                    flash(e?.message || 'Chargement impossible', 'error');
+                  }
+                }}
+              >
+                Afficher &amp; modifier les taux CNSS / AMO
+              </button>
+            </div>
+          ) : (
+            <div style={{ marginTop: 14 }}>
+              <div className="grid grid-2">
+                <div className="form-row">
+                  <label>CNSS salarié (taux, ex: 0.0448 = 4,48 %)</label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    value={payrollRates.cnss_emp_rate ?? 0.0448}
+                    onChange={(e) => setPayrollRates((p: any) => ({ ...p, cnss_emp_rate: Number(e.target.value) }))}
+                  />
+                </div>
+                <div className="form-row">
+                  <label>Plafond CNSS mensuel (MAD)</label>
+                  <input
+                    type="number"
+                    step="1"
+                    value={payrollRates.cnss_ceiling ?? 6000}
+                    onChange={(e) => setPayrollRates((p: any) => ({ ...p, cnss_ceiling: Number(e.target.value) }))}
+                  />
+                </div>
+                <div className="form-row">
+                  <label>CNSS patronale sociale plafonnée (ex: 0.0898)</label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    value={payrollRates.cnss_employer_social_rate ?? 0.0898}
+                    onChange={(e) => setPayrollRates((p: any) => ({ ...p, cnss_employer_social_rate: Number(e.target.value) }))}
+                  />
+                </div>
+                <div className="form-row">
+                  <label>CNSS patronale AF non plafonnée (ex: 0.064)</label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    value={payrollRates.cnss_employer_af_rate ?? 0.064}
+                    onChange={(e) => setPayrollRates((p: any) => ({ ...p, cnss_employer_af_rate: Number(e.target.value) }))}
+                  />
+                </div>
+                <div className="form-row">
+                  <label>TFP formation prof. employeur (ex: 0.016)</label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    value={payrollRates.cnss_employer_tfp_rate ?? 0.016}
+                    onChange={(e) => setPayrollRates((p: any) => ({ ...p, cnss_employer_tfp_rate: Number(e.target.value) }))}
+                  />
+                </div>
+                <div className="form-row">
+                  <label>AMO salarié (ex: 0.0226 = 2,26 %)</label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    value={payrollRates.amo_emp_rate ?? 0.0226}
+                    onChange={(e) => setPayrollRates((p: any) => ({ ...p, amo_emp_rate: Number(e.target.value) }))}
+                  />
+                </div>
+                <div className="form-row">
+                  <label>AMO patronale + solidarité (ex: 0.0411)</label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    value={payrollRates.amo_employer_rate ?? 0.0411}
+                    onChange={(e) => setPayrollRates((p: any) => ({ ...p, amo_employer_rate: Number(e.target.value) }))}
+                  />
+                </div>
+                <div className="form-row">
+                  <label>Frais professionnels (taux, ex: 0.25 = 25 %)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={payrollRates.prof_expenses_rate ?? 0.25}
+                    onChange={(e) => setPayrollRates((p: any) => ({ ...p, prof_expenses_rate: Number(e.target.value) }))}
+                  />
+                </div>
+                <div className="form-row">
+                  <label>Plafond mensuel frais prof. (MAD)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={payrollRates.prof_expenses_monthly_cap ?? 2916.67}
+                    onChange={(e) => setPayrollRates((p: any) => ({ ...p, prof_expenses_monthly_cap: Number(e.target.value) }))}
+                  />
+                </div>
+              </div>
+              <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
+                Barème indicatif Maroc — <strong>à vérifier avec votre comptable</strong>.
+              </p>
+              <button
+                type="button"
+                disabled={payrollSaving}
+                onClick={async () => {
+                  setPayrollSaving(true);
+                  try {
+                    const res = await api.updatePayrollSettings(payrollRates);
+                    setPayrollRates(res.data);
+                    flash('Barème paie CNSS / AMO enregistré');
+                  } catch (e: any) {
+                    flash(e?.message || 'Erreur lors de la sauvegarde', 'error');
+                  } finally {
+                    setPayrollSaving(false);
+                  }
+                }}
+              >
+                {payrollSaving ? 'Enregistrement…' : 'Enregistrer le barème paie'}
+              </button>
+            </div>
+          )}
         </div>
       )}
 {activeTab === 'legal' && officeSettings && (
