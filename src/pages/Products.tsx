@@ -701,11 +701,7 @@ export default function Products() {
               onChange={(e) => setSearch(e.target.value)}
               aria-label="Rechercher produits"
             />
-            <span className="desktop-product-result-count ac-search-result-count" aria-live="polite">
-              {filtered.length} résultat{filtered.length === 1 ? '' : 's'}
-            </span>
           </div>
-          <div className="desktop-product-viewbar" role="group" aria-label="Affichage des produits"><button type="button" className="secondary" title="Affichage en grille" aria-label="Affichage en grille" aria-pressed={catalogView === 'grid'} onClick={() => changeCatalogView('grid')}><Grid2X2 size={18} /></button><button type="button" className="secondary" title="Affichage en liste" aria-label="Affichage en liste" aria-pressed={catalogView === 'list'} onClick={() => changeCatalogView('list')}><List size={18} /></button></div>
           <select className="ac-filter-select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} aria-label="Catégorie">
             <option value="">Toutes catégories</option>
             {categories.map((c) => (
@@ -729,7 +725,13 @@ export default function Products() {
       <div className={`ac-panel ac-products-table-panel${catalogView === 'grid' ? ' ac-products-table-panel--grid' : ''}`}>
         <div className="ac-table-pager-bar">
           <span className="ac-table-pager-meta">{filtered.length} élément{filtered.length === 1 ? '' : 's'} · 20 par page</span>
-          <ListPager page={safePage} pageSize={PAGE_SIZE} total={filtered.length} onPageChange={setPage} />
+          <div className="ac-table-pager-controls">
+            <div className="desktop-product-viewbar" role="group" aria-label="Affichage des produits">
+              <button type="button" className="secondary" title="Affichage en grille" aria-label="Affichage en grille" aria-pressed={catalogView === 'grid'} onClick={() => changeCatalogView('grid')}><Grid2X2 size={16} /></button>
+              <button type="button" className="secondary" title="Affichage en liste" aria-label="Affichage en liste" aria-pressed={catalogView === 'list'} onClick={() => changeCatalogView('list')}><List size={16} /></button>
+            </div>
+            <ListPager page={safePage} pageSize={PAGE_SIZE} total={filtered.length} onPageChange={setPage} />
+          </div>
         </div>
         {catalogView === 'grid' ? <>
           {paged.length > 0 && <label className="desktop-product-select-all"><input type="checkbox" checked={paged.every(p => selected.has(p.id))} onChange={() => setSelected(prev => { const next = new Set(prev); const all = paged.every(p => next.has(p.id)); paged.forEach(p => all ? next.delete(p.id) : next.add(p.id)); return next; })} /> Tout sélectionner</label>}

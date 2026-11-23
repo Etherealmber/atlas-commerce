@@ -54,7 +54,8 @@ it('offers list and grid, preserves actions, and opens product history from a ca
   expect(host.querySelector('.desktop-product-card img')?.getAttribute('src')).toContain('/cdn/marbre.webp');
   expect(host.querySelector('.desktop-product-chips .product-stock-chip')?.classList.contains('ok')).toBe(true);
   expect(localStorage.getItem('atlas_desktop_products_view')).toBe('grid');
-  expect(host.querySelector('.ac-products-filters [aria-label="Affichage en grille"]')).not.toBeNull();
+  expect(host.querySelector('.ac-table-pager-bar .ac-table-pager-controls [aria-label="Affichage en grille"]')).not.toBeNull();
+  expect(host.querySelector('.ac-products-filters [aria-label="Affichage en grille"]')).toBeNull();
   expect(host.querySelector('[aria-label="Ajuster le stock de Marbre"] svg')).not.toBeNull();
   expect(host.querySelector('[aria-label="Modifier Marbre"] svg')).not.toBeNull();
   expect(host.querySelector('[aria-label="Étiquette de Marbre"] svg')).not.toBeNull();

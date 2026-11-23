@@ -164,8 +164,11 @@ describe('List UX, danger/dock/slot CSS fixes, pagination (20/page), and release
     });
     await act(async () => { await Promise.resolve(); await Promise.resolve(); });
 
-    expect(host.querySelector('.ac-products-filters .ac-search-field .desktop-product-result-count')?.textContent).toBe('24 résultats');
-    expect(host.querySelector('.ac-products-table-panel .desktop-product-result-count')).toBeNull();
+    expect(host.querySelector('.desktop-product-result-count')).toBeNull();
+    expect(host.querySelector('.ac-search-result-count')).toBeNull();
+    expect(host.querySelector('.ac-products-table-panel .ac-table-pager-meta')?.textContent).toBe('24 éléments · 20 par page');
+    expect(host.querySelector('.ac-products-table-panel .ac-table-pager-controls .desktop-product-viewbar')).not.toBeNull();
+    expect(host.querySelector('.ac-products-table-panel .ac-table-pager-controls .ac-pager')).not.toBeNull();
     expect(host.querySelectorAll('table tbody tr')).toHaveLength(20);
 
     await act(async () => { host.querySelector<HTMLButtonElement>('[aria-label="Page suivante"]')!.click(); });

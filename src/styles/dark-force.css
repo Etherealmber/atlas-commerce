@@ -5414,6 +5414,12 @@ html[data-theme] body .ac-table-pager-meta {
   font-weight: 600;
   color: var(--muted, #64748b);
 }
+html[data-theme] body .ac-table-pager-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 html[data-theme="dark"] body .ac-table-pager-bar {
   border-bottom-color: #27272a;
 }
