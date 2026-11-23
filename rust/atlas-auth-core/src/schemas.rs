@@ -116,6 +116,29 @@ pub enum ChallengeVerifyStatus {
 }
 
 #[derive(Clone, Serialize)]
+pub struct ChallengePollRequestV3 {
+    pub origin: String,
+    pub request_id: String,
+    pub state: String,
+    pub code_verifier: String,
+}
+
+impl Zeroize for ChallengePollRequestV3 {
+    fn zeroize(&mut self) {
+        self.state.zeroize();
+        self.code_verifier.zeroize();
+    }
+}
+
+impl Drop for ChallengePollRequestV3 {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
+impl ZeroizeOnDrop for ChallengePollRequestV3 {}
+
+#[derive(Clone, Serialize)]
 pub struct PasswordLoginRequestV3 {
     pub origin: String,
     pub request_id: String,

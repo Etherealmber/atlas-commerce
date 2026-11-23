@@ -179,6 +179,15 @@ describe('v0.7.5 — reprise après auto-déconnexion (resume_until)', () => {
       headers: { Authorization: `Bearer ${token}`, 'X-Device-Fingerprint': 'fpA', 'CF-Connecting-IP': IP },
     }), env);
     expect(me.status).toBe(401);
+    const encodedAlt = encodeURIComponent(token);
+    const spaceAlt = token.replace(/\+/g, ' ');
+    for (const alt of [encodedAlt, spaceAlt, `${token.replace(/=+$/, '')}`]) {
+      const altRes = await app.fetch(new Request('https://test.local/api/auth/me', {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${alt}`, 'X-Device-Fingerprint': 'fpA', 'CF-Connecting-IP': IP },
+      }), env);
+      expect(altRes.status).toBe(401);
+    }
   });
 
   it('2. same account + device + unexpired marker + 2FA off → password-only, marker consumed', async () => {

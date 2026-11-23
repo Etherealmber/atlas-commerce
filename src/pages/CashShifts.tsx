@@ -12,6 +12,7 @@ import { getRole, getToken } from '../auth';
 import SaveFeedback from '../components/SaveFeedback';
 import TopPageActions from '../components/TopPageActions';
 import RefreshIconButton from '../components/RefreshIconButton';
+import PageSkeleton from '../components/PageSkeleton';
 import { fmtMoney } from '../lib/money';
 
 const DENOMINATIONS = [200, 100, 50, 20, 10, 5, 2, 1, 0.5];
@@ -199,6 +200,17 @@ export default function CashShifts() {
     Math.round(((Number.isFinite(effectiveCounted) ? effectiveCounted : 0) - expectedCash) * 100) / 100;
   const methodRows: any[] = Object.values(selectedShift?.summary?.methods || {});
 
+  if (loading && !shifts.length && !selectedShift && !error) {
+    return (
+      <div className="atlas-page ac-dash cash-shifts-page ac-erp-page">
+        <div className="page-header dock-page-header">
+          <h1 className="sr-only">Clôtures de caisse (X / Z)</h1>
+        </div>
+        <PageSkeleton variant="dashboard" />
+      </div>
+    );
+  }
+
   return (
     <div className="atlas-page ac-dash cash-shifts-page ac-erp-page">
       <div className="page-header dock-page-header">
@@ -210,33 +222,6 @@ export default function CashShifts() {
 
       {error && <p className="msg-error" role="alert">{error}</p>}
       <SaveFeedback message={feedback} />
-
-      {/* Bento Hero */}
-      <header className="ac-dash-hero">
-        <div className="ac-dash-hero-row">
-          <div className="ac-dash-hero-text">
-            <p className="ac-dash-eyebrow">
-              <span>Caisse &amp; trésorerie</span>
-            </p>
-            <h2 className="ac-dash-hello">Clôtures de caisse (X / Z)</h2>
-            <p className="ac-dash-lead">
-              Ouverture de session, suivi des mouvements par moyen de paiement et rapport Z audité.
-            </p>
-          </div>
-          <div className="ac-dash-hero-side">
-            <span className={`ac-status-pill ${activeOpenShifts.length > 0 ? 'is-ok' : 'is-warn'}`}>
-              {activeOpenShifts.length > 0 ? (
-                <CircleDot size={13} aria-hidden="true" />
-              ) : (
-                <Lock size={13} aria-hidden="true" />
-              )}
-              {activeOpenShifts.length > 0
-                ? `${activeOpenShifts.length} session(s) ouverte(s)`
-                : 'Aucune session ouverte'}
-            </span>
-          </div>
-        </div>
-      </header>
 
       {/* 4 Dashboard KPI Bento Cards */}
       <section className="ac-metric-grid" aria-label="Indicateurs de caisse">
@@ -324,7 +309,16 @@ export default function CashShifts() {
               <h3>Sessions ouvertes</h3>
               <p className="ac-panel-sub">Accès rapide aux caisses en cours d&apos;exploitation.</p>
             </div>
-            <span className="ac-panel-count">{activeOpenShifts.length}</span>
+            <span className={`ac-status-pill ${activeOpenShifts.length > 0 ? 'is-ok' : 'is-warn'}`}>
+              {activeOpenShifts.length > 0 ? (
+                <CircleDot size={13} aria-hidden="true" />
+              ) : (
+                <Lock size={13} aria-hidden="true" />
+              )}
+              {activeOpenShifts.length > 0
+                ? `${activeOpenShifts.length} session(s) ouverte(s)`
+                : 'Aucune session ouverte'}
+            </span>
           </div>
           {activeOpenShifts.length === 0 ? (
             <p className="muted" style={{ margin: '8px 0 0' }}>

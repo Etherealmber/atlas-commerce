@@ -41,7 +41,7 @@ export function parseAuthorizationHeader(
   const space = authHeader.indexOf(' ');
   if (space <= 0) return null;
   const rawScheme = authHeader.slice(0, space);
-  const token = authHeader.slice(space + 1);
+  const token = authHeader.slice(space + 1).replace(/^ +/, '');
   if (!token) return null;
   const lower = rawScheme.toLowerCase();
   if (lower === 'bearer') return { scheme: 'Bearer', token };
@@ -77,6 +77,15 @@ export async function ensureRevokedWebTokensTable(db: D1Database): Promise<void>
 }
 
 export async function webTokenHash(rawToken: string): Promise<string> {
+  const parsed = parseToken(rawToken);
+  if (parsed?.version === 2) {
+    return sha256Hex(
+      `v2|${parsed.username || ''}|${parsed.role || ''}|${parsed.ip}|${parsed.fingerprint}|${parsed.proof || ''}|${parsed.sid || ''}`,
+    );
+  }
+  if (parsed?.version === 1) {
+    return sha256Hex(`v1|${parsed.password || ''}|${parsed.ip}|${parsed.fingerprint}`);
+  }
   return sha256Hex(rawToken);
 }
 
@@ -406,12 +415,16 @@ export async function makeTokenV2(
   secretMaterial: string,
   ip: string,
   fingerprint: string,
+  preserveSid?: string,
 ): Promise<string> {
   const fp = (fingerprint || 'none').slice(0, 128);
   const user = username.toLowerCase();
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  const sid = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+  let sid = preserveSid && /^[a-f0-9]{16,64}$/.test(preserveSid) ? preserveSid : '';
+  if (!sid) {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    sid = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+  }
   const proof = await makeSessionProof(user, role, secretMaterial, ip, fp, sid);
   return btoa(unescape(encodeURIComponent(`stock-auth-v2|${user}|${role}|${ip}|${fp}|${proof}|${sid}`)));
 }

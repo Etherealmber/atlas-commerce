@@ -3,9 +3,9 @@ use crate::error::{AuthCoreError, Result};
 use crate::origin::ServerOrigin;
 use crate::pkce::{validate_pairing_code, PkcePair};
 use crate::schemas::{
-    CapabilitiesV3Response, ChallengePollResponse, ChallengeVerifyStatus, CreateRequestV3Body,
-    CreateRequestV3Response, LogoutResponseV3, OtpLoginRequestV3, PasswordLoginRequestV3,
-    SessionTokensV3,
+    CapabilitiesV3Response, ChallengePollRequestV3, ChallengePollResponse, ChallengeVerifyStatus,
+    CreateRequestV3Body, CreateRequestV3Response, LogoutResponseV3, OtpLoginRequestV3,
+    PasswordLoginRequestV3, PasswordLoginResponseV3, SessionTokensV3,
 };
 use serde::{Deserialize, Serialize};
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -190,6 +190,26 @@ impl DesktopV3AuthSession {
 
     pub fn pairing_code(&self) -> Option<&str> {
         self.pairing_code.as_deref()
+    }
+
+    pub fn build_poll_request(&self) -> Result<ChallengePollRequestV3> {
+        if self.phase != DesktopV3Phase::AwaitingChallenge {
+            return Err(AuthCoreError::InvalidTransition {
+                from: self.phase.as_str(),
+                action: "build_poll_request",
+            });
+        }
+        let req_id = self
+            .request_id
+            .as_ref()
+            .ok_or(AuthCoreError::ResponseMismatch)?
+            .clone();
+        Ok(ChallengePollRequestV3 {
+            origin: self.origin.as_str().to_string(),
+            request_id: req_id,
+            state: self.pkce.state().to_string(),
+            code_verifier: self.pkce.code_verifier().to_string(),
+        })
     }
 
     pub fn apply_poll(&mut self, poll: &ChallengePollResponse) -> Result<ChallengeVerifyStatus> {

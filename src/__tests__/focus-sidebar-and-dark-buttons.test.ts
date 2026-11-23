@@ -359,13 +359,13 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     expect(reportsSrc).toContain('<div className="ac-bento-grid-2">');
     expect(reportsSrc).toContain('<div className="ac-bento-stack">');
 
-    // 4. InventoryOps uses 2-col compact form grids, single-line row actions, and polished hero
+    // 4. InventoryOps uses 2-col compact form grids, single-line row actions, and scope control without redundant hero title
     expect(opsSrc).toContain('ac-ops-form-grid-2');
     expect(opsSrc).toContain('ac-ops-row-actions');
     expect(opsSrc).toContain('ac-ops-scope-control');
-    expect(opsSrc).toContain('<h2 className="ac-dash-hello">Opérations stock</h2>');
+    expect(opsSrc).not.toContain('<h2 className="ac-dash-hello">Opérations stock</h2>');
     expect(focusCss).toContain('.ac-ops-row-actions');
-    expect(focusCss).toContain('flex-wrap: nowrap;');
+    expect(focusCss).toContain('flex-wrap: nowrap !important;');
   });
 
   it('guards mobile login lock, dark dock pill & backdrop seam, Attendance card, select clipping, skeletons, Reports DateRangePicker, and README version history', () => {
@@ -525,16 +525,20 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     expect(icons.every((s) => s.length > 0)).toBe(true);
     expect(new Set(icons).size).toBe(5);
 
-    // 3. Payroll & CashShifts use Dashboard/Balance Bento UI rather than legacy .page/.page-head
+    // 3. Payroll & CashShifts use Dashboard/Balance Bento UI without redundant .ac-dash-hero title header,
+    //    and relocate status pills ("Aucun lot sélectionné" / "Aucune session ouverte") inside panel headers
     for (const src of [payrollSrc, shiftsSrc]) {
       expect(src).toContain('atlas-page ac-dash');
-      expect(src).toContain('ac-dash-hero');
+      expect(src).not.toContain('ac-dash-hero');
       expect(src).toContain('ac-metric-grid');
       expect(src).toContain('ac-panel');
       expect(src).not.toContain('className="page-head"');
     }
+    expect(payrollSrc).toContain('Aucun lot sélectionné');
+    expect(shiftsSrc).toContain('Aucune session ouverte');
+    expect(reportsSrc).not.toContain('<h2 className="ac-dash-hello">Rapports &amp; clôture</h2>');
 
-    // 4. Render Payroll & CashShifts and verify Bento structure + accessible dock headings
+    // 4. Render Payroll & CashShifts and verify Bento structure + accessible dock headings + relocated status pills
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ success: true, data: [] }), { headers: { 'Content-Type': 'application/json' } })));
     vi.spyOn(api, 'listPayrollRuns').mockResolvedValue({ data: [] } as any);
     vi.spyOn(api, 'listCashShifts').mockResolvedValue({ data: [] } as any);
@@ -542,18 +546,38 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     await act(async () => {
       root.render(createElement(MemoryRouter, { initialEntries: ['/payroll'] }, createElement(Payroll)));
     });
+    await act(async () => {
+      await Promise.resolve();
+    });
     expect(host.querySelector('.atlas-page.ac-dash.payroll-page')).not.toBeNull();
-    expect(host.querySelector('.ac-dash-hero')).not.toBeNull();
+    expect(host.querySelector('.ac-dash-hero')).toBeNull();
     expect(host.querySelectorAll('.ac-metric-grid .ac-metric').length).toBe(4);
+    expect(host.querySelector('.ac-panel-head .ac-status-pill')?.textContent).toContain('Aucun lot sélectionné');
     expect(host.querySelector('h1.sr-only')?.textContent).toBe('Paie CNSS / AMO');
 
     await act(async () => {
       root.render(createElement(MemoryRouter, { initialEntries: ['/cash-shifts'] }, createElement(CashShifts)));
     });
+    await act(async () => {
+      await Promise.resolve();
+    });
     expect(host.querySelector('.atlas-page.ac-dash.cash-shifts-page')).not.toBeNull();
-    expect(host.querySelector('.ac-dash-hero')).not.toBeNull();
+    expect(host.querySelector('.ac-dash-hero')).toBeNull();
     expect(host.querySelectorAll('.ac-metric-grid .ac-metric').length).toBe(4);
+    expect(host.querySelector('.ac-panel-head .ac-status-pill')?.textContent).toContain('Aucune session ouverte');
     expect(host.querySelector('h1.sr-only')?.textContent).toBe('Clôtures de caisse (X / Z)');
+
+    // 5. Attendance toolbar/modal/banner parity & InventoryOps single-line warehouse actions
+    const attSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Attendance.tsx'), 'utf8');
+    const opsSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/InventoryOps.tsx'), 'utf8');
+    const focusCss = readFileSync(path.resolve(process.cwd(), 'src/styles/focus-sidebar.css'), 'utf8');
+    expect(attSrc).toContain('ac-att-toolbar');
+    expect(attSrc).toContain('ac-att-modal');
+    expect(attSrc).toContain('statusLabel(d.status)');
+    expect(attSrc).not.toContain('<td>{d.status}</td>');
+    expect(opsSrc).toContain('row-actions row-actions--inline ac-ops-row-actions');
+    expect(focusCss).not.toContain('background: #fffbeb !important;');
+    expect(focusCss).toContain('.ac-att-modal-metrics');
 
     vi.restoreAllMocks();
     vi.unstubAllGlobals();

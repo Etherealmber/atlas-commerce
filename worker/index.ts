@@ -828,8 +828,9 @@ app.use('*', async (c, next) => {
       } else if (path === '/api/health') {
         // Health check: can use unconstrained replica or available session
         session = rawDb.withSession();
-      } else if (isCriticalSecurityPath(path, method)) {
-        // Security-sensitive reads and business mutations: first-primary or trustworthy bookmark
+      } else if (isCriticalSecurityPath(path, method) || (Boolean(authHeader) && !bm)) {
+        // Security-sensitive reads, business mutations, and bookmarkless authenticated reads:
+        // first-primary or trustworthy bookmark so revocation checks never hit a stale replica.
         session = bm ? rawDb.withSession(bm) : rawDb.withSession('first-primary');
       } else {
         // Replica-eligible reads: use bookmark if available, else standard session
@@ -1269,12 +1270,23 @@ app.use('/api/*', async (c, next) => {
     requestUrl: c.req.url,
   };
   return runWithRequestAuthContext(reqAuthCtx, async () => {
-    const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, ip, fp, {
-      allowRoleRefresh: roleRefreshPath,
-      dpopHeader: reqAuthCtx.dpopHeader,
-      method: reqAuthCtx.method,
-      requestUrl: reqAuthCtx.requestUrl,
-    });
+    let reason: string;
+    try {
+      reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, ip, fp, {
+        allowRoleRefresh: roleRefreshPath,
+        dpopHeader: reqAuthCtx.dpopHeader,
+        method: reqAuthCtx.method,
+        requestUrl: reqAuthCtx.requestUrl,
+      });
+    } catch (err) {
+      if (path === '/api/auth/logout' && c.req.method === 'POST') {
+        return c.json(
+          { success: false, resume_prepared: false, code: 'LOGOUT_REVOCATION_FAILED', error: 'Déconnexion serveur impossible.' },
+          503,
+        );
+      }
+      throw err;
+    }
     if (reason === 'role_changed') return c.json({ success: false, error: 'Votre rôle a changé. Actualisez votre session.', code: 'ROLE_CHANGED' }, 409);
     if (reason !== 'ok') {
       return c.json({

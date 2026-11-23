@@ -4092,15 +4092,15 @@ html body .balance-page select:not(.atlas-dp-select):not([multiple]):not([size])
 /* Crisp light & dark skeleton shimmer */
 html:not([data-theme="dark"]) body .skeleton,
 html:not([data-theme="dark"]) body .ac-sk {
-  background: linear-gradient(100deg, #e4e8f0 18%, #f8fafc 46%, #e4e8f0 74%) !important;
+  background: linear-gradient(100deg, rgba(148, 163, 184, 0.14) 20%, rgba(148, 163, 184, 0.26) 48%, rgba(148, 163, 184, 0.14) 76%) !important;
   background-size: 200% 100% !important;
-  animation: skeleton-shimmer 1.35s cubic-bezier(0.4, 0, 0.2, 1) infinite !important;
+  animation: skeleton-shimmer 1.65s ease-in-out infinite !important;
 }
 html[data-theme="dark"] body .skeleton,
 html[data-theme="dark"] body .ac-sk {
-  background: linear-gradient(100deg, #1b1e26 18%, #2a303f 46%, #1b1e26 74%) !important;
+  background: linear-gradient(100deg, rgba(255, 255, 255, 0.045) 20%, rgba(255, 255, 255, 0.105) 48%, rgba(255, 255, 255, 0.045) 76%) !important;
   background-size: 200% 100% !important;
-  animation: skeleton-shimmer 1.35s cubic-bezier(0.4, 0, 0.2, 1) infinite !important;
+  animation: skeleton-shimmer 1.65s ease-in-out infinite !important;
 }
 html[data-theme="dark"] body .skeleton-card,
 html[data-theme="dark"] body .skeleton-table {

@@ -3,7 +3,9 @@ import {
   ArrowLeftRight,
   Boxes,
   ClipboardCheck,
+  Pencil,
   Play,
+  Star,
   Warehouse,
 } from 'lucide-react';
 import { api } from '../api';
@@ -194,32 +196,20 @@ export default function InventoryOps() {
         </TopPageActions>
       </div>
 
-      {/* Bento Hero */}
-      <header className="ac-dash-hero">
-        <div className="ac-dash-hero-text">
-          <p className="ac-dash-eyebrow">
-            <Warehouse size={13} strokeWidth={2.2} aria-hidden="true" />
-            <span>Logistique &amp; entrepôts</span>
-          </p>
-          <h2 className="ac-dash-hello">Opérations stock</h2>
-          <p className="ac-dash-lead">
-            Vue unifiée des entrepôts, transferts inter-sites, inventaire physique, valorisation et règles de réapprovisionnement automatique.
-          </p>
+      {/* Scope selector bar (no redundant title — active item is already in the dock) */}
+      <div className="ac-ops-topbar-scope" style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
+        <div className="form-row ac-ops-scope-control" style={{ margin: 0 }}>
+          <label htmlFor="ops-scope-select">Périmètre entrepôt</label>
+          <select id="ops-scope-select" value={reportLoc} onChange={(e) => setReportLoc(e.target.value)}>
+            <option value="all">Tous les entrepôts (consolidé)</option>
+            {locations.map((l) => (
+              <option key={l.id} value={String(l.id)}>
+                {l.name} ({l.code})
+              </option>
+            ))}
+          </select>
         </div>
-        <div className="ac-dash-hero-side">
-          <div className="form-row ac-ops-scope-control" style={{ margin: 0 }}>
-            <label htmlFor="ops-scope-select">Périmètre entrepôt</label>
-            <select id="ops-scope-select" value={reportLoc} onChange={(e) => setReportLoc(e.target.value)}>
-              <option value="all">Tous les entrepôts (consolidé)</option>
-              {locations.map((l) => (
-                <option key={l.id} value={String(l.id)}>
-                  {l.name} ({l.code})
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </header>
+      </div>
 
       {/* Bento 4-Metric Row */}
       <section className="ac-metric-grid" aria-label="Indicateurs stock">
@@ -506,7 +496,7 @@ export default function InventoryOps() {
           </span>
         </div>
         <div className="table-wrap">
-          <table>
+          <table className="data-dense ac-products-table">
             <thead>
               <tr><th>Code</th><th>Nom</th><th>Unités</th><th>SKU</th><th>Défaut</th><th style={{ textAlign: 'right' }}>Actions</th></tr>
             </thead>
@@ -518,11 +508,12 @@ export default function InventoryOps() {
                   <td style={{ fontWeight: 700 }}>{fmt(Number(l.total_units || 0))}</td>
                   <td>{l.sku_count ?? '—'}</td>
                   <td>{l.is_default ? 'Oui' : '—'}</td>
-                  <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                    <div className="ac-ops-row-actions">
+                  <td className="row-actions-cell">
+                    <div className="row-actions row-actions--inline ac-ops-row-actions">
                       {!l.is_default && (
                         <button type="button" className="secondary" onClick={() => void setDefaultLoc(l.id)}>
-                          Défaut
+                          <Star size={14} aria-hidden="true" />
+                          <span>Défaut</span>
                         </button>
                       )}
                       <button type="button" className="secondary" onClick={async () => {
@@ -533,9 +524,11 @@ export default function InventoryOps() {
                           toast('Renommé', 'success');
                           void loadAll(reportLoc);
                         } catch (e: any) { toast(friendlyError(e), 'error'); }
-                      }}>Renommer</button>
+                      }}>
+                        <Pencil size={14} aria-hidden="true" />
+                        <span>Renommer</span>
+                      </button>
                       <TimedUndoDelete
-                        width="8.75rem"
                         deleteLabel="Supprimer"
                         undoLabel="Annuler"
                         initialSeconds={10}

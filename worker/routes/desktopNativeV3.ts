@@ -31,6 +31,7 @@ import {
   ensureRevokedWebTokensTable,
   getRequestAuthContext,
   parseAuthorizationHeader,
+  parseToken,
   webTokenHash,
 } from '../lib/authHelpers';
 
@@ -1110,9 +1111,17 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
     if (parsedAuth.scheme === 'Bearer' && !parsedAuth.token.startsWith('nv3.') && !parsedAuth.token.startsWith('np1.')) {
       await ensureRevokedWebTokensTable(c.env.DB);
       const tokenHash = await webTokenHash(parsedAuth.token);
+      const parsedBearer = parseToken(parsedAuth.token);
+      const boundFp =
+        parsedBearer?.fingerprint && parsedBearer.fingerprint !== 'none' && parsedBearer.username
+          ? parsedBearer.fingerprint
+          : '';
+      const boundUser = boundFp && parsedBearer?.username ? parsedBearer.username.toLowerCase() : '';
       return () => ({
-        sql: 'NOT EXISTS (SELECT 1 FROM revoked_web_tokens r WHERE r.token_hash = ?)',
-        params: [tokenHash] as unknown[],
+        sql: boundFp
+          ? 'NOT EXISTS (SELECT 1 FROM revoked_web_tokens r WHERE r.token_hash = ?) AND EXISTS (SELECT 1 FROM trusted_devices td WHERE td.fingerprint = ? AND lower(td.username) = ?)'
+          : 'NOT EXISTS (SELECT 1 FROM revoked_web_tokens r WHERE r.token_hash = ?)',
+        params: (boundFp ? [tokenHash, boundFp, boundUser] : [tokenHash]) as unknown[],
       });
     }
     return () => ({ sql: '1 = 0', params: [] as unknown[] });
@@ -1306,9 +1315,30 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
     const commitGuard = await buildSessionCommitGuard(c);
     const guard = commitGuard();
 
+    const approverAuthorityClause =
+      approver.userId !== null
+        ? `EXISTS (
+             SELECT 1 FROM app_users au
+             WHERE au.id = ?
+               AND au.active = 1
+               AND (
+                 au.role = 'owner'
+                 OR (au.role = 'admin' AND u.role IN ('user', 'stock', 'secretaire'))
+               )
+           )`
+        : `? = 'owner'
+           AND NOT EXISTS (
+             SELECT 1 FROM app_users au
+             WHERE lower(au.username) = ?
+               AND (au.active = 0 OR au.role != 'owner')
+           )`;
+    const approverAuthorityParams =
+      approver.userId !== null ? [approver.userId] : [approver.role, approverName];
+
     // Clear the suspended/lost mailbox + pending enrollment + active pending
     // OTP grants + sessions ONLY if this request approves the recovery row
-    // atomically while enforcing non-self, privileged-role, and live-session guards.
+    // atomically while enforcing non-self, live approver authority, privileged-role,
+    // and live-session guards.
     const approvalGate = `EXISTS (SELECT 1 FROM desktop_mailbox_recovery_v1 WHERE id=? AND user_id=? AND status='approved' AND reviewed_by=? AND reviewed_at=?)`;
     const approvedBatch: any[] = await c.env.DB.batch([
       c.env.DB
@@ -1321,11 +1351,11 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
                WHERE u.id = desktop_mailbox_recovery_v1.user_id
                  AND u.active = 1
                  AND lower(u.username) != ?
-                 AND (? = 'owner' OR u.role IN ('user', 'stock', 'secretaire'))
+                 AND ${approverAuthorityClause}
              )
              AND ${guard.sql}`,
         )
-        .bind(approver.username, now, row.id, now, approverName, approverName, approver.role, ...guard.params),
+        .bind(approver.username, now, row.id, now, approverName, approverName, ...approverAuthorityParams, ...guard.params),
       c.env.DB
         .prepare(`DELETE FROM desktop_mailbox_verified_v1 WHERE user_id = ? AND ${approvalGate}`)
         .bind(row.user_id, row.id, row.user_id, approver.username, now),

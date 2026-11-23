@@ -148,7 +148,7 @@ export function createMailboxEnrollment(db: D1Database, key: string, adapters?: 
         new_digest=CASE WHEN ?=1 THEN new_digest ELSE '' END,old_digest=CASE WHEN ?=1 THEN old_digest ELSE NULL END
         WHERE id=? AND user_id=? AND status='sending' AND expires_at>?${postGuardClause} RETURNING id`)
         .bind(sent ? 'pending' : 'failed', sent ? 1 : 0, sent ? 1 : 0, id, user.id, Date.now(), ...(postGuard?.params || [])).first();
-      if (sent && !transitioned) {
+      if (!transitioned) {
         await db.prepare(`UPDATE desktop_mailbox_pending_v1 SET status='cancelled', new_digest='', old_digest=NULL
           WHERE id=? AND user_id=? AND status='sending'`).bind(id, user.id).run().catch(() => undefined);
       }

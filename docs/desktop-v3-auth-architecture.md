@@ -83,7 +83,7 @@ All JSON responses follow the Worker envelope:
      ```json
      {
        "origin": "https://stock.afmarbre.com",
-       "state": "<64-hex>",
+       "state": "<43-char base64url>",
        "code_challenge": "<43-char base64url S256>",
        "code_challenge_method": "S256",
        "device_label": "Poste Bureau",
@@ -110,7 +110,7 @@ All JSON responses follow the Worker envelope:
      ```
 
 4. **`POST /api/auth/desktop/v3/challenge/poll`** (`ChallengePollResponse`):
-   - Request (`DPoP` single-use nonce + `atlas_txn = request_id`): `{ "origin": "https://stock.afmarbre.com", "request_id": "<64-hex>" }`
+   - Request (`DPoP` single-use nonce + `atlas_txn = request_id`): `{ "origin": "https://stock.afmarbre.com", "request_id": "<64-hex>", "state": "<43-char base64url>", "code_verifier": "<43-char base64url>" }`
    - Response (`200`):
      ```json
      {
@@ -130,8 +130,8 @@ All JSON responses follow the Worker envelope:
      {
        "origin": "https://stock.afmarbre.com",
        "request_id": "<64-hex>",
-       "state": "<64-hex>",
-       "code_verifier": "<128-hex>",
+       "state": "<43-char base64url>",
+       "code_verifier": "<43-char base64url>",
        "username": "alice",
        "password": "<secret>"
      }
@@ -144,8 +144,8 @@ All JSON responses follow the Worker envelope:
      {
        "origin": "https://stock.afmarbre.com",
        "request_id": "<64-hex>",
-       "state": "<64-hex>",
-       "code_verifier": "<128-hex>",
+       "state": "<43-char base64url>",
+       "code_verifier": "<43-char base64url>",
        "otp": "123456"
      }
      ```

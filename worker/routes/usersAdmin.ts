@@ -20,9 +20,11 @@ import {
   validateNextCreditNumber,
 } from '../lib/ledgerHelpers';
 import {
+  ensureRevokedWebTokensTable,
   isNativeV3AuthHeader,
   parseAuthorizationHeader,
   revokeWebToken,
+  webTokenHash,
 } from '../lib/authHelpers';
 
 export interface UsersAdminDeps {
@@ -566,20 +568,22 @@ app.post('/api/auth/logout', async (c) => {
   const fingerprint = String(c.req.header('X-Device-Fingerprint') || '').slice(0, 128);
   const sess = sessionUserFromHeader(authHeader);
   await ensureSecurityTables(c.env.DB);
-  try {
-    await revokeWebToken(c.env.DB, parsedAuth.token, sess?.username || '');
-  } catch {
-    return c.json({ success: false, resume_prepared: false, code: 'LOGOUT_REVOCATION_FAILED', error: 'Déconnexion serveur impossible.' }, 503);
-  }
   let resumePrepared = false;
   if (fingerprint && sess?.username) {
     try {
-      const marked = await c.env.DB.prepare(
-        `UPDATE trusted_devices SET resume_until = datetime('now', '+30 days') WHERE fingerprint = ? AND lower(username) = ?`,
-      ).bind(fingerprint, String(sess.username).toLowerCase()).run();
-      resumePrepared = Number(marked.meta?.changes || 0) > 0;
+      await ensureRevokedWebTokensTable(c.env.DB);
+      const tokenHash = await webTokenHash(parsedAuth.token);
+      const batchRes: any[] = await c.env.DB.batch([
+        c.env.DB
+          .prepare(`INSERT OR IGNORE INTO revoked_web_tokens (token_hash, username, revoked_at) VALUES (?, ?, ?)`)
+          .bind(tokenHash, String(sess.username).toLowerCase(), Date.now()),
+        c.env.DB
+          .prepare(`UPDATE trusted_devices SET resume_until = datetime('now', '+30 days') WHERE fingerprint = ? AND lower(username) = ?`)
+          .bind(fingerprint, String(sess.username).toLowerCase()),
+      ]);
+      resumePrepared = Number(batchRes[1]?.meta?.changes || 0) > 0;
     } catch {
-      return c.json({ success: false, resume_prepared: false, code: 'RESUME_PREPARATION_FAILED', error: 'Reprise indisponible. Une vérification pourra être nécessaire à la prochaine connexion.' }, 503);
+      return c.json({ success: false, resume_prepared: false, code: 'RESUME_PREPARATION_FAILED', error: 'Déconnexion serveur impossible.' }, 503);
     }
     await writeAudit(c.env.DB, {
       username: sess.username,
@@ -589,15 +593,22 @@ app.post('/api/auth/logout', async (c) => {
       detail: 'self_logout_resume_30d',
       ip: clientIp(c),
     });
-  } else if (sess?.username) {
-    await writeAudit(c.env.DB, {
-      username: sess.username,
-      role: sess.role || '',
-      action: 'auth.logout',
-      entity: 'session',
-      detail: 'self_logout_revoked',
-      ip: clientIp(c),
-    });
+  } else {
+    try {
+      await revokeWebToken(c.env.DB, parsedAuth.token, sess?.username || '');
+    } catch {
+      return c.json({ success: false, resume_prepared: false, code: 'LOGOUT_REVOCATION_FAILED', error: 'Déconnexion serveur impossible.' }, 503);
+    }
+    if (sess?.username) {
+      await writeAudit(c.env.DB, {
+        username: sess.username,
+        role: sess.role || '',
+        action: 'auth.logout',
+        entity: 'session',
+        detail: 'self_logout_revoked',
+        ip: clientIp(c),
+      });
+    }
   }
   return c.json({ success: true, resume_prepared: resumePrepared });
 });
@@ -615,6 +626,7 @@ app.post('/api/auth/role-refresh', async (c) => {
   // Verify again here: do not rely on an unverified routing identity or body.
   if (await authFailReason(header, c.env, c.env.DB, clientIp(c), c.req.header('X-Device-Fingerprint'), { allowRoleRefresh: true }) !== 'ok')
     return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Session invalide' }, 401);
+  const inputHash = await webTokenHash(parsedAuth.token);
   const username = String(token.username || '').toLowerCase();
   let role: string;
   let material: string;
@@ -631,6 +643,20 @@ app.post('/api/auth/role-refresh', async (c) => {
       return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Session invalide' }, 401);
   }
   const refreshed = await makeTokenV2(username, role, material, token.ip, token.fingerprint);
+  await ensureRevokedWebTokensTable(c.env.DB);
+  const refreshedHash = await webTokenHash(refreshed);
+  const raceRevoked = await c.env.DB
+    .prepare(
+      `INSERT OR IGNORE INTO revoked_web_tokens (token_hash, username, revoked_at)
+       SELECT ?, ?, ?
+       WHERE EXISTS (SELECT 1 FROM revoked_web_tokens WHERE token_hash = ?)
+       RETURNING token_hash`,
+    )
+    .bind(refreshedHash, username, Date.now(), inputHash)
+    .first();
+  if (raceRevoked) {
+    return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Session invalide' }, 401);
+  }
   return c.json({ success: true, data: { token: refreshed, username, role } });
 });
 
@@ -698,6 +724,8 @@ app.get('/api/auth/me', async (c) => {
       };
     }
   }
+  const parsedTok = parsedAuth?.scheme === 'Bearer' ? parseToken(parsedAuth.token) : null;
+  const preserveSid = parsedTok?.version === 2 ? parsedTok.sid : undefined;
   return c.json({
     success: true,
     data: {
@@ -718,6 +746,7 @@ app.get('/api/auth/me', async (c) => {
                 : String((await c.env.DB.prepare(`SELECT password_hash FROM app_users WHERE username = ?`).bind(session.username).first() as any)?.password_hash || ''),
               ip,
               fp || 'none',
+              preserveSid,
             ),
           }),
       ...profile,

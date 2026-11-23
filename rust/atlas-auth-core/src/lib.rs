@@ -28,9 +28,9 @@ pub use error::{AuthCoreError, Result};
 pub use origin::ServerOrigin;
 pub use pkce::{validate_pairing_code, PkcePair};
 pub use schemas::{
-    CapabilitiesV3Response, ChallengePollResponse, ChallengeVerifyStatus, CreateRequestV3Body,
-    CreateRequestV3Response, DesktopV3ApiEnvelope, LogoutRequestV3, LogoutResponseV3,
-    NonceResponse, OtpLoginRequestV3, PasswordLoginRequestV3, PasswordLoginResponseV3,
-    RefreshRequestV3, SessionTokensV3,
+    CapabilitiesV3Response, ChallengePollRequestV3, ChallengePollResponse, ChallengeVerifyStatus,
+    CreateRequestV3Body, CreateRequestV3Response, DesktopV3ApiEnvelope, LogoutRequestV3,
+    LogoutResponseV3, NonceResponse, OtpLoginRequestV3, PasswordLoginRequestV3,
+    PasswordLoginResponseV3, RefreshRequestV3, SessionTokensV3,
 };
 pub use state::{ChallengePresentation, DesktopV3AuthSession, DesktopV3Phase};

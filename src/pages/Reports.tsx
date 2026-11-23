@@ -212,15 +212,9 @@ export default function Reports() {
         </TopPageActions>
       </div>
 
-      {/* Bento Hero */}
-      <header className="ac-dash-hero">
-        <div className="ac-dash-hero-row">
-          <div className="ac-dash-hero-text">
-            <h2 className="ac-dash-hello">Rapports &amp; clôture</h2>
-            <p className="ac-dash-lead">
-              Synthèse financière, TVA et clôture de période.
-            </p>
-          </div>
+      {/* Controls bar (no redundant title — active item is already in the dock) */}
+      <div className="ac-dash-hero ac-dash-hero--compact" style={{ padding: '12px 16px', marginBottom: 14 }}>
+        <div className="ac-dash-hero-row" style={{ justifyContent: 'flex-end' }}>
           <div className="ac-dash-hero-controls">
             <div className="ac-dash-period-pills" role="group" aria-label="Période rapide">
               {PRESET_OPTIONS.map(([key, short, title]) => (
@@ -260,7 +254,7 @@ export default function Reports() {
             </div>
           </div>
         </div>
-      </header>
+      </div>
 
       {/* Bento 4-Metric Row */}
       <section className="ac-metric-grid" aria-label="Indicateurs financiers">

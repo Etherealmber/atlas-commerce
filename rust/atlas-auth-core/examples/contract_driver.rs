@@ -232,9 +232,9 @@ fn handle(
             iat_secs,
         } => {
             let sess = session_slot.as_ref().ok_or("NO_SESSION")?;
-            let origin = origin_slot.as_ref().ok_or("NO_ORIGIN")?;
+            let _ = origin_slot.as_ref().ok_or("NO_ORIGIN")?;
             let nonce = unwrap_data::<NonceResponse>(&nonce_json)?.nonce;
-            let req_id = sess.request_id().ok_or("NO_REQUEST_ID")?;
+            let body = sess.build_poll_request().map_err(|e| e.to_string())?;
             let dpop = build_dpop_proof(
                 key,
                 "POST",
@@ -242,15 +242,12 @@ fn handle(
                 &nonce,
                 iat_secs,
                 None,
-                Some(req_id),
+                Some(&body.request_id),
             )
             .map_err(|e| e.to_string())?;
             let mut r = DriverReply::ok();
             r.dpop = Some(dpop);
-            r.body = Some(serde_json::json!({
-                "origin": origin.as_str(),
-                "request_id": req_id,
-            }));
+            r.body = Some(serde_json::to_value(&body).map_err(|e| e.to_string())?);
             Ok(r)
         }
         Command::ApplyPoll { poll_json } => {

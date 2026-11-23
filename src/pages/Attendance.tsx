@@ -1,5 +1,21 @@
 import TopPageActions from '../components/TopPageActions';
-import { Clock, Download, FileText, LogIn, LogOut, Pencil, QrCode, Settings, Smartphone, Users, UserX } from 'lucide-react';
+import {
+  CheckCircle2,
+  Clock,
+  Download,
+  FileText,
+  Info,
+  LogIn,
+  LogOut,
+  Pencil,
+  QrCode,
+  Settings,
+  Smartphone,
+  Users,
+  UserX,
+  Wallet,
+  X,
+} from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, BASE } from '../api';
@@ -49,6 +65,20 @@ function todayMA(): string {
   } catch {
     return new Date().toISOString().slice(0, 10);
   }
+}
+
+function offsetDateISO(days: number): string {
+  const base = todayMA();
+  const [y, m, d] = base.split('-').map(Number);
+  const dt = new Date(y, m - 1, d + days);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+}
+
+function statusPillClass(s: string): string {
+  if (s === 'present') return 'is-ok';
+  if (s === 'late' || s === 'half') return 'is-warn';
+  if (s === 'absent') return 'is-danger';
+  return '';
 }
 
 async function attFetch(path: string, init?: RequestInit) {
@@ -490,14 +520,14 @@ export default function Attendance() {
     );
   }
 
+  const todayIso = todayMA();
+  const yesterdayIso = offsetDateISO(-1);
+
   return (
     <div className="atlas-crm attendance-page">
       <div className="page-header dock-page-header">
         <h1 className="sr-only">Présence / pointage</h1>
         <TopPageActions>
-          <div className="tpa-date-wrap" style={{ minWidth: 150 }}>
-            <DatePicker value={date} onChange={setDate} />
-          </div>
           <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
           <button type="button" className="secondary" onClick={() => setExportOpen(true)} title="Export CSV / PDF">
             <Download size={16} aria-hidden="true" />
@@ -515,15 +545,14 @@ export default function Attendance() {
           </button>
           <Link
             to="/employees"
+            className="btn"
             title="Employés / paie"
             style={{
               textDecoration: 'none',
-              padding: '8px 14px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
               borderRadius: 999,
-              background: 'var(--atlas-primary, #71717a)',
-              color: '#fff',
-              fontWeight: 600,
-              fontSize: 14,
             }}
           >
             <Users size={16} aria-hidden="true" />
@@ -533,37 +562,66 @@ export default function Attendance() {
       </div>
       <SaveFeedback message={msg} type={msgType} />
 
-      {/* Onglets vue journalière / récapitulatif mensuel + lecteur badge */}
-      <div className="ac-panel" style={{ marginBottom: 12, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            className={viewMode === 'daily' ? '' : 'secondary'}
-            onClick={() => setViewMode('daily')}
-          >
-            Pointage du jour
-          </button>
-          <button
-            type="button"
-            className={viewMode === 'monthly' ? '' : 'secondary'}
-            onClick={() => setViewMode('monthly')}
-          >
-            Récapitulatif mensuel
-          </button>
+      {/* Onglets vue journalière / récapitulatif mensuel + DatePicker style Dashboard + lecteur badge */}
+      <div className="ac-panel ac-att-toolbar" style={{ marginBottom: 12 }}>
+        <div className="ac-att-toolbar-row">
+          <div className="ac-dash-period-pills" role="group" aria-label="Vue présence">
+            <button
+              type="button"
+              className="ac-seg-btn"
+              aria-pressed={viewMode === 'daily'}
+              onClick={() => setViewMode('daily')}
+            >
+              Pointage du jour
+            </button>
+            <button
+              type="button"
+              className="ac-seg-btn"
+              aria-pressed={viewMode === 'monthly'}
+              onClick={() => setViewMode('monthly')}
+            >
+              Récapitulatif mensuel
+            </button>
+          </div>
+
+          <div className="ac-dash-hero-controls">
+            <div className="ac-dash-period-pills" role="group" aria-label="Date rapide">
+              <button
+                type="button"
+                className="ac-seg-btn"
+                aria-pressed={date === yesterdayIso}
+                onClick={() => setDate(yesterdayIso)}
+              >
+                Hier
+              </button>
+              <button
+                type="button"
+                className="ac-seg-btn"
+                aria-pressed={date === todayIso}
+                onClick={() => setDate(todayIso)}
+              >
+                Aujourd&apos;hui
+              </button>
+            </div>
+            <div className="ac-dash-hero-picker">
+              <DatePicker size="sm" value={date} onChange={setDate} />
+            </div>
+          </div>
+
+          <form onSubmit={handleBadgeSubmit} className="ac-att-badge-form">
+            <QrCode size={16} aria-hidden="true" />
+            <input
+              value={badgeInput}
+              onChange={(e) => setBadgeInput(e.target.value)}
+              placeholder="Scanner ou saisir code badge / N°"
+              aria-label="Code badge ou numéro employé"
+              style={{ minWidth: 210 }}
+            />
+            <button type="submit" disabled={badgeBusy || !badgeInput.trim()}>
+              {badgeBusy ? 'Pointage…' : 'Pointer badge'}
+            </button>
+          </form>
         </div>
-        <form onSubmit={handleBadgeSubmit} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <QrCode size={16} aria-hidden="true" />
-          <input
-            value={badgeInput}
-            onChange={(e) => setBadgeInput(e.target.value)}
-            placeholder="Scanner ou saisir code badge / N°"
-            aria-label="Code badge ou numéro employé"
-            style={{ minWidth: 220 }}
-          />
-          <button type="submit" disabled={badgeBusy || !badgeInput.trim()}>
-            {badgeBusy ? 'Pointage…' : 'Pointer badge'}
-          </button>
-        </form>
       </div>
 
       {badgeBanner && (
@@ -965,125 +1023,167 @@ export default function Attendance() {
       {recordTarget && (
         <div className="modal-backdrop" onClick={() => setRecordTarget(null)} role="presentation">
           <div
-            className="modal-card"
+            className="modal-card ac-att-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="attendance-record-title"
             onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: 560, maxHeight: '90vh', overflow: 'auto' }}
+            style={{ maxWidth: 640, width: '94vw', maxHeight: '90vh', overflow: 'auto' }}
           >
-            <h2 style={{ marginTop: 0 }}>
-              Fiche présence (cycle de paie) — {recordTarget.name}
-            </h2>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+            <div className="ac-att-modal-head">
+              <div>
+                <span className="ac-att-modal-eyebrow">
+                  Fiche présence · {recordTarget.emp_number || `#${recordTarget.employee_id}`}
+                </span>
+                <h2 id="attendance-record-title" className="ac-att-modal-title">
+                  {recordTarget.name}
+                </h2>
+              </div>
               <button
                 type="button"
-                className={recordScope === 'cycle' ? '' : 'secondary'}
-                onClick={() => void loadRecord(recordTarget, 'cycle')}
+                className="ac-att-modal-close"
+                aria-label="Fermer la fiche"
+                onClick={() => setRecordTarget(null)}
               >
-                Cycle de paie
-              </button>
-              <button
-                type="button"
-                className={recordScope === 'career' ? '' : 'secondary'}
-                onClick={() => void loadRecord(recordTarget, 'career')}
-              >
-                Toute la carrière
+                <X size={16} aria-hidden="true" />
               </button>
             </div>
+
+            <div className="ac-att-modal-controls">
+              <div className="ac-dash-period-pills" role="group" aria-label="Périmètre historique">
+                <button
+                  type="button"
+                  className="ac-seg-btn"
+                  aria-pressed={recordScope === 'cycle'}
+                  onClick={() => void loadRecord(recordTarget, 'cycle')}
+                >
+                  Cycle de paie
+                </button>
+                <button
+                  type="button"
+                  className="ac-seg-btn"
+                  aria-pressed={recordScope === 'career'}
+                  onClick={() => void loadRecord(recordTarget, 'career')}
+                >
+                  Toute la carrière
+                </button>
+              </div>
+              {recordData && (
+                <span className="ac-status-pill">
+                  <Clock size={12} aria-hidden="true" />
+                  {recordData.from} → {recordData.to} · {recordData.summary?.logged || 0} jour(s)
+                </span>
+              )}
+            </div>
+
             {recordLoading && (
-              <div style={{ display: 'grid', gap: 8, margin: '8px 0 12px' }} aria-busy="true" aria-label="Chargement de l'historique">
-                <div className="skeleton" style={{ height: 14, width: '45%' }} />
-                <div className="skeleton" style={{ height: 64, borderRadius: 12 }} />
-                <div className="skeleton" style={{ height: 96, borderRadius: 12 }} />
+              <div style={{ display: 'grid', gap: 10, margin: '10px 0 14px' }} aria-busy="true" aria-label="Chargement de l'historique">
+                <div className="ac-att-modal-metrics">
+                  {[0, 1, 2, 3].map((idx) => (
+                    <div key={idx} className="ac-skeleton-bento-card" style={{ padding: 12 }}>
+                      <div className="skeleton skeleton-line" style={{ width: '58%', height: 10, marginBottom: 8 }} />
+                      <div className="skeleton skeleton-line" style={{ width: '42%', height: 18, marginBottom: 0 }} />
+                    </div>
+                  ))}
+                </div>
+                <div className="ac-skeleton-bento-card" style={{ padding: 14 }}>
+                  <div className="skeleton skeleton-line" style={{ width: '85%', height: 12, marginBottom: 10 }} />
+                  <div className="skeleton skeleton-line" style={{ width: '72%', height: 12, marginBottom: 0 }} />
+                </div>
               </div>
             )}
+
             {recordData && (
               <>
-                <p className="muted" style={{ fontSize: 13 }}>
-                  {recordData.from} → {recordData.to} · {recordData.summary?.logged || 0} jour(s)
-                </p>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))',
-                    gap: 8,
-                    marginBottom: 12,
-                  }}
-                >
-                  <div className="card" style={{ padding: 10 }}>
-                    <div className="muted" style={{ fontSize: 11 }}>Présent</div>
-                    <strong>{recordData.summary?.present ?? 0}</strong>
+                <div className="ac-att-modal-metrics">
+                  <div className="ac-metric">
+                    <span className="ac-metric-label">
+                      <CheckCircle2 size={12} aria-hidden="true" /> Présent
+                    </span>
+                    <strong className="ac-metric-val">{recordData.summary?.present ?? 0}</strong>
+                    <span className="ac-metric-meta">Taux {recordData.summary?.rate_pct ?? 0}%</span>
                   </div>
-                  <div className="card" style={{ padding: 10 }}>
-                    <div className="muted" style={{ fontSize: 11 }}>Retard</div>
-                    <strong>{recordData.summary?.late ?? 0}</strong>
+                  <div className="ac-metric">
+                    <span className="ac-metric-label">
+                      <Clock size={12} aria-hidden="true" /> Retard
+                    </span>
+                    <strong className="ac-metric-val">{recordData.summary?.late ?? 0}</strong>
+                    <span className="ac-metric-meta">{recordData.summary?.late_pct ?? 0}% des jours</span>
                   </div>
-                  <div className="card" style={{ padding: 10 }}>
-                    <div className="muted" style={{ fontSize: 11 }}>Absent</div>
-                    <strong>{recordData.summary?.absent ?? 0}</strong>
-                  </div>
-                  <div className="card" style={{ padding: 10 }}>
-                    <div className="muted" style={{ fontSize: 11 }}>Taux</div>
-                    <strong>{recordData.summary?.rate_pct ?? 0}%</strong>
-                  </div>
-                  <div className="card" style={{ padding: 10 }}>
-                    <div className="muted" style={{ fontSize: 11 }}>% retard</div>
-                    <strong>{recordData.summary?.late_pct ?? 0}%</strong>
-                  </div>
-                  <div className="card" style={{ padding: 10 }}>
-                    <div className="muted" style={{ fontSize: 11 }}>Paie suggérée</div>
-                    <strong>
-                      {recordData.summary?.net_suggested ?? 0} MAD
-                    </strong>
-                  </div>
-                  <div className="card" style={{ padding: 10 }}>
-                    <div className="muted" style={{ fontSize: 11 }}>Discipline</div>
-                    <strong>
+                  <div className="ac-metric">
+                    <span className="ac-metric-label">
+                      <UserX size={12} aria-hidden="true" /> Absent
+                    </span>
+                    <strong className="ac-metric-val">{recordData.summary?.absent ?? 0}</strong>
+                    <span className="ac-metric-meta">
+                      Discipline :{' '}
                       {recordData.summary?.discipline_hint === 'blame'
                         ? 'Blâme'
                         : recordData.summary?.discipline_hint === 'avertissement'
                           ? 'Avertissement'
-                          : '—'}
-                    </strong>
+                          : 'RAS'}
+                    </span>
+                  </div>
+                  <div className="ac-metric">
+                    <span className="ac-metric-label">
+                      <Wallet size={12} aria-hidden="true" /> Paie suggérée
+                    </span>
+                    <strong className="ac-metric-val">{recordData.summary?.net_suggested ?? 0} MAD</strong>
+                    <span className="ac-metric-meta">{recordData.summary?.daily_rate ?? 0} MAD / jour</span>
                   </div>
                 </div>
-                <p style={{ fontSize: 12, color: 'var(--muted)' }}>
-                  Paie = jours travaillés × {recordData.summary?.daily_rate ?? 0} MAD/j.
-                  {recordData.rules?.minute_deduct
-                    ? ` Minutes de retard retenues: ${recordData.summary?.late_minutes ?? 0} min (−${recordData.summary?.late_penalty ?? 0} MAD).`
-                    : ' Aucune retenue automatique sur les retards.'}
-                  {' '}
-                  Seuils discipline: avertissement à {recordData.rules?.warn_late_count ?? 3} retards, blâme à{' '}
-                  {recordData.rules?.blame_late_count ?? 6}.
-                </p>
-                <table className="data-dense ac-products-table" style={{ fontSize: 13 }}>
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Statut</th>
-                      <th>Entrée</th>
-                      <th>Sortie</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(recordData.days || []).map((d: any) => (
-                      <tr key={d.work_date}>
-                        <td>{d.work_date}</td>
-                        <td>{d.status}</td>
-                        <td>{d.check_in || '—'}</td>
-                        <td>{d.check_out || '—'}</td>
-                      </tr>
-                    ))}
-                    {!(recordData.days || []).length && (
+
+                <div className="ac-att-modal-note">
+                  <Info size={14} aria-hidden="true" />
+                  <span>
+                    Paie = jours travaillés × {recordData.summary?.daily_rate ?? 0} MAD/j.
+                    {recordData.rules?.minute_deduct
+                      ? ` Minutes de retard retenues : ${recordData.summary?.late_minutes ?? 0} min (−${recordData.summary?.late_penalty ?? 0} MAD).`
+                      : ' Aucune retenue automatique sur les retards.'}
+                    {' '}
+                    Seuils discipline : avertissement à {recordData.rules?.warn_late_count ?? 3} retards, blâme à{' '}
+                    {recordData.rules?.blame_late_count ?? 6}.
+                  </span>
+                </div>
+
+                <div className="table-wrap" style={{ marginTop: 12 }}>
+                  <table className="data-dense ac-products-table" style={{ fontSize: 13 }}>
+                    <thead>
                       <tr>
-                        <td colSpan={4}>Aucun pointage</td>
+                        <th>Date</th>
+                        <th>Statut</th>
+                        <th>Entrée</th>
+                        <th>Sortie</th>
                       </tr>
-                    )}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {(recordData.days || []).map((d: any) => (
+                        <tr key={d.work_date}>
+                          <td>{d.work_date}</td>
+                          <td>
+                            <span className={`ac-status-pill ${statusPillClass(d.status)}`}>
+                              {statusLabel(d.status)}
+                            </span>
+                          </td>
+                          <td>{d.check_in || '—'}</td>
+                          <td>{d.check_out || '—'}</td>
+                        </tr>
+                      ))}
+                      {!(recordData.days || []).length && (
+                        <tr>
+                          <td colSpan={4} style={{ color: 'var(--muted)' }}>Aucun pointage enregistré</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </>
             )}
-            <div style={{ marginTop: 12, textAlign: 'right' }}>
+
+            <div className="ac-att-modal-foot">
               <button type="button" className="secondary" onClick={() => setRecordTarget(null)}>
-                Fermer
+                <X size={14} aria-hidden="true" />
+                <span>Fermer</span>
               </button>
             </div>
           </div>
