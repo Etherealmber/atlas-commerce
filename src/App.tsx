@@ -1217,10 +1217,10 @@ function DesktopShell() {
             <span className="nav-main"><NavIcon d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /><span className="nav-label">Solde &amp; recettes</span></span>
           </NavLink>
           <NavLink to="/cash-shifts" className={({ isActive }) => (isActive ? 'active' : '')} data-tooltip="Clôtures de caisse" title="Clôtures de caisse">
-            <span className="nav-main"><NavIcon d="M3 7h18v12H3zM7 7V4h10v3M8 13h2M14 13h2" /><span className="nav-label">Clôtures de caisse</span></span>
+            <span className="nav-main"><NavIcon paths={['M3 10h18v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-9z', 'M6 10V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v5', 'M7 15h4', 'M15 15h2']} /><span className="nav-label">Clôtures de caisse</span></span>
           </NavLink>
           <NavLink to="/payroll" className={({ isActive }) => (isActive ? 'active' : '')} data-tooltip="Paie CNSS / AMO" title="Paie CNSS / AMO">
-            <span className="nav-main"><NavIcon d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /><span className="nav-label">Paie CNSS / AMO</span></span>
+            <span className="nav-main"><NavIcon paths={['M2 6h20v12H2z', 'M12 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4z', 'M6 12h.01', 'M18 12h.01']} /><span className="nav-label">Paie CNSS / AMO</span></span>
           </NavLink>
           <NavLink to="/reports" className={({ isActive }) => (isActive ? 'active' : '')} data-tooltip="Rapports & clôture" title="Rapports & clôture">
             <span className="nav-main"><NavIcon d="M3 3v18h18M7 14l4-4 3 3 5-6" /><span className="nav-label">Rapports &amp; clôture</span></span>
@@ -1229,7 +1229,7 @@ function DesktopShell() {
           )}
           {canAccessInventoryOps() && (
           <NavLink to="/inventory-ops" className={({ isActive }) => (isActive ? 'active' : '')} data-tooltip="Ops stock" title="Ops stock">
-            <span className="nav-main"><NavIcon d="M4 7V5a1 1 0 0 1 1-1h2M20 7V5a1 1 0 0 0-1-1h-2M4 17v2a1 1 0 0 0 1 1h2M20 17v2a1 1 0 0 1-1 1h-2M7 12h10" /><span className="nav-label">Ops stock</span></span>
+            <span className="nav-main"><NavIcon paths={['M8 3L4 7l4 4', 'M4 7h16', 'M16 21l4-4-4-4', 'M20 17H4']} /><span className="nav-label">Ops stock</span></span>
           </NavLink>
           )}
         </nav>

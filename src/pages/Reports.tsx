@@ -214,24 +214,22 @@ export default function Reports() {
 
       {/* Bento Hero */}
       <header className="ac-dash-hero">
-        <div className="ac-dash-hero-text">
-          <p className="ac-dash-eyebrow">
-            <span>Finance &amp; conformité</span>
-          </p>
-          <h2>Rapports &amp; clôture</h2>
-          <p className="ac-dash-lead">
-            Balance âgée, récapitulatif TVA, coût des ventes COGS / FIFO, réassort fournisseur et clôture fiscale sur une même vue.
-          </p>
-        </div>
-        <div className="ac-dash-hero-side">
-          <div className="ac-dash-range">
-            <div className="ac-dash-presets" role="group" aria-label="Périodes rapides">
+        <div className="ac-dash-hero-row">
+          <div className="ac-dash-hero-text">
+            <h2 className="ac-dash-hello">Rapports &amp; clôture</h2>
+            <p className="ac-dash-lead">
+              Synthèse financière, TVA et clôture de période.
+            </p>
+          </div>
+          <div className="ac-dash-hero-controls">
+            <div className="ac-dash-period-pills" role="group" aria-label="Période rapide">
               {PRESET_OPTIONS.map(([key, short, title]) => (
                 <button
                   key={key}
                   type="button"
                   title={title}
-                  className={`ac-dash-preset${rangePreset === key ? ' is-active' : ''}`}
+                  className="ac-seg-btn"
+                  aria-pressed={rangePreset === key}
                   disabled={loading}
                   onClick={() => {
                     const r = presetRange(key);
@@ -245,19 +243,21 @@ export default function Reports() {
                 </button>
               ))}
             </div>
-            <DateRangePicker
-              size="sm"
-              from={from}
-              to={to}
-              showPresets
-              disabled={loading}
-              onChange={(nextFrom, nextTo) => {
-                setRangePreset('custom');
-                setFrom(nextFrom);
-                setTo(nextTo);
-                void loadTvaAndCogs(nextFrom, nextTo);
-              }}
-            />
+            <div className="ac-dash-hero-picker">
+              <DateRangePicker
+                size="sm"
+                from={from}
+                to={to}
+                showPresets
+                disabled={loading}
+                onChange={(nextFrom, nextTo) => {
+                  setRangePreset('custom');
+                  setFrom(nextFrom);
+                  setTo(nextTo);
+                  void loadTvaAndCogs(nextFrom, nextTo);
+                }}
+              />
+            </div>
           </div>
         </div>
       </header>

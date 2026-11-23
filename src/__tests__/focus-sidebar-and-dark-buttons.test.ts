@@ -11,6 +11,8 @@ import About from '../pages/About';
 import Reports from '../pages/Reports';
 import InventoryOps from '../pages/InventoryOps';
 import Settings from '../pages/Settings';
+import Payroll from '../pages/Payroll';
+import CashShifts from '../pages/CashShifts';
 import Support from '../pages/Support';
 import { api } from '../api';
 import { vi } from 'vitest';
@@ -492,6 +494,64 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     });
     expect(hbarBtn!.classList.contains('is-selected')).toBe(true);
     expect(auditSpy).toHaveBeenCalled();
+
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it('aligns Payroll, CashShifts, Reports hero/pills, and sidebar Finance icons with Dashboard & Balance Bento UI', async () => {
+    const reportsSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Reports.tsx'), 'utf8');
+    const payrollSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Payroll.tsx'), 'utf8');
+    const shiftsSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/CashShifts.tsx'), 'utf8');
+    const appSrc = readFileSync(path.resolve(process.cwd(), 'src/App.tsx'), 'utf8');
+
+    // 1. Reports matches Dashboard period pills & clean hero without verbose eyebrow/subtitle
+    expect(reportsSrc).not.toContain('Finance &amp; conformité');
+    expect(reportsSrc).not.toContain('coût des ventes COGS / FIFO');
+    expect(reportsSrc).not.toContain('ac-dash-presets');
+    expect(reportsSrc).not.toContain('ac-dash-preset');
+    expect(reportsSrc).toContain('ac-dash-period-pills');
+    expect(reportsSrc).toContain('className="ac-seg-btn"');
+
+    // 2. Sidebar Finance & Ops icons are all distinct (no duplicate $ icon between /balance and /payroll)
+    const balanceIcon = appSrc.match(/to="\/balance"[\s\S]*?<NavIcon([^>]+)\/>/)?.[1] ?? '';
+    const cashShiftsIcon = appSrc.match(/to="\/cash-shifts"[\s\S]*?<NavIcon([^>]+)\/>/)?.[1] ?? '';
+    const payrollIcon = appSrc.match(/to="\/payroll"[\s\S]*?<NavIcon([^>]+)\/>/)?.[1] ?? '';
+    const reportsIcon = appSrc.match(/to="\/reports"[\s\S]*?<NavIcon([^>]+)\/>/)?.[1] ?? '';
+    const opsIcon = appSrc.match(/to="\/inventory-ops"[\s\S]*?<NavIcon([^>]+)\/>/)?.[1] ?? '';
+    const icons = [balanceIcon, cashShiftsIcon, payrollIcon, reportsIcon, opsIcon].map((s) => s.trim());
+    expect(icons.every((s) => s.length > 0)).toBe(true);
+    expect(new Set(icons).size).toBe(5);
+
+    // 3. Payroll & CashShifts use Dashboard/Balance Bento UI rather than legacy .page/.page-head
+    for (const src of [payrollSrc, shiftsSrc]) {
+      expect(src).toContain('atlas-page ac-dash');
+      expect(src).toContain('ac-dash-hero');
+      expect(src).toContain('ac-metric-grid');
+      expect(src).toContain('ac-panel');
+      expect(src).not.toContain('className="page-head"');
+    }
+
+    // 4. Render Payroll & CashShifts and verify Bento structure + accessible dock headings
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ success: true, data: [] }), { headers: { 'Content-Type': 'application/json' } })));
+    vi.spyOn(api, 'listPayrollRuns').mockResolvedValue({ data: [] } as any);
+    vi.spyOn(api, 'listCashShifts').mockResolvedValue({ data: [] } as any);
+
+    await act(async () => {
+      root.render(createElement(MemoryRouter, { initialEntries: ['/payroll'] }, createElement(Payroll)));
+    });
+    expect(host.querySelector('.atlas-page.ac-dash.payroll-page')).not.toBeNull();
+    expect(host.querySelector('.ac-dash-hero')).not.toBeNull();
+    expect(host.querySelectorAll('.ac-metric-grid .ac-metric').length).toBe(4);
+    expect(host.querySelector('h1.sr-only')?.textContent).toBe('Paie CNSS / AMO');
+
+    await act(async () => {
+      root.render(createElement(MemoryRouter, { initialEntries: ['/cash-shifts'] }, createElement(CashShifts)));
+    });
+    expect(host.querySelector('.atlas-page.ac-dash.cash-shifts-page')).not.toBeNull();
+    expect(host.querySelector('.ac-dash-hero')).not.toBeNull();
+    expect(host.querySelectorAll('.ac-metric-grid .ac-metric').length).toBe(4);
+    expect(host.querySelector('h1.sr-only')?.textContent).toBe('Clôtures de caisse (X / Z)');
 
     vi.restoreAllMocks();
     vi.unstubAllGlobals();

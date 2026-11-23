@@ -2226,6 +2226,170 @@ html[data-theme="dark"] .ac-audit-pager-meta {
   color: #a1a1aa;
 }
 
+/* ==========================================================================
+   Payroll & CashShifts Bento Helpers (matching Balance & Dashboard)
+   ========================================================================== */
+.ac-erp-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ac-erp-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.ac-erp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+}
+.ac-erp-field > span,
+.ac-erp-field > label {
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--ac-muted, #64748b);
+  margin: 0;
+}
+
+.ac-erp-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.ac-erp-btn-ico {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  white-space: nowrap;
+}
+
+.ac-erp-summary-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.ac-erp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--ac-bg, #f8fafc);
+  border: 1px solid var(--ac-line, #e8eaef);
+  font-size: 0.78rem;
+  color: var(--ac-muted, #64748b);
+}
+.ac-erp-chip strong {
+  color: var(--ac-ink, #0f172a);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.ac-erp-open-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ac-erp-open-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  background: var(--ac-bg, #f8fafc);
+  border: 1px solid var(--ac-line, #e8eaef);
+}
+.ac-erp-open-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.ac-erp-open-meta strong {
+  font-size: 0.88rem;
+  color: var(--ac-ink, #0f172a);
+}
+.ac-erp-open-meta span {
+  font-size: 0.76rem;
+  color: var(--ac-muted, #64748b);
+}
+
+.ac-erp-subpanel {
+  padding: 16px;
+  border-radius: 14px;
+  background: var(--ac-bg, #f8fafc);
+  border: 1px solid var(--ac-line, #e8eaef);
+}
+.ac-erp-subpanel h4 {
+  margin: 0 0 12px;
+  font-size: 0.92rem;
+  font-weight: 750;
+  color: var(--ac-ink, #0f172a);
+}
+
+.ac-erp-denom-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+@media (max-width: 520px) {
+  .ac-erp-denom-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.ac-erp-variance-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin: 12px 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--ac-paper, #ffffff);
+  border: 1px solid var(--ac-line, #e8eaef);
+  font-size: 0.83rem;
+  color: var(--ac-muted, #64748b);
+}
+.ac-erp-variance-bar strong {
+  color: var(--ac-ink, #0f172a);
+  font-variant-numeric: tabular-nums;
+}
+
+html[data-theme="dark"] .ac-erp-chip,
+html[data-theme="dark"] .ac-erp-open-item,
+html[data-theme="dark"] .ac-erp-subpanel {
+  background: #171a24 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+html[data-theme="dark"] .ac-erp-chip strong,
+html[data-theme="dark"] .ac-erp-open-meta strong,
+html[data-theme="dark"] .ac-erp-subpanel h4,
+html[data-theme="dark"] .ac-erp-variance-bar strong {
+  color: #f4f4f6 !important;
+}
+html[data-theme="dark"] .ac-erp-variance-bar {
+  background: #13151d !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+
 
 
 
