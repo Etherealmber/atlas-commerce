@@ -268,6 +268,7 @@ export default function Desktop() {
             <Link to="/">Accueil</Link>
             <Link to="/android">Android</Link>
             <Link to="/whats-new">Nouveautés</Link>
+            <Link to="/support">Support</Link>
             <Link to="/about">À propos</Link>
             <Link to="/privacy">Confidentialité</Link>
             <Link to="/login">Se connecter</Link>

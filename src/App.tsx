@@ -1,9 +1,9 @@
 import { SwitchMode } from './components/ui/SwitchMode';
 import MobileBottomNav from './components/erp/MobileBottomNav';
 import { useEffect, useState, useRef, lazy, Suspense } from 'react';
-import { User, CreditCard, Mail, Sparkles, LogOut, Sun, Moon, Monitor, Type, ArrowLeft, Settings as SettingsIcon, Info, Menu } from 'lucide-react';
+import { ArrowLeft, Settings as SettingsIcon, Info } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import { BrowserRouter, Routes, Route, NavLink, Navigate, Link, useNavigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, NavLink, Navigate, Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { applyPageTitle, titleForPath } from './lib/pageTitle';
 import Login from './pages/Login';
 import Privacy from './pages/Privacy';
@@ -18,8 +18,6 @@ import {
   startSessionGuard,
   getUsername,
   getDisplayInitials,
-  listSavedAccounts,
-  switchSavedAccount,
   getDisplayName,
   hasAvatarUrl,
   getRole,
@@ -27,10 +25,8 @@ import {
   canManageStock,
   canOfficeWork,
   canAccessInventoryOps,
-  canAccessSettingsBeyondProfile,
   isStockRole,
   canSell,
-  isOwnerRole,
 } from './auth';
 import { PublicSettingsTopbar } from './components/PublicChrome';
 import FocusSidebar from './components/FocusSidebar';
@@ -66,19 +62,6 @@ import { applyDensityFromStorage, getDensity, setDensity, getUiScale, setUiScale
 import AtlasLoadingBar from './components/AtlasLoadingBar';
 import { isWelcomeCompleted } from './lib/welcome';
 import { hasUnreadWhatsNew } from './lib/whatsNew';
-import {
-  filterSettingsHits,
-  searchSettings,
-  setPendingAnchor,
-  resolveHitByLabel,
-  loadSearchHistory,
-  pushSearchHistory,
-  removeSearchHistoryItem,
-  clearSearchHistory,
-  SETTINGS_TAB_ICON,
-  SETTINGS_TAB_LABELS,
-  type SettingsSearchHit,
-} from './lib/settingsSearch';
 import { api } from './api';
 import ScrollToTop from './components/ScrollToTop';
 import PageTransition from './components/PageTransition';
@@ -166,6 +149,7 @@ const About = lazyRetry(() => import('./pages/About'));
 const Download = lazyRetry(() => import('./pages/Download'));
 const Home = lazyRetry(() => import('./pages/Home'));
 const DesktopPage = lazyRetry(() => import('./pages/Desktop'));
+const SupportPage = lazyRetry(() => import('./pages/Support'));
 const WhatsNew = lazyRetry(() => import('./pages/WhatsNew'));
 const WhatsNewModal = lazyRetry(() => import('./components/WhatsNewModal'));
 const Actions = lazyRetry(() => import('./pages/Actions'));
@@ -361,16 +345,16 @@ function AccountMenu({
                 <strong key={`nm-${profileTick}`} className="account-menu-name">{getDisplayName()}</strong>
               </div>
 
-              <button type="button" role="menuitem" className="account-menu-item" onClick={() => { setOpen(false); window.location.assign('/settings'); }}>
+              <button type="button" role="menuitem" className="account-menu-item" onClick={() => { setOpen(false); navigate('/settings'); }}>
                 <SettingsIcon className="account-menu-svg" size={16} aria-hidden="true" />
                 Paramètres
               </button>
-              <button type="button" role="menuitem" className="account-menu-item account-menu-item--novelties" onClick={() => { setOpen(false); window.location.assign('/whats-new'); }}>
+              <button type="button" role="menuitem" className="account-menu-item account-menu-item--novelties" onClick={() => { setOpen(false); navigate('/whats-new'); }}>
                 <MenuSvg d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
                 <span className="account-menu-item-label">Nouveautés</span>
                 {whatsNewUnread ? <span className="whats-new-badge" aria-label="Nouveautés non lues">1</span> : null}
               </button>
-              <button type="button" role="menuitem" className="account-menu-item" onClick={() => { setOpen(false); window.location.assign('/about'); }}>
+              <button type="button" role="menuitem" className="account-menu-item" onClick={() => { setOpen(false); navigate('/about'); }}>
                 <Info className="account-menu-svg" size={16} aria-hidden="true" />
                 À propos
               </button>
@@ -554,10 +538,44 @@ function DesktopRoute() {
   );
 }
 
-/** v0.7 — /about readable WITHOUT an account: standalone layout (no topbar,
- * no Agent, no session access). Logged-in users keep the exact same Shell. */
+/** /support & /supprot : landing standalone style /desktop (portail AF Marbre & Atlas). */
+function SupportRoute() {
+  return (
+    <div className="download-standalone">
+      <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
+        <SupportPage />
+      </Suspense>
+    </div>
+  );
+}
+
+/** /privacy, /terms, /licenses : Shell complet si connecté, PublicSettingsTopbar + FocusSidebar sinon. */
+function PublicLegalOutlet() {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const loggedIn = typeof isLoggedIn === 'function' ? isLoggedIn() : !!getToken();
+  if (loggedIn && isWelcomeCompleted()) {
+    return <Shell />;
+  }
+  return (
+    <div className="public-legal">
+      <PublicSettingsTopbar onOpenSidebar={() => setSidebarOpen(true)} />
+      <div className="atlas-focus-layout">
+        <FocusSidebar mobileOpen={sidebarOpen} onCloseMobile={() => setSidebarOpen(false)} />
+        <main className="content content-settings-focus atlas-focus-main">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
+}
+
+/** /about: inside shared Shell when authenticated, standalone PublicChrome when logged out. */
 function AboutRoute() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const loggedIn = typeof isLoggedIn === 'function' ? isLoggedIn() : !!getToken();
+  if (loggedIn && isWelcomeCompleted()) {
+    return <Shell />;
+  }
   return (
     <div className="public-about">
       <PublicSettingsTopbar onOpenSidebar={() => setSidebarOpen(true)} />
@@ -573,11 +591,13 @@ function AboutRoute() {
   );
 }
 
-/** v0.7 — /whats-new readable WITHOUT an account: static changelog only, in a
- * dedicated standalone layout (no topbar, no Agent, no API call, no session
- * access). Logged-in users keep the exact same Shell experience as before. */
+/** /whats-new: inside shared Shell when authenticated, standalone PublicChrome when logged out. */
 function WhatsNewRoute() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const loggedIn = typeof isLoggedIn === 'function' ? isLoggedIn() : !!getToken();
+  if (loggedIn && isWelcomeCompleted()) {
+    return <Shell />;
+  }
   return (
     <div className="public-whats-new">
       <PublicSettingsTopbar onOpenSidebar={() => setSidebarOpen(true)} />
@@ -828,18 +848,15 @@ function DesktopShell() {
     location.pathname === '/settings' ||
     location.pathname.startsWith('/settings/') ||
     location.pathname === '/about' ||
-    location.pathname === '/whats-new';
-  const isSettingsRoute = location.pathname === '/settings' || location.pathname.startsWith('/settings/');
-  const [focusUserMenuOpen, setFocusUserMenuOpen] = useState(false);
+    location.pathname === '/whats-new' ||
+    location.pathname === '/privacy' ||
+    location.pathname === '/terms' ||
+    location.pathname === '/licenses';
   const [focusSidebarOpen, setFocusSidebarOpen] = useState(false);
   const [shellAlerts, setShellAlerts] = useState<any[]>([]);
   const [shellUserOpen, setShellUserOpen] = useState(false);
-  
 
   const [shellNotifOpen, setShellNotifOpen] = useState(false);
-  const [settingsTopSearch, setSettingsTopSearch] = useState('');
-  const [settingsSearchOpen, setSettingsSearchOpen] = useState(false);
-  const [settingsSearchHistory, setSettingsSearchHistory] = useState<string[]>(() => loadSearchHistory());
 
   // v0.7.7 — la topbar Paramètres rétrécit en descendant, grandit en remontant
   const [settingsBarCompact, setSettingsBarCompact] = useState(false);
@@ -931,13 +948,6 @@ function DesktopShell() {
     setSettingsBarCompact(false);
   };
 
-  const [focusWhatsNewUnread, setFocusWhatsNewUnread] = useState(() => hasUnreadWhatsNew());
-  useEffect(() => {
-    const sync = () => setFocusWhatsNewUnread(hasUnreadWhatsNew());
-    window.addEventListener('atlas-whats-new-seen', sync);
-    return () => window.removeEventListener('atlas-whats-new-seen', sync);
-  }, []);
-
   useEffect(() => {
     if (!shellNotifOpen) { setShellAlerts([]); return; }
     let cancelled = false;
@@ -946,8 +956,6 @@ function DesktopShell() {
   }, [shellNotifOpen]);
 
   useEffect(() => {
-    // Close focus user menu & mobile focus sidebar when route changes
-    setFocusUserMenuOpen(false);
     setFocusSidebarOpen(false);
     setShellUserOpen(false);
   }, [location.pathname, location.search]);
@@ -1059,7 +1067,7 @@ function DesktopShell() {
     <>
       <ScrollToTop />
       <AtlasLoadingBar />
-      <div className={`layout${sidebarCollapsed ? ' sidebar-collapsed' : ''}${mobileNavOpen ? ' mobile-nav-open' : ''}${isFocusRoute ? ' layout-settings-focus' : ''}`}>
+      <div className={`layout${sidebarCollapsed ? ' sidebar-collapsed' : ''}${mobileNavOpen ? ' mobile-nav-open' : ''}`}>
       <OfflineBanner />
 
       <button
@@ -1253,7 +1261,6 @@ function DesktopShell() {
         )}
 
         <div className="ac-main-column">
-        {!isFocusRoute && (
         <div className="ac-desktop-top-row">
         <div
           ref={actionsSlotRef}
@@ -1516,365 +1523,36 @@ function DesktopShell() {
           </div>}
         </header>
         </div>
-        )}
 
-      {isFocusRoute && (
-        <header className={`settings-topbar${settingsBarCompact ? ' settings-topbar--compact' : ''}`} role="banner">
-          <div className="settings-topbar-left">
-            <button
-              type="button"
-              className="settings-topbar-burger"
-              aria-label="Ouvrir le menu latéral"
-              title="Menu"
-              onClick={() => setFocusSidebarOpen(true)}
-            >
-              <Menu size={18} strokeWidth={2} aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              className="settings-topbar-back"
-              onClick={() => navigate('/dashboard')}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                <path d="M15 18l-6-6 6-6" />
-              </svg>
-              Tableau de bord
-            </button>
-            <span className="settings-topbar-sep" aria-hidden />
-            <div className="settings-topbar-brand">
-              <img src="/atlas-icon-light.png" alt="" className="brand-img brand-img--light" width={28} height={28} />
-              <img src="/atlas-icon-dark.png" alt="" className="brand-img brand-img--dark" width={28} height={28} />
-              <div>
-                <strong>
-                  {isSettingsRoute
-                    ? 'Paramètres'
-                    : location.pathname === '/whats-new'
-                      ? 'Nouveautés'
-                      : 'À propos'}
-                </strong>
-                <span>Atlas Commerce · beta</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="settings-topbar-right">
-          {isFocusRoute && (
-            <div className="settings-topbar-search-wrap settings-topbar-search-wrap--icon">
-              <div className="settings-topbar-search-inner">
-                <button
-                  type="button"
-                  className="settings-topbar-tab secondary settings-topbar-searchtab"
-                  aria-label="Recherche globale"
-                  title="Recherche globale"
-                  onClick={() => {
-                    // v0.7.7 — tap = panneau latéral (au-dessus de l'Agent si ouvert)
-                    setSettingsSearchOpen(false);
-                    window.dispatchEvent(new Event('atlas-search-open'));
-                  }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" aria-hidden><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
-                </button>
-                {settingsTopSearch ? (
-                  <button
-                    type="button"
-                    className="settings-topbar-search-clear secondary"
-                    aria-label="Effacer la recherche"
-                    onClick={() => {
-                      setSettingsTopSearch('');
-                      setSettingsSearchOpen(true);
-                    }}
-                  >
-                    ×
-                  </button>
-                ) : null}
-              </div>
-              {settingsSearchOpen && (
-                <>
-                  <div
-                    className="settings-search-dd-backdrop"
-                    onClick={() => setSettingsSearchOpen(false)}
-                    aria-hidden
-                  />
-                  <div className="settings-search-dropdown" role="listbox">
-                    {(() => {
-                      const q = settingsTopSearch.trim();
-                      const { hits, suggestions } = searchSettings(q);
-                      if (!q) {
-                        if (settingsSearchHistory.length === 0) {
-                          return (
-                            <div className="settings-search-dd-empty muted">
-                              Tapez pour chercher un réglage…
-                            </div>
-                          );
-                        }
-                        return (
-                          <>
-                            <div className="settings-search-dd-label settings-search-dd-label-row">
-                              <span>Historique</span>
-                              <button
-                                type="button"
-                                className="secondary settings-search-dd-clear-all"
-                                title="Effacer tout l'historique"
-                                aria-label="Effacer tout l'historique de recherche"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  clearSearchHistory();
-                                  setSettingsSearchHistory([]);
-                                }}
-                              >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                                  <path d="M3 6h18" />
-                                  <path d="M8 6V4h8v2" />
-                                  <path d="M19 6l-1 14H6L5 6" />
-                                  <path d="M10 11v6M14 11v6" />
-                                </svg>
-                              </button>
-                            </div>
-                            {settingsSearchHistory.map((h) => (
-                              <div key={h} className="settings-search-dd-row">
-                                <button
-                                  type="button"
-                                  className="secondary settings-search-dd-item"
-                                  onClick={() => {
-                                    const exact = resolveHitByLabel(h);
-                                    if (exact) {
-                                      try {
-                                        sessionStorage.setItem(
-                                          'atlas-settings-pending-anchor',
-                                          JSON.stringify({ id: exact.id, tab: exact.tab }),
-                                        );
-                                      } catch { /* */ }
-                                      setSettingsSearchOpen(false);
-                                      setSettingsTopSearch('');
-                                      navigate(`/settings?tab=${encodeURIComponent(exact.tab)}`);
-                                      window.setTimeout(() => {
-                                        try {
-                                          window.dispatchEvent(
-                                            new CustomEvent('atlas-settings-go-anchor', {
-                                              detail: { id: exact.id, tab: exact.tab },
-                                            }),
-                                          );
-                                        } catch { /* */ }
-                                      }, 280);
-                                    } else {
-                                      setSettingsTopSearch(h);
-                                      setSettingsSearchOpen(true);
-                                    }
-                                  }}
-                                >
-                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                                    <circle cx="12" cy="12" r="10" />
-                                    <path d="M12 6v6l4 2" />
-                                  </svg>
-                                  <span>{h}</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  className="secondary settings-search-dd-del"
-                                  aria-label={`Supprimer ${h}`}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    removeSearchHistoryItem(h);
-                                    setSettingsSearchHistory(loadSearchHistory());
-                                  }}
-                                >
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                                    <path d="M3 6h18" />
-                                    <path d="M8 6V4h8v2" />
-                                    <path d="M19 6l-1 14H6L5 6" />
-                                    <path d="M10 11v6M14 11v6" />
-                                  </svg>
-                                </button>
-                              </div>
-                            ))}
-                          </>
-                        );
-                      }
-                      const renderHit = (hit: SettingsSearchHit) => (
-                        <button
-                          key={hit.id}
-                          type="button"
-                          className="secondary settings-search-dd-item"
-                          role="option"
-                          onClick={() => {
-                            pushSearchHistory(hit.label);
-                            setSettingsSearchHistory(loadSearchHistory());
-                            setSettingsSearchOpen(false);
-                            setSettingsTopSearch('');
-                            setPendingAnchor(hit.id, hit.tab);
-                            navigate(`/settings?tab=${encodeURIComponent(hit.tab)}`);
-                            window.setTimeout(() => {
-                              try {
-                                window.dispatchEvent(
-                                  new CustomEvent('atlas-settings-go-anchor', {
-                                    detail: { id: hit.id, tab: hit.tab },
-                                  }),
-                                );
-                              } catch { /* */ }
-                            }, 100);
-                          }}
-                        >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                            <path d={SETTINGS_TAB_ICON[hit.tab] || SETTINGS_TAB_ICON.profile} />
-                          </svg>
-                          <span className="settings-search-dd-item-text">
-                            <span>{hit.label}</span>
-                            <span className="settings-search-dd-path">{SETTINGS_TAB_LABELS[hit.tab] || hit.tab}</span>
-                          </span>
-                        </button>
-                      );
-
-                      if (hits.length === 0 && suggestions.length === 0) {
-                        return (
-                          <div className="settings-search-dd-empty">
-                            <strong>Aucun élément trouvé</strong>
-                            <span className="muted">Essayez TVA, logo, présence… ou Atlas Agent.</span>
-                          </div>
-                        );
-                      }
-                      if (hits.length === 0 && suggestions.length > 0) {
-                        return (
-                          <>
-                            <div className="settings-search-dd-label">Vouliez-vous dire</div>
-                            {suggestions.map(renderHit)}
-                          </>
-                        );
-                      }
-                      return (
-                        <>
-                          {hits.map(renderHit)}
-                          {suggestions.length > 0 && (
-                            <>
-                              <div className="settings-search-dd-label">Vouliez-vous dire</div>
-                              {suggestions.map(renderHit)}
-                            </>
-                          )}
-                        </>
-                      );
-                      /* legacy map removed */
-                      })()}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-            <div className="settings-topbar-theme" role="group" aria-label="Thème">
-              <button type="button" data-theme-toggle className={themeMode === 'system' ? 'active' : undefined} title="Système" aria-label="Système" aria-pressed={themeMode === 'system'} onClick={() => setThemeMode('system')}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" aria-hidden><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-              </button>
-              <button type="button" data-theme-toggle className={themeMode === 'light' ? 'active' : undefined} title="Clair" aria-label="Clair" aria-pressed={themeMode === 'light'} onClick={() => setThemeMode('light')}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" aria-hidden><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
-              </button>
-              <button type="button" data-theme-toggle className={themeMode === 'dark' ? 'active' : undefined} title="Sombre" aria-label="Sombre" aria-pressed={themeMode === 'dark'} onClick={() => setThemeMode('dark')}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" aria-hidden><path d="M21 14.5A8.5 8.5 0 1 1 9.5 3 7 7 0 0 0 21 14.5z"/></svg>
-              </button>
-            </div>
-            <button
-              type="button"
-              className="settings-topbar-user-btn"
-              aria-haspopup="menu"
-              aria-expanded={focusUserMenuOpen}
-              onClick={() => setFocusUserMenuOpen((v) => !v)}
-            >
-              {hasAvatarUrl() ? (
-                <AvatarImage className="settings-topbar-avatar" fallback={<span className="settings-topbar-avatar ac-topbar-avatar--ini">{typeof getDisplayInitials === 'function' ? getDisplayInitials() : '?'}</span>} />
-              ) : (
-                <span className="settings-topbar-avatar settings-topbar-avatar--ini">{getDisplayInitials()}</span>
-              )}
-              <div className="settings-topbar-user-meta">
-                <strong>{getDisplayName() || getUsername()}</strong>
-                <span>{roleLabelFr(getRole())}</span>
-              </div>
-              {focusWhatsNewUnread ? <span className="whats-new-dot" aria-hidden /> : null}
-            </button>
-            {focusUserMenuOpen && (
-              <>
-                <button
-                  type="button"
-                  className="settings-topbar-menu-backdrop"
-                  aria-label="Fermer le menu"
-                  onClick={() => setFocusUserMenuOpen(false)}
-                  style={{ position: 'fixed', inset: 0, border: 0, background: 'transparent', zIndex: 70 }}
-                />
-                <div className="settings-topbar-menu" role="menu">
-                  {location.pathname !== '/settings' && !location.pathname.startsWith('/settings/') && (
-                    <button type="button" role="menuitem" className="secondary settings-topbar-menu-item" onClick={() => { setFocusUserMenuOpen(false); window.location.assign('/settings'); }}>
-                      <SettingsIcon size={16} aria-hidden="true" />
-                      Paramètres
-                    </button>
-                  )}
-                  {location.pathname !== '/about' && (
-                    <button type="button" role="menuitem" className="secondary settings-topbar-menu-item" onClick={() => { setFocusUserMenuOpen(false); window.location.assign('/about'); }}>
-                      <Info size={16} aria-hidden="true" />
-                      À propos
-                    </button>
-                  )}
-                  {listSavedAccounts()
-                    .filter((a) => a.username.toLowerCase() !== (typeof getUsername === 'function' ? getUsername() : '').toLowerCase())
-                    .map((a) => (
-                      <button
-                        key={a.username}
-                        type="button"
-                        role="menuitem"
-                        className="secondary settings-topbar-menu-item"
-                        title={`Passer au compte ${a.username}`}
-                        onClick={() => { setFocusUserMenuOpen(false); switchSavedAccount(a.username); }}
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" aria-hidden><path d="M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3" /></svg>
-                        <span className="account-menu-item-label">{a.display_name || a.username}</span>
-                      </button>
-                    ))}
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="secondary settings-topbar-menu-item"
-                    onClick={() => { setFocusUserMenuOpen(false); clearToken(); window.location.assign('/login'); }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" aria-hidden><path d="M12 5v14M5 12h14" /></svg>
-                    Ajouter un compte
-                  </button>
-                  {location.pathname !== '/whats-new' && (
-                    <button type="button" role="menuitem" className="secondary settings-topbar-menu-item settings-topbar-menu-item--novelties" onClick={() => { setFocusUserMenuOpen(false); window.location.assign('/whats-new'); }}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" aria-hidden><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-                      <span className="account-menu-item-label">Nouveautés</span>
-                      {focusWhatsNewUnread ? <span className="whats-new-badge" aria-label="Nouveautés non lues">1</span> : null}
-                    </button>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-        </header>
-      )}
-
-      {isFocusRoute ? (
-        <div className="atlas-focus-layout">
-          <FocusSidebar
-            mobileOpen={focusSidebarOpen}
-            onCloseMobile={() => setFocusSidebarOpen(false)}
-            authenticated
-          />
-          <main className="content content-settings-focus">
-            <ErrorBoundary label="desktop">
-              <Suspense fallback={<PageFallback />}>
-                <PageTransition>
-                {location.pathname === '/whats-new' ? (
-                  <WhatsNew />
-                ) : location.pathname === '/about' ? (
-                  <About />
-                ) : (
-                  <Settings />
-                )}
-                </PageTransition>
-              </Suspense>
-            </ErrorBoundary>
-          </main>
-        </div>
-      ) : (
       <main className="content">
         <ErrorBoundary label="desktop">
           <Suspense fallback={<PageFallback />}>
             <PageTransition>
+            {isFocusRoute ? (
+              <div className="atlas-focus-layout">
+                <FocusSidebar
+                  mobileOpen={focusSidebarOpen}
+                  onOpenMobile={() => setFocusSidebarOpen(true)}
+                  onCloseMobile={() => setFocusSidebarOpen(false)}
+                  authenticated
+                />
+                <div className="atlas-focus-main">
+                  {location.pathname === '/whats-new' ? (
+                    <WhatsNew />
+                  ) : location.pathname === '/about' ? (
+                    <About />
+                  ) : location.pathname === '/privacy' ? (
+                    <Privacy />
+                  ) : location.pathname === '/terms' ? (
+                    <Terms />
+                  ) : location.pathname === '/licenses' ? (
+                    <Licenses />
+                  ) : (
+                    <Settings />
+                  )}
+                </div>
+              </div>
+            ) : (
             <Routes>
               <Route path="/dashboard" element={<Dashboard />} />
               {/* v0.7.5 — parent "/dashboard/*" : le reste "/" EST le dashboard
@@ -1922,17 +1600,15 @@ function DesktopShell() {
               <Route path="/m-legacy" element={<Navigate to="/dashboard" replace />} />
               <Route path="*" element={<NotFoundRedirect />} />
             </Routes>
+            )}
             </PageTransition>
           </Suspense>
         </ErrorBoundary>
       </main>
-      )}
       <MobileBottomNav />
-      {!isFocusRoute && (
-        <Suspense fallback={null}>
-          <AtlasAgent />
-        </Suspense>
-      )}
+      <Suspense fallback={null}>
+        <AtlasAgent />
+      </Suspense>
       {!location.pathname.startsWith('/login') && (
         <Suspense fallback={null}><WhatsNewModal /></Suspense>
       )}
@@ -2078,14 +1754,18 @@ export default function App() {
             <Route path="/login/qr" element={<Suspense fallback={null}><LoginQr /></Suspense>} />
             <Route path="/verify" element={<Suspense fallback={null}><EmailVerify /></Suspense>} />
             <Route path="/welcome" element={<WelcomeGate />} />
-            <Route path="/privacy" element={<Privacy />} />
-            <Route path="/terms" element={<Terms />} />
-            <Route path="/licenses" element={<Licenses />} />
+            <Route element={<PublicLegalOutlet />}>
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/terms" element={<Terms />} />
+              <Route path="/licenses" element={<Licenses />} />
+            </Route>
             <Route path="/403" element={<div className="access-page-standalone"><AccessPage kind="forbidden" /></div>} />
             <Route path="/error/:code" element={<div className="access-page-standalone"><HttpErrorPage /></div>} />
             <Route path="/404" element={<div className="access-page-standalone"><AccessPage kind="not-found" /></div>} />
             <Route path="/whats-new" element={<WhatsNewRoute />} />
             <Route path="/about" element={<AboutRoute />} />
+            <Route path="/support" element={<SupportRoute />} />
+            <Route path="/supprot" element={<SupportRoute />} />
             <Route path="/android" element={<DownloadRoute />} />
             {/* v0.7.7 — l'ancienne page /download déménage sur /android */}
             <Route path="/download" element={<Navigate to="/android" replace />} />

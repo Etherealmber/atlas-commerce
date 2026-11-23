@@ -181,7 +181,7 @@ export function RunActionButton({
               : status === 'idle'
                 ? 'none'
                 : '2px solid transparent',
-          background: status === 'idle' ? 'transparent' : status === 'done' ? '#eef2ff' : 'transparent',
+          background: status === 'idle' ? 'transparent' : status === 'done' ? '#f1f5f9' : 'transparent',
         }}
       >
         <AnimatePresence mode="popLayout" initial={false}>

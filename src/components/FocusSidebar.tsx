@@ -1,7 +1,6 @@
 import { useEffect, useState, type ComponentType } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft,
   Bot,
   Boxes,
   Bug,
@@ -16,8 +15,10 @@ import {
   Github,
   Info,
   Layers,
+  LifeBuoy,
   Link2,
   ListFilter,
+  Menu,
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
@@ -66,6 +67,7 @@ type FocusGroup = {
 
 type FocusSidebarProps = {
   mobileOpen?: boolean;
+  onOpenMobile?: () => void;
   onCloseMobile?: () => void;
   /** True when user is inside authenticated DesktopShell */
   authenticated?: boolean;
@@ -82,6 +84,7 @@ function scrollToAnchor(id: string) {
 
 export default function FocusSidebar({
   mobileOpen = false,
+  onOpenMobile,
   onCloseMobile,
   authenticated,
 }: FocusSidebarProps) {
@@ -127,10 +130,46 @@ export default function FocusSidebar({
   const isSettings = location.pathname === '/settings' || location.pathname.startsWith('/settings/');
   const isWhatsNew = location.pathname === '/whats-new';
   const isAbout = location.pathname === '/about';
+  const isPrivacy = location.pathname === '/privacy';
+  const isTerms = location.pathname === '/terms';
+  const isLicenses = location.pathname === '/licenses';
+  const isLegal = isPrivacy || isTerms || isLicenses;
 
   const searchParams = new URLSearchParams(location.search);
-  const settingsTab = searchParams.get('tab') || 'profile';
+  const urlSettingsTab = searchParams.get('tab') || 'profile';
+  const [pendingSettingsTab, setPendingSettingsTab] = useState<string | null>(null);
+  const settingsTab = pendingSettingsTab ?? urlSettingsTab;
   const wnFilter = searchParams.get('f') || 'all';
+
+  const [activeAboutSection, setActiveAboutSection] = useState<string>('overview');
+
+  useEffect(() => {
+    setPendingSettingsTab(null);
+  }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    if (!isAbout || typeof window === 'undefined') return;
+    const ids: Array<{ key: string; elId: string }> = [
+      { key: 'overview', elId: 'about-overview' },
+      ...(loggedIn ? [{ key: 'signaler', elId: 'signaler' }] : []),
+      { key: 'features', elId: 'about-features' },
+      { key: 'creator', elId: 'about-creator' },
+      { key: 'projects', elId: 'about-projects' },
+    ];
+    const onScroll = () => {
+      let current = 'overview';
+      for (const item of ids) {
+        const el = document.getElementById(item.elId);
+        if (!el) continue;
+        const rect = el.getBoundingClientRect();
+        if (rect.top <= 180) current = item.key;
+      }
+      setActiveAboutSection((prev) => (prev === current ? prev : current));
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [isAbout, loggedIn]);
 
   const canCompany = typeof canAccessCompanySettings === 'function' ? canAccessCompanySettings() : false;
   const canAdmin = typeof canAccessAdminSettings === 'function' ? canAccessAdminSettings() : false;
@@ -144,6 +183,11 @@ export default function FocusSidebar({
     navigate(to);
   };
 
+  const goSettingsTab = (tab: string) => {
+    setPendingSettingsTab(tab);
+    go(`/settings?tab=${tab}`);
+  };
+
   let sidebarTitle = 'Navigation';
   let groups: FocusGroup[] = [];
 
@@ -155,7 +199,7 @@ export default function FocusSidebar({
         label: 'Mon profil',
         icon: User,
         active: settingsTab === 'profile',
-        onClick: () => go('/settings?tab=profile'),
+        onClick: () => goSettingsTab('profile'),
       },
     ];
     if (canCompany) {
@@ -165,14 +209,14 @@ export default function FocusSidebar({
           label: 'Société',
           icon: Building2,
           active: settingsTab === 'company',
-          onClick: () => go('/settings?tab=company'),
+          onClick: () => goSettingsTab('company'),
         },
         {
           id: 'attendance',
           label: 'Présence',
           icon: Clock,
           active: settingsTab === 'attendance',
-          onClick: () => go('/settings?tab=attendance'),
+          onClick: () => goSettingsTab('attendance'),
         },
       );
     }
@@ -184,35 +228,35 @@ export default function FocusSidebar({
             label: 'Facturation',
             icon: Receipt,
             active: settingsTab === 'invoicing',
-            onClick: () => go('/settings?tab=invoicing'),
+            onClick: () => goSettingsTab('invoicing'),
           },
           {
             id: 'legal',
             label: 'Légal & TVA',
             icon: Scale,
             active: settingsTab === 'legal',
-            onClick: () => go('/settings?tab=legal'),
+            onClick: () => goSettingsTab('legal'),
           },
           {
             id: 'documents',
             label: 'Documents PDF',
             icon: FileText,
             active: settingsTab === 'documents',
-            onClick: () => go('/settings?tab=documents'),
+            onClick: () => goSettingsTab('documents'),
           },
           {
             id: 'warehouse',
             label: 'Entrepôts',
             icon: Warehouse,
             active: settingsTab === 'warehouse',
-            onClick: () => go('/settings?tab=warehouse'),
+            onClick: () => goSettingsTab('warehouse'),
           },
           {
             id: 'categories',
             label: 'Catégories',
             icon: Tag,
             active: settingsTab === 'categories',
-            onClick: () => go('/settings?tab=categories'),
+            onClick: () => goSettingsTab('categories'),
           },
         ]
       : [];
@@ -225,7 +269,7 @@ export default function FocusSidebar({
         active: settingsTab === 'agent',
         badge: 'IA',
         badgeTone: 'accent',
-        onClick: () => go('/settings?tab=agent'),
+        onClick: () => goSettingsTab('agent'),
       },
     ];
     if (canAdmin) {
@@ -235,28 +279,28 @@ export default function FocusSidebar({
           label: 'API & Clés',
           icon: Link2,
           active: settingsTab === 'integrations',
-          onClick: () => go('/settings?tab=integrations'),
+          onClick: () => goSettingsTab('integrations'),
         },
         {
           id: 'app',
           label: 'Mise à jour app',
           icon: Smartphone,
           active: settingsTab === 'app',
-          onClick: () => go('/settings?tab=app'),
+          onClick: () => goSettingsTab('app'),
         },
         {
           id: 'admin',
           label: 'Administration',
           icon: SettingsIcon,
           active: settingsTab === 'admin',
-          onClick: () => go('/settings?tab=admin'),
+          onClick: () => goSettingsTab('admin'),
         },
         {
           id: 'audit',
           label: 'Journal d’audit',
           icon: ShieldCheck,
           active: settingsTab === 'audit',
-          onClick: () => go('/settings?tab=audit'),
+          onClick: () => goSettingsTab('audit'),
         },
       );
     }
@@ -334,8 +378,9 @@ export default function FocusSidebar({
         id: 'overview',
         label: 'Présentation',
         icon: Layers,
-        active: true,
+        active: activeAboutSection === 'overview',
         onClick: () => {
+          setActiveAboutSection('overview');
           onCloseMobile?.();
           scrollToAnchor('about-overview');
         },
@@ -346,7 +391,9 @@ export default function FocusSidebar({
         id: 'signaler',
         label: 'Signaler un bug',
         icon: Bug,
+        active: activeAboutSection === 'signaler',
         onClick: () => {
+          setActiveAboutSection('signaler');
           onCloseMobile?.();
           scrollToAnchor('signaler');
         },
@@ -357,7 +404,9 @@ export default function FocusSidebar({
         id: 'features',
         label: 'Fonctionnalités',
         icon: Boxes,
+        active: activeAboutSection === 'features',
         onClick: () => {
+          setActiveAboutSection('features');
           onCloseMobile?.();
           scrollToAnchor('about-features');
         },
@@ -366,7 +415,9 @@ export default function FocusSidebar({
         id: 'creator',
         label: 'Créateur & Équipe',
         icon: Users,
+        active: activeAboutSection === 'creator',
         onClick: () => {
+          setActiveAboutSection('creator');
           onCloseMobile?.();
           scrollToAnchor('about-creator');
         },
@@ -375,7 +426,9 @@ export default function FocusSidebar({
         id: 'projects',
         label: 'Dépôts & Projets',
         icon: Github,
+        active: activeAboutSection === 'projects',
         onClick: () => {
+          setActiveAboutSection('projects');
           onCloseMobile?.();
           scrollToAnchor('about-projects');
         },
@@ -394,6 +447,12 @@ export default function FocusSidebar({
         label: 'Conditions',
         icon: FileCheck2,
         onClick: () => go('/terms'),
+      },
+      {
+        id: 'licenses',
+        label: 'Licences',
+        icon: Scale,
+        onClick: () => go('/licenses'),
       },
       {
         id: 'cookies',
@@ -422,6 +481,58 @@ export default function FocusSidebar({
       { id: 'about-sections', title: 'Sur cette page', items: sectionItems },
       { id: 'about-legal', title: 'Légal & Confidentialité', items: legalItems },
     ];
+  } else if (isLegal) {
+    sidebarTitle = isPrivacy ? 'Confidentialité' : isTerms ? 'Conditions' : 'Licences';
+    const legalPages: FocusItem[] = [
+      {
+        id: 'privacy',
+        label: 'Confidentialité',
+        icon: Shield,
+        active: isPrivacy,
+        onClick: () => go('/privacy'),
+      },
+      {
+        id: 'terms',
+        label: 'Conditions',
+        icon: FileCheck2,
+        active: isTerms,
+        onClick: () => go('/terms'),
+      },
+      {
+        id: 'licenses',
+        label: 'Licences',
+        icon: Scale,
+        active: isLicenses,
+        onClick: () => go('/licenses'),
+      },
+    ];
+    const prefItems: FocusItem[] = [
+      {
+        id: 'cookies',
+        label: 'Gérer les cookies',
+        icon: Cookie,
+        onClick: () => {
+          onCloseMobile?.();
+          openConsentSettings();
+        },
+      },
+    ];
+    if (loggedIn) {
+      prefItems.push({
+        id: 'welcome',
+        label: 'Guide d’accueil',
+        icon: Compass,
+        onClick: () => {
+          onCloseMobile?.();
+          resetWelcome();
+          window.location.assign('/welcome');
+        },
+      });
+    }
+    groups = [
+      { id: 'legal-docs', title: 'Documents légaux', items: legalPages },
+      { id: 'legal-prefs', title: 'Préférences', items: prefItems },
+    ];
   }
 
   const footerItems: FocusItem[] = [];
@@ -444,6 +555,12 @@ export default function FocusSidebar({
       onClick: () => go('/about', { hard: !loggedIn }),
     });
   }
+  footerItems.push({
+    id: 'go-support',
+    label: 'Support',
+    icon: LifeBuoy,
+    onClick: () => go('/support'),
+  });
   if (loggedIn && !isSettings) {
     footerItems.push({
       id: 'go-settings',
@@ -452,17 +569,21 @@ export default function FocusSidebar({
       onClick: () => go('/settings'),
     });
   }
-  if (loggedIn) {
-    footerItems.push({
-      id: 'go-dashboard',
-      label: 'Tableau de bord',
-      icon: ArrowLeft,
-      onClick: () => go('/dashboard'),
-    });
-  }
 
   return (
     <>
+      {onOpenMobile && (
+        <div className="atlas-focus-mobile-bar">
+          <button
+            type="button"
+            className="atlas-focus-mobile-trigger secondary"
+            onClick={onOpenMobile}
+          >
+            <Menu size={16} strokeWidth={2} aria-hidden />
+            <span>Menu · {sidebarTitle}</span>
+          </button>
+        </div>
+      )}
       {mobileOpen && (
         <button
           type="button"

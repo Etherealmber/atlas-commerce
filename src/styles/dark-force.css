@@ -2954,7 +2954,7 @@ html body .dash-range-select {
 }
 html body .dash-range-select:hover { border-color: #a1a1aa; }
 html body .dash-range-select:focus-visible {
-  outline: 2px solid var(--focus, #6366f1);
+  outline: 2px solid var(--focus, #0f172a);
   outline-offset: 2px;
 }
 html[data-theme="dark"] body .dash-range-select {
@@ -6113,33 +6113,33 @@ html[data-theme="dark"] #root .content button.ac-fluid-tab.active,
 html[data-theme="dark"] #root .content button.ac-fluid-tab.active:hover,
 html[data-theme="dark"] #root .content .bank-tabs button.active,
 html[data-theme="dark"] #root .content .bank-tabs button.active:hover {
-  background: #4f46e5 !important;
-  background-color: #4f46e5 !important;
-  border-color: #6366f1 !important;
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
-  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.38) !important;
+  background: #f4f4f5 !important;
+  background-color: #f4f4f5 !important;
+  border-color: #f4f4f5 !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35) !important;
 }
 html[data-theme="dark"] #root .content button.ac-seg-btn.active svg,
 html[data-theme="dark"] #root .content button.ac-seg-btn[aria-pressed="true"] svg {
-  color: #ffffff !important;
+  color: #0f172a !important;
 }
 
-/* Floating Focus Sidebar in Dark Mode — authoritative specificity */
+/* Floating Focus Sidebar in Dark Mode — authoritative specificity (monochrome, no purple) */
 html[data-theme="dark"] #root aside.atlas-focus-sidebar {
-  background: #0d0e13 !important;
+  background: #13151d !important;
   border-color: rgba(255, 255, 255, 0.085) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 20px 50px rgba(0, 0, 0, 0.62) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 18px 44px rgba(0, 0, 0, 0.52) !important;
 }
 html[data-theme="dark"] #root aside.atlas-focus-sidebar button.atlas-focus-collapse-btn {
-  background: #171923 !important;
+  background: #1b1e28 !important;
   border-color: rgba(255, 255, 255, 0.1) !important;
   color: #d4d4d8 !important;
   -webkit-text-fill-color: #d4d4d8 !important;
 }
 html[data-theme="dark"] #root aside.atlas-focus-sidebar button.atlas-focus-collapse-btn:hover {
-  background: #232736 !important;
-  border-color: rgba(99, 102, 241, 0.45) !important;
+  background: #272b38 !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
 }
@@ -6154,20 +6154,20 @@ html[data-theme="dark"] #root aside.atlas-focus-sidebar button.atlas-focus-nav-i
 }
 html[data-theme="dark"] #root aside.atlas-focus-sidebar button.atlas-focus-nav-item:hover,
 html[data-theme="dark"] #root aside.atlas-focus-sidebar button.atlas-focus-nav-item:focus {
-  background: #191c26 !important;
-  background-color: #191c26 !important;
+  background: #1c1f29 !important;
+  background-color: #1c1f29 !important;
   color: #f4f4f6 !important;
   -webkit-text-fill-color: #f4f4f6 !important;
 }
 html[data-theme="dark"] #root aside.atlas-focus-sidebar button.atlas-focus-nav-item.is-active,
 html[data-theme="dark"] #root aside.atlas-focus-sidebar button.atlas-focus-nav-item.is-active:hover,
 html[data-theme="dark"] #root aside.atlas-focus-sidebar button.atlas-focus-nav-item.is-active:focus {
-  background: #4f46e5 !important;
-  background-color: #4f46e5 !important;
-  border-color: #6366f1 !important;
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
-  box-shadow: 0 8px 24px rgba(79, 70, 229, 0.42) !important;
+  background: #f4f4f5 !important;
+  background-color: #f4f4f5 !important;
+  border-color: #f4f4f5 !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35) !important;
 }
 
 /* About tech chips in Dark Mode */

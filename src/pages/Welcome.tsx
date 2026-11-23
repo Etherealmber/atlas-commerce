@@ -303,7 +303,7 @@ function ComparePaperVsAtlas() {
           <circle cx="88" cy="78" r="6" fill="#3a2a1a" opacity="0.15" className="welcome-ink-blot" />
           <rect x="128" y="40" width="56" height="72" rx="6" fill="#2a2a2a" stroke="#111" />
           <rect x="134" y="48" width="44" height="16" rx="2" fill="#1a1d26" />
-          <text x="156" y="60" textAnchor="middle" fill="#a5b4fc" fontSize="9" fontFamily="monospace" className="welcome-calc-err">
+          <text x="156" y="60" textAnchor="middle" fill="#e2e8f0" fontSize="9" fontFamily="monospace" className="welcome-calc-err">
             Err
           </text>
           {[0, 1, 2].map((r) =>
@@ -323,11 +323,11 @@ function ComparePaperVsAtlas() {
           <defs>
             <linearGradient id="laser" x1="0" y1="0" x2="1" y2="0">
               <stop offset="0%" stopColor="#71717a" stopOpacity="0" />
-              <stop offset="50%" stopColor="#a5b4fc" stopOpacity="1" />
+              <stop offset="50%" stopColor="#e2e8f0" stopOpacity="1" />
               <stop offset="100%" stopColor="#71717a" stopOpacity="0" />
             </linearGradient>
           </defs>
-          <rect x="24" y="48" width="70" height="44" rx="6" fill="#12141a" stroke="#4f46e5" />
+          <rect x="24" y="48" width="70" height="44" rx="6" fill="#12141a" stroke="#64748b" />
           <rect x="32" y="56" width="54" height="8" rx="2" fill="#0b0e14" />
           {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
             <rect key={i} x={34 + i * 5.5} y="68" width={i % 3 === 0 ? 2.5 : 1.5} height="16" fill="#e8f5f0" opacity="0.85" />
@@ -340,10 +340,10 @@ function ComparePaperVsAtlas() {
           <text x="152" y="46" textAnchor="middle" fill="#71717a" fontSize="8" fontWeight="600">
             Ledger
           </text>
-          <rect x="128" y="54" width="48" height="5" rx="2" fill="#4f46e5" className="welcome-ledger-bar" />
+          <rect x="128" y="54" width="48" height="5" rx="2" fill="#64748b" className="welcome-ledger-bar" />
           <rect x="128" y="64" width="36" height="4" rx="2" fill="#1a1d26" />
           <rect x="128" y="74" width="42" height="4" rx="2" fill="#1a1d26" />
-          <text x="152" y="98" textAnchor="middle" fill="#a5b4fc" fontSize="11" fontFamily="monospace" className="welcome-ledger-sum">
+          <text x="152" y="98" textAnchor="middle" fill="#e2e8f0" fontSize="11" fontFamily="monospace" className="welcome-ledger-sum">
             1 240 DH
           </text>
         </svg>
@@ -391,9 +391,9 @@ function CompareErpVsAtlas() {
         <span className="welcome-compare-badge good">Tableau de bord Atlas</span>
         <svg viewBox="0 0 200 140" className="welcome-scene-svg" aria-hidden>
           <rect x="12" y="12" width="176" height="116" rx="10" fill="#0b0e14" />
-          <rect x="22" y="22" width="48" height="18" rx="9" fill="#12141a" stroke="#4f46e5" className="welcome-pill" />
-          <rect x="76" y="22" width="48" height="18" rx="9" fill="#12141a" stroke="#4f46e5" className="welcome-pill" style={{ animationDelay: '0.15s' }} />
-          <rect x="130" y="22" width="48" height="18" rx="9" fill="#12141a" stroke="#4f46e5" className="welcome-pill" style={{ animationDelay: '0.3s' }} />
+          <rect x="22" y="22" width="48" height="18" rx="9" fill="#12141a" stroke="#64748b" className="welcome-pill" />
+          <rect x="76" y="22" width="48" height="18" rx="9" fill="#12141a" stroke="#64748b" className="welcome-pill" style={{ animationDelay: '0.15s' }} />
+          <rect x="130" y="22" width="48" height="18" rx="9" fill="#12141a" stroke="#64748b" className="welcome-pill" style={{ animationDelay: '0.3s' }} />
           <path
             d="M28 100 C48 90, 58 70, 78 75 S108 110, 128 85 S158 60, 178 55"
             fill="none"
@@ -402,9 +402,9 @@ function CompareErpVsAtlas() {
             strokeLinecap="round"
             className="welcome-chart-path"
           />
-          <circle cx="178" cy="55" r="3.5" fill="#a5b4fc" className="welcome-chart-dot" />
+          <circle cx="178" cy="55" r="3.5" fill="#e2e8f0" className="welcome-chart-dot" />
           <rect x="22" y="112" width="70" height="6" rx="2" fill="#1a1d26" className="welcome-feed" />
-          <rect x="98" y="112" width="50" height="6" rx="2" fill="#4f46e5" className="welcome-feed" style={{ animationDelay: '0.2s' }} />
+          <rect x="98" y="112" width="50" height="6" rx="2" fill="#64748b" className="welcome-feed" style={{ animationDelay: '0.2s' }} />
         </svg>
         <p className="welcome-compare-caption">Vue claire, flux en direct, zéro friction.</p>
       </div>
@@ -419,7 +419,7 @@ function MasteryTips() {
       body: 'PC : scan USB. Mobile : caméra ou photo de secours si le cadre rate le code.',
       svg: (
         <svg viewBox="0 0 64 40" className="welcome-tip-svg" aria-hidden>
-          <rect x="4" y="8" width="28" height="24" rx="3" fill="#12141a" stroke="#4f46e5" />
+          <rect x="4" y="8" width="28" height="24" rx="3" fill="#12141a" stroke="#64748b" />
           {[0, 1, 2, 3, 4].map((i) => (
             <rect key={i} x={8 + i * 4.5} y="14" width={i % 2 ? 2 : 1.2} height="12" fill="#e8f5f0" />
           ))}
@@ -433,7 +433,7 @@ function MasteryTips() {
       body: "Scan impossible ? Image de l'étiquette ou saisie manuelle — le PC reçoit quand même la proposition.",
       svg: (
         <svg viewBox="0 0 64 40" className="welcome-tip-svg" aria-hidden>
-          <rect x="10" y="6" width="32" height="28" rx="3" fill="#12141a" stroke="#4f46e5" />
+          <rect x="10" y="6" width="32" height="28" rx="3" fill="#12141a" stroke="#64748b" />
           <path d="M18 26 L24 20 L30 24 L36 16" fill="none" stroke="#71717a" strokeWidth="1.5" className="welcome-path-draw" />
           <circle cx="48" cy="28" r="8" fill="#0a0a0a" opacity="0.9" />
           <path d="M45 28 L47.5 30.5 L52 25" fill="none" stroke="#e8f5f0" strokeWidth="1.6" strokeLinecap="round" />
@@ -445,13 +445,13 @@ function MasteryTips() {
       body: "Le téléphone propose ; le bureau valide. L'historique produit montre avant / après en direct.",
       svg: (
         <svg viewBox="0 0 64 40" className="welcome-tip-svg" aria-hidden>
-          <rect x="6" y="8" width="24" height="24" rx="4" fill="#0b0e14" stroke="#4f46e5" />
+          <rect x="6" y="8" width="24" height="24" rx="4" fill="#0b0e14" stroke="#64748b" />
           <text x="18" y="24" textAnchor="middle" fill="#94a3b8" fontSize="8">
             12
           </text>
           <path d="M34 20 H42" stroke="#71717a" strokeWidth="1.5" className="welcome-sync-arrow" />
           <rect x="44" y="8" width="14" height="24" rx="3" fill="#12141a" stroke="#71717a" />
-          <text x="51" y="24" textAnchor="middle" fill="#a5b4fc" fontSize="8" className="welcome-stock-live">
+          <text x="51" y="24" textAnchor="middle" fill="#e2e8f0" fontSize="8" className="welcome-stock-live">
             15
           </text>
         </svg>

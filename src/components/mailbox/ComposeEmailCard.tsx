@@ -102,8 +102,8 @@ export const ComposeEmailCard: FC<ComposeEmailCardProps> = ({
         .ac-compose-card--v121 input:focus,
         .ac-compose-card--v121 textarea:focus {
           outline: none;
-          border-color: #c4b5fd !important;
-          box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
+          border-color: #64748b !important;
+          box-shadow: 0 0 0 3px rgba(100, 116, 139, 0.16);
         }
       `}</style>
       {/* Header */}

@@ -360,6 +360,7 @@ export default function Home() {
         <div className="dl-foot-links">
           <a href="/whats-new">Nouveautés</a>
           <a href="/about">À propos</a>
+          <a href="/support">Support</a>
           <a href="/android">Android</a>
           <a href="/desktop">Bureau</a>
           <a href="https://github.com/Etherealmber/atlas-commerce" target="_blank" rel="noreferrer noopener">GitHub</a>

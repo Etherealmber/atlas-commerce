@@ -806,31 +806,55 @@ if (loading) return (
   };
 
   return (
-    <div className="atlas-page atlas-settings">
-      <section className="ac-settings-hero" aria-label="En-tête de section">
-        <div className="ac-settings-hero-main">
-          <div className="ac-settings-hero-ico" aria-hidden="true">
-            <SettingsIcon size={20} strokeWidth={2} />
-          </div>
-          <div>
-            <h1>{TAB_TITLES[activeTab] || 'Paramètres'}</h1>
-            <p className="settings-tab-blurb">
-              {TAB_BLURBS[activeTab] || 'Configurez cette section selon les besoins de votre activité.'}
-            </p>
-          </div>
+    <div className="atlas-page ac-dash ac-settings-bento">
+      <header className="ac-dash-hero" aria-label="En-tête de section">
+        <div className="ac-dash-hero-text">
+          <p className="ac-dash-eyebrow">
+            <SettingsIcon size={13} strokeWidth={2.2} aria-hidden="true" />
+            <span>Paramètres · {TAB_TITLES[activeTab] || 'Configuration'}</span>
+          </p>
+          <h1>{TAB_TITLES[activeTab] || 'Paramètres'}</h1>
+          <p className="ac-dash-lead">
+            {TAB_BLURBS[activeTab] || 'Configurez cette section selon les besoins de votre activité.'}
+          </p>
         </div>
-        <div className="ac-settings-hero-meta">
+        <div className="ac-dash-hero-side">
           {Object.values(fieldErrors).filter(Boolean)[0] ? (
             <span className="save-error-inline">{Object.values(fieldErrors).filter(Boolean)[0]}</span>
           ) : null}
           {canSaveSection ? (
-            <span className={`ac-settings-status-pill${settingsDirty ? ' is-dirty' : ''}`}>
+            <span className={`ac-status-pill${settingsDirty ? ' is-dirty' : ''}`}>
               {saving ? 'Enregistrement…' : settingsDirty ? 'Modifications non enregistrées' : 'Synchronisé'}
             </span>
           ) : (
-            <span className="ac-settings-status-pill">v{APP_VERSION}</span>
+            <span className="ac-status-pill">v{APP_VERSION}</span>
           )}
         </div>
+      </header>
+
+      <section className="ac-metric-grid" aria-label="État de la configuration">
+        <article className="ac-metric">
+          <span className="ac-metric-label">Section active</span>
+          <strong className="ac-metric-val">{TAB_TITLES[activeTab] || 'Profil'}</strong>
+          <span className="ac-metric-meta">{Object.keys(TAB_TITLES).length} espaces disponibles</span>
+        </article>
+        <article className="ac-metric">
+          <span className="ac-metric-label">Compte actif</span>
+          <strong className="ac-metric-val">{profileForm.display_name || profileData.fullName || 'Utilisateur'}</strong>
+          <span className="ac-metric-meta">{profileForm.role || 'Compte'}</span>
+        </article>
+        <article className="ac-metric">
+          <span className="ac-metric-label">Société</span>
+          <strong className="ac-metric-val">{settings?.company_name || 'Atlas Commerce'}</strong>
+          <span className="ac-metric-meta">{settings?.currency || 'MAD'} · TVA {settings?.tax_rate ?? 20}%</span>
+        </article>
+        <article className="ac-metric">
+          <span className="ac-metric-label">Synchronisation</span>
+          <strong className="ac-metric-val">
+            {saving ? 'En cours…' : settingsDirty ? 'À enregistrer' : 'À jour'}
+          </strong>
+          <span className="ac-metric-meta">Version {APP_VERSION}</span>
+        </article>
       </section>
 
       {/* Errors: one place only — success uses SaveFeedback; field/section errors below */}
@@ -839,7 +863,7 @@ if (loading) return (
       ) : null}
 
       <div className="settings-shell settings-shell--focus atlas-crm settings-page">
-        <div className="settings-main settings-main--wide">
+        <div className="settings-main settings-main--wide ac-bento-stack">
         {activeTab === 'profile' && isFeatureEnabled('editProfileModal') && (
         <>
         <div className="ac-settings-profile-bar">

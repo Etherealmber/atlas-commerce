@@ -1,5 +1,6 @@
 /**
- * About — product identity + owner GitHub showcase + contributors + legal links.
+ * About — Dashboard Bento redesign: product identity, metrics, support/infra,
+ * bug reporting, capabilities, creator & GitHub showcase, contributors.
  */
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -10,6 +11,7 @@ import {
   Bug,
   Building2,
   Cloud,
+  ExternalLink,
   FileText,
   Github,
   Heart,
@@ -191,19 +193,21 @@ function ReportProblemForm() {
 
   if (!canReport) return null;
   return (
-    <section className="card about-section ac-about-card" id="signaler">
-      <div className="ac-about-card-head">
-        <span className="ac-about-card-ico" aria-hidden="true">
-          <Bug size={18} strokeWidth={2} />
+    <section className="ac-panel ac-about-panel" id="signaler">
+      <div className="ac-panel-head">
+        <div>
+          <h2>Signaler un problème</h2>
+          <span className="ac-panel-sub">
+            Bug, idée ou question envoyé directement dans les issues GitHub du projet (sans compte requis).
+          </span>
+        </div>
+        <span className="ac-status-pill">
+          <Bug size={13} strokeWidth={2} aria-hidden="true" />
+          Feedback direct
         </span>
-        <h2>Signaler un problème</h2>
       </div>
-      <p className="about-muted" style={{ marginTop: 0 }}>
-        Bug, idée ou question : votre message est envoyé directement dans les <strong>issues GitHub</strong> du
-        projet Atlas Commerce (sans compte GitHub nécessaire). Les plantages sont signalés automatiquement sans
-        données personnelles ni mots de passe.
-      </p>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+
+      <div className="ac-about-kind-pills">
         {[
           ['bug', 'Bug'],
           ['feedback', 'Idée / amélioration'],
@@ -212,42 +216,37 @@ function ReportProblemForm() {
           <button
             key={v}
             type="button"
-            className={kind === v ? 'primary' : 'secondary'}
-            style={{ borderRadius: 999, padding: '6px 14px', fontSize: 13 }}
+            className={`ac-seg-btn${kind === v ? ' active' : ''}`}
+            aria-pressed={kind === v}
             onClick={() => setKind(v)}
           >
             {label}
           </button>
         ))}
       </div>
-      <textarea
-        value={message}
-        onChange={(e) => setMessage(e.target.value)}
-        placeholder="Décrivez le problème : ce que vous faisiez, ce qui s’est passé, ce que vous attendiez…"
-        maxLength={2000}
-        rows={4}
-        style={{ width: '100%', borderRadius: 12, padding: 12, fontSize: 14, resize: 'vertical' }}
-      />
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginTop: 10 }}>
-        <input
-          value={contact}
-          onChange={(e) => setContact(e.target.value)}
-          placeholder="Contact (facultatif — email ou téléphone)"
-          maxLength={120}
-          style={{ flex: '1 1 220px', borderRadius: 12, padding: '10px 12px', fontSize: 13 }}
+
+      <div className="ac-bento-stack">
+        <textarea
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="Décrivez le problème : ce que vous faisiez, ce qui s’est passé, ce que vous attendiez…"
+          maxLength={2000}
+          rows={4}
         />
-        <button
-          type="button"
-          className="primary"
-          disabled={busy}
-          onClick={submit}
-          style={{ borderRadius: 12, minHeight: 44, padding: '0 20px' }}
-        >
-          {busy ? 'Envoi…' : 'Envoyer le signalement'}
-        </button>
+        <div className="ac-about-report-row">
+          <input
+            value={contact}
+            onChange={(e) => setContact(e.target.value)}
+            placeholder="Contact (facultatif — email ou téléphone)"
+            maxLength={120}
+          />
+          <button type="button" className="primary" disabled={busy} onClick={submit}>
+            {busy ? 'Envoi…' : 'Envoyer le signalement'}
+          </button>
+        </div>
+        {err && <p className="ac-about-msg ac-about-msg--err">{err}</p>}
+        {done && <p className="ac-about-msg ac-about-msg--ok">{done}</p>}
       </div>
-      {err && <p style={{ color: '#ef4444', fontSize: 13, marginTop: 10 }}>{err}</p>}
-      {done && <p style={{ color: '#22c55e', fontSize: 13, marginTop: 10 }}>{done}</p>}
     </section>
   );
 }
@@ -341,90 +340,140 @@ export default function About() {
   const byName = Object.fromEntries(repos.map((r) => [r.name, r]));
 
   return (
-    <div className="atlas-page about-page ac-about-bento atlas-crm">
-      <header className="ac-about-hero-card" id="about-overview">
-        <div className="ac-about-hero-top">
-          <div>
-            <span className="ac-about-eyebrow">
-              <Sparkles size={13} strokeWidth={2.2} aria-hidden="true" />
-              Produit
-            </span>
-            <h1 className="about-title">{APP_NAME}</h1>
-            <p className="ac-about-tagline">{APP_TAGLINE}</p>
+    <div className="atlas-page ac-dash ac-about-bento">
+      {/* Bento Hero — matches Dashboard ac-dash-hero */}
+      <header className="ac-dash-hero" id="about-overview">
+        <div className="ac-dash-hero-text">
+          <p className="ac-dash-eyebrow">
+            <Sparkles size={13} strokeWidth={2.2} aria-hidden="true" />
+            <span>À propos · v{APP_VERSION}</span>
+          </p>
+          <h1>{APP_NAME}</h1>
+          <p className="ac-dash-lead">
+            {APP_TAGLINE}. {APP_DESCRIPTION || 'Logiciel interne de stock, caisse et facturation pour commerces au Maroc.'}
+          </p>
+          <div className="ac-about-chips" aria-label="Technologies">
+            {['Cloudflare Workers', 'D1 SQLite', 'R2 Storage', 'Durable Objects', 'WebAuthn'].map((tech) => (
+              <span key={tech} className="about-trust-chip">
+                {tech}
+              </span>
+            ))}
           </div>
-          <span className="ac-about-version-pill">v{APP_VERSION}</span>
         </div>
-
-        <p className="ac-about-mission">
-          Conçu pour les commerces et grossistes au Maroc — gérer stock, caisse et facturation
-          sans dépendre d’un abonnement SaaS opaque.{' '}
-          {APP_DESCRIPTION || 'Logiciel interne de stock, caisse et facturation pour commerces au Maroc.'}
-        </p>
-
-        <div className="ac-about-chips" aria-label="Technologies">
-          {['Cloudflare Workers', 'D1 SQLite', 'R2 Storage', 'Durable Objects', 'WebAuthn'].map((tech) => (
-            <span key={tech} className="about-trust-chip">
-              {tech}
-            </span>
-          ))}
-        </div>
-
-        <div className="ac-about-bento-pair">
-          <div className="ac-about-subcard">
-            <div className="ac-about-subcard-head">
-              <LifeBuoy size={17} strokeWidth={2} aria-hidden="true" />
-              <span>Support</span>
-            </div>
-            <p className="about-muted" style={{ marginTop: 0, fontSize: 13.5 }}>
-              Accès, configuration ou question produit — on répond côté métier, pas en jargon technique.
-            </p>
-            <ul className="about-stack-list">
-              <li>
-                <a href="https://support.afmarbre.com" target="_blank" rel="noreferrer">
-                  Portail support
-                </a>
-              </li>
-              <li>
-                <a href="https://wa.me/212600000000" target="_blank" rel="noreferrer">
-                  WhatsApp (à configurer)
-                </a>
-              </li>
-              <li>
-                <a href="mailto:support@afmarbre.com">support@afmarbre.com</a>
-              </li>
-            </ul>
-          </div>
-
-          <div className="ac-about-subcard">
-            <div className="ac-about-subcard-head">
-              <Cloud size={17} strokeWidth={2} aria-hidden="true" />
-              <span>Hébergement</span>
-            </div>
-            <p className="about-muted" style={{ marginTop: 0, fontSize: 13.5 }}>
-              Vos données restent sur votre compte Cloudflare (Workers, base, fichiers).
-            </p>
-            <ul className="about-stack-list">
-              <li>Workers — application &amp; API</li>
-              <li>D1 — données métier</li>
-              <li>R2 — pièces jointes &amp; sauvegardes</li>
-              <li>Passkeys (WebAuthn) en option</li>
-            </ul>
-          </div>
+        <div className="ac-dash-hero-side">
+          <Link to="/whats-new" className="secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}>
+            <Sparkles size={14} strokeWidth={2} aria-hidden="true" />
+            Voir les nouveautés
+          </Link>
         </div>
       </header>
 
+      {/* Bento 4-Metric Row */}
+      <section className="ac-metric-grid" aria-label="Repères produit">
+        <article className="ac-metric">
+          <span className="ac-metric-label">Version active</span>
+          <strong className="ac-metric-val">v{APP_VERSION}</strong>
+          <span className="ac-metric-meta">Atlas Commerce ERP</span>
+        </article>
+        <article className="ac-metric">
+          <span className="ac-metric-label">Modules métier</span>
+          <strong className="ac-metric-val">{FEATURE_TILES.length}</strong>
+          <span className="ac-metric-meta">Stock · Ventes · Finance · Mobile</span>
+        </article>
+        <article className="ac-metric">
+          <span className="ac-metric-label">Infrastructure</span>
+          <strong className="ac-metric-val">Edge · D1 · R2</strong>
+          <span className="ac-metric-meta">Hébergé sur votre compte Cloudflare</span>
+        </article>
+        <article className="ac-metric">
+          <span className="ac-metric-label">Contributeurs</span>
+          <strong className="ac-metric-val">{contributors.length}</strong>
+          <span className="ac-metric-meta">{ghProfile ? `${ghProfile.repos} dépôts publics` : 'Open ecosystem'}</span>
+        </article>
+      </section>
+
+      {/* Support & Hosting Bento Pair */}
+      <div className="ac-bento-grid-2">
+        <section className="ac-panel">
+          <div className="ac-panel-head">
+            <div>
+              <h2>Support &amp; accompagnement</h2>
+              <span className="ac-panel-sub">Accès, configuration ou question produit</span>
+            </div>
+            <span className="ac-status-pill">
+              <LifeBuoy size={13} strokeWidth={2} aria-hidden="true" />
+              Métier
+            </span>
+          </div>
+          <ul className="ac-about-kv-list">
+            <li>
+              <span className="muted">Portail</span>
+              <a href="https://support.afmarbre.com" target="_blank" rel="noreferrer">
+                support.afmarbre.com <ExternalLink size={12} aria-hidden="true" />
+              </a>
+            </li>
+            <li>
+              <span className="muted">Email</span>
+              <a href="mailto:support@afmarbre.com">support@afmarbre.com</a>
+            </li>
+            <li>
+              <span className="muted">WhatsApp</span>
+              <a href="https://wa.me/212600000000" target="_blank" rel="noreferrer">
+                Ligne support <ExternalLink size={12} aria-hidden="true" />
+              </a>
+            </li>
+          </ul>
+        </section>
+
+        <section className="ac-panel">
+          <div className="ac-panel-head">
+            <div>
+              <h2>Hébergement &amp; souveraineté</h2>
+              <span className="ac-panel-sub">Vos données restent sur votre instance Cloudflare</span>
+            </div>
+            <span className="ac-status-pill">
+              <Cloud size={13} strokeWidth={2} aria-hidden="true" />
+              Cloudflare
+            </span>
+          </div>
+          <ul className="ac-about-kv-list">
+            <li>
+              <span className="muted">Workers</span>
+              <span>Application &amp; API Edge</span>
+            </li>
+            <li>
+              <span className="muted">D1 SQLite</span>
+              <span>Base transactionnelle métier</span>
+            </li>
+            <li>
+              <span className="muted">R2 Storage</span>
+              <span>PDF, pièces jointes &amp; sauvegardes</span>
+            </li>
+            <li>
+              <span className="muted">WebAuthn</span>
+              <span>Passkeys &amp; OTP nouvel appareil</span>
+            </li>
+          </ul>
+        </section>
+      </div>
+
+      {/* Bug Report Bento Panel */}
       <ReportProblemForm />
 
-      <section className="card about-section ac-about-card" id="about-features">
-        <div className="ac-about-card-head">
-          <span className="ac-about-card-ico" aria-hidden="true">
-            <Boxes size={18} strokeWidth={2} />
+      {/* Features Bento Grid */}
+      <section className="ac-panel" id="about-features">
+        <div className="ac-panel-head">
+          <div>
+            <h2>Ce que fait Atlas Commerce</h2>
+            <span className="ac-panel-sub">
+              Stock, ventes, achats, caisse et conformité dans un seul outil rapide.
+            </span>
+          </div>
+          <span className="ac-status-pill">
+            <Boxes size={13} strokeWidth={2} aria-hidden="true" />
+            {FEATURE_TILES.length} capacités
           </span>
-          <h2>Ce que fait Atlas Commerce</h2>
         </div>
-        <p className="about-muted" style={{ marginTop: 0 }}>
-          Stock, ventes, achats, caisse et conformité dans un seul outil rapide, hébergé sous votre contrôle.
-        </p>
         <div className="ac-about-features-grid">
           {FEATURE_TILES.map((tile) => {
             const Icon = tile.icon;
@@ -441,10 +490,16 @@ export default function About() {
         </div>
       </section>
 
-      <div className="ac-about-bento-pair" style={{ marginTop: 0 }}>
-        <section className="card about-section ac-about-card">
-          <h2>Pour qui</h2>
-          <ul className="about-list" style={{ marginBottom: 0 }}>
+      {/* Audience & Highlights Bento Pair */}
+      <div className="ac-bento-grid-2">
+        <section className="ac-panel">
+          <div className="ac-panel-head">
+            <div>
+              <h2>Pour qui</h2>
+              <span className="ac-panel-sub">Chaque profil dispose d’un périmètre clair</span>
+            </div>
+          </div>
+          <ul className="ac-about-bullets">
             <li>
               <strong>Magasin / dépôt</strong> — scan, inventaire, transferts, propositions produit.
             </li>
@@ -457,9 +512,14 @@ export default function About() {
           </ul>
         </section>
 
-        <section className="card about-section ac-about-card">
-          <h2>Fonctions clés</h2>
-          <ul className="about-list" style={{ marginBottom: 0 }}>
+        <section className="ac-panel">
+          <div className="ac-panel-head">
+            <div>
+              <h2>Fonctions clés</h2>
+              <span className="ac-panel-sub">Flux opérationnels de bout en bout</span>
+            </div>
+          </div>
+          <ul className="ac-about-bullets">
             <li>
               <strong>Stock</strong> — produits, seuils, entrepôts, inventaire mobile, photos et lots.
             </li>
@@ -473,130 +533,120 @@ export default function About() {
         </section>
       </div>
 
-      {/* Owner — GitHub profile */}
-      <section className="card about-section ac-about-card about-owner" id="about-creator">
-        <div className="about-owner-head">
-          {user?.avatar_url ? (
-            <img src={user.avatar_url} alt="" width={56} height={56} className="about-owner-avatar" loading="lazy" decoding="async" />
-          ) : (
-            <div className="about-owner-avatar about-owner-avatar-ph" />
-          )}
-          <div className="about-owner-meta">
-            <h2>Créateur</h2>
-            <p className="about-owner-name">
-              <strong>{APP_CREATOR_NAME}</strong>
-              {' · '}
-              <a href={APP_GITHUB} target="_blank" rel="noreferrer">
-                @{APP_CREATOR}
-              </a>
-            </p>
-            <p className="about-muted about-owner-bio">
-              Développement produit &amp; infrastructure · {APP_LOCATION}
-            </p>
-            {ghProfile && (
-              <p className="about-owner-stats" style={{ display: 'flex', gap: 14, margin: '8px 0 0', fontSize: 12.5, color: 'var(--muted, #52525b)' }}>
-                <span><strong>{ghProfile.followers}</strong> abonnés</span>
-                <span><strong>{ghProfile.repos}</strong> dépôts publics</span>
-                <span><strong>{ghProfile.stars}</strong> étoiles reçues</span>
-              </p>
+      {/* Creator & Contributors Bento Pair */}
+      <div className="ac-bento-grid-2" id="about-creator">
+        <section className="ac-panel about-owner">
+          <div className="ac-panel-head">
+            <div>
+              <h2>Créateur</h2>
+              <span className="ac-panel-sub">Développement produit &amp; infrastructure · {APP_LOCATION}</span>
+            </div>
+          </div>
+          <div className="about-owner-head">
+            {user?.avatar_url ? (
+              <img src={user.avatar_url} alt="" width={56} height={56} className="about-owner-avatar" loading="lazy" decoding="async" />
+            ) : (
+              <div className="about-owner-avatar about-owner-avatar-ph" />
             )}
-            <p style={{ margin: '10px 0 0' }}>
+            <div className="about-owner-meta">
+              <p className="about-owner-name">
+                <strong>{APP_CREATOR_NAME}</strong>
+                {' · '}
+                <a href={APP_GITHUB} target="_blank" rel="noreferrer">
+                  @{APP_CREATOR}
+                </a>
+              </p>
+              {ghProfile && (
+                <p className="ac-about-stats">
+                  <span><strong>{ghProfile.followers}</strong> abonnés</span>
+                  <span><strong>{ghProfile.repos}</strong> dépôts publics</span>
+                  <span><strong>{ghProfile.stars}</strong> étoiles reçues</span>
+                </p>
+              )}
+              <div className="ac-about-owner-actions">
+                <a
+                  className="secondary"
+                  href={`https://github.com/${APP_CREATOR}`}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                >
+                  <Github size={14} strokeWidth={2} aria-hidden="true" />
+                  Profil GitHub
+                </a>
+                {APP_PROFILE && (
+                  <a className="secondary" href={APP_PROFILE} target="_blank" rel="noreferrer">
+                    Profil
+                  </a>
+                )}
+                {APP_TEAM_GITHUB && (
+                  <a className="secondary" href={APP_TEAM_GITHUB} target="_blank" rel="noreferrer">
+                    Équipe {APP_TEAM}
+                  </a>
+                )}
+                {APP_INSTAGRAM && (
+                  <a className="secondary" href={APP_INSTAGRAM} target="_blank" rel="noreferrer">
+                    Instagram
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="ac-panel wn-thanks-card" aria-label="Remerciements et contributeurs">
+          <div className="ac-panel-head">
+            <div>
+              <h2>Remerciements &amp; contributeurs</h2>
+              <span className="ac-panel-sub">Contributeurs aux commits et sorties d&apos;Atlas Commerce</span>
+            </div>
+            <span className="ac-status-pill">
+              <Users size={13} strokeWidth={2} aria-hidden="true" />
+              {contributors.length}
+            </span>
+          </div>
+          <div className="wn-contributors">
+            {contributors.map((c, idx) => (
               <a
-                className="about-owner-ghbtn"
-                href={`https://github.com/${APP_CREATOR}`}
+                key={c.login}
+                href={c.url}
                 target="_blank"
                 rel="noreferrer noopener"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '8px 16px',
-                  borderRadius: 999,
-                  border: '1px solid var(--line, #e4e4e7)',
-                  color: 'inherit',
-                  textDecoration: 'none',
-                  fontSize: 13,
-                  fontWeight: 700,
-                }}
+                className="wn-contributor-pill"
+                style={{ animationDelay: `${Math.min(idx * 45, 240)}ms` }}
+                title={`${c.name} — ${c.role}`}
               >
-                <Github size={15} strokeWidth={1.9} aria-hidden="true" />
-                Profil GitHub
+                {c.avatarUrl ? (
+                  <img src={c.avatarUrl} alt="" width={20} height={20} className="wn-contributor-avatar" loading="lazy" decoding="async" />
+                ) : (
+                  <span className="wn-contributor-fallback" aria-hidden="true">{c.name.slice(0, 1).toUpperCase()}</span>
+                )}
+                <span className="wn-contributor-name">{c.name !== c.login ? `${c.name} (${c.handle})` : c.handle}</span>
               </a>
-            </p>
+            ))}
           </div>
-        </div>
-        <div className="about-links about-links-row">
-          <a href={APP_GITHUB} target="_blank" rel="noreferrer">
-            GitHub
-          </a>
-          {APP_PROFILE ? (
-            <a href={APP_PROFILE} target="_blank" rel="noreferrer">
-              Profil
-            </a>
-          ) : null}
-          {APP_TEAM_GITHUB ? (
-            <a href={APP_TEAM_GITHUB} target="_blank" rel="noreferrer">
-              Équipe {APP_TEAM}
-            </a>
-          ) : null}
-          {APP_INSTAGRAM ? (
-            <a href={APP_INSTAGRAM} target="_blank" rel="noreferrer">
-              Instagram
-            </a>
-          ) : null}
-        </div>
-      </section>
+          <div className="wn-release-contributors">
+            <span className="wn-contributors-label">
+              <Heart size={13} strokeWidth={2.2} aria-hidden="true" /> Merci à
+            </span>
+            <span className="muted" style={{ fontSize: 13 }}>
+              chaque contributeur · voir le journal détaillé dans <Link to="/whats-new">Nouveautés</Link>
+            </span>
+          </div>
+        </section>
+      </div>
 
-      {/* Contributors & thanks */}
-      <section className="card about-section ac-about-card wn-thanks-card" aria-label="Remerciements et contributeurs">
-        <div className="wn-thanks-head">
-          <span className="wn-thanks-ico" aria-hidden="true">
-            <Users size={16} strokeWidth={2.2} />
-          </span>
+      {/* Projects Bento Grid */}
+      <section className="ac-panel" id="about-projects">
+        <div className="ac-panel-head">
           <div>
-            <h2 className="wn-thanks-title">Remerciements &amp; contributeurs</h2>
-            <p className="wn-thanks-sub">
-              Merci aux contributeurs qui participent aux commits et aux sorties d&apos;Atlas Commerce :
-            </p>
+            <h2>Autour d’Atlas</h2>
+            <span className="ac-panel-sub">Dépôts et applications compagnons — @{APP_CREATOR}</span>
           </div>
-        </div>
-        <div className="wn-contributors">
-          {contributors.map((c, idx) => (
-            <a
-              key={c.login}
-              href={c.url}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="wn-contributor-pill"
-              style={{ animationDelay: `${Math.min(idx * 45, 240)}ms` }}
-              title={`${c.name} — ${c.role}`}
-            >
-              {c.avatarUrl ? (
-                <img src={c.avatarUrl} alt="" width={20} height={20} className="wn-contributor-avatar" loading="lazy" decoding="async" />
-              ) : (
-                <span className="wn-contributor-fallback" aria-hidden="true">{c.name.slice(0, 1).toUpperCase()}</span>
-              )}
-              <span className="wn-contributor-name">{c.name !== c.login ? `${c.name} (${c.handle})` : c.handle}</span>
-            </a>
-          ))}
-        </div>
-        <div className="wn-release-contributors">
-          <span className="wn-contributors-label"><Heart size={13} strokeWidth={2.2} aria-hidden="true" /> Merci à</span>
-          <span className="wn-thanks-sub" style={{ margin: 0 }}>chaque contributeur · voir le journal détaillé dans <Link to="/whats-new">Nouveautés</Link></span>
-        </div>
-      </section>
-
-      {/* Projects */}
-      <section className="card about-section ac-about-card about-secondary" id="about-projects">
-        <div className="ac-about-card-head">
-          <span className="ac-about-card-ico" aria-hidden="true">
-            <Github size={18} strokeWidth={2} />
+          <span className="ac-status-pill">
+            <Github size={13} strokeWidth={2} aria-hidden="true" />
+            Écosystème
           </span>
-          <h2>Autour d’Atlas</h2>
         </div>
-        <p className="about-muted" style={{ marginTop: 0, marginBottom: 12 }}>
-          Dépôts et applications compagnons — @{APP_CREATOR}.
-        </p>
         <ul className="ac-about-projects-grid">
           {PROJECT_SHOWCASE.map((p) => {
             const live = byName[p.repo];

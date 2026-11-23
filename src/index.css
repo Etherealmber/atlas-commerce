@@ -321,7 +321,7 @@ button { cursor: pointer; border: none; background: none; }
   }
   .desktop-sidebar a:hover { color: #f7f1e8; background: rgba(255,255,255,0.06); }
   .desktop-sidebar a.active {
-    color: #f7f1e8; background: rgba(139, 156, 255, 0.35); font-weight: 600;
+    color: #f7f1e8; background: rgba(148, 163, 184, 0.35); font-weight: 600;
   }
   .desktop-sidebar a svg { width: 18px; height: 18px; opacity: 0.85; }
   .desktop-sidebar .inbox-count {
@@ -336,7 +336,7 @@ button { cursor: pointer; border: none; background: none; }
   .desktop-sidebar .side-foot .status { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
   .desktop-sidebar .side-foot .status i {
     width: 8px; height: 8px; border-radius: 50%; background: #64748b;
-    box-shadow: 0 0 0 3px rgba(139, 156, 255, 0.2);
+    box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.2);
   }
   .topbar { display: none; }
   .tabbar { display: none; }
@@ -388,7 +388,7 @@ button { cursor: pointer; border: none; background: none; }
   display: flex; align-items: center; gap: 14px; padding: 16px 18px;
   border-radius: var(--radius);
   background: linear-gradient(135deg, var(--teal) 0%, var(--teal-deep) 100%);
-  color: #fff; box-shadow: 0 10px 28px rgba(139, 156, 255, 0.28);
+  color: #fff; box-shadow: 0 10px 28px rgba(148, 163, 184, 0.28);
   margin: 20px 0 4px; text-align: left; width: 100%;
   transition: transform 0.15s var(--ease);
 }
@@ -494,7 +494,7 @@ button { cursor: pointer; border: none; background: none; }
   height: 44px; padding: 0 18px; border-radius: 999px; background: var(--teal);
   color: #fff; font-weight: 600; font-size: 0.9rem;
   display: inline-flex; align-items: center; gap: 8px;
-  box-shadow: 0 4px 14px rgba(139, 156, 255, 0.25);
+  box-shadow: 0 4px 14px rgba(148, 163, 184, 0.25);
 }
 
 .product-table {
@@ -555,7 +555,7 @@ button { cursor: pointer; border: none; background: none; }
 .invoice-details {
   background: linear-gradient(160deg, var(--teal) 0%, var(--teal-deep) 100%);
   color: #fff; border-radius: var(--radius-lg); padding: 20px;
-  box-shadow: 0 12px 32px rgba(139, 156, 255, 0.25);
+  box-shadow: 0 12px 32px rgba(148, 163, 184, 0.25);
 }
 .invoice-details label { display: block; font-size: 0.82rem; margin-bottom: 6px; opacity: 0.9; }
 .invoice-details input {
@@ -642,7 +642,7 @@ html.is-native input, html.is-native textarea { user-select: text; }
   justify-content: center;
   padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
   background:
-    radial-gradient(ellipse 80% 50% at 10% -10%, rgba(139, 156, 255, 0.12), transparent),
+    radial-gradient(ellipse 80% 50% at 10% -10%, rgba(148, 163, 184, 0.12), transparent),
     radial-gradient(ellipse 60% 40% at 100% 0%, rgba(232, 163, 23, 0.1), transparent),
     #f5f2eb;
 }
@@ -702,7 +702,7 @@ html.is-native input, html.is-native textarea { user-select: text; }
 }
 .login-form input:focus {
   border-color: #0a0a0a;
-  box-shadow: 0 0 0 3px rgba(139, 156, 255, 0.15);
+  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.15);
   background: #fff;
 }
 .login-btn {
@@ -716,7 +716,7 @@ html.is-native input, html.is-native textarea { user-select: text; }
   font-size: 0.95rem;
   cursor: pointer;
   margin-top: 4px;
-  box-shadow: 0 6px 20px rgba(139, 156, 255, 0.28);
+  box-shadow: 0 6px 20px rgba(148, 163, 184, 0.28);
 }
 .login-btn:disabled {
   opacity: 0.55;
@@ -883,7 +883,7 @@ button.danger, .btn.danger {
 .search-bar .search-input:focus,
 .search-input:focus {
   border-color: #0a0a0a;
-  box-shadow: 0 0 0 3px rgba(139, 156, 255, 0.12);
+  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.12);
 }
 /* Align inline search inputs in toolbars */
 .content input[placeholder*="Rechercher"],
@@ -1165,7 +1165,7 @@ html[data-theme="dark"] .login-mark { color: #e8eef6; }
   padding: 16px 18px;
   text-decoration: none;
   margin-bottom: 18px;
-  box-shadow: 0 8px 24px rgba(139, 156, 255, 0.22);
+  box-shadow: 0 8px 24px rgba(148, 163, 184, 0.22);
 }
 .atlas-cta:hover { filter: brightness(1.05); }
 .atlas-cta .cta-ico {
@@ -1467,7 +1467,7 @@ html[data-theme="dark"] td {
   border-bottom: 1px solid var(--line-soft) !important;
 }
 html[data-theme="dark"] tr:hover td {
-  background: rgba(139, 156, 255, 0.08) !important;
+  background: rgba(148, 163, 184, 0.08) !important;
 }
 html[data-theme="dark"] input,
 html[data-theme="dark"] select,
@@ -1491,7 +1491,7 @@ html[data-theme="dark"] .sidebar a {
 }
 html[data-theme="dark"] .nav-item.active,
 html[data-theme="dark"] .sidebar a.active {
-  background: rgba(139, 156, 255, 0.18) !important;
+  background: rgba(148, 163, 184, 0.18) !important;
   color: #e2e8f0 !important;
 }
 html[data-theme="dark"] .badge {
@@ -1685,16 +1685,16 @@ html[data-theme="dark"][data-density="comfortable"] {
 
 html[data-density="comfortable"] body {
   background:
-    radial-gradient(ellipse 900px 500px at 15% -5%, rgba(139, 156, 255, 0.18), transparent 55%),
+    radial-gradient(ellipse 900px 500px at 15% -5%, rgba(148, 163, 184, 0.18), transparent 55%),
     radial-gradient(ellipse 700px 400px at 95% 10%, rgba(232, 163, 23, 0.12), transparent 50%),
-    radial-gradient(ellipse 600px 400px at 50% 100%, rgba(139, 156, 255, 0.1), transparent 45%),
+    radial-gradient(ellipse 600px 400px at 50% 100%, rgba(148, 163, 184, 0.1), transparent 45%),
     linear-gradient(165deg, #f1f5f9 0%, #e8eaf0 40%, #e4efe9 100%);
   background-attachment: fixed;
 }
 
 html[data-theme="dark"][data-density="comfortable"] body {
   background:
-    radial-gradient(ellipse 800px 500px at 10% 0%, rgba(139, 156, 255, 0.12), transparent 50%),
+    radial-gradient(ellipse 800px 500px at 10% 0%, rgba(148, 163, 184, 0.12), transparent 50%),
     #0a0a0a;
   background-attachment: fixed;
 }
@@ -1766,7 +1766,7 @@ html[data-density="comfortable"] .tab {
   border-radius: 20px;
 }
 html[data-density="comfortable"] .tab.active {
-  background: rgba(139, 156, 255, 0.12);
+  background: rgba(148, 163, 184, 0.12);
 }
 
 html[data-density="comfortable"] .topbar,
@@ -1984,7 +1984,7 @@ html[data-density="comfortable"] body [class*="card"] {
   animation: access-ghost-float 7s ease-in-out infinite;
 }
 .access-ghost-body {
-  filter: drop-shadow(0 12px 24px rgba(139, 156, 255, 0.25));
+  filter: drop-shadow(0 12px 24px rgba(148, 163, 184, 0.25));
 }
 .access-ghost-badge {
   position: absolute;
@@ -2049,7 +2049,7 @@ html[data-density="comfortable"] body [class*="card"] {
   display: flex;
   flex-direction: column;
   background:
-    radial-gradient(1000px 500px at 20% -10%, rgba(139, 156, 255, 0.14), transparent 55%),
+    radial-gradient(1000px 500px at 20% -10%, rgba(148, 163, 184, 0.14), transparent 55%),
     var(--bg, #f6f4ef);
 }
 .access-page-standalone .access-page {
@@ -2155,7 +2155,7 @@ html[data-density="compact"] .modal-content {
 html[data-density="comfortable"][data-glass="on"] .phone-root,
 html[data-density="comfortable"]:not([data-glass="off"]) .phone-root {
   background:
-    radial-gradient(ellipse 700px 400px at 20% -10%, rgba(139, 156, 255, 0.16), transparent 55%),
+    radial-gradient(ellipse 700px 400px at 20% -10%, rgba(148, 163, 184, 0.16), transparent 55%),
     radial-gradient(ellipse 500px 300px at 100% 20%, rgba(232, 163, 23, 0.1), transparent 50%),
     linear-gradient(165deg, #f1f5f9 0%, #e8eaf0 50%, #e4efe9 100%);
   min-height: 100dvh;
@@ -3273,7 +3273,7 @@ html[data-theme="dark"] .atlas-field input {
 }
 .atlas-field input:focus {
   border-color: #0a0a0a;
-  box-shadow: 0 0 0 3px rgba(139, 156, 255, 0.15);
+  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.15);
 }
 .atlas-field input.is-error {
   border-color: #ef4444;
@@ -5406,7 +5406,7 @@ a.audit-detail-link {
   padding: 12px 16px;
 }
 .settings-anchor-flash {
-  outline: 2px solid rgba(139, 156, 255, 0.55);
+  outline: 2px solid rgba(148, 163, 184, 0.55);
   outline-offset: 4px;
   border-radius: 8px;
   transition: outline 0.2s ease;
@@ -5570,7 +5570,7 @@ a.audit-detail-link {
   display: block;
 }
 .settings-anchor-flash {
-  outline: 2px solid rgba(139, 156, 255, 0.55) !important;
+  outline: 2px solid rgba(148, 163, 184, 0.55) !important;
   outline-offset: 4px;
   border-radius: 8px;
   transition: outline 0.2s ease;
@@ -5605,7 +5605,7 @@ a.audit-detail-link {
   outline: 2px solid #0a0a0a !important;
   outline-offset: 3px !important;
   border-radius: 10px !important;
-  box-shadow: 0 0 0 4px rgba(139, 156, 255, 0.2) !important;
+  box-shadow: 0 0 0 4px rgba(148, 163, 184, 0.2) !important;
   transition: outline 0.15s ease, box-shadow 0.15s ease;
   position: relative;
   z-index: 2;

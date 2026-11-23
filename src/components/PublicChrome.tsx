@@ -540,7 +540,18 @@ export function PublicSettingsTopbar({ onOpenSidebar }: { onOpenSidebar?: () => 
   }, []);
   const location = useLocation();
   const loggedIn = isLoggedIn();
-  const title = location.pathname === '/whats-new' ? 'Nouveautés' : 'À propos';
+  const title =
+    location.pathname === '/whats-new'
+      ? 'Nouveautés'
+      : location.pathname === '/privacy'
+        ? 'Confidentialité'
+        : location.pathname === '/terms'
+          ? 'Conditions'
+          : location.pathname === '/licenses'
+            ? 'Licences'
+            : location.pathname === '/support' || location.pathname === '/supprot'
+              ? 'Support'
+              : 'À propos';
   return (
     <header className={`settings-topbar public-settings-topbar${compact ? ' settings-topbar--compact' : ''}`} role="banner">
       <div className="settings-topbar-left">
@@ -556,17 +567,6 @@ export function PublicSettingsTopbar({ onOpenSidebar }: { onOpenSidebar?: () => 
               <path d="M4 7h16M4 12h16M4 17h16" />
             </svg>
           </button>
-        )}
-        {loggedIn && (
-          <>
-            <button type="button" className="settings-topbar-back" onClick={() => window.location.assign('/dashboard')}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                <path d="M15 18l-6-6 6-6" />
-              </svg>
-              Tableau de bord
-            </button>
-            <span className="settings-topbar-sep" aria-hidden />
-          </>
         )}
         <div className="settings-topbar-brand">
           <img src="/atlas-icon-light.png" alt="" className="brand-img brand-img--light" width={28} height={28} />
