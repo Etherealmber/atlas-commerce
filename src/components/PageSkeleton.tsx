@@ -485,6 +485,3 @@ export default function PageSkeleton({
   );
 }
 
-export function PageFallback() {
-  return <PageSkeleton variant="list" />;
-}

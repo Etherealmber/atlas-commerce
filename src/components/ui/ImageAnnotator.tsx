@@ -4,7 +4,7 @@ import './ImageAnnotator.css';
 
 type Tool = 'pen' | 'text';
 
-export type ImageAnnotatorProps = {
+type ImageAnnotatorProps = {
   src: string;
   name: string;
   onSave: (dataUrl: string) => void;
@@ -18,7 +18,7 @@ const SWATCHES = ['#b87333', '#18181b', '#fafafa', '#dc2626', '#2563eb', '#16a34
  * freehand pen, text notes (click where the note should land),
  * color swatches, stroke size, undo, reset, save.
  */
-export const ImageAnnotator: FC<ImageAnnotatorProps> = ({ src, name, onSave, onClose }) => {
+const ImageAnnotator: FC<ImageAnnotatorProps> = ({ src, name, onSave, onClose }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);

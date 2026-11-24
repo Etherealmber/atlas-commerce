@@ -2,8 +2,8 @@ import { Hono, type Context } from 'hono';
 import { reserveDesktopCreate } from '../lib/desktop-create-budget';
 
 export const DESKTOP_AUTH = '/api/auth/desktop/v1';
-export const DESKTOP_TTL = 300;
-export const DESKTOP_POLL_SECONDS = 5;
+const DESKTOP_TTL = 300;
+const DESKTOP_POLL_SECONDS = 5;
 const PUBLIC_PATHS = new Set(['capabilities', 'requests', 'poll', 'exchange', 'cancel'].map(p => `${DESKTOP_AUTH}/${p}`));
 const ALL_PATHS = new Set([...PUBLIC_PATHS, `${DESKTOP_AUTH}/prepare`, `${DESKTOP_AUTH}/authorize`]);
 /** Only the named desktop routes have their own persistent attempt budgets. */

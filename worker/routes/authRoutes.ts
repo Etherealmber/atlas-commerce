@@ -27,7 +27,7 @@ import {
 import { qrToSvg } from '../qrSvg';
 import { purgeEphemeralSecurityData, sha256Hex } from '../lib/ledgerHelpers';
 
-export interface AuthRoutesDeps {
+interface AuthRoutesDeps {
   authFailReason: any;
   clientIp: any;
   credentialAttemptGate: any;

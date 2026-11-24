@@ -34,7 +34,7 @@ export function classifyOfflineOpError(err: any): OfflineOpSendOutcome {
   return { kind: 'retryable_error', message };
 }
 
-export async function sendQueuedOpViaApi(op: QueuedOfflineInventoryOp): Promise<OfflineOpSendOutcome> {
+async function sendQueuedOpViaApi(op: QueuedOfflineInventoryOp): Promise<OfflineOpSendOutcome> {
   try {
     const res = await api.postOfflineInventoryOp(
       {

@@ -9,7 +9,6 @@ vi.mock('motion/react', () => ({
   motion: new Proxy({}, { get: (_target, tag: string) => React.forwardRef(({ children, initial: _initial, animate: _animate, exit: _exit, transition: _transition, whileHover: _whileHover, whileTap: _whileTap, ...props }: any, ref: any) => React.createElement(tag, { ...props, ref }, children)) }),
   AnimatePresence: ({ children }: any) => children,
 }));
-vi.mock('../components/login/AnimatedCharacters', () => ({ default: () => null }));
 vi.mock('../fingerprint', () => ({
   getCachedFingerprint: vi.fn().mockResolvedValue('test-device'),
   isBiometricAvailable: vi.fn().mockResolvedValue(false),

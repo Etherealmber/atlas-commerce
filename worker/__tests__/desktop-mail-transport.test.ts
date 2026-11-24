@@ -9,6 +9,23 @@ describe('dedicated native mail transport', () => {
     expect(createNativeMailTransport({...config,DESKTOP_NATIVE_RESEND_API_KEY:'bad'})).toBeNull();
     expect(createConfiguredNativeMailbox({} as D1Database,config)).toBeNull();
   });
+  it('reuses the website Resend key and sender when no dedicated desktop ones are set', async () => {
+    const fetcher = vi.fn(async () => new Response('{}',{status:200}));
+    const shared = {DESKTOP_NATIVE_MAIL_TRANSPORT:'resend-v1',RESEND_API_KEY:'re_websitekey123',OTP_FROM:'noreply@example.test'};
+    const send = createNativeMailTransport(shared, fetcher as any)!;
+    expect(send).not.toBeNull();
+    expect(await send(message,new AbortController().signal)).toBe(true);
+    const [,init] = fetcher.mock.calls[0] as unknown as [string,RequestInit];
+    expect((init.headers as any).Authorization).toBe('Bearer re_websitekey123');
+    expect(JSON.parse(String(init.body)).from).toBe('noreply@example.test');
+    // Dedicated values still win; transport opt-in is still required.
+    expect(createNativeMailTransport({...shared,DESKTOP_NATIVE_MAIL_TRANSPORT:undefined})).toBeNull();
+    const own = createNativeMailTransport({...shared,DESKTOP_NATIVE_RESEND_API_KEY:'re_desktopkey123',DESKTOP_NATIVE_MAIL_FROM:'desk@example.test'}, fetcher as any)!;
+    await own(message,new AbortController().signal);
+    const [,init2] = fetcher.mock.calls[1] as unknown as [string,RequestInit];
+    expect((init2.headers as any).Authorization).toBe('Bearer re_desktopkey123');
+    expect(JSON.parse(String(init2.body)).from).toBe('desk@example.test');
+  });
   it('uses only the fixed provider, single supplied recipient, no fallback and no redirects', async () => {
     const fetcher = vi.fn(async () => new Response('{}',{status:200}));
     const send=createNativeMailTransport(config,fetcher as any)!;

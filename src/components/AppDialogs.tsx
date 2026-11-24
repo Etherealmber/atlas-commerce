@@ -379,16 +379,4 @@ export function uiToast(message: string, kind: ToastKind = 'info') {
   else console.warn('[toast]', message);
 }
 
-export function uiConfirm(message: string, opts?: { title?: string; danger?: boolean }) {
-  const api = (window as any).__atlasUi as UiApi | undefined;
-  if (api) return api.confirm({ message, title: opts?.title, danger: opts?.danger });
-  console.warn('[confirm]', message);
-  return Promise.resolve(false);
-}
 
-export function uiAlert(message: string, title?: string) {
-  const api = (window as any).__atlasUi as UiApi | undefined;
-  if (api) return api.alert(message, title);
-  console.warn('[alert]', title || '', message);
-  return Promise.resolve();
-}

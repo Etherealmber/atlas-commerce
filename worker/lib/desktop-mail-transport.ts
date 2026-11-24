@@ -3,12 +3,18 @@
  * No route instantiates it until an authorization/recovery policy is implemented. */
 import { createMailboxEnrollment, type MailboxEnrollmentAdapters } from './desktop-mailbox-enrollment';
 
-type Config = { DESKTOP_NATIVE_MAIL_TRANSPORT?: string; DESKTOP_NATIVE_RESEND_API_KEY?: string; DESKTOP_NATIVE_MAIL_FROM?: string; DESKTOP_NATIVE_MAILBOX_MAC_KEY?: string };
+type Config = {
+  DESKTOP_NATIVE_MAIL_TRANSPORT?: string; DESKTOP_NATIVE_RESEND_API_KEY?: string; DESKTOP_NATIVE_MAIL_FROM?: string; DESKTOP_NATIVE_MAILBOX_MAC_KEY?: string;
+  /** Website Resend account, reused when no dedicated desktop key/sender is set. */
+  RESEND_API_KEY?: string; OTP_FROM?: string; RESEND_FROM?: string;
+};
 const mailbox = /^[A-Za-z0-9.!#$%&'*+\-/=?^_`{|}~]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,63}$/;
 
 function validateNativeMailConfig(config: Config): { key: string; from: string } | null {
-  const key = config.DESKTOP_NATIVE_RESEND_API_KEY;
-  const from = config.DESKTOP_NATIVE_MAIL_FROM;
+  // A dedicated desktop key/sender wins; otherwise reuse the website's Resend
+  // account and its already-verified sender (same domain, same DKIM/SPF).
+  const key = String(config.DESKTOP_NATIVE_RESEND_API_KEY || config.RESEND_API_KEY || '').trim() || undefined;
+  const from = String(config.DESKTOP_NATIVE_MAIL_FROM || config.OTP_FROM || config.RESEND_FROM || '').trim() || undefined;
   if (
     config.DESKTOP_NATIVE_MAIL_TRANSPORT !== 'resend-v1' ||
     typeof key !== 'string' ||

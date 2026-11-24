@@ -10,7 +10,7 @@ import {
 import { canMutateBusiness, normalizeRole } from '../lib/rbac';
 import { roleCanSeeFinancial, roleCanSeeSellPrices } from '../lib/inventory-policy';
 
-export interface ExportRouteDeps {
+interface ExportRouteDeps {
   roundDh: (n: number) => number;
   sessionUserFromHeader: (authHeader?: string) => { username?: string; role?: string };
   requireOwner: (c: any) => { ok: true; username: string; role?: string } | { ok: false; response: Response };

@@ -21,14 +21,6 @@ export function statusFr(s: string): string {
   return STATUS_MAP[s] || s;
 }
 
-/** Type de document — une facture payée reste une facture (le reçu est un document distinct). */
-export function documentTypeFr(status?: string, kind?: 'invoice' | 'quote' | 'bill' | 'receipt' | 'remboursement'): string {
-  if (kind === 'receipt') return 'Reçu';
-  if (kind === 'bill') return 'Facture d\'achat';
-  if (kind === 'quote' || status === 'quote' || status === 'devis') return 'Devis';
-  if (kind === 'remboursement' || status === 'remboursement' || status === 'credit_note') return 'Remboursement (WR)';
-  return 'Facture';
-}
 
 const PAYMENT_MAP: Record<string, string> = {
   cash: 'Espèces (caisse)',
@@ -62,22 +54,6 @@ export function statusBadgeClass(s: string): string {
   return 'info';
 }
 
-/** Traduction statut pour modèle facture / reçu imprimable */
-export function statusPrintFr(s: string): string {
-  const printMap: Record<string, string> = {
-    draft: 'Brouillon',
-    sent: 'Envoyée — en attente de règlement',
-    paid: 'Soldée (payée intégralement)',
-    partial: 'Partiellement payée',
-    cancelled: 'Annulée',
-    overdue: 'En retard de paiement',
-    quote: 'Devis — non facturé',
-    devis: 'Devis — non facturé',
-    remboursement: 'Remboursement / avoir (WR) — stock rétabli',
-    credit_note: 'Avoir (WR)',
-  };
-  return printMap[s] || statusFr(s);
-}
 
 /** Motifs de remboursement acceptés (affichage UI + API). */
 export const REFUND_REASON_OPTIONS: { code: string; label: string }[] = [
@@ -115,17 +91,3 @@ export const VALUATION_METHOD_OPTIONS: { code: string; label: string; help: stri
   },
 ];
 
-export function movementTypeFr(t: string): string {
-  const map: Record<string, string> = {
-    sale: 'Vente',
-    purchase: 'Achat',
-    adjustment: 'Ajustement',
-    initial: 'Stock initial',
-    refund_restock: 'Retour WR (remise en stock)',
-    refund_no_restock: 'Retour WR (hors stock)',
-    out: 'Sortie',
-    transfer: 'Transfert',
-    'auto-transfer': 'Transfert automatique',
-  };
-  return map[t] || t;
-}

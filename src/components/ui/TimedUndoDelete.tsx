@@ -2,7 +2,7 @@ import { useEffect, useState, type FC, type KeyboardEvent, type ReactNode, type 
 import { AnimatePresence, motion } from 'motion/react';
 import { Trash2, Undo2 } from 'lucide-react';
 
-export interface TimedUndoDeleteProps {
+interface TimedUndoDeleteProps {
   initialSeconds?: number;
   deleteLabel?: string;
   undoLabel?: string;
@@ -213,4 +213,3 @@ export const TimedUndoDelete: FC<TimedUndoDeleteProps> = ({
   );
 };
 
-export default TimedUndoDelete;

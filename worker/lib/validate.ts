@@ -3,9 +3,9 @@
  * Use on write endpoints; return first error string or null if ok.
  */
 
-export type FieldErrors = Record<string, string>;
+type FieldErrors = Record<string, string>;
 
-export function requireString(v: unknown, field: string, opts?: { min?: number; max?: number }): string | null {
+function requireString(v: unknown, field: string, opts?: { min?: number; max?: number }): string | null {
   if (v == null || typeof v !== 'string') return `${field} est requis`;
   const s = v.trim();
   if (!s) return `${field} est requis`;
@@ -14,14 +14,14 @@ export function requireString(v: unknown, field: string, opts?: { min?: number; 
   return null;
 }
 
-export function optionalString(v: unknown, field: string, opts?: { max?: number }): string | null {
+function optionalString(v: unknown, field: string, opts?: { max?: number }): string | null {
   if (v == null || v === '') return null;
   if (typeof v !== 'string') return `${field} invalide`;
   if (opts?.max != null && v.length > opts.max) return `${field} trop long (max ${opts.max})`;
   return null;
 }
 
-export function requireNumber(v: unknown, field: string, opts?: { min?: number; max?: number }): string | null {
+function requireNumber(v: unknown, field: string, opts?: { min?: number; max?: number }): string | null {
   const n = typeof v === 'number' ? v : Number(v);
   if (!Number.isFinite(n)) return `${field} doit être un nombre`;
   if (opts?.min != null && n < opts.min) return `${field} trop petit (min ${opts.min})`;
@@ -29,7 +29,7 @@ export function requireNumber(v: unknown, field: string, opts?: { min?: number; 
   return null;
 }
 
-export function requireEmail(v: unknown, field = 'email'): string | null {
+function requireEmail(v: unknown, field = 'email'): string | null {
   const base = requireString(v, field, { max: 254 });
   if (base) return base;
   const s = String(v).trim();
@@ -37,20 +37,10 @@ export function requireEmail(v: unknown, field = 'email'): string | null {
   return null;
 }
 
-export function requireId(v: unknown, field = 'id'): string | null {
-  const n = typeof v === 'number' ? v : Number(v);
-  if (!Number.isInteger(n) || n <= 0) return `${field} invalide`;
-  return null;
-}
 
-/** Collect first error from a list of checks (null = ok). */
-export function firstError(...checks: Array<string | null | undefined>): string | null {
-  for (const e of checks) if (e) return e;
-  return null;
-}
 
 /** Merge field errors; return null if none. */
-export function collectErrors(fields: FieldErrors): FieldErrors | null {
+function collectErrors(fields: FieldErrors): FieldErrors | null {
   const out: FieldErrors = {};
   for (const [k, v] of Object.entries(fields)) {
     if (v) out[k] = v;

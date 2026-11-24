@@ -11,7 +11,7 @@ import {
 import { useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 
-export interface ShowQrProps {
+interface ShowQrProps {
   value: string;
   buttonLabel?: string;
   onCopy?: () => void;
@@ -22,7 +22,7 @@ export interface ShowQrProps {
   onOpenChange?: (open: boolean) => void;
 }
 
-export function ShowQr({
+function ShowQr({
   value,
   buttonLabel = 'Afficher le QR',
   onCopy,

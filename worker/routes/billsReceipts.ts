@@ -28,7 +28,7 @@ import {
   subMoneyAmounts,
 } from '../lib/financeCore';
 
-export interface BillsReceiptsRouteDeps {
+interface BillsReceiptsRouteDeps {
   requireBizMutator: (c: any) => any;
   sessionUserFromHeader: (header: string | undefined) => any;
   checkConfirmPassword: (env: any, db: D1Database, authHeader: string | undefined, body: any) => Promise<any>;

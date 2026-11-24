@@ -3,7 +3,7 @@ import { afterBusinessMutation } from '../lib/delete-coord';
 import { roleCanSeeFinancial } from '../lib/inventory-policy';
 import { roundCurrency, sanitizeNonNegativeAmount, sanitizePositiveAmount } from '../lib/financeCore';
 
-export interface DataImportRouteDeps {
+interface DataImportRouteDeps {
   requireBizMutator: (c: any) => { ok: true; username: string; role: string } | { ok: false; response: Response };
   ensureExpenseTypeColumn: (db: D1Database) => Promise<void>;
 }

@@ -103,20 +103,22 @@
     "WEBAUTHN_ANDROID_CERT_SHA1": "",
     // Desktop native login v3 (docs/desktop-native-login-api.md) — ON in prod on
     // the owner's order. Fails CLOSED (capabilities.enabled=false, 503) until the
-    // secrets below exist, so these flags alone cannot expose anything:
-    //   wrangler secret put DESKTOP_NATIVE_V3_OTP_KEY        (32+ random chars)
-    //   wrangler secret put DESKTOP_NATIVE_MAILBOX_MAC_KEY   (32+ random chars)
-    //   wrangler secret put DESKTOP_NATIVE_RESEND_API_KEY    (re_…, domain of MAIL_FROM verified in Resend)
-    //   wrangler secret put TURNSTILE_SECRET_KEY             (already used by the website)
+    // two secrets below exist, so these flags alone cannot expose anything:
+    //   wrangler secret put DESKTOP_NATIVE_V3_OTP_KEY        (openssl rand -base64 48)
+    //   wrangler secret put DESKTOP_NATIVE_MAILBOX_MAC_KEY   (openssl rand -base64 48, different value)
+    // Mail reuses the website's RESEND_API_KEY (no separate desktop key needed);
+    // TURNSTILE_SECRET_KEY is the website's existing one. Secrets live only in
+    // Cloudflare — not in GitHub (no workflow deploys or reads them).
     // NATIVE_LOGIN = browser-free password+OTP, QR and passkey. Rollback: "false".
     "DESKTOP_NATIVE_V3_ENABLED": "true",
     "DESKTOP_NATIVE_V3_PROD_APPROVED": "true",
     "DESKTOP_NATIVE_V3_NATIVE_LOGIN": "true",
     "DESKTOP_NATIVE_MAIL_TRANSPORT": "resend-v1",
+    // Same sender the website OTP mail already uses (domain verified in Resend).
     "DESKTOP_NATIVE_MAIL_FROM": "security@afmarbre.com",
-    // macOS passkeys: "<Apple Team ID>.com.etherealmber.AtlasCommerceDesktop"
-    // (Team ID = developer.apple.com → Account → Membership details). Empty =
-    // /.well-known/apple-app-site-association stays 404.
+    // macOS passkeys need a paid Apple Team ID — intentionally not used (free
+    // setup). Empty = /.well-known/apple-app-site-association stays 404; desktop
+    // password+OTP and QR login work without it. Windows/Linux unaffected.
     "APPLE_WEBCREDENTIALS_APP_IDS": ""
   },
 

@@ -9,7 +9,6 @@
  */
 
 const GEN_KEY = 'cache:gen';
-const DASHBOARD_BASE = 'dash';
 const SETTINGS_BASE = 'settings';
 const PRODUCTS_PREFIX = 'products:';
 
@@ -163,32 +162,14 @@ export async function kvPutJson(
   }
 }
 
-export async function kvDel(kv: KVNamespace | undefined, key: string): Promise<void> {
-  memStore.delete(key);
-  // Never spend KV delete quota on free tier — rely on TTL
-  void kv;
-}
 
-export async function dashboardCacheKey(kv?: KVNamespace): Promise<string> {
-  const g = await getCacheGen(kv);
-  return `${DASHBOARD_BASE}:g${g}`;
-}
 
 export async function settingsCacheKey(kv?: KVNamespace): Promise<string> {
   const g = await getCacheGen(kv);
   return `${SETTINGS_BASE}:g${g}`;
 }
 
-export async function productsCacheKey(kv?: KVNamespace, suffix?: string): Promise<string> {
-  const g = await getCacheGen(kv);
-  const s = (suffix || 'all').slice(0, 120);
-  return `${PRODUCTS_PREFIX}g${g}:${s || 'all'}`;
-}
 
-/** @deprecated */
-export function configCacheKey(k: string): string {
-  return `cfg:${k}`;
-}
 
 export function hasLiveCache(env: { MOBILE_HUB?: DurableObjectNamespace; CACHE?: KVNamespace } | undefined): boolean {
   if (!env) return false;
@@ -250,9 +231,6 @@ export async function invalidateDashboardCache(kv: KVNamespace | undefined, hub?
   await bumpCacheGen(kv, hub);
 }
 
-export async function invalidateAllBusinessCache(kv: KVNamespace | undefined, hub?: DurableObjectNamespace): Promise<void> {
-  await bumpCacheGen(kv, hub);
-}
 
 const refreshWindows = new Map<string, number[]>();
 

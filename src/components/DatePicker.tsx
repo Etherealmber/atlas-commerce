@@ -77,7 +77,7 @@ function usePopPosition(open: boolean, triggerRef: RefObject<HTMLElement | null>
   return pos;
 }
 
-export type DatePickerProps = {
+type DatePickerProps = {
   value: string;
   onChange: (iso: string) => void;
   disabled?: boolean;
@@ -359,7 +359,7 @@ function CalendarMonth({
   );
 }
 
-export type DateRangePickerProps = {
+type DateRangePickerProps = {
   from: string;
   to: string;
   onChange: (from: string, to: string) => void;

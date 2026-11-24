@@ -3,7 +3,7 @@
  * Attempts (including successful requests), not just failures, consume capacity.
  */
 export type CredentialAttemptPurpose = 'password' | 'otp';
-export interface CredentialAttemptDecision { allowed: boolean; retryAfter: number }
+interface CredentialAttemptDecision { allowed: boolean; retryAfter: number }
 export const CREDENTIAL_ATTEMPT_LIMITS = {
   ipMinute: 60,
   ipTenMinutes: 300,

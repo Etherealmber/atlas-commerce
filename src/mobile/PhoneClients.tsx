@@ -11,7 +11,7 @@ import PhoneSkeleton from './PhoneSkeleton';
 
 export const PHONE_CLIENTS_PAGE_SIZE = 20;
 
-export interface PhoneClientRecord {
+interface PhoneClientRecord {
   id: number;
   name: string;
   phone: string;

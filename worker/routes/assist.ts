@@ -42,7 +42,7 @@ import {
 } from '../lib/agent-knowledge';
 import { parseAgentDocumentsAsync, agentDocumentPromptSection } from '../lib/agent-docs';
 
-export interface AssistRouteDeps {
+interface AssistRouteDeps {
   authFailReason: (header: string | undefined, env: any, db: D1Database, ip: string, fp?: string) => Promise<string>;
   sessionUserFromHeader: (header: string | undefined) => any;
   clientIp: (c: any) => string;

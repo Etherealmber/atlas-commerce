@@ -40,7 +40,7 @@ import {
 
 export const NATIVE_V3 = '/api/auth/desktop/v3';
 
-export const V3_PUBLIC_POSTS = new Set(
+const V3_PUBLIC_POSTS = new Set(
   [
     'nonce',
     'requests',
@@ -79,11 +79,11 @@ const QR_POLL_INTERVAL_MS = 2_000;
 const PASSKEY_TTL_MS = 120_000;
 
 /** Browser-free presentation: explicit opt-in, never an automatic fallback. */
-export const nativePresentationEnabled = (env: any) => env?.DESKTOP_NATIVE_V3_NATIVE_LOGIN === 'true';
+const nativePresentationEnabled = (env: any) => env?.DESKTOP_NATIVE_V3_NATIVE_LOGIN === 'true';
 
 type Identity = { username: string; role: string; material: string; userId: number | null };
 
-export type DesktopV3Deps = {
+type DesktopV3Deps = {
   currentIdentity: (env: any, username: string, role: string) => Promise<Identity | null>;
   verifyAppUserPassword: (
     env: any,
@@ -483,7 +483,7 @@ function strictOrigin(c: Context<any>, supplied?: unknown): string {
   return url.origin;
 }
 
-export async function pairingCode(row: { origin: string; id: string; challenge: string }): Promise<string> {
+async function pairingCode(row: { origin: string; id: string; challenge: string }): Promise<string> {
   const bytes = new Uint8Array(
     await crypto.subtle.digest(
       'SHA-256',

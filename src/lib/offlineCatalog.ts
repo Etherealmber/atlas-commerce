@@ -85,17 +85,6 @@ export async function cacheProducts(products: any[]): Promise<number> {
   });
 }
 
-/** Upsert single product (after create/update) without full resync */
-export async function upsertProduct(p: any): Promise<void> {
-  if (!p?.id) return;
-  const db = await openDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readwrite');
-    tx.objectStore(STORE).put(mapProduct(p));
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-}
 
 export async function lookupOffline(code: string): Promise<any | null> {
   const needle = code.trim();
@@ -124,16 +113,8 @@ export async function lookupOffline(code: string): Promise<any | null> {
   });
 }
 
-export async function cacheCount(): Promise<number> {
-  const db = await openDb();
-  return new Promise((resolve, reject) => {
-    const req = db.transaction(STORE, 'readonly').objectStore(STORE).count();
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
 
-export async function enqueueOutbox(payload: {
+async function enqueueOutbox(payload: {
   type: string;
   title: string;
   detail?: string;
@@ -160,7 +141,7 @@ export async function countOutbox(): Promise<number> {
   });
 }
 
-export async function listOutbox(): Promise<any[]> {
+async function listOutbox(): Promise<any[]> {
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const req = db.transaction(OUTBOX, 'readonly').objectStore(OUTBOX).getAll();
@@ -169,7 +150,7 @@ export async function listOutbox(): Promise<any[]> {
   });
 }
 
-export async function removeOutboxItem(localId: number): Promise<void> {
+async function removeOutboxItem(localId: number): Promise<void> {
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(OUTBOX, 'readwrite');
@@ -202,12 +183,10 @@ export function isOnline(): boolean {
   return typeof navigator !== 'undefined' ? navigator.onLine : true;
 }
 
-/** alias FR */
-export const cacheProduits = cacheProducts;
 
 
 /** Request Background Sync so offline scans flush when connectivity returns */
-export async function requestBackgroundSync(tag = 'atlas-outbox-sync'): Promise<boolean> {
+async function requestBackgroundSync(tag = 'atlas-outbox-sync'): Promise<boolean> {
   try {
     if (!('serviceWorker' in navigator)) return false;
     const reg = await navigator.serviceWorker.ready;
@@ -269,60 +248,7 @@ export async function listCachedLocations(): Promise<any[]> {
   });
 }
 
-/**
- * Optimistic local stock change (offline). Syncs via outbox as stock_adjust.
- * Returns new local quantity or null if product missing offline.
- */
-export async function applyLocalStockDelta(
-  productId: number,
-  delta: number,
-  meta?: { location_id?: number; reason?: string },
-): Promise<number | null> {
-  const db = await openDb();
-  const prod = await new Promise<any>((resolve, reject) => {
-    const req = db.transaction(STORE, 'readonly').objectStore(STORE).get(productId);
-    req.onsuccess = () => resolve(req.result || null);
-    req.onerror = () => reject(req.error);
-  });
-  if (!prod) return null;
-  const next = Math.max(0, Number(prod.stock_quantity || 0) + delta);
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readwrite');
-    tx.objectStore(STORE).put({ ...prod, stock_quantity: next, cached_at: Date.now() });
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-  await enqueueOutboxAndSync({
-    type: 'stock_adjust',
-    title: `Ajust. stock ${prod.name}`,
-    detail: `${delta > 0 ? '+' : ''}${delta} → ${next}`,
-    product_id: productId,
-    meta: {
-      delta,
-      location_id: meta?.location_id,
-      reason: meta?.reason || 'offline_adjust',
-      previous: prod.stock_quantity,
-    },
-  });
-  return next;
-}
 
-/** List products with low stock from offline cache */
-export async function listLowStockOffline(): Promise<any[]> {
-  const db = await openDb();
-  return new Promise((resolve, reject) => {
-    const req = db.transaction(STORE, 'readonly').objectStore(STORE).getAll();
-    req.onsuccess = () => {
-      const rows = (req.result || []).filter(
-        (p: any) =>
-          p.track_inventory &&
-          Number(p.stock_quantity || 0) <= Number(p.low_stock_threshold ?? 5),
-      );
-      resolve(rows);
-    };
-    req.onerror = () => reject(req.error);
-  });
-}
 
 export interface QueuedOfflineInventoryOp {
   seq?: number;
@@ -365,7 +291,7 @@ export async function enqueueOfflineInventoryOp(
   return item;
 }
 
-export async function listOfflineInventoryOps(): Promise<QueuedOfflineInventoryOp[]> {
+async function listOfflineInventoryOps(): Promise<QueuedOfflineInventoryOp[]> {
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const req = db.transaction(OFFLINE_INV_OPS, 'readonly').objectStore(OFFLINE_INV_OPS).getAll();
@@ -385,7 +311,7 @@ export async function countOfflineInventoryOps(): Promise<{ pending: number; con
   return { pending, conflicts, total: rows.length };
 }
 
-export async function removeOfflineInventoryOpBySeq(seq: number): Promise<void> {
+async function removeOfflineInventoryOpBySeq(seq: number): Promise<void> {
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(OFFLINE_INV_OPS, 'readwrite');
@@ -395,7 +321,7 @@ export async function removeOfflineInventoryOpBySeq(seq: number): Promise<void> 
   });
 }
 
-export async function updateOfflineInventoryOp(item: QueuedOfflineInventoryOp): Promise<void> {
+async function updateOfflineInventoryOp(item: QueuedOfflineInventoryOp): Promise<void> {
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(OFFLINE_INV_OPS, 'readwrite');

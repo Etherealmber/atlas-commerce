@@ -308,7 +308,7 @@ export function invoiceToUblInput(settings: any, inv: any, items: any[]): UblInv
   };
 }
 
-export type UblValidationIssue = {
+type UblValidationIssue = {
   level: 'error' | 'warning';
   code: string;
   message: string;

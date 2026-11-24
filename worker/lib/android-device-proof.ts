@@ -8,7 +8,7 @@ export const ANDROID_DEVICE_PROOF_POLICY = 'review-only-otp-required' as const;
 export const DEVICE_CREDENTIAL_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 export const DEVICE_CHALLENGE_TTL_MS = 120_000;
 
-export interface DeviceProofScope {
+interface DeviceProofScope {
   /** Immutable deployment/tenant ID, not company name or client input. */
   tenantId: string;
   /** Canonical HTTPS origin, including a non-default port. */
@@ -46,9 +46,9 @@ export interface DeviceProofContext extends DeviceProofScope {
   /** Telemetry/risk input, deliberately NOT a substitute for possession. */
   ipChanged: boolean;
 }
-export type DeviceProofReason = 'REVIEW_REQUIRED' | 'BAD_PASSWORD' | 'OTP_REQUIRED'
+type DeviceProofReason = 'REVIEW_REQUIRED' | 'BAD_PASSWORD' | 'OTP_REQUIRED'
   | 'RISK_REQUIRES_OTP' | 'INVALID_PROOF' | 'UNAVAILABLE';
-export interface DeviceProofResult {
+interface DeviceProofResult {
   /** Always true until reviewed integration is implemented separately. */
   otpRequired: true;
   candidateProofVerified: boolean;

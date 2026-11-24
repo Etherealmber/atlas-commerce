@@ -1,20 +1,6 @@
 import React, { useEffect, useState, type ComponentType } from 'react';
 import { motion, AnimatePresence, type Transition } from 'motion/react';
-import {
-  Zap,
-  Inbox,
-  Sparkles,
-  Tags,
-  Clock,
-  FileText,
-  Send,
-  BadgeCheck,
-  X,
-  Download,
-  Database,
-  Table,
-  Package,
-} from 'lucide-react';
+import { Zap, Inbox, Sparkles, Tags, Clock, FileText, Send, BadgeCheck, X, Download } from 'lucide-react';
 
 function AnimatedText({
   text,
@@ -64,7 +50,7 @@ const spring: Transition = {
   mass: 0.8,
 };
 
-export type RunStep = {
+type RunStep = {
   id: number;
   label: string;
   icon: ComponentType<{ className?: string; size?: number; strokeWidth?: number }>;
@@ -79,14 +65,6 @@ const DEFAULT_STEPS: RunStep[] = [
   { id: 6, label: 'Prêt à télécharger', icon: Send },
 ];
 
-/** Steps for CSV / JSON product & report exports */
-export const EXPORT_CSV_STEPS: RunStep[] = [
-  { id: 1, label: 'Lecture catalogue', icon: Database },
-  { id: 2, label: 'Calcul des stocks', icon: Package },
-  { id: 3, label: 'Mise en tableau', icon: Table },
-  { id: 4, label: 'Génération CSV', icon: FileText },
-  { id: 5, label: 'Téléchargement', icon: Download },
-];
 
 export const EXPORT_REPORT_STEPS: RunStep[] = [
   { id: 1, label: 'Collecte des écritures', icon: Inbox },
@@ -314,4 +292,3 @@ export function RunActionButton({
   );
 }
 
-export default RunActionButton;

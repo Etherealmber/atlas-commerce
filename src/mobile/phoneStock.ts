@@ -1,5 +1,5 @@
 /** Product fields returned by the mobile catalog and barcode endpoints. */
-export type PhoneStock = {
+type PhoneStock = {
   stock_quantity?: number | null;
   stock?: number | null;
   low_stock_threshold?: number | null;

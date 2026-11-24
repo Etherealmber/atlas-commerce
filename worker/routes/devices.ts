@@ -4,7 +4,7 @@
  *   GET  /api/auth/devices         → list + device_label + city/country (cf IP)
  *   POST /api/auth/devices/revoke  → revoke (OTP note kept by caller UI)
  */
-export interface DeviceRoutesDeps {
+interface DeviceRoutesDeps {
   sessionUserFromHeader: (h: string | undefined) => { username: string; role: string };
   authFailReason: (...a: any[]) => Promise<string>;
   clientIp: (c: any) => string;

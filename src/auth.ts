@@ -84,7 +84,7 @@ export function listSavedAccounts(): SavedAccount[] {
     return Array.isArray(raw) ? raw.filter((a) => a && a.token && a.username) : [];
   } catch { return []; }
 }
-export function upsertSavedAccount(a: { username: string; role?: string; token: string }) {
+function upsertSavedAccount(a: { username: string; role?: string; token: string }) {
   try {
     const u = String(a.username).trim().toLowerCase();
     const list = listSavedAccounts().filter((x) => x.username.toLowerCase() !== u);
@@ -97,12 +97,6 @@ export function upsertSavedAccount(a: { username: string; role?: string; token: 
       saved_at: Date.now(),
     });
     localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(list.slice(0, 6)));
-  } catch { /* */ }
-}
-export function removeSavedAccount(username: string) {
-  try {
-    const u = String(username).toLowerCase();
-    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(listSavedAccounts().filter((x) => x.username.toLowerCase() !== u)));
   } catch { /* */ }
 }
 export function switchSavedAccount(username: string): boolean {
@@ -341,9 +335,6 @@ export function getRole(): string {
   return localStorage.getItem(ROLE_KEY) || 'user';
 }
 
-export function isOwnerRole(): boolean {
-  return getRole() === 'owner';
-}
 
 /** Floor scan / products list (includes magasinier). */
 export function canManageStock(): boolean {
@@ -376,9 +367,6 @@ export function canOfficeWork(): boolean {
   return r === 'owner' || r === 'admin' || r === 'secretaire';
 }
 
-export function canViewReports(): boolean {
-  return canOfficeWork();
-}
 
 /** Server / users / audit — principal admin (owner) only. Legacy role 'admin' treated as owner for access. */
 export function canAccessAdminSettings(): boolean {
@@ -402,7 +390,3 @@ export function canAccessSettings(): boolean {
   return !!getRole();
 }
 
-/** Company+ tabs in Settings (not profile). */
-export function canAccessSettingsBeyondProfile(): boolean {
-  return canAccessCompanySettings();
-}

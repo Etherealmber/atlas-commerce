@@ -304,7 +304,6 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
       'src/styles/theme.css',
       'src/styles/login-auth.css',
       'src/components/SaveFeedback.tsx',
-      'src/components/mailbox/ComposeEmailCard.tsx',
       'src/components/ui/RunActionButton.tsx',
       'src/pages/Receipts.tsx',
       'src/pages/Dashboard.tsx',

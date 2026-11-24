@@ -11,7 +11,7 @@ import PhoneSkeleton from './PhoneSkeleton';
 
 export const PHONE_EMPLOYEES_PAGE_SIZE = 20;
 
-export interface PhoneEmployeeSummary {
+interface PhoneEmployeeSummary {
   id: number;
   name: string;
   role_title: string;

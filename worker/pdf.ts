@@ -31,7 +31,7 @@ function fmtMoney(n: number): string {
   return Math.round(Number(n || 0)).toLocaleString("fr-FR");
 }
 
-export type PdfDocInput = {
+type PdfDocInput = {
   title: string; // FACTURE | DEVIS | RECU
   number: string;
   issueDate: string;
@@ -249,7 +249,7 @@ export function buildInvoicePdf(input: PdfDocInput): Uint8Array {
 
 /* ─── v254 — Monthly finance report (owner/admin only, generated on demand) ─── */
 
-export type FinanceReportDocLine = {
+type FinanceReportDocLine = {
   number: string;
   party: string;
   due_date: string;
@@ -257,7 +257,7 @@ export type FinanceReportDocLine = {
   state: string;
 };
 
-export type FinanceReportInput = {
+type FinanceReportInput = {
   companyName: string;
   currency: string;
   period: string;
@@ -415,7 +415,7 @@ export function buildFinanceReportPdf(input: FinanceReportInput): Uint8Array {
   return new TextEncoder().encode(pdf);
 }
 
-export type PayslipPdfInput = {
+type PayslipPdfInput = {
   periodMonth: string;
   runId: number;
   runKind: string;

@@ -2,38 +2,11 @@
  * Money helpers — backed by shared/financeCore.ts so UI previews match Worker calculations.
  * Moroccan dirham (MAD) displayed as DH (whole dirhams for MAD; currency-aware for non-2-decimal currencies).
  */
-import {
-  currencySymbol,
-  fmtMoney as coreFmtMoney,
-  getCurrencySpec,
-  normalizeCurrencyCode,
-  remainingBalance,
-  round2,
-  roundDh,
-  roundMoneyForCurrency,
-} from '../../shared/financeCore';
+import { fmtMoney as coreFmtMoney, remainingBalance, round2 } from '../../shared/financeCore';
 
-export {
-  currencySymbol,
-  getCurrencySpec,
-  normalizeCurrencyCode,
-  remainingBalance,
-  round2,
-  roundDh,
-  roundMoneyForCurrency,
-};
+export { remainingBalance, round2 };
 
-/** Round to nearest whole dirham (MAD client-facing convention) or currency default. */
-export function roundMoney(n: number | null | undefined, currency = 'MAD'): number {
-  const code = normalizeCurrencyCode(currency);
-  if (code === 'MAD') return roundDh(n);
-  return roundMoneyForCurrency(n, code);
-}
 
-/** 2-decimal internal rounding with exact decimal scaling (never raw Math.round(x * 100) / 100). */
-export function roundMoney2(n: number | null | undefined): number {
-  return round2(Number(n ?? 0));
-}
 
 /**
  * Format for UI: "1 234 DH" for MAD, or decimal-aware for EUR/USD/TND/JPY.

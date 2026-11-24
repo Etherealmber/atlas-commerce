@@ -6,7 +6,7 @@ import { defaultOptions } from '@jsquash/webp/meta.js';
 import webpWasm from '@jsquash/webp/codec/enc/webp_enc.wasm';
 
 export const PRODUCT_IMAGE_EDGE = 768;
-export const PRODUCT_IMAGE_QUALITY = 82;
+const PRODUCT_IMAGE_QUALITY = 82;
 export const PRODUCT_IMAGE_MAX_BYTES = 4 * 1024 * 1024;
 const MAX_SOURCE_PIXELS = 4_000_000;
 const MAX_SOURCE_EDGE = 4096;

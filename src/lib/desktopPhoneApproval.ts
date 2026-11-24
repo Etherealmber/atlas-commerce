@@ -18,7 +18,7 @@ export function parsePhoneApproval(fragment: string, origin: string, search: str
   } catch { return null; }
 }
 
-export class PhoneApprovalError extends Error {
+class PhoneApprovalError extends Error {
   constructor(public code: string) { super('Connexion indisponible ou refusée. Recommencez depuis le desktop.'); }
 }
 /** Never forward a bearer across origins, follow redirects, or surface response bodies as errors. */

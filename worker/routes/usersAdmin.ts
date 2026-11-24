@@ -26,7 +26,7 @@ import {
   webTokenHash,
 } from '../lib/authHelpers';
 
-export interface UsersAdminDeps {
+interface UsersAdminDeps {
   authFailReason: any;
   cfGeo: any;
   checkConfirmPassword: any;

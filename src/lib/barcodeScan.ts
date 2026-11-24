@@ -75,7 +75,7 @@ function loadScriptOnce(src: string, timeoutMs = 10000): Promise<void> {
   });
 }
 
-export function loadZXing(): Promise<any> {
+function loadZXing(): Promise<any> {
   if (zxingReady) return zxingReady;
   const w = window as any;
   if (w.ZXingWASM?.readBarcodes) {
@@ -170,7 +170,7 @@ function loadHtml5Qrcode(): Promise<any> {
   return html5Ready;
 }
 
-export function isBarcodeLike(code: string): boolean {
+function isBarcodeLike(code: string): boolean {
   const c = String(code || '').trim().replace(/\s+/g, '');
   if (!c || c.length < 3) return false;
   if (c.includes('://') || /^https?/i.test(c)) return false;
@@ -476,37 +476,7 @@ async function startQuaggaScan(
 }
 
 
-export function getDynamsoftLicense(): string {
-  try {
-    const fromEnv = String((import.meta as any)?.env?.VITE_DYNAMSOFT_LICENSE || '').trim();
-    if (fromEnv) return fromEnv;
-  } catch {
-    /* */
-  }
-  try {
-    const fromLs = String(localStorage.getItem('atlas_dynamsoft_license') || '').trim();
-    if (fromLs) return fromLs;
-  } catch {
-    /* */
-  }
-  try {
-    const fromWin = String((window as any).__ATLAS_DYNAMSOFT_LICENSE__ || '').trim();
-    if (fromWin) return fromWin;
-  } catch {
-    /* */
-  }
-  return '';
-}
 
-export function setDynamsoftLicense(key: string) {
-  try {
-    const k = String(key || '').trim();
-    if (k) localStorage.setItem('atlas_dynamsoft_license', k);
-    else localStorage.removeItem('atlas_dynamsoft_license');
-  } catch {
-    /* */
-  }
-}
 
 
 
@@ -879,7 +849,7 @@ export async function captureAndDecode(
   return decodeCanvas(c);
 }
 
-export async function decodeCanvas(canvas: HTMLCanvasElement): Promise<string | null> {
+async function decodeCanvas(canvas: HTMLCanvasElement): Promise<string | null> {
   const candidates = buildCandidates(canvas);
   for (const c of candidates) {
     try {

@@ -2,7 +2,7 @@ import { Link, useLocation, useParams } from 'react-router-dom';
 import { isLoggedIn, getToken, getRole, isStockRole } from '../auth';
 
 /** HTTP-style error kinds (nginx-error-pages inspired) */
-export type AccessKind =
+type AccessKind =
   | 'not-found'
   | 'forbidden'
   | 'login-required'
@@ -137,7 +137,7 @@ const CODE_TO_KIND: Record<string, AccessKind> = {
 };
 
 /** Soft floating ghost — Atlas teal */
-export function AtlasGhost({ label }: { label: string }) {
+function AtlasGhost({ label }: { label: string }) {
   return (
     <div className="access-ghost" aria-hidden>
       <svg className="access-ghost-svg" viewBox="0 0 200 220" fill="none" xmlns="http://www.w3.org/2000/svg">

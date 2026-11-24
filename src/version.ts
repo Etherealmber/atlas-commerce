@@ -4,7 +4,6 @@ export const APP_TAGLINE = 'Stock · Caisse · Facturation';
 export const APP_VERSION = '0.9.2-beta';
 /* v0.7 — date toujours à jour (demande user) : date du jour UTC. */
 export const APP_BUILD_DATE = '2026-11-24';
-export const APP_BUILD = APP_BUILD_DATE;
 export const APP_CHANNEL = 'beta' as const;
 
 export const APP_CREATOR = 'etherealmber';
@@ -13,10 +12,8 @@ export const APP_TEAM = 'etherealmber';
 export const APP_GITHUB = 'https://github.com/etherealmber';
 export const APP_TEAM_GITHUB = 'https://github.com/etherealmber';
 export const APP_INSTAGRAM = '';
-export const APP_LOCATION = '';
 export const APP_DESCRIPTION =
   'Logiciel de gestion stock, caisse et facturation pour commerces et entrepôts.';
-export const APP_PROFILE = 'https://github.com/etherealmber';
 
 /** Version publique courante. */
 export const DISPLAY_VERSION = '0.9.2';

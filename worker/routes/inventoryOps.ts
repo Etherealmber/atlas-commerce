@@ -8,7 +8,7 @@ import { nextDocumentNumber } from '../lib/numbering';
 import { assertSafeOutboundUrl, escapeHtml } from '../lib/security';
 import { normalizeInventoryRole, roleCanSeeFinancial, scrubProductForRole } from '../lib/inventory-policy';
 
-export interface InventoryOpsRouteDeps {
+interface InventoryOpsRouteDeps {
   requireOwner: (c: any) => any;
   requireBizMutator: (c: any) => any;
   requireFloorStock: (c: any) => any;

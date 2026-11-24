@@ -5,7 +5,7 @@
 import { PDFDocument, PDFPage, PDFFont, StandardFonts, rgb, degrees } from 'pdf-lib';
 import { qrMatrixWithLogo } from './qrSvg';
 
-export type PdfLibDocInput = {
+type PdfLibDocInput = {
   title: string;
   number: string;
   issueDate: string;

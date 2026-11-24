@@ -6,10 +6,10 @@ import { reserveCredentialAttempt, type CredentialAttemptPurpose } from '../lib/
 import { reserveDesktopCreate } from '../lib/desktop-create-budget';
 
 export const NATIVE_V2 = '/api/auth/desktop/v2';
-export const V2_PUBLIC_POSTS = new Set(['requests', 'poll', 'cancel', 'exchange'].map(x => `${NATIVE_V2}/${x}`));
-export const V2_DISABLED_POSTS = new Set(['password', 'otp', 'passkey'].map(x => `${NATIVE_V2}/${x}`));
-export const V2_PILOT_POSTS = new Set(['pilot/requests', 'pilot/browser/prepare', 'pilot/browser/decision', 'pilot/poll', 'pilot/consume', 'pilot/cancel', 'pilot/login/password', 'pilot/login/otp', 'pilot/login/cancel', 'pilot/session/refresh', 'pilot/session/logout'].map(x => `${NATIVE_V2}/${x}`));
-export const V2_PHONE_POSTS = new Set(['phone/prepare', 'phone/decision'].map(x => `${NATIVE_V2}/${x}`));
+const V2_PUBLIC_POSTS = new Set(['requests', 'poll', 'cancel', 'exchange'].map(x => `${NATIVE_V2}/${x}`));
+const V2_DISABLED_POSTS = new Set(['password', 'otp', 'passkey'].map(x => `${NATIVE_V2}/${x}`));
+const V2_PILOT_POSTS = new Set(['pilot/requests', 'pilot/browser/prepare', 'pilot/browser/decision', 'pilot/poll', 'pilot/consume', 'pilot/cancel', 'pilot/login/password', 'pilot/login/otp', 'pilot/login/cancel', 'pilot/session/refresh', 'pilot/session/logout'].map(x => `${NATIVE_V2}/${x}`));
+const V2_PHONE_POSTS = new Set(['phone/prepare', 'phone/decision'].map(x => `${NATIVE_V2}/${x}`));
 export const isNativeV2Operation = (p: string) => V2_PUBLIC_POSTS.has(p) || V2_PHONE_POSTS.has(p) || V2_DISABLED_POSTS.has(p) || V2_PILOT_POSTS.has(p);
 function unavailableCode(path: string) { return path === `${NATIVE_V2}/passkey` ? 'NATIVE_ASSOCIATION_UNVERIFIED' : 'NATIVE_ABUSE_VERIFIER_UNAVAILABLE'; }
 const FP = /^[A-Za-z0-9._:-]{16,128}$/;

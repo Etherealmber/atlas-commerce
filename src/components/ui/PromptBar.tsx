@@ -13,15 +13,15 @@ const EASE_IN_OUT = [0.77, 0, 0.175, 1] as const;
 const LINE = 22;
 const EDGE = 11;
 
-export type PromptBarSource = {
+type PromptBarSource = {
   key: string;
   name: string;
   description?: string;
   icon?: any;
   attach?: boolean;
 };
-export type PromptBarCommand = { key: string; name: string; description?: string };
-export type PromptBarModel = { key: string; name: string; tag?: string };
+type PromptBarCommand = { key: string; name: string; description?: string };
+type PromptBarModel = { key: string; name: string; tag?: string };
 
 const DEFAULT_SOURCES: PromptBarSource[] = [
   {
@@ -112,7 +112,7 @@ function SendGlyph({
   );
 }
 
-export type PromptBarProps = {
+type PromptBarProps = {
   placeholder?: string;
   sources?: PromptBarSource[];
   commands?: PromptBarCommand[];

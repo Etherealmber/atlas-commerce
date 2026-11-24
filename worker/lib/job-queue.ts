@@ -19,19 +19,3 @@ export function enqueue(ctx: { waitUntil: (p: Promise<unknown>) => void } | unde
   }
 }
 
-/** Run at most once per key within TTL seconds (KV). */
-export async function enqueueOnce(
-  kv: KVNamespace | undefined,
-  jobId: string,
-  ttlSeconds: number,
-  work: () => Promise<unknown>,
-  ctx?: { waitUntil: (p: Promise<unknown>) => void },
-): Promise<boolean> {
-  if (kv) {
-    const existing = await kv.get(`job:${jobId}`);
-    if (existing) return false;
-    await kv.put(`job:${jobId}`, '1', { expirationTtl: Math.max(60, ttlSeconds) });
-  }
-  enqueue(ctx, work);
-  return true;
-}

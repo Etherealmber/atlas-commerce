@@ -3,7 +3,7 @@ import { doCacheGet, doCachePut, getCacheGen, hasLiveCache } from '../lib/cache'
 import { afterBusinessMutation } from '../lib/delete-coord';
 import { enqueue } from '../lib/job-queue';
 
-export interface BackupRouteDeps {
+interface BackupRouteDeps {
   requireOwner: (c: any) => { ok: true; username: string } | { ok: false; response: Response };
   hmacSha256Hex: (secret: string, message: string) => Promise<string>;
   writeAudit: (db: D1Database, entry: any) => Promise<void>;
@@ -205,7 +205,7 @@ async function sha256TextHex(text: string): Promise<string> {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-export async function loadDeletedAccountTombstones(db: D1Database | undefined): Promise<string[]> {
+async function loadDeletedAccountTombstones(db: D1Database | undefined): Promise<string[]> {
   if (!db) return [];
   try {
     const row = (await db
@@ -240,7 +240,7 @@ async function recordDeletedAccountTombstone(db: D1Database | undefined, usernam
   }
 }
 
-export function scrubAccountFromBackupPayload(
+function scrubAccountFromBackupPayload(
   payload: any,
   usernames: string | string[],
 ): { payload: any; changed: boolean } {
@@ -768,7 +768,7 @@ export async function purgeExpiredBackups(env: any): Promise<{ deleted: number }
 }
 
 /** Purge ephemeral DB operational/security rows older than 7 days (never business records). */
-export async function purgeExpiredDbBackupsState(db: D1Database | undefined): Promise<{ purgedRows: number }> {
+async function purgeExpiredDbBackupsState(db: D1Database | undefined): Promise<{ purgedRows: number }> {
   if (!db) return { purgedRows: 0 };
   let purgedRows = 0;
   for (const sql of [

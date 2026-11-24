@@ -95,15 +95,6 @@ export async function rateLimit(
   return { ok: true, remaining: limit - 1 };
 }
 
-/** Reject SQL-like strings that look like mass UPDATE/DELETE without WHERE (defense in depth for dynamic builders). */
-export function assertHasWhereClause(sql: string): void {
-  const s = sql.replace(/\s+/g, ' ').trim().toUpperCase();
-  if (s.startsWith('UPDATE ') || s.startsWith('DELETE ')) {
-    if (!/\bWHERE\b/.test(s)) {
-      throw new Error('Requête d\'écriture refusée: clause WHERE obligatoire');
-    }
-  }
-}
 
 export function normalizeIp(raw: string): string {
   const s = String(raw || '').trim();

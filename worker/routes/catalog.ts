@@ -1,7 +1,7 @@
 import type { Hono } from 'hono';
 import { normalizeInventoryRole, scrubProductForRole } from '../lib/inventory-policy';
 
-export interface CatalogRouteDeps {
+interface CatalogRouteDeps {
   ensureCatalogTables: (db: D1Database) => Promise<void>;
   readProductImageJson: (c: any) => Promise<any>;
   productImageFailure: (c: any, e: unknown) => Response;

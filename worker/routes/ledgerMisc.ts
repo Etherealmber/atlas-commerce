@@ -11,7 +11,7 @@ import { afterBusinessMutation, listR2Prefix } from '../lib/delete-coord';
 import { purgeDeletedAccountFromBackups } from './backups';
 import { cascadeDeleteInvoice, ensurePaymentHistoryTable, ensureReceiptsTable } from '../lib/ledgerHelpers';
 
-export interface LedgerMiscDeps {
+interface LedgerMiscDeps {
   WAF_STATS?: any;
   authFailReason?: any;
   clientIp?: any;

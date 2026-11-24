@@ -12,7 +12,7 @@ import { ensureStockLocations, getDefaultLocationId } from './inventoryOps';
 import { notifyPaymentRecorded } from '../lib/finance';
 import { computeInvoiceLinesAndTotals, computePaymentApplication, computeRefundSplit, getCurrencySpec, roundCurrency, sanitizeNonNegativeAmount, sumMoneyAmounts } from '../lib/financeCore';
 
-export interface InvoicesWriteRouteDeps {
+interface InvoicesWriteRouteDeps {
   requireBizMutator: (c: any) => any;
   sessionUserFromHeader: (header: string | undefined) => any;
   checkConfirmPassword: (env: any, db: D1Database, authHeader: string | undefined, body: any) => Promise<any>;

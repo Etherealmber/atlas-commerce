@@ -37,7 +37,7 @@ async function ensureStockMovementsTable(db: D1Database): Promise<void> {
     .run();
 }
 
-export interface StockRoutesDeps {
+interface StockRoutesDeps {
   requireFloorStock?: (c: any) => { ok: true; username: string; role: string } | { ok: false; response: Response };
   sessionUserFromHeader?: (authHeader?: string) => { username?: string; role?: string; account_id?: string };
   dispatchWebhook?: (env: any, ctx: any, event: string, payload: any) => Promise<void>;

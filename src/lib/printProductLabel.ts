@@ -111,7 +111,3 @@ export function printLabelSvg(svgMarkup: string, title = 'Étiquette produit') {
   }, 120);
 }
 
-/** Open a print-friendly product barcode label (PC). */
-export function printProductLabel(p: ProductLabelInfo) {
-  printLabelSvg(buildFallbackLabelSvg(p), `Étiquette — ${p.name || 'Produit'}`);
-}

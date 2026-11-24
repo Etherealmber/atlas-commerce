@@ -20,13 +20,13 @@
  * every report section link — raw user input is never echoed into links.
  */
 
-export type PeriodParams = {
+type PeriodParams = {
   period?: string | null;
   from?: string | null;
   to?: string | null;
 };
 
-export type PeriodBounds = {
+type PeriodBounds = {
   from: string;
   to: string;
   label: string;

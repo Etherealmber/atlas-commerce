@@ -24,7 +24,7 @@ import {
   type MinVersionPolicy,
 } from '../lib/app-update-policy';
 
-export const ANDROID_UPDATE_PREFIX = 'app-updates/android';
+const ANDROID_UPDATE_PREFIX = 'app-updates/android';
 const APK_MIME = 'application/vnd.android.package-archive';
 
 function json(body: unknown, status = 200, headers?: Record<string, string>): Response {

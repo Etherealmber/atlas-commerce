@@ -5,9 +5,9 @@
  * atlas_welcome_prefs: JSON of theme / density / glass choices.
  */
 
-export const WELCOME_COMPLETED_KEY = 'atlas_welcome_completed';
+const WELCOME_COMPLETED_KEY = 'atlas_welcome_completed';
 export const WELCOME_STEP_KEY = 'atlas_welcome_step';
-export const WELCOME_PREFS_KEY = 'atlas_welcome_prefs';
+const WELCOME_PREFS_KEY = 'atlas_welcome_prefs';
 
 export type WelcomeTheme = 'light' | 'dark' | 'system';
 export type WelcomeDensity = 'comfortable' | 'compact';

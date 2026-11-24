@@ -10,7 +10,7 @@ export type DgiClearanceStatus =
   | 'rejected'
   | 'retrying';
 
-export interface DgiSubmitInput {
+interface DgiSubmitInput {
   invoiceId: number;
   invoiceNumber: string;
   companyIce: string;
@@ -19,7 +19,7 @@ export interface DgiSubmitInput {
   ublInput: UblInvoiceInput;
 }
 
-export interface DgiSubmitResult {
+interface DgiSubmitResult {
   status: 'cleared' | 'rejected' | 'retrying';
   is_stub: boolean;
   clearance_ref?: string;
@@ -29,7 +29,7 @@ export interface DgiSubmitResult {
   error?: string;
 }
 
-export interface DgiAdapter {
+interface DgiAdapter {
   readonly isStub: boolean;
   submitInvoice(input: DgiSubmitInput): Promise<DgiSubmitResult>;
 }

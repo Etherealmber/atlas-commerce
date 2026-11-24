@@ -6,7 +6,7 @@
  * or HttpClientOptions ({ timeoutMs, retries, init }).
  */
 
-export type HttpClientOptions = {
+type HttpClientOptions = {
   timeoutMs?: number;
   retries?: number;
   retryOn?: number[];
@@ -97,17 +97,3 @@ export async function fetchWithTimeout(
   throw lastErr instanceof Error ? lastErr : new Error(`HTTP failed: ${label}`);
 }
 
-export async function fetchJsonWithTimeout<T = unknown>(
-  url: string,
-  opts: HttpClientOptions = {},
-): Promise<T> {
-  const res = await fetchWithTimeout(url, opts);
-  if (!res.ok) {
-    const { AppError } = await import('./errors');
-    throw new AppError(
-      res.status >= 500 ? 'SERVICE_UNAVAILABLE' : 'BAD_REQUEST',
-      `Service distant indisponible (${res.status})`,
-    );
-  }
-  return (await res.json()) as T;
-}

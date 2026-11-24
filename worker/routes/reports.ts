@@ -19,7 +19,7 @@ import {
 import { computePeriodBounds } from '../lib/report-period';
 import { generateEmployeeFormHTML } from '../lib/printTemplates';
 
-export interface ReportRouteDeps {
+interface ReportRouteDeps {
   reportTicketEnvironment: (env: any) => any;
   authFailReason: (header: string | undefined, env: any, db: D1Database, ip: string, fp?: string) => Promise<string>;
   sessionUserFromHeader: (header: string | undefined) => any;

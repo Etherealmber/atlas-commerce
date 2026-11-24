@@ -5,7 +5,7 @@ import { assertSafeOutboundUrl, escapeHtml, safeImageSrc } from './security';
 import { sendSms, documentSmsBody } from '../sms';
 
 /** Inline SVG data-URI — reliable in print/PDF (no broken external img). */
-export function atlasQrImg(_origin: string | undefined, data: string, size = 100): string {
+function atlasQrImg(_origin: string | undefined, data: string, size = 100): string {
   if (!data) return '';
   try {
     const svg = qrToSvg(String(data), size, 2);
@@ -30,7 +30,7 @@ export async function ensureDocAssetColumns(db: D1Database) {
   });
 }
 
-export function companyStampBlock(settings: any): string {
+function companyStampBlock(settings: any): string {
   const parts: string[] = [];
   // Company signature / stamp only — no client signature placeholder on print/PDF
   if (settings?.company_signature_url) {
@@ -278,7 +278,7 @@ ${opts?.autoPrint === false ? '' : '<script>window.onload=function(){setTimeout(
  * - FACTURE D'ACHAT (bill): purchase from vendor, no QR
  */
 /** Politique remboursement — affichée sur toute facture de vente (anciennes + nouvelles). */
-export const REFUND_POLICY_HTML = `
+const REFUND_POLICY_HTML = `
 <div class="terms keep" style="margin-top:20px">
   <h3>Politique de remboursement</h3>
   <p><strong>Un remboursement sans motif valable n’est pas accepté</strong>, quelle que soit la situation.</p>
@@ -301,7 +301,7 @@ export const REFUND_POLICY_TEXT =
 
 
 /** French amount in words (MAD) — for "Arrêté la présente facture…" */
-export function amountInWordsFr(n: number, currency = 'MAD'): string {
+function amountInWordsFr(n: number, currency = 'MAD'): string {
   const ones = ['zéro','un','deux','trois','quatre','cinq','six','sept','huit','neuf','dix','onze','douze','treize','quatorze','quinze','seize','dix-sept','dix-huit','dix-neuf'];
   const tens = ['','','vingt','trente','quarante','cinquante','soixante','soixante','quatre-vingt','quatre-vingt'];
   const under100 = (x: number): string => {
@@ -929,7 +929,7 @@ ${autoPrint ? '<script>window.onload=function(){setTimeout(function(){window.pri
 
 
 /** Build absolute public URL for a document token */
-export function publicDocUrl(origin: string, token: string): string {
+function publicDocUrl(origin: string, token: string): string {
   return `${origin.replace(/\/$/, '')}/api/public/invoices/${token}`;
 }
 

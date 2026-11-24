@@ -1,6 +1,6 @@
 import type { Env } from '../env';
 
-export type RestoreJobState = {
+type RestoreJobState = {
   id: string;
   status: string;
   message?: string;

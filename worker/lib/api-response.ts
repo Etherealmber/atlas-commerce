@@ -6,7 +6,7 @@
 import type { Context } from 'hono';
 import { looksLikeDbError, type ErrorCode } from './errors';
 
-export type ApiFailCode = ErrorCode;
+type ApiFailCode = ErrorCode;
 
 const STATUS: Record<ApiFailCode, number> = {
   BAD_REQUEST: 400,

@@ -1,4 +1,4 @@
-import { createContext, useContext, type ReactNode } from 'react';
+import { createContext, type ReactNode } from 'react';
 
 type DemoCtx = {
   active: boolean;
@@ -36,6 +36,3 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function useDemo() {
-  return useContext(Ctx);
-}

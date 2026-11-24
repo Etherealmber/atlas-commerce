@@ -74,7 +74,7 @@ function webglFingerprint(): string {
   }
 }
 
-export async function getDeviceFingerprint(): Promise<string> {
+async function getDeviceFingerprint(): Promise<string> {
   const installId = getOrCreateInstallId();
   const parts = [
     installId,
@@ -208,9 +208,6 @@ export async function isBiometricAvailable(): Promise<boolean> {
   return true;
 }
 
-export async function isSecurityKeyLikelyAvailable(): Promise<boolean> {
-  return isWebAuthnAvailable();
-}
 
 /**
  * Register platform biometric OR cross-platform security key.

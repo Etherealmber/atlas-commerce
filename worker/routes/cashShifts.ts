@@ -4,7 +4,7 @@ import { normalizeRole } from '../lib/rbac';
 import { escapeHtml } from '../lib/security';
 import { schemaOnceForDb } from '../lib/schema';
 
-export interface CashShiftRouteDeps {
+interface CashShiftRouteDeps {
   sessionUserFromHeader: (authHeader?: string) => { username?: string; role?: string };
   writeAudit: (db: D1Database, entry: { username?: string; role?: string; action: string; entity?: string; entity_id?: string; detail?: string; ip?: string }) => Promise<void>;
   reportShell: (title: string, company: string, period: string, body: string, footer?: string, backUrl?: string) => string;
@@ -77,7 +77,7 @@ function normMethod(raw: unknown): string {
   return m || 'other';
 }
 
-export function sumDenominations(denominations: Record<string, unknown>): number {
+function sumDenominations(denominations: Record<string, unknown>): number {
   let total = 0;
   for (const [k, v] of Object.entries(denominations || {})) {
     const face = Number(k);
@@ -170,7 +170,7 @@ async function gatherShiftWindowMovements(
   return explicit;
 }
 
-export interface MethodSummary {
+interface MethodSummary {
   method: string;
   label: string;
   in_total: number;

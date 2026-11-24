@@ -3,7 +3,7 @@ import { canMutateBusiness } from '../lib/rbac';
 import { sessionUserFromHeader } from '../lib/authHelpers';
 import { doCacheGet, doCachePut, hasLiveCache } from '../lib/cache';
 
-export interface InvoiceReadRouteDeps {
+interface InvoiceReadRouteDeps {
   requireBizMutator?: (
     c: any,
   ) => { ok: true; username: string; role: string } | { ok: false; response: Response };

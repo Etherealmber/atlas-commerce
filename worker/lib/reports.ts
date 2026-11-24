@@ -103,7 +103,7 @@ export function redactSecrets(text: string): string {
   return out;
 }
 
-export type SanitizedCrash = {
+type SanitizedCrash = {
   message: string;
   stack: string;
   componentStack: string;
@@ -140,13 +140,13 @@ export async function fingerprintOf(p: SanitizedCrash): Promise<string> {
   return (await sha256Hex(`${p.message}§${frames}`)).slice(0, 16);
 }
 
-export async function hashIp(ip: string): Promise<string> {
+async function hashIp(ip: string): Promise<string> {
   return (await sha256Hex(`atlas-crash-ip§${ip}`)).slice(0, 16);
 }
 
 /* ─────────────────────────── github config ─────────────────────────── */
 
-export type ReportsEnv = {
+type ReportsEnv = {
   DB: D1Database;
   GITHUB_ISSUE_TOKEN?: string;
   GITHUB_ISSUE_REPO?: string;
@@ -258,7 +258,7 @@ async function createIssue(
 
 /* ─────────────────────────── crash intake ─────────────────────────── */
 
-export type CrashIntakeResult = { id: number; deduped: boolean; issue_url: string };
+type CrashIntakeResult = { id: number; deduped: boolean; issue_url: string };
 
 export async function reportCrash(db: D1Database, env: ReportsEnv, rawBody: any, ip: string): Promise<CrashIntakeResult> {
   const p = sanitizeCrashPayload(rawBody);
@@ -330,7 +330,7 @@ export async function reportCrash(db: D1Database, env: ReportsEnv, rawBody: any,
 
 /* ─────────────────────────── user reports ─────────────────────────── */
 
-export type UserReportInput = {
+type UserReportInput = {
   username: string;
   role: string;
   kind: string;
@@ -340,8 +340,8 @@ export type UserReportInput = {
   version?: string;
 };
 
-export type UserReportResult = { reference: string; issue_url: string; already_reported: boolean; issue_status: 'open' | 'closed' | null };
-export type ReportIdentity = { owner: boolean; userId: number | null };
+type UserReportResult = { reference: string; issue_url: string; already_reported: boolean; issue_status: 'open' | 'closed' | null };
+type ReportIdentity = { owner: boolean; userId: number | null };
 
 async function ensureReportDedup(db: D1Database): Promise<void> {
   await db.prepare(`CREATE TABLE IF NOT EXISTS user_report_dedup (

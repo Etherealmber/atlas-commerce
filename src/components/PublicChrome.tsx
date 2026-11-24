@@ -18,9 +18,9 @@ const LOGO_LIGHT = '/atlas-logo-light.png';
    noires, souligner les pills ni dédoubler le logo. */
 /* ------------------------------------------------------------------ */
 
-export type Platform = 'android' | 'windows' | 'macos' | 'linux';
+type Platform = 'android' | 'windows' | 'macos' | 'linux';
 
-export const PLATFORM_LABEL: Record<Platform, string> = {
+const PLATFORM_LABEL: Record<Platform, string> = {
   android: 'Android',
   windows: 'Windows',
   macos: 'macOS',
@@ -28,7 +28,7 @@ export const PLATFORM_LABEL: Record<Platform, string> = {
 };
 
 /** Détection simple de la plateforme de l'appareil qui visite la page. */
-export function detectPlatform(): Platform {
+function detectPlatform(): Platform {
   if (typeof navigator === 'undefined') return 'windows';
   const ua = navigator.userAgent;
   if (/android/i.test(ua)) return 'android';
@@ -38,7 +38,7 @@ export function detectPlatform(): Platform {
   return 'windows';
 }
 
-export function useResolvedTheme(): ThemeChoice {
+function useResolvedTheme(): ThemeChoice {
   const [theme, setT] = useState<ThemeChoice>(() => getTheme());
   useEffect(() => subscribeTheme(setT), []);
   return theme;
@@ -55,7 +55,7 @@ function resolvedNow(): 'light' | 'dark' {
 }
 
 /** Thème réellement affiché ('light' | 'dark'), le mode système suivant l'OS. */
-export function useThemeValue(): 'light' | 'dark' {
+function useThemeValue(): 'light' | 'dark' {
   const [v, setV] = useState<'light' | 'dark'>(() => resolvedNow());
   useEffect(() => {
     const fn = () => setV(resolvedNow());
@@ -123,7 +123,7 @@ const ICONS: Record<ThemeChoice, ReactNode> = {
 
 /** Toggle système/clair/sombre — v0.7.7 : STRICTEMENT le même trio que le
  *  dashboard (`.settings-topbar-theme`), actif terracotta via CSS. */
-export function PublicThemeToggle() {
+function PublicThemeToggle() {
   const theme = useResolvedTheme();
   const btn = (v: ThemeChoice, label: string): ReactNode => {
     const active = theme === v;
@@ -160,7 +160,7 @@ function publicRoleLabelFr(role: string | null | undefined) {
 }
 
 /** Menu utilisateur unifié (TopbarUserMenu) pour les pages publiques quand un appareil est connecté. */
-export function PublicProfileChip() {
+function PublicProfileChip() {
   useProfileWarm();
   useProfileTick();
   if (!isLoggedIn()) return null;
@@ -182,45 +182,6 @@ export function PublicProfileChip() {
   );
 }
 
-/** v0.7.7 — carte flottante SÉPARÉE (à côté de la pilule, jamais dedans) :
- *  raccourcis connectés « Tableau de bord » + « Paramètres ». */
-export function PublicQuickBar() {
-  const c = useChromeColors();
-  if (!isLoggedIn()) return null;
-  const items: { href: string; label: string; d: string }[] = [
-    { href: '/dashboard', label: 'Tableau de bord', d: 'M3 3h8v8H3zM13 3h8v5h-8zM13 12h8v9h-8zM3 15h8v6H3z' },
-    { href: '/quick-sale', label: 'Vente rapide', d: 'M6 6h15l-1.5 8h-12zM6 6L5 3H2M9 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM18 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2z' },
-    { href: '/products', label: 'Produits & stock', d: 'M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8' },
-    { href: '/invoices', label: 'Factures', d: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M9 13h6M9 17h4' },
-    { href: '/clients', label: 'Clients', d: 'M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75' },
-    { href: '/reports', label: 'Rapports', d: 'M4 20V10M10 20V4M16 20v-7M21 20H3' },
-  ];
-  return (
-    <div
-      className="pn-quick"
-      role="navigation"
-      aria-label="Raccourcis espace de travail"
-      style={{ background: c.navBg, border: `1px solid ${c.navBorder}`, boxShadow: c.navShadow }}
-    >
-      {items.map((it) => (
-        <Link
-          key={it.href}
-          to={it.href}
-          title={it.label}
-          aria-label={it.label}
-          style={{
-            display: 'grid', placeItems: 'center', width: 32, height: 32,
-            borderRadius: 10, color: c.sub, textDecoration: 'none', background: 'transparent',
-          }}
-        >
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'block' }}>
-            <path d={it.d} />
-          </svg>
-        </Link>
-      ))}
-    </div>
-  );
-}
 
 export type NavLink = { href: string; label: string };
 
@@ -238,7 +199,7 @@ const PN_TABS: { id: string; label: string; d: string }[] = [
 /** v0.7.7 — onglets legacy (Conditions, Confidentialité, GitHub, Guide,
  *  Cookies) rendus avec les classes littérales de la topbar Paramètres.
  *  La page en cours n'est JAMAIS affichée ; rien ne duplique la sidebar. */
-export function PnLegacyTabs() {
+function PnLegacyTabs() {
   const location = useLocation();
   const navigate = useNavigate();
   return (
@@ -494,7 +455,7 @@ export function PublicSettingsTopbar({ onOpenSidebar }: { onOpenSidebar?: () => 
   );
 }
 
-export function usePublicReleases(): { desktop: ReleaseAssets; android: { url: string; label: string } | null; loaded: boolean } {
+function usePublicReleases(): { desktop: ReleaseAssets; android: { url: string; label: string } | null; loaded: boolean } {
   const [desktop, setDesktop] = useState<ReleaseAssets>({});
   const [android, setAndroid] = useState<{ url: string; label: string } | null>(null);
   const [loaded, setLoaded] = useState(false);

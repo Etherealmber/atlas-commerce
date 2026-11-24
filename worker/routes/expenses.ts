@@ -21,7 +21,7 @@ import { normalizeRole } from '../lib/rbac';
 import { apiFail } from '../lib/api-response';
 import { round2, sanitizePositiveAmount } from '../lib/financeCore';
 
-export type ExpenseWriteDeps = {
+type ExpenseWriteDeps = {
   sessionUserFromHeader(authHeader: string | undefined): { username: string; role: string };
   authFailReason(
     authHeader: string | undefined,

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type FC, type ReactNode } fro
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { X } from 'lucide-react';
 
-export type TourStep = {
+type TourStep = {
   id: string;
   title: string;
   description: string;
@@ -131,4 +131,3 @@ export const FeatureTour: FC<Props> = ({ steps, onClose, onLearnMore, loop = fal
   );
 };
 
-export default FeatureTour;

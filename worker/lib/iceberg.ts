@@ -7,7 +7,7 @@
  * For now we expose inventory via R2 list + document catalog URI.
  */
 
-export type IcebergCatalogInfo = {
+type IcebergCatalogInfo = {
   enabled: boolean;
   bucket: string;
   catalog_uri_hint: string;

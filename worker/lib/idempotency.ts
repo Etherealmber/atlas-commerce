@@ -236,7 +236,7 @@ export interface IdempotentHandlerResult {
   persist?: boolean;
 }
 
-export interface WithIdempotencyOptions {
+interface WithIdempotencyOptions {
   kind?: string;
   op?: string;
   accountId?: string;

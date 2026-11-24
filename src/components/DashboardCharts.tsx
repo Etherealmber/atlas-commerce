@@ -1,19 +1,19 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react';
 
-export type SeriesPoint = {
+type SeriesPoint = {
   key: string;
   label?: string;
   [k: string]: any;
 };
 
-export type ChartSeriesKey = {
+type ChartSeriesKey = {
   key: string;
   label: string;
   color: string;
 };
 
 /** Short axis label: always "MM/YY" so dense multi-month axes stay aligned and readable. */
-export function shortMonthLabel(s: { key?: string; label?: string }) {
+function shortMonthLabel(s: { key?: string; label?: string }) {
   const k = String(s.key || '');
   if (/^\d{4}-\d{2}/.test(k)) {
     return `${k.slice(5, 7)}/${k.slice(2, 4)}`;

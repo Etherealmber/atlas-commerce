@@ -22,9 +22,9 @@ import {
   REPORTS_REPO_DEFAULT,
 } from '../lib/reports';
 
-export const APP_UPDATE_MAX_APK_BYTES = 200 * 1024 * 1024;
+const APP_UPDATE_MAX_APK_BYTES = 200 * 1024 * 1024;
 
-export interface ReportsAndUpdatesDeps {
+interface ReportsAndUpdatesDeps {
   authFailReason: (header: string | undefined, env: any, db: D1Database, ip: string, fp?: string) => Promise<string>;
   sessionUserFromHeader: (header: string | undefined) => any;
   getOwnerUsername: (env: any) => string | null;

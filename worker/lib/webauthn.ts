@@ -25,7 +25,7 @@
  *    tokens only after verifyAuthentication/verifyRegistration return ok.
  */
 
-export class WebAuthnError extends Error {
+class WebAuthnError extends Error {
   code: string;
   constructor(code: string, message?: string) {
     super(message || code);
@@ -51,7 +51,7 @@ export function bytesToB64u(b: Uint8Array): string {
   return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-export function bytesToHex(b: Uint8Array): string {
+function bytesToHex(b: Uint8Array): string {
   let s = '';
   for (let i = 0; i < b.length; i++) s += b[i].toString(16).padStart(2, '0');
   return s;
@@ -63,7 +63,7 @@ export async function sha256(bytes: Uint8Array | string): Promise<Uint8Array> {
   return new Uint8Array(buf);
 }
 
-export function timingSafeEqual(a: string, b: string): boolean {
+function timingSafeEqual(a: string, b: string): boolean {
   const x = new TextEncoder().encode(a);
   const y = new TextEncoder().encode(b);
   if (x.length !== y.length) return false;
@@ -121,7 +121,7 @@ function mapGet(m: Map<CborValue, CborValue>, key: number | string): CborValue |
 
 /* ───────────────────────── authenticator data ───────────────────────── */
 
-export type ParsedAuthData = {
+type ParsedAuthData = {
   raw: Uint8Array;
   rpIdHash: Uint8Array;
   flags: number;
@@ -187,7 +187,7 @@ export function parseAuthenticatorData(raw: Uint8Array): ParsedAuthData {
 
 /* ────────────────────────────── client data ────────────────────────────── */
 
-export type ParsedClientData = { type: string; challenge: string; origin: string; crossOrigin: boolean; androidPackageName: string | null };
+type ParsedClientData = { type: string; challenge: string; origin: string; crossOrigin: boolean; androidPackageName: string | null };
 
 export function parseClientData(b64u: string): { json: ParsedClientData; raw: Uint8Array } {
   let raw: Uint8Array;
@@ -242,7 +242,7 @@ function checkClientData(cd: ParsedClientData, expectedType: string, expectedCha
 
 /* ────────────────────────────── registration ────────────────────────────── */
 
-export type RegistrationInput = {
+type RegistrationInput = {
   clientDataJSON: string;
   attestationObject: string;
   expectedChallenge: string;
@@ -250,7 +250,7 @@ export type RegistrationInput = {
   policy: WebAuthnPolicy;
 };
 
-export type VerifiedRegistration = {
+type VerifiedRegistration = {
   credentialId: string;
   publicKeyJwk: { kty: string; crv: string; x: string; y: string; alg: string };
   counter: number;
@@ -318,7 +318,7 @@ export type AuthenticationInput = {
   };
 };
 
-export type VerifiedAuthentication = { counter: number; backupState: boolean; uv: boolean };
+type VerifiedAuthentication = { counter: number; backupState: boolean; uv: boolean };
 
 /**
  * Strict DER `SEQUENCE { INTEGER r, INTEGER s }` → 64-byte raw P-256 signature.
@@ -411,17 +411,8 @@ export async function verifyAuthentication(input: AuthenticationInput): Promise<
 
 /* ────────────────────────────── challenges ────────────────────────────── */
 
-export type ChallengePurpose = 'register' | 'login';
+type ChallengePurpose = 'register' | 'login';
 
-export type ChallengeRow = {
-  id: string;
-  challenge: string;
-  purpose: ChallengePurpose;
-  username: string;
-  rp_id: string;
-  origin: string;
-  expires_at: string;
-};
 
 function randomBytes(n: number): Uint8Array {
   const b = new Uint8Array(n);

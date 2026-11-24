@@ -3,7 +3,7 @@ import { round2 } from '../lib/financeCore';
 import { buildZip } from '../lib/zip';
 import { schemaOnceForDb } from '../lib/schema';
 
-export interface FecRouteDeps {
+interface FecRouteDeps {
   requireOwner: (c: any) => { ok: true; username: string; role?: string } | { ok: false; response: Response };
   requireFecAccess?: (c: any) => { ok: true; username: string; role?: string } | { ok: false; response: Response };
   writeAudit: (

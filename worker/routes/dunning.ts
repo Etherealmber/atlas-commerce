@@ -2,7 +2,7 @@ import type { Hono } from 'hono';
 import { round2 } from '../lib/financeCore';
 import { schemaOnceForDb } from '../lib/schema';
 
-export interface DunningRouteDeps {
+interface DunningRouteDeps {
   requireEmployeeAdmin: (c: any) => Promise<Response | null>;
   sessionUserFromHeader: (hdr?: string) => { username?: string; role?: string };
   writeAudit: (
@@ -77,7 +77,7 @@ export async function ensureDunningSchema(db: D1Database): Promise<void> {
   });
 }
 
-export function renderDunningTemplate(
+function renderDunningTemplate(
   template: string,
   vars: {
     client: string;
@@ -106,7 +106,7 @@ export function renderDunningTemplate(
   });
 }
 
-export function normalizeWaPhone(raw: string | null | undefined): string {
+function normalizeWaPhone(raw: string | null | undefined): string {
   let digits = String(raw || '').replace(/[^0-9]/g, '');
   if (!digits) return '';
   if (digits.startsWith('00')) digits = digits.slice(2);
@@ -114,7 +114,7 @@ export function normalizeWaPhone(raw: string | null | undefined): string {
   return digits.length >= 8 ? digits : '';
 }
 
-export function buildWhatsAppDeepLink(phone: string | null | undefined, message: string): string | null {
+function buildWhatsAppDeepLink(phone: string | null | undefined, message: string): string | null {
   const digits = normalizeWaPhone(phone);
   if (!digits) return null;
   return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;

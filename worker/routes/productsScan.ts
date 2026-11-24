@@ -12,7 +12,7 @@ import { ensureMarbleUnits, ensureStockLocations, placeProductStockOnDefault, ge
 import { normalizeInventoryRole, roleCanDirectAdjustStock, roleCanSeeSellPrices, scrubProductForRole } from '../lib/inventory-policy';
 import { parseBulkDiscounts } from '../lib/ledgerHelpers';
 
-export interface ProductsScanRouteDeps {
+interface ProductsScanRouteDeps {
   sessionUserFromHeader: (header: string | undefined) => any;
   requireBizMutator: (c: any) => any;
   checkConfirmPassword: (env: any, db: D1Database, authHeader: string | undefined, body: any) => Promise<any>;

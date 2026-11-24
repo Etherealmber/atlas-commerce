@@ -2,13 +2,12 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import type { Env } from '../env';
 import { schemaOnce, addColumnIfMissing } from './schema';
 import { normalizeIp } from './security';
-import { normalizeRole } from './rbac';
 import { reserveCredentialAttempt, type CredentialAttemptPurpose } from './credential-attempt-limits';
 import { parseNativePilotToken, validateNativePilotToken } from './desktop-native-session';
 import { parseDesktopV3Token, validateDesktopV3AccessToken } from './desktop-v3-session';
 import { sha256Hex } from './ledgerHelpers';
 
-export type RequestAuthContext = {
+type RequestAuthContext = {
   dpopHeader?: string;
   method?: string;
   requestUrl?: string;
@@ -100,7 +99,7 @@ export async function revokeWebToken(db: D1Database, rawToken: string, username:
     .run();
 }
 
-export async function isWebTokenRevoked(db: D1Database, rawToken: string): Promise<boolean> {
+async function isWebTokenRevoked(db: D1Database, rawToken: string): Promise<boolean> {
   await ensureRevokedWebTokensTable(db);
   const hash = await webTokenHash(rawToken);
   const row = await db
@@ -115,8 +114,8 @@ export function cfGeo(c: any): { city: string; country: string } {
   return { city: String(cf.city || ''), country: String(cf.country || '') };
 }
 
-export const _touchDeviceCache = new WeakMap<object, Map<string, { sig: string; at: number }>>();
-export const TOUCH_DEVICE_THROTTLE_MS = 180_000;
+const _touchDeviceCache = new WeakMap<object, Map<string, { sig: string; at: number }>>();
+const TOUCH_DEVICE_THROTTLE_MS = 180_000;
 
 export async function touchTrustedDevice(
   db: D1Database,
@@ -255,8 +254,8 @@ export function getOwnerUsername(env: Env): string {
  * Cloudflare Web Crypto rejects iteration counts above 100_000.
  * Format: pbkdf2$<iterations>$<hex> — verify uses the stored iteration count.
  */
-export const PBKDF2_ITERATIONS = 100_000;
-export const PBKDF2_ITERATIONS_MAX = 100_000;
+const PBKDF2_ITERATIONS = 100_000;
+const PBKDF2_ITERATIONS_MAX = 100_000;
 
 export async function derivePbkdf2Bits(password: string, salt: string, iterations: number): Promise<string> {
   const iters = Math.min(Math.max(1, iterations | 0), PBKDF2_ITERATIONS_MAX);
@@ -292,7 +291,7 @@ export async function hashUserPassword(password: string, salt: string): Promise<
 }
 
 /** Legacy one-shot SHA-256 used before PBKDF2 migration. */
-export async function hashUserPasswordLegacy(password: string, salt: string): Promise<string> {
+async function hashUserPasswordLegacy(password: string, salt: string): Promise<string> {
   return sha256Hex(`pc:${salt}:${normalizePassword(password)}`);
 }
 
@@ -300,7 +299,7 @@ export function isModernPasswordHash(stored: string): boolean {
   return String(stored || '').startsWith('pbkdf2$');
 }
 
-export function isLegacyPasswordHash(stored: string): boolean {
+function isLegacyPasswordHash(stored: string): boolean {
   return /^[a-f0-9]{64}$/i.test(String(stored || ''));
 }
 
@@ -350,11 +349,6 @@ export async function upgradeUserPasswordHash(db: D1Database, userId: number, pa
 }
 
 
-/** secretaire = bureau: devis, clients, factures, rapports — pas admin serveur ni suppression masse */
-export function roleAtLeast(role: string, min: 'user' | 'secretaire' | 'admin' | 'owner'): boolean {
-  const order = { user: 1, secretaire: 2, admin: 3, owner: 4 };
-  return (order[normalizeRole(role) as keyof typeof order] || 0) >= order[min];
-}
 
 export async function writeAudit(
   db: D1Database,
@@ -429,11 +423,6 @@ export async function makeTokenV2(
   return btoa(unescape(encodeURIComponent(`stock-auth-v2|${user}|${role}|${ip}|${fp}|${proof}|${sid}`)));
 }
 
-/** @deprecated legacy single-admin token — still accepted for old sessions briefly */
-export function makeToken(password: string, ip: string, fingerprint: string): string {
-  const fp = (fingerprint || 'none').slice(0, 128);
-  return btoa(unescape(encodeURIComponent(`stock-auth|${password}|${ip}|${fp}`)));
-}
 
 export function parseToken(token: string): {
   version: 1 | 2;
@@ -628,11 +617,6 @@ export async function ensureSecurityTables(db: D1Database) {
 }
 
 
-export async function isTrustedDevice(db: D1Database, fingerprint: string): Promise<boolean> {
-  if (!fingerprint || fingerprint === 'none') return false;
-  const row = await db.prepare(`SELECT fingerprint FROM trusted_devices WHERE fingerprint = ?`).bind(fingerprint).first();
-  return !!row;
-}
 
 export async function trustDevice(db: D1Database, fingerprint: string, ip: string, username?: string, userAgent?: string) {
   if (!fingerprint || fingerprint === 'none') return;

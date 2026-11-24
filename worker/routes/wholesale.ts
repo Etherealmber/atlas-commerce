@@ -24,7 +24,7 @@ async function ensureClientPricesTable(db: D1Database): Promise<void> {
 }
 
 /** Client-specific prices + reorder suggestions (wholesale). */
-export interface WholesaleDeps {
+interface WholesaleDeps {
   requireBizMutator?: (c: any) => { ok: true; username: string; role: string } | { ok: false; response: Response };
   sessionUserFromHeader?: (authHeader?: string) => { username?: string; role?: string };
 }

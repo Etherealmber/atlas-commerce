@@ -71,7 +71,7 @@ export async function issueDpopNonce(
   return { nonce, expires_in: Math.floor(NONCE_TTL_MS / 1000) };
 }
 
-export type VerifiedProofWithStatements = VerifiedDeviceProof & {
+type VerifiedProofWithStatements = VerifiedDeviceProof & {
   consumeStatements: D1PreparedStatement[];
 };
 

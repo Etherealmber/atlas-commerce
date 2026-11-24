@@ -8,7 +8,7 @@ import { afterBusinessMutation } from '../lib/delete-coord';
 import { countEmployeesPayDue } from './employees';
 import { normalizeInventoryRole, roleCanSeeFinancial } from '../lib/inventory-policy';
 
-export interface DashboardIntegrityRouteDeps {
+interface DashboardIntegrityRouteDeps {
   requireOwner: (c: any) => any;
   requireBizMutator: (c: any) => any;
   requireEmployeeAdmin: (c: any) => any;

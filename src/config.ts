@@ -52,6 +52,3 @@ export function getApiBase(): string {
   return '';
 }
 
-export const APP_NAME = 'Atlas Commerce';
-export const APP_TAGLINE = 'Stock · Caisse · Facturation';
-export { APP_VERSION } from './version';

@@ -18,7 +18,7 @@ export function resetLocalSchemaOnceForTests(): void {
  * Legacy fallback: FCM_SERVER_KEY (deprecated legacy HTTP API).
  */
 
-export type FcmEnv = {
+type FcmEnv = {
   DB: D1Database;
   FIREBASE_PROJECT_ID?: string;
   FIREBASE_CLIENT_EMAIL?: string;
@@ -28,7 +28,7 @@ export type FcmEnv = {
   CACHE?: KVNamespace;
 };
 
-export type FcmDataPayload = Record<string, string>;
+type FcmDataPayload = Record<string, string>;
 
 type PushRow = { token: string; username?: string; platform?: string };
 
@@ -145,7 +145,7 @@ export async function upsertDeviceToken(
     .run();
 }
 
-export async function deleteDeviceToken(db: D1Database, token: string): Promise<boolean> {
+async function deleteDeviceToken(db: D1Database, token: string): Promise<boolean> {
   try {
     const result = await db.prepare(`DELETE FROM device_push_tokens WHERE token = ?`).bind(token).run();
     return Number(result.meta?.changes || 0) > 0;
@@ -155,7 +155,7 @@ export async function deleteDeviceToken(db: D1Database, token: string): Promise<
   }
 }
 
-export async function listDeviceTokens(
+async function listDeviceTokens(
   db: D1Database,
   username: string,
   platform = 'android',
@@ -334,7 +334,7 @@ export async function notifyAssistApproval(
 
 
 /** Notify every registered device (owners / warehouse). Used for low stock. */
-export async function sendFcmToAllDevices(
+async function sendFcmToAllDevices(
   env: FcmEnv,
   opts: { title: string; body: string; data?: FcmDataPayload },
 ): Promise<{ sent: number; purged: number }> {

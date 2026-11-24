@@ -4,7 +4,7 @@ import { getApiBase } from '../../config';
 
 export type DesktopOsTab = 'windows' | 'macos' | 'linux';
 
-export type DesktopAssetEntry = {
+type DesktopAssetEntry = {
   platform: DesktopOsTab;
   arch: 'universal' | 'x86_64' | 'arm64';
   kind: string;

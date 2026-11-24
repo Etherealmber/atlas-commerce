@@ -7,7 +7,7 @@ import { purgeAgentConversationsOlderThan } from './assist';
 import { qrToSvg } from '../qrSvg';
 import { getCurrencySpec, roundCurrency } from '../lib/financeCore';
 
-export interface PublicSignedRouteDeps {
+interface PublicSignedRouteDeps {
   requireOwner: (c: any) => any;
   requireBizMutator?: (c: any) => any;
   writeAudit: (db: D1Database, entry: any) => Promise<void>;
@@ -36,7 +36,7 @@ export async function ensureReceiptPublicToken(db: D1Database) {
   });
 }
 
-export async function renderPublicReceiptVerify(db: D1Database, receipt: any, _origin: string): Promise<string> {
+async function renderPublicReceiptVerify(db: D1Database, receipt: any, _origin: string): Promise<string> {
   const settings = await db.prepare(`SELECT * FROM company_settings WHERE id = 1`).first() as any;
   const cur = String(settings?.currency || settings?.finance_currency || 'MAD');
   const dec = getCurrencySpec(cur).invoiceDecimals;

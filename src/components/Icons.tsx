@@ -22,7 +22,7 @@ const svgProps = (size: number, className?: string, title?: string) => ({
   'aria-label': title,
 });
 
-export function IconDocument({ size = 24, className, title }: IconProps) {
+function IconDocument({ size = 24, className, title }: IconProps) {
   return (
     <svg {...svgProps(size, className, title)}>
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -42,7 +42,7 @@ export function IconPackage({ size = 24, className, title }: IconProps) {
   );
 }
 
-export function IconUser({ size = 24, className, title }: IconProps) {
+function IconUser({ size = 24, className, title }: IconProps) {
   return (
     <svg {...svgProps(size, className, title)}>
       <circle cx="12" cy="8" r="4" />
@@ -51,7 +51,7 @@ export function IconUser({ size = 24, className, title }: IconProps) {
   );
 }
 
-export function IconUsers({ size = 24, className, title }: IconProps) {
+function IconUsers({ size = 24, className, title }: IconProps) {
   return (
     <svg {...svgProps(size, className, title)}>
       <circle cx="9" cy="8" r="3.5" />
@@ -62,7 +62,7 @@ export function IconUsers({ size = 24, className, title }: IconProps) {
   );
 }
 
-export function IconReceipt({ size = 24, className, title }: IconProps) {
+function IconReceipt({ size = 24, className, title }: IconProps) {
   return (
     <svg {...svgProps(size, className, title)}>
       <path d="M6 3h12v18l-2-1.5L14 21l-2-1.5L10 21l-2-1.5L6 21V3z" />
@@ -71,7 +71,7 @@ export function IconReceipt({ size = 24, className, title }: IconProps) {
   );
 }
 
-export function IconQuote({ size = 24, className, title }: IconProps) {
+function IconQuote({ size = 24, className, title }: IconProps) {
   return (
     <svg {...svgProps(size, className, title)}>
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -82,7 +82,7 @@ export function IconQuote({ size = 24, className, title }: IconProps) {
   );
 }
 
-export function IconWallet({ size = 24, className, title }: IconProps) {
+function IconWallet({ size = 24, className, title }: IconProps) {
   return (
     <svg {...svgProps(size, className, title)}>
       <path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
@@ -92,7 +92,7 @@ export function IconWallet({ size = 24, className, title }: IconProps) {
   );
 }
 
-export function IconChart({ size = 24, className, title }: IconProps) {
+function IconChart({ size = 24, className, title }: IconProps) {
   return (
     <svg {...svgProps(size, className, title)}>
       <path d="M4 19h16" />
@@ -110,7 +110,7 @@ export function IconInbox({ size = 24, className, title }: IconProps) {
   );
 }
 
-export function IconBuilding({ size = 24, className, title }: IconProps) {
+function IconBuilding({ size = 24, className, title }: IconProps) {
   return (
     <svg {...svgProps(size, className, title)}>
       <path d="M4 21V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v16" />
@@ -121,7 +121,7 @@ export function IconBuilding({ size = 24, className, title }: IconProps) {
   );
 }
 
-export function IconCheck({ size = 24, className, title }: IconProps) {
+function IconCheck({ size = 24, className, title }: IconProps) {
   return (
     <svg {...svgProps(size, className, title)}>
       <path d="M5 13l4 4L19 7" />
@@ -129,7 +129,7 @@ export function IconCheck({ size = 24, className, title }: IconProps) {
   );
 }
 
-export function IconSearch({ size = 24, className, title }: IconProps) {
+function IconSearch({ size = 24, className, title }: IconProps) {
   return (
     <svg {...svgProps(size, className, title)}>
       <circle cx="11" cy="11" r="7" />

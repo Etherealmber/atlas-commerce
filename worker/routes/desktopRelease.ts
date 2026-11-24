@@ -22,19 +22,19 @@ import type { Env } from '../env';
 import { sessionUserFromHeader } from '../lib/authHelpers';
 import { normalizeRole } from '../lib/rbac';
 
-export const DESKTOP_UPDATE_PREFIX = 'app-updates/desktop';
+const DESKTOP_UPDATE_PREFIX = 'app-updates/desktop';
 export const DESKTOP_JSON_KEY = `${DESKTOP_UPDATE_PREFIX}/latest.json`;
 export const DESKTOP_LATEST_EXE_KEY = `${DESKTOP_UPDATE_PREFIX}/latest-setup.exe`;
-export const DESKTOP_LATEST_DMG_KEY = `${DESKTOP_UPDATE_PREFIX}/latest-macos.dmg`;
+const DESKTOP_LATEST_DMG_KEY = `${DESKTOP_UPDATE_PREFIX}/latest-macos.dmg`;
 export const DESKTOP_CHECKSUMS_KEY = `${DESKTOP_UPDATE_PREFIX}/checksums.txt`;
-export const DESKTOP_MAX_INSTALLER_BYTES = 350 * 1024 * 1024;
+const DESKTOP_MAX_INSTALLER_BYTES = 350 * 1024 * 1024;
 const NO_CACHE_HEADERS = { 'Cache-Control': 'no-cache, max-age=0, must-revalidate' };
 
-export type DesktopOs = 'windows' | 'macos' | 'linux';
-export type DesktopArch = 'universal' | 'x86_64' | 'arm64';
-export type DesktopArtifactKind = 'installer' | 'msi' | 'appimage' | 'zsync' | 'archive' | 'package';
+type DesktopOs = 'windows' | 'macos' | 'linux';
+type DesktopArch = 'universal' | 'x86_64' | 'arm64';
+type DesktopArtifactKind = 'installer' | 'msi' | 'appimage' | 'zsync' | 'archive' | 'package';
 
-export type DesktopAssetEntry = {
+type DesktopAssetEntry = {
   platform: DesktopOs;
   arch: DesktopArch;
   kind: DesktopArtifactKind;
@@ -49,7 +49,7 @@ export type DesktopAssetEntry = {
   zsyncUrl?: string | null;
 };
 
-export type DesktopPlatformsMap = {
+type DesktopPlatformsMap = {
   windows?: {
     universal?: DesktopAssetEntry;
     x86_64?: DesktopAssetEntry;
@@ -74,7 +74,7 @@ export type DesktopPlatformsMap = {
   };
 };
 
-export type DesktopManifest = {
+type DesktopManifest = {
   success?: boolean;
   ok?: boolean;
   platform: DesktopOs;
@@ -131,7 +131,7 @@ function b64ToText(b64: string): string {
   }
 }
 
-export function desktopCdn1Base(env: Partial<Env>): string {
+function desktopCdn1Base(env: Partial<Env>): string {
   if (env.DESKTOP_CDN1_PUBLIC_BASE_URL) {
     return String(env.DESKTOP_CDN1_PUBLIC_BASE_URL).replace(/\/+$/, '');
   }
@@ -139,7 +139,7 @@ export function desktopCdn1Base(env: Partial<Env>): string {
   return `${base}/${DESKTOP_UPDATE_PREFIX}`;
 }
 
-export function normalizeSemver(raw: string): string | null {
+function normalizeSemver(raw: string): string | null {
   const trimmed = String(raw || '').trim().replace(/^v/i, '');
   if (!trimmed) return null;
   const m = trimmed.match(/^(\d+)\.(\d+)(?:\.(\d+))?(?:-([0-9A-Za-z.-]+))?$/);
@@ -151,7 +151,7 @@ export function normalizeSemver(raw: string): string | null {
   return `${major}.${minor}.${patch}${m[4] ? `-${m[4]}` : ''}`;
 }
 
-export function parseSemverTuple(raw: string): [number, number, number, number, string] | null {
+function parseSemverTuple(raw: string): [number, number, number, number, string] | null {
   const norm = normalizeSemver(raw);
   if (!norm) return null;
   const [core, pre = ''] = norm.split('-', 2);
@@ -159,7 +159,7 @@ export function parseSemverTuple(raw: string): [number, number, number, number, 
   return [maj, min, pat, pre ? 0 : 1, pre];
 }
 
-export function compareSemver(candidate: string, current: string): number {
+function compareSemver(candidate: string, current: string): number {
   const a = parseSemverTuple(candidate);
   const b = parseSemverTuple(current);
   if (!a || !b) return 0;
@@ -365,7 +365,7 @@ function selectAssetForQuery(
   return findInOs('windows') || findInOs('macos') || findInOs('linux') || assets[0];
 }
 
-export async function listDesktopAssets(bucket: any): Promise<Array<{ key: string; size: number; uploaded: string | null }>> {
+async function listDesktopAssets(bucket: any): Promise<Array<{ key: string; size: number; uploaded: string | null }>> {
   if (!bucket || typeof bucket.list !== 'function') return [];
   const items: Array<{ key: string; size: number; uploaded: string | null }> = [];
   let cursor: string | undefined;
@@ -391,7 +391,7 @@ export async function listDesktopAssets(bucket: any): Promise<Array<{ key: strin
  * Deletes every existing object under `app-updates/desktop/` except keys in `keepKeys`
  * so old Desktop installers/packages never accumulate across releases.
  */
-export async function purgeOldDesktopAssets(bucket: any, keepKeys: Set<string>): Promise<string[]> {
+async function purgeOldDesktopAssets(bucket: any, keepKeys: Set<string>): Promise<string[]> {
   if (!bucket) return [];
   const existing = await listDesktopAssets(bucket);
   const toDelete = existing.map((o) => o.key).filter((k) => !keepKeys.has(k));

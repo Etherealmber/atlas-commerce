@@ -598,7 +598,7 @@ function parseIdText(text: string): Record<string, string> {
   return out;
 }
 
-export type EmployeeRouteDeps = {
+type EmployeeRouteDeps = {
   requireEmployeeAdmin: (c: any) => Promise<Response | null>;
   /** Allows owner, admin, or secretary for employee list, detail, and update routes only. */
   requireEmployeeDirectory?: (c: any) => Promise<Response | null>;

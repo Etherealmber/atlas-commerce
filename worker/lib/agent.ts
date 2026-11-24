@@ -7,7 +7,6 @@ import type { Env } from '../env';
 import { scrubProductForRole } from './inventory-policy';
 import { canMutateBusiness, canFloorStock, normalizeRole } from './rbac';
 
-export type AssistRole = string;
 
 const TOOL_DEFS = [
   {
@@ -445,7 +444,7 @@ const READ_ONLY_TOOLS = new Set([
   'propose_quote_lines', // draft text only, not saved
 ]);
 
-export type AgentPermMode = 'full' | 'read_only' | 'custom';
+type AgentPermMode = 'full' | 'read_only' | 'custom';
 
 export function toolsForRole(
   role: string,

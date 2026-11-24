@@ -27,16 +27,6 @@ export function setTheme(v: ThemeChoice): void {
   window.dispatchEvent(new Event(THEME_EVENT));
 }
 
-/** Thème réellement affiché (le mode « système » suit prefers-color-scheme). */
-export function getResolvedTheme(): 'light' | 'dark' {
-  const t = getTheme();
-  if (t !== 'system') return t;
-  try {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  } catch {
-    return 'dark';
-  }
-}
 
 export function subscribeTheme(cb: (t: ThemeChoice) => void): () => void {
   const fn = () => cb(getTheme());

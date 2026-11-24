@@ -34,7 +34,7 @@ const SIZE_CONFIG = {
   },
 };
 
-export interface SaveToggleProps {
+interface SaveToggleProps {
   size?: Size;
   idleText?: string;
   savedText?: string;
@@ -248,4 +248,3 @@ export const SaveToggle: FC<SaveToggleProps> = ({
   );
 };
 
-export default SaveToggle;

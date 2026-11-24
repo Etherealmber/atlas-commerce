@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react';
 
 /** Error / success banner at the bottom of a modal (French UI). */
 export function ModalFormError({
@@ -32,31 +31,4 @@ export function FieldHint({ error, hint }: { error?: string | null; hint?: strin
   return null;
 }
 
-/** Inline error only — use next to any input. */
-export function FieldError({ message }: { message?: string | null }) {
-  if (!message) return null;
-  return (
-    <span className="field-error-msg" role="alert">
-      {message}
-    </span>
-  );
-}
 
-/** Wrapper: puts children then sticky error at bottom of modal body */
-export function ModalFormFooter({
-  error,
-  success,
-  children,
-}: {
-  error?: string | null;
-  success?: string | null;
-  children?: ReactNode;
-}) {
-  return (
-    <div className="modal-form-footer">
-      <ModalFormError message={error} kind="error" />
-      <ModalFormError message={success} kind="success" />
-      {children}
-    </div>
-  );
-}

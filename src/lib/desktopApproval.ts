@@ -1,5 +1,5 @@
 /** Browser-only handoff state: never a session token, PKCE verifier or URL redirect. */
-export type DesktopApproval = { request_id: string; state: string; origin: string; expiresAt: number };
+type DesktopApproval = { request_id: string; state: string; origin: string; expiresAt: number };
 export const DESKTOP_APPROVAL_KEY = 'atlas_desktop_approval_v1';
 const ID = /^[a-f0-9]{64}$/;
 const STATE = /^[A-Za-z0-9_-]{43,128}$/;

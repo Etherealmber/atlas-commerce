@@ -4,7 +4,7 @@ import { buildUblInvoiceXml, invoiceToUblInput, validateUblInvoice } from '../ub
 import { isDgiLiveConfigured, selectDgiAdapter, type DgiClearanceStatus } from '../lib/dgiAdapter';
 import { schemaOnceForDb } from '../lib/schema';
 
-export interface DgiRouteDeps {
+interface DgiRouteDeps {
   requireBizMutator: (c: any) => { ok: true; username: string; role?: string } | { ok: false; response: Response };
   requireOwner: (c: any) => { ok: true; username: string; role?: string } | { ok: false; response: Response };
   writeAudit: (

@@ -10,17 +10,17 @@
  *  - agent_docs       : base de connaissances RAG (extraits indexés).
  */
 
-export type AgentMemoryRow = {
+type AgentMemoryRow = {
   id: number;
   username: string;
   scope: 'user' | 'org';
   content: string;
   created_at: string;
 };
-export type AgentGuardrailRow = { id: number; rule: string; active: number; created_at: string };
-export type AgentDocRow = { id: number; name: string; content: string; chars: number; created_at: string };
+type AgentGuardrailRow = { id: number; rule: string; active: number; created_at: string };
+type AgentDocRow = { id: number; name: string; content: string; chars: number; created_at: string };
 
-export type AgentKnowledge = {
+type AgentKnowledge = {
   memory: AgentMemoryRow[];
   context: string;
   guardrails: AgentGuardrailRow[];
@@ -34,7 +34,7 @@ const DOC_CHARS_MAX = 20000;
 const GUARDRAIL_MAX = 40;
 const CONTEXT_CHARS_MAX = 4000;
 
-export async function ensureAgentKnowledgeTables(db: D1Database): Promise<void> {
+async function ensureAgentKnowledgeTables(db: D1Database): Promise<void> {
   await db.batch([
     db.prepare(
       `CREATE TABLE IF NOT EXISTS agent_memory (
@@ -202,7 +202,7 @@ function tokens(s: string): string[] {
     .filter((t) => t.length > 2 && !STOP.has(t));
 }
 
-export type RagHit = { id: number; name: string; excerpt: string; score: number };
+type RagHit = { id: number; name: string; excerpt: string; score: number };
 
 /** RAG : retrouve les 3 meilleurs extraits de la base de connaissances. */
 export function retrieveKnowledge(docs: AgentDocRow[], query: string, top = 3): RagHit[] {
