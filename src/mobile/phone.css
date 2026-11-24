@@ -4065,3 +4065,123 @@ html[data-theme="dark"].phone-shell body #root .phone-root .ph-native-card.ph-no
   background: var(--pd-card) !important;
   border-color: var(--pd-line) !important;
 }
+
+/* Phone surface tokens used by the "Mobile Web Shell Polish" rules (rows, search, icon buttons).
+   They were never defined, so light mode rendered those surfaces transparent instead of white cards like Android. */
+html.phone-shell body #root .phone-root {
+  --ph-card: #ffffff;
+  --ph-fg: #18181b;
+  --ph-muted: #71717a;
+  --ph-border: rgba(15, 23, 42, 0.08);
+  --ph-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+html[data-theme="dark"].phone-shell body #root .phone-root {
+  --ph-card: #18181b;
+  --ph-fg: #f4f4f6;
+  --ph-muted: #a1a1aa;
+  --ph-border: rgba(255, 255, 255, 0.08);
+  --ph-shadow: none;
+}
+
+/* Light phone — white controls like the Android app (icon buttons, "+ Nouveau", active chips) */
+html.phone-shell:not([data-theme="dark"]) body #root .phone-root :is(button.ph-native-icon, .ph-catalog-actions > button, .ph-native-section-head .ph-chip) {
+  background: #ffffff !important;
+  border: 1px solid var(--ph-border) !important;
+  box-shadow: var(--ph-shadow) !important;
+  color: #18181b !important;
+  -webkit-text-fill-color: #18181b !important;
+}
+html.phone-shell:not([data-theme="dark"]) body #root .phone-root :is(.ph-catalog-filters, .ph-native-chips) button[aria-pressed="true"] {
+  background: #18181b !important;
+  border-color: #18181b !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html.phone-shell:not([data-theme="dark"]) body #root .phone-root :is(.ph-catalog-filters, .ph-native-chips) button[aria-pressed="false"] {
+  background: #ffffff !important;
+}
+
+/* Atlas Agent — Copier lives inside the assistant bubble, as its footer */
+html.phone-shell body #root .phone-root .ph-agent-bubble.assistant .ph-agent-copy {
+  display: flex;
+  width: fit-content !important;
+  min-height: 30px;
+  margin: 10px 0 -4px -6px !important;
+  padding: 4px 8px !important;
+  border-radius: 8px !important;
+  font-size: 12px;
+}
+html.phone-shell body #root .phone-root .ph-agent-bubble.assistant .ph-agent-copy:is(:hover, :focus-visible) { background: rgba(15, 23, 42, 0.06) !important; }
+
+/* Atlas Agent dark — same charcoal system as the rest of the phone shell */
+html[data-theme="dark"].phone-shell body #root .phone-root .ph-agent-shell,
+html[data-theme="dark"].phone-shell body #root .phone-root--no-dock .ph-agent-shell { background: var(--pd-canvas) !important; }
+html[data-theme="dark"].phone-shell body #root .phone-root .ph-agent-dock {
+  background: rgba(24, 24, 27, 0.92) !important;
+  border-color: var(--pd-line) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35) !important;
+}
+html[data-theme="dark"].phone-shell body #root .phone-root .ph-agent-dock button {
+  background: var(--pd-control) !important;
+  border: 1px solid var(--pd-line) !important;
+  color: var(--pd-ink) !important;
+  -webkit-text-fill-color: var(--pd-ink) !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"].phone-shell body #root .phone-root .ph-agent-dock button:is(:hover, :focus-visible) { background: var(--pd-hover) !important; }
+html[data-theme="dark"].phone-shell body #root .phone-root .ph-agent-dock .ph-agent-dock-brand,
+html[data-theme="dark"].phone-shell body #root .phone-root .ph-agent-dock button.ph-agent-dock-brand { background: transparent !important; border-color: transparent !important; }
+html[data-theme="dark"].phone-shell body #root .phone-root .ph-agent-prompts button {
+  background: var(--pd-card) !important;
+  border: 1px solid var(--pd-line-strong) !important;
+  color: var(--pd-ink-2) !important;
+  -webkit-text-fill-color: var(--pd-ink-2) !important;
+}
+html[data-theme="dark"].phone-shell body #root .phone-root .ph-agent-prompts button:is(:hover, :focus-visible) { background: var(--pd-control) !important; color: var(--pd-ink) !important; -webkit-text-fill-color: var(--pd-ink) !important; }
+html[data-theme="dark"].phone-shell body #root .phone-root .ph-agent-bubble.assistant {
+  background: var(--pd-card) !important;
+  border: 1px solid var(--pd-line) !important;
+  color: var(--pd-ink) !important;
+  -webkit-text-fill-color: var(--pd-ink) !important;
+}
+html[data-theme="dark"].phone-shell body #root .phone-root .ph-agent-bubble.user {
+  background: var(--pd-hover) !important;
+  border: 1px solid var(--pd-line) !important;
+  color: var(--pd-ink) !important;
+  -webkit-text-fill-color: var(--pd-ink) !important;
+}
+html[data-theme="dark"].phone-shell body #root .phone-root .ph-agent-bubble.assistant .ph-agent-copy {
+  color: var(--pd-muted) !important;
+  -webkit-text-fill-color: var(--pd-muted) !important;
+}
+html[data-theme="dark"].phone-shell body #root .phone-root .ph-agent-bubble.assistant .ph-agent-copy:is(:hover, :focus-visible) {
+  background: var(--pd-control) !important;
+  color: var(--pd-ink) !important;
+  -webkit-text-fill-color: var(--pd-ink) !important;
+}
+html[data-theme="dark"].phone-shell body #root .phone-root .ph-agent-disclaimer {
+  background: var(--pd-card) !important;
+  border: 1px solid var(--pd-line) !important;
+  color: var(--pd-muted) !important;
+  -webkit-text-fill-color: var(--pd-muted) !important;
+}
+html[data-theme="dark"].phone-shell body #root .phone-root .ph-agent-composer {
+  background: rgba(24, 24, 27, 0.94) !important;
+  border-color: var(--pd-line) !important;
+}
+html[data-theme="dark"].phone-shell body #root .phone-root .ph-agent-input {
+  background: var(--pd-control) !important;
+  border-color: var(--pd-line-strong) !important;
+  color: var(--pd-ink) !important;
+}
+html[data-theme="dark"].phone-shell body #root .phone-root .ph-agent-input::placeholder { color: var(--pd-muted) !important; }
+html[data-theme="dark"].phone-shell body #root .phone-root .ph-agent-message-label { color: var(--pd-muted) !important; -webkit-text-fill-color: var(--pd-muted) !important; }
+/* Light Atlas Agent — white assistant bubble like the other light cards */
+html.phone-shell:not([data-theme="dark"]) body #root .phone-root .ph-agent-bubble.assistant {
+  background: #ffffff !important;
+  border: 1px solid var(--ph-border) !important;
+  box-shadow: var(--ph-shadow) !important;
+  color: #18181b !important;
+  -webkit-text-fill-color: #18181b !important;
+}
+html.phone-shell:not([data-theme="dark"]) body #root .phone-root .ph-agent-bubble.assistant .ph-agent-copy { color: #71717a !important; -webkit-text-fill-color: #71717a !important; }

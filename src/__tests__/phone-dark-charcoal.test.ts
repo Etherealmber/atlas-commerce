@@ -33,4 +33,20 @@ describe('phone shell dark mode — unified charcoal controls', () => {
   it('neutralises the desktop [class*="notif"] catch-all on the phone Info Box page', () => {
     expect(phone).toMatch(/:is\(\.ph-notifications, \.ph-notifications-section, \.ph-notifications-intro-row\)/);
   });
+
+  it('defines the --ph-* surface tokens so light rows/search/icon buttons render as white cards', () => {
+    expect(phone).toMatch(/html\.phone-shell body #root \.phone-root \{\s*--ph-card: #ffffff;\s*--ph-fg: #18181b;/);
+    expect(phone).toMatch(/html\[data-theme="dark"\]\.phone-shell body #root \.phone-root \{\s*--ph-card: #18181b;/);
+  });
+
+  it('keeps the Atlas Agent "Copier" button inside the assistant bubble', () => {
+    const app = readFileSync(resolve(__dirname, '../mobile/PhoneApp.tsx'), 'utf8');
+    const bubble = app.indexOf("className={'ph-agent-bubble ' + m.role}");
+    const copy = app.indexOf('ph-agent-copy', bubble);
+    const bubbleEnd = app.indexOf('</div>', app.indexOf('</ReactMarkdown>', bubble));
+    expect(bubble).toBeGreaterThan(0);
+    expect(copy).toBeGreaterThan(bubble);
+    expect(copy).toBeLessThan(bubbleEnd);
+    expect(phone).toContain('.ph-agent-bubble.assistant .ph-agent-copy');
+  });
 });
