@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { pilotLoginConfigured } from '../lib/desktop-native-session';
-import { desktopV3Readiness } from '../lib/desktop-v3-session';
+import { desktopV3Readiness, V3_STANDARD_SESSION_TTL_MS, v3RememberTtlMs } from '../lib/desktop-v3-session';
 import { expectedOrigin, policyFromEnv } from '../lib/webauthn';
 
 /**
@@ -9,6 +9,46 @@ import { expectedOrigin, policyFromEnv } from '../lib/webauthn';
  */
 export const DESKTOP_NATIVE_V2_CAPABILITIES = '/api/auth/desktop/v2/capabilities';
 export const DESKTOP_NATIVE_V3_CAPABILITIES = '/api/auth/desktop/v3/capabilities';
+
+/**
+ * Session lifetime contract advertised to the desktop client. Remember-me is an
+ * explicit per-login opt-in (`remember_me: true` on the session-issuing call);
+ * refresh rotates tokens but never extends the absolute expiry.
+ */
+function v3SessionCapabilities(env: any, native: boolean, passkeyEnabled: boolean) {
+  const V3 = '/api/auth/desktop/v3';
+  const rememberMs = v3RememberTtlMs(env);
+  const methods = ['password_otp', ...(native ? ['qr'] : []), ...(native && passkeyEnabled ? ['passkey'] : [])];
+  const endpoints: Record<string, string> = { password_otp: `${V3}/login/otp` };
+  if (native) endpoints.qr = `${V3}/qr/exchange`;
+  if (native && passkeyEnabled) endpoints.passkey = `${V3}/webauthn/verify`;
+  return {
+    access_ttl_seconds: 900,
+    default_ttl_seconds: V3_STANDARD_SESSION_TTL_MS / 1000,
+    absolute_expiry: true,
+    remember_me: rememberMs > 0
+      ? {
+          available: true,
+          version: 1,
+          request_field: 'remember_me',
+          default: false,
+          max_ttl_seconds: rememberMs / 1000,
+          methods,
+          endpoints,
+          response_fields: ['remember_me', 'session_kind', 'session_expires_at', 'refresh_expires_at', 'session_ttl_seconds'],
+        }
+      : { available: false, reason: 'POLICY_DISABLED' },
+    refresh: {
+      path: `${V3}/session/refresh`,
+      rotating: true,
+      reuse_detection: 'family_revocation',
+      dpop_bound: true,
+      origin_bound: true,
+      extends_absolute_expiry: false,
+    },
+    logout_path: `${V3}/session/logout`,
+  };
+}
 
 export function registerDesktopNativeDiscovery(app: Hono<any>): void {
   // Production v3 stays disabled unless all server gates, dedicated mail
@@ -73,6 +113,7 @@ export function registerDesktopNativeDiscovery(app: Hono<any>): void {
             hardware_attestation_claimed: false,
           },
         },
+        session: v3SessionCapabilities(c.env, native, passkeyPolicy.enabled),
         browser_fallback: { version: 1, capabilities_path: '/api/auth/desktop/v1/capabilities', automatic: false },
       },
     });

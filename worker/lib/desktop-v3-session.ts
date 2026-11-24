@@ -32,6 +32,44 @@ export function desktopV3Readiness(env: any): { ready: boolean; reason: string }
   return { ready: true, reason: 'OK' };
 }
 
+/* ─── Session lifetime policy (absolute expiry, never extended by refresh) ─── */
+/** Standard (not remembered) v3 session: 12 h absolute. */
+export const V3_STANDARD_SESSION_TTL_MS = 43_200_000;
+/** Hard ceiling for an opted-in remembered session: 30 days. Config can only lower it. */
+export const V3_REMEMBER_HARD_MAX_MS = 30 * 86_400_000;
+
+/**
+ * Remembered-session lifetime allowed by config. `DESKTOP_NATIVE_V3_REMEMBER_MAX_DAYS`
+ * (integer 1–30) lowers the ceiling; `0` disables remember-me. Unset = 30 days.
+ * Returns 0 when remembered sessions are disabled.
+ */
+export function v3RememberTtlMs(env: any): number {
+  const raw = env?.DESKTOP_NATIVE_V3_REMEMBER_MAX_DAYS;
+  if (raw === undefined || raw === null || String(raw).trim() === '') return V3_REMEMBER_HARD_MAX_MS;
+  const days = Number(String(raw).trim());
+  if (!Number.isInteger(days) || days <= 0) return 0;
+  return Math.min(V3_REMEMBER_HARD_MAX_MS, days * 86_400_000);
+}
+
+/** Absolute lifetime cap that applies to a stored session row under the current policy. */
+export function v3SessionCapMs(env: any, remembered: boolean): number {
+  if (!remembered) return V3_STANDARD_SESSION_TTL_MS;
+  return v3RememberTtlMs(env) || V3_STANDARD_SESSION_TTL_MS;
+}
+
+/**
+ * Defense in depth: a row may never outlive its policy cap, whatever was written.
+ * Remaining lifetime must fit the cap, and (when known) issued→absolute must too.
+ */
+export function v3SessionWithinPolicy(env: any, row: any, now: number): boolean {
+  const cap = v3SessionCapMs(env, Number(row?.remembered || 0) === 1);
+  const abs = Number(row?.absolute_expires_at);
+  if (!Number.isFinite(abs) || abs <= now || abs - now > cap) return false;
+  const issued = row?.issued_at;
+  if (issued !== null && issued !== undefined && Number.isFinite(Number(issued)) && abs - Number(issued) > cap) return false;
+  return true;
+}
+
 export function desktopV3Enabled(env: any): boolean {
   return desktopV3Readiness(env).ready;
 }
@@ -95,6 +133,7 @@ export async function validateDesktopV3AccessToken(
       row.revoked !== 0 ||
       row.access_expires_at <= now ||
       row.absolute_expires_at <= now ||
+      !v3SessionWithinPolicy(env, row, now) ||
       row.origin !== opts.origin ||
       row.username !== hint.username ||
       row.role !== hint.role

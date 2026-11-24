@@ -86,6 +86,10 @@ async function ensureEmployeeTables(db: D1Database): Promise<void> {
     ['weekly_hours', "REAL DEFAULT 44"],
     ['trial_days', "INTEGER DEFAULT 90"],
     ['contract_type', "TEXT DEFAULT 'CDI'"],
+    // Déclaration CNSS : déclaré ou non, et jours déclarés par mois (max 26),
+    // proposés par défaut sur chaque ligne de paie (modifiable par lot).
+    ['cnss_declared', 'INTEGER DEFAULT 1'],
+    ['cnss_days', 'REAL DEFAULT 26'],
     // v256 — link an employee file to a login account so GET /api/me/payroll
     // can expose ONLY that employee's own pay date to their own session.
     ['user_username', "TEXT DEFAULT ''"],
@@ -273,6 +277,18 @@ async function persistHrExtras(db: D1Database, id: number, body: any) {
       id,
     ).run();
   } catch { /* columns may lag */ }
+  // Only touch the CNSS declaration when the client sent it (older clients / mobile keep the stored value).
+  if (body.cnss_declared !== undefined || body.cnss_days !== undefined) {
+    const declared = body.cnss_declared === undefined ? null : body.cnss_declared === false || Number(body.cnss_declared) === 0 ? 0 : 1;
+    const rawDays = Number(body.cnss_days);
+    const days = body.cnss_days === undefined || !Number.isFinite(rawDays) ? null : Math.max(0, Math.min(26, Math.round(rawDays * 2) / 2));
+    try {
+      await db
+        .prepare(`UPDATE employees SET cnss_declared = COALESCE(?, cnss_declared), cnss_days = COALESCE(?, cnss_days) WHERE id = ?`)
+        .bind(declared, days, id)
+        .run();
+    } catch { /* columns may lag */ }
+  }
 }
 
 /** Days between two YMD dates (inclusive of end, exclusive of start if start is a pay day). */
@@ -760,8 +776,10 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps): 
         str(body, 'user_username').trim().toLowerCase().slice(0, 64),
       )
       .run();
-    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     const id = r.meta?.last_row_id;
+    // Contract / RIB / CNSS declaration live outside the base INSERT — persist them too.
+    if (id) { try { await persistHrExtras(c.env.DB, Number(id), body); } catch { /* */ } }
+    await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     const row = id
       ? await c.env.DB.prepare(`SELECT * FROM employees WHERE id = ?`).bind(id).first()
       : null;
@@ -850,9 +868,9 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps): 
         id,
       )
       .run();
+    try { await persistHrExtras(c.env.DB, Number(id), body); } catch { /* */ }
     await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
     const row = await c.env.DB.prepare(`SELECT * FROM employees WHERE id = ?`).bind(id).first();
-    try { await persistHrExtras(c.env.DB, Number(id), body); } catch { /* */ }
     return c.json({ success: true, data: enrich(row), message: 'Employé mis à jour' });
   });
 

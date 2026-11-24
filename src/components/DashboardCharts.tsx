@@ -775,16 +775,37 @@ export function HBarChart({
   items,
   color = 'var(--ac-chart-amber, #d97706)',
   unit = 'MAD',
+  placeholder,
 }: {
   items: { label: string; value: number }[];
   color?: string;
   unit?: string;
+  /** Categories drawn at 0 when there is no data yet, so the chart always shows. */
+  placeholder?: string[];
 }) {
   const { ref, width } = useChartWidth(420);
   if (!items.length) {
+    if (!placeholder?.length) {
+      return (
+        <div className="ac-dash-empty" style={{ minHeight: 110 }} ref={ref}>
+          <p>Aucune catégorie.</p>
+        </div>
+      );
+    }
     return (
-      <div className="ac-dash-empty" style={{ minHeight: 110 }} ref={ref}>
-        <p>Aucune catégorie.</p>
+      <div className="ac-hbar-list" ref={ref}>
+        {placeholder.map((label) => (
+          <div key={label} className="ac-hbar-row">
+            <div className="ac-hbar-top">
+              <span className="ac-hbar-label">{label}</span>
+              <span className="ac-hbar-val">
+                <strong>{formatCompactNum(0, unit, 100_000)}</strong>
+                <em>0%</em>
+              </span>
+            </div>
+            <div className="ac-hbar-track" />
+          </div>
+        ))}
       </div>
     );
   }

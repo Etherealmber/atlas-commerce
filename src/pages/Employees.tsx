@@ -1,5 +1,5 @@
 import TopPageActions from '../components/TopPageActions';
-import { BarChart3, CheckCircle2, FileText, Printer, UserCheck, UserMinus, UserPlus, Wallet } from 'lucide-react';
+import { AlertTriangle, BarChart3, CheckCircle2, FileText, Info, Printer, ShieldCheck, ShieldOff, UserCheck, UserMinus, UserPlus, Wallet } from 'lucide-react';
 import { TimedUndoDelete } from '../components/ui';
 import ListPager from '../components/ui/ListPager';
 import { onAgentDraft } from '../lib/agentDraft';
@@ -19,6 +19,9 @@ import { round2 } from '../lib/money';
 import './employee-wizard.css';
 
 type Emp = Record<string, any>;
+
+/** CNSS caps the declared days at 26 per month (bordereau DAMANCOM). */
+const CNSS_MAX_DAYS = 26;
 
 const emptyForm = {
   emp_number: '',
@@ -57,6 +60,8 @@ const emptyForm = {
   job_description: '',
   rib: '',
   cnss_number: '',
+  cnss_declared: true,
+  cnss_days: CNSS_MAX_DAYS,
   notes: '',
   // v256 — compte de connexion lié (permet à l'employé de voir SA date de paie)
   user_username: '',
@@ -69,8 +74,16 @@ const STEPS = [
   { id: 'work', label: 'Poste', hint: 'Son rôle et sa date d’arrivée.' },
   { id: 'contact', label: 'Contact', hint: 'Ses coordonnées et son adresse.' },
   { id: 'pay', label: 'Salaire', hint: 'Définissez le montant et la fréquence de paiement.' },
+  { id: 'cnss', label: 'Déclaration CNSS', hint: 'Est-il déclaré à la CNSS, et combien de jours par mois ?' },
   { id: 'contract', label: 'Contrat', hint: 'Les conditions de travail et les coordonnées bancaires.' },
   { id: 'details', label: 'Détails', hint: 'Complétez les informations utiles à la fiche.' },
+] as const;
+type StepId = (typeof STEPS)[number]['id'];
+
+const CNSS_DAY_PRESETS = [
+  { days: 26, label: 'Mois complet' },
+  { days: 22, label: '22 j' },
+  { days: 13, label: 'Mi-temps' },
 ] as const;
 
 function fmt(n: number) {
@@ -115,6 +128,7 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
   const [categories, setCategories] = useState<string[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [step, setStep] = useState(0);
+  const stepId: StepId = STEPS[Math.min(step, STEPS.length - 1)].id;
   const [editing, setEditing] = useState<Emp | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
   // v0.7.4 — « Autre nationalité » explicite : plus de confusion avec une valeur vide.
@@ -246,6 +260,8 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
       job_description: e.job_description || '',
       rib: e.rib || '',
       cnss_number: e.cnss_number || e.social_insurance || '',
+      cnss_declared: e.cnss_declared === undefined || e.cnss_declared === null ? true : Number(e.cnss_declared) !== 0,
+      cnss_days: e.cnss_days === undefined || e.cnss_days === null ? CNSS_MAX_DAYS : Math.max(0, Math.min(CNSS_MAX_DAYS, Number(e.cnss_days))),
       notes: e.notes || '',
       user_username: e.user_username || '',
     });
@@ -291,6 +307,8 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
         rib: form.rib || '',
         cnss_number: form.cnss_number || form.social_insurance || '',
         social_insurance: form.cnss_number || form.social_insurance || '',
+        cnss_declared: form.cnss_declared ? 1 : 0,
+        cnss_days: form.cnss_declared ? Math.max(0, Math.min(CNSS_MAX_DAYS, Number(form.cnss_days) || 0)) : 0,
         user_username: (form.user_username || '').trim().toLowerCase(),
       };
       let id = editing?.id;
@@ -858,7 +876,7 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
             </ol>
             <div className="wz-step employee-wizard__body">
               <div className="employee-wizard__intro" aria-live="polite"><h3>{STEPS[step].label}</h3><p>{STEPS[step].hint}</p></div>
-            {step === 0 && (
+            {stepId === 'personal' && (
               <div className="grid grid-2">
                 <div className="form-row">
                   <label htmlFor="employee-first-name">Prénom</label>
@@ -915,7 +933,7 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
               </div>
             )}
 
-            {step === 1 && (
+            {stepId === 'identity' && (
               <>
                 <div className="grid grid-2">
                   <div className="form-row">
@@ -975,7 +993,7 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
               </>
             )}
 
-            {step === 2 && (
+            {stepId === 'coverage' && (
               <div className="grid grid-2">
                 <div className="form-row">
                   <label>Identifiant fiscal</label>
@@ -1008,7 +1026,7 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
               </div>
             )}
 
-            {step === 3 && (
+            {stepId === 'work' && (
               <div className="grid grid-2">
                 <div className="form-row">
                   <label>Intitulé du poste</label>
@@ -1045,7 +1063,7 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
               </div>
             )}
 
-            {step === 4 && (
+            {stepId === 'contact' && (
               <>
                 <div className="form-row">
                   <label>Adresse</label>
@@ -1072,7 +1090,7 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
               </>
             )}
 
-            {step === 5 && (
+            {stepId === 'pay' && (
               <>
                 <div className="form-row">
                   <label>Montant (MAD)</label>
@@ -1117,7 +1135,123 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
                 )}
               </>
             )}
-            {step === 6 && (
+            {stepId === 'cnss' && (
+              <div className="emp-cnss">
+                <div className="emp-cnss-choice" role="radiogroup" aria-label="Déclaration CNSS">
+                  <label className={`emp-cnss-option${form.cnss_declared ? ' is-selected' : ''}`}>
+                    <input
+                      type="radio"
+                      name="emp-cnss-declared"
+                      checked={form.cnss_declared}
+                      onChange={() => setForm((f) => ({ ...f, cnss_declared: true, cnss_days: f.cnss_days > 0 ? f.cnss_days : CNSS_MAX_DAYS }))}
+                    />
+                    <span className="emp-cnss-option__ico" aria-hidden="true"><ShieldCheck size={18} /></span>
+                    <span className="emp-cnss-option__copy">
+                      <strong>Déclaré à la CNSS</strong>
+                      <em>Cotisations CNSS et AMO retenues chaque mois.</em>
+                    </span>
+                    <span className="emp-cnss-option__dot" aria-hidden="true" />
+                  </label>
+                  <label className={`emp-cnss-option${!form.cnss_declared ? ' is-selected' : ''}`}>
+                    <input
+                      type="radio"
+                      name="emp-cnss-declared"
+                      checked={!form.cnss_declared}
+                      onChange={() => setForm((f) => ({ ...f, cnss_declared: false }))}
+                    />
+                    <span className="emp-cnss-option__ico is-off" aria-hidden="true"><ShieldOff size={18} /></span>
+                    <span className="emp-cnss-option__copy">
+                      <strong>Non déclaré</strong>
+                      <em>0 jour au bordereau, aucune cotisation CNSS / AMO.</em>
+                    </span>
+                    <span className="emp-cnss-option__dot" aria-hidden="true" />
+                  </label>
+                </div>
+
+                {form.cnss_declared && (
+                  <div className="emp-cnss-days">
+                    <div className="emp-cnss-days__head">
+                      <label htmlFor="emp-cnss-days-input">Jours déclarés par mois</label>
+                      <span className="emp-cnss-days__max">max {CNSS_MAX_DAYS} j</span>
+                    </div>
+                    <div className="emp-cnss-days__row">
+                      <div className="emp-cnss-days__input">
+                        <NumberField
+                          id="emp-cnss-days-input"
+                          value={form.cnss_days}
+                          onValueChange={(n) => setF('cnss_days', Math.max(0, Math.min(CNSS_MAX_DAYS, Math.round((Number(n) || 0) * 2) / 2)))}
+                          min={0}
+                          max={CNSS_MAX_DAYS}
+                          step="0.5"
+                        />
+                        <span>jours</span>
+                      </div>
+                      <div className="emp-cnss-presets" role="radiogroup" aria-label="Raccourcis">
+                        {CNSS_DAY_PRESETS.map((p) => (
+                          <label key={p.days} className={`emp-cnss-chip${Number(form.cnss_days) === p.days ? ' is-selected' : ''}`}>
+                            <input
+                              type="radio"
+                              name="emp-cnss-preset"
+                              checked={Number(form.cnss_days) === p.days}
+                              onChange={() => setF('cnss_days', p.days)}
+                            />
+                            <b>{p.days} j</b>
+                            {p.label !== `${p.days} j` && <span>{p.label}</span>}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    <div
+                      className="emp-cnss-meter"
+                      role="meter"
+                      aria-valuemin={0}
+                      aria-valuemax={CNSS_MAX_DAYS}
+                      aria-valuenow={Number(form.cnss_days) || 0}
+                      aria-label="Jours déclarés"
+                    >
+                      <i style={{ width: `${Math.round(((Number(form.cnss_days) || 0) / CNSS_MAX_DAYS) * 100)}%` }} />
+                    </div>
+                  </div>
+                )}
+
+                <div className="emp-cnss-note">
+                  <Info size={16} aria-hidden="true" />
+                  <p>
+                    {form.cnss_declared ? (
+                      <>
+                        Chaque lot de paie proposera <strong>{Number(form.cnss_days) || 0} j</strong> pour ce salarié (réduits
+                        automatiquement en cas d’absence pointée). Vous pouvez toujours corriger le nombre de jours ligne par
+                        ligne dans <strong>Paie CNSS / AMO</strong>.
+                      </>
+                    ) : (
+                      <>
+                        Ce salarié apparaîtra avec <strong>0 jour</strong> dans la déclaration et sans retenue CNSS / AMO. Vous
+                        pourrez le déclarer plus tard depuis sa fiche ou directement dans un lot de paie.
+                      </>
+                    )}
+                  </p>
+                </div>
+
+                {form.cnss_declared && !(form.cnss_number || form.social_insurance) && (
+                  <div className="emp-cnss-warn" role="status">
+                    <AlertTriangle size={16} aria-hidden="true" />
+                    <p>
+                      N° d’immatriculation CNSS manquant.{' '}
+                      <a
+                        href="#cnss-number"
+                        onClick={(ev) => {
+                          ev.preventDefault();
+                          setStep(STEPS.findIndex((x) => x.id === 'coverage'));
+                        }}
+                      >
+                        Le compléter à l’étape Social &amp; fiscal
+                      </a>
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+            {stepId === 'contract' && (
               <>
                 <div className="grid grid-2">
                   <div className="form-row">
@@ -1164,7 +1298,7 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
                 </div>
               </>
             )}
-            {step === 7 && (
+            {stepId === 'details' && (
               <>
                 <div className="form-row">
                   <label>Compte lié (identifiant de connexion)</label>
@@ -1224,15 +1358,15 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
                   )}
                   {step < STEPS.length - 1 ? (
                     <button type="button" onClick={() => {
-                      if (step === 0 && !`${form.first_name} ${form.last_name}`.trim()) {
+                      if (stepId === 'personal' && !`${form.first_name} ${form.last_name}`.trim()) {
                         setModalError('Indiquez le prénom ou le nom de famille.');
                         return;
                       }
-                      if (step === 4 && form.email.trim() && !isEmail(form.email)) {
+                      if (stepId === 'contact' && form.email.trim() && !isEmail(form.email)) {
                         setModalError('Adresse e-mail invalide.');
                         return;
                       }
-                      if (step === 5 && (!Number.isFinite(Number(form.pay_amount)) || Number(form.pay_amount) < 0)) {
+                      if (stepId === 'pay' && (!Number.isFinite(Number(form.pay_amount)) || Number(form.pay_amount) < 0)) {
                         setModalError('Indiquez un salaire valide (≥ 0).');
                         return;
                       }

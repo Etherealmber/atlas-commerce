@@ -121,6 +121,88 @@ function PanelSkeletonCard({
   );
 }
 
+function ChartSkeletonCard({ height = 215 }: { height?: number }) {
+  return (
+    <div className="ac-skeleton-bento-card" style={{ padding: '18px 20px' }}>
+      <div className="skeleton" style={{ height: 13, width: '42%', marginBottom: 8 }} />
+      <div className="skeleton" style={{ height: 10, width: '58%', marginBottom: 14 }} />
+      <div className="ac-skeleton-pill-row" style={{ marginBottom: 12 }}>
+        <span className="skeleton" style={{ height: 10, width: 84, borderRadius: 999 }} />
+        <span className="skeleton" style={{ height: 10, width: 96, borderRadius: 999 }} />
+      </div>
+      <div className="ac-skeleton-bars" style={{ height }}>
+        {[46, 62, 38, 74, 58, 82].map((h, i) => (
+          <span key={i} className="skeleton" style={{ height: `${h}%` }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function HBarSkeletonCard() {
+  return (
+    <div className="ac-skeleton-bento-card" style={{ padding: '18px 20px' }}>
+      <div className="skeleton" style={{ height: 13, width: '44%', marginBottom: 8 }} />
+      <div className="skeleton" style={{ height: 10, width: '60%', marginBottom: 18 }} />
+      {[78, 64, 46, 32, 22].map((w, i) => (
+        <div key={i} style={{ marginBottom: i === 4 ? 0 : 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 7 }}>
+            <span className="skeleton" style={{ height: 10, width: 90, display: 'block' }} />
+            <span className="skeleton" style={{ height: 10, width: 70, display: 'block' }} />
+          </div>
+          <div className="skeleton" style={{ height: 8, width: `${w}%`, borderRadius: 999 }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DonutSkeletonCard() {
+  return (
+    <div className="ac-skeleton-bento-card" style={{ padding: '18px 18px 20px' }}>
+      <div className="skeleton" style={{ height: 13, width: '52%', marginBottom: 8 }} />
+      <div className="skeleton" style={{ height: 10, width: '40%', marginBottom: 22 }} />
+      <div className="skeleton ac-skeleton-donut" />
+      <div className="skeleton" style={{ height: 10, width: '100%', marginTop: 22, marginBottom: 10 }} />
+      <div className="skeleton" style={{ height: 10, width: '86%' }} />
+    </div>
+  );
+}
+
+/**
+ * Public product pages (/, /android, /desktop, /support): quiet editorial shimmer in the
+ * landing palette (no app cards). Theme-aware, full viewport, reduced-motion safe.
+ */
+function LandingSkeleton() {
+  return (
+    <div className="lp-skel" aria-busy="true" aria-label="Chargement">
+      <div className="lp-skel-nav">
+        <span className="lp-sk lp-skel-logo" />
+        <span className="lp-skel-links">
+          <span className="lp-sk" style={{ width: 64 }} />
+          <span className="lp-sk" style={{ width: 72 }} />
+          <span className="lp-sk" style={{ width: 58 }} />
+        </span>
+        <span className="lp-sk lp-skel-cta-sm" />
+      </div>
+      <div className="lp-skel-hero">
+        <span className="lp-sk lp-skel-eyebrow" />
+        <span className="lp-sk lp-skel-title" />
+        <span className="lp-sk lp-skel-title lp-skel-title--short" />
+        <span className="lp-sk lp-skel-lead" />
+        <span className="lp-sk lp-skel-lead lp-skel-lead--short" />
+        <span className="lp-skel-ctas">
+          <span className="lp-sk lp-skel-cta" />
+          <span className="lp-sk lp-skel-cta lp-skel-cta--ghost" />
+        </span>
+      </div>
+      <div className="lp-skel-window">
+        <span className="lp-sk lp-skel-window-inner" />
+      </div>
+    </div>
+  );
+}
+
 function FilterBarSkeletonCard({ pills = 3 }: { pills?: number }) {
   return (
     <div className="ac-skeleton-bento-card ac-skeleton-filter-bar">
@@ -205,13 +287,15 @@ export default function PageSkeleton({
   }
 
   if (variant === 'dashboard') {
+    // Mirrors Dashboard.tsx top to bottom: hero, 4 KPIs, next actions, cash-flow + profit,
+    // 4 finance KPIs, 2×2 charts (incl. « Répartition des charges »), 4 donuts, 2 lists.
     return (
-      <div className="page-skeleton" aria-busy="true" aria-label="Chargement du tableau de bord">
+      <div className="page-skeleton page-skeleton--dashboard" aria-busy="true" aria-label="Chargement du tableau de bord">
         <div className="ac-skeleton-bento-card ac-skeleton-hero ac-skeleton-hero--split">
           <div>
             <div className="skeleton" style={{ height: 10, width: 150, marginBottom: 12 }} />
             <div className="skeleton" style={{ height: 26, width: 240, marginBottom: 10 }} />
-            <div className="skeleton" style={{ height: 12, width: 320 }} />
+            <div className="skeleton" style={{ height: 12, width: 320, maxWidth: '100%' }} />
           </div>
           <div className="ac-skeleton-pill-row">
             <span className="skeleton ac-skeleton-pill" style={{ width: 168, height: 34 }} />
@@ -219,12 +303,31 @@ export default function PageSkeleton({
           </div>
         </div>
         <KpiSkeletonGrid count={4} />
-        <div className="page-skeleton-grid" style={{ marginBottom: 14 }}>
-          <PanelSkeletonCard tallBlock />
-          <PanelSkeletonCard tallBlock />
+        <div className="ac-skeleton-bento-card ac-skeleton-next-actions">
+          <div className="skeleton" style={{ height: 13, width: 150, marginBottom: 14 }} />
+          <div className="ac-skeleton-grid-3">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="skeleton" style={{ height: 52, borderRadius: 12 }} />
+            ))}
+          </div>
         </div>
-        <div className="ac-skeleton-grid-3">
-          <PanelSkeletonCard rows={3} />
+        <div className="page-skeleton-grid" style={{ marginBottom: 14 }}>
+          <ChartSkeletonCard height={270} />
+          <ChartSkeletonCard height={270} />
+        </div>
+        <KpiSkeletonGrid count={4} />
+        <div className="page-skeleton-grid" style={{ marginBottom: 14 }}>
+          <ChartSkeletonCard height={215} />
+          <ChartSkeletonCard height={215} />
+          <ChartSkeletonCard height={215} />
+          <HBarSkeletonCard />
+        </div>
+        <div className="ac-skeleton-grid-4">
+          {[0, 1, 2, 3].map((i) => (
+            <DonutSkeletonCard key={i} />
+          ))}
+        </div>
+        <div className="page-skeleton-grid">
           <PanelSkeletonCard rows={3} />
           <PanelSkeletonCard rows={3} />
         </div>
@@ -452,7 +555,11 @@ export default function PageSkeleton({
     );
   }
 
-  if (variant === 'landing' || variant === 'welcome') {
+  if (variant === 'landing') {
+    return <LandingSkeleton />;
+  }
+
+  if (variant === 'welcome') {
     return (
       <div
         className="page-skeleton"
