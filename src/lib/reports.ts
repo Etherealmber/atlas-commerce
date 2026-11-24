@@ -2,15 +2,6 @@ import { getToken } from '../auth';
 import { uiToast } from '../components/AppDialogs';
 import { getApiBase } from '../config';
 
-function qsFromParams(params?: Record<string, string | undefined>): string {
-  if (!params) return '';
-  const q = new URLSearchParams();
-  for (const [k, v] of Object.entries(params)) {
-    if (v != null && v !== '') q.set(k, v);
-  }
-  const s = q.toString();
-  return s ? s : '';
-}
 
 /**
  * Open printable HTML report in a real navigable URL (with short-lived rt ticket)

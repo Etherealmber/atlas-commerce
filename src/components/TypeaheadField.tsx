@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-export type TypeaheadOption = {
+type TypeaheadOption = {
   id: string | number;
   label: string;
   sub?: string;

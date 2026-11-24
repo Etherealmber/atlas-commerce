@@ -23,7 +23,8 @@ it('renders an interactive challenge and posts the provider result directly, wit
   (window as any).turnstile = { render: vi.fn((_box: unknown, options: any) => { widget = options; }) };
   vi.spyOn(document.head, 'appendChild').mockImplementation((node: any) => { if (node.tagName === 'SCRIPT') queueMicrotask(() => node.dispatchEvent(new Event('load'))); return node; });
   window.eval(script);
-  for (let i = 0; i < 20 && !widget; i++) await new Promise(resolve => setTimeout(resolve, 0));
+  // `widget` is assigned asynchronously by the mocked turnstile.render callback.
+  for (let i = 0; i < 20; i++) { if (widget) break; await new Promise(resolve => setTimeout(resolve, 0)); }
   expect(location.hash).toBe('');
   expect(widget?.appearance).toBe('always'); expect(widget?.size).toBe('normal');
   expect(calls).toHaveLength(1);

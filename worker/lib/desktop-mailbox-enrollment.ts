@@ -19,7 +19,7 @@ export type MailboxEnrollmentAdapters = {
   // Must send only to the supplied address; no fallback or secret logging.
   send: (message: Message, signal: AbortSignal) => Promise<boolean>;
 };
-export type MailboxService = {
+type MailboxService = {
   start(context: unknown, candidate: string, ip: string): Promise<{ request_id: string; expires_in: number } | null>;
   confirm(context: unknown, requestId: string, newCode: string, oldCode: string | undefined, ip: string): Promise<boolean>;
 };

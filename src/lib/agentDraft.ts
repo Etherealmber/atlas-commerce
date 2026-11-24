@@ -1,6 +1,6 @@
 /** Session bridge: Atlas Agent → open create/edit modals on target pages. */
 
-export type AgentDraft = {
+type AgentDraft = {
   open?: string | boolean;
   entity?: 'product' | 'client' | 'invoice' | 'quote' | 'receipt' | 'employee' | 'vendor' | 'expense' | 'bill';
   mode?: 'create' | 'edit';
@@ -10,7 +10,7 @@ export type AgentDraft = {
 };
 
 const KEY = 'atlas-agent-draft';
-export const AGENT_DRAFT_EVENT = 'atlas-agent-draft';
+const AGENT_DRAFT_EVENT = 'atlas-agent-draft';
 
 export function setAgentDraft(draft: AgentDraft) {
   try {
@@ -25,7 +25,7 @@ export function setAgentDraft(draft: AgentDraft) {
   }
 }
 
-export function consumeAgentDraft(): AgentDraft | null {
+function consumeAgentDraft(): AgentDraft | null {
   try {
     const raw = sessionStorage.getItem(KEY);
     if (!raw) return null;

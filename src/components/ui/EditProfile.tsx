@@ -326,4 +326,3 @@ export const EditProfile: FC<Props> = ({ isOpen, onClose, initialData, onSave })
   );
 };
 
-export default EditProfile;

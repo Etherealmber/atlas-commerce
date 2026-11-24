@@ -14,17 +14,6 @@ export function useDebouncedValue<T>(value: T, delayMs = 300): T {
   return debounced;
 }
 
-/** Classic function debounce (for event handlers). */
-export function debounce<T extends (...args: any[]) => void>(fn: T, wait = 300): T {
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  return ((...args: Parameters<T>) => {
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(() => {
-      timer = null;
-      fn(...args);
-    }, wait);
-  }) as T;
-}
 
 type CacheEntry = { expires: number; data: unknown };
 

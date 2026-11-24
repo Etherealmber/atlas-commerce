@@ -85,4 +85,3 @@ export const AvatarImage: FC<Props> = ({ className, width, height, loading, fall
   );
 };
 
-export default AvatarImage;

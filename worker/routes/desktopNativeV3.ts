@@ -27,6 +27,9 @@ import { issueDpopNonce, prepareDpopVerification, ensureDpopTables } from '../li
 import { desktopV3Enabled, makeDesktopV3Token } from '../lib/desktop-v3-session';
 import { createConfiguredNativeMailbox, createNativeOtpSender } from '../lib/desktop-mail-transport';
 import { addColumnIfMissing } from '../lib/schema';
+import { ensureSecurityTables } from '../lib/authHelpers';
+import { parseClientData, policyFromEnv, expectedOrigin, verifyAuthentication, credentialDescriptors } from '../lib/webauthn';
+import { qrToSvg } from '../qrSvg';
 import {
   ensureRevokedWebTokensTable,
   getRequestAuthContext,
@@ -37,7 +40,7 @@ import {
 
 export const NATIVE_V3 = '/api/auth/desktop/v3';
 
-export const V3_PUBLIC_POSTS = new Set(
+const V3_PUBLIC_POSTS = new Set(
   [
     'nonce',
     'requests',
@@ -50,6 +53,10 @@ export const V3_PUBLIC_POSTS = new Set(
     'login/cancel',
     'session/refresh',
     'session/logout',
+    'qr/start',
+    'qr/exchange',
+    'webauthn/options',
+    'webauthn/verify',
   ].map((p) => `${NATIVE_V3}/${p}`),
 );
 
@@ -67,10 +74,16 @@ const ACCESS_TTL_MS = 900_000;
 const SESSION_ABSOLUTE_TTL_MS = 43_200_000;
 const POLL_INTERVAL_MS = 5_000;
 const ACTION = 'atlas_desktop_v3';
+const QR_TTL_MS = 120_000;
+const QR_POLL_INTERVAL_MS = 2_000;
+const PASSKEY_TTL_MS = 120_000;
+
+/** Browser-free presentation: explicit opt-in, never an automatic fallback. */
+const nativePresentationEnabled = (env: any) => env?.DESKTOP_NATIVE_V3_NATIVE_LOGIN === 'true';
 
 type Identity = { username: string; role: string; material: string; userId: number | null };
 
-export type DesktopV3Deps = {
+type DesktopV3Deps = {
   currentIdentity: (env: any, username: string, role: string) => Promise<Identity | null>;
   verifyAppUserPassword: (
     env: any,
@@ -167,6 +180,74 @@ function maskEmail(email: string): string {
 }
 
 const schemaReady = new WeakSet<object>();
+const REQUESTS_DDL = `
+        id TEXT PRIMARY KEY,
+        origin TEXT NOT NULL,
+        state_hash TEXT NOT NULL,
+        challenge TEXT NOT NULL,
+        ip_hash TEXT NOT NULL,
+        device_thumbprint TEXT NOT NULL,
+        label TEXT NOT NULL,
+        presentation TEXT NOT NULL CHECK(presentation IN ('turnstile_webview','system_browser','native')),
+        cdata TEXT NOT NULL,
+        browser_ip_hash TEXT,
+        expires_at INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        polls INTEGER NOT NULL DEFAULT 0,
+        last_poll INTEGER NOT NULL DEFAULT 0
+      `;
+
+const SESSIONS_DDL = `
+        id TEXT PRIMARY KEY,
+        origin TEXT NOT NULL,
+        username TEXT NOT NULL,
+        role TEXT NOT NULL,
+        user_id INTEGER,
+        credential_tag TEXT NOT NULL,
+        device_thumbprint TEXT NOT NULL,
+        device_label TEXT NOT NULL,
+        access_hash TEXT NOT NULL UNIQUE,
+        refresh_hash TEXT NOT NULL UNIQUE,
+        previous_refresh_hash TEXT,
+        access_expires_at INTEGER NOT NULL,
+        absolute_expires_at INTEGER NOT NULL,
+        last_used_at INTEGER NOT NULL,
+        revoked INTEGER NOT NULL DEFAULT 0
+      `;
+
+/**
+ * SQLite cannot ALTER a CHECK / NOT NULL constraint. Rebuild the table atomically
+ * (one D1 batch = one transaction) when the stored DDL is outdated. The account
+ * triggers reference these tables, so they are dropped first and recreated by
+ * ensureV3Schema right after (CREATE TRIGGER IF NOT EXISTS).
+ */
+async function rebuildTableIfNeeded(
+  db: D1Database,
+  table: string,
+  outdated: (sql: string) => boolean,
+  ddl: string,
+  columns: string,
+): Promise<void> {
+  const row: any = await db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name=?").bind(table).first();
+  if (!row?.sql || !outdated(String(row.sql))) return;
+  const tmp = `${table}__v3mig`;
+  try {
+    await db.batch([
+      db.prepare('DROP TRIGGER IF EXISTS desktop_v3_account_update'),
+      db.prepare('DROP TRIGGER IF EXISTS desktop_v3_account_delete'),
+      db.prepare(`DROP TABLE IF EXISTS ${tmp}`),
+      db.prepare(`CREATE TABLE ${tmp} (${ddl})`),
+      db.prepare(`INSERT INTO ${tmp} (${columns}) SELECT ${columns} FROM ${table}`),
+      db.prepare(`DROP TABLE ${table}`),
+      db.prepare(`ALTER TABLE ${tmp} RENAME TO ${table}`),
+    ]);
+  } catch {
+    // A concurrent isolate may have migrated first — only fail if still outdated.
+    const again: any = await db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name=?").bind(table).first();
+    if (!again?.sql || outdated(String(again.sql))) throw new Failure('UNAVAILABLE', 503);
+  }
+}
+
 async function ensureV3Schema(db: D1Database): Promise<void> {
   if (schemaReady.has(db)) return;
   await ensureDpopTables(db);
@@ -183,24 +264,11 @@ async function ensureV3Schema(db: D1Database): Promise<void> {
 
   await db
     .prepare(
-      `CREATE TABLE IF NOT EXISTS desktop_v3_requests (
-        id TEXT PRIMARY KEY,
-        origin TEXT NOT NULL,
-        state_hash TEXT NOT NULL,
-        challenge TEXT NOT NULL,
-        ip_hash TEXT NOT NULL,
-        device_thumbprint TEXT NOT NULL,
-        label TEXT NOT NULL,
-        presentation TEXT NOT NULL CHECK(presentation IN ('turnstile_webview','system_browser')),
-        cdata TEXT NOT NULL,
-        browser_ip_hash TEXT,
-        expires_at INTEGER NOT NULL,
-        status TEXT NOT NULL DEFAULT 'pending',
-        polls INTEGER NOT NULL DEFAULT 0,
-        last_poll INTEGER NOT NULL DEFAULT 0
-      )`,
+      `CREATE TABLE IF NOT EXISTS desktop_v3_requests (${REQUESTS_DDL})`,
     )
     .run();
+  await rebuildTableIfNeeded(db, 'desktop_v3_requests', (sql) => !sql.includes("'native'"), REQUESTS_DDL,
+    'id, origin, state_hash, challenge, ip_hash, device_thumbprint, label, presentation, cdata, browser_ip_hash, expires_at, status, polls, last_poll');
   await db.prepare('CREATE INDEX IF NOT EXISTS idx_v3_requests_exp ON desktop_v3_requests(expires_at)').run();
 
   await db
@@ -229,25 +297,11 @@ async function ensureV3Schema(db: D1Database): Promise<void> {
 
   await db
     .prepare(
-      `CREATE TABLE IF NOT EXISTS desktop_v3_sessions (
-        id TEXT PRIMARY KEY,
-        origin TEXT NOT NULL,
-        username TEXT NOT NULL,
-        role TEXT NOT NULL,
-        user_id INTEGER NOT NULL,
-        credential_tag TEXT NOT NULL,
-        device_thumbprint TEXT NOT NULL,
-        device_label TEXT NOT NULL,
-        access_hash TEXT NOT NULL UNIQUE,
-        refresh_hash TEXT NOT NULL UNIQUE,
-        previous_refresh_hash TEXT,
-        access_expires_at INTEGER NOT NULL,
-        absolute_expires_at INTEGER NOT NULL,
-        last_used_at INTEGER NOT NULL,
-        revoked INTEGER NOT NULL DEFAULT 0
-      )`,
+      `CREATE TABLE IF NOT EXISTS desktop_v3_sessions (${SESSIONS_DDL})`,
     )
     .run();
+  await rebuildTableIfNeeded(db, 'desktop_v3_sessions', (sql) => /user_id\s+INTEGER\s+NOT\s+NULL/i.test(sql), SESSIONS_DDL,
+    'id, origin, username, role, user_id, credential_tag, device_thumbprint, device_label, access_hash, refresh_hash, previous_refresh_hash, access_expires_at, absolute_expires_at, last_used_at, revoked');
   await db.prepare('CREATE INDEX IF NOT EXISTS idx_v3_sessions_prev ON desktop_v3_sessions(previous_refresh_hash)').run();
   await db.prepare('CREATE INDEX IF NOT EXISTS idx_v3_sessions_exp ON desktop_v3_sessions(absolute_expires_at)').run();
   await db.prepare('CREATE INDEX IF NOT EXISTS idx_v3_sessions_user ON desktop_v3_sessions(username, revoked)').run();
@@ -324,6 +378,30 @@ async function ensureV3Schema(db: D1Database): Promise<void> {
         UPDATE desktop_v3_logins SET status='cancelled', otp_digest='' WHERE (user_id=OLD.id OR username=OLD.username) AND status IN ('checking','pending');
         UPDATE desktop_v3_sessions SET revoked=1 WHERE user_id=OLD.id;
       END`,
+    )
+    .run();
+
+  // QR approval bound to a native v3 request (DPoP key + PKCE/state)
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS desktop_v3_qr (
+        request_id TEXT PRIMARY KEY,
+        qr_token TEXT NOT NULL UNIQUE,
+        expires_at INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending'
+      )`,
+    )
+    .run();
+  // Passkey challenge bound to a native v3 request
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS desktop_v3_passkey (
+        request_id TEXT PRIMARY KEY,
+        challenge TEXT NOT NULL UNIQUE,
+        username TEXT NOT NULL DEFAULT '',
+        expires_at INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending'
+      )`,
     )
     .run();
 
@@ -405,7 +483,7 @@ function strictOrigin(c: Context<any>, supplied?: unknown): string {
   return url.origin;
 }
 
-export async function pairingCode(row: { origin: string; id: string; challenge: string }): Promise<string> {
+async function pairingCode(row: { origin: string; id: string; challenge: string }): Promise<string> {
   const bytes = new Uint8Array(
     await crypto.subtle.digest(
       'SHA-256',
@@ -522,10 +600,12 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
       !pattern(b.code_challenge, CHALLENGE) ||
       b.code_challenge_method !== 'S256' ||
       !validLabel(b.device_label) ||
-      (b.presentation !== 'turnstile_webview' && b.presentation !== 'system_browser')
+      (b.presentation !== 'turnstile_webview' && b.presentation !== 'system_browser' && b.presentation !== 'native')
     ) {
       fail('INVALID_REQUEST');
     }
+    const native = b.presentation === 'native';
+    if (native && !nativePresentationEnabled(c.env)) fail('METHOD_DISABLED', 503);
     const dpop = await requireDpop(c, { origin: server, singleUseNonce: true });
     const id = randHex();
     const cdata = randHex();
@@ -537,10 +617,13 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
       ...dpop.consumeStatements,
       c.env.DB
         .prepare(
-          `INSERT INTO desktop_v3_requests (id, origin, state_hash, challenge, ip_hash, device_thumbprint, label, presentation, cdata, expires_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO desktop_v3_requests (id, origin, state_hash, challenge, ip_hash, device_thumbprint, label, presentation, cdata, expires_at, status, browser_ip_hash)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
-        .bind(id, server, stateHash, b.code_challenge, ipHash, dpop.thumbprint, b.device_label, b.presentation, cdata, expires),
+        // native: no hosted challenge — the request is usable at once by the SAME key + IP
+        // (password still requires the verified-mailbox OTP; QR needs phone approval; passkey a signature).
+        .bind(id, server, stateHash, b.code_challenge, ipHash, dpop.thumbprint, b.device_label, b.presentation, cdata, expires,
+          native ? 'verified' : 'pending', native ? ipHash : null),
     ]);
     if (results.some((r) => Number(r?.meta?.changes || 0) < 1)) fail('INVALID_PROOF', 401);
 
@@ -566,7 +649,7 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
           request_id: id,
           origin: server,
           presentation: b.presentation,
-          challenge_url: `${server}${challengePath}#request_id=${id}`,
+          ...(native ? { status: 'verified' } : { challenge_url: `${server}${challengePath}#request_id=${id}` }),
           pairing_code: code,
           device_thumbprint: dpop.thumbprint,
           expires_in: Math.floor(CHALLENGE_TTL_MS / 1000),
@@ -706,6 +789,11 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
     const ip = c.req.header('CF-Connecting-IP')!;
     await budget(c.env.DB, 'v3-pw-acct', username, 600_000, 20);
     await budget(c.env.DB, 'v3-pw-pair', JSON.stringify([username, ip]), 600_000, 5);
+    if (reqRow.presentation === 'native') {
+      // No interactive challenge in front of native attempts: cap per-IP password tries too.
+      await budget(c.env.DB, 'v3-native-pw-ip', ip, 600_000, 10);
+      await budget(c.env.DB, 'v3-native-pw-ip-day', ip, 86_400_000, 40);
+    }
 
     if (reqRow.status !== 'verified' || !reqRow.browser_ip_hash || !same(reqRow.browser_ip_hash, reqRow.ip_hash)) {
       fail('NOT_APPROVED', 409);
@@ -949,6 +1037,292 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
         device_thumbprint: dpop.thumbprint,
         attestation: 'client_key_unattested',
       },
+    });
+  });
+
+  /**
+   * Issue a device-bound v3 session pair for an already-verified native request.
+   * Every statement runs in ONE batch: DPoP nonce/JTI consumption, the
+   * method-specific single-use guard(s), request consumption and session insert.
+   * Any guard with changes !== 1 aborts with a generic failure (no oracle).
+   */
+  async function commitSession(
+    c: Context<any>,
+    opts: {
+      reqRow: any;
+      dpop: { thumbprint: string; consumeStatements: any[] };
+      identity: Identity;
+      guards: any[];
+      /** Extra SQL conditions (ANDed) proving the guards above really fired in this batch. */
+      insertWhen: { sql: string; params: unknown[] }[];
+      method: 'qr' | 'passkey';
+    },
+  ) {
+    const { reqRow, dpop, identity } = opts;
+    const now = Date.now();
+    const sid = randHex();
+    const access = makeDesktopV3Token(identity.username, identity.role, randHex());
+    const refresh = randHex();
+    const accessExpiry = now + ACCESS_TTL_MS;
+    const absoluteExpiry = now + SESSION_ABSOLUTE_TTL_MS;
+    const credentialTag = await desktopHash(identity.material);
+    const committed: any[] = await c.env.DB.batch([
+      ...dpop.consumeStatements,
+      ...opts.guards,
+      // Single-use: the request flips verified -> consumed exactly once, stamped with this session id.
+      c.env.DB
+        .prepare("UPDATE desktop_v3_requests SET status='consumed', cdata=? WHERE id=? AND status='verified' AND device_thumbprint=?")
+        .bind(`session:${sid}`, reqRow.id, dpop.thumbprint),
+      // Conditional insert: only when THIS batch consumed the request and every method guard fired.
+      c.env.DB
+        .prepare(
+          `INSERT INTO desktop_v3_sessions
+             (id, origin, username, role, user_id, credential_tag, device_thumbprint, device_label, access_hash, refresh_hash, access_expires_at, absolute_expires_at, last_used_at)
+           SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+           FROM desktop_v3_requests WHERE id=? AND status='consumed' AND cdata=?${opts.insertWhen.map((w) => ` AND ${w.sql}`).join('')}`,
+        )
+        .bind(
+          sid, reqRow.origin, identity.username, identity.role, identity.userId, credentialTag, dpop.thumbprint, reqRow.label,
+          await desktopHash(access), await desktopHash(refresh), accessExpiry, absoluteExpiry, now,
+          reqRow.id, `session:${sid}`, ...opts.insertWhen.flatMap((w) => w.params),
+        ),
+    ]);
+    const tail = committed.slice(dpop.consumeStatements.length);
+    if (tail.some((r) => Number(r?.meta?.changes || 0) !== 1)) return genericAuthFailure();
+    await deps.audit(c, {
+      username: identity.username,
+      role: identity.role,
+      action: `auth.desktop_v3_${opts.method}_login`,
+      entity: 'session',
+      detail: `sid=${sid.slice(0, 12)} jkt=${dpop.thumbprint.slice(0, 12)}`,
+      ip: c.req.header('CF-Connecting-IP') || '',
+    });
+    return c.json({
+      success: true,
+      data: {
+        token_type: 'DPoP',
+        access_token: access,
+        refresh_token: refresh,
+        access_expires_at: new Date(accessExpiry).toISOString(),
+        session_expires_at: new Date(absoluteExpiry).toISOString(),
+        origin: reqRow.origin,
+        username: identity.username,
+        role: identity.role,
+        session_id: sid,
+        device_thumbprint: dpop.thumbprint,
+        attestation: 'client_key_unattested',
+        method: opts.method,
+      },
+    });
+  }
+
+  /** Consume a DPoP proof without other side effects (pending/negative answers stay replay-safe). */
+  async function consumeOnly(c: Context<any>, dpop: { consumeStatements: any[] }) {
+    if (!dpop.consumeStatements.length) return;
+    const res: any[] = await c.env.DB.batch(dpop.consumeStatements);
+    if (res.some((r) => Number(r?.meta?.changes || 0) < 1)) fail('INVALID_PROOF', 401);
+  }
+
+  function requireUsableNativeRequest(row: any) {
+    if (row.status !== 'verified' || !row.browser_ip_hash || !same(row.browser_ip_hash, row.ip_hash)) fail('NOT_APPROVED', 409);
+  }
+
+  // 4b. QR login: the phone (already signed in) approves; the desktop exchanges with its key + PKCE.
+  app.post(`${NATIVE_V3}/qr/start`, async (c) => {
+    if (!nativePresentationEnabled(c.env)) fail('METHOD_DISABLED', 503);
+    const b = await readJsonBody(c, proofFields);
+    const { row, dpop } = await verifyDesktopProof(c, b);
+    requireUsableNativeRequest(row);
+    await budget(c.env.DB, 'v3-qr-start-ip', c.req.header('CF-Connecting-IP')!, 600_000, 20);
+    await ensureSecurityTables(c.env.DB);
+    const token = randHex();
+    const now = Date.now();
+    const expires = Math.min(now + QR_TTL_MS, Number(row.expires_at));
+    const res: any[] = await c.env.DB.batch([
+      ...dpop.consumeStatements,
+      c.env.DB
+        .prepare("INSERT INTO desktop_v3_qr (request_id, qr_token, expires_at, status) SELECT id, ?, ?, 'pending' FROM desktop_v3_requests WHERE id=? AND status='verified' AND expires_at>?")
+        .bind(token, expires, row.id, now),
+      c.env.DB
+        .prepare(`INSERT INTO qr_login_sessions (token, username, role, created_by, status, expires_at) VALUES (?, '', '', 'desktop-v3', 'pending', ?)`)
+        .bind(token, new Date(expires).toISOString()),
+    ]).catch(() => fail('USED', 409));
+    if (res.slice(dpop.consumeStatements.length).some((r) => Number(r?.meta?.changes || 0) !== 1)) fail('USED', 409);
+    const qrUrl = `${row.origin}/login/qr?t=${token}&mode=pc`;
+    let qrSvg = '';
+    try { qrSvg = qrToSvg(qrUrl, 220, 2); } catch { /* client can render qr_url itself */ }
+    return c.json({
+      success: true,
+      data: {
+        status: 'pending',
+        qr_url: qrUrl,
+        qr_svg: qrSvg,
+        expires_in: Math.max(1, Math.floor((expires - now) / 1000)),
+        interval: Math.floor(QR_POLL_INTERVAL_MS / 1000),
+      },
+    }, 201);
+  });
+
+  app.post(`${NATIVE_V3}/qr/exchange`, async (c) => {
+    if (!nativePresentationEnabled(c.env)) fail('METHOD_DISABLED', 503);
+    const b = await readJsonBody(c, proofFields);
+    const { row, dpop } = await verifyDesktopProof(c, b, { ignoreRequestExpiry: true });
+    await budget(c.env.DB, 'v3-qr-poll', row.id, 300_000, 150);
+    const link: any = await c.env.DB.prepare('SELECT * FROM desktop_v3_qr WHERE request_id=?').bind(row.id).first();
+    if (!link) { await consumeOnly(c, dpop); fail('INVALID_REQUEST'); }
+    const qr: any = await c.env.DB.prepare('SELECT * FROM qr_login_sessions WHERE token=?').bind(link.qr_token).first();
+    const now = Date.now();
+    if (!qr || link.status === 'consumed' || qr.status === 'consumed') { await consumeOnly(c, dpop); fail('USED', 409); }
+    if (qr.status === 'denied') { await consumeOnly(c, dpop); fail('DENIED', 410); }
+    if (link.expires_at <= now || qr.status === 'expired' || Date.parse(String(qr.expires_at || '')) <= now) {
+      await consumeOnly(c, dpop);
+      fail('EXPIRED', 410);
+    }
+    if (qr.status !== 'approved') {
+      await consumeOnly(c, dpop);
+      return c.json({ success: true, data: { status: qr.status === 'claimed' ? 'scanned' : 'pending', interval: Math.floor(QR_POLL_INTERVAL_MS / 1000) } }, 202);
+    }
+    const identity = await deps.currentIdentity(c.env, String(qr.username || ''), String(qr.role || ''));
+    if (!identity) { await consumeOnly(c, dpop); return genericAuthFailure(); }
+    return commitSession(c, {
+      reqRow: row,
+      dpop,
+      identity,
+      method: 'qr',
+      guards: [
+        c.env.DB
+          .prepare("UPDATE qr_login_sessions SET status='consumed', consumed_at=datetime('now') WHERE token=? AND status='approved' AND created_by='desktop-v3' AND username=? AND role=?")
+          .bind(link.qr_token, identity.username, identity.role),
+        c.env.DB
+          .prepare("UPDATE desktop_v3_qr SET status='consumed' WHERE request_id=? AND status='pending' AND expires_at>?")
+          .bind(row.id, now),
+      ],
+      insertWhen: [
+        { sql: "EXISTS (SELECT 1 FROM desktop_v3_qr WHERE request_id=? AND qr_token=? AND status='consumed')", params: [row.id, link.qr_token] },
+        { sql: "EXISTS (SELECT 1 FROM qr_login_sessions WHERE token=? AND status='consumed' AND username=? AND role=?)", params: [link.qr_token, identity.username, identity.role] },
+      ],
+    });
+  });
+
+  // 4c. Passkey login: challenge bound to the request; origin/rpId = the web policy (no allowlist widening).
+  app.post(`${NATIVE_V3}/webauthn/options`, async (c) => {
+    if (!nativePresentationEnabled(c.env)) fail('METHOD_DISABLED', 503);
+    const policy = policyFromEnv(c.env);
+    if (!policy.enabled) fail('METHOD_DISABLED', 503);
+    const b = await readJsonBody(c, [...proofFields, 'username']);
+    const { row, dpop } = await verifyDesktopProof(c, b);
+    requireUsableNativeRequest(row);
+    const username = typeof b.username === 'string' ? b.username.trim().toLowerCase() : '';
+    if (username && !/^[a-z0-9._-]{1,64}$/.test(username)) fail('INVALID_REQUEST');
+    await budget(c.env.DB, 'v3-pk-ip', c.req.header('CF-Connecting-IP')!, 600_000, 30);
+    await ensureSecurityTables(c.env.DB);
+    const bytes = crypto.getRandomValues(new Uint8Array(32));
+    const challenge = btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const now = Date.now();
+    const expires = Math.min(now + PASSKEY_TTL_MS, Number(row.expires_at));
+    const res: any[] = await c.env.DB.batch([
+      ...dpop.consumeStatements,
+      c.env.DB
+        .prepare(
+          `INSERT INTO desktop_v3_passkey (request_id, challenge, username, expires_at, status) VALUES (?, ?, ?, ?, 'pending')
+           ON CONFLICT(request_id) DO UPDATE SET challenge=excluded.challenge, username=excluded.username, expires_at=excluded.expires_at
+           WHERE desktop_v3_passkey.status='pending'`,
+        )
+        .bind(row.id, challenge, username, expires),
+    ]);
+    if (Number(res[res.length - 1]?.meta?.changes || 0) !== 1) fail('USED', 409);
+    const allow = username ? await credentialDescriptors(c.env.DB, username) : [];
+    return c.json({
+      success: true,
+      data: {
+        challenge,
+        timeout: Math.max(1000, expires - now),
+        userVerification: policy.requireUV ? 'required' : 'preferred',
+        allowCredentials: allow,
+        rpId: policy.rpId,
+        origin: expectedOrigin(policy),
+      },
+    });
+  });
+
+  app.post(`${NATIVE_V3}/webauthn/verify`, async (c) => {
+    if (!nativePresentationEnabled(c.env)) fail('METHOD_DISABLED', 503);
+    const policy = policyFromEnv(c.env);
+    if (!policy.enabled) fail('METHOD_DISABLED', 503);
+    const b = await readJsonBody(c, [...proofFields, 'credential']);
+    const { row, dpop } = await verifyDesktopProof(c, b, { ignoreRequestExpiry: true });
+    const cred = b.credential && typeof b.credential === 'object' ? b.credential : {};
+    const resp = cred.response && typeof cred.response === 'object' ? cred.response : {};
+    const str = (v: unknown, max: number) => (typeof v === 'string' && v.length > 0 && v.length <= max ? v : '');
+    const credentialId = str(cred.id, 1024);
+    const clientDataJSON = str(resp.clientDataJSON, 8192);
+    const authenticatorData = str(resp.authenticatorData, 8192);
+    const signature = str(resp.signature, 1024);
+    const userHandle = typeof resp.userHandle === 'string' ? resp.userHandle.slice(0, 256) : '';
+
+    // Any failure burns the challenge: one signature attempt per options call.
+    const burn = async () => {
+      await c.env.DB.batch([
+        ...dpop.consumeStatements,
+        c.env.DB.prepare("UPDATE desktop_v3_passkey SET status='failed' WHERE request_id=? AND status='pending'").bind(row.id),
+      ]).catch(() => {});
+      return genericAuthFailure();
+    };
+    if (!credentialId || !clientDataJSON || !authenticatorData || !signature) return burn();
+    const pk: any = await c.env.DB.prepare('SELECT * FROM desktop_v3_passkey WHERE request_id=?').bind(row.id).first();
+    let challenge = '';
+    try { challenge = parseClientData(clientDataJSON).json.challenge; } catch { return burn(); }
+    const now = Date.now();
+    if (!pk || pk.status !== 'pending' || pk.expires_at <= now || !same(pk.challenge, challenge)) return burn();
+    requireUsableNativeRequest(row);
+
+    const stored: any = await c.env.DB.prepare('SELECT * FROM webauthn_credentials WHERE id = ?').bind(credentialId).first();
+    if (!stored || !String(stored.public_key_jwk || '')) return burn();
+    const credUser = String(stored.username || '').toLowerCase();
+    if (!credUser || (pk.username && credUser !== pk.username)) return burn();
+    let jwk: any;
+    try { jwk = JSON.parse(String(stored.public_key_jwk)); } catch { return burn(); }
+    let verified;
+    try {
+      verified = await verifyAuthentication({
+        clientDataJSON,
+        authenticatorData,
+        signature,
+        userHandle: userHandle || undefined,
+        expectedChallenge: challenge,
+        policy,
+        stored: {
+          publicKeyJwk: jwk,
+          counter: Number(stored.counter || 0),
+          backupEligible: Number(stored.backup_eligible || 0) === 1,
+          userHandle: String(stored.cred_user_handle || ''),
+        },
+      });
+    } catch {
+      return burn();
+    }
+
+    // Account comes ONLY from the verified credential row; role from the live account.
+    const userRow: any = await c.env.DB.prepare('SELECT role FROM app_users WHERE username=? AND active=1').bind(credUser).first();
+    const identity = await deps.currentIdentity(c.env, credUser, userRow ? String(userRow.role) : 'owner');
+    if (!identity) return burn();
+
+    return commitSession(c, {
+      reqRow: row,
+      dpop,
+      identity,
+      method: 'passkey',
+      guards: [
+        c.env.DB
+          .prepare("UPDATE desktop_v3_passkey SET status='consumed' WHERE request_id=? AND challenge=? AND status='pending' AND expires_at>?")
+          .bind(row.id, challenge, now),
+        c.env.DB
+          .prepare("UPDATE webauthn_credentials SET counter=?, backup_state=?, last_used=datetime('now') WHERE id=?")
+          .bind(verified.counter, verified.backupState ? 1 : 0, credentialId),
+      ],
+      insertWhen: [
+        { sql: "EXISTS (SELECT 1 FROM desktop_v3_passkey WHERE request_id=? AND challenge=? AND status='consumed')", params: [row.id, challenge] },
+      ],
     });
   });
 

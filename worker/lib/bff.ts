@@ -9,7 +9,7 @@
  * Redis → KV. gRPC → JSON/HTTP (Workers-friendly).
  */
 
-export type BffSurface = 'web' | 'mobile' | 'partner' | 'public';
+type BffSurface = 'web' | 'mobile' | 'partner' | 'public';
 
 export function detectBffSurface(c: { req: { header: (n: string) => string | undefined; url: string } }): BffSurface {
   const path = new URL(c.req.url).pathname;

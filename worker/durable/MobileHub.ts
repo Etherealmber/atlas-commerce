@@ -5,7 +5,7 @@ import type { Env } from '../env';
  * plus per-user profile cache (idFromName('profile:' + username)).
  * Keep writes sparse (on mutations only) to stay under free DO request limits.
  */
-export type HubSnapshot = {
+type HubSnapshot = {
   pending: number;
   productCount: number;
   lowStock: number;
@@ -16,7 +16,7 @@ export type HubSnapshot = {
   updatedAt: string | null;
 };
 
-export type UserProfile = {
+type UserProfile = {
   display_name: string;
   email: string;
   phone: string;

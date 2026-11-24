@@ -4,7 +4,7 @@ import { normalizeRole } from '../lib/rbac';
 import { escapeHtml } from '../lib/security';
 import { schemaOnceForDb } from '../lib/schema';
 
-export interface CashShiftRouteDeps {
+interface CashShiftRouteDeps {
   sessionUserFromHeader: (authHeader?: string) => { username?: string; role?: string };
   writeAudit: (db: D1Database, entry: { username?: string; role?: string; action: string; entity?: string; entity_id?: string; detail?: string; ip?: string }) => Promise<void>;
   reportShell: (title: string, company: string, period: string, body: string, footer?: string, backUrl?: string) => string;
@@ -77,7 +77,7 @@ function normMethod(raw: unknown): string {
   return m || 'other';
 }
 
-export function sumDenominations(denominations: Record<string, unknown>): number {
+function sumDenominations(denominations: Record<string, unknown>): number {
   let total = 0;
   for (const [k, v] of Object.entries(denominations || {})) {
     const face = Number(k);
@@ -170,7 +170,7 @@ async function gatherShiftWindowMovements(
   return explicit;
 }
 
-export interface MethodSummary {
+interface MethodSummary {
   method: string;
   label: string;
   in_total: number;
@@ -370,8 +370,21 @@ function renderShiftHtmlReport(
 export function registerCashShiftRoutes(app: AtlasApp, deps: CashShiftRouteDeps): void {
   const { sessionUserFromHeader, writeAudit, reportShell } = deps;
 
-  function requireShiftUser(c: any): { ok: true; username: string; role: string } | { ok: false; response: Response } {
-    const sess = sessionUserFromHeader(c.req.header('Authorization'));
+  /**
+   * X/Z reports open in a new browser tab, which cannot send an Authorization
+   * header. Those two paths are "print-like": the global /api gate has already
+   * validated the ?token= session before the handler runs, so it is safe to read
+   * the role from it there (and only there).
+   */
+  function reportAuthHeader(c: any): string | undefined {
+    const header = c.req.header('Authorization');
+    if (header) return header;
+    const raw = String(c.req.query('token') || '').replace(/ /g, '+');
+    return raw ? `Bearer ${raw}` : undefined;
+  }
+
+  function requireShiftUser(c: any, authHeader: string | undefined = c.req.header('Authorization')): { ok: true; username: string; role: string } | { ok: false; response: Response } {
+    const sess = sessionUserFromHeader(authHeader);
     const role = normalizeRole(sess?.role);
     if (!sess?.username || !(role === 'owner' || role === 'admin' || role === 'secretaire' || role === 'user')) {
       return {
@@ -382,8 +395,8 @@ export function registerCashShiftRoutes(app: AtlasApp, deps: CashShiftRouteDeps)
     return { ok: true, username: sess.username, role };
   }
 
-  function requireOwnerOrAdmin(c: any): { ok: true; username: string; role: string } | { ok: false; response: Response } {
-    const sess = sessionUserFromHeader(c.req.header('Authorization'));
+  function requireOwnerOrAdmin(c: any, authHeader: string | undefined = c.req.header('Authorization')): { ok: true; username: string; role: string } | { ok: false; response: Response } {
+    const sess = sessionUserFromHeader(authHeader);
     const role = normalizeRole(sess?.role);
     if (!sess?.username || (role !== 'owner' && role !== 'admin')) {
       return {
@@ -657,7 +670,7 @@ export function registerCashShiftRoutes(app: AtlasApp, deps: CashShiftRouteDeps)
   });
 
   app.get('/api/cash-shifts/:id/x-report', async (c) => {
-    const gate = requireShiftUser(c);
+    const gate = requireShiftUser(c, reportAuthHeader(c));
     if (!gate.ok) return gate.response;
     await ensureCashShiftSchema(c.env.DB);
     const id = Number(c.req.param('id'));
@@ -680,7 +693,7 @@ export function registerCashShiftRoutes(app: AtlasApp, deps: CashShiftRouteDeps)
   });
 
   app.get('/api/cash-shifts/:id/z-report', async (c) => {
-    const gate = requireOwnerOrAdmin(c);
+    const gate = requireOwnerOrAdmin(c, reportAuthHeader(c));
     if (!gate.ok) return gate.response;
     await ensureCashShiftSchema(c.env.DB);
     const id = Number(c.req.param('id'));

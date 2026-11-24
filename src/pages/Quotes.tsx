@@ -6,13 +6,11 @@ import './quote-actions.css';
 import TypeaheadField, { productTypeaheadOptions, partyTypeaheadOptions } from '../components/TypeaheadField';
 import DatePicker from '../components/DatePicker';
 import { useEffect, useState } from 'react';
-import { api, BASE } from '../api';
+import { api } from '../api';
 import { openPrintDoc } from '../lib/reports';
-import { getToken } from '../auth';
 import SaveFeedback from '../components/SaveFeedback';
 import { statusFr, statusBadgeClass } from '../lib/labels';
 import { useUi } from '../components/AppDialogs';
-import { numStr, numFromInput } from '../lib/numInput';
 import NumberField from '../components/NumberField';
 import EmptyState from '../components/EmptyState';
 import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
@@ -45,8 +43,6 @@ export default function Quotes() {
   const [clientId, setClientId] = useState('');
   const [clientName, setClientName] = useState('');
   const [clientQuery, setClientQuery] = useState('');
-  const [clientDropOpen, setClientDropOpen] = useState(false);
-  const [productDropIdx, setProductDropIdx] = useState<number | null>(null);
   const [issueDate, setIssueDate] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<{ product_id?: number; product_name: string; product_query?: string; quantity: number; list_price: number; unit_price: number; tax_rate: number; sku?: string }[]>([

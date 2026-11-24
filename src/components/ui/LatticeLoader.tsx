@@ -62,7 +62,7 @@ const spoken = (ds: number) =>
     ? `${(ds / 10).toFixed(1)} seconds`
     : `${Math.floor(ds / 600)} minutes ${((ds % 600) / 10).toFixed(1)} seconds`;
 
-export type LatticeLoaderProps = {
+type LatticeLoaderProps = {
   label?: string;
   doneLabel?: string;
   errorLabel?: string;

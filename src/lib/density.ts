@@ -39,7 +39,7 @@ export function getUiScale(): UiScale {
   return 'md';
 }
 
-export function setUiScale(scale: UiScale) {
+function setUiScale(scale: UiScale) {
   try {
     localStorage.setItem(SCALE_KEY, scale);
   } catch {
@@ -51,10 +51,6 @@ export function setUiScale(scale: UiScale) {
   notifyUiPrefs();
 }
 
-/** Liquid glass permanently disabled. */
-export function isGlassEnabled(): boolean {
-  return false;
-}
 
 export function setGlassEnabled(_on: boolean) {
   try {
@@ -66,9 +62,6 @@ export function setGlassEnabled(_on: boolean) {
   notifyUiPrefs();
 }
 
-export function isLiquidGlassActive(): boolean {
-  return false;
-}
 
 function applyEffectiveGlassToDom() {
   if (typeof document === 'undefined') return;
@@ -87,7 +80,7 @@ function applyEffectiveGlassToDom() {
   }
 }
 
-export function notifyUiPrefs() {
+function notifyUiPrefs() {
   if (typeof window === 'undefined') return;
   try {
     window.dispatchEvent(

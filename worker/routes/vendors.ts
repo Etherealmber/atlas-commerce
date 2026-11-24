@@ -4,7 +4,7 @@ import { afterBusinessMutation } from '../lib/delete-coord';
 import { validateVendorWrite } from '../lib/validate';
 import { apiFail } from '../lib/api-response';
 
-export interface VendorRouteDeps {
+interface VendorRouteDeps {
   requireBizMutator: (c: any) => { ok: true; username: string; role: string } | { ok: false; response: Response };
   checkConfirmPassword: (env: any, db: D1Database, authHeader: string | undefined, body: any) => Promise<any>;
   writeAudit: (db: D1Database, entry: any) => Promise<void>;

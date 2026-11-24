@@ -344,7 +344,7 @@ describe('Finance Core — Compiled Rust WASM Binary Parity & Benchmarks', () =>
       const reqRef = Number((1 + rand() * Math.max(1, wRes.totals.total)).toFixed(2));
       const paidAmt = Number((rand() * wRes.totals.total).toFixed(2));
       const wRefund = computeRefundSplit(reqRef, wRes.totals.total, paidAmt, paidAmt >= wRes.totals.total ? 'paid' : 'partial', cur);
-      const wClass = classifyDoc(wRes.totals.total, paidAmt, '2026-10-10', '2026-10-20');
+      const wasmClass = classifyDoc(wRes.totals.total, paidAmt, '2026-10-10', '2026-10-20');
       const empRow = {
         id: 1,
         first_name: 'T',
@@ -366,7 +366,7 @@ describe('Finance Core — Compiled Rust WASM Binary Parity & Benchmarks', () =>
       expect(wRes.totals).toEqual(tRes.totals);
       expect(wRes.lines).toEqual(tRes.lines);
       expect(wRefund).toEqual(tRefund);
-      expect(wClass).toEqual(tClass);
+      expect(wasmClass).toEqual(tClass);
       expect(wPay).toEqual(tPay);
       expect(subMoneyAmounts(wRes.totals.total, wRes.totals.tax_amount, cur === 'MAD' ? 0 : cur)).toBe(wRes.totals.subtotal);
       expect(addMoneyAmounts(wRes.totals.subtotal, wRes.totals.tax_amount, cur === 'MAD' ? 0 : cur)).toBe(wRes.totals.total);

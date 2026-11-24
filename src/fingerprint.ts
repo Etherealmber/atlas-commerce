@@ -74,7 +74,7 @@ function webglFingerprint(): string {
   }
 }
 
-export async function getDeviceFingerprint(): Promise<string> {
+async function getDeviceFingerprint(): Promise<string> {
   const installId = getOrCreateInstallId();
   const parts = [
     installId,
@@ -138,9 +138,6 @@ export function getDeviceLabel(): string {
   }
   // Windows
   if (/Windows NT 10\.0/i.test(ua)) {
-    // Win 11 often still reports NT 10.0 — refine via userAgentData if available
-    const uaData = (navigator as any).userAgentData;
-    const isWin11 = uaData?.platform === 'Windows' && uaData?.getHighEntropyValues;
     return 'PC Windows · Windows 10/11';
   }
   if (/Windows NT 6\.3/i.test(ua)) return 'PC Windows · Windows 8.1';
@@ -211,9 +208,6 @@ export async function isBiometricAvailable(): Promise<boolean> {
   return true;
 }
 
-export async function isSecurityKeyLikelyAvailable(): Promise<boolean> {
-  return isWebAuthnAvailable();
-}
 
 /**
  * Register platform biometric OR cross-platform security key.
@@ -222,14 +216,21 @@ export async function isSecurityKeyLikelyAvailable(): Promise<boolean> {
 export async function registerWebAuthn(
   options: any,
   deviceType: 'platform' | 'cross-platform' = 'platform',
-): Promise<{ credentialId: string; challenge: string; transports?: string[] }> {
+): Promise<{
+  credentialId: string;
+  challenge: string;
+  transports?: string[];
+  /** Signed registration material the server verifies (v259+). */
+  credential: { id: string; type: 'public-key'; response: { clientDataJSON: string; attestationObject: string; transports?: string[] } };
+}> {
   if (!isWebAuthnAvailable()) throw new Error('WebAuthn non disponible sur cet appareil.');
 
   const publicKey: PublicKeyCredentialCreationOptions = {
     challenge: challengeToBuffer(options.challenge),
     rp: options.rp,
     user: {
-      id: new TextEncoder().encode(String(options.user.id)),
+      // The server sends the opaque user handle as base64url — decode it to its bytes.
+      id: b64urlToBuf(String(options.user.id)),
       name: options.user.name,
       displayName: options.user.displayName,
     },
@@ -266,11 +267,25 @@ export async function registerWebAuthn(
     credentialId: bufToB64url(cred.rawId),
     challenge: options.challenge,
     transports,
+    credential: {
+      id: bufToB64url(cred.rawId),
+      type: 'public-key',
+      response: {
+        clientDataJSON: bufToB64url(att.clientDataJSON),
+        attestationObject: bufToB64url(att.attestationObject),
+        transports,
+      },
+    },
   };
 }
 
 /** Authenticate with any registered credential (biometric or security key) */
-export async function authenticateWebAuthn(options: any): Promise<{ credentialId: string; challenge: string }> {
+export async function authenticateWebAuthn(options: any): Promise<{
+  credentialId: string;
+  challenge: string;
+  /** Signed assertion the server verifies (signature, authenticatorData, clientDataJSON). */
+  credential: { id: string; type: 'public-key'; response: { clientDataJSON: string; authenticatorData: string; signature: string; userHandle?: string } };
+}> {
   if (!isWebAuthnAvailable()) throw new Error('WebAuthn non disponible sur cet appareil.');
 
   const publicKey: PublicKeyCredentialRequestOptions = {
@@ -288,9 +303,20 @@ export async function authenticateWebAuthn(options: any): Promise<{ credentialId
   const assertion = (await navigator.credentials.get({ publicKey })) as PublicKeyCredential | null;
   if (!assertion) throw new Error('Authentification annulée.');
 
+  const res = assertion.response as AuthenticatorAssertionResponse;
   return {
     credentialId: bufToB64url(assertion.rawId),
     challenge: options.challenge,
+    credential: {
+      id: bufToB64url(assertion.rawId),
+      type: 'public-key',
+      response: {
+        clientDataJSON: bufToB64url(res.clientDataJSON),
+        authenticatorData: bufToB64url(res.authenticatorData),
+        signature: bufToB64url(res.signature),
+        ...(res.userHandle && res.userHandle.byteLength ? { userHandle: bufToB64url(res.userHandle) } : {}),
+      },
+    },
   };
 }
 

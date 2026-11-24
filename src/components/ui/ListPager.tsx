@@ -9,7 +9,7 @@ import {
 } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 
-export interface ListPagerProps {
+interface ListPagerProps {
   page: number;
   totalPages?: number;
   total?: number;

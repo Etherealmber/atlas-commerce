@@ -43,7 +43,7 @@ export const AGENT_DOC_LIMITS = {
 } as const;
 
 /** Declared-MIME allow-list. Images keep their existing vision path (data:image/*). */
-export const AGENT_DOC_ALLOWED_MIME = [
+const AGENT_DOC_ALLOWED_MIME = [
   'application/pdf',
   'text/plain',
   'text/csv',
@@ -67,9 +67,9 @@ export type AgentDocExcerpt = {
   extraction: 'ok' | 'empty';
 };
 
-export type AgentDocError = { name: string; code: string; error: string };
+type AgentDocError = { name: string; code: string; error: string };
 
-export type AgentDocsResult =
+type AgentDocsResult =
   | { ok: true; docs: AgentDocExcerpt[] }
   | { ok: false; errors: AgentDocError[] };
 
@@ -240,14 +240,6 @@ async function extractPdfText(bytes: Uint8Array): Promise<{ text: string; trunca
   return { text, truncated };
 }
 
-/**
- * Validate + extract every attached document. ALL-OR-NOTHING: if any document
- * fails validation the whole request is refused with per-document errors —
- * a rejected file is never silently dropped.
- */
-export function parseAgentDocuments(input: unknown): AgentDocsResult | Promise<AgentDocsResult> {
-  return parseAgentDocumentsAsync(input);
-}
 
 export async function parseAgentDocumentsAsync(input: unknown): Promise<AgentDocsResult> {
   if (input == null) return { ok: true, docs: [] };

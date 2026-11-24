@@ -20,7 +20,7 @@ async function ensure(db: D1Database, key: string, ddl: string): Promise<void> {
   await db.prepare(ddl).run();
 }
 
-export async function ensureV209Schema(db: D1Database): Promise<void> {
+async function ensureV209Schema(db: D1Database): Promise<void> {
   await ensure(db, 'lots', `CREATE TABLE IF NOT EXISTS stock_lots (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     product_id INTEGER NOT NULL,
@@ -133,7 +133,7 @@ function positionNestedSvg(rawSvg: string, x: number, y: number, width?: number,
 
 const PIPELINE = ['pending', 'approved', 'shipped', 'delivered'];
 
-export interface V209Deps {
+interface V209Deps {
   sessionUserFromHeader: (h?: string) => { username: string; role?: string };
   applyStockDelta?: (db: D1Database, productId: number, delta: number, reason: string, type: string, opts?: any) => Promise<any>;
   adjustLocationStock?: (db: D1Database, productId: number, locationId: number, delta: number, opts?: any) => Promise<any>;

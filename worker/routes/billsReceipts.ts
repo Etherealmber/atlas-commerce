@@ -28,7 +28,7 @@ import {
   subMoneyAmounts,
 } from '../lib/financeCore';
 
-export interface BillsReceiptsRouteDeps {
+interface BillsReceiptsRouteDeps {
   requireBizMutator: (c: any) => any;
   sessionUserFromHeader: (header: string | undefined) => any;
   checkConfirmPassword: (env: any, db: D1Database, authHeader: string | undefined, body: any) => Promise<any>;
@@ -129,7 +129,6 @@ export function registerBillsReceiptsRoutes(app: Hono<any>, deps: BillsReceiptsR
     applyStockDelta,
     applyMovingAverageCost,
     assertPeriodOpen,
-    roundDh,
     moroccoTodayStr,
     makePublicToken,
     makeSecureQrPayload,
@@ -1344,7 +1343,6 @@ export function registerBillsReceiptsRoutes(app: Hono<any>, deps: BillsReceiptsR
     const body = await c.req.json().catch(() => ({}));
     const ids: number[] = Array.isArray(body.ids) ? body.ids.map((x: any) => Number(x)).filter((n: number) => n > 0) : [];
       if (!ids.length) return c.json({ success: false, error: 'Aucune facture d\'achat sélectionnée' }, 400);
-    const resourceId = ids.slice().sort((a, b) => a - b).join(',');
     const pw = await checkConfirmPassword(c.env, c.env.DB, c.req.header('Authorization'), body);
     if (!pw.ok) return c.json({ success: false, error: pw.error, code: pw.code }, pw.status);
     const placeholders = ids.map(() => '?').join(',');
@@ -1505,7 +1503,7 @@ export function registerBillsReceiptsRoutes(app: Hono<any>, deps: BillsReceiptsR
       result = await c.env.DB.prepare(
         `INSERT INTO receipts (number, invoice_id, client_name, amount, payment_method, issue_date, notes, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
       ).bind(number, invoice_id || null, client_name, Number(amount), method, paidAt, notes, documentCreator).run();
-    } catch (e: any) {
+    } catch {
       // Retry once with timestamp suffix if unique collision
       number = `${number}-${Date.now().toString(36).slice(-4)}`;
       result = await c.env.DB.prepare(
@@ -1592,7 +1590,6 @@ export function registerBillsReceiptsRoutes(app: Hono<any>, deps: BillsReceiptsR
     const secureReceipt = await makeSecureQrPayload(c.env, 'receipt', receipt.public_token, 0, c.env.DB);
     const verifyUrl = `${origin}/api/public/verify?p=${encodeURIComponent(secureReceipt)}`;
     // QR 2: client account status (paid + unpaid)
-    const clientKey = String(receipt.client_name || '').trim().toLowerCase();
     let clientIce = receipt.client_ice || '';
     if (!clientIce && receipt.invoice_id) {
       try {

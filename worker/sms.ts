@@ -9,7 +9,7 @@
  * Full WhatsApp Business API requires a BSP (360Dialog, Infobip, Orange Smart Message…).
  */
 
-export type SmsResult = {
+type SmsResult = {
   sent: boolean;
   provider?: string;
   error?: string;
@@ -26,11 +26,6 @@ function normalizeMaPhone(raw: string): string | null {
   return null;
 }
 
-export function whatsappDeepLink(phone: string, message: string): string | undefined {
-  const digits = normalizeMaPhone(phone);
-  if (!digits) return undefined;
-  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
-}
 
 type EnvLike = {
   TWILIO_ACCOUNT_SID?: string;

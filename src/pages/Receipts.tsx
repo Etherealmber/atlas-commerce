@@ -14,14 +14,14 @@ import { paymentMethodFr } from '../lib/labels';
 import { remainingBalance } from '../lib/money';
 import PasswordConfirm from '../components/PasswordConfirm';
 import { useUi } from '../components/AppDialogs';
-import { numStr, numFromInput } from '../lib/numInput';
+import { numFromInput } from '../lib/numInput';
 import NumberField from '../components/NumberField';
 import EmptyState from '../components/EmptyState';
 import RefreshIconButton from '../components/RefreshIconButton';
 import PageSkeleton from '../components/PageSkeleton';
 import { FloatingPortal } from '../components/FloatingPortal';
 import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
-import { ModalFormError, FieldHint } from '../components/ModalFormFeedback';
+import { ModalFormError } from '../components/ModalFormFeedback';
 
 const RECEIPT_STEPS: readonly WizardStepDef[] = [
   { id: 'client', label: 'Client & montant', hint: 'Associez une facture ou saisissez le client et le montant.' },
@@ -30,7 +30,6 @@ const RECEIPT_STEPS: readonly WizardStepDef[] = [
 
 export default function Receipts() {
   const [modalError, setModalError] = useState('');
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const { confirm } = useUi();
   const [list, setList] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);

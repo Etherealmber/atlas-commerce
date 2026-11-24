@@ -58,7 +58,7 @@ import {
 import { sendFcmToUser } from '../lib/fcm';
 import { ensureMovementApprover } from '../lib/inventory-actors';
 
-export interface StockAdjustDeps {
+interface StockAdjustDeps {
   /** Signed server session only — never client-supplied role/tenant. */
   session: (c: any) => { username: string; role: string } | null;
   /** Fresh role read (users table) used at decision time. */

@@ -1,9 +1,9 @@
 /** GDPR cookie / local-storage consent (Atlas Commerce). */
 
-export const CONSENT_VERSION = 1;
+const CONSENT_VERSION = 1;
 const STORAGE_KEY = 'atlas_cookie_consent_v1';
 
-export type ConsentCategories = {
+type ConsentCategories = {
   /** Always true — auth session, security, load balancing. */
   necessary: true;
   /** Theme, density, onboarding flags stored locally. */
@@ -70,17 +70,7 @@ export function acceptNecessaryOnly(): ConsentRecord {
   return saveConsent({ preferences: false, analytics: false }, 'necessary_only');
 }
 
-/** Prefer preferences category for UI chrome (theme/density). If undecided, allow (first paint). */
-export function canUsePreferences(): boolean {
-  const c = getConsent();
-  if (!c) return true;
-  return c.preferences;
-}
 
-export function canUseAnalytics(): boolean {
-  const c = getConsent();
-  return !!(c && c.analytics);
-}
 
 export function openConsentSettings() {
   try {

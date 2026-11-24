@@ -1,67 +1,14 @@
-import { REPORT_TICKET_PATHS, mintScopedReportTicket, verifyScopedReportTicket, mintScopedPrintTicket, verifyScopedPrintTicket } from './lib/report-ticket';
+import { REPORT_TICKET_PATHS, mintScopedReportTicket, verifyScopedReportTicket, verifyScopedPrintTicket } from './lib/report-ticket';
 import { verifyArchiveIdentity } from './lib/finance-report-archive-validation';
-import { readBalanceReport, balanceIsIncome } from './lib/report-balance';
 import { roundDh as coreRoundDh, initWorkerFinanceWasm, verifyWorkerFinanceEngine } from './lib/financeCore';
 import { registerMobilePreferencesRoutes } from './routes/mobilePreferences';
 import { migrateProductImagePage, normalizeProductImageReference, isNormalizedProductUrl, ProductImageError } from './lib/product-images';
-import { recordReportOwner } from './lib/report-ownership';
-import { ensureProductActors, ensureMovementApprover, withInventoryActors } from './lib/inventory-actors';
 import { registerSnakeScoreRoutes } from './routes/snakeScore';
 import { registerWorkStatusRoute } from './routes/workStatus';
 import { Hono } from 'hono';
-import { isQuickSaleIntent } from './lib/quick-assist-intent';
 import { schemaOnce, registerDbRoot, resolveRootDb } from './lib/schema';
 import { ensureAutoSqlMigrations } from './lib/autoMigrations';
-import {
-  sha256Hex,
-  ensurePaymentHistoryTable,
-  ensureReceiptsTable,
-  expensesLinkedToReceipt,
-  getInvoiceLinks,
-  cascadeDeleteInvoice,
-  publicRateLimit,
-  ensureReceiptSituationColumn,
-  ensureQrPrivacySettings,
-  ensureInvoicePublicToken,
-  makePublicToken,
-  ensureHmacKeyColumns,
-  publicTokenSecretsAsync,
-  hmacSha256Hex,
-  makeSecureQrPayload,
-  parseSecureQrPayload,
-  documentIntegrityHash,
-  createAtlasTimestampToken,
-  verifyAtlasTimestampToken,
-  invoiceDocHashPayload,
-  digestSignatureImage,
-  validateStoredSignature,
-  ensureInvoiceItemPromoColumns,
-  ensureInvoiceTaxExempt,
-  ensureInvoiceRefundColumns,
-  validateRefundReason,
-  validateCreditPrefix,
-  validateNextCreditNumber,
-  ensureProductBulkDiscounts,
-  tableColumns,
-  hasColumn,
-  applyBulkDiscount,
-  ensureStockMovementsTable,
-  ensureValuationTables,
-  getValuationMethod,
-  runAutoTransfers,
-  applyMovingAverageCost,
-  applyStockDelta,
-  purgeEphemeralSecurityData,
-  ensureIdempotencyTable,
-  extractIdempotencyKey,
-  idempotencyGet,
-  idempotencyPut,
-  ensurePeriodLockColumn,
-  assertPeriodOpen,
-  ensureVoidColumns,
-  archiveInvoiceSnapshot,
-  ensureDocumentActors,
-} from './lib/ledgerHelpers';
+import { sha256Hex, ensurePaymentHistoryTable, ensureReceiptsTable, expensesLinkedToReceipt, getInvoiceLinks, cascadeDeleteInvoice, publicRateLimit, ensureReceiptSituationColumn, ensureQrPrivacySettings, ensureInvoicePublicToken, makePublicToken, ensureHmacKeyColumns, publicTokenSecretsAsync, hmacSha256Hex, makeSecureQrPayload, parseSecureQrPayload, documentIntegrityHash, createAtlasTimestampToken, verifyAtlasTimestampToken, invoiceDocHashPayload, digestSignatureImage, validateStoredSignature, ensureInvoiceItemPromoColumns, ensureInvoiceTaxExempt, ensureInvoiceRefundColumns, validateRefundReason, validateCreditPrefix, ensureProductBulkDiscounts, tableColumns, hasColumn, applyBulkDiscount, ensureStockMovementsTable, ensureValuationTables, getValuationMethod, runAutoTransfers, applyMovingAverageCost, applyStockDelta, purgeEphemeralSecurityData, ensureIdempotencyTable, extractIdempotencyKey, idempotencyGet, idempotencyPut, ensurePeriodLockColumn, assertPeriodOpen, ensureVoidColumns, archiveInvoiceSnapshot, ensureDocumentActors } from './lib/ledgerHelpers';
 import {
   cfGeo,
   touchTrustedDevice,
@@ -104,326 +51,49 @@ import { registerAuthRoutes } from './routes/authRoutes';
 import { registerUsersAdminRoutes, registerSettingsRoutes } from './routes/usersAdmin';
 import { registerCanaryHealthRoutes, registerLedgerMiscRoutes, registerProductRequestRoutes } from './routes/ledgerMisc';
 import { addColumnIfMissing } from './lib/schema';
-import {
-  atlasQrImg,
-  ensureDocAssetColumns,
-  generateReceiptHTMLMinimal,
-  generateReceiptHTML,
-  REFUND_POLICY_TEXT,
-  generateEmployeeFormHTML,
-  generateInvoiceHTML,
-  notifyClientDocument,
-  generateInvoiceEmailHTML,
-  registerEmployeeFormPrintRoutes,
-} from './lib/printTemplates';
-import { hasCredentialAttemptBudget, reserveCredentialAttempt, type CredentialAttemptPurpose } from './lib/credential-attempt-limits';
+import { generateReceiptHTML, generateEmployeeFormHTML, generateInvoiceHTML, registerEmployeeFormPrintRoutes } from './lib/printTemplates';
+import { hasCredentialAttemptBudget } from './lib/credential-attempt-limits';
 import { cors } from 'hono/cors';
-import PostalMime from 'postal-mime';
 import type { Env } from './env';
-import { buildInvoicePdf } from './pdf';
-import { buildInvoicePdfLib } from './pdf-lib-invoice';
-import { buildUblInvoiceXml, invoiceToUblInput, validateUblInvoice } from './ubl';
-import { sendSms, whatsappDeepLink, documentSmsBody } from './sms';
-import {
-  kvGetJson,
-  kvPutJson,
-  doCacheGet,
-  doCachePut,
-  hasLiveCache,
-  checkRefreshLimit,
-  invalidateDashboardCache,
-  dashboardCacheKey,
-  settingsCacheKey,
-  productsCacheKey,
-  DEFAULT_CACHE_TTL,
-  getCacheGen,
-} from './lib/cache';
-import { nextDocumentNumber } from './lib/numbering';
-import {
-  uploadDataUrlImage,
-  companyAssetKey,
-  keyFromCdnUrl,
-  deleteR2Object,
-  publicImageUrl,
-} from './lib/r2';
-import {
-  rateLimit,
-  assertSafeOutboundUrl,
-  isAllowedImageUrl,
-  clientIpFromRequest,
-  normalizeIp,
-  escapeHtml,
-  safeImageSrc,
-} from './lib/security';
-import { canMutateBusiness, canHardDeleteStock, normalizeRole } from './lib/rbac';
+import { doCacheGet, doCachePut, hasLiveCache, checkRefreshLimit, invalidateDashboardCache } from './lib/cache';
+import { keyFromCdnUrl, deleteR2Object } from './lib/r2';
+import { rateLimit, isAllowedImageUrl, clientIpFromRequest } from './lib/security';
+import { canMutateBusiness, normalizeRole } from './lib/rbac';
 import { apiFail, apiOk } from './lib/api-response';
-import { toClientError, AppError } from './lib/errors';
-import { repairProductSearchIndex, proactiveFtsHealth } from './lib/reliability';
+import { toClientError } from './lib/errors';
+import { repairProductSearchIndex } from './lib/reliability';
 import { androidReleaseRouter, serveAppUpdatesAsset } from './routes/androidRelease';
 import { desktopReleaseRouter } from './routes/desktopRelease';
 import { registerDeviceTokenRoutes } from './routes/deviceToken';
-import { registerDesktopAuthRoutes, isDesktopAuthPath, isPublicDesktopAuthPath, DESKTOP_AUTH } from './routes/desktopAuth';
-import { registerDesktopNativeDiscovery, DESKTOP_NATIVE_V2_CAPABILITIES, DESKTOP_NATIVE_V3_CAPABILITIES } from './routes/desktopNativeDiscovery';
-import { registerDesktopPilotWebView, EMBEDDED_CHALLENGE_PATH, EMBEDDED_CHALLENGE_CSP } from './lib/desktop-pilot-webview';
-import { registerDesktopNativeV2, isNativeV2Operation, NATIVE_V2 } from './routes/desktopNativeV2';
+import { isDesktopAuthPath, isPublicDesktopAuthPath, DESKTOP_AUTH } from './routes/desktopAuth';
+import { DESKTOP_NATIVE_V2_CAPABILITIES, DESKTOP_NATIVE_V3_CAPABILITIES } from './routes/desktopNativeDiscovery';
+import { EMBEDDED_CHALLENGE_PATH, EMBEDDED_CHALLENGE_CSP } from './lib/desktop-pilot-webview';
+import { isNativeV2Operation, NATIVE_V2 } from './routes/desktopNativeV2';
 import { isNativeV3PublicPost, NATIVE_V3 } from './routes/desktopNativeV3';
 import { V3_WEBVIEW_CHALLENGE_PATH, V3_BROWSER_CHALLENGE_PATH, V3_CHALLENGE_CSP } from './lib/desktop-v3-webview';
-import { parseNativePilotToken, validateNativePilotToken } from './lib/desktop-native-session';
-import {
-  androidMinVersionGuard,
-  manifestWithPolicy,
-  readMinVersionPolicy,
-  validateMinVersionPolicy,
-  writeMinVersionPolicy,
-  parseMinVersionPolicy,
-  type MinVersionPolicy,
-} from './lib/app-update-policy';
-import { fetchWithTimeout } from './lib/http-client';
-import { searchProducts, reliabilityStatus, ensureProductSearchIndex, reliableFetch } from './lib/reliability';
+import { androidMinVersionGuard, readMinVersionPolicy } from './lib/app-update-policy';
+import { reliabilityStatus } from './lib/reliability';
 import { detectBffSurface } from './lib/bff';
-import { enqueue } from './lib/job-queue';
-import { ensureMailSchema } from './routes/mailbox';
-import { ensureClientTaxExempt, ensureClientCreditLimit, checkClientCreditLimit } from './lib/clients-schema';
-import { validateClientWrite, validateProductWrite, validateInvoiceWrite, validateVendorWrite, validateExpenseWrite, validateReceiptWrite, validateBillWrite } from './lib/validate';
-import {
-  deleteProductImagesFromR2,
-  afterBusinessMutation,
-  listR2Prefix,
-} from './lib/delete-coord';
-import { icebergCatalogInfo } from './lib/iceberg';
-import {
-  listAllToolNames,
-  listAllToolsMeta,
-  toolsForRole,
-  buildNextActions,
-  runAssistTool,
-  auditAssist,
-} from './lib/agent';
-import {
-  atlasAgentSystem,
-  scrubVendorNames,
-  normalizeResponseLanguage,
-  groqChat,
-  groqChatStream,
-  groqChatStreamWithTools,
-  groqChatWithTools,
-  proposalsFromToolTrace,
-  type AgentToolTrace,
-  type AgentToolResult,
-} from './lib/assist';
-import { pickUiLang, tr } from './lib/error-i18n';
-import {
-  loadAgentKnowledge,
-  addMemory,
-  deleteMemory,
-  setContext,
-  addGuardrail,
-  setGuardrailActive,
-  deleteGuardrail,
-  setToolPref,
-  addDoc,
-  deleteDoc,
-  retrieveKnowledge,
-  knowledgePromptSections,
-  KNOWLEDGE_TOOL_DEFS,
-} from './lib/agent-knowledge';
-import { parseAgentDocumentsAsync, agentDocumentPromptSection } from './lib/agent-docs';
-import {
-  upsertDeviceToken,
-  notifyAssistApproval as fcmNotifyAssistApproval,
-  notifyLowStock as fcmNotifyLowStock,
-  sendFcmToUser as fcmSendToUser,
-} from './lib/fcm';
+import { afterBusinessMutation } from './lib/delete-coord';
+import { notifyAssistApproval as fcmNotifyAssistApproval } from './lib/fcm';
 import { MobileHub } from './durable/MobileHub';
 import { AgentQuotaHub } from './durable/AgentQuotaHub';
 export { AgentQuotaHub };
 import { RestoreHub } from './durable/RestoreHub';
 import { NumberHub } from './durable/NumberHub';
-import {
-  registerAdminReadRoutes,
-  registerInvoiceReadRoutes,
-  registerStockReadRoutes,
-  registerWholesaleRoutes,
-  registerEmployeeRoutes,
-  registerPublicRoutes,
-  registerClientRoutes,
-  registerMailboxRoutes,
-  registerPartnerV1Routes,
-  registerAtlasV209Routes,
-  dispatchWebhook,
-  registerFinanceRoutes,
-  registerExpenseWriteRoutes,
-  registerVendorRoutes,
-  registerExportRoutes,
-  registerMobileActionsRoutes,
-  registerAttendanceRoutes,
-  registerCatalogRoutes,
-  registerCategoriesUnitsRoutes,
-  registerDataImportRoutes,
-  registerBackupRoutes,
-  purgeExpiredBackups,
-  makeVerifyBackupAccess,
-  registerReportRoutes,
-  reportShell,
-  registerInventoryOpsRoutes,
-  ensureMarbleUnits,
-  ensureStockLocations,
-  placeProductStockOnDefault,
-  getDefaultLocationId,
-  adjustLocationStock,
-  ensureBillReceive,
-  registerAssistRoutes,
-  purgeAgentConversationsOlderThan,
-  registerReportsAndUpdatesRoutes,
-  readAppUpdateState,
-  registerPublicSignedRoutes,
-  ensureReceiptPublicToken,
-  renderPublicReceiptVerify,
-  registerProductsScanRoutes,
-  registerDashboardIntegrityRoutes,
-  registerInvoicesWriteRoutes,
-  registerBillsReceiptsRoutes,
-  registerCashShiftRoutes,
-  registerPayrollRoutes,
-  registerFecRoutes,
-  registerDunningRoutes,
-  runDailyDunning,
-  registerDgiRoutes,
-  ensureBillPaymentsTable,
-} from './routes';
-import { countEmployeesPayDue } from './routes/employees';
+import { registerAdminReadRoutes, registerInvoiceReadRoutes, registerStockReadRoutes, registerWholesaleRoutes, registerEmployeeRoutes, registerPublicRoutes, registerClientRoutes, registerMailboxRoutes, registerPartnerV1Routes, registerAtlasV209Routes, dispatchWebhook, registerFinanceRoutes, registerExpenseWriteRoutes, registerVendorRoutes, registerExportRoutes, registerMobileActionsRoutes, registerAttendanceRoutes, registerCatalogRoutes, registerCategoriesUnitsRoutes, registerDataImportRoutes, registerBackupRoutes, makeVerifyBackupAccess, registerReportRoutes, reportShell, registerInventoryOpsRoutes, ensureStockLocations, getDefaultLocationId, adjustLocationStock, registerAssistRoutes, purgeAgentConversationsOlderThan, readAppUpdateState, registerPublicSignedRoutes, registerProductsScanRoutes, registerDashboardIntegrityRoutes, registerInvoicesWriteRoutes, registerBillsReceiptsRoutes, registerCashShiftRoutes, registerPayrollRoutes, registerFecRoutes, registerDunningRoutes, runDailyDunning, registerDgiRoutes, ensureBillPaymentsTable } from './routes';
 import { registerStockAdjustmentRoutes } from './routes/stockAdjustments';
 import { registerDeviceRoutes } from './routes/devices';
 import { registerDocPreviewRoutes } from './routes/docPreviews';
 import { DEFAULT_CATEGORIES, DEFAULT_UNITS } from './lib/product-defaults';
-import {
-  normalizeInventoryRole,
-  roleCanDirectAdjustStock,
-  roleCanSeeFinancial,
-  roleCanSeeSellPrices,
-  scrubProductForRole,
-  deviceLabelFromUA,
-} from './lib/inventory-policy';
-import { localTodayYmd, notifyPaymentRecorded, runFinanceReminders } from './lib/finance';
-import { buildReportLinkQuery, computePeriodBounds } from './lib/report-period';
-import {
-  consumeChallenge as waConsumeChallenge,
-  createChallenge as waCreateChallenge,
-  androidLegacyOrigin,
-  androidOrigin,
-  androidOrigins,
-  credentialDescriptors,
-  expectedOrigin,
-  parseClientData,
-  policyFromEnv,
-  userHandleFor,
-  verifyAuthentication,
-  verifyRegistration,
-  type WebAuthnPolicy,
-} from './lib/webauthn';
-import {
-  ensureReportTables,
-  githubConfig,
-  listReports,
-  reportCrash,
-  reportUser,
-  retryPendingReports,
-  saveGithubConfig,
-  validateGithubToken,
-  REPORTS_REPO_DEFAULT,
-} from './lib/reports';
+import { normalizeInventoryRole, roleCanSeeFinancial, deviceLabelFromUA } from './lib/inventory-policy';
+import { runFinanceReminders } from './lib/finance';
+import { buildReportLinkQuery } from './lib/report-period';
+import { retryPendingReports } from './lib/reports';
 import { qrToSvg } from './qrSvg';
 
-/** Signed short-lived tokens for external viewers (Google / Microsoft) — works across Worker isolates. */
-function b64urlBytes(bytes: ArrayBuffer | Uint8Array): string {
-  const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
-  let s = '';
-  for (let i = 0; i < u8.length; i++) s += String.fromCharCode(u8[i]!);
-  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-}
-function b64urlJson(obj: unknown): string {
-  return b64urlBytes(new TextEncoder().encode(JSON.stringify(obj)));
-}
-async function mailPreviewSecret(env: any): Promise<string> {
-  return String(env.MAIL_PREVIEW_SECRET || env.JWT_SECRET || env.BACKUP_TOKEN || env.RESEND_API_KEY || 'atlas-mail-preview').slice(0, 128);
-}
-async function signMailPreviewToken(
-  env: any,
-  data: { key: string; filename: string; contentType: string; exp: number },
-): Promise<string> {
-  const payload = b64urlJson(data);
-  const secret = await mailPreviewSecret(env);
-  const cryptoKey = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign'],
-  );
-  const sig = await crypto.subtle.sign('HMAC', cryptoKey, new TextEncoder().encode(payload));
-  return `${payload}.${b64urlBytes(sig)}`;
-}
-async function verifyMailPreviewToken(
-  env: any,
-  token: string,
-): Promise<{ key: string; filename: string; contentType: string; exp: number } | null> {
-  const parts = String(token || '').split('.');
-  if (parts.length !== 2) return null;
-  const [payload, sig] = parts;
-  if (!payload || !sig || payload.length < 8 || sig.length < 8) return null;
-  const secret = await mailPreviewSecret(env);
-  const cryptoKey = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['verify'],
-  );
-  const pad = sig.length % 4 === 0 ? '' : '='.repeat(4 - (sig.length % 4));
-  const bin = atob(sig.replace(/-/g, '+').replace(/_/g, '/') + pad);
-  const sigBytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) sigBytes[i] = bin.charCodeAt(i);
-  const ok = await crypto.subtle.verify('HMAC', cryptoKey, sigBytes, new TextEncoder().encode(payload));
-  if (!ok) return null;
-  try {
-    const pad2 = payload.length % 4 === 0 ? '' : '='.repeat(4 - (payload.length % 4));
-    const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/') + pad2);
-    const data = JSON.parse(json) as { key: string; filename: string; contentType: string; exp: number };
-    if (!data?.key || !data.exp || data.exp < Date.now()) return null;
-    if (!String(data.key).startsWith('mail/')) return null;
-    return data;
-  } catch {
-    return null;
-  }
-}
-function officeMimeFromName(name: string, fallback = 'application/octet-stream'): string {
-  const n = name.toLowerCase();
-  if (n.endsWith('.pdf')) return 'application/pdf';
-  if (n.endsWith('.png')) return 'image/png';
-  if (n.endsWith('.jpg') || n.endsWith('.jpeg')) return 'image/jpeg';
-  if (n.endsWith('.gif')) return 'image/gif';
-  if (n.endsWith('.webp')) return 'image/webp';
-  if (n.endsWith('.doc')) return 'application/msword';
-  if (n.endsWith('.docx')) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-  if (n.endsWith('.xls')) return 'application/vnd.ms-excel';
-  if (n.endsWith('.xlsx')) return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-  if (n.endsWith('.ppt')) return 'application/vnd.ms-powerpoint';
-  if (n.endsWith('.pptx')) return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-  if (n.endsWith('.odt')) return 'application/vnd.oasis.opendocument.text';
-  if (n.endsWith('.ods')) return 'application/vnd.oasis.opendocument.spreadsheet';
-  if (n.endsWith('.odp')) return 'application/vnd.oasis.opendocument.presentation';
-  if (n.endsWith('.txt') || n.endsWith('.csv')) return 'text/plain; charset=utf-8';
-  return fallback;
-}
 
 
-/** No truncation — Gemini finishReason handles length. */
-function briefen(s: string): string {
-  let t = String(s || '').trim();
-  if (!t) return t;
-  t = t.replace(/^(NO introductory phrases|No introductory phrases)[.\s]*/i, '');
-  return t.trim();
-}
 
 
 
@@ -1084,6 +754,7 @@ app.use('/api/*', async (c, next) => {
     path === '/api/auth/webauthn/login/verify' ||
     path === '/api/auth/webauthn/status' ||
     path === '/.well-known/assetlinks.json' ||
+    path === '/.well-known/apple-app-site-association' ||
     // v260 — crash intake is public by design (fire-and-forget from global
     // error handlers, incl. logged-out sessions); rate-limited + sanitized.
     path === '/api/crash-reports' ||
@@ -1640,7 +1311,11 @@ async function requireEmployeeAdmin(c: any): Promise<Response | null> {
   const isPrintRoute =
     path === '/api/settings/invoice-preview' ||
     path === '/api/employees/form/print' ||
-    /^\/api\/employees\/\d+\/form\/print$/.test(path);
+    /^\/api\/employees\/\d+\/form\/print$/.test(path) ||
+    // Opened in a new tab (no Authorization header possible). The global
+    // print-like gate already validated the ?token= session for these paths.
+    /^\/api\/payroll\/runs\/\d+\/lines\/\d+\/bulletin$/.test(path) ||
+    /^\/api\/payroll\/runs\/\d+\/declaration$/.test(path);
   const authHeader = c.req.header('Authorization');
   const queryToken = isPrintRoute ? extractQueryToken(c.req.url) : undefined;
   const effectiveHeader = authHeader || (queryToken && !queryToken.startsWith('np1.') ? `Bearer ${queryToken}` : undefined);
@@ -3063,7 +2738,7 @@ export default {
    * worker restarts and duplicate triggers can never double-notify. Delivery
    * failures stay 'pending' with exponential backoff (max 5 attempts).
    */
-  async scheduled(event: any, env: Env, ctx: ExecutionContext): Promise<void> {
+  async scheduled(event: any, env: Env, _ctx: ExecutionContext): Promise<void> {
     try {
       await ensureAutoSqlMigrations(env.DB);
     } catch (e) {
@@ -3101,7 +2776,7 @@ export default {
    * "Handler does not export an email() function". The Mailbox feature is
    * gone, so inbound mail has no job here: log one line and consume it.
    */
-  async email(message: any, env: Env, ctx: ExecutionContext): Promise<void> {
+  async email(message: any, _env: Env, _ctx: ExecutionContext): Promise<void> {
     try {
       console.log(
         '[email-event] inbound mail received and discarded:',

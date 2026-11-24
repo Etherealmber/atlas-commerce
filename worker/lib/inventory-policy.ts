@@ -28,10 +28,10 @@
  */
 
 /** Fields that carry selling-price information. */
-export const SELL_PRICE_FIELDS = ['price', 'unit_price'] as const;
+const SELL_PRICE_FIELDS = ['price', 'unit_price'] as const;
 
 /** Fields that carry cost / valuation / margin information. */
-export const COST_FIELDS = [
+const COST_FIELDS = [
   'cost',
   'cost_price',
   'average_cost',

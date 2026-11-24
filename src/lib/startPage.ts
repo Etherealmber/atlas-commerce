@@ -7,7 +7,7 @@
  * en auto-hébergement, sans réglage serveur ni migration de base.
  */
 
-export type StartPage = { value: string; label: string };
+type StartPage = { value: string; label: string };
 
 export const START_PAGES: StartPage[] = [
   { value: '/dashboard', label: 'Tableau de bord' },
@@ -22,7 +22,7 @@ export const START_PAGES: StartPage[] = [
 ];
 
 const KEY = 'atlas-start-page';
-export const START_PAGE_EVENT = 'atlas-start-page-change';
+const START_PAGE_EVENT = 'atlas-start-page-change';
 
 export function getStartPage(): string {
   try {

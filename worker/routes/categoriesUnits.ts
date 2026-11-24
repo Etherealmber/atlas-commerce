@@ -4,7 +4,7 @@ import { sessionUserFromHeader } from '../lib/authHelpers';
 import { doCacheGet, doCachePut, hasLiveCache } from '../lib/cache';
 import { afterBusinessMutation } from '../lib/delete-coord';
 
-export interface CategoriesUnitsRouteDeps {
+interface CategoriesUnitsRouteDeps {
   ensureCategoriesTable: (db: D1Database) => Promise<void>;
   ensureUnitsTable: (db: D1Database) => Promise<void>;
   checkConfirmPassword: (env: any, db: D1Database, authHeader: string | undefined, body: any) => Promise<any>;

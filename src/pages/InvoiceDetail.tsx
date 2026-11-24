@@ -13,7 +13,7 @@ import PasswordConfirm from '../components/PasswordConfirm';
 import RemboursementModal from '../components/RemboursementModal';
 import { TimedUndoDelete } from '../components/ui';
 import PageSkeleton from '../components/PageSkeleton';
-import { numStr, numFromInput } from '../lib/numInput';
+import { numFromInput } from '../lib/numInput';
 import NumberField from '../components/NumberField';
 
 

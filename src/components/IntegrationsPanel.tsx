@@ -5,7 +5,7 @@ import { useUi } from './AppDialogs';
 import { friendlyError } from '../lib/errors';
 
 export default function IntegrationsPanel() {
-  const { toast, confirm } = useUi();
+  const { confirm } = useUi();
   const [keys, setKeys] = useState<any[]>([]);
   const [hooks, setHooks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

@@ -17,98 +17,14 @@
  */
 
 import type { Env } from '../env';
-import { circuitAllow, circuitFailure, circuitSuccess } from './circuit-breaker';
-import { fetchWithTimeout, type HttpClientOptions } from './http-client';
-import { AppError } from './errors';
 
-/* ── External call with circuit + timeout + retries ───────────────── */
 
-export async function reliableFetch(
-  name: string,
-  url: string,
-  opts: HttpClientOptions = {},
-): Promise<Response> {
-  if (!circuitAllow(name)) {
-    throw new AppError('SERVICE_UNAVAILABLE', `Service ${name} temporairement coupé`);
-  }
-  try {
-    const res = await fetchWithTimeout(url, {
-      timeoutMs: opts.timeoutMs ?? 12_000,
-      retries: opts.retries ?? 1,
-      label: name,
-      ...opts,
-    });
-    if (res.status >= 500) {
-      circuitFailure(name);
-    } else {
-      circuitSuccess(name);
-    }
-    return res;
-  } catch (e) {
-    circuitFailure(name);
-    throw e;
-  }
-}
 
-/* ── In-isolate message queue (best-effort, per isolate) ──────────── */
 
-type Job = { id: string; type: string; payload: unknown; enqueuedAt: number };
-const localQueue: Job[] = [];
-const MAX_LOCAL = 200;
 
-export function enqueueLocal(type: string, payload: unknown): string {
-  const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-  if (localQueue.length >= MAX_LOCAL) localQueue.shift();
-  localQueue.push({ id, type, payload, enqueuedAt: Date.now() });
-  return id;
-}
 
-export function drainLocal(max = 20): Job[] {
-  return localQueue.splice(0, max);
-}
 
-/** Prefer Cloudflare Queues when bound; else local buffer. */
-export async function enqueueMessage(
-  env: Env & { QUEUE?: { send: (body: unknown) => Promise<void> } },
-  type: string,
-  payload: unknown,
-): Promise<{ id: string; backend: 'cloudflare_queue' | 'local' }> {
-  const body = { type, payload, ts: Date.now() };
-  if (env.QUEUE && typeof env.QUEUE.send === 'function') {
-    await env.QUEUE.send(body);
-    return { id: `cq-${body.ts}`, backend: 'cloudflare_queue' };
-  }
-  const id = enqueueLocal(type, payload);
-  return { id, backend: 'local' };
-}
 
-/* ── Shard key (future multi-tenant / multi-D1) ───────────────────── */
-
-/**
- * Deterministic shard id for a tenant or entity key.
- * With a single D1 binding today, always returns 0.
- * When multiple D1s are bound (DB_0, DB_1, …), route by shardId.
- */
-export function shardIdFor(key: string, shardCount = 1): number {
-  if (shardCount <= 1) return 0;
-  let h = 0;
-  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
-  return h % shardCount;
-}
-
-export function dbForShard(env: Env, shardId: number): D1Database {
-  const multi = (env as any)[`DB_${shardId}`] as D1Database | undefined;
-  return multi || env.DB;
-}
-
-/* ── Read path: prefer cache, then D1 ─────────────────────────────── */
-
-export type ReadOptions = {
-  cacheKey?: string;
-  ttlSec?: number;
-  /** If true, skip cache (force primary) */
-  primary?: boolean;
-};
 
 /**
  * Note: D1 does not expose a separate read-replica binding in free tier.
@@ -182,7 +98,7 @@ export async function ensureProductSearchIndex(db: D1Database): Promise<boolean>
 }
 
 /** FTS5 integrity probe — true when the virtual-table shadow pages are sound. */
-export async function checkProductSearchIndex(db: D1Database): Promise<boolean> {
+async function checkProductSearchIndex(db: D1Database): Promise<boolean> {
   try {
     await db.prepare(`INSERT INTO products_fts(products_fts, rank) VALUES('integrity-check', 1)`).run();
     return true;
@@ -255,65 +171,6 @@ export function repairProductSearchIndex(
   return repairInFlight;
 }
 
-/** Stronger product search: FTS5 MATCH when available, else multi-column LIKE. */
-export async function searchProducts(
-  db: D1Database,
-  q: string,
-  limit = 50,
-): Promise<Record<string, unknown>[]> {
-  const query = (q || '').trim().slice(0, 120);
-  const lim = Math.min(Math.max(1, limit), 200);
-  if (!query) {
-    const { results } = await db
-      .prepare(
-        `SELECT id, name, sku, barcode, quantity, price, category, image_url
-         FROM products ORDER BY name ASC LIMIT ?`,
-      )
-      .bind(lim)
-      .all();
-    return (results || []) as Record<string, unknown>[];
-  }
-
-  const useFts = await ensureProductSearchIndex(db);
-  if (useFts) {
-    try {
-      // Prefix search: token*
-      const ftsQuery = query
-        .split(/\s+/)
-        .filter(Boolean)
-        .map((t) => `"${t.replace(/"/g, '')}"*`)
-        .join(' ');
-      const { results } = await db
-        .prepare(
-          `SELECT p.id, p.name, p.sku, p.barcode, p.quantity, p.price, p.category, p.image_url
-           FROM products_fts f
-           JOIN products p ON p.id = f.rowid
-           WHERE products_fts MATCH ?
-           ORDER BY rank
-           LIMIT ?`,
-        )
-        .bind(ftsQuery, lim)
-        .all();
-      return (results || []) as Record<string, unknown>[];
-    } catch (e) {
-      console.warn('[search-index] FTS query failed, LIKE fallback', e);
-    }
-  }
-
-  const like = `%${query.replace(/[%_]/g, '')}%`;
-  const { results } = await db
-    .prepare(
-      `SELECT id, name, sku, barcode, quantity, price, category, image_url
-       FROM products
-       WHERE name LIKE ? OR IFNULL(sku,'') LIKE ? OR IFNULL(barcode,'') LIKE ?
-          OR IFNULL(category,'') LIKE ? OR IFNULL(variant_label,'') LIKE ?
-       ORDER BY name ASC
-       LIMIT ?`,
-    )
-    .bind(like, like, like, like, like, lim)
-    .all();
-  return (results || []) as Record<string, unknown>[];
-}
 
 /* ── Backup / replication status (informational) ──────────────────── */
 

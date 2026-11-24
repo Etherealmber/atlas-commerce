@@ -124,4 +124,3 @@ export function renderMiniMarkdown(src: string): ReactNode {
   return <div className="md-root">{blocks}</div>;
 }
 
-export default renderMiniMarkdown;

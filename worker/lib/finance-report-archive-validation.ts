@@ -5,8 +5,8 @@
 import { computePeriodBounds, parsePeriodMonth } from './report-period';
 import { FINANCE_TENANT, financeGate, isValidPeriod, monthBounds } from './finance';
 
-export type ArchiveLocale = 'fr' | 'en' | 'ar-MA';
-export type ArchiveInput = {
+type ArchiveLocale = 'fr' | 'en' | 'ar-MA';
+type ArchiveInput = {
   schema_version: 1;
   kind: 'monthly' | 'combined';
   period: string;
@@ -61,7 +61,7 @@ export function validateArchiveInput(value: unknown, today: string, allowedSecti
   return { schema_version: 1, kind: 'combined', period: bounds.periodKey, from: bounds.from, to: bounds.to, sections: [...value.sections], locale: locale as ArchiveLocale };
 }
 
-export type ArchiveIdentity = { username: string; role: string; userId: number | null; tenant: string };
+type ArchiveIdentity = { username: string; role: string; userId: number | null; tenant: string };
 type AuthDeps = {
   authFailReason(header: string | undefined, env: unknown, db: D1Database, ip: string, fingerprint: string | undefined): Promise<string>;
   sessionUserFromHeader(header: string | undefined): { username: string; role: string };

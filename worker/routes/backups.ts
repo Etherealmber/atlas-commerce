@@ -3,7 +3,7 @@ import { doCacheGet, doCachePut, getCacheGen, hasLiveCache } from '../lib/cache'
 import { afterBusinessMutation } from '../lib/delete-coord';
 import { enqueue } from '../lib/job-queue';
 
-export interface BackupRouteDeps {
+interface BackupRouteDeps {
   requireOwner: (c: any) => { ok: true; username: string } | { ok: false; response: Response };
   hmacSha256Hex: (secret: string, message: string) => Promise<string>;
   writeAudit: (db: D1Database, entry: any) => Promise<void>;
@@ -205,7 +205,7 @@ async function sha256TextHex(text: string): Promise<string> {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-export async function loadDeletedAccountTombstones(db: D1Database | undefined): Promise<string[]> {
+async function loadDeletedAccountTombstones(db: D1Database | undefined): Promise<string[]> {
   if (!db) return [];
   try {
     const row = (await db
@@ -240,7 +240,7 @@ async function recordDeletedAccountTombstone(db: D1Database | undefined, usernam
   }
 }
 
-export function scrubAccountFromBackupPayload(
+function scrubAccountFromBackupPayload(
   payload: any,
   usernames: string | string[],
 ): { payload: any; changed: boolean } {
@@ -537,11 +537,12 @@ export async function runDailyBackup(
 
         if (rows === null) {
           const sql = logCapped
-            ? `SELECT * FROM ${t} ORDER BY id DESC LIMIT 5000`
+            ? `SELECT * FROM (SELECT * FROM ${t} ORDER BY id DESC LIMIT 5000) ORDER BY id ASC`
             : `SELECT * FROM ${t} LIMIT 200000`;
           const { results } = await env.DB.prepare(sql).all();
           const fetched: any[] = results || [];
-          rows = logCapped && fetched.length > 1 ? [...fetched].reverse() : fetched;
+          // Capped logs: newest 5000, returned oldest-first by the outer ORDER BY.
+          rows = fetched;
           for (const r of rows) {
             const idNum = Number(r?.id || 0);
             if (idNum > maxId) maxId = idNum;
@@ -767,7 +768,7 @@ export async function purgeExpiredBackups(env: any): Promise<{ deleted: number }
 }
 
 /** Purge ephemeral DB operational/security rows older than 7 days (never business records). */
-export async function purgeExpiredDbBackupsState(db: D1Database | undefined): Promise<{ purgedRows: number }> {
+async function purgeExpiredDbBackupsState(db: D1Database | undefined): Promise<{ purgedRows: number }> {
   if (!db) return { purgedRows: 0 };
   let purgedRows = 0;
   for (const sql of [
@@ -903,7 +904,7 @@ export async function restoreFromBackupPayload(
         }
         continue;
       }
-    } catch (e: any) {
+    } catch {
       if (onProgress) {
         try {
           await onProgress({
@@ -1001,7 +1002,7 @@ export async function restoreFromBackupPayload(
           });
         } catch { /* */ }
       }
-    } catch (e: any) {
+    } catch {
       // Whole table failed — continue with remaining tables
       if (onProgress) {
         try {

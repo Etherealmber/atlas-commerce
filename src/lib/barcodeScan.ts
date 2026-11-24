@@ -22,17 +22,6 @@ const ZXING_WASM_URLS = [
   `https://fastly.jsdelivr.net/npm/zxing-wasm@${ZXING_VERSION}/dist/reader/zxing_reader.wasm`,
 ];
 
-const RETAIL_FORMATS = [
-  'EAN-13',
-  'EAN-8',
-  'UPC-A',
-  'UPC-E',
-  'Code128',
-  'Code39',
-  'Code93',
-  'Codabar',
-  'ITF',
-] as const;
 
 let zxingReady: Promise<any> | null = null;
 let html5Ready: Promise<any> | null = null;
@@ -86,7 +75,7 @@ function loadScriptOnce(src: string, timeoutMs = 10000): Promise<void> {
   });
 }
 
-export function loadZXing(): Promise<any> {
+function loadZXing(): Promise<any> {
   if (zxingReady) return zxingReady;
   const w = window as any;
   if (w.ZXingWASM?.readBarcodes) {
@@ -181,7 +170,7 @@ function loadHtml5Qrcode(): Promise<any> {
   return html5Ready;
 }
 
-export function isBarcodeLike(code: string): boolean {
+function isBarcodeLike(code: string): boolean {
   const c = String(code || '').trim().replace(/\s+/g, '');
   if (!c || c.length < 3) return false;
   if (c.includes('://') || /^https?/i.test(c)) return false;
@@ -236,7 +225,7 @@ async function zxingDecodeBlob(blob: Blob): Promise<string | null> {
 async function startNativeBarcodeDetector(
   video: HTMLVideoElement,
   onCode: (code: string) => void,
-  onError?: (msg: string) => void
+  _onError?: (msg: string) => void
 ): Promise<ScanStop | null> {
   const BD = (globalThis as any).BarcodeDetector;
   if (typeof BD !== 'function') return null;
@@ -486,223 +475,11 @@ async function startQuaggaScan(
   return stop;
 }
 
-/** Commercial: Dynamsoft Barcode Reader (primary when license is set). */
-const DYNAMSOFT_BUNDLE_URLS = [
-  'https://cdn.jsdelivr.net/npm/dynamsoft-barcode-reader-bundle@11.6.3200/dist/dbr.bundle.js',
-  'https://unpkg.com/dynamsoft-barcode-reader-bundle@11.6.3200/dist/dbr.bundle.js',
-];
 
-export function getDynamsoftLicense(): string {
-  try {
-    const fromEnv = String((import.meta as any)?.env?.VITE_DYNAMSOFT_LICENSE || '').trim();
-    if (fromEnv) return fromEnv;
-  } catch {
-    /* */
-  }
-  try {
-    const fromLs = String(localStorage.getItem('atlas_dynamsoft_license') || '').trim();
-    if (fromLs) return fromLs;
-  } catch {
-    /* */
-  }
-  try {
-    const fromWin = String((window as any).__ATLAS_DYNAMSOFT_LICENSE__ || '').trim();
-    if (fromWin) return fromWin;
-  } catch {
-    /* */
-  }
-  return '';
-}
 
-export function setDynamsoftLicense(key: string) {
-  try {
-    const k = String(key || '').trim();
-    if (k) localStorage.setItem('atlas_dynamsoft_license', k);
-    else localStorage.removeItem('atlas_dynamsoft_license');
-  } catch {
-    /* */
-  }
-}
 
-let dynamsoftReady: Promise<any> | null = null;
 
-function loadDynamsoftBundle(): Promise<any> {
-  const w = window as any;
-  if (w.Dynamsoft?.CVR || w.Dynamsoft?.BarcodeScanner || w.Dynamsoft?.DBR) {
-    return Promise.resolve(w.Dynamsoft);
-  }
-  if (dynamsoftReady) return dynamsoftReady;
-  dynamsoftReady = (async () => {
-    let lastErr: any = null;
-    for (const src of DYNAMSOFT_BUNDLE_URLS) {
-      try {
-        await loadScriptOnce(src, 20000);
-        if (w.Dynamsoft) return w.Dynamsoft;
-      } catch (e) {
-        lastErr = e;
-      }
-    }
-    throw lastErr || new Error('Dynamsoft SDK indisponible (réseau)');
-  })();
-  return dynamsoftReady;
-}
 
-/**
- * Commercial scanner — Dynamsoft Capture Vision (camera + decode).
- * Requires a license (trial 30 days from dynamsoft.com, or VITE_DYNAMSOFT_LICENSE).
- */
-async function startDynamsoftScan(
-  container: HTMLElement,
-  onCode: (code: string) => void,
-  onError?: (msg: string) => void
-): Promise<ScanStop> {
-  const license = getDynamsoftLicense();
-  if (!license) throw new Error('Dynamsoft: aucune licence configurée');
-
-  const Dynamsoft = await loadDynamsoftBundle();
-  container.innerHTML = '';
-  container.style.position = container.style.position || 'relative';
-  container.style.minHeight = container.style.minHeight || '240px';
-
-  // License
-  try {
-    if (Dynamsoft.License?.LicenseManager?.initLicense) {
-      await Dynamsoft.License.LicenseManager.initLicense(license);
-    } else if (Dynamsoft.DBR?.BarcodeScanner) {
-      Dynamsoft.DBR.BarcodeScanner.license = license;
-    } else if (Dynamsoft.BarcodeScanner) {
-      /* BarcodeScanner ctor accepts license */
-    }
-  } catch (e: any) {
-    throw new Error(e?.message || 'Licence Dynamsoft invalide');
-  }
-
-  // Prefer high-level BarcodeScanner.launch into container when available
-  if (typeof Dynamsoft.BarcodeScanner === 'function') {
-    let scanner: any = null;
-    let stopped = false;
-    scanner = new Dynamsoft.BarcodeScanner({
-      license,
-      container,
-      scannerViewConfig: {
-        cameraEnhancerUIElement: container,
-      },
-    });
-    const stop: ScanStop = () => {
-      stopped = true;
-      try {
-        scanner?.dispose?.();
-        scanner?.destroy?.();
-        scanner?.stop?.();
-      } catch {
-        /* */
-      }
-      try {
-        container.innerHTML = '';
-      } catch {
-        /* */
-      }
-    };
-    // Non-blocking continuous: use launch promise only for first result, or CVR below
-    void (async () => {
-      try {
-        const result = await scanner.launch();
-        if (stopped) return;
-        const items = result?.barcodeResults || result?.barcodes || [];
-        const text =
-          items[0]?.text ||
-          items[0]?.barcodeText ||
-          result?.text ||
-          '';
-        if (text) {
-          onCode(normalizeCode(String(text)));
-          stop();
-        }
-      } catch (e: any) {
-        if (!stopped) onError?.(e?.message || 'Dynamsoft scan arrêté');
-      }
-    })();
-    return stop;
-  }
-
-  // Foundational API: CameraView + CaptureVisionRouter (v10/v11)
-  const DCE = Dynamsoft.DCE;
-  const CVR = Dynamsoft.CVR;
-  if (!DCE?.CameraView || !CVR?.CaptureVisionRouter) {
-    throw new Error('Dynamsoft CVR/DCE non disponibles dans ce bundle');
-  }
-
-  try {
-    await Dynamsoft.Core?.CoreModule?.loadWasm?.();
-  } catch {
-    /* optional */
-  }
-
-  const cameraView = await DCE.CameraView.createInstance();
-  const ui = cameraView.getUIElement?.() || cameraView;
-  if (ui instanceof HTMLElement) {
-    ui.style.width = '100%';
-    ui.style.minHeight = '240px';
-    container.appendChild(ui);
-  }
-
-  const cameraEnhancer = await DCE.CameraEnhancer.createInstance(cameraView);
-  await cameraEnhancer.open();
-
-  const router = await CVR.CaptureVisionRouter.createInstance();
-  router.setInput(cameraEnhancer);
-
-  let stopped = false;
-  const stop: ScanStop = () => {
-    stopped = true;
-    try {
-      router.stopCapturing?.();
-    } catch {
-      /* */
-    }
-    try {
-      router.dispose?.();
-    } catch {
-      /* */
-    }
-    try {
-      cameraEnhancer.close?.();
-      cameraEnhancer.dispose?.();
-    } catch {
-      /* */
-    }
-    try {
-      container.innerHTML = '';
-    } catch {
-      /* */
-    }
-  };
-
-  router.addResultReceiver({
-    onDecodedBarcodesReceived: (result: any) => {
-      if (stopped) return;
-      const items = result?.barcodeResultItems || result?.barcodes || [];
-      for (const item of items) {
-        const text = item?.text || item?.barcodeText || '';
-        if (text && (isBarcodeLike(String(text)) || /^\d{4,}$/.test(String(text)))) {
-          onCode(normalizeCode(String(text)));
-          stop();
-          return;
-        }
-      }
-    },
-  });
-
-  const template =
-    (await router.getSimplifiedSettings?.('ReadBarcodes_Speed')) ? 'ReadBarcodes_Speed' : 'ReadSingleBarcode';
-  try {
-    await router.startCapturing(template);
-  } catch {
-    await router.startCapturing('ReadSingleBarcode');
-  }
-
-  return stop;
-}
 
 /** QR-only device flow. Raw content is passed to the caller for strict origin validation. */
 export async function startDeviceQrScan(container: HTMLElement, onCode: (code: string) => void): Promise<ScanStop> {
@@ -763,7 +540,6 @@ async function startHtml5Scan(
   // Build formats list from library enum when available
   let formats: number[] | undefined;
   try {
-    const F = (globalThis as any).Html5QrcodeSupportedFormats || (Html5Qrcode as any).FORMATS;
     // Prefer numeric enum values used by html5-qrcode 2.x
     const w = globalThis as any;
     const enumObj = w.Html5QrcodeSupportedFormats;
@@ -925,7 +701,7 @@ export async function startBarcodeScan(
         return () => stopAll();
       }
     }
-  } catch (e: any) {
+  } catch {
     /* fall through to manual getUserMedia + ZXing */
     try {
       html5Stop?.();
@@ -1073,7 +849,7 @@ export async function captureAndDecode(
   return decodeCanvas(c);
 }
 
-export async function decodeCanvas(canvas: HTMLCanvasElement): Promise<string | null> {
+async function decodeCanvas(canvas: HTMLCanvasElement): Promise<string | null> {
   const candidates = buildCandidates(canvas);
   for (const c of candidates) {
     try {

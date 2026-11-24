@@ -5,7 +5,7 @@
  */
 import { summarizeBalanceTotals } from './financeCore';
 
-export type BalanceEntry = {
+type BalanceEntry = {
   entry_type?: string | null;
   payment_method?: string | null;
   amount?: number | string | null;

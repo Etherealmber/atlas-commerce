@@ -1,28 +1,10 @@
 'use client';
 import { sanitizePreviewUrl } from '../../auth';
 
-import {
-  isValidElement,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from 'react';
+import { isValidElement, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { animate, useMotionValue, useMotionValueEvent, useReducedMotion } from 'motion/react';
 import { HugeiconsIcon } from '@hugeicons/react';
-import {
-  ArrowDown01Icon,
-  Attachment01Icon,
-  Cancel01Icon,
-  File02Icon,
-  HelpCircleIcon,
-  PlusSignIcon,
-  SparklesIcon,
-  Tick02Icon,
-} from '@hugeicons/core-free-icons';
+import { ArrowDown01Icon, Attachment01Icon, File02Icon, HelpCircleIcon, PlusSignIcon, SparklesIcon, Tick02Icon } from '@hugeicons/core-free-icons';
 import './PromptBar.css';
 
 const ARROW_UP = [12, 4.5, 18.5, 11, 14.25, 11, 14.25, 19.5, 9.75, 19.5, 9.75, 11, 5.5, 11];
@@ -31,15 +13,15 @@ const EASE_IN_OUT = [0.77, 0, 0.175, 1] as const;
 const LINE = 22;
 const EDGE = 11;
 
-export type PromptBarSource = {
+type PromptBarSource = {
   key: string;
   name: string;
   description?: string;
   icon?: any;
   attach?: boolean;
 };
-export type PromptBarCommand = { key: string; name: string; description?: string };
-export type PromptBarModel = { key: string; name: string; tag?: string };
+type PromptBarCommand = { key: string; name: string; description?: string };
+type PromptBarModel = { key: string; name: string; tag?: string };
 
 const DEFAULT_SOURCES: PromptBarSource[] = [
   {
@@ -130,7 +112,7 @@ function SendGlyph({
   );
 }
 
-export type PromptBarProps = {
+type PromptBarProps = {
   placeholder?: string;
   sources?: PromptBarSource[];
   commands?: PromptBarCommand[];

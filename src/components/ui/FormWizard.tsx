@@ -45,7 +45,7 @@ export function useWizard(total: number) {
   };
 }
 
-export type WizardApi = ReturnType<typeof useWizard>;
+type WizardApi = ReturnType<typeof useWizard>;
 
 export function WizardHeader(props: {
   eyebrow?: string;

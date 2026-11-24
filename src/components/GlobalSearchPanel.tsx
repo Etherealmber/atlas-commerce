@@ -12,9 +12,9 @@ import { api } from '../api';
 import { canManageStock, canOfficeWork, canSell, isLoggedIn } from '../auth';
 import { SETTINGS_SEARCH_INDEX } from '../lib/settingsSearch';
 
-export type SearchCat = 'all' | 'page' | 'product' | 'party' | 'doc' | 'settings';
+type SearchCat = 'all' | 'page' | 'product' | 'party' | 'doc' | 'settings';
 
-export type SearchRow = {
+type SearchRow = {
   id: string;
   href: string;
   label: string;

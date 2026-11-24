@@ -83,7 +83,7 @@ function setMeta(attr: 'name' | 'property', key: string, content: string) {
 }
 
 /** Title + Open Graph / Twitter cards for the current route. */
-export function applyPageMeta(pathname: string): void {
+function applyPageMeta(pathname: string): void {
   const title = titleForPath(pathname);
   try {
     document.title = title;

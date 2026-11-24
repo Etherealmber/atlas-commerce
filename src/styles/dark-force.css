@@ -2468,8 +2468,8 @@ html[data-theme="dark"][data-density="comfortable"] table td button:not(.seconda
   -webkit-text-fill-color: #121215 !important;
   border-color: #d5d8e2 !important;
 }
-html[data-theme="dark"] body .content button:hover:not(:disabled):not(.secondary):not(.danger):not(.ghost):not(.ac-seg-btn):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.settings-topbar-burger):not(.wn-filter):not(.ac-fluid-tab):not(.desktop-product-zoom-btn):not(.ac-image-preview-btn):not(.scan-requests-photo-btn):not(.step-wizard__step-btn):not(.bal-reports-trigger):not(.modal-x):not(.modal-close):not(.wz-chip):not(.atlas-typeahead-item):not(.phone-avatar):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action),
-html[data-theme="dark"] body button:hover:not(:disabled):not(.secondary):not(.danger):not(.ghost):not(.ac-seg-btn):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.settings-topbar-burger):not(.wn-filter):not(.ac-fluid-tab):not(.desktop-product-zoom-btn):not(.ac-image-preview-btn):not(.scan-requests-photo-btn):not(.step-wizard__step-btn):not(.bal-reports-trigger):not(.modal-x):not(.modal-close):not(.wz-chip):not(.atlas-typeahead-item):not(.phone-avatar):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action) {
+html[data-theme="dark"]:not(.phone-shell) body .content button:hover:not(:disabled):not(.secondary):not(.danger):not(.ghost):not(.ac-seg-btn):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.settings-topbar-burger):not(.wn-filter):not(.ac-fluid-tab):not(.desktop-product-zoom-btn):not(.ac-image-preview-btn):not(.scan-requests-photo-btn):not(.step-wizard__step-btn):not(.bal-reports-trigger):not(.modal-x):not(.modal-close):not(.wz-chip):not(.atlas-typeahead-item):not(.phone-avatar):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action):not(.ac-user-dropdown-item):not(.account-menu-item),
+html[data-theme="dark"]:not(.phone-shell) body button:hover:not(:disabled):not(.secondary):not(.danger):not(.ghost):not(.ac-seg-btn):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.settings-topbar-burger):not(.wn-filter):not(.ac-fluid-tab):not(.desktop-product-zoom-btn):not(.ac-image-preview-btn):not(.scan-requests-photo-btn):not(.step-wizard__step-btn):not(.bal-reports-trigger):not(.modal-x):not(.modal-close):not(.wz-chip):not(.atlas-typeahead-item):not(.phone-avatar):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action):not(.ac-user-dropdown-item):not(.account-menu-item) {
   background: #c7cbd6 !important;
   color: #18181b !important;
   -webkit-text-fill-color: #18181b !important;
@@ -3059,7 +3059,7 @@ html body .ac-donut-legend {
    segment active = zinc (not white), agent nav zinc, balance tracks
    ═══════════════════════════════════════════════════════════════ */
 /* primary buttons: zinc-700 slab, never near-black */
-html[data-theme="dark"] body :where(.btn, button):not(.secondary):not(.ghost):not(.danger):not(.btn-delete-red):not(.ac-seg-btn):not(.atlas-typeahead-item):not(.density-toggle):not(.dash-range-select):not([class*="iconbtn"]):not([class*="toggle"]):not([class*="close"]):not(.atlas-agent-nav button):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.public-download-main):not(.public-download-menu-item):not(.dl-cta-primary):not(.dl-cta-main):not(.dl-cta-ghost) {
+html[data-theme="dark"]:not(.phone-shell) body :where(.btn, button):not(.secondary):not(.ghost):not(.danger):not(.btn-delete-red):not(.ac-seg-btn):not(.atlas-typeahead-item):not(.density-toggle):not(.dash-range-select):not([class*="iconbtn"]):not([class*="toggle"]):not([class*="close"]):not(.atlas-agent-nav button):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.public-download-main):not(.public-download-menu-item):not(.dl-cta-primary):not(.dl-cta-main):not(.dl-cta-ghost):not(.ac-user-dropdown-item):not(.account-menu-item) {
   background: #3f3f46 !important;
   background-color: #3f3f46 !important;
   background-image: none !important;
@@ -3067,7 +3067,7 @@ html[data-theme="dark"] body :where(.btn, button):not(.secondary):not(.ghost):no
   -webkit-text-fill-color: #f4f4f5 !important;
   border-color: #52525b !important;
 }
-html[data-theme="dark"] body :where(.btn, button):not(.secondary):not(.ghost):not(.danger):not(.btn-delete-red):not(.ac-seg-btn):not(.atlas-typeahead-item):not(.density-toggle):not(.dash-range-select):not([class*="iconbtn"]):not([class*="toggle"]):not([class*="close"]):not(.atlas-agent-nav button):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.public-download-main):not(.public-download-menu-item):not(.dl-cta-primary):not(.dl-cta-main):not(.dl-cta-ghost):hover {
+html[data-theme="dark"]:not(.phone-shell) body :where(.btn, button):not(.secondary):not(.ghost):not(.danger):not(.btn-delete-red):not(.ac-seg-btn):not(.atlas-typeahead-item):not(.density-toggle):not(.dash-range-select):not([class*="iconbtn"]):not([class*="toggle"]):not([class*="close"]):not(.atlas-agent-nav button):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.public-download-main):not(.public-download-menu-item):not(.dl-cta-primary):not(.dl-cta-main):not(.dl-cta-ghost):not(.ac-user-dropdown-item):not(.account-menu-item):hover {
   background: #4b4b52 !important;
   background-color: #4b4b52 !important;
   color: #ffffff !important;
@@ -7350,3 +7350,46 @@ html[data-theme="dark"] body .ac-donut-center strong {
 html[data-theme="dark"] body .ac-donut-center span {
   color: #a1a1aa !important;
 }
+
+/* User menu (topbar avatar dropdown): flat rows on the charcoal panel — never grey slabs or lavender hover */
+html[data-theme="dark"] body .ac-user-dropdown {
+  background: #18181b !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+html[data-theme="dark"] body .ac-user-dropdown-head {
+  background: #202024 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+html[data-theme="dark"] body .ac-user-dropdown button.ac-user-dropdown-item,
+html[data-theme="dark"] body .ac-user-dropdown-item {
+  background: transparent !important;
+  background-image: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+}
+html[data-theme="dark"] body .ac-user-dropdown button.ac-user-dropdown-item:is(:hover, :focus-visible),
+html[data-theme="dark"] body .ac-user-dropdown-item:is(:hover, :focus-visible) {
+  background: #202024 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  color: #f4f4f6 !important;
+  -webkit-text-fill-color: #f4f4f6 !important;
+}
+html[data-theme="dark"] body .ac-user-dropdown-item :is(b, i, span) { -webkit-text-fill-color: currentColor !important; }
+html[data-theme="dark"] body .ac-user-dropdown-item i,
+html[data-theme="dark"] body .ac-user-dropdown-item > span i { color: #a1a1aa !important; -webkit-text-fill-color: #a1a1aa !important; }
+html[data-theme="dark"] body .ac-user-dropdown-ico {
+  background: #202024 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: #d4d4d8 !important;
+}
+html[data-theme="dark"] body .ac-user-dropdown-item:is(:hover, :focus-visible) .ac-user-dropdown-ico { background: #29292f !important; }
+html[data-theme="dark"] body .ac-user-dropdown-item--danger,
+html[data-theme="dark"] body .ac-user-dropdown-item--danger b { color: #f87171 !important; -webkit-text-fill-color: #f87171 !important; }
+html[data-theme="dark"] body .ac-user-dropdown-item--danger .ac-user-dropdown-ico {
+  background: rgba(239, 68, 68, 0.1) !important;
+  border-color: rgba(248, 113, 113, 0.25) !important;
+  color: #f87171 !important;
+}
+html[data-theme="dark"] body .ac-user-dropdown-item--danger:is(:hover, :focus-visible) { background: rgba(239, 68, 68, 0.08) !important; }

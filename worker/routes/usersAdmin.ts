@@ -1,5 +1,4 @@
 import type { AtlasApp } from './types';
-import type { Env } from '../env';
 import { schemaOnce, addColumnIfMissing } from '../lib/schema';
 import { ensureDocAssetColumns } from '../lib/printTemplates';
 import {
@@ -27,7 +26,7 @@ import {
   webTokenHash,
 } from '../lib/authHelpers';
 
-export interface UsersAdminDeps {
+interface UsersAdminDeps {
   authFailReason: any;
   cfGeo: any;
   checkConfirmPassword: any;
@@ -76,7 +75,6 @@ export function registerUsersAdminRoutes(app: AtlasApp, deps: UsersAdminDeps) {
     randomChallenge,
     readProfileFromDo,
     refreshLimitGate,
-    requireBizMutator,
     requireOwner,
     resolveUserProfileAvatar,
     sessionUserFromHeader,
@@ -898,9 +896,7 @@ app.patch('/api/auth/me', async (c) => {
 
 export function registerSettingsRoutes(app: AtlasApp, deps: UsersAdminDeps) {
   const {
-    checkConfirmPassword,
     ensureHrSettings,
-    issueDeleteOtp,
     requireBizMutator,
     sessionUserFromHeader,
     writeAudit,

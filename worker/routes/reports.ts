@@ -1,7 +1,6 @@
 import type { Hono } from 'hono';
 import type { Env } from '../env';
 import { escapeHtml } from '../lib/security';
-import { tr } from '../lib/error-i18n';
 import { addColumnIfMissing } from '../lib/schema';
 import { mintScopedReportTicket, mintScopedPrintTicket } from '../lib/report-ticket';
 import { verifyArchiveIdentity } from '../lib/finance-report-archive-validation';
@@ -20,7 +19,7 @@ import {
 import { computePeriodBounds } from '../lib/report-period';
 import { generateEmployeeFormHTML } from '../lib/printTemplates';
 
-export interface ReportRouteDeps {
+interface ReportRouteDeps {
   reportTicketEnvironment: (env: any) => any;
   authFailReason: (header: string | undefined, env: any, db: D1Database, ip: string, fp?: string) => Promise<string>;
   sessionUserFromHeader: (header: string | undefined) => any;
@@ -467,7 +466,7 @@ export function registerReportRoutes(app: Hono<any>, deps: ReportRouteDeps): voi
     const settings = await c.env.DB.prepare(`SELECT * FROM company_settings WHERE id = 1`).first() as any;
     const cur = String(settings?.currency || settings?.finance_currency || 'MAD');
     const curDec = getCurrencySpec(cur).invoiceDecimals;
-    const fmtN = (n: number) => roundCurrency(Number(n || 0), cur, 'invoice').toLocaleString('fr-FR', { minimumFractionDigits: curDec, maximumFractionDigits: curDec });
+    const fmtMoney = (n: number) => roundCurrency(Number(n || 0), cur, 'invoice').toLocaleString('fr-FR', { minimumFractionDigits: curDec, maximumFractionDigits: curDec });
     const { results } = await c.env.DB.prepare(
       `SELECT id, number, client_name, issue_date, due_date, total, amount_paid, status,
               ROUND(total - COALESCE(amount_paid, 0), 2) as remaining
@@ -497,16 +496,16 @@ export function registerReportRoutes(app: Hono<any>, deps: ReportRouteDeps): voi
       <td>${escapeHtml(String(r.client_name || ''))}</td>
       <td>${escapeHtml(r.due_date || r.issue_date || '—')}</td>
       <td>${r.days_overdue}</td>
-      <td class="out">${fmtN(r.remaining)} ${escapeHtml(String(cur))}</td>
+      <td class="out">${fmtMoney(r.remaining)} ${escapeHtml(String(cur))}</td>
     </tr>`).join('') || `<tr><td colspan="5">Aucune créance ouverte</td></tr>`;
     const body = `
     <div class="grid">
-      <div class="stat"><div class="l">Total créances</div><div class="v out">${fmtN(total)} ${escapeHtml(String(cur))}</div></div>
-      <div class="stat"><div class="l">Courant</div><div class="v">${fmtN(buckets.current)}</div></div>
-      <div class="stat"><div class="l">1–30 j</div><div class="v">${fmtN(buckets.d1_30)}</div></div>
-      <div class="stat"><div class="l">31–60 j</div><div class="v">${fmtN(buckets.d31_60)}</div></div>
-      <div class="stat"><div class="l">61–90 j</div><div class="v">${fmtN(buckets.d61_90)}</div></div>
-      <div class="stat"><div class="l">90+ j</div><div class="v out">${fmtN(buckets.d90_plus)}</div></div>
+      <div class="stat"><div class="l">Total créances</div><div class="v out">${fmtMoney(total)} ${escapeHtml(String(cur))}</div></div>
+      <div class="stat"><div class="l">Courant</div><div class="v">${fmtMoney(buckets.current)}</div></div>
+      <div class="stat"><div class="l">1–30 j</div><div class="v">${fmtMoney(buckets.d1_30)}</div></div>
+      <div class="stat"><div class="l">31–60 j</div><div class="v">${fmtMoney(buckets.d31_60)}</div></div>
+      <div class="stat"><div class="l">61–90 j</div><div class="v">${fmtMoney(buckets.d61_90)}</div></div>
+      <div class="stat"><div class="l">90+ j</div><div class="v out">${fmtMoney(buckets.d90_plus)}</div></div>
     </div>
     <h2>Détail des créances — au ${today}</h2>
     <table>
@@ -521,7 +520,7 @@ export function registerReportRoutes(app: Hono<any>, deps: ReportRouteDeps): voi
     const settings = await c.env.DB.prepare(`SELECT * FROM company_settings WHERE id = 1`).first() as any;
     const cur = String(settings?.currency || settings?.finance_currency || 'MAD');
     const curDec = getCurrencySpec(cur).invoiceDecimals;
-    const fmtN = (n: number) => roundCurrency(Number(n || 0), cur, 'invoice').toLocaleString('fr-FR', { minimumFractionDigits: curDec, maximumFractionDigits: curDec });
+    const fmtMoney = (n: number) => roundCurrency(Number(n || 0), cur, 'invoice').toLocaleString('fr-FR', { minimumFractionDigits: curDec, maximumFractionDigits: curDec });
     const bounds = c.req.query('period') ? periodBounds(c, settings?.finance_timezone) : null;
     const from = bounds?.from || c.req.query('from') || '';
     const to = bounds?.to || c.req.query('to') || '';
@@ -589,16 +588,16 @@ export function registerReportRoutes(app: Hono<any>, deps: ReportRouteDeps): voi
     const totalCreditsTva = credits.reduce((s, r) => addMoneyAmounts(s, r.tva, cur), 0);
     const periodLabel = [from || '…', to || '…'].join(' → ');
   
-    const salesRows = sales.map((r) => `<tr><td>${r.tax_rate} %</td><td class="num">${fmtN(r.base_ht)}</td><td class="num">${fmtN(r.tva)}</td></tr>`).join('')
+    const salesRows = sales.map((r) => `<tr><td>${r.tax_rate} %</td><td class="num">${fmtMoney(r.base_ht)}</td><td class="num">${fmtMoney(r.tva)}</td></tr>`).join('')
       || `<tr><td colspan="3">Aucune vente</td></tr>`;
-    const creditRows = credits.map((r) => `<tr><td>${r.tax_rate} %</td><td class="num">${fmtN(r.base_ht)}</td><td class="num">${fmtN(r.tva)}</td></tr>`).join('')
+    const creditRows = credits.map((r) => `<tr><td>${r.tax_rate} %</td><td class="num">${fmtMoney(r.base_ht)}</td><td class="num">${fmtMoney(r.tva)}</td></tr>`).join('')
       || `<tr><td colspan="3">Aucun avoir</td></tr>`;
   
     const body = `
     <div class="grid">
-      <div class="stat"><div class="l">TVA collectée</div><div class="v in">${fmtN(totalSalesTva)} ${escapeHtml(String(cur))}</div></div>
-      <div class="stat"><div class="l">TVA avoirs WR</div><div class="v out">${fmtN(totalCreditsTva)} ${escapeHtml(String(cur))}</div></div>
-      <div class="stat"><div class="l">Net à déclarer</div><div class="v">${fmtN(totalSalesTva - totalCreditsTva)} ${escapeHtml(String(cur))}</div></div>
+      <div class="stat"><div class="l">TVA collectée</div><div class="v in">${fmtMoney(totalSalesTva)} ${escapeHtml(String(cur))}</div></div>
+      <div class="stat"><div class="l">TVA avoirs WR</div><div class="v out">${fmtMoney(totalCreditsTva)} ${escapeHtml(String(cur))}</div></div>
+      <div class="stat"><div class="l">Net à déclarer</div><div class="v">${fmtMoney(totalSalesTva - totalCreditsTva)} ${escapeHtml(String(cur))}</div></div>
       <div class="stat"><div class="l">Période</div><div class="v" style="font-size:13px">${escapeHtml(periodLabel)}</div></div>
     </div>
     <h2>Ventes par taux</h2>
@@ -637,7 +636,7 @@ export function registerReportRoutes(app: Hono<any>, deps: ReportRouteDeps): voi
         unit_cost: Number(r.unit_cost || 0),
         cogs: Number(r.cogs_approx || 0),
       }));
-    } catch (e) {
+    } catch {
       // Do not log report query data or tickets.
     }
     // FIFO layers remaining value
@@ -934,7 +933,7 @@ export function registerReportRoutes(app: Hono<any>, deps: ReportRouteDeps): voi
     const settings = await c.env.DB.prepare(`SELECT * FROM company_settings WHERE id = 1`).first() as any;
     const cur = String(settings?.currency || settings?.finance_currency || 'MAD');
     const curDec = getCurrencySpec(cur).invoiceDecimals;
-    const fmtN = (n: number) => roundCurrency(Number(n || 0), cur, 'invoice').toLocaleString('fr-FR', { minimumFractionDigits: curDec, maximumFractionDigits: curDec });
+    const fmtMoney = (n: number) => roundCurrency(Number(n || 0), cur, 'invoice').toLocaleString('fr-FR', { minimumFractionDigits: curDec, maximumFractionDigits: curDec });
     const name = String(c.req.query('name') || '').trim();
     const ice = String(c.req.query('ice') || '').trim();
     const clientId = String(c.req.query('client_id') || '').trim();
@@ -1030,7 +1029,7 @@ export function registerReportRoutes(app: Hono<any>, deps: ReportRouteDeps): voi
         return `<tr>
         <td>${numSafe}<div class="muted" style="font-size:11px">Avoir / remboursement${typeHint}</div></td>
         <td>${dateSafe}</td>
-        <td class="num" style="color:#2a3040">−${fmtN(total)}</td>
+        <td class="num" style="color:#2a3040">−${fmtMoney(total)}</td>
         <td class="num">—</td>
         <td class="num" style="font-weight:700;color:#6366f1">0</td>
         <td>${st}</td>
@@ -1047,9 +1046,9 @@ export function registerReportRoutes(app: Hono<any>, deps: ReportRouteDeps): voi
       return `<tr>
         <td>${numSafe}${kind}</td>
         <td>${dateSafe}</td>
-        <td class="num">${fmtN(total)}</td>
-        <td class="num">${fmtN(paid)}</td>
-        <td class="num" style="font-weight:700;color:${due > 0.001 ? '#8b2e2e' : '#6366f1'}">${fmtN(due)}</td>
+        <td class="num">${fmtMoney(total)}</td>
+        <td class="num">${fmtMoney(paid)}</td>
+        <td class="num" style="font-weight:700;color:${due > 0.001 ? '#8b2e2e' : '#6366f1'}">${fmtMoney(due)}</td>
         <td>${st}</td>
       </tr>`;
     }).join('');
@@ -1063,7 +1062,7 @@ export function registerReportRoutes(app: Hono<any>, deps: ReportRouteDeps): voi
       return escapeHtml(String(m || '—'));
     };
     const recRows = receipts.map((r: any) =>
-      `<tr><td>${escapeHtml(String(r.number || ''))}</td><td>${escapeHtml(String(r.issue_date || ''))}</td><td class="num">${fmtN(Number(r.amount))}</td><td>${payModeFr(r.payment_method)}</td></tr>`
+      `<tr><td>${escapeHtml(String(r.number || ''))}</td><td>${escapeHtml(String(r.issue_date || ''))}</td><td class="num">${fmtMoney(Number(r.amount))}</td><td>${payModeFr(r.payment_method)}</td></tr>`
     ).join('');
   
     // Detailed mode: product lines per invoice
@@ -1090,9 +1089,9 @@ export function registerReportRoutes(app: Hono<any>, deps: ReportRouteDeps): voi
           return `<tr>
             <td>${escapeHtml(String(it.product_name || '—'))}${it.sku ? ` <span class="muted">(${escapeHtml(String(it.sku))})</span>` : ''}</td>
             <td class="num">${qty}</td>
-            <td class="num">${fmtN(pu)}</td>
-            <td class="num">${fmtN(Number(it.tax_rate || 0))}%</td>
-            <td class="num">${fmtN(lt)}</td>
+            <td class="num">${fmtMoney(pu)}</td>
+            <td class="num">${fmtMoney(Number(it.tax_rate || 0))}%</td>
+            <td class="num">${fmtMoney(lt)}</td>
           </tr>`;
         }).join('');
         chunks.push(`
@@ -1102,7 +1101,7 @@ export function registerReportRoutes(app: Hono<any>, deps: ReportRouteDeps): voi
                 <strong style="font-size:15px">${escapeHtml(String(inv.number || '—'))}</strong>
                 <span class="muted"> · ${escapeHtml(String(inv.issue_date || ''))}</span>
               </div>
-              <div class="muted">TTC ${fmtN(total)} · Payé ${fmtN(paid)} · <strong style="color:${due > 0.001 ? '#8b2e2e' : '#6366f1'}">Reste ${fmtN(due)} ${escapeHtml(cur)}</strong></div>
+              <div class="muted">TTC ${fmtMoney(total)} · Payé ${fmtMoney(paid)} · <strong style="color:${due > 0.001 ? '#8b2e2e' : '#6366f1'}">Reste ${fmtMoney(due)} ${escapeHtml(cur)}</strong></div>
             </div>
             <table>
               <thead><tr><th>Produit / service</th><th class="num">Qté</th><th class="num">P.U.</th><th class="num">TVA</th><th class="num">Total</th></tr></thead>
@@ -1117,10 +1116,10 @@ export function registerReportRoutes(app: Hono<any>, deps: ReportRouteDeps): voi
     const displaySafe = escapeHtml(String(displayName));
     const body = `
     <div class="grid" style="grid-template-columns:repeat(4,1fr)">
-      <div class="stat"><div class="l">Total facturé TTC</div><div class="v">${fmtN(totalTTC)} ${curSafe}</div></div>
-      <div class="stat"><div class="l">Avoirs (WR)</div><div class="v" style="color:#2a3040">${fmtN(totalCredits)} ${curSafe}</div></div>
-      <div class="stat"><div class="l">Déjà payé</div><div class="v in">${fmtN(totalPaid)} ${curSafe}</div></div>
-      <div class="stat"><div class="l">Reste dû</div><div class="v ${totalDue > 0.001 ? 'out' : 'in'}">${fmtN(totalDue)} ${curSafe}</div></div>
+      <div class="stat"><div class="l">Total facturé TTC</div><div class="v">${fmtMoney(totalTTC)} ${curSafe}</div></div>
+      <div class="stat"><div class="l">Avoirs (WR)</div><div class="v" style="color:#2a3040">${fmtMoney(totalCredits)} ${curSafe}</div></div>
+      <div class="stat"><div class="l">Déjà payé</div><div class="v in">${fmtMoney(totalPaid)} ${curSafe}</div></div>
+      <div class="stat"><div class="l">Reste dû</div><div class="v ${totalDue > 0.001 ? 'out' : 'in'}">${fmtMoney(totalDue)} ${curSafe}</div></div>
     </div>
     <p class="muted"><strong>${displaySafe}</strong>
       ${matchIce ? ' · ICE ' + escapeHtml(String(matchIce)) : ''}
@@ -1222,7 +1221,7 @@ export function registerReportRoutes(app: Hono<any>, deps: ReportRouteDeps): voi
       return c.json({ success: false, code: 'REPORT_GENERATION_FAILED', error: 'Rapport employés indisponible' }, 500);
     }
     const curDec = getCurrencySpec(cur).minorDecimals;
-    const fmtN = (n: number) => roundCurrency(Number(n || 0), cur, 'ledger').toLocaleString('fr-FR', { minimumFractionDigits: curDec, maximumFractionDigits: curDec });
+    const fmtMoney = (n: number) => roundCurrency(Number(n || 0), cur, 'ledger').toLocaleString('fr-FR', { minimumFractionDigits: curDec, maximumFractionDigits: curDec });
     const active = rows.filter((e) => Number(e.active) !== 0);
     const payroll = active.reduce((s, e) => s + Number(e.pay_amount || 0), 0);
     const table = rows.map((e) => {
@@ -1232,7 +1231,7 @@ export function registerReportRoutes(app: Hono<any>, deps: ReportRouteDeps): voi
         <td>${escapeHtml(String(e.emp_number || '—'))}</td>
         <td>${escapeHtml(name)}</td>
         <td>${escapeHtml(String(e.role_title || '—'))}</td>
-        <td style="text-align:right">${fmtN(e.pay_amount)} ${escapeHtml(String(cur))}</td>
+        <td style="text-align:right">${fmtMoney(e.pay_amount)} ${escapeHtml(String(cur))}</td>
         <td>${escapeHtml(cycle)}</td>
         <td>${escapeHtml(e.last_paid_at ? String(e.last_paid_at).slice(0, 10) : '—')}</td>
         <td>${Number(e.active) !== 0 ? 'Actif' : 'Démissionné'}</td>
@@ -1241,7 +1240,7 @@ export function registerReportRoutes(app: Hono<any>, deps: ReportRouteDeps): voi
     const body = `
     <div class="grid">
       <div class="stat"><div class="l">Effectif actif</div><div class="v">${active.length}</div></div>
-      <div class="stat"><div class="l">Masse salariale (cycles)</div><div class="v">${fmtN(payroll)} ${escapeHtml(String(cur))}</div></div>
+      <div class="stat"><div class="l">Masse salariale (cycles)</div><div class="v">${fmtMoney(payroll)} ${escapeHtml(String(cur))}</div></div>
       <div class="stat"><div class="l">Total fiches</div><div class="v">${rows.length}</div></div>
     </div>
     <h2>Registre du personnel</h2>

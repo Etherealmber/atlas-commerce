@@ -15,7 +15,7 @@ export interface AttendanceRulesInfo {
   workday_hours: number;
 }
 
-export interface AttendanceRouteDeps {
+interface AttendanceRouteDeps {
   requireEmployeeAdmin: (c: any) => Promise<Response | null>;
   ensureHrSettings: (db: D1Database) => Promise<void>;
   ensureEmployeeTeamColumn: (db: D1Database) => Promise<void>;

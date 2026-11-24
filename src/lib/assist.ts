@@ -4,25 +4,7 @@
  */
 import { remainingBalance } from '../../shared/financeCore';
 
-export type ProductLike = {
-  id?: number;
-  name?: string;
-  sku?: string;
-  barcode?: string;
-  price?: number;
-  unit_price?: number;
-  cost?: number;
-  cost_price?: number;
-  category?: string;
-  stock_quantity?: number;
-  low_stock_threshold?: number;
-};
 
-export type MatchResult = {
-  product: ProductLike;
-  score: number;
-  reason: string;
-};
 
 function norm(s: string): string {
   return String(s || '')
@@ -33,58 +15,6 @@ function norm(s: string): string {
     .trim();
 }
 
-/** 1. Smart product match from messy name / SKU / barcode */
-export function matchProducts(query: string, products: ProductLike[], limit = 6): MatchResult[] {
-  const q = norm(query);
-  if (!q || q.length < 1) return [];
-  const tokens = q.split(/\s+/).filter(Boolean);
-  const out: MatchResult[] = [];
-
-  for (const p of products) {
-    const name = norm(p.name || '');
-    const sku = norm(p.sku || '');
-    const bar = String(p.barcode || '').trim().toLowerCase();
-    let score = 0;
-    let reason = '';
-
-    if (bar && (bar === query.trim().toLowerCase() || bar.includes(query.trim().toLowerCase()))) {
-      score = 100;
-      reason = 'code-barres';
-    } else if (sku && (sku === q || sku.includes(q) || q.includes(sku))) {
-      score = 92;
-      reason = 'SKU';
-    } else if (name === q) {
-      score = 90;
-      reason = 'nom exact';
-    } else if (name.startsWith(q) || q.startsWith(name.slice(0, Math.min(12, name.length)))) {
-      score = 80;
-      reason = 'début de nom';
-    } else {
-      let hit = 0;
-      for (const t of tokens) {
-        if (t.length < 2) continue;
-        if (name.includes(t)) hit += 1;
-        if (sku.includes(t)) hit += 0.5;
-      }
-      if (hit > 0) {
-        score = 50 + hit * 12;
-        reason = 'mots-clés';
-      }
-      // typo: shared prefix length
-      if (score < 50 && name && q) {
-        let pref = 0;
-        while (pref < name.length && pref < q.length && name[pref] === q[pref]) pref++;
-        if (pref >= 4) {
-          score = Math.max(score, 40 + pref);
-          reason = 'ressemblance';
-        }
-      }
-    }
-    if (score >= 40) out.push({ product: p, score, reason });
-  }
-  out.sort((a, b) => b.score - a.score);
-  return out.slice(0, limit);
-}
 
 /** 2. Draft supplier reorder message (French) */
 export function draftReorderMessage(
@@ -110,22 +40,7 @@ export function draftReorderMessage(
   ].join('\n');
 }
 
-/** 3. Invoice note chips */
-export const NOTE_CHIPS: { id: string; label: string; text: string }[] = [
-  { id: 'retard', label: 'Retard', text: 'Livraison en retard — merci de prioriser.' },
-  { id: 'remise', label: 'Remise', text: 'Remise commerciale accordée sur cette pièce.' },
-  { id: 'livraison', label: 'Livraison', text: 'Livraison à l’adresse indiquée — contacter avant passage.' },
-  { id: 'acompte', label: 'Acompte', text: 'Acompte reçu ; solde à régler à la livraison.' },
-  { id: 'chantier', label: 'Chantier', text: 'Matériel destiné au chantier — vérifier quantités à réception.' },
-  { id: 'sav', label: 'SAV', text: 'Suite à échange / SAV — voir ticket précédent.' },
-];
 
-export function applyNoteChip(current: string, chipText: string): string {
-  const cur = (current || '').trim();
-  if (!cur) return chipText;
-  if (cur.includes(chipText)) return cur;
-  return `${cur}${cur.endsWith('.') ? '' : '.'} ${chipText}`;
-}
 
 /** 4. Refund reason assistant — expand a rough phrase */
 export function polishRefundReason(raw: string, code?: string): string {
@@ -156,27 +71,6 @@ export function polishRefundReason(raw: string, code?: string): string {
   return out.slice(0, 500);
 }
 
-/** 5. Daily closing summary (5 lines) */
-export function dailyClosingSummary(input: {
-  dateLabel: string;
-  salesTotal?: number;
-  salesCount?: number;
-  unpaidTotal?: number;
-  unpaidCount?: number;
-  lowStockCount?: number;
-  openQuotes?: number;
-  currency?: string;
-}): string {
-  const cur = input.currency || 'MAD';
-  const f = (n: number) => Math.round(Number(n || 0)).toLocaleString('fr-FR');
-  return [
-    `Clôture du ${input.dateLabel}`,
-    `• Ventes du jour : ${f(input.salesTotal || 0)} ${cur} (${input.salesCount || 0} pièce${(input.salesCount || 0) > 1 ? 's' : ''})`,
-    `• Impayés ouverts : ${f(input.unpaidTotal || 0)} ${cur} (${input.unpaidCount || 0} dossier${(input.unpaidCount || 0) > 1 ? 's' : ''})`,
-    `• Stock bas : ${input.lowStockCount || 0} article${(input.lowStockCount || 0) > 1 ? 's' : ''}`,
-    `• Devis ouverts : ${input.openQuotes || 0}`,
-  ].join('\n');
-}
 
 /** 6. Price anomaly vs list / cost */
 export function priceAnomaly(
@@ -253,26 +147,6 @@ export function clientRisk(invoices: { status?: string; due_date?: string; issue
   return { level: 'ok', message: '', unpaid, overdue };
 }
 
-/** 8. Photo → product draft (manual confirm; uses file name) */
-export function draftProductFromFile(file: File | null): { name: string; category: string; note: string } {
-  if (!file) return { name: '', category: '', note: '' };
-  const base = file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim();
-  const name = base
-    .split(/\s+/)
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-    .join(' ')
-    .slice(0, 80);
-  let category = 'Divers';
-  const n = norm(name);
-  if (/marbre|carrel|granit|sanitaire/.test(n)) category = 'Marbre / carrelage';
-  else if (/colle|joint|mortier/.test(n)) category = 'Consommables';
-  else if (/outil|disque|meule/.test(n)) category = 'Outillage';
-  return {
-    name: name || 'Nouveau produit',
-    category,
-    note: 'Brouillon depuis photo — vérifiez le nom et le prix avant enregistrement.',
-  };
-}
 
 /** 9. WhatsApp-style reply drafts */
 export function whatsAppDraft(
@@ -296,19 +170,6 @@ export function whatsAppDraft(
   }
 }
 
-/** 11. Expense category from description */
-export function suggestExpenseCategory(description: string): string {
-  const d = norm(description);
-  if (/loyer|bail|location local/.test(d)) return 'Loyer';
-  if (/essence|gasoil|carburant|transport|taxi/.test(d)) return 'Transport';
-  if (/salaire|paie|cnss/.test(d)) return 'Personnel';
-  if (/electric|eau|onée|onee|iam|telecom|internet/.test(d)) return 'Charges';
-  if (/publicit|facebook|insta|pub /.test(d)) return 'Marketing';
-  if (/achat|fournisseur|marchandise|stock/.test(d)) return 'Achats stock';
-  if (/repar|maintenance|sav/.test(d)) return 'Entretien';
-  if (/rembours/.test(d)) return 'Remboursement client';
-  return 'Divers';
-}
 
 /** 12. Simple demand hint from qty series (newest last) */
 export function demandHint(qtyByPeriod: number[]): string {
@@ -325,23 +186,3 @@ export function demandHint(qtyByPeriod: number[]): string {
   return 'Demande stable.';
 }
 
-/** Mini FAQ / “chat” without LLM */
-export function localAssistAnswer(question: string, ctx: Record<string, string | number>): string {
-  const q = norm(question);
-  if (/impay|creance|retard/.test(q)) {
-    return `Impayés estimés : ${ctx.unpaid ?? '—'} MAD. Consultez Rapports → Balance âgée.`;
-  }
-  if (/stock|rupture|bas/.test(q)) {
-    return `Articles en stock bas : ${ctx.lowStock ?? '—'}. Utilisez Rapports → Réassort pour un message fournisseur.`;
-  }
-  if (/vente|ca |chiffre/.test(q)) {
-    return `Ventes (période affichée) : ${ctx.sales ?? '—'} MAD. Détail sur le tableau de bord.`;
-  }
-  if (/tva/.test(q)) {
-    return 'Rapports → TVA pour le récapitulatif. Les tickets VR sont hors TVA.';
-  }
-  if (/wr|rembours|avoir/.test(q)) {
-    return 'Les avoirs utilisent la série WR-. Un ticket VR peut être remboursé (0 % TVA). Pièce déjà payée → sortie dans Solde.';
-  }
-  return 'Je peux aider sur : impayés, stock bas, ventes, TVA, remboursements WR. Reformulez en une phrase courte.';
-}

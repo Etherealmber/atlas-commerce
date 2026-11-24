@@ -10,51 +10,8 @@
  */
 import { useEffect, useRef, useState, type CSSProperties, type FC } from 'react';
 
-/* ------------------------------------------------------------------ CountUp */
 
-type CountUpProps = {
-  /** Target number. Animates from the previous value on change. */
-  value: number;
-  duration?: number;
-  decimals?: number;
-  suffix?: string;
-  className?: string;
-};
 
-const easeOutCubic = (t: number): number => 1 - Math.pow(1 - t, 3);
-
-export const CountUp: FC<CountUpProps> = ({ value, duration = 650, decimals = 0, suffix = '', className }) => {
-  const target = Number.isFinite(value) ? value : 0;
-  const [display, setDisplay] = useState(target);
-  const fromRef = useRef(target);
-  const rafRef = useRef(0);
-
-  useEffect(() => {
-    const reduce =
-      typeof window !== 'undefined' &&
-      window.matchMedia &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const from = fromRef.current;
-    if (reduce || from === target) {
-      fromRef.current = target;
-      setDisplay(target);
-      return;
-    }
-    const t0 = performance.now();
-    const tick = (now: number) => {
-      const p = Math.min(1, (now - t0) / Math.max(1, duration));
-      const next = from + (target - from) * easeOutCubic(p);
-      setDisplay(next);
-      if (p < 1) rafRef.current = requestAnimationFrame(tick);
-      else fromRef.current = target;
-    };
-    rafRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [target, duration]);
-
-  const text = `${display.toFixed(decimals)}${suffix}`;
-  return <span className={className}>{text}</span>;
-};
 
 /* --------------------------------------------------------------------- Lens */
 
@@ -130,4 +87,3 @@ export const Lens: FC<LensProps> = ({ src, alt = '', zoom = 2.5, size = 132, dis
   );
 };
 
-export default CountUp;

@@ -2,7 +2,6 @@ import { onAgentDraft } from '../lib/agentDraft';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import EmptyState from '../components/EmptyState';
 import DatePicker from '../components/DatePicker';
-import { draftProductFromFile } from '../lib/assist';
 import { validateProductForm, firstError } from '../lib/formValidate';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -13,7 +12,6 @@ import SaveFeedback from '../components/SaveFeedback';
 import { useUi } from '../components/AppDialogs';
 import { TimedUndoDelete } from '../components/ui';
 import ListPager from '../components/ui/ListPager';
-import { numStr, numFromInput } from '../lib/numInput';
 import NumberField from '../components/NumberField';
 import VirtualTableBody, { VirtualScroll } from '../components/VirtualTableBody';
 import { canAccessAdminSettings, canSell, sanitizePreviewUrl } from '../auth';
@@ -32,7 +30,7 @@ import RefreshIconButton from '../components/RefreshIconButton';
 import '../components/erp/catalog-inventory.css';
 import { FloatingPortal } from '../components/FloatingPortal';
 import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
-import { ModalFormError, FieldHint } from '../components/ModalFormFeedback';
+import { ModalFormError } from '../components/ModalFormFeedback';
 
 const PRODUCT_CREATE_STEPS: readonly WizardStepDef[] = [
   { id: 'identity', label: 'Identité', hint: 'Nom, référence SKU et description catalogue.' },
@@ -116,7 +114,7 @@ export default function Products() {
   const hideCost = !canAccessAdminSettings();
   const [list, setList] = useState<any[]>([]);
   const [stockLocations, setStockLocations] = useState<any[]>([]);
-  const [placements, setPlacements] = useState<Record<number, any>>({});
+  const [placements] = useState<Record<number, any>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [show, setShow] = useState(false);
@@ -150,8 +148,8 @@ export default function Products() {
   const [catalogView, setCatalogView] = useState<'list' | 'grid'>(() => { try { return localStorage.getItem('atlas_desktop_products_view') === 'grid' ? 'grid' : 'list'; } catch { return 'list'; } });
   const changeCatalogView = (view: 'list' | 'grid') => { setCatalogView(view); try { localStorage.setItem('atlas_desktop_products_view', view); } catch { /* session only */ } };
   const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [deleteTargets, setDeleteTargets] = useState<number[] | null>(null);
-  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [, setDeleteTargets] = useState<number[] | null>(null);
+  const [, setDeleteBusy] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
   const [units, setUnits] = useState<UnitOption[]>(() => mergeUnitOptions());
   const [variants, setVariants] = useState<any[]>([]);
@@ -167,13 +165,6 @@ export default function Products() {
   };
   const [form, setForm] = useState<any>(emptyForm);
 
-  const loadPlacements = async (productId: number) => {
-    if (placements[productId]) return;
-    try {
-      const r: any = await api.getProductPlacements(productId);
-      setPlacements((prev) => ({ ...prev, [productId]: r.data }));
-    } catch { /* */ }
-  };
 
   const flash = (msg: string, type: 'success' | 'error' = 'success') => {
     setSaveMsg(msg); setSaveMsgType(type);
@@ -514,31 +505,7 @@ export default function Products() {
     setStagedErr('');
   };
 
-  const openDelete = (ids?: number[]) => {
-    const targetIds = ids && ids.length ? ids : Array.from(selected);
-    if (!targetIds.length) { flash('Cochez au moins un produit à supprimer.', 'error'); return; }
-    // Do NOT mark rows as selected — only arm timed delete
-    setDeleteTargets(targetIds);
-  };
 
-  const confirmDeleteTargets = async () => {
-    if (!deleteTargets?.length || deleteBusy) return;
-    setDeleteBusy(true);
-    try {
-      const res =
-        deleteTargets.length === 1
-          ? await api.deleteProduct(deleteTargets[0], undefined, { timedUndo: true })
-          : await api.bulkDeleteProducts(deleteTargets, undefined, { timedUndo: true });
-      flash((res as any).message || 'Produit(s) supprimé(s).');
-      setDeleteTargets(null);
-      setSelected(new Set());
-      load(true);
-    } catch (e: any) {
-      flash(e?.message || 'Suppression impossible', 'error');
-    } finally {
-      setDeleteBusy(false);
-    }
-  };
 
   const toggleOne = (id: number) => {
     setSelected((prev) => {

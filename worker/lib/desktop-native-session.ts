@@ -15,7 +15,7 @@ export function parseNativePilotToken(token: string): { username: string; role: 
 export function makeNativePilotToken(username: string, role: string, randomHex: string): string {
   return `np1.${btoa(`np1|${username}|${role}|${randomHex}`).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')}`;
 }
-export function nativePilotEnabled(env: any): boolean {
+function nativePilotEnabled(env: any): boolean {
   return env?.ENVIRONMENT === 'staging' && env?.DESKTOP_NATIVE_V2_PILOT_CHALLENGE === 'true' && env?.DESKTOP_NATIVE_V2_PILOT_LOGIN === 'true';
 }
 export function pilotLoginConfigured(env: any): boolean {

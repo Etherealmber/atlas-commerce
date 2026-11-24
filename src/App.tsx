@@ -1,9 +1,7 @@
-import { SwitchMode } from './components/ui/SwitchMode';
 import MobileBottomNav from './components/erp/MobileBottomNav';
 import { useEffect, useState, useRef, lazy, Suspense } from 'react';
-import { ArrowLeft, ArrowRight, Bell, ChevronRight, ClipboardCheck, FileText, Info, Package, Settings as SettingsIcon, Users } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Bell, ChevronRight, ClipboardCheck, FileText, Package, Users } from 'lucide-react';
 import { canOpenPhoneBalance, canOpenPhoneEmployees } from './mobile/PhoneDock';
-import { createPortal } from 'react-dom';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { applyPageTitle, titleForPath } from './lib/pageTitle';
 import Login from './pages/Login';
@@ -12,24 +10,7 @@ import Terms from './pages/Terms';
 import Licenses from './pages/Licenses';
 import AccessPage, { RoleGate } from './pages/AccessPage'
 import { HttpErrorPage } from './pages/AccessPage';
-import {
-  isLoggedIn,
-  getToken,
-  clearToken,
-  startSessionGuard,
-  getUsername,
-  getDisplayInitials,
-  getDisplayName,
-  hasAvatarUrl,
-  getRole,
-  setProfileCache,
-  canManageStock,
-  canOfficeWork,
-  canManagePayroll,
-  canAccessInventoryOps,
-  isStockRole,
-  canSell,
-} from './auth';
+import { isLoggedIn, getToken, clearToken, startSessionGuard, getDisplayInitials, getDisplayName, getRole, canManageStock, canOfficeWork, canManagePayroll, canAccessInventoryOps, isStockRole, canSell } from './auth';
 import { PublicSettingsTopbar } from './components/PublicChrome';
 import FocusSidebar from './components/FocusSidebar';
 import GlobalSearchPanel from './components/GlobalSearchPanel';
@@ -61,10 +42,8 @@ import './App.css';
 import './styles/theme.css';
 import './styles/shell.css';
 
-import { applyDensityFromStorage, getDensity, setDensity, getUiScale, setUiScale, subscribeUiPrefs, type Density, type UiScale } from './lib/density';
 import AtlasLoadingBar from './components/AtlasLoadingBar';
 import { isWelcomeCompleted } from './lib/welcome';
-import { hasUnreadWhatsNew } from './lib/whatsNew';
 import { api } from './api';
 import ScrollToTop from './components/ScrollToTop';
 import PageTransition from './components/PageTransition';
@@ -73,7 +52,6 @@ import OfflineBanner from './components/OfflineBanner';
 import CookieConsent from './components/CookieConsent';
 import DownloadTeaser from './components/DownloadTeaser';
 import { TopbarUserMenu } from './components/shell/TopbarUserMenu';
-import { AvatarImage } from './components/ui/AvatarImage';
 import { invalidateAvatarCache } from './lib/avatarCache';
 import { useProfileWarm, useProfileTick } from './lib/useProfileWarm';
 import { DemoProvider } from './context/DemoContext';
@@ -160,20 +138,8 @@ const WhatsNewModal = lazyRetry(() => import('./components/WhatsNewModal'));
 const Actions = lazyRetry(() => import('./pages/Actions'));
 const PhoneApp = lazyRetry(() => import('./mobile/PhoneApp'));
 
-const LOADING_QUIPS = [
-  'On aligne les carreaux…',
-  'Le marbre se polit tout seul…',
-  'Comptage des sacs de ciment…',
-  'Les factures font la queue…',
-  'Un instant, le stock respire…',
-  'Préparation du café et des données…',
-];
 
 
-function MobileOnlyGuard({ children }: { children: React.ReactNode }) {
-  // /m removed — one responsive app for phone and desktop
-  return <>{children}</>;
-}
 
 function PhonePageFallback() {
   return <PageSkeleton variant="phone" />;
@@ -187,278 +153,7 @@ function roleLabelFr(role: string | null | undefined) {
   return 'Utilisateur';
 }
 
-function MenuSvg({ d, size = 16 }: { d: string; size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="account-menu-svg">
-      <path d={d} />
-    </svg>
-  );
-}
 
-/** Account popup aligned with sidebar styling */
-function AccountMenu({
-  themeMode,
-  setThemeMode,
-  onLogout,
-  sidebarCollapsed,
-  onToggleSidebar,
-}: {
-  themeMode: ThemeMode;
-  setThemeMode: (m: ThemeMode) => void;
-  onLogout: () => void;
-  sidebarCollapsed: boolean;
-  onToggleSidebar: () => void;
-}) {
-  const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
-  const [whatsNewUnread, setWhatsNewUnread] = useState(() => hasUnreadWhatsNew());
-  useEffect(() => {
-    const sync = () => setWhatsNewUnread(hasUnreadWhatsNew());
-    sync();
-    window.addEventListener('atlas-whats-new-seen', sync);
-    window.addEventListener('storage', sync);
-    return () => {
-      window.removeEventListener('atlas-whats-new-seen', sync);
-      window.removeEventListener('storage', sync);
-    };
-  }, []);
-  const [d, setD] = useState<Density>(() => getDensity());
-  const [scale, setScale] = useState<UiScale>(() => getUiScale());
-  const [profileTick, setProfileTick] = useState(0);
-  useEffect(() => {
-    const sync = () => setProfileTick((t) => t + 1);
-    window.addEventListener('atlas-profile-changed', sync);
-    window.addEventListener('atlas-avatar-changed', sync);
-    return () => {
-      window.removeEventListener('atlas-profile-changed', sync);
-      window.removeEventListener('atlas-avatar-changed', sync);
-    };
-  }, []);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const [panelStyle, setPanelStyle] = useState<React.CSSProperties>({});
-  useEffect(() => { applyDensityFromStorage(); }, []);
-
-  // Live sync density / scale from Settings or other panels
-  useEffect(() => {
-    return subscribeUiPrefs(() => {
-      setD(getDensity());
-      setScale(getUiScale());
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const r = await api.getMe();
-        const m = (r as any)?.data || r || {};
-        if (cancelled) return;
-        setProfileCache({
-          display_name: m.display_name,
-          avatar_url: m.avatar_url,
-          username: m.username,
-          role: m.role,
-        });
-        setProfileTick((tick) => tick + 1);
-      } catch {
-        /* best-effort */
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const place = () => {
-      const el = triggerRef.current;
-      if (!el) return;
-      const r = el.getBoundingClientRect();
-      const width = 280;
-      const gap = 6;
-      const pad = 8;
-      let left: number;
-      let bottom: number;
-
-      if (sidebarCollapsed) {
-        // Stick flush to the right edge of the collapsed sidebar rail
-        const rail = document.querySelector('.sidebar') as HTMLElement | null;
-        const railRight = rail ? rail.getBoundingClientRect().right : r.right;
-        left = Math.round(railRight + gap);
-        if (left + width > window.innerWidth - pad) {
-          left = Math.max(pad, window.innerWidth - width - pad);
-        }
-        // Bottom of panel aligns with bottom of avatar trigger
-        bottom = Math.max(pad, Math.round(window.innerHeight - r.bottom));
-      } else {
-        left = Math.round(r.left);
-        if (left + width > window.innerWidth - pad) {
-          left = Math.max(pad, window.innerWidth - width - pad);
-        }
-        // Sit just above the trigger
-        bottom = Math.max(pad, Math.round(window.innerHeight - r.top + gap));
-      }
-
-      setPanelStyle({
-        position: 'fixed',
-        left,
-        bottom,
-        width,
-        zIndex: 10050,
-        maxHeight: 'min(72vh, 520px)',
-        overflowY: 'auto',
-        margin: 0,
-        transform: 'none',
-        // Never liquid glass — solid panel always
-        background: '#0d1018',
-        backgroundColor: '#0d1018',
-        opacity: 1,
-        backdropFilter: 'none',
-        WebkitBackdropFilter: 'none',
-        border: '1px solid rgba(255,255,255,0.12)',
-        borderRadius: 12,
-        boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
-        color: '#e8eef6',
-        isolation: 'isolate',
-        mixBlendMode: 'normal',
-      });
-    };
-    place();
-    // Second pass after paint so max-height / content is known
-    const t = window.setTimeout(place, 0);
-    window.addEventListener('resize', place);
-    return () => {
-      window.clearTimeout(t);
-      window.removeEventListener('resize', place);
-    };
-  }, [open, sidebarCollapsed]);
-
-  useEffect(() => {
-    if (open) document.documentElement.classList.add('account-menu-open');
-    else document.documentElement.classList.remove('account-menu-open');
-    return () => document.documentElement.classList.remove('account-menu-open');
-  }, [open]);
-
-
-  const menuBody = (
-            <>
-              <div className="account-menu-head">
-                <span className="account-menu-email">{getUsername()}</span>
-                <strong key={`nm-${profileTick}`} className="account-menu-name">{getDisplayName()}</strong>
-              </div>
-
-              <button type="button" role="menuitem" className="account-menu-item" onClick={() => { setOpen(false); navigate('/settings'); }}>
-                <SettingsIcon className="account-menu-svg" size={16} aria-hidden="true" />
-                Paramètres
-              </button>
-              <button type="button" role="menuitem" className="account-menu-item account-menu-item--novelties" onClick={() => { setOpen(false); navigate('/whats-new'); }}>
-                <MenuSvg d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-                <span className="account-menu-item-label">Nouveautés</span>
-                {whatsNewUnread ? <span className="whats-new-badge" aria-label="Nouveautés non lues">1</span> : null}
-              </button>
-              <button type="button" role="menuitem" className="account-menu-item" onClick={() => { setOpen(false); navigate('/about'); }}>
-                <Info className="account-menu-svg" size={16} aria-hidden="true" />
-                À propos
-              </button>
-              <button type="button" role="menuitem" className="account-menu-item" onClick={() => { onToggleSidebar(); }}>
-                <MenuSvg d={sidebarCollapsed ? "M9 18l6-6-6-6" : "M15 18l-6-6 6-6"} />
-                {sidebarCollapsed ? 'Agrandir le menu' : 'Réduire le menu'}
-              </button>
-
-              <div className="account-menu-divider" />
-              <div className="account-menu-section-label">Thème</div>
-              <div className="account-theme-icons" role="group" aria-label="Thème">
-                <button type="button" data-theme-toggle className={themeMode === 'system' ? 'active' : undefined} title="Système" aria-label="Système" aria-pressed={themeMode === 'system'} onClick={() => setThemeMode('system')}>
-                  <MenuSvg d="M2 4h20v12H2zM8 20h8M12 16v4" size={15} />
-                </button>
-                <button type="button" data-theme-toggle className={themeMode === 'light' ? 'active' : undefined} title="Clair" aria-label="Clair" aria-pressed={themeMode === 'light'} onClick={() => setThemeMode('light')}>
-                  <MenuSvg d="M12 3v2M12 19v2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M3 12h2M19 12h2M5.6 18.4l1.4-1.4M17 7l1.4-1.4M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" size={15} />
-                </button>
-                <button type="button" data-theme-toggle className={themeMode === 'dark' ? 'active' : undefined} title="Sombre" aria-label="Sombre" aria-pressed={themeMode === 'dark'} onClick={() => setThemeMode('dark')}>
-                  <MenuSvg d="M21 14.5A8.5 8.5 0 1 1 9.5 3 7 7 0 0 0 21 14.5z" size={15} />
-                </button>
-              </div>
-
-              <div className="account-menu-divider" />
-              <button type="button" role="menuitem" className="account-menu-item account-menu-danger" onClick={() => { setOpen(false); onLogout(); }}>
-                <MenuSvg d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
-                Déconnexion
-              </button>
-            </>
-  );
-
-  const menuPortal =
-    open && !sidebarCollapsed && typeof document !== 'undefined'
-      ? createPortal(
-          <>
-            <button
-              type="button"
-              className="account-menu-backdrop"
-              aria-label="Fermer"
-              onClick={() => setOpen(false)}
-            />
-            <div
-              className="account-menu-panel account-menu-panel--portal"
-              role="menu"
-              style={panelStyle}
-              onClick={(e) => e.stopPropagation()}
-              onPointerDown={(e) => e.stopPropagation()}
-            >
-              {menuBody}
-            </div>
-          </>,
-          document.body,
-        )
-      : null;
-
-  return (
-    <div className="account-menu-wrap" data-open={open ? '1' : '0'} data-rail={sidebarCollapsed ? '1' : '0'}>
-      <button
-        type="button"
-        ref={triggerRef}
-        className={`account-menu-trigger${open ? ' open' : ''}`}
-        aria-expanded={open}
-        aria-haspopup="menu"
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setOpen((v) => !v);
-        }}
-        onPointerDown={(e) => e.stopPropagation()}
-      >
-        {hasAvatarUrl() ? (
-          <AvatarImage key={`av-${profileTick}`} className="sidebar-avatar sidebar-avatar-img" width={36} height={36} fallback={<span className="sidebar-avatar sidebar-avatar-img ac-topbar-avatar--ini">{typeof getDisplayInitials === 'function' ? getDisplayInitials() : '?'}</span>} />
-        ) : (
-          <span key={`ini-${profileTick}`} className="sidebar-avatar">{getDisplayInitials()}</span>
-        )}
-        <div className="sidebar-user-meta">
-          <strong className="account-trigger-name">{getDisplayName()}</strong>
-          <span className="account-trigger-role">{roleLabelFr(getRole())}</span>
-        </div>
-      </button>
-
-      {open && sidebarCollapsed ? (
-        <>
-          <button
-            type="button"
-            className="account-menu-backdrop account-menu-backdrop--rail"
-            aria-label="Fermer"
-            onClick={() => setOpen(false)}
-          />
-          <div
-            className="account-menu-panel account-menu-panel--rail-inline"
-            role="menu"
-            onClick={(e) => e.stopPropagation()}
-            onPointerDown={(e) => e.stopPropagation()}
-          >
-            {menuBody}
-          </div>
-        </>
-      ) : null}
-      {menuPortal}
-    </div>
-  );
-}
 
 
 /** If already logged in, skip the login screen.

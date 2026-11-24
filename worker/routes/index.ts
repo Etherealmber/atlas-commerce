@@ -13,7 +13,7 @@ export { registerPartnerV1Routes } from './partner-v1';
 
 export { registerMailboxRoutes } from './mailbox';
 
-export { registerAtlasV209Routes, dispatchWebhook, ensureV209Schema } from './atlas-v209';
+export { registerAtlasV209Routes, dispatchWebhook } from './atlas-v209';
 
 export { registerFinanceRoutes } from './finance';
 
@@ -26,37 +26,18 @@ export { registerAttendanceRoutes } from './attendance';
 export { registerCatalogRoutes } from './catalog';
 export { registerCategoriesUnitsRoutes } from './categoriesUnits';
 export { registerDataImportRoutes } from './dataImport';
-export { registerBackupRoutes, purgeExpiredBackups, runDailyBackup, makeVerifyBackupAccess } from './backups';
-export { registerReportRoutes, reportShell, type ReportRouteDeps } from './reports';
-export {
-  registerInventoryOpsRoutes,
-  ensureMarbleUnits,
-  ensureStockLocations,
-  placeProductStockOnDefault,
-  getDefaultLocationId,
-  adjustLocationStock,
-  ensureBillReceive,
-  type InventoryOpsRouteDeps,
-} from './inventoryOps';
-export { registerAssistRoutes, purgeAgentConversationsOlderThan, type AssistRouteDeps } from './assist';
-export {
-  registerReportsAndUpdatesRoutes,
-  readAppUpdateState,
-  APP_UPDATE_MAX_APK_BYTES,
-  type ReportsAndUpdatesDeps,
-} from './reportsAndUpdates';
-export {
-  registerPublicSignedRoutes,
-  ensureReceiptPublicToken,
-  renderPublicReceiptVerify,
-  type PublicSignedRouteDeps,
-} from './publicSigned';
-export { registerProductsScanRoutes, type ProductsScanRouteDeps } from './productsScan';
-export { registerDashboardIntegrityRoutes, type DashboardIntegrityRouteDeps } from './dashboardIntegrity';
-export { registerInvoicesWriteRoutes, type InvoicesWriteRouteDeps } from './invoicesWrite';
-export { registerBillsReceiptsRoutes, ensureBillPaymentsTable, type BillsReceiptsRouteDeps } from './billsReceipts';
-export { registerCashShiftRoutes, type CashShiftRouteDeps } from './cashShifts';
-export { registerPayrollRoutes, type PayrollRouteDeps } from './payroll';
-export { registerFecRoutes, type FecRouteDeps } from './fec';
-export { registerDunningRoutes, runDailyDunning, type DunningRouteDeps } from './dunning';
-export { registerDgiRoutes, type DgiRouteDeps } from './dgi';
+export { registerBackupRoutes, makeVerifyBackupAccess } from './backups';
+export { registerReportRoutes, reportShell } from './reports';
+export { registerInventoryOpsRoutes, ensureStockLocations, getDefaultLocationId, adjustLocationStock } from './inventoryOps';
+export { registerAssistRoutes, purgeAgentConversationsOlderThan } from './assist';
+export { registerReportsAndUpdatesRoutes, readAppUpdateState } from './reportsAndUpdates';
+export { registerPublicSignedRoutes } from './publicSigned';
+export { registerProductsScanRoutes } from './productsScan';
+export { registerDashboardIntegrityRoutes } from './dashboardIntegrity';
+export { registerInvoicesWriteRoutes } from './invoicesWrite';
+export { registerBillsReceiptsRoutes, ensureBillPaymentsTable } from './billsReceipts';
+export { registerCashShiftRoutes } from './cashShifts';
+export { registerPayrollRoutes } from './payroll';
+export { registerFecRoutes } from './fec';
+export { registerDunningRoutes, runDailyDunning } from './dunning';
+export { registerDgiRoutes } from './dgi';

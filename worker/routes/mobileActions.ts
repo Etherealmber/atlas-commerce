@@ -3,7 +3,7 @@ import { doCacheGet, doCachePut, hasLiveCache, invalidateDashboardCache } from '
 import { afterBusinessMutation } from '../lib/delete-coord';
 import { canMutateBusiness, normalizeRole } from '../lib/rbac';
 
-export interface MobileActionsRouteDeps {
+interface MobileActionsRouteDeps {
   schemaOnce: (key: string, fn: () => Promise<void>) => Promise<void>;
   refreshLimitGate: (c: any, endpoint: string, maxPerMinute?: number) => Response | null;
   readProductImageJson: (c: any) => Promise<any>;

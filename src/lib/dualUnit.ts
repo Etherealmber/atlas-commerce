@@ -1,6 +1,6 @@
 export type UnitOption = { id?: number | null; name: string; symbol?: string };
 
-export const DEFAULT_UNIT_OPTIONS: UnitOption[] = [
+const DEFAULT_UNIT_OPTIONS: UnitOption[] = [
   { name: 'unité', symbol: 'u' },
   { name: 'pièce', symbol: 'pce' },
   { name: 'kg', symbol: 'kg' },
@@ -41,7 +41,7 @@ export function mergeUnitOptions(serverUnits: UnitOption[] = []): UnitOption[] {
 
 /** Inventory and prices remain in the primary unit. The second unit is a
  * derived display only, never an independent stock balance. */
-export type DualUnitProduct = {
+type DualUnitProduct = {
   unit?: string | null;
   secondary_unit?: string | null;
   secondary_unit_factor?: number | string | null;

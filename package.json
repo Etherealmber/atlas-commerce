@@ -46,7 +46,6 @@
     "motion": "^12.23.12",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^5.4.624",
-    "postal-mime": "^2.2.7",
     "qrcode.react": "^4.2.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

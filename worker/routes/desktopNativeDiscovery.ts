@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { pilotLoginConfigured } from '../lib/desktop-native-session';
 import { desktopV3Readiness } from '../lib/desktop-v3-session';
+import { expectedOrigin, policyFromEnv } from '../lib/webauthn';
 
 /**
  * Discovery alone enables nothing. Phone, staging password pilots, and v3 each
@@ -33,6 +34,9 @@ export function registerDesktopNativeDiscovery(app: Hono<any>): void {
         },
       });
     }
+    const native = c.env.DESKTOP_NATIVE_V3_NATIVE_LOGIN === 'true';
+    const passkeyPolicy = policyFromEnv(c.env);
+    const V3 = '/api/auth/desktop/v3';
     return c.json({
       success: true,
       data: {
@@ -42,7 +46,8 @@ export function registerDesktopNativeDiscovery(app: Hono<any>): void {
           password_otp: {
             available: true,
             version: 3,
-            challenge_modes: ['turnstile_webview', 'system_browser'],
+            challenge_modes: native ? ['native', 'turnstile_webview', 'system_browser'] : ['turnstile_webview', 'system_browser'],
+            native_presentation: native,
             automatic_fallback: false,
             otp_required: true,
             dpop_required: true,
@@ -53,6 +58,12 @@ export function registerDesktopNativeDiscovery(app: Hono<any>): void {
               system_browser: '/login/desktop-v3-browser',
             },
           },
+          qr: native
+            ? { available: true, version: 3, presentation: 'native', start_path: `${V3}/qr/start`, exchange_path: `${V3}/qr/exchange`, expires_in: 120, interval: 2, phone_approval_required: true, dpop_required: true }
+            : { available: false, reason: 'METHOD_DISABLED' },
+          passkey: native && passkeyPolicy.enabled
+            ? { available: true, version: 3, presentation: 'native', options_path: `${V3}/webauthn/options`, verify_path: `${V3}/webauthn/verify`, rp_id: passkeyPolicy.rpId, origin: expectedOrigin(passkeyPolicy), user_verification: passkeyPolicy.requireUV ? 'required' : 'preferred', dpop_required: true }
+            : { available: false, reason: 'METHOD_DISABLED' },
           mailbox_enrollment: { available: true, version: 1 },
           recovery: { available: true, version: 1, admin_approval_required: true },
           device_proof: {

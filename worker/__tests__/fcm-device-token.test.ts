@@ -58,7 +58,7 @@ describe('upsertDeviceToken (schema helper)', () => {
 describe('POST /api/assist/device-token', () => {
   afterEach(() => vi.restoreAllMocks());
   beforeEach(() => resetLocalSchemaOnceForTests());
-  function buildApp(db: any) {
+  function buildApp(_db: any) {
     const app = new Hono();
     registerDeviceTokenRoutes(app as any, () => ({ username: 'alice', role: 'owner' }));
     return app;

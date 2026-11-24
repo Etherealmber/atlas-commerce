@@ -27,7 +27,7 @@ export function scrubVendorNames(s: string): string {
 }
 
 /** Client-selectable agent response languages (web / Android app language). */
-export type AgentResponseLanguage = 'fr' | 'en' | 'ar';
+type AgentResponseLanguage = 'fr' | 'en' | 'ar';
 
 /**
  * Allowlist for the `response_language` body field. Returns null when the

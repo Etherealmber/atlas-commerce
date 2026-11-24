@@ -82,7 +82,6 @@ export function daysBetweenYmd(from: string, to: string): number {
  * Document money state — one unambiguous classifier for invoices AND bills.
  * `remaining` is derived from persisted payment rows, never a client value.
  */
-export type { DocMoneyState };
 export function classifyDoc(total: number, paid: number, dueDate: string | null, todayYmd: string): {
   state: DocMoneyState;
   remaining: number;
@@ -123,7 +122,7 @@ export function financeGate(role: string | undefined | null, username: string | 
 
 /* ─────────────────── payroll math (pure, mirrors employees.ts) ─────────────────── */
 
-export type PayrollEmployeeRow = {
+type PayrollEmployeeRow = {
   id: number;
   emp_number?: string | null;
   name?: string | null;
@@ -191,7 +190,7 @@ export async function ensureFinanceSchema(db: D1Database): Promise<void> {
   await addColumnIfMissing(db, 'company_settings', 'finance_push_amounts', `INTEGER DEFAULT 1`);
 }
 
-export type FinanceContext = {
+type FinanceContext = {
   tenant: string;
   timezone: string;
   currency: string;
@@ -249,7 +248,7 @@ const SQL_EXPENSES = `SELECT COALESCE(SUM(amount),0) s FROM expenses WHERE entry
 const SQL_PAYROLL_PAID = `SELECT COALESCE(SUM(amount),0) s FROM employee_payments WHERE substr(paid_at,1,10) <= ?`;
 const SQL_BILLS_PAID = `SELECT COALESCE(SUM(amount),0) s FROM bill_payments WHERE substr(paid_at,1,10) <= ?`;
 
-export type OutstandingDoc = {
+type OutstandingDoc = {
   id: number;
   number: string;
   party: string;
@@ -260,13 +259,13 @@ export type OutstandingDoc = {
   state: DocMoneyState;
 };
 
-export type MirrorAudit = {
+type MirrorAudit = {
   mirror_rows_excluded: { supplier: { count: number; total: number }; payroll: { count: number; total: number } };
   payment_tables: { supplier: { count: number; total: number }; payroll: { count: number; total: number } };
   consistent: boolean;
 };
 
-export type MonthlySummary = {
+type MonthlySummary = {
   period: string;
   timezone: string;
   currency: string;
@@ -454,9 +453,9 @@ export async function computeMonthlySummary(db: D1Database, period: string, ctx:
  * Mirror ledger rows (Solde journal copies of payroll/supplier payments) are
  * excluded — see SQL_EXPENSES comment. */
 
-export type StatementRowType = 'sale' | 'refund' | 'expense' | 'payroll' | 'supplier';
+type StatementRowType = 'sale' | 'refund' | 'expense' | 'payroll' | 'supplier';
 
-export type StatementRow = {
+type StatementRow = {
   id: number;
   source: string;
   type: StatementRowType;
@@ -468,7 +467,7 @@ export type StatementRow = {
   running_balance: number;
 };
 
-export type Statement = {
+type Statement = {
   period: string;
   timezone: string;
   currency: string;
@@ -575,7 +574,7 @@ async function ledgerRows(db: D1Database, fromYmd: string, toYmd: string): Promi
  * owner sees the reconciliation in the app itself. Sanitized: counts + totals
  * only, never names, references or dates.
  */
-export async function computeMirrorAudit(db: D1Database): Promise<MirrorAudit> {
+async function computeMirrorAudit(db: D1Database): Promise<MirrorAudit> {
   const q = async (sql: string): Promise<{ count: number; total: number }> => {
     try {
       const r = await db.prepare(sql).first() as any;
@@ -704,10 +703,10 @@ export async function computeStatement(
  * into statement credits/debits.
  */
 
-export type MethodBucket = 'cash' | 'bank' | 'card' | 'check' | 'other' | 'not_recorded';
+type MethodBucket = 'cash' | 'bank' | 'card' | 'check' | 'other' | 'not_recorded';
 
 /** Canonical payment_method → bucket. ''/NULL = persisted schema default 'cash'. */
-export function normalizeMethodBucket(raw: unknown): MethodBucket {
+function normalizeMethodBucket(raw: unknown): MethodBucket {
   const m = String(raw == null ? '' : raw).trim().toLowerCase();
   if (m === '' || m === 'cash' || m === 'caisse' || m === 'espece' || m === 'especes' || m === 'espèces') return 'cash';
   if (m === 'bank' || m === 'banque' || m === 'virement' || m === 'transfer' || m === 'cheque' || m === 'chèque') return 'bank';
@@ -716,7 +715,7 @@ export function normalizeMethodBucket(raw: unknown): MethodBucket {
   return 'other';
 }
 
-export type PeriodMoneySplit = {
+type PeriodMoneySplit = {
   total: number;
   count: number;
   /** Caisse side of the canonical split. */
@@ -762,9 +761,9 @@ function toSplit(a: SplitAgg): PeriodMoneySplit {
   };
 }
 
-export type PeriodCategoryTotal = { category: string; total: number; count: number };
+type PeriodCategoryTotal = { category: string; total: number; count: number };
 
-export type PeriodBreakdown = {
+type PeriodBreakdown = {
   period: string;
   timezone: string;
   currency: string;
@@ -928,7 +927,7 @@ export async function computePeriodBreakdown(
 
 /* ─────────────────────────── durable outbox + delivery ─────────────────────────── */
 
-export type OutboxMessage = {
+type OutboxMessage = {
   event: string;
   period: string;
   recipient: string;
@@ -1051,7 +1050,7 @@ export async function notifyPaymentRecorded(env: any, info: {
 
 /* ─────────────────────────── the scheduled reminder run ─────────────────────────── */
 
-export type ReminderRunReport = {
+type ReminderRunReport = {
   today: string;
   period: string;
   enqueued: number;

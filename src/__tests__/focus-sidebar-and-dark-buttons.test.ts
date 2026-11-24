@@ -129,7 +129,7 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     expect(focusCss).not.toMatch(/#4f46e5|#6366f1|#4338ca/i);
     expect(darkForce).toMatch(/html\[data-theme="dark"\]\s+#root\s+\.content\s+\.ac-dash-period-pills\s+button\.ac-seg-btn\[aria-pressed="true"\][\s\S]*-webkit-text-fill-color:\s*#0f172a\s*!important;/);
     expect(darkForce).toMatch(/html\[data-theme="dark"\]\s+#root\s+aside\.atlas-focus-sidebar\s+button\.atlas-focus-nav-item\.is-active[\s\S]*background:\s*#f4f4f5\s*!important;/);
-    expect(darkForce).toMatch(/html\[data-theme="dark"\]\s+body\s+\.content\s+button:hover:not\(:disabled\):not\(\.secondary\):not\(\.danger\):not\(\.ghost\):not\(\.ac-seg-btn\)[\s\S]*-webkit-text-fill-color:\s*#18181b\s*!important;/);
+    expect(darkForce).toMatch(/html\[data-theme="dark"\](?::not\(\.phone-shell\))?\s+body\s+\.content\s+button:hover:not\(:disabled\):not\(\.secondary\):not\(\.danger\):not\(\.ghost\):not\(\.ac-seg-btn\)[\s\S]*-webkit-text-fill-color:\s*#18181b\s*!important;/);
   });
 
   it('does not render duplicate Tableau de bord button in FocusSidebar', async () => {
@@ -304,7 +304,6 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
       'src/styles/theme.css',
       'src/styles/login-auth.css',
       'src/components/SaveFeedback.tsx',
-      'src/components/mailbox/ComposeEmailCard.tsx',
       'src/components/ui/RunActionButton.tsx',
       'src/pages/Receipts.tsx',
       'src/pages/Dashboard.tsx',

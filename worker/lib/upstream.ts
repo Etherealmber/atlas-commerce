@@ -7,7 +7,7 @@
 
 import { circuitAllow, circuitFailure, circuitSuccess } from './circuit-breaker';
 
-export type UpstreamOptions = {
+type UpstreamOptions = {
   timeoutMs?: number;
   retries?: number;
   retryOn?: number[];

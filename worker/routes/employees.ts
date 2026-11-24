@@ -526,24 +526,6 @@ async function sumAdvancesInPeriod(db: D1Database, employeeId: number, from: str
   }
 }
 
-/** Sum of non-acompte (full) payments in window — optional diagnostics */
-async function sumFullPayInPeriod(db: D1Database, employeeId: number, from: string | null, to: string): Promise<number> {
-  const fromD = from && /^\d{4}-\d{2}-\d{2}$/.test(from) ? from : '2000-01-01';
-  const toD = to && /^\d{4}-\d{2}-\d{2}$/.test(to) ? to : moroccoToday();
-  try {
-    const r = await db.prepare(
-      `SELECT COALESCE(SUM(amount), 0) as s FROM employee_payments
-       WHERE employee_id = ? AND paid_at >= ? AND paid_at <= ?
-         AND period_label NOT LIKE 'Acompte%'
-         AND (note IS NULL OR note NOT LIKE '%[acompte]%')`,
-    )
-      .bind(employeeId, fromD, toD)
-      .first() as any;
-    return Number(r?.s || 0);
-  } catch {
-    return 0;
-  }
-}
 
 
 async function idCryptoKey(env: any): Promise<CryptoKey> {
@@ -616,7 +598,7 @@ function parseIdText(text: string): Record<string, string> {
   return out;
 }
 
-export type EmployeeRouteDeps = {
+type EmployeeRouteDeps = {
   requireEmployeeAdmin: (c: any) => Promise<Response | null>;
   /** Allows owner, admin, or secretary for employee list, detail, and update routes only. */
   requireEmployeeDirectory?: (c: any) => Promise<Response | null>;
@@ -1050,11 +1032,9 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps): 
       .run();
     await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
 
-    // parse suggestions for client review
-    let fields: Record<string, string> = {};
     try {
       if (mime.startsWith('image/') && dataUrl) {
-        const pr = await fetch(new URL('/api/employees/parse-id', c.req.url), {
+        await fetch(new URL('/api/employees/parse-id', c.req.url), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

@@ -47,7 +47,7 @@ const MESSAGES = {
   },
 } as const;
 
-export type UiMessageKey = keyof typeof MESSAGES;
+type UiMessageKey = keyof typeof MESSAGES;
 
 /**
  * Allowlist parse of Accept-Language, honoring q-values

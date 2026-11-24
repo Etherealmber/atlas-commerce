@@ -7,7 +7,7 @@ import { getCurrencySpec, roundCurrency } from '../lib/financeCore';
  * deps injected). Previews never auto-print, embed <base target="_self"> so
  * every link opens inside the modal popup, and carry QR + DÉMO markings.
  */
-export interface DocPreviewDeps {
+interface DocPreviewDeps {
   requireEmployeeAdmin: (c: any) => Promise<Response | null>;
   sessionUserFromHeader: (h: string | undefined) => { username: string; role: string };
   authFailReason: (...a: any[]) => Promise<string>;

@@ -34,7 +34,7 @@ export function classifyOfflineOpError(err: any): OfflineOpSendOutcome {
   return { kind: 'retryable_error', message };
 }
 
-export async function sendQueuedOpViaApi(op: QueuedOfflineInventoryOp): Promise<OfflineOpSendOutcome> {
+async function sendQueuedOpViaApi(op: QueuedOfflineInventoryOp): Promise<OfflineOpSendOutcome> {
   try {
     const res = await api.postOfflineInventoryOp(
       {
@@ -114,7 +114,7 @@ export async function executeOrQueueOfflineInventoryOp(input: {
       };
     }
     if (outcome.kind === 'terminal_error') {
-      throw new Error(outcome.message);
+      throw new Error(outcome.message, { cause: err });
     }
     // 5xx or transient network error -> queue in IndexedDB with SAME operation_id for FIFO retry
     await enqueueOfflineInventoryOp({

@@ -198,3 +198,38 @@ describe('Part 4 — Moroccan payroll (CNSS / AMO / IGR, PDF bulletin, declarati
     expect(audits.map((a) => a.action)).toContain('payroll.run_close');
   });
 });
+
+describe('payroll documents opened in a new tab (?token=) on the real worker', () => {
+  it('accepts the session query token for the declaration and bulletin, and still rejects non-admin roles', async () => {
+    const { default: realApp } = await import('../index');
+    const sqlite = new DatabaseSync(':memory:');
+    sqlite.exec(`
+      CREATE TABLE app_users (id INTEGER PRIMARY KEY, username TEXT UNIQUE, password_hash TEXT, password_salt TEXT DEFAULT '', role TEXT, active INTEGER DEFAULT 1, created_at TEXT);
+      INSERT INTO app_users VALUES (1,'alice','secret-alice','','admin',1,'2026-01-01'), (3,'bob','secret-bob','','stock',1,'2026-01-01');
+      CREATE TABLE audit_log (id INTEGER PRIMARY KEY AUTOINCREMENT, created_at TEXT DEFAULT (datetime('now')), username TEXT, role TEXT, action TEXT, entity TEXT, entity_id TEXT, detail TEXT, ip TEXT);
+      CREATE TABLE company_settings (id INTEGER PRIMARY KEY, company_name TEXT, ice TEXT, cnss TEXT);
+      INSERT INTO company_settings (id, company_name, ice, cnss) VALUES (1, 'Atlas Marbre', '001234567000089', '9988776');
+    `);
+    const env = { DB: makeSqliteD1(sqlite), ADMIN_PASSWORD: 'OwnerPass123!', JWT_SECRET: 'payroll-test-secret' } as any;
+    const ip = '203.0.113.56';
+    const makeTok = async (user: string, role: string) => {
+      const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`proof|${user}|${role}|secret-${user}|${ip}|none`));
+      const proof = [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, '0')).join('');
+      return btoa(`stock-auth-v2|${user}|${role}|${ip}|none|${proof}`);
+    };
+    const get = (path: string, tok: string) =>
+      realApp.fetch(new Request(`http://test.local${path}${path.includes('?') ? '&' : '?'}token=${encodeURIComponent(tok)}`, { headers: { 'CF-Connecting-IP': ip } }), env, {} as any);
+
+    const adminTok = await makeTok('alice', 'admin');
+    // Run 999 does not exist: getting past auth means a 404, not "Accès refusé".
+    const decl = await get('/api/payroll/runs/999/declaration?format=xls', adminTok);
+    expect(decl.status).toBe(404);
+    expect(((await decl.json()) as any).error).toBe('Lot de paie introuvable');
+    const bulletin = await get('/api/payroll/runs/999/lines/1/bulletin', adminTok);
+    expect(bulletin.status).toBe(404);
+
+    const stockTok = await makeTok('bob', 'stock');
+    const denied = await get('/api/payroll/runs/999/declaration?format=xls', stockTok);
+    expect([401, 403]).toContain(denied.status);
+  });
+});

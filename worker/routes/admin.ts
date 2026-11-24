@@ -1,6 +1,6 @@
 import type { AtlasApp } from './types';
 
-export type AdminRouteDeps = {
+type AdminRouteDeps = {
   requireOwner: (c: any) => { ok: true; username: string } | { ok: false; response: Response };
   getOwnerUsername: (env: any) => string;
   ensureSecurityTables: (db: D1Database) => Promise<void>;

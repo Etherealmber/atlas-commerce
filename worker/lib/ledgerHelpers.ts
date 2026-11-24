@@ -56,7 +56,7 @@ export async function ensureReceiptsTable(db: D1Database) {
 }
 
 /** Find ledger expenses linked to an invoice (via notes invoice_id:N) */
-export async function expensesLinkedToInvoice(db: D1Database, invoiceId: string | number) {
+async function expensesLinkedToInvoice(db: D1Database, invoiceId: string | number) {
   const { results } = await db.prepare(
     `SELECT * FROM expenses WHERE notes LIKE ? OR reference = (SELECT number FROM invoices WHERE id = ?) ORDER BY id`
   ).bind(`%invoice_id:${invoiceId}%`, invoiceId).all();
@@ -262,7 +262,7 @@ export function makePublicToken(): string {
  * Env bootstrap (optional): PUBLIC_TOKEN_SECRET / PUBLIC_TOKEN_SECRET_PREVIOUS
  * used only until DB secrets exist.
  */
-export function envBootstrapSecrets(env: Env): { current: string; previous: string | null } {
+function envBootstrapSecrets(env: Env): { current: string; previous: string | null } {
   const current = String(
     (env as any).PUBLIC_TOKEN_SECRET || (env as any).JWT_SECRET || '',
   ).trim();
@@ -271,7 +271,7 @@ export function envBootstrapSecrets(env: Env): { current: string; previous: stri
   return { current, previous };
 }
 
-export function randomHmacSecret(): string {
+function randomHmacSecret(): string {
   const bytes = new Uint8Array(32);
   crypto.getRandomValues(bytes);
   return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
@@ -351,10 +351,6 @@ export async function publicTokenSecretsAsync(
   return { current, previous, rotated, rotatedAt: newRotatedAt };
 }
 
-/** Sync helper for call sites that still expect sync shape — prefer publicTokenSecretsAsync. */
-export function publicTokenSecrets(env: Env): { current: string; previous: string | null } {
-  return envBootstrapSecrets(env);
-}
 
 export async function hmacSha256Hex(secret: string, message: string): Promise<string> {
   const key = await crypto.subtle.importKey(
@@ -368,11 +364,11 @@ export async function hmacSha256Hex(secret: string, message: string): Promise<st
   return Array.from(new Uint8Array(sig)).map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-export function b64urlEncode(str: string): string {
+function b64urlEncode(str: string): string {
   return btoa(unescape(encodeURIComponent(str))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-export function b64urlDecode(str: string): string {
+function b64urlDecode(str: string): string {
   let s = str.replace(/-/g, '+').replace(/_/g, '/');
   while (s.length % 4) s += '=';
   return decodeURIComponent(escape(atob(s)));
@@ -402,7 +398,7 @@ type SecureQrParse =
   | { ok: true; type: 'invoice' | 'receipt'; token: string; exp: number; kid?: number }
   | { ok: false; reason: string };
 
-export function timingSafeEqual(a: string, b: string): boolean {
+function timingSafeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   let diff = 0;
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
@@ -674,7 +670,7 @@ export async function ensureInvoiceRefundColumns(db: D1Database) {
   });
 }
 
-export const REFUND_REASON_CODES: Record<string, string> = {
+const REFUND_REASON_CODES: Record<string, string> = {
   our_error: 'Erreur de notre part (erreur de commande / facturation)',
   defective_shipped: 'Article cassé ou défectueux à l’envoi — non causé par le client',
   wrong_item: 'Mauvais article / non conforme envoyé',
@@ -815,7 +811,7 @@ export async function ensureStockMovementsTable(db: D1Database) {
   });
 }
 
-export function normalizeMovementType(qtySigned: number, reason: string, explicit?: string): string {
+function normalizeMovementType(qtySigned: number, reason: string, explicit?: string): string {
   if (explicit) {
     const t = String(explicit).toLowerCase().trim();
     if (['sale', 'purchase', 'in', 'out', 'adjustment', 'restock', 'initial', 'refund_restock', 'refund_no_restock'].includes(t)) return t;
@@ -894,7 +890,7 @@ export async function getValuationMethod(db: D1Database): Promise<'average' | 'f
   return 'average';
 }
 
-export async function pushFifoLayer(db: D1Database, productId: number | string, qty: number, unitCost: number, ref: string) {
+async function pushFifoLayer(db: D1Database, productId: number | string, qty: number, unitCost: number, ref: string) {
   await ensureValuationTables(db);
   await db.prepare(
     `INSERT INTO stock_cost_layers (product_id, quantity_remaining, unit_cost, source_ref) VALUES (?, ?, ?, ?)`
@@ -1140,21 +1136,21 @@ export async function applyStockDelta(
   try {
     const envAny = (opts as any)?.env;
     if (envAny && Number.isFinite(newQty)) {
-      const prod = await db
+      const product = await db
         .prepare(
           `SELECT name, sku, low_stock_threshold, track_inventory FROM products WHERE id = ?`,
         )
         .bind(productId)
         .first() as any;
-      if (prod && Number(prod.track_inventory) === 1) {
-        const th = Number(prod.low_stock_threshold || 0);
+      if (product && Number(product.track_inventory) === 1) {
+        const th = Number(product.low_stock_threshold || 0);
         const wasOk = prev > th;
         const nowLow = newQty <= th;
         if (nowLow && (wasOk || newQty <= 0)) {
           await fcmNotifyLowStock(envAny, {
             id: Number(productId),
-            name: String(prod.name || ''),
-            sku: String(prod.sku || ''),
+            name: String(product.name || ''),
+            sku: String(product.sku || ''),
             stock: newQty,
             threshold: th,
           });
@@ -1389,17 +1385,6 @@ export async function archiveInvoiceSnapshot(env: Env, inv: any, items: any[]): 
   }
 }
 
-export async function ensureClientPricesTable(db: D1Database): Promise<void> {
-  await db.prepare(`
-    CREATE TABLE IF NOT EXISTS client_product_prices (
-      client_id INTEGER NOT NULL,
-      product_id INTEGER NOT NULL,
-      unit_price REAL NOT NULL,
-      updated_at TEXT DEFAULT (datetime('now')),
-      PRIMARY KEY (client_id, product_id)
-    )
-  `).run();
-}
 
 /* nextDocumentNumber → worker/lib/numbering.ts */
 /** Nullable attribution: legacy rows and workflows without approval remain unknown. */

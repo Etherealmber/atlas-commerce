@@ -31,7 +31,7 @@ import {
 import { addColumnIfMissing } from '../lib/schema';
 import { buildFinanceReportPdf } from '../pdf';
 
-export type FinanceRouteDeps = {
+type FinanceRouteDeps = {
   requireEmployeeAdmin(c: any): Promise<Response | null>;
   sessionUserFromHeader(authHeader: string | undefined): { username: string; role: string };
   authFailReason(

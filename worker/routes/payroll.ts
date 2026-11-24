@@ -4,7 +4,7 @@ import { buildPayslipPdf } from '../pdf';
 import { computeDayMetrics, type AttendanceRulesInfo } from './attendance';
 import { schemaOnceForDb } from '../lib/schema';
 
-export interface PayrollRouteDeps {
+interface PayrollRouteDeps {
   requireEmployeeAdmin: (c: any) => Promise<Response | null>;
   loadAttendanceRules: (db: D1Database) => Promise<AttendanceRulesInfo>;
   writeAudit: (
@@ -15,13 +15,13 @@ export interface PayrollRouteDeps {
   clientIp: (c: any) => string;
 }
 
-export type IgrBracket = {
+type IgrBracket = {
   upTo: number | null;
   rate: number;
   deduction: number;
 };
 
-export type PayrollRates = {
+type PayrollRates = {
   cnss_emp_rate: number;
   cnss_ceiling: number;
   cnss_employer_social_rate: number;
@@ -169,7 +169,7 @@ function parseRatesRow(row: any): PayrollRates {
   };
 }
 
-export function computePayrollLine(
+function computePayrollLine(
   input: {
     base_salary: number;
     overtime_amount: number;

@@ -22,9 +22,9 @@ import {
   REPORTS_REPO_DEFAULT,
 } from '../lib/reports';
 
-export const APP_UPDATE_MAX_APK_BYTES = 200 * 1024 * 1024;
+const APP_UPDATE_MAX_APK_BYTES = 200 * 1024 * 1024;
 
-export interface ReportsAndUpdatesDeps {
+interface ReportsAndUpdatesDeps {
   authFailReason: (header: string | undefined, env: any, db: D1Database, ip: string, fp?: string) => Promise<string>;
   sessionUserFromHeader: (header: string | undefined) => any;
   getOwnerUsername: (env: any) => string | null;
@@ -133,7 +133,7 @@ async function cdnApkExists(env: any, url: string): Promise<boolean | null> {
 /** Current manifest + R2 object metadata for the admin UI. */
 
 export function registerReportsAndUpdatesRoutes(app: Hono<any>, deps: ReportsAndUpdatesDeps): void {
-  const { authFailReason, sessionUserFromHeader, getOwnerUsername, clientIp, isRateLimited } = deps;
+  const { authFailReason, sessionUserFromHeader: sessionUserFromHeaderLocal, getOwnerUsername, clientIp, isRateLimited } = deps;
 
   /* ── v260 — Crash & user reports → GitHub issues (docs/reports-github.md) ──
    * crash_reports: automatic intake from the app's global error handlers.
@@ -164,7 +164,7 @@ export function registerReportsAndUpdatesRoutes(app: Hono<any>, deps: ReportsAnd
     if (reason !== 'ok') return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
     const limited = await isRateLimited(c.env.DB, ip);
     if (limited.blocked) return c.json({ success: false, error: limited.reason, code: 'RATE_LIMITED' }, 429);
-    const session = sessionUserFromHeader(c.req.header('Authorization'));
+    const session = sessionUserFromHeaderLocal(c.req.header('Authorization'));
     let body: any = {};
     try { body = await c.req.json(); } catch { return c.json({ success: false, error: 'Requête invalide', code: 'BAD_REQUEST' }, 400); }
     const message = String(body?.message || '').trim();
@@ -209,7 +209,7 @@ export function registerReportsAndUpdatesRoutes(app: Hono<any>, deps: ReportsAnd
     const fingerprint = String(c.req.header('X-Device-Fingerprint') || 'none').slice(0, 128);
     const reason = await authFailReason(c.req.header('Authorization'), env, db, ip, fingerprint);
     if (reason !== 'ok') return null;
-    return sessionUserFromHeader(c.req.header('Authorization'));
+    return sessionUserFromHeaderLocal(c.req.header('Authorization'));
   }
   
   app.get('/api/admin/github-token', async (c) => {

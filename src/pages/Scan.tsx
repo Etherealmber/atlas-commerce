@@ -11,6 +11,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { canManageStock } from '../auth';
 import ImageLightbox from '../components/ui/ImageLightbox';
+import { FloatingPortal } from '../components/FloatingPortal';
 import {
   startBarcodeScan,
   decodeImageFile,
@@ -588,7 +589,7 @@ export default function Scan() {
 
       {/* ── Unknown code → creation request popup ── */}
       {reqOpen && (
-        <div className="scan-req-bg" role="presentation" onClick={closeReqModal}>
+        <FloatingPortal><div className="scan-req-bg" role="presentation" onClick={closeReqModal}>
           <div
             className="scan-req-modal"
             role="dialog"
@@ -732,7 +733,7 @@ export default function Scan() {
               </button>
             </div>
           </div>
-        </div>
+        </div></FloatingPortal>
       )}
       {lightbox && (
         <ImageLightbox

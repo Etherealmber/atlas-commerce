@@ -25,7 +25,7 @@
  *    tokens only after verifyAuthentication/verifyRegistration return ok.
  */
 
-export class WebAuthnError extends Error {
+class WebAuthnError extends Error {
   code: string;
   constructor(code: string, message?: string) {
     super(message || code);
@@ -51,7 +51,7 @@ export function bytesToB64u(b: Uint8Array): string {
   return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-export function bytesToHex(b: Uint8Array): string {
+function bytesToHex(b: Uint8Array): string {
   let s = '';
   for (let i = 0; i < b.length; i++) s += b[i].toString(16).padStart(2, '0');
   return s;
@@ -63,7 +63,7 @@ export async function sha256(bytes: Uint8Array | string): Promise<Uint8Array> {
   return new Uint8Array(buf);
 }
 
-export function timingSafeEqual(a: string, b: string): boolean {
+function timingSafeEqual(a: string, b: string): boolean {
   const x = new TextEncoder().encode(a);
   const y = new TextEncoder().encode(b);
   if (x.length !== y.length) return false;
@@ -121,7 +121,7 @@ function mapGet(m: Map<CborValue, CborValue>, key: number | string): CborValue |
 
 /* ───────────────────────── authenticator data ───────────────────────── */
 
-export type ParsedAuthData = {
+type ParsedAuthData = {
   raw: Uint8Array;
   rpIdHash: Uint8Array;
   flags: number;
@@ -187,7 +187,7 @@ export function parseAuthenticatorData(raw: Uint8Array): ParsedAuthData {
 
 /* ────────────────────────────── client data ────────────────────────────── */
 
-export type ParsedClientData = { type: string; challenge: string; origin: string; crossOrigin: boolean; androidPackageName: string | null };
+type ParsedClientData = { type: string; challenge: string; origin: string; crossOrigin: boolean; androidPackageName: string | null };
 
 export function parseClientData(b64u: string): { json: ParsedClientData; raw: Uint8Array } {
   let raw: Uint8Array;
@@ -242,7 +242,7 @@ function checkClientData(cd: ParsedClientData, expectedType: string, expectedCha
 
 /* ────────────────────────────── registration ────────────────────────────── */
 
-export type RegistrationInput = {
+type RegistrationInput = {
   clientDataJSON: string;
   attestationObject: string;
   expectedChallenge: string;
@@ -250,7 +250,7 @@ export type RegistrationInput = {
   policy: WebAuthnPolicy;
 };
 
-export type VerifiedRegistration = {
+type VerifiedRegistration = {
   credentialId: string;
   publicKeyJwk: { kty: string; crv: string; x: string; y: string; alg: string };
   counter: number;
@@ -318,7 +318,29 @@ export type AuthenticationInput = {
   };
 };
 
-export type VerifiedAuthentication = { counter: number; backupState: boolean; uv: boolean };
+type VerifiedAuthentication = { counter: number; backupState: boolean; uv: boolean };
+
+/**
+ * Strict DER `SEQUENCE { INTEGER r, INTEGER s }` → 64-byte raw P-256 signature.
+ * Returns null when the bytes are not exactly such a structure.
+ */
+export function ecdsaDerToRaw(der: Uint8Array): Uint8Array | null {
+  if (der.length < 8 || der.length > 72 || der[0] !== 0x30 || der[1] !== der.length - 2) return null;
+  let i = 2;
+  const out = new Uint8Array(64);
+  for (let part = 0; part < 2; part++) {
+    if (der[i] !== 0x02) return null;
+    const len = der[i + 1];
+    if (len < 1 || len > 33 || i + 2 + len > der.length) return null;
+    let int = der.subarray(i + 2, i + 2 + len);
+    if (int[0] & 0x80) return null; // negative INTEGER is invalid here
+    while (int.length > 1 && int[0] === 0) int = int.subarray(1);
+    if (int.length > 32) return null;
+    out.set(int, part * 32 + (32 - int.length));
+    i += 2 + len;
+  }
+  return i === der.length ? out : null;
+}
 
 export async function verifyAuthentication(input: AuthenticationInput): Promise<VerifiedAuthentication> {
   const cd = parseClientData(input.clientDataJSON);
@@ -363,6 +385,11 @@ export async function verifyAuthentication(input: AuthenticationInput): Promise<
   } catch {
     throw new WebAuthnError('WEBAUTHN_BAD_SIGNATURE', 'signature not base64url');
   }
+  // Authenticators return ES256 assertion signatures ASN.1/DER-encoded (WebAuthn §6.5.6);
+  // WebCrypto verifies raw r‖s. Accept both.
+  const rawSig = ecdsaDerToRaw(sig);
+  if (rawSig) sig = rawSig;
+  else if (sig.length !== 64) throw new WebAuthnError('WEBAUTHN_BAD_SIGNATURE', 'signature encoding');
   const ok = await crypto.subtle.verify(
     { name: 'ECDSA', hash: 'SHA-256' },
     key,
@@ -384,17 +411,8 @@ export async function verifyAuthentication(input: AuthenticationInput): Promise<
 
 /* ────────────────────────────── challenges ────────────────────────────── */
 
-export type ChallengePurpose = 'register' | 'login';
+type ChallengePurpose = 'register' | 'login';
 
-export type ChallengeRow = {
-  id: string;
-  challenge: string;
-  purpose: ChallengePurpose;
-  username: string;
-  rp_id: string;
-  origin: string;
-  expires_at: string;
-};
 
 function randomBytes(n: number): Uint8Array {
   const b = new Uint8Array(n);
@@ -500,7 +518,7 @@ export function policyFromEnv(env: Record<string, string | undefined>): WebAuthn
       String(env.WEBAUTHN_ANDROID_CERT_HASH || '')
         .split(',')
         .map((s) => s.trim().toUpperCase())
-        .filter(Boolean)[0] || ''
+        .find(Boolean) || ''
     ),
     androidCertHashes: String(env.WEBAUTHN_ANDROID_CERT_HASH || '')
       .split(',')

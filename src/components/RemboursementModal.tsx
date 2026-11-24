@@ -1,6 +1,6 @@
 import { FloatingPortal } from './FloatingPortal';
 import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from './ui/FormWizard';
-import { ModalFormError, FieldHint } from './ModalFormFeedback';
+import { ModalFormError } from './ModalFormFeedback';
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import NumberField from './NumberField';

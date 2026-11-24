@@ -12,28 +12,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 const SQLITE_MODULE = ['node:', 'sqlite'].join('');
 const { DatabaseSync } = (await import(SQLITE_MODULE)) as { DatabaseSync: new (path: string) => any };
 
-import {
-  WebAuthnError,
-  androidLegacyOrigin,
-  androidLegacyOriginFromSha1,
-  androidOrigin,
-  androidOriginFromCertHash,
-  androidOrigins,
-  credentialDescriptors,
-  matchesAndroidOrigin,
-  b64uToBytes,
-  bytesToB64u,
-  consumeChallenge,
-  createChallenge,
-  expectedOrigin,
-  parseAuthenticatorData,
-  policyFromEnv,
-  sha256,
-  userHandleFor,
-  verifyAuthentication,
-  verifyRegistration,
-  type WebAuthnPolicy,
-} from '../lib/webauthn';
+import { androidLegacyOrigin, androidLegacyOriginFromSha1, androidOrigin, androidOriginFromCertHash, androidOrigins, credentialDescriptors, matchesAndroidOrigin, b64uToBytes, bytesToB64u, consumeChallenge, createChallenge, expectedOrigin, parseAuthenticatorData, policyFromEnv, sha256, userHandleFor, verifyAuthentication, verifyRegistration, type WebAuthnPolicy } from '../lib/webauthn';
 
 /* ─────────────────────────── tiny CBOR encoder (test-only) ─────────────────────────── */
 

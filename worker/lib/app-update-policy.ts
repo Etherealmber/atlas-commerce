@@ -22,7 +22,7 @@ import { pickUiLang, tr, type UiLang } from './error-i18n';
 
 export type MinVersionPolicy = { enabled: boolean; code: number };
 
-export const MIN_VERSION_CONFIG_KEYS = {
+const MIN_VERSION_CONFIG_KEYS = {
   enabled: 'android_min_version_enabled',
   code: 'android_min_version_code',
 } as const;
@@ -149,7 +149,7 @@ export function validateMinVersionPolicy(policy: MinVersionPolicy, manifest: any
 /** Routes an outdated Android client must still reach to update itself. */
 export const ANDROID_MIN_GUARD_EXEMPT = ['/api/health', '/api/app/android-update', '/api/app/desktop-update'];
 
-export function androidClientMeta(c: any): { isAndroid: boolean; code: number | null } {
+function androidClientMeta(c: any): { isAndroid: boolean; code: number | null } {
   const client = String(c.req.header('X-Atlas-Client') || '').trim().toLowerCase();
   const raw = String(c.req.header('X-Atlas-App-Version-Code') || '').trim();
   let code: number | null = null;

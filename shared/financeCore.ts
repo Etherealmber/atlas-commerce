@@ -32,7 +32,7 @@ export const REQUIRED_FINANCE_WASM_EXPORTS = [
   'fc_validate_period',
 ] as const;
 
-export interface FinanceWasmExports {
+interface FinanceWasmExports {
   readonly memory: WebAssembly.Memory;
   fc_abi_version(): number;
   fc_alloc(byteLen: number): number;
@@ -98,7 +98,7 @@ export interface FinanceWasmExports {
   fc_validate_period(ptr: number, len: number): number;
 }
 
-export type FinanceEngineStatus =
+type FinanceEngineStatus =
   | 'wasm_active'
   | 'typescript_fallback'
   | 'wasm_initialization_failed'
@@ -246,7 +246,7 @@ function withWasmBytes<T>(bytes: Uint8Array, fn: (w: FinanceWasmExports, ptr: nu
 
 /* ─────────────────────────── Domain Types & Currencies ─────────────────────────── */
 
-export type CurrencyCode =
+type CurrencyCode =
   | 'MAD'
   | 'EUR'
   | 'USD'
@@ -261,9 +261,9 @@ export type CurrencyCode =
   | 'JOD'
   | (string & {});
 
-export type RoundingMode = 'half-up' | 'half-even' | 'truncate';
+type RoundingMode = 'half-up' | 'half-even' | 'truncate';
 
-export interface CurrencySpec {
+interface CurrencySpec {
   readonly code: string;
   /** Standard ISO-4217 minor unit decimal places (e.g. MAD=2, EUR=2, TND=3, JPY=0). */
   readonly minorDecimals: number;
@@ -272,28 +272,28 @@ export interface CurrencySpec {
   readonly symbol: string;
 }
 
-export interface MoneyValue {
+interface MoneyValue {
   readonly amount: number;
   readonly minorUnits: number;
   readonly currency: string;
   readonly decimals: number;
 }
 
-export interface QuantityValue {
+interface QuantityValue {
   readonly value: number;
   readonly unit?: string;
 }
 
-export interface PercentageValue {
+interface PercentageValue {
   readonly percent: number;
 }
 
-export interface TaxRateValue {
+interface TaxRateValue {
   readonly ratePercent: number;
   readonly exempt?: boolean;
 }
 
-export interface ExchangeRateValue {
+interface ExchangeRateValue {
   readonly fromCurrency: string;
   readonly toCurrency: string;
   readonly rate: number;
@@ -316,7 +316,7 @@ const CURRENCY_SPECS: Record<string, CurrencySpec> = {
   JPY: { code: 'JPY', minorDecimals: 0, invoiceDecimals: 0, symbol: '¥' },
 };
 
-export function normalizeCurrencyCode(code?: string | null): string {
+function normalizeCurrencyCode(code?: string | null): string {
   const raw = String(code || 'MAD').toUpperCase().trim();
   if (!raw || raw === 'DH' || raw === 'MADH') return 'MAD';
   return raw;
@@ -329,7 +329,7 @@ export function getCurrencySpec(code?: string | null): CurrencySpec {
   return { code: norm, minorDecimals: 2, invoiceDecimals: 2, symbol: norm };
 }
 
-export function currencySymbol(code?: string | null): string {
+function currencySymbol(code?: string | null): string {
   return getCurrencySpec(code).symbol;
 }
 
@@ -550,7 +550,7 @@ export function fromMinorUnits(minorUnits: number, currencyOrDecimals: string | 
   return res === 0 ? 0 : res;
 }
 
-export function makeMoney(
+function makeMoney(
   amount: number,
   currency: string = 'MAD',
   stage: 'invoice' | 'ledger' = 'ledger',
@@ -691,7 +691,7 @@ export function remainingBalance(total: number, paid: number, decimals = 2): num
 
 /* ─────────────────────── Bulk Discounts & Line Pricing ─────────────────────── */
 
-export type BulkTier = { min_qty: number; percent: number };
+type BulkTier = { min_qty: number; percent: number };
 
 export function parseBulkDiscounts(raw: unknown): BulkTier[] {
   if (!raw) return [];
@@ -879,7 +879,7 @@ export function computeInvoiceLinesAndTotals(
   };
 }
 
-export interface InvoiceLineCalcInput {
+interface InvoiceLineCalcInput {
   quantity: number;
   unitPrice: number;
   listPrice: number;
@@ -892,7 +892,7 @@ export interface InvoiceLineCalcInput {
   currency?: string;
 }
 
-export interface InvoiceLineCalcResult {
+interface InvoiceLineCalcResult {
   unit_ht: number;
   list_ht: number;
   stored_unit_price: number;
@@ -978,7 +978,7 @@ export function aggregateDocumentTotals(
 
 /* ─────────────────────── Supplier Bill Line & Total Engine ─────────────────────── */
 
-export interface BillLineCalcInput {
+interface BillLineCalcInput {
   quantity: number;
   unitCost: number;
   taxRate?: number | null;
@@ -986,7 +986,7 @@ export interface BillLineCalcInput {
   currency?: string;
 }
 
-export interface BillLineCalcResult {
+interface BillLineCalcResult {
   quantity: number;
   unit_cost: number;
   tax_rate: number;
@@ -1017,7 +1017,7 @@ export function computeBillLine(inp: BillLineCalcInput): BillLineCalcResult {
 
 /* ─────────────────────── Payments & Refund (WR) Splits ─────────────────────── */
 
-export interface PaymentApplicationResult {
+interface PaymentApplicationResult {
   applied: number;
   next_paid: number;
   remaining: number;
@@ -1055,7 +1055,7 @@ export function computePaymentApplication(
   };
 }
 
-export interface RefundSplitResult {
+interface RefundSplitResult {
   credit_vs_debt: number;
   cash_refund: number;
   next_paid: number;
@@ -1158,7 +1158,7 @@ export function computeMovingAverageCost(
   return roundWithMode(next, 4, 'half-up');
 }
 
-export interface InventoryValuationRow {
+interface InventoryValuationRow {
   stock_quantity?: number | null;
   cost?: number | null;
   price?: number | null;
@@ -1353,7 +1353,7 @@ export function classifyDoc(
   return { state: 'unpaid', remaining, overdue: false };
 }
 
-export type PayrollEmployeeInput = {
+type PayrollEmployeeInput = {
   id: number;
   emp_number?: string | null;
   name?: string | null;
@@ -1463,7 +1463,7 @@ export function computePayrollObligation(
 
 /* ─────────────────────── Balance Report Aggregation ─────────────────────── */
 
-export type BalanceEntryLike = {
+type BalanceEntryLike = {
   entry_type?: string | null;
   payment_method?: string | null;
   amount?: number | string | null;

@@ -5,33 +5,7 @@ vi.mock('../lib/reliability', async (importOriginal) => ({
   ensureProductSearchIndex: async () => false,
 }));
 import { readFileSync } from 'node:fs';
-import {
-  addMoneyAmounts,
-  aggregateDocumentTotals,
-  applyBulkDiscount,
-  computeBillLine,
-  computeInventoryValuation,
-  computeInvoiceLine,
-  computeInvoiceLinesAndTotals,
-  computeMovingAverageCost,
-  computePaymentApplication,
-  computeRefundSplit,
-  convertCurrency,
-  FINANCE_CORE_CONTRACT_VERSION,
-  fmtMoney,
-  fromMinorUnits,
-  getCurrencySpec,
-  remainingBalance,
-  round2,
-  roundDh,
-  roundMoneyForCurrency,
-  sanitizeFiniteNumber,
-  sanitizeNonNegativeAmount,
-  sanitizePositiveAmount,
-  subMoneyAmounts,
-  sumMoneyAmounts,
-  toMinorUnits,
-} from '../../shared/financeCore';
+import { addMoneyAmounts, aggregateDocumentTotals, applyBulkDiscount, computeInventoryValuation, computeInvoiceLine, computeInvoiceLinesAndTotals, computeMovingAverageCost, computePaymentApplication, computeRefundSplit, convertCurrency, FINANCE_CORE_CONTRACT_VERSION, fmtMoney, fromMinorUnits, getCurrencySpec, remainingBalance, round2, roundDh, roundMoneyForCurrency, sanitizeFiniteNumber, sanitizeNonNegativeAmount, sanitizePositiveAmount, subMoneyAmounts, sumMoneyAmounts, toMinorUnits } from '../../shared/financeCore';
 
 const SQLITE_MODULE = ['node:', 'sqlite'].join('');
 const { DatabaseSync } = (await import(SQLITE_MODULE)) as { DatabaseSync: new (path: string) => any };

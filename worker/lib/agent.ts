@@ -7,7 +7,6 @@ import type { Env } from '../env';
 import { scrubProductForRole } from './inventory-policy';
 import { canMutateBusiness, canFloorStock, normalizeRole } from './rbac';
 
-export type AssistRole = string;
 
 const TOOL_DEFS = [
   {
@@ -445,7 +444,7 @@ const READ_ONLY_TOOLS = new Set([
   'propose_quote_lines', // draft text only, not saved
 ]);
 
-export type AgentPermMode = 'full' | 'read_only' | 'custom';
+type AgentPermMode = 'full' | 'read_only' | 'custom';
 
 export function toolsForRole(
   role: string,
@@ -880,7 +879,7 @@ export async function runAssistTool(
         };
       }
       case 'closing_pack': {
-        const day = await localDateCasablanca();
+        const dayKey = await localDateCasablanca();
         const low = await db
           .prepare(
             `SELECT id, name, sku, stock_quantity FROM products
@@ -912,7 +911,7 @@ export async function runAssistTool(
         return {
           ok: true,
           data: {
-            day,
+            day: dayKey,
             checklist,
             low_stock: low.results || [],
             unpaid: unpaid.results || [],
@@ -953,8 +952,8 @@ export async function runAssistTool(
         if (!moneyToolsAllowed(role) && normalizeRole(role) !== 'user') {
           return { ok: false, error: 'Création client non autorisée pour ce rôle.' };
         }
-        const name = String(args.name || '').trim();
-        if (!name) return { ok: false, error: 'name requis' };
+        const itemName = String(args.name || '').trim();
+        if (!itemName) return { ok: false, error: 'name requis' };
         const ice = String(args.ice || '').trim();
         const phone = String(args.phone || '').trim();
         const email = String(args.email || '').trim();
@@ -964,18 +963,18 @@ export async function runAssistTool(
           .prepare(
             `INSERT INTO clients (name, ice, if_number, address, city, phone, email) VALUES (?, ?, '', ?, ?, ?, ?)`,
           )
-          .bind(name, ice, address, city, phone, email)
+          .bind(itemName, ice, address, city, phone, email)
           .run();
         const id = Number((r as any)?.meta?.last_row_id || 0);
         return {
           ok: true,
           data: {
             id,
-            name,
+            name: itemName,
             ice: ice || null,
             phone: phone || null,
             email: email || null,
-            message: `Client « ${name} » créé avec succès.`,
+            message: `Client « ${itemName} » créé avec succès.`,
             href: '/clients',
           },
         };
@@ -984,8 +983,8 @@ export async function runAssistTool(
         if (!canMutateBusiness(role) && normalizeRole(role) !== 'user' && !canFloorStock(role)) {
           return { ok: false, error: 'Création produit non autorisée pour ce rôle.' };
         }
-        const name = String(args.name || '').trim();
-        if (!name) return { ok: false, error: 'name requis' };
+        const itemName = String(args.name || '').trim();
+        if (!itemName) return { ok: false, error: 'name requis' };
         const sku = String(args.sku || '').trim();
         const barcode = String(args.barcode || '').trim();
         const price = Number(args.price ?? 0) || 0;
@@ -997,18 +996,18 @@ export async function runAssistTool(
             `INSERT INTO products (sku, name, description, category, unit, price, cost, stock_quantity, low_stock_threshold, track_inventory, image_url, barcode, tax_rate, bulk_discounts)
              VALUES (?, ?, '', ?, ?, ?, 0, ?, 5, 1, '', ?, NULL, NULL)`,
           )
-          .bind(sku || null, name, category, unit, price, stock, barcode || null)
+          .bind(sku || null, itemName, category, unit, price, stock, barcode || null)
           .run();
         const id = Number((r as any)?.meta?.last_row_id || 0);
         return {
           ok: true,
           data: {
             id,
-            name,
+            name: itemName,
             sku: sku || null,
             price,
             stock_quantity: stock,
-            message: `Produit « ${name} » créé avec succès.`,
+            message: `Produit « ${itemName} » créé avec succès.`,
             href: '/products',
           },
         };
@@ -1030,7 +1029,7 @@ export async function runAssistTool(
         if (!id) return { ok: false, error: 'Client introuvable (id ou name).' };
         const row = await db.prepare(`SELECT * FROM clients WHERE id = ?`).bind(id).first() as any;
         if (!row) return { ok: false, error: 'Client introuvable.' };
-        const name = args.name != null ? String(args.name).trim() : row.name;
+        const itemName = args.name != null ? String(args.name).trim() : row.name;
         const phone = args.phone != null ? String(args.phone).trim() : row.phone;
         const email = args.email != null ? String(args.email).trim() : row.email;
         const address = args.address != null ? String(args.address).trim() : row.address;
@@ -1040,11 +1039,11 @@ export async function runAssistTool(
           .prepare(
             `UPDATE clients SET name = ?, phone = ?, email = ?, address = ?, city = ?, ice = ? WHERE id = ?`,
           )
-          .bind(name, phone || '', email || '', address || '', city || '', ice || '', id)
+          .bind(itemName, phone || '', email || '', address || '', city || '', ice || '', id)
           .run();
         return {
           ok: true,
-          data: { id, name, message: `Client « ${name} » mis à jour.`, href: '/clients' },
+          data: { id, name: itemName, message: `Client « ${itemName} » mis à jour.`, href: '/clients' },
         };
       }
       case 'update_product': {
@@ -1063,7 +1062,7 @@ export async function runAssistTool(
         if (!id) return { ok: false, error: 'Produit introuvable (id ou name).' };
         const row = await db.prepare(`SELECT * FROM products WHERE id = ?`).bind(id).first() as any;
         if (!row) return { ok: false, error: 'Produit introuvable.' };
-        const name = args.name != null ? String(args.name).trim() : row.name;
+        const itemName = args.name != null ? String(args.name).trim() : row.name;
         const price = args.price != null ? Number(args.price) : Number(row.price || 0);
         const stock = args.stock_quantity != null ? Number(args.stock_quantity) : Number(row.stock_quantity || 0);
         const sku = args.sku != null ? String(args.sku).trim() : row.sku;
@@ -1073,16 +1072,16 @@ export async function runAssistTool(
           .prepare(
             `UPDATE products SET name = ?, price = ?, stock_quantity = ?, sku = ?, barcode = ?, category = ? WHERE id = ?`,
           )
-          .bind(name, price, stock, sku || null, barcode || null, category || 'Général', id)
+          .bind(itemName, price, stock, sku || null, barcode || null, category || 'Général', id)
           .run();
         return {
           ok: true,
           data: {
             id,
-            name,
+            name: itemName,
             price,
             stock_quantity: stock,
-            message: `Produit « ${name} » mis à jour.`,
+            message: `Produit « ${itemName} » mis à jour.`,
             href: '/products',
           },
         };
@@ -1109,13 +1108,13 @@ export async function runAssistTool(
         // Minimal insert — numbering handled loosely for agent drafts
         const prefix = isQuote ? 'DV-A-' : 'FA-A-';
         const number = `${prefix}${Date.now().toString(36).toUpperCase()}`;
-        const day = await localDateCasablanca();
+        const dayKey = await localDateCasablanca();
         const r = await db
           .prepare(
             `INSERT INTO invoices (number, client_id, client_name, client_ice, client_address, client_city, client_email, client_phone, issue_date, due_date, status, subtotal, tax_amount, total, notes, amount_paid)
              VALUES (?, ?, ?, '', '', '', '', '', ?, ?, ?, 0, 0, 0, ?, 0)`,
           )
-          .bind(number, clientId, clientName, day, day, status, notes)
+          .bind(number, clientId, clientName, dayKey, dayKey, status, notes)
           .run();
         const id = Number((r as any)?.meta?.last_row_id || 0);
         return {

@@ -5,17 +5,12 @@ import type { Hono } from 'hono';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import { apiFail } from '../lib/api-response';
 import { validateClientWrite } from '../lib/validate';
-import {
-  ensureClientTaxExempt,
-  ensureClientCreditLimit,
-  checkClientCreditLimit,
-} from '../lib/clients-schema';
+import { ensureClientTaxExempt, ensureClientCreditLimit } from '../lib/clients-schema';
 import { doCacheGet, doCachePut, hasLiveCache } from '../lib/cache';
 import { afterBusinessMutation } from '../lib/delete-coord';
 
-export { ensureClientTaxExempt, ensureClientCreditLimit, checkClientCreditLimit };
 
-export type ClientRouteDeps = {
+type ClientRouteDeps = {
   issueDeleteOtp: (
     env: any,
     kind: string,

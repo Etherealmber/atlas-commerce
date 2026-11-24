@@ -6,20 +6,20 @@ const { DatabaseSync } = await import(SQLITE_MODULE);
 let sqlite: any; let db: any; let send: any; let authorize: any;
 const key = 'isolated-test-only-key-not-a-real-secret';
 const ip = '203.0.113.42';
-function connection(sqlite: any) {
+function connection(handle: any) {
   return {
     prepare(query: string) {
       let params: any[] = [];
       const statement: any = {
         bind(...args: any[]) { params = args; return statement; },
-        async first() { return sqlite.prepare(query).get(...params) ?? null; },
-        async run() { const result = sqlite.prepare(query).run(...params); return {meta:{changes:Number(result.changes)}}; },
+        async first() { return handle.prepare(query).get(...params) ?? null; },
+        async run() { const result = handle.prepare(query).run(...params); return {meta:{changes:Number(result.changes)}}; },
       }; return statement;
     },
     async batch(statements: any[]) {
-      sqlite.exec('BEGIN');
-      try { const result = []; for (const stmt of statements) result.push(await stmt.run()); sqlite.exec('COMMIT'); return result; }
-      catch (e) { sqlite.exec('ROLLBACK'); throw e; }
+      handle.exec('BEGIN');
+      try { const result = []; for (const stmt of statements) result.push(await stmt.run()); handle.exec('COMMIT'); return result; }
+      catch (e) { handle.exec('ROLLBACK'); throw e; }
     },
   };
 }
@@ -33,7 +33,7 @@ beforeEach(() => {
 afterEach(() => { sqlite.close(); vi.restoreAllMocks(); });
 const context = {authenticated:true,reauthenticated:true,userId:1};
 const service = () => createMailboxEnrollment(db, key, {send,authorize})!;
-const sent = (purpose: string) => send.mock.calls.map((x: any[]) => x[0]).filter((m: any) => m.purpose === purpose).at(-1);
+const sent = (purpose: string) => send.mock.calls.map((x: any[]) => x[0]).findLast((m: any) => m.purpose === purpose);
 async function first(s: ReturnType<typeof service>) {
   const pending = await s.start(context, 'new@example.test', ip); expect(pending).not.toBeNull();
   expect(await s.confirm(context, pending!.request_id, sent('new_mailbox').code, undefined, ip)).toBe(true);

@@ -54,4 +54,3 @@ export function useProfileTick(): number {
   return tick;
 }
 
-export default useProfileWarm;

@@ -56,6 +56,3 @@ export function circuitFailure(name: string, opts = DEFAULTS): void {
   buckets.set(name, b);
 }
 
-export function circuitStatus(name: string): State {
-  return buckets.get(name)?.state || 'closed';
-}

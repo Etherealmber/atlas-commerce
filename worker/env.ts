@@ -67,6 +67,10 @@ export interface Env {
   /** Desktop v3 production auth gates — keep disabled until full protocol & clients are ready. */
   DESKTOP_NATIVE_V3_ENABLED?: string;
   DESKTOP_NATIVE_V3_PROD_APPROVED?: string;
+  /** 'true' = allow browser-free native presentation (password+OTP, QR, passkey) on desktop v3. */
+  DESKTOP_NATIVE_V3_NATIVE_LOGIN?: string;
+  /** Comma-separated TEAMID.bundle.id list for /.well-known/apple-app-site-association webcredentials. */
+  APPLE_WEBCREDENTIALS_APP_IDS?: string;
   DESKTOP_NATIVE_V3_OTP_KEY?: string;
   DESKTOP_NATIVE_MAIL_TRANSPORT?: string;
   DESKTOP_NATIVE_RESEND_API_KEY?: string;

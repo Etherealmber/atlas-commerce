@@ -6,7 +6,7 @@ function pad(n: number) {
 }
 
 /** Normalize to HH:MM */
-export function normalizeTime(v: string | null | undefined): string {
+function normalizeTime(v: string | null | undefined): string {
   const m = String(v || '').trim().match(/^(\d{1,2}):(\d{2})/);
   if (!m) return '';
   const h = Math.min(23, Math.max(0, Number(m[1])));
@@ -45,7 +45,7 @@ function usePopPosition(
   return pos;
 }
 
-export type TimePickerProps = {
+type TimePickerProps = {
   value: string;
   onChange: (hhmm: string) => void;
   placeholder?: string;

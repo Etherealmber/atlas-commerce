@@ -4,8 +4,6 @@ import { TimedUndoDelete } from '../components/ui';
 import ListPager from '../components/ui/ListPager';
 import { useEffect, useState } from 'react';
 import DatePicker from '../components/DatePicker';
-import { matchProducts } from '../lib/assist';
-import { SuggestList } from '../components/AssistBits';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, BASE } from '../api';
 import TypeaheadField, { productTypeaheadOptions, partyTypeaheadOptions } from '../components/TypeaheadField';
@@ -31,7 +29,7 @@ const QUICKSALE_STEPS: readonly WizardStepDef[] = [
 import '../components/erp/orders-fulfillment.css';
 import RemboursementModal from '../components/RemboursementModal';
 import { FloatingPortal } from '../components/FloatingPortal';
-import { ModalFormError, FieldHint } from '../components/ModalFormFeedback';
+import { ModalFormError } from '../components/ModalFormFeedback';
 
 type Product = {
   id: number;
@@ -58,7 +56,6 @@ export default function QuickSale() {
   const navigate = useNavigate();
   const { toast, confirm, prompt } = useUi();
   const [modalError, setModalError] = useState('');
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [list, setList] = useState<any[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [clients, setClients] = useState<any[]>([]);
@@ -93,8 +90,6 @@ export default function QuickSale() {
     { product_name: '', quantity: 1, list_price: 0, unit_price: 0, product_query: '' },
   ]);
   const [payMode, setPayMode] = useState<'cash' | 'card'>('cash');
-  const [barcodeScan, setBarcodeScan] = useState('');
-  const [scanError, setScanError] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [msgType, setMsgType] = useState<'success' | 'error'>('success');
@@ -144,55 +139,6 @@ export default function QuickSale() {
   }, []);
 
 
-  const applyBarcodeScan = async (code: string) => {
-    const c = code.trim();
-    if (!c) return;
-    let p = products.find(
-      (x) => String(x.barcode || '') === c || String(x.sku || '') === c || String(x.id) === c,
-    );
-    if (!p) {
-      try {
-        const list: any = await api.getProducts({ q: c, limit: 8 } as any);
-        const rows = list?.data || [];
-        p = rows.find(
-          (x: any) => String(x.barcode || '') === c || String(x.sku || '').toLowerCase() === c.toLowerCase(),
-        ) || rows[0];
-      } catch { /* */ }
-    }
-    if (!p) {
-      setScanError('Produit introuvable pour ce code.');
-      setBarcodeScan('');
-      return;
-    }
-    let unit = Number(p.price || 0);
-    if (clientId) {
-      try {
-        const pr: any = await api.getClientPriceForProduct(Number(clientId), Number(p.id));
-        if (pr?.data?.unit_price != null) unit = Number(pr.data.unit_price);
-      } catch { /* */ }
-    }
-    setItems((prev) => {
-      const emptyIdx = prev.findIndex((it) => !it.product_id && !String(it.product_name || '').trim());
-      const row = {
-        product_id: p.id,
-        product_name: p.name || '',
-        product_query: p.name || '',
-        sku: p.sku || '',
-        quantity: 1,
-        list_price: Number(p.price || 0),
-        unit_price: unit,
-      };
-      if (emptyIdx >= 0) {
-        const next = [...prev];
-        next[emptyIdx] = { ...next[emptyIdx], ...row };
-        return next;
-      }
-      return [...prev, row];
-    });
-    setBarcodeScan('');
-    setScanError('');
-    flash(`Ajouté: ${p.name}`);
-  };
 
   useEffect(() => { load(); }, [filter]);
 
@@ -425,9 +371,9 @@ export default function QuickSale() {
       if (clientId) {
         for (const it of items) {
           if (!it.product_id) continue;
-          const list = Number(it.list_price || 0);
+          const nextList = Number(it.list_price || 0);
           const unit = Number(it.unit_price || 0);
-          if (unit > 0 && (list <= 0 || Math.abs(unit - list) > 0.001)) {
+          if (unit > 0 && (nextList <= 0 || Math.abs(unit - nextList) > 0.001)) {
             api.setClientProductPrice(Number(clientId), Number(it.product_id), unit).catch(() => {});
           }
         }

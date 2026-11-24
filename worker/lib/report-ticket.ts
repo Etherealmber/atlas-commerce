@@ -10,8 +10,8 @@ export const REPORT_TICKET_PATHS = new Set([
   '/api/reports/employee-blank-form', '/api/reports/cogs',
 ]);
 
-export type ReportTicketIdentity = { username: string; role: 'owner' | 'admin' | 'secretaire'; userId: number | null; tenant: string };
-export type ReportTicketEnvironment = { DB: D1Database; JWT_SECRET?: string; ADMIN_PASSWORD?: string; REPORT_TICKET_TTL_SECONDS?: string };
+type ReportTicketIdentity = { username: string; role: 'owner' | 'admin' | 'secretaire'; userId: number | null; tenant: string };
+type ReportTicketEnvironment = { DB: D1Database; JWT_SECRET?: string; ADMIN_PASSWORD?: string; REPORT_TICKET_TTL_SECONDS?: string };
 const encoder = new TextEncoder();
 const encode = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 function decode(value: string): Uint8Array {
