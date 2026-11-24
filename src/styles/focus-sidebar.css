@@ -2378,11 +2378,6 @@ html body #root .content button.ac-audit-clear-btn {
   padding-top: 12px;
   border-top: 1px solid var(--ac-line, #e8eaef);
 }
-.ac-audit-pager-btns {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
 .ac-audit-pager-meta {
   font-size: 0.78rem;
   font-weight: 600;

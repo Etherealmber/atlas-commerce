@@ -15876,127 +15876,6 @@ html body .ac-timed-delete-btn.is-armed {
   color: #b91c1c !important;
 }
 
-/* ========== PAGER VIDEO-MATCH V108 ========== */
-/* New class names (ac-pager-*) so old .ac-pill-pager-btn rules cannot force black. */
-html body .ac-pager {
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 4px !important;
-  padding: 3px !important;
-  border-radius: 999px !important;
-  background: #f0eff6 !important;
-  border: 1px solid #ebeaf3 !important;
-  box-shadow: none !important;
-  line-height: 1 !important;
-}
-html[data-theme="dark"] body .ac-pager {
-  background: #27272a !important;
-  border-color: #3f3f46 !important;
-}
-
-/* Hit targets: visual fill is 100% from React inline !important styles */
-html body .ac-pager .ac-pager-hit,
-html body button.ac-pager-hit,
-html body .content button.ac-pager-hit {
-  border-radius: 999px !important;
-  border: none !important;
-  width: 32px !important;
-  height: 32px !important;
-  min-width: 32px !important;
-  padding: 0 !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  box-sizing: border-box !important;
-  /* DO NOT set background/color here — React owns them */
-}
-html body .ac-pager .ac-pager-hit svg,
-html body .ac-pager .ac-pager-hit path {
-  stroke: currentColor !important;
-  fill: none !important;
-  display: block !important;
-}
-/* Explicitly kill any inherited :hover paint from global button rules */
-html body .ac-pager .ac-pager-hit:hover,
-html body .ac-pager .ac-pager-hit:active,
-html body .ac-pager .ac-pager-hit:focus,
-html body button.ac-pager-hit:hover,
-html body button.ac-pager-hit:active,
-html body button.ac-pager-hit:focus {
-  /* no background/color — leave inline styles in control */
-  outline: none !important;
-}
-
-html body .ac-pager-label {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 5px !important;
-  min-width: 4.75rem !important;
-  padding: 0 6px !important;
-  font-size: 13px !important;
-  font-weight: 700 !important;
-  font-variant-numeric: tabular-nums !important;
-  color: #3f3f46 !important;
-  white-space: nowrap !important;
-  line-height: 1 !important;
-  user-select: none !important;
-}
-html[data-theme="dark"] body .ac-pager-label {
-  color: #e4e4e7 !important;
-}
-html body .ac-pager-num {
-  display: inline-flex !important;
-  align-items: center !important;
-  font-weight: 700 !important;
-  font-variant-numeric: tabular-nums !important;
-  color: inherit !important;
-}
-html body .ac-pager-digit {
-  position: relative !important;
-  display: inline-block !important;
-  width: 0.62em !important;
-  min-width: 0.62em !important;
-  height: 1.15em !important;
-  overflow: hidden !important;
-  vertical-align: middle !important;
-}
-html body .ac-pager-digit-inner {
-  position: absolute !important;
-  inset: 0 !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  font-weight: 700 !important;
-  font-variant-numeric: tabular-nums !important;
-  line-height: 1 !important;
-  color: inherit !important;
-}
-html body .ac-pager-of {
-  color: #71717a !important;
-  font-weight: 600 !important;
-  flex-shrink: 0 !important;
-}
-html[data-theme="dark"] body .ac-pager-of {
-  color: #a1a1aa !important;
-}
-html body .ac-pager--sm .ac-pager-hit {
-  width: 28px !important;
-  height: 28px !important;
-  min-width: 28px !important;
-}
-html body .ac-pager-sr {
-  position: absolute !important;
-  width: 1px !important;
-  height: 1px !important;
-  padding: 0 !important;
-  margin: -1px !important;
-  overflow: hidden !important;
-  clip: rect(0, 0, 0, 0) !important;
-  white-space: nowrap !important;
-  border: 0 !important;
-}
-
 /* Legacy pill class kept for any residual markup — force white idle */
 html body .ac-pill-pager .ac-pill-pager-btn,
 html body button.ac-pill-pager-btn {
@@ -16124,38 +16003,6 @@ html[data-theme="dark"] .atlas-page-skeleton .sk-line {
   background: #171717;
 }
 
-/* ========== PAGER HIT NUCLEAR V110 ========== */
-/* Beat .content button { background:#0a0a0a } permanently */
-html body .content .ac-pager .ac-pager-hit,
-html body .content button.ac-pager-hit,
-html body button.ac-pager-hit,
-html body .ac-pager button.ac-pager-hit {
-  background: #ffffff !important;
-  color: #0a0a0a !important;
-  border: none !important;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06) !important;
-  filter: none !important;
-}
-html body .content .ac-pager .ac-pager-hit[data-filled="1"],
-html body .content button.ac-pager-hit[data-filled="1"],
-html body button.ac-pager-hit[data-filled="1"] {
-  background: #0a0a0a !important;
-  color: #ffffff !important;
-  box-shadow: none !important;
-}
-html body .content .ac-pager .ac-pager-hit:disabled,
-html body .content button.ac-pager-hit:disabled {
-  background: #ffffff !important;
-  color: #0a0a0a !important;
-  opacity: 0.4 !important;
-}
-/* Kill global button hover filter on pager hits */
-html body .content .ac-pager .ac-pager-hit:hover,
-html body .content button.ac-pager-hit:hover,
-html body .content .ac-pager .ac-pager-hit:active {
-  filter: none !important;
-}
-
 /* ========== FORM FIELD ERRORS V112 ========== */
 .form-row input.field-error,
 .form-row select.field-error,
@@ -16224,27 +16071,6 @@ html body button.ac-run-action-btn:hover {
   min-height: 40px !important;
   height: 40px !important;
   border-radius: 999px !important;
-}
-
-/* Pager: disabled = soft white (not solid gray block) */
-html body .content .ac-pager .ac-pager-hit,
-html body .content button.ac-pager-hit,
-html body button.ac-pager-hit {
-  background: #ffffff !important;
-  color: #0a0a0a !important;
-  opacity: 1 !important;
-}
-html body .content .ac-pager .ac-pager-hit[data-filled="1"],
-html body button.ac-pager-hit[data-filled="1"] {
-  background: #0a0a0a !important;
-  color: #ffffff !important;
-}
-html body .content .ac-pager .ac-pager-hit:disabled,
-html body button.ac-pager-hit:disabled {
-  background: #ffffff !important;
-  color: #a1a1aa !important;
-  opacity: 0.55 !important;
-  cursor: default !important;
 }
 
 /* ========== UX NAV + TOUCH + CTA V116 ========== */
@@ -21928,4 +21754,184 @@ html[data-theme='light'] .lp-skel {
 @media (prefers-reduced-motion: reduce) {
   .lp-sk { animation: none; }
   .lp-skel { animation: none; }
+}
+
+/* ══════════ Page mover (ListPager) — v0.9.3 ══════════
+   One pill: ‹ 1 … 4 [5] 6 … 20 ›. Colours live here only (no inline paint).
+   The global content-button rules (40+ :not() exclusions) carry huge class specificity; `:not(#ac-pg)` adds one ID
+   level so these rules win without inline styles. Buttons also keep .ac-pager-hit for the exclusion lists. */
+html body .ac-pager {
+  --pg-bg: #ffffff;
+  --pg-line: #e7e7ea;
+  --pg-ink: #18181b;
+  --pg-muted: #71717a;
+  --pg-hover: #f4f4f5;
+  --pg-active-bg: #0a0a0a;
+  --pg-active-fg: #ffffff;
+  --pg-ring: rgba(10, 10, 10, 0.18);
+  --pg-size: 32px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  margin: 0;
+  border-radius: 999px;
+  background: var(--pg-bg);
+  border: 1px solid var(--pg-line);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+  line-height: 1;
+  user-select: none;
+}
+html[data-theme="dark"] body .ac-pager {
+  --pg-bg: #1b1c21;
+  --pg-line: rgba(255, 255, 255, 0.09);
+  --pg-ink: #e4e4e7;
+  --pg-muted: #8b8b93;
+  --pg-hover: rgba(255, 255, 255, 0.07);
+  --pg-active-bg: #f4f4f5;
+  --pg-active-fg: #0a0a0a;
+  --pg-ring: rgba(255, 255, 255, 0.28);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+html body .ac-pager--sm { --pg-size: 28px; }
+html body .ac-pager .ac-pager-pages {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+html body .ac-pager .ac-pager-pages > li { margin: 0; padding: 0; list-style: none; }
+html body .ac-pager button.ac-pager-hit:not(#ac-pg) {
+  position: relative;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+  min-width: var(--pg-size) !important;
+  width: auto !important;
+  height: var(--pg-size) !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 6px !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  background-image: none !important;
+  color: var(--pg-ink) !important;
+  -webkit-text-fill-color: currentColor !important;
+  font: inherit;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0 !important;
+  box-shadow: none !important;
+  filter: none !important;
+  transform: none !important;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+  -webkit-appearance: none;
+  appearance: none;
+}
+html body .ac-pager button.ac-pager-step:not(#ac-pg) { width: var(--pg-size) !important; padding: 0 !important; color: var(--pg-muted) !important; }
+html body .ac-pager button.ac-pager-hit:not(#ac-pg) svg { display: block; stroke: currentColor; fill: none; }
+html body .ac-pager button.ac-pager-hit:not(#ac-pg):hover:not(:disabled):not(.is-current) {
+  background: var(--pg-hover) !important;
+  color: var(--pg-ink) !important;
+}
+html body .ac-pager button.ac-pager-hit:not(#ac-pg):active:not(:disabled):not(.is-current) { background: var(--pg-line) !important; }
+html body .ac-pager button.ac-pager-hit:not(#ac-pg):focus { outline: none !important; }
+html body .ac-pager button.ac-pager-hit:not(#ac-pg):focus-visible { box-shadow: 0 0 0 2px var(--pg-bg), 0 0 0 4px var(--pg-ring) !important; }
+html body .ac-pager button.ac-pager-hit:not(#ac-pg):disabled { opacity: 0.32 !important; cursor: default !important; }
+html body .ac-pager button.ac-pager-num.is-current:not(#ac-pg) { color: var(--pg-active-fg) !important; cursor: default; }
+html body .ac-pager button.ac-pager-num.is-current:not(#ac-pg):disabled { opacity: 1 !important; }
+html body .ac-pager .ac-pager-indicator {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: var(--pg-active-bg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+  z-index: 0;
+}
+html body .ac-pager .ac-pager-num-text { position: relative; z-index: 1; }
+html body .ac-pager .ac-pager-gap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: var(--pg-size);
+  box-sizing: border-box;
+  color: var(--pg-muted);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.5px;
+  transform: translateY(-3px);
+}
+html body .ac-pager .ac-pager-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+@media (max-width: 560px) {
+  html body .ac-pager { --pg-size: 30px; }
+}
+
+/* ══════════ Dashboard « Voir … » actions: real pill buttons, not underlined links ══════════ */
+html body a.ac-dash-link:not(#ac-pg),
+html body .content a.ac-dash-link:not(#ac-pg) {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  flex-shrink: 0 !important;
+  height: 32px !important;
+  padding: 0 12px 0 14px !important;
+  border-radius: 999px !important;
+  border: 1px solid #e4e4e7 !important;
+  background: #f4f4f5 !important;
+  color: #18181b !important;
+  -webkit-text-fill-color: currentColor !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+  text-decoration: none !important;
+  border-bottom-width: 1px !important;
+  opacity: 1 !important;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+html body a.ac-dash-link:not(#ac-pg) .ac-dash-link-arrow { transition: transform 0.18s ease; }
+html body a.ac-dash-link:not(#ac-pg):hover,
+html body .content a.ac-dash-link:not(#ac-pg):hover {
+  background: #0a0a0a !important;
+  border-color: #0a0a0a !important;
+  color: #ffffff !important;
+  text-decoration: none !important;
+  opacity: 1 !important;
+}
+html body a.ac-dash-link:not(#ac-pg):hover .ac-dash-link-arrow { transform: translateX(2px) !important; }
+html body a.ac-dash-link:not(#ac-pg):focus-visible { outline: none !important; box-shadow: 0 0 0 3px rgba(10, 10, 10, 0.16) !important; }
+html[data-theme="dark"] body a.ac-dash-link:not(#ac-pg),
+html[data-theme="dark"] body .content a.ac-dash-link:not(#ac-pg) {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #e4e4e7 !important;
+}
+html[data-theme="dark"] body a.ac-dash-link:not(#ac-pg):hover,
+html[data-theme="dark"] body .content a.ac-dash-link:not(#ac-pg):hover {
+  background: #f4f4f5 !important;
+  border-color: #f4f4f5 !important;
+  color: #0a0a0a !important;
+}
+html[data-theme="dark"] body a.ac-dash-link:not(#ac-pg):focus-visible { box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.22) !important; }
+@media (prefers-reduced-motion: reduce) {
+  html body a.ac-dash-link:not(#ac-pg) .ac-dash-link-arrow { transition: none; }
 }

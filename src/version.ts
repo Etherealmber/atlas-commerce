@@ -1,7 +1,7 @@
 /** Product identity + version — all releases are beta until stable. */
 export const APP_NAME = 'Atlas Commerce';
 export const APP_TAGLINE = 'Stock · Caisse · Facturation';
-export const APP_VERSION = '0.9.2-beta';
+export const APP_VERSION = '0.9.3-beta';
 /* v0.7 — date toujours à jour (demande user) : date du jour UTC. */
 export const APP_BUILD_DATE = '2026-11-24';
 export const APP_CHANNEL = 'beta' as const;
@@ -16,10 +16,10 @@ export const APP_DESCRIPTION =
   'Logiciel de gestion stock, caisse et facturation pour commerces et entrepôts.';
 
 /** Version publique courante. */
-export const DISPLAY_VERSION = '0.9.2';
-export const RELEASE_VISIBLE_CAP = '0.9.2';
+export const DISPLAY_VERSION = '0.9.3';
+export const RELEASE_VISIBLE_CAP = '0.9.3';
 /** Latest published notes; independent of build-only version bumps. */
-export const WHATS_NEW_VERSION = '0.9.2';
+export const WHATS_NEW_VERSION = '0.9.3';
 
 /** true si `v` (ex. « 0.7.2 », « 0.7.6-beta ») est ≤ `cap` en semver simplifié. */
 export function semverAtMost(v: string, cap: string): boolean {

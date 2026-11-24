@@ -731,7 +731,6 @@ export default function Balance() {
             pageSize={50}
             total={sortedRows.length}
             onPageChange={setTxPage}
-            pageBase={0}
             className="bal-tx-pager"
           />
         </div>

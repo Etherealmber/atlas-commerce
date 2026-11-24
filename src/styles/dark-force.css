@@ -3059,7 +3059,7 @@ html body .ac-donut-legend {
    segment active = zinc (not white), agent nav zinc, balance tracks
    ═══════════════════════════════════════════════════════════════ */
 /* primary buttons: zinc-700 slab, never near-black */
-html[data-theme="dark"]:not(.phone-shell) body :where(.btn, button):not(.secondary):not(.ghost):not(.danger):not(.btn-delete-red):not(.ac-seg-btn):not(.atlas-typeahead-item):not(.density-toggle):not(.dash-range-select):not([class*="iconbtn"]):not([class*="toggle"]):not([class*="close"]):not(.atlas-agent-nav button):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.public-download-main):not(.public-download-menu-item):not(.dl-cta-primary):not(.dl-cta-main):not(.dl-cta-ghost):not(.ac-user-dropdown-item):not(.account-menu-item):not(.ac-notif-item):not(.ac-notif-all) {
+html[data-theme="dark"]:not(.phone-shell) body :where(.btn, button):not(.secondary):not(.ghost):not(.danger):not(.btn-delete-red):not(.ac-seg-btn):not(.atlas-typeahead-item):not(.density-toggle):not(.dash-range-select):not([class*="iconbtn"]):not([class*="toggle"]):not([class*="close"]):not(.atlas-agent-nav button):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.public-download-main):not(.public-download-menu-item):not(.dl-cta-primary):not(.dl-cta-main):not(.dl-cta-ghost):not(.ac-user-dropdown-item):not(.account-menu-item):not(.ac-notif-item):not(.ac-notif-all):not(.ac-pager-hit) {
   background: #3f3f46 !important;
   background-color: #3f3f46 !important;
   background-image: none !important;
@@ -3067,7 +3067,7 @@ html[data-theme="dark"]:not(.phone-shell) body :where(.btn, button):not(.seconda
   -webkit-text-fill-color: #f4f4f5 !important;
   border-color: #52525b !important;
 }
-html[data-theme="dark"]:not(.phone-shell) body :where(.btn, button):not(.secondary):not(.ghost):not(.danger):not(.btn-delete-red):not(.ac-seg-btn):not(.atlas-typeahead-item):not(.density-toggle):not(.dash-range-select):not([class*="iconbtn"]):not([class*="toggle"]):not([class*="close"]):not(.atlas-agent-nav button):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.public-download-main):not(.public-download-menu-item):not(.dl-cta-primary):not(.dl-cta-main):not(.dl-cta-ghost):not(.ac-user-dropdown-item):not(.account-menu-item):not(.ac-notif-item):not(.ac-notif-all):hover {
+html[data-theme="dark"]:not(.phone-shell) body :where(.btn, button):not(.secondary):not(.ghost):not(.danger):not(.btn-delete-red):not(.ac-seg-btn):not(.atlas-typeahead-item):not(.density-toggle):not(.dash-range-select):not([class*="iconbtn"]):not([class*="toggle"]):not([class*="close"]):not(.atlas-agent-nav button):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.public-download-main):not(.public-download-menu-item):not(.dl-cta-primary):not(.dl-cta-main):not(.dl-cta-ghost):not(.ac-user-dropdown-item):not(.account-menu-item):not(.ac-notif-item):not(.ac-notif-all):not(.ac-pager-hit):hover {
   background: #4b4b52 !important;
   background-color: #4b4b52 !important;
   color: #ffffff !important;

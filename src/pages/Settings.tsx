@@ -3,6 +3,7 @@ import SettingsUserDialog from '../components/SettingsUserDialog';
 import { isFeatureEnabled } from '../lib/featureFlags';
 import { EditProfile, type ProfileData } from '../components/ui/EditProfile';
 import ImageLightbox from '../components/ui/ImageLightbox';
+import { ListPager } from '../components/ui/ListPager';
 import { TimedUndoDelete, SaveToggle } from '../components/ui';
 import { useEffect, useState, useCallback } from 'react';
 import {
@@ -2979,34 +2980,6 @@ if (loading) return (
               </div>
 
               <div className="ac-audit-pager">
-                <div className="ac-audit-pager-btns">
-                  <button
-                    type="button"
-                    className="secondary"
-                    disabled={auditLoading || auditCursorStack.length <= 1}
-                    onClick={() => {
-                      const stack = auditCursorStack.slice(0, -1);
-                      const prev = stack[stack.length - 1] ?? null;
-                      setAuditCursorStack(stack);
-                      loadAuditPage(prev, auditQ, false);
-                    }}
-                  >
-                    ← Précédent
-                  </button>
-                  <button
-                    type="button"
-                    className="secondary"
-                    disabled={auditLoading || !auditMeta?.has_more || !auditMeta?.next_cursor}
-                    onClick={() => {
-                      const next = auditMeta?.next_cursor ?? null;
-                      if (!next) return;
-                      setAuditCursorStack((prev) => [...prev, next]);
-                      loadAuditPage(next, auditQ, false);
-                    }}
-                  >
-                    Suivant →
-                  </button>
-                </div>
                 <span className="ac-audit-pager-meta">
                   {auditMeta
                     ? auditLog.length === 0
@@ -3014,6 +2987,24 @@ if (loading) return (
                       : `Page ${auditCursorStack.length} · ${auditLog.length} affiché${auditLog.length > 1 ? 's' : ''}${auditMeta.has_more ? ' · suite disponible' : ' · fin'}`
                     : 'Prêt'}
                 </span>
+                <ListPager
+                  page={Math.max(0, auditCursorStack.length - 1)}
+                  hasMore={Boolean(auditMeta?.has_more && auditMeta?.next_cursor)}
+                  disabled={auditLoading}
+                  onPageChange={(target) => {
+                    const curIdx = auditCursorStack.length - 1;
+                    if (target < curIdx) {
+                      const stack = auditCursorStack.slice(0, target + 1);
+                      setAuditCursorStack(stack);
+                      loadAuditPage(stack[stack.length - 1] ?? null, auditQ, false);
+                    } else if (target > curIdx) {
+                      const next = auditMeta?.next_cursor ?? null;
+                      if (!next) return;
+                      setAuditCursorStack((prev) => [...prev, next]);
+                      loadAuditPage(next, auditQ, false);
+                    }
+                  }}
+                />
               </div>
             </section>
           </div>
