@@ -147,7 +147,7 @@ export function validateMinVersionPolicy(policy: MinVersionPolicy, manifest: any
 }
 
 /** Routes an outdated Android client must still reach to update itself. */
-export const ANDROID_MIN_GUARD_EXEMPT = ['/api/health', '/api/app/android-update'];
+export const ANDROID_MIN_GUARD_EXEMPT = ['/api/health', '/api/app/android-update', '/api/app/desktop-update'];
 
 export function androidClientMeta(c: any): { isAndroid: boolean; code: number | null } {
   const client = String(c.req.header('X-Atlas-Client') || '').trim().toLowerCase();

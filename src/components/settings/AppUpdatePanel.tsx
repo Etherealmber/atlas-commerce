@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getToken } from '../../auth';
 import { getApiBase } from '../../config';
+import DesktopUpdateSection from './DesktopUpdateSection';
 
 /**
  * Mise à jour application Android — gestion du manifeste `latest.json` et du
@@ -45,6 +46,7 @@ const fmtDate = (iso: string | null | undefined): string => {
 };
 
 export default function AppUpdatePanel() {
+  const [platformTab, setPlatformTab] = useState<'android' | 'desktop'>('android');
   const [state, setState] = useState<RemoteState | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -216,23 +218,51 @@ export default function AppUpdatePanel() {
 
   if (loading && !state) {
     return (
-      <div className="card" style={{ padding: 16, display: 'grid', gap: 10 }} aria-busy="true" aria-label="Chargement de l'état R2">
-        <div className="skeleton" style={{ height: 18, width: '40%' }} />
-        <div className="skeleton" style={{ height: 52, borderRadius: 12 }} />
+      <div>
+        <div className="ac-dash-period-pills" role="group" aria-label="Plateforme de mise à jour" style={{ marginBottom: 14 }}>
+          <button type="button" className="ac-seg-btn" aria-pressed={platformTab === 'android'} onClick={() => setPlatformTab('android')}>Android (APK)</button>
+          <button type="button" className="ac-seg-btn" aria-pressed={platformTab === 'desktop'} onClick={() => setPlatformTab('desktop')}>Bureau Windows (CDN1)</button>
+        </div>
+        {platformTab === 'desktop' ? (
+          <DesktopUpdateSection />
+        ) : (
+          <div className="card" style={{ padding: 16, display: 'grid', gap: 10 }} aria-busy="true" aria-label="Chargement de l'état R2">
+            <div className="skeleton" style={{ height: 18, width: '40%' }} />
+            <div className="skeleton" style={{ height: 52, borderRadius: 12 }} />
+          </div>
+        )}
       </div>
     );
   }
   if (loadError && !state) {
     return (
-      <div className="card" style={{ padding: 16 }}>
-        <p style={{ color: 'var(--ac-danger)', marginTop: 0 }}>{loadError}</p>
-        <button type="button" className="secondary" onClick={() => void load()}>Réessayer</button>
+      <div>
+        <div className="ac-dash-period-pills" role="group" aria-label="Plateforme de mise à jour" style={{ marginBottom: 14 }}>
+          <button type="button" className="ac-seg-btn" aria-pressed={platformTab === 'android'} onClick={() => setPlatformTab('android')}>Android (APK)</button>
+          <button type="button" className="ac-seg-btn" aria-pressed={platformTab === 'desktop'} onClick={() => setPlatformTab('desktop')}>Bureau Windows (CDN1)</button>
+        </div>
+        {platformTab === 'desktop' ? (
+          <DesktopUpdateSection />
+        ) : (
+          <div className="card" style={{ padding: 16 }}>
+            <p style={{ color: 'var(--ac-danger)', marginTop: 0 }}>{loadError}</p>
+            <button type="button" className="secondary" onClick={() => void load()}>Réessayer</button>
+          </div>
+        )}
       </div>
     );
   }
 
   return (
     <div>
+      <div className="ac-dash-period-pills" role="group" aria-label="Plateforme de mise à jour" style={{ marginBottom: 14 }}>
+        <button type="button" className="ac-seg-btn" aria-pressed={platformTab === 'android'} onClick={() => setPlatformTab('android')}>Android (APK)</button>
+        <button type="button" className="ac-seg-btn" aria-pressed={platformTab === 'desktop'} onClick={() => setPlatformTab('desktop')}>Bureau Windows (CDN1)</button>
+      </div>
+      {platformTab === 'desktop' ? (
+        <DesktopUpdateSection />
+      ) : (
+      <>
       <div className="card" style={{ marginBottom: 16, padding: 16 }}>
         <h2 style={{ fontSize: 16, marginTop: 0 }}>Mise à jour application Android</h2>
         <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5, marginTop: 4 }}>
@@ -467,6 +497,8 @@ export default function AppUpdatePanel() {
         >
           {msg}
         </p>
+      )}
+      </>
       )}
     </div>
   );

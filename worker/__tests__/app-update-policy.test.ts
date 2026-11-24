@@ -139,6 +139,7 @@ describe('Android 426 enforcement guard', () => {
     );
     app.get('/api/health', (c) => c.json({ ok: true }));
     app.get('/api/app/android-update', (c) => c.json({ ok: true }));
+    app.get('/api/app/desktop-update', (c) => c.json({ ok: true }));
     app.get('/api/products', (c) => c.json({ ok: true, route: 'products' }));
   });
 

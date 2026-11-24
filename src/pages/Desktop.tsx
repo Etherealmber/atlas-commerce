@@ -16,9 +16,21 @@ import { publicationDate } from '../lib/releaseDate';
 import { Link } from 'react-router-dom';
 import { PublicNav, PublicSessionCta, GitHubStarButton } from '../components/PublicChrome';
 import { APP_BUILD_DATE, APP_NAME } from '../version';
+import { getApiBase } from '../config';
 
 const GH_RELEASES = 'https://api.github.com/repos/Etherealmber/atlas-commerce-desktop/releases?per_page=50';
+const DESKTOP_CDN1_JSON = 'https://cdn1.afmarbre.com/app-updates/desktop/latest.json';
 const DESKTOP_REPO = 'https://github.com/Etherealmber/atlas-commerce-desktop';
+
+type CdnDesktopInfo = {
+  version: string;
+  downloadUrl: string;
+  latestUrl: string;
+  sha256?: string | null;
+  sizeBytes?: number | null;
+  publishedAt?: string | null;
+  notes?: string | null;
+};
 
 type GhAsset = { name?: string; browser_download_url?: string };
 type GhRelease = {
@@ -126,6 +138,7 @@ export default function Desktop() {
   const pageRef = useRef<HTMLDivElement>(null);
   useLandingMotion(pageRef, '.dl-ed-facts, .dl-ed-section, .dl-preview', '.dl-ed-visual-inner');
   const [rels, setRels] = useState<GhRelease[]>([]);
+  const [cdnDesktop, setCdnDesktop] = useState<CdnDesktopInfo | null>(null);
   const [state, setState] = useState<'load' | 'ok' | 'error'>('load');
   const [os, setOs] = useState<OsKey>('windows');
   const [assetFilter, setAssetFilter] = useState<OsKey | 'all'>('all');
@@ -144,6 +157,28 @@ export default function Desktop() {
         setState('ok');
       })
       .catch(() => setState('error'));
+
+    const apiBase = getApiBase();
+    fetch(`${apiBase}/api/app/desktop-update?platform=windows`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((j: any) => {
+        if (j?.hasRelease && j?.downloadUrl) return j as CdnDesktopInfo;
+        return fetch(DESKTOP_CDN1_JSON, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null));
+      })
+      .then((m: any) => {
+        if (m && m.version && (m.downloadUrl || m.latestUrl)) {
+          setCdnDesktop({
+            version: String(m.version),
+            downloadUrl: String(m.downloadUrl || m.latestUrl),
+            latestUrl: String(m.latestUrl || m.downloadUrl),
+            sha256: m.sha256 ? String(m.sha256) : null,
+            sizeBytes: typeof m.sizeBytes === 'number' ? m.sizeBytes : null,
+            publishedAt: m.publishedAt ? String(m.publishedAt) : null,
+            notes: m.notes ? String(m.notes) : null,
+          });
+        }
+      })
+      .catch(() => { /* fallback silencieux sur GitHub Releases */ });
   }, []);
 
   useEffect(() => {
@@ -182,6 +217,8 @@ export default function Desktop() {
   const relTitle = latest?.name || latest?.tag_name || 'Atlas Commerce Desktop';
   const relDate = publicationDate(latest?.published_at);
   const mainAsset = osAsset(latest, os);
+  const windowsCdnUrl = os === 'windows' && cdnDesktop?.downloadUrl ? cdnDesktop.downloadUrl : null;
+  const primaryHref = windowsCdnUrl || (mainAsset ? String(mainAsset.browser_download_url) : null);
   const visibleAssets = (latest?.assets || []).filter((asset) => {
     const name = String(asset.name || '');
     if (/\.zsync$|source\.tar\.gz$/i.test(name)) return false;
@@ -214,9 +251,15 @@ export default function Desktop() {
                 <h1 className="dl-h1 dl-ed-title"><span className="dl-ed-title-first">Atlas Commerce</span>{' '}<span className="dl-ed-title-second">pour bureau.</span></h1>
                 <p className="dl-desc">Votre espace de gestion dans une fenêtre dédiée, pour Windows, macOS et Linux.</p>
                 <div className="dl-ctas">
-                  {state === 'ok' && mainAsset ? <a className="dl-cta-main" href={String(mainAsset.browser_download_url)} target="_blank" rel="noopener noreferrer"><span className="dl-cta-arrow" aria-hidden="true">↓</span> &nbsp; Télécharger pour {OS_LABEL[os]}</a> : state === 'error' ? <span className="dl-cta-main dl-cta-wait" aria-disabled="true">Releases injoignables</span> : state === 'ok' ? <span className="dl-cta-main dl-cta-wait" aria-disabled="true">Aucun binaire pour {OS_LABEL[os]}</span> : <span className="dl-cta-main dl-cta-wait" aria-disabled="true">Chargement…</span>}
+                  {primaryHref ? <a className="dl-cta-main" href={primaryHref} target="_blank" rel="noopener noreferrer"><span className="dl-cta-arrow" aria-hidden="true">↓</span> &nbsp; Télécharger pour {OS_LABEL[os]}</a> : state === 'error' ? <span className="dl-cta-main dl-cta-wait" aria-disabled="true">Releases injoignables</span> : state === 'ok' ? <span className="dl-cta-main dl-cta-wait" aria-disabled="true">Aucun binaire pour {OS_LABEL[os]}</span> : <span className="dl-cta-main dl-cta-wait" aria-disabled="true">Chargement…</span>}
                   <a className="dl-cta-ghost" href="#assets">Autres fichiers <span className="dl-cta-arrow" aria-hidden="true">↓</span></a>
                 </div>
+                {windowsCdnUrl && cdnDesktop && (
+                  <p style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 8 }}>
+                    Miroir CDN1 Windows · v{cdnDesktop.version}
+                    {cdnDesktop.sha256 ? ` · SHA-256 ${cdnDesktop.sha256.slice(0, 12)}…` : ''}
+                  </p>
+                )}
                 <p className="dl-note">Choisissez un fichier adapté à votre système depuis les releases officielles.</p>
               </div>
               <div className="dl-ed-mark" aria-hidden="true"><div><img src="/atlas-icon-light.png" alt="" width="100" height="100" /></div><span>ATLAS · AU COMPTOIR</span></div>

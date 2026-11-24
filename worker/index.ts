@@ -160,6 +160,7 @@ import { apiFail, apiOk } from './lib/api-response';
 import { toClientError, AppError } from './lib/errors';
 import { repairProductSearchIndex, proactiveFtsHealth } from './lib/reliability';
 import { androidReleaseRouter, serveAppUpdatesAsset } from './routes/androidRelease';
+import { desktopReleaseRouter } from './routes/desktopRelease';
 import { registerDeviceTokenRoutes } from './routes/deviceToken';
 import { registerDesktopAuthRoutes, isDesktopAuthPath, isPublicDesktopAuthPath, DESKTOP_AUTH } from './routes/desktopAuth';
 import { registerDesktopNativeDiscovery, DESKTOP_NATIVE_V2_CAPABILITIES, DESKTOP_NATIVE_V3_CAPABILITIES } from './routes/desktopNativeDiscovery';
@@ -1058,11 +1059,13 @@ app.use('/api/*', async (c, next) => {
     // designed to expose no secrets (subsystem ok flags + WAF counters).
     path === '/api/health' ||
     path === '/api/canary' ||
-    // Read-only APK update manifest check — called by the app before login
-    // (mandatory-update flow). Exposes only public CDN info.
+    // Read-only APK & Desktop update manifest checks — called before login
+    // (mandatory-update flow). Expose only public CDN info.
     path === '/api/app/android-update' ||
-    // CI release ingestion — Bearer ANDROID_RELEASE_TOKEN, no session/CSRF.
+    path === '/api/app/desktop-update' ||
+    // CI release ingestion — Bearer release token, no session/CSRF.
     path === '/api/admin/android-release' ||
+    path === '/api/admin/desktop-release' ||
     // QR login bridge: the PC creates/polls its session ANONYMOUSLY (the
     // phone side authenticates with its Bearer + the one-time QR token).
     path.startsWith('/api/auth/qr/') ||
@@ -1396,7 +1399,7 @@ app.use('*', async (c, next) => {
   if (
     reqPath.startsWith('/api/') &&
     ['POST', 'PUT', 'PATCH'].includes(c.req.method.toUpperCase()) &&
-    !/\/(android-release|backups\/restore|image|agent\/files|import|parse-document|parse-id|id-document|cdn-upload)/.test(reqPath)
+    !/\/(android-release|desktop-release|desktop-update\/installer|backups\/restore|image|agent\/files|import|parse-document|parse-id|id-document|cdn-upload)/.test(reqPath)
   ) {
     const cl = Number(c.req.header('Content-Length') || 0);
     if (Number.isFinite(cl) && cl > 2_000_000) {
@@ -2871,6 +2874,7 @@ registerDeviceTokenRoutes(app, sessionUserFromHeader);
  * { "versionCode": 10, "versionName": "0.9.4", "apkUrl": "https://cdn.../atlas.apk", "mandatory": false, "notes": "..." }
  */
 app.route('/', androidReleaseRouter);
+app.route('/', desktopReleaseRouter);
 
 /* ────────────────────────────────────────────────────────────────────────────
  * App update management (owner/admin only) — Cloudflare R2 `IMAGES` bucket:
