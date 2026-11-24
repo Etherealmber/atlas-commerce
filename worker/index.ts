@@ -1311,7 +1311,11 @@ async function requireEmployeeAdmin(c: any): Promise<Response | null> {
   const isPrintRoute =
     path === '/api/settings/invoice-preview' ||
     path === '/api/employees/form/print' ||
-    /^\/api\/employees\/\d+\/form\/print$/.test(path);
+    /^\/api\/employees\/\d+\/form\/print$/.test(path) ||
+    // Opened in a new tab (no Authorization header possible). The global
+    // print-like gate already validated the ?token= session for these paths.
+    /^\/api\/payroll\/runs\/\d+\/lines\/\d+\/bulletin$/.test(path) ||
+    /^\/api\/payroll\/runs\/\d+\/declaration$/.test(path);
   const authHeader = c.req.header('Authorization');
   const queryToken = isPrintRoute ? extractQueryToken(c.req.url) : undefined;
   const effectiveHeader = authHeader || (queryToken && !queryToken.startsWith('np1.') ? `Bearer ${queryToken}` : undefined);

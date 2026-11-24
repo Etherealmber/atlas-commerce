@@ -23,6 +23,7 @@ import { getToken } from '../auth';
 import DatePicker from '../components/DatePicker';
 import TimePicker from '../components/TimePicker';
 import RefreshIconButton from '../components/RefreshIconButton';
+import { FloatingPortal } from '../components/FloatingPortal';
 import SaveFeedback from '../components/SaveFeedback';
 import PageSkeleton, { DesktopTableSkeleton } from '../components/PageSkeleton';
 import { getCachedFingerprint } from '../fingerprint';
@@ -956,7 +957,7 @@ export default function Attendance() {
       )}
 
       {editId != null && (
-        <div className="modal-backdrop" onClick={() => setEditId(null)} role="presentation">
+        <FloatingPortal><div className="modal-backdrop" onClick={() => setEditId(null)} role="presentation">
           <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
             <h2 style={{ marginTop: 0 }}>Corriger le pointage</h2>
             <div className="form-row">
@@ -991,11 +992,11 @@ export default function Attendance() {
               </button>
             </div>
           </div>
-        </div>
+        </div></FloatingPortal>
       )}
 
       {absentOpen && (
-        <div className="modal-backdrop" onClick={() => setAbsentOpen(false)} role="presentation">
+        <FloatingPortal><div className="modal-backdrop" onClick={() => setAbsentOpen(false)} role="presentation">
           <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 400 }}>
             <h2 style={{ marginTop: 0 }}>Marquer absents</h2>
             <p>
@@ -1010,12 +1011,12 @@ export default function Attendance() {
               </button>
             </div>
           </div>
-        </div>
+        </div></FloatingPortal>
       )}
 
       
       {recordTarget && (
-        <div className="modal-backdrop" onClick={() => setRecordTarget(null)} role="presentation">
+        <FloatingPortal><div className="modal-backdrop" onClick={() => setRecordTarget(null)} role="presentation">
           <div
             className="modal-card ac-att-modal"
             role="dialog"
@@ -1181,11 +1182,11 @@ export default function Attendance() {
               </button>
             </div>
           </div>
-        </div>
+        </div></FloatingPortal>
       )}
 
 {exportOpen && (
-        <div className="modal-backdrop" onClick={() => setExportOpen(false)} role="presentation">
+        <FloatingPortal><div className="modal-backdrop" onClick={() => setExportOpen(false)} role="presentation">
           <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 400 }}>
             <h2 style={{ marginTop: 0 }}>Export présence</h2>
             <div className="form-row">
@@ -1208,7 +1209,7 @@ export default function Attendance() {
               </button>
             </div>
           </div>
-        </div>
+        </div></FloatingPortal>
       )}
 
       <style>{`

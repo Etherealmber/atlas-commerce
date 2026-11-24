@@ -10135,7 +10135,10 @@ html[data-theme="dark"] .atlas-tp-footer .atlas-dp-btn {
   opacity: 1;
   transform: none;
   filter: none !important;
-  will-change: opacity, transform;
+  /* No will-change: transform here — it makes this wrapper the containing block
+     for every position:fixed descendant, so in-page modals only dimmed the
+     content column (sidebar, topbar and bottom edge stayed bright). */
+  will-change: auto;
 }
 .page-anim.page-anim-in {
   animation: atlas-page-smooth 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -21762,3 +21765,10 @@ html body .download-landing .dl-ed-platforms button:hover { color: var(--ed-text
   html body .home-landing .hm-cta .public-download-toggle { flex: 0 0 48px; width: 48px !important; min-width: 48px; min-height: 48px; }
   .home-landing .hm-cta .hm-hero-explore { align-self: center; }
 }
+
+/* Payroll → Paramètres CNSS / AMO dialog */
+.payroll-settings-modal { width: min(760px, 100%); }
+.payroll-settings-modal .modal-head h2 { margin: 0; }
+.payroll-settings-modal .payroll-settings-sub { margin: 4px 0 14px; font-size: 13px; padding-right: 44px; }
+.payroll-settings-modal .ac-ops-form-grid-2 { row-gap: 10px; }
+.payroll-settings-modal .modal-actions { margin-top: 16px; }

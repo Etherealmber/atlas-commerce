@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FC, type ReactNode } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { X } from 'lucide-react';
+import { FloatingPortal } from '../FloatingPortal';
 
 type TourStep = {
   id: string;
@@ -44,7 +45,7 @@ export const FeatureTour: FC<Props> = ({ steps, onClose, onLearnMore, loop = fal
   const currentStep = steps[currentIndex];
 
   return (
-    <div className="ac-feature-tour" role="dialog" aria-modal="true">
+    <FloatingPortal><div className="ac-feature-tour" role="dialog" aria-modal="true">
       <button type="button" className="ac-feature-tour-backdrop" aria-label="Fermer" onClick={onClose} />
       <motion.div
         ref={containerRef}
@@ -127,7 +128,7 @@ export const FeatureTour: FC<Props> = ({ steps, onClose, onLearnMore, loop = fal
           ← / → pour naviguer · Échap pour fermer
         </p>
       </motion.div>
-    </div>
+    </div></FloatingPortal>
   );
 };
 

@@ -197,3 +197,32 @@ describe('Part 2 — cash shifts + X/Z-report', () => {
     expect(auditsAfter.map((a) => a.action)).toContain('cash_shift.z_reprint');
   });
 });
+
+describe('X/Z reports opened in a new tab (?token=) on the real worker', () => {
+  it('reads the role from the validated query token, without trusting it for other paths', async () => {
+    const { default: realApp } = await import('../index');
+    const sqlite = new DatabaseSync(':memory:');
+    sqlite.exec(`
+      CREATE TABLE app_users (id INTEGER PRIMARY KEY, username TEXT UNIQUE, password_hash TEXT, password_salt TEXT DEFAULT '', role TEXT, active INTEGER DEFAULT 1, created_at TEXT);
+      INSERT INTO app_users VALUES (1,'alice','secret-alice','','admin',1,'2026-01-01');
+      CREATE TABLE audit_log (id INTEGER PRIMARY KEY AUTOINCREMENT, created_at TEXT DEFAULT (datetime('now')), username TEXT, role TEXT, action TEXT, entity TEXT, entity_id TEXT, detail TEXT, ip TEXT);
+    `);
+    const env = { DB: makeSqliteD1(sqlite), ADMIN_PASSWORD: 'OwnerPass123!', JWT_SECRET: 'cash-test-secret' } as any;
+    const ip = '203.0.113.57';
+    const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`proof|alice|admin|secret-alice|${ip}|none`));
+    const proof = [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, '0')).join('');
+    const tok = btoa(`stock-auth-v2|alice|admin|${ip}|none|${proof}`);
+    const get = (path: string, t: string) =>
+      realApp.fetch(new Request(`http://test.local${path}?token=${encodeURIComponent(t)}`, { headers: { 'CF-Connecting-IP': ip } }), env, {} as any);
+
+    // Shift 999 does not exist: getting past the role gate means 404 (was 403 FORBIDDEN_ROLE).
+    for (const kind of ['x', 'z']) {
+      const res = await get(`/api/cash-shifts/999/${kind}-report`, tok);
+      expect(res.status).toBe(404);
+    }
+    // A forged token is still rejected by the global gate before the handler.
+    const forged = btoa(`stock-auth-v2|alice|owner|${ip}|none|${'0'.repeat(64)}`);
+    const bad = await get('/api/cash-shifts/999/z-report', forged);
+    expect(bad.status).toBe(401);
+  });
+});

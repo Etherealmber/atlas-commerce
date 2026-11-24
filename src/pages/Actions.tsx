@@ -14,6 +14,7 @@ import { api } from '../api';
 import { useUi } from '../components/AppDialogs';
 import { ImageWorkbench } from '../components/ProductImageEditor';
 import RefreshIconButton from '../components/RefreshIconButton';
+import { FloatingPortal } from '../components/FloatingPortal';
 import { ModalFormError } from '../components/ModalFormFeedback';
 import { mergeUnitOptions, type UnitOption } from '../lib/dualUnit';
 import ListPager from '../components/ui/ListPager';
@@ -634,7 +635,7 @@ export default function Actions() {
       </section>
 
       {approve && (
-        <div className="modal-overlay" onClick={() => { if (busy) return; setErr(''); setApprove(null); }}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => { if (busy) return; setErr(''); setApprove(null); }}>
           <div className="modal" style={{ maxWidth: 560 }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-head">
               <h2>Approuver la création produit</h2>
@@ -764,11 +765,11 @@ export default function Actions() {
               </button>
             </div>
           </div>
-        </div>
+        </div></FloatingPortal>
       )}
 
       {stockApprove && (
-        <div className="modal-overlay" onClick={() => { if (busy) return; setErr(''); setStockApprove(null); }}>
+        <FloatingPortal><div className="modal-overlay" onClick={() => { if (busy) return; setErr(''); setStockApprove(null); }}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-head">
               <h2>
@@ -810,7 +811,7 @@ export default function Actions() {
               </button>
             </div>
           </div>
-        </div>
+        </div></FloatingPortal>
       )}
     </div>
   );

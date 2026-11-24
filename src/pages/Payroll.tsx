@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import {
   CheckCircle2,
   Download,
@@ -18,6 +17,8 @@ import SaveFeedback from '../components/SaveFeedback';
 import TopPageActions from '../components/TopPageActions';
 import RefreshIconButton from '../components/RefreshIconButton';
 import PageSkeleton from '../components/PageSkeleton';
+import { FloatingPortal } from '../components/FloatingPortal';
+import PayrollSettingsDialog from '../components/PayrollSettingsDialog';
 import { fmtMoney } from '../lib/money';
 
 function openAuthedUrl(url: string) {
@@ -44,6 +45,7 @@ export default function Payroll() {
   const [editBonus, setEditBonus] = useState('0');
   const [editAdj, setEditAdj] = useState('0');
   const [editNotes, setEditNotes] = useState('');
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const loadRuns = useCallback(async (pickId?: number) => {
     setLoading(true);
@@ -175,10 +177,10 @@ export default function Payroll() {
         <h1 className="sr-only">Paie CNSS / AMO</h1>
         <TopPageActions>
           <RefreshIconButton onClick={() => void loadRuns(selectedRun?.id)} loading={loading} />
-          <Link to="/settings?tab=payroll" className="btn secondary">
+          <button type="button" className="secondary" onClick={() => setSettingsOpen(true)} aria-haspopup="dialog">
             <SlidersHorizontal size={16} aria-hidden="true" />
             <span className="tpa-label">Paramètres CNSS / AMO</span>
-          </Link>
+          </button>
         </TopPageActions>
       </div>
 
@@ -508,8 +510,12 @@ export default function Payroll() {
         </div>
       </section>
 
+      {settingsOpen && (
+        <PayrollSettingsDialog onClose={() => setSettingsOpen(false)} onSaved={setFeedback} />
+      )}
+
       {editingLine && (
-        <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="payroll-edit-title" onClick={() => setEditingLine(null)}>
+        <FloatingPortal><div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="payroll-edit-title" onClick={() => setEditingLine(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-head">
               <h2 id="payroll-edit-title">Modifier ligne — {editingLine.employee_name}</h2>
@@ -561,7 +567,7 @@ export default function Payroll() {
               </div>
             </form>
           </div>
-        </div>
+        </div></FloatingPortal>
       )}
     </div>
   );
