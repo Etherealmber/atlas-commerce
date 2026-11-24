@@ -3544,3 +3544,272 @@ html[data-theme="dark"].phone-shell .ph-product-thumb {
   background: #232329;
   border-color: rgba(255, 255, 255, 0.1);
 }
+
+/* Mobile Web Shell Polish: Topbar, Quick Menu, Directory Search/Cards & Scan Screen */
+html.phone-shell body .phone-root button.ph-top-agent,
+html.phone-shell body .phone-root button.ph-native-icon {
+  background: var(--ph-card);
+  color: var(--ph-fg);
+  border: 1px solid var(--ph-border);
+  box-shadow: var(--ph-shadow);
+  backdrop-filter: none;
+  filter: none;
+}
+html.phone-shell body .phone-root button.ph-top-agent:hover,
+html.phone-shell body .phone-root button.ph-native-icon:hover {
+  background: var(--ph-card);
+  color: var(--ph-fg);
+  border-color: color-mix(in srgb, var(--ph-fg) 22%, var(--ph-border));
+  filter: none;
+}
+html.phone-shell body .phone-root button.ph-top-agent:active,
+html.phone-shell body .phone-root button.ph-native-icon:active {
+  transform: scale(0.95);
+  filter: none;
+}
+
+html.phone-shell body .phone-root button.ph-quick-ball,
+html.phone-shell body .phone-root button.ph-quick-ball:hover,
+html.phone-shell body .phone-root button.ph-quick-ball:active,
+html.phone-shell body .phone-root button.ph-quick-ball[aria-expanded="true"] {
+  background: var(--ph-card);
+  color: var(--ph-fg);
+  border: 1px solid var(--ph-border);
+  box-shadow: var(--ph-shadow);
+  backdrop-filter: none;
+  filter: none;
+}
+html.phone-shell body .phone-root button.ph-quick-ball[aria-expanded="true"] {
+  border-color: color-mix(in srgb, var(--ph-fg) 24%, var(--ph-border));
+}
+html[data-theme="dark"].phone-shell body .phone-root button.ph-top-agent,
+html[data-theme="dark"].phone-shell body .phone-root button.ph-native-icon,
+html[data-theme="dark"].phone-shell body .phone-root button.ph-quick-ball,
+html[data-theme="dark"].phone-shell body .phone-root button.ph-quick-ball:hover,
+html[data-theme="dark"].phone-shell body .phone-root button.ph-quick-ball:active,
+html[data-theme="dark"].phone-shell body .phone-root button.ph-quick-ball[aria-expanded="true"] {
+  background: #171717;
+  color: #f4f4f5;
+  border-color: rgba(255, 255, 255, 0.14);
+}
+html[data-theme="dark"].phone-shell body .phone-root button.ph-quick-ball[aria-expanded="true"] {
+  background: #222226;
+  border-color: rgba(255, 255, 255, 0.24);
+}
+
+html.phone-shell body .phone-root .ph-quick-menu {
+  padding: 6px;
+  gap: 4px;
+}
+html.phone-shell body .phone-root button.ph-quick-item {
+  background: transparent;
+  color: var(--ph-fg);
+  border: 0;
+  border-radius: 14px;
+  padding: 10px 12px;
+  min-height: 48px;
+  box-shadow: none;
+  filter: none;
+}
+html.phone-shell body .phone-root button.ph-quick-item:hover,
+html.phone-shell body .phone-root button.ph-quick-item:active {
+  background: color-mix(in srgb, var(--ph-fg) 6%, transparent);
+  color: var(--ph-fg);
+  filter: none;
+}
+html.phone-shell body .phone-root .ph-quick-item-txt {
+  gap: 2px;
+}
+html.phone-shell body .phone-root .ph-quick-item-txt strong {
+  font-size: 14px;
+  line-height: 1.25;
+}
+html.phone-shell body .phone-root .ph-quick-item-txt small {
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+html.phone-shell body .phone-root .ph-catalog-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 46px;
+  padding: 0 14px;
+  box-sizing: border-box;
+  border-radius: 16px;
+  border: 1px solid var(--ph-border);
+  background: var(--ph-card);
+  color: var(--ph-fg);
+  overflow: hidden;
+}
+html.phone-shell body .phone-root .ph-catalog-search svg {
+  flex: 0 0 auto;
+  color: var(--ph-muted);
+}
+html.phone-shell body .phone-root .ph-catalog-search input[type="search"],
+html.phone-shell body .phone-root .ph-catalog-search input,
+html[data-theme="dark"].phone-shell body .phone-root .ph-catalog-search input[type="search"],
+html[data-theme="dark"].phone-shell body .phone-root .ph-catalog-search input,
+html[data-theme="dark"].phone-shell body .phone-root .ph-catalog-search input:hover,
+html[data-theme="dark"].phone-shell body .phone-root .ph-catalog-search input:focus {
+  position: static;
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  margin: 0;
+  padding: 0;
+  border: 0 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  color: var(--ph-fg) !important;
+  -webkit-text-fill-color: var(--ph-fg) !important;
+  box-shadow: none !important;
+  outline: none !important;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.3;
+}
+html.phone-shell body .phone-root .ph-native-chips {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 0 10px;
+  scrollbar-width: none;
+}
+html.phone-shell body .phone-root .ph-native-chips::-webkit-scrollbar { display: none; }
+html.phone-shell body .phone-root button.ph-chip2 {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  box-shadow: none;
+  filter: none;
+}
+
+html.phone-shell body .phone-root button.ph-catalog-card {
+  width: 100%;
+  background: var(--ph-card);
+  color: var(--ph-fg);
+  border: 1px solid var(--ph-border);
+  box-shadow: var(--ph-shadow);
+  filter: none;
+}
+html.phone-shell body .phone-root button.ph-catalog-card:hover {
+  background: var(--ph-card);
+  color: var(--ph-fg);
+  border-color: color-mix(in srgb, var(--ph-fg) 22%, var(--ph-border));
+  filter: none;
+}
+html.phone-shell body .phone-root button.ph-catalog-card:active {
+  transform: scale(0.99);
+  filter: none;
+}
+html[data-theme="dark"].phone-shell body .phone-root button.ph-catalog-card,
+html[data-theme="dark"].phone-shell body .phone-root button.ph-catalog-card:hover {
+  background: #171717;
+  color: #f4f4f5;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+html.phone-shell body .phone-root .ph-catalog-card-top strong,
+html.phone-shell body .phone-root .ph-catalog-card-foot strong {
+  color: var(--ph-fg);
+}
+html.phone-shell body .phone-root .ph-catalog-card-sub {
+  color: var(--ph-muted);
+}
+
+html.phone-shell body .phone-root .ph-scan-native {
+  width: 100%;
+  box-sizing: border-box;
+  padding-bottom: 18px;
+}
+html.phone-shell body .phone-root .ph-scan-native .ph-cam {
+  margin: 0 0 14px;
+  border-radius: 22px;
+  overflow: hidden;
+}
+html.phone-shell body .phone-root .ph-scan-native .ph-cam-hint {
+  position: relative;
+  z-index: 2;
+  max-width: min(88%, 320px);
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: rgba(10, 10, 14, 0.72);
+  color: #f4f4f5;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+  backdrop-filter: blur(8px);
+}
+html.phone-shell body .phone-root .ph-scan-native .ph-scan-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+html.phone-shell body .phone-root .ph-scan-native .ph-scan-controls > button {
+  width: 100%;
+  min-height: 46px;
+  border-radius: 14px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  filter: none;
+}
+html.phone-shell body .phone-root .ph-scan-native .ph-scan-controls > button:first-child {
+  background: #171717;
+  color: #f8fafc;
+  border: 1px solid #171717;
+}
+html[data-theme="dark"].phone-shell body .phone-root .ph-scan-native .ph-scan-controls > button:first-child {
+  background: #f4f4f5;
+  color: #09090b;
+  border-color: #f4f4f5;
+}
+html.phone-shell body .phone-root .ph-scan-native button.ph-scan-photo {
+  background: var(--ph-card);
+  color: var(--ph-fg);
+  border: 1px solid var(--ph-border);
+  box-shadow: var(--ph-shadow);
+}
+html.phone-shell body .phone-root .ph-scan-native .ph-section {
+  padding-inline: 2px;
+  margin-bottom: 10px;
+  font-size: 15px;
+  line-height: 1.3;
+  overflow: visible;
+}
+html.phone-shell body .phone-root .ph-scan-native .ph-phone-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+}
+html.phone-shell body .phone-root .ph-scan-native .ph-phone-actions > button {
+  flex: 1 1 0;
+  min-height: 44px;
+  border-radius: 12px;
+  font-weight: 700;
+  background: #171717;
+  color: #f8fafc;
+  border: 1px solid #171717;
+}
+html[data-theme="dark"].phone-shell body .phone-root .ph-scan-native .ph-phone-actions > button {
+  background: #f4f4f5;
+  color: #09090b;
+  border-color: #f4f4f5;
+}
+

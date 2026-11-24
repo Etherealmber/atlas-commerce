@@ -44,7 +44,6 @@ describe('Mobile route restrictions, unified dark palette, and notifications pol
     '/more',
     '/warehouse',
     '/bills',
-    '/clients',
     '/invoice',
     '/balance/classic',
     '/anything-else',
@@ -66,6 +65,30 @@ describe('Mobile route restrictions, unified dark palette, and notifications pol
     });
 
     expect(host.querySelector('.ph-restricted')?.textContent).toContain('Page non disponible sur mobile');
+  });
+
+  it('exposes /clients on mobile web for authorized roles and uses .ph-catalog-search on directory views', async () => {
+    vi.spyOn(api, 'getProducts').mockResolvedValue({ data: [] } as any);
+    vi.spyOn(api, 'listMobileActions').mockResolvedValue({ data: [] } as any);
+    vi.spyOn(api, 'getClients').mockResolvedValue({ data: [{ id: 1, name: 'Client Atlas', phone: '0600000000', credit_limit: 5000, unpaid_total: 0 }] } as any);
+
+    await act(async () => {
+      root.render(
+        createElement(
+          MemoryRouter,
+          { initialEntries: ['/clients'] },
+          createElement(PhoneApp),
+        ),
+      );
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(host.querySelector('.ph-restricted')).toBeNull();
+    expect(host.querySelector('.ph-catalog-search')).toBeTruthy();
+    expect(host.textContent).toContain('Client Atlas');
   });
 
   it('removes the /m/more shortcut from PhoneHome', async () => {

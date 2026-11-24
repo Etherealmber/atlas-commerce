@@ -1,10 +1,10 @@
 import { useEffect, useRef, type Dispatch, type SetStateAction } from 'react';
-import { Bell, ChevronDown, ShoppingCart } from 'lucide-react';
+import { Bell, ChevronDown, ShoppingCart, Users } from 'lucide-react';
 
-type Props = { open: boolean; setOpen: Dispatch<SetStateAction<boolean>>; pending: number; allowSell: boolean; onNavigate: (path: string) => void };
+type Props = { open: boolean; setOpen: Dispatch<SetStateAction<boolean>>; pending: number; allowSell: boolean; allowClients?: boolean; onNavigate: (path: string) => void };
 
 /** The small Android-style dropdown does not cover the page with a scroll-blocking backdrop. */
-export default function PhoneQuickActions({ open, setOpen, pending, allowSell, onNavigate }: Props) {
+export default function PhoneQuickActions({ open, setOpen, pending, allowSell, allowClients = false, onNavigate }: Props) {
   const wrap = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -29,6 +29,7 @@ export default function PhoneQuickActions({ open, setOpen, pending, allowSell, o
     {open && <div id="phone-quick-menu" className="ph-quick-menu" aria-label="Menu rapide">
       <button type="button" className="ph-quick-item theme-toggle" onClick={() => openPage('/m/inbox')}><Bell size={20} aria-hidden="true" /><span className="ph-quick-item-txt"><strong>Notifications</strong><small>{pending > 0 ? `${pending} action${pending > 1 ? 's' : ''} en attente` : 'Boîte d’alertes & activité'}</small></span>{pending > 0 && <span className="ph-quick-badge" aria-hidden="true">{badge}</span>}</button>
       {allowSell && <button type="button" className="ph-quick-item theme-toggle" onClick={() => openPage('/m/vente')}><ShoppingCart size={20} aria-hidden="true" /><span className="ph-quick-item-txt"><strong>Vente</strong><small>Nouvelle vente / caisse</small></span></button>}
+      {allowClients && <button type="button" className="ph-quick-item theme-toggle" onClick={() => openPage('/m/clients')}><Users size={20} aria-hidden="true" /><span className="ph-quick-item-txt"><strong>Clients</strong><small>Annuaire &amp; situation de crédit</small></span></button>}
     </div>}
   </div>;
 }

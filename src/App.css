@@ -6063,7 +6063,7 @@ html[data-density="compact"] .content { padding: 12px 14px !important; }
 html[data-density="compact"] input:not([type="checkbox"]):not([type="radio"]),
 html[data-density="compact"] select:not(.atlas-dp-select),
 html[data-density="compact"] textarea,
-html[data-density="compact"] button:not(.ac-dock-expand):not(.ac-topbar-user-btn):not(.ac-topbar-icon):not(.ac-topbar-bell):not(.ac-topbar-theme):not(.ac-dash-preset):not(.atlas-dp-day):not(.atlas-dp-nav):not(.pn-burger-btn):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop) {
+html[data-density="compact"]:not(.phone-shell) button:not(.ac-dock-expand):not(.ac-topbar-user-btn):not(.ac-topbar-icon):not(.ac-topbar-bell):not(.ac-topbar-theme):not(.ac-dash-preset):not(.atlas-dp-day):not(.atlas-dp-nav):not(.pn-burger-btn):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop) {
   min-height: 36px;
   border-radius: 8px !important;
 }

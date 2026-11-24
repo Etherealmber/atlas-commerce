@@ -40,7 +40,7 @@
 .empty-state { text-align: center; padding: 16px 12px; color: var(--muted); }
 .skeleton { background: linear-gradient(90deg, #e8eaef 25%, #f1f3f7 50%, #e8eaef 75%); background-size: 200% 100%; border-radius: 8px; animation: sk 1.2s infinite; }
 @keyframes sk { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-button:not(.atlas-dp-day):not(.atlas-dp-nav):not(.atlas-dp-preset):not(.atlas-dp-btn):not(.atlas-dp-trigger):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop), .btn {
+html:not(.phone-shell) button:not(.atlas-dp-day):not(.atlas-dp-nav):not(.atlas-dp-preset):not(.atlas-dp-btn):not(.atlas-dp-trigger):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop), .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   padding: 10px 18px; border-radius: 999px; border: none; font-weight: 600; font-size: 0.9rem;
   letter-spacing: 0.01em;
@@ -2277,7 +2277,7 @@ html[data-density="compact"] {
 }
 
 /* ── Global button system ── */
-button:not(.danger):not(.account-glass-switch):not(.theme-toggle):not(.settings-nav-item):not(.app-toast-close):not(.account-menu-backdrop):not(.atlas-agent-float-backdrop):not(.phone-account-backdrop):not(.account-menu-item):not(.account-menu-trigger):not(.agent-perm-mode):not(.atlas-agent-history-item):not(.ph-menu-item):not(.ptab):not(.icon-refresh-btn):not(.mailbox-icon-btn):not(.mailbox-menu-item):not(.account-seg button):not(.atlas-dp-day):not(.atlas-dp-nav):not(.atlas-dp-preset):not(.atlas-dp-btn):not(.atlas-dp-trigger):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.public-download-toggle):not(.public-download-menu-item):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action):not(.ac-feature-tour-backdrop):not(.qr-fab-backdrop):not(.ac-dock-expand):not(.ac-topbar-user-btn):not(.ac-topbar-icon):not(.ac-topbar-bell):not(.ac-topbar-theme):not(.ac-user-dropdown-item):not(.settings-topbar-burger):not(.settings-topbar-tab):not(.pn-burger-btn):not(.pn-chip):not(.ac-dash-preset):not(.ac-dock-item),
+html:not(.phone-shell) button:not(.danger):not(.account-glass-switch):not(.theme-toggle):not(.settings-nav-item):not(.app-toast-close):not(.account-menu-backdrop):not(.atlas-agent-float-backdrop):not(.phone-account-backdrop):not(.account-menu-item):not(.account-menu-trigger):not(.agent-perm-mode):not(.atlas-agent-history-item):not(.ph-menu-item):not(.ptab):not(.icon-refresh-btn):not(.mailbox-icon-btn):not(.mailbox-menu-item):not(.account-seg button):not(.atlas-dp-day):not(.atlas-dp-nav):not(.atlas-dp-preset):not(.atlas-dp-btn):not(.atlas-dp-trigger):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.public-download-toggle):not(.public-download-menu-item):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action):not(.ac-feature-tour-backdrop):not(.qr-fab-backdrop):not(.ac-dock-expand):not(.ac-topbar-user-btn):not(.ac-topbar-icon):not(.ac-topbar-bell):not(.ac-topbar-theme):not(.ac-user-dropdown-item):not(.settings-topbar-burger):not(.settings-topbar-tab):not(.pn-burger-btn):not(.pn-chip):not(.ac-dash-preset):not(.ac-dock-item),
 .btn {
   display: inline-flex;
   align-items: center;
@@ -2296,11 +2296,11 @@ button:not(.danger):not(.account-glass-switch):not(.theme-toggle):not(.settings-
   transition: filter 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease, border-color 0.15s ease;
   -webkit-tap-highlight-color: transparent;
 }
-button:hover:not(:disabled):not(.account-glass-switch):not(.settings-nav-item),
+html:not(.phone-shell) button:hover:not(:disabled):not(.account-glass-switch):not(.settings-nav-item),
 .btn:hover:not(:disabled) {
   filter: brightness(1.07);
 }
-button:active:not(:disabled):not(.account-glass-switch),
+html:not(.phone-shell) button:active:not(:disabled):not(.account-glass-switch),
 .btn:active:not(:disabled) {
   filter: brightness(0.95);
   transform: translateY(0.5px);
@@ -2386,8 +2386,8 @@ html.liquid-glass-active button.secondary {
 }
 
 /* Compact — force solid opaque buttons, no gradient softness */
-html[data-density="compact"] button:not(.secondary):not(.danger):not(.ghost):not(.account-glass-switch):not(.settings-nav-item):not(.account-menu-backdrop):not(.atlas-agent-float-backdrop):not(.account-menu-item):not(.account-menu-trigger):not(.phone-account-backdrop):not(.agent-perm-mode):not(.atlas-agent-history-item):not(.ph-menu-item):not(.ptab):not(.icon-refresh-btn):not(.mailbox-icon-btn):not(.mailbox-menu-item):not(.account-theme-icons button):not(.atlas-dp-day):not(.atlas-dp-nav):not(.atlas-dp-preset):not(.atlas-dp-btn):not(.atlas-dp-trigger):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action):not(.ac-dock-expand):not(.ac-topbar-user-btn):not(.ac-topbar-icon):not(.ac-topbar-bell):not(.ac-topbar-theme):not(.ac-user-dropdown-item):not(.settings-topbar-burger):not(.settings-topbar-tab):not(.pn-burger-btn):not(.pn-chip):not(.ac-dash-preset):not(.ac-dock-item),
-html[data-density="compact"] .btn:not(.secondary):not(.danger):not(.ghost):not(.icon-refresh-btn) {
+html[data-density="compact"]:not(.phone-shell) button:not(.secondary):not(.danger):not(.ghost):not(.account-glass-switch):not(.settings-nav-item):not(.account-menu-backdrop):not(.atlas-agent-float-backdrop):not(.account-menu-item):not(.account-menu-trigger):not(.phone-account-backdrop):not(.agent-perm-mode):not(.atlas-agent-history-item):not(.ph-menu-item):not(.ptab):not(.icon-refresh-btn):not(.mailbox-icon-btn):not(.mailbox-menu-item):not(.account-theme-icons button):not(.atlas-dp-day):not(.atlas-dp-nav):not(.atlas-dp-preset):not(.atlas-dp-btn):not(.atlas-dp-trigger):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action):not(.ac-dock-expand):not(.ac-topbar-user-btn):not(.ac-topbar-icon):not(.ac-topbar-bell):not(.ac-topbar-theme):not(.ac-user-dropdown-item):not(.settings-topbar-burger):not(.settings-topbar-tab):not(.pn-burger-btn):not(.pn-chip):not(.ac-dash-preset):not(.ac-dock-item),
+html[data-density="compact"]:not(.phone-shell) .btn:not(.secondary):not(.danger):not(.ghost):not(.icon-refresh-btn) {
   background: var(--btn-primary-bg-solid) !important;
   border-radius: var(--btn-radius) !important;
   min-height: var(--btn-min-h);
@@ -2676,8 +2676,8 @@ html[data-theme="dark"] .phone-account-menu a {
 
 /* Touch targets on phone */
 @media (max-width: 900px) {
-  button:not(.account-glass-switch):not(.app-toast-close):not(.atlas-dp-day):not(.atlas-dp-nav):not(.atlas-dp-preset):not(.atlas-dp-btn):not(.atlas-dp-trigger):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop),
-  .btn {
+  html:not(.phone-shell) button:not(.account-glass-switch):not(.app-toast-close):not(.atlas-dp-day):not(.atlas-dp-nav):not(.atlas-dp-preset):not(.atlas-dp-btn):not(.atlas-dp-trigger):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop),
+  html:not(.phone-shell) .btn {
     min-height: max(var(--btn-min-h), 40px);
   }
   .phone-account-menu button,
