@@ -7,7 +7,7 @@
  * Desktop (PC) also lists open requests with a "Créer produit" shortcut.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { canManageStock } from '../auth';
 import ImageLightbox from '../components/ui/ImageLightbox';
@@ -68,6 +68,7 @@ const SCAN_UNITS = ['unité', 'pièce', 'kg', 'g', 'L', 'mL', 'm', 'carton', 'bo
 
 export default function Scan() {
   const nav = useNavigate();
+  const location = useLocation();
   const narrow = useIsNarrow();
   const [q, setQ] = useState('');
   const [opMode, setOpMode] = useState<'vente' | 'receive' | 'transfer' | 'count'>('vente');
@@ -191,7 +192,7 @@ export default function Scan() {
     setScanning(false);
   };
 
-  const resolveCode = async (raw: string) => {
+  const resolveCode = useCallback(async (raw: string) => {
     const c = raw.trim();
     if (!c) return;
     setBusy(true);
@@ -233,7 +234,15 @@ export default function Scan() {
     } finally {
       setBusy(false);
     }
-  };
+  }, []);
+
+  const lastUrlCodeRef = useRef<string>('');
+  useEffect(() => {
+    const code = new URLSearchParams(location.search).get('code')?.trim() || '';
+    if (!code || code === lastUrlCodeRef.current) return;
+    lastUrlCodeRef.current = code;
+    void resolveCode(code);
+  }, [location.search, resolveCode]);
 
   const startCamera = async () => {
     if (busy) return;

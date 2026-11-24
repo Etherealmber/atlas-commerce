@@ -213,6 +213,73 @@ export function registerPublicSignedRoutes(app: Hono<any>, deps: PublicSignedRou
   app.get('/api/public/products/:id', async (c) => {
     return c.json({ success: false, error: 'Catalogue public désactivé', code: 'PUBLIC_DISABLED' }, 403);
   });
+
+  /** Public label-scan detail (logged & unauthenticated): ONLY selling price & stock. */
+  app.get('/api/public/product/:ref', async (c) => {
+    const ip = c.req.header('cf-connecting-ip') || 'unknown';
+    if (await publicRateLimit(c.env, `pub-prod:${ip}`, 90, 60)) {
+      return c.json({ success: false, error: 'Trop de requêtes', code: 'RATE_LIMITED' }, 429);
+    }
+    const rawRef = decodeURIComponent(String(c.req.param('ref') || '')).trim().slice(0, 128);
+    if (!rawRef) {
+      return c.json({ success: false, error: 'Référence produit manquante', code: 'MISSING_REF' }, 400);
+    }
+    let row: any = null;
+    const pPrefixed = /^P(\d+)$/i.exec(rawRef);
+    const numericId = /^\d+$/.test(rawRef) ? Number(rawRef) : pPrefixed ? Number(pPrefixed[1]) : 0;
+    if (numericId > 0) {
+      row = await c.env.DB.prepare(
+        `SELECT * FROM products WHERE id = ? AND COALESCE(is_active, 1) = 1 LIMIT 1`,
+      ).bind(numericId).first();
+    }
+    if (!row) {
+      row = await c.env.DB.prepare(
+        `SELECT * FROM products
+         WHERE COALESCE(is_active, 1) = 1
+           AND (LOWER(COALESCE(barcode, '')) = LOWER(?) OR LOWER(COALESCE(sku, '')) = LOWER(?))
+         LIMIT 1`,
+      ).bind(rawRef, rawRef).first();
+    }
+    if (!row) {
+      return c.json({ success: false, error: 'Produit introuvable', code: 'NOT_FOUND' }, 404);
+    }
+    const settings = await c.env.DB.prepare(
+      `SELECT * FROM company_settings WHERE id = 1`,
+    ).first() as any;
+    const currency = String(settings?.currency || settings?.finance_currency || 'MAD');
+    const trackInventory = Number(row.track_inventory ?? 1) !== 0;
+    const stockQuantity = trackInventory ? Number(row.stock_quantity ?? 0) : null;
+    const lowThreshold = Number(row.low_stock_threshold ?? 0);
+    const stockStatus = !trackInventory
+      ? 'untracked'
+      : (stockQuantity ?? 0) <= 0
+        ? 'out_of_stock'
+        : (stockQuantity ?? 0) <= lowThreshold
+          ? 'low_stock'
+          : 'in_stock';
+    const price = roundCurrency(Number(row.price || 0), currency, 'invoice');
+    return c.json(
+      {
+        success: true,
+        data: {
+          id: Number(row.id),
+          name: String(row.name || ''),
+          variant_label: String(row.variant_label || ''),
+          sku: String(row.sku || ''),
+          barcode: String(row.barcode || ''),
+          unit: String(row.unit || ''),
+          price,
+          currency,
+          track_inventory: trackInventory,
+          stock_quantity: stockQuantity,
+          stock_status: stockStatus,
+          company_name: String(settings?.company_name || ''),
+        },
+      },
+      200,
+      { 'Cache-Control': 'no-store' },
+    );
+  });
   
   app.get('/api/public/categories', async (c) => {
     return c.json({ success: false, error: 'Catalogue public désactivé', code: 'PUBLIC_DISABLED' }, 403);

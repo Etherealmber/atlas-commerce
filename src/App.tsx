@@ -53,6 +53,7 @@ function lazyRetry(fn: () => Promise<any>) {
   );
 }
 const AtlasAgent = lazyRetry(() => import('./components/AtlasAgent'));
+const PublicProductLabel = lazyRetry(() => import('./pages/PublicProductLabel'));
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { isNativeApp } from './config';
 import './App.css';
@@ -1891,6 +1892,7 @@ export default function App() {
             <Route path="/login/desktop-phone" element={<Suspense fallback={null}><LoginDesktopPhone /></Suspense>} />
             <Route path="/login/qr" element={<Suspense fallback={null}><LoginQr /></Suspense>} />
             <Route path="/verify" element={<Suspense fallback={null}><EmailVerify /></Suspense>} />
+            <Route path="/p/:ref" element={<Suspense fallback={null}><PublicProductLabel /></Suspense>} />
             <Route path="/welcome" element={<WelcomeGate />} />
             <Route element={<PublicLegalOutlet />}>
               <Route path="/privacy" element={<Privacy />} />

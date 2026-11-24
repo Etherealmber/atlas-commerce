@@ -53,6 +53,7 @@ export function titleForPath(pathname: string): string {
   if (EXACT[path]) return withBrand(EXACT[path]);
 
   // Dynamic desktop routes
+  if (/^\/p\/[^/]+$/.test(path)) return withBrand('Détail produit');
   if (/^\/products\/[^/]+\/historique$/.test(path)) return withBrand('Historique du produit');
   if (/^\/quick-sale\/[^/]+$/.test(path)) return withBrand('Détail vente rapide');
   if (/^\/invoices\/[^/]+$/.test(path)) return withBrand('Détail facture');
