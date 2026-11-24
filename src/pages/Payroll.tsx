@@ -28,6 +28,9 @@ function openAuthedUrl(url: string) {
   window.open(full, '_blank', 'noopener');
 }
 
+/** CNSS caps the declared days at 26 per month (bordereau DAMANCOM). */
+const CNSS_MAX_DAYS = 26;
+
 export default function Payroll() {
   const role = getRole();
   const isOwnerOrAdmin = role === 'owner' || role === 'admin';
@@ -45,6 +48,10 @@ export default function Payroll() {
   const [editBonus, setEditBonus] = useState('0');
   const [editAdj, setEditAdj] = useState('0');
   const [editNotes, setEditNotes] = useState('');
+  const [editBase, setEditBase] = useState('0');
+  const [editDays, setEditDays] = useState('30');
+  const [editCnssDays, setEditCnssDays] = useState('26');
+  const [editDeclared, setEditDeclared] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const loadRuns = useCallback(async (pickId?: number) => {
@@ -144,6 +151,9 @@ export default function Payroll() {
       await api.updatePayrollLine(Number(selectedRun.id), Number(editingLine.id), {
         bonuses: Number(editBonus || 0),
         attendance_adjustment: Number(editAdj || 0),
+        base_salary: Math.max(0, Number(editBase || 0)),
+        days_worked: Math.max(0, Math.min(31, Number(editDays || 0))),
+        cnss_days: editDeclared ? Math.max(0, Math.min(CNSS_MAX_DAYS, Number(editCnssDays || 0))) : 0,
         notes: editNotes,
       });
       setEditingLine(null);
@@ -363,7 +373,7 @@ export default function Payroll() {
               <thead>
                 <tr>
                   <th>Salarié</th>
-                  <th>Jours / H. sup.</th>
+                  <th>Jours / CNSS</th>
                   <th>Base</th>
                   <th>Ajust. / Primes</th>
                   <th>Brut</th>
@@ -385,8 +395,15 @@ export default function Payroll() {
                       </div>
                     </td>
                     <td>
-                      {l.days_worked} j
-                      {Number(l.overtime_hours || 0) > 0 ? ` (+${l.overtime_hours} h)` : ''}
+                      <div>
+                        {l.days_worked} j
+                        {Number(l.overtime_hours || 0) > 0 ? ` (+${l.overtime_hours} h)` : ''}
+                      </div>
+                      {Number(l.cnss_days ?? CNSS_MAX_DAYS) > 0 ? (
+                        <span className="payroll-cnss-days">CNSS {Number(l.cnss_days ?? CNSS_MAX_DAYS)} j</span>
+                      ) : (
+                        <span className="payroll-cnss-days is-off">Non déclaré</span>
+                      )}
                     </td>
                     <td>{fmtMoney(l.base_salary)}</td>
                     <td>
@@ -421,6 +438,11 @@ export default function Payroll() {
                               setEditBonus(String(l.bonuses ?? 0));
                               setEditAdj(String(l.attendance_adjustment ?? 0));
                               setEditNotes(String(l.notes || ''));
+                              setEditBase(String(l.base_salary ?? 0));
+                              setEditDays(String(l.days_worked ?? 30));
+                              const cd = Number(l.cnss_days ?? CNSS_MAX_DAYS);
+                              setEditDeclared(cd > 0);
+                              setEditCnssDays(String(cd > 0 ? cd : CNSS_MAX_DAYS));
                             }}
                           >
                             <Pencil size={13} aria-hidden="true" />
@@ -529,7 +551,60 @@ export default function Payroll() {
               </button>
             </div>
             <form onSubmit={saveLineEdit}>
-              <div className="ac-ops-form-grid-2">
+              <div className="payroll-cnss-box">
+                <div className="payroll-cnss-box__head">
+                  <strong>Déclaration CNSS</strong>
+                  <label className="payroll-cnss-toggle">
+                    <input
+                      type="checkbox"
+                      checked={editDeclared}
+                      onChange={(e) => setEditDeclared(e.target.checked)}
+                    />
+                    <span>Déclaré ce mois-ci</span>
+                  </label>
+                </div>
+                <div className="ac-ops-form-grid-2">
+                  <label className="ac-erp-field">
+                    <span>Jours travaillés</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={31}
+                      step="0.5"
+                      value={editDays}
+                      onChange={(e) => setEditDays(e.target.value)}
+                    />
+                  </label>
+                  <label className="ac-erp-field">
+                    <span>Jours déclarés CNSS (max {CNSS_MAX_DAYS})</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={CNSS_MAX_DAYS}
+                      step="0.5"
+                      value={editDeclared ? editCnssDays : '0'}
+                      disabled={!editDeclared}
+                      onChange={(e) => setEditCnssDays(e.target.value)}
+                    />
+                  </label>
+                </div>
+                <p className="payroll-cnss-box__hint">
+                  {editDeclared
+                    ? 'Nombre de jours reporté sur le bordereau CNSS (DAMANCOM) et la déclaration exportée.'
+                    : 'Non déclaré : 0 jour au bordereau, aucune retenue ni charge CNSS / AMO sur cette ligne.'}
+                </p>
+              </div>
+              <label className="ac-erp-field" style={{ marginTop: '12px' }}>
+                <span>Salaire de base (MAD)</span>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={editBase}
+                  onChange={(e) => setEditBase(e.target.value)}
+                />
+              </label>
+              <div className="ac-ops-form-grid-2" style={{ marginTop: '12px' }}>
                 <label className="ac-erp-field">
                   <span>Primes / indemnités (MAD)</span>
                   <input

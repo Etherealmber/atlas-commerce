@@ -21772,3 +21772,32 @@ html body .download-landing .dl-ed-platforms button:hover { color: var(--ed-text
 .payroll-settings-modal .payroll-settings-sub { margin: 4px 0 14px; font-size: 13px; padding-right: 44px; }
 .payroll-settings-modal .ac-ops-form-grid-2 { row-gap: 10px; }
 .payroll-settings-modal .modal-actions { margin-top: 16px; }
+
+/* Payroll — jours déclarés CNSS (table + Modifier ligne) */
+.payroll-cnss-days {
+  display: inline-flex;
+  margin-top: 3px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  background: rgba(22, 163, 74, 0.1);
+  color: #15803d;
+}
+.payroll-cnss-days.is-off { background: rgba(100, 116, 139, 0.12); color: #475569; }
+html[data-theme="dark"] .payroll-cnss-days { background: rgba(74, 222, 128, 0.14); color: #86efac; }
+html[data-theme="dark"] .payroll-cnss-days.is-off { background: rgba(161, 161, 170, 0.14); color: #d4d4d8; }
+.payroll-cnss-box {
+  border: 1px solid var(--ac-line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: color-mix(in srgb, var(--ac-ink) 2.5%, var(--ac-paper));
+}
+html[data-theme="dark"] .payroll-cnss-box { background: #1c1c1f; }
+.payroll-cnss-box__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.payroll-cnss-box__head strong { font-size: 0.9rem; color: var(--ac-ink); }
+.payroll-cnss-toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 0.82rem; font-weight: 600; color: var(--ac-ink); cursor: pointer; margin: 0; }
+.payroll-cnss-toggle input { width: 16px; height: 16px; margin: 0; accent-color: #16a34a; }
+.payroll-cnss-box__hint { margin: 8px 0 0; font-size: 0.78rem; color: var(--ac-muted); line-height: 1.45; }
+.modal-overlay .modal .payroll-cnss-box p.payroll-cnss-box__hint { margin: 8px 0 0; font-size: 12.5px; line-height: 1.45; color: var(--ac-muted); }

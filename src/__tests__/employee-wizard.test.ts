@@ -37,10 +37,10 @@ it('guides the employee form, validates name, preserves data and uploads the sel
   expect(dialog().textContent).toContain('piece.pdf');
   await click('Retour'); expect(dialog().querySelector<HTMLInputElement>('#employee-first-name')?.value).toBe('Samira'); await click('Continuer');
   expect(dialog().textContent).toContain('piece.pdf');
-  for (const label of ['Social & fiscal','Poste','Contact','Salaire','Contrat','Détails']) { await click('Continuer'); expect(dialog().querySelector('[aria-current="step"]')?.textContent).toContain(label); }
+  for (const label of ['Social & fiscal','Poste','Contact','Salaire','Déclaration CNSS','Contrat','Détails']) { await click('Continuer'); expect(dialog().querySelector('[aria-current="step"]')?.textContent).toContain(label); }
   await click('Créer l’employé');
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)); });
-  expect(create).toHaveBeenCalledWith(expect.objectContaining({first_name:'Samira',name:'Samira',pay_cycle_type:'monthly'}));
+  expect(create).toHaveBeenCalledWith(expect.objectContaining({first_name:'Samira',name:'Samira',pay_cycle_type:'monthly',cnss_declared:1,cnss_days:26}));
   expect(upload).toHaveBeenCalledWith(42, expect.objectContaining({file_name:'piece.pdf',mime:'application/pdf'}));
   expect(document.querySelector('.employee-wizard')).toBeNull();
 });
@@ -51,7 +51,7 @@ it('supports cancel and restarts the wizard on phone without saving', async () =
   expect(dialog().querySelector<HTMLInputElement>('#employee-first-name')?.value).toBe('');
   expect(dialog().querySelector('[aria-current="step"]')?.textContent).toContain('Personnel');
 });
-it('uses 8 steps and omits Fiche and Situation buttons inside the edit modal', async () => {
+it('uses 9 steps (incl. Déclaration CNSS) and omits Fiche and Situation buttons inside the edit modal', async () => {
   vi.spyOn(api, 'getEmployees').mockResolvedValue({
     data: [{ id: 7, name: 'Nadia Benali', first_name: 'Nadia', last_name: 'Benali', pay_amount: 5000, pay_cycle_type: 'monthly', active: 1 }],
   } as any);
@@ -60,9 +60,26 @@ it('uses 8 steps and omits Fiche and Situation buttons inside the edit modal', a
   const editTrigger = host.querySelector<HTMLElement>('tbody [role="button"]')!;
   expect(editTrigger).toBeTruthy();
   await act(async () => editTrigger.click());
-  expect(dialog().querySelector('.employee-wizard__count')?.textContent?.trim()).toBe('1 / 8');
+  expect(dialog().querySelector('.employee-wizard__count')?.textContent?.trim()).toBe('1 / 9');
   expect(dialog().querySelector('.wizard-foot-extra')).toBeNull();
   const labels = [...dialog().querySelectorAll('button')].map(b => b.textContent?.trim());
   expect(labels).not.toContain('Fiche');
   expect(labels).not.toContain('Situation');
+});
+it('asks for the CNSS declaration and declared days, and sends 0 days when not declared', async () => {
+  const create = vi.spyOn(api,'createEmployee').mockResolvedValue({data:{id: 43}} as any);
+  await open(); await input('#employee-first-name', 'Haytam');
+  for (let i = 0; i < 6; i++) await click('Continuer');
+  expect(dialog().querySelector('[aria-current="step"]')?.textContent).toContain('Déclaration CNSS');
+  expect(dialog().textContent).toContain('Jours déclarés par mois');
+  const chip22 = [...dialog().querySelectorAll<HTMLInputElement>('input[name="emp-cnss-preset"]')][1];
+  await act(async () => chip22.click());
+  expect(dialog().textContent).toContain('proposera 22 j');
+  const notDeclared = [...dialog().querySelectorAll<HTMLInputElement>('input[name="emp-cnss-declared"]')][1];
+  await act(async () => notDeclared.click());
+  expect(dialog().textContent).not.toContain('Jours déclarés par mois');
+  expect(dialog().textContent).toContain('0 jour');
+  await click('Continuer'); await click('Continuer'); await click('Créer l’employé');
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)); });
+  expect(create).toHaveBeenCalledWith(expect.objectContaining({ first_name: 'Haytam', cnss_declared: 0, cnss_days: 0 }));
 });

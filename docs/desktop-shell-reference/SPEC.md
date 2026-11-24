@@ -36,7 +36,7 @@ top-left. The reference window is **1280×800**.
 
 The wizards are: `product` (5 steps), `product-edit-history` (3), `stock-adjust` (2), `client` (3), `vendor` (2), `invoice` (3),
 `quote` (3), `bill` (3), `receipt` (2), `quick-sale` (3), `refund-wr` (2), `balance-recette` (2),
-`balance-depense` (2), `balance-reports-dialog` (1, a dialog rather than a stepper), and `employee` (8). That is 86 wizard PNGs.
+`balance-depense` (2), `balance-reports-dialog` (1, a dialog rather than a stepper), and `employee` (9, including step 7 « Déclaration CNSS »). That is 88 wizard PNGs.
 
 Dashboard scroll PNGs: the dock is in **compact** mode in these because the page is scrolled. The
 full-height document is **2749 px** tall at 1280×800.
@@ -93,6 +93,7 @@ full-height document is **2749 px** tall at 1280×800.
 - Footer: a 4 px progress bar, then the chip "Étape n / N · <label>" plus the wizard name on the left, then the buttons on the right: `Annuler` (secondary), `Retour` (secondary, hidden on step 1), and the primary `Continuer` / final action (e.g. `Créer le client`, `Enregistrer`, `Enregistrer les modifications`).
 - Close X: 34×34 at the modal's top-right (x = modal right − 47, y = modal top + 13).
 - Required empty fields show the **warn input** (`input-warn`) plus the hint "Obligatoire" (see the form-field table).
+- **Employee step 7, « Déclaration CNSS »:** two radio cards (Déclaré / Non déclaré, 2 columns, radius 14, selected = 1 px ink ring plus dot). When declared, a days panel appears: a number input 0–26 in half-day steps, chips 26 j « Mois complet » / 22 j / 13 j « Mi-temps », and a 6 px green meter. Below it are a blue info note and, if the CNSS number is empty, an amber warning that links back to the « Social & fiscal » step. Sent as `cnss_declared` (0/1) and `cnss_days` (0 when not declared).
 
 ---
 
@@ -453,7 +454,7 @@ Every box below is measured at 1280×800 in light mode (dark mode uses identical
 |---|---|---|---|---|---|
 | 1 | 290,175.8 700×448.5 | — | select “” 330,322.3 220.7×44<br>input “” 562.7,326.3 220.7×40 | — | `wizard-balance-reports-dialog-step1-light.png` |
 
-#### `employee` —  · “Nouvel employé” (8 steps)
+#### `employee` — FICHE EMPLOYÉ · “Nouvel employé” (9 steps)
 
 | Step | Modal box | Intro h3 / p | Fields & controls (label → control box) | Footer buttons | PNG |
 |---|---|---|---|---|---|
@@ -463,8 +464,9 @@ Every box below is measured at 1280×800 in light mode (dark mode uses identical
 | 4 | 80,24 1120×752 | Poste / Son rôle et sa date d’arrivée. | Intitulé du poste → input 111,296.3 1054×49.5<br>Département → input 111,387.4 1054×49.5<br>Catégorie → select 111,478.4 1054×44<br>Statut d’emploi → select 111,563.9 1054×44<br>Date d’embauche → button 111,649.4 1054×45.6 | Annuler 859.5,715.4 95.4×45.6<br>Retour 962.8,715.4 87.5×45.6<br>Continuer 1058.3,715.4 112.7×45.6 | `wizard-employee-step4-light.png` |
 | 5 | 80,24 1120×752 | Contact / Ses coordonnées et son adresse. | Adresse → input 111,296.3 1054×49.5<br>Ville → input 111,387.4 1054×49.5<br>Pays → input 111,478.4 1054×49.5<br>Mobile → input 111,569.4 1054×49.5<br>E-mail → input 111,660.5 1054×49.5 | Annuler 859.5,715.4 95.4×45.6<br>Retour 962.8,715.4 87.5×45.6<br>Continuer 1058.3,715.4 112.7×45.6 | `wizard-employee-step5-light.png` |
 | 6 | 80,131.7 1120×536.6 | Salaire / Définissez le montant et la fréquence de paiement. | Montant (MAD) → input 111,404 1054×49.5<br>Fréquence de paiement → button 111,495.1 101.2×45.6 | Annuler 859.5,607.7 95.4×45.6<br>Retour 962.8,607.7 87.5×45.6<br>Continuer 1058.3,607.7 112.7×45.6 | `wizard-employee-step6-light.png` |
-| 7 | 80,41.5 1120×717 | Contrat / Les conditions de travail et les coordonnées bancaires. | Type de contrat → select 111,313.8 1054×44<br>Période d’essai (jours) → input 111,399.3 1054×49.5<br>Durée hebdomadaire (h) — lég → input 111,490.3 1054×49.5<br>RIB (versement salaire) → input 111,581.4 1054×49.5 | Annuler 859.5,697.9 95.4×45.6<br>Retour 962.8,697.9 87.5×45.6<br>Continuer 1058.3,697.9 112.7×45.6 | `wizard-employee-step7-light.png` |
-| 8 | 80,43.6 1120×712.8 | Détails / Complétez les informations utiles à la fiche. | Compte lié (identifiant de c → input 111,315.9 1054×49.5<br>Description du poste / fonct → textarea 111,427.2 1054×73.1<br>Notes → textarea 111,548.7 1054×73.1 | Annuler 819.3,695.8 95.4×45.6<br>Retour 922.6,695.8 87.5×45.6<br>Créer l’employé 1018.1,695.8 152.9×45.6 | `wizard-employee-step8-light.png` |
+| 7 | 80,36.9 1120×726.1 | Déclaration CNSS / Est-il déclaré à la CNSS, et combien de jours par mois ? | Jours déclarés par mois | Annuler 859.5,702.5 95.4×45.6<br>Retour 962.8,702.5 87.5×45.6<br>Continuer 1058.3,702.5 112.7×45.6 | `wizard-employee-step7-light.png` |
+| 8 | 80,41.5 1120×717 | Contrat / Les conditions de travail et les coordonnées bancaires. | Type de contrat → select 111,313.8 1054×44<br>Période d’essai (jours) → input 111,399.3 1054×49.5<br>Durée hebdomadaire (h) — lég → input 111,490.3 1054×49.5<br>RIB (versement salaire) → input 111,581.4 1054×49.5 | Annuler 859.5,697.9 95.4×45.6<br>Retour 962.8,697.9 87.5×45.6<br>Continuer 1058.3,697.9 112.7×45.6 | `wizard-employee-step8-light.png` |
+| 9 | 80,43.6 1120×712.8 | Détails / Complétez les informations utiles à la fiche. | Compte lié (identifiant de c → input 111,315.9 1054×49.5<br>Description du poste / fonct → textarea 111,427.2 1054×73.1<br>Notes → textarea 111,548.7 1054×73.1 | Annuler 819.3,695.8 95.4×45.6<br>Retour 922.6,695.8 87.5×45.6<br>Créer l’employé 1018.1,695.8 152.9×45.6 | `wizard-employee-step9-light.png` |
 
 ---
 

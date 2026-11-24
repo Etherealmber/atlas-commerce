@@ -2,7 +2,7 @@ import type { Hono } from 'hono';
 import { round2 } from '../lib/financeCore';
 import { buildPayslipPdf } from '../pdf';
 import { computeDayMetrics, type AttendanceRulesInfo } from './attendance';
-import { schemaOnceForDb } from '../lib/schema';
+import { addColumnIfMissing, schemaOnceForDb } from '../lib/schema';
 
 interface PayrollRouteDeps {
   requireEmployeeAdmin: (c: any) => Promise<Response | null>;
@@ -144,7 +144,29 @@ export async function ensurePayrollSchema(db: D1Database): Promise<void> {
     } catch {
       /* */
     }
+    // Jours déclarés à la CNSS (bordereau DAMANCOM, max 26 / mois). 0 = non déclaré ce mois-ci.
+    await addColumnIfMissing(db, 'payroll_lines', 'cnss_days', 'REAL NOT NULL DEFAULT 26');
   });
+}
+
+/** CNSS caps the declared days at 26 per month. */
+export const CNSS_MAX_DAYS = 26;
+
+export function clampCnssDays(v: unknown, fallback = CNSS_MAX_DAYS): number {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(0, Math.min(CNSS_MAX_DAYS, Math.round(n * 2) / 2));
+}
+
+/**
+ * Days proposed on a new payroll line: the employee's usual declared days,
+ * reduced pro-rata when attendance shows absences (30 calendar days → 26 CNSS days).
+ */
+export function proposeCnssDays(employeeDays: number, declared: boolean, daysWorked: number): number {
+  if (!declared) return 0;
+  const usual = clampCnssDays(employeeDays);
+  const fromAttendance = clampCnssDays(Math.round((Math.max(0, Math.min(30, daysWorked)) * CNSS_MAX_DAYS) / 30));
+  return Math.min(usual, fromAttendance);
 }
 
 function parseRatesRow(row: any): PayrollRates {
@@ -176,14 +198,28 @@ function computePayrollLine(
     attendance_adjustment: number;
     bonuses: number;
     advances_deducted: number;
+    /** Declared CNSS days; 0 = not declared this month → no CNSS / AMO contributions. */
+    cnss_days?: number;
   },
   rates: PayrollRates,
 ) {
+  const declared = input.cnss_days === undefined || Number(input.cnss_days) > 0;
+  if (!declared) {
+    rates = {
+      ...rates,
+      cnss_emp_rate: 0,
+      cnss_employer_social_rate: 0,
+      cnss_employer_af_rate: 0,
+      cnss_employer_tfp_rate: 0,
+      amo_emp_rate: 0,
+      amo_employer_rate: 0,
+    };
+  }
   const gross_salary = Math.max(
     0,
     round2(input.base_salary + input.overtime_amount + input.attendance_adjustment + input.bonuses),
   );
-  const cnss_base = round2(Math.min(gross_salary, Math.max(0, rates.cnss_ceiling)));
+  const cnss_base = declared ? round2(Math.min(gross_salary, Math.max(0, rates.cnss_ceiling))) : 0;
   const cnss_emp = round2(cnss_base * rates.cnss_emp_rate);
   const amo_emp = round2(gross_salary * rates.amo_emp_rate);
   const prof_expenses = round2(
@@ -394,8 +430,7 @@ export function registerPayrollRoutes(app: Hono<any>, deps: PayrollRouteDeps): v
     const { from, to } = monthRange(rawMonth);
 
     const empRes = await c.env.DB.prepare(
-      `SELECT id, emp_number, first_name, last_name, name, role_title, cnss_number, social_insurance, national_id, pay_amount, pay_cycle_type, pay_cycle_days
-       FROM employees WHERE COALESCE(active, 1) = 1 ORDER BY last_name, first_name, id`,
+      `SELECT * FROM employees WHERE COALESCE(active, 1) = 1 ORDER BY last_name, first_name, id`,
     ).all();
     const employees = (empRes.results || []) as any[];
 
@@ -489,6 +524,12 @@ export function registerPayrollRoutes(app: Hono<any>, deps: PayrollRouteDeps): v
       const hourlyRate = baseMonthly > 0 ? baseMonthly / (26 * workdayHours) : 0;
       const overtimeAmount = round2(overtimeHours * hourlyRate * otMultiplier);
       const advancesDeducted = advByEmp.get(empId) || 0;
+      const cnssDeclared = e.cnss_declared === undefined || e.cnss_declared === null ? true : Number(e.cnss_declared) !== 0;
+      const cnssDays = proposeCnssDays(
+        e.cnss_days === undefined || e.cnss_days === null ? CNSS_MAX_DAYS : Number(e.cnss_days),
+        cnssDeclared,
+        daysWorked,
+      );
       const calc = computePayrollLine(
         {
           base_salary: baseMonthly,
@@ -496,6 +537,7 @@ export function registerPayrollRoutes(app: Hono<any>, deps: PayrollRouteDeps): v
           attendance_adjustment: attendanceAdjustment,
           bonuses: 0,
           advances_deducted: advancesDeducted,
+          cnss_days: cnssDays,
         },
         rates,
       );
@@ -506,8 +548,8 @@ export function registerPayrollRoutes(app: Hono<any>, deps: PayrollRouteDeps): v
           run_id, employee_id, emp_number, employee_name, cnss_number, cin, role_title,
           base_salary, days_worked, overtime_hours, overtime_amount, late_minutes, attendance_adjustment,
           bonuses, gross_salary, cnss_base, cnss_emp, amo_emp, prof_expenses, taxable_net, igr,
-          advances_deducted, net_salary, cnss_employer, amo_employer, employer_cost, notes
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '')`,
+          advances_deducted, net_salary, cnss_employer, amo_employer, employer_cost, notes, cnss_days
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?)`,
       )
         .bind(
           runId,
@@ -535,6 +577,7 @@ export function registerPayrollRoutes(app: Hono<any>, deps: PayrollRouteDeps): v
           calc.cnss_employer,
           calc.amo_employer,
           calc.employer_cost,
+          cnssDays,
         )
         .run();
     }
@@ -604,9 +647,17 @@ export function registerPayrollRoutes(app: Hono<any>, deps: PayrollRouteDeps): v
     const advances_deducted =
       body.advances_deducted !== undefined ? round2(Number(body.advances_deducted) || 0) : Number(line.advances_deducted);
     const notes = body.notes !== undefined ? String(body.notes) : String(line.notes || '');
+    const days_worked =
+      body.days_worked !== undefined
+        ? Math.max(0, Math.min(31, round2(Number(body.days_worked) || 0)))
+        : Number(line.days_worked ?? 30);
+    const cnss_days =
+      body.cnss_days !== undefined
+        ? clampCnssDays(body.cnss_days, 0)
+        : clampCnssDays(line.cnss_days ?? CNSS_MAX_DAYS);
 
     const calc = computePayrollLine(
-      { base_salary, overtime_amount, attendance_adjustment, bonuses, advances_deducted },
+      { base_salary, overtime_amount, attendance_adjustment, bonuses, advances_deducted, cnss_days },
       rates,
     );
 
@@ -614,7 +665,7 @@ export function registerPayrollRoutes(app: Hono<any>, deps: PayrollRouteDeps): v
       `UPDATE payroll_lines
        SET base_salary=?, overtime_hours=?, overtime_amount=?, attendance_adjustment=?, bonuses=?, advances_deducted=?,
            gross_salary=?, cnss_base=?, cnss_emp=?, amo_emp=?, prof_expenses=?, taxable_net=?, igr=?, net_salary=?,
-           cnss_employer=?, amo_employer=?, employer_cost=?, notes=?
+           cnss_employer=?, amo_employer=?, employer_cost=?, notes=?, days_worked=?, cnss_days=?
        WHERE id = ? AND run_id = ?`,
     )
       .bind(
@@ -636,6 +687,8 @@ export function registerPayrollRoutes(app: Hono<any>, deps: PayrollRouteDeps): v
         calc.amo_employer,
         calc.employer_cost,
         notes,
+        days_worked,
+        cnss_days,
         lineId,
         runId,
       )
@@ -769,6 +822,7 @@ export function registerPayrollRoutes(app: Hono<any>, deps: PayrollRouteDeps): v
             <Cell><Data ss:Type="String">${escXml(l.cnss_number)}</Data></Cell>
             <Cell><Data ss:Type="String">${escXml(l.cin)}</Data></Cell>
             <Cell><Data ss:Type="Number">${Number(l.days_worked || 0)}</Data></Cell>
+            <Cell><Data ss:Type="Number">${Number(l.cnss_days ?? CNSS_MAX_DAYS)}</Data></Cell>
             <Cell><Data ss:Type="Number">${Number(l.gross_salary || 0)}</Data></Cell>
             <Cell><Data ss:Type="Number">${Number(l.cnss_base || 0)}</Data></Cell>
             <Cell><Data ss:Type="Number">${Number(l.cnss_emp || 0)}</Data></Cell>
@@ -793,6 +847,7 @@ export function registerPayrollRoutes(app: Hono<any>, deps: PayrollRouteDeps): v
     <Cell><Data ss:Type="String">N° CNSS</Data></Cell>
     <Cell><Data ss:Type="String">CIN</Data></Cell>
     <Cell><Data ss:Type="String">Jours travaillés</Data></Cell>
+    <Cell><Data ss:Type="String">Jours déclarés CNSS</Data></Cell>
     <Cell><Data ss:Type="String">Brut (MAD)</Data></Cell>
     <Cell><Data ss:Type="String">Assiette CNSS</Data></Cell>
     <Cell><Data ss:Type="String">CNSS Salarié</Data></Cell>
@@ -811,7 +866,8 @@ export function registerPayrollRoutes(app: Hono<any>, deps: PayrollRouteDeps): v
    <Row><Cell><Data ss:Type="String">ICE</Data></Cell><Cell><Data ss:Type="String">${escXml(settings?.ice || '')}</Data></Cell></Row>
    <Row><Cell><Data ss:Type="String">Affiliation CNSS</Data></Cell><Cell><Data ss:Type="String">${escXml(settings?.cnss || '')}</Data></Cell></Row>
    <Row><Cell><Data ss:Type="String">Période</Data></Cell><Cell><Data ss:Type="String">${escXml(run.period_month)}</Data></Cell></Row>
-   <Row><Cell><Data ss:Type="String">Effectif déclaré</Data></Cell><Cell><Data ss:Type="Number">${lines.length}</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">Effectif déclaré</Data></Cell><Cell><Data ss:Type="Number">${lines.filter((l) => Number(l.cnss_days ?? CNSS_MAX_DAYS) > 0).length}</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">Total jours déclarés CNSS</Data></Cell><Cell><Data ss:Type="Number">${round2(lines.reduce((sum, l) => sum + Number(l.cnss_days ?? CNSS_MAX_DAYS), 0))}</Data></Cell></Row>
    <Row><Cell><Data ss:Type="String">Masse salariale brute</Data></Cell><Cell><Data ss:Type="Number">${Number(run.total_gross || 0)}</Data></Cell></Row>
    <Row><Cell><Data ss:Type="String">Total CNSS (Salariale + Patronale)</Data></Cell><Cell><Data ss:Type="Number">${totalCnssAll}</Data></Cell></Row>
    <Row><Cell><Data ss:Type="String">Total AMO (Salariale + Patronale)</Data></Cell><Cell><Data ss:Type="Number">${totalAmoAll}</Data></Cell></Row>
@@ -831,7 +887,7 @@ export function registerPayrollRoutes(app: Hono<any>, deps: PayrollRouteDeps): v
     }
 
     const header =
-      'periode,employeur_ice,employeur_cnss,matricule,salarie,num_cnss,cin,jours,brut,assiette_cnss,cnss_salarie,cnss_patronale,amo_salarie,amo_patronale,igr,net_a_payer,cout_employeur';
+      'periode,employeur_ice,employeur_cnss,matricule,salarie,num_cnss,cin,jours,jours_cnss,brut,assiette_cnss,cnss_salarie,cnss_patronale,amo_salarie,amo_patronale,igr,net_a_payer,cout_employeur';
     const csvLines = lines.map((l) =>
       [
         run.period_month,
@@ -842,6 +898,7 @@ export function registerPayrollRoutes(app: Hono<any>, deps: PayrollRouteDeps): v
         l.cnss_number,
         l.cin,
         l.days_worked,
+        l.cnss_days ?? CNSS_MAX_DAYS,
         l.gross_salary,
         l.cnss_base,
         l.cnss_emp,
@@ -865,6 +922,7 @@ export function registerPayrollRoutes(app: Hono<any>, deps: PayrollRouteDeps): v
         '',
         '',
         '',
+        round2(lines.reduce((sum, l) => sum + Number(l.cnss_days ?? CNSS_MAX_DAYS), 0)),
         run.total_gross,
         '',
         run.total_cnss_emp,
