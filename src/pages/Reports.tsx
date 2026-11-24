@@ -172,7 +172,7 @@ export default function Reports() {
         <div className="page-header dock-page-header">
           <h1 className="sr-only">Rapports &amp; clôture</h1>
         </div>
-        <PageSkeleton variant="dashboard" />
+        <PageSkeleton variant="reports" />
       </div>
     );
   }

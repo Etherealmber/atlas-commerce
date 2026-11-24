@@ -24,7 +24,7 @@ import DatePicker from '../components/DatePicker';
 import TimePicker from '../components/TimePicker';
 import RefreshIconButton from '../components/RefreshIconButton';
 import SaveFeedback from '../components/SaveFeedback';
-import PageSkeleton from '../components/PageSkeleton';
+import PageSkeleton, { DesktopTableSkeleton } from '../components/PageSkeleton';
 import { getCachedFingerprint } from '../fingerprint';
 import { openReport } from '../lib/reports';
 import ListPager from '../components/ui/ListPager';
@@ -480,7 +480,7 @@ export default function Attendance() {
         <div className="page-header dock-page-header">
           <h1 className="sr-only">Présence</h1>
         </div>
-        <PageSkeleton variant="list" />
+        <PageSkeleton variant="attendance" />
       </div>
     );
   }
@@ -490,6 +490,16 @@ export default function Attendance() {
       <div className="atlas-crm attendance-page">
         <div className="page-header dock-page-header">
           <h1 className="sr-only">Présence</h1>
+          <TopPageActions>
+            <button type="button" className="btn ac-disabled-module-cta" onClick={() => void enableAttendanceNow()}>
+              <Clock size={16} aria-hidden="true" />
+              <span className="tpa-label">Activer maintenant</span>
+            </button>
+            <Link to="/settings?tab=attendance" className="btn secondary ac-disabled-module-cta">
+              <Settings size={16} aria-hidden="true" />
+              <span className="tpa-label">Ouvrir les paramètres Présence</span>
+            </Link>
+          </TopPageActions>
         </div>
         <section className="ac-panel ac-disabled-module-card" aria-label="Module Présence désactivé">
           <div className="ac-disabled-module-body">
@@ -504,16 +514,6 @@ export default function Attendance() {
                 Activez-le dans <strong>Paramètres → Présence</strong> pour charger et enregistrer le pointage de l’équipe.
               </p>
             </div>
-          </div>
-          <div className="ac-disabled-module-actions">
-            <button type="button" className="btn ac-disabled-module-cta" onClick={() => void enableAttendanceNow()}>
-              <Clock size={15} aria-hidden="true" />
-              <span>Activer maintenant</span>
-            </button>
-            <Link to="/settings?tab=attendance" className="btn secondary ac-disabled-module-cta">
-              <Settings size={15} aria-hidden="true" />
-              <span>Ouvrir les paramètres Présence</span>
-            </Link>
           </div>
         </section>
       </div>
@@ -678,7 +678,7 @@ export default function Attendance() {
           </div>
 
           {monthlyLoading ? (
-            <PageSkeleton variant="list" />
+            <DesktopTableSkeleton rows={5} cols={6} />
           ) : (
             <>
               <h3 style={{ marginTop: 4 }}>Récapitulatif par employé — {monthFilter}</h3>
@@ -822,12 +822,7 @@ export default function Attendance() {
           <ListPager page={safePage} pageSize={PAGE_SIZE} total={filtered.length} onPageChange={setPage} />
         </div>
         {loading ? (
-          <div style={{ padding: 20, display: 'grid', gap: 10 }} aria-busy="true" aria-label="Chargement des pointages">
-            <div className="skeleton" style={{ height: 38, borderRadius: 10 }} />
-            <div className="skeleton" style={{ height: 48, borderRadius: 10 }} />
-            <div className="skeleton" style={{ height: 48, borderRadius: 10 }} />
-            <div className="skeleton" style={{ height: 48, borderRadius: 10 }} />
-          </div>
+          <DesktopTableSkeleton rows={5} cols={6} />
         ) : filtered.length === 0 ? (
           <div className="empty" style={{ padding: 24 }}>
             Aucun résultat.

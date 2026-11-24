@@ -65,7 +65,7 @@ import { hasUnreadWhatsNew } from './lib/whatsNew';
 import { api } from './api';
 import ScrollToTop from './components/ScrollToTop';
 import PageTransition from './components/PageTransition';
-import PageSkeleton from './components/PageSkeleton';
+import PageSkeleton, { AtlasAgentShimmerBody, type PageSkeletonVariant } from './components/PageSkeleton';
 import OfflineBanner from './components/OfflineBanner';
 import CookieConsent from './components/CookieConsent';
 import DownloadTeaser from './components/DownloadTeaser';
@@ -491,7 +491,7 @@ function DownloadRoute() {
   // ni sidebar, ni FAB, ni Agent, connecté ou non (directive user).
   return (
     <div className="download-standalone">
-      <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
+      <Suspense fallback={<PageSkeleton variant="landing" />}>
         <Download />
       </Suspense>
     </div>
@@ -519,7 +519,7 @@ function HomeRoute() {
   // (LoginGate / welcome / WebView & PWA).
   return (
     <div className="download-standalone">
-      <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
+      <Suspense fallback={<PageSkeleton variant="landing" />}>
         <Home />
       </Suspense>
     </div>
@@ -530,7 +530,7 @@ function HomeRoute() {
 function DesktopRoute() {
   return (
     <div className="download-standalone">
-      <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
+      <Suspense fallback={<PageSkeleton variant="landing" />}>
         <DesktopPage />
       </Suspense>
     </div>
@@ -541,7 +541,7 @@ function DesktopRoute() {
 function SupportRoute() {
   return (
     <div className="download-standalone">
-      <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}>Chargement…</div>}>
+      <Suspense fallback={<PageSkeleton variant="landing" />}>
         <SupportPage />
       </Suspense>
     </div>
@@ -621,9 +621,86 @@ function WelcomeGate() {
     return <Navigate to={startDestination()} replace />;
   }
   return (
-    <Suspense fallback={<div className="welcome-stage"><p style={{ textAlign: 'center', padding: 48 }}>Chargement…</p></div>}>
+    <Suspense fallback={<div className="welcome-stage"><PageSkeleton variant="welcome" /></div>}>
       <Welcome />
     </Suspense>
+  );
+}
+
+function skeletonVariantForPath(pathname: string): PageSkeletonVariant {
+  if (pathname === '/' || pathname === '/dashboard') return 'dashboard';
+  if (pathname === '/products' || pathname === '/scan') return 'products';
+  if (pathname === '/clients' || pathname === '/employees') return 'kpis3-list';
+  if (
+    pathname === '/vendors' ||
+    pathname === '/invoices' ||
+    pathname === '/quotes' ||
+    pathname === '/quick-sale'
+  ) {
+    return 'kpis4-list';
+  }
+  if (
+    pathname === '/bills' ||
+    pathname === '/receipts' ||
+    pathname === '/reimbursements'
+  ) {
+    return 'table-only';
+  }
+  if (pathname === '/balance') return 'balance';
+  if (pathname === '/reports') return 'reports';
+  if (pathname === '/inventory-ops') return 'inventory-ops';
+  if (pathname === '/payroll') return 'payroll';
+  if (pathname === '/cash-shifts') return 'cash-shifts';
+  if (pathname === '/attendance') return 'attendance';
+  if (pathname === '/actions') return 'actions';
+  if (
+    pathname.startsWith('/invoices/') ||
+    pathname.startsWith('/quick-sale/') ||
+    pathname.includes('/historique')
+  ) {
+    return 'form';
+  }
+  if (pathname === '/settings') return 'settings';
+  if (pathname === '/about') return 'about';
+  if (
+    pathname === '/whats-new' ||
+    pathname === '/privacy' ||
+    pathname === '/terms' ||
+    pathname === '/licenses'
+  ) {
+    return 'changelog';
+  }
+  return 'table-only';
+}
+
+function AtlasAgentDesktopFallback() {
+  let isOpen = false;
+  let width = 380;
+  try {
+    isOpen = sessionStorage.getItem('atlas_agent_open') === '1';
+    const n = Number(localStorage.getItem('atlas_agent_width') || 380);
+    if (Number.isFinite(n)) width = Math.min(800, Math.max(320, n));
+  } catch {
+    isOpen = false;
+  }
+  if (!isOpen) return null;
+  return (
+    <aside
+      className="atlas-agent-panel open atlas-agent-skeleton-panel"
+      aria-busy="true"
+      aria-label="Chargement d'Atlas Agent"
+      style={{ width }}
+    >
+      <header className="atlas-agent-head">
+        <div style={{ flex: 1 }}>
+          <div className="skeleton" style={{ height: 13, width: 108, marginBottom: 6 }} />
+          <div className="skeleton" style={{ height: 10, width: 180 }} />
+        </div>
+      </header>
+      <div className="atlas-agent-body">
+        <AtlasAgentShimmerBody rows={2} />
+      </div>
+    </aside>
   );
 }
 
@@ -1580,23 +1657,7 @@ function DesktopShell() {
 
       <main className="content">
         <ErrorBoundary label="desktop">
-          <Suspense
-            fallback={
-              <PageSkeleton
-                variant={
-                  location.pathname === '/whats-new'
-                    ? 'changelog'
-                    : location.pathname === '/about'
-                      ? 'about'
-                      : location.pathname === '/settings'
-                        ? 'settings'
-                        : location.pathname === '/' || location.pathname === '/dashboard'
-                          ? 'dashboard'
-                          : 'list'
-                }
-              />
-            }
-          >
+          <Suspense fallback={<PageSkeleton variant={skeletonVariantForPath(location.pathname)} />}>
             {isFocusRoute ? (
               <div className="atlas-focus-layout">
                 <FocusSidebar
@@ -1680,7 +1741,7 @@ function DesktopShell() {
         </ErrorBoundary>
       </main>
       <MobileBottomNav />
-      <Suspense fallback={null}>
+      <Suspense fallback={<AtlasAgentDesktopFallback />}>
         <AtlasAgent />
       </Suspense>
       {!location.pathname.startsWith('/login') && (

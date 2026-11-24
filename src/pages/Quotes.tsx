@@ -338,7 +338,7 @@ export default function Quotes() {
   const fmt = (n: number) =>
     Math.round(Number(n || 0)).toLocaleString('fr-FR');
 
-  if (loading) return <div className="atlas-crm quotes-page"><PageSkeleton variant="list" /></div>;
+  if (loading) return <div className="atlas-crm quotes-page"><PageSkeleton variant="kpis4-list" /></div>;
 
   return (
     <div className="atlas-crm quotes-page">

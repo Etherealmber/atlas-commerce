@@ -178,7 +178,7 @@ export default function InventoryOps() {
         <div className="page-header dock-page-header">
           <h1 className="sr-only">Opérations stock</h1>
         </div>
-        <PageSkeleton variant="dashboard" />
+        <PageSkeleton variant="inventory-ops" />
       </div>
     );
   }

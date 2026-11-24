@@ -412,7 +412,7 @@ export default function Bills() {
   const safePage = Math.min(page, totalPages - 1);
   const paged = filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
 
-  if (loading) return <div className="bills-page"><PageSkeleton variant="list" /></div>;
+  if (loading) return <div className="bills-page"><PageSkeleton variant="table-only" /></div>;
 
   return (
     <div className="bills-page">

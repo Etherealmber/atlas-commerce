@@ -125,21 +125,13 @@ createRoot(document.getElementById('root')!).render(
   const rootEl = document.getElementById('root');
   if (!splash || !rootEl) return;
   let done = false;
-  const t0 = typeof performance !== 'undefined' ? performance.now() : 0;
   const hide = () => {
     if (done) return;
     done = true;
-    // Reste visible au moins 450 ms : pas de flash splash→shell ni de
-    // disparition avant le premier paint réel (glitch ressenti).
-    const wait = Math.max(0, 450 - ((typeof performance !== 'undefined' ? performance.now() : 0) - t0));
-    window.setTimeout(() => {
-      requestAnimationFrame(() =>
-        requestAnimationFrame(() => {
-          splash.classList.add('sp-hide');
-          window.setTimeout(() => splash.remove(), 340);
-        }),
-      );
-    }, wait);
+    requestAnimationFrame(() => {
+      splash.classList.add('sp-hide');
+      window.setTimeout(() => splash.remove(), 180);
+    });
   };
   if (rootEl.children.length) {
     hide();

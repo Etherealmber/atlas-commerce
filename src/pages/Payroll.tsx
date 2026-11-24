@@ -164,7 +164,7 @@ export default function Payroll() {
         <div className="page-header dock-page-header">
           <h1 className="sr-only">Paie CNSS / AMO</h1>
         </div>
-        <PageSkeleton variant="dashboard" />
+        <PageSkeleton variant="payroll" />
       </div>
     );
   }

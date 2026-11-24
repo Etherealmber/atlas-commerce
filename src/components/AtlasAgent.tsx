@@ -3,6 +3,7 @@
  */
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import LatticeLoader from './ui/LatticeLoader';
+import { AtlasAgentShimmerBody } from './PageSkeleton';
 import { bumpAtlasLayer } from './GlobalSearchPanel';
 import PromptBar from './ui/PromptBar';
 import { ImageLightbox } from './ui/ImageLightbox';
@@ -719,6 +720,7 @@ export default function AtlasAgent() {
   const [pendingAction, setPendingAction] = useState<LocalAction | null>(null);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
+  const [loadingThread, setLoadingThread] = useState(false);
   const [listening, setListening] = useState(false); // unused (dictation removed)
   const [attachments, setAttachments] = useState<{ name: string; type: string; data_url: string; preview_url?: string; text_excerpt?: string }[]>([]);
   // v256 — unsent composer attachments survive a page refresh (images are
@@ -1465,7 +1467,13 @@ export default function AtlasAgent() {
       localStorage.setItem(activeThreadKey(), id);
     } catch { /* */ }
     const local = loadMsgs(id);
-    setMsgs(local.length ? local : [{ role: 'assistant', text: 'Chargement de la conversation…' }]);
+    if (local.length) {
+      setMsgs(local);
+      setLoadingThread(false);
+    } else {
+      setMsgs([]);
+      setLoadingThread(true);
+    }
     try {
       const res = await api.getAgentThread(id);
       const remoteMsgs = Array.isArray(res.data?.messages) ? res.data!.messages! : [];
@@ -1493,6 +1501,8 @@ export default function AtlasAgent() {
           },
         ]);
       }
+    } finally {
+      setLoadingThread(false);
     }
   };
 
@@ -1714,6 +1724,7 @@ export default function AtlasAgent() {
         )}
 
         <div className="atlas-agent-body">
+          {loadingThread && msgs.length === 0 && <AtlasAgentShimmerBody rows={2} />}
           {msgs.filter((m) => !(m.streaming && !String(m.text || '').trim())).map((m, i) => (
             <div key={i} className={`atlas-agent-msg ${m.role}`}>
               <div className="atlas-agent-bubble">
@@ -1974,6 +1985,13 @@ export default function AtlasAgent() {
                   Arrêter
                 </button>
               </div>
+              {!isPhoneShell && !msgs.some((m) => m.streaming && String(m.text || '').trim()) && (
+                <div className="atlas-agent-shimmer-reply" aria-hidden="true">
+                  <div className="skeleton" style={{ height: 10, width: '88%', marginBottom: 8 }} />
+                  <div className="skeleton" style={{ height: 10, width: '74%', marginBottom: 8 }} />
+                  <div className="skeleton" style={{ height: 10, width: '52%' }} />
+                </div>
+              )}
             </div>
           )}
           <div ref={bottomRef} />

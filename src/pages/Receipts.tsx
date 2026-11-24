@@ -176,7 +176,7 @@ export default function Receipts() {
   const paged = filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
   const token = encodeURIComponent(getToken() || '');
 
-  if (loading) return <div className="receipts-page"><PageSkeleton variant="list" /></div>;
+  if (loading) return <div className="receipts-page"><PageSkeleton variant="table-only" /></div>;
 
   return (
     <div className="receipts-page">

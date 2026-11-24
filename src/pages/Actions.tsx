@@ -17,6 +17,7 @@ import { ModalFormError } from '../components/ModalFormFeedback';
 import { mergeUnitOptions, type UnitOption } from '../lib/dualUnit';
 import ListPager from '../components/ui/ListPager';
 import EmptyState from '../components/EmptyState';
+import { ActionListRowsSkeleton } from '../components/PageSkeleton';
 
 type Action = {
   id: number;
@@ -521,9 +522,7 @@ export default function Actions() {
         )}
 
         {loading && rows.length === 0 && (
-          <p className="muted" style={{ margin: '12px 0' }}>
-            Chargement des actions…
-          </p>
+          <ActionListRowsSkeleton rows={5} />
         )}
 
         {pagedRows.length > 0 && (

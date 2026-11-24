@@ -22,6 +22,7 @@ import ProductArtwork, { productImageUrl } from '../components/ProductArtwork';
 import ImageLightbox from '../components/ui/ImageLightbox';
 import { phoneStockIsLow, phoneStockQuantity } from '../mobile/phoneStock';
 import { dualStockLabel, mergeUnitOptions, type UnitOption } from '../lib/dualUnit';
+import PageSkeleton from '../components/PageSkeleton';
 import './product-history.css';
 import './products-mobile-style.css';
 import './catalog-actions.css';
@@ -595,12 +596,7 @@ export default function Products() {
   if (loading) {
     return (
       <div className="atlas-page ac-dash products-page">
-        <div className="ac-metric-grid">
-          {[1,2,3,4,5,6].map((i) => (
-            <div key={i} className="ac-metric skeleton" style={{ minHeight: 88 }} />
-          ))}
-        </div>
-        <div className="skeleton" style={{ height: 320, borderRadius: 16, marginTop: 12 }} />
+        <PageSkeleton variant="products" />
       </div>
     );
   }

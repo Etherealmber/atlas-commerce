@@ -206,7 +206,7 @@ export default function CashShifts() {
         <div className="page-header dock-page-header">
           <h1 className="sr-only">Clôtures de caisse (X / Z)</h1>
         </div>
-        <PageSkeleton variant="dashboard" />
+        <PageSkeleton variant="cash-shifts" />
       </div>
     );
   }
