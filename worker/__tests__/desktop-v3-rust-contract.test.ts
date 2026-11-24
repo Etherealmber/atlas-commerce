@@ -373,6 +373,14 @@ describe('Desktop v3 Worker <-> Rust atlas-auth-core Contract & DPoP Replay', ()
           idx = buf.indexOf('\n');
         }
       });
+      child.on('error', (err: Error) => {
+        if (pendingReject) {
+          const rej = pendingReject;
+          pendingResolve = null;
+          pendingReject = null;
+          rej(new Error(`Rust driver error (${err.message}) (stderr=${stderr})`));
+        }
+      });
       child.on('exit', (code: number | null) => {
         exitCode = code;
         if (pendingReject) {

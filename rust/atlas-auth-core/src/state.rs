@@ -10,6 +10,11 @@ use crate::schemas::{
 use serde::{Deserialize, Serialize};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
+const MIN_CHALLENGE_EXPIRES_IN_SECS: u64 = 1;
+const MAX_CHALLENGE_EXPIRES_IN_SECS: u64 = 300;
+const MIN_POLL_INTERVAL_SECS: u64 = 5;
+const MAX_POLL_INTERVAL_SECS: u64 = 60;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ChallengePresentation {
@@ -161,6 +166,8 @@ impl DesktopV3AuthSession {
             || resp.request_id.len() != 64
             || !resp.request_id.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
             || resp.device_thumbprint != key.thumbprint()
+            || !(MIN_CHALLENGE_EXPIRES_IN_SECS..=MAX_CHALLENGE_EXPIRES_IN_SECS).contains(&resp.expires_in)
+            || !(MIN_POLL_INTERVAL_SECS..=MAX_POLL_INTERVAL_SECS).contains(&resp.interval)
         {
             return Err(AuthCoreError::ResponseMismatch);
         }
@@ -221,6 +228,7 @@ impl DesktopV3AuthSession {
         }
         if Some(poll.request_id.as_str()) != self.request_id.as_deref()
             || poll.origin != self.origin.as_str()
+            || !(MIN_POLL_INTERVAL_SECS..=MAX_POLL_INTERVAL_SECS).contains(&poll.interval)
         {
             return Err(AuthCoreError::ResponseMismatch);
         }
@@ -438,5 +446,89 @@ mod tests {
         session.apply_poll(&poll).unwrap();
         assert_eq!(session.phase(), DesktopV3Phase::ChallengeVerified);
         assert!(session.build_password_login("alice", &synthetic_input).is_ok());
+    }
+
+    #[test]
+    fn apply_created_bounds_expires_in_and_interval_and_rejects_malformed_json() {
+        let origin = ServerOrigin::parse("https://stock.afmarbre.com").unwrap();
+        let key = SoftwareP256Key::generate().unwrap();
+        let req_id = "c".repeat(64);
+        let challenge_url = format!(
+            "https://stock.afmarbre.com/login/desktop-v3-challenge#request_id={}",
+            req_id
+        );
+
+        let make_resp = |expires_in: u64, interval: u64| CreateRequestV3Response {
+            version: 3,
+            request_id: req_id.clone(),
+            origin: origin.as_str().to_string(),
+            presentation: ChallengePresentation::TurnstileWebview,
+            challenge_url: challenge_url.clone(),
+            pairing_code: "ABCDE-12345".to_string(),
+            device_thumbprint: key.thumbprint(),
+            expires_in,
+            interval,
+        };
+
+        // Zero, below-floor, and excessive bounds are rejected
+        for (expires_in, interval) in [
+            (0, 5),
+            (301, 5),
+            (u64::MAX, 5),
+            (300, 0),
+            (300, 4),
+            (300, 61),
+            (300, u64::MAX),
+        ] {
+            let mut session = DesktopV3AuthSession::new(
+                origin.clone(),
+                ChallengePresentation::TurnstileWebview,
+                "Poste Bureau",
+                &ready_caps(),
+            )
+            .unwrap();
+            assert_eq!(
+                session.apply_created(&make_resp(expires_in, interval), &key),
+                Err(AuthCoreError::ResponseMismatch),
+                "expected ({expires_in}, {interval}) to be rejected"
+            );
+            assert_eq!(session.phase(), DesktopV3Phase::Idle);
+        }
+
+        // Valid lower & upper boundary values succeed
+        for (expires_in, interval) in [(1, 5), (300, 60)] {
+            let mut session = DesktopV3AuthSession::new(
+                origin.clone(),
+                ChallengePresentation::TurnstileWebview,
+                "Poste Bureau",
+                &ready_caps(),
+            )
+            .unwrap();
+            assert!(session
+                .apply_created(&make_resp(expires_in, interval), &key)
+                .is_ok());
+            assert_eq!(session.phase(), DesktopV3Phase::AwaitingChallenge);
+        }
+
+        // Malformed JSON payloads (negative, float, string, null, missing) fail deserialization
+        let tp = key.thumbprint();
+        let malformed_payloads = [
+            format!(r#"{{"version":3,"request_id":"{req_id}","origin":"https://stock.afmarbre.com","presentation":"turnstile_webview","challenge_url":"{challenge_url}","pairing_code":"ABCDE-12345","device_thumbprint":"{tp}","expires_in":-1,"interval":5}}"#),
+            format!(r#"{{"version":3,"request_id":"{req_id}","origin":"https://stock.afmarbre.com","presentation":"turnstile_webview","challenge_url":"{challenge_url}","pairing_code":"ABCDE-12345","device_thumbprint":"{tp}","expires_in":300.5,"interval":5}}"#),
+            format!(r#"{{"version":3,"request_id":"{req_id}","origin":"https://stock.afmarbre.com","presentation":"turnstile_webview","challenge_url":"{challenge_url}","pairing_code":"ABCDE-12345","device_thumbprint":"{tp}","expires_in":"300","interval":5}}"#),
+            format!(r#"{{"version":3,"request_id":"{req_id}","origin":"https://stock.afmarbre.com","presentation":"turnstile_webview","challenge_url":"{challenge_url}","pairing_code":"ABCDE-12345","device_thumbprint":"{tp}","expires_in":null,"interval":5}}"#),
+            format!(r#"{{"version":3,"request_id":"{req_id}","origin":"https://stock.afmarbre.com","presentation":"turnstile_webview","challenge_url":"{challenge_url}","pairing_code":"ABCDE-12345","device_thumbprint":"{tp}","interval":5}}"#),
+            format!(r#"{{"version":3,"request_id":"{req_id}","origin":"https://stock.afmarbre.com","presentation":"turnstile_webview","challenge_url":"{challenge_url}","pairing_code":"ABCDE-12345","device_thumbprint":"{tp}","expires_in":300,"interval":-5}}"#),
+            format!(r#"{{"version":3,"request_id":"{req_id}","origin":"https://stock.afmarbre.com","presentation":"turnstile_webview","challenge_url":"{challenge_url}","pairing_code":"ABCDE-12345","device_thumbprint":"{tp}","expires_in":300,"interval":5.5}}"#),
+            format!(r#"{{"version":3,"request_id":"{req_id}","origin":"https://stock.afmarbre.com","presentation":"turnstile_webview","challenge_url":"{challenge_url}","pairing_code":"ABCDE-12345","device_thumbprint":"{tp}","expires_in":300,"interval":"5"}}"#),
+            format!(r#"{{"version":3,"request_id":"{req_id}","origin":"https://stock.afmarbre.com","presentation":"turnstile_webview","challenge_url":"{challenge_url}","pairing_code":"ABCDE-12345","device_thumbprint":"{tp}","expires_in":300,"interval":null}}"#),
+            format!(r#"{{"version":3,"request_id":"{req_id}","origin":"https://stock.afmarbre.com","presentation":"turnstile_webview","challenge_url":"{challenge_url}","pairing_code":"ABCDE-12345","device_thumbprint":"{tp}","expires_in":300}}"#),
+        ];
+        for raw in malformed_payloads {
+            assert!(
+                serde_json::from_str::<CreateRequestV3Response>(&raw).is_err(),
+                "expected malformed JSON to fail deserialization: {raw}"
+            );
+        }
     }
 }

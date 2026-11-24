@@ -53,7 +53,20 @@ impl ServerOrigin {
     }
 
     pub fn validate_challenge_url(&self, candidate: &str, expected_path: &str, expected_req_id: &str) -> Result<()> {
+        let after_scheme = candidate
+            .strip_prefix("https://")
+            .ok_or(AuthCoreError::ResponseMismatch)?;
+        let authority_end = after_scheme
+            .find(['/', '?', '#'])
+            .unwrap_or(after_scheme.len());
+        if after_scheme[..authority_end].contains('@') {
+            return Err(AuthCoreError::ResponseMismatch);
+        }
+
         let parsed = Url::parse(candidate).map_err(|_| AuthCoreError::ResponseMismatch)?;
+        if !parsed.username().is_empty() || parsed.password().is_some() {
+            return Err(AuthCoreError::ResponseMismatch);
+        }
         if parsed.scheme() != "https"
             || parsed.origin().ascii_serialization() != self.0
             || parsed.path() != expected_path
@@ -92,5 +105,47 @@ mod tests {
         assert!(ServerOrigin::parse("https://stock.afmarbre.com/login").is_err());
         assert!(ServerOrigin::parse("https://stock.afmarbre.com/?a=1").is_err());
         assert!(ServerOrigin::parse("https://stock.afmarbre.com/#frag").is_err());
+    }
+
+    #[test]
+    fn validate_challenge_url_rejects_userinfo_and_accepts_exact_match() {
+        let origin = ServerOrigin::parse("https://stock.afmarbre.com").unwrap();
+        let req_id = "a".repeat(64);
+        let valid = format!(
+            "https://stock.afmarbre.com/login/desktop-v3-challenge#request_id={}",
+            req_id
+        );
+        assert!(origin
+            .validate_challenge_url(&valid, "/login/desktop-v3-challenge", &req_id)
+            .is_ok());
+
+        for bad in [
+            format!(
+                "https://user@stock.afmarbre.com/login/desktop-v3-challenge#request_id={}",
+                req_id
+            ),
+            format!(
+                "https://user:pass@stock.afmarbre.com/login/desktop-v3-challenge#request_id={}",
+                req_id
+            ),
+            format!(
+                "https://:pass@stock.afmarbre.com/login/desktop-v3-challenge#request_id={}",
+                req_id
+            ),
+            format!(
+                "https://@stock.afmarbre.com/login/desktop-v3-challenge#request_id={}",
+                req_id
+            ),
+            format!(
+                "https://stock.afmarbre.com\\@evil.example/login/desktop-v3-challenge#request_id={}",
+                req_id
+            ),
+        ] {
+            assert_eq!(
+                origin.validate_challenge_url(&bad, "/login/desktop-v3-challenge", &req_id),
+                Err(AuthCoreError::ResponseMismatch),
+                "expected userinfo URL to be rejected: {bad}"
+            );
+        }
     }
 }
