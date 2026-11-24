@@ -1168,6 +1168,7 @@ app.use('/api/*', async (c, next) => {
         },
         sessionUserFromHeader,
         ownerUsername: (env) => getOwnerUsername(env as Env),
+        allowSecretaire: true,
       });
       if (!identity.ok) {
         return deny(
@@ -1226,10 +1227,10 @@ app.use('/api/*', async (c, next) => {
         if (isReport) {
           const sess = sessionUserFromHeader(`Bearer ${queryToken}`);
           const role = (sess.role || '').toLowerCase();
-          if (role !== 'owner' && role !== 'admin') {
+          if (role !== 'owner' && role !== 'admin' && role !== 'secretaire') {
             return reportForbidden(
               'Accès réservé',
-              'Les rapports comptables sont réservés au propriétaire et aux administrateurs.',
+              'Les rapports comptables sont réservés au propriétaire, aux administrateurs et aux secrétaires.',
               'FORBIDDEN_ROLE'
             );
           }
@@ -1251,10 +1252,10 @@ app.use('/api/*', async (c, next) => {
       if (reason === 'ok') {
         const sess = sessionUserFromHeader(authHeader);
         const role = (sess.role || '').toLowerCase();
-        if (role !== 'owner' && role !== 'admin') {
+        if (role !== 'owner' && role !== 'admin' && role !== 'secretaire') {
           return reportForbidden(
             'Accès réservé',
-            'Les rapports sont réservés au propriétaire et aux administrateurs.',
+            'Les rapports sont réservés au propriétaire, aux administrateurs et aux secrétaires.',
             'FORBIDDEN_ROLE'
           );
         }
@@ -1681,7 +1682,7 @@ registerEmployeeRoutes(app, { checkConfirmPassword, requireEmployeeAdmin, requir
 registerFinanceRoutes(app, { sessionUserFromHeader, authFailReason, clientIp, writeAudit, requireEmployeeAdmin });
 registerCashShiftRoutes(app, { sessionUserFromHeader, writeAudit, reportShell });
 registerPayrollRoutes(app, { requireEmployeeAdmin, loadAttendanceRules, writeAudit, sessionUserFromHeader, clientIp });
-registerFecRoutes(app, { requireOwner, writeAudit, clientIp });
+registerFecRoutes(app, { requireOwner, requireFecAccess, writeAudit, clientIp });
 registerDunningRoutes(app, { requireEmployeeAdmin, sessionUserFromHeader, writeAudit, clientIp });
 registerDgiRoutes(app, { requireBizMutator, requireOwner, writeAudit, clientIp });
 registerAtlasV209Routes(app, { sessionUserFromHeader, applyStockDelta, adjustLocationStock, getDefaultLocationId });
@@ -1808,6 +1809,37 @@ function requireOwner(c: any): { ok: true; username: string } | { ok: false; res
     };
   }
   return { ok: true, username: session.username };
+}
+
+/** Accounting / FEC access: owner, admin, and secretaire (supports validated query ?token= on /export). */
+function requireFecAccess(c: any): { ok: true; username: string; role: string } | { ok: false; response: Response } {
+  if ((c as any).get('printTicketOk')) {
+    return { ok: true, username: 'ticket', role: 'owner' };
+  }
+  let authHeader = c.req.header('Authorization');
+  if (!authHeader && c.req.path === '/api/accounting/fec/export') {
+    const qt = extractQueryToken(c.req.url);
+    if (qt && !qt.startsWith('np1.') && !qt.startsWith('nv3.')) {
+      authHeader = `Bearer ${qt}`;
+    }
+  }
+  const session = sessionUserFromHeader(authHeader);
+  const role = normalizeRole(session.role);
+  if (!canMutateBusiness(role)) {
+    return {
+      ok: false,
+      response: c.json(
+        {
+          success: false,
+          error: 'Réservé aux rôles administrateur ou secrétaire.',
+          code: 'FORBIDDEN_ROLE',
+          role,
+        },
+        403,
+      ),
+    };
+  }
+  return { ok: true, username: session.username || 'user', role };
 }
 
 /** Business mutations (invoices, products, clients…): secretaire / admin / owner. */

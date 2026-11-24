@@ -669,7 +669,7 @@ export default function Settings() {
       { id: 'company', label: 'Société', group: 'Entreprise', icon: 'M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6' },
       { id: 'attendance', label: 'Présence', group: 'Entreprise', icon: 'M12 8v4l3 3M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z' },
       ...(adminSettings ? [{ id: 'payroll', label: 'Paie CNSS / AMO', group: 'Entreprise', icon: 'M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6' }] : []),
-      ...(isOwner ? [{ id: 'fec', label: 'Plan comptable (FEC)', group: 'Entreprise', icon: 'M4 4h16v16H4zM8 8h8M8 12h8M8 16h5' }] : []),
+      { id: 'fec', label: 'Plan comptable (FEC)', group: 'Entreprise', icon: 'M4 4h16v16H4zM8 8h8M8 12h8M8 16h5' },
       { id: 'legal', label: 'Légal', group: 'Entreprise', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M9 13h6M9 17h4' },
       { id: 'invoicing', label: 'Facturation', group: 'Documents', icon: 'M8 2h8a2 2 0 0 1 2 2v16l-3-1.5L12 21l-3-1.5L6 20V4a2 2 0 0 1 2-2z' },
       { id: 'dunning', label: 'Relances impayés', group: 'Documents', icon: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z' },
@@ -1767,7 +1767,7 @@ if (loading) return (
           )}
         </div>
       )}
-{activeTab === 'fec' && isOwner && (
+{activeTab === 'fec' && officeSettings && (
         <div className="atlas-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
             <div>
@@ -4099,7 +4099,7 @@ if (loading) return (
 function PeriodLockPanel() {
   const [period, setPeriod] = useState('');
   const [msg, setMsg] = useState('');
-  const isOwner = (typeof getRole === 'function' ? getRole() : '') === 'owner';
+  const canEditPeriod = canAccessCompanySettings();
   useEffect(() => {
     api.getPeriodLock().then((r: any) => setPeriod(r.data?.fiscal_locked_through || '')).catch(() => {});
   }, []);
@@ -4116,9 +4116,9 @@ function PeriodLockPanel() {
     <div>
       <div className="form-row" data-settings-anchor="period_lock" style={{ maxWidth: 200 }}>
         <label>Clôturé jusqu&apos;à (YYYY-MM)</label>
-        <input value={period} onChange={(e) => setPeriod(e.target.value)} placeholder="2026-06" disabled={!isOwner} />
+        <input value={period} onChange={(e) => setPeriod(e.target.value)} placeholder="2026-06" disabled={!canEditPeriod} />
       </div>
-      {isOwner ? (
+      {canEditPeriod ? (
         <div style={{ display: 'flex', gap: 8 }}>
           <button type="button" onClick={() => save(false)}>Enregistrer la clôture</button>
           <button type="button" className="secondary" onClick={() => save(true)}>Rouvrir</button>

@@ -213,6 +213,7 @@ export function registerReportRoutes(app: Hono<any>, deps: ReportRouteDeps): voi
       authFailReason: (header, env, db, ip, fp) => authFailReason(header, env as Env, db, ip, fp),
       sessionUserFromHeader,
       ownerUsername: env => getOwnerUsername(env as Env) || '',
+      allowSecretaire: true,
     });
     if (!identity.ok) return c.json({ success: false, code: identity.code, error: 'Accès refusé' }, identity.status);
     try {

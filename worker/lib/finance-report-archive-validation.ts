@@ -66,6 +66,7 @@ type AuthDeps = {
   authFailReason(header: string | undefined, env: unknown, db: D1Database, ip: string, fingerprint: string | undefined): Promise<string>;
   sessionUserFromHeader(header: string | undefined): { username: string; role: string };
   ownerUsername(env: unknown): string;
+  allowSecretaire?: boolean;
 };
 
 /**
@@ -91,7 +92,9 @@ export async function verifyArchiveIdentity(
       userId = user.id;
       role = user.role;
     }
-    if (!financeGate(role, username).ok) return { ok: false, status: 403, code: 'FIN_FORBIDDEN' };
+    if (!financeGate(role, username).ok && !(deps.allowSecretaire && role === 'secretaire')) {
+      return { ok: false, status: 403, code: 'FIN_FORBIDDEN' };
+    }
     return { ok: true, identity: { username, role, userId, tenant: FINANCE_TENANT } };
   } catch {
     // Never log credentials, report content, or raw database errors.
