@@ -201,14 +201,14 @@ export function RunActionButton({
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 8,
-                border: '1px solid #e5e0d6',
-                background: '#ffffff',
+                border: '1px solid var(--ac-ui-border, #e5e0d6)',
+                background: 'var(--ac-ui-surface, #ffffff)',
                 cursor: 'pointer',
                 padding: '0 16px',
                 whiteSpace: 'nowrap',
                 fontWeight: 600,
                 fontSize,
-                color: '#0a0a0a',
+                color: 'var(--ac-ui-ink, #0a0a0a)',
                 borderRadius: 9999,
                 minHeight: h,
                 height: h,
@@ -264,7 +264,7 @@ export function RunActionButton({
                 style={{
                   border: 'none',
                   borderRadius: 999,
-                  background: '#d6d5e2',
+                  background: 'var(--ac-ui-hover, #d6d5e2)',
                   width: 28,
                   height: 28,
                   display: 'inline-flex',
@@ -275,7 +275,7 @@ export function RunActionButton({
                   padding: 0,
                 }}
               >
-                <X size={14} color="#fff" strokeWidth={2.5} />
+                <X size={14} color="var(--ac-ui-ink, #fff)" strokeWidth={2.5} />
               </motion.button>
             </motion.div>
           )}
@@ -301,10 +301,10 @@ export function RunActionButton({
                 whiteSpace: 'nowrap',
                 fontWeight: 700,
                 fontSize,
-                color: '#3f3f46',
+                color: 'var(--ac-ui-ink-2, #3f3f46)',
               }}
             >
-              <BadgeCheck size={iconSz + 2} color="#71717a" />
+              <BadgeCheck size={iconSz + 2} color="var(--ac-ui-muted, #71717a)" />
               <AnimatedText text={doneLabel} className="" />
             </motion.button>
           )}

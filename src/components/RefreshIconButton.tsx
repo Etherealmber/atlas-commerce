@@ -38,7 +38,7 @@ export default function RefreshIconButton({
       >
         {/* Material-style filled refresh — does not depend on stroke CSS */}
         <path
-          fill="#0f172a"
+          fill="var(--ac-ui-ink, #0f172a)"
           d="M17.65 6.35A7.958 7.958 0 0 0 12 4V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8c0-2.21-.9-4.2-2.35-5.65z"
         />
       </svg>

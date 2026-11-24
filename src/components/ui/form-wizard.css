@@ -83,8 +83,8 @@ html body .modal-overlay .modal.employee-wizard {
   padding: 4px 10px 4px 4px !important;
   border-radius: 999px !important;
   border: 1px solid var(--line, #e4e4e7) !important;
-  background: #f8fafc !important;
-  color: #475569 !important;
+  background: var(--ac-ui-surface-2, #f8fafc) !important;
+  color: var(--ac-ui-ink-2, #475569) !important;
   font: inherit !important;
   font-size: 0.72rem !important;
   font-weight: 600 !important;
@@ -96,8 +96,8 @@ html body .modal-overlay .modal.employee-wizard {
 .step-wizard__step-btn:hover:not(:disabled) {
   transform: scale(1.02);
   border-color: #cbd5e1 !important;
-  background: #f1f5f9 !important;
-  color: #0f172a !important;
+  background: var(--ac-ui-surface-2, #f1f5f9) !important;
+  color: var(--ac-ui-ink, #0f172a) !important;
 }
 .step-wizard__step-btn:disabled {
   opacity: 0.55 !important;
@@ -159,8 +159,8 @@ html[data-theme="dark"] .wizard-items-scroll {
   display: grid;
   place-items: center;
   flex: none;
-  background: #ffffff;
-  color: #475569;
+  background: var(--ac-ui-surface, #ffffff);
+  color: var(--ac-ui-ink-2, #475569);
   border: 1px solid #cbd5e1;
   border-radius: 50%;
   font-size: 0.68rem;
@@ -292,8 +292,8 @@ html[data-theme="dark"] .employee-wizard__body {
 
 /* Inline OCR pipeline diagnostic inside wizard dialog */
 .wz-ocr-panel {
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
+  border: 1px solid var(--ac-ui-border, #e2e8f0);
+  background: var(--ac-ui-surface-2, #f8fafc);
   border-radius: 14px;
   padding: 12px 14px;
   margin-bottom: 14px;
@@ -316,7 +316,7 @@ html[data-theme="dark"] .employee-wizard__body {
 }
 .wz-ocr-head strong {
   font-size: 0.84rem;
-  color: #0f172a;
+  color: var(--ac-ui-ink, #0f172a);
 }
 .wz-ocr-panel.is-error .wz-ocr-head strong {
   color: #991b1b;
@@ -338,9 +338,9 @@ html[data-theme="dark"] .employee-wizard__body {
   gap: 6px;
   padding: 4px 10px;
   border-radius: 999px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  color: #475569;
+  background: var(--ac-ui-surface, #ffffff);
+  border: 1px solid var(--ac-ui-border, #e2e8f0);
+  color: var(--ac-ui-ink-2, #475569);
   font-size: 0.75rem;
   font-weight: 600;
 }
@@ -355,13 +355,13 @@ html[data-theme="dark"] .employee-wizard__body {
 }
 .wz-ocr-step.is-running {
   border-color: #cbd5e1;
-  color: #0f172a;
+  color: var(--ac-ui-ink, #0f172a);
 }
 .wz-ocr-detail {
   margin: 8px 0 0;
   font-size: 0.78rem;
   line-height: 1.45;
-  color: #475569;
+  color: var(--ac-ui-ink-2, #475569);
 }
 .wz-ocr-panel.is-error .wz-ocr-detail {
   color: #7f1d1d;
@@ -373,8 +373,8 @@ html[data-theme="dark"] .employee-wizard__body {
   gap: 10px 14px;
   padding: 14px 16px;
   border-radius: 14px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--ac-ui-surface-2, #f8fafc);
+  border: 1px solid var(--ac-ui-border, #e2e8f0);
   margin-bottom: 14px;
 }
 .wz-recap-item span {
@@ -383,13 +383,13 @@ html[data-theme="dark"] .employee-wizard__body {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #64748b;
+  color: var(--ac-ui-muted, #64748b);
 }
 .wz-recap-item strong {
   display: block;
   margin-top: 2px;
   font-size: 0.9rem;
-  color: #0f172a;
+  color: var(--ac-ui-ink, #0f172a);
 }
 
 html[data-theme="dark"] .wz-ocr-panel {

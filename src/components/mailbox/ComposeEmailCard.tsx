@@ -86,9 +86,9 @@ export const ComposeEmailCard: FC<ComposeEmailCardProps> = ({
         overflow: 'hidden',
         borderRadius: 24,
         border: '1px solid rgba(0,0,0,0.08)',
-        background: '#f5f5f7',
+        background: 'var(--ac-ui-surface-2, #f5f5f7)',
         boxShadow: '0 24px 64px rgba(0,0,0,0.18)',
-        color: '#374151',
+        color: 'var(--ac-ui-ink-2, #374151)',
       }}
     >
 
@@ -114,7 +114,7 @@ export const ComposeEmailCard: FC<ComposeEmailCardProps> = ({
           justifyContent: 'space-between',
           padding: '14px 16px',
           flexShrink: 0,
-          background: '#f5f5f7',
+          background: 'var(--ac-ui-surface-2, #f5f5f7)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -132,7 +132,7 @@ export const ComposeEmailCard: FC<ComposeEmailCardProps> = ({
           >
             <Mail size={18} strokeWidth={1.6} />
           </div>
-          <span style={{ fontSize: 15, fontWeight: 650, color: '#29292b', letterSpacing: '-0.02em' }}>{title}</span>
+          <span style={{ fontSize: 15, fontWeight: 650, color: 'var(--ac-ui-ink, #29292b)', letterSpacing: '-0.02em' }}>{title}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <button
@@ -144,7 +144,7 @@ export const ComposeEmailCard: FC<ComposeEmailCardProps> = ({
               background: 'transparent',
               borderRadius: 8,
               padding: 8,
-              color: '#9ca3af',
+              color: 'var(--ac-ui-muted, #9ca3af)',
               cursor: 'pointer',
             }}
           >
@@ -159,7 +159,7 @@ export const ComposeEmailCard: FC<ComposeEmailCardProps> = ({
               background: 'transparent',
               borderRadius: 8,
               padding: 8,
-              color: '#9ca3af',
+              color: 'var(--ac-ui-muted, #9ca3af)',
               cursor: 'pointer',
             }}
           >
@@ -176,32 +176,32 @@ export const ComposeEmailCard: FC<ComposeEmailCardProps> = ({
           overflow: 'auto',
           margin: '0 12px',
           borderRadius: 18,
-          border: '1px solid #e5e5e5',
-          background: '#fff',
+          border: '1px solid var(--ac-ui-border, #e5e5e5)',
+          background: 'var(--ac-ui-surface, #fff)',
           display: 'flex',
           flexDirection: 'column',
         }}
       >
         <div style={{ padding: '16px 20px 8px', display: 'flex', flexDirection: 'column', gap: 10 }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13 }}>
-            <span style={{ width: 52, color: '#9ca3af', flexShrink: 0 }}>À</span>
+            <span style={{ width: 52, color: 'var(--ac-ui-muted, #9ca3af)', flexShrink: 0 }}>À</span>
             <input
               value={to}
               onChange={(e) => onToChange(e.target.value)}
               placeholder="destinataire@exemple.com"
               style={{
                 flex: 1,
-                border: '1px solid #e5e7eb',
+                border: '1px solid var(--ac-ui-border, #e5e7eb)',
                 borderRadius: 999,
                 padding: '8px 14px',
                 fontSize: 13,
                 outline: 'none',
-                background: '#fff',
+                background: 'var(--ac-ui-surface, #fff)',
               }}
             />
           </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, borderBottom: '1px solid #f3f4f6', paddingBottom: 10 }}>
-            <span style={{ width: 52, color: '#9ca3af', flexShrink: 0 }}>Objet</span>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, borderBottom: '1px solid var(--ac-ui-divider, #f3f4f6)', paddingBottom: 10 }}>
+            <span style={{ width: 52, color: 'var(--ac-ui-muted, #9ca3af)', flexShrink: 0 }}>Objet</span>
             <input
               value={subject}
               onChange={(e) => onSubjectChange(e.target.value)}
@@ -212,7 +212,7 @@ export const ComposeEmailCard: FC<ComposeEmailCardProps> = ({
                 fontSize: 14,
                 fontWeight: 600,
                 outline: 'none',
-                color: '#1f2937',
+                color: 'var(--ac-ui-ink, #1f2937)',
                 background: 'transparent',
               }}
             />
@@ -232,7 +232,7 @@ export const ComposeEmailCard: FC<ComposeEmailCardProps> = ({
             padding: '8px 20px 16px',
             fontSize: 14,
             lineHeight: 1.55,
-            color: '#374151',
+            color: 'var(--ac-ui-ink-2, #374151)',
             outline: 'none',
             fontFamily: 'inherit',
             background: 'transparent',
@@ -243,7 +243,7 @@ export const ComposeEmailCard: FC<ComposeEmailCardProps> = ({
           <div style={{ padding: '0 20px 16px' }}>
             {files.length > 0 && (
               <>
-                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', color: '#a7a7a9', marginBottom: 10, textTransform: 'uppercase' }}>
+                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', color: 'var(--ac-ui-muted, #a7a7a9)', marginBottom: 10, textTransform: 'uppercase' }}>
                   Pièces jointes
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))', gap: 8, marginBottom: 12 }}>
@@ -254,10 +254,10 @@ export const ComposeEmailCard: FC<ComposeEmailCardProps> = ({
                         display: 'flex',
                         alignItems: 'center',
                         gap: 10,
-                        border: '1.5px solid #f1f2f8',
+                        border: '1.5px solid var(--ac-ui-divider, #f1f2f8)',
                         borderRadius: 14,
                         padding: 8,
-                        background: '#fff',
+                        background: 'var(--ac-ui-surface, #fff)',
                       }}
                     >
                       <div
@@ -265,28 +265,28 @@ export const ComposeEmailCard: FC<ComposeEmailCardProps> = ({
                           width: 40,
                           height: 40,
                           borderRadius: 10,
-                          background: '#f3f4f6',
+                          background: 'var(--ac-ui-surface-2, #f3f4f6)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           fontSize: 10,
                           fontWeight: 700,
-                          color: '#9ca3af',
+                          color: 'var(--ac-ui-muted, #9ca3af)',
                           flexShrink: 0,
                         }}
                       >
                         {(f.name.split('.').pop() || 'FILE').slice(0, 4).toUpperCase()}
                       </div>
                       <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: '#1f2937', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ac-ui-ink, #1f2937)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {f.name}
                         </div>
-                        <div style={{ fontSize: 11, color: '#9ca3af' }}>{fmtSize(f.size)}</div>
+                        <div style={{ fontSize: 11, color: 'var(--ac-ui-muted, #9ca3af)' }}>{fmtSize(f.size)}</div>
                       </div>
                       <button
                         type="button"
                         onClick={() => onRemoveFile(i)}
-                        style={{ border: 'none', background: 'transparent', color: '#9ca3af', cursor: 'pointer', padding: 4 }}
+                        style={{ border: 'none', background: 'transparent', color: 'var(--ac-ui-muted, #9ca3af)', cursor: 'pointer', padding: 4 }}
                         aria-label="Retirer"
                       >
                         <X size={14} />
@@ -304,13 +304,13 @@ export const ComposeEmailCard: FC<ComposeEmailCardProps> = ({
                     type="button"
                     onClick={() => onBodyChange(q.text)}
                     style={{
-                      border: '1px solid #e5e7eb',
+                      border: '1px solid var(--ac-ui-border, #e5e7eb)',
                       borderRadius: 999,
-                      background: '#f9fafb',
+                      background: 'var(--ac-ui-surface-2, #f9fafb)',
                       padding: '5px 12px',
                       fontSize: 12,
                       fontWeight: 600,
-                      color: '#4b5563',
+                      color: 'var(--ac-ui-ink-2, #4b5563)',
                       cursor: 'pointer',
                     }}
                   >
@@ -364,8 +364,8 @@ export const ComposeEmailCard: FC<ComposeEmailCardProps> = ({
                     width: 200,
                     padding: 12,
                     borderRadius: 16,
-                    border: '1px solid #e5e7eb',
-                    background: '#fff',
+                    border: '1px solid var(--ac-ui-border, #e5e7eb)',
+                    background: 'var(--ac-ui-surface, #fff)',
                     boxShadow: '0 12px 32px rgba(0,0,0,0.12)',
                     zIndex: 20,
                     display: 'grid',
@@ -425,7 +425,7 @@ export const ComposeEmailCard: FC<ComposeEmailCardProps> = ({
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto' }}>
           {footerHint ?? (
-            <span style={{ fontSize: 11, color: '#c6c5ca', fontWeight: 500 }}>Brouillon local</span>
+            <span style={{ fontSize: 11, color: 'var(--ac-ui-faint, #c6c5ca)', fontWeight: 500 }}>Brouillon local</span>
           )}
           <div style={{ display: 'flex', gap: 6, maxWidth: 160 }}>
             <input
@@ -434,7 +434,7 @@ export const ComposeEmailCard: FC<ComposeEmailCardProps> = ({
               placeholder="IA : ton pro…"
               style={{
                 width: 100,
-                border: '1px solid #e5e7eb',
+                border: '1px solid var(--ac-ui-border, #e5e7eb)',
                 borderRadius: 999,
                 padding: '6px 10px',
                 fontSize: 11,
@@ -454,8 +454,8 @@ export const ComposeEmailCard: FC<ComposeEmailCardProps> = ({
               gap: 6,
               border: 'none',
               borderRadius: 999,
-              background: '#0f0f0f',
-              color: '#fff',
+              background: 'var(--ac-ui-solid, #0f0f0f)',
+              color: 'var(--ac-ui-solid-fg, #fff)',
               padding: '8px 18px',
               fontSize: 13,
               fontWeight: 600,
@@ -478,7 +478,7 @@ const iconBtn: import("react").CSSProperties = {
   background: 'transparent',
   borderRadius: 8,
   padding: 8,
-  color: '#9ca3af',
+  color: 'var(--ac-ui-muted, #9ca3af)',
   cursor: 'pointer',
   display: 'inline-flex',
   alignItems: 'center',

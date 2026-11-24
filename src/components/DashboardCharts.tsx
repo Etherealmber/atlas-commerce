@@ -342,10 +342,10 @@ export function AreaChart({
                   x2={w - rightPad}
                   y1={y}
                   y2={y}
-                  stroke={isZero ? 'var(--ac-line)' : 'var(--ac-line)'}
+                  stroke={isZero ? 'var(--ac-chart-zero, var(--ac-line))' : 'var(--ac-chart-grid, var(--ac-line))'}
                   strokeWidth={isZero ? 1.25 : 1}
                   strokeDasharray={isZero ? undefined : '3 4'}
-                  opacity={isZero ? 0.95 : 0.65}
+                  opacity={isZero ? 0.95 : 0.85}
                 />
                 <text
                   x={leftPad - 8}
@@ -462,8 +462,8 @@ export function AreaChart({
                     style={{
                       color:
                         Number(activePoint[keys[0].key] || 0) - Number(activePoint[keys[1].key] || 0) >= 0
-                          ? '#10b981'
-                          : '#ef4444',
+                          ? 'var(--ac-chart-green, #10b981)'
+                          : 'var(--ac-chart-red, #ef4444)',
                     }}
                   >
                     {Number(activePoint[keys[0].key] || 0) - Number(activePoint[keys[1].key] || 0) >= 0 ? '+' : ''}
@@ -604,10 +604,10 @@ export function BarChart({
                   x2={w - rightPad}
                   y1={y}
                   y2={y}
-                  stroke="var(--ac-line)"
+                  stroke={isZero ? 'var(--ac-chart-zero, var(--ac-line))' : 'var(--ac-chart-grid, var(--ac-line))'}
                   strokeWidth={isZero ? 1.2 : 1}
                   strokeDasharray={isZero ? undefined : '3 4'}
-                  opacity={isZero ? 0.95 : 0.6}
+                  opacity={isZero ? 0.95 : 0.85}
                 />
                 <text
                   x={leftPad - 8}
@@ -773,7 +773,7 @@ export function BarChart({
 
 export function HBarChart({
   items,
-  color = '#d97706',
+  color = 'var(--ac-chart-amber, #d97706)',
   unit = 'MAD',
 }: {
   items: { label: string; value: number }[];
@@ -838,7 +838,13 @@ export function DonutChart({
   const size = 152;
   const cx = size / 2;
   const cy = size / 2;
-  const fallbackPalette = ['#2563eb', '#0ea5e9', '#f59e0b', '#ef4444', '#71717a'];
+  const fallbackPalette = [
+    'var(--ac-chart-blue, #2563eb)',
+    'var(--ac-chart-sky, #0ea5e9)',
+    'var(--ac-chart-amber-bright, #f59e0b)',
+    'var(--ac-chart-red, #ef4444)',
+    'var(--ac-chart-zinc, #71717a)',
+  ];
 
   const activeSeg = hoverIdx != null && segments[hoverIdx] ? segments[hoverIdx] : null;
   const displayValue = activeSeg
@@ -852,7 +858,7 @@ export function DonutChart({
     <div className="ac-donut">
       <div className="ac-donut-ring" style={{ width: size, height: size }}>
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-          <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--ac-line, #e4e4e7)" strokeWidth="13" opacity="0.55" />
+          <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--ac-chart-track, var(--ac-line, #e4e4e7))" strokeWidth="13" opacity="0.9" />
           {hasValues &&
             segments.map((seg, i) => {
               const val = Math.max(0, seg.value);

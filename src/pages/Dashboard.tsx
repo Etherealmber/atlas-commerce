@@ -458,7 +458,7 @@ export default function Dashboard() {
               </div>
               <div title={fmt(netPeriod, cur)}>
                 <span className="ac-stat-pair-lab">NET</span>
-                <strong style={{ color: netPeriod > 0 ? '#10b981' : netPeriod < 0 ? '#ef4444' : undefined }}>
+                <strong style={{ color: netPeriod > 0 ? 'var(--ac-chart-green, #10b981)' : netPeriod < 0 ? 'var(--ac-chart-red, #ef4444)' : undefined }}>
                   {netPeriod > 0 ? '+' : ''}{formatCompactNum(netPeriod, cur, 1_000_000)}
                 </strong>
               </div>
@@ -467,8 +467,8 @@ export default function Dashboard() {
           <AreaChart
             series={filteredSeries}
             keys={[
-              { key: 'income', label: 'Entrées', color: '#2563eb' },
-              { key: 'expense', label: 'Sorties', color: '#f59e0b' },
+              { key: 'income', label: 'Entrées', color: 'var(--ac-chart-blue, #2563eb)' },
+              { key: 'expense', label: 'Sorties', color: 'var(--ac-chart-amber-bright, #f59e0b)' },
             ]}
             height={270}
             unit={cur}
@@ -492,7 +492,7 @@ export default function Dashboard() {
           </div>
           <AreaChart
             series={filteredSeries}
-            keys={[{ key: 'profit', label: 'Profit', color: '#0ea5e9' }]}
+            keys={[{ key: 'profit', label: 'Profit', color: 'var(--ac-chart-sky, #0ea5e9)' }]}
             height={270}
             unit={cur}
             allowNegative
@@ -555,8 +555,8 @@ export default function Dashboard() {
           <BarChart
             series={filteredSeries}
             keys={[
-              { key: 'invoices_fa', color: '#2563eb', label: 'Factures (FA)' },
-              { key: 'sales_vr', color: '#0ea5e9', label: 'VR / Quick sale' },
+              { key: 'invoices_fa', color: 'var(--ac-chart-blue, #2563eb)', label: 'Factures (FA)' },
+              { key: 'sales_vr', color: 'var(--ac-chart-sky, #0ea5e9)', label: 'VR / Quick sale' },
             ]}
             height={215}
             unit={cur}
@@ -573,8 +573,8 @@ export default function Dashboard() {
           <BarChart
             series={filteredSeries}
             keys={[
-              { key: 'bills', color: '#d97706', label: 'Achats (bills)' },
-              { key: 'salaries', color: '#71717a', label: 'Salaires' },
+              { key: 'bills', color: 'var(--ac-chart-amber, #d97706)', label: 'Achats (bills)' },
+              { key: 'salaries', color: 'var(--ac-chart-zinc, #71717a)', label: 'Salaires' },
             ]}
             height={215}
             unit={cur}
@@ -590,8 +590,8 @@ export default function Dashboard() {
           </div>
           <BarChart
             series={filteredSeries}
-            keys={[{ key: 'receipts', color: '#10b981', label: 'Encaissements' }]}
-            secondaryLineKey={{ key: 'clients_new', color: '#0f172a', label: 'Nouveaux clients' }}
+            keys={[{ key: 'receipts', color: 'var(--ac-chart-green, #10b981)', label: 'Encaissements' }]}
+            secondaryLineKey={{ key: 'clients_new', color: 'var(--ac-chart-ink, #0f172a)', label: 'Nouveaux clients' }}
             height={215}
             unit={cur}
             secondaryUnit="clients"
@@ -606,7 +606,7 @@ export default function Dashboard() {
                 <p>Top catégories de dépenses (hors achats)</p>
               </div>
             </div>
-            <HBarChart color="#d97706" items={expenseCategories} unit={cur} />
+            <HBarChart color="var(--ac-chart-amber, #d97706)" items={expenseCategories} unit={cur} />
           </div>
         )}
       </div>
@@ -617,8 +617,8 @@ export default function Dashboard() {
           <p className="dd-sub">Crédit ouvert vs en retard</p>
           <DonutChart
             segments={[
-              { value: Number(data?.unpaidSales?.open ?? 0), color: '#3b82f6', label: 'Ouvert' },
-              { value: Number(data?.unpaidSales?.overdue ?? 0), color: '#ef4444', label: 'En retard' },
+              { value: Number(data?.unpaidSales?.open ?? 0), color: 'var(--ac-chart-blue-bright, #3b82f6)', label: 'Ouvert' },
+              { value: Number(data?.unpaidSales?.overdue ?? 0), color: 'var(--ac-chart-red, #ef4444)', label: 'En retard' },
             ]}
             centerLabel={cur}
             centerValue={formatCompactNum(Number(data?.unpaidSales?.total ?? receivablesTotal), '', 10_000)}
@@ -630,8 +630,8 @@ export default function Dashboard() {
           <p className="dd-sub">À payer</p>
           <DonutChart
             segments={[
-              { value: Number(data?.unpaidPurchases?.open ?? 0), color: '#f59e0b', label: 'Ouvert' },
-              { value: Number(data?.unpaidPurchases?.overdue ?? 0), color: '#ef4444', label: 'En retard' },
+              { value: Number(data?.unpaidPurchases?.open ?? 0), color: 'var(--ac-chart-amber-bright, #f59e0b)', label: 'Ouvert' },
+              { value: Number(data?.unpaidPurchases?.overdue ?? 0), color: 'var(--ac-chart-red, #ef4444)', label: 'En retard' },
             ]}
             centerLabel={cur}
             centerValue={formatCompactNum(Number(data?.unpaidPurchases?.total ?? payablesTotal), '', 10_000)}
@@ -643,8 +643,8 @@ export default function Dashboard() {
           <p className="dd-sub">OK vs sous seuil</p>
           <DonutChart
             segments={[
-              { value: Math.max(0, productCount - lowCount), color: '#10b981', label: 'OK' },
-              { value: lowCount, color: '#f59e0b', label: 'Bas' },
+              { value: Math.max(0, productCount - lowCount), color: 'var(--ac-chart-green, #10b981)', label: 'OK' },
+              { value: lowCount, color: 'var(--ac-chart-amber-bright, #f59e0b)', label: 'Bas' },
             ]}
             centerLabel="articles"
             centerValue={formatCompactNum(productCount, '', 10_000)}
@@ -656,7 +656,7 @@ export default function Dashboard() {
           <DonutChart
             segments={expenseCategories.slice(0, 5).map((c: { label: string; value: number }, i: number) => ({
               value: c.value,
-              color: ['#2563eb', '#0ea5e9', '#f59e0b', '#ef4444', '#64748b'][i % 5],
+              color: ['var(--ac-chart-blue, #2563eb)', 'var(--ac-chart-sky, #0ea5e9)', 'var(--ac-chart-amber-bright, #f59e0b)', 'var(--ac-chart-red, #ef4444)', 'var(--ac-chart-slate, #64748b)'][i % 5],
               label: c.label,
             }))}
             centerLabel="charges"

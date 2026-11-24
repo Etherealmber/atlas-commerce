@@ -3128,7 +3128,7 @@ html[data-theme="dark"] body .atlas-agent-bubble {
 }
 /* Balance page: tracks + labels readable in dark */
 html[data-theme="dark"] body .balance-chart-track {
-  background: #27272a !important;
+  background: var(--ac-chart-track, rgba(255, 255, 255, 0.09)) !important;
 }
 html[data-theme="dark"] body .balance-chart-label {
   color: #a1a1aa !important;
@@ -3938,8 +3938,13 @@ html[data-theme="dark"] body .balance-page table thead th {
   background: #1c1c1f !important;
   color: #a1a1aa !important;
 }
-html[data-theme="dark"] body .balance-chart-track { background: #27272a !important; }
-html[data-theme="dark"] body .balance-chart-fill { background: #52525b !important; }
+html[data-theme="dark"] body .balance-chart-track { background: var(--ac-chart-track, rgba(255, 255, 255, 0.09)) !important; }
+/* Mini-bars keep their per-row tone (Balance.tsx sets --balance-bar) instead of a flat grey */
+html[data-theme="dark"] body .balance-chart-fill,
+html[data-theme="dark"] body .balance-page .balance-chart-fill {
+  background: var(--balance-bar, var(--ac-chart-slate, #94a3b8)) !important;
+  background-image: none !important;
+}
 html[data-theme="dark"] body .balance-chart-label { color: #e4e4e7 !important; }
 html[data-theme="dark"] body .balance-chart-val { color: #f4f4f5 !important; }
 html[data-theme="dark"] body .balance-page input,
@@ -6647,7 +6652,7 @@ html[data-theme="dark"] {
   --ac-paper: #18181b !important;
   --shell-paper: #18181b !important;
   --bg-card: #18181b !important;
-  --bg-elevated: #1e2128 !important;
+  --bg-elevated: #202024 !important;
   --line: rgba(255, 255, 255, 0.08) !important;
   --ac-line: rgba(255, 255, 255, 0.08) !important;
   --ink: #dfe2ea !important;
@@ -6759,7 +6764,7 @@ html[data-theme="dark"] body .ac-about-support-item,
 html[data-theme="dark"] body .ac-about-kv-list li,
 html[data-theme="dark"] body .ac-status-pill,
 html[data-theme="dark"] body .about-trust-chip {
-  background: #1e2128 !important;
+  background: #202024 !important;
   border-color: rgba(255, 255, 255, 0.085) !important;
   color: #d6dae4 !important;
 }
@@ -6800,7 +6805,7 @@ html[data-theme="dark"] body .ac-desktop-dock,
 html[data-theme="dark"] body .ac-topbar,
 html[data-theme="dark"] body .settings-topbar,
 html[data-theme="dark"] body .public-nav {
-  background: rgba(22, 24, 30, 0.88) !important;
+  background: rgba(20, 20, 23, 0.88) !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
   backdrop-filter: blur(16px) saturate(1.15) !important;
   -webkit-backdrop-filter: blur(16px) saturate(1.15) !important;
@@ -6808,14 +6813,14 @@ html[data-theme="dark"] body .public-nav {
 html[data-theme="dark"] body .ac-desktop-dock button.ac-topbar-bell,
 html[data-theme="dark"] body .ac-desktop-dock button.ac-topbar-theme,
 html[data-theme="dark"] body .ac-desktop-dock .ac-topbar-user-btn {
-  background: #20232b !important;
+  background: #202024 !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
   color: #dfe2ea !important;
 }
 html[data-theme="dark"] body .ac-desktop-dock button.ac-topbar-bell:hover,
 html[data-theme="dark"] body .ac-desktop-dock button.ac-topbar-theme:hover,
 html[data-theme="dark"] body .ac-desktop-dock .ac-topbar-user-btn:hover {
-  background: #272b35 !important;
+  background: #29292f !important;
   border-color: rgba(255, 255, 255, 0.18) !important;
 }
 html[data-theme="dark"] body .ac-panel.ac-disabled-module-card,
@@ -6833,7 +6838,7 @@ html[data-theme="dark"] body .ac-disabled-module-card .ac-disabled-module-desc s
   color: #d4d4d8 !important;
 }
 html[data-theme="dark"] body .public-settings-topbar.settings-topbar {
-  background: rgba(22, 24, 30, 0.9) !important;
+  background: rgba(20, 20, 23, 0.9) !important;
   border-color: rgba(255, 255, 255, 0.1) !important;
 }
 html[data-theme="dark"] body .cookie-consent-card,
@@ -6865,7 +6870,7 @@ html[data-theme="dark"] body .atlas-typeahead-menu {
   color: #dfe2ea !important;
 }
 html[data-theme="dark"] body .bal-reports-period-row {
-  background: #15171d !important;
+  background: #141417 !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
 }
 
@@ -7277,8 +7282,71 @@ html:not([data-theme="dark"]) body .settings-main button:not(.secondary):not(.gh
   background: #27272b !important;
 }
 
+/* ============================================================================
+   Neutral Charcoal finale — one surface ramp for every page (keep LAST).
+   #121215 canvas · #141417 sidebar · #18181b cards/tables/modals ·
+   #1c1c1f table headers · #202024 inputs/secondary/popover rows · #29292f hover
+   ============================================================================ */
+html[data-theme="dark"] body table thead th,
+html[data-theme="dark"] body .balance-page table thead th,
+html[data-theme="dark"] body .table-wrap table thead th {
+  background: #1c1c1f !important;
+  color: #a1a1aa !important;
+  -webkit-text-fill-color: #a1a1aa !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+html[data-theme="dark"] body table tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.035) !important;
+}
+html[data-theme="dark"] body .settings-topbar-theme,
+html[data-theme="dark"] body .settings-topbar-menu,
+html[data-theme="dark"] body .atlas-agent-foot .prompt-bar__field,
+html[data-theme="dark"] body .atlas-agent-prompt-bar,
+html[data-theme="dark"] body .atlas-agent-prompt-bar .prompt-bar__field,
+html[data-theme="dark"] body .prompt-bar__field {
+  background: #18181b !important;
+  background-color: #18181b !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+html[data-theme="dark"] body .settings-topbar-menu button,
+html[data-theme="dark"] body .settings-topbar-menu button.secondary,
+html[data-theme="dark"] body .settings-topbar-menu button.settings-topbar-menu-item,
+html[data-theme="dark"] body button.atlas-dp-trigger,
+html[data-theme="dark"] body .dash-range-btn:not(.is-on),
+html[data-theme="dark"] body .atlas-agent-suggest--readable button,
+html[data-theme="dark"] body .atlas-agent-nav button.secondary,
+html[data-theme="dark"] body .atlas-agent-chips button.secondary {
+  background: #202024 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+html[data-theme="dark"] body .settings-topbar-menu button:hover,
+html[data-theme="dark"] body .settings-topbar-menu button.settings-topbar-menu-item:hover,
+html[data-theme="dark"] body .dash-range-btn:not(.is-on):hover,
+html[data-theme="dark"] body .atlas-agent-suggest--readable button:hover,
+html[data-theme="dark"] body .atlas-agent-nav button.secondary:hover,
+html[data-theme="dark"] body .atlas-agent-chips button.secondary:hover,
+html[data-theme="dark"] body button.secondary:hover:not(:disabled),
+html[data-theme="dark"] body .btn.secondary:hover:not(:disabled) {
+  background: #29292f !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+}
+html[data-theme="dark"] input[type="checkbox"],
+html[data-theme="dark"] body input[type="checkbox"] {
+  background-color: #202024 !important;
+}
 
-
-
-
-
+/* Charts: neutral tracks/grid, keep series colours vivid on charcoal */
+html[data-theme="dark"] body .ac-hbar-track,
+html[data-theme="dark"] body .balance-chart-track {
+  background: var(--ac-chart-track, rgba(255, 255, 255, 0.09)) !important;
+}
+html[data-theme="dark"] body .ac-hbar-val em,
+html[data-theme="dark"] body .ac-donut-legend li span {
+  color: #a1a1aa !important;
+}
+html[data-theme="dark"] body .ac-donut-center strong {
+  color: #f4f4f6 !important;
+}
+html[data-theme="dark"] body .ac-donut-center span {
+  color: #a1a1aa !important;
+}

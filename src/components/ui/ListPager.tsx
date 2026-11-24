@@ -87,13 +87,13 @@ function PagerArrow({
     el.setAttribute('data-filled', on ? '1' : '0');
     // White idle · black only while active · disabled = white + muted icon (not solid gray)
     if (disabled) {
-      el.style.setProperty('background', '#ffffff', 'important');
-      el.style.setProperty('color', '#a1a1aa', 'important');
+      el.style.setProperty('background', 'var(--ac-ui-surface, #ffffff)', 'important');
+      el.style.setProperty('color', 'var(--ac-ui-muted, #a1a1aa)', 'important');
       el.style.setProperty('opacity', '0.55', 'important');
       el.style.setProperty('box-shadow', '0 1px 2px rgba(15,23,42,0.04)', 'important');
     } else {
-      el.style.setProperty('background', on ? '#0a0a0a' : '#ffffff', 'important');
-      el.style.setProperty('color', on ? '#ffffff' : '#0a0a0a', 'important');
+      el.style.setProperty('background', on ? 'var(--ac-ui-solid, #0a0a0a)' : 'var(--ac-ui-surface, #ffffff)', 'important');
+      el.style.setProperty('color', on ? 'var(--ac-ui-solid-fg, #ffffff)' : 'var(--ac-ui-ink, #0a0a0a)', 'important');
       el.style.setProperty('opacity', '1', 'important');
       el.style.setProperty('box-shadow', on ? 'none' : '0 1px 2px rgba(15,23,42,0.06)', 'important');
     }
@@ -158,8 +158,8 @@ function PagerArrow({
         padding: 0,
         border: 'none',
         borderRadius: 999,
-        background: '#ffffff',
-        color: '#0a0a0a',
+        background: 'var(--ac-ui-surface, #ffffff)',
+        color: 'var(--ac-ui-ink, #0a0a0a)',
         cursor: disabled ? 'not-allowed' : 'pointer',
         boxShadow: '0 1px 2px rgba(15,23,42,0.06)',
         opacity: disabled ? 0.4 : 1,

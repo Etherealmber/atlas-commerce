@@ -38,7 +38,7 @@ html[data-theme="dark"] .atlas-mobile-nav {
 button.atlas-nav-btn {
   background: transparent !important;
   border: none !important;
-  color: #71717a !important;
+  color: var(--ac-ui-muted, #71717a) !important;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -58,8 +58,8 @@ button.atlas-nav-btn {
 }
 .atlas-mobile-nav .atlas-nav-btn:hover,
 button.atlas-nav-btn:hover {
-  background: #f1f5f9 !important;
-  color: #0f172a !important;
+  background: var(--ac-ui-surface-2, #f1f5f9) !important;
+  color: var(--ac-ui-ink, #0f172a) !important;
 }
 .atlas-mobile-nav .atlas-nav-btn:active,
 button.atlas-nav-btn:active {
@@ -68,8 +68,8 @@ button.atlas-nav-btn:active {
 /* Active: soft neutral, NOT solid black */
 .atlas-mobile-nav .atlas-nav-btn.active,
 button.atlas-nav-btn.active {
-  background: #f1f5f9 !important;
-  color: #0a0a0a !important;
+  background: var(--ac-ui-surface-2, #f1f5f9) !important;
+  color: var(--ac-ui-ink, #0a0a0a) !important;
   font-weight: 700 !important;
   box-shadow: none !important;
 }
