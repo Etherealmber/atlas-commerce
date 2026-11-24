@@ -5,25 +5,21 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense, type ReactNode } from 'react';
 import { NavLink, Route, Routes, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Settings, Sparkles, ShoppingCart, Search, ScanLine, RefreshCw, Grid2X2, List, Package, MessageSquarePlus, Plus, Send, ChevronRight, Home, Bell, Bot, Wallet, Users, Receipt, Warehouse, FileText, Monitor, UserRound, Minus, Trash2, CircleAlert, CircleCheck, CreditCard, ShieldCheck, Copy, ChevronDown, History, Hourglass } from 'lucide-react';
+import { ArrowLeft, Settings, Sparkles, ShoppingCart, Search, ScanLine, RefreshCw, Grid2X2, List, Package, MessageSquarePlus, Plus, Send, ChevronRight, Bell, Minus, Trash2, CircleAlert, CircleCheck, CreditCard, ShieldCheck, Copy, ChevronDown, History, Hourglass } from 'lucide-react';
 import PhoneDeviceScan from './PhoneDeviceScan';
-import PhoneBills from './PhoneBills';
-import PhoneWarehouse from './PhoneWarehouse';
-import PhoneClients from './PhoneClients';
 import { PhoneEmployeeDetail, PhoneEmployeeDirectory } from './PhoneEmployees';
 import PhoneSettings from './PhoneSettings';
 import PhoneProfile from './PhoneProfile';
 const PhoneWhatsNew = lazy(() => import('./PhoneWhatsNew'));
-import PhoneDock, { canOpenPhoneBalance, canOpenPhoneClients, canOpenPhoneEmployees, phoneBackTarget, phoneDockItems, phoneShowsBack, showPhoneDock } from './PhoneDock';
+import PhoneDock, { canOpenPhoneBalance, canOpenPhoneEmployees, phoneBackTarget, phoneDockItems, phoneShowsBack, showPhoneDock } from './PhoneDock';
 import { usePhoneTheme } from './usePhoneTheme';
 import { usePhoneTopBar } from './usePhoneTopBar';
 import { api, getBase } from '../api';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import PhoneAgentActivity from './PhoneAgentActivity';
-import { clearToken, getUsername, getDisplayInitials, hasAvatarUrl, getRole, setProfileCache, isStockRole, canSell, canAccessSettings, canAccessSettingsBeyondProfile } from '../auth';
+import { getUsername, getDisplayInitials, hasAvatarUrl, getRole, isStockRole, canSell } from '../auth';
 import { setDensity, type UiScale } from '../lib/density';
-import { APP_VERSION } from '../version';
 import './phone.css';
 import PageTransition from '../components/PageTransition';
 import PhoneDialog from './PhoneDialog';
@@ -37,20 +33,17 @@ import {
   cacheLocations,
   listCachedLocations,
   lookupOffline,
-  enqueueOutbox,
   enqueueOutboxAndSync,
   countOutbox,
   countOfflineInventoryOps,
-  listOutbox,
   flushOutbox,
   isOnline,
-  cacheCount,
 } from '../lib/offlineCatalog';
 import {
   executeOrQueueOfflineInventoryOp,
   replayOfflineInventoryQueue,
 } from '../lib/offlineInventoryClient';
-import { startBarcodeScan, isBarcodeLike, captureAndDecode, decodeImageFile, preloadBarcodeScanner, prepareZXing } from '../lib/barcodeScan';
+import { startBarcodeScan, captureAndDecode, decodeImageFile, preloadBarcodeScanner, prepareZXing } from '../lib/barcodeScan';
 import { IconPackage, IconInbox } from '../components/Icons';
 import OfflineBanner from '../components/OfflineBanner';
 import PhoneHome from './PhoneHome';
@@ -110,19 +103,6 @@ function addToPhoneCart(productId: number) {
     cart[key] = Number(cart[key] || 0) + 1;
     sessionStorage.setItem(PHONE_CART_KEY, JSON.stringify(cart));
   } catch { /* session storage may be unavailable in private WebViews */ }
-}
-
-function takePhoneCart(): Record<number, number> {
-  try {
-    const raw = sessionStorage.getItem(PHONE_CART_KEY);
-    sessionStorage.removeItem(PHONE_CART_KEY);
-    const parsed = raw ? JSON.parse(raw) : {};
-    return Object.fromEntries(
-      Object.entries(parsed).map(([id, qty]) => [Number(id), Number(qty) || 0])
-    );
-  } catch {
-    return {};
-  }
 }
 
 function loadPhoneCart(): Record<number, number> {
@@ -195,49 +175,6 @@ function tabTitleFor(pathname: string): string {
   return 'Accueil';
 }
 
-
-
-function PhoneMore() {
-  const stockOnly = isStockRole();
-  const office = canSell();
-  const groups = [
-    { title: 'Navigation', items: [
-      { to: '/m', label: 'Accueil', icon: Home }, { to: '/m/products', label: 'Produits', icon: Package },
-      { to: '/m/scan', label: 'Scan code-barres', icon: ScanLine }, { to: '/m/inbox', label: 'Notifications', icon: Bell },
-      { to: '/m/agent', label: 'Atlas Agent', icon: Bot },
-      ...(canOpenPhoneBalance(getRole()) ? [{ to: '/m/balance', label: 'Balance', icon: Wallet }] : []),
-      ...(canOpenPhoneClients(getRole()) ? [{ to: '/m/clients', label: 'Clients', icon: Users }] : []),
-      ...(canOpenPhoneEmployees(getRole()) ? [{ to: '/m/employees', label: 'Employés', icon: Users }] : []),
-    ] },
-    { title: 'Outils', items: [
-      ...(office ? [{ to: '/m/vente', label: 'Vente rapide', icon: ShoppingCart }, { to: '/m/bills', label: 'Achats & réception', icon: Receipt }] : []),
-      { to: '/m/warehouse', label: 'Entrepôts · inventaire · transfert', icon: Warehouse },
-      ...(office ? [{ to: '/m/invoice', label: 'Nouveau devis', icon: FileText }, { to: '/?mode=pc', label: 'Rapports & clôture (PC)', icon: Monitor, external: true }] : []),
-    ] },
-    { title: 'Personnel', items: [
-      { to: '/m/profile', label: 'Mon profil', icon: UserRound }, { to: '/m/settings', label: 'Paramètres', icon: Settings },
-      ...(office ? [{ to: '/?mode=pc', label: 'Tous les outils de la version PC', icon: Monitor, external: true }] : []),
-    ] },
-  ];
-  return <div className="ph-more-native">
-    <p className="ph-settings-lead">Retrouvez vos outils et préférences.</p>
-    {groups.map(group => <section className="ph-settings-card ph-more-group" key={group.title}><h2>{group.title}</h2><ul className="phone-more-list">{group.items.map(item => {
-      const Icon = item.icon;
-      const content = <><span className="ph-more-icon"><Icon size={19} aria-hidden="true" /></span><span className="ph-more-label">{item.label}</span><ChevronRight size={18} aria-hidden="true" /></>;
-      return <li key={item.label}>{'external' in item && item.external ? <a href={item.to}>{content}</a> : <NavLink to={item.to}>{content}</NavLink>}</li>;
-    })}</ul></section>)}
-    <p className="ph-settings-hint">{stockOnly ? 'Rôle magasinier : scan, stock et propositions produit. Caisse et argent sont gérés sur le PC.' : 'Réception des achats, UBL et clôture fiscale sont aussi sur PC (menu latéral).'}</p>
-  </div>;
-}
-
-function PhoneEmbed({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <div className="phone-panel phone-embed-page">
-      <h1 style={{ fontSize: '1.1rem', margin: '4px 0 12px' }}>{title}</h1>
-      {children}
-    </div>
-  );
-}
 export default function PhoneApp() {
   useProfileWarm();
   useEffect(() => {
@@ -484,34 +421,12 @@ export default function PhoneApp() {
               )
             }
           />
-          <Route
-            path="/invoice"
-            element={
-              allowSell ? (
-                <PhoneInvoice
-                  products={products}
-                  onDone={async () => {
-                    show('Devis créé — à confirmer sur le PC');
-                    await refresh('actions');
-                  }}
-                  onToast={show}
-                />
-              ) : (
-                <div className="phone-panel"><p className="ph-perm-banner">Rôle magasinier : pas de devis / caisse.</p></div>
-              )
-            }
-          />
           <Route path="/balance" element={canOpenPhoneBalance(getRole()) ? <Suspense fallback={<PageSkeleton variant="phone" />}>{canOpenPhoneEmployees(getRole()) ? <PhoneBalance /> : <div className="phone-web-page"><Balance /></div>}</Suspense> : <div className="phone-panel"><p>Cette page n’est pas disponible pour votre rôle.</p></div>} />
-          <Route path="/balance/classic" element={canOpenPhoneBalance(getRole()) ? <div className="phone-web-page"><Suspense fallback={<PageSkeleton variant="phone" />}><Balance /></Suspense></div> : <div className="phone-panel"><p>Cette page n’est pas disponible pour votre rôle.</p></div>} />
-          <Route path="/clients" element={canOpenPhoneClients(getRole()) ? <PhoneClients onToast={show} /> : <div className="phone-panel"><p>Cette page n’est pas disponible pour votre rôle.</p></div>} />
           <Route path="/employees" element={canOpenPhoneEmployees(getRole()) ? <PhoneEmployeeDirectory /> : <div className="phone-panel"><p>Cette page n’est pas disponible pour votre rôle.</p></div>} />
           <Route path="/employees/:id" element={canOpenPhoneEmployees(getRole()) ? <PhoneEmployeeDetail /> : <div className="phone-panel"><p>Cette page n’est pas disponible pour votre rôle.</p></div>} />
-          <Route path="/more" element={<PhoneMore />} />
           <Route path="/profile" element={<PhoneProfile onChanged={() => setProfileTick(tick => tick + 1)} preferences={{ theme, onTheme: applyTheme, animations, onAnimations: applyAnimations, compact, onCompact: applyCompact, scale: phoneScale, onScale: applyPhoneScale, startTab, onStartTab: applyStartTab }} />} />
           <Route path="/settings" element={<PhoneSettings theme={theme} onTheme={applyTheme} animations={animations} onAnimations={applyAnimations} compact={compact} onCompact={applyCompact} scale={phoneScale} onScale={applyPhoneScale} startTab={startTab} onStartTab={applyStartTab} />} />
           <Route path="/settings/whats-new" element={<Suspense fallback={<PageSkeleton variant="phone" />}><PhoneWhatsNew /></Suspense>} />
-          <Route path="/bills" element={allowSell ? <PhoneBills onToast={show} /> : <div className="phone-panel"><p className="ph-perm-banner">Rôle magasinier : pas d’achats.</p></div>} />
-          <Route path="/warehouse" element={<PhoneWarehouse onToast={show} />} />
           <Route path="/agent" element={<PhoneAgentMobile onNavigate={path => navigate(path)} onBack={() => navigate(backTarget)} onTheme={applyTheme} onProductCreated={direct => { show(direct ? 'Produit créé au catalogue' : 'Demande envoyée à l’Admin'); void refresh(direct ? 'products' : 'actions'); }} />} />
           <Route path="/device-scan" element={<PhoneDeviceScan />} />
 
@@ -519,10 +434,9 @@ export default function PhoneApp() {
             path="*"
             element={
               <div className="ph-restricted">
-                <h1>Oups</h1>
+                <h1>Page non disponible sur mobile</h1>
                 <p>
-                  Cette page n&apos;est pas disponible sur mobile, ou elle a été restreinte.
-                  Utilisez le menu du bas ou retournez à l&apos;accueil terrain.
+                  Seules les pages accessibles depuis la barre du haut et la barre du bas sont disponibles sur mobile.
                 </p>
                 <button type="button" className="ph-primary" onClick={() => navigate('/m')}>
                   Retour à l&apos;accueil
@@ -1356,8 +1270,8 @@ function alertDestination(href: unknown) {
     if (/^\/products(?:[/?#]|$)/.test(href)) return '/m/products';
     if (/^\/scan(?:[/?#]|$)/.test(href)) return '/m/scan';
     if (/^\/quick-sale(?:[/?#]|$)/.test(href) && canSell()) return '/m/vente';
-    if (/^\/bills(?:[/?#]|$)/.test(href) && canSell()) return '/m/bills';
     if (/^\/balance(?:[/?#]|$)/.test(href) && canOpenPhoneBalance(getRole())) return '/m/balance';
+    if (/^\/employees(?:[/?#]|$)/.test(href) && canOpenPhoneEmployees(getRole())) return '/m/employees';
     return null;
 }
 
@@ -1469,185 +1383,6 @@ export function PhoneVente({ products, ready = true, error = false, onRefresh, o
     {sent && <PhoneDialog className="ph-native-dialog" titleId="ph-sale-sent-title" onClose={() => setSent(false)}><h2 id="ph-sale-sent-title"><CircleCheck size={21} /> Demande envoyée</h2><p>La vente attend la validation au PC et n’est pas encore payée.</p><div className="ph-native-dialog-actions"><button type="button" onClick={() => setSent(false)}>Nouveau panier</button></div></PhoneDialog>}
   </div>;
 }
-
-function PhoneInvoice({
-  products, onDone, onToast,
-}: {
-  products: Product[]; onDone: () => void; onToast: (m: string) => void;
-}) {
-  const [sel, setSel] = useState<Record<number, number>>(() => takePhoneCart());
-  const [clients, setClients] = useState<{ id: number; name: string }[]>([]);
-  const [clientId, setClientId] = useState('');
-  const [customer, setCustomer] = useState('Client de passage');
-  const [newClient, setNewClient] = useState(false);
-  const [newClientName, setNewClientName] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [q, setQ] = useState('');
-
-  useEffect(() => {
-    api.getClients()
-      .then((res: any) => setClients((res.data || []).map((c: any) => ({ id: c.id, name: c.name }))))
-      .catch(() => {});
-  }, []);
-
-  const items = Object.entries(sel)
-    .filter(([, qty]) => qty > 0)
-    .map(([id, qty]) => {
-      const p = products.find((x) => x.id === Number(id))!;
-      return { product_id: p.id, product_name: p.name, quantity: qty, unit_price: priceOf(p) };
-    });
-  const total = items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
-  const count = items.reduce((s, i) => s + i.quantity, 0);
-
-  const filteredProducts = products.filter((p) => {
-    if (!q.trim()) return true;
-    const s = q.toLowerCase();
-    return (p.name || '').toLowerCase().includes(s) || (p.sku || '').toLowerCase().includes(s);
-  });
-
-  const create = async () => {
-    if (!items.length || busy) return;
-    setBusy(true);
-    try {
-      let cid = clientId ? Number(clientId) : undefined;
-      let cname = customer.trim() || 'Client de passage';
-      if (newClient && newClientName.trim()) {
-        try {
-          const res: any = await api.createClient({ name: newClientName.trim() });
-          cid = res.data?.id;
-          cname = newClientName.trim();
-        } catch (e: any) {
-          onToast(e.message || 'Erreur client');
-          setBusy(false);
-          return;
-        }
-      } else if (cid) {
-        const cl = clients.find((c) => c.id === cid);
-        if (cl) cname = cl.name;
-      }
-      const inv: any = await api.createInvoice({
-        client_id: cid || null,
-        client_name: cname,
-        status: 'quote',
-        notes: 'Devis créé depuis le téléphone — à confirmer sur PC',
-        items: items.map((i) => ({
-          product_id: i.product_id,
-          product_name: i.product_name,
-          quantity: i.quantity,
-          unit_price: i.unit_price,
-          list_price: i.unit_price,
-        })),
-      });
-      const invId = inv?.data?.id;
-      await api.createMobileAction({
-        // The handoff table intentionally uses "invoice" for both invoice
-        // drafts and quote requests. "quote" is not a valid DB enum value.
-        type: 'invoice',
-        title: `Devis ${total} MAD`,
-        detail: `${count} articles · ${cname} · en attente conversion PC`,
-        meta: { quote_id: invId, needs_conversion: true },
-        created_by: 'mobile',
-      });
-      setSel({});
-      await onDone();
-    } catch (e: any) {
-      onToast(e.message || 'Erreur devis');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div>
-      <p className="ph-eyebrow">Devis terrain</p>
-      <h1 className="ph-title">Créer un devis</h1>
-      <p className="ph-sub">Devis sans impact stock. Le PC convertira en facture après confirmation client.</p>
-
-      <div className="ph-panel" style={{ marginBottom: 14 }}>
-        <div className="ph-section" style={{ marginBottom: 10 }}>Client</div>
-        {!newClient ? (
-          <>
-            <select
-              value={clientId}
-              onChange={(e) => {
-                setClientId(e.target.value);
-                const cl = clients.find((c) => String(c.id) === e.target.value);
-                if (cl) setCustomer(cl.name);
-              }}
-              style={{ width: '100%', height: 44, borderRadius: 12, border: '1px solid #e5e0d6', padding: '0 12px', marginBottom: 8 }}
-            >
-              <option value="">Client de passage</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-            <button type="button" className="ph-chip" onClick={() => setNewClient(true)}>+ Nouveau client</button>
-          </>
-        ) : (
-          <>
-            <input
-              value={newClientName}
-              onChange={(e) => setNewClientName(e.target.value)}
-              placeholder="Nom du nouveau client"
-              style={{ width: '100%', height: 44, borderRadius: 12, border: '1px solid #e5e0d6', padding: '0 12px', marginBottom: 8 }}
-            />
-            <button type="button" className="ph-chip" onClick={() => setNewClient(false)}>Choisir existant</button>
-          </>
-        )}
-      </div>
-
-      <input
-        className="ph-search"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder="Filtrer les produits…"
-        style={{ marginBottom: 10 }}
-      />
-
-      <div className="ph-panel" style={{ padding: 0, overflow: 'hidden' }}>
-        {filteredProducts.map((p) => (
-          <label key={p.id} className="ph-inv-item">
-            <input
-              type="checkbox"
-              checked={!!sel[p.id]}
-              onChange={() =>
-                setSel((prev) => {
-                  const n = { ...prev };
-                  if (n[p.id]) delete n[p.id];
-                  else n[p.id] = 1;
-                  return n;
-                })
-              }
-            />
-            <div style={{ flex: 1 }}>
-              <div className="ph-row-title">{p.name}</div>
-              <div className="ph-row-detail">{p.sku} · {stockOf(p)} dispo</div>
-            </div>
-            {!isStockRole() && <strong>{priceOf(p)} MAD</strong>}
-          </label>
-        ))}
-        {filteredProducts.length === 0 && (
-        <div className="ph-empty">
-          <div className="ph-empty-ico" aria-hidden><IconPackage size={28} /></div>
-          <h2>Aucun produit</h2>
-          <p>Aucun article ne correspond à la recherche.</p>
-        </div>
-      )}
-      </div>
-
-      <div className="ph-inv-box">
-        <div className="ph-inv-line"><span>Client</span><span>{newClient ? (newClientName || '—') : (customer || 'Client de passage')}</span></div>
-        <div className="ph-inv-line"><span>Articles</span><span>{count}</span></div>
-        <div className="ph-inv-line"><span>TVA</span><span>Incluse</span></div>
-        <div className="ph-inv-total"><span>Total</span><span>{total} MAD</span></div>
-        <button type="button" className="ph-inv-go" disabled={!count || busy} onClick={create}>
-          Envoyer le devis →
-        </button>
-      </div>
-    </div>
-  );
-}
-
 
 function newPhoneAgentThreadId() {
   return `mobile-${globalThis.crypto?.randomUUID?.() || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`}`;
@@ -1939,43 +1674,3 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme, onProductCreated
   );
 }
 
-
-function PhoneInbox() {
-  const navigate = useNavigate();
-  const [alerts, setAlerts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    let cancelled = false;
-    api.getAlerts().then((r: any) => { if (!cancelled) setAlerts(r?.data || []); }).catch(() => { if (!cancelled) setAlerts([]); }).finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, []);
-  const dest = (href: string) => {
-    if (href.startsWith('/products')) return '/m/warehouse';
-    if (href.startsWith('/scan')) return '/m/scan';
-    if (href.startsWith('/quick-sale')) return '/m/vente';
-    if (href.startsWith('/bills')) return '/m/bills';
-    return '/m';
-  };
-  return (
-    <div className="phone-panel ph-inbox">
-      <h1 className="ph-title">Notifications</h1>
-      {loading ? <p className="ph-muted">Chargement…</p> : alerts.length === 0 ? (
-        <p className="ph-muted">Aucune alerte — tout est en ordre.</p>
-      ) : (
-        <ul className="ph-inbox-list">
-          {alerts.map((a: any, i: number) => (
-            <li key={`${a.kind}-${i}`}>
-              <button type="button" className="ph-inbox-item" onClick={() => navigate(dest(a.href || '/m'))}>
-                <span className={`ph-inbox-dot ${a.severity === 'high' ? 'danger' : a.severity === 'medium' ? 'warn' : ''}`} />
-                <span className="ph-inbox-text">
-                  <strong>{a.label}</strong>
-                  <em>{String(a.kind).replace(/_/g, ' ')}</em>
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}

@@ -25,7 +25,7 @@
 html[data-theme="dark"] .public-about,
 html[data-theme="dark"] .public-whats-new,
 html[data-theme="dark"] .public-legal {
-  background: #121317;
+  background: #121215;
   color: #e3e5eb;
 }
 
@@ -303,8 +303,8 @@ html body aside.atlas-focus-sidebar button.atlas-focus-nav-item.is-active:focus-
 html body #root aside.atlas-focus-sidebar button.atlas-focus-nav-item.is-active:hover,
 html body #root aside.atlas-focus-sidebar button.atlas-focus-nav-item.is-active:focus-visible,
 .atlas-focus-nav-item.is-active:hover {
-  background: #1e293b !important;
-  background-color: #1e293b !important;
+  background: #27272b !important;
+  background-color: #27272b !important;
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
 }
@@ -381,7 +381,7 @@ html body #root aside.atlas-focus-sidebar button.atlas-focus-nav-item.is-active:
 
 /* ---- Dark Mode Floating Sidebar (monochrome, zero purple) ---- */
 html[data-theme="dark"] .atlas-focus-sidebar {
-  background: #181a20 !important;
+  background: #18181b !important;
   border-color: rgba(255, 255, 255, 0.085) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.04),
@@ -392,8 +392,8 @@ html[data-theme="dark"] .atlas-focus-sidebar-title {
 }
 html[data-theme="dark"] body aside.atlas-focus-sidebar button.atlas-focus-collapse-btn,
 html[data-theme="dark"] .atlas-focus-collapse-btn {
-  background: #1b1e28 !important;
-  background-color: #1b1e28 !important;
+  background: #18181b !important;
+  background-color: #18181b !important;
   border-color: rgba(255, 255, 255, 0.1) !important;
   color: #d4d4d8 !important;
   -webkit-text-fill-color: #d4d4d8 !important;
@@ -455,7 +455,7 @@ html[data-theme="dark"] .atlas-focus-nav-item.is-active .atlas-focus-badge--acce
   -webkit-text-fill-color: #0f172a !important;
 }
 html[data-theme="dark"] .atlas-focus-dot {
-  box-shadow: 0 0 0 2px #181a20;
+  box-shadow: 0 0 0 2px #18181b;
 }
 
 /* ---- Responsive Drawer (< 960px) ---- */
@@ -496,7 +496,7 @@ html[data-theme="dark"] .atlas-focus-dot {
     color: var(--ac-ink, #0f172a) !important;
   }
   html[data-theme="dark"] .atlas-focus-mobile-trigger {
-    background: #181a20 !important;
+    background: #18181b !important;
     border-color: rgba(255, 255, 255, 0.1) !important;
     color: #f4f4f6 !important;
   }
@@ -595,13 +595,13 @@ html body .about-page a.secondary:hover {
 }
 html[data-theme="dark"] body .ac-about-pill-btn,
 html[data-theme="dark"] body .about-page a.secondary {
-  background: #1d2027 !important;
+  background: #202024 !important;
   border-color: rgba(255, 255, 255, 0.12) !important;
   color: #f4f4f6 !important;
 }
 html[data-theme="dark"] body .ac-about-pill-btn:hover,
 html[data-theme="dark"] body .about-page a.secondary:hover {
-  background: #282c36 !important;
+  background: #27272b !important;
   border-color: rgba(255, 255, 255, 0.24) !important;
 }
 
@@ -673,7 +673,7 @@ html[data-theme="dark"] body .about-page a.secondary:hover {
   color: var(--ac-ink, #0f172a);
 }
 html[data-theme="dark"] .ac-bento-bucket {
-  background: #1d2027;
+  background: #202024;
   border-color: rgba(255, 255, 255, 0.08);
 }
 html[data-theme="dark"] .ac-bento-bucket strong {
@@ -708,7 +708,7 @@ html[data-theme="dark"] .ac-bento-bucket strong {
   border-color: rgba(239, 68, 68, 0.28);
 }
 html[data-theme="dark"] .ac-status-pill {
-  background: #1b1e28;
+  background: #18181b;
   color: #cbd5e1;
   border-color: rgba(255, 255, 255, 0.09);
 }
@@ -781,12 +781,12 @@ html body .settings-main .ac-panel {
 
 html[data-theme="dark"] .ac-settings-info-note,
 html[data-theme="dark"] .ac-settings-subbox {
-  background: #1d2027 !important;
+  background: #202024 !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
   color: #b4b9c6 !important;
 }
 html[data-theme="dark"] .ac-settings-avatar-fallback {
-  background: #21242c;
+  background: #202024;
   color: #f4f4f6;
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
@@ -921,7 +921,7 @@ html body .about-page.ac-about-bento {
   text-decoration: underline;
 }
 html[data-theme="dark"] .ac-about-support-item {
-  background: #1d2027;
+  background: #202024;
   border-color: rgba(255, 255, 255, 0.08);
 }
 
@@ -1080,7 +1080,7 @@ html[data-theme="dark"] body a.ac-about-project-card:focus-visible {
 
 html[data-theme="dark"] .ac-about-feature-tile,
 html[data-theme="dark"] .ac-about-project-card {
-  background: #1d2027 !important;
+  background: #202024 !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
 }
 html[data-theme="dark"] .ac-about-feature-tile-head {
@@ -1197,7 +1197,7 @@ html[data-theme="dark"] .ac-about-project-card:hover {
 
 html[data-theme="dark"] .ac-about-kv-list li,
 html[data-theme="dark"] .ac-about-bullets li {
-  background: #1d2027;
+  background: #202024;
   border-color: rgba(255, 255, 255, 0.08);
   color: #a1a1aa;
 }
@@ -1282,7 +1282,7 @@ html body .ac-settings-bento .settings-main--wide {
 }
 html[data-theme="dark"] .ac-reports-assist-box,
 html[data-theme="dark"] .ac-reports-checklist {
-  background: #1d2027;
+  background: #202024;
   border-color: rgba(255, 255, 255, 0.08);
   color: #a1a1aa;
 }
@@ -1359,7 +1359,7 @@ html[data-theme="dark"] .ac-reports-checklist strong {
   color: var(--ac-muted, #64748b);
 }
 html[data-theme="dark"] .ac-ops-scope-control {
-  background: #181a20;
+  background: #18181b;
   border-color: rgba(255, 255, 255, 0.085);
 }
 
@@ -1478,7 +1478,7 @@ html[data-theme="dark"] .atlas-focus-main .privacy-inner > ul,
 html[data-theme="dark"] .atlas-focus-main .privacy-inner > p:not(.privacy-nav):not(.privacy-meta):not(.privacy-foot),
 html[data-theme="dark"] .atlas-focus-main .privacy-nav,
 html[data-theme="dark"] .atlas-focus-main .privacy-foot {
-  background: #181a20 !important;
+  background: #18181b !important;
   border-color: rgba(255, 255, 255, 0.085) !important;
 }
 html[data-theme="dark"] .atlas-focus-main .privacy-inner > section p,
@@ -1492,7 +1492,7 @@ html[data-theme="dark"] .atlas-focus-main .privacy-inner a {
   color: #f4f4f6 !important;
 }
 html[data-theme="dark"] .atlas-focus-main .privacy-link-btn {
-  background: #21242c !important;
+  background: #202024 !important;
   border-color: rgba(255, 255, 255, 0.14) !important;
   color: #eef0f6 !important;
 }
@@ -1817,7 +1817,7 @@ html[data-theme="light"] .dl-support-form select option {
   text-decoration: none !important;
 }
 html[data-theme="dark"] .ac-disabled-module-card {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, #181a20 72%) !important;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, #18181b 72%) !important;
   border: 1px solid rgba(255, 255, 255, 0.09) !important;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28) !important;
 }
@@ -1975,14 +1975,14 @@ html[data-theme="dark"] .ac-status-pill.is-danger {
   border-color: rgba(248, 113, 113, 0.28);
 }
 html[data-theme="dark"] .ac-att-modal {
-  background: #181a20 !important;
+  background: #18181b !important;
   border-color: rgba(255, 255, 255, 0.09) !important;
 }
 html[data-theme="dark"] .ac-att-modal-title {
   color: #f4f4f5;
 }
 html[data-theme="dark"] .ac-att-modal-note {
-  background: #1d2027;
+  background: #202024;
   border-color: rgba(255, 255, 255, 0.08);
   color: #a1a1aa;
 }
@@ -2401,13 +2401,13 @@ html[data-theme="dark"] .ac-audit-bar {
   background: linear-gradient(180deg, #f4f4f5 0%, #a1a1aa 100%);
 }
 html[data-theme="dark"] #root .content button.ac-audit-hbar-btn {
-  background: #1d2027 !important;
+  background: #202024 !important;
   color: #e4e4e7 !important;
   -webkit-text-fill-color: #e4e4e7 !important;
   border-color: rgba(255, 255, 255, 0.06) !important;
 }
 html[data-theme="dark"] #root .content button.ac-audit-hbar-btn:hover {
-  background: #282c36 !important;
+  background: #27272b !important;
   border-color: rgba(255, 255, 255, 0.14) !important;
 }
 html[data-theme="dark"] #root .content button.ac-audit-hbar-btn.is-selected {
@@ -2435,12 +2435,12 @@ html[data-theme="dark"] #root .content button.ac-audit-clear-btn {
 }
 html[data-theme="dark"] body .settings-main .ac-audit-table-wrap,
 html[data-theme="dark"] .ac-audit-table-wrap {
-  background: #181a20 !important;
+  background: #18181b !important;
   border-color: rgba(255, 255, 255, 0.085) !important;
 }
 html[data-theme="dark"] body .settings-main .ac-audit-table-wrap .audit-table thead th,
 html[data-theme="dark"] .ac-audit-table-wrap .audit-table thead th {
-  background: #1d2027 !important;
+  background: #202024 !important;
   color: #a1a1aa !important;
   border-bottom-color: rgba(255, 255, 255, 0.08) !important;
 }
@@ -2487,7 +2487,7 @@ html[data-theme="dark"] .ac-audit-pager {
   border-top-color: rgba(255, 255, 255, 0.08);
 }
 html[data-theme="dark"] .ac-audit-pager-meta {
-  background: #1d2027;
+  background: #202024;
   border-color: rgba(255, 255, 255, 0.08);
   color: #a1a1aa;
 }
@@ -2641,7 +2641,7 @@ html[data-theme="dark"] .ac-audit-pager-meta {
 html[data-theme="dark"] .ac-erp-chip,
 html[data-theme="dark"] .ac-erp-open-item,
 html[data-theme="dark"] .ac-erp-subpanel {
-  background: #1d2027 !important;
+  background: #202024 !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
 }
 html[data-theme="dark"] .ac-erp-chip strong,
@@ -2651,7 +2651,7 @@ html[data-theme="dark"] .ac-erp-variance-bar strong {
   color: #f4f4f6 !important;
 }
 html[data-theme="dark"] .ac-erp-variance-bar {
-  background: #181a20 !important;
+  background: #18181b !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
 }
 
@@ -2973,17 +2973,17 @@ html[data-theme="dark"] .ac-erp-variance-bar {
 html[data-theme="dark"] .ac-skeleton-bento-card,
 html[data-theme="dark"] .ac-skeleton-table-wrap,
 html[data-theme="dark"] .atlas-agent-shimmer-reply {
-  background: #181a20 !important;
+  background: #18181b !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
 }
 
 html[data-theme="dark"] .ac-skeleton-action-row {
-  background: #1d2027 !important;
+  background: #202024 !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
 }
 
 html[data-theme="dark"] .ac-skeleton-thead {
-  background: #1d2027 !important;
+  background: #202024 !important;
   border-bottom-color: rgba(255, 255, 255, 0.08) !important;
 }
 
@@ -2996,7 +2996,7 @@ html[data-theme="dark"] .ac-skeleton-bento-card .skeleton,
 html[data-theme="dark"] .page-skeleton .skeleton,
 html[data-theme="dark"] .atlas-agent-shimmer-thread .skeleton,
 html[data-theme="dark"] .atlas-agent-shimmer-reply .skeleton {
-  background: linear-gradient(90deg, #1d2027 25%, #282c36 50%, #1d2027 75%) !important;
+  background: linear-gradient(90deg, #202024 25%, #27272b 50%, #202024 75%) !important;
   background-size: 200% 100% !important;
 }
 

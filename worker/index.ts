@@ -1135,7 +1135,7 @@ app.use('/api/*', async (c, next) => {
     const auth = c.req.header('Authorization');
     const queryToken = extractQueryToken(c.req.url);
     if (queryToken?.startsWith('np1.') || queryToken?.startsWith('nv3.')) return deny(401, 'INVALID_TOKEN');
-    if (isAnyNativeV3TokenHeader(auth)) return deny(401, 'INVALID_TOKEN');
+    if (isAnyNativeV3TokenHeader(auth) && !isNativeV3AuthHeader(auth)) return deny(401, 'INVALID_TOKEN');
     const rt = c.req.query('rt');
     if (rt && !auth && !queryToken && path !== '/api/reports/link-ticket') {
       const verified = await verifyScopedReportTicket(reportTicketEnvironment(c.env), rt, getOwnerUsername(c.env));
@@ -1144,30 +1144,56 @@ app.use('/api/*', async (c, next) => {
       (c as any).set('reportTicket', rt);
       return next();
     }
-    const identity = await verifyArchiveIdentity(c.env, auth || (queryToken ? `Bearer ${queryToken}` : undefined), clientIp(c), undefined, {
-      authFailReason: (header, env, db, ip, fp) => authFailReason(header, env as Env, db, ip, fp, { relaxSession: true }),
-      sessionUserFromHeader,
-      ownerUsername: (env) => getOwnerUsername(env as Env),
-    });
-    if (!identity.ok) return deny(identity.status, identity.code);
-    (c as any).set('reportIdentity', identity.identity);
-    if (path !== '/api/reports/link-ticket' && REPORT_TICKET_PATHS.has(path)) {
-      try {
-        const ticket = await mintScopedReportTicket(reportTicketEnvironment(c.env), identity.identity as any, getOwnerUsername(c.env));
-        (c as any).set('reportTicket', ticket.rt);
-      } catch { return deny(503, 'REPORT_TICKET_UNAVAILABLE'); }
-    }
-    return next();
+    const reqAuthCtx = {
+      dpopHeader: c.req.header('DPoP'),
+      method: 'GET',
+      requestUrl: c.req.url,
+    };
+    const isNativeV3Dpop = isNativeV3AuthHeader(auth);
+    const runReport = async () => {
+      let lastFailReason = 'bad_token';
+      const identity = await verifyArchiveIdentity(c.env, auth || (queryToken ? `Bearer ${queryToken}` : undefined), clientIp(c), undefined, {
+        authFailReason: async (header, env, db, ip, fp) => {
+          const r = await authFailReason(header, env as Env, db, ip, fp, {
+            relaxSession: !isNativeV3Dpop,
+            dpopHeader: reqAuthCtx.dpopHeader,
+            method: reqAuthCtx.method,
+            requestUrl: reqAuthCtx.requestUrl,
+          });
+          lastFailReason = r;
+          return r;
+        },
+        sessionUserFromHeader,
+        ownerUsername: (env) => getOwnerUsername(env as Env),
+      });
+      if (!identity.ok) {
+        return deny(
+          identity.status,
+          identity.status === 401 && lastFailReason === 'invalid_dpop' ? 'INVALID_DPOP' : identity.code,
+        );
+      }
+      (c as any).set('reportIdentity', identity.identity);
+      if (path !== '/api/reports/link-ticket' && REPORT_TICKET_PATHS.has(path)) {
+        try {
+          const ticket = await mintScopedReportTicket(reportTicketEnvironment(c.env), identity.identity as any, getOwnerUsername(c.env));
+          (c as any).set('reportTicket', ticket.rt);
+        } catch { return deny(503, 'REPORT_TICKET_UNAVAILABLE'); }
+      }
+      return next();
+    };
+    return isNativeV3Dpop ? runWithRequestAuthContext(reqAuthCtx, runReport) : runReport();
   }
 
   if (isPrintLike) {
     const ip = clientIp(c);
     const queryToken = extractQueryToken(c.req.url);
     const authHeader = c.req.header('Authorization');
+    const isNativeV3Dpop = isNativeV3AuthHeader(authHeader);
     const wantsJson =
       (c.req.header('Accept') || '').includes('application/json') ||
       (c.req.header('Content-Type') || '').includes('application/json') ||
-      !!authHeader?.startsWith('Bearer ');
+      !!authHeader?.startsWith('Bearer ') ||
+      isNativeV3Dpop;
 
     const reportForbidden = (title: string, message: string, reason?: string) => {
       if (wantsJson) {
@@ -1243,7 +1269,7 @@ app.use('/api/*', async (c, next) => {
       );
     }
 
-    // Print-like via Authorization (SPA fetch) or remaining cases — relax session
+    // Print-like via Authorization (SPA fetch / Desktop DPoP) or remaining cases — relax session
     if (authHeader?.startsWith('Bearer ')) {
       const reason = await authFailReason(authHeader, c.env, c.env.DB, ip, undefined, { relaxSession: true });
       if (reason === 'ok') return next();
@@ -1252,6 +1278,28 @@ app.use('/api/*', async (c, next) => {
         'Reconnectez-vous puis rouvrez le document depuis l’application.',
         reason || 'UNAUTHORIZED',
       );
+    }
+    if (isNativeV3Dpop) {
+      const reqAuthCtx = {
+        dpopHeader: c.req.header('DPoP'),
+        method: c.req.method.toUpperCase(),
+        requestUrl: c.req.url,
+      };
+      return runWithRequestAuthContext(reqAuthCtx, async () => {
+        const reason = await authFailReason(authHeader, c.env, c.env.DB, ip, undefined, {
+          dpopHeader: reqAuthCtx.dpopHeader,
+          method: reqAuthCtx.method,
+          requestUrl: reqAuthCtx.requestUrl,
+        });
+        if (reason === 'ok') return next();
+        return reportForbidden(
+          'Session requise',
+          reason === 'invalid_dpop'
+            ? 'Preuve DPoP invalide ou expirée.'
+            : 'Reconnectez-vous puis rouvrez le document depuis l’application.',
+          reason === 'invalid_dpop' ? 'INVALID_DPOP' : reason || 'UNAUTHORIZED',
+        );
+      });
     }
     // No token / no rt on print-like → friendly HTML (not raw JSON)
     return reportForbidden(

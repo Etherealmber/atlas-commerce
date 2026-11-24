@@ -45,9 +45,9 @@ html .ac-edit-profile-modal button:not(.secondary):not(.ac-edit-profile-close) {
 html[data-theme="dark"] .content button:not(.secondary):not(.ghost):not(.danger):not(.icon-refresh-btn):not(.mailbox-folder-item):not(.settings-nav-item):not(.theme-toggle):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.atlas-shell-icon-btn):not(.ac-topbar-mail):not(.ac-topbar-notif):not(.ac-topbar-user-btn):not(.ac-pill-pager-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-seg-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.modal-x):not(.modal-close):not(.ac-dock-expand):not(.ac-topbar-icon):not(.ac-topbar-bell):not(.ac-topbar-theme):not(.ac-user-dropdown-item):not(.ac-dash-preset):not(.ac-dock-item):not(.privacy-link-btn):not(.welcome-skip-btn):not(.welcome-density-pill):not(.welcome-tour-trigger):not(.welcome-seg-btn):not(.ac-feature-tour-close):not(.ac-feature-tour-backdrop):not(.ac-feature-tour-dot),
 html[data-theme="dark"] .modal button:not(.secondary):not(.ghost):not(.danger):not(.account-menu-item):not(.modal-x):not(.modal-close):not(.step-wizard__step-btn):not(.atlas-dp-day):not(.atlas-dp-nav):not(.atlas-dp-preset):not(.atlas-dp-btn):not(.atlas-dp-trigger),
 html[data-theme="dark"] .ac-edit-profile-modal button:not(.secondary):not(.ac-edit-profile-close) {
-  background: #2a3040 !important;
+  background: #27272b !important;
   color: #f0f1f5 !important;
-  border-color: #3a4154 !important;
+  border-color: #2e2e35 !important;
 }
 html .content button.secondary,
 html .modal button.secondary,
@@ -646,11 +646,11 @@ html body .ac-metric {
   border-radius: 16px !important;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
 }
-html body .ac-notif-panel {
+html:not([data-theme="dark"]) body .ac-notif-panel {
   position: absolute !important;
   right: 0 !important;
   top: calc(100% + 8px) !important;
-  width: min(320px, 92vw) !important;
+  width: min(336px, 92vw) !important;
   background: #ffffff !important;
   border: 1px solid #e8eaef !important;
   border-radius: 16px !important;
@@ -659,30 +659,30 @@ html body .ac-notif-panel {
   color: #0f172a !important;
   overflow: hidden !important;
 }
-html body .ac-notif-head {
+html:not([data-theme="dark"]) body .ac-notif-head {
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
   padding: 12px 14px !important;
-  border-bottom: 1px solid #e8eaef !important;
-  background: #f8fafc !important;
+  border-bottom: 1px solid #eceef2 !important;
+  background: #fafafa !important;
 }
 html body .ac-notif-list {
   list-style: none !important;
   margin: 0 !important;
-  padding: 8px !important;
+  padding: 6px !important;
   max-height: 320px !important;
   overflow: auto !important;
 }
 html:not([data-theme="dark"]) body button.ac-notif-item,
 html:not([data-theme="dark"]) body .ac-notif-item {
   display: flex !important;
-  align-items: flex-start !important;
+  align-items: center !important;
   gap: 10px !important;
   width: 100% !important;
   text-align: left !important;
-  padding: 10px 12px !important;
-  border-radius: 12px !important;
+  padding: 9px 10px !important;
+  border-radius: 10px !important;
   border: none !important;
   background: transparent !important;
   color: #0f172a !important;
@@ -691,7 +691,7 @@ html:not([data-theme="dark"]) body .ac-notif-item {
 }
 html:not([data-theme="dark"]) body button.ac-notif-item:hover,
 html:not([data-theme="dark"]) body .ac-notif-item:hover {
-  background: #f1f5f9 !important;
+  background: #f4f4f5 !important;
 }
 html:not([data-theme="dark"]) body .ac-notif-item strong {
   display: block !important;
@@ -716,19 +716,22 @@ html body .ac-notif-dot {
 }
 html body .ac-notif-dot.warn { background: #f59e0b !important; }
 html body .ac-notif-dot.danger { background: #ef4444 !important; }
-html body .ac-notif-empty {
-  padding: 20px !important;
+html:not([data-theme="dark"]) body .ac-notif-empty {
+  padding: 22px 16px !important;
   text-align: center !important;
   color: #64748b !important;
-  font-size: 0.875rem !important;
+  font-size: 0.8rem !important;
 }
-html body .ac-notif-all {
-  display: block !important;
+html:not([data-theme="dark"]) body .ac-notif-all {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
   width: 100% !important;
-  padding: 10px !important;
+  padding: 11px 14px !important;
   text-align: center !important;
-  border-top: 1px solid #e8eaef !important;
-  background: #fff !important;
+  border-top: 1px solid #eceef2 !important;
+  background: #fafafa !important;
   color: #0f172a !important;
   font-weight: 600 !important;
   font-size: 0.8125rem !important;
@@ -736,6 +739,9 @@ html body .ac-notif-all {
   border-right: none !important;
   border-bottom: none !important;
   box-shadow: none !important;
+}
+html:not([data-theme="dark"]) body .ac-notif-all:hover {
+  background: #f1f5f9 !important;
 }
 
 
@@ -2774,7 +2780,7 @@ html[data-theme="dark"] body .account-menu-panel a.account-menu-item {
 html[data-theme="dark"] body .account-menu-panel .account-menu-item:hover,
 html[data-theme="dark"] body .account-menu-panel--portal .account-menu-item:hover,
 html body .account-menu-panel--portal button.account-menu-item:hover {
-  background: #2a3040 !important;
+  background: #27272b !important;
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
 }
@@ -2804,9 +2810,9 @@ html[data-theme="dark"] body .account-scale-icons button {
 }
 html[data-theme="dark"] body .account-theme-icons button.active,
 html[data-theme="dark"] body .account-scale-icons button.active {
-  background: #2a3040 !important;
+  background: #27272b !important;
   color: #fff !important;
-  border-color: #3a4154 !important;
+  border-color: #2e2e35 !important;
 }
 
 /* v170 skeleton + no green (loads last) */
@@ -2846,18 +2852,18 @@ html[data-theme="dark"] .atlas-page,
 html[data-theme="dark"],
 html[data-theme="dark"] body,
 html[data-theme="dark"] #root {
-  --bg: #121317 !important;
-  --bg-elevated: #1d2027 !important;
-  --paper: #181a20 !important;
-  --shell-bg: #121317 !important;
-  --shell-paper: #181a20 !important;
+  --bg: #121215 !important;
+  --bg-elevated: #202024 !important;
+  --paper: #18181b !important;
+  --shell-bg: #121215 !important;
+  --shell-paper: #18181b !important;
   --shell-line: rgba(255, 255, 255, 0.08) !important;
-  --shell-sidebar-bg: #15171c !important;
+  --shell-sidebar-bg: #141417 !important;
   --shell-sidebar-border: rgba(255, 255, 255, 0.08) !important;
   --shell-ink: #dfe2ea !important;
   --shell-muted: #8a909e !important;
-  --parchment: #121317 !important;
-  background: #121317 !important;
+  --parchment: #121215 !important;
+  background: #121215 !important;
 }
 html[data-theme="dark"] body .layout,
 html[data-theme="dark"] body .content,
@@ -2869,14 +2875,14 @@ html[data-theme="dark"] body .login-page,
 html[data-theme="dark"] body .ac-topbar,
 html[data-theme="dark"] body .settings-topbar,
 html[data-theme="dark"] body .atlas-shell-topbar {
-  background: #121317 !important;
-  background-color: #121317 !important;
+  background: #121215 !important;
+  background-color: #121215 !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
 }
 html[data-theme="dark"] body .sidebar,
 html[data-theme="dark"] body .layout > .sidebar {
-  background: #15171c !important;
-  background-color: #15171c !important;
+  background: #141417 !important;
+  background-color: #141417 !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
 }
 html[data-theme="dark"] body .card,
@@ -2897,8 +2903,8 @@ html[data-theme="dark"] body .content .atlas-card,
 html[data-theme="dark"] body .content .stat-card,
 html[data-theme="dark"] body .kpi-card,
 html[data-theme="dark"] body [class*="kpi-"] {
-  background: #181a20 !important;
-  background-color: #181a20 !important;
+  background: #18181b !important;
+  background-color: #18181b !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   color: #dfe2ea !important;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 1px 3px rgba(0, 0, 0, 0.22) !important;
@@ -2916,28 +2922,28 @@ html[data-theme="dark"] body .as-hint {
   color: #8a909e !important;
 }
 html[data-theme="dark"] body .ac-usage-track {
-  background: #21242c !important;
+  background: #202024 !important;
 }
 html[data-theme="dark"] body .ac-usage-track i {
   background: #c5cadd !important;
 }
 html[data-theme="dark"] body .settings-topbar {
-  background: #15171c !important;
+  background: #141417 !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
   box-shadow: none !important;
 }
 html[data-theme="dark"] body .settings-topbar-tabs button {
-  background: #181a20 !important;
+  background: #18181b !important;
   color: #8a909e !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 html[data-theme="dark"] body .settings-topbar-tabs button.active {
-  background: #21242c !important;
+  background: #202024 !important;
   color: #e4e7ef !important;
 }
 html[data-theme="dark"] body .skeleton,
 html[data-theme="dark"] body .ac-sk {
-  background: linear-gradient(100deg, #181a20 20%, #21242c 45%, #181a20 70%) !important;
+  background: linear-gradient(100deg, #18181b 20%, #202024 45%, #18181b 70%) !important;
   background-size: 200% 100% !important;
 }
 
@@ -3000,7 +3006,7 @@ html[data-theme="dark"] body .atlas-shell-icon-btn,
 html[data-theme="dark"] body .ac-topbar-mail,
 html[data-theme="dark"] body .ac-topbar-notif,
 html[data-theme="dark"] body .ac-topbar-user-btn {
-  background: #1d2027 !important;
+  background: #202024 !important;
   border: 1px solid rgba(255, 255, 255, 0.09) !important;
   color: #dfe2ea !important;
   box-shadow: none !important;
@@ -3011,7 +3017,7 @@ html[data-theme="dark"] body .ac-topbar-mail:hover,
 html[data-theme="dark"] body .ac-topbar-mail:active,
 html[data-theme="dark"] body .ac-topbar-notif:hover,
 html[data-theme="dark"] body .ac-topbar-notif:active {
-  background: #282c36 !important;
+  background: #27272b !important;
   color: #f4f4f6 !important;
   border-color: rgba(255, 255, 255, 0.16) !important;
 }
@@ -3020,7 +3026,7 @@ html[data-theme="dark"] body .ac-topbar-notif:active {
 html[data-theme="dark"] body .account-menu-panel,
 html[data-theme="dark"] body .account-menu-panel--portal,
 html[data-theme="dark"] body .account-menu-panel--rail-inline {
-  background: #1a1c23 !important;
+  background: #18181b !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
   color: #dfe2ea !important;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55) !important;
@@ -3029,7 +3035,7 @@ html[data-theme="dark"] body .account-menu-panel .account-menu-item,
 html[data-theme="dark"] body .account-menu-panel--portal .account-menu-item,
 html[data-theme="dark"] body button.account-menu-item,
 html[data-theme="dark"] body a.account-menu-item {
-  background: #21242c !important;
+  background: #202024 !important;
   color: #dfe2ea !important;
   border: 1px solid rgba(255, 255, 255, 0.09) !important;
   border-radius: 12px !important;
@@ -3038,7 +3044,7 @@ html[data-theme="dark"] body .account-menu-panel .account-menu-item:hover,
 html[data-theme="dark"] body .account-menu-panel .account-menu-item:active,
 html[data-theme="dark"] body .account-menu-panel--portal .account-menu-item:hover,
 html[data-theme="dark"] body .account-menu-panel--portal .account-menu-item:active {
-  background: #282c36 !important;
+  background: #27272b !important;
   color: #fff !important;
 }
 html[data-theme="dark"] body .account-menu-item.account-menu-danger,
@@ -3056,7 +3062,7 @@ html[data-theme="dark"] body .account-menu-panel .theme-toggle,
 html[data-theme="dark"] body .account-menu-panel [class*="theme"] button,
 html[data-theme="dark"] body .account-glass-switch,
 html[data-theme="dark"] body .account-menu-panel .segmented button {
-  background: #21242c !important;
+  background: #202024 !important;
   color: #8a909e !important;
   border: 1px solid rgba(255, 255, 255, 0.09) !important;
 }
@@ -3064,7 +3070,7 @@ html[data-theme="dark"] body .account-menu-panel .theme-toggle.active,
 html[data-theme="dark"] body .account-menu-panel [class*="theme"] button.active,
 html[data-theme="dark"] body .account-menu-panel .segmented button.active {
   background: #d5d8e2 !important;
-  color: #121317 !important;
+  color: #121215 !important;
   border-color: #d5d8e2 !important;
 }
 
@@ -3075,7 +3081,7 @@ html[data-theme="dark"] body .ac-mail-panel,
 html[data-theme="dark"] body .ac-notif-panel,
 html[data-theme="dark"] body [class*="mailbox-panel"],
 html[data-theme="dark"] body [class*="mail-dropdown"] {
-  background: #1a1c23 !important;
+  background: #18181b !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
   color: #dfe2ea !important;
 }
@@ -3085,7 +3091,7 @@ html[data-theme="dark"] body [class*="mailbox"] button,
 html[data-theme="dark"] body .mailbox-menu-item,
 html[data-theme="dark"] body .mail-item,
 html[data-theme="dark"] body [class*="mail-row"] {
-  background: #21242c !important;
+  background: #202024 !important;
   color: #dfe2ea !important;
   border: 1px solid rgba(255, 255, 255, 0.09) !important;
 }
@@ -3097,13 +3103,13 @@ html[data-theme="dark"] body .mail-item:hover,
 html[data-theme="dark"] body .mail-item:active,
 html[data-theme="dark"] body [class*="mail-row"]:hover,
 html[data-theme="dark"] body [class*="mail-row"]:active {
-  background: #282c36 !important;
+  background: #27272b !important;
   color: #f4f4f6 !important;
 }
 html[data-theme="dark"] body .mail-popover .mail-item.active,
 html[data-theme="dark"] body [class*="mail-row"].active,
 html[data-theme="dark"] body .mailbox-menu-item.active {
-  background: #282c36 !important;
+  background: #27272b !important;
   color: #f4f4f6 !important;
   border-color: rgba(255, 255, 255, 0.18) !important;
 }
@@ -3115,7 +3121,7 @@ html[data-theme="dark"] body .btn:active:not(.danger) {
 }
 html[data-theme="dark"] body button.secondary:active,
 html[data-theme="dark"] body button.ghost:active {
-  background: #282c36 !important;
+  background: #27272b !important;
   color: #f4f4f6 !important;
 }
 
@@ -3128,7 +3134,7 @@ html[data-theme="dark"] body textarea::placeholder {
 html[data-theme="dark"] body input,
 html[data-theme="dark"] body textarea,
 html[data-theme="dark"] body select {
-  background: #1d2027 !important;
+  background: #202024 !important;
   color: #dfe2ea !important;
   border-color: rgba(255, 255, 255, 0.11) !important;
 }
@@ -3136,7 +3142,7 @@ html[data-theme="dark"] body select {
 /* Dashboard cards still identical */
 html[data-theme="dark"] body .ac-metric,
 html[data-theme="dark"] body .ac-panel {
-  background: #181a20 !important;
+  background: #18181b !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
 }
 
@@ -3147,25 +3153,25 @@ html[data-theme="dark"] body .settings-topbar,
 html[data-theme="dark"] body .atlas-shell-topbar,
 html[data-theme="dark"] body .layout > aside,
 html[data-theme="dark"] body .layout > .sidebar {
-  background: #15171c !important;
-  background-color: #15171c !important;
+  background: #141417 !important;
+  background-color: #141417 !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
 }
 html[data-theme="dark"] body .content,
 html[data-theme="dark"] body .atlas-page {
-  background: #121317 !important;
+  background: #121215 !important;
 }
 
 /* Mail panel items — unified Dimmed Charcoal */
 html[data-theme="dark"] body .ac-mail-panel,
 html[data-theme="dark"] body .ac-mail-panel .ac-notif-list {
-  background: #1a1c23 !important;
+  background: #18181b !important;
   color: #dfe2ea !important;
 }
 html[data-theme="dark"] body .ac-mail-panel .ac-notif-item,
 html[data-theme="dark"] body .ac-mail-panel button.ac-notif-item,
 html[data-theme="dark"] body .ac-mail-panel [class*="notif-item"] {
-  background: #21242c !important;
+  background: #202024 !important;
   border: 1px solid rgba(255, 255, 255, 0.09) !important;
   color: #dfe2ea !important;
 }
@@ -3174,7 +3180,7 @@ html[data-theme="dark"] body .ac-mail-panel .ac-notif-item:focus,
 html[data-theme="dark"] body .ac-mail-panel .ac-notif-item:active,
 html[data-theme="dark"] body .ac-mail-panel .ac-notif-item.is-active,
 html[data-theme="dark"] body .ac-mail-panel .ac-notif-item[aria-selected="true"] {
-  background: #282c36 !important;
+  background: #27272b !important;
   color: #f4f4f6 !important;
   border-color: rgba(255, 255, 255, 0.16) !important;
 }
@@ -3189,13 +3195,13 @@ html[data-theme="dark"] body .ac-mail-panel .ac-notif-item-body em {
 html[data-theme="dark"] body .ac-mail-panel button,
 html[data-theme="dark"] body .ac-mail-panel .ac-mail-open,
 html[data-theme="dark"] body .ac-mail-panel [class*="Ouvrir"] {
-  background: #21242c !important;
+  background: #202024 !important;
   color: #dfe2ea !important;
   border: 1px solid rgba(255, 255, 255, 0.09) !important;
 }
 html[data-theme="dark"] body .mailbox-item:hover,
 html[data-theme="dark"] body .mailbox-item.is-active {
-  background: #282c36 !important;
+  background: #27272b !important;
   color: #f4f4f6 !important;
 }
 
@@ -3206,27 +3212,31 @@ html[data-theme="dark"] body .layout > .sidebar,
 html[data-theme="dark"] body .ac-topbar,
 html[data-theme="dark"] body .settings-topbar,
 html[data-theme="dark"] body .atlas-shell-topbar {
-  background-color: #15171c !important;
-  background: #15171c !important;
+  background-color: #141417 !important;
+  background: #141417 !important;
 }
 html[data-theme="dark"] body .content,
 html[data-theme="dark"] body .atlas-page {
-  background-color: #121317 !important;
-  background: #121317 !important;
+  background-color: #121215 !important;
+  background: #121215 !important;
 }
 
-/* Mail items: unified Dimmed Charcoal */
+/* Mail items stay carded; notification popover items match the floating dropdown */
 html[data-theme="dark"] body .ac-mail-panel .ac-notif-item,
 html[data-theme="dark"] body .ac-mail-panel button.ac-notif-item,
-html[data-theme="dark"] body .ac-mail-panel button.ac-notif-item.secondary,
-html[data-theme="dark"] body .ac-notif-panel .ac-notif-item,
-html[data-theme="dark"] body .ac-notif-panel button.ac-notif-item,
-html[data-theme="dark"] body button.ac-notif-item,
-html[data-theme="dark"] body .ac-notif-item {
-  background: #21242c !important;
-  background-color: #21242c !important;
-  color: #dfe2ea !important;
+html[data-theme="dark"] body .ac-mail-panel button.ac-notif-item.secondary {
+  background: #202024 !important;
+  background-color: #202024 !important;
+  color: #e4e4e7 !important;
   border: 1px solid rgba(255, 255, 255, 0.09) !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"] body .ac-notif-panel .ac-notif-item,
+html[data-theme="dark"] body .ac-notif-panel button.ac-notif-item {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: #f4f4f5 !important;
+  border: none !important;
   box-shadow: none !important;
 }
 html[data-theme="dark"] body .ac-mail-panel .ac-notif-item:hover,
@@ -3235,34 +3245,56 @@ html[data-theme="dark"] body .ac-mail-panel .ac-notif-item:active,
 html[data-theme="dark"] body .ac-mail-panel button.ac-notif-item:hover,
 html[data-theme="dark"] body .ac-mail-panel button.ac-notif-item:active,
 html[data-theme="dark"] body .ac-notif-panel .ac-notif-item:hover,
-html[data-theme="dark"] body .ac-notif-panel .ac-notif-item:active,
-html[data-theme="dark"] body button.ac-notif-item:hover,
-html[data-theme="dark"] body button.ac-notif-item:active {
-  background: #282c36 !important;
-  background-color: #282c36 !important;
-  color: #f4f4f6 !important;
+html[data-theme="dark"] body .ac-notif-panel .ac-notif-item:focus-visible,
+html[data-theme="dark"] body .ac-notif-panel button.ac-notif-item:hover {
+  background: #27272b !important;
+  background-color: #27272b !important;
+  color: #fafafa !important;
 }
 html[data-theme="dark"] body .ac-notif-item strong,
 html[data-theme="dark"] body .ac-notif-item-body strong,
 html[data-theme="dark"] body .ac-mail-panel .ac-notif-item strong {
-  color: #f4f4f6 !important;
+  color: #f4f4f5 !important;
 }
 html[data-theme="dark"] body .ac-notif-item em,
 html[data-theme="dark"] body .ac-notif-item-body em,
 html[data-theme="dark"] body .ac-mail-panel .ac-notif-item em {
-  color: #8a909e !important;
+  color: #a1a1aa !important;
 }
 html[data-theme="dark"] body .ac-mail-panel,
 html[data-theme="dark"] body .ac-notif-panel {
-  background: #1a1c23 !important;
+  background: #18181b !important;
   border-color: rgba(255, 255, 255, 0.1) !important;
-  color: #dfe2ea !important;
+  color: #f4f4f5 !important;
+}
+html[data-theme="dark"] body .ac-notif-head {
+  background: #18181b !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+html[data-theme="dark"] body .ac-notif-head strong,
+html[data-theme="dark"] body .ac-notif-empty strong {
+  color: #f4f4f5 !important;
+}
+html[data-theme="dark"] body .ac-notif-empty {
+  color: #a1a1aa !important;
+}
+html[data-theme="dark"] body .ac-notif-empty-ico {
+  background: #27272b !important;
+  color: #a1a1aa !important;
+}
+html[data-theme="dark"] body .ac-notif-all {
+  background: #18181b !important;
+  border-top-color: rgba(255, 255, 255, 0.08) !important;
+  color: #f4f4f5 !important;
+}
+html[data-theme="dark"] body .ac-notif-all:hover {
+  background: #27272b !important;
 }
 html[data-theme="dark"] body .ac-notif-foot button,
 html[data-theme="dark"] body .ac-mail-panel .secondary,
 html[data-theme="dark"] body .ac-mail-panel button.secondary {
-  background: #21242c !important;
-  color: #dfe2ea !important;
+  background: #202024 !important;
+  color: #e4e4e7 !important;
   border: 1px solid rgba(255, 255, 255, 0.09) !important;
 }
 
@@ -3270,7 +3302,7 @@ html[data-theme="dark"] body .ac-mail-panel button.secondary {
 html[data-theme="dark"] body .account-menu-panel,
 html[data-theme="dark"] body .account-menu-panel--portal,
 html[data-theme="dark"] .account-menu-panel--portal {
-  background: #1a1c23 !important;
+  background: #18181b !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
   color: #dfe2ea !important;
 }
@@ -3278,7 +3310,7 @@ html[data-theme="dark"] body .account-menu-item,
 html[data-theme="dark"] body button.account-menu-item,
 html[data-theme="dark"] .account-menu-panel--portal .account-menu-item,
 html[data-theme="dark"] .account-menu-panel--portal button.account-menu-item {
-  background: #21242c !important;
+  background: #202024 !important;
   color: #dfe2ea !important;
   border: 1px solid rgba(255, 255, 255, 0.09) !important;
   -webkit-text-fill-color: #dfe2ea !important;
@@ -3287,7 +3319,7 @@ html[data-theme="dark"] body .account-menu-item:hover,
 html[data-theme="dark"] body .account-menu-item:active,
 html[data-theme="dark"] .account-menu-panel--portal .account-menu-item:hover,
 html[data-theme="dark"] .account-menu-panel--portal .account-menu-item:active {
-  background: #282c36 !important;
+  background: #27272b !important;
   color: #fff !important;
   -webkit-text-fill-color: #fff !important;
 }
@@ -3300,13 +3332,13 @@ html[data-theme="dark"] .account-menu-panel--portal .account-menu-danger {
 }
 html[data-theme="dark"] body .account-seg button,
 html[data-theme="dark"] body .account-menu-panel .account-seg button {
-  background: #21242c !important;
+  background: #202024 !important;
   color: #8a909e !important;
   border: 1px solid rgba(255, 255, 255, 0.09) !important;
 }
 html[data-theme="dark"] body .account-seg button.active {
   background: #d5d8e2 !important;
-  color: #121317 !important;
+  color: #121215 !important;
 }
 
 /* ═══ Minimized sidebar icon centering (desktop) ═══ */

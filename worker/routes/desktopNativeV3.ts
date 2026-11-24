@@ -393,8 +393,10 @@ async function readJsonBody(c: Context<any>, allowedKeys: string[]): Promise<Rec
 }
 
 function strictOrigin(c: Context<any>, supplied?: unknown): string {
+  if (c.req.url.includes('\\')) fail('ORIGIN_MISMATCH', 403);
   const url = new URL(c.req.url);
   if (url.protocol !== 'https:') fail('HTTPS_REQUIRED');
+  if (url.username || url.password) fail('ORIGIN_MISMATCH', 403);
   if (url.search || (supplied !== undefined && supplied !== url.origin)) fail('ORIGIN_MISMATCH', 403);
   const hdr = c.req.header('Origin');
   if (hdr !== undefined && hdr !== url.origin) fail('ORIGIN_MISMATCH', 403);
