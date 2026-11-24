@@ -279,8 +279,8 @@ function assetHeaders(o: any, key?: string): Headers {
     !!key &&
     (key.endsWith('/latest.json') ||
       key.endsWith('/latest.apk') ||
-      key.endsWith('/latest-setup.exe') ||
-      key.endsWith('/checksums.txt'));
+      key.endsWith('/checksums.txt') ||
+      key.includes('/latest-'));
   h.set('Cache-Control', live ? 'no-cache, max-age=0, must-revalidate' : (meta.cacheControl || 'public, max-age=60'));
   const size = o?.size ?? meta.contentLength;
   if (size != null) h.set('Content-Length', String(size));

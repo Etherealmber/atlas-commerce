@@ -1,19 +1,21 @@
 /**
- * Desktop (Windows) release ingestion & update serving — CDN1 (`app-updates/desktop/`).
+ * Desktop (Windows · macOS · Linux) release ingestion & update serving — CDN1 (`app-updates/desktop/`).
  *
  * Mirrors the Android CDN1 pipeline (`worker/routes/androidRelease.ts`) while
- * remaining strictly isolated from Android (never serves or accepts APKs):
+ * remaining strictly isolated from mobile (never serves or accepts APKs/IPAs):
  *  - `POST /api/admin/desktop-release` (Bearer DESKTOP_RELEASE_TOKEN):
- *      Streams the signed universal/x86 Windows setup installer to R2 under
- *      `app-updates/desktop/` (versioned file + `latest-setup.exe` alias +
- *      `checksums.txt` + `latest.json`), and deletes ALL previously stored
- *      files under `app-updates/desktop/` so old installers are replaced.
+ *      Streams a Desktop artifact (`.exe`, `.msi`, `.zip`, `.dmg`, `.AppImage`,
+ *      `.AppImage.zsync`, `.tar.gz`, `.deb`, `.rpm`) to R2 under `app-updates/desktop/`
+ *      (versioned key + optional `latest-*` alias + `checksums.txt` + `latest.json`).
+ *      When the release version changes, ALL older files under `app-updates/desktop/`
+ *      are purged so old installers never accumulate. Within the same version,
+ *      sibling OS/arch artifacts are preserved while replacing the matching slot.
  *  - `GET` / `HEAD /api/app/desktop-update` (public, pre-login):
- *      Returns Windows Desktop update availability, SHA-256, CDN1 URLs, notes,
- *      and `minimum_version` enforcement using semver comparison.
+ *      Returns Desktop update availability for `windows`, `macos`, `linux`, or `all`,
+ *      including SHA-256, file size, CDN1 URLs, zsync URL, notes, `minimum_version`
+ *      enforcement, and the full multi-platform `platforms` / `assets` map.
  *  - `GET` / `PUT /api/admin/desktop-update` & `POST /api/admin/desktop-update/installer`
- *      (owner/admin session): manage `app-updates/desktop/latest.json` and
- *      upload an installer from the web Settings panel.
+ *      (owner/admin session): inspect/manage `app-updates/desktop/` from Settings.
  */
 import { Hono } from 'hono';
 import type { Env } from '../env';
@@ -23,15 +25,59 @@ import { normalizeRole } from '../lib/rbac';
 export const DESKTOP_UPDATE_PREFIX = 'app-updates/desktop';
 export const DESKTOP_JSON_KEY = `${DESKTOP_UPDATE_PREFIX}/latest.json`;
 export const DESKTOP_LATEST_EXE_KEY = `${DESKTOP_UPDATE_PREFIX}/latest-setup.exe`;
+export const DESKTOP_LATEST_DMG_KEY = `${DESKTOP_UPDATE_PREFIX}/latest-macos.dmg`;
 export const DESKTOP_CHECKSUMS_KEY = `${DESKTOP_UPDATE_PREFIX}/checksums.txt`;
-export const DESKTOP_MAX_INSTALLER_BYTES = 250 * 1024 * 1024;
-const DESKTOP_EXE_MIME = 'application/vnd.microsoft.portable-executable';
+export const DESKTOP_MAX_INSTALLER_BYTES = 350 * 1024 * 1024;
 const NO_CACHE_HEADERS = { 'Cache-Control': 'no-cache, max-age=0, must-revalidate' };
+
+export type DesktopOs = 'windows' | 'macos' | 'linux';
+export type DesktopArch = 'universal' | 'x86_64' | 'arm64';
+export type DesktopArtifactKind = 'installer' | 'msi' | 'appimage' | 'zsync' | 'archive' | 'package';
+
+export type DesktopAssetEntry = {
+  platform: DesktopOs;
+  arch: DesktopArch;
+  kind: DesktopArtifactKind;
+  filename: string;
+  key: string;
+  aliasKey: string | null;
+  downloadUrl: string;
+  latestUrl: string | null;
+  sha256: string | null;
+  sizeBytes: number;
+  githubUrl: string | null;
+  zsyncUrl?: string | null;
+};
+
+export type DesktopPlatformsMap = {
+  windows?: {
+    universal?: DesktopAssetEntry;
+    x86_64?: DesktopAssetEntry;
+    arm64?: DesktopAssetEntry;
+    msi_x86_64?: DesktopAssetEntry;
+    msi_arm64?: DesktopAssetEntry;
+    archive_x86_64?: DesktopAssetEntry;
+    archive_arm64?: DesktopAssetEntry;
+  };
+  macos?: {
+    universal?: DesktopAssetEntry;
+    x86_64?: DesktopAssetEntry;
+    arm64?: DesktopAssetEntry;
+  };
+  linux?: {
+    x86_64?: DesktopAssetEntry;
+    arm64?: DesktopAssetEntry;
+    zsync_x86_64?: DesktopAssetEntry;
+    zsync_arm64?: DesktopAssetEntry;
+    archive_x86_64?: DesktopAssetEntry;
+    archive_arm64?: DesktopAssetEntry;
+  };
+};
 
 export type DesktopManifest = {
   success?: boolean;
   ok?: boolean;
-  platform: 'windows';
+  platform: DesktopOs;
   arch: string;
   channel: 'stable' | 'prerelease';
   version: string;
@@ -47,6 +93,8 @@ export type DesktopManifest = {
   notes: string;
   publishedAt: string;
   filename?: string;
+  platforms?: DesktopPlatformsMap;
+  assets?: DesktopAssetEntry[];
 };
 
 function json(body: unknown, status = 200, headers?: Record<string, string>): Response {
@@ -122,28 +170,199 @@ export function compareSemver(candidate: string, current: string): number {
   return a[4] > b[4] ? 1 : -1;
 }
 
-function sanitizeDesktopFilename(raw: string | null | undefined, version: string): string {
-  const fallback = `atlas-commerce-desktop-v${version}-windows-universal-setup.exe`;
-  const clean = String(raw || '')
-    .trim()
-    .split(/[/\\]/)
-    .pop()
-    ?.replace(/[^0-9A-Za-z._-]/g, '') || '';
-  if (!clean || !/\.(exe|msi)$/i.test(clean)) return fallback;
+function parseDesktopOs(raw: string | null | undefined, filename?: string): DesktopOs | null {
+  const s = String(raw || '').trim().toLowerCase();
+  if (s) {
+    if (['windows', 'win', 'win32'].includes(s)) return 'windows';
+    if (['macos', 'mac', 'darwin', 'osx'].includes(s)) return 'macos';
+    if (['linux', 'gnu-linux'].includes(s)) return 'linux';
+    return null;
+  }
+  const f = String(filename || '').toLowerCase();
+  if (/\.(dmg|pkg)$/.test(f) || f.includes('macos') || f.includes('darwin')) return 'macos';
+  if (/\.(appimage|zsync|deb|rpm|tar\.gz)$/.test(f) || f.includes('linux')) return 'linux';
+  return 'windows';
+}
+
+function parseDesktopArch(raw: string | null | undefined, filename?: string): DesktopArch {
+  const s = String(raw || '').trim().toLowerCase();
+  const f = String(filename || '').toLowerCase();
+  const src = s || f;
+  if (src.includes('aarch64') || src.includes('arm64')) {
+    return src.includes('universal') ? 'universal' : 'arm64';
+  }
+  if (src.includes('x86_64') || src.includes('x64') || src.includes('amd64')) {
+    return src.includes('universal') ? 'universal' : 'x86_64';
+  }
+  return 'universal';
+}
+
+function parseArtifactKind(raw: string | null | undefined, filename: string, os: DesktopOs): DesktopArtifactKind {
+  const k = String(raw || '').trim().toLowerCase();
+  if (k === 'installer' || k === 'msi' || k === 'appimage' || k === 'zsync' || k === 'archive' || k === 'package') {
+    return k;
+  }
+  const f = filename.toLowerCase();
+  if (f.endsWith('.zsync')) return 'zsync';
+  if (f.endsWith('.appimage')) return 'appimage';
+  if (f.endsWith('.msi')) return 'msi';
+  if (f.endsWith('.zip') || f.endsWith('.tar.gz')) return 'archive';
+  if (f.endsWith('.deb') || f.endsWith('.rpm')) return 'package';
+  if (os === 'linux') return 'appimage';
+  return 'installer';
+}
+
+function defaultDesktopFilename(os: DesktopOs, arch: DesktopArch, kind: DesktopArtifactKind, version: string): string {
+  if (os === 'windows') {
+    if (kind === 'msi') return `atlas-commerce-desktop-v${version}-${arch === 'arm64' ? 'aarch64' : 'x86_64'}-pc-windows-msvc.msi`;
+    if (kind === 'archive') return `atlas-commerce-desktop-v${version}-${arch === 'arm64' ? 'aarch64' : 'x86_64'}-pc-windows-msvc.zip`;
+    return `atlas-commerce-desktop-v${version}-windows-${arch}-setup.exe`;
+  }
+  if (os === 'macos') {
+    if (kind === 'archive') return `atlas-commerce-desktop-v${version}-macos-${arch}.tar.gz`;
+    return `atlas-commerce-desktop-v${version}-macos-${arch}.dmg`;
+  }
+  const linuxArch = arch === 'arm64' ? 'aarch64' : 'x86_64';
+  if (kind === 'zsync') return `atlas-commerce-desktop-v${version}-linux-${linuxArch}.AppImage.zsync`;
+  if (kind === 'archive') return `atlas-commerce-desktop-v${version}-${linuxArch}-unknown-linux-gnu.tar.gz`;
+  if (kind === 'package') return `atlas-commerce-desktop-v${version}-linux-${linuxArch}.deb`;
+  return `atlas-commerce-desktop-v${version}-linux-${linuxArch}.AppImage`;
+}
+
+function sanitizeDesktopFilename(
+  raw: string | null | undefined,
+  os: DesktopOs,
+  arch: DesktopArch,
+  kind: DesktopArtifactKind,
+  version: string,
+): string | null {
+  const clean =
+    String(raw || '')
+      .trim()
+      .split(/[/\\]/)
+      .pop()
+      ?.replace(/[^0-9A-Za-z._-]/g, '') || '';
+  if (!clean) return defaultDesktopFilename(os, arch, kind, version);
+  // Reject non-desktop artifacts (APKs, IPAs, HTML, scripts)
+  if (/\.(apk|aab|ipa|html|js|sh|ps1)$/i.test(clean)) return null;
+  if (!/\.(exe|msi|zip|dmg|appimage|zsync|tar\.gz|deb|rpm)$/i.test(clean)) return null;
   return clean;
 }
 
-function sanitizeArch(raw: string | null | undefined): string {
-  const s = String(raw || '').trim().toLowerCase();
-  if (!s || s === 'universal' || s === 'universal-x86_64' || s === 'x86_64' || s === 'x64' || s === 'amd64' || s === 'x86') {
-    return s === 'x86_64' || s === 'x64' || s === 'amd64' || s === 'x86' ? 'universal-x86_64' : 'universal-x86_64';
+function mimeForDesktopFile(filename: string): string {
+  const f = filename.toLowerCase();
+  if (f.endsWith('.exe')) return 'application/vnd.microsoft.portable-executable';
+  if (f.endsWith('.msi')) return 'application/x-msi';
+  if (f.endsWith('.dmg')) return 'application/x-apple-diskimage';
+  if (f.endsWith('.zip')) return 'application/zip';
+  if (f.endsWith('.tar.gz')) return 'application/gzip';
+  if (f.endsWith('.zsync')) return 'application/octet-stream';
+  if (f.endsWith('.deb')) return 'application/vnd.debian.binary-package';
+  if (f.endsWith('.rpm')) return 'application/x-rpm';
+  return 'application/octet-stream';
+}
+
+function aliasKeyForAsset(os: DesktopOs, arch: DesktopArch, kind: DesktopArtifactKind): string | null {
+  if (os === 'windows' && kind === 'installer') return DESKTOP_LATEST_EXE_KEY;
+  if (os === 'macos' && kind === 'installer') return DESKTOP_LATEST_DMG_KEY;
+  if (os === 'linux' && kind === 'appimage') {
+    return `${DESKTOP_UPDATE_PREFIX}/latest-linux-${arch === 'arm64' ? 'arm64' : 'x86_64'}.AppImage`;
   }
-  if (s === 'aarch64' || s === 'arm64') return 'universal-x86_64';
-  return s.replace(/[^0-9a-z._-]/g, '').slice(0, 32) || 'universal-x86_64';
+  if (os === 'linux' && kind === 'zsync') {
+    return `${DESKTOP_UPDATE_PREFIX}/latest-linux-${arch === 'arm64' ? 'arm64' : 'x86_64'}.AppImage.zsync`;
+  }
+  return null;
 }
 
 function sanitizeChannel(raw: string | null | undefined): 'stable' | 'prerelease' {
   return String(raw || '').trim().toLowerCase() === 'prerelease' ? 'prerelease' : 'stable';
+}
+
+function buildPlatformsMap(assets: DesktopAssetEntry[]): DesktopPlatformsMap {
+  const platforms: DesktopPlatformsMap = {};
+  for (const a of assets) {
+    if (a.platform === 'windows') {
+      platforms.windows = platforms.windows || {};
+      if (a.kind === 'installer') {
+        if (a.arch === 'arm64') platforms.windows.arm64 = a;
+        else if (a.arch === 'x86_64') platforms.windows.x86_64 = a;
+        else platforms.windows.universal = a;
+      } else if (a.kind === 'msi') {
+        if (a.arch === 'arm64') platforms.windows.msi_arm64 = a;
+        else platforms.windows.msi_x86_64 = a;
+      } else if (a.kind === 'archive') {
+        if (a.arch === 'arm64') platforms.windows.archive_arm64 = a;
+        else platforms.windows.archive_x86_64 = a;
+      }
+    } else if (a.platform === 'macos') {
+      platforms.macos = platforms.macos || {};
+      if (a.arch === 'arm64') platforms.macos.arm64 = a;
+      else if (a.arch === 'x86_64') platforms.macos.x86_64 = a;
+      else platforms.macos.universal = a;
+    } else if (a.platform === 'linux') {
+      platforms.linux = platforms.linux || {};
+      if (a.kind === 'zsync') {
+        if (a.arch === 'arm64') platforms.linux.zsync_arm64 = a;
+        else platforms.linux.zsync_x86_64 = a;
+      } else if (a.kind === 'archive') {
+        if (a.arch === 'arm64') platforms.linux.archive_arm64 = a;
+        else platforms.linux.archive_x86_64 = a;
+      } else {
+        if (a.arch === 'arm64') platforms.linux.arm64 = a;
+        else platforms.linux.x86_64 = a;
+      }
+    }
+  }
+  // Attach zsyncUrl onto matching Linux AppImages
+  if (platforms.linux?.x86_64 && platforms.linux.zsync_x86_64) {
+    platforms.linux.x86_64.zsyncUrl = platforms.linux.zsync_x86_64.downloadUrl;
+  }
+  if (platforms.linux?.arm64 && platforms.linux.zsync_arm64) {
+    platforms.linux.arm64.zsyncUrl = platforms.linux.zsync_arm64.downloadUrl;
+  }
+  return platforms;
+}
+
+function selectAssetForQuery(
+  manifest: DesktopManifest,
+  requestedOs: DesktopOs | 'all',
+  requestedArch: DesktopArch,
+): DesktopAssetEntry | null {
+  const assets = Array.isArray(manifest.assets) ? manifest.assets : [];
+  if (assets.length === 0) return null;
+
+  const findInOs = (os: DesktopOs): DesktopAssetEntry | null => {
+    const osAssets = assets.filter((a) => a.platform === os && a.kind !== 'zsync');
+    if (osAssets.length === 0) return null;
+    if (os === 'windows') {
+      return (
+        osAssets.find((a) => a.kind === 'installer' && a.arch === requestedArch) ||
+        osAssets.find((a) => a.kind === 'installer' && a.arch === 'universal') ||
+        osAssets.find((a) => a.kind === 'installer') ||
+        osAssets.find((a) => a.arch === requestedArch) ||
+        osAssets[0]
+      );
+    }
+    if (os === 'macos') {
+      return (
+        osAssets.find((a) => a.kind === 'installer' && a.arch === requestedArch) ||
+        osAssets.find((a) => a.kind === 'installer' && a.arch === 'universal') ||
+        osAssets.find((a) => a.kind === 'installer') ||
+        osAssets[0]
+      );
+    }
+    // linux
+    const linuxArch: DesktopArch = requestedArch === 'arm64' ? 'arm64' : 'x86_64';
+    return (
+      osAssets.find((a) => a.kind === 'appimage' && a.arch === linuxArch) ||
+      osAssets.find((a) => a.kind === 'appimage') ||
+      osAssets.find((a) => a.arch === linuxArch) ||
+      osAssets[0]
+    );
+  };
+
+  if (requestedOs !== 'all') return findInOs(requestedOs);
+  return findInOs('windows') || findInOs('macos') || findInOs('linux') || assets[0];
 }
 
 export async function listDesktopAssets(bucket: any): Promise<Array<{ key: string; size: number; uploaded: string | null }>> {
@@ -170,7 +389,7 @@ export async function listDesktopAssets(bucket: any): Promise<Array<{ key: strin
 
 /**
  * Deletes every existing object under `app-updates/desktop/` except keys in `keepKeys`
- * so old Windows installers/files are purged on every new release.
+ * so old Desktop installers/packages never accumulate across releases.
  */
 export async function purgeOldDesktopAssets(bucket: any, keepKeys: Set<string>): Promise<string[]> {
   if (!bucket) return [];
@@ -219,9 +438,13 @@ async function readDesktopManifest(env: Partial<Env>): Promise<{
       for (const r of (rows?.results || []) as any[]) map[String(r.key)] = String(r.value || '');
       if (map.desktop_update_version || map.desktop_update_download_url) {
         const base = desktopCdn1Base(env);
+        let parsedAssets: DesktopAssetEntry[] = [];
+        try {
+          if (map.desktop_update_assets_json) parsedAssets = JSON.parse(map.desktop_update_assets_json);
+        } catch { /* */ }
         manifest = {
           platform: 'windows',
-          arch: map.desktop_update_arch || 'universal-x86_64',
+          arch: map.desktop_update_arch || 'universal',
           channel: sanitizeChannel(map.desktop_update_channel),
           version: map.desktop_update_version || '',
           mandatory: map.desktop_update_mandatory === '1' || map.desktop_update_mandatory === 'true',
@@ -235,6 +458,8 @@ async function readDesktopManifest(env: Partial<Env>): Promise<{
           githubUrl: map.desktop_update_github_url || null,
           notes: map.desktop_update_notes || '',
           publishedAt: map.desktop_update_published_at || '',
+          assets: parsedAssets,
+          platforms: parsedAssets.length > 0 ? buildPlatformsMap(parsedAssets) : undefined,
         };
         source = 'db';
       }
@@ -251,7 +476,7 @@ async function mirrorDesktopConfig(db: D1Database | undefined, m: DesktopManifes
     const rows: [string, string][] = [
       ['desktop_update_version', String(m.version || '')],
       ['desktop_update_channel', String(m.channel || 'stable')],
-      ['desktop_update_arch', String(m.arch || 'universal-x86_64')],
+      ['desktop_update_arch', String(m.arch || 'universal')],
       ['desktop_update_mandatory', m.mandatory ? '1' : '0'],
       ['desktop_update_minimum_version', String(m.minimum_version || '')],
       ['desktop_update_sha256', String(m.sha256 || '')],
@@ -260,13 +485,16 @@ async function mirrorDesktopConfig(db: D1Database | undefined, m: DesktopManifes
       ['desktop_update_github_url', String(m.githubUrl || '')],
       ['desktop_update_notes', String(m.notes || '')],
       ['desktop_update_published_at', String(m.publishedAt || '')],
+      ['desktop_update_assets_json', JSON.stringify(m.assets || [])],
     ];
-    for (const [k, v] of rows) {
-      await db
-        .prepare(`INSERT INTO app_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`)
-        .bind(k, v)
-        .run();
-    }
+    await Promise.all(
+      rows.map(([k, v]) =>
+        db
+          .prepare(`INSERT INTO app_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`)
+          .bind(k, v)
+          .run(),
+      ),
+    );
   } catch { /* best-effort */ }
 }
 
@@ -278,9 +506,44 @@ function gateDesktopAdmin(c: any): { ok: true; username: string } | { ok: false;
   return { ok: true, username: session.username };
 }
 
+async function putStreamToR2(
+  bucket: any,
+  versionedKey: string,
+  aliasKey: string | null,
+  stream: ReadableStream<Uint8Array>,
+  contentLength: number,
+  contentType: string,
+  customMetadata?: Record<string, string>,
+): Promise<void> {
+  if (aliasKey) {
+    const [rawA, rawB] = stream.tee();
+    const fixedA = new FixedLengthStream(contentLength);
+    const fixedB = new FixedLengthStream(contentLength);
+    void rawA.pipeTo(fixedA.writable);
+    void rawB.pipeTo(fixedB.writable);
+    await Promise.all([
+      bucket.put(versionedKey, fixedA.readable, {
+        httpMetadata: { contentType, cacheControl: 'public, max-age=31536000, immutable' },
+        ...(customMetadata ? { customMetadata } : {}),
+      }),
+      bucket.put(aliasKey, fixedB.readable, {
+        httpMetadata: { contentType, cacheControl: 'no-cache, max-age=0, must-revalidate' },
+        ...(customMetadata ? { customMetadata } : {}),
+      }),
+    ]);
+  } else {
+    const fixed = new FixedLengthStream(contentLength);
+    void stream.pipeTo(fixed.writable);
+    await bucket.put(versionedKey, fixed.readable, {
+      httpMetadata: { contentType, cacheControl: 'public, max-age=31536000, immutable' },
+      ...(customMetadata ? { customMetadata } : {}),
+    });
+  }
+}
+
 export const desktopReleaseRouter = new Hono<{ Bindings: Env }>();
 
-/* ── CI ingestion: Windows setup stream → R2 (purge old + versioned + latest-setup.exe + latest.json) ── */
+/* ── CI ingestion: Windows / macOS / Linux artifacts → R2 (`app-updates/desktop/`) ── */
 desktopReleaseRouter.post('/api/admin/desktop-release', async (c) => {
   const env = c.env;
   const expected = String(env.DESKTOP_RELEASE_TOKEN || '').trim();
@@ -299,10 +562,19 @@ desktopReleaseRouter.post('/api/admin/desktop-release', async (c) => {
   const version = normalizeSemver(rawVersion);
   if (!version) return json({ ok: false, success: false, error: 'INVALID_VERSION' }, 400);
 
-  const channel = sanitizeChannel(c.req.header('X-Release-Channel'));
-  const arch = sanitizeArch(c.req.header('X-Release-Arch'));
-  const filename = sanitizeDesktopFilename(c.req.header('X-Release-Filename'), version);
+  const rawFilename = (c.req.header('X-Release-Filename') || '').trim();
+  const os = parseDesktopOs(c.req.header('X-Release-Platform'), rawFilename);
+  if (!os) {
+    return json({ ok: false, success: false, error: 'UNSUPPORTED_PLATFORM' }, 400);
+  }
+  const arch = parseDesktopArch(c.req.header('X-Release-Arch'), rawFilename);
+  const kind = parseArtifactKind(c.req.header('X-Release-Kind'), rawFilename || defaultDesktopFilename(os, arch, 'installer', version), os);
+  const filename = sanitizeDesktopFilename(rawFilename, os, arch, kind, version);
+  if (!filename) {
+    return json({ ok: false, success: false, error: 'UNSUPPORTED_FILE_TYPE' }, 400);
+  }
 
+  const channel = sanitizeChannel(c.req.header('X-Release-Channel'));
   const shaHeader = (c.req.header('X-Release-Sha256') || '').trim();
   if (shaHeader && !/^[0-9a-fA-F]{64}$/.test(shaHeader)) {
     return json({ ok: false, success: false, error: 'INVALID_SHA256' }, 400);
@@ -319,40 +591,30 @@ desktopReleaseRouter.post('/api/admin/desktop-release', async (c) => {
   const githubHeaderUrl = (c.req.header('X-Release-Github-Url') || '').trim();
   const mandatory = (c.req.header('X-Release-Mandatory') || '').trim() === 'true';
   const notes = b64ToText((c.req.header('X-Release-Notes-B64') || '').trim()).slice(0, 8000);
+  const minBytes = kind === 'zsync' ? 512 : 10_000;
 
   const request = c.req.raw;
   const contentLength = Number(request.headers.get('content-length') || '0');
   if (
     !request.body ||
     !Number.isFinite(contentLength) ||
-    contentLength < 10_000 ||
+    contentLength < minBytes ||
     contentLength > DESKTOP_MAX_INSTALLER_BYTES
   ) {
     return json({ ok: false, success: false, error: 'INVALID_INSTALLER_BODY' }, 400);
   }
 
-  // Read prior manifest before replacing so omitted minimum_version stays intact.
   const prevState = await readDesktopManifest(env);
   if (!minimumVersion && prevState.manifest?.minimum_version) {
     minimumVersion = normalizeSemver(prevState.manifest.minimum_version);
   }
 
   const versionedKey = `${DESKTOP_UPDATE_PREFIX}/${filename}`;
-  const [rawA, rawB] = request.body.tee();
-  const fixedA = new FixedLengthStream(contentLength);
-  const fixedB = new FixedLengthStream(contentLength);
-  void rawA.pipeTo(fixedA.writable);
-  void rawB.pipeTo(fixedB.writable);
+  const aliasKey = aliasKeyForAsset(os, arch, kind);
+  const contentType = mimeForDesktopFile(filename);
 
   try {
-    await Promise.all([
-      bucket.put(versionedKey, fixedA.readable, {
-        httpMetadata: { contentType: DESKTOP_EXE_MIME, cacheControl: 'public, max-age=31536000, immutable' },
-      }),
-      bucket.put(DESKTOP_LATEST_EXE_KEY, fixedB.readable, {
-        httpMetadata: { contentType: DESKTOP_EXE_MIME, cacheControl: 'no-cache, max-age=0, must-revalidate' },
-      }),
-    ]);
+    await putStreamToR2(bucket, versionedKey, aliasKey, request.body, contentLength, contentType);
   } catch (e) {
     console.error('[desktop-release] R2 put failed', String((e as any)?.message || e).slice(0, 300));
     return json({ ok: false, success: false, error: 'R2_WRITE_FAILED' }, 502);
@@ -360,40 +622,91 @@ desktopReleaseRouter.post('/api/admin/desktop-release', async (c) => {
 
   const cdn1Base = desktopCdn1Base(env);
   const downloadUrl = `${cdn1Base}/${filename}`;
-  const latestUrl = `${cdn1Base}/latest-setup.exe`;
-  const checksumsUrl = sha256 ? `${cdn1Base}/checksums.txt` : null;
+  const latestUrl = aliasKey ? `${cdn1Base}/${aliasKey.split('/').pop()}` : null;
   const githubUrl =
     githubHeaderUrl ||
     `https://github.com/Etherealmber/atlas-commerce-desktop/releases/download/v${version}/${filename}`;
 
+  const entry: DesktopAssetEntry = {
+    platform: os,
+    arch,
+    kind,
+    filename,
+    key: versionedKey,
+    aliasKey,
+    downloadUrl,
+    latestUrl,
+    sha256,
+    sizeBytes: contentLength,
+    githubUrl,
+  };
+
+  // Same version keeps sibling OS/arch entries; a new version replaces the entire release set.
+  const sameVersion =
+    prevState.manifest?.version &&
+    normalizeSemver(prevState.manifest.version) === version &&
+    (c.req.header('X-Release-Purge-All') || '').trim() !== 'true';
+  const priorAssets: DesktopAssetEntry[] = sameVersion && Array.isArray(prevState.manifest?.assets)
+    ? prevState.manifest!.assets!
+    : [];
+  const mergedAssets = [
+    ...priorAssets.filter((a) => !(a.platform === os && a.arch === arch && a.kind === kind)),
+    entry,
+  ];
+
+  const platforms = buildPlatformsMap(mergedAssets);
+  const primaryEntry =
+    platforms.windows?.universal ||
+    platforms.windows?.x86_64 ||
+    platforms.macos?.universal ||
+    platforms.linux?.x86_64 ||
+    entry;
+
+  const hasAnySha = mergedAssets.some((a) => !!a.sha256);
+  const checksumsUrl = hasAnySha ? `${cdn1Base}/checksums.txt` : null;
+
   const manifest: DesktopManifest = {
     success: true,
     ok: true,
-    platform: 'windows',
-    arch,
+    platform: primaryEntry.platform,
+    arch: primaryEntry.arch,
     channel,
     version,
-    mandatory,
+    mandatory: sameVersion ? (mandatory || !!prevState.manifest?.mandatory) : mandatory,
     minimum_version: minimumVersion,
-    sha256,
-    sizeBytes: contentLength,
-    downloadUrl,
-    latestUrl,
-    cdn1Url: downloadUrl,
+    sha256: primaryEntry.sha256,
+    sizeBytes: primaryEntry.sizeBytes,
+    downloadUrl: primaryEntry.downloadUrl,
+    latestUrl: primaryEntry.latestUrl || primaryEntry.downloadUrl,
+    cdn1Url: primaryEntry.downloadUrl,
     checksumsUrl,
-    githubUrl,
-    notes,
+    githubUrl: primaryEntry.githubUrl,
+    notes: notes || (sameVersion ? prevState.manifest?.notes || '' : ''),
     publishedAt: new Date().toISOString(),
-    filename,
+    filename: primaryEntry.filename,
+    platforms,
+    assets: mergedAssets,
   };
 
-  const keepKeys = new Set<string>([versionedKey, DESKTOP_LATEST_EXE_KEY, DESKTOP_JSON_KEY]);
-  if (sha256) {
+  const keepKeys = new Set<string>([DESKTOP_JSON_KEY]);
+  for (const a of mergedAssets) {
+    keepKeys.add(a.key);
+    if (a.aliasKey) keepKeys.add(a.aliasKey);
+  }
+
+  if (hasAnySha) {
     keepKeys.add(DESKTOP_CHECKSUMS_KEY);
-    const checksumsBody = `${sha256}  ${filename}\n${sha256}  latest-setup.exe\n`;
-    await bucket.put(DESKTOP_CHECKSUMS_KEY, checksumsBody, {
-      httpMetadata: { contentType: 'text/plain; charset=utf-8', cacheControl: 'no-cache, max-age=0, must-revalidate' },
-    }).catch(() => null);
+    const lines: string[] = [];
+    for (const a of mergedAssets) {
+      if (!a.sha256) continue;
+      lines.push(`${a.sha256}  ${a.filename}`);
+      if (a.aliasKey) lines.push(`${a.sha256}  ${a.aliasKey.split('/').pop()}`);
+    }
+    await bucket
+      .put(DESKTOP_CHECKSUMS_KEY, `${lines.join('\n')}\n`, {
+        httpMetadata: { contentType: 'text/plain; charset=utf-8', cacheControl: 'no-cache, max-age=0, must-revalidate' },
+      })
+      .catch(() => null);
   }
 
   try {
@@ -407,16 +720,22 @@ desktopReleaseRouter.post('/api/admin/desktop-release', async (c) => {
 
   const deletedKeys = await purgeOldDesktopAssets(bucket, keepKeys);
   await mirrorDesktopConfig(env.DB, manifest);
-  console.log('[desktop-release] ingested', version, filename, contentLength, 'bytes, deleted', deletedKeys.length, 'old file(s)');
-  return json({ ok: true, success: true, manifest, deletedKeys });
+  console.log('[desktop-release] ingested', os, arch, kind, version, filename, contentLength, 'bytes, deleted', deletedKeys.length, 'old file(s)');
+  return json({ ok: true, success: true, asset: entry, manifest, deletedKeys });
 });
 
 /* ── Public Desktop update check (pre-login) + HEAD ── */
 async function buildDesktopUpdateResponse(c: any, head: boolean): Promise<Response> {
   const env = c.env as Env;
   const rawPlatform = String(c.req.query('platform') || 'windows').trim().toLowerCase();
-  if (!['windows', 'win', 'win32'].includes(rawPlatform)) {
-    return json({ success: false, ok: false, error: 'UNSUPPORTED_PLATFORM', message: 'Plateforme Desktop supportée : windows' }, 400, NO_CACHE_HEADERS);
+  const requestedOs: DesktopOs | 'all' | null =
+    rawPlatform === 'all' ? 'all' : parseDesktopOs(rawPlatform);
+  if (!requestedOs) {
+    return json(
+      { success: false, ok: false, error: 'UNSUPPORTED_PLATFORM', message: 'Plateformes Desktop supportées : windows, macos, linux' },
+      400,
+      NO_CACHE_HEADERS,
+    );
   }
 
   const rawVersion = String(c.req.query('version') || '').trim();
@@ -430,17 +749,18 @@ async function buildDesktopUpdateResponse(c: any, head: boolean): Promise<Respon
   }
 
   const requestedChannel = c.req.query('channel') ? sanitizeChannel(c.req.query('channel')) : null;
-  const arch = sanitizeArch(c.req.query('arch'));
+  const requestedArch = parseDesktopArch(c.req.query('arch'));
 
   const { manifest } = await readDesktopManifest(env);
   if (!manifest || !manifest.version) {
     const emptyBody = {
       success: true,
       ok: true,
-      platform: 'windows',
-      arch,
+      platform: requestedOs,
+      arch: requestedArch,
       channel: requestedChannel || 'stable',
       hasRelease: false,
+      platformAvailable: false,
       updateAvailable: false,
       version: null,
       mandatory: false,
@@ -453,8 +773,11 @@ async function buildDesktopUpdateResponse(c: any, head: boolean): Promise<Respon
       cdn1Url: null,
       checksumsUrl: null,
       githubUrl: null,
+      zsyncUrl: null,
       notes: null,
       publishedAt: null,
+      platforms: {},
+      assets: [],
       message: 'Aucun manifeste Desktop publié (uploadez app-updates/desktop/latest.json sur R2)',
     };
     if (head) return new Response(null, { status: 200, headers: NO_CACHE_HEADERS });
@@ -462,15 +785,15 @@ async function buildDesktopUpdateResponse(c: any, head: boolean): Promise<Respon
   }
 
   const remoteChannel = sanitizeChannel(manifest.channel);
-  // Stable clients ignore prerelease manifests; prerelease clients can install both.
   if (requestedChannel === 'stable' && remoteChannel === 'prerelease') {
     const channelMismatch = {
       success: true,
       ok: true,
-      platform: 'windows',
-      arch,
+      platform: requestedOs,
+      arch: requestedArch,
       channel: 'stable',
       hasRelease: false,
+      platformAvailable: false,
       updateAvailable: false,
       version: null,
       mandatory: false,
@@ -483,8 +806,11 @@ async function buildDesktopUpdateResponse(c: any, head: boolean): Promise<Respon
       cdn1Url: null,
       checksumsUrl: null,
       githubUrl: null,
+      zsyncUrl: null,
       notes: null,
       publishedAt: null,
+      platforms: {},
+      assets: [],
       message: 'Aucune release stable publiée pour le moment',
     };
     if (head) return new Response(null, { status: 200, headers: NO_CACHE_HEADERS });
@@ -496,30 +822,41 @@ async function buildDesktopUpdateResponse(c: any, head: boolean): Promise<Respon
   const minVer = manifest.minimum_version ? normalizeSemver(manifest.minimum_version) : null;
   const minimumVersionRequired = !!minVer && compareSemver(minVer, clientVersion) > 0;
   const base = desktopCdn1Base(env);
-  const downloadUrl = manifest.downloadUrl || `${base}/latest-setup.exe`;
+
+  const selected = selectAssetForQuery(manifest, requestedOs, requestedArch);
+  const legacyMatch =
+    !manifest.assets?.length && (requestedOs === 'all' || requestedOs === (manifest.platform || 'windows'));
+  const platformAvailable = !!selected || legacyMatch;
+
+  const downloadUrl = selected?.downloadUrl ?? (legacyMatch ? manifest.downloadUrl || `${base}/latest-setup.exe` : null);
+  const latestUrl = selected?.latestUrl ?? (legacyMatch ? manifest.latestUrl || `${base}/latest-setup.exe` : null);
 
   const body = {
     success: true,
     ok: true,
-    platform: 'windows',
-    arch: manifest.arch || arch,
+    platform: requestedOs === 'all' ? (selected?.platform || manifest.platform || 'windows') : requestedOs,
+    arch: selected?.arch || (legacyMatch ? manifest.arch : requestedArch),
     channel: remoteChannel,
     hasRelease: true,
-    updateAvailable,
+    platformAvailable,
+    updateAvailable: updateAvailable && platformAvailable,
     version: remoteVersion,
     mandatory: !!manifest.mandatory,
     minimum_version: minVer,
     minimumVersionRequired,
-    sha256: manifest.sha256 || null,
-    sizeBytes: manifest.sizeBytes ?? null,
+    sha256: selected?.sha256 ?? (legacyMatch ? manifest.sha256 || null : null),
+    sizeBytes: selected?.sizeBytes ?? (legacyMatch ? manifest.sizeBytes ?? null : null),
     downloadUrl,
-    latestUrl: manifest.latestUrl || `${base}/latest-setup.exe`,
-    cdn1Url: manifest.cdn1Url || downloadUrl,
+    latestUrl,
+    cdn1Url: downloadUrl,
     checksumsUrl: manifest.checksumsUrl || null,
-    githubUrl: manifest.githubUrl || null,
+    githubUrl: selected?.githubUrl ?? (legacyMatch ? manifest.githubUrl || null : null),
+    zsyncUrl: selected?.zsyncUrl ?? null,
     notes: manifest.notes ?? null,
     publishedAt: manifest.publishedAt || null,
-    filename: manifest.filename || null,
+    filename: selected?.filename ?? (legacyMatch ? manifest.filename || null : null),
+    platforms: manifest.platforms || (manifest.assets ? buildPlatformsMap(manifest.assets) : {}),
+    assets: manifest.assets || [],
   };
   if (head) return new Response(null, { status: 200, headers: NO_CACHE_HEADERS });
   return json(body, 200, NO_CACHE_HEADERS);
@@ -540,7 +877,7 @@ desktopReleaseRouter.get('/api/admin/desktop-update', async (c) => {
     data: {
       manifest: manifest || {
         platform: 'windows',
-        arch: 'universal-x86_64',
+        arch: 'universal',
         channel: 'stable',
         version: '',
         mandatory: false,
@@ -554,6 +891,8 @@ desktopReleaseRouter.get('/api/admin/desktop-update', async (c) => {
         githubUrl: null,
         notes: '',
         publishedAt: '',
+        platforms: {},
+        assets: [],
       },
       source,
       json: { key: DESKTOP_JSON_KEY, url: `${base}/latest.json`, size: jsonMeta?.size ?? null, uploaded: jsonMeta?.uploaded ?? null },
@@ -597,8 +936,8 @@ desktopReleaseRouter.put('/api/admin/desktop-update', async (c) => {
   const manifest: DesktopManifest = {
     success: true,
     ok: true,
-    platform: 'windows',
-    arch: 'universal-x86_64',
+    platform: prev.manifest?.platform || 'windows',
+    arch: prev.manifest?.arch || 'universal',
     channel: sanitizeChannel(body.channel),
     version,
     mandatory: body.mandatory === true || body.mandatory === 'true' || body.mandatory === 1,
@@ -606,13 +945,15 @@ desktopReleaseRouter.put('/api/admin/desktop-update', async (c) => {
     sha256: shaRaw ? shaRaw.toLowerCase() : (prev.manifest?.sha256 ?? null),
     sizeBytes: prev.exeMeta?.size ?? prev.manifest?.sizeBytes ?? null,
     downloadUrl,
-    latestUrl: `${base}/latest-setup.exe`,
+    latestUrl: prev.manifest?.latestUrl || `${base}/latest-setup.exe`,
     cdn1Url: downloadUrl,
     checksumsUrl: prev.manifest?.checksumsUrl ?? null,
     githubUrl: body.githubUrl ? String(body.githubUrl).trim() : (prev.manifest?.githubUrl ?? null),
     notes: String(body.notes || '').slice(0, 8000),
     publishedAt: new Date().toISOString(),
     filename: prev.manifest?.filename,
+    platforms: prev.manifest?.platforms,
+    assets: prev.manifest?.assets,
   };
 
   if (c.env.IMAGES) {
@@ -629,48 +970,80 @@ desktopReleaseRouter.post('/api/admin/desktop-update/installer', async (c) => {
   const gate = gateDesktopAdmin(c);
   if (!gate.ok) return c.json({ success: false, error: gate.error }, gate.status as any);
   if (!c.env.IMAGES) return c.json({ success: false, error: 'Binding R2 (IMAGES) absent' }, 501);
+
+  const rawFilename = (c.req.header('X-Release-Filename') || '').trim();
+  const os = parseDesktopOs(c.req.header('X-Release-Platform'), rawFilename);
+  if (!os) return c.json({ success: false, error: 'Plateforme Desktop invalide (windows, macos, linux)' }, 400);
+  const arch = parseDesktopArch(c.req.header('X-Release-Arch'), rawFilename);
+  const kind = parseArtifactKind(c.req.header('X-Release-Kind'), rawFilename || 'setup.exe', os);
+
   const len = Number(c.req.header('Content-Length') || 0);
-  if (!Number.isFinite(len) || len < 10_000) return c.json({ success: false, error: 'Installateur invalide' }, 400);
-  if (len > DESKTOP_MAX_INSTALLER_BYTES) return c.json({ success: false, error: 'Fichier trop lourd (max 250 Mo)' }, 413);
+  const minBytes = kind === 'zsync' ? 512 : 10_000;
+  if (!Number.isFinite(len) || len < minBytes) return c.json({ success: false, error: 'Installateur invalide' }, 400);
+  if (len > DESKTOP_MAX_INSTALLER_BYTES) return c.json({ success: false, error: 'Fichier trop lourd (max 350 Mo)' }, 413);
   const stream = c.req.raw.body;
   if (!stream) return c.json({ success: false, error: 'Corps du fichier absent' }, 400);
 
   const prev = await readDesktopManifest(c.env);
   const version = normalizeSemver(c.req.header('X-Release-Version') || prev.manifest?.version || '') || '0.0.0';
-  const filename = sanitizeDesktopFilename(c.req.header('X-Release-Filename'), version);
-  const versionedKey = `${DESKTOP_UPDATE_PREFIX}/${filename}`;
+  const filename = sanitizeDesktopFilename(rawFilename, os, arch, kind, version);
+  if (!filename) return c.json({ success: false, error: 'Extension de fichier non supportée' }, 400);
 
-  const [rawA, rawB] = stream.tee();
-  const fixedA = new FixedLengthStream(len);
-  const fixedB = new FixedLengthStream(len);
-  void rawA.pipeTo(fixedA.writable);
-  void rawB.pipeTo(fixedB.writable);
+  const versionedKey = `${DESKTOP_UPDATE_PREFIX}/${filename}`;
+  const aliasKey = aliasKeyForAsset(os, arch, kind);
+  const contentType = mimeForDesktopFile(filename);
 
   try {
-    await Promise.all([
-      c.env.IMAGES.put(versionedKey, fixedA.readable, {
-        httpMetadata: { contentType: DESKTOP_EXE_MIME, cacheControl: 'public, max-age=31536000, immutable' },
-        customMetadata: { updated_by: gate.username, updated_at: new Date().toISOString() },
-      }),
-      c.env.IMAGES.put(DESKTOP_LATEST_EXE_KEY, fixedB.readable, {
-        httpMetadata: { contentType: DESKTOP_EXE_MIME, cacheControl: 'no-cache, max-age=0, must-revalidate' },
-        customMetadata: { updated_by: gate.username, updated_at: new Date().toISOString() },
-      }),
-    ]);
+    await putStreamToR2(c.env.IMAGES, versionedKey, aliasKey, stream, len, contentType, {
+      updated_by: gate.username,
+      updated_at: new Date().toISOString(),
+    });
   } catch (e: any) {
     return c.json({ success: false, error: `Échec upload R2 : ${e?.message || e}` }, 502);
   }
 
   const base = desktopCdn1Base(c.env);
-  const keepKeys = new Set<string>([versionedKey, DESKTOP_LATEST_EXE_KEY, DESKTOP_JSON_KEY]);
+  const entry: DesktopAssetEntry = {
+    platform: os,
+    arch,
+    kind,
+    filename,
+    key: versionedKey,
+    aliasKey,
+    downloadUrl: `${base}/${filename}`,
+    latestUrl: aliasKey ? `${base}/${aliasKey.split('/').pop()}` : null,
+    sha256: null,
+    sizeBytes: len,
+    githubUrl: prev.manifest?.githubUrl || null,
+  };
+
+  const sameVersion = !!prev.manifest?.version && normalizeSemver(prev.manifest.version) === version;
+  const priorAssets: DesktopAssetEntry[] = sameVersion && Array.isArray(prev.manifest?.assets) ? prev.manifest!.assets! : [];
+  const mergedAssets = [
+    ...priorAssets.filter((a) => !(a.platform === os && a.arch === arch && a.kind === kind)),
+    entry,
+  ];
+  const platforms = buildPlatformsMap(mergedAssets);
+  const keepKeys = new Set<string>([DESKTOP_JSON_KEY]);
+  for (const a of mergedAssets) {
+    keepKeys.add(a.key);
+    if (a.aliasKey) keepKeys.add(a.aliasKey);
+  }
+
   if (prev.manifest) {
+    const primary = platforms.windows?.universal || platforms.windows?.x86_64 || platforms.macos?.universal || platforms.linux?.x86_64 || entry;
     const updated: DesktopManifest = {
       ...prev.manifest,
-      sizeBytes: len,
-      downloadUrl: `${base}/${filename}`,
-      latestUrl: `${base}/latest-setup.exe`,
-      cdn1Url: `${base}/${filename}`,
-      filename,
+      version,
+      platform: primary.platform,
+      arch: primary.arch,
+      sizeBytes: primary.sizeBytes,
+      downloadUrl: primary.downloadUrl,
+      latestUrl: primary.latestUrl || primary.downloadUrl,
+      cdn1Url: primary.downloadUrl,
+      filename: primary.filename,
+      platforms,
+      assets: mergedAssets,
       publishedAt: new Date().toISOString(),
     };
     await c.env.IMAGES.put(DESKTOP_JSON_KEY, JSON.stringify(updated, null, 2), {
@@ -681,6 +1054,6 @@ desktopReleaseRouter.post('/api/admin/desktop-update/installer', async (c) => {
   const deletedKeys = await purgeOldDesktopAssets(c.env.IMAGES, keepKeys);
   return c.json({
     success: true,
-    data: { key: versionedKey, latestKey: DESKTOP_LATEST_EXE_KEY, size: len, url: `${base}/${filename}`, latestUrl: `${base}/latest-setup.exe`, deletedKeys },
+    data: { key: versionedKey, aliasKey, size: len, url: entry.downloadUrl, latestUrl: entry.latestUrl, asset: entry, deletedKeys },
   });
 });

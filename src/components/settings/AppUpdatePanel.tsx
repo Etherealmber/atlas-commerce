@@ -221,7 +221,7 @@ export default function AppUpdatePanel() {
       <div>
         <div className="ac-dash-period-pills" role="group" aria-label="Plateforme de mise à jour" style={{ marginBottom: 14 }}>
           <button type="button" className="ac-seg-btn" aria-pressed={platformTab === 'android'} onClick={() => setPlatformTab('android')}>Android (APK)</button>
-          <button type="button" className="ac-seg-btn" aria-pressed={platformTab === 'desktop'} onClick={() => setPlatformTab('desktop')}>Bureau Windows (CDN1)</button>
+          <button type="button" className="ac-seg-btn" aria-pressed={platformTab === 'desktop'} onClick={() => setPlatformTab('desktop')}>Bureau (Win · macOS · Linux)</button>
         </div>
         {platformTab === 'desktop' ? (
           <DesktopUpdateSection />
@@ -239,7 +239,7 @@ export default function AppUpdatePanel() {
       <div>
         <div className="ac-dash-period-pills" role="group" aria-label="Plateforme de mise à jour" style={{ marginBottom: 14 }}>
           <button type="button" className="ac-seg-btn" aria-pressed={platformTab === 'android'} onClick={() => setPlatformTab('android')}>Android (APK)</button>
-          <button type="button" className="ac-seg-btn" aria-pressed={platformTab === 'desktop'} onClick={() => setPlatformTab('desktop')}>Bureau Windows (CDN1)</button>
+          <button type="button" className="ac-seg-btn" aria-pressed={platformTab === 'desktop'} onClick={() => setPlatformTab('desktop')}>Bureau (Win · macOS · Linux)</button>
         </div>
         {platformTab === 'desktop' ? (
           <DesktopUpdateSection />
@@ -257,7 +257,7 @@ export default function AppUpdatePanel() {
     <div>
       <div className="ac-dash-period-pills" role="group" aria-label="Plateforme de mise à jour" style={{ marginBottom: 14 }}>
         <button type="button" className="ac-seg-btn" aria-pressed={platformTab === 'android'} onClick={() => setPlatformTab('android')}>Android (APK)</button>
-        <button type="button" className="ac-seg-btn" aria-pressed={platformTab === 'desktop'} onClick={() => setPlatformTab('desktop')}>Bureau Windows (CDN1)</button>
+        <button type="button" className="ac-seg-btn" aria-pressed={platformTab === 'desktop'} onClick={() => setPlatformTab('desktop')}>Bureau (Win · macOS · Linux)</button>
       </div>
       {platformTab === 'desktop' ? (
         <DesktopUpdateSection />

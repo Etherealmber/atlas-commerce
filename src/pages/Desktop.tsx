@@ -22,6 +22,15 @@ const GH_RELEASES = 'https://api.github.com/repos/Etherealmber/atlas-commerce-de
 const DESKTOP_CDN1_JSON = 'https://cdn1.afmarbre.com/app-updates/desktop/latest.json';
 const DESKTOP_REPO = 'https://github.com/Etherealmber/atlas-commerce-desktop';
 
+type CdnAsset = {
+  platform: 'windows' | 'macos' | 'linux';
+  arch?: string;
+  kind?: string;
+  downloadUrl: string;
+  latestUrl?: string | null;
+  sha256?: string | null;
+};
+
 type CdnDesktopInfo = {
   version: string;
   downloadUrl: string;
@@ -30,6 +39,7 @@ type CdnDesktopInfo = {
   sizeBytes?: number | null;
   publishedAt?: string | null;
   notes?: string | null;
+  assets?: CdnAsset[];
 };
 
 type GhAsset = { name?: string; browser_download_url?: string };
@@ -159,22 +169,23 @@ export default function Desktop() {
       .catch(() => setState('error'));
 
     const apiBase = getApiBase();
-    fetch(`${apiBase}/api/app/desktop-update?platform=windows`, { cache: 'no-store' })
+    fetch(`${apiBase}/api/app/desktop-update?platform=all`, { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((j: any) => {
-        if (j?.hasRelease && j?.downloadUrl) return j as CdnDesktopInfo;
+        if (j?.hasRelease && (j?.downloadUrl || (Array.isArray(j?.assets) && j.assets.length > 0))) return j as CdnDesktopInfo;
         return fetch(DESKTOP_CDN1_JSON, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null));
       })
       .then((m: any) => {
-        if (m && m.version && (m.downloadUrl || m.latestUrl)) {
+        if (m && m.version && (m.downloadUrl || m.latestUrl || Array.isArray(m.assets))) {
           setCdnDesktop({
             version: String(m.version),
-            downloadUrl: String(m.downloadUrl || m.latestUrl),
-            latestUrl: String(m.latestUrl || m.downloadUrl),
+            downloadUrl: String(m.downloadUrl || m.latestUrl || ''),
+            latestUrl: String(m.latestUrl || m.downloadUrl || ''),
             sha256: m.sha256 ? String(m.sha256) : null,
             sizeBytes: typeof m.sizeBytes === 'number' ? m.sizeBytes : null,
             publishedAt: m.publishedAt ? String(m.publishedAt) : null,
             notes: m.notes ? String(m.notes) : null,
+            assets: Array.isArray(m.assets) ? (m.assets as CdnAsset[]) : undefined,
           });
         }
       })
@@ -217,8 +228,23 @@ export default function Desktop() {
   const relTitle = latest?.name || latest?.tag_name || 'Atlas Commerce Desktop';
   const relDate = publicationDate(latest?.published_at);
   const mainAsset = osAsset(latest, os);
-  const windowsCdnUrl = os === 'windows' && cdnDesktop?.downloadUrl ? cdnDesktop.downloadUrl : null;
-  const primaryHref = windowsCdnUrl || (mainAsset ? String(mainAsset.browser_download_url) : null);
+  const cdnOsAsset = (() => {
+    if (!cdnDesktop) return null;
+    const list = Array.isArray(cdnDesktop.assets) ? cdnDesktop.assets.filter((a) => a.platform === os && a.kind !== 'zsync') : [];
+    if (list.length > 0) {
+      return (
+        list.find((a) => a.kind === 'installer' && a.arch === 'universal') ||
+        list.find((a) => a.kind === 'appimage' && a.arch === 'x86_64') ||
+        list.find((a) => a.kind === 'installer') ||
+        list[0]
+      );
+    }
+    if (os === 'windows' && cdnDesktop.downloadUrl) {
+      return { platform: 'windows' as const, downloadUrl: cdnDesktop.downloadUrl, sha256: cdnDesktop.sha256 };
+    }
+    return null;
+  })();
+  const primaryHref = cdnOsAsset?.downloadUrl || (mainAsset ? String(mainAsset.browser_download_url) : null);
   const visibleAssets = (latest?.assets || []).filter((asset) => {
     const name = String(asset.name || '');
     if (/\.zsync$|source\.tar\.gz$/i.test(name)) return false;
@@ -254,10 +280,10 @@ export default function Desktop() {
                   {primaryHref ? <a className="dl-cta-main" href={primaryHref} target="_blank" rel="noopener noreferrer"><span className="dl-cta-arrow" aria-hidden="true">↓</span> &nbsp; Télécharger pour {OS_LABEL[os]}</a> : state === 'error' ? <span className="dl-cta-main dl-cta-wait" aria-disabled="true">Releases injoignables</span> : state === 'ok' ? <span className="dl-cta-main dl-cta-wait" aria-disabled="true">Aucun binaire pour {OS_LABEL[os]}</span> : <span className="dl-cta-main dl-cta-wait" aria-disabled="true">Chargement…</span>}
                   <a className="dl-cta-ghost" href="#assets">Autres fichiers <span className="dl-cta-arrow" aria-hidden="true">↓</span></a>
                 </div>
-                {windowsCdnUrl && cdnDesktop && (
+                {cdnOsAsset && cdnDesktop && (
                   <p style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 8 }}>
-                    Miroir CDN1 Windows · v{cdnDesktop.version}
-                    {cdnDesktop.sha256 ? ` · SHA-256 ${cdnDesktop.sha256.slice(0, 12)}…` : ''}
+                    Miroir CDN1 {OS_LABEL[os]} · v{cdnDesktop.version}
+                    {cdnOsAsset.sha256 ? ` · SHA-256 ${cdnOsAsset.sha256.slice(0, 12)}…` : ''}
                   </p>
                 )}
                 <p className="dl-note">Choisissez un fichier adapté à votre système depuis les releases officielles.</p>
