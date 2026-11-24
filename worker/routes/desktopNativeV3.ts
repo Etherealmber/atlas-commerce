@@ -24,7 +24,13 @@ import { verifyDesktopTurnstile } from '../lib/desktop-native-turnstile';
 import { reserveCredentialAttempt, type CredentialAttemptPurpose } from '../lib/credential-attempt-limits';
 import { reserveDesktopCreate } from '../lib/desktop-create-budget';
 import { issueDpopNonce, prepareDpopVerification, ensureDpopTables } from '../lib/desktop-device-proof-store';
-import { desktopV3Enabled, makeDesktopV3Token } from '../lib/desktop-v3-session';
+import {
+  desktopV3Enabled,
+  makeDesktopV3Token,
+  V3_STANDARD_SESSION_TTL_MS,
+  v3RememberTtlMs,
+  v3SessionWithinPolicy,
+} from '../lib/desktop-v3-session';
 import { createConfiguredNativeMailbox, createNativeOtpSender } from '../lib/desktop-mail-transport';
 import { addColumnIfMissing } from '../lib/schema';
 import { ensureSecurityTables } from '../lib/authHelpers';
@@ -71,7 +77,7 @@ const CHALLENGE_TTL_MS = 300_000;
 const LOGIN_TTL_MS = 300_000;
 const RECOVERY_TTL_MS = 900_000;
 const ACCESS_TTL_MS = 900_000;
-const SESSION_ABSOLUTE_TTL_MS = 43_200_000;
+const SESSION_ABSOLUTE_TTL_MS = V3_STANDARD_SESSION_TTL_MS;
 const POLL_INTERVAL_MS = 5_000;
 const ACTION = 'atlas_desktop_v3';
 const QR_TTL_MS = 120_000;
@@ -114,6 +120,33 @@ class Failure extends Error {
 const fail = (code: string, status = 400): never => {
   throw new Failure(code, status);
 };
+
+/**
+ * Explicit opt-in only: absent = standard 12 h session. Anything other than a
+ * JSON boolean is rejected before any state changes.
+ */
+function parseRememberMe(b: Record<string, any>): boolean {
+  if (b.remember_me === undefined) return false;
+  if (typeof b.remember_me !== 'boolean') fail('INVALID_REQUEST');
+  return b.remember_me === true;
+}
+
+/** Resolve the session lifetime for a new login. Remember-me needs both the opt-in and the policy. */
+function sessionLifetime(env: any, wantsRemember: boolean): { remembered: boolean; ttlMs: number } {
+  const rememberTtl = v3RememberTtlMs(env);
+  if (wantsRemember && rememberTtl > 0) return { remembered: true, ttlMs: rememberTtl };
+  return { remembered: false, ttlMs: SESSION_ABSOLUTE_TTL_MS };
+}
+
+/** Contract fields shared by every token response (login + refresh). */
+function sessionContractFields(remembered: boolean, issuedAt: number | null, absoluteExpiry: number) {
+  return {
+    remember_me: remembered,
+    session_kind: remembered ? 'remembered' : 'standard',
+    refresh_expires_at: new Date(absoluteExpiry).toISOString(),
+    session_ttl_seconds: issuedAt === null ? null : Math.round((absoluteExpiry - issuedAt) / 1000),
+  };
+}
 
 function randHex(): string {
   return Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) => b.toString(16).padStart(2, '0')).join('');
@@ -212,7 +245,9 @@ const SESSIONS_DDL = `
         access_expires_at INTEGER NOT NULL,
         absolute_expires_at INTEGER NOT NULL,
         last_used_at INTEGER NOT NULL,
-        revoked INTEGER NOT NULL DEFAULT 0
+        revoked INTEGER NOT NULL DEFAULT 0,
+        remembered INTEGER NOT NULL DEFAULT 0,
+        issued_at INTEGER
       `;
 
 /**
@@ -302,6 +337,9 @@ async function ensureV3Schema(db: D1Database): Promise<void> {
     .run();
   await rebuildTableIfNeeded(db, 'desktop_v3_sessions', (sql) => /user_id\s+INTEGER\s+NOT\s+NULL/i.test(sql), SESSIONS_DDL,
     'id, origin, username, role, user_id, credential_tag, device_thumbprint, device_label, access_hash, refresh_hash, previous_refresh_hash, access_expires_at, absolute_expires_at, last_used_at, revoked');
+  // Opt-in remembered sessions (absolute expiry ≤ 30 days) — additive columns.
+  await addColumnIfMissing(db, 'desktop_v3_sessions', 'remembered', 'INTEGER NOT NULL DEFAULT 0');
+  await addColumnIfMissing(db, 'desktop_v3_sessions', 'issued_at', 'INTEGER');
   await db.prepare('CREATE INDEX IF NOT EXISTS idx_v3_sessions_prev ON desktop_v3_sessions(previous_refresh_hash)').run();
   await db.prepare('CREATE INDEX IF NOT EXISTS idx_v3_sessions_exp ON desktop_v3_sessions(absolute_expires_at)').run();
   await db.prepare('CREATE INDEX IF NOT EXISTS idx_v3_sessions_user ON desktop_v3_sessions(username, revoked)').run();
@@ -931,7 +969,8 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
   });
 
   app.post(`${NATIVE_V3}/login/otp`, async (c) => {
-    const b = await readJsonBody(c, [...proofFields, 'otp']);
+    const b = await readJsonBody(c, [...proofFields, 'otp', 'remember_me']);
+    const lifetime = sessionLifetime(c.env, parseRememberMe(b));
     const { row: reqRow, dpop } = await verifyDesktopProof(c, b, { ignoreRequestExpiry: true });
     if (!pattern(b.otp, CODE)) return genericAuthFailure();
 
@@ -970,7 +1009,7 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
     const access = makeDesktopV3Token(identity.username, identity.role, randHex());
     const refresh = randHex();
     const accessExpiry = now + ACCESS_TTL_MS;
-    const absoluteExpiry = now + SESSION_ABSOLUTE_TTL_MS;
+    const absoluteExpiry = now + lifetime.ttlMs;
 
     const committed: any[] = await c.env.DB.batch([
       ...dpop.consumeStatements,
@@ -984,8 +1023,8 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
       c.env.DB
         .prepare(
           `INSERT INTO desktop_v3_sessions
-             (id, origin, username, role, user_id, credential_tag, device_thumbprint, device_label, access_hash, refresh_hash, access_expires_at, absolute_expires_at, last_used_at)
-           SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+             (id, origin, username, role, user_id, credential_tag, device_thumbprint, device_label, access_hash, refresh_hash, access_expires_at, absolute_expires_at, last_used_at, remembered, issued_at)
+           SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
            FROM desktop_v3_logins WHERE id=? AND status='completed' AND nonce=?`,
         )
         .bind(
@@ -1001,6 +1040,8 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
           await desktopHash(refresh),
           accessExpiry,
           absoluteExpiry,
+          now,
+          lifetime.remembered ? 1 : 0,
           now,
           reqRow.id,
           nonce,
@@ -1018,7 +1059,7 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
       role: identity.role,
       action: 'auth.desktop_v3_login',
       entity: 'session',
-      detail: `sid=${sid.slice(0, 12)} jkt=${dpop.thumbprint.slice(0, 12)}`,
+      detail: `sid=${sid.slice(0, 12)} jkt=${dpop.thumbprint.slice(0, 12)} remember=${lifetime.remembered ? 1 : 0}`,
       ip,
     });
 
@@ -1036,6 +1077,8 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
         session_id: sid,
         device_thumbprint: dpop.thumbprint,
         attestation: 'client_key_unattested',
+        method: 'password_otp',
+        ...sessionContractFields(lifetime.remembered, now, absoluteExpiry),
       },
     });
   });
@@ -1056,6 +1099,8 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
       /** Extra SQL conditions (ANDed) proving the guards above really fired in this batch. */
       insertWhen: { sql: string; params: unknown[] }[];
       method: 'qr' | 'passkey';
+      /** Explicit opt-in from the exchange request body. */
+      rememberMe: boolean;
     },
   ) {
     const { reqRow, dpop, identity } = opts;
@@ -1063,8 +1108,9 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
     const sid = randHex();
     const access = makeDesktopV3Token(identity.username, identity.role, randHex());
     const refresh = randHex();
+    const lifetime = sessionLifetime(c.env, opts.rememberMe);
     const accessExpiry = now + ACCESS_TTL_MS;
-    const absoluteExpiry = now + SESSION_ABSOLUTE_TTL_MS;
+    const absoluteExpiry = now + lifetime.ttlMs;
     const credentialTag = await desktopHash(identity.material);
     const committed: any[] = await c.env.DB.batch([
       ...dpop.consumeStatements,
@@ -1077,13 +1123,13 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
       c.env.DB
         .prepare(
           `INSERT INTO desktop_v3_sessions
-             (id, origin, username, role, user_id, credential_tag, device_thumbprint, device_label, access_hash, refresh_hash, access_expires_at, absolute_expires_at, last_used_at)
-           SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+             (id, origin, username, role, user_id, credential_tag, device_thumbprint, device_label, access_hash, refresh_hash, access_expires_at, absolute_expires_at, last_used_at, remembered, issued_at)
+           SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
            FROM desktop_v3_requests WHERE id=? AND status='consumed' AND cdata=?${opts.insertWhen.map((w) => ` AND ${w.sql}`).join('')}`,
         )
         .bind(
           sid, reqRow.origin, identity.username, identity.role, identity.userId, credentialTag, dpop.thumbprint, reqRow.label,
-          await desktopHash(access), await desktopHash(refresh), accessExpiry, absoluteExpiry, now,
+          await desktopHash(access), await desktopHash(refresh), accessExpiry, absoluteExpiry, now, lifetime.remembered ? 1 : 0, now,
           reqRow.id, `session:${sid}`, ...opts.insertWhen.flatMap((w) => w.params),
         ),
     ]);
@@ -1094,7 +1140,7 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
       role: identity.role,
       action: `auth.desktop_v3_${opts.method}_login`,
       entity: 'session',
-      detail: `sid=${sid.slice(0, 12)} jkt=${dpop.thumbprint.slice(0, 12)}`,
+      detail: `sid=${sid.slice(0, 12)} jkt=${dpop.thumbprint.slice(0, 12)} remember=${lifetime.remembered ? 1 : 0}`,
       ip: c.req.header('CF-Connecting-IP') || '',
     });
     return c.json({
@@ -1112,6 +1158,7 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
         device_thumbprint: dpop.thumbprint,
         attestation: 'client_key_unattested',
         method: opts.method,
+        ...sessionContractFields(lifetime.remembered, now, absoluteExpiry),
       },
     });
   }
@@ -1165,7 +1212,8 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
 
   app.post(`${NATIVE_V3}/qr/exchange`, async (c) => {
     if (!nativePresentationEnabled(c.env)) fail('METHOD_DISABLED', 503);
-    const b = await readJsonBody(c, proofFields);
+    const b = await readJsonBody(c, [...proofFields, 'remember_me']);
+    const rememberMe = parseRememberMe(b);
     const { row, dpop } = await verifyDesktopProof(c, b, { ignoreRequestExpiry: true });
     await budget(c.env.DB, 'v3-qr-poll', row.id, 300_000, 150);
     const link: any = await c.env.DB.prepare('SELECT * FROM desktop_v3_qr WHERE request_id=?').bind(row.id).first();
@@ -1189,6 +1237,7 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
       dpop,
       identity,
       method: 'qr',
+      rememberMe,
       guards: [
         c.env.DB
           .prepare("UPDATE qr_login_sessions SET status='consumed', consumed_at=datetime('now') WHERE token=? AND status='approved' AND created_by='desktop-v3' AND username=? AND role=?")
@@ -1249,7 +1298,8 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
     if (!nativePresentationEnabled(c.env)) fail('METHOD_DISABLED', 503);
     const policy = policyFromEnv(c.env);
     if (!policy.enabled) fail('METHOD_DISABLED', 503);
-    const b = await readJsonBody(c, [...proofFields, 'credential']);
+    const b = await readJsonBody(c, [...proofFields, 'credential', 'remember_me']);
+    const rememberMe = parseRememberMe(b);
     const { row, dpop } = await verifyDesktopProof(c, b, { ignoreRequestExpiry: true });
     const cred = b.credential && typeof b.credential === 'object' ? b.credential : {};
     const resp = cred.response && typeof cred.response === 'object' ? cred.response : {};
@@ -1312,6 +1362,7 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
       dpop,
       identity,
       method: 'passkey',
+      rememberMe,
       guards: [
         c.env.DB
           .prepare("UPDATE desktop_v3_passkey SET status='consumed' WHERE request_id=? AND challenge=? AND status='pending' AND expires_at>?")
@@ -1355,7 +1406,7 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
       return genericAuthFailure();
     }
     const dpop = await requireDpop(c, { origin: server, thumbprint: row.device_thumbprint, singleUseNonce: true });
-    if (row.revoked !== 0 || row.origin !== server || row.absolute_expires_at <= Date.now()) {
+    if (row.revoked !== 0 || row.origin !== server || row.absolute_expires_at <= Date.now() || !v3SessionWithinPolicy(c.env, row, Date.now())) {
       return genericAuthFailure();
     }
     const id = await deps.currentIdentity(c.env, row.username, row.role);
@@ -1422,6 +1473,11 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
         role: row.role,
         session_id: row.id,
         device_thumbprint: row.device_thumbprint,
+        ...sessionContractFields(
+          Number(row.remembered || 0) === 1,
+          row.issued_at === null || row.issued_at === undefined ? null : Number(row.issued_at),
+          Number(row.absolute_expires_at),
+        ),
       },
     });
   });
@@ -1765,14 +1821,14 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
     const rows = isAdmin
       ? await c.env.DB
           .prepare(
-            `SELECT id, origin, username, role, device_thumbprint, device_label, access_expires_at, absolute_expires_at, last_used_at, revoked
+            `SELECT id, origin, username, role, device_thumbprint, device_label, access_expires_at, absolute_expires_at, last_used_at, revoked, remembered, issued_at
              FROM desktop_v3_sessions WHERE revoked = 0 AND absolute_expires_at > ? ORDER BY last_used_at DESC LIMIT 50`,
           )
           .bind(Date.now())
           .all()
       : await c.env.DB
           .prepare(
-            `SELECT id, origin, username, role, device_thumbprint, device_label, access_expires_at, absolute_expires_at, last_used_at, revoked
+            `SELECT id, origin, username, role, device_thumbprint, device_label, access_expires_at, absolute_expires_at, last_used_at, revoked, remembered, issued_at
              FROM desktop_v3_sessions WHERE username = ? AND revoked = 0 AND absolute_expires_at > ? ORDER BY last_used_at DESC LIMIT 30`,
           )
           .bind(sess.username.toLowerCase(), Date.now())
@@ -1789,6 +1845,8 @@ export function registerDesktopNativeV3(root: Hono<any>, deps: DesktopV3Deps): v
         device_label: r.device_label,
         last_used_at: new Date(r.last_used_at).toISOString(),
         expires_at: new Date(r.absolute_expires_at).toISOString(),
+        remember_me: Number(r.remembered || 0) === 1,
+        issued_at: r.issued_at === null || r.issued_at === undefined ? null : new Date(Number(r.issued_at)).toISOString(),
       })),
     });
   });

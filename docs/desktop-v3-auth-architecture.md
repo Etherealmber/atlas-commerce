@@ -164,10 +164,16 @@ All JSON responses follow the Worker envelope:
          "role": "secretaire",
          "session_id": "<64-hex>",
          "device_thumbprint": "<43-char JWK SHA-256>",
-         "attestation": "client_key_unattested"
+         "attestation": "client_key_unattested",
+         "method": "password_otp",
+         "remember_me": false,
+         "session_kind": "standard",
+         "refresh_expires_at": "2026-10-20T12:00:00.000Z",
+         "session_ttl_seconds": 43200
        }
      }
      ```
+   - Optional request field `remember_me` (boolean, default `false`) on `login/otp`, `qr/exchange` and `webauthn/verify` — full contract in [`desktop-v3-remember-me.md`](desktop-v3-remember-me.md).
 
 7. **`POST /api/auth/desktop/v3/session/refresh`** (`RefreshRequestV3` -> `SessionTokensV3`):
    - Request (`DPoP` single-use nonce + matching `device_thumbprint`):
@@ -185,7 +191,7 @@ All JSON responses follow the Worker envelope:
    - `POST /mailbox/enroll/confirm` (`{ password, request_id, new_code, old_code? }`) -> `200 { enrolled: true }`
    - `POST /mailbox/recovery/request` (`{ password, reason }`) -> `201 { recovery_id, status: "pending_admin_approval", expires_in }`
    - `POST /mailbox/recovery/approve` (`{ password, recovery_id }`) -> `200 { status: "approved", username }`
-   - `GET /sessions` -> `200 [{ id, origin, username, role, device_thumbprint, device_label, last_used_at, expires_at }]`
+   - `GET /sessions` -> `200 [{ id, origin, username, role, device_thumbprint, device_label, last_used_at, expires_at, remember_me, issued_at }]`
    - `DELETE /sessions/:id` -> `200 { status: "revoked", id }`
 
 ### 3.3 Exact Error Codes
@@ -215,7 +221,7 @@ All JSON responses follow the Worker envelope:
 ## 4. Secure Session Lifecycle & Revocation Guarantees
 
 1. **Desktop v3 (`nv3.`) lifecycle**:
-   - `access_token` (`15 min`) and `refresh_token` (`12 h` absolute max) are stored server-side only as SHA-256 digests (`access_hash`, `refresh_hash`) in `desktop_v3_sessions`.
+   - `access_token` (`15 min`) and `refresh_token` (`12 h` absolute max by default; **≤ 30 days** when the client explicitly sends `remember_me: true` — see [`desktop-v3-remember-me.md`](desktop-v3-remember-me.md)) are stored server-side only as SHA-256 digests (`access_hash`, `refresh_hash`) in `desktop_v3_sessions`.
    - `POST /session/refresh` atomically rotates both tokens and moves the retired `refresh_hash` into `desktop_v3_refresh_history`; any replay by the device key revokes the entire session family (`revoked = 1`).
    - `POST /session/logout` and `DELETE /sessions/:id` revoke sessions server-side (`revoked = 1`); subsequent `GET /api/auth/me` or business calls fail immediately (`401`).
    - SQLite triggers (`desktop_v3_account_update`, `desktop_v3_account_delete`, `desktop_mailbox_account_update_v1`, `desktop_mailbox_account_delete_v1`) automatically revoke active v3 sessions and suspend verified mailboxes when `app_users` password, role, active flag, or directory email changes.

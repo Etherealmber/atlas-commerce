@@ -21801,3 +21801,55 @@ html[data-theme="dark"] .payroll-cnss-box { background: #1c1c1f; }
 .payroll-cnss-toggle input { width: 16px; height: 16px; margin: 0; accent-color: #16a34a; }
 .payroll-cnss-box__hint { margin: 8px 0 0; font-size: 0.78rem; color: var(--ac-muted); line-height: 1.45; }
 .modal-overlay .modal .payroll-cnss-box p.payroll-cnss-box__hint { margin: 8px 0 0; font-size: 12.5px; line-height: 1.45; color: var(--ac-muted); }
+
+/* ── Dashboard « Répartition des charges »: empty state keeps the widget shape ── */
+.ac-hbar-empty {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 215px;
+  display: flex;
+  flex-direction: column;
+}
+.ac-hbar-empty .ac-hbar-list.is-ghost {
+  opacity: 0.55;
+  filter: saturate(0.4);
+  user-select: none;
+}
+.ac-hbar-empty .ac-hbar-list.is-ghost .ac-hbar-label,
+.ac-hbar-empty .ac-hbar-list.is-ghost .ac-hbar-val strong {
+  color: var(--ac-muted, #64748b);
+  font-weight: 600;
+}
+.ac-hbar-empty-note {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  pointer-events: none;
+}
+.ac-hbar-empty-note .ac-hbar-empty-pill {
+  position: static;
+  transform: none;
+}
+.ac-hbar-empty-note .ac-hbar-empty-cta {
+  pointer-events: auto;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--ac-paper, #fff);
+  border: 1px solid var(--ac-line, #e4e4e7);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  text-decoration: none;
+}
+.ac-hbar-empty-note .ac-hbar-empty-cta:hover {
+  border-color: var(--ac-ink, #0f172a);
+}
+html[data-theme="dark"] body .ac-hbar-empty-note .ac-hbar-empty-cta {
+  background: rgba(24, 24, 29, 0.92) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: #f4f4f5 !important;
+}

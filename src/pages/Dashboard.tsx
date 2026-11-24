@@ -544,7 +544,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className={`ac-dash-charts-grid ${expenseCategories.length > 0 ? 'has-four' : 'has-three'}`}>
+      <div className="ac-dash-charts-grid has-four">
         <div className="ac-panel">
           <div className="ac-panel-head">
             <div>
@@ -598,17 +598,31 @@ export default function Dashboard() {
           />
         </div>
 
-        {expenseCategories.length > 0 && (
-          <div className="ac-panel">
-            <div className="ac-panel-head">
-              <div>
-                <h3>Répartition des charges</h3>
-                <p>Top catégories de dépenses (hors achats)</p>
-              </div>
+        <div className="ac-panel ac-dash-charges-panel">
+          <div className="ac-panel-head">
+            <div>
+              <h3>Répartition des charges</h3>
+              <p>Top catégories de dépenses (hors achats)</p>
             </div>
-            <HBarChart color="var(--ac-chart-amber, #d97706)" items={expenseCategories} unit={cur} />
+            {expenseCategories.length > 0 && (
+              <Link to="/balance" className="ac-dash-link">
+                Voir la balance →
+              </Link>
+            )}
           </div>
-        )}
+          <HBarChart
+            color="var(--ac-chart-amber, #d97706)"
+            items={expenseCategories}
+            unit={cur}
+            placeholder={['Salaires', 'Loyer', 'Transport', 'Électricité', 'Autre']}
+            emptyLabel="Aucune charge enregistrée"
+            emptyAction={
+              <Link to="/balance" className="ac-dash-link ac-hbar-empty-cta">
+                Ajouter une dépense →
+              </Link>
+            }
+          />
+        </div>
       </div>
 
       <div className="atlas-donut-wrap">
@@ -654,7 +668,10 @@ export default function Dashboard() {
           <h4>Répartition charges</h4>
           <p className="dd-sub">Top catégories</p>
           <DonutChart
-            segments={expenseCategories.slice(0, 5).map((c: { label: string; value: number }, i: number) => ({
+            segments={(expenseCategories.length
+              ? expenseCategories
+              : [{ label: 'Salaires', value: 0 }, { label: 'Loyer', value: 0 }]
+            ).slice(0, 5).map((c: { label: string; value: number }, i: number) => ({
               value: c.value,
               color: ['var(--ac-chart-blue, #2563eb)', 'var(--ac-chart-sky, #0ea5e9)', 'var(--ac-chart-amber-bright, #f59e0b)', 'var(--ac-chart-red, #ef4444)', 'var(--ac-chart-slate, #64748b)'][i % 5],
               label: c.label,
