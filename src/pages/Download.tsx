@@ -24,6 +24,14 @@ type Manifest = {
   buildDate?: string;
   notes?: string;
   mandatory?: boolean;
+  sha256?: string | null;
+  sizeBytes?: number | null;
+};
+
+const fmtSize = (bytes: number | null | undefined): string => {
+  if (!bytes || !Number.isFinite(bytes)) return '—';
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} Ko`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
 };
 
 type GhRelease = {
@@ -183,6 +191,7 @@ export default function Download() {
           { href: '#versions', label: 'Versions' },
           { href: '/desktop', label: 'Bureau' },
           { href: '/whats-new', label: 'Nouveautés' },
+          { href: '/support', label: 'Support' },
         ]}
         cta={<PublicSessionCta />}
         classic
@@ -219,9 +228,9 @@ export default function Download() {
             <div className="dl-ed-heading"><p className="dl-ed-kicker">01 / TÉLÉCHARGER</p><h2 id="android-download-title">Android</h2><p>Retrouvez la dernière APK officielle et les informations de version.</p><a href={ANDROID_REPO} target="_blank" rel="noopener noreferrer">Dépôt Android ↗</a></div>
             <div className="dl-ed-content">
               <div className="dl-ed-platforms" aria-label="Plateforme"><span className="dl-ed-platform-active">Android</span><Link to="/desktop">Bureau</Link></div>
-              <div className="dl-ed-download-row"><div><strong>Application Android</strong><span>{m?.versionName ? `Version ${m.versionName}` : 'Version indisponible'} · APK</span></div>{apkHref ? <a href={apkHref} target="_blank" rel="noopener noreferrer">Télécharger ↗</a> : <span>{state === 'loading' ? 'Chargement…' : 'Indisponible'}</span>}</div>
-              <div className="dl-stats" aria-label="Informations de version"><div className="dl-stat"><strong>{m?.versionName ? `v${m.versionName}` : '—'}</strong><span>Version</span></div><div className="dl-stat"><strong>{m?.versionCode ? `#${m.versionCode}` : '—'}</strong><span>Build</span></div><div className="dl-stat"><strong>{manifestPublished || '—'}</strong><span>Publication de l’APK</span></div></div>
-              <p className="dl-ed-hint">{m?.buildDate && <>Build : {m.buildDate} · </>}Installez uniquement l’APK obtenue depuis la page ou le dépôt officiel.</p>
+              <div className="dl-ed-download-row"><div><strong>Application Android</strong><span>{m?.versionName ? `Version ${m.versionName}` : 'Version indisponible'} · APK{m?.sizeBytes ? ` · ${fmtSize(m.sizeBytes)}` : ''}</span></div>{apkHref ? <a href={apkHref} target="_blank" rel="noopener noreferrer">Télécharger ↗</a> : <span>{state === 'loading' ? 'Chargement…' : 'Indisponible'}</span>}</div>
+              <div className="dl-stats" aria-label="Informations de version"><div className="dl-stat"><strong>{m?.versionName ? `v${m.versionName}` : '—'}</strong><span>Version</span></div><div className="dl-stat"><strong>{m?.versionCode ? `#${m.versionCode}` : '—'}</strong><span>Build</span></div><div className="dl-stat"><strong>{m?.sizeBytes ? fmtSize(m.sizeBytes) : (manifestPublished || '—')}</strong><span>{m?.sizeBytes ? 'Taille APK' : 'Publication de l’APK'}</span></div></div>
+              <p className="dl-ed-hint">{manifestPublished && <>Publiée le {manifestPublished} · </>}{m?.buildDate && <>Build : {m.buildDate} · </>}{m?.sha256 ? <>SHA-256 : <code>{String(m.sha256).slice(0, 16)}…</code> · </> : null}Installez uniquement l’APK obtenue depuis la page ou le dépôt officiel.</p>
             </div>
           </div>
         </section>
@@ -249,6 +258,7 @@ export default function Download() {
           </div>
           <nav aria-label="Liens produit">
             <Link to="/whats-new">Nouveautés</Link>
+            <Link to="/support">Support</Link>
             <Link to="/about">À propos</Link>
             <Link to="/privacy">Confidentialité</Link>
             <Link to="/terms">Conditions</Link> · <Link to="/licenses">Licences</Link>

@@ -26,9 +26,17 @@ type CdnAsset = {
   platform: 'windows' | 'macos' | 'linux';
   arch?: string;
   kind?: string;
+  filename?: string;
   downloadUrl: string;
   latestUrl?: string | null;
   sha256?: string | null;
+  sizeBytes?: number | null;
+};
+
+const fmtSize = (bytes: number | null | undefined): string => {
+  if (!bytes || !Number.isFinite(bytes)) return '—';
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} Ko`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
 };
 
 type CdnDesktopInfo = {
@@ -86,10 +94,10 @@ const OS_LABEL: Record<OsKey, string> = {
 const FEATURES: { title: string; text: string }[] = [
   { title: 'Sensation native', text: 'Fenêtre dédiée, raccourcis clavier, impression système et notifications du poste — comme une app métier classique.' },
   { title: 'Même compte, mêmes données', text: 'Connexion OTP / QR identique au web : le bureau retrouve dépôts, caisse, factures et rapports à l’ouverture.' },
-  { title: 'Trois systèmes', text: 'Installateurs Windows (.msi / .exe), image macOS universelle (.dmg) et AppImage Linux (x86_64 & aarch64).' },
-  { title: 'Mises à jour via Releases', text: 'Les binaires sont publiés par GitHub Actions sur GitHub Releases — aucun store, aucune télémétrie.' },
+  { title: 'Trois systèmes', text: 'Installateurs Windows (.exe / .msi), image macOS universelle (.dmg) et AppImage Linux (x86_64 & arm64 + zsync).' },
+  { title: 'Mises à jour via CDN1 & Releases', text: 'Les binaires sont vérifiés par SHA-256 et distribués sur CDN1 et GitHub Releases — aucun store, aucune télémétrie.' },
   { title: 'Pensé pour le comptoir', text: 'Caisse rapide au clavier, douchette code-barres USB et ticket thermique branché au poste.' },
-  { title: 'Open source MIT', text: 'Code public (Rust / Tauri) : forkez, auditez, empaquetez pour votre distribution.' },
+  { title: 'Open source · Rust natif', text: 'Code public en Rust natif : forkez, auditez ou compilez pour Windows, macOS et Linux.' },
 ];
 
 /* ── Mini-rendu Markdown sûr : escape HTML d'abord, puis titres, listes,
@@ -263,6 +271,7 @@ export default function Desktop() {
           { href: '#apercu', label: 'Aperçu' },
           { href: '#assets', label: 'Téléchargements' },
           { href: '/whats-new', label: 'Nouveautés' },
+          { href: '/support', label: 'Support' },
         ]}
         cta={<PublicSessionCta />}
         classic
@@ -271,11 +280,27 @@ export default function Desktop() {
       <main className="dl-ed-main">
         <section className="dl-hero dl-ed-hero">
           <div className="dl-container">
-            <a className="dl-ed-release-badge" href="#versions"><span aria-hidden="true" />{latest?.tag_name ? `Version bureau · ${latest.tag_name}` : 'Versions bureau'} <b aria-hidden="true">↗</b></a>
+            <a className="dl-ed-release-badge" href="#versions"><span aria-hidden="true" />{cdnDesktop?.version ? `Version bureau · v${cdnDesktop.version}` : latest?.tag_name ? `Version bureau · ${latest.tag_name}` : 'Versions bureau'} <b aria-hidden="true">↗</b></a>
             <div className="dl-ed-hero-grid">
               <div className="dl-hero-content">
                 <h1 className="dl-h1 dl-ed-title"><span className="dl-ed-title-first">Atlas Commerce</span>{' '}<span className="dl-ed-title-second">pour bureau.</span></h1>
-                <p className="dl-desc">Votre espace de gestion dans une fenêtre dédiée, pour Windows, macOS et Linux.</p>
+                <p className="dl-desc">Votre espace de gestion natif pour Windows, macOS et Linux — caisse, stock et facturation au comptoir.</p>
+                <div className="dl-ed-platforms" role="group" aria-label="Système cible" style={{ marginBottom: 14 }}>
+                  {(['windows', 'macos', 'linux'] as const).map((k) => (
+                    <button
+                      key={k}
+                      type="button"
+                      className="secondary"
+                      aria-pressed={os === k}
+                      onClick={() => {
+                        setOs(k);
+                        setAssetFilter(k);
+                      }}
+                    >
+                      {OS_LABEL[k]}
+                    </button>
+                  ))}
+                </div>
                 <div className="dl-ctas">
                   {primaryHref ? <a className="dl-cta-main" href={primaryHref} target="_blank" rel="noopener noreferrer"><span className="dl-cta-arrow" aria-hidden="true">↓</span> &nbsp; Télécharger pour {OS_LABEL[os]}</a> : state === 'error' ? <span className="dl-cta-main dl-cta-wait" aria-disabled="true">Releases injoignables</span> : state === 'ok' ? <span className="dl-cta-main dl-cta-wait" aria-disabled="true">Aucun binaire pour {OS_LABEL[os]}</span> : <span className="dl-cta-main dl-cta-wait" aria-disabled="true">Chargement…</span>}
                   <a className="dl-cta-ghost" href="#assets">Autres fichiers <span className="dl-cta-arrow" aria-hidden="true">↓</span></a>
@@ -283,6 +308,7 @@ export default function Desktop() {
                 {cdnOsAsset && cdnDesktop && (
                   <p style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 8 }}>
                     Miroir CDN1 {OS_LABEL[os]} · v{cdnDesktop.version}
+                    {cdnOsAsset.sizeBytes ? ` · ${fmtSize(cdnOsAsset.sizeBytes)}` : ''}
                     {cdnOsAsset.sha256 ? ` · SHA-256 ${cdnOsAsset.sha256.slice(0, 12)}…` : ''}
                   </p>
                 )}
@@ -308,8 +334,8 @@ export default function Desktop() {
                 {([['all', 'Tous'], ['windows', 'Windows'], ['macos', 'macOS'], ['linux', 'Linux']] as const).map(([value, label]) => <button key={value} type="button" className="secondary" aria-pressed={assetFilter === value} onClick={() => setAssetFilter(value)}>{label}</button>)}
               </div>
               <div className="dl-ed-files" aria-live="polite">{visibleAssets.map((asset, i) => <div className="dl-ed-download-row" key={String(asset.name || i)}><div><strong>{String(asset.name || 'Fichier')}</strong><span>{/\.msi$|\.exe$/i.test(String(asset.name || '')) ? 'Windows' : /\.dmg$/i.test(String(asset.name || '')) ? 'macOS' : /appimage|linux|\.deb$|\.rpm$/i.test(String(asset.name || '')) ? 'Linux' : 'Autre fichier'}</span></div>{asset.browser_download_url && <a href={asset.browser_download_url} target="_blank" rel="noopener noreferrer">Télécharger ↗</a>}</div>)}{visibleAssets.length === 0 && <p className="dl-ed-hint">{state === 'load' ? 'Chargement des fichiers…' : 'Aucun fichier disponible pour cette sélection.'}</p>}</div>
-              <div className="dl-stats" aria-label="Informations de version"><div className="dl-stat"><strong>{latest?.tag_name || '—'}</strong><span>Version</span></div><div className="dl-stat"><strong>{relDate || '—'}</strong><span>Publiée le</span></div><div className="dl-stat"><strong>{latest ? (latest.assets?.length ?? 0) : '—'}</strong><span>Fichiers</span></div></div>
-              <p className="dl-ed-hint">Windows : .msi / .exe · macOS : .dmg · Linux : AppImage. Consultez la release pour les autres fichiers.</p>
+              <div className="dl-stats" aria-label="Informations de version"><div className="dl-stat"><strong>{cdnDesktop?.version ? `v${cdnDesktop.version}` : (latest?.tag_name || '—')}</strong><span>Version</span></div><div className="dl-stat"><strong>{relDate || publicationDate(cdnDesktop?.publishedAt ?? undefined) || '—'}</strong><span>Publiée le</span></div><div className="dl-stat"><strong>{cdnOsAsset?.sizeBytes ? fmtSize(cdnOsAsset.sizeBytes) : (latest ? (latest.assets?.length ?? 0) : '—')}</strong><span>{cdnOsAsset?.sizeBytes ? `Taille (${OS_LABEL[os]})` : 'Fichiers'}</span></div></div>
+              <p className="dl-ed-hint">Windows : .exe / .msi · macOS : .dmg · Linux : AppImage (.zsync / .tar.gz). Vérification SHA-256 automatique via CDN1.</p>
             </div>
           </div>
         </section>

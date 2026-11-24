@@ -16,6 +16,7 @@ const NAV: NavLink[] = [
   { href: '#features', label: 'Fonctionnalités' },
   { href: '#plateformes', label: 'Plateformes' },
   { href: '/whats-new', label: 'Nouveautés' },
+  { href: '/support', label: 'Support' },
   { href: '/about', label: 'À propos' },
 ];
 
@@ -280,8 +281,8 @@ export default function Home() {
               <div className="dl-ico">{IC_DESK}</div>
               <h3>Atlas Desktop</h3>
               <p>
-                Le client bureau Tauri (Windows, macOS, Linux) : fenêtre native, mises à jour
-                automatiques et impression directe.
+                Le client bureau natif en Rust (Windows, macOS, Linux) : fenêtre dédiée, coffre
+                système et mises à jour vérifiées via CDN1.
               </p>
               <a className="dl-link dl-chip" href="https://github.com/Etherealmber/atlas-commerce-desktop" target="_blank" rel="noreferrer noopener">
                 Voir le dépôt →
@@ -333,9 +334,10 @@ export default function Home() {
             <details>
               <summary>Comment se passent les mises à jour ?<i aria-hidden="true" /></summary>
               <p>
-                Le web se met à jour tout seul. L’application bureau embarque son propre
-                updater ; sur Android, la dernière version signée est toujours sur{' '}
-                <a href="/android">la page de téléchargement</a>.
+                Le web se met à jour automatiquement. L’application bureau (Windows, macOS et Linux)
+                et l’application Android vérifient leurs manifestes signés sur CDN1, et les
+                installateurs officiels restent accessibles sur{' '}
+                <a href="/desktop">la page Bureau</a> et <a href="/android">la page Android</a>.
               </p>
             </details>
           </div>

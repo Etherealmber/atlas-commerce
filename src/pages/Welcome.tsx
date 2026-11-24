@@ -825,7 +825,7 @@ export default function Welcome() {
                 </a>
                 <a className="welcome-project-card" href="https://github.com/Etherealmber/atlas-commerce-desktop" target="_blank" rel="noreferrer">
                   <strong>atlas-commerce-desktop</strong>
-                  <span>Client bureau Tauri</span>
+                  <span>Client bureau natif (Rust)</span>
                 </a>
               </div>
             </div>
