@@ -17,7 +17,7 @@ export async function downloadExport(path: string, filename: string) {
       headers: {
         Authorization: `Bearer ${token}`,
         'X-Device-Fingerprint': fp,
-        Accept: 'text/csv, application/json',
+        Accept: 'application/zip, text/csv, application/json, */*',
       },
     });
   } catch {

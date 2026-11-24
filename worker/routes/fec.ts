@@ -5,6 +5,7 @@ import { schemaOnceForDb } from '../lib/schema';
 
 export interface FecRouteDeps {
   requireOwner: (c: any) => { ok: true; username: string; role?: string } | { ok: false; response: Response };
+  requireFecAccess?: (c: any) => { ok: true; username: string; role?: string } | { ok: false; response: Response };
   writeAudit: (
     db: D1Database,
     entry: { username?: string; role?: string; action: string; entity?: string; entity_id?: string; detail?: string; ip?: string },
@@ -525,10 +526,11 @@ function buildBalanceControlCsv(data: Awaited<ReturnType<typeof generateFecDatas
 }
 
 export function registerFecRoutes(app: Hono<any>, deps: FecRouteDeps): void {
-  const { requireOwner, writeAudit, clientIp } = deps;
+  const { requireOwner, requireFecAccess, writeAudit, clientIp } = deps;
+  const gateFec = requireFecAccess || requireOwner;
 
   app.get('/api/accounting/accounts', async (c) => {
-    const gate = requireOwner(c);
+    const gate = gateFec(c);
     if (!gate.ok) return gate.response;
     await ensureAccountingAccountsSchema(c.env.DB);
     const { results } = await c.env.DB.prepare(
@@ -538,7 +540,7 @@ export function registerFecRoutes(app: Hono<any>, deps: FecRouteDeps): void {
   });
 
   app.put('/api/accounting/accounts', async (c) => {
-    const gate = requireOwner(c);
+    const gate = gateFec(c);
     if (!gate.ok) return gate.response;
     await ensureAccountingAccountsSchema(c.env.DB);
     const body = await c.req.json().catch(() => ({}));
@@ -565,7 +567,7 @@ export function registerFecRoutes(app: Hono<any>, deps: FecRouteDeps): void {
 
     await writeAudit(c.env.DB, {
       username: gate.username,
-      role: 'owner',
+      role: gate.role || 'owner',
       action: 'accounting.accounts_update',
       entity: 'accounting_accounts',
       entity_id: 'pcge',
@@ -580,7 +582,7 @@ export function registerFecRoutes(app: Hono<any>, deps: FecRouteDeps): void {
   });
 
   app.get('/api/accounting/fec/preview', async (c) => {
-    const gate = requireOwner(c);
+    const gate = gateFec(c);
     if (!gate.ok) return gate.response;
     const today = new Date().toISOString().slice(0, 10);
     const from = String(c.req.query('from') || `${today.slice(0, 4)}-01-01`).slice(0, 10);
@@ -604,7 +606,7 @@ export function registerFecRoutes(app: Hono<any>, deps: FecRouteDeps): void {
   });
 
   app.get('/api/accounting/fec/export', async (c) => {
-    const gate = requireOwner(c);
+    const gate = gateFec(c);
     if (!gate.ok) return gate.response;
     const today = new Date().toISOString().slice(0, 10);
     const from = String(c.req.query('from') || `${today.slice(0, 4)}-01-01`).slice(0, 10);
@@ -643,7 +645,7 @@ export function registerFecRoutes(app: Hono<any>, deps: FecRouteDeps): void {
 
     await writeAudit(c.env.DB, {
       username: gate.username,
-      role: 'owner',
+      role: gate.role || 'owner',
       action: 'accounting.fec_export',
       entity: 'accounting',
       entity_id: `${from}_${to}`,

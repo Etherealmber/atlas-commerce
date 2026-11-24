@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { whatsAppDraft } from '../lib/assist';
 import { useParams, Link, Navigate, useNavigate } from 'react-router-dom';
 import { api, BASE } from '../api';
-import { getToken, isOwnerRole } from '../auth';
+import { canOfficeWork, getToken } from '../auth';
 import { statusFr, statusBadgeClass } from '../lib/labels';
 import { fmtMoney, paymentMethodLabel, remainingBalance } from '../lib/money';
 import { useUi } from '../components/AppDialogs';
@@ -451,7 +451,7 @@ export default function InvoiceDetail() {
                 Réessayer
               </button>
             )}
-            {isOwnerRole() && (dgiState?.has_xml || dgiState?.r2_xml_key) && (
+            {canOfficeWork() && (dgiState?.has_xml || dgiState?.r2_xml_key) && (
               <button
                 type="button"
                 className="secondary"

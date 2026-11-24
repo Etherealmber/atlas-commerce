@@ -267,7 +267,7 @@ export function registerDashboardIntegrityRoutes(app: Hono<any>, deps: Dashboard
   });
   
   app.put('/api/fiscal/period-lock', async (c) => {
-    const gate = requireOwner(c);
+    const gate = requireBizMutator(c);
     if (!gate.ok) return gate.response;
     await ensurePeriodLockColumn(c.env.DB);
     const body = await c.req.json().catch(() => ({}));

@@ -138,4 +138,109 @@ describe('Part 5 — FEC-style accounting export', () => {
     const audits = sqlite.prepare(`SELECT action FROM audit_log WHERE entity = 'accounting'`).all() as any[];
     expect(audits.map((a) => a.action)).toContain('accounting.fec_export');
   });
+
+  it('allows owner, admin, and secretaire on real worker FEC export (Bearer & ?token=), period-lock, and reports while keeping admin settings locked', async () => {
+    const { default: realApp } = await import('../index');
+    const sqlite = new DatabaseSync(':memory:');
+    sqlite.exec(`
+      CREATE TABLE app_users (id INTEGER PRIMARY KEY, username TEXT UNIQUE, password_hash TEXT, password_salt TEXT DEFAULT '', role TEXT, active INTEGER DEFAULT 1, created_at TEXT);
+      INSERT INTO app_users VALUES (1,'alice','secret-alice','','admin',1,'2026-01-01'), (2,'sara','secret-sara','','secretaire',1,'2026-01-01'), (3,'bob','secret-bob','','stock',1,'2026-01-01');
+      CREATE TABLE audit_log (id INTEGER PRIMARY KEY AUTOINCREMENT, created_at TEXT DEFAULT (datetime('now')), username TEXT, role TEXT, action TEXT, entity TEXT, entity_id TEXT, detail TEXT, ip TEXT);
+      CREATE TABLE company_settings (id INTEGER PRIMARY KEY, company_name TEXT, ice TEXT, if_number TEXT, rc TEXT, currency TEXT, finance_timezone TEXT, fiscal_locked_through TEXT DEFAULT '');
+      INSERT INTO company_settings (id, company_name, ice, if_number, currency, finance_timezone) VALUES (1, 'Atlas Marbre', '001234567000089', '40123456', 'MAD', 'UTC');
+      CREATE TABLE clients (id INTEGER PRIMARY KEY, name TEXT);
+      CREATE TABLE vendors (id INTEGER PRIMARY KEY, name TEXT);
+      CREATE TABLE invoices (id INTEGER PRIMARY KEY, number TEXT, invoice_number TEXT, client_name TEXT, issue_date TEXT, due_date TEXT, subtotal REAL, tax_amount REAL, total REAL, amount_paid REAL, status TEXT, doc_kind TEXT, client_id INTEGER, created_at TEXT);
+      CREATE TABLE bills (id INTEGER PRIMARY KEY, number TEXT, bill_number TEXT, vendor_name TEXT, issue_date TEXT, due_date TEXT, subtotal REAL, tax_amount REAL, total REAL, amount_paid REAL, status TEXT, vendor_id INTEGER, created_at TEXT);
+      CREATE TABLE invoice_payments (id INTEGER PRIMARY KEY, invoice_id INTEGER, amount REAL, payment_method TEXT, paid_at TEXT, reference TEXT, created_at TEXT);
+      CREATE TABLE expenses (id INTEGER PRIMARY KEY, entry_type TEXT, amount REAL, payment_method TEXT, reference TEXT, description TEXT, expense_date TEXT, created_at TEXT);
+      CREATE TABLE payroll_runs (id INTEGER PRIMARY KEY, period_month TEXT);
+      CREATE TABLE payroll_lines (id INTEGER PRIMARY KEY, run_id INTEGER, gross_salary REAL, cnss_emp REAL, amo_emp REAL, cnss_employer REAL, amo_employer REAL, igr REAL, net_salary REAL, advances_deducted REAL);
+    `);
+
+    const db = makeSqliteD1(sqlite);
+    const env = { DB: db, ADMIN_PASSWORD: 'OwnerPass123!', JWT_SECRET: 'fec-test-secret' } as any;
+    const ip = '203.0.113.55';
+    const makeTok = async (user: string, role: string) => {
+      const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`proof|${user}|${role}|secret-${user}|${ip}|none`));
+      const proof = [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, '0')).join('');
+      return btoa(`stock-auth-v2|${user}|${role}|${ip}|none|${proof}`);
+    };
+    const adminTok = await makeTok('alice', 'admin');
+    const secTok = await makeTok('sara', 'secretaire');
+    const stockTok = await makeTok('bob', 'stock');
+
+    for (const tok of [adminTok, secTok]) {
+      const prev = await realApp.fetch(
+        new Request('http://test.local/api/accounting/fec/preview?from=2026-01-01&to=2026-11-25', {
+          headers: { Authorization: `Bearer ${tok}`, 'CF-Connecting-IP': ip },
+        }),
+        env,
+        {} as any,
+      );
+      expect(prev.status).toBe(200);
+
+      const expBearer = await realApp.fetch(
+        new Request('http://test.local/api/accounting/fec/export?from=2026-01-01&to=2026-11-25', {
+          headers: { Authorization: `Bearer ${tok}`, 'CF-Connecting-IP': ip },
+        }),
+        env,
+        {} as any,
+      );
+      expect(expBearer.status).toBe(200);
+      expect(expBearer.headers.get('Content-Type')).toBe('application/zip');
+
+      const expQuery = await realApp.fetch(
+        new Request(`http://test.local/api/accounting/fec/export?from=2026-01-01&to=2026-11-25&token=${encodeURIComponent(tok)}`, {
+          headers: { 'CF-Connecting-IP': ip },
+        }),
+        env,
+        {} as any,
+      );
+      expect(expQuery.status).toBe(200);
+      expect(expQuery.headers.get('Content-Type')).toBe('application/zip');
+
+      const aging = await realApp.fetch(
+        new Request('http://test.local/api/reports/aging', {
+          headers: { Authorization: `Bearer ${tok}`, 'CF-Connecting-IP': ip },
+        }),
+        env,
+        {} as any,
+      );
+      expect(aging.status).toBe(200);
+
+      const lock = await realApp.fetch(
+        new Request('http://test.local/api/fiscal/period-lock', {
+          method: 'PUT',
+          headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json', 'CF-Connecting-IP': ip },
+          body: JSON.stringify({ fiscal_locked_through: '2026-10' }),
+        }),
+        env,
+        {} as any,
+      );
+      expect(lock.status).toBe(200);
+    }
+
+    // Secretaire still cannot touch admin settings
+    const secAdmin = await realApp.fetch(
+      new Request('http://test.local/api/admin/users', {
+        headers: { Authorization: `Bearer ${secTok}`, 'CF-Connecting-IP': ip },
+      }),
+      env,
+      {} as any,
+    );
+    expect(secAdmin.status).toBe(403);
+
+    // Stock still cannot export FEC
+    const stockFec = await realApp.fetch(
+      new Request('http://test.local/api/accounting/fec/export?from=2026-01-01&to=2026-11-25', {
+        headers: { Authorization: `Bearer ${stockTok}`, 'CF-Connecting-IP': ip },
+      }),
+      env,
+      {} as any,
+    );
+    expect(stockFec.status).toBe(403);
+
+    sqlite.close();
+  });
 });

@@ -19,7 +19,7 @@ import { friendlyError } from '../lib/errors';
 import { downloadExport } from '../lib/export';
 import { RunActionButton, EXPORT_REPORT_STEPS } from '../components/ui';
 import { draftReorderMessage, demandHint } from '../lib/assist';
-import { canAccessCompanySettings, getRole, getToken } from '../auth';
+import { canAccessCompanySettings, getRole } from '../auth';
 import RefreshIconButton from '../components/RefreshIconButton';
 
 const fmt = (n: number) => Math.round(Number(n || 0)).toLocaleString('fr-FR');
@@ -67,7 +67,6 @@ export default function Reports() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const isOwner = getRole() === 'owner' || canAccessCompanySettings();
-  const isStrictOwner = getRole() === 'owner';
   const [fecPreview, setFecPreview] = useState<any>(null);
   const [fecBusy, setFecBusy] = useState(false);
 
@@ -626,12 +625,12 @@ export default function Reports() {
                 Journaux VE (ventes), AC (achats), CA (caisse), BQ (banque), PA (paie), OD · balance de contrôle + manifeste (.zip).
               </span>
             </div>
-            <span className="ac-status-pill">Propriétaire</span>
+            <span className="ac-status-pill">Admin · Secrétaire</span>
           </div>
           <p className="muted" style={{ fontSize: 12.5, marginTop: 0 }}>
             Extrait comptable au format FEC à destination de votre expert-comptable — non certifié légalement tant qu’il n’est pas validé par votre comptable.
           </p>
-          {isStrictOwner ? (
+          {isOwner ? (
             <>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
                 <button
@@ -656,12 +655,16 @@ export default function Reports() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    const f = from || `${new Date().getFullYear()}-01-01`;
-                    const t = to || toLocalYMD(new Date());
-                    const token = getToken();
-                    const url = api.fecExportUrl(f, t);
-                    window.open(token ? `${url}&token=${encodeURIComponent(token)}` : url, '_blank', 'noopener');
+                  disabled={fecBusy}
+                  onClick={async () => {
+                    setFecBusy(true);
+                    try {
+                      const f = from || `${new Date().getFullYear()}-01-01`;
+                      const t = to || toLocalYMD(new Date());
+                      await downloadExport(api.fecExportUrl(f, t), `FEC_${f}_${t}.zip`);
+                    } finally {
+                      setFecBusy(false);
+                    }
                   }}
                 >
                   Télécharger l’archive FEC (.zip)
@@ -678,7 +681,7 @@ export default function Reports() {
               )}
             </>
           ) : (
-            <p className="muted" style={{ fontSize: 13, margin: 0 }}>Réservé au propriétaire (owner).</p>
+            <p className="muted" style={{ fontSize: 13, margin: 0 }}>Lecture seule — réservé aux rôles administrateur ou secrétaire.</p>
           )}
         </section>
         </div>

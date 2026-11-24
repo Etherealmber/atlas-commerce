@@ -10,7 +10,7 @@ export const REPORT_TICKET_PATHS = new Set([
   '/api/reports/employee-blank-form', '/api/reports/cogs',
 ]);
 
-export type ReportTicketIdentity = { username: string; role: 'owner' | 'admin'; userId: number | null; tenant: string };
+export type ReportTicketIdentity = { username: string; role: 'owner' | 'admin' | 'secretaire'; userId: number | null; tenant: string };
 export type ReportTicketEnvironment = { DB: D1Database; JWT_SECRET?: string; ADMIN_PASSWORD?: string; REPORT_TICKET_TTL_SECONDS?: string };
 const encoder = new TextEncoder();
 const encode = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -37,9 +37,9 @@ async function keyFor(env: ReportTicketEnvironment, identity: ReportTicketIdenti
     if (identity.userId !== null || identity.username !== ownerUsername || !env.ADMIN_PASSWORD) return null;
     material = env.ADMIN_PASSWORD;
   } else {
-    if (identity.role !== 'admin' || !Number.isSafeInteger(identity.userId) || !identity.userId || identity.userId <= 0) return null;
+    if ((identity.role !== 'admin' && identity.role !== 'secretaire') || !Number.isSafeInteger(identity.userId) || !identity.userId || identity.userId <= 0) return null;
     const row = await env.DB.prepare('SELECT id, role, password_hash FROM app_users WHERE username = ? AND active = 1').bind(identity.username).first() as { id: number; role: string; password_hash: string } | null;
-    if (!row || row.id !== identity.userId || row.role !== 'admin' || !row.password_hash) return null;
+    if (!row || row.id !== identity.userId || row.role !== identity.role || !row.password_hash) return null;
     material = row.password_hash;
   }
   // Binding the MAC key to current account material revokes the ticket on password change.
@@ -62,7 +62,7 @@ export async function verifyScopedReportTicket(env: ReportTicketEnvironment, tic
     const [payload, signature] = ticket.split('.');
     const value = JSON.parse(new TextDecoder().decode(decode(payload)));
     if (!value || value.v !== 2 || typeof value.username !== 'string' || !value.username || value.username !== value.username.toLowerCase() || value.username.length > 80 ||
-        !Number.isSafeInteger(value.exp) || (value.role !== 'owner' && value.role !== 'admin') || value.tenant !== FINANCE_TENANT) return 'invalid';
+        !Number.isSafeInteger(value.exp) || (value.role !== 'owner' && value.role !== 'admin' && value.role !== 'secretaire') || value.tenant !== FINANCE_TENANT) return 'invalid';
     const key = await keyFor(env, value, ownerUsername);
     if (!key || !(await crypto.subtle.verify('HMAC', key, new Uint8Array(decode(signature)), encoder.encode(payload)))) return 'invalid';
     const current = Math.floor(now / 1000);
@@ -92,7 +92,7 @@ export async function verifyScopedPrintTicket(env: ReportTicketEnvironment, tick
     const [payload, signature] = ticket.split('.');
     const value = JSON.parse(new TextDecoder().decode(decode(payload)));
     if (!value || value.v !== 2 || value.purpose !== 'print' || typeof value.username !== 'string' || !value.username || value.username !== value.username.toLowerCase() || value.username.length > 80 ||
-      !Number.isSafeInteger(value.exp) || (value.role !== 'owner' && value.role !== 'admin') || value.tenant !== FINANCE_TENANT || typeof value.fingerprint !== 'string' || !value.fingerprint || value.fingerprint.length > 128) return false;
+      !Number.isSafeInteger(value.exp) || (value.role !== 'owner' && value.role !== 'admin' && value.role !== 'secretaire') || value.tenant !== FINANCE_TENANT || typeof value.fingerprint !== 'string' || !value.fingerprint || value.fingerprint.length > 128) return false;
     const key = await keyFor(env, value, ownerUsername, 'atlas-print-v2');
     if (!key || !(await crypto.subtle.verify('HMAC', key, new Uint8Array(decode(signature)), encoder.encode(payload)))) return false;
     if (value.fingerprint !== 'none') {

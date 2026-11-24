@@ -436,9 +436,9 @@ export function registerDgiRoutes(app: Hono<any>, deps: DgiRouteDeps): void {
     return executeDgiSubmit(c, id, gate.username);
   });
 
-  // Owner-only download of 10-year R2 archived XML / PDF
+  // Download of 10-year R2 archived XML / PDF (owner, admin, secretaire)
   app.get('/api/invoices/:id/dgi/archive', async (c) => {
-    const gate = requireOwner(c);
+    const gate = requireBizMutator(c);
     if (!gate.ok) return gate.response;
     await ensureDgiSchema(c.env.DB);
     const id = Number(c.req.param('id') || 0);
