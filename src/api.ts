@@ -49,7 +49,6 @@ async function requestRaw<T>(path: string, options?: RequestInit & { silent?: bo
   const isIdempotentGet = method === 'GET' || method === 'HEAD';
   const maxAttempts = isIdempotentGet ? 3 : 1;
   let res: Response | null = null;
-  let lastNetErr: unknown = null;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
       res = await fetch(`${getApiBase()}${path}`, { ...options, headers });
@@ -75,18 +74,16 @@ async function requestRaw<T>(path: string, options?: RequestInit & { silent?: bo
         await new Promise((r) => setTimeout(r, 250 * 2 ** attempt));
         continue;
       }
-      lastNetErr = null;
       break;
     } catch (e) {
       if ((e as any)?.roleRefreshFailure) throw e;
-      lastNetErr = e;
       if (isIdempotentGet && attempt < maxAttempts - 1) {
         await new Promise((r) => setTimeout(r, 250 * 2 ** attempt));
         continue;
       }
       const msg = 'Pas de connexion réseau — vérifiez internet ou réessayez';
       try { uiToast(msg, 'error'); } catch { /* */ }
-      throw new Error(msg);
+      throw new Error(msg, { cause: e });
     }
   }
   if (!res) {
@@ -725,9 +722,6 @@ export const api = {
   exportMonthPack: (month: string, format: 'json' | 'csv' = 'json') => {
     const qs = new URLSearchParams({ month, format });
     return (async () => {
-      const { getToken } = await import('./auth');
-      const { getApiBase } = await import('./config');
-      const { getCachedFingerprint } = await import('./fingerprint');
       const token = getToken();
       const fp = await getCachedFingerprint();
       const res = await fetch(`${getApiBase()}/api/export/month-pack?${qs}`, {
@@ -1028,8 +1022,6 @@ export const api = {
     }
     // CSV: return blob download via fetch with auth
     return (async () => {
-      const { getToken } = await import('./auth');
-      const { getApiBase } = await import('./config');
       const token = getToken();
       const res = await fetch(`${getApiBase()}/api/admin/audit/export?${qs}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},

@@ -138,9 +138,6 @@ export function getDeviceLabel(): string {
   }
   // Windows
   if (/Windows NT 10\.0/i.test(ua)) {
-    // Win 11 often still reports NT 10.0 — refine via userAgentData if available
-    const uaData = (navigator as any).userAgentData;
-    const isWin11 = uaData?.platform === 'Windows' && uaData?.getHighEntropyValues;
     return 'PC Windows · Windows 10/11';
   }
   if (/Windows NT 6\.3/i.test(ua)) return 'PC Windows · Windows 8.1';

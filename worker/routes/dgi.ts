@@ -102,7 +102,7 @@ async function recordDgiEvent(
 }
 
 export function registerDgiRoutes(app: Hono<any>, deps: DgiRouteDeps): void {
-  const { requireBizMutator, requireOwner, writeAudit, clientIp } = deps;
+  const { requireBizMutator, writeAudit, clientIp } = deps;
 
   app.get('/api/invoices/:id/dgi', async (c) => {
     const gate = requireBizMutator(c);

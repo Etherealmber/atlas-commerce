@@ -1,5 +1,4 @@
 import type { AtlasApp } from './types';
-import type { Env } from '../env';
 import { APP_BUILD_DATE, APP_CHANNEL, APP_VERSION } from '../../src/version';
 import { getWorkerFinanceHealthStats } from '../lib/financeCore';
 import { addColumnIfMissing } from '../lib/schema';
@@ -10,12 +9,7 @@ import { normalizeProductImageReference } from '../lib/product-images';
 import { proactiveFtsHealth } from '../lib/reliability';
 import { afterBusinessMutation, listR2Prefix } from '../lib/delete-coord';
 import { purgeDeletedAccountFromBackups } from './backups';
-import {
-  cascadeDeleteInvoice,
-  ensurePaymentHistoryTable,
-  ensureReceiptsTable,
-  hmacSha256Hex,
-} from '../lib/ledgerHelpers';
+import { cascadeDeleteInvoice, ensurePaymentHistoryTable, ensureReceiptsTable } from '../lib/ledgerHelpers';
 
 export interface LedgerMiscDeps {
   WAF_STATS?: any;
@@ -507,7 +501,6 @@ export function registerProductRequestRoutes(app: AtlasApp, deps: LedgerMiscDeps
     productImageFailure,
     readProductImageJson,
     sessionUserFromHeader,
-    writeAudit,
   } = deps;
 
 /* ────────────────────────────────────────────────────────────────────────────

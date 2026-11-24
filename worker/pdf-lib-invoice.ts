@@ -66,7 +66,7 @@ function money(n: number) {
   return String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 }
 
-function amountInWordsFr(n: number, currency = 'MAD'): string {
+function amountInWordsFr(n: number, _currency = 'MAD'): string {
   const ones = ['zéro','un','deux','trois','quatre','cinq','six','sept','huit','neuf','dix','onze','douze','treize','quatorze','quinze','seize','dix-sept','dix-huit','dix-neuf'];
   const tens = ['','','vingt','trente','quarante','cinquante','soixante','soixante','quatre-vingt','quatre-vingt'];
   const under100 = (x: number): string => {
@@ -157,7 +157,6 @@ export async function buildInvoicePdfLib(input: PdfLibDocInput): Promise<Uint8Ar
 
   let page = pdf.addPage([PAGE_W, PAGE_H]);
   let y = PAGE_H - M;
-  let pageIndex = 0;
 
   const drawWatermark = (p: PDFPage) => {
     const text = wmText.slice(0, 24);
@@ -205,7 +204,6 @@ export async function buildInvoicePdfLib(input: PdfLibDocInput): Promise<Uint8Ar
 
   const ensureSpace = (need: number): void => {
     if (y - need < BOTTOM) {
-      pageIndex++;
       page = pdf.addPage([PAGE_W, PAGE_H]);
       y = PAGE_H - M;
       drawWatermark(page);
@@ -511,10 +509,7 @@ export async function buildInvoicePdfLib(input: PdfLibDocInput): Promise<Uint8Ar
     if (i === 0) drawWatermark(p); // already on first; continue pages got it in ensureSpace
     drawFooter(p, i, pages.length);
   });
-  // Ensure watermark on every page
-  for (const p of pages) {
-    // watermark already drawn when page created; re-draw is ok with opacity
-  }
+  // Watermark is already drawn on every page when the page is created.
 
   // PDF digital seal metadata (readable by PDF inspectors)
   const hash = input.integrityHash || '';

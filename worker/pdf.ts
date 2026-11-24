@@ -1,10 +1,3 @@
-/**
- * Lightweight PDF generator for Cloudflare Workers (no native deps).
- * Produces valid PDF 1.4 with Helvetica — suitable for invoices / receipts.
- * For richer HTML→PDF later: Cloudflare Browser Rendering or pdf-lib.
- */
-
-type RGB = [number, number, number];
 
 function esc(s: string): string {
   return String(s || '')
@@ -474,7 +467,7 @@ export function buildPayslipPdf(input: PayslipPdfInput): Uint8Array {
   const margin = 42;
   const lines: string[] = [];
   let y = H - margin;
-  const fmt2 = (n: number) => Number(n || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtAmount = (n: number) => Number(n || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const push = (cmd: string) => lines.push(cmd);
   const text = (str: string, x: number, yy: number, size = 10) => {
     push(`BT /F1 ${size} Tf ${x.toFixed(1)} ${yy.toFixed(1)} Td (${esc(str)}) Tj ET`);
@@ -530,49 +523,49 @@ export function buildPayslipPdf(input: PayslipPdfInput): Uint8Array {
   };
 
   const L = input.line;
-  row('Salaire de base', `${L.days_worked} j`, `${fmt2(L.base_salary)} MAD`, '');
+  row('Salaire de base', `${L.days_worked} j`, `${fmtAmount(L.base_salary)} MAD`, '');
   if (L.overtime_hours > 0 || L.overtime_amount > 0) {
-    row('Heures supplementaires', `${L.overtime_hours} h`, `${fmt2(L.overtime_amount)} MAD`, '');
+    row('Heures supplementaires', `${L.overtime_hours} h`, `${fmtAmount(L.overtime_amount)} MAD`, '');
   }
   if (L.attendance_adjustment !== 0) {
     const pos = L.attendance_adjustment > 0;
     row(
       'Ajustement presence / retard',
       `${L.late_minutes} min retard`,
-      pos ? `${fmt2(L.attendance_adjustment)} MAD` : '',
-      !pos ? `${fmt2(Math.abs(L.attendance_adjustment))} MAD` : '',
+      pos ? `${fmtAmount(L.attendance_adjustment)} MAD` : '',
+      !pos ? `${fmtAmount(Math.abs(L.attendance_adjustment))} MAD` : '',
     );
   }
   if (L.bonuses > 0) {
-    row('Primes & indemnites', '-', `${fmt2(L.bonuses)} MAD`, '');
+    row('Primes & indemnites', '-', `${fmtAmount(L.bonuses)} MAD`, '');
   }
   y -= 2;
   hline(margin, W - margin, y);
   y -= 14;
   bold('SALAIRE BRUT IMPOSABLE', margin, y, 9);
-  bold(`${fmt2(L.gross_salary)} MAD`, margin + 355, y, 9);
+  bold(`${fmtAmount(L.gross_salary)} MAD`, margin + 355, y, 9);
   y -= 16;
 
-  row('Cotisation CNSS salariale', `Base ${fmt2(L.cnss_base)}`, '', `${fmt2(L.cnss_emp)} MAD`);
-  row('Cotisation AMO salariale', `Base ${fmt2(L.gross_salary)}`, '', `${fmt2(L.amo_emp)} MAD`);
-  row('Frais professionnels (deduction)', `Net imp. ${fmt2(L.taxable_net)}`, `${fmt2(L.prof_expenses)} MAD`, '');
-  row('Impot sur le revenu (IGR / IR)', `Net imp. ${fmt2(L.taxable_net)}`, '', `${fmt2(L.igr)} MAD`);
+  row('Cotisation CNSS salariale', `Base ${fmtAmount(L.cnss_base)}`, '', `${fmtAmount(L.cnss_emp)} MAD`);
+  row('Cotisation AMO salariale', `Base ${fmtAmount(L.gross_salary)}`, '', `${fmtAmount(L.amo_emp)} MAD`);
+  row('Frais professionnels (deduction)', `Net imp. ${fmtAmount(L.taxable_net)}`, `${fmtAmount(L.prof_expenses)} MAD`, '');
+  row('Impot sur le revenu (IGR / IR)', `Net imp. ${fmtAmount(L.taxable_net)}`, '', `${fmtAmount(L.igr)} MAD`);
   if (L.advances_deducted > 0) {
-    row('Acomptes / avances deduits', '-', '', `${fmt2(L.advances_deducted)} MAD`);
+    row('Acomptes / avances deduits', '-', '', `${fmtAmount(L.advances_deducted)} MAD`);
   }
 
   y -= 4;
   hline(margin, W - margin, y);
   y -= 18;
   bold('NET A PAYER (MAD)', margin, y, 13);
-  bold(`${fmt2(L.net_salary)} MAD`, margin + 355, y, 13);
+  bold(`${fmtAmount(L.net_salary)} MAD`, margin + 355, y, 13);
   y -= 20;
   hline(margin, W - margin, y);
   y -= 16;
 
   bold('CHARGES PATRONALES (INFORMATION)', margin, y, 9);
   y -= 13;
-  text(`CNSS patronale: ${fmt2(L.cnss_employer)} MAD   |   AMO patronale: ${fmt2(L.amo_employer)} MAD   |   Cout total employeur: ${fmt2(L.employer_cost)} MAD`, margin, y, 9);
+  text(`CNSS patronale: ${fmtAmount(L.cnss_employer)} MAD   |   AMO patronale: ${fmtAmount(L.amo_employer)} MAD   |   Cout total employeur: ${fmtAmount(L.employer_cost)} MAD`, margin, y, 9);
   y -= 24;
 
   text('Bareme indicatif Maroc — a verifier avec votre comptable.', margin, 54, 8);

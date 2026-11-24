@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Hono } from 'hono';
 import { registerEmployeeRoutes } from '../routes/employees';
-import { verifyArchiveIdentity } from '../lib/finance-report-archive-validation';
 
 const SQLITE_MODULE = ['node:', 'sqlite'].join('');
 const { DatabaseSync } = await import(SQLITE_MODULE) as { DatabaseSync: new (path: string) => any };
@@ -68,12 +67,12 @@ describe('employee route security (single D1)', () => {
     const a = setup(), b = setup();
     for (const [instance, token] of [[a, 'admin:admin'], [b, 'owner:owner']] as const) {
       expect((await instance.request('/api/employees', 'POST', token, { name: 'Alice', emp_number: 'E1', tenant_id: 'other' })).status).toBe(201);
-      for (const [method, path] of routes.filter(([_, path]) => path.includes('/999'))) {
+      for (const [method, path] of routes.filter(([_, reqPath]) => reqPath.includes('/999'))) {
         expect((await instance.request(path, method, token)).status).toBe(404);
       }
     }
     expect((await a.request('/api/employees', 'POST', 'admin:admin', { name: 'Only A', emp_number: 'E2' })).status).toBe(201);
-    for (const [method, path] of routes.filter(([_, path]) => path.includes('/999'))) {
+    for (const [method, path] of routes.filter(([_, reqPath]) => reqPath.includes('/999'))) {
       expect((await b.request(path.replace('/999', '/2'), method, 'admin:admin', { tenant_id: 'a', role: 'owner' })).status).toBe(404);
     }
     expect(a.sqlite.prepare('SELECT name FROM employees WHERE id=2').get().name).toBe('Only A');

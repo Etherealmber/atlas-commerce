@@ -10,16 +10,7 @@ import { validateInvoiceWrite } from '../lib/validate';
 import { afterBusinessMutation } from '../lib/delete-coord';
 import { ensureStockLocations, getDefaultLocationId } from './inventoryOps';
 import { notifyPaymentRecorded } from '../lib/finance';
-import {
-  computeInvoiceLinesAndTotals,
-  computePaymentApplication,
-  computeRefundSplit,
-  getCurrencySpec,
-  roundCurrency,
-  roundDh,
-  sanitizeNonNegativeAmount,
-  sumMoneyAmounts,
-} from '../lib/financeCore';
+import { computeInvoiceLinesAndTotals, computePaymentApplication, computeRefundSplit, getCurrencySpec, roundCurrency, sanitizeNonNegativeAmount, sumMoneyAmounts } from '../lib/financeCore';
 
 export interface InvoicesWriteRouteDeps {
   requireBizMutator: (c: any) => any;
@@ -84,7 +75,6 @@ export function registerInvoicesWriteRoutes(app: Hono<any>, deps: InvoicesWriteR
     runAutoTransfers,
     archiveInvoiceSnapshot,
     assertPeriodOpen,
-    roundDh,
     moroccoTodayStr,
     makePublicToken,
     makeSecureQrPayload,
@@ -142,7 +132,6 @@ export function registerInvoicesWriteRoutes(app: Hono<any>, deps: InvoicesWriteR
       settings,
       c.env,
     );
-    const docKind = isQuote ? 'quote' : (isQuickSale ? 'quick_sale' : 'invoice');
 
     // Tax exempt: body flag OR client.tax_exempt OR vente rapide (jamais de TVA)
     let taxExempt = !!body.tax_exempt || isQuickSale;
@@ -357,7 +346,7 @@ export function registerInvoicesWriteRoutes(app: Hono<any>, deps: InvoicesWriteR
         await c.env.DB.prepare(
           `INSERT INTO invoice_items (invoice_id, product_id, product_name, sku, quantity, unit_price, tax_rate, line_total, list_price, discount_amount, discount_percent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         ).bind(invoiceId, item.product_id || null, item.product_name, item.sku || '', item.quantity, item.unit_price, item.tax_rate, item.line_total, item.list_price, item.discount_amount, item.discount_percent).run();
-      } catch (insErr) {
+      } catch {
         // Schema without promo columns — basic insert
         await c.env.DB.prepare(
           `INSERT INTO invoice_items (invoice_id, product_id, product_name, sku, quantity, unit_price, tax_rate, line_total) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
@@ -620,9 +609,7 @@ export function registerInvoicesWriteRoutes(app: Hono<any>, deps: InvoicesWriteR
 
         // restock default true; if false, disposition required
         const restock =
-          raw.restock === false || raw.restock === 0 || raw.restock === '0' || raw.restock === 'false'
-            ? false
-            : true;
+          !(raw.restock === false || raw.restock === 0 || raw.restock === '0' || raw.restock === 'false');
         const disposition = String(raw.disposition || raw.disposition_code || '').trim();
         if (!restock) {
           if (!disposition || !DISPOSITION_OK.has(disposition)) {
@@ -1115,7 +1102,7 @@ export function registerInvoicesWriteRoutes(app: Hono<any>, deps: InvoicesWriteR
     }
 
     // Tax exempt toggle
-    let taxExempt = inv.tax_exempt ? true : false;
+    let taxExempt = Boolean(inv.tax_exempt);
     if (isQuickSale && body.tax_exempt === false) {
       return c.json({ success: false, error: 'Une vente rapide ne peut pas utiliser la TVA.', code: 'QUICK_SALE_NO_TAX' }, 400);
     }

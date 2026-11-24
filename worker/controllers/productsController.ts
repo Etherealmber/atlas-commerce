@@ -3,7 +3,7 @@
  */
 import type { Context } from 'hono';
 import type { Env } from '../env';
-import { runController, rejectValidation } from './base';
+import { runController } from './base';
 import * as productsService from '../services/productsService';
 
 export function listProductsController(c: Context<{ Bindings: Env }>) {

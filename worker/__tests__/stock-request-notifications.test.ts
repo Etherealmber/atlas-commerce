@@ -15,7 +15,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 const SQLITE_MODULE = ['node:', 'sqlite'].join('');
 const { DatabaseSync } = (await import(SQLITE_MODULE)) as { DatabaseSync: new (path: string) => any };
-import { createHash } from 'node:crypto';
 
 async function sha256(s: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
@@ -83,7 +82,6 @@ const SCHEMA = `
 
 let sqliteA: any;
 let envA: any;
-let envB: any;
 let app: any;
 let pushes: { to: string; data: any; notification: any }[] = [];
 let pushStatus = 200;
@@ -118,7 +116,6 @@ beforeEach(async () => {
     FCM_SERVER_KEY: 'legacy-key',
   });
   envA = baseEnv(a.db);
-  envB = baseEnv(b.db);
   const mod: any = await import('../index');
   app = mod.default?.fetch ? mod.default : mod.app;
 });

@@ -782,13 +782,13 @@ describe('staging challenge-only pilot on the real Worker', () => {
   const root = '/api/auth/desktop/v2/pilot';
   const browser = { headers: { Origin: ORIGIN } };
   let req: any;
-  async function createPilot(verifier = VERIFIER, state = STATE) {
-    const r = await call(`${root}/requests`, { origin: ORIGIN, state, code_challenge: await desktopHash(verifier), code_challenge_method: 'S256', device_label: 'Desktop test' });
+  async function createPilot(pkceVerifier = VERIFIER, state = STATE) {
+    const r = await call(`${root}/requests`, { origin: ORIGIN, state, code_challenge: await desktopHash(pkceVerifier), code_challenge_method: 'S256', device_label: 'Desktop test' });
     expect(r.status).toBe(201);
     return r.body.data;
   }
   const reference = (id = req.request_id) => ({ origin: ORIGIN, request_id: id });
-  const proof = (id = req.request_id, verifier = VERIFIER, state = STATE) => ({ ...reference(id), state, code_verifier: verifier });
+  const proof = (id = req.request_id, pkceVerifier = VERIFIER, state = STATE) => ({ ...reference(id), state, code_verifier: pkceVerifier });
   async function prepare(id = req.request_id) { return call(`${root}/browser/prepare`, reference(id), browser); }
   async function decide(id = req.request_id, decision = 'approve') {
     return call(`${root}/browser/decision`, { ...reference(id), decision, ...(decision === 'approve' ? { compare_confirmed: true, turnstile_token: 'test-provider-token' } : {}) }, browser);
@@ -957,7 +957,7 @@ describe('staging native password + OTP pilot', () => {
     env.ENVIRONMENT = 'staging'; env.DESKTOP_NATIVE_V2_PILOT_LOGIN = 'false'; expect((await p('login/password', {})).body.code).toBe('METHOD_DISABLED');
     env.DESKTOP_NATIVE_V2_PILOT_LOGIN = 'true'; env.DESKTOP_NATIVE_V2_PILOT_OTP_KEY = ''; expect((await p('login/password', {})).body.code).toBe('METHOD_DISABLED');
     env.DESKTOP_NATIVE_V2_PILOT_OTP_KEY = 'test-only-key-not-for-deployment-000000';
-    const create = await p('requests', { origin: ORIGIN, state:STATE, code_challenge:await desktopHash(VERIFIER), code_challenge_method:'S256', device_label:'PC' }); req=create.body.data;
+    const createReq = await p('requests', { origin: ORIGIN, state:STATE, code_challenge:await desktopHash(VERIFIER), code_challenge_method:'S256', device_label:'PC' }); req=createReq.body.data;
     expect((await password()).body.code).toBe('NOT_APPROVED');
   });
   it('serves an isolated challenge document only on the configured staging origin with restrictive headers', async () => {
@@ -1249,7 +1249,7 @@ describe('staging native password + OTP pilot', () => {
       const statement = prepare(sql);
       if (sql.includes('INSERT INTO desktop_native_sessions_pilot_v1')) {
         const bind = statement.bind.bind(statement);
-        statement.bind = (...args: any[]) => { const bound = bind(...args); bound.run = async () => { throw new Error('private storage error'); }; return bound; };
+        statement.bind = (...callArgs: any[]) => { const bound = bind(...callArgs); bound.run = async () => { throw new Error('private storage error'); }; return bound; };
       }
       return statement;
     });

@@ -1,4 +1,3 @@
-import type { Hono } from 'hono';
 import type { AtlasApp } from './types';
 import type { Env } from '../env';
 import { addColumnIfMissing } from '../lib/schema';

@@ -537,11 +537,12 @@ export async function runDailyBackup(
 
         if (rows === null) {
           const sql = logCapped
-            ? `SELECT * FROM ${t} ORDER BY id DESC LIMIT 5000`
+            ? `SELECT * FROM (SELECT * FROM ${t} ORDER BY id DESC LIMIT 5000) ORDER BY id ASC`
             : `SELECT * FROM ${t} LIMIT 200000`;
           const { results } = await env.DB.prepare(sql).all();
           const fetched: any[] = results || [];
-          rows = logCapped && fetched.length > 1 ? [...fetched].reverse() : fetched;
+          // Capped logs: newest 5000, returned oldest-first by the outer ORDER BY.
+          rows = fetched;
           for (const r of rows) {
             const idNum = Number(r?.id || 0);
             if (idNum > maxId) maxId = idNum;
@@ -903,7 +904,7 @@ export async function restoreFromBackupPayload(
         }
         continue;
       }
-    } catch (e: any) {
+    } catch {
       if (onProgress) {
         try {
           await onProgress({
@@ -1001,7 +1002,7 @@ export async function restoreFromBackupPayload(
           });
         } catch { /* */ }
       }
-    } catch (e: any) {
+    } catch {
       // Whole table failed — continue with remaining tables
       if (onProgress) {
         try {

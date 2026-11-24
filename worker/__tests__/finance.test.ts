@@ -880,7 +880,7 @@ describe('v264 period breakdown — canonical cash/bank math', () => {
 });
 
 describe('v264 GET /api/admin/finance/period — route gates', () => {
-  function makeApp(db: D1Database) {
+  function makeApp(_db: D1Database) {
     const app = new Hono();
     const sessions: Record<string, { username: string; role: string }> = {
       'owner-tok': { username: 'boss', role: 'owner' },

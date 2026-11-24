@@ -67,11 +67,6 @@ function usePopPosition(open: boolean, triggerRef: RefObject<HTMLElement | null>
       setPos({ top, left, width });
     };
     place();
-    const onDoc = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (triggerRef.current?.contains(t) || popRef.current?.contains(t)) return;
-      // close handled by parent via callback — attach on document in parent
-    };
     window.addEventListener('resize', place);
     window.addEventListener('scroll', place, true);
     return () => {

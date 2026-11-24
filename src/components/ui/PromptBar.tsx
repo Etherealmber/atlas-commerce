@@ -1,28 +1,10 @@
 'use client';
 import { sanitizePreviewUrl } from '../../auth';
 
-import {
-  isValidElement,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from 'react';
+import { isValidElement, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { animate, useMotionValue, useMotionValueEvent, useReducedMotion } from 'motion/react';
 import { HugeiconsIcon } from '@hugeicons/react';
-import {
-  ArrowDown01Icon,
-  Attachment01Icon,
-  Cancel01Icon,
-  File02Icon,
-  HelpCircleIcon,
-  PlusSignIcon,
-  SparklesIcon,
-  Tick02Icon,
-} from '@hugeicons/core-free-icons';
+import { ArrowDown01Icon, Attachment01Icon, File02Icon, HelpCircleIcon, PlusSignIcon, SparklesIcon, Tick02Icon } from '@hugeicons/core-free-icons';
 import './PromptBar.css';
 
 const ARROW_UP = [12, 4.5, 18.5, 11, 14.25, 11, 14.25, 19.5, 9.75, 19.5, 9.75, 11, 5.5, 11];

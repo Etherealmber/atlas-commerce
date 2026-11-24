@@ -45,7 +45,7 @@ import {
   replayOfflineInventoryQueue,
 } from '../lib/offlineInventoryClient';
 import { startBarcodeScan, captureAndDecode, decodeImageFile, preloadBarcodeScanner, prepareZXing } from '../lib/barcodeScan';
-import { IconPackage, IconInbox } from '../components/Icons';
+import { IconInbox } from '../components/Icons';
 import OfflineBanner from '../components/OfflineBanner';
 import PhoneHome from './PhoneHome';
 import ProductArtwork from '../components/ProductArtwork';
@@ -457,7 +457,7 @@ export default function PhoneApp() {
 }
 
 function PhoneScan({
-  products, actions, onSent, onToast, onDecisionVisibilityChange,
+  actions, onSent, onToast, onDecisionVisibilityChange,
 }: {
   products: Product[]; actions: Action[]; onSent: () => void; onToast: (m: string) => void;
   onDecisionVisibilityChange: (open: boolean) => void;
@@ -832,25 +832,6 @@ function PhoneScan({
     }
   };
 
-  const sendToPcLater = async () => {
-    if (!decision) return;
-    setBusy(true);
-    try {
-      await queueOrSend({
-        type: 'new_product',
-        title: `Produit à créer · ${decision.code}`,
-        detail: `Code ${decision.code} · produit non reconnu — approbation PC requise`,
-        barcode: decision.code,
-        meta: { needs_approval: true, create_product: true },
-      });
-      setCode('');
-      onToast('Envoyé au PC pour création');
-    } catch (e: any) {
-      onToast(e.message || 'Erreur');
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const createNow = async () => {
     if (!decision) return;

@@ -1,5 +1,4 @@
 import type { Hono } from 'hono';
-import type { Env } from '../env';
 import { generateInvoiceEmailHTML } from '../lib/printTemplates';
 import { doCacheGet, doCachePut, DEFAULT_CACHE_TTL } from '../lib/cache';
 import { nextDocumentNumber } from '../lib/numbering';
@@ -34,7 +33,6 @@ export function registerDashboardIntegrityRoutes(app: Hono<any>, deps: Dashboard
     requireOwner,
     requireBizMutator,
     requireEmployeeAdmin,
-    requireFloorStock,
     sessionUserFromHeader,
     refreshLimitGate,
     ensureCoreIndexes,
@@ -44,9 +42,6 @@ export function registerDashboardIntegrityRoutes(app: Hono<any>, deps: Dashboard
     ensureIdempotencyTable,
     ensurePeriodLockColumn,
     ensureInvoiceRefundColumns,
-    ensureValuationTables,
-    getValuationMethod,
-    runAutoTransfers,
     applyStockDelta,
   } = deps;
 

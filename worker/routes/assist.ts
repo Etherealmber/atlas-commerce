@@ -2,7 +2,6 @@ import type { Hono } from 'hono';
 import type { Env } from '../env';
 import { isQuickSaleIntent } from '../lib/quick-assist-intent';
 import { canMutateBusiness, normalizeRole } from '../lib/rbac';
-import { enqueue } from '../lib/job-queue';
 import {
   listAllToolNames,
   listAllToolsMeta,
@@ -970,8 +969,6 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
     // v0.7 — stable error messages localized from Accept-Language (fr/en/ar).
     const uiLang = pickUiLang(c.req.header('Accept-Language'));
   
-    // Atlas Agent: Groq only (Mistral/Gemini removed from product).
-    let provider = 'groq' as const;
     const groqKey = String((c.env as any).GROQ_API_KEY || '').trim();
     if (!groqKey) {
       return c.json({
@@ -1149,7 +1146,7 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
           task,
         },
       });
-    } catch (e: any) {
+    } catch {
       await auditAssist(c.env, { username, role, message, tools: 'error', ok: false });
       return c.json({ success: false, error: tr(uiLang, 'agent_upstream'), code: 'assist_upstream' }, 502);
     }
@@ -1288,7 +1285,7 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
             username, role, action: 'assist.chat.stream', entity: 'atlas_agent', detail: 'groq', ip: clientIp(c),
           });
           send('done', { reply, model: usedModel, provider: 'groq', usage: usage || null, documents: docsMeta, thread_id: threadId, tool_trace: toolTrace, proposals: proposalsFromToolTrace(toolTrace), task, history_turns: history ? history.split('\n').length : 0 });
-        } catch (e: any) {
+        } catch {
           try { await auditAssist(c.env, { username, role, message, tools: 'error', ok: false }); } catch { /* */ }
           send('error', { code: 'assist_upstream', error: tr(uiLang, 'agent_upstream') });
         } finally {
@@ -1476,8 +1473,8 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
     if (role !== 'owner' && role !== 'admin') {
       return c.json({ success: false, error: 'Réservé admin/owner' }, 403);
     }
-    let body: any = {};
-    try { body = await c.req.json(); } catch { body = {}; }
+    // Drain the (ignored) JSON body so malformed input never throws later.
+    try { await c.req.json(); } catch { /* body is optional */ }
     const provider = 'groq';
     const providerStore = 'groq';
     try {

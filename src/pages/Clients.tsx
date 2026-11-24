@@ -2,24 +2,22 @@ import TopPageActions from '../components/TopPageActions';
 import { BarChart3, FileText, UserPlus } from 'lucide-react';
 import { TimedUndoDelete } from '../components/ui';
 import ListPager from '../components/ui/ListPager';
-import { downloadExport } from '../lib/export';
 import { onAgentDraft } from '../lib/agentDraft';
 import { useEffect, useState } from 'react';
 import EmptyState from '../components/EmptyState';
 import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
-import { validateClientForm, isEmail, firstError } from '../lib/formValidate';
+import { validateClientForm, isEmail } from '../lib/formValidate';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import PasswordConfirm from '../components/PasswordConfirm';
 import SaveFeedback from '../components/SaveFeedback';
-import { numStr, numFromInput } from '../lib/numInput';
 import { openReport } from '../lib/reports';
 import NumberField from '../components/NumberField';
 import RefreshIconButton from '../components/RefreshIconButton';
 import PageSkeleton from '../components/PageSkeleton';
 import '../components/erp/crm-parties.css';
 import { FloatingPortal } from '../components/FloatingPortal';
-import { ModalFormError, FieldHint } from '../components/ModalFormFeedback';
+import { ModalFormError } from '../components/ModalFormFeedback';
 
 const CLIENT_STEPS: readonly WizardStepDef[] = [
   { id: 'identity', label: 'Identité', hint: 'Nom du client et identifiants fiscaux.' },
@@ -47,7 +45,7 @@ export default function Clients() {
   }, [searchParams]);
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState('');
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [, setFieldErrors] = useState<Record<string, string>>({});
   const [saveMsg, setSaveMsg] = useState('');
   const [saveMsgType, setSaveMsgType] = useState<'success' | 'error'>('success');
   const [form, setForm] = useState({ name: '', ice: '', if_number: '', address: '', city: '', phone: '', email: '', tax_exempt: false as boolean, credit_limit: 0 as number });

@@ -14,7 +14,6 @@ import { openReport } from '../lib/reports';
 import { statusFr, statusBadgeClass } from '../lib/labels';
 import PasswordConfirm from '../components/PasswordConfirm';
 import { useUi } from '../components/AppDialogs';
-import { numStr, numFromInput } from '../lib/numInput';
 import NumberField from '../components/NumberField';
 import { friendlyError } from '../lib/errors';
 import { validateBillForm, firstError } from '../lib/formValidate';
@@ -23,7 +22,7 @@ import RefreshIconButton from '../components/RefreshIconButton';
 import PageSkeleton from '../components/PageSkeleton';
 import { FloatingPortal } from '../components/FloatingPortal';
 import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
-import { ModalFormError, FieldHint } from '../components/ModalFormFeedback';
+import { ModalFormError } from '../components/ModalFormFeedback';
 
 const BILL_STEPS: readonly WizardStepDef[] = [
   { id: 'vendor', label: 'Fournisseur', hint: 'Scanner une facture ou renseigner le fournisseur.' },

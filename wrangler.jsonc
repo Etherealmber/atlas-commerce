@@ -100,7 +100,24 @@
     // Optional SHA-1 fingerprint of the SAME signing certificate — enables the
     // legacy `android:apk-key-hash:` origin format (base64 of SHA-1) documented
     // by Android's FIDO2 stack. Both formats are accepted byte-for-byte.
-    "WEBAUTHN_ANDROID_CERT_SHA1": ""
+    "WEBAUTHN_ANDROID_CERT_SHA1": "",
+    // Desktop native login v3 (docs/desktop-native-login-api.md) — ON in prod on
+    // the owner's order. Fails CLOSED (capabilities.enabled=false, 503) until the
+    // secrets below exist, so these flags alone cannot expose anything:
+    //   wrangler secret put DESKTOP_NATIVE_V3_OTP_KEY        (32+ random chars)
+    //   wrangler secret put DESKTOP_NATIVE_MAILBOX_MAC_KEY   (32+ random chars)
+    //   wrangler secret put DESKTOP_NATIVE_RESEND_API_KEY    (re_…, domain of MAIL_FROM verified in Resend)
+    //   wrangler secret put TURNSTILE_SECRET_KEY             (already used by the website)
+    // NATIVE_LOGIN = browser-free password+OTP, QR and passkey. Rollback: "false".
+    "DESKTOP_NATIVE_V3_ENABLED": "true",
+    "DESKTOP_NATIVE_V3_PROD_APPROVED": "true",
+    "DESKTOP_NATIVE_V3_NATIVE_LOGIN": "true",
+    "DESKTOP_NATIVE_MAIL_TRANSPORT": "resend-v1",
+    "DESKTOP_NATIVE_MAIL_FROM": "security@afmarbre.com",
+    // macOS passkeys: "<Apple Team ID>.com.etherealmber.AtlasCommerceDesktop"
+    // (Team ID = developer.apple.com → Account → Membership details). Empty =
+    // /.well-known/apple-app-site-association stays 404.
+    "APPLE_WEBCREDENTIALS_APP_IDS": ""
   },
 
   // Preview isolation: `wrangler preview` ONLY reads `previews` (it does NOT

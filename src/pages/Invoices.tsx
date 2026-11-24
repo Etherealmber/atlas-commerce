@@ -10,42 +10,26 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import TypeaheadField, { productTypeaheadOptions, partyTypeaheadOptions } from '../components/TypeaheadField';
 import PasswordConfirm from '../components/PasswordConfirm';
-import { getToken } from '../auth';
 import SaveFeedback from '../components/SaveFeedback';
 import { statusFr, statusBadgeClass, REFUND_REASON_OPTIONS, STOCK_DISPOSITION_OPTIONS } from '../lib/labels';
 import { fmtMoney, PAYMENT_METHODS } from '../lib/money';
 import { useUi } from '../components/AppDialogs';
-import { matchProducts, polishRefundReason, priceAnomaly, clientRisk } from '../lib/assist';
-import { NoteChips, SuggestList } from '../components/AssistBits';
+import { polishRefundReason, priceAnomaly, clientRisk } from '../lib/assist';
+import { NoteChips } from '../components/AssistBits';
 import { friendlyError } from '../lib/errors';
 import EmptyState from '../components/EmptyState';
 import PageSkeleton from '../components/PageSkeleton';
 import { validateInvoiceForm, firstError } from '../lib/formValidate';
-import { estimateInvoiceLineTtc, remainingBalance, round2 } from '../../shared/financeCore';
+import { estimateInvoiceLineTtc, remainingBalance } from '../../shared/financeCore';
 
-function formatIssue(e: unknown): string {
-  if (e == null) return '';
-  if (typeof e === 'string' || typeof e === 'number' || typeof e === 'boolean') return String(e);
-  if (typeof e === 'object') {
-    const o = e as Record<string, unknown>;
-    if (typeof o.message === 'string' && o.message.trim()) {
-      const code = typeof o.code === 'string' && o.code ? ` [${o.code}]` : '';
-      return `${o.message}${code}`;
-    }
-    if (typeof o.error === 'string') return o.error;
-    try { return JSON.stringify(e); } catch { return String(e); }
-  }
-  return String(e);
-}
 
-import { numStr, numFromInput } from '../lib/numInput';
 import NumberField from '../components/NumberField';
 import VirtualTableBody, { VirtualScroll } from '../components/VirtualTableBody';
 import RefreshIconButton from '../components/RefreshIconButton';
 import '../components/erp/orders-fulfillment.css';
 import { FloatingPortal } from '../components/FloatingPortal';
 import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
-import { ModalFormError, FieldHint } from '../components/ModalFormFeedback';
+import { ModalFormError } from '../components/ModalFormFeedback';
 
 const INVOICE_STEPS: readonly WizardStepDef[] = [
   { id: 'client', label: 'Client', hint: 'Client, coordonnées et dates du document.' },
@@ -167,10 +151,6 @@ export default function Invoices() {
     setSaveMsg(msg); setSaveMsgType(type);
     setTimeout(() => setSaveMsg(''), 4500);
   };
-  const refreshCounts = () => {
-    try { window.dispatchEvent(new CustomEvent('atlas-nav-badges-refresh')); } catch { /* */ }
-    load(true);
-  };
 
   const load = (soft = false) => {
     if (soft) setRefreshing(true);
@@ -282,7 +262,6 @@ export default function Invoices() {
     }
     setSaving(true);
     try {
-      const idem = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `inv-${Date.now()}`;
       const res: any = await api.createInvoice({
         prices_ttc: docMode === 'invoice',
         client_id: clientId || undefined, client_name: clientName, client_ice: clientIce,
@@ -309,23 +288,6 @@ export default function Invoices() {
   const remainingOf = (inv: any) =>
     remainingBalance(inv.total, inv.amount_paid);
 
-  /** Part 3: "Tout payer" → open modal to choose payment method (never silent cash). */
-  const markPaid = (id: number, _total: number, inv?: any) => {
-    const target = inv || list.find((x) => x.id === id);
-    if (!target) return;
-    const rest = remainingOf(target);
-    if (rest <= 0) {
-      flash('Cette facture est déjà soldée.', 'error');
-      return;
-    }
-    setModalError('');
-    setPayTarget(target);
-    setPayAmount(rest);
-    setPayMethod('cash');
-    setPayNote('Règlement intégral');
-    setPayDate(new Date().toISOString().slice(0, 10));
-    setPayMode('full');
-  };
 
   /** Partial payment: only the amount paid now is added. */
   const openPay = (inv: any) => {
@@ -1142,7 +1104,7 @@ export default function Invoices() {
                   }
                   const restockCount = active.filter((l) => l.restock).length;
                   const noRestockCount = active.length - restockCount;
-                  const items = active.map((l) => ({
+                  const lineItems = active.map((l) => ({
                     invoice_item_id: l.invoice_item_id,
                     quantity: l.quantity,
                     restock: l.restock,
@@ -1180,7 +1142,7 @@ export default function Invoices() {
                       refund_reason_code: refundReasonCode,
                       refund_payment_method: refundPayMethod,
                       refund_reason: refundReasonDetail.trim(),
-                      items,
+                      items: lineItems,
                     });
                     const msg = res.message || `Avoir ${res.data?.number || 'WR'} créé.`;
                     flash(msg);

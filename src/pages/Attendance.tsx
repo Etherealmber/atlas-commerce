@@ -367,7 +367,6 @@ export default function Attendance() {
     setRecordLoading(true);
     setRecordData(null);
     try {
-      const { getToken } = await import('../auth');
       const { getApiBase } = await import('../config');
       const token = getToken() || '';
       const base = getApiBase();

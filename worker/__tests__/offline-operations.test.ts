@@ -123,8 +123,8 @@ function setupTestApp(role: 'owner' | 'stock' | 'user' = 'stock') {
   });
 
   registerInventoryOpsRoutes(app as any, {
-    requireOwner: (c: any) => ({ ok: true, username: 'owner', role: 'owner' }),
-    requireBizMutator: (c: any) => ({ ok: true, username: 'owner', role: 'owner' }),
+    requireOwner: (_c: any) => ({ ok: true, username: 'owner', role: 'owner' }),
+    requireBizMutator: (_c: any) => ({ ok: true, username: 'owner', role: 'owner' }),
     requireFloorStock,
     sessionUserFromHeader,
     applyStockDelta: async () => null,

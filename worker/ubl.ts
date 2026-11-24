@@ -171,7 +171,6 @@ export function buildUblInvoiceXml(input: UblInvoiceInput): string {
       const qty = Number(line.quantity || 0);
       const unit = Number(line.unitPrice || 0);
       const ht = Number(line.lineHt || qty * unit);
-      const tax = Number(line.lineTax || 0);
       const rate = Number(line.taxRate || 0);
       return `
   <cac:InvoiceLine>

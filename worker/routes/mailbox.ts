@@ -4,10 +4,6 @@
  * Helpers: ensureMailSchema, R2 body crypto, Resend sync
  */
 import type { Hono } from 'hono';
-import { assertSafeOutboundUrl } from '../lib/security';
-import { apiFail } from '../lib/api-response';
-import { upstreamFetch } from '../lib/upstream';
-import { enqueue } from '../lib/job-queue';
 
 export type MailboxRouteDeps = {
   verifyBackupAccess: (
@@ -357,7 +353,6 @@ export async function syncResendHistory(env: any, opts?: { limit?: number }): Pr
 
 
 export function registerMailboxRoutes(app: Hono<any>, deps: MailboxRouteDeps): void {
-  const verifyBackupAccess = deps.verifyBackupAccess;
   const sessionUserFromHeader = deps.sessionUserFromHeader;
 
   const AGENT_BLOB_MAGIC = new TextEncoder().encode('ATLASAGNT1');

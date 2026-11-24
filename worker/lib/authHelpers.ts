@@ -872,7 +872,6 @@ export async function authFailReason(
 
   let roleChanged = false;
   if (parsed.version === 1) {
-    const exp = getPassword(env);
     // Legacy v1 tokens embedded the raw password — reject them (force re-login → v2)
     return 'bad_password';
   } else {

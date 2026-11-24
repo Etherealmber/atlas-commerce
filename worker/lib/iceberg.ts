@@ -14,7 +14,7 @@ export type IcebergCatalogInfo = {
   note: string;
 };
 
-export function icebergCatalogInfo(env: {
+export function icebergCatalogInfo(_env: {
   CDN_BASE?: string;
 }): IcebergCatalogInfo {
   return {

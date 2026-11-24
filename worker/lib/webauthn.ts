@@ -527,7 +527,7 @@ export function policyFromEnv(env: Record<string, string | undefined>): WebAuthn
       String(env.WEBAUTHN_ANDROID_CERT_HASH || '')
         .split(',')
         .map((s) => s.trim().toUpperCase())
-        .filter(Boolean)[0] || ''
+        .find(Boolean) || ''
     ),
     androidCertHashes: String(env.WEBAUTHN_ANDROID_CERT_HASH || '')
       .split(',')

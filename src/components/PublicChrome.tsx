@@ -297,8 +297,6 @@ export function PublicNav({ links, cta, classic = false }: { links: NavLink[]; c
     document.addEventListener('keydown', key); document.addEventListener('pointerdown', outside);
     return () => { document.removeEventListener('keydown', key); document.removeEventListener('pointerdown', outside); };
   }, [menu]);
-  const navigate = useNavigate();
-  const location = useLocation();
   const loggedIn = isLoggedIn();
   // v0.7.7 — la pilule RÉTRÉCIT quand on descend, reprend sa taille en remontant.
   const [compact, setCompact] = useState(false);
@@ -328,11 +326,6 @@ export function PublicNav({ links, cta, classic = false }: { links: NavLink[]; c
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
-  const tabSt = (extra?: CSSProperties): CSSProperties => ({
-    display: 'grid', placeItems: 'center', width: compact ? 28 : 32, height: compact ? 28 : 32,
-    borderRadius: 10, color: c.sub, textDecoration: 'none', background: 'transparent',
-    transition: 'width .18s ease, height .18s ease', ...extra,
-  });
   const linkSt = (extra?: CSSProperties): CSSProperties => ({
     padding: compact ? '5px 9px' : '7px 12px', borderRadius: 999, color: c.sub,
     fontSize: compact ? 12.5 : 13.5,

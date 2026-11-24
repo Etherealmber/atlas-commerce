@@ -3,8 +3,7 @@ import { schemaOnce, addColumnIfMissing } from '../lib/schema';
 import { bumpPlacementRevision, ensureOfflineOpsSchema } from '../lib/idempotency';
 import { afterBusinessMutation } from '../lib/delete-coord';
 import { doCacheGet, doCachePut, hasLiveCache } from '../lib/cache';
-import { tr } from '../lib/error-i18n';
-import { round2, roundCurrency } from '../lib/financeCore';
+import { roundCurrency } from '../lib/financeCore';
 import { nextDocumentNumber } from '../lib/numbering';
 import { assertSafeOutboundUrl, escapeHtml } from '../lib/security';
 import { normalizeInventoryRole, roleCanSeeFinancial, scrubProductForRole } from '../lib/inventory-policy';
@@ -91,124 +90,6 @@ export async function placeProductStockOnDefault(db: D1Database, productId: numb
   }
 }
 
-/** Align stock_location_qty with products.stock_quantity (source of truth for unallocated stock). */
-async function reconcileStockLocations(db: D1Database) {
-  // Drop rows pointing at deleted products
-  try {
-    await db.prepare(
-      `DELETE FROM stock_location_qty WHERE product_id NOT IN (SELECT id FROM products)`
-    ).run();
-  } catch { /* */ }
-
-  let defId: number | null = null;
-  try {
-    const settings = await db.prepare(`SELECT sales_location_id FROM company_settings WHERE id = 1`).first() as any;
-    if (settings?.sales_location_id) {
-      const ok = await db.prepare(`SELECT id FROM stock_locations WHERE id = ? AND COALESCE(is_active,1)=1`).bind(settings.sales_location_id).first();
-      if (ok) defId = Number(settings.sales_location_id);
-    }
-    if (!defId) {
-      const def = await db.prepare(`SELECT id FROM stock_locations WHERE is_default = 1 ORDER BY id LIMIT 1`).first() as any;
-      if (def?.id) defId = Number(def.id);
-    }
-    if (!defId) {
-      const any = await db.prepare(`SELECT id FROM stock_locations ORDER BY id LIMIT 1`).first() as any;
-      if (any?.id) defId = Number(any.id);
-    }
-  } catch { /* */ }
-  if (!defId) return;
-
-  // All active tracked products
-  let products: any[] = [];
-  try {
-    const r = await db.prepare(
-      `SELECT id, COALESCE(stock_quantity, 0) as stock_quantity,
-              COALESCE(track_inventory, 1) as track_inventory,
-              COALESCE(is_active, 1) as is_active
-       FROM products`
-    ).all();
-    products = (r.results || []) as any[];
-  } catch {
-    try {
-      const r = await db.prepare(`SELECT id, COALESCE(stock_quantity, 0) as stock_quantity FROM products`).all();
-      products = ((r.results || []) as any[]).map((p) => ({ ...p, track_inventory: 1, is_active: 1 }));
-    } catch { return; }
-  }
-
-  for (const p of products) {
-    const pid = Number(p.id);
-    if (!pid) continue;
-    const track = Number(p.track_inventory ?? 1) !== 0;
-    const active = Number(p.is_active ?? 1) !== 0;
-    const productQty = Number(p.stock_quantity || 0);
-
-    let sumLoc = 0;
-    try {
-      const s = await db.prepare(
-        `SELECT COALESCE(SUM(quantity), 0) as s FROM stock_location_qty WHERE product_id = ?`
-      ).bind(pid).first() as any;
-      sumLoc = Number(s?.s || 0);
-    } catch { sumLoc = 0; }
-
-    // Inactive or not tracked: zero out placements
-    if (!active || !track) {
-      if (sumLoc !== 0) {
-        try {
-          await db.prepare(`DELETE FROM stock_location_qty WHERE product_id = ?`).bind(pid).run();
-        } catch { /* */ }
-      }
-      continue;
-    }
-
-    // No warehouse rows but product has stock → put everything in default depot
-    if (sumLoc <= 0.0001 && productQty > 0.0001) {
-      try {
-        const existing = await db.prepare(
-          `SELECT quantity FROM stock_location_qty WHERE location_id = ? AND product_id = ?`
-        ).bind(defId, pid).first() as any;
-        if (existing) {
-          await db.prepare(
-            `UPDATE stock_location_qty SET quantity = ? WHERE location_id = ? AND product_id = ?`
-          ).bind(productQty, defId, pid).run();
-        } else {
-          await db.prepare(
-            `INSERT INTO stock_location_qty (location_id, product_id, quantity) VALUES (?, ?, ?)`
-          ).bind(defId, pid, productQty).run();
-        }
-      } catch (e) {
-        console.error('reconcile insert default', pid, e);
-      }
-      continue;
-    }
-
-    // Product stock is 0 but locations still hold qty → clear placements (stale data)
-    if (productQty <= 0.0001 && sumLoc > 0.0001) {
-      try {
-        await db.prepare(`DELETE FROM stock_location_qty WHERE product_id = ?`).bind(pid).run();
-      } catch { /* */ }
-      continue;
-    }
-
-    // Both non-zero but mismatch: trust product total, scale default location
-    // Only auto-fix when a single location holds all stock (typical MAG-only setup)
-    if (productQty > 0.0001 && Math.abs(sumLoc - productQty) > 0.01) {
-      try {
-        const rows = await db.prepare(
-          `SELECT location_id, quantity FROM stock_location_qty WHERE product_id = ? AND quantity != 0`
-        ).bind(pid).all();
-        const list = (rows.results || []) as any[];
-        if (list.length <= 1) {
-          // Single (or zero) placement → set default to product qty
-          await db.prepare(`DELETE FROM stock_location_qty WHERE product_id = ?`).bind(pid).run();
-          await db.prepare(
-            `INSERT INTO stock_location_qty (location_id, product_id, quantity) VALUES (?, ?, ?)`
-          ).bind(defId, pid, productQty).run();
-        }
-        // Multi-location intentional split: leave as-is (ops manage transfers)
-      } catch { /* */ }
-    }
-  }
-}
 
 export async function getDefaultLocationId(db: D1Database): Promise<number | null> {
   await ensureStockLocations(db);
@@ -314,10 +195,6 @@ async function ensureApiIntegrations(db: D1Database) {
   });
 }
 
-function hashApiKey(raw: string): string {
-  // Simple stable hash for free-tier (not crypto.subtle sync) — SHA-256 via Web Crypto in handlers
-  return raw;
-}
 
 
 async function ensureDeliveryNotes(db: D1Database) {

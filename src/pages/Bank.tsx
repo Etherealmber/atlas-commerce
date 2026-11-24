@@ -79,13 +79,13 @@ export default function Bank() {
   const [logs, setLogs] = useState<{ at: string; msg: string; tone?: string }[]>([]);
   const [sheet, setSheet] = useState<'import' | 'rules' | 'logs' | null>(null);
   const [matchSheetOpen, setMatchSheetOpen] = useState(false);
-  const [matchSel, setMatchSel] = useState<string | null>(null);
+  const [, setMatchSel] = useState<string | null>(null);
   const [wizard, setWizard] = useState<WizardStep>(1);
   const [mapDate, setMapDate] = useState(0);
   const [mapLabel, setMapLabel] = useState(1);
   const [mapAmount, setMapAmount] = useState(2);
   const [previewHeaders, setPreviewHeaders] = useState<string[]>([]);
-  const [previewRows, setPreviewRows] = useState<string[][]>([]);
+  const [, setPreviewRows] = useState<string[][]>([]);
   const [rules, setRules] = useState<Rule[]>(() => {
     try {
       const raw = localStorage.getItem('atlas_bank_rules');
@@ -169,6 +169,7 @@ export default function Bank() {
         pushParsed(parseCsvSync(text));
         setBusy(false);
       };
+      // oxlint-disable-next-line unicorn/require-post-message-target-origin -- Web Worker postMessage has no targetOrigin
       w.postMessage({ csv: text });
     } catch {
       pushParsed(parseCsvSync(text));
@@ -179,7 +180,7 @@ export default function Bank() {
   const onPickFile = async (file: File) => {
     const text = await file.text();
     setCsvText(text);
-    const first = text.split(/\r?\n/).filter(Boolean)[0] || '';
+    const first = text.split(/\r?\n/).find(Boolean) || '';
     const sep = first.includes(';') ? ';' : ',';
     const headers = first.split(sep).map((h) => h.trim());
     setPreviewHeaders(headers.length ? headers : ['Col 1', 'Col 2', 'Col 3']);
@@ -510,7 +511,7 @@ export default function Bank() {
               disabled={!csvText.trim()}
               onClick={() => {
                 const sep = csvText.includes(';') ? ';' : ',';
-                const first = csvText.split(/\r?\n/).filter(Boolean)[0] || '';
+                const first = csvText.split(/\r?\n/).find(Boolean) || '';
                 setPreviewHeaders(first.split(sep).map((h) => h.trim()));
                 setPreviewRows(
                   csvText.split(/\r?\n/).filter(Boolean).slice(0, 8).map((l) => l.split(sep).map((c) => c.trim())),

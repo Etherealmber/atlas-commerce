@@ -36,7 +36,6 @@ export function resolveReportsRepo(configured?: string | null): string {
   if (!raw || raw === REPORTS_REPO_LEGACY) return REPORTS_REPO_DEFAULT;
   return raw;
 }
-const DEFAULT_REPO = REPORTS_REPO_DEFAULT;
 const LABEL_CRASH = 'crash-report';
 const LABEL_USER = 'user-report';
 const LABEL_FROM_APP = 'from-app';

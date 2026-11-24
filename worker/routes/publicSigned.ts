@@ -3,7 +3,6 @@ import { schemaOnce, addColumnIfMissing } from '../lib/schema';
 import { generateInvoiceHTML } from '../lib/printTemplates';
 import { escapeHtml } from '../lib/security';
 import { icebergCatalogInfo } from '../lib/iceberg';
-import { tr } from '../lib/error-i18n';
 import { purgeAgentConversationsOlderThan } from './assist';
 import { qrToSvg } from '../qrSvg';
 import { getCurrencySpec, roundCurrency } from '../lib/financeCore';
@@ -37,7 +36,7 @@ export async function ensureReceiptPublicToken(db: D1Database) {
   });
 }
 
-export async function renderPublicReceiptVerify(db: D1Database, receipt: any, origin: string): Promise<string> {
+export async function renderPublicReceiptVerify(db: D1Database, receipt: any, _origin: string): Promise<string> {
   const settings = await db.prepare(`SELECT * FROM company_settings WHERE id = 1`).first() as any;
   const cur = String(settings?.currency || settings?.finance_currency || 'MAD');
   const dec = getCurrencySpec(cur).invoiceDecimals;
@@ -408,7 +407,6 @@ export function registerPublicSignedRoutes(app: Hono<any>, deps: PublicSignedRou
   app.get('/api/public/invoices/:token', async (c) => {
     await ensureInvoicePublicToken(c.env.DB);
     const token = c.req.param('token');
-    const origin = new URL(c.req.url).origin;
     let inv = await c.env.DB.prepare(`SELECT * FROM invoices WHERE public_token = ?`).bind(token).first() as any;
     if (!inv) {
       // fallback: numeric id only if token looks like id (legacy) — disabled for security
@@ -530,7 +528,7 @@ export function registerPublicSignedRoutes(app: Hono<any>, deps: PublicSignedRou
           };
           window.addEventListener('resize', function(){ if(modal.style.display==='flex') resize(); });
         })();
-        </scr` + `ipt>`
+        </script>`
         ));
     // Quotes: never show QR/signing (signPad only for invoices & paid docs)
     const extra = isQuote ? '' : signPad;

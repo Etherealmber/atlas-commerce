@@ -310,7 +310,7 @@ export async function discoverGattUuids(): Promise<GattDiscoveryReport> {
   let services: any[] = [];
   try {
     services = await server.getPrimaryServices();
-  } catch (e) {
+  } catch {
     // Browser may require explicit optionalServices — retry known list only
     for (const u of BLE_PRINTER_SERVICES) {
       try {

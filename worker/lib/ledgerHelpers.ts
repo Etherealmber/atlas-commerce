@@ -1140,21 +1140,21 @@ export async function applyStockDelta(
   try {
     const envAny = (opts as any)?.env;
     if (envAny && Number.isFinite(newQty)) {
-      const prod = await db
+      const product = await db
         .prepare(
           `SELECT name, sku, low_stock_threshold, track_inventory FROM products WHERE id = ?`,
         )
         .bind(productId)
         .first() as any;
-      if (prod && Number(prod.track_inventory) === 1) {
-        const th = Number(prod.low_stock_threshold || 0);
+      if (product && Number(product.track_inventory) === 1) {
+        const th = Number(product.low_stock_threshold || 0);
         const wasOk = prev > th;
         const nowLow = newQty <= th;
         if (nowLow && (wasOk || newQty <= 0)) {
           await fcmNotifyLowStock(envAny, {
             id: Number(productId),
-            name: String(prod.name || ''),
-            sku: String(prod.sku || ''),
+            name: String(product.name || ''),
+            sku: String(product.sku || ''),
             stock: newQty,
             threshold: th,
           });

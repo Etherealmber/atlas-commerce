@@ -20,40 +20,6 @@ import { setDensity, type Density } from '../lib/density';
 import { uiToast } from './AppDialogs';
 import { setAgentDraft } from '../lib/agentDraft';
 
-function IconHistory({ size = 16 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="var(--ac-ui-ink, #1a1d26)" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 7v5l3 2" />
-    </svg>
-  );
-}
-function IconNewChat({ size = 16 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="var(--ac-ui-ink, #1a1d26)" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M12 20h9" />
-      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-    </svg>
-  );
-}
-function IconMic({ size = 16 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="var(--ac-ui-ink, #1a1d26)" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <rect x="9" y="2" width="6" height="11" rx="3" />
-      <path d="M5 10a7 7 0 0 0 14 0" />
-      <path d="M12 17v4" />
-      <path d="M8 21h8" />
-    </svg>
-  );
-}
-function IconSend({ size = 18 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M22 2L11 13" />
-      <path d="M22 2l-7 20-4-9-9-4 20-7z" />
-    </svg>
-  );
-}
 
 function IconCopy({ size = 14 }: { size?: number }) {
   return (
@@ -71,30 +37,8 @@ function IconRetry({ size = 14 }: { size?: number }) {
     </svg>
   );
 }
-function IconAttach({ size = 18 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
-    </svg>
-  );
-}
 
-function IconSettings({ size = 16 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="var(--ac-ui-ink, #1a1d26)" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <circle cx="12" cy="12" r="3" />
-      <path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" />
-    </svg>
-  );
-}
 
-function IconStop({ size = 14 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="var(--ac-ui-ink, #1a1d26)" aria-hidden>
-      <rect x="6" y="6" width="12" height="12" rx="2" />
-    </svg>
-  );
-}
 
 
 
@@ -359,15 +303,6 @@ function newThreadId() {
   return `t-${Date.now().toString(36)}`;
 }
 
-function dayLabel(ts: number): string {
-  const d = new Date(ts);
-  const now = new Date();
-  const start = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
-  const diff = start(now) - start(d);
-  if (diff === 0) return 'Aujourd’hui';
-  if (diff === 86400000) return 'Hier';
-  return d.toLocaleDateString('fr-MA', { day: 'numeric', month: 'short' });
-}
 
 
 function timeGreeting(): { hello: string; sub: string } {
@@ -616,11 +551,6 @@ function parseLocalAction(text: string, currentPath = ''): LocalAction | null {
 }
 
 
-function scrubVendorNames(s: string) {
-  return String(s || '')
-    .replace(/\b(Google|Gemini|Atlas Agent|OpenAI|ChatGPT|Claude|Anthropic)\b/gi, 'Atlas Agent')
-    .trim();
-}
 function clipAgent(s: string) {
   return String(s || '')
     .replace(/^(NO introductory phrases|No introductory phrases)[.\s]*/i, '')
@@ -650,14 +580,14 @@ export default function AtlasAgent() {
       return false;
     }
   });
-  const [threadId, setThreadId] = useState(() => {
+  const [threadId] = useState(() => {
     try {
       return localStorage.getItem(ACTIVE_THREAD_KEY) || newThreadId();
     } catch {
       return newThreadId();
     }
   });
-  const [threads, setThreads] = useState<ThreadMeta[]>(() => loadThreads());
+  const [, setThreads] = useState<ThreadMeta[]>(() => loadThreads());
   const [showExtras, setShowExtras] = useState<boolean>(() => {
     try { return localStorage.getItem('atlas_agent_show_extras') === '1'; } catch { return false; }
   });
@@ -704,7 +634,7 @@ export default function AtlasAgent() {
     }
   }, [location.pathname, isPhoneShell, open]);
   const [annotator, setAnnotator] = useState<{ index: number; src: string; name: string } | null>(null);
-  const [execMode, setExecMode] = useState<ExecMode>(() => getExecMode());
+  const [execMode] = useState<ExecMode>(() => getExecMode());
   /** Server agent_perm_mode: full | read_only | custom */
   const [agentPermMode, setAgentPermMode] = useState<'full' | 'read_only' | 'custom'>('full');
 
@@ -720,8 +650,8 @@ export default function AtlasAgent() {
   const [pendingAction, setPendingAction] = useState<LocalAction | null>(null);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
-  const [loadingThread, setLoadingThread] = useState(false);
-  const [listening, setListening] = useState(false); // unused (dictation removed)
+  const [loadingThread] = useState(false);
+ // unused (dictation removed)
   const [attachments, setAttachments] = useState<{ name: string; type: string; data_url: string; preview_url?: string; text_excerpt?: string }[]>([]);
   // v256 — unsent composer attachments survive a page refresh (images are
   // stored already-compressed; blob previews are recreated from the data URL).
@@ -940,8 +870,9 @@ export default function AtlasAgent() {
     const idPlaceholder = { role: 'assistant' as const, text: '', streaming: true, ...meta };
     setMsgs((m) => {
       if (replaceStreaming) {
-        const idx = [...m].map((x, i) => (x.streaming && x.role === 'assistant' ? i : -1)).filter((i) => i >= 0).pop();
-        if (typeof idx === 'number' && idx >= 0) {
+        let idx = -1;
+        m.forEach((x, i) => { if (x.streaming && x.role === 'assistant') idx = i; });
+        if (idx >= 0) {
           const copy = [...m];
           const prev = copy[idx];
           const variants = prev.variants ? [...prev.variants] : [];
@@ -1422,147 +1353,9 @@ export default function AtlasAgent() {
     );
   };
 
-  const clearThread = () => {
-    const id = newThreadId();
-    setThreadId(id);
-    setMsgs([WELCOME]);
-    try {
-      localStorage.setItem(activeThreadKey(), id);
-    } catch { /* */ }
-  };
 
-  const refreshHistoryFromR2 = useCallback(async () => {
-    try {
-      const res = await api.listAgentThreads();
-      const remote = (res.data || []).map((th: any) => ({
-        id: String(th.id),
-        title: String(th.title || 'Sans titre'),
-        updated: th.updated_at ? new Date(th.updated_at).getTime() : Date.now(),
-      }));
-      setThreads((local) => {
-        const map = new Map<string, ThreadMeta>();
-        for (const t of local) map.set(t.id, t);
-        for (const t of remote) {
-          const prev = map.get(t.id);
-          map.set(t.id, {
-            id: t.id,
-            title: t.title || prev?.title || 'Sans titre',
-            updated: Math.max(prev?.updated || 0, t.updated || 0),
-          });
-        }
-        const merged = Array.from(map.values())
-          .sort((a, b) => b.updated - a.updated)
-          .slice(0, 40);
-        saveThreads(merged);
-        return merged;
-      });
-    } catch {
-      /* keep local */
-    }
-  }, []);
 
-  const openThread = async (id: string) => {
-    setThreadId(id);
-    try {
-      localStorage.setItem(activeThreadKey(), id);
-    } catch { /* */ }
-    const local = loadMsgs(id);
-    if (local.length) {
-      setMsgs(local);
-      setLoadingThread(false);
-    } else {
-      setMsgs([]);
-      setLoadingThread(true);
-    }
-    try {
-      const res = await api.getAgentThread(id);
-      const remoteMsgs = Array.isArray(res.data?.messages) ? res.data!.messages! : [];
-      const mapped: Msg[] = remoteMsgs
-        .filter((m: any) => m && (m.role === 'user' || m.role === 'assistant') && m.text)
-        .map((m: any) => ({
-          role: m.role as 'user' | 'assistant',
-          text: String(m.text),
-          ms: m.ms,
-        }));
-      if (mapped.length) {
-        setMsgs(mapped);
-        try {
-          sessionStorage.setItem(msgsKey(id), JSON.stringify(mapped.slice(-80)));
-        } catch { /* */ }
-        return;
-      }
-      if (!local.length) setMsgs([WELCOME]);
-    } catch {
-      if (!local.length) {
-        setMsgs([
-          {
-            role: 'assistant',
-            text: 'Impossible de charger cette conversation (R2). Réessayez ou ouvrez une nouvelle discussion.',
-          },
-        ]);
-      }
-    } finally {
-      setLoadingThread(false);
-    }
-  };
 
-  const toggleVoice = () => {
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) {
-      setMsgs((m) => [
-        ...m,
-        { role: 'assistant', text: 'La dictée vocale n’est pas disponible sur ce navigateur (Web Speech API).' },
-      ]);
-      return;
-    }
-    if (listening) {
-      try { recognitionRef.current?.stop?.(); } catch { /* */ }
-      setListening(false);
-      return;
-    }
-    try {
-      const rec = new SR();
-      recognitionRef.current = rec;
-      rec.lang = 'fr-FR';
-      rec.interimResults = true;
-      rec.continuous = false;
-      rec.onstart = () => setListening(true);
-      rec.onresult = (ev: any) => {
-        let transcript = '';
-        for (let i = ev.resultIndex; i < ev.results.length; i++) {
-          transcript += ev.results[i][0]?.transcript || '';
-        }
-        transcript = transcript.trim();
-        if (transcript) setInput(transcript);
-        if (ev.results[ev.results.length - 1]?.isFinal) {
-          setListening(false);
-        }
-      };
-      rec.onerror = (ev: any) => {
-        setListening(false);
-        const code = String(ev?.error || '');
-        if (code === 'not-allowed' || code === 'service-not-allowed') {
-          setMsgs((m) => [
-            ...m,
-            { role: 'assistant', text: 'Micro refusé — autorisez le microphone dans le navigateur pour dicter.' },
-          ]);
-        } else if (code && code !== 'aborted' && code !== 'no-speech') {
-          setMsgs((m) => [
-            ...m,
-            { role: 'assistant', text: `Dictée interrompue (${code}). Réessayez.` },
-          ]);
-        }
-      };
-      rec.onend = () => setListening(false);
-      rec.start();
-    } catch {
-      setListening(false);
-      setMsgs((m) => [
-        ...m,
-        { role: 'assistant', text: 'Impossible de démarrer la dictée. Vérifiez les permissions micro.' },
-      ]);
-    }
-  };
 
   const approve = async (id: string) => {
     try {
@@ -1581,14 +1374,6 @@ export default function AtlasAgent() {
     setMsgs((m) => [...m, { role: 'assistant', text: `J’ouvre « ${label} » pour vous.` }]);
   };
 
-  const groupedHistory = () => {
-    const groups: Record<string, ThreadMeta[]> = {};
-    for (const th of threads) {
-      const g = dayLabel(th.updated);
-      (groups[g] ||= []).push(th);
-    }
-    return groups;
-  };
 
   const hideAgent = ['/settings', '/about', '/whats-new', '/login', '/welcome', '/privacy', '/terms', '/licenses'].some(
     (p) => location.pathname === p || location.pathname.startsWith(p + '/'),

@@ -12,7 +12,6 @@ import { DesktopTableSkeleton } from '../components/PageSkeleton';
 import NumberField from '../components/NumberField';
 import SaveFeedback from '../components/SaveFeedback';
 import DatePicker from '../components/DatePicker';
-import PasswordConfirm from '../components/PasswordConfirm';
 import { FloatingPortal } from '../components/FloatingPortal';
 import { ModalFormError, FieldHint } from '../components/ModalFormFeedback';
 import { isEmail } from '../lib/formValidate';
@@ -124,7 +123,7 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
   const [msg, setMsg] = useState('');
   const [msgType, setMsgType] = useState<'success' | 'error'>('success');
   const [modalError, setModalError] = useState('');
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [, setFieldErrors] = useState<Record<string, string>>({});
   const [payTarget, setPayTarget] = useState<Emp | null>(null);
   const [payAmount, setPayAmount] = useState(0);
   const [payDate, setPayDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -343,7 +342,7 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
     return m[String(tier || '')] || String(tier || '—');
   };
 
-  const openAdvanceForm = (e: Emp, opts?: { forceHalfCap?: boolean }) => {
+  const openAdvanceForm = (e: Emp, _opts?: { forceHalfCap?: boolean }) => {
     const salary = Number(e.pay_amount || 0);
     const half = Number((e as any).half_cycle_cap ?? salary * 0.5);
     const already = Number(e.advances_in_period || 0);

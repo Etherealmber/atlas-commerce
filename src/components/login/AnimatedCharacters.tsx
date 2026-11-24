@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import EyeBall from './EyeBall';
-import Pupil from './Pupil';
 
 type Props = {
   isTyping?: boolean;

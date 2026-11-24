@@ -546,32 +546,26 @@ export function generateInvoiceHTML(settings: any, inv: any, items: any[], title
   let accent = (settings?.pdf_accent_color && String(settings.pdf_accent_color).startsWith('#'))
     ? String(settings.pdf_accent_color)
     : '#1a1814';
-  let ribbon = 'Facture — demande de règlement';
   let docLabel = 'FACTURE';
   let bodyExtra = '';
   if (isQuote) {
     accent = '#5c4a1f';
-    ribbon = 'Devis — estimation (non facturé)';
     docLabel = 'DEVIS';
     bodyExtra = 'quote';
   } else if (isBill) {
     accent = '#1e3a5f';
-    ribbon = "Facture d'achat — fournisseur";
     docLabel = "FACTURE D'ACHAT";
     bodyExtra = 'bill';
   } else if (isRefund) {
     accent = '#8a5520';
-    ribbon = 'Remboursement / avoir (WR)';
     docLabel = 'REMBOURSEMENT (WR)';
     bodyExtra = 'refund';
   } else if (inv.doc_kind === 'quick_sale' || inv.doc_kind === 'ticket' || String(inv.number || '').startsWith('VR')) {
     accent = '#1a1d26';
-    ribbon = inv.status === 'paid' ? 'Vente rapide — encaissée' : 'Vente rapide (caisse)';
     docLabel = 'VENTE RAPIDE';
     bodyExtra = 'quick_sale';
   } else {
     accent = '#1a1814';
-    ribbon = inv.status === 'paid' ? 'Facture soldée' : 'Facture — à régler';
     docLabel = 'FACTURE';
     bodyExtra = 'invoice';
   }

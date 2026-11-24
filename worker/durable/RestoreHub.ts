@@ -321,7 +321,7 @@ export class RestoreHub {
         message: `« ${label} » restauré (${tableRows} lignes)`,
         progress: Math.min(96, basePct + 2),
       });
-    } catch (e: any) {
+    } catch {
       // Table failed — continue with next
       index += 1;
       await this.putJob({

@@ -66,8 +66,8 @@ describe('WhatsNew releases', () => {
     for (const detail of ['push', 'approbation ou refus', 'streaming', 'Support et Hébergement', '7 tests']) {
       expect(texts).toContain(detail);
     }
-    for (const release of RELEASES) {
-      expect(semverAtMost(release.version, DISPLAY_VERSION)).toBe(true);
+    for (const entry of RELEASES) {
+      expect(semverAtMost(entry.version, DISPLAY_VERSION)).toBe(true);
     }
   });
 

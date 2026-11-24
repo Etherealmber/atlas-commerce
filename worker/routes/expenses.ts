@@ -41,7 +41,7 @@ export type ExpenseWriteDeps = {
 
 /** Ledger writes are owner/admin only — secretaire keeps invoice/client access
  *  on the other routes but never touches the treasury journal directly. */
-const LEDGER_WRITE_ROLES = ['owner', 'admin'];
+const LEDGER_WRITE_ROLES = new Set(['owner', 'admin']);
 
 export function registerExpenseWriteRoutes(app: AtlasApp, deps: ExpenseWriteDeps): void {
   /** Shared gate: verified session (401) + owner/admin role (403 OWNER_ONLY). */
@@ -61,7 +61,7 @@ export function registerExpenseWriteRoutes(app: AtlasApp, deps: ExpenseWriteDeps
     }
     const session = deps.sessionUserFromHeader(authHeader);
     const role = normalizeRole(session.role);
-    if (!LEDGER_WRITE_ROLES.includes(role)) {
+    if (!LEDGER_WRITE_ROLES.has(role)) {
       return c.json(
         { success: false, error: 'Réservé à l\'administrateur principal', code: 'OWNER_ONLY', role },
         403,

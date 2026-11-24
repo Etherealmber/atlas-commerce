@@ -19,22 +19,20 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { APP_VERSION, APP_BUILD_DATE } from '../version';
+import { useSearchParams } from 'react-router-dom';
+import { APP_VERSION } from '../version';
 import { createPortal } from 'react-dom';
 import { api, BASE } from '../api';
 import { START_PAGES, getStartPage, setStartPage } from '../lib/startPage';
 import { removePasskeyLocally, registerWebAuthn, getCachedFingerprint, getDeviceLabel, getDeviceMeta, setStoredBiometricCredentialId, isWebAuthnAvailable } from '../fingerprint';
-import { getToken, canAccessAdminSettings, canAccessCompanySettings, getRole, setProfileCache, getDisplayInitials, isStockRole } from '../auth';
+import { getToken, canAccessAdminSettings, canAccessCompanySettings, getRole, setProfileCache } from '../auth';
 import SaveFeedback from '../components/SaveFeedback';
 import PasswordConfirm from '../components/PasswordConfirm';
-import { numStr, numFromInput } from '../lib/numInput';
 import NumberField from '../components/NumberField';
 import { useUi } from '../components/AppDialogs';
-import { ModalFormError, FieldHint } from '../components/ModalFormFeedback';
 import { friendlyError, validateWrPrefix } from '../lib/errors';
 import { validateSettingsCompany, firstError } from '../lib/formValidate';
-import { getDensity, setDensity, getUiScale, setUiScale, subscribeUiPrefs, type Density, type UiScale } from '../lib/density'
+import { getDensity, getUiScale, subscribeUiPrefs, type Density, type UiScale } from '../lib/density';
 import { startAtlasLoading, setAtlasLoading, doneAtlasLoading } from '../components/AtlasLoadingBar';
 import { VALUATION_METHOD_OPTIONS } from '../lib/labels';
 import IntegrationsPanel from '../components/IntegrationsPanel';
@@ -53,7 +51,7 @@ export default function Settings() {
   const [startPagePref, setStartPagePref] = useState<string>(() => getStartPage());
   const [startPageSaved, setStartPageSaved] = useState(false);
 
-  const [uiDensity, setUiDensity] = useState<Density>(() => getDensity());
+  const [, setUiDensity] = useState<Density>(() => getDensity());
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [qrFabOpen, setQrFabOpen] = useState(false);
   const [lightbox, setLightbox] = useState<{ src: string; name: string } | null>(null);
@@ -72,12 +70,11 @@ export default function Settings() {
       lastUpdated: '',
     };
   });
-  const [uiScale, setUiScaleState] = useState<UiScale>(() => getUiScale());
+  const [, setUiScaleState] = useState<UiScale>(() => getUiScale());
   const { confirm, prompt, toast } = useUi();
   const [settings, setSettings] = useState<any>(null);
-  const [assistProvider, setAssistProvider] = useState<'groq'>('groq');
+  const [, setAssistProvider] = useState<'groq'>('groq');
   const [assistMeta, setAssistMeta] = useState<{ groqConfigured?: boolean }>({});
-  const [assistBusy, setAssistBusy] = useState(false);
   const [passkeys, setPasskeys] = useState<any[]>([]);
   const [passkeysLoading, setPasskeysLoading] = useState(false);
   const [passkeyAdding, setPasskeyAdding] = useState(false);
@@ -95,9 +92,8 @@ export default function Settings() {
   const [saveMsg, setSaveMsg] = useState('');
   const [saveMsgType, setSaveMsgType] = useState<'success' | 'error'>('success');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [settingsFormError, setSettingsFormError] = useState('');
+  const [, setSettingsFormError] = useState('');
   const [monthPackError, setMonthPackError] = useState('');
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
@@ -211,7 +207,6 @@ export default function Settings() {
     next.set('tab', id);
     setSearchParams(next, { replace: true });
   };
-  const [backupToken, setBackupToken] = useState('');
   const [backupList, setBackupList] = useState<{ key: string; size?: number; uploaded?: string | null }[]>([]);
   const [selectedBackupKey, setSelectedBackupKey] = useState('backups/latest.abk');
   const [restoreBusy, setRestoreBusy] = useState(false);
@@ -264,7 +259,7 @@ export default function Settings() {
     };
   }, [auditDetailRow]);
   const [auditLoading, setAuditLoading] = useState(false);
-  const [auditCursor, setAuditCursor] = useState<string | null>(null);
+  const [, setAuditCursor] = useState<string | null>(null);
   const [auditCursorStack, setAuditCursorStack] = useState<(string | null)[]>([null]);
   const [auditMeta, setAuditMeta] = useState<{ limit: number; has_more: boolean; next_cursor: string | null; cursor: string | null } | null>(null);
   const [auditQ, setAuditQ] = useState('');
@@ -683,7 +678,6 @@ export default function Settings() {
       { id: 'audit', label: 'Journal d’audit', group: 'Admin', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M9 13h6M9 17h4' },
     ] : []),
   ];
-  const tabGroups = Array.from(new Set(tabs.map((x) => x.group)));
 
 
 
@@ -820,9 +814,9 @@ if (loading) return (
   return (
     <div className="atlas-page ac-dash ac-settings-bento">
       <h1 className="sr-only">{TAB_TITLES[activeTab] || 'Paramètres'}</h1>
-      {Object.values(fieldErrors).filter(Boolean)[0] ? (
+      {Object.values(fieldErrors).find(Boolean) ? (
         <div className="save-error-inline" role="alert" style={{ marginBottom: 10 }}>
-          {Object.values(fieldErrors).filter(Boolean)[0]}
+          {Object.values(fieldErrors).find(Boolean)}
         </div>
       ) : null}
 
@@ -1283,7 +1277,7 @@ if (loading) return (
               type="checkbox"
               checked={!!Number((settings as any)?.attendance_enabled)}
               onChange={(e) =>
-                setSettings((s: any) => ({ ...s, attendance_enabled: e.target.checked ? 1 : 0 }))
+                setSettings((prev: any) => ({ ...prev, attendance_enabled: e.target.checked ? 1 : 0 }))
               }
             />
           </div>
@@ -1293,7 +1287,7 @@ if (loading) return (
               type="checkbox"
               checked={Number((settings as any)?.attendance_pay_use_presence ?? 1) === 1}
               onChange={(e) =>
-                setSettings((s: any) => ({ ...s, attendance_pay_use_presence: e.target.checked ? 1 : 0 }))
+                setSettings((prev: any) => ({ ...prev, attendance_pay_use_presence: e.target.checked ? 1 : 0 }))
               }
             />
             <span className="muted" style={{ fontSize: 12 }}>Pénalités retard sur la paie suggérée</span>
@@ -1307,7 +1301,7 @@ if (loading) return (
                 placeholder="09:15"
                 value={String((settings as any)?.attendance_late_threshold || '09:15')}
                 onChange={(e) =>
-                  setSettings((s: any) => ({ ...s, attendance_late_threshold: e.target.value }))
+                  setSettings((prev: any) => ({ ...prev, attendance_late_threshold: e.target.value }))
                 }
               />
             </div>
@@ -1318,7 +1312,7 @@ if (loading) return (
                 placeholder="18:00"
                 value={String((settings as any)?.attendance_early_threshold || '18:00')}
                 onChange={(e) =>
-                  setSettings((s: any) => ({ ...s, attendance_early_threshold: e.target.value }))
+                  setSettings((prev: any) => ({ ...prev, attendance_early_threshold: e.target.value }))
                 }
               />
             </div>
@@ -1331,7 +1325,7 @@ if (loading) return (
                 step={0.5}
                 value={Number((settings as any)?.attendance_workday_hours ?? 8)}
                 onChange={(e) =>
-                  setSettings((s: any) => ({ ...s, attendance_workday_hours: Number(e.target.value) }))
+                  setSettings((prev: any) => ({ ...prev, attendance_workday_hours: Number(e.target.value) }))
                 }
               />
             </div>
@@ -1344,7 +1338,7 @@ if (loading) return (
                 step={0.5}
                 value={Number((settings as any)?.attendance_overtime_after_hours ?? (settings as any)?.attendance_workday_hours ?? 8)}
                 onChange={(e) =>
-                  setSettings((s: any) => ({ ...s, attendance_overtime_after_hours: Number(e.target.value) }))
+                  setSettings((prev: any) => ({ ...prev, attendance_overtime_after_hours: Number(e.target.value) }))
                 }
               />
             </div>
@@ -1357,7 +1351,7 @@ if (loading) return (
                 step={0.05}
                 value={Number((settings as any)?.attendance_overtime_multiplier ?? 1.25)}
                 onChange={(e) =>
-                  setSettings((s: any) => ({ ...s, attendance_overtime_multiplier: Number(e.target.value) }))
+                  setSettings((prev: any) => ({ ...prev, attendance_overtime_multiplier: Number(e.target.value) }))
                 }
               />
             </div>
@@ -1367,7 +1361,7 @@ if (loading) return (
                 type="text"
                 value={String((settings as any)?.attendance_half_morning || '09:00-13:00')}
                 onChange={(e) =>
-                  setSettings((s: any) => ({ ...s, attendance_half_morning: e.target.value }))
+                  setSettings((prev: any) => ({ ...prev, attendance_half_morning: e.target.value }))
                 }
               />
             </div>
@@ -1377,7 +1371,7 @@ if (loading) return (
                 type="text"
                 value={String((settings as any)?.attendance_half_afternoon || '14:00-18:00')}
                 onChange={(e) =>
-                  setSettings((s: any) => ({ ...s, attendance_half_afternoon: e.target.value }))
+                  setSettings((prev: any) => ({ ...prev, attendance_half_afternoon: e.target.value }))
                 }
               />
             </div>
@@ -1390,7 +1384,7 @@ if (loading) return (
               <select
                 value={String((settings as any)?.attendance_pay_mode || 'presence')}
                 onChange={(e) =>
-                  setSettings((s: any) => ({ ...s, attendance_pay_mode: e.target.value }))
+                  setSettings((prev: any) => ({ ...prev, attendance_pay_mode: e.target.value }))
                 }
               >
                 <option value="presence">Jours travaillés (présent / retard / demi) — recommandé Maroc</option>
@@ -1406,8 +1400,8 @@ if (loading) return (
                   type="checkbox"
                   checked={Number((settings as any)?.attendance_minute_deduct) === 1}
                   onChange={(e) =>
-                    setSettings((s: any) => ({
-                      ...s,
+                    setSettings((prev: any) => ({
+                      ...prev,
                       attendance_minute_deduct: e.target.checked ? 1 : 0,
                     }))
                   }
@@ -1434,8 +1428,8 @@ if (loading) return (
                 max={30}
                 value={Number((settings as any)?.attendance_warn_late_count ?? 3)}
                 onChange={(e) =>
-                  setSettings((s: any) => ({
-                    ...s,
+                  setSettings((prev: any) => ({
+                    ...prev,
                     attendance_warn_late_count: Number(e.target.value),
                   }))
                 }
@@ -1449,8 +1443,8 @@ if (loading) return (
                 max={60}
                 value={Number((settings as any)?.attendance_blame_late_count ?? 6)}
                 onChange={(e) =>
-                  setSettings((s: any) => ({
-                    ...s,
+                  setSettings((prev: any) => ({
+                    ...prev,
                     attendance_blame_late_count: Number(e.target.value),
                   }))
                 }
@@ -1472,8 +1466,8 @@ if (loading) return (
                 max={50}
                 value={Number((settings as any)?.attendance_acompte_short_max_pct ?? 5)}
                 onChange={(e) =>
-                  setSettings((s: any) => ({
-                    ...s,
+                  setSettings((prev: any) => ({
+                    ...prev,
                     attendance_acompte_short_max_pct: Number(e.target.value),
                   }))
                 }
@@ -1487,8 +1481,8 @@ if (loading) return (
                 max={50}
                 value={Number((settings as any)?.attendance_acompte_monthly_max_pct ?? 15)}
                 onChange={(e) =>
-                  setSettings((s: any) => ({
-                    ...s,
+                  setSettings((prev: any) => ({
+                    ...prev,
                     attendance_acompte_monthly_max_pct: Number(e.target.value),
                   }))
                 }
@@ -1502,8 +1496,8 @@ if (loading) return (
                 max={50}
                 value={Number((settings as any)?.attendance_acompte_week1_pct ?? 5)}
                 onChange={(e) =>
-                  setSettings((s: any) => ({
-                    ...s,
+                  setSettings((prev: any) => ({
+                    ...prev,
                     attendance_acompte_week1_pct: Number(e.target.value),
                   }))
                 }
@@ -1517,8 +1511,8 @@ if (loading) return (
                 max={50}
                 value={Number((settings as any)?.attendance_acompte_week2_pct ?? 5)}
                 onChange={(e) =>
-                  setSettings((s: any) => ({
-                    ...s,
+                  setSettings((prev: any) => ({
+                    ...prev,
                     attendance_acompte_week2_pct: Number(e.target.value),
                   }))
                 }
@@ -1532,8 +1526,8 @@ if (loading) return (
                 max={50}
                 value={Number((settings as any)?.attendance_acompte_week3_pct ?? 5)}
                 onChange={(e) =>
-                  setSettings((s: any) => ({
-                    ...s,
+                  setSettings((prev: any) => ({
+                    ...prev,
                     attendance_acompte_week3_pct: Number(e.target.value),
                   }))
                 }
@@ -1550,8 +1544,8 @@ if (loading) return (
                 max={50}
                 value={Number((settings as any)?.attendance_acompte_week4_pct ?? 5)}
                 onChange={(e) =>
-                  setSettings((s: any) => ({
-                    ...s,
+                  setSettings((prev: any) => ({
+                    ...prev,
                     attendance_acompte_week4_pct: Number(e.target.value),
                   }))
                 }
@@ -1604,7 +1598,7 @@ if (loading) return (
                     ),
                   };
                   const res = (await api.updateSettings(payload)) as { data?: Record<string, any> };
-                  if (res?.data) setSettings((s: any) => ({ ...s, ...res.data }));
+                  if (res?.data) setSettings((prev: any) => ({ ...prev, ...res.data }));
                   flash('Règles de présence enregistrées');
                 } catch (e: any) {
                   flash(e?.message || 'Erreur', 'error');
@@ -1966,7 +1960,7 @@ if (loading) return (
                     try {
                       const stages = String(dunningCfg.stages_text || '')
                         .split(',')
-                        .map((s) => s.trim().toUpperCase())
+                        .map((prev) => prev.trim().toUpperCase())
                         .filter(Boolean);
                       const res = await api.updateDunningSettings({
                         enabled: Boolean(dunningCfg.enabled),
@@ -3006,7 +3000,7 @@ if (loading) return (
                     onClick={() => {
                       const next = auditMeta?.next_cursor ?? null;
                       if (!next) return;
-                      setAuditCursorStack((s) => [...s, next]);
+                      setAuditCursorStack((prev) => [...prev, next]);
                       loadAuditPage(next, auditQ, false);
                     }}
                   >
@@ -3837,7 +3831,7 @@ if (loading) return (
                   try {
                     const r: any = await api.runIntegrityRegression();
                     const steps = r.data?.steps || r.steps || [];
-                    const failed = steps.filter((s: any) => !s.ok);
+                    const failed = steps.filter((prev: any) => !prev.ok);
                     if (failed.length) {
                       flash(`Régression: ${failed.length} échec(s) — ${failed.map((f: any) => f.name).join(', ')}`, 'error');
                     } else {

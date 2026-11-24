@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import '../styles/login-auth.css';
-import AnimatedCharacters from '../components/login/AnimatedCharacters';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { openConsentSettings } from '../lib/cookieConsent';
 import { setToken, clearToken, getToken, setProfileCache, isLoggedIn, isStockRole, sanitizeAvatarUrl } from '../auth';
 
 import { desktopLoginReturn } from '../lib/desktopApproval';
@@ -12,7 +10,7 @@ function postLoginPath(fallback = '/dashboard'): string {
   return desktopLoginReturn() || fallback;
 }
 
-import { APP_BUILD_DATE, APP_NAME, APP_VERSION, APP_CREATOR, APP_CREATOR_NAME, APP_PROFILE, APP_GITHUB } from '../version';
+import { APP_BUILD_DATE, APP_NAME, APP_VERSION, APP_GITHUB } from '../version';
 import { getApiBase } from '../config';
 import { validateLoginForm, firstError } from '../lib/formValidate';
 import { motion, AnimatePresence } from 'motion/react';
@@ -101,7 +99,7 @@ function LoginPcQrPanel({ onSuccessFlash }: { onSuccessFlash?: () => void }) {
   const [qrFailed, setQrFailed] = useState(false);
   const qrAutoRetried = useRef(false);
   const [token, setTok] = useState('');
-  const [left, setLeft] = useState(60);
+  const [, setLeft] = useState(60);
   const [phase, setPhase] = useState<'wait' | 'claimed' | 'done' | 'denied'>('wait');
   const [who, setWho] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
@@ -435,10 +433,10 @@ export default function Login() {
     return () => obs.disconnect();
   }, []);
   const [showPassword, setShowPassword] = useState(false);
-  const [isTyping, setIsTyping] = useState(false);
-  const [loginFailed, setLoginFailed] = useState(false);
-  const [loginSuccess, setLoginSuccess] = useState(false);
-  const [pageExit, setPageExit] = useState(false);
+  const [, setIsTyping] = useState(false);
+  const [, setLoginFailed] = useState(false);
+  const [, setLoginSuccess] = useState(false);
+  const [, setPageExit] = useState(false);
   const [remember30, setRemember30] = useState(() => {
     try {
       return localStorage.getItem('atlas_remember_login') === '1';
@@ -446,15 +444,8 @@ export default function Login() {
       return false;
     }
   });
-  const [focusField, setFocusField] = useState<'none' | 'username' | 'password'>('none');
 
   /** Huddle-style character mood from focus + password visibility */
-  const loginMood: 'idle' | 'nosy' | 'shy' | 'exposed' = (() => {
-    if (showPassword && password) return 'exposed';
-    if (focusField === 'password') return 'shy';
-    if (focusField === 'username') return 'nosy';
-    return 'idle';
-  })();
 
   useEffect(() => {
     try {

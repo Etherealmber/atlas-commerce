@@ -9,7 +9,22 @@
     "restriction": "off"
   },
   "rules": {
-    "no-unused-vars": "warn"
+    "no-unused-vars": [
+      "warn",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrorsIgnorePattern": "^_",
+        "destructuredArrayIgnorePattern": "^_",
+        "ignoreRestSiblings": true
+      }
+    ],
+    "no-await-in-loop": "off",
+    "unicorn/consistent-function-scoping": "off",
+    "no-underscore-dangle": "off",
+    "unicorn/prefer-add-event-listener": "off",
+    "oxc/no-map-spread": "off",
+    "unicorn/no-array-sort": "off"
   },
   "ignorePatterns": ["dist/**", "node_modules/**", "coverage/**", "scripts/**", "worker/vendor/**"]
 }
