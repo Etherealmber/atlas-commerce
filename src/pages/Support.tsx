@@ -68,8 +68,8 @@ const WORKFLOW_STEPS: { code: string; title: string; text: string }[] = [
   },
   {
     code: '03 / Mises à jour & sécurité',
-    title: 'Web, Android & bureau Tauri',
-    text: 'Suivi des versions bêta, remontée des anomalies vers GitHub Issues, vérification d’intégrité du moteur financier WebAssembly et sauvegardes.',
+    title: 'Web, Android & bureau natif',
+    text: 'Suivi des versions bêta, remontée des anomalies vers GitHub Issues, vérification d’intégrité CDN1 (SHA-256) et sauvegardes.',
   },
 ];
 
@@ -84,7 +84,7 @@ const FAQ_ITEMS: { q: string; a: string }[] = [
   },
   {
     q: 'Comment installer Atlas Commerce sur Android, Windows, macOS ou Linux ?',
-    a: 'Téléchargez l’APK officiel depuis la page Android (/android) ou les installateurs bureau Tauri (MSI/EXE, DMG, AppImage) depuis la page Bureau (/desktop).',
+    a: 'Téléchargez l’APK officiel depuis la page Android (/android) ou les installateurs bureau natifs (Windows .exe/.msi, macOS .dmg, Linux AppImage) depuis la page Bureau (/desktop).',
   },
   {
     q: 'Comment fonctionnent la connexion OTP, les passkeys WebAuthn et les appareils de confiance ?',
@@ -539,6 +539,29 @@ export default function Support() {
                 <div className="dl-stat">
                   <strong>MIT / Apache-2.0</strong>
                   <span>Double licence ouverte</span>
+                </div>
+              </div>
+              <div className="dl-ed-files" style={{ marginTop: 14 }}>
+                <div className="dl-ed-download-row">
+                  <div>
+                    <strong>Atlas Commerce Web &amp; API</strong>
+                    <span>React · Cloudflare Workers · D1 / R2</span>
+                  </div>
+                  <Link to="/whats-new">Nouveautés ↗</Link>
+                </div>
+                <div className="dl-ed-download-row">
+                  <div>
+                    <strong>Atlas Commerce Android</strong>
+                    <span>APK signée · Mises à jour CDN1</span>
+                  </div>
+                  <Link to="/android">Page Android ↗</Link>
+                </div>
+                <div className="dl-ed-download-row">
+                  <div>
+                    <strong>Atlas Commerce Bureau (Rust natif)</strong>
+                    <span>Windows · macOS · Linux via CDN1</span>
+                  </div>
+                  <Link to="/desktop">Page Bureau ↗</Link>
                 </div>
               </div>
             </div>

@@ -132,7 +132,7 @@ export function PhoneEmployeeDirectory() {
         </button>
       </div>
 
-      <div className="ph-search" style={{ marginBottom: 8 }}>
+      <div className="ph-catalog-search" style={{ marginBottom: 10 }}>
         <Search size={17} aria-hidden="true" />
         <input
           type="search"

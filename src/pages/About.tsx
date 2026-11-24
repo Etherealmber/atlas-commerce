@@ -84,7 +84,7 @@ const PROJECT_SHOWCASE: {
     repo: 'atlas-commerce-desktop',
     title: 'atlas-commerce-desktop',
     href: 'https://github.com/Etherealmber/atlas-commerce-desktop',
-    blurb: 'Client bureau Tauri : Windows, macOS, Linux.',
+    blurb: 'Client bureau natif en Rust : Windows, macOS, Linux.',
     badge: 'GitHub',
   },
 ];

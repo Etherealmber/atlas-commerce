@@ -176,7 +176,7 @@ export default function PhoneClients({ onToast }: { onToast: (msg: string) => vo
         </div>
       </div>
 
-      <div className="ph-search" style={{ marginBottom: 10 }}>
+      <div className="ph-catalog-search" style={{ marginBottom: 10 }}>
         <Search size={17} aria-hidden="true" />
         <input
           type="search"

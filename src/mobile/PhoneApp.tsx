@@ -7,11 +7,12 @@ import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense, type
 import { NavLink, Route, Routes, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Settings, Sparkles, ShoppingCart, Search, ScanLine, RefreshCw, Grid2X2, List, Package, MessageSquarePlus, Plus, Send, ChevronRight, Bell, Minus, Trash2, CircleAlert, CircleCheck, CreditCard, ShieldCheck, Copy, ChevronDown, History, Hourglass } from 'lucide-react';
 import PhoneDeviceScan from './PhoneDeviceScan';
+import PhoneClients from './PhoneClients';
 import { PhoneEmployeeDetail, PhoneEmployeeDirectory } from './PhoneEmployees';
 import PhoneSettings from './PhoneSettings';
 import PhoneProfile from './PhoneProfile';
 const PhoneWhatsNew = lazy(() => import('./PhoneWhatsNew'));
-import PhoneDock, { canOpenPhoneBalance, canOpenPhoneEmployees, phoneBackTarget, phoneDockItems, phoneShowsBack, showPhoneDock } from './PhoneDock';
+import PhoneDock, { canOpenPhoneBalance, canOpenPhoneClients, canOpenPhoneEmployees, phoneBackTarget, phoneDockItems, phoneShowsBack, showPhoneDock } from './PhoneDock';
 import { usePhoneTheme } from './usePhoneTheme';
 import { usePhoneTopBar } from './usePhoneTopBar';
 import { api, getBase } from '../api';
@@ -348,7 +349,7 @@ export default function PhoneApp() {
         </div>
         {!showBack && <div className="phone-top-actions">
           <button type="button" className="ph-top-agent" aria-label="Ouvrir Atlas Agent" onClick={() => navigate('/m/agent')}><Sparkles size={21} aria-hidden="true" /></button>
-          <PhoneQuickActions open={quickOpen} setOpen={setQuickOpen} pending={pending} allowSell={allowSell} onNavigate={navigate} />
+          <PhoneQuickActions open={quickOpen} setOpen={setQuickOpen} pending={pending} allowSell={allowSell} allowClients={canOpenPhoneClients(getRole())} onNavigate={navigate} />
           <button
             type="button"
             className="phone-avatar phone-profile-btn"
@@ -422,6 +423,7 @@ export default function PhoneApp() {
             }
           />
           <Route path="/balance" element={canOpenPhoneBalance(getRole()) ? <Suspense fallback={<PageSkeleton variant="phone" />}>{canOpenPhoneEmployees(getRole()) ? <PhoneBalance /> : <div className="phone-web-page"><Balance /></div>}</Suspense> : <div className="phone-panel"><p>Cette page n’est pas disponible pour votre rôle.</p></div>} />
+          <Route path="/clients" element={canOpenPhoneClients(getRole()) ? <PhoneClients onToast={show} /> : <div className="phone-panel"><p>Cette page n’est pas disponible pour votre rôle.</p></div>} />
           <Route path="/employees" element={canOpenPhoneEmployees(getRole()) ? <PhoneEmployeeDirectory /> : <div className="phone-panel"><p>Cette page n’est pas disponible pour votre rôle.</p></div>} />
           <Route path="/employees/:id" element={canOpenPhoneEmployees(getRole()) ? <PhoneEmployeeDetail /> : <div className="phone-panel"><p>Cette page n’est pas disponible pour votre rôle.</p></div>} />
           <Route path="/profile" element={<PhoneProfile onChanged={() => setProfileTick(tick => tick + 1)} preferences={{ theme, onTheme: applyTheme, animations, onAnimations: applyAnimations, compact, onCompact: applyCompact, scale: phoneScale, onScale: applyPhoneScale, startTab, onStartTab: applyStartTab }} />} />
@@ -999,6 +1001,7 @@ function PhoneScan({
           {scanning && (
             <button
               type="button"
+              className="ph-scan-photo"
               disabled={busy}
               onClick={async () => {
                 setBusy(true);
