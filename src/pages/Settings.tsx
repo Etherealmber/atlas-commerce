@@ -668,7 +668,7 @@ export default function Settings() {
     ...(officeSettings ? [
       { id: 'company', label: 'Société', group: 'Entreprise', icon: 'M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6' },
       { id: 'attendance', label: 'Présence', group: 'Entreprise', icon: 'M12 8v4l3 3M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z' },
-      { id: 'payroll', label: 'Paie CNSS / AMO', group: 'Entreprise', icon: 'M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6' },
+      ...(adminSettings ? [{ id: 'payroll', label: 'Paie CNSS / AMO', group: 'Entreprise', icon: 'M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6' }] : []),
       ...(isOwner ? [{ id: 'fec', label: 'Plan comptable (FEC)', group: 'Entreprise', icon: 'M4 4h16v16H4zM8 8h8M8 12h8M8 16h5' }] : []),
       { id: 'legal', label: 'Légal', group: 'Entreprise', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M9 13h6M9 17h4' },
       { id: 'invoicing', label: 'Facturation', group: 'Documents', icon: 'M8 2h8a2 2 0 0 1 2 2v16l-3-1.5L12 21l-3-1.5L6 20V4a2 2 0 0 1 2-2z' },
@@ -1616,7 +1616,7 @@ if (loading) return (
           </div>
         </div>
       )}
-{activeTab === 'payroll' && officeSettings && (
+{activeTab === 'payroll' && adminSettings && (
         <div className="atlas-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
             <div>

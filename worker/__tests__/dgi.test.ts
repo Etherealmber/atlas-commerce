@@ -80,7 +80,13 @@ function setupDgiApp() {
   const r2 = makeFakeR2();
   const app = new Hono<any>();
   registerDgiRoutes(app as any, {
-    requireBizMutator: (c) => ({ ok: true, username: c.req.header('x-user') || 'admin', role: 'owner' }),
+    requireBizMutator: (c) => {
+      const role = String(c.req.header('x-role') || 'owner').toLowerCase();
+      if (role !== 'owner' && role !== 'admin' && role !== 'secretaire') {
+        return { ok: false, response: c.json({ success: false, error: 'Forbidden' }, 403) };
+      }
+      return { ok: true, username: c.req.header('x-user') || 'admin', role };
+    },
     requireOwner: (c) => {
       if ((c.req.header('x-role') || 'owner') !== 'owner') {
         return { ok: false, response: c.json({ success: false, error: 'Owner required' }, 403) };
@@ -152,5 +158,31 @@ describe('Part 7 — DGI e-invoicing clearance layer', () => {
     expect(ownerXmlRes.status).toBe(200);
     expect(ownerXmlRes.headers.get('X-Retention-Until')).toBe('2036-11-24');
     expect(await ownerXmlRes.text()).toContain('FAC-2026-100');
+  });
+
+  it('enforces requireBizMutator role gate on GET /api/invoices/:id/dgi', async () => {
+    const { app, db, r2 } = setupDgiApp();
+
+    const deniedUser = await app.fetch(
+      new Request('http://test.local/api/invoices/1/dgi', { headers: { 'x-role': 'user' } }),
+      { DB: db, IMAGES: r2 } as any,
+    );
+    expect(deniedUser.status).toBe(403);
+
+    const deniedStock = await app.fetch(
+      new Request('http://test.local/api/invoices/1/dgi', { headers: { 'x-role': 'stock' } }),
+      { DB: db, IMAGES: r2 } as any,
+    );
+    expect(deniedStock.status).toBe(403);
+
+    const okAdmin = await app.fetch(
+      new Request('http://test.local/api/invoices/1/dgi', { headers: { 'x-role': 'admin' } }),
+      { DB: db, IMAGES: r2 } as any,
+    );
+    expect(okAdmin.status).toBe(200);
+    const body = (await okAdmin.json()) as any;
+    expect(body.success).toBe(true);
+    expect(body.data.invoice_id).toBe(1);
+    expect(body.data.status).toBe('draft');
   });
 });

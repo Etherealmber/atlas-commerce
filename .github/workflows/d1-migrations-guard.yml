@@ -1,0 +1,77 @@
+name: D1 fresh migrations guard
+
+# Regression guard: applies all D1 migrations to a blank .wrangler local DB,
+# boots the Worker, and asserts GET /api/health returns { success: true, data: { ok: true, d1: true } }.
+# Runs on every PR (no path filter) because this failure only surfaces on an empty database.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: d1-migrations-guard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fresh-d1-migrations-and-health:
+    name: Fresh D1 migrations apply + Worker /api/health
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install pinned Rust toolchain (1.82.0 + wasm32-unknown-unknown)
+        uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # master
+        with:
+          toolchain: 1.82.0
+          targets: wasm32-unknown-unknown
+      - name: Cache Cargo registry and Rust target directory
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        with:
+          workspaces: rust/atlas-finance-core
+      - run: npm ci
+      - run: npm run build
+      - name: Apply all D1 migrations to blank local DB
+        run: |
+          rm -rf .wrangler
+          npx wrangler d1 migrations apply DB --local
+      - name: Boot Worker and verify /api/health returns ok
+        run: |
+          npx wrangler dev --local --ip 127.0.0.1 --port 8787 > wrangler-dev.log 2>&1 &
+          WRANGLER_PID=$!
+          trap 'kill "$WRANGLER_PID" 2>/dev/null || true' EXIT
+
+          OK=0
+          for i in $(seq 1 60); do
+            if BODY=$(curl -fsS http://127.0.0.1:8787/api/health 2>/dev/null); then
+              echo "Health response: $BODY"
+              node -e '
+                const body = JSON.parse(process.argv[1]);
+                if (!body?.success || body?.data?.ok !== true || body?.data?.d1 !== true) {
+                  console.error("Unexpected /api/health payload:", body);
+                  process.exit(1);
+                }
+              ' "$BODY"
+              OK=1
+              break
+            fi
+            if ! kill -0 "$WRANGLER_PID" 2>/dev/null; then
+              echo "::error::wrangler dev exited unexpectedly"
+              cat wrangler-dev.log
+              exit 1
+            fi
+            sleep 1
+          done
+
+          if [ "$OK" -ne 1 ]; then
+            echo "::error::Timed out waiting for /api/health on http://127.0.0.1:8787"
+            cat wrangler-dev.log
+            exit 1
+          fi

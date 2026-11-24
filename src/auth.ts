@@ -386,6 +386,11 @@ export function canAccessAdminSettings(): boolean {
   return r === 'owner' || r === 'admin';
 }
 
+/** Payroll CNSS / AMO / IGR — owner and admin only (matches /api/payroll/*). */
+export function canManagePayroll(): boolean {
+  return canAccessAdminSettings();
+}
+
 /** Company / legal / banking / warehouse settings — office roles only */
 export function canAccessCompanySettings(): boolean {
   const r = getRole();
