@@ -787,12 +787,6 @@ function DesktopShell() {
     setSettingsBarCompact(false);
   };
 
-  useEffect(() => {
-    if (!shellNotifOpen) { setShellAlerts([]); return; }
-    let cancelled = false;
-    api.getAlerts().then((r: any) => { if (!cancelled) setShellAlerts(r?.data || []); }).catch(() => { if (!cancelled) setShellAlerts([]); });
-    return () => { cancelled = true; };
-  }, [shellNotifOpen]);
 
   useEffect(() => {
     setFocusSidebarOpen(false);
@@ -801,6 +795,24 @@ function DesktopShell() {
 
   const { mode: themeMode, setMode: setThemeMode } = useTheme();
   const [badges, setBadges] = useState<NavBadges>(EMPTY_BADGES);
+  /** Same count the notifications popover header shows ("N alertes"): badge kinds + extra shell alerts (cheques…). */
+  const shellNotifTotal = (() => {
+    const covered = new Set<string>();
+    if (badges.actions_pending > 0) covered.add('mobile_actions');
+    if (badges.products_low > 0) covered.add('low_stock');
+    if (badges.invoices_unpaid > 0) covered.add('unpaid_invoices');
+    if (badges.employees_pay_due > 0) covered.add('pay_due');
+    const extra = shellAlerts.filter((a: any) => !covered.has(String(a?.kind || '').toLowerCase())).slice(0, 6).length;
+    return badges.actions_pending + badges.employees_pay_due + badges.invoices_unpaid + badges.products_low + extra;
+  })();
+  // Extra shell alerts (cheques due…) feed both the bell badge and the popover, so the
+  // badge number always equals the popover's "N alertes" pill. Refreshed with the nav
+  // badges (same 15s-throttled cadence) and again whenever the popover opens.
+  useEffect(() => {
+    let cancelled = false;
+    api.getAlerts().then((r: any) => { if (!cancelled) setShellAlerts(r?.data || []); }).catch(() => { /* keep last */ });
+    return () => { cancelled = true; };
+  }, [shellNotifOpen, badges]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try {
       const v = localStorage.getItem('atlas-sidebar-collapsed');
@@ -1262,9 +1274,9 @@ function DesktopShell() {
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" aria-hidden>
                   <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0" />
                 </svg>
-                {(badges.actions_pending + badges.employees_pay_due + badges.invoices_unpaid + badges.products_low) > 0 ? (
+                {shellNotifTotal > 0 ? (
                   <span className="ac-topbar-badge">
-                    {Math.min(99, badges.actions_pending + badges.employees_pay_due + badges.invoices_unpaid + badges.products_low)}
+                    {Math.min(99, shellNotifTotal)}
                   </span>
                 ) : null}
               </button>
