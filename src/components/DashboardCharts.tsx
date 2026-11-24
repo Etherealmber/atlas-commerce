@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type MouseEvent } from 'react';
 
 type SeriesPoint = {
   key: string;
@@ -776,46 +776,36 @@ export function HBarChart({
   color = 'var(--ac-chart-amber, #d97706)',
   unit = 'MAD',
   placeholder,
-  emptyLabel = 'Aucune catégorie.',
-  emptyAction,
 }: {
   items: { label: string; value: number }[];
   color?: string;
   unit?: string;
-  /** Labels drawn as empty 0-rows when there is no data, so the widget keeps its shape. */
+  /** Categories drawn at 0 when there is no data yet, so the chart always shows. */
   placeholder?: string[];
-  emptyLabel?: string;
-  emptyAction?: ReactNode;
 }) {
   const { ref, width } = useChartWidth(420);
   if (!items.length) {
     if (!placeholder?.length) {
       return (
         <div className="ac-dash-empty" style={{ minHeight: 110 }} ref={ref}>
-          <p>{emptyLabel}</p>
+          <p>Aucune catégorie.</p>
         </div>
       );
     }
     return (
-      <div className="ac-hbar-empty" ref={ref}>
-        <div className="ac-hbar-list is-ghost" aria-hidden="true">
-          {placeholder.map((label) => (
-            <div key={label} className="ac-hbar-row">
-              <div className="ac-hbar-top">
-                <span className="ac-hbar-label">{label}</span>
-                <span className="ac-hbar-val">
-                  <strong>{formatCompactNum(0, unit, 100_000)}</strong>
-                  <em>0%</em>
-                </span>
-              </div>
-              <div className="ac-hbar-track" />
+      <div className="ac-hbar-list" ref={ref}>
+        {placeholder.map((label) => (
+          <div key={label} className="ac-hbar-row">
+            <div className="ac-hbar-top">
+              <span className="ac-hbar-label">{label}</span>
+              <span className="ac-hbar-val">
+                <strong>{formatCompactNum(0, unit, 100_000)}</strong>
+                <em>0%</em>
+              </span>
             </div>
-          ))}
-        </div>
-        <div className="ac-hbar-empty-note" role="status">
-          <span className="ac-chart-zero-pill ac-hbar-empty-pill">{emptyLabel}</span>
-          {emptyAction}
-        </div>
+            <div className="ac-hbar-track" />
+          </div>
+        ))}
       </div>
     );
   }

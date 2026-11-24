@@ -604,23 +604,15 @@ export default function Dashboard() {
               <h3>Répartition des charges</h3>
               <p>Top catégories de dépenses (hors achats)</p>
             </div>
-            {expenseCategories.length > 0 && (
-              <Link to="/balance" className="ac-dash-link">
-                Voir la balance →
-              </Link>
-            )}
+            <Link to="/balance" className="ac-dash-link">
+              Voir la balance →
+            </Link>
           </div>
           <HBarChart
             color="var(--ac-chart-amber, #d97706)"
             items={expenseCategories}
             unit={cur}
             placeholder={['Salaires', 'Loyer', 'Transport', 'Électricité', 'Autre']}
-            emptyLabel="Aucune charge enregistrée"
-            emptyAction={
-              <Link to="/balance" className="ac-dash-link ac-hbar-empty-cta">
-                Ajouter une dépense →
-              </Link>
-            }
           />
         </div>
       </div>
