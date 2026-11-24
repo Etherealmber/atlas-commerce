@@ -2,8 +2,21 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getToken } from '../../auth';
 import { getApiBase } from '../../config';
 
+type DesktopAssetEntry = {
+  platform: 'windows' | 'macos' | 'linux';
+  arch: 'universal' | 'x86_64' | 'arm64';
+  kind: string;
+  filename: string;
+  key: string;
+  aliasKey: string | null;
+  downloadUrl: string;
+  latestUrl: string | null;
+  sha256: string | null;
+  sizeBytes: number;
+};
+
 type DesktopManifest = {
-  platform: 'windows';
+  platform: 'windows' | 'macos' | 'linux';
   arch: string;
   channel: 'stable' | 'prerelease';
   version: string;
@@ -19,6 +32,7 @@ type DesktopManifest = {
   notes: string;
   publishedAt: string;
   filename?: string;
+  assets?: DesktopAssetEntry[];
 };
 
 type DesktopRemoteState = {
@@ -55,6 +69,8 @@ export default function DesktopUpdateSection() {
   const [sha256, setSha256] = useState('');
   const [mandatory, setMandatory] = useState(false);
   const [notes, setNotes] = useState('');
+  const [uploadOs, setUploadOs] = useState<'windows' | 'macos' | 'linux'>('windows');
+  const [uploadArch, setUploadArch] = useState<'universal' | 'x86_64' | 'arm64'>('universal');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadPct, setUploadPct] = useState(0);
@@ -101,8 +117,6 @@ export default function DesktopUpdateSection() {
     () =>
       JSON.stringify(
         {
-          platform: 'windows',
-          arch: 'universal-x86_64',
           channel,
           version: version.trim(),
           mandatory,
@@ -110,6 +124,7 @@ export default function DesktopUpdateSection() {
           sha256: sha256.trim() || null,
           downloadUrl: downloadUrl.trim() || (state ? state.installer.url : ''),
           notes,
+          assetsCount: state?.manifest?.assets?.length ?? 0,
         },
         null,
         2,
@@ -155,7 +170,7 @@ export default function DesktopUpdateSection() {
   const uploadInstaller = (file: File) => {
     if (!state) return;
     if (file.size > state.maxBytes) {
-      flash(`Installateur trop lourd (${fmtBytes(file.size)} — max ${fmtBytes(state.maxBytes)})`, 'error');
+      flash(`Fichier trop lourd (${fmtBytes(file.size)} — max ${fmtBytes(state.maxBytes)})`, 'error');
       return;
     }
     setUploading(true);
@@ -163,8 +178,10 @@ export default function DesktopUpdateSection() {
     const xhr = new XMLHttpRequest();
     xhrRef.current = xhr;
     xhr.open('POST', `${getApiBase()}/api/admin/desktop-update/installer`);
-    xhr.setRequestHeader('Content-Type', 'application/vnd.microsoft.portable-executable');
+    xhr.setRequestHeader('Content-Type', 'application/octet-stream');
     if (version.trim()) xhr.setRequestHeader('X-Release-Version', version.trim());
+    xhr.setRequestHeader('X-Release-Platform', uploadOs);
+    xhr.setRequestHeader('X-Release-Arch', uploadArch);
     xhr.setRequestHeader('X-Release-Filename', file.name);
     const token = getToken();
     if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
@@ -178,16 +195,16 @@ export default function DesktopUpdateSection() {
       try { data = JSON.parse(xhr.responseText || '{}'); } catch { /* */ }
       if (xhr.status >= 200 && xhr.status < 300 && data?.success) {
         const deleted = Array.isArray(data?.data?.deletedKeys) ? data.data.deletedKeys.length : 0;
-        flash(`Installateur Desktop publié (${fmtBytes(file.size)}) · ${deleted} ancien(s) fichier(s) supprimé(s) ✓`);
+        flash(`Binaire Bureau (${uploadOs}/${uploadArch}) publié (${fmtBytes(file.size)}) · ${deleted} ancien(s) fichier(s) purgé(s) ✓`);
         void load();
       } else {
-        flash(data?.error || `Échec upload installateur (${xhr.status})`, 'error');
+        flash(data?.error || `Échec upload binaire (${xhr.status})`, 'error');
       }
     };
     xhr.onerror = () => {
       setUploading(false);
       xhrRef.current = null;
-      flash('Échec upload installateur (réseau)', 'error');
+      flash('Échec upload binaire (réseau)', 'error');
     };
     xhr.send(file);
   };
@@ -218,21 +235,24 @@ export default function DesktopUpdateSection() {
     );
   }
 
+  const assets = state?.manifest?.assets || [];
+
   return (
     <div>
       <div className="card" style={{ marginBottom: 16, padding: 16 }}>
-        <h2 style={{ fontSize: 16, marginTop: 0 }}>Mise à jour application Bureau (Windows · CDN1)</h2>
+        <h2 style={{ fontSize: 16, marginTop: 0 }}>Mise à jour application Bureau (Windows · macOS · Linux · CDN1)</h2>
         <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5, marginTop: 4 }}>
-          Le manifeste <code>latest.json</code> et l&apos;installateur Windows universel/x86 vivent sur Cloudflare R2
-          (<code>app-updates/desktop/</code>) et sont servis par CDN1. Chaque nouvelle publication supprime
-          automatiquement les anciens binaires du dossier <code>app-updates/desktop/</code>.
+          Le manifeste <code>latest.json</code> et les installateurs Windows (<code>.exe</code>/<code>.msi</code>),
+          macOS (<code>.dmg</code>) et Linux (<code>.AppImage</code>/<code>.zsync</code>/<code>.tar.gz</code>)
+          vivent sur Cloudflare R2 (<code>app-updates/desktop/</code>). Chaque nouvelle version purge automatiquement
+          tous les anciens binaires des versions précédentes.
         </p>
         {state && (
           <div style={{ marginTop: 12, border: '1px solid var(--line)', borderRadius: 12, overflow: 'hidden' }}>
             {[
               ['Source manifeste', state.source === 'r2' ? 'R2 ✓' : state.source === 'db' ? 'D1 (fallback)' : 'aucun'],
               [`latest.json · ${fmtBytes(state.json.size)}`, fmtDate(state.json.uploaded)],
-              [`latest-setup.exe · ${fmtBytes(state.installer.size)}`, fmtDate(state.installer.uploaded)],
+              ['Installateurs multi-OS déclarés', String(assets.length)],
               ['Fichiers actifs dans app-updates/desktop/', String(state.files.length)],
             ].map(([k, v], i) => (
               <div
@@ -248,6 +268,30 @@ export default function DesktopUpdateSection() {
               >
                 <span style={{ color: 'var(--muted)' }}>{k}</span>
                 <strong>{v}</strong>
+              </div>
+            ))}
+          </div>
+        )}
+        {assets.length > 0 && (
+          <div style={{ marginTop: 10, display: 'grid', gap: 6 }}>
+            {assets.map((a) => (
+              <div
+                key={a.key}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '6px 10px',
+                  border: '1px solid var(--line)',
+                  borderRadius: 8,
+                  fontSize: 12.5,
+                }}
+              >
+                <span>
+                  <strong>{a.platform}</strong> · {a.arch} · <code>{a.filename}</code>
+                </span>
+                <span style={{ color: 'var(--muted)' }}>{fmtBytes(a.sizeBytes)}</span>
               </div>
             ))}
           </div>
@@ -290,7 +334,7 @@ export default function DesktopUpdateSection() {
           </div>
         </div>
         <div className="form-row" style={{ marginTop: 8 }}>
-          <label>downloadUrl (installateur Windows CDN1)</label>
+          <label>downloadUrl principal (CDN1)</label>
           <input
             value={downloadUrl}
             onChange={(e) => setDownloadUrl(e.target.value)}
@@ -333,15 +377,41 @@ export default function DesktopUpdateSection() {
       </div>
 
       <div className="card" style={{ padding: 16 }}>
-        <h2 style={{ fontSize: 16, marginTop: 0 }}>Uploader l&apos;installateur Windows (.exe / .msi)</h2>
+        <h2 style={{ fontSize: 16, marginTop: 0 }}>Uploader un binaire Bureau (Windows · macOS · Linux)</h2>
         <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5, marginTop: 4 }}>
-          Envoie le binaire vers R2 (<code>app-updates/desktop/</code>), met à jour <code>latest-setup.exe</code> et
-          supprime automatiquement les anciens fichiers Desktop du bucket.
+          Envoie vers R2 (<code>app-updates/desktop/</code>) un installateur Windows (<code>.exe</code>/<code>.msi</code>/<code>.zip</code>),
+          macOS (<code>.dmg</code>) ou Linux (<code>.AppImage</code>/<code>.zsync</code>/<code>.tar.gz</code>/<code>.deb</code>/<code>.rpm</code>).
+          Les anciennes versions sont purgées automatiquement.
         </p>
+        <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10, marginBottom: 12 }}>
+          <div className="form-row">
+            <label>OS cible</label>
+            <select
+              value={uploadOs}
+              onChange={(e) => {
+                const next = e.target.value as 'windows' | 'macos' | 'linux';
+                setUploadOs(next);
+                if (next === 'linux' && uploadArch === 'universal') setUploadArch('x86_64');
+              }}
+            >
+              <option value="windows">Windows</option>
+              <option value="macos">macOS</option>
+              <option value="linux">Linux</option>
+            </select>
+          </div>
+          <div className="form-row">
+            <label>Architecture</label>
+            <select value={uploadArch} onChange={(e) => setUploadArch(e.target.value as 'universal' | 'x86_64' | 'arm64')}>
+              <option value="universal">universal</option>
+              <option value="x86_64">x86_64</option>
+              <option value="arm64">arm64</option>
+            </select>
+          </div>
+        </div>
         <input
           ref={fileRef}
           type="file"
-          accept=".exe,.msi,application/octet-stream"
+          accept=".exe,.msi,.zip,.dmg,.AppImage,.zsync,.tar.gz,.deb,.rpm,application/octet-stream"
           style={{ display: 'none' }}
           onChange={(e) => {
             const f = e.target.files?.[0];
@@ -351,7 +421,7 @@ export default function DesktopUpdateSection() {
         />
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}>
-            {uploading ? `Envoi… ${uploadPct}%` : 'Choisir un fichier .exe / .msi'}
+            {uploading ? `Envoi… ${uploadPct}%` : 'Choisir un fichier Desktop'}
           </button>
           {uploading && (
             <button type="button" className="secondary" onClick={() => { xhrRef.current?.abort(); setUploading(false); }}>

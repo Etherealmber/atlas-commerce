@@ -342,6 +342,142 @@ describe('desktopReleaseRouter', () => {
     expect(traversal.status).toBe(404);
   });
 
+  it('supports Windows, macOS, and Linux multi-OS ingestion within one version and purges all old versions on bump', async () => {
+    const bucket = new MemBucket();
+    const env = makeEnv(bucket);
+    const exe = fakeExe(18_000, 1);
+    const dmg = fakeExe(22_000, 2);
+    const appImgX64 = fakeExe(25_000, 3);
+    const zsyncX64 = new TextEncoder().encode('zsync: 0.6.2\nFilename: atlas-commerce-desktop-v0.9.5-linux-x86_64.AppImage\n'.repeat(12));
+    const appImgArm = fakeExe(24_000, 4);
+
+    const postAsset = (headers: Record<string, string>, body: Uint8Array) =>
+      desktopReleaseRouter.fetch(
+        new Request('https://api.example.com/api/admin/desktop-release', {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer desktop-ci-secret-token',
+            'Content-Length': String(body.byteLength),
+            'X-Release-Version': '0.9.5',
+            ...headers,
+          },
+          body: body as any,
+        }),
+        env,
+      );
+
+    expect((await postAsset({
+      'X-Release-Platform': 'windows',
+      'X-Release-Arch': 'universal',
+      'X-Release-Filename': 'atlas-commerce-desktop-v0.9.5-setup.exe',
+      'X-Release-Sha256': '1'.repeat(64),
+    }, exe)).status).toBe(200);
+
+    expect((await postAsset({
+      'X-Release-Platform': 'macos',
+      'X-Release-Arch': 'universal',
+      'X-Release-Filename': 'atlas-commerce-desktop-v0.9.5-macos-universal.dmg',
+      'X-Release-Sha256': '2'.repeat(64),
+    }, dmg)).status).toBe(200);
+
+    expect((await postAsset({
+      'X-Release-Platform': 'linux',
+      'X-Release-Arch': 'x86_64',
+      'X-Release-Filename': 'atlas-commerce-desktop-v0.9.5-linux-x86_64.AppImage',
+      'X-Release-Sha256': '3'.repeat(64),
+    }, appImgX64)).status).toBe(200);
+
+    expect((await postAsset({
+      'X-Release-Platform': 'linux',
+      'X-Release-Arch': 'x86_64',
+      'X-Release-Kind': 'zsync',
+      'X-Release-Filename': 'atlas-commerce-desktop-v0.9.5-linux-x86_64.AppImage.zsync',
+      'X-Release-Sha256': '4'.repeat(64),
+    }, zsyncX64)).status).toBe(200);
+
+    expect((await postAsset({
+      'X-Release-Platform': 'linux',
+      'X-Release-Arch': 'arm64',
+      'X-Release-Filename': 'atlas-commerce-desktop-v0.9.5-linux-aarch64.AppImage',
+      'X-Release-Sha256': '5'.repeat(64),
+    }, appImgArm)).status).toBe(200);
+
+    // Reject APK uploads on desktop endpoint
+    const badApk = await postAsset({
+      'X-Release-Platform': 'windows',
+      'X-Release-Filename': 'app-release.apk',
+    }, exe);
+    expect(badApk.status).toBe(400);
+
+    // Verify macOS query
+    const macRes: any = await (await desktopReleaseRouter.fetch(
+      new Request('https://api.example.com/api/app/desktop-update?platform=macos&version=0.9.4'),
+      env,
+    )).json();
+    expect(macRes.platform).toBe('macos');
+    expect(macRes.platformAvailable).toBe(true);
+    expect(macRes.updateAvailable).toBe(true);
+    expect(macRes.downloadUrl).toBe('https://cdn1.afmarbre.com/app-updates/desktop/atlas-commerce-desktop-v0.9.5-macos-universal.dmg');
+    expect(macRes.latestUrl).toBe('https://cdn1.afmarbre.com/app-updates/desktop/latest-macos.dmg');
+    expect(macRes.sha256).toBe('2'.repeat(64));
+
+    // Verify Linux x86_64 query includes zsyncUrl
+    const linuxX64: any = await (await desktopReleaseRouter.fetch(
+      new Request('https://api.example.com/api/app/desktop-update?platform=linux&arch=x86_64&version=0.9.4'),
+      env,
+    )).json();
+    expect(linuxX64.platform).toBe('linux');
+    expect(linuxX64.arch).toBe('x86_64');
+    expect(linuxX64.downloadUrl).toBe('https://cdn1.afmarbre.com/app-updates/desktop/atlas-commerce-desktop-v0.9.5-linux-x86_64.AppImage');
+    expect(linuxX64.zsyncUrl).toBe('https://cdn1.afmarbre.com/app-updates/desktop/atlas-commerce-desktop-v0.9.5-linux-x86_64.AppImage.zsync');
+
+    // Verify Linux arm64 query
+    const linuxArm: any = await (await desktopReleaseRouter.fetch(
+      new Request('https://api.example.com/api/app/desktop-update?platform=linux&arch=arm64&version=0.9.4'),
+      env,
+    )).json();
+    expect(linuxArm.arch).toBe('arm64');
+    expect(linuxArm.downloadUrl).toBe('https://cdn1.afmarbre.com/app-updates/desktop/atlas-commerce-desktop-v0.9.5-linux-aarch64.AppImage');
+
+    // Verify live alias cache headers for macOS DMG and Linux AppImage
+    const dmgHead = await serveAppUpdatesAsset(
+      new Request('https://cdn1.afmarbre.com/app-updates/desktop/latest-macos.dmg', { method: 'HEAD' }),
+      env,
+    );
+    expect(dmgHead.status).toBe(200);
+    expect(dmgHead.headers.get('Cache-Control')).toBe('no-cache, max-age=0, must-revalidate');
+
+    const appImgHead = await serveAppUpdatesAsset(
+      new Request('https://cdn1.afmarbre.com/app-updates/desktop/latest-linux-x86_64.AppImage', { method: 'HEAD' }),
+      env,
+    );
+    expect(appImgHead.status).toBe(200);
+    expect(appImgHead.headers.get('Cache-Control')).toBe('no-cache, max-age=0, must-revalidate');
+
+    // Bump to 0.9.6: ALL 0.9.5 Windows/macOS/Linux binaries + old aliases must be purged
+    const v96Res: any = await (await desktopReleaseRouter.fetch(
+      new Request('https://api.example.com/api/admin/desktop-release', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer desktop-ci-secret-token',
+          'Content-Length': String(exe.byteLength),
+          'X-Release-Version': '0.9.6',
+          'X-Release-Platform': 'windows',
+          'X-Release-Arch': 'universal',
+          'X-Release-Filename': 'atlas-commerce-desktop-v0.9.6-setup.exe',
+          'X-Release-Sha256': '6'.repeat(64),
+        },
+        body: exe as any,
+      }),
+      env,
+    )).json();
+    expect(v96Res.ok).toBe(true);
+    expect(bucket.map.has('app-updates/desktop/atlas-commerce-desktop-v0.9.5-macos-universal.dmg')).toBe(false);
+    expect(bucket.map.has('app-updates/desktop/latest-macos.dmg')).toBe(false);
+    expect(bucket.map.has('app-updates/desktop/atlas-commerce-desktop-v0.9.5-linux-x86_64.AppImage')).toBe(false);
+    expect(bucket.map.has('app-updates/desktop/atlas-commerce-desktop-v0.9.6-setup.exe')).toBe(true);
+  });
+
   it('is exempt from the Android minimum-version 426 guard', async () => {
     const mw = androidMinVersionGuard({
       readPolicy: async () => ({ enabled: true, code: 999 }),
