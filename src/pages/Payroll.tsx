@@ -17,6 +17,7 @@ import { getRole, getToken } from '../auth';
 import SaveFeedback from '../components/SaveFeedback';
 import TopPageActions from '../components/TopPageActions';
 import RefreshIconButton from '../components/RefreshIconButton';
+import PageSkeleton from '../components/PageSkeleton';
 import { fmtMoney } from '../lib/money';
 
 function openAuthedUrl(url: string) {
@@ -157,6 +158,17 @@ export default function Payroll() {
   const draftCount = runs.length - closedCount;
   const runLines: any[] = Array.isArray(selectedRun?.lines) ? selectedRun.lines : [];
 
+  if (loading && !runs.length && !selectedRun && !error) {
+    return (
+      <div className="atlas-page ac-dash payroll-page ac-erp-page">
+        <div className="page-header dock-page-header">
+          <h1 className="sr-only">Paie CNSS / AMO</h1>
+        </div>
+        <PageSkeleton variant="dashboard" />
+      </div>
+    );
+  }
+
   return (
     <div className="atlas-page ac-dash payroll-page ac-erp-page">
       <div className="page-header dock-page-header">
@@ -172,45 +184,6 @@ export default function Payroll() {
 
       {error && <p className="msg-error" role="alert">{error}</p>}
       <SaveFeedback message={feedback} />
-
-      {/* Bento Hero */}
-      <header className="ac-dash-hero">
-        <div className="ac-dash-hero-row">
-          <div className="ac-dash-hero-text">
-            <p className="ac-dash-eyebrow">
-              <span>Paie &amp; charges sociales</span>
-            </p>
-            <h2 className="ac-dash-hello">Paie mensuelle (CNSS / AMO / IGR)</h2>
-            <p className="ac-dash-lead">
-              Calcul automatique à partir des présences, heures supplémentaires et barème Maroc.
-            </p>
-          </div>
-          <div className="ac-dash-hero-side">
-            <span
-              className={`ac-status-pill ${
-                selectedRun
-                  ? selectedRun.status === 'closed'
-                    ? 'is-ok'
-                    : 'is-dirty'
-                  : ''
-              }`}
-            >
-              {selectedRun ? (
-                <>
-                  {selectedRun.status === 'closed' ? (
-                    <Lock size={13} aria-hidden="true" />
-                  ) : (
-                    <CheckCircle2 size={13} aria-hidden="true" />
-                  )}
-                  Lot #{selectedRun.id} · {selectedRun.status === 'closed' ? 'Clôturé' : 'Brouillon'}
-                </>
-              ) : (
-                'Aucun lot sélectionné'
-              )}
-            </span>
-          </div>
-        </div>
-      </header>
 
       {/* 4 Dashboard KPI Bento Cards */}
       <section className="ac-metric-grid" aria-label="Indicateurs de paie">
@@ -253,6 +226,28 @@ export default function Payroll() {
               Crée ou recalcule un brouillon mensuel à partir des présences enregistrées.
             </p>
           </div>
+          <span
+            className={`ac-status-pill ${
+              selectedRun
+                ? selectedRun.status === 'closed'
+                  ? 'is-ok'
+                  : 'is-dirty'
+                : ''
+            }`}
+          >
+            {selectedRun ? (
+              <>
+                {selectedRun.status === 'closed' ? (
+                  <Lock size={13} aria-hidden="true" />
+                ) : (
+                  <CheckCircle2 size={13} aria-hidden="true" />
+                )}
+                Lot #{selectedRun.id} · {selectedRun.status === 'closed' ? 'Clôturé' : 'Brouillon'}
+              </>
+            ) : (
+              'Aucun lot sélectionné'
+            )}
+          </span>
         </div>
         <form onSubmit={createRegularRun} className="ac-erp-toolbar">
           <label className="ac-erp-field" style={{ minWidth: '180px' }}>

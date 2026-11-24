@@ -30,6 +30,86 @@ export function runWithRequestAuthContext<T>(ctx: RequestAuthContext, fn: () => 
   return requestAuthStorage.run(ctx, fn);
 }
 
+export function getRequestAuthContext(): RequestAuthContext | undefined {
+  return requestAuthStorage.getStore();
+}
+
+export function parseAuthorizationHeader(
+  authHeader: string | undefined,
+): { scheme: 'Bearer' | 'DPoP'; token: string } | null {
+  if (!authHeader || typeof authHeader !== 'string') return null;
+  const space = authHeader.indexOf(' ');
+  if (space <= 0) return null;
+  const rawScheme = authHeader.slice(0, space);
+  const token = authHeader.slice(space + 1).replace(/^ +/, '');
+  if (!token) return null;
+  const lower = rawScheme.toLowerCase();
+  if (lower === 'bearer') return { scheme: 'Bearer', token };
+  if (lower === 'dpop') return { scheme: 'DPoP', token };
+  return null;
+}
+
+export function isNativeV3AuthHeader(authHeader: string | undefined): boolean {
+  const parsed = parseAuthorizationHeader(authHeader);
+  return parsed?.scheme === 'DPoP' && parsed.token.startsWith('nv3.');
+}
+
+export function isAnyNativeV3TokenHeader(authHeader: string | undefined): boolean {
+  const parsed = parseAuthorizationHeader(authHeader);
+  return !!parsed?.token.startsWith('nv3.');
+}
+
+const revokedWebTokensReady = new WeakSet<object>();
+
+export async function ensureRevokedWebTokensTable(db: D1Database): Promise<void> {
+  if (revokedWebTokensReady.has(db as unknown as object)) return;
+  await db.prepare(
+    `CREATE TABLE IF NOT EXISTS revoked_web_tokens (
+      token_hash TEXT PRIMARY KEY,
+      username TEXT NOT NULL DEFAULT '',
+      revoked_at INTEGER NOT NULL
+    )`,
+  ).run();
+  await db.prepare(
+    `CREATE INDEX IF NOT EXISTS idx_revoked_web_tokens_user ON revoked_web_tokens(username, revoked_at)`,
+  ).run();
+  revokedWebTokensReady.add(db as unknown as object);
+}
+
+export async function webTokenHash(rawToken: string): Promise<string> {
+  const parsed = parseToken(rawToken);
+  if (parsed?.version === 2) {
+    return sha256Hex(
+      `v2|${parsed.username || ''}|${parsed.role || ''}|${parsed.ip}|${parsed.fingerprint}|${parsed.proof || ''}|${parsed.sid || ''}`,
+    );
+  }
+  if (parsed?.version === 1) {
+    return sha256Hex(`v1|${parsed.password || ''}|${parsed.ip}|${parsed.fingerprint}`);
+  }
+  return sha256Hex(rawToken);
+}
+
+export async function revokeWebToken(db: D1Database, rawToken: string, username: string): Promise<void> {
+  await ensureRevokedWebTokensTable(db);
+  const hash = await webTokenHash(rawToken);
+  await db
+    .prepare(
+      `INSERT OR IGNORE INTO revoked_web_tokens (token_hash, username, revoked_at) VALUES (?, ?, ?)`,
+    )
+    .bind(hash, String(username || '').toLowerCase(), Date.now())
+    .run();
+}
+
+export async function isWebTokenRevoked(db: D1Database, rawToken: string): Promise<boolean> {
+  await ensureRevokedWebTokensTable(db);
+  const hash = await webTokenHash(rawToken);
+  const row = await db
+    .prepare(`SELECT 1 AS revoked FROM revoked_web_tokens WHERE token_hash = ? LIMIT 1`)
+    .bind(hash)
+    .first();
+  return Boolean(row);
+}
+
 export function cfGeo(c: any): { city: string; country: string } {
   const cf = (c?.req?.raw as any)?.cf || {};
   return { city: String(cf.city || ''), country: String(cf.country || '') };
@@ -296,7 +376,17 @@ export async function writeAudit(
   } catch { /* never break business flow */ }
 }
 
-export async function makeSessionProof(username: string, role: string, secretMaterial: string, ip: string, fp: string): Promise<string> {
+export async function makeSessionProof(
+  username: string,
+  role: string,
+  secretMaterial: string,
+  ip: string,
+  fp: string,
+  sid?: string,
+): Promise<string> {
+  if (sid) {
+    return sha256Hex(`proof|${username}|${role}|${secretMaterial}|${ip}|${fp}|${sid}`);
+  }
   return sha256Hex(`proof|${username}|${role}|${secretMaterial}|${ip}|${fp}`);
 }
 
@@ -318,18 +408,25 @@ export function clientIp(c: any): string {
   return normalizeIp(raw);
 }
 
-/** Session token v2: username + role + proof (no raw password). Legacy v1 still parsed. */
+/** Session token v2: username + role + proof + per-session sid (no raw password). Legacy v1 still parsed. */
 export async function makeTokenV2(
   username: string,
   role: string,
   secretMaterial: string,
   ip: string,
   fingerprint: string,
+  preserveSid?: string,
 ): Promise<string> {
   const fp = (fingerprint || 'none').slice(0, 128);
   const user = username.toLowerCase();
-  const proof = await makeSessionProof(user, role, secretMaterial, ip, fp);
-  return btoa(unescape(encodeURIComponent(`stock-auth-v2|${user}|${role}|${ip}|${fp}|${proof}`)));
+  let sid = preserveSid && /^[a-f0-9]{16,64}$/.test(preserveSid) ? preserveSid : '';
+  if (!sid) {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    sid = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+  }
+  const proof = await makeSessionProof(user, role, secretMaterial, ip, fp, sid);
+  return btoa(unescape(encodeURIComponent(`stock-auth-v2|${user}|${role}|${ip}|${fp}|${proof}|${sid}`)));
 }
 
 /** @deprecated legacy single-admin token — still accepted for old sessions briefly */
@@ -346,6 +443,7 @@ export function parseToken(token: string): {
   ip: string;
   fingerprint: string;
   proof?: string;
+  sid?: string;
 } | null {
   const candidates = [
     token,
@@ -356,7 +454,9 @@ export function parseToken(token: string): {
     try {
       const raw = decodeURIComponent(escape(atob(tok)));
       const parts = raw.split('|');
-      if (parts[0] === 'stock-auth-v2' && parts.length >= 6) {
+      if (parts[0] === 'stock-auth-v2' && (parts.length === 6 || parts.length === 7)) {
+        const sid = parts.length === 7 ? parts[6] : undefined;
+        if (sid !== undefined && !/^[a-f0-9]{16,64}$/.test(sid)) continue;
         return {
           version: 2,
           username: parts[1],
@@ -364,6 +464,7 @@ export function parseToken(token: string): {
           ip: parts[3],
           fingerprint: parts[4] || 'none',
           proof: parts[5],
+          sid,
         };
       }
       if (parts[0] === 'stock-auth' && parts.length >= 3) {
@@ -710,10 +811,11 @@ export async function authFailReason(
   fingerprint: string | undefined,
   opts?: { relaxSession?: boolean; allowRoleRefresh?: boolean; dpopHeader?: string; method?: string; requestUrl?: string },
 ): Promise<string> {
-  if (!authHeader?.startsWith('Bearer ')) return 'missing';
-  const rawToken = authHeader.slice(7);
-  if (rawToken.startsWith('np1.')) return await validateNativePilotToken(env, rawToken, nativeCurrentIdentity) ? 'ok' : 'bad_token';
-  if (rawToken.startsWith('nv3.')) {
+  const parsedAuth = parseAuthorizationHeader(authHeader);
+  if (!parsedAuth) return 'missing';
+  const rawToken = parsedAuth.token;
+  if (parsedAuth.scheme === 'DPoP') {
+    if (!rawToken.startsWith('nv3.')) return 'bad_token';
     if (opts?.relaxSession || opts?.allowRoleRefresh) return 'bad_token';
     const ctx = requestAuthStorage.getStore();
     const dpopHeader = opts?.dpopHeader ?? ctx?.dpopHeader;
@@ -762,6 +864,9 @@ export async function authFailReason(
     }
     return 'ok';
   }
+  // Bearer scheme: nv3. tokens MUST use RFC 9449 `Authorization: DPoP nv3.<...>`
+  if (rawToken.startsWith('nv3.')) return 'bad_token';
+  if (rawToken.startsWith('np1.')) return await validateNativePilotToken(env, rawToken, nativeCurrentIdentity) ? 'ok' : 'bad_token';
   const parsed = parseToken(rawToken);
   if (!parsed) return 'bad_token';
 
@@ -771,6 +876,7 @@ export async function authFailReason(
     // Legacy v1 tokens embedded the raw password — reject them (force re-login → v2)
     return 'bad_password';
   } else {
+    if (await isWebTokenRevoked(db, rawToken)) return 'bad_token';
     const user = (parsed.username || '').toLowerCase();
     const role = parsed.role || 'user';
     const proof = parsed.proof || '';
@@ -779,7 +885,7 @@ export async function authFailReason(
       const exp = getPassword(env);
       if (!exp) return 'bad_password';
       const ownerMaterial = await sha256Hex(`owner-key|${user}|${normalizePassword(exp)}`);
-      const expectedProof = await makeSessionProof(user, 'owner', ownerMaterial, parsed.ip, parsed.fingerprint);
+      const expectedProof = await makeSessionProof(user, 'owner', ownerMaterial, parsed.ip, parsed.fingerprint, parsed.sid);
       if (proof !== expectedProof) return 'bad_password';
     } else {
       await ensureSecurityTables(db);
@@ -789,7 +895,7 @@ export async function authFailReason(
       if (!row) return 'bad_password';
       // A stale role is proof of the same credential, not authority to use it.
       // It may only exchange for a current-role token at the dedicated endpoint.
-      const expectedProof = await makeSessionProof(user, role, row.password_hash, parsed.ip, parsed.fingerprint);
+      const expectedProof = await makeSessionProof(user, role, row.password_hash, parsed.ip, parsed.fingerprint, parsed.sid);
       if (proof !== expectedProof) return 'bad_password';
       roleChanged = role !== row.role;
     }
@@ -855,12 +961,16 @@ export async function requireOwnerOrAdmin(c: any): Promise<{ ok: true } | { ok: 
 
 export function sessionUserFromHeader(authHeader: string | undefined): { username: string; role: string } {
   const ANONYMOUS = { username: '', role: '' };
-  if (!authHeader?.startsWith('Bearer ')) return ANONYMOUS;
-  const rawToken = authHeader.slice(7);
+  const parsedAuth = parseAuthorizationHeader(authHeader);
+  if (!parsedAuth) return ANONYMOUS;
+  const rawToken = parsedAuth.token;
+  if (parsedAuth.scheme === 'DPoP') {
+    const nativeV3 = parseDesktopV3Token(rawToken);
+    return nativeV3 || ANONYMOUS; // only after authFailReason verifies token + DPoP proof
+  }
+  if (rawToken.startsWith('nv3.')) return ANONYMOUS; // nv3. MUST use Authorization: DPoP
   const native = parseNativePilotToken(rawToken);
   if (native) return native; // only after the global authentication gate verifies its full hash
-  const nativeV3 = parseDesktopV3Token(rawToken);
-  if (nativeV3) return nativeV3; // only after authFailReason verifies token + DPoP proof
   const parsed = parseToken(rawToken);
   if (!parsed) return ANONYMOUS;
   if (parsed.version === 2) {

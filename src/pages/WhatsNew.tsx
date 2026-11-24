@@ -43,9 +43,16 @@ export const RELEASES: Release[] = [
       { id: '092i1', platforms: ['web'], text: 'Interfaces de chargement harmonisées : squelettes animés (.skeleton et PageSkeleton) sur les listes, détails, rapports, opérations de stock et panneaux de réglages à la place des textes bruts.' },
       { id: '092i2', platforms: ['web'], text: 'Rapports et filtres de dates : sélecteur DateRangePicker avec raccourcis rapides (7j, 1m, 6m, 1a, 2a, YTD) aligné sur le tableau de bord et menus déroulants corrigés sans rognage de texte.' },
       { id: '092i3', platforms: ['web'], text: 'Pages publiques, légales et barre supérieure : menu utilisateur unifié avec accès direct au tableau de bord, boutons de recherche globale redondants retirés et mise en page focus/légale centrée.' },
+      { id: '092i4', platforms: ['web'], text: 'Écrans Bento allégés : suppression des titres redondants dans Rapports, Opérations stock, Paie et Clôtures de caisse (indicateurs de lot et de session replacés dans leurs panneaux), barre de date du pointage alignée sur le tableau de bord et squelettes de chargement affinés.' },
+    ] }, { kind: 'features', items: [
+      { id: '092n1', platforms: ['desktop', 'server'], text: 'Authentification Desktop v3 et cœur Rust atlas-auth-core : jetons nv3. contraints par preuve DPoP ES256 et nonce D1 à usage unique, boîte e-mail vérifiée dédiée, récupération approuvée par administrateur et suite de contrat Rust ↔ Worker.' },
+      { id: '092n2', platforms: ['web', 'server'], text: 'Modules ERP & conformité Maroc : clôtures de caisse (X / Z), paie mensuelle (CNSS / AMO / IGR), pointage avec fiche présence (cycle de paie et carrière), export comptable FEC, suivi des relances et adaptateur de télédéclaration DGI.' },
+      { id: '092n3', platforms: ['web', 'android', 'server'], text: 'Inventaire hors ligne et clients mobiles : contrat de synchronisation idempotente multi-dépôts hors ligne, annuaire Clients et fiche Employés sur web mobile et aperçus isolés.' },
     ] }, { kind: 'fixes', items: [
       { id: '092f1', platforms: ['web'], text: 'Connexion mobile : suppression du lien « ••• », centrage de la carte et verrouillage du défilement horizontal.' },
       { id: '092f2', platforms: ['web'], text: 'Thème sombre unifié (#121317 / #181a20) : contraste de la barre flottante, exclusion des boutons de navigation/date des styles génériques et carte dédiée pour les modules désactivés (Pointage).' },
+      { id: '092f3', platforms: ['web'], text: 'Actions entrepôts et modale Pointage : alignement horizontal sur une ligne des boutons d’action entrepôt (Défaut, Renommer, Supprimer) avec icônes, coloration adoucie de la bannière Module Présence désactivé et statuts localisés en français dans la fiche présence.' },
+      { id: '092f4', platforms: ['server', 'desktop', 'web'], text: 'Durcissement des sessions et déconnexions : schéma Authorization DPoP strict pour nv3., révocation côté serveur des jetons web à la déconnexion, contrôle atomique lors du rafraîchissement de rôle et garde de révocation d’appareil sur la boîte de confiance.' },
     ] }],
   },
   {

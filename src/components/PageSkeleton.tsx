@@ -48,6 +48,41 @@ export function DesktopTableSkeleton({
   );
 }
 
+function KpiSkeletonGrid() {
+  return (
+    <div className="page-skeleton-kpis">
+      {[0, 1, 2, 3].map((idx) => (
+        <div key={idx} className="ac-skeleton-bento-card" style={{ padding: '16px 18px' }}>
+          <div className="skeleton" style={{ height: 10, width: '48%', marginBottom: 12 }} />
+          <div className="skeleton" style={{ height: 22, width: '62%', marginBottom: 10 }} />
+          <div className="skeleton" style={{ height: 10, width: '74%' }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PanelSkeletonCard({ rows = 3 }: { rows?: number }) {
+  return (
+    <div className="ac-skeleton-bento-card" style={{ padding: '18px 20px' }}>
+      <div className="skeleton" style={{ height: 13, width: '38%', marginBottom: 8 }} />
+      <div className="skeleton" style={{ height: 10, width: '62%', marginBottom: 18 }} />
+      {Array.from({ length: rows }, (_, idx) => (
+        <div
+          key={idx}
+          className="skeleton"
+          style={{
+            height: 36,
+            borderRadius: 10,
+            marginBottom: idx === rows - 1 ? 0 : 10,
+            width: idx === rows - 1 ? '76%' : '100%',
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export default function PageSkeleton({
   variant = 'list',
 }: {
@@ -56,11 +91,15 @@ export default function PageSkeleton({
   if (variant === 'phone') {
     return (
       <div className="page-skeleton page-skeleton--phone" aria-busy="true" aria-label="Chargement">
-        <div className="skeleton skeleton-title" style={{ width: '55%' }} />
-        <div className="skeleton skeleton-line" style={{ width: '40%' }} />
         <div className="page-skeleton-grid">
-          <div className="skeleton skeleton-card" />
-          <div className="skeleton skeleton-card" />
+          <div className="ac-skeleton-bento-card" style={{ padding: 14 }}>
+            <div className="skeleton" style={{ height: 10, width: '50%', marginBottom: 10 }} />
+            <div className="skeleton" style={{ height: 20, width: '66%' }} />
+          </div>
+          <div className="ac-skeleton-bento-card" style={{ padding: 14 }}>
+            <div className="skeleton" style={{ height: 10, width: '50%', marginBottom: 10 }} />
+            <div className="skeleton" style={{ height: 20, width: '66%' }} />
+          </div>
         </div>
         <DesktopTableSkeleton rows={4} cols={3} />
       </div>
@@ -70,20 +109,10 @@ export default function PageSkeleton({
   if (variant === 'dashboard') {
     return (
       <div className="page-skeleton" aria-busy="true" aria-label="Chargement">
-        <div className="ac-skeleton-bento-card ac-skeleton-hero">
-          <div className="skeleton skeleton-line" style={{ width: '18%', marginBottom: 10 }} />
-          <div className="skeleton skeleton-title" style={{ width: '36%', marginBottom: 8 }} />
-          <div className="skeleton skeleton-line" style={{ width: '52%' }} />
-        </div>
-        <div className="page-skeleton-kpis">
-          <div className="skeleton skeleton-card" />
-          <div className="skeleton skeleton-card" />
-          <div className="skeleton skeleton-card" />
-          <div className="skeleton skeleton-card" />
-        </div>
-        <div className="page-skeleton-grid">
-          <div className="skeleton skeleton-table" style={{ height: 240 }} />
-          <div className="skeleton skeleton-table" style={{ height: 240 }} />
+        <KpiSkeletonGrid />
+        <div className="page-skeleton-grid" style={{ marginBottom: 14 }}>
+          <PanelSkeletonCard rows={3} />
+          <PanelSkeletonCard rows={3} />
         </div>
         <DesktopTableSkeleton rows={4} cols={5} />
       </div>
@@ -93,25 +122,10 @@ export default function PageSkeleton({
   if (variant === 'settings') {
     return (
       <div className="page-skeleton ac-settings-bento" aria-busy="true" aria-label="Chargement des paramètres">
-        <div className="page-skeleton-kpis">
-          <div className="skeleton skeleton-card" />
-          <div className="skeleton skeleton-card" />
-          <div className="skeleton skeleton-card" />
-          <div className="skeleton skeleton-card" />
-        </div>
+        <KpiSkeletonGrid />
         <div className="page-skeleton-grid" style={{ marginBottom: 14 }}>
-          <div className="ac-skeleton-bento-card">
-            <div className="skeleton skeleton-line" style={{ width: '42%', marginBottom: 14 }} />
-            <div className="skeleton" style={{ height: 40, borderRadius: 10, marginBottom: 10 }} />
-            <div className="skeleton" style={{ height: 40, borderRadius: 10, marginBottom: 10 }} />
-            <div className="skeleton" style={{ height: 40, width: '68%', borderRadius: 10 }} />
-          </div>
-          <div className="ac-skeleton-bento-card">
-            <div className="skeleton skeleton-line" style={{ width: '48%', marginBottom: 14 }} />
-            <div className="skeleton" style={{ height: 40, borderRadius: 10, marginBottom: 10 }} />
-            <div className="skeleton" style={{ height: 40, borderRadius: 10, marginBottom: 10 }} />
-            <div className="skeleton" style={{ height: 40, width: '55%', borderRadius: 10 }} />
-          </div>
+          <PanelSkeletonCard rows={3} />
+          <PanelSkeletonCard rows={3} />
         </div>
         <DesktopTableSkeleton rows={5} cols={6} />
       </div>
@@ -121,39 +135,15 @@ export default function PageSkeleton({
   if (variant === 'about') {
     return (
       <div className="page-skeleton ac-about-bento" aria-busy="true" aria-label="Chargement de À propos">
-        <div className="ac-skeleton-bento-card ac-skeleton-hero">
-          <div className="skeleton skeleton-line" style={{ width: '20%', marginBottom: 12 }} />
-          <div className="skeleton skeleton-title" style={{ width: '32%', marginBottom: 10 }} />
-          <div className="skeleton skeleton-line" style={{ width: '64%', marginBottom: 16 }} />
-          <div className="ac-skeleton-pill-row">
-            <span className="skeleton ac-skeleton-pill" />
-            <span className="skeleton ac-skeleton-pill" />
-            <span className="skeleton ac-skeleton-pill" />
-            <span className="skeleton ac-skeleton-pill" />
-          </div>
-        </div>
-        <div className="page-skeleton-kpis">
-          <div className="skeleton skeleton-card" />
-          <div className="skeleton skeleton-card" />
-          <div className="skeleton skeleton-card" />
-          <div className="skeleton skeleton-card" />
-        </div>
+        <KpiSkeletonGrid />
         <div className="page-skeleton-grid" style={{ marginBottom: 14 }}>
-          <div className="skeleton skeleton-card" style={{ minHeight: 160 }} />
-          <div className="skeleton skeleton-card" style={{ minHeight: 160 }} />
-        </div>
-        <div className="ac-skeleton-bento-card" style={{ marginBottom: 14 }}>
-          <div className="skeleton skeleton-line" style={{ width: '28%', marginBottom: 12 }} />
-          <div className="ac-skeleton-pill-row">
-            <span className="skeleton ac-skeleton-pill" style={{ width: 140 }} />
-            <span className="skeleton ac-skeleton-pill" style={{ width: 130 }} />
-            <span className="skeleton ac-skeleton-pill" style={{ width: 120 }} />
-          </div>
+          <PanelSkeletonCard rows={2} />
+          <PanelSkeletonCard rows={2} />
         </div>
         <div className="ac-skeleton-grid-3">
-          <div className="skeleton skeleton-card" style={{ minHeight: 130 }} />
-          <div className="skeleton skeleton-card" style={{ minHeight: 130 }} />
-          <div className="skeleton skeleton-card" style={{ minHeight: 130 }} />
+          <PanelSkeletonCard rows={2} />
+          <PanelSkeletonCard rows={2} />
+          <PanelSkeletonCard rows={2} />
         </div>
       </div>
     );
@@ -162,24 +152,9 @@ export default function PageSkeleton({
   if (variant === 'changelog') {
     return (
       <div className="page-skeleton wn-changelog" aria-busy="true" aria-label="Chargement des nouveautés">
-        <div className="skeleton skeleton-line" style={{ width: '16%', marginBottom: 10 }} />
-        <div className="skeleton skeleton-title" style={{ width: '28%', marginBottom: 18 }} />
-        <div className="ac-skeleton-bento-card" style={{ marginBottom: 16 }}>
-          <div className="skeleton skeleton-line" style={{ width: '34%', marginBottom: 12 }} />
-          <div className="ac-skeleton-pill-row">
-            <span className="skeleton ac-skeleton-pill" style={{ width: 130 }} />
-            <span className="skeleton ac-skeleton-pill" style={{ width: 145 }} />
-            <span className="skeleton ac-skeleton-pill" style={{ width: 120 }} />
-          </div>
-        </div>
-        {[0, 1].map((idx) => (
-          <div key={idx} className="ac-skeleton-bento-card" style={{ marginBottom: 14 }}>
-            <div className="skeleton skeleton-line" style={{ width: '26%', marginBottom: 14 }} />
-            <div className="skeleton skeleton-line" style={{ width: '88%', marginBottom: 10 }} />
-            <div className="skeleton skeleton-line" style={{ width: '76%', marginBottom: 10 }} />
-            <div className="skeleton skeleton-line" style={{ width: '64%' }} />
-          </div>
-        ))}
+        <PanelSkeletonCard rows={2} />
+        <div style={{ height: 14 }} />
+        <PanelSkeletonCard rows={3} />
       </div>
     );
   }
@@ -187,14 +162,10 @@ export default function PageSkeleton({
   if (variant === 'form') {
     return (
       <div className="page-skeleton" aria-busy="true" aria-label="Chargement">
-        <div className="skeleton skeleton-line" style={{ width: '18%', marginBottom: 10 }} />
-        <div className="skeleton skeleton-title" style={{ width: '36%', marginBottom: 18 }} />
         <div className="page-skeleton-grid" style={{ marginBottom: 14 }}>
-          <div className="skeleton skeleton-card" style={{ minHeight: 110 }} />
-          <div className="skeleton skeleton-card" style={{ minHeight: 110 }} />
+          <PanelSkeletonCard rows={2} />
+          <PanelSkeletonCard rows={2} />
         </div>
-        <div className="skeleton" style={{ height: 48, marginBottom: 12, borderRadius: 12 }} />
-        <div className="skeleton" style={{ height: 48, marginBottom: 12, borderRadius: 12 }} />
         <DesktopTableSkeleton rows={4} cols={5} />
       </div>
     );
@@ -202,18 +173,10 @@ export default function PageSkeleton({
 
   return (
     <div className="page-skeleton" aria-busy="true" aria-label="Chargement">
-      <div className="skeleton skeleton-line" style={{ width: '16%', marginBottom: 10 }} />
-      <div className="skeleton skeleton-title" style={{ width: '34%', marginBottom: 8 }} />
-      <div className="skeleton skeleton-line" style={{ width: '46%', marginBottom: 18 }} />
-      <div className="page-skeleton-kpis">
-        <div className="skeleton skeleton-card" />
-        <div className="skeleton skeleton-card" />
-        <div className="skeleton skeleton-card" />
-        <div className="skeleton skeleton-card" />
-      </div>
+      <KpiSkeletonGrid />
       <div className="page-skeleton-toolbar">
-        <div className="skeleton" style={{ height: 40, width: 220, borderRadius: 999 }} />
-        <div className="skeleton" style={{ height: 40, width: 140, borderRadius: 999 }} />
+        <div className="skeleton" style={{ height: 38, width: 220, borderRadius: 999 }} />
+        <div className="skeleton" style={{ height: 38, width: 132, borderRadius: 999 }} />
       </div>
       <DesktopTableSkeleton rows={6} cols={6} />
     </div>

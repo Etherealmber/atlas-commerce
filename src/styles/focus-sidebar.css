@@ -1314,18 +1314,32 @@ html[data-theme="dark"] .ac-reports-checklist strong {
   }
 }
 .ac-ops-row-actions {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  flex-wrap: nowrap;
-  white-space: nowrap;
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 6px !important;
+  flex-wrap: nowrap !important;
+  width: max-content !important;
+  max-width: none !important;
+  margin-left: auto !important;
+  white-space: nowrap !important;
 }
 .ac-ops-row-actions > button {
-  min-height: 36px !important;
+  min-height: 34px !important;
+  height: 34px !important;
   padding: 0 12px !important;
-  font-size: 0.78rem !important;
-  white-space: nowrap;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  border-radius: 999px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  white-space: nowrap !important;
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.2s ease, border-color 0.2s ease !important;
+}
+.ac-ops-row-actions > button svg {
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .ac-ops-scope-control {
   padding: 10px 14px;
@@ -1731,9 +1745,9 @@ html[data-theme="light"] .dl-support-form select option {
   flex-wrap: wrap;
   padding: 22px 24px !important;
   border-radius: 20px !important;
-  background: #fffbeb !important;
-  border: 1px solid #fde68a !important;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04) !important;
+  background: linear-gradient(135deg, #f8fafc 0%, #ffffff 72%) !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04) !important;
 }
 .ac-disabled-module-body {
   display: flex;
@@ -1749,9 +1763,9 @@ html[data-theme="light"] .dl-support-form select option {
   border-radius: 14px;
   display: grid;
   place-items: center;
-  background: rgba(245, 158, 11, 0.14);
-  border: 1px solid rgba(217, 119, 6, 0.24);
-  color: #b45309;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #334155;
 }
 .ac-disabled-module-copy {
   min-width: 0;
@@ -1769,24 +1783,30 @@ html[data-theme="light"] .dl-support-form select option {
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  background: rgba(245, 158, 11, 0.16);
+  background: #fef3c7;
+  border: 1px solid #fde68a;
   color: #92400e;
 }
 .ac-disabled-module-title {
   margin: 0;
   font-size: 1.05rem;
   font-weight: 750;
-  color: #78350f;
+  color: #0f172a;
 }
 .ac-disabled-module-desc {
   margin: 0;
   font-size: 0.9rem;
   line-height: 1.55;
-  color: #78350f;
+  color: #475569;
+}
+.ac-disabled-module-desc strong {
+  color: #0f172a;
 }
 .ac-disabled-module-actions {
   display: flex;
   align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
   flex: 0 0 auto;
 }
 .ac-disabled-module-cta {
@@ -1797,25 +1817,182 @@ html[data-theme="light"] .dl-support-form select option {
   text-decoration: none !important;
 }
 html[data-theme="dark"] .ac-disabled-module-card {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.09) 0%, #181a20 65%) !important;
-  border: 1px solid rgba(251, 191, 36, 0.24) !important;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, #181a20 72%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.09) !important;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28) !important;
 }
 html[data-theme="dark"] .ac-disabled-module-icon {
-  background: rgba(251, 191, 36, 0.14) !important;
-  border-color: rgba(251, 191, 36, 0.28) !important;
-  color: #fbbf24 !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #e4e4e7 !important;
 }
 html[data-theme="dark"] .ac-disabled-module-badge {
-  background: rgba(251, 191, 36, 0.16) !important;
+  background: rgba(251, 191, 36, 0.14) !important;
+  border-color: rgba(251, 191, 36, 0.28) !important;
   color: #fde68a !important;
 }
 html[data-theme="dark"] .ac-disabled-module-title {
-  color: #fef3c7 !important;
+  color: #f4f4f5 !important;
 }
-html[data-theme="dark"] .ac-disabled-module-desc,
+html[data-theme="dark"] .ac-disabled-module-desc {
+  color: #a1a1aa !important;
+}
 html[data-theme="dark"] .ac-disabled-module-desc strong {
-  color: #d4d4d8 !important;
+  color: #f4f4f5 !important;
+}
+
+/* ---- Attendance toolbar & Fiche présence modal (Dashboard parity) ---- */
+.ac-att-toolbar {
+  padding: 12px 16px !important;
+}
+.ac-att-toolbar-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ac-att-badge-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ac-att-modal {
+  padding: 22px 24px !important;
+  border-radius: 22px !important;
+  border: 1px solid var(--ac-line, #e2e8f0) !important;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.16) !important;
+  animation: acModalPop 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes acModalPop {
+  from { opacity: 0; transform: translateY(6px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.ac-att-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.ac-att-modal-eyebrow {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ac-muted, #64748b);
+  margin-bottom: 4px;
+}
+.ac-att-modal-title {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 750;
+  color: var(--ac-ink, #0f172a);
+}
+.ac-att-modal-close {
+  width: 34px !important;
+  height: 34px !important;
+  min-height: 34px !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  border: 1px solid var(--ac-line, #e2e8f0) !important;
+  background: var(--ac-bg, #f8fafc) !important;
+  color: var(--ac-ink, #0f172a) !important;
+  display: inline-grid !important;
+  place-items: center !important;
+  cursor: pointer;
+}
+html[data-theme="dark"] .ac-att-modal-close {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #f4f4f5 !important;
+}
+.ac-att-modal-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.ac-att-modal-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.ac-att-modal-metrics .ac-metric {
+  padding: 12px 14px;
+  border-radius: 14px;
+}
+.ac-att-modal-metrics .ac-metric-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.ac-att-modal-metrics .ac-metric-val {
+  font-size: 1.15rem;
+}
+.ac-att-modal-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ac-muted, #475569);
+  background: var(--ac-bg, #f8fafc);
+  border: 1px solid var(--ac-line, #e2e8f0);
+}
+.ac-att-modal-note svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+.ac-att-modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ac-line, #e2e8f0);
+}
+.ac-att-modal-foot > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+}
+.ac-status-pill.is-danger {
+  background: rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
+  border-color: rgba(239, 68, 68, 0.28);
+}
+html[data-theme="dark"] .ac-status-pill.is-danger {
+  background: rgba(248, 113, 113, 0.14);
+  color: #fca5a5;
+  border-color: rgba(248, 113, 113, 0.28);
+}
+html[data-theme="dark"] .ac-att-modal {
+  background: #181a20 !important;
+  border-color: rgba(255, 255, 255, 0.09) !important;
+}
+html[data-theme="dark"] .ac-att-modal-title {
+  color: #f4f4f5;
+}
+html[data-theme="dark"] .ac-att-modal-note {
+  background: #1d2027;
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #a1a1aa;
+}
+html[data-theme="dark"] .ac-att-modal-foot {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+@media (max-width: 640px) {
+  .ac-att-modal-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 /* ---- Floating public settings topbar (About / WhatsNew / Privacy / Terms / Licenses) ---- */

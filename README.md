@@ -393,6 +393,8 @@ Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depui
 
 ### 0.9.2-beta
 - Chargement par squelettes animés (`PageSkeleton` / `.skeleton`) sur l'ensemble des listes, fiches, rapports, opérations de stock et panneaux de réglages, sélecteur `DateRangePicker` avec raccourcis (`7j`–`YTD`) dans Rapports, menu utilisateur unifié sur les pages publiques (accès Tableau de bord, retrait des boutons de recherche redondants), centrage mobile de la page de connexion, thème sombre unifié (`#121317` / `#181a20`), correction du rognage des `<select>` et centrage des pages focus/légales.
+- Authentification Desktop v3 (`DPoP` ES256, jetons `nv3.`, boîte e-mail vérifiée dédiée, récupération approuvée par administrateur, cœur Rust `atlas-auth-core`), révocation serveur des jetons web à la déconnexion, contrôles atomiques de rafraîchissement de rôle et garde de révocation d'appareil.
+- Nouveaux modules ERP & conformité Maroc (clôtures de caisse X/Z, paie CNSS/AMO/IGR, pointage & fiche présence, export FEC, relances, connecteur DGI, inventaire hors ligne), suppression des en-têtes redondants sur Rapports / Opérations stock / Paie / Clôtures de caisse, alignement sur une ligne des actions entrepôts, bannière Module Présence adoucie et modale Fiche présence harmonisée en français.
 
 ### 0.9.1-beta
 - Connexion desktop expérimentale (fenêtre temporaire dédiée + saisie OTP native), double unité facultative sur les produits (carton / m²), mode de prix TVA HT/TTC configurable sur les factures (ventes rapides sans TVA), moteur financier Rust/WebAssembly ABI v2, idempotence des écritures, et rafraîchissement des vues PC & mobile.

@@ -19,6 +19,13 @@ import {
   validateCreditPrefix,
   validateNextCreditNumber,
 } from '../lib/ledgerHelpers';
+import {
+  ensureRevokedWebTokensTable,
+  isNativeV3AuthHeader,
+  parseAuthorizationHeader,
+  revokeWebToken,
+  webTokenHash,
+} from '../lib/authHelpers';
 
 export interface UsersAdminDeps {
   authFailReason: any;
@@ -550,20 +557,33 @@ app.get('/api/me/avatar', async (c) => {
  *  marqué « reprenable » 30 j pour le MÊME compte → reconnexion mot de passe seul
  *  (2FA désactivée). Un appareil révoqué ou un autre compte restent exclus. */
 app.post('/api/auth/logout', async (c) => {
-  const tok = c.req.header('Authorization')?.slice(7) || '';
-  if (tok.startsWith('np1.') || tok.startsWith('nv3.')) return c.json({ success: false, code: 'USE_NATIVE_LOGOUT', error: 'Utilisez la déconnexion native.' }, 400);
+  const authHeader = c.req.header('Authorization');
+  const parsedAuth = parseAuthorizationHeader(authHeader);
+  if (parsedAuth?.token.startsWith('np1.') || parsedAuth?.token.startsWith('nv3.')) {
+    return c.json({ success: false, code: 'USE_NATIVE_LOGOUT', error: 'Utilisez la déconnexion native.' }, 400);
+  }
+  if (!parsedAuth || parsedAuth.scheme !== 'Bearer') {
+    return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Session invalide' }, 401);
+  }
   const fingerprint = String(c.req.header('X-Device-Fingerprint') || '').slice(0, 128);
-  const sess = sessionUserFromHeader(c.req.header('Authorization'));
+  const sess = sessionUserFromHeader(authHeader);
   await ensureSecurityTables(c.env.DB);
   let resumePrepared = false;
   if (fingerprint && sess?.username) {
     try {
-      const marked = await c.env.DB.prepare(
-        `UPDATE trusted_devices SET resume_until = datetime('now', '+30 days') WHERE fingerprint = ? AND lower(username) = ?`,
-      ).bind(fingerprint, String(sess.username).toLowerCase()).run();
-      resumePrepared = Number(marked.meta?.changes || 0) > 0;
+      await ensureRevokedWebTokensTable(c.env.DB);
+      const tokenHash = await webTokenHash(parsedAuth.token);
+      const batchRes: any[] = await c.env.DB.batch([
+        c.env.DB
+          .prepare(`INSERT OR IGNORE INTO revoked_web_tokens (token_hash, username, revoked_at) VALUES (?, ?, ?)`)
+          .bind(tokenHash, String(sess.username).toLowerCase(), Date.now()),
+        c.env.DB
+          .prepare(`UPDATE trusted_devices SET resume_until = datetime('now', '+30 days') WHERE fingerprint = ? AND lower(username) = ?`)
+          .bind(fingerprint, String(sess.username).toLowerCase()),
+      ]);
+      resumePrepared = Number(batchRes[1]?.meta?.changes || 0) > 0;
     } catch {
-      return c.json({ success: false, resume_prepared: false, code: 'RESUME_PREPARATION_FAILED', error: 'Reprise indisponible. Une vérification pourra être nécessaire à la prochaine connexion.' }, 503);
+      return c.json({ success: false, resume_prepared: false, code: 'RESUME_PREPARATION_FAILED', error: 'Déconnexion serveur impossible.' }, 503);
     }
     await writeAudit(c.env.DB, {
       username: sess.username,
@@ -573,6 +593,22 @@ app.post('/api/auth/logout', async (c) => {
       detail: 'self_logout_resume_30d',
       ip: clientIp(c),
     });
+  } else {
+    try {
+      await revokeWebToken(c.env.DB, parsedAuth.token, sess?.username || '');
+    } catch {
+      return c.json({ success: false, resume_prepared: false, code: 'LOGOUT_REVOCATION_FAILED', error: 'Déconnexion serveur impossible.' }, 503);
+    }
+    if (sess?.username) {
+      await writeAudit(c.env.DB, {
+        username: sess.username,
+        role: sess.role || '',
+        action: 'auth.logout',
+        entity: 'session',
+        detail: 'self_logout_revoked',
+        ip: clientIp(c),
+      });
+    }
   }
   return c.json({ success: true, resume_prepared: resumePrepared });
 });
@@ -581,12 +617,16 @@ app.post('/api/auth/logout', async (c) => {
 // reject it, including print/report paths, until a current token is issued.
 app.post('/api/auth/role-refresh', async (c) => {
   const header = c.req.header('Authorization');
-  if (!header?.startsWith('Bearer ') || header.slice(7).startsWith('np1.') || header.slice(7).startsWith('nv3.')) return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Session invalide' }, 401);
-  const token = parseToken(header.slice(7));
+  const parsedAuth = parseAuthorizationHeader(header);
+  if (!parsedAuth || parsedAuth.scheme !== 'Bearer' || parsedAuth.token.startsWith('np1.') || parsedAuth.token.startsWith('nv3.')) {
+    return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Session invalide' }, 401);
+  }
+  const token = parseToken(parsedAuth.token);
   if (!token || token.version !== 2) return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Session invalide' }, 401);
   // Verify again here: do not rely on an unverified routing identity or body.
   if (await authFailReason(header, c.env, c.env.DB, clientIp(c), c.req.header('X-Device-Fingerprint'), { allowRoleRefresh: true }) !== 'ok')
     return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Session invalide' }, 401);
+  const inputHash = await webTokenHash(parsedAuth.token);
   const username = String(token.username || '').toLowerCase();
   let role: string;
   let material: string;
@@ -599,10 +639,24 @@ app.post('/api/auth/role-refresh', async (c) => {
     role = row.role;
     material = String(row.password_hash || '');
     // A password change between checks must never refresh an old proof.
-    if (token.proof !== await makeSessionProof(username, String(token.role || ''), material, token.ip, token.fingerprint))
+    if (token.proof !== await makeSessionProof(username, String(token.role || ''), material, token.ip, token.fingerprint, token.sid))
       return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Session invalide' }, 401);
   }
   const refreshed = await makeTokenV2(username, role, material, token.ip, token.fingerprint);
+  await ensureRevokedWebTokensTable(c.env.DB);
+  const refreshedHash = await webTokenHash(refreshed);
+  const raceRevoked = await c.env.DB
+    .prepare(
+      `INSERT OR IGNORE INTO revoked_web_tokens (token_hash, username, revoked_at)
+       SELECT ?, ?, ?
+       WHERE EXISTS (SELECT 1 FROM revoked_web_tokens WHERE token_hash = ?)
+       RETURNING token_hash`,
+    )
+    .bind(refreshedHash, username, Date.now(), inputHash)
+    .first();
+  if (raceRevoked) {
+    return c.json({ success: false, code: 'UNAUTHORIZED', error: 'Session invalide' }, 401);
+  }
   return c.json({ success: true, data: { token: refreshed, username, role } });
 });
 
@@ -617,12 +671,13 @@ app.get('/api/auth/me', async (c) => {
     return c.json({ success: false, error: 'Session invalide', code, currentIp: ip }, 401);
   }
   await ensureSecurityTables(c.env.DB);
-  const session = sessionUserFromHeader(c.req.header('Authorization'));
+  const authHeader = c.req.header('Authorization');
+  const session = sessionUserFromHeader(authHeader);
+  const parsedAuth = parseAuthorizationHeader(authHeader);
+  const isNativeV3 = isNativeV3AuthHeader(authHeader);
   // v243.2 — every active device (web/phone/desktop) keeps its IP & app version up to date immediately.
   try {
-    const tok = c.req.header('Authorization')?.slice(7) || '';
-    const isPilot = tok.startsWith('np1.');
-    const isNativeV3 = tok.startsWith('nv3.');
+    const isPilot = parsedAuth?.scheme === 'Bearer' && parsedAuth.token.startsWith('np1.');
     if (!isNativeV3) {
       await touchTrustedDevice(c.env.DB, session.username, fp || '', ip, c.req.header('User-Agent') || '', cfGeo(c), isPilot ? { updateOnly: true } : undefined);
     }
@@ -669,7 +724,8 @@ app.get('/api/auth/me', async (c) => {
       };
     }
   }
-  const nativeV3Session = (c.req.header('Authorization')?.slice(7) || '').startsWith('nv3.');
+  const parsedTok = parsedAuth?.scheme === 'Bearer' ? parseToken(parsedAuth.token) : null;
+  const preserveSid = parsedTok?.version === 2 ? parsedTok.sid : undefined;
   return c.json({
     success: true,
     data: {
@@ -679,7 +735,7 @@ app.get('/api/auth/me', async (c) => {
       role: session.role,
       is_owner: session.role === 'owner' || session.role === 'admin',
       reputationScore: rep.score,
-      ...(nativeV3Session
+      ...(isNativeV3
         ? {}
         : {
             token: await makeTokenV2(
@@ -690,6 +746,7 @@ app.get('/api/auth/me', async (c) => {
                 : String((await c.env.DB.prepare(`SELECT password_hash FROM app_users WHERE username = ?`).bind(session.username).first() as any)?.password_hash || ''),
               ip,
               fp || 'none',
+              preserveSid,
             ),
           }),
       ...profile,

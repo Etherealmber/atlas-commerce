@@ -306,20 +306,29 @@ export default function Dashboard() {
 
   if (loading && !data) {
     return (
-      <div className="atlas-page ac-dash ac-dash-page">
-        <div className="ac-dash-hero">
-          <div className="skeleton" style={{ height: 12, width: 160, marginBottom: 10 }} />
-          <div className="skeleton" style={{ height: 32, width: 240, marginBottom: 8 }} />
-          <div className="skeleton" style={{ height: 14, width: 320 }} />
+      <div className="atlas-page ac-dash ac-dash-page" aria-busy="true" aria-label="Chargement du tableau de bord">
+        <div className="ac-dash-hero" style={{ marginBottom: 14 }}>
+          <div className="skeleton" style={{ height: 11, width: 140, marginBottom: 10 }} />
+          <div className="skeleton" style={{ height: 24, width: 220, marginBottom: 8 }} />
+          <div className="skeleton" style={{ height: 12, width: 300 }} />
         </div>
         <div className="ac-metric-grid">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="ac-metric skeleton" style={{ minHeight: 100 }} />
+            <div key={i} className="ac-metric">
+              <div className="skeleton" style={{ height: 10, width: '46%', marginBottom: 12 }} />
+              <div className="skeleton" style={{ height: 22, width: '58%', marginBottom: 10 }} />
+              <div className="skeleton" style={{ height: 10, width: '72%' }} />
+            </div>
           ))}
         </div>
         <div className="ac-dash-primary-grid" style={{ marginTop: 14 }}>
-          <div className="skeleton" style={{ height: 320, borderRadius: 16 }} />
-          <div className="skeleton" style={{ height: 320, borderRadius: 16 }} />
+          {[0, 1].map((i) => (
+            <div key={i} className="ac-panel" style={{ minHeight: 280 }}>
+              <div className="skeleton" style={{ height: 13, width: '38%', marginBottom: 8 }} />
+              <div className="skeleton" style={{ height: 10, width: '58%', marginBottom: 20 }} />
+              <div className="skeleton" style={{ height: 170, borderRadius: 12 }} />
+            </div>
+          ))}
         </div>
       </div>
     );

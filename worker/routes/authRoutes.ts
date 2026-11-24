@@ -607,7 +607,13 @@ registerDesktopNativeV3(app, {
   verifySessionPassword: async (c, password) => {
     const header = c.req.header('Authorization');
     const fp = c.req.header('X-Device-Fingerprint') || '';
-    if (await authFailReason(header, c.env, c.env.DB, clientIp(c), fp) !== 'ok') return null;
+    if (
+      await authFailReason(header, c.env, c.env.DB, clientIp(c), fp, {
+        dpopHeader: c.req.header('DPoP'),
+        method: c.req.method.toUpperCase(),
+        requestUrl: c.req.url,
+      }) !== 'ok'
+    ) return null;
     const sess = sessionUserFromHeader(header);
     const uname = String(sess.username || '').trim().toLowerCase();
     if (!uname) return null;
@@ -627,7 +633,13 @@ registerDesktopNativeV3(app, {
   authenticatedSession: async (c) => {
     const header = c.req.header('Authorization');
     const fp = c.req.header('X-Device-Fingerprint') || '';
-    if (await authFailReason(header, c.env, c.env.DB, clientIp(c), fp) !== 'ok') return null;
+    if (
+      await authFailReason(header, c.env, c.env.DB, clientIp(c), fp, {
+        dpopHeader: c.req.header('DPoP'),
+        method: c.req.method.toUpperCase(),
+        requestUrl: c.req.url,
+      }) !== 'ok'
+    ) return null;
     const sess = sessionUserFromHeader(header);
     return sess.username ? sess : null;
   },

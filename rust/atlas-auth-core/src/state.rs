@@ -3,11 +3,12 @@ use crate::error::{AuthCoreError, Result};
 use crate::origin::ServerOrigin;
 use crate::pkce::{validate_pairing_code, PkcePair};
 use crate::schemas::{
-    CapabilitiesV3Response, ChallengePollResponse, ChallengeVerifyStatus, CreateRequestV3Body,
-    CreateRequestV3Response, OtpLoginRequestV3, PasswordLoginRequestV3, SessionTokensV3,
+    CapabilitiesV3Response, ChallengePollRequestV3, ChallengePollResponse, ChallengeVerifyStatus,
+    CreateRequestV3Body, CreateRequestV3Response, LogoutResponseV3, OtpLoginRequestV3,
+    PasswordLoginRequestV3, PasswordLoginResponseV3, SessionTokensV3,
 };
 use serde::{Deserialize, Serialize};
-use zeroize::ZeroizeOnDrop;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -23,6 +24,7 @@ pub enum DesktopV3Phase {
     ChallengeVerified,
     AwaitingOtp,
     Authenticated,
+    LoggedOut,
     Cancelled,
     Failed,
 }
@@ -35,6 +37,7 @@ impl DesktopV3Phase {
             Self::ChallengeVerified => "challenge_verified",
             Self::AwaitingOtp => "awaiting_otp",
             Self::Authenticated => "authenticated",
+            Self::LoggedOut => "logged_out",
             Self::Cancelled => "cancelled",
             Self::Failed => "failed",
         }
@@ -44,26 +47,25 @@ impl DesktopV3Phase {
 /// Explicit state machine for a single Desktop v3 authentication attempt.
 /// Never silently switches between `TurnstileWebview` and `SystemBrowser`,
 /// and never inspects WebView cookies, storage, or Turnstile tokens.
-#[derive(ZeroizeOnDrop)]
 pub struct DesktopV3AuthSession {
-    #[zeroize(skip)]
     origin: ServerOrigin,
-    #[zeroize(skip)]
     presentation: ChallengePresentation,
-    #[zeroize(skip)]
     phase: DesktopV3Phase,
     pkce: PkcePair,
-    #[zeroize(skip)]
     device_label: String,
-    #[zeroize(skip)]
     request_id: Option<String>,
-    #[zeroize(skip)]
     pairing_code: Option<String>,
-    #[zeroize(skip)]
     challenge_url: Option<String>,
-    #[zeroize(skip)]
     device_thumbprint: Option<String>,
 }
+
+impl Drop for DesktopV3AuthSession {
+    fn drop(&mut self) {
+        self.pkce.zeroize();
+    }
+}
+
+impl ZeroizeOnDrop for DesktopV3AuthSession {}
 
 impl std::fmt::Debug for DesktopV3AuthSession {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -190,6 +192,26 @@ impl DesktopV3AuthSession {
         self.pairing_code.as_deref()
     }
 
+    pub fn build_poll_request(&self) -> Result<ChallengePollRequestV3> {
+        if self.phase != DesktopV3Phase::AwaitingChallenge {
+            return Err(AuthCoreError::InvalidTransition {
+                from: self.phase.as_str(),
+                action: "build_poll_request",
+            });
+        }
+        let req_id = self
+            .request_id
+            .as_ref()
+            .ok_or(AuthCoreError::ResponseMismatch)?
+            .clone();
+        Ok(ChallengePollRequestV3 {
+            origin: self.origin.as_str().to_string(),
+            request_id: req_id,
+            state: self.pkce.state().to_string(),
+            code_verifier: self.pkce.code_verifier().to_string(),
+        })
+    }
+
     pub fn apply_poll(&mut self, poll: &ChallengePollResponse) -> Result<ChallengeVerifyStatus> {
         if self.phase != DesktopV3Phase::AwaitingChallenge {
             return Err(AuthCoreError::InvalidTransition {
@@ -291,6 +313,46 @@ impl DesktopV3AuthSession {
             return Err(AuthCoreError::ResponseMismatch);
         }
         self.phase = DesktopV3Phase::Authenticated;
+        Ok(())
+    }
+
+    pub fn apply_refreshed(
+        &mut self,
+        tokens: &SessionTokensV3,
+        key: &dyn DeviceKeyAdapter,
+    ) -> Result<()> {
+        if self.phase != DesktopV3Phase::Authenticated {
+            return Err(AuthCoreError::InvalidTransition {
+                from: self.phase.as_str(),
+                action: "apply_refreshed",
+            });
+        }
+        let expected_thumbprint = self
+            .device_thumbprint
+            .as_deref()
+            .ok_or(AuthCoreError::ResponseMismatch)?;
+        if tokens.token_type != "DPoP"
+            || tokens.origin != self.origin.as_str()
+            || tokens.device_thumbprint != key.thumbprint()
+            || tokens.device_thumbprint != expected_thumbprint
+            || !tokens.access_token.starts_with("nv3.")
+        {
+            return Err(AuthCoreError::ResponseMismatch);
+        }
+        Ok(())
+    }
+
+    pub fn mark_logged_out(&mut self, resp: &LogoutResponseV3) -> Result<()> {
+        if self.phase != DesktopV3Phase::Authenticated {
+            return Err(AuthCoreError::InvalidTransition {
+                from: self.phase.as_str(),
+                action: "mark_logged_out",
+            });
+        }
+        if resp.status != "revoked" {
+            return Err(AuthCoreError::ResponseMismatch);
+        }
+        self.phase = DesktopV3Phase::LoggedOut;
         Ok(())
     }
 
