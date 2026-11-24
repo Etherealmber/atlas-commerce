@@ -10,7 +10,7 @@ const DEFAULT_API = 'https://stock.afmarbre.com';
 
 function readEnvApi(): string {
   try {
-    const v = (import.meta as any)?.env?.VITE_API_URL;
+    const v = import.meta.env.VITE_API_URL;
     if (v && typeof v === 'string' && v.startsWith('http')) return v.replace(/\/$/, '');
   } catch { /* ignore */ }
   return '';

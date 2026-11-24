@@ -1,7 +1,8 @@
 import { SwitchMode } from './components/ui/SwitchMode';
 import MobileBottomNav from './components/erp/MobileBottomNav';
 import { useEffect, useState, useRef, lazy, Suspense } from 'react';
-import { ArrowLeft, Settings as SettingsIcon, Info } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Bell, ChevronRight, ClipboardCheck, FileText, Info, Package, Settings as SettingsIcon, Users } from 'lucide-react';
+import { canOpenPhoneBalance, canOpenPhoneEmployees } from './mobile/PhoneDock';
 import { createPortal } from 'react-dom';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { applyPageTitle, titleForPath } from './lib/pageTitle';
@@ -53,6 +54,7 @@ function lazyRetry(fn: () => Promise<any>) {
   );
 }
 const AtlasAgent = lazyRetry(() => import('./components/AtlasAgent'));
+const PublicProductLabel = lazyRetry(() => import('./pages/PublicProductLabel'));
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { isNativeApp } from './config';
 import './App.css';
@@ -1571,82 +1573,106 @@ function DesktopShell() {
                   </span>
                 ) : null}
               </button>
-              {shellNotifOpen && (
+              {shellNotifOpen && (() => {
+                const totalBadgeAlerts = badges.actions_pending + badges.employees_pay_due + badges.invoices_unpaid + badges.products_low;
+                const coveredKinds = new Set<string>();
+                if (badges.actions_pending > 0) coveredKinds.add('mobile_actions');
+                if (badges.products_low > 0) coveredKinds.add('low_stock');
+                if (badges.invoices_unpaid > 0) coveredKinds.add('unpaid_invoices');
+                if (badges.employees_pay_due > 0) coveredKinds.add('pay_due');
+                const extraAlerts = shellAlerts.filter((a: any) => !coveredKinds.has(String(a?.kind || '').toLowerCase())).slice(0, 6);
+                const visibleCount = totalBadgeAlerts + extraAlerts.length;
+                return (
                 <>
                   <div className="ac-topbar-menu-backdrop" role="presentation" aria-hidden onClick={() => setShellNotifOpen(false)} />
                   <div className="ac-notif-panel" role="dialog" aria-label="Notifications">
                     <div className="ac-notif-head">
-                      <strong>Notifications</strong>
-                      <span className="ac-notif-unread">
-                        {badges.actions_pending + badges.employees_pay_due + badges.invoices_unpaid + badges.products_low} alertes
-                      </span>
+                      <div className="ac-notif-head-title">
+                        <strong>Notifications</strong>
+                        <span className={`ac-notif-count-pill${visibleCount > 0 ? ' is-active' : ''}`}>
+                          {visibleCount > 0 ? `${visibleCount} alerte${visibleCount > 1 ? 's' : ''}` : 'À jour'}
+                        </span>
+                      </div>
                     </div>
                     <ul className="ac-notif-list">
                       {badges.actions_pending > 0 && (
                         <li>
                           <button type="button" className="ac-notif-item" onClick={() => { setShellNotifOpen(false); navigate('/actions'); }}>
-                            <span className="ac-notif-dot warn" />
-                            <span>
+                            <span className="ac-notif-ico is-warn"><ClipboardCheck size={15} aria-hidden /></span>
+                            <span className="ac-notif-copy">
                               <strong>Actions mobile</strong>
-                              <em>{badges.actions_pending} en attente</em>
+                              <em>{badges.actions_pending} demande{badges.actions_pending > 1 ? 's' : ''} en attente</em>
                             </span>
+                            <ChevronRight size={14} className="ac-notif-chev" aria-hidden />
                           </button>
                         </li>
                       )}
                       {badges.products_low > 0 && (
                         <li>
                           <button type="button" className="ac-notif-item" onClick={() => { setShellNotifOpen(false); navigate('/products'); }}>
-                            <span className="ac-notif-dot danger" />
-                            <span>
+                            <span className="ac-notif-ico is-danger"><Package size={15} aria-hidden /></span>
+                            <span className="ac-notif-copy">
                               <strong>Stock bas</strong>
-                              <em>{badges.products_low} articles</em>
+                              <em>{badges.products_low} article{badges.products_low > 1 ? 's' : ''} sous le seuil</em>
                             </span>
+                            <ChevronRight size={14} className="ac-notif-chev" aria-hidden />
                           </button>
                         </li>
                       )}
                       {badges.invoices_unpaid > 0 && (
                         <li>
                           <button type="button" className="ac-notif-item" onClick={() => { setShellNotifOpen(false); navigate('/invoices'); }}>
-                            <span className="ac-notif-dot danger" />
-                            <span>
+                            <span className="ac-notif-ico is-danger"><FileText size={15} aria-hidden /></span>
+                            <span className="ac-notif-copy">
                               <strong>Factures impayées</strong>
-                              <em>{badges.invoices_unpaid}</em>
+                              <em>{badges.invoices_unpaid} facture{badges.invoices_unpaid > 1 ? 's' : ''} à encaisser</em>
                             </span>
+                            <ChevronRight size={14} className="ac-notif-chev" aria-hidden />
                           </button>
                         </li>
                       )}
                       {badges.employees_pay_due > 0 && (
                         <li>
                           <button type="button" className="ac-notif-item" onClick={() => { setShellNotifOpen(false); navigate('/employees'); }}>
-                            <span className="ac-notif-dot warn" />
-                            <span>
+                            <span className="ac-notif-ico is-warn"><Users size={15} aria-hidden /></span>
+                            <span className="ac-notif-copy">
                               <strong>Paies dues</strong>
                               <em>{badges.employees_pay_due} employé(s)</em>
                             </span>
+                            <ChevronRight size={14} className="ac-notif-chev" aria-hidden />
                           </button>
                         </li>
                       )}
-                      {(badges.actions_pending + badges.employees_pay_due + badges.invoices_unpaid + badges.products_low) === 0 && (
-                        <li className="ac-notif-empty">Tout est à jour</li>
-                      )}
-                                          {shellAlerts.slice(0, 8).map((a: any, idx: number) => (
+                      {extraAlerts.map((a: any, idx: number) => (
                         <li key={`al-${a.kind}-${idx}`}>
-                          <button type="button" className="ac-notif-item" onClick={() => { setShellNotifOpen(false); navigate(a.href || '/'); }}>
-                            <span className={`ac-notif-dot ${a.severity === 'high' ? 'danger' : a.severity === 'medium' ? 'warn' : ''}`} />
-                            <span>
-                              <strong>{a.label}</strong>
-                              <em>{String(a.kind).replace(/_/g, ' ')}</em>
+                          <button type="button" className="ac-notif-item" onClick={() => { setShellNotifOpen(false); navigate(a.href || '/actions'); }}>
+                            <span className={`ac-notif-ico ${a.severity === 'high' ? 'is-danger' : a.severity === 'medium' ? 'is-warn' : 'is-neutral'}`}>
+                              <Bell size={15} aria-hidden />
                             </span>
+                            <span className="ac-notif-copy">
+                              <strong>{a.label}</strong>
+                              <em>{String(a.kind || 'alerte').replace(/_/g, ' ')}</em>
+                            </span>
+                            <ChevronRight size={14} className="ac-notif-chev" aria-hidden />
                           </button>
                         </li>
                       ))}
-</ul>
+                      {visibleCount === 0 && (
+                        <li className="ac-notif-empty">
+                          <span className="ac-notif-empty-ico"><Bell size={18} aria-hidden /></span>
+                          <strong>Tout est à jour</strong>
+                          <span>Aucune alerte ou demande en attente.</span>
+                        </li>
+                      )}
+                    </ul>
                     <button type="button" className="ac-notif-all" onClick={() => { setShellNotifOpen(false); navigate('/actions'); }}>
-                      Tout voir
+                      <span>Voir la boîte d’actions</span>
+                      <ArrowRight size={14} aria-hidden />
                     </button>
                   </div>
                 </>
-              )}
+                );
+              })()}
             </div>
             <TopbarUserMenu
               displayName={typeof getDisplayName === 'function' ? getDisplayName() : 'Utilisateur'}
@@ -1758,31 +1784,21 @@ function DesktopShell() {
 
 function PhonePcOnlyPage() {
   return (
-    <div className="ph-restricted" style={{ margin: '48px auto', maxWidth: 420, padding: '28px 20px', textAlign: 'center' }}>
-      <h1 style={{ margin: '0 0 10px', fontSize: '1.25rem' }}>Espace ordinateur uniquement</h1>
-      <p style={{ color: '#9aa3b5', margin: '0 0 18px', lineHeight: 1.45 }}>
-        Cette page (paramètres complets, solde, rapports, factures, etc.) n&apos;est pas disponible sur le téléphone.
-        Utilisez l&apos;espace terrain <strong>/m</strong>, ou ouvrez Atlas Commerce sur un ordinateur.
+    <div className="ph-restricted">
+      <h1>Page non disponible sur mobile</h1>
+      <p>
+        Cette vue est réservée à la version ordinateur ou n&apos;est pas accessible dans le menu mobile.
+        Utilisez l&apos;accueil terrain <strong>/m</strong> ou ouvrez Atlas Commerce sur ordinateur.
       </p>
-      <a
-        href="/m"
-        style={{
-          display: 'inline-block',
-          padding: '12px 18px',
-          borderRadius: 12,
-          background: '#0a0a0a',
-          color: '#fff',
-          textDecoration: 'none',
-          fontWeight: 600,
-        }}
-      >
+      <Link to="/m" className="ph-primary">
         Aller à l&apos;accueil mobile
-      </a>
+      </Link>
     </div>
   );
 }
 
 function PhoneShell() {
+  const role = getRole();
   useEffect(() => startSessionGuard(), []);
   useEffect(() => {
     document.documentElement.classList.add('phone-shell');
@@ -1815,10 +1831,10 @@ function PhoneShell() {
             <Route path="/" element={<Navigate to="/m" replace />} />
             <Route path="/dashboard" element={<Navigate to="/m" replace />} />
             <Route path="/products" element={<Navigate to="/m/products" replace />} />
-            <Route path="/scan" element={<Navigate to="/m/scan" replace />} />
-            <Route path="/quick-sale" element={<Navigate to="/m/vente" replace />} />
-            <Route path="/balance" element={<Navigate to="/m/balance" replace />} />
-            <Route path="/employees" element={<Navigate to="/m/employees" replace />} />
+            <Route path="/scan" element={canManageStock() ? <Navigate to="/m/scan" replace /> : <PhonePcOnlyPage />} />
+            <Route path="/quick-sale" element={canSell() ? <Navigate to="/m/vente" replace /> : <PhonePcOnlyPage />} />
+            <Route path="/balance" element={canOpenPhoneBalance(role) ? <Navigate to="/m/balance" replace /> : <PhonePcOnlyPage />} />
+            <Route path="/employees" element={canOpenPhoneEmployees(role) ? <Navigate to="/m/employees" replace /> : <PhonePcOnlyPage />} />
             <Route path="/settings" element={<Navigate to="/m/settings" replace />} />
             {/* Other desktop routes remain available in the PC shell. */}
             <Route path="/*" element={<PhonePcOnlyPage />} />
@@ -1891,6 +1907,7 @@ export default function App() {
             <Route path="/login/desktop-phone" element={<Suspense fallback={null}><LoginDesktopPhone /></Suspense>} />
             <Route path="/login/qr" element={<Suspense fallback={null}><LoginQr /></Suspense>} />
             <Route path="/verify" element={<Suspense fallback={null}><EmailVerify /></Suspense>} />
+            <Route path="/p/:ref" element={<Suspense fallback={null}><PublicProductLabel /></Suspense>} />
             <Route path="/welcome" element={<WelcomeGate />} />
             <Route element={<PublicLegalOutlet />}>
               <Route path="/privacy" element={<Privacy />} />

@@ -402,7 +402,7 @@ export function registerAtlasV209Routes(app: AtlasApp, deps: V209Deps): void {
     if (!p) return c.text('Not found', 404);
     const code = String(p.barcode || p.sku || `P${p.id}`);
     const origin = new URL(c.req.url).origin;
-    const qr = qrToSvg(`${origin}/scan?code=${encodeURIComponent(code)}`, 88, 2);
+    const qr = qrToSvg(`${origin}/p/${encodeURIComponent(String(p.id))}`, 96, 2);
     const barcode = code128Svg(code, 42, 194);
     const settings = await db.prepare(`SELECT * FROM company_settings WHERE id = 1`).first() as any;
     const cur = String(settings?.currency || settings?.finance_currency || 'MAD');
@@ -412,7 +412,7 @@ export function registerAtlasV209Routes(app: AtlasApp, deps: V209Deps): void {
       ? `${roundCurrency(Number(p.price || 0), cur, 'invoice').toLocaleString('fr-FR', { minimumFractionDigits: dec, maximumFractionDigits: dec })} ${escapeHtml(cur)}`
       : '';
     const subParts = [code, String(p.unit || ''), p.location ? String(p.location) : ''].filter(Boolean).join(' · ');
-    const qrNested = positionNestedSvg(qr, 218, 46, 88, 88);
+    const qrNested = positionNestedSvg(qr, 212, 38, 96, 96);
     const barcodeNested = positionNestedSvg(barcode, 12, 106);
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180">
 <rect width="320" height="180" fill="#ffffff" stroke="#d4d4d8"/>

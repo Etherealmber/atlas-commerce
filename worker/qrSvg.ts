@@ -36,8 +36,8 @@ export function qrToSvg(text: string, px = 120, marginModules = 2): string {
   }
   const margin = Math.max(4, marginModules);
   const total = n + margin * 2;
-  // Clear ~22% center for logo (H ECC tolerates)
-  const logoMods = Math.max(7, Math.round(n * 0.22));
+  // Clear ~20% center for logo (smaller 5x5 plate on compact Version 1-2 matrices)
+  const logoMods = n <= 25 ? 5 : Math.max(7, Math.round(n * 0.2));
   const c0 = Math.floor((n - logoMods) / 2);
   const c1 = c0 + logoMods;
 
@@ -77,7 +77,7 @@ export function qrMatrixWithLogo(text: string): {
 } {
   const matrix = encodeQrMatrix(String(text || ''), 'H');
   const n = matrix.length;
-  const logoSize = Math.max(7, Math.round(n * 0.22));
+  const logoSize = n <= 25 ? 5 : Math.max(7, Math.round(n * 0.2));
   const logoFrom = Math.floor((n - logoSize) / 2);
   for (let r = logoFrom; r < logoFrom + logoSize; r++) {
     for (let c = logoFrom; c < logoFrom + logoSize; c++) {

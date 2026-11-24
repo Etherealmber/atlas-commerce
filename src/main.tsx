@@ -47,33 +47,33 @@ try {
     html[data-theme="dark"] .sidebar, html[data-theme="dark"] aside.sidebar,
     html[data-theme="dark"] .ac-topbar, html[data-theme="dark"] .settings-topbar,
     html[data-theme="dark"] .content, html[data-theme="dark"] body {
-      background: #121317 !important;
-      color: #e3e5eb !important;
+      background: #121215 !important;
+      color: #e4e4e7 !important;
       border-color: rgba(255, 255, 255, 0.08) !important;
     }
     html[data-theme="dark"] .ac-mail-panel .ac-notif-item,
     html[data-theme="dark"] button.ac-notif-item {
-      background: #27272a !important;
-      color: #e4e4e7 !important;
-      border: 1px solid #3f3f46 !important;
+      background: transparent !important;
+      color: #f4f4f5 !important;
+      border: 1px solid transparent !important;
     }
     html[data-theme="dark"] .ac-mail-panel .ac-notif-item:hover,
     html[data-theme="dark"] button.ac-notif-item:hover,
     html[data-theme="dark"] button.ac-notif-item:active {
-      background: #3f3f46 !important;
+      background: #27272b !important;
       color: #fafafa !important;
     }
     html[data-theme="dark"] .account-menu-panel .account-menu-item,
     html[data-theme="dark"] .account-menu-panel--portal .account-menu-item {
-      background: #27272a !important;
+      background: #27272b !important;
       color: #f4f4f5 !important;
-      border: 1px solid #3f3f46 !important;
+      border: 1px solid rgba(255, 255, 255, 0.08) !important;
     }
     .sidebar .logo-mark { color: inherit !important; }
     .sidebar nav a { color: #475569 !important; }
     html[data-theme="dark"] .sidebar nav a { color: #a1a1aa !important; }
     .sidebar nav a.active { background: #f1f5f9 !important; color: #0f172a !important; }
-    html[data-theme="dark"] .sidebar nav a.active { background: #1a1a1a !important; color: #fafafa !important; }
+    html[data-theme="dark"] .sidebar nav a.active { background: #27272b !important; color: #fafafa !important; }
     [data-atlas-delete-btn="1"], .ac-timed-delete [role="button"],
     button.ac-timed-delete-btn, .ac-timed-delete-btn, .ac-btn.ac-btn-delete,
     .content button.ac-timed-delete-btn, .content button.danger.ac-timed-delete-btn,

@@ -4,6 +4,7 @@ import {
   ClipboardCheck,
   Package,
   PackagePlus,
+  ShoppingCart,
   X,
   XCircle,
 } from 'lucide-react';
@@ -531,32 +532,26 @@ export default function Actions() {
               const approveNeeded = needsProductApproval(a);
               const stockNeeded = needsStockApproval(a);
               const meta = parseMeta(a);
-              const iconBg =
+              const icoTone =
                 a.type === 'stock_check'
-                  ? 'var(--bad-bg)'
+                  ? 'is-stock'
                   : a.type === 'new_product'
-                    ? 'var(--warn-bg)'
-                    : 'var(--zellij-soft)';
+                    ? 'is-product'
+                    : a.type === 'invoice'
+                      ? 'is-invoice'
+                      : 'is-default';
               return (
                 <li key={a.id} className="ac-erp-open-item">
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', flex: '1 1 260px', minWidth: 0 }}>
-                    <div
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: '12px',
-                        background: iconBg,
-                        display: 'grid',
-                        placeItems: 'center',
-                        fontSize: 11,
-                        fontWeight: 750,
-                        flexShrink: 0,
-                      }}
-                    >
+                    <div className={`ac-action-ico ${icoTone}`}>
                       {a.type === 'new_product' ? (
                         <PackagePlus size={17} aria-hidden="true" />
+                      ) : a.type === 'stock_check' ? (
+                        <ClipboardCheck size={17} aria-hidden="true" />
+                      ) : a.type === 'invoice' ? (
+                        <ShoppingCart size={17} aria-hidden="true" />
                       ) : (
-                        (a.type || 'AC').slice(0, 2).toUpperCase()
+                        <Package size={17} aria-hidden="true" />
                       )}
                     </div>
                     <div className="ac-erp-open-meta">
