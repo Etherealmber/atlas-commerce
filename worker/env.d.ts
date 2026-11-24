@@ -10,6 +10,8 @@ interface Env {
   IMAGES?: R2Bucket;
   ANDROID_RELEASE_TOKEN?: string;
   CDN1_PUBLIC_BASE_URL?: string;
+  DESKTOP_RELEASE_TOKEN?: string;
+  DESKTOP_CDN1_PUBLIC_BASE_URL?: string;
   /** Cloudflare Secret — never commit to GitHub */
   ADMIN_PASSWORD: string;
   /** Google Cloud Translation API key (Secret) */

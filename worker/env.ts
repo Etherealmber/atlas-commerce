@@ -45,6 +45,10 @@ export interface Env {
   ANDROID_RELEASE_TOKEN?: string;
   /** Override of the public Android APK base on CDN1. */
   CDN1_PUBLIC_BASE_URL?: string;
+  /** CI secret (wrangler secret put DESKTOP_RELEASE_TOKEN): Bearer token for POST /api/admin/desktop-release. */
+  DESKTOP_RELEASE_TOKEN?: string;
+  /** Override of the public Desktop updates base on CDN1. */
+  DESKTOP_CDN1_PUBLIC_BASE_URL?: string;
   CACHE_TTL_SECONDS?: string;
   TWILIO_ACCOUNT_SID?: string;
   TWILIO_AUTH_TOKEN?: string;

@@ -275,7 +275,12 @@ function assetHeaders(o: any, key?: string): Headers {
   // the edge, whatever metadata older objects carry: an admin save or a CI
   // publish must be visible on the CDN immediately (stale stored cacheControl
   // on pre-existing objects used to keep the edge serving the old manifest).
-  const live = !!key && (key.endsWith('/latest.json') || key.endsWith('/latest.apk'));
+  const live =
+    !!key &&
+    (key.endsWith('/latest.json') ||
+      key.endsWith('/latest.apk') ||
+      key.endsWith('/latest-setup.exe') ||
+      key.endsWith('/checksums.txt'));
   h.set('Cache-Control', live ? 'no-cache, max-age=0, must-revalidate' : (meta.cacheControl || 'public, max-age=60'));
   const size = o?.size ?? meta.contentLength;
   if (size != null) h.set('Content-Length', String(size));
@@ -287,7 +292,9 @@ export async function serveAppUpdatesAsset(request: Request, env: Env): Promise<
   const bucket = env.IMAGES;
   if (!bucket) return new Response('R2 unavailable', { status: 503 });
   const key = decodeURIComponent(new URL(request.url).pathname.replace(/^\/+/, ''));
-  if (!key.startsWith(`${ANDROID_UPDATE_PREFIX}/`)) return new Response('Not found', { status: 404 });
+  if (key.includes('..') || (!key.startsWith(`${ANDROID_UPDATE_PREFIX}/`) && !key.startsWith('app-updates/desktop/'))) {
+    return new Response('Not found', { status: 404 });
+  }
   if (request.method === 'HEAD') {
     const head = await bucket.head(key).catch(() => null);
     if (!head) return new Response(null, { status: 404 });
