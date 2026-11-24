@@ -3813,3 +3813,255 @@ html[data-theme="dark"].phone-shell body .phone-root .ph-scan-native .ph-phone-a
   border-color: #f4f4f5;
 }
 
+
+/* ============================================================================
+   Phone dark — unified neutral charcoal controls (keep LAST in phone.css).
+   Same ramp as the web app: canvas #121215 · cards #18181b · controls #202024 ·
+   hover #29292f · one soft primary #e2e4ec. Desktop button slabs from
+   dark-force.css are scoped out with :not(.phone-shell), so every phone
+   control is defined here — no grey slabs, no lavender hover, no navy chips.
+   ============================================================================ */
+html[data-theme="dark"].phone-shell {
+  --pd-canvas: #121215;
+  --pd-card: #18181b;
+  --pd-control: #202024;
+  --pd-hover: #29292f;
+  --pd-line: rgba(255, 255, 255, 0.08);
+  --pd-line-strong: rgba(255, 255, 255, 0.14);
+  --pd-ink: #f4f4f6;
+  --pd-ink-2: #d4d4d8;
+  --pd-muted: #a1a1aa;
+  --pd-primary: #e2e4ec;
+  --pd-primary-hover: #f0f1f6;
+  --pd-primary-ink: #121215;
+}
+html[data-theme="dark"].phone-shell body,
+html[data-theme="dark"].phone-shell body #root .phone-root { background: var(--pd-canvas) !important; }
+
+/* Top bar (expanded + collapsed pill) */
+html[data-theme="dark"].phone-shell body #root .phone-root > .phone-topbar {
+  background: rgba(24, 24, 27, 0.92) !important;
+  border: 1px solid var(--pd-line) !important;
+  color: var(--pd-ink) !important;
+}
+html[data-theme="dark"].phone-shell body #root .phone-root .phone-topbar :is(.pt-titles, .pt-title, .ph-top-expand, .ph-top-expand *) {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: var(--pd-ink) !important;
+  -webkit-text-fill-color: var(--pd-ink) !important;
+}
+/* Round icon buttons: top bar, back, refresh, section icons */
+html[data-theme="dark"].phone-shell body #root .phone-root :is(.ph-top-agent, .ph-quick-ball, .ph-top-back, .ph-top-settings, .phone-profile-btn, .ph-refresh, .ph-native-icon, .pb-refresh) {
+  background: var(--pd-control) !important;
+  background-image: none !important;
+  border: 1px solid var(--pd-line-strong) !important;
+  color: var(--pd-ink) !important;
+  -webkit-text-fill-color: var(--pd-ink) !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"].phone-shell body #root .phone-root :is(.ph-top-agent, .ph-quick-ball, .ph-top-back, .ph-top-settings, .phone-profile-btn, .ph-refresh, .ph-native-icon, .pb-refresh) svg {
+  color: var(--pd-ink) !important;
+  stroke: currentColor !important;
+}
+html[data-theme="dark"].phone-shell body #root .phone-root :is(.ph-top-agent, .ph-quick-ball, .ph-top-back, .ph-top-settings, .phone-profile-btn, .ph-refresh, .ph-native-icon, .pb-refresh):is(:hover, :active, :focus-visible) {
+  background: var(--pd-hover) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* Secondary buttons (outlined actions, balance actions, scan controls, toolbar squares) */
+html[data-theme="dark"].phone-shell body #root .phone-root :is(
+  .ph-btn.outlined,
+  .pb-actions button,
+  .ph-scan-controls button,
+  .ph-scan-controls .ph-file-label .ph-chip,
+  .ph-catalog-actions > button,
+  .ph-catalog-view button,
+  .ph-native-section-head .ph-chip,
+  .ph-chip2
+) {
+  background: var(--pd-control) !important;
+  background-image: none !important;
+  border: 1px solid var(--pd-line-strong) !important;
+  color: var(--pd-ink) !important;
+  -webkit-text-fill-color: var(--pd-ink) !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"].phone-shell body #root .phone-root :is(
+  .ph-btn.outlined,
+  .pb-actions button,
+  .ph-scan-controls button,
+  .ph-scan-controls .ph-file-label .ph-chip,
+  .ph-catalog-actions > button,
+  .ph-catalog-view button,
+  .ph-native-section-head .ph-chip
+):is(:hover, :active, :focus-visible):not(:disabled) {
+  background: var(--pd-hover) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html[data-theme="dark"].phone-shell body #root .phone-root :is(.ph-btn.outlined, .pb-actions button, .ph-scan-controls button, .ph-catalog-actions > button, .ph-catalog-view button, .ph-native-section-head .ph-chip) svg {
+  color: currentColor !important;
+  stroke: currentColor !important;
+}
+/* Active grid/list toggle: raised, not navy */
+html[data-theme="dark"].phone-shell body #root .phone-root .ph-catalog-view button[aria-pressed="true"] {
+  background: var(--pd-hover) !important;
+  border-color: rgba(255, 255, 255, 0.32) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* Primary (one per screen): Nouvelle vente, Démarrer la caméra */
+html[data-theme="dark"].phone-shell body #root .phone-root :is(.ph-btn.filled, .ph-scan-start) {
+  background: var(--pd-primary) !important;
+  background-image: none !important;
+  border: 1px solid var(--pd-primary) !important;
+  color: var(--pd-primary-ink) !important;
+  -webkit-text-fill-color: var(--pd-primary-ink) !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"].phone-shell body #root .phone-root :is(.ph-btn.filled, .ph-scan-start) svg { color: var(--pd-primary-ink) !important; stroke: currentColor !important; }
+html[data-theme="dark"].phone-shell body #root .phone-root :is(.ph-btn.filled, .ph-scan-start):is(:hover, :active, :focus-visible):not(:disabled) {
+  background: var(--pd-primary-hover) !important;
+  border-color: var(--pd-primary-hover) !important;
+  color: var(--pd-primary-ink) !important;
+  -webkit-text-fill-color: var(--pd-primary-ink) !important;
+}
+
+/* Filter chips: outline when off, soft primary when on */
+html[data-theme="dark"].phone-shell body #root .phone-root :is(.ph-catalog-filters, .ph-native-chips) button {
+  background: transparent !important;
+  background-image: none !important;
+  border: 1px solid var(--pd-line-strong) !important;
+  color: var(--pd-ink-2) !important;
+  -webkit-text-fill-color: var(--pd-ink-2) !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"].phone-shell body #root .phone-root :is(.ph-catalog-filters, .ph-native-chips) button:is(:hover, :active, :focus-visible):not([aria-pressed="true"]) {
+  background: var(--pd-control) !important;
+  color: var(--pd-ink) !important;
+  -webkit-text-fill-color: var(--pd-ink) !important;
+}
+html[data-theme="dark"].phone-shell body #root .phone-root :is(.ph-catalog-filters, .ph-native-chips) button[aria-pressed="true"] {
+  background: var(--pd-primary) !important;
+  border-color: var(--pd-primary) !important;
+  color: var(--pd-primary-ink) !important;
+  -webkit-text-fill-color: var(--pd-primary-ink) !important;
+}
+
+/* Cards that are buttons/links: flat charcoal, subtle hover — never light lavender */
+html[data-theme="dark"].phone-shell body #root .phone-root :is(.ph-cardlink, .ph-catalog-card) {
+  background: var(--pd-card) !important;
+  background-image: none !important;
+  border: 1px solid var(--pd-line) !important;
+  color: var(--pd-ink) !important;
+  -webkit-text-fill-color: var(--pd-ink) !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"].phone-shell body #root .phone-root :is(.ph-cardlink, .ph-catalog-card):is(:hover, :active, :focus-visible) {
+  background: #1c1c20 !important;
+  border-color: var(--pd-line-strong) !important;
+  color: var(--pd-ink) !important;
+  -webkit-text-fill-color: var(--pd-ink) !important;
+}
+html[data-theme="dark"].phone-shell body #root .phone-root :is(.ph-cardlink, .ph-catalog-card) :is(small, p, span:not(.ph-chip2)) {
+  -webkit-text-fill-color: currentColor !important;
+}
+html[data-theme="dark"].phone-shell body #root .phone-root .ph-chip2 { font-weight: 650; }
+
+/* Badges */
+html[data-theme="dark"].phone-shell body #root .phone-root .ph-native-badge {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid var(--pd-line-strong) !important;
+  color: var(--pd-ink-2) !important;
+  -webkit-text-fill-color: var(--pd-ink-2) !important;
+}
+
+/* Balance tabs: neutral underline, no blue text, no hover slab */
+html[data-theme="dark"].phone-shell body #root .phone-root .pb-page .pb-tabs { border-color: var(--pd-line) !important; }
+html[data-theme="dark"].phone-shell body #root .phone-root .pb-page .pb-tabs button,
+html[data-theme="dark"].phone-shell body #root .phone-root .pb-page .pb-tabs button:is(:hover, :active, :focus-visible) {
+  background: transparent !important;
+  color: var(--pd-muted) !important;
+  -webkit-text-fill-color: var(--pd-muted) !important;
+  border-bottom: 2px solid transparent !important;
+}
+html[data-theme="dark"].phone-shell body #root .phone-root .pb-page .pb-tabs button[aria-selected="true"] {
+  color: var(--pd-ink) !important;
+  -webkit-text-fill-color: var(--pd-ink) !important;
+  border-bottom-color: var(--pd-primary) !important;
+}
+
+/* Settings rows & segmented controls */
+html[data-theme="dark"].phone-shell body #root .phone-root .ph-setting-link {
+  background: transparent !important;
+  border-color: var(--pd-line) !important;
+  color: var(--pd-ink) !important;
+  -webkit-text-fill-color: var(--pd-ink) !important;
+}
+html[data-theme="dark"].phone-shell body #root .phone-root .ph-setting-link:is(:hover, :active, :focus-visible) {
+  background: var(--pd-control) !important;
+}
+html[data-theme="dark"].phone-shell body #root .phone-root .ph-setting-link :is(small, span) { -webkit-text-fill-color: currentColor !important; }
+html[data-theme="dark"].phone-shell body #root .phone-root .ph-seg {
+  background: var(--pd-canvas) !important;
+  border-color: var(--pd-line) !important;
+}
+html[data-theme="dark"].phone-shell body #root .phone-root .ph-seg button {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: var(--pd-muted) !important;
+  -webkit-text-fill-color: var(--pd-muted) !important;
+}
+html[data-theme="dark"].phone-shell body #root .phone-root .ph-seg button:is(:hover, :focus-visible):not(.on) {
+  background: var(--pd-control) !important;
+  color: var(--pd-ink) !important;
+  -webkit-text-fill-color: var(--pd-ink) !important;
+}
+html[data-theme="dark"].phone-shell body #root .phone-root .ph-seg button.on {
+  background: var(--pd-primary) !important;
+  color: var(--pd-primary-ink) !important;
+  -webkit-text-fill-color: var(--pd-primary-ink) !important;
+}
+
+/* Empty-state icon tile (was beige) */
+html[data-theme="dark"].phone-shell body #root .phone-root .ph-empty-ico {
+  background: var(--pd-control) !important;
+  border: 1px solid var(--pd-line) !important;
+  color: var(--pd-muted) !important;
+}
+
+/* Bottom dock + scan FAB */
+html[data-theme="dark"].phone-shell body #root .phone-root .phone-tabbar {
+  background: rgba(24, 24, 27, 0.94) !important;
+  border: 1px solid var(--pd-line) !important;
+}
+html[data-theme="dark"].phone-shell body #root .phone-root .phone-tabbar .ptab.active:not(.ptab-scan)::before { background: var(--pd-control) !important; }
+html[data-theme="dark"].phone-shell body #root .phone-root .phone-tabbar .ptab-scan .ptab-ico {
+  background: var(--pd-control) !important;
+  border: 1px solid var(--pd-line-strong) !important;
+  color: var(--pd-ink) !important;
+}
+html[data-theme="dark"].phone-shell body #root .phone-root .phone-tabbar .ptab-scan.active .ptab-ico {
+  background: var(--pd-primary) !important;
+  border-color: var(--pd-primary) !important;
+  color: var(--pd-primary-ink) !important;
+}
+html[data-theme="dark"].phone-shell body #root .phone-root .phone-tabbar .ptab-scan.active svg { stroke: var(--pd-primary-ink) !important; }
+html[data-theme="dark"].phone-shell body #root .phone-root .ph-native-section-head .ph-chip,
+html.phone-shell body #root .phone-root .ph-native-section-head .ph-chip { display: inline-flex !important; align-items: center !important; gap: 4px !important; white-space: nowrap !important; }
+html.phone-shell body #root .phone-root .ph-native-section-head .ph-chip svg { flex: 0 0 15px !important; width: 15px !important; height: 15px !important; min-width: 15px !important; }
+/* Desktop catch-all `[class*="notif"]` (dark-force) paints #1c1c1f panels; the Info Box page itself sits on the canvas */
+html[data-theme="dark"].phone-shell body #root .phone-root :is(.ph-notifications, .ph-notifications-section, .ph-notifications-intro-row) {
+  background: transparent !important;
+  border-color: transparent !important;
+}
+html[data-theme="dark"].phone-shell body #root .phone-root .ph-native-card.ph-notifications-intro,
+html[data-theme="dark"].phone-shell body #root .phone-root .ph-native-card.ph-notifications-empty {
+  background: var(--pd-card) !important;
+  border-color: var(--pd-line) !important;
+}
