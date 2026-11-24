@@ -834,6 +834,7 @@ export default function Login() {
           fingerprint: fp,
           credential_id: assertion.credentialId,
           challenge: assertion.challenge,
+          credential: assertion.credential,
         }),
       });
       const verData = (await verRes.json().catch(() => ({}))) as {
@@ -895,6 +896,7 @@ export default function Login() {
           fingerprint: fp,
           credential_id: reg.credentialId,
           challenge: reg.challenge,
+          credential: reg.credential,
           device_type: deviceType,
           transports: reg.transports,
           device_label: getDeviceLabel(),

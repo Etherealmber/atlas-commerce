@@ -1084,6 +1084,7 @@ app.use('/api/*', async (c, next) => {
     path === '/api/auth/webauthn/login/verify' ||
     path === '/api/auth/webauthn/status' ||
     path === '/.well-known/assetlinks.json' ||
+    path === '/.well-known/apple-app-site-association' ||
     // v260 — crash intake is public by design (fire-and-forget from global
     // error handlers, incl. logged-out sessions); rate-limited + sanitized.
     path === '/api/crash-reports' ||

@@ -1109,6 +1109,10 @@ app.post('/api/auth/qr/session/:token/complete', async (c) => {
   if (row.status !== 'approved') {
     return c.json({ success: false, error: 'Pas encore approuvé', code: 'WAIT', status: row.status }, 202);
   }
+  // Desktop v3 QR approvals are redeemable ONLY by the requesting device key (DPoP + PKCE) via /api/auth/desktop/v3/qr/exchange.
+  if (row.created_by === 'desktop-v3') {
+    return c.json({ success: false, error: 'Utilisez l’application de bureau', code: 'DESKTOP_EXCHANGE_REQUIRED' }, 409);
+  }
   // Settings flow (phone logs in): fingerprint must match claim.
   // PC-login flow (phone authorizes PC): PC fingerprint differs from phone — allow when created_by = pc-login.
   if (row.created_by !== 'pc-login' && row.claim_fingerprint && row.claim_fingerprint !== fingerprint) {
@@ -1568,6 +1572,21 @@ app.get('/api/auth/webauthn/status', async (c) => {
 });
 
 /** Digital Asset Links for Android Credential Manager (configured builds only). */
+/**
+ * Apple webcredentials association (macOS/iOS passkeys for the native apps).
+ * Served ONLY when APPLE_WEBCREDENTIALS_APP_IDS lists real "TEAMID.bundle.id"
+ * entries — never guessed; 404 otherwise.
+ */
+app.get('/.well-known/apple-app-site-association', (c) => {
+  const apps = String((c.env as any).APPLE_WEBCREDENTIALS_APP_IDS || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => /^[A-Z0-9]{10}\.[A-Za-z0-9][A-Za-z0-9.-]{0,200}$/.test(s));
+  if (!apps.length) return c.json({ success: false, code: 'NOT_CONFIGURED' }, 404);
+  c.header('Cache-Control', 'public, max-age=3600');
+  return c.json({ webcredentials: { apps } });
+});
+
 app.get('/.well-known/assetlinks.json', async (c) => {
   const policy = waPolicy(c.env);
   if (!policy.androidPackage || !policy.androidCertHashes.length) {

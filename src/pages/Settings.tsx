@@ -575,7 +575,7 @@ export default function Settings() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Device-Fingerprint': fp, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({
-          fingerprint: fp, credential_id: reg.credentialId, challenge: reg.challenge, device_type: 'desktop',
+          fingerprint: fp, credential_id: reg.credentialId, challenge: reg.challenge, credential: reg.credential, device_type: 'desktop',
           transports: reg.transports, device_label: getDeviceLabel(), label: getDeviceLabel(), device_info: getDeviceMeta(),
         }),
       });

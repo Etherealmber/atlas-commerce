@@ -320,6 +320,28 @@ export type AuthenticationInput = {
 
 export type VerifiedAuthentication = { counter: number; backupState: boolean; uv: boolean };
 
+/**
+ * Strict DER `SEQUENCE { INTEGER r, INTEGER s }` → 64-byte raw P-256 signature.
+ * Returns null when the bytes are not exactly such a structure.
+ */
+export function ecdsaDerToRaw(der: Uint8Array): Uint8Array | null {
+  if (der.length < 8 || der.length > 72 || der[0] !== 0x30 || der[1] !== der.length - 2) return null;
+  let i = 2;
+  const out = new Uint8Array(64);
+  for (let part = 0; part < 2; part++) {
+    if (der[i] !== 0x02) return null;
+    const len = der[i + 1];
+    if (len < 1 || len > 33 || i + 2 + len > der.length) return null;
+    let int = der.subarray(i + 2, i + 2 + len);
+    if (int[0] & 0x80) return null; // negative INTEGER is invalid here
+    while (int.length > 1 && int[0] === 0) int = int.subarray(1);
+    if (int.length > 32) return null;
+    out.set(int, part * 32 + (32 - int.length));
+    i += 2 + len;
+  }
+  return i === der.length ? out : null;
+}
+
 export async function verifyAuthentication(input: AuthenticationInput): Promise<VerifiedAuthentication> {
   const cd = parseClientData(input.clientDataJSON);
   checkClientData(cd.json, 'webauthn.get', input.expectedChallenge, input.policy);
@@ -363,6 +385,11 @@ export async function verifyAuthentication(input: AuthenticationInput): Promise<
   } catch {
     throw new WebAuthnError('WEBAUTHN_BAD_SIGNATURE', 'signature not base64url');
   }
+  // Authenticators return ES256 assertion signatures ASN.1/DER-encoded (WebAuthn §6.5.6);
+  // WebCrypto verifies raw r‖s. Accept both.
+  const rawSig = ecdsaDerToRaw(sig);
+  if (rawSig) sig = rawSig;
+  else if (sig.length !== 64) throw new WebAuthnError('WEBAUTHN_BAD_SIGNATURE', 'signature encoding');
   const ok = await crypto.subtle.verify(
     { name: 'ECDSA', hash: 'SHA-256' },
     key,
