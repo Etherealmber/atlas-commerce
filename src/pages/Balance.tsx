@@ -423,9 +423,9 @@ export default function Balance() {
       {loadError && <p role="alert">{loadError}</p>}
       <SaveFeedback message={saveMsg} type={saveMsgType} />
 
-      <div className="ac-dash-hero ac-dash-hero--compact" style={{ padding: '12px 16px', marginBottom: 14 }}>
-        <div className="ac-dash-hero-row" style={{ justifyContent: 'flex-end' }}>
-          <div className="ac-dash-hero-side">
+      <div className="ac-dash-hero ac-dash-hero--compact" style={{ padding: '0', marginBottom: 14, justifyContent: 'flex-end' }}>
+        <div className="ac-dash-hero-row" style={{ width: '100%', justifyContent: 'flex-end' }}>
+          <div className="ac-dash-hero-side" style={{ marginLeft: 'auto', maxWidth: '100%' }}>
             <button
               type="button"
               className="secondary bal-reports-trigger"

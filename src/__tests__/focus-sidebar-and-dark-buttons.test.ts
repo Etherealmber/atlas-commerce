@@ -758,10 +758,12 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     expect(attSrc).toContain('<PageSkeleton variant="attendance" />');
     expect(attSrc).toContain('<DesktopTableSkeleton rows={5} cols={6} />');
 
-    // 2. Balance removes duplicate Trésorerie / Solde & mouvements visible hero text while keeping bal-reports-trigger
+    // 2. Balance removes duplicate Trésorerie / Solde & mouvements visible hero text while keeping bal-reports-trigger aligned right
     expect(balSrc).not.toContain('Pilotage temps réel de la caisse');
     expect(balSrc).not.toContain('ac-dash-hero-text');
     expect(balSrc).toContain('bal-reports-trigger');
+    expect(balSrc).toContain("width: '100%', justifyContent: 'flex-end'");
+    expect(balSrc).toContain("marginLeft: 'auto'");
     expect(balSrc).toContain('<PageSkeleton variant="balance" />');
 
     // 3. Full-width, page-faithful skeleton variants (no identical 4-KPI list skeleton everywhere)
