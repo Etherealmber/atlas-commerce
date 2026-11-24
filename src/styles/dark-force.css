@@ -3059,7 +3059,7 @@ html body .ac-donut-legend {
    segment active = zinc (not white), agent nav zinc, balance tracks
    ═══════════════════════════════════════════════════════════════ */
 /* primary buttons: zinc-700 slab, never near-black */
-html[data-theme="dark"]:not(.phone-shell) body :where(.btn, button):not(.secondary):not(.ghost):not(.danger):not(.btn-delete-red):not(.ac-seg-btn):not(.atlas-typeahead-item):not(.density-toggle):not(.dash-range-select):not([class*="iconbtn"]):not([class*="toggle"]):not([class*="close"]):not(.atlas-agent-nav button):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.public-download-main):not(.public-download-menu-item):not(.dl-cta-primary):not(.dl-cta-main):not(.dl-cta-ghost):not(.ac-user-dropdown-item):not(.account-menu-item) {
+html[data-theme="dark"]:not(.phone-shell) body :where(.btn, button):not(.secondary):not(.ghost):not(.danger):not(.btn-delete-red):not(.ac-seg-btn):not(.atlas-typeahead-item):not(.density-toggle):not(.dash-range-select):not([class*="iconbtn"]):not([class*="toggle"]):not([class*="close"]):not(.atlas-agent-nav button):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.public-download-main):not(.public-download-menu-item):not(.dl-cta-primary):not(.dl-cta-main):not(.dl-cta-ghost):not(.ac-user-dropdown-item):not(.account-menu-item):not(.ac-notif-item):not(.ac-notif-all) {
   background: #3f3f46 !important;
   background-color: #3f3f46 !important;
   background-image: none !important;
@@ -3067,7 +3067,7 @@ html[data-theme="dark"]:not(.phone-shell) body :where(.btn, button):not(.seconda
   -webkit-text-fill-color: #f4f4f5 !important;
   border-color: #52525b !important;
 }
-html[data-theme="dark"]:not(.phone-shell) body :where(.btn, button):not(.secondary):not(.ghost):not(.danger):not(.btn-delete-red):not(.ac-seg-btn):not(.atlas-typeahead-item):not(.density-toggle):not(.dash-range-select):not([class*="iconbtn"]):not([class*="toggle"]):not([class*="close"]):not(.atlas-agent-nav button):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.public-download-main):not(.public-download-menu-item):not(.dl-cta-primary):not(.dl-cta-main):not(.dl-cta-ghost):not(.ac-user-dropdown-item):not(.account-menu-item):hover {
+html[data-theme="dark"]:not(.phone-shell) body :where(.btn, button):not(.secondary):not(.ghost):not(.danger):not(.btn-delete-red):not(.ac-seg-btn):not(.atlas-typeahead-item):not(.density-toggle):not(.dash-range-select):not([class*="iconbtn"]):not([class*="toggle"]):not([class*="close"]):not(.atlas-agent-nav button):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.public-download-main):not(.public-download-menu-item):not(.dl-cta-primary):not(.dl-cta-main):not(.dl-cta-ghost):not(.ac-user-dropdown-item):not(.account-menu-item):not(.ac-notif-item):not(.ac-notif-all):hover {
   background: #4b4b52 !important;
   background-color: #4b4b52 !important;
   color: #ffffff !important;
@@ -7393,3 +7393,45 @@ html[data-theme="dark"] body .ac-user-dropdown-item--danger .ac-user-dropdown-ic
   color: #f87171 !important;
 }
 html[data-theme="dark"] body .ac-user-dropdown-item--danger:is(:hover, :focus-visible) { background: rgba(239, 68, 68, 0.08) !important; }
+
+/* Notifications popover (dark) — it lives inside .ac-topbar-right, so the dock
+   button/span dark rules leaked in (grey 999px pills, #1c1c1f text slabs).
+   Restore the shell.css geometry: flat transparent rows, 10px radius. */
+html[data-theme="dark"] body .ac-topbar-right .ac-notif-panel button.ac-notif-item,
+html[data-theme="dark"] body .ac-topbar-right .ac-notif-panel .ac-notif-item {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+  padding: 9px 10px !important;
+  gap: 10px !important;
+  min-height: 0 !important;
+  height: auto !important;
+  color: #f4f4f5 !important;
+}
+html[data-theme="dark"] body .ac-topbar-right .ac-notif-panel button.ac-notif-item:is(:hover, :focus-visible) {
+  background: #27272b !important;
+  background-color: #27272b !important;
+}
+html[data-theme="dark"] body .ac-topbar-right .ac-notif-panel :is(.ac-notif-copy, .ac-notif-copy strong, .ac-notif-copy em, .ac-notif-chev, .ac-notif-head, .ac-notif-head-title, .ac-notif-head-title strong, .ac-notif-list) {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+html[data-theme="dark"] body .ac-topbar-right .ac-notif-panel .ac-notif-copy strong { color: #f4f4f5 !important; font-weight: 600 !important; }
+html[data-theme="dark"] body .ac-topbar-right .ac-notif-panel .ac-notif-copy em { color: #a1a1aa !important; font-weight: 400 !important; }
+html[data-theme="dark"] body .ac-topbar-right .ac-notif-panel .ac-notif-chev { color: #a1a1aa !important; }
+html[data-theme="dark"] body .ac-topbar-right .ac-notif-panel button.ac-notif-all {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 11px 14px !important;
+  font-size: 0.8125rem !important;
+  height: auto !important;
+  color: #f4f4f5 !important;
+}
+html[data-theme="dark"] body .ac-topbar-right .ac-notif-panel button.ac-notif-all:hover { background: #27272b !important; }
+html[data-theme="dark"] body .ac-topbar-right .ac-notif-panel .ac-notif-head { background: #18181b !important; border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important; }

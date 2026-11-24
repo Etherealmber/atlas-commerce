@@ -38,6 +38,12 @@ html body .modal-overlay .modal.employee-wizard {
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
+/* The dialog close X (34px, pinned top-right) sat on top of the step counter:
+   keep the counter clear of it. */
+.modal-overlay .step-wizard__header,
+.modal-overlay .employee-wizard__header {
+  padding-right: 48px;
+}
 .step-wizard__count,
 .employee-wizard__count {
   flex: none;
