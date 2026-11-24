@@ -8,7 +8,7 @@ import { api } from '../api';
 import { getToken } from '../auth';
 import { openReport, openPrintDoc } from '../lib/reports';
 import RefreshIconButton from '../components/RefreshIconButton';
-import PageSkeleton from '../components/PageSkeleton';
+import { DesktopTableSkeleton } from '../components/PageSkeleton';
 import NumberField from '../components/NumberField';
 import SaveFeedback from '../components/SaveFeedback';
 import DatePicker from '../components/DatePicker';
@@ -725,7 +725,7 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
 
       {loading ? (
         <div style={{ padding: '8px 0' }}>
-          <PageSkeleton variant="list" />
+          <DesktopTableSkeleton rows={6} cols={5} />
         </div>
       ) : list.length === 0 ? (
         <div className="ac-panel" style={{ padding: '48px 24px', textAlign: 'center' }}>

@@ -469,7 +469,7 @@ export default function Invoices() {
   const safePage = Math.min(page, totalPages - 1);
   const paged = filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
 
-  if (loading) return <div className="atlas-orders invoices-page"><PageSkeleton variant="list" /></div>;
+  if (loading) return <div className="atlas-orders invoices-page"><PageSkeleton variant="kpis4-list" /></div>;
 
   const orderKpis = (() => {
     const open = filtered.filter((i) => i.status !== 'paid' && i.status !== 'cancelled').length;

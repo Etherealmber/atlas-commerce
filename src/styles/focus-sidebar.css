@@ -2658,6 +2658,39 @@ html[data-theme="dark"] .ac-erp-variance-bar {
 /* ================================================================
    Responsive Desktop-Table & Bento Shimmer Skeletons
    ================================================================ */
+.page-skeleton {
+  width: 100%;
+  max-width: none !important;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.page-skeleton--phone {
+  padding: 12px 4px 32px;
+}
+
+.page-skeleton-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 0 16px;
+}
+
+.page-skeleton-kpis--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.page-skeleton-kpis--6 {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.page-skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0 0 14px;
+}
+
 .ac-skeleton-bento-card {
   background: var(--ac-paper, #ffffff);
   border: 1px solid var(--ac-line, #e8eaef);
@@ -2668,6 +2701,128 @@ html[data-theme="dark"] .ac-erp-variance-bar {
 .ac-skeleton-hero {
   margin-bottom: 16px;
   padding: 24px 26px;
+}
+
+.ac-skeleton-hero--split {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px 24px;
+}
+
+.ac-skeleton-compact-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 12px 16px;
+  margin-bottom: 14px;
+}
+
+.ac-skeleton-compact-bar--bare {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+
+.ac-skeleton-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+
+.ac-skeleton-search-pill {
+  height: 38px;
+  flex: 1 1 260px;
+  max-width: 420px;
+  border-radius: 999px;
+}
+
+.ac-skeleton-filter-pills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.ac-skeleton-action-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ac-skeleton-action-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--ac-line, #e8eaef);
+  background: var(--ac-bg, #f8fafc);
+}
+
+.ac-skeleton-action-icon {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+}
+
+.ac-skeleton-action-copy {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.ac-skeleton-action-btns {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.atlas-agent-shimmer-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.atlas-agent-shimmer-pair {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.atlas-agent-shimmer-bubble {
+  min-width: 190px;
+  width: 100%;
+  max-width: 88%;
+  padding: 12px 14px !important;
+}
+
+.atlas-agent-shimmer-bubble--user {
+  width: auto;
+  min-width: 140px;
+}
+
+.atlas-agent-shimmer-reply {
+  width: 100%;
+  max-width: 92%;
+  margin-top: 8px;
+  padding: 12px 14px !important;
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #e8eaef;
+}
+
+.atlas-agent-skeleton-panel {
+  pointer-events: none;
 }
 
 .ac-skeleton-pill-row {
@@ -2762,7 +2917,16 @@ html[data-theme="dark"] .ac-erp-variance-bar {
   padding: 12px 14px !important;
 }
 
+@media (max-width: 1200px) {
+  .page-skeleton-kpis--6 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 1024px) {
+  .page-skeleton-kpis--3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .ac-skeleton-grid-3 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2777,6 +2941,17 @@ html[data-theme="dark"] .ac-erp-variance-bar {
 }
 
 @media (max-width: 720px) {
+  .page-skeleton-kpis,
+  .page-skeleton-kpis--3,
+  .page-skeleton-kpis--6 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .page-skeleton-grid {
+    grid-template-columns: 1fr;
+  }
+  .ac-skeleton-action-btns {
+    display: none;
+  }
   .ac-skeleton-grid-3 {
     grid-template-columns: 1fr;
   }
@@ -2796,8 +2971,14 @@ html[data-theme="dark"] .ac-erp-variance-bar {
 }
 
 html[data-theme="dark"] .ac-skeleton-bento-card,
-html[data-theme="dark"] .ac-skeleton-table-wrap {
+html[data-theme="dark"] .ac-skeleton-table-wrap,
+html[data-theme="dark"] .atlas-agent-shimmer-reply {
   background: #181a20 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+html[data-theme="dark"] .ac-skeleton-action-row {
+  background: #1d2027 !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
 }
 
@@ -2812,7 +2993,9 @@ html[data-theme="dark"] .ac-skeleton-tr {
 
 html[data-theme="dark"] .ac-skeleton-table-wrap .skeleton,
 html[data-theme="dark"] .ac-skeleton-bento-card .skeleton,
-html[data-theme="dark"] .page-skeleton .skeleton {
+html[data-theme="dark"] .page-skeleton .skeleton,
+html[data-theme="dark"] .atlas-agent-shimmer-thread .skeleton,
+html[data-theme="dark"] .atlas-agent-shimmer-reply .skeleton {
   background: linear-gradient(90deg, #1d2027 25%, #282c36 50%, #1d2027 75%) !important;
   background-size: 200% 100% !important;
 }

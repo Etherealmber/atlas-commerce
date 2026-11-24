@@ -735,4 +735,56 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     expect(appSrc).toContain('<PageSkeleton variant="about" />');
     expect(appSrc).toContain('<PageSkeleton variant="changelog" />');
   });
+
+  it('moves Attendance disabled-module CTAs to top, removes Balance duplicate hero title, spans full-width page-faithful skeletons, and shimmers desktop Atlas Agent', () => {
+    const attSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Attendance.tsx'), 'utf8');
+    const balSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Balance.tsx'), 'utf8');
+    const skeletonSrc = readFileSync(path.resolve(process.cwd(), 'src/components/PageSkeleton.tsx'), 'utf8');
+    const focusCss = readFileSync(path.resolve(process.cwd(), 'src/styles/focus-sidebar.css'), 'utf8');
+    const appCss = readFileSync(path.resolve(process.cwd(), 'src/App.css'), 'utf8');
+    const appSrc = readFileSync(path.resolve(process.cwd(), 'src/App.tsx'), 'utf8');
+    const agentSrc = readFileSync(path.resolve(process.cwd(), 'src/components/AtlasAgent.tsx'), 'utf8');
+    const billsSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Bills.tsx'), 'utf8');
+    const clientsSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Clients.tsx'), 'utf8');
+    const productsSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Products.tsx'), 'utf8');
+    const actionsSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Actions.tsx'), 'utf8');
+
+    // 1. Attendance disabled module puts Activer maintenant + Ouvrir les paramètres Présence in TopPageActions
+    const disabledBlock = attSrc.match(/if\s*\(!enabled\)\s*\{[\s\S]*?\n  \}/)?.[0] || '';
+    expect(disabledBlock).toContain('<TopPageActions>');
+    expect(disabledBlock).toContain('Activer maintenant');
+    expect(disabledBlock).toContain('Ouvrir les paramètres Présence');
+    expect(disabledBlock).not.toContain('ac-disabled-module-actions');
+    expect(attSrc).toContain('<PageSkeleton variant="attendance" />');
+    expect(attSrc).toContain('<DesktopTableSkeleton rows={5} cols={6} />');
+
+    // 2. Balance removes duplicate Trésorerie / Solde & mouvements visible hero text while keeping bal-reports-trigger
+    expect(balSrc).not.toContain('Pilotage temps réel de la caisse');
+    expect(balSrc).not.toContain('ac-dash-hero-text');
+    expect(balSrc).toContain('bal-reports-trigger');
+    expect(balSrc).toContain('<PageSkeleton variant="balance" />');
+
+    // 3. Full-width, page-faithful skeleton variants (no identical 4-KPI list skeleton everywhere)
+    expect(focusCss).toMatch(/\.page-skeleton\s*\{[^}]*width:\s*100%/);
+    expect(focusCss).toMatch(/\.page-skeleton\s*\{[^}]*max-width:\s*none\s*!important/);
+    expect(appCss).toMatch(/\.page-skeleton\s*\{[^}]*max-width:\s*none/);
+    for (const v of ['products', 'kpis3-list', 'kpis4-list', 'table-only', 'balance', 'reports', 'inventory-ops', 'payroll', 'cash-shifts', 'attendance', 'actions', 'landing', 'welcome']) {
+      expect(skeletonSrc).toContain(`variant === '${v}'`);
+    }
+    expect(productsSrc).toContain('<PageSkeleton variant="products" />');
+    expect(clientsSrc).toContain('<PageSkeleton variant="kpis3-list" />');
+    expect(billsSrc).toContain('<PageSkeleton variant="table-only" />');
+    expect(actionsSrc).toContain('<ActionListRowsSkeleton rows={5} />');
+    expect(actionsSrc).not.toContain('Chargement des actions…');
+
+    // 4. App.tsx maps routes to matching skeletons and removes raw Chargement… Suspense text
+    expect(appSrc).toContain('skeletonVariantForPath(location.pathname)');
+    expect(appSrc).not.toContain('>Chargement…<');
+
+    // 5. Desktop Atlas Agent uses shimmer skeleton for thread loading, busy reply, and lazy fallback
+    expect(agentSrc).toContain('AtlasAgentShimmerBody');
+    expect(agentSrc).toContain('atlas-agent-shimmer-reply');
+    expect(agentSrc).not.toContain('Chargement de la conversation…');
+    expect(appSrc).toContain('AtlasAgentDesktopFallback');
+  });
 });

@@ -59,9 +59,15 @@
         position: fixed; inset: 0; z-index: 9999;
         display: flex; flex-direction: column; align-items: center; justify-content: center;
         gap: 20px; background: var(--boot-bg);
-        transition: opacity 0.3s ease;
+        transition: opacity 0.16s ease;
       }
       #splash.sp-hide { opacity: 0; pointer-events: none; }
+      #splash.sp-hide .sp-logo,
+      #splash.sp-hide .sp-spinner,
+      #splash.sp-hide .sp-text {
+        opacity: 0;
+        transition: opacity 0.06s ease;
+      }
       #splash .sp-logo { display: block; width: 200px; height: auto; }
       #splash .sp-dark { display: none; }
       html[data-theme="dark"] #splash .sp-light { display: none; }

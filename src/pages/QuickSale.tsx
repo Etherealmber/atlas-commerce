@@ -467,7 +467,7 @@ export default function QuickSale() {
 
   const token = getToken() || '';
 
-  if (loading) return <div className="atlas-orders quicksale-page"><PageSkeleton variant="list" /></div>;
+  if (loading) return <div className="atlas-orders quicksale-page"><PageSkeleton variant="kpis4-list" /></div>;
 
   const qsKpis = (() => {
     const open = filtered.filter((i: any) => i.status !== 'paid' && i.status !== 'cancelled').length;

@@ -144,7 +144,7 @@ export default function Reimbursements() {
     }
   };
 
-  if (loading) return <div><PageSkeleton variant="list" /></div>;
+  if (loading) return <div><PageSkeleton variant="table-only" /></div>;
 
   return (
     <div>

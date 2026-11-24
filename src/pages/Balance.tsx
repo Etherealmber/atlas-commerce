@@ -22,6 +22,7 @@ import {
   ArrowDownLeft, ArrowUpRight, ArrowUpFromLine, PiggyBank, Wallet, Package,
   FileText, FileSpreadsheet, Files, UserCheck, X, ChevronRight,
 } from 'lucide-react';
+import PageSkeleton from '../components/PageSkeleton';
 
 const BALANCE_STEPS: readonly WizardStepDef[] = [
   { id: 'type', label: 'Type & libellé', hint: 'Catégorie et description de l’écriture.' },
@@ -391,14 +392,8 @@ export default function Balance() {
 
   if (loading)
     return (
-      <div className="atlas-page balance-page">
-        <div className="skeleton" style={{ height: 14, width: 120, marginBottom: 10 }} />
-        <div className="skeleton" style={{ height: 32, width: 260, marginBottom: 18 }} />
-        <div className="atlas-loading-grid">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="skeleton" />
-          ))}
-        </div>
+      <div className="atlas-page ac-dash balance-page">
+        <PageSkeleton variant="balance" />
       </div>
     );
 
@@ -428,36 +423,29 @@ export default function Balance() {
       {loadError && <p role="alert">{loadError}</p>}
       <SaveFeedback message={saveMsg} type={saveMsgType} />
 
-      <header className="ac-dash-hero">
-        <div className="ac-dash-hero-text">
-          <p className="ac-dash-eyebrow">
-            <span>Trésorerie · {cur}</span>
-          </p>
-          <h2>Solde &amp; mouvements</h2>
-          <p className="ac-dash-lead">
-            Pilotage temps réel de la caisse, de la banque, des apports et du rapprochement comptable.
-          </p>
-        </div>
-        <div className="ac-dash-hero-side">
-          <button
-            type="button"
-            className="secondary bal-reports-trigger"
-            onClick={() => setShowReportsDialog(true)}
-          >
-            <span className="bal-reports-trigger-main">
-              <FileText size={18} aria-hidden="true" />
-              <span>
-                <strong>Rapports PDF &amp; exports</strong>
-                <small>Période : {reportPeriodLabel(reportPeriod)} · Solde, Stock, Créances, Dettes, Paie, CSV</small>
+      <div className="ac-dash-hero ac-dash-hero--compact" style={{ padding: '12px 16px', marginBottom: 14 }}>
+        <div className="ac-dash-hero-row" style={{ justifyContent: 'flex-end' }}>
+          <div className="ac-dash-hero-side">
+            <button
+              type="button"
+              className="secondary bal-reports-trigger"
+              onClick={() => setShowReportsDialog(true)}
+            >
+              <span className="bal-reports-trigger-main">
+                <FileText size={18} aria-hidden="true" />
+                <span>
+                  <strong>Rapports PDF &amp; exports</strong>
+                  <small>Période : {reportPeriodLabel(reportPeriod)} · Solde, Stock, Créances, Dettes, Paie, CSV</small>
+                </span>
               </span>
-            </span>
-            <span className="bal-reports-trigger-cta">
-              <span>Ouvrir</span>
-              <ChevronRight size={16} aria-hidden="true" />
-            </span>
-          </button>
+              <span className="bal-reports-trigger-cta">
+                <span>Ouvrir</span>
+                <ChevronRight size={16} aria-hidden="true" />
+              </span>
+            </button>
+          </div>
         </div>
-      </header>
+      </div>
 
       <section className="ac-metric-grid" aria-label="Indicateurs de trésorerie">
         <article className="ac-metric">
