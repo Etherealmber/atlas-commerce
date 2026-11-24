@@ -1,7 +1,7 @@
 import TopPageActions from '../components/TopPageActions';
 import DatePicker from '../components/DatePicker';
 import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { api } from '../api';
 import SaveFeedback from '../components/SaveFeedback';
 import PasswordConfirm from '../components/PasswordConfirm';
@@ -62,8 +62,9 @@ function BalanceMiniBars({ title, rows }: { title: string; rows: { label: string
                   className="balance-chart-fill"
                   style={{
                     width: `${Math.min(100, (Math.abs(r.value) / max) * 100)}%`,
-                    background: r.tone || '#0f172a',
-                  }}
+                    background: r.tone || 'var(--ac-chart-ink, #0f172a)',
+                    ['--balance-bar' as string]: r.tone || 'var(--ac-chart-ink, #0f172a)',
+                  } as CSSProperties}
                 />
               </div>
               <span className="balance-chart-val" title={Math.round(r.value).toLocaleString('fr-FR')}>
@@ -371,7 +372,7 @@ export default function Balance() {
       map.set(cat, (map.get(cat) || 0) + Number((e as any).amount || 0));
     }
     return [...map.entries()]
-      .map(([label, value]) => ({ label, value, tone: '#0f172a' }))
+      .map(([label, value]) => ({ label, value, tone: 'var(--ac-chart-slate, #64748b)' }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 8);
   }, [expenses]);
@@ -383,10 +384,10 @@ export default function Balance() {
       if (map[tpe] !== undefined) map[tpe] += Number((e as any).amount || 0);
     }
     return [
-      { label: 'Dépenses', value: map.expense, tone: '#ef4444' },
-      { label: 'Recettes', value: map.income, tone: '#2563eb' },
-      { label: 'Prélèvements', value: map.owner_draw, tone: '#f59e0b' },
-      { label: 'Apports', value: map.owner_contrib, tone: '#0f172a' },
+      { label: 'Dépenses', value: map.expense, tone: 'var(--ac-chart-red, #ef4444)' },
+      { label: 'Recettes', value: map.income, tone: 'var(--ac-chart-blue, #2563eb)' },
+      { label: 'Prélèvements', value: map.owner_draw, tone: 'var(--ac-chart-amber-bright, #f59e0b)' },
+      { label: 'Apports', value: map.owner_contrib, tone: 'var(--ac-chart-green, #10b981)' },
     ];
   }, [expenses]);
 

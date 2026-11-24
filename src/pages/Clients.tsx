@@ -277,7 +277,7 @@ export default function Clients() {
               <div className="as-label">Solde total dû</div>
               <div className="as-value" style={{ fontSize: '1.35rem' }}>{Math.round(totalDue).toLocaleString('fr-FR')} MAD</div>
               <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>sur {withDue} compte{withDue !== 1 ? 's' : ''}</div>
-              {withDue > 0 && <span className="badge" style={{ marginTop: 6, background: '#fef3c7', color: '#92400e' }}>à relancer</span>}
+              {withDue > 0 && <span className="badge" style={{ marginTop: 6, background: 'var(--ac-ui-warn-bg, #fef3c7)', color: 'var(--ac-ui-warn-ink, #92400e)' }}>à relancer</span>}
             </div>
             <div className="ac-metric">
               <div className="as-label">Nouveaux ce mois</div>
@@ -361,8 +361,8 @@ export default function Clients() {
                   <td>{c.city || '—'}</td>
                   <td style={{ fontWeight: 600 }}>{Math.round(Number((c as any).balance_due || 0)).toLocaleString('fr-FR')} MAD</td>
                   <td>{Number((c as any).balance_due || 0) > 0.001
-                    ? <span className="badge" style={{ background: '#fef3c7', color: '#92400e' }}>Solde dû</span>
-                    : <span className="badge" style={{ background: '#f1f5f9', color: '#334155' }}>Soldé</span>}</td>
+                    ? <span className="badge" style={{ background: 'var(--ac-ui-warn-bg, #fef3c7)', color: 'var(--ac-ui-warn-ink, #92400e)' }}>Solde dû</span>
+                    : <span className="badge" style={{ background: 'var(--ac-ui-surface-2, #f1f5f9)', color: 'var(--ac-ui-ink-2, #334155)' }}>Soldé</span>}</td>
                   <td>{c.phone || '—'}</td>
                   <td>{c.email ? (
                     <span
@@ -381,7 +381,7 @@ export default function Clients() {
                       {c.email}
                     </span>
                   ) : '—'}</td>
-                  <td>{c.tax_exempt ? <span className="badge" style={{ background: '#f1f5f9', color: '#334155' }}>Exonéré</span> : 'Assujetti'}</td>
+                  <td>{c.tax_exempt ? <span className="badge" style={{ background: 'var(--ac-ui-surface-2, #f1f5f9)', color: 'var(--ac-ui-ink-2, #334155)' }}>Exonéré</span> : 'Assujetti'}</td>
                   <td>
                     <span className="mono-amt">{Number(c.credit_limit) > 0 ? Number(c.credit_limit).toLocaleString('fr-FR') : '∞'}</span>
                     {Number(c.credit_limit) > 0 && Number((c as any).balance_due || 0) > Number(c.credit_limit) && (

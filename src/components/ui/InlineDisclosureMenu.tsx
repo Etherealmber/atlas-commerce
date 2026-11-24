@@ -99,19 +99,19 @@ export const InlineDisclosureMenu: FC<Props> = ({
               width: 280,
               overflow: 'hidden',
               borderRadius: 16,
-              border: '1px solid #e8eaef',
-              background: '#fff',
+              border: '1px solid var(--ac-ui-border, #e8eaef)',
+              background: 'var(--ac-ui-surface, #fff)',
               boxShadow: '0 12px 40px rgba(15,23,42,0.12)',
             }}
           >
             <div
               style={{
-                borderBottom: '1px solid #eef0f4',
-                background: '#fafafc',
+                borderBottom: '1px solid var(--ac-ui-divider, #eef0f4)',
+                background: 'var(--ac-ui-surface-2, #fafafc)',
                 padding: '10px 16px',
               }}
             >
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#828287' }}>{title}</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ac-ui-muted, #828287)' }}>{title}</span>
             </div>
             <LayoutGroup>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: 8 }}>
@@ -143,7 +143,7 @@ export const InlineDisclosureMenu: FC<Props> = ({
                       opacity: item.disabled ? 0.5 : 1,
                     }}
                     onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLButtonElement).style.background = '#f6f5fa';
+                      (e.currentTarget as HTMLButtonElement).style.background = 'var(--ac-ui-hover, #f6f5fa)';
                     }}
                     onMouseLeave={(e) => {
                       (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
@@ -155,7 +155,7 @@ export const InlineDisclosureMenu: FC<Props> = ({
                 ))}
               </div>
               {showDelete && onDelete && (
-                <div style={{ position: 'relative', height: 56, overflow: 'hidden', borderTop: '1px solid #eef0f4' }}>
+                <div style={{ position: 'relative', height: 56, overflow: 'hidden', borderTop: '1px solid var(--ac-ui-divider, #eef0f4)' }}>
                   <AnimatePresence custom={confirm} mode="popLayout" initial={false}>
                     {!confirm ? (
                       <motion.div

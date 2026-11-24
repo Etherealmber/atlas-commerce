@@ -22,7 +22,7 @@ import { setAgentDraft } from '../lib/agentDraft';
 
 function IconHistory({ size = 16 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#1a1d26" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="var(--ac-ui-ink, #1a1d26)" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <circle cx="12" cy="12" r="9" />
       <path d="M12 7v5l3 2" />
     </svg>
@@ -30,7 +30,7 @@ function IconHistory({ size = 16 }: { size?: number }) {
 }
 function IconNewChat({ size = 16 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#1a1d26" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="var(--ac-ui-ink, #1a1d26)" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d="M12 20h9" />
       <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
     </svg>
@@ -38,7 +38,7 @@ function IconNewChat({ size = 16 }: { size?: number }) {
 }
 function IconMic({ size = 16 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#1a1d26" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="var(--ac-ui-ink, #1a1d26)" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <rect x="9" y="2" width="6" height="11" rx="3" />
       <path d="M5 10a7 7 0 0 0 14 0" />
       <path d="M12 17v4" />
@@ -81,7 +81,7 @@ function IconAttach({ size = 18 }: { size?: number }) {
 
 function IconSettings({ size = 16 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#1a1d26" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="var(--ac-ui-ink, #1a1d26)" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <circle cx="12" cy="12" r="3" />
       <path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" />
     </svg>
@@ -90,7 +90,7 @@ function IconSettings({ size = 16 }: { size?: number }) {
 
 function IconStop({ size = 14 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="#1a1d26" aria-hidden>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="var(--ac-ui-ink, #1a1d26)" aria-hidden>
       <rect x="6" y="6" width="12" height="12" rx="2" />
     </svg>
   );
@@ -2175,10 +2175,14 @@ export default function AtlasAgent() {
             onAttach={() => {
               fileInputRef.current?.click();
             }}
-            background="#f4f4f5"
-            color="#0f172a"
-            menuBackground="#ffffff"
-            sparkColor="#3f3f46"
+            background="var(--ac-ui-surface-2, #f4f4f5)"
+            color="var(--ac-ui-ink, #0f172a)"
+            menuBackground="var(--ac-ui-surface, #ffffff)"
+            sparkColor={
+              typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'dark'
+                ? '#d4d4d8'
+                : '#3f3f46'
+            }
             width={720}
             radius={16}
             maxRows={5}
