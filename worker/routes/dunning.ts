@@ -218,7 +218,7 @@ export async function runDailyDunning(
   try {
     const res = await db
       .prepare(
-        `SELECT i.id, i.invoice_number, i.due_date, i.total, i.amount_paid, i.status, i.doc_kind,
+        `SELECT i.id, i.number AS invoice_number, i.due_date, i.total, i.amount_paid, i.status, i.doc_kind,
                 COALESCE(c.name, i.client_name, 'Client') AS client_name,
                 COALESCE(c.email, i.client_email, '') AS client_email,
                 COALESCE(c.phone, i.client_phone, '') AS client_phone,
@@ -351,7 +351,7 @@ export function registerDunningRoutes(app: Hono<any>, deps: DunningRouteDeps): v
     const invoiceId = Number(c.req.param('id') || 0);
     const inv = (await c.env.DB
       .prepare(
-        `SELECT i.id, i.invoice_number, i.due_date, i.total, i.amount_paid, i.status,
+        `SELECT i.id, i.number AS invoice_number, i.due_date, i.total, i.amount_paid, i.status,
                 COALESCE(c.name, i.client_name, 'Client') AS client_name,
                 COALESCE(c.email, i.client_email, '') AS client_email,
                 COALESCE(c.phone, i.client_phone, '') AS client_phone,
@@ -452,7 +452,7 @@ export function registerDunningRoutes(app: Hono<any>, deps: DunningRouteDeps): v
 
     const inv = (await c.env.DB
       .prepare(
-        `SELECT i.id, i.invoice_number, i.due_date, i.total, i.amount_paid,
+        `SELECT i.id, i.number AS invoice_number, i.due_date, i.total, i.amount_paid,
                 COALESCE(c.name, i.client_name, 'Client') AS client_name,
                 COALESCE(c.email, i.client_email, '') AS client_email,
                 COALESCE(c.phone, i.client_phone, '') AS client_phone,

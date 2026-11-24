@@ -1,4 +1,5 @@
 /// <reference types="node" />
+import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { Hono } from 'hono';
 import { describe, expect, it } from 'vitest';
@@ -43,9 +44,9 @@ function setupDunningApp() {
     INSERT INTO company_settings (id, company_name, currency) VALUES (1, 'Atlas Marbre', 'MAD');
     CREATE TABLE clients (id INTEGER PRIMARY KEY, name TEXT, email TEXT, phone TEXT, ice TEXT);
     INSERT INTO clients (id, name, email, phone, ice) VALUES (1, 'BatiMaroc', 'compta@batimaroc.ma', '0661234567', '001122334455667');
-    CREATE TABLE invoices (id INTEGER PRIMARY KEY, invoice_number TEXT, due_date TEXT, total REAL, amount_paid REAL, status TEXT, doc_kind TEXT, client_id INTEGER, client_name TEXT, client_email TEXT, client_phone TEXT, client_ice TEXT);
-    INSERT INTO invoices (id, invoice_number, due_date, total, amount_paid, status, doc_kind, client_id) VALUES (1, 'FAC-2026-010', '2026-11-23', 5000, 1000, 'partial', 'invoice', 1);
-    INSERT INTO invoices (id, invoice_number, due_date, total, amount_paid, status, doc_kind, client_id) VALUES (2, 'FAC-2026-011', '2026-11-23', 2000, 0, 'sent', 'invoice', 1);
+    CREATE TABLE invoices (id INTEGER PRIMARY KEY, number TEXT UNIQUE NOT NULL, due_date TEXT, total REAL, amount_paid REAL, status TEXT, doc_kind TEXT, client_id INTEGER, client_name TEXT, client_email TEXT, client_phone TEXT, client_ice TEXT);
+    INSERT INTO invoices (id, number, due_date, total, amount_paid, status, doc_kind, client_id, client_name) VALUES (1, 'FAC-2026-010', '2026-11-23', 5000, 1000, 'partial', 'invoice', 1, 'BatiMaroc');
+    INSERT INTO invoices (id, number, due_date, total, amount_paid, status, doc_kind, client_id, client_name) VALUES (2, 'FAC-2026-011', '2026-11-23', 2000, 0, 'sent', 'invoice', 1, 'BatiMaroc');
   `);
 
   const db = makeSqliteD1(sqlite);
@@ -120,5 +121,46 @@ describe('Part 6 — unpaid invoice dunning', () => {
     const run2 = await runDailyDunning(env, { today: '2026-11-24' });
     expect(run2.sent).toBe(0);
     expect(sentEmails.length).toBe(1);
+  });
+
+  it('returns 200 on GET /api/dunning/invoices/:id against real schema.sql (number column, not invoice_number)', async () => {
+    const sqlite = new DatabaseSync(':memory:');
+    sqlite.exec(readFileSync('schema.sql', 'utf8'));
+    sqlite.exec(`CREATE TABLE IF NOT EXISTS audit_log (id INTEGER PRIMARY KEY AUTOINCREMENT, created_at TEXT DEFAULT (datetime('now')), username TEXT, role TEXT, action TEXT, entity TEXT, entity_id TEXT, detail TEXT, ip TEXT);`);
+    sqlite.prepare(`INSERT INTO clients (id, name, email, phone, ice) VALUES (1, 'Marbre Sud', 'm@sud.ma', '0660000000', '001122334455667')`).run();
+    sqlite
+      .prepare(`INSERT INTO invoices (id, number, client_id, client_name, issue_date, due_date, status, total, amount_paid) VALUES (1, 'INV-2026-042', 1, 'Marbre Sud', '2026-11-01', '2026-11-15', 'sent', 3000, 500)`)
+      .run();
+
+    const db = makeSqliteD1(sqlite);
+    const app = new Hono<any>();
+    registerDunningRoutes(app as any, {
+      requireEmployeeAdmin: async () => null,
+      sessionUserFromHeader: () => ({ username: 'owner', role: 'owner' }),
+      writeAudit: async () => {},
+      clientIp: () => '127.0.0.1',
+    });
+
+    const res = await app.fetch(new Request('http://test.local/api/dunning/invoices/1'), { DB: db } as any);
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as any;
+    expect(json.success).toBe(true);
+    expect(json.data.invoice_id).toBe(1);
+    expect(json.data.remaining).toBe(2500);
+    expect(json.data.rendered_subject).toContain('INV-2026-042');
+    expect(json.data.rendered_email).toContain('INV-2026-042');
+    expect(json.data.rendered_whatsapp).toContain('INV-2026-042');
+
+    const waRes = await app.fetch(
+      new Request('http://test.local/api/dunning/invoices/1/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel: 'whatsapp', stage: 'MANUAL-1' }),
+      }),
+      { DB: db } as any,
+    );
+    expect(waRes.status).toBe(200);
+    const waJson = (await waRes.json()) as any;
+    expect(waJson.data.message).toContain('INV-2026-042');
   });
 });

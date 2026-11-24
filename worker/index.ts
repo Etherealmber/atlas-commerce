@@ -1632,6 +1632,7 @@ registerCashShiftRoutes(app, { sessionUserFromHeader, writeAudit, reportShell })
 registerPayrollRoutes(app, { requireEmployeeAdmin, loadAttendanceRules, writeAudit, sessionUserFromHeader, clientIp });
 registerFecRoutes(app, { requireOwner, writeAudit, clientIp });
 registerDunningRoutes(app, { requireEmployeeAdmin, sessionUserFromHeader, writeAudit, clientIp });
+registerDgiRoutes(app, { requireBizMutator, requireOwner, writeAudit, clientIp });
 registerAtlasV209Routes(app, { sessionUserFromHeader, applyStockDelta, adjustLocationStock, getDefaultLocationId });
 // Admin read routes need helpers defined later — registered near Users & Admin section
 

@@ -105,6 +105,8 @@ export function registerDgiRoutes(app: Hono<any>, deps: DgiRouteDeps): void {
   const { requireBizMutator, requireOwner, writeAudit, clientIp } = deps;
 
   app.get('/api/invoices/:id/dgi', async (c) => {
+    const gate = requireBizMutator(c);
+    if (!gate.ok) return gate.response;
     await ensureDgiSchema(c.env.DB);
     const id = Number(c.req.param('id') || 0);
     if (!id) return c.json({ success: false, error: 'id invalide' }, 400);
