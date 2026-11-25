@@ -5731,7 +5731,6 @@ html body .desktop-catalog-actions-slot a:hover {
       .ac-metric,
       .atlas-stat,
       .bank-metric,
-      .desktop-product-card,
       .whats-new-card,
       .wn-thanks-card,
       .ac-profile-card,
@@ -5757,11 +5756,9 @@ html body .desktop-catalog-actions-slot a:hover {
       .ac-desktop-dock .ac-dock-item,
       .ac-user-dropdown-item,
       .ac-metric,
-      .desktop-product-card,
       .ac-profile-card
     ) svg,
-    html:not(.phone-shell) body .product-table-row .product-artwork,
-    html:not(.phone-shell) body .desktop-product-card .product-artwork {
+    html:not(.phone-shell) body .product-table-row .product-artwork {
       transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1) !important;
     }
 
@@ -5844,7 +5841,6 @@ html body .desktop-catalog-actions-slot a:hover {
       .ac-metric,
       .atlas-stat,
       .bank-metric,
-      .desktop-product-card,
       .whats-new-card,
       .wn-thanks-card,
       .ac-profile-card,
@@ -5861,7 +5857,6 @@ html body .desktop-catalog-actions-slot a:hover {
       .ac-metric,
       .atlas-stat,
       .bank-metric,
-      .desktop-product-card,
       .whats-new-card,
       .wn-thanks-card,
       .ac-profile-card,
@@ -5886,7 +5881,6 @@ html body .desktop-catalog-actions-slot a:hover {
     html:not(.phone-shell) body .content .ac-profile-card:hover .ac-profile-card-chev {
       transform: translateX(3px) scale(1.1) !important;
     }
-    html:not(.phone-shell) body .content .desktop-product-card:hover .product-artwork,
     html:not(.phone-shell) body .content .product-table-row:hover .product-artwork {
       transform: scale(1.07) !important;
     }
@@ -7117,7 +7111,6 @@ html[data-theme="dark"] body .ac-audit-chart-card,
 html[data-theme="dark"] body .ac-audit-table-panel,
 html[data-theme="dark"] body .ac-audit-empty,
 html[data-theme="dark"] body .product-history-card,
-html[data-theme="dark"] body .desktop-product-card,
 html[data-theme="dark"] body .welcome-card,
 html[data-theme="dark"] body .welcome-compare-card,
 html[data-theme="dark"] body .audit-detail-modal,

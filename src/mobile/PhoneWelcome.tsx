@@ -11,7 +11,7 @@
  *   3. Captures réelles    — carrousel des écrans mobiles
  *   4. Prêt                — récapitulatif + visite guidée (démonstration)
  *
- * Terminer → markWelcomeCompleted() + queuePhoneOnboarding() → /m, où
+ * Terminer → markWelcomeCompleted() + restartPhoneOnboarding() (étape 1) → /m, où
  * PhoneOnboarding lance la visite mobile. Rien n’est envoyé au serveur.
  */
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
@@ -20,7 +20,7 @@ import { ArrowLeft, ArrowRight, Bot, Check, Compass, Monitor, Moon, Package, Sca
 import { canManageStock, canSell, getDisplayName, getRole, getUsername } from '../auth';
 import { getTheme, setTheme, type ThemeChoice } from '../theme';
 import { isWelcomeCompleted, markWelcomeCompleted, saveWelcomePrefs } from '../lib/welcome';
-import { finishPhoneOnboarding, queuePhoneOnboarding } from '../lib/onboarding';
+import { finishPhoneOnboarding, restartPhoneOnboarding } from '../lib/onboarding';
 import { APP_NAME, APP_VERSION } from '../version';
 import './phone-welcome.css';
 
@@ -105,7 +105,7 @@ export default function PhoneWelcome() {
     if (leaving) return;
     setLeaving(true);
     markWelcomeCompleted();
-    if (withTour) queuePhoneOnboarding();
+    if (withTour) restartPhoneOnboarding();
     else finishPhoneOnboarding();
     try { sessionStorage.removeItem(PHONE_WELCOME_STEP_KEY); } catch { /* */ }
     window.setTimeout(() => navigate('/m', { replace: true }), 220);

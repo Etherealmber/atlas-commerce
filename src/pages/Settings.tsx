@@ -3,6 +3,7 @@ import { LanguageSoonDialog } from '../components/LanguageSoonDialog';
 import SettingsUserDialog from '../components/SettingsUserDialog';
 import { isFeatureEnabled } from '../lib/featureFlags';
 import { EditProfile, type ProfileData } from '../components/ui/EditProfile';
+import { profileDataFromServer } from '../lib/profilePrefs';
 import ImageLightbox from '../components/ui/ImageLightbox';
 import { ListPager } from '../components/ui/ListPager';
 import { TimedUndoDelete, SaveToggle } from '../components/ui';
@@ -60,21 +61,8 @@ export default function Settings() {
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [qrFabOpen, setQrFabOpen] = useState(false);
   const [lightbox, setLightbox] = useState<{ src: string; name: string } | null>(null);
-  const [profileData, setProfileData] = useState<ProfileData>(() => {
-    try {
-      const raw = localStorage.getItem('atlas-profile');
-      if (raw) return JSON.parse(raw);
-    } catch {}
-    return {
-      fullName: '',
-      email: '',
-      timezone: 'Africa/Casablanca',
-      workingHours: '09:00 – 18:00',
-      title: '',
-      avatarUrl: '',
-      lastUpdated: '',
-    };
-  });
+  // Filled from GET /api/auth/me (database); no local-only copy any more.
+  const [profileData, setProfileData] = useState<ProfileData>(() => profileDataFromServer({}, null));
   const [, setUiScaleState] = useState<UiScale>(() => getUiScale());
   const { confirm, prompt, toast } = useUi();
   const [settings, setSettings] = useState<any>(null);
@@ -436,6 +424,7 @@ export default function Settings() {
         username: m.username,
         role: m.role,
       });
+      setProfileData((prev) => profileDataFromServer(m, prev));
       if (owner) {
         api.getAdminUsers().then((u) => {
           setOwnerInfo(u.data?.owner);
@@ -931,7 +920,7 @@ if (loading) return (
           </button>
         </div>
         <EditProfile
-          key={`ep-${profileForm.email}-${profileForm.display_name}-${profileForm.avatar_url}`}
+          key={`ep-${profileForm.email}-${profileForm.display_name}-${profileForm.avatar_url}-${profileData.timezone}-${profileData.lastUpdated}`}
           isOpen={editProfileOpen}
           onClose={() => setEditProfileOpen(false)}
           initialData={{
@@ -944,36 +933,36 @@ if (loading) return (
             lastUpdated: profileData.lastUpdated || '',
           }}
           onSave={async (data) => {
-            setProfileData({
-              ...data,
-              lastUpdated: new Date().toLocaleDateString('fr-FR'),
-            });
-            setProfileForm((prev) => ({
-              ...prev,
-              display_name: data.fullName,
-              email: data.email,
-              avatar_url: data.avatarUrl || prev.avatar_url,
-            }));
-            try { localStorage.setItem('atlas-profile', JSON.stringify(data)); } catch {}
+            // Saved in the database (D1 user_profile_prefs + profile). If the server
+            // refuses, the error is shown in the dialog and nothing is faked locally.
+            setProfileSaving(true);
             try {
-              setProfileSaving(true);
-              await api.updateMe({
+              const r: any = await api.updateMe({
                 display_name: data.fullName,
                 email: data.email,
                 avatar_url: data.avatarUrl,
                 phone: profileForm.phone,
                 notes: profileForm.notes,
+                timezone: data.timezone,
+                working_hours: data.workingHours,
+                job_title: data.title,
               });
+              const saved = r?.data || {};
+              setProfileData((prev) => profileDataFromServer({ ...saved, display_name: saved.display_name ?? data.fullName, email: saved.email ?? data.email }, prev));
+              setProfileForm((prev) => ({
+                ...prev,
+                display_name: saved.display_name ?? data.fullName,
+                email: saved.email ?? data.email,
+                avatar_url: saved.avatar_url || data.avatarUrl || prev.avatar_url,
+              }));
               setProfileCache({
-                display_name: data.fullName,
-                avatar_url: data.avatarUrl,
+                display_name: saved.display_name ?? data.fullName,
+                avatar_url: saved.avatar_url || data.avatarUrl,
               });
-            } catch {
-              /* keep local */
+              toast('Profil enregistré');
             } finally {
               setProfileSaving(false);
             }
-            setEditProfileOpen(false);
           }}
         />
         </>

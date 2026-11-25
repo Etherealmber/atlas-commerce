@@ -48,7 +48,7 @@ it('updates only editable profile fields and reports failure without claiming su
   await act(async () => root.render(createElement(MemoryRouter, { children: createElement(PhoneProfile) })));
   await act(async () => { host.querySelector<HTMLButtonElement>('[aria-label="Modifier le profil"]')!.click(); });
   await act(async () => { document.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); });
-  expect(update).toHaveBeenCalledWith({ display_name: 'Atlas', email: 'a@example.com', phone: '123' });
+  expect(update).toHaveBeenCalledWith({ display_name: 'Atlas', email: 'a@example.com', phone: '123', job_title: '', working_hours: '', timezone: 'Africa/Casablanca' });
   expect(document.body.textContent).toContain('Impossible d’enregistrer'); expect(document.body.textContent).not.toContain('Profil enregistré');
 });
 it('saves scanner preferences locally and restores them when settings reopen', async () => {

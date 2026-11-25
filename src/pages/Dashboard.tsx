@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import ProductArtwork from '../components/ProductArtwork';
 import { DateRangePicker } from '../components/DatePicker';
 import { Link, Navigate } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
@@ -793,7 +794,7 @@ export default function Dashboard() {
           ) : (
             lowList.map((p: any) => (
               <div className="ac-dash-row" key={p.id || p.sku}>
-                <div className="ari-av" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><IconPackage size={18} /></div>
+                <ProductArtwork url={p.image_url} largeImageProductId={p.image_inline_large ? p.id : undefined} alt="" className="ari-av ac-dash-art" />
                 <div>
                   <div className="ari-title">{p.name}</div>
                   <div className="ari-sub">{p.sku}</div>

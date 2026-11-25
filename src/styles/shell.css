@@ -3674,3 +3674,125 @@ html body .ac-dash-period-pills .ac-seg-btn[aria-pressed="true"] {
   white-space: nowrap;
 }
 
+
+/* ── Modifier le profil: every field (select included) is pinned to the same
+   44 px rounded box in light, dark and compact, whatever global select/pill
+   rule or bundle order is active. ID boosts beat dark-force and density. ── */
+.ac-edit-profile-form {
+  --ep-bg: #ffffff;
+  --ep-line: #e4e4e7;
+  --ep-fg: #18181b;
+  --ep-ring: rgba(24, 24, 27, 0.12);
+  --ep-focus: #18181b;
+}
+html[data-theme="dark"] .ac-edit-profile-form {
+  --ep-bg: #18181b;
+  --ep-line: #3f3f46;
+  --ep-fg: #f4f4f5;
+  --ep-ring: rgba(244, 244, 245, 0.14);
+  --ep-focus: #a1a1aa;
+}
+.ac-edit-profile-form .ac-edit-profile-row {
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+}
+@media (max-width: 520px) {
+  .ac-edit-profile-form .ac-edit-profile-row { grid-template-columns: minmax(0, 1fr); }
+}
+html body .ac-edit-profile-form .ac-edit-profile-select-wrap:not(#prf-a),
+html body .ac-edit-profile-form .ac-edit-profile-input-ico:not(#prf-a) {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+html body .ac-edit-profile-form input:not([type="file"]):not(#prf-a):not(#prf-b),
+html body .ac-edit-profile-form select:not(#prf-a):not(#prf-b) {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  box-sizing: border-box !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  margin: 0 !important;
+  padding: 0 12px !important;
+  border: 1px solid var(--ep-line) !important;
+  border-radius: 14px !important;
+  background: var(--ep-bg) !important;
+  background-image: none !important;
+  color: var(--ep-fg) !important;
+  -webkit-text-fill-color: var(--ep-fg) !important;
+  font-family: inherit !important;
+  font-size: 0.9rem !important;
+  font-weight: 600 !important;
+  line-height: 42px !important;
+  box-shadow: none !important;
+  outline: none !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+html body .ac-edit-profile-form select:not(#prf-a):not(#prf-b) {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  padding-right: 36px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  cursor: pointer !important;
+}
+html body .ac-edit-profile-form input:not([type="file"]):not(#prf-a):not(#prf-b):focus-visible,
+html body .ac-edit-profile-form select:not(#prf-a):not(#prf-b):focus-visible,
+html body .ac-edit-profile-form input:not([type="file"]):not(#prf-a):not(#prf-b):focus,
+html body .ac-edit-profile-form select:not(#prf-a):not(#prf-b):focus {
+  border-color: var(--ep-focus) !important;
+  box-shadow: 0 0 0 3px var(--ep-ring) !important;
+  outline: none !important;
+}
+html body .ac-edit-profile-form input:not(#prf-a)::placeholder {
+  color: #a1a1aa !important;
+  -webkit-text-fill-color: #a1a1aa !important;
+  font-weight: 500 !important;
+}
+html body .ac-edit-profile-form select:not(#prf-a) option {
+  background: var(--ep-bg);
+  color: var(--ep-fg);
+}
+html body .ac-edit-profile-form .ac-edit-profile-chev:not(#prf-a) {
+  position: absolute !important;
+  right: 12px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  color: #71717a !important;
+  pointer-events: none !important;
+}
+html[data-ui-density="compact"] body .ac-edit-profile-form input:not([type="file"]):not(#prf-a):not(#prf-b),
+html[data-ui-density="compact"] body .ac-edit-profile-form select:not(#prf-a):not(#prf-b) {
+  height: 38px !important;
+  min-height: 38px !important;
+  line-height: 36px !important;
+  border-radius: 12px !important;
+}
+.ac-edit-profile-error { color: #dc2626 !important; font-weight: 600; }
+html[data-theme="dark"] .ac-edit-profile-error { color: #f87171 !important; }
+
+/* Dashboard « Santé du stock »: real product photo per low-stock row */
+html body .ac-dash-row .product-artwork.ac-dash-art:not(#lowstk-a) {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px;
+  border-radius: 10px !important;
+  border: 1px solid var(--ac-line) !important;
+  background: #efebe3;
+  color: #64748b;
+}
+html[data-theme="dark"] body .ac-dash-row .product-artwork.ac-dash-art:not(#lowstk-a) {
+  background: rgba(255, 255, 255, 0.08);
+  color: #8a909e;
+}
+html body .ac-dash-row .product-artwork.ac-dash-art:not(#lowstk-a) svg { width: 18px; height: 18px; }
+.ac-dash-row > div:not([class]) { flex: 1 1 auto; min-width: 0; }
+.ac-dash-row .ari-title { font-weight: 650; font-size: 0.9rem; color: var(--ac-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ac-dash-row .ari-sub { font-size: 0.75rem; color: var(--ac-muted); font-weight: 500; }
+.ac-dash-row .ari-right { margin-left: auto; text-align: right; font-weight: 750; font-size: 0.95rem; flex: none; }
+.ac-dash-row .ari-right.bad { color: #b91c1c; }
+html[data-theme="dark"] .ac-dash-row .ari-right.bad { color: #f87171; }

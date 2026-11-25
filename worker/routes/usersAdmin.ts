@@ -658,6 +658,52 @@ app.post('/api/auth/role-refresh', async (c) => {
   return c.json({ success: true, data: { token: refreshed, username, role } });
 });
 
+// Profile details from « Modifier le profil » (migration 0021). Stored in D1 for
+// every login — owner included — so they follow the user to every device.
+const PROFILE_PREFS_DEFAULT_TZ = 'Africa/Casablanca';
+type ProfilePrefs = { timezone: string; working_hours: string; job_title: string; profile_updated_at: string };
+const emptyProfilePrefs = (): ProfilePrefs => ({ timezone: PROFILE_PREFS_DEFAULT_TZ, working_hours: '', job_title: '', profile_updated_at: '' });
+async function ensureProfilePrefsTable(db: D1Database): Promise<void> {
+  await db.prepare(
+    `CREATE TABLE IF NOT EXISTS user_profile_prefs (
+       username TEXT PRIMARY KEY,
+       timezone TEXT NOT NULL DEFAULT 'Africa/Casablanca',
+       working_hours TEXT NOT NULL DEFAULT '',
+       job_title TEXT NOT NULL DEFAULT '',
+       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+     )`,
+  ).run();
+}
+async function readProfilePrefs(db: D1Database, username: string): Promise<ProfilePrefs> {
+  try {
+    await ensureProfilePrefsTable(db);
+    const row = await db
+      .prepare(`SELECT timezone, working_hours, job_title, updated_at FROM user_profile_prefs WHERE username = ?`)
+      .bind(username)
+      .first() as any;
+    if (!row) return emptyProfilePrefs();
+    return {
+      timezone: String(row.timezone || PROFILE_PREFS_DEFAULT_TZ),
+      working_hours: String(row.working_hours || ''),
+      job_title: String(row.job_title || ''),
+      profile_updated_at: String(row.updated_at || ''),
+    };
+  } catch {
+    return emptyProfilePrefs();
+  }
+}
+/** Valid IANA zone (as understood by the runtime), at most 64 chars; otherwise null. */
+function cleanTimeZone(raw: unknown): string | null {
+  const tz = String(raw ?? '').trim();
+  if (!tz || tz.length > 64 || !/^[A-Za-z0-9_+\-/]+$/.test(tz)) return null;
+  try {
+    const resolved = new Intl.DateTimeFormat('en-US', { timeZone: tz }).resolvedOptions().timeZone;
+    return resolved ? tz : null;
+  } catch {
+    return null;
+  }
+}
+
 app.get('/api/auth/me', async (c) => {
   const limited = refreshLimitGate(c, 'auth-me', 60);
   if (limited) return limited;
@@ -748,6 +794,7 @@ app.get('/api/auth/me', async (c) => {
             ),
           }),
       ...profile,
+      ...(await readProfilePrefs(c.env.DB, session.username)),
     },
   });
 });
@@ -817,6 +864,41 @@ app.patch('/api/auth/me', async (c) => {
     }
   }
 
+  let timezone: string | undefined;
+  if (body.timezone != null) {
+    const tz = cleanTimeZone(body.timezone);
+    if (!tz) return c.json({ success: false, error: 'Fuseau horaire invalide.', code: 'INVALID_TIMEZONE' }, 400);
+    timezone = tz;
+  }
+  const working_hours = body.working_hours != null ? String(body.working_hours).trim().slice(0, 40) : undefined;
+  const job_title = body.job_title != null ? String(body.job_title).trim().slice(0, 60) : undefined;
+
+  // Time zone, hours and job title live in D1 (user_profile_prefs). Every
+  // successful PATCH stamps updated_at, which the UI shows as « Mis à jour ».
+  let prefsOut: ProfilePrefs;
+  try {
+    await ensureProfilePrefsTable(c.env.DB);
+    const cur = await readProfilePrefs(c.env.DB, session.username);
+    await c.env.DB.prepare(
+      `INSERT INTO user_profile_prefs (username, timezone, working_hours, job_title, updated_at)
+       VALUES (?, ?, ?, ?, datetime('now'))
+       ON CONFLICT(username) DO UPDATE SET
+         timezone = excluded.timezone,
+         working_hours = excluded.working_hours,
+         job_title = excluded.job_title,
+         updated_at = excluded.updated_at`,
+    ).bind(
+      session.username,
+      timezone ?? cur.timezone,
+      working_hours ?? cur.working_hours,
+      job_title ?? cur.job_title,
+    ).run();
+    prefsOut = await readProfilePrefs(c.env.DB, session.username);
+  } catch (prefErr: any) {
+    console.error('profile_prefs_write_failed', String(prefErr?.message || prefErr));
+    return c.json({ success: false, error: 'Impossible d’enregistrer le profil. Réessayez.', code: 'PROFILE_SAVE_FAILED' }, 500);
+  }
+
   // Always write to free-tier Durable Object first (source of truth for profile UX)
   const existingDo = await readProfileFromDo(c.env, session.username);
   const mergedForDo = {
@@ -853,7 +935,7 @@ app.patch('/api/auth/me', async (c) => {
     return c.json({
       success: true,
       message: 'Profil mis à jour',
-      data: out,
+      data: { ...out, ...prefsOut },
     });
   }
 
@@ -861,7 +943,7 @@ app.patch('/api/auth/me', async (c) => {
   if (!row) {
     // Still ok if DO wrote — owner-only secret user may not be in app_users
     if (savedDo) {
-      return c.json({ success: true, message: 'Profil mis à jour', data: savedDo });
+      return c.json({ success: true, message: 'Profil mis à jour', data: { ...savedDo, ...prefsOut } });
     }
     return c.json({ success: false, error: 'Utilisateur introuvable' }, 404);
   }
@@ -888,7 +970,7 @@ app.patch('/api/auth/me', async (c) => {
   return c.json({
     success: true,
     message: 'Profil mis à jour',
-    data: out,
+    data: { ...out, ...prefsOut },
   });
 });
 

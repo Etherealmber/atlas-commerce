@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Pencil, Clock, ChevronDown } from 'lucide-react';
+import { timeZoneOptions } from '../../lib/profilePrefs';
 
 export type ProfileData = {
   fullName: string;
@@ -58,6 +59,7 @@ async function cropToCircleDataUrl(file: File): Promise<string> {
 
 export const EditProfile: FC<Props> = ({ isOpen, onClose, initialData, onSave }) => {
   const [formData, setFormData] = useState<ProfileData>(initialData);
+  const [saveError, setSaveError] = useState('');
   const [mounted, setMounted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [cropBusy, setCropBusy] = useState(false);
@@ -140,10 +142,13 @@ export const EditProfile: FC<Props> = ({ isOpen, onClose, initialData, onSave })
   };
 
   const submit = async () => {
+    setSaveError('');
     try {
       setSaving(true);
       await onSave(formData);
       onClose();
+    } catch (err: any) {
+      setSaveError(err?.message || 'Enregistrement impossible. Réessayez.');
     } finally {
       setSaving(false);
     }
@@ -234,9 +239,9 @@ export const EditProfile: FC<Props> = ({ isOpen, onClose, initialData, onSave })
                         Fuseau horaire
                         <span className="ac-edit-profile-select-wrap">
                           <select name="timezone" value={formData.timezone} onChange={handleChange}>
-                            <option value="Africa/Casablanca">Maroc (Casablanca)</option>
-                            <option value="Europe/Paris">Europe/Paris</option>
-                            <option value="UTC">UTC</option>
+                            {timeZoneOptions(formData.timezone).map((z) => (
+                              <option key={z.id} value={z.id}>{z.label}</option>
+                            ))}
                           </select>
                           <ChevronDown size={16} className="ac-edit-profile-chev" aria-hidden />
                         </span>
@@ -303,9 +308,13 @@ export const EditProfile: FC<Props> = ({ isOpen, onClose, initialData, onSave })
                 </div>
 
                 <footer className="ac-edit-profile-foot">
-                  <span className="ac-edit-profile-updated">
-                    {formData.lastUpdated ? `Mis à jour : ${formData.lastUpdated}` : 'Non enregistré'}
-                  </span>
+                  {saveError ? (
+                    <span className="ac-edit-profile-updated ac-edit-profile-error" role="alert">{saveError}</span>
+                  ) : (
+                    <span className="ac-edit-profile-updated">
+                      {formData.lastUpdated ? `Mis à jour : ${formData.lastUpdated}` : 'Pas encore enregistré'}
+                    </span>
+                  )}
                   <div className="ac-edit-profile-actions">
                     <button type="button" className="secondary" onClick={onClose} disabled={saving}>
                       Annuler
