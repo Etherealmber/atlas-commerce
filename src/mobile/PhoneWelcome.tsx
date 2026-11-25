@@ -22,6 +22,7 @@ import { getTheme, setTheme, type ThemeChoice } from '../theme';
 import { isWelcomeCompleted, markWelcomeCompleted, saveWelcomePrefs } from '../lib/welcome';
 import { finishPhoneOnboarding, restartPhoneOnboarding } from '../lib/onboarding';
 import { APP_NAME, APP_VERSION } from '../version';
+import { themedShotSrc, useDocTheme } from '../lib/useDocTheme';
 import './phone-welcome.css';
 
 export const PHONE_WELCOME_STEP_KEY = 'atlas_phone_welcome_step';
@@ -72,6 +73,7 @@ const THEMES: { id: ThemeChoice; label: string; hint: string; icon: typeof Sun }
 ];
 
 export default function PhoneWelcome() {
+  const docTheme = useDocTheme();
   const navigate = useNavigate();
   const [step, setStep] = useState(readStep);
   const [theme, setThemeState] = useState<ThemeChoice>(() => getTheme());
@@ -213,7 +215,7 @@ export default function PhoneWelcome() {
             <div className="pw-shots" ref={shotsRef} onScroll={onShotsScroll} aria-label="Captures de l’application mobile">
               {PHONE_WELCOME_SHOTS.map((s) => (
                 <figure key={s.src} className="pw-shot">
-                  <img src={s.src} alt={`Capture réelle : ${s.title} sur mobile`} loading="lazy" decoding="async" width={300} height={600} />
+                  <img src={themedShotSrc(s.src, docTheme)} alt={`Capture réelle : ${s.title} sur mobile`} loading="lazy" decoding="async" width={300} height={600} />
                   <figcaption><strong>{s.title}</strong><small>{s.text}</small></figcaption>
                 </figure>
               ))}

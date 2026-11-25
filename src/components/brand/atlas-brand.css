@@ -318,3 +318,17 @@ html[data-theme="dark"] .dl-foot-brand .atlas-lockup.dl-foot-lockup { color: #ff
 }
 .home-landing .hm-eyebrow:has(.hm-eyebrow-mark)::before { content: none; }
 .hm-eyebrow .atlas-lockup.hm-eyebrow-mark { color: currentColor; }
+
+/* Public topbar (Nouveautés, À propos, légal): animated mark, bigger than the old 22–28 px icon. */
+.settings-topbar-brand .atlas-lockup.settings-topbar-brand-mark { --lk-h: 30px; color: #0f1115; flex: 0 0 auto; }
+html[data-theme="dark"] .settings-topbar-brand .atlas-lockup.settings-topbar-brand-mark { color: #ffffff; }
+.settings-topbar--compact .settings-topbar-brand .atlas-lockup.settings-topbar-brand-mark { --lk-h: 28px; }
+@media (max-width: 760px) {
+  .settings-topbar-brand .atlas-lockup.settings-topbar-brand-mark { --lk-h: 28px; }
+}
+
+/* Tap (touch screens): the hover ripple, replayed on every tap. */
+.atlas-lockup.is-tap-a .atlas-mark-tick,
+.atlas-lockup.is-tap-b .atlas-mark-tick { animation: atlas-ripple 620ms ease-in-out; animation-delay: calc(var(--i) * 26ms); }
+.atlas-lockup.is-tap-b .atlas-mark-tick { animation-name: atlas-ripple-b; }
+@keyframes atlas-ripple-b { 0%, 100% { opacity: 1; } 40% { opacity: 0.18; } }

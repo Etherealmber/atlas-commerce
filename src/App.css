@@ -21413,6 +21413,72 @@ html body .settings-topbar-theme.public-lang-pill button.public-lang-btn:not(#ac
 .public-lang-code { display: inline-block; }
 @media (max-width: 520px) { .public-lang-code { display: none; } html body .settings-topbar-theme.public-lang-pill button.public-lang-btn:not(#ac-lang) { padding: 0 !important; width: 32px !important; } }
 
+/* Language pill: same 32 px height as the theme trio (phones were inflating it
+   to a 44 px oval), and no « stuck » hover after a tap — a short press instead. */
+html body .settings-topbar-theme.public-lang-pill button.public-lang-btn:not(#lg-g):not(#lg-h):not(#lg-i) {
+  height: 32px !important;
+  min-height: 32px !important;
+  transition: background-color .15s ease, color .15s ease, transform .12s ease !important;
+  -webkit-tap-highlight-color: transparent;
+}
+@media (hover: none) {
+  html body .settings-topbar-theme.public-lang-pill button.public-lang-btn:hover:not(#lg-g):not(#lg-h):not(#lg-i),
+  html body .settings-topbar-theme.public-theme-trio button:hover:not(.active):not(#lg-g):not(#lg-h):not(#lg-i) {
+    background: transparent !important;
+    color: var(--ac-muted, #71717a) !important;
+  }
+  html[data-theme="dark"] body .settings-topbar-theme.public-lang-pill button.public-lang-btn:hover:not(#lg-g):not(#lg-h):not(#lg-i),
+  html[data-theme="dark"] body .settings-topbar-theme.public-theme-trio button:hover:not(.active):not(#lg-g):not(#lg-h):not(#lg-i) {
+    background: transparent !important;
+    color: #d4d4d8 !important;
+  }
+}
+html body .settings-topbar-theme.public-lang-pill button.public-lang-btn:active:not(#lg-g):not(#lg-h):not(#lg-i) {
+  transform: scale(.94);
+  background: rgba(113, 113, 122, 0.16) !important;
+}
+html[data-theme="dark"] body .settings-topbar-theme.public-lang-pill button.public-lang-btn:active:not(#lg-g):not(#lg-h):not(#lg-i) {
+  background: #2f2f35 !important;
+  color: #fafafa !important;
+}
+html[data-theme="dark"] body .settings-topbar-theme.public-lang-pill button.public-lang-btn:not(#lg-g):not(#lg-h):not(#lg-i) { color: #d4d4d8 !important; }
+
+.public-session-cta .psc-short { display: none; }
+
+/* The brand mark is a <span>: phone rules hiding the « Atlas Commerce · beta » span must not hide it. */
+html body .settings-topbar-brand .atlas-lockup.settings-topbar-brand-mark:not(#lg-g):not(#lg-h):not(#lg-i) {
+  display: inline-flex !important;
+  font-size: inherit !important;
+  color: #0f1115 !important;
+}
+html[data-theme="dark"] body .settings-topbar-brand .atlas-lockup.settings-topbar-brand-mark:not(#lg-g):not(#lg-h):not(#lg-i) { color: #ffffff !important; }
+html body .settings-topbar-brand:has(.settings-topbar-brand-mark):not(#lg-g):not(#lg-h):not(#lg-i) { flex: 0 0 auto !important; min-width: max-content !important; }
+/* Theme trio buttons keep 32 px on touch screens (a 44 px touch rule made the pill 52 px tall). */
+html body .public-settings-topbar .settings-topbar-theme button:not(#lg-g):not(#lg-h):not(#lg-i) { height: 32px !important; min-height: 32px !important; }
+
+/* Public topbar on narrow phones: the logo + menu never get squeezed under the
+   right-hand controls (the menu button used to slide beneath the language pill). */
+@media (max-width: 480px) {
+  html body .public-settings-topbar .settings-topbar-left:not(#lg-g):not(#lg-h):not(#lg-i) { flex: 0 0 auto !important; min-width: max-content !important; gap: 6px !important; }
+  html body .public-settings-topbar .settings-topbar-right:not(#lg-g):not(#lg-h):not(#lg-i) { gap: 6px !important; min-width: 0 !important; margin-left: auto !important; }
+  html body .public-settings-topbar .settings-topbar-burger:not(#lg-g):not(#lg-h):not(#lg-i) { width: 32px !important; height: 32px !important; min-height: 32px !important; }
+  html body .public-settings-topbar .settings-topbar-theme:not(#lg-g):not(#lg-h):not(#lg-i) { padding: 2px !important; margin-right: 0 !important; }
+  html body .public-settings-topbar .settings-topbar-theme button:not(#lg-g):not(#lg-h):not(#lg-i) { width: 28px !important; height: 28px !important; min-height: 28px !important; }
+  html body .public-settings-topbar .public-session-cta:not(#lg-g):not(#lg-h):not(#lg-i) { padding: 7px 11px !important; font-size: 12.5px !important; }
+  html body .public-settings-topbar .settings-topbar-theme.public-lang-pill button.public-lang-btn:not(#lg-g):not(#lg-h):not(#lg-i) { width: 28px !important; height: 28px !important; min-height: 28px !important; }
+  html body .public-settings-topbar .public-session-cta .psc-long:not(#lg-g):not(#lg-h):not(#lg-i) { display: none !important; }
+  html body .public-settings-topbar .public-session-cta .psc-short:not(#lg-g):not(#lg-h):not(#lg-i) { display: inline !important; }
+  html body .public-settings-topbar.settings-topbar:not(#lg-g):not(#lg-h):not(#lg-i):not(#lg-j) { padding-left: 8px !important; padding-right: 8px !important; }
+  html body .public-settings-topbar .settings-topbar-left .settings-topbar-burger:not(#lg-g):not(#lg-h):not(#lg-i):not(#lg-j):not(#lg-k) { width: 32px !important; min-width: 32px !important; height: 32px !important; min-height: 32px !important; }
+}
+@media (max-width: 360px) {
+  html body .public-settings-topbar .public-session-cta:not(#lg-g):not(#lg-h):not(#lg-i) { padding: 7px 9px !important; font-size: 12px !important; }
+  /* Very small phones: clair / sombre only, so nothing overflows. */
+  html body .public-settings-topbar .public-theme-trio button[aria-label="Thème système"]:not(.active):not(#lg-g):not(#lg-h):not(#lg-i) { display: none !important; }
+  html body .public-settings-topbar .settings-topbar-left:not(#lg-g):not(#lg-h):not(#lg-i) { gap: 4px !important; }
+  html body .public-settings-topbar .settings-topbar-right:not(#lg-g):not(#lg-h):not(#lg-i) { gap: 4px !important; }
+}
+
 /* v0.9.3 — Mon profil : densité d’affichage */
 .ac-settings-density-row {
   display: flex;

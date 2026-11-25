@@ -17,6 +17,20 @@ interface State {
 }
 
 const TTL_MS = 60_000;
+
+const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+
+/** Only a well-formed payload reaches the cards — anything else (an older worker
+ *  mid-deploy, an empty list…) means « no series », never a crashed page. */
+export function normalizeMetricsDaily(raw: unknown): MetricsDaily | null {
+  if (!isRecord(raw) || !isRecord(raw.series) || !Array.isArray(raw.dates)) return null;
+  return {
+    days: Number(raw.days) || raw.dates.length,
+    dates: raw.dates.map(String),
+    series: raw.series as MetricsDaily['series'],
+    kinds: (isRecord(raw.kinds) ? raw.kinds : {}) as MetricsDaily['kinds'],
+  };
+}
 let state: State = { data: null, loading: false, error: false };
 let fetchedAt = 0;
 let inflight: Promise<void> | null = null;
@@ -36,7 +50,7 @@ export function loadMetricSeries(force = false): Promise<void> {
     .then(() => api.getMetricsDaily(7))
     .then((r) => {
       fetchedAt = Date.now();
-      publish({ data: r?.data || null, loading: false, error: false });
+      publish({ data: normalizeMetricsDaily(r?.data), loading: false, error: false });
     })
     .catch(() => publish({ ...state, loading: false, error: true }))
     .finally(() => { inflight = null; });

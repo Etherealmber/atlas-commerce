@@ -634,10 +634,13 @@ html.atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone {
   background: #f5f2eb !important; box-sizing: border-box !important;
 }
 html.atlas-login-page body .atlas-login--phone .atlas-login-phone-hero {
-  display: flex; width: min(100%, 420px); min-height: 48px; padding: 2px 0;
+  display: flex; width: min(100%, 420px); min-height: 64px; padding: 4px 0;
   margin: 0 auto; box-sizing: border-box; align-items: center; justify-content: center; gap: 12px;
 }
-html.atlas-login-page body .atlas-login--phone .atlas-login-phone-hero img { width: 138px; height: auto; filter: invert(1); display: block; }
+/* Animated sunburst lockup (SVG, currentColor): ink on the light shell, white on the dark one. */
+html.atlas-login-page body .atlas-login--phone .atlas-login-phone-hero .atlas-lockup.atlas-login-phone-lockup {
+  --lk-h: 54px; color: #0f1115; display: inline-flex;
+}
 html.atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone .atlas-login-card {
   width: 100% !important; max-width: min(420px, calc(100vw - 32px)) !important;
   margin: 0 auto !important; padding: 0 !important;
@@ -684,7 +687,7 @@ html.atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone .a
 }
 html.atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone .atlas-login-page-foot a { color: #475569 !important; }
 html[data-theme="dark"].atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone { background: #121317 !important; }
-html[data-theme="dark"].atlas-login-page body .atlas-login--phone .atlas-login-phone-hero img { filter: none; }
+html[data-theme="dark"].atlas-login-page body .atlas-login--phone .atlas-login-phone-hero .atlas-lockup.atlas-login-phone-lockup { color: #ffffff; }
 html[data-theme="dark"].atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone .atlas-login-card {
   background: #181a20 !important; border-color: rgba(255, 255, 255, 0.09) !important;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.42) !important;
@@ -719,4 +722,14 @@ html.atlas-login-page body .atlas-login.atlas-login--auth7 #cf-turnstile {
   height: auto !important; min-height: 65px !important;
   margin: 4px 0 !important;
   overflow: hidden !important; transform: none !important;
+}
+
+/* Desktop card lockup: bigger, always white on the dark card, never resized by a theme switch. */
+html body .atlas-login-lockup .atlas-lockup.atlas-login-lockup-svg {
+  --lk-h: 72px;
+  color: #ffffff !important;
+  max-width: 78vw;
+}
+@media (max-width: 420px) {
+  html body .atlas-login-lockup .atlas-lockup.atlas-login-lockup-svg { --lk-h: 56px; }
 }

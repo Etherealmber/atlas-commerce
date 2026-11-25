@@ -117,7 +117,7 @@ Atlas Commerce shows a sidebar in tablet mode. Window width ≥ 600 dp is "table
 - **Transition (300 ms, `CubicBezierEasing(0.22f, 1f, 0.36f, 1f)`), driven by one `updateTransition(isCollapsed)`:**
   1. **Wordmark width.** Animate the wordmark's width from 54.5 dp to 0, and the gap from 8 dp to 0. Use `Modifier.layout`, or `clipToBounds()` with an animated width, inside a fixed 32 dp-high row.
   2. **Glyph retraction.** The glyphs retract **right to left**. Each glyph's alpha goes 1 → 0 and it slides by `-60 %` of its own width. Glyph `i` starts after `(4 − i) × 22 ms`, so "s" leaves first and "A" last. On expand, play in order `i × 26 ms + 40 ms`.
-  3. **Beam.** The beam shortens to a regular tick: `scaleX` 1 → **0.376**, pivot at its outer end `(251, 126)`. The closed mark then reads as a full sun. This is the "accent micro-shift"; do not move the mark itself.
+  3. **Beam.** The collapsed mark **keeps the full beam** from the centre (updated in web 0.9.3, see `docs/android-login-brand-and-theme-prompt.md` §1). On every toggle the beam pulses `scaleX` 1 → 0.08 → 1 over 560 ms, pivot at the centre `(126, 126)`, and the ticks ripple. Do not move the mark itself.
   4. **Subtitle.** The subtitle collapses via animated height (1 → 0 rows) and alpha 1 → 0 over 180 ms.
 - **Never use `AnimatedVisibility` with `exit = shrinkHorizontally` on the whole lockup.** That re-centres the mark mid-animation. Never remove nodes before the transition ends.
 - **Rail width change.** The rail's width can animate (`animateDpAsState`) with the same easing and duration so the mark glides into the centre. The content pane must use `Modifier.weight(1f)` and must not re-run heavy layouts per frame. Wrap lists in `key`s and avoid recomposing their items on width change.
@@ -150,7 +150,7 @@ Atlas Commerce shows a sidebar in tablet mode. Window width ≥ 600 dp is "table
 - **Reduced motion.** With duration scale 0, `AtlasSplash` and `SidebarBrandLogo` render the final frame on the first composition (compose test with the main clock paused).
 - **Sidebar.**
   - When the collapse toggles, the mark's centre x never jumps more than 1 dp between consecutive frames (sample every 16 ms).
-  - Collapsed: wordmark width is 0 and the beam's `scaleX` is 0.376.
+  - Collapsed: wordmark width is 0 and the beam keeps `scaleX` 1 (full length from the centre).
   - Expanded: the subtitle is visible.
 - **Phone.** The modal drawer always shows the expanded lockup.
 - **Agent.** While a reply is pending, there are 3 skeleton lines and the label "Atlas Agent réfléchit…", with no three-dot indicator.
