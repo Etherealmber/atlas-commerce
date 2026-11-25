@@ -2790,46 +2790,6 @@ if (loading) return (
                   </h3>
                   <p>Suivi complet des connexions, modifications et opérations sensibles (admin uniquement).</p>
                 </div>
-                <div className="ac-audit-header-controls">
-                  <div className="ac-dash-period-pills" role="group" aria-label="Période d’audit">
-                    {(['24h', '7d', '30d', 'all'] as const).map((rKey) => (
-                      <button
-                        key={rKey}
-                        type="button"
-                        className="ac-seg-btn"
-                        aria-pressed={auditRange === rKey}
-                        onClick={() => setAuditRange(rKey)}
-                      >
-                        {rangeShort[rKey]}
-                      </button>
-                    ))}
-                  </div>
-                  <button
-                    type="button"
-                    className="secondary ac-audit-action-btn"
-                    disabled={auditLoading}
-                    onClick={() => loadAuditPage(null, auditQ, true)}
-                  >
-                    <RefreshCw size={14} strokeWidth={2} aria-hidden="true" />
-                    <span>{auditLoading ? 'Chargement…' : 'Actualiser'}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="secondary ac-audit-action-btn"
-                    disabled={auditLoading}
-                    onClick={async () => {
-                      try {
-                        await api.exportAuditLog('csv', 500);
-                        flash('Export CSV téléchargé.');
-                      } catch (e: any) {
-                        flash(e?.message || 'Échec export', 'error');
-                      }
-                    }}
-                  >
-                    <Download size={14} strokeWidth={2} aria-hidden="true" />
-                    <span>Export CSV</span>
-                  </button>
-                </div>
               </div>
             </div>
 
@@ -2961,7 +2921,77 @@ if (loading) return (
                     <ListFilter className="as-icon" size={16} strokeWidth={2} aria-hidden="true" />
                     <span>Historique détaillé</span>
                   </h3>
-                  <p>Recherchez par utilisateur, action, ressource ou adresse IP ; cliquez sur un détail pour l’inspecter.</p>
+                  <p>Recherchez par utilisateur, action, ressource ou adresse IP ; cliquez sur une ligne pour l’inspecter.</p>
+                </div>
+                <div className="ac-audit-pager ac-audit-pager--top">
+                  <span className="ac-audit-pager-meta">
+                    {auditMeta
+                      ? auditLog.length === 0
+                        ? '0 entrée'
+                        : `Page ${auditCursorStack.length} · ${auditLog.length} affiché${auditLog.length > 1 ? 's' : ''}${auditMeta.has_more ? ' · suite disponible' : ' · fin'}`
+                      : 'Prêt'}
+                  </span>
+                  <ListPager
+                    page={Math.max(0, auditCursorStack.length - 1)}
+                    hasMore={Boolean(auditMeta?.has_more && auditMeta?.next_cursor)}
+                    disabled={auditLoading}
+                    onPageChange={(target) => {
+                      const curIdx = auditCursorStack.length - 1;
+                      if (target < curIdx) {
+                        const stack = auditCursorStack.slice(0, target + 1);
+                        setAuditCursorStack(stack);
+                        loadAuditPage(stack[stack.length - 1] ?? null, auditQ, false);
+                      } else if (target > curIdx) {
+                        const next = auditMeta?.next_cursor ?? null;
+                        if (!next) return;
+                        setAuditCursorStack((prev) => [...prev, next]);
+                        loadAuditPage(next, auditQ, false);
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="ac-audit-toolbar">
+                <div className="ac-dash-period-pills ac-audit-range-pills" role="group" aria-label="Période d’audit">
+                  {(['24h', '7d', '30d', 'all'] as const).map((rKey) => (
+                    <button
+                      key={rKey}
+                      type="button"
+                      className="ac-seg-btn"
+                      aria-pressed={auditRange === rKey}
+                      onClick={() => setAuditRange(rKey)}
+                    >
+                      {rangeShort[rKey]}
+                    </button>
+                  ))}
+                </div>
+                <div className="ac-audit-toolbar-actions">
+                  <button
+                    type="button"
+                    className="secondary ac-audit-action-btn"
+                    disabled={auditLoading}
+                    onClick={() => loadAuditPage(null, auditQ, true)}
+                  >
+                    <RefreshCw size={14} strokeWidth={2} aria-hidden="true" />
+                    <span>{auditLoading ? 'Chargement…' : 'Actualiser'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary ac-audit-action-btn"
+                    disabled={auditLoading}
+                    onClick={async () => {
+                      try {
+                        await api.exportAuditLog('csv', 500);
+                        flash('Export CSV téléchargé.');
+                      } catch (e: any) {
+                        flash(e?.message || 'Échec export', 'error');
+                      }
+                    }}
+                  >
+                    <Download size={14} strokeWidth={2} aria-hidden="true" />
+                    <span>Export CSV</span>
+                  </button>
                 </div>
               </div>
 
@@ -2991,17 +3021,6 @@ if (loading) return (
                     </button>
                   ) : null}
                 </div>
-
-                <select
-                  value={auditRange}
-                  onChange={(e) => setAuditRange(e.target.value as any)}
-                  aria-label="Filtrer par période"
-                >
-                  <option value="24h">24 dernières heures</option>
-                  <option value="7d">7 derniers jours</option>
-                  <option value="30d">30 derniers jours</option>
-                  <option value="all">Tout</option>
-                </select>
 
                 <select
                   value={auditAction}
@@ -3091,7 +3110,7 @@ if (loading) return (
                         return [ent, id ? `#${id}` : ''].filter(Boolean).join(' ') || '—';
                       })();
                       return (
-                        <tr key={row.id || `${row.created_at}-${row.action}`}>
+                        <tr key={row.id || `${row.created_at}-${row.action}`} className="ac-audit-row" onClick={() => setAuditDetailRow(row)}>
                           <td className="ac-audit-time">
                             {row.created_at
                               ? new Date(
@@ -3119,17 +3138,18 @@ if (loading) return (
                           </td>
                           <td className="audit-ip">{row.ip || '—'}</td>
                           <td className="audit-detail">
-                            <a
-                              href="#"
-                              className="ac-audit-detail-link"
+                            <button
+                              type="button"
+                              className="ac-audit-detail-link ac-audit-detail-btn"
+                              aria-label={`Inspecter : ${summary}`}
                               onClick={(e) => {
-                                e.preventDefault();
+                                e.stopPropagation();
                                 setAuditDetailRow(row);
                               }}
                             >
-                              <span>{summary}</span>
-                              <ChevronRight size={13} strokeWidth={2} aria-hidden="true" />
-                            </a>
+                              <span className="ac-audit-detail-text">{summary}</span>
+                              <ChevronRight className="ac-audit-detail-chev" size={14} strokeWidth={2} aria-hidden="true" />
+                            </button>
                           </td>
                         </tr>
                       );
@@ -3138,33 +3158,6 @@ if (loading) return (
                 </table>
               </div>
 
-              <div className="ac-audit-pager">
-                <span className="ac-audit-pager-meta">
-                  {auditMeta
-                    ? auditLog.length === 0
-                      ? '0 entrée'
-                      : `Page ${auditCursorStack.length} · ${auditLog.length} affiché${auditLog.length > 1 ? 's' : ''}${auditMeta.has_more ? ' · suite disponible' : ' · fin'}`
-                    : 'Prêt'}
-                </span>
-                <ListPager
-                  page={Math.max(0, auditCursorStack.length - 1)}
-                  hasMore={Boolean(auditMeta?.has_more && auditMeta?.next_cursor)}
-                  disabled={auditLoading}
-                  onPageChange={(target) => {
-                    const curIdx = auditCursorStack.length - 1;
-                    if (target < curIdx) {
-                      const stack = auditCursorStack.slice(0, target + 1);
-                      setAuditCursorStack(stack);
-                      loadAuditPage(stack[stack.length - 1] ?? null, auditQ, false);
-                    } else if (target > curIdx) {
-                      const next = auditMeta?.next_cursor ?? null;
-                      if (!next) return;
-                      setAuditCursorStack((prev) => [...prev, next]);
-                      loadAuditPage(next, auditQ, false);
-                    }
-                  }}
-                />
-              </div>
             </section>
           </div>
         );

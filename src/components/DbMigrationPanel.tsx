@@ -79,9 +79,10 @@ export default function DbMigrationPanel() {
       </p>
       {!status?.enabled ? (
         <div className="modal-note">
-          Binding « DB_TARGET » non détecté sur ce déploiement. Ajoutez la base D1 <code>atlas-db</code> comme
-          binding <code>DB_TARGET</code> (wrangler.jsonc ou tableau de bord Cloudflare) puis redéployez pour activer
-          la migration.
+          Binding « DB_TARGET » non détecté sur ce déploiement. La configuration (<code>wrangler.jsonc</code>) lie
+          désormais <code>atlas-db</code> par son nom : lancez l’action GitHub « D1 production migrations » →
+          <code>setup-target</code> (secrets <code>CF_API_TOKEN</code> + <code>CF_ZONE_ID</code>), puis redéployez le
+          Worker pour activer la migration.
         </div>
       ) : (
         <>

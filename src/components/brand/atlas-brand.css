@@ -1,0 +1,216 @@
+/* ==========================================================================
+   Atlas brand motion — sunburst mark (inline SVG, CSS only, currentColor).
+   Ease: cubic-bezier(0.22, 1, 0.36, 1). No display:none toggles anywhere.
+   ID boosts (#zb-*) beat the legacy `.sidebar .logo` !important stacks.
+   ========================================================================== */
+
+.atlas-mark { display: block; overflow: visible; color: inherit; }
+.atlas-mark line { stroke: currentColor; }
+.atlas-wordmark { display: block; overflow: visible; color: inherit; }
+.atlas-wordmark path { fill: currentColor; transform-box: fill-box; transform-origin: 0 50%; }
+
+/* ---------- <AtlasLoader mode="inline"> : spinner-style tick wave ---------- */
+.atlas-loader--inline {
+  display: inline-flex;
+  width: var(--al-size, 20px);
+  height: var(--al-size, 20px);
+  flex: 0 0 auto;
+  vertical-align: middle;
+  color: inherit;
+}
+.atlas-loader--inline .atlas-mark { width: 100%; height: 100%; }
+.atlas-loader--inline .atlas-mark-tick {
+  animation: atlas-tick-fade 1.05s linear infinite;
+  animation-delay: calc(var(--i) * 70ms - 1.05s);
+}
+@keyframes atlas-tick-fade {
+  0% { opacity: 1; }
+  100% { opacity: 0.16; }
+}
+
+/* ---------- <AtlasLoader mode="splash"> : full-screen intro ---------- */
+.atlas-loader--splash {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  background: #ffffff;
+  color: #0f1115;
+}
+html[data-theme="dark"] .atlas-loader--splash { background: #0f1115; color: #ffffff; }
+.atlas-loader-lockup {
+  display: flex;
+  align-items: center;
+  gap: clamp(10px, 2.2vw, 16px);
+  height: clamp(44px, 12vw, 64px);
+}
+.atlas-loader-lockup .atlas-mark { width: auto; height: 100%; aspect-ratio: 1; }
+.atlas-loader--splash .atlas-mark-tick {
+  stroke-dasharray: 1 1;
+  stroke-dashoffset: 1;
+  animation:
+    atlas-draw 420ms cubic-bezier(0.22, 1, 0.36, 1) forwards,
+    atlas-wave 1.8s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 30ms), calc(1250ms + var(--i) * 120ms);
+}
+.atlas-loader--splash .atlas-mark-beam {
+  stroke-dasharray: 1 1;
+  stroke-dashoffset: 1;
+  animation: atlas-draw 560ms cubic-bezier(0.22, 1, 0.36, 1) 380ms forwards;
+}
+.atlas-loader-word {
+  height: 100%;
+  width: auto;
+  aspect-ratio: 429 / 252;
+  clip-path: inset(-4% 100% -4% 0);
+  animation: atlas-word-clip 620ms cubic-bezier(0.22, 1, 0.36, 1) 640ms forwards;
+}
+.atlas-loader-word path {
+  opacity: 0;
+  transform: translateX(-35%);
+  animation: atlas-letter 520ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: calc(660ms + var(--i) * 45ms);
+}
+.atlas-loader-label {
+  font: 500 12.5px / 1.2 var(--font, 'DM Sans', system-ui, sans-serif);
+  letter-spacing: 0.02em;
+  color: inherit;
+  -webkit-text-fill-color: currentColor;
+  opacity: 0;
+  animation: atlas-fade-in 400ms ease 1100ms forwards;
+}
+@keyframes atlas-draw { to { stroke-dashoffset: 0; } }
+@keyframes atlas-wave {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.32; }
+}
+@keyframes atlas-word-clip { to { clip-path: inset(-4% -2% -4% 0); } }
+@keyframes atlas-letter { to { opacity: 1; transform: none; } }
+@keyframes atlas-fade-in { to { opacity: 0.55; } }
+
+/* ---------- <SidebarBrandLogo isCollapsed> ---------- */
+html body .sidebar .logo.atlas-brand-host:not(#zb-g):not(#zb-h):not(#zb-i) {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0 !important;
+  padding: 12px 0 14px !important;
+  overflow: hidden !important; /* no horizontal scrollbar while the rail narrows */
+  text-align: center;
+  transition: padding 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+html body .sidebar.is-collapsed:not(.mobile-open) .logo.atlas-brand-host:not(#zb-g):not(#zb-h):not(#zb-i) {
+  padding: 8px 0 10px !important;
+}
+.atlas-brand {
+  --ab-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ab-dur: 300ms;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  color: inherit;
+  user-select: none;
+}
+.atlas-brand-row {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  white-space: nowrap;
+}
+.atlas-brand .atlas-brand-mark { width: 32px; height: 32px; flex: 0 0 32px; }
+/* Optical correction: at 32 px the 9-unit stroke would render ~1.1 px and look grey. */
+.atlas-brand .atlas-mark line { stroke-width: 13; }
+.atlas-brand .atlas-mark-beam {
+  transform-box: view-box;
+  transform-origin: 251px 126px;
+  transition: transform var(--ab-dur) var(--ab-ease);
+}
+.atlas-brand-word {
+  display: inline-flex;
+  overflow: hidden;
+  max-width: 60px;
+  margin-left: 8px;
+  color: inherit;
+  clip-path: inset(-4px -2px -4px 0);
+  transition:
+    max-width var(--ab-dur) var(--ab-ease),
+    margin-left var(--ab-dur) var(--ab-ease),
+    clip-path var(--ab-dur) var(--ab-ease);
+}
+.atlas-brand-word .atlas-wordmark { height: 32px; width: 54.5px; flex: 0 0 54.5px; }
+.atlas-brand-word path {
+  transition: transform 260ms var(--ab-ease), opacity 200ms ease;
+  transition-delay: calc(40ms + var(--i) * 26ms);
+}
+.atlas-brand-sub-wrap {
+  display: grid;
+  grid-template-rows: 1fr;
+  margin-top: 6px;
+  opacity: 1;
+  transition:
+    grid-template-rows var(--ab-dur) var(--ab-ease),
+    margin-top var(--ab-dur) var(--ab-ease),
+    opacity 180ms ease 80ms;
+}
+.atlas-brand-sub {
+  min-height: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font: 500 11.5px / 1.45 var(--font, 'DM Sans', system-ui, sans-serif);
+  letter-spacing: 0.01em;
+}
+/* Ink matches the raster art it replaces: near-black on light, white on dark. */
+html body .sidebar .atlas-brand:not(#zb-g):not(#zb-h):not(#zb-i) { color: #0f1115 !important; }
+html[data-theme="dark"] body .sidebar .atlas-brand:not(#zb-g):not(#zb-h):not(#zb-i) { color: #ffffff !important; }
+/* Sidebar icon colour rules (svg/path { color: … }) must not grey out the lockup: every brand svg node inherits the ink. */
+html body .sidebar .atlas-brand :is(svg, g, path, line):not(#zb-g):not(#zb-h):not(#zb-i) {
+  color: inherit !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+html body .sidebar .atlas-brand .atlas-brand-sub:not(#zb-g):not(#zb-h):not(#zb-i) {
+  color: #6b7280 !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+html[data-theme="dark"] body .sidebar .atlas-brand .atlas-brand-sub:not(#zb-g):not(#zb-h):not(#zb-i) { color: #9ca3af !important; }
+
+/* Collapsed: letters retract right-to-left into the mark, the word clips to 0,
+   the beam shortens to a regular tick (scale from its outer end). */
+.atlas-brand.is-collapsed .atlas-brand-word {
+  max-width: 0;
+  margin-left: 0;
+  clip-path: inset(-4px 100% -4px 0);
+}
+.atlas-brand.is-collapsed .atlas-brand-word path {
+  opacity: 0;
+  transform: translateX(-60%);
+  transition-delay: calc((4 - var(--i)) * 22ms);
+}
+.atlas-brand.is-collapsed .atlas-mark-beam { transform: scaleX(0.376); }
+.atlas-brand.is-collapsed .atlas-brand-sub-wrap {
+  grid-template-rows: 0fr;
+  margin-top: 0;
+  opacity: 0;
+  transition-delay: 0ms, 0ms, 0ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atlas-loader--splash .atlas-mark-tick,
+  .atlas-loader--splash .atlas-mark-beam {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+  .atlas-loader-word,
+  .atlas-loader-word path,
+  .atlas-loader-label { animation: none; clip-path: none; opacity: 1; transform: none; }
+  .atlas-loader-label { opacity: 0.55; }
+  .atlas-loader--inline .atlas-mark-tick { animation: none; }
+  .atlas-loader--inline .atlas-mark { animation: atlas-wave 1.6s ease-in-out infinite; }
+  .atlas-brand *,
+  .atlas-brand .atlas-mark-beam { transition-duration: 0ms !important; transition-delay: 0ms !important; }
+}

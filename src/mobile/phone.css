@@ -4366,3 +4366,39 @@ html.phone-shell body .ph-modal select:not(#ph-ft-g):not(#ph-ft-h):not(#ph-ft-i)
 /* Three-button footers: secondary pills size to their label, the primary takes the rest. */
 html.phone-shell body .ph-modal :is(.ph-native-dialog-actions, .ph-modal-actions, .ph-create-actions, .ph-bundle-actions, .pb-form-actions):has(> button:nth-child(3)) > button:not(#ph-ft-g):not(#ph-ft-h):not(#ph-ft-i) { flex: 0 1 auto !important; width: auto !important; max-width: none !important; padding: 0 16px !important; }
 html.phone-shell body .ph-modal :is(.ph-native-dialog-actions, .ph-modal-actions, .ph-create-actions, .ph-bundle-actions, .pb-form-actions):has(> button:nth-child(3)) > button:last-child:not(#ph-ft-g):not(#ph-ft-h):not(#ph-ft-i) { flex: 1 1 auto !important; }
+/* L — Atlas Agent pending reply: assistant-shaped shimmer placeholder (sunburst spins in the avatar). */
+html.phone-shell .ph-agent-pending .ph-agent-message-content:not(#ph-ag-g):not(#ph-ag-h):not(#ph-ag-i) { flex: 1 1 auto; min-width: 0; }
+html.phone-shell .ph-agent-shimmer:not(#ph-ag-g):not(#ph-ag-h):not(#ph-ag-i) {
+  display: grid; gap: 8px; width: 100%; max-width: 320px; padding: 14px 16px; border-radius: 20px 20px 20px 5px; background: #ededf0;
+}
+html.phone-shell .ph-agent-shimmer:not(#ph-ag-g):not(#ph-ag-h):not(#ph-ag-i) i {
+  display: block; height: 10px; border-radius: 999px;
+  background: linear-gradient(90deg, #dcdce1 0%, #dcdce1 35%, #f6f6f8 50%, #dcdce1 65%, #dcdce1 100%);
+  background-size: 260% 100%; animation: ph-agent-shimmer 1.35s linear infinite;
+}
+html.phone-shell .ph-agent-shimmer:not(#ph-ag-g):not(#ph-ag-h):not(#ph-ag-i) i:nth-child(1) { width: 92%; }
+html.phone-shell .ph-agent-shimmer:not(#ph-ag-g):not(#ph-ag-h):not(#ph-ag-i) i:nth-child(2) { width: 78%; animation-delay: .08s; }
+html.phone-shell .ph-agent-shimmer:not(#ph-ag-g):not(#ph-ag-h):not(#ph-ag-i) i:nth-child(3) { width: 54%; animation-delay: .16s; }
+html.phone-shell body .ph-agent-shimmer-text:not(#ph-ag-g):not(#ph-ag-h):not(#ph-ag-i) {
+  background: linear-gradient(90deg, #71717a 0%, #71717a 40%, #d4d4d8 50%, #71717a 60%, #71717a 100%);
+  background-size: 260% 100%; -webkit-background-clip: text; background-clip: text;
+  color: transparent !important; -webkit-text-fill-color: transparent !important;
+  animation: ph-agent-shimmer 1.6s linear infinite;
+}
+html[data-theme="dark"].phone-shell .ph-agent-shimmer:not(#ph-ag-g):not(#ph-ag-h):not(#ph-ag-i) { background: #27272a; }
+html[data-theme="dark"].phone-shell .ph-agent-shimmer:not(#ph-ag-g):not(#ph-ag-h):not(#ph-ag-i) i {
+  background: linear-gradient(90deg, #3a3a40 0%, #3a3a40 35%, #57575f 50%, #3a3a40 65%, #3a3a40 100%); background-size: 260% 100%;
+}
+html[data-theme="dark"].phone-shell body .ph-agent-shimmer-text:not(#ph-ag-g):not(#ph-ag-h):not(#ph-ag-i) {
+  background: linear-gradient(90deg, #a1a1aa 0%, #a1a1aa 40%, #f4f4f5 50%, #a1a1aa 60%, #a1a1aa 100%); background-size: 260% 100%;
+  -webkit-background-clip: text; background-clip: text;
+}
+html.phone-shell .ph-agent-avatar--pending:not(#ph-ag-g):not(#ph-ag-h):not(#ph-ag-i) { display: inline-grid; place-items: center; }
+@keyframes ph-agent-shimmer { from { background-position: 100% 0; } to { background-position: 0 0; } }
+@media (prefers-reduced-motion: reduce) {
+  html.phone-shell .ph-agent-shimmer i:not(#ph-ag-g):not(#ph-ag-h):not(#ph-ag-i),
+  html.phone-shell body .ph-agent-shimmer-text:not(#ph-ag-g):not(#ph-ag-h):not(#ph-ag-i) { animation: none; }
+}
+.phone-root--no-motion .ph-agent-shimmer i:not(#ph-ag-g):not(#ph-ag-h):not(#ph-ag-i),
+.phone-root--no-motion .ph-agent-shimmer-text:not(#ph-ag-g):not(#ph-ag-h):not(#ph-ag-i),
+.phone-root--no-motion .atlas-loader--inline .atlas-mark-tick { animation: none; }

@@ -1,0 +1,181 @@
+/* ==========================================================================
+   Tables — one calm, modern look across every desktop list (Linear / Stripe):
+   sans-serif sentence-case headers, even cell rhythm, hairline separators,
+   soft row hover. Row action buttons are intentionally left untouched.
+   Imported before dark-force.css; the 3 g–z ID boosts beat the older
+   per-page table rules, and the dark variants live here too.
+   ========================================================================== */
+
+:root {
+  --tb-head-bg: #f9fafb;
+  --tb-head-fg: #6b7280;
+  --tb-line: #eef0f3;
+  --tb-row-hover: #f8fafc;
+  --tb-cell-fg: #0f172a;
+  --tb-muted: #64748b;
+}
+html[data-theme="dark"] {
+  --tb-head-bg: rgba(255, 255, 255, 0.028);
+  --tb-head-fg: #a1a1aa;
+  --tb-line: rgba(255, 255, 255, 0.07);
+  --tb-row-hover: rgba(255, 255, 255, 0.035);
+  --tb-cell-fg: #f4f4f5;
+  --tb-muted: #a1a1aa;
+}
+
+/* Header row */
+html body :is(.content, .settings-main, .atlas-page) table thead th:not(#tb-g):not(#tb-h):not(#tb-i) {
+  font-family: inherit !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  color: var(--tb-head-fg) !important;
+  -webkit-text-fill-color: currentColor;
+  background: var(--tb-head-bg) !important;
+  border-bottom: 1px solid var(--tb-line) !important;
+  padding: 11px 16px !important;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+/* Body cells (the Products catalogue keeps its own artwork-driven layout) */
+html body :is(.content, .settings-main, .atlas-page) table:not(.ac-catalog-table) tbody td:not(#tb-g):not(#tb-h):not(#tb-i) {
+  padding: 13px 16px !important;
+  border-bottom: 1px solid var(--tb-line) !important;
+  vertical-align: middle;
+  font-size: 13.5px;
+  color: var(--tb-cell-fg);
+}
+html body :is(.content, .settings-main, .atlas-page) table:not(.ac-catalog-table) tbody tr:last-child > td:not(#tb-g):not(#tb-h):not(#tb-i) {
+  border-bottom: 0 !important;
+}
+html body :is(.content, .settings-main, .atlas-page) table tbody tr:not(.ac-skeleton-inline-row):not(#tb-g):not(#tb-h):not(#tb-i) {
+  transition: background-color .14s ease;
+}
+html body :is(.content, .settings-main, .atlas-page) table tbody tr:not(.ac-skeleton-inline-row):hover > td:not(#tb-g):not(#tb-h):not(#tb-i) {
+  background-color: var(--tb-row-hover) !important;
+}
+
+/* Dense lists: one line per cell — ids, amounts and names never break mid-value
+   ("EMP-/0001", "9 000/MAD"); the wrapper scrolls sideways instead. */
+html body :is(.content, .settings-main, .atlas-page) table.data-dense:not(.ac-catalog-table) tbody td:not(#tb-g):not(#tb-h):not(#tb-i) {
+  white-space: nowrap;
+}
+html body :is(.content, .settings-main, .atlas-page) table.data-dense:not(.ac-catalog-table) tbody td :is(.party-name, strong, b):not(#tb-g):not(#tb-h):not(#tb-i) {
+  white-space: nowrap;
+}
+html body :is(.content, .settings-main, .atlas-page) .ac-products-table-panel > .table-wrap:not(#tb-g):not(#tb-h):not(#tb-i) {
+  overflow-x: auto;
+  border: 0 !important;
+  border-top: 1px solid var(--tb-line) !important;
+  border-radius: 0 0 14px 14px !important;
+}
+html body :is(.content, .settings-main, .atlas-page) table.data-dense:not(.ac-catalog-table) tbody td .row-actions:not(#tb-g):not(#tb-h):not(#tb-i) {
+  flex-wrap: nowrap;
+}
+
+/* Container: one radius, one hairline */
+html body :is(.content, .settings-main, .atlas-page) :is(.table-wrap, .ac-audit-table-wrap):not(#tb-g):not(#tb-h):not(#tb-i) {
+  border: 1px solid var(--tb-line) !important;
+  border-radius: 14px !important;
+  box-shadow: none !important;
+}
+
+/* Secondary, technical columns: smaller mono, muted */
+html body :is(.content, .settings-main, .atlas-page) table :is(td.audit-ip, td.ac-audit-resource):not(#tb-g):not(#tb-h):not(#tb-i) {
+  font-family: var(--mono, ui-monospace, monospace) !important;
+  font-size: 12.5px !important;
+  color: var(--tb-muted) !important;
+}
+
+/* ---- Journal d'audit ---------------------------------------------------- */
+html body .ac-audit-table-panel .ac-panel-head:not(#tb-g):not(#tb-h):not(#tb-i) {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+html body .ac-audit-table-panel .ac-audit-pager--top:not(#tb-g):not(#tb-h):not(#tb-i) {
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  flex: 0 0 auto;
+}
+/* Toolbar above the search: period pills on the left, refresh + export on the right. */
+html body .ac-audit-toolbar:not(#tb-g):not(#tb-h):not(#tb-i) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin: 0 0 10px;
+}
+html body .ac-audit-toolbar .ac-audit-range-pills:not(#tb-g):not(#tb-h):not(#tb-i) {
+  flex: 0 0 auto;
+  margin: 0 !important;
+}
+html body .ac-audit-toolbar-actions:not(#tb-g):not(#tb-h):not(#tb-i) {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+@media (max-width: 560px) {
+  html body .ac-audit-toolbar-actions:not(#tb-g):not(#tb-h):not(#tb-i) { margin-left: 0; width: 100%; }
+  html body .ac-audit-toolbar-actions:not(#tb-g):not(#tb-h):not(#tb-i) > button { flex: 1 1 0; justify-content: center; }
+}
+html body .ac-audit-table tbody tr.ac-audit-row:not(#tb-g):not(#tb-h):not(#tb-i),
+html body .audit-table tbody tr.ac-audit-row:not(#tb-g):not(#tb-h):not(#tb-i) {
+  cursor: pointer;
+}
+html body .settings-main button.ac-audit-detail-btn:not(#tb-g):not(#tb-h):not(#tb-i) {
+  all: unset;
+  box-sizing: border-box;
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-height: 0 !important;
+  height: auto !important;
+  padding: 2px 0 !important;
+  border: 0 !important;
+  border-radius: 6px;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--tb-cell-fg) !important;
+  -webkit-text-fill-color: currentColor;
+  font: inherit;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  text-decoration: none !important;
+  transform: none !important;
+  cursor: pointer;
+}
+html body .settings-main button.ac-audit-detail-btn:focus-visible:not(#tb-g):not(#tb-h):not(#tb-i) {
+  outline: 2px solid var(--ac-ink, #0f172a);
+  outline-offset: 2px;
+}
+html body .ac-audit-detail-btn .ac-audit-detail-text:not(#tb-g):not(#tb-h):not(#tb-i) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+html body .ac-audit-detail-btn .ac-audit-detail-chev:not(#tb-g):not(#tb-h):not(#tb-i) {
+  flex: 0 0 14px;
+  width: 14px;
+  height: 14px;
+  color: var(--tb-muted);
+  opacity: 0.45;
+  transform: none !important;
+  transition: opacity .14s ease, transform .14s ease !important;
+}
+html body .ac-audit-row:hover .ac-audit-detail-chev:not(#tb-g):not(#tb-h):not(#tb-i),
+html body .ac-audit-detail-btn:focus-visible .ac-audit-detail-chev:not(#tb-g):not(#tb-h):not(#tb-i) {
+  opacity: 1;
+  transform: translateX(2px) !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  html body :is(.content, .settings-main, .atlas-page) table tbody tr:not(#tb-g):not(#tb-h):not(#tb-i),
+  html body .ac-audit-detail-btn .ac-audit-detail-chev:not(#tb-g):not(#tb-h):not(#tb-i) { transition: none !important; }
+}

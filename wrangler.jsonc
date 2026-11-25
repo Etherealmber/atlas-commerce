@@ -48,6 +48,15 @@
       "database_id": "aba10fd7-bb8b-432c-a5ec-1701e43654c6",
       "preview_database_id": "local-company-stock-db",
       "migrations_dir": "migrations"
+    },
+    // L — migration target for Paramètres › Base de données (D1 → D1 copy + cutover).
+    // No database_id on purpose: Wrangler ≥ 4.x provisions by name on deploy — it binds
+    // the existing "atlas-db" (or creates it once) with the deploy token, so the binding
+    // can never be "non détecté" again after a deploy. `wrangler d1 info atlas-db` shows the id.
+    {
+      "binding": "DB_TARGET",
+      "database_name": "atlas-db",
+      "migrations_dir": "migrations"
     }
   ],
   "kv_namespaces": [

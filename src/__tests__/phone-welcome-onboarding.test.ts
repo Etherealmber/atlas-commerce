@@ -78,11 +78,12 @@ describe('mobile web welcome (PhoneWelcome)', () => {
 });
 
 describe('mobile guided tour (PhoneOnboarding)', () => {
-  it('has its own storage, steps on the home tab, and replay from Réglages', () => {
+  it('has its own storage, steps that open their pages, and replay from Réglages', () => {
     queuePhoneOnboarding();
     expect(isPhoneOnboardingPending()).toBe(true);
     expect(getOnboarding()).toBeNull();
-    expect(PHONE_ONBOARDING_STEPS.map((s) => s.id)).toEqual(['home', 'dock', 'scan', 'quick', 'agent', 'profile']);
+    expect(PHONE_ONBOARDING_STEPS.map((s) => s.id)).toEqual(['home', 'dock', 'scan', 'quick', 'products', 'agent', 'profile']);
+    expect(PHONE_ONBOARDING_STEPS.map((s) => s.route || '/m')).toEqual(['/m', '/m', '/m', '/m', '/m/products', '/m/agent', '/m/profile']);
     restartPhoneOnboarding();
     expect(getPhoneOnboarding()).toEqual({ status: 'pending', step: 0 });
     expect(readFileSync('src/mobile/PhoneSettings.tsx', 'utf8')).toContain('restartPhoneOnboarding(); nav(\'/m\');');

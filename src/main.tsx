@@ -29,6 +29,7 @@ import './styles/element-pills.css'; /* in-element action pills (Produits row st
 import './styles/input-actions.css'; /* buttons beside fields + settings save bar */
 import './styles/button-groups.css'; /* one height per button row + popup footers */
 import './styles/form-controls.css'; /* date pickers, selects, settings top actions, product grid */
+import './styles/tables.css'; /* one modern look for every list table */
 import './styles/dark-force.css'; /* absolute last — dark surfaces */
 import { isNativeApp } from './config';
 import { applyDensityFromStorage } from './lib/density';

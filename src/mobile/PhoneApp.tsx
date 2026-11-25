@@ -56,6 +56,7 @@ import PhoneSkeleton from './PhoneSkeleton';
 import PhoneQuickActions from './PhoneQuickActions';
 import PhoneOnboarding from './PhoneOnboarding';
 import AtlasAgentMascot from './AtlasAgentMascot';
+import { AtlasLoader } from '../components/brand/AtlasLoader';
 import { getScanPreference, phoneScanFeedback } from './phoneScanPreferences';
 
 
@@ -1605,7 +1606,15 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme, onProductCreated
           </div>
         ))}
         {copyNotice && <p className="ph-agent-copy-notice" role="status">{copyNotice}</p>}
-        {busy ? <div className="ph-agent-typing" role="status"><AtlasAgentMascot size={30} engaged /><span className="ph-agent-dots" aria-hidden="true"><i /><i /><i /></span> Atlas Agent réfléchit…</div> : null}
+        {busy ? (
+          <div className="ph-agent-message assistant ph-agent-pending" role="status" aria-label="Atlas Agent réfléchit…">
+            <span className="ph-agent-avatar ph-agent-avatar--pending" aria-hidden="true"><AtlasLoader mode="inline" size={19} label="" /></span>
+            <div className="ph-agent-message-content">
+              <span className="ph-agent-message-label ph-agent-shimmer-text">Atlas Agent réfléchit…</span>
+              <div className="ph-agent-shimmer" aria-hidden="true"><i /><i /><i /></div>
+            </div>
+          </div>
+        ) : null}
         <p className="ph-agent-disclaimer">Atlas Agent peut se tromper. Votre message est transmis au serveur Atlas et au fournisseur IA configuré. Ne partagez pas de mots de passe ni de données personnelles inutiles.</p>
       </div>
       {showCreate && <PhoneProductCreate onClose={() => setShowCreate(false)} onCreated={direct => { setShowCreate(false); onProductCreated?.(direct); setQuickNotice(direct ? 'Produit créé au catalogue.' : 'Demande envoyée à l’administrateur.'); }} />}
