@@ -122,8 +122,23 @@ it('does not show the removed search in the desktop dock while keeping its other
     expect(host.querySelector('.ac-dock-expand')?.textContent?.trim()).toBe('Devis');
     await act(async () => { window.history.pushState({}, '', '/products/7/historique'); window.dispatchEvent(new PopStateEvent('popstate')); });
     expect(host.querySelector('.ac-dock-expand')?.textContent?.trim()).toBe('Historique du produit');
-    // The floating dock carries no back arrow any more; the separate left pill returns to the dashboard.
+    // The floating dock carries no back arrow; a detail page gets its own back pill
+    // (expanded at the top), and the « Tableau de bord » pill only lives on focus pages.
     expect(host.querySelector('header.ac-desktop-dock a[aria-label^="Retour"]')).toBeNull();
+    expect(host.querySelector('.ac-desktop-top-row > a.ac-home-pill:not(.ac-back-pill)')).toBeNull();
+    const back = host.querySelector<HTMLAnchorElement>('.ac-desktop-top-row > a.ac-back-pill');
+    expect(back?.getAttribute('href')).toBe('/products');
+    expect(back?.getAttribute('aria-label')).toBe('Retour : Produits');
+    expect(back?.classList.contains('is-expanded')).toBe(true);
+    expect(back?.querySelector('.ac-home-pill-label')?.textContent).toBe('Produits');
+    await act(async () => back!.click()); // opened directly (no in-app history) → the list
+    expect(host.querySelector('.ac-dock-expand')?.textContent?.trim()).toBe('Produits & stock');
+    expect(host.querySelector('.ac-desktop-top-row > a.ac-home-pill')).toBeNull();
+    await act(async () => host.querySelector<HTMLAnchorElement>('a[href="/settings"]')!.click());
+    // Settings is a lazy chunk: the navigation commits once it has loaded.
+    for (let i = 0; i < 60 && !host.querySelector('.layout--focus'); i++) {
+      await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+    }
     const home = host.querySelector<HTMLAnchorElement>('.ac-desktop-top-row > a.ac-home-pill');
     expect(home?.getAttribute('href')).toBe('/dashboard');
     expect(home?.getAttribute('aria-label')).toBe('Retour au tableau de bord');

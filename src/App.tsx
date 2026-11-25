@@ -1,6 +1,7 @@
 import MobileBottomNav from './components/erp/MobileBottomNav';
 import { useEffect, useLayoutEffect, useState, useRef, lazy, Suspense } from 'react';
-import { ArrowRight, Bell, ChevronRight, ClipboardCheck, FileText, LayoutDashboard, Package, Users } from 'lucide-react';
+import { detailBackTarget } from './lib/detailBack';
+import { ArrowLeft, ArrowRight, Bell, ChevronRight, ClipboardCheck, FileText, LayoutDashboard, Package, Users } from 'lucide-react';
 import { canOpenPhoneBalance, canOpenPhoneEmployees } from './mobile/PhoneDock';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { SidebarBrandLogo } from './components/brand/SidebarBrandLogo';
@@ -638,6 +639,9 @@ function DesktopShell() {
     location.pathname === '/privacy' ||
     location.pathname === '/terms' ||
     location.pathname === '/licenses';
+  // Detail pages (no list of their own in the sidebar) get a back pill instead
+  // of the « Tableau de bord » pill, which only lives on the focus pages.
+  const detailBack = detailBackTarget(location.pathname);
   const [focusSidebarOpen, setFocusSidebarOpen] = useState(false);
   const [shellAlerts, setShellAlerts] = useState<any[]>([]);
   const [shellUserOpen, setShellUserOpen] = useState(false);
@@ -1174,10 +1178,29 @@ function DesktopShell() {
 
         <div className="ac-main-column">
         <div className="ac-desktop-top-row">
-        {location.pathname !== '/dashboard' && (
-          <Link className="ac-home-pill" to="/dashboard" aria-label="Retour au tableau de bord" title="Retour au tableau de bord">
+        {isFocusRoute && (
+          <Link className={`ac-home-pill${actionsCompact ? '' : ' is-expanded'}`} to="/dashboard" aria-label="Retour au tableau de bord" title="Retour au tableau de bord">
             <LayoutDashboard size={16} strokeWidth={2} aria-hidden="true" />
             <span className="ac-home-pill-label">Tableau de bord</span>
+          </Link>
+        )}
+        {!isFocusRoute && detailBack && (
+          <Link
+            className={`ac-home-pill ac-back-pill${actionsCompact ? '' : ' is-expanded'}`}
+            to={detailBack.to}
+            aria-label={`Retour : ${detailBack.label}`}
+            title={`Retour : ${detailBack.label}`}
+            onClick={(event) => {
+              // Came from inside the app → real « back » (keeps filters / scroll); else open the list.
+              const idx = (window.history.state as { idx?: number } | null)?.idx;
+              if (typeof idx === 'number' && idx > 0) {
+                event.preventDefault();
+                navigate(-1);
+              }
+            }}
+          >
+            <ArrowLeft size={16} strokeWidth={2} aria-hidden="true" />
+            <span className="ac-home-pill-label">{detailBack.label}</span>
           </Link>
         )}
         <div

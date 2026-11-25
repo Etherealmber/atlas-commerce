@@ -2,6 +2,7 @@ const _localSchemaOnce = new Set<string>();
 
 import type { AtlasApp } from './types';
 import { withInventoryActors } from '../lib/inventory-actors';
+import { withMovementCreators } from '../lib/documentCreators';
 import { normalizeInventoryRole } from '../lib/inventory-policy';
 import {
   buildIdempotencyInsertStmt,
@@ -129,7 +130,7 @@ export function registerStockReadRoutes(app: AtlasApp, deps?: StockRoutesDeps): 
       .all();
     return c.json({
       success: true,
-      data: (results || []).map((row: any) => withInventoryActors(row)),
+      data: (await withMovementCreators(c.env.DB, (results || []) as any[])).map((row: any) => withInventoryActors(row)),
       meta: {
         product_id: Number(id),
         limit,
@@ -169,7 +170,7 @@ export function registerStockReadRoutes(app: AtlasApp, deps?: StockRoutesDeps): 
       .all();
     return c.json({
       success: true,
-      data: (results || []).map((row: any) => withInventoryActors(row)),
+      data: (await withMovementCreators(c.env.DB, (results || []) as any[])).map((row: any) => withInventoryActors(row)),
       meta: { limit, offset, count: results?.length || 0 },
     });
   });

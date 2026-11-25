@@ -13889,6 +13889,14 @@ html body .bal-tx-cat {
   color: #94a3b8 !important;
   margin-top: 2px !important;
 }
+/* M: « · Créé par X » — who recorded the movement (or the source document's author). */
+html body .bal-tx-cat .bal-tx-actor:not(#tx-g):not(#tx-h):not(#tx-i) {
+  color: #64748b !important;
+  font-weight: 550 !important;
+}
+html[data-theme="dark"] body .bal-tx-cat .bal-tx-actor:not(#tx-g):not(#tx-h):not(#tx-i) {
+  color: #94a3b8 !important;
+}
 html body .bal-tx-date {
   font-size: 0.8rem !important;
   color: #94a3b8 !important;

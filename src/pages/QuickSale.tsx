@@ -1,3 +1,4 @@
+import DocumentActors from '../components/DocumentActors';
 import TopPageActions from '../components/TopPageActions';
 import { Plus, RotateCcw, CheckCircle2, CreditCard, Printer, Ban, Pencil } from 'lucide-react';
 import { TimedUndoDelete } from '../components/ui';
@@ -522,7 +523,7 @@ export default function QuickSale() {
                 getKey={(inv) => inv.id}
                 renderRow={(inv) => (
                   <tr>
-                    <td><Link to={`/quick-sale/${inv.id}`} className="ac-number-link" title="Ouvrir le ticket"><strong>{inv.number}</strong></Link></td>
+                    <td><Link to={`/quick-sale/${inv.id}`} className="ac-number-link" title="Ouvrir le ticket"><strong>{inv.number}</strong></Link><DocumentActors document={inv} /></td>
                     <td>{inv.client_name}</td>
                     <td>{inv.issue_date}</td>
                     <td><span className={`badge ${statusBadgeClass(inv.status)}`}>{statusFr(inv.status)}</span></td>

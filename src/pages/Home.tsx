@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { useLandingMotion } from '../hooks/useLandingMotion';
+import { AtlasLockup } from '../components/brand/AtlasLockup';
 import { Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { DISPLAY_VERSION } from '../version';
@@ -61,7 +62,7 @@ export default function Home() {
       <main className="hm-main" id="contenu">
         {/* ---------------- Hero ---------------- */}
         <section className="hm-hero">
-          <Link className="hm-eyebrow hm-release-link" to="/whats-new">Atlas Commerce · {DISPLAY_VERSION} <span aria-hidden="true">↗</span></Link>
+          <Link className="hm-eyebrow hm-release-link" to="/whats-new"><AtlasLockup markOnly height={15} label="" className="hm-eyebrow-mark" />Atlas Commerce · {DISPLAY_VERSION} <span aria-hidden="true">↗</span></Link>
           <div className="hm-hero-copy">
           <h1>
             <span className="hm-headline-first">Votre commerce,</span>{' '}

@@ -99,13 +99,14 @@ html body .modal-overlay .modal.employee-wizard {
   box-shadow: none !important;
   transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease !important;
 }
-.step-wizard__step-btn:hover:not(:disabled) {
+.step-wizard__step-btn:hover:not(:disabled):not([aria-disabled="true"]) {
   transform: scale(1.02);
   border-color: #cbd5e1 !important;
   background: var(--ac-ui-surface-2, #f1f5f9) !important;
   color: var(--ac-ui-ink, #0f172a) !important;
 }
-.step-wizard__step-btn:disabled {
+.step-wizard__step-btn:disabled,
+.step-wizard__step-btn[aria-disabled="true"] {
   opacity: 0.55 !important;
   cursor: not-allowed !important;
 }

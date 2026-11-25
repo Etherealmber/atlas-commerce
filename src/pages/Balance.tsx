@@ -356,6 +356,7 @@ export default function Balance() {
         amount: Number(e.amount),
         method: e.payment_method,
         direction: TYPE_META[t]?.direction || 'out',
+        createdBy: typeof e.created_by === 'string' && e.created_by.trim() ? e.created_by.trim() : '',
       };
     })
     .sort((a, b) => (a.date < b.date ? 1 : -1));
@@ -758,7 +759,7 @@ export default function Balance() {
                 </div>
                 <div className="bal-tx-main">
                   <div className="bal-tx-name">{m.label || meta.label}</div>
-                  <div className="bal-tx-cat">{m.category || meta.label}</div>
+                  <div className="bal-tx-cat">{m.category || meta.label}{m.createdBy ? <span className="bal-tx-actor"> · Créé par {m.createdBy}</span> : null}</div>
                 </div>
                 <div className="bal-tx-date">{formatTxDate(m.date)}</div>
                 <div className={`bal-tx-amount${isIn ? ' is-in' : ' is-out'}`}>

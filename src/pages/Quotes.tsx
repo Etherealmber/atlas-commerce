@@ -1,3 +1,4 @@
+import DocumentActors from '../components/DocumentActors';
 import TopPageActions from '../components/TopPageActions';
 import { ArrowRight, Ban, FilePlus2, Pencil } from 'lucide-react';
 import { TimedUndoDelete } from '../components/ui';
@@ -412,7 +413,7 @@ export default function Quotes() {
             <tbody>
               {pagedQuotes.map((q) => (
                 <tr key={q.id}>
-                  <td><button type="button" className="quote-number-link" onClick={() => openDetail(q.id)} disabled={detailLoading} title="Ouvrir le devis">{q.number}</button></td>
+                  <td><button type="button" className="quote-number-link" onClick={() => openDetail(q.id)} disabled={detailLoading} title="Ouvrir le devis">{q.number}</button><DocumentActors document={q} /></td>
                   <td>{q.client_name}</td>
                   <td>{q.issue_date}</td>
                   <td><span className={`badge ${statusBadgeClass(q.status)}`}>{statusFr(q.status)}</span></td>
@@ -668,6 +669,7 @@ export default function Quotes() {
             <h2 style={{ marginTop: 0 }}>
               {editLocked ? 'Devis (lecture seule)' : 'Modifier le devis'} {detailQuote.number}
             </h2>
+            <DocumentActors document={detailQuote} />
             <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 0 }}>
               Restez sur cette page — client et lignes sont modifiables ici.
               {editLocked ? ' (annulé : édition bloquée)' : ''}
