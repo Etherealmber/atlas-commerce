@@ -1,5 +1,5 @@
 import TopPageActions from '../components/TopPageActions';
-import DatePicker from '../components/DatePicker';
+import DatePicker, { MonthPicker } from '../components/DatePicker';
 import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { api } from '../api';
@@ -604,11 +604,10 @@ export default function Balance() {
                 </label>
                 <label className="bal-reports-field">
                   <span>Mois précis</span>
-                  <input
-                    type="month"
+                  <MonthPicker
                     aria-label="Choisir un mois précis"
                     value={reportPeriodMonthValue(reportPeriod)}
-                    onChange={(e) => changeReportPeriod(e.target.value || 'month')}
+                    onChange={(v) => changeReportPeriod(v || 'month')}
                   />
                 </label>
                 <div className="bal-reports-active-period" aria-live="polite">

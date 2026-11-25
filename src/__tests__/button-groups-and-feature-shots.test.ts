@@ -52,21 +52,22 @@ describe('button-groups layer', () => {
   });
 });
 
-describe('homepage uses real app captures', () => {
+describe('homepage feature cards are live app UI', () => {
   const home = read('src/pages/Home.tsx');
 
-  it('shows the feature-* captures in the bento cards', () => {
-    for (const name of ['feature-stock', 'feature-sales', 'feature-invoice', 'feature-aging']) {
-      expect(home).toContain(`<ThemeShot name="${name}"`);
-      for (const theme of ['light', 'dark']) expect(existsSync(abs(`public/shots/${name}-${theme}.webp`))).toBe(true);
-    }
-    expect(home).not.toMatch(/ThemeShot name="site-(stock|quick-sale|invoice|widgets)"/);
+  it('renders the live demos instead of screenshots', () => {
+    for (const demo of ['StockDemo', 'SalesDemo', 'InvoiceDemo', 'AgingDemo', 'AgentDemo']) expect(home).toContain(`<${demo} />`);
+    expect(home).not.toMatch(/ThemeShot name="(feature|site-agent)/);
   });
 
-  it('keeps the capture script and its demo product photos in the repo', () => {
-    const script = read('scripts/capture-feature-shots.mjs');
-    expect(script).toContain("name: 'feature-aging'");
-    expect(existsSync(abs('public/shots/demo-products'))).toBe(true);
+  it('removed the captures, the AI demo photos and their capture script', () => {
+    for (const name of ['feature-stock', 'feature-sales', 'feature-invoice', 'feature-aging']) {
+      for (const theme of ['light', 'dark']) expect(existsSync(abs(`public/shots/${name}-${theme}.webp`))).toBe(false);
+    }
+    expect(existsSync(abs('public/shots/demo-products'))).toBe(false);
+    expect(existsSync(abs('scripts/capture-feature-shots.mjs'))).toBe(false);
+    const demos = read('src/components/home/FeatureDemos.tsx');
+    expect(demos).not.toMatch(/<img|\.webp|\.png|\.jpe?g/);
   });
 
   it('enlarges the hero showcase beyond the text column', () => {

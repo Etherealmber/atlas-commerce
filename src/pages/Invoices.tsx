@@ -32,7 +32,9 @@ import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type Wizard
 import { ModalFormError } from '../components/ModalFormFeedback';
 
 const INVOICE_STEPS: readonly WizardStepDef[] = [
-  { id: 'client', label: 'Client', hint: 'Client, coordonnées et dates du document.' },
+  { id: 'client', label: 'Client', hint: 'Client enregistré ou nouveau client, avec son identifiant fiscal.' },
+  { id: 'contact', label: 'Coordonnées', hint: 'Adresse, ville, e-mail et téléphone (facultatifs).' },
+  { id: 'dates', label: 'Dates', hint: 'Date d’émission et date d’échéance du document.' },
   { id: 'lines', label: 'Lignes', hint: 'Articles, quantités et prix selon le mode TVA du produit.' },
   { id: 'options', label: 'Options', hint: 'Régime TVA et notes sur le document.' },
 ];
@@ -78,7 +80,7 @@ export default function Invoices() {
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   // Guided steps: 1 = client & dates, 2 = lines, 3 = options & notes
-  const wz = useWizard(3);
+  const wz = useWizard(INVOICE_STEPS.length);
   const [saveMsg, setSaveMsg] = useState('');
   const [saveMsgType, setSaveMsgType] = useState<'success' | 'error'>('success');
   const [items, setItems] = useState<{ product_id?: number; product_name: string; sku?: string; quantity: number; list_price: number; unit_price: number; product_query?: string }[]>([{ product_name: '', quantity: 1, list_price: 0, unit_price: 0, product_query: '' }]);
@@ -678,7 +680,7 @@ export default function Invoices() {
             <WizardIntro step={INVOICE_STEPS[wz.step - 1]} />
 
             <StepBody active={wz.step === 1}>
-            <div className="grid grid-3">
+            <div>
               <div className="form-row">
                 <label>Client enregistré</label>
                 <TypeaheadField
@@ -700,8 +702,6 @@ export default function Invoices() {
                   emptyLabel="Aucun client"
                 />
               </div>
-              <div className="form-row"><label>Date d'émission</label><DatePicker value={issueDate} onChange={setIssueDate} /></div>
-              <div className="form-row"><label>Date d'échéance</label><DatePicker value={dueDate} onChange={setDueDate} /></div>
             </div>
 
             <div className="grid grid-2">
@@ -730,6 +730,9 @@ export default function Invoices() {
                 </div>
               );
             })() : null}
+            </StepBody>
+
+            <StepBody active={wz.step === 2}>
             <div className="grid grid-2">
               <div className="form-row"><label>Adresse</label><input value={clientAddress} onChange={(e) => setClientAddress(e.target.value)} /></div>
               <div className="form-row"><label>Ville</label><input value={clientCity} onChange={(e) => setClientCity(e.target.value)} /></div>
@@ -740,7 +743,14 @@ export default function Invoices() {
             </div>
             </StepBody>
 
-            <StepBody active={wz.step === 2}>
+            <StepBody active={wz.step === 3}>
+            <div className="grid grid-2">
+              <div className="form-row"><label>Date d'émission</label><DatePicker value={issueDate} onChange={setIssueDate} /></div>
+              <div className="form-row"><label>Date d'échéance</label><DatePicker value={dueDate} onChange={setDueDate} /></div>
+            </div>
+            </StepBody>
+
+            <StepBody active={wz.step === 4}>
             {fieldErrors.items ? <span className="field-error-msg" style={{ display: 'block', marginBottom: 8 }}>{fieldErrors.items}</span> : null}
             <div className="wizard-items-scroll">
             <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1.2fr 70px 100px 100px 100px 36px', gap: 6, marginBottom: 6, fontSize: 10, color: 'var(--muted)', fontWeight: 600 }}>
@@ -833,7 +843,7 @@ export default function Invoices() {
             </div>
             </StepBody>
 
-            <StepBody active={wz.step === 3}>
+            <StepBody active={wz.step === 5}>
             <div className="form-row">
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                 <input type="checkbox" checked={taxExempt} onChange={(e) => setTaxExempt(e.target.checked)} />
@@ -857,7 +867,7 @@ export default function Invoices() {
                   setModalError('Le nom du client est obligatoire.');
                   return false;
                 }
-                if (wz.step === 2 && !items.some((it) => String(it.product_name || '').trim() && Number(it.quantity) > 0)) {
+                if (wz.step === 4 && !items.some((it) => String(it.product_name || '').trim() && Number(it.quantity) > 0)) {
                   setFieldErrors({ items: 'Ajoutez au moins une ligne avec une désignation.' });
                   setModalError('Ajoutez au moins une ligne avec une désignation et une quantité > 0.');
                   return false;

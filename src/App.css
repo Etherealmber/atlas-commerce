@@ -375,14 +375,14 @@ html.atlas-agent-docked .layout {
 .content .page-header h1 {
   letter-spacing: -0.03em;
 }
-.content button:not(.mailbox-folder-item):not(.ac-seg-btn):not(.secondary):not(.theme-toggle):not(.danger):not(.settings-nav-item):not(.ghost):not(.icon-refresh-btn):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.mailbox-menu-item):not(.mailbox-icon-btn):not(.ac-timed-delete-btn):not(.ac-btn-delete):not(.ac-timed-undo-btn):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop){
+.content button:not(.mailbox-folder-item):not(.ac-seg-btn):not(.secondary):not(.theme-toggle):not(.danger):not(.settings-nav-item):not(.ghost):not(.icon-refresh-btn):not(.ac-pick):not(.atlas-password-toggle):not(.mailbox-menu-item):not(.mailbox-icon-btn):not(.ac-timed-delete-btn):not(.ac-btn-delete):not(.ac-timed-undo-btn):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop){
   /* Option B primary: black / white — no teal */
   background: #0a0a0a;
   background-image: none;
   color: #fafafa;
   border: 1px solid #0a0a0a;
 }
-html[data-theme="dark"] .content button:not(.mailbox-folder-item):not(.ac-seg-btn):not(.secondary):not(.theme-toggle):not(.danger):not(.settings-nav-item):not(.ghost):not(.icon-refresh-btn):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.mailbox-menu-item):not(.mailbox-icon-btn):not(.ac-timed-delete-btn):not(.ac-btn-delete):not(.ac-timed-undo-btn):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop){
+html[data-theme="dark"] .content button:not(.mailbox-folder-item):not(.ac-seg-btn):not(.secondary):not(.theme-toggle):not(.danger):not(.settings-nav-item):not(.ghost):not(.icon-refresh-btn):not(.ac-pick):not(.atlas-password-toggle):not(.mailbox-menu-item):not(.mailbox-icon-btn):not(.ac-timed-delete-btn):not(.ac-btn-delete):not(.ac-timed-undo-btn):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop){
   background: #2a2a2e;
   color: #f5f6fa;
   border-color: #2e2e35;
@@ -598,8 +598,8 @@ html[data-density] .modal textarea {
   font-size: var(--d-input-font) !important;
   line-height: var(--d-line);
 }
-html[data-density] .content select:not(.atlas-dp-select):not([multiple]):not([size]),
-html[data-density] .modal select:not(.atlas-dp-select):not([multiple]):not([size]) {
+html[data-density] .content select:not(.ac-pick):not([multiple]):not([size]),
+html[data-density] .modal select:not(.ac-pick):not([multiple]):not([size]) {
   padding: 0 32px 0 12px !important;
   font-size: var(--d-input-font) !important;
   line-height: normal !important;
@@ -6030,9 +6030,9 @@ html[data-density="compact"] h1 { font-size: 1.35rem !important; }
 html[data-density="compact"] h2 { font-size: 1.05rem !important; }
 html[data-density="compact"] .content { padding: 12px 14px !important; }
 html[data-density="compact"] input:not([type="checkbox"]):not([type="radio"]),
-html[data-density="compact"] select:not(.atlas-dp-select),
+html[data-density="compact"] select:not(.ac-pick),
 html[data-density="compact"] textarea,
-html[data-density="compact"]:not(.phone-shell) button:not(.ac-dock-expand):not(.ac-topbar-user-btn):not(.ac-topbar-icon):not(.ac-topbar-bell):not(.ac-topbar-theme):not(.ac-dash-preset):not(.atlas-dp-day):not(.atlas-dp-nav):not(.pn-burger-btn):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop) {
+html[data-density="compact"]:not(.phone-shell) button:not(.ac-dock-expand):not(.ac-topbar-user-btn):not(.ac-topbar-icon):not(.ac-topbar-bell):not(.ac-topbar-theme):not(.ac-dash-preset):not(.ac-pick):not(.ac-pick):not(.pn-burger-btn):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop) {
   min-height: 36px;
   border-radius: 8px !important;
 }
@@ -6124,8 +6124,8 @@ html[data-density="comfortable"] .account-theme-icons button {
 }
 
 /* Unified primary action buttons — compact matches comfort (solid teal, same shape family) */
-html[data-density="compact"] .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.mailbox-folder-item):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.atlas-dp-trigger):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.mailbox-icon-btn):not(.mailbox-menu-item):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop),
-html[data-density="comfortable"] .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.atlas-dp-trigger):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.mailbox-icon-btn):not(.mailbox-menu-item):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop){
+html[data-density="compact"] .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.mailbox-folder-item):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.ac-pick):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.mailbox-icon-btn):not(.mailbox-menu-item):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop),
+html[data-density="comfortable"] .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.ac-pick):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.mailbox-icon-btn):not(.mailbox-menu-item):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop){
   background: #0a0a0a !important;
   background-image: none !important;
   color: #f0fdfa !important;
@@ -6201,7 +6201,7 @@ html[data-density="comfortable"] .account-menu-panel--portal {
 }
 
 /* Compact: primary vs secondary vs danger clearly distinct */
-html[data-density="compact"] .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.mailbox-folder-item):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.atlas-dp-trigger):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.mailbox-icon-btn):not(.mailbox-menu-item):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop),
+html[data-density="compact"] .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.mailbox-folder-item):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.ac-pick):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.mailbox-icon-btn):not(.mailbox-menu-item):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop),
 html[data-density="compact"] button.primary {
   background: #0a0a0a !important;
   background-image: none !important;
@@ -6870,8 +6870,8 @@ html[data-density="comfortable"] .account-menu-panel--portal .account-seg button
    ═══════════════════════════════════════════════════════════ */
 
 /* Primary — solid teal, white text, teal border (both densities) */
-html[data-density="compact"] .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.mailbox-folder-item):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.atlas-dp-trigger):not(.mailbox-icon-btn):not(.mailbox-menu-item):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.atlas-password-toggle):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop),
-html[data-density="comfortable"] .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.atlas-dp-trigger):not(.mailbox-icon-btn):not(.mailbox-menu-item):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.atlas-password-toggle):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop),
+html[data-density="compact"] .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.mailbox-folder-item):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.ac-pick):not(.mailbox-icon-btn):not(.mailbox-menu-item):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.atlas-password-toggle):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop),
+html[data-density="comfortable"] .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.ac-pick):not(.mailbox-icon-btn):not(.mailbox-menu-item):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.atlas-password-toggle):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop),
 html[data-density="compact"] button.primary,
 html[data-density="comfortable"] button.primary,
 html[data-density="compact"] .btn:not(.secondary):not(.danger):not(.ghost),
@@ -6963,8 +6963,8 @@ html[data-density="comfortable"] table td button.secondary {
 }
 
 /* Dark theme parity (both densities) */
-html[data-theme="dark"][data-density="compact"] .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.mailbox-folder-item):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop),
-html[data-theme="dark"][data-density="comfortable"] .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop){
+html[data-theme="dark"][data-density="compact"] .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.mailbox-folder-item):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.ac-pick):not(.atlas-password-toggle):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop),
+html[data-theme="dark"][data-density="comfortable"] .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.ac-pick):not(.atlas-password-toggle):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop){
   background: #0a0a0a !important;
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
@@ -7893,7 +7893,7 @@ html[data-density="compact"] .content button.secondary:hover {
   background: #f8fafc !important;
   border-color: #cbd5e1 !important;
 }
-html[data-density="compact"] .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.mailbox-folder-item):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.atlas-dp-trigger):not(.mailbox-menu-item):not(.account-menu-item):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action){
+html[data-density="compact"] .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.mailbox-folder-item):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.ac-pick):not(.mailbox-menu-item):not(.account-menu-item):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action){
   border-radius: 10px !important;
   font-weight: 600 !important;
 }
@@ -8539,7 +8539,7 @@ html[data-density] .content textarea {
   min-height: var(--atlas-control-h);
   border-radius: var(--atlas-radius);
 }
-html[data-density] .content select:not(.atlas-dp-select):not([multiple]):not([size]) {
+html[data-density] .content select:not(.ac-pick):not([multiple]):not([size]) {
   padding: 0 32px 0 12px !important;
   font-size: var(--d-input-font) !important;
   line-height: normal !important;
@@ -8547,7 +8547,7 @@ html[data-density] .content select:not(.atlas-dp-select):not([multiple]):not([si
   border-radius: var(--atlas-radius);
   box-sizing: border-box !important;
 }
-html[data-density] .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.theme-toggle):not(.settings-nav-item):not(.mailbox-folder-item):not(.icon-refresh-btn):not(.atlas-dp-trigger):not(.mailbox-menu-item):not(.mailbox-icon-btn):not(.ghost):not(.account-menu-item):not(.account-menu-trigger):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action):not(.ac-dock-expand):not(.ac-topbar-user-btn):not(.ac-topbar-icon):not(.ac-topbar-bell):not(.ac-topbar-theme):not(.ac-user-dropdown-item):not(.ac-dash-preset):not(.ac-dock-item),
+html[data-density] .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.theme-toggle):not(.settings-nav-item):not(.mailbox-folder-item):not(.icon-refresh-btn):not(.ac-pick):not(.mailbox-menu-item):not(.mailbox-icon-btn):not(.ghost):not(.account-menu-item):not(.account-menu-trigger):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action):not(.ac-dock-expand):not(.ac-topbar-user-btn):not(.ac-topbar-icon):not(.ac-topbar-bell):not(.ac-topbar-theme):not(.ac-user-dropdown-item):not(.ac-dash-preset):not(.ac-dock-item),
 html[data-density] .content .btn {
   padding: var(--d-btn-pad) !important;
   font-size: var(--d-btn-font) !important;
@@ -9507,340 +9507,21 @@ main.content {
 /* ========================================================================
    Date picker — FORCE neutral (daterangepicker-like). Never primary green.
    ======================================================================== */
-.atlas-dp-pop,
-.atlas-dp-pop * {
-  --btn-primary-bg: transparent;
-  --btn-primary-text: inherit;
-}
-
-.atlas-dp-pop button.atlas-dp-day,
-.atlas-dp-pop button.atlas-dp-nav,
-.atlas-dp-pop button.atlas-dp-preset,
-.atlas-dp-pop button.atlas-dp-btn,
-button.atlas-dp-trigger {
-  background: transparent !important;
-  background-image: none !important;
-  color: #222 !important;
-  border-radius: 4px !important;
-  border: none !important;
-  box-shadow: none !important;
-  filter: none !important;
-  transform: none !important;
-  min-height: 0 !important;
-  padding: 0 !important;
-  font-weight: 500 !important;
-  letter-spacing: normal !important;
-  gap: 0 !important;
-}
-
-html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-day,
-html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-nav,
-html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-preset,
-html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-btn,
-html[data-theme="dark"] button.atlas-dp-trigger {
-  color: #e8eeea !important;
-}
 
 /* Trigger field */
-button.atlas-dp-trigger {
-  width: 100% !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: space-between !important;
-  gap: 8px !important;
-  padding: 8px 12px !important;
-  border: 1px solid #ccc !important;
-  border-radius: 4px !important;
-  background: #fff !important;
-  color: #222 !important;
-  font-size: 0.9rem !important;
-  font-weight: 500 !important;
-  min-height: 38px !important;
-  text-align: left !important;
-  cursor: pointer !important;
-}
-button.atlas-dp-trigger.size-sm {
-  min-height: 34px !important;
-  padding: 5px 10px !important;
-  font-size: 0.85rem !important;
-}
-button.atlas-dp-trigger.is-open {
-  border-color: #999 !important;
-  box-shadow: 0 0 0 1px #ccc !important;
-}
-button.atlas-dp-trigger .atlas-dp-value.is-placeholder {
-  color: #888 !important;
-  font-weight: 400 !important;
-}
-button.atlas-dp-trigger .atlas-dp-icon {
-  opacity: 0.5;
-  color: #555 !important;
-}
 
 /* Popover shell */
-.atlas-dp-pop {
-  position: fixed;
-  z-index: 12050;
-  background: #fff !important;
-  color: #222 !important;
-  border: 1px solid #ccc !important;
-  border-radius: 4px !important;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.15) !important;
-  padding: 0 !important;
-  overflow: hidden;
-}
-html[data-theme="dark"] .atlas-dp-pop {
-  background: #1c1c1f !important;
-  color: #e8eeea !important;
-  border-color: #333 !important;
-}
-
-.atlas-dp-range.has-presets {
-  display: flex !important;
-  flex-direction: row !important;
-  min-width: 400px;
-}
-.atlas-dp-presets {
-  display: flex;
-  flex-direction: column;
-  min-width: 148px;
-  border-right: 1px solid #e0e0e0;
-  background: #fafafa !important;
-  padding: 6px 0;
-}
-html[data-theme="dark"] .atlas-dp-presets {
-  background: #1c1c1f !important;
-  border-right-color: #333;
-}
 
 /* Presets = text rows, NOT pills */
-.atlas-dp-pop button.atlas-dp-preset {
-  display: block !important;
-  width: 100% !important;
-  text-align: left !important;
-  padding: 8px 14px !important;
-  font-size: 0.82rem !important;
-  font-weight: 400 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  color: #333 !important;
-  border: none !important;
-  cursor: pointer !important;
-}
-.atlas-dp-pop button.atlas-dp-preset:hover {
-  background: #eee !important;
-}
-.atlas-dp-pop button.atlas-dp-preset.is-active {
-  background: #e8eef5 !important;
-  color: #1a3a5c !important;
-  font-weight: 600 !important;
-}
-html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-preset {
-  color: #ddd !important;
-}
-html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-preset.is-active {
-  background: #27272a !important;
-  color: #64748b !important;
-}
-
-.atlas-dp-range-main { padding: 12px; flex: 1; min-width: 260px; }
-.atlas-dp-cal { padding: 12px; }
-.atlas-dp-hint {
-  margin: 0 0 8px;
-  font-size: 0.75rem;
-  color: #777;
-}
-
-.atlas-dp-head {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-bottom: 8px;
-}
-.atlas-dp-title { flex: 1; display: flex; gap: 6px; justify-content: center; }
-.atlas-dp-select {
-  border: 1px solid #ccc !important;
-  background: #fff !important;
-  color: inherit !important;
-  border-radius: 3px !important;
-  padding: 2px 4px !important;
-  font-size: 0.82rem !important;
-  font-weight: 600 !important;
-}
-html[data-theme="dark"] .atlas-dp-select {
-  background: #1c1c1f !important;
-  border-color: #444 !important;
-}
-
-.atlas-dp-pop button.atlas-dp-nav {
-  width: 28px !important;
-  height: 28px !important;
-  border: 1px solid #ccc !important;
-  background: #fff !important;
-  color: #333 !important;
-  border-radius: 3px !important;
-  font-size: 1rem !important;
-  cursor: pointer !important;
-  display: grid !important;
-  place-items: center !important;
-}
-.atlas-dp-pop button.atlas-dp-nav:hover {
-  background: #f0f0f0 !important;
-}
-html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-nav {
-  background: #1c1c1f !important;
-  border-color: #444 !important;
-  color: #eee !important;
-}
-
-.atlas-dp-weekdays {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  text-align: center;
-  font-size: 0.68rem;
-  font-weight: 650;
-  color: #888;
-  margin-bottom: 2px;
-}
-
-.atlas-dp-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 0;
-}
 
 /* Days: plain numbers, square only when selected — NEVER green circles */
-.atlas-dp-pop button.atlas-dp-day {
-  aspect-ratio: 1 !important;
-  width: 100% !important;
-  height: auto !important;
-  min-height: 32px !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  color: #222 !important;
-  font-size: 0.82rem !important;
-  font-weight: 400 !important;
-  cursor: pointer !important;
-  display: grid !important;
-  place-items: center !important;
-}
-.atlas-dp-pop button.atlas-dp-day:hover:not(.is-disabled):not(.is-selected) {
-  background: #eee !important;
-  color: #111 !important;
-}
-.atlas-dp-pop button.atlas-dp-day.is-today {
-  box-shadow: inset 0 0 0 1px #aaa !important;
-  background: transparent !important;
-}
-.atlas-dp-pop button.atlas-dp-day.is-in-range {
-  background: #e8eef5 !important;
-  color: #222 !important;
-  border-radius: 0 !important;
-}
 /* Selected = muted brand square (classic daterangepicker), NOT teal */
-.atlas-dp-pop button.atlas-dp-day.is-selected {
-  background: #357ebd !important;
-  color: #fff !important;
-  border-radius: 0 !important;
-  font-weight: 600 !important;
-}
-.atlas-dp-pop button.atlas-dp-day.is-disabled {
-  opacity: 0.3 !important;
-  cursor: not-allowed !important;
-}
-.atlas-dp-pop .atlas-dp-day.is-empty {
-  pointer-events: none;
-  background: transparent !important;
-}
-
-.atlas-dp-foot {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid #e5e5e5;
-}
-html[data-theme="dark"] .atlas-dp-foot { border-top-color: #333; }
 
 /* Footer secondary buttons — white / gray outline only */
-.atlas-dp-pop button.atlas-dp-btn {
-  padding: 6px 14px !important;
-  border: 1px solid #ccc !important;
-  border-radius: 3px !important;
-  background: #fff !important;
-  color: #333 !important;
-  font-size: 0.82rem !important;
-  font-weight: 500 !important;
-  cursor: pointer !important;
-  min-height: 32px !important;
-}
-.atlas-dp-pop button.atlas-dp-btn:hover {
-  background: #f5f5f5 !important;
-}
-html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-btn {
-  background: #1c1c1f !important;
-  border-color: #444 !important;
-  color: #eee !important;
-}
 
 /* Date trigger = same language as refresh secondary (white, not primary green) */
-button.atlas-dp-trigger,
-button.atlas-dp-trigger.secondary,
-.content button.atlas-dp-trigger,
-.content button.atlas-dp-trigger.secondary,
-html[data-density] .content button.atlas-dp-trigger,
-html[data-theme="dark"] .content button.atlas-dp-trigger {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: space-between !important;
-  gap: 8px !important;
-  width: 100% !important;
-  min-height: 38px !important;
-  padding: 8px 12px !important;
-  border-radius: 999px !important;
-  border: 1.5px solid var(--line, #d4d0c8) !important;
-  background: var(--paper, #fff) !important;
-  background-image: none !important;
-  color: var(--ink, #0f172a) !important;
-  font-weight: 600 !important;
-  font-size: 0.875rem !important;
-  box-shadow: none !important;
-  filter: none !important;
-  transform: none !important;
-  cursor: pointer !important;
-}
-button.atlas-dp-trigger:hover:not(:disabled),
-.content button.atlas-dp-trigger:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--paper, #fff) 92%, #000) !important;
-  border-color: color-mix(in srgb, var(--line, #ccc) 70%, #666) !important;
-  filter: none !important;
-  color: var(--ink, #0f172a) !important;
-}
-button.atlas-dp-trigger.is-open {
-  border-color: color-mix(in srgb, var(--line, #ccc) 50%, #555) !important;
-  box-shadow: 0 0 0 2px rgba(0,0,0,0.06) !important;
-}
-button.atlas-dp-trigger .atlas-dp-value,
-button.atlas-dp-trigger .atlas-dp-icon {
-  color: inherit !important;
-}
-button.atlas-dp-trigger .atlas-dp-value.is-placeholder {
-  color: var(--muted, #64748b) !important;
-  font-weight: 500 !important;
-}
-html[data-theme="dark"] button.atlas-dp-trigger,
-html[data-theme="dark"] .content button.atlas-dp-trigger {
-  background: var(--paper, #1c1c1f) !important;
-  border-color: var(--line, #2a2a2e) !important;
-  color: var(--ink, #eef3f0) !important;
-}
 
 /* Selected day: brand (clear selection, not primary CTA green) */
-.atlas-dp-pop button.atlas-dp-day.is-selected {
-  background: #357ebd !important;
-  color: #fff !important;
-}
 
 
 
@@ -9952,150 +9633,6 @@ td.row-actions-cell {
 }
 
 /* ===== Time picker — same language as DatePicker (neutral, portal) ===== */
-.atlas-tp-trigger.atlas-dp-trigger {
-  display: inline-flex !important;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  width: 100%;
-  text-align: left;
-  font-variant-numeric: tabular-nums;
-}
-.atlas-tp-trigger-icon {
-  opacity: 0.55;
-  font-size: 0.95rem;
-  line-height: 1;
-}
-.atlas-tp-pop {
-  padding: 0 !important;
-  overflow: hidden !important;
-}
-.atlas-tp-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  padding: 10px 12px 8px;
-  border-bottom: 1px solid #e8e4dc;
-  background: #fafafa;
-}
-html[data-theme="dark"] .atlas-tp-head {
-  background: #1c1c1f;
-  border-bottom-color: #333;
-}
-.atlas-tp-head-label {
-  font-size: 0.75rem;
-  color: #888;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-.atlas-tp-head-value {
-  font-size: 1.15rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: #222;
-}
-html[data-theme="dark"] .atlas-tp-head-value {
-  color: #e8eeea;
-}
-.atlas-tp-cols {
-  display: flex;
-  gap: 0;
-  padding: 0;
-}
-.atlas-tp-col {
-  flex: 1;
-  min-width: 0;
-  border-right: 1px solid #e8e4dc;
-}
-.atlas-tp-col:last-child {
-  border-right: none;
-}
-html[data-theme="dark"] .atlas-tp-col {
-  border-right-color: #333;
-}
-.atlas-tp-col-title {
-  text-align: center;
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: #888;
-  padding: 6px 0 2px;
-  text-transform: uppercase;
-}
-.atlas-tp-scroll {
-  max-height: 180px;
-  overflow-y: auto;
-  padding: 4px 0 8px;
-}
-.atlas-tp-cell {
-  display: block !important;
-  width: 100% !important;
-  border: none !important;
-  background: transparent !important;
-  color: #222 !important;
-  padding: 7px 8px !important;
-  margin: 0 !important;
-  cursor: pointer;
-  font-variant-numeric: tabular-nums;
-  font-size: 0.9rem !important;
-  font-weight: 500 !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
-  min-height: 0 !important;
-  text-align: center !important;
-}
-.atlas-tp-cell:hover {
-  background: #f0f0f0 !important;
-}
-.atlas-tp-cell.is-selected {
-  background: #eee !important;
-  color: #111 !important;
-  font-weight: 700 !important;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-html[data-theme="dark"] .atlas-tp-cell {
-  color: #e8eeea !important;
-}
-html[data-theme="dark"] .atlas-tp-cell:hover {
-  background: #242836 !important;
-}
-html[data-theme="dark"] .atlas-tp-cell.is-selected {
-  background: #2a2a2e !important;
-  color: #fff !important;
-}
-.atlas-tp-footer.atlas-dp-footer {
-  display: flex;
-  gap: 4px;
-  justify-content: flex-end;
-  padding: 6px 8px 8px;
-  border-top: 1px solid #e8e4dc;
-  background: #fafafa;
-}
-html[data-theme="dark"] .atlas-tp-footer.atlas-dp-footer {
-  background: #1c1c1f;
-  border-top-color: #333;
-}
-.atlas-tp-footer .atlas-dp-btn {
-  background: transparent !important;
-  border: none !important;
-  color: #333 !important;
-  font-size: 0.82rem !important;
-  font-weight: 600 !important;
-  padding: 6px 10px !important;
-  cursor: pointer;
-  box-shadow: none !important;
-  border-radius: 0 !important;
-  min-height: 0 !important;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-.atlas-tp-footer .atlas-dp-btn.is-primary-text {
-  color: #64748b !important;
-}
-html[data-theme="dark"] .atlas-tp-footer .atlas-dp-btn {
-  color: #c5d4cf !important;
-}
 
 
 
@@ -11364,15 +10901,6 @@ a.audit-detail-link {
   margin: 10px 0 0;
   font-size: 0.78rem;
 }
-.settings-tab-save-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin: 16px 0 0;
-  padding: 12px 16px;
-}
 .settings-anchor-flash {
   outline: 2px solid rgba(148, 163, 184, 0.55);
   outline-offset: 4px;
@@ -12625,7 +12153,7 @@ html[data-theme="dark"] .nav-count-danger {
 }
 
 /* Primary actions — near black (light) / white (dark) */
-.content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.secondary):not(.theme-toggle):not(.icon-refresh-btn):not(.mailbox-icon-btn):not(.atlas-dp-day):not(.atlas-dp-nav):not(.atlas-dp-preset):not(.atlas-dp-btn):not(.account-menu-item):not(.agent-perm-mode):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action),
+.content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.secondary):not(.theme-toggle):not(.icon-refresh-btn):not(.mailbox-icon-btn):not(.ac-pick):not(.ac-pick):not(.ac-pick):not(.ac-pick):not(.account-menu-item):not(.agent-perm-mode):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.prompt-bar__chip-edit):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action),
 .content .btn:not(.secondary),
 .modal button:not(.secondary):not(.app-toast-close):not(.step-wizard__step-btn) {
   background: var(--shell-primary) !important;
@@ -17871,8 +17399,6 @@ html[data-theme="dark"] body input:focus {
 }
 
 /* Date picker popover */
-html[data-theme="dark"] body .atlas-dp-popover,
-html[data-theme="dark"] body .atlas-dp-panel,
 html[data-theme="dark"] body [class*="date-picker"],
 html[data-theme="dark"] body [class*="datepicker"] {
   background: #1c1c1f !important;
@@ -18045,30 +17571,11 @@ html[data-theme="dark"] body .ac-topbar-bell:active {
 }
 
 /* Date range / calendar popover — full dark, no white panel */
-html[data-theme="dark"] body .atlas-dp-popover,
-html[data-theme="dark"] body .atlas-dp-panel,
-html[data-theme="dark"] body .atlas-dp-calendar,
-html[data-theme="dark"] body .atlas-dp-body,
-html[data-theme="dark"] body .atlas-dp-right,
-html[data-theme="dark"] body .atlas-dp-left,
 html[data-theme="dark"] body [class*="date-range"],
 html[data-theme="dark"] body [class*="DateRange"] {
   background: #1c1c1f !important;
   color: #f4f4f5 !important;
   border-color: #2a2a2e !important;
-}
-html[data-theme="dark"] body .atlas-dp-popover input,
-html[data-theme="dark"] body .atlas-dp-popover select,
-html[data-theme="dark"] body .atlas-dp-popover button {
-  background: #27272a !important;
-  color: #f4f4f5 !important;
-  border-color: #2e2e35 !important;
-}
-html[data-theme="dark"] body .atlas-dp-day.is-selected,
-html[data-theme="dark"] body .atlas-dp-popover td.is-selected,
-html[data-theme="dark"] body .atlas-dp-popover .is-selected {
-  background: #3b4a8a !important;
-  color: #fff !important;
 }
 
 /* Modals — kill green tint (was #1c1c1f family) */
@@ -18097,13 +17604,6 @@ html[data-theme="dark"] body [role="dialog"] label {
   color: #d4d4d8 !important;
 }
 /* Date trigger inside modals was cream */
-html[data-theme="dark"] body .modal .atlas-dp-trigger,
-html[data-theme="dark"] body [role="dialog"] .atlas-dp-trigger,
-html[data-theme="dark"] body .modal button.atlas-dp-trigger {
-  background: #27272a !important;
-  color: #e8eaf0 !important;
-  border-color: #2e2e35 !important;
-}
 
 /* Devis / any remaining white thead */
 html[data-theme="dark"] body .content table thead,
@@ -18138,8 +17638,7 @@ html[data-theme="dark"] body .ac-panel-head button:not(.secondary) {
 
 /* Nuke residual green surfaces */
 html[data-theme="dark"] body .modal,
-html[data-theme="dark"] body [role="dialog"],
-html[data-theme="dark"] body .atlas-dp-popover {
+html[data-theme="dark"] body [role="dialog"] {
   background-color: #1c1c1f !important;
   background-image: none !important;
 }
@@ -18177,7 +17676,6 @@ html[data-theme="dark"] body .modal,
 html[data-theme="dark"] body [role="dialog"],
 html[data-theme="dark"] body .sheet,
 html[data-theme="dark"] body .drawer,
-html[data-theme="dark"] body .atlas-dp-popover,
 html[data-theme="dark"] body .ac-panel,
 html[data-theme="dark"] body .card,
 html[data-theme="dark"] body .content {
@@ -21889,17 +21387,6 @@ html[data-theme='light'] body .theme-shot > img.theme-shot-img--dark { display: 
 /* Hero: the dashboard capture in a clean rounded frame (no fake window chrome). */
 .home-landing .hm-window--shot .theme-shot-img { border-radius: 14px; }
 /* Bento cards: a real capture cropped to the card visual, anchored top-left. */
-.home-landing .hm-fx.hm-fx-shot { position: relative; display: block; padding: 0; height: 184px; margin: 0; overflow: hidden; }
-/* Zoomed in on the top-left of each capture so the text stays legible. */
-.home-landing .hm-fx.hm-fx-shot .theme-shot { width: 100%; height: 100%; overflow: hidden; }
-.home-landing .hm-fx.hm-fx-shot .theme-shot-img { width: 100%; max-width: none; height: auto; }
-/* Real app captures (public/shots/feature-*): already cropped to the component,
-   shown from the top-left at a readable scale. */
-.home-landing .hm-fx.hm-fx-shot.hm-fx-pos .theme-shot-img,
-.home-landing .hm-fx.hm-fx-shot.hm-fx-invoice .theme-shot-img,
-.home-landing .hm-fx.hm-fx-shot.hm-fx-aging .theme-shot-img { width: 150%; }
-.home-landing .hm-fx.hm-fx-shot.hm-fx-agent .theme-shot-img { width: 100%; margin-top: -80px; }
-@media (max-width: 720px) { .home-landing .hm-fx.hm-fx-shot { height: 150px; } }
 /* Platform card + /desktop hero: same sizing as the previous single <img>. */
 .home-landing .hm-platform-visual--desktop .theme-shot-img { width: 100%; height: 160px; object-fit: contain; }
 @media (min-width: 900px) { .home-landing .hm-platform-visual--desktop .theme-shot-img { height: auto; max-height: 180px; } }

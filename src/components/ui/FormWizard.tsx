@@ -1,6 +1,7 @@
 /** Kit wizard partagé — étapes guidées uniformes pour tous les formulaires modaux. */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import './form-wizard.css';
+import { bounceDialogOf } from '../../lib/unsavedGuard';
 
 export type WizardStepDef = {
   id: string;
@@ -57,9 +58,10 @@ export function WizardHeader(props: {
 }) {
   const { wz, steps, onBeforeJump } = props;
   const maxAllowed = wz.maxReached ?? wz.step;
+  const headRef = useRef<HTMLElement>(null);
   return (
     <>
-      <header className="step-wizard__header">
+      <header className="step-wizard__header" ref={headRef}>
         <div>
           {props.eyebrow && <p className="step-wizard__eyebrow">{props.eyebrow}</p>}
           <h2 id={props.titleId}>{props.title}</h2>
@@ -96,9 +98,9 @@ export function WizardHeader(props: {
                 onClick={() => {
                   if (n === wz.step || isUnreachedSkip) return;
                   if (n > wz.step) {
-                    if (onBeforeJump) {
-                      if (onBeforeJump(n) === false) return;
-                    } else if (!wz._runGuard()) {
+                    const blocked = onBeforeJump ? onBeforeJump(n) === false : !wz._runGuard();
+                    if (blocked) {
+                      bounceDialogOf(headRef.current);
                       return;
                     }
                   }
@@ -155,12 +157,16 @@ export function WizardFoot(props: {
     props.onBack?.();
     wz.back();
   };
+  const footRef = useRef<HTMLDivElement>(null);
   const handleNext = () => {
-    if (onNext && onNext() === false) return;
+    if (onNext && onNext() === false) {
+      bounceDialogOf(footRef.current);
+      return;
+    }
     wz.next();
   };
   return (
-    <div className="wizard-foot">
+    <div className="wizard-foot" ref={footRef}>
       <div
         className="wz-progress"
         role="progressbar"

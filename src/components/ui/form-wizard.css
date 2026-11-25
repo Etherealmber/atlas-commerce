@@ -436,3 +436,19 @@ html[data-theme="dark"] .wz-recap-card {
   border-color: rgba(255, 255, 255, 0.1);
 }
 
+
+/* Desktop wizards: `.grid-2` / `.grid-3` rows really are columns (there is no
+   global `.grid` rule, so they used to stack into one long scrolling column).
+   Phones keep one column. */
+@media (min-width: 900px) {
+  html body :is(.step-wizard, .employee-wizard) .wz-step > .grid.grid-2,
+  html body :is(.step-wizard, .employee-wizard) .wz-step > .grid.grid-3 {
+    display: grid;
+    column-gap: 16px;
+    row-gap: 0;
+    align-items: start;
+  }
+  html body :is(.step-wizard, .employee-wizard) .wz-step > .grid.grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  html body :is(.step-wizard, .employee-wizard) .wz-step > .grid.grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  html body :is(.step-wizard, .employee-wizard) .wz-step > .grid > .form-row { min-width: 0; }
+}

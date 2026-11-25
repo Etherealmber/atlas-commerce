@@ -12,6 +12,8 @@ import {
 } from '../components/PublicChrome';
 import { isLoggedIn } from '../auth';
 import ThemeShot from '../components/ThemeShot';
+import { AgentDemo, AgingDemo, InvoiceDemo, SalesDemo, StockDemo } from '../components/home/FeatureDemos';
+import '../components/home/feature-demos.css';
 
 const NAV: NavLink[] = [
   { href: '#features', label: 'Fonctionnalités' },
@@ -104,22 +106,22 @@ export default function Home() {
           </div>
           <div className="hm-bento">
             <div className="hm-bento-card rise">
-              <figure className="hm-fx hm-fx-shot hm-fx-stock"><ThemeShot name="feature-stock" alt="Catalogue produits de l’application web avec photos, niveaux de stock et seuils (données fictives)" width={1064} height={600} /></figure>
+              <StockDemo />
               <h3>Stock en temps réel</h3>
               <p>Consultez l’inventaire, les seuils et les mouvements de vos produits.</p>
             </div>
             <div className="hm-bento-card rise">
-              <figure className="hm-fx hm-fx-shot hm-fx-pos"><ThemeShot name="feature-sales" alt="Liste des tickets de vente rapide avec statuts de règlement (données fictives)" width={1280} height={720} /></figure>
+              <SalesDemo />
               <h3>Caisse &amp; ventes</h3>
               <p>Ventes comptoir, tickets, règlements partiels et clôture de caisse sans saisie double.</p>
             </div>
             <div className="hm-bento-card rise">
-              <figure className="hm-fx hm-fx-shot hm-fx-invoice"><ThemeShot name="feature-invoice" alt="Lignes d’une facture de vente avec prix HT et TTC (données fictives)" width={1280} height={620} /></figure>
+              <InvoiceDemo />
               <h3>Facturation PDF</h3>
               <p>Devis, factures et reçus en PDF propres, avec QR de vérification publique.</p>
             </div>
             <div className="hm-bento-card rise">
-              <figure className="hm-fx hm-fx-shot hm-fx-aging"><ThemeShot name="feature-aging" alt="Rapport de balance âgée des créances clients par tranche d’échéance (données fictives)" width={1280} height={720} /></figure>
+              <AgingDemo />
               <h3>Créances &amp; relances</h3>
               <p>Balance âgée, clients à relancer et historique de paiement — sans Post-it.</p>
             </div>
@@ -148,9 +150,9 @@ export default function Home() {
               <p>Vos clients scannent et vérifient l’authenticité d’un reçu en une seconde.</p>
             </div>
             <div className="hm-bento-card rise">
-              <figure className="hm-fx hm-fx-shot hm-fx-agent"><ThemeShot name="site-agent" alt="Panneau Atlas Agent avec une conversation fictive" width={380} height={700} /></figure>
+              <AgentDemo />
               <h3>Agent IA intégré</h3>
-              <p>Posez vos questions en français et explorez vos données selon vos permissions. Conversation fictive ci-dessus.</p>
+              <p>Posez vos questions en français et explorez vos données selon vos permissions. Exemple fictif ci-dessus.</p>
             </div>
           </div>
         </section>

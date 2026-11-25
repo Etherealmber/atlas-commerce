@@ -20,7 +20,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, BASE } from '../api';
 import { getToken } from '../auth';
-import DatePicker from '../components/DatePicker';
+import DatePicker, { MonthPicker } from '../components/DatePicker';
 import TimePicker from '../components/TimePicker';
 import RefreshIconButton from '../components/RefreshIconButton';
 import { FloatingPortal } from '../components/FloatingPortal';
@@ -642,12 +642,7 @@ export default function Attendance() {
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span>Mois</span>
-                <input
-                  type="month"
-                  value={monthFilter}
-                  onChange={(e) => setMonthFilter(e.target.value)}
-                  aria-label="Filtrer par mois"
-                />
+                <MonthPicker size="sm" value={monthFilter} onChange={setMonthFilter} aria-label="Filtrer par mois" />
               </label>
               <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span>Employé</span>

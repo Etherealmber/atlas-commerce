@@ -1,0 +1,187 @@
+/* Homepage live feature cards — the app's own UI language at a small scale:
+ * Products card (16px cards, #e8eaef line), §8 status badges, row pills +
+ * red round delete, dashboard segmented pill, Atlas Agent bubbles.
+ * Tokens follow the app: light by default, dark under html[data-theme="dark"]. */
+.home-landing .hm-fx.hm-live {
+  --hl-card: #ffffff;
+  --hl-bg: #f6f7f9;
+  --hl-line: #e8eaef;
+  --hl-ink: #0f172a;
+  --hl-muted: #64748b;
+  --hl-soft: #f4f4f5;
+  --hl-primary: #0f172a;
+  --hl-on-primary: #ffffff;
+  --hl-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --hl-ok-bg: #f1f5f9; --hl-ok-fg: #334155; --hl-ok-bd: #e2e8f0;
+  --hl-warn-bg: #fef3c7; --hl-warn-fg: #92400e; --hl-warn-bd: #fde68a;
+  --hl-info-bg: #eef2ff; --hl-info-fg: #3730a3; --hl-info-bd: #e0e7ff;
+  --hl-bad-bg: #fee2e2; --hl-bad-fg: #991b1b; --hl-bad-bd: #fecaca;
+  --hl-danger: #ef4444;
+  position: relative;
+  display: block;
+  height: 184px;
+  margin: 0;
+  padding: 12px;
+  overflow: hidden;
+  border: 1px solid var(--hl-line);
+  border-radius: 12px;
+  background: var(--hl-bg);
+  color: var(--hl-ink);
+  font-family: inherit;
+  text-align: left;
+}
+html[data-theme="dark"] body .home-landing .hm-fx.hm-live {
+  --hl-card: #1c1c1f;
+  --hl-bg: #141416;
+  --hl-line: #2a2a2e;
+  --hl-ink: #f4f4f5;
+  --hl-muted: #9aa3b5;
+  --hl-soft: #26262b;
+  --hl-primary: #f4f4f5;
+  --hl-on-primary: #0f172a;
+  --hl-shadow: none;
+  --hl-ok-bg: #27272a; --hl-ok-fg: #e4e4e7; --hl-ok-bd: transparent;
+  --hl-warn-bg: rgba(245, 158, 11, 0.14); --hl-warn-fg: #fcd34d; --hl-warn-bd: transparent;
+  --hl-info-bg: rgba(129, 140, 248, 0.14); --hl-info-fg: #c7d2fe; --hl-info-bd: transparent;
+  --hl-bad-bg: rgba(239, 68, 68, 0.14); --hl-bad-fg: #fca5a5; --hl-bad-bd: transparent;
+  background: var(--hl-bg);
+  border-color: var(--hl-line);
+}
+.home-landing .hm-live .hm-live-inner { height: 100%; }
+.home-landing .hm-fx.hm-live { container-type: inline-size; }
+.home-landing .hm-live svg { flex: none; stroke: currentColor; fill: none; }
+.home-landing .hm-live :is(b, i, span) { font-style: normal; }
+.home-landing .hm-live .hl-grow { flex: 1 1 auto; }
+
+/* Equal bento columns: tables and nowrap rows must not widen their column. */
+.home-landing .hm-bento > .hm-bento-card { min-width: 0; }
+
+/* ── shared pieces ── */
+.home-landing .hm-live .hl-panel {
+  display: flex; flex-direction: column; height: 100%; overflow: hidden;
+  border: 1px solid var(--hl-line); border-radius: 12px;
+  background: var(--hl-card); box-shadow: var(--hl-shadow);
+}
+.home-landing .hm-live .hl-panel-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 9px 12px; border-bottom: 1px solid var(--hl-line);
+  font-size: 11px; font-weight: 700; color: var(--hl-muted);
+}
+.home-landing .hm-live .hl-badge {
+  display: inline-flex; align-items: center; height: 20px; padding: 0 9px;
+  border: 1px solid transparent; border-radius: 999px;
+  font-size: 10.5px; font-weight: 700; white-space: nowrap;
+}
+.home-landing .hm-live .hl-badge.is-success { background: var(--hl-ok-bg); color: var(--hl-ok-fg); border-color: var(--hl-ok-bd); }
+.home-landing .hm-live .hl-badge.is-warning { background: var(--hl-warn-bg); color: var(--hl-warn-fg); border-color: var(--hl-warn-bd); }
+.home-landing .hm-live .hl-badge.is-info { background: var(--hl-info-bg); color: var(--hl-info-fg); border-color: var(--hl-info-bd); }
+.home-landing .hm-live .hl-badge.is-danger { background: var(--hl-bad-bg); color: var(--hl-bad-fg); border-color: var(--hl-bad-bd); }
+.home-landing .hm-live .hl-pill {
+  display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 9px;
+  border: 1px solid var(--hl-line); border-radius: 999px; background: var(--hl-soft);
+  font-size: 10px; font-weight: 650; color: var(--hl-ink); white-space: nowrap;
+}
+.home-landing .hm-live .hl-pill.is-dark { border-color: var(--hl-primary); background: var(--hl-primary); color: var(--hl-on-primary); }
+.home-landing .hm-live .hl-round {
+  display: inline-grid; place-items: center; width: 22px; height: 22px; flex: none;
+  border: 1px solid var(--hl-line); border-radius: 999px; background: var(--hl-soft); color: var(--hl-ink);
+}
+.home-landing .hm-live .hl-round.is-danger { border-color: var(--hl-danger); background: var(--hl-danger); color: #ffffff; }
+.home-landing .hm-live .hl-seg { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--hl-line); border-radius: 999px; background: var(--hl-card); }
+.home-landing .hm-live .hl-seg i { padding: 3px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; color: var(--hl-muted); }
+.home-landing .hm-live .hl-seg i.is-on { background: var(--hl-primary); color: var(--hl-on-primary); }
+
+/* ── Stock: Products grid cards ── */
+.home-landing .hm-live-stock .hl-pgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; height: 100%; }
+.home-landing .hm-live .hl-pcard {
+  display: flex; flex-direction: column; gap: 1px; min-width: 0; padding: 6px;
+  border: 1px solid var(--hl-line); border-radius: 12px; background: var(--hl-card); box-shadow: var(--hl-shadow);
+}
+.home-landing .hm-live .hl-pmedia {
+  position: relative; display: grid; place-items: center; height: 56px; margin-bottom: 5px;
+  border-radius: 9px; color: rgba(15, 23, 42, 0.38);
+}
+.home-landing .hm-live .hl-pmedia.is-stone { background: linear-gradient(135deg, #f4f2ee, #dcd6cc); }
+.home-landing .hm-live .hl-pmedia.is-night { background: linear-gradient(135deg, #3f3f46, #18181b); color: rgba(255, 255, 255, 0.42); }
+.home-landing .hm-live .hl-check { position: absolute; top: 6px; left: 6px; width: 13px; height: 13px; border: 1.5px solid rgba(15, 23, 42, 0.28); border-radius: 999px; background: rgba(255, 255, 255, 0.95); }
+.home-landing .hm-live .hl-stock {
+  position: absolute; left: 6px; bottom: 6px; display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.94); color: #0f172a;
+  font-size: 8.5px; font-weight: 700; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.14);
+}
+.home-landing .hm-live .hl-stock::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: #16a34a; }
+.home-landing .hm-live .hl-stock.is-low::before { background: #ea580c; }
+.home-landing .hm-live .hl-stock.is-out::before { background: #dc2626; }
+html[data-theme="dark"] body .home-landing .hm-live .hl-stock { background: rgba(24, 24, 27, 0.92); color: #f4f4f5; box-shadow: none; }
+.home-landing .hm-live .hl-pname { overflow: hidden; font-size: 11px; font-weight: 700; white-space: nowrap; text-overflow: ellipsis; }
+.home-landing .hm-live .hl-pref { overflow: hidden; font-size: 9.5px; color: var(--hl-muted); white-space: nowrap; text-overflow: ellipsis; }
+.home-landing .hm-live .hl-pmeta { display: flex; align-items: baseline; justify-content: space-between; margin-top: 2px; font-size: 11px; }
+.home-landing .hm-live .hl-pmeta b { font-weight: 800; }
+.home-landing .hm-live .hl-pmeta i { font-size: 9.5px; font-weight: 700; color: var(--hl-muted); }
+.home-landing .hm-live .hl-pmeta i.is-low { color: #c2410c; }
+html[data-theme="dark"] body .home-landing .hm-live .hl-pmeta i.is-low { color: #fdba74; }
+.home-landing .hm-live .hl-pacts { display: flex; align-items: center; gap: 4px; min-width: 0; margin-top: 5px; padding-top: 5px; border-top: 1px solid var(--hl-line); }
+
+/* ── Sales: ticket table ── */
+.home-landing .hm-live .hl-rows { display: flex; flex-direction: column; }
+.home-landing .hm-live .hl-row {
+  display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 12px;
+  border-bottom: 1px solid var(--hl-line); font-size: 11px;
+}
+.home-landing .hm-live .hl-rows .hl-row:last-child { border-bottom: 0; }
+.home-landing .hm-live .hl-num { font-weight: 700; white-space: nowrap; }
+.home-landing .hm-live .hl-client { flex: 1 1 auto; min-width: 0; overflow: hidden; color: var(--hl-muted); white-space: nowrap; text-overflow: ellipsis; }
+.home-landing .hm-live .hl-amt { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.home-landing .hm-live-sales .hl-badge { min-width: 62px; justify-content: center; }
+
+/* ── Invoice: document lines + totals ── */
+.home-landing .hm-live .hl-doc { display: inline-flex; align-items: center; gap: 6px; color: var(--hl-ink); }
+.home-landing .hm-live .hl-lines { display: flex; flex-direction: column; padding: 2px 12px; }
+.home-landing .hm-live .hl-line {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 10px;
+  min-height: 30px; border-bottom: 1px dashed var(--hl-line); font-size: 10.5px;
+}
+.home-landing .hm-live .hl-line span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.home-landing .hm-live .hl-line i { color: var(--hl-muted); font-variant-numeric: tabular-nums; }
+.home-landing .hm-live .hl-line b { min-width: 46px; text-align: right; font-variant-numeric: tabular-nums; }
+.home-landing .hm-live .hl-totals { display: flex; align-items: center; gap: 5px; margin-top: auto; padding: 8px 12px; background: var(--hl-soft); }
+.home-landing .hm-live .hl-tot { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; font-size: 9.5px; color: var(--hl-muted); font-variant-numeric: tabular-nums; }
+.home-landing .hm-live .hl-tot b { font-size: 12px; font-weight: 800; color: var(--hl-ink); }
+
+/* ── Aging: buckets + stacked bar + client to follow up ── */
+.home-landing .hm-live .hl-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; padding: 10px 10px 8px; }
+.home-landing .hm-live .hl-stat { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 6px 7px; border: 1px solid var(--hl-line); border-radius: 10px; background: var(--hl-card); }
+.home-landing .hm-live .hl-stat i { font-size: 8.5px; font-weight: 700; color: var(--hl-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.home-landing .hm-live .hl-stat b { overflow: hidden; font-size: 13px; font-weight: 800; white-space: nowrap; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.home-landing .hm-live .hl-bar { display: flex; gap: 3px; height: 8px; margin: 0 10px 8px; }
+.home-landing .hm-live .hl-bar span { border-radius: 999px; }
+.home-landing .hm-live .hl-bar .is-cur { background: #94a3b8; }
+.home-landing .hm-live .hl-bar .is-b1 { background: #fbbf24; }
+.home-landing .hm-live .hl-bar .is-b2 { background: #f97316; }
+.home-landing .hm-live .hl-bar .is-b3 { background: #ef4444; }
+.home-landing .hm-live .hl-follow { display: flex; flex-direction: column; margin-top: auto; border-top: 1px solid var(--hl-line); }
+.home-landing .hm-live .hl-follow .hl-row { min-height: 32px; gap: 8px; }
+.home-landing .hm-live .hl-follow .hl-row:last-child { border-bottom: 0; }
+.home-landing .hm-live .hl-ellipsis { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Agent: bubbles + prompt bar ── */
+.home-landing .hm-live .hl-chat { display: flex; flex-direction: column; justify-content: flex-end; gap: 7px; height: 100%; }
+.home-landing .hm-live .hl-bubble { max-width: 86%; padding: 8px 11px; border-radius: 14px; font-size: 11px; line-height: 1.4; }
+.home-landing .hm-live .hl-bubble.is-user { align-self: flex-end; border-bottom-right-radius: 5px; background: var(--hl-primary); color: var(--hl-on-primary); font-weight: 600; }
+.home-landing .hm-live .hl-bubble.is-bot { display: flex; align-items: flex-start; gap: 6px; align-self: flex-start; border: 1px solid var(--hl-line); border-bottom-left-radius: 5px; background: var(--hl-card); }
+.home-landing .hm-live .hl-bubble.is-bot svg { margin-top: 2px; color: var(--hl-muted); }
+.home-landing .hm-live .hl-prompt {
+  display: flex; align-items: center; gap: 7px; height: 32px; padding: 0 4px 0 11px;
+  border: 1px solid var(--hl-line); border-radius: 999px; background: var(--hl-card); color: var(--hl-muted); font-size: 10.5px;
+}
+.home-landing .hm-live .hl-prompt i { flex: 1 1 auto; }
+.home-landing .hm-live .hl-send { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 999px; background: var(--hl-primary); color: var(--hl-on-primary); }
+
+@container (max-width: 300px) {
+  .home-landing .hm-live .hl-client { display: none; }
+  .home-landing .hm-live .hl-stat b { font-size: 11.5px; }
+  .home-landing .hm-live .hl-stat i { font-size: 7.5px; }
+}
+@media (max-width: 720px) {
+  .home-landing .hm-fx.hm-live { height: auto; min-height: 150px; }
+}

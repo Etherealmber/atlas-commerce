@@ -841,15 +841,6 @@ html[data-theme="dark"] .ac-settings-danger-title {
   padding-top: 16px;
   border-top: 1px solid var(--ac-line, #e8eaef);
 }
-.settings-tab-save-bar.ac-panel,
-.settings-tab-save-bar.card {
-  display: flex !important;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-top: 14px;
-}
 html[data-theme="dark"] .ac-settings-panel-head h2,
 html[data-theme="dark"] .ac-settings-panel-head h3,
 html[data-theme="dark"] .ac-settings-section-title,

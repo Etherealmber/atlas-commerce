@@ -34,7 +34,7 @@ html .sidebar-footer { display: none !important; }
 
 /* Primary buttons: black/white never teal */
 html .content button:not(.secondary):not(.ghost):not(.danger):not(.icon-refresh-btn):not(.mailbox-folder-item):not(.settings-nav-item):not(.theme-toggle):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.modal-x):not(.modal-close):not(.agent-perm-mode):not(.prompt-bar__chip-edit):not(.prompt-bar__chip-x):not(.ac-seg-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.db-mig-actions button.secondary):not(.ac-dock-expand):not(.ac-topbar-user-btn):not(.ac-topbar-icon):not(.ac-topbar-bell):not(.ac-topbar-theme):not(.ac-user-dropdown-item):not(.ac-dash-preset):not(.ac-dock-item):not(.privacy-link-btn):not(.welcome-skip-btn):not(.welcome-density-pill):not(.welcome-tour-trigger):not(.welcome-seg-btn):not(.ac-feature-tour-close):not(.ac-feature-tour-backdrop):not(.ac-feature-tour-dot),
-html .modal button:not(.secondary):not(.ghost):not(.danger):not(.modal-x):not(.modal-close):not(.prompt-bar__chip-edit):not(.prompt-bar__chip-x):not(.step-wizard__step-btn):not(.atlas-dp-day):not(.atlas-dp-nav):not(.atlas-dp-preset):not(.atlas-dp-btn):not(.atlas-dp-trigger):not(.privacy-link-btn),
+html .modal button:not(.secondary):not(.ghost):not(.danger):not(.modal-x):not(.modal-close):not(.prompt-bar__chip-edit):not(.prompt-bar__chip-x):not(.step-wizard__step-btn):not(.ac-pick):not(.ac-pick):not(.ac-pick):not(.ac-pick):not(.ac-pick):not(.privacy-link-btn),
 html .ac-edit-profile-modal button:not(.secondary):not(.ac-edit-profile-close) {
   background: #27272a !important;
   background-image: none !important;
@@ -43,7 +43,7 @@ html .ac-edit-profile-modal button:not(.secondary):not(.ac-edit-profile-close) {
   box-shadow: none !important;
 }
 html[data-theme="dark"] .content button:not(.secondary):not(.ghost):not(.danger):not(.icon-refresh-btn):not(.mailbox-folder-item):not(.settings-nav-item):not(.theme-toggle):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.atlas-shell-icon-btn):not(.ac-topbar-mail):not(.ac-topbar-notif):not(.ac-topbar-user-btn):not(.ac-pill-pager-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-seg-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.modal-x):not(.modal-close):not(.ac-dock-expand):not(.ac-topbar-icon):not(.ac-topbar-bell):not(.ac-topbar-theme):not(.ac-user-dropdown-item):not(.ac-dash-preset):not(.ac-dock-item):not(.privacy-link-btn):not(.welcome-skip-btn):not(.welcome-density-pill):not(.welcome-tour-trigger):not(.welcome-seg-btn):not(.ac-feature-tour-close):not(.ac-feature-tour-backdrop):not(.ac-feature-tour-dot),
-html[data-theme="dark"] .modal button:not(.secondary):not(.ghost):not(.danger):not(.account-menu-item):not(.modal-x):not(.modal-close):not(.step-wizard__step-btn):not(.atlas-dp-day):not(.atlas-dp-nav):not(.atlas-dp-preset):not(.atlas-dp-btn):not(.atlas-dp-trigger),
+html[data-theme="dark"] .modal button:not(.secondary):not(.ghost):not(.danger):not(.account-menu-item):not(.modal-x):not(.modal-close):not(.step-wizard__step-btn):not(.ac-pick):not(.ac-pick):not(.ac-pick):not(.ac-pick):not(.ac-pick),
 html[data-theme="dark"] .ac-edit-profile-modal button:not(.secondary):not(.ac-edit-profile-close) {
   background: #27272b !important;
   color: #f0f1f5 !important;
@@ -277,7 +277,6 @@ html .settings-main button.ghost,
 html .settings-shell button.secondary,
 html .settings-shell button.ghost,
 html .ac-settings-profile-bar button.secondary,
-html .settings-tab-save-bar button.secondary,
 html .settings-topbar-tabs button,
 html .settings-topnav-item {
   background: transparent !important;
@@ -483,111 +482,6 @@ html body .btn-delete-red.is-armed {
 
 
 /* ===== v18 Date range picker — Watermelon-like (presets + calendar) ===== */
-html body .atlas-dp-pop {
-  z-index: 10060 !important;
-  background: #ffffff !important;
-  border: 1px solid #e8eaef !important;
-  border-radius: 16px !important;
-  box-shadow: 0 16px 48px rgba(15, 23, 42, 0.14) !important;
-  color: #0f172a !important;
-  overflow: hidden !important;
-}
-html body .atlas-dp-range.has-presets {
-  display: grid !important;
-  grid-template-columns: 148px 1fr !important;
-  width: min(440px, 96vw) !important;
-  min-width: 360px !important;
-}
-html body .atlas-dp-presets {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 2px !important;
-  padding: 10px 8px !important;
-  background: #f8fafc !important;
-  border-right: 1px solid #e8eaef !important;
-}
-html body button.atlas-dp-preset {
-  background: transparent !important;
-  border: none !important;
-  border-radius: 8px !important;
-  color: #475569 !important;
-  text-align: left !important;
-  padding: 8px 10px !important;
-  font-size: 0.8125rem !important;
-  font-weight: 500 !important;
-  box-shadow: none !important;
-  width: 100% !important;
-  cursor: pointer !important;
-}
-html body button.atlas-dp-preset:hover {
-  background: #f1f5f9 !important;
-  color: #0f172a !important;
-}
-html body button.atlas-dp-preset.is-active {
-  background: #e2e8f0 !important;
-  color: #0f172a !important;
-  font-weight: 600 !important;
-}
-html body .atlas-dp-range-main {
-  padding: 12px 14px 10px !important;
-  background: #fff !important;
-}
-html body .atlas-dp-hint {
-  margin: 0 0 10px !important;
-  font-size: 0.8rem !important;
-  color: #64748b !important;
-  font-weight: 500 !important;
-}
-html body button.atlas-dp-day {
-  background: transparent !important;
-  border: none !important;
-  border-radius: 8px !important;
-  color: #0f172a !important;
-  box-shadow: none !important;
-  width: 36px !important;
-  height: 36px !important;
-  font-size: 0.8125rem !important;
-}
-html body button.atlas-dp-day:hover {
-  background: #f1f5f9 !important;
-}
-html body button.atlas-dp-day.is-selected,
-html body button.atlas-dp-day.is-range-end,
-html body button.atlas-dp-day.is-range-start {
-  background: #0a0a0a !important;
-  color: #ffffff !important;
-  font-weight: 700 !important;
-}
-html body button.atlas-dp-day.in-range {
-  background: #f4f4f5 !important;
-  color: #1e3a8a !important;
-  border-radius: 0 !important;
-}
-html body button.atlas-dp-nav,
-html body button.atlas-dp-btn {
-  background: #ffffff !important;
-  border: 1px solid #e8eaef !important;
-  color: #0f172a !important;
-  border-radius: 999px !important;
-  box-shadow: none !important;
-  font-weight: 600 !important;
-}
-html body button.atlas-dp-trigger {
-  background: #ffffff !important;
-  border: 1px solid #e8eaef !important;
-  color: #0f172a !important;
-  border-radius: 999px !important;
-  box-shadow: none !important;
-  min-height: 40px !important;
-  padding: 8px 14px !important;
-}
-html body .atlas-dp-foot {
-  display: flex !important;
-  justify-content: flex-end !important;
-  gap: 8px !important;
-  padding: 8px 12px 12px !important;
-  border-top: 1px solid #f1f5f9 !important;
-}
 
 /* User menu items — borderless floating rows */
 html body .ac-user-dropdown-item,
@@ -2270,10 +2164,6 @@ html body .ac-panel.ac-products-table-panel {
 }
 
 /* Date picker always above modals */
-html body .atlas-dp-pop {
-  z-index: 100100 !important;
-  position: fixed !important;
-}
 html body .modal-overlay,
 html body .ac-edit-profile-root {
   z-index: 10050 !important;
@@ -3944,8 +3834,8 @@ html[data-theme="dark"] body .content table button.danger:hover:not(:disabled) {
   .content button.bal-reports-trigger:hover:not(:disabled),
   .bal-reports-grid button:hover:not(:disabled),
   .page-header button:hover:not(:disabled),
-  .ac-panel button:not(.atlas-dp-day):not(.atlas-dp-nav):hover:not(:disabled),
-  .card button:not(.atlas-dp-day):not(.atlas-dp-nav):hover:not(:disabled),
+  .ac-panel button:not(.ac-pick):not(.ac-pick):hover:not(:disabled),
+  .card button:not(.ac-pick):not(.ac-pick):hover:not(:disabled),
   .ac-timed-delete [role="button"]:hover,
   .ac-timed-undo-btn:hover,
   .ac-timed-delete-btn:hover,
@@ -3984,8 +3874,8 @@ html[data-theme="dark"] body .content table button.danger:hover:not(:disabled) {
   .bal-reports-trigger:hover svg,
   .bal-reports-grid button:hover svg,
   .page-header button:hover:not(:disabled) svg,
-  .ac-panel button:not(.atlas-dp-day):not(.atlas-dp-nav):hover:not(:disabled) svg,
-  .card button:not(.atlas-dp-day):not(.atlas-dp-nav):hover:not(:disabled) svg,
+  .ac-panel button:not(.ac-pick):not(.ac-pick):hover:not(:disabled) svg,
+  .card button:not(.ac-pick):not(.ac-pick):hover:not(:disabled) svg,
   .ac-topbar-icon:hover:not(:disabled) svg,
   .ac-dock-back:hover:not(:disabled) svg,
   .pn-cta:hover svg,
@@ -4103,16 +3993,16 @@ html[data-theme="dark"] body .content table button.danger:hover:not(:disabled) {
 }
 
 /* Global select vertical-centering safety — never let density/input vertical padding clip options */
-html body select:not(.atlas-dp-select):not([multiple]):not([size]) {
+html body select:not(.ac-pick):not([multiple]):not([size]) {
   padding-top: 0 !important;
   padding-bottom: 0 !important;
   line-height: normal !important;
   box-sizing: border-box !important;
 }
-html body .modal select:not(.atlas-dp-select):not([multiple]):not([size]),
-html body .content select:not(.atlas-dp-select):not([multiple]):not([size]),
-html body .settings-main select:not(.atlas-dp-select):not([multiple]):not([size]),
-html body .balance-page select:not(.atlas-dp-select):not([multiple]):not([size]) {
+html body .modal select:not(.ac-pick):not([multiple]):not([size]),
+html body .content select:not(.ac-pick):not([multiple]):not([size]),
+html body .settings-main select:not(.ac-pick):not([multiple]):not([size]),
+html body .balance-page select:not(.ac-pick):not([multiple]):not([size]) {
   min-height: 40px;
   padding-top: 0 !important;
   padding-bottom: 0 !important;

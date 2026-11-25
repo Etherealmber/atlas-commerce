@@ -15,7 +15,7 @@ import ListPager from '../components/ui/ListPager';
 import NumberField from '../components/NumberField';
 import VirtualTableBody, { VirtualScroll } from '../components/VirtualTableBody';
 import { canAccessAdminSettings, canSell, sanitizePreviewUrl } from '../auth';
-import { LayoutGrid, List, Pencil, Plus, SlidersHorizontal, Sparkles, Tags, ZoomIn } from 'lucide-react';
+import { Check, LayoutGrid, List, Pencil, Plus, SlidersHorizontal, Sparkles, Tags, ZoomIn } from 'lucide-react';
 import ProductArtwork, { productImageUrl } from '../components/ProductArtwork';
 import ImageLightbox from '../components/ui/ImageLightbox';
 import { phoneStockIsLow, phoneStockQuantity } from '../mobile/phoneStock';
@@ -704,8 +704,10 @@ export default function Products() {
         {catalogView === 'grid' ? <>
           {paged.length > 0 && (
             <label className="pc-select-all">
-              <input type="checkbox" checked={paged.every(p => selected.has(p.id))} onChange={() => setSelected(prev => { const next = new Set(prev); const all = paged.every(p => next.has(p.id)); paged.forEach(p => all ? next.delete(p.id) : next.add(p.id)); return next; })} />
+              <input type="checkbox" className="pc-check-input" checked={paged.every(p => selected.has(p.id))} onChange={() => setSelected(prev => { const next = new Set(prev); const all = paged.every(p => next.has(p.id)); paged.forEach(p => all ? next.delete(p.id) : next.add(p.id)); return next; })} />
+              <span className="pc-check-box" aria-hidden="true"><Check size={13} strokeWidth={3} /></span>
               <span>Tout sélectionner</span>
+              {selected.size > 0 ? <span className="pc-select-count">{selected.size} sélectionné{selected.size > 1 ? 's' : ''}</span> : null}
             </label>
           )}
           {filtered.length === 0 ? <EmptyState title="Aucun produit" description="Essayez une autre recherche ou ajoutez un produit." actionLabel="Ajouter un produit" onAction={openNew} icon="package" /> : (
@@ -720,8 +722,9 @@ export default function Products() {
                       <Link to={`/products/${p.id}/historique`} className="pc-media-link" aria-label={`Ouvrir ${p.name}`} tabIndex={-1}>
                         <ProductArtwork url={p.image_url} largeImageProductId={p.image_inline_large ? p.id : undefined} alt={p.name} className="pc-art" />
                       </Link>
-                      <label className="pc-check" title="Sélectionner le produit">
-                        <input type="checkbox" checked={isSel} onChange={() => toggleOne(p.id)} aria-label={`Sélectionner ${p.name}`} />
+                      <label className="pc-check" title={isSel ? 'Désélectionner le produit' : 'Sélectionner le produit'}>
+                        <input type="checkbox" className="pc-check-input" checked={isSel} onChange={() => toggleOne(p.id)} aria-label={`Sélectionner ${p.name}`} />
+                        <span className="pc-check-box" aria-hidden="true"><Check size={14} strokeWidth={3} /></span>
                       </label>
                       {imgUrl && (
                         <button
@@ -747,11 +750,11 @@ export default function Products() {
                       </span>
                     </Link>
                     <div className="pc-actions">
-                      {p.track_inventory && <button type="button" className="secondary pc-act" title="Ajuster le stock" aria-label={`Ajuster le stock de ${p.name}`} onClick={() => { setModalError(''); setAdjustProduct(p); }}><SlidersHorizontal size={16} aria-hidden="true" /></button>}
-                      <button type="button" className="secondary pc-act" title="Modifier" aria-label={`Modifier ${p.name}`} onClick={() => openEdit(p)}><Pencil size={16} aria-hidden="true" /></button>
-                      <button type="button" className="secondary pc-act" title="Étiquette" aria-label={`Étiquette de ${p.name}`} onClick={() => setLabelProduct(p)}><Tags size={16} aria-hidden="true" /></button>
+                      <button type="button" className="secondary pc-act pc-act--label" title={`Modifier ${p.name}`} aria-label={`Modifier ${p.name}`} onClick={() => openEdit(p)}><Pencil size={15} aria-hidden="true" /><span>Modifier</span></button>
+                      {!!p.track_inventory && <button type="button" className="secondary pc-act" title="Ajuster le stock" aria-label={`Ajuster le stock de ${p.name}`} onClick={() => { setModalError(''); setAdjustProduct(p); }}><SlidersHorizontal size={15} aria-hidden="true" /></button>}
+                      <button type="button" className="secondary pc-act" title="Étiquette" aria-label={`Étiquette de ${p.name}`} onClick={() => setLabelProduct(p)}><Tags size={15} aria-hidden="true" /></button>
                       <span className="pc-actions-spacer" />
-                      <TimedUndoDelete iconOnly width="36px" deleteLabel={`Supprimer ${p.name}`} undoLabel="Annuler la suppression" initialSeconds={10} onConfirm={() => deleteOne(p.id)} />
+                      <TimedUndoDelete iconOnly width="32px" deleteLabel={`Supprimer ${p.name}`} undoLabel="Annuler la suppression" initialSeconds={10} onConfirm={() => deleteOne(p.id)} />
                     </div>
                   </article>
                 );
@@ -822,9 +825,9 @@ export default function Products() {
                       {p.track_inventory ? (
                         <div>
                           <span className="stock-cell">{dualStockLabel(p)}</span>
-                        {p.track_inventory && Number(p.stock_quantity) === 0 && <span className="stock-pill out">Rupture</span>}
-                        {p.track_inventory && Number(p.stock_quantity) > 0 && Number(p.stock_quantity) <= Number(p.low_stock_threshold || 0) && <span className="stock-pill low">Bas</span>}
-                        {p.track_inventory && Number(p.stock_quantity) > Number(p.low_stock_threshold || 0) && <span className="stock-pill ok">OK</span>}
+                        {!!p.track_inventory && Number(p.stock_quantity) === 0 && <span className="stock-pill out">Rupture</span>}
+                        {!!p.track_inventory && Number(p.stock_quantity) > 0 && Number(p.stock_quantity) <= Number(p.low_stock_threshold || 0) && <span className="stock-pill low">Bas</span>}
+                        {!!p.track_inventory && Number(p.stock_quantity) > Number(p.low_stock_threshold || 0) && <span className="stock-pill ok">OK</span>}
                           {placements[p.id]?.placements ? (
                             <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2, lineHeight: 1.35, fontWeight: 500 }}>
                               {placements[p.id].placements
@@ -846,7 +849,7 @@ export default function Products() {
                     <td>{p.is_active === 0 ? <span className="badge danger">Inactif</span> : <span className="badge success">Actif</span>}</td>
                     <td className="row-actions-cell">
                       <div className="row-actions row-actions--inline pc-row-actions">
-                      {p.track_inventory && (
+                      {!!p.track_inventory && (
                         <button type="button" className="secondary pc-row-act" title="Ajuster le stock" onClick={() => { setModalError(''); setAdjustProduct(p); }}>
                           <SlidersHorizontal size={14} aria-hidden="true" />
                           <span>Ajuster</span>

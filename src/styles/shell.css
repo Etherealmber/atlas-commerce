@@ -3216,16 +3216,6 @@ html[data-theme="dark"] body .desktop-catalog-actions-slot:focus-within > .top-p
   html body .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact .top-page-actions .tpa-date-wrap {
     min-width: 0 !important; width: auto !important;
   }
-  html body .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact .top-page-actions .tpa-date-wrap .atlas-dp-trigger {
-    width: 36px !important; min-width: 36px !important; max-width: 36px !important;
-    height: 36px !important; min-height: 36px !important; padding: 0 !important;
-    border-radius: 999px !important; justify-content: center !important;
-  }
-  html body .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact .top-page-actions .tpa-date-wrap .atlas-dp-value {
-    position: absolute !important; width: 1px !important; height: 1px !important;
-    padding: 0 !important; margin: -1px !important; overflow: hidden !important;
-    clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important;
-  }
   html body .desktop-catalog-actions-slot:focus-within > .top-page-actions {
     box-shadow: 0 12px 32px rgba(15, 23, 42, 0.14), 0 2px 6px rgba(15, 23, 42, 0.08);
   }
@@ -3347,10 +3337,6 @@ html body .ac-dash-period-pills .ac-seg-btn[aria-pressed="true"] {
   background: var(--ac-ink, #0f172a) !important;
   color: var(--ac-paper, #fff) !important;
   -webkit-text-fill-color: var(--ac-paper, #fff) !important;
-}
-.ac-dash-hero-picker .atlas-dp-trigger {
-  min-height: 38px !important;
-  border-radius: 999px !important;
 }
 
 .ac-dash-next-strip {

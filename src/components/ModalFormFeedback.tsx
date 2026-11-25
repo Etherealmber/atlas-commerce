@@ -1,5 +1,8 @@
+import { useEffect, useRef } from 'react';
+import { bounceDialogOf } from '../lib/unsavedGuard';
 
-/** Error / success banner at the bottom of a modal (French UI). */
+/** Error / success banner at the bottom of a modal (French UI).
+ *  A new error message bounces the dialog so it is noticed. */
 export function ModalFormError({
   message,
   kind = 'error',
@@ -7,9 +10,14 @@ export function ModalFormError({
   message?: string | null;
   kind?: 'error' | 'success' | 'info';
 }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (message && kind === 'error') bounceDialogOf(ref.current);
+  }, [message, kind]);
   if (!message) return null;
   return (
     <div
+      ref={ref}
       className={'modal-form-alert modal-form-alert--' + kind}
       role={kind === 'error' ? 'alert' : 'status'}
     >

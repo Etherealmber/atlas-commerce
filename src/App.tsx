@@ -672,7 +672,7 @@ function DesktopShell() {
   const hasActionsOpenPopover = () => {
     const slot = actionsSlotRef.current;
     if (!slot) return false;
-    return !!slot.querySelector('.atlas-dp-popover, [aria-expanded="true"]');
+    return !!slot.querySelector('[aria-expanded="true"]');
   };
 
   const collapseActionsIfEligible = () => {

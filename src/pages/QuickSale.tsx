@@ -22,7 +22,8 @@ import PageSkeleton from '../components/PageSkeleton';
 import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
 
 const QUICKSALE_STEPS: readonly WizardStepDef[] = [
-  { id: 'client', label: 'Client', hint: 'Client, coordonnées et date d’émission (aucune TVA sur les tickets VR).' },
+  { id: 'client', label: 'Client', hint: 'Client enregistré ou client comptoir (aucune TVA sur les tickets VR).' },
+  { id: 'contact', label: 'Contact & date', hint: 'Téléphone du client et date d’émission du ticket.' },
   { id: 'items', label: 'Articles', hint: 'Recherchez vos produits, prix et quantités.' },
   { id: 'payment', label: 'Paiement', hint: 'Mode de règlement, total et notes.' },
 ];
@@ -78,7 +79,7 @@ export default function QuickSale() {
   const PAGE_SIZE = 20;
   useEffect(() => { setPage(0); }, [search, filter]);
   const [showModal, setShowModal] = useState(false);
-  const wz = useWizard(3);
+  const wz = useWizard(QUICKSALE_STEPS.length);
 
   const [clientId, setClientId] = useState<number | ''>('');
   const [clientName, setClientName] = useState('');
@@ -631,6 +632,9 @@ export default function QuickSale() {
                 <input value={clientIce} onChange={(e) => setClientIce(e.target.value)} />
               </div>
             </div>
+            </StepBody>
+
+            <StepBody active={wz.step === 2}>
             <div className="grid grid-2">
               <div className="form-row">
                 <label>Téléphone</label>
@@ -643,7 +647,7 @@ export default function QuickSale() {
             </div>
 
             </StepBody>
-            <StepBody active={wz.step === 2}>
+            <StepBody active={wz.step === 3}>
             <div className="wizard-items-scroll">
             <div
               style={{
@@ -750,7 +754,7 @@ export default function QuickSale() {
             </button>
 
             </StepBody>
-            <StepBody active={wz.step === 3}>
+            <StepBody active={wz.step === 4}>
             <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
               {([['cash', 'Espèces'], ['card', 'Carte']] as const).map(([k, lab]) => (
                 <button
@@ -787,7 +791,7 @@ export default function QuickSale() {
                   setModalError('Le nom du client est obligatoire.');
                   return false;
                 }
-                if (wz.step === 2 && !items.some((it) => String(it.product_name || '').trim() && Number(it.quantity) > 0)) {
+                if (wz.step === 3 && !items.some((it) => String(it.product_name || '').trim() && Number(it.quantity) > 0)) {
                   setModalError('Ajoutez au moins un article avec une quantité > 0.');
                   return false;
                 }

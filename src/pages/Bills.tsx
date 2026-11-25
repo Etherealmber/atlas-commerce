@@ -25,7 +25,9 @@ import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type Wizard
 import { ModalFormError } from '../components/ModalFormFeedback';
 
 const BILL_STEPS: readonly WizardStepDef[] = [
-  { id: 'vendor', label: 'Fournisseur', hint: 'Scanner une facture ou renseigner le fournisseur.' },
+  { id: 'scan', label: 'Scanner', hint: 'Facultatif : scannez la facture pour pré-remplir le formulaire, ou continuez.' },
+  { id: 'vendor', label: 'Fournisseur', hint: 'Fournisseur enregistré ou nouveau, avec son identifiant fiscal.' },
+  { id: 'details', label: 'Adresse & date', hint: 'Adresse du fournisseur et date d’émission de la facture.' },
   { id: 'items', label: 'Articles', hint: 'Lignes d’achat et coût unitaire pour le stock.' },
   { id: 'notes', label: 'Notes & validation', hint: 'Remarques complémentaires et validation finale.' },
 ];
@@ -42,7 +44,7 @@ export default function Bills() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const wz = useWizard(3);
+  const wz = useWizard(BILL_STEPS.length);
   const [filter, setFilter] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
@@ -143,6 +145,8 @@ export default function Bills() {
         setOcrStatus('ok');
         setOcrFailingStep('');
         setOcrMessage(r?.data?.review_message || 'Champs pré-remplis — vérifiez avant d’enregistrer.');
+        // Scan done: move on to the pre-filled supplier step for review.
+        window.setTimeout(() => wz.go(2), 700);
       } else {
         setOcrStatus('error');
         setOcrFailingStep('Extraction des champs');
@@ -243,12 +247,12 @@ export default function Bills() {
   };
 
   const validateBillForward = (targetStep: number): boolean => {
-    if (targetStep >= 2 && !vendorName.trim()) {
+    if (targetStep >= 3 && !vendorName.trim()) {
       setFieldErrors({ vendor_name: 'Le nom du fournisseur est obligatoire.' });
       setModalError('Le nom du fournisseur est obligatoire.');
       return false;
     }
-    if (targetStep >= 3 && !items.some((it) => String(it.product_name || '').trim() && Number(it.quantity) > 0)) {
+    if (targetStep >= 5 && !items.some((it) => String(it.product_name || '').trim() && Number(it.quantity) > 0)) {
       setFieldErrors({ items: "Ajoutez au moins une ligne d'achat." });
       setModalError("Ajoutez au moins une ligne d'achat avec une quantité > 0.");
       return false;
@@ -662,7 +666,9 @@ export default function Bills() {
               </div>
             )}
 
-            <div className="grid grid-2">
+            </StepBody>
+
+            <StepBody active={wz.step === 2}>
               <div className="form-row">
                 <label>Fournisseur enregistré</label>
                 <TypeaheadField
@@ -679,17 +685,20 @@ export default function Bills() {
                   emptyLabel="Aucun fournisseur"
                 />
               </div>
-              <div className="form-row"><label>Date d'émission</label><DatePicker value={issueDate} onChange={setIssueDate} /></div>
-            </div>
 
-            <div className="grid grid-3">
+            <div className="grid grid-2">
               <div className="form-row"><label>Nom du fournisseur *</label><input className={fieldErrors.vendor_name ? 'field-error' : undefined} value={vendorName} onChange={(e) => { setVendorName(e.target.value); setFieldErrors((x) => ({ ...x, vendor_name: '' })); if (modalError) setModalError(''); }} placeholder="Ex. Ciments du Maroc" /><span className="field-error-msg">{fieldErrors.vendor_name || ''}</span></div>
               <div className="form-row"><label>ICE / Identifiant</label><input value={vendorIce} onChange={(e) => setVendorIce(e.target.value)} /></div>
-              <div className="form-row"><label>Adresse</label><input value={vendorAddress} onChange={(e) => setVendorAddress(e.target.value)} /></div>
             </div>
-
             </StepBody>
-            <StepBody active={wz.step === 2}>
+
+            <StepBody active={wz.step === 3}>
+            <div className="grid grid-2">
+              <div className="form-row"><label>Adresse</label><input value={vendorAddress} onChange={(e) => setVendorAddress(e.target.value)} /></div>
+              <div className="form-row"><label>Date d'émission</label><DatePicker value={issueDate} onChange={setIssueDate} /></div>
+            </div>
+            </StepBody>
+            <StepBody active={wz.step === 4}>
             <div className="wizard-items-scroll">
             <div
               style={{
@@ -795,7 +804,7 @@ export default function Bills() {
             </div>
 
             </StepBody>
-            <StepBody active={wz.step === 3}>
+            <StepBody active={wz.step === 5}>
             <div className="wz-recap-card">
               <div className="wz-recap-item">
                 <span>Fournisseur</span>
