@@ -1,0 +1,407 @@
+/* Button groups (v0.9.3).
+ *
+ * Buttons that share a row (or a popup footer) share one height and one
+ * shape. Before this layer, rows mixed a 32px row pill, a 36px navy pill, a
+ * 46px black square (radius 12) and a 30px status chip (Paie, Rapports,
+ * Caisse). Popup footers paired a radius-12 « Annuler » with a pill
+ * « Enregistrer ».
+ *
+ *   • Header/action rows (.ac-head-actions, .ac-erp-actions-row): 36px pills.
+ *   • Field toolbars (.ac-erp-toolbar): the field and its submit button are
+ *     both 44px, so they sit on the same line.
+ *   • Popup footers (.modal / .modal-card / annotator / confirm dialog):
+ *     40px pills.
+ *   • Public pages: the Support selects get a real chevron (no native
+ *     mini-pill in Safari). The Privacy inline « préférences cookies »
+ *     button becomes an inline chip instead of a 44px block in the text.
+ *
+ * Colours come from the --ia-* tokens (input-actions.css), so light and dark
+ * stay consistent with the Products row pills. Four ID boosts (g–z, so the
+ * CSS checker doesn't mistake them for hex) outrank element-pills, density and
+ * dark-force chains.
+ */
+
+/* ── 1. Header / action rows: 36px pills ───────────────────────────────── */
+.ac-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+html body :is(.ac-head-actions, .ac-erp-actions-row) > button:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j),
+html body .ac-erp-btn-ico:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j),
+html body .ac-head-actions .ac-run-action-btn:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 7px !important;
+  box-sizing: border-box !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  max-height: 36px !important;
+  margin: 0 !important;
+  padding: 0 16px !important;
+  border-radius: 999px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  letter-spacing: 0 !important;
+  white-space: nowrap !important;
+  box-shadow: none !important;
+  transform: none !important;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease !important;
+}
+html body .ac-head-actions .ac-run-action-btn:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
+  /* the animated wrapper owns the width */
+  padding: 0 14px !important;
+}
+html body :is(.ac-head-actions, .ac-erp-actions-row) > button svg:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j),
+html body .ac-erp-btn-ico svg:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j),
+html body .ac-head-actions .ac-run-action-btn svg:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
+  width: 15px !important;
+  height: 15px !important;
+  flex: 0 0 auto !important;
+  color: currentColor !important;
+  stroke: currentColor !important;
+}
+
+/* Primary: everything that is not secondary / ghost / danger */
+html body :is(.ac-head-actions, .ac-erp-actions-row) > button:not(.secondary):not(.ghost):not(.danger):not(:disabled):not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j),
+html body .ac-erp-btn-ico:not(.secondary):not(.ghost):not(.danger):not(:disabled):not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
+  background: var(--ia-primary) !important;
+  color: var(--ia-primary-ink) !important;
+  -webkit-text-fill-color: var(--ia-primary-ink) !important;
+  border: 1px solid var(--ia-primary) !important;
+}
+html body :is(.ac-head-actions, .ac-erp-actions-row) > button:not(.secondary):not(.ghost):not(.danger):not(:disabled):not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j):hover,
+html body .ac-erp-btn-ico:not(.secondary):not(.ghost):not(.danger):not(:disabled):not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j):hover {
+  filter: brightness(1.12);
+}
+
+/* Secondary: neutral Products row pill */
+html body :is(.ac-head-actions, .ac-erp-actions-row) > button:is(.secondary, .ghost):not(:disabled):not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j),
+html body .ac-erp-btn-ico:is(.secondary, .ghost):not(:disabled):not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j),
+html body .ac-head-actions .ac-run-action-btn:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
+  background: var(--ia-soft) !important;
+  color: var(--ia-ink) !important;
+  -webkit-text-fill-color: var(--ia-ink) !important;
+  border: 1px solid var(--ia-line) !important;
+}
+html body :is(.ac-head-actions, .ac-erp-actions-row) > button:is(.secondary, .ghost):not(:disabled):not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j):hover,
+html body .ac-erp-btn-ico:is(.secondary, .ghost):not(:disabled):not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j):hover,
+html body .ac-head-actions .ac-run-action-btn:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j):hover {
+  background: var(--ia-soft-hover) !important;
+  border-color: var(--ia-muted) !important;
+}
+
+/* Disabled: reads as disabled, keeps the shape */
+html body :is(.ac-head-actions, .ac-erp-actions-row, .ac-erp-toolbar) > button:disabled:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j),
+html body .ac-erp-btn-ico:disabled:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
+  background: var(--ia-disabled-bg) !important;
+  color: var(--ia-disabled-ink) !important;
+  -webkit-text-fill-color: var(--ia-disabled-ink) !important;
+  border: 1px solid var(--ia-line) !important;
+  cursor: not-allowed !important;
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+/* Status chip in the same row: same height, same pill */
+html body .ac-erp-actions-row > .ac-status-pill:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j),
+html body .ac-head-actions > .ac-status-pill:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  box-sizing: border-box !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  margin: 0 !important;
+  padding: 0 14px !important;
+  border-radius: 999px !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+}
+
+/* ── 2. Field toolbars: field and button share 44px ────────────────────── */
+html body .ac-erp-toolbar:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
+  align-items: flex-end !important;
+}
+html body .ac-erp-toolbar .ac-erp-field > :is(input, select):not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
+  box-sizing: border-box !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  margin: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  border-radius: 12px !important;
+  font-size: 14px !important;
+  line-height: 1.2 !important;
+}
+html body .ac-erp-toolbar > button:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j),
+html body .ac-erp-toolbar > button.ac-erp-btn-ico:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
+  height: 44px !important;
+  min-height: 44px !important;
+  max-height: 44px !important;
+  padding: 0 20px !important;
+  font-size: 13.5px !important;
+}
+html body .ac-erp-toolbar > :is(.muted, span):not(button):not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
+  align-self: center !important;
+}
+
+/* ── 3. Popup footers: 40px pills, Annuler and the action alike ────────── */
+html body :is(.modal, .modal-card, .ia-modal) :is(.dialog-actions, .modal-actions, .ac-modal-foot, .ac-att-modal-foot, .form-actions, .ia-foot) > button:not(.modal-x):not(.ac-timed-delete-btn):not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 7px !important;
+  box-sizing: border-box !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  max-height: 40px !important;
+  margin: 0 !important;
+  padding: 0 18px !important;
+  border-radius: 999px !important;
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+html body :is(.modal, .modal-card, .ia-modal) :is(.dialog-actions, .modal-actions, .ac-modal-foot, .ac-att-modal-foot, .form-actions, .ia-foot) > button:is(.secondary, .ghost):not(:disabled):not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
+  background: var(--ia-soft) !important;
+  color: var(--ia-ink) !important;
+  -webkit-text-fill-color: var(--ia-ink) !important;
+  border: 1px solid var(--ia-line) !important;
+}
+html body :is(.modal, .modal-card, .ia-modal) :is(.dialog-actions, .modal-actions, .ac-modal-foot, .ac-att-modal-foot, .form-actions, .ia-foot) > button:is(.secondary, .ghost):not(:disabled):not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j):hover {
+  background: var(--ia-soft-hover) !important;
+  border-color: var(--ia-muted) !important;
+}
+html body :is(.modal, .modal-card, .ia-modal) :is(.dialog-actions, .modal-actions, .ac-modal-foot, .ac-att-modal-foot, .form-actions, .ia-foot) > button:not(.secondary):not(.ghost):not(.danger):not(.modal-x):not(.ac-timed-delete-btn):not(:disabled):not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
+  background: var(--ia-primary) !important;
+  color: var(--ia-primary-ink) !important;
+  -webkit-text-fill-color: var(--ia-primary-ink) !important;
+  border: 1px solid var(--ia-primary) !important;
+}
+html body :is(.modal, .modal-card, .ia-modal) :is(.dialog-actions, .modal-actions, .ac-modal-foot, .ac-att-modal-foot, .form-actions, .ia-foot) > button:disabled:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
+  background: var(--ia-disabled-bg) !important;
+  color: var(--ia-disabled-ink) !important;
+  -webkit-text-fill-color: var(--ia-disabled-ink) !important;
+  border: 1px solid var(--ia-line) !important;
+  opacity: 1 !important;
+  cursor: not-allowed !important;
+}
+html body :is(.modal, .modal-card, .ia-modal) :is(.dialog-actions, .modal-actions, .ac-modal-foot, .ac-att-modal-foot, .form-actions, .ia-foot):not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
+  align-items: center !important;
+}
+
+/* Confirm dialog (logout, deletions): already pills, same 40px as the others. */
+html body .ac-confirm-foot > button:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
+  box-sizing: border-box !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  padding: 0 18px !important;
+  border-radius: 999px !important;
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+}
+
+/* ── 4. Support form selects: real chevron, same 44px as the inputs ────── */
+html body .dl-support-form select:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  box-sizing: border-box !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  padding: 0 40px 0 12px !important;
+  line-height: 1.2 !important;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  background-size: 16px 16px !important;
+}
+html[data-theme="dark"] body .dl-support-form select:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
+}
+html body .dl-support-form :is(input, select):focus-visible:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
+  outline: 2px solid var(--ia-muted) !important;
+  outline-offset: 1px !important;
+}
+
+/* ── 5. Privacy: inline chip inside running text ───────────────────────── */
+html body .privacy-link-btn:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  box-sizing: border-box !important;
+  height: auto !important;
+  min-height: 0 !important;
+  margin: 0 2px !important;
+  padding: 2px 10px 2px 8px !important;
+  border-radius: 999px !important;
+  font: inherit !important;
+  font-size: 0.92em !important;
+  font-weight: 600 !important;
+  line-height: 1.45 !important;
+  vertical-align: baseline !important;
+  white-space: nowrap !important;
+  background: var(--ia-soft) !important;
+  color: var(--ia-ink) !important;
+  -webkit-text-fill-color: var(--ia-ink) !important;
+  border: 1px solid var(--ia-line) !important;
+  box-shadow: none !important;
+  text-decoration: none !important;
+  transform: none !important;
+  cursor: pointer !important;
+}
+html body .privacy-link-btn:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j):hover {
+  background: var(--ia-soft-hover) !important;
+  border-color: var(--ia-muted) !important;
+}
+html body .privacy-link-btn svg:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
+  width: 13px !important;
+  height: 13px !important;
+  flex: 0 0 auto !important;
+  stroke: currentColor !important;
+}
+
+/* ── 6. Floating page-header actions: one height per row ───────────────── *
+ * The primary call-to-action (« Ajouter un produit », « Pack rapports »…)
+ * was 46px next to 40px neighbours. Keep the established radius, unify the
+ * height (40px, 36px in compact density).
+ */
+html:not(.phone-shell) body .top-page-actions > :is(button, a.btn):not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
+  box-sizing: border-box !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  max-height: 40px !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  border-radius: 12px !important;
+  line-height: 1 !important;
+}
+html:not(.phone-shell) body .top-page-actions > :is(button, a.btn):not(.icon-refresh-btn):not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
+  padding-left: 16px !important;
+  padding-right: 16px !important;
+}
+html[data-ui-density="compact"]:not(.phone-shell) body .top-page-actions > :is(button, a.btn):not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
+  height: 36px !important;
+  min-height: 36px !important;
+  max-height: 36px !important;
+}
+
+/* ── 7. Settings section save bar: « À jour » is a calm pill, not a black
+ *       block. Dirty → dark primary « Enregistrer »; clean → disabled pill. */
+html body .settings-tab-save-bar:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+}
+html body .settings-tab-save-bar > .ac-save-toggle:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
+  height: 36px !important;
+  min-height: 36px !important;
+  max-height: 36px !important;
+  min-width: 112px;
+  margin: 0 !important;
+  border-radius: 999px !important;
+  border: 1px solid var(--ia-primary) !important;
+  background: var(--ia-primary) !important;
+  background-color: var(--ia-primary) !important;
+  opacity: 1 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+html body .settings-tab-save-bar > .ac-save-toggle > span:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
+  color: var(--ia-primary-ink) !important;
+  -webkit-text-fill-color: var(--ia-primary-ink) !important;
+  font-size: 13px !important;
+  font-weight: 650 !important;
+}
+html body .settings-tab-save-bar > .ac-save-toggle:hover:not(:disabled):not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
+  filter: brightness(1.12);
+}
+html body .settings-tab-save-bar > .ac-save-toggle:disabled:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
+  background: var(--ia-disabled-bg) !important;
+  background-color: var(--ia-disabled-bg) !important;
+  border-color: var(--ia-line) !important;
+  cursor: default !important;
+  filter: none !important;
+}
+html body .settings-tab-save-bar > .ac-save-toggle:disabled > span:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
+  color: var(--ia-disabled-ink) !important;
+  -webkit-text-fill-color: var(--ia-disabled-ink) !important;
+}
+
+/* ── 8. Status badges: every state is a filled pill on one line ─────────── *
+ * « Payée » had a fill while « Partiellement payée », « Envoyée » and
+ * « Annulée » were bare text (and the first wrapped onto two lines), so the
+ * same column mixed pills and loose words.
+ */
+html body .content :is(td, .ac-panel, .card) .badge:is(.success, .warning, .danger, .info):not(#grp-g):not(#grp-h):not(#grp-i) {
+  display: inline-flex !important;
+  align-items: center !important;
+  white-space: nowrap !important;
+  line-height: 1.2 !important;
+  border-radius: 999px !important;
+}
+html:not([data-theme="dark"]) body .content .badge.warning:not(#grp-g):not(#grp-h):not(#grp-i) {
+  background: #fef3c7 !important;
+  color: #92400e !important;
+  border: 1px solid #fde68a !important;
+}
+html:not([data-theme="dark"]) body .content .badge.danger:not(#grp-g):not(#grp-h):not(#grp-i) {
+  background: #fee2e2 !important;
+  color: #991b1b !important;
+  border: 1px solid #fecaca !important;
+}
+html:not([data-theme="dark"]) body .content .badge.info:not(#grp-g):not(#grp-h):not(#grp-i) {
+  background: #eef2ff !important;
+  color: #3730a3 !important;
+  border: 1px solid #e0e7ff !important;
+}
+html:not([data-theme="dark"]) body .content .badge.success:not(#grp-g):not(#grp-h):not(#grp-i) {
+  border: 1px solid #e2e8f0 !important;
+}
+html[data-theme="dark"] body .content .badge.info:not(#grp-g):not(#grp-h):not(#grp-i) {
+  background: rgba(129, 140, 248, 0.14) !important;
+  color: #c7d2fe !important;
+  border: 1px solid rgba(129, 140, 248, 0.28) !important;
+}
+
+/* Document numbers (VR-2026-0148, FA-…) never break across lines. */
+html body .content td .ac-number-link:not(#grp-g):not(#grp-h):not(#grp-i) {
+  white-space: nowrap !important;
+}
+
+/* ── 9. Support form: « Envoyer » and « Ouvrir un ticket GitHub » share one
+      height and the pill shape (was 45/47px, pill vs radius 14). ───────── */
+html body .dl-support-actions > .support-cta-btn:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+  height: 46px !important;
+  min-height: 46px !important;
+  margin: 0 !important;
+  padding: 0 22px !important;
+  border-radius: 999px !important;
+  font-size: 14.5px !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+}
+html body .dl-support-actions:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
+  align-items: center !important;
+}

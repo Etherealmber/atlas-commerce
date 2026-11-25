@@ -104,22 +104,22 @@ export default function Home() {
           </div>
           <div className="hm-bento">
             <div className="hm-bento-card rise">
-              <figure className="hm-fx hm-fx-shot hm-fx-stock"><ThemeShot name="site-stock" alt="Assistant « Ajuster le stock » de l’application web" width={880} height={568} /></figure>
+              <figure className="hm-fx hm-fx-shot hm-fx-stock"><ThemeShot name="feature-stock" alt="Catalogue produits de l’application web avec photos, niveaux de stock et seuils (données fictives)" width={1064} height={600} /></figure>
               <h3>Stock en temps réel</h3>
               <p>Consultez l’inventaire, les seuils et les mouvements de vos produits.</p>
             </div>
             <div className="hm-bento-card rise">
-              <figure className="hm-fx hm-fx-shot hm-fx-pos"><ThemeShot name="site-quick-sale" alt="Assistant « Nouvelle vente rapide » de l’application web" width={1120} height={521} /></figure>
+              <figure className="hm-fx hm-fx-shot hm-fx-pos"><ThemeShot name="feature-sales" alt="Liste des tickets de vente rapide avec statuts de règlement (données fictives)" width={1280} height={720} /></figure>
               <h3>Caisse &amp; ventes</h3>
               <p>Ventes comptoir, tickets, règlements partiels et clôture de caisse sans saisie double.</p>
             </div>
             <div className="hm-bento-card rise">
-              <figure className="hm-fx hm-fx-shot hm-fx-invoice"><ThemeShot name="site-invoice" alt="Assistant « Nouvelle facture de vente » de l’application web" width={1120} height={560} /></figure>
+              <figure className="hm-fx hm-fx-shot hm-fx-invoice"><ThemeShot name="feature-invoice" alt="Lignes d’une facture de vente avec prix HT et TTC (données fictives)" width={1280} height={620} /></figure>
               <h3>Facturation PDF</h3>
               <p>Devis, factures et reçus en PDF propres, avec QR de vérification publique.</p>
             </div>
             <div className="hm-bento-card rise">
-              <figure className="hm-fx hm-fx-shot hm-fx-aging"><ThemeShot name="site-widgets" alt="Widgets créances, dettes et santé du stock du tableau de bord" width={832} height={338} /></figure>
+              <figure className="hm-fx hm-fx-shot hm-fx-aging"><ThemeShot name="feature-aging" alt="Rapport de balance âgée des créances clients par tranche d’échéance (données fictives)" width={1280} height={720} /></figure>
               <h3>Créances &amp; relances</h3>
               <p>Balance âgée, clients à relancer et historique de paiement — sans Post-it.</p>
             </div>

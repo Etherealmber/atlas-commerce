@@ -21333,6 +21333,26 @@ html[data-theme='light'] .home-landing, html[data-theme='light'] .download-landi
   .home-landing .hm-showcase { grid-template-columns: minmax(0, 1fr); gap: 20px; }
   .home-landing .hm-phone-shot { max-width: 155px; border-radius: 14px; }
 }
+/* Bigger hero captures: the showcase breaks out of the 1080px text column (up to
+   1440px, centred on the page) and the phone column grows with it. */
+@media (min-width: 1140px) {
+  .home-landing .hm-showcase {
+    --hm-show-w: min(1440px, calc(100vw - 64px));
+    width: var(--hm-show-w);
+    margin-left: calc((100% - var(--hm-show-w)) / 2);
+    grid-template-columns: minmax(0, 1fr) minmax(170px, 22%);
+    gap: 28px;
+  }
+  .home-landing .hm-phone-shot { max-width: 270px; border-radius: 24px; }
+}
+@media (min-width: 621px) and (max-width: 1139px) {
+  .home-landing .hm-showcase { grid-template-columns: minmax(0, 1fr) minmax(150px, 22%); }
+  .home-landing .hm-phone-shot { max-width: 230px; }
+}
+@media (max-width: 620px) {
+  .home-landing .hm-showcase { margin-inline: -8px; padding: 12px; }
+  .home-landing .hm-phone-shot { max-width: 210px; }
+}
 .download-landing .dl-repo-link { color: var(--dl-sub); font-size: 14px; font-weight: 600; text-decoration: underline; text-underline-offset: 4px; padding: 10px 4px; }
 .download-landing .dl-preview-intro .dl-sec-title { line-height: 1.1; }
 @media (max-width: 500px) { .download-landing .dl-preview-phones { grid-template-columns: minmax(0, 1fr); } }
@@ -21869,12 +21889,14 @@ html[data-theme='light'] body .theme-shot > img.theme-shot-img--dark { display: 
 /* Hero: the dashboard capture in a clean rounded frame (no fake window chrome). */
 .home-landing .hm-window--shot .theme-shot-img { border-radius: 14px; }
 /* Bento cards: a real capture cropped to the card visual, anchored top-left. */
-.home-landing .hm-fx.hm-fx-shot { position: relative; display: block; padding: 0; height: 168px; margin: 0; overflow: hidden; }
+.home-landing .hm-fx.hm-fx-shot { position: relative; display: block; padding: 0; height: 184px; margin: 0; overflow: hidden; }
 /* Zoomed in on the top-left of each capture so the text stays legible. */
 .home-landing .hm-fx.hm-fx-shot .theme-shot { width: 100%; height: 100%; overflow: hidden; }
-.home-landing .hm-fx.hm-fx-shot .theme-shot-img { width: 175%; max-width: none; height: auto; }
+.home-landing .hm-fx.hm-fx-shot .theme-shot-img { width: 100%; max-width: none; height: auto; }
+/* Real app captures (public/shots/feature-*): already cropped to the component,
+   shown from the top-left at a readable scale. */
 .home-landing .hm-fx.hm-fx-shot.hm-fx-pos .theme-shot-img,
-.home-landing .hm-fx.hm-fx-shot.hm-fx-invoice .theme-shot-img { width: 200%; }
+.home-landing .hm-fx.hm-fx-shot.hm-fx-invoice .theme-shot-img,
 .home-landing .hm-fx.hm-fx-shot.hm-fx-aging .theme-shot-img { width: 150%; }
 .home-landing .hm-fx.hm-fx-shot.hm-fx-agent .theme-shot-img { width: 100%; margin-top: -80px; }
 @media (max-width: 720px) { .home-landing .hm-fx.hm-fx-shot { height: 150px; } }

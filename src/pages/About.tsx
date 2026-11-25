@@ -214,7 +214,7 @@ function ReportProblemForm() {
         </span>
       </div>
 
-      <div className="ac-about-kind-pills">
+      <div className="ac-dash-period-pills ac-about-kind-pills" role="group" aria-label="Type de signalement">
         {[
           ['bug', 'Bug'],
           ['feedback', 'Idée / amélioration'],

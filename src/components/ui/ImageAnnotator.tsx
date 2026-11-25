@@ -208,7 +208,7 @@ const ImageAnnotator: FC<ImageAnnotatorProps> = ({ src, name, onSave, onClose })
         <div className="ia-foot">
           <span className="ia-hint">{tool === 'pen' ? 'Dessinez directement sur l’image.' : 'Cliquez sur l’image pour placer une note texte.'}</span>
           <button type="button" className="btn secondary" onClick={onClose}>Annuler</button>
-          <button type="button" className="btn secondary" disabled={!dirty} onClick={save}>Enregistrer l’image annotée</button>
+          <button type="button" className="btn" disabled={!dirty} onClick={save}>Enregistrer l’image annotée</button>
         </div>
       </div>
     </div>,

@@ -3,10 +3,13 @@ import {
   AlertTriangle,
   CalendarCheck,
   ClipboardCopy,
+  Download,
+  FileSpreadsheet,
   FileText,
   Layers,
   Lock,
   PackageCheck,
+  Printer,
   Receipt,
 } from 'lucide-react';
 import { DateRangePicker } from '../components/DatePicker';
@@ -286,12 +289,14 @@ export default function Reports() {
             <h2>Balance âgée — créances clients{aging?.as_of ? ` au ${aging.as_of}` : ''}</h2>
             <span className="ac-panel-sub">Répartition des impayés par ancienneté d’échéance</span>
           </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div className="ac-head-actions">
             <button type="button" className="secondary" onClick={() => openHtmlReport('/api/reports/aging.html')}>
+              <Printer size={15} strokeWidth={2.2} aria-hidden="true" />
               Imprimer / PDF
             </button>
             <RunActionButton
-              size="sm"
+              size="xs"
+              icon={FileSpreadsheet}
               idleLabel="Excel / CSV"
               doneLabel="Téléchargé"
               steps={EXPORT_REPORT_STEPS}
@@ -365,7 +370,7 @@ export default function Reports() {
                 Collectée : {fmt(tva?.total_sales_tva ?? 0)} · Avoirs : {fmt(tva?.total_credits_tva ?? 0)} · Net : {fmt(tva?.net_tva ?? 0)} MAD
               </span>
             </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <div className="ac-head-actions">
               <button
                 type="button"
                 className="secondary"
@@ -377,10 +382,12 @@ export default function Reports() {
                   openHtmlReport(`/api/reports/tva.html${s ? `?${s}` : ''}`);
                 }}
               >
+                <Printer size={15} strokeWidth={2.2} aria-hidden="true" />
                 Imprimer / PDF
               </button>
               <RunActionButton
-                size="sm"
+                size="xs"
+                icon={FileSpreadsheet}
                 idleLabel="CSV"
                 doneLabel="Téléchargé"
                 steps={EXPORT_REPORT_STEPS}
@@ -602,7 +609,7 @@ export default function Reports() {
             />
           </div>
           {isOwner ? (
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <div className="ac-head-actions">
               <button type="button" onClick={() => void savePeriod(false)}>
                 <CalendarCheck size={14} aria-hidden="true" />
                 Enregistrer
@@ -632,7 +639,7 @@ export default function Reports() {
           </p>
           {isOwner ? (
             <>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+              <div className="ac-head-actions" style={{ marginBottom: 10 }}>
                 <button
                   type="button"
                   className="secondary"
@@ -667,6 +674,7 @@ export default function Reports() {
                     }
                   }}
                 >
+                  <Download size={15} strokeWidth={2.2} aria-hidden="true" />
                   Télécharger l’archive FEC (.zip)
                 </button>
               </div>

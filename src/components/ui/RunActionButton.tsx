@@ -82,7 +82,10 @@ type RunActionButtonProps = {
   /** Auto-advance step interval while waiting (ms) */
   stepMs?: number;
   className?: string;
-  size?: 'sm' | 'md';
+  /** xs = 36px, sits next to the standard 36px header pills. */
+  size?: 'xs' | 'sm' | 'md';
+  /** Idle glyph (defaults to Zap). */
+  icon?: ComponentType<{ size?: number; strokeWidth?: number }>;
 };
 
 export function RunActionButton({
@@ -93,17 +96,19 @@ export function RunActionButton({
   stepMs = 900,
   className = '',
   size = 'sm',
+  icon: IdleIcon = Zap,
 }: RunActionButtonProps) {
   const [status, setStatus] = useState<'idle' | 'running' | 'done'>('idle');
   const [currentStep, setCurrentStep] = useState(0);
 
-  const h = size === 'sm' ? 40 : 52;
-  const fontSize = size === 'sm' ? 13 : 16;
-  const iconSz = size === 'sm' ? 16 : 22;
+  const h = size === 'xs' ? 36 : size === 'sm' ? 40 : 52;
+  const fontSize = size === 'md' ? 16 : 13;
+  const iconSz = size === 'xs' ? 15 : size === 'sm' ? 16 : 22;
   const widths = {
-    idle: size === 'sm' ? 132 : 180,
-    running: size === 'sm' ? 280 : 340,
-    done: size === 'sm' ? 148 : 200,
+    // xs hugs its label so it lines up with neighbouring pills.
+    idle: size === 'xs' ? Math.round(52 + idleLabel.length * 7.4) : size === 'sm' ? 132 : 180,
+    running: size === 'md' ? 340 : 280,
+    done: size === 'xs' ? 140 : size === 'sm' ? 148 : 200,
   };
 
   const reset = () => {
@@ -193,7 +198,7 @@ export function RunActionButton({
                 boxShadow: 'none',
               }}
             >
-              <Zap size={iconSz} strokeWidth={2.2} />
+              <IdleIcon size={iconSz} strokeWidth={2.2} />
               <AnimatedText text={idleLabel} className="" />
             </motion.button>
           )}
