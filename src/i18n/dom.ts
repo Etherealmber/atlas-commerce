@@ -47,8 +47,10 @@ function hasLetters(s: string) {
 
 /** Localise currency labels in presentation text only; API values stay ISO MAD. */
 function translateDisplay(src: string, lang: Lang) {
-  const out = translate(src, lang);
-  if (lang === 'ar') return out.replace(/\b(?:MAD|DH)\b/g, 'درهم').replace(/\bm²/g, 'م²');
+  const out = translate(src, lang).replace(/CDN1/g, 'Atlas API');
+  if (lang === 'ar') return out.replace(/\b(?:MAD|DH)\b/g, 'درهم').replace(/\bm²/g, 'م²')
+    .replace(/\bWindows\b/g, 'ويندوز').replace(/\bmacOS\b/gi, 'ماك أو إس').replace(/\bLinux\b/g, 'لينكس').replace(/\bAndroid\b/g, 'أندرويد')
+    .replace(/([-+]?\d[\d\u00a0\u202f ,.]*\d|[-+]?\d)\s*(درهم|م²)/g, '\u2067$1 $2\u2069');
   if (lang === 'en') return out.replace(/\bDH\b/g, 'MAD');
   return out.replace(/\bMAD\b/g, 'DH');
 }

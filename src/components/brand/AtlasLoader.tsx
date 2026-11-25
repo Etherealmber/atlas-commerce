@@ -1,3 +1,4 @@
+import { useLang } from '../../i18n/core';
 import type { CSSProperties } from 'react';
 import { AtlasMark, AtlasWordmark } from './AtlasMark';
 import './atlas-brand.css';
@@ -18,6 +19,7 @@ type Props = {
 };
 
 export function AtlasLoader({ mode = 'inline', label = 'Chargement…', size = 20, className = '' }: Props) {
+  const lang = useLang();
   if (mode === 'inline') {
     return (
       <span className={`atlas-loader atlas-loader--inline ${className}`.trim()} {...(label ? { role: 'status', 'aria-label': label } : { 'aria-hidden': true })} style={{ '--al-size': `${size}px` } as CSSProperties}>
@@ -29,7 +31,7 @@ export function AtlasLoader({ mode = 'inline', label = 'Chargement…', size = 2
     <div className={`atlas-loader atlas-loader--splash ${className}`.trim()} role="status" aria-live="polite">
       <div className="atlas-loader-lockup">
         <AtlasMark />
-        <AtlasWordmark className="atlas-loader-word" />
+        {lang === 'ar' ? <span className="atlas-loader-word atlas-brand-word-ar" lang="ar" dir="rtl">أطلس</span> : <AtlasWordmark className="atlas-loader-word" />}
       </div>
       <span className="atlas-loader-label">{label}</span>
     </div>

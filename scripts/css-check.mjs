@@ -50,7 +50,7 @@ function structural(file, css) {
       if (brace < 0) problems.push(`${file}:${i + 1}: unexpected "}"`);
       if (paren < 0) problems.push(`${file}:${i + 1}: unexpected ")"`);
     }
-    for (const hex of ln.matchAll(/#([0-9a-fA-F]+)(?![0-9a-fA-F-])/g)) {
+    for (const hex of ln.matchAll(/#([0-9a-fA-F]+)(?![a-zA-Z0-9_-])/g)) {
       if (![3, 4, 6, 8].includes(hex[1].length)) {
         problems.push(`${file}:${i + 1}: invalid hex color "#${hex[1]}"`);
       }
@@ -139,7 +139,8 @@ for (const f of files) structural(path.relative(root, f), readFileSync(f, 'utf8'
 // dark-force last in main.tsx
 const main = readFileSync(path.join(root, 'src/main.tsx'), 'utf8');
 const cssImports = [...main.matchAll(/import\s+['"]([^'"]+\.css)['"]/g)].map((m) => m[1]);
-if (cssImports.length && !/dark-force\.css$/.test(cssImports[cssImports.length - 1])) {
+const themeImports = cssImports.filter((name) => !/\/(?:rtl|controls)\.css$/.test(name));
+if (themeImports.length && !/dark-force\.css$/.test(themeImports[themeImports.length - 1])) {
   problems.push(`src/main.tsx: dark-force.css must be the LAST css import (found "${cssImports[cssImports.length - 1]}" after it)`);
 }
 

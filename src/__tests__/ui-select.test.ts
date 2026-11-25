@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createElement as h, act } from 'react';
 import { createRoot } from 'react-dom/client';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import Select, { collectOptions } from '../components/ui/Select';
 
@@ -52,9 +52,10 @@ describe('<Select> (custom listbox over a native select)', () => {
   it('every page uses <Select> — no raw <select> left in TSX', () => {
     const offenders: string[] = [];
     const walk = (dir: string) => {
-      for (const name of readdirSync(dir)) {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const name = entry.name;
         const p = join(dir, name);
-        if (statSync(p).isDirectory()) { if (name !== '__tests__') walk(p); continue; }
+        if (entry.isDirectory()) { if (name !== '__tests__') walk(p); continue; }
         if (!p.endsWith('.tsx') || p.endsWith(join('ui', 'Select.tsx'))) continue;
         if (/<select[\s>]/.test(readFileSync(p, 'utf8'))) offenders.push(p);
       }

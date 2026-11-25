@@ -408,7 +408,7 @@ export default function Support() {
               <li>
                 <b>Dépôt officiel</b>
                 <span>
-                  <a href={GITHUB_REPO_URL} target="_blank" rel="noopener noreferrer">{GITHUB_REPO} ↗</a>
+                  <a href={GITHUB_REPO_URL} target="_blank" rel="noopener noreferrer">Code source ↗</a>
                 </span>
               </li>
             </ul>
@@ -498,7 +498,7 @@ export default function Support() {
                       <p>
                         Suivi GitHub disponible :{' '}
                         <a href={submitOk.issueUrl} target="_blank" rel="noopener noreferrer">
-                          Ouvrir le ticket pré-rempli sur {GITHUB_REPO} ↗
+                          Ouvrir le ticket pré-rempli ↗
                         </a>
                       </p>
                     ) : (

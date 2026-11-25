@@ -39,6 +39,7 @@ import {
 } from '../version';
 import { api } from '../api';
 import { isLoggedIn } from '../auth';
+import { useLang } from '../i18n/core';
 
 /** « 25 novembre 2026 » from APP_BUILD_DATE (noon UTC so no timezone shifts the day). */
 const RELEASE_DATE_LABEL = (() => {
@@ -259,6 +260,7 @@ function ReportProblemForm() {
 }
 
 export default function About() {
+  const lang = useLang();
   const [year] = useState(() => new Date().getFullYear());
   const [user, setUser] = useState<GhUser | null>(null);
   const [repos, setRepos] = useState<GhRepo[]>([]);
@@ -365,7 +367,7 @@ export default function About() {
           </p>
           <h1>{APP_NAME}</h1>
           <p className="ac-dash-lead">
-            {APP_TAGLINE}. {APP_DESCRIPTION}
+            <span>{APP_TAGLINE}</span>. <span>{APP_DESCRIPTION}</span>
           </p>
           <div className="ac-about-chips" aria-label="Technologies">
             {['Cloudflare Workers', 'D1 SQLite', 'R2 Storage', 'Durable Objects', 'WebAuthn'].map((tech) => (
@@ -388,7 +390,7 @@ export default function About() {
         <article className="ac-metric">
           <span className="ac-metric-label">Version active</span>
           <strong className="ac-metric-val">v{APP_VERSION}</strong>
-          <span className="ac-metric-meta">Publiée le {RELEASE_DATE_LABEL}</span>
+          <span className="ac-metric-meta">{lang === 'ar' ? `نُشر في ${new Date(`${APP_BUILD_DATE}T12:00:00Z`).toLocaleDateString('ar-MA-u-nu-latn', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })}` : lang === 'en' ? `Published ${new Date(`${APP_BUILD_DATE}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })}` : `Publiée le ${RELEASE_DATE_LABEL}`}</span>
         </article>
         <article className="ac-metric">
           <span className="ac-metric-label">Modules métier</span>

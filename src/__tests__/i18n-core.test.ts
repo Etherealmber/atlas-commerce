@@ -66,9 +66,9 @@ describe('i18n core', () => {
     retranslateAll(); await tick();
     expect(document.querySelector('.amount')!.textContent).toBe('1 260 DH');
     setLang('ar'); retranslateAll(); await tick();
-    expect(document.querySelector('.amount')!.textContent).toBe('1 260 درهم');
-    expect(document.querySelector('.dh')!.textContent).toBe('42 درهم');
-    expect(document.querySelector('.area')!.textContent).toBe('42 م²');
+    expect(document.querySelector('.amount')!.textContent).toBe('\u20671 260 درهم\u2069');
+    expect(document.querySelector('.dh')!.textContent).toBe('\u206742 درهم\u2069');
+    expect(document.querySelector('.area')!.textContent).toBe('\u206742 م²\u2069');
     expect(document.querySelector('[data-user-data]')!.textContent).toBe('Model MAD 12');
     setLang('en'); await tick();
     expect(document.querySelector('.amount')!.textContent).toBe('1 260 MAD');

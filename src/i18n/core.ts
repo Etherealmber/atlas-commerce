@@ -23,7 +23,7 @@ export const LANG_EVENT = 'atlas-language';
 
 export type Dict = Record<string, string>;
 const dicts: Partial<Record<Lang, Dict>> = {};
-const patternCache: Partial<Record<Lang, { re: RegExp; out: string; keys: string[] }[]>> = {};
+const patternCache = new Map<Lang, { re: RegExp; out: string; keys: string[] }[]>();
 
 export function isLang(v: unknown): v is Lang {
   return v === 'fr' || v === 'en' || v === 'ar';
@@ -107,15 +107,15 @@ export function useLang(): Lang {
 
 export function registerDict(lang: Lang, dict: Dict) {
   dicts[lang] = { ...dicts[lang], ...dict };
-  delete patternCache[lang];
-  delete memo[lang];
+  patternCache.delete(lang);
+  memo.delete(lang);
 }
 
 const NUM_RE = /[-+]?\d[\d\u202f\u00a0 .,]*\d%?|[-+]?\d%?/g;
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 function patternsFor(lang: Lang) {
-  const cached = patternCache[lang];
+  const cached = patternCache.get(lang);
   if (cached) return cached;
   const out: { re: RegExp; out: string; keys: string[] }[] = [];
   for (const [src, dst] of Object.entries(dicts[lang] || {})) {
@@ -129,7 +129,7 @@ function patternsFor(lang: Lang) {
     }).join('');
     out.push({ re: new RegExp(`^${body}$`), out: dst, keys });
   }
-  patternCache[lang] = out;
+  patternCache.set(lang, out);
   return out;
 }
 
@@ -140,13 +140,14 @@ const fill = (tpl: string, vars?: Record<string, string | number>) =>
  * Translate a French UI string into `lang` (default: current). Returns the
  * input unchanged when no translation exists, so French always works.
  */
-const memo: Partial<Record<Lang, Map<string, string>>> = {};
+const memo = new Map<Lang, Map<string, string>>();
 
 export function translate(text: string, lang: Lang = current): string {
   if (lang === 'fr' || !text) return text;
   const dict = dicts[lang];
   if (!dict) return text;
-  const cache = (memo[lang] ||= new Map());
+  let cache = memo.get(lang);
+  if (!cache) { cache = new Map(); memo.set(lang, cache); }
   const cached = cache.get(text);
   if (cached !== undefined) return cached;
   const out = translateUncached(text, lang, dict);
@@ -176,7 +177,7 @@ function translateUncached(text: string, lang: Lang, dict: Dict): string {
     const m = core.match(p.re);
     if (!m) continue;
     // Each placeholder name keeps a queue of captured values (several {n} allowed).
-    const queues: Record<string, string[]> = {};
+    const queues: Record<string, string[]> = Object.create(null);
     p.keys.forEach((k, i) => {
       const v = m[i + 1];
       (queues[k] ||= []).push(k === 'n' ? v : translate(v, lang));
