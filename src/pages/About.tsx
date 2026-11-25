@@ -492,7 +492,7 @@ export default function About() {
           </div>
           <span className="ac-status-pill">
             <Boxes size={13} strokeWidth={2} aria-hidden="true" />
-            {FEATURE_TILES.length} capacités
+            {`${FEATURE_TILES.length} capacités`}
           </span>
         </div>
         <div className="ac-about-features-grid">

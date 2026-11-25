@@ -692,7 +692,7 @@ export default function Products() {
 
       <div className={`ac-panel ac-products-table-panel${catalogView === 'grid' ? ' ac-products-table-panel--grid' : ''}`}>
         <div className="ac-table-pager-bar">
-          <span className="ac-table-pager-meta">{filtered.length} élément{filtered.length === 1 ? '' : 's'} · 20 par page</span>
+          <span className="ac-table-pager-meta">{`${filtered.length} élément${filtered.length === 1 ? '' : 's'} · 20 par page`}</span>
           <div className="ac-table-pager-controls">
             <div className="pc-view" role="group" aria-label="Affichage des produits">
               <button type="button" className="ac-seg-btn pc-view-btn" aria-label="Affichage en grille" title="Affichage en grille" aria-pressed={catalogView === 'grid'} onClick={() => changeCatalogView('grid')}>

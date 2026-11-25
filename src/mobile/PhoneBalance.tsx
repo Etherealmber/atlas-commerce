@@ -10,6 +10,7 @@ import PhoneSkeleton from './PhoneSkeleton';
 import { financeMonths } from './phoneFinancePeriods';
 import type { FinanceBucket, FinanceMonthly, FinancePeriod, FinanceRow, FinanceStatement } from './financeTypes';
 import Select from '../components/ui/Select';
+import { intlLocale, useLang } from '../i18n/core';
 
 type EntryKind = 'expense' | 'income' | 'owner_contrib' | 'owner_draw';
 type Section = 'movements' | 'accounts' | 'reports';
@@ -58,7 +59,7 @@ function EntryDialog({ initialKind, saving, error, onClose, onSave }: { initialK
     <h2 id="pb-entry-title">Nouvelle écriture — {entryLabels[kind]}</h2><div className="pb-entry-body">
       <p className="pb-entry-step">{step === 0 ? 'Étape 1/2 · Type et libellé' : 'Étape 2/2 · Montant et règlement'}</p>
       {step === 0 ? <><label>Type<Select name="kind" value={kind} onChange={e => { const next = e.target.value as EntryKind; setKind(next); setCategory(entryCategories[next][0]); }}>{(Object.keys(entryLabels) as EntryKind[]).map(k => <option key={k} value={k}>{entryLabels[k]}</option>)}</Select></label>
-        <label>Catégorie<Select name="category" value={category} onChange={e => setCategory(e.target.value)}>{entryCategories[kind].map(c => <option key={c}>{c}</option>)}</Select></label>
+        <label>Catégorie<Select name="category" value={category} onChange={e => setCategory(e.target.value)}>{entryCategories[kind].map(c => <option key={c} value={c}>{c}</option>)}</Select></label>
         <label>Libellé *<input name="description" value={description} maxLength={255} placeholder="Ex. Loyer entrepôt octobre" onChange={e => setDescription(e.target.value)} /></label>
         {!description.trim() && <p className="pb-entry-help">La description est obligatoire.</p>}</> : <>
         <label>Montant *<input name="amount" type="text" inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} /></label>
@@ -72,6 +73,7 @@ function EntryDialog({ initialKind, saving, error, onClose, onSave }: { initialK
 }
 
 export default function PhoneBalance() {
+  const lang = useLang();
   const [period, setPeriod] = useState('');
   const [monthChoices, setMonthChoices] = useState<{ value: string; label: string }[]>([]);
   const [finance, setFinance] = useState<FinanceMonthly | null>(null);
@@ -146,7 +148,7 @@ export default function PhoneBalance() {
   return <div className="pb-page">
     <p className="pb-subtitle">Trésorerie · créances · mouvements</p>
     <div className="pb-period"><label><span className="pb-sr">Choisir un mois</span><Select aria-label="Choisir un mois" value={period || finance?.period || ''} disabled={!finance && !monthChoices.length} onChange={(e) => setPeriod(e.target.value)}>
-      {!finance && !period && <option value="">Mois</option>}{monthChoices.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+      {!finance && !period && <option value="">Mois</option>}{monthChoices.map((m) => <option key={m.value} value={m.value}>{lang === 'fr' ? m.label : new Date(`${m.value}-01T12:00:00`).toLocaleDateString(intlLocale(lang), { month: 'long', year: 'numeric' })}</option>)}
     </Select></label><button className="pb-refresh theme-toggle" type="button" aria-label="Actualiser les soldes" disabled={loading} onClick={refresh}><RefreshCw size={19} /></button></div>
     <div className="pb-actions" aria-label="Nouvelle écriture">{(Object.keys(entryLabels) as EntryKind[]).map((kind) => { const Icon = kind === 'expense' ? Plus : kind === 'income' ? CircleDollarSign : HandCoins; return <button className="theme-toggle" type="button" key={kind} onClick={() => { setEntryError(''); setEntry(kind); }}><Icon size={18} aria-hidden="true" /><span>{entryLabels[kind]}</span></button>; })}</div>
     <div className="pb-tabs" role="tablist" aria-label="Sections balance">{([['movements', 'Mouvements'], ['accounts', 'Comptes'], ['reports', 'Rapports']] as const).map(([id, label]) => <button className="theme-toggle" key={id} role="tab" type="button" aria-selected={section === id} tabIndex={section === id ? 0 : -1} onClick={() => setSection(id)} onKeyDown={(event) => {

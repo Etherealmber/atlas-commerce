@@ -89,6 +89,18 @@ describe('i18n core', () => {
     expect(field.placeholder).toContain('Décrivez');
   });
 
+  it('translates screenshot labels while keeping option values unchanged', async () => {
+    document.body.innerHTML = '<p>Votre espace de gestion natif pour Windows, macOS et Linux — caisse, stock et facturation au comptoir.</p><select><option value="Fournitures de bureau">Fournitures de bureau</option></select><button>Téléchargements</button>';
+    setLang('ar'); retranslateAll(); await tick();
+    expect(document.querySelector('p')!.textContent).toContain('مساحة إدارة');
+    expect(document.querySelector('option')!.textContent).toBe('لوازم مكتبية');
+    expect(document.querySelector('option')!.value).toBe('Fournitures de bureau');
+    expect(document.querySelector('button')!.textContent).toBe('التنزيلات');
+    setLang('fr'); await tick();
+    expect(document.querySelector('option')!.textContent).toBe('Fournitures de bureau');
+    expect(document.querySelector('option')!.value).toBe('Fournitures de bureau');
+  });
+
   it('accepts a language pushed by the native Android shell', () => {
     (window as unknown as { atlasSetLanguage: (l: string) => void }).atlasSetLanguage('en');
     expect(getLang()).toBe('en');

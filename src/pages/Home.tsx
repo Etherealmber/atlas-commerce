@@ -66,7 +66,7 @@ export default function Home() {
       <main className="hm-main" id="contenu">
         {/* ---------------- Hero ---------------- */}
         <section className="hm-hero">
-          <Link className="hm-eyebrow hm-release-link" to="/whats-new"><AtlasLockup markOnly height={15} label="" className="hm-eyebrow-mark" />Atlas Commerce · {DISPLAY_VERSION} <span aria-hidden="true">↗</span></Link>
+          <Link className="hm-eyebrow hm-release-link" to="/whats-new"><AtlasLockup markOnly height={15} label="" className="hm-eyebrow-mark" /><span>Atlas Commerce</span> · {DISPLAY_VERSION} <span aria-hidden="true">↗</span></Link>
           <div className="hm-hero-copy">
           <h1>
             <span className="hm-headline-first">Votre commerce,</span>{' '}
