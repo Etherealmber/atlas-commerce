@@ -156,3 +156,14 @@ html body .ac-login-lang > button[aria-pressed="true"]:not(#lang-g):not(#lang-h)
   background: var(--ac-ink, #0f172a) !important;
   color: var(--ac-paper, #fff) !important;
 }
+/* The dock action slot is a grid item, not an absolutely positioned floater. */
+@media (min-width: 1500px) {
+  html[dir="rtl"] body .ac-desktop-top-row > .desktop-catalog-actions-slot:not(#rtl-g):not(#rtl-h):not(#rtl-i) {
+    left: auto !important; right: auto !important;
+  }
+}
+/* The agent slides off the left edge in RTL (not back into the viewport). */
+html[dir="rtl"] body .atlas-agent-panel:not(.open):not(#rtl-g):not(#rtl-h) {
+  transform: translateX(-100%) !important;
+}
+html[dir="rtl"] body .atlas-agent-panel .atlas-agent-resize { left: auto; right: 0; }

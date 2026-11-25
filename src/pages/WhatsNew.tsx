@@ -64,6 +64,8 @@ export const RELEASES: Release[] = [
       { id: '093n23', platforms: ['web'], text: 'Listes déroulantes redessinées : plus de libellé coupé (« Toutes catégories »), recherche dans les longues listes, thème sombre et clavier pris en charge.' },
       { id: '093n24', platforms: ['web'], text: 'Cases à cocher redessinées dans toute l’application, y compris « Se souvenir de moi » à la connexion sur ordinateur et mobile.' },
       { id: '093n25', platforms: ['web', 'android'], text: 'Langue sur mobile : le réglage « Langue » ouvre désormais le vrai choix français / arabe / anglais.' },
+      { id: '093n26', platforms: ['web', 'server'], text: 'Bons de livraison imprimables depuis les factures et les ventes rapides, sans prix et avec signatures.' },
+      { id: '093n27', platforms: ['web'], text: 'Accueil mobile : graphiques des mouvements de stock et de la trésorerie, et indicateurs plus compacts.' },
     ] }, { kind: 'improvements', items: [
       { id: '093i1', platforms: ['web'], text: 'Navigation entre les pages réécrite sur toutes les listes (Produits, Factures, Devis, Reçus, Achats, Clients, Fournisseurs, Employés, Pointage, Balance, Remboursements, Vente rapide, Boîte d’actions et Journal d’audit) : numéros de page avec points de suspension, page courante animée, navigation au clavier (flèches, Début, Fin) et rendu soigné en thème clair comme en sombre.' },
       { id: '093i2', platforms: ['web'], text: 'Tableau de bord : « Voir la balance », « Voir la boîte », « Voir le catalogue » et « Ouvrir » deviennent de vrais boutons arrondis avec flèche animée au lieu de liens soulignés.' },

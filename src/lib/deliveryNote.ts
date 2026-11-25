@@ -30,12 +30,15 @@ export async function openDeliveryNote(invoiceId: number, reserved?: Window | nu
   try {
     const r: any = await api.createDeliveryNote({ invoice_id: invoiceId });
     const dn = r?.data || {};
+    if (!dn.id) throw new Error('Bon de livraison créé sans identifiant. Réessayez depuis la facture.');
     const url = deliveryNotePrintUrl(dn.id);
     if (tab && !tab.closed) {
       try { tab.opener = null; } catch { /* ignore */ }
       tab.location.href = url;
     } else {
-      window.open(url, '_blank', 'noopener,noreferrer');
+      const opened = window.open(url, '_blank');
+      if (!opened) throw new Error('Autorisez les fenêtres contextuelles pour ouvrir le bon de livraison, puis réessayez.');
+      try { opened.opener = null; } catch { /* ignore */ }
     }
     return { number: String(dn.number || ''), existing: Boolean(r?.existing), message: String(r?.message || `Bon de livraison ${dn.number || ''} prêt.`) };
   } catch (e) {

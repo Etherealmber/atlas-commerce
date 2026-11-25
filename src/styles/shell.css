@@ -4063,3 +4063,35 @@ html[data-theme="dark"] :is(.ac-apilog-status--warn, .ac-apilog-method--put, .ac
 html[data-theme="dark"] :is(.ac-apilog-status--danger, .ac-apilog-method--delete, .ac-explain-risk--danger) { background: rgba(239, 68, 68, .16); color: #fca5a5; }
 .ac-apilog-actions { text-align: end; white-space: nowrap; }
 .ac-apilog-actions .ac-explain-btn { margin-top: 0; }
+
+/* Invoice detail — DGI / UBL tools folded away so the invoice itself
+ * (client, totals, lines) is the first thing on screen. */
+.inv-advanced { margin-bottom: 16px; padding: 0 !important; overflow: hidden; }
+.inv-advanced > summary {
+  list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 18px; min-height: 52px;
+}
+.inv-advanced > summary::-webkit-details-marker { display: none; }
+.inv-advanced > summary span { display: grid; gap: 2px; }
+.inv-advanced > summary small { color: var(--muted, #64748b); font-size: 12px; }
+.inv-advanced > summary::after {
+  content: ''; flex: none; width: 9px; height: 9px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+  transform: rotate(45deg); opacity: .55; transition: transform .18s ease; margin-inline-end: 4px;
+}
+.inv-advanced[open] > summary::after { transform: rotate(-135deg); }
+.inv-advanced-body { display: grid; gap: 12px; padding: 0 18px 18px; }
+html body .inv-advanced-body > .card:not(#iv-g):not(#iv-h):not(#iv-i) {
+  margin: 0 !important; box-shadow: none !important; border: 1px solid var(--line, #e5e0d6) !important; border-radius: 12px !important;
+}
+
+/* Invoice pages use the same role-gated ERP components as desktop. */
+.phone-invoice-page { padding: max(16px, env(safe-area-inset-top)) 14px max(24px, env(safe-area-inset-bottom)); min-width: 0; }
+.phone-invoice-back { display: inline-flex; padding: 8px 0; margin-bottom: 10px; color: inherit; font-weight: 600; }
+.phone-invoice-page .page-header, .phone-invoice-page .dock-page-actions { display: flex; flex-wrap: wrap; gap: 8px; position: static; max-width: 100%; }
+.phone-invoice-page .card, .phone-invoice-page .ac-panel { min-width: 0; max-width: 100%; }
+.phone-invoice-page :is(.ac-products-table-panel, .table-wrap, .table-responsive) { overflow-x: auto; }
+.phone-invoice-page table { min-width: 680px; }
+.phone-invoice-page :is(.grid-2, .grid-3, .grid-4) { grid-template-columns: minmax(0, 1fr); }
+.phone-invoice-page .inv-advanced-body { min-width: 0; overflow-x: auto; }
+.ph-restricted { margin: 24px 16px; padding: 24px; border: 1px solid var(--ac-line, #ddd); border-radius: 18px; background: var(--ac-paper, #fff); }
+.phone-invoice-page > h1 { margin: 0 0 16px; font-size: 1.4rem; }

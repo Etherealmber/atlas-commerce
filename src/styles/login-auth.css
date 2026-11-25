@@ -932,3 +932,11 @@ html.atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone .a
   flex-shrink: 0 !important;
 }
 html.atlas-login-page body .atlas-login.atlas-login--auth7 #cf-turnstile { scroll-margin: 96px; }
+
+/* Phone hero: the lockup glides in; the sun then keeps breathing (wave). */
+@media (prefers-reduced-motion: no-preference) {
+  html.atlas-login-page body .atlas-login--phone .atlas-login-phone-hero .atlas-lockup.atlas-login-phone-lockup {
+    animation: atlas-login-hero-in 520ms cubic-bezier(.2, .8, .2, 1) both;
+  }
+}
+@keyframes atlas-login-hero-in { from { opacity: 0; transform: translateY(-8px) scale(.96); } to { opacity: 1; transform: none; } }

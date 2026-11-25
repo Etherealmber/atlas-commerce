@@ -1598,6 +1598,8 @@ function PhoneShell() {
             <Route path="/balance" element={canOpenPhoneBalance(role) ? <Navigate to="/m/balance" replace /> : <PhonePcOnlyPage />} />
             <Route path="/employees" element={canOpenPhoneEmployees(role) ? <Navigate to="/m/employees" replace /> : <PhonePcOnlyPage />} />
             <Route path="/settings" element={<Navigate to="/m/settings" replace />} />
+            <Route path="/invoices" element={<RoleGate allow={canOfficeWork()}><div className="phone-invoice-page"><Link className="phone-invoice-back" to="/m">← Accueil mobile</Link><h1>Factures</h1><Invoices /></div></RoleGate>} />
+            <Route path="/invoices/:id" element={<RoleGate allow={canOfficeWork()}><div className="phone-invoice-page"><Link className="phone-invoice-back" to="/invoices">← Factures</Link><h1>Détail facture</h1><InvoiceDetail /></div></RoleGate>} />
             {/* Other desktop routes remain available in the PC shell. */}
             <Route path="/*" element={<PhonePcOnlyPage />} />
           </Routes>
