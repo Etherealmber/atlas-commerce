@@ -344,7 +344,8 @@ export default function PhoneApp() {
     <div data-phone-scale={phoneScale} className={`phone-root${scanDialogOpen ? ' phone-root--dialog-open' : ''}${hasDock ? '' : ' phone-root--no-dock'}${animations ? '' : ' phone-root--no-motion'}${compact ? ' phone-root--compact' : ''}`}>
       <OfflineBanner />
       {pathname !== '/m/agent' && <header className={`phone-topbar${topCollapsed ? ' is-collapsed' : ''}`}>
-        {showBack && <button type="button" className="ph-top-back" aria-label="Retour" onClick={() => navigate(backTarget)}><ArrowLeft size={21} /></button>}
+        {/* Minimised bar = title pill only: no back button (tap the pill to expand, then go back). */}
+        {showBack && !topCollapsed && <button type="button" className="ph-top-back" aria-label="Retour" onClick={() => navigate(backTarget)}><ArrowLeft size={21} /></button>}
         {topCollapsed ? <button type="button" className="ph-top-expand" aria-label={`Développer la barre : ${tabTitleFor(pathname)}`} onClick={() => setTopCollapsed(false)}>{tabTitleFor(pathname)}</button> : <>
         <div className="pt-titles">
           <span className="pt-title">{tabTitleFor(location.pathname)}</span>

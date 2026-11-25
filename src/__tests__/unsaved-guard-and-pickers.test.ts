@@ -190,3 +190,11 @@ describe('mobile web gets the same pickers, wizard steps and sheet footers', () 
     expect(read('src/mobile/PhoneProfile.tsx')).toContain('className="is-danger"');
   });
 });
+
+describe('mobile floating top bar', () => {
+  it('shows no back button while minimised (title pill only)', () => {
+    const src = read('src/mobile/PhoneApp.tsx');
+    expect(src).toContain('{showBack && !topCollapsed && <button type="button" className="ph-top-back"');
+    expect(src).not.toMatch(/\{showBack && <button type="button" className="ph-top-back"/);
+  });
+});
