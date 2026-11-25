@@ -22,7 +22,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { APP_VERSION } from '../version';
 import { createPortal } from 'react-dom';
 import { api, BASE } from '../api';
@@ -35,7 +35,8 @@ import NumberField from '../components/NumberField';
 import { useUi } from '../components/AppDialogs';
 import { friendlyError, validateWrPrefix } from '../lib/errors';
 import { validateSettingsCompany, firstError } from '../lib/formValidate';
-import { getDensity, getUiScale, subscribeUiPrefs, type Density, type UiScale } from '../lib/density';
+import { getDensity, getUiScale, setDensity, subscribeUiPrefs, type Density, type UiScale } from '../lib/density';
+import { restartOnboarding } from '../lib/onboarding';
 import { startAtlasLoading, setAtlasLoading, doneAtlasLoading } from '../components/AtlasLoadingBar';
 import { VALUATION_METHOD_OPTIONS } from '../lib/labels';
 import IntegrationsPanel from '../components/IntegrationsPanel';
@@ -50,11 +51,12 @@ import { resetWelcome } from '../lib/welcome';
 import DbMigrationPanel from '../components/DbMigrationPanel';
 import AgentKnowledgePanel from '../components/settings/AgentKnowledgePanel';
 export default function Settings() {
+  const navigate = useNavigate();
   // v0.7.6 — préférence « page d'ouverture » (localStorage, par appareil)
   const [startPagePref, setStartPagePref] = useState<string>(() => getStartPage());
   const [startPageSaved, setStartPageSaved] = useState(false);
 
-  const [, setUiDensity] = useState<Density>(() => getDensity());
+  const [uiDensity, setUiDensity] = useState<Density>(() => getDensity());
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [qrFabOpen, setQrFabOpen] = useState(false);
   const [lightbox, setLightbox] = useState<{ src: string; name: string } | null>(null);
@@ -159,7 +161,8 @@ export default function Settings() {
 
 
   // v0.7.7 — 'agent' était absent : ?tab=agent retombait sur profile (« tap = page profil »)
-  const VALID_TABS = new Set(['profile', 'agent', 'company', 'attendance', 'legal', 'invoicing', 'documents', 'warehouse', 'categories', 'integrations', 'app', 'admin', 'audit']);
+  // v0.9.4 — payroll / fec / dunning avaient un panneau mais retombaient sur profile.
+  const VALID_TABS = new Set(['profile', 'agent', 'company', 'attendance', 'payroll', 'fec', 'legal', 'invoicing', 'dunning', 'documents', 'warehouse', 'categories', 'integrations', 'app', 'admin', 'audit']);
   const tabFromUrl = searchParams.get('tab') || 'profile';
   const activeTab = VALID_TABS.has(tabFromUrl) ? tabFromUrl : 'profile';
 
@@ -546,6 +549,9 @@ export default function Settings() {
     profile: 'Mon profil',
     company: 'Société',
     attendance: 'Présence',
+    payroll: 'Paie CNSS / AMO',
+    fec: 'Plan comptable (FEC)',
+    dunning: 'Relances impayés',
     legal: 'Légal & TVA',
     invoicing: 'Facturation',
     documents: 'Documents PDF',
@@ -563,7 +569,11 @@ export default function Settings() {
     activeTab !== 'admin' &&
     activeTab !== 'audit' &&
     activeTab !== 'integrations' &&
-    activeTab !== 'categories';
+    activeTab !== 'categories' &&
+    // payroll / fec / dunning ont leur propre bouton d'enregistrement
+    activeTab !== 'payroll' &&
+    activeTab !== 'fec' &&
+    activeTab !== 'dunning';
 
 
   const loadPasskeys = async () => {
@@ -886,6 +896,38 @@ if (loading) return (
           </div>
           <button type="button" className="secondary" onClick={() => setEditProfileOpen(true)}>
             Modifier le profil
+          </button>
+        </div>
+        <div className="ac-settings-density-row" role="group" aria-label="Densité d’affichage">
+          <div>
+            <strong>Densité d’affichage</strong>
+            <span>Compacte réduit boutons, champs, cartes, tableaux et la barre flottante.</span>
+          </div>
+          <div className="ac-dash-period-pills">
+            {(['comfortable', 'compact'] as const).map((d) => (
+              <button
+                key={d}
+                type="button"
+                className="ac-seg-btn"
+                aria-pressed={uiDensity === d}
+                onClick={() => { setDensity(d); setUiDensity(d); }}
+              >
+                {d === 'comfortable' ? 'Confortable' : 'Compacte'}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="ac-settings-density-row">
+          <div>
+            <strong>Visite guidée</strong>
+            <span>Produits, clients, factures, vente rapide, caisse et Atlas Agent, pas à pas.</span>
+          </div>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => { restartOnboarding(); navigate('/dashboard'); }}
+          >
+            Revoir la visite guidée
           </button>
         </div>
         <EditProfile

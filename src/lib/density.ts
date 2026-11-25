@@ -1,30 +1,45 @@
 /** UI density + text scale (Atlas Commerce).
- * Compact mode removed. Liquid glass permanently disabled.
+ * v0.9.4 — « Compacte » fonctionne de nouveau : le choix est stocké et posé sur
+ * `<html data-ui-density="compact">`, qui pilote une couche CSS dédiée
+ * (`src/styles/density-compact.css` : boutons, champs, cartes, tableaux, barre
+ * flottante, barre latérale…). `data-density` reste « comfortable » exprès :
+ * des centaines d’anciennes règles `[data-density="compact"]` (retirées en 0.8)
+ * ne doivent jamais se réactiver. Le mobile reste toujours confortable.
+ * Liquid glass permanently disabled.
  */
 
 const KEY = 'atlas_ui_density';
 const GLASS_KEY = 'atlas_ui_glass';
 const SCALE_KEY = 'atlas_ui_scale';
 
-/** @deprecated Compact removed; always comfortable. */
 export type Density = 'comfortable' | 'compact';
 export type UiScale = 'sm' | 'md' | 'lg';
 
 export function getDensity(): Density {
-  return 'comfortable';
+  try {
+    return localStorage.getItem(KEY) === 'compact' ? 'compact' : 'comfortable';
+  } catch {
+    return 'comfortable';
+  }
 }
 
-export function setDensity(_d?: Density) {
+function applyDensityToDom(d: Density) {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  root.setAttribute('data-density', 'comfortable');
+  root.classList.remove('density-compact');
+  root.classList.add('density-comfortable');
+  root.setAttribute('data-ui-density', d);
+}
+
+export function setDensity(d: Density = 'comfortable') {
+  const next: Density = d === 'compact' ? 'compact' : 'comfortable';
   try {
-    localStorage.setItem(KEY, 'comfortable');
+    localStorage.setItem(KEY, next);
   } catch {
     /* */
   }
-  if (typeof document !== 'undefined') {
-    document.documentElement.setAttribute('data-density', 'comfortable');
-    document.documentElement.classList.remove('density-compact');
-    document.documentElement.classList.add('density-comfortable');
-  }
+  applyDensityToDom(next);
   applyEffectiveGlassToDom();
   notifyUiPrefs();
 }
@@ -99,7 +114,7 @@ function notifyUiPrefs() {
 }
 
 export function applyDensityFromStorage() {
-  setDensity('comfortable');
+  applyDensityToDom(getDensity());
   setUiScale(getUiScale());
   applyEffectiveGlassToDom();
 }

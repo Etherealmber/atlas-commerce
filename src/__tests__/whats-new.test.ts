@@ -10,17 +10,21 @@ import { APP_VERSION, DISPLAY_VERSION, RELEASE_VISIBLE_CAP, WHATS_NEW_VERSION, s
  * so the "Nouveautés" badge pointed at an empty section).
  */
 describe('WhatsNew releases', () => {
-  it('publishes 0.9.3 and retains the unchanged 0.9.2, 0.9.1 and 0.9.0 notes', () => {
-    expect(DISPLAY_VERSION).toBe('0.9.3');
-    expect(RELEASE_VISIBLE_CAP).toBe('0.9.3');
-    expect(APP_VERSION).toBe('0.9.3-beta');
-    expect(RELEASES[0].version).toBe('0.9.3');
+  it('publishes 0.9.4 and retains the unchanged 0.9.3, 0.9.2, 0.9.1 and 0.9.0 notes', () => {
+    expect(DISPLAY_VERSION).toBe('0.9.4');
+    expect(RELEASE_VISIBLE_CAP).toBe('0.9.4');
+    expect(APP_VERSION).toBe('0.9.4-beta');
+    expect(RELEASES[0].version).toBe('0.9.4');
     expect(WHATS_NEW_VERSION).toBe(RELEASES[0].version);
     expect(RELEASES[0].date).toBe('25 novembre 2026');
     expect(JSON.stringify(RELEASES[0])).not.toMatch(/cloudflare|google|microsoft|flclash/i);
-    const ids093 = RELEASES[0].sections.flatMap((s) => s.items).map((i) => i.id);
-    expect(new Set(ids093).size).toBe(ids093.length);
-    const text093 = RELEASES[0].sections.flatMap((s) => s.items).map((i) => i.text).join(' ');
+    const ids094 = RELEASES[0].sections.flatMap((s) => s.items).map((i) => i.id);
+    expect(new Set(ids094).size).toBe(ids094.length);
+    const text094 = RELEASES[0].sections.flatMap((s) => s.items).map((i) => i.text).join(' ');
+    for (const detail of ['Visite guidée', 'Ajouter un produit', 'Densité « Compacte »', 'Se déconnecter ?', 'bouton « Langue »', 'Vraies captures', 'Retour', 'Bonjour', 'Paie CNSS / AMO', 'rapprochement', 'NaN']) expect(text094).toContain(detail);
+    const r093 = RELEASES.find((r) => r.version === '0.9.3')!;
+    expect(r093.date).toBe('25 novembre 2026');
+    const text093 = r093.sections.flatMap((s) => s.items).map((i) => i.text).join(' ');
     for (const detail of ['Répartition des charges', 'jours déclarés CNSS', 'Rester connecté', '30 jours maximum', 'Navigation entre les pages réécrite', 'vrais boutons arrondis', 'squelette éditorial']) expect(text093).toContain(detail);
     const old092 = RELEASES.find((r) => r.version === '0.9.2')!;
     expect(old092.date).toBe('24 novembre 2026');

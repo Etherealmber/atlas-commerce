@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState, type ComponentType } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
+  BellRing,
   Bot,
   Boxes,
+  BookOpen,
   Bug,
   Building2,
   Check,
   Clock,
+  Coins,
   Cookie,
   Compass,
   FileCheck2,
@@ -258,6 +261,15 @@ export default function FocusSidebar({
           onClick: () => goSettingsTab('attendance'),
         },
       );
+      if (canAdmin) {
+        accountItems.push({
+          id: 'payroll',
+          label: 'Paie CNSS / AMO',
+          icon: Coins,
+          active: settingsTab === 'payroll',
+          onClick: () => goSettingsTab('payroll'),
+        });
+      }
     }
 
     const opsItems: FocusItem[] = canCompany
@@ -275,6 +287,20 @@ export default function FocusSidebar({
             icon: Scale,
             active: settingsTab === 'legal',
             onClick: () => goSettingsTab('legal'),
+          },
+          {
+            id: 'fec',
+            label: 'Plan comptable (FEC)',
+            icon: BookOpen,
+            active: settingsTab === 'fec',
+            onClick: () => goSettingsTab('fec'),
+          },
+          {
+            id: 'dunning',
+            label: 'Relances impayés',
+            icon: BellRing,
+            active: settingsTab === 'dunning',
+            onClick: () => goSettingsTab('dunning'),
           },
           {
             id: 'documents',

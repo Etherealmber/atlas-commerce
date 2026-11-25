@@ -1,6 +1,6 @@
 // Capture local UI with synthetic fixtures only. Run against an isolated Vite
 // server, never the shared Worker preview or a real backend.
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import puppeteer from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
 import sharp from 'sharp';
@@ -11,14 +11,19 @@ const browser = await puppeteer.launch({ executablePath: await chromium.executab
 try {
   const page = await browser.newPage();
   await page.setRequestInterception(true);
+  // Optional: DM_SANS_DIR=<@fontsource/dm-sans/files> serves the real font
+  // locally (Google Fonts is never contacted), so captures match production.
+  const fontDir = process.env.DM_SANS_DIR || '';
+  const fontCss = fontDir && existsSync(fontDir) ? [400, 500, 600, 700, 800].map((w) => `@font-face{font-family:'DM Sans';font-weight:${w};font-display:block;src:url(data:font/woff2;base64,${readFileSync(`${fontDir}/dm-sans-latin-${w}-normal.woff2`).toString('base64')}) format('woff2');}`).join('') : '';
   page.on('request', req => {
     const url = new URL(req.url());
+    if (fontCss && url.origin === 'https://fonts.googleapis.com') { void req.respond({ status: 200, contentType: 'text/css', body: fontCss }); return; }
     // Assets only; never let a screenshot contact an API or external network.
     if (url.origin !== base || url.pathname.startsWith('/api/')) void req.abort();
     else void req.continue();
   });
   await page.evaluateOnNewDocument((origin, ver) => {
-    const values = { 'stock_auth_token': 'demo-token', 'stock_role': 'owner', 'stock_auth_user': 'demo', 'stock_display_name': 'Démo', 'atlas-theme': 'light', 'atlas-sidebar-collapsed': '0', 'atlas_welcome_completed': 'true', 'atlas-whats-new-modal-seen': ver, 'atlas-whats-new-seen': ver, 'atlas-dl-teaser': 'off', 'atlas_phone_animations': 'off' };
+    const values = { 'stock_auth_token': 'demo-token', 'stock_role': 'owner', 'stock_auth_user': 'demo', 'stock_display_name': 'Démo', 'atlas-theme': 'light', 'atlas-sidebar-collapsed': '1', 'atlas_welcome_completed': 'true', 'atlas-whats-new-modal-seen': ver, 'atlas-whats-new-seen': ver, 'atlas-dl-teaser': 'off', 'atlas_phone_animations': 'off' };
     for (const [key, value] of Object.entries(values)) localStorage.setItem(key, value);
     localStorage.setItem('atlas_cookie_consent_v1', JSON.stringify({ version: 1, necessary: true, preferences: false, analytics: false, method: 'necessary_only', decidedAt: '2026-01-01T00:00:00Z' }));
     const products = [
@@ -89,7 +94,6 @@ try {
     { path: '/m', name: 'phone-home-demo', width: 390, height: 844, mobile: true },
     { path: '/m/products', name: 'phone-products-demo', width: 390, height: 844, mobile: true },
     { path: '/m/balance', name: 'phone-balance-demo', width: 390, height: 844, mobile: true },
-    { path: '/dashboard', name: 'desktop-demo', width: 1440, height: 900, mobile: false },
     { path: '/products', name: 'desktop-products-demo', width: 1440, height: 900, mobile: false },
   ]) {
     if (requested.size && !requested.has(shot.name)) continue;

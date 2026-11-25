@@ -37,6 +37,28 @@ type Release = {
 
 export const RELEASES: Release[] = [
   {
+    version: '0.9.4',
+    date: '25 novembre 2026',
+    sections: [{ kind: 'features', items: [
+      { id: '094n1', platforms: ['web'], text: 'Visite guidée après le guide de bienvenue : Atlas Commerce ouvre chaque page et montre quoi faire — Produits puis « Ajouter un produit », un client, une facture, une vente rapide, la caisse, Atlas Agent et le menu du compte — avec Suivant, Précédent et Passer ; à revoir depuis Paramètres → Mon profil.' },
+      { id: '094n2', platforms: ['web'], text: 'Densité « Compacte » de nouveau active sur ordinateur : boutons, champs, cartes, tableaux, pagination, barre latérale et barre flottante du haut se resserrent ; réglage aussi disponible dans Paramètres → Mon profil. Le mobile reste en densité confortable.' },
+      { id: '094n3', platforms: ['web'], text: 'Déconnexion : une confirmation « Se déconnecter ? » apparaît avant de fermer la session, depuis le menu utilisateur de l’application comme depuis les pages publiques.' },
+      { id: '094n4', platforms: ['web'], text: 'Pages publiques : bouton « Langue » pour les visiteurs non connectés, à côté du choix du thème ; l’arabe et l’anglais arrivent bientôt.' },
+      { id: '094n5', platforms: ['web'], text: 'Vraies captures d’écran, en thème clair et sombre, sur l’accueil, la page Desktop, le guide de bienvenue et le README, à la place des maquettes dessinées.' },
+    ] }, { kind: 'improvements', items: [
+      { id: '094i1', platforms: ['web'], text: 'Guide de bienvenue : « Visite rapide des modules » devient une simple information (non cliquable), le comparatif papier / Atlas est conservé et le titre « Bonjour » n’affiche plus de contour orange.' },
+      { id: '094i2', platforms: ['web'], text: 'Bandeau cookies : « Retour », « Personnaliser » et la croix de fermeture sont de vrais boutons au lieu de liens soulignés.' },
+      { id: '094i3', platforms: ['web'], text: 'Paramètres : Paie CNSS / AMO, Plan comptable (FEC) et Relances impayés s’ouvrent directement depuis la barre des Paramètres.' },
+      { id: '094i4', platforms: ['desktop'], text: 'Client bureau : références visuelles mises à jour (captures 1280×800 en clair et en sombre de chaque page, de chaque section des Paramètres, d’Atlas Agent, du menu du compte, de la confirmation de déconnexion et de la visite guidée, avec les mesures de chaque élément).' },
+      { id: '094i5', platforms: ['web'], text: 'Nettoyage : ancienne visite à cartes, maquettes dessinées, scripts de capture obsolètes et règles de style inutilisées retirés.' },
+    ] }, { kind: 'fixes', items: [
+      { id: '094f1', platforms: ['web'], text: 'Solde en thème sombre : l’en-tête du rapprochement n’est plus blanc.' },
+      { id: '094f2', platforms: ['web'], text: 'Mobile : page « Scanner un appareil » en thème sombre et boutons retour aux couleurs de la barre flottante, sans contour.' },
+      { id: '094f3', platforms: ['web'], text: 'Atlas Agent : le quota n’affiche plus « NaN » quand la limite est inconnue, une limite inconnue ne bloque plus l’envoi et les boutons de l’en-tête sont lisibles en thème sombre.' },
+      { id: '094f4', platforms: ['web'], text: 'Clôtures de caisse : une réponse incomplète du serveur n’interrompt plus la page.' },
+    ] }],
+  },
+  {
     version: '0.9.3',
     date: '25 novembre 2026',
     sections: [{ kind: 'features', items: [

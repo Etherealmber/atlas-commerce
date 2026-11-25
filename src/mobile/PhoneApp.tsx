@@ -20,7 +20,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import PhoneAgentActivity from './PhoneAgentActivity';
 import { getUsername, getDisplayInitials, hasAvatarUrl, getRole, isStockRole, canSell } from '../auth';
-import { setDensity, type UiScale } from '../lib/density';
+import type { UiScale } from '../lib/density';
 import './phone.css';
 import PageTransition from '../components/PageTransition';
 import PhoneDialog from './PhoneDialog';
@@ -179,9 +179,11 @@ function tabTitleFor(pathname: string): string {
 export default function PhoneApp() {
   useProfileWarm();
   useEffect(() => {
+    // Mobile is always comfortable (tap targets). Only the DOM flag changes, so a
+    // desktop « Compacte » choice saved on this device is kept for the desktop.
     try {
-      setDensity('comfortable');
       document.documentElement.dataset.density = 'comfortable';
+      document.documentElement.dataset.uiDensity = 'comfortable';
       document.documentElement.classList.remove('density-compact');
     } catch { /* */ }
   }, []);

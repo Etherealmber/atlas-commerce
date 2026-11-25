@@ -1,5 +1,4 @@
 import { WelcomePreview } from '../components/WelcomePreview';
-import { FeatureTour } from '../components/ui/FeatureTour';
 import {
   ArrowLeft,
   ArrowRight,
@@ -12,7 +11,6 @@ import {
   FileText,
   Globe,
   LayoutGrid,
-  Package,
   ScanLine,
   ShieldCheck,
   Smartphone,
@@ -43,6 +41,7 @@ import {
   type WelcomeTheme,
 } from '../lib/welcome';
 import { setDensity, setGlassEnabled } from '../lib/density';
+import { queueOnboarding } from '../lib/onboarding';
 import {
   APP_CREATOR,
   APP_CREATOR_NAME,
@@ -66,101 +65,19 @@ function applyThemeMode(mode: WelcomeTheme) {
   document.documentElement.setAttribute('data-theme', resolved);
 }
 
-/** Bento dashboard wireframe matching the Focus sidebar + floating dock + 4-KPI Bento grid. */
-function ThemeMock({ mode }: { mode: WelcomeTheme }) {
+/** Real dashboard screenshot for each theme choice (system = light | dark split). */
+function ThemePreview({ mode }: { mode: WelcomeTheme }) {
   if (mode === 'system') {
     return (
-      <div className="welcome-pick-preview" data-theme-preview="system">
-        <svg viewBox="0 0 180 112" className="welcome-mock-svg" aria-hidden>
-          <defs>
-            <clipPath id="welcome-sys-right">
-              <rect x="90" y="0" width="90" height="112" />
-            </clipPath>
-          </defs>
-          {/* Light left half */}
-          <rect width="180" height="112" rx="10" fill="#f5f6f8" />
-          <rect x="8" y="8" width="34" height="96" rx="8" fill="#ffffff" stroke="#e2e8f0" strokeWidth="1" />
-          <rect x="13" y="16" width="24" height="6" rx="3" fill="#0f172a" opacity="0.85" />
-          <rect x="13" y="28" width="24" height="5" rx="2.5" fill="#cbd5e1" />
-          <rect x="13" y="37" width="20" height="5" rx="2.5" fill="#cbd5e1" />
-          <rect x="13" y="46" width="24" height="5" rx="2.5" fill="#cbd5e1" />
-          <rect x="74" y="8" width="60" height="12" rx="6" fill="#ffffff" stroke="#e2e8f0" strokeWidth="1" />
-          {[0, 1, 2, 3].map((i) => (
-            <rect key={`l-${i}`} x={50 + i * 31} y="26" width="27" height="24" rx="6" fill="#ffffff" stroke="#e2e8f0" strokeWidth="1" />
-          ))}
-          <rect x="50" y="56" width="76" height="48" rx="8" fill="#ffffff" stroke="#e2e8f0" strokeWidth="1" />
-          <path d="M58 92 C68 85, 76 72, 88 76 S106 86, 118 68" fill="none" stroke="#0f172a" strokeWidth="1.8" strokeLinecap="round" />
-          {/* Dark right half */}
-          <g clipPath="url(#welcome-sys-right)">
-            <rect width="180" height="112" rx="10" fill="#111113" />
-            <rect x="74" y="8" width="60" height="12" rx="6" fill="#1c1c1f" stroke="#2a2a2e" strokeWidth="1" />
-            {[0, 1, 2, 3].map((i) => (
-              <rect key={`d-${i}`} x={50 + i * 31} y="26" width="27" height="24" rx="6" fill="#1c1c1f" stroke="#2a2a2e" strokeWidth="1" />
-            ))}
-            <rect x="50" y="56" width="76" height="48" rx="8" fill="#1c1c1f" stroke="#2a2a2e" strokeWidth="1" />
-            <path d="M58 92 C68 85, 76 72, 88 76 S106 86, 118 68" fill="none" stroke="#e4e4e7" strokeWidth="1.8" strokeLinecap="round" />
-            <rect x="132" y="56" width="40" height="48" rx="8" fill="#1c1c1f" stroke="#2a2a2e" strokeWidth="1" />
-            <rect x="138" y="64" width="28" height="4" rx="2" fill="#e4e4e7" opacity="0.8" />
-            <rect x="138" y="73" width="24" height="4" rx="2" fill="#52525b" />
-            <rect x="138" y="82" width="28" height="4" rx="2" fill="#52525b" />
-          </g>
-          <line x1="90" y1="0" x2="90" y2="112" stroke="#94a3b8" strokeWidth="1" strokeDasharray="3 3" opacity="0.7" />
-        </svg>
+      <div className="welcome-pick-preview welcome-pick-preview--split" data-theme-preview="system" aria-hidden>
+        <img src="/shots/site-theme-light.webp" alt="" width={480} height={300} loading="lazy" decoding="async" />
+        <img className="welcome-pick-preview-dark-half" src="/shots/site-theme-dark.webp" alt="" width={480} height={300} loading="lazy" decoding="async" />
       </div>
     );
   }
-  const isDark = mode === 'dark';
-  const bg = isDark ? '#111113' : '#f5f6f8';
-  const card = isDark ? '#1c1c1f' : '#ffffff';
-  const line = isDark ? '#2a2a2e' : '#e2e8f0';
-  const accent = isDark ? '#e4e4e7' : '#0f172a';
-  const muted = isDark ? '#52525b' : '#cbd5e1';
   return (
-    <div className="welcome-pick-preview" data-theme-preview={isDark ? 'dark' : 'light'}>
-      <svg viewBox="0 0 180 112" className="welcome-mock-svg" aria-hidden>
-        <rect width="180" height="112" rx="10" fill={bg} />
-        {/* Floating Bento sidebar */}
-        <rect x="8" y="8" width="34" height="96" rx="8" fill={card} stroke={line} strokeWidth="1" />
-        <rect x="13" y="16" width="24" height="6" rx="3" fill={accent} opacity="0.85" />
-        <rect x="13" y="28" width="24" height="5" rx="2.5" fill={muted} />
-        <rect x="13" y="37" width="20" height="5" rx="2.5" fill={muted} />
-        <rect x="13" y="46" width="24" height="5" rx="2.5" fill={muted} />
-        {/* Floating centered dock */}
-        <rect x="74" y="8" width="60" height="12" rx="6" fill={card} stroke={line} strokeWidth="1" />
-        <rect x="82" y="12.5" width="26" height="3" rx="1.5" fill={accent} opacity="0.85" />
-        <circle cx="126" cy="14" r="2.5" fill={muted} />
-        {/* 4 Bento KPI tiles */}
-        {[0, 1, 2, 3].map((i) => (
-          <g key={i}>
-            <rect
-              x={50 + i * 31}
-              y="26"
-              width="27"
-              height="24"
-              rx="6"
-              fill={card}
-              stroke={line}
-              strokeWidth="1"
-            />
-            <rect x={54 + i * 31} y="32" width="12" height="3" rx="1.5" fill={muted} />
-            <rect x={54 + i * 31} y="39" width="17" height="5" rx="2" fill={accent} opacity="0.85" />
-          </g>
-        ))}
-        {/* 2 Bento main panels */}
-        <rect x="50" y="56" width="76" height="48" rx="8" fill={card} stroke={line} strokeWidth="1" />
-        <path
-          d="M58 92 C68 85, 76 72, 88 76 S106 86, 118 68"
-          fill="none"
-          stroke={accent}
-          strokeWidth="1.8"
-          strokeLinecap="round"
-        />
-        <rect x="132" y="56" width="40" height="48" rx="8" fill={card} stroke={line} strokeWidth="1" />
-        <rect x="138" y="64" width="28" height="4" rx="2" fill={accent} opacity="0.8" />
-        <rect x="138" y="73" width="24" height="4" rx="2" fill={muted} />
-        <rect x="138" y="82" width="28" height="4" rx="2" fill={muted} />
-        <rect x="138" y="91" width="19" height="4" rx="2" fill={muted} />
-      </svg>
+    <div className="welcome-pick-preview" data-theme-preview={mode} aria-hidden>
+      <img src={`/shots/site-theme-${mode}.webp`} alt="" width={480} height={300} loading="lazy" decoding="async" />
     </div>
   );
 }
@@ -408,43 +325,6 @@ function MasteryTips() {
 
 export default function Welcome() {
   const navigate = useNavigate();
-  const [showTour, setShowTour] = useState(false);
-  const tourSteps = useMemo(
-    () => [
-      {
-        id: 'stock',
-        title: 'Stock & produits',
-        description: 'Catalogue, seuils bas, transferts inter-entrepôts, inventaire et historique.',
-        icon: <Package size={40} strokeWidth={1.5} />,
-      },
-      {
-        id: 'sales',
-        title: 'Ventes, achats & OCR',
-        description: 'Devis, factures, ventes rapides et scan OCR des factures d’achat.',
-        icon: <FileText size={40} strokeWidth={1.5} />,
-      },
-      {
-        id: 'people',
-        title: 'Clients, équipe & paie',
-        description: 'Fiches clients, employés, présences, acomptes et bulletins CNSS / AMO.',
-        icon: <Users size={40} strokeWidth={1.5} />,
-      },
-      {
-        id: 'agent',
-        title: 'Atlas Agent IA',
-        description: 'Assistant connecté aux outils métier pour créer, chercher et résumer.',
-        icon: <Bot size={40} strokeWidth={1.5} />,
-      },
-      {
-        id: 'reports',
-        title: 'Pilotage Bento',
-        description: 'Tableau de bord, clôtures X / Z, rapports TVA / COGS et clôture de période.',
-        icon: <BarChart3 size={40} strokeWidth={1.5} />,
-      },
-    ],
-    [],
-  );
-
   const panelRef = useRef<HTMLDivElement>(null);
   const [step, setStep] = useState(() => getWelcomeStep());
   const [prefs, setPrefs] = useState<WelcomePrefs>(() => getWelcomePrefs());
@@ -504,7 +384,7 @@ export default function Welcome() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (showTour || e.key !== 'Enter') return;
+      if (e.key !== 'Enter') return;
       const t = e.target as HTMLElement | null;
       if (
         t &&
@@ -530,7 +410,7 @@ export default function Welcome() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [step, showNext, leaving, showTour, go]);
+  }, [step, showNext, leaving, go]);
 
   const pickTheme = (theme: WelcomeTheme) => {
     setPrefs(saveWelcomePrefs({ theme }));
@@ -549,6 +429,7 @@ export default function Welcome() {
     setDensity(prefs.density);
     setGlassEnabled(false);
     markWelcomeCompleted();
+    queueOnboarding();
     window.setTimeout(() => {
       navigate('/dashboard', { replace: true });
     }, 260);
@@ -560,12 +441,6 @@ export default function Welcome() {
 
   return (
     <div className={`welcome-stage${leaving ? ' welcome-leaving' : ''}`} data-step={step}>
-      {showTour ? (
-        <FeatureTour
-          steps={tourSteps}
-          onClose={() => setShowTour(false)}
-        />
-      ) : null}
 
       <div className="welcome-ambient" aria-hidden />
       <div
@@ -638,7 +513,7 @@ export default function Welcome() {
                   onClick={() => pickTheme(opt.id)}
                   style={{ animationDelay: `${0.05 + i * 0.06}s` }}
                 >
-                  <ThemeMock mode={opt.id} />
+                  <ThemePreview mode={opt.id} />
                   <span className="welcome-pick-meta">
                     <span className="welcome-pick-label">{opt.label}</span>
                     <span className="welcome-pick-hint">{opt.hint}</span>
@@ -785,14 +660,17 @@ export default function Welcome() {
                 <span className="welcome-summary-chip">Densité : <strong>{densityLabel}</strong></span>
                 <span className="welcome-summary-chip">Version : <strong>{APP_VERSION}</strong></span>
               </div>
-              <button
-                type="button"
-                className="welcome-tour-trigger"
-                onClick={() => setShowTour(true)}
-              >
-                <Compass size={15} strokeWidth={2} aria-hidden="true" />
-                Visite rapide des modules
-              </button>
+              {/* v0.9.4 — informatif, non cliquable : la visite guidée démarre
+                  d’elle-même après « Explorer Atlas Commerce » (GuidedOnboarding). */}
+              <div className="welcome-tour-note" role="note">
+                <span className="welcome-tour-note-icon" aria-hidden="true">
+                  <Compass size={16} strokeWidth={2} />
+                </span>
+                <span className="welcome-tour-note-text">
+                  <strong>Visite rapide des modules</strong>
+                  <span>Elle démarre à l’ouverture : produits, clients, factures, vente rapide, caisse et Atlas Agent — pas à pas.</span>
+                </span>
+              </div>
             </div>
 
             <div className="welcome-creator-badge welcome-fade-up" style={{ animationDelay: '0.22s' }}>

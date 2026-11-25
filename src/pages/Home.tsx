@@ -11,6 +11,7 @@ import {
   type NavLink,
 } from '../components/PublicChrome';
 import { isLoggedIn } from '../auth';
+import ThemeShot from '../components/ThemeShot';
 
 const NAV: NavLink[] = [
   { href: '#features', label: 'Fonctionnalités' },
@@ -80,12 +81,8 @@ export default function Home() {
 
           </div>
           <div className="hm-showcase">
-          <div className="hm-window rise">
-            <div className="hm-window-bar" aria-hidden="true">
-              <span /><span /><span />
-              <em>Atlas · Tableau de bord</em>
-            </div>
-            <img src="/shots/desktop-demo.webp" alt="Tableau de bord web Atlas Commerce avec des données fictives" width="1440" height="900" />
+          <div className="hm-window hm-window--shot rise">
+            <ThemeShot name="site-dashboard" alt="Tableau de bord web Atlas Commerce avec des données fictives" width={1280} height={800} eager />
           </div>
           <img className="hm-phone-shot" src="/shots/phone-products-demo.webp" alt="Catalogue web mobile avec des produits fictifs" width="390" height="844" loading="lazy" />
           </div>
@@ -107,54 +104,22 @@ export default function Home() {
           </div>
           <div className="hm-bento">
             <div className="hm-bento-card rise">
-              <div className="hm-fx hm-fx-stock" aria-hidden="true">
-                <span className="hm-row"><b>Marbre blanc 2&nbsp;cm</b><i className="hm-chip ok">42 u.</i></span>
-                <span className="hm-row"><b>Granit noir</b><i className="hm-chip warn">6 u.</i></span>
-                <span className="hm-row"><b>Quartz beige</b><i className="hm-chip bad">0 u.</i></span>
-              </div>
+              <figure className="hm-fx hm-fx-shot hm-fx-stock"><ThemeShot name="site-stock" alt="Assistant « Ajuster le stock » de l’application web" width={880} height={568} /></figure>
               <h3>Stock en temps réel</h3>
               <p>Consultez l’inventaire, les seuils et les mouvements de vos produits.</p>
             </div>
             <div className="hm-bento-card rise">
-              <div className="hm-fx hm-fx-pos" aria-hidden="true">
-                <span className="hm-ticket">
-                  <b>VR-0147</b>
-                  <i>2 × Marbre blanc · 1 × pose</i>
-                  <u>1 687,20 DH</u>
-                </span>
-                <span className="hm-chip ok">Encaissée</span>
-              </div>
+              <figure className="hm-fx hm-fx-shot hm-fx-pos"><ThemeShot name="site-quick-sale" alt="Assistant « Nouvelle vente rapide » de l’application web" width={1120} height={521} /></figure>
               <h3>Caisse &amp; ventes</h3>
               <p>Ventes comptoir, tickets, règlements partiels et clôture de caisse sans saisie double.</p>
             </div>
             <div className="hm-bento-card rise">
-              <div className="hm-fx hm-fx-invoice" aria-hidden="true">
-                <span className="hm-doc">
-                  <b>FACT-0001</b>
-                  <i /><i /><i />
-                  <u>Total 1 687,20</u>
-                </span>
-                <span className="hm-chip">PDF + QR</span>
-              </div>
+              <figure className="hm-fx hm-fx-shot hm-fx-invoice"><ThemeShot name="site-invoice" alt="Assistant « Nouvelle facture de vente » de l’application web" width={1120} height={560} /></figure>
               <h3>Facturation PDF</h3>
               <p>Devis, factures et reçus en PDF propres, avec QR de vérification publique.</p>
             </div>
             <div className="hm-bento-card rise">
-              <div className="hm-fx hm-fx-aging" aria-hidden="true">
-                <svg viewBox="0 0 220 68" width="100%" height="68" style={{ display: 'block' }}>
-                  <defs>
-                    <linearGradient id="hm-aging-grad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#2563eb" stopOpacity="0.28" />
-                      <stop offset="100%" stopColor="#2563eb" stopOpacity="0.02" />
-                    </linearGradient>
-                  </defs>
-                  <line x1="6" y1="54" x2="214" y2="54" stroke="currentColor" strokeOpacity="0.12" strokeWidth="1" />
-                  <path d="M10,46 C44,44 68,26 102,30 C138,34 162,14 210,12 L210,54 L10,54 Z" fill="url(#hm-aging-grad)" />
-                  <path d="M10,46 C44,44 68,26 102,30 C138,34 162,14 210,12" fill="none" stroke="#2563eb" strokeWidth="2.4" strokeLinecap="round" />
-                  <circle cx="102" cy="30" r="3.2" fill="#fff" stroke="#2563eb" strokeWidth="2" />
-                  <circle cx="210" cy="12" r="3.6" fill="#fff" stroke="#2563eb" strokeWidth="2" />
-                </svg>
-              </div>
+              <figure className="hm-fx hm-fx-shot hm-fx-aging"><ThemeShot name="site-widgets" alt="Widgets créances, dettes et santé du stock du tableau de bord" width={832} height={338} /></figure>
               <h3>Créances &amp; relances</h3>
               <p>Balance âgée, clients à relancer et historique de paiement — sans Post-it.</p>
             </div>
@@ -183,12 +148,9 @@ export default function Home() {
               <p>Vos clients scannent et vérifient l’authenticité d’un reçu en une seconde.</p>
             </div>
             <div className="hm-bento-card rise">
-              <div className="hm-fx hm-fx-agent" aria-label="Exemple fictif de conversation avec l’agent IA">
-                <span className="hm-bubble right"><b>Vous</b>{' '}Combien de ventes cette semaine ?</span>
-                <span className="hm-bubble left"><b>Agent Atlas</b>{' '}23 ventes, dont 8 aujourd’hui.</span>
-              </div>
+              <figure className="hm-fx hm-fx-shot hm-fx-agent"><ThemeShot name="site-agent" alt="Panneau Atlas Agent avec une conversation fictive" width={380} height={700} /></figure>
               <h3>Agent IA intégré</h3>
-              <p>Posez vos questions en français et explorez vos données selon vos permissions. Exemple fictif ci-dessus.</p>
+              <p>Posez vos questions en français et explorez vos données selon vos permissions. Conversation fictive ci-dessus.</p>
             </div>
           </div>
         </section>
@@ -250,7 +212,7 @@ export default function Home() {
               <Link to="/android" className="dl-link dl-chip">Télécharger l’APK <span aria-hidden="true">→</span></Link>
             </div>
             <div className="dl-card hm-platform-card">
-              <figure className="hm-platform-visual hm-platform-visual--desktop"><img src="/shots/desktop-demo.webp" alt="Tableau de bord web sur ordinateur avec données fictives" width="1440" height="900" loading="lazy" /><figcaption>Web sur ordinateur · données fictives</figcaption></figure>
+              <figure className="hm-platform-visual hm-platform-visual--desktop"><ThemeShot name="site-dashboard" alt="Tableau de bord web sur ordinateur avec données fictives" width={1280} height={800} /><figcaption>Web sur ordinateur · données fictives</figcaption></figure>
               <div className="dl-ico">{IC_DESK}</div>
               <h3>Bureau</h3>
               <p>

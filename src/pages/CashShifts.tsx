@@ -49,6 +49,10 @@ export default function CashShifts() {
   const [closeNotes, setCloseNotes] = useState('');
   const [closingBusy, setClosingBusy] = useState(false);
 
+  // v0.9.4 — une réponse partielle (tableau, objet sans id) affichait « #undefined ».
+  const asShift = (raw: unknown, fallback: any = null) =>
+    raw && typeof raw === 'object' && !Array.isArray(raw) && (raw as any).id != null ? raw : fallback;
+
   const loadShifts = useCallback(async (pickId?: number) => {
     setLoading(true);
     setError('');
@@ -63,7 +67,7 @@ export default function CashShifts() {
         null;
       if (target) {
         const det = await api.getCashShift(Number(target.id));
-        setSelectedShift(det.data || null);
+        setSelectedShift(asShift(det.data, target));
       } else {
         setSelectedShift(null);
       }
@@ -82,7 +86,7 @@ export default function CashShifts() {
     setError('');
     try {
       const det = await api.getCashShift(id);
-      setSelectedShift(det.data || null);
+      setSelectedShift(asShift(det.data, shifts.find((r: any) => Number(r.id) === id) || null));
     } catch (e: any) {
       setError(e?.message || 'Erreur lors du chargement de la session.');
     }
@@ -369,8 +373,8 @@ export default function CashShifts() {
                 Session #{selectedShift.id} — {selectedShift.till_id}
               </h3>
               <p className="ac-panel-sub">
-                Opérateur : {selectedShift.operator} · Ouverte le{' '}
-                {String(selectedShift.opened_at).slice(0, 16).replace('T', ' ')}
+                Opérateur : {selectedShift.operator || '—'} · Ouverte le{' '}
+                {selectedShift.opened_at ? String(selectedShift.opened_at).slice(0, 16).replace('T', ' ') : '—'}
               </p>
             </div>
             <div className="ac-erp-actions-row">

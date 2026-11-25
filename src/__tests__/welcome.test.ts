@@ -44,10 +44,11 @@ describe('welcome capture steps', () => {
     }
   });
 
-  it('has a still-image alternative for the demo when reduced motion is requested', () => {
+  it('uses real still screenshots (no animated demo, no SVG mock-up)', () => {
     const html = renderToStaticMarkup(createElement(WelcomePreview, { index: 0, onPrevious() {}, onNext() {} }));
-    expect(html).toContain('(prefers-reduced-motion: reduce)');
-    expect(html).toContain('srcSet="/shots/dashboard-light.png"');
+    expect(html).toContain('src="/shots/site-dashboard-light.webp"');
+    expect(html).not.toContain('<svg viewBox="0 0 180 112"');
+    for (const preview of WELCOME_PREVIEWS) expect(preview.src).toMatch(/^\/shots\/[a-z0-9-]+\.webp$/);
   });
 
   it('persists each new step including the inserted previews across refreshes', () => {

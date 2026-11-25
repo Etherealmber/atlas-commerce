@@ -135,6 +135,7 @@ const DesktopPage = lazyRetry(() => import('./pages/Desktop'));
 const SupportPage = lazyRetry(() => import('./pages/Support'));
 const WhatsNew = lazyRetry(() => import('./pages/WhatsNew'));
 const WhatsNewModal = lazyRetry(() => import('./components/WhatsNewModal'));
+const GuidedOnboarding = lazyRetry(() => import('./components/GuidedOnboarding'));
 const Actions = lazyRetry(() => import('./pages/Actions'));
 const PhoneApp = lazyRetry(() => import('./mobile/PhoneApp'));
 
@@ -1521,6 +1522,9 @@ function DesktopShell() {
       <Suspense fallback={<AtlasAgentDesktopFallback />}>
         <AtlasAgent />
       </Suspense>
+      {!location.pathname.startsWith('/login') && !location.pathname.startsWith('/welcome') && (
+        <Suspense fallback={null}><GuidedOnboarding /></Suspense>
+      )}
       {!location.pathname.startsWith('/login') && (
         <Suspense fallback={null}><WhatsNewModal /></Suspense>
       )}

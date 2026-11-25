@@ -1,0 +1,219 @@
+/*
+ * v0.9.4 — Densité « Compacte » (bureau uniquement).
+ *
+ * Activée par <html data-ui-density="compact"> (src/lib/density.ts). Le mobile
+ * pose toujours « comfortable ». Cette couche ne touche QUE les tailles
+ * (hauteurs, marges internes, espacements, corps de texte) : jamais les
+ * couleurs, pour rester identique en clair et en sombre.
+ *
+ * Les anciennes règles `[data-density="compact"]` (désactivées en 0.8) restent
+ * dormantes : `data-density` vaut toujours « comfortable ».
+ *
+ * Spécificité : `:not(#ac-dc):not(#ac-dc2)` (2 ids) passe devant les longues
+ * chaînes de :not(.classe) des boutons globaux, sans toucher aux couleurs de
+ * dark-force.css (chargé après).
+ *
+ * Échelle : ~0.8 sur les hauteurs, ~0.7 sur les marges, -1 px sur le texte.
+ */
+
+/* ---------- Page ---------- */
+html[data-ui-density="compact"] body .atlas-page:not(#ac-dc):not(#ac-dc2),
+html[data-ui-density="compact"] body .ac-erp-page:not(#ac-dc):not(#ac-dc2) {
+  gap: 10px !important;
+}
+html[data-ui-density="compact"] body .ac-metric-grid:not(#ac-dc):not(#ac-dc2) {
+  gap: 8px !important;
+  margin-bottom: 10px !important;
+}
+
+/* ---------- Boutons (texte) ---------- */
+html[data-ui-density="compact"] body .content button:not(.ac-pager-hit):not(.ac-seg-btn):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-agent-fab):not(.qr-fab):not(.icon-refresh-btn):not([class*="iconbtn"]):not([class*="toggle"]):not([type="checkbox"]):not(#ac-dc):not(#ac-dc2),
+html[data-ui-density="compact"] body .modal button:not(.modal-x):not(.modal-close):not([class*="close"]):not(.ac-seg-btn):not(#ac-dc):not(#ac-dc2) {
+  min-height: 34px !important;
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+  padding-left: 13px !important;
+  padding-right: 13px !important;
+  font-size: 13.2px !important;
+  border-radius: 10px !important;
+}
+html[data-ui-density="compact"] body .content td button:not(.ac-pager-hit):not([type="checkbox"]):not(#ac-dc):not(#ac-dc2),
+html[data-ui-density="compact"] body .content .row-actions-cell button:not(#ac-dc):not(#ac-dc2) {
+  min-height: 28px !important;
+  padding-top: 3px !important;
+  padding-bottom: 3px !important;
+  padding-left: 10px !important;
+  padding-right: 10px !important;
+  font-size: 12.5px !important;
+  border-radius: 9px !important;
+}
+html[data-ui-density="compact"] body .content button.icon-refresh-btn:not(#ac-dc):not(#ac-dc2) {
+  width: 34px !important;
+  min-width: 34px !important;
+  height: 34px !important;
+  min-height: 34px !important;
+  padding: 0 !important;
+  border-radius: 10px !important;
+}
+
+/* ---------- Champs ---------- */
+html[data-ui-density="compact"] body .content input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not(#ac-dc):not(#ac-dc2),
+html[data-ui-density="compact"] body .content select:not(#ac-dc):not(#ac-dc2),
+html[data-ui-density="compact"] body .modal input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(#ac-dc):not(#ac-dc2),
+html[data-ui-density="compact"] body .modal select:not(#ac-dc):not(#ac-dc2) {
+  min-height: 34px !important;
+  height: auto !important;
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+  font-size: 13.5px !important;
+  border-radius: 10px !important;
+}
+html[data-ui-density="compact"] body .content input.ac-search-input:not(#ac-dc):not(#ac-dc2) {
+  padding-left: 34px !important;
+}
+html[data-ui-density="compact"] body .content textarea:not(#ac-dc):not(#ac-dc2),
+html[data-ui-density="compact"] body .modal textarea:not(#ac-dc):not(#ac-dc2) {
+  padding: 8px 11px !important;
+  font-size: 13.5px !important;
+  border-radius: 10px !important;
+}
+html[data-ui-density="compact"] body .content label:not(#ac-dc):not(#ac-dc2) {
+  font-size: 12.3px !important;
+}
+
+/* ---------- Cartes, panneaux, KPI ---------- */
+html[data-ui-density="compact"] body .content .ac-metric:not(#ac-dc):not(#ac-dc2) {
+  padding: 11px 13px !important;
+  border-radius: 12px !important;
+  min-height: 0 !important;
+}
+html[data-ui-density="compact"] body .content .ac-metric-val:not(#ac-dc):not(#ac-dc2) {
+  font-size: 1.2rem !important;
+  margin-top: 2px !important;
+}
+html[data-ui-density="compact"] body .content .ac-metric-label:not(#ac-dc):not(#ac-dc2),
+html[data-ui-density="compact"] body .content .ac-metric-meta:not(#ac-dc):not(#ac-dc2) {
+  font-size: 10.5px !important;
+}
+html[data-ui-density="compact"] body .content .ac-panel:not(#ac-dc):not(#ac-dc2),
+html[data-ui-density="compact"] body .content .atlas-card:not(#ac-dc):not(#ac-dc2),
+html[data-ui-density="compact"] body .content .card:not(#ac-dc):not(#ac-dc2) {
+  padding: 11px 13px !important;
+  border-radius: 12px !important;
+}
+html[data-ui-density="compact"] body .content .ac-panel h2:not(#ac-dc):not(#ac-dc2),
+html[data-ui-density="compact"] body .content .ac-panel h3:not(#ac-dc):not(#ac-dc2),
+html[data-ui-density="compact"] body .content .atlas-card h2:not(#ac-dc):not(#ac-dc2) {
+  font-size: 14.5px !important;
+}
+
+/* ---------- Tableaux ---------- */
+html[data-ui-density="compact"] body .content th:not(#ac-dc):not(#ac-dc2) {
+  padding: 7px 10px !important;
+  font-size: 10.4px !important;
+}
+html[data-ui-density="compact"] body .content td:not(#ac-dc):not(#ac-dc2) {
+  padding: 6px 10px !important;
+  font-size: 13px !important;
+}
+html[data-ui-density="compact"] body .content .badge:not(#ac-dc):not(#ac-dc2),
+html[data-ui-density="compact"] body .content .ac-status-pill:not(#ac-dc):not(#ac-dc2) {
+  padding: 2px 9px !important;
+  font-size: 11.2px !important;
+}
+
+/* ---------- Pagination ---------- */
+html[data-ui-density="compact"] body .content .ac-pager:not(#ac-dc):not(#ac-dc2) {
+  padding: 2px !important;
+}
+html[data-ui-density="compact"] body .content .ac-pager .ac-pager-hit:not(#ac-dc):not(#ac-dc2) {
+  width: 27px !important;
+  min-width: 27px !important;
+  height: 27px !important;
+  min-height: 27px !important;
+  font-size: 12px !important;
+}
+
+/* ---------- Segments (périodes 7j / 1m …) ---------- */
+html[data-ui-density="compact"] body .content .ac-seg-btn:not(#ac-dc):not(#ac-dc2) {
+  padding: 4px 10px !important;
+  min-height: 26px !important;
+  font-size: 11.8px !important;
+}
+
+/* ---------- Barre flottante (dock) ---------- */
+html[data-ui-density="compact"] body .ac-desktop-dock:not(#ac-dc):not(#ac-dc2) {
+  padding: 4px 7px !important;
+  gap: 8px !important;
+}
+html[data-ui-density="compact"] body .ac-desktop-top-row:not(#ac-dc):not(#ac-dc2) {
+  top: 8px !important;
+}
+html[data-ui-density="compact"] body .ac-desktop-dock .ac-topbar-title:not(#ac-dc):not(#ac-dc2) {
+  min-height: 34px !important;
+  height: 34px !important;
+  padding: 0 14px !important;
+  font-size: 13.3px !important;
+}
+html[data-ui-density="compact"] body .ac-desktop-dock .ac-topbar-icon:not(#ac-dc):not(#ac-dc2),
+html[data-ui-density="compact"] body .ac-desktop-dock .ac-topbar-user-btn:not(#ac-dc):not(#ac-dc2),
+html[data-ui-density="compact"] body .ac-desktop-dock .ac-dock-back:not(#ac-dc):not(#ac-dc2) {
+  width: 32px !important;
+  min-width: 32px !important;
+  height: 32px !important;
+  min-height: 32px !important;
+}
+html[data-ui-density="compact"] body .ac-desktop-dock svg:not(#ac-dc):not(#ac-dc2) {
+  width: 16px;
+  height: 16px;
+}
+
+/* ---------- Barre latérale ---------- */
+html[data-ui-density="compact"] body .ac-sidebar nav:not(#ac-dc):not(#ac-dc2) {
+  gap: 1px !important;
+}
+html[data-ui-density="compact"] body .ac-sidebar.is-collapsed nav a:not(#ac-dc):not(#ac-dc2) {
+  width: 38px !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  margin-left: 13px !important;
+  margin-right: 13px !important;
+  border-radius: 10px !important;
+}
+html[data-ui-density="compact"] body .ac-sidebar:not(.is-collapsed) nav a:not(#ac-dc):not(#ac-dc2) {
+  min-height: 32px !important;
+  height: 32px !important;
+  font-size: 13.2px !important;
+  border-radius: 9px !important;
+}
+
+/* ---------- Paramètres : barre Focus ---------- */
+html[data-ui-density="compact"] body .atlas-focus-nav-item:not(#ac-dc):not(#ac-dc2) {
+  min-height: 25px !important;
+  padding-top: 2px !important;
+  padding-bottom: 2px !important;
+  font-size: 12.3px !important;
+}
+
+/* ---------- Assistants (FormWizard) ---------- */
+html[data-ui-density="compact"] body .step-wizard__header:not(#ac-dc):not(#ac-dc2) {
+  padding-top: 10px !important;
+  padding-bottom: 8px !important;
+}
+html[data-ui-density="compact"] body .wizard-foot:not(#ac-dc):not(#ac-dc2) {
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
+}
+html[data-ui-density="compact"] body .modal:not(#ac-dc):not(#ac-dc2) {
+  padding: 16px 18px !important;
+}
+
+/* ---------- Boutons flottants ---------- */
+html[data-ui-density="compact"] body .qr-fab:not(#ac-dc):not(#ac-dc2) {
+  min-height: 40px !important;
+  padding: 6px 14px !important;
+}
+html[data-ui-density="compact"] body .ac-desktop-dock:not(#ac-dc):not(#ac-dc2):not(#ac-dc3) {
+  min-height: 42px !important;
+  height: auto !important;
+}

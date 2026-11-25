@@ -45,15 +45,22 @@ it('shows section content when IntersectionObserver is unavailable', async () =>
   expect(reveals.every(element => element.classList.contains('is-in'))).toBe(true);
 });
 
-it('shows the user question before the fictional agent reply', async () => {
+it('uses real light/dark screenshots in every feature card instead of mock-ups', async () => {
   await act(async () => { root.render(createElement(MemoryRouter, { children: createElement(Home) })); });
-  const conversation = host.querySelector('.hm-fx-agent')!;
-  const bubbles = conversation.querySelectorAll('.hm-bubble');
-  expect(conversation.getAttribute('aria-label')).toContain('fictif');
-  expect(bubbles[0].textContent).toContain('Vous');
-  expect(bubbles[0].textContent).toContain('Combien de ventes');
-  expect(bubbles[1].textContent).toContain('Agent Atlas');
-  expect(bubbles[1].textContent).toContain('23 ventes');
+  const shots = [...host.querySelectorAll('#features .hm-fx-shot')];
+  expect(shots).toHaveLength(5);
+  for (const shot of shots) {
+    const srcs = [...shot.querySelectorAll('img')].map((img) => img.getAttribute('src'));
+    expect(srcs).toHaveLength(2);
+    expect(srcs[0]).toMatch(/^\/shots\/site-[a-z-]+-light\.webp$/);
+    expect(srcs[1]).toMatch(/^\/shots\/site-[a-z-]+-dark\.webp$/);
+  }
+  const agent = host.querySelector('.hm-fx-agent img')!;
+  expect(agent.getAttribute('alt')).toContain('fictive');
+  // No hand-drawn SVG chart or fake window chrome left on the page.
+  expect(host.querySelector('#features svg[viewBox="0 0 220 68"]')).toBeNull();
+  expect(host.querySelector('.hm-window-bar')).toBeNull();
+  expect(host.querySelector('.hm-window img')?.getAttribute('src')).toBe('/shots/site-dashboard-light.webp');
   expect(host.querySelector('.hm-start')?.getAttribute('href')).toBe('/login');
   const split = host.querySelector('.hm-cta .public-download-split')!;
   const toggle = split.querySelector<HTMLButtonElement>('.public-download-toggle')!;

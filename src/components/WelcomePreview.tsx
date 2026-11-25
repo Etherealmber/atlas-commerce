@@ -14,10 +14,7 @@ export function WelcomePreview({ index, onPrevious, onNext }: {
       <h2 id="welcome-preview-title" className="welcome-title" tabIndex={-1}>{preview.title}</h2>
       <p className="welcome-sub">{preview.description}</p>
       <figure className="welcome-preview-media">
-        <picture>
-          {'poster' in preview && <source media="(prefers-reduced-motion: reduce)" srcSet={preview.poster} />}
-          <img src={preview.src} alt={preview.alt} decoding="async" />
-        </picture>
+        <img src={preview.src} alt={preview.alt} decoding="async" />
       </figure>
       <div className="welcome-nav">
         <button type="button" className="welcome-btn-ghost" onClick={onPrevious}>
