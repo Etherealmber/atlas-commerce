@@ -1,13 +1,17 @@
 /**
- * v0.9.4 — Visite guidée interactive, lancée après « Explorer Atlas Commerce »
+ * v0.9.3 — Visite guidée interactive, lancée après « Explorer Atlas Commerce »
  * (dernière étape du guide de bienvenue).
  *
- * Chaque étape ouvre la bonne page, entoure l’élément à utiliser (projecteur) et
- * explique quoi faire : Produits → Ajouter un produit, Clients → Ajouter un
+ * Chaque étape ouvre la bonne page, entoure l’élément concerné (projecteur) et
+ * explique à quoi il sert : Produits → Ajouter un produit, Clients → Ajouter un
  * client, Factures → Créer une facture, Vente rapide, Solde, Atlas Agent, menu
- * du compte. L’utilisateur peut cliquer l’élément (l’assistant s’ouvre ; la
- * carte se masque tant qu’une fenêtre est ouverte), ou avancer avec Suivant.
- * Progression et fin sont gardées dans localStorage (src/lib/onboarding.ts).
+ * du compte.
+ *
+ * C’est une simple démonstration : un écran transparent (.ac-onboard-shield)
+ * bloque les clics sur la page pendant la visite, aucun appel API n’est fait et
+ * rien n’est ajouté à la base de données. « Passer » (ou Échap) la quitte à tout
+ * moment. Seules la progression et la fin sont gardées dans localStorage
+ * (src/lib/onboarding.ts).
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -46,7 +50,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     target: 'aside a[href="/products"]',
     title: 'Allez dans Produits',
     body: 'Toutes les pages sont dans la barre latérale. Commençons par le catalogue : Produits & stock.',
-    hint: 'Cliquez sur l’icône, ou sur Suivant.',
+    hint: 'C’est ici que vous cliquerez ensuite. Appuyez sur Suivant.',
   },
   {
     id: 'product-create',
@@ -54,7 +58,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     target: 'button[title="Ajouter un produit"]',
     title: 'Créez votre premier produit',
     body: 'Nom, prix, stock, catégorie et code-barres, en quelques étapes. Le stock se met ensuite à jour tout seul à chaque vente.',
-    hint: 'Essayez maintenant : la visite reprend quand vous fermez l’assistant.',
+    hint: 'Ce bouton ouvre l’assistant produit. Ici, rien n’est créé : appuyez sur Suivant.',
   },
   {
     id: 'client-create',
@@ -62,7 +66,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     target: 'button[title="Ajouter un client"]',
     title: 'Ajoutez un client',
     body: 'ICE, téléphone et adresse : la fiche sert ensuite aux devis, aux factures et aux relances d’impayés.',
-    hint: 'Cliquez sur « Ajouter un client », ou sur Suivant.',
+    hint: 'Vous le ferez plus tard depuis ce bouton. Appuyez sur Suivant.',
   },
   {
     id: 'invoice-create',
@@ -70,7 +74,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     target: 'button[title="Créer une facture"]',
     title: 'Créez une facture',
     body: 'Choisissez le client et les produits : la TVA, le stock et le PDF sont calculés pour vous.',
-    hint: 'Cliquez sur « Créer une facture », ou sur Suivant.',
+    hint: 'Vous le ferez plus tard depuis ce bouton. Appuyez sur Suivant.',
   },
   {
     id: 'quick-sale',
@@ -78,7 +82,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     target: 'button[title="Nouvelle vente"]',
     title: 'Encaissez une vente rapide',
     body: 'Pour le comptoir : un ticket, un paiement, et le stock comme la caisse sont à jour.',
-    hint: 'Cliquez sur « Nouvelle vente », ou sur Suivant.',
+    hint: 'Vous le ferez plus tard depuis ce bouton. Appuyez sur Suivant.',
   },
   {
     id: 'balance',
@@ -243,6 +247,8 @@ export function GuidedOnboarding({ steps = ONBOARDING_STEPS }: { steps?: Onboard
   return (
     <FloatingPortal>
       <div className="ac-onboard-layer" data-step={step.id}>
+        {/* Demo only: swallow every click on the page so the tour can never create data. */}
+        <div className="ac-onboard-shield" aria-hidden="true" />
         {rect ? (
           <div
             className="ac-onboard-spot"
@@ -277,6 +283,9 @@ export function GuidedOnboarding({ steps = ONBOARDING_STEPS }: { steps?: Onboard
           <h2 id={titleId} className="ac-onboard-title">{step.title}</h2>
           <p className="ac-onboard-body">{step.body}</p>
           {step.hint ? <p className="ac-onboard-hint">{step.hint}</p> : null}
+          <p className="ac-onboard-demo">
+            Démonstration uniquement : rien n’est ajouté à votre base de données. Vous pouvez passer la visite à tout moment.
+          </p>
           <div className="ac-onboard-dots" aria-hidden="true">
             {steps.map((s, i) => (
               <span key={s.id} className={`ac-onboard-dot${i === index ? ' is-active' : ''}${i < index ? ' is-done' : ''}`} />

@@ -1,5 +1,5 @@
 /*
- * v0.9.4 — Densité « Compacte » (bureau uniquement).
+ * v0.9.3 — Densité « Compacte » (bureau uniquement).
  *
  * Activée par <html data-ui-density="compact"> (src/lib/density.ts). Le mobile
  * pose toujours « comfortable ». Cette couche ne touche QUE les tailles

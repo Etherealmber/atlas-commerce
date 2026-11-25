@@ -18,11 +18,13 @@ const LANGS: { code: string; native: string; label: string; ready: boolean; dir?
 
 export const LanguageSoonDialog: FC<{ open: boolean; onClose: () => void }> = ({ open, onClose }) => {
   const okRef = useRef<HTMLButtonElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') onCloseRef.current();
     };
     window.addEventListener('keydown', onKey);
     const t = window.setTimeout(() => okRef.current?.focus(), 30);
@@ -30,7 +32,9 @@ export const LanguageSoonDialog: FC<{ open: boolean; onClose: () => void }> = ({
       window.removeEventListener('keydown', onKey);
       window.clearTimeout(t);
     };
-  }, [open, onClose]);
+    // Only `open` drives this effect: parents pass inline callbacks, and re-running it on
+    // every parent render re-focused the button and could look like the popup reset itself.
+  }, [open]);
 
   if (!open || typeof document === 'undefined') return null;
 

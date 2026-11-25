@@ -47,7 +47,7 @@ const click = async (el: Element | null | undefined) => {
 const byText = (sel: string, text: string) =>
   Array.from(document.body.querySelectorAll(sel)).find((b) => (b.textContent || '').trim().includes(text));
 
-describe('Déconnexion asks « are you sure » (v0.9.4)', () => {
+describe('Déconnexion asks « are you sure » (v0.9.3)', () => {
   it('opens a confirmation instead of logging out, cancel keeps the session, confirm logs out', async () => {
     const onLogout = vi.fn();
     await act(async () =>

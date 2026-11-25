@@ -44,7 +44,7 @@ const AGENT = [
   ['agent-open-conversation', { conversation: true }],
 ];
 
-// v0.9.4 — shell states the desktop must reproduce: account menu, logout
+// v0.9.3 — shell states the desktop must reproduce: account menu, logout
 // confirmation, « Langue bientôt » popup, guided tour, compact density.
 // Steps are data, not code: { selector } clicks a CSS match, { text } clicks the
 // first button whose label starts with that text.
@@ -182,7 +182,7 @@ function installFixtures(theme) {
     if (p === '/api/cash-shifts') return cashShifts;
     if (/^\/api\/cash-shifts\/\d+$/.test(p)) return { ...cashShifts[0], movements: [{ method: 'cash', direction: 'in', amount: 1687, label: 'VR-2026-0311' }], summary: { expectedCash: 2187, methods: { cash: { method: 'cash', label: 'Espèces', in_total: 1687, out_total: 0, expected: 2187, counted: null, variance: null } } } };
     if (p === '/api/settings') return settings;
-    if (p === '/api/admin/app-update') return { minimumVersionEnabled: false, minimumSupportedVersionCode: 0, source: 'r2', manifest: { versionCode: 94, versionName: '0.9.4', apkUrl: 'https://cdn.example.ma/app-updates/android/latest.apk', mandatory: false, notes: 'Corrections et captures réelles.' }, json: { key: 'app-updates/android/latest.json', url: 'https://cdn.example.ma/app-updates/android/latest.json', size: 412, uploaded: `${day('11-24')}T18:00:00Z` }, apk: { key: 'app-updates/android/latest.apk', url: 'https://cdn.example.ma/app-updates/android/latest.apk', size: 18874368, uploaded: `${day('11-24')}T18:00:00Z` }, apkUrlExists: true, maxApkBytes: 104857600 };
+    if (p === '/api/admin/app-update') return { minimumVersionEnabled: false, minimumSupportedVersionCode: 0, source: 'r2', manifest: { versionCode: 93, versionName: '0.9.3', apkUrl: 'https://cdn.example.ma/app-updates/android/latest.apk', mandatory: false, notes: 'Corrections et captures réelles.' }, json: { key: 'app-updates/android/latest.json', url: 'https://cdn.example.ma/app-updates/android/latest.json', size: 412, uploaded: `${day('11-24')}T18:00:00Z` }, apk: { key: 'app-updates/android/latest.apk', url: 'https://cdn.example.ma/app-updates/android/latest.apk', size: 18874368, uploaded: `${day('11-24')}T18:00:00Z` }, apkUrlExists: true, maxApkBytes: 104857600 };
     if (p === '/api/agent/policy') return policy;
     if (p === '/api/ledger/reconcile') return { summary: { ok: true }, counts: { invoice_payments: 12, balance_receipts: 12, receipts: 12 } };
     if (p === '/api/nav-badges') return {};

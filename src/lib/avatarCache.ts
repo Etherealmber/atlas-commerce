@@ -55,7 +55,7 @@ export function prefetchAvatar(url?: string | null): void {
   void avatarObjectUrl(u).catch(() => { /* initials fallback stays */ });
 }
 
-/** Drop everything (logout or avatar re-upload). */
+/** Drop everything (logout). */
 export function invalidateAvatarCache(): void {
   for (const objectUrl of cache.values()) {
     try { URL.revokeObjectURL(objectUrl); } catch { /* */ }
@@ -64,10 +64,41 @@ export function invalidateAvatarCache(): void {
   inflight.clear();
 }
 
+/**
+ * Forget one avatar so the next `avatarObjectUrl` call refetches it (used when an
+ * <img> fails to decode). The old object URL is revoked after a grace period so an
+ * image still showing it never breaks mid-render.
+ */
+export function dropAvatar(url: string): void {
+  const objectUrl = cache.get(url);
+  cache.delete(url);
+  inflight.delete(url);
+  if (objectUrl) revokeLater(objectUrl);
+}
+
+function revokeLater(objectUrl: string): void {
+  window.setTimeout(() => {
+    try { URL.revokeObjectURL(objectUrl); } catch { /* */ }
+  }, 30_000);
+}
+
+/** Avatar changed: keep the current URL's blob, drop only stale ones (revoked later). */
+function pruneStaleAvatars(current: string): void {
+  for (const [key, objectUrl] of Array.from(cache.entries())) {
+    if (key === current) continue;
+    cache.delete(key);
+    revokeLater(objectUrl);
+  }
+  for (const key of Array.from(inflight.keys())) {
+    if (key !== current) inflight.delete(key);
+  }
+}
+
 // React to profile/avatar changes: drop stale blobs, prefetch the fresh one.
 if (typeof window !== 'undefined') {
   window.addEventListener('atlas-avatar-changed', () => {
-    invalidateAvatarCache();
-    prefetchAvatar(getAvatarUrl());
+    const current = String(getAvatarUrl() || '').trim();
+    pruneStaleAvatars(current);
+    prefetchAvatar(current);
   });
 }

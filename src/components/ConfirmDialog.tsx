@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 /**
- * v0.9.4 — confirmation courte (ex. « Se déconnecter ? »).
+ * v0.9.3 — confirmation courte (ex. « Se déconnecter ? »).
  * Même carte que le dialogue Langue (`.ac-lang-*`), donc identique en clair
  * et en sombre. Échap ou clic sur le fond = Annuler. Le focus démarre sur
  * « Annuler » pour qu’un Entrée réflexe ne valide pas une action destructive.
@@ -20,11 +20,13 @@ export const ConfirmDialog: FC<{
   onCancel: () => void;
 }> = ({ open, title, message, confirmLabel, cancelLabel = 'Annuler', icon, tone = 'danger', onConfirm, onCancel }) => {
   const cancelRef = useRef<HTMLButtonElement | null>(null);
+  const onCancelRef = useRef(onCancel);
+  onCancelRef.current = onCancel;
 
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCancel();
+      if (e.key === 'Escape') onCancelRef.current();
     };
     window.addEventListener('keydown', onKey);
     const t = window.setTimeout(() => cancelRef.current?.focus(), 30);
@@ -32,7 +34,9 @@ export const ConfirmDialog: FC<{
       window.removeEventListener('keydown', onKey);
       window.clearTimeout(t);
     };
-  }, [open, onCancel]);
+    // Only `open` drives this effect: parents pass inline callbacks, and re-running it on
+    // every parent render re-focused the button and could look like the popup reset itself.
+  }, [open]);
 
   if (!open || typeof document === 'undefined') return null;
 
