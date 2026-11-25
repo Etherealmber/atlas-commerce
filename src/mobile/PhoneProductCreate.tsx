@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { api } from '../api';
 import { getRole } from '../auth';
 import PhoneDialog from './PhoneDialog';
+import { bounceDialogOf } from '../lib/unsavedGuard';
 import { dualStockLabel, mergeUnitOptions, type UnitOption } from '../lib/dualUnit';
 
 /** Admins create directly; other roles submit an approval request, never a product write. */
@@ -14,6 +15,10 @@ export default function PhoneProductCreate({ onClose, onCreated }: { onClose: ()
   const [customSecondUnit, setCustomSecondUnit] = useState('');
   const [factorText, setFactorText] = useState(''); const [stockText, setStockText] = useState('0');
   const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const sending = useRef(false);
+  // Same step model as the web wizards: short screens, no long scroll. Every
+  // field stays mounted (hidden steps), so the FormData submit is unchanged.
+  const [step, setStep] = useState(0);
+  const formRef = useRef<HTMLFormElement>(null);
   const baseUnit = baseUnitChoice === '__custom__' ? customBaseUnit : baseUnitChoice;
   const secondUnit = secondUnitChoice === '__custom__' ? customSecondUnit : secondUnitChoice;
   useEffect(() => {
@@ -24,6 +29,24 @@ export default function PhoneProductCreate({ onClose, onCreated }: { onClose: ()
     return () => { active = false; };
   }, []);
   const close = () => { if (!sending.current) onClose(); };
+  const STEPS = ['Produit', 'Stock', direct ? 'Prix' : 'Photo'];
+  const stepValid = (i: number) => {
+    const form = formRef.current; if (!form) return true;
+    const fields = Array.from(form.querySelectorAll(`[data-step="${i}"] input, [data-step="${i}"] select`)) as Array<HTMLInputElement | HTMLSelectElement>;
+    const bad = fields.find((f) => !f.checkValidity());
+    if (!bad) return true;
+    setError(i === 0 ? 'Indiquez au moins le nom du produit.' : 'Indiquez une unité et un stock initial valides (≥ 0).');
+    return false;
+  };
+  const next = () => {
+    if (!stepValid(step)) { bounceDialogOf(formRef.current); return; }
+    setError(''); setStep((s) => Math.min(STEPS.length - 1, s + 1));
+  };
+  const jump = (i: number) => {
+    if (i <= step) { setError(''); setStep(i); return; }
+    for (let k = step; k < i; k++) if (!stepValid(k)) { setStep(k); bounceDialogOf(formRef.current); return; }
+    setError(''); setStep(i);
+  };
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault(); if (sending.current) return;
     const form = new FormData(event.currentTarget);
@@ -48,12 +71,26 @@ export default function PhoneProductCreate({ onClose, onCreated }: { onClose: ()
     finally { sending.current = false; setBusy(false); }
   };
   return <PhoneDialog titleId="ph-create-title" onClose={close} className="ph-create-dialog">
-    <form className="ph-create-form" onSubmit={submit}>
+    <form ref={formRef} className="ph-create-form ph-wz" onSubmit={submit} noValidate onKeyDown={(e) => { if (e.key === 'Enter' && step < STEPS.length - 1 && (e.target as HTMLElement).tagName === 'INPUT') { e.preventDefault(); next(); } }}>
       <h2 id="ph-create-title">{direct ? 'Créer un produit' : 'Demander un produit à l’Admin'}</h2>
       <p>{direct ? 'Le produit sera ajouté au catalogue.' : 'Votre demande sera envoyée pour validation ; le catalogue ne sera pas modifié directement.'}</p>
+      <ol className="ph-wz-steps" aria-label="Étapes">
+        {STEPS.map((label, i) => (
+          <li key={label}>
+            <button type="button" className={`ph-wz-step${i === step ? ' is-on' : ''}${i < step ? ' is-done' : ''}`} aria-current={i === step ? 'step' : undefined} onClick={() => jump(i)}>
+              <span>{i + 1}</span>{label}
+            </button>
+          </li>
+        ))}
+      </ol>
+      <div className="ph-wz-progress" aria-hidden="true"><span style={{ width: `${((step + 1) / STEPS.length) * 100}%` }} /></div>
+      <fieldset data-step="0" className="ph-wz-page" hidden={step !== 0}>
       <label>Nom *<input name="name" maxLength={120} required autoComplete="off" /></label>
       <label>Référence / SKU<input name="sku" maxLength={80} autoComplete="off" /></label>
       {direct && <label>Code-barres<input name="barcode" maxLength={120} autoComplete="off" /></label>}
+      {direct && <label>Catégorie<input name="category" maxLength={120} /></label>}
+      </fieldset>
+      <fieldset data-step="1" className="ph-wz-page" hidden={step !== 1}>
       <div className="ph-create-fields">
         <label>Unité principale *
           <select
@@ -103,12 +140,21 @@ export default function PhoneProductCreate({ onClose, onCreated }: { onClose: ()
         <label>Quantité par {baseUnit || 'unité'}<input name="secondary_unit_factor" inputMode="decimal" value={factorText} onChange={e => setFactorText(e.target.value)} placeholder="Ex. 1,59" /></label>
       </div>
       <p>Exemple : 1 carton = 1,59 m². Stock et prix sont enregistrés par unité principale.{secondUnit && Number(factorText.replace(',', '.')) > 0 ? ` Stock : ${dualStockLabel({ unit: baseUnit, secondary_unit: secondUnit, secondary_unit_factor: Number(factorText.replace(',', '.')), stock_quantity: Number(stockText) || 0 })}` : ''}</p>
-      {direct && <label>Catégorie<input name="category" maxLength={120} /></label>}
+      </fieldset>
+      <fieldset data-step="2" className="ph-wz-page" hidden={step !== 2}>
       <label>Photo facultative (4 Mo maximum)<input name="photo" type="file" accept="image/jpeg,image/png,image/webp,image/gif" /></label>
       {direct && <label>Prix de vente (MAD)<input name="price" type="number" min="0" step="any" defaultValue="0" inputMode="decimal" /></label>}
       {direct && <><label>Prix sur facture<select name="invoice_price_mode" defaultValue="exclusive"><option value="exclusive">TVA ajoutée au prix (HT)</option><option value="inclusive">TVA incluse dans le prix (TTC)</option></select></label><p>Les ventes rapides utilisent le prix sans TVA.</p><label>Note<textarea name="note" rows={2} maxLength={500} /></label></>}
+      </fieldset>
       {error && <p role="alert">{error}</p>}
-      <div className="ph-create-actions"><button type="button" className="secondary" disabled={busy} onClick={close}>Annuler</button><button type="submit" disabled={busy}>{busy ? 'Envoi…' : direct ? 'Créer le produit' : 'Envoyer la demande'}</button></div>
+      <div className="ph-create-actions">
+        {step === 0
+          ? <button type="button" className="secondary" disabled={busy} onClick={close}>Annuler</button>
+          : <button type="button" className="secondary" disabled={busy} onClick={() => { setError(''); setStep(step - 1); }}>Retour</button>}
+        {step < STEPS.length - 1
+          ? <button type="button" onClick={next}>Continuer</button>
+          : <button type="submit" disabled={busy}>{busy ? 'Envoi…' : direct ? 'Créer le produit' : 'Envoyer la demande'}</button>}
+      </div>
     </form>
   </PhoneDialog>;
 }

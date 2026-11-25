@@ -4,6 +4,7 @@ import { getBase } from '../api';
 import { getToken } from '../auth';
 import { getCachedFingerprint } from '../fingerprint';
 import PhoneDialog from './PhoneDialog';
+import DatePicker from '../components/DatePicker';
 import { readReportBytes } from './reportResponse';
 
 const sections = [['balance', 'Balance'], ['stock', 'Stock'], ['receivables', 'Créances clients'], ['payables', 'Fournisseurs'], ['employees', 'Employés & paie'], ['aging', 'Balance âgée'], ['tva', 'TVA']] as const;
@@ -67,7 +68,7 @@ export default function PhoneReportBundle({ onClose }: { onClose: () => void }) 
   return <PhoneDialog titleId="bundle-select-title" onClose={onClose} className="ph-bundle-modal"><div className="ph-bundle-select">
     <header className="ph-bundle-heading"><SlidersHorizontal size={22} aria-hidden="true" /><h2 id="bundle-select-title">Personnaliser le rapport</h2></header>
     <div className="ph-bundle-body"><p>Choisissez une période et les rubriques à consulter.</p><h3>Période</h3><div className="ph-bundle-chips" role="group" aria-label="Période du rapport">{periods.map(([key, label]) => <button type="button" className="theme-toggle" key={key} aria-pressed={period === key} onClick={() => setPeriod(key)}>{period === key && <Check size={16} aria-hidden="true" />}{label}</button>)}</div>
-    {period === 'custom' ? <><div className="ph-bundle-dates"><label>Du<input type="date" max={today} value={from} onChange={e => setFrom(e.target.value)} /></label><label>Au<input type="date" min={from} max={today} value={to} onChange={e => setTo(e.target.value)} /></label></div>{!valid && <p className="ph-bundle-error" role="alert">Vérifiez les dates : début avant fin, et aucune date future.</p>}</> : <p>Période calculée par le serveur dans son fuseau financier.</p>}
+    {period === 'custom' ? <><div className="ph-bundle-dates"><label>Du<DatePicker max={today} value={from} onChange={setFrom} /></label><label>Au<DatePicker min={from} max={today} value={to} onChange={setTo} /></label></div>{!valid && <p className="ph-bundle-error" role="alert">Vérifiez les dates : début avant fin, et aucune date future.</p>}</> : <p>Période calculée par le serveur dans son fuseau financier.</p>}
     <h3>Rubriques</h3><div className="ph-bundle-chips" role="group" aria-label="Rubriques du rapport">{sections.map(([key, label]) => <button type="button" className="theme-toggle" key={key} aria-pressed={selected.includes(key)} onClick={() => setSelected(old => old.includes(key) ? old.filter(s => s !== key) : [...old, key])}>{selected.includes(key) && <Check size={16} aria-hidden="true" />}{label}</button>)}</div><p>Les rubriques sélectionnées s’ouvrent dans Atlas.</p></div>
     <div className="ph-bundle-actions"><button type="button" className="theme-toggle ph-bundle-cancel" onClick={onClose}>Annuler</button><button type="button" className="theme-toggle ph-bundle-prepare" disabled={!valid || !selected.length} onClick={() => setReady({ period, from, to, sections: selected })}>Préparer</button></div>
   </div></PhoneDialog>;

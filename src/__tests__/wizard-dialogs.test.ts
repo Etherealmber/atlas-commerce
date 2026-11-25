@@ -115,9 +115,10 @@ it('Product wizard matches employee look and blocks advancing when name is empty
 it('Invoice wizard matches employee look and blocks advancing when client name is empty', async () => {
   await renderPage(createElement(Invoices));
   await clickText(host, 'Créer une facture');
-  assertUnifiedStepShell(3);
+  // Client details are split over short steps so no step needs scrolling.
+  assertUnifiedStepShell(5);
   await clickText(dlg(), 'Continuer');
-  expect(dlg().querySelector('.step-wizard__count')?.textContent?.trim()).toBe('1 / 3');
+  expect(dlg().querySelector('.step-wizard__count')?.textContent?.trim()).toBe('1 / 5');
   expect(dlg().querySelector('[role="alert"]')?.textContent).toContain('client');
 });
 
@@ -137,21 +138,9 @@ it('Bill wizard blocks skipping steps via top step pills when required fields ar
 
   await renderPage(createElement(Bills));
   await clickText(host, "Nouvelle facture d'achat");
-  assertUnifiedStepShell(3);
+  assertUnifiedStepShell(5);
 
-  // Step 3 pill on top is locked/disabled until step 2 is reached
-  const topPills = Array.from(dlg().querySelectorAll<HTMLButtonElement>('.step-wizard__step-btn'));
-  expect(topPills).toHaveLength(3);
-  expect(topPills[2].disabled).toBe(true);
-
-  // Clicking Step 2 pill on top while vendor_name is empty stays on 1 / 3 and shows validation error
-  await act(async () => {
-    topPills[1].click();
-  });
-  expect(dlg().querySelector('.step-wizard__count')?.textContent?.trim()).toBe('1 / 3');
-  expect(dlg().querySelector('[role="alert"]')?.textContent).toContain('fournisseur');
-
-  // Triggering OCR with an image that fails displays the failing process right inside the dialog
+  // Step 1 is the optional scan. An OCR failure shows the failing process inside the dialog.
   const fileInput = dlg().querySelector<HTMLInputElement>('input[type="file"]');
   expect(fileInput).toBeTruthy();
   const fakeFile = new File(['abc'], 'facture.png', { type: 'image/png' });
@@ -160,9 +149,18 @@ it('Bill wizard blocks skipping steps via top step pills when required fields ar
     fileInput!.dispatchEvent(new Event('change', { bubbles: true }));
     await new Promise((r) => setTimeout(r, 40));
   });
-
   const ocrPanel = dlg().querySelector('.wz-ocr-panel.is-error');
   expect(ocrPanel).toBeTruthy();
   expect(ocrPanel?.textContent).toContain('Analyse visuelle Qwen');
   expect(ocrPanel?.textContent).toContain('Échec de la lecture OCR');
+
+  // The scan step can be skipped, but the vendor step blocks skipping ahead.
+  const topPills = () => Array.from(dlg().querySelectorAll<HTMLButtonElement>('.step-wizard__step-btn'));
+  expect(topPills()).toHaveLength(5);
+  await act(async () => { topPills()[1].click(); });
+  expect(dlg().querySelector('.step-wizard__count')?.textContent?.trim()).toBe('2 / 5');
+  await act(async () => { topPills()[2].click(); });
+  expect(dlg().querySelector('.step-wizard__count')?.textContent?.trim()).toBe('2 / 5');
+  const alerts = Array.from(dlg().querySelectorAll('[role="alert"]')).map((n) => n.textContent || '').join(' | ');
+  expect(alerts).toContain('fournisseur');
 });

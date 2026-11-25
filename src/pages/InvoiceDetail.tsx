@@ -2,6 +2,7 @@ import DocumentActors from '../components/DocumentActors';
 import TopPageActions from '../components/TopPageActions';
 import { Ban, FileCode2, Pencil, Printer, RotateCcw } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import DatePicker from '../components/DatePicker';
 import { whatsAppDraft } from '../lib/assist';
 import { useParams, Link, Navigate, useNavigate } from 'react-router-dom';
 import { api, BASE } from '../api';
@@ -778,11 +779,11 @@ export default function InvoiceDetail() {
             ))}
             <div className="form-row">
               <label>Date d’émission</label>
-              <input type="date" value={clientForm.issue_date} onChange={(e) => setClientForm({ ...clientForm, issue_date: e.target.value })} />
+              <DatePicker value={clientForm.issue_date} onChange={(v) => setClientForm({ ...clientForm, issue_date: v })} />
             </div>
             <div className="form-row">
               <label>Date d’échéance</label>
-              <input type="date" value={clientForm.due_date} onChange={(e) => setClientForm({ ...clientForm, due_date: e.target.value })} />
+              <DatePicker value={clientForm.due_date} onChange={(v) => setClientForm({ ...clientForm, due_date: v })} />
             </div>
             <div className="form-row" style={{ gridColumn: '1 / -1' }}>
               <label>Notes</label>

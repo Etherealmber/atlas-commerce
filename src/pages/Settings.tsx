@@ -7,10 +7,14 @@ import { profileDataFromServer } from '../lib/profilePrefs';
 import ImageLightbox from '../components/ui/ImageLightbox';
 import { ListPager } from '../components/ui/ListPager';
 import { TimedUndoDelete, SaveToggle } from '../components/ui';
+import TopPageActions from '../components/TopPageActions';
+import { bounce, setPageGuard } from '../lib/unsavedGuard';
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { MonthPicker } from '../components/DatePicker';
 import {
   Activity,
   BarChart3,
+  Check,
   ChevronRight,
   Download,
   Languages,
@@ -18,6 +22,7 @@ import {
   ListFilter,
   RefreshCw,
   RotateCcw,
+  Save,
   Search,
   ShieldCheck,
   Users,
@@ -91,6 +96,7 @@ export default function Settings() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [, setSettingsFormError] = useState('');
   const [monthPackError, setMonthPackError] = useState('');
+  const [monthPack, setMonthPack] = useState(() => new Date().toISOString().slice(0, 7));
   const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
@@ -493,6 +499,15 @@ export default function Settings() {
   };
 
 
+  /** Shake the save actions (top of the page + floating notice): unsaved
+   *  changes block navigation, or a save attempt failed validation. */
+  const bounceSaveActions = useCallback(() => {
+    window.requestAnimationFrame(() => {
+      bounce(document.querySelector('.settings-top-save')?.closest('.top-page-actions'));
+      bounce(document.querySelector('.ac-settings-float'));
+    });
+  }, []);
+
   /** « Annuler » : revert every unsaved field to the last loaded/saved values in place. */
   const discardSettings = () => {
     if (savedSettingsRef.current) setSettings(savedSettingsRef.current);
@@ -507,6 +522,7 @@ export default function Settings() {
       const p = validateWrPrefix(merged.credit_prefix);
       if (!p.ok) {
         flash(p.error, 'error'); /* pas de toast — bannière dans la page */
+        bounceSaveActions();
         setActiveTab('invoicing');
         return;
       }
@@ -517,6 +533,7 @@ export default function Settings() {
       if (!Number.isFinite(n) || n < 1 || Math.floor(n) !== n) {
         const msg = 'Le prochain numéro WR doit être un entier ≥ 1.';
         flash(msg, 'error');
+        bounceSaveActions();
         setActiveTab('invoicing');
         return;
       }
@@ -526,6 +543,7 @@ export default function Settings() {
       setFieldErrors(errs);
       const msg = firstError(errs) || 'Complétez les champs obligatoires.';
       flash(msg, 'error');
+      bounceSaveActions();
       setActiveTab('company');
       return;
     }
@@ -578,6 +596,31 @@ export default function Settings() {
     activeTab !== 'payroll' &&
     activeTab !== 'fec' &&
     activeTab !== 'dunning';
+
+  /* Unsaved changes lock the page: links, the sidebar and browser back cannot
+     leave this section until « Enregistrer » or « Annuler ». */
+  const [blockedNotice, setBlockedNotice] = useState(false);
+  const [topActionsVisible, setTopActionsVisible] = useState(true);
+  useEffect(() => {
+    if (!settingsDirty || !canSaveSection) {
+      setBlockedNotice(false);
+      return undefined;
+    }
+    setPageGuard(() => {
+      setBlockedNotice(true);
+      bounceSaveActions();
+    });
+    return () => setPageGuard(null);
+  }, [settingsDirty, canSaveSection, bounceSaveActions]);
+  // The floating notice only shows when the top actions are out of sight.
+  useEffect(() => {
+    if (!canSaveSection || typeof IntersectionObserver === 'undefined') return undefined;
+    const el = document.querySelector('.settings-top-save');
+    if (!el) return undefined;
+    const io = new IntersectionObserver(([entry]) => setTopActionsVisible(entry.isIntersecting), { threshold: 0.6 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [canSaveSection, activeTab, settingsDirty, saving, justSaved]);
 
 
   const loadPasskeys = async () => {
@@ -852,6 +895,31 @@ if (loading) return (
   return (
     <div className="atlas-page ac-dash ac-settings-bento">
       <h1 className="sr-only">{TAB_TITLES[activeTab] || 'Paramètres'}</h1>
+      {canSaveSection && (
+        <div className="page-header ac-page-header dock-page-header settings-page-actions">
+          <TopPageActions>
+            {settingsDirty && (
+              <button type="button" className="secondary settings-top-discard" data-unsaved-allow disabled={saving} onClick={discardSettings} title="Annuler les modifications">
+                <RotateCcw size={15} aria-hidden="true" /><span className="tpa-label">Annuler</span>
+              </button>
+            )}
+            <button
+              type="button"
+              className={`settings-top-save${settingsDirty || saving ? '' : ' secondary is-clean'}`}
+              data-unsaved-allow
+              disabled={saving || !settingsDirty}
+              onClick={() => void save()}
+              title={settingsDirty ? 'Enregistrer cette section' : 'Cette section est à jour'}
+              aria-live="polite"
+            >
+              {settingsDirty || saving ? <Save size={15} aria-hidden="true" /> : <Check size={15} aria-hidden="true" />}
+              <span className="tpa-label">
+                {saving ? 'Enregistrement…' : settingsDirty ? 'Enregistrer' : justSaved ? 'Enregistré' : 'À jour'}
+              </span>
+            </button>
+          </TopPageActions>
+        </div>
+      )}
       {Object.values(fieldErrors).find(Boolean) ? (
         <div className="save-error-inline" role="alert" style={{ marginBottom: 10 }}>
           {Object.values(fieldErrors).find(Boolean)}
@@ -3826,17 +3894,12 @@ if (loading) return (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'end' }}>
               <div className="form-row" style={{ margin: 0 }}>
                 <label>Mois</label>
-                <input
-                  type="month"
-                  id="atlas-month-pack"
-                  defaultValue={new Date().toISOString().slice(0, 7)}
-                />
+                <MonthPicker id="atlas-month-pack" value={monthPack} onChange={(v) => setMonthPack(v || new Date().toISOString().slice(0, 7))} />
               </div>
               <button
                 type="button"
                 onClick={async () => {
-                  const el = document.getElementById('atlas-month-pack') as HTMLInputElement | null;
-                  const month = el?.value || new Date().toISOString().slice(0, 7);
+                  const month = monthPack;
                   try {
                     setMonthPackError('');
                     await api.exportMonthPack(month, 'json');
@@ -3855,8 +3918,7 @@ if (loading) return (
                 type="button"
                 className="secondary"
                 onClick={async () => {
-                  const el = document.getElementById('atlas-month-pack') as HTMLInputElement | null;
-                  const month = el?.value || new Date().toISOString().slice(0, 7);
+                  const month = monthPack;
                   try {
                     setMonthPackError('');
                     await api.exportMonthPack(month, 'csv');
@@ -4011,23 +4073,6 @@ if (loading) return (
       )}
 
 
-      {canSaveSection && (
-        <div className="settings-tab-save-bar ac-panel">
-          <span className="muted">
-            {settingsDirty ? 'Modifications non enregistrées dans cette section' : 'Cette section est à jour'}
-          </span>
-          <SaveToggle
-            size="sm"
-            idleText={settingsDirty ? 'Enregistrer' : 'À jour'}
-            savedText="Enregistré"
-            busy={saving}
-            success={saveOk}
-            dirty={settingsDirty}
-            disabled={!settingsDirty && !saving}
-            onClick={() => void save()}
-          />
-        </div>
-      )}
       </div>{/* settings-main */}
       </div>{/* settings-shell */}
 
@@ -4093,16 +4138,17 @@ if (loading) return (
 
       {/* v0.9.3 — popup flottant dès qu’un réglage change (porté sur <body> :
           un ancêtre transformé cassait position: fixed et l’envoyait sous la page). */}
-      {canSaveSection && (settingsDirty || justSaved) && createPortal(
+      {canSaveSection && (!topActionsVisible || blockedNotice) && (settingsDirty || justSaved) && createPortal(
         <div
-          className={`settings-sticky-save ac-settings-float${justSaved && !settingsDirty ? ' is-saved' : ''}`}
+          className={`settings-sticky-save ac-settings-float${justSaved && !settingsDirty ? ' is-saved' : ''}${blockedNotice ? ' is-blocked' : ''}`}
+          data-unsaved-allow
           role="region"
           aria-label="Enregistrement des paramètres"
           aria-live="polite"
         >
           <span className="ac-settings-float-dot" aria-hidden />
           <span className="ac-settings-float-text">
-            <b>{justSaved && !settingsDirty ? 'Paramètres enregistrés' : 'Modifications non enregistrées'}</b>
+            <b>{justSaved && !settingsDirty ? 'Paramètres enregistrés' : blockedNotice ? 'Enregistrez ou annulez avant de quitter' : 'Modifications non enregistrées'}</b>
             <i>{TAB_TITLES[activeTab] || 'Paramètres'}</i>
           </span>
           {settingsDirty ? (

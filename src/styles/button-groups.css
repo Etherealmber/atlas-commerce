@@ -301,48 +301,7 @@ html[data-ui-density="compact"]:not(.phone-shell) body .top-page-actions > :is(b
   max-height: 36px !important;
 }
 
-/* ── 7. Settings section save bar: « À jour » is a calm pill, not a black
- *       block. Dirty → dark primary « Enregistrer »; clean → disabled pill. */
-html body .settings-tab-save-bar:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: space-between !important;
-  gap: 12px !important;
-}
-html body .settings-tab-save-bar > .ac-save-toggle:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
-  height: 36px !important;
-  min-height: 36px !important;
-  max-height: 36px !important;
-  min-width: 112px;
-  margin: 0 !important;
-  border-radius: 999px !important;
-  border: 1px solid var(--ia-primary) !important;
-  background: var(--ia-primary) !important;
-  background-color: var(--ia-primary) !important;
-  opacity: 1 !important;
-  box-shadow: none !important;
-  transform: none !important;
-}
-html body .settings-tab-save-bar > .ac-save-toggle > span:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
-  color: var(--ia-primary-ink) !important;
-  -webkit-text-fill-color: var(--ia-primary-ink) !important;
-  font-size: 13px !important;
-  font-weight: 650 !important;
-}
-html body .settings-tab-save-bar > .ac-save-toggle:hover:not(:disabled):not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
-  filter: brightness(1.12);
-}
-html body .settings-tab-save-bar > .ac-save-toggle:disabled:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
-  background: var(--ia-disabled-bg) !important;
-  background-color: var(--ia-disabled-bg) !important;
-  border-color: var(--ia-line) !important;
-  cursor: default !important;
-  filter: none !important;
-}
-html body .settings-tab-save-bar > .ac-save-toggle:disabled > span:not(#grp-g):not(#grp-h):not(#grp-i):not(#grp-j) {
-  color: var(--ia-disabled-ink) !important;
-  -webkit-text-fill-color: var(--ia-disabled-ink) !important;
-}
+/* ── 7. (retired) Settings save actions now live in TopPageActions, top-right. */
 
 /* ── 8. Status badges: every state is a filled pill on one line ─────────── *
  * « Payée » had a fill while « Partiellement payée », « Envoyée » and

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { MonthPicker } from '../components/DatePicker';
 import {
   CheckCircle2,
   Download,
@@ -264,12 +265,7 @@ export default function Payroll() {
         <form onSubmit={createRegularRun} className="ac-erp-toolbar">
           <label className="ac-erp-field" style={{ minWidth: '180px' }}>
             <span>Période (mois)</span>
-            <input
-              type="month"
-              value={month}
-              onChange={(e) => setMonth(e.target.value)}
-              required
-            />
+            <MonthPicker value={month} onChange={(v) => v && setMonth(v)} aria-label="Période (mois)" />
           </label>
           <button type="submit" className="ac-erp-btn-ico" disabled={busy || !isOwnerOrAdmin}>
             <Play size={15} aria-hidden="true" />

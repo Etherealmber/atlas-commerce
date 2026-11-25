@@ -2,6 +2,7 @@ import DocumentActors from '../components/DocumentActors';
 import TopPageActions from '../components/TopPageActions';
 import { Ban, Pencil, Printer, RotateCcw } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import DatePicker from '../components/DatePicker';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { api, BASE } from '../api';
 import { getToken } from '../auth';
@@ -413,7 +414,7 @@ export default function QuickSaleDetail() {
               </div>
               <div className="form-row">
                 <label>Date d’émission</label>
-                <input type="date" value={infoForm.issue_date} onChange={(e) => setInfoForm({ ...infoForm, issue_date: e.target.value })} />
+                <DatePicker value={infoForm.issue_date} onChange={(v) => setInfoForm({ ...infoForm, issue_date: v })} />
               </div>
               <div className="form-row">
                 <label>Ville</label>

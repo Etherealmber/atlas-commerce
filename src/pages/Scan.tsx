@@ -7,6 +7,7 @@
  * Desktop (PC) also lists open requests with a "Créer produit" shortcut.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
+import DatePicker from '../components/DatePicker';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { canManageStock } from '../auth';
@@ -425,7 +426,7 @@ export default function Scan() {
             {opMode === 'receive' && (
               <>
                 <input className="scan-input" value={opLot} onChange={(e) => setOpLot(e.target.value)} placeholder="Lot (optionnel)" aria-label="Lot" />
-                <input className="scan-input" type="date" value={opExpiry} onChange={(e) => setOpExpiry(e.target.value)} aria-label="Expiration" />
+                <DatePicker className="scan-input" value={opExpiry} onChange={setOpExpiry} placeholder="Expiration" />
               </>
             )}
           </div>

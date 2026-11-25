@@ -28,10 +28,12 @@ import './styles/density-compact.css';
 import './styles/element-pills.css'; /* in-element action pills (Produits row style) */
 import './styles/input-actions.css'; /* buttons beside fields + settings save bar */
 import './styles/button-groups.css'; /* one height per button row + popup footers */
+import './styles/form-controls.css'; /* date pickers, selects, settings top actions, product grid */
 import './styles/dark-force.css'; /* absolute last — dark surfaces */
 import { isNativeApp } from './config';
 import { applyDensityFromStorage } from './lib/density';
 import { installCrashReporting } from './lib/crashReporter';
+import { installUnsavedGuards } from './lib/unsavedGuard';
 
 // v260 — global crash reporting (fire-and-forget, throttled, sanitized server-side)
 installCrashReporting();
@@ -113,6 +115,9 @@ if (typeof document !== 'undefined') {
     }
   } catch { /* ignore */ }
 }
+
+// Before React mounts, so its capture listeners run ahead of the app's own.
+installUnsavedGuards();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

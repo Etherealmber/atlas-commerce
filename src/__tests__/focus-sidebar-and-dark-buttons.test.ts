@@ -395,7 +395,7 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     expect(attendanceSrc).not.toContain('#fffbeb');
 
     // Global select clipping protection
-    expect(overridesCss).toContain('html body select:not(.atlas-dp-select):not([multiple]):not([size])');
+    expect(overridesCss).toContain('html body select:not(.ac-pick):not([multiple]):not([size])');
     expect(overridesCss).toContain('.bal-reports-field select');
 
     // Skeleton containers are never painted by [class*="skeleton"]

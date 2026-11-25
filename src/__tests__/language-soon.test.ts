@@ -48,12 +48,13 @@ describe('Language « bientôt » (v0.9.3)', () => {
     expect(document.body.querySelector('.ac-lang-layer')).toBeNull();
   });
 
-  it('is reachable from Settings (sidebar + profile section) and the top user menu', () => {
+  it('is reachable from the Settings profile section and the top user menu — not the Settings sidebar', () => {
     const sidebar = readFileSync('src/components/FocusSidebar.tsx', 'utf8');
     const menu = readFileSync('src/components/shell/TopbarUserMenu.tsx', 'utf8');
     const settings = readFileSync('src/pages/Settings.tsx', 'utf8');
-    for (const src of [sidebar, menu, settings]) expect(src).toContain('<LanguageSoonDialog');
-    expect(sidebar).toContain("label: 'Langue'");
+    for (const src of [menu, settings]) expect(src).toContain('<LanguageSoonDialog');
+    expect(sidebar).not.toContain("label: 'Langue'");
+    expect(sidebar).not.toContain('LanguageSoonDialog');
     expect(menu).toContain('<b>Langue</b>');
     expect(settings).toContain('id="settings-language"');
   });

@@ -45,19 +45,22 @@ it('shows section content when IntersectionObserver is unavailable', async () =>
   expect(reveals.every(element => element.classList.contains('is-in'))).toBe(true);
 });
 
-it('uses real light/dark screenshots in every feature card instead of mock-ups', async () => {
+it('builds the feature cards from live app UI — no screenshots, no photos', async () => {
   await act(async () => { root.render(createElement(MemoryRouter, { children: createElement(Home) })); });
-  const shots = [...host.querySelectorAll('#features .hm-fx-shot')];
-  expect(shots).toHaveLength(5);
-  for (const shot of shots) {
-    const srcs = [...shot.querySelectorAll('img')].map((img) => img.getAttribute('src'));
-    expect(srcs).toHaveLength(2);
-    // site-* (agent) or feature-* (real component captures of the web app)
-    expect(srcs[0]).toMatch(/^\/shots\/(site|feature)-[a-z-]+-light\.webp$/);
-    expect(srcs[1]).toMatch(/^\/shots\/(site|feature)-[a-z-]+-dark\.webp$/);
+  const live = [...host.querySelectorAll('#features .hm-fx.hm-live')];
+  expect(live).toHaveLength(5);
+  for (const card of live) {
+    expect(card.getAttribute('role')).toBe('img');
+    expect(card.getAttribute('aria-label')).toMatch(/fictiv/);
+    expect(card.querySelector('img')).toBeNull();
+    expect(card.querySelector('.hm-live-inner')?.getAttribute('aria-hidden')).toBe('true');
   }
-  const agent = host.querySelector('.hm-fx-agent img')!;
-  expect(agent.getAttribute('alt')).toContain('fictive');
+  expect(host.querySelector('#features .hm-fx-shot')).toBeNull();
+  expect(host.querySelector('#features img[src*="/shots/"]')).toBeNull();
+  // Same app pieces: product cards with stock chips, §8 status badges, agent bubbles.
+  expect(host.querySelectorAll('#features .hl-pcard')).toHaveLength(2);
+  expect(host.querySelector('#features .hl-badge.is-warning')?.textContent).toBe('Partielle');
+  expect(host.querySelector('#features .hl-bubble.is-user')?.textContent).toContain('ventes');
   // No hand-drawn SVG chart or fake window chrome left on the page.
   expect(host.querySelector('#features svg[viewBox="0 0 220 68"]')).toBeNull();
   expect(host.querySelector('.hm-window-bar')).toBeNull();

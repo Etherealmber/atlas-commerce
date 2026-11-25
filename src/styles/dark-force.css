@@ -778,76 +778,6 @@ html[data-theme="dark"] .about-project-badge {
 }
 
 /* DatePicker — trigger + popover fully dark (was white field, invisible days) */
-html[data-theme="dark"] button.atlas-dp-trigger {
-  background: #1c1c1f !important;
-  border-color: #3f3f46 !important;
-  color: #f4f4f5 !important;
-}
-html[data-theme="dark"] button.atlas-dp-trigger .atlas-dp-value.is-placeholder {
-  color: #71717a !important;
-}
-html[data-theme="dark"] button.atlas-dp-trigger .atlas-dp-icon {
-  color: #a1a1aa !important;
-}
-html[data-theme="dark"] button.atlas-dp-trigger.is-open {
-  border-color: #52525b !important;
-  box-shadow: 0 0 0 1px #3f3f46 !important;
-}
-html[data-theme="dark"] .atlas-dp-pop {
-  background: #1c1c1f !important;
-  color: #f4f4f5 !important;
-  border-color: #3f3f46 !important;
-}
-html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-day,
-html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-nav,
-html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-btn {
-  color: #e4e4e7 !important;
-}
-html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-nav {
-  background: #27272a !important;
-  border-color: #3f3f46 !important;
-}
-html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-nav:hover {
-  background: #3f3f46 !important;
-}
-html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-day:hover:not(.is-disabled):not(.is-selected) {
-  background: #27272a !important;
-  color: #fafafa !important;
-}
-html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-day.is-in-range {
-  background: #27272a !important;
-  color: #f4f4f5 !important;
-}
-html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-day.is-selected {
-  background: #fafafa !important;
-  color: #0a0a0a !important;
-}
-html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-day.is-today {
-  box-shadow: inset 0 0 0 1px #52525b !important;
-}
-html[data-theme="dark"] .atlas-dp-presets {
-  background: #161618 !important;
-  border-right-color: #2a2a2e;
-}
-html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-preset {
-  color: #d4d4d8 !important;
-}
-html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-preset:hover {
-  background: #27272a !important;
-}
-html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-preset.is-active {
-  background: #27272a !important;
-  color: #fafafa !important;
-}
-html[data-theme="dark"] .atlas-dp-select {
-  background: #27272a !important;
-  border-color: #3f3f46 !important;
-  color: #f4f4f5 !important;
-}
-html[data-theme="dark"] .atlas-dp-hint,
-html[data-theme="dark"] .atlas-dp-weekdays {
-  color: #a1a1aa !important;
-}
 
 /* ========== v201 — wizard footers, range chips, modal controls, range-dp ========== */
 html[data-theme="dark"] .wizard-foot {
@@ -889,22 +819,6 @@ html[data-theme="dark"] .modal-card textarea {
   color: #f4f4f5;
 }
 /* Range datepicker: calendar half + footer were still light */
-html[data-theme="dark"] .atlas-dp-range-main {
-  background: #1c1c1f;
-}
-html[data-theme="dark"] .atlas-dp-foot button,
-html[data-theme="dark"] .atlas-dp-pop .atlas-dp-foot button.secondary {
-  background: #27272a !important;
-  color: #f4f4f5 !important;
-  border: 1px solid #3f3f46 !important;
-}
-html[data-theme="dark"] .atlas-dp-foot button:not(.secondary) {
-  background: #fafafa !important;
-  color: #0a0a0a !important;
-  border-color: #fafafa !important;
-}
-html[data-theme="dark"] .atlas-dp-weekdays,
-html[data-theme="dark"] .atlas-dp-hint { color: #a1a1aa !important; }
 
 /* ========== v201 — Welcome stage on the unified palette ========== */
 .welcome-stage {
@@ -1003,55 +917,6 @@ html[data-theme="dark"] .atlas-agent-foot .atlas-agent-input-wrap input {
 }
 
 /* ========== v202 — DatePicker follows the site palette in LIGHT too ========== */
-html[data-theme="light"] .atlas-dp-pop {
-  background: #ffffff !important;
-  color: #0a0a0a !important;
-  border: 1px solid #e4e4e7 !important;
-  border-radius: 12px !important;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12) !important;
-}
-html[data-theme="light"] .atlas-dp-pop button.atlas-dp-day,
-html[data-theme="light"] .atlas-dp-pop button.atlas-dp-preset,
-html[data-theme="light"] .atlas-dp-pop button.atlas-dp-btn {
-  color: #0a0a0a !important;
-}
-html[data-theme="light"] .atlas-dp-pop button.atlas-dp-nav {
-  background: #f4f4f5 !important;
-  color: #0a0a0a !important;
-  border-radius: 8px !important;
-}
-html[data-theme="light"] .atlas-dp-pop button.atlas-dp-nav:hover { background: #e4e4e7 !important; }
-html[data-theme="light"] .atlas-dp-pop button.atlas-dp-day.is-today {
-  box-shadow: inset 0 0 0 1px #a1a1aa !important;
-  background: transparent !important;
-}
-html[data-theme="light"] .atlas-dp-pop button.atlas-dp-day.is-in-range {
-  background: #f4f4f5 !important;
-  color: #0a0a0a !important;
-}
-html[data-theme="light"] .atlas-dp-pop button.atlas-dp-day.is-selected {
-  background: #0a0a0a !important;
-  color: #fafafa !important;
-  border-radius: 8px !important;
-}
-html[data-theme="light"] button.atlas-dp-trigger {
-  background: #ffffff !important;
-  border: 1px solid #d4d4d8 !important;
-  color: #0a0a0a !important;
-  border-radius: 10px !important;
-}
-html[data-theme="light"] .atlas-dp-weekdays,
-html[data-theme="light"] .atlas-dp-hint { color: #71717a !important; }
-html[data-theme="light"] .atlas-dp-select {
-  background: #ffffff !important;
-  border: 1px solid #d4d4d8 !important;
-  color: #0a0a0a !important;
-}
-html[data-theme="light"] .atlas-dp-foot button.secondary {
-  background: #f4f4f5 !important;
-  color: #0a0a0a !important;
-  border: 1px solid #d4d4d8 !important;
-}
 
 /* ========== v202 — topbar icon chips readable in dark ========== */
 html[data-theme="dark"] .ac-topbar-icon,
@@ -1419,62 +1284,6 @@ html[data-theme="dark"] .account-seg button {
 }
 
 /* Range datepicker — nuclear dark pass (desktop + phone shell) */
-html[data-theme="dark"] .atlas-dp-pop.atlas-dp-range,
-html[data-theme="dark"] .atlas-dp-pop.atlas-dp-range.has-presets {
-  background: #1c1c1f !important;
-  border-color: #2a2a2e !important;
-}
-html[data-theme="dark"] .atlas-dp-presets {
-  background: #161618 !important;
-  border-color: #2a2a2e !important;
-}
-html[data-theme="dark"] .atlas-dp-range-main,
-html[data-theme="dark"] .atlas-dp-cal,
-html[data-theme="dark"] .atlas-dp-grid {
-  background: transparent !important;
-}
-html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-day,
-html[data-theme="dark"] .atlas-dp-pop .atlas-dp-weekdays,
-html[data-theme="dark"] .atlas-dp-pop .atlas-dp-title {
-  color: #f4f4f5 !important;
-  -webkit-text-fill-color: #f4f4f5 !important;
-}
-html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-nav,
-html[data-theme="dark"] .atlas-dp-pop .atlas-dp-select {
-  background: #27272a !important;
-  color: #f4f4f5 !important;
-  -webkit-text-fill-color: #f4f4f5 !important;
-  border: 1px solid #3f3f46 !important;
-}
-html[data-theme="dark"] .atlas-dp-pop .atlas-dp-foot,
-html[data-theme="dark"] .atlas-dp-pop .atlas-dp-foot button,
-html[data-theme="dark"] .atlas-dp-pop .atlas-dp-foot button.secondary {
-  background: #27272a !important;
-  color: #f4f4f5 !important;
-  -webkit-text-fill-color: #f4f4f5 !important;
-  border: 1px solid #3f3f46 !important;
-}
-html[data-theme="dark"] .atlas-dp-pop .atlas-dp-foot button:hover {
-  background: #3f3f46 !important;
-  color: #fafafa !important;
-}
-html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-day.is-selected {
-  background: #fafafa !important;
-  color: #0a0a0a !important;
-  -webkit-text-fill-color: #0a0a0a !important;
-}
-html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-day.is-in-range {
-  background: #3f3f46 !important;
-  color: #f4f4f5 !important;
-}
-html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-preset {
-  color: #e4e4e7 !important;
-  -webkit-text-fill-color: #e4e4e7 !important;
-}
-html[data-theme="dark"] .atlas-dp-pop button.atlas-dp-preset.is-active {
-  background: #3f3f46 !important;
-  color: #fafafa !important;
-}
 
 /* ========== v207 — QR fab: kill the black-oval backdrop + panel polish ========== */
 /* Root cause: index.css paints EVERY <button> as a black pill (radius 999px).
@@ -1765,13 +1574,6 @@ html[data-theme="dark"] body .dash-range-btn.is-on {
   border-color: #fafafa !important;
 }
 /* Datepicker trigger sombre */
-html[data-theme="dark"] button.atlas-dp-trigger,
-html[data-theme="dark"] .atlas-dp-trigger {
-  background: #27272a !important;
-  color: #f4f4f5 !important;
-  border: 1px solid #3f3f46 !important;
-}
-html[data-theme="dark"] .atlas-dp-trigger svg { color: #a1a1aa; }
 /* Caisse : chips Espèces/Carte + croix de ligne */
 html body .qs-pay.is-on {
   background: #0a0a0a !important;
@@ -1953,22 +1755,6 @@ html[data-theme="dark"] body .prompt-bar__field {
 }
 
 /* ── Date picker trigger (dashboard range pill included) ── */
-html[data-theme="dark"] body button.atlas-dp-trigger,
-html[data-theme="dark"] body .content button.atlas-dp-trigger,
-html[data-theme="dark"] body .atlas-dp-range-wrap button.atlas-dp-trigger,
-html[data-theme="dark"] body .dash-date-range button.atlas-dp-trigger {
-  background: #27272a !important;
-  background-image: none !important;
-  border: 1px solid #3f3f46 !important;
-  color: #f4f4f5 !important;
-  -webkit-text-fill-color: #f4f4f5 !important;
-  box-shadow: none !important;
-}
-html[data-theme="dark"] body button.atlas-dp-trigger .atlas-dp-value.is-placeholder {
-  color: #a1a1aa !important;
-  -webkit-text-fill-color: #a1a1aa !important;
-}
-html[data-theme="dark"] body button.atlas-dp-trigger .atlas-dp-icon { color: #a1a1aa !important; }
 html[data-theme="dark"] body .dash-range-btn {
   background: #27272a !important;
   border: 1px solid #3f3f46 !important;
@@ -2449,8 +2235,8 @@ html[data-theme="dark"] {
 /* v214b END */
 
 /* v215 — dark primary button colors, independent of density. */
-html[data-theme="dark"][data-density="compact"] .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.mailbox-folder-item):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.atlas-dp-trigger):not(.mailbox-icon-btn):not(.mailbox-menu-item):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.atlas-password-toggle):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action),
-html[data-theme="dark"][data-density="comfortable"] .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.atlas-dp-trigger):not(.mailbox-icon-btn):not(.mailbox-menu-item):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.atlas-password-toggle):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action),
+html[data-theme="dark"][data-density="compact"] .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.mailbox-folder-item):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.ac-pick):not(.mailbox-icon-btn):not(.mailbox-menu-item):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.atlas-password-toggle):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action),
+html[data-theme="dark"][data-density="comfortable"] .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.ac-pick):not(.mailbox-icon-btn):not(.mailbox-menu-item):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.atlas-password-toggle):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action),
 html[data-theme="dark"][data-density="compact"] button.primary,
 html[data-theme="dark"][data-density="comfortable"] button.primary,
 html[data-theme="dark"][data-density="compact"] .btn:not(.secondary):not(.danger):not(.ghost),
@@ -2577,17 +2363,6 @@ html body .product-image-editor button.secondary {
 @keyframes atlas-fade-in { from { opacity: 0; } to { opacity: 1; } }
 
 /* v215 — date picker popup: theme-consistent, clamped, refined */
-html[data-theme="dark"] body .atlas-dp-pop {
-  background: #1c1c1f !important;
-  border: 1px solid #3f3f46 !important;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5) !important;
-  color-scheme: dark;
-}
-html[data-theme="dark"] body .atlas-dp-pop .atlas-dp-day:hover,
-html[data-theme="dark"] body .atlas-dp-pop .atlas-dp-preset:hover {
-  background: #323236 !important;
-  color: #fafafa !important;
-}
 /* v215 END */
 
 /* ═══════════════════════════════════════════════════════════════
@@ -3141,8 +2916,8 @@ html[data-theme="dark"] body .balance-chart-val {
 /* v220 END */
 
 /* v220b — zinc beats the near-black density rules (mirrored selectors + body) */
-html[data-theme="dark"][data-density="compact"] body .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.mailbox-folder-item):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action),
-html[data-theme="dark"][data-density="comfortable"] body .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action){
+html[data-theme="dark"][data-density="compact"] body .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.mailbox-folder-item):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.ac-pick):not(.atlas-password-toggle):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action),
+html[data-theme="dark"][data-density="comfortable"] body .content button:not(.ac-timed-delete-btn):not(.ac-seg-btn):not(.ac-timed-delete):not(.danger):not(.secondary):not(.danger):not(.ghost):not(.settings-nav-item):not(.theme-toggle):not(.icon-refresh-btn):not(.ac-pick):not(.atlas-password-toggle):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__row):not(.prompt-bar__chip-x):not(.ac-pill-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.atlas-focus-backdrop):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action){
   background: #3f3f46 !important;
   background-color: #3f3f46 !important;
   background-image: none !important;
@@ -3153,8 +2928,7 @@ html[data-theme="dark"][data-density="comfortable"] body .content button:not(.ac
 html[data-theme="dark"] body .content button.secondary,
 html[data-theme="dark"] body .content a.secondary,
 html[data-theme="dark"][data-density="compact"] body .content button.secondary,
-html[data-theme="dark"][data-density="comfortable"] body .content button.secondary,
-html[data-theme="dark"] body button.atlas-dp-trigger.secondary {
+html[data-theme="dark"][data-density="comfortable"] body .content button.secondary {
   background: #22252e !important;
   background-color: #22252e !important;
   color: #dfe2ea !important;
@@ -3584,9 +3358,9 @@ html body a.btn {
 }
 
 /* — PRIMARY (default) buttons — */
-html[data-theme] body .content button:not(.secondary):not(.ghost):not(.danger):not(.welcome-btn-ghost):not(.welcome-skip-btn):not(.welcome-density-pill):not(.welcome-tour-trigger):not(.welcome-seg-btn):not(.ac-feature-tour-close):not(.ac-feature-tour-backdrop):not(.ac-feature-tour-dot):not(.theme-toggle):not(.icon-refresh-btn):not(.mailbox-folder-item):not(.mailbox-menu-item):not(.mailbox-icon-btn):not(.settings-nav-item):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__chip-x):not(.ac-seg-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.modal-x):not(.modal-close):not(.ac-topbar-icon):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.ac-shell-icon-btn):not(.ac-notif-all):not([class*="close"]):not([class*="toggle"]):not([class*="iconbtn"]):not(.density-toggle button):not(.dash-range-select):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action),
-html[data-theme] body .modal button:not(.secondary):not(.ghost):not(.danger):not(.modal-x):not(.modal-close):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.ac-seg-btn):not(.ac-pill-pager-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__chip-x):not(.step-wizard__step-btn):not([class*="close"]):not([class*="toggle"]):not([class*="iconbtn"]):not(.density-toggle button):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action),
-html[data-theme] body .modal-overlay .modal button:not(.secondary):not(.ghost):not(.danger):not(.modal-x):not(.modal-close):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.ac-seg-btn):not(.ac-pill-pager-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__chip-x):not(.step-wizard__step-btn):not([class*="close"]):not([class*="toggle"]):not([class*="iconbtn"]):not(.density-toggle button):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action),
+html[data-theme] body .content button:not(.secondary):not(.ghost):not(.danger):not(.welcome-btn-ghost):not(.welcome-skip-btn):not(.welcome-density-pill):not(.welcome-tour-trigger):not(.welcome-seg-btn):not(.ac-feature-tour-close):not(.ac-feature-tour-backdrop):not(.ac-feature-tour-dot):not(.theme-toggle):not(.icon-refresh-btn):not(.mailbox-folder-item):not(.mailbox-menu-item):not(.mailbox-icon-btn):not(.settings-nav-item):not(.ac-pick):not(.atlas-password-toggle):not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__chip-x):not(.ac-seg-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.modal-x):not(.modal-close):not(.ac-topbar-icon):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.ac-shell-icon-btn):not(.ac-notif-all):not([class*="close"]):not([class*="toggle"]):not([class*="iconbtn"]):not(.density-toggle button):not(.dash-range-select):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action),
+html[data-theme] body .modal button:not(.secondary):not(.ghost):not(.danger):not(.modal-x):not(.modal-close):not(.ac-pick):not(.atlas-password-toggle):not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.ac-seg-btn):not(.ac-pill-pager-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__chip-x):not(.step-wizard__step-btn):not([class*="close"]):not([class*="toggle"]):not([class*="iconbtn"]):not(.density-toggle button):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action),
+html[data-theme] body .modal-overlay .modal button:not(.secondary):not(.ghost):not(.danger):not(.modal-x):not(.modal-close):not(.ac-pick):not(.atlas-password-toggle):not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.ac-seg-btn):not(.ac-pill-pager-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__chip-x):not(.step-wizard__step-btn):not([class*="close"]):not([class*="toggle"]):not([class*="iconbtn"]):not(.density-toggle button):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action),
 html[data-theme] body .content .btn:not(.secondary):not(.ghost):not(.danger),
 html[data-theme] body .modal .btn:not(.secondary):not(.ghost):not(.danger) {
   background: var(--btn-p-bg) !important;
@@ -3597,8 +3371,8 @@ html[data-theme] body .modal .btn:not(.secondary):not(.ghost):not(.danger) {
   box-shadow: none !important;
   text-decoration: none !important;
 }
-html[data-theme] body .content button:not(.secondary):not(.ghost):not(.danger):not(.welcome-btn-ghost):not(.welcome-skip-btn):not(.welcome-density-pill):not(.welcome-tour-trigger):not(.welcome-seg-btn):not(.ac-feature-tour-close):not(.ac-feature-tour-backdrop):not(.ac-feature-tour-dot):not(.theme-toggle):not(.icon-refresh-btn):not(.mailbox-folder-item):not(.mailbox-menu-item):not(.mailbox-icon-btn):not(.settings-nav-item):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__chip-x):not(.ac-seg-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.modal-x):not(.modal-close):not(.ac-topbar-icon):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.ac-shell-icon-btn):not(.ac-notif-all):not([class*="close"]):not([class*="toggle"]):not([class*="iconbtn"]):not(.density-toggle button):not(.dash-range-select):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action):hover,
-html[data-theme] body .modal button:not(.secondary):not(.ghost):not(.danger):not(.modal-x):not(.modal-close):not(.atlas-dp-trigger):not(.atlas-password-toggle):not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.ac-seg-btn):not(.ac-pill-pager-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__chip-x):not(.step-wizard__step-btn):not([class*="close"]):not([class*="toggle"]):not([class*="iconbtn"]):not(.density-toggle button):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action):hover,
+html[data-theme] body .content button:not(.secondary):not(.ghost):not(.danger):not(.welcome-btn-ghost):not(.welcome-skip-btn):not(.welcome-density-pill):not(.welcome-tour-trigger):not(.welcome-seg-btn):not(.ac-feature-tour-close):not(.ac-feature-tour-backdrop):not(.ac-feature-tour-dot):not(.theme-toggle):not(.icon-refresh-btn):not(.mailbox-folder-item):not(.mailbox-menu-item):not(.mailbox-icon-btn):not(.settings-nav-item):not(.ac-pick):not(.atlas-password-toggle):not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.atlas-agent-history-item):not(.atlas-agent-iconbtn):not(.atlas-agent-close):not(.atlas-agent-mic):not(.atlas-agent-send):not(.atlas-agent-stop):not(.ac-pill-pager-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.ac-run-action-btn):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__chip-x):not(.ac-seg-btn):not(.desktop-product-zoom-btn):not(.product-history-photo-zoom):not(.modal-x):not(.modal-close):not(.ac-topbar-icon):not(.account-menu-item):not(.account-menu-trigger):not(.account-glass-switch):not(.ac-shell-icon-btn):not(.ac-notif-all):not([class*="close"]):not([class*="toggle"]):not([class*="iconbtn"]):not(.density-toggle button):not(.dash-range-select):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action):hover,
+html[data-theme] body .modal button:not(.secondary):not(.ghost):not(.danger):not(.modal-x):not(.modal-close):not(.ac-pick):not(.atlas-password-toggle):not(.ac-timed-delete-btn):not(.ac-timed-undo-btn):not(.ac-btn-delete):not(.ac-seg-btn):not(.ac-pill-pager-btn):not(.ac-list-pager-btn):not(.ac-pager-hit):not(.prompt-bar__tool):not(.prompt-bar__pick):not(.prompt-bar__send):not(.prompt-bar__chip-x):not(.step-wizard__step-btn):not([class*="close"]):not([class*="toggle"]):not([class*="iconbtn"]):not(.density-toggle button):not(.privacy-link-btn):not(.cookie-btn):not(.quote-number-link):not(.about-link-action):hover,
 html[data-theme] body .content .btn:not(.secondary):not(.ghost):not(.danger):hover,
 html[data-theme] body .modal .btn:not(.secondary):not(.ghost):not(.danger):hover {
   background: var(--btn-p-h) !important;
@@ -4907,11 +4681,11 @@ html[data-theme="dark"] .ac-danger-zone-head h3 {
 }
 
 /* Desktop web & Settings page unified pill button polish */
-html body .content .card button:not(.atlas-dp-day):not(.atlas-dp-nav):not(.atlas-dp-preset):not(.atlas-dp-btn):not(.atlas-dp-trigger):not(.account-glass-switch):not(.theme-toggle):not(.settings-nav-item):not(.density-toggle button):not(.ac-seg-btn):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger),
+html body .content .card button:not(.ac-pick):not(.ac-pick):not(.ac-pick):not(.ac-pick):not(.ac-pick):not(.account-glass-switch):not(.theme-toggle):not(.settings-nav-item):not(.density-toggle button):not(.ac-seg-btn):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger),
 html body .content .card a.btn,
-html body .content .ac-panel button:not(.atlas-dp-day):not(.atlas-dp-nav):not(.atlas-dp-preset):not(.atlas-dp-btn):not(.atlas-dp-trigger):not(.account-glass-switch):not(.theme-toggle):not(.settings-nav-item):not(.density-toggle button):not(.ac-seg-btn):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger),
+html body .content .ac-panel button:not(.ac-pick):not(.ac-pick):not(.ac-pick):not(.ac-pick):not(.ac-pick):not(.account-glass-switch):not(.theme-toggle):not(.settings-nav-item):not(.density-toggle button):not(.ac-seg-btn):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger),
 html body .content .ac-panel a.btn,
-html body .atlas-settings button:not(.atlas-dp-day):not(.atlas-dp-nav):not(.atlas-dp-preset):not(.atlas-dp-btn):not(.atlas-dp-trigger):not(.account-glass-switch):not(.theme-toggle):not(.settings-nav-item):not(.density-toggle button):not(.ac-seg-btn):not(.modal-x):not(.modal-close):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger),
+html body .atlas-settings button:not(.ac-pick):not(.ac-pick):not(.ac-pick):not(.ac-pick):not(.ac-pick):not(.account-glass-switch):not(.theme-toggle):not(.settings-nav-item):not(.density-toggle button):not(.ac-seg-btn):not(.modal-x):not(.modal-close):not(.atlas-focus-nav-item):not(.atlas-focus-collapse-btn):not(.atlas-focus-mobile-trigger),
 html body .atlas-settings a.btn,
 html body .modal-overlay .modal .wizard-foot-actions button,
 html body .modal-overlay .modal .modal-actions button {
@@ -5701,7 +5475,7 @@ html body .desktop-catalog-actions-slot a:hover {
 @media (min-width: 901px) and (hover: hover) and (pointer: fine) {
   @media (prefers-reduced-motion: no-preference) {
     /* Base smooth spring transitions for desktop interactive elements */
-    html:not(.phone-shell) body .content button:not(:disabled):not(.atlas-dp-day):not(.atlas-dp-nav):not(.modal-x):not(.modal-close),
+    html:not(.phone-shell) body .content button:not(:disabled):not(.ac-pick):not(.ac-pick):not(.modal-x):not(.modal-close),
     html:not(.phone-shell) body .content a.btn,
     html:not(.phone-shell) body .top-page-actions > button:not(:disabled),
     html:not(.phone-shell) body .top-page-actions > a.btn,
@@ -5763,7 +5537,7 @@ html body .desktop-catalog-actions-slot a:hover {
     }
 
     /* Buttons, pills, pagers, tabs & topbar actions: cohesive lift + enlarge */
-    html:not(.phone-shell) body .content button:not(:disabled):not(.atlas-dp-day):not(.atlas-dp-nav):not(.modal-x):not(.modal-close):not(.bal-reports-trigger):hover,
+    html:not(.phone-shell) body .content button:not(:disabled):not(.ac-pick):not(.ac-pick):not(.modal-x):not(.modal-close):not(.bal-reports-trigger):hover,
     html:not(.phone-shell) body .content a.btn:hover,
     html:not(.phone-shell) body .top-page-actions > button:not(:disabled):hover,
     html:not(.phone-shell) body .top-page-actions > a.btn:hover,
@@ -5776,7 +5550,7 @@ html body .desktop-catalog-actions-slot a:hover {
       transform: translateY(-1px) scale(1.032) !important;
       box-shadow: 0 5px 14px rgba(15, 23, 42, 0.08);
     }
-    html[data-theme="dark"]:not(.phone-shell) body .content button:not(:disabled):not(.atlas-dp-day):not(.atlas-dp-nav):not(.modal-x):not(.modal-close):not(.bal-reports-trigger):hover,
+    html[data-theme="dark"]:not(.phone-shell) body .content button:not(:disabled):not(.ac-pick):not(.ac-pick):not(.modal-x):not(.modal-close):not(.bal-reports-trigger):hover,
     html[data-theme="dark"]:not(.phone-shell) body .content a.btn:hover,
     html[data-theme="dark"]:not(.phone-shell) body .top-page-actions > button:not(:disabled):hover,
     html[data-theme="dark"]:not(.phone-shell) body .top-page-actions > a.btn:hover,
@@ -5894,7 +5668,7 @@ html body .desktop-catalog-actions-slot a:hover {
     }
 
     /* Tactile press feedback */
-    html:not(.phone-shell) body .content button:not(:disabled):not(.atlas-dp-day):not(.atlas-dp-nav):active,
+    html:not(.phone-shell) body .content button:not(:disabled):not(.ac-pick):not(.ac-pick):active,
     html:not(.phone-shell) body .content a.btn:active,
     html:not(.phone-shell) body .top-page-actions > button:not(:disabled):active,
     html:not(.phone-shell) body .top-page-actions > a.btn:active,
@@ -6845,7 +6619,6 @@ html[data-theme="dark"] body .modal,
 html[data-theme="dark"] body .modal-card,
 html[data-theme="dark"] body .modal-content,
 html[data-theme="dark"] body .bal-reports-modal,
-html[data-theme="dark"] body .atlas-dp-pop,
 html[data-theme="dark"] body .account-menu-panel,
 html[data-theme="dark"] body .account-menu-panel--portal,
 html[data-theme="dark"] body .ac-notif-panel,
@@ -6868,8 +6641,7 @@ html[data-theme="dark"] body textarea,
 html[data-theme="dark"] body .dl-support-form input,
 html[data-theme="dark"] body .dl-support-form select,
 html[data-theme="dark"] body .dl-support-form textarea,
-html[data-theme="dark"] body .dl-support-lookup input,
-html[data-theme="dark"] body .atlas-dp-trigger {
+html[data-theme="dark"] body .dl-support-lookup input {
   background: #202024 !important;
   background-color: #202024 !important;
   border: 1px solid rgba(255, 255, 255, 0.11) !important;
@@ -6879,14 +6651,12 @@ html[data-theme="dark"] body .atlas-dp-trigger {
 }
 html[data-theme="dark"] body input:not([type="checkbox"]):not([type="radio"]):hover,
 html[data-theme="dark"] body select:hover,
-html[data-theme="dark"] body textarea:hover,
-html[data-theme="dark"] body .atlas-dp-trigger:hover {
+html[data-theme="dark"] body textarea:hover {
   border-color: rgba(255, 255, 255, 0.19) !important;
 }
 html[data-theme="dark"] body input:not([type="checkbox"]):not([type="radio"]):focus,
 html[data-theme="dark"] body select:focus,
-html[data-theme="dark"] body textarea:focus,
-html[data-theme="dark"] body .atlas-dp-trigger:focus {
+html[data-theme="dark"] body textarea:focus {
   background: #202024 !important;
   border-color: rgba(255, 255, 255, 0.32) !important;
   box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.06) !important;
@@ -7204,7 +6974,6 @@ html[data-theme="dark"] body .prompt-bar__field {
 html[data-theme="dark"] body .settings-topbar-menu button,
 html[data-theme="dark"] body .settings-topbar-menu button.secondary,
 html[data-theme="dark"] body .settings-topbar-menu button.settings-topbar-menu-item,
-html[data-theme="dark"] body button.atlas-dp-trigger,
 html[data-theme="dark"] body .dash-range-btn:not(.is-on),
 html[data-theme="dark"] body .atlas-agent-suggest--readable button,
 html[data-theme="dark"] body .atlas-agent-nav button.secondary,

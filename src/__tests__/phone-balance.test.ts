@@ -106,9 +106,15 @@ describe('mobile admin balance', () => {
     const changeInput = async (name: string, value: string) => { const input = form.elements.namedItem(name) as HTMLInputElement; await act(async () => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, value); input.dispatchEvent(new Event('input', { bubbles: true })); }); };
     await changeInput('description', 'Recette'); await click(button('Continuer'));
     await changeInput('amount', '-1'); expect(button('Enregistrer').disabled).toBe(true);
-    await changeInput('amount', '30'); await changeInput('date', ''); expect(button('Enregistrer').disabled).toBe(true);
-    await changeInput('date', '2026-10-20'); await click(button('Enregistrer'));
-    expect(api.createExpense).toHaveBeenCalledWith(expect.objectContaining({ entry_type: 'income', category: 'Vente divers', amount: 30 }));
+    // The date is the shared DatePicker: clear it, then pick « Aujourd’hui ».
+    const pickerButton = (label: string) => [...document.querySelectorAll<HTMLButtonElement>('.ac-dp-pop button')].find(b => b.textContent === label)!;
+    const trigger = form.querySelector<HTMLButtonElement>('.ac-dp-trigger')!;
+    await changeInput('amount', '30'); await click(trigger); await click(pickerButton('Effacer'));
+    expect(button('Enregistrer').disabled).toBe(true);
+    await click(trigger); await click(pickerButton('Aujourd’hui'));
+    expect(document.querySelector('.ac-dp-pop')).toBeNull();
+    await click(button('Enregistrer'));
+    expect(api.createExpense).toHaveBeenCalledWith(expect.objectContaining({ entry_type: 'income', category: 'Vente divers', amount: 30, expense_date: expect.stringMatching(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/) }));
     expect(document.body.textContent).toContain('Échec serveur');
     expect((form.elements.namedItem('amount') as HTMLInputElement).value).toBe('30');
   });

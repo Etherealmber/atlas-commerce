@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { FloatingPortal } from '../components/FloatingPortal';
+import { bounce } from '../lib/unsavedGuard';
 
 type Props = { titleId: string; onClose: () => void; children: ReactNode; className?: string };
 
@@ -27,7 +28,18 @@ function DialogContent({ titleId, onClose, children, className }: Props) {
       }
     };
     document.addEventListener('keydown', onKey);
+    // Errors bounce the sheet, like the web dialogs: a new or changed
+    // role="alert" message inside the dialog shakes it once.
+    let lastAlert = '';
+    const alertText = () => Array.from(modal.querySelectorAll('[role="alert"]')).map((n) => n.textContent || '').join('|').trim();
+    const observer = typeof MutationObserver === 'undefined' ? null : new MutationObserver(() => {
+      const text = alertText();
+      if (text && text !== lastAlert) bounce(modal);
+      lastAlert = text;
+    });
+    observer?.observe(modal, { childList: true, subtree: true, characterData: true });
     return () => {
+      observer?.disconnect();
       document.removeEventListener('keydown', onKey);
       if (previous?.isConnected) previous.focus();
     };

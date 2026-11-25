@@ -5,6 +5,7 @@ import { api } from '../api';
 import PhoneMonthlyReport from './PhoneMonthlyReport';
 import PhoneReportBundle from './PhoneReportBundle';
 import PhoneDialog from './PhoneDialog';
+import DatePicker from '../components/DatePicker';
 import PhoneSkeleton from './PhoneSkeleton';
 import { financeMonths } from './phoneFinancePeriods';
 import type { FinanceBucket, FinanceMonthly, FinancePeriod, FinanceRow, FinanceStatement } from './financeTypes';
@@ -60,7 +61,7 @@ function EntryDialog({ initialKind, saving, error, onClose, onSave }: { initialK
         <label>Libellé *<input name="description" value={description} maxLength={255} placeholder="Ex. Loyer entrepôt octobre" onChange={e => setDescription(e.target.value)} /></label>
         {!description.trim() && <p className="pb-entry-help">La description est obligatoire.</p>}</> : <>
         <label>Montant *<input name="amount" type="text" inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} /></label>
-        <label>Date<input name="date" type="date" value={date} onChange={e => setDate(e.target.value)} /></label>
+        <label>Date<DatePicker value={date} onChange={setDate} /></label>
         <label>Mode de paiement<select name="method" value={method} onChange={e => setMethod(e.target.value)}><option value="cash">Espèces (caisse)</option><option value="bank">Banque / virement</option><option value="card">Carte</option><option value="check">Chèque</option></select></label>
         <label>Bénéficiaire / fournisseur (facultatif)<input name="vendor" value={vendor} onChange={e => setVendor(e.target.value)} /></label><label>Notes (facultatif)<textarea name="notes" rows={2} value={notes} onChange={e => setNotes(e.target.value)} /></label>
         {(!Number.isFinite(parsed) || parsed < 0.01 || parsed > 1e12 || !amount.trim()) && <p className="pb-entry-help">Saisissez un montant entre 0,01 et 1 000 000 000 000.</p>}{!validDate(date) && <p className="pb-entry-help">La date doit être valide.</p>}
@@ -167,7 +168,7 @@ export default function PhoneBalance() {
         {statement && <><div className="pb-card"><h3>Entrées et sorties</h3><p>Entrées <b>{money(statement.totals.credits, currency)}</b></p><p>Sorties <b>{money(statement.totals.debits, currency)}</b></p><small>{statement.reconciliation.balanced ? 'Relevé équilibré' : 'Écart détecté dans le relevé'}{breakdown && !breakdown.statement.consistent_with_breakdown ? ' · La ventilation diffère du relevé' : ''}</small></div>
           <div className="pb-card pb-movements"><h3>Transactions récentes</h3><p>{statement.total} mouvement(s) · filtrage des lignes chargées</p><label>Filtrer<select value={filter} onChange={(e) => setFilter(e.target.value)}><option value="all">Toutes les écritures</option><option value="in">Entrées</option><option value="out">Sorties</option><option value="expense">Dépenses</option></select></label><label>Rechercher<input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Libellé, référence…" /></label>
             {visibleRows.map((r, i) => <div className="pb-row" key={`${r.source}-${r.id}-${i}`}><span className="pb-row-icon">{r.credit > 0 ? <ArrowDownLeft size={18} /> : <ArrowUpRight size={18} />}</span><div><strong>{r.label || r.type}</strong><small>{r.ref} {r.ts ? `· ${r.ts.slice(0, 10)}` : ''}</small></div><b className={r.credit > 0 ? 'in' : 'out'}>{r.credit > 0 ? '+' : '−'}{money(r.credit > 0 ? r.credit : r.debit, currency)}</b></div>)}
-            {!visibleRows.length && <p>Aucun mouvement parmi les lignes chargées.</p>}{statement.has_more && <button className="theme-toggle" type="button" disabled={loadingMore} onClick={loadMore}>{loadingMore ? 'Chargement…' : 'Charger plus'}</button>}
+            {!visibleRows.length && <p>Aucun mouvement parmi les lignes chargées.</p>}{!!statement.has_more && <button className="theme-toggle" type="button" disabled={loadingMore} onClick={loadMore}>{loadingMore ? 'Chargement…' : 'Charger plus'}</button>}
           </div></>}
       </div>}
       {section === 'accounts' && <div className="pb-section"><Bucket title="À recevoir" bucket={finance.receivables} currency={currency} /><Bucket title="À payer" bucket={finance.payables} currency={currency} /><AmountCard label={`Paie encore due · ${finance.payroll.employees} employé(s)`} value={finance.payroll.total_due} currency={currency} /></div>}

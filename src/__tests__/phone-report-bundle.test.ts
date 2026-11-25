@@ -35,9 +35,22 @@ it('requires at least one section and valid custom dates', async () => {
   await act(async () => { for (const label of ['Balance', 'Stock', 'Créances clients', 'Fournisseurs', 'Employés & paie', 'Balance âgée', 'TVA']) button(label).click(); });
   expect(button('Préparer').disabled).toBe(true);
   await act(async () => { button('Balance').click(); button('Du… au…').click(); });
-  const inputs = document.querySelectorAll<HTMLInputElement>('input[type=date]');
-  await act(async () => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(inputs[0], '2099-01-01'); inputs[0].dispatchEvent(new Event('input', { bubbles: true })); inputs[0].dispatchEvent(new Event('change', { bubbles: true })); });
-  expect(button('Préparer').disabled).toBe(true);
+  // Custom dates use the shared DatePicker (no native date input); future days are not selectable.
+  expect(document.querySelector('input[type=date]')).toBeNull();
+  const triggers = document.querySelectorAll<HTMLButtonElement>('.ph-bundle-dates .ac-dp-trigger, .ac-dp-trigger');
+  expect(triggers.length).toBeGreaterThanOrEqual(2);
+  await act(async () => triggers[0].click());
+  const nextMonth = document.querySelector<HTMLButtonElement>('.ac-dp-pop [aria-label="Mois suivant"]')!;
+  await act(async () => nextMonth.click());
+  const today = new Date(); const pad = (n: number) => String(n).padStart(2, '0');
+  const todayIso = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+  const future = [...document.querySelectorAll<HTMLButtonElement>('.ac-dp-pop .ac-dp-day[data-day]')].filter(d => d.dataset.day! > todayIso);
+  expect(future.length).toBeGreaterThan(0);
+  expect(future.every(d => d.disabled)).toBe(true);
+  const clear = [...document.querySelectorAll<HTMLButtonElement>('.ac-dp-pop button')].find(b => b.textContent === 'Effacer');
+  if (clear) await act(async () => clear.click());
+  if (!clear) await act(async () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+  if (clear) expect(button('Préparer').disabled).toBe(true);
 });
 it('allows editing after preview and keeps the selected report choices', async () => {
   const report = '<!doctype html><html><body><div class="sheet"><div class="actions"><button>Print</button></div><main class="report-content"><section>Balance details</section><section>Stock details</section></main></div></body></html>';
