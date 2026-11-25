@@ -121,6 +121,32 @@ function PanelSkeletonCard({
   );
 }
 
+/** Settings panel rows: full-width cards with title + hint on the left and a
+ *  control pill on the right (profile, density, guided tour, migration…). */
+const SETTINGS_SK_ROWS = [
+  { title: 92, hint: 132, pill: 104, tall: false },
+  { title: 120, hint: 300, pill: 156, tall: false },
+  { title: 104, hint: 380, pill: 128, tall: false },
+  { title: 180, hint: 420, pill: 0, tall: true },
+];
+
+function SettingsRowsSkeleton() {
+  return (
+    <div className="ac-skeleton-settings-rows">
+      {SETTINGS_SK_ROWS.map((r, idx) => (
+        <div key={idx} className="ac-skeleton-bento-card ac-skeleton-settings-row">
+          <div className="ac-skeleton-settings-copy">
+            <div className="skeleton" style={{ height: 13, width: r.title, marginBottom: 8 }} />
+            <div className="skeleton" style={{ height: 10, width: r.hint, maxWidth: '100%' }} />
+            {r.tall && <div className="skeleton" style={{ height: 40, width: '100%', marginTop: 12, borderRadius: 10 }} />}
+          </div>
+          {r.pill > 0 && <div className="skeleton" style={{ height: 30, width: r.pill, borderRadius: 999, flex: 'none' }} />}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function ChartSkeletonCard({ height = 215 }: { height?: number }) {
   return (
     <div className="ac-skeleton-bento-card" style={{ padding: '18px 20px' }}>
@@ -246,8 +272,8 @@ export function AtlasAgentShimmerBody({ rows = 2 }: { rows?: number }) {
       {Array.from({ length: rows }, (_, idx) => (
         <div key={idx} className="atlas-agent-shimmer-pair">
           <div className="atlas-agent-msg user">
-            <div className="atlas-agent-bubble atlas-agent-shimmer-bubble atlas-agent-shimmer-bubble--user">
-              <div className="skeleton" style={{ height: 11, width: idx === 0 ? 156 : 124 }} />
+            <div className="atlas-agent-bubble atlas-agent-shimmer-bubble atlas-agent-shimmer-bubble--user" style={{ width: idx === 0 ? 184 : 148 }}>
+              <div className="skeleton" style={{ height: 11, width: '100%' }} />
             </div>
           </div>
           <div className="atlas-agent-msg assistant">
@@ -507,11 +533,7 @@ export default function PageSkeleton({
     return (
       <div className="page-skeleton ac-settings-bento" aria-busy="true" aria-label="Chargement des paramètres">
         <KpiSkeletonGrid count={4} />
-        <div className="page-skeleton-grid" style={{ marginBottom: 14 }}>
-          <PanelSkeletonCard rows={3} />
-          <PanelSkeletonCard rows={3} />
-        </div>
-        <DesktopTableSkeleton rows={5} cols={6} />
+        <SettingsRowsSkeleton />
       </div>
     );
   }

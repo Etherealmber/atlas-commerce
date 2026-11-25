@@ -11,8 +11,6 @@ import ImageLightbox from '../components/ui/ImageLightbox';
 import ProductLabelModal from '../components/ProductLabelModal';
 import ProductArtwork, { productImageUrl } from '../components/ProductArtwork';
 import NumberField from '../components/NumberField';
-import PageSkeleton from '../components/PageSkeleton';
-import PhoneSkeleton from '../mobile/PhoneSkeleton';
 import './product-history.css';
 
 const PH_EDIT_STEPS: readonly WizardStepDef[] = [
@@ -32,6 +30,62 @@ const actor = (value: unknown, fallback: string) => typeof value === 'string' &&
 const quantity = (value: unknown) => typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString('fr-FR', { maximumFractionDigits: 3 }) : '—';
 
 type Props = { mobile?: boolean; onProductUpdated?: () => void };
+/** Shimmer mirroring the product card: photo, tag, name, reference, author,
+ *  action pills and stock/price chips — no layout jump once data lands. */
+function ProductHeroSkeleton({ withActions }: { withActions: boolean }) {
+  return (
+    <section className="product-history-card ph-sk" role="status" aria-busy="true" aria-label="Chargement du produit">
+      <div className="product-history-hero">
+        <span className="skeleton ph-sk-photo" />
+        <div className="ph-sk-copy">
+          <span className="skeleton ph-sk-pill" style={{ width: 92, height: 24 }} />
+          <span className="skeleton ph-sk-line" style={{ width: '46%', maxWidth: 240, height: 20 }} />
+          <span className="skeleton ph-sk-line" style={{ width: '30%', maxWidth: 160 }} />
+        </div>
+      </div>
+      <span className="skeleton ph-sk-line ph-sk-actors" style={{ width: 150 }} />
+      {withActions && (
+        <div className="product-history-actions ph-sk-actions">
+          <span className="skeleton ph-sk-pill" style={{ width: 132 }} />
+          <span className="skeleton ph-sk-pill" style={{ width: 160 }} />
+          <span className="skeleton ph-sk-pill" style={{ width: 104 }} />
+        </div>
+      )}
+      <div className="ph-sk-chips">
+        <span className="skeleton ph-sk-pill" style={{ width: 96, height: 24 }} />
+        <span className="skeleton ph-sk-pill" style={{ width: 100, height: 24 }} />
+      </div>
+    </section>
+  );
+}
+
+const MOVEMENT_SK_WIDTHS = [
+  { title: 64, qty: 120, reason: 150 },
+  { title: 54, qty: 104, reason: 128 },
+  { title: 84, qty: 112, reason: 0 },
+  { title: 60, qty: 96, reason: 140 },
+];
+
+/** Shimmer rows mirroring `.product-history-movement`: type + time, quantity
+ *  line, optional reason, author. */
+function MovementSkeleton({ rows }: { rows: number }) {
+  return (
+    <div className="ph-sk-movements" role="status" aria-busy="true" aria-label="Chargement des mouvements">
+      {MOVEMENT_SK_WIDTHS.slice(0, rows).map((w, i) => (
+        <div key={i} className="product-history-movement ph-sk-movement" aria-hidden="true">
+          <div>
+            <span className="skeleton ph-sk-line" style={{ width: w.title, height: 14 }} />
+            <span className="skeleton ph-sk-line" style={{ width: 96, height: 11 }} />
+          </div>
+          <span className="skeleton ph-sk-line" style={{ width: w.qty }} />
+          {w.reason > 0 && <span className="skeleton ph-sk-line" style={{ width: w.reason }} />}
+          <span className="skeleton ph-sk-line ph-sk-line--sm" style={{ width: 92 }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function ProductHistory({ mobile = false, onProductUpdated }: Props) {
   const navigate = useNavigate();
   const { id } = useParams(); const productId = Number(id);
@@ -249,25 +303,19 @@ export default function ProductHistory({ mobile = false, onProductUpdated }: Pro
   return <div className={`product-history${mobile ? ' product-history--phone' : ''}`}>
     {!mobile && <h1 className="sr-only">Historique du produit</h1>}
     {productError && <div className="product-history-card" role="alert">{productError} {valid && <button type="button" onClick={() => void load()}>Réessayer</button>}</div>}
-    {loading && !product && (mobile ? <PhoneSkeleton variant="rows" label="Chargement du produit" /> : <PageSkeleton variant="form" />)}
+    {loading && !product && !productError && <ProductHeroSkeleton withActions={!mobile && canSell()} />}
     {product && <section className="product-history-card"><div className="product-history-hero"><div className="product-history-photo">{productImageUrl(product.image_url) ? <button type="button" className="product-history-photo-zoom" aria-label="Agrandir la photo du produit" title="Agrandir la photo" onClick={() => setLightboxOpen(true)}><ProductArtwork url={product.image_url} alt={product.name || ''} /><span className="product-history-photo-zoom-badge" aria-hidden="true"><Maximize2 size={12} strokeWidth={2.3} /></span></button> : <ProductArtwork url={product.image_url} />}{canSell() && <><input ref={imageInput} type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onChange={changePhoto} /><button type="button" className="secondary product-history-photo-action" aria-label="Modifier la photo du produit" title="Modifier la photo du produit" disabled={imageBusy} onClick={() => imageInput.current?.click()}><Camera size={16} /></button></>}</div><div><span className="product-history-tag">Fiche produit</span><h2>{product.name}</h2><p>{[product.sku, product.barcode, product.category].filter(Boolean).join(' · ') || 'Sans référence'}</p></div></div>
       <p className="product-history-actors">Créé par {actor(product.created_by, 'Système')}{product.approved_by && <> · Approuvé par {product.approved_by}</>}</p>
       {!mobile && canSell() && <div className="product-history-actions">
-        {Number(product.track_inventory) !== 0 && <button type="button" className="secondary product-history-action-stock" onClick={openAdjustModal}><SlidersHorizontal size={16} aria-hidden="true" />Ajuster le stock</button>}
-        <button type="button" className="secondary product-history-action-edit" onClick={openEditModal}><Pencil size={16} aria-hidden="true" />Modifier les détails</button>
-        <button type="button" className="secondary product-history-action-label" onClick={() => setLabelOpen(true)}><Tags size={16} aria-hidden="true" />Étiquette</button>
+        {Number(product.track_inventory) !== 0 && <button type="button" className="secondary product-history-action-stock" onClick={openAdjustModal}><SlidersHorizontal size={14} aria-hidden="true" />Ajuster le stock</button>}
+        <button type="button" className="secondary product-history-action-edit" onClick={openEditModal}><Pencil size={14} aria-hidden="true" />Modifier les détails</button>
+        <button type="button" className="secondary product-history-action-label" onClick={() => setLabelOpen(true)}><Tags size={14} aria-hidden="true" />Étiquette</button>
       </div>}
       {imageMessage && <p role="status">{imageMessage}</p>}
       <div className="product-history-chips"><span>{product.track_inventory != null && !Number(product.track_inventory) ? 'Stock non suivi' : `Stock ${dualStockLabel(product)}`}</span>{canSell() && typeof product.price === 'number' && <span>{product.price.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MAD</span>}</div>
     </section>}
-    <section className="product-history-card"><div className="product-history-section-head"><History size={20} /><h2>Historique des mouvements</h2>{!loading && !error && <span className="product-history-tag">{rows.length}{hasMore ? '+' : ''}</span>}<button type="button" className="secondary product-history-refresh" aria-label="Actualiser l’historique" title="Actualiser l’historique" disabled={loading} onClick={() => void refreshMovements()}><RefreshCw size={19} /></button></div>
-      {loading && (mobile && !rows.length ? <PhoneSkeleton variant="rows" label="Chargement des mouvements" /> : (
-        <div style={{ display: 'grid', gap: 10, padding: '8px 0' }} role="status" aria-label="Chargement des mouvements">
-          <div className="skeleton" style={{ height: 54, borderRadius: 12 }} />
-          <div className="skeleton" style={{ height: 54, borderRadius: 12 }} />
-          <div className="skeleton" style={{ height: 54, borderRadius: 12 }} />
-        </div>
-      ))}
+    <section className={`product-history-card product-history-movements${loading && rows.length ? ' is-refreshing' : ''}`} aria-busy={loading || undefined}><div className="product-history-section-head"><History size={20} /><h2>Historique des mouvements</h2>{!loading && !error && <span className="product-history-tag">{rows.length}{hasMore ? '+' : ''}</span>}<button type="button" className="secondary product-history-refresh" aria-label="Actualiser l’historique" title="Actualiser l’historique" disabled={loading} onClick={() => void refreshMovements()}><RefreshCw size={19} /></button></div>
+      {loading && !rows.length && <MovementSkeleton rows={mobile ? 3 : 4} />}
       {error && <p role="alert">{error} <button type="button" onClick={() => void refreshMovements()}>Réessayer</button></p>}
       {!loading && !error && rows.length === 0 && <p>Aucun mouvement enregistré pour ce produit.</p>}
       {rows.map((m, index) => <div className="product-history-movement" key={m.id ?? `${m.created_at}-${index}`}><div><strong>{types[String(m.type || '').toLowerCase()] || m.type || 'Mouvement'}</strong><time>{String(m.created_at || '—').replace('T', ' ').slice(0, 16)}</time></div><p>Qté {quantity(m.quantity)} · {quantity(m.previous_quantity)} → {quantity(m.new_quantity)}</p>{(m.reason || m.reference) && <p>{[m.reason, m.reference].filter(Boolean).join(' · ')}</p>}<small>Créé par {actor(m.created_by, 'Système')}{m.approved_by && <> · Approuvé par {m.approved_by}</>}</small></div>)}

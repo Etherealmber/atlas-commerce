@@ -567,7 +567,7 @@ export default function About() {
             ) : ghLoading ? (
               <div className="skeleton about-owner-avatar" aria-hidden="true" />
             ) : (
-              <div className="about-owner-avatar about-owner-avatar-ph" />
+              <div className="about-owner-avatar about-owner-avatar-ph" aria-hidden="true">{APP_CREATOR_NAME.slice(0, 1).toUpperCase()}</div>
             )}
             <div className="about-owner-meta">
               <p className="about-owner-name">
@@ -650,7 +650,7 @@ export default function About() {
                 <span className="wn-contributor-name">{c.name !== c.login ? `${c.name} (${c.handle})` : c.handle}</span>
               </a>
             ))}
-            {contribLoading && (
+            {contribLoading && contributors.length === 0 && (
               <>
                 <span className="skeleton ac-skeleton-pill" style={{ width: 124 }} aria-hidden="true" />
                 <span className="skeleton ac-skeleton-pill" style={{ width: 112 }} aria-hidden="true" />

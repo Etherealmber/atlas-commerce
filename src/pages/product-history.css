@@ -48,39 +48,74 @@ html body .product-history button.product-history-refresh svg {
 }
 html body .product-history button.product-history-photo-action svg *,
 html body .product-history button.product-history-refresh svg * { stroke: currentColor !important; fill: none !important; }
-.product-history-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 12px 0; }
-html body .product-history .product-history-actions button.secondary {
-  display: inline-flex !important; align-items: center !important; justify-content: center !important; gap: 7px;
-  height: 36px !important; min-height: 36px !important; padding: 0 15px !important;
-  border-radius: 999px !important; font-size: 13px !important; font-weight: 600 !important;
-  line-height: 1 !important; transition: background-color 140ms ease, border-color 140ms ease, transform 140ms ease;
+.product-history-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 12px 0; }
+
+/* Header actions = the Products row-action pills (same tokens as
+   products-catalog.css « pc-row-act »): neutral soft pill, 32px, 12.5px/600,
+   14px glyph, compact 28px. Three ID boosts outrank the global button chains
+   and the compact density layer (two boosts). */
+.product-history {
+  --ph-pill-line: #e8eaef;
+  --ph-pill-bg: #f4f4f5;
+  --ph-pill-bg-hover: #ffffff;
+  --ph-pill-ink: #0f172a;
+  --ph-pill-muted: #64748b;
 }
-html body .product-history .product-history-actions button.secondary svg { flex: none; stroke: currentColor !important; fill: none !important; }
-html body .product-history .product-history-actions button.product-history-action-stock {
-  background: #fef3c7 !important; color: #92400e !important; -webkit-text-fill-color: #92400e !important;
-  border: 1.5px solid #fcd34d !important;
+html[data-theme="dark"] .product-history {
+  --ph-pill-line: #2a2a2e;
+  --ph-pill-bg: #26262b;
+  --ph-pill-bg-hover: #1c1c1f;
+  --ph-pill-ink: #f4f4f5;
+  --ph-pill-muted: #9aa3b5;
 }
-html body .product-history .product-history-actions button.product-history-action-stock:hover:not(:disabled) {
-  background: #fde68a !important; border-color: #f59e0b !important;
+html body .product-history .product-history-actions button.secondary:not(#ph-a):not(#ph-b):not(#ph-c) {
+  display: inline-flex !important; align-items: center !important; justify-content: center !important; gap: 6px !important;
+  width: auto !important; min-width: 0 !important; height: 32px !important; min-height: 32px !important;
+  padding: 0 12px 0 10px !important; margin: 0 !important;
+  border-radius: 999px !important; border: 1px solid var(--ph-pill-line) !important;
+  background: var(--ph-pill-bg) !important; color: var(--ph-pill-ink) !important; -webkit-text-fill-color: var(--ph-pill-ink) !important;
+  font-size: 12.5px !important; font-weight: 600 !important; line-height: 1 !important; letter-spacing: 0 !important;
+  white-space: nowrap !important; box-shadow: none !important; transform: none !important; text-decoration: none !important;
+  transition: background-color 140ms ease, border-color 140ms ease !important;
 }
-html body .product-history .product-history-actions button.product-history-action-edit {
-  background: #dbeafe !important; color: #1d4ed8 !important; -webkit-text-fill-color: #1d4ed8 !important;
-  border: 1.5px solid #93c5fd !important;
+html body .product-history .product-history-actions button.secondary:not(#ph-a):not(#ph-b):not(#ph-c):hover:not(:disabled) {
+  background: var(--ph-pill-bg-hover) !important; border-color: var(--ph-pill-muted) !important;
 }
-html body .product-history .product-history-actions button.product-history-action-edit:hover:not(:disabled) {
-  background: #bfdbfe !important; border-color: #60a5fa !important;
+html body .product-history .product-history-actions button.secondary:not(#ph-a):not(#ph-b):not(#ph-c):focus-visible {
+  outline: 2px solid var(--ph-pill-ink) !important; outline-offset: 2px !important;
 }
-html[data-theme="dark"] body .product-history .product-history-actions button.product-history-action-stock {
-  background: #451a03 !important; color: #fde68a !important; -webkit-text-fill-color: #fde68a !important;
-  border-color: #b45309 !important;
+html body .product-history .product-history-actions button.secondary:not(#ph-a) svg {
+  width: 14px !important; height: 14px !important; flex: 0 0 auto !important;
+  stroke: currentColor !important; fill: none !important;
 }
-html[data-theme="dark"] body .product-history .product-history-actions button.product-history-action-stock:hover:not(:disabled) {
-  background: #78350f !important; border-color: #d97706 !important;
+html[data-ui-density="compact"] body .product-history .product-history-actions button.secondary:not(#ph-a):not(#ph-b):not(#ph-c) {
+  height: 28px !important; min-height: 28px !important; padding: 0 10px 0 8px !important; font-size: 12px !important;
 }
-html[data-theme="dark"] body .product-history .product-history-actions button.product-history-action-edit {
-  background: #1e3a5f !important; color: #bfdbfe !important; -webkit-text-fill-color: #bfdbfe !important;
-  border-color: #3b82f6 !important;
+
+/* ── Loading shimmer that mirrors the real card + movement rows ── */
+.product-history .ph-sk .skeleton,
+.product-history .ph-sk-movements .skeleton {
+  display: block;
+  border-radius: 6px;
 }
-html[data-theme="dark"] body .product-history .product-history-actions button.product-history-action-edit:hover:not(:disabled) {
-  background: #1e40af !important; border-color: #60a5fa !important;
+.product-history .ph-sk-photo { flex: 0 0 76px; width: 76px; height: 76px; border-radius: 16px !important; }
+.product-history .ph-sk-copy { display: grid; gap: 8px; justify-items: start; }
+.product-history .ph-sk-line { height: 12px; }
+.product-history .ph-sk-line--sm { height: 10px; }
+.product-history .ph-sk-pill { height: 32px; border-radius: 999px !important; }
+.product-history .ph-sk-actors { margin: 14px 0 12px; }
+.product-history .ph-sk-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.product-history .ph-sk-movement { display: grid; gap: 8px; }
+.product-history .ph-sk-movement > div { align-items: center; }
+.product-history .ph-sk-movements .ph-sk-movement:nth-child(2) .skeleton { animation-delay: 0.08s; }
+.product-history .ph-sk-movements .ph-sk-movement:nth-child(3) .skeleton { animation-delay: 0.16s; }
+.product-history .ph-sk-movements .ph-sk-movement:nth-child(4) .skeleton { animation-delay: 0.24s; }
+/* Refresh keeps the rows on screen (dimmed) instead of stacking bars on top. */
+.product-history .product-history-movements.is-refreshing .product-history-movement { opacity: 0.55; transition: opacity 160ms ease; }
+.product-history .product-history-movements.is-refreshing .product-history-refresh svg { animation: ph-refresh-spin 0.9s linear infinite; }
+@keyframes ph-refresh-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .product-history .product-history-movements.is-refreshing .product-history-refresh svg { animation: none; }
 }
+/* Dark: rows sit flat on the card (a global div fill painted them #202024). */
+html[data-theme="dark"] body .product-history .product-history-movement:not(#ph-a):not(#ph-b) { background: transparent !important; }
