@@ -81,6 +81,7 @@ export default function AppUpdatePanel() {
       const data: any = await res.json().catch(() => ({}));
       if (!res.ok || !data?.success) throw new Error(data?.error || `Erreur ${res.status}`);
       const d = data.data as RemoteState;
+      if (!d?.json || !d?.apk) throw new Error('Réponse inattendue du serveur (état R2 incomplet)');
       setState(d);
       setMinEnabled(!!d.minimumVersionEnabled);
       setMinCode(Number(d.minimumSupportedVersionCode || 0));

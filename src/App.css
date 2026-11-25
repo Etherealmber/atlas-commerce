@@ -16762,7 +16762,7 @@ html body .atlas-mobile-nav button.atlas-nav-btn:hover {
     overflow: hidden !important;
     text-overflow: ellipsis !important;
     max-width: 42vw !important;
-    text-transform: capitalize !important;
+    text-transform: none !important;
   }
   html body .ac-topbar-right {
     display: flex !important;

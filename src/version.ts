@@ -3,7 +3,7 @@ export const APP_NAME = 'Atlas Commerce';
 export const APP_TAGLINE = 'Stock · Caisse · Facturation';
 export const APP_VERSION = '0.9.3-beta';
 /* v0.7 — date toujours à jour (demande user) : date du jour UTC. */
-export const APP_BUILD_DATE = '2026-11-24';
+export const APP_BUILD_DATE = '2026-11-25';
 export const APP_CHANNEL = 'beta' as const;
 
 export const APP_CREATOR = 'etherealmber';

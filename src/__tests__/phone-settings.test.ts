@@ -20,7 +20,7 @@ it('settings apply theme, text scale, animations and show language as coming soo
   await act(async () => { click('Sombre').click(); click('Grande').click(); click('Compact').click(); document.querySelector<HTMLInputElement>('input[type=checkbox]')!.click(); });
   expect(theme).toHaveBeenCalledWith('dark'); expect(scale).toHaveBeenCalledWith('lg'); expect(compact).toHaveBeenCalledWith(true); expect(animation).toHaveBeenCalledWith(false);
   await act(async () => { document.querySelector<HTMLButtonElement>('.ph-setting-link')!.click(); });
-  expect(document.body.textContent).toContain('arrivent bientôt'); await act(async () => click('Compris').click());
+  expect(document.body.textContent).toContain('l’arabe et l’anglais arrivent'); await act(async () => click('Compris').click());
   const select = document.querySelector('select') as any;
   await act(async () => { select.value = '/m/products'; select.dispatchEvent(new Event('change', { bubbles: true })); });
   expect(start).toHaveBeenCalledWith('/m/products');
@@ -30,7 +30,7 @@ it('opens the complete version history with platform badges and desktop category
   await act(async () => root.render(createElement(MemoryRouter, { initialEntries: ['/m/settings'] }, createElement(Routes, null, createElement(Route, { path: '/m/settings', element: settings }), createElement(Route, { path: '/m/settings/whats-new', element: createElement(PhoneWhatsNew) })) )));
   await act(async () => [...host.querySelectorAll('button')].find(b => b.textContent?.includes('Nouveautés des versions'))!.click());
   expect(host.textContent).toContain('Atlas Commerce 0.9.3');
-  expect(host.textContent).toContain('24 novembre 2026');
+  expect(host.textContent).toContain('25 novembre 2026');
   expect(host.textContent).toContain('Produits sur mobile et PC');
   expect(host.textContent).toContain('Rapports mobiles');
   expect(host.textContent).toContain('API de suivi en lecture seule : demandes de stock personnelles');

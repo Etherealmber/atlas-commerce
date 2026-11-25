@@ -42,7 +42,15 @@ export default function AgentKnowledgePanel() {
   const reload = useCallback(async () => {
     try {
       const r = await api.getAgentKnowledge();
-      setK((r as any)?.data || null);
+      const d = (r as any)?.data;
+      setK(d ? {
+        isAdmin: !!d.isAdmin,
+        context: String(d.context ?? ''),
+        memory: Array.isArray(d.memory) ? d.memory : [],
+        guardrails: Array.isArray(d.guardrails) ? d.guardrails : [],
+        docs: Array.isArray(d.docs) ? d.docs : [],
+        tools: Array.isArray(d.tools) ? d.tools : [],
+      } : null);
       setCtx((prev) => prev ?? (r as any)?.data?.context ?? '');
     } catch {
       setErr('Impossible de charger le savoir de l’Agent.');

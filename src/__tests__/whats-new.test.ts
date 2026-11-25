@@ -16,7 +16,7 @@ describe('WhatsNew releases', () => {
     expect(APP_VERSION).toBe('0.9.3-beta');
     expect(RELEASES[0].version).toBe('0.9.3');
     expect(WHATS_NEW_VERSION).toBe(RELEASES[0].version);
-    expect(RELEASES[0].date).toBe('24 novembre 2026');
+    expect(RELEASES[0].date).toBe('25 novembre 2026');
     expect(JSON.stringify(RELEASES[0])).not.toMatch(/cloudflare|google|microsoft|flclash/i);
     const ids093 = RELEASES[0].sections.flatMap((s) => s.items).map((i) => i.id);
     expect(new Set(ids093).size).toBe(ids093.length);

@@ -124,7 +124,7 @@ describe('release page and popup content', () => {
     await render(createElement(WhatsNewModal));
     const dialog = host.querySelector('[role="dialog"]');
     expect(dialog?.textContent).toContain('Atlas Commerce 0.9.3');
-    expect(dialog?.textContent).toContain('24 novembre 2026');
+    expect(dialog?.textContent).toContain('25 novembre 2026');
     expect(dialog?.textContent).toContain('Répartition des charges');
     expect(dialog?.textContent).toContain('jours déclarés CNSS');
     expect(dialog?.textContent).toContain('Connexion desktop native sans navigateur');

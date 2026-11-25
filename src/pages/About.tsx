@@ -35,9 +35,18 @@ import {
   APP_TEAM_GITHUB,
   APP_INSTAGRAM,
   APP_DESCRIPTION,
+  APP_BUILD_DATE,
 } from '../version';
 import { api } from '../api';
 import { isLoggedIn } from '../auth';
+
+/** « 25 novembre 2026 » from APP_BUILD_DATE (noon UTC so no timezone shifts the day). */
+const RELEASE_DATE_LABEL = (() => {
+  const d = new Date(`${APP_BUILD_DATE}T12:00:00Z`);
+  return Number.isNaN(d.getTime())
+    ? APP_BUILD_DATE
+    : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+})();
 import { REPO_CONTRIBUTORS, fetchRepoContributors, type Contributor } from '../lib/contributors';
 
 type GhUser = {
@@ -379,7 +388,7 @@ export default function About() {
         <article className="ac-metric">
           <span className="ac-metric-label">Version active</span>
           <strong className="ac-metric-val">v{APP_VERSION}</strong>
-          <span className="ac-metric-meta">Atlas Commerce ERP</span>
+          <span className="ac-metric-meta">Publiée le {RELEASE_DATE_LABEL}</span>
         </article>
         <article className="ac-metric">
           <span className="ac-metric-label">Modules métier</span>
@@ -421,6 +430,10 @@ export default function About() {
               <a href="https://github.com/Etherealmber/atlas-commerce/issues" target="_blank" rel="noreferrer">
                 GitHub Issues <ExternalLink size={12} aria-hidden="true" />
               </a>
+            </li>
+            <li>
+              <span className="muted">Langues</span>
+              <span>Français · arabe et anglais bientôt</span>
             </li>
             <li>
               <span className="muted">Éditeur</span>

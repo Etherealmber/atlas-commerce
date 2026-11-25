@@ -1607,7 +1607,7 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme, onProductCreated
       {dialog === 'activity' && <PhoneAgentActivity onClose={() => setDialog(null)} />}
       {(dialog === 'language' || dialog === 'unlock' || dialog === 'photo') && <PhoneDialog titleId="ph-agent-info-title" onClose={() => setDialog(null)}>
         <h2 id="ph-agent-info-title">{dialog === 'language' ? 'Langue' : dialog === 'unlock' ? 'Déverrouillage' : 'Changer ma photo'}</h2>
-        <p>{dialog === 'language' ? 'La version web est disponible en français. Les autres langues arrivent bientôt.' : dialog === 'unlock' ? 'Le déverrouillage de l’appareil est disponible dans l’application Android, pas dans ce navigateur.' : 'Le changement de photo n’est pas encore disponible dans le profil mobile web.'}</p>
+        <p>{dialog === 'language' ? 'Bientôt disponible — l’arabe et l’anglais arrivent. La version web est en français pour le moment.' : dialog === 'unlock' ? 'Le déverrouillage de l’appareil est disponible dans l’application Android, pas dans ce navigateur.' : 'Le changement de photo n’est pas encore disponible dans le profil mobile web.'}</p>
         <button type="button" className="ph-btn" onClick={() => setDialog(null)}>Fermer</button>
       </PhoneDialog>}
       {dialog === 'history' && <PhoneDialog titleId="ph-agent-history-title" onClose={() => setDialog(null)}>

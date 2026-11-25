@@ -6534,15 +6534,6 @@ html[data-theme] body a.dl-cta-ghost {
   text-decoration: none !important;
 }
 
-/* Fullscreen modal/tour backdrop buttons must always stay transparent */
-html[data-theme] body button.ac-feature-tour-backdrop,
-html[data-theme] body button.qr-fab-backdrop {
-  background: transparent !important;
-  border: 0 !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-  border-radius: 0 !important;
-}
 
 /* Support & public forms: match neutral dark zinc across input, select & textarea */
 html[data-theme="dark"] body .dl-support-form input,
@@ -6605,8 +6596,8 @@ html[data-theme="dark"] #root .ac-desktop-dock button.ac-dock-expand:active {
   -webkit-text-fill-color: #f4f4f6 !important;
 }
 html[data-theme="dark"] #root .ac-desktop-dock button.ac-dock-expand:hover {
-  background: rgba(255, 255, 255, 0.06) !important;
-  background-color: rgba(255, 255, 255, 0.06) !important;
+  background: transparent !important;
+  background-color: transparent !important;
   background-image: none !important;
   border: 0 !important;
   box-shadow: none !important;
@@ -7435,3 +7426,651 @@ html[data-theme="dark"] body .ac-topbar-right .ac-notif-panel button.ac-notif-al
 }
 html[data-theme="dark"] body .ac-topbar-right .ac-notif-panel button.ac-notif-all:hover { background: #27272b !important; }
 html[data-theme="dark"] body .ac-topbar-right .ac-notif-panel .ac-notif-head { background: #18181b !important; border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important; }
+
+/* ==========================================================================
+   v0.9.3 — dark sweep + polish
+   Audit journal, cookie banner, QR popup, floating dock title, settings
+   floating save popup, language « bientôt » dialog, reconcile/legend leaks.
+   Selectors carry an id-style boost (:not(#…)) so they win over the long
+   global button chains without editing them; light mode keeps its looks.
+   ========================================================================== */
+
+/* --- Audit journal: the global `.content table tbody tr` white paint
+       (`!important`) beat the dark row colour and the cells are transparent,
+       so every row showed white with light text on top. */
+html[data-theme="dark"] body .ac-audit-table-wrap:not(#ac-audit) .audit-table,
+html[data-theme="dark"] body .ac-audit-table-wrap:not(#ac-audit) .audit-table tbody,
+html[data-theme="dark"] body .ac-audit-table-wrap:not(#ac-audit) .audit-table tbody tr,
+html[data-theme="dark"] body .ac-audit-table-wrap:not(#ac-audit) .audit-table tbody tr:nth-child(odd),
+html[data-theme="dark"] body .ac-audit-table-wrap:not(#ac-audit) .audit-table tbody tr:nth-child(even),
+html[data-theme="dark"] body .ac-audit-table-wrap:not(#ac-audit) .audit-table tbody td {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+html[data-theme="dark"] body .ac-audit-table-wrap:not(#ac-audit) .audit-table tbody tr:hover,
+html[data-theme="dark"] body .ac-audit-table-wrap:not(#ac-audit) .audit-table tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.035) !important;
+  background-color: rgba(255, 255, 255, 0.035) !important;
+}
+html[data-theme="dark"] body .ac-audit-table-wrap:not(#ac-audit) .audit-table tbody td {
+  color: #d4d4d8 !important;
+  -webkit-text-fill-color: #d4d4d8 !important;
+  border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+}
+html[data-theme="dark"] body .ac-audit-table-wrap:not(#ac-audit) .audit-table td.ac-audit-time,
+html[data-theme="dark"] body .ac-audit-table-wrap:not(#ac-audit) .audit-table td.audit-ip {
+  color: #a1a1aa !important;
+  -webkit-text-fill-color: #a1a1aa !important;
+  font-variant-numeric: tabular-nums;
+}
+html[data-theme="dark"] body .ac-audit-table-wrap:not(#ac-audit) .audit-table td.ac-audit-resource {
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+}
+html[data-theme="dark"] body .ac-audit-table-wrap:not(#ac-audit) .audit-actor strong {
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+}
+html[data-theme="dark"] body .ac-audit-table-wrap:not(#ac-audit) .audit-actor span {
+  color: #8b8b94 !important;
+  -webkit-text-fill-color: #8b8b94 !important;
+}
+html[data-theme="dark"] body .ac-audit-table-wrap:not(#ac-audit) .audit-detail a {
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+  text-decoration-color: rgba(255, 255, 255, 0.3) !important;
+}
+html[data-theme="dark"] body .ac-audit-table-wrap:not(#ac-audit) .audit-detail a:hover {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-decoration-color: rgba(255, 255, 255, 0.7) !important;
+}
+html[data-theme="dark"] body .ac-audit-table-wrap:not(#ac-audit) .audit-empty {
+  color: #a1a1aa !important;
+  -webkit-text-fill-color: #a1a1aa !important;
+}
+/* Search icon sat on top of the placeholder (« Qechercher ») because later
+   input rules reset the left padding. */
+html body .ac-audit-search-wrap:not(#ac-audit) input[type="search"] {
+  padding-left: 38px !important;
+}
+
+/* --- Settings « À jour » / « Enregistrer » toggle: a generic dark button
+       rule painted it white (and light-grey on hover) under light text. */
+html[data-theme="dark"] body .ac-save-toggle:not(#ac-st)[data-status="idle"],
+html[data-theme="dark"] body .ac-save-toggle:not(#ac-st)[data-status="idle"]:hover,
+html[data-theme="dark"] body .ac-save-toggle:not(#ac-st)[data-status="idle"]:disabled,
+html[data-theme="dark"] body .ac-save-toggle:not(#ac-st)[data-status="saved"],
+html[data-theme="dark"] body .ac-save-toggle:not(#ac-st)[data-status="saved"]:hover {
+  background: #27272a !important;
+  background-color: #27272a !important;
+  background-image: none !important;
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+}
+html[data-theme="dark"] body .ac-save-toggle:not(#ac-st)[data-status="idle"] {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+html[data-theme="dark"] body .ac-save-toggle:not(#ac-st)[data-status="idle"]:hover:not(:disabled) {
+  background: #323236 !important;
+  background-color: #323236 !important;
+}
+html[data-theme="dark"] body .ac-save-toggle:not(#ac-st)[data-status="loading"],
+html[data-theme="dark"] body .ac-save-toggle:not(#ac-st)[data-status="success"] {
+  background: #fafafa !important;
+  background-color: #fafafa !important;
+  background-image: none !important;
+}
+
+/* --- Focus sidebar neutral badge (« Bientôt ») readable in dark. */
+html[data-theme="dark"] body .atlas-focus-badge--neutral:not(#ac-fb) {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #a1a1aa !important;
+  -webkit-text-fill-color: #a1a1aa !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* --- Balance « Rapprochement comptable » head was hard-coded white. */
+html[data-theme="dark"] body .balance-reconcile-head:not(#ac-bal) {
+  background: transparent !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+html[data-theme="dark"] body .balance-reconcile-head:not(#ac-bal)[style*="239, 68, 68"] {
+  background: rgba(239, 68, 68, 0.08) !important;
+}
+html[data-theme="dark"] body .balance-reconcile-head:not(#ac-bal) strong {
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+}
+html[data-theme="dark"] body .balance-reconcile-head:not(#ac-bal) p[style*="b91c1c"] {
+  color: #fca5a5 !important;
+  -webkit-text-fill-color: #fca5a5 !important;
+}
+html[data-theme="dark"] body .bal-tx-toolbar:not(#ac-bal) {
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* --- Products legend divider was a light hairline. */
+html[data-theme="dark"] body .ac-products-legend:not(#ac-pl) {
+  border-top-color: rgba(255, 255, 255, 0.08) !important;
+  color: #a1a1aa !important;
+}
+
+/* --- Cookie banner (dark): neutral card, real buttons, no grey slab
+       behind « Personnaliser ». */
+html[data-theme="dark"] body .cookie-consent-card:not(#ac-ck) {
+  background: #18181b !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55) !important;
+  color: #e4e4e7 !important;
+}
+html[data-theme="dark"] body .cookie-consent-card:not(#ac-ck) .cookie-consent-head h2 {
+  color: #f4f4f5 !important;
+}
+html[data-theme="dark"] body .cookie-consent-card:not(#ac-ck) .cookie-consent-head p {
+  color: #a1a1aa !important;
+}
+html[data-theme="dark"] body .cookie-consent-card:not(#ac-ck) .cookie-consent-head a {
+  color: #f4f4f5 !important;
+}
+html[data-theme="dark"] body .cookie-consent-card:not(#ac-ck) .cookie-consent-details {
+  background: #121215 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+html[data-theme="dark"] body .cookie-consent-card:not(#ac-ck) .cookie-consent-row {
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+html[data-theme="dark"] body .cookie-consent-card:not(#ac-ck) .cookie-consent-row input {
+  accent-color: #e4e4e7;
+}
+html[data-theme="dark"] body .cookie-consent-card:not(#ac-ck) .cookie-btn.linkish,
+html[data-theme="dark"] body .cookie-consent-card:not(#ac-ck) .cookie-btn.linkish:hover,
+html[data-theme="dark"] body .cookie-consent-card:not(#ac-ck) .cookie-btn.linkish:focus,
+html[data-theme="dark"] body .cookie-consent-card:not(#ac-ck) .cookie-btn.linkish:active {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+  text-decoration: underline !important;
+  text-underline-offset: 3px;
+  text-decoration-color: rgba(255, 255, 255, 0.35) !important;
+}
+html[data-theme="dark"] body .cookie-consent-card:not(#ac-ck) .cookie-btn.linkish:hover {
+  text-decoration-color: rgba(255, 255, 255, 0.8) !important;
+}
+html[data-theme="dark"] body .cookie-consent-card:not(#ac-ck) .cookie-btn.secondary,
+html[data-theme="dark"] body .cookie-consent-card:not(#ac-ck) .cookie-btn.secondary:focus {
+  background: #202024 !important;
+  background-color: #202024 !important;
+  background-image: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"] body .cookie-consent-card:not(#ac-ck) .cookie-btn.secondary:hover {
+  background: #2a2a2f !important;
+  background-color: #2a2a2f !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+html[data-theme="dark"] body .cookie-consent-card:not(#ac-ck) .cookie-btn.primary,
+html[data-theme="dark"] body .cookie-consent-card:not(#ac-ck) .cookie-btn.primary:focus {
+  background: #fafafa !important;
+  background-color: #fafafa !important;
+  background-image: none !important;
+  border: 1px solid #fafafa !important;
+  color: #0a0a0a !important;
+  -webkit-text-fill-color: #0a0a0a !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"] body .cookie-consent-card:not(#ac-ck) .cookie-btn.primary:hover {
+  background: #e4e4e7 !important;
+  background-color: #e4e4e7 !important;
+  border-color: #e4e4e7 !important;
+}
+html[data-theme="dark"] body .cookie-consent-card:not(#ac-ck) .cookie-btn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.6) !important;
+  outline-offset: 2px;
+}
+
+/* --- QR popup: the backdrop is now a plain layer (it was a <button>, so the
+       dark hover paint turned it into an opaque light-grey sheet). Dark mode:
+       translucent dim + soft blur so the page stays visible behind. */
+html body .qr-fab-layer .qr-fab-backdrop:not(#ac-qr) {
+  background: transparent !important;
+  background-color: transparent !important;
+  cursor: default;
+}
+html[data-theme="dark"] body .qr-fab-layer .qr-fab-backdrop:not(#ac-qr) {
+  background: rgba(0, 0, 0, 0.38) !important;
+  background-color: rgba(0, 0, 0, 0.38) !important;
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  animation: acFade093 0.2s ease both;
+}
+
+/* Full-screen dialog LAYERS (role="dialog" on the wrapper) were painted
+   solid #1c1c1f by the generic dark `[role="dialog"]` surface rule, hiding the
+   whole page. The layer stays transparent; its own backdrop does the dimming. */
+html[data-theme="dark"] body .qr-fab-layer:not(#ac-dlg),
+html[data-theme="dark"] body .ac-lang-layer:not(#ac-dlg),
+html[data-theme="dark"] body .ac-feature-tour:not(#ac-dlg),
+html[data-theme="dark"] body .ac-edit-profile-root:not(#ac-dlg) {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"] body .ia-overlay:not(#ac-dlg) {
+  background: rgba(0, 0, 0, 0.5) !important;
+  background-color: rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Mobile « Accès restreint » : inverted primary (#fafafa) kept white text. */
+html[data-theme="dark"] body .ph-restricted .ph-primary:not(#ac-pr) {
+  color: #0a0a0a !important;
+  -webkit-text-fill-color: #0a0a0a !important;
+}
+
+/* Mobile: Balance notice + native badges had light-only pastel fills. */
+html[data-theme="dark"] body .pb-notice:not(#ac-m) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: rgba(245, 158, 11, 0.12) !important;
+  border: 1px solid rgba(245, 158, 11, 0.28) !important;
+  color: #fcd34d !important;
+  -webkit-text-fill-color: #fcd34d !important;
+}
+html[data-theme="dark"] body .ph-native-badges:not(#ac-m) span {
+  background: rgba(96, 165, 250, 0.14) !important;
+  color: #bfdbfe !important;
+  -webkit-text-fill-color: #bfdbfe !important;
+}
+html[data-theme="dark"] body .ph-native-badges:not(#ac-m) span:nth-child(2),
+html[data-theme="dark"] body .ph-native-badges:not(#ac-m) span.neutral {
+  background: #27272a !important;
+  color: #d4d4d8 !important;
+  -webkit-text-fill-color: #d4d4d8 !important;
+}
+html[data-theme="dark"] body .ph-native-badges:not(#ac-m) span:nth-child(3),
+html[data-theme="dark"] body .ph-native-badges:not(#ac-m) .warning {
+  background: rgba(245, 158, 11, 0.14) !important;
+  color: #fcd34d !important;
+  -webkit-text-fill-color: #fcd34d !important;
+}
+html[data-theme="dark"] body .ph-native-badges:not(#ac-m) .positive {
+  background: rgba(34, 197, 94, 0.14) !important;
+  color: #86efac !important;
+  -webkit-text-fill-color: #86efac !important;
+}
+html[data-theme="dark"] body .ph-native-badges:not(#ac-m) .danger {
+  background: rgba(239, 68, 68, 0.14) !important;
+  color: #fca5a5 !important;
+  -webkit-text-fill-color: #fca5a5 !important;
+}
+
+/* --- Floating dock title: never looks like a button (no hover fill, no
+       scale, no pill). Tapping just grows the bar; the controls slide in. */
+html body .ac-desktop-dock button.ac-dock-expand:not(#ac-dock),
+html body .ac-desktop-dock button.ac-dock-expand:not(#ac-dock):hover,
+html body .ac-desktop-dock button.ac-dock-expand:not(#ac-dock):focus,
+html body .ac-desktop-dock button.ac-dock-expand:not(#ac-dock):active {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  transform: none !important;
+  filter: none !important;
+  outline: none;
+  cursor: default;
+  text-transform: none !important;
+}
+html body .ac-desktop-dock button.ac-dock-expand:not(#ac-dock):focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+@keyframes acDockReveal093 {
+  from { opacity: 0; transform: translateX(-10px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+html body .ac-desktop-dock .ac-topbar-right {
+  animation: acDockReveal093 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* --- Settings: floating popup whenever a setting changes. */
+@keyframes acFloatIn093 {
+  from { opacity: 0; transform: translate(-50%, 18px) scale(0.97); }
+  to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+@keyframes acPulse093 {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.35); }
+  50% { box-shadow: 0 0 0 5px rgba(245, 158, 11, 0); }
+}
+@keyframes acFade093 {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+html body .settings-sticky-save.ac-settings-float:not(#ac-sf) {
+  position: fixed !important;
+  left: 50% !important;
+  right: auto !important;
+  top: auto !important;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important;
+  transform: translateX(-50%);
+  z-index: 1200 !important;
+  display: flex !important;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: nowrap;
+  max-width: calc(100vw - 24px);
+  padding: 8px 8px 8px 16px !important;
+  border-radius: 999px !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(15, 23, 42, 0.1) !important;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.16), 0 2px 6px rgba(15, 23, 42, 0.06) !important;
+  color: #0a0a0a !important;
+  animation: acFloatIn093 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+html body .ac-settings-float:not(#ac-sf) .ac-settings-float-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f59e0b;
+  animation: acPulse093 1.8s ease-in-out infinite;
+}
+html body .ac-settings-float.is-saved:not(#ac-sf) .ac-settings-float-dot {
+  background: #22c55e;
+  animation: none;
+}
+html body .ac-settings-float.is-saved:not(#ac-sf) {
+  padding-right: 18px !important;
+}
+html body .ac-settings-float:not(#ac-sf) .ac-settings-float-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
+html body .ac-settings-float:not(#ac-sf) .ac-settings-float-text b {
+  font-size: 13px;
+  font-weight: 650;
+  white-space: nowrap;
+  color: #0a0a0a;
+}
+html body .ac-settings-float:not(#ac-sf) .ac-settings-float-text i {
+  font-style: normal;
+  font-size: 11.5px;
+  color: #71717a;
+  white-space: nowrap;
+}
+html body .ac-settings-float:not(#ac-sf) .settings-sticky-save-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+html body .ac-settings-float:not(#ac-sf) .settings-sticky-save-actions > button.secondary {
+  min-height: 36px !important;
+  padding: 0 14px !important;
+  border-radius: 999px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+html[data-theme="dark"] body .settings-sticky-save.ac-settings-float:not(#ac-sf) {
+  background: #18181b !important;
+  background-color: #18181b !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55) !important;
+  color: #f4f4f5 !important;
+}
+html[data-theme="dark"] body .ac-settings-float:not(#ac-sf) .ac-settings-float-text b {
+  color: #f4f4f5;
+}
+html[data-theme="dark"] body .ac-settings-float:not(#ac-sf) .ac-settings-float-text i {
+  color: #a1a1aa;
+}
+html[data-theme="dark"] body .ac-settings-float:not(#ac-sf) .settings-sticky-save-actions > button.secondary {
+  background: #202024 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+}
+html[data-theme="dark"] body .ac-settings-float:not(#ac-sf) .settings-sticky-save-actions > button.secondary:hover {
+  background: #2a2a2f !important;
+}
+@media (max-width: 900px) {
+  html body .settings-sticky-save.ac-settings-float:not(#ac-sf) {
+    bottom: calc(84px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  html body .ac-settings-float:not(#ac-sf) .ac-settings-float-text i { display: none; }
+}
+
+/* --- Language: « Bientôt » dialog + entry points. */
+.ac-lang-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 12500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.ac-lang-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(9, 9, 11, 0.3);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  animation: acFade093 0.2s ease both;
+}
+@keyframes acLangPop093 {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+.ac-lang-card {
+  position: relative;
+  width: min(380px, 100%);
+  padding: 18px;
+  border-radius: 20px;
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.22);
+  color: #0a0a0a;
+  animation: acLangPop093 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.ac-lang-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.ac-lang-ico {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: #f4f4f5;
+  color: #0a0a0a;
+}
+.ac-lang-titles {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.ac-lang-titles strong { font-size: 15px; font-weight: 700; }
+.ac-lang-titles span { font-size: 12.5px; line-height: 1.4; color: #52525b; }
+html body .ac-lang-card button.ac-lang-x:not(#ac-lang) {
+  flex: 0 0 auto;
+  display: grid !important;
+  place-items: center;
+  width: 30px !important;
+  height: 30px !important;
+  min-width: 30px !important;
+  min-height: 30px !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  border: 1px solid rgba(15, 23, 42, 0.1) !important;
+  color: #52525b !important;
+  -webkit-text-fill-color: #52525b !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+html body .ac-lang-card button.ac-lang-x:not(#ac-lang):hover { background: #f4f4f5 !important; }
+.ac-lang-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.ac-lang-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: "native badge" "label badge";
+  column-gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+.ac-lang-row:last-child { border-bottom: 0; }
+.ac-lang-native { grid-area: native; font-size: 14px; font-weight: 650; }
+.ac-lang-native[dir="rtl"] { text-align: left; }
+.ac-lang-label { grid-area: label; font-size: 12px; color: #71717a; }
+.ac-lang-row.is-soon .ac-lang-native { color: #52525b; }
+.ac-lang-check,
+.ac-lang-soon { grid-area: badge; align-self: center; }
+.ac-lang-check {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #0a0a0a;
+  color: #ffffff;
+}
+.ac-lang-soon,
+.ac-user-dropdown-soon,
+.ac-settings-lang-soon {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  font-style: normal;
+  letter-spacing: 0.01em;
+  background: #f4f4f5;
+  color: #52525b;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  white-space: nowrap;
+}
+.ac-lang-foot { display: flex; justify-content: flex-end; margin-top: 14px; }
+html body .ac-lang-card button.ac-lang-ok:not(#ac-lang) {
+  min-height: 38px !important;
+  padding: 0 18px !important;
+  border-radius: 999px !important;
+  background: #0a0a0a !important;
+  border: 1px solid #0a0a0a !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+}
+html body .ac-lang-card button.ac-lang-ok:not(#ac-lang):hover { background: #27272a !important; }
+.ac-user-dropdown-item .ac-user-dropdown-soon { margin-left: auto; }
+.ac-settings-lang-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.ac-settings-lang-current {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+.ac-settings-lang-current i { font-style: normal; font-size: 12px; color: var(--muted, #71717a); }
+html body .ac-settings-lang .ac-settings-lang-btn:not(#ac-lang) {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px !important;
+  padding: 0 6px 0 16px !important;
+  border-radius: 999px !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(15, 23, 42, 0.12) !important;
+  color: #0a0a0a !important;
+  -webkit-text-fill-color: #0a0a0a !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+html body .ac-settings-lang .ac-settings-lang-btn:not(#ac-lang):hover { background: #f4f4f5 !important; }
+html[data-theme="dark"] body .ac-lang-backdrop { background: rgba(0, 0, 0, 0.45); }
+html[data-theme="dark"] body .ac-lang-card {
+  background: #18181b;
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+  color: #f4f4f5;
+}
+html[data-theme="dark"] body .ac-lang-ico { background: #27272a; color: #f4f4f5; }
+html[data-theme="dark"] body .ac-lang-titles strong { color: #f4f4f5; }
+html[data-theme="dark"] body .ac-lang-titles span { color: #a1a1aa; }
+html[data-theme="dark"] body .ac-lang-card button.ac-lang-x:not(#ac-lang) {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #d4d4d8 !important;
+  -webkit-text-fill-color: #d4d4d8 !important;
+}
+html[data-theme="dark"] body .ac-lang-card button.ac-lang-x:not(#ac-lang):hover { background: #27272a !important; }
+html[data-theme="dark"] body .ac-lang-list { border-color: rgba(255, 255, 255, 0.08); }
+html[data-theme="dark"] body .ac-lang-row { border-bottom-color: rgba(255, 255, 255, 0.06); }
+html[data-theme="dark"] body .ac-lang-row:last-child { border-bottom: 0; }
+html[data-theme="dark"] body .ac-lang-native { color: #f4f4f5; }
+html[data-theme="dark"] body .ac-lang-row.is-soon .ac-lang-native { color: #d4d4d8; }
+html[data-theme="dark"] body .ac-lang-label { color: #8b8b94; }
+html[data-theme="dark"] body .ac-lang-check { background: #fafafa; color: #0a0a0a; }
+html[data-theme="dark"] body .ac-lang-soon,
+html[data-theme="dark"] body .ac-user-dropdown-soon,
+html[data-theme="dark"] body .ac-settings-lang-soon {
+  background: #27272a;
+  color: #d4d4d8;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+html[data-theme="dark"] body .ac-lang-card button.ac-lang-ok:not(#ac-lang) {
+  background: #fafafa !important;
+  border-color: #fafafa !important;
+  color: #0a0a0a !important;
+  -webkit-text-fill-color: #0a0a0a !important;
+}
+html[data-theme="dark"] body .ac-lang-card button.ac-lang-ok:not(#ac-lang):hover { background: #e4e4e7 !important; }
+html[data-theme="dark"] body .ac-settings-lang .ac-settings-lang-btn:not(#ac-lang) {
+  background: #202024 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+}
+html[data-theme="dark"] body .ac-settings-lang .ac-settings-lang-btn:not(#ac-lang):hover { background: #2a2a2f !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  html body .ac-desktop-dock .ac-topbar-right,
+  html body .settings-sticky-save.ac-settings-float:not(#ac-sf),
+  html body .ac-settings-float:not(#ac-sf) .ac-settings-float-dot,
+  .ac-lang-card,
+  .ac-lang-backdrop,
+  html[data-theme="dark"] body .qr-fab-layer .qr-fab-backdrop:not(#ac-qr) {
+    animation: none !important;
+  }
+}

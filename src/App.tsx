@@ -1,5 +1,5 @@
 import MobileBottomNav from './components/erp/MobileBottomNav';
-import { useEffect, useState, useRef, lazy, Suspense } from 'react';
+import { useEffect, useLayoutEffect, useState, useRef, lazy, Suspense } from 'react';
 import { ArrowLeft, ArrowRight, Bell, ChevronRight, ClipboardCheck, FileText, Package, Users } from 'lucide-react';
 import { canOpenPhoneBalance, canOpenPhoneEmployees } from './mobile/PhoneDock';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
@@ -786,6 +786,47 @@ function DesktopShell() {
     dockExpansionUntil.current = Date.now() + 400;
     setSettingsBarCompact(false);
   };
+
+  /* v0.9.3 — the dock grows smoothly when it expands (tap on the title or hover).
+     Width is `fit-content !important` (animations can't override it), so the
+     reveal is a clip-path sweep from the previous width plus a fade-in of the
+     right-hand controls (CSS). */
+  const dockIsCompact = settingsBarCompact && !shellNotifOpen && !shellUserOpen;
+  const dockWidthRef = useRef(0);
+  const dockAnimRef = useRef<Animation | null>(null);
+  useLayoutEffect(() => {
+    const el = dockRef.current;
+    if (!el) return;
+    const prev = dockWidthRef.current;
+    dockAnimRef.current?.cancel();
+    const next = el.offsetWidth;
+    dockWidthRef.current = next;
+    if (dockIsCompact || !prev || next - prev < 4 || typeof el.animate !== 'function') return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    const inset = Math.max(0, (next - prev) / 2);
+    const anim = el.animate(
+      [
+        { clipPath: `inset(-24px ${inset}px -24px ${inset}px round 999px)` },
+        { clipPath: 'inset(-24px 0px -24px 0px round 999px)' },
+      ],
+      { duration: 420, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' },
+    );
+    dockAnimRef.current = anim;
+    const done = () => {
+      if (dockAnimRef.current === anim) dockAnimRef.current = null;
+    };
+    anim.onfinish = done;
+    anim.oncancel = done;
+  }, [dockIsCompact]);
+  useEffect(() => {
+    const el = dockRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(() => {
+      if (!dockAnimRef.current) dockWidthRef.current = el.offsetWidth;
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
 
   useEffect(() => {

@@ -1,4 +1,5 @@
 import QrLoginPanel from '../components/settings/QrLoginPanel';
+import { LanguageSoonDialog } from '../components/LanguageSoonDialog';
 import SettingsUserDialog from '../components/SettingsUserDialog';
 import { isFeatureEnabled } from '../lib/featureFlags';
 import { EditProfile, type ProfileData } from '../components/ui/EditProfile';
@@ -11,6 +12,7 @@ import {
   BarChart3,
   ChevronRight,
   Download,
+  Languages,
   Layers,
   ListFilter,
   RefreshCw,
@@ -89,6 +91,8 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [saveOk, setSaveOk] = useState(false);
   const [settingsDirty, setSettingsDirty] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
 
   const [saveMsg, setSaveMsg] = useState('');
   const [saveMsgType, setSaveMsgType] = useState<'success' | 'error'>('success');
@@ -466,6 +470,25 @@ export default function Settings() {
   };
 
 
+  useEffect(() => {
+    if (!qrFabOpen) return undefined;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setQrFabOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [qrFabOpen]);
+
+  useEffect(() => {
+    if (!justSaved) return undefined;
+    const t = window.setTimeout(() => setJustSaved(false), 2200);
+    return () => window.clearTimeout(t);
+  }, [justSaved]);
+
+  useEffect(() => {
+    if (settingsDirty) setJustSaved(false);
+  }, [settingsDirty]);
+
   const update = (field: string, value: any) => {
     setSettingsDirty(true);
     setSettings((prev: any) => ({ ...prev, [field]: value }));
@@ -508,6 +531,7 @@ export default function Settings() {
       setSettings(res.data);
       setSettingsDirty(false);
       setSaveOk(true);
+      setJustSaved(true);
       flash('Paramètres enregistrés.');
       toast('Paramètres enregistrés', 'success');
     } catch (e: any) {
@@ -1220,6 +1244,27 @@ if (loading) return (
             isOwner={(typeof getRole === 'function' ? getRole() : '') === 'owner'}
             role={typeof getRole === 'function' ? String(getRole() || '') : ''}
           />
+
+          {/* v0.9.3 — Langue de l’interface (arabe et anglais à venir) */}
+          <div className="ac-panel ac-settings-lang" id="settings-language">
+            <div className="ac-settings-panel-head">
+              <div>
+                <h2>Langue</h2>
+                <span className="ac-settings-panel-sub">Langue de l’interface, des documents et des e-mails.</span>
+              </div>
+            </div>
+            <div className="ac-settings-lang-row">
+              <span className="ac-settings-lang-current">
+                <Languages size={16} strokeWidth={1.9} aria-hidden />
+                <b>Français</b>
+                <i>Langue actuelle</i>
+              </span>
+              <button type="button" className="ac-settings-lang-btn" onClick={() => setLangOpen(true)}>
+                Changer de langue
+                <span className="ac-settings-lang-soon">Bientôt</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -4002,26 +4047,42 @@ if (loading) return (
           document.body,
         )}
 
-      {canSaveSection && settingsDirty && (
-        <div className="settings-sticky-save" role="region" aria-label="Enregistrement">
-          <span>Modifications non enregistrées</span>
-          <div className="settings-sticky-save-actions">
-            <button type="button" className="secondary" onClick={() => { setSettingsDirty(false); window.location.reload(); }}>
-              Annuler
-            </button>
-            <SaveToggle
-              size="sm"
-              idleText="Enregistrer"
-              savedText="Enregistré"
-              busy={saving}
-              success={saveOk}
-              dirty={settingsDirty}
-              disabled={saving}
-              onClick={() => void save()}
-            />
-          </div>
-        </div>
+      {/* v0.9.3 — popup flottant dès qu’un réglage change (porté sur <body> :
+          un ancêtre transformé cassait position: fixed et l’envoyait sous la page). */}
+      {canSaveSection && (settingsDirty || justSaved) && createPortal(
+        <div
+          className={`settings-sticky-save ac-settings-float${justSaved && !settingsDirty ? ' is-saved' : ''}`}
+          role="region"
+          aria-label="Enregistrement des paramètres"
+          aria-live="polite"
+        >
+          <span className="ac-settings-float-dot" aria-hidden />
+          <span className="ac-settings-float-text">
+            <b>{justSaved && !settingsDirty ? 'Paramètres enregistrés' : 'Modifications non enregistrées'}</b>
+            <i>{TAB_TITLES[activeTab] || 'Paramètres'}</i>
+          </span>
+          {settingsDirty ? (
+            <div className="settings-sticky-save-actions">
+              <button type="button" className="secondary" onClick={() => { setSettingsDirty(false); window.location.reload(); }}>
+                Annuler
+              </button>
+              <SaveToggle
+                size="sm"
+                idleText="Enregistrer"
+                savedText="Enregistré"
+                busy={saving}
+                success={saveOk}
+                dirty={settingsDirty}
+                disabled={saving}
+                onClick={() => void save()}
+              />
+            </div>
+          ) : null}
+        </div>,
+        document.body,
       )}
+
+      <LanguageSoonDialog open={langOpen} onClose={() => setLangOpen(false)} />
 
       <PasswordConfirm
         open={pwOpen}
@@ -4054,7 +4115,7 @@ if (loading) return (
       )}
       {qrFabOpen ? createPortal(
         <div className="qr-fab-layer" role="dialog" aria-modal="true" aria-label="Connexion par QR">
-          <button type="button" className="qr-fab-backdrop" aria-label="Fermer" onClick={() => setQrFabOpen(false)} />
+          <div className="qr-fab-backdrop" role="presentation" aria-hidden onClick={() => setQrFabOpen(false)} />
           <div className="qr-fab-panel">
             <div className="qr-fab-head">
               <strong>Connexion par QR</strong>

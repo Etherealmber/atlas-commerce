@@ -46,7 +46,7 @@ export const FeatureTour: FC<Props> = ({ steps, onClose, onLearnMore, loop = fal
 
   return (
     <FloatingPortal><div className="ac-feature-tour" role="dialog" aria-modal="true">
-      <button type="button" className="ac-feature-tour-backdrop" aria-label="Fermer" onClick={onClose} />
+      <div className="ac-feature-tour-backdrop" role="presentation" aria-hidden onClick={onClose} />
       <motion.div
         ref={containerRef}
         className="ac-feature-tour-card"
