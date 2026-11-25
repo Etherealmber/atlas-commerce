@@ -1,3 +1,4 @@
+import { scopedKey } from '../lib/dataScope';
 import type { Hono } from 'hono';
 import { doCacheGet, doCachePut } from '../lib/cache';
 import { schemaOnceForDb } from '../lib/schema';
@@ -358,7 +359,7 @@ export const METRICS_RECOMPUTE_FLOOR_MS = 60_000;
 type MetricsPayload = { dates: string[]; series: Record<string, (number | null)[]> };
 const recentMetrics = new Map<string, { at: number; full: MetricsPayload }>();
 function rememberMetrics(key: string, full: MetricsPayload): void {
-  recentMetrics.set(key, { at: Date.now(), full });
+  recentMetrics.set(scopedKey(key), { at: Date.now(), full });
   // Keys embed the day: keep only the handful of current windows.
   if (recentMetrics.size > 8) recentMetrics.delete(recentMetrics.keys().next().value as string);
 }
@@ -385,7 +386,7 @@ export function registerMetricsRoutes(app: Hono<any>, deps: MetricsRouteDeps): v
       // Every business write drops the shared cache; a burst of writes (a
       // scanning session, a batch import) must not recompute ~20 aggregates
       // each time. Serve this isolate's copy while it is under a minute old.
-      const recent = recentMetrics.get(cacheKey);
+      const recent = recentMetrics.get(scopedKey(cacheKey));
       if (recent && Date.now() - recent.at < METRICS_RECOMPUTE_FLOOR_MS) {
         full = recent.full;
         cache = 'recent';

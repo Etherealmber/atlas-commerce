@@ -1,3 +1,4 @@
+import { scopedKey } from '../lib/dataScope';
 import { afterBusinessMutation } from '../lib/delete-coord';
 import { normalizeInventoryRole, roleCanSeeFinancial, roleCanSeeSellPrices } from '../lib/inventory-policy';
 import { round2 } from '../lib/financeCore';
@@ -6,8 +7,8 @@ const _localSchemaOnce = new Set<string>();
 import type { AtlasApp } from './types';
 
 async function ensureClientPricesTable(db: D1Database): Promise<void> {
-  if (_localSchemaOnce.has("ensureClientPricesTable")) return;
-  _localSchemaOnce.add("ensureClientPricesTable");
+  if (_localSchemaOnce.has(scopedKey("ensureClientPricesTable"))) return;
+  _localSchemaOnce.add(scopedKey("ensureClientPricesTable"));
   await db
     .prepare(
       `CREATE TABLE IF NOT EXISTS client_product_prices (
@@ -20,7 +21,7 @@ async function ensureClientPricesTable(db: D1Database): Promise<void> {
     )
     .run();
 
-  _localSchemaOnce.add("ensureClientPricesTable");
+  _localSchemaOnce.add(scopedKey("ensureClientPricesTable"));
 }
 
 /** Client-specific prices + reorder suggestions (wholesale). */

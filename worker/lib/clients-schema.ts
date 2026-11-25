@@ -1,24 +1,25 @@
 
+import { scopedKey } from './dataScope';
 import { addColumnIfMissing } from './schema';
 
 const _localSchemaOnce = new Set<string>();
 /** Client schema helpers — shared by routes/clients and invoice credit checks */
 
 export async function ensureClientTaxExempt(db: D1Database) {
-  if (_localSchemaOnce.has('ensureClientTaxExempt')) return;
+  if (_localSchemaOnce.has(scopedKey('ensureClientTaxExempt'))) return;
 
   await addColumnIfMissing(db, 'clients', 'tax_exempt', 'INTEGER DEFAULT 0');
 
-  _localSchemaOnce.add('ensureClientTaxExempt');
+  _localSchemaOnce.add(scopedKey('ensureClientTaxExempt'));
 }
 
 /** Max outstanding credit in currency units; 0 or null = unlimited */
 export async function ensureClientCreditLimit(db: D1Database) {
-  if (_localSchemaOnce.has('ensureClientCreditLimit')) return;
+  if (_localSchemaOnce.has(scopedKey('ensureClientCreditLimit'))) return;
 
   await addColumnIfMissing(db, 'clients', 'credit_limit', 'REAL DEFAULT 0');
 
-  _localSchemaOnce.add('ensureClientCreditLimit');
+  _localSchemaOnce.add(scopedKey('ensureClientCreditLimit'));
 }
 
 /**

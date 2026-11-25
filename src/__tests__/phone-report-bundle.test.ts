@@ -26,7 +26,7 @@ it('generates selected sections with authenticated headers in a sandbox, without
   await act(async () => { button('Stock').click(); button('3 mois').click(); });
   await act(async () => button('Préparer').click());
   const [url, init] = fetchMock.mock.calls[0] as any;
-  expect(url).toContain('period=3m'); expect(url).not.toContain('secret-session'); expect(new URL(url).searchParams.get('sections')?.split(',')).not.toContain('stock');
+  expect(url).toContain('period=3m'); expect(url).not.toContain('secret-session'); expect(new URL(url, 'http://localhost').searchParams.get('sections')?.split(',')).not.toContain('stock');
   expect(init.headers.Authorization).toBe('Bearer secret-session'); expect(init.redirect).toBe('error');
   const frame = document.querySelector('iframe')!; expect(frame.getAttribute('sandbox')).toBe(''); expect(frame.getAttribute('srcdoc')).toContain('Rapport privé'); expect(frame.getAttribute('srcdoc')).not.toContain('rt=secret');
 });

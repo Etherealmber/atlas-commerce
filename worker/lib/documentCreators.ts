@@ -13,6 +13,7 @@
  *      (the document itself may have been deleted since)
  * Unknown stays null; the client then shows its neutral fallback.
  */
+import { currentDataScope } from './dataScope';
 import { addColumnIfMissing } from './schema';
 
 type Row = Record<string, any>;
@@ -35,15 +36,21 @@ function chunks<T>(list: T[]): T[][] {
   return out;
 }
 
-let columnsReady: Promise<void> | null = null;
+/** Per data scope (production / each demo sandbox). */
+const columnsReady = new Map<string, Promise<void>>();
 function ensureCreatorColumns(db: D1Database): Promise<void> {
-  columnsReady ??= (async () => {
-    for (const table of ['invoices', 'receipts', 'bills']) {
-      try { await addColumnIfMissing(db, table, 'created_by', 'TEXT DEFAULT NULL'); } catch { /* table may not exist yet */ }
-    }
-    try { await addColumnIfMissing(db, 'expenses', 'created_by', "TEXT DEFAULT ''"); } catch { /* */ }
-  })().catch(() => { columnsReady = null; });
-  return columnsReady;
+  const scope = currentDataScope();
+  let ready = columnsReady.get(scope);
+  if (!ready) {
+    ready = (async () => {
+      for (const table of ['invoices', 'receipts', 'bills']) {
+        try { await addColumnIfMissing(db, table, 'created_by', 'TEXT DEFAULT NULL'); } catch { /* table may not exist yet */ }
+      }
+      try { await addColumnIfMissing(db, 'expenses', 'created_by', "TEXT DEFAULT ''"); } catch { /* */ }
+    })().catch(() => { columnsReady.delete(scope); });
+    columnsReady.set(scope, ready);
+  }
+  return ready;
 }
 
 /** Ledger rows written by hand record their author directly. */

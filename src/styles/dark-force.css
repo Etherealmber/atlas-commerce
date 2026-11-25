@@ -7869,3 +7869,104 @@ html[data-theme="dark"] body .ac-onboard-card button.ac-onboard-close:not(#ac-ob
    (they own the user menu, Langue and logout dialogs); `hidden` must win over
    every display rule above. */
 html body .ac-topbar-right[hidden]:not(#ac-dock-hidden) { display: none !important; }
+
+/* v0.9.3 — À propos: the four « repères » always form a balanced grid
+   (2 × 2, or 4 across on very wide screens) instead of 3 + 1. */
+html body .about-page.ac-about-bento .ac-metric-grid:not(#mg-g1):not(#mg-g2):not(#mg-g3) {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+}
+html body .about-page.ac-about-bento .ac-metric-grid:not(#mg-g1):not(#mg-g2):not(#mg-g3) > .ac-metric {
+  min-width: 0 !important;
+}
+@media (min-width: 1440px) {
+  html body .about-page.ac-about-bento .ac-metric-grid:not(#mg-g1):not(#mg-g2):not(#mg-g3) {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+}
+@media (max-width: 340px) {
+  html body .about-page.ac-about-bento .ac-metric-grid:not(#mg-g1):not(#mg-g2):not(#mg-g3) {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+/* Sidebar / anchor links land below the floating public header instead of under it. */
+html body :is(.public-about, .atlas-page) [id] { scroll-margin-top: 88px; }
+/* Floating public header (À propos / Nouveautés): frosted and near-opaque so the
+   scrolled title never shows through it. */
+html body header.public-settings-topbar:not(#pt-g1):not(#pt-g2):not(#pt-g3) {
+  background: rgba(255, 255, 255, 0.94) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.4) !important;
+  backdrop-filter: blur(18px) saturate(1.4) !important;
+}
+html[data-theme="dark"] body header.public-settings-topbar:not(#pt-g1):not(#pt-g2):not(#pt-g3) {
+  background: rgba(17, 17, 19, 0.92) !important;
+}
+
+/* v0.9.3 — wizard footer: a clean two-line step caption instead of a pill
+   holding a black chip (« Étape 1/5 · Identité » + the dialog title below). */
+html body .wizard-foot .wizard-foot-step:not(#wz-g1):not(#wz-g2):not(#wz-g3) {
+  display: inline-flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  gap: 2px !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: #71717a !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.3 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+}
+html body .wizard-foot .wizard-foot-step:not(#wz-g1):not(#wz-g2):not(#wz-g3) .wz-chip {
+  display: inline-block !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: #18181b !important;
+  -webkit-text-fill-color: currentColor !important;
+  font-size: 13.5px !important;
+  font-weight: 700 !important;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+html body .wizard-foot .wizard-foot-step:not(#wz-g1):not(#wz-g2):not(#wz-g3) .wz-step-label {
+  font-weight: 600;
+  color: #52525b;
+}
+html[data-theme="dark"] body .wizard-foot .wizard-foot-step:not(#wz-g1):not(#wz-g2):not(#wz-g3) { color: #a1a1aa !important; }
+html[data-theme="dark"] body .wizard-foot .wizard-foot-step:not(#wz-g1):not(#wz-g2):not(#wz-g3) .wz-chip { color: #fafafa !important; }
+html[data-theme="dark"] body .wizard-foot .wizard-foot-step:not(#wz-g1):not(#wz-g2):not(#wz-g3) .wz-step-label { color: #d4d4d8; }
+html body .wizard-foot .wizard-foot-actions:not(#wz-g1) { gap: 8px !important; }
+html body .wizard-foot .wizard-foot-actions:not(#wz-g1) > button { min-width: 96px; }
+html body .wizard-foot .wizard-foot-actions:not(#wz-g1):not(#wz-g2):not(#wz-g3) > button.secondary { font-weight: 600 !important; }
+@media (max-width: 560px) {
+  html body .wizard-foot .wizard-foot-actions:not(#wz-g1) { width: 100%; }
+  html body .wizard-foot .wizard-foot-actions:not(#wz-g1) > button { flex: 1 1 0; min-width: 0; }
+}
+/* The progress bar spans the whole footer (the dark row layout squeezed it to 0 px). */
+html body .wizard-foot:not(#wz-g1):not(#wz-g2) { flex-wrap: wrap !important; }
+html body .wizard-foot:not(#wz-g1):not(#wz-g2) > .wz-progress { flex: none !important; width: 100% !important; height: 4px !important; align-self: stretch !important; }
+html body .wizard-foot:not(#wz-g1):not(#wz-g2) > .wizard-foot-nav { flex: none !important; width: 100% !important; min-width: 0 !important; }
+/* Dark: « Continuer » / submit is the light primary, like every other dialog. */
+html[data-theme="dark"] body .wizard-foot .wizard-foot-actions:not(#wz-g1):not(#wz-g2):not(#wz-g3) > button:not(.secondary):not(.danger):not(:disabled) {
+  background: #f4f4f5 !important;
+  background-image: none !important;
+  border: 1px solid #f4f4f5 !important;
+  color: #18181b !important;
+  -webkit-text-fill-color: #18181b !important;
+}
+html[data-theme="dark"] body .wizard-foot .wizard-foot-actions:not(#wz-g1):not(#wz-g2):not(#wz-g3) > button:not(.secondary):not(.danger):not(:disabled):hover {
+  background: #ffffff !important;
+  border-color: #ffffff !important;
+}

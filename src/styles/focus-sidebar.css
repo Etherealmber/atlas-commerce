@@ -3034,3 +3034,20 @@ html[data-theme="dark"] body .atlas-agent-msg .atlas-agent-bubble.atlas-agent-sh
 html[data-theme="dark"] body .atlas-agent-msg.assistant .atlas-agent-bubble.atlas-agent-shimmer-bubble:not(#shim-x):not(#shim-y):not(#shim-z) {
   background: #1c1c1f !important;
 }
+
+/* v0.9.3 — the collapsed rail must never be taller than the open panel
+   (it used to be ~90 px taller: 36 px icon rows vs 29 px label rows).
+   Same 1-row rhythm in both states, so opening/closing never makes the
+   card jump or shrink. Desktop only — the phone drawer keeps big targets. */
+@media (min-width: 961px) {
+  html body aside.atlas-focus-sidebar.is-collapsed button.atlas-focus-nav-item,
+  html body #root aside.atlas-focus-sidebar.is-collapsed button.atlas-focus-nav-item,
+  .atlas-focus-sidebar.is-collapsed .atlas-focus-nav-item {
+    height: 30px !important;
+    min-height: 30px !important;
+    width: 40px !important;
+  }
+  .atlas-focus-sidebar.is-collapsed .atlas-focus-divider {
+    margin: 5px 6px;
+  }
+}

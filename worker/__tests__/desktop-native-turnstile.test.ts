@@ -13,7 +13,7 @@ describe('future native Turnstile verifier (not an enabled login method)', () =>
     expect(await verifyDesktopTurnstile(input, request as typeof fetch)).toBe(true);
     const [url, options] = request.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe('https://challenges.cloudflare.com/turnstile/v0/siteverify');
-    expect(options.method).toBe('POST'); expect(options.redirect).toBe('error');
+    expect(options.method).toBe('POST'); expect(options.redirect).toBe('manual');
     expect((options.body as URLSearchParams).get('response')).toBe(input.token);
     expect((options.body as URLSearchParams).get('secret')).toBe(input.secret);
     expect(url).not.toContain(input.token); expect(url).not.toContain(input.secret);
@@ -47,7 +47,7 @@ describe('future native Turnstile verifier (not an enabled login method)', () =>
   });
   it('rejects redirects instead of following the provider to another origin', async () => {
     const fetcher = vi.fn(async (_url: string, options: RequestInit) => {
-      expect(options.redirect).toBe('error');
+      expect(options.redirect).toBe('manual');
       return new Response(null, { status: 302, headers: { Location: 'https://other.example/' } });
     });
     expect(await verifyDesktopTurnstile(input, fetcher as typeof fetch)).toBe(false);

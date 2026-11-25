@@ -40,7 +40,7 @@ export function createNativeMailTransport(config: Config, fetcher: typeof fetch 
       : `Your desktop authentication mailbox verification code is ${message.code}. Do not share this code. It expires in 10 minutes.`;
     try {
       const response = await fetcher('https://api.resend.com/emails', {
-        method: 'POST', redirect: 'error', signal,
+        method: 'POST', redirect: 'manual', signal,
         headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ from, to: [message.to], subject: 'Desktop authentication verification', text }),
       });
@@ -70,7 +70,7 @@ export function createNativeOtpSender(config: Config, fetcher: typeof fetch = fe
     try {
       const response = await fetcher('https://api.resend.com/emails', {
         method: 'POST',
-        redirect: 'error',
+        redirect: 'manual',
         signal: controller.signal,
         headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({

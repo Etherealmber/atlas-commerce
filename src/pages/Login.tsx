@@ -14,6 +14,7 @@ function postLoginPath(fallback = '/dashboard'): string {
 import { APP_BUILD_DATE, APP_NAME, APP_VERSION, APP_GITHUB } from '../version';
 import { getApiBase } from '../config';
 import { validateLoginForm, firstError } from '../lib/formValidate';
+import { fetchDemoConfig, isDemoToken, setDemoSession, type DemoConfig } from '../lib/demoSession';
 import { motion, AnimatePresence } from 'motion/react';
 import { QRCodeSVG } from 'qrcode.react';
 import { api } from '../api';
@@ -91,6 +92,10 @@ const REASON_MESSAGES: Record<string, string> = {
   NO_CREDENTIALS: 'Aucune biométrie enregistrée. Utilisez le mot de passe.',
   TURNSTILE_FAILED: 'Vérification anti-bot échouée. Rechargez la page.',
   DEVICE_REVOKED: 'Cet appareil a été révoqué depuis un autre appareil. Reconnectez-vous pour restaurer l’accès.',
+  DEMO_EXPIRED: 'Vos 20 minutes de démo sont terminées : la base fictive a été réinitialisée. Nouvel essai possible dans 24 h.',
+  DEMO_LEFT: 'Vous avez quitté le mode démo. La base fictive reste disponible jusqu’à la fin de vos 20 minutes.',
+  DEMO_QUOTA: 'Trop d’essais de démo depuis ce réseau aujourd’hui. Réessayez demain.',
+  DEMO_UNAVAILABLE: 'Le mode démo est momentanément indisponible. Réessayez plus tard.',
 };
 
 
@@ -411,6 +416,7 @@ export default function Login() {
   const [hasCredentials, setHasCredentials] = useState(false);
   const [offerBioSetup, setOfferBioSetup] = useState(false);
   const [passwordConfigured, setPasswordConfigured] = useState(true);
+  const [demoConfig, setDemoConfig] = useState<DemoConfig | null>(null);
   const [turnstileSiteKey, setTurnstileSiteKey] = useState<string | null>(null);
   const [turnstileToken, setTurnstileToken] = useState('');
   const [turnstileHint, setTurnstileHint] = useState(false);
@@ -518,6 +524,21 @@ export default function Login() {
   }, []);
 
   useEffect(() => {
+    let alive = true;
+    void fetchDemoConfig(getApiBase()).then((cfg) => { if (alive && cfg?.enabled) setDemoConfig(cfg); });
+    return () => { alive = false; };
+  }, []);
+  // The demo account works even when no real password is configured (local / preview).
+  const formLocked = !passwordConfigured && !demoConfig?.enabled;
+  const fillDemo = () => {
+    if (!demoConfig) return;
+    setUsername(demoConfig.username);
+    setPassword(demoConfig.password);
+    setFieldErrors({});
+    setError('');
+  };
+
+  useEffect(() => {
     if (!turnstileSiteKey || step !== 'password' || offerBioSetup) return;
     let cancelled = false;
     let widgetId: string | undefined;
@@ -600,6 +621,16 @@ export default function Login() {
 
   const afterToken = (data: any, justTrusted?: boolean) => {
     setToken(data.token, data.ip, (data.username || username).trim().toLowerCase(), data.role || 'user');
+    if (data.demo?.active && Number.isFinite(Number(data.demo.expires_at))) {
+      setDemoSession({
+        started_at: Number(data.demo.started_at),
+        expires_at: Number(data.demo.expires_at),
+        minutes: Number(data.demo.minutes),
+        window_hours: Number(data.demo.window_hours),
+        message: data.demo.message,
+        intro_seen: data.demo.state === 'active',
+      });
+    }
     if (data.display_name != null || data.avatar_url != null) {
       setProfileCache({
         display_name: data.display_name,
@@ -625,7 +656,10 @@ export default function Login() {
       .catch(() => {});
     // Only the opt-in desktop flow resumes consent; login/OTP themselves are unchanged.
     if (desktopLoginReturn()) { navigate('/login/desktop', { replace: true }); return; }
-    if ((justTrusted || data.trusted_device) && isWebAuthnAvailable() && !getStoredBiometricCredentialId() && !hasCredentials) {
+    // Demo sandbox: never offer passkey/biometric enrolment for a 20-minute
+    // throwaway account — go straight to the app.
+    const skipBioOffer = !!data.demo?.active || isDemoToken(data.token);
+    if (!skipBioOffer && (justTrusted || data.trusted_device) && isWebAuthnAvailable() && !getStoredBiometricCredentialId() && !hasCredentials) {
       setOfferBioSetup(true);
       setInfo(
         justTrusted
@@ -942,8 +976,22 @@ export default function Login() {
             <p>{(isMobileLogin() || isPwaLogin() || isNativeClient()) ? 'Connectez-vous à votre espace Atlas Commerce.' : 'Connectez-vous pour gérer stock, caisse et facturation'}</p>
           </motion.div>
 
-          {error && <div className="atlas-login-alert" role="alert">{error}</div>}
+          {error && !(demoConfig?.enabled && error === REASON_MESSAGES.NO_PASSWORD_CONFIGURED) && <div className="atlas-login-alert" role="alert">{error}</div>}
           {info && !error && <div className="atlas-login-info" role="status">{info}</div>}
+          {demoConfig && step === 'password' && !offerBioSetup && (
+            <div className={`atlas-login-demo${demoConfig.highlight || formLocked ? ' is-highlight' : ''}`} role="note">
+              <div className="atlas-login-demo-text">
+                <strong>Essayer sans compte</strong>
+                <span>
+                  Identifiant <code>{demoConfig.username}</code> · mot de passe <code>{demoConfig.password}</code> —
+                  {' '}{demoConfig.minutes} min de test toutes les {demoConfig.window_hours} h, sur une base fictive réinitialisée ensuite.
+                </span>
+              </div>
+              <button type="button" className="atlas-login-demo-fill" onClick={fillDemo} disabled={loading}>
+                Remplir
+              </button>
+            </div>
+          )}
 
           {offerBioSetup ? (
             <div className="atlas-login-form atlas-login-auth7-form atlas-login-swap">
@@ -995,7 +1043,7 @@ export default function Login() {
                   placeholder="Votre identifiant"
                   autoFocus
                   autoComplete="username"
-                  disabled={loading || !passwordConfigured}
+                  disabled={loading || formLocked}
                 />
               </div>
 
@@ -1014,7 +1062,7 @@ export default function Login() {
                     onBlur={() => setIsTyping(false)}
                     placeholder="••••••••"
                     autoComplete="current-password"
-                    disabled={loading || !passwordConfigured}
+                    disabled={loading || formLocked}
                   />
                   <button
                     type="button"
@@ -1061,7 +1109,7 @@ export default function Login() {
                 </div>
               ) : null}
 
-              <button type="submit" className="atlas-login-submit theme-toggle" disabled={loading || !passwordConfigured}>
+              <button type="submit" className="atlas-login-submit" disabled={loading || formLocked}>
                 <span>{loading ? 'Un instant…' : deviceTrusted ? 'Entrer dans Atlas' : 'Continuer'}</span>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
               </button>
@@ -1085,7 +1133,7 @@ export default function Login() {
                   disabled={loading}
                 />
               </div>
-              <button type="submit" className="atlas-login-submit theme-toggle" disabled={loading}>
+              <button type="submit" className="atlas-login-submit" disabled={loading}>
                 {loading ? 'Un instant…' : 'Entrer dans Atlas'}
               </button>
               <button
@@ -1106,7 +1154,7 @@ export default function Login() {
           )}
 
           <p className="atlas-login-hint">
-            {!passwordConfigured
+            {formLocked
               ? 'Configurez ADMIN_PASSWORD dans Cloudflare Workers.'
               : deviceTrusted
                 ? hasCredentials

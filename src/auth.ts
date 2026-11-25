@@ -1,6 +1,7 @@
 import { getCachedFingerprint } from './fingerprint';
 import { getApiBase } from './config';
 import { invalidateGetCache } from './lib/perf';
+import { clearDemoSession, isDemoToken } from './lib/demoSession';
 
 const TOKEN_KEY = 'stock_auth_token';
 const SESSION_IP_KEY = 'stock_session_ip';
@@ -63,6 +64,10 @@ export function setToken(token: string, ip?: string, username?: string, role?: s
   if (ip) localStorage.setItem(SESSION_IP_KEY, ip);
   if (username) localStorage.setItem(USER_KEY, username);
   if (role) localStorage.setItem(ROLE_KEY, role);
+  // Demo sandbox tokens expire after 20 minutes: never keep them in the
+  // account switcher, and leave demo mode as soon as a real session starts.
+  if (isDemoToken(token)) return;
+  clearDemoSession();
   // v0.7.5 — switch de comptes façon app Android : chaque session réussie est
   // conservée (token + profil) pour pouvoir basculer sans se re-authentifier.
   if (username && token) upsertSavedAccount({ username, role, token });
@@ -202,6 +207,7 @@ export function clearToken() {
   localStorage.removeItem(USER_KEY);
   localStorage.removeItem(DISPLAY_NAME_KEY);
   memoryAvatarUrl = '';
+  clearDemoSession();
 }
 
 export function isLoggedIn(): boolean {

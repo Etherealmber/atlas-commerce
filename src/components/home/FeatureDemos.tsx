@@ -30,7 +30,7 @@ function ProductCard({ name, sku, price, qty, stock, tone }: { name: string; sku
       <span className="hl-pref">{sku}</span>
       <span className="hl-pmeta"><b>{price}</b><i className={`is-${stock}`}>{qty}</i></span>
       <span className="hl-pacts">
-        <span className="hl-pill"><Pencil size={10} />Modifier</span>
+        <span className="hl-pill hl-pill-edit"><Pencil size={10} /><span className="hl-pill-txt">Modifier</span></span>
         <span className="hl-round"><SlidersHorizontal size={10} /></span>
         <span className="hl-grow" />
         <span className="hl-round is-danger"><Trash2 size={10} /></span>
@@ -62,7 +62,7 @@ export function SalesDemo() {
     <Frame label="Liste des tickets de vente rapide avec statuts de règlement (données fictives)" className="hm-live-sales">
       <div className="hl-panel">
         <div className="hl-panel-bar">
-          <span>3 tickets · aujourd’hui</span>
+          <span className="hl-bar-title">3 tickets<span className="hl-bar-extra"> · aujourd’hui</span></span>
           <span className="hl-seg"><i className="is-on">Tous</i><i>À régler</i></span>
         </div>
         <div className="hl-rows">

@@ -36,6 +36,7 @@ import { isNativeApp } from './config';
 import { applyDensityFromStorage } from './lib/density';
 import { installCrashReporting } from './lib/crashReporter';
 import { installUnsavedGuards } from './lib/unsavedGuard';
+import { installScrollGutter } from './lib/scrollGutter';
 
 // v260 — global crash reporting (fire-and-forget, throttled, sanitized server-side)
 installCrashReporting();
@@ -120,6 +121,7 @@ if (typeof document !== 'undefined') {
 
 // Before React mounts, so its capture listeners run ahead of the app's own.
 installUnsavedGuards();
+installScrollGutter();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

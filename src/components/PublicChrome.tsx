@@ -286,7 +286,7 @@ export function PublicNav({ links, cta, classic = false }: { links: NavLink[]; c
     // Taps inside a dialog/menu opened from the menu (Langue, compte, déconnexion) must not
     // close the menu: that unmounted the dialog and it vanished on its own.
     const outside = (e: PointerEvent) => {
-      if (navRef.current?.contains(e.target as Node) || isInFloatingLayer(e.target)) return;
+      if (!(e.target instanceof Node) || navRef.current?.contains(e.target) || isInFloatingLayer(e.target)) return;
       setMenu(false);
     };
     document.addEventListener('keydown', key); document.addEventListener('pointerdown', outside);
@@ -386,7 +386,11 @@ export function PublicNav({ links, cta, classic = false }: { links: NavLink[]; c
         <div
           id={menuId} className="pn-mobile-menu"
           style={{
+            // Floats under the pill: opening the menu never changes the header's
+            // height, so the page doesn't jump (and the compact state doesn't flip).
+            position: 'absolute', top: '100%', left: compact ? 10 : 16, right: compact ? 10 : 16, zIndex: 65,
             maxWidth: 1080, margin: '8px auto 0', padding: 8, borderRadius: 18,
+            maxHeight: 'min(70dvh, 520px)', overflowY: 'auto', overscrollBehavior: 'contain',
             background: c.menuBg, border: `1px solid ${c.menuBorder}`, boxShadow: c.menuShadow,
           }}
         >
@@ -573,7 +577,7 @@ export function PublicDownloadCta({ prefer, full = true }: { prefer?: Platform; 
   useEffect(() => {
     if (!open) return;
     const onDoc = (ev: MouseEvent) => {
-      if (box.current && !box.current.contains(ev.target as Node)) setOpen(false);
+      if (box.current && ev.target instanceof Node && !box.current.contains(ev.target)) setOpen(false);
     };
     const onKey = (ev: KeyboardEvent) => { if (ev.key === 'Escape') setOpen(false); };
     document.addEventListener('mousedown', onDoc);

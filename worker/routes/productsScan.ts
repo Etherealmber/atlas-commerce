@@ -1,7 +1,7 @@
 import type { Hono } from 'hono';
 import { normalizeProductImageReference } from '../lib/product-images';
 import { ensureProductActors, withInventoryActors } from '../lib/inventory-actors';
-import { schemaOnce, addColumnIfMissing } from '../lib/schema';
+import { schemaOnce, schemaOnceForDb, addColumnIfMissing } from '../lib/schema';
 import { doCacheGet, doCachePut, invalidateDashboardCache, DEFAULT_CACHE_TTL } from '../lib/cache';
 import { canFloorStock, canHardDeleteStock } from '../lib/rbac';
 import { apiFail } from '../lib/api-response';
@@ -131,14 +131,16 @@ export function registerProductsScanRoutes(app: Hono<any>, deps: ProductsScanRou
     const variantsOnly = c.req.query('variants_only') === '1';
     const fields = String(c.req.query('fields') || '').trim().toLowerCase();
     const light = fields === 'mobile' || fields === 'light' || fields === 'id,name,sku,barcode,stock,price';
-    if (!light) { try { await ensureProductVariantColumns(c.env.DB); } catch { /* */ } }
     const limit = Math.min(500, Math.max(1, Number(c.req.query('limit') || (light ? 300 : 200))));
   
-    // Full desk path only: schema ensures (mobile never needs them on every list call)
+    // Full desk path only: schema ensures (mobile never needs them on every list call).
+    // One memo per D1 binding: after the first list call this is a single Set lookup.
     if (!light) {
-      try { await ensureStockLocations(c.env.DB); } catch { /* */ }
-      try { await ensureMarbleUnits(c.env.DB); } catch { /* */ }
-      await ensureProductVariantColumns(c.env.DB);
+      await schemaOnceForDb(c.env.DB, 'products_list_schema', async () => {
+        try { await ensureStockLocations(c.env.DB); } catch { /* */ }
+        try { await ensureMarbleUnits(c.env.DB); } catch { /* */ }
+        await ensureProductVariantColumns(c.env.DB);
+      });
     }
   
     // Cache only stable list queries (no free-text search) via DO + memory (avoids KV write cap)
@@ -931,10 +933,12 @@ export function registerProductsScanRoutes(app: Hono<any>, deps: ProductsScanRou
     if (!canFloorStock(quickRole)) {
       return c.json({ success: false, error: 'Création rapide non autorisée pour votre rôle.', code: 'FORBIDDEN_ROLE' }, 403);
     }
-    await ensureProductVariantColumns(c.env.DB);
-    await ensureProductBulkDiscounts(c.env.DB);
-    await ensureCategoriesTable(c.env.DB);
-    await ensureUnitsTable(c.env.DB);
+    await schemaOnceForDb(c.env.DB, 'products_quick_schema', async () => {
+      await ensureProductVariantColumns(c.env.DB);
+      await ensureProductBulkDiscounts(c.env.DB);
+      await ensureCategoriesTable(c.env.DB);
+      await ensureUnitsTable(c.env.DB);
+    });
   
     const body = await c.req.json().catch(() => ({}));
     const barcode = String(body.barcode || '').trim();

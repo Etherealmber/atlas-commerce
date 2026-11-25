@@ -6212,3 +6212,8 @@ html.atlas-login-page .atlas-login-form-wrap .atlas-login-info {
   width: 100%;
   max-width: 400px;
 }
+
+/* Reserve the scrollbar gutter while the page scrolls, so hamburger menus,
+   drawers and modals that lock scroll never shift the layout sideways
+   (class maintained by src/lib/scrollGutter.ts). */
+html.atlas-vscroll:not(.phone-shell) { scrollbar-gutter: stable; }

@@ -10,13 +10,23 @@
  * Rules: never throw, never block the UI, max 5 reports per session,
  * same message+frame deduped client-side, network noise ignored.
  */
-import { getApiBase } from '../config';
+import { getApiBase, isNativeApp } from '../config';
 import { isLoggedIn } from '../auth';
 import { APP_VERSION } from '../version';
 
 const MAX_PER_SESSION = 5;
 let sent = 0;
 const seen = new Set<string>();
+
+const EXTENSION_RE = /(chrome|moz|safari(-web)?|ms-browser)-extension:\/\//i;
+
+/** Errors thrown by browser extensions (password managers, translators…) are
+ *  not Atlas bugs: skip them when every stack frame / the source is an extension. */
+export function isExtensionNoise(stack: string, filename = ''): boolean {
+  if (filename && EXTENSION_RE.test(filename)) return true;
+  const frames = String(stack || '').split('\n').map((l) => l.trim()).filter((l) => l.startsWith('at ') || l.includes('@'));
+  return frames.length > 0 && frames.every((l) => EXTENSION_RE.test(l));
+}
 
 export function reportCrash(err: unknown, ctx: { route?: string; componentStack?: string } = {}): void {
   try {
@@ -27,6 +37,7 @@ export function reportCrash(err: unknown, ctx: { route?: string; componentStack?
     if (!isLoggedIn()) return;
     if (sent >= MAX_PER_SESSION) return;
     const e = err instanceof Error ? err : new Error(String(err ?? 'Erreur inconnue'));
+    if (isExtensionNoise(e.stack || '')) return;
     const message = (e.message || 'Erreur inconnue').slice(0, 400);
     const firstFrame =
       (e.stack || '').split('\n').map((l) => l.trim()).find((l) => l.startsWith('at ')) || '';
@@ -41,6 +52,9 @@ export function reportCrash(err: unknown, ctx: { route?: string; componentStack?
       route: ctx.route || (typeof location !== 'undefined' ? location.pathname : ''),
       version: APP_VERSION,
       ua: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+      // Web app (desktop or phone browser) → issues go to the web repo; a
+      // Capacitor / native Android shell reports with platform « android ».
+      platform: isNativeApp() ? 'android' : 'web',
     });
     const url = `${getApiBase()}/api/crash-reports`;
     fetch(url, {
@@ -63,6 +77,7 @@ export function reportCrash(err: unknown, ctx: { route?: string; componentStack?
 export function installCrashReporting(): void {
   if (typeof window === 'undefined') return;
   window.addEventListener('error', (ev) => {
+    if (isExtensionNoise('', String(ev.filename || ''))) return;
     reportCrash(ev.error instanceof Error ? ev.error : new Error(String(ev.message || 'Erreur globale')), {
       route: typeof location !== 'undefined' ? location.pathname : '',
     });

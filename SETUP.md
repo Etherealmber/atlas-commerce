@@ -105,7 +105,9 @@ ou `npx wrangler secret put NOM` (chemin B) :
 | `ANDROID_RELEASE_TOKEN` | pour les releases APK | valeur aléatoire | ingestion des builds APK par la CI (`POST /api/admin/android-release`) |
 | `PARTNER_API_KEY(S)` | pour l'API partenaire | valeur aléatoire (`atlas_…`) | authentification Partner API v1 (`PARTNER_API.md`) |
 | `BACKUP_TOKEN` / `ADMIN_BACKUP_TOKEN` / `BACKUP_ENCRYPTION_KEY` | pour les sauvegardes | valeurs aléatoires | snapshots chiffrés + restauration |
-| `GITHUB_ISSUE_TOKEN` | **non** — voir §9 | https://github.com/settings/personal-access-tokens/new | crashs/signalements → issues GitHub (configurable aussi dans l'app, sans CLI) |
+| `GITHUB_WEB_ISSUE_TOKEN` | **non** — voir §9 | https://github.com/settings/personal-access-tokens/new (Issues R/W sur `atlas-commerce`) | crashs/signalements de l'**app web** → issues du dépôt web (`GITHUB_WEB_ISSUE_REPO` optionnel ; configurable aussi dans l'app) |
+| `GITHUB_ISSUE_TOKEN` | **non** — voir §9 | idem, Issues R/W sur `atlas-commerce-android` | crashs/signalements de l'**app Android** → issues du dépôt Android (`GITHUB_ISSUE_REPO` optionnel) |
+| `GROQ_ISSUES_API_KEY` | **non** — voir §9 | https://console.groq.com/keys (gratuit) | triage IA des nouvelles issues (repli sur `GROQ_API_KEY`) ; `GROQ_ISSUES_MODEL`, `GROQ_ISSUES_DAILY_LIMIT` (40), `GROQ_ISSUES_ENABLED` optionnels |
 
 Règle d'or : un secret ne se commit **jamais**. `.dev.vars` (local) est gitignoré.
 
@@ -161,12 +163,21 @@ L'application détecte ses propres plantages (erreurs globales + ErrorBoundary R
 à chaque utilisateur « **Signaler un problème** » (page À propos). Tout arrive dans **vos issues
 GitHub**, sans que l'utilisateur ait un compte GitHub.
 
-Configuration (propriétaire, **dans l'app, sans CLI**) : Paramètres → Intégrations →
+Deux canaux, **un token chacun** : l'app web (ordinateur, navigateur du téléphone, client
+bureau) → dépôt `atlas-commerce` ; l'app Android → dépôt `atlas-commerce-android`.
+
+Configuration (propriétaire, **dans l'app, sans CLI**) : Paramètres → API & Clés →
 « Rapports & crashs → GitHub » :
-1. Créez un PAT fine-grained : https://github.com/settings/personal-access-tokens/new
-   → Repository access : votre dépôt → Permissions : **Issues — Read and Write**. (Gratuit.)
-2. Collez-le dans le panneau + le dépôt cible (défaut `Etherealmber/atlas-commerce`).
-3. C'est tout : les rapports en file partent immédiatement, puis en continu (cron quotidien).
+1. Créez un PAT fine-grained par dépôt : https://github.com/settings/personal-access-tokens/new
+   → Repository access : ce dépôt seulement → Permissions : **Issues — Read and Write**. (Gratuit.)
+2. Collez-le dans la carte **App web** ou **App Android** (dépôt optionnel).
+   Ou en secret Worker : `GITHUB_WEB_ISSUE_TOKEN` / `GITHUB_ISSUE_TOKEN` (prioritaires).
+3. « Envoyer la file » part immédiatement (40 appels max par envoi, plan gratuit), puis le cron
+   quotidien continue.
+
+Triage IA facultatif (Groq gratuit) : `npx wrangler secret put GROQ_ISSUES_API_KEY` — chaque
+nouvelle issue reçoit un titre clair, une gravité, une zone et des pistes de correction ; 40
+analyses/jour par défaut, pause automatique si le quota Groq est atteint.
 
 Détails techniques, confidentialité et endpoints : **`docs/reports-github.md`**.
 

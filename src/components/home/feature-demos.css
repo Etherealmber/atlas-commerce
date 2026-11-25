@@ -185,3 +185,45 @@ html[data-theme="dark"] body .home-landing .hm-live .hl-pmeta i.is-low { color: 
 @media (max-width: 720px) {
   .home-landing .hm-fx.hm-live { height: auto; min-height: 150px; }
 }
+
+/* v0.9.3 — responsive polish: nothing clipped or wrapped in narrow cards. */
+.home-landing .hm-live .hl-panel-bar { gap: 8px; min-width: 0; }
+.home-landing .hm-live .hl-bar-title { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.home-landing .hm-live .hl-seg { flex: none; }
+.home-landing .hm-live .hl-seg i { white-space: nowrap; }
+.home-landing .hm-live .hl-pname {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  white-space: normal; line-height: 1.25; min-height: 2.5em; overflow-wrap: anywhere;
+}
+.home-landing .hm-live .hl-pacts { gap: 4px; }
+.home-landing .hm-live .hl-pacts > * { flex-shrink: 0; }
+.home-landing .hm-live .hl-pacts .hl-grow { flex: 1 1 0; min-width: 0; }
+.home-landing .hm-live .hl-pill-edit { min-width: 0; }
+.home-landing .hm-live .hl-round.is-danger { background: var(--hl-bad-bg); border-color: var(--hl-bad-bd); color: var(--hl-bad-fg); }
+html[data-theme="dark"] body .home-landing .hm-live .hl-round.is-danger { background: rgba(239, 68, 68, 0.16); border-color: transparent; color: #fca5a5; }
+.home-landing .hm-live .hl-line { gap: 8px; }
+.home-landing .hm-live .hl-line span { min-width: 0; }
+.home-landing .hm-live .hl-line i { white-space: nowrap; }
+.home-landing .hm-live .hl-tot :is(b, i) { white-space: nowrap; }
+.home-landing .hm-live .hl-follow .hl-num { flex: 0 1 auto; }
+.home-landing .hm-live .hl-follow .hl-badge,
+.home-landing .hm-live .hl-follow .hl-pill { flex: none; }
+
+/* Stock card, two product cards side by side: each card is ~110–130 px wide. */
+@container (max-width: 285px) {
+  .home-landing .hm-live .hl-pill-edit { width: 22px; padding: 0; justify-content: center; }
+  .home-landing .hm-live .hl-pill-edit .hl-pill-txt { display: none; }
+  .home-landing .hm-live .hl-bar-extra { display: none; }
+  .home-landing .hm-live .hl-line i { display: none; }
+  .home-landing .hm-live-sales .hl-badge { min-width: 0; }
+  .home-landing .hm-live .hl-row { gap: 8px; padding: 0 10px; }
+  .home-landing .hm-live .hl-stats { gap: 4px; padding: 8px 8px 7px; }
+  .home-landing .hm-live .hl-stat { padding: 5px; }
+  .home-landing .hm-live .hl-stat i { font-size: 7px; letter-spacing: 0; white-space: nowrap; }
+  .home-landing .hm-live .hl-stat b { font-size: 11px; text-overflow: clip; }
+  .home-landing .hm-live .hl-bar { margin: 0 8px 7px; }
+}
+@container (max-width: 240px) {
+  .home-landing .hm-live .hl-pacts .hl-round:not(.is-danger) { display: none; }
+  .home-landing .hm-live .hl-follow .hl-pill { padding: 0 7px; }
+}

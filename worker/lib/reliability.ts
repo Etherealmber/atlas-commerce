@@ -16,6 +16,8 @@
  * - Shard key helper for future multi-DB tenancy
  */
 
+import { currentDataScope } from './dataScope';
+import { addColumnIfMissing } from './schema';
 import type { Env } from '../env';
 
 
@@ -34,12 +36,19 @@ import type { Env } from '../env';
 
 /* ── Search index bootstrap (FTS5) ────────────────────────────────── */
 
-let ftsReady: boolean | null = null;
+/** FTS readiness per data scope (production / each demo sandbox). */
+const ftsReadyByScope = new Map<string, boolean>();
 
 /** Ensure products_fts exists (FTS5). Safe to call often. */
 export async function ensureProductSearchIndex(db: D1Database): Promise<boolean> {
-  if (ftsReady === true) return true;
+  if (ftsReadyByScope.get(currentDataScope()) === true) return true;
   try {
+    // `variant_label` used to be added lazily by the scan routes only, so on a
+    // fresh database (new install, every demo sandbox) the FTS triggers and
+    // seed failed with « no such column: T.variant_label » until someone opened
+    // the scanner. Ensure it here too — idempotent, schema-cached (0 reads
+    // once known).
+    await addColumnIfMissing(db, 'products', 'variant_label', `TEXT DEFAULT ''`);
     await db
       .prepare(
         `CREATE VIRTUAL TABLE IF NOT EXISTS products_fts USING fts5(
@@ -75,21 +84,21 @@ export async function ensureProductSearchIndex(db: D1Database): Promise<boolean>
         END`,
       )
       .run();
-    // Seed if empty
-    const cnt = await db.prepare(`SELECT count(*) AS n FROM products_fts`).first<{ n: number }>();
-    if (!cnt || Number(cnt.n) === 0) {
-      await db
-        .prepare(
-          `INSERT INTO products_fts(rowid, name, sku, barcode, category, variant_label)
-           SELECT id, name, sku, barcode, category, variant_label FROM products`,
-        )
-        .run();
+    // Seed if the INDEX is empty. `count(*) FROM products_fts` cannot tell:
+    // with content='products' it reads the content table, so an index created
+    // after products existed (fresh install, demo sandbox) was never filled.
+    // The docsize shadow table holds one row per indexed document; two LIMIT 1
+    // probes keep this at ~2 rows read (it runs once per isolate and scope).
+    const indexed = await db.prepare(`SELECT 1 AS x FROM products_fts_docsize LIMIT 1`).first();
+    if (!indexed) {
+      const anyProduct = await db.prepare(`SELECT 1 AS x FROM products LIMIT 1`).first();
+      if (anyProduct) await db.prepare(`INSERT INTO products_fts(products_fts) VALUES('rebuild')`).run();
     }
-    ftsReady = true;
+    ftsReadyByScope.set(currentDataScope(), true);
     return true;
   } catch (e) {
     console.warn('[search-index] FTS unavailable, LIKE fallback', e);
-    ftsReady = false;
+    ftsReadyByScope.set(currentDataScope(), false);
     if (/SQLITE_CORRUPT|database disk image is malformed/i.test(String((e as any)?.message || e))) {
       void repairProductSearchIndex(db);
     }
@@ -98,11 +107,14 @@ export async function ensureProductSearchIndex(db: D1Database): Promise<boolean>
 }
 
 /** FTS5 integrity probe — true when the virtual-table shadow pages are sound. */
-async function checkProductSearchIndex(db: D1Database): Promise<boolean> {
+async function checkProductSearchIndex(db: D1Database): Promise<boolean | 'missing'> {
   try {
     await db.prepare(`INSERT INTO products_fts(products_fts, rank) VALUES('integrity-check', 1)`).run();
     return true;
-  } catch {
+  } catch (e) {
+    // A brand-new database (fresh install, demo sandbox) simply has no index
+    // yet — that is not corruption, so skip the noisy rebuild/drop cycle.
+    if (/no such table:\s*products_fts\b/i.test(String((e as any)?.message || e))) return 'missing';
     return false;
   }
 }
@@ -122,6 +134,10 @@ export async function proactiveFtsHealth(db: D1Database): Promise<void> {
   lastFtsProbeAt = now;
   try {
     const ok = await checkProductSearchIndex(db);
+    if (ok === 'missing') {
+      await ensureProductSearchIndex(db);
+      return;
+    }
     if (!ok) {
       console.warn('[search-index] integrity-check failed → automatic repair');
       await repairProductSearchIndex(db, { force: true });
@@ -157,7 +173,7 @@ export function repairProductSearchIndex(
         try { await db.prepare(`DROP TRIGGER IF EXISTS ${t}`).run(); } catch { /* */ }
       }
       try { await db.prepare(`DROP TABLE IF EXISTS products_fts`).run(); } catch { /* */ }
-      ftsReady = null;
+      ftsReadyByScope.delete(currentDataScope());
       const ok = await ensureProductSearchIndex(db);
       console.log('[search-index] products_fts recreated:', ok);
       return ok ? ('recreated' as const) : ('failed' as const);
@@ -181,7 +197,7 @@ export function reliabilityStatus(env: Env) {
     circuit_breaker: true,
     cache: { memory: true, kv: !!env.CACHE },
     queues: { local: true, cloudflare: !!(env as any).QUEUE },
-    search_index: ftsReady === null ? 'unknown' : ftsReady ? 'fts5' : 'like_fallback',
+    search_index: !ftsReadyByScope.has(currentDataScope()) ? 'unknown' : ftsReadyByScope.get(currentDataScope()) ? 'fts5' : 'like_fallback',
     read_acceleration: 'kv_memory_cache',
     d1_replication: 'platform_managed',
     sharding: 'single_db_ready_for_multi',

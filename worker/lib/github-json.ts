@@ -5,7 +5,7 @@ export async function githubJson(url: string, token: string): Promise<any> {
   try {
     const response = await fetch(url, {
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), Accept: 'application/vnd.github+json', 'User-Agent': 'atlas-commerce-work-status' },
-      redirect: 'error', signal: controller.signal,
+      redirect: 'manual', signal: controller.signal,
     });
     if (!response.ok) throw new Error('upstream');
     const reader = response.body?.getReader();

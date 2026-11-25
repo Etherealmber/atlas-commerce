@@ -23,7 +23,7 @@ export async function verifyDesktopTurnstile(input: {
       const body = new URLSearchParams({ secret, response: token });
       const response = await fetchImpl('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
         method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body, signal: controller.signal, redirect: 'error',
+        body, signal: controller.signal, redirect: 'manual',
       });
       if (!response.ok) return false;
       const result = await response.json() as { success?: unknown; hostname?: unknown; action?: unknown; cdata?: unknown };

@@ -112,7 +112,8 @@ export function usePickerPopover(open: boolean, setOpen: (v: boolean) => void, t
   useEffect(() => {
     if (!open) return undefined;
     const onDown = (e: MouseEvent | TouchEvent) => {
-      const t = e.target as Node;
+      const t = e.target;
+      if (!(t instanceof Node)) return;
       if (triggerRef.current?.contains(t) || popRef.current?.contains(t)) return;
       setOpen(false);
     };

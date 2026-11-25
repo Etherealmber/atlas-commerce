@@ -18,6 +18,7 @@
  * The version header is compatibility metadata, NOT a security credential:
  * authentication, authorization, WebAuthn and device binding stay untouched.
  */
+import { currentDataScope } from './dataScope';
 import { pickUiLang, tr, type UiLang } from './error-i18n';
 
 export type MinVersionPolicy = { enabled: boolean; code: number };
@@ -29,11 +30,12 @@ const MIN_VERSION_CONFIG_KEYS = {
 
 /** TTL cache (5 min) so every Android API request doesn't hit D1. */
 const CACHE_TTL_MS = 300_000;
-let cache: { at: number; policy: MinVersionPolicy } | null = null;
+/** Per data scope, so a demo sandbox never overrides the production policy. */
+const caches = new Map<string, { at: number; policy: MinVersionPolicy }>();
 
 /** Test-only: drop the TTL cache between in-process databases. */
 export function resetMinVersionPolicyCacheForTests(): void {
-  cache = null;
+  caches.clear();
 }
 
 export function parseMinVersionPolicy(enabledRaw: unknown, codeRaw: unknown): MinVersionPolicy {
@@ -59,6 +61,7 @@ export async function readMinVersionPolicy(
   db: { prepare: (sql: string) => any } | null | undefined,
   opts: { bypassCache?: boolean } = {},
 ): Promise<MinVersionPolicy> {
+  const cache = caches.get(currentDataScope());
   if (!opts.bypassCache && cache && Date.now() - cache.at < CACHE_TTL_MS) return cache.policy;
   let policy: MinVersionPolicy = { enabled: false, code: 0 };
   if (db) {
@@ -75,7 +78,7 @@ export async function readMinVersionPolicy(
       );
     } catch { /* no app_config yet → policy disabled (backward compatible) */ }
   }
-  cache = { at: Date.now(), policy };
+  caches.set(currentDataScope(), { at: Date.now(), policy });
   return policy;
 }
 
@@ -100,7 +103,7 @@ export async function writeMinVersionPolicy(
     )
     .bind(MIN_VERSION_CONFIG_KEYS.code, String(policy.code))
     .run();
-  cache = { at: Date.now(), policy };
+  caches.set(currentDataScope(), { at: Date.now(), policy });
 }
 
 /** Manifest copy of the policy (public check echoes it without a DB hit). */

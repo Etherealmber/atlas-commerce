@@ -4,6 +4,7 @@
  *  M5 quote status pipeline + journal · L8 kits/BOM assembly · L10 webhooks · S6 label printing (SVG)
  *  M1 locations: products.location (bin reference) on top of existing warehouses.
  */
+import { scopedKey } from '../lib/dataScope';
 import type { AtlasApp } from './types';
 import { qrToSvg } from '../qrSvg';
 import { assertSafeOutboundUrl, escapeHtml } from '../lib/security';
@@ -15,8 +16,8 @@ import { bumpPlacementRevision } from '../lib/idempotency';
 
 const once = new Set<string>();
 async function ensure(db: D1Database, key: string, ddl: string): Promise<void> {
-  if (once.has(key)) return;
-  once.add(key);
+  if (once.has(scopedKey(key))) return;
+  once.add(scopedKey(key));
   await db.prepare(ddl).run();
 }
 

@@ -1,8 +1,23 @@
-# Rapports & crashs → GitHub issues (v260)
+# Rapports & crashs → GitHub issues (v260, canaux + triage IA en 0.9.3)
 
-Deux files, un seul destinataire : **les issues de votre dépôt GitHub** (défaut
-`Etherealmber/atlas-commerce`). Aucun compte GitHub n'est requis côté utilisateur, aucun CLI
-côté propriétaire — la configuration se fait dans l'app.
+Deux files (crashs automatiques, signalements utilisateurs), **deux canaux** depuis 0.9.3 :
+
+| Canal | Origine | Dépôt par défaut | Secret | Clé app (D1 `app_config`) |
+|---|---|---|---|---|
+| **web** | app web (ordinateur + navigateur du téléphone, client bureau) | `Etherealmber/atlas-commerce` | `GITHUB_WEB_ISSUE_TOKEN` (+ `GITHUB_WEB_ISSUE_REPO`) | `github_web_reports_token` / `_repo` |
+| **android** | app Android native | `Etherealmber/atlas-commerce-android` | `GITHUB_ISSUE_TOKEN` (+ `GITHUB_ISSUE_REPO`) | token Android historique |
+
+Chaque canal a **son propre token** : le token Android n'est jamais utilisé pour le dépôt web
+(et inversement). Un canal sans token garde ses lignes en file ; rien n'est perdu.
+
+Classement (`classifyReportChannel`) : `platform` / `client` explicite d'abord (le front envoie
+`platform: 'web'`, ou `'android'` dans un shell natif) ; sinon User-Agent — `okhttp`, `dalvik`,
+`retrofit`, `atlas-android` ou WebView (`; wv)`) → android, `Mozilla/…` → web ; inconnu → android
+(comportement historique). Au premier démarrage 0.9.3, les crashs **en attente** venant d'un
+navigateur sont reclassés une fois vers `web` : ils attendent donc le secret web.
+
+Aucun compte GitHub n'est requis côté utilisateur, aucun CLI côté propriétaire — la
+configuration se fait dans l'app.
 
 ## 1. Ce qui est rapporté
 
@@ -45,17 +60,57 @@ et version ajoutées automatiquement. Réponse : référence `R-<id>`, lien éve
   - via le **cron quotidien** (07:35 UTC, même déclencheur que les rappels finance) ;
   - via le bouton **« Renvoyer la file »** (Paramètres → Intégrations → Rapports & crashs) ;
   - automatiquement au prochain rapport envoyé une fois le token configuré.
-- Labels créés automatiquement : `crash-report`, `user-report`, `from-app`.
+- Labels créés automatiquement : `crash-report`, `user-report`, `from-app` (+ `severity:*` /
+  `area:*` quand le triage IA est actif).
+- **Budget par envoi** : un drain fait au plus `REPORTS_SUBREQUEST_BUDGET` appels sortants
+  (défaut **40** ; le plan gratuit Workers autorise 50 sous-requêtes par invocation). Coût : ~4 par
+  nouveau crash (recherche + triage + création + labels), ~3 par signalement. Au-delà, la réponse
+  contient `more: true` et le reste part au prochain clic / cron.
+- **Regroupement** : un même bug arrive souvent sous plusieurs empreintes (les frames contiennent
+  les noms de bundle / numéros de ligne propres à chaque build). Dans un même drain, les crashs
+  au **message identique** sont rattachés à **une seule issue**.
 
-## 4. Configuration du token (propriétaire, dans l'app)
+### Correctif 0.9.3 — « Renvoyer la file » créait 0 issue
+Les appels GitHub utilisaient `fetch(…, { redirect: 'error' })`, que le runtime Workers **refuse**
+(`TypeError` immédiate) : chaque appel échouait avant d'atteindre GitHub et la file restait
+`pending`. Tout le code Worker utilise désormais `redirect: 'manual'` (une 3xx est traitée comme un
+échec) — test `worker/__tests__/worker-fetch-redirect.test.ts`. Le même bug touchait l'envoi
+d'e-mails Resend et la vérification anti-robot du client bureau.
 
+## 3 bis. Triage IA des nouvelles issues (Groq, offre gratuite)
+
+Facultatif. Chaque **nouvelle** issue (jamais les doublons ni les occurrences suivantes) passe
+par un modèle Groq qui renvoie un JSON validé : titre clair, gravité, zone, résumé, cause probable,
+pistes de correction, étapes de reproduction. Le corps reçoit une section « ### Analyse
+automatique » et les labels `severity:{critical,high,medium,low}` / `area:*`. Si Groq échoue,
+l'issue est créée telle quelle : le triage ne bloque jamais l'envoi.
+
+| Variable | Défaut | Rôle |
+|---|---|---|
+| `GROQ_ISSUES_API_KEY` | repli sur `GROQ_API_KEY` | clé https://console.groq.com/keys (gratuite) |
+| `GROQ_ISSUES_MODEL` | `openai/gpt-oss-120b` | meilleur modèle de l'offre gratuite pour ce raisonnement |
+| `GROQ_ISSUES_DAILY_LIMIT` | `40` (max 900) | plafond quotidien d'analyses (compteur D1) |
+| `GROQ_ISSUES_ENABLED` | activé si une clé existe | `false` pour couper |
+
+Économie de quota (offre gratuite `gpt-oss-120b` : 30 req/min, 1 000 req/jour, 8 000 tokens/min,
+200 000 tokens/jour) : prompt compact (stack tronquée, aucune donnée personnelle, secrets déjà
+expurgés), `max_tokens` 700, `reasoning_effort: low`, `temperature` 0.2, sortie `json_object`,
+délai 9 s, plafond quotidien, et **pause automatique** de 60 s à 6 h après un 429 (`retry-after`
+respecté). Une clé séparée `GROQ_ISSUES_API_KEY` évite de consommer le quota d'Atlas Agent
+(les limites Groq sont par organisation et par modèle : utiliser une autre organisation Groq
+pour une isolation complète).
+
+## 4. Configuration des tokens (propriétaire, dans l'app)
+
+Un token **par canal** :
 1. https://github.com/settings/personal-access-tokens/new → **Fine-grained token**
-   → Repository access : le dépôt cible → Permissions : **Issues — Read and Write**
-   (le compte doit pouvoir créer des issues sur ce dépôt). Gratuit.
-2. App → **Paramètres → Intégrations → « Rapports & crashs → GitHub »** → coller le token
-   (+ dépôt optionnel, défaut `Etherealmber/atlas-commerce`) → Enregistrer.
-3. Alternative ops : secret d'environnement `GITHUB_ISSUE_TOKEN` (+ `GITHUB_ISSUE_REPO`) —
-   le secret **a priorité** sur le token configuré dans l'app.
+   → Repository access : **uniquement** le dépôt du canal (`atlas-commerce` pour le web,
+   `atlas-commerce-android` pour Android) → Permissions : **Issues — Read and Write**. Gratuit.
+2. App → **Paramètres → API & Clés → « Rapports & crashs → GitHub »** → carte **App web** ou
+   **App Android** → coller le token (+ dépôt optionnel) → Enregistrer.
+3. Alternative ops : secrets `GITHUB_WEB_ISSUE_TOKEN` / `GITHUB_ISSUE_TOKEN` (+ `…_REPO`) —
+   un secret **a priorité** sur le token du même canal configuré dans l'app (la carte affiche
+   alors « Géré par le secret du Worker »).
 
 ## 5. Endpoints
 
@@ -63,12 +118,13 @@ et version ajoutées automatiquement. Réponse : référence `R-<id>`, lien éve
 |---|---|---|
 | `POST /api/crash-reports` | publique (rate-limitée) | intake crash — 202, `{reference, deduped}` ; n'échoue jamais côté app |
 | `POST /api/reports` | session (tout rôle, rate-limité) | signalement utilisateur — 201, `data: {reference, issue_url, already_reported, issue_status}` |
-| `GET /api/admin/github-token` | owner | `{configured, source: env\|app, repo}` — jamais le token |
-| `PUT /api/admin/github-token` | owner | `{token, repo?}` — validé contre GitHub avant stockage ; `token:""` efface |
-| `GET /api/admin/reports?limit=` | owner/admin | crashs + signalements récents (D1, déjà assainis) + `pending` |
-| `POST /api/admin/reports/retry` | owner | vide la file vers GitHub — 409 `GITHUB_NOT_CONFIGURED` sans token |
+| `GET /api/admin/github-token` | owner | `{configured, source, repo, channels: {web, android}, triage}` — jamais le token |
+| `PUT /api/admin/github-token` | owner | `{token, repo?, channel?: web/android}` — validé contre GitHub avant stockage ; `token` vide efface |
+| `GET /api/admin/reports?limit=` | owner/admin | crashs + signalements récents (D1, déjà assainis, avec `channel`) + `pending` + `pending_by_channel` |
+| `POST /api/admin/reports/retry` | owner | vide la file vers GitHub — `{crashes, user_reports, more, by_channel}` ; 409 `GITHUB_NOT_CONFIGURED` sans aucun token |
 
-Format d'intake crash : `{message, stack?, componentStack?, route?, version?, ua?}` (JSON).
+Format d'intake crash : `{message, stack?, componentStack?, route?, version?, ua?, platform?}` (JSON).
+Le client web ignore le bruit des extensions navigateur (`chrome-extension://`, `moz-extension://`…).
 
 ## 6. Tests
 
@@ -77,3 +133,8 @@ troncatures), empreinte stable et distincte, intake D1 (insert + dédup `count=2
 d'attente sans token (`pending`), drain avec token via `fetch` stubbé (issue créée → `linked`
 + `issue_url`, échec GitHub → reste `pending`), priorité `env` > app pour le token, vue
 admin (`listReports` + compteur `pending`).
+
+`worker/__tests__/reports-channels.test.ts` : classement web/android, secrets séparés (le token
+Android jamais utilisé pour le dépôt web), file web en attente du secret web, reclassement des
+anciens crashs navigateur, regroupement par message + budget de sous-requêtes, triage Groq
+(prompt sans données personnelles, parsing JSON, plafond quotidien, pause sur 429).

@@ -610,6 +610,10 @@ export default function FocusSidebar({
     });
   }
 
+  // The phone drawer always shows labels: the desktop « rail » state (icons
+  // only) made it a wide panel of lone icons.
+  const railCollapsed = collapsed && !mobileOpen;
+
   return (
     <>
       {onOpenMobile && (
@@ -633,21 +637,21 @@ export default function FocusSidebar({
         />
       )}
       <aside
-        className={`atlas-focus-sidebar${collapsed ? ' is-collapsed' : ''}${mobileOpen ? ' is-mobile-open' : ''}`}
+        className={`atlas-focus-sidebar${railCollapsed ? ' is-collapsed' : ''}${mobileOpen ? ' is-mobile-open' : ''}`}
         aria-label={`Navigation ${sidebarTitle}`}
       >
         <div className="atlas-focus-sidebar-head">
           <button
             type="button"
             className="atlas-focus-collapse-btn"
-            onClick={() => setCollapsed((v) => !v)}
-            title={collapsed ? 'Déplier la barre latérale' : 'Réduire la barre latérale'}
-            aria-label={collapsed ? 'Déplier la barre latérale' : 'Réduire la barre latérale'}
-            aria-expanded={!collapsed}
+            onClick={() => (mobileOpen ? onCloseMobile?.() : setCollapsed((v) => !v))}
+            title={mobileOpen ? 'Fermer le menu' : railCollapsed ? 'Déplier la barre latérale' : 'Réduire la barre latérale'}
+            aria-label={mobileOpen ? 'Fermer le menu' : railCollapsed ? 'Déplier la barre latérale' : 'Réduire la barre latérale'}
+            aria-expanded={mobileOpen ? true : !railCollapsed}
           >
-            {collapsed ? <PanelLeftOpen size={17} strokeWidth={1.9} /> : <PanelLeftClose size={17} strokeWidth={1.9} />}
+            {railCollapsed ? <PanelLeftOpen size={17} strokeWidth={1.9} /> : <PanelLeftClose size={17} strokeWidth={1.9} />}
           </button>
-          {!collapsed && <span className="atlas-focus-sidebar-title">{sidebarTitle}</span>}
+          {!railCollapsed && <span className="atlas-focus-sidebar-title">{sidebarTitle}</span>}
         </div>
 
         <div className="atlas-focus-sidebar-scroll">
@@ -656,7 +660,7 @@ export default function FocusSidebar({
             return (
               <div key={group.id} className="atlas-focus-group">
                 {gi > 0 && <div className="atlas-focus-divider" aria-hidden />}
-                {!collapsed && group.title && (
+                {!railCollapsed && group.title && (
                   <div className="atlas-focus-group-label">
                     <span>{group.title}</span>
                     {TitleIcon ? <TitleIcon size={13} strokeWidth={1.9} aria-hidden /> : null}
@@ -672,19 +676,19 @@ export default function FocusSidebar({
                         className={`atlas-focus-nav-item${item.active ? ' is-active' : ''}`}
                         aria-current={item.active ? 'page' : undefined}
                         title={item.label}
-                        data-tooltip={collapsed ? item.label : undefined}
+                        data-tooltip={railCollapsed ? item.label : undefined}
                         onClick={item.onClick}
                       >
                         <span className="atlas-focus-nav-ico">
                           <Icon size={17} strokeWidth={1.9} aria-hidden />
                         </span>
-                        {!collapsed && <span className="atlas-focus-nav-label">{item.label}</span>}
-                        {!collapsed && item.badge ? (
+                        {!railCollapsed && <span className="atlas-focus-nav-label">{item.label}</span>}
+                        {!railCollapsed && item.badge ? (
                           <span className={`atlas-focus-badge atlas-focus-badge--${item.badgeTone || 'neutral'}`}>
                             {item.badge}
                           </span>
                         ) : null}
-                        {item.dot && collapsed ? <span className="atlas-focus-dot" aria-hidden /> : null}
+                        {item.dot && railCollapsed ? <span className="atlas-focus-dot" aria-hidden /> : null}
                       </button>
                     );
                   })}
@@ -706,19 +710,19 @@ export default function FocusSidebar({
                     type="button"
                     className="atlas-focus-nav-item atlas-focus-nav-item--foot"
                     title={item.label}
-                    data-tooltip={collapsed ? item.label : undefined}
+                    data-tooltip={railCollapsed ? item.label : undefined}
                     onClick={item.onClick}
                   >
                     <span className="atlas-focus-nav-ico">
                       <Icon size={17} strokeWidth={1.9} aria-hidden />
                     </span>
-                    {!collapsed && <span className="atlas-focus-nav-label">{item.label}</span>}
-                    {!collapsed && item.badge ? (
+                    {!railCollapsed && <span className="atlas-focus-nav-label">{item.label}</span>}
+                    {!railCollapsed && item.badge ? (
                       <span className={`atlas-focus-badge atlas-focus-badge--${item.badgeTone || 'neutral'}`}>
                         {item.badge}
                       </span>
                     ) : null}
-                    {item.dot && collapsed ? <span className="atlas-focus-dot" aria-hidden /> : null}
+                    {item.dot && railCollapsed ? <span className="atlas-focus-dot" aria-hidden /> : null}
                   </button>
                 );
               })}

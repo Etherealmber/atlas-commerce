@@ -40,15 +40,11 @@ export function getApiBase(): string {
   const env = readEnvApi();
   if (env) return env;
   if (isNativeApp()) return DEFAULT_API;
-  // Browser on production domain — same origin
-  try {
-    const host = window.location.hostname;
-    if (host && host !== 'localhost' && host !== '127.0.0.1') return '';
-  } catch { /* ignore */ }
-  // Local vite dev → hit production API (or set VITE_API_URL)
-  if (typeof window !== 'undefined' && /localhost|127\.0\.0\.1/.test(window.location.hostname)) {
-    return DEFAULT_API;
-  }
+  // Browser (production domain OR local `npm run dev` / `wrangler dev`) —
+  // same origin. Local dev runs the Worker in-process through the Cloudflare
+  // Vite plugin, so relative /api calls hit the LOCAL worker + local D1 (and
+  // the `test` / `test` demo works offline). To develop against the
+  // production API instead, set VITE_API_URL=https://stock.afmarbre.com.
   return '';
 }
 

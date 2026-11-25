@@ -42,7 +42,8 @@ export const TopbarUserMenu: FC<Props> = ({
     if (!open) return;
     document.documentElement.classList.add('atlas-overlay-open');
     const onDoc = (e: MouseEvent) => {
-      const t = e.target as Node;
+      const t = e.target;
+      if (!(t instanceof Node)) return;
       if (wrapRef.current?.contains(t)) return;
       if (menuRef.current?.contains(t)) return;
       setOpen(false);
