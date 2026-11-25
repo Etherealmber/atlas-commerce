@@ -216,3 +216,18 @@ html body .ac-lang-list > li > button.ac-lang-row.is-current:not(#lang-g):not(#l
 html[data-theme="dark"] body .ac-lang-list > li > button.ac-lang-row.is-current:not(#lang-g):not(#lang-h):not(#lang-i) { background: rgba(248, 180, 120, .12) !important; }
 
 html[dir="rtl"] .home-landing .hm-live .hl-tot bdi { white-space: nowrap; }
+
+/* Agent docks on the left in RTL: reserve that side, not the sidebar side. */
+@media (min-width: 901px) {
+  html[dir="rtl"].atlas-agent-docked body .layout:not(#rtl-g):not(#rtl-h):not(#rtl-i) {
+    padding-right: 0 !important;
+    padding-left: var(--atlas-agent-w, 380px) !important;
+  }
+}
+@media (max-width: 900px) {
+  html[dir="rtl"].atlas-agent-docked body .layout:not(#rtl-g):not(#rtl-h):not(#rtl-i) { padding-left: 0 !important; padding-right: 0 !important; }
+}
+html[dir="rtl"] .ac-pager-step svg { transform: scaleX(-1); }
+html[dir="rtl"] .ac-dp-nav svg { transform: scaleX(-1); }
+html[dir="rtl"] .payroll-settings-modal .modal-head > div { min-width: 0; padding-inline-end: 36px; }
+html[dir="rtl"] .atlas-brand-row { gap: 6px; }

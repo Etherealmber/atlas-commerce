@@ -19,6 +19,7 @@ import { round2 } from '../lib/money';
 import './employee-wizard.css';
 import { MetricSpark, MetricTrend } from '../components/MetricSpark';
 import Select from '../components/ui/Select';
+import { useLang } from '../i18n/core';
 
 type Emp = Record<string, any>;
 
@@ -116,6 +117,8 @@ function empShort(e: Emp, max = 22): string {
 }
 
 export default function Employees({ phone = false }: { phone?: boolean }) {
+  const lang = useLang();
+  const employeeCategoryLabel = (value: string) => value === 'Bureau' ? (lang === 'ar' ? 'المكتب' : lang === 'en' ? 'Office' : value) : value;
   const [deleteArmId, setDeleteArmId] = useState<string | number | null>(null);
   const [list, setList] = useState<Emp[]>([]);
   const [loading, setLoading] = useState(true);
@@ -761,11 +764,11 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
             <option value="">Toutes catégories</option>
             {categories.map((c) => (
               <option key={c} value={c}>
-                {c}
+                {employeeCategoryLabel(c)}
               </option>
             ))}
             <option value="Magasin">Magasin</option>
-            <option value="Bureau">Bureau</option>
+            <option value="Bureau">{employeeCategoryLabel('Bureau')}</option>
             <option value="Chantier">Chantier</option>
             <option value="Direction">Direction</option>
           </Select>
@@ -1083,7 +1086,7 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
                   <Select value={form.category} onChange={(e) => setF('category', e.target.value)}>
                     <option value="">—</option>
                     <option value="Magasin">Magasin</option>
-                    <option value="Bureau">Bureau</option>
+                    <option value="Bureau">{employeeCategoryLabel('Bureau')}</option>
                     <option value="Chantier">Chantier</option>
                     <option value="Direction">Direction</option>
                   </Select>

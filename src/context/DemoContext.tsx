@@ -12,6 +12,7 @@ import {
   type DemoSessionInfo,
 } from '../lib/demoSession';
 import '../styles/demo-session.css';
+import { translate, t as tr, useLang } from '../i18n/core';
 
 /** Showcase / legal / auth pages: no demo chrome there. */
 const PUBLIC_PAGE_RE = /^\/(?:$|login|welcome|verify|privacy|terms|licenses|about|support|supprot|whats-new|android|download|desktop(?:$|\/)|p\/|403|404|error\/)/;
@@ -36,6 +37,8 @@ function leaveDemo(reason: 'DEMO_EXPIRED' | 'DEMO_LEFT') {
 
 /** Countdown chip + one-time introduction shown while using the demo sandbox. */
 function DemoSessionChrome({ session }: { session: DemoSessionInfo }) {
+  const lang = useLang();
+  const duration = translate(durationLabel(session.minutes), lang);
   const [now, setNow] = useState(() => Date.now());
   const [introOpen, setIntroOpen] = useState(!session.intro_seen);
 
@@ -80,11 +83,11 @@ function DemoSessionChrome({ session }: { session: DemoSessionInfo }) {
             onClick={(e) => e.stopPropagation()}
           >
             <span className="demo-intro-badge">Mode démo</span>
-            <h2 id="demo-intro-title">{durationLabel(session.minutes)} pour tout essayer</h2>
+            <h2 id="demo-intro-title">{tr('{duration} pour tout essayer', { duration })}</h2>
             <ul className="demo-intro-list">
-              <li><strong>{durationLabel(session.minutes)} d’essai</strong>, une fois toutes les {session.window_hours} heures sur cet appareil.</li>
+              <li>{tr('{duration} d’essai, une fois toutes les {n} heures sur cet appareil.', { duration, n: session.window_hours })}</li>
               <li><strong>Données fictives</strong> : créez, modifiez ou supprimez librement produits, ventes, clients…</li>
-              <li><strong>Remise à zéro automatique</strong> : la base de démo est effacée au bout de {durationLabel(session.minutes)}.</li>
+              <li><strong>Remise à zéro automatique</strong> : {tr('la base de démo est effacée au bout de {duration}.', { duration })}</li>
               <li><strong>Aucun accès à vos vraies données</strong> : la démo tourne sur sa propre petite base SQLite.</li>
             </ul>
             <p className="demo-intro-time">Temps restant : <strong>{formatCountdown(left)}</strong></p>

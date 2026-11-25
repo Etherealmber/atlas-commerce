@@ -6,6 +6,7 @@ export type WorkStatusSource = {
 };
 
 import { getToken, clearToken, refreshSessionRole, getRefreshedTokenFor } from './auth';
+import { getLang } from './i18n/core';
 import { getCachedFingerprint } from './fingerprint';
 import { getApiBase, isNativeApp } from './config';
 import { uiToast } from './components/AppDialogs';
@@ -479,6 +480,7 @@ export const api = {
         message,
         user_message: opts?.user_message || message,
         task: opts?.task || 'general',
+        response_language: getLang(),
         timezone: opts?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Africa/Casablanca',
         thread_id: opts?.thread_id || 'live',
         // v234 — images were never sent before: the model could not see them

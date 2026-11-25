@@ -186,7 +186,7 @@ export function WizardFoot(props: {
       <div className="wizard-foot-nav">
         <span className="wizard-foot-step">
           <span className="wz-chip">
-            <span>Étape {wz.step}/{wz.total}</span>
+            <span><span>Étape</span> <bdi dir="ltr">{wz.step}/{wz.total}</bdi></span>
             <span className="wz-step-label"> · {props.stepLabel}</span>
           </span>
           <span>{props.title}</span>

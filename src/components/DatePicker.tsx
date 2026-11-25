@@ -11,6 +11,7 @@
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
+import { getLang, intlLocale, useLang } from '../i18n/core';
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const WEEKDAYS = ['Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa', 'Di'];
@@ -43,14 +44,14 @@ const todayDate = () => { const t = new Date(); return new Date(t.getFullYear(),
 
 function formatDisplay(iso: string): string {
   const d = parseISO(iso);
-  return d ? `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]} ${d.getFullYear()}` : '';
+  return d ? getLang() === 'fr' ? `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]} ${d.getFullYear()}` : new Intl.DateTimeFormat(intlLocale(), { day: 'numeric', month: 'short', year: 'numeric' }).format(d) : '';
 }
 
 function formatRange(from: string, to: string): string {
   const a = parseISO(from);
   const b = parseISO(to);
   if (a && b) {
-    const left = a.getFullYear() === b.getFullYear() ? `${a.getDate()} ${MONTHS_SHORT[a.getMonth()]}` : formatDisplay(from);
+    const left = a.getFullYear() === b.getFullYear() ? (getLang() === 'fr' ? `${a.getDate()} ${MONTHS_SHORT[a.getMonth()]}` : new Intl.DateTimeFormat(intlLocale(), { day: 'numeric', month: 'short' }).format(a)) : formatDisplay(from);
     return `${left} — ${formatDisplay(to)}`;
   }
   return formatDisplay(from) || formatDisplay(to);
@@ -209,6 +210,7 @@ function MonthGrid({ year, setYear, current, minYear, maxYear, onPick, isDisable
   isDisabled?: (y: number, m: number) => boolean;
   onYearTitle?: () => void;
 }) {
+  const lang = useLang();
   const now = new Date();
   return (
     <div className="ac-dp-panel">
@@ -233,7 +235,7 @@ function MonthGrid({ year, setYear, current, minYear, maxYear, onPick, isDisable
               aria-pressed={selected}
               onClick={() => onPick(m)}
             >
-              {MONTHS_GRID[m]}
+              {lang === 'fr' ? MONTHS_GRID[m] : new Intl.DateTimeFormat(intlLocale(lang), { month: 'short' }).format(new Date(year, m, 1))}
             </button>
           );
         })}
@@ -290,6 +292,7 @@ type CalendarProps = {
 };
 
 function Calendar({ view, setView, selected = null, rangeStart = null, rangeEnd = null, hover = null, setHover, isDisabled, onPick, minYear, maxYear, autoFocus = true }: CalendarProps) {
+  const lang = useLang();
   const [mode, setMode] = useState<'days' | 'months' | 'years'>('days');
   const [focus, setFocus] = useState<Date>(() => selected || rangeStart || (sameMonth(todayDate(), view) ? todayDate() : view));
   const gridRef = useRef<HTMLDivElement>(null);
@@ -309,8 +312,8 @@ function Calendar({ view, setView, selected = null, rangeStart = null, rangeEnd 
 
   const onKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     const map: Record<string, () => Date> = {
-      ArrowLeft: () => addDays(focus, -1),
-      ArrowRight: () => addDays(focus, 1),
+      ArrowLeft: () => addDays(focus, lang === 'ar' ? 1 : -1),
+      ArrowRight: () => addDays(focus, lang === 'ar' ? -1 : 1),
       ArrowUp: () => addDays(focus, -7),
       ArrowDown: () => addDays(focus, 7),
       Home: () => addDays(focus, -((focus.getDay() + 6) % 7)),
@@ -358,12 +361,12 @@ function Calendar({ view, setView, selected = null, rangeStart = null, rangeEnd 
       <div className="ac-dp-head">
         <button type="button" className="ac-pick ac-dp-nav" aria-label="Mois précédent" disabled={view.getFullYear() <= minYear && view.getMonth() === 0} onClick={() => setView(addMonths(view, -1))}><ChevronLeft size={17} aria-hidden /></button>
         <button type="button" className="ac-pick ac-dp-title" onClick={() => setMode('months')} aria-label="Choisir le mois et l’année">
-          {MONTHS[view.getMonth()]} {view.getFullYear()}<ChevronDown size={15} aria-hidden />
+          {lang === 'fr' ? `${MONTHS[view.getMonth()]} ${view.getFullYear()}` : new Intl.DateTimeFormat(intlLocale(lang), { month: 'long', year: 'numeric' }).format(view)}<ChevronDown size={15} aria-hidden />
         </button>
         <button type="button" className="ac-pick ac-dp-nav" aria-label="Mois suivant" disabled={view.getFullYear() >= maxYear && view.getMonth() === 11} onClick={() => setView(addMonths(view, 1))}><ChevronRight size={17} aria-hidden /></button>
       </div>
       <div className="ac-dp-weekdays" aria-hidden>
-        {WEEKDAYS.map((w) => <span key={w}>{w}</span>)}
+        {WEEKDAYS.map((w, i) => <span key={w}>{lang === 'fr' ? w : new Intl.DateTimeFormat(intlLocale(lang), { weekday: 'short' }).format(new Date(2024, 0, i + 1))}</span>)}
       </div>
       <div className="ac-dp-grid" ref={gridRef} role="grid" onKeyDown={onKey} onMouseLeave={() => setHover?.(null)}>
         {cells.map((d) => {
@@ -383,7 +386,7 @@ function Calendar({ view, setView, selected = null, rangeStart = null, rangeEnd 
                 tabIndex={sameDay(d, focus) ? 0 : -1}
                 className={['ac-pick ac-dp-day', outside ? 'is-outside' : '', isSel ? 'is-selected' : '', sameDay(d, today) ? 'is-today' : ''].filter(Boolean).join(' ')}
                 disabled={disabled}
-                aria-label={`${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`}
+                aria-label={lang === 'fr' ? `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}` : new Intl.DateTimeFormat(intlLocale(lang), { day: 'numeric', month: 'long', year: 'numeric' }).format(d)}
                 aria-current={sameDay(d, today) ? 'date' : undefined}
                 onMouseEnter={() => setHover?.(d)}
                 onFocus={() => setFocus(d)}
@@ -430,6 +433,7 @@ export default function DatePicker({
   maxYear,
   size = 'md',
 }: DatePickerProps) {
+  useLang(); // refresh formatted values when the interface language changes
   const [open, setOpenState] = useState(false);
   const setOpen = useCallback((v: boolean) => setOpenState(v), []);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -515,6 +519,7 @@ function presetRange(key: PresetKey): [Date, Date] {
 }
 
 export function DateRangePicker({ from, to, onChange, disabled, className = '', size = 'md', showPresets = true }: DateRangePickerProps) {
+  useLang(); // refresh formatted values when the interface language changes
   const [open, setOpenState] = useState(false);
   const setOpen = useCallback((v: boolean) => setOpenState(v), []);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -629,6 +634,7 @@ const parseYM = (v: string | undefined | null) => {
 };
 
 export function MonthPicker({ value, onChange, disabled, placeholder = 'Choisir un mois', className = '', id, min, max, size = 'md', 'aria-label': ariaLabel }: MonthPickerProps) {
+  useLang(); // refresh formatted values when the interface language changes
   const [open, setOpenState] = useState(false);
   const setOpen = useCallback((v: boolean) => setOpenState(v), []);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -649,7 +655,7 @@ export function MonthPicker({ value, onChange, disabled, placeholder = 'Choisir 
   }, [open, value]);
 
   const isDisabled = (y: number, m: number) => (!!lo && (y < lo.y || (y === lo.y && m < lo.m))) || (!!hi && (y > hi.y || (y === hi.y && m > hi.m)));
-  const label = current ? `${MONTHS[current.m]} ${current.y}` : '';
+  const label = current ? (getLang() === 'fr' ? `${MONTHS[current.m]} ${current.y}` : new Intl.DateTimeFormat(intlLocale(), { month: 'long', year: 'numeric' }).format(new Date(current.y, current.m, 1))) : '';
   const now = new Date();
 
   return (
