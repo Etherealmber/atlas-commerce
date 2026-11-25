@@ -5,6 +5,8 @@
  * atlas_welcome_prefs: JSON of theme / density / glass choices.
  */
 
+import { resetAllOnboarding } from './onboarding';
+
 const WELCOME_COMPLETED_KEY = 'atlas_welcome_completed';
 export const WELCOME_STEP_KEY = 'atlas_welcome_step';
 const WELCOME_PREFS_KEY = 'atlas_welcome_prefs';
@@ -73,6 +75,7 @@ export function markWelcomeCompleted(): void {
   }
 }
 
+/** Redo the welcome guide from step 1 — and the guided tour from step 1 after it. */
 export function resetWelcome(): void {
   try {
     localStorage.setItem(WELCOME_COMPLETED_KEY, 'false');
@@ -81,6 +84,8 @@ export function resetWelcome(): void {
   } catch {
     /* */
   }
+  try { sessionStorage.removeItem('atlas_phone_welcome_step'); } catch { /* */ }
+  resetAllOnboarding();
 }
 
 export function getWelcomeStep(): number {

@@ -168,7 +168,7 @@ describe('List UX, danger/dock/slot CSS fixes, pagination (20/page), and release
     expect(host.querySelector('.desktop-product-result-count')).toBeNull();
     expect(host.querySelector('.ac-search-result-count')).toBeNull();
     expect(host.querySelector('.ac-products-table-panel .ac-table-pager-meta')?.textContent).toBe('24 éléments · 20 par page');
-    expect(host.querySelector('.ac-products-table-panel .ac-table-pager-controls .desktop-product-viewbar')).not.toBeNull();
+    expect(host.querySelector('.ac-products-table-panel .ac-table-pager-controls .pc-view')).not.toBeNull();
     expect(host.querySelector('.ac-products-table-panel .ac-table-pager-controls .ac-pager')).not.toBeNull();
     expect(host.querySelectorAll('table tbody tr')).toHaveLength(20);
 

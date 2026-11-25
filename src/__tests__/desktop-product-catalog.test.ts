@@ -50,9 +50,12 @@ it('offers list and grid, preserves actions, and opens product history from a ca
   await act(async () => rowDelete.click());
   await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Affichage en grille"]')!.click());
   expect(host.querySelector('.ac-products-table-panel')?.classList.contains('ac-products-table-panel--grid')).toBe(true);
-  expect(host.querySelector('.ac-products-table-panel--grid .desktop-product-select-all')).not.toBeNull();
-  expect(host.querySelector('.desktop-product-card img')?.getAttribute('src')).toContain('/cdn/marbre.webp');
-  expect(host.querySelector('.desktop-product-chips .product-stock-chip')?.classList.contains('ok')).toBe(true);
+  expect(host.querySelector('.ac-products-table-panel--grid .pc-select-all')).not.toBeNull();
+  expect(host.querySelector('.pc-card .pc-media img')?.getAttribute('src')).toContain('/cdn/marbre.webp');
+  expect(host.querySelector('.pc-card .pc-stock')?.classList.contains('pc-stock--ok')).toBe(true);
+  expect(host.querySelector('.pc-card .pc-stock')?.textContent).toBe('En stock');
+  expect(host.querySelector('.pc-view [aria-label="Affichage en grille"]')?.getAttribute('aria-pressed')).toBe('true');
+  expect(host.querySelector('.pc-view')?.textContent).toBe('GrilleListe');
   expect(localStorage.getItem('atlas_desktop_products_view')).toBe('grid');
   expect(host.querySelector('.ac-table-pager-bar .ac-table-pager-controls [aria-label="Affichage en grille"]')).not.toBeNull();
   expect(host.querySelector('.ac-products-filters [aria-label="Affichage en grille"]')).toBeNull();
@@ -65,7 +68,7 @@ it('offers list and grid, preserves actions, and opens product history from a ca
   await act(async () => gridDelete.click()); expect(gridDelete.getAttribute('aria-label')).toBe('Supprimer Marbre');
   const selection = host.querySelector<HTMLInputElement>('[aria-label="Sélectionner Marbre"]')!;
   await act(async () => selection.click()); expect(selection.checked).toBe(true);
-  await act(async () => (host.querySelector('.desktop-product-card-link') as HTMLAnchorElement).click());
+  await act(async () => (host.querySelector('.pc-card a.pc-body') as HTMLAnchorElement).click());
   expect(host.textContent).toContain('Product destination');
 });
 

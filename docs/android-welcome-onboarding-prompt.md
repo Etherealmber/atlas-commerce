@@ -75,8 +75,19 @@ Primary button labels: **Commencer** on step 1, **Continuer** on steps 2–4, **
 | **Ouvrir Atlas** (step 5) | mark done | set to `pending`, step 0 |
 | **Ouvrir sans la visite** or **Passer** (any step) | mark done | set to `done` |
 
+- **Ouvrir Atlas always restarts the tour at step 0**, even if a previous tour was `done` or stopped half-way. Do not "queue only if not done".
 - Save the current welcome step, so that rotation or process death returns to the same step.
 - The welcome flow is shown only while the welcome is not done. Logging out does **not** reset it.
+
+### 2.4 Redo the welcome (Réglages → Guide d’accueil)
+
+- Add a row **Guide d’accueil** (Sparkles icon, chevron) in Réglages, right under **Visite guidée**. Subtitle: "Refaire l’accueil, puis la visite guidée depuis le début".
+- Tapping it calls `resetMobileWelcome()`, which does all of the following, then opens the welcome at step 1:
+  - welcome done → `false`;
+  - welcome step → 0;
+  - **the tour status and step are deleted** (not set to `done`).
+- After the redone welcome, **Ouvrir Atlas** starts the tour again **from step 1 of 6**. **Passer** or **Ouvrir sans la visite** set it to `done`.
+- Web reference: `resetWelcome()` → `resetAllOnboarding()` in `src/lib/welcome.ts` / `src/lib/onboarding.ts`.
 
 ---
 
@@ -157,7 +168,8 @@ Changing step resets this: hide → measure → settle → show.
 
 ### 3.6 Replay
 
-- In **Réglages**, add a row **Visite guidée** (Compass icon, chevron) under Apparence/Affichage. Tapping it sets the tour to `pending`, step 0, closes Settings and goes to Home. The tour then starts with the settle rule.
+- In **Réglages**, add a row **Visite guidée** (Compass icon, chevron) under Apparence/Affichage. Subtitle: "Revoir la démonstration : rien n’est ajouté à vos données". Tapping it sets the tour to `pending`, step 0, closes Settings and goes to Home. The tour then starts with the settle rule.
+- Right under it goes **Guide d’accueil** (§2.4), which redoes the welcome **and** then the tour from zero.
 
 ---
 
@@ -177,7 +189,40 @@ Changing step resets this: hide → measure → settle → show.
   - `restartMobileOnboarding()`
   - `setMobileOnboardingStep(n)`
   - `finishMobileOnboarding()`
+  - `resetMobileWelcome()`: welcome not done, step 0, both tour keys **removed**
   - `mobileOnboardingPending: Flow<Boolean>`
+
+---
+
+## 4b. Profile details are saved on the server (same as web)
+
+The web « Modifier le profil » dialog now stores **Fonction**, **Horaires** and **Fuseau horaire** in the database (D1 table `user_profile_prefs`, migration 0021). Android must read and write the same fields, so a change on one device shows everywhere. **The backend is already deployed with this; do not write a backend prompt for it.**
+
+| Field in `GET`/`PATCH /api/auth/me` | Type | Rules |
+|---|---|---|
+| `job_title` | string | ≤ 60 chars, trimmed. UI label **Fonction**, placeholder "Gérant, comptable…" |
+| `working_hours` | string | ≤ 40 chars, trimmed. UI label **Horaires**, placeholder "09:00 – 18:00" |
+| `timezone` | IANA id | Default `Africa/Casablanca`. An invalid value gets **400 `INVALID_TIMEZONE`**: show the server message and keep the dialog open |
+| `profile_updated_at` | string, read-only | UTC `YYYY-MM-DD HH:MM:SS`, set by the server on every successful PATCH. Show it as "Mis à jour : 25 nov. 2026, 14:05" (fr-FR, device zone), or "Pas encore enregistré" when empty |
+
+- **Edit dialog** (Profil → ✎): Nom affiché, E-mail, Téléphone, then **Fonction**, **Horaires**, and a **Fuseau horaire** dropdown with exactly these options, in this order:
+  1. Maroc (Casablanca) — `Africa/Casablanca`
+  2. France (Paris) — `Europe/Paris`
+  3. Espagne (Madrid) — `Europe/Madrid`
+  4. Royaume-Uni (Londres) — `Europe/London`
+  5. Algérie (Alger) — `Africa/Algiers`
+  6. Tunisie (Tunis) — `Africa/Tunis`
+  7. Émirats (Dubaï) — `Asia/Dubai`
+  8. États-Unis (New York) — `America/New_York`
+  9. UTC — `UTC`
+
+  If the saved value is not in this list, append it as an extra option labelled with the raw id.
+- **Dropdown style:** the dropdown has the same height, radius, border and fill as the text fields. It is not a small pill, and its label is never cut off.
+- **Compte card:** add rows **Fonction** and **Horaires** (only when not empty) and **Fuseau horaire** (always, using the label from the list above).
+- **Saving:**
+  - Send only the fields the dialog edits (role and username are refused by the server with 403).
+  - On success, use the values **returned by the server**.
+  - On error, show the server message in the dialog. **Never keep a local-only copy** that pretends to be saved.
 
 ---
 
@@ -212,6 +257,15 @@ Changing step resets this: hide → measure → settle → show.
    - The last step shows Terminer.
 7. **Replay:** Réglages → Visite guidée sets `pending`/0 and navigates to Home.
 8. **What's new** is not shown while the welcome or the tour is pending.
+9. **Redo welcome:**
+   - Start with the tour `done`.
+   - Réglages → Guide d’accueil: the welcome opens at step 1 and both tour keys are gone.
+   - Ouvrir Atlas: the tour is `pending` at step 0.
+   - Repeat after stopping a tour at step 4: the result is again step 0.
+10. **Profile:**
+    - Editing Fonction / Horaires / Fuseau horaire sends `job_title` / `working_hours` / `timezone` in `PATCH /api/auth/me`.
+    - The Compte card shows the values the server returned.
+    - A 400 `INVALID_TIMEZONE` keeps the dialog open with the message.
 
 ---
 
@@ -220,7 +274,7 @@ Changing step resets this: hide → measure → settle → show.
 Reply with:
 
 1. The list of files you changed, added or deleted.
-2. A table with one row per screen per theme: 5 welcome steps and 6 tour steps, × light/dark = **22 rows**. Columns: screen | theme | matches the reference PNG (yes/no) | notes. Attach your own screenshot for each row at 390×844 dp (or the closest device), with the same demo data.
+2. A table with one row per screen per theme: 5 welcome steps, 6 tour steps and the profile edit dialog, × light/dark = **24 rows**. Columns: screen | theme | matches the reference PNG (yes/no) | notes. Attach your own screenshot for each row at 390×844 dp (or the closest device), with the same demo data.
 3. A short video or GIF, or a frame list with timestamps, of the tour starting on a **slow network** (add a 1.5 s delay to the Home request). It must show the skeleton, then the card appearing **once**, in its final place.
 4. Lint, detekt and unit test results (counts).
 5. Any open question. Do not guess on anything that would change behaviour.

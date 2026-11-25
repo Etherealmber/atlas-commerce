@@ -15,7 +15,7 @@ import ListPager from '../components/ui/ListPager';
 import NumberField from '../components/NumberField';
 import VirtualTableBody, { VirtualScroll } from '../components/VirtualTableBody';
 import { canAccessAdminSettings, canSell, sanitizePreviewUrl } from '../auth';
-import { Grid2X2, List, Pencil, Plus, SlidersHorizontal, Sparkles, Tags, ZoomIn } from 'lucide-react';
+import { LayoutGrid, List, Pencil, Plus, SlidersHorizontal, Sparkles, Tags, ZoomIn } from 'lucide-react';
 import ProductArtwork, { productImageUrl } from '../components/ProductArtwork';
 import ImageLightbox from '../components/ui/ImageLightbox';
 import { phoneStockIsLow, phoneStockQuantity } from '../mobile/phoneStock';
@@ -28,6 +28,7 @@ import ProductImageEditor, { ImageWorkbench } from '../components/ProductImageEd
 import ProductLabelModal from '../components/ProductLabelModal';
 import RefreshIconButton from '../components/RefreshIconButton';
 import '../components/erp/catalog-inventory.css';
+import './products-catalog.css';
 import { FloatingPortal } from '../components/FloatingPortal';
 import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
 import { ModalFormError } from '../components/ModalFormFeedback';
@@ -687,34 +688,76 @@ export default function Products() {
         <div className="ac-table-pager-bar">
           <span className="ac-table-pager-meta">{filtered.length} élément{filtered.length === 1 ? '' : 's'} · 20 par page</span>
           <div className="ac-table-pager-controls">
-            <div className="desktop-product-viewbar" role="group" aria-label="Affichage des produits">
-              <button type="button" className="secondary" title="Affichage en grille" aria-label="Affichage en grille" aria-pressed={catalogView === 'grid'} onClick={() => changeCatalogView('grid')}><Grid2X2 size={16} /></button>
-              <button type="button" className="secondary" title="Affichage en liste" aria-label="Affichage en liste" aria-pressed={catalogView === 'list'} onClick={() => changeCatalogView('list')}><List size={16} /></button>
+            <div className="pc-view" role="group" aria-label="Affichage des produits">
+              <button type="button" className="ac-seg-btn pc-view-btn" aria-label="Affichage en grille" title="Affichage en grille" aria-pressed={catalogView === 'grid'} onClick={() => changeCatalogView('grid')}>
+                <LayoutGrid size={15} strokeWidth={2.2} aria-hidden="true" />
+                <span>Grille</span>
+              </button>
+              <button type="button" className="ac-seg-btn pc-view-btn" aria-label="Affichage en liste" title="Affichage en liste" aria-pressed={catalogView === 'list'} onClick={() => changeCatalogView('list')}>
+                <List size={15} strokeWidth={2.2} aria-hidden="true" />
+                <span>Liste</span>
+              </button>
             </div>
             <ListPager page={safePage} pageSize={PAGE_SIZE} total={filtered.length} onPageChange={setPage} />
           </div>
         </div>
         {catalogView === 'grid' ? <>
-          {paged.length > 0 && <label className="desktop-product-select-all"><input type="checkbox" checked={paged.every(p => selected.has(p.id))} onChange={() => setSelected(prev => { const next = new Set(prev); const all = paged.every(p => next.has(p.id)); paged.forEach(p => all ? next.delete(p.id) : next.add(p.id)); return next; })} /> Tout sélectionner</label>}
-          {filtered.length === 0 ? <EmptyState title="Aucun produit" description="Essayez une autre recherche ou ajoutez un produit." actionLabel="Ajouter un produit" onAction={openNew} icon="package" /> : <div className="desktop-product-grid">{paged.map(p => { const imgUrl = productImageUrl(p.image_url); return <article className="desktop-product-card" key={p.id}>
-            {imgUrl && (
-              <button
-                type="button"
-                className="desktop-product-zoom-btn"
-                title={`Agrandir la photo de ${p.name}`}
-                aria-label={`Agrandir la photo de ${p.name}`}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setPreviewImage({ src: imgUrl, name: p.name });
-                }}
-              >
-                <ZoomIn size={15} aria-hidden="true" />
-              </button>
-            )}
-            <Link to={`/products/${p.id}/historique`} className="desktop-product-card-link"><ProductArtwork url={p.image_url} /><strong>{p.name}</strong><span>{p.sku || p.barcode || 'Sans référence'}</span><div className="desktop-product-chips"><span className={`product-stock-chip ${!p.track_inventory ? 'untracked' : phoneStockQuantity(p) <= 0 ? 'out' : phoneStockIsLow(p) ? 'low' : 'ok'}`}>{p.track_inventory ? `Stock ${dualStockLabel(p)}` : 'Stock non suivi'}</span>{!hideMoney && p.price != null && <span>{fmt(p.price)} MAD</span>}</div></Link>
-            <div className="desktop-product-actions"><label title="Sélectionner le produit"><input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleOne(p.id)} aria-label={`Sélectionner ${p.name}`} /><span>Sélectionner</span></label>{p.track_inventory && <button type="button" className="secondary" title="Ajuster le stock" aria-label={`Ajuster le stock de ${p.name}`} onClick={() => { setModalError(''); setAdjustProduct(p); }}><SlidersHorizontal size={18} aria-hidden="true" /></button>}<button type="button" className="secondary" title="Modifier" aria-label={`Modifier ${p.name}`} onClick={() => openEdit(p)}><Pencil size={18} aria-hidden="true" /></button><button type="button" className="secondary" title="Étiquette" aria-label={`Étiquette de ${p.name}`} onClick={() => setLabelProduct(p)}><Tags size={18} aria-hidden="true" /></button><TimedUndoDelete iconOnly width="44px" deleteLabel={`Supprimer ${p.name}`} undoLabel="Annuler la suppression" initialSeconds={10} onConfirm={() => deleteOne(p.id)} /></div>
-          </article>; })}</div>}
+          {paged.length > 0 && (
+            <label className="pc-select-all">
+              <input type="checkbox" checked={paged.every(p => selected.has(p.id))} onChange={() => setSelected(prev => { const next = new Set(prev); const all = paged.every(p => next.has(p.id)); paged.forEach(p => all ? next.delete(p.id) : next.add(p.id)); return next; })} />
+              <span>Tout sélectionner</span>
+            </label>
+          )}
+          {filtered.length === 0 ? <EmptyState title="Aucun produit" description="Essayez une autre recherche ou ajoutez un produit." actionLabel="Ajouter un produit" onAction={openNew} icon="package" /> : (
+            <div className="pc-grid">
+              {paged.map(p => {
+                const imgUrl = productImageUrl(p.image_url);
+                const stockState = !p.track_inventory ? 'untracked' : phoneStockQuantity(p) <= 0 ? 'out' : phoneStockIsLow(p) ? 'low' : 'ok';
+                const isSel = selected.has(p.id);
+                return (
+                  <article className={`pc-card${isSel ? ' is-selected' : ''}`} key={p.id}>
+                    <div className="pc-media">
+                      <Link to={`/products/${p.id}/historique`} className="pc-media-link" aria-label={`Ouvrir ${p.name}`} tabIndex={-1}>
+                        <ProductArtwork url={p.image_url} largeImageProductId={p.image_inline_large ? p.id : undefined} alt={p.name} className="pc-art" />
+                      </Link>
+                      <label className="pc-check" title="Sélectionner le produit">
+                        <input type="checkbox" checked={isSel} onChange={() => toggleOne(p.id)} aria-label={`Sélectionner ${p.name}`} />
+                      </label>
+                      {imgUrl && (
+                        <button
+                          type="button"
+                          className="pc-zoom desktop-product-zoom-btn"
+                          title={`Agrandir la photo de ${p.name}`}
+                          aria-label={`Agrandir la photo de ${p.name}`}
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPreviewImage({ src: imgUrl, name: p.name }); }}
+                        >
+                          <ZoomIn size={15} aria-hidden="true" />
+                        </button>
+                      )}
+                      <span className={`pc-stock pc-stock--${stockState}`}>
+                        {stockState === 'untracked' ? 'Non suivi' : stockState === 'out' ? 'Rupture' : stockState === 'low' ? 'Stock bas' : 'En stock'}
+                      </span>
+                    </div>
+                    <Link to={`/products/${p.id}/historique`} className="pc-body">
+                      <strong className="pc-name">{p.name}</strong>
+                      <span className="pc-ref">{p.sku || p.barcode || 'Sans référence'}{p.category ? ` · ${p.category}` : ''}</span>
+                      <span className="pc-meta">
+                        {!hideMoney && p.price != null ? <b className="pc-price">{fmt(p.price)} MAD</b> : <span />}
+                        <span className={`pc-qty pc-qty--${stockState}`}>{p.track_inventory ? dualStockLabel(p) : '—'}</span>
+                      </span>
+                    </Link>
+                    <div className="pc-actions">
+                      {p.track_inventory && <button type="button" className="secondary pc-act" title="Ajuster le stock" aria-label={`Ajuster le stock de ${p.name}`} onClick={() => { setModalError(''); setAdjustProduct(p); }}><SlidersHorizontal size={16} aria-hidden="true" /></button>}
+                      <button type="button" className="secondary pc-act" title="Modifier" aria-label={`Modifier ${p.name}`} onClick={() => openEdit(p)}><Pencil size={16} aria-hidden="true" /></button>
+                      <button type="button" className="secondary pc-act" title="Étiquette" aria-label={`Étiquette de ${p.name}`} onClick={() => setLabelProduct(p)}><Tags size={16} aria-hidden="true" /></button>
+                      <span className="pc-actions-spacer" />
+                      <TimedUndoDelete iconOnly width="36px" deleteLabel={`Supprimer ${p.name}`} undoLabel="Annuler la suppression" initialSeconds={10} onConfirm={() => deleteOne(p.id)} />
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
         </> : <VirtualScroll maxHeight={paged.length > 60 ? 560 : undefined}>
           <table className="data-dense ac-products-table">
             <thead>
@@ -769,8 +812,7 @@ export default function Products() {
                       />
                     </td>
                     <td>
-                      <Link className="product-list-open" to={`/products/${p.id}/historique`}><ProductArtwork url={p.image_url} /><strong>{p.name}</strong></Link>
-                      {p.description && <div style={{ fontSize: 12, color: 'var(--muted)' }}>{p.description}</div>}
+                      <Link className="product-list-open pc-list-open" to={`/products/${p.id}/historique`}><ProductArtwork url={p.image_url} largeImageProductId={p.image_inline_large ? p.id : undefined} alt="" className="pc-list-art" /><span className="pc-list-text"><strong>{p.name}</strong>{p.description ? <small>{p.description}</small> : null}</span></Link>
                     </td>
                     <td><span className="sku-mono">{p.sku || '—'}</span></td>
                     <td>{p.category || '—'}</td>
@@ -803,20 +845,21 @@ export default function Products() {
                     </td>
                     <td>{p.is_active === 0 ? <span className="badge danger">Inactif</span> : <span className="badge success">Actif</span>}</td>
                     <td className="row-actions-cell">
-                      <div className="row-actions row-actions--inline">
+                      <div className="row-actions row-actions--inline pc-row-actions">
                       {p.track_inventory && (
-                        <button type="button" className="secondary" onClick={() => { setModalError(''); setAdjustProduct(p); }}>
+                        <button type="button" className="secondary pc-row-act" title="Ajuster le stock" onClick={() => { setModalError(''); setAdjustProduct(p); }}>
                           <SlidersHorizontal size={14} aria-hidden="true" />
                           <span>Ajuster</span>
                         </button>
                       )}
-                      <button type="button" className="secondary" onClick={() => openEdit(p)}>
+                      <button type="button" className="secondary pc-row-act" title={`Modifier ${p.name}`} onClick={() => openEdit(p)}>
                         <Pencil size={14} aria-hidden="true" />
                         <span>Modifier</span>
                       </button>
                       <button
                         type="button"
-                        className="secondary"
+                        className="secondary pc-row-act"
+                        title={`Étiquette de ${p.name}`}
                         onClick={() => setLabelProduct(p)}
                       >
                         <Tags size={14} aria-hidden="true" />
@@ -824,8 +867,10 @@ export default function Products() {
                       </button>
                       <TimedUndoDelete
                         key={`del-${p.id}`}
-                        deleteLabel="Supprimer"
-                        undoLabel="Annuler"
+                        iconOnly
+                        width="34px"
+                        deleteLabel={`Supprimer ${p.name}`}
+                        undoLabel="Annuler la suppression"
                         initialSeconds={10}
                         onConfirm={() => deleteOne(p.id)}
                       />

@@ -41,7 +41,7 @@ import {
   type WelcomeTheme,
 } from '../lib/welcome';
 import { setDensity, setGlassEnabled } from '../lib/density';
-import { queueOnboarding } from '../lib/onboarding';
+import { restartOnboarding } from '../lib/onboarding';
 import {
   APP_CREATOR,
   APP_CREATOR_NAME,
@@ -429,7 +429,7 @@ export default function Welcome() {
     setDensity(prefs.density);
     setGlassEnabled(false);
     markWelcomeCompleted();
-    queueOnboarding();
+    restartOnboarding();
     window.setTimeout(() => {
       navigate('/dashboard', { replace: true });
     }, 260);

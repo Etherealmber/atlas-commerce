@@ -16,13 +16,13 @@ describe('mobile theme stylesheets', () => {
   });
   it('keeps product icon controls visible in both themes', async () => {
     const history = readFileSync('src/pages/product-history.css', 'utf8');
-    const products = readFileSync('src/pages/products-mobile-style.css', 'utf8');
+    const products = readFileSync('src/pages/products-catalog.css', 'utf8');
     for (const css of [history, products]) expect((await transform(css, { loader: 'css', logLevel: 'silent' })).warnings).toEqual([]);
     expect(history).toContain('product-history-photo-action svg');
     expect(history).toContain('product-history-refresh svg');
     expect(history).toMatch(/product-history-photo-action svg,[\s\S]*?stroke:\s*currentColor\s*!important/);
     expect(history).toContain('html[data-theme="dark"] body .product-history');
-    expect(products).toContain('button.secondary[aria-pressed="true"]');
+    expect(products).toContain('button.pc-view-btn:not(#pc-a):not(#pc-b)[aria-pressed="true"]');
     expect(products).toContain('stroke: currentColor !important');
   });
   it('keeps Android-style floating chrome bounded, themed and motion-aware', () => {

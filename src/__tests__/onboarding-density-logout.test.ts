@@ -117,7 +117,7 @@ describe('welcome', () => {
     expect(note).not.toContain('<button');
     expect(note).not.toContain('onClick');
     expect(src).not.toContain('FeatureTour');
-    expect(src).toMatch(/markWelcomeCompleted\(\);\s*queueOnboarding\(\);/);
+    expect(src).toMatch(/markWelcomeCompleted\(\);\s*restartOnboarding\(\);/);
   });
 });
 

@@ -663,7 +663,7 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     expect(welcomeSrc).toContain('welcome-seg-btn');
     expect(welcomeSrc).toContain('Visite rapide des modules');
     expect(welcomeSrc).toContain('welcome-tour-note');
-    expect(welcomeSrc).toContain('queueOnboarding()');
+    expect(welcomeSrc).toContain('restartOnboarding()');
     expect(tourSrc).toContain('ac-onboard-dot');
     for (const cls of [
       '.welcome-skip-btn',

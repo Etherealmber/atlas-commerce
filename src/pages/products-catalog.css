@@ -1,0 +1,403 @@
+/*
+ * Products catalogue — grid/list chooser + grid cards + list thumbnails.
+ * Same bento language as the dashboard panels (« Santé du stock »):
+ * white 16 px cards, 1 px #e8eaef line, soft 1 px shadow, bold 16 px titles,
+ * muted 12.8 px sub-lines, and the dashboard segmented pill (period chooser).
+ * ID boosts (:not(#pc-a)) + !important keep it intact against dark-force and
+ * density rules, in light and dark.
+ */
+
+.ac-products {
+  --pc-card: #ffffff;
+  --pc-line: #e8eaef;
+  --pc-ink: #0f172a;
+  --pc-muted: #64748b;
+  --pc-soft: #f4f4f5;
+  --pc-tint: #efebe3;
+  --pc-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --pc-shadow-hover: 0 10px 24px -12px rgba(15, 23, 42, 0.18);
+  --pc-seg-on-bg: #0f172a;
+  --pc-seg-on-fg: #ffffff;
+}
+html[data-theme="dark"] .ac-products {
+  --pc-card: #1c1c1f;
+  --pc-line: #2a2a2e;
+  --pc-ink: #f4f4f5;
+  --pc-muted: #9aa3b5;
+  --pc-soft: #26262b;
+  --pc-tint: rgba(255, 255, 255, 0.08);
+  --pc-shadow: none;
+  --pc-shadow-hover: 0 12px 28px -14px rgba(0, 0, 0, 0.6);
+  --pc-seg-on-bg: #f4f4f5;
+  --pc-seg-on-fg: #0f172a;
+}
+
+/* ── Grid / list chooser: dashboard period pill ─────────────────────────── */
+html body .ac-products .pc-view:not(#pc-a) {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 2px !important;
+  padding: 4px !important;
+  border-radius: 999px !important;
+  border: 1px solid var(--pc-line) !important;
+  background: var(--pc-card) !important;
+  box-shadow: var(--pc-shadow) !important;
+}
+html body .ac-products .pc-view button.pc-view-btn:not(#pc-a):not(#pc-b) {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  height: 31px !important;
+  min-height: 31px !important;
+  width: auto !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 12px !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  color: var(--pc-muted) !important;
+  -webkit-text-fill-color: var(--pc-muted) !important;
+  font-size: 12.5px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  text-decoration: none !important;
+  transform: none !important;
+  cursor: pointer;
+  transition: background-color 0.18s ease, color 0.18s ease !important;
+}
+html body .ac-products .pc-view button.pc-view-btn:not(#pc-a):not(#pc-b):hover:not([aria-pressed="true"]) {
+  background: var(--pc-soft) !important;
+  color: var(--pc-ink) !important;
+  -webkit-text-fill-color: var(--pc-ink) !important;
+}
+html body .ac-products .pc-view button.pc-view-btn:not(#pc-a):not(#pc-b)[aria-pressed="true"] {
+  background: var(--pc-seg-on-bg) !important;
+  color: var(--pc-seg-on-fg) !important;
+  -webkit-text-fill-color: var(--pc-seg-on-fg) !important;
+}
+html body .ac-products .pc-view button.pc-view-btn:not(#pc-a):not(#pc-b):focus-visible {
+  outline: 2px solid var(--pc-ink) !important;
+  outline-offset: 2px !important;
+}
+html body .ac-products .pc-view button.pc-view-btn:not(#pc-a) svg {
+  width: 15px !important;
+  height: 15px !important;
+  flex: none !important;
+  stroke: currentColor !important;
+  fill: none !important;
+}
+
+/* ── Grid ───────────────────────────────────────────────────────────────── */
+.ac-products .ac-products-table-panel--grid { padding-bottom: 18px; }
+html body .ac-products .pc-select-all:not(#pc-a) {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 18px 0;
+  font-size: 12.8px;
+  font-weight: 600;
+  color: var(--pc-muted);
+  cursor: pointer;
+}
+.ac-products .pc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(216px, 1fr));
+  gap: 14px;
+  padding: 14px 18px 0;
+}
+
+html body .ac-products .pc-card:not(#pc-a) {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--pc-line) !important;
+  border-radius: 16px !important;
+  background: var(--pc-card) !important;
+  box-shadow: var(--pc-shadow) !important;
+  color: var(--pc-ink);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+html body .ac-products .pc-card:not(#pc-a):hover {
+  box-shadow: var(--pc-shadow-hover) !important;
+  transform: translateY(-1px);
+}
+html body .ac-products .pc-card.is-selected:not(#pc-a) {
+  border-color: var(--pc-ink) !important;
+  box-shadow: 0 0 0 1px var(--pc-ink) !important;
+}
+
+.ac-products .pc-media {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--pc-soft);
+}
+.ac-products .pc-media-link { display: block; color: inherit; text-decoration: none; }
+html body .ac-products .pc-media .product-artwork.pc-art:not(#pc-a) {
+  display: grid;
+  width: 100% !important;
+  height: auto !important;
+  aspect-ratio: 4 / 3;
+  border: 0 !important;
+  border-radius: 12px !important;
+  background: var(--pc-soft);
+  color: var(--pc-muted);
+}
+html body .ac-products .pc-media .product-artwork.pc-art.is-empty:not(#pc-a) { background: var(--pc-tint); }
+html body .ac-products .pc-media .product-artwork.pc-art.is-empty:not(#pc-a) svg { width: 34px; height: 34px; }
+.ac-products .pc-media .product-artwork img { transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1); }
+.ac-products .pc-card:hover .pc-media .product-artwork img { transform: scale(1.04); }
+
+html body .ac-products .pc-check:not(#pc-a) {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.18);
+  cursor: pointer;
+}
+html[data-theme="dark"] body .ac-products .pc-check:not(#pc-a) { background: rgba(24, 24, 27, 0.9); }
+html body .ac-products .pc-check:not(#pc-a) input { width: 16px; height: 16px; margin: 0; cursor: pointer; }
+
+html body .ac-products .pc-card button.pc-zoom:not(#pc-a):not(#pc-b) {
+  position: absolute !important;
+  top: 8px !important;
+  right: 8px !important;
+  z-index: 2;
+  display: grid !important;
+  place-items: center !important;
+  width: 30px !important;
+  min-width: 30px !important;
+  height: 30px !important;
+  min-height: 30px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 10px !important;
+  background: rgba(15, 23, 42, 0.68) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  transition: opacity 0.18s ease, background-color 0.18s ease !important;
+}
+html body .ac-products .pc-card:hover button.pc-zoom:not(#pc-a):not(#pc-b),
+html body .ac-products .pc-card button.pc-zoom:not(#pc-a):not(#pc-b):focus-visible { opacity: 1; }
+html body .ac-products .pc-card button.pc-zoom:not(#pc-a) svg { width: 15px !important; height: 15px !important; stroke: #ffffff !important; fill: none !important; }
+@media (hover: none) {
+  html body .ac-products .pc-card button.pc-zoom:not(#pc-a):not(#pc-b) { opacity: 1; }
+}
+
+.ac-products .pc-stock {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  z-index: 1;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  background: rgba(255, 255, 255, 0.94);
+  color: #0f172a;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.14);
+}
+.ac-products .pc-stock::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: 50%;
+  vertical-align: 1px;
+  background: #94a3b8;
+}
+.ac-products .pc-stock--ok::before { background: #16a34a; }
+.ac-products .pc-stock--low::before { background: #ea580c; }
+.ac-products .pc-stock--out::before { background: #dc2626; }
+html[data-theme="dark"] .ac-products .pc-stock { background: rgba(24, 24, 27, 0.92); color: #f4f4f5; box-shadow: none; }
+
+html body .ac-products a.pc-body:not(#pc-a) {
+  display: grid;
+  gap: 3px;
+  padding: 10px 6px 8px;
+  color: var(--pc-ink) !important;
+  text-decoration: none !important;
+}
+.ac-products .pc-name {
+  font-size: 14.5px;
+  font-weight: 700;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.ac-products .pc-ref {
+  font-size: 12.5px;
+  color: var(--pc-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ac-products .pc-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+}
+.ac-products .pc-price { font-size: 15px; font-weight: 800; letter-spacing: -0.01em; }
+.ac-products .pc-qty { font-size: 12.5px; font-weight: 700; color: var(--pc-muted); }
+.ac-products .pc-qty--low { color: #c2410c; }
+.ac-products .pc-qty--out { color: #dc2626; }
+html[data-theme="dark"] .ac-products .pc-qty--low { color: #fdba74; }
+html[data-theme="dark"] .ac-products .pc-qty--out { color: #fca5a5; }
+
+.ac-products .pc-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: auto;
+  padding: 8px 4px 2px;
+  border-top: 1px solid var(--pc-line);
+}
+.ac-products .pc-actions-spacer { flex: 1 1 auto; }
+html body .ac-products .pc-actions button.pc-act:not(#pc-a):not(#pc-b):not(#pc-c) {
+  display: inline-grid !important;
+  place-items: center !important;
+  width: 34px !important;
+  min-width: 34px !important;
+  height: 34px !important;
+  min-height: 34px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 999px !important;
+  border: 1px solid var(--pc-line) !important;
+  background: var(--pc-soft) !important;
+  color: var(--pc-ink) !important;
+  -webkit-text-fill-color: var(--pc-ink) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+html body .ac-products .pc-actions button.pc-act:not(#pc-a):not(#pc-b):not(#pc-c):hover {
+  background: var(--pc-card) !important;
+  border-color: var(--pc-muted) !important;
+}
+html body .ac-products .pc-actions button.pc-act:not(#pc-a):not(#pc-b):not(#pc-c):focus-visible {
+  outline: 2px solid var(--pc-ink) !important;
+  outline-offset: 2px !important;
+}
+html body .ac-products .pc-actions button.pc-act:not(#pc-a) svg {
+  width: 16px !important;
+  height: 16px !important;
+  stroke: currentColor !important;
+  fill: none !important;
+}
+html body .ac-products .pc-actions .ac-timed-delete:not(#pc-a) {
+  flex: 0 0 34px !important;
+  width: 34px !important;
+  min-width: 34px !important;
+  max-width: 34px !important;
+}
+html body .ac-products .pc-actions .ac-timed-delete-btn:not(#pc-a):not(#pc-b):not(#pc-c) {
+  width: 34px !important;
+  min-width: 34px !important;
+  height: 34px !important;
+  min-height: 34px !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+}
+html body .ac-products .pc-actions .ac-timed-delete:not(#pc-a) svg { stroke: currentColor !important; fill: none !important; }
+
+/* ── List view: product photo in the name column ────────────────────────── */
+html body .ac-products a.pc-list-open:not(#pc-a) {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  min-width: 220px;
+  max-width: 340px;
+  color: var(--pc-ink) !important;
+  text-decoration: none !important;
+}
+html body .ac-products .product-artwork.pc-list-art:not(#pc-a) {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px;
+  border-radius: 10px !important;
+  border: 1px solid var(--pc-line) !important;
+  background: var(--pc-soft);
+}
+html body .ac-products .product-artwork.pc-list-art.is-empty:not(#pc-a) { background: var(--pc-tint); }
+html body .ac-products .product-artwork.pc-list-art:not(#pc-a) svg { width: 18px; height: 18px; }
+.ac-products .pc-list-text { display: grid; gap: 2px; min-width: 0; }
+.ac-products .pc-list-text strong { font-weight: 700; overflow-wrap: break-word; word-break: normal; line-height: 1.3; }
+.ac-products .pc-list-text small {
+  font-size: 12px;
+  color: var(--pc-muted);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── List view: row actions as dashboard « Voir » pills (labels kept, one line, never clipped) ── */
+html body .ac-products table.ac-products-table td.row-actions-cell:not(#pc-a) { width: 1%; white-space: nowrap; padding-right: 14px !important; }
+html body .ac-products table.ac-products-table thead th:last-child:not(#pc-a) { text-align: right !important; padding-right: 18px !important; }
+html body .ac-products .row-actions.pc-row-actions:not(#pc-a) { display: flex !important; flex-wrap: nowrap !important; align-items: center !important; justify-content: flex-end !important; gap: 6px !important; }
+html body .ac-products .pc-row-actions button.pc-row-act:not(#pc-a):not(#pc-b):not(#pc-c) {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  padding: 0 12px 0 10px !important;
+  margin: 0 !important;
+  border-radius: 999px !important;
+  border: 1px solid var(--pc-line) !important;
+  background: var(--pc-soft) !important;
+  color: var(--pc-ink) !important;
+  -webkit-text-fill-color: var(--pc-ink) !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+  box-shadow: none !important;
+  transform: none !important;
+  text-decoration: none !important;
+}
+html body .ac-products .pc-row-actions button.pc-row-act:not(#pc-a):not(#pc-b):not(#pc-c):hover { background: var(--pc-card) !important; border-color: var(--pc-muted) !important; }
+html body .ac-products .pc-row-actions button.pc-row-act:not(#pc-a):not(#pc-b):not(#pc-c):focus-visible { outline: 2px solid var(--pc-ink) !important; outline-offset: 2px !important; }
+html body .ac-products .pc-row-actions button.pc-row-act:not(#pc-a) svg { width: 14px !important; height: 14px !important; stroke: currentColor !important; fill: none !important; flex: 0 0 auto; }
+html body .ac-products .pc-row-actions .ac-timed-delete:not(#pc-a) { flex: 0 0 34px !important; width: 34px !important; min-width: 34px !important; max-width: 34px !important; }
+html body .ac-products .pc-row-actions .ac-timed-delete-btn:not(#pc-a):not(#pc-b):not(#pc-c) { width: 34px !important; min-width: 34px !important; height: 32px !important; min-height: 32px !important; padding: 0 !important; border-radius: 999px !important; }
+html body .ac-products .pc-row-actions .ac-timed-delete:not(#pc-a) svg { width: 16px !important; height: 16px !important; stroke: currentColor !important; fill: none !important; }
+html[data-ui-density="compact"] body .ac-products .pc-row-actions button.pc-row-act:not(#pc-a):not(#pc-b):not(#pc-c) { height: 28px !important; min-height: 28px !important; padding: 0 10px 0 8px !important; font-size: 12px !important; }
+html[data-ui-density="compact"] body .ac-products .pc-row-actions .ac-timed-delete-btn:not(#pc-a):not(#pc-b):not(#pc-c) { width: 30px !important; min-width: 30px !important; height: 28px !important; min-height: 28px !important; }
+html[data-ui-density="compact"] body .ac-products .pc-row-actions .ac-timed-delete:not(#pc-a) { flex-basis: 30px !important; width: 30px !important; min-width: 30px !important; max-width: 30px !important; }
+
+/* Compact density: tighter cards, same structure */
+html[data-ui-density="compact"] .ac-products .pc-grid { gap: 10px; grid-template-columns: repeat(auto-fill, minmax(188px, 1fr)); }
+html[data-ui-density="compact"] body .ac-products .pc-card:not(#pc-a) { padding: 6px; }
+html[data-ui-density="compact"] body .ac-products .pc-view button.pc-view-btn:not(#pc-a):not(#pc-b) { height: 27px !important; min-height: 27px !important; padding: 0 10px !important; }
+html[data-ui-density="compact"] body .ac-products .pc-actions button.pc-act:not(#pc-a):not(#pc-b):not(#pc-c) { width: 30px !important; min-width: 30px !important; height: 30px !important; min-height: 30px !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ac-products .pc-card,
+  .ac-products .pc-media .product-artwork img { transition: none !important; }
+  html body .ac-products .pc-card:not(#pc-a):hover { transform: none; }
+}
+html[data-ui-density="compact"] body .ac-products .pc-actions .ac-timed-delete:not(#pc-a) { flex-basis: 30px !important; width: 30px !important; min-width: 30px !important; max-width: 30px !important; }
+html[data-ui-density="compact"] body .ac-products .pc-actions .ac-timed-delete-btn:not(#pc-a):not(#pc-b):not(#pc-c) { width: 30px !important; min-width: 30px !important; height: 30px !important; min-height: 30px !important; }
