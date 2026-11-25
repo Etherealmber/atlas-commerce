@@ -78,7 +78,7 @@ describe('toasts and file inputs', () => {
   });
   it('visible file inputs get the drop-zone style with a pill button', () => {
     const css = stripComments(read('src/styles/form-controls.css'));
-    expect(css).toMatch(/input\[type="file"\][^{]*:not\(#fi-g\):not\(#fi-h\):not\(#fi-i\) \{[^}]*border: 1\.5px dashed/);
+    expect(css).toMatch(/input\[type="file"\][^{]*:not\(#up-g\):not\(#up-h\):not\(#up-i\) \{[^}]*border: 1\.5px dashed/);
     expect(css).toMatch(/::file-selector-button \{[^}]*border-radius: 999px/);
   });
 });

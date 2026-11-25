@@ -613,7 +613,7 @@ html.phone-shell body .ac-dp-pop:not(#pk-g):not(#pk-h):not(#pk-i):not(#pk-j) { z
 /* ── v0.9.3 — native file inputs → a modern drop-zone row ──
    Visible `input[type=file]` (hidden ones behind custom labels are untouched):
    dashed tile + a pill « Choisir un fichier » button; same in light/dark. */
-html body input[type="file"]:not(.settings-file-input):not(.ph-scan-file-input):not([hidden]):not(#fi-g):not(#fi-h):not(#fi-i) {
+html body input[type="file"]:not(.settings-file-input):not(.ph-scan-file-input):not([hidden]):not(#up-g):not(#up-h):not(#up-i) {
   display: block;
   box-sizing: border-box;
   width: 100% !important;
@@ -632,19 +632,19 @@ html body input[type="file"]:not(.settings-file-input):not(.ph-scan-file-input):
   box-shadow: none !important;
   transition: border-color 0.15s ease, background-color 0.15s ease;
 }
-html body input[type="file"]:not(.settings-file-input):not(.ph-scan-file-input):not([hidden]):not(#fi-g):not(#fi-h):not(#fi-i):hover {
+html body input[type="file"]:not(.settings-file-input):not(.ph-scan-file-input):not([hidden]):not(#up-g):not(#up-h):not(#up-i):hover {
   border-color: rgba(15, 23, 42, 0.36) !important;
   background: rgba(15, 23, 42, 0.045) !important;
 }
-html body input[type="file"]:not(.settings-file-input):not(.ph-scan-file-input):not([hidden]):not(#fi-g):not(#fi-h):not(#fi-i):focus-visible {
+html body input[type="file"]:not(.settings-file-input):not(.ph-scan-file-input):not([hidden]):not(#up-g):not(#up-h):not(#up-i):focus-visible {
   outline: 2px solid #0f172a !important;
   outline-offset: 2px;
 }
-html body input[type="file"]:not(.settings-file-input):not(.ph-scan-file-input):not([hidden]):not(#fi-g):not(#fi-h):not(#fi-i):disabled {
+html body input[type="file"]:not(.settings-file-input):not(.ph-scan-file-input):not([hidden]):not(#up-g):not(#up-h):not(#up-i):disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
-html body input[type="file"]:not(.settings-file-input):not(.ph-scan-file-input):not(#fi-g):not(#fi-h):not(#fi-i)::file-selector-button {
+html body input[type="file"]:not(.settings-file-input):not(.ph-scan-file-input):not(#up-g):not(#up-h):not(#up-i)::file-selector-button {
   margin: 0 12px 0 0;
   height: 34px;
   padding: 0 14px;
@@ -657,25 +657,25 @@ html body input[type="file"]:not(.settings-file-input):not(.ph-scan-file-input):
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
   transition: background-color 0.15s ease, border-color 0.15s ease;
 }
-html body input[type="file"]:not(.settings-file-input):not(.ph-scan-file-input):not(#fi-g):not(#fi-h):not(#fi-i):hover::file-selector-button {
+html body input[type="file"]:not(.settings-file-input):not(.ph-scan-file-input):not(#up-g):not(#up-h):not(#up-i):hover::file-selector-button {
   background: #f1f5f9 !important;
   border-color: rgba(15, 23, 42, 0.24) !important;
 }
-html[data-theme="dark"] body input[type="file"]:not(.settings-file-input):not(.ph-scan-file-input):not([hidden]):not(#fi-g):not(#fi-h):not(#fi-i) {
+html[data-theme="dark"] body input[type="file"]:not(.settings-file-input):not(.ph-scan-file-input):not([hidden]):not(#up-g):not(#up-h):not(#up-i) {
   border-color: rgba(255, 255, 255, 0.16) !important;
   background: rgba(255, 255, 255, 0.03) !important;
   color: #a1a1aa !important;
 }
-html[data-theme="dark"] body input[type="file"]:not(.settings-file-input):not(.ph-scan-file-input):not([hidden]):not(#fi-g):not(#fi-h):not(#fi-i):hover {
+html[data-theme="dark"] body input[type="file"]:not(.settings-file-input):not(.ph-scan-file-input):not([hidden]):not(#up-g):not(#up-h):not(#up-i):hover {
   border-color: rgba(255, 255, 255, 0.3) !important;
   background: rgba(255, 255, 255, 0.05) !important;
 }
-html[data-theme="dark"] body input[type="file"]:not(.settings-file-input):not(.ph-scan-file-input):not(#fi-g):not(#fi-h):not(#fi-i)::file-selector-button {
+html[data-theme="dark"] body input[type="file"]:not(.settings-file-input):not(.ph-scan-file-input):not(#up-g):not(#up-h):not(#up-i)::file-selector-button {
   background: #27272a !important;
   border-color: #3f3f46 !important;
   color: #f4f4f5 !important;
   box-shadow: none;
 }
-html[data-theme="dark"] body input[type="file"]:not(.settings-file-input):not(.ph-scan-file-input):not(#fi-g):not(#fi-h):not(#fi-i):hover::file-selector-button {
+html[data-theme="dark"] body input[type="file"]:not(.settings-file-input):not(.ph-scan-file-input):not(#up-g):not(#up-h):not(#up-i):hover::file-selector-button {
   background: #3f3f46 !important;
 }
