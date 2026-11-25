@@ -25,6 +25,7 @@ import {
 import PageSkeleton from '../components/PageSkeleton';
 import { MetricSpark, MetricTrend } from '../components/MetricSpark';
 import Select from '../components/ui/Select';
+import { intlLocale, useLang } from '../i18n/core';
 
 const BALANCE_STEPS: readonly WizardStepDef[] = [
   { id: 'type', label: 'Type & libellé', hint: 'Catégorie et description de l’écriture.' },
@@ -105,7 +106,7 @@ function txIcon(type: EntryType, category?: string) {
   return Wallet;
 }
 
-function formatTxDate(d: string) {
+function formatTxDate(d: string, locale: string) {
   if (!d) return '—';
   try {
     const dt = new Date(d.length === 10 ? d + 'T12:00:00' : d);
@@ -115,7 +116,7 @@ function formatTxDate(d: string) {
     const startY = new Date(startToday); startY.setDate(startY.getDate() - 1);
     if (dt >= startToday) return `Aujourd'hui`;
     if (dt >= startY) return 'Hier';
-    return dt.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+    return dt.toLocaleDateString(locale, { day: 'numeric', month: 'short' });
   } catch {
     return d;
   }
@@ -176,6 +177,7 @@ function readStoredReportPeriod(): string {
 }
 
 export default function Balance() {
+  const lang = useLang();
   const { confirm, prompt } = useUi();
   const [expenses, setExpenses] = useState<any[]>([]);
   const [dashboard, setDashboard] = useState<any>(null);
@@ -762,7 +764,7 @@ export default function Balance() {
                   <div className="bal-tx-name">{m.label || meta.label}</div>
                   <div className="bal-tx-cat">{m.category || meta.label}{m.createdBy ? <span className="bal-tx-actor"> · Créé par {m.createdBy}</span> : null}</div>
                 </div>
-                <div className="bal-tx-date">{formatTxDate(m.date)}</div>
+                <div className="bal-tx-date">{formatTxDate(m.date, intlLocale(lang))}</div>
                 <div className={`bal-tx-amount${isIn ? ' is-in' : ' is-out'}`}>
                   {isIn ? '+' : '−'}{fmt(m.amount)} {cur}
                 </div>

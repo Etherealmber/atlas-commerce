@@ -197,3 +197,7 @@ html[dir="rtl"] .home-landing .hm-live .hl-tot :is(i, b) { direction: rtl; text-
 html body .ac-login-lang:not(#lang-g):not(#lang-h):not(#lang-i) { background: #25262b !important; border-color: #484951 !important; }
 html body .ac-login-lang > button:not(#lang-g):not(#lang-h):not(#lang-i) { color: #e4e4e7 !important; }
 html body .ac-login-lang > button[aria-pressed="true"]:not(#lang-g):not(#lang-h):not(#lang-i) { background: #f4f4f5 !important; color: #18181b !important; -webkit-text-fill-color: #18181b !important; }
+
+/* Align the bounded hero description with the Arabic heading and actions. */
+html[dir="rtl"] .home-landing .hm-sub { margin-left: 0; margin-right: 0; }
+html[dir="rtl"] .home-landing .hm-hero-copy { margin-left: 0; margin-right: 0; }

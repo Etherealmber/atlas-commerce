@@ -36,13 +36,15 @@ try {
     for (const [key, value] of Object.entries(values)) localStorage.setItem(key, value);
     localStorage.setItem('atlas_lang', language);
     localStorage.setItem('atlas_cookie_consent_v1', JSON.stringify({ version: 1, necessary: true, preferences: false, analytics: false, method: 'necessary_only', decidedAt: '2026-01-01T00:00:00Z' }));
+    const productNames = language === 'ar' ? ['رخام أبيض', 'كوارتز رملي', 'غرانيت داكن'] : language === 'en' ? ['White marble', 'Sand quartz', 'Graphite granite'] : ['Marbre blanc', 'Quartz sable', 'Granit graphite'];
+    const productCategory = language === 'ar' ? 'حجر' : language === 'en' ? 'Stone' : 'Pierre';
     const products = [
-      { id: 1, name: 'Marbre blanc', sku: 'MAR-001', barcode: '200000000001', category: 'Pierre', stock_quantity: 42, low_stock_threshold: 5, unit_price: 250, price: 250, cost: 160, track_inventory: 1, image_url: `${origin}/shots/demo-marble.svg` },
-      { id: 2, name: 'Quartz sable', sku: 'QTZ-012', barcode: '200000000002', category: 'Pierre', stock_quantity: 18, low_stock_threshold: 5, unit_price: 180, price: 180, cost: 110, track_inventory: 1, image_url: `${origin}/shots/demo-marble.svg` },
-      { id: 3, name: 'Granit graphite', sku: 'GRA-008', barcode: '200000000003', category: 'Pierre', stock_quantity: 3, low_stock_threshold: 5, unit_price: 320, price: 320, cost: 200, track_inventory: 1, image_url: `${origin}/shots/demo-marble.svg` },
+      { id: 1, name: productNames[0], sku: 'MAR-001', barcode: '200000000001', category: productCategory, stock_quantity: 42, low_stock_threshold: 5, unit_price: 250, price: 250, cost: 160, track_inventory: 1, image_url: `${origin}/shots/demo-marble.svg` },
+      { id: 2, name: productNames[1], sku: 'QTZ-012', barcode: '200000000002', category: productCategory, stock_quantity: 18, low_stock_threshold: 5, unit_price: 180, price: 180, cost: 110, track_inventory: 1, image_url: `${origin}/shots/demo-marble.svg` },
+      { id: 3, name: productNames[2], sku: 'GRA-008', barcode: '200000000003', category: productCategory, stock_quantity: 3, low_stock_threshold: 5, unit_price: 320, price: 320, cost: 200, track_inventory: 1, image_url: `${origin}/shots/demo-marble.svg` },
     ];
     const now = new Date();
-    const frM = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
+    const frM = language === 'ar' ? ['ينا', 'فبر', 'مار', 'أبر', 'ماي', 'يون', 'يول', 'غشت', 'شتن', 'أكت', 'نون', 'دجن'] : language === 'en' ? ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] : ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
     const baseSales = [18400, 24800, 21200, 29400, 32600, 28900];
     const baseExp = [9200, 12100, 9800, 14600, 13200, 11400];
     const monthlySeries = Array.from({ length: 6 }, (_, idx) => {
@@ -94,7 +96,7 @@ try {
       else if (u.pathname === '/api/admin/finance/period') data = breakdown;
       else if (u.pathname === '/api/admin/finance/statement') data = statement;
       else if (u.pathname.includes('/mobile-actions/stats')) data = { pending: 2 };
-      else if (u.pathname.includes('/assist/next-actions')) data = { items: [{ priority: 1, title: '1 facture impayée', detail: 'Relancer ou enregistrer un paiement', href: '/invoices' }] };
+      else if (u.pathname.includes('/assist/next-actions')) data = { items: [{ priority: 1, title: language === 'ar' ? 'فاتورة واحدة غير مدفوعة' : language === 'en' ? '1 unpaid invoice' : '1 facture impayée', detail: language === 'ar' ? 'متابعة العميل أو تسجيل دفعة' : language === 'en' ? 'Follow up or record a payment' : 'Relancer ou enregistrer un paiement', href: '/invoices' }] };
       else if (u.pathname.includes('/settings')) data = { currency: 'MAD' };
       return new Response(JSON.stringify({ success: true, data }), { headers: { 'content-type': 'application/json' } });
     };

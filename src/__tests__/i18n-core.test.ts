@@ -89,6 +89,26 @@ describe('i18n core', () => {
     expect(field.placeholder).toContain('Décrivez');
   });
 
+  it('translates screenshot labels while keeping option values unchanged', async () => {
+    document.body.innerHTML = '<p>Votre espace de gestion natif pour Windows, macOS et Linux — caisse, stock et facturation au comptoir.</p><select><option value="Fournitures de bureau">Fournitures de bureau</option></select><button>Téléchargements</button>';
+    setLang('ar'); retranslateAll(); await tick();
+    expect(document.querySelector('p')!.textContent).toContain('مساحة إدارة');
+    expect(document.querySelector('option')!.textContent).toBe('لوازم مكتبية');
+    expect(document.querySelector('option')!.value).toBe('Fournitures de bureau');
+    expect(document.querySelector('button')!.textContent).toBe('التنزيلات');
+    setLang('fr'); await tick();
+    expect(document.querySelector('option')!.textContent).toBe('Fournitures de bureau');
+    expect(document.querySelector('option')!.value).toBe('Fournitures de bureau');
+  });
+
+  it('uses Atlas API for legacy service labels without changing links', async () => {
+    document.body.innerHTML = '<a href="https://cdn1.afmarbre.com/app-updates/">Miroir cdn1.afmarbre.com</a>';
+    retranslateAll(); await tick();
+    const link = document.querySelector('a')!;
+    expect(link.textContent).toBe('Miroir Atlas API');
+    expect(link.getAttribute('href')).toBe('https://cdn1.afmarbre.com/app-updates/');
+  });
+
   it('accepts a language pushed by the native Android shell', () => {
     (window as unknown as { atlasSetLanguage: (l: string) => void }).atlasSetLanguage('en');
     expect(getLang()).toBe('en');

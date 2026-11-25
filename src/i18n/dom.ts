@@ -47,7 +47,7 @@ function hasLetters(s: string) {
 
 /** Localise currency labels in presentation text only; API values stay ISO MAD. */
 function translateDisplay(src: string, lang: Lang) {
-  const out = translate(src, lang).replace(/CDN1/g, 'Atlas API');
+  const out = translate(src, lang).replace(/cdn1\.afmarbre\.com|cdn1/gi, 'Atlas API');
   if (lang === 'ar') {
     const units: Record<string, string> = { 'm²': 'م²', 'm³': 'م³', kg: 'كغ', g: 'غ', L: 'لتر', mL: 'مل', m: 'م', cm: 'سم', u: 'وحدة', pce: 'قطعة', bte: 'علبة', ctn: 'كرتون', paq: 'عبوة', j: 'يوم' };
     return out.replace(/\b(?:MAD|DH)\b/g, 'درهم').replace(/\bm²/g, 'م²').replace(/\bm³/g, 'م³')
