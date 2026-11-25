@@ -456,4 +456,68 @@ describe('R2 agent conversation handling & backup cron D1 read reduction', () =>
     const latest = r2Store.get('backups/latest.abk')!.bytes;
     expect(new TextDecoder().decode(latest.slice(0, 4))).toBe('ABK2');
   });
+
+  it('POST /api/cron/backup-execute answers immediately (202) and runs the backup in the Durable Object alarm', async () => {
+    const { registerBackupRoutes } = await import('../routes/backups');
+    const { RestoreHub } = await import('../durable/RestoreHub');
+    const app = new Hono<{ Bindings: any }>();
+    const agentPurge = vi.fn(async () => ({ deleted: 0 }));
+    registerBackupRoutes(app, {
+      requireOwner: () => ({ ok: true, username: 'owner' }),
+      hmacSha256Hex: async () => 'hmac',
+      writeAudit: async () => {},
+      purgeAgentConversationsOlderThan: agentPurge,
+    });
+    const store = new Map<string, unknown>();
+    let alarmAt: number | null = null;
+    const state = {
+      storage: {
+        get: async (k: string) => store.get(k),
+        put: async (k: string, v: unknown) => { store.set(k, structuredClone(v)); },
+        delete: async (k: string) => store.delete(k),
+        setAlarm: async (t: number) => { alarmAt = t; },
+        deleteAlarm: async () => { alarmAt = null; },
+      },
+    };
+    const uploads = new Map<string, Date>();
+    let d1Queries = 0;
+    const stmt = { all: async () => ({ results: [] }), first: async () => null, run: async () => ({ success: true }) };
+    const env: any = {
+      CRON_SECRET: 'cron-secret',
+      BACKUP_ENCRYPTION_KEY: 'bkp-secret',
+      IMAGES: {
+        list: async () => ({ objects: [], truncated: false }),
+        put: async (k: string) => { uploads.set(k, new Date()); },
+        head: async (k: string) => (uploads.has(k) ? { key: k, uploaded: uploads.get(k) } : null),
+        get: async () => null,
+      },
+      DB: { prepare: () => { d1Queries++; return { ...stmt, bind: () => stmt }; } },
+    };
+    const hub = new RestoreHub(state as any, env);
+    env.RESTORE_HUB = {
+      idFromName: (n: string) => n,
+      get: () => ({ fetch: (u: string, init?: RequestInit) => hub.fetch(new Request(u, init)) }),
+    };
+    const headers = { Authorization: 'Bearer cron-secret' };
+
+    const res = await app.request('/api/cron/backup-execute', { method: 'POST', headers }, env);
+    expect(res.status).toBe(202);
+    const j = (await res.json()) as any;
+    expect(j).toMatchObject({ success: true, queued: true, skipped: false });
+    expect(d1Queries).toBe(0); // no table was read while the cron service waited
+    expect(alarmAt).not.toBeNull();
+
+    // A second call while queued does not start another run.
+    const again = (await (await app.request('/api/cron/backup-execute', { method: 'POST', headers }, env)).json()) as any;
+    expect(again.already_running).toBe(true);
+
+    await hub.alarm();
+    expect(d1Queries).toBeGreaterThan(0);
+    const status = (await (await app.request('/api/cron/backup-status', { headers }, env)).json()) as any;
+    expect(status.data).toMatchObject({ status: 'ok', attempts: 1 });
+    expect(status.data.result.success).toBe(true);
+
+    // Unauthorized callers get nothing.
+    expect((await app.request('/api/cron/backup-status', {}, env)).status).toBe(401);
+  });
 });

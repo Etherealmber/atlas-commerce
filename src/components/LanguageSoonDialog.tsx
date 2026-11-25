@@ -2,21 +2,21 @@ import { useEffect, useRef, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, Languages, X } from 'lucide-react';
 
-/**
- * Langue de l’interface — v0.9.3.
- * Seul le français est disponible ; l’arabe et l’anglais arrivent.
- * Utilisé depuis Paramètres (barre latérale + section Profil), le menu
- * utilisateur du haut et les réglages mobiles.
- */
-export const LANGUAGE_SOON_MESSAGE = 'Bientôt disponible — l’arabe et l’anglais arrivent.';
+import { LANGS, setLang, useLang, type Lang } from '../i18n/core';
 
-const LANGS: { code: string; native: string; label: string; ready: boolean; dir?: 'rtl' }[] = [
-  { code: 'fr', native: 'Français', label: 'Langue actuelle', ready: true },
-  { code: 'ar', native: 'العربية', label: 'Arabe', ready: false, dir: 'rtl' },
-  { code: 'en', native: 'English', label: 'Anglais', ready: false },
-];
+/**
+ * Langue de l’interface — français, arabe (RTL) et anglais.
+ * Utilisé depuis Paramètres, le menu utilisateur du haut, la page de connexion
+ * et les réglages mobiles. Le choix est mémorisé sur l’appareil et transmis à
+ * l’app Android native (window.AtlasAndroid.setLanguage).
+ */
+export const LANGUAGE_SOON_MESSAGE = 'Choisissez la langue de l’interface. L’arabe s’affiche de droite à gauche.';
+export const LANGUAGE_DIALOG_MESSAGE = LANGUAGE_SOON_MESSAGE;
+
+const LANG_LABEL: Record<Lang, string> = { fr: 'Français', ar: 'Arabe', en: 'Anglais' };
 
 export const LanguageSoonDialog: FC<{ open: boolean; onClose: () => void }> = ({ open, onClose }) => {
+  const lang = useLang();
   const okRef = useRef<HTMLButtonElement | null>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -48,30 +48,39 @@ export const LanguageSoonDialog: FC<{ open: boolean; onClose: () => void }> = ({
           </span>
           <div className="ac-lang-titles">
             <strong id="ac-lang-title">Langue</strong>
-            <span>{LANGUAGE_SOON_MESSAGE}</span>
+            <span>{LANGUAGE_DIALOG_MESSAGE}</span>
           </div>
           <button type="button" className="ac-lang-x" aria-label="Fermer" onClick={onClose}>
             <X size={15} strokeWidth={2} aria-hidden />
           </button>
         </div>
-        <ul className="ac-lang-list">
-          {LANGS.map((l) => (
-            <li key={l.code} className={`ac-lang-row${l.ready ? ' is-current' : ' is-soon'}`} aria-disabled={!l.ready}>
-              <span className="ac-lang-native" dir={l.dir} lang={l.code}>{l.native}</span>
-              <span className="ac-lang-label">{l.label}</span>
-              {l.ready ? (
-                <span className="ac-lang-check" aria-label="Sélectionnée">
-                  <Check size={14} strokeWidth={2.4} aria-hidden />
-                </span>
-              ) : (
-                <span className="ac-lang-soon">Bientôt</span>
-              )}
-            </li>
-          ))}
+        <ul className="ac-lang-list" role="radiogroup" aria-labelledby="ac-lang-title">
+          {LANGS.map((l) => {
+            const selected = l.code === lang;
+            return (
+              <li key={l.code}>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  className={`ac-lang-row${selected ? ' is-current' : ''}`}
+                  onClick={() => setLang(l.code)}
+                >
+                  <span className="ac-lang-native notranslate" dir={l.dir} lang={l.code}>{l.native}</span>
+                  <span className="ac-lang-label">{selected ? 'Langue actuelle' : LANG_LABEL[l.code]}</span>
+                  {selected ? (
+                    <span className="ac-lang-check" aria-label="Sélectionnée">
+                      <Check size={14} strokeWidth={2.4} aria-hidden />
+                    </span>
+                  ) : null}
+                </button>
+              </li>
+            );
+          })}
         </ul>
         <div className="ac-lang-foot">
           <button ref={okRef} type="button" className="ac-lang-ok" onClick={onClose}>
-            Compris
+            Terminé
           </button>
         </div>
       </div>
@@ -81,3 +90,5 @@ export const LanguageSoonDialog: FC<{ open: boolean; onClose: () => void }> = ({
 };
 
 export default LanguageSoonDialog;
+
+export const LanguageDialog = LanguageSoonDialog;

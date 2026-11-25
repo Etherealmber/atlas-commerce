@@ -1,0 +1,22 @@
+export const TRIAGE_MARKER: string;
+export const FIXED_MARKER: string;
+export const AREAS: string[];
+export const SEVERITIES: string[];
+export function prLinkMarker(pr: number): string;
+export function sanitizeForModel(text: unknown, limit?: number): string;
+export function extractIssueRefs(text: unknown, branch?: string): { closing: number[]; mentioned: number[] };
+export function extractSearchTerms(text: unknown, max?: number): string[];
+export function extractRoutes(text: unknown): string[];
+export function routeToComponent(route: string): string;
+export function isEligibleIssue(issue: any, opts?: { force?: boolean }): { ok: boolean; reason: string };
+export function countTriagesSince(comments: Array<{ body?: string; created_at?: string }>, sinceIso: string): number;
+export type Triage = {
+  title: string; summary: string; cause: string; where: string[]; repro: string[]; fix: string; tests: string;
+  severity: string; area: string; confidence: string; needs_info: string;
+};
+export function buildMessages(input: { repo: string; issue: any; snippets?: Array<{ path: string; line: number; text: string }>; files?: string[] }): Array<{ role: string; content: string }>;
+export function parseTriage(text: unknown): Triage | null;
+export function renderFixPrompt(t: Triage, ctx: { repo: string; issue: any }): string;
+export function renderTriageComment(t: Triage, ctx: { repo: string; issue: any; model: string; files?: string[] }): string;
+export function renderPrLinkComment(input: { pr: any; closing: boolean }): string;
+export function renderFixedComment(input: { pr: any; sha?: string }): string;

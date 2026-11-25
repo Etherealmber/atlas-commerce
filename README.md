@@ -144,7 +144,7 @@ origine**, donc l'API et la base D1 locales. Pour développer contre l'API de pr
 lancez avec `VITE_API_URL=https://stock.afmarbre.com npm run dev`.
 
 **Mode démo** : `test` / `test` ouvre une base fictive isolée (Durable Object SQLite, données de
-démonstration, modifiable), jamais votre vraie base — 20 minutes par appareil et par 24 h, puis
+démonstration, modifiable), jamais votre vraie base — 1 heure par appareil et par 24 h, puis
 réinitialisation. Fonctionne en local, en production, sur le web mobile et Android. En ligne, un même
 réseau peut ouvrir 8 nouvelles démos par jour ; en local (localhost / adresse du réseau local) cette
 limite ne s'applique pas, pour tester depuis plusieurs appareils.
@@ -397,6 +397,7 @@ Atlas Commerce est développé et maintenu par **[Etherealmber](https://github.c
 ## Automations GitHub — le dépôt se surveille et se répare tout seul
 
 - `security-patrol.yml` (tous les jours 06:30 UTC + manuel) : `scripts/security-patrol.mjs` sonde la production en boîte noire (verdicts body-aware : il distingue le WAF du worker de l’edge Cloudflare, un 200 `success:false` compte comme un refus, `cf-cache-status: HIT` sur un endpoint authentiqué = fuite de cache critique) — il « essaie de pirater » le site (SQLi UNION/WAITFOR, XSS `<script>`, traversal `/etc/passwd`, Log4Shell JNDI, accès admin sans session, POST release sans Bearer), vérifie les en-têtes de sécurité (CSP, HSTS, nosniff, DENY…) et lit les compteurs WAF du canary pour remonter les **intrusions réelles détectées et bloquées**. Chaque échec ouvre/met à jour un ticket `[security-patrol]` avec un **« Fix possible »** concret ; tout vert → le ticket ouvert est fermé automatiquement ; finding critique → run rouge.
+- `issue-ai.yml` : analyse IA (Groq gratuit, secret `GROQ_API_KEY`) des bugs et crashs — commentaire avec cause, fichiers, correctif et **prompt de correction**, labels gravité/zone, assignation ; lie les PR aux tickets (`in-progress`) et ferme les tickets à la fusion (`Fixes #n`). `/atlas-triage` pour relancer. Voir `docs/reports-github.md` §3 ter.
 - `issue-triage.yml` : dès qu'un ticket est ouvert (plainte, bug, tentative de piratage signalée, idée), il classe par mots-clés FR/EN (`security`, `bug`, `feedback`, `enhancement`, sinon `needs-info`) et poste un accusé de réception avec les prochaines étapes — jamais sur les tickets créés par les bots.
 - Formulaires de tickets (`.github/ISSUE_TEMPLATE/`) : bug, plainte/retour, demande d'évolution, signalement sécurité (+ lien vers les advisories privées pour l'exploitable).
 - `branch-cleanup.yml` : suppression automatique des branches inutiles — à la fermeture d'une PR (branche fusionnée ou entièrement contenue dans `main`) + balayage hebdomadaire (lundi 05:00 UTC) de toutes les branches fusionnées sans PR ouverte (les `arena/*` de sessions incluses). Jamais de suppression si une PR est ouverte, si la branche n'est pas fusionnée, ou si elle est protégée ; `delete_branch_on_merge` est aussi activé côté dépôt.
@@ -421,7 +422,7 @@ Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depui
 <summary>📦 Historique des versions (0.0.1-beta → 0.9.3-beta) — cliquer pour déplier</summary>
 
 ### 0.9.3-beta
-- Mode démo `test` / `test` : base fictive séparée et modifiable, 20 minutes par appareil toutes les 24 h, puis remise à zéro ; avertissement à la connexion, compte à rebours, fonctionne aussi en local, sur le web mobile et Android.
+- Mode démo `test` / `test` : base fictive séparée et modifiable, 1 heure par appareil toutes les 24 h, puis remise à zéro ; avertissement à la connexion, compte à rebours, fonctionne aussi en local, sur le web mobile et Android.
 - Rapports & crashs : « Renvoyer la file » crée de nouveau les issues (appels GitHub corrigés), un dépôt et un token par application (web / Android), regroupement des crashs identiques, envoi limité pour rester dans l'offre gratuite, et triage IA facultatif (titre, gravité, zone, pistes de correction) ; plantage « contains » sur les pages corrigé et bruit des extensions navigateur ignoré.
 - Connexion : bouton « Continuer » lisible au survol et au toucher, identifiant bien contrasté ; menu hamburger qui ne décale plus la page ; barre latérale des Paramètres et d'À propos repliée plus compacte que dépliée ; À propos en grille 2×2 ; boutons « Modifier », actions produit et cartes de l'accueil qui ne débordent plus.
 - Moins de lectures D1 (index des partenaires, cache des schémas, rafraîchissement du tableau de bord espacé).

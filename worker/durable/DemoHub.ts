@@ -8,10 +8,10 @@
  *
  * Lifecycle:
  *   POST /session → fresh sandbox (wipe + migrations) or resume, or deny when
- *                   the 20 minutes of the current 24 h window are used up.
+ *                   the hour of the current 24 h window are used up.
  *   POST /seeded  → marks the fake data as inserted.
  *   POST /query | /batch | /exec → D1-shaped execution (rejected once expired).
- *   alarm()       → at the end of the 20 minutes the whole database is wiped;
+ *   alarm()       → at the end of the hour the whole database is wiped;
  *                   only the quota record survives until the 24 h window ends.
  */
 import { DEMO_MIGRATIONS } from '../lib/demo/migrations';
@@ -170,7 +170,7 @@ export class DemoHub {
     return this.json({ ok: false, error: 'not_found' }, 404);
   }
 
-  /** End of the 20 minutes: drop every table, keep only the quota record. */
+  /** End of the demo hour: drop every table, keep only the quota record. */
   async alarm(): Promise<void> {
     const meta = await this.loadMeta();
     if (!meta) return;

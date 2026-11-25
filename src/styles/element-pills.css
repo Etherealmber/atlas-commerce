@@ -74,11 +74,21 @@ html body :is(.ac-panel, .card, .settings-main, .row-actions, .row-actions-cell,
   background: var(--pill-bg-hover) !important;
   border-color: var(--pill-muted) !important;
 }
-html body :is(.ac-panel, .card, .settings-main, .row-actions, .row-actions-cell, .ac-ops-row-actions, .bal-tx-actions) button.danger:not(:is(.ac-seg-btn, .ac-pager-hit, [class*="iconbtn"], [class*="toggle"], [role="tab"], [aria-pressed], [class*="close"])):not(#pill-a):not(#pill-b):not(#pill-c):hover:not(:disabled) {
-  background: #dc2626 !important;
-  border-color: #dc2626 !important;
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
+/* Soft danger pills deepen their tint instead of flipping to solid red — a touch
+   tap leaves :hover stuck, which used to paint the button bright red. */
+@media (hover: hover) and (pointer: fine) {
+  html body :is(.ac-panel, .card, .settings-main, .row-actions, .row-actions-cell, .ac-ops-row-actions, .bal-tx-actions) button.danger:not(:is(.ac-seg-btn, .ac-pager-hit, [class*="iconbtn"], [class*="toggle"], [role="tab"], [aria-pressed], [class*="close"])):not(#pill-a):not(#pill-b):not(#pill-c):hover:not(:disabled) {
+    background: color-mix(in srgb, #ef4444 16%, var(--pill-danger-bg, #fff)) !important;
+    border-color: color-mix(in srgb, #ef4444 55%, transparent) !important;
+    color: var(--pill-danger-ink) !important;
+    -webkit-text-fill-color: var(--pill-danger-ink) !important;
+  }
+}
+html body :is(.ac-panel, .card, .settings-main, .row-actions, .row-actions-cell, .ac-ops-row-actions, .bal-tx-actions) button.danger:not(:is(.ac-seg-btn, .ac-pager-hit, [class*="iconbtn"], [class*="toggle"], [role="tab"], [aria-pressed], [class*="close"])):not(#pill-a):not(#pill-b):not(#pill-c):active:not(:disabled) {
+  background: color-mix(in srgb, #ef4444 24%, var(--pill-danger-bg, #fff)) !important;
+  border-color: color-mix(in srgb, #ef4444 60%, transparent) !important;
+  color: var(--pill-danger-ink) !important;
+  -webkit-text-fill-color: var(--pill-danger-ink) !important;
 }
 html body :is(.ac-panel, .card, .settings-main, .row-actions, .row-actions-cell, .ac-ops-row-actions, .bal-tx-actions) button:is(.secondary, .danger):not(#pill-a):not(#pill-b):focus-visible {
   outline: 2px solid var(--pill-ink) !important;

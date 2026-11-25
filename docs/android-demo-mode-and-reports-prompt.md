@@ -45,7 +45,7 @@
 
 ```json
 { "success": true, "data": { "enabled": true, "highlight": false, "username": "test", "password": "test",
-  "minutes": 20, "window_hours": 24, "message": "Mode démo : 20 minutes d’essai…" } }
+  "minutes": 60, "window_hours": 24, "message": "Mode démo : 1 heure d’essai…" } }
 ```
 
 - If the call fails or `enabled` is false, show nothing.
@@ -55,7 +55,7 @@
 
 Layout:
 - Full width.
-- Text on the left: title **« Essayer sans compte »** (semibold), then **« Identifiant `test` · mot de passe `test` — 20 min de test toutes les 24 h, sur une base fictive réinitialisée ensuite. »**. Take the values from the config. Render `test` in small monospace chips.
+- Text on the left: title **« Essayer sans compte »** (semibold), then **« Identifiant `test` · mot de passe `test` — 1 h de test toutes les 24 h, sur une base fictive réinitialisée ensuite. »**. Take the values from the config. Render `test` in small monospace chips.
 - A **« Remplir »** pill on the right fills both fields. It does not submit.
 
 Styling:
@@ -89,7 +89,7 @@ The success response is a normal `LoginResponse` plus the following:
 - A `demo` object:
 
   ```json
-  "demo": { "active": true, "state": "new|active", "minutes": 20, "window_hours": 24,
+  "demo": { "active": true, "state": "new|active", "minutes": 60, "window_hours": 24,
             "started_at": 1760000000000, "expires_at": 1760001200000 }
   ```
 
@@ -107,12 +107,12 @@ Always show `error` from the response body. Use these fallbacks only when `error
 | HTTP | `code` | Fallback text |
 |---|---|---|
 | 429 | `DEMO_QUOTA` | « Trop d’essais de démo depuis ce réseau aujourd’hui. Réessayez demain. » |
-| 401 | `DEMO_EXPIRED` | « Vos 20 minutes de démo sont terminées : la base fictive a été réinitialisée. Nouvel essai possible dans 24 h. » |
+| 401 | `DEMO_EXPIRED` | « Votre heure de démo est terminée : la base fictive a été réinitialisée. Nouvel essai possible dans 24 h. » |
 | 503 | `DEMO_UNAVAILABLE` | « Le mode démo est momentanément indisponible. Réessayez plus tard. » |
 | 403 | `DEMO_DISABLED` | « Indisponible en mode démo : les sauvegardes et restaurations ne concernent que votre vraie base. » |
 
 Notes:
-- A 429 for a single device has `error` like « Vous avez déjà utilisé vos 20 minutes de démo pour aujourd’hui. Nouvel essai possible dans 3 h 05. » and an optional `retry_at` (ms). Show the server text as is.
+- A 429 for a single device has `error` like « Vous avez déjà utilisé votre heure de démo pour aujourd’hui. Nouvel essai possible dans 3 h 05. » and an optional `retry_at` (ms). Show the server text as is.
 - `DEMO_DISABLED` only happens inside a demo session, for « Sauvegarder maintenant » or a restore. Show it as a snackbar and stay on the screen.
 
 ---
@@ -149,11 +149,11 @@ Show the intro sheet once per demo session, when `demo.state == "new"`, and agai
 
 Content:
 - Badge **« MODE DÉMO »**.
-- Title **« 20 minutes pour tout essayer »**.
+- Title **« 1 heure pour tout essayer »**.
 - Four bullets (the bold part in bold):
-  - **20 min d’essai**, une fois toutes les 24 heures sur cet appareil.
+  - **1 heure d’essai**, une fois toutes les 24 heures sur cet appareil.
   - **Données fictives** : créez, modifiez ou supprimez librement produits, ventes, clients…
-  - **Remise à zéro automatique** : la base de démo est effacée à la fin des 20 minutes.
+  - **Remise à zéro automatique** : la base de démo est effacée au bout de 1 heure.
   - **Aucun accès à vos vraies données** : la démo tourne sur sa propre petite base SQLite.
 - « Temps restant : **mm:ss** » under the bullets, ticking each second.
 - One button, **« Commencer la démo »**: filled pill, full width, same colours as §3.
@@ -262,3 +262,45 @@ The server keeps **one GitHub repo and one token per app**. Android reports go t
 - [ ] About shows 2 × 2 stat cards on phones.
 - [ ] Reports from the app land in the Android repo.
 - [ ] 0 lint warnings, all tests green, version still 0.9.3.
+- [ ] Language switch fr / ar / en stays in sync between native and web (§10).
+
+## 10. Languages: French, Arabic (RTL) and English
+
+The web app now ships three UI languages: `fr` (default), `ar` (right-to-left) and `en`. The language picker lives in the user menu (« Langue »), in Settings › Langue, and in the Login footer. The Android app must offer the same three languages and keep them **in sync with the WebView** in both directions.
+
+### 10.1 Bridge contract (already implemented on the web side)
+
+| Direction | Call | When |
+| --- | --- | --- |
+| web → native | `window.AtlasAndroid.setLanguage("fr" \| "ar" \| "en")` | At boot, and every time the user picks a language in the web UI. |
+| native → web (read) | `AtlasAndroid.getLanguage(): String` | Read once at web boot. Return `""` when the user never chose. |
+| native → web (push) | `webView.evaluateJavascript("window.atlasSetLanguage('ar')", null)` | When the user changes language in a native screen. |
+| native → web (alt.) | Load the URL with `?lang=ar`, or `postMessage({type:'atlas:set-language', lang:'ar'})` | First load, deep links. |
+
+- The web persists the choice in `localStorage["atlas_lang"]` and fires a `atlas-language` window event.
+- Unknown values are ignored. Never send `ar-MA` or `en-US`: send the bare code.
+- Arabic sets `<html dir="rtl" lang="ar">`. Digits stay Latin (0-9) and amounts keep the `MAD 1 234,50` format, which matches the web.
+
+### 10.2 Native work
+
+1. `@JavascriptInterface fun setLanguage(lang: String)` saves to DataStore `ui_language` and calls `AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(lang))` on the main thread. Ignore calls whose value equals the current language, so you don't loop.
+2. `@JavascriptInterface fun getLanguage(): String` returns the stored value.
+3. Native picker: Settings › Langue with three rows (« Français », « العربية », « English »), each showing its native name with a radio button. When the language changes, call `window.atlasSetLanguage(code)` on every live WebView.
+4. Add `res/values-ar/strings.xml` and `res/values-en/strings.xml` (French stays in `values/`). Set `android:supportsRtl="true"`. Use `start`/`end` everywhere and never `left`/`right`. Mirror directional icons with `autoMirrored="true"`. Keep numbers, SKUs, invoice numbers and phone numbers LTR with `BidiFormatter` / `TextDirectionHeuristics.LTR`.
+5. Add `locales_config.xml` (fr, ar, en) so Android 13+ shows the per-app language in system settings. When the system locale changes, push it to the WebView as in item 3.
+6. Errors: map the server `error` text as it is (the web translates its own copies). For native-only errors, provide all three translations.
+7. User data (product, customer and employee names, document numbers) is **never** translated.
+
+### 10.3 Tests
+
+- `setLanguage("ar")` persists the value, switches the app locale and makes the layout direction RTL. Calling it a second time with the same value does nothing.
+- A native picker change calls `atlasSetLanguage` on the WebView (verify with a fake WebView).
+- At 360 dp in Arabic, the drawer opens from the right, back arrows point right, and amounts read `MAD 1 234,50` LTR.
+- Every string in `values/strings.xml` exists in `values-ar` and `values-en` (lint `MissingTranslation` = error).
+
+### 10.4 Checklist
+
+- [ ] Switching to Arabic in the web user menu flips the native drawer and status texts to Arabic RTL with no restart.
+- [ ] Switching in native Settings flips the WebView immediately.
+- [ ] Kill and relaunch the app: the language is kept on both sides.
+

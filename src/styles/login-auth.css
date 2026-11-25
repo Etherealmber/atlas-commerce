@@ -769,7 +769,7 @@ html body .atlas-login-lockup .atlas-lockup.atlas-login-lockup-svg {
   }
 }
 
-/* Demo account notice (« test / test », 20 min / 24 h). */
+/* Demo account notice (« test / test », 1 h / 24 h). */
 html.atlas-login-page body .atlas-login.atlas-login--auth7 .atlas-login-demo {
   display: flex;
   align-items: center;
@@ -913,3 +913,22 @@ html[data-theme="dark"].atlas-login-page body .atlas-login.atlas-login--auth7 bu
   background: #d4d4d8 !important;
   opacity: 0.6 !important;
 }
+
+/* v0.9.3 — Phone login card must never be shrunk by its flex column parent.
+   With overflow:hidden the card's min-height resolves to 0, so a tall error +
+   the demo box squeezed the card and clipped the password field and the
+   Cloudflare widget under it (iOS Chrome: no visible widget → no token). The
+   page itself scrolls instead. */
+html.atlas-login-page body .atlas-login.atlas-login--auth7 .atlas-login-card,
+html.atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone .atlas-login-card {
+  flex-shrink: 0 !important;
+  min-height: min-content !important;
+  max-height: none !important;
+}
+html.atlas-login-page body .atlas-login.atlas-login--auth7 .atlas-login-form-wrap,
+html.atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone .atlas-login-form-wrap {
+  max-height: none !important;
+  overflow: visible !important;
+  flex-shrink: 0 !important;
+}
+html.atlas-login-page body .atlas-login.atlas-login--auth7 #cf-turnstile { scroll-margin: 96px; }

@@ -1,3 +1,4 @@
+import { LANGS, setLang, useLang } from '../i18n/core';
 import { useState, useEffect, useRef } from 'react';
 import { AtlasLockup } from '../components/brand/AtlasLockup';
 import '../styles/login-auth.css';
@@ -14,7 +15,7 @@ function postLoginPath(fallback = '/dashboard'): string {
 import { APP_BUILD_DATE, APP_NAME, APP_VERSION, APP_GITHUB } from '../version';
 import { getApiBase } from '../config';
 import { validateLoginForm, firstError } from '../lib/formValidate';
-import { fetchDemoConfig, isDemoToken, setDemoSession, type DemoConfig } from '../lib/demoSession';
+import { fetchDemoConfig, isDemoToken, setDemoSession, startDemoGuides, type DemoConfig } from '../lib/demoSession';
 import { motion, AnimatePresence } from 'motion/react';
 import { QRCodeSVG } from 'qrcode.react';
 import { api } from '../api';
@@ -92,8 +93,8 @@ const REASON_MESSAGES: Record<string, string> = {
   NO_CREDENTIALS: 'Aucune biométrie enregistrée. Utilisez le mot de passe.',
   TURNSTILE_FAILED: 'Vérification anti-bot échouée. Rechargez la page.',
   DEVICE_REVOKED: 'Cet appareil a été révoqué depuis un autre appareil. Reconnectez-vous pour restaurer l’accès.',
-  DEMO_EXPIRED: 'Vos 20 minutes de démo sont terminées : la base fictive a été réinitialisée. Nouvel essai possible dans 24 h.',
-  DEMO_LEFT: 'Vous avez quitté le mode démo. La base fictive reste disponible jusqu’à la fin de vos 20 minutes.',
+  DEMO_EXPIRED: 'Votre heure de démo est terminée : la base fictive a été réinitialisée. Nouvel essai possible dans 24 h.',
+  DEMO_LEFT: 'Vous avez quitté le mode démo. La base fictive reste disponible jusqu’à la fin de votre heure d’essai.',
   DEMO_QUOTA: 'Trop d’essais de démo depuis ce réseau aujourd’hui. Réessayez demain.',
   DEMO_UNAVAILABLE: 'Le mode démo est momentanément indisponible. Réessayez plus tard.',
 };
@@ -388,6 +389,7 @@ function LoginPcQrPanel({ onSuccessFlash }: { onSuccessFlash?: () => void }) {
 
 
 export default function Login() {
+  const uiLang = useLang();
   useEffect(() => {
     document.documentElement.classList.add('atlas-login-page');
     return () => document.documentElement.classList.remove('atlas-login-page');
@@ -418,7 +420,7 @@ export default function Login() {
   const [passwordConfigured, setPasswordConfigured] = useState(true);
   const [demoConfig, setDemoConfig] = useState<DemoConfig | null>(null);
   const [turnstileSiteKey, setTurnstileSiteKey] = useState<string | null>(null);
-  const [turnstileToken, setTurnstileToken] = useState('');
+  const [, setTurnstileToken] = useState('');
   const [turnstileHint, setTurnstileHint] = useState(false);
   // v0.7.7 — retry manuel du widget Turnstile (re-render complet)
   const [turnstileNonce, setTurnstileNonce] = useState(0);
@@ -426,6 +428,8 @@ export default function Login() {
     typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light',
   );
   const turnstileTokenRef = useRef('');
+  /** Time (ms) of a submit attempted before the Turnstile token existed. */
+  const pendingSubmitAt = useRef(0);
   const turnstileWidgetId = useRef<string | undefined>(undefined);
 
   useEffect(() => {
@@ -582,7 +586,22 @@ export default function Login() {
             turnstileTokenRef.current = token;
             setTurnstileToken(token);
             setTurnstileHint(false);
+            // The user already pressed « Continuer » while the widget was
+            // still working: resume that login (within 2 minutes).
+            if (pendingSubmitAt.current && Date.now() - pendingSubmitAt.current < 120_000) {
+              pendingSubmitAt.current = 0;
+              // Microtask: the submit handler reads the token from the ref. The
+              // form is looked up at dispatch time (never a stale node), and a
+              // synthetic submit event reaches React's onSubmit in every
+              // browser without a native navigation.
+              void Promise.resolve().then(() => {
+                const form = (document.getElementById('cf-turnstile') || el).closest('form');
+                if (form?.isConnected) form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+              });
+            }
           },
+          'refresh-expired': 'auto',
+          retry: 'auto',
           'expired-callback': fail,
           'error-callback': fail,
           'timeout-callback': fail,
@@ -630,6 +649,8 @@ export default function Login() {
         message: data.demo.message,
         intro_seen: data.demo.state === 'active',
       });
+      // New demo hour → welcome guide + guided tour, like a first install.
+      if (data.demo.state !== 'active') startDemoGuides();
     }
     if (data.display_name != null || data.avatar_url != null) {
       setProfileCache({
@@ -656,7 +677,7 @@ export default function Login() {
       .catch(() => {});
     // Only the opt-in desktop flow resumes consent; login/OTP themselves are unchanged.
     if (desktopLoginReturn()) { navigate('/login/desktop', { replace: true }); return; }
-    // Demo sandbox: never offer passkey/biometric enrolment for a 20-minute
+    // Demo sandbox: never offer passkey/biometric enrolment for a 1-hour
     // throwaway account — go straight to the app.
     const skipBioOffer = !!data.demo?.active || isDemoToken(data.token);
     if (!skipBioOffer && (justTrusted || data.trusted_device) && isWebAuthnAvailable() && !getStoredBiometricCredentialId() && !hasCredentials) {
@@ -715,14 +736,20 @@ export default function Login() {
       ]);
       const native = isNativeClient();
       // Web + Turnstile configured: require a token before hitting the API
-      if (!native && turnstileSiteKey && !turnstileToken) {
-        setError('La vérification Cloudflare n’a pas encore fourni de jeton. Patientez quelques secondes puis cliquez à nouveau, ou utilisez « Réessayer la vérification » sous le cadre.');
+      const tsToken = turnstileTokenRef.current;
+      if (!native && turnstileSiteKey && !tsToken) {
+        // Phones (iOS Chrome/Safari) often need a tap on the widget, or a few
+        // more seconds. Bring the widget into view and resume the login on
+        // our own as soon as Cloudflare hands us a token.
+        pendingSubmitAt.current = Date.now();
+        setError('La vérification Cloudflare n’a pas encore fourni de jeton. Touchez la case de vérification ci-dessous si elle s’affiche : la connexion reprendra toute seule.');
         setLoading(false);
         window.setTimeout(() => {
-          document.querySelector('.atlas-login-alert')?.scrollIntoView({ block: 'nearest' });
+          document.getElementById('cf-turnstile')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
         }, 0);
         return;
       }
+      pendingSubmitAt.current = 0;
       const res = await fetch(`${getApiBase()}/api/auth/login`, {
         method: 'POST',
         headers: {
@@ -734,7 +761,7 @@ export default function Login() {
           username: username.trim().toLowerCase(),
           password,
           fingerprint: fp,
-          turnstile_token: native ? '' : turnstileToken,
+          turnstile_token: native ? '' : tsToken,
           client: native ? 'native' : 'web',
         }),
       });
@@ -984,7 +1011,7 @@ export default function Login() {
                 <strong>Essayer sans compte</strong>
                 <span>
                   Identifiant <code>{demoConfig.username}</code> · mot de passe <code>{demoConfig.password}</code> —
-                  {' '}{demoConfig.minutes} min de test toutes les {demoConfig.window_hours} h, sur une base fictive réinitialisée ensuite.
+                  {' '}{demoConfig.minutes % 60 === 0 ? `${demoConfig.minutes / 60} h` : `${demoConfig.minutes} min`} d’essai toutes les {demoConfig.window_hours} h, sur une base fictive réinitialisée ensuite.
                 </span>
               </div>
               <button type="button" className="atlas-login-demo-fill" onClick={fillDemo} disabled={loading}>
@@ -1171,6 +1198,13 @@ export default function Login() {
       </div>
 
       <div className="atlas-login-page-foot">
+        <div className="ac-login-lang notranslate" role="group" aria-label="Langue">
+          {LANGS.map((l) => (
+            <button key={l.code} type="button" lang={l.code} dir={l.dir} aria-pressed={uiLang === l.code} onClick={() => setLang(l.code)}>
+              {l.native}
+            </button>
+          ))}
+        </div>
         <nav className="atlas-login-foot-links" aria-label="Liens légaux et produit">
           <Link to="/privacy">Confidentialité</Link>
           <span aria-hidden>·</span>

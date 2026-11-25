@@ -100,16 +100,19 @@ describe('login Turnstile', () => {
     await setInput('#username', 'testuser');
     await setInput('#password', 'example-password');
     const submit = async () => { await act(async () => { container.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); }); };
+    const logins = () => fetchMock.mock.calls.filter(([url]) => String(url).includes('/api/auth/login'));
+    const options = render.mock.calls[0][1];
+    // An expired token is invalidated: submitting still waits for a fresh one.
+    await act(async () => { options.callback('old-token'); options['expired-callback'](); });
     await submit();
     expect(container.textContent).toContain('n’a pas encore fourni de jeton');
-    expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/api/auth/login'))).toBe(false);
-    const options = render.mock.calls[0][1];
-    await act(async () => { options.callback('test-token'); options['expired-callback'](); });
-    await submit();
-    expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/api/auth/login'))).toBe(false);
-    await act(async () => { options.callback('test-token'); });
-    await submit();
-    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes('/api/auth/login'))).toHaveLength(1);
+    expect(logins()).toHaveLength(0);
+    // The fresh token resumes the pending login by itself (phones: tap on the widget).
+    await act(async () => { render.mock.calls.at(-1)![1].callback('test-token'); });
+    await act(async () => { await new Promise((r) => window.setTimeout(r, 150)); });
+    await act(async () => { await new Promise((r) => window.setTimeout(r, 0)); });
+    expect(logins()).toHaveLength(1);
+    expect(JSON.parse(String(logins()[0][1]?.body)).turnstile_token).toBe('test-token');
   });
   it('renders flexible light-matched widget on normal phone widths instead of dark compact square', async () => {
     document.documentElement.setAttribute('data-theme', 'light');

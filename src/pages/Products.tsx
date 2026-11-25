@@ -820,10 +820,10 @@ export default function Products() {
                       />
                     </td>
                     <td>
-                      <Link className="product-list-open pc-list-open" to={`/products/${p.id}/historique`}><ProductArtwork url={p.image_url} largeImageProductId={p.image_inline_large ? p.id : undefined} alt="" className="pc-list-art" /><span className="pc-list-text"><strong>{p.name}</strong>{p.description ? <small>{p.description}</small> : null}</span></Link>
+                      <Link className="product-list-open pc-list-open" to={`/products/${p.id}/historique`}><ProductArtwork url={p.image_url} largeImageProductId={p.image_inline_large ? p.id : undefined} alt="" className="pc-list-art" /><span className="pc-list-text" translate="no"><strong>{p.name}</strong>{p.description ? <small>{p.description}</small> : null}</span></Link>
                     </td>
                     <td><span className="sku-mono">{p.sku || '—'}</span></td>
-                    <td>{p.category || '—'}</td>
+                    <td translate="no">{p.category || '—'}</td>
                     {!hideMoney && <td>{fmt(p.price)}</td>}
                     {!hideCost && <td>{fmt(p.cost)}</td>}
                     <td style={{ fontWeight: 700 }}>

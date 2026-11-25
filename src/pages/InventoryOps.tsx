@@ -173,6 +173,8 @@ export default function InventoryOps() {
     }
   };
 
+  const maxLine = (valuation?.lines || []).reduce((m: number, x: any) => Math.max(m, Number(x.value || 0)), 0);
+
   if (loading && !locations.length && !products.length && !valuation) {
     return (
       <div className="atlas-page ac-dash inventory-ops-page">
@@ -573,24 +575,61 @@ export default function InventoryOps() {
             </span>
           </div>
         </div>
-        <div className="table-wrap" style={{ maxHeight: 360, overflow: 'auto' }}>
-          <table>
+        <div className="table-wrap ac-valuation-wrap">
+          <table className="ac-valuation-table">
+            <colgroup>
+              <col />
+              <col style={{ width: '11%' }} />
+              <col style={{ width: '13%' }} />
+              <col style={{ width: '15%' }} />
+              <col style={{ width: '20%' }} />
+            </colgroup>
             <thead>
-              <tr><th>Produit</th><th>Qté</th><th>Coût u.</th><th>Valeur</th></tr>
+              <tr>
+                <th scope="col">Produit</th>
+                <th scope="col" className="num">Qté</th>
+                <th scope="col" className="num">Coût unitaire</th>
+                <th scope="col" className="num">Valeur (MAD)</th>
+                <th scope="col">Part du stock</th>
+              </tr>
             </thead>
             <tbody>
-              {(valuation?.lines || []).map((l: any) => (
-                <tr key={l.product_id}>
-                  <td>{l.name}</td>
-                  <td>{l.qty}</td>
-                  <td>{fmt(l.unit_cost)}</td>
-                  <td style={{ fontWeight: 700 }}>{fmt(l.value)}</td>
-                </tr>
-              ))}
+              {(valuation?.lines || []).map((l: any) => {
+                const total = Number(valuation?.total_value || 0);
+                const share = total > 0 ? (Number(l.value || 0) / total) * 100 : 0;
+                return (
+                  <tr key={l.product_id}>
+                    <td>
+                      <span className="ac-valuation-name">{l.name}</span>
+                      <span className="ac-valuation-meta">{[l.sku, l.category].filter(Boolean).join(' · ')}</span>
+                    </td>
+                    <td className="num">{Number(l.qty || 0).toLocaleString('fr-FR')}</td>
+                    <td className="num">{fmt(l.unit_cost)}</td>
+                    <td className="num"><strong>{fmt(l.value)}</strong></td>
+                    <td>
+                      <span className="ac-valuation-share" title={`${share.toFixed(1)} % de la valeur totale`}>
+                        <span className="ac-valuation-bar" aria-hidden="true"><span style={{ width: `${maxLine > 0 ? Math.max(2, (Number(l.value || 0) / maxLine) * 100) : 0}%` }} /></span>
+                        <span className="ac-valuation-pct">{share.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} %</span>
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
               {!(valuation?.lines || []).length && (
-                <tr><td colSpan={4} style={{ color: 'var(--muted)' }}>Aucune ligne valorisée.</td></tr>
+                <tr><td colSpan={5} style={{ color: 'var(--muted)' }}>Aucune ligne valorisée.</td></tr>
               )}
             </tbody>
+            {(valuation?.lines || []).length > 0 && (
+              <tfoot>
+                <tr>
+                  <th scope="row">Total · {valuation.lines.length} référence(s)</th>
+                  <td className="num">{valuation.lines.reduce((n: number, l: any) => n + Number(l.qty || 0), 0).toLocaleString('fr-FR')}</td>
+                  <td />
+                  <td className="num"><strong>{fmt(valuation.total_value || 0)}</strong></td>
+                  <td />
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </section>

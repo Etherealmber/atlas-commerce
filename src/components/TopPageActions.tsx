@@ -19,6 +19,7 @@ export default function TopPageActions({ children, enabled = true }: { children:
     const dock = column?.querySelector<HTMLElement>('.ac-desktop-dock');
     const update = () => {
       let next: HTMLElement | null = null;
+      let fit: 'wide' | 'icons' = 'wide';
       if (enabled && slot && column && dock && window.innerWidth >= 1500) {
         const items = Array.from(actions.children) as HTMLElement[];
         const visible = items.filter(item => getComputedStyle(item).display !== 'none');
@@ -35,7 +36,19 @@ export default function TopPageActions({ children, enabled = true }: { children:
         const dockWidth = Math.max(460, dock.getBoundingClientRect().width);
         const available = columnWidth / 2 - dockWidth / 2 - 40;
         const minAvailable = target === slot ? 180 : 220;
-        if (needed > 0 && columnWidth > 0 && available >= minAvailable) next = slot;
+        // Labelled width (max ever measured for this action set) vs. icon-only width.
+        const wide = widthHistory.current.maximum;
+        const iconsOnly = visible.length * 40 + Math.max(0, visible.length - 1) * gap + 16;
+        if (needed > 0 && columnWidth > 0) {
+          if (available >= Math.max(minAvailable, wide + 16)) { next = slot; fit = 'wide'; }
+          else if (available >= Math.max(minAvailable, iconsOnly)) { next = slot; fit = 'icons'; }
+        }
+      }
+      // Never let docked actions run under the centred title pill: when the labelled
+      // bar is too wide, the slot switches to its icon-only (hover-to-reveal) mode.
+      if (slot) {
+        if (next && fit === 'icons') slot.setAttribute('data-tpa-fit', 'icons');
+        else slot.removeAttribute('data-tpa-fit');
       }
       // Do not move a focused control out from under the keyboard user.
       if (next !== target && actions.contains(document.activeElement)) return;
@@ -47,6 +60,7 @@ export default function TopPageActions({ children, enabled = true }: { children:
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update);
     if (column) observer?.observe(column);
     return () => {
+      slot?.removeAttribute('data-tpa-fit');
       window.removeEventListener('resize', update);
       actions.removeEventListener('focusout', update);
       observer?.disconnect();

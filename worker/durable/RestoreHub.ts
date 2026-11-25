@@ -1,4 +1,8 @@
 import type { Env } from '../env';
+import type { CronBackupJob } from '../routes/backups';
+
+/** A running cron backup older than this is considered dead and may be restarted. */
+const CRON_STALE_MS = 20 * 60 * 1000;
 
 type RestoreJobState = {
   id: string;
@@ -79,6 +83,31 @@ export class RestoreHub {
     const url = new URL(request.url);
     const path = url.pathname;
 
+    // ── Background cron backup (instance « cron-backup ») ──────────────────
+    if (path === '/cron-backup/status') {
+      return Response.json({ success: true, data: (await this.state.storage.get<CronBackupJob>('cron_job')) || null });
+    }
+    if (request.method === 'POST' && path === '/cron-backup/start') {
+      const body = (await request.json().catch(() => ({}))) as { force?: boolean; skip_backup?: boolean };
+      const prev = await this.state.storage.get<CronBackupJob>('cron_job');
+      const prevAt = Date.parse(prev?.started_at || prev?.queued_at || '') || 0;
+      if (prev && (prev.status === 'running' || prev.status === 'queued') && Date.now() - prevAt < CRON_STALE_MS) {
+        return Response.json({ success: true, already_running: true, data: prev });
+      }
+      const job: CronBackupJob = {
+        id: `cron-${Date.now().toString(36)}`,
+        status: 'queued',
+        force: Boolean(body.force),
+        skip_backup: Boolean(body.skip_backup),
+        queued_at: new Date().toISOString(),
+        attempts: 0,
+      };
+      await this.state.storage.put('cron_job', job);
+      // Run right after this response: the alarm has its own 15-minute budget.
+      await this.state.storage.setAlarm(Date.now() + 50);
+      return Response.json({ success: true, data: job });
+    }
+
     if (request.method === 'GET' && (path === '/' || path === '/status')) {
       const job = await this.getJob();
       return Response.json({ success: true, data: job });
@@ -139,8 +168,38 @@ export class RestoreHub {
     return Response.json({ success: false, error: 'Not found' }, { status: 404 });
   }
 
+  private async runCronBackup(cron: CronBackupJob): Promise<void> {
+    const running: CronBackupJob = { ...cron, status: 'running', started_at: new Date().toISOString(), attempts: (cron.attempts || 0) + 1 };
+    await this.state.storage.put('cron_job', running);
+    try {
+      const { executeCronBackup } = await import('../routes/backups');
+      const result = await executeCronBackup(this.env, { force: cron.force, skipBackup: cron.skip_backup });
+      await this.state.storage.put('cron_job', {
+        ...running,
+        status: result.success ? 'ok' : 'failed',
+        finished_at: new Date().toISOString(),
+        result: { ...result, data: undefined },
+        error: result.success ? undefined : String(result.error || 'Backup failed').slice(0, 300),
+      } satisfies CronBackupJob);
+    } catch (e: unknown) {
+      // Never rethrow: a throwing alarm is retried by the runtime, which would
+      // re-read the whole database several times in a row.
+      await this.state.storage.put('cron_job', {
+        ...running,
+        status: 'failed',
+        finished_at: new Date().toISOString(),
+        error: String((e as Error)?.message || e).slice(0, 300),
+      } satisfies CronBackupJob);
+    }
+  }
+
   /** Alarm: process exactly one table, then schedule next. */
   async alarm(): Promise<void> {
+    const cron = await this.state.storage.get<CronBackupJob>('cron_job');
+    if (cron && cron.status === 'queued') {
+      await this.runCronBackup(cron);
+      return;
+    }
     const job = await this.getJob();
     if (!job || job.cancel || job.status === 'ok' || job.status === 'failed') return;
     if (job.status !== 'running' && job.status !== 'pending') return;

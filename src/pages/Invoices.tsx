@@ -2,6 +2,7 @@ import DocumentActors from '../components/DocumentActors';
 import TopPageActions from '../components/TopPageActions';
 import { ArrowRight, Ban, CheckCircle2, CreditCard, FileCheck2, FilePlus2, Pencil, RotateCcw, Truck } from 'lucide-react';
 import { TimedUndoDelete } from '../components/ui';
+import { RowActionsMenu } from '../components/ui/RowActionsMenu';
 import ListPager from '../components/ui/ListPager';
 import { onAgentDraft } from '../lib/agentDraft';
 import { useEffect, useState } from 'react';
@@ -117,6 +118,29 @@ export default function Invoices() {
   const [refundSaving, setRefundSaving] = useState(false);
   const [refundPayMethod, setRefundPayMethod] = useState('cash');
   const [refundSources, setRefundSources] = useState<any[]>([]);
+
+  const openRefundFor = async (invoiceId: number) => {
+    setShowRefund(true);
+    setRefundReasonCode('');
+    setRefundReasonDetail('');
+    setRefundSourceId(invoiceId);
+    try {
+      const res = await api.getInvoice(invoiceId);
+      const data = res.data;
+      setRefundSource(data);
+      setRefundLines(
+        (data.items || []).map((it: any) => ({
+          invoice_item_id: it.id,
+          product_name: it.product_name,
+          max_qty: Number(it.quantity || 0),
+          quantity: Number(it.quantity || 0),
+          unit_price: Number(it.unit_price || 0),
+        }))
+      );
+    } catch (e: any) {
+      flash(e?.message || 'Impossible de charger la facture', 'error');
+    }
+  };
 
   const buildRefundLines = async (data: any) => {
     const prior = await api.getInvoices('remboursement', { kind: 'all' }).catch(() => ({ data: [] }));
@@ -556,7 +580,7 @@ export default function Invoices() {
                       ) : null}
                     </td>
                     <td>
-                      {inv.client_name}
+                      <span translate="no">{inv.client_name}</span>
                       {inv.client_id && <small style={{ display: 'block', color: 'var(--muted)', fontSize: 11 }}>
                         <Link to={`/clients`}>Fiche client #{inv.client_id}</Link>
                       </small>}
@@ -575,7 +599,7 @@ export default function Invoices() {
                         ? '—'
                         : fmt(remainingBalance(inv.total, inv.amount_paid))}
                     </td>
-                    <td className="row-actions-cell" onClick={(e) => e.stopPropagation()}><div className="row-actions">
+                    <td className="row-actions-cell" onClick={(e) => e.stopPropagation()}><div className="row-actions ac-row-actions-compact">
                       <button
                         type="button"
                         className="secondary"
@@ -584,84 +608,50 @@ export default function Invoices() {
                         <Pencil size={14} aria-hidden="true" />
                         <span>{inv.status === 'cancelled' ? 'Consulter' : 'Modifier'}</span>
                       </button>
-                      {inv.status !== 'quote' && inv.status !== 'devis' && inv.status !== 'remboursement' && inv.status !== 'cancelled' && (
-                        <button
-                          type="button"
-                          className="secondary"
-                          onClick={async () => {
-                            try {
-                              const r: any = await api.createDeliveryNote({ invoice_id: inv.id });
-                              toast(r.message || 'BL créé', 'success');
-                            } catch (e: any) {
-                              setModalError(friendlyError(e));
-                            }
-                          }}
-                        >
-                          <FileCheck2 size={14} aria-hidden="true" />
-                          <span>BL</span>
-                        </button>
-                      )}
                       {(inv.status === 'quote' || inv.status === 'devis') && (
                         <button type="button" className="secondary" onClick={() => convertQuote(inv.id)}>
                           <ArrowRight size={14} aria-hidden="true" />
                           <span>Facturer</span>
                         </button>
                       )}
-                      {inv.status === 'sent' && (
-                        <button type="button" className="secondary" onClick={() => api.pipelineAdvance(inv.id, 'accepted').then(() => load(true)).catch((e: any) => alert(e?.message || 'Pipeline'))}>
-                          <CheckCircle2 size={14} aria-hidden="true" />
-                          <span>Acceptée</span>
-                        </button>
-                      )}
-                      {['sent', 'paid', 'partial'].includes(inv.status) && (
-                        <button type="button" className="secondary" onClick={() => api.pipelineAdvance(inv.id, 'delivered').then(() => load(true)).catch((e: any) => alert(e?.message || 'Pipeline'))}>
-                          <Truck size={14} aria-hidden="true" />
-                          <span>Livrée</span>
-                        </button>
-                      )}
                       {inv.status !== 'paid' && inv.status !== 'cancelled' && inv.status !== 'quote' && inv.status !== 'devis' && inv.status !== 'remboursement' && (
                         <button type="button" className="secondary" onClick={() => openPay(inv)}>
                           <CreditCard size={14} aria-hidden="true" />
-                          <span>Paiement…</span>
+                          <span>Paiement</span>
                         </button>
                       )}
-                      {inv.status !== 'cancelled' && inv.status !== 'quote' && inv.status !== 'devis' && inv.status !== 'remboursement' && (
-                        <button
-                          type="button"
-                          className="secondary"
-                          onClick={async () => {
-                            setShowRefund(true);
-                            setRefundReasonCode('');
-                            setRefundReasonDetail('');
-                            setRefundSourceId(inv.id);
-                            try {
-                              const res = await api.getInvoice(inv.id);
-                              const data = res.data;
-                              setRefundSource(data);
-                              setRefundLines(
-                                (data.items || []).map((it: any) => ({
-                                  invoice_item_id: it.id,
-                                  product_name: it.product_name,
-                                  max_qty: Number(it.quantity || 0),
-                                  quantity: Number(it.quantity || 0),
-                                  unit_price: Number(it.unit_price || 0),
-                                }))
-                              );
-                            } catch (e: any) {
-                              flash(e?.message || 'Impossible de charger la facture', 'error');
-                            }
-                          }}
-                        >
-                          <RotateCcw size={14} aria-hidden="true" />
-                          <span>WR…</span>
-                        </button>
-                      )}
-                      {inv.status !== 'cancelled' && inv.status !== 'remboursement' && (
-                        <button type="button" className="danger" onClick={() => cancelInvoice(inv.id)}>
-                          <Ban size={14} aria-hidden="true" />
-                          <span>Annuler</span>
-                        </button>
-                      )}
+                      <RowActionsMenu
+                        label={`Plus d’actions pour ${inv.number}`}
+                        actions={[
+                          ...(inv.status !== 'quote' && inv.status !== 'devis' && inv.status !== 'remboursement' && inv.status !== 'cancelled' ? [{
+                            key: 'bl', label: 'Créer le bon de livraison (BL)', icon: <FileCheck2 size={15} />,
+                            onSelect: async () => {
+                              try {
+                                const r: any = await api.createDeliveryNote({ invoice_id: inv.id });
+                                toast(r.message || 'BL créé', 'success');
+                              } catch (e: any) {
+                                setModalError(friendlyError(e));
+                              }
+                            },
+                          }] : []),
+                          ...(inv.status === 'sent' ? [{
+                            key: 'accepted', label: 'Marquer acceptée', icon: <CheckCircle2 size={15} />,
+                            onSelect: () => { api.pipelineAdvance(inv.id, 'accepted').then(() => load(true)).catch((e: any) => flash(e?.message || 'Pipeline', 'error')); },
+                          }] : []),
+                          ...(['sent', 'paid', 'partial'].includes(inv.status) ? [{
+                            key: 'delivered', label: 'Marquer livrée', icon: <Truck size={15} />,
+                            onSelect: () => { api.pipelineAdvance(inv.id, 'delivered').then(() => load(true)).catch((e: any) => flash(e?.message || 'Pipeline', 'error')); },
+                          }] : []),
+                          ...(inv.status !== 'cancelled' && inv.status !== 'quote' && inv.status !== 'devis' && inv.status !== 'remboursement' ? [{
+                            key: 'wr', label: 'Remboursement (WR)…', icon: <RotateCcw size={15} />,
+                            onSelect: () => { void openRefundFor(inv.id); },
+                          }] : []),
+                          ...(inv.status !== 'cancelled' && inv.status !== 'remboursement' ? [{
+                            key: 'cancel', label: 'Annuler la facture', icon: <Ban size={15} />, tone: 'danger' as const,
+                            onSelect: () => cancelInvoice(inv.id),
+                          }] : []),
+                        ]}
+                      />
                       <TimedUndoDelete iconOnly width="34px"
                         deleteLabel="Supprimer"
                         undoLabel="Annuler"

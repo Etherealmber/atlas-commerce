@@ -27,6 +27,7 @@ function isRemboursement(inv: any) {
 export default function Reimbursements() {
   const { confirm } = useUi();
   const [list, setList] = useState<any[]>([]);
+  const [sourceNumbers, setSourceNumbers] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
@@ -55,6 +56,9 @@ export default function Reimbursements() {
       .then(([byStatus, all]) => {
         const merged = [...(byStatus.data || []), ...(all.data || [])];
         const map = new Map<number, any>();
+        const numbers: Record<number, string> = {};
+        for (const inv of merged) if (inv?.id != null && inv.number) numbers[inv.id] = String(inv.number);
+        setSourceNumbers(numbers);
         for (const inv of merged) {
           if (inv?.id != null && isRemboursement(inv)) map.set(inv.id, inv);
         }
@@ -201,7 +205,10 @@ export default function Reimbursements() {
           <DocumentActors document={inv} />
                     {inv.refund_of_invoice_id ? (
                       <div style={{ fontSize: 12, color: 'var(--muted)' }}>
-                        Source #{inv.refund_of_invoice_id}
+                        Source :{' '}
+                        <Link to={`/invoices/${inv.refund_of_invoice_id}`} style={{ color: 'inherit' }} title="Ouvrir la facture d’origine">
+                          {sourceNumbers[inv.refund_of_invoice_id] || `#${inv.refund_of_invoice_id}`}
+                        </Link>
                       </div>
                     ) : null}
                   </td>

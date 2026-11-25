@@ -1,0 +1,68 @@
+name: Issue AI assistant (Groq triage + PR linking)
+
+# Bug reports (issues labelled `bug` / `crash-report`, or bug-like text):
+#   → Groq (free tier) analyses the report against the current code and posts ONE
+#     comment: summary, probable cause, files, fix, verification and a copy-paste
+#     « fix prompt »; adds severity/area labels and assigns the issue.
+#   → comment `/atlas-triage` (maintainers) to re-run, or use « Run workflow ».
+# Pull requests:
+#   → every referenced issue gets a « fix in progress » comment + `in-progress`
+#     label (PR author assigned); on merge, issues listed with Fixes/Closes/
+#     Resolves #n (or a branch like `fix/123-…`) are commented and closed.
+#
+# Setup: add the repository secret GROQ_API_KEY (console.groq.com, free).
+# Optional repository variables: GROQ_MODEL (default openai/gpt-oss-120b),
+# GROQ_DAILY_LIMIT (default 25 analyses/day), GROQ_ENABLED=false to pause,
+# ISSUE_ASSIGNEE (default: repository owner).
+#
+# pull_request_target is used ONLY to read PR metadata with a write token;
+# the job checks out the base branch, never the PR's code.
+
+on:
+  issues:
+    types: [opened, labeled, reopened]
+  issue_comment:
+    types: [created]
+  pull_request_target:
+    types: [opened, edited, reopened, ready_for_review, closed]
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: Issue number to (re)analyse
+        required: true
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: issue-ai-${{ github.event.issue.number || github.event.pull_request.number || github.event.inputs.issue || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  assist:
+    if: >-
+      github.event_name != 'issue_comment' ||
+      (startsWith(github.event.comment.body, '/atlas-triage') && !github.event.issue.pull_request)
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Checkout base branch (code context only)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run assistant
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GROQ_MODEL: ${{ vars.GROQ_MODEL }}
+          GROQ_DAILY_LIMIT: ${{ vars.GROQ_DAILY_LIMIT }}
+          GROQ_ENABLED: ${{ vars.GROQ_ENABLED }}
+          ISSUE_ASSIGNEE: ${{ vars.ISSUE_ASSIGNEE }}
+        run: node scripts/issue-ai.mjs

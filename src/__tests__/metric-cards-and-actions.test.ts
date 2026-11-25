@@ -120,8 +120,8 @@ describe('page actions, home pill and Nouveautés layout', () => {
   });
 
   it('widens only the hovered/focused compact button, not the whole bar', () => {
-    expect(shell).toMatch(/--compact \.top-page-actions > :is\(button, a\):has\(> \.tpa-label\):not\(\.tpa-keep-wide\):is\(:hover, :focus-visible\)[^{]*\{[^}]*max-width: 260px/);
-    expect(shell).toMatch(/--compact \.top-page-actions > :is\(button, a\):is\(:hover, :focus-visible\) > \.tpa-label[^{]*\{[^}]*opacity: 1/);
+    expect(shell).toMatch(/--compact(?:, \[data-tpa-fit="icons"\]\))? \.top-page-actions > :is\(button, a\):has\(> \.tpa-label\):not\(\.tpa-keep-wide\):is\(:hover, :focus-visible\)[^{]*\{[^}]*max-width: 260px/);
+    expect(shell).toMatch(/--compact(?:, \[data-tpa-fit="icons"\]\))? \.top-page-actions > :is\(button, a\):is\(:hover, :focus-visible\) > \.tpa-label[^{]*\{[^}]*opacity: 1/);
     expect(shell).not.toMatch(/desktop-catalog-actions-slot:hover[^{]*\.tpa-label/);
     const app = readFileSync(path.resolve(process.cwd(), 'src/App.tsx'), 'utf8');
     const enter = app.slice(app.indexOf('id="desktop-catalog-actions"'), app.indexOf('<header ref={dockRef}'));

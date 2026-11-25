@@ -1,0 +1,158 @@
+/* ==========================================================================
+   Arabic / RTL shell (html[dir="rtl"], set by src/i18n/core.ts).
+   Grid + flex layouts flip automatically with `direction: rtl`; this file
+   mirrors what uses physical left/right offsets (fixed rails, floating pills)
+   and sets an Arabic-capable font stack. Imported last (after dark-force).
+   ========================================================================== */
+
+html[dir="rtl"] body {
+  font-family: "Noto Sans Arabic", "Segoe UI", Tahoma, "Geeza Pro", "Arial", var(--ac-font, system-ui), sans-serif;
+  text-align: start;
+}
+html[dir="rtl"] :is(code, pre, kbd, samp, .mono, [class*="mono"]) {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+/* Numbers, SKUs, references and amounts stay readable (LTR runs inside RTL). */
+html[dir="rtl"] :is(.as-value, .ac-metric-val, td.num, .num, .ac-number-link, .demo-chip-time, input[type="number"], input[type="tel"], input[type="email"], input[type="url"]) {
+  unicode-bidi: plaintext;
+}
+
+/* ── Desktop shell: classic sidebar on the right ─────────────────────────── */
+html[dir="rtl"] body .ac-sidebar:not(#rtl-g):not(#rtl-h):not(#rtl-i) {
+  left: auto !important;
+  right: 0 !important;
+  border-right: 0 !important;
+  border-left: 1px solid var(--ac-line) !important;
+}
+html[dir="rtl"] body .layout .sidebar:not(#rtl-g):not(#rtl-h):not(#rtl-i) {
+  border-right: 0 !important;
+  border-left: 1px solid var(--ac-sidebar-border, var(--ac-line)) !important;
+}
+
+/* ── Focus rail (Paramètres / À propos / focus pages) ────────────────────── */
+@media (min-width: 961px) {
+  html[dir="rtl"] body aside.atlas-focus-sidebar:not(#rtl-g):not(#rtl-h):not(#rtl-i) {
+    left: auto !important;
+    right: 16px !important;
+  }
+  html[dir="rtl"] body .layout:not(.layout--focus) aside.atlas-focus-sidebar:not(#rtl-g):not(#rtl-h):not(#rtl-i) { right: 256px !important; }
+  html[dir="rtl"] body .layout.sidebar-collapsed:not(.layout--focus) aside.atlas-focus-sidebar:not(#rtl-g):not(#rtl-h):not(#rtl-i) { right: 96px !important; }
+  html[dir="rtl"] body .layout .atlas-focus-layout:not(#rtl-g):not(#rtl-h):not(#rtl-i) {
+    padding-left: 28px !important;
+    padding-right: 276px !important;
+    transition: padding-right 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  html[dir="rtl"] body .layout .atlas-focus-layout:not(.atlas-focus-layout--centered):has(.atlas-focus-sidebar.is-collapsed):not(#rtl-g):not(#rtl-h):not(#rtl-i) {
+    padding-right: 88px !important;
+  }
+  html[dir="rtl"] body .layout .atlas-focus-layout.atlas-focus-layout--centered:not(#rtl-g):not(#rtl-h):not(#rtl-i) {
+    padding-right: 276px !important;
+    padding-left: clamp(28px, calc(100vw - 276px - 780px), 276px) !important;
+  }
+}
+html[dir="rtl"] body :is(.public-about, .public-whats-new, .public-legal) .atlas-focus-layout:not(#rtl-g):not(#rtl-h) {
+  padding-left: 28px;
+  padding-right: 282px;
+}
+
+/* ── Floating top row: home / back pill on the right, page actions on the left ── */
+@media (min-width: 901px) {
+  html[dir="rtl"] body .ac-desktop-top-row > a.ac-home-pill:not(#hp-g):not(#hp-h):not(#hp-i):not(#rtl-g) {
+    left: auto !important;
+    right: 16px !important;
+  }
+  html[dir="rtl"] body:has(.atlas-focus-sidebar.is-collapsed) .ac-desktop-top-row > a.ac-home-pill:not(#hp-g):not(#hp-h):not(#hp-i):not(#rtl-g) {
+    right: 25px !important;
+  }
+  html[dir="rtl"] body .desktop-catalog-actions-slot:not(#rtl-g):not(#rtl-h):not(#rtl-i) {
+    right: auto !important;
+    left: 16px !important;
+  }
+}
+/* Back arrows point the reading direction. */
+html[dir="rtl"] :is(.ac-back-pill, .ac-dash-link, .ac-dash-next-go, .ac-user-dropdown-chev, .ac-pager-prev, .ac-pager-next) svg { transform: scaleX(-1); }
+
+/* ── Floating chips & FABs ───────────────────────────────────────────────── */
+html[dir="rtl"] body .demo-chip:not(#rtl-g):not(#rtl-h) {
+  left: auto !important;
+  right: max(16px, env(safe-area-inset-right, 0px)) !important;
+}
+
+/* Mirror the right-hand floaters (agent FAB/panel, Android teaser) to the
+   left so they never sit on top of the right-hand sidebar / demo chip. */
+html[dir="rtl"] body :is(.atlas-agent-fab, .atlas-dl-teaser):not(#rtl-g):not(#rtl-h) {
+  right: auto !important;
+  left: 22px !important;
+}
+html[dir="rtl"] body .atlas-agent-panel:not(#rtl-g):not(#rtl-h) {
+  right: auto !important;
+  left: 0 !important;
+}
+
+/* ── Menus, popovers, toasts ─────────────────────────────────────────────── */
+html[dir="rtl"] .ac-user-dropdown,
+html[dir="rtl"] .ac-row-menu { text-align: start; }
+html[dir="rtl"] :is(th, td) { text-align: start; }
+html[dir="rtl"] :is(th, td).num,
+html[dir="rtl"] .ac-valuation-table .num { text-align: end; }
+html[dir="rtl"] input:not([type="number"]):not([type="tel"]):not([type="email"]):not([type="url"]),
+html[dir="rtl"] textarea,
+html[dir="rtl"] select { text-align: start; }
+
+/* ── Language dialog rows are buttons now ────────────────────────────────── */
+.ac-lang-list > li { border-bottom: 1px solid rgba(15, 23, 42, 0.06); }
+.ac-lang-list > li:last-child { border-bottom: 0; }
+html[data-theme="dark"] body .ac-lang-list > li { border-bottom-color: rgba(255, 255, 255, 0.06); }
+html body .ac-lang-list > li > button.ac-lang-row:not(#lang-g):not(#lang-h):not(#lang-i) {
+  width: 100%;
+  margin: 0;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: inherit !important;
+  -webkit-text-fill-color: currentColor;
+  text-align: start;
+  cursor: pointer;
+  min-height: 0 !important;
+  height: auto !important;
+}
+html body .ac-lang-list > li > button.ac-lang-row:not(.is-current):hover:not(#lang-g):not(#lang-h):not(#lang-i) {
+  background: rgba(15, 23, 42, 0.04) !important;
+}
+html[data-theme="dark"] body .ac-lang-list > li > button.ac-lang-row:not(.is-current):hover:not(#lang-g):not(#lang-h):not(#lang-i) {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+html body .ac-lang-list > li > button.ac-lang-row:focus-visible:not(#lang-g):not(#lang-h):not(#lang-i) {
+  outline: 2px solid currentColor !important;
+  outline-offset: -3px !important;
+}
+.ac-lang-native[dir="rtl"] { text-align: start; }
+
+/* Login: compact language switch */
+.ac-login-lang {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--ac-line, rgba(15, 23, 42, 0.1));
+  border-radius: 999px;
+  background: var(--ac-paper, #fff);
+}
+html body .ac-login-lang > button:not(#lang-g):not(#lang-h):not(#lang-i) {
+  min-height: 28px !important;
+  height: 28px !important;
+  padding: 0 11px !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  color: var(--ac-muted, #64748b) !important;
+  -webkit-text-fill-color: currentColor;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+}
+html body .ac-login-lang > button[aria-pressed="true"]:not(#lang-g):not(#lang-h):not(#lang-i) {
+  background: var(--ac-ink, #0f172a) !important;
+  color: var(--ac-paper, #fff) !important;
+}

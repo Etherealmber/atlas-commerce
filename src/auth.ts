@@ -64,7 +64,7 @@ export function setToken(token: string, ip?: string, username?: string, role?: s
   if (ip) localStorage.setItem(SESSION_IP_KEY, ip);
   if (username) localStorage.setItem(USER_KEY, username);
   if (role) localStorage.setItem(ROLE_KEY, role);
-  // Demo sandbox tokens expire after 20 minutes: never keep them in the
+  // Demo sandbox tokens expire after 1 hour: never keep them in the
   // account switcher, and leave demo mode as soon as a real session starts.
   if (isDemoToken(token)) return;
   clearDemoSession();

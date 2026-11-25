@@ -1,3 +1,4 @@
+import { langMeta, useLang } from '../i18n/core';
 import QrLoginPanel from '../components/settings/QrLoginPanel';
 import { LanguageSoonDialog } from '../components/LanguageSoonDialog';
 import SettingsUserDialog from '../components/SettingsUserDialog';
@@ -57,7 +58,7 @@ import AccountSecurityPanel from '../components/AccountSecurityPanel';
 import { resetWelcome } from '../lib/welcome';
 import DbMigrationPanel from '../components/DbMigrationPanel';
 import AgentKnowledgePanel from '../components/settings/AgentKnowledgePanel';
-import { MetricSpark, MetricTrend } from '../components/MetricSpark';
+import { DeltaChip } from '../components/DeltaChip';
 export default function Settings() {
   const navigate = useNavigate();
   // v0.7.6 — préférence « page d'ouverture » (localStorage, par appareil)
@@ -91,6 +92,7 @@ export default function Settings() {
   // Last loaded / saved settings: « Annuler » restores it in place (no reload).
   const savedSettingsRef = useRef<any>(null);
   const [langOpen, setLangOpen] = useState(false);
+  const uiLang = useLang();
   const [justSaved, setJustSaved] = useState(false);
 
   const [saveMsg, setSaveMsg] = useState('');
@@ -1364,7 +1366,7 @@ if (loading) return (
             role={typeof getRole === 'function' ? String(getRole() || '') : ''}
           />
 
-          {/* v0.9.3 — Langue de l’interface (arabe et anglais à venir) */}
+          {/* v0.9.3 — Langue de l’interface : français, arabe (RTL), anglais */}
           <div className="ac-panel ac-settings-lang" id="settings-language">
             <div className="ac-settings-panel-head">
               <div>
@@ -1375,12 +1377,11 @@ if (loading) return (
             <div className="ac-settings-lang-row">
               <span className="ac-settings-lang-current">
                 <Languages size={16} strokeWidth={1.9} aria-hidden />
-                <b>Français</b>
+                <b className="notranslate" lang={uiLang} dir={langMeta(uiLang).dir}>{langMeta(uiLang).native}</b>
                 <i>Langue actuelle</i>
               </span>
               <button type="button" className="ac-settings-lang-btn" onClick={() => setLangOpen(true)}>
                 Changer de langue
-                <span className="ac-settings-lang-soon">Bientôt</span>
               </button>
             </div>
           </div>
@@ -2777,6 +2778,12 @@ if (loading) return (
           '30d': '30 j',
           all: 'Tout',
         };
+        const rangePrev: Record<'24h' | '7d' | '30d' | 'all', string> = {
+          '24h': 'les 24 h précédentes',
+          '7d': 'les 7 jours précédents',
+          '30d': 'les 30 jours précédents',
+          all: 'tout l’historique',
+        };
         const days = ((auditStats?.by_day as any[]) || []).slice(-14);
         const dayMax = Math.max(1, ...days.map((d: any) => Number(d.n || 0)));
         const topActions = (auditStats?.top_actions as any[]) || [];
@@ -2796,6 +2803,48 @@ if (loading) return (
                   <p>Suivi complet des connexions, modifications et opérations sensibles (admin uniquement).</p>
                 </div>
               </div>
+                <div className="ac-audit-toolbar ac-audit-toolbar--head">
+                  <div className="ac-dash-period-pills ac-audit-range-pills" role="group" aria-label="Période d’audit">
+                    {(['24h', '7d', '30d', 'all'] as const).map((rKey) => (
+                      <button
+                        key={rKey}
+                        type="button"
+                        className="ac-seg-btn"
+                        aria-pressed={auditRange === rKey}
+                        onClick={() => setAuditRange(rKey)}
+                      >
+                        {rangeShort[rKey]}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="ac-audit-toolbar-actions">
+                    <button
+                      type="button"
+                      className="secondary ac-audit-action-btn"
+                      disabled={auditLoading}
+                      onClick={() => loadAuditPage(null, auditQ, true)}
+                    >
+                      <RefreshCw size={14} strokeWidth={2} aria-hidden="true" />
+                      <span>{auditLoading ? 'Chargement…' : 'Actualiser'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary ac-audit-action-btn"
+                      disabled={auditLoading}
+                      onClick={async () => {
+                        try {
+                          await api.exportAuditLog('csv', 500);
+                          flash('Export CSV téléchargé.');
+                        } catch (e: any) {
+                          flash(e?.message || 'Échec export', 'error');
+                        }
+                      }}
+                    >
+                      <Download size={14} strokeWidth={2} aria-hidden="true" />
+                      <span>Export CSV</span>
+                    </button>
+                  </div>
+                </div>
             </div>
 
             <div className="ac-metric-grid ac-audit-kpis">
@@ -2804,17 +2853,30 @@ if (loading) return (
                   <Activity className="as-icon" size={14} strokeWidth={2} aria-hidden="true" />
                   <span>Actions ({rangeShort[auditRange]})</span>
                 </div>
-                <div className="as-value">{auditStats?.total ?? '—'}<MetricTrend k="audit_events" /></div>
-                <div className="as-hint">{rangeLabels[auditRange]}</div>
-                <MetricSpark k="audit_events" />
+                <div className="as-value">{auditStats?.total ?? '—'}{auditStats && <DeltaChip current={Number(auditStats.total || 0)} previous={auditStats.previous_total} against={rangePrev[auditRange]} />}</div>
+                <div className="ac-kpi-sub">
+                  {auditStats?.previous_total != null
+                    ? `${auditStats.previous_total} sur ${rangePrev[auditRange]}`
+                    : rangeLabels[auditRange]}
+                </div>
+                {days.length >= 2 && (
+                  <svg className="ac-audit-spark" viewBox="0 0 100 32" preserveAspectRatio="none" aria-hidden="true">
+                    <polyline fill="none" stroke="currentColor" strokeWidth="2" vectorEffect="non-scaling-stroke"
+                      points={days.map((d: any, i: number) => `${(i / (days.length - 1)) * 100},${30 - (Number(d.n || 0) / dayMax) * 26}`).join(' ')} />
+                  </svg>
+                )}
               </article>
               <article className="ac-metric">
                 <div className="as-label">
                   <Users className="as-icon" size={14} strokeWidth={2} aria-hidden="true" />
                   <span>Acteurs uniques</span>
                 </div>
-                <div className="as-value">{auditStats?.unique_actors ?? '—'}</div>
-                <div className="as-hint">utilisateurs &amp; système</div>
+                <div className="as-value">{auditStats?.unique_actors ?? '—'}{auditStats && <DeltaChip current={Number(auditStats.unique_actors || 0)} previous={auditStats.previous_actors} against={rangePrev[auditRange]} />}</div>
+                <div className="ac-kpi-sub">
+                  {auditStats?.previous_actors != null
+                    ? `${auditStats.previous_actors} sur ${rangePrev[auditRange]}`
+                    : 'utilisateurs & système'}
+                </div>
               </article>
               <article className="ac-metric">
                 <div className="as-label">
@@ -2822,7 +2884,7 @@ if (loading) return (
                   <span>Sur cette page</span>
                 </div>
                 <div className="as-value">{auditLog.length}</div>
-                <div className="as-hint">
+                <div className="ac-kpi-sub">
                   page {auditCursorStack.length}
                   {auditMeta?.has_more ? ' · suite disponible' : ' · fin'}
                 </div>
@@ -2835,7 +2897,7 @@ if (loading) return (
                 <div className="as-value" style={{ fontSize: '1.05rem', wordBreak: 'break-word' }}>
                   {auditAction || topAct?.action || '—'}
                 </div>
-                <div className="as-hint">
+                <div className="ac-kpi-sub">
                   {auditAction
                     ? 'filtre actif sur ce type'
                     : topAct
@@ -2954,49 +3016,6 @@ if (loading) return (
                       }
                     }}
                   />
-                </div>
-              </div>
-
-              <div className="ac-audit-toolbar">
-                <div className="ac-dash-period-pills ac-audit-range-pills" role="group" aria-label="Période d’audit">
-                  {(['24h', '7d', '30d', 'all'] as const).map((rKey) => (
-                    <button
-                      key={rKey}
-                      type="button"
-                      className="ac-seg-btn"
-                      aria-pressed={auditRange === rKey}
-                      onClick={() => setAuditRange(rKey)}
-                    >
-                      {rangeShort[rKey]}
-                    </button>
-                  ))}
-                </div>
-                <div className="ac-audit-toolbar-actions">
-                  <button
-                    type="button"
-                    className="secondary ac-audit-action-btn"
-                    disabled={auditLoading}
-                    onClick={() => loadAuditPage(null, auditQ, true)}
-                  >
-                    <RefreshCw size={14} strokeWidth={2} aria-hidden="true" />
-                    <span>{auditLoading ? 'Chargement…' : 'Actualiser'}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="secondary ac-audit-action-btn"
-                    disabled={auditLoading}
-                    onClick={async () => {
-                      try {
-                        await api.exportAuditLog('csv', 500);
-                        flash('Export CSV téléchargé.');
-                      } catch (e: any) {
-                        flash(e?.message || 'Échec export', 'error');
-                      }
-                    }}
-                  >
-                    <Download size={14} strokeWidth={2} aria-hidden="true" />
-                    <span>Export CSV</span>
-                  </button>
                 </div>
               </div>
 

@@ -119,9 +119,17 @@ html body .balance-page .ac-timed-delete-btn {
   border-radius: 999px !important;
   box-shadow: none !important;
 }
-html body .settings-main button.danger:hover,
-html body .settings-main .ac-timed-delete-btn:hover {
+html body .settings-main button.danger:hover {
   background: #dc2626 !important;
+}
+/* S — the timed delete (Catégories, Unités…) never turns into a solid red
+   disc: on touch screens :hover sticks after the tap and painted the armed
+   countdown red-on-red. Hover is only a slightly stronger tint. */
+html body .settings-main .ac-timed-delete-btn:not(.is-armed):hover {
+  background: rgba(239, 68, 68, 0.2) !important;
+}
+html body .settings-main .ac-timed-delete-btn.is-armed:hover {
+  background: #fee2e2 !important;
 }
 
 /* Settings nav active — neutral slate, not teal/mint */

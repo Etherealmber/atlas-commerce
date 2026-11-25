@@ -100,6 +100,31 @@ respecté). Une clé séparée `GROQ_ISSUES_API_KEY` évite de consommer le quot
 (les limites Groq sont par organisation et par modèle : utiliser une autre organisation Groq
 pour une isolation complète).
 
+## 3 ter. Assistant GitHub Actions : analyse, prompt de correction, PR liées, fermeture
+
+Workflow `.github/workflows/issue-ai.yml` (script `scripts/issue-ai.mjs`, aide pure
+`scripts/issue-ai-lib.mjs`, tests `src/__tests__/issue-ai-lib.test.ts`). Il complète le triage
+du worker : il tourne **dans GitHub**, donc aussi pour les tickets ouverts à la main.
+
+| Événement | Action |
+|---|---|
+| Issue ouverte / rouverte / label `bug` ou `crash-report` | si c'est un bug (labels ou texte) : assignation (propriétaire du dépôt ou `ISSUE_ASSIGNEE`), extraction du contexte code (route → page, identifiants de la stack → `git grep` sur `src/` + `worker/`, ≤ 4 extraits), appel Groq, **un seul commentaire** : résumé, gravité/zone/confiance, cause probable, fichiers, étapes, correctif, vérification et un **prompt de correction** prêt à coller dans un agent de code (il exige un test, `tsc`, `vitest` et `Fixes #n`). Labels `ai-triaged`, `severity:*`, `area:*` (+ `needs-info` si le ticket est trop vague). |
+| Commentaire `/atlas-triage` (OWNER / MEMBER / COLLABORATOR) ou « Run workflow » | relance l'analyse et **met à jour** le même commentaire. |
+| PR ouverte / modifiée | chaque ticket cité reçoit « 🔗 Correctif en cours » (une fois par PR), le label `in-progress`, et l'auteur de la PR est assigné si la PR le ferme. |
+| PR fusionnée | les tickets cités avec `Fixes/Closes/Resolves #n` (ou une branche `fix/123-…`, `issue-123`) reçoivent « ✅ Corrigé par #PR (sha) », le label `fixed`, et sont **fermés** (`completed`). PR fermée sans fusion : `in-progress` retiré. |
+
+Configuration : secret de dépôt **`GROQ_API_KEY`** (Settings → Secrets and variables → Actions).
+Variables facultatives : `GROQ_MODEL` (`openai/gpt-oss-120b`), `GROQ_DAILY_LIMIT` (25/jour,
+compté via les commentaires marqués du jour), `GROQ_ENABLED=false`, `ISSUE_ASSIGNEE`.
+
+Garde-fous : jamais sur les tickets `security` ni `no-ai` ; texte expurgé avant envoi (tokens,
+JWT, jetons démo, e-mails, téléphones, IP) ; prompt ≤ ~10 000 caractères (≈ 2,5 k tokens,
+compatible 8 k tokens/min) ; `reasoning_effort: low`, `max_completion_tokens` 1 100 ; un 429
+Groq est simplement ignoré (rien n'est posté) ; le workflow ne **checkout jamais le code de la
+PR** (`pull_request_target` lit seulement les métadonnées, checkout de la branche par défaut) et
+n'échoue jamais à cause de l'assistant. Utiliser la même organisation Groq que le worker partage
+le quota de 1 000 req/jour du modèle : prévoir une clé d'une autre organisation pour isoler.
+
 ## 4. Configuration des tokens (propriétaire, dans l'app)
 
 Un token **par canal** :

@@ -256,21 +256,24 @@ app.get('/api/admin/audit', async (c) => {
   let stats: any = null;
   if (wantStats && cursorId === 0) {
     try {
-      // Cap work on free tier: sample recent window only
-      const rangeSql =
-        range === '24h'
-          ? "created_at >= datetime('now', '-1 day')"
-          : range === '30d'
-            ? "created_at >= datetime('now', '-30 days')"
-            : range === 'all'
-              ? '1=1'
-              : "created_at >= datetime('now', '-7 days')";
-      const totalRow = await c.env.DB.prepare(
-        `SELECT COUNT(*) as n FROM (SELECT id FROM audit_log WHERE ${rangeSql} LIMIT 5000)`,
-      ).first() as any;
-      const actorsRow = await c.env.DB.prepare(
-        `SELECT COUNT(DISTINCT username) as n FROM (SELECT username FROM audit_log WHERE ${rangeSql} LIMIT 2000)`,
-      ).first() as any;
+      // One indexed pass (idx_audit_log_created) gives the current window AND
+      // the previous window of the same length, so the KPIs can show a real
+      // comparison ("14 vs 6 the previous 24 h") instead of a global metric.
+      const span = range === '24h' ? '-1 day' : range === '30d' ? '-30 days' : range === 'all' ? null : '-7 days';
+      const prevSpan = range === '24h' ? '-2 days' : range === '30d' ? '-60 days' : '-14 days';
+      const rangeSql = span ? `created_at >= datetime('now', '${span}')` : '1=1';
+      const kpi = span
+        ? await c.env.DB.prepare(
+          `SELECT
+             SUM(CASE WHEN created_at >= datetime('now', ?) THEN 1 ELSE 0 END) AS cur,
+             SUM(CASE WHEN created_at <  datetime('now', ?) THEN 1 ELSE 0 END) AS prev,
+             COUNT(DISTINCT CASE WHEN created_at >= datetime('now', ?) THEN username END) AS actors,
+             COUNT(DISTINCT CASE WHEN created_at <  datetime('now', ?) THEN username END) AS prev_actors
+           FROM audit_log WHERE created_at >= datetime('now', ?)`,
+        ).bind(span, span, span, span, prevSpan).first() as any
+        : await c.env.DB.prepare(
+          `SELECT COUNT(*) AS cur, COUNT(DISTINCT username) AS actors FROM audit_log`,
+        ).first() as any;
       const { results: topActions } = await c.env.DB.prepare(
         `SELECT action, COUNT(*) as n FROM audit_log WHERE ${rangeSql} GROUP BY action ORDER BY n DESC LIMIT 8`,
       ).all();
@@ -282,12 +285,15 @@ app.get('/api/admin/audit', async (c) => {
          LIMIT 40`,
       ).all();
       stats = {
-        total: Number(totalRow?.n || 0),
-        unique_actors: Number(actorsRow?.n || 0),
+        total: Number(kpi?.cur || 0),
+        unique_actors: Number(kpi?.actors || 0),
+        // null for "all" — there is no previous window to compare with.
+        previous_total: span ? Number(kpi?.prev || 0) : null,
+        previous_actors: span ? Number(kpi?.prev_actors || 0) : null,
         top_actions: topActions || [],
         by_day: byDay || [],
         range,
-        capped: true,
+        capped: false,
       };
     } catch {
       stats = null;

@@ -1,8 +1,17 @@
-/** Demo sandbox limits: 20 minutes of use per fingerprint, once every 24 hours. */
+/** Demo sandbox limits: 1 hour of use per fingerprint, once every 24 hours. */
 export const DEMO_USERNAME = 'test';
 export const DEMO_PASSWORD = 'test';
-export const DEMO_SESSION_MINUTES = 20;
+export const DEMO_SESSION_MINUTES = 60;
 export const DEMO_SESSION_MS = DEMO_SESSION_MINUTES * 60 * 1000;
+
+/** « 1 heure », « 2 heures », « 45 minutes » — for user-facing messages. */
+export function demoDurationLabel(minutes: number = DEMO_SESSION_MINUTES): string {
+  if (minutes >= 60 && minutes % 60 === 0) {
+    const h = minutes / 60;
+    return `${h} heure${h > 1 ? 's' : ''}`;
+  }
+  return `${minutes} minutes`;
+}
 export const DEMO_WINDOW_HOURS = 24;
 export const DEMO_WINDOW_MS = DEMO_WINDOW_HOURS * 60 * 60 * 1000;
 
@@ -21,7 +30,7 @@ export type DemoDecision =
 
 /**
  * - no previous session, or the 24 h window is over → fresh sandbox;
- * - inside the 20 minutes → resume the same sandbox (same data);
+ * - inside the session (1 h) → resume the same sandbox (same data);
  * - minutes used up → wait for the end of the 24 h window.
  */
 export function decideDemoSession(meta: DemoMeta | null | undefined, now: number): DemoDecision {
@@ -42,5 +51,6 @@ export function formatWait(ms: number): string {
 }
 
 export function demoIntroMessage(): string {
-  return `Mode démo : ${DEMO_SESSION_MINUTES} minutes d’essai par tranche de ${DEMO_WINDOW_HOURS} heures. Les données sont fictives, modifiables, et la base est réinitialisée à la fin des ${DEMO_SESSION_MINUTES} minutes. Vos vraies données ne sont jamais touchées.`;
+  const d = demoDurationLabel();
+  return `Mode démo : ${d} d’essai par tranche de ${DEMO_WINDOW_HOURS} heures. Les données sont fictives, modifiables, et la base est réinitialisée au bout de ${d}. Vos vraies données ne sont jamais touchées.`;
 }
