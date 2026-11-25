@@ -13,6 +13,7 @@ import {
 } from '../components/PublicChrome';
 import { isLoggedIn } from '../auth';
 import ThemeShot from '../components/ThemeShot';
+import { useThemedShot } from '../lib/useDocTheme';
 import { AgentDemo, AgingDemo, InvoiceDemo, SalesDemo, StockDemo } from '../components/home/FeatureDemos';
 import '../components/home/feature-demos.css';
 
@@ -53,6 +54,9 @@ const IC_REPO = (
 export default function Home() {
   const pageRef = useRef<HTMLDivElement>(null);
   useLandingMotion(pageRef, '.rise', '.hm-showcase');
+  // Phone captures follow the site theme, like the desktop ThemeShot ones.
+  const phoneProductsShot = useThemedShot('/shots/phone-products-demo.webp');
+  const phoneBalanceShot = useThemedShot('/shots/phone-balance-demo.webp');
 
   return (
     <div className="home-landing" ref={pageRef}>
@@ -87,7 +91,7 @@ export default function Home() {
           <div className="hm-window hm-window--shot rise">
             <ThemeShot name="site-dashboard" alt="Tableau de bord web Atlas Commerce avec des données fictives" width={1280} height={800} eager />
           </div>
-          <img className="hm-phone-shot" src="/shots/phone-products-demo.webp" alt="Catalogue web mobile avec des produits fictifs" width="390" height="844" loading="lazy" />
+          <img className="hm-phone-shot" src={phoneProductsShot} alt="Catalogue web mobile avec des produits fictifs" width="390" height="844" loading="lazy" />
           </div>
           <p className="hm-shot-caption">Interfaces web sur ordinateur et mobile · données fictives de démonstration</p>
           <ul className="hm-facts" aria-label="Les essentiels d’Atlas">
@@ -194,7 +198,7 @@ export default function Home() {
           </div>
           <div className="dl-grid hm-platform-grid rise">
             <div className="dl-card hm-platform-card">
-              <figure className="hm-platform-visual hm-platform-visual--phone"><img src="/shots/phone-products-demo.webp" alt="Catalogue web mobile avec produits fictifs" width="390" height="844" loading="lazy" /><figcaption>Web mobile · données fictives</figcaption></figure>
+              <figure className="hm-platform-visual hm-platform-visual--phone"><img src={phoneProductsShot} alt="Catalogue web mobile avec produits fictifs" width="390" height="844" loading="lazy" /><figcaption>Web mobile · données fictives</figcaption></figure>
               <div className="dl-ico">{IC_GLOBE}</div>
               <h3>Web</h3>
               <p>
@@ -205,7 +209,7 @@ export default function Home() {
               <Link to="/login" className="dl-link dl-chip">Ouvrir l’application <span aria-hidden="true">→</span></Link>
             </div>
             <div className="dl-card hm-platform-card">
-              <figure className="hm-platform-visual hm-platform-visual--phone"><img src="/shots/phone-balance-demo.webp" alt="Balance web mobile avec données fictives" width="390" height="844" loading="lazy" /><figcaption>Web mobile · données fictives</figcaption></figure>
+              <figure className="hm-platform-visual hm-platform-visual--phone"><img src={phoneBalanceShot} alt="Balance web mobile avec données fictives" width="390" height="844" loading="lazy" /><figcaption>Web mobile · données fictives</figcaption></figure>
               <div className="dl-ico">{IC_PHONE}</div>
               <h3>Android</h3>
               <p>

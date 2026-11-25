@@ -74,6 +74,8 @@ export const RELEASES: Release[] = [
       { id: '093i17', platforms: ['web'], text: 'Visite guidée mobile : chaque étape ouvre vraiment sa page (Produits, Atlas Agent, Profil) au lieu de seulement la montrer, puis revient à l’accueil à la fin.' },
       { id: '093i18', platforms: ['web'], text: 'Bouton retour sur les pages de détail (historique d’un produit, facture, vente rapide) à la place de « Tableau de bord », qui n’apparaît plus que sur Paramètres, À propos et Licences. Les deux restent déployés en haut de page et se réduisent dès que l’on fait défiler.' },
       { id: '093i19', platforms: ['web'], text: 'Logo Atlas animé partout : les rayons se dessinent, le trait central s’allonge vers « Atlas » et reste visible quand la barre latérale est réduite ; le même logo animé apparaît sur l’accueil, Support, Bureau et Android.' },
+      { id: '093i20', platforms: ['web'], text: 'Connexion : le logo Atlas est maintenant animé (rayons, trait central puis « Atlas », suivi d’une légère vague), plus grand, et garde exactement la même taille en thème clair comme en sombre. Le petit logo des pages Nouveautés, À propos et légales s’anime aussi, sur ordinateur comme sur téléphone, et réagit au toucher.' },
+      { id: '093i21', platforms: ['web'], text: 'Captures d’écran des pages Accueil, Android et Bureau : en thème sombre, les aperçus mobile et ordinateur passent eux aussi en sombre.' },
     ] }, { kind: 'fixes', items: [
       { id: '093f1', platforms: ['web'], text: 'Passkeys web : l’enregistrement et la connexion par passkey fonctionnent de nouveau.' },
       { id: '093f2', platforms: ['web', 'server'], text: 'Paie : fenêtre de réglages CNSS/AMO corrigée, fenêtres affichées en plein écran et téléchargement des documents de paie rétabli.' },
@@ -94,6 +96,8 @@ export const RELEASES: Release[] = [
       { id: '093f17', platforms: ['web'], text: 'Barre d’actions réduite : boutons ronds alignés, icônes parfaitement centrées, plus de carré dans le cercle (bouton « À jour ») ; bouton « Tableau de bord » aligné sur la barre latérale réduite, dont les icônes sont plus lisibles.' },
       { id: '093f18', platforms: ['web', 'server'], text: 'Migration de base de données : la base cible « atlas-db » est liée par son nom (DB_TARGET) à chaque déploiement, et l’action GitHub utilise les secrets CF_API_TOKEN et CF_ZONE_ID déjà présents (identifiant du compte déduit de la zone).' },
       { id: '093f19', platforms: ['web'], text: 'Assistants (fiche employé et formulaires en étapes) : la fenêtre tremble à chaque tentative de passer une étape incomplète, et « Annuler », la croix, Échap ou un clic à l’extérieur demandent « Abandonner la saisie ? » avant de fermer.' },
+      { id: '093f20', platforms: ['web'], text: 'Barre du haut sur petit téléphone : le bouton de langue ne laisse plus de fond gris après un appui, garde la même hauteur que le choix du thème, et le bouton menu ne passe plus sous les autres boutons (« Se connecter » devient « Connexion » sur les écrans étroits).' },
+      { id: '093f21', platforms: ['web'], text: 'Produits : la page ne plante plus si les statistiques des 7 derniers jours arrivent incomplètes ; les tendances sont simplement masquées.' },
     ] }],
   },
   {

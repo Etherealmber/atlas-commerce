@@ -4273,8 +4273,8 @@ html body .atlas-login.atlas-login--auth7 .atlas-login-page-foot {
 }
 html body .atlas-login.atlas-login--auth7 .atlas-login-page-foot a { color: #a1a1aa !important; }
 
-/* ══ v0.7 — lockup BLANC permanent au-dessus de « Bon retour » : jamais de
-   tuile (28×28 / radius / fond), jamais de bascule de thème. ══ */
+/* ══ Lockup BLANC permanent au-dessus de « Bon retour » (SVG animé, voir
+   login-auth.css) : jamais de tuile, jamais de bascule de thème. ══ */
 html body .atlas-login-lockup {
   display: flex;
   justify-content: center;

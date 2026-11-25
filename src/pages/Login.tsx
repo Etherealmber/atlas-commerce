@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { AtlasLockup } from '../components/brand/AtlasLockup';
 import '../styles/login-auth.css';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { setToken, clearToken, getToken, setProfileCache, isLoggedIn, isStockRole, sanitizeAvatarUrl } from '../auth';
@@ -921,7 +922,7 @@ export default function Login() {
   return (
     <div className={`atlas-login atlas-login--auth7${(isNativeClient() || isMobileLogin() || isPwaLogin()) ? ' atlas-login--phone' : ''}`}>
       <div className="atlas-login-phone-hero">
-        <img src="/atlas-logo-dark.png" alt={APP_NAME} width="160" height="52" />
+        <AtlasLockup idle label={APP_NAME} className="atlas-login-phone-lockup" />
       </div>
       {/* Form column */}
       <div className="atlas-login-card">
@@ -932,11 +933,10 @@ export default function Login() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ type: 'spring', stiffness: 260, damping: 26, bounce: 0, delay: 0.05 }}
           >
-            {/* v0.7 — lockup BLANC toujours (indépendant du thème), dans la
-                carte au-dessus de « Bon retour » ; classe dédiée hors des
-                vieilles règles « tile » 28×28. */}
+            {/* Lockup animé (soleil + « Atlas ») en SVG : toujours blanc sur la
+                carte sombre, même taille quel que soit le thème. */}
             <div className="atlas-login-lockup">
-              <img src="/atlas-logo-dark.png" alt={APP_NAME} className="atlas-login-lockup-img" height={64} width={197} />
+              <AtlasLockup idle label={APP_NAME} className="atlas-login-lockup-svg" />
             </div>
             <h1>{(isMobileLogin() || isPwaLogin() || isNativeClient()) ? (step === 'password' ? 'Bienvenue' : 'Vérification') : 'Bon retour'}</h1>
             <p>{(isMobileLogin() || isPwaLogin() || isNativeClient()) ? 'Connectez-vous à votre espace Atlas Commerce.' : 'Connectez-vous pour gérer stock, caisse et facturation'}</p>

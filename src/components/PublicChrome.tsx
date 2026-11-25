@@ -349,7 +349,7 @@ export function PublicNav({ links, cta, classic = false }: { links: NavLink[]; c
         }}
       >
         <Link to="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', flex: '0 0 auto' }} aria-label="Atlas — accueil">
-          <AtlasLockup height={compact ? 19 : 24} label="Atlas" style={{ color: c.dark ? '#ffffff' : '#0f1115' }} />
+          <AtlasLockup height={compact ? 24 : 30} label="Atlas" style={{ color: c.dark ? '#ffffff' : '#0f1115' }} />
         </Link>
         {loggedIn && !classic ? (
           <PnLegacyTabs />
@@ -473,8 +473,7 @@ export function PublicSettingsTopbar({ onOpenSidebar }: { onOpenSidebar?: () => 
           </button>
         )}
         <div className="settings-topbar-brand">
-          <img src="/atlas-icon-light.png" alt="" className="brand-img brand-img--light" width={28} height={28} />
-          <img src="/atlas-icon-dark.png" alt="" className="brand-img brand-img--dark" width={28} height={28} />
+          <AtlasLockup markOnly label="" className="settings-topbar-brand-mark" />
           <div>
             <strong>{title}</strong>
             <span>Atlas Commerce · beta</span>
@@ -734,8 +733,8 @@ export function PublicSessionCta({ solid = true }: { solid?: boolean }) {
     background: solid ? c.cta : c.ghostBg,
   };
   return isLoggedIn() ? (
-    <Link to="/dashboard" style={st}>Ouvrir l’app</Link>
+    <Link to="/dashboard" className="public-session-cta" style={st}>Ouvrir l’app</Link>
   ) : (
-    <Link to="/login" style={st}>Se connecter</Link>
+    <Link to="/login" className="public-session-cta" style={st} aria-label="Se connecter"><span className="psc-long">Se connecter</span><span className="psc-short" aria-hidden="true">Connexion</span></Link>
   );
 }
