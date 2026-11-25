@@ -7,7 +7,7 @@ import { profileDataFromServer } from '../lib/profilePrefs';
 import ImageLightbox from '../components/ui/ImageLightbox';
 import { ListPager } from '../components/ui/ListPager';
 import { TimedUndoDelete, SaveToggle } from '../components/ui';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   Activity,
   BarChart3,
@@ -81,6 +81,8 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [saveOk, setSaveOk] = useState(false);
   const [settingsDirty, setSettingsDirty] = useState(false);
+  // Last loaded / saved settings: « Annuler » restores it in place (no reload).
+  const savedSettingsRef = useRef<any>(null);
   const [langOpen, setLangOpen] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
 
@@ -393,12 +395,16 @@ export default function Settings() {
       notes: '', pdf_footer: '', ice: '', rc: '', if_fiscal: '', cnss: '',
     };
     const timer = window.setTimeout(() => {
-      setSettings((prev: any) => prev || empty);
+      setSettings((prev: any) => {
+        const next = prev || empty;
+        if (!savedSettingsRef.current) savedSettingsRef.current = next;
+        return next;
+      });
       setLoading(false);
     }, 8000);
     api.getSettings()
-      .then((r) => setSettings({ ...empty, ...r.data }))
-      .catch(() => setSettings(empty))
+      .then((r) => { const next = { ...empty, ...r.data }; savedSettingsRef.current = next; setSettings(next); })
+      .catch(() => { savedSettingsRef.current = empty; setSettings(empty); })
       .finally(() => {
         window.clearTimeout(timer);
         setLoading(false);
@@ -487,6 +493,14 @@ export default function Settings() {
   };
 
 
+  /** « Annuler » : revert every unsaved field to the last loaded/saved values in place. */
+  const discardSettings = () => {
+    if (savedSettingsRef.current) setSettings(savedSettingsRef.current);
+    setFieldErrors({});
+    setSettingsDirty(false);
+    setSaveOk(false);
+  };
+
   const save = async () => {
     const merged = { ...s, ...settings };
     if (merged.credit_prefix != null) {
@@ -521,6 +535,7 @@ export default function Settings() {
     try {
       const res = (await api.updateSettings(merged)) as { data?: any };
       setSettings(res.data);
+      savedSettingsRef.current = res.data;
       setSettingsDirty(false);
       setSaveOk(true);
       setJustSaved(true);
@@ -4092,7 +4107,7 @@ if (loading) return (
           </span>
           {settingsDirty ? (
             <div className="settings-sticky-save-actions">
-              <button type="button" className="secondary" onClick={() => { setSettingsDirty(false); window.location.reload(); }}>
+              <button type="button" className="secondary settings-sticky-discard" disabled={saving} onClick={discardSettings}>
                 Annuler
               </button>
               <SaveToggle
