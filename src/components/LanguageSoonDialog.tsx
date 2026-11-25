@@ -23,6 +23,7 @@ export const LanguageSoonDialog: FC<{ open: boolean; onClose: () => void }> = ({
 
   useEffect(() => {
     if (!open) return undefined;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onCloseRef.current();
     };
@@ -31,6 +32,7 @@ export const LanguageSoonDialog: FC<{ open: boolean; onClose: () => void }> = ({
     return () => {
       window.removeEventListener('keydown', onKey);
       window.clearTimeout(t);
+      if (previousFocus?.isConnected) previousFocus.focus();
     };
     // Only `open` drives this effect: parents pass inline callbacks, and re-running it on
     // every parent render re-focused the button and could look like the popup reset itself.
@@ -63,6 +65,16 @@ export const LanguageSoonDialog: FC<{ open: boolean; onClose: () => void }> = ({
                   type="button"
                   role="radio"
                   aria-checked={selected}
+                  tabIndex={selected ? 0 : -1}
+                  onKeyDown={(event) => {
+                    const index = LANGS.findIndex((item) => item.code === l.code);
+                    const delta = event.key === 'ArrowDown' || event.key === 'ArrowRight' ? 1 : event.key === 'ArrowUp' || event.key === 'ArrowLeft' ? -1 : 0;
+                    if (!delta) return;
+                    event.preventDefault();
+                    const next = (index + delta + LANGS.length) % LANGS.length;
+                    setLang(LANGS[next].code);
+                    event.currentTarget.closest('[role="radiogroup"]')?.querySelectorAll<HTMLButtonElement>('[role="radio"]')[next]?.focus();
+                  }}
                   className={`ac-lang-row${selected ? ' is-current' : ''}`}
                   onClick={() => setLang(l.code)}
                 >

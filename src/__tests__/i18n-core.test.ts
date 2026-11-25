@@ -66,11 +66,11 @@ describe('i18n core', () => {
     retranslateAll(); await tick();
     expect(document.querySelector('.amount')!.textContent).toBe('1 260 DH');
     setLang('ar'); retranslateAll(); await tick();
-    expect(document.querySelector('.amount')!.textContent).toBe('\u20671 260 درهم\u2069');
-    expect(document.querySelector('.dh')!.textContent).toBe('\u206742 درهم\u2069');
-    expect(document.querySelector('.area')!.textContent).toBe('\u206742 م²\u2069');
-    expect(document.querySelector('.mass')!.textContent).toBe('\u2067-2,5 كغ\u2069');
-    expect(document.querySelector('.volume')!.textContent).toBe('\u20673 م³\u2069');
+    expect(document.querySelector('.amount')!.textContent).toBe('\u2067\u20661\u00a0260\u2069\u00a0درهم\u2069');
+    expect(document.querySelector('.dh')!.textContent).toBe('\u2067\u206642\u2069\u00a0درهم\u2069');
+    expect(document.querySelector('.area')!.textContent).toBe('\u2067\u206642\u2069\u00a0م²\u2069');
+    expect(document.querySelector('.mass')!.textContent).toBe('\u2067\u2066-2,5\u2069\u00a0كغ\u2069');
+    expect(document.querySelector('.volume')!.textContent).toBe('\u2067\u20663\u2069\u00a0م³\u2069');
     expect(document.querySelector('[data-user-data]')!.textContent).toBe('Model MAD 12');
     setLang('en'); await tick();
     expect(document.querySelector('.amount')!.textContent).toBe('1 260 MAD');
@@ -79,12 +79,12 @@ describe('i18n core', () => {
   });
 
   it('translates textarea placeholders and day abbreviations without altering input', async () => {
-    document.body.innerHTML = '<textarea placeholder="Décrivez le module concerné, les étapes effectuées et le résultat attendu...">Texte personnel</textarea><span>31–60 j</span>';
+    document.body.innerHTML = '<textarea placeholder="Décrivez le module concerné, les étapes effectuées et le résultat attendu...">Texte personnel</textarea><span>1–30 j</span>';
     setLang('ar'); retranslateAll(); await tick();
     const field = document.querySelector('textarea')!;
     expect(field.placeholder).toContain('صِف الوحدة');
     expect(field.value).toBe('Texte personnel');
-    expect(document.querySelector('span')!.textContent).toBe('\u206731–60 يوم\u2069');
+    expect(document.querySelector('span')!.textContent).toBe('\u2067\u20661–30\u2069\u00a0يوم\u2069');
     setLang('fr'); await tick();
     expect(field.placeholder).toContain('Décrivez');
   });

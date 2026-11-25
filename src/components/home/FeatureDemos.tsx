@@ -5,6 +5,7 @@
  * Purely illustrative — every block is aria-hidden behind a figure label.
  */
 import type { ReactNode } from 'react';
+import { useLang } from '../../i18n/core';
 import { ArrowUp, Box, FileText, Package, Pencil, QrCode, SlidersHorizontal, Sparkles, Trash2 } from 'lucide-react';
 
 function Frame({ label, className, children }: { label: string; className: string; children: ReactNode }) {
@@ -40,11 +41,13 @@ function ProductCard({ name, sku, price, qty, stock, tone }: { name: string; sku
 }
 
 export function StockDemo() {
+  const lang = useLang();
+  const names = lang === 'ar' ? ['رخام كارارا أبيض', 'غرانيت زيمبابوي أسود'] : lang === 'en' ? ['White Carrara marble', 'Black Zimbabwe granite'] : ['Marbre Carrara blanc', 'Granit noir Zimbabwe'];
   return (
     <Frame label="Catalogue produits Atlas : cartes produit avec niveaux de stock (données fictives)" className="hm-live-stock">
       <div className="hl-pgrid">
-        <ProductCard name="Marbre Carrara blanc" sku="MAR-001 · Marbre" price="420 MAD" qty="42 m²" stock="ok" tone="stone" />
-        <ProductCard name="Granit noir Zimbabwe" sku="GRA-014 · Granit" price="560 MAD" qty="6 m²" stock="low" tone="night" />
+        <ProductCard name={names[0]} sku="MAR-001 · Marbre" price="420 MAD" qty="42 m²" stock="ok" tone="stone" />
+        <ProductCard name={names[1]} sku="GRA-014 · Granit" price="560 MAD" qty="6 m²" stock="low" tone="night" />
       </div>
     </Frame>
   );
@@ -81,6 +84,7 @@ export function SalesDemo() {
 }
 
 export function InvoiceDemo() {
+  const lang = useLang();
   return (
     <Frame label="Lignes d’une facture de vente avec totaux HT, TVA et TTC (données fictives)" className="hm-live-invoice">
       <div className="hl-panel">
@@ -89,14 +93,14 @@ export function InvoiceDemo() {
           <span className="hl-badge is-success">Payée</span>
         </div>
         <div className="hl-lines">
-          <div className="hl-line"><span>Marbre Carrara blanc — 60×60</span><i>24 × 420</i><b>10 080</b></div>
-          <div className="hl-line"><span>Onyx miel — plan vasque</span><i>2 × 1 850</i><b>3 700</b></div>
+          <div className="hl-line"><span>{lang === 'ar' ? 'رخام كارارا أبيض' : lang === 'en' ? 'White Carrara marble' : 'Marbre Carrara blanc'} — <bdi dir="ltr">60×60</bdi></span><i>24 × 420</i><b>10 080</b></div>
+          <div className="hl-line"><span>{lang === 'ar' ? 'أونيكس عسلي — سطح مغسلة' : lang === 'en' ? 'Honey onyx — vanity top' : 'Onyx miel — plan vasque'}</span><i>2 × 1 850</i><b>3 700</b></div>
         </div>
         <div className="hl-totals">
           <span className="hl-pill is-dark"><FileText size={10} />PDF</span>
           <span className="hl-pill"><QrCode size={10} />QR</span>
           <span className="hl-grow" />
-          <span className="hl-tot"><i>HT 13 780</i><i>TVA 2 756</i><b>TTC 16 536 MAD</b></span>
+          <span className="hl-tot"><i><span>HT</span> <bdi dir="ltr">13 780</bdi></i><i><span>TVA</span> <bdi dir="ltr">2 756</bdi></i><b><span>TTC</span> <span className="hl-currency"><bdi dir="ltr">16 536</bdi> <span>MAD</span></span></b></span>
         </div>
       </div>
     </Frame>

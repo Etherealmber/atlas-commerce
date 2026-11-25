@@ -6,6 +6,7 @@ import { canOpenPhoneBalance, canOpenPhoneEmployees } from './mobile/PhoneDock';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { SidebarBrandLogo } from './components/brand/SidebarBrandLogo';
 import { applyPageTitle, titleForPath } from './lib/pageTitle';
+import { getLang, LANG_EVENT } from './i18n/core';
 import Login from './pages/Login';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
@@ -1633,15 +1634,17 @@ function PageTitleSync() {
   useEffect(() => {
     const sync = () => {
       try {
-        applyPageTitle(window.location.pathname || '/');
+        applyPageTitle(window.location.pathname || '/', getLang());
       } catch { /* */ }
     };
     sync();
     window.addEventListener('popstate', sync);
+    window.addEventListener(LANG_EVENT, sync);
     // React Router navigations don't always fire popstate — poll lightly
     const id = window.setInterval(sync, 800);
     return () => {
       window.removeEventListener('popstate', sync);
+      window.removeEventListener(LANG_EVENT, sync);
       window.clearInterval(id);
     };
   }, []);
