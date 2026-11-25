@@ -145,7 +145,9 @@ lancez avec `VITE_API_URL=https://stock.afmarbre.com npm run dev`.
 
 **Mode démo** : `test` / `test` ouvre une base fictive isolée (Durable Object SQLite, données de
 démonstration, modifiable), jamais votre vraie base — 20 minutes par appareil et par 24 h, puis
-réinitialisation. Fonctionne en local, en production, sur le web mobile et Android.
+réinitialisation. Fonctionne en local, en production, sur le web mobile et Android. En ligne, un même
+réseau peut ouvrir 8 nouvelles démos par jour ; en local (localhost / adresse du réseau local) cette
+limite ne s'applique pas, pour tester depuis plusieurs appareils.
 
 Vérifiez l'API : `curl http://localhost:36521/api/health`.
 

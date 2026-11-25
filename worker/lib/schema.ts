@@ -150,6 +150,31 @@ export async function tableExists(db: D1Database, table: string): Promise<boolea
   return Boolean(row);
 }
 
+/**
+ * Column names of `table` (lower-case), memoised per root D1 binding and
+ * shared with `addColumnIfMissing` (which keeps the set current when it adds
+ * a column). Hot read paths — the product list, barcode scan — only use this
+ * to pick OPTIONAL columns, so after the first call they no longer pay a
+ * `PRAGMA table_info` per request. `null` when the table is missing or the
+ * PRAGMA failed (nothing cached: the next call re-checks).
+ */
+export async function knownTableColumns(db: D1Database, table: string): Promise<Set<string> | null> {
+  if (!db || typeof (db as any).prepare !== 'function') return null;
+  const known = knownColumnsFor(db);
+  const hit = known?.get(table);
+  if (hit) return hit;
+  try {
+    const info = await db.prepare(`PRAGMA table_info(${table})`).all();
+    const rows = (info?.results || []) as { name?: string }[];
+    if (!rows.length) return null;
+    const set = new Set(rows.map((r) => String(r.name || '').toLowerCase()));
+    known?.set(table, set);
+    return set;
+  } catch {
+    return null;
+  }
+}
+
 export async function addColumnIfMissing(
   db: D1Database,
   table: string,

@@ -21,7 +21,7 @@ import {
 } from '../lib/demo/policy';
 import { buildDemoSeed, buildEmployeeSeed, buildSnapshotSeed, DEMO_COMPANY, seedDemoData } from '../lib/demo/seed';
 import { execScript, runBatch, runStatement, splitSqlStatements, type SqlBackend } from '../lib/demo/sqlEngine';
-import { DEMO_TOKEN_PREFIX, rewrapTokens, unwrapDemoToken, wrapDemoToken } from '../lib/demo/gateway';
+import { DEMO_TOKEN_PREFIX, demoOffLimitsResponse, isDevMachineHost, rewrapTokens, unwrapDemoToken, wrapDemoToken } from '../lib/demo/gateway';
 import { currentDataScope, inDemoScope, runInDataScope, scopedKey } from '../lib/dataScope';
 import { checkRefreshLimit } from '../lib/cache';
 import { schemaOnce } from '../lib/schema';
@@ -351,5 +351,27 @@ describe('data scope isolation', () => {
     expect(checkRefreshLimit(bucket, 1).ok).toBe(true);
     expect(checkRefreshLimit(bucket, 1).ok).toBe(false);
     expect(runInDataScope('demo:x:1', () => checkRefreshLimit(bucket, 1)).ok).toBe(true);
+  });
+});
+
+describe('per-network demo cap', () => {
+  it('is skipped only on a developer machine (every device shares its IP there)', () => {
+    for (const h of ['http://localhost:5173', 'http://127.0.0.1:8787', 'http://192.168.1.20:5173', 'http://10.0.2.2:8787', 'http://172.20.0.5', 'http://app.localhost']) {
+      expect(isDevMachineHost(new URL(h))).toBe(true);
+    }
+    for (const h of ['https://atlas.example.com', 'https://5173-abc.e2b.app', 'https://172.32.0.1', 'https://my-app.workers.dev']) {
+      expect(isDevMachineHost(new URL(h))).toBe(false);
+    }
+  });
+});
+
+describe('demo off-limits actions', () => {
+  it('answers backup / restore with a clear demo message, lets everything else through', async () => {
+    const r = demoOffLimitsResponse('/api/admin/backup-now', 'POST');
+    expect(r?.status).toBe(403);
+    expect(await r!.json()).toMatchObject({ code: 'DEMO_DISABLED' });
+    expect(demoOffLimitsResponse('/api/admin/backups/restore', 'post')?.status).toBe(403);
+    expect(demoOffLimitsResponse('/api/admin/backups', 'GET')).toBeNull();
+    expect(demoOffLimitsResponse('/api/products', 'POST')).toBeNull();
   });
 });

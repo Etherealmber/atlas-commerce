@@ -218,7 +218,10 @@ export default function Dashboard() {
           }),
           api.listMobileActions({ status: 'all', limit: 12 }).catch(() => ({ data: [] })),
           wantProducts
-            ? api.getProducts({ include_variants: true }).catch(() => null)
+            // Light projection: only the columns this page shows (name, sku,
+            // stock, threshold, small artwork) — no `SELECT *`, no inline
+            // megabyte photos, no schema checks, shared DO cache.
+            ? api.getProducts({ include_variants: true, fields: 'light' }).catch(() => null)
             : Promise.resolve(null),
           api.getMobileActionStats().catch(() => ({ data: { pending: 0 } })),
         ]);
