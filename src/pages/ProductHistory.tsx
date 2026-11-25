@@ -12,6 +12,7 @@ import ProductLabelModal from '../components/ProductLabelModal';
 import ProductArtwork, { productImageUrl } from '../components/ProductArtwork';
 import NumberField from '../components/NumberField';
 import './product-history.css';
+import Select from '../components/ui/Select';
 
 const PH_EDIT_STEPS: readonly WizardStepDef[] = [
   { id: 'identity', label: 'Identité', hint: 'Nom, catégorie, références et description catalogue.' },
@@ -351,11 +352,11 @@ export default function ProductHistory({ mobile = false, onProductUpdated }: Pro
             <StepBody active={adjustWz.step === 1}>
               <div className="form-row">
                 <label>Type de mouvement</label>
-                <select value={adjustType} onChange={(e) => setAdjustType(e.target.value as any)} disabled={adjustBusy}>
+                <Select value={adjustType} onChange={(e) => setAdjustType(e.target.value as any)} disabled={adjustBusy}>
                   <option value="in">Entrée (ajouter au stock)</option>
                   <option value="out">Sortie (retirer du stock)</option>
                   <option value="adjust">Définir le stock exact</option>
-                </select>
+                </Select>
               </div>
               <div className="form-row">
                 <label>{adjustType === 'adjust' ? 'Nouveau stock exact' : 'Quantité'}</label>
@@ -406,10 +407,10 @@ export default function ProductHistory({ mobile = false, onProductUpdated }: Pro
               <div className="grid grid-2">
                 <div className="form-row"><label>Nom *</label><input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} disabled={editBusy} /></div>
                 <div className="form-row"><label>Catégorie</label>
-                  <select value={editForm.category} onChange={(e) => setEditForm({ ...editForm, category: e.target.value })} disabled={editBusy}>
+                  <Select value={editForm.category} onChange={(e) => setEditForm({ ...editForm, category: e.target.value })} disabled={editBusy}>
                     <option value="">Sans catégorie</option>
                     {categories.map((c: any) => <option key={c.id ?? c.name} value={c.name}>{c.name}</option>)}
-                  </select>
+                  </Select>
                 </div>
               </div>
               <div className="grid grid-2">
@@ -429,7 +430,7 @@ export default function ProductHistory({ mobile = false, onProductUpdated }: Pro
             <StepBody active={editWz.step === 2}>
               <div className="grid grid-2">
                 <div className="form-row"><label>Unité principale</label>
-                  <select value={editForm.unit} onChange={(e) => setEditForm({ ...editForm, unit: e.target.value })} disabled={editBusy}>
+                  <Select value={editForm.unit} onChange={(e) => setEditForm({ ...editForm, unit: e.target.value })} disabled={editBusy}>
                     {units.length ? units.map((u: any) => <option key={u.id ?? u.name} value={u.name}>{u.name}</option>) : (
                       <>
                         <option value="pièce">pièce</option>
@@ -438,7 +439,7 @@ export default function ProductHistory({ mobile = false, onProductUpdated }: Pro
                         <option value="carton">carton</option>
                       </>
                     )}
-                  </select>
+                  </Select>
                 </div>
                 <div className="form-row"><label>Seuil d’alerte</label><NumberField value={editForm.low_stock_threshold} onValueChange={(n) => setEditForm({ ...editForm, low_stock_threshold: n })} min={0} disabled={editBusy} /></div>
               </div>
@@ -461,11 +462,11 @@ export default function ProductHistory({ mobile = false, onProductUpdated }: Pro
               <div className="grid grid-2">
                 <div className="form-row"><label>Taux TVA %</label><NumberField value={editForm.tax_rate} onValueChange={(n) => setEditForm({ ...editForm, tax_rate: n })} placeholder="Défaut" disabled={editBusy} /></div>
                 <div className="form-row"><label>Prix sur facture</label>
-                  <select value={editForm.invoice_price_mode} onChange={(e) => setEditForm({ ...editForm, invoice_price_mode: e.target.value })} disabled={editBusy}>
+                  <Select value={editForm.invoice_price_mode} onChange={(e) => setEditForm({ ...editForm, invoice_price_mode: e.target.value })} disabled={editBusy}>
                     {!editForm.invoice_price_mode && <option value="">Mode historique (inchangé)</option>}
                     <option value="exclusive">TVA ajoutée au prix (HT)</option>
                     <option value="inclusive">TVA incluse dans le prix (TTC)</option>
-                  </select>
+                  </Select>
                 </div>
               </div>
             </StepBody>

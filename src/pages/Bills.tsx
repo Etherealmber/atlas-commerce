@@ -26,6 +26,7 @@ import PageSkeleton from '../components/PageSkeleton';
 import { FloatingPortal } from '../components/FloatingPortal';
 import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
 import { ModalFormError } from '../components/ModalFormFeedback';
+import Select from '../components/ui/Select';
 
 const BILL_STEPS: readonly WizardStepDef[] = [
   { id: 'scan', label: 'Scanner', hint: 'Facultatif : scannez la facture pour pré-remplir le formulaire, ou continuez.' },
@@ -498,13 +499,13 @@ export default function Bills() {
 
       <div className="ac-panel ac-products-filters">
         <div className="ac-products-filters-row"><div className="ac-search-field"><input className="ac-search-input" type="search" aria-label="Rechercher les factures d’achat" placeholder="Rechercher par numéro ou nom de fournisseur..." value={search} onChange={(e) => setSearch(e.target.value)} /></div>
-          <select value={filter} onChange={(e) => setFilter(e.target.value)} className="ac-filter-select" aria-label="Filtrer par statut">
+          <Select value={filter} onChange={(e) => setFilter(e.target.value)} className="ac-filter-select" aria-label="Filtrer par statut">
             <option value="">Tous les statuts</option>
             <option value="sent">Non payées / envoyées</option>
             <option value="partial">Partiellement payées</option>
             <option value="paid">Payées</option>
             <option value="cancelled">Annulées</option>
-          </select>
+          </Select>
         </div>
       </div>
 
@@ -977,11 +978,11 @@ export default function Bills() {
 
             <div className="form-row">
               <label>Mode de paiement *</label>
-              <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} disabled={saving}>
+              <Select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} disabled={saving}>
                 {PAYMENT_METHODS.map((m) => (
                   <option key={m.value} value={m.value}>{m.label}</option>
                 ))}
-              </select>
+              </Select>
             </div>
 
             <div className="form-row">

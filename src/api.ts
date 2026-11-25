@@ -988,6 +988,24 @@ export const api = {
     }),
   updateAdminUser: (id: number, body: any) =>
     request(`/api/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  /** Journal des appels API (owner) — every /api/* call, 30-day retention. */
+  getApiLog: (params?: { limit?: number; cursor?: string | null; range?: string; status?: string; q?: string; ip?: string; stats?: boolean }) => {
+    const qs = new URLSearchParams();
+    if (params?.limit != null) qs.set('limit', String(params.limit));
+    if (params?.cursor) qs.set('cursor', String(params.cursor));
+    if (params?.range) qs.set('range', params.range);
+    if (params?.status) qs.set('status', params.status);
+    if (params?.q) qs.set('q', params.q);
+    if (params?.ip) qs.set('ip', params.ip);
+    if (params?.stats) qs.set('stats', '1');
+    return request<{ data: any[]; meta?: { limit: number; has_more: boolean; next_cursor: string | null; range: string; stats?: any } }>(`/api/admin/api-log?${qs}`);
+  },
+  /** « Expliquer » — Groq (free tier, cached) explanation of one log line. */
+  explainLogLine: (kind: 'audit' | 'api', id: number) =>
+    request<{ data: { summary: string; risk: 'normal' | 'à surveiller' | 'suspect'; advice: string; source: string; model?: string; network?: { kind: string; label: string; risky: boolean } } }>(
+      '/api/admin/audit/explain',
+      { method: 'POST', body: JSON.stringify({ kind, id }), headers: { 'Content-Type': 'application/json' } },
+    ),
   getAuditLog: (params?: {
     limit?: number;
     cursor?: string | null;

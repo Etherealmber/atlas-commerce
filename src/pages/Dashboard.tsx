@@ -10,6 +10,7 @@ import { IconPackage } from '../components/Icons';
 import { AreaChart, BarChart, DonutChart, HBarChart, formatCompactNum } from '../components/DashboardCharts';
 import PageSkeleton from '../components/PageSkeleton';
 import { MetricSpark, MetricTrend } from '../components/MetricSpark';
+import Select from '../components/ui/Select';
 
 /**
  * Date + place from the *device* clock/timezone only (never IP geolocation).
@@ -722,7 +723,7 @@ export default function Dashboard() {
         <div className="ac-panel ac-presence-panel" style={{ marginBottom: 14 }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginBottom: 12 }}>
             <h3 style={{ margin: 0, fontSize: 15, flex: '1 1 auto' }}>Présence</h3>
-            <select
+            <Select
               value={attEmpId}
               onChange={(e) => setAttEmpId(e.target.value)}
               className="dash-range-select"
@@ -733,8 +734,8 @@ export default function Dashboard() {
               {attEmployees.map((e) => (
                 <option key={e.id} value={String(e.id)}>{e.name}</option>
               ))}
-            </select>
-            <select
+            </Select>
+            <Select
               value={attDays}
               onChange={(e) => setAttDays(Number(e.target.value))}
               className="dash-range-select"
@@ -744,7 +745,7 @@ export default function Dashboard() {
               <option value={7}>7 jours</option>
               <option value={14}>14 jours</option>
               <option value={30}>30 jours</option>
-            </select>
+            </Select>
           </div>
           {attWeek && attWeek.length > 0 ? (
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 110, overflowX: 'auto' }}>

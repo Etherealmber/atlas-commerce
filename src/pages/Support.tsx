@@ -5,6 +5,7 @@ import { useLandingMotion } from '../hooks/useLandingMotion';
 import { PublicNav, PublicSessionCta, GitHubStarButton } from '../components/PublicChrome';
 import { getApiBase } from '../config';
 import { APP_BUILD_DATE, APP_CREATOR_NAME, APP_NAME, APP_VERSION } from '../version';
+import Select from '../components/ui/Select';
 
 const GITHUB_ORG = 'https://github.com/Etherealmber';
 const GITHUB_REPO = 'Etherealmber/atlas-commerce';
@@ -437,23 +438,23 @@ export default function Support() {
                   </label>
                   <label>
                     <span>Environnement</span>
-                    <select value={environment} onChange={(e) => setEnvironment(e.target.value as typeof environment)}>
+                    <Select value={environment} onChange={(e) => setEnvironment(e.target.value as typeof environment)}>
                       <option value="web">Web (navigateur)</option>
                       <option value="android">Application Android</option>
                       <option value="desktop">Application bureau (Windows / macOS / Linux)</option>
                       <option value="cloudflare">Instance Cloudflare (Workers / D1 / R2)</option>
-                    </select>
+                    </Select>
                   </label>
                   <label>
                     <span>Catégorie</span>
-                    <select value={category} onChange={(e) => setCategory(e.target.value as typeof category)}>
+                    <Select value={category} onChange={(e) => setCategory(e.target.value as typeof category)}>
                       <option value="support">Assistance technique &amp; déploiement</option>
                       <option value="auth">Compte, rôles, WebAuthn &amp; OTP</option>
                       <option value="billing">Stock, caisse &amp; facturation</option>
                       <option value="bug">Signalement de bug</option>
                       <option value="feedback">Suggestion d’amélioration</option>
                       <option value="other">Autre demande</option>
-                    </select>
+                    </Select>
                   </label>
                   <label>
                     <span>Version (optionnel)</span>

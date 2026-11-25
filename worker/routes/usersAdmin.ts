@@ -1,4 +1,6 @@
 import type { AtlasApp } from './types';
+import { API_LOG_RETENTION_DAYS, classifyNetwork, ensureApiLogTable, geoForIps } from '../lib/apiLog';
+import { explainLogLine } from '../lib/auditExplain';
 import { schemaOnce, addColumnIfMissing } from '../lib/schema';
 import { ensureDocAssetColumns } from '../lib/printTemplates';
 import {
@@ -252,6 +254,13 @@ app.get('/api/admin/audit', async (c) => {
   const has_more = rows.length > limit;
   const page = has_more ? rows.slice(0, limit) : rows;
   const next_cursor = has_more && page.length ? String(page[page.length - 1].id) : null;
+  // City / country / operator / VPN flag for each IP, from what Cloudflare told
+  // us on that IP's latest API call (api_log). No external geo-IP lookup.
+  const geo = await geoForIps(c.env.DB, page.map((r) => String(r.ip || '')));
+  for (const r of page) {
+    const g = geo.get(String(r.ip || ''));
+    if (g) r.geo = g;
+  }
 
   let stats: any = null;
   if (wantStats && cursorId === 0) {
@@ -312,6 +321,105 @@ app.get('/api/admin/audit', async (c) => {
       stats,
     },
   });
+});
+
+/** Journal des appels API — every /api/* call (failures included), 30 days. */
+app.get('/api/admin/api-log', async (c) => {
+  const gate = requireOwner(c);
+  if (!gate.ok) return gate.response;
+  await ensureApiLogTable(c.env.DB);
+  const limit = Math.min(100, Math.max(1, Number(c.req.query('limit') || 40)));
+  const cursorId = Math.max(0, Math.floor(Number(c.req.query('cursor') || 0))) || 0;
+  const range = (c.req.query('range') || '24h').trim();
+  const status = (c.req.query('status') || '').trim(); // '' | ok | error | auth
+  const q = (c.req.query('q') || '').trim();
+  const ip = (c.req.query('ip') || '').trim();
+  const span = range === '7d' ? '-7 days' : range === '30d' ? '-30 days' : '-1 day';
+  let where = `created_at >= datetime('now', '${span}')`;
+  const binds: unknown[] = [];
+  if (cursorId > 0) { where += ' AND id < ?'; binds.push(cursorId); }
+  if (status === 'ok') where += ' AND status < 400';
+  else if (status === 'error') where += ' AND status >= 400';
+  else if (status === 'auth') where += ' AND status IN (401, 403)';
+  if (ip) { where += ' AND ip = ?'; binds.push(ip); }
+  if (q) {
+    where += ' AND (path LIKE ? OR username LIKE ? OR ip LIKE ? OR as_org LIKE ? OR city LIKE ?)';
+    const like = `%${q}%`;
+    binds.push(like, like, like, like, like);
+  }
+  const { results } = await c.env.DB.prepare(
+    `SELECT id, created_at, method, path, status, ms, username, role, ip, country, city, region, asn, as_org, ua, surface
+     FROM api_log WHERE ${where} ORDER BY id DESC LIMIT ?`,
+  ).bind(...binds, limit + 1).all();
+  const rows = (results || []) as any[];
+  const has_more = rows.length > limit;
+  const page = (has_more ? rows.slice(0, limit) : rows).map((r) => ({ ...r, network: classifyNetwork(r.as_org, r.asn, r.ip) }));
+  let stats: unknown = null;
+  if (c.req.query('stats') === '1' && cursorId === 0) {
+    try {
+      const k = await c.env.DB.prepare(
+        `SELECT COUNT(*) AS total,
+                SUM(CASE WHEN status >= 400 THEN 1 ELSE 0 END) AS errors,
+                SUM(CASE WHEN status IN (401, 403) THEN 1 ELSE 0 END) AS auth_failures,
+                COUNT(DISTINCT ip) AS ips,
+                CAST(AVG(ms) AS INTEGER) AS avg_ms
+         FROM api_log WHERE created_at >= datetime('now', ?)`,
+      ).bind(span).first() as any;
+      const { results: topPaths } = await c.env.DB.prepare(
+        `SELECT method, path, COUNT(*) AS n, SUM(CASE WHEN status >= 400 THEN 1 ELSE 0 END) AS errors
+         FROM api_log WHERE created_at >= datetime('now', ?) GROUP BY method, path ORDER BY n DESC LIMIT 6`,
+      ).bind(span).all();
+      const { results: nets } = await c.env.DB.prepare(
+        `SELECT as_org, asn, COUNT(*) AS n FROM api_log WHERE created_at >= datetime('now', ?) AND (as_org IS NOT NULL OR asn IS NOT NULL)
+         GROUP BY as_org, asn ORDER BY n DESC LIMIT 40`,
+      ).bind(span).all();
+      const risky = ((nets || []) as any[]).filter((n) => classifyNetwork(n.as_org, n.asn).risky).reduce((a, n) => a + Number(n.n || 0), 0);
+      stats = {
+        total: Number(k?.total || 0), errors: Number(k?.errors || 0), auth_failures: Number(k?.auth_failures || 0),
+        unique_ips: Number(k?.ips || 0), avg_ms: Number(k?.avg_ms || 0), risky_calls: risky,
+        top_paths: topPaths || [], retention_days: API_LOG_RETENTION_DAYS, range,
+      };
+    } catch { stats = null; }
+  }
+  return c.json({ success: true, data: page, meta: { limit, has_more, next_cursor: has_more && page.length ? String(page[page.length - 1].id) : null, range, stats } });
+});
+
+/** « Expliquer » — plain-French explanation of one audit / API log line (Groq free tier, cached). */
+app.post('/api/admin/audit/explain', async (c) => {
+  const gate = requireOwner(c);
+  if (!gate.ok) return gate.response;
+  const body = (await c.req.json().catch(() => ({}))) as { kind?: string; id?: unknown };
+  const kind = body.kind === 'api' ? 'api' : 'audit';
+  const id = Math.floor(Number(body.id));
+  if (!Number.isFinite(id) || id <= 0) return c.json({ success: false, error: 'Ligne introuvable.' }, 400);
+  let row: any = null;
+  if (kind === 'api') {
+    await ensureApiLogTable(c.env.DB);
+    row = await c.env.DB.prepare('SELECT * FROM api_log WHERE id = ?').bind(id).first();
+  } else {
+    await ensureSecurityTables(c.env.DB);
+    row = await c.env.DB.prepare('SELECT id, created_at, username, role, action, entity, entity_id, detail, ip FROM audit_log WHERE id = ?').bind(id).first();
+    if (row?.ip) {
+      const g = (await geoForIps(c.env.DB, [String(row.ip)])).get(String(row.ip));
+      if (g) Object.assign(row, { country: g.country, city: g.city, asn: g.asn, as_org: g.as_org });
+    }
+  }
+  if (!row) return c.json({ success: false, error: 'Ligne introuvable.' }, 404);
+  let recent = { failures: 0, users: 0 };
+  if (row.ip) {
+    try {
+      await ensureApiLogTable(c.env.DB);
+      const r = await c.env.DB.prepare(
+        `SELECT SUM(CASE WHEN status IN (401, 403) THEN 1 ELSE 0 END) AS f, COUNT(DISTINCT username) AS u
+         FROM api_log WHERE ip = ? AND created_at >= datetime('now', '-1 day')`,
+      ).bind(String(row.ip)).first() as any;
+      recent = { failures: Number(r?.f || 0), users: Number(r?.u || 0) };
+    } catch { /* */ }
+  }
+  const explanation = await explainLogLine(c.env as any, {
+    kind, id, ...row, ip_recent_failures: recent.failures, ip_recent_users: recent.users,
+  });
+  return c.json({ success: true, data: { ...explanation, network: classifyNetwork(row.as_org, row.asn, row.ip) } });
 });
 
 /** Phase 2: export audit log (CSV or JSON) — owner only, capped to protect free tier. */

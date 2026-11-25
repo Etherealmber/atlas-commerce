@@ -1,6 +1,7 @@
 import type { Hono } from 'hono';
 import { afterBusinessMutation } from '../lib/delete-coord';
 import { enqueue } from '../lib/job-queue';
+import { purgeOldLogs } from '../lib/apiLog';
 
 interface BackupRouteDeps {
   requireOwner: (c: any) => { ok: true; username: string } | { ok: false; response: Response };
@@ -747,7 +748,13 @@ export async function executeCronBackup(
       console.error('cron_db_purge_err', String(e));
     }
   }
-  console.log('cron_backup_ok', JSON.stringify({ key: backup.key, skipped: backupSkipped, changed_tables: backup.changed_tables ?? 0, purge, dbPurge }));
+  // 30-day retention for the audit and API journals. Idle runs skip it to keep
+  // D1 reads flat: every journaled request also triggers an hourly purge.
+  let logsPurge = { api: 0, audit: 0 };
+  if (env.DB && (!backupSkipped || force)) {
+    try { logsPurge = await purgeOldLogs(env.DB); } catch (e: any) { console.error('cron_logs_purge_err', String(e)); }
+  }
+  console.log('cron_backup_ok', JSON.stringify({ key: backup.key, skipped: backupSkipped, changed_tables: backup.changed_tables ?? 0, purge, dbPurge, logsPurge }));
   return {
     success: true,
     skipped: backupSkipped,
@@ -760,6 +767,7 @@ export async function executeCronBackup(
     changed_tables: backup.changed_tables ?? 0,
     purge_deleted: purge.deleted,
     db_purged_rows: dbPurge.purgedRows,
+    logs_purged: logsPurge,
     data: backupSkipped ? null : backup,
   };
 }

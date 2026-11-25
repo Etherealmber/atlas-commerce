@@ -8,6 +8,7 @@ import { statusFr } from '../lib/labels';
 import { fmtMoney } from '../lib/money';
 import { useUi } from './AppDialogs';
 import { friendlyError } from '../lib/errors';
+import Select from './ui/Select';
 
 type Props = {
   open: boolean;
@@ -227,7 +228,7 @@ export default function RemboursementModal({ open, onClose, onCreated, preferQui
 
         <div className="form-row">
           <label>Document d’origine *</label>
-          <select
+          <Select
             value={sourceId}
             disabled={saving}
             onChange={async (e) => {
@@ -256,7 +257,7 @@ export default function RemboursementModal({ open, onClose, onCreated, preferQui
                 {Number(inv.amount_paid || 0) >= Number(inv.total || 0) - 0.001 ? ' · payé' : ''}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
 
         </StepBody>
@@ -346,7 +347,7 @@ export default function RemboursementModal({ open, onClose, onCreated, preferQui
                   />
                   Retour
                 </label>
-                <select
+                <Select
                   value={line.disposition}
                   disabled={saving || line.restock}
                   onChange={(e) => {
@@ -359,7 +360,7 @@ export default function RemboursementModal({ open, onClose, onCreated, preferQui
                   <option value="broken">Cassé</option>
                   <option value="lost">Perdu</option>
                   <option value="other">Autre</option>
-                </select>
+                </Select>
               </div>
             ))}
           </>
@@ -368,24 +369,24 @@ export default function RemboursementModal({ open, onClose, onCreated, preferQui
         <div className="grid grid-2">
         <div className="form-row">
           <label>Motif *</label>
-          <select value={reasonCode} onChange={(e) => { setReasonCode(e.target.value); if (err) setErr(''); }} disabled={saving}>
+          <Select value={reasonCode} onChange={(e) => { setReasonCode(e.target.value); if (err) setErr(''); }} disabled={saving}>
             <option value="">— Choisir —</option>
             {REASON_CODES.map((r) => (
               <option key={r.value} value={r.value}>
                 {r.label}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
         <div className="form-row">
           <label>Mode de remboursement (si payé)</label>
-          <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} disabled={saving}>
+          <Select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} disabled={saving}>
             <option value="cash">Espèces (caisse)</option>
             <option value="card">Carte</option>
             <option value="transfer">Virement</option>
             <option value="cheque">Chèque</option>
             <option value="other">Autre</option>
-          </select>
+          </Select>
         </div>
         </div>
         <div className="form-row">

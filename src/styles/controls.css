@@ -1,0 +1,240 @@
+/*
+ * v0.9.3 — Shared form controls: checkbox + login « remember » box.
+ * Loaded last (after dark-force / rtl) so the 70+ older checkbox rules
+ * (accent-color, native black squares) all give way to one look:
+ * 18 px rounded square, warm-grey border, ink fill + white tick when checked
+ * (inverted in dark mode), soft focus ring, 44 px touch target via the label.
+ * Switches (role="switch") and visually-hidden inputs keep their own styling.
+ */
+html body input[type="checkbox"]:not([role="switch"]):not(.atlas-remember-input):not(.sr-only):not(.visually-hidden):not(#ctl-g):not(#ctl-h) {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  box-sizing: border-box !important;
+  width: 18px !important;
+  height: 18px !important;
+  min-width: 18px !important;
+  min-height: 18px !important;
+  max-width: 18px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  flex: none !important;
+  display: inline-block !important;
+  vertical-align: middle !important;
+  border: 1.5px solid #cfc9bf !important;
+  border-radius: 6px !important;
+  background: #ffffff no-repeat center / 12px 12px !important;
+  box-shadow: 0 1px 1px rgba(17, 17, 17, 0.04) !important;
+  cursor: pointer !important;
+  accent-color: auto !important;
+  opacity: 1;
+  transition: background-color 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease, transform 0.08s ease !important;
+}
+html body input[type="checkbox"]:not([role="switch"]):not(.atlas-remember-input):not(.sr-only):not(.visually-hidden):not(#ctl-g):not(#ctl-h):hover {
+  border-color: #9c958a !important;
+}
+html body input[type="checkbox"]:not([role="switch"]):not(.atlas-remember-input):not(.sr-only):not(.visually-hidden):not(#ctl-g):not(#ctl-h):active {
+  transform: scale(0.92);
+}
+html body input[type="checkbox"]:not([role="switch"]):not(.atlas-remember-input):not(.sr-only):not(.visually-hidden):not(#ctl-g):not(#ctl-h):checked {
+  border-color: #16130f !important;
+  background-color: #16130f !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E") !important;
+}
+html body input[type="checkbox"]:not([role="switch"]):not(.atlas-remember-input):not(.sr-only):not(.visually-hidden):not(#ctl-g):not(#ctl-h):indeterminate {
+  border-color: #16130f !important;
+  background-color: #16130f !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='3.4' stroke-linecap='round'%3E%3Cline x1='6' y1='12' x2='18' y2='12'/%3E%3C/svg%3E") !important;
+}
+html body input[type="checkbox"]:not([role="switch"]):not(.atlas-remember-input):not(.sr-only):not(.visually-hidden):not(#ctl-g):not(#ctl-h):focus-visible {
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(22, 19, 15, 0.16) !important;
+}
+html body input[type="checkbox"]:not([role="switch"]):not(.atlas-remember-input):not(.sr-only):not(.visually-hidden):not(#ctl-g):not(#ctl-h):disabled {
+  cursor: not-allowed !important;
+  opacity: 0.45 !important;
+}
+
+/* Dark theme: inverted (light fill, dark tick). */
+html[data-theme="dark"] body input[type="checkbox"]:not([role="switch"]):not(.atlas-remember-input):not(.sr-only):not(.visually-hidden):not(#ctl-g):not(#ctl-h) {
+  border-color: #4d4943 !important;
+  background-color: #1d1c1a !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"] body input[type="checkbox"]:not([role="switch"]):not(.atlas-remember-input):not(.sr-only):not(.visually-hidden):not(#ctl-g):not(#ctl-h):hover {
+  border-color: #7b756b !important;
+}
+html[data-theme="dark"] body input[type="checkbox"]:not([role="switch"]):not(.atlas-remember-input):not(.sr-only):not(.visually-hidden):not(#ctl-g):not(#ctl-h):checked {
+  border-color: #f5f2eb !important;
+  background-color: #f5f2eb !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2316130f' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E") !important;
+}
+html[data-theme="dark"] body input[type="checkbox"]:not([role="switch"]):not(.atlas-remember-input):not(.sr-only):not(.visually-hidden):not(#ctl-g):not(#ctl-h):indeterminate {
+  border-color: #f5f2eb !important;
+  background-color: #f5f2eb !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2316130f' stroke-width='3.4' stroke-linecap='round'%3E%3Cline x1='6' y1='12' x2='18' y2='12'/%3E%3C/svg%3E") !important;
+}
+html[data-theme="dark"] body input[type="checkbox"]:not([role="switch"]):not(.atlas-remember-input):not(.sr-only):not(.visually-hidden):not(#ctl-g):not(#ctl-h):focus-visible {
+  box-shadow: 0 0 0 3px rgba(245, 242, 235, 0.18) !important;
+}
+
+/* Labels wrapping a checkbox: aligned, comfortable tap target. */
+html body label:has(> input[type="checkbox"]:not([role="switch"])) {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Login « Se souvenir 30 jours » — same box on desktop (dark card) and phone. */
+html body .atlas-login .atlas-remember-box:not(#ctl-g):not(#ctl-h) {
+  width: 18px !important;
+  height: 18px !important;
+  min-width: 18px !important;
+  border-radius: 6px !important;
+  border: 1.5px solid #cfc9bf !important;
+  background: #ffffff !important;
+  box-shadow: 0 1px 1px rgba(17, 17, 17, 0.04) !important;
+  display: inline-grid !important;
+  place-items: center !important;
+  transition: background-color 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease !important;
+}
+html body .atlas-login .atlas-remember-box:not(#ctl-g):not(#ctl-h) svg {
+  width: 12px !important;
+  height: 12px !important;
+  opacity: 0 !important;
+  stroke-width: 3.4 !important;
+}
+html body .atlas-login .atlas-remember-input:checked + .atlas-remember-box:not(#ctl-g):not(#ctl-h) {
+  background: #16130f !important;
+  border-color: #16130f !important;
+}
+html body .atlas-login .atlas-remember-input:checked + .atlas-remember-box:not(#ctl-g):not(#ctl-h) svg {
+  opacity: 1 !important;
+  stroke: #ffffff !important;
+}
+html body .atlas-login .atlas-remember-input:focus-visible + .atlas-remember-box:not(#ctl-g):not(#ctl-h) {
+  box-shadow: 0 0 0 3px rgba(22, 19, 15, 0.16) !important;
+}
+/* Desktop login card is dark: invert. */
+@media (min-width: 900px) {
+  html.atlas-login-page body .atlas-login:not(.atlas-login--phone) .atlas-remember-box:not(#ctl-g):not(#ctl-h) {
+    background: #1d1c1a !important;
+    border-color: #4d4943 !important;
+    box-shadow: none !important;
+  }
+  html.atlas-login-page body .atlas-login:not(.atlas-login--phone) .atlas-remember-input:checked + .atlas-remember-box:not(#ctl-g):not(#ctl-h) {
+    background: #f5f2eb !important;
+    border-color: #f5f2eb !important;
+  }
+  html.atlas-login-page body .atlas-login:not(.atlas-login--phone) .atlas-remember-input:checked + .atlas-remember-box:not(#ctl-g):not(#ctl-h) svg {
+    stroke: #16130f !important;
+  }
+}
+html[data-theme="dark"] body .atlas-login .atlas-remember-box:not(#ctl-g):not(#ctl-h) {
+  background: #1d1c1a !important;
+  border-color: #4d4943 !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"] body .atlas-login .atlas-remember-input:checked + .atlas-remember-box:not(#ctl-g):not(#ctl-h) {
+  background: #f5f2eb !important;
+  border-color: #f5f2eb !important;
+}
+html[data-theme="dark"] body .atlas-login .atlas-remember-input:checked + .atlas-remember-box:not(#ctl-g):not(#ctl-h) svg {
+  stroke: #16130f !important;
+}
+
+/* ── <Select> (src/components/ui/Select.tsx) ─────────────────────────────
+ * The native box keeps its existing look; we only stop label clipping and
+ * draw our own listbox instead of the OS dropdown. */
+html body select.ac-sel:not(#ctl-g):not(#ctl-h) {
+  text-overflow: clip !important;
+  cursor: pointer;
+}
+html body select.ac-sel.is-open:not(#ctl-g):not(#ctl-h) {
+  border-color: #a8a29e !important;
+  box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.07) !important;
+}
+.ac-select-pop {
+  position: fixed;
+  z-index: 2147483000;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding: 6px;
+  border: 1px solid #e7e2d9;
+  border-radius: 14px;
+  background: #ffffff;
+  color: #171717;
+  box-shadow: 0 18px 40px -12px rgba(17, 17, 17, 0.22), 0 4px 10px rgba(17, 17, 17, 0.06);
+  font-size: 14px;
+  overflow: hidden;
+  animation: ac-select-in 0.12s ease-out;
+  transform-origin: top center;
+}
+.ac-select-pop.is-up { transform-origin: bottom center; }
+@keyframes ac-select-in { from { opacity: 0; transform: translateY(-4px) scale(0.98); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .ac-select-pop { animation: none; } }
+.ac-select-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+  padding: 0 10px;
+  height: 36px;
+  flex: none;
+  border: 1px solid #ece7de;
+  border-radius: 10px;
+  background: #faf8f4;
+  color: #78716c;
+}
+html body .ac-select-search input:not(#ctl-g):not(#ctl-h) {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  font-size: 14px;
+  color: inherit;
+}
+.ac-select-list { overflow-y: auto; overscroll-behavior: contain; min-height: 0; }
+.ac-select-group {
+  padding: 8px 10px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #a8a29e;
+}
+.ac-select-opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 38px;
+  padding: 8px 10px;
+  border-radius: 9px;
+  cursor: pointer;
+  user-select: none;
+  line-height: 1.25;
+}
+.ac-select-opt-label { min-width: 0; overflow-wrap: anywhere; }
+.ac-select-opt.is-active { background: #f4f1ec; }
+.ac-select-opt.is-selected { font-weight: 650; }
+.ac-select-opt.is-disabled { opacity: 0.45; cursor: not-allowed; }
+.ac-select-opt svg { flex: none; color: #171717; }
+.ac-select-empty { padding: 12px 10px; color: #a8a29e; font-size: 13px; }
+@media (pointer: coarse) { .ac-select-opt { min-height: 44px; } }
+
+html[data-theme="dark"] .ac-select-pop {
+  background: #18181b;
+  border-color: #2f2f35;
+  color: #f4f4f5;
+  box-shadow: 0 18px 44px -12px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.02);
+}
+html[data-theme="dark"] .ac-select-search { background: #111113; border-color: #2f2f35; color: #a1a1aa; }
+html[data-theme="dark"] .ac-select-opt.is-active { background: #26262b; }
+html[data-theme="dark"] .ac-select-opt svg { color: #fafafa; }
+html[data-theme="dark"] body select.ac-sel.is-open:not(#ctl-g):not(#ctl-h) {
+  border-color: #52525b !important;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08) !important;
+}

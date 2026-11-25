@@ -33,6 +33,7 @@ import RemboursementModal from '../components/RemboursementModal';
 import { FloatingPortal } from '../components/FloatingPortal';
 import { ModalFormError } from '../components/ModalFormFeedback';
 import { MetricSpark, MetricTrend } from '../components/MetricSpark';
+import Select from '../components/ui/Select';
 
 type Product = {
   id: number;
@@ -472,13 +473,13 @@ export default function QuickSale() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <select value={filter} onChange={(e) => setFilter(e.target.value)} className="ac-filter-select" aria-label="Filtrer par statut">
+          <Select value={filter} onChange={(e) => setFilter(e.target.value)} className="ac-filter-select" aria-label="Filtrer par statut">
             <option value="">Tous les tickets</option>
             <option value="sent">Non soldés</option>
             <option value="partial">Partiels</option>
             <option value="paid">Encaissés</option>
             <option value="cancelled">Annulés</option>
-          </select>
+          </Select>
         </div>
       </div>
 
@@ -883,11 +884,11 @@ export default function QuickSale() {
 
             <div className="form-row">
               <label>Mode de paiement *</label>
-              <select value={settleMethod} onChange={(e) => setSettleMethod(e.target.value)} disabled={settleSaving}>
+              <Select value={settleMethod} onChange={(e) => setSettleMethod(e.target.value)} disabled={settleSaving}>
                 {PAYMENT_METHODS.map((m) => (
                   <option key={m.value} value={m.value}>{m.label}</option>
                 ))}
-              </select>
+              </Select>
             </div>
 
             <div className="form-row">

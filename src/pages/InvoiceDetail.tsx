@@ -16,6 +16,7 @@ import { TimedUndoDelete } from '../components/ui';
 import PageSkeleton from '../components/PageSkeleton';
 import { numFromInput } from '../lib/numInput';
 import NumberField from '../components/NumberField';
+import Select from '../components/ui/Select';
 
 
 function formatIssue(e: unknown): string {
@@ -739,7 +740,7 @@ export default function InvoiceDetail() {
           <div className="grid grid-2">
             <div className="form-row" style={{ gridColumn: '1 / -1' }}>
               <label>Client enregistré (optionnel)</label>
-              <select
+              <Select
                 value={clientForm.client_id}
                 onChange={(e) => {
                   const cid = e.target.value;
@@ -766,7 +767,7 @@ export default function InvoiceDetail() {
                     {c.name}{c.ice ? ` · ${c.ice}` : ''}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             {(['client_name', 'client_ice', 'client_address', 'client_city', 'client_email', 'client_phone'] as const).map((k) => (
               <div className="form-row" key={k}>
@@ -922,7 +923,7 @@ export default function InvoiceDetail() {
                         onChange={(e) => updateEditLine(idx, 'product_query', e.target.value)}
                         placeholder="Nom, SKU…"
                       />
-                      <select
+                      <Select
                         style={{ marginTop: 4 }}
                         value={item.product_id || ''}
                         onChange={(e) => updateEditLine(idx, 'product_id', e.target.value ? numFromInput(e.target.value) : undefined)}
@@ -933,7 +934,7 @@ export default function InvoiceDetail() {
                             {p.name} · {Math.round(Number(p.price || 0)).toLocaleString('fr-FR')}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     </div>
                     <div className="form-row">
                       <label>Désignation *</label>

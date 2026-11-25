@@ -33,6 +33,7 @@ import { FloatingPortal } from '../components/FloatingPortal';
 import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
 import { ModalFormError } from '../components/ModalFormFeedback';
 import { MetricSpark, MetricTrend } from '../components/MetricSpark';
+import Select from '../components/ui/Select';
 
 const PRODUCT_CREATE_STEPS: readonly WizardStepDef[] = [
   { id: 'identity', label: 'Identité', hint: 'Nom, référence SKU et description catalogue.' },
@@ -669,18 +670,18 @@ export default function Products() {
               aria-label="Rechercher produits"
             />
           </div>
-          <select className="ac-filter-select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} aria-label="Catégorie">
+          <Select className="ac-filter-select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} aria-label="Catégorie">
             <option value="">Toutes catégories</option>
             {categories.map((c) => (
               <option key={c.id ?? c.name} value={c.name}>{c.name}</option>
             ))}
-          </select>
-          <select className="ac-filter-select" value={stockFilter} onChange={(e) => setStockFilter(e.target.value)} aria-label="Niveau de stock">
+          </Select>
+          <Select className="ac-filter-select" value={stockFilter} onChange={(e) => setStockFilter(e.target.value)} aria-label="Niveau de stock">
             <option value="">Tous les niveaux</option>
             <option value="ok">En stock</option>
             <option value="low">Stock bas</option>
             <option value="out">Rupture</option>
-          </select>
+          </Select>
         </div>
         <div className="atlas-catalog-legend ac-products-legend">
           <span><span className="stock-pill ok">OK</span> au-dessus du seuil</span>
@@ -1010,7 +1011,7 @@ export default function Products() {
             <div className="grid grid-2">
               <div className="form-row">
                 <label>Catégorie</label>
-                <select
+                <Select
                   value={form.category || ''}
                   onChange={(e) => {
                     if (e.target.value === '__new__') { addCategory(); return; }
@@ -1025,11 +1026,11 @@ export default function Products() {
                     <option value={form.category}>{form.category}</option>
                   )}
                   <option value="__new__">+ Nouvelle catégorie…</option>
-                </select>
+                </Select>
               </div>
               <div className="form-row">
                 <label>Unité (m², ML…) *</label>
-                <select
+                <Select
                   value={form.unit || ''}
                   onChange={(e) => {
                     if (e.target.value === '__new__') { void addUnit('unit'); return; }
@@ -1047,13 +1048,13 @@ export default function Products() {
                     <option value={form.unit}>{form.unit}</option>
                   )}
                   <option value="__new__">+ Nouvelle unité…</option>
-                </select>
+                </Select>
               </div>
             </div>
             <div className="grid grid-2">
               <div className="form-row">
                 <label htmlFor="product-secondary-unit">Deuxième unité (facultatif)</label>
-                <select
+                <Select
                   id="product-secondary-unit"
                   value={form.secondary_unit || ''}
                   onChange={(e) => {
@@ -1078,7 +1079,7 @@ export default function Products() {
                     <option value={form.secondary_unit}>{form.secondary_unit}</option>
                   )}
                   <option value="__new__">+ Nouvelle unité…</option>
-                </select>
+                </Select>
               </div>
               <div className="form-row"><label htmlFor="product-secondary-factor">Quantité par {form.unit || 'unité'}</label><input id="product-secondary-factor" inputMode="decimal" value={form.secondary_unit_factor ?? ''} onChange={e => { setForm({ ...form, secondary_unit_factor: e.target.value }); if (modalError) setModalError(''); }} placeholder="Ex. 1,59" /></div>
             </div>
@@ -1098,22 +1099,22 @@ export default function Products() {
               <div className="grid grid-2">
                 <div className="form-row"><label>Stock initial ({form.unit || "unité"})</label><NumberField value={form.stock_quantity} onValueChange={(n) => setForm({ ...form, stock_quantity: n })} />{form.secondary_unit && Number(String(form.secondary_unit_factor || "").replace(",", ".")) > 0 && <small>{dualStockLabel({ ...form, secondary_unit_factor: Number(String(form.secondary_unit_factor).replace(",", ".")) })}</small>}</div>
                 <div className="form-row"><label>Entrepôt / emplacement</label>
-                  <select value={form.location_id || ''} onChange={(e) => setForm({ ...form, location_id: Number(e.target.value) || 0 })}>
+                  <Select value={form.location_id || ''} onChange={(e) => setForm({ ...form, location_id: Number(e.target.value) || 0 })}>
                     <option value="0">Emplacement par défaut</option>
                     {stockLocations.map((l: any) => (
                       <option key={l.id} value={l.id}>{l.name} ({l.code})</option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
               </div>
             )}
             <div className="grid grid-3">
               <div className="form-row"><label>Seuil d'alerte</label><NumberField value={form.low_stock_threshold} onValueChange={(n) => setForm({ ...form, low_stock_threshold: n })} /></div>
               <div className="form-row"><label>Taux TVA %</label><NumberField value={form.tax_rate} onValueChange={(n) => setForm({ ...form, tax_rate: n })} placeholder="Défaut" /></div>
-              <div className="form-row"><label>Prix sur facture</label><select value={form.invoice_price_mode || ''} onChange={(e) => setForm({ ...form, invoice_price_mode: e.target.value })}>
+              <div className="form-row"><label>Prix sur facture</label><Select value={form.invoice_price_mode || ''} onChange={(e) => setForm({ ...form, invoice_price_mode: e.target.value })}>
                 {!form.invoice_price_mode && <option value="">Mode historique (inchangé)</option>}
                 <option value="exclusive">TVA ajoutée au prix (HT)</option><option value="inclusive">TVA incluse dans le prix (TTC)</option>
-              </select></div>
+              </Select></div>
             </div>
             <div className="form-row" style={{ marginBottom: 4 }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
@@ -1348,11 +1349,11 @@ export default function Products() {
             <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>Stock actuel : <strong>{dualStockLabel(adjustProduct)}</strong></p>
             <div className="form-row">
               <label>Type d'ajustement</label>
-              <select value={adjustType} onChange={(e) => setAdjustType(e.target.value)}>
+              <Select value={adjustType} onChange={(e) => setAdjustType(e.target.value)}>
                 <option value="in">Entrée stock (+)</option>
                 <option value="out">Sortie stock (−)</option>
                 <option value="adjustment">Ajustement manuel</option>
-              </select>
+              </Select>
             </div>
             <div className="form-row"><label>Quantité ({adjustProduct.unit || "unité"})</label><NumberField value={adjustQty} onValueChange={setAdjustQty} min={0.01} step="0.01" />{adjustProduct.secondary_unit && <small>Équivalent : {dualStockLabel(adjustProduct, adjustQty)}</small>}</div>
             <div className="form-row"><label>Raison</label><input value={adjustReason} onChange={(e) => setAdjustReason(e.target.value)} placeholder="ex. Réception marchandise, casse, correction..." /></div>

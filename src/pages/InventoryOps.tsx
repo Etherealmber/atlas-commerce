@@ -17,6 +17,7 @@ import RefreshIconButton from '../components/RefreshIconButton';
 import PageSkeleton from '../components/PageSkeleton';
 import { TimedUndoDelete } from '../components/ui';
 import { MetricSpark, MetricTrend } from '../components/MetricSpark';
+import Select from '../components/ui/Select';
 
 const fmt = (n: number) => Math.round(Number(n || 0)).toLocaleString('fr-FR');
 
@@ -203,14 +204,14 @@ export default function InventoryOps() {
       <div className="ac-ops-topbar-scope" style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
         <div className="form-row ac-ops-scope-control" style={{ margin: 0 }}>
           <label htmlFor="ops-scope-select">Périmètre entrepôt</label>
-          <select id="ops-scope-select" value={reportLoc} onChange={(e) => setReportLoc(e.target.value)}>
+          <Select id="ops-scope-select" value={reportLoc} onChange={(e) => setReportLoc(e.target.value)}>
             <option value="all">Tous les entrepôts (consolidé)</option>
             {locations.map((l) => (
               <option key={l.id} value={String(l.id)}>
                 {l.name} ({l.code})
               </option>
             ))}
-          </select>
+          </Select>
         </div>
       </div>
 
@@ -256,7 +257,7 @@ export default function InventoryOps() {
           </div>
           <div className="form-row">
             <label>Produit</label>
-            <select
+            <Select
               value={transfer.product_id || ''}
               onChange={(e) => setTransfer({ ...transfer, product_id: Number(e.target.value) })}
             >
@@ -264,28 +265,28 @@ export default function InventoryOps() {
               {products.map((p) => (
                 <option key={p.id} value={p.id}>{p.name} (total {p.stock_quantity})</option>
               ))}
-            </select>
+            </Select>
           </div>
           <div className="ac-ops-form-grid-2">
             <div className="form-row">
               <label>De</label>
-              <select
+              <Select
                 value={transfer.from_location_id || ''}
                 onChange={(e) => setTransfer({ ...transfer, from_location_id: Number(e.target.value) })}
               >
                 <option value="0">Emplacement défaut</option>
                 {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-              </select>
+              </Select>
             </div>
             <div className="form-row">
               <label>Vers</label>
-              <select
+              <Select
                 value={transfer.to_location_id || ''}
                 onChange={(e) => setTransfer({ ...transfer, to_location_id: Number(e.target.value) })}
               >
                 <option value="0">—</option>
                 {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-              </select>
+              </Select>
             </div>
           </div>
           <div className="ac-ops-form-grid-2">
@@ -316,7 +317,7 @@ export default function InventoryOps() {
           </div>
           <div className="form-row">
             <label>Produit</label>
-            <select
+            <Select
               value={cycle.product_id || ''}
               onChange={(e) => {
                 const id = Number(e.target.value);
@@ -328,7 +329,7 @@ export default function InventoryOps() {
               {products.map((p) => (
                 <option key={p.id} value={p.id}>{p.name} (théorique {p.stock_quantity})</option>
               ))}
-            </select>
+            </Select>
           </div>
           <div className="ac-ops-form-grid-2">
             <div className="form-row">
@@ -696,22 +697,22 @@ export default function InventoryOps() {
             <input value={newRule.name} onChange={(e) => setNewRule({ ...newRule, name: e.target.value })} />
           </div>
           <div className="form-row"><label>Produit (0 = tous)</label>
-            <select value={newRule.product_id || 0} onChange={(e) => setNewRule({ ...newRule, product_id: Number(e.target.value) })}>
+            <Select value={newRule.product_id || 0} onChange={(e) => setNewRule({ ...newRule, product_id: Number(e.target.value) })}>
               <option value={0}>Tous les produits suivis</option>
               {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
+            </Select>
           </div>
           <div className="form-row"><label>Depuis (réserve)</label>
-            <select value={newRule.from_location_id || ''} onChange={(e) => setNewRule({ ...newRule, from_location_id: Number(e.target.value) })}>
+            <Select value={newRule.from_location_id || ''} onChange={(e) => setNewRule({ ...newRule, from_location_id: Number(e.target.value) })}>
               <option value={0}>—</option>
               {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </select>
+            </Select>
           </div>
           <div className="form-row"><label>Vers (magasin)</label>
-            <select value={newRule.to_location_id || ''} onChange={(e) => setNewRule({ ...newRule, to_location_id: Number(e.target.value) })}>
+            <Select value={newRule.to_location_id || ''} onChange={(e) => setNewRule({ ...newRule, to_location_id: Number(e.target.value) })}>
               <option value={0}>—</option>
               {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </select>
+            </Select>
           </div>
           <div className="form-row"><label>Seuil bas</label>
             <NumberField min={0} value={newRule.threshold} onValueChange={(n) => setNewRule({ ...newRule, threshold: n })} />

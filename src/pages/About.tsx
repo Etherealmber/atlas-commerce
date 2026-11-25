@@ -433,7 +433,7 @@ export default function About() {
             </li>
             <li>
               <span className="muted">Langues</span>
-              <span>Français · arabe et anglais bientôt</span>
+              <span translate="no">Français · العربية · English</span>
             </li>
             <li>
               <span className="muted">Éditeur</span>

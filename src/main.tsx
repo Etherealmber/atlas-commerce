@@ -39,6 +39,7 @@ import { installUnsavedGuards } from './lib/unsavedGuard';
 import { installScrollGutter } from './lib/scrollGutter';
 import { installI18n } from './i18n';
 import './styles/rtl.css'; /* Arabic: right-to-left shell */
+import './styles/controls.css'; /* shared checkbox / select look — after every theme file */
 
 // v260 — global crash reporting (fire-and-forget, throttled, sanitized server-side)
 installI18n();

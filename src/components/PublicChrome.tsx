@@ -165,8 +165,8 @@ function PublicLanguageButton() {
           type="button"
           className="public-lang-btn"
           onClick={() => setOpen(true)}
-          title="Langue — l’arabe et l’anglais arrivent bientôt"
-          aria-label="Langue (français). L’arabe et l’anglais arrivent bientôt"
+          title="Langue — français, arabe, anglais"
+          aria-label="Changer la langue"
           aria-haspopup="dialog"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>

@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import PageSkeleton from '../components/PageSkeleton';
 import { MetricSpark, MetricTrend } from '../components/MetricSpark';
+import Select from '../components/ui/Select';
 
 const BALANCE_STEPS: readonly WizardStepDef[] = [
   { id: 'type', label: 'Type & libellé', hint: 'Catégorie et description de l’écriture.' },
@@ -593,7 +594,7 @@ export default function Balance() {
               <div className="bal-reports-period-row">
                 <label className="bal-reports-field">
                   <span>Période</span>
-                  <select value={reportPeriod} onChange={(e) => changeReportPeriod(e.target.value)}>
+                  <Select value={reportPeriod} onChange={(e) => changeReportPeriod(e.target.value)}>
                     {/^\d{4}-(0[1-9]|1[0-2])$/.test(reportPeriod) && (
                       <option value={reportPeriod}>Mois : {reportPeriodLabel(reportPeriod)}</option>
                     )}
@@ -606,7 +607,7 @@ export default function Balance() {
                     <option value="36m">3 ans</option>
                     <option value="48m">4 ans</option>
                     <option value="year">Année civile</option>
-                  </select>
+                  </Select>
                 </label>
                 <label className="bal-reports-field">
                   <span>Mois précis</span>
@@ -716,7 +717,7 @@ export default function Balance() {
           <div className="bal-tx-toolbar-left">
             <label className="bal-tx-filter-label">
               <span>Filtrer</span>
-              <select
+              <Select
                 value={filterType}
                 onChange={(e) => { setFilterType(e.target.value as any); setTxPage(0); }}
               >
@@ -725,7 +726,7 @@ export default function Balance() {
                 <option value="expense">Dépenses</option>
                 <option value="owner_contrib">Apports</option>
                 <option value="owner_draw">Prélèvements</option>
-              </select>
+              </Select>
             </label>
             <input
               type="search"
@@ -811,7 +812,7 @@ export default function Balance() {
             <div className="grid grid-2">
             <div className="form-row">
               <label>Type</label>
-              <select
+              <Select
                 value={entryType}
                 onChange={(e) => {
                   const t = e.target.value as EntryType;
@@ -823,13 +824,13 @@ export default function Balance() {
                 <option value="income">Recette</option>
                 <option value="owner_contrib">Apport propriétaire</option>
                 <option value="owner_draw">Prélèvement propriétaire</option>
-              </select>
+              </Select>
             </div>
             <div className="form-row">
               <label>Catégorie</label>
-              <select value={category} onChange={(e) => setCategory(e.target.value)}>
+              <Select value={category} onChange={(e) => setCategory(e.target.value)}>
                 {catsFor(entryType).map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
+              </Select>
             </div>
             </div>
             <div className="form-row">
@@ -851,12 +852,12 @@ export default function Balance() {
             <div className="grid grid-2">
               <div className="form-row">
                 <label>Mode de paiement</label>
-                <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
+                <Select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
                   <option value="cash">Espèces (caisse)</option>
                   <option value="bank">Banque / virement</option>
                   <option value="card">Carte</option>
                   <option value="check">Chèque</option>
-                </select>
+                </Select>
               </div>
               <div className="form-row">
                 <label>Tiers / note</label>

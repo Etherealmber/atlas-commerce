@@ -15,6 +15,7 @@ import RefreshIconButton from '../components/RefreshIconButton';
 import PageSkeleton from '../components/PageSkeleton';
 import { fmtMoney } from '../lib/money';
 import { MetricSpark, MetricTrend } from '../components/MetricSpark';
+import Select from '../components/ui/Select';
 
 const DENOMINATIONS = [200, 100, 50, 20, 10, 5, 2, 1, 0.5];
 
@@ -453,19 +454,19 @@ export default function CashShifts() {
                 <div className="ac-ops-form-grid-2">
                   <label className="ac-erp-field">
                     <span>Sens</span>
-                    <select value={mvDir} onChange={(e) => setMvDir(e.target.value as 'in' | 'out')}>
+                    <Select value={mvDir} onChange={(e) => setMvDir(e.target.value as 'in' | 'out')}>
                       <option value="in">Entrée (apport)</option>
                       <option value="out">Sortie (retrait / dépense)</option>
-                    </select>
+                    </Select>
                   </label>
                   <label className="ac-erp-field">
                     <span>Moyen</span>
-                    <select value={mvMethod} onChange={(e) => setMvMethod(e.target.value)}>
+                    <Select value={mvMethod} onChange={(e) => setMvMethod(e.target.value)}>
                       <option value="cash">Espèces</option>
                       <option value="card">Carte</option>
                       <option value="transfer">Virement</option>
                       <option value="check">Chèque</option>
-                    </select>
+                    </Select>
                   </label>
                   <label className="ac-erp-field">
                     <span>Montant (DH)</span>

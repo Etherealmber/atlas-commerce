@@ -33,6 +33,7 @@ import { FloatingPortal } from '../components/FloatingPortal';
 import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
 import { ModalFormError } from '../components/ModalFormFeedback';
 import { MetricSpark, MetricTrend } from '../components/MetricSpark';
+import Select from '../components/ui/Select';
 
 const INVOICE_STEPS: readonly WizardStepDef[] = [
   { id: 'client', label: 'Client', hint: 'Client enregistré ou nouveau client, avec son identifiant fiscal.' },
@@ -524,14 +525,14 @@ export default function Invoices() {
           <div className="ac-search-field">
             <input className="ac-search-input" placeholder="Rechercher par numéro ou nom de client..." value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
-          <select value={filter} onChange={(e) => setFilter(e.target.value)} className="ac-filter-select" aria-label="Filtrer par statut">
+          <Select value={filter} onChange={(e) => setFilter(e.target.value)} className="ac-filter-select" aria-label="Filtrer par statut">
             <option value="">Toutes les factures</option>
             <option value="sent">Non payées / envoyées</option>
             <option value="partial">Partiellement payées</option>
             <option value="paid">Payées</option>
             <option value="cancelled">Annulées</option>
             <option value="overdue">En retard</option>
-          </select>
+          </Select>
         </div>
       </div>
       </div>
@@ -912,7 +913,7 @@ export default function Invoices() {
 
             <div className="form-row">
               <label>Facture d’origine *</label>
-              <select
+              <Select
                 value={refundSourceId}
                 disabled={refundSaving}
                 onChange={async (e) => {
@@ -942,7 +943,7 @@ export default function Invoices() {
                       {Number(inv.amount_paid || 0) >= Number(inv.total || 0) - 0.001 ? ' · payé' : ''}
                     </option>
                   ))}
-              </select>
+              </Select>
             </div>
 
             {refundSource && (
@@ -999,7 +1000,7 @@ export default function Invoices() {
                     {line.restock ? (
                       <span style={{ fontSize: 11, color: 'var(--muted)' }}>— réintégré au stock</span>
                     ) : (
-                      <select
+                      <Select
                         value={line.disposition}
                         disabled={refundSaving}
                         onChange={(e) => {
@@ -1013,7 +1014,7 @@ export default function Invoices() {
                         {STOCK_DISPOSITION_OPTIONS.map((o) => (
                           <option key={o.code} value={o.code}>{o.label}</option>
                         ))}
-                      </select>
+                      </Select>
                     )}
                   </div>
                 ))}
@@ -1026,7 +1027,7 @@ export default function Invoices() {
 
             <div className="form-row">
               <label>Motif valable *</label>
-              <select
+              <Select
                 value={refundReasonCode}
                 onChange={(e) => setRefundReasonCode(e.target.value)}
                 disabled={refundSaving}
@@ -1035,7 +1036,7 @@ export default function Invoices() {
                 {REFUND_REASON_OPTIONS.map((o) => (
                   <option key={o.code} value={o.code}>{o.label}</option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div className="form-row">
               <label>Explication détaillée * (obligatoire)</label>
@@ -1063,13 +1064,13 @@ export default function Invoices() {
             
             <div className="form-row">
               <label>Mode de sortie (si déjà encaissé)</label>
-              <select value={refundPayMethod} onChange={(e) => setRefundPayMethod(e.target.value)} disabled={refundSaving}>
+              <Select value={refundPayMethod} onChange={(e) => setRefundPayMethod(e.target.value)} disabled={refundSaving}>
                 <option value="cash">Espèces (caisse)</option>
                 <option value="card">Carte</option>
                 <option value="transfer">Virement</option>
                 <option value="cheque">Chèque</option>
                 <option value="other">Autre</option>
-              </select>
+              </Select>
               <p style={{ fontSize: 12, color: 'var(--muted)', margin: '6px 0 0' }}>
                 Déjà payé → sortie dans Solde. Non payé → réduction du reste dû uniquement.
               </p>
@@ -1235,11 +1236,11 @@ export default function Invoices() {
 
             <div className="form-row">
               <label>Mode de paiement *</label>
-              <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} disabled={saving}>
+              <Select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} disabled={saving}>
                 {PAYMENT_METHODS.map((m) => (
                   <option key={m.value} value={m.value}>{m.label}</option>
                 ))}
-              </select>
+              </Select>
               <small style={{ color: 'var(--muted)', fontSize: 12 }}>
                 Espèces / carte → caisse. Virement / chèque → banque (solde caisse vs banque).
               </small>
