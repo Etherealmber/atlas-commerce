@@ -20,3 +20,5 @@ export function renderFixPrompt(t: Triage, ctx: { repo: string; issue: any }): s
 export function renderTriageComment(t: Triage, ctx: { repo: string; issue: any; model: string; files?: string[] }): string;
 export function renderPrLinkComment(input: { pr: any; closing: boolean }): string;
 export function renderFixedComment(input: { pr: any; sha?: string }): string;
+
+export function isSafeGithubPath(repo: unknown, path: unknown): boolean;

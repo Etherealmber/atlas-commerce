@@ -11,9 +11,9 @@ import { APP_VERSION, DISPLAY_VERSION, RELEASE_VISIBLE_CAP, WHATS_NEW_VERSION, s
  * so the "Nouveautés" badge pointed at an empty section).
  */
 describe('WhatsNew releases', () => {
-  it('translates all recent 0.9.1–0.9.3 release entries into Arabic and English', () => {
+  it('translates all 0.6–0.9 release release entries into Arabic and English', () => {
     const dicts = buildDicts();
-    for (const release of RELEASES.filter((r) => ['0.9.1', '0.9.2', '0.9.3'].includes(r.version))) {
+    for (const release of RELEASES.filter((r) => /^0\.[6789]\./.test(r.version))) {
       for (const item of release.sections.flatMap((section) => section.items)) {
         expect(dicts.ar[item.text], `${release.version}: ${item.id} Arabic`).toBeTruthy();
         expect(dicts.en[item.text], `${release.version}: ${item.id} English`).toBeTruthy();
