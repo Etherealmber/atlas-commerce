@@ -1,7 +1,7 @@
 import type { AtlasApp } from './types';
 import { APP_BUILD_DATE, APP_CHANNEL, APP_VERSION } from '../../src/version';
 import { getWorkerFinanceHealthStats } from '../lib/financeCore';
-import { addColumnIfMissing } from '../lib/schema';
+import { addColumnIfMissing, schemaOnceForDb } from '../lib/schema';
 import { normalizeRole } from '../lib/rbac';
 import { normalizeInventoryRole, roleCanSeeFinancial } from '../lib/inventory-policy';
 import { nextDocumentNumber } from '../lib/numbering';
@@ -508,7 +508,13 @@ export function registerProductRequestRoutes(app: AtlasApp, deps: LedgerMiscDeps
  * request (code + optional photo/name, NO price); a PC user (admin/owner) or
  * stock role creates the product later with the price.
  * ────────────────────────────────────────────────────────────────────────── */
+/** Once per D1 binding per isolate — the DDL below is idempotent, so
+ *  re-running it on every request only cost D1 round-trips. */
 async function ensureProductRequestsTable(db: D1Database): Promise<void> {
+  await schemaOnceForDb(db, 'ensureProductRequestsTable', () => ensureProductRequestsTableBody(db));
+}
+
+async function ensureProductRequestsTableBody(db: D1Database): Promise<void> {
   await db
     .prepare(
       `CREATE TABLE IF NOT EXISTS product_requests (

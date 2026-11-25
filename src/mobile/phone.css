@@ -2615,7 +2615,29 @@ html.phone-shell .phone-root--no-dock .ph-agent-shell { bottom: calc(16px + env(
 
 /* Inventory scanner: camera stays off until requested, as in the native app. */
 .ph-scan-native { color: #172033; }
-.ph-scan-status { text-align: right; color: #64748b; font-size: 12px; }
+.ph-scan-status { color: #64748b; font-size: 12px; }
+/* v0.9.3 — scan header: « Hors ligne » only when offline + « Ajouter un produit ». */
+.ph-scan-head { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin: 0 0 10px; min-width: 0; }
+.ph-scan-head .ph-scan-status.is-offline {
+  margin-right: auto; display: inline-flex; align-items: center; gap: 6px;
+  height: 26px; padding: 0 10px; border-radius: 999px;
+  background: rgba(239, 68, 68, 0.1); color: #b91c1c; font-weight: 600;
+}
+.ph-scan-head .ph-scan-status.is-offline::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+html body .ph-scan-head .ph-scan-add:not(#ph-sa-g):not(#ph-sa-h):not(#ph-sa-i) {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 36px !important; min-height: 36px !important; padding: 0 14px !important;
+  border-radius: 999px !important; border: 1px solid #0f172a !important;
+  background: #0f172a !important; color: #ffffff !important; -webkit-text-fill-color: currentColor !important;
+  font-size: 13px !important; font-weight: 600 !important; white-space: nowrap; box-shadow: 0 6px 16px rgba(15, 23, 42, 0.16);
+}
+html body .ph-scan-head .ph-scan-add:not(#ph-sa-g):not(#ph-sa-h):not(#ph-sa-i):active { transform: scale(0.97); }
+html[data-theme="dark"] body .ph-scan-head .ph-scan-add:not(#ph-sa-g):not(#ph-sa-h):not(#ph-sa-i) {
+  background: #f4f4f5 !important; border-color: #f4f4f5 !important; color: #09090b !important; box-shadow: none;
+}
+html[data-theme="dark"] .ph-scan-head .ph-scan-status.is-offline { background: rgba(248, 113, 113, 0.14); color: #fca5a5; }
+.ph-scan-failed { margin: 0 0 8px; padding: 8px 10px; border-radius: 10px; background: rgba(245, 158, 11, 0.12); color: #92400e; font-size: 13px; font-weight: 600; }
+html[data-theme="dark"] .ph-scan-failed { background: rgba(251, 191, 36, 0.12); color: #fcd34d; }
 .ph-scan-idle { min-height: 250px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 24px 20px; text-align: center; background: #f1f3f7; border-radius: 18px; margin: 8px 0 12px; }
 .ph-scan-idle-icon { width: 68px; height: 68px; border-radius: 50%; display: grid; place-items: center; background: #dce8ff; color: #1d4ed8; }
 .ph-scan-idle h2 { margin: 0; font-size: 18px; }
@@ -2629,7 +2651,7 @@ html.phone-shell body .phone-root .ph-scan-native button.ph-scan-start { backgro
 html[data-theme="dark"].phone-shell .ph-scan-native { color: #f4f4f5; }
 html[data-theme="dark"].phone-shell .ph-scan-idle, html[data-theme="dark"].phone-shell .ph-scan-controls { background: #18181b; border-color: #27272d; }
 html[data-theme="dark"].phone-shell .ph-scan-idle-icon { background: #27272b; color: #f4f4f5; }
-html[data-theme="dark"].phone-shell .ph-scan-idle p, html[data-theme="dark"].phone-shell .ph-scan-status { color: #b4b4bd; }
+html[data-theme="dark"].phone-shell .ph-scan-idle p { color: #b4b4bd; }
 html[data-theme="dark"].phone-shell .ph-scan-controls .ph-scan-row input { color: #f4f4f5; background: #27272a; }
 html[data-theme="dark"].phone-shell body .phone-root .ph-scan-native button.theme-toggle { background: #3f3f46 !important; color: #f4f4f5 !important; -webkit-text-fill-color: #f4f4f5 !important; border-color: #52525b !important; }
 html[data-theme="dark"].phone-shell body .phone-root .ph-scan-native button.ph-scan-start { background: #fafafa !important; color: #171717 !important; -webkit-text-fill-color: #171717 !important; }
@@ -4402,3 +4424,53 @@ html.phone-shell .ph-agent-avatar--pending:not(#ph-ag-g):not(#ph-ag-h):not(#ph-a
 .phone-root--no-motion .ph-agent-shimmer i:not(#ph-ag-g):not(#ph-ag-h):not(#ph-ag-i),
 .phone-root--no-motion .ph-agent-shimmer-text:not(#ph-ag-g):not(#ph-ag-h):not(#ph-ag-i),
 .phone-root--no-motion .atlas-loader--inline .atlas-mark-tick { animation: none; }
+
+/* ── v0.9.3 — phone KPI strip (home · employés · clients · scan) ──
+   Swipeable metric cards: label, value + trend chip, sparkline on the bottom edge. */
+.ph-kpis {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(158px, 46%);
+  gap: 10px;
+  margin: 4px 0 14px;
+  padding: 2px 1px 6px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.ph-kpis::-webkit-scrollbar { display: none; }
+.ph-kpi {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 12px 48px;
+  min-height: 104px;
+  box-sizing: border-box;
+  border-radius: 16px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  scroll-snap-align: start;
+  overflow: hidden;
+}
+.ph-kpi-label { font-size: 12px; font-weight: 600; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ph-kpi-label small { font-weight: 500; color: #94a3b8; font-size: 11px; }
+.ph-kpi-value { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 19px; font-weight: 700; color: #0f172a; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; min-width: 0; }
+.ph-kpi-value > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html body .ph-kpi :is(.ph-kpi-label, .ph-kpi-value, .ph-kpi-value > span, .ph-kpi-label small):not(#ph-kp-g):not(#ph-kp-h):not(#ph-kp-i) {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+html[data-theme="dark"] .ph-kpi { background: #18181b; border-color: rgba(255, 255, 255, 0.08); box-shadow: none; }
+html[data-theme="dark"] .ph-kpi-label { color: #a1a1aa; }
+html[data-theme="dark"] .ph-kpi-label small { color: #71717a; }
+html[data-theme="dark"] .ph-kpi-value { color: #f4f4f5; }
+@media (min-width: 600px) {
+  .ph-kpis { grid-auto-flow: row; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); overflow: visible; }
+}

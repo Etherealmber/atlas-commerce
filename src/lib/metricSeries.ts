@@ -33,6 +33,8 @@ export function normalizeMetricsDaily(raw: unknown): MetricsDaily | null {
 }
 let state: State = { data: null, loading: false, error: false };
 let fetchedAt = 0;
+/** Last completed network load (unlike `fetchedAt`, never reset by writes). */
+let lastLoadAt = 0;
 let inflight: Promise<void> | null = null;
 const listeners = new Set<(s: State) => void>();
 
@@ -50,6 +52,7 @@ export function loadMetricSeries(force = false): Promise<void> {
     .then(() => api.getMetricsDaily(7))
     .then((r) => {
       fetchedAt = Date.now();
+      lastLoadAt = fetchedAt;
       publish({ data: normalizeMetricsDaily(r?.data), loading: false, error: false });
     })
     .catch(() => publish({ ...state, loading: false, error: true }))
@@ -57,26 +60,47 @@ export function loadMetricSeries(force = false): Promise<void> {
   return inflight;
 }
 
+/** Writes come in bursts (a scanning session, a multi-line invoice): coalesce
+ *  them into one reload, and never reload more often than this. Each reload
+ *  can cost the server ~20 aggregate queries. */
+export const WRITE_RELOAD_DEBOUNCE_MS = 4_000;
+export const WRITE_RELOAD_MIN_GAP_MS = 30_000;
+let writeReloadTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** A business write happened: mark the series stale and schedule one coalesced reload. */
+export function scheduleMetricReloadAfterWrite(): void {
+  fetchedAt = 0;
+  if (writeReloadTimer) clearTimeout(writeReloadTimer);
+  const lastLoad = lastLoadAt;
+  const wait = Math.max(WRITE_RELOAD_DEBOUNCE_MS, lastLoad ? WRITE_RELOAD_MIN_GAP_MS - (Date.now() - lastLoad) : 0);
+  writeReloadTimer = setTimeout(() => {
+    writeReloadTimer = null;
+    const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
+    // Hidden tab or no chart on screen: the next mount / focus loads fresh data.
+    if (listeners.size && !hidden) void loadMetricSeries(true);
+  }, wait);
+}
+
 let refreshBound = false;
 function bindRefresh() {
   if (refreshBound || typeof window === 'undefined') return;
   refreshBound = true;
   // Any successful business write (see api.ts) makes the next read recompute.
-  window.addEventListener('atlas-lists-refresh', () => {
-    fetchedAt = 0;
-    if (listeners.size) void loadMetricSeries(true);
-  });
+  window.addEventListener('atlas-lists-refresh', scheduleMetricReloadAfterWrite);
+}
+
+/** Subscribe to the shared series (loads it if stale); returns the unsubscribe. */
+export function subscribeMetricSeries(fn: (s: State) => void): () => void {
+  bindRefresh();
+  listeners.add(fn);
+  fn(state);
+  void loadMetricSeries();
+  return () => { listeners.delete(fn); };
 }
 
 export function useMetricSeries(): State {
   const [snap, setSnap] = useState<State>(state);
-  useEffect(() => {
-    bindRefresh();
-    listeners.add(setSnap);
-    setSnap(state);
-    void loadMetricSeries();
-    return () => { listeners.delete(setSnap); };
-  }, []);
+  useEffect(() => subscribeMetricSeries(setSnap), []);
   return snap;
 }
 
@@ -84,7 +108,9 @@ export function useMetricSeries(): State {
 export function __resetMetricSeries(next?: MetricsDaily | null) {
   state = { data: next ?? null, loading: false, error: false };
   fetchedAt = next ? Date.now() : 0;
+  lastLoadAt = fetchedAt;
   inflight = null;
+  if (writeReloadTimer) { clearTimeout(writeReloadTimer); writeReloadTimer = null; }
 }
 
 export type TrendCompare = 'period' | 'day';

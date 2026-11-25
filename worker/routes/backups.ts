@@ -1,5 +1,4 @@
 import type { Hono } from 'hono';
-import { doCacheGet, doCachePut, getCacheGen, hasLiveCache } from '../lib/cache';
 import { afterBusinessMutation } from '../lib/delete-coord';
 import { enqueue } from '../lib/job-queue';
 
@@ -169,6 +168,17 @@ async function decryptBackupBody(env: any, raw: string): Promise<any | null> {
 
 const DELETED_ACCOUNTS_CONFIG_KEY = 'deleted_accounts_tombstones';
 const V5_INDEX_KEY = 'backups/v5/index.abk';
+
+/** Upload time (ms) of the v5 index — written by every backup run — or 0 when unknown. */
+export async function lastBackupRunAt(env: any): Promise<number> {
+  try {
+    const head = await env?.IMAGES?.head?.(V5_INDEX_KEY);
+    const at = head?.uploaded instanceof Date ? head.uploaded.getTime() : Date.parse(String(head?.uploaded || ''));
+    return Number.isFinite(at) && at > 0 ? at : 0;
+  } catch {
+    return 0;
+  }
+}
 const V5_TABLE_PREFIX = 'backups/v5/tables/';
 const APPEND_ONLY_BACKUP_TABLES = new Set([
   'stock_movements',
@@ -1632,15 +1642,18 @@ export function registerBackupRoutes(app: Hono<any>, deps: BackupRouteDeps): voi
     const started = new Date().toISOString();
     const force = c.req.query('force') === '1';
     try {
-      const liveCache = hasLiveCache(c.env);
-      const gen = liveCache ? await getCacheGen(c.env.CACHE) : 0;
-      const lastRun = liveCache
-        ? await doCacheGet<{ gen: number; at: number; key: string }>(c.env.MOBILE_HUB, c.env.CACHE, 'backup:last-run', BACKUP_CRON_COOLDOWN_SEC)
-        : null;
-      const unchanged = !force && Boolean(lastRun && lastRun.gen === gen && Date.now() - lastRun.at < BACKUP_CRON_COOLDOWN_SEC * 1000);
+      // D1 read budget: a backup run reads (almost) every row to hash each
+      // table, so the 12-hour cadence must hold no matter how often the
+      // external cron fires. The cooldown used to live in the generation-
+      // versioned cache — wiped by every business write and capped at 1 h by
+      // doCachePut — so in practice each cron call re-read the whole database.
+      // The v5 index is rewritten by every run, so its R2 upload time is a
+      // durable « last run » marker that cache invalidation cannot erase.
+      const lastRunAt = force ? 0 : await lastBackupRunAt(c.env);
+      const unchanged = !force && lastRunAt > 0 && Date.now() - lastRunAt < BACKUP_CRON_COOLDOWN_SEC * 1000;
       let backup: { ok: boolean; key?: string; error?: string; bytes?: number; r2_keys?: number; skipped?: boolean; changed_tables?: number } = {
         ok: true,
-        key: lastRun?.key,
+        key: unchanged ? 'backups/latest.abk' : undefined,
         skipped: true,
       };
       if (!unchanged) {
@@ -1653,9 +1666,6 @@ export function registerBackupRoutes(app: Hono<any>, deps: BackupRouteDeps): voi
             code: 'BACKUP_FAILED',
             timestamp: started,
           }, 500);
-        }
-        if (liveCache && backup.key) {
-          await doCachePut(c.env.MOBILE_HUB, c.env.CACHE, 'backup:last-run', { gen, at: Date.now(), key: backup.key }, BACKUP_CRON_COOLDOWN_SEC);
         }
       }
       const backupSkipped = unchanged || Boolean(backup.skipped);

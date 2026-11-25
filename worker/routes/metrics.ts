@@ -1,5 +1,6 @@
 import type { Hono } from 'hono';
 import { doCacheGet, doCachePut } from '../lib/cache';
+import { schemaOnceForDb } from '../lib/schema';
 import { normalizeInventoryRole, roleCanSeeFinancial } from '../lib/inventory-policy';
 
 /**
@@ -85,6 +86,14 @@ export const OPERATIONAL_METRICS = new Set([
 ]);
 
 const day = (col: string) => `substr(replace(COALESCE(${col}, ''), 'T', ' '), 1, 10)`;
+/**
+ * `day(col) >= start`, plus the equivalent raw comparison `col >= start` so
+ * SQLite can range-scan a date index instead of reading the whole table.
+ * For ISO-like text the two are equivalent (a 10-char prefix ≥ start ⇔ the
+ * value ≥ start); NULLs and numeric values fail both. Uses `?1`, so callers
+ * still bind `start` once.
+ */
+const since = (col: string) => `${col} >= ?1 AND ${day(col)} >= ?1`;
 const IS_CASH = (col: string) => `LOWER(COALESCE(${col}, 'cash')) IN ('cash', 'especes', 'espèces')`;
 const FA = `status NOT IN ('cancelled', 'quote', 'devis', 'remboursement')
   AND COALESCE(doc_kind, '') NOT IN ('quick_sale', 'ticket', 'remboursement')
@@ -107,13 +116,37 @@ export function dayKeys(days: number, now = new Date()): string[] {
   return out;
 }
 
+/**
+ * Date indexes behind the `since()` range filters — without them every chart
+ * refresh read each table end to end (audit_log, stock_movements, payments…).
+ * Expression indexes match the exact COALESCE used in `dailyFlows`.
+ */
+export const METRIC_INDEXES: readonly string[] = [
+  'CREATE INDEX IF NOT EXISTS idx_metrics_stock_movements_created ON stock_movements(created_at)',
+  'CREATE INDEX IF NOT EXISTS idx_metrics_mobile_actions_created ON mobile_actions(created_at)',
+  'CREATE INDEX IF NOT EXISTS idx_metrics_mobile_actions_completed ON mobile_actions(completed_at)',
+  'CREATE INDEX IF NOT EXISTS idx_metrics_invoice_payments_day ON invoice_payments(COALESCE(paid_at, created_at))',
+  'CREATE INDEX IF NOT EXISTS idx_metrics_bill_payments_day ON bill_payments(COALESCE(paid_at, created_at))',
+  'CREATE INDEX IF NOT EXISTS idx_metrics_expenses_day ON expenses(COALESCE(expense_date, created_at))',
+  'CREATE INDEX IF NOT EXISTS idx_metrics_bills_issue ON bills(issue_date)',
+  'CREATE INDEX IF NOT EXISTS idx_metrics_invoices_issue ON invoices(issue_date)',
+  'CREATE INDEX IF NOT EXISTS idx_metrics_audit_created ON audit_log(created_at)',
+  'CREATE INDEX IF NOT EXISTS idx_metrics_attendance_day ON employee_attendance(work_date)',
+  'CREATE INDEX IF NOT EXISTS idx_metrics_cash_shifts_closed ON cash_shifts(closed_at)',
+];
+
 export async function ensureMetricSnapshots(db: D1Database): Promise<void> {
-  // Defensive fallback only — migration 0022 owns the table.
-  await db.prepare(
-    `CREATE TABLE IF NOT EXISTS metric_snapshots (
-       day TEXT NOT NULL, key TEXT NOT NULL, value REAL NOT NULL DEFAULT 0,
-       updated_at TEXT NOT NULL DEFAULT (datetime('now')), PRIMARY KEY (day, key))`,
-  ).run();
+  await schemaOnceForDb(db, 'metric_snapshots_v2', async () => {
+    // Defensive fallback only — migration 0022 owns the table.
+    await db.prepare(
+      `CREATE TABLE IF NOT EXISTS metric_snapshots (
+         day TEXT NOT NULL, key TEXT NOT NULL, value REAL NOT NULL DEFAULT 0,
+         updated_at TEXT NOT NULL DEFAULT (datetime('now')), PRIMARY KEY (day, key))`,
+    ).run();
+    for (const sql of METRIC_INDEXES) {
+      try { await db.prepare(sql).run(); } catch { /* optional module table or column missing */ }
+    }
+  });
 }
 
 /** Upsert today's value of point-in-time metrics. Non-finite values are skipped. */
@@ -206,13 +239,13 @@ export async function dailyFlows(db: D1Database, dates: string[]): Promise<Recor
         SUM(CASE WHEN ${VR} THEN 1 ELSE 0 END) AS vr_count,
         SUM(CASE WHEN status IN ('quote', 'devis') THEN 1 ELSE 0 END) AS q_count,
         SUM(CASE WHEN status IN ('quote', 'devis') THEN total ELSE 0 END) AS q_total
-      FROM invoices WHERE ${day('issue_date')} >= ? GROUP BY d`, start),
+      FROM invoices WHERE ${since('issue_date')} GROUP BY d`, start),
     rows(db, `SELECT ${day('COALESCE(p.paid_at, p.created_at)')} AS d,
         SUM(p.amount) AS total, SUM(CASE WHEN ${IS_CASH('p.payment_method')} THEN p.amount ELSE 0 END) AS cash
       FROM invoice_payments p INNER JOIN invoices i ON i.id = p.invoice_id
       WHERE COALESCE(i.status, '') NOT IN ('quote', 'devis', 'cancelled', 'remboursement')
         AND COALESCE(i.doc_kind, '') != 'remboursement' AND COALESCE(p.note, '') NOT LIKE 'Avoir %'
-        AND ${day('COALESCE(p.paid_at, p.created_at)')} >= ? GROUP BY d`, start),
+        AND ${since('COALESCE(p.paid_at, p.created_at)')} GROUP BY d`, start),
     rows(db, `SELECT ${day('COALESCE(expense_date, created_at)')} AS d,
         SUM(CASE WHEN COALESCE(entry_type, 'expense') = 'expense' THEN amount ELSE 0 END) AS exp,
         SUM(CASE WHEN COALESCE(entry_type, 'expense') = 'expense' AND ${IS_CASH('payment_method')} THEN amount ELSE 0 END) AS exp_cash,
@@ -222,25 +255,25 @@ export async function dailyFlows(db: D1Database, dates: string[]): Promise<Recor
         SUM(CASE WHEN entry_type = 'owner_contrib' AND ${IS_CASH('payment_method')} THEN amount ELSE 0 END) AS contrib_cash,
         SUM(CASE WHEN entry_type = 'owner_draw' THEN amount ELSE 0 END) AS draw,
         SUM(CASE WHEN entry_type = 'owner_draw' AND ${IS_CASH('payment_method')} THEN amount ELSE 0 END) AS draw_cash
-      FROM expenses WHERE ${day('COALESCE(expense_date, created_at)')} >= ? GROUP BY d`, start),
+      FROM expenses WHERE ${since('COALESCE(expense_date, created_at)')} GROUP BY d`, start),
     rows(db, `SELECT ${day('COALESCE(paid_at, created_at)')} AS d, SUM(amount) AS total,
         SUM(CASE WHEN ${IS_CASH('payment_method')} THEN amount ELSE 0 END) AS cash
-      FROM bill_payments WHERE ${day('COALESCE(paid_at, created_at)')} >= ? GROUP BY d`, start),
+      FROM bill_payments WHERE ${since('COALESCE(paid_at, created_at)')} GROUP BY d`, start),
     rows(db, `SELECT ${day('issue_date')} AS d, SUM(total) AS total FROM bills
-      WHERE COALESCE(status, '') != 'cancelled' AND ${day('issue_date')} >= ? GROUP BY d`, start),
-    rows(db, `SELECT ${day('created_at')} AS d, COUNT(*) AS n FROM clients WHERE ${day('created_at')} >= ? GROUP BY d`, start),
-    rows(db, `SELECT ${day('created_at')} AS d, COUNT(*) AS n FROM vendors WHERE ${day('created_at')} >= ? GROUP BY d`, start),
-    rows(db, `SELECT ${day('created_at')} AS d, COUNT(*) AS n FROM products WHERE ${day('created_at')} >= ? GROUP BY d`, start),
-    rows(db, `SELECT ${day('created_at')} AS d, COUNT(*) AS n FROM stock_movements WHERE ${day('created_at')} >= ? GROUP BY d`, start),
-    rows(db, `SELECT ${day('created_at')} AS d, COUNT(*) AS n FROM mobile_actions WHERE ${day('created_at')} >= ? GROUP BY d`, start),
-    rows(db, `SELECT ${day('completed_at')} AS d, COUNT(*) AS n FROM mobile_actions WHERE status = 'done' AND ${day('completed_at')} >= ? GROUP BY d`, start),
-    rows(db, `SELECT ${day('created_at')} AS d, COUNT(*) AS n FROM audit_log WHERE ${day('created_at')} >= ? GROUP BY d`, start),
+      WHERE COALESCE(status, '') != 'cancelled' AND ${since('issue_date')} GROUP BY d`, start),
+    rows(db, `SELECT ${day('created_at')} AS d, COUNT(*) AS n FROM clients WHERE ${since('created_at')} GROUP BY d`, start),
+    rows(db, `SELECT ${day('created_at')} AS d, COUNT(*) AS n FROM vendors WHERE ${since('created_at')} GROUP BY d`, start),
+    rows(db, `SELECT ${day('created_at')} AS d, COUNT(*) AS n FROM products WHERE ${since('created_at')} GROUP BY d`, start),
+    rows(db, `SELECT ${day('created_at')} AS d, COUNT(*) AS n FROM stock_movements WHERE ${since('created_at')} GROUP BY d`, start),
+    rows(db, `SELECT ${day('created_at')} AS d, COUNT(*) AS n FROM mobile_actions WHERE ${since('created_at')} GROUP BY d`, start),
+    rows(db, `SELECT ${day('completed_at')} AS d, COUNT(*) AS n FROM mobile_actions WHERE status = 'done' AND ${since('completed_at')} GROUP BY d`, start),
+    rows(db, `SELECT ${day('created_at')} AS d, COUNT(*) AS n FROM audit_log WHERE ${since('created_at')} GROUP BY d`, start),
     rows(db, `SELECT ${day('work_date')} AS d,
         SUM(CASE WHEN check_in IS NOT NULL AND check_in != '' AND COALESCE(status, '') NOT IN ('absent', 'excused') THEN 1 ELSE 0 END) AS present,
         SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) AS absent
-      FROM employee_attendance WHERE ${day('work_date')} >= ? GROUP BY d`, start),
+      FROM employee_attendance WHERE ${since('work_date')} GROUP BY d`, start),
     rows(db, `SELECT ${day('closed_at')} AS d, SUM(COALESCE(variance, 0)) AS variance FROM cash_shifts
-      WHERE status = 'closed' AND ${day('closed_at')} >= ? GROUP BY d`, start),
+      WHERE status = 'closed' AND ${since('closed_at')} GROUP BY d`, start),
   ]);
 
   for (const k of Object.keys(METRIC_KINDS)) if (METRIC_KINDS[k] === 'flow') ensure(k);
@@ -320,6 +353,20 @@ export async function levelSeries(
   return out;
 }
 
+/** Minimum gap between two full recomputes of the same window in one isolate. */
+export const METRICS_RECOMPUTE_FLOOR_MS = 60_000;
+type MetricsPayload = { dates: string[]; series: Record<string, (number | null)[]> };
+const recentMetrics = new Map<string, { at: number; full: MetricsPayload }>();
+function rememberMetrics(key: string, full: MetricsPayload): void {
+  recentMetrics.set(key, { at: Date.now(), full });
+  // Keys embed the day: keep only the handful of current windows.
+  if (recentMetrics.size > 8) recentMetrics.delete(recentMetrics.keys().next().value as string);
+}
+/** Test hook. */
+export function __resetRecentMetrics(): void {
+  recentMetrics.clear();
+}
+
 export function registerMetricsRoutes(app: Hono<any>, deps: MetricsRouteDeps): void {
   const { sessionUserFromHeader, refreshLimitGate } = deps;
 
@@ -335,6 +382,16 @@ export function registerMetricsRoutes(app: Hono<any>, deps: MetricsRouteDeps): v
     let full = await doCacheGet<{ dates: string[]; series: Record<string, (number | null)[]> }>(c.env.MOBILE_HUB, c.env.CACHE, cacheKey, 300);
     let cache = 'hit';
     if (!full) {
+      // Every business write drops the shared cache; a burst of writes (a
+      // scanning session, a batch import) must not recompute ~20 aggregates
+      // each time. Serve this isolate's copy while it is under a minute old.
+      const recent = recentMetrics.get(cacheKey);
+      if (recent && Date.now() - recent.at < METRICS_RECOMPUTE_FLOOR_MS) {
+        full = recent.full;
+        cache = 'recent';
+      }
+    }
+    if (!full) {
       cache = 'miss';
       const db = c.env.DB as D1Database;
       try { await ensureMetricSnapshots(db); } catch { /* read-only tenant: snapshots skipped */ }
@@ -342,6 +399,7 @@ export function registerMetricsRoutes(app: Hono<any>, deps: MetricsRouteDeps): v
       try { await recordMetricSnapshots(db, dates[dates.length - 1], levelsNow); } catch { /* best effort */ }
       const levels = await levelSeries(db, dates, levelsNow, flows);
       full = { dates, series: { ...flows, ...levels } };
+      rememberMetrics(cacheKey, full);
       await doCachePut(c.env.MOBILE_HUB, c.env.CACHE, cacheKey, full, 300);
     }
     const series: Record<string, (number | null)[]> = {};

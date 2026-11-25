@@ -8,6 +8,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api';
 import { friendlyError } from '../lib/errors';
 import PhoneSkeleton from './PhoneSkeleton';
+import { EMPLOYEE_KPIS, PhoneKpiStrip } from './PhoneKpis';
 
 export const PHONE_EMPLOYEES_PAGE_SIZE = 20;
 
@@ -131,6 +132,7 @@ export function PhoneEmployeeDirectory() {
           <RefreshCw size={18} />
         </button>
       </div>
+      <PhoneKpiStrip items={EMPLOYEE_KPIS} label="Indicateurs du personnel" />
 
       <div className="ph-catalog-search" style={{ marginBottom: 10 }}>
         <Search size={17} aria-hidden="true" />

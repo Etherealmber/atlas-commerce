@@ -41,6 +41,7 @@ import {
   KNOWLEDGE_TOOL_DEFS,
 } from '../lib/agent-knowledge';
 import { parseAgentDocumentsAsync, agentDocumentPromptSection } from '../lib/agent-docs';
+import { schemaOnceForDb } from '../lib/schema';
 
 interface AssistRouteDeps {
   authFailReason: (header: string | undefined, env: any, db: D1Database, ip: string, fp?: string) => Promise<string>;
@@ -245,7 +246,13 @@ async function getAgentControlRow(db: D1Database, username: string) {
 
 
 /* ── v231: every quota event is journaled in D1 (survives counter resets) ── */
-async function ensureAgentUsageLog(db: D1Database) {
+/** Once per D1 binding per isolate — the DDL below is idempotent, so
+ *  re-running it on every request only cost D1 round-trips. */
+async function ensureAgentUsageLog(db: D1Database): Promise<void> {
+  await schemaOnceForDb(db, 'ensureAgentUsageLog', () => ensureAgentUsageLogBody(db));
+}
+
+async function ensureAgentUsageLogBody(db: D1Database): Promise<void> {
   await db.prepare(`CREATE TABLE IF NOT EXISTS agent_usage_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL,

@@ -44,7 +44,7 @@ import {
   executeOrQueueOfflineInventoryOp,
   replayOfflineInventoryQueue,
 } from '../lib/offlineInventoryClient';
-import { startBarcodeScan, captureAndDecode, decodeImageFile, preloadBarcodeScanner, prepareZXing } from '../lib/barcodeScan';
+import { startBarcodeScan, captureAndDecode, preloadBarcodeScanner, prepareZXing } from '../lib/barcodeScan';
 import { IconInbox } from '../components/Icons';
 import OfflineBanner from '../components/OfflineBanner';
 import PhoneHome from './PhoneHome';
@@ -58,6 +58,7 @@ import PhoneOnboarding from './PhoneOnboarding';
 import AtlasAgentMascot from './AtlasAgentMascot';
 import { AtlasLoader } from '../components/brand/AtlasLoader';
 import { getScanPreference, phoneScanFeedback } from './phoneScanPreferences';
+import { PhoneKpiStrip, SCAN_KPIS } from './PhoneKpis';
 
 
 type Product = {
@@ -391,7 +392,6 @@ export default function PhoneApp() {
             element={
               <PhoneScan
                 products={products}
-                actions={actions}
                 onDecisionVisibilityChange={setScanDialogOpen}
                 onSent={async () => {
                   show('Envoyé au PC');
@@ -463,12 +463,14 @@ export default function PhoneApp() {
 }
 
 function PhoneScan({
-  actions, onSent, onToast, onDecisionVisibilityChange,
+  onSent, onToast, onDecisionVisibilityChange,
 }: {
-  products: Product[]; actions: Action[]; onSent: () => void; onToast: (m: string) => void;
+  products: Product[]; onSent: () => void; onToast: (m: string) => void;
   onDecisionVisibilityChange: (open: boolean) => void;
 }) {
   const [code, setCode] = useState('');
+  /** The manual barcode / SKU card only appears once a camera or photo scan failed. */
+  const [scanFailed, setScanFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [hubSnap, setHubSnap] = useState<any>(null);
@@ -603,7 +605,8 @@ function PhoneScan({
       setAddNow(false);
       if (!navigator.mediaDevices?.getUserMedia) {
         setCamPermission('unavailable');
-        onToast('Caméra non supportée sur cet appareil — utilisez Image ou saisie');
+        setScanFailed(true);
+        onToast('Caméra non supportée sur cet appareil — saisissez le code');
         return;
       }
       setScanning(true);
@@ -612,7 +615,8 @@ function PhoneScan({
       if (generation !== cameraGeneration.current) return;
       const reader = readerRef.current;
       if (!reader) {
-        onToast('Caméra non prête — réessayez');
+        onToast('Caméra non prête — réessayez ou saisissez le code');
+        setScanFailed(true);
         setScanning(false);
         return;
       }
@@ -630,7 +634,9 @@ function PhoneScan({
           void resolveCode(text);
         },
         (msg) => {
-          if (generation === cameraGeneration.current) onToast(msg);
+          if (generation !== cameraGeneration.current) return;
+          setScanFailed(true);
+          onToast(msg);
         }
       );
       if (generation !== cameraGeneration.current) { stop(); return; }
@@ -639,12 +645,13 @@ function PhoneScan({
     } catch (e: any) {
       if (generation !== cameraGeneration.current) return;
       stopCamera();
+      setScanFailed(true);
       const name = String(e?.name || '');
       if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
         setCamPermission('denied');
-        onToast('Permission caméra refusée — autorisez-la dans Réglages, ou utilisez Image');
+        onToast('Permission caméra refusée — autorisez-la dans Réglages, ou saisissez le code');
       } else {
-        onToast(e?.message || 'Caméra indisponible — utilisez Image ou saisissez le code');
+        onToast(e?.message || 'Caméra indisponible — saisissez le code');
       }
     }
   };
@@ -888,27 +895,25 @@ function PhoneScan({
     }
   };
 
-  const shelf = async () => {
-    setBusy(true);
-    try {
-      await queueOrSend({
-        type: 'stock_check',
-        title: 'Contrôle rayon',
-        detail: 'Demande depuis le téléphone',
-      });
-    } catch (e: any) {
-      onToast(e.message || 'Erreur');
-    } finally {
-      setBusy(false);
-    }
+  /** Header « Ajouter un produit » : the same sheet an unknown scan opens, blank. */
+  const openAddProduct = () => {
+    stopCamera();
+    setNp({ name: '', sku: '', barcode: '', price: '', stock: '0', image_data_url: '' });
+    setAddNow(true);
+    setDecision({ code: '', found: null, offline: !isOnline() });
   };
-
-  const today = actions.filter((a) => (a.created_at || '').startsWith(new Date().toISOString().slice(0, 10)));
+  const showManualCode = scanFailed || camPermission === 'denied' || camPermission === 'unavailable' || code.trim() !== '';
 
   return (
     <div>
       <div className="ph-scan-native">
-        <div className="ph-scan-status">{isOnline() ? 'En ligne' : 'Hors ligne'}</div>
+        <div className="ph-scan-head">
+          {!isOnline() && <span className="ph-scan-status is-offline" role="status">Hors ligne</span>}
+          <button type="button" className="ph-scan-add" disabled={busy} onClick={openAddProduct}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+            Ajouter un produit
+          </button>
+        </div>
         {(outboxN > 0 || scanPendingOps > 0 || (hubSnap && hubSnap.pending > 0)) && (
           <p className="ph-hub-badge" role="status" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
             <span>
@@ -931,6 +936,7 @@ function PhoneScan({
             )}
           </p>
         )}
+        {!scanning && <PhoneKpiStrip items={SCAN_KPIS} label="Indicateurs de stock" />}
         {!scanning && <div className="ph-scan-idle">
           <span className="ph-scan-idle-icon" aria-hidden="true"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="5" width="14" height="14" rx="3" /><path d="m17 10 4-2v8l-4-2z" /></svg></span>
           <h2>Caméra en veille</h2>
@@ -943,14 +949,14 @@ function PhoneScan({
             <strong>Caméra bloquée</strong>
             <p>
               Autorisez la caméra pour ce site dans les réglages du navigateur (iPhone : Réglages → Safari → Caméra),
-              puis appuyez à nouveau sur Caméra. Sinon utilisez <em>Image</em> ou la saisie manuelle.
+              puis appuyez à nouveau sur Caméra. Sinon saisissez le code ci-dessous.
             </p>
           </div>
         )}
         {camPermission === 'unavailable' && (
           <div className="ph-perm-banner warn" role="status">
             <strong>Caméra indisponible</strong>
-            <p>Cet appareil n&apos;expose pas de caméra. Utilisez l&apos;import d&apos;image ou saisissez le code.</p>
+            <p>Cet appareil n&apos;expose pas de caméra. Saisissez le code ci-dessous.</p>
           </div>
         )}
 
@@ -970,7 +976,9 @@ function PhoneScan({
             </>
           )}
         </div>
-        <div className="ph-scan-controls">
+        {(showManualCode || scanning) && <div className="ph-scan-controls">
+        {showManualCode && <>
+        {scanFailed && <p className="ph-scan-failed" role="status">Lecture impossible — saisissez le code-barres ou le SKU.</p>}
         <label htmlFor="phone-scan-code">Code-barres ou SKU</label>
         <div className="ph-scan-row">
           <input
@@ -983,6 +991,7 @@ function PhoneScan({
           />
           <button type="button" className="theme-toggle" disabled={busy} onClick={() => resolveCode(code)}>Rechercher</button>
         </div>
+        </>}
         <div className="ph-phone-actions">
           {scanning && <button type="button" className="theme-toggle" onClick={stopCamera}>Arrêter la caméra</button>}
           {scanning && (
@@ -1001,7 +1010,8 @@ function PhoneScan({
                     stopCamera();
                     await resolveCode(decoded);
                   } else {
-                    onToast('Aucun code — rapprochez le code, lumière, ou Image / saisie');
+                    setScanFailed(true);
+                    onToast('Aucun code — rapprochez le code, plus de lumière, ou saisissez-le');
                   }
                 } catch (e: any) {
                   onToast(e?.message || 'Échec lecture');
@@ -1013,61 +1023,9 @@ function PhoneScan({
               Photo
             </button>
           )}
-          <label className="ph-file-label" style={{ display: 'inline-flex', alignItems: 'center' }}>
-            <input
-              type="file"
-              accept="image/*"
-              className="ph-scan-file-input"
-              aria-label="Importer une image de code-barres"
-              onChange={async (e) => {
-                const f = e.target.files?.[0];
-                e.target.value = '';
-                if (!f) return;
-                setBusy(true);
-                onToast('Lecture de l\'image…');
-                try {
-                  // Multi-pass: full image, crops, rotations — barcode need not be centered
-                  const decoded = await decodeImageFile(f);
-                  if (decoded) {
-                    setCode(decoded);
-                    if (isSafeInventoryCode(decoded)) phoneScanFeedback();
-                    stopCamera();
-                    await resolveCode(decoded);
-                  } else {
-                    onToast('Aucun code-barres dans l\'image — recadrez ou saisissez le code');
-                  }
-                } catch (err: any) {
-                  onToast(err?.message || 'Erreur image — saisissez le code manuellement');
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            />
-            <span className="ph-chip" style={{ cursor: 'pointer' }}>Image</span>
-          </label>
-          <button type="button" className="theme-toggle" disabled={busy} onClick={shelf}>Contrôle rayon</button>
         </div>
-        </div>
+        </div>}
       </div>
-
-      <div className="ph-section" style={{ marginTop: 8 }}>Envoyés aujourd&apos;hui</div>
-      {today.length === 0 && (
-        <div className="ph-empty">
-          <div className="ph-empty-ico" aria-hidden><IconInbox size={28} /></div>
-          <h2>Rien aujourd&apos;hui</h2>
-          <p>Rien d&apos;envoyé aujourd&apos;hui.</p>
-        </div>
-      )}
-      {today.map((a) => (
-        <div className="ph-row ph-card" key={a.id}>
-          <div className={`ph-ico ${a.type}`}>{a.type.slice(0, 2).toUpperCase()}</div>
-          <div>
-            <div className="ph-meta">{a.type} · {a.created_at?.slice(0, 16)}</div>
-            <div className="ph-row-title">{a.title}</div>
-            <div className="ph-row-detail">{a.detail}</div>
-          </div>
-        </div>
-      ))}
 
       {/* Single modal only: found product → adjust stock (no second popup) */}
       {decision && decision.found && !addNow && (
@@ -1152,11 +1110,13 @@ function PhoneScan({
       {/* Single modal only: unknown product */}
       {decision && !decision.found && addNow && (
         <PhoneDialog titleId="phone-new-product-dialog-title" onClose={closeDecision}>
-            <h3 id="phone-new-product-dialog-title">Produit inconnu</h3>
-            <p className="ph-sub" style={{ marginBottom: 12 }}>
-              Code <strong>{decision.code}</strong>
-              {decision.offline ? ' · hors ligne' : ''}
-            </p>
+            <h3 id="phone-new-product-dialog-title">{decision.code ? 'Produit inconnu' : 'Ajouter un produit'}</h3>
+            {(decision.code || decision.offline) && (
+              <p className="ph-sub" style={{ marginBottom: 12 }}>
+                {decision.code ? <>Code <strong>{decision.code}</strong></> : null}
+                {decision.offline ? (decision.code ? ' · hors ligne' : 'Hors ligne') : ''}
+              </p>
+            )}
             <p className="ph-sub" style={{ marginBottom: 12 }}>
               Donnez-lui un nom. Il sera envoyé au PC pour création / approbation.
             </p>

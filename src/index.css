@@ -2500,17 +2500,35 @@ html.liquid-glass-active .app-dialog-card {
 }
 
 /* ── Toasts ── */
+/* v0.9.3 — toasts (errors included) live at the bottom, newest closest to
+   the edge; lifted above the phone tab bar and the Settings unsaved bar. */
 .app-toast-stack {
   position: fixed;
   left: 50%;
-  top: calc(18px + env(safe-area-inset-top, 0px));
+  top: auto;
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%);
   z-index: 13000;
   display: flex;
   flex-direction: column;
+  justify-content: flex-end;
   gap: 8px;
   width: min(92vw, 380px);
   pointer-events: none;
+}
+html.phone-shell .app-toast-stack,
+body:has(.ac-bottom-nav) .app-toast-stack {
+  bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+}
+body:has(.ac-settings-float) .app-toast-stack {
+  bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+}
+.app-toast {
+  animation: appToastUp 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes appToastUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
 }
 /* Alert5-style toasts: icon rail + title body (no react-icons dep) */
 .app-toast {

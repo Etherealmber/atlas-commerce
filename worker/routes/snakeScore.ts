@@ -1,13 +1,13 @@
 import { apiFail } from '../lib/api-response';
 import { rateLimit } from '../lib/security';
+import { tableExists } from '../lib/schema';
 
 const MAX_SCORE = 2147483647; // Android's signed 32-bit Int range.
 const MAX_BODY = 1024;
 
 /** Auto-initialize on an authenticated request; migration 0009 remains compatible. */
 async function ensureSnakeScores(db: D1Database): Promise<void> {
-  const table = await db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'snake_personal_best'").first();
-  if (table) return;
+  if (await tableExists(db, 'snake_personal_best')) return;
   await db.prepare(`CREATE TABLE IF NOT EXISTS snake_personal_best (
     user_id INTEGER UNIQUE REFERENCES app_users(id) ON DELETE CASCADE,
     owner_slot INTEGER UNIQUE CHECK (owner_slot IS NULL OR owner_slot = 1),

@@ -61,7 +61,7 @@ describe('Language « bientôt » (v0.9.3)', () => {
 
   it('floats the settings save popup on <body> so a transformed ancestor cannot push it off-screen', () => {
     const settings = readFileSync('src/pages/Settings.tsx', 'utf8');
-    expect(settings).toMatch(/\(settingsDirty \|\| justSaved\) && createPortal\(/);
+    expect(settings).toMatch(/\(settingsDirty \|\| \(justSaved [^)]*\) \|\| blockedNotice\) && createPortal\(/);
     expect(settings).toContain('ac-settings-float');
   });
 });

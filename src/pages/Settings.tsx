@@ -338,7 +338,6 @@ export default function Settings() {
           String(x.key || '').startsWith('backups/30m/')
       );
       setBackupList(items);
-      if (!quiet) toast(`${items.length} sauvegarde(s)`, 'success');
       // Prefer latest.abk when present
       if (items.some((x) => x.key === 'backups/latest.abk')) {
         setSelectedBackupKey('backups/latest.abk');
@@ -497,6 +496,11 @@ export default function Settings() {
   const update = (field: string, value: any) => {
     setSettingsDirty(true);
     setSettings((prev: any) => ({ ...prev, [field]: value }));
+  };
+  /** Every in-form edit goes through here so the unsaved bar shows on the first keystroke. */
+  const editSettings = (fn: (prev: any) => any) => {
+    setSettingsDirty(true);
+    setSettings(fn);
   };
 
 
@@ -1437,7 +1441,7 @@ if (loading) return (
               type="checkbox"
               checked={!!Number((settings as any)?.attendance_enabled)}
               onChange={(e) =>
-                setSettings((prev: any) => ({ ...prev, attendance_enabled: e.target.checked ? 1 : 0 }))
+                editSettings((prev: any) => ({ ...prev, attendance_enabled: e.target.checked ? 1 : 0 }))
               }
             />
           </div>
@@ -1447,7 +1451,7 @@ if (loading) return (
               type="checkbox"
               checked={Number((settings as any)?.attendance_pay_use_presence ?? 1) === 1}
               onChange={(e) =>
-                setSettings((prev: any) => ({ ...prev, attendance_pay_use_presence: e.target.checked ? 1 : 0 }))
+                editSettings((prev: any) => ({ ...prev, attendance_pay_use_presence: e.target.checked ? 1 : 0 }))
               }
             />
             <span className="muted" style={{ fontSize: 12 }}>Pénalités retard sur la paie suggérée</span>
@@ -1461,7 +1465,7 @@ if (loading) return (
                 placeholder="09:15"
                 value={String((settings as any)?.attendance_late_threshold || '09:15')}
                 onChange={(e) =>
-                  setSettings((prev: any) => ({ ...prev, attendance_late_threshold: e.target.value }))
+                  editSettings((prev: any) => ({ ...prev, attendance_late_threshold: e.target.value }))
                 }
               />
             </div>
@@ -1472,7 +1476,7 @@ if (loading) return (
                 placeholder="18:00"
                 value={String((settings as any)?.attendance_early_threshold || '18:00')}
                 onChange={(e) =>
-                  setSettings((prev: any) => ({ ...prev, attendance_early_threshold: e.target.value }))
+                  editSettings((prev: any) => ({ ...prev, attendance_early_threshold: e.target.value }))
                 }
               />
             </div>
@@ -1485,7 +1489,7 @@ if (loading) return (
                 step={0.5}
                 value={Number((settings as any)?.attendance_workday_hours ?? 8)}
                 onChange={(e) =>
-                  setSettings((prev: any) => ({ ...prev, attendance_workday_hours: Number(e.target.value) }))
+                  editSettings((prev: any) => ({ ...prev, attendance_workday_hours: Number(e.target.value) }))
                 }
               />
             </div>
@@ -1498,7 +1502,7 @@ if (loading) return (
                 step={0.5}
                 value={Number((settings as any)?.attendance_overtime_after_hours ?? (settings as any)?.attendance_workday_hours ?? 8)}
                 onChange={(e) =>
-                  setSettings((prev: any) => ({ ...prev, attendance_overtime_after_hours: Number(e.target.value) }))
+                  editSettings((prev: any) => ({ ...prev, attendance_overtime_after_hours: Number(e.target.value) }))
                 }
               />
             </div>
@@ -1511,7 +1515,7 @@ if (loading) return (
                 step={0.05}
                 value={Number((settings as any)?.attendance_overtime_multiplier ?? 1.25)}
                 onChange={(e) =>
-                  setSettings((prev: any) => ({ ...prev, attendance_overtime_multiplier: Number(e.target.value) }))
+                  editSettings((prev: any) => ({ ...prev, attendance_overtime_multiplier: Number(e.target.value) }))
                 }
               />
             </div>
@@ -1521,7 +1525,7 @@ if (loading) return (
                 type="text"
                 value={String((settings as any)?.attendance_half_morning || '09:00-13:00')}
                 onChange={(e) =>
-                  setSettings((prev: any) => ({ ...prev, attendance_half_morning: e.target.value }))
+                  editSettings((prev: any) => ({ ...prev, attendance_half_morning: e.target.value }))
                 }
               />
             </div>
@@ -1531,7 +1535,7 @@ if (loading) return (
                 type="text"
                 value={String((settings as any)?.attendance_half_afternoon || '14:00-18:00')}
                 onChange={(e) =>
-                  setSettings((prev: any) => ({ ...prev, attendance_half_afternoon: e.target.value }))
+                  editSettings((prev: any) => ({ ...prev, attendance_half_afternoon: e.target.value }))
                 }
               />
             </div>
@@ -1544,7 +1548,7 @@ if (loading) return (
               <select
                 value={String((settings as any)?.attendance_pay_mode || 'presence')}
                 onChange={(e) =>
-                  setSettings((prev: any) => ({ ...prev, attendance_pay_mode: e.target.value }))
+                  editSettings((prev: any) => ({ ...prev, attendance_pay_mode: e.target.value }))
                 }
               >
                 <option value="presence">Jours travaillés (présent / retard / demi) — recommandé Maroc</option>
@@ -1560,7 +1564,7 @@ if (loading) return (
                   type="checkbox"
                   checked={Number((settings as any)?.attendance_minute_deduct) === 1}
                   onChange={(e) =>
-                    setSettings((prev: any) => ({
+                    editSettings((prev: any) => ({
                       ...prev,
                       attendance_minute_deduct: e.target.checked ? 1 : 0,
                     }))
@@ -1588,7 +1592,7 @@ if (loading) return (
                 max={30}
                 value={Number((settings as any)?.attendance_warn_late_count ?? 3)}
                 onChange={(e) =>
-                  setSettings((prev: any) => ({
+                  editSettings((prev: any) => ({
                     ...prev,
                     attendance_warn_late_count: Number(e.target.value),
                   }))
@@ -1603,7 +1607,7 @@ if (loading) return (
                 max={60}
                 value={Number((settings as any)?.attendance_blame_late_count ?? 6)}
                 onChange={(e) =>
-                  setSettings((prev: any) => ({
+                  editSettings((prev: any) => ({
                     ...prev,
                     attendance_blame_late_count: Number(e.target.value),
                   }))
@@ -1626,7 +1630,7 @@ if (loading) return (
                 max={50}
                 value={Number((settings as any)?.attendance_acompte_short_max_pct ?? 5)}
                 onChange={(e) =>
-                  setSettings((prev: any) => ({
+                  editSettings((prev: any) => ({
                     ...prev,
                     attendance_acompte_short_max_pct: Number(e.target.value),
                   }))
@@ -1641,7 +1645,7 @@ if (loading) return (
                 max={50}
                 value={Number((settings as any)?.attendance_acompte_monthly_max_pct ?? 15)}
                 onChange={(e) =>
-                  setSettings((prev: any) => ({
+                  editSettings((prev: any) => ({
                     ...prev,
                     attendance_acompte_monthly_max_pct: Number(e.target.value),
                   }))
@@ -1656,7 +1660,7 @@ if (loading) return (
                 max={50}
                 value={Number((settings as any)?.attendance_acompte_week1_pct ?? 5)}
                 onChange={(e) =>
-                  setSettings((prev: any) => ({
+                  editSettings((prev: any) => ({
                     ...prev,
                     attendance_acompte_week1_pct: Number(e.target.value),
                   }))
@@ -1671,7 +1675,7 @@ if (loading) return (
                 max={50}
                 value={Number((settings as any)?.attendance_acompte_week2_pct ?? 5)}
                 onChange={(e) =>
-                  setSettings((prev: any) => ({
+                  editSettings((prev: any) => ({
                     ...prev,
                     attendance_acompte_week2_pct: Number(e.target.value),
                   }))
@@ -1686,7 +1690,7 @@ if (loading) return (
                 max={50}
                 value={Number((settings as any)?.attendance_acompte_week3_pct ?? 5)}
                 onChange={(e) =>
-                  setSettings((prev: any) => ({
+                  editSettings((prev: any) => ({
                     ...prev,
                     attendance_acompte_week3_pct: Number(e.target.value),
                   }))
@@ -1704,7 +1708,7 @@ if (loading) return (
                 max={50}
                 value={Number((settings as any)?.attendance_acompte_week4_pct ?? 5)}
                 onChange={(e) =>
-                  setSettings((prev: any) => ({
+                  editSettings((prev: any) => ({
                     ...prev,
                     attendance_acompte_week4_pct: Number(e.target.value),
                   }))
@@ -1758,7 +1762,7 @@ if (loading) return (
                     ),
                   };
                   const res = (await api.updateSettings(payload)) as { data?: Record<string, any> };
-                  if (res?.data) setSettings((prev: any) => ({ ...prev, ...res.data }));
+                  if (res?.data) editSettings((prev: any) => ({ ...prev, ...res.data }));
                   flash('Règles de présence enregistrées');
                 } catch (e: any) {
                   flash(e?.message || 'Erreur', 'error');
@@ -4133,7 +4137,7 @@ if (loading) return (
 
       {/* v0.9.3 — popup flottant dès qu’un réglage change (porté sur <body> :
           un ancêtre transformé cassait position: fixed et l’envoyait sous la page). */}
-      {canSaveSection && (!topActionsVisible || blockedNotice) && (settingsDirty || justSaved) && createPortal(
+      {canSaveSection && (settingsDirty || (justSaved && !topActionsVisible) || blockedNotice) && createPortal(
         <div
           className={`settings-sticky-save ac-settings-float${justSaved && !settingsDirty ? ' is-saved' : ''}${blockedNotice ? ' is-blocked' : ''}`}
           data-unsaved-allow
