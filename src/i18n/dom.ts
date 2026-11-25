@@ -48,7 +48,9 @@ function hasLetters(s: string) {
 /** Localise currency labels in presentation text only; API values stay ISO MAD. */
 function translateDisplay(src: string, lang: Lang) {
   const out = translate(src, lang);
-  return lang === 'ar' ? out.replace(/\b(?:MAD|DH)\b/g, 'درهم') : out;
+  if (lang === 'ar') return out.replace(/\b(?:MAD|DH)\b/g, 'درهم').replace(/\bm²/g, 'م²');
+  if (lang === 'en') return out.replace(/\bDH\b/g, 'MAD');
+  return out.replace(/\bMAD\b/g, 'DH');
 }
 
 function translateText(node: Text, lang: Lang) {
@@ -57,11 +59,6 @@ function translateText(node: Text, lang: Lang) {
   // React (or the app) wrote new text since our last pass → it is the new source.
   const src = st && value === st.out ? st.src : value;
   if (!hasLetters(src)) return;
-  if (lang === 'fr') {
-    if (st && value === st.out && value !== st.src) node.nodeValue = st.src;
-    textState.delete(node);
-    return;
-  }
   if (node.parentElement && skipped(node.parentElement)) return;
   const out = translateDisplay(src, lang);
   textState.set(node, { src, out });
@@ -76,11 +73,6 @@ function translateAttrs(el: Element, lang: Lang) {
     const st = states?.[a];
     const src = st && value === st.out ? st.src : value;
     if (!hasLetters(src)) continue;
-    if (lang === 'fr') {
-      if (st && value === st.out && value !== st.src) el.setAttribute(a, st.src);
-      if (states) delete states[a];
-      continue;
-    }
     const out = translateDisplay(src, lang);
     if (!states) { states = {}; attrState.set(el, states); }
     states[a] = { src, out };
@@ -90,7 +82,7 @@ function translateAttrs(el: Element, lang: Lang) {
   if (el instanceof HTMLInputElement && (el.type === 'button' || el.type === 'submit' || el.type === 'reset') && el.value) {
     const st = states?.value;
     const src = st && el.value === st.out ? st.src : el.value;
-    const out = lang === 'fr' ? src : translateDisplay(src, lang);
+    const out = translateDisplay(src, lang);
     if (!states) { states = {}; attrState.set(el, states); }
     states.value = { src, out };
     if (out !== el.value) el.value = out;
@@ -157,7 +149,7 @@ function translateTitle(lang: Lang) {
   const cur = document.title;
   const src = cur === titleOut && titleSrc ? titleSrc : cur;
   titleSrc = src;
-  titleOut = lang === 'fr' ? src : translateDisplay(src, lang);
+  titleOut = translateDisplay(src, lang);
   if (titleOut !== cur) document.title = titleOut;
 }
 
@@ -183,12 +175,6 @@ export function installDomTranslator() {
   patchDialogs();
   observer = new MutationObserver((records) => {
     if (applying) return;
-    if (getLang() === 'fr' && pending.size === 0) {
-      // French: only restore nodes we translated earlier (cheap no-op otherwise).
-      let any = false;
-      for (const r of records) if (r.type === 'characterData' && textState.has(r.target as Text)) { any = true; break; }
-      if (!any) return;
-    }
     for (const r of records) {
       if (r.type === 'childList') r.addedNodes.forEach((n) => schedule(n));
       else schedule(r.target);
@@ -202,7 +188,7 @@ export function installDomTranslator() {
       attributes: true,
       attributeFilter: [...ATTRS, 'value'],
     });
-    if (getLang() !== 'fr') retranslateAll();
+    retranslateAll();
   };
   if (document.body) start();
   else document.addEventListener('DOMContentLoaded', start, { once: true });

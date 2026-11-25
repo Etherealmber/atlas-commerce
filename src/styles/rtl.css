@@ -183,3 +183,9 @@ html body .ac-login-lang > button:not(#lang-g):not(#lang-h):not(#lang-i) { color
 html body .ac-login-lang > button[aria-pressed="true"]:not(#lang-g):not(#lang-h):not(#lang-i) { background: #111827 !important; color: #fff !important; -webkit-text-fill-color: #fff !important; }
 html body .ac-login-lang > button:not(#lang-g):not(#lang-h):not(#lang-i) { min-height: 40px !important; height: auto !important; padding: 0 14px !important; }
 html body .ac-login-lang > button:focus-visible:not(#lang-g):not(#lang-h):not(#lang-i) { outline: 2px solid #2563eb !important; outline-offset: 2px; }
+/* Mixed Arabic labels and Latin references stay in their own directional runs. */
+html[dir="rtl"] .home-landing .hm-live :is(.hl-amt, .hl-pmeta b, .hl-pmeta i, .hl-tot b, .hl-tot i) {
+  direction: ltr; unicode-bidi: isolate; text-align: left;
+}
+html[dir="rtl"] .public-download-menu { left: auto !important; right: 0 !important; }
+html[dir="rtl"] .public-download-menu-item { text-align: right !important; }

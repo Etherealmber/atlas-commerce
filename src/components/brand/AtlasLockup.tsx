@@ -44,7 +44,7 @@ export function AtlasLockup({ height, markOnly = false, play = 'mount', idle = f
       className={cls}
       onPointerDown={onPointerDown}
       style={(height ? { '--lk-h': `${height}px`, ...style } : style) as CSSProperties | undefined}
-      {...(label ? { role: 'img', 'aria-label': lang === 'ar' ? label.replace('Atlas Commerce', 'أطلس كوميرس').replace('Atlas', 'أطلس') : label } : { 'aria-hidden': true })}
+      {...(label ? { role: 'img', 'aria-label': lang === 'ar' ? label.replace('Atlas Commerce', 'أطلس للتجارة').replace('Atlas', 'أطلس') : label } : { 'aria-hidden': true })}
     >
       <AtlasMark className="atlas-lockup-mark" />
       {!markOnly && (lang === 'ar' ? <span className="atlas-lockup-word-ar" lang="ar" dir="rtl" aria-hidden="true">أطلس</span> : <AtlasWordmark className="atlas-lockup-word" />)}

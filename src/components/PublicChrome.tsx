@@ -9,7 +9,7 @@ import { resetWelcome } from '../lib/welcome';
 import { useProfileWarm, useProfileTick } from '../lib/useProfileWarm';
 import { TopbarUserMenu } from './shell/TopbarUserMenu';
 import { LanguageSoonDialog } from './LanguageSoonDialog';
-import { useLang } from '../i18n/core';
+import { useLang, t as tr } from '../i18n/core';
 
 
 /* ------------------------------------------------------------------ */
@@ -571,6 +571,10 @@ function startDownload(url: string) {
 export function PublicDownloadCta({ prefer, full = true }: { prefer?: Platform; full?: boolean }) {
   const { desktop, android } = usePublicReleases();
   const main: Platform = prefer || detectPlatform();
+  const lang = useLang();
+  const downloadLabel = (platform: Platform) => lang === 'ar'
+    ? platform === 'android' ? 'تنزيل تطبيق أندرويد' : `تنزيل لـ ${PLATFORM_LABEL[platform]}`
+    : `${tr('Télécharger pour')} ${PLATFORM_LABEL[platform]}`;
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement | null>(null);
   const navigate = useNavigate();
@@ -621,7 +625,7 @@ export function PublicDownloadCta({ prefer, full = true }: { prefer?: Platform; 
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'block' }}>
           <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
         </svg>
-        Télécharger pour {PLATFORM_LABEL[main]}
+        <span dir={lang === 'ar' ? 'rtl' : 'ltr'}>{downloadLabel(main)}</span>
       </button>
       <button
         type="button"
@@ -664,8 +668,8 @@ export function PublicDownloadCta({ prefer, full = true }: { prefer?: Platform; 
                 cursor: 'pointer', textDecoration: 'none',
               }}
             >
-              <span>Télécharger pour {PLATFORM_LABEL[p]}</span>
-              <span style={{ color: c.faint, fontSize: 12, fontWeight: 700 }}>{extFor(p)}</span>
+              <span dir={lang === 'ar' ? 'rtl' : 'ltr'}>{downloadLabel(p)}</span>
+              <span style={{ color: c.faint, fontSize: 12, fontWeight: 700 }}>{lang === 'ar' ? `ملف ${extFor(p)}` : extFor(p)}</span>
             </button>
           ))}
           <button

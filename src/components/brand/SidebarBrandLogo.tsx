@@ -34,7 +34,7 @@ export function SidebarBrandLogo({ isCollapsed, subtitle }: { isCollapsed: boole
       <span className="atlas-brand-row">
         <AtlasMark className="atlas-brand-mark" />
         <span className="atlas-brand-word" aria-hidden="true">{lang === 'ar' ? <span className="atlas-brand-word-ar" lang="ar" dir="rtl">أطلس</span> : <AtlasWordmark />}</span>
-        <span className="sr-only">{lang === 'ar' ? 'أطلس كوميرس' : 'Atlas Commerce'}</span>
+        <span className="sr-only">{lang === 'ar' ? 'أطلس للتجارة' : 'Atlas Commerce'}</span>
       </span>
       {subtitle ? (
         <span className="atlas-brand-sub-wrap" aria-hidden={isCollapsed || undefined}>
