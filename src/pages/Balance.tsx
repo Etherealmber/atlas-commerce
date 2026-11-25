@@ -23,6 +23,7 @@ import {
   FileText, FileSpreadsheet, Files, UserCheck, X, ChevronRight,
 } from 'lucide-react';
 import PageSkeleton from '../components/PageSkeleton';
+import { MetricSpark, MetricTrend } from '../components/MetricSpark';
 
 const BALANCE_STEPS: readonly WizardStepDef[] = [
   { id: 'type', label: 'Type & libellé', hint: 'Catégorie et description de l’écriture.' },
@@ -453,29 +454,33 @@ export default function Balance() {
           <span className="ac-metric-label">Solde actuel</span>
           <strong className="ac-metric-val">
             {balance.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} {cur}
-          </strong>
+          <MetricTrend k="balance" /></strong>
           <span className="ac-metric-meta">Caisse &amp; banque</span>
+          <MetricSpark k="balance" unit="money" />
         </article>
         <article className="ac-metric">
           <span className="ac-metric-label">Entrées</span>
           <strong className="ac-metric-val">
             {moneyIn.toLocaleString('fr-FR', { minimumFractionDigits: 0 })} {cur}
-          </strong>
+          <MetricTrend k="money_in" /></strong>
           <span className="ac-metric-meta">Ventes + recettes + apports</span>
+          <MetricSpark k="money_in" unit="money" />
         </article>
         <article className="ac-metric">
           <span className="ac-metric-label">Sorties</span>
           <strong className="ac-metric-val">
             {moneyOut.toLocaleString('fr-FR', { minimumFractionDigits: 0 })} {cur}
-          </strong>
+          <MetricTrend k="money_out" invert /></strong>
           <span className="ac-metric-meta">Achats + dépenses + prélèvements</span>
+          <MetricSpark k="money_out" invert unit="money" />
         </article>
         <article className="ac-metric">
           <span className="ac-metric-label">Flux net</span>
           <strong className="ac-metric-val">
             {(moneyIn - moneyOut).toLocaleString('fr-FR', { minimumFractionDigits: 0 })} {cur}
-          </strong>
+          <MetricTrend k="net_flow" /></strong>
           <span className="ac-metric-meta">Entrées − sorties</span>
+          <MetricSpark k="net_flow" unit="money" />
         </article>
       </section>
 
@@ -681,23 +686,27 @@ export default function Balance() {
       <div className="ac-metric-grid">
         <div className="ac-metric">
           <span className="ac-metric-label">Caisse (espèces)</span>
-          <strong className="ac-metric-val">{fmt(stats.cashIn - stats.cashOut)} {cur}</strong>
+          <strong className="ac-metric-val">{fmt(stats.cashIn - stats.cashOut)} {cur}<MetricTrend k="cash_net" /></strong>
           <span className="ac-metric-meta">+{fmt(stats.cashIn)} / −{fmt(stats.cashOut)}</span>
+          <MetricSpark k="cash_net" unit="money" />
         </div>
         <div className="ac-metric">
           <span className="ac-metric-label">Banque &amp; virements</span>
-          <strong className="ac-metric-val">{fmt(stats.bankIn - stats.bankOut)} {cur}</strong>
+          <strong className="ac-metric-val">{fmt(stats.bankIn - stats.bankOut)} {cur}<MetricTrend k="bank_net" /></strong>
           <span className="ac-metric-meta">+{fmt(stats.bankIn)} / −{fmt(stats.bankOut)}</span>
+          <MetricSpark k="bank_net" unit="money" />
         </div>
         <div className="ac-metric">
           <span className="ac-metric-label">Apports propriétaire</span>
-          <strong className="ac-metric-val">+{fmt(stats.ownerContrib)} {cur}</strong>
+          <strong className="ac-metric-val">+{fmt(stats.ownerContrib)} {cur}<MetricTrend k="owner_contrib" /></strong>
           <span className="ac-metric-meta">Capital &amp; compte courant</span>
+          <MetricSpark k="owner_contrib" unit="money" />
         </div>
         <div className="ac-metric">
           <span className="ac-metric-label">Prélèvements</span>
-          <strong className="ac-metric-val">−{fmt(stats.ownerDraw)} {cur}</strong>
+          <strong className="ac-metric-val">−{fmt(stats.ownerDraw)} {cur}<MetricTrend k="owner_draw" invert /></strong>
           <span className="ac-metric-meta">Associés &amp; dividendes</span>
+          <MetricSpark k="owner_draw" invert unit="money" />
         </div>
       </div>
 

@@ -16,6 +16,7 @@ import TopPageActions from '../components/TopPageActions';
 import RefreshIconButton from '../components/RefreshIconButton';
 import PageSkeleton from '../components/PageSkeleton';
 import { TimedUndoDelete } from '../components/ui';
+import { MetricSpark, MetricTrend } from '../components/MetricSpark';
 
 const fmt = (n: number) => Math.round(Number(n || 0)).toLocaleString('fr-FR');
 
@@ -189,7 +190,7 @@ export default function InventoryOps() {
         <h1 className="sr-only">Opérations stock</h1>
         <TopPageActions>
           <RefreshIconButton onClick={() => void loadAll(reportLoc)} loading={loading} />
-          <button type="button" disabled={busy} onClick={() => void runAutoNow()}>
+          <button type="button" title="Exécuter transferts auto" disabled={busy} onClick={() => void runAutoNow()}>
             <Play size={16} aria-hidden="true" />
             <span className="tpa-label">Exécuter transferts auto</span>
           </button>
@@ -220,8 +221,9 @@ export default function InventoryOps() {
         </article>
         <article className="ac-metric">
           <span className="ac-metric-label">Valeur (coût moyen)</span>
-          <strong className="ac-metric-val">{fmt(valuation?.total_value ?? report?.totals?.value ?? 0)} MAD</strong>
+          <strong className="ac-metric-val">{fmt(valuation?.total_value ?? report?.totals?.value ?? 0)} MAD<MetricTrend k="stock_value" /></strong>
           <span className="ac-metric-meta">{valuation?.lines?.length ?? products.length} référence(s)</span>
+          <MetricSpark k="stock_value" unit="money" />
         </article>
         <article className="ac-metric">
           <span className="ac-metric-label">Entrepôts</span>

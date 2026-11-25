@@ -1,0 +1,180 @@
+/* KPI cards « façon Cloudflare »: trend chip next to the value, sparkline on
+   the bottom edge, « Aucune donnée » pill on a faint line when empty. */
+
+:root {
+  --ms-line: #2563eb;
+  --ms-good: #15803d;
+  --ms-bad: #dc2626;
+  --ms-flat: #64748b;
+  --ms-guide: rgba(15, 23, 42, 0.16);
+  --ms-tip-bg: #0f172a;
+  --ms-tip-fg: #ffffff;
+  --ms-wave: rgba(15, 23, 42, 0.1);
+  --ms-pill-bg: #ffffff;
+  --ms-pill-bd: #e4e4e7;
+  --ms-pill-fg: #52525b;
+  --ms-dot-ring: #ffffff;
+  --ms-shimmer: rgba(15, 23, 42, 0.07);
+}
+html[data-theme="dark"] {
+  --ms-line: #60a5fa;
+  --ms-good: #4ade80;
+  --ms-bad: #f87171;
+  --ms-flat: #a1a1aa;
+  --ms-guide: rgba(255, 255, 255, 0.2);
+  --ms-tip-bg: #f4f4f5;
+  --ms-tip-fg: #0f172a;
+  --ms-wave: rgba(255, 255, 255, 0.11);
+  --ms-pill-bg: rgb(32, 32, 36);
+  --ms-pill-bd: rgba(255, 255, 255, 0.12);
+  --ms-pill-fg: #d4d4d8;
+  --ms-dot-ring: rgb(26, 26, 31);
+  --ms-shimmer: rgba(255, 255, 255, 0.07);
+}
+
+/* Card: reserve the chart band at the bottom; the chart bleeds to the edges. */
+html body .ac-metric:has(> .ms-spark):not(#ms-g):not(#ms-h):not(#ms-i) {
+  position: relative !important;
+  overflow: hidden !important;
+  padding-bottom: 54px !important;
+}
+
+html body .ms-spark:not(#ms-g):not(#ms-h):not(#ms-i) {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  pointer-events: auto;
+  touch-action: pan-y;
+}
+html body .ms-spark .ms-svg:not(#ms-g):not(#ms-h):not(#ms-i) {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  transform: none !important;
+  transition: none !important;
+}
+html body .ms-spark .ms-line:not(#ms-g):not(#ms-h):not(#ms-i) {
+  fill: none !important;
+  stroke: var(--ms-line) !important;
+  stroke-width: 1.6px !important;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+html body .ms-spark .ms-stop-a:not(#ms-g):not(#ms-h):not(#ms-i) { stop-color: var(--ms-line); stop-opacity: 0.22; }
+html body .ms-spark .ms-stop-b:not(#ms-g):not(#ms-h):not(#ms-i) { stop-color: var(--ms-line); stop-opacity: 0; }
+html body .ms-spark .ms-area:not(#ms-g):not(#ms-h):not(#ms-i) { stroke: none !important; }
+
+/* Hover read-out */
+html body .ms-spark .ms-guide:not(#ms-g):not(#ms-h):not(#ms-i) {
+  position: absolute;
+  top: 2px;
+  bottom: 0;
+  width: 1px;
+  margin-left: -0.5px;
+  background: var(--ms-guide);
+  pointer-events: none;
+}
+html body .ms-spark .ms-dot:not(#ms-g):not(#ms-h):not(#ms-i) {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--ms-line);
+  box-shadow: 0 0 0 2px var(--ms-dot-ring);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+html body .ms-spark .ms-tip:not(#ms-g):not(#ms-h):not(#ms-i) {
+  position: absolute;
+  bottom: calc(100% - 6px);
+  margin-left: 6px;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: var(--ms-tip-bg);
+  color: var(--ms-tip-fg);
+  -webkit-text-fill-color: currentColor;
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.35;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.18);
+  z-index: 2;
+}
+html body .ms-spark .ms-tip.is-left:not(#ms-g):not(#ms-h):not(#ms-i) {
+  margin-left: -6px;
+  transform: translateX(-100%);
+}
+html body .ms-spark .ms-tip b:not(#ms-g):not(#ms-h):not(#ms-i) { font-weight: 700; }
+
+/* No data: faint flat line + pill, like Cloudflare's « No data ». */
+html body .ms-spark.is-empty .ms-wave:not(#ms-g):not(#ms-h):not(#ms-i) {
+  fill: none !important;
+  stroke: var(--ms-wave) !important;
+  stroke-width: 1.4px !important;
+  vector-effect: non-scaling-stroke;
+}
+html body .ms-spark .ms-empty-pill:not(#ms-g):not(#ms-h):not(#ms-i) {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  padding: 3px 10px;
+  border: 1px solid var(--ms-pill-bd);
+  border-radius: 999px;
+  background: var(--ms-pill-bg);
+  color: var(--ms-pill-fg);
+  -webkit-text-fill-color: currentColor;
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Loading: a soft moving line instead of an empty band. */
+html body .ms-spark.is-loading:not(#ms-g):not(#ms-h):not(#ms-i)::before {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 55%;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, var(--ms-shimmer), transparent);
+  background-size: 200% 100%;
+  animation: ms-shimmer 1.3s ease-in-out infinite;
+}
+@keyframes ms-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  html body .ms-spark.is-loading:not(#ms-g):not(#ms-h):not(#ms-i)::before { animation: none; }
+}
+
+/* Trend chip next to the value: « ↘ 21,2% » */
+html body .ms-trend:not(#ms-g):not(#ms-h):not(#ms-i) {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 8px;
+  vertical-align: middle;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0;
+  white-space: nowrap;
+  -webkit-text-fill-color: currentColor;
+  font-variant-numeric: tabular-nums;
+}
+html body .ms-trend .ms-svg:not(#ms-g):not(#ms-h):not(#ms-i) { transform: none !important; flex: none; }
+html body .ms-trend.is-good:not(#ms-g):not(#ms-h):not(#ms-i) { color: var(--ms-good) !important; }
+html body .ms-trend.is-bad:not(#ms-g):not(#ms-h):not(#ms-i) { color: var(--ms-bad) !important; }
+html body .ms-trend.is-flat:not(#ms-g):not(#ms-h):not(#ms-i) { color: var(--ms-flat) !important; }
+
+/* Compact density keeps the chart, slightly lower. */
+html[data-ui-density="compact"] body .ac-metric:has(> .ms-spark):not(#ms-g):not(#ms-h):not(#ms-i) { padding-bottom: 46px !important; }
+html[data-ui-density="compact"] body .ms-spark:not(#ms-g):not(#ms-h):not(#ms-i) { height: 36px; }

@@ -81,7 +81,7 @@ import { AgentQuotaHub } from './durable/AgentQuotaHub';
 export { AgentQuotaHub };
 import { RestoreHub } from './durable/RestoreHub';
 import { NumberHub } from './durable/NumberHub';
-import { registerAdminReadRoutes, registerInvoiceReadRoutes, registerStockReadRoutes, registerWholesaleRoutes, registerEmployeeRoutes, registerPublicRoutes, registerClientRoutes, registerMailboxRoutes, registerPartnerV1Routes, registerAtlasV209Routes, dispatchWebhook, registerFinanceRoutes, registerExpenseWriteRoutes, registerVendorRoutes, registerExportRoutes, registerMobileActionsRoutes, registerAttendanceRoutes, registerCatalogRoutes, registerCategoriesUnitsRoutes, registerDataImportRoutes, registerBackupRoutes, makeVerifyBackupAccess, registerReportRoutes, reportShell, registerInventoryOpsRoutes, ensureStockLocations, getDefaultLocationId, adjustLocationStock, registerAssistRoutes, purgeAgentConversationsOlderThan, readAppUpdateState, registerPublicSignedRoutes, registerProductsScanRoutes, registerDashboardIntegrityRoutes, registerInvoicesWriteRoutes, registerBillsReceiptsRoutes, registerCashShiftRoutes, registerPayrollRoutes, registerFecRoutes, registerDunningRoutes, runDailyDunning, registerDgiRoutes, ensureBillPaymentsTable } from './routes';
+import { registerAdminReadRoutes, registerInvoiceReadRoutes, registerStockReadRoutes, registerWholesaleRoutes, registerEmployeeRoutes, registerPublicRoutes, registerClientRoutes, registerMailboxRoutes, registerPartnerV1Routes, registerAtlasV209Routes, dispatchWebhook, registerFinanceRoutes, registerExpenseWriteRoutes, registerVendorRoutes, registerExportRoutes, registerMobileActionsRoutes, registerAttendanceRoutes, registerCatalogRoutes, registerCategoriesUnitsRoutes, registerDataImportRoutes, registerBackupRoutes, makeVerifyBackupAccess, registerReportRoutes, reportShell, registerInventoryOpsRoutes, ensureStockLocations, getDefaultLocationId, adjustLocationStock, registerAssistRoutes, purgeAgentConversationsOlderThan, readAppUpdateState, registerPublicSignedRoutes, registerProductsScanRoutes, registerDashboardIntegrityRoutes, registerMetricsRoutes, registerInvoicesWriteRoutes, registerBillsReceiptsRoutes, registerCashShiftRoutes, registerPayrollRoutes, registerFecRoutes, registerDunningRoutes, runDailyDunning, registerDgiRoutes, ensureBillPaymentsTable } from './routes';
 import { registerStockAdjustmentRoutes } from './routes/stockAdjustments';
 import { registerDeviceRoutes } from './routes/devices';
 import { registerDocPreviewRoutes } from './routes/docPreviews';
@@ -2512,6 +2512,7 @@ function refreshLimitGate(c: any, endpoint: string, maxPerMinute = 45): Response
   return null;
 }
 
+registerMetricsRoutes(app, { sessionUserFromHeader, refreshLimitGate });
 registerDashboardIntegrityRoutes(app, {
   requireOwner,
   requireBizMutator,

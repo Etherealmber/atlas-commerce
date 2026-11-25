@@ -1,6 +1,6 @@
 import MobileBottomNav from './components/erp/MobileBottomNav';
 import { useEffect, useLayoutEffect, useState, useRef, lazy, Suspense } from 'react';
-import { ArrowLeft, ArrowRight, Bell, ChevronRight, ClipboardCheck, FileText, Package, Users } from 'lucide-react';
+import { ArrowRight, Bell, ChevronRight, ClipboardCheck, FileText, LayoutDashboard, Package, Users } from 'lucide-react';
 import { canOpenPhoneBalance, canOpenPhoneEmployees } from './mobile/PhoneDock';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { applyPageTitle, titleForPath } from './lib/pageTitle';
@@ -1177,6 +1177,12 @@ function DesktopShell() {
 
         <div className="ac-main-column">
         <div className="ac-desktop-top-row">
+        {location.pathname !== '/dashboard' && (
+          <Link className="ac-home-pill" to="/dashboard" aria-label="Retour au tableau de bord" title="Retour au tableau de bord">
+            <LayoutDashboard size={16} strokeWidth={2} aria-hidden="true" />
+            <span className="ac-home-pill-label">Tableau de bord</span>
+          </Link>
+        )}
         <div
           ref={actionsSlotRef}
           id="desktop-catalog-actions"
@@ -1186,14 +1192,9 @@ function DesktopShell() {
             actionsMouseFocusRef.current = event.pointerType === 'mouse';
           }}
           onPointerEnter={(event) => {
-            if (event.pointerType === 'mouse') {
-              actionsHovered.current = true;
-              if (actionsCompactRef.current) {
-                actionsHoverExpanded.current = true;
-                actionsCompactRef.current = false;
-                setActionsCompact(false);
-              }
-            }
+            // Hovering keeps the bar compact: only the button under the pointer
+            // widens to show its label (CSS), so the cursor never has to chase it.
+            if (event.pointerType === 'mouse') actionsHovered.current = true;
           }}
           onPointerLeave={(event) => {
             if (event.pointerType === 'mouse') {
@@ -1201,13 +1202,6 @@ function DesktopShell() {
               if (related && event.currentTarget.contains(related)) return;
               actionsHovered.current = false;
               collapseActionsIfEligible();
-            }
-          }}
-          onFocus={() => {
-            if (actionsCompactRef.current) {
-              actionsHoverExpanded.current = true;
-              actionsCompactRef.current = false;
-              setActionsCompact(false);
             }
           }}
           onBlur={(event) => {
@@ -1270,26 +1264,6 @@ function DesktopShell() {
                 <path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" />
               </svg>
             </button>}
-            {isFocusRoute && (
-              <Link className="ac-dock-back" to="/dashboard" aria-label="Retour au tableau de bord" title="Retour au tableau de bord">
-                <ArrowLeft size={18} aria-hidden="true" />
-              </Link>
-            )}
-            {/^\/products\/[^/]+\/historique\/?$/.test(location.pathname) && (
-              <Link className="ac-dock-back" to="/products" aria-label="Retour aux produits" title="Retour aux produits">
-                <ArrowLeft size={18} aria-hidden="true" />
-              </Link>
-            )}
-            {/^\/quick-sale\/[^/]+\/?$/.test(location.pathname) && (
-              <Link className="ac-dock-back" to="/quick-sale" aria-label="Retour aux ventes rapides" title="Retour aux ventes rapides">
-                <ArrowLeft size={18} aria-hidden="true" />
-              </Link>
-            )}
-            {/^\/invoices\/[^/]+\/?$/.test(location.pathname) && (
-              <Link className="ac-dock-back" to="/invoices" aria-label="Retour aux factures" title="Retour aux factures">
-                <ArrowLeft size={18} aria-hidden="true" />
-              </Link>
-            )}
             <button ref={desktopDockTitleRef} type="button" className="ac-topbar-title ac-dock-expand" aria-label="Barre de commandes" aria-expanded={!settingsBarCompact} onClick={expandDesktopDock}>
               {titleForPath(location.pathname).replace(/ · Atlas$/, '')}
             </button>

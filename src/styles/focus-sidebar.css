@@ -33,23 +33,16 @@ html[data-theme="dark"] .public-legal {
 .public-whats-new .atlas-focus-layout,
 .public-legal .atlas-focus-layout {
   max-width: 1480px;
+  /* Constant gutter sized for the open rail: collapsing or opening the
+     floating sidebar never shifts the page content (Nouveautés, À propos…). */
   padding: 18px 28px 48px 282px;
-  transition: padding-left 220ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-.public-about .atlas-focus-layout:has(.atlas-focus-sidebar.is-collapsed),
-.public-whats-new .atlas-focus-layout:has(.atlas-focus-sidebar.is-collapsed),
-.public-legal .atlas-focus-layout:has(.atlas-focus-sidebar.is-collapsed) {
-  padding-left: 100px;
 }
 
 /* Authenticated DesktopShell Focus pages: reserve space for the left-centered floating rail */
 @media (min-width: 961px) {
+  /* Same width open or collapsed: the rail floats, the content stays put. */
   .layout .atlas-focus-layout {
     padding-left: 276px;
-    transition: padding-left 220ms cubic-bezier(0.22, 1, 0.36, 1);
-  }
-  .layout .atlas-focus-layout:has(.atlas-focus-sidebar.is-collapsed) {
-    padding-left: 88px;
   }
   aside.atlas-focus-sidebar {
     position: fixed;

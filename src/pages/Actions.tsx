@@ -20,6 +20,7 @@ import { mergeUnitOptions, type UnitOption } from '../lib/dualUnit';
 import ListPager from '../components/ui/ListPager';
 import EmptyState from '../components/EmptyState';
 import { ActionListRowsSkeleton } from '../components/PageSkeleton';
+import { MetricSpark, MetricTrend } from '../components/MetricSpark';
 
 type Action = {
   id: number;
@@ -462,8 +463,9 @@ export default function Actions() {
       <section className="ac-metric-grid" aria-label="Résumé des actions">
         <article className="ac-metric">
           <span className="ac-metric-label">En attente</span>
-          <strong className="ac-metric-val">{stats.pending}</strong>
+          <strong className="ac-metric-val">{stats.pending}<MetricTrend k="pending_actions" invert /></strong>
           <span className="ac-metric-meta">demande(s) à valider</span>
+          <MetricSpark k="pending_actions" invert />
         </article>
         <article className="ac-metric">
           <span className="ac-metric-label">Nouveaux produits</span>
@@ -477,8 +479,9 @@ export default function Actions() {
         </article>
         <article className="ac-metric">
           <span className="ac-metric-label">Clôturées</span>
-          <strong className="ac-metric-val">{stats.resolved}</strong>
+          <strong className="ac-metric-val">{stats.resolved}<MetricTrend k="actions_done" /></strong>
           <span className="ac-metric-meta">sur {rows.length} affichée(s)</span>
+          <MetricSpark k="actions_done" />
         </article>
       </section>
 

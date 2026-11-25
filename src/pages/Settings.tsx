@@ -56,6 +56,7 @@ import AccountSecurityPanel from '../components/AccountSecurityPanel';
 import { resetWelcome } from '../lib/welcome';
 import DbMigrationPanel from '../components/DbMigrationPanel';
 import AgentKnowledgePanel from '../components/settings/AgentKnowledgePanel';
+import { MetricSpark, MetricTrend } from '../components/MetricSpark';
 export default function Settings() {
   const navigate = useNavigate();
   // v0.7.6 — préférence « page d'ouverture » (localStorage, par appareil)
@@ -2838,8 +2839,9 @@ if (loading) return (
                   <Activity className="as-icon" size={14} strokeWidth={2} aria-hidden="true" />
                   <span>Actions ({rangeShort[auditRange]})</span>
                 </div>
-                <div className="as-value">{auditStats?.total ?? '—'}</div>
+                <div className="as-value">{auditStats?.total ?? '—'}<MetricTrend k="audit_events" /></div>
                 <div className="as-hint">{rangeLabels[auditRange]}</div>
+                <MetricSpark k="audit_events" />
               </article>
               <article className="ac-metric">
                 <div className="as-label">

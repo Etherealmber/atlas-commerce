@@ -7,6 +7,7 @@ import { ensureMailSchema } from './mailbox';
 import { afterBusinessMutation } from '../lib/delete-coord';
 import { countEmployeesPayDue } from './employees';
 import { normalizeInventoryRole, roleCanSeeFinancial } from '../lib/inventory-policy';
+import { recordMetricSnapshots, todayUtc } from './metrics';
 
 interface DashboardIntegrityRouteDeps {
   requireOwner: (c: any) => any;
@@ -688,6 +689,11 @@ export function registerDashboardIntegrityRoutes(app: Hono<any>, deps: Dashboard
         })),
       };
     await doCachePut(c.env.MOBILE_HUB, c.env.CACHE, 'dash', payload, ttl);
+    // KPI sparklines: the cash balance only exists as a computed total, so keep
+    // one value per day for the « Solde actuel » card (best effort).
+    try {
+      await recordMetricSnapshots(c.env.DB, todayUtc(), { balance });
+    } catch { /* metric_snapshots missing on an old tenant — card shows « Aucune donnée » */ }
     return c.json({
       success: true,
       data: payload,

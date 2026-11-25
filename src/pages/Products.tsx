@@ -32,6 +32,7 @@ import './products-catalog.css';
 import { FloatingPortal } from '../components/FloatingPortal';
 import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
 import { ModalFormError } from '../components/ModalFormFeedback';
+import { MetricSpark, MetricTrend } from '../components/MetricSpark';
 
 const PRODUCT_CREATE_STEPS: readonly WizardStepDef[] = [
   { id: 'identity', label: 'Identité', hint: 'Nom, référence SKU et description catalogue.' },
@@ -620,8 +621,9 @@ export default function Products() {
       <div className="ac-metric-grid ac-metric-grid--6 ac-products-kpis">
         <div className="ac-metric">
           <div className="as-label">Produits</div>
-          <div className="as-value">{catalogKpis.n}</div>
+          <div className="as-value">{catalogKpis.n}<MetricTrend k="products" /></div>
           <div className="as-hint">catalogue total</div>
+          <MetricSpark k="products" />
         </div>
         <div className="ac-metric">
           <div className="as-label">Affichés</div>
@@ -635,18 +637,21 @@ export default function Products() {
         </div>
         <div className="ac-metric ac-metric--ok">
           <div className="as-label">OK</div>
-          <div className="as-value">{catalogKpis.ok}</div>
+          <div className="as-value">{catalogKpis.ok}<MetricTrend k="in_stock" /></div>
           <div className="as-hint">au-dessus du seuil</div>
+          <MetricSpark k="in_stock" />
         </div>
         <div className="ac-metric ac-metric--warn">
           <div className="as-label">Stock bas</div>
-          <div className="as-value">{catalogKpis.low}</div>
+          <div className="as-value">{catalogKpis.low}<MetricTrend k="low_stock" invert /></div>
           <div className="as-hint">≤ seuil</div>
+          <MetricSpark k="low_stock" invert />
         </div>
         <div className="ac-metric ac-metric--danger">
           <div className="as-label">Rupture</div>
-          <div className="as-value">{catalogKpis.out}</div>
+          <div className="as-value">{catalogKpis.out}<MetricTrend k="out_of_stock" invert /></div>
           <div className="as-hint">quantité 0</div>
+          <MetricSpark k="out_of_stock" invert />
         </div>
       </div>
 

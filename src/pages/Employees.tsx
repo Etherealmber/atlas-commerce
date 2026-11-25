@@ -17,6 +17,7 @@ import { ModalFormError, FieldHint } from '../components/ModalFormFeedback';
 import { isEmail } from '../lib/formValidate';
 import { round2 } from '../lib/money';
 import './employee-wizard.css';
+import { MetricSpark, MetricTrend } from '../components/MetricSpark';
 
 type Emp = Record<string, any>;
 
@@ -721,8 +722,9 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
           <div className="as-label">Actifs</div>
           <div className="as-value" style={{ fontSize: '1.35rem' }}>
             {activeCount}
-          </div>
+          <MetricTrend k="employees_active" /></div>
           <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>dans la liste</div>
+          <MetricSpark k="employees_active" />
         </div>
         <div className="ac-metric">
           <div className="as-label">À payer</div>

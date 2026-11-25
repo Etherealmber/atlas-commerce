@@ -34,6 +34,7 @@ export { registerReportsAndUpdatesRoutes, readAppUpdateState } from './reportsAn
 export { registerPublicSignedRoutes } from './publicSigned';
 export { registerProductsScanRoutes } from './productsScan';
 export { registerDashboardIntegrityRoutes } from './dashboardIntegrity';
+export { registerMetricsRoutes, recordMetricSnapshots, todayUtc } from './metrics';
 export { registerInvoicesWriteRoutes } from './invoicesWrite';
 export { registerBillsReceiptsRoutes, ensureBillPaymentsTable } from './billsReceipts';
 export { registerCashShiftRoutes } from './cashShifts';

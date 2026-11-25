@@ -77,15 +77,16 @@ it('does not show the removed search in the desktop dock while keeping its other
     await act(async () => dock.dispatchEvent(new PointerEvent('pointerout', { bubbles: true, pointerType: 'mouse' })));
     expect(dock.classList.contains('ac-topbar--compact')).toBe(false);
 
-    // Top-right page actions mirror the compact / hover / keyboard-focus / leave-unless-tapped lifecycle.
+    // Top-right page actions: hovering or keyboard-focusing the compact bar keeps it compact —
+    // only the hovered/focused button widens (CSS). Tapping the bar background still pins it open.
     const actionsSlot = host.querySelector<HTMLElement>('#desktop-catalog-actions')!;
     expect(actionsSlot.classList.contains('desktop-catalog-actions-slot--compact')).toBe(true);
     await act(async () => actionsSlot.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, pointerType: 'mouse' })));
-    expect(actionsSlot.classList.contains('desktop-catalog-actions-slot--compact')).toBe(false);
+    expect(actionsSlot.classList.contains('desktop-catalog-actions-slot--compact')).toBe(true);
     await act(async () => actionsSlot.dispatchEvent(new PointerEvent('pointerout', { bubbles: true, pointerType: 'mouse' })));
     expect(actionsSlot.classList.contains('desktop-catalog-actions-slot--compact')).toBe(true);
     await act(async () => actionsSlot.dispatchEvent(new FocusEvent('focusin', { bubbles: true })));
-    expect(actionsSlot.classList.contains('desktop-catalog-actions-slot--compact')).toBe(false);
+    expect(actionsSlot.classList.contains('desktop-catalog-actions-slot--compact')).toBe(true);
     await act(async () => actionsSlot.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: document.body })));
     expect(actionsSlot.classList.contains('desktop-catalog-actions-slot--compact')).toBe(true);
     await act(async () => actionsSlot.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, pointerType: 'mouse' })));
@@ -103,7 +104,7 @@ it('does not show the removed search in the desktop dock while keeping its other
     actionBtn.textContent = 'Actualiser';
     actionsSlot.appendChild(actionBtn);
     await act(async () => actionsSlot.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, pointerType: 'mouse' })));
-    expect(actionsSlot.classList.contains('desktop-catalog-actions-slot--compact')).toBe(false);
+    expect(actionsSlot.classList.contains('desktop-catalog-actions-slot--compact')).toBe(true);
     await act(async () => {
       actionBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'mouse' }));
       actionBtn.focus();
@@ -121,9 +122,16 @@ it('does not show the removed search in the desktop dock while keeping its other
     expect(host.querySelector('.ac-dock-expand')?.textContent?.trim()).toBe('Devis');
     await act(async () => { window.history.pushState({}, '', '/products/7/historique'); window.dispatchEvent(new PopStateEvent('popstate')); });
     expect(host.querySelector('.ac-dock-expand')?.textContent?.trim()).toBe('Historique du produit');
-    expect(host.querySelector('header a[aria-label="Retour aux produits"]')?.getAttribute('href')).toBe('/products');
-    await act(async () => host.querySelector<HTMLAnchorElement>('header a[aria-label="Retour aux produits"]')!.click());
-    expect(host.querySelector('.ac-dock-expand')?.textContent?.trim()).toBe('Produits & stock');
+    // The floating dock carries no back arrow any more; the separate left pill returns to the dashboard.
+    expect(host.querySelector('header.ac-desktop-dock a[aria-label^="Retour"]')).toBeNull();
+    const home = host.querySelector<HTMLAnchorElement>('.ac-desktop-top-row > a.ac-home-pill');
+    expect(home?.getAttribute('href')).toBe('/dashboard');
+    expect(home?.getAttribute('aria-label')).toBe('Retour au tableau de bord');
+    expect(home?.querySelector('svg')).not.toBeNull();
+    expect(home?.querySelector('.ac-home-pill-label')?.textContent).toBe('Tableau de bord');
+    await act(async () => home!.click());
+    expect(host.querySelector('.ac-dock-expand')?.textContent?.trim()).toBe('Tableau de bord');
+    expect(host.querySelector('.ac-desktop-top-row > a.ac-home-pill')).toBeNull();
   } finally {
     if (originalScroll) Object.defineProperty(window, 'scrollY', originalScroll);
     else Reflect.deleteProperty(window, 'scrollY');

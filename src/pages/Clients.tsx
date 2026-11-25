@@ -18,6 +18,7 @@ import PageSkeleton from '../components/PageSkeleton';
 import '../components/erp/crm-parties.css';
 import { FloatingPortal } from '../components/FloatingPortal';
 import { ModalFormError } from '../components/ModalFormFeedback';
+import { MetricSpark, MetricTrend } from '../components/MetricSpark';
 
 const CLIENT_STEPS: readonly WizardStepDef[] = [
   { id: 'identity', label: 'Identité', hint: 'Nom du client et identifiants fiscaux.' },
@@ -273,19 +274,22 @@ export default function Clients() {
           <div className="ac-metric-grid ac-metric-grid--3" style={{ marginBottom: 16 }}>
             <div className="ac-metric">
               <div className="as-label">Solde total dû</div>
-              <div className="as-value" style={{ fontSize: '1.35rem' }}>{Math.round(totalDue).toLocaleString('fr-FR')} MAD</div>
+              <div className="as-value" style={{ fontSize: '1.35rem' }}>{Math.round(totalDue).toLocaleString('fr-FR')} MAD<MetricTrend k="receivables" invert /></div>
               <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>sur {withDue} compte{withDue !== 1 ? 's' : ''}</div>
               {withDue > 0 && <span className="badge" style={{ marginTop: 6, background: 'var(--ac-ui-warn-bg, #fef3c7)', color: 'var(--ac-ui-warn-ink, #92400e)' }}>à relancer</span>}
+              <MetricSpark k="receivables" invert unit="money" />
             </div>
             <div className="ac-metric">
               <div className="as-label">Nouveaux ce mois</div>
-              <div className="as-value" style={{ fontSize: '1.35rem' }}>{newMonth}</div>
+              <div className="as-value" style={{ fontSize: '1.35rem' }}>{newMonth}<MetricTrend k="clients_new" /></div>
               <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>clients ajoutés</div>
+              <MetricSpark k="clients_new" />
             </div>
             <div className="ac-metric">
               <div className="as-label">Comptes actifs</div>
-              <div className="as-value" style={{ fontSize: '1.35rem' }}>{list.length}</div>
+              <div className="as-value" style={{ fontSize: '1.35rem' }}>{list.length}<MetricTrend k="clients_total" /></div>
               <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>dans le fichier</div>
+              <MetricSpark k="clients_total" />
             </div>
           </div>
         );

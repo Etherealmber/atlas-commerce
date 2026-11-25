@@ -3193,31 +3193,171 @@ html[data-theme="dark"] body .desktop-catalog-actions-slot:focus-within > .top-p
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.58), 0 4px 10px rgba(0, 0, 0, 0.35) !important;
 }
 
-/* Minimized top-right page actions: compact icon-only pill bar on scroll, expands on hover or keyboard focus. */
+/* « Tableau de bord » pill: separate from the floating dock, pinned to the left of
+   the top row. Icon-only; only this pill widens to show its label on hover/focus. */
+.ac-home-pill { display: none; }
+@media (min-width: 901px) {
+  html body .ac-desktop-top-row > a.ac-home-pill:not(#hp-g):not(#hp-h):not(#hp-i) {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 37;
+    pointer-events: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0;
+    box-sizing: border-box;
+    height: 44px;
+    min-width: 44px;
+    max-width: 44px;
+    padding: 0 13px;
+    overflow: hidden;
+    border-radius: 999px;
+    border: 1px solid var(--ac-line);
+    background: var(--ac-paper);
+    color: var(--ac-ink);
+    -webkit-text-fill-color: currentColor;
+    text-decoration: none !important;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.10), 0 1px 3px rgba(15, 23, 42, 0.05);
+    transition: max-width .28s cubic-bezier(.22, 1, .36, 1), gap .28s ease, padding .28s cubic-bezier(.22, 1, .36, 1), box-shadow .2s ease, background-color .18s ease;
+  }
+  html body .ac-desktop-top-row > a.ac-home-pill > svg:not(#hp-g):not(#hp-h):not(#hp-i) {
+    display: block;
+    width: 16px; height: 16px; min-width: 16px;
+    flex: 0 0 16px;
+    stroke: currentColor;
+    fill: none;
+  }
+  html body .ac-desktop-top-row > a.ac-home-pill > .ac-home-pill-label:not(#hp-g):not(#hp-h):not(#hp-i) {
+    display: inline-block;
+    max-width: 0;
+    opacity: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    transition: max-width .28s cubic-bezier(.22, 1, .36, 1), opacity .18s ease;
+  }
+  html body .ac-desktop-top-row > a.ac-home-pill:is(:hover, :focus-visible):not(#hp-g):not(#hp-h):not(#hp-i) {
+    max-width: 220px;
+    gap: 8px;
+    padding: 0 16px 0 13px;
+    background: var(--ac-nav-hover, var(--ac-paper));
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.14), 0 2px 6px rgba(15, 23, 42, 0.08);
+  }
+  html body .ac-desktop-top-row > a.ac-home-pill:is(:hover, :focus-visible) > .ac-home-pill-label:not(#hp-g):not(#hp-h):not(#hp-i) {
+    max-width: 180px;
+    opacity: 1;
+  }
+  html body .ac-desktop-top-row > a.ac-home-pill:focus-visible:not(#hp-g):not(#hp-h):not(#hp-i) {
+    outline: 2px solid var(--ac-ink);
+    outline-offset: 2px;
+  }
+  html[data-theme="dark"] body .ac-desktop-top-row > a.ac-home-pill:not(#hp-g):not(#hp-h):not(#hp-i) {
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.25);
+  }
+  html[data-ui-density="compact"] body .ac-desktop-top-row > a.ac-home-pill:not(#hp-g):not(#hp-h):not(#hp-i) {
+    height: 40px; min-width: 40px; max-width: 40px; padding: 0 11px;
+  }
+  html[data-ui-density="compact"] body .ac-desktop-top-row > a.ac-home-pill:is(:hover, :focus-visible):not(#hp-g):not(#hp-h):not(#hp-i) {
+    max-width: 220px; padding: 0 14px 0 11px;
+  }
+}
+@media (prefers-reduced-motion: reduce) and (min-width: 901px) {
+  html body .ac-desktop-top-row > a.ac-home-pill:not(#hp-g):not(#hp-h):not(#hp-i),
+  html body .ac-desktop-top-row > a.ac-home-pill > .ac-home-pill-label:not(#hp-g):not(#hp-h):not(#hp-i) { transition: none; }
+}
+
+/* Docked page-action icons: one explicit size so no other button rule can squash
+   them (compact buttons used to render their svg 2–4px wide = "empty dots"). */
+@media (min-width: 901px) {
+  html body .desktop-catalog-actions-slot .top-page-actions > :is(button, a) > svg:not(#tpa-g):not(#tpa-h):not(#tpa-i),
+  html body .desktop-catalog-actions-slot .top-page-actions > :is(button, a) > :not(.tpa-label) > svg:not(#tpa-g):not(#tpa-h):not(#tpa-i) {
+    display: block !important;
+    width: 16px !important; height: 16px !important;
+    min-width: 16px !important; min-height: 16px !important;
+    max-width: none !important; max-height: none !important;
+    flex: 0 0 16px !important;
+    stroke-width: 2 !important;
+    overflow: visible !important;
+  }
+  html body .desktop-catalog-actions-slot .top-page-actions > button.icon-refresh-btn svg:not(#tpa-g):not(#tpa-h):not(#tpa-i) {
+    width: 17px !important; height: 17px !important;
+    min-width: 17px !important; min-height: 17px !important;
+    flex-basis: 17px !important;
+  }
+  /* Expanded bar: roomier pills, icon + label optically balanced. */
+  html body .desktop-catalog-actions-slot:not(.desktop-catalog-actions-slot--compact) .top-page-actions > :is(button, a):has(> .tpa-label):not(#tpa-g):not(#tpa-h):not(#tpa-i) {
+    gap: 7px !important;
+    padding: 0 14px 0 12px !important;
+    font-weight: 600 !important;
+    letter-spacing: -0.005em;
+  }
+  html body .desktop-catalog-actions-slot .top-page-actions .tpa-label:not(#tpa-g):not(#tpa-h):not(#tpa-i) {
+    -webkit-text-fill-color: currentColor;
+    line-height: 1;
+  }
+}
+
+/* Minimized top-right page actions: compact icon-only pill bar on scroll. Hovering
+   (or keyboard-focusing) ONE button widens only that button to reveal its label;
+   the bar is right-aligned, so the button grows leftwards under the pointer. */
 @media (min-width: 901px) {
   .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact > .top-page-actions {
     box-shadow: 0 6px 20px rgba(15, 23, 42, 0.09), 0 1px 2px rgba(15, 23, 42, 0.05);
   }
-  html body .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact .top-page-actions > button:not(.tpa-keep-wide),
-  html body .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact .top-page-actions > button.icon-refresh-btn:not(.tpa-keep-wide),
-  html body .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact .top-page-actions > a {
+  html body .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact .top-page-actions > button:not(.tpa-keep-wide):not(#tpa-g):not(#tpa-h):not(#tpa-i),
+  html body .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact .top-page-actions > a:not(#tpa-g):not(#tpa-h):not(#tpa-i) {
     width: 36px !important; min-width: 36px !important; max-width: 36px !important;
     height: 36px !important; min-height: 36px !important;
     padding: 0 !important; gap: 0 !important; border-radius: 999px !important;
+    justify-content: center !important;
+    overflow: hidden !important;
+    flex: 0 0 auto !important;
   }
-  html body .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact .top-page-actions > button.icon-refresh-btn svg {
-    width: 17px !important; height: 17px !important; min-width: 17px !important; min-height: 17px !important;
+  html body .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact .top-page-actions > :is(button, a):has(> .tpa-label):not(.tpa-keep-wide):not(#tpa-g):not(#tpa-h):not(#tpa-i) {
+    width: auto !important;
+    padding: 0 10px !important;
+    justify-content: flex-start !important;
+    transition: max-width .28s cubic-bezier(.22, 1, .36, 1), padding .28s cubic-bezier(.22, 1, .36, 1), gap .28s ease, background-color .18s ease, box-shadow .18s ease !important;
   }
-  html body .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact .top-page-actions .tpa-label {
-    position: absolute !important; width: 1px !important; height: 1px !important;
-    padding: 0 !important; margin: -1px !important; overflow: hidden !important;
-    clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important;
+  html body .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact .top-page-actions .tpa-label:not(#tpa-g):not(#tpa-h):not(#tpa-i) {
+    position: static !important;
+    display: inline-block !important;
+    width: auto !important; height: auto !important;
+    margin: 0 !important; padding: 0 !important; border: 0 !important;
+    clip: auto !important;
+    max-width: 0 !important;
+    opacity: 0;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    transition: max-width .28s cubic-bezier(.22, 1, .36, 1), opacity .18s ease !important;
+  }
+  html body .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact .top-page-actions > :is(button, a):has(> .tpa-label):not(.tpa-keep-wide):is(:hover, :focus-visible):not(#tpa-g):not(#tpa-h):not(#tpa-i) {
+    max-width: 260px !important;
+    padding: 0 14px 0 10px !important;
+    gap: 7px !important;
+    z-index: 1;
+  }
+  html body .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact .top-page-actions > :is(button, a):is(:hover, :focus-visible) > .tpa-label:not(#tpa-g):not(#tpa-h):not(#tpa-i) {
+    max-width: 220px !important;
+    opacity: 1;
   }
   html body .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact .top-page-actions .tpa-date-wrap {
     min-width: 0 !important; width: auto !important;
   }
   html body .desktop-catalog-actions-slot:focus-within > .top-page-actions {
     box-shadow: 0 12px 32px rgba(15, 23, 42, 0.14), 0 2px 6px rgba(15, 23, 42, 0.08);
+  }
+}
+@media (prefers-reduced-motion: reduce) and (min-width: 901px) {
+  html body .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact .top-page-actions > :is(button, a):not(#tpa-g):not(#tpa-h):not(#tpa-i),
+  html body .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact .top-page-actions .tpa-label:not(#tpa-g):not(#tpa-h):not(#tpa-i) {
+    transition: none !important;
   }
 }
 @media (min-width: 901px) and (hover: hover) and (pointer: fine) {
