@@ -132,9 +132,9 @@ describe('page actions, home pill and Nouveautés layout', () => {
   it('replaces the dock back arrow with an icon-only home pill that expands on hover', () => {
     const app = readFileSync(path.resolve(process.cwd(), 'src/App.tsx'), 'utf8');
     expect(app).not.toMatch(/ac-dock-back/);
-    expect(app).toMatch(/className="ac-home-pill" to="\/dashboard"/);
+    expect(app).toMatch(/\{isFocusRoute && \(\s*<Link className=\{`ac-home-pill\$\{actionsCompact \? '' : ' is-expanded'\}`\} to="\/dashboard"/);
     expect(shell).toMatch(/a\.ac-home-pill > \.ac-home-pill-label[^{]*\{[^}]*max-width: 0/);
-    expect(shell).toMatch(/a\.ac-home-pill:is\(:hover, :focus-visible\) > \.ac-home-pill-label[^{]*\{[^}]*opacity: 1/);
+    expect(shell).toMatch(/a\.ac-home-pill:is\(:hover, :focus-visible, \.is-expanded\) > \.ac-home-pill-label[^{]*\{[^}]*opacity: 1/);
   });
 
   it('keeps the Nouveautés content still when the focus sidebar opens or collapses (Settings / About stretch)', () => {

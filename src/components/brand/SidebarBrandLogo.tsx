@@ -1,18 +1,34 @@
+import { useEffect, useRef, useState } from 'react';
 import { AtlasMark, AtlasWordmark } from './AtlasMark';
+import { useBrandIntro } from './useBrandIntro';
 import './atlas-brand.css';
 
 /**
  * Sidebar lockup. Expanded: sunburst + "Atlas" (+ optional subtitle).
- * Collapsed: the sunburst alone, centred in the rail.
+ * Collapsed: the full sunburst alone (ticks + the beam from the centre), centred.
  *
- * The collapse never uses display:none — the wordmark clips through max-width +
- * clip-path while its letters slide/fade into the mark (last letter first), and
- * the beam shortens to a regular tick so the closed mark reads as a full sun.
- * Every animated box keeps a fixed height, so nothing below jumps or flickers.
+ * - On load the mark draws itself (ticks clockwise, beam out of the centre),
+ *   then « Atlas » is revealed.
+ * - Collapsing: the letters slide/fade into the mark (last letter first) while
+ *   the beam pulls back into the centre and shoots out again; expanding plays
+ *   it the other way. Hovering the mark sends a ripple around the ticks.
+ * - Never display:none; every animated box keeps a fixed height (no jump).
  */
 export function SidebarBrandLogo({ isCollapsed, subtitle }: { isCollapsed: boolean; subtitle?: string }) {
+  const intro = useBrandIntro<HTMLSpanElement>('mount');
+  const [morph, setMorph] = useState<'' | 'a' | 'b'>('');
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) { first.current = false; return undefined; }
+    // Alternate the class so the keyframes restart on every toggle.
+    setMorph((m) => (m === 'a' ? 'b' : 'a'));
+    const t = window.setTimeout(() => setMorph(''), 700);
+    return () => window.clearTimeout(t);
+  }, [isCollapsed]);
+
+  const cls = ['atlas-brand', isCollapsed ? 'is-collapsed' : '', morph ? `is-morph-${morph}` : '', intro.className].filter(Boolean).join(' ');
   return (
-    <span className={`atlas-brand${isCollapsed ? ' is-collapsed' : ''}`} data-collapsed={isCollapsed ? 'true' : 'false'}>
+    <span ref={intro.ref} className={cls} data-collapsed={isCollapsed ? 'true' : 'false'}>
       <span className="atlas-brand-row">
         <AtlasMark className="atlas-brand-mark" />
         <span className="atlas-brand-word" aria-hidden="true"><AtlasWordmark /></span>

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
+import { AtlasLockup } from '../components/brand/AtlasLockup';
 import { useLandingMotion } from '../hooks/useLandingMotion';
 import { PublicNav, PublicSessionCta, GitHubStarButton } from '../components/PublicChrome';
 import { getApiBase } from '../config';
@@ -380,7 +381,7 @@ export default function Support() {
               </div>
               <div className="dl-ed-mark" aria-hidden="true">
                 <div>
-                  <img src="/atlas-icon-light.png" alt="" width="100" height="100" />
+                  <AtlasLockup markOnly play="view" idle label="" className="dl-ed-mark-svg" />
                 </div>
                 <span>ATLAS · SUPPORT</span>
               </div>
@@ -610,8 +611,7 @@ export default function Support() {
       <footer className="dl-foot">
         <div className="dl-foot-inner">
           <div className="dl-foot-brand">
-            <img src="/atlas-logo-dark.png" alt={APP_NAME} className="theme-logo-dark" width={117} height={38} style={{ height: 38, width: 117 }} />
-            <img src="/atlas-logo-light.png" alt={APP_NAME} className="theme-logo-light" width={117} height={38} style={{ height: 38, width: 117 }} />
+            <AtlasLockup play="view" label={APP_NAME} className="dl-foot-lockup" />
             <p>{APP_NAME} par {APP_CREATOR_NAME} — logiciel de gestion stock, caisse et facturation.</p>
           </div>
           <nav aria-label="Liens support et produit">

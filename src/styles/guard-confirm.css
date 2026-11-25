@@ -1,0 +1,96 @@
+/* « Abandonner la saisie ? » — shown above any dialog / wizard / phone sheet
+   when the user cancels, clicks outside or presses Escape (src/lib/unsavedGuard.ts). */
+html body .ac-guard-confirm:not(#gc-g):not(#gc-h):not(#gc-i) {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483646;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 17, 21, 0.28);
+  animation: ac-gc-fade 140ms ease-out;
+}
+html body .ac-guard-confirm-card:not(#gc-g):not(#gc-h):not(#gc-i) {
+  width: min(400px, 100%);
+  box-sizing: border-box;
+  padding: 22px 22px 18px;
+  border-radius: 18px;
+  border: 1px solid var(--ac-line, #e4e4e7);
+  background: var(--ac-paper, #ffffff);
+  color: var(--ac-ink, #0f1115);
+  -webkit-text-fill-color: currentColor;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22), 0 4px 12px rgba(15, 23, 42, 0.08);
+  font-family: var(--font, 'DM Sans', system-ui, sans-serif);
+  animation: ac-gc-pop 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+html body .ac-guard-confirm-card h3:not(#gc-g):not(#gc-h):not(#gc-i) {
+  margin: 0 0 6px;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: inherit;
+}
+html body .ac-guard-confirm-card p:not(#gc-g):not(#gc-h):not(#gc-i) {
+  margin: 0 0 18px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ac-muted, #6b7280);
+  -webkit-text-fill-color: currentColor;
+}
+html body .ac-guard-confirm-actions:not(#gc-g):not(#gc-h):not(#gc-i) {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+html body .ac-guard-confirm-actions > button:not(#gc-g):not(#gc-h):not(#gc-i) {
+  height: 40px;
+  min-width: 0;
+  width: auto;
+  max-width: none;
+  padding: 0 16px;
+  border-radius: 999px;
+  font: 600 13.5px / 1 var(--font, 'DM Sans', system-ui, sans-serif);
+  cursor: pointer;
+  box-shadow: none;
+  transform: none;
+}
+html body .ac-guard-confirm-actions > button[data-guard-act="stay"]:not(#gc-g):not(#gc-h):not(#gc-i) {
+  border: 1px solid var(--ac-line, #e4e4e7);
+  background: var(--ac-paper, #ffffff);
+  color: var(--ac-ink, #0f1115);
+  -webkit-text-fill-color: currentColor;
+}
+html body .ac-guard-confirm-actions > button[data-guard-act="leave"]:not(#gc-g):not(#gc-h):not(#gc-i) {
+  border: 1px solid #dc2626;
+  background: #dc2626;
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+}
+html body .ac-guard-confirm-actions > button:focus-visible:not(#gc-g):not(#gc-h):not(#gc-i) {
+  outline: 2px solid var(--ac-ink, #0f1115);
+  outline-offset: 2px;
+}
+html[data-theme="dark"] body .ac-guard-confirm:not(#gc-g):not(#gc-h):not(#gc-i) { background: rgba(0, 0, 0, 0.5); }
+html[data-theme="dark"] body .ac-guard-confirm-card:not(#gc-g):not(#gc-h):not(#gc-i) {
+  border-color: #2e2e33;
+  background: #1b1b1f;
+  color: #f4f4f5;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+}
+html[data-theme="dark"] body .ac-guard-confirm-card p:not(#gc-g):not(#gc-h):not(#gc-i) { color: #a1a1aa; }
+html[data-theme="dark"] body .ac-guard-confirm-actions > button[data-guard-act="stay"]:not(#gc-g):not(#gc-h):not(#gc-i) {
+  border-color: #3a3a40;
+  background: #27272a;
+  color: #f4f4f5;
+}
+@keyframes ac-gc-fade { from { opacity: 0; } }
+@keyframes ac-gc-pop { from { opacity: 0; transform: translateY(6px) scale(0.98); } }
+@media (max-width: 560px) {
+  html body .ac-guard-confirm:not(#gc-g):not(#gc-h):not(#gc-i) { place-items: end center; padding: 12px 12px calc(12px + env(safe-area-inset-bottom)); }
+  html body .ac-guard-confirm-actions > button:not(#gc-g):not(#gc-h):not(#gc-i) { flex: 1 1 0; height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html body .ac-guard-confirm:not(#gc-g):not(#gc-h):not(#gc-i),
+  html body .ac-guard-confirm-card:not(#gc-g):not(#gc-h):not(#gc-i) { animation: none; }
+}

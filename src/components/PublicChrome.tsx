@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { AtlasLockup } from './brand/AtlasLockup';
 import { getTheme, setTheme as applyTheme, subscribeTheme, type ThemeChoice } from '../theme';
 import { isLoggedIn, getDisplayName, getUsername, getRole, getDisplayInitials, clearToken } from '../auth';
 import { invalidateAvatarCache } from '../lib/avatarCache';
@@ -9,8 +10,6 @@ import { useProfileWarm, useProfileTick } from '../lib/useProfileWarm';
 import { TopbarUserMenu } from './shell/TopbarUserMenu';
 import { LanguageSoonDialog } from './LanguageSoonDialog';
 
-const LOGO_DARK = '/atlas-logo-dark.png';
-const LOGO_LIGHT = '/atlas-logo-light.png';
 
 /* ------------------------------------------------------------------ */
 /* v0.7.6 — chrome partagé des pages publiques (/, /desktop, /download,
@@ -350,7 +349,7 @@ export function PublicNav({ links, cta, classic = false }: { links: NavLink[]; c
         }}
       >
         <Link to="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', flex: '0 0 auto' }} aria-label="Atlas — accueil">
-          <img src={c.dark ? LOGO_DARK : LOGO_LIGHT} alt="Atlas" style={{ height: compact ? 19 : 24, width: 'auto', display: 'block', transition: 'height .18s ease' }} />
+          <AtlasLockup height={compact ? 19 : 24} label="Atlas" style={{ color: c.dark ? '#ffffff' : '#0f1115' }} />
         </Link>
         {loggedIn && !classic ? (
           <PnLegacyTabs />

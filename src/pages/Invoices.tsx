@@ -1,3 +1,4 @@
+import DocumentActors from '../components/DocumentActors';
 import TopPageActions from '../components/TopPageActions';
 import { ArrowRight, Ban, CheckCircle2, CreditCard, FileCheck2, FilePlus2, Pencil, RotateCcw, Truck } from 'lucide-react';
 import { TimedUndoDelete } from '../components/ui';
@@ -546,6 +547,7 @@ export default function Invoices() {
                   <tr>
                     <td>
                       <Link to={`/invoices/${inv.id}`} className="ac-number-link" title="Ouvrir la facture"><strong>{inv.number}</strong></Link>
+                      <DocumentActors document={inv} />
                       {(inv.status === 'remboursement' || inv.doc_kind === 'remboursement') && inv.refund_of_invoice_id ? (
                         <div style={{ fontSize: 11, color: 'var(--muted)' }}>
                           sur{' '}

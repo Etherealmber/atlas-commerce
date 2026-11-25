@@ -3242,14 +3242,14 @@ html[data-theme="dark"] body .desktop-catalog-actions-slot:focus-within > .top-p
     white-space: nowrap;
     transition: max-width .28s cubic-bezier(.22, 1, .36, 1), opacity .18s ease;
   }
-  html body .ac-desktop-top-row > a.ac-home-pill:is(:hover, :focus-visible):not(#hp-g):not(#hp-h):not(#hp-i) {
+  html body .ac-desktop-top-row > a.ac-home-pill:is(:hover, :focus-visible, .is-expanded):not(#hp-g):not(#hp-h):not(#hp-i) {
     max-width: 220px;
     gap: 8px;
     padding: 0 16px 0 13px;
     background: var(--ac-nav-hover, var(--ac-paper));
     box-shadow: 0 12px 32px rgba(15, 23, 42, 0.14), 0 2px 6px rgba(15, 23, 42, 0.08);
   }
-  html body .ac-desktop-top-row > a.ac-home-pill:is(:hover, :focus-visible) > .ac-home-pill-label:not(#hp-g):not(#hp-h):not(#hp-i) {
+  html body .ac-desktop-top-row > a.ac-home-pill:is(:hover, :focus-visible, .is-expanded) > .ac-home-pill-label:not(#hp-g):not(#hp-h):not(#hp-i) {
     max-width: 180px;
     opacity: 1;
   }
@@ -3263,7 +3263,7 @@ html[data-theme="dark"] body .desktop-catalog-actions-slot:focus-within > .top-p
   html[data-ui-density="compact"] body .ac-desktop-top-row > a.ac-home-pill:not(#hp-g):not(#hp-h):not(#hp-i) {
     height: 40px; min-width: 40px; max-width: 40px; padding: 0 11px;
   }
-  html[data-ui-density="compact"] body .ac-desktop-top-row > a.ac-home-pill:is(:hover, :focus-visible):not(#hp-g):not(#hp-h):not(#hp-i) {
+  html[data-ui-density="compact"] body .ac-desktop-top-row > a.ac-home-pill:is(:hover, :focus-visible, .is-expanded):not(#hp-g):not(#hp-h):not(#hp-i) {
     max-width: 220px; padding: 0 14px 0 11px;
   }
 }

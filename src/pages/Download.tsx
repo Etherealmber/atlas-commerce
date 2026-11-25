@@ -1,5 +1,6 @@
 import ReleaseTimeline from '../components/ReleaseTimeline';
 import DownloadPreview from '../components/DownloadPreview';
+import { AtlasLockup } from '../components/brand/AtlasLockup';
 import DownloadHeroVisual from '../components/DownloadHeroVisual';
 /**
  * Download — page publique de l'APK Android, avec navigation Atlas partagée.
@@ -211,7 +212,7 @@ export default function Download() {
                 </div>
                 <p className="dl-note">{state === 'ok' ? 'APK officielle · téléchargement sans connexion au compte' : state === 'loading' ? 'Vérification de la version officielle' : 'Consultez le dépôt pour les versions disponibles'}</p>
               </div>
-              <div className="dl-ed-mark" aria-hidden="true"><div><img src="/atlas-icon-light.png" alt="" width="100" height="100" /></div><span>ATLAS · SUR LE TERRAIN</span></div>
+              <div className="dl-ed-mark" aria-hidden="true"><div><AtlasLockup markOnly play="view" idle label="" className="dl-ed-mark-svg" /></div><span>ATLAS · SUR LE TERRAIN</span></div>
             </div>
             <DownloadHeroVisual platform="android" />
             <ul className="dl-ed-facts">
@@ -252,8 +253,7 @@ export default function Download() {
       <footer className="dl-foot">
         <div className="dl-foot-inner">
           <div className="dl-foot-brand">
-            <img src="/atlas-logo-dark.png" alt="" className="theme-logo-dark" width={117} height={38} style={{ height: 38, width: 117 }} />
-            <img src="/atlas-logo-light.png" alt={APP_NAME} className="theme-logo-light" width={117} height={38} style={{ height: 38, width: 117 }} />
+            <AtlasLockup play="view" label={APP_NAME} className="dl-foot-lockup" />
             <p>Application Android de gestion commerciale : stock, caisse, facturation et trésorerie, même offline.</p>
           </div>
           <nav aria-label="Liens produit">

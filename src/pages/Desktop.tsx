@@ -1,5 +1,6 @@
 import ReleaseTimeline from '../components/ReleaseTimeline';
 import DownloadPreview from '../components/DownloadPreview';
+import { AtlasLockup } from '../components/brand/AtlasLockup';
 import DownloadHeroVisual from '../components/DownloadHeroVisual';
 /**
  * Desktop — page de téléchargement de l'application bureau (v0.7.3).
@@ -314,7 +315,7 @@ export default function Desktop() {
                 )}
                 <p className="dl-note">Choisissez un fichier adapté à votre système depuis les releases officielles.</p>
               </div>
-              <div className="dl-ed-mark" aria-hidden="true"><div><img src="/atlas-icon-light.png" alt="" width="100" height="100" /></div><span>ATLAS · AU COMPTOIR</span></div>
+              <div className="dl-ed-mark" aria-hidden="true"><div><AtlasLockup markOnly play="view" idle label="" className="dl-ed-mark-svg" /></div><span>ATLAS · AU COMPTOIR</span></div>
             </div>
             <DownloadHeroVisual platform="desktop" />
             <ul className="dl-ed-facts">
@@ -355,8 +356,7 @@ export default function Desktop() {
       <footer className="dl-foot">
         <div className="dl-foot-inner">
           <div className="dl-foot-brand">
-            <img src="/atlas-logo-dark.png" alt={APP_NAME} className="theme-logo-dark" width={117} height={38} style={{ height: 38, width: 117 }} />
-            <img src="/atlas-logo-light.png" alt={APP_NAME} className="theme-logo-light" width={117} height={38} style={{ height: 38, width: 117 }} />
+            <AtlasLockup play="view" label={APP_NAME} className="dl-foot-lockup" />
             <p>Application bureau de gestion commerciale : caisse, stock et facturation, dans une fenêtre native.</p>
           </div>
           <nav aria-label="Liens produit">

@@ -20,6 +20,7 @@ import { validateExpenseWrite } from '../lib/validate';
 import { normalizeRole } from '../lib/rbac';
 import { apiFail } from '../lib/api-response';
 import { round2, sanitizePositiveAmount } from '../lib/financeCore';
+import { ensureExpenseCreatorColumn } from '../lib/documentCreators';
 
 type ExpenseWriteDeps = {
   sessionUserFromHeader(authHeader: string | undefined): { username: string; role: string };
@@ -108,6 +109,10 @@ export function registerExpenseWriteRoutes(app: AtlasApp, deps: ExpenseWriteDeps
       notes,
       type,
     ).run();
+    try {
+      await ensureExpenseCreatorColumn(c.env.DB);
+      await c.env.DB.prepare(`UPDATE expenses SET created_by = ? WHERE id = ?`).bind(gate.username, result.meta.last_row_id).run();
+    } catch { /* attribution is best-effort; the entry itself is saved */ }
     const expense = await c.env.DB.prepare(`SELECT * FROM expenses WHERE id = ?`).bind(result.meta.last_row_id).first();
     await deps.invalidateDashboardCache(c.env.CACHE, c.env.MOBILE_HUB);
     void deps.writeAudit(c.env.DB, {

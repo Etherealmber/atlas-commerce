@@ -93,10 +93,16 @@ export function WizardHeader(props: {
               <button
                 type="button"
                 className="step-wizard__step-btn"
-                disabled={isUnreachedSkip}
+                aria-disabled={isUnreachedSkip || undefined}
                 title={isUnreachedSkip ? 'Complétez les étapes précédentes avant d’y accéder' : item.label}
                 onClick={() => {
-                  if (n === wz.step || isUnreachedSkip) return;
+                  if (n === wz.step) return;
+                  if (isUnreachedSkip) {
+                    // Skipping ahead is refused — show why (current step's errors) and bounce, every time.
+                    if (onBeforeJump) onBeforeJump(n); else wz._runGuard();
+                    bounceDialogOf(headRef.current);
+                    return;
+                  }
                   if (n > wz.step) {
                     const blocked = onBeforeJump ? onBeforeJump(n) === false : !wz._runGuard();
                     if (blocked) {
