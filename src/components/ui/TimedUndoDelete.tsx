@@ -151,7 +151,7 @@ export const TimedUndoDelete: FC<TimedUndoDeleteProps> = ({
   };
 
   return (
-    <div className={`ac-timed-delete ${className}`.trim()} style={wrapStyle} data-atlas-delete="1">
+    <div className={`ac-timed-delete${iconOnly ? ' ac-timed-delete--icon' : ''} ${className}`.trim()} style={wrapStyle} data-atlas-delete="1">
       <div
         role="button"
         tabIndex={0}

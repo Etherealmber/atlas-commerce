@@ -12,6 +12,7 @@ export function safeReportText(value, limit = 800) {
 export function renderPatrolReport(doc) {
   const safe = safeReportText;
   const findings = Array.isArray(doc.findings) ? doc.findings : [];
+  const unverifiedChecks = Array.isArray(doc.inconclusive) ? doc.inconclusive : [];
   const lines = [
     `## 🛡️ Security patrol — ${safe(doc.startedAt)}`,
     '',
@@ -35,6 +36,12 @@ export function renderPatrolReport(doc) {
   } else {
     lines.push('### ℹ️ WAF', '', 'Compteur WAF indisponible ou invalide.', '');
   }
+  if (unverifiedChecks.length) {
+    lines.push(`### ℹ️ Contrôles non vérifiés (${unverifiedChecks.length}) — pas une faille`, '',
+      'Cloudflare a bloqué la sonde avant qu’elle n’atteigne l’application. Ces contrôles n’ont pas été exécutés : ils ne signalent aucun problème et n’ouvrent pas de ticket.', '');
+    for (const f of unverifiedChecks) lines.push(`- ${safe(f.title, 200)} — ${safe(f.detail)}`);
+    lines.push('', `🔧 Pour les vérifier : ${safe(unverifiedChecks[0].fix, 1200)}`, '');
+  }
   if (findings.length) {
     lines.push(`### ⚠️ Points à corriger (${findings.length})`, '');
     for (const f of findings) {
@@ -42,6 +49,8 @@ export function renderPatrolReport(doc) {
       lines.push(`  - 🔧 Fix possible : ${safe(f.fix, 1200)}`);
     }
     lines.push('');
+  } else if (unverifiedChecks.length) {
+    lines.push('### ✅ Aucun problème confirmé', '', 'Aucun des contrôles exécutés n’a révélé de problème. Les contrôles non vérifiés ci-dessus restent à exécuter.', '');
   } else {
     lines.push('### ✅ Aucun point à corriger', '', 'Toutes les sondes d’intrusion sont bloquées, les en-têtes de sécurité sont présents et les endpoints sensibles refusent les accès non authentifiés.', '');
   }

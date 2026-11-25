@@ -233,7 +233,7 @@ export default function Reimbursements() {
                         <Mail size={14} aria-hidden="true" />
                         <span>E-mail</span>
                       </button>
-                      <TimedUndoDelete
+                      <TimedUndoDelete iconOnly width="34px"
                         deleteLabel="Supprimer"
                         undoLabel="Annuler"
                         initialSeconds={10}

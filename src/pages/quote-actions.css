@@ -3,3 +3,25 @@ html body .quotes-page .quote-number-link:hover { text-decoration: underline; }
 html[data-theme="dark"] body .quotes-page .quote-number-link { color: #93c5fd !important; -webkit-text-fill-color: #93c5fd !important; }
 html body .quotes-page table button.secondary { display: inline-flex; align-items: center; gap: 5px; }
 html body .quotes-page table button.danger { background: #dc2626 !important; color: #fff !important; -webkit-text-fill-color: #fff !important; border-color: #dc2626 !important; }
+/* The quote number is a text link, not a button: beat the long global `.content button:not(…)` chains. */
+html body .quotes-page button.quote-number-link:not(#qnum-a):not(#qnum-b) {
+  display: inline !important;
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #2563eb !important;
+  -webkit-text-fill-color: #2563eb !important;
+  font: inherit !important;
+  font-weight: 700 !important;
+  text-decoration: none !important;
+  transform: none !important;
+  cursor: pointer;
+}
+html body .quotes-page button.quote-number-link:not(#qnum-a):not(#qnum-b):hover { text-decoration: underline !important; }
+html body .quotes-page button.quote-number-link:not(#qnum-a):not(#qnum-b):focus-visible { outline: 2px solid currentColor !important; outline-offset: 2px !important; border-radius: 4px !important; }
+html[data-theme="dark"] body .quotes-page button.quote-number-link:not(#qnum-a):not(#qnum-b) { color: #93c5fd !important; -webkit-text-fill-color: #93c5fd !important; }

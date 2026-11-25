@@ -678,10 +678,10 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
             <span>Réactiver</span>
           </button>
           {deleteArmId === e.id ? (
-            <TimedUndoDelete autoStart deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10}
+            <TimedUndoDelete iconOnly width="34px" autoStart deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10}
               onConfirm={() => { setDeleteArmId(null); openDelete(e); }} />
           ) : (
-            <TimedUndoDelete deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10} onConfirm={() => { setDeleteArmId(null); openDelete(e); }} />
+            <TimedUndoDelete iconOnly width="34px" deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10} onConfirm={() => { setDeleteArmId(null); openDelete(e); }} />
           )}
         </>
       )}

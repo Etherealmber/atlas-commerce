@@ -552,10 +552,10 @@ export default function Bills() {
                       </button>
                     )}
                     {deleteArmId === b.id ? (
-                      <TimedUndoDelete autoStart deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10}
+                      <TimedUndoDelete iconOnly width="34px" autoStart deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10}
                         onConfirm={() => { setDeleteArmId(null); openDelete([b.id]); }} />
                     ) : (
-                      <TimedUndoDelete deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10} onConfirm={() => { setDeleteArmId(null); openDelete([b.id]); }} />
+                      <TimedUndoDelete iconOnly width="34px" deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10} onConfirm={() => { setDeleteArmId(null); openDelete([b.id]); }} />
                     )}
                   </div></td>
                 </tr>

@@ -757,7 +757,7 @@ export default function Balance() {
                   {isIn ? '+' : '−'}{fmt(m.amount)} {cur}
                 </div>
                 <div className="bal-tx-actions">
-                  <TimedUndoDelete
+                  <TimedUndoDelete iconOnly width="34px"
                     deleteLabel="Supprimer"
                     undoLabel="Annuler"
                     initialSeconds={10}

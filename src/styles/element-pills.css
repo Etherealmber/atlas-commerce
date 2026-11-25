@@ -1,0 +1,166 @@
+/* ─────────────────────────────────────────────────────────────────────────
+ * Element action pills — the Produits list-row button style
+ * (« Ajuster · Modifier · Étiquette » + red round trash) applied to the
+ * buttons INSIDE elements on every page: table row actions, bento panels /
+ * cards (Devis, Solde, Opérations stock, Paie CNSS / AMO, Factures, Clients…)
+ * and the Paramètres cards. Page-header actions (top-page-actions, dock,
+ * « Nouveau … ») are NOT touched — they live outside these containers.
+ *
+ * Scope  : .ac-panel · .card · .settings-main · .row-actions(-cell)
+ *          · .ac-ops-row-actions · .bal-tx-actions
+ * Skips  : segmented pills, pager, icon buttons, toggles/switches, tabs,
+ *          link-styled buttons, wizard steps, close buttons, product cards
+ *          (own pc-* styles).
+ * Boost  : #pill-a/#pill-b/#pill-c beat the global `.content button`,
+ *          density-compact and dark-force chains without touching them.
+ * ───────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --pill-line: #e8eaef;
+  --pill-bg: #f4f4f5;
+  --pill-bg-hover: #ffffff;
+  --pill-ink: #0f172a;
+  --pill-muted: #64748b;
+  --pill-danger-bg: #fef2f2;
+  --pill-danger-line: #fecaca;
+  --pill-danger-ink: #b91c1c;
+  --pill-primary-bg: #0f172a;
+  --pill-primary-ink: #ffffff;
+}
+html[data-theme="dark"] {
+  --pill-line: #2a2a2e;
+  --pill-bg: #26262b;
+  --pill-bg-hover: #1c1c1f;
+  --pill-ink: #f4f4f5;
+  --pill-muted: #9aa3b5;
+  --pill-danger-bg: rgba(239, 68, 68, 0.12);
+  --pill-danger-line: rgba(239, 68, 68, 0.35);
+  --pill-danger-ink: #fca5a5;
+  --pill-primary-bg: #f4f4f5;
+  --pill-primary-ink: #0f172a;
+}
+
+/* ── Secondary + danger: the exact Produits row pill ─────────────────────── */
+html body :is(.ac-panel, .card, .settings-main, .row-actions, .row-actions-cell, .ac-ops-row-actions, .bal-tx-actions) button:is(.secondary, .danger):not(:is(.ac-seg-btn, .pc-view-btn, .pc-act, .pc-row-act, .ac-pager-hit, .icon-refresh-btn, [class*="iconbtn"], [class*="icon-btn"], [class*="toggle"], [role="switch"], [role="tab"], [aria-pressed], .quote-number-link, .ac-settings-lang-btn, .step-wizard__step-btn, .modal-x, [class*="close"], .settings-file-btn)):not(#pill-a):not(#pill-b):not(#pill-c) {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  padding: 0 12px 0 10px !important;
+  border-radius: 999px !important;
+  border: 1px solid var(--pill-line) !important;
+  background: var(--pill-bg) !important;
+  color: var(--pill-ink) !important;
+  -webkit-text-fill-color: var(--pill-ink) !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  letter-spacing: 0 !important;
+  white-space: nowrap !important;
+  text-decoration: none !important;
+  box-shadow: none !important;
+  transform: none !important;
+  width: auto;
+}
+html body :is(.ac-panel, .card, .settings-main, .row-actions, .row-actions-cell, .ac-ops-row-actions, .bal-tx-actions) button.danger:not(:is(.ac-seg-btn, .ac-pager-hit, [class*="iconbtn"], [class*="toggle"], [role="switch"], [role="tab"], [aria-pressed], [class*="close"])):not(#pill-a):not(#pill-b):not(#pill-c) {
+  border-color: var(--pill-danger-line) !important;
+  background: var(--pill-danger-bg) !important;
+  color: var(--pill-danger-ink) !important;
+  -webkit-text-fill-color: var(--pill-danger-ink) !important;
+}
+html body :is(.ac-panel, .card, .settings-main, .row-actions, .row-actions-cell, .ac-ops-row-actions, .bal-tx-actions) button.secondary:not(:is(.ac-seg-btn, .pc-view-btn, .pc-act, .pc-row-act, .ac-pager-hit, [class*="iconbtn"], [class*="toggle"], [role="tab"], [aria-pressed], .quote-number-link, .ac-settings-lang-btn, [class*="close"])):not(#pill-a):not(#pill-b):not(#pill-c):hover:not(:disabled) {
+  background: var(--pill-bg-hover) !important;
+  border-color: var(--pill-muted) !important;
+}
+html body :is(.ac-panel, .card, .settings-main, .row-actions, .row-actions-cell, .ac-ops-row-actions, .bal-tx-actions) button.danger:not(:is(.ac-seg-btn, .ac-pager-hit, [class*="iconbtn"], [class*="toggle"], [role="tab"], [aria-pressed], [class*="close"])):not(#pill-a):not(#pill-b):not(#pill-c):hover:not(:disabled) {
+  background: #dc2626 !important;
+  border-color: #dc2626 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body :is(.ac-panel, .card, .settings-main, .row-actions, .row-actions-cell, .ac-ops-row-actions, .bal-tx-actions) button:is(.secondary, .danger):not(#pill-a):not(#pill-b):focus-visible {
+  outline: 2px solid var(--pill-ink) !important;
+  outline-offset: 2px !important;
+}
+html body :is(.ac-panel, .card, .settings-main, .row-actions, .row-actions-cell, .ac-ops-row-actions, .bal-tx-actions) button:is(.secondary, .danger):not(#pill-a):not(#pill-b):disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+}
+html body :is(.ac-panel, .card, .settings-main, .row-actions, .row-actions-cell, .ac-ops-row-actions, .bal-tx-actions) button:is(.secondary, .danger):not(.pc-act):not(#pill-a) svg {
+  width: 14px !important;
+  height: 14px !important;
+  flex: 0 0 auto !important;
+  stroke: currentColor !important;
+  fill: none !important;
+}
+
+/* ── Primary actions inside an element: same pill shape, colours kept dark ─ */
+html body :is(.ac-panel, .card, .settings-main) button:is(.primary, [type="submit"], :not([class]), [class=""]):not(:is(.secondary, .danger, .ac-seg-btn, .ac-pager-hit, [class*="iconbtn"], [class*="toggle"], [role="tab"], [aria-pressed], [class*="close"], .step-wizard__step-btn)):not(#pill-a):not(#pill-b):not(#pill-c) {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 0 16px !important;
+  border-radius: 999px !important;
+  border: 1px solid var(--pill-primary-bg) !important;
+  background: var(--pill-primary-bg) !important;
+  color: var(--pill-primary-ink) !important;
+  -webkit-text-fill-color: var(--pill-primary-ink) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+/* ── Delete in a row / card: red round trash (TimedUndoDelete iconOnly) ──── */
+html body :is(.ac-panel, .card, .settings-main, .row-actions, .row-actions-cell, .ac-ops-row-actions, .bal-tx-actions) .ac-timed-delete.ac-timed-delete--icon:not(#pill-a) {
+  flex: 0 0 34px !important;
+  width: 34px !important;
+  min-width: 34px !important;
+  max-width: 34px !important;
+  vertical-align: middle;
+}
+html body :is(.ac-panel, .card, .settings-main, .row-actions, .row-actions-cell, .ac-ops-row-actions, .bal-tx-actions) .ac-timed-delete.ac-timed-delete--icon:not(#pill-a) > .ac-timed-delete-btn:not(#pill-a):not(#pill-b):not(#pill-c) {
+  width: 34px !important;
+  min-width: 34px !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+}
+html body :is(.ac-panel, .card, .settings-main, .row-actions, .row-actions-cell, .ac-ops-row-actions, .bal-tx-actions) .ac-timed-delete-btn:not(#pill-a) > svg { width: 16px !important; height: 16px !important; stroke: currentColor !important; fill: none !important; }
+
+/* Rows without an inner .row-actions flex wrapper (Paramètres tables) */
+html body td.row-actions-cell:not(#pill-a) { white-space: nowrap; }
+html body td.row-actions-cell:not(#pill-a) > :is(button, .ac-timed-delete) { vertical-align: middle; }
+html body td.row-actions-cell:not(#pill-a) > :is(button, .ac-timed-delete) + :is(button, .ac-timed-delete) { margin-left: 6px !important; }
+
+/* ── Compact density: visibly smaller, same shape ────────────────────────── */
+html[data-ui-density="compact"] body :is(.ac-panel, .card, .settings-main, .row-actions, .row-actions-cell, .ac-ops-row-actions, .bal-tx-actions) button:is(.secondary, .danger):not(:is(.ac-seg-btn, .pc-view-btn, .pc-act, .pc-row-act, .ac-pager-hit, [class*="iconbtn"], [class*="icon-btn"], [class*="toggle"], [role="switch"], [role="tab"], [aria-pressed], .quote-number-link, .ac-settings-lang-btn, .step-wizard__step-btn, .modal-x, [class*="close"], .settings-file-btn)):not(#pill-a):not(#pill-b):not(#pill-c) {
+  height: 28px !important;
+  min-height: 28px !important;
+  padding: 0 10px 0 8px !important;
+  font-size: 12px !important;
+}
+html[data-ui-density="compact"] body :is(.ac-panel, .card, .settings-main) button:is(.primary, [type="submit"], :not([class]), [class=""]):not(:is(.secondary, .danger, .ac-seg-btn, .ac-pager-hit, [class*="iconbtn"], [class*="toggle"], [role="tab"], [aria-pressed], [class*="close"], .step-wizard__step-btn)):not(#pill-a):not(#pill-b):not(#pill-c) {
+  height: 30px !important;
+  min-height: 30px !important;
+  padding: 0 12px !important;
+  font-size: 12.5px !important;
+}
+html[data-ui-density="compact"] body :is(.ac-panel, .card, .settings-main, .row-actions, .row-actions-cell, .ac-ops-row-actions, .bal-tx-actions) .ac-timed-delete.ac-timed-delete--icon:not(#pill-a) {
+  flex-basis: 30px !important;
+  width: 30px !important;
+  min-width: 30px !important;
+  max-width: 30px !important;
+}
+html[data-ui-density="compact"] body :is(.ac-panel, .card, .settings-main, .row-actions, .row-actions-cell, .ac-ops-row-actions, .bal-tx-actions) .ac-timed-delete.ac-timed-delete--icon:not(#pill-a) > .ac-timed-delete-btn:not(#pill-a):not(#pill-b):not(#pill-c) {
+  width: 30px !important;
+  min-width: 30px !important;
+  height: 28px !important;
+  min-height: 28px !important;
+}

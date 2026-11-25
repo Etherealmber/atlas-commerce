@@ -209,10 +209,10 @@ export default function Vendors() {
                     <td>{v.email || '—'}</td>
                     <td className="row-actions-cell"><div className="row-actions">
                       {deleteArmId === v.id ? (
-                        <TimedUndoDelete autoStart deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10}
+                        <TimedUndoDelete iconOnly width="34px" autoStart deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10}
                           onConfirm={() => { setDeleteArmId(null); void remove(v.id); }} />
                       ) : (
-                        <TimedUndoDelete deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10} onConfirm={() => { setDeleteArmId(null); remove(v.id); }} />
+                        <TimedUndoDelete iconOnly width="34px" deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10} onConfirm={() => { setDeleteArmId(null); remove(v.id); }} />
                       )}
                     </div></td>
                   </tr>
