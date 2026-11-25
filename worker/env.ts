@@ -12,6 +12,10 @@ export interface Env {
   RESTORE_HUB?: DurableObjectNamespace;
   /** Atomic document number sequences */
   NUMBER_HUB?: DurableObjectNamespace;
+  /** Demo sandboxes (« test / test »): one SQLite Durable Object per fingerprint. */
+  DEMO_HUB?: DurableObjectNamespace;
+  /** Set to '1' only inside a demo sandbox request. */
+  ATLAS_DEMO?: string;
   /** R2 bucket for product/company images — company-stock-images */
   IMAGES?: R2Bucket;
   /** Cloudflare Secret — never commit */
@@ -24,6 +28,27 @@ export interface Env {
   /** Optional report ticket lifetime, in seconds (1–1800). */
   REPORT_TICKET_TTL_SECONDS?: string;
   RESEND_API_KEY?: string;
+  /** Crash/user reports from the native Android app → issues (Secret, fine-grained PAT « Issues: write »). */
+  GITHUB_ISSUE_TOKEN?: string;
+  /** owner/repo for Android reports (default Etherealmber/atlas-commerce-android). */
+  GITHUB_ISSUE_REPO?: string;
+  /** Crash/user reports from the WEB app → issues — separate PAT (Secret). */
+  GITHUB_WEB_ISSUE_TOKEN?: string;
+  /** owner/repo for web reports (default Etherealmber/atlas-commerce). */
+  GITHUB_WEB_ISSUE_REPO?: string;
+  /** Atlas Agent LLM key (Secret). Also used for issue triage unless GROQ_ISSUES_API_KEY is set. */
+  GROQ_API_KEY?: string;
+  GROQ_MODEL?: string;
+  /** Optional dedicated key for issue triage (keeps the Agent quota separate). */
+  GROQ_ISSUES_API_KEY?: string;
+  /** Issue triage model (default openai/gpt-oss-120b — free tier). */
+  GROQ_ISSUES_MODEL?: string;
+  /** Max triage calls per UTC day (default 40). */
+  GROQ_ISSUES_DAILY_LIMIT?: string;
+  /** 'false' disables issue triage. */
+  GROQ_ISSUES_ENABLED?: string;
+  /** Max outbound GitHub/Groq fetches per report-queue drain (default 40, free plan = 50). */
+  REPORTS_SUBREQUEST_BUDGET?: string;
   /** Optional AES-GCM key for encrypting mail bodies in R2 (Secret). */
   MAIL_BODY_ENCRYPTION_KEY?: string;
   RESEND_FROM?: string;

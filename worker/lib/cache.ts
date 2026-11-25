@@ -8,6 +8,8 @@
  * 4. All KV ops are best-effort; failures never break the request.
  */
 
+import { currentDataScope, scopedKey } from './dataScope';
+
 const GEN_KEY = 'cache:gen';
 const SETTINGS_BASE = 'settings';
 const PRODUCTS_PREFIX = 'products:';
@@ -19,7 +21,8 @@ export const DEFAULT_CACHE_TTL = 1800; // 30 min
 const memStore = new Map<string, { value: unknown; exp: number }>();
 const MEM_MAX = 80;
 
-let memGen: { value: number; fetchedAt: number } | null = null;
+/** Generation per data scope (production = '', each demo sandbox its own). */
+const memGens = new Map<string, { value: number; fetchedAt: number }>();
 const MEM_GEN_MS = 120_000; // 2 min before re-reading gen from KV
 
 let lastGenKvWrite = 0;
@@ -51,7 +54,8 @@ function canKvWrite(): boolean {
   return kvWriteBudget < KV_WRITE_SOFT_CAP;
 }
 
-function memGet<T>(key: string): T | null {
+function memGet<T>(rawKey: string): T | null {
+  const key = scopedKey(rawKey);
   const e = memStore.get(key);
   if (!e) return null;
   if (Date.now() > e.exp) {
@@ -61,7 +65,8 @@ function memGet<T>(key: string): T | null {
   return e.value as T;
 }
 
-function memPut(key: string, value: unknown, ttlSeconds: number) {
+function memPut(rawKey: string, value: unknown, ttlSeconds: number) {
+  const key = scopedKey(rawKey);
   const ttl = Math.max(30, Math.min(86400, Math.floor(ttlSeconds || DEFAULT_CACHE_TTL)));
   memStore.set(key, { value, exp: Date.now() + ttl * 1000 });
   if (memStore.size > MEM_MAX) {
@@ -71,7 +76,8 @@ function memPut(key: string, value: unknown, ttlSeconds: number) {
   }
 }
 
-function memDelPrefix(prefix: string) {
+function memDelPrefix(rawPrefix: string) {
+  const prefix = scopedKey(rawPrefix);
   // oxlint-disable-next-line unicorn/no-useless-spread -- snapshot on purpose: keys are deleted during the loop
   for (const k of [...memStore.keys()]) {
     if (k.startsWith(prefix)) memStore.delete(k);
@@ -80,6 +86,8 @@ function memDelPrefix(prefix: string) {
 
 export async function getCacheGen(kv: KVNamespace | undefined): Promise<number> {
   const now = Date.now();
+  const scope = currentDataScope();
+  const memGen = memGens.get(scope) || null;
   if (memGen && now - memGen.fetchedAt < MEM_GEN_MS) return memGen.value;
   if (!kv || !canKvRead()) {
     return memGen?.value || 1;
@@ -88,7 +96,7 @@ export async function getCacheGen(kv: KVNamespace | undefined): Promise<number> 
     kvReadBudget++;
     const raw = await kv.get(GEN_KEY, 'text');
     const n = Math.max(1, Number(raw) || 1);
-    memGen = { value: n, fetchedAt: now };
+    memGens.set(scope, { value: n, fetchedAt: now });
     return n;
   } catch {
     return memGen?.value || 1;
@@ -96,9 +104,15 @@ export async function getCacheGen(kv: KVNamespace | undefined): Promise<number> 
 }
 
 export async function bumpCacheGen(kv: KVNamespace | undefined, hub?: DurableObjectNamespace): Promise<void> {
-  const cur = memGen?.value || 1;
+  const scope = currentDataScope();
+  const cur = memGens.get(scope)?.value || 1;
   const next = cur + 1;
-  memGen = { value: next, fetchedAt: Date.now() };
+  memGens.set(scope, { value: next, fetchedAt: Date.now() });
+  if (memGens.size > 80) {
+    for (const k of memGens.keys()) {
+      if (k) { memGens.delete(k); break; }
+    }
+  }
   // Drop versioned memory keys so this isolate sees fresh data
   memDelPrefix('dash');
   memDelPrefix('nav-badges');
@@ -240,10 +254,11 @@ const refreshWindows = new Map<string, number[]>();
  * Android & desktop bursts (default 45 refreshes / 60s per user+endpoint).
  */
 export function checkRefreshLimit(
-  bucketKey: string,
+  rawBucketKey: string,
   maxPerMinute = 45,
   windowMs = 60_000,
 ): { ok: true; remaining: number } | { ok: false; retryAfter: number } {
+  const bucketKey = scopedKey(rawBucketKey);
   const now = Date.now();
   const cutoff = now - windowMs;
   let stamps = refreshWindows.get(bucketKey);

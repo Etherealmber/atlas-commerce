@@ -139,6 +139,14 @@ Ouvrez **http://localhost:36521**, connectez-vous avec `admin` + votre mot de pa
 En local (sans binding e-mail) le premier appareil est approuvé automatiquement ;
 en production l'**OTP par e-mail** protège chaque nouvel appareil.
 
+`npm run dev` exécute le Worker en local (plugin Vite Cloudflare) : le front appelle **la même
+origine**, donc l'API et la base D1 locales. Pour développer contre l'API de production,
+lancez avec `VITE_API_URL=https://stock.afmarbre.com npm run dev`.
+
+**Mode démo** : `test` / `test` ouvre une base fictive isolée (Durable Object SQLite, données de
+démonstration, modifiable), jamais votre vraie base — 20 minutes par appareil et par 24 h, puis
+réinitialisation. Fonctionne en local, en production, sur le web mobile et Android.
+
 Vérifiez l'API : `curl http://localhost:36521/api/health`.
 
 ### 5. Tests & captures (optionnel mais conseillé)
@@ -411,6 +419,10 @@ Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depui
 <summary>📦 Historique des versions (0.0.1-beta → 0.9.3-beta) — cliquer pour déplier</summary>
 
 ### 0.9.3-beta
+- Mode démo `test` / `test` : base fictive séparée et modifiable, 20 minutes par appareil toutes les 24 h, puis remise à zéro ; avertissement à la connexion, compte à rebours, fonctionne aussi en local, sur le web mobile et Android.
+- Rapports & crashs : « Renvoyer la file » crée de nouveau les issues (appels GitHub corrigés), un dépôt et un token par application (web / Android), regroupement des crashs identiques, envoi limité pour rester dans l'offre gratuite, et triage IA facultatif (titre, gravité, zone, pistes de correction) ; plantage « contains » sur les pages corrigé et bruit des extensions navigateur ignoré.
+- Connexion : bouton « Continuer » lisible au survol et au toucher, identifiant bien contrasté ; menu hamburger qui ne décale plus la page ; barre latérale des Paramètres et d'À propos repliée plus compacte que dépliée ; À propos en grille 2×2 ; boutons « Modifier », actions produit et cartes de l'accueil qui ne débordent plus.
+- Moins de lectures D1 (index des partenaires, cache des schémas, rafraîchissement du tableau de bord espacé).
 - Navigation entre les pages réécrite sur toutes les listes (numéros de page, points de suspension, page courante animée, clavier ← → Début/Fin, thèmes clair et sombre), boutons « Voir la balance / la boîte / le catalogue » du tableau de bord transformés en vrais boutons, squelettes de chargement alignés sur le nouveau tableau de bord et squelette éditorial sur l'accueil, Android, Desktop et Support.
 - Tableau de bord : 4ᵉ graphique « Répartition des charges » toujours affiché (lignes à 0 MAD sans données) et graphiques reliés aux données réelles ; paie : jours déclarés CNSS par employé et par ligne de paie (26 max, 0 = sans CNSS/AMO, exports CSV/Excel).
 - Desktop : connexion native v3 sans navigateur (mot de passe + code e-mail, QR, passkey Windows Hello) et option « Rester connecté » (30 jours max côté serveur, 12 h par défaut, rotation avec détection de réutilisation, révocation) ; thème sombre charbon unifié, passkeys web et réglages CNSS/AMO corrigés, 38 fichiers de code mort retirés et lint à 0/0.

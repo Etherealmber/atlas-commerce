@@ -1,4 +1,4 @@
-import { addColumnIfMissing, schemaOnceForDb } from './schema';
+import { addColumnIfMissing, forgetTableSchema, schemaOnceForDb } from './schema';
 import { enqueue } from './job-queue';
 
 const IDEMPOTENCY_TTL_DAYS = 7;
@@ -65,6 +65,7 @@ export async function ensureOfflineOpsSchema(db: D1Database): Promise<void> {
             .run();
           await db.prepare(`DROP TABLE offline_idempotency`).run();
           await db.prepare(`ALTER TABLE offline_idempotency_v2 RENAME TO offline_idempotency`).run();
+          forgetTableSchema(db, 'offline_idempotency');
         } else if (!cols.has('kind')) {
           await addColumnIfMissing(db, 'offline_idempotency', 'kind', `TEXT NOT NULL DEFAULT ''`);
         }
@@ -118,6 +119,7 @@ export async function ensureOfflineOpsSchema(db: D1Database): Promise<void> {
             .run();
           await db.prepare(`DROP TABLE stock_location_revisions`).run();
           await db.prepare(`ALTER TABLE stock_location_revisions_v2 RENAME TO stock_location_revisions`).run();
+          forgetTableSchema(db, 'stock_location_revisions');
         }
       }
     } catch {

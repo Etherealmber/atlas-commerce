@@ -1,3 +1,4 @@
+import { scopedKey } from './dataScope';
 /**
  * Shared idempotent schema helpers.
  *
@@ -26,7 +27,9 @@ export function resolveRootDb(db: unknown): object | null {
   return _sessionToRootDb.get(db) || db;
 }
 
-export async function schemaOnce(key: string, fn: () => Promise<void>): Promise<void> {
+export async function schemaOnce(rawKey: string, fn: () => Promise<void>): Promise<void> {
+  // Keyed per data scope: a demo sandbox must run its own schema setup.
+  const key = scopedKey(rawKey);
   if (_schemaOnce.has(key)) return;
   const existing = _schemaOnceInflight.get(key);
   if (existing) {
@@ -113,6 +116,18 @@ export function resetSchemaCaches(db?: unknown): void {
 }
 
 const _knownTables = new WeakMap<object, Set<string>>();
+
+/**
+ * Forget what is known about one table (after a `CREATE … _v2` + `RENAME`
+ * rebuild): its column list changed, so the next `addColumnIfMissing` must
+ * re-read `PRAGMA table_info` instead of trusting the old set.
+ */
+export function forgetTableSchema(db: unknown, table: string): void {
+  const root = db ? resolveRootDb(db) : null;
+  if (!root) return;
+  _knownColumns.get(root)?.delete(table);
+  _knownTables.get(root)?.delete(table);
+}
 
 /**
  * `true` when `table` exists. Positive answers are cached per root binding, so

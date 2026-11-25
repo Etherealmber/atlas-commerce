@@ -1,6 +1,7 @@
 /**
  * Partner API v1 — health, catalog reads, scoped keys, idempotent invoice create, OpenAPI.
  */
+import { scopedKey } from '../lib/dataScope';
 import type { Hono } from 'hono';
 import { apiFail, apiOk } from '../lib/api-response';
 import { rateLimit, clientIpFromRequest } from '../lib/security';
@@ -10,7 +11,7 @@ import { validateInvoiceWrite } from '../lib/validate';
 const _localSchemaOnce = new Set<string>();
 
 async function ensurePartnerTables(db: D1Database) {
-  if (_localSchemaOnce.has('ensurePartnerTables')) return;
+  if (_localSchemaOnce.has(scopedKey('ensurePartnerTables'))) return;
 
   await db
     .prepare(
@@ -37,7 +38,7 @@ async function ensurePartnerTables(db: D1Database) {
     )
     .run();
 
-  _localSchemaOnce.add('ensurePartnerTables');
+  _localSchemaOnce.add(scopedKey('ensurePartnerTables'));
 }
 
 async function sha256Hex(s: string): Promise<string> {

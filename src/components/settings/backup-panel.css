@@ -1,0 +1,159 @@
+/* v0.9.3 — Settings → Sauvegarde & restauration (bk-*). Layout only: the
+   handlers and API calls are unchanged and nothing here triggers a read. */
+.bk-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.4fr);
+  gap: 1px;
+  margin: 4px 0 16px;
+  border: 1px solid var(--border, #e4e4e7);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--border, #e4e4e7);
+}
+.bk-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px 14px;
+  background: var(--surface, #fff);
+}
+.bk-stat-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted, #71717a);
+}
+.bk-stat strong {
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--text, #18181b);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bk-stat--chips {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  align-content: center;
+  gap: 6px;
+}
+.bk-chip {
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted, #52525b);
+  background: var(--surface-2, #f4f4f5);
+  border: 1px solid var(--border, #e4e4e7);
+  white-space: nowrap;
+}
+.bk-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; background: #a1a1aa; }
+.bk-dot--ok { background: #16a34a; box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.16); }
+.bk-dot--warn { background: #d97706; box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.16); }
+
+.bk-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 12px;
+}
+.bk-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--border, #e4e4e7);
+  border-radius: 14px;
+  background: var(--surface, #fff);
+}
+.bk-card-head { display: flex; gap: 12px; align-items: flex-start; }
+.bk-card-head h3 { margin: 0 0 2px; font-size: 15px; font-weight: 650; }
+.bk-card-head p { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--muted, #71717a); }
+.bk-ico {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.1);
+}
+.bk-ico--restore { color: #7c3aed; background: rgba(124, 58, 237, 0.1); }
+.bk-ico--file { color: #0f766e; background: rgba(15, 118, 110, 0.1); }
+.bk-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
+.bk-label { font-size: 12px; font-weight: 600; color: var(--muted, #52525b); margin-bottom: -6px; }
+.bk-restore-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
+.bk-restore-row select { flex: 1 1 200px; min-width: 0; }
+
+.bk-drop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1.5px dashed var(--border-strong, #d4d4d8);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.bk-drop:hover, .bk-drop:focus-within { border-color: #2563eb; background: rgba(37, 99, 235, 0.04); }
+.bk-drop-text { display: flex; flex-direction: column; gap: 2px; flex: 1 1 220px; min-width: 0; }
+.bk-drop-text strong { font-size: 14px; }
+.bk-drop-text span { font-size: 12.5px; line-height: 1.45; color: var(--muted, #71717a); }
+.bk-drop input[type="file"] { flex: 0 1 auto; max-width: 100%; }
+.bk-msg { margin: 10px 0 0; font-size: 13px; color: var(--muted, #71717a); }
+
+html[data-theme="dark"] .bk-strip { border-color: #2a2c33; background: #2a2c33; }
+html[data-theme="dark"] .bk-stat,
+html[data-theme="dark"] .bk-card { background: #181a20; border-color: #2a2c33; }
+html[data-theme="dark"] .bk-stat strong,
+html[data-theme="dark"] .bk-card-head h3,
+html[data-theme="dark"] .bk-drop-text strong { color: #f4f4f5; }
+html[data-theme="dark"] .bk-stat-label,
+html[data-theme="dark"] .bk-card-head p,
+html[data-theme="dark"] .bk-drop-text span,
+html[data-theme="dark"] .bk-label,
+html[data-theme="dark"] .bk-msg { color: #a1a1aa; }
+html[data-theme="dark"] .bk-chip { background: #1f2128; border-color: #2a2c33; color: #d4d4d8; }
+html[data-theme="dark"] .bk-ico { color: #93c5fd; background: rgba(147, 197, 253, 0.12); }
+html[data-theme="dark"] .bk-ico--restore { color: #c4b5fd; background: rgba(196, 181, 253, 0.12); }
+html[data-theme="dark"] .bk-ico--file { color: #5eead4; background: rgba(94, 234, 212, 0.12); }
+html[data-theme="dark"] .bk-drop { border-color: #3f3f46; }
+html[data-theme="dark"] .bk-drop:hover,
+html[data-theme="dark"] .bk-drop:focus-within { border-color: #60a5fa; background: rgba(96, 165, 250, 0.06); }
+
+.bk-panel { container-type: inline-size; }
+@container (max-width: 680px) {
+  .bk-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .bk-stat--chips { grid-column: 1 / -1; }
+}
+@container (max-width: 420px) {
+  .bk-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Beat the global Settings typography / density rules (specificity only). */
+.bk-panel .bk-card .bk-card-head h3 { font-size: 15px; line-height: 1.3; color: var(--text, #18181b); }
+.bk-panel .bk-card .bk-card-head p,
+.bk-panel .bk-drop .bk-drop-text span,
+.bk-panel .bk-msg { color: var(--muted, #71717a); }
+html[data-theme="dark"] .bk-panel .bk-card .bk-card-head h3 { color: #f4f4f5; }
+html[data-theme="dark"] .bk-panel .bk-card .bk-card-head p,
+html[data-theme="dark"] .bk-panel .bk-drop .bk-drop-text span,
+html[data-theme="dark"] .bk-panel .bk-msg { color: #a1a1aa; }
+html body .content .bk-panel .bk-actions > button:not(#sv-g1):not(#sv-g2):not(#sv-g3),
+html body .content .bk-panel .bk-restore-row > button:not(#sv-g1):not(#sv-g2):not(#sv-g3) {
+  min-height: 38px !important;
+  height: 38px !important;
+  padding: 0 16px !important;
+  font-size: 13px !important;
+  border-radius: 999px !important;
+}
+html body .content .bk-panel .bk-restore-row > select:not(#sv-g1):not(#sv-g2):not(#sv-g3) { min-height: 38px; height: 38px; }

@@ -1,5 +1,5 @@
 import { githubJson } from '../lib/github-json';
-import { githubConfig, redactSecrets } from '../lib/reports';
+import { ensureReportTables, githubConfig, redactSecrets } from '../lib/reports';
 import { rateLimit } from '../lib/security';
 import { tableExists } from '../lib/schema';
 
@@ -81,20 +81,34 @@ export function registerWorkStatusRoute(app: any, deps: {
       try {
         const ownerTable = await tableExists(c.env.DB, 'work_status_report_owners');
         if (!accountCreated && !(ownerTable && (isOwner || userId))) { github = unavailable('OWNERSHIP_UNVERIFIABLE'); } else {
-        const config = await githubConfig(c.env);
-        if (config.token && /^[A-Za-z0-9_-][A-Za-z0-9_.-]*\/[A-Za-z0-9_-][A-Za-z0-9_.-]*$/.test(config.repo)) {
+        // Reports are delivered per app: Android → GITHUB_ISSUE_*, web → GITHUB_WEB_ISSUE_*.
+        await ensureReportTables(c.env.DB);
+        const REPO_RE = /^[A-Za-z0-9_-][A-Za-z0-9_.-]*\/[A-Za-z0-9_-][A-Za-z0-9_.-]*$/;
+        const configs = {
+          android: await githubConfig(c.env, 'android'),
+          web: await githubConfig(c.env, 'web'),
+        };
+        const usable = (cfg: { token: string; repo: string }) => Boolean(cfg.token) && REPO_RE.test(cfg.repo);
+        if (usable(configs.android) || usable(configs.web)) {
           // Without explicit private-repo consent, make all reads anonymously so
           // a repo becoming private cannot expose privileged issue contents.
           const privateAllowed = String(c.env.WORK_STATUS_GITHUB_ENABLED || '') === 'true';
-          if (!privateAllowed) {
-            const repo = await githubJson(`https://api.github.com/repos/${config.repo}`, '');
-            if (repo?.private !== false || String(repo?.full_name || '').toLowerCase() !== config.repo.toLowerCase() ||
-                (repo.visibility != null && repo.visibility !== 'public')) throw new Error('not_public');
-          }
-          const issueToken = privateAllowed ? config.token : '';
+          const publicChecks = new Map<string, Promise<void>>();
+          const ensurePublic = (repoName: string) => {
+            if (privateAllowed) return Promise.resolve();
+            let check = publicChecks.get(repoName);
+            if (!check) {
+              check = githubJson(`https://api.github.com/repos/${repoName}`, '').then((repo: any) => {
+                if (repo?.private !== false || String(repo?.full_name || '').toLowerCase() !== repoName.toLowerCase() ||
+                    (repo.visibility != null && repo.visibility !== 'public')) throw new Error('not_public');
+              });
+              publicChecks.set(repoName, check);
+            }
+            return check;
+          };
           const { results } = ownerTable
             ? await c.env.DB.prepare(
-              `SELECT id, issue_number, issue_url FROM user_reports r WHERE status = 'linked' AND issue_number IS NOT NULL
+              `SELECT id, issue_number, issue_url, channel FROM user_reports r WHERE status = 'linked' AND issue_number IS NOT NULL
                AND (EXISTS (SELECT 1 FROM work_status_report_owners o WHERE o.report_id = r.id AND
                     ((? = 1 AND o.owner_slot = 1) OR (? = 0 AND o.user_id = ?)))
                  OR (? = 0 AND lower(r.username) = ? AND r.created_at > ?
@@ -102,7 +116,7 @@ export function registerWorkStatusRoute(app: any, deps: {
                AND (? IS NULL OR r.id < ?) ORDER BY r.id DESC LIMIT ?`
             ).bind(isOwner ? 1 : 0, isOwner ? 1 : 0, userId, isOwner ? 1 : 0, username, accountCreated, ghCursor, ghCursor, limit + 1).all()
             : await c.env.DB.prepare(
-              `SELECT id, issue_number, issue_url FROM user_reports WHERE lower(username) = ? AND status = 'linked'
+              `SELECT id, issue_number, issue_url, channel FROM user_reports WHERE lower(username) = ? AND status = 'linked'
                AND issue_number IS NOT NULL AND created_at > ? AND (? IS NULL OR id < ?) ORDER BY id DESC LIMIT ?`
             ).bind(username, accountCreated, ghCursor, ghCursor, limit + 1).all();
           const page = results.slice(0, limit);
@@ -111,6 +125,10 @@ export function registerWorkStatusRoute(app: any, deps: {
             github = unavailable('NO_LINKED_REPORTS');
           } else {
             const items = await Promise.all(page.map(async (r: any) => {
+              const config = r.channel === 'web' ? configs.web : configs.android;
+              if (!usable(config)) throw new Error('not_configured');
+              await ensurePublic(config.repo);
+              const issueToken = privateAllowed ? config.token : '';
               const number = Number(r.issue_number);
               const expectedPath = `/${config.repo}/issues/${number}`;
               const stored = new URL(String(r.issue_url));

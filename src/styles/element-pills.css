@@ -164,3 +164,50 @@ html[data-ui-density="compact"] body :is(.ac-panel, .card, .settings-main, .row-
   height: 28px !important;
   min-height: 28px !important;
 }
+
+/* v0.9.3 — row delete: a true 32 px circle in the pill family (soft red), solid
+   red on hover / while the undo countdown runs. */
+html body :is(.ac-panel, .card, .settings-main, .row-actions, .row-actions-cell, .ac-ops-row-actions, .bal-tx-actions) .ac-timed-delete.ac-timed-delete--icon:not(#pill-a):not(#pill-r1) {
+  flex: 0 0 32px !important;
+  width: 32px !important;
+  min-width: 32px !important;
+  max-width: 32px !important;
+}
+html body :is(.ac-panel, .card, .settings-main, .row-actions, .row-actions-cell, .ac-ops-row-actions, .bal-tx-actions) .ac-timed-delete.ac-timed-delete--icon:not(#pill-a) > .ac-timed-delete-btn:not(.is-armed):not(#pill-a):not(#pill-b):not(#pill-c):not(#pill-r1) {
+  width: 32px !important;
+  min-width: 32px !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  border: 1px solid var(--pill-danger-line) !important;
+  background: var(--pill-danger-bg) !important;
+  color: var(--pill-danger-ink) !important;
+  -webkit-text-fill-color: var(--pill-danger-ink) !important;
+  box-shadow: none !important;
+  transition: background-color 0.16s ease, color 0.16s ease, border-color 0.16s ease !important;
+}
+html body :is(.ac-panel, .card, .settings-main, .row-actions, .row-actions-cell, .ac-ops-row-actions, .bal-tx-actions) .ac-timed-delete.ac-timed-delete--icon:not(#pill-a) > .ac-timed-delete-btn:not(.is-armed):not(#pill-a):not(#pill-b):not(#pill-c):not(#pill-r1):is(:hover, :focus-visible):not(:disabled) {
+  border-color: #ef4444 !important;
+  background: #ef4444 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* Produits list: the labelled row pills fold to icon-only circles on narrower
+   desktops so « Ajuster · Modifier · Étiquette · 🗑 » never wraps or clips. */
+html body .row-actions.pc-row-actions:not(#pill-a) { flex-wrap: nowrap !important; gap: 6px !important; }
+@media (max-width: 1240px) {
+  html body .row-actions.pc-row-actions:not(#pill-a):not(#pill-r1) > button.pc-row-act:not(#pill-b):not(#pill-c) {
+    width: 32px !important;
+    min-width: 32px !important;
+    padding: 0 !important;
+    justify-content: center !important;
+  }
+  html body .row-actions.pc-row-actions:not(#pill-a):not(#pill-r1) > button.pc-row-act:not(#pill-b):not(#pill-c) > span {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    overflow: hidden !important;
+    clip: rect(0 0 0 0) !important;
+    white-space: nowrap !important;
+  }
+}

@@ -1,5 +1,6 @@
 import { githubJson } from './github-json';
-import { tableExists, schemaOnceForDb } from './schema';
+import { tableExists, schemaOnceForDb, addColumnIfMissing } from './schema';
+import { triageIssue, triageLabels, triageMarkdown, type TriageEnv, type TriageInput } from './issueTriage';
 
 /**
  * v260 — Crash reporting & user reports → GitHub issues.
@@ -25,6 +26,15 @@ import { tableExists, schemaOnceForDb } from './schema';
  *
  * Privacy: crash IPs are stored as a truncated SHA-256 (abuse control only);
  * user reports store only the reporting account's own username/role.
+ *
+ * v0.9.3 — two delivery channels, two secrets:
+ *  - `android` (native app) → GITHUB_ISSUE_TOKEN / GITHUB_ISSUE_REPO
+ *    (default Etherealmber/atlas-commerce-android) — unchanged;
+ *  - `web` (browser app, desktop or phone) → GITHUB_WEB_ISSUE_TOKEN /
+ *    GITHUB_WEB_ISSUE_REPO (default Etherealmber/atlas-commerce).
+ *  Each row stores its channel; a channel without a token keeps its rows
+ *  queued until that secret exists. New issues can be triaged by Groq
+ *  (issueTriage.ts) when a key is configured.
  */
 
 /** v0.7 — crash/user reports come FROM the apps: issues land in the ANDROID repo. */
@@ -37,6 +47,27 @@ export function resolveReportsRepo(configured?: string | null): string {
   if (!raw || raw === REPORTS_REPO_LEGACY) return REPORTS_REPO_DEFAULT;
   return raw;
 }
+/** Web app reports land in the web repo (own secret, see header). */
+export const WEB_REPORTS_REPO_DEFAULT = 'Etherealmber/atlas-commerce';
+export type ReportChannel = 'web' | 'android';
+
+/**
+ * Which app sent the report. Explicit `platform`/`client` wins; otherwise a
+ * real browser UA (Mozilla…, not an Android WebView) means the web app, and
+ * native HTTP stacks (okhttp, Dalvik…) or unknown clients mean Android — the
+ * historical default, so existing rows/tests keep their routing.
+ */
+export function classifyReportChannel(hint: { platform?: unknown; client?: unknown; ua?: unknown; headerUa?: unknown }): ReportChannel {
+  const explicit = String(hint.platform || hint.client || '').trim().toLowerCase();
+  if (explicit === 'web' || explicit === 'browser' || explicit === 'desktop' || explicit === 'pwa') return 'web';
+  if (['android', 'native', 'apk', 'okhttp', 'app'].includes(explicit)) return 'android';
+  const ua = String(hint.ua || hint.headerUa || '').toLowerCase();
+  if (!ua) return 'android';
+  if (/okhttp|dalvik|retrofit|atlas-android|; wv\)/.test(ua)) return 'android';
+  if (ua.startsWith('mozilla/')) return 'web';
+  return 'android';
+}
+
 const LABEL_CRASH = 'crash-report';
 const LABEL_USER = 'user-report';
 const LABEL_FROM_APP = 'from-app';
@@ -84,6 +115,17 @@ async function ensureReportTablesBody(db: D1Database): Promise<void> {
     value TEXT NOT NULL DEFAULT '',
     updated_at TEXT DEFAULT (datetime('now'))
   )`).run();
+  // v0.9.3 — delivery channel (web / android). Legacy rows were all sent to
+  // the Android repo, so they default to 'android'…
+  await addColumnIfMissing(db, 'crash_reports', 'channel', `TEXT NOT NULL DEFAULT 'android'`);
+  await addColumnIfMissing(db, 'user_reports', 'channel', `TEXT NOT NULL DEFAULT 'android'`);
+  // …except crashes still waiting in the queue that clearly came from a
+  // browser: they belong to the web repo. Idempotent, runs once per isolate.
+  try {
+    await db.prepare(`UPDATE crash_reports SET channel = 'web'
+      WHERE channel = 'android' AND status != 'linked' AND lower(ua) LIKE 'mozilla/%'
+        AND lower(ua) NOT LIKE '%; wv)%' AND lower(ua) NOT LIKE '%okhttp%'`).run();
+  } catch { /* column just added on a busy DB — next isolate retries */ }
 }
 
 /* ─────────────────────────── sanitization ─────────────────────────── */
@@ -153,11 +195,20 @@ async function hashIp(ip: string): Promise<string> {
 
 /* ─────────────────────────── github config ─────────────────────────── */
 
-type ReportsEnv = {
+type ReportsEnv = TriageEnv & {
   DB: D1Database;
   GITHUB_ISSUE_TOKEN?: string;
   GITHUB_ISSUE_REPO?: string;
+  GITHUB_WEB_ISSUE_TOKEN?: string;
+  GITHUB_WEB_ISSUE_REPO?: string;
+  /** Max outbound fetches (GitHub + Groq) per queue drain. Default 40 — the
+   *  Workers free plan allows 50 subrequests per invocation. */
+  REPORTS_SUBREQUEST_BUDGET?: string;
 };
+
+function cleanRepo(v: unknown): string {
+  return String(v || '').trim();
+}
 
 async function getConfigValue(db: D1Database, key: string): Promise<string> {
   try {
@@ -173,8 +224,20 @@ async function setConfigValue(db: D1Database, key: string, value: string): Promi
   ).bind(key, value).run();
 }
 
-/** env secret wins over the in-app configured token; repo is overridable. */
-export async function githubConfig(env: ReportsEnv): Promise<{ token: string; repo: string; source: 'env' | 'app' | null }> {
+/**
+ * env secret wins over the in-app configured token; repo is overridable.
+ * `android` (default, historical) and `web` use separate secrets and repos.
+ */
+export async function githubConfig(env: ReportsEnv, channel: ReportChannel = 'android'): Promise<{ token: string; repo: string; source: 'env' | 'app' | null }> {
+  if (channel === 'web') {
+    const repoFrom = (v: unknown) => cleanRepo(v) || cleanRepo(env.GITHUB_WEB_ISSUE_REPO) || WEB_REPORTS_REPO_DEFAULT;
+    const envWebToken = String(env.GITHUB_WEB_ISSUE_TOKEN || '').trim();
+    if (envWebToken) return { token: envWebToken, repo: repoFrom(''), source: 'env' };
+    const appWebToken = await getConfigValue(env.DB, 'github_web_reports_token');
+    const appWebRepo = await getConfigValue(env.DB, 'github_web_reports_repo');
+    if (appWebToken) return { token: appWebToken, repo: repoFrom(appWebRepo), source: 'app' };
+    return { token: '', repo: repoFrom(appWebRepo), source: null };
+  }
   const envToken = String(env.GITHUB_ISSUE_TOKEN || '').trim();
   if (envToken) {
     return { token: envToken, repo: resolveReportsRepo(env.GITHUB_ISSUE_REPO), source: 'env' };
@@ -187,9 +250,10 @@ export async function githubConfig(env: ReportsEnv): Promise<{ token: string; re
   return { token: '', repo: resolveReportsRepo(env.GITHUB_ISSUE_REPO), source: null };
 }
 
-export async function saveGithubConfig(db: D1Database, token: string, repo: string): Promise<void> {
-  await setConfigValue(db, 'github_reports_token', token);
-  if (repo) await setConfigValue(db, 'github_reports_repo', repo);
+export async function saveGithubConfig(db: D1Database, token: string, repo: string, channel: ReportChannel = 'android'): Promise<void> {
+  const prefix = channel === 'web' ? 'github_web_reports' : 'github_reports';
+  await setConfigValue(db, `${prefix}_token`, token);
+  if (repo) await setConfigValue(db, `${prefix}_repo`, repo);
 }
 
 async function gh(token: string, method: string, path: string, body?: any): Promise<{ ok: boolean; status: number; json: any }> {
@@ -205,7 +269,7 @@ async function gh(token: string, method: string, path: string, body?: any): Prom
         'User-Agent': 'atlas-commerce-reports',
         ...(body ? { 'Content-Type': 'application/json' } : {}),
       },
-      redirect: 'error', signal: controller.signal,
+      redirect: 'manual', signal: controller.signal,
       body: body ? JSON.stringify(body) : undefined,
     });
     let json: any = null;
@@ -226,16 +290,27 @@ export async function validateGithubToken(token: string): Promise<{ ok: boolean;
   }
 }
 
-async function ensureLabels(token: string, repo: string): Promise<void> {
-  const wanted: [string, string, string][] = [
-    [LABEL_CRASH, 'Bugs detectedés automatiquement par l’application', 'd73a4a'],
-    [LABEL_USER, 'Signalements envoyés par les utilisateurs depuis l’application', '0075ca'],
-    [LABEL_FROM_APP, 'Créé automatiquement par Atlas Commerce', 'ededed'],
-  ];
-  for (const [name, description, color] of wanted) {
+const LABEL_META: Record<string, [string, string]> = {
+  [LABEL_CRASH]: ['Bugs détectés automatiquement par l’application', 'd73a4a'],
+  [LABEL_USER]: ['Signalements envoyés par les utilisateurs depuis l’application', '0075ca'],
+  [LABEL_FROM_APP]: ['Créé automatiquement par Atlas Commerce', 'ededed'],
+  'severity:critical': ['Gravité estimée : critique', 'b60205'],
+  'severity:high': ['Gravité estimée : élevée', 'd93f0b'],
+  'severity:medium': ['Gravité estimée : moyenne', 'fbca04'],
+  'severity:low': ['Gravité estimée : faible', 'c2e0c6'],
+};
+/** Labels already ensured per repo in this isolate — saves 3+ GitHub calls per issue. */
+const _ensuredLabels = new Map<string, Set<string>>();
+
+async function ensureLabels(token: string, repo: string, labels: string[]): Promise<void> {
+  let done = _ensuredLabels.get(repo);
+  if (!done) { done = new Set(); _ensuredLabels.set(repo, done); }
+  for (const name of labels) {
+    if (done.has(name)) continue;
+    const [description, color] = LABEL_META[name] || ['Zone estimée par le triage automatique', '5319e7'];
     try {
       const r = await gh(token, 'POST', `/repos/${repo}/labels`, { name, description, color });
-      if (!r.ok && r.status !== 422) { /* 422 = exists */ }
+      if (r.ok || r.status === 422) done.add(name); /* 422 = exists */
     } catch { /* labels are cosmetic — never block a report */ }
   }
 }
@@ -254,7 +329,7 @@ async function createIssue(
   token: string, repo: string, title: string, body: string, labels: string[],
 ): Promise<{ number: number; url: string } | null> {
   try {
-    await ensureLabels(token, repo);
+    await ensureLabels(token, repo, labels);
     const r = await gh(token, 'POST', `/repos/${repo}/issues`, { title: title.slice(0, 200), body: body.slice(0, 60000), labels });
     if (r.ok && r.json?.number) return { number: Number(r.json.number), url: String(r.json.html_url || '') };
     return null;
@@ -263,18 +338,33 @@ async function createIssue(
   }
 }
 
+/**
+ * Title/body/labels for a NEW issue, enriched by the AI triage when available
+ * (never required — falls back to the plain report).
+ */
+async function composeIssue(
+  env: ReportsEnv, input: TriageInput, prefix: string, fallbackTitle: string, body: string, labels: string[],
+): Promise<{ title: string; body: string; labels: string[] }> {
+  const t = await triageIssue(env, input);
+  if (!t) return { title: `${prefix} ${fallbackTitle}`, body, labels };
+  return { title: `${prefix} ${t.title}`, body: `${body}\n${triageMarkdown(t)}`, labels: [...labels, ...triageLabels(t)] };
+}
+
 /* ─────────────────────────── crash intake ─────────────────────────── */
 
 type CrashIntakeResult = { id: number; deduped: boolean; issue_url: string };
 
-export async function reportCrash(db: D1Database, env: ReportsEnv, rawBody: any, ip: string): Promise<CrashIntakeResult> {
+export async function reportCrash(db: D1Database, env: ReportsEnv, rawBody: any, ip: string, hint: { headerUa?: string } = {}): Promise<CrashIntakeResult> {
   const p = sanitizeCrashPayload(rawBody);
   const fingerprint = await fingerprintOf(p);
   const ipHash = await hashIp(ip);
 
   const existing = await db.prepare(
-    `SELECT id, count, issue_number, issue_url, status FROM crash_reports WHERE fingerprint = ?`
+    `SELECT id, count, issue_number, issue_url, status, channel FROM crash_reports WHERE fingerprint = ?`
   ).bind(fingerprint).first() as any;
+  const channel: ReportChannel = existing?.channel === 'web' || existing?.channel === 'android'
+    ? existing.channel
+    : classifyReportChannel({ platform: rawBody?.platform, client: rawBody?.client, ua: p.ua, headerUa: hint.headerUa });
 
   let id: number;
   let deduped = false;
@@ -286,13 +376,13 @@ export async function reportCrash(db: D1Database, env: ReportsEnv, rawBody: any,
     ).bind(p.version, p.route, p.ua, id).run();
   } else {
     const res = await db.prepare(
-      `INSERT INTO crash_reports (fingerprint, message, stack, component_stack, route, version, ua, ip_hash, count, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 'new')`
-    ).bind(fingerprint, p.message, p.stack, p.componentStack, p.route, p.version, p.ua, ipHash).run();
+      `INSERT INTO crash_reports (fingerprint, message, stack, component_stack, route, version, ua, ip_hash, count, status, channel)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 'new', ?)`
+    ).bind(fingerprint, p.message, p.stack, p.componentStack, p.route, p.version, p.ua, ipHash, channel).run();
     id = Number((res.meta as any)?.last_row_id || 0);
   }
 
-  const { token, repo } = await githubConfig(env);
+  const { token, repo } = await githubConfig(env, channel);
   let issueUrl = String(existing?.issue_url || '');
   if (token) {
     const alreadyLinked = existing?.issue_number && existing?.status === 'linked';
@@ -318,7 +408,11 @@ export async function reportCrash(db: D1Database, env: ReportsEnv, rawBody: any,
           ``,
           `> Rapport assaini automatiquement (secrets retirés). Les occurrences suivantes de la même empreinte mettent à jour ce ticket au lieu d'en créer un nouveau.`,
         ].filter(Boolean).join('\n');
-        const created = await createIssue(token, repo, `[crash ${fingerprint}] ${p.message.slice(0, 100)}`, body, [LABEL_CRASH, LABEL_FROM_APP]);
+        const issue = await composeIssue(env, {
+          kind: 'crash', channel, message: p.message, stack: p.stack, componentStack: p.componentStack,
+          route: p.route, version: p.version, ua: p.ua, occurrences: deduped ? Number(existing?.count || 0) + 1 : 1,
+        }, `[crash ${fingerprint}]`, p.message.slice(0, 100), body, [LABEL_CRASH, LABEL_FROM_APP]);
+        const created = await createIssue(token, repo, issue.title, issue.body, issue.labels);
         if (created) {
           issueUrl = created.url;
           await db.prepare(`UPDATE crash_reports SET status='linked', issue_number=?, issue_url=? WHERE id=?`)
@@ -345,6 +439,8 @@ type UserReportInput = {
   contact?: string;
   page?: string;
   version?: string;
+  /** Which app sent it (see classifyReportChannel); default android. */
+  channel?: ReportChannel;
 };
 
 type UserReportResult = { reference: string; issue_url: string; already_reported: boolean; issue_status: 'open' | 'closed' | null };
@@ -383,8 +479,9 @@ export async function reportUser(db: D1Database, env: ReportsEnv, input: UserRep
   const contact = redactSecrets(String(input.contact || '')).slice(0, 120);
   const page = redactSecrets(String(input.page || '')).slice(0, 200);
   const version = String(input.version || '').slice(0, 40);
+  const channel: ReportChannel = input.channel === 'web' ? 'web' : 'android';
 
-  const { token, repo } = await githubConfig(env);
+  const { token, repo } = await githubConfig(env, channel);
   const scope = identity?.owner ? 'owner' : identity?.userId ? `user:${identity.userId}` : '';
   // Redaction can make different messages identical; do not suppress those reports.
   const canDedup = Boolean(scope) && !message.includes('[REDACTED]');
@@ -405,9 +502,9 @@ export async function reportUser(db: D1Database, env: ReportsEnv, input: UserRep
     }
   }
   const res = await db.prepare(
-    `INSERT INTO user_reports (username, role, kind, message, contact, page, version, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-  ).bind(String(input.username || '').toLowerCase(), input.role, kind, message, contact, page, version, canDedup ? 'dedup_check' : 'new').run();
+    `INSERT INTO user_reports (username, role, kind, message, contact, page, version, status, channel)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(String(input.username || '').toLowerCase(), input.role, kind, message, contact, page, version, canDedup ? 'dedup_check' : 'new', channel).run();
   const id = Number((res.meta as any)?.last_row_id || 0);
   const reference = `R-${id}`;
   if (canDedup) {
@@ -445,7 +542,9 @@ export async function reportUser(db: D1Database, env: ReportsEnv, input: UserRep
       ``,
       `### Message`, message,
     ].filter(Boolean).join('\n');
-    const created = await createIssue(token, repo, `[report:${kind} ${reference}] ${message.slice(0, 90)}`, body, [LABEL_USER, LABEL_FROM_APP]);
+    const issue = await composeIssue(env, { kind: 'report', channel, reportKind: kind, message, route: page, version },
+      `[report:${kind} ${reference}]`, message.slice(0, 90), body, [LABEL_USER, LABEL_FROM_APP]);
+    const created = await createIssue(token, repo, issue.title, issue.body, issue.labels);
     if (created) {
       issueUrl = created.url;
       await db.prepare(`UPDATE user_reports SET status='linked', issue_number=?, issue_url=? WHERE id=?`)
@@ -461,11 +560,37 @@ export async function reportUser(db: D1Database, env: ReportsEnv, input: UserRep
 
 /* ─────────────────────────── queue drain + admin views ─────────────────────────── */
 
-/** Cron + owner button: push queued reports to GitHub once a token exists. */
-export async function retryPendingReports(env: ReportsEnv): Promise<{ crashes: number; user_reports: number; skipped: boolean }> {
+type RetryCounts = { crashes: number; user_reports: number };
+export type RetryResult = RetryCounts & {
+  skipped: boolean;
+  /** True when the subrequest budget ran out with rows still queued. */
+  more?: boolean;
+  by_channel: Record<ReportChannel, RetryCounts & { configured: boolean; repo: string }>;
+};
+
+/**
+ * Cron + owner button: push queued reports to GitHub once a token exists.
+ * Each channel (android / web) drains with its own token and repo; a channel
+ * without a token simply keeps its rows queued.
+ */
+export async function retryPendingReports(env: ReportsEnv): Promise<RetryResult> {
   const db = env.DB;
-  const { token, repo } = await githubConfig(env);
-  if (!token) return { crashes: 0, user_reports: 0, skipped: true };
+  const [android, web] = await Promise.all([githubConfig(env, 'android'), githubConfig(env, 'web')]);
+  const by_channel: RetryResult['by_channel'] = {
+    android: { crashes: 0, user_reports: 0, configured: !!android.token, repo: android.repo },
+    web: { crashes: 0, user_reports: 0, configured: !!web.token, repo: web.repo },
+  };
+  if (!android.token && !web.token) return { crashes: 0, user_reports: 0, skipped: true, by_channel };
+
+  // Outbound budget per drain: a new crash issue costs a dedupe search, the
+  // optional Groq triage and the create call (+ first-time label setup), a
+  // user report the triage + create. Rows beyond the budget wait for the
+  // next drain (daily cron or the owner button) instead of failing midway.
+  const budgetEnv = Number.parseInt(String(env.REPORTS_SUBREQUEST_BUDGET || ''), 10);
+  let budget = Number.isFinite(budgetEnv) && budgetEnv > 0 ? Math.min(budgetEnv, 900) : 40;
+  let more = false;
+  const CRASH_COST = 4;
+  const REPORT_COST = 3;
 
   // A crashed intake may leave its winning claim in progress. Do not recover
   // unclaimed rows: they may be duplicates that never completed arbitration.
@@ -474,79 +599,123 @@ export async function retryPendingReports(env: ReportsEnv): Promise<{ crashes: n
       WHERE status IN ('dedup_check', 'sending') AND created_at < datetime('now', '-5 minutes')
       AND id IN (SELECT report_id FROM user_report_dedup)`).run();
   } catch { /* Older installations may not have the optional dedup table. */ }
-  let crashes = 0;
-  let userReports = 0;
-  const pendingCrashes = await db.prepare(
-    `SELECT id, fingerprint, message, stack, component_stack, route, version, ua, count FROM crash_reports
-     WHERE status IN ('new','pending','failed') ORDER BY last_seen DESC LIMIT 10`
-  ).all() as any;
-  for (const row of (pendingCrashes.results || []) as any[]) {
-    const found = await findOpenIssueByFingerprint(token, repo, String(row.fingerprint));
-    const created = found || await createIssue(token, repo, `[crash ${row.fingerprint}] ${String(row.message).slice(0, 100)}`, [
-      `**Plantage détecté automatiquement par l'application Atlas Commerce.** (rattrapage file d'attente)`,
-      ``, `- Empreinte : \`${row.fingerprint}\``, `- Occurrences : ${row.count}`, `- Version : ${row.version || '?'}`, `- Page : \`${row.route || '?'}\``,
-      ``, `### Message`, '```', String(row.message), '```',
-      row.stack ? `### Stack\n\`\`\`\n${String(row.stack).slice(0, 4000)}\n\`\`\`` : '',
-    ].filter(Boolean).join('\n'), [LABEL_CRASH, LABEL_FROM_APP]);
-    if (created) {
-      await db.prepare(`UPDATE crash_reports SET status='linked', issue_number=?, issue_url=? WHERE id=?`)
-        .bind(created.number, created.url, Number(row.id)).run();
-      crashes++;
-    }
-  }
-
   // Serialize concurrent queue drains per report; leases expire after crashes.
   await db.prepare(`CREATE TABLE IF NOT EXISTS user_report_delivery_leases (
     report_id INTEGER PRIMARY KEY, lease_id TEXT NOT NULL, started_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`).run();
-  const pendingUser = await db.prepare(
-    `SELECT id, username, role, kind, message, contact, page, version FROM user_reports
-     WHERE status IN ('new','pending','failed') ORDER BY created_at DESC LIMIT 10`
-  ).all() as any;
-  for (const row of (pendingUser.results || []) as any[]) {
-    const lease = crypto.randomUUID();
-    const acquired = await db.prepare(`INSERT INTO user_report_delivery_leases (report_id, lease_id, started_at)
-      VALUES (?, ?, datetime('now')) ON CONFLICT(report_id) DO UPDATE SET lease_id=excluded.lease_id, started_at=excluded.started_at
-      WHERE user_report_delivery_leases.started_at < datetime('now', '-5 minutes')`).bind(row.id, lease).run();
-    if (!acquired.meta?.changes) continue;
-    try {
-      const current = await db.prepare("SELECT status FROM user_reports WHERE id = ?").bind(row.id).first() as any;
-      if (!current || !['new', 'pending', 'failed'].includes(current.status)) continue;
-      const created = await createIssue(token, repo, `[report:${row.kind} R-${row.id}] ${String(row.message).slice(0, 90)}`, [
-        `**Signalement utilisateur envoyé depuis l'application Atlas Commerce.** (rattrapage file d'attente)`,
-        ``, `- Référence : \`R-${row.id}\``, `- Type : ${row.kind}`, `- Compte : ${row.username} (rôle : ${row.role})`,
-        row.page ? `- Page : \`${row.page}\`` : '', row.version ? `- Version : ${row.version}` : '',
-        row.contact ? `- Contact laissé : ${row.contact}` : '', ``, `### Message`, String(row.message),
-      ].filter(Boolean).join('\n'), [LABEL_USER, LABEL_FROM_APP]);
-      if (created) {
-        await db.prepare(`UPDATE user_reports SET status='linked', issue_number=?, issue_url=? WHERE id=?`)
-          .bind(created.number, created.url, Number(row.id)).run();
-        userReports++;
+
+  for (const [channel, cfg] of [['android', android], ['web', web]] as const) {
+    const { token, repo } = cfg;
+    if (!token) continue;
+    const counts = by_channel[channel];
+    const pendingCrashes = await db.prepare(
+      `SELECT id, fingerprint, message, stack, component_stack, route, version, ua, count FROM crash_reports
+       WHERE status IN ('new','pending','failed') AND channel = ? ORDER BY last_seen DESC LIMIT 30`
+    ).bind(channel).all() as any;
+    // The same bug often lands under several fingerprints (stack frames carry
+    // per-build bundle names / line numbers). Within one drain, rows sharing a
+    // message reuse the first issue instead of opening near-duplicates.
+    const issueByMessage = new Map<string, { number: number; url: string }>();
+    for (const row of (pendingCrashes.results || []) as any[]) {
+      const messageKey = String(row.message || '').trim().toLowerCase().slice(0, 300);
+      const sibling = messageKey ? issueByMessage.get(messageKey) : undefined;
+      if (!sibling && budget < CRASH_COST) { more = true; continue; }
+      let created = sibling || null;
+      if (!created) {
+        budget -= CRASH_COST;
+        created = await findOpenIssueByFingerprint(token, repo, String(row.fingerprint));
       }
-    } finally {
-      await db.prepare('DELETE FROM user_report_delivery_leases WHERE report_id = ? AND lease_id = ?').bind(row.id, lease).run();
+      if (!created) {
+        const body = [
+          `**Plantage détecté automatiquement par l'application Atlas Commerce.** (rattrapage file d'attente)`,
+          ``, `- Empreinte : \`${row.fingerprint}\``, `- Occurrences : ${row.count}`, `- Version : ${row.version || '?'}`, `- Page : \`${row.route || '?'}\``,
+          row.ua ? `- User-Agent : ${row.ua}` : '',
+          ``, `### Message`, '```', String(row.message), '```',
+          row.stack ? `### Stack\n\`\`\`\n${String(row.stack).slice(0, 4000)}\n\`\`\`` : '',
+          row.component_stack ? `### Composant React\n\`\`\`\n${String(row.component_stack).slice(0, 2000)}\n\`\`\`` : '',
+        ].filter(Boolean).join('\n');
+        const issue = await composeIssue(env, {
+          kind: 'crash', channel, message: String(row.message), stack: String(row.stack || ''), componentStack: String(row.component_stack || ''),
+          route: String(row.route || ''), version: String(row.version || ''), ua: String(row.ua || ''), occurrences: Number(row.count) || 1,
+        }, `[crash ${row.fingerprint}]`, String(row.message).slice(0, 100), body, [LABEL_CRASH, LABEL_FROM_APP]);
+        created = await createIssue(token, repo, issue.title, issue.body, issue.labels);
+      }
+      if (created && messageKey) issueByMessage.set(messageKey, created);
+      if (created) {
+        await db.prepare(`UPDATE crash_reports SET status='linked', issue_number=?, issue_url=? WHERE id=?`)
+          .bind(created.number, created.url, Number(row.id)).run();
+        counts.crashes++;
+      }
+    }
+
+    const pendingUser = await db.prepare(
+      `SELECT id, username, role, kind, message, contact, page, version FROM user_reports
+       WHERE status IN ('new','pending','failed') AND channel = ? ORDER BY created_at DESC LIMIT 30`
+    ).bind(channel).all() as any;
+    for (const row of (pendingUser.results || []) as any[]) {
+      if (budget < REPORT_COST) { more = true; break; }
+      const lease = crypto.randomUUID();
+      const acquired = await db.prepare(`INSERT INTO user_report_delivery_leases (report_id, lease_id, started_at)
+        VALUES (?, ?, datetime('now')) ON CONFLICT(report_id) DO UPDATE SET lease_id=excluded.lease_id, started_at=excluded.started_at
+        WHERE user_report_delivery_leases.started_at < datetime('now', '-5 minutes')`).bind(row.id, lease).run();
+      if (!acquired.meta?.changes) continue;
+      try {
+        const current = await db.prepare("SELECT status FROM user_reports WHERE id = ?").bind(row.id).first() as any;
+        if (!current || !['new', 'pending', 'failed'].includes(current.status)) continue;
+        budget -= REPORT_COST;
+        const body = [
+          `**Signalement utilisateur envoyé depuis l'application Atlas Commerce.** (rattrapage file d'attente)`,
+          ``, `- Référence : \`R-${row.id}\``, `- Type : ${row.kind}`, `- Compte : ${row.username} (rôle : ${row.role})`,
+          row.page ? `- Page : \`${row.page}\`` : '', row.version ? `- Version : ${row.version}` : '',
+          row.contact ? `- Contact laissé : ${row.contact}` : '', ``, `### Message`, String(row.message),
+        ].filter(Boolean).join('\n');
+        const issue = await composeIssue(env, {
+          kind: 'report', channel, reportKind: String(row.kind), message: String(row.message), route: String(row.page || ''), version: String(row.version || ''),
+        }, `[report:${row.kind} R-${row.id}]`, String(row.message).slice(0, 90), body, [LABEL_USER, LABEL_FROM_APP]);
+        const created = await createIssue(token, repo, issue.title, issue.body, issue.labels);
+        if (created) {
+          await db.prepare(`UPDATE user_reports SET status='linked', issue_number=?, issue_url=? WHERE id=?`)
+            .bind(created.number, created.url, Number(row.id)).run();
+          counts.user_reports++;
+        }
+      } finally {
+        await db.prepare('DELETE FROM user_report_delivery_leases WHERE report_id = ? AND lease_id = ?').bind(row.id, lease).run();
+      }
     }
   }
-  return { crashes, user_reports: userReports, skipped: false };
+  return {
+    crashes: by_channel.android.crashes + by_channel.web.crashes,
+    user_reports: by_channel.android.user_reports + by_channel.web.user_reports,
+    skipped: false,
+    more,
+    by_channel,
+  };
 }
 
 /** Owner/admin view — D1 rows only, already sanitized at intake. */
-export async function listReports(db: D1Database, limit = 25): Promise<{ crashes: any[]; user_reports: any[]; pending: number }> {
+export async function listReports(db: D1Database, limit = 25): Promise<{ crashes: any[]; user_reports: any[]; pending: number; pending_by_channel: Record<ReportChannel, number> }> {
   const cap = Math.min(Math.max(Number(limit) || 25, 1), 100);
   const crashes = await db.prepare(
-    `SELECT id, fingerprint, message, route, version, count, status, issue_number, issue_url, first_seen, last_seen
+    `SELECT id, fingerprint, message, route, version, count, status, issue_number, issue_url, first_seen, last_seen, channel
      FROM crash_reports ORDER BY last_seen DESC LIMIT ?`
   ).bind(cap).all() as any;
   const users = await db.prepare(
-    `SELECT id, username, role, kind, message, contact, page, version, status, issue_number, issue_url, created_at
+    `SELECT id, username, role, kind, message, contact, page, version, status, issue_number, issue_url, created_at, channel
      FROM user_reports ORDER BY created_at DESC LIMIT ?`
   ).bind(cap).all() as any;
   const pendingRow = await db.prepare(
-    `SELECT (SELECT COUNT(*) FROM crash_reports WHERE status != 'linked') + (SELECT COUNT(*) FROM user_reports WHERE status != 'linked') AS n`
+    `SELECT
+       (SELECT COUNT(*) FROM crash_reports WHERE status != 'linked' AND channel = 'web') +
+       (SELECT COUNT(*) FROM user_reports WHERE status != 'linked' AND channel = 'web') AS web,
+       (SELECT COUNT(*) FROM crash_reports WHERE status != 'linked' AND channel != 'web') +
+       (SELECT COUNT(*) FROM user_reports WHERE status != 'linked' AND channel != 'web') AS android`
   ).first() as any;
+  const web = Number(pendingRow?.web || 0);
+  const android = Number(pendingRow?.android || 0);
   return {
     crashes: (crashes.results || []) as any[],
     user_reports: (users.results || []) as any[],
-    pending: Number(pendingRow?.n || 0),
+    pending: web + android,
+    pending_by_channel: { web, android },
   };
 }

@@ -164,6 +164,10 @@
       {
         "name": "AGENT_QUOTA_HUB",
         "class_name": "AgentQuotaHub"
+      },
+      {
+        "name": "DEMO_HUB",
+        "class_name": "DemoHub"
       }
     ]
   },
@@ -183,6 +187,10 @@
     {
       "tag": "v4-agent-quota-hub",
       "new_sqlite_classes": ["AgentQuotaHub"]
+    },
+    {
+      "tag": "v5-demo-hub",
+      "new_sqlite_classes": ["DemoHub"]
     }
   ],
   // Workers Logs + Traces (dashboard Observability toggles also work after deploy)

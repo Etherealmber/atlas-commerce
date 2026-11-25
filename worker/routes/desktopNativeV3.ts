@@ -32,7 +32,7 @@ import {
   v3SessionWithinPolicy,
 } from '../lib/desktop-v3-session';
 import { createConfiguredNativeMailbox, createNativeOtpSender } from '../lib/desktop-mail-transport';
-import { addColumnIfMissing } from '../lib/schema';
+import { addColumnIfMissing, forgetTableSchema } from '../lib/schema';
 import { ensureSecurityTables } from '../lib/authHelpers';
 import { parseClientData, policyFromEnv, expectedOrigin, verifyAuthentication, credentialDescriptors } from '../lib/webauthn';
 import { qrToSvg } from '../qrSvg';
@@ -276,6 +276,7 @@ async function rebuildTableIfNeeded(
       db.prepare(`DROP TABLE ${table}`),
       db.prepare(`ALTER TABLE ${tmp} RENAME TO ${table}`),
     ]);
+    forgetTableSchema(db, table);
   } catch {
     // A concurrent isolate may have migrated first — only fail if still outdated.
     const again: any = await db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name=?").bind(table).first();

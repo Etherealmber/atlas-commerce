@@ -80,6 +80,9 @@ import { notifyAssistApproval as fcmNotifyAssistApproval } from './lib/fcm';
 import { MobileHub } from './durable/MobileHub';
 import { AgentQuotaHub } from './durable/AgentQuotaHub';
 export { AgentQuotaHub };
+import { DemoHub } from './durable/DemoHub';
+export { DemoHub };
+import { handleDemoRequest } from './lib/demo/gateway';
 import { RestoreHub } from './durable/RestoreHub';
 import { NumberHub } from './durable/NumberHub';
 import { registerAdminReadRoutes, registerInvoiceReadRoutes, registerStockReadRoutes, registerWholesaleRoutes, registerEmployeeRoutes, registerPublicRoutes, registerClientRoutes, registerMailboxRoutes, registerPartnerV1Routes, registerAtlasV209Routes, dispatchWebhook, registerFinanceRoutes, registerExpenseWriteRoutes, registerVendorRoutes, registerExportRoutes, registerMobileActionsRoutes, registerAttendanceRoutes, registerCatalogRoutes, registerCategoriesUnitsRoutes, registerDataImportRoutes, registerBackupRoutes, makeVerifyBackupAccess, registerReportRoutes, reportShell, registerInventoryOpsRoutes, ensureStockLocations, getDefaultLocationId, adjustLocationStock, registerAssistRoutes, purgeAgentConversationsOlderThan, readAppUpdateState, registerPublicSignedRoutes, registerProductsScanRoutes, registerDashboardIntegrityRoutes, registerMetricsRoutes, registerInvoicesWriteRoutes, registerBillsReceiptsRoutes, registerCashShiftRoutes, registerPayrollRoutes, registerFecRoutes, registerDunningRoutes, runDailyDunning, registerDgiRoutes, ensureBillPaymentsTable } from './routes';
@@ -593,6 +596,22 @@ async function dbPrimaryFlag(env: Env): Promise<string> {
   dbPrimaryCache = { value, at: now };
   return value;
 }
+/**
+ * Strict variant for private resources (native auth, reports, preferences):
+ * only a SUCCESSFUL read is memoised, for 15 s per source binding, and any
+ * read error still propagates (fail closed → 503). Saves one D1 read on every
+ * private request without ever guessing the cutover state.
+ */
+const PRIVATE_DB_PRIMARY_TTL_MS = 15_000;
+let privateDbPrimaryCache = new WeakMap<object, { value: string | undefined; at: number }>();
+async function strictDbPrimaryFlag(db: D1Database): Promise<string | undefined> {
+  const now = Date.now();
+  const hit = privateDbPrimaryCache.get(db as object);
+  if (hit && now - hit.at < PRIVATE_DB_PRIMARY_TTL_MS) return hit.value;
+  const value = (await db.prepare(`SELECT value FROM app_config WHERE key = 'db_primary'`).first() as any)?.value as string | undefined;
+  privateDbPrimaryCache.set(db as object, { value, at: now });
+  return value;
+}
 app.use('*', async (c, next) => {
   if (c.env.DB_TARGET) {
     (c.env as any).DB_SOURCE = c.env.DB; // remember the physical source before any swap
@@ -608,7 +627,7 @@ app.use('*', async (c, next) => {
       // These resources must not fall back to the wrong database if
       // cutover state cannot be read; do not use the cached, fail-open flag.
       const flag = privateResource
-        ? (await c.env.DB.prepare(`SELECT value FROM app_config WHERE key = 'db_primary'`).first() as any)?.value
+        ? await strictDbPrimaryFlag(c.env.DB)
         : await dbPrimaryFlag(c.env);
       if (flag === 'target') {
         const target = c.env.DB_TARGET as any;
@@ -1371,7 +1390,7 @@ registerCanaryHealthRoutes(app, {
   authFailReason,
   clientIp,
   dbPrimaryFlag,
-  setDbPrimaryCache: (v: { value: string; at: number } | null) => { dbPrimaryCache = v; },
+  setDbPrimaryCache: (v: { value: string; at: number } | null) => { dbPrimaryCache = v; privateDbPrimaryCache = new WeakMap(); },
   getConfig,
   issueDeleteOtp,
   requireOwner,
@@ -2488,6 +2507,11 @@ async function ensureCoreIndexes(db: D1Database) {
       `CREATE INDEX IF NOT EXISTS idx_products_active_track ON products(is_active, track_inventory)`,
       `CREATE INDEX IF NOT EXISTS idx_stock_movements_prod_created ON stock_movements(product_id, created_at DESC)`,
       `CREATE INDEX IF NOT EXISTS idx_clients_name ON clients(name)`,
+      // Same as migrations/0023 — for databases that skipped it.
+      `CREATE INDEX IF NOT EXISTS idx_invoices_client ON invoices(client_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_invoices_created ON invoices(created_at)`,
+      `CREATE INDEX IF NOT EXISTS idx_bills_vendor ON bills(vendor_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_receipts_invoice ON receipts(invoice_id)`,
     ];
     for (const sql of stmts) {
       try { await db.prepare(sql).run(); } catch { /* table may not exist yet */ }
@@ -2807,6 +2831,15 @@ export default {
     // still return JSON so the service worker / front-end never see HTML.
     if (url.pathname.startsWith('/api/')) {
       try {
+        // Demo sandbox (« test / test »): same app, isolated SQLite database.
+        const demo = await handleDemoRequest(
+          request,
+          env,
+          ctx,
+          (req, demoEnv, demoCtx) => app.fetch(req, demoEnv, demoCtx),
+          (e, token, ip, native) => verifyTurnstile(e, token, ip, { native }),
+        );
+        if (demo) return demo;
         return await app.fetch(request, env, ctx);
       } catch (err: any) {
         if (!url.pathname.startsWith('/api/reports/') && !url.pathname.startsWith(`${NATIVE_V2}/`) && !url.pathname.startsWith(`${NATIVE_V3}/`)) console.error('api_fetch_fatal', String(err?.message || err));

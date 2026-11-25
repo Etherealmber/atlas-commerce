@@ -263,7 +263,7 @@ export default function PromptBar({
   useEffect(() => {
     if (!plusOpen && !modelOpen && !effortOpen) return undefined;
     const onDown = (e: PointerEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) closeMenus();
+      if (e.target instanceof Node && !rootRef.current?.contains(e.target)) closeMenus();
     };
     document.addEventListener('pointerdown', onDown);
     return () => document.removeEventListener('pointerdown', onDown);

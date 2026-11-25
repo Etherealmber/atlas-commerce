@@ -759,7 +759,7 @@ function DesktopShell() {
 
     const onDocPointerMove = (event: PointerEvent) => {
       if (event.pointerType !== 'mouse') return;
-      const target = event.target as Node | null;
+      const target = event.target instanceof Node ? event.target : null;
       if (actionsHovered.current && actionsSlotRef.current && target && !actionsSlotRef.current.contains(target)) {
         actionsHovered.current = false;
         collapseActionsIfEligible();
@@ -1218,15 +1218,17 @@ function DesktopShell() {
           }}
           onPointerLeave={(event) => {
             if (event.pointerType === 'mouse') {
-              const related = event.relatedTarget as Node | null;
-              if (related && event.currentTarget.contains(related)) return;
+              // React reports `window` as relatedTarget when the pointer leaves the
+              // browser window — `contains(window)` would throw (not a Node).
+              const related = event.relatedTarget;
+              if (related instanceof Node && event.currentTarget.contains(related)) return;
               actionsHovered.current = false;
               collapseActionsIfEligible();
             }
           }}
           onBlur={(event) => {
-            const next = event.relatedTarget as Node | null;
-            if (next && event.currentTarget.contains(next)) return;
+            const next = event.relatedTarget;
+            if (next instanceof Node && event.currentTarget.contains(next)) return;
             actionsMouseFocusRef.current = false;
             if ((actionsHoverExpanded.current || compactRef.current || window.scrollY > 140) && !actionsPinnedRef.current && !actionsHovered.current && Date.now() >= actionsExpansionUntil.current && !hasActionsOpenPopover()) {
               actionsHoverExpanded.current = false;
@@ -1257,8 +1259,10 @@ function DesktopShell() {
           }}
           onPointerLeave={(event) => {
             if (event.pointerType === 'mouse') {
-              const related = event.relatedTarget as Node | null;
-              if (related && event.currentTarget.contains(related)) return;
+              // React reports `window` as relatedTarget when the pointer leaves the
+              // browser window — `contains(window)` would throw (not a Node).
+              const related = event.relatedTarget;
+              if (related instanceof Node && event.currentTarget.contains(related)) return;
               dockHovered.current = false;
               if ((dockHoverExpanded.current || window.scrollY > 140) && !shellNotifOpen && !shellUserOpen && Date.now() >= dockExpansionUntil.current) {
                 dockHoverExpanded.current = false;

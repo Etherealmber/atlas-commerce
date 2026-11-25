@@ -7,7 +7,7 @@ export type WorkStatusSource = {
 
 import { getToken, clearToken, refreshSessionRole, getRefreshedTokenFor } from './auth';
 import { getCachedFingerprint } from './fingerprint';
-import { getApiBase } from './config';
+import { getApiBase, isNativeApp } from './config';
 import { uiToast } from './components/AppDialogs';
 import { dedupedGet, invalidateGetCache } from './lib/perf';
 
@@ -294,6 +294,13 @@ async function request<T>(path: string, options?: RequestInit & { silent?: boole
   }
   return result;
 }
+
+export type ReportChannel = 'web' | 'android';
+export type GithubChannelStatus = { configured: boolean; source: 'env' | 'app' | null; repo: string; secret?: string };
+export type GithubReportsStatus = GithubChannelStatus & {
+  channels?: Record<ReportChannel, GithubChannelStatus>;
+  triage?: { enabled: boolean; model: string; used_today: number; daily_limit: number; paused_until: number | null };
+};
 
 export const api = {
   getEmployees: (opts?: { status?: string; q?: string; category?: string }) => {
@@ -1207,15 +1214,17 @@ export const api = {
 
   /** v260 — crash & user reports → GitHub issues (docs/reports-github.md) */
   submitUserReport: (body: { kind: string; message: string; contact?: string; page?: string; version?: string }) =>
-    request<{ data: { reference: string; issue_url: string | null; already_reported: boolean; issue_status: 'open' | 'closed' | null } }>('/api/reports', { method: 'POST', body: JSON.stringify(body) }),
+    // `platform` routes the GitHub issue: Capacitor shell → android repo,
+    // browser / desktop → web repo (separate tokens, see docs/reports-github.md).
+    request<{ data: { reference: string; issue_url: string | null; already_reported: boolean; issue_status: 'open' | 'closed' | null } }>('/api/reports', { method: 'POST', body: JSON.stringify({ ...body, platform: isNativeApp() ? 'android' : 'web' }) }),
   getGithubTokenStatus: () =>
-    request<{ data: { configured: boolean; source: 'env' | 'app' | null; repo: string } }>('/api/admin/github-token'),
-  saveGithubToken: (body: { token: string; repo?: string }) =>
-    request<{ data: { configured: boolean; login?: string | null; repo?: string } }>('/api/admin/github-token', { method: 'PUT', body: JSON.stringify(body) }),
+    request<{ data: GithubReportsStatus }>('/api/admin/github-token'),
+  saveGithubToken: (body: { token: string; repo?: string; channel?: ReportChannel }) =>
+    request<{ data: { configured: boolean; login?: string | null; repo?: string; channel?: ReportChannel } }>('/api/admin/github-token', { method: 'PUT', body: JSON.stringify(body) }),
   listReports: (limit = 25) =>
-    request<{ data: { crashes: any[]; user_reports: any[]; pending: number } }>(`/api/admin/reports?limit=${limit}`),
+    request<{ data: { crashes: any[]; user_reports: any[]; pending: number; pending_by_channel?: Record<ReportChannel, number> } }>(`/api/admin/reports?limit=${limit}`),
   retryReports: () =>
-    request<{ data: { crashes: number; user_reports: number; skipped: boolean } }>('/api/admin/reports/retry', { method: 'POST', body: '{}' }),
+    request<{ data: { crashes: number; user_reports: number; skipped: boolean; more?: boolean; by_channel?: Record<ReportChannel, { crashes: number; user_reports: number; configured: boolean; repo: string }> } }>('/api/admin/reports/retry', { method: 'POST', body: '{}' }),
 
   // Part 2 — cash shifts + X/Z-report
   listCashShifts: (params?: { till_id?: string; status?: 'open' | 'closed' }) => {

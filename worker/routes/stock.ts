@@ -1,5 +1,6 @@
 const _localSchemaOnce = new Set<string>();
 
+import { scopedKey } from '../lib/dataScope';
 import type { AtlasApp } from './types';
 import { withInventoryActors } from '../lib/inventory-actors';
 import { withMovementCreators } from '../lib/documentCreators';
@@ -18,8 +19,8 @@ import { ensureStockLocations, getDefaultLocationId } from './inventoryOps';
 import { afterBusinessMutation } from '../lib/delete-coord';
 
 async function ensureStockMovementsTable(db: D1Database): Promise<void> {
-  if (_localSchemaOnce.has('ensureStockMovementsTable')) return;
-  _localSchemaOnce.add('ensureStockMovementsTable');
+  if (_localSchemaOnce.has(scopedKey('ensureStockMovementsTable'))) return;
+  _localSchemaOnce.add(scopedKey('ensureStockMovementsTable'));
   await db
     .prepare(
       `CREATE TABLE IF NOT EXISTS stock_movements (

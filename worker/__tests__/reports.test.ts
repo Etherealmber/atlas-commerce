@@ -144,7 +144,9 @@ describe('intake without a GitHub token (queueing)', () => {
   it('retryPendingReports skips cleanly without a token', async () => {
     await reportCrash(made.db, { DB: made.db }, CRASH, '9.9.9.9');
     const r = await retryPendingReports({ DB: made.db });
-    expect(r).toEqual({ crashes: 0, user_reports: 0, skipped: true });
+    expect(r).toMatchObject({ crashes: 0, user_reports: 0, skipped: true });
+    expect(r.by_channel.web.configured).toBe(false);
+    expect(r.by_channel.android.configured).toBe(false);
   });
 });
 

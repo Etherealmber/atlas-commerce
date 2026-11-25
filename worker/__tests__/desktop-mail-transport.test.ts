@@ -32,7 +32,7 @@ describe('dedicated native mail transport', () => {
     const signal=new AbortController().signal;
     expect(await send(message,signal)).toBe(true);
     const [url,init]=fetcher.mock.calls[0] as unknown as [string,RequestInit];
-    expect(url).toBe('https://api.resend.com/emails'); expect(init.redirect).toBe('error'); expect(init.signal).toBe(signal);
+    expect(url).toBe('https://api.resend.com/emails'); expect(init.redirect).toBe('manual'); expect(init.signal).toBe(signal);
     expect(JSON.parse(String(init.body))).toMatchObject({from:'security@example.test',to:['alice@example.test'],text:expect.stringContaining('123456')});
     expect(await send({...message,to:'bob@example.test'},signal)).toBe(true);
     expect(JSON.parse(String((fetcher.mock.calls[1] as any)[1].body)).to).toEqual(['bob@example.test']);

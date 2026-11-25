@@ -7,7 +7,7 @@ import type { AtlasApp } from './types';
 
 const _empSchemaOnce = new WeakSet<D1Database>();
 
-async function ensureEmployeeTables(db: D1Database): Promise<void> {
+export async function ensureEmployeeTables(db: D1Database): Promise<void> {
   if (_empSchemaOnce.has(db)) return;
   await db
     .prepare(

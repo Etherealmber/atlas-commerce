@@ -191,7 +191,12 @@ export default function Dashboard() {
     let timer: number | null = null;
     let failStreak = 0;
     let lastLoadedAt = 0;
+    let productsLoadedAt = 0;
     const baseMs = 300_000;
+    // The full product list (with variants) only feeds the product count and the
+    // « stock bas » list, and the dashboard payload already carries the counts.
+    // Background refreshes re-read it at most every 15 min instead of every 5.
+    const PRODUCTS_REFRESH_MS = 900_000;
 
     const schedule = () => {
       if (stopped) return;
@@ -206,19 +211,25 @@ export default function Dashboard() {
     const load = async (soft = false) => {
       if (!soft) setLoading(true);
       try {
+        const wantProducts = !soft || Date.now() - productsLoadedAt >= PRODUCTS_REFRESH_MS;
         const [dash, ac, pr, st] = await Promise.all([
           api.getDashboard().catch((e) => {
             throw e;
           }),
           api.listMobileActions({ status: 'all', limit: 12 }).catch(() => ({ data: [] })),
-          api.getProducts({ include_variants: true }).catch(() => ({ data: [] })),
+          wantProducts
+            ? api.getProducts({ include_variants: true }).catch(() => null)
+            : Promise.resolve(null),
           api.getMobileActionStats().catch(() => ({ data: { pending: 0 } })),
         ]);
         if (stopped) return;
         lastLoadedAt = Date.now();
         setData(dash.data);
         setActions(ac.data || []);
-        setProducts(pr.data || []);
+        if (pr) {
+          productsLoadedAt = Date.now();
+          setProducts(pr.data || []);
+        }
         setPending(Number(st.data?.pending || 0));
         setError('');
         failStreak = 0;

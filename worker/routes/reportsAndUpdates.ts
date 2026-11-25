@@ -19,8 +19,12 @@ import {
   retryPendingReports,
   saveGithubConfig,
   validateGithubToken,
+  classifyReportChannel,
   REPORTS_REPO_DEFAULT,
+  WEB_REPORTS_REPO_DEFAULT,
+  type ReportChannel,
 } from '../lib/reports';
+import { triageStatus } from '../lib/issueTriage';
 
 const APP_UPDATE_MAX_APK_BYTES = 200 * 1024 * 1024;
 
@@ -149,7 +153,7 @@ export function registerReportsAndUpdatesRoutes(app: Hono<any>, deps: ReportsAnd
     try { body = await c.req.json(); } catch { body = {}; }
     try {
       await ensureReportTables(c.env.DB);
-      const out = await reportCrash(c.env.DB, c.env, body, ip);
+      const out = await reportCrash(c.env.DB, c.env, body, ip, { headerUa: c.req.header('User-Agent') || '' });
       return c.json({ success: true, data: { reference: `C-${out.id}`, deduped: out.deduped } }, 202);
     } catch {
       // Intake must never break the app: acknowledge even if D1/GitHub fails.
@@ -198,6 +202,11 @@ export function registerReportsAndUpdatesRoutes(app: Hono<any>, deps: ReportsAnd
       contact: body?.contact ? String(body.contact) : '',
       page: body?.page ? String(body.page) : '',
       version: body?.version ? String(body.version) : '',
+      channel: classifyReportChannel({
+        platform: body?.platform,
+        client: body?.client || c.req.header('X-Atlas-Client'),
+        headerUa: c.req.header('User-Agent') || '',
+      }),
     }, id => recordReportOwner(c.env.DB, id, owner, userId), { owner, userId });
     } catch { return c.json({ success: false, error: 'Signalement indisponible', code: 'SERVICE_UNAVAILABLE' }, 503); }
     return c.json({ success: true, data: { reference: out.reference, issue_url: out.issue_url || null, already_reported: out.already_reported, issue_status: out.issue_status } }, 201);
@@ -218,8 +227,19 @@ export function registerReportsAndUpdatesRoutes(app: Hono<any>, deps: ReportsAnd
     if (!session) return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
     if (session.role !== 'owner') return c.json({ success: false, error: 'Réservé au propriétaire', code: 'FORBIDDEN' }, 403);
     await ensureReportTables(c.env.DB);
-    const cfg = await githubConfig(c.env);
-    return c.json({ success: true, data: { configured: !!cfg.token, source: cfg.source, repo: cfg.repo } });
+    const [cfg, web, triage] = await Promise.all([githubConfig(c.env, 'android'), githubConfig(c.env, 'web'), triageStatus(c.env)]);
+    return c.json({
+      success: true,
+      data: {
+        // Top-level fields = the Android channel (backward compatible).
+        configured: !!cfg.token, source: cfg.source, repo: cfg.repo,
+        channels: {
+          android: { configured: !!cfg.token, source: cfg.source, repo: cfg.repo, secret: 'GITHUB_ISSUE_TOKEN' },
+          web: { configured: !!web.token, source: web.source, repo: web.repo, secret: 'GITHUB_WEB_ISSUE_TOKEN' },
+        },
+        triage,
+      },
+    });
   });
   
   app.put('/api/admin/github-token', async (c) => {
@@ -230,19 +250,24 @@ export function registerReportsAndUpdatesRoutes(app: Hono<any>, deps: ReportsAnd
     let body: any = {};
     try { body = await c.req.json(); } catch { return c.json({ success: false, error: 'Requête invalide', code: 'BAD_REQUEST' }, 400); }
     const token = String(body?.token || '').trim();
+    const channel: ReportChannel = body?.channel === 'web' ? 'web' : 'android';
+    const defaultRepo = channel === 'web' ? WEB_REPORTS_REPO_DEFAULT : REPORTS_REPO_DEFAULT;
     const repo = String(body?.repo || '').trim().replace(/^https?:\/\/github\.com\//i, '').replace(/\.git$/, '').replace(/^\/+|\/+$/g, '');
     await ensureReportTables(c.env.DB);
+    if (repo && !/^[A-Za-z0-9_-][A-Za-z0-9_.-]*\/[A-Za-z0-9_-][A-Za-z0-9_.-]*$/.test(repo)) {
+      return c.json({ success: false, error: 'Dépôt invalide (format propriétaire/dépôt)', code: 'BAD_REQUEST' }, 400);
+    }
     if (!token) {
-      await saveGithubConfig(c.env.DB, '', repo);
-      return c.json({ success: true, data: { configured: false } });
+      await saveGithubConfig(c.env.DB, '', repo, channel);
+      return c.json({ success: true, data: { configured: false, channel } });
     }
     if (token.length > 300 || !/^[A-Za-z0-9_]+$/.test(token)) {
       return c.json({ success: false, error: 'Format de token invalide', code: 'BAD_REQUEST' }, 400);
     }
     const v = await validateGithubToken(token);
     if (!v.ok) return c.json({ success: false, error: v.error || 'Token invalide', code: 'INVALID_TOKEN' }, 400);
-    await saveGithubConfig(c.env.DB, token, repo || REPORTS_REPO_DEFAULT);
-    return c.json({ success: true, data: { configured: true, login: v.login || null, repo: repo || REPORTS_REPO_DEFAULT } });
+    await saveGithubConfig(c.env.DB, token, repo || defaultRepo, channel);
+    return c.json({ success: true, data: { configured: true, login: v.login || null, repo: repo || defaultRepo, channel } });
   });
   
   app.get('/api/admin/reports', async (c) => {

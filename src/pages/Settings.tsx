@@ -48,6 +48,7 @@ import { VALUATION_METHOD_OPTIONS } from '../lib/labels';
 import IntegrationsPanel from '../components/IntegrationsPanel';
 import PageSkeleton, { DesktopTableSkeleton } from '../components/PageSkeleton';
 import GithubReportsPanel from '../components/settings/GithubReportsPanel';
+import BackupStatusStrip from '../components/settings/BackupStatusStrip';
 import { AlertsPanel } from '../components/atlas-v209-panels';
 import AgentPermissionsPanel from '../components/AgentPermissionsPanel';
 import AppUpdatePanel from '../components/settings/AppUpdatePanel';
@@ -3280,7 +3281,7 @@ if (loading) return (
             Revoir le guide d’accueil
           </button>
         </div>
-        <div className="ac-panel">
+        <div className="ac-panel bk-panel">
           <div className="ac-settings-panel-head">
             <div>
               <h2 data-settings-anchor="backup">Sauvegarde &amp; restauration</h2>
@@ -3289,8 +3290,22 @@ if (loading) return (
               </span>
             </div>
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 14 }}>
-            <button type="button" className="secondary" disabled={restoreBusy || backupBusy} onClick={async () => {
+          {/* v0.9.3 — status strip built from the R2 listing already loaded
+              (no extra request, no D1 read). */}
+          <BackupStatusStrip list={backupList} />
+          <div className="bk-grid">
+          <section className="bk-card" aria-labelledby="bk-now-title">
+            <div className="bk-card-head">
+              <span className="bk-ico" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" /></svg>
+              </span>
+              <div>
+                <h3 id="bk-now-title">Sauvegarde manuelle</h3>
+                <p>Crée tout de suite un snapshot chiffré sur R2, en plus de la planification automatique.</p>
+              </div>
+            </div>
+          <div className="bk-actions">
+            <button type="button" className="bk-main-btn" disabled={restoreBusy || backupBusy} onClick={async () => {
               const t0 = Date.now();
               setOpStartedAt(t0);
               setBackupBusy(true);
@@ -3351,16 +3366,24 @@ if (loading) return (
               await loadBackupList(false);
             }}>↻ Actualiser</button>
           </div>
+          </section>
 
-          <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10, lineHeight: 1.45 }}>
-            Restauration R2 : session admin suffisante (jeton serveur côté Worker). Pour un fichier .abk d’un autre serveur, le jeton sera demandé après sélection du fichier.
-          </p>
-          <label style={{ display: 'block', fontSize: 13, marginBottom: 6 }}>Restaurer depuis R2</label>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+          <section className="bk-card" aria-labelledby="bk-restore-title">
+            <div className="bk-card-head">
+              <span className="bk-ico bk-ico--restore" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v5h5" /><path d="M12 8v4l3 2" /></svg>
+              </span>
+              <div>
+                <h3 id="bk-restore-title">Restaurer depuis R2</h3>
+                <p>Session admin suffisante (jeton serveur côté Worker). Une copie de sécurité chiffrée est créée avant chaque restauration.</p>
+              </div>
+            </div>
+          <label className="bk-label" htmlFor="bk-restore-select">Point de restauration</label>
+          <div className="bk-restore-row">
             <select
+              id="bk-restore-select"
               value={selectedBackupKey}
               onChange={(e) => setSelectedBackupKey(e.target.value)}
-              style={{ minWidth: 280, flex: 1 }}
             >
               {(backupList.length
                 ? backupList
@@ -3474,11 +3497,20 @@ if (loading) return (
                 }
               }}
             >
-              Restaurer depuis R2
+              Restaurer
             </button>
           </div>
+          </section>
+          </div>
 
-          <label style={{ display: 'block', fontSize: 13, marginBottom: 6 }}>Ou importer un fichier .abk (chiffré) ou ancien JSON Atlas</label>
+          <label className="bk-drop">
+            <span className="bk-ico bk-ico--file" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5" /><path d="M12 18v-6" /><path d="m9 15 3-3 3 3" /></svg>
+            </span>
+            <span className="bk-drop-text">
+              <strong>Importer un fichier</strong>
+              <span>.abk chiffré ou ancien JSON Atlas. Le jeton n’est demandé que si le fichier vient d’un autre serveur.</span>
+            </span>
           <input
             type="file"
             accept=".abk,application/json,.json,application/octet-stream" title="JSON Atlas uniquement"
@@ -3579,9 +3611,10 @@ if (loading) return (
               }
             }}
           />
+          </label>
 
           {restoreMsg && (
-            <p style={{ fontSize: 13, marginTop: 10, color: 'var(--muted)' }}>{restoreMsg}</p>
+            <p className="bk-msg" role="status">{restoreMsg}</p>
           )}
         </div>
 
