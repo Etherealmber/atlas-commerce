@@ -1,11 +1,28 @@
+import { translate, type Lang } from '../i18n/core';
+
 /** Unique document titles per route — all under 60 characters. */
 
 const BRAND = 'Atlas';
 
 /** Exact path → title (no brand suffix yet). */
 const EXACT: Record<string, string> = {
-  '/': 'Tableau de bord',
+  '/': 'Accueil',
   '/dashboard': 'Tableau de bord',
+  '/android': 'Application Android',
+  '/download': 'Application Android',
+  '/desktop': 'Application bureau',
+  '/m': 'Accueil',
+  '/m/products': 'Produits & stock',
+  '/m/scan': 'Scan code-barres',
+  '/m/vente': 'Vente rapide',
+  '/m/balance': 'Solde & mouvements',
+  '/m/bills': "Factures d'achat",
+  '/m/employees': 'Employés',
+  '/m/warehouse': 'Opérations stock',
+  '/m/invoice': 'Devis',
+  '/m/settings': 'Paramètres',
+  '/m/agent': 'Atlas Agent',
+  '/m/more': 'Paramètres',
   '/actions': 'Actions en attente',
   '/products': 'Produits & stock',
   '/scan': 'Scan code-barres',
@@ -38,30 +55,31 @@ const EXACT: Record<string, string> = {
   '/403': 'Accès refusé',
 };
 
-function withBrand(page: string): string {
-  const full = `${page} · ${BRAND}`;
-  return full.length <= 60 ? full : page.slice(0, 60);
+function withBrand(page: string, lang: Lang): string {
+  const localPage = translate(page, lang);
+  const full = `${localPage} · ${translate(BRAND, lang)}`;
+  return full.length <= 60 ? full : localPage.slice(0, 60);
 }
 
 /**
  * Resolve a unique <title> for a location pathname.
  * Dynamic segments (ids) get a stable generic title.
  */
-export function titleForPath(pathname: string): string {
+export function titleForPath(pathname: string, lang: Lang = 'fr'): string {
   const path = (pathname || '/').replace(/\/+$/, '') || '/';
 
-  if (EXACT[path]) return withBrand(EXACT[path]);
+  if (EXACT[path]) return withBrand(EXACT[path], lang);
 
   // Dynamic desktop routes
-  if (/^\/p\/[^/]+$/.test(path)) return withBrand('Détail produit');
-  if (/^\/products\/[^/]+\/historique$/.test(path)) return withBrand('Historique du produit');
-  if (/^\/quick-sale\/[^/]+$/.test(path)) return withBrand('Détail vente rapide');
-  if (/^\/invoices\/[^/]+$/.test(path)) return withBrand('Détail facture');
-  if (/^\/error\/[^/]+$/.test(path)) return withBrand('Erreur');
-  if (path.startsWith('/settings')) return withBrand('Paramètres');
-  if (path === '/m-legacy') return withBrand('Mobile');
+  if (/^\/p\/[^/]+$/.test(path)) return withBrand('Détail produit', lang);
+  if (/^\/products\/[^/]+\/historique$/.test(path)) return withBrand('Historique du produit', lang);
+  if (/^\/quick-sale\/[^/]+$/.test(path)) return withBrand('Détail vente rapide', lang);
+  if (/^\/invoices\/[^/]+$/.test(path)) return withBrand('Détail facture', lang);
+  if (/^\/error\/[^/]+$/.test(path)) return withBrand('Erreur', lang);
+  if (path.startsWith('/settings')) return withBrand('Paramètres', lang);
+  if (path === '/m-legacy') return withBrand('Mobile', lang);
 
-  return withBrand('Atlas Commerce');
+  return withBrand('Atlas Commerce', lang);
 }
 
 const DEFAULT_DESC =
@@ -83,8 +101,8 @@ function setMeta(attr: 'name' | 'property', key: string, content: string) {
 }
 
 /** Title + Open Graph / Twitter cards for the current route. */
-function applyPageMeta(pathname: string): void {
-  const title = titleForPath(pathname);
+function applyPageMeta(pathname: string, lang: Lang): void {
+  const title = titleForPath(pathname, lang);
   try {
     document.title = title;
   } catch {
@@ -103,6 +121,6 @@ function applyPageMeta(pathname: string): void {
 }
 
 // Keep legacy name working
-export function applyPageTitle(pathname: string): void {
-  applyPageMeta(pathname);
+export function applyPageTitle(pathname: string, lang: Lang = 'fr'): void {
+  applyPageMeta(pathname, lang);
 }

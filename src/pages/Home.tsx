@@ -157,7 +157,7 @@ export default function Home() {
             <div className="hm-bento-card rise">
               <AgentDemo />
               <h3>Agent IA intégré</h3>
-              <p>Posez vos questions en français et explorez vos données selon vos permissions. Exemple fictif ci-dessus.</p>
+              <p>Posez vos questions dans votre langue et explorez vos données selon vos permissions. Exemple fictif ci-dessus.</p>
             </div>
           </div>
         </section>

@@ -1196,8 +1196,8 @@ export function PhoneProduits({ products, actions, onRefresh, onToast, loading =
     </div>
     <div className="ph-catalog-filters" role="group" aria-label="Filtrer les produits">
       <button type="button" aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>Tous</button>
-      <button type="button" aria-pressed={filter === 'low'} onClick={() => setFilter('low')}>À réappro. ({lowCount})</button>
-      <button type="button" aria-pressed={filter === 'requests'} onClick={() => setFilter('requests')}>{getRole() === 'owner' || getRole() === 'admin' ? 'À valider' : 'Mes demandes'} ({requests.length})</button>
+      <button type="button" aria-pressed={filter === 'low'} onClick={() => setFilter('low')}><span>À réappro.</span> (<bdi dir="ltr">{lowCount}</bdi>)</button>
+      <button type="button" aria-pressed={filter === 'requests'} onClick={() => setFilter('requests')}><span>{getRole() === 'owner' || getRole() === 'admin' ? 'À valider' : 'Mes demandes'}</span> (<bdi dir="ltr">{requests.length}</bdi>)</button>
     </div>
     {showCreate && <PhoneProductCreate onClose={() => setShowCreate(false)} onCreated={(createdDirectly) => { setShowCreate(false); onToast(createdDirectly ? 'Produit créé au catalogue' : 'Demande envoyée à l’Admin'); onRefresh(createdDirectly ? 'products' : 'actions'); }} />}
     {filter !== 'requests' && loading && ready && <div className="ph-refresh-status" role="status">Actualisation du catalogue…</div>}
@@ -1205,10 +1205,10 @@ export function PhoneProduits({ products, actions, onRefresh, onToast, loading =
     {filter === 'requests' && actionsLoading && actionsReady && <div className="ph-refresh-status" role="status">Actualisation des demandes…</div>}
     {filter === 'requests' && actionsError && <p role="alert" className="ph-catalog-error">Impossible de charger les demandes. {actionsReady ? 'Les dernières données restent affichées.' : 'Vérifiez la connexion.'} <button type="button" onClick={() => onRefresh('actions')}>Réessayer</button></p>}
     {filter === 'requests' && !actionsReady && actionsLoading ? <PhoneSkeleton variant="rows" label="Chargement des demandes" /> : filter === 'requests' && !actionsReady ? null : filter !== 'requests' && !ready && loading ? <PhoneSkeleton variant={grid ? 'catalog-grid' : 'catalog-list'} label="Chargement du catalogue" /> : filter !== 'requests' && !ready ? null : filter === 'requests' ? <div className="ph-catalog-list">{requests.length ? requests.map(a => <div className="ph-catalog-card" key={a.id}><div className="ph-catalog-icon"><Package size={22} /></div><div><strong>{a.title}</strong><p>{a.detail || 'Demande en attente'}</p><small>En attente</small></div></div>) : <div className="ph-empty"><h2>Aucune demande en attente</h2></div>}</div> : <>
-      <div className="ph-catalog-summary" aria-live="polite"><span>{visible.length} résultat{visible.length === 1 ? '' : 's'}</span></div>
+      <div className="ph-catalog-summary" aria-live="polite"><span><bdi dir="ltr">{visible.length}</bdi> <span>{visible.length === 1 ? 'résultat' : 'résultats'}</span></span></div>
       <div className={`ph-catalog-list${grid ? ' is-grid' : ''}`}>{visible.map(p => <NavLink className="ph-catalog-card ph-catalog-product" to={`/m/products/${p.id}/historique`} key={p.id}>
         <ProductArtwork url={p.image_url} largeImageProductId={p.image_inline_large ? p.id : undefined} className="ph-catalog-art" />
-        <div className="ph-catalog-info"><strong>{p.name}</strong><p>{p.sku || p.barcode || 'Sans référence'}</p><small className={phoneStockIsLow(p) ? 'ph-low' : ''}>{p.track_inventory != null && !Number(p.track_inventory) ? 'Stock non suivi' : `Stock : ${dualStockLabel(p)} · min ${minOf(p)}`}</small></div>
+        <div className="ph-catalog-info"><strong translate="no" dir="auto">{p.name}</strong><p>{p.sku || p.barcode ? <bdi dir="ltr" translate="no">{p.sku || p.barcode}</bdi> : 'Sans référence'}</p><small className={phoneStockIsLow(p) ? 'ph-low' : ''}>{p.track_inventory != null && !Number(p.track_inventory) ? 'Stock non suivi' : <><span>Stock :</span> <bdi dir="ltr">{dualStockLabel(p)}</bdi> · <span>min</span> <bdi dir="ltr">{minOf(p)}</bdi></>}</small></div>
         {canSell() && typeof (p.unit_price ?? p.price) === 'number' && <strong className="ph-catalog-price">{priceOf(p).toLocaleString('fr-FR')} MAD</strong>}
       </NavLink>)}</div>
       {visible.length === 0 && <div className="ph-empty"><h2>Aucun produit</h2><p>Essayez une autre recherche ou actualisez le catalogue.</p></div>}

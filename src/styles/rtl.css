@@ -201,3 +201,18 @@ html body .ac-login-lang > button[aria-pressed="true"]:not(#lang-g):not(#lang-h)
 /* Align the bounded hero description with the Arabic heading and actions. */
 html[dir="rtl"] .home-landing .hm-sub { margin-left: 0; margin-right: 0; }
 html[dir="rtl"] .home-landing .hm-hero-copy { margin-left: 0; margin-right: 0; }
+
+/* Preserve the visual reading order of grouped Latin-digit amounts in Arabic. */
+html[dir="rtl"] .home-landing .hm-live .hl-tot { align-items: flex-start; }
+html[dir="rtl"] .home-landing .hm-live .hl-tot :is(i, b) { text-align: right; }
+html[dir="rtl"] .home-landing .hm-live .hl-currency { direction: rtl; unicode-bidi: isolate; }
+html[dir="rtl"] .home-landing .hm-release-link { float: right; }
+html[dir="rtl"] .home-landing .hm-hero-copy { clear: both; }
+/* Give the public wordmark breathing room within the navigation pill. */
+html[dir="rtl"] .home-landing header nav > a:first-child { margin-inline-start: 10px; }
+/* Clear rows and selection state in the language chooser, without altering focus. */
+html body .ac-lang-list > li > button.ac-lang-row:not(#lang-g):not(#lang-h):not(#lang-i) { min-height: 54px !important; padding: 10px 14px !important; }
+html body .ac-lang-list > li > button.ac-lang-row.is-current:not(#lang-g):not(#lang-h):not(#lang-i) { background: rgba(196, 92, 38, .08) !important; }
+html[data-theme="dark"] body .ac-lang-list > li > button.ac-lang-row.is-current:not(#lang-g):not(#lang-h):not(#lang-i) { background: rgba(248, 180, 120, .12) !important; }
+
+html[dir="rtl"] .home-landing .hm-live .hl-tot bdi { white-space: nowrap; }
