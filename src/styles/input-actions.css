@@ -1,0 +1,169 @@
+/* Input-adjacent actions + settings save bar (v0.9.3).
+ *
+ * 1. A text button that sits next to a field (« Mémoriser », « Ajouter »,
+ *    OTP « Confirmer / Annuler », « Créer une clé », « Filtrer »…) takes the
+ *    field's height instead of floating as a 32px pill beside a 44–50px input,
+ *    and its disabled state reads as disabled (not a 50 % ghost).
+ * 2. The floating « Modifications non enregistrées » bar uses the Products
+ *    row pills: neutral « Annuler », dark primary « Enregistrer ».
+ *
+ * Four ID boosts outrank element-pills (three) and the compact density layer.
+ */
+
+:root {
+  --ia-line: #e8eaef;
+  --ia-soft: #f4f4f5;
+  --ia-soft-hover: #ffffff;
+  --ia-ink: #0f172a;
+  --ia-muted: #64748b;
+  --ia-primary: #0f172a;
+  --ia-primary-ink: #ffffff;
+  --ia-disabled-bg: #f4f4f5;
+  --ia-disabled-ink: #a1a1aa;
+}
+html[data-theme="dark"] {
+  --ia-line: #2a2a2e;
+  --ia-soft: #26262b;
+  --ia-soft-hover: #1c1c1f;
+  --ia-ink: #f4f4f5;
+  --ia-muted: #9aa3b5;
+  --ia-primary: #f4f4f5;
+  --ia-primary-ink: #0f172a;
+  --ia-disabled-bg: #1f1f23;
+  --ia-disabled-ink: #71717a;
+}
+
+/* ── 1. Buttons beside a text field ─────────────────────────────────────── */
+html body :is(.content, .modal, .settings-main, .ac-panel) :is(div, form, label, span, p):has(> :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"]), select)) > button:not([aria-label]):not(.modal-x):not(.ac-timed-delete-btn):not(.ac-save-toggle):not(#ia-a):not(#ia-b):not(#ia-c):not(#ia-d) {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  align-self: stretch !important;
+  flex: 0 0 auto !important;
+  height: auto !important;
+  min-height: 40px !important;
+  max-width: max-content;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  padding: 0 18px !important;
+  border-radius: 999px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease !important;
+}
+/* Primary (default / .primary / .btn.primary) */
+html body :is(.content, .modal, .settings-main, .ac-panel) :is(div, form, label, span, p):has(> :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"]), select)) > button:not([aria-label]):not(.modal-x):not(.ac-timed-delete-btn):not(.ac-save-toggle):not(.secondary):not(.ghost):not(.danger):not(:disabled):not(#ia-a):not(#ia-b):not(#ia-c):not(#ia-d) {
+  background: var(--ia-primary) !important;
+  color: var(--ia-primary-ink) !important;
+  -webkit-text-fill-color: var(--ia-primary-ink) !important;
+  border: 1px solid var(--ia-primary) !important;
+}
+html body :is(.content, .modal, .settings-main, .ac-panel) :is(div, form, label, span, p):has(> :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"]), select)) > button:not([aria-label]):not(.modal-x):not(.ac-timed-delete-btn):not(.ac-save-toggle):not(.secondary):not(.ghost):not(.danger):not(:disabled):not(#ia-a):not(#ia-b):not(#ia-c):not(#ia-d):hover {
+  filter: brightness(1.12);
+}
+/* Secondary / ghost → neutral Products pill */
+html body :is(.content, .modal, .settings-main, .ac-panel) :is(div, form, label, span, p):has(> :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"]), select)) > button:is(.secondary, .ghost):not([aria-label]):not(.modal-x):not(.ac-timed-delete-btn):not(:disabled):not(#ia-a):not(#ia-b):not(#ia-c):not(#ia-d) {
+  background: var(--ia-soft) !important;
+  color: var(--ia-ink) !important;
+  -webkit-text-fill-color: var(--ia-ink) !important;
+  border: 1px solid var(--ia-line) !important;
+}
+html body :is(.content, .modal, .settings-main, .ac-panel) :is(div, form, label, span, p):has(> :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"]), select)) > button:is(.secondary, .ghost):not([aria-label]):not(.modal-x):not(.ac-timed-delete-btn):not(:disabled):not(#ia-a):not(#ia-b):not(#ia-c):not(#ia-d):hover {
+  background: var(--ia-soft-hover) !important;
+  border-color: var(--ia-muted) !important;
+}
+/* Disabled: flat, readable, clearly inactive */
+html body :is(.content, .modal, .settings-main, .ac-panel) :is(div, form, label, span, p):has(> :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"]), select)) > button:disabled:not([aria-label]):not(.modal-x):not(.ac-timed-delete-btn):not(.ac-save-toggle):not(#ia-a):not(#ia-b):not(#ia-c):not(#ia-d) {
+  background: var(--ia-disabled-bg) !important;
+  color: var(--ia-disabled-ink) !important;
+  -webkit-text-fill-color: var(--ia-disabled-ink) !important;
+  border: 1px solid var(--ia-line) !important;
+  cursor: not-allowed !important;
+  filter: none !important;
+}
+html body :is(.content, .modal, .settings-main, .ac-panel) :is(div, form, label, span, p):has(> :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"]), select)) > button:not([aria-label]):not(.modal-x):not(.ac-timed-delete-btn):not(#ia-a):not(#ia-b):not(#ia-c):not(#ia-d):focus-visible {
+  outline: 2px solid var(--ia-ink) !important;
+  outline-offset: 2px !important;
+}
+html[data-ui-density="compact"] body :is(.content, .modal, .settings-main, .ac-panel) :is(div, form, label, span, p):has(> :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"]), select)) > button:not([aria-label]):not(.modal-x):not(.ac-timed-delete-btn):not(.ac-save-toggle):not(#ia-a):not(#ia-b):not(#ia-c):not(#ia-d) {
+  min-height: 34px !important;
+  padding: 0 14px !important;
+  font-size: 12.5px !important;
+}
+
+/* OTP rows: field + Confirmer + Annuler on one aligned line */
+html body .ac-otp-row:not(#ia-a) { display: flex !important; flex-wrap: wrap; align-items: stretch !important; gap: 8px !important; }
+html body .ac-otp-row:not(#ia-a) > input { min-height: 40px; }
+
+/* ── 2. Floating « Modifications non enregistrées » bar ────────────────── */
+html body .ac-settings-float:not(#ia-a):not(#ia-b) .settings-sticky-save-actions { gap: 6px; }
+html body .ac-settings-float:not(#ia-a):not(#ia-b) .settings-sticky-save-actions > button.secondary {
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 0 16px !important;
+  border-radius: 999px !important;
+  border: 1px solid var(--ia-line) !important;
+  background: var(--ia-soft) !important;
+  color: var(--ia-ink) !important;
+  -webkit-text-fill-color: var(--ia-ink) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+}
+html body .ac-settings-float:not(#ia-a):not(#ia-b) .settings-sticky-save-actions > button.secondary:hover:not(:disabled) {
+  background: var(--ia-soft-hover) !important;
+  border-color: var(--ia-muted) !important;
+}
+html body .ac-settings-float:not(#ia-a):not(#ia-b) .settings-sticky-save-actions > .ac-save-toggle {
+  height: 36px !important;
+  min-height: 36px !important;
+  min-width: 112px;
+  border: 1px solid var(--ia-primary) !important;
+  background: var(--ia-primary) !important;
+  background-color: var(--ia-primary) !important;
+  opacity: 1 !important;
+  box-shadow: none !important;
+}
+html body .ac-settings-float:not(#ia-a):not(#ia-b) .settings-sticky-save-actions > .ac-save-toggle > span {
+  color: var(--ia-primary-ink) !important;
+  -webkit-text-fill-color: var(--ia-primary-ink) !important;
+  font-size: 13px !important;
+  font-weight: 650 !important;
+}
+html body .ac-settings-float:not(#ia-a):not(#ia-b) .settings-sticky-save-actions > .ac-save-toggle:hover:not(:disabled) { filter: brightness(1.12); }
+html body .ac-settings-float:not(#ia-a):not(#ia-b) .settings-sticky-save-actions > .ac-save-toggle:disabled {
+  background: var(--ia-disabled-bg) !important;
+  background-color: var(--ia-disabled-bg) !important;
+  border-color: var(--ia-line) !important;
+}
+html body .ac-settings-float:not(#ia-a):not(#ia-b) .settings-sticky-save-actions > .ac-save-toggle:disabled > span {
+  color: var(--ia-disabled-ink) !important;
+  -webkit-text-fill-color: var(--ia-disabled-ink) !important;
+}
+
+/* Inside a tinted note box (OTP), the neutral pill lifts off the surface. */
+html body .modal-note :is(div, form):has(> input) > button:is(.secondary, .ghost):not([aria-label]):not(:disabled):not(#ia-a):not(#ia-b):not(#ia-c):not(#ia-d):not(#ia-e) {
+  background: #ffffff !important;
+  border-color: #dfe3ea !important;
+}
+html[data-theme="dark"] body :is(.content, .modal, .settings-main, .ac-panel) :is(div, form, label, span, p):has(> :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"]), select)) > button:is(.secondary, .ghost):not([aria-label]):not(.modal-x):not(.ac-timed-delete-btn):not(:disabled):not(#ia-a):not(#ia-b):not(#ia-c):not(#ia-d):not(#ia-e) {
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+html[data-theme="dark"] body .modal-note :is(div, form):has(> input) > button:is(.secondary, .ghost):not([aria-label]):not(:disabled):not(#ia-a):not(#ia-b):not(#ia-c):not(#ia-d):not(#ia-e):not(#ia-f) {
+  background: #1c1c1f !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+}
+/* Dark: the OTP field was left white. */
+html[data-theme="dark"] body .ac-otp-row:not(#ia-a):not(#ia-b) > input {
+  background: #1c1c1f !important;
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+}
+html[data-theme="dark"] body .ac-otp-row:not(#ia-a):not(#ia-b) > input::placeholder { color: #71717a !important; -webkit-text-fill-color: #71717a !important; }

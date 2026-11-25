@@ -141,7 +141,7 @@ export default function AgentKnowledgePanel() {
         />
         <button
           type="button"
-          className="secondary"
+          className="primary"
           disabled={busy || !mem.trim()}
           onClick={() => {
             const v = mem.trim();
@@ -214,7 +214,7 @@ export default function AgentKnowledgePanel() {
             />
             <button
               type="button"
-              className="secondary"
+              className="primary"
               disabled={busy || !rule.trim()}
               onClick={() => {
                 const v = rule.trim();

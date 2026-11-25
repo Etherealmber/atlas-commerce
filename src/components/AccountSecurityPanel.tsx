@@ -113,7 +113,7 @@ export default function AccountSecurityPanel({ isOwner, role }: { isOwner: boole
           <div className="modal-note" style={{ marginTop: 12 }}>
             <p style={{ margin: '0 0 8px' }}>{otp.message}</p>
             {otp.code && <p style={{ margin: '0 0 8px' }}>Code (environnement local) : <code>{otp.code}</code></p>}
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div className="ac-otp-row">
               <input
                 value={otpInput}
                 onChange={(e) => setOtpInput(e.target.value)}
@@ -125,7 +125,7 @@ export default function AccountSecurityPanel({ isOwner, role }: { isOwner: boole
               <button type="button" className="btn primary" disabled={busy === 'account'} onClick={() => void confirmOtp()}>
                 Confirmer
               </button>
-              <button type="button" className="btn ghost" onClick={() => setOtp(null)}>Annuler</button>
+              <button type="button" className="btn secondary" onClick={() => setOtp(null)}>Annuler</button>
             </div>
           </div>
         )}
