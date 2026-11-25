@@ -3001,3 +3001,34 @@ html[data-theme="dark"] .atlas-agent-shimmer-reply .skeleton {
 
 
 
+
+/* Settings loading rows mirror the real stacked setting cards. */
+.ac-skeleton-settings-rows { display: grid; gap: 12px; margin-top: 14px; }
+.ac-skeleton-settings-row { display: flex; align-items: center; gap: 16px; padding: 16px 18px; }
+.ac-skeleton-settings-copy { flex: 1 1 auto; min-width: 0; }
+
+/* Agent conversation shimmer: placeholder bubbles use a neutral surface (the
+   solid user-bubble fill hid the bar) and never overflow their bubble. */
+html body .atlas-agent-msg .atlas-agent-bubble.atlas-agent-shimmer-bubble:not(#shim-x):not(#shim-y):not(#shim-z) {
+  box-sizing: border-box;
+  max-width: 92%;
+  padding: 12px 14px !important;
+  background: #f4f4f5 !important;
+  border: 1px solid #e8eaef !important;
+  color: inherit !important;
+  box-shadow: none !important;
+  overflow: hidden;
+}
+html body .atlas-agent-msg.assistant .atlas-agent-bubble.atlas-agent-shimmer-bubble:not(#shim-x):not(#shim-y):not(#shim-z) {
+  width: 78%;
+  background: #ffffff !important;
+}
+html body .atlas-agent-msg .atlas-agent-bubble.atlas-agent-shimmer-bubble--user:not(#shim-x):not(#shim-y):not(#shim-z) { min-width: 0; }
+html body .atlas-agent-shimmer-bubble .skeleton { display: block; max-width: 100%; }
+html[data-theme="dark"] body .atlas-agent-msg .atlas-agent-bubble.atlas-agent-shimmer-bubble:not(#shim-x):not(#shim-y):not(#shim-z) {
+  background: #26262b !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+html[data-theme="dark"] body .atlas-agent-msg.assistant .atlas-agent-bubble.atlas-agent-shimmer-bubble:not(#shim-x):not(#shim-y):not(#shim-z) {
+  background: #1c1c1f !important;
+}

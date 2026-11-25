@@ -707,8 +707,7 @@ export default function Settings() {
 
 if (loading) return (
     <div className="atlas-page atlas-settings">
-      <p className="atlas-eyebrow">Espace de travail</p>
-      <h1 className="atlas-hello" style={{ fontSize: '1.75rem', marginBottom: 16 }}>Paramètres</h1>
+      <h1 className="sr-only">Paramètres</h1>
       <PageSkeleton variant="settings" />
     </div>
   );

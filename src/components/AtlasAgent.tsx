@@ -581,9 +581,14 @@ export default function AtlasAgent() {
       return false;
     }
   });
+  // Resume the per-user active thread (the scoped key is the one written on
+  // open); the legacy unscoped key is only a migration fallback.
+  const [resumedThread] = useState(() => {
+    try { return !!(localStorage.getItem(activeThreadKey()) || localStorage.getItem(ACTIVE_THREAD_KEY)); } catch { return false; }
+  });
   const [threadId] = useState(() => {
     try {
-      return localStorage.getItem(ACTIVE_THREAD_KEY) || newThreadId();
+      return localStorage.getItem(activeThreadKey()) || localStorage.getItem(ACTIVE_THREAD_KEY) || newThreadId();
     } catch {
       return newThreadId();
     }
@@ -651,7 +656,9 @@ export default function AtlasAgent() {
   const [pendingAction, setPendingAction] = useState<LocalAction | null>(null);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
-  const [loadingThread] = useState(false);
+  // Remote (R2) thread hydration in flight. The shimmer only appears after a
+  // short delay so brand-new / cached threads never flash a skeleton.
+  const [loadingThread, setLoadingThread] = useState(false);
  // unused (dictation removed)
   const [attachments, setAttachments] = useState<{ name: string; type: string; data_url: string; preview_url?: string; text_excerpt?: string }[]>([]);
   // v256 — unsent composer attachments survive a page refresh (images are
@@ -752,6 +759,10 @@ export default function AtlasAgent() {
     if (local.length) {
       setMsgs(local);
     }
+    // The welcome bubble is cached on mount, so only a user turn counts as a
+    // locally cached conversation.
+    const knownRemote = !local.some((m) => m.role === 'user') && (resumedThread || loadThreads().some((t) => t.id === threadId));
+    const shimmerTimer = knownRemote ? window.setTimeout(() => { if (!cancelled) setLoadingThread(true); }, 160) : null;
     (async () => {
       try {
         const res = await api.getAgentThread(threadId);
@@ -790,12 +801,17 @@ export default function AtlasAgent() {
         }
       } catch {
         /* offline / rate limit — local history only */
+      } finally {
+        if (shimmerTimer != null) window.clearTimeout(shimmerTimer);
+        if (!cancelled) setLoadingThread(false);
       }
     })();
     return () => {
       cancelled = true;
+      if (shimmerTimer != null) window.clearTimeout(shimmerTimer);
+      setLoadingThread(false);
     };
-  }, [threadId, open]);
+  }, [threadId, open, resumedThread]);
 
   // Sync thread list from R2 index when panel opens
   useEffect(() => {
@@ -1510,8 +1526,8 @@ export default function AtlasAgent() {
         )}
 
         <div className="atlas-agent-body">
-          {loadingThread && msgs.length === 0 && <AtlasAgentShimmerBody rows={2} />}
-          {msgs.filter((m) => !(m.streaming && !String(m.text || '').trim())).map((m, i) => (
+          {loadingThread && !msgs.some((m) => m.role === 'user') && <AtlasAgentShimmerBody rows={2} />}
+          {!(loadingThread && !msgs.some((m) => m.role === 'user')) && msgs.filter((m) => !(m.streaming && !String(m.text || '').trim())).map((m, i) => (
             <div key={i} className={`atlas-agent-msg ${m.role}`}>
               <div className="atlas-agent-bubble">
                 {m.role === 'assistant' ? renderMiniMarkdown(String(m.text || '')) : m.text}

@@ -2898,7 +2898,20 @@ html.dark .atlas-agent-retry:hover:not(:disabled),
   flex-shrink: 0;
   background: #ebe6dc;
 }
-.about-owner-avatar-ph { background: #ebe6dc; }
+.about-owner-avatar-ph {
+  display: grid;
+  place-items: center;
+  background: #f4f4f5;
+  color: #475569;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+}
+html[data-theme="dark"] .about-owner-avatar-ph {
+  background: #26262b;
+  border-color: rgba(255, 255, 255, 0.09);
+  color: #d4d4d8;
+}
 .about-owner-meta h2 { margin: 0 0 4px; font-size: 1rem; }
 .about-owner-name { margin: 0 0 4px; font-size: 0.9rem; }
 .about-owner-bio { margin: 0; font-size: 0.85rem; }
