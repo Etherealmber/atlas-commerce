@@ -88,6 +88,16 @@ export async function unwrapDemoToken(env: Env, token: string): Promise<{ claims
 }
 
 /** Localhost, LAN, sandbox previews and non-production environments. */
+/** Loopback or private-LAN host: a developer machine, never a public deployment. */
+export function isDevMachineHost(url: URL): boolean {
+  const h = url.hostname.toLowerCase();
+  return (
+    h === 'localhost' || h === '0.0.0.0' || h === '[::1]' || h === '::1' ||
+    h.endsWith('.localhost') || h.startsWith('127.') || h.startsWith('10.') ||
+    h.startsWith('192.168.') || /^172\.(1[6-9]|2\d|3[01])\./.test(h)
+  );
+}
+
 export function isLocalOrPreview(url: URL, env: Env): boolean {
   const h = url.hostname.toLowerCase();
   if (env.ENVIRONMENT && env.ENVIRONMENT !== 'production') return true;
@@ -220,6 +230,26 @@ export async function rewrapTokens(env: Env, claims: DemoClaims, res: Response):
   return new Response(changed ? JSON.stringify(body) : text, { status: res.status, statusText: res.statusText, headers });
 }
 
+/**
+ * Actions that need the real deployment's infrastructure (encrypted R2
+ * backups / restores). The sandbox has neither the keys nor its own bucket, so
+ * answer with a clear demo message instead of a technical secrets error.
+ */
+const DEMO_OFF_LIMITS: { method: string; re: RegExp }[] = [
+  { method: 'POST', re: /^\/api\/admin\/backup-now$/ },
+  { method: 'POST', re: /^\/api\/admin\/backups\/restore$/ },
+];
+
+export function demoOffLimitsResponse(pathname: string, method: string): Response | null {
+  const m = method.toUpperCase();
+  if (!DEMO_OFF_LIMITS.some((r) => r.method === m && r.re.test(pathname))) return null;
+  return json({
+    success: false,
+    code: 'DEMO_DISABLED',
+    error: 'Indisponible en mode démo : les sauvegardes et restaurations ne concernent que votre vraie base.',
+  }, 403);
+}
+
 function expiredResponse(): Response {
   return json({
     success: false,
@@ -247,7 +277,11 @@ async function handleDemoLogin(
 
   const status = await callHub(stub, '/status');
   const hasLive = status?.meta && Date.now() < Number(status.meta.expires_at);
-  if (!hasLive) {
+  // Per-network cap protects public deployments. A dev machine (localhost /
+  // LAN address) funnels every browser, emulator and phone through the same
+  // IP, so the cap would lock local testing after a few devices — skip it
+  // there; the per-fingerprint 20 min / 24 h rule still applies.
+  if (!hasLive && !isDevMachineHost(new URL(request.url))) {
     const ipStub = hubStub(env, `demo-ip:${(await sha256Hex(`atlas-demo-ip|${ip}`)).slice(0, 32)}`);
     const quota = ipStub ? await callHub(ipStub, '/ip-quota', { max: MAX_NEW_SANDBOXES_PER_IP_PER_DAY }) : { ok: true };
     if (quota && quota.ok === false) {
@@ -293,6 +327,7 @@ async function handleDemoLogin(
   if (res.ok && typeof data.token === 'string' && data.token) {
     data.token = await wrapDemoToken(env, claims, data.token);
     data.display_name = 'Compte démo';
+    data.displayName = 'Compte démo'; // native clients read the camelCase field
     data.message = demoIntroMessage();
   }
   data.demo = demoInfo(session, String(session.state));
@@ -345,6 +380,8 @@ export async function handleDemoRequest(
   const parsed = await unwrapDemoToken(env, wrapped);
   if (!parsed) return json({ success: false, code: 'UNAUTHORIZED', error: 'Session de démo invalide.' }, 401);
   if (Date.now() >= parsed.claims.exp) return expiredResponse();
+  const offLimits = demoOffLimitsResponse(url.pathname, request.method);
+  if (offLimits) return offLimits;
 
   const headers = new Headers(request.headers);
   if (bearer === wrapped) headers.set('Authorization', `Bearer ${parsed.inner}`);

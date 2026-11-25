@@ -1,7 +1,7 @@
 import type { Hono } from 'hono';
 import { normalizeProductImageReference } from '../lib/product-images';
 import { ensureProductActors, withInventoryActors } from '../lib/inventory-actors';
-import { schemaOnce, schemaOnceForDb, addColumnIfMissing } from '../lib/schema';
+import { schemaOnce, schemaOnceForDb, addColumnIfMissing, knownTableColumns } from '../lib/schema';
 import { doCacheGet, doCachePut, invalidateDashboardCache, DEFAULT_CACHE_TTL } from '../lib/cache';
 import { canFloorStock, canHardDeleteStock } from '../lib/rbac';
 import { apiFail } from '../lib/api-response';
@@ -63,6 +63,31 @@ function normalizeDualUnits(body: any, existing: any = {}): string | null {
   body.secondary_unit = secondary;
   body.secondary_unit_factor = factor;
   return null;
+}
+
+/** One-time (per D1 binding) schema setup behind the full product list. */
+async function ensureProductListSchema(db: D1Database): Promise<void> {
+  await schemaOnceForDb(db, 'products_list_schema', async () => {
+    try { await ensureStockLocations(db); } catch { /* */ }
+    try { await ensureMarbleUnits(db); } catch { /* */ }
+    await ensureProductVariantColumns(db);
+  });
+}
+
+/** Columns the light list / barcode scan select unconditionally but the baseline migration lacks. */
+const LIGHT_RUNTIME_COLUMNS = ['parent_id', 'variant_label', 'tax_rate'] as const;
+
+/**
+ * Product columns for the light paths, memoised per binding (no PRAGMA per
+ * request). A brand-new database — a demo sandbox, a fresh install — does not
+ * have the runtime-added variant columns yet: run the list schema setup once
+ * instead of failing with « no such column: parent_id ».
+ */
+async function lightProductColumns(db: D1Database): Promise<Set<string> | null> {
+  const cols = await knownTableColumns(db, 'products');
+  if (cols && LIGHT_RUNTIME_COLUMNS.every((col) => cols.has(col))) return cols;
+  await ensureProductListSchema(db);
+  return knownTableColumns(db, 'products');
 }
 
 async function ensureProductVariantColumns(db: D1Database) {
@@ -135,13 +160,7 @@ export function registerProductsScanRoutes(app: Hono<any>, deps: ProductsScanRou
   
     // Full desk path only: schema ensures (mobile never needs them on every list call).
     // One memo per D1 binding: after the first list call this is a single Set lookup.
-    if (!light) {
-      await schemaOnceForDb(c.env.DB, 'products_list_schema', async () => {
-        try { await ensureStockLocations(c.env.DB); } catch { /* */ }
-        try { await ensureMarbleUnits(c.env.DB); } catch { /* */ }
-        await ensureProductVariantColumns(c.env.DB);
-      });
-    }
+    if (!light) await ensureProductListSchema(c.env.DB);
   
     // Cache only stable list queries (no free-text search) via DO + memory (avoids KV write cap)
     const cacheable = !q && !parentId && !category;
@@ -159,7 +178,8 @@ export function registerProductsScanRoutes(app: Hono<any>, deps: ProductsScanRou
     }
   
     // Keep the mobile projection small while including product artwork where available.
-    const productColumns = light ? await tableColumns(c.env.DB, 'products') : null;
+    // Memoised per binding: no PRAGMA on every list call (structure check cut).
+    const productColumns = light ? await lightProductColumns(c.env.DB) : null;
     const actorCols = ['created_by', 'approved_by'].filter(col => productColumns?.has(col)).map(col => `, ${col}`).join('');
     // Legacy inline photos can be megabytes each. Defer large images to the
     // per-product endpoint instead of putting hundreds in the mobile cache.
@@ -819,7 +839,7 @@ export function registerProductsScanRoutes(app: Hono<any>, deps: ProductsScanRou
     const code = decodeURIComponent(c.req.param('code') || '').trim();
     if (!code) return c.json({ success: false, error: 'Code-barres vide' }, 400);
   
-    const scanColumns = await tableColumns(c.env.DB, 'products');
+    const scanColumns = await lightProductColumns(c.env.DB);
     const scanActors = ['created_by', 'approved_by'].filter(col => scanColumns?.has(col)).map(col => `, ${col}`).join('');
     const SCAN_COLS = `id, sku, name, barcode, category, unit, price, stock_quantity, low_stock_threshold, track_inventory, is_active, parent_id, variant_label, tax_rate${scanActors}`;
     let product = await c.env.DB.prepare(

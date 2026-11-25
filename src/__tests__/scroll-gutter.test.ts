@@ -35,3 +35,13 @@ describe('scroll gutter (hamburger / modal locks never shift the page)', () => {
     expect(css).toMatch(/html\.atlas-vscroll:not\(\.phone-shell\)\s*\{[^}]*scrollbar-gutter:\s*stable/);
   });
 });
+
+describe('focus menu scrim (About / Nouveautés / legal pages)', () => {
+  it('stays a translucent veil in dark mode — the page behind it never "disappears"', () => {
+    const css = readFileSync(new URL('../styles/focus-sidebar.css', import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    const rule = /button\.atlas-focus-backdrop:not\(#scrim-g\):not\(#scrim-h\):not\(#scrim-i\)[^{]*\{([^}]*)\}/.exec(css);
+    expect(rule).not.toBeNull();
+    expect(rule![1]).toMatch(/background:\s*rgba\(5, 7, 12, 0\.52\)\s*!important/);
+    expect(rule![1]).toMatch(/backdrop-filter:\s*blur\(4px\)\s*!important/);
+  });
+});

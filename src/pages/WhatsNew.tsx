@@ -85,6 +85,7 @@ export const RELEASES: Release[] = [
       { id: '093i24', platforms: ['web'], text: 'Paramètres : la barre « Modifications non enregistrées » apparaît dès la première saisie, dans n’importe quel champ ; les boutons d’enregistrement de la page restent disponibles. Les champs « Choisir un fichier » ont un nouveau style (zone en pointillés et bouton arrondi), en clair comme en sombre.' },
       { id: '093i25', platforms: ['web'], text: 'Barre latérale des Paramètres et d’À propos : repliée, elle est maintenant plus compacte que dépliée ; À propos affiche ses chiffres en grille 2 × 2 et son titre n’est plus caché par la barre du haut sur téléphone.' },
       { id: '093i26', platforms: ['web', 'server'], text: 'Moins de lectures en base de données : index pour les clients et fournisseurs, structure des tables mémorisée plus longtemps, rafraîchissement des produits du tableau de bord espacé.' },
+      { id: '093i27', platforms: ['web', 'server'], text: 'Tableau de bord plus léger : son rafraîchissement ne recharge plus la fiche complète de chaque produit, seulement les colonnes affichées ; la liste produits et le scan de code-barres ne relisent plus la structure de la table à chaque appel.' },
     ] }, { kind: 'fixes', items: [
       { id: '093f1', platforms: ['web'], text: 'Passkeys web : l’enregistrement et la connexion par passkey fonctionnent de nouveau.' },
       { id: '093f2', platforms: ['web', 'server'], text: 'Paie : fenêtre de réglages CNSS/AMO corrigée, fenêtres affichées en plein écran et téléchargement des documents de paie rétabli.' },
@@ -111,6 +112,8 @@ export const RELEASES: Release[] = [
       { id: '093f23', platforms: ['web', 'server'], text: 'Rapports & crashs : « Renvoyer la file » crée de nouveau les tickets (les envois étaient bloqués avant d’atteindre GitHub, comme certains e-mails) ; les plantages identiques sont regroupés dans un seul ticket et les envois restent dans les limites de l’offre gratuite.' },
       { id: '093f24', platforms: ['web'], text: 'Plusieurs pages (Tableau de bord, Employés, Clients, Produits, Factures, Paramètres…) ne plantent plus quand le pointeur quitte la fenêtre depuis la barre flottante ; les erreurs dues aux extensions du navigateur ne sont plus remontées.' },
       { id: '093f25', platforms: ['web'], text: 'Menu hamburger des pages publiques : l’ouvrir ne décale plus la page ; boutons « Modifier », actions des lignes produit, cartes de l’accueil et pied des assistants qui ne débordent plus.' },
+      { id: '093f26', platforms: ['web'], text: 'Menu des pages À propos, Nouveautés et légales en thème sombre : le voile derrière le menu reste translucide au lieu de masquer la page.' },
+      { id: '093f27', platforms: ['web', 'server'], text: 'Mode démo : la liste produits légère fonctionne dès la première ouverture d’une base neuve, le compte démo s’affiche « Compte démo » sur mobile, et « Sauvegarder maintenant » explique clairement qu’il est indisponible en démo.' },
     ] }],
   },
   {
