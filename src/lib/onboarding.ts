@@ -5,16 +5,21 @@
  * - Welcome « Explorer Atlas Commerce » → queueOnboarding() (status pending, step 0).
  * - GuidedOnboarding (App shell) lit l’état, avance l’étape, puis finishOnboarding().
  * - Paramètres → Mon profil « Revoir la visite guidée » → restartOnboarding().
+ * - Mobile web : PhoneWelcome → queuePhoneOnboarding(), PhoneOnboarding (clé séparée
+ *   `atlas_phone_onboarding`), Réglages mobile → restartPhoneOnboarding().
  */
 
 export const ONBOARDING_KEY = 'atlas_onboarding';
 export const ONBOARDING_EVENT = 'atlas-onboarding';
+/** Mobile web keeps its own tour (different steps, different screen). */
+export const PHONE_ONBOARDING_KEY = 'atlas_phone_onboarding';
+export const PHONE_ONBOARDING_EVENT = 'atlas-phone-onboarding';
 
 export type OnboardingState = { status: 'pending' | 'done'; step: number };
 
-export function getOnboarding(): OnboardingState | null {
+function read(key: string): OnboardingState | null {
   try {
-    const raw = localStorage.getItem(ONBOARDING_KEY);
+    const raw = localStorage.getItem(key);
     if (!raw) return null;
     const v = JSON.parse(raw) as Partial<OnboardingState> | null;
     if (!v || (v.status !== 'pending' && v.status !== 'done')) return null;
@@ -25,19 +30,23 @@ export function getOnboarding(): OnboardingState | null {
   }
 }
 
-function write(state: OnboardingState) {
+function write(key: string, event: string, state: OnboardingState) {
   try {
-    localStorage.setItem(ONBOARDING_KEY, JSON.stringify(state));
+    localStorage.setItem(key, JSON.stringify(state));
   } catch {
     /* private mode: the tour simply runs once per session */
   }
   if (typeof window !== 'undefined') {
     try {
-      window.dispatchEvent(new CustomEvent(ONBOARDING_EVENT, { detail: state }));
+      window.dispatchEvent(new CustomEvent(event, { detail: state }));
     } catch {
       /* */
     }
   }
+}
+
+export function getOnboarding(): OnboardingState | null {
+  return read(ONBOARDING_KEY);
 }
 
 export function isOnboardingPending(): boolean {
@@ -47,17 +56,44 @@ export function isOnboardingPending(): boolean {
 export function queueOnboarding(): void {
   const cur = getOnboarding();
   if (cur?.status === 'done') return;
-  write({ status: 'pending', step: 0 });
+  write(ONBOARDING_KEY, ONBOARDING_EVENT, { status: 'pending', step: 0 });
 }
 
 export function restartOnboarding(): void {
-  write({ status: 'pending', step: 0 });
+  write(ONBOARDING_KEY, ONBOARDING_EVENT, { status: 'pending', step: 0 });
 }
 
 export function setOnboardingStep(step: number): void {
-  write({ status: 'pending', step: Math.max(0, Math.floor(step)) });
+  write(ONBOARDING_KEY, ONBOARDING_EVENT, { status: 'pending', step: Math.max(0, Math.floor(step)) });
 }
 
 export function finishOnboarding(): void {
-  write({ status: 'done', step: 0 });
+  write(ONBOARDING_KEY, ONBOARDING_EVENT, { status: 'done', step: 0 });
+}
+
+/* ---- Mobile web tour (PhoneOnboarding) ---- */
+
+export function getPhoneOnboarding(): OnboardingState | null {
+  return read(PHONE_ONBOARDING_KEY);
+}
+
+export function isPhoneOnboardingPending(): boolean {
+  return getPhoneOnboarding()?.status === 'pending';
+}
+
+export function queuePhoneOnboarding(): void {
+  if (getPhoneOnboarding()?.status === 'done') return;
+  write(PHONE_ONBOARDING_KEY, PHONE_ONBOARDING_EVENT, { status: 'pending', step: 0 });
+}
+
+export function restartPhoneOnboarding(): void {
+  write(PHONE_ONBOARDING_KEY, PHONE_ONBOARDING_EVENT, { status: 'pending', step: 0 });
+}
+
+export function setPhoneOnboardingStep(step: number): void {
+  write(PHONE_ONBOARDING_KEY, PHONE_ONBOARDING_EVENT, { status: 'pending', step: Math.max(0, Math.floor(step)) });
+}
+
+export function finishPhoneOnboarding(): void {
+  write(PHONE_ONBOARDING_KEY, PHONE_ONBOARDING_EVENT, { status: 'done', step: 0 });
 }

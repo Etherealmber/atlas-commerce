@@ -9,9 +9,9 @@ import {
   markWhatsNewSeen,
 } from '../lib/whatsNew';
 import { getContributorsForRelease } from '../lib/contributors';
-import { isOnboardingPending } from '../lib/onboarding';
+import { isOnboardingPending, isPhoneOnboardingPending } from '../lib/onboarding';
 
-const OTHER_POPUP = '.modal-overlay, .ac-lang-layer, .ac-user-dropdown, .ac-notif-panel, [aria-modal="true"]';
+const OTHER_POPUP = '.modal-overlay, .ac-lang-layer, .ac-user-dropdown, .ac-notif-panel, .ac-onboard-layer, .po-layer, .ph-modal-bg, [aria-modal="true"]';
 
 /** Lightweight once-per-version intro modal (P3). */
 export default function WhatsNewModal() {
@@ -35,7 +35,7 @@ export default function WhatsNewModal() {
       window.clearTimeout(t);
       t = window.setTimeout(() => {
         if (!shouldShowWhatsNewModal()) return;
-        if (isOnboardingPending() || document.querySelector(OTHER_POPUP)) {
+        if (isOnboardingPending() || isPhoneOnboardingPending() || document.querySelector(OTHER_POPUP)) {
           tryOpen();
           return;
         }

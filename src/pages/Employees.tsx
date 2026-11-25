@@ -427,7 +427,46 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
         window.dispatchEvent(new CustomEvent('atlas-lists-refresh', { detail: { source: 'employee-advance' } }));
       } catch { /* */ }
     } catch (e: any) {
-      flash(e?.message || 'Acompte impossible', 'error');
+      const code = e?.code || e?.body?.code;
+      const capData = e?.body?.data || {};
+      if (code === 'ADVANCE_CAP_EXCEEDED' || code === 'ADVANCE_CAP') {
+        // The server never shrinks the amount on its own (a concurrent advance may
+        // have used part of the cap). Show the real remaining allowance and let the
+        // user confirm it explicitly.
+        const left = code === 'ADVANCE_CAP' ? 0 : Math.max(0, Number(capData.max_advance ?? 0));
+        const target = advanceTarget;
+        const already = capData.already != null ? Number(capData.already) : undefined;
+        const half = capData.half_cycle_cap != null ? Number(capData.half_cycle_cap) : undefined;
+        setList((prev: Emp[]) =>
+          prev.map((x) =>
+            x.id === target.id
+              ? {
+                  ...x,
+                  max_advance: left,
+                  ...(already != null ? { advances_in_period: already } : {}),
+                  ...(half != null ? { half_cycle_cap: half } : {}),
+                }
+              : x,
+          ),
+        );
+        if (left > 0) {
+          setAdvanceAmount(left);
+          flash(`${e?.message || 'Plafond d’acompte dépassé.'} Montant ajusté à ${fmt(left)} : vérifiez puis confirmez.`, 'error');
+        } else {
+          setAdvanceTarget(null);
+          setPlafondWarn({
+            ...target,
+            ...(already != null ? { advances_in_period: already } : {}),
+            ...(half != null ? { half_cycle_cap: half } : {}),
+          } as Emp);
+        }
+        void load(true);
+      } else if (code === 'ADVANCE_CONFLICT') {
+        flash(e?.message || 'Opération concurrente détectée. Actualisez et réessayez.', 'error');
+        void load(true);
+      } else {
+        flash(e?.message || 'Acompte impossible', 'error');
+      }
     } finally {
       setAdvanceBusy(false);
     }

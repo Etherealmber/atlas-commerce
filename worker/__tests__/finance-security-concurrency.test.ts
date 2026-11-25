@@ -231,6 +231,14 @@ describe('Financial security, concurrency, multi-currency & reconciliation certi
     expect(advRows.length).toBe(1);
     expect(advRows[0].amount).toBe(2500);
 
+    // Sequential retry over the cap is refused too (never clamped to the remainder).
+    const a3 = await call(`/api/employees/${empId}/advance`, tok, 'POST', { amount: 2500, note: 'Avance urgente justifiée par dossier' });
+    expect(a3.status).toBe(409);
+    const a3j: any = await a3.json();
+    expect(a3j.code).toBe('ADVANCE_CAP_EXCEEDED');
+    expect(a3j.data.max_advance).toBe(500);
+    expect((sqlite.prepare(`SELECT COUNT(*) AS n FROM employee_payments WHERE employee_id = ?`).get(empId) as any).n).toBe(1);
+
     // Two concurrent full salary payments in the same cycle -> only one commits
     const [p1, p2] = await Promise.all([
       call(`/api/employees/${empId}/pay`, tok, 'POST', { paid_at: '2026-10-20', amount: 1500 }),

@@ -56,6 +56,7 @@ import { invalidateAvatarCache } from './lib/avatarCache';
 import { useProfileWarm, useProfileTick } from './lib/useProfileWarm';
 import { DemoProvider } from './context/DemoContext';
 const Welcome = lazyRetry(() => import('./pages/Welcome'));
+const PhoneWelcome = lazyRetry(() => import('./mobile/PhoneWelcome'));
 
 type NavBadges = {
   invoices_unpaid: number;
@@ -312,12 +313,21 @@ function WhatsNewRoute() {
 }
 
 function WelcomeGate() {
+  const isPhone = useIsPhoneShell();
   const loggedIn = typeof isLoggedIn === 'function' ? isLoggedIn() : !!getToken();
   if (!loggedIn) {
     return <Navigate to="/login" replace />;
   }
   if (isWelcomeCompleted()) {
     return <Navigate to={startDestination()} replace />;
+  }
+  // Phones (and the Android WebView) get the thumb-sized mobile welcome; PCs keep the full guide.
+  if (isPhone) {
+    return (
+      <Suspense fallback={<div className="pw-stage" aria-busy="true" />}>
+        <PhoneWelcome />
+      </Suspense>
+    );
   }
   return (
     <Suspense fallback={<div className="welcome-stage"><PageSkeleton variant="welcome" /></div>}>

@@ -1180,7 +1180,16 @@ export function registerEmployeeRoutes(app: AtlasApp, deps: EmployeeRouteDeps): 
     let amount = Math.max(0, Number(body.amount != null ? body.amount : Math.min(fivePct, hardLeft)));
     amount = roundCurrency(amount, empCurrency, 'ledger');
     if (amount <= 0) return c.json({ success: false, error: 'Montant invalide' }, 400);
-    if (amount > hardLeft) amount = hardLeft;
+    if (amount > hardLeft) {
+      // Never silently shrink a requested payroll amount: a second (or concurrent)
+      // acompte that would cross the 50% cap is refused, whatever the timing.
+      return c.json({
+        success: false,
+        error: `Plafond d’acompte dépassé : il reste ${hardLeft.toLocaleString('fr-FR')} ${empCurrency} possibles sur cette période (max. 50% du salaire de cycle).`,
+        code: 'ADVANCE_CAP_EXCEEDED',
+        data: { max_advance: hardLeft, already, half_cycle_cap: halfCap, requested: amount },
+      }, 409);
+    }
     const note = String(body.note || '').trim();
     const payment_method = String(body.payment_method || 'cash').trim() || 'cash';
     const empLabel = displayName(emp);
