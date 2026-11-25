@@ -528,7 +528,7 @@ export default function InventoryOps() {
                         <Pencil size={14} aria-hidden="true" />
                         <span>Renommer</span>
                       </button>
-                      <TimedUndoDelete
+                      <TimedUndoDelete iconOnly width="34px"
                         deleteLabel="Supprimer"
                         undoLabel="Annuler"
                         initialSeconds={10}
@@ -625,7 +625,7 @@ export default function InventoryOps() {
                   <td>{r.threshold}</td>
                   <td>{r.transfer_qty}</td>
                   <td>
-                    <TimedUndoDelete
+                    <TimedUndoDelete iconOnly width="34px"
                       deleteLabel="Supprimer"
                       undoLabel="Annuler"
                       initialSeconds={10}

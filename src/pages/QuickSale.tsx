@@ -569,7 +569,7 @@ export default function QuickSale() {
                             <span>Annuler</span>
                           </button>
                         )}
-                        <TimedUndoDelete
+                        <TimedUndoDelete iconOnly width="34px"
                           deleteLabel="Supprimer"
                           undoLabel="Annuler"
                           initialSeconds={10}

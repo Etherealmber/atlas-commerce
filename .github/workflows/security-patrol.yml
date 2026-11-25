@@ -6,7 +6,12 @@ name: Security patrol (intrusion detection)
 # intrusion attempts that were detected and blocked since the last deploy.
 # Findings open (or update) a single GitHub issue, each finding with a
 # concrete "fix possible" hint. No findings → any open patrol issue gets an
-# all-clear comment and is closed. Read-only probes with harmless payloads
+# all-clear comment and is closed. Checks that Cloudflare blocked before they
+# reached the app are "non vérifiés": they are NOT findings, never open or
+# bump the issue, and show up as a warning in the run summary instead.
+# Optional secret PATROL_EDGE_TOKEN: sent as header X-Atlas-Patrol so a
+# Cloudflare WAF custom rule (action Skip, header equals the secret) lets the
+# probes reach the worker. Never match on the user-agent. Read-only probes with harmless payloads
 # that our own WAF blocks; nothing is ever deployed or mutated.
 
 on:
@@ -47,6 +52,7 @@ jobs:
           # (zone afmarbre.com): Zone Read, Cache Purge Edit, Security Events Read.
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
+          PATROL_EDGE_TOKEN: ${{ secrets.PATROL_EDGE_TOKEN }}
         run: |
           node scripts/security-patrol.mjs > patrol.json.raw 2> patrol.log
           cat patrol.log
@@ -58,8 +64,9 @@ jobs:
             const doc = JSON.parse(m[1]);
             const findings = doc.findings.length;
             const critical = doc.findings.filter((f) => f.severity === "critical").length;
-            fs.appendFileSync(process.env.GITHUB_OUTPUT, "findings=" + findings + "\ncritical=" + critical + "\n");
-            console.log("findings=" + findings + " critical=" + critical + " waf_blocked=" + ((doc.waf && doc.waf.blocked) || 0));
+            const inconclusive = Array.isArray(doc.inconclusive) ? doc.inconclusive.length : 0;
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, "findings=" + findings + "\ncritical=" + critical + "\ninconclusive=" + inconclusive + "\n");
+            console.log("findings=" + findings + " critical=" + critical + " inconclusive=" + inconclusive + " waf_blocked=" + ((doc.waf && doc.waf.blocked) || 0));
           '
 
       - name: Open / update / close the patrol issue
@@ -68,9 +75,15 @@ jobs:
           TARGET: ${{ github.event.inputs.base_url || vars.PATROL_BASE_URL || 'https://stock.afmarbre.com' }}
         run: |
           gh label create security --color E11D48 --description "Sécurité / intrusion" >/dev/null 2>&1 || true
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
           EXISTING=$(gh issue list --state open --search "in:title [security-patrol]" --json number -q '.[0].number // empty')
           FINDINGS=${{ steps.probe.outputs.findings }}
-          if [ "$FINDINGS" != "0" ]; then
+          INCONCLUSIVE=${{ steps.probe.outputs.inconclusive }}
+          if [ "$FINDINGS" = "0" ] && [ "$INCONCLUSIVE" != "0" ]; then
+            # Cloudflare blocked the probe itself: not a vulnerability, nothing
+            # to file. An open issue is left as-is (it cannot be re-verified).
+            echo "::warning::$INCONCLUSIVE check(s) not run: Cloudflare blocked the patrol before the app. Not a finding, see the run summary (optional PATROL_EDGE_TOKEN)."
+          elif [ "$FINDINGS" != "0" ]; then
             if [ -n "$EXISTING" ]; then
               gh issue comment "$EXISTING" --body-file report.md
               echo "Commented fresh findings on open patrol issue #$EXISTING"

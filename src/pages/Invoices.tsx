@@ -649,7 +649,7 @@ export default function Invoices() {
                           <span>Annuler</span>
                         </button>
                       )}
-                      <TimedUndoDelete
+                      <TimedUndoDelete iconOnly width="34px"
                         deleteLabel="Supprimer"
                         undoLabel="Annuler"
                         initialSeconds={10}

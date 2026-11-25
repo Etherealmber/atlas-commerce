@@ -251,7 +251,7 @@ export default function Receipts() {
                         <QrCode size={14} aria-hidden="true" />
                         <span>{Number(r.include_client_situation) === 1 ? 'Situation QR : ON' : 'Situation QR'}</span>
                       </button>
-                      <TimedUndoDelete
+                      <TimedUndoDelete iconOnly width="34px"
                         deleteLabel="Supprimer"
                         undoLabel="Annuler"
                         initialSeconds={10}

@@ -1199,9 +1199,9 @@ if (loading) return (
                       <td style={{ padding: '8px 4px' }}>{k.device_type === 'platform' ? 'Biométrie / OS' : 'Clé sécurité'}</td>
                       <td style={{ padding: '8px 4px', color: 'var(--muted)' }}>{k.username || '—'}</td>
                       <td style={{ padding: '8px 4px', color: 'var(--muted)' }}>{(k.created_at || '').slice(0, 16).replace('T', ' ')}</td>
-                      <td style={{ padding: '8px 4px', whiteSpace: 'nowrap' }}>
-                        <button type="button" className="secondary" style={{ padding: '4px 8px', fontSize: 12, marginRight: 6 }} onClick={() => renamePasskey(k.id, k.label || '')}>Renommer</button>
-                        <TimedUndoDelete deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10} onConfirm={() => void deletePasskey(k.id, k.label || '')} />
+                      <td className="row-actions-cell" style={{ padding: '8px 4px' }}>
+                        <button type="button" className="secondary" onClick={() => renamePasskey(k.id, k.label || '')}>Renommer</button>
+                        <TimedUndoDelete iconOnly width="34px" deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10} onConfirm={() => void deletePasskey(k.id, k.label || '')} />
                       </td>
                     </tr>
                   ))}
@@ -2565,12 +2565,11 @@ if (loading) return (
                     <td><strong>{cat.name}</strong></td>
                     <td style={{ color: 'var(--muted)', fontSize: 13 }}>{cat.description || '—'}</td>
                     <td style={{ fontSize: 12 }}>{cat.from_products ? 'Utilisée sur produits' : 'Définie'}</td>
-                    <td style={{ whiteSpace: 'nowrap' }}>
+                    <td className="row-actions-cell">
                       {cat.id ? (
                         <button
                           type="button"
                           className="secondary"
-                          style={{ padding: '4px 10px', fontSize: 12, marginRight: 6 }}
                           onClick={() => {
                             setEditingCat(cat);
                             setCatName(cat.name || '');
@@ -2580,7 +2579,7 @@ if (loading) return (
                           Modifier
                         </button>
                       ) : null}
-                      <TimedUndoDelete
+                      <TimedUndoDelete iconOnly width="34px"
                         deleteLabel="Supprimer"
                         undoLabel="Annuler"
                         initialSeconds={10}
@@ -2638,12 +2637,12 @@ if (loading) return (
                 {units.map((u: any) => (
                   <tr key={u.id ?? u.name}>
                     <td><strong>{u.name}</strong></td>
-                    <td style={{ whiteSpace: 'nowrap' }}>
+                    <td className="row-actions-cell">
                       {u.id ? (
-                          <button type="button" className="secondary" style={{ padding: '4px 10px', fontSize: 12, marginRight: 6 }}
+                          <button type="button" className="secondary"
                             onClick={() => { setEditingUnit(u); setUnitName(u.name || ''); }}>Modifier</button>
                       ) : null}
-                          <TimedUndoDelete
+                          <TimedUndoDelete iconOnly width="34px"
                             deleteLabel="Supprimer"
                             undoLabel="Annuler"
                             initialSeconds={10}
@@ -3736,12 +3735,12 @@ if (loading) return (
                     <td>{roleLabel(u.role)}</td>
                     <td style={{ fontSize: 12 }}>{u.email || <span title="OTP envoyé sur l'e-mail principal">— principal</span>}</td>
                     <td style={{ fontSize: 12 }}>{u.created_at}</td>
-                    <td style={{ whiteSpace: 'nowrap' }}>
-                      <button type="button" className="secondary" style={{ padding: '4px 10px', fontSize: 12, marginRight: 6 }}
+                    <td className="row-actions-cell">
+                      <button type="button" className="secondary"
                         onClick={() => setEditingUser({ ...u, password: '' })}>
                         Modifier
                       </button>
-                      <TimedUndoDelete deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10} onConfirm={() => deleteUser(u.id, u.username)} />
+                      <TimedUndoDelete iconOnly width="34px" deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10} onConfirm={() => deleteUser(u.id, u.username)} />
                     </td>
                   </tr>
                 ))}
