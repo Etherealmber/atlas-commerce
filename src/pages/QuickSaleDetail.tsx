@@ -1,6 +1,7 @@
 import DocumentActors from '../components/DocumentActors';
 import TopPageActions from '../components/TopPageActions';
-import { Ban, Pencil, Printer, RotateCcw } from 'lucide-react';
+import { Ban, Pencil, Printer, RotateCcw, Truck } from 'lucide-react';
+import { openDeliveryNote } from '../lib/deliveryNote';
 import { useEffect, useRef, useState } from 'react';
 import DatePicker from '../components/DatePicker';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
@@ -312,6 +313,17 @@ export default function QuickSaleDetail() {
             <Printer size={16} aria-hidden="true" />
             <span className="tpa-label">Imprimer</span>
           </button>
+          {!cancelled && ticket.status !== 'remboursement' && (
+            <button
+              type="button"
+              className="secondary"
+              title="Bon de livraison (PDF)"
+              onClick={() => { openDeliveryNote(ticket.id).then((r) => toast(r.message, 'success')).catch((e: any) => toast(e?.message || 'Bon de livraison impossible', 'error')); }}
+            >
+              <Truck size={16} aria-hidden="true" />
+              <span className="tpa-label">Bon de livraison</span>
+            </button>
+          )}
           {!cancelled && !editingInfo && (
             <button
               type="button"

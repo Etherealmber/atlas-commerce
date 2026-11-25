@@ -52,6 +52,7 @@ function isHtmlDocumentApi(url, req) {
   }
   if (/^\/api\/(invoices|bills|receipts)\/\d+\/(print|pdf|ubl)(\.xml)?$/.test(p)) return true;
   if (/^\/api\/print\/thermal\/\d+$/.test(p)) return true;
+  if (/^\/api\/(delivery-notes\/\d+\/print|employees\/(\d+\/)?form\/print)$/.test(p)) return true;
   if (p === '/api/settings/invoice-preview') return true;
   const accept = (req.headers.get('Accept') || '').toLowerCase();
   if (accept.includes('text/html') && !accept.includes('application/json')) return true;

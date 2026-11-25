@@ -14,13 +14,15 @@ let host: HTMLDivElement; let root: Root;
 beforeEach(() => { (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true; host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host); localStorage.clear(); });
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 const click = (text: string) => [...document.querySelectorAll('button')].find(b => b.textContent?.trim() === text)!;
-it('settings apply theme, text scale, animations and show language as coming soon', async () => {
+it('settings apply theme, text scale, animations and open the real language picker', async () => {
   const theme = vi.fn(); const animation = vi.fn(); const scale = vi.fn(); const compact = vi.fn(); const start = vi.fn();
   await act(async () => root.render(createElement(MemoryRouter, { children: createElement(PhoneSettings, { theme: 'system', onTheme: theme, animations: true, onAnimations: animation, compact: false, onCompact: compact, scale: 'md', onScale: scale, startTab: '/m', onStartTab: start }) })));
   await act(async () => { click('Sombre').click(); click('Grande').click(); click('Compact').click(); document.querySelector<HTMLInputElement>('input[type=checkbox]')!.click(); });
   expect(theme).toHaveBeenCalledWith('dark'); expect(scale).toHaveBeenCalledWith('lg'); expect(compact).toHaveBeenCalledWith(true); expect(animation).toHaveBeenCalledWith(false);
   await act(async () => { document.querySelector<HTMLButtonElement>('.ph-setting-link')!.click(); });
-  expect(document.body.textContent).toContain('l’arabe et l’anglais arrivent'); await act(async () => click('Compris').click());
+  expect(document.body.textContent).toContain('العربية'); expect(document.body.textContent).toContain('English');
+  expect(document.querySelectorAll('.ac-lang-row[role="radio"]').length).toBe(3);
+  await act(async () => (document.querySelector('.ac-lang-ok') as HTMLButtonElement).click());
   const select = document.querySelector('select') as any;
   await act(async () => { select.value = '/m/products'; select.dispatchEvent(new Event('change', { bubbles: true })); });
   expect(start).toHaveBeenCalledWith('/m/products');

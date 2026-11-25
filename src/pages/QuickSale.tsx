@@ -1,6 +1,7 @@
 import DocumentActors from '../components/DocumentActors';
 import TopPageActions from '../components/TopPageActions';
-import { Plus, RotateCcw, CheckCircle2, CreditCard, Printer, Ban, Pencil } from 'lucide-react';
+import { Ban, CheckCircle2, CreditCard, Pencil, Plus, Printer, RotateCcw, Truck } from 'lucide-react';
+import { openDeliveryNote, reserveDeliveryNoteTab } from '../lib/deliveryNote';
 import { TimedUndoDelete } from '../components/ui';
 import ListPager from '../components/ui/ListPager';
 import { useEffect, useState } from 'react';
@@ -90,6 +91,7 @@ export default function QuickSale() {
   const [clientPhone, setClientPhone] = useState('');
   const [issueDate, setIssueDate] = useState(today());
   const [notes, setNotes] = useState('');
+  const [withBl, setWithBl] = useState(false);
   const [items, setItems] = useState<Line[]>([
     { product_name: '', quantity: 1, list_price: 0, unit_price: 0, product_query: '' },
   ]);
@@ -325,6 +327,7 @@ export default function QuickSale() {
     setClientPhone('');
     setIssueDate(today());
     setNotes('');
+    setWithBl(false);
     setPayMode('cash');
     setItems([{ product_name: '', quantity: 1, list_price: 0, unit_price: 0, product_query: '' }]);
   };
@@ -342,6 +345,8 @@ export default function QuickSale() {
       return;
     }
     setBusy(true);
+    // Reserve the BL tab inside the click, before any await (popup blockers).
+    const blTab = withBl ? reserveDeliveryNoteTab() : null;
     try {
       const inv: any = await api.createInvoice({
         client_id: clientId || undefined,
@@ -384,10 +389,14 @@ export default function QuickSale() {
       }
       flash(`Ticket ${number} créé · ${fmt(invTotal)} (à encaisser)`, 'success');
       toast(`Ticket ${number} créé — à encaisser · ${fmt(invTotal)}`, 'success');
+      if (withBl && invId) {
+        openDeliveryNote(invId, blTab).catch((e: any) => toast(e?.message || 'Bon de livraison impossible', 'error'));
+      }
       resetForm();
       setShowModal(false);
       refreshCounts();
     } catch (e: any) {
+      try { blTab?.close(); } catch { /* ignore */ }
       flash(e?.message || 'Échec de la vente rapide', 'error');
     } finally {
       setBusy(false);
@@ -571,6 +580,18 @@ export default function QuickSale() {
                           <Printer size={14} aria-hidden="true" />
                           <span>Imprimer</span>
                         </button>
+                        {inv.status !== 'cancelled' && inv.status !== 'remboursement' && (
+                          <button
+                            type="button"
+                            className="secondary"
+                            title="Bon de livraison (PDF)"
+                            aria-label={`Bon de livraison du ticket ${inv.number}`}
+                            onClick={() => { openDeliveryNote(inv.id).then((r) => toast(r.message, 'success')).catch((e: any) => toast(e?.message || 'Bon de livraison impossible', 'error')); }}
+                          >
+                            <Truck size={14} aria-hidden="true" />
+                            <span>BL</span>
+                          </button>
+                        )}
                         {inv.status !== 'cancelled' && (
                           <button
                             type="button"
@@ -787,6 +808,14 @@ export default function QuickSale() {
               <label>Notes</label>
               <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optionnel" />
             </div>
+
+            <label className="qs-bl-toggle">
+              <input type="checkbox" checked={withBl} onChange={(e) => setWithBl(e.target.checked)} />
+              <span>
+                <strong>Bon de livraison</strong>
+                <small>Ouvre le BL (PDF) du ticket après l’enregistrement.</small>
+              </span>
+            </label>
 
             </StepBody>
             <ModalFormError message={modalError} />

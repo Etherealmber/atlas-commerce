@@ -550,7 +550,7 @@ export default function Bills() {
                   </td>
                   <td>{b.number}<DocumentActors document={b} /></td>
                   <td>
-                    {b.vendor_name}
+                    <span translate="no">{b.vendor_name}</span>
                     {b.vendor_id && <small style={{ display: 'block', color: 'var(--muted)', fontSize: 11 }}>Fiche fournisseur #{b.vendor_id}</small>}
                   </td>
                   <td>{b.issue_date}</td>

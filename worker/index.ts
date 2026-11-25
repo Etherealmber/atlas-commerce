@@ -845,6 +845,7 @@ app.use('/api/*', async (c, next) => {
     path.match(/^\/api\/invoices\/\d+\/ubl$/) ||
     path.match(/^\/api\/invoices\/\d+\/ubl\.xml$/) ||
     path.match(/^\/api\/bills\/\d+\/print$/) ||
+    path.match(/^\/api\/delivery-notes\/\d+\/print$/) ||
     path.match(/^\/api\/bills\/\d+\/pdf$/) ||
     path.match(/^\/api\/receipts\/\d+\/print$/) ||
     path.match(/^\/api\/receipts\/\d+\/pdf$/) ||

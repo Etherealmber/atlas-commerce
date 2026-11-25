@@ -238,3 +238,12 @@ html[data-theme="dark"] body select.ac-sel.is-open:not(#ctl-g):not(#ctl-h) {
   border-color: #52525b !important;
   box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08) !important;
 }
+
+/* Quick sale — « Bon de livraison » option (step 4). */
+.qs-bl-toggle { display: flex; align-items: flex-start; gap: 10px; margin-top: 10px; padding: 12px 14px; border: 1px solid #ece7de; border-radius: 12px; background: #faf8f4; cursor: pointer; }
+.qs-bl-toggle input { margin-top: 2px !important; }
+.qs-bl-toggle span { display: grid; gap: 2px; }
+.qs-bl-toggle strong { font-size: 14px; }
+.qs-bl-toggle small { color: #78716c; font-size: 12px; }
+html[data-theme="dark"] .qs-bl-toggle { background: #1c1c1f; border-color: #2f2f35; }
+html[data-theme="dark"] .qs-bl-toggle small { color: #a1a1aa; }

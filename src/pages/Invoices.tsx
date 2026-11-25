@@ -34,6 +34,7 @@ import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type Wizard
 import { ModalFormError } from '../components/ModalFormFeedback';
 import { MetricSpark, MetricTrend } from '../components/MetricSpark';
 import Select from '../components/ui/Select';
+import { openDeliveryNote } from '../lib/deliveryNote';
 
 const INVOICE_STEPS: readonly WizardStepDef[] = [
   { id: 'client', label: 'Client', hint: 'Client enregistré ou nouveau client, avec son identifiant fiscal.' },
@@ -625,11 +626,11 @@ export default function Invoices() {
                         label={`Plus d’actions pour ${inv.number}`}
                         actions={[
                           ...(inv.status !== 'quote' && inv.status !== 'devis' && inv.status !== 'remboursement' && inv.status !== 'cancelled' ? [{
-                            key: 'bl', label: 'Créer le bon de livraison (BL)', icon: <FileCheck2 size={15} />,
+                            key: 'bl', label: 'Bon de livraison (PDF)', icon: <FileCheck2 size={15} />,
                             onSelect: async () => {
                               try {
-                                const r: any = await api.createDeliveryNote({ invoice_id: inv.id });
-                                toast(r.message || 'BL créé', 'success');
+                                const r = await openDeliveryNote(inv.id);
+                                toast(r.message, 'success');
                               } catch (e: any) {
                                 setModalError(friendlyError(e));
                               }

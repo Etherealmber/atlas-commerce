@@ -5,7 +5,8 @@ import { afterBusinessMutation } from '../lib/delete-coord';
 import { doCacheGet, doCachePut, hasLiveCache } from '../lib/cache';
 import { roundCurrency } from '../lib/financeCore';
 import { nextDocumentNumber } from '../lib/numbering';
-import { assertSafeOutboundUrl, escapeHtml } from '../lib/security';
+import { assertSafeOutboundUrl } from '../lib/security';
+import { generateDeliveryNoteHTML } from '../lib/printTemplates';
 import { normalizeInventoryRole, roleCanSeeFinancial, scrubProductForRole } from '../lib/inventory-policy';
 
 interface InventoryOpsRouteDeps {
@@ -206,6 +207,7 @@ async function ensureDeliveryNotes(db: D1Database) {
   await db.prepare(`CREATE TABLE IF NOT EXISTS delivery_note_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT, delivery_note_id INTEGER NOT NULL, product_id INTEGER,
     product_name TEXT, quantity REAL NOT NULL, unit TEXT DEFAULT 'u')`).run();
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_delivery_notes_invoice ON delivery_notes(invoice_id)`).run().catch(() => {});
 
   });
 }
@@ -998,6 +1000,14 @@ export function registerInventoryOpsRoutes(app: Hono<any>, deps: InventoryOpsRou
     const invoiceId = Number(body.invoice_id || 0);
     const inv = invoiceId ? await c.env.DB.prepare(`SELECT * FROM invoices WHERE id = ?`).bind(invoiceId).first() as any : null;
     if (invoiceId && !inv) return c.json({ success: false, error: 'Facture introuvable' }, 404);
+    if (inv && (inv.status === 'cancelled' || inv.status === 'quote' || inv.status === 'devis' || inv.status === 'remboursement' || inv.doc_kind === 'remboursement')) {
+      return c.json({ success: false, error: 'Pas de bon de livraison pour un devis, un remboursement ou un document annulé.', code: 'BL_NOT_ALLOWED' }, 400);
+    }
+    // One BL per invoice / ticket: opening it again re-prints the same number.
+    if (invoiceId && body.force !== true) {
+      const prev = await c.env.DB.prepare(`SELECT * FROM delivery_notes WHERE invoice_id = ? ORDER BY id DESC LIMIT 1`).bind(invoiceId).first() as any;
+      if (prev) return c.json({ success: true, data: prev, existing: true, message: `Bon de livraison ${prev.number} déjà créé — réouverture.` });
+    }
     const year = new Date().getFullYear();
     const { results: existing } = await c.env.DB.prepare(`SELECT number FROM delivery_notes WHERE number LIKE ?`).bind(`BL-${year}-%`).all();
     let max = 0;
@@ -1015,7 +1025,7 @@ export function registerInventoryOpsRoutes(app: Hono<any>, deps: InventoryOpsRou
     let items: any[] = Array.isArray(body.items) ? body.items : [];
     if (!items.length && invoiceId) {
       const { results: invItems } = await c.env.DB.prepare(
-        `SELECT product_id, product_name, quantity FROM invoice_items WHERE invoice_id = ?`
+        `SELECT product_id, product_name, quantity FROM invoice_items WHERE invoice_id = ? AND COALESCE(quantity, 0) > 0`
       ).bind(invoiceId).all();
       items = invItems || [];
     }
@@ -1030,25 +1040,23 @@ export function registerInventoryOpsRoutes(app: Hono<any>, deps: InventoryOpsRou
   
   app.get('/api/delivery-notes/:id/print', async (c) => {
     await ensureDeliveryNotes(c.env.DB);
-    const id = c.req.param('id');
+    const id = Number(c.req.param('id'));
     const dn = await c.env.DB.prepare(`SELECT * FROM delivery_notes WHERE id = ?`).bind(id).first() as any;
     if (!dn) return c.json({ success: false, error: 'BL introuvable' }, 404);
-    const { results: items } = await c.env.DB.prepare(`SELECT * FROM delivery_note_items WHERE delivery_note_id = ?`).bind(id).all();
-    const settings = await c.env.DB.prepare(`SELECT company_name FROM company_settings WHERE id = 1`).first() as any;
-    const rows = (items || []).map((it: any) =>
-      `<tr><td>${escapeHtml(String(it.product_name || ''))}</td><td style="text-align:right">${Number(it.quantity || 0)}</td></tr>`
-    ).join('');
-    return c.html(`<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/><title>${escapeHtml(String(dn.number || ''))}</title>
-    <style>body{font-family:system-ui;max-width:720px;margin:24px auto}table{width:100%;border-collapse:collapse}
-    td,th{border-bottom:1px solid #ddd;padding:8px;text-align:left}</style></head><body>
-    <h1>Bon de livraison ${escapeHtml(String(dn.number || ''))}</h1>
-    <p>${escapeHtml(String(settings?.company_name || ''))}<br/>Client : <strong>${escapeHtml(String(dn.client_name || '—'))}</strong><br/>Date : ${escapeHtml(String(dn.issue_date || ''))}</p>
-    <table><thead><tr><th>Article</th><th style="text-align:right">Qté</th></tr></thead><tbody>${rows}</tbody></table>
-    <p style="margin-top:12px">Réception — signature : _______________</p>
-    <script>window.onload=()=>window.print()</script></body></html>`);
+    const { results: items } = await c.env.DB.prepare(
+      `SELECT d.product_name, d.quantity, COALESCE(NULLIF(d.unit, ''), p.unit, 'u') AS unit, p.sku AS sku
+         FROM delivery_note_items d LEFT JOIN products p ON p.id = d.product_id
+        WHERE d.delivery_note_id = ? ORDER BY d.id`,
+    ).bind(id).all().catch(async () => c.env.DB.prepare(`SELECT product_name, quantity, unit FROM delivery_note_items WHERE delivery_note_id = ? ORDER BY id`).bind(id).all());
+    const settings = await c.env.DB.prepare(`SELECT * FROM company_settings WHERE id = 1`).first() as any;
+    const source = dn.invoice_id
+      ? await c.env.DB.prepare(`SELECT number, doc_kind, client_address, client_phone, client_ice FROM invoices WHERE id = ?`).bind(dn.invoice_id).first().catch(() => null) as any
+      : null;
+    const auto = c.req.query('print') !== '0';
+    return c.html(generateDeliveryNoteHTML(settings, dn, (items || []) as any[], source, auto));
   });
-  
-  
+
+
   app.post('/api/bills/:id/receive', async (c) => {
     const gate = requireBizMutator(c);
     if (!gate.ok) return gate.response;

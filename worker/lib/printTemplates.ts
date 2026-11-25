@@ -1062,3 +1062,116 @@ export function registerEmployeeFormPrintRoutes(
     return c.html(generateEmployeeFormHTML(settings, emp, { autoPrint: true }));
   });
 }
+
+/**
+ * Bon de livraison (BL) — A4 document listing what was handed over, with
+ * delivered quantities and two signature boxes. No prices: a BL proves the
+ * delivery, the invoice / ticket carries the amounts. Opens the print dialog;
+ * « Enregistrer au format PDF » gives the PDF.
+ */
+export function generateDeliveryNoteHTML(
+  settings: any,
+  dn: { number?: string; issue_date?: string; client_name?: string; notes?: string; created_at?: string },
+  items: { product_name?: string; sku?: string | null; quantity?: number; unit?: string | null }[],
+  source: { number?: string; doc_kind?: string | null; client_address?: string | null; client_phone?: string | null; client_ice?: string | null } | null,
+  autoPrint = true,
+): string {
+  const eh = escapeHtml;
+  const accent = /^#[0-9a-f]{3,8}$/i.test(String(settings?.pdf_accent_color || '')) ? String(settings.pdf_accent_color) : '#111111';
+  const logoSrc = safeImageSrc(settings?.logo_url);
+  const d = String(dn.issue_date || '').slice(0, 10);
+  const [y, m, day] = d.split('-');
+  const date = day && m ? `${day}/${m}/${y}` : d;
+  const isTicket = source?.doc_kind === 'quick_sale' || source?.doc_kind === 'ticket' || /^VR-/i.test(String(source?.number || ''));
+  const totalQty = items.reduce((a, it) => a + Number(it.quantity || 0), 0);
+  const qty = (n: number) => (Number.isInteger(n) ? String(n) : n.toLocaleString('fr-FR', { maximumFractionDigits: 3 }));
+  const tag = (label: string, v: unknown) => {
+    const t = String(v ?? '').trim();
+    if (!t) return '';
+    return t.toLowerCase().startsWith(`${label.toLowerCase()} `) ? eh(t) : `${label} ${eh(t)}`;
+  };
+  const legal = [tag('ICE', settings?.ice), tag('RC', settings?.rc), tag('IF', settings?.if_number), tag('Patente', settings?.patente)].filter(Boolean).join(' · ');
+  const rows = items.map((it, i) => `<tr>
+      <td class="n">${i + 1}</td>
+      <td>${eh(String(it.product_name || '—'))}${it.sku ? `<div class="sku">${eh(String(it.sku))}</div>` : ''}</td>
+      <td class="q">${qty(Number(it.quantity || 0))}${it.unit && it.unit !== 'u' ? ` <span class="u">${eh(String(it.unit))}</span>` : ''}</td>
+      <td class="chk"><span></span></td>
+    </tr>`).join('');
+  return `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Bon de livraison ${eh(String(dn.number || ''))}</title>
+<style>
+  @page { size: A4; margin: 14mm; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #171717; background: #f5f5f4; }
+  .sheet { max-width: 800px; margin: 24px auto; background: #fff; padding: 36px 40px; border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.06); }
+  header { display: flex; justify-content: space-between; gap: 24px; align-items: flex-start; padding-bottom: 18px; border-bottom: 2px solid ${accent}; }
+  .co strong { font-size: 17px; display: block; }
+  .co img { max-height: 54px; max-width: 180px; display: block; margin-bottom: 8px; }
+  .co div, .meta div { color: #57534e; font-size: 12px; }
+  .doc { text-align: right; }
+  .doc h1 { margin: 0 0 6px; font-size: 22px; letter-spacing: .02em; color: ${accent}; white-space: nowrap; }
+  .doc .num { font-weight: 700; font-size: 14px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 20px 0; }
+  .box { border: 1px solid #e7e5e4; border-radius: 10px; padding: 12px 14px; }
+  .box h2 { margin: 0 0 6px; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: #78716c; }
+  .box p { margin: 0; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 11px; letter-spacing: .05em; text-transform: uppercase; color: #78716c; border-bottom: 1px solid #d6d3d1; padding: 8px 8px; }
+  td { padding: 9px 8px; border-bottom: 1px solid #f0efed; vertical-align: top; }
+  td.n, th.n { width: 34px; color: #a8a29e; }
+  td.q, th.q { width: 110px; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+  td.chk, th.chk { width: 64px; text-align: center; }
+  td.chk span { display: inline-block; width: 14px; height: 14px; border: 1.5px solid #a8a29e; border-radius: 4px; }
+  .sku { color: #a8a29e; font-size: 11px; font-family: ui-monospace, monospace; }
+  .u { color: #78716c; font-weight: 500; }
+  tfoot td { border: 0; font-weight: 700; padding-top: 12px; }
+  .notes { margin-top: 16px; color: #44403c; white-space: pre-wrap; }
+  .sign { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 28px; }
+  .sign .box { min-height: 110px; }
+  .sign small { color: #a8a29e; }
+  footer { margin-top: 26px; padding-top: 12px; border-top: 1px solid #e7e5e4; color: #a8a29e; font-size: 11px; text-align: center; }
+  .bar { max-width: 800px; margin: 16px auto 0; display: flex; justify-content: flex-end; gap: 8px; }
+  .bar button { font: inherit; font-weight: 600; border: 0; border-radius: 999px; padding: 9px 16px; background: #111; color: #fff; cursor: pointer; }
+  @media print { body { background: #fff; } .sheet { box-shadow: none; margin: 0; padding: 0; max-width: none; border-radius: 0; } .bar { display: none; } }
+  @media (max-width: 640px) { .sheet { margin: 0; border-radius: 0; padding: 20px 16px; } header, .grid, .sign { grid-template-columns: 1fr; display: grid; } .doc { text-align: left; } }
+</style></head><body>
+<div class="bar"><button type="button" onclick="window.print()">Imprimer / Enregistrer en PDF</button></div>
+<main class="sheet">
+  <header>
+    <div class="co">
+      ${logoSrc ? `<img src="${eh(logoSrc)}" alt=""/>` : ''}
+      <strong>${eh(String(settings?.company_name || ''))}</strong>
+      ${settings?.address ? `<div>${eh(String(settings.address))}</div>` : ''}
+      ${settings?.phone || settings?.email ? `<div>${[settings?.phone, settings?.email].filter(Boolean).map((v: unknown) => eh(String(v))).join(' · ')}</div>` : ''}
+      ${legal ? `<div>${legal}</div>` : ''}
+    </div>
+    <div class="doc">
+      <h1>BON DE LIVRAISON</h1>
+      <div class="num">${eh(String(dn.number || ''))}</div>
+      <div class="meta"><div>Date : ${eh(date)}</div>${source?.number ? `<div>${isTicket ? 'Ticket' : 'Facture'} : ${eh(String(source.number))}</div>` : ''}</div>
+    </div>
+  </header>
+  <section class="grid">
+    <div class="box"><h2>Livré à</h2><p><strong>${eh(String(dn.client_name || 'Client comptoir'))}</strong></p>
+      ${source?.client_address ? `<p>${eh(String(source.client_address))}</p>` : ''}
+      ${source?.client_phone ? `<p>${eh(String(source.client_phone))}</p>` : ''}
+      ${source?.client_ice ? `<p>ICE ${eh(String(source.client_ice))}</p>` : ''}
+    </div>
+    <div class="box"><h2>Livraison</h2><p>${items.length} article${items.length > 1 ? 's' : ''} · ${qty(totalQty)} unité${totalQty > 1 ? 's' : ''}</p><p>Contrôlez chaque ligne à la réception.</p></div>
+  </section>
+  <table>
+    <thead><tr><th class="n">#</th><th>Article</th><th class="q">Qté livrée</th><th class="chk">Reçu</th></tr></thead>
+    <tbody>${rows || '<tr><td colspan="4">Aucun article.</td></tr>'}</tbody>
+    <tfoot><tr><td></td><td>Total</td><td class="q">${qty(totalQty)}</td><td></td></tr></tfoot>
+  </table>
+  ${dn.notes ? `<p class="notes">${eh(String(dn.notes))}</p>` : ''}
+  <section class="sign">
+    <div class="box"><h2>Livreur</h2><small>Nom, date et signature</small></div>
+    <div class="box"><h2>Client — bon pour réception</h2><small>Nom, date, signature et cachet</small></div>
+  </section>
+  <footer>Ce bon de livraison ne vaut pas facture.${settings?.pdf_footer_text ? ` ${eh(String(settings.pdf_footer_text))}` : ''}</footer>
+</main>
+${autoPrint ? '<script>window.addEventListener("load",function(){setTimeout(function(){window.print()},250)})</script>' : ''}
+</body></html>`;
+}

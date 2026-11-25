@@ -1,6 +1,7 @@
 import DocumentActors from '../components/DocumentActors';
 import TopPageActions from '../components/TopPageActions';
-import { Ban, FileCode2, Pencil, Printer, RotateCcw } from 'lucide-react';
+import { Ban, FileCode2, Pencil, Printer, RotateCcw, Truck } from 'lucide-react';
+import { openDeliveryNote } from '../lib/deliveryNote';
 import { useEffect, useRef, useState } from 'react';
 import DatePicker from '../components/DatePicker';
 import { whatsAppDraft } from '../lib/assist';
@@ -323,6 +324,17 @@ export default function InvoiceDetail() {
             <Printer size={16} aria-hidden="true" />
             <span className="tpa-label">Imprimer</span>
           </button>
+          {!isQuote && invoice.status !== 'cancelled' && invoice.status !== 'remboursement' && invoice.doc_kind !== 'remboursement' && (
+            <button
+              type="button"
+              className="secondary"
+              title="Bon de livraison (PDF)"
+              onClick={() => { openDeliveryNote(invoice.id).then((r) => toast(r.message, 'success')).catch((e: any) => toast(e?.message || 'Bon de livraison impossible', 'error')); }}
+            >
+              <Truck size={16} aria-hidden="true" />
+              <span className="tpa-label">Bon de livraison</span>
+            </button>
+          )}
           {invoice.status !== 'quote' && invoice.status !== 'devis' && (
             <button
               type="button"
@@ -764,7 +776,7 @@ export default function InvoiceDetail() {
                 <option value="">— Saisie libre / inchangé —</option>
                 {clients.map((c) => (
                   <option key={c.id} value={String(c.id)}>
-                    {c.name}{c.ice ? ` · ${c.ice}` : ''}
+                    <span translate="no">{c.name}{c.ice ? ` · ${c.ice}` : ''}</span>
                   </option>
                 ))}
               </Select>
@@ -793,7 +805,7 @@ export default function InvoiceDetail() {
           </div>
         ) : (
           <div style={{ fontSize: 14, lineHeight: 1.5 }}>
-            <strong>{invoice.client_name}</strong>
+            <strong translate="no">{invoice.client_name}</strong>
             {invoice.client_ice && <div>ICE : {invoice.client_ice}</div>}
             {(invoice.client_address || invoice.client_city) && (
               <div>
