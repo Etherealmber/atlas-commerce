@@ -4186,7 +4186,7 @@ html.phone-shell:not([data-theme="dark"]) body #root .phone-root .ph-agent-bubbl
 }
 html.phone-shell:not([data-theme="dark"]) body #root .phone-root .ph-agent-bubble.assistant .ph-agent-copy { color: #71717a !important; -webkit-text-fill-color: #71717a !important; }
 
-/* ===== 0.9.4 — back buttons follow the floating bar, no outline ===== */
+/* ===== 0.9.3 — back buttons follow the floating bar, no outline ===== */
 /* The back arrow sits inside the floating pill (top bar / Atlas Agent dock):
    it takes the bar's own surface and ink, is a clean 40px circle, and never
    draws a border or a filled disc. Hover/press is a soft tint of the bar. */
@@ -4228,7 +4228,7 @@ html[data-theme="dark"].phone-shell body #root .phone-root:not(#x) :is(.phone-to
   -webkit-text-fill-color: #ffffff !important;
 }
 
-/* ===== 0.9.4 — device scan / connected devices page ===== */
+/* ===== 0.9.3 — device scan / connected devices page ===== */
 html.phone-shell body #root .phone-root .ph-device-page { display: flex; flex-direction: column; gap: 14px; padding-bottom: 24px; }
 html.phone-shell body #root .phone-root .ph-device-page .ph-device-heading { margin: 4px 0 2px; }
 html.phone-shell body #root .phone-root .ph-device-page .ph-device-heading > svg { flex: none; color: currentColor; }

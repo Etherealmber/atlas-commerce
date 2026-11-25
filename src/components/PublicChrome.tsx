@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { getTheme, setTheme as applyTheme, subscribeTheme, type ThemeChoice } from '../theme';
 import { isLoggedIn, getDisplayName, getUsername, getRole, getDisplayInitials, clearToken } from '../auth';
 import { invalidateAvatarCache } from '../lib/avatarCache';
+import { isInFloatingLayer } from '../lib/floatingLayer';
 import { resetWelcome } from '../lib/welcome';
 import { useProfileWarm, useProfileTick } from '../lib/useProfileWarm';
 import { TopbarUserMenu } from './shell/TopbarUserMenu';
@@ -152,7 +153,7 @@ function PublicThemeToggle() {
   );
 }
 
-/** v0.9.4 — langue pour les visiteurs non connectés (les connectés l’ont dans
+/** v0.9.3 — langue pour les visiteurs non connectés (les connectés l’ont dans
  *  le menu du compte). Même pastille que le trio de thème ; ouvre le dialogue
  *  « Bientôt — l’arabe et l’anglais arrivent ». */
 function PublicLanguageButton() {
@@ -283,7 +284,12 @@ export function PublicNav({ links, cta, classic = false }: { links: NavLink[]; c
   useEffect(() => {
     if (!menu) return;
     const key = (e: KeyboardEvent) => { if (e.key === 'Escape') { setMenu(false); menuButton.current?.focus(); } };
-    const outside = (e: PointerEvent) => { if (!navRef.current?.contains(e.target as Node)) setMenu(false); };
+    // Taps inside a dialog/menu opened from the menu (Langue, compte, déconnexion) must not
+    // close the menu: that unmounted the dialog and it vanished on its own.
+    const outside = (e: PointerEvent) => {
+      if (navRef.current?.contains(e.target as Node) || isInFloatingLayer(e.target)) return;
+      setMenu(false);
+    };
     document.addEventListener('keydown', key); document.addEventListener('pointerdown', outside);
     return () => { document.removeEventListener('keydown', key); document.removeEventListener('pointerdown', outside); };
   }, [menu]);

@@ -7983,7 +7983,7 @@ html[data-theme="dark"] body .ac-settings-lang .ac-settings-lang-btn:not(#ac-lan
   }
 }
 
-/* v0.9.4 — Atlas Agent: the header "raccourcis" icon button stayed white in dark. */
+/* v0.9.3 — Atlas Agent: the header "raccourcis" icon button stayed white in dark. */
 html[data-theme="dark"] body .atlas-agent-panel .atlas-agent-head-actions .atlas-agent-iconbtn:not(#ac-agent) {
   background: #27272a !important;
   border-color: rgba(255, 255, 255, 0.12) !important;
@@ -7996,7 +7996,7 @@ html[data-theme="dark"] body .atlas-agent-panel .atlas-agent-head-actions .atlas
   background: #3f3f46 !important;
 }
 
-/* v0.9.4 — ConfirmDialog (déconnexion) : carte .ac-lang-* + deux boutons */
+/* v0.9.3 — ConfirmDialog (déconnexion) : carte .ac-lang-* + deux boutons */
 .ac-confirm-foot { gap: 8px; margin-top: 18px; }
 html body .ac-confirm-card button.ac-confirm-cancel:not(#ac-cf),
 html body .ac-confirm-card button.ac-confirm-ok:not(#ac-cf) {
@@ -8043,7 +8043,7 @@ html[data-theme="dark"] body .ac-confirm-card--danger button.ac-confirm-ok:not(#
 html[data-theme="dark"] body .ac-confirm-card--danger .ac-confirm-ico { background: rgba(239, 68, 68, 0.14); border-color: rgba(239, 68, 68, 0.3); color: #fca5a5; }
 html[data-theme="dark"] body .ac-confirm-card--default button.ac-confirm-ok:not(#ac-cf) { background: #fafafa !important; border-color: #fafafa !important; color: #0a0a0a !important; -webkit-text-fill-color: #0a0a0a !important; }
 
-/* v0.9.4 — headings focused programmatically (welcome steps, route changes) are
+/* v0.9.3 — headings focused programmatically (welcome steps, route changes) are
    not controls: keep the focus for screen readers, never paint a ring around them. */
 html body h1[tabindex="-1"]:focus:not(#ac-h),
 html body h2[tabindex="-1"]:focus:not(#ac-h),
@@ -8052,7 +8052,7 @@ html body h3[tabindex="-1"]:focus:not(#ac-h) {
   box-shadow: none !important;
 }
 
-/* v0.9.4 — Mon profil : densité d’affichage (sombre) */
+/* v0.9.3 — Mon profil : densité d’affichage (sombre) */
 html[data-theme="dark"] body .ac-settings-density-row:not(#ac-dn) {
   background: rgb(28, 28, 31) !important;
   border-color: rgb(42, 42, 46) !important;
@@ -8060,7 +8060,7 @@ html[data-theme="dark"] body .ac-settings-density-row:not(#ac-dn) {
 }
 html[data-theme="dark"] body .ac-settings-density-row span:not(#ac-dn) { color: #a1a1aa !important; }
 
-/* v0.9.4 — Welcome note + Visite guidée (sombre) */
+/* v0.9.3 — Welcome note + Visite guidée (sombre) */
 html[data-theme="dark"] body .welcome-tour-note:not(#ac-ob) { background: #1c1c1f; color: #d4d4d8; }
 html[data-theme="dark"] body .welcome-tour-note-icon:not(#ac-ob) { background: #27272a; border-color: #3f3f46; color: #f4f4f5; }
 html[data-theme="dark"] body .welcome-tour-note-text strong:not(#ac-ob) { color: #f4f4f5; }
@@ -8075,6 +8075,7 @@ html[data-theme="dark"] body .ac-onboard-card:not(#ac-ob) {
 }
 html[data-theme="dark"] body .ac-onboard-kicker:not(#ac-ob) { color: #a1a1aa; }
 html[data-theme="dark"] body .ac-onboard-body:not(#ac-ob) { color: #a1a1aa; }
+html[data-theme="dark"] body .ac-onboard-demo:not(#ac-ob) { background: #27272a; color: #a1a1aa; }
 html[data-theme="dark"] body .ac-onboard-hint:not(#ac-ob),
 html[data-theme="dark"] body .ac-onboard-title:not(#ac-ob) { color: #f4f4f5; }
 html[data-theme="dark"] body .ac-onboard-dot:not(#ac-ob) { background: #3f3f46; }
@@ -8101,3 +8102,8 @@ html[data-theme="dark"] body .ac-onboard-card button.ac-onboard-close:not(#ac-ob
   border-color: transparent !important;
 }
 html[data-theme="dark"] body .ac-onboard-card button.ac-onboard-close:not(#ac-ob):not(#ac-ob2):hover { background: #27272a !important; color: #f4f4f5 !important; }
+
+/* v0.9.3 — the dock's right-hand controls stay mounted while the dock is compact
+   (they own the user menu, Langue and logout dialogs); `hidden` must win over
+   every display rule above. */
+html body .ac-topbar-right[hidden]:not(#ac-dock-hidden) { display: none !important; }

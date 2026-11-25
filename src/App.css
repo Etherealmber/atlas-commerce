@@ -21845,7 +21845,7 @@ html[data-theme="dark"] body a.ac-dash-link:not(#ac-pg):focus-visible { box-shad
   html body a.ac-dash-link:not(#ac-pg) .ac-dash-link-arrow { transition: none; }
 }
 
-/* ===== 0.9.4 — real screenshots instead of SVG/CSS mock-ups =====
+/* ===== 0.9.3 — real screenshots instead of SVG/CSS mock-ups =====
    <ThemeShot> renders the light and dark capture; only the one matching the
    active theme is displayed. Public pages default to dark when no theme is set. */
 .theme-shot { display: block; width: 100%; line-height: 0; }
@@ -21871,7 +21871,7 @@ html[data-theme='light'] body .theme-shot > img.theme-shot-img--dark { display: 
 .download-landing .dl-ed-visual--desktop .theme-shot { max-width: 960px; }
 .download-landing .dl-ed-visual--desktop .theme-shot-img { width: 100%; border: 1px solid var(--ed-line); border-radius: 10px; box-shadow: 0 16px 36px #0002; }
 
-/* v0.9.4 — langue (visiteurs) : même pastille que le trio de thème */
+/* v0.9.3 — langue (visiteurs) : même pastille que le trio de thème */
 .public-lang-pill { margin-right: 6px; }
 html body .settings-topbar-theme.public-lang-pill button.public-lang-btn:not(#ac-lang) {
   width: auto !important;
@@ -21883,7 +21883,7 @@ html body .settings-topbar-theme.public-lang-pill button.public-lang-btn:not(#ac
 .public-lang-code { display: inline-block; }
 @media (max-width: 520px) { .public-lang-code { display: none; } html body .settings-topbar-theme.public-lang-pill button.public-lang-btn:not(#ac-lang) { padding: 0 !important; width: 32px !important; } }
 
-/* v0.9.4 — Mon profil : densité d’affichage */
+/* v0.9.3 — Mon profil : densité d’affichage */
 .ac-settings-density-row {
   display: flex;
   align-items: center;
@@ -21899,7 +21899,7 @@ html body .settings-topbar-theme.public-lang-pill button.public-lang-btn:not(#ac
 .ac-settings-density-row strong { font-size: 14px; font-weight: 650; }
 .ac-settings-density-row span { font-size: 12.5px; color: var(--muted, #71717a); }
 
-/* v0.9.4 — Welcome : « Visite rapide des modules » informatif (non cliquable) */
+/* v0.9.3 — Welcome : « Visite rapide des modules » informatif (non cliquable) */
 .welcome-tour-note {
   display: flex;
   align-items: center;
@@ -21928,7 +21928,7 @@ html body .settings-topbar-theme.public-lang-pill button.public-lang-btn:not(#ac
 .welcome-tour-note-text strong { font-size: 13px; font-weight: 700; color: #18181b; }
 .welcome-tour-note-text span { font-size: 12px; line-height: 1.4; color: #71717a; }
 
-/* v0.9.4 — Visite guidée (GuidedOnboarding) */
+/* v0.9.3 — Visite guidée (GuidedOnboarding) */
 .ac-onboard-layer {
   position: fixed;
   inset: 0;
@@ -21975,6 +21975,17 @@ html body .settings-topbar-theme.public-lang-pill button.public-lang-btn:not(#ac
 .ac-onboard-title { margin: 0 0 6px; font-size: 16px; font-weight: 700; line-height: 1.3; letter-spacing: -0.01em; }
 .ac-onboard-body { margin: 0; font-size: 13.5px; line-height: 1.5; color: #52525b; }
 .ac-onboard-hint { margin: 8px 0 0; font-size: 12.5px; font-weight: 600; color: #18181b; }
+.ac-onboard-demo {
+  margin: 10px 0 0;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: #f4f4f5;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #52525b;
+}
+/* Demo-only tour: the page underneath cannot be clicked, so nothing is created. */
+.ac-onboard-shield { position: fixed; inset: 0; background: transparent; pointer-events: auto; }
 .ac-onboard-dots { display: flex; gap: 4px; margin: 14px 0 12px; }
 .ac-onboard-dot { flex: 1 1 0; height: 4px; border-radius: 999px; background: #e4e4e7; }
 .ac-onboard-dot.is-done { background: #a1a1aa; }

@@ -660,7 +660,7 @@ export default function Welcome() {
                 <span className="welcome-summary-chip">Densité : <strong>{densityLabel}</strong></span>
                 <span className="welcome-summary-chip">Version : <strong>{APP_VERSION}</strong></span>
               </div>
-              {/* v0.9.4 — informatif, non cliquable : la visite guidée démarre
+              {/* v0.9.3 — informatif, non cliquable : la visite guidée démarre
                   d’elle-même après « Explorer Atlas Commerce » (GuidedOnboarding). */}
               <div className="welcome-tour-note" role="note">
                 <span className="welcome-tour-note-icon" aria-hidden="true">
@@ -668,7 +668,7 @@ export default function Welcome() {
                 </span>
                 <span className="welcome-tour-note-text">
                   <strong>Visite rapide des modules</strong>
-                  <span>Elle démarre à l’ouverture : produits, clients, factures, vente rapide, caisse et Atlas Agent — pas à pas.</span>
+                  <span>Elle démarre à l’ouverture : produits, clients, factures, vente rapide, caisse et Atlas Agent — pas à pas. C’est une simple démonstration : elle n’ajoute rien à votre base de données et vous pouvez la passer à tout moment.</span>
                 </span>
               </div>
             </div>

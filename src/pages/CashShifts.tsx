@@ -49,7 +49,7 @@ export default function CashShifts() {
   const [closeNotes, setCloseNotes] = useState('');
   const [closingBusy, setClosingBusy] = useState(false);
 
-  // v0.9.4 — une réponse partielle (tableau, objet sans id) affichait « #undefined ».
+  // v0.9.3 — une réponse partielle (tableau, objet sans id) affichait « #undefined ».
   const asShift = (raw: unknown, fallback: any = null) =>
     raw && typeof raw === 'object' && !Array.isArray(raw) && (raw as any).id != null ? raw : fallback;
 

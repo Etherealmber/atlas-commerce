@@ -168,10 +168,15 @@ export function setProfileCache(partial: {
     localStorage.setItem(DISPLAY_NAME_KEY, String(partial.display_name).trim());
   }
   if (partial.avatar_url != null) {
-    memoryAvatarUrl = sanitizeAvatarUrl(partial.avatar_url);
-    // Lets the avatar blob cache drop stale entries + prefetch the new one
-    // without auth.ts importing it (no cycle).
-    try { window.dispatchEvent(new CustomEvent('atlas-avatar-changed')); } catch { /* */ }
+    const nextAvatar = sanitizeAvatarUrl(partial.avatar_url);
+    if (nextAvatar !== memoryAvatarUrl) {
+      memoryAvatarUrl = nextAvatar;
+      // Lets the avatar blob cache drop stale entries + prefetch the new one
+      // without auth.ts importing it (no cycle). Only on a real change: every
+      // profile refresh used to fire it, which revoked the blob on screen and
+      // left the avatar blank or slow to come back.
+      try { window.dispatchEvent(new CustomEvent('atlas-avatar-changed')); } catch { /* */ }
+    }
   }
   if (partial.username) localStorage.setItem(USER_KEY, String(partial.username));
   if (partial.role) localStorage.setItem(ROLE_KEY, String(partial.role));

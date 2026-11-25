@@ -406,9 +406,9 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     expect(reportsSrc).toContain('DateRangePicker');
     expect(reportsSrc).toContain("'ytd'");
 
-    // README history includes 0.9.4-beta, 0.9.3-beta, 0.9.2-beta & 0.9.1-beta
-    expect(readmeSrc).toContain('0.0.1-beta → 0.9.4-beta');
-    expect(readmeSrc).toContain('### 0.9.4-beta');
+    // README history includes 0.9.3-beta, 0.9.2-beta & 0.9.1-beta (0.9.3 stays the current version)
+    expect(readmeSrc).toContain('0.0.1-beta → 0.9.3-beta');
+    expect(readmeSrc).not.toContain('0.9.4');
     expect(readmeSrc).toContain('### 0.9.3-beta');
     expect(readmeSrc).toContain('### 0.9.2-beta');
     expect(readmeSrc).toContain('### 0.9.1-beta');

@@ -1,5 +1,5 @@
 /** UI density + text scale (Atlas Commerce).
- * v0.9.4 — « Compacte » fonctionne de nouveau : le choix est stocké et posé sur
+ * v0.9.3 — « Compacte » fonctionne de nouveau : le choix est stocké et posé sur
  * `<html data-ui-density="compact">`, qui pilote une couche CSS dédiée
  * (`src/styles/density-compact.css` : boutons, champs, cartes, tableaux, barre
  * flottante, barre latérale…). `data-density` reste « comfortable » exprès :

@@ -37,28 +37,6 @@ type Release = {
 
 export const RELEASES: Release[] = [
   {
-    version: '0.9.4',
-    date: '25 novembre 2026',
-    sections: [{ kind: 'features', items: [
-      { id: '094n1', platforms: ['web'], text: 'Visite guidée après le guide de bienvenue : Atlas Commerce ouvre chaque page et montre quoi faire — Produits puis « Ajouter un produit », un client, une facture, une vente rapide, la caisse, Atlas Agent et le menu du compte — avec Suivant, Précédent et Passer ; à revoir depuis Paramètres → Mon profil.' },
-      { id: '094n2', platforms: ['web'], text: 'Densité « Compacte » de nouveau active sur ordinateur : boutons, champs, cartes, tableaux, pagination, barre latérale et barre flottante du haut se resserrent ; réglage aussi disponible dans Paramètres → Mon profil. Le mobile reste en densité confortable.' },
-      { id: '094n3', platforms: ['web'], text: 'Déconnexion : une confirmation « Se déconnecter ? » apparaît avant de fermer la session, depuis le menu utilisateur de l’application comme depuis les pages publiques.' },
-      { id: '094n4', platforms: ['web'], text: 'Pages publiques : bouton « Langue » pour les visiteurs non connectés, à côté du choix du thème ; l’arabe et l’anglais arrivent bientôt.' },
-      { id: '094n5', platforms: ['web'], text: 'Vraies captures d’écran, en thème clair et sombre, sur l’accueil, la page Desktop, le guide de bienvenue et le README, à la place des maquettes dessinées.' },
-    ] }, { kind: 'improvements', items: [
-      { id: '094i1', platforms: ['web'], text: 'Guide de bienvenue : « Visite rapide des modules » devient une simple information (non cliquable), le comparatif papier / Atlas est conservé et le titre « Bonjour » n’affiche plus de contour orange.' },
-      { id: '094i2', platforms: ['web'], text: 'Bandeau cookies : « Retour », « Personnaliser » et la croix de fermeture sont de vrais boutons au lieu de liens soulignés.' },
-      { id: '094i3', platforms: ['web'], text: 'Paramètres : Paie CNSS / AMO, Plan comptable (FEC) et Relances impayés s’ouvrent directement depuis la barre des Paramètres.' },
-      { id: '094i4', platforms: ['desktop'], text: 'Client bureau : références visuelles mises à jour (captures 1280×800 en clair et en sombre de chaque page, de chaque section des Paramètres, d’Atlas Agent, du menu du compte, de la confirmation de déconnexion et de la visite guidée, avec les mesures de chaque élément).' },
-      { id: '094i5', platforms: ['web'], text: 'Nettoyage : ancienne visite à cartes, maquettes dessinées, scripts de capture obsolètes et règles de style inutilisées retirés.' },
-    ] }, { kind: 'fixes', items: [
-      { id: '094f1', platforms: ['web'], text: 'Solde en thème sombre : l’en-tête du rapprochement n’est plus blanc.' },
-      { id: '094f2', platforms: ['web'], text: 'Mobile : page « Scanner un appareil » en thème sombre et boutons retour aux couleurs de la barre flottante, sans contour.' },
-      { id: '094f3', platforms: ['web'], text: 'Atlas Agent : le quota n’affiche plus « NaN » quand la limite est inconnue, une limite inconnue ne bloque plus l’envoi et les boutons de l’en-tête sont lisibles en thème sombre.' },
-      { id: '094f4', platforms: ['web'], text: 'Clôtures de caisse : une réponse incomplète du serveur n’interrompt plus la page.' },
-    ] }],
-  },
-  {
     version: '0.9.3',
     date: '25 novembre 2026',
     sections: [{ kind: 'features', items: [
@@ -68,6 +46,11 @@ export const RELEASES: Release[] = [
       { id: '093n2', platforms: ['desktop', 'server'], text: 'Option « Rester connecté » sur desktop, à activer à chaque connexion : session limitée côté serveur à 30 jours maximum (12 h par défaut, jamais prolongée par le rafraîchissement), rotation des jetons avec détection de réutilisation et révocation à la déconnexion, au changement de mot de passe ou par un administrateur.' },
       { id: '093n5', platforms: ['web'], text: 'Paramètres : une fenêtre flottante apparaît dès qu’un réglage change, avec « Annuler » et « Enregistrer », puis confirme « Paramètres enregistrés ».' },
       { id: '093n6', platforms: ['web'], text: 'Langue : nouvelle entrée « Langue » dans les Paramètres et dans le menu utilisateur ; l’interface reste en français pour l’instant, l’arabe et l’anglais arrivent bientôt.' },
+      { id: '093n7', platforms: ['web'], text: 'Visite guidée après le guide de bienvenue : Atlas Commerce ouvre chaque page et montre quoi faire — Produits puis « Ajouter un produit », un client, une facture, une vente rapide, la caisse, Atlas Agent et le menu du compte — avec Suivant, Précédent et Passer ; à revoir depuis Paramètres → Mon profil. C’est une simple démonstration : la page derrière ne réagit pas aux clics pendant la visite, rien n’est ajouté à la base de données et elle se passe à tout moment.' },
+      { id: '093n8', platforms: ['web'], text: 'Densité « Compacte » de nouveau active sur ordinateur : boutons, champs, cartes, tableaux, pagination, barre latérale et barre flottante du haut se resserrent ; réglage aussi disponible dans Paramètres → Mon profil. Le mobile reste en densité confortable.' },
+      { id: '093n9', platforms: ['web'], text: 'Déconnexion : une confirmation « Se déconnecter ? » apparaît avant de fermer la session, depuis le menu utilisateur de l’application comme depuis les pages publiques.' },
+      { id: '093n10', platforms: ['web'], text: 'Pages publiques : bouton « Langue » pour les visiteurs non connectés, à côté du choix du thème ; l’arabe et l’anglais arrivent bientôt.' },
+      { id: '093n11', platforms: ['web'], text: 'Vraies captures d’écran, en thème clair et sombre, sur l’accueil, la page Desktop, le guide de bienvenue et le README, à la place des maquettes dessinées.' },
     ] }, { kind: 'improvements', items: [
       { id: '093i1', platforms: ['web'], text: 'Navigation entre les pages réécrite sur toutes les listes (Produits, Factures, Devis, Reçus, Achats, Clients, Fournisseurs, Employés, Pointage, Balance, Remboursements, Vente rapide, Boîte d’actions et Journal d’audit) : numéros de page avec points de suspension, page courante animée, navigation au clavier (flèches, Début, Fin) et rendu soigné en thème clair comme en sombre.' },
       { id: '093i2', platforms: ['web'], text: 'Tableau de bord : « Voir la balance », « Voir la boîte », « Voir le catalogue » et « Ouvrir » deviennent de vrais boutons arrondis avec flèche animée au lieu de liens soulignés.' },
@@ -76,6 +59,11 @@ export const RELEASES: Release[] = [
       { id: '093i5', platforms: ['web', 'server'], text: 'Nettoyage du code : 38 fichiers et exports inutilisés retirés, analyse statique à 0 avertissement et 0 erreur ; les e-mails du desktop réutilisent le service d’envoi déjà configuré pour le site.' },
       { id: '093i6', platforms: ['web'], text: 'Barre flottante du haut : le titre ne ressemble plus à un bouton ; un appui agrandit la barre avec une animation fluide et les commandes glissent en place ; titres en casse normale (« Tableau de bord »).' },
       { id: '093i7', platforms: ['web'], text: 'Thème sombre : nouvelle passe sur les boutons et badges, le bouton « Enregistrer » des Paramètres, le bandeau de rapprochement du Solde et la légende du catalogue.' },
+      { id: '093i8', platforms: ['web'], text: 'Guide de bienvenue : « Visite rapide des modules » devient une simple information (non cliquable), le comparatif papier / Atlas est conservé et le titre « Bonjour » n’affiche plus de contour orange.' },
+      { id: '093i9', platforms: ['web'], text: 'Bandeau cookies : « Retour », « Personnaliser » et la croix de fermeture sont de vrais boutons au lieu de liens soulignés.' },
+      { id: '093i10', platforms: ['web'], text: 'Paramètres : Paie CNSS / AMO, Plan comptable (FEC) et Relances impayés s’ouvrent directement depuis la barre des Paramètres.' },
+      { id: '093i11', platforms: ['desktop'], text: 'Client bureau : références visuelles mises à jour (captures 1280×800 en clair et en sombre de chaque page, de chaque section des Paramètres, d’Atlas Agent, du menu du compte, de la confirmation de déconnexion et de la visite guidée, avec les mesures de chaque élément).' },
+      { id: '093i12', platforms: ['web'], text: 'Nettoyage : ancienne visite à cartes, maquettes dessinées, scripts de capture obsolètes et règles de style inutilisées retirés.' },
     ] }, { kind: 'fixes', items: [
       { id: '093f1', platforms: ['web'], text: 'Passkeys web : l’enregistrement et la connexion par passkey fonctionnent de nouveau.' },
       { id: '093f2', platforms: ['web', 'server'], text: 'Paie : fenêtre de réglages CNSS/AMO corrigée, fenêtres affichées en plein écran et téléchargement des documents de paie rétabli.' },
@@ -84,6 +72,12 @@ export const RELEASES: Release[] = [
       { id: '093f5', platforms: ['web'], text: 'Bandeau cookies en thème sombre : boutons et lien « Personnaliser » corrigés.' },
       { id: '093f6', platforms: ['web'], text: 'Fenêtres « Connexion par QR », guide et profil : la page reste visible derrière en thème sombre, avec un fond translucide au lieu d’un aplat opaque.' },
       { id: '093f7', platforms: ['web'], text: 'Paramètres « Atlas Agent » et « Mise à jour app » : une réponse incomplète du serveur n’interrompt plus la page.' },
+      { id: '093f8', platforms: ['web'], text: 'Solde en thème sombre : l’en-tête du rapprochement n’est plus blanc.' },
+      { id: '093f9', platforms: ['web'], text: 'Mobile : page « Scanner un appareil » en thème sombre et boutons retour aux couleurs de la barre flottante, sans contour.' },
+      { id: '093f10', platforms: ['web'], text: 'Atlas Agent : le quota n’affiche plus « NaN » quand la limite est inconnue, une limite inconnue ne bloque plus l’envoi et les boutons de l’en-tête sont lisibles en thème sombre.' },
+      { id: '093f11', platforms: ['web'], text: 'Clôtures de caisse : une réponse incomplète du serveur n’interrompt plus la page.' },
+      { id: '093f12', platforms: ['web'], text: 'Photo de profil : elle s’affiche de nouveau à chaque fois et plus vite ; chaque actualisation du profil ne recharge plus l’image (qui pouvait rester sur les initiales) et un échec de chargement est réessayé automatiquement.' },
+      { id: '093f13', platforms: ['web'], text: 'Fenêtres qui s’ouvraient ou se fermaient toutes seules : la fenêtre « Langue » et la confirmation de déconnexion ne disparaissent plus quand la barre du haut se rétracte au défilement, le menu mobile des pages publiques ne les ferme plus, et « Nouveautés » attend la fin de la visite guidée et des autres fenêtres avant de s’afficher.' },
     ] }],
   },
   {

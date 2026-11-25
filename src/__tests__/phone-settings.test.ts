@@ -29,7 +29,7 @@ it('opens the complete version history with platform badges and desktop category
   const settings = createElement(PhoneSettings, { theme: 'system', onTheme: vi.fn(), animations: true, onAnimations: vi.fn(), compact: false, onCompact: vi.fn(), scale: 'md', onScale: vi.fn(), startTab: '/m', onStartTab: vi.fn() });
   await act(async () => root.render(createElement(MemoryRouter, { initialEntries: ['/m/settings'] }, createElement(Routes, null, createElement(Route, { path: '/m/settings', element: settings }), createElement(Route, { path: '/m/settings/whats-new', element: createElement(PhoneWhatsNew) })) )));
   await act(async () => [...host.querySelectorAll('button')].find(b => b.textContent?.includes('Nouveautés des versions'))!.click());
-  expect(host.textContent).toContain('Atlas Commerce 0.9.4');
+  expect(host.textContent).toContain('Atlas Commerce 0.9.3');
   expect(host.textContent).toContain('25 novembre 2026');
   expect(host.textContent).toContain('Produits sur mobile et PC');
   expect(host.textContent).toContain('Rapports mobiles');
@@ -37,10 +37,10 @@ it('opens the complete version history with platform badges and desktop category
   for (const platform of ['web', 'android', 'desktop', 'server']) expect(host.querySelector(`.wn-plat--${platform}`)).not.toBeNull();
   const latest = host.querySelector('.ph-release-card')!;
   for (const icon of ['improve', 'fix']) expect(latest.querySelector(`.wn-sec-ico--${icon} svg`)).not.toBeNull();
-  const desktopCard = host.querySelectorAll('.ph-release-card')[3]!;
+  const desktopCard = host.querySelectorAll('.ph-release-card')[2]!;
   const serverDesktopOnly = [...desktopCard.querySelectorAll('li')].find(li => li.textContent?.includes('Le serveur vérifie le défi'))!;
   expect([...serverDesktopOnly.querySelectorAll('.wn-plat')].map(el => el.textContent)).toEqual(['Desktop', 'Serveur']);
-  expect(localStorage.getItem('atlas-whats-new-seen')).toBe('0.9.4');
+  expect(localStorage.getItem('atlas-whats-new-seen')).toBe('0.9.3');
 });
 it('updates only editable profile fields and reports failure without claiming success', async () => {
   vi.spyOn(api, 'getMe').mockResolvedValue({ data: { display_name: 'Atlas', email: 'a@example.com', phone: '123', avatar_url: '/avatar.jpg', notes: 'private' } });

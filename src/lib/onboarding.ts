@@ -1,5 +1,5 @@
 /**
- * v0.9.4 — Visite guidée (après le guide de bienvenue).
+ * v0.9.3 — Visite guidée (après le guide de bienvenue).
  *
  * `atlas_onboarding` = { status: 'pending' | 'done', step: number }.
  * - Welcome « Explorer Atlas Commerce » → queueOnboarding() (status pending, step 0).

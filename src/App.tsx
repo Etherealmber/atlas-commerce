@@ -1284,7 +1284,9 @@ function DesktopShell() {
               {titleForPath(location.pathname).replace(/ · Atlas$/, '')}
             </button>
           </div>
-          {!settingsBarCompact && <div className="ac-topbar-right">
+          {/* Always mounted: the user menu owns the Langue / logout dialogs, so unmounting
+              this block when the dock compacts on scroll closed them on their own. */}
+          <div className="ac-topbar-right" hidden={settingsBarCompact && !shellNotifOpen && !shellUserOpen}>
             <button
               type="button"
               data-theme-toggle
@@ -1429,7 +1431,7 @@ function DesktopShell() {
               initials={typeof getDisplayInitials === 'function' ? getDisplayInitials() : '?'}
               onLogout={logout}
             />
-          </div>}
+          </div>
         </header>
         </div>
 

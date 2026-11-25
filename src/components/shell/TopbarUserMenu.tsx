@@ -110,7 +110,7 @@ export const TopbarUserMenu: FC<Props> = ({
         aria-haspopup="menu"
         onClick={() => setOpen((v) => !v)}
       >
-        <AvatarImage className="ac-topbar-avatar" loading="lazy" fallback={avatarFallback} />
+        <AvatarImage className="ac-topbar-avatar" loading="eager" fallback={avatarFallback} />
       </button>
       {open &&
         createPortal(

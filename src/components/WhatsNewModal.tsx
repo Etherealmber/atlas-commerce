@@ -9,6 +9,9 @@ import {
   markWhatsNewSeen,
 } from '../lib/whatsNew';
 import { getContributorsForRelease } from '../lib/contributors';
+import { isOnboardingPending } from '../lib/onboarding';
+
+const OTHER_POPUP = '.modal-overlay, .ac-lang-layer, .ac-user-dropdown, .ac-notif-panel, [aria-modal="true"]';
 
 /** Lightweight once-per-version intro modal (P3). */
 export default function WhatsNewModal() {
@@ -25,9 +28,21 @@ export default function WhatsNewModal() {
       setOpen(false);
       return;
     }
-    const t = window.setTimeout(() => {
-      if (shouldShowWhatsNewModal()) setOpen(true);
-    }, 900);
+    // Never pop over the guided tour or another open popup (Langue, déconnexion,
+    // assistant…): wait until they are closed, then show once.
+    let t = 0;
+    const tryOpen = () => {
+      window.clearTimeout(t);
+      t = window.setTimeout(() => {
+        if (!shouldShowWhatsNewModal()) return;
+        if (isOnboardingPending() || document.querySelector(OTHER_POPUP)) {
+          tryOpen();
+          return;
+        }
+        setOpen(true);
+      }, 900);
+    };
+    tryOpen();
     return () => window.clearTimeout(t);
   }, [location.pathname]);
 

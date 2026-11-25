@@ -50,7 +50,7 @@ describe('mobile connected devices', () => {
 
 describe('mobile back buttons follow the floating bar', () => {
   const css = readFileSync('src/mobile/phone.css', 'utf8');
-  const block = css.slice(css.indexOf('0.9.4 — back buttons follow the floating bar'));
+  const block = css.slice(css.indexOf('0.9.3 — back buttons follow the floating bar'));
   it('are transparent and borderless in both themes', () => {
     expect(block).toMatch(/\.ph-top-back[\s\S]*?background: transparent !important;[\s\S]*?border: 0 !important;/);
     expect(block).toMatch(/html\[data-theme="dark"\][^{]*\.ph-agent-dock-brand > button\) \{[\s\S]*?background: transparent !important;\s*border: 0 !important;/);

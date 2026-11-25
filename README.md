@@ -11,7 +11,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT license" /></a>
   <a href="LICENSE-APACHE"><img src="https://img.shields.io/badge/License-Apache--2.0-blue.svg" alt="Apache 2.0 license" /></a>
   <!-- SUPPORT-SYNC:badge:start -->
-  <img src="https://img.shields.io/badge/version-0.9.4--beta-blue" alt="Version 0.9.4-beta" />
+  <img src="https://img.shields.io/badge/version-0.9.3--beta-blue" alt="Version 0.9.3-beta" />
 <!-- SUPPORT-SYNC:badge:end -->
 </p>
 <p>
@@ -400,7 +400,7 @@ Atlas Commerce est développé et maintenu par **[Etherealmber](https://github.c
 - Les trois tournent sur chaque pull request (et sur main) avec filters par chemin : un PR rouge ne devrait jamais être mergé, donc jamais déployé
 
 <!-- SUPPORT-SYNC:support:start -->
-Version actuelle : **0.9.4-beta** (gelée jusqu'au prochain ordre de push).
+Version actuelle : **0.9.3-beta** (gelée jusqu'au prochain ordre de push).
 
 > **Politique de support** : seule la mineure courante (**0.9**) reçoit correctifs et mises à jour de sécurité. Dès la sortie de la mineure suivante (ex. 0.10.0), la mineure précédente passe immédiatement en fin de support — 0.8.x l'est depuis 0.9.0. Les versions 0.8.x et antérieures ne sont plus supportées.
 <!-- SUPPORT-SYNC:support:end -->
@@ -408,18 +408,17 @@ Version actuelle : **0.9.4-beta** (gelée jusqu'au prochain ordre de push).
 Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depuis la première version interne ; le détail complet et vivant est dans l'app (**Nouveautés**), y compris l’ancien cycle bêta pré-renumérotation, renuméroté en **0.x** (0.0.1 → 0.4.4).
 
 <details>
-<summary>📦 Historique des versions (0.0.1-beta → 0.9.4-beta) — cliquer pour déplier</summary>
-
-### 0.9.4-beta
-- Visite guidée après le guide de bienvenue (Produits → « Ajouter un produit », client, facture, vente rapide, caisse, Atlas Agent, menu du compte ; Suivant / Précédent / Passer, progression gardée, à revoir depuis Paramètres → Mon profil) ; densité « Compacte » de nouveau active sur ordinateur (boutons, champs, cartes, tableaux, barre latérale et barre flottante) avec réglage dans Mon profil.
-- Confirmation « Se déconnecter ? » avant la déconnexion ; bouton « Langue » (bientôt) pour les visiteurs des pages publiques ; boutons du bandeau cookies qui ne ressemblent plus à des liens ; plus de contour sur « Bonjour » ; « Visite rapide des modules » informative.
-- Vraies captures d'écran clair/sombre sur l'accueil, `/desktop`, le guide de bienvenue et ce README ; références visuelles du client bureau (pages, Paramètres, Atlas Agent, menu du compte, visite guidée) ; correctifs thème sombre du Solde, du scan d'appareil mobile et d'Atlas Agent, quota sans « NaN », clôtures de caisse robustes. Publiée le 25 novembre 2026.
+<summary>📦 Historique des versions (0.0.1-beta → 0.9.3-beta) — cliquer pour déplier</summary>
 
 ### 0.9.3-beta
 - Navigation entre les pages réécrite sur toutes les listes (numéros de page, points de suspension, page courante animée, clavier ← → Début/Fin, thèmes clair et sombre), boutons « Voir la balance / la boîte / le catalogue » du tableau de bord transformés en vrais boutons, squelettes de chargement alignés sur le nouveau tableau de bord et squelette éditorial sur l'accueil, Android, Desktop et Support.
 - Tableau de bord : 4ᵉ graphique « Répartition des charges » toujours affiché (lignes à 0 MAD sans données) et graphiques reliés aux données réelles ; paie : jours déclarés CNSS par employé et par ligne de paie (26 max, 0 = sans CNSS/AMO, exports CSV/Excel).
 - Desktop : connexion native v3 sans navigateur (mot de passe + code e-mail, QR, passkey Windows Hello) et option « Rester connecté » (30 jours max côté serveur, 12 h par défaut, rotation avec détection de réutilisation, révocation) ; thème sombre charbon unifié, passkeys web et réglages CNSS/AMO corrigés, 38 fichiers de code mort retirés et lint à 0/0.
 - Publiée le 25 novembre 2026. Paramètres : fenêtre flottante dès qu'un réglage change (Annuler / Enregistrer) ; entrée « Langue » dans les Paramètres et le menu utilisateur (arabe et anglais bientôt) ; barre flottante du haut qui s'agrandit avec animation au lieu de ressembler à un bouton ; thème sombre corrigé pour le journal d'audit, le bandeau cookies, la fenêtre « Connexion par QR » (page visible derrière), les boutons et badges.
+- Visite guidée après le guide de bienvenue (Produits → « Ajouter un produit », client, facture, vente rapide, caisse, Atlas Agent, menu du compte ; Suivant / Précédent / Passer, progression gardée, à revoir depuis Paramètres → Mon profil ; simple démonstration qui n'ajoute rien à la base de données) ; densité « Compacte » de nouveau active sur ordinateur (boutons, champs, cartes, tableaux, barre latérale et barre flottante) avec réglage dans Mon profil.
+- Confirmation « Se déconnecter ? » avant la déconnexion ; bouton « Langue » (bientôt) pour les visiteurs des pages publiques ; boutons du bandeau cookies qui ne ressemblent plus à des liens ; plus de contour sur « Bonjour » ; « Visite rapide des modules » informative.
+- Photo de profil qui s'affiche de nouveau à chaque fois et plus vite ; fenêtres « Langue », déconnexion et menus qui ne s'ouvrent ou ne se ferment plus toutes seules ; « Nouveautés » attend la fin de la visite guidée.
+- Vraies captures d'écran clair/sombre sur l'accueil, `/desktop`, le guide de bienvenue et ce README ; références visuelles du client bureau (pages, Paramètres, Atlas Agent, menu du compte, visite guidée) ; correctifs thème sombre du Solde, du scan d'appareil mobile et d'Atlas Agent, quota sans « NaN », clôtures de caisse robustes.
 
 ### 0.9.2-beta
 - Chargement par squelettes animés (`PageSkeleton` / `.skeleton`) sur l'ensemble des listes, fiches, rapports, opérations de stock et panneaux de réglages, sélecteur `DateRangePicker` avec raccourcis (`7j`–`YTD`) dans Rapports, menu utilisateur unifié sur les pages publiques (accès Tableau de bord, retrait des boutons de recherche redondants), centrage mobile de la page de connexion, thème sombre unifié (`#121317` / `#181a20`), correction du rognage des `<select>` et centrage des pages focus/légales.

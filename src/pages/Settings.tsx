@@ -161,7 +161,7 @@ export default function Settings() {
 
 
   // v0.7.7 — 'agent' était absent : ?tab=agent retombait sur profile (« tap = page profil »)
-  // v0.9.4 — payroll / fec / dunning avaient un panneau mais retombaient sur profile.
+  // v0.9.3 — payroll / fec / dunning avaient un panneau mais retombaient sur profile.
   const VALID_TABS = new Set(['profile', 'agent', 'company', 'attendance', 'payroll', 'fec', 'legal', 'invoicing', 'dunning', 'documents', 'warehouse', 'categories', 'integrations', 'app', 'admin', 'audit']);
   const tabFromUrl = searchParams.get('tab') || 'profile';
   const activeTab = VALID_TABS.has(tabFromUrl) ? tabFromUrl : 'profile';
@@ -920,7 +920,7 @@ if (loading) return (
         <div className="ac-settings-density-row">
           <div>
             <strong>Visite guidée</strong>
-            <span>Produits, clients, factures, vente rapide, caisse et Atlas Agent, pas à pas.</span>
+            <span>Produits, clients, factures, vente rapide, caisse et Atlas Agent, pas à pas. Démonstration uniquement : rien n’est ajouté à vos données.</span>
           </div>
           <button
             type="button"
