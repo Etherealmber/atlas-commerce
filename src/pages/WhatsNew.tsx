@@ -1,10 +1,9 @@
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { Sparkles, Wrench, AlertCircle, ArrowUpCircle, Heart, Users } from 'lucide-react';
 import { RELEASE_VISIBLE_CAP, semverAtMost } from '../version';
 import { markWhatsNewSeen } from '../lib/whatsNew';
-import { isLoggedIn, getToken } from '../auth';
 import {
   REPO_CONTRIBUTORS,
   fetchRepoContributors,
@@ -51,6 +50,7 @@ export const RELEASES: Release[] = [
       { id: '093n9', platforms: ['web'], text: 'Déconnexion : une confirmation « Se déconnecter ? » apparaît avant de fermer la session, depuis le menu utilisateur de l’application comme depuis les pages publiques.' },
       { id: '093n10', platforms: ['web'], text: 'Pages publiques : bouton « Langue » pour les visiteurs non connectés, à côté du choix du thème ; l’arabe et l’anglais arrivent bientôt.' },
       { id: '093n11', platforms: ['web'], text: 'Vraies captures d’écran, en thème clair et sombre, sur l’accueil, la page Desktop, le guide de bienvenue et le README, à la place des maquettes dessinées.' },
+      { id: '093n12', platforms: ['web', 'server'], text: 'Cartes de chiffres façon tableau de bord pro sur toutes les pages (accueil, solde, factures, devis, ventes rapides, produits, clients, fournisseurs, employés, actions, caisse, stock, rapports, journal) : grande valeur, variation en % par rapport à la période précédente avec flèche verte ↗ ou rouge ↘ (couleurs inversées quand une hausse est mauvaise : stock bas, dépenses, créances, dettes…), et courbe des 14 derniers jours avec valeur au survol. Sans données, une ligne discrète et la pastille « Aucune donnée ».' },
     ] }, { kind: 'improvements', items: [
       { id: '093i1', platforms: ['web'], text: 'Navigation entre les pages réécrite sur toutes les listes (Produits, Factures, Devis, Reçus, Achats, Clients, Fournisseurs, Employés, Pointage, Balance, Remboursements, Vente rapide, Boîte d’actions et Journal d’audit) : numéros de page avec points de suspension, page courante animée, navigation au clavier (flèches, Début, Fin) et rendu soigné en thème clair comme en sombre.' },
       { id: '093i2', platforms: ['web'], text: 'Tableau de bord : « Voir la balance », « Voir la boîte », « Voir le catalogue » et « Ouvrir » deviennent de vrais boutons arrondis avec flèche animée au lieu de liens soulignés.' },
@@ -64,6 +64,8 @@ export const RELEASES: Release[] = [
       { id: '093i10', platforms: ['web'], text: 'Paramètres : Paie CNSS / AMO, Plan comptable (FEC) et Relances impayés s’ouvrent directement depuis la barre des Paramètres.' },
       { id: '093i11', platforms: ['desktop'], text: 'Client bureau : références visuelles mises à jour (captures 1280×800 en clair et en sombre de chaque page, de chaque section des Paramètres, d’Atlas Agent, du menu du compte, de la confirmation de déconnexion et de la visite guidée, avec les mesures de chaque élément).' },
       { id: '093i12', platforms: ['web'], text: 'Nettoyage : ancienne visite à cartes, maquettes dessinées, scripts de capture obsolètes et règles de style inutilisées retirés.' },
+      { id: '093i13', platforms: ['web'], text: 'Barre d’actions en haut à droite : icônes plus nettes quand elle est dépliée ; une fois réduite, seul le bouton survolé (ou sélectionné au clavier) s’élargit pour afficher son nom, sans déplier toute la barre.' },
+      { id: '093i14', platforms: ['web'], text: 'Barre flottante du haut : la flèche de retour (« ← Paramètres ») laisse place à un bouton « Tableau de bord » séparé, à gauche, qui n’affiche que son icône et révèle son nom au survol.' },
     ] }, { kind: 'fixes', items: [
       { id: '093f1', platforms: ['web'], text: 'Passkeys web : l’enregistrement et la connexion par passkey fonctionnent de nouveau.' },
       { id: '093f2', platforms: ['web', 'server'], text: 'Paie : fenêtre de réglages CNSS/AMO corrigée, fenêtres affichées en plein écran et téléchargement des documents de paie rétabli.' },
@@ -78,6 +80,8 @@ export const RELEASES: Release[] = [
       { id: '093f11', platforms: ['web'], text: 'Clôtures de caisse : une réponse incomplète du serveur n’interrompt plus la page.' },
       { id: '093f12', platforms: ['web'], text: 'Photo de profil : elle s’affiche de nouveau à chaque fois et plus vite ; chaque actualisation du profil ne recharge plus l’image (qui pouvait rester sur les initiales) et un échec de chargement est réessayé automatiquement.' },
       { id: '093f13', platforms: ['web'], text: 'Fenêtres qui s’ouvraient ou se fermaient toutes seules : la fenêtre « Langue » et la confirmation de déconnexion ne disparaissent plus quand la barre du haut se rétracte au défilement, le menu mobile des pages publiques ne les ferme plus, et « Nouveautés » attend la fin de la visite guidée et des autres fenêtres avant de s’afficher.' },
+      { id: '093f14', platforms: ['web'], text: 'Barre d’actions réduite : les icônes s’affichent de nouveau au lieu de carrés vides ou de points.' },
+      { id: '093f15', platforms: ['web'], text: 'Nouveautés : le fil d’Ariane « Accueil › Nouveautés » est retiré et le contenu ne bouge plus quand on ouvre ou réduit la barre latérale (même chose sur À propos, Paramètres et pages légales).' },
     ] }],
   },
   {
@@ -1357,18 +1361,8 @@ export default function WhatsNew() {
     })).filter((rel) => rel.sections.length > 0);
   }, [filter]);
 
-  // v0.7 — public reading: breadcrumb targets /login when there is no session.
-  const wnLoggedIn = typeof isLoggedIn === 'function' ? isLoggedIn() : !!getToken();
   return (
     <div className="wn-changelog">
-      <nav className="wn-crumb" aria-label="Fil d'Ariane">
-        {wnLoggedIn
-          ? <Link to="/">Accueil</Link>
-          : <span>Atlas Commerce</span>}
-        <span aria-hidden>›</span>
-        <span>Nouveautés</span>
-      </nav>
-
       <motion.h1
         className="wn-title"
         initial={{ opacity: 0, y: 8 }}

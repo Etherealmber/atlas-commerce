@@ -31,6 +31,7 @@ import '../components/erp/orders-fulfillment.css';
 import RemboursementModal from '../components/RemboursementModal';
 import { FloatingPortal } from '../components/FloatingPortal';
 import { ModalFormError } from '../components/ModalFormFeedback';
+import { MetricSpark, MetricTrend } from '../components/MetricSpark';
 
 type Product = {
   id: number;
@@ -445,10 +446,18 @@ export default function QuickSale() {
 
       
       <div className="ac-metric-grid" style={{ marginBottom: 16 }}>
-        <div className="ac-metric"><div className="as-label">Tickets</div><div className="as-value">{qsKpis.n}</div></div>
-        <div className="ac-metric"><div className="as-label">Ouverts</div><div className="as-value">{qsKpis.open}</div></div>
-        <div className="ac-metric"><div className="as-label">Payés</div><div className="as-value">{qsKpis.paid}</div></div>
-        <div className="ac-metric ac-metric--solde"><div className="as-label">Solde caisse</div><div className="as-value">{new Intl.NumberFormat('fr-MA', { maximumFractionDigits: 2 }).format(cashIn - wrTotal)} <small>MAD</small></div><div className="as-hint">encaissé {new Intl.NumberFormat('fr-MA', { maximumFractionDigits: 0 }).format(cashIn)} − remboursements {new Intl.NumberFormat('fr-MA', { maximumFractionDigits: 0 }).format(wrTotal)}</div></div>
+        <div className="ac-metric"><div className="as-label">Tickets</div><div className="as-value">{qsKpis.n}<MetricTrend k="tickets_count" /></div>
+          <MetricSpark k="tickets_count" />
+        </div>
+        <div className="ac-metric"><div className="as-label">Ouverts</div><div className="as-value">{qsKpis.open}<MetricTrend k="open_tickets" invert /></div>
+          <MetricSpark k="open_tickets" invert />
+        </div>
+        <div className="ac-metric"><div className="as-label">Payés</div><div className="as-value">{qsKpis.paid}<MetricTrend k="sales_vr" /></div>
+          <MetricSpark k="sales_vr" unit="money" />
+        </div>
+        <div className="ac-metric ac-metric--solde"><div className="as-label">Solde caisse</div><div className="as-value">{new Intl.NumberFormat('fr-MA', { maximumFractionDigits: 2 }).format(cashIn - wrTotal)} <small>MAD</small><MetricTrend k="cash_net" /></div><div className="as-hint">encaissé {new Intl.NumberFormat('fr-MA', { maximumFractionDigits: 0 }).format(cashIn)} − remboursements {new Intl.NumberFormat('fr-MA', { maximumFractionDigits: 0 }).format(wrTotal)}</div>
+          <MetricSpark k="cash_net" unit="money" />
+        </div>
       </div>
 <SaveFeedback message={msg} type={msgType} />
 

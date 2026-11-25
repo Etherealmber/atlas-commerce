@@ -24,6 +24,7 @@ import { RunActionButton, EXPORT_REPORT_STEPS } from '../components/ui';
 import { draftReorderMessage, demandHint } from '../lib/assist';
 import { canAccessCompanySettings, getRole } from '../auth';
 import RefreshIconButton from '../components/RefreshIconButton';
+import { MetricSpark, MetricTrend } from '../components/MetricSpark';
 
 const fmt = (n: number) => Math.round(Number(n || 0)).toLocaleString('fr-FR');
 
@@ -262,8 +263,9 @@ export default function Reports() {
       <section className="ac-metric-grid" aria-label="Indicateurs financiers">
         <article className="ac-metric">
           <span className="ac-metric-label">Créances ouvertes</span>
-          <strong className="ac-metric-val">{fmt(totalAging)} MAD</strong>
+          <strong className="ac-metric-val">{fmt(totalAging)} MAD<MetricTrend k="receivables" invert /></strong>
           <span className="ac-metric-meta">{(aging?.rows || []).length} facture(s) en attente</span>
+          <MetricSpark k="receivables" invert unit="money" />
         </article>
         <article className="ac-metric">
           <span className="ac-metric-label">TVA nette</span>
@@ -277,8 +279,9 @@ export default function Reports() {
         </article>
         <article className="ac-metric">
           <span className="ac-metric-label">À réapprovisionner</span>
-          <strong className="ac-metric-val">{reorder.length} article(s)</strong>
+          <strong className="ac-metric-val">{reorder.length} article(s)<MetricTrend k="low_stock" invert /></strong>
           <span className="ac-metric-meta">{period ? `Clôturé jusqu’à ${period}` : 'Période ouverte'}</span>
+          <MetricSpark k="low_stock" invert />
         </article>
       </section>
 

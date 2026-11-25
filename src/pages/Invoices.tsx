@@ -30,6 +30,7 @@ import '../components/erp/orders-fulfillment.css';
 import { FloatingPortal } from '../components/FloatingPortal';
 import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
 import { ModalFormError } from '../components/ModalFormFeedback';
+import { MetricSpark, MetricTrend } from '../components/MetricSpark';
 
 const INVOICE_STEPS: readonly WizardStepDef[] = [
   { id: 'client', label: 'Client', hint: 'Client enregistré ou nouveau client, avec son identifiant fiscal.' },
@@ -477,10 +478,18 @@ export default function Invoices() {
 
       
       <div className="ac-metric-grid" style={{ marginBottom: 16 }}>
-        <div className="ac-metric"><div className="as-label">Total liste</div><div className="as-value">{orderKpis.n}</div></div>
-        <div className="ac-metric"><div className="as-label">Ouvertes</div><div className="as-value">{orderKpis.open}</div></div>
-        <div className="ac-metric"><div className="as-label">Payées</div><div className="as-value">{orderKpis.paid}</div></div>
-        <div className="ac-metric"><div className="as-label">Reste dû</div><div className="as-value">{Math.round(orderKpis.due).toLocaleString('fr-FR')}</div></div>
+        <div className="ac-metric"><div className="as-label">Total liste</div><div className="as-value">{orderKpis.n}<MetricTrend k="sales_fa" /></div>
+          <MetricSpark k="sales_fa" unit="money" />
+        </div>
+        <div className="ac-metric"><div className="as-label">Ouvertes</div><div className="as-value">{orderKpis.open}<MetricTrend k="open_invoices" invert /></div>
+          <MetricSpark k="open_invoices" invert />
+        </div>
+        <div className="ac-metric"><div className="as-label">Payées</div><div className="as-value">{orderKpis.paid}<MetricTrend k="receipts" /></div>
+          <MetricSpark k="receipts" unit="money" />
+        </div>
+        <div className="ac-metric"><div className="as-label">Reste dû</div><div className="as-value">{Math.round(orderKpis.due).toLocaleString('fr-FR')}<MetricTrend k="receivables" invert /></div>
+          <MetricSpark k="receivables" invert unit="money" />
+        </div>
       </div>
 <SaveFeedback message={saveMsg} type={saveMsgType} />
 

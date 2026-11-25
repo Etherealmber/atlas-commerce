@@ -5649,7 +5649,7 @@ html body .desktop-catalog-actions-slot a:hover {
     html[data-theme="dark"]:not(.phone-shell) body .content .bal-tx-row:hover {
       box-shadow: 0 8px 20px rgba(0, 0, 0, 0.34);
     }
-    html:not(.phone-shell) body .content :is(.ac-metric, .ac-profile-card):hover svg {
+    html:not(.phone-shell) body .content :is(.ac-metric, .ac-profile-card):hover svg:not(.ms-svg) {
       transform: scale(1.1) rotate(-4deg) !important;
     }
     html:not(.phone-shell) body .content .ac-profile-card:hover .ac-profile-card-chev {

@@ -14,6 +14,7 @@ import TopPageActions from '../components/TopPageActions';
 import RefreshIconButton from '../components/RefreshIconButton';
 import PageSkeleton from '../components/PageSkeleton';
 import { fmtMoney } from '../lib/money';
+import { MetricSpark, MetricTrend } from '../components/MetricSpark';
 
 const DENOMINATIONS = [200, 100, 50, 20, 10, 5, 2, 1, 0.5];
 
@@ -240,12 +241,13 @@ export default function CashShifts() {
         </article>
         <article className="ac-metric">
           <span className="ac-metric-label">Attendu espèces</span>
-          <strong className="ac-metric-val">{fmtMoney(expectedCash)}</strong>
+          <strong className="ac-metric-val">{fmtMoney(expectedCash)}<MetricTrend k="cash_net" /></strong>
           <span className="ac-metric-meta">
             {selectedShift
               ? `Fond ${fmtMoney(selectedShift.opening_float)} · #${selectedShift.id}`
               : 'Sélectionnez une session'}
           </span>
+          <MetricSpark k="cash_net" unit="money" />
         </article>
         <article className="ac-metric">
           <span className="ac-metric-label">Sessions clôturées</span>
@@ -254,8 +256,9 @@ export default function CashShifts() {
         </article>
         <article className="ac-metric">
           <span className="ac-metric-label">Écart cumulé</span>
-          <strong className="ac-metric-val">{fmtMoney(totalVariance)}</strong>
+          <strong className="ac-metric-val">{fmtMoney(totalVariance)}<MetricTrend k="cash_variance" /></strong>
           <span className="ac-metric-meta">Écarts constatés aux clôtures Z</span>
+          <MetricSpark k="cash_variance" unit="money" />
         </article>
       </section>
 

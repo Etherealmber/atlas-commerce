@@ -26,6 +26,7 @@ import PasswordConfirm from '../components/PasswordConfirm';
 import { FloatingPortal } from '../components/FloatingPortal';
 import { ModalFormError } from '../components/ModalFormFeedback';
 import { computeQuoteDraftTotals } from '../../shared/financeCore';
+import { MetricSpark, MetricTrend } from '../components/MetricSpark';
 
 export default function Quotes() {
   const [modalError, setModalError] = useState('');
@@ -357,20 +358,24 @@ export default function Quotes() {
           <div className="ac-metric-grid" style={{ marginBottom: 16 }}>
             <div className="ac-metric">
               <div className="as-label">Devis</div>
-              <div className="as-value">{list.length}</div>
+              <div className="as-value">{list.length}<MetricTrend k="quotes_count" /></div>
+              <MetricSpark k="quotes_count" />
             </div>
             <div className="ac-metric">
               <div className="as-label">En cours</div>
-              <div className="as-value">{activeCount}</div>
+              <div className="as-value">{activeCount}<MetricTrend k="open_quotes" /></div>
+              <MetricSpark k="open_quotes" />
             </div>
             <div className="ac-metric">
               <div className="as-label">Expirés</div>
-              <div className="as-value">{expiredCount}</div>
+              <div className="as-value">{expiredCount}<MetricTrend k="expired_quotes" invert /></div>
+              <MetricSpark k="expired_quotes" invert />
             </div>
             <div className="ac-metric ac-metric--solde">
               <div className="as-label">Montant devis</div>
-              <div className="as-value">{fmt(totalAmount)} <small>MAD</small></div>
+              <div className="as-value">{fmt(totalAmount)} <small>MAD</small><MetricTrend k="quotes_amount" /></div>
               <div className="as-hint">{filteredQuotes.length} affiché{filteredQuotes.length === 1 ? '' : 's'}</div>
+              <MetricSpark k="quotes_amount" unit="money" />
             </div>
           </div>
         );

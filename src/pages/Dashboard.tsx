@@ -8,6 +8,7 @@ import { getUsername, isStockRole } from '../auth';
 import { IconPackage } from '../components/Icons';
 import { AreaChart, BarChart, DonutChart, HBarChart, formatCompactNum } from '../components/DashboardCharts';
 import PageSkeleton from '../components/PageSkeleton';
+import { MetricSpark, MetricTrend } from '../components/MetricSpark';
 
 /**
  * Date + place from the *device* clock/timezone only (never IP geolocation).
@@ -408,32 +409,36 @@ export default function Dashboard() {
             <svg className="as-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>
             Produits
           </div>
-          <div className="as-value">{productCount}</div>
+          <div className="as-value">{productCount}<MetricTrend k="products" /></div>
           <div className="as-hint">valeur {fmt(Number(data?.stockValue ?? 0), cur)}</div>
+          <MetricSpark k="products" />
         </div>
         <div className={`ac-metric ${lowCount > 0 ? 'ac-metric--warn' : ''}`}>
           <div className="as-label">
             <svg className="as-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 9v4" /><path d="M12 17h.01" /><path d="M10.3 4.3 2.6 18a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0z" /></svg>
             Stock bas
           </div>
-          <div className="as-value">{lowCount}</div>
+          <div className="as-value">{lowCount}<MetricTrend k="low_stock" invert /></div>
           <div className="as-hint">à vérifier en rayon</div>
+          <MetricSpark k="low_stock" invert />
         </div>
         <div className="ac-metric">
           <div className="as-label">
             <svg className="as-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16v12H4z" /><path d="M4 12l8 5 8-5" /></svg>
             À traiter
           </div>
-          <div className="as-value">{pending}</div>
+          <div className="as-value">{pending}<MetricTrend k="pending_actions" invert /></div>
           <div className="as-hint">envois mobile</div>
+          <MetricSpark k="pending_actions" invert />
         </div>
         <div className="ac-metric">
           <div className="as-label">
             <svg className="as-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
             Ventes du jour
           </div>
-          <div className="as-value">{fmt(todayRev, cur)}</div>
+          <div className="as-value">{fmt(todayRev, cur)}<MetricTrend k="sales" compare="day" /></div>
           <div className="as-hint">toutes factures</div>
+          <MetricSpark k="sales" unit="money" currency={cur} />
         </div>
       </div>
 
@@ -511,8 +516,9 @@ export default function Dashboard() {
           </div>
           <div className="as-value" style={{ fontSize: '1.35rem' }}>
             {fmt(currentBalance, cur)}
-          </div>
+          <MetricTrend k="balance" /></div>
           <div className="as-hint">caisse &amp; banque</div>
+          <MetricSpark k="balance" unit="money" currency={cur} />
         </div>
         <div className="ac-metric">
           <div className="as-label">
@@ -521,8 +527,9 @@ export default function Dashboard() {
           </div>
           <div className="as-value" style={{ fontSize: '1.35rem' }}>
             {fmt(receivablesTotal, cur)}
-          </div>
+          <MetricTrend k="receivables" invert /></div>
           <div className="as-hint">clients</div>
+          <MetricSpark k="receivables" invert unit="money" currency={cur} />
         </div>
         <div className="ac-metric">
           <div className="as-label">
@@ -531,8 +538,9 @@ export default function Dashboard() {
           </div>
           <div className="as-value" style={{ fontSize: '1.35rem' }}>
             {fmt(payablesTotal, cur)}
-          </div>
+          <MetricTrend k="payables" invert /></div>
           <div className="as-hint">fournisseurs</div>
+          <MetricSpark k="payables" invert unit="money" currency={cur} />
         </div>
         <div className="ac-metric">
           <div className="as-label">
@@ -541,8 +549,9 @@ export default function Dashboard() {
           </div>
           <div className="as-value" style={{ fontSize: '1.35rem' }}>
             {fmt(netPeriod, cur)}
-          </div>
+          <MetricTrend k="net_flow" /></div>
           <div className="as-hint">selon filtre dates</div>
+          <MetricSpark k="net_flow" unit="money" currency={cur} />
         </div>
       </div>
 

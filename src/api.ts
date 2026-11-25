@@ -389,6 +389,8 @@ export const api = {
     }),
   getHubSnapshot: () => request<{ data: any }>('/api/hub/snapshot'),
   getDashboard: () => request<{ data: any }>('/api/dashboard'),
+  /** KPI sparklines: 2 × days daily points ending today (see worker/routes/metrics.ts). */
+  getMetricsDaily: (days = 7) => request<{ data: { days: number; dates: string[]; series: Record<string, (number | null)[]>; kinds: Record<string, 'flow' | 'level'> } }>(`/api/metrics/daily?days=${days}`, { silent: true }),
   importValidate: (body: any) =>
     request('/api/import/validate', { method: 'POST', body: JSON.stringify(body) }),
   importCommit: (body: any) =>
