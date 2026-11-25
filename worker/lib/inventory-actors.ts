@@ -1,4 +1,4 @@
-import { addColumnIfMissing } from './schema';
+import { addColumnIfMissing, schemaOnceForDb } from './schema';
 
 /** Optional metadata, added lazily as in 0008; old rows remain unknown. */
 export async function ensureProductActors(db: D1Database): Promise<void> {
@@ -6,7 +6,13 @@ export async function ensureProductActors(db: D1Database): Promise<void> {
   await addColumnIfMissing(db, 'products', 'approved_by', 'TEXT DEFAULT NULL');
 }
 
+/** Once per D1 binding per isolate — the DDL below is idempotent, so
+ *  re-running it on every request only cost D1 round-trips. */
 export async function ensureMovementApprover(db: D1Database): Promise<void> {
+  await schemaOnceForDb(db, 'ensureMovementApprover', () => ensureMovementApproverBody(db));
+}
+
+async function ensureMovementApproverBody(db: D1Database): Promise<void> {
   await db.prepare(`CREATE TABLE IF NOT EXISTS stock_movements (
     id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER NOT NULL,
     type TEXT DEFAULT '', quantity REAL DEFAULT 0, previous_quantity REAL DEFAULT 0,

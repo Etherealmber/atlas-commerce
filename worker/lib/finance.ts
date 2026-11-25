@@ -21,6 +21,7 @@
  */
 
 import { addColumnIfMissing } from './schema';
+import { schemaOnceForDb } from './schema';
 import { normalizeRole } from './rbac';
 import { sendFcmToUser } from './fcm';
 import {
@@ -163,7 +164,13 @@ export function payrollObligation(
 
 /* ─────────────────────────── schema & context ─────────────────────────── */
 
+/** Once per D1 binding per isolate — the DDL below is idempotent, so
+ *  re-running it on every request only cost D1 round-trips. */
 export async function ensureFinanceSchema(db: D1Database): Promise<void> {
+  await schemaOnceForDb(db, 'ensureFinanceSchema', () => ensureFinanceSchemaBody(db));
+}
+
+async function ensureFinanceSchemaBody(db: D1Database): Promise<void> {
   await db.prepare(
     `CREATE TABLE IF NOT EXISTS finance_outbox (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

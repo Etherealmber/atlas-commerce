@@ -1,3 +1,4 @@
+import { schemaOnceForDb } from './schema';
 /**
  * v0.7.7 — Atlas Agent : MÉMOIRE, CONTEXTE, GARDE-FOUS, OUTILS et RAG persistants.
  * Tout est stocké en D1, éditable depuis les Paramètres (ancres agent-knowledge)
@@ -34,7 +35,13 @@ const DOC_CHARS_MAX = 20000;
 const GUARDRAIL_MAX = 40;
 const CONTEXT_CHARS_MAX = 4000;
 
+/** Once per D1 binding per isolate — the DDL below is idempotent, so
+ *  re-running it on every request only cost D1 round-trips. */
 async function ensureAgentKnowledgeTables(db: D1Database): Promise<void> {
+  await schemaOnceForDb(db, 'ensureAgentKnowledgeTables', () => ensureAgentKnowledgeTablesBody(db));
+}
+
+async function ensureAgentKnowledgeTablesBody(db: D1Database): Promise<void> {
   await db.batch([
     db.prepare(
       `CREATE TABLE IF NOT EXISTS agent_memory (

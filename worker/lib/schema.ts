@@ -84,6 +84,57 @@ export async function schemaOnceForDb(db: D1Database, key: string, fn: () => Pro
   await p;
 }
 
+/**
+ * Known columns per table, per root D1 binding (lower-case names). Many routes
+ * call `addColumnIfMissing` outside `schemaOnce`, so without this every
+ * request paid a `PRAGMA table_info` (billed as rows read) per column checked.
+ * Only positive knowledge is cached: a missing table is re-checked next time.
+ */
+const _knownColumns = new WeakMap<object, Map<string, Set<string>>>();
+
+function knownColumnsFor(db: unknown): Map<string, Set<string>> | null {
+  const root = resolveRootDb(db);
+  if (!root) return null;
+  let m = _knownColumns.get(root);
+  if (!m) {
+    m = new Map();
+    _knownColumns.set(root, m);
+  }
+  return m;
+}
+
+/** Forget cached schema knowledge (after a restore / table rebuild). */
+export function resetSchemaCaches(db?: unknown): void {
+  const root = db ? resolveRootDb(db) : null;
+  if (root) {
+    _knownColumns.delete(root);
+    _knownTables.delete(root);
+  }
+}
+
+const _knownTables = new WeakMap<object, Set<string>>();
+
+/**
+ * `true` when `table` exists. Positive answers are cached per root binding, so
+ * the `sqlite_master` scan (one row read per schema object) happens once per
+ * isolate instead of on every request.
+ */
+export async function tableExists(db: D1Database, table: string): Promise<boolean> {
+  const root = resolveRootDb(db);
+  const name = String(table || '');
+  if (root && _knownTables.get(root)?.has(name)) return true;
+  const row = await db.prepare(`SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = ?`).bind(name).first();
+  if (row && root) {
+    let set = _knownTables.get(root);
+    if (!set) {
+      set = new Set();
+      _knownTables.set(root, set);
+    }
+    set.add(name);
+  }
+  return Boolean(row);
+}
+
 export async function addColumnIfMissing(
   db: D1Database,
   table: string,
@@ -91,30 +142,41 @@ export async function addColumnIfMissing(
   typeSql: string,
 ): Promise<void> {
   if (!db || typeof (db as any).prepare !== 'function') return;
-  try {
-    const stmt = db.prepare(`PRAGMA table_info(${table})`);
-    if (!stmt) return;
-    const info = await stmt.all();
-    const rows = (info?.results || []) as { name?: string }[];
-    if (rows.some((r) => String(r.name || '').toLowerCase() === column.toLowerCase())) {
-      return;
+  const col = column.toLowerCase();
+  const known = knownColumnsFor(db);
+  const cols = known?.get(table);
+  if (cols?.has(col)) return;
+  if (!cols) {
+    try {
+      const stmt = db.prepare(`PRAGMA table_info(${table})`);
+      if (!stmt) return;
+      const info = await stmt.all();
+      const rows = (info?.results || []) as { name?: string }[];
+      if (rows.length > 0) {
+        const set = new Set(rows.map((r) => String(r.name || '').toLowerCase()));
+        known?.set(table, set);
+        if (set.has(col)) return;
+      } else {
+        // Avoid issuing ALTER TABLE on a table that does not exist yet (zero D1 error spans).
+        const tbl = await db
+          .prepare(`SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = ?`)
+          ?.bind(table)
+          ?.first();
+        if (!tbl) return;
+      }
+    } catch {
+      /* pragma may fail on some bindings — fall through to guarded ALTER */
     }
-    if (rows.length === 0) {
-      // Avoid issuing ALTER TABLE on a table that does not exist yet (zero D1 error spans).
-      const tbl = await db
-        .prepare(`SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = ?`)
-        ?.bind(table)
-        ?.first();
-      if (!tbl) return;
-    }
-  } catch {
-    /* pragma may fail on some bindings — fall through to guarded ALTER */
   }
   try {
     await db.prepare(`ALTER TABLE ${table} ADD COLUMN ${column} ${typeSql}`)?.run();
+    known?.get(table)?.add(col);
   } catch (e: any) {
     const msg = String(e?.message || e || '');
-    if (/duplicate column name/i.test(msg) || /already exists/i.test(msg)) return;
+    if (/duplicate column name/i.test(msg) || /already exists/i.test(msg)) {
+      known?.get(table)?.add(col);
+      return;
+    }
     /* schema drift is non-fatal — swallow */
   }
 }

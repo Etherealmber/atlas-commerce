@@ -1,5 +1,6 @@
 import { apiFail } from '../lib/api-response';
 import { rateLimit } from '../lib/security';
+import { tableExists } from '../lib/schema';
 
 const MAX_BODY = 4096;
 const COOLDOWN_MS = 5 * 60 * 1000;
@@ -46,8 +47,7 @@ export function nextPreferenceSync(last: string | null, frequency: Frequency): s
 }
 
 async function ensureTable(db: D1Database) {
-  const existing = await db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'mobile_preferences_v1'").first();
-  if (existing) return;
+  if (await tableExists(db, 'mobile_preferences_v1')) return;
   await db.prepare(`CREATE TABLE IF NOT EXISTS mobile_preferences_v1 (
     user_id INTEGER UNIQUE REFERENCES app_users(id) ON DELETE CASCADE,
     owner_username TEXT UNIQUE CHECK (owner_username IS NULL OR length(owner_username) > 0),
@@ -124,7 +124,7 @@ export function registerMobilePreferencesRoutes(app: any, deps: {
           return apiFail(c, 'Préférences invalides', 'VALIDATION');
         }
       }
-      if (owner && !await c.env.DB.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'app_users'").first()) {
+      if (owner && !await tableExists(c.env.DB, 'app_users')) {
         await deps.ensureSecurityTables(c.env.DB);
       }
       await ensureTable(c.env.DB);

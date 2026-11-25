@@ -1,4 +1,5 @@
 import { githubJson } from './github-json';
+import { tableExists, schemaOnceForDb } from './schema';
 
 /**
  * v260 — Crash reporting & user reports → GitHub issues.
@@ -40,7 +41,13 @@ const LABEL_CRASH = 'crash-report';
 const LABEL_USER = 'user-report';
 const LABEL_FROM_APP = 'from-app';
 
+/** Once per D1 binding per isolate — the DDL below is idempotent, so
+ *  re-running it on every request only cost D1 round-trips. */
 export async function ensureReportTables(db: D1Database): Promise<void> {
+  await schemaOnceForDb(db, 'ensureReportTables', () => ensureReportTablesBody(db));
+}
+
+async function ensureReportTablesBody(db: D1Database): Promise<void> {
   await db.prepare(`CREATE TABLE IF NOT EXISTS crash_reports (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     fingerprint TEXT NOT NULL UNIQUE,
@@ -386,7 +393,7 @@ export async function reportUser(db: D1Database, env: ReportsEnv, input: UserRep
     await ensureReportDedup(db);
     // Adopt earlier linked reports only if their server-created ownership binding
     // and URL match. Unbound legacy rows cannot prove account ownership.
-    const ownerTable = await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='work_status_report_owners'").first();
+    const ownerTable = await tableExists(db, 'work_status_report_owners');
     if (ownerTable) {
       await db.prepare(`INSERT OR IGNORE INTO user_report_dedup (scope, repo, fingerprint, report_id)
         SELECT ?, ?, ?, r.id FROM user_reports r JOIN work_status_report_owners o ON o.report_id = r.id

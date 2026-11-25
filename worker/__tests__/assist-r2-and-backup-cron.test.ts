@@ -149,6 +149,7 @@ describe('R2 agent conversation handling & backup cron D1 read reduction', () =>
     });
 
     const kvStore = new Map<string, string>();
+    const uploads = new Map<string, Date>();
     let d1Queries = 0;
     const env = {
       CRON_SECRET: 'cron-secret',
@@ -165,7 +166,8 @@ describe('R2 agent conversation handling & backup cron D1 read reduction', () =>
       },
       IMAGES: {
         list: async () => ({ objects: [], truncated: false }),
-        put: async () => {},
+        put: async (k: string) => { uploads.set(k, new Date()); },
+        head: async (k: string) => (uploads.has(k) ? { key: k, uploaded: uploads.get(k) } : null),
       },
       DB: {
         prepare: () => {
@@ -204,6 +206,28 @@ describe('R2 agent conversation handling & backup cron D1 read reduction', () =>
     const j2 = (await run2.json()) as any;
     expect(j2.skipped).toBe(true);
     expect(d1Queries).toBe(queriesOnFirstRun);
+
+    // A business write wipes the generation-versioned cache; the 12 h cadence
+    // must still hold (it used to re-read every table on the next cron call).
+    const { bumpCacheGen } = await import('../lib/cache');
+    await bumpCacheGen(env.CACHE as any);
+    const run3 = await app.request(
+      '/api/cron/backup-execute',
+      { method: 'POST', headers: { Authorization: 'Bearer cron-secret' } },
+      env as any,
+    );
+    expect(((await run3.json()) as any).skipped).toBe(true);
+    expect(d1Queries).toBe(queriesOnFirstRun);
+
+    // Past the cooldown the next cron call runs again.
+    uploads.set('backups/v5/index.abk', new Date(Date.now() - 12 * 3600 * 1000));
+    const run4 = await app.request(
+      '/api/cron/backup-execute',
+      { method: 'POST', headers: { Authorization: 'Bearer cron-secret' } },
+      env as any,
+    );
+    expect(((await run4.json()) as any).skipped).toBe(false);
+    expect(d1Queries).toBeGreaterThan(queriesOnFirstRun);
   });
 
   it('runDailyBackup uses incremental delta queries for append-only tables and skips unchanged R2 writes', async () => {

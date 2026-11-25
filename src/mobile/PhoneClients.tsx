@@ -8,6 +8,7 @@ import { api } from '../api';
 import { friendlyError } from '../lib/errors';
 import PhoneDialog from './PhoneDialog';
 import PhoneSkeleton from './PhoneSkeleton';
+import { CLIENT_KPIS, PhoneKpiStrip } from './PhoneKpis';
 
 export const PHONE_CLIENTS_PAGE_SIZE = 20;
 
@@ -175,6 +176,7 @@ export default function PhoneClients({ onToast }: { onToast: (msg: string) => vo
           </button>
         </div>
       </div>
+      <PhoneKpiStrip items={CLIENT_KPIS} label="Indicateurs clients" />
 
       <div className="ph-catalog-search" style={{ marginBottom: 10 }}>
         <Search size={17} aria-hidden="true" />

@@ -4,6 +4,7 @@
  * Helpers: ensureMailSchema, R2 body crypto, Resend sync
  */
 import type { Hono } from 'hono';
+import { schemaOnceForDb } from '../lib/schema';
 
 type MailboxRouteDeps = {
   verifyBackupAccess: (
@@ -14,7 +15,13 @@ type MailboxRouteDeps = {
 };
 
 
+/** Once per D1 binding per isolate — the DDL below is idempotent, so
+ *  re-running it on every request only cost D1 round-trips. */
 export async function ensureMailSchema(db: D1Database): Promise<void> {
+  await schemaOnceForDb(db, 'ensureMailSchema', () => ensureMailSchemaBody(db));
+}
+
+async function ensureMailSchemaBody(db: D1Database): Promise<void> {
   await db.prepare(`CREATE TABLE IF NOT EXISTS mail_messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     direction TEXT NOT NULL DEFAULT 'out',

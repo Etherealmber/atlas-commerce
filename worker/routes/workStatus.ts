@@ -1,6 +1,7 @@
 import { githubJson } from '../lib/github-json';
 import { githubConfig, redactSecrets } from '../lib/reports';
 import { rateLimit } from '../lib/security';
+import { tableExists } from '../lib/schema';
 
 const integer = (v: string | null, fallback: number | null, max: number) => {
   if (v === null) return fallback;
@@ -78,7 +79,7 @@ export function registerWorkStatusRoute(app: any, deps: {
     let github: any = unavailable('NOT_CONFIGURED');
     if (String(c.env.WORK_STATUS_GITHUB_ENABLED || '') !== 'false') {
       try {
-        const ownerTable = await c.env.DB.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'work_status_report_owners'").first();
+        const ownerTable = await tableExists(c.env.DB, 'work_status_report_owners');
         if (!accountCreated && !(ownerTable && (isOwner || userId))) { github = unavailable('OWNERSHIP_UNVERIFIABLE'); } else {
         const config = await githubConfig(c.env);
         if (config.token && /^[A-Za-z0-9_-][A-Za-z0-9_.-]*\/[A-Za-z0-9_-][A-Za-z0-9_.-]*$/.test(config.repo)) {
