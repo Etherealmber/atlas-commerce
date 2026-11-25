@@ -13,12 +13,13 @@ vi.mock('motion/react', async () => {
     element(
       tag,
       Object.fromEntries(
-        Object.entries(props).filter(([key]) => !['initial', 'animate', 'exit', 'custom', 'transition'].includes(key)),
+        Object.entries(props).filter(([key]) => !['initial', 'animate', 'exit', 'custom', 'transition', 'layoutId'].includes(key)),
       ),
     );
   return {
     motion: { h1: plain('h1'), section: plain('section'), span: plain('span') },
     AnimatePresence: ({ children }: { children: unknown }) => children,
+    useReducedMotion: () => false,
   };
 });
 import Products from '../pages/Products';

@@ -104,9 +104,9 @@ export default function PhoneBalance() {
         setMonthChoices((old) => old.length ? old : financeMonths(data.period));
         const [stmt, detail] = await Promise.allSettled([api.getFinanceStatement(data.period), api.getFinancePeriod(data.period)]);
         if (id !== generation.current) return;
-        if (stmt.status === 'fulfilled') { setStatement(stmt.value.data); setRows(stmt.value.data.rows); }
+        if (stmt.status === 'fulfilled' && Array.isArray(stmt.value.data?.rows)) { setStatement(stmt.value.data); setRows(stmt.value.data.rows); }
         else setError('Relevé indisponible. Réessayez.');
-        if (detail.status === 'fulfilled') setBreakdown(detail.value.data);
+        if (detail.status === 'fulfilled' && detail.value.data?.inflows && detail.value.data?.outflows && detail.value.data?.owner) setBreakdown(detail.value.data);
         else setBreakdownError(true);
       } catch { if (id === generation.current) setError('Impossible de charger les données financières. Vérifiez votre connexion puis réessayez.'); }
       finally { if (id === generation.current) setLoading(false); }
@@ -120,7 +120,7 @@ export default function PhoneBalance() {
     setLoadingMore(true);
     try {
       const next = (await api.getFinanceStatement(finance.period, statement.page + 1)).data;
-      if (id === generation.current) { setRows((old) => [...old, ...next.rows]); setStatement(next); }
+      if (id === generation.current) { setRows((old) => [...old, ...(Array.isArray(next?.rows) ? next.rows : [])]); setStatement(next); }
     } catch { if (id === generation.current) setError('Impossible de charger la suite du relevé.'); }
     finally { if (id === generation.current) setLoadingMore(false); }
   };

@@ -37,6 +37,34 @@ type Release = {
 
 export const RELEASES: Release[] = [
   {
+    version: '0.9.3',
+    date: '25 novembre 2026',
+    sections: [{ kind: 'features', items: [
+      { id: '093n4', platforms: ['web'], text: 'Tableau de bord : quatrième graphique « Répartition des charges » (principales catégories de dépenses hors achats), toujours affiché, avec des lignes à 0 MAD tant qu’il n’y a pas de données ; graphiques reliés aux données réelles et rafraîchis après chaque modification.' },
+      { id: '093n3', platforms: ['web', 'server'], text: 'Paie : jours déclarés CNSS par employé (26 jours par mois au maximum) dans l’assistant Employé, modifiables sur chaque ligne de paie ; 0 jour signifie sans CNSS/AMO ; colonne « Jours déclarés CNSS » dans les exports CSV et Excel ; préréglages 26, 22 et 13 jours.' },
+      { id: '093n1', platforms: ['desktop', 'server'], text: 'Connexion desktop native sans navigateur : mot de passe + code reçu par e-mail, QR approuvé depuis le téléphone et passkey Windows Hello, avec jetons DPoP liés à l’appareil et aucune fenêtre de navigateur.' },
+      { id: '093n2', platforms: ['desktop', 'server'], text: 'Option « Rester connecté » sur desktop, à activer à chaque connexion : session limitée côté serveur à 30 jours maximum (12 h par défaut, jamais prolongée par le rafraîchissement), rotation des jetons avec détection de réutilisation et révocation à la déconnexion, au changement de mot de passe ou par un administrateur.' },
+      { id: '093n5', platforms: ['web'], text: 'Paramètres : une fenêtre flottante apparaît dès qu’un réglage change, avec « Annuler » et « Enregistrer », puis confirme « Paramètres enregistrés ».' },
+      { id: '093n6', platforms: ['web'], text: 'Langue : nouvelle entrée « Langue » dans les Paramètres et dans le menu utilisateur ; l’interface reste en français pour l’instant, l’arabe et l’anglais arrivent bientôt.' },
+    ] }, { kind: 'improvements', items: [
+      { id: '093i1', platforms: ['web'], text: 'Navigation entre les pages réécrite sur toutes les listes (Produits, Factures, Devis, Reçus, Achats, Clients, Fournisseurs, Employés, Pointage, Balance, Remboursements, Vente rapide, Boîte d’actions et Journal d’audit) : numéros de page avec points de suspension, page courante animée, navigation au clavier (flèches, Début, Fin) et rendu soigné en thème clair comme en sombre.' },
+      { id: '093i2', platforms: ['web'], text: 'Tableau de bord : « Voir la balance », « Voir la boîte », « Voir le catalogue » et « Ouvrir » deviennent de vrais boutons arrondis avec flèche animée au lieu de liens soulignés.' },
+      { id: '093i3', platforms: ['web'], text: 'Chargement : squelette du tableau de bord identique à la nouvelle mise en page (graphiques 2×2, anneaux et listes) et nouveau squelette éditorial pour l’accueil et les pages Android, Desktop et Support, en clair et en sombre, sans animation lorsque la réduction des animations est activée.' },
+      { id: '093i4', platforms: ['web'], text: 'Thème sombre charbon neutre unifié sur les surfaces, tableaux, menus, fenêtres et graphiques, sur ordinateur comme sur mobile ; surfaces blanches en thème clair comme sur Android et Atlas Agent mobile harmonisé.' },
+      { id: '093i5', platforms: ['web', 'server'], text: 'Nettoyage du code : 38 fichiers et exports inutilisés retirés, analyse statique à 0 avertissement et 0 erreur ; les e-mails du desktop réutilisent le service d’envoi déjà configuré pour le site.' },
+      { id: '093i6', platforms: ['web'], text: 'Barre flottante du haut : le titre ne ressemble plus à un bouton ; un appui agrandit la barre avec une animation fluide et les commandes glissent en place ; titres en casse normale (« Tableau de bord »).' },
+      { id: '093i7', platforms: ['web'], text: 'Thème sombre : nouvelle passe sur les boutons et badges, le bouton « Enregistrer » des Paramètres, le bandeau de rapprochement du Solde et la légende du catalogue.' },
+    ] }, { kind: 'fixes', items: [
+      { id: '093f1', platforms: ['web'], text: 'Passkeys web : l’enregistrement et la connexion par passkey fonctionnent de nouveau.' },
+      { id: '093f2', platforms: ['web', 'server'], text: 'Paie : fenêtre de réglages CNSS/AMO corrigée, fenêtres affichées en plein écran et téléchargement des documents de paie rétabli.' },
+      { id: '093f3', platforms: ['web'], text: 'Mobile : lignes du menu utilisateur aplaties, bouton « Copier » placé dans la bulle de l’agent et contrastes du thème sombre corrigés.' },
+      { id: '093f4', platforms: ['web'], text: 'Journal d’audit en thème sombre : lignes du tableau de nouveau lisibles (plus de lignes blanches) et icône de recherche qui ne chevauche plus le texte.' },
+      { id: '093f5', platforms: ['web'], text: 'Bandeau cookies en thème sombre : boutons et lien « Personnaliser » corrigés.' },
+      { id: '093f6', platforms: ['web'], text: 'Fenêtres « Connexion par QR », guide et profil : la page reste visible derrière en thème sombre, avec un fond translucide au lieu d’un aplat opaque.' },
+      { id: '093f7', platforms: ['web'], text: 'Paramètres « Atlas Agent » et « Mise à jour app » : une réponse incomplète du serveur n’interrompt plus la page.' },
+    ] }],
+  },
+  {
     version: '0.9.2',
     date: '24 novembre 2026',
     sections: [{ kind: 'improvements', items: [

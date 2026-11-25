@@ -14,6 +14,7 @@ import {
   Filter,
   Github,
   Info,
+  Languages,
   Layers,
   LifeBuoy,
   Link2,
@@ -44,6 +45,7 @@ import {
 import { openConsentSettings } from '../lib/cookieConsent';
 import { resetWelcome } from '../lib/welcome';
 import { hasUnreadWhatsNew } from '../lib/whatsNew';
+import { LanguageSoonDialog } from './LanguageSoonDialog';
 
 type IconCmp = ComponentType<{ size?: number; strokeWidth?: number; className?: string; 'aria-hidden'?: boolean }>;
 
@@ -100,6 +102,7 @@ export default function FocusSidebar({
     }
   });
   const [copiedLink, setCopiedLink] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
   const [whatsNewUnread, setWhatsNewUnread] = useState(() => hasUnreadWhatsNew());
 
   useEffect(() => {
@@ -228,6 +231,14 @@ export default function FocusSidebar({
         icon: User,
         active: settingsTab === 'profile',
         onClick: () => goSettingsTab('profile'),
+      },
+      {
+        id: 'language',
+        label: 'Langue',
+        icon: Languages,
+        badge: 'Bientôt',
+        badgeTone: 'neutral',
+        onClick: () => setLangOpen(true),
       },
     ];
     if (canCompany) {
@@ -700,6 +711,7 @@ export default function FocusSidebar({
           </div>
         )}
       </aside>
+      <LanguageSoonDialog open={langOpen} onClose={() => setLangOpen(false)} />
     </>
   );
 }

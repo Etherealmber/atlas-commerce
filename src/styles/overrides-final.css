@@ -3951,8 +3951,7 @@ html[data-theme="dark"] body .content table button.danger:hover:not(:disabled) {
   .ac-timed-delete-btn:hover,
   .btn-delete-red:hover,
   .ac-topbar-icon:hover:not(:disabled),
-  .ac-dock-back:hover:not(:disabled),
-  .ac-dock-expand:hover:not(:disabled) {
+  .ac-dock-back:hover:not(:disabled) {
     transform: scale(1.035) !important;
   }
 
@@ -3989,7 +3988,6 @@ html[data-theme="dark"] body .content table button.danger:hover:not(:disabled) {
   .card button:not(.atlas-dp-day):not(.atlas-dp-nav):hover:not(:disabled) svg,
   .ac-topbar-icon:hover:not(:disabled) svg,
   .ac-dock-back:hover:not(:disabled) svg,
-  .ac-dock-expand:hover:not(:disabled) svg,
   .pn-cta:hover svg,
   .pn-theme-btn:hover svg,
   .atlas-dl-teaser > button:hover:not(:disabled) svg,

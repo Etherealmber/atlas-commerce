@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { DateRangePicker } from '../components/DatePicker';
 import { Link, Navigate } from 'react-router-dom';
+import { ArrowRight } from 'lucide-react';
 import { api } from '../api';
 import { getUsername, isStockRole } from '../auth';
 import { IconPackage } from '../components/Icons';
@@ -102,7 +103,7 @@ function NextActionsPanel() {
               <span>{it.detail}</span>
             </div>
             {it.href ? (
-              <Link to={it.href} className="ac-dash-link">Ouvrir →</Link>
+              <Link to={it.href} className="ac-dash-link">Ouvrir<ArrowRight className="ac-dash-link-arrow" size={14} strokeWidth={2.25} aria-hidden="true" /></Link>
             ) : null}
           </div>
         ))}
@@ -605,7 +606,8 @@ export default function Dashboard() {
               <p>Top catégories de dépenses (hors achats)</p>
             </div>
             <Link to="/balance" className="ac-dash-link">
-              Voir la balance →
+              Voir la balance
+              <ArrowRight className="ac-dash-link-arrow" size={14} strokeWidth={2.25} aria-hidden="true" />
             </Link>
           </div>
           <HBarChart
@@ -739,7 +741,8 @@ export default function Dashboard() {
               <p>Traitez les envois du terrain.</p>
             </div>
             <Link to="/actions" className="ac-dash-link">
-              Voir la boîte →
+              Voir la boîte
+              <ArrowRight className="ac-dash-link-arrow" size={14} strokeWidth={2.25} aria-hidden="true" />
             </Link>
           </div>
           {pendingActions.length === 0 ? (
@@ -777,7 +780,8 @@ export default function Dashboard() {
               <p>Articles sous le minimum rayon.</p>
             </div>
             <Link to="/products" className="ac-dash-link">
-              Voir le catalogue →
+              Voir le catalogue
+              <ArrowRight className="ac-dash-link-arrow" size={14} strokeWidth={2.25} aria-hidden="true" />
             </Link>
           </div>
           {lowList.length === 0 ? (

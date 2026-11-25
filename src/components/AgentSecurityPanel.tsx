@@ -27,9 +27,23 @@ export default function AgentSecurityPanel({ isOwner }: { isOwner: boolean; role
   const [busy, setBusy] = useState('');
 
   const load = useCallback(async () => {
-    try { const p = await api.getAgentPolicy(); if (p?.data) setPolicy(p.data); } catch { /* */ }
+    try {
+      const p = await api.getAgentPolicy();
+      const d = p?.data as Partial<Policy> | undefined;
+      if (d) {
+        setPolicy({
+          ...d,
+          blocked: !!d.blocked,
+          isAdmin: !!d.isAdmin,
+          dailyUsed: Number(d.dailyUsed) || 0,
+          weeklyUsed: Number(d.weeklyUsed) || 0,
+          dailyLimit: Number(d.dailyLimit) || 0,
+          weeklyLimit: Number(d.weeklyLimit) || 0,
+        });
+      }
+    } catch { /* */ }
     if (isOwner) {
-      try { const c = await api.getAgentControls(); setControls(c?.data || []); } catch { /* */ }
+      try { const c = await api.getAgentControls(); setControls(Array.isArray(c?.data) ? c.data : []); } catch { /* */ }
     }
   }, [isOwner]);
 

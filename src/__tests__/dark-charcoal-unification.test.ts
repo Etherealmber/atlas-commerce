@@ -38,7 +38,10 @@ describe('Neutral charcoal dark mode unification', () => {
     expect(read('src/components/RefreshIconButton.tsx')).not.toContain('fill="#0f172a"');
     expect(read('src/components/AtlasAgent.tsx')).not.toContain('stroke="#1a1d26"');
     const pager = read('src/components/ui/ListPager.tsx');
-    expect(pager).not.toMatch(/setProperty\('background', '#ffffff'/);
-    expect(pager).toContain('var(--ac-ui-surface, #ffffff)');
+    // v0.9.3 — the pager paints only through CSS tokens (light + dark), never inline.
+    expect(pager).not.toMatch(/setProperty\(|style=\{\{/);
+    const css = read('src/App.css');
+    expect(css).toContain('html[data-theme="dark"] body .ac-pager {');
+    expect(read('src/styles/dark-force.css')).toContain(':not(.ac-pager-hit) {');
   });
 });

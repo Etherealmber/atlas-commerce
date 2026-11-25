@@ -1414,7 +1414,7 @@ html {
   font-size: 1rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-  text-transform: capitalize;
+  text-transform: none;
   color: var(--ac-ink);
   text-wrap: balance;
 }
@@ -3254,7 +3254,7 @@ html body .ac-desktop-dock button.ac-dock-expand {
   overflow: visible !important;
   border: 0 !important; border-radius: 999px !important; background: transparent !important;
   color: var(--ac-ink) !important; -webkit-text-fill-color: var(--ac-ink) !important;
-  box-shadow: none !important; font: inherit; font-weight: 700; text-transform: capitalize;
+  box-shadow: none !important; font: inherit; font-weight: 700; text-transform: none; cursor: default;
 }
 html body .ac-desktop-dock button.ac-dock-expand:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 
