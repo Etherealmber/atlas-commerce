@@ -158,7 +158,12 @@ export class DemoHub {
         const r = backend.transaction(() => execScript(backend, String(body.sql || '')));
         return this.json({ ok: true, count: r.count });
       } catch (e) {
-        return this.json({ ok: false, error: String((e as Error)?.message || e).slice(0, 500) });
+        // Internal hop (Worker → this DO only). Forward the SQLite message, never
+        // the error object / stack: demoD1 rethrows it as a D1 error so app code
+        // matching « no such table », « UNIQUE constraint failed »… behaves the
+        // same as on real D1.
+        const message = e instanceof Error && typeof e.message === 'string' ? e.message.slice(0, 300) : 'SQL error';
+        return this.json({ ok: false, error: message });
       }
     }
 

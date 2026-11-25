@@ -195,7 +195,7 @@ describe('Groq issue triage (free tier friendly)', () => {
     const posts: any[] = [];
     vi.stubGlobal('fetch', vi.fn(async (url: string, init: any) => {
       const u = String(url);
-      if (u.includes('api.groq.com')) {
+      if (new URL(u).hostname === 'api.groq.com') {
         const req = JSON.parse(init.body);
         expect(req.model).toBe(ISSUE_TRIAGE_DEFAULT_MODEL);
         expect(req.max_tokens).toBeLessThanOrEqual(700);
