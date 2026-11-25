@@ -27,6 +27,7 @@ import './styles/focus-sidebar.css';
 import './styles/density-compact.css';
 import './styles/element-pills.css'; /* in-element action pills (Produits row style) */
 import './styles/input-actions.css'; /* buttons beside fields + settings save bar */
+import './styles/button-groups.css'; /* one height per button row + popup footers */
 import './styles/dark-force.css'; /* absolute last — dark surfaces */
 import { isNativeApp } from './config';
 import { applyDensityFromStorage } from './lib/density';

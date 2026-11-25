@@ -52,8 +52,9 @@ it('uses real light/dark screenshots in every feature card instead of mock-ups',
   for (const shot of shots) {
     const srcs = [...shot.querySelectorAll('img')].map((img) => img.getAttribute('src'));
     expect(srcs).toHaveLength(2);
-    expect(srcs[0]).toMatch(/^\/shots\/site-[a-z-]+-light\.webp$/);
-    expect(srcs[1]).toMatch(/^\/shots\/site-[a-z-]+-dark\.webp$/);
+    // site-* (agent) or feature-* (real component captures of the web app)
+    expect(srcs[0]).toMatch(/^\/shots\/(site|feature)-[a-z-]+-light\.webp$/);
+    expect(srcs[1]).toMatch(/^\/shots\/(site|feature)-[a-z-]+-dark\.webp$/);
   }
   const agent = host.querySelector('.hm-fx-agent img')!;
   expect(agent.getAttribute('alt')).toContain('fictive');
