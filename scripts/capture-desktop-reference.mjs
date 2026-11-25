@@ -46,8 +46,10 @@ const AGENT = [
 
 // v0.9.4 — shell states the desktop must reproduce: account menu, logout
 // confirmation, « Langue bientôt » popup, guided tour, compact density.
-const openMenu = "document.querySelector('.ac-topbar-user-btn')?.click()";
-const clickText = (t) => `[...document.querySelectorAll('button')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(t)}))?.click()`;
+// Steps are data, not code: { selector } clicks a CSS match, { text } clicks the
+// first button whose label starts with that text.
+const openMenu = { selector: '.ac-topbar-user-btn' };
+const clickText = (text) => ({ text });
 const UI = [
   { name: 'ui-user-menu', path: '/dashboard', pre: [openMenu] },
   { name: 'ui-logout-confirm', path: '/dashboard', pre: [openMenu, clickText('Déconnexion')] },
@@ -240,8 +242,13 @@ try {
       }
       await page.goto(BASE + screen.path, { waitUntil: 'networkidle2', timeout: 60000 }).catch(() => {});
       await new Promise((r) => setTimeout(r, 1200));
-      for (const js of screen.pre || []) {
-        await page.evaluate(js);
+      for (const step of screen.pre || []) {
+        await page.evaluate(({ selector, text }) => {
+          const el = selector
+            ? document.querySelector(selector)
+            : [...document.querySelectorAll('button')].find((b) => (b.textContent || '').trim().startsWith(text));
+          el?.click();
+        }, step);
         await new Promise((r) => setTimeout(r, 700));
       }
       if (screen.agent) {
@@ -267,8 +274,11 @@ try {
         await page.screenshot({ path: `${OUT}/${key}.png` });
       }
       const slices = [];
-      const stale = new RegExp(`^${screen.name}-y\d+-${theme}\.png$`);
-      for (const f of readdirSync(OUT)) if (stale.test(f)) rmSync(`${OUT}/${f}`);
+      const stalePrefix = `${screen.name}-y`;
+      const staleSuffix = `-${theme}.png`;
+      const isStale = (f) => f.startsWith(stalePrefix) && f.endsWith(staleSuffix)
+        && /^[0-9]+$/.test(f.slice(stalePrefix.length, f.length - staleSuffix.length));
+      for (const f of readdirSync(OUT)) if (isStale(f)) rmSync(`${OUT}/${f}`);
       if (screen.fullPage) {
         for (let y = 720; y < Math.min(measurements[key].doc.h - 80, 720 * 8); y += 720) {
           await page.evaluate((top) => window.scrollTo(0, top), y);
@@ -305,7 +315,7 @@ for (const key of Object.keys(measurements).filter((k) => k.endsWith('-light')).
     seen.add(id);
     const s = n.st || {};
     const ds = d && d.tag === n.tag && d.text === n.text ? d.st || {} : {};
-    const cell = (v) => String(v ?? '').replace(/\|/g, '\\|');
+    const cell = (v) => String(v ?? '').replace(/\\/g, '\\\\').replace(/\|/g, '\\|');
     lines.push(`| ${kind(n)} | ${cell(n.text.slice(0, 48))} | ${n.x} | ${n.y} | ${n.w} | ${n.h} | ${cell(s.backgroundColor || '—')} / ${cell(s.color || '')} | ${cell(ds.backgroundColor || '—')} / ${cell(ds.color || '')} | ${cell(s.borderRadius || '0')} | ${cell(s.borderTopWidth ? `${s.borderTopWidth} ${s.borderTopColor}` : '—')} | ${cell(`${s.fontSize || ''} ${s.fontWeight || ''}`)} |`);
   }
   lines.push('');
