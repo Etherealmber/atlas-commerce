@@ -62,13 +62,15 @@ describe('i18n core', () => {
   });
 
   it('localises currency labels in Arabic without changing user data, and restores them', async () => {
-    document.body.innerHTML = '<div><span class="amount">1 260 MAD</span><span data-user-data>Model MAD 12</span><span class="dh">42 DH</span><span class="area">42 m²</span></div>';
+    document.body.innerHTML = '<div><span class="amount">1 260 MAD</span><span data-user-data>Model MAD 12</span><span class="dh">42 DH</span><span class="area">42 m²</span><span class="mass">-2,5 kg</span><span class="volume">3 m³</span></div>';
     retranslateAll(); await tick();
     expect(document.querySelector('.amount')!.textContent).toBe('1 260 DH');
     setLang('ar'); retranslateAll(); await tick();
     expect(document.querySelector('.amount')!.textContent).toBe('\u20671 260 درهم\u2069');
     expect(document.querySelector('.dh')!.textContent).toBe('\u206742 درهم\u2069');
     expect(document.querySelector('.area')!.textContent).toBe('\u206742 م²\u2069');
+    expect(document.querySelector('.mass')!.textContent).toBe('\u2067-2,5 كغ\u2069');
+    expect(document.querySelector('.volume')!.textContent).toBe('\u20673 م³\u2069');
     expect(document.querySelector('[data-user-data]')!.textContent).toBe('Model MAD 12');
     setLang('en'); await tick();
     expect(document.querySelector('.amount')!.textContent).toBe('1 260 MAD');
@@ -82,7 +84,7 @@ describe('i18n core', () => {
     const field = document.querySelector('textarea')!;
     expect(field.placeholder).toContain('صِف الوحدة');
     expect(field.value).toBe('Texte personnel');
-    expect(document.querySelector('span')!.textContent).toBe('31–60 يوم');
+    expect(document.querySelector('span')!.textContent).toBe('\u206731–60 يوم\u2069');
     setLang('fr'); await tick();
     expect(field.placeholder).toContain('Décrivez');
   });

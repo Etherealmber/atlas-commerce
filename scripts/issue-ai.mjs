@@ -14,7 +14,7 @@
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import {
-  AREAS, TRIAGE_MARKER, FIXED_MARKER, prLinkMarker, buildMessages, countTriagesSince, extractIssueRefs,
+  AREAS, TRIAGE_MARKER, FIXED_MARKER, prLinkMarker, buildMessages, countTriagesSince, extractIssueRefs, isSafeGithubPath,
   extractRoutes, extractSearchTerms, isEligibleIssue, parseTriage, renderFixedComment, renderPrLinkComment,
   renderTriageComment, routeToComponent,
 } from './issue-ai-lib.mjs';
@@ -31,7 +31,10 @@ const log = (...a) => console.log('[issue-ai]', ...a);
 const warn = (msg) => console.log(`::warning::${String(msg).replace(/\r?\n/g, ' ')}`);
 
 async function gh(path, { method = 'GET', body } = {}) {
-  const res = await fetch(`https://api.github.com/${path.replace(/^\//, '')}`, {
+  // Only GitHub REST endpoints for this repository are permitted. Never let
+  // event metadata or an API response choose a host or escape the repo path.
+  if (!isSafeGithubPath(REPO, path)) throw new Error('Invalid GitHub API path');
+  const res = await fetch(`https://api.github.com/${path}`, {
     method,
     headers: {
       authorization: `Bearer ${TOKEN}`,
@@ -148,7 +151,7 @@ async function groq(messages) {
 async function defaultAssignee() {
   if (env.ISSUE_ASSIGNEE) return env.ISSUE_ASSIGNEE;
   const owner = event.repository?.owner;
-  return owner?.type === 'User' ? owner.login : '';
+  return owner?.type === 'User' ? REPO.split('/')[0] : '';
 }
 
 async function triage(issueNumber, { force = false } = {}) {
@@ -244,16 +247,23 @@ async function main() {
     const issue = event.issue;
     if (event.sender?.type === 'Bot' && !(issue.labels || []).some((l) => l.name === 'crash-report')) { log('opened by a bot — skipped'); return; }
     if (event.action === 'labeled' && !['bug', 'crash-report'].includes(event.label?.name)) return;
-    await triage(issue.number);
+    const n = Number(issue.number);
+    if (Number.isSafeInteger(n) && n > 0) await triage(n);
   } else if (eventName === 'issue_comment') {
     const c = event.comment;
     const trusted = ['OWNER', 'MEMBER', 'COLLABORATOR'].includes(c?.author_association);
-    if (!event.issue?.pull_request && trusted && /^\s*\/atlas-triage\b/i.test(c?.body || '')) await triage(event.issue.number, { force: true });
+    if (!event.issue?.pull_request && trusted && /^\s*\/atlas-triage\b/i.test(c?.body || '')) {
+      const n = Number(event.issue.number);
+      if (Number.isSafeInteger(n) && n > 0) await triage(n, { force: true });
+    }
   } else if (eventName === 'workflow_dispatch') {
     const n = Number(event.inputs?.issue);
-    if (n > 0) await triage(n, { force: true });
+    if (Number.isSafeInteger(n) && n > 0) await triage(n, { force: true });
   } else if (eventName === 'pull_request_target' || eventName === 'pull_request') {
-    const pr = event.pull_request;
+    const number = Number(event.pull_request?.number);
+    if (!Number.isSafeInteger(number) || number <= 0) throw new Error('Invalid pull request number');
+    // Re-fetch metadata from GitHub instead of forwarding event-file contents.
+    const pr = await gh(`repos/${REPO}/pulls/${number}`);
     if (event.action === 'closed') {
       if (pr.merged) await closeFixed(pr);
       else await unlinkClosed(pr);

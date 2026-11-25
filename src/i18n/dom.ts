@@ -48,9 +48,13 @@ function hasLetters(s: string) {
 /** Localise currency labels in presentation text only; API values stay ISO MAD. */
 function translateDisplay(src: string, lang: Lang) {
   const out = translate(src, lang).replace(/CDN1/g, 'Atlas API');
-  if (lang === 'ar') return out.replace(/\b(?:MAD|DH)\b/g, 'درهم').replace(/\bm²/g, 'م²')
-    .replace(/(\d)\s*j\b/g, '$1 يوم').replace(/\bWindows\b/g, 'ويندوز').replace(/\bmacOS\b/gi, 'ماك أو إس').replace(/\bLinux\b/g, 'لينكس').replace(/\bAndroid\b/g, 'أندرويد')
-    .replace(/([-+]?\d[\d\u00a0\u202f ,.]*\d|[-+]?\d)\s*(درهم|م²)/g, '\u2067$1 $2\u2069');
+  if (lang === 'ar') {
+    const units: Record<string, string> = { 'm²': 'م²', 'm³': 'م³', kg: 'كغ', g: 'غ', L: 'لتر', mL: 'مل', m: 'م', cm: 'سم', u: 'وحدة', pce: 'قطعة', bte: 'علبة', ctn: 'كرتون', paq: 'عبوة', j: 'يوم' };
+    return out.replace(/\b(?:MAD|DH)\b/g, 'درهم').replace(/\bm²/g, 'م²').replace(/\bm³/g, 'م³')
+      .replace(/\bWindows\b/g, 'ويندوز').replace(/\bmacOS\b/gi, 'ماك أو إس').replace(/\bLinux\b/g, 'لينكس').replace(/\bAndroid\b/g, 'أندرويد')
+      .replace(/(\d)\s*(m²|m³|mL|kg|cm|pce|bte|ctn|paq|g|L|m|u|j)(?![A-Za-zÀ-ÿ0-9])/g, (_, digit: string, unit: string) => `${digit} ${units[unit]}`)
+      .replace(/([-+]?\d[\d\u00a0\u202f ,.]*\d(?:[–-]\d+)?|[-+]?\d)\s*(درهم|م²|م³|كغ|غ|لتر|مل|م|سم|وحدة|قطعة|علبة|كرتون|عبوة|يوم)(?![\u0621-\u064a])/g, '\u2067$1 $2\u2069');
+  }
   if (lang === 'en') return out.replace(/\bDH\b/g, 'MAD');
   return out.replace(/\bMAD\b/g, 'DH');
 }

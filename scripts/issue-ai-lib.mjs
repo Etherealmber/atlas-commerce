@@ -1,6 +1,13 @@
 // Pure helpers for the « AI issue assistant » GitHub Action (scripts/issue-ai.mjs).
 // No I/O here so everything is unit-tested in src/__tests__/issue-ai-lib.test.ts.
 
+/** Restrict assistant requests to the current repository on the fixed GitHub API host. */
+export function isSafeGithubPath(repo, path) {
+  return typeof repo === 'string' && /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo)
+    && typeof path === 'string' && path.startsWith(`repos/${repo}/`)
+    && /^[A-Za-z0-9_./?&=:+-]+$/.test(path) && !path.includes('..');
+}
+
 export const TRIAGE_MARKER = '<!-- atlas-ai-triage v1 -->';
 export const prLinkMarker = (pr) => `<!-- atlas-pr-link #${Number(pr)} -->`;
 export const FIXED_MARKER = '<!-- atlas-fixed-by -->';

@@ -1,3 +1,4 @@
+import { isSafeGithubPath } from '../../scripts/issue-ai-lib.mjs';
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import {
@@ -84,6 +85,14 @@ describe('issue AI assistant — pure helpers', () => {
     expect(renderPrLinkComment({ pr, closing: true })).toContain(prLinkMarker(250));
     expect(renderPrLinkComment({ pr, closing: false })).toContain('Fixes #<n>');
     expect(renderFixedComment({ pr, sha: 'abcdef1234' })).toContain('`abcdef1`');
+  });
+
+  it('restricts GitHub requests to the configured repository', () => {
+    expect(isSafeGithubPath('owner/repo', 'repos/owner/repo/issues/12/comments?per_page=100')).toBe(true);
+    expect(isSafeGithubPath('owner/repo', 'repos/owner/other/issues/1')).toBe(false);
+    expect(isSafeGithubPath('owner/repo', 'repos/owner/repo/../../other')).toBe(false);
+    expect(isSafeGithubPath('owner/repo', 'repos/owner/repo/%2e%2e/other')).toBe(false);
+    expect(isSafeGithubPath('owner/repo', 'https://example.com')).toBe(false);
   });
 
   it('workflow wires the secret, never runs PR code and only reacts to maintainer commands', () => {
