@@ -137,13 +137,14 @@ describe('page actions, home pill and Nouveautés layout', () => {
     expect(shell).toMatch(/a\.ac-home-pill:is\(:hover, :focus-visible\) > \.ac-home-pill-label[^{]*\{[^}]*opacity: 1/);
   });
 
-  it('keeps the Nouveautés content still when the focus sidebar opens or collapses', () => {
+  it('keeps the Nouveautés content still when the focus sidebar opens or collapses (Settings / About stretch)', () => {
     const focus = read('src/styles/focus-sidebar.css');
-    expect(focus).not.toMatch(/transition: padding-left/);
-    expect(focus).not.toMatch(/\.layout \.atlas-focus-layout:has\(\.atlas-focus-sidebar\.is-collapsed\)/);
-    // The only collapsed-state padding override left is the < 960px drawer reset.
+    // Authenticated layouts stretch when the rail collapses — except the centred Nouveautés page.
+    expect(focus).toMatch(/\.layout \.atlas-focus-layout:not\(\.atlas-focus-layout--centered\):has\(\.atlas-focus-sidebar\.is-collapsed\)/);
     const desktop = focus.split('@media (max-width: 960px)')[0];
-    expect(desktop).not.toMatch(/atlas-focus-layout:has\(\.atlas-focus-sidebar\.is-collapsed\)/);
+    expect(desktop).not.toMatch(/\.public-whats-new \.atlas-focus-layout:has\(\.atlas-focus-sidebar\.is-collapsed\)/);
+    const app = read('src/App.tsx');
+    expect(app).toContain('atlas-focus-layout atlas-focus-layout--centered');
     const wn = readFileSync(path.resolve(process.cwd(), 'src/pages/WhatsNew.tsx'), 'utf8');
     expect(wn).not.toMatch(/wn-crumb/);
   });

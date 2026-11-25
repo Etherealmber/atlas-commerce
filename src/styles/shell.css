@@ -3267,6 +3267,11 @@ html[data-theme="dark"] body .desktop-catalog-actions-slot:focus-within > .top-p
     max-width: 220px; padding: 0 14px 0 11px;
   }
 }
+/* Collapsed focus rail (62 px at left 16): centre the pill on the rail's icon column. */
+@media (min-width: 901px) {
+  html body:has(.atlas-focus-sidebar.is-collapsed) .ac-desktop-top-row > a.ac-home-pill:not(#hp-g):not(#hp-h):not(#hp-i) { left: 25px; }
+  html[data-ui-density="compact"] body:has(.atlas-focus-sidebar.is-collapsed) .ac-desktop-top-row > a.ac-home-pill:not(#hp-g):not(#hp-h):not(#hp-i) { left: 27px; }
+}
 @media (prefers-reduced-motion: reduce) and (min-width: 901px) {
   html body .ac-desktop-top-row > a.ac-home-pill:not(#hp-g):not(#hp-h):not(#hp-i),
   html body .ac-desktop-top-row > a.ac-home-pill > .ac-home-pill-label:not(#hp-g):not(#hp-h):not(#hp-i) { transition: none; }
@@ -3321,8 +3326,8 @@ html[data-theme="dark"] body .desktop-catalog-actions-slot:focus-within > .top-p
   }
   html body .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact .top-page-actions > :is(button, a):has(> .tpa-label):not(.tpa-keep-wide):not(#tpa-g):not(#tpa-h):not(#tpa-i) {
     width: auto !important;
-    padding: 0 10px !important;
-    justify-content: flex-start !important;
+    padding: 0 !important;
+    justify-content: center !important;
     transition: max-width .28s cubic-bezier(.22, 1, .36, 1), padding .28s cubic-bezier(.22, 1, .36, 1), gap .28s ease, background-color .18s ease, box-shadow .18s ease !important;
   }
   html body .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact .top-page-actions .tpa-label:not(#tpa-g):not(#tpa-h):not(#tpa-i) {
@@ -3346,6 +3351,24 @@ html[data-theme="dark"] body .desktop-catalog-actions-slot:focus-within > .top-p
   html body .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact .top-page-actions > :is(button, a):is(:hover, :focus-visible) > .tpa-label:not(#tpa-g):not(#tpa-h):not(#tpa-i) {
     max-width: 220px !important;
     opacity: 1;
+  }
+  /* Square, centred icon buttons: match button-groups' fixed 40 px height (36 px compact). */
+  html:not(.phone-shell) body .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact .top-page-actions > :is(button, a):not(.tpa-keep-wide):not(:hover):not(:focus-visible):not(#tpa-g):not(#tpa-h):not(#tpa-i):not(#tpa-j):not(#tpa-k) {
+    width: 40px !important; min-width: 40px !important; max-width: 40px !important;
+    padding-left: 0 !important; padding-right: 0 !important;
+  }
+  /* Concentric with the pill: round buttons; secondary ones drop their own border
+     (the pill already draws the outline) so there is no box-inside-a-circle. */
+  html:not(.phone-shell) body .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact .top-page-actions > :is(button, a):not(#tpa-g):not(#tpa-h):not(#tpa-i):not(#tpa-j):not(#tpa-k) {
+    border-radius: 999px !important;
+  }
+  html:not(.phone-shell) body .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact .top-page-actions > :is(button.secondary, a.secondary, button.icon-refresh-btn):not(:hover):not(:focus-visible):not(#tpa-g):not(#tpa-h):not(#tpa-i):not(#tpa-j):not(#tpa-k) {
+    border-color: transparent !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  html[data-ui-density="compact"]:not(.phone-shell) body .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact .top-page-actions > :is(button, a):not(.tpa-keep-wide):not(:hover):not(:focus-visible):not(#tpa-g):not(#tpa-h):not(#tpa-i):not(#tpa-j):not(#tpa-k) {
+    width: 36px !important; min-width: 36px !important; max-width: 36px !important;
   }
   html body .desktop-catalog-actions-slot.desktop-catalog-actions-slot--compact .top-page-actions .tpa-date-wrap {
     min-width: 0 !important; width: auto !important;

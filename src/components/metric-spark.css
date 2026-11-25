@@ -33,10 +33,13 @@ html[data-theme="dark"] {
 }
 
 /* Card: reserve the chart band at the bottom; the chart bleeds to the edges. */
-html body .ac-metric:has(> .ms-spark):not(#ms-g):not(#ms-h):not(#ms-i) {
+html body .ac-metric:has(> .ms-spark):not(#ms-g):not(#ms-h):not(#ms-i),
+html body :has(> .ac-metric > .ms-spark) > .ac-metric:not(#ms-g):not(#ms-h):not(#ms-i) {
   position: relative !important;
   overflow: hidden !important;
   padding-bottom: 54px !important;
+  /* Same rhythm for every card of a row, with or without a chart. */
+  justify-content: flex-start !important;
 }
 
 html body .ms-spark:not(#ms-g):not(#ms-h):not(#ms-i) {
@@ -176,5 +179,6 @@ html body .ms-trend.is-bad:not(#ms-g):not(#ms-h):not(#ms-i) { color: var(--ms-ba
 html body .ms-trend.is-flat:not(#ms-g):not(#ms-h):not(#ms-i) { color: var(--ms-flat) !important; }
 
 /* Compact density keeps the chart, slightly lower. */
-html[data-ui-density="compact"] body .ac-metric:has(> .ms-spark):not(#ms-g):not(#ms-h):not(#ms-i) { padding-bottom: 46px !important; }
+html[data-ui-density="compact"] body .ac-metric:has(> .ms-spark):not(#ms-g):not(#ms-h):not(#ms-i),
+html[data-ui-density="compact"] body :has(> .ac-metric > .ms-spark) > .ac-metric:not(#ms-g):not(#ms-h):not(#ms-i) { padding-bottom: 46px !important; }
 html[data-ui-density="compact"] body .ms-spark:not(#ms-g):not(#ms-h):not(#ms-i) { height: 36px; }

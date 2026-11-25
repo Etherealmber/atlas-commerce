@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useState, useRef, lazy, Suspense } from 're
 import { ArrowRight, Bell, ChevronRight, ClipboardCheck, FileText, LayoutDashboard, Package, Users } from 'lucide-react';
 import { canOpenPhoneBalance, canOpenPhoneEmployees } from './mobile/PhoneDock';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { SidebarBrandLogo } from './components/brand/SidebarBrandLogo';
 import { applyPageTitle, titleForPath } from './lib/pageTitle';
 import Login from './pages/Login';
 import Privacy from './pages/Privacy';
@@ -300,7 +301,7 @@ function WhatsNewRoute() {
   return (
     <div className="public-whats-new">
       <PublicSettingsTopbar onOpenSidebar={() => setSidebarOpen(true)} />
-      <div className="atlas-focus-layout">
+      <div className="atlas-focus-layout atlas-focus-layout--centered">
         <FocusSidebar mobileOpen={sidebarOpen} onCloseMobile={() => setSidebarOpen(false)} />
         <main className="content content-settings-focus atlas-focus-main">
           <Suspense fallback={<PageSkeleton variant="changelog" />}>
@@ -1045,16 +1046,12 @@ function DesktopShell() {
           if (a) setMobileNavOpen(false);
         }}
       >
-        <div className="logo" title="Double-clic pour réduire / agrandir le menu" onDoubleClick={() => setSidebarCollapsed((v) => !v)} style={{ cursor: 'pointer' }}>
-          {/* v265 — raster brand: black art in light theme, white art in dark */}
-          <img src="/atlas-icon-light.png" alt="" className="logo-img brand-img brand-img--light" width={36} height={36} />
-          <img src="/atlas-icon-dark.png" alt="" className="logo-img brand-img brand-img--dark" width={36} height={36} />
-          {/* v0.7 — expanded sidebar: the FULL lockup (mark + wordmark), per theme */}
-          <img src="/atlas-logo-light.png" alt="Atlas Commerce" className="brand-lockup brand-lockup--light brand-img brand-img--light" width={105} height={34} />
-          <img src="/atlas-logo-dark.png" alt="Atlas Commerce" className="brand-lockup brand-lockup--dark brand-img brand-img--dark" width={105} height={34} />
-          <div className="logo-text">
-            <span className="logo-sub">{isStockRole() ? 'Stock · magasinier' : 'Stock & facturation'}</span>
-          </div>
+        <div className="logo atlas-brand-host" title="Double-clic pour réduire / agrandir le menu" onDoubleClick={() => setSidebarCollapsed((v) => !v)} style={{ cursor: 'pointer' }}>
+          {/* L — inline SVG sunburst lockup; "Atlas" retracts into the mark when the rail collapses. */}
+          <SidebarBrandLogo
+            isCollapsed={sidebarCollapsed && !mobileNavOpen}
+            subtitle={isStockRole() ? 'Stock · magasinier' : 'Stock & facturation'}
+          />
         </div>
                 <nav>
           <div className="nav-section">Vue d&apos;ensemble</div>
@@ -1423,7 +1420,7 @@ function DesktopShell() {
         <ErrorBoundary label="desktop">
           <Suspense fallback={<PageSkeleton variant={skeletonVariantForPath(location.pathname)} />}>
             {isFocusRoute ? (
-              <div className="atlas-focus-layout">
+              <div className={`atlas-focus-layout${location.pathname === '/whats-new' ? ' atlas-focus-layout--centered' : ''}`}>
                 <FocusSidebar
                   mobileOpen={focusSidebarOpen}
                   onOpenMobile={() => setFocusSidebarOpen(true)}

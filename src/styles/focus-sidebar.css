@@ -33,16 +33,35 @@ html[data-theme="dark"] .public-legal {
 .public-whats-new .atlas-focus-layout,
 .public-legal .atlas-focus-layout {
   max-width: 1480px;
-  /* Constant gutter sized for the open rail: collapsing or opening the
-     floating sidebar never shifts the page content (Nouveautés, À propos…). */
   padding: 18px 28px 48px 282px;
+  transition: padding-left 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* Paramètres / À propos / pages légales stretch and follow the rail. */
+.public-about .atlas-focus-layout:has(.atlas-focus-sidebar.is-collapsed),
+.public-legal .atlas-focus-layout:has(.atlas-focus-sidebar.is-collapsed) {
+  padding-left: 100px;
+}
+/* Nouveautés: symmetric gutters sized for the open rail, so the changelog column
+   is centred on screen and never moves when the rail opens or collapses. */
+.public-whats-new .atlas-focus-layout.atlas-focus-layout--centered {
+  padding-right: clamp(28px, calc(100vw - 282px - 780px), 282px);
+  transition: none;
 }
 
 /* Authenticated DesktopShell Focus pages: reserve space for the left-centered floating rail */
 @media (min-width: 961px) {
-  /* Same width open or collapsed: the rail floats, the content stays put. */
   .layout .atlas-focus-layout {
     padding-left: 276px;
+    transition: padding-left 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  /* Paramètres / À propos follow the rail: content stretches when it collapses. */
+  .layout .atlas-focus-layout:not(.atlas-focus-layout--centered):has(.atlas-focus-sidebar.is-collapsed) {
+    padding-left: 88px;
+  }
+  /* Nouveautés: centred on screen, identical gutters open or collapsed. */
+  .layout .atlas-focus-layout.atlas-focus-layout--centered {
+    padding-right: clamp(28px, calc(100vw - 276px - 780px), 276px);
+    transition: none;
   }
   aside.atlas-focus-sidebar {
     position: fixed;
@@ -311,6 +330,11 @@ html body #root aside.atlas-focus-sidebar button.atlas-focus-nav-item.is-active:
 .atlas-focus-nav-ico svg {
   width: 15px;
   height: 15px;
+}
+/* Collapsed rail: icons are the only cue, so give them the main sidebar's weight. */
+.atlas-focus-sidebar.is-collapsed .atlas-focus-nav-ico svg {
+  width: 18px;
+  height: 18px;
 }
 
 .atlas-focus-nav-label {
@@ -2338,29 +2362,23 @@ html body #root .content button.ac-audit-clear-btn {
   color: var(--ac-muted, #64748b);
 }
 
+/* Détail: plain text (not a link) — the whole row opens the inspector. */
 .ac-audit-detail-link {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  max-width: 100%;
   color: var(--ac-ink, #0f172a) !important;
   font-weight: 500;
   text-decoration: none;
-  border-bottom: 1px dashed rgba(15, 23, 42, 0.25);
-  padding-bottom: 1px;
-}
-.ac-audit-detail-link:hover {
-  border-bottom-color: #0f172a;
 }
 
 .ac-audit-pager {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   flex-wrap: wrap;
   gap: 10px;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--ac-line, #e8eaef);
 }
 .ac-audit-pager-meta {
   font-size: 0.78rem;

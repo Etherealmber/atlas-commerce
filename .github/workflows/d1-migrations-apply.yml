@@ -6,12 +6,15 @@ name: D1 production migrations (manual)
 #                     PRODUCTION database (company-stock-db). Read-only, no confirmation.
 #   action = apply  → applies every pending migration to PRODUCTION, then lists again.
 #                     Requires typing APPLY in the confirm box.
+#   action = setup-target → finds (or creates once) the D1 database "atlas-db" used by
+#                     the DB_TARGET binding (Paramètres › Base de données: copy + cutover)
+#                     and brings its schema/migration ledger up to date. Requires APPLY.
 #
 # Nothing here runs automatically: no push/PR/schedule trigger. CI's
 # "Fresh D1 migrations apply" job only tests migrations on a throwaway local DB.
-# Uses the same secrets as the manual production deploy:
-#   CLOUDFLARE_API_TOKEN  (needs Account → D1 → Edit)
-#   CLOUDFLARE_ACCOUNT_ID
+# Secrets (either naming works — the repo already has CF_API_TOKEN + CF_ZONE_ID):
+#   CLOUDFLARE_API_TOKEN or CF_API_TOKEN   (needs Account → D1 → Edit)
+#   CLOUDFLARE_ACCOUNT_ID, or CF_ZONE_ID   (the account id is then read from the zone)
 
 on:
   workflow_dispatch:
@@ -24,8 +27,9 @@ on:
         options:
           - list
           - apply
+          - setup-target
       confirm:
-        description: 'Type APPLY to confirm (only needed for action = apply)'
+        description: 'Type APPLY to confirm (needed for apply and setup-target)'
         required: false
         default: ''
         type: string
@@ -44,8 +48,9 @@ jobs:
     timeout-minutes: 15
     environment: production
     env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
     steps:
       - name: Check confirmation
         if: inputs.action == 'apply' && inputs.confirm != 'APPLY'
@@ -53,12 +58,39 @@ jobs:
           echo "::error::Type APPLY in the confirm box to apply migrations to production. Nothing was changed."
           exit 1
 
+      - name: Check confirmation (setup-target)
+        if: inputs.action == 'setup-target' && inputs.confirm != 'APPLY'
+        run: |
+          echo "::error::Type APPLY in the confirm box to create/update atlas-db. Nothing was changed."
+          exit 1
+
       - name: Check Cloudflare secrets
         run: |
-          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
-            echo "::error::CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID secrets are required (repo or 'production' environment)."
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::CLOUDFLARE_API_TOKEN (or CF_API_TOKEN) secret is required (repo or 'production' environment)."
             exit 1
           fi
+
+      - name: Resolve Cloudflare account id
+        if: env.CLOUDFLARE_ACCOUNT_ID == ''
+        run: |
+          set -euo pipefail
+          id=""
+          if [ -n "${CF_ZONE_ID:-}" ]; then
+            id=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID" | jq -r '.result.account.id // empty' || true)
+          fi
+          if [ -z "$id" ]; then
+            # Account-scoped tokens may not read zones: fall back to the accounts the token can see.
+            id=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              "https://api.cloudflare.com/client/v4/accounts?per_page=5" | jq -r '.result[0].id // empty' || true)
+          fi
+          if [ -z "$id" ]; then
+            echo "::error::Could not resolve the Cloudflare account id: add CLOUDFLARE_ACCOUNT_ID, or give the token Zone → Read on CF_ZONE_ID."
+            exit 1
+          fi
+          echo "::add-mask::$id"
+          echo "CLOUDFLARE_ACCOUNT_ID=$id" >> "$GITHUB_ENV"
 
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
@@ -70,6 +102,7 @@ jobs:
       - run: npm ci
 
       - name: Migrations status before
+        if: inputs.action != 'setup-target'
         run: |
           set -o pipefail
           npx wrangler d1 migrations list DB --remote --config wrangler.jsonc 2>&1 | tee before.txt
@@ -95,4 +128,29 @@ jobs:
             echo '```'
             cat after.txt
             echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # DB_TARGET (wrangler.jsonc) has no database_id on purpose: deploys bind "atlas-db"
+      # by name. This finds it — or creates it the first time — and applies the same
+      # migrations so its d1_migrations ledger is correct before the copy + cutover.
+      - name: Find or create atlas-db and apply migrations
+        if: inputs.action == 'setup-target'
+        run: |
+          set -o pipefail
+          if npx wrangler d1 info atlas-db --json > info.json 2> info.err; then
+            echo "atlas-db already exists."
+          else
+            cat info.err
+            npx wrangler d1 create atlas-db 2>&1 | tee create.txt
+            npx wrangler d1 info atlas-db --json > info.json
+          fi
+          uuid=$(jq -r '.uuid // empty' info.json)
+          npx wrangler d1 migrations apply DB_TARGET --remote --config wrangler.jsonc 2>&1 | tee target.txt
+          {
+            echo "## atlas-db (DB_TARGET)"
+            echo "Database id: \`${uuid:-unknown}\`"
+            echo '```'
+            cat target.txt
+            echo '```'
+            echo "Next: redeploy the Worker (it binds atlas-db by name), then open Paramètres › Base de données — the panel detects DB_TARGET."
           } >> "$GITHUB_STEP_SUMMARY"

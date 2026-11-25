@@ -4,6 +4,7 @@ import { api } from '../api';
 import { startDeviceQrScan } from '../lib/barcodeScan';
 import { deviceApprovalPath } from './phoneDeviceQr';
 import { getScanPreference, phoneScanFeedback } from './phoneScanPreferences';
+import { AtlasLoader } from '../components/brand/AtlasLoader';
 
 export interface LinkedDevice {
   full: string;
@@ -48,7 +49,7 @@ function LinkedDevices() {
   };
   return <section className="ph-linked" aria-labelledby="ph-linked-title">
     <div className="ph-linked-head"><h2 id="ph-linked-title">Appareils connectés</h2>{devices && <span className="ph-linked-count">{devices.length}</span>}</div>
-    {devices === null && <p className="ph-linked-empty">Chargement…</p>}
+    {devices === null && <p className="ph-linked-empty" role="status" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><AtlasLoader size={16} label="" /> Chargement…</p>}
     {devices && devices.length === 0 && <p className="ph-linked-empty">{error ? 'Liste indisponible. Vérifiez la connexion.' : 'Aucun appareil enregistré.'}</p>}
     {devices && devices.length > 0 && <ul className="ph-linked-list">
       {devices.map(d => <li key={d.full} className="ph-linked-row">

@@ -767,7 +767,7 @@ export default function Products() {
             </div>
           )}
         </> : <VirtualScroll maxHeight={paged.length > 60 ? 560 : undefined}>
-          <table className="data-dense ac-products-table">
+          <table className="data-dense ac-products-table ac-catalog-table">
             <thead>
               <tr>
                 <th style={{ width: 40 }}>

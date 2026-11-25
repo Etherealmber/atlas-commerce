@@ -2,8 +2,8 @@
  * v0.9.3 — Visite guidée « mobile web », lancée après PhoneWelcome.
  *
  * Différences avec la visite bureau (GuidedOnboarding) :
- * - toutes les étapes se passent sur l’accueil /m (aucun changement de page, donc
- *   aucun écran de chargement entre deux étapes) ;
+ * - chaque étape ouvre réellement sa page (`route` : accueil, Produits, Atlas Agent,
+ *   Profil) — la visite navigue, elle ne se contente pas de montrer ;
  * - la carte est une feuille pleine largeur collée en haut ou en bas de l’écran,
  *   du côté opposé à l’élément mis en lumière (jamais par-dessus) ;
  * - elle n’apparaît qu’une fois l’élément stable et le squelette de chargement
@@ -29,6 +29,8 @@ export type PhoneOnboardingStep = {
   id: string;
   /** CSS selector of the element to spotlight (first visible match); null = centred intro. */
   target: string | null;
+  /** Page the step lives on — the tour navigates there (default: the home tab /m). */
+  route?: string;
   title: string;
   body: string;
 };
@@ -59,14 +61,23 @@ export const PHONE_ONBOARDING_STEPS: PhoneOnboardingStep[] = [
     body: 'Notifications et actions en attente, nouvelle vente et clients, en un toucher depuis n’importe quelle page principale.',
   },
   {
+    id: 'products',
+    route: '/m/products',
+    target: '.ph-catalog-search',
+    title: 'Le catalogue',
+    body: 'Cherchez par nom, référence ou code-barres ; filtrez les ruptures et ouvrez une fiche pour voir le stock et l’historique.',
+  },
+  {
     id: 'agent',
-    target: '.ph-top-agent',
+    route: '/m/agent',
+    target: '.ph-agent-composer',
     title: 'Atlas Agent',
     body: '« Rapport du jour », « Quels articles sont en rupture ? »… L’agent prépare la réponse ou l’action, vous la confirmez.',
   },
   {
     id: 'profile',
-    target: '.phone-profile-btn',
+    route: '/m/profile',
+    target: '.ph-profile-identity',
     title: 'Profil et réglages',
     body: 'Photo, thème, taille du texte et page d’ouverture. Vous pourrez revoir cette visite depuis Réglages → Visite guidée.',
   },
@@ -89,6 +100,29 @@ function findTarget(selector: string): HTMLElement | null {
   return null;
 }
 
+/**
+ * Box that really contains what the user sees: the element plus any visible child
+ * drawn outside it (the raised round Scan icon sits ~36 px above its tab button).
+ */
+export function spotlightRect(el: Element): Rect {
+  const base = el.getBoundingClientRect();
+  let top = base.top;
+  let left = base.left;
+  let right = base.right;
+  let bottom = base.bottom;
+  for (const child of Array.from(el.querySelectorAll('*'))) {
+    const r = child.getBoundingClientRect();
+    if (r.width <= 0 || r.height <= 0) continue;
+    top = Math.min(top, r.top);
+    left = Math.min(left, r.left);
+    right = Math.max(right, r.right);
+    bottom = Math.max(bottom, r.bottom);
+  }
+  return { top, left, width: right - left, height: bottom - top };
+}
+
+const normPath = (p: string) => p.replace(/\/+$/, '') || '/m';
+
 /** Card goes on the side of the screen the target is NOT on. */
 export function phoneCardSide(rect: Rect | null, viewportHeight: number): 'top' | 'bottom' | 'center' {
   if (!rect) return 'center';
@@ -108,7 +142,8 @@ export function PhoneOnboarding({ steps = PHONE_ONBOARDING_STEPS }: { steps?: Ph
   const index = active ? Math.min(state.step, steps.length - 1) : 0;
   const step = steps[index];
   const last = index === steps.length - 1;
-  const onHome = (location.pathname.replace(/\/+$/, '') || '/m') === '/m';
+  const stepRoute = step?.route || '/m';
+  const onRoute = normPath(location.pathname) === stepRoute;
 
   useEffect(() => {
     const sync = () => setState(getPhoneOnboarding());
@@ -120,17 +155,13 @@ export function PhoneOnboarding({ steps = PHONE_ONBOARDING_STEPS }: { steps?: Ph
     };
   }, []);
 
-  // Every step lives on the home tab: open it once when the tour starts.
-  const routed = useRef(false);
+  // Each step opens its own page (accueil, Produits, Atlas Agent, Profil).
   useEffect(() => {
-    if (!active) { routed.current = false; return; }
-    if (routed.current) return;
-    routed.current = true;
-    if (!onHome) navigate('/m');
-  }, [active, onHome, navigate]);
+    if (active && step && !onRoute) navigate(stepRoute, { replace: true });
+  }, [active, step, onRoute, stepRoute, navigate]);
 
   useEffect(() => {
-    if (!active || !step || !onHome) return undefined;
+    if (!active || !step || !onRoute) return undefined;
     setPlaced(false);
     setRect(null);
     // Top-bar targets need the bar expanded (it collapses on scroll).
@@ -156,8 +187,7 @@ export function PhoneOnboarding({ steps = PHONE_ONBOARDING_STEPS }: { steps?: Ph
         if (!done && waited > MAX_SETTLE_MS) { done = true; setPlaced(true); }
         return;
       }
-      const r = el.getBoundingClientRect();
-      const next: Rect = { top: r.top, left: r.left, width: r.width, height: r.height };
+      const next = spotlightRect(el);
       const same = !!prev && Math.abs(prev.top - next.top) < 0.5 && Math.abs(prev.left - next.left) < 0.5
         && Math.abs(prev.width - next.width) < 0.5 && Math.abs(prev.height - next.height) < 0.5;
       stable = same ? stable + 1 : 0;
@@ -175,19 +205,24 @@ export function PhoneOnboarding({ steps = PHONE_ONBOARDING_STEPS }: { steps?: Ph
       window.clearInterval(id);
       window.removeEventListener('resize', measure);
     };
-  }, [active, step, onHome]);
+  }, [active, step, onRoute]);
 
   useEffect(() => {
     if (active && placed && !blocked) nextRef.current?.focus({ preventScroll: true });
   }, [active, placed, blocked, index]);
 
+  // Leaving the tour from another page brings the user back to the home tab.
+  const leave = useCallback(() => {
+    finishPhoneOnboarding();
+    if (normPath(location.pathname) !== '/m') navigate('/m', { replace: true });
+  }, [location.pathname, navigate]);
   const go = useCallback((n: number) => {
-    if (n >= steps.length) { finishPhoneOnboarding(); return; }
+    if (n >= steps.length) { leave(); return; }
     setPhoneOnboardingStep(Math.max(0, n));
-  }, [steps.length]);
-  const skip = useCallback(() => finishPhoneOnboarding(), []);
+  }, [steps.length, leave]);
+  const skip = leave;
 
-  if (!active || !step || blocked || !onHome) return null;
+  if (!active || !step || blocked || !onRoute) return null;
 
   const side = placed ? phoneCardSide(rect, window.innerHeight) : 'bottom';
   const titleId = `po-title-${step.id}`;

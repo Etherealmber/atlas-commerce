@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, type WorkStatusSource } from '../api';
 import PhoneDialog from './PhoneDialog';
+import { AtlasLoader } from '../components/brand/AtlasLoader';
 
 type Snapshot = { inApp: WorkStatusSource; reports: WorkStatusSource };
 type SourceKey = 'inApp' | 'reports';
@@ -43,7 +44,7 @@ export default function PhoneAgentActivity({ onClose }: { onClose: () => void })
   return <PhoneDialog titleId="ph-agent-activity-title" onClose={onClose}>
     <h2 id="ph-agent-activity-title">Mon activité</h2>
     <p>Statuts personnels fournis par le serveur, en lecture seule.</p>
-    {loading && <p role="status">Chargement…</p>}{error && <p role="alert">{error}</p>}
+    {loading && <p role="status" style={{ display: 'flex', alignItems: 'center', gap: 8 }}><AtlasLoader size={16} label="" /> Chargement…</p>}{error && <p role="alert">{error}</p>}
     <div className="ph-agent-activity-scroll">{section('inApp', 'Demandes de stock')}{section('reports', 'Signalements')}</div>
     <div className="ph-native-dialog-actions"><button type="button" disabled={loading} onClick={() => void load()}>Actualiser</button><button type="button" onClick={onClose}>Fermer</button></div>
   </PhoneDialog>;
