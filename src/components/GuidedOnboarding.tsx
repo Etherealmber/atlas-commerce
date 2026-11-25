@@ -113,6 +113,13 @@ const PAD = 6;
 
 /** Any blocking window open (wizard, modal, Nouveautés…) hides the tour card. */
 const BLOCKING = '.modal-overlay, .whats-new-modal-backdrop, [aria-modal="true"]:not(.ac-onboard-card)';
+/** Page still loading: skeletons / shimmer placeholders in the main column. */
+const LOADING = '.content .skeleton, .content [aria-busy="true"], main .skeleton, main [aria-busy="true"]';
+const TICK_MS = 120;
+/** Same target rect on this many consecutive checks = settled (~360 ms). */
+const SETTLE_TICKS = 3;
+/** Never wait longer than this before showing the card. */
+const MAX_SETTLE_MS = 4000;
 
 type Rect = { top: number; left: number; width: number; height: number };
 
@@ -178,30 +185,57 @@ export function GuidedOnboarding({ steps = ONBOARDING_STEPS }: { steps?: Onboard
   }, [active, step, location.pathname, navigate]);
 
   // Track the target (pages load lazily, the dock animates, the user scrolls).
+  // The card stays invisible until the target has settled: no skeleton/shimmer left
+  // on the page and the same position on a few consecutive checks. Before, the card
+  // showed centred while the page shimmered, then jumped next to the target.
+  const [placed, setPlaced] = useState(false);
   useEffect(() => {
     if (!active || !step) return undefined;
+    setPlaced(false);
+    setRect(null);
+    const startedAt = Date.now();
     let scrolled = false;
+    let stableTicks = 0;
+    let prevRect: Rect | null = null;
+    let done = false;
     const measure = () => {
       setBlocked(Boolean(document.querySelector(BLOCKING)));
       const el = findTarget(step.target);
+      const waited = Date.now() - startedAt;
       if (!el) {
+        prevRect = null;
+        stableTicks = 0;
         setRect(null);
+        // Target never appeared (role without that page, slow network): centred card.
+        if (!done && waited > MAX_SETTLE_MS) { done = true; setPlaced(true); }
         return;
       }
       if (!scrolled) {
         scrolled = true;
         const r0 = el.getBoundingClientRect();
-        if (r0.top < 0 || r0.bottom > window.innerHeight) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        if (r0.top < 0 || r0.bottom > window.innerHeight) el.scrollIntoView({ block: 'center', behavior: 'instant' as ScrollBehavior });
       }
       const r = el.getBoundingClientRect();
+      const next: Rect = { top: r.top, left: r.left, width: r.width, height: r.height };
+      const same = !!prevRect && Math.abs(prevRect.top - next.top) < 0.5 && Math.abs(prevRect.left - next.left) < 0.5
+        && Math.abs(prevRect.width - next.width) < 0.5 && Math.abs(prevRect.height - next.height) < 0.5;
+      stableTicks = same ? stableTicks + 1 : 0;
+      prevRect = next;
       setRect((prev) =>
-        prev && Math.abs(prev.top - r.top) < 0.5 && Math.abs(prev.left - r.left) < 0.5 && Math.abs(prev.width - r.width) < 0.5 && Math.abs(prev.height - r.height) < 0.5
+        prev && Math.abs(prev.top - next.top) < 0.5 && Math.abs(prev.left - next.left) < 0.5 && Math.abs(prev.width - next.width) < 0.5 && Math.abs(prev.height - next.height) < 0.5
           ? prev
-          : { top: r.top, left: r.left, width: r.width, height: r.height },
+          : next,
       );
+      if (!done) {
+        const shimmering = Boolean(document.querySelector(LOADING));
+        if ((stableTicks >= SETTLE_TICKS && !shimmering) || waited > MAX_SETTLE_MS) {
+          done = true;
+          setPlaced(true);
+        }
+      }
     };
     measure();
-    const id = window.setInterval(measure, 250);
+    const id = window.setInterval(measure, TICK_MS);
     window.addEventListener('resize', measure);
     window.addEventListener('scroll', measure, true);
     return () => {
@@ -217,8 +251,8 @@ export function GuidedOnboarding({ steps = ONBOARDING_STEPS }: { steps?: Onboard
   });
 
   useEffect(() => {
-    if (active && !blocked) nextRef.current?.focus({ preventScroll: true });
-  }, [active, blocked, index]);
+    if (active && !blocked && placed) nextRef.current?.focus({ preventScroll: true });
+  }, [active, blocked, index, placed]);
 
   const go = useCallback((n: number) => {
     if (n >= steps.length) {
@@ -249,7 +283,7 @@ export function GuidedOnboarding({ steps = ONBOARDING_STEPS }: { steps?: Onboard
       <div className="ac-onboard-layer" data-step={step.id}>
         {/* Demo only: swallow every click on the page so the tour can never create data. */}
         <div className="ac-onboard-shield" aria-hidden="true" />
-        {rect ? (
+        {!placed ? null : rect ? (
           <div
             className="ac-onboard-spot"
             aria-hidden="true"
@@ -265,10 +299,11 @@ export function GuidedOnboarding({ steps = ONBOARDING_STEPS }: { steps?: Onboard
         )}
         <div
           ref={cardRef}
-          className="ac-onboard-card"
+          className={`ac-onboard-card${placed ? ' is-placed' : ''}`}
           role="dialog"
           aria-modal="false"
           aria-labelledby={titleId}
+          aria-hidden={placed ? undefined : true}
           style={{ top: pos.top, left: pos.left, width: CARD_W }}
         >
           <div className="ac-onboard-head">

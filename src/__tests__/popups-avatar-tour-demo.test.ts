@@ -106,7 +106,7 @@ describe('popups never open or close on their own', () => {
 
   it('« Nouveautés » waits for the guided tour and other popups', () => {
     const src = readFileSync('src/components/WhatsNewModal.tsx', 'utf8');
-    expect(src).toContain('isOnboardingPending() || document.querySelector(OTHER_POPUP)');
+    expect(src).toContain('isOnboardingPending() || isPhoneOnboardingPending() || document.querySelector(OTHER_POPUP)');
   });
 });
 

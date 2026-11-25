@@ -54,6 +54,7 @@ import PhoneProductCreate from './PhoneProductCreate';
 import { dualStockLabel } from '../lib/dualUnit';
 import PhoneSkeleton from './PhoneSkeleton';
 import PhoneQuickActions from './PhoneQuickActions';
+import PhoneOnboarding from './PhoneOnboarding';
 import AtlasAgentMascot from './AtlasAgentMascot';
 import { getScanPreference, phoneScanFeedback } from './phoneScanPreferences';
 
@@ -454,6 +455,7 @@ export default function PhoneApp() {
 
       {hasDock && <PhoneDock role={getRole()} />}
       {toast && <div className="phone-toast">{toast}</div>}
+      <PhoneOnboarding />
     </div>
   );
 }

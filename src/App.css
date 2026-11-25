@@ -21957,7 +21957,17 @@ html body .settings-topbar-theme.public-lang-pill button.public-lang-btn:not(#ac
   transition: top 0.28s cubic-bezier(0.16, 1, 0.3, 1), left 0.28s cubic-bezier(0.16, 1, 0.3, 1);
   animation: ac-onboard-in 0.24s cubic-bezier(0.16, 1, 0.3, 1);
 }
+/* Until the target has settled the card is measured but invisible and does not
+   slide: it appears once, directly in its final place (no centre → target jump). */
+.ac-onboard-card:not(.is-placed) {
+  visibility: hidden;
+  pointer-events: none;
+  transition: none;
+  animation: none;
+}
+.ac-onboard-spot, .ac-onboard-dim { animation: ac-onboard-fade 0.2s ease-out; }
 @keyframes ac-onboard-in { from { opacity: 0; transform: translateY(6px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes ac-onboard-fade { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
   .ac-onboard-card, .ac-onboard-spot { transition: none; animation: none; }
 }
