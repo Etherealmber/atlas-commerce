@@ -613,7 +613,7 @@ export default function Support() {
         <div className="dl-foot-inner">
           <div className="dl-foot-brand">
             <AtlasLockup play="view" label={APP_NAME} className="dl-foot-lockup" />
-            <p>{APP_NAME} par {APP_CREATOR_NAME} — logiciel de gestion stock, caisse et facturation.</p>
+            <p>{APP_NAME} <span>par</span> {APP_CREATOR_NAME} — <span>logiciel de gestion stock, caisse et facturation.</span></p>
           </div>
           <nav aria-label="Liens support et produit">
             <Link to="/">Accueil</Link>

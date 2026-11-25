@@ -189,3 +189,11 @@ html[dir="rtl"] .home-landing .hm-live :is(.hl-amt, .hl-pmeta b, .hl-pmeta i, .h
 }
 html[dir="rtl"] .public-download-menu { left: auto !important; right: 0 !important; }
 html[dir="rtl"] .public-download-menu-item { text-align: right !important; }
+
+/* Align invoice demo totals consistently at the reading edge. */
+html[dir="rtl"] .home-landing .hm-live .hl-tot { direction: rtl; text-align: right; }
+html[dir="rtl"] .home-landing .hm-live .hl-tot :is(i, b) { direction: rtl; text-align: right; }
+/* Login has a permanently dark background, independent of the site theme. */
+html body .ac-login-lang:not(#lang-g):not(#lang-h):not(#lang-i) { background: #25262b !important; border-color: #484951 !important; }
+html body .ac-login-lang > button:not(#lang-g):not(#lang-h):not(#lang-i) { color: #e4e4e7 !important; }
+html body .ac-login-lang > button[aria-pressed="true"]:not(#lang-g):not(#lang-h):not(#lang-i) { background: #f4f4f5 !important; color: #18181b !important; -webkit-text-fill-color: #18181b !important; }

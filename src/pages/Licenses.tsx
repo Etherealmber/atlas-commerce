@@ -1,4 +1,8 @@
+import { useLang } from '../i18n/core';
+import { ArabicLicenses } from '../components/ArabicLegal';
 export default function Licenses() {
+  const lang = useLang();
+  if (lang === 'ar') return <ArabicLicenses />;
   return (
     <div className="privacy-page">
       <div className="privacy-inner">

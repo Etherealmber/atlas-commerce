@@ -12,7 +12,7 @@
 import { getLang, LANG_EVENT, translate, type Lang } from './core';
 
 const ATTRS = ['placeholder', 'title', 'aria-label', 'alt', 'data-tooltip', 'aria-description'] as const;
-const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'CODE', 'PRE', 'KBD', 'SAMP', 'TEXTAREA', 'SVG', 'MATH']);
+const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'CODE', 'PRE', 'KBD', 'SAMP', 'SVG', 'MATH']);
 
 type TextState = { src: string; out: string };
 const textState = new WeakMap<Text, TextState>();
@@ -49,7 +49,7 @@ function hasLetters(s: string) {
 function translateDisplay(src: string, lang: Lang) {
   const out = translate(src, lang).replace(/CDN1/g, 'Atlas API');
   if (lang === 'ar') return out.replace(/\b(?:MAD|DH)\b/g, 'درهم').replace(/\bm²/g, 'م²')
-    .replace(/\bWindows\b/g, 'ويندوز').replace(/\bmacOS\b/gi, 'ماك أو إس').replace(/\bLinux\b/g, 'لينكس').replace(/\bAndroid\b/g, 'أندرويد')
+    .replace(/(\d)\s*j\b/g, '$1 يوم').replace(/\bWindows\b/g, 'ويندوز').replace(/\bmacOS\b/gi, 'ماك أو إس').replace(/\bLinux\b/g, 'لينكس').replace(/\bAndroid\b/g, 'أندرويد')
     .replace(/([-+]?\d[\d\u00a0\u202f ,.]*\d|[-+]?\d)\s*(درهم|م²)/g, '\u2067$1 $2\u2069');
   if (lang === 'en') return out.replace(/\bDH\b/g, 'MAD');
   return out.replace(/\bMAD\b/g, 'DH');
@@ -61,7 +61,7 @@ function translateText(node: Text, lang: Lang) {
   // React (or the app) wrote new text since our last pass → it is the new source.
   const src = st && value === st.out ? st.src : value;
   if (!hasLetters(src)) return;
-  if (node.parentElement && skipped(node.parentElement)) return;
+  if (node.parentElement && (node.parentElement.tagName === 'TEXTAREA' || skipped(node.parentElement))) return;
   const out = translateDisplay(src, lang);
   textState.set(node, { src, out });
   if (out !== value) node.nodeValue = out;

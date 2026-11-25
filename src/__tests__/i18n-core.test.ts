@@ -76,6 +76,17 @@ describe('i18n core', () => {
     expect(document.querySelector('.area')!.textContent).toBe('42 m²');
   });
 
+  it('translates textarea placeholders and day abbreviations without altering input', async () => {
+    document.body.innerHTML = '<textarea placeholder="Décrivez le module concerné, les étapes effectuées et le résultat attendu...">Texte personnel</textarea><span>31–60 j</span>';
+    setLang('ar'); retranslateAll(); await tick();
+    const field = document.querySelector('textarea')!;
+    expect(field.placeholder).toContain('صِف الوحدة');
+    expect(field.value).toBe('Texte personnel');
+    expect(document.querySelector('span')!.textContent).toBe('31–60 يوم');
+    setLang('fr'); await tick();
+    expect(field.placeholder).toContain('Décrivez');
+  });
+
   it('accepts a language pushed by the native Android shell', () => {
     (window as unknown as { atlasSetLanguage: (l: string) => void }).atlasSetLanguage('en');
     expect(getLang()).toBe('en');

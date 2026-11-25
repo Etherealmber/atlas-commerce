@@ -560,7 +560,7 @@ export default function About() {
           <div className="ac-panel-head">
             <div>
               <h2>Créateur</h2>
-              <span className="ac-panel-sub">Développement produit &amp; infrastructure · {APP_CREATOR_NAME}</span>
+              <span className="ac-panel-sub"><span>Développement produit &amp; infrastructure</span> · {APP_CREATOR_NAME}</span>
             </div>
           </div>
           <div className="about-owner-head">
@@ -609,7 +609,7 @@ export default function About() {
                     target="_blank"
                     rel="noreferrer"
                   >
-                    Dépôts {APP_TEAM}
+                    <span>Dépôts</span> {APP_TEAM}
                   </a>
                 )}
                 {APP_INSTAGRAM && (
@@ -675,7 +675,7 @@ export default function About() {
         <div className="ac-panel-head">
           <div>
             <h2>Autour d’Atlas</h2>
-            <span className="ac-panel-sub">Dépôts et applications compagnons — @{APP_CREATOR}</span>
+            <span className="ac-panel-sub"><span>Dépôts et applications compagnons</span> — @{APP_CREATOR}</span>
           </div>
           <span className="ac-status-pill">
             <Github size={13} strokeWidth={2} aria-hidden="true" />
