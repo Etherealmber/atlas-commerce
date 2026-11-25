@@ -22,6 +22,7 @@ import PageSkeleton from '../components/PageSkeleton';
 import { FloatingPortal } from '../components/FloatingPortal';
 import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
 import { ModalFormError } from '../components/ModalFormFeedback';
+import Select from '../components/ui/Select';
 
 const RECEIPT_STEPS: readonly WizardStepDef[] = [
   { id: 'client', label: 'Client & montant', hint: 'Associez une facture ou saisissez le client et le montant.' },
@@ -286,12 +287,12 @@ export default function Receipts() {
             <StepBody active={wz.step === 1}>
             <div className="form-row">
               <label>Lier à une facture (optionnel)</label>
-              <select value={invoiceId} onChange={(e) => selectInvoice(e.target.value ? numFromInput(e.target.value) : '')}>
+              <Select value={invoiceId} onChange={(e) => selectInvoice(e.target.value ? numFromInput(e.target.value) : '')}>
                 <option value="">— Reçu indépendant —</option>
                 {invoices.filter((i) => i.status !== 'paid' && i.status !== 'cancelled').map((inv) => (
                   <option key={inv.id} value={inv.id}>{inv.number} — {inv.client_name} (Reste : {fmt(remainingBalance(inv.total, inv.amount_paid))})</option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div className="grid grid-2">
               <div className="form-row"><label>Nom du client *</label><input value={clientName} onChange={(e) => { setClientName(e.target.value); if (modalError) setModalError(''); }} /></div>
@@ -301,13 +302,13 @@ export default function Receipts() {
             <StepBody active={wz.step === 2}>
             <div className="grid grid-2">
               <div className="form-row"><label>Mode de paiement</label>
-                <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
+                <Select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
                   <option value="cash">Espèces</option>
                   <option value="bank">Virement bancaire</option>
                   <option value="check">Chèque</option>
                   <option value="card">Carte bancaire</option>
                   <option value="other">Autre</option>
-                </select>
+                </Select>
               </div>
               <div className="form-row"><label>Date</label><DatePicker value={issueDate} onChange={setIssueDate} /></div>
             </div>

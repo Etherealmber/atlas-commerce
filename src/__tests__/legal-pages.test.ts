@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import Licenses from '../pages/Licenses';
+import { ArabicLicenses, ArabicPrivacy, ArabicTerms } from '../components/ArabicLegal';
 import Privacy from '../pages/Privacy';
 import Terms from '../pages/Terms';
 import { titleForPath } from '../lib/pageTitle';
@@ -37,6 +38,14 @@ describe('legal pages', () => {
       expect(html).toContain('20 octobre 2026');
     }
     expect(render(Privacy)).toContain('auto-hébergé');
+  });
+
+  it('provides complete Arabic legal pages with working links', () => {
+    expect(render(ArabicPrivacy)).toContain('سياسة الخصوصية');
+    expect(render(ArabicPrivacy)).toContain('تفضيلات ملفات تعريف الارتباط');
+    expect(render(ArabicTerms)).toContain('href="/privacy"');
+    expect(render(ArabicTerms)).toContain('href="/licenses"');
+    expect(render(ArabicLicenses)).toContain('LICENSE-APACHE');
   });
 
   it('registers the license route in desktop, phone and public routers', () => {

@@ -222,3 +222,27 @@ html[data-theme='dark'] .ghr-item-state em { color: #fbbf24; }
   .ghr-list li { grid-template-columns: minmax(0, 1fr) auto; }
   .ghr-count { grid-column: 1 / -1; }
 }
+
+/* v0.9.3 — paged lists (10 / page) + look-alike report groups (5 / page). */
+.ghr-list-head { display: flex; align-items: baseline; gap: 8px; }
+.ghr-list-head h3 { margin: 0; }
+.ghr-list-count { font-size: 12px; font-weight: 650; color: #8a847a; }
+.ghr-list > ul { margin-top: 10px; }
+.ghr-pager { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 10px; font-size: 12px; color: #8a847a; }
+.ghr-note--tight { margin: 4px 0 0 !important; font-size: 12px; }
+html body button.ghr-group-toggle:not(#gr-g):not(#gr-h):not(#gr-i),
+html[data-theme="dark"] body button.ghr-group-toggle:not(#gr-g):not(#gr-h):not(#gr-i) {
+  display: flex !important; align-items: center !important; justify-content: flex-start !important; gap: 8px !important;
+  width: auto !important; min-width: 0 !important; max-width: 100% !important; height: auto !important; min-height: 0 !important;
+  margin: 0 !important; padding: 0 !important; border: 0 !important; border-radius: 6px !important;
+  background: transparent !important; color: inherit !important; box-shadow: none !important; filter: none !important; transform: none !important;
+  font: inherit !important; font-weight: 600 !important; text-align: start !important; cursor: pointer !important;
+}
+html body button.ghr-group-toggle:not(#gr-g):not(#gr-h):not(#gr-i):hover .ghr-item-msg { text-decoration: underline; text-underline-offset: 3px; }
+.ghr-group-toggle:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; border-radius: 6px; }
+.ghr-group-chev { flex: none; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 999px; background: #f1efe9; font-size: 13px; font-weight: 700; line-height: 1; }
+html[data-theme="dark"] .ghr-group-chev { background: #2f2d29; }
+.ghr-list ul.ghr-group-items { list-style: none; margin: 8px 0 2px; padding: 0; display: grid; gap: 4px; border: 0; border-radius: 0; overflow: visible; border-inline-start: 2px solid #ebe7df; padding-inline-start: 10px; }
+html[data-theme="dark"] .ghr-list ul.ghr-group-items { border-color: #3d3a35; background: none; }
+.ghr-list .ghr-group-items > li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; font-size: 12px; padding: 4px 0; border: 0 !important; background: none !important; }
+.ghr-group-items .ghr-item-msg { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

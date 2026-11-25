@@ -42,7 +42,7 @@ export function PhoneKpiStrip({ items, currency = 'MAD', label = 'Indicateurs' }
         const empty = !values || isEmptySeries(values, kind);
         const shown = v === null || (empty && kind === 'level')
           ? '—'
-          : it.unit === 'money' ? `${countFmt.format(v)} ${currency}` : countFmt.format(v);
+          : (it.unit === 'money' ? `${countFmt.format(v)} ${currency}` : countFmt.format(v)).replace(/\u202f/g, '\u00a0');
         return (
           <div className={`ph-kpi${it.invert ? ' is-invert' : ''}`} key={it.k} data-phone-kpi={it.k}>
             <span className="ph-kpi-label">

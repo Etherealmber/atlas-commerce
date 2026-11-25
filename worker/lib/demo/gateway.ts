@@ -19,6 +19,7 @@ import { buildDemoEnv } from './demoEnv';
 import {
   DEMO_PASSWORD,
   DEMO_SESSION_MINUTES,
+  demoDurationLabel,
   DEMO_USERNAME,
   DEMO_WINDOW_HOURS,
   demoIntroMessage,
@@ -225,6 +226,14 @@ export async function rewrapTokens(env: Env, claims: DemoClaims, res: Response):
   };
   await patch(body);
   await patch(body?.data);
+  // Report / print link tickets (`?rt=`): opened later in a new tab without any
+  // Authorization header, so they must carry the sandbox claims themselves —
+  // otherwise the real deployment refuses them (INVALID_TICKET).
+  const rt = body?.data?.rt;
+  if (typeof rt === 'string' && rt && !rt.startsWith(DEMO_TOKEN_PREFIX)) {
+    body.data.rt = await wrapDemoToken(env, claims, rt);
+    changed = true;
+  }
   const headers = new Headers(res.headers);
   headers.delete('Content-Length');
   return new Response(changed ? JSON.stringify(body) : text, { status: res.status, statusText: res.statusText, headers });
@@ -254,7 +263,7 @@ function expiredResponse(): Response {
   return json({
     success: false,
     code: 'DEMO_EXPIRED',
-    error: `Votre session de démo de ${DEMO_SESSION_MINUTES} minutes est terminée : la base fictive a été réinitialisée. Revenez dans ${DEMO_WINDOW_HOURS} h pour un nouvel essai.`,
+    error: `Votre session de démo (${demoDurationLabel()}) est terminée : la base fictive a été réinitialisée. Revenez dans ${DEMO_WINDOW_HOURS} h pour un nouvel essai.`,
   }, 401);
 }
 
@@ -280,7 +289,7 @@ async function handleDemoLogin(
   // Per-network cap protects public deployments. A dev machine (localhost /
   // LAN address) funnels every browser, emulator and phone through the same
   // IP, so the cap would lock local testing after a few devices — skip it
-  // there; the per-fingerprint 20 min / 24 h rule still applies.
+  // there; the per-fingerprint 1 h / 24 h rule still applies.
   if (!hasLive && !isDevMachineHost(new URL(request.url))) {
     const ipStub = hubStub(env, `demo-ip:${(await sha256Hex(`atlas-demo-ip|${ip}`)).slice(0, 32)}`);
     const quota = ipStub ? await callHub(ipStub, '/ip-quota', { max: MAX_NEW_SANDBOXES_PER_IP_PER_DAY }) : { ok: true };
@@ -297,7 +306,7 @@ async function handleDemoLogin(
       success: false,
       code: 'DEMO_QUOTA',
       retry_at: retryAt || undefined,
-      error: `Vous avez déjà utilisé vos ${DEMO_SESSION_MINUTES} minutes de démo pour aujourd’hui. Nouvel essai possible dans ${wait}.`,
+      error: `Vous avez déjà utilisé votre ${demoDurationLabel()} de démo pour aujourd’hui. Nouvel essai possible dans ${wait}.`,
     }, 429);
   }
 
@@ -374,7 +383,14 @@ export async function handleDemoRequest(
   const auth = request.headers.get('Authorization') || '';
   const bearer = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
   const queryToken = url.searchParams.get('token') || '';
-  const wrapped = bearer.startsWith(DEMO_TOKEN_PREFIX) ? bearer : queryToken.startsWith(DEMO_TOKEN_PREFIX) ? queryToken : '';
+  const ticket = url.searchParams.get('rt') || '';
+  const wrapped = bearer.startsWith(DEMO_TOKEN_PREFIX)
+    ? bearer
+    : queryToken.startsWith(DEMO_TOKEN_PREFIX)
+      ? queryToken
+      : ticket.startsWith(DEMO_TOKEN_PREFIX) && !bearer && !queryToken
+        ? ticket
+        : '';
   if (!wrapped) return null;
 
   const parsed = await unwrapDemoToken(env, wrapped);
@@ -387,11 +403,27 @@ export async function handleDemoRequest(
   if (bearer === wrapped) headers.set('Authorization', `Bearer ${parsed.inner}`);
   const nextUrl = new URL(request.url);
   if (queryToken === wrapped) nextUrl.searchParams.set('token', parsed.inner);
+  const viaTicket = ticket === wrapped && bearer !== wrapped && queryToken !== wrapped;
+  if (viaTicket) nextUrl.searchParams.set('rt', parsed.inner);
   const init: RequestInit & { duplex?: string } = { method: request.method, headers, redirect: request.redirect };
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     init.body = request.body;
     init.duplex = 'half';
   }
   const innerReq = new Request(nextUrl.toString(), init);
-  return runInSandbox(app, env, ctx, parsed.claims, innerReq);
+  const res = await runInSandbox(app, env, ctx, parsed.claims, innerReq);
+  return viaTicket ? relinkTicket(res, parsed.inner, wrapped) : res;
+}
+
+/**
+ * The combined report links to its sections with the same ticket: swap the
+ * inner ticket for the wrapped one so those links stay in the sandbox too.
+ */
+export async function relinkTicket(res: Response, inner: string, wrapped: string): Promise<Response> {
+  const type = res.headers.get('Content-Type') || '';
+  if (!type.includes('text/html') || !inner) return res;
+  const html = await res.text();
+  const headers = new Headers(res.headers);
+  headers.delete('Content-Length');
+  return new Response(html.split(inner).join(encodeURIComponent(wrapped)), { status: res.status, statusText: res.statusText, headers });
 }

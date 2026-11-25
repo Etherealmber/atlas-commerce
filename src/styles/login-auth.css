@@ -769,7 +769,7 @@ html body .atlas-login-lockup .atlas-lockup.atlas-login-lockup-svg {
   }
 }
 
-/* Demo account notice (« test / test », 20 min / 24 h). */
+/* Demo account notice (« test / test », 1 h / 24 h). */
 html.atlas-login-page body .atlas-login.atlas-login--auth7 .atlas-login-demo {
   display: flex;
   align-items: center;
@@ -912,4 +912,49 @@ html[data-theme="dark"].atlas-login-page body .atlas-login.atlas-login--auth7 bu
 html[data-theme="dark"].atlas-login-page body .atlas-login.atlas-login--auth7 button.atlas-login-submit:not(#lg-g1):not(#lg-g2):disabled {
   background: #d4d4d8 !important;
   opacity: 0.6 !important;
+}
+
+/* v0.9.3 — Phone login card must never be shrunk by its flex column parent.
+   With overflow:hidden the card's min-height resolves to 0, so a tall error +
+   the demo box squeezed the card and clipped the password field and the
+   Cloudflare widget under it (iOS Chrome: no visible widget → no token). The
+   page itself scrolls instead. */
+html.atlas-login-page body .atlas-login.atlas-login--auth7 .atlas-login-card,
+html.atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone .atlas-login-card {
+  flex-shrink: 0 !important;
+  min-height: min-content !important;
+  max-height: none !important;
+}
+html.atlas-login-page body .atlas-login.atlas-login--auth7 .atlas-login-form-wrap,
+html.atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone .atlas-login-form-wrap {
+  max-height: none !important;
+  overflow: visible !important;
+  flex-shrink: 0 !important;
+}
+html.atlas-login-page body .atlas-login.atlas-login--auth7 #cf-turnstile { scroll-margin: 96px; }
+
+/* Phone hero: the lockup glides in; the sun then keeps breathing (wave). */
+@media (prefers-reduced-motion: no-preference) {
+  html.atlas-login-page body .atlas-login--phone .atlas-login-phone-hero .atlas-lockup.atlas-login-phone-lockup {
+    animation: atlas-login-hero-in 520ms cubic-bezier(.2, .8, .2, 1) both;
+  }
+}
+@keyframes atlas-login-hero-in { from { opacity: 0; transform: translateY(-8px) scale(.96); } to { opacity: 1; transform: none; } }
+
+/* Compact identity step keeps password and verification together on phones. */
+html.atlas-login-page .atlas-login-identity {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 8px 0; min-width: 0; font-size: 14px;
+}
+html.atlas-login-page .atlas-login-identity span { overflow-wrap: anywhere; }
+html.atlas-login-page .atlas-login-identity button {
+  border: 0; background: transparent; color: inherit; text-decoration: underline;
+  padding: 6px; cursor: pointer; font: inherit;
+}
+/* The desktop form lives on a dark card, regardless of the page theme. */
+html.atlas-login-page body .atlas-login.atlas-login--auth7:not(.atlas-login--phone) .atlas-login-submit {
+  background: #fafafa !important; color: #111827 !important;
+}
+html.atlas-login-page body .atlas-login.atlas-login--auth7:not(.atlas-login--phone) .atlas-login-submit :is(span, svg) {
+  color: #111827 !important; stroke: #111827 !important;
 }

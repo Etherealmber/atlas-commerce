@@ -18,6 +18,7 @@ import { isEmail } from '../lib/formValidate';
 import { round2 } from '../lib/money';
 import './employee-wizard.css';
 import { MetricSpark, MetricTrend } from '../components/MetricSpark';
+import Select from '../components/ui/Select';
 
 type Emp = Record<string, any>;
 
@@ -751,7 +752,7 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
             style={{ flex: '1 1 240px', minWidth: 0, width: '100%' }}
             aria-label="Recherche employés"
           />
-          <select
+          <Select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
             style={{ flex: '0 1 160px', minWidth: 140 }}
@@ -767,8 +768,8 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
             <option value="Bureau">Bureau</option>
             <option value="Chantier">Chantier</option>
             <option value="Direction">Direction</option>
-          </select>
-          <select
+          </Select>
+          <Select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as any)}
             style={{ flex: '0 1 140px', minWidth: 120 }}
@@ -777,7 +778,7 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
             <option value="active">Actifs</option>
             <option value="resigned">Démissionnaires</option>
             <option value="all">Tous</option>
-          </select>
+          </Select>
         </div>
       </div>
 
@@ -934,15 +935,15 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
                 </div>
                 <div className="form-row">
                   <label>Genre</label>
-                  <select value={form.gender} onChange={(e) => setF('gender', e.target.value)}>
+                  <Select value={form.gender} onChange={(e) => setF('gender', e.target.value)}>
                     <option value="">—</option>
                     <option value="Homme">Homme</option>
                     <option value="Femme">Femme</option>
-                  </select>
+                  </Select>
                 </div>
                 <div className="form-row">
                   <label>Nationalité</label>
-                  <select
+                  <Select
                     value={natOther || (form.nationality !== '' && form.nationality !== 'Marocaine') ? '__other__' : 'Marocaine'}
                     onChange={(e) => {
                       if (e.target.value === 'Marocaine') { setNatOther(false); setF('nationality', 'Marocaine'); }
@@ -951,7 +952,7 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
                   >
                     <option value="Marocaine">Marocaine</option>
                     <option value="__other__">Autre</option>
-                  </select>
+                  </Select>
                 </div>
                 {(natOther || (form.nationality !== '' && form.nationality !== 'Marocaine')) && (
                   <div className="form-row">
@@ -965,11 +966,11 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
                 )}
                 <div className="form-row">
                   <label>Situation familiale</label>
-                  <select value={form.marital_status} onChange={(e) => setF('marital_status', e.target.value)}>
+                  <Select value={form.marital_status} onChange={(e) => setF('marital_status', e.target.value)}>
                     <option value="">—</option>
                     <option value="Célibataire">Célibataire</option>
                     <option value="Marié(e)">Marié(e)</option>
-                  </select>
+                  </Select>
                 </div>
               </div>
             )}
@@ -979,13 +980,13 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
                 <div className="grid grid-2">
                   <div className="form-row">
                     <label>Statut d’identité / séjour</label>
-                    <select value={form.immigration_status} onChange={(e) => setF('immigration_status', e.target.value)}>
+                    <Select value={form.immigration_status} onChange={(e) => setF('immigration_status', e.target.value)}>
                       <option value="">— Choisir —</option>
                       <option value="citizen">Citoyen (CIN)</option>
                       <option value="resident">Résident permanent</option>
                       <option value="work_permit">Titulaire de permis de travail</option>
                       <option value="other">Autre / document de voyage</option>
-                    </select>
+                    </Select>
                   </div>
                   <div className="form-row">
                     <label>
@@ -1079,23 +1080,23 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
                 </div>
                 <div className="form-row">
                   <label>Catégorie</label>
-                  <select value={form.category} onChange={(e) => setF('category', e.target.value)}>
+                  <Select value={form.category} onChange={(e) => setF('category', e.target.value)}>
                     <option value="">—</option>
                     <option value="Magasin">Magasin</option>
                     <option value="Bureau">Bureau</option>
                     <option value="Chantier">Chantier</option>
                     <option value="Direction">Direction</option>
-                  </select>
+                  </Select>
                 </div>
                 <div className="form-row">
                   <label>Statut d’emploi</label>
-                  <select value={form.employment_status} onChange={(e) => setF('employment_status', e.target.value)}>
+                  <Select value={form.employment_status} onChange={(e) => setF('employment_status', e.target.value)}>
                     <option value="">—</option>
                     <option value="CDI">CDI</option>
                     <option value="CDI_TP">CDI temps plein</option>
                     <option value="CDD">CDD</option>
                     <option value="Stage">Stage</option>
-                  </select>
+                  </Select>
                 </div>
                 <div className="form-row">
                   <label>Date d’embauche</label>
@@ -1297,14 +1298,14 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
                 <div className="grid grid-2">
                   <div className="form-row">
                     <label>Type de contrat</label>
-                    <select value={form.contract_type || 'CDI'} onChange={(e) => setF('contract_type', e.target.value)}>
+                    <Select value={form.contract_type || 'CDI'} onChange={(e) => setF('contract_type', e.target.value)}>
                       <option value="CDI">CDI — Contrat à durée indéterminée</option>
                       <option value="CDI_TP">CDI temps plein (signé avec la société)</option>
                       <option value="CDD">CDD — Contrat à durée déterminée</option>
                       <option value="Anapec">ANAPEC / insertion</option>
                       <option value="Stage">Stage</option>
                       <option value="Autre">Autre</option>
-                    </select>
+                    </Select>
                   </div>
                   <div className="form-row">
                     <label>Période d’essai (jours)</label>
@@ -1607,11 +1608,11 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
             </div>
             <div className="form-row">
               <label>Mode de paiement</label>
-              <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)}>
+              <Select value={payMethod} onChange={(e) => setPayMethod(e.target.value)}>
                 <option value="cash">Espèces (caisse)</option>
                 <option value="bank">Virement / banque</option>
                 <option value="card">Carte</option>
-              </select>
+              </Select>
             </div>
             <div className="form-row">
               <label>Note</label>
@@ -1772,13 +1773,13 @@ export default function Employees({ phone = false }: { phone?: boolean }) {
             </p>
             <div className="form-row">
               <label>Motif</label>
-              <select value={resignReason} onChange={(e) => setResignReason(e.target.value)}>
+              <Select value={resignReason} onChange={(e) => setResignReason(e.target.value)}>
                 <option value="Démission">Démission</option>
                 <option value="Fin de contrat">Fin de contrat</option>
                 <option value="Licenciement">Licenciement</option>
                 <option value="Rupture conventionnelle">Rupture conventionnelle</option>
                 <option value="Autre">Autre</option>
-              </select>
+              </Select>
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
               <button

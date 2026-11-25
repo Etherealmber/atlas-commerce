@@ -1,7 +1,11 @@
+import { useLang } from '../i18n/core';
+import { ArabicTerms } from '../components/ArabicLegal';
 import { Link } from 'react-router-dom';
 import { APP_NAME } from '../version';
 
 export default function Terms() {
+  const lang = useLang();
+  if (lang === 'ar') return <ArabicTerms />;
   return (
     <div className="privacy-page terms-page">
       <div className="privacy-inner">

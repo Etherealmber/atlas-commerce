@@ -355,7 +355,7 @@ export default function Clients() {
                         onClick={() => openEdit(c)}
                         onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openEdit(c); } }}
                       >
-                        {c.name}
+                        <span translate="no">{c.name}</span>
                       </span>
                     {(c.ice || c.city) && <div className="party-sub">{[c.ice, c.city].filter(Boolean).join(' · ')}</div>}
                   </td>

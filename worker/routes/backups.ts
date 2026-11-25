@@ -1,6 +1,7 @@
 import type { Hono } from 'hono';
 import { afterBusinessMutation } from '../lib/delete-coord';
 import { enqueue } from '../lib/job-queue';
+import { purgeOldLogs } from '../lib/apiLog';
 
 interface BackupRouteDeps {
   requireOwner: (c: any) => { ok: true; username: string } | { ok: false; response: Response };
@@ -695,6 +696,82 @@ function backupTokenFromRequest(c: any): string {
  * at least MIN_KEEP_SNAPSHOTS newest snapshots in backups/30m/ so quiet weeks never leave 0 history.
  * Also prunes stale backups/restore-work/ scratch objects (>24h). Does not touch unrelated R2 objects.
  */
+export const CRON_BACKUP_HUB_NAME = 'cron-backup';
+
+export type CronBackupJob = {
+  id: string;
+  status: 'queued' | 'running' | 'ok' | 'failed';
+  force?: boolean;
+  skip_backup?: boolean;
+  queued_at: string;
+  started_at?: string;
+  finished_at?: string;
+  attempts?: number;
+  result?: Record<string, unknown>;
+  error?: string;
+};
+
+/**
+ * The actual cron work (incremental backup + 7-day purges). Runs inside the
+ * RestoreHub Durable Object alarm in production so it is not bound to the
+ * 30-second HTTP timeout of the external cron service.
+ */
+export async function executeCronBackup(
+  env: any,
+  opts: { force?: boolean; skipBackup?: boolean } = {},
+): Promise<{ success: boolean; error?: string; [k: string]: unknown }> {
+  const force = Boolean(opts.force);
+  let backup: { ok: boolean; key?: string; error?: string; bytes?: number; r2_keys?: number; skipped?: boolean; changed_tables?: number } = {
+    ok: true,
+    key: opts.skipBackup ? 'backups/latest.abk' : undefined,
+    skipped: true,
+  };
+  if (!opts.skipBackup) {
+    backup = await runDailyBackup(env, { forceFull: false });
+    if (!backup.ok) {
+      console.error('cron_backup_fail', backup.error);
+      return { success: false, error: backup.error || 'Backup failed' };
+    }
+  }
+  const backupSkipped = Boolean(opts.skipBackup) || Boolean(backup.skipped);
+  let purge = { deleted: 0 };
+  try {
+    purge = await purgeExpiredBackups(env);
+  } catch (e: any) {
+    console.error('cron_purge_err', String(e));
+  }
+  let dbPurge = { purgedRows: 0 };
+  if (!backupSkipped || force) {
+    try {
+      dbPurge = await purgeExpiredDbBackupsState(env.DB);
+    } catch (e: any) {
+      console.error('cron_db_purge_err', String(e));
+    }
+  }
+  // 30-day retention for the audit and API journals. Idle runs skip it to keep
+  // D1 reads flat: every journaled request also triggers an hourly purge.
+  let logsPurge = { api: 0, audit: 0 };
+  if (env.DB && (!backupSkipped || force)) {
+    try { logsPurge = await purgeOldLogs(env.DB); } catch (e: any) { console.error('cron_logs_purge_err', String(e)); }
+  }
+  console.log('cron_backup_ok', JSON.stringify({ key: backup.key, skipped: backupSkipped, changed_tables: backup.changed_tables ?? 0, purge, dbPurge, logsPurge }));
+  return {
+    success: true,
+    skipped: backupSkipped,
+    message: backupSkipped
+      ? 'Aucune mutation depuis la dernière sauvegarde — purge 7 j exécutée'
+      : 'Backup incrémental compressé + purge backups 7 j + conversations agent >30j',
+    timestamp: new Date().toISOString(),
+    backup_id: backup.key || null,
+    bytes: backup.bytes ?? null,
+    changed_tables: backup.changed_tables ?? 0,
+    purge_deleted: purge.deleted,
+    db_purged_rows: dbPurge.purgedRows,
+    logs_purged: logsPurge,
+    data: backupSkipped ? null : backup,
+  };
+}
+
 export async function purgeExpiredBackups(env: any): Promise<{ deleted: number }> {
   if (!env.IMAGES) return { deleted: 0 };
   const nowMs = Date.now();
@@ -1621,7 +1698,7 @@ export function registerBackupRoutes(app: Hono<any>, deps: BackupRouteDeps): voi
     });
   });
 
-  app.post('/api/cron/backup-execute', async (c) => {
+  const cronAuth = (c: any): Response | null => {
     const auth = String(c.req.header('Authorization') || '').trim();
     const secret = String((c.env as any).CRON_SECRET || '').trim();
     if (!secret) {
@@ -1631,91 +1708,102 @@ export function registerBackupRoutes(app: Hono<any>, deps: BackupRouteDeps): voi
         code: 'CRON_SECRET_MISSING',
       }, 503);
     }
-    const bearer = auth.toLowerCase().startsWith('bearer ')
-      ? auth.slice(7).trim()
-      : '';
+    const bearer = auth.toLowerCase().startsWith('bearer ') ? auth.slice(7).trim() : '';
     const headerToken = String(c.req.header('X-Cron-Secret') || '').trim();
     if (bearer !== secret && headerToken !== secret) {
       return c.json({ success: false, error: 'Unauthorized', code: 'CRON_UNAUTHORIZED' }, 401);
     }
-  
+    return null;
+  };
+  const cronHub = (env: any): DurableObjectStub | null => {
+    const ns = env?.RESTORE_HUB as DurableObjectNamespace | undefined;
+    if (!ns || typeof ns.idFromName !== 'function') return null;
+    try { return ns.get(ns.idFromName(CRON_BACKUP_HUB_NAME)); } catch { return null; }
+  };
+  const purgeAgentSafe = async (env: any) => {
+    try {
+      return await purgeAgentConversationsOlderThan(env, 30);
+    } catch (e: any) {
+      console.error('cron_agent_purge_err', String(e));
+      return { deleted: 0 };
+    }
+  };
+
+  /**
+   * External cron entry point (cron-job.org, every 12 h).
+   *
+   * cron-job.org aborts after 30 s, and a full incremental backup takes ~30 s,
+   * so this endpoint now answers in well under a second: it authenticates,
+   * checks the 12 h cooldown (one R2 HEAD), and hands the real work to a
+   * Durable Object alarm (15 min wall clock, independent of the HTTP request).
+   * `?wait=1` keeps the old synchronous behaviour for manual runs / tests.
+   */
+  app.post('/api/cron/backup-execute', async (c) => {
+    const denied = cronAuth(c);
+    if (denied) return denied;
     const started = new Date().toISOString();
     const force = c.req.query('force') === '1';
+    const wait = c.req.query('wait') === '1';
     try {
       // D1 read budget: a backup run reads (almost) every row to hash each
       // table, so the 12-hour cadence must hold no matter how often the
-      // external cron fires. The cooldown used to live in the generation-
-      // versioned cache — wiped by every business write and capped at 1 h by
-      // doCachePut — so in practice each cron call re-read the whole database.
-      // The v5 index is rewritten by every run, so its R2 upload time is a
-      // durable « last run » marker that cache invalidation cannot erase.
+      // external cron fires. The v5 index is rewritten by every run, so its R2
+      // upload time is a durable « last run » marker.
       const lastRunAt = force ? 0 : await lastBackupRunAt(c.env);
       const unchanged = !force && lastRunAt > 0 && Date.now() - lastRunAt < BACKUP_CRON_COOLDOWN_SEC * 1000;
-      let backup: { ok: boolean; key?: string; error?: string; bytes?: number; r2_keys?: number; skipped?: boolean; changed_tables?: number } = {
-        ok: true,
-        key: unchanged ? 'backups/latest.abk' : undefined,
-        skipped: true,
-      };
-      if (!unchanged) {
-        backup = await runDailyBackup(c.env, { forceFull: false });
-        if (!backup.ok) {
-          console.error('cron_backup_fail', backup.error);
-          return c.json({
-            success: false,
-            error: backup.error || 'Backup failed',
-            code: 'BACKUP_FAILED',
-            timestamp: started,
-          }, 500);
-        }
+      let ctx: ExecutionContext | undefined;
+      try { ctx = (c as any).executionCtx; } catch { ctx = undefined; }
+      const hub = wait ? null : cronHub(c.env);
+
+      if (hub) {
+        const r = await hub.fetch('https://cron-backup/cron-backup/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ force, skip_backup: unchanged }),
+        });
+        const j = (await r.json().catch(() => ({}))) as { data?: CronBackupJob; already_running?: boolean };
+        enqueue(ctx, () => purgeAgentSafe(c.env));
+        return c.json({
+          success: true,
+          queued: true,
+          skipped: unchanged,
+          already_running: Boolean(j.already_running),
+          message: unchanged
+            ? 'Sauvegarde déjà faite il y a moins de 12 h — purge 7 j lancée en arrière-plan'
+            : j.already_running
+              ? 'Une sauvegarde est déjà en cours'
+              : 'Sauvegarde lancée en arrière-plan (suivi : GET /api/cron/backup-status)',
+          job_id: j.data?.id || null,
+          started,
+          timestamp: new Date().toISOString(),
+        }, 202);
       }
-      const backupSkipped = unchanged || Boolean(backup.skipped);
-      let purge = { deleted: 0 };
-      try {
-        purge = await purgeExpiredBackups(c.env);
-      } catch (e: any) {
-        console.error('cron_purge_err', String(e));
+
+      const result = await executeCronBackup(c.env, { force, skipBackup: unchanged });
+      const agentPurge = await purgeAgentSafe(c.env);
+      if (!result.success) {
+        return c.json({ success: false, error: result.error || 'Backup failed', code: 'BACKUP_FAILED', timestamp: started }, 500);
       }
-      let dbPurge = { purgedRows: 0 };
-      if (!backupSkipped || force) {
-        try {
-          dbPurge = await purgeExpiredDbBackupsState(c.env.DB);
-        } catch (e: any) {
-          console.error('cron_db_purge_err', String(e));
-        }
-      }
-      let agentPurge = { deleted: 0 };
-      try {
-        agentPurge = await purgeAgentConversationsOlderThan(c.env, 30);
-      } catch (e: any) {
-        console.error('cron_agent_purge_err', String(e));
-      }
-      const finished = new Date().toISOString();
-      console.log('cron_backup_ok', JSON.stringify({ key: backup.key, skipped: backupSkipped, changed_tables: backup.changed_tables ?? 0, purge, dbPurge, agentPurge }));
-      return c.json({
-        success: true,
-        skipped: backupSkipped,
-        message: backupSkipped
-          ? 'Aucune mutation depuis la dernière sauvegarde — purge 7 j exécutée'
-          : 'Backup incrémental compressé + purge backups 7 j + conversations agent >30j',
-        timestamp: finished,
-        started,
-        backup_id: backup.key || null,
-        bytes: backup.bytes ?? null,
-        changed_tables: backup.changed_tables ?? 0,
-        purge_deleted: purge.deleted,
-        db_purged_rows: dbPurge.purgedRows,
-        agent_chats_purged: agentPurge.deleted,
-        data: backupSkipped ? null : backup,
-      });
+      return c.json({ ...result, started, agent_chats_purged: agentPurge.deleted });
     } catch (e: any) {
       console.error('cron_backup_exception', e);
       return c.json({
         success: false,
-        error: e?.message || 'Internal error',
+        error: String(e?.message || 'Internal error').slice(0, 300),
         code: 'CRON_EXECUTE_FAILED',
         timestamp: started,
       }, 500);
     }
+  });
+
+  /** Status of the last background cron backup (same CRON_SECRET auth). */
+  app.get('/api/cron/backup-status', async (c) => {
+    const denied = cronAuth(c);
+    if (denied) return denied;
+    const hub = cronHub(c.env);
+    if (!hub) return c.json({ success: true, data: null });
+    const r = await hub.fetch('https://cron-backup/cron-backup/status');
+    return c.json(await r.json());
   });
   
   

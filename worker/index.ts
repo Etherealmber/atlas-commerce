@@ -59,6 +59,7 @@ import type { Env } from './env';
 import { doCacheGet, doCachePut, hasLiveCache, checkRefreshLimit, invalidateDashboardCache } from './lib/cache';
 import { keyFromCdnUrl, deleteR2Object } from './lib/r2';
 import { rateLimit, isAllowedImageUrl, clientIpFromRequest } from './lib/security';
+import { shouldLogApiCall, geoFromCf, writeApiLog } from './lib/apiLog';
 import { canMutateBusiness, normalizeRole } from './lib/rbac';
 import { apiFail, apiOk } from './lib/api-response';
 import { toClientError } from './lib/errors';
@@ -338,6 +339,44 @@ const app = new Hono<{
 
 // Initialize compiled Rust/WASM finance core once per Worker isolate if bundled.
 initWorkerFinanceWasm();
+
+/* ── Journal des appels API (all /api/* calls, failures included; 30 days) ──
+ * Registered first so it also sees requests rejected by later middleware
+ * (401, 403, 413, 426, 503…). The INSERT runs in waitUntil after the
+ * response, so it never adds latency. */
+app.use('/api/*', async (c, next) => {
+  const started = Date.now();
+  let status = 500;
+  try {
+    await next();
+    status = c.res?.status || 200;
+  } finally {
+    try {
+      const path = new URL(c.req.url).pathname;
+      const auth = c.req.header('Authorization');
+      const db = (c.env as any)?.DB as D1Database | undefined;
+      let ctx: { waitUntil(p: Promise<unknown>): void } | undefined;
+      try { ctx = c.executionCtx; } catch { ctx = undefined; }
+      if (db && ctx && shouldLogApiCall(path, auth)) {
+        const who = sessionUserFromHeader(auth);
+        const row = {
+          method: c.req.method.toUpperCase(),
+          path,
+          status,
+          ms: Date.now() - started,
+          username: who.username || null,
+          role: who.role || null,
+          ip: clientIpFromRequest(c),
+          ua: c.req.header('User-Agent') || null,
+          request_id: String(c.get('requestId') || '') || null,
+          surface: String(c.get('bffSurface') || '') || null,
+          ...geoFromCf((c.req.raw as any).cf),
+        };
+        ctx.waitUntil(writeApiLog(db, row));
+      }
+    } catch { /* journaling never breaks a request */ }
+  }
+});
 
 app.use('/api/*', async (c, next) => {
   const path = new URL(c.req.url).pathname;
@@ -806,6 +845,7 @@ app.use('/api/*', async (c, next) => {
     path.match(/^\/api\/invoices\/\d+\/ubl$/) ||
     path.match(/^\/api\/invoices\/\d+\/ubl\.xml$/) ||
     path.match(/^\/api\/bills\/\d+\/print$/) ||
+    path.match(/^\/api\/delivery-notes\/\d+\/print$/) ||
     path.match(/^\/api\/bills\/\d+\/pdf$/) ||
     path.match(/^\/api\/receipts\/\d+\/print$/) ||
     path.match(/^\/api\/receipts\/\d+\/pdf$/) ||

@@ -10,7 +10,8 @@ const base = 'http://127.0.0.1:5173';
 // THEME=dark writes `<name>-dark.webp` (shown in dark mode by ThemedShot);
 // the light captures keep their historical names.
 const theme = process.env.THEME === 'dark' ? 'dark' : 'light';
-const suffix = theme === 'dark' ? '-dark' : '';
+const lang = ['en', 'ar'].includes(process.env.SHOT_LANG) ? process.env.SHOT_LANG : 'fr';
+const suffix = lang === 'fr' ? (theme === 'dark' ? '-dark' : '') : `-${lang}-${theme}`;
 // CHROME_PATH lets a local Chromium replace the bundled one.
 const browser = await puppeteer.launch(process.env.CHROME_PATH
   ? { executablePath: process.env.CHROME_PATH, args: ['--no-sandbox', '--disable-gpu', '--use-gl=swiftshader'], headless: true }
@@ -30,9 +31,10 @@ try {
     else void req.continue();
   });
   await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: theme }, { name: 'prefers-reduced-motion', value: 'reduce' }]);
-  await page.evaluateOnNewDocument((origin, ver, themeName) => {
+  await page.evaluateOnNewDocument((origin, ver, themeName, language) => {
     const values = { 'stock_auth_token': 'demo-token', 'stock_role': 'owner', 'stock_auth_user': 'demo', 'stock_display_name': 'Démo', 'atlas-theme': themeName, 'atlas-sidebar-collapsed': '1', 'atlas_welcome_completed': 'true', 'atlas-whats-new-modal-seen': ver, 'atlas-whats-new-seen': ver, 'atlas-dl-teaser': 'off', 'atlas_phone_animations': 'off' };
     for (const [key, value] of Object.entries(values)) localStorage.setItem(key, value);
+    localStorage.setItem('atlas_lang', language);
     localStorage.setItem('atlas_cookie_consent_v1', JSON.stringify({ version: 1, necessary: true, preferences: false, analytics: false, method: 'necessary_only', decidedAt: '2026-01-01T00:00:00Z' }));
     const products = [
       { id: 1, name: 'Marbre blanc', sku: 'MAR-001', barcode: '200000000001', category: 'Pierre', stock_quantity: 42, low_stock_threshold: 5, unit_price: 250, price: 250, cost: 160, track_inventory: 1, image_url: `${origin}/shots/demo-marble.svg` },
@@ -96,9 +98,10 @@ try {
       else if (u.pathname.includes('/settings')) data = { currency: 'MAD' };
       return new Response(JSON.stringify({ success: true, data }), { headers: { 'content-type': 'application/json' } });
     };
-  }, base, pkgVersion, theme);
+  }, base, pkgVersion, theme, lang);
   const requested = new Set(process.argv.slice(2));
   for (const shot of [
+    { path: '/dashboard', name: 'site-dashboard', width: 1280, height: 800, mobile: false },
     { path: '/m', name: 'phone-home-demo', width: 390, height: 844, mobile: true },
     { path: '/m/products', name: 'phone-products-demo', width: 390, height: 844, mobile: true },
     { path: '/m/balance', name: 'phone-balance-demo', width: 390, height: 844, mobile: true },
@@ -109,7 +112,7 @@ try {
     await page.setUserAgent(shot.mobile ? 'Mozilla/5.0 (Linux; Android 13; Pixel) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Mobile Safari/537.36' : 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36');
     await page.goto(base + shot.path, { waitUntil: 'networkidle2', timeout: 60000 });
     try {
-      await page.waitForSelector(shot.mobile ? '.phone-root' : shot.path === '/products' ? '.atlas-catalog' : '.atlas-page', { timeout: 30000 });
+      await page.waitForSelector(shot.mobile ? '.phone-root' : shot.path === '/products' ? '.atlas-catalog' : '.ac-desktop-dock', { timeout: 30000 });
     } catch (err) {
       const text = await page.evaluate(() => document.body.innerText.slice(0, 400)).catch(() => '');
       console.error(`${shot.name}: page did not render (${err.message})\n${text}`);
@@ -118,7 +121,7 @@ try {
     }
     await new Promise((r) => setTimeout(r, 450));
     const image = await page.screenshot({ type: 'png' });
-    await sharp(image).webp({ quality: 86 }).toFile(`public/shots/${shot.name}${suffix}.webp`);
+    await sharp(image).webp({ quality: 86 }).toFile(`public/shots/${shot.name}${shot.name === 'site-dashboard' && lang === 'fr' ? `-${theme}` : suffix}.webp`);
     console.log(`${shot.name}${suffix}: ${new URL(page.url()).pathname}`);
   }
 } finally { await browser.close(); }

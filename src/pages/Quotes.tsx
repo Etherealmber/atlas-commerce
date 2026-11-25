@@ -28,6 +28,7 @@ import { FloatingPortal } from '../components/FloatingPortal';
 import { ModalFormError } from '../components/ModalFormFeedback';
 import { computeQuoteDraftTotals } from '../../shared/financeCore';
 import { MetricSpark, MetricTrend } from '../components/MetricSpark';
+import Select from '../components/ui/Select';
 
 export default function Quotes() {
   const [modalError, setModalError] = useState('');
@@ -678,7 +679,7 @@ export default function Quotes() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div className="form-row">
                 <label>Client</label>
-                <select
+                <Select
                   value={clientId}
                   disabled={editLocked || saving}
                   onChange={(e) => onClient(e.target.value)}
@@ -687,7 +688,7 @@ export default function Quotes() {
                   {clients.map((c) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
-                </select>
+                </Select>
               </div>
               <div className="form-row">
                 <label>Nom client (libre)</label>

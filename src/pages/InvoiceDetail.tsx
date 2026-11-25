@@ -1,6 +1,7 @@
 import DocumentActors from '../components/DocumentActors';
 import TopPageActions from '../components/TopPageActions';
-import { Ban, FileCode2, Pencil, Printer, RotateCcw } from 'lucide-react';
+import { Ban, FileCode2, Pencil, Printer, RotateCcw, Truck } from 'lucide-react';
+import { openDeliveryNote } from '../lib/deliveryNote';
 import { useEffect, useRef, useState } from 'react';
 import DatePicker from '../components/DatePicker';
 import { whatsAppDraft } from '../lib/assist';
@@ -16,6 +17,7 @@ import { TimedUndoDelete } from '../components/ui';
 import PageSkeleton from '../components/PageSkeleton';
 import { numFromInput } from '../lib/numInput';
 import NumberField from '../components/NumberField';
+import Select from '../components/ui/Select';
 
 
 function formatIssue(e: unknown): string {
@@ -267,49 +269,6 @@ export default function InvoiceDetail() {
 
   return (
     <div>
-      {invoice && (
-        <div className="card" style={{ marginBottom: 12, padding: '10px 14px', fontSize: 13 }}>
-          <strong>Messages client</strong>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
-            {[
-              ['quote', 'Devis'],
-              ['invoice', 'Facture'],
-              ['reminder', 'Rappel'],
-              ['paid', 'Accusé règlement'],
-            ].map(([k, lab]) => (
-              <button
-                key={k}
-                type="button"
-                className="secondary"
-                style={{ fontSize: 12 }}
-                onClick={() => {
-                  const t = whatsAppDraft(k as any, {
-                    number: invoice.number,
-                    client: invoice.client_name,
-                    total: k === 'reminder'
-                      ? remainingBalance(invoice.total, invoice.amount_paid)
-                      : invoice.total,
-                  });
-                  void navigator.clipboard?.writeText(t).then(() => {});
-                  void alert(t, 'Message WhatsApp (copié)');
-                }}
-              >
-                {lab}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-      {invoice && invoice.status !== 'cancelled' && invoice.status !== 'remboursement' && invoice.status !== 'quote' && invoice.status !== 'devis' && (
-        <div className="card" style={{ marginBottom: 12, padding: '10px 14px', fontSize: 13, display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-          <span>
-            <strong>Avoir / WR</strong> — pour un retour ou correction, créez un remboursement (WR-) directement ici. Si cette facture est déjà payée, le WR génère une sortie de caisse dans Solde.
-          </span>
-          <button type="button" className="secondary" style={{ fontSize: 12 }} onClick={() => setShowRefund(true)}>
-            <RotateCcw size={14} aria-hidden="true" /> Créer un remboursement
-          </button>
-        </div>
-      )}
       <div className="page-header dock-page-header">
         <h1 className="sr-only">{isQuote ? 'Devis' : 'Facture'} {invoice.number}</h1>
         <TopPageActions>
@@ -322,6 +281,17 @@ export default function InvoiceDetail() {
             <Printer size={16} aria-hidden="true" />
             <span className="tpa-label">Imprimer</span>
           </button>
+          {!isQuote && invoice.status !== 'cancelled' && invoice.status !== 'remboursement' && invoice.doc_kind !== 'remboursement' && (
+            <button
+              type="button"
+              className="secondary"
+              title="Bon de livraison (PDF)"
+              onClick={() => { openDeliveryNote(invoice.id).then((r) => toast(r.message, 'success')).catch((e: any) => toast(e?.message || 'Bon de livraison impossible', 'error')); }}
+            >
+              <Truck size={16} aria-hidden="true" />
+              <span className="tpa-label">Bon de livraison</span>
+            </button>
+          )}
           {invoice.status !== 'quote' && invoice.status !== 'devis' && (
             <button
               type="button"
@@ -362,359 +332,6 @@ export default function InvoiceDetail() {
       )}
 
 
-      {invoice.status !== 'quote' && invoice.status !== 'devis' && (
-        <div className="card" style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-            <h3 style={{ margin: 0, fontSize: 16 }}>Facturation électronique DGI (UBL 2.1)</h3>
-            <span className="badge" style={{ fontSize: 11 }}>
-              {dgiState?.live_configured ? 'DGI Live' : 'Mode Stub (Simulation)'}
-            </span>
-          </div>
-          <p style={{ fontSize: 13, color: 'var(--muted)', margin: '6px 0 8px' }}>
-            Pipeline DGI : <code>draft → ubl_ready → queued → submitted → cleared</code>. La création de facture normale n’est jamais bloquée si la DGI n’est pas configurée.
-          </p>
-          <p style={{ fontSize: 13, marginBottom: 8 }}>
-            Statut DGI : <strong>{dgiState?.status || clearance?.status || 'draft'}</strong>
-            {dgiState?.clearance_ref ? (
-              <span style={{ color: 'var(--muted)', fontSize: 12 }}> · Réf : {dgiState.clearance_ref}</span>
-            ) : null}
-            {dgiState?.retention_until ? (
-              <span style={{ color: 'var(--muted)', fontSize: 12 }}> · Conservation 10 ans jusqu’au {dgiState.retention_until}</span>
-            ) : null}
-          </p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
-            <button
-              type="button"
-              disabled={dgiBusy || ublBusy}
-              onClick={async () => {
-                setDgiBusy(true);
-                try {
-                  await api.prepareDgiUbl(invoice.id);
-                  const [dgiRes, clrRes] = await Promise.all([
-                    api.getDgiClearance(invoice.id),
-                    api.ublPrepare(invoice.id).catch(() => null),
-                  ]);
-                  setDgiState(dgiRes.data);
-                  if (clrRes?.data) setClearance(clrRes.data);
-                  toast('UBL 2.1 préparé pour la DGI', 'success');
-                } catch (e: any) {
-                  toast(e?.message || 'Préparation UBL impossible', 'error');
-                } finally {
-                  setDgiBusy(false);
-                }
-              }}
-            >
-              {dgiBusy ? '…' : 'Préparer UBL'}
-            </button>
-            <button
-              type="button"
-              disabled={dgiBusy || dgiState?.status === 'cleared'}
-              onClick={async () => {
-                setDgiBusy(true);
-                try {
-                  await api.submitDgiInvoice(invoice.id);
-                  const dgiRes = await api.getDgiClearance(invoice.id);
-                  setDgiState(dgiRes.data);
-                  toast(
-                    dgiRes.data?.status === 'cleared'
-                      ? `Facture validée (${dgiRes.data.is_stub ? 'Stub' : 'DGI'})`
-                      : `Statut DGI : ${dgiRes.data?.status}`,
-                    dgiRes.data?.status === 'cleared' ? 'success' : 'error',
-                  );
-                } catch (e: any) {
-                  toast(e?.message || 'Soumission DGI impossible', 'error');
-                } finally {
-                  setDgiBusy(false);
-                }
-              }}
-            >
-              Soumettre à la DGI
-            </button>
-            {(dgiState?.status === 'rejected' || dgiState?.status === 'retrying') && (
-              <button
-                type="button"
-                className="secondary"
-                disabled={dgiBusy}
-                onClick={async () => {
-                  setDgiBusy(true);
-                  try {
-                    await api.retryDgiInvoice(invoice.id);
-                    const dgiRes = await api.getDgiClearance(invoice.id);
-                    setDgiState(dgiRes.data);
-                    toast('Nouvelle tentative DGI effectuée', 'success');
-                  } catch (e: any) {
-                    toast(e?.message || 'Nouvelle tentative impossible', 'error');
-                  } finally {
-                    setDgiBusy(false);
-                  }
-                }}
-              >
-                Réessayer
-              </button>
-            )}
-            {canOfficeWork() && (dgiState?.has_xml || dgiState?.r2_xml_key) && (
-              <button
-                type="button"
-                className="secondary"
-                onClick={async () => {
-                  try {
-                    const tkn = getToken();
-                    const res = await fetch(`${BASE}${api.dgiArchiveUrl(invoice.id, 'xml')}`, {
-                      headers: tkn ? { Authorization: `Bearer ${tkn}` } : {},
-                    });
-                    if (!res.ok) throw new Error('Archive XML indisponible');
-                    const blob = await res.blob();
-                    const u = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = u;
-                    a.download = `dgi-archive-${invoice.number || invoice.id}.xml`;
-                    a.click();
-                    URL.revokeObjectURL(u);
-                  } catch (e: any) {
-                    toast(e?.message || 'Téléchargement archive impossible', 'error');
-                  }
-                }}
-              >
-                Télécharger XML archivé
-              </button>
-            )}
-          </div>
-          {Array.isArray(dgiState?.events) && dgiState.events.length > 0 && (
-            <div style={{ fontSize: 12, color: 'var(--muted)', borderTop: '1px solid var(--border, #e5e7eb)', paddingTop: 8 }}>
-              <strong>Journal des événements DGI :</strong>
-              <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
-                {dgiState.events.slice(0, 6).map((ev: any) => (
-                  <li key={ev.id}>
-                    <code>{ev.from_status || 'init'} → {ev.to_status}</code>
-                    {ev.note ? ` — ${ev.note}` : ''}
-                    {ev.actor ? ` (${ev.actor})` : ''}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
-
-      {invoice.status !== 'quote' && invoice.status !== 'devis' && (
-        <div className="card" style={{ marginBottom: 16 }}>
-          <h3 style={{ marginTop: 0, fontSize: 16 }}>Clearance UBL (M1 — local)</h3>
-          <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 0 }}>
-            Prépare un snapshot UBL 2.1 + statut local. Pas d’envoi DGI/PDP tant que les credentials officiels ne sont pas branchés.
-          </p>
-          <p style={{ fontSize: 13, marginBottom: 8 }}>
-            Statut :{' '}
-            <strong>{clearance?.status || 'draft'}</strong>
-            {clearance?.xml_sha256 ? (
-              <span style={{ color: 'var(--muted)', fontSize: 11 }}> · SHA-256 {String(clearance.xml_sha256).slice(0, 12)}…</span>
-            ) : null}
-            {invoice.dgi_status ? (
-              <span style={{ color: 'var(--muted)', fontSize: 11 }}> · dgi_status={invoice.dgi_status}</span>
-            ) : null}
-          </p>
-          {Array.isArray(clearance?.errors) && clearance.errors.length > 0 && (
-            <ul style={{ fontSize: 12, color: 'var(--bad, #b91c1c)', marginTop: 0 }}>
-              {clearance.errors.map((e: unknown, i: number) => (
-                <li key={i}>{formatIssue(e)}</li>
-              ))}
-            </ul>
-          )}
-          {Array.isArray(clearance?.warnings) && clearance.warnings.length > 0 && (
-            <ul style={{ fontSize: 12, color: '#b45309', marginTop: 0 }}>
-              {clearance.warnings.map((e: unknown, i: number) => (
-                <li key={i}>{formatIssue(e)}</li>
-              ))}
-            </ul>
-          )}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            <button
-              type="button"
-              disabled={ublBusy}
-              onClick={async () => {
-                setUblBusy(true);
-                try {
-                  const r = await api.ublPrepare(invoice.id);
-                  toast(r.message || 'UBL préparé', 'success');
-                  setClearance(r.data);
-                  const inv = await api.getInvoice(invoice.id);
-                  setInvoice(inv.data);
-                } catch (e: any) {
-                  toast(e?.message || 'Préparation UBL impossible', 'error');
-                } finally {
-                  setUblBusy(false);
-                }
-              }}
-            >
-              {ublBusy ? '…' : 'Préparer UBL'}
-            </button>
-            <button
-              type="button"
-              className="secondary"
-              disabled={ublBusy || !clearance?.has_snapshot && clearance?.status === 'draft' && !clearance?.xml_sha256}
-              onClick={async () => {
-                try {
-                  const tkn = getToken();
-                  const res = await fetch(`${BASE}${api.ublSnapshotUrl(invoice.id)}`, {
-                    headers: tkn ? { Authorization: `Bearer ${tkn}` } : {},
-                  });
-                  if (!res.ok) throw new Error('Snapshot indisponible');
-                  const blob = await res.blob();
-                  const u = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = u;
-                  a.download = `facture-${invoice.number || invoice.id}.ubl.snapshot.xml`;
-                  a.click();
-                  URL.revokeObjectURL(u);
-                } catch (e: any) {
-                  toast(e?.message || 'Snapshot introuvable — préparer d’abord', 'error');
-                }
-              }}
-            >
-              Télécharger snapshot
-            </button>
-            <button
-              type="button"
-              className="secondary"
-              disabled={ublBusy || clearance?.status !== 'ready'}
-              title="Simulation locale uniquement"
-              onClick={async () => {
-                setUblBusy(true);
-                try {
-                  const r = await api.ublSetStatus(invoice.id, { status: 'submitted', note: 'Simulation locale (pas DGI)' });
-                  toast(r.message || 'Marqué soumis (local)', 'success');
-                  const c = await api.ublClearance(invoice.id);
-                  setClearance(c.data);
-                } catch (e: any) {
-                  toast(e?.message || 'Statut impossible', 'error');
-                } finally {
-                  setUblBusy(false);
-                }
-              }}
-            >
-              Simuler soumis
-            </button>
-            <button
-              type="button"
-              className="secondary"
-              disabled={ublBusy || !['submitted', 'ready'].includes(clearance?.status)}
-              onClick={async () => {
-                setUblBusy(true);
-                try {
-                  const r = await api.ublSetStatus(invoice.id, { status: 'accepted', external_ref: 'LOCAL-TEST' });
-                  toast(r.message || 'Accepté (local)', 'success');
-                  const c = await api.ublClearance(invoice.id);
-                  setClearance(c.data);
-                } catch (e: any) {
-                  toast(e?.message || 'Statut impossible', 'error');
-                } finally {
-                  setUblBusy(false);
-                }
-              }}
-            >
-              Simuler accepté
-            </button>
-            <button
-              type="button"
-              className="danger"
-              disabled={ublBusy || !clearance?.status || clearance?.status === 'draft'}
-              onClick={async () => {
-                setUblBusy(true);
-                try {
-                  const r = await api.ublSetStatus(invoice.id, { status: 'rejected', note: 'Rejet simulé' });
-                  toast(r.message || 'Rejeté (local)', 'success');
-                  const c = await api.ublClearance(invoice.id);
-                  setClearance(c.data);
-                } catch (e: any) {
-                  toast(e?.message || 'Statut impossible', 'error');
-                } finally {
-                  setUblBusy(false);
-                }
-              }}
-            >
-              Simuler rejeté
-            </button>
-          </div>
-        </div>
-      )}
-
-      {dunningInfo && Number(dunningInfo.remaining || 0) > 0 && (
-        <div className="card" style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
-            <div>
-              <strong>Relance impayé</strong> · Reste dû : {fmtMoney(dunningInfo.remaining)} ·{' '}
-              <span>{dunningInfo.paused ? 'Relances en pause' : 'Relances actives'}</span>
-            </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                className="secondary"
-                disabled={dunningBusy}
-                onClick={async () => {
-                  setDunningBusy(true);
-                  try {
-                    const next = !dunningInfo.paused;
-                    await api.setInvoiceDunningPause(invoice.id, next);
-                    const ref = await api.getInvoiceDunning(invoice.id);
-                    setDunningInfo(ref.data);
-                    toast(next ? 'Relances mises en pause' : 'Relances réactivées', 'success');
-                  } catch (e: any) {
-                    toast(e?.message || 'Action impossible', 'error');
-                  } finally {
-                    setDunningBusy(false);
-                  }
-                }}
-              >
-                {dunningInfo.paused ? 'Reprendre relances' : 'Mettre en pause'}
-              </button>
-              <button
-                type="button"
-                className="secondary"
-                disabled={dunningBusy || !dunningInfo.client_email}
-                onClick={async () => {
-                  setDunningBusy(true);
-                  try {
-                    await api.sendInvoiceDunning(invoice.id, { channel: 'email' });
-                    const ref = await api.getInvoiceDunning(invoice.id);
-                    setDunningInfo(ref.data);
-                    toast('Relance e-mail envoyée', 'success');
-                  } catch (e: any) {
-                    toast(e?.message || 'Envoi e-mail impossible', 'error');
-                  } finally {
-                    setDunningBusy(false);
-                  }
-                }}
-              >
-                Envoyer relance e-mail
-              </button>
-              {dunningInfo.whatsapp_url && (
-                <button
-                  type="button"
-                  disabled={dunningBusy}
-                  onClick={async () => {
-                    window.open(dunningInfo.whatsapp_url, '_blank', 'noopener,noreferrer');
-                    try {
-                      await api.sendInvoiceDunning(invoice.id, { channel: 'whatsapp' });
-                      const ref = await api.getInvoiceDunning(invoice.id);
-                      setDunningInfo(ref.data);
-                    } catch {
-                      /* non-blocking */
-                    }
-                  }}
-                >
-                  Relancer via WhatsApp
-                </button>
-              )}
-            </div>
-          </div>
-          {Array.isArray(dunningInfo.events) && dunningInfo.events.length > 0 && (
-            <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }}>
-              Historique ({dunningInfo.events.length}) :{' '}
-              {dunningInfo.events.slice(0, 4).map((ev: any) => `${ev.stage} (${ev.channel}/${ev.status})`).join(' · ')}
-            </p>
-          )}
-        </div>
-      )}
-
       <div className="card" style={{ marginBottom: 16 }}>
         <p>Numéro : <strong>{invoice.number}</strong> · <span className={`badge ${statusBadgeClass(invoice.status)}`}>{statusFr(invoice.status)}</span></p>
           <DocumentActors document={invoice} />
@@ -739,7 +356,7 @@ export default function InvoiceDetail() {
           <div className="grid grid-2">
             <div className="form-row" style={{ gridColumn: '1 / -1' }}>
               <label>Client enregistré (optionnel)</label>
-              <select
+              <Select
                 value={clientForm.client_id}
                 onChange={(e) => {
                   const cid = e.target.value;
@@ -763,10 +380,10 @@ export default function InvoiceDetail() {
                 <option value="">— Saisie libre / inchangé —</option>
                 {clients.map((c) => (
                   <option key={c.id} value={String(c.id)}>
-                    {c.name}{c.ice ? ` · ${c.ice}` : ''}
+                    <span translate="no">{c.name}{c.ice ? ` · ${c.ice}` : ''}</span>
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             {(['client_name', 'client_ice', 'client_address', 'client_city', 'client_email', 'client_phone'] as const).map((k) => (
               <div className="form-row" key={k}>
@@ -792,7 +409,7 @@ export default function InvoiceDetail() {
           </div>
         ) : (
           <div style={{ fontSize: 14, lineHeight: 1.5 }}>
-            <strong>{invoice.client_name}</strong>
+            <strong translate="no">{invoice.client_name}</strong>
             {invoice.client_ice && <div>ICE : {invoice.client_ice}</div>}
             {(invoice.client_address || invoice.client_city) && (
               <div>
@@ -824,62 +441,6 @@ export default function InvoiceDetail() {
             </div>
           </div>
         )}
-      </div>
-
-      {payments.length > 0 && (
-        <div className="card" style={{ marginBottom: 16 }}>
-          <h3 style={{ fontSize: 16, marginBottom: 8 }}>Historique des paiements</h3>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Montant</th>
-                  <th>Mode</th>
-                  <th>Note</th>
-                </tr>
-              </thead>
-              <tbody>
-                {payments.map((p) => (
-                  <tr key={p.id}>
-                    <td>{p.paid_at}</td>
-                    <td>{fmt(p.amount)}</td>
-                    <td>{paymentMethodLabel(p.payment_method)}</td>
-                    <td>{p.note || '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {receipts.length > 0 && (
-        <div className="card" style={{ marginBottom: 16 }}>
-          <h3 style={{ fontSize: 16, marginBottom: 8 }}>Reçus liés</h3>
-          <ul style={{ margin: 0, paddingLeft: 18 }}>
-            {receipts.map((r) => (
-              <li key={r.id}>
-                <Link to={`/receipts`}>{r.number}</Link> — {fmt(r.amount)}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <div className="card" style={{ marginBottom: 20 }}>
-        <h3 style={{ marginBottom: 12, fontSize: 16 }}>Envoyer par e-mail</h3>
-        <div className="grid grid-2">
-          <div className="form-row">
-            <label>E-mail du destinataire</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="client@exemple.com" />
-          </div>
-          <div className="form-row" style={{ display: 'flex', alignItems: 'flex-end' }}>
-            <button onClick={sendMail} disabled={sending}>
-              {sending ? 'Envoi…' : 'Envoyer'}
-            </button>
-          </div>
-        </div>
       </div>
 
       <div className="card" ref={linesCardRef}>
@@ -922,7 +483,7 @@ export default function InvoiceDetail() {
                         onChange={(e) => updateEditLine(idx, 'product_query', e.target.value)}
                         placeholder="Nom, SKU…"
                       />
-                      <select
+                      <Select
                         style={{ marginTop: 4 }}
                         value={item.product_id || ''}
                         onChange={(e) => updateEditLine(idx, 'product_id', e.target.value ? numFromInput(e.target.value) : undefined)}
@@ -933,7 +494,7 @@ export default function InvoiceDetail() {
                             {p.name} · {Math.round(Number(p.price || 0)).toLocaleString('fr-FR')}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     </div>
                     <div className="form-row">
                       <label>Désignation *</label>
@@ -1072,6 +633,452 @@ export default function InvoiceDetail() {
           </>
         )}
       </div>
+
+      {payments.length > 0 && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <h3 style={{ fontSize: 16, marginBottom: 8 }}>Historique des paiements</h3>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Montant</th>
+                  <th>Mode</th>
+                  <th>Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                {payments.map((p) => (
+                  <tr key={p.id}>
+                    <td>{p.paid_at}</td>
+                    <td>{fmt(p.amount)}</td>
+                    <td>{paymentMethodLabel(p.payment_method)}</td>
+                    <td>{p.note || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {receipts.length > 0 && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <h3 style={{ fontSize: 16, marginBottom: 8 }}>Reçus liés</h3>
+          <ul style={{ margin: 0, paddingLeft: 18 }}>
+            {receipts.map((r) => (
+              <li key={r.id}>
+                <Link to={`/receipts`}>{r.number}</Link> — {fmt(r.amount)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {dunningInfo && Number(dunningInfo.remaining || 0) > 0 && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <strong>Relance impayé</strong> · Reste dû : {fmtMoney(dunningInfo.remaining)} ·{' '}
+              <span>{dunningInfo.paused ? 'Relances en pause' : 'Relances actives'}</span>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="secondary"
+                disabled={dunningBusy}
+                onClick={async () => {
+                  setDunningBusy(true);
+                  try {
+                    const next = !dunningInfo.paused;
+                    await api.setInvoiceDunningPause(invoice.id, next);
+                    const ref = await api.getInvoiceDunning(invoice.id);
+                    setDunningInfo(ref.data);
+                    toast(next ? 'Relances mises en pause' : 'Relances réactivées', 'success');
+                  } catch (e: any) {
+                    toast(e?.message || 'Action impossible', 'error');
+                  } finally {
+                    setDunningBusy(false);
+                  }
+                }}
+              >
+                {dunningInfo.paused ? 'Reprendre relances' : 'Mettre en pause'}
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled={dunningBusy || !dunningInfo.client_email}
+                onClick={async () => {
+                  setDunningBusy(true);
+                  try {
+                    await api.sendInvoiceDunning(invoice.id, { channel: 'email' });
+                    const ref = await api.getInvoiceDunning(invoice.id);
+                    setDunningInfo(ref.data);
+                    toast('Relance e-mail envoyée', 'success');
+                  } catch (e: any) {
+                    toast(e?.message || 'Envoi e-mail impossible', 'error');
+                  } finally {
+                    setDunningBusy(false);
+                  }
+                }}
+              >
+                Envoyer relance e-mail
+              </button>
+              {dunningInfo.whatsapp_url && (
+                <button
+                  type="button"
+                  disabled={dunningBusy}
+                  onClick={async () => {
+                    window.open(dunningInfo.whatsapp_url, '_blank', 'noopener,noreferrer');
+                    try {
+                      await api.sendInvoiceDunning(invoice.id, { channel: 'whatsapp' });
+                      const ref = await api.getInvoiceDunning(invoice.id);
+                      setDunningInfo(ref.data);
+                    } catch {
+                      /* non-blocking */
+                    }
+                  }}
+                >
+                  Relancer via WhatsApp
+                </button>
+              )}
+            </div>
+          </div>
+          {Array.isArray(dunningInfo.events) && dunningInfo.events.length > 0 && (
+            <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }}>
+              Historique ({dunningInfo.events.length}) :{' '}
+              {dunningInfo.events.slice(0, 4).map((ev: any) => `${ev.stage} (${ev.channel}/${ev.status})`).join(' · ')}
+            </p>
+          )}
+        </div>
+      )}
+
+      {invoice && (
+        <div className="card" style={{ marginBottom: 12, padding: '10px 14px', fontSize: 13 }}>
+          <strong>Messages client</strong>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+            {[
+              ['quote', 'Devis'],
+              ['invoice', 'Facture'],
+              ['reminder', 'Rappel'],
+              ['paid', 'Accusé règlement'],
+            ].map(([k, lab]) => (
+              <button
+                key={k}
+                type="button"
+                className="secondary"
+                style={{ fontSize: 12 }}
+                onClick={() => {
+                  const t = whatsAppDraft(k as any, {
+                    number: invoice.number,
+                    client: invoice.client_name,
+                    total: k === 'reminder'
+                      ? remainingBalance(invoice.total, invoice.amount_paid)
+                      : invoice.total,
+                  });
+                  void navigator.clipboard?.writeText(t).then(() => {});
+                  void alert(t, 'Message WhatsApp (copié)');
+                }}
+              >
+                {lab}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="card" style={{ marginBottom: 20 }}>
+        <h3 style={{ marginBottom: 12, fontSize: 16 }}>Envoyer par e-mail</h3>
+        <div className="grid grid-2">
+          <div className="form-row">
+            <label>E-mail du destinataire</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="client@exemple.com" />
+          </div>
+          <div className="form-row" style={{ display: 'flex', alignItems: 'flex-end' }}>
+            <button onClick={sendMail} disabled={sending}>
+              {sending ? 'Envoi…' : 'Envoyer'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {invoice.status !== 'quote' && invoice.status !== 'devis' && (
+        <details className="card inv-advanced">
+          <summary>
+            <span><strong>Facturation électronique</strong><small>DGI · UBL 2.1 · clearance — facultatif</small></span>
+          </summary>
+          <div className="inv-advanced-body">
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+            <h3 style={{ margin: 0, fontSize: 16 }}>Facturation électronique DGI (UBL 2.1)</h3>
+            <span className="badge" style={{ fontSize: 11 }}>
+              {dgiState?.live_configured ? 'DGI Live' : 'Mode Stub (Simulation)'}
+            </span>
+          </div>
+          <p style={{ fontSize: 13, color: 'var(--muted)', margin: '6px 0 8px' }}>
+            Pipeline DGI : <code>draft → ubl_ready → queued → submitted → cleared</code>. La création de facture normale n’est jamais bloquée si la DGI n’est pas configurée.
+          </p>
+          <p style={{ fontSize: 13, marginBottom: 8 }}>
+            Statut DGI : <strong>{dgiState?.status || clearance?.status || 'draft'}</strong>
+            {dgiState?.clearance_ref ? (
+              <span style={{ color: 'var(--muted)', fontSize: 12 }}> · Réf : {dgiState.clearance_ref}</span>
+            ) : null}
+            {dgiState?.retention_until ? (
+              <span style={{ color: 'var(--muted)', fontSize: 12 }}> · Conservation 10 ans jusqu’au {dgiState.retention_until}</span>
+            ) : null}
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+            <button
+              type="button"
+              disabled={dgiBusy || ublBusy}
+              onClick={async () => {
+                setDgiBusy(true);
+                try {
+                  await api.prepareDgiUbl(invoice.id);
+                  const [dgiRes, clrRes] = await Promise.all([
+                    api.getDgiClearance(invoice.id),
+                    api.ublPrepare(invoice.id).catch(() => null),
+                  ]);
+                  setDgiState(dgiRes.data);
+                  if (clrRes?.data) setClearance(clrRes.data);
+                  toast('UBL 2.1 préparé pour la DGI', 'success');
+                } catch (e: any) {
+                  toast(e?.message || 'Préparation UBL impossible', 'error');
+                } finally {
+                  setDgiBusy(false);
+                }
+              }}
+            >
+              {dgiBusy ? '…' : 'Préparer UBL'}
+            </button>
+            <button
+              type="button"
+              disabled={dgiBusy || dgiState?.status === 'cleared'}
+              onClick={async () => {
+                setDgiBusy(true);
+                try {
+                  await api.submitDgiInvoice(invoice.id);
+                  const dgiRes = await api.getDgiClearance(invoice.id);
+                  setDgiState(dgiRes.data);
+                  toast(
+                    dgiRes.data?.status === 'cleared'
+                      ? `Facture validée (${dgiRes.data.is_stub ? 'Stub' : 'DGI'})`
+                      : `Statut DGI : ${dgiRes.data?.status}`,
+                    dgiRes.data?.status === 'cleared' ? 'success' : 'error',
+                  );
+                } catch (e: any) {
+                  toast(e?.message || 'Soumission DGI impossible', 'error');
+                } finally {
+                  setDgiBusy(false);
+                }
+              }}
+            >
+              Soumettre à la DGI
+            </button>
+            {(dgiState?.status === 'rejected' || dgiState?.status === 'retrying') && (
+              <button
+                type="button"
+                className="secondary"
+                disabled={dgiBusy}
+                onClick={async () => {
+                  setDgiBusy(true);
+                  try {
+                    await api.retryDgiInvoice(invoice.id);
+                    const dgiRes = await api.getDgiClearance(invoice.id);
+                    setDgiState(dgiRes.data);
+                    toast('Nouvelle tentative DGI effectuée', 'success');
+                  } catch (e: any) {
+                    toast(e?.message || 'Nouvelle tentative impossible', 'error');
+                  } finally {
+                    setDgiBusy(false);
+                  }
+                }}
+              >
+                Réessayer
+              </button>
+            )}
+            {canOfficeWork() && (dgiState?.has_xml || dgiState?.r2_xml_key) && (
+              <button
+                type="button"
+                className="secondary"
+                onClick={async () => {
+                  try {
+                    const tkn = getToken();
+                    const res = await fetch(`${BASE}${api.dgiArchiveUrl(invoice.id, 'xml')}`, {
+                      headers: tkn ? { Authorization: `Bearer ${tkn}` } : {},
+                    });
+                    if (!res.ok) throw new Error('Archive XML indisponible');
+                    const blob = await res.blob();
+                    const u = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = u;
+                    a.download = `dgi-archive-${invoice.number || invoice.id}.xml`;
+                    a.click();
+                    URL.revokeObjectURL(u);
+                  } catch (e: any) {
+                    toast(e?.message || 'Téléchargement archive impossible', 'error');
+                  }
+                }}
+              >
+                Télécharger XML archivé
+              </button>
+            )}
+          </div>
+          {Array.isArray(dgiState?.events) && dgiState.events.length > 0 && (
+            <div style={{ fontSize: 12, color: 'var(--muted)', borderTop: '1px solid var(--border, #e5e7eb)', paddingTop: 8 }}>
+              <strong>Journal des événements DGI :</strong>
+              <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
+                {dgiState.events.slice(0, 6).map((ev: any) => (
+                  <li key={ev.id}>
+                    <code>{ev.from_status || 'init'} → {ev.to_status}</code>
+                    {ev.note ? ` — ${ev.note}` : ''}
+                    {ev.actor ? ` (${ev.actor})` : ''}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+        <div className="card" style={{ marginBottom: 16 }}>
+          <h3 style={{ marginTop: 0, fontSize: 16 }}>Clearance UBL (M1 — local)</h3>
+          <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 0 }}>
+            Prépare un snapshot UBL 2.1 + statut local. Pas d’envoi DGI/PDP tant que les credentials officiels ne sont pas branchés.
+          </p>
+          <p style={{ fontSize: 13, marginBottom: 8 }}>
+            Statut :{' '}
+            <strong>{clearance?.status || 'draft'}</strong>
+            {clearance?.xml_sha256 ? (
+              <span style={{ color: 'var(--muted)', fontSize: 11 }}> · SHA-256 {String(clearance.xml_sha256).slice(0, 12)}…</span>
+            ) : null}
+            {invoice.dgi_status ? (
+              <span style={{ color: 'var(--muted)', fontSize: 11 }}> · dgi_status={invoice.dgi_status}</span>
+            ) : null}
+          </p>
+          {Array.isArray(clearance?.errors) && clearance.errors.length > 0 && (
+            <ul style={{ fontSize: 12, color: 'var(--bad, #b91c1c)', marginTop: 0 }}>
+              {clearance.errors.map((e: unknown, i: number) => (
+                <li key={i}>{formatIssue(e)}</li>
+              ))}
+            </ul>
+          )}
+          {Array.isArray(clearance?.warnings) && clearance.warnings.length > 0 && (
+            <ul style={{ fontSize: 12, color: '#b45309', marginTop: 0 }}>
+              {clearance.warnings.map((e: unknown, i: number) => (
+                <li key={i}>{formatIssue(e)}</li>
+              ))}
+            </ul>
+          )}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <button
+              type="button"
+              disabled={ublBusy}
+              onClick={async () => {
+                setUblBusy(true);
+                try {
+                  const r = await api.ublPrepare(invoice.id);
+                  toast(r.message || 'UBL préparé', 'success');
+                  setClearance(r.data);
+                  const inv = await api.getInvoice(invoice.id);
+                  setInvoice(inv.data);
+                } catch (e: any) {
+                  toast(e?.message || 'Préparation UBL impossible', 'error');
+                } finally {
+                  setUblBusy(false);
+                }
+              }}
+            >
+              {ublBusy ? '…' : 'Préparer UBL'}
+            </button>
+            <button
+              type="button"
+              className="secondary"
+              disabled={ublBusy || !clearance?.has_snapshot && clearance?.status === 'draft' && !clearance?.xml_sha256}
+              onClick={async () => {
+                try {
+                  const tkn = getToken();
+                  const res = await fetch(`${BASE}${api.ublSnapshotUrl(invoice.id)}`, {
+                    headers: tkn ? { Authorization: `Bearer ${tkn}` } : {},
+                  });
+                  if (!res.ok) throw new Error('Snapshot indisponible');
+                  const blob = await res.blob();
+                  const u = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = u;
+                  a.download = `facture-${invoice.number || invoice.id}.ubl.snapshot.xml`;
+                  a.click();
+                  URL.revokeObjectURL(u);
+                } catch (e: any) {
+                  toast(e?.message || 'Snapshot introuvable — préparer d’abord', 'error');
+                }
+              }}
+            >
+              Télécharger snapshot
+            </button>
+            <button
+              type="button"
+              className="secondary"
+              disabled={ublBusy || clearance?.status !== 'ready'}
+              title="Simulation locale uniquement"
+              onClick={async () => {
+                setUblBusy(true);
+                try {
+                  const r = await api.ublSetStatus(invoice.id, { status: 'submitted', note: 'Simulation locale (pas DGI)' });
+                  toast(r.message || 'Marqué soumis (local)', 'success');
+                  const c = await api.ublClearance(invoice.id);
+                  setClearance(c.data);
+                } catch (e: any) {
+                  toast(e?.message || 'Statut impossible', 'error');
+                } finally {
+                  setUblBusy(false);
+                }
+              }}
+            >
+              Simuler soumis
+            </button>
+            <button
+              type="button"
+              className="secondary"
+              disabled={ublBusy || !['submitted', 'ready'].includes(clearance?.status)}
+              onClick={async () => {
+                setUblBusy(true);
+                try {
+                  const r = await api.ublSetStatus(invoice.id, { status: 'accepted', external_ref: 'LOCAL-TEST' });
+                  toast(r.message || 'Accepté (local)', 'success');
+                  const c = await api.ublClearance(invoice.id);
+                  setClearance(c.data);
+                } catch (e: any) {
+                  toast(e?.message || 'Statut impossible', 'error');
+                } finally {
+                  setUblBusy(false);
+                }
+              }}
+            >
+              Simuler accepté
+            </button>
+            <button
+              type="button"
+              className="danger"
+              disabled={ublBusy || !clearance?.status || clearance?.status === 'draft'}
+              onClick={async () => {
+                setUblBusy(true);
+                try {
+                  const r = await api.ublSetStatus(invoice.id, { status: 'rejected', note: 'Rejet simulé' });
+                  toast(r.message || 'Rejeté (local)', 'success');
+                  const c = await api.ublClearance(invoice.id);
+                  setClearance(c.data);
+                } catch (e: any) {
+                  toast(e?.message || 'Statut impossible', 'error');
+                } finally {
+                  setUblBusy(false);
+                }
+              }}
+            >
+              Simuler rejeté
+            </button>
+          </div>
+        </div>
+          </div>
+        </details>
+      )}
 
       <section className="card ac-danger-zone" aria-label="Zone de danger">
         <div className="ac-danger-zone-head">

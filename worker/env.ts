@@ -47,6 +47,10 @@ export interface Env {
   GROQ_ISSUES_DAILY_LIMIT?: string;
   /** 'false' disables issue triage. */
   GROQ_ISSUES_ENABLED?: string;
+  /** Audit « Expliquer » (Groq free tier): max calls per UTC day (default 60). */
+  GROQ_AUDIT_EXPLAIN_DAILY_LIMIT?: string;
+  /** Audit « Expliquer » model (default openai/gpt-oss-20b). */
+  GROQ_AUDIT_EXPLAIN_MODEL?: string;
   /** Max outbound GitHub/Groq fetches per report-queue drain (default 40, free plan = 50). */
   REPORTS_SUBREQUEST_BUDGET?: string;
   /** Optional AES-GCM key for encrypting mail bodies in R2 (Secret). */

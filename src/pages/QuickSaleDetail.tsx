@@ -1,6 +1,7 @@
 import DocumentActors from '../components/DocumentActors';
 import TopPageActions from '../components/TopPageActions';
-import { Ban, Pencil, Printer, RotateCcw } from 'lucide-react';
+import { Ban, Pencil, Printer, RotateCcw, Truck } from 'lucide-react';
+import { openDeliveryNote } from '../lib/deliveryNote';
 import { useEffect, useRef, useState } from 'react';
 import DatePicker from '../components/DatePicker';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
@@ -16,6 +17,7 @@ import NumberField from '../components/NumberField';
 import { TimedUndoDelete } from '../components/ui';
 import PageSkeleton from '../components/PageSkeleton';
 import { friendlyError } from '../lib/errors';
+import Select from '../components/ui/Select';
 
 function isVrDoc(inv: any) {
   return (
@@ -311,6 +313,17 @@ export default function QuickSaleDetail() {
             <Printer size={16} aria-hidden="true" />
             <span className="tpa-label">Imprimer</span>
           </button>
+          {!cancelled && ticket.status !== 'remboursement' && (
+            <button
+              type="button"
+              className="secondary"
+              title="Bon de livraison (PDF)"
+              onClick={() => { openDeliveryNote(ticket.id).then((r) => toast(r.message, 'success')).catch((e: any) => toast(e?.message || 'Bon de livraison impossible', 'error')); }}
+            >
+              <Truck size={16} aria-hidden="true" />
+              <span className="tpa-label">Bon de livraison</span>
+            </button>
+          )}
           {!cancelled && !editingInfo && (
             <button
               type="button"
@@ -372,7 +385,7 @@ export default function QuickSaleDetail() {
             <div className="grid grid-2" style={{ gap: 8 }}>
               <div className="form-row" style={{ gridColumn: '1 / -1' }}>
                 <label>Client enregistré</label>
-                <select
+                <Select
                   value={infoForm.client_id}
                   onChange={(e) => {
                     const cid = e.target.value;
@@ -398,7 +411,7 @@ export default function QuickSaleDetail() {
                       {c.name}{c.ice ? ` · ${c.ice}` : ''}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
               <div className="form-row">
                 <label>Nom du client *</label>
@@ -487,7 +500,7 @@ export default function QuickSaleDetail() {
                         onChange={(e) => updateLine(idx, 'product_query', e.target.value)}
                         placeholder="Nom, SKU…"
                       />
-                      <select
+                      <Select
                         style={{ marginTop: 4 }}
                         value={item.product_id || ''}
                         onChange={(e) => updateLine(idx, 'product_id', e.target.value ? Number(e.target.value) : undefined)}
@@ -498,7 +511,7 @@ export default function QuickSaleDetail() {
                             {p.name} · {Math.round(Number(p.price || 0)).toLocaleString('fr-FR')}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     </div>
                     <div className="form-row">
                       <label>Désignation *</label>
@@ -588,12 +601,12 @@ export default function QuickSaleDetail() {
             </div>
             <div className="form-row">
               <label>Mode</label>
-              <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)}>
+              <Select value={payMethod} onChange={(e) => setPayMethod(e.target.value)}>
                 <option value="cash">Espèces</option>
                 <option value="card">Carte</option>
                 <option value="transfer">Virement</option>
                 <option value="cheque">Chèque</option>
-              </select>
+              </Select>
             </div>
           </div>
           <button type="button" onClick={() => void recordPay()} disabled={paying}>

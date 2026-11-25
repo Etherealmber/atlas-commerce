@@ -17,6 +17,7 @@ import RefreshIconButton from '../components/RefreshIconButton';
 import PageSkeleton from '../components/PageSkeleton';
 import { TimedUndoDelete } from '../components/ui';
 import { MetricSpark, MetricTrend } from '../components/MetricSpark';
+import Select from '../components/ui/Select';
 
 const fmt = (n: number) => Math.round(Number(n || 0)).toLocaleString('fr-FR');
 
@@ -173,6 +174,8 @@ export default function InventoryOps() {
     }
   };
 
+  const maxLine = (valuation?.lines || []).reduce((m: number, x: any) => Math.max(m, Number(x.value || 0)), 0);
+
   if (loading && !locations.length && !products.length && !valuation) {
     return (
       <div className="atlas-page ac-dash inventory-ops-page">
@@ -201,14 +204,14 @@ export default function InventoryOps() {
       <div className="ac-ops-topbar-scope" style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
         <div className="form-row ac-ops-scope-control" style={{ margin: 0 }}>
           <label htmlFor="ops-scope-select">Périmètre entrepôt</label>
-          <select id="ops-scope-select" value={reportLoc} onChange={(e) => setReportLoc(e.target.value)}>
+          <Select id="ops-scope-select" value={reportLoc} onChange={(e) => setReportLoc(e.target.value)}>
             <option value="all">Tous les entrepôts (consolidé)</option>
             {locations.map((l) => (
               <option key={l.id} value={String(l.id)}>
                 {l.name} ({l.code})
               </option>
             ))}
-          </select>
+          </Select>
         </div>
       </div>
 
@@ -254,7 +257,7 @@ export default function InventoryOps() {
           </div>
           <div className="form-row">
             <label>Produit</label>
-            <select
+            <Select
               value={transfer.product_id || ''}
               onChange={(e) => setTransfer({ ...transfer, product_id: Number(e.target.value) })}
             >
@@ -262,28 +265,28 @@ export default function InventoryOps() {
               {products.map((p) => (
                 <option key={p.id} value={p.id}>{p.name} (total {p.stock_quantity})</option>
               ))}
-            </select>
+            </Select>
           </div>
           <div className="ac-ops-form-grid-2">
             <div className="form-row">
               <label>De</label>
-              <select
+              <Select
                 value={transfer.from_location_id || ''}
                 onChange={(e) => setTransfer({ ...transfer, from_location_id: Number(e.target.value) })}
               >
                 <option value="0">Emplacement défaut</option>
                 {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-              </select>
+              </Select>
             </div>
             <div className="form-row">
               <label>Vers</label>
-              <select
+              <Select
                 value={transfer.to_location_id || ''}
                 onChange={(e) => setTransfer({ ...transfer, to_location_id: Number(e.target.value) })}
               >
                 <option value="0">—</option>
                 {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-              </select>
+              </Select>
             </div>
           </div>
           <div className="ac-ops-form-grid-2">
@@ -314,7 +317,7 @@ export default function InventoryOps() {
           </div>
           <div className="form-row">
             <label>Produit</label>
-            <select
+            <Select
               value={cycle.product_id || ''}
               onChange={(e) => {
                 const id = Number(e.target.value);
@@ -326,7 +329,7 @@ export default function InventoryOps() {
               {products.map((p) => (
                 <option key={p.id} value={p.id}>{p.name} (théorique {p.stock_quantity})</option>
               ))}
-            </select>
+            </Select>
           </div>
           <div className="ac-ops-form-grid-2">
             <div className="form-row">
@@ -573,24 +576,61 @@ export default function InventoryOps() {
             </span>
           </div>
         </div>
-        <div className="table-wrap" style={{ maxHeight: 360, overflow: 'auto' }}>
-          <table>
+        <div className="table-wrap ac-valuation-wrap">
+          <table className="ac-valuation-table">
+            <colgroup>
+              <col />
+              <col style={{ width: '11%' }} />
+              <col style={{ width: '13%' }} />
+              <col style={{ width: '15%' }} />
+              <col style={{ width: '20%' }} />
+            </colgroup>
             <thead>
-              <tr><th>Produit</th><th>Qté</th><th>Coût u.</th><th>Valeur</th></tr>
+              <tr>
+                <th scope="col">Produit</th>
+                <th scope="col" className="num">Qté</th>
+                <th scope="col" className="num">Coût unitaire</th>
+                <th scope="col" className="num">Valeur (MAD)</th>
+                <th scope="col">Part du stock</th>
+              </tr>
             </thead>
             <tbody>
-              {(valuation?.lines || []).map((l: any) => (
-                <tr key={l.product_id}>
-                  <td>{l.name}</td>
-                  <td>{l.qty}</td>
-                  <td>{fmt(l.unit_cost)}</td>
-                  <td style={{ fontWeight: 700 }}>{fmt(l.value)}</td>
-                </tr>
-              ))}
+              {(valuation?.lines || []).map((l: any) => {
+                const total = Number(valuation?.total_value || 0);
+                const share = total > 0 ? (Number(l.value || 0) / total) * 100 : 0;
+                return (
+                  <tr key={l.product_id}>
+                    <td>
+                      <span className="ac-valuation-name">{l.name}</span>
+                      <span className="ac-valuation-meta">{[l.sku, l.category].filter(Boolean).join(' · ')}</span>
+                    </td>
+                    <td className="num">{Number(l.qty || 0).toLocaleString('fr-FR')}</td>
+                    <td className="num">{fmt(l.unit_cost)}</td>
+                    <td className="num"><strong>{fmt(l.value)}</strong></td>
+                    <td>
+                      <span className="ac-valuation-share" title={`${share.toFixed(1)} % de la valeur totale`}>
+                        <span className="ac-valuation-bar" aria-hidden="true"><span style={{ width: `${maxLine > 0 ? Math.max(2, (Number(l.value || 0) / maxLine) * 100) : 0}%` }} /></span>
+                        <span className="ac-valuation-pct">{share.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} %</span>
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
               {!(valuation?.lines || []).length && (
-                <tr><td colSpan={4} style={{ color: 'var(--muted)' }}>Aucune ligne valorisée.</td></tr>
+                <tr><td colSpan={5} style={{ color: 'var(--muted)' }}>Aucune ligne valorisée.</td></tr>
               )}
             </tbody>
+            {(valuation?.lines || []).length > 0 && (
+              <tfoot>
+                <tr>
+                  <th scope="row">Total · {valuation.lines.length} référence(s)</th>
+                  <td className="num">{valuation.lines.reduce((n: number, l: any) => n + Number(l.qty || 0), 0).toLocaleString('fr-FR')}</td>
+                  <td />
+                  <td className="num"><strong>{fmt(valuation.total_value || 0)}</strong></td>
+                  <td />
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </section>
@@ -657,22 +697,22 @@ export default function InventoryOps() {
             <input value={newRule.name} onChange={(e) => setNewRule({ ...newRule, name: e.target.value })} />
           </div>
           <div className="form-row"><label>Produit (0 = tous)</label>
-            <select value={newRule.product_id || 0} onChange={(e) => setNewRule({ ...newRule, product_id: Number(e.target.value) })}>
+            <Select value={newRule.product_id || 0} onChange={(e) => setNewRule({ ...newRule, product_id: Number(e.target.value) })}>
               <option value={0}>Tous les produits suivis</option>
               {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
+            </Select>
           </div>
           <div className="form-row"><label>Depuis (réserve)</label>
-            <select value={newRule.from_location_id || ''} onChange={(e) => setNewRule({ ...newRule, from_location_id: Number(e.target.value) })}>
+            <Select value={newRule.from_location_id || ''} onChange={(e) => setNewRule({ ...newRule, from_location_id: Number(e.target.value) })}>
               <option value={0}>—</option>
               {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </select>
+            </Select>
           </div>
           <div className="form-row"><label>Vers (magasin)</label>
-            <select value={newRule.to_location_id || ''} onChange={(e) => setNewRule({ ...newRule, to_location_id: Number(e.target.value) })}>
+            <Select value={newRule.to_location_id || ''} onChange={(e) => setNewRule({ ...newRule, to_location_id: Number(e.target.value) })}>
               <option value={0}>—</option>
               {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </select>
+            </Select>
           </div>
           <div className="form-row"><label>Seuil bas</label>
             <NumberField min={0} value={newRule.threshold} onValueChange={(n) => setNewRule({ ...newRule, threshold: n })} />

@@ -13,7 +13,24 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, type GithubChannelStatus, type GithubReportsStatus, type ReportChannel } from '../../api';
 import { getRole } from '../../auth';
+import { ListPager } from '../ui/ListPager';
+import { groupSimilarReports, pageOf } from '../../lib/reportGrouping';
+
+const LIST_PAGE = 10;
+const GROUP_PAGE = 5;
 import './github-reports.css';
+
+/** Issue number from the row, or parsed from the issue URL; 0 when unknown. */
+function issueNumber(r: { issue_number?: unknown; issue_url?: unknown }): number {
+  const n = Number(r.issue_number);
+  if (Number.isFinite(n) && n > 0) return n;
+  const m = /\/issues\/(\d+)/.exec(String(r.issue_url || ''));
+  return m ? Number(m[1]) : 0;
+}
+function issueLabel(r: { issue_number?: unknown; issue_url?: unknown }): string {
+  const n = issueNumber(r);
+  return n ? `#${n}` : 'ticket';
+}
 
 const CHANNELS: { id: ReportChannel; title: string; hint: string; defaultRepo: string; secret: string }[] = [
   { id: 'web', title: 'App web', hint: 'Navigateur — bureau et téléphone', defaultRepo: 'Etherealmber/atlas-commerce', secret: 'GITHUB_WEB_ISSUE_TOKEN' },
@@ -45,7 +62,7 @@ function groupCrashes(rows: any[]): CrashGroup[] {
     g.count += Number(r.count || 1);
     if (r.route && !g.routes.includes(r.route)) g.routes.push(String(r.route));
     if (r.version && !g.versions.includes(r.version)) g.versions.push(String(r.version));
-    if (r.issue_url && !g.issues.some((i) => i.url === r.issue_url)) g.issues.push({ number: Number(r.issue_number), url: String(r.issue_url) });
+    if (r.issue_url && !g.issues.some((i) => i.url === r.issue_url)) g.issues.push({ number: issueNumber(r), url: String(r.issue_url) });
     if (r.status !== 'linked') g.pending += 1;
   }
   return [...map.values()];
@@ -163,6 +180,17 @@ export default function GithubReportsPanel() {
   const anyConfigured = !!(channels?.web?.configured || channels?.android?.configured);
   const totalPending = pending.web + pending.android;
   const groups = useMemo(() => groupCrashes(crashes), [crashes]);
+  const similar = useMemo(() => groupSimilarReports(reports), [reports]);
+  const [crashPage, setCrashPage] = useState(0);
+  const [reportPage, setReportPage] = useState(0);
+  const [groupPage, setGroupPage] = useState(0);
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
+  const crashPages = Math.max(1, Math.ceil(groups.length / LIST_PAGE));
+  const reportPages = Math.max(1, Math.ceil(similar.singles.length / LIST_PAGE));
+  const groupPages = Math.max(1, Math.ceil(similar.clusters.length / GROUP_PAGE));
+  useEffect(() => { if (crashPage >= crashPages) setCrashPage(crashPages - 1); }, [crashPage, crashPages]);
+  useEffect(() => { if (reportPage >= reportPages) setReportPage(reportPages - 1); }, [reportPage, reportPages]);
+  useEffect(() => { if (groupPage >= groupPages) setGroupPage(groupPages - 1); }, [groupPage, groupPages]);
 
   async function save(channel: ReportChannel, token: string, repo: string): Promise<boolean> {
     setBusy(true); setMsg(null);
@@ -267,9 +295,12 @@ export default function GithubReportsPanel() {
 
       {groups.length > 0 && (
         <div className="ghr-list">
-          <h3>Crashs récents</h3>
+          <div className="ghr-list-head">
+            <h3>Crashs récents</h3>
+            <span className="ghr-list-count">{groups.length}</span>
+          </div>
           <ul>
-            {groups.map((g) => (
+            {pageOf(groups, crashPage, LIST_PAGE).map((g) => (
               <li key={g.key}>
                 <span className="ghr-count">×{g.count}</span>
                 <div className="ghr-item-main">
@@ -283,19 +314,82 @@ export default function GithubReportsPanel() {
                 </div>
                 <span className="ghr-item-state">
                   {g.issues.length > 0
-                    ? g.issues.slice(0, 2).map((i) => <a key={i.url} href={i.url} target="_blank" rel="noreferrer">#{i.number}</a>)
+                    ? g.issues.slice(0, 2).map((i) => <a key={i.url} href={i.url} target="_blank" rel="noreferrer">{i.number ? `#${i.number}` : 'ticket'}</a>)
                     : <em>en attente</em>}
                 </span>
               </li>
             ))}
           </ul>
+          {crashPages > 1 && (
+            <div className="ghr-pager">
+              <span>{crashPage * LIST_PAGE + 1}–{Math.min(groups.length, (crashPage + 1) * LIST_PAGE)} sur {groups.length}</span>
+              <ListPager size="sm" page={crashPage} totalPages={crashPages} onChange={setCrashPage} />
+            </div>
+          )}
         </div>
       )}
-      {reports.length > 0 && (
-        <div className="ghr-list">
-          <h3>Signalements utilisateurs</h3>
+      {similar.clusters.length > 0 && (
+        <div className="ghr-list ghr-list--groups">
+          <div className="ghr-list-head">
+            <h3>Signalements similaires</h3>
+            <span className="ghr-list-count">{similar.clusters.length} groupe{similar.clusters.length > 1 ? 's' : ''}</span>
+          </div>
+          <p className="ghr-note ghr-note--tight">Les signalements qui décrivent le même problème sont regroupés.</p>
           <ul>
-            {reports.map((r) => (
+            {pageOf(similar.clusters, groupPage, GROUP_PAGE).map((c) => {
+              const open = openGroup === c.key;
+              const linked = c.items.filter((r) => r.issue_url);
+              return (
+                <li key={c.key} className={`ghr-group${open ? ' is-open' : ''}`}>
+                  <span className="ghr-count">×{c.items.length}</span>
+                  <div className="ghr-item-main">
+                    <button type="button" className="ghr-group-toggle" aria-expanded={open} onClick={() => setOpenGroup(open ? null : c.key)}>
+                      <span className="ghr-item-msg" title={c.title}>{c.title || 'Signalement'}</span>
+                      <span className="ghr-group-chev" aria-hidden="true">{open ? '−' : '+'}</span>
+                    </button>
+                    <span className="ghr-item-sub">
+                      {c.items.slice(0, 6).map((r) => <code key={String(r.id)}>R-{String(r.id)}</code>)}
+                      {c.items.length > 6 && <span>+{c.items.length - 6}</span>}
+                    </span>
+                    {open && (
+                      <ul className="ghr-group-items">
+                        {c.items.map((r) => (
+                          <li key={`g-${String(r.id)}`}>
+                            <span className="ghr-count">R-{String(r.id)}</span>
+                            <span className="ghr-item-msg" title={String(r.message || '')}>{String(r.message || '')}</span>
+                            <span className="ghr-item-state">
+                              {r.issue_url ? <a href={String(r.issue_url)} target="_blank" rel="noreferrer">{issueLabel(r)}</a> : <em>en attente</em>}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <span className="ghr-item-state">
+                    {linked.length > 0
+                      ? linked.slice(0, 2).map((r) => <a key={String(r.issue_url)} href={String(r.issue_url)} target="_blank" rel="noreferrer">{issueLabel(r)}</a>)
+                      : <em>en attente</em>}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          {groupPages > 1 && (
+            <div className="ghr-pager">
+              <span>Groupes {groupPage * GROUP_PAGE + 1}–{Math.min(similar.clusters.length, (groupPage + 1) * GROUP_PAGE)} sur {similar.clusters.length}</span>
+              <ListPager size="sm" page={groupPage} totalPages={groupPages} onChange={setGroupPage} />
+            </div>
+          )}
+        </div>
+      )}
+      {similar.singles.length > 0 && (
+        <div className="ghr-list">
+          <div className="ghr-list-head">
+            <h3>Signalements utilisateurs</h3>
+            <span className="ghr-list-count">{similar.singles.length}</span>
+          </div>
+          <ul>
+            {pageOf(similar.singles, reportPage, LIST_PAGE).map((r) => (
               <li key={`r-${r.id}`}>
                 <span className="ghr-count">R-{r.id}</span>
                 <div className="ghr-item-main">
@@ -307,11 +401,17 @@ export default function GithubReportsPanel() {
                   </span>
                 </div>
                 <span className="ghr-item-state">
-                  {r.issue_url ? <a href={r.issue_url} target="_blank" rel="noreferrer">#{r.issue_number}</a> : <em>en attente</em>}
+                  {r.issue_url ? <a href={r.issue_url} target="_blank" rel="noreferrer">{issueLabel(r)}</a> : <em>en attente</em>}
                 </span>
               </li>
             ))}
           </ul>
+          {reportPages > 1 && (
+            <div className="ghr-pager">
+              <span>{reportPage * LIST_PAGE + 1}–{Math.min(similar.singles.length, (reportPage + 1) * LIST_PAGE)} sur {similar.singles.length}</span>
+              <ListPager size="sm" page={reportPage} totalPages={reportPages} onChange={setReportPage} />
+            </div>
+          )}
         </div>
       )}
       {crashes.length === 0 && reports.length === 0 && (

@@ -59,6 +59,7 @@ import AtlasAgentMascot from './AtlasAgentMascot';
 import { AtlasLoader } from '../components/brand/AtlasLoader';
 import { getScanPreference, phoneScanFeedback } from './phoneScanPreferences';
 import { PhoneKpiStrip, SCAN_KPIS } from './PhoneKpis';
+import Select from '../components/ui/Select';
 
 
 type Product = {
@@ -1054,7 +1055,7 @@ function PhoneScan({
                   ))}
                 </div>
                 <label htmlFor="phone-scan-loc">Emplacement</label>
-                <select
+                <Select
                   id="phone-scan-loc"
                   value={scanLocId}
                   onChange={(e) => setScanLocId(Number(e.target.value))}
@@ -1065,7 +1066,7 @@ function PhoneScan({
                       {l.code} — {l.name} (qté {l.quantity ?? 0}, rév. {l.revision ?? 0})
                     </option>
                   ))}
-                </select>
+                </Select>
               </>
             )}
             <label htmlFor="phone-counted-stock">

@@ -5,6 +5,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { act } from 'react';
 import { readFileSync } from 'node:fs';
 import { LanguageSoonDialog, LANGUAGE_SOON_MESSAGE } from '../components/LanguageSoonDialog';
+import { setLang } from '../i18n/core';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -23,24 +24,36 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-describe('Language « bientôt » (v0.9.3)', () => {
-  it('announces Arabic and English as coming soon, keeps French selected, closes on Escape and « Compris »', async () => {
+describe('Language picker (fr / ar RTL / en)', () => {
+  it('lists the three languages, switches language + dir, informs Android, closes on Escape and « Terminé »', async () => {
     const onClose = vi.fn();
+    const native = { setLanguage: vi.fn() };
+    (window as unknown as { AtlasAndroid?: unknown }).AtlasAndroid = native;
+    setLang('fr');
     await act(async () => root.render(createElement(LanguageSoonDialog, { open: true, onClose })));
     const dialog = document.body.querySelector('[role="dialog"]');
     expect(dialog).not.toBeNull();
     expect(dialog?.textContent).toContain(LANGUAGE_SOON_MESSAGE);
-    expect(LANGUAGE_SOON_MESSAGE).toMatch(/arabe/);
-    expect(LANGUAGE_SOON_MESSAGE).toMatch(/anglais/);
     expect(dialog?.querySelector('.ac-lang-row.is-current')?.textContent).toContain('Français');
-    expect(dialog?.querySelectorAll('.ac-lang-row.is-soon')).toHaveLength(2);
+    expect(dialog?.querySelectorAll('[role="radio"]')).toHaveLength(3);
     expect(dialog?.querySelector('[lang="ar"]')?.getAttribute('dir')).toBe('rtl');
+
+    const ar = [...(dialog?.querySelectorAll<HTMLButtonElement>('[role="radio"]') || [])].find((b) => b.textContent?.includes('العربية'));
+    await act(async () => ar?.click());
+    expect(document.documentElement.dir).toBe('rtl');
+    expect(document.documentElement.lang).toBe('ar');
+    expect(localStorage.getItem('atlas_lang')).toBe('ar');
+    expect(native.setLanguage).toHaveBeenCalledWith('ar');
+    expect(dialog?.querySelector('[role="radio"][aria-checked="true"]')?.textContent).toContain('العربية');
 
     await act(async () => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); });
     expect(onClose).toHaveBeenCalledTimes(1);
-    const ok = [...(dialog?.querySelectorAll('button') || [])].find((b) => b.textContent?.includes('Compris'));
+    const ok = [...(dialog?.querySelectorAll('button') || [])].find((b) => b.textContent?.includes('Terminé'));
     await act(async () => ok?.click());
     expect(onClose).toHaveBeenCalledTimes(2);
+    await act(async () => setLang('fr'));
+    expect(document.documentElement.dir).toBe('ltr');
+    delete (window as unknown as { AtlasAndroid?: unknown }).AtlasAndroid;
   });
 
   it('renders nothing when closed', async () => {

@@ -1,3 +1,4 @@
+import { langMeta, useLang } from '../i18n/core';
 import QrLoginPanel from '../components/settings/QrLoginPanel';
 import { LanguageSoonDialog } from '../components/LanguageSoonDialog';
 import SettingsUserDialog from '../components/SettingsUserDialog';
@@ -48,6 +49,9 @@ import { VALUATION_METHOD_OPTIONS } from '../lib/labels';
 import IntegrationsPanel from '../components/IntegrationsPanel';
 import PageSkeleton, { DesktopTableSkeleton } from '../components/PageSkeleton';
 import GithubReportsPanel from '../components/settings/GithubReportsPanel';
+import ApiLogPanel from '../components/audit/ApiLogPanel';
+import AuditIpCell from '../components/audit/AuditIpCell';
+import ExplainLogDialog, { ExplainButton } from '../components/audit/ExplainLogDialog';
 import BackupStatusStrip from '../components/settings/BackupStatusStrip';
 import { AlertsPanel } from '../components/atlas-v209-panels';
 import AgentPermissionsPanel from '../components/AgentPermissionsPanel';
@@ -57,7 +61,8 @@ import AccountSecurityPanel from '../components/AccountSecurityPanel';
 import { resetWelcome } from '../lib/welcome';
 import DbMigrationPanel from '../components/DbMigrationPanel';
 import AgentKnowledgePanel from '../components/settings/AgentKnowledgePanel';
-import { MetricSpark, MetricTrend } from '../components/MetricSpark';
+import { DeltaChip } from '../components/DeltaChip';
+import Select from '../components/ui/Select';
 export default function Settings() {
   const navigate = useNavigate();
   // v0.7.6 — préférence « page d'ouverture » (localStorage, par appareil)
@@ -91,6 +96,7 @@ export default function Settings() {
   // Last loaded / saved settings: « Annuler » restores it in place (no reload).
   const savedSettingsRef = useRef<any>(null);
   const [langOpen, setLangOpen] = useState(false);
+  const uiLang = useLang();
   const [justSaved, setJustSaved] = useState(false);
 
   const [saveMsg, setSaveMsg] = useState('');
@@ -256,6 +262,8 @@ export default function Settings() {
   const [catSaving, setCatSaving] = useState(false);
   const [auditLog, setAuditLog] = useState<any[]>([]);
   const [auditDetailRow, setAuditDetailRow] = useState<any | null>(null);
+  const [auditExplain, setAuditExplain] = useState<{ kind: 'audit' | 'api'; id: number; title?: string } | null>(null);
+  const closeAuditExplain = useCallback(() => setAuditExplain(null), []);
   useEffect(() => {
     if (!auditDetailRow) return;
     const prev = document.body.style.overflow;
@@ -1307,7 +1315,7 @@ if (loading) return (
               <>
                 <div className="form-row" data-settings-anchor="webauthn">
                   <label>Type d&apos;attestation</label>
-                  <select
+                  <Select
                     value={adminConfig.webauthn.attestation || 'none'}
                     onChange={(e) => setAdminConfig({
                       ...adminConfig,
@@ -1318,11 +1326,11 @@ if (loading) return (
                     <option value="indirect">Indirecte (anonymisée)</option>
                     <option value="direct">Directe (certificat fabricant)</option>
                     <option value="enterprise">Entreprise (flotte gérée)</option>
-                  </select>
+                  </Select>
                 </div>
                 <div className="form-row">
                   <label>Exiger PIN / biométrie sur la clé</label>
-                  <select
+                  <Select
                     value={adminConfig.webauthn.user_verification || 'preferred'}
                     onChange={(e) => setAdminConfig({
                       ...adminConfig,
@@ -1332,7 +1340,7 @@ if (loading) return (
                     <option value="required">Toujours exigé</option>
                     <option value="preferred">Préféré (défaut)</option>
                     <option value="discouraged">Désactivé si possible</option>
-                  </select>
+                  </Select>
                 </div>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, marginBottom: 12 }}>
                   <input
@@ -1364,7 +1372,7 @@ if (loading) return (
             role={typeof getRole === 'function' ? String(getRole() || '') : ''}
           />
 
-          {/* v0.9.3 — Langue de l’interface (arabe et anglais à venir) */}
+          {/* v0.9.3 — Langue de l’interface : français, arabe (RTL), anglais */}
           <div className="ac-panel ac-settings-lang" id="settings-language">
             <div className="ac-settings-panel-head">
               <div>
@@ -1375,12 +1383,11 @@ if (loading) return (
             <div className="ac-settings-lang-row">
               <span className="ac-settings-lang-current">
                 <Languages size={16} strokeWidth={1.9} aria-hidden />
-                <b>Français</b>
+                <b className="notranslate" lang={uiLang} dir={langMeta(uiLang).dir}>{langMeta(uiLang).native}</b>
                 <i>Langue actuelle</i>
               </span>
               <button type="button" className="ac-settings-lang-btn" onClick={() => setLangOpen(true)}>
                 Changer de langue
-                <span className="ac-settings-lang-soon">Bientôt</span>
               </button>
             </div>
           </div>
@@ -1546,7 +1553,7 @@ if (loading) return (
           <div className="grid grid-2">
             <div className="form-row">
               <label>Mode de calcul de la paie suggérée</label>
-              <select
+              <Select
                 value={String((settings as any)?.attendance_pay_mode || 'presence')}
                 onChange={(e) =>
                   editSettings((prev: any) => ({ ...prev, attendance_pay_mode: e.target.value }))
@@ -1554,7 +1561,7 @@ if (loading) return (
               >
                 <option value="presence">Jours travaillés (présent / retard / demi) — recommandé Maroc</option>
                 <option value="calendar">Calendaire (jours écoulés du cycle)</option>
-              </select>
+              </Select>
               <span className="muted" style={{ fontSize: 11 }}>
                 Présent et retard = 1 jour · Demi = 0,5 · Absent = 0. Pas de retenue automatique « % retard ».
               </span>
@@ -2283,11 +2290,11 @@ if (loading) return (
           </p>
           <div className="form-row">
             <label>Format de date</label>
-            <select value={s.date_format || 'DD/MM/YYYY'} onChange={(e) => update('date_format', e.target.value)}>
+            <Select value={s.date_format || 'DD/MM/YYYY'} onChange={(e) => update('date_format', e.target.value)}>
               <option value="DD/MM/YYYY">JJ/MM/AAAA</option>
               <option value="MM/DD/YYYY">MM/JJ/AAAA</option>
               <option value="YYYY-MM-DD">AAAA-MM-JJ</option>
-            </select>
+            </Select>
           </div>
         </div>
       )}
@@ -2309,7 +2316,7 @@ if (loading) return (
             </p>
             <div className="form-row" data-settings-anchor="numbering" style={{ marginBottom: 16 }}>
               <label>Style de numérotation</label>
-              <select
+              <Select
                 value={s.numbering_style || 'prefix_year'}
                 onChange={(e) => update('numbering_style', e.target.value)}
               >
@@ -2318,7 +2325,7 @@ if (loading) return (
                 <option value="year_seq">Année + séquence (2026-0001)</option>
                 <option value="year_slash">Année / séquence (2026/0001)</option>
                 <option value="prefix_pad5">Préfixe + 5 chiffres (FA-00001)</option>
-              </select>
+              </Select>
             </div>
             <div className="form-row" data-settings-anchor="number_pad" style={{ marginBottom: 16, maxWidth: 160 }}>
               <label>Nombre de chiffres (séquence)</label>
@@ -2573,14 +2580,14 @@ if (loading) return (
             </div>
             <div className="form-row" data-settings-anchor="valuation">
               <label>Méthode</label>
-              <select
+              <Select
                 value={s.inventory_valuation_method || 'average'}
                 onChange={(e) => update('inventory_valuation_method', e.target.value)}
               >
                 {VALUATION_METHOD_OPTIONS.map((o) => (
                   <option key={o.code} value={o.code}>{o.label}</option>
                 ))}
-              </select>
+              </Select>
             </div>
             <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.45 }}>
               {(VALUATION_METHOD_OPTIONS.find((o) => o.code === (s.inventory_valuation_method || 'average')) || VALUATION_METHOD_OPTIONS[0]).help}
@@ -2777,6 +2784,12 @@ if (loading) return (
           '30d': '30 j',
           all: 'Tout',
         };
+        const rangePrev: Record<'24h' | '7d' | '30d' | 'all', string> = {
+          '24h': 'les 24 h précédentes',
+          '7d': 'les 7 jours précédents',
+          '30d': 'les 30 jours précédents',
+          all: 'tout l’historique',
+        };
         const days = ((auditStats?.by_day as any[]) || []).slice(-14);
         const dayMax = Math.max(1, ...days.map((d: any) => Number(d.n || 0)));
         const topActions = (auditStats?.top_actions as any[]) || [];
@@ -2796,6 +2809,48 @@ if (loading) return (
                   <p>Suivi complet des connexions, modifications et opérations sensibles (admin uniquement).</p>
                 </div>
               </div>
+                <div className="ac-audit-toolbar ac-audit-toolbar--head">
+                  <div className="ac-dash-period-pills ac-audit-range-pills" role="group" aria-label="Période d’audit">
+                    {(['24h', '7d', '30d', 'all'] as const).map((rKey) => (
+                      <button
+                        key={rKey}
+                        type="button"
+                        className="ac-seg-btn"
+                        aria-pressed={auditRange === rKey}
+                        onClick={() => setAuditRange(rKey)}
+                      >
+                        {rangeShort[rKey]}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="ac-audit-toolbar-actions">
+                    <button
+                      type="button"
+                      className="secondary ac-audit-action-btn"
+                      disabled={auditLoading}
+                      onClick={() => loadAuditPage(null, auditQ, true)}
+                    >
+                      <RefreshCw size={14} strokeWidth={2} aria-hidden="true" />
+                      <span>{auditLoading ? 'Chargement…' : 'Actualiser'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary ac-audit-action-btn"
+                      disabled={auditLoading}
+                      onClick={async () => {
+                        try {
+                          await api.exportAuditLog('csv', 500);
+                          flash('Export CSV téléchargé.');
+                        } catch (e: any) {
+                          flash(e?.message || 'Échec export', 'error');
+                        }
+                      }}
+                    >
+                      <Download size={14} strokeWidth={2} aria-hidden="true" />
+                      <span>Export CSV</span>
+                    </button>
+                  </div>
+                </div>
             </div>
 
             <div className="ac-metric-grid ac-audit-kpis">
@@ -2804,17 +2859,30 @@ if (loading) return (
                   <Activity className="as-icon" size={14} strokeWidth={2} aria-hidden="true" />
                   <span>Actions ({rangeShort[auditRange]})</span>
                 </div>
-                <div className="as-value">{auditStats?.total ?? '—'}<MetricTrend k="audit_events" /></div>
-                <div className="as-hint">{rangeLabels[auditRange]}</div>
-                <MetricSpark k="audit_events" />
+                <div className="as-value">{auditStats?.total ?? '—'}{auditStats && <DeltaChip current={Number(auditStats.total || 0)} previous={auditStats.previous_total} against={rangePrev[auditRange]} />}</div>
+                <div className="ac-kpi-sub">
+                  {auditStats?.previous_total != null
+                    ? `${auditStats.previous_total} sur ${rangePrev[auditRange]}`
+                    : rangeLabels[auditRange]}
+                </div>
+                {days.length >= 2 && (
+                  <svg className="ac-audit-spark" viewBox="0 0 100 32" preserveAspectRatio="none" aria-hidden="true">
+                    <polyline fill="none" stroke="currentColor" strokeWidth="2" vectorEffect="non-scaling-stroke"
+                      points={days.map((d: any, i: number) => `${(i / (days.length - 1)) * 100},${30 - (Number(d.n || 0) / dayMax) * 26}`).join(' ')} />
+                  </svg>
+                )}
               </article>
               <article className="ac-metric">
                 <div className="as-label">
                   <Users className="as-icon" size={14} strokeWidth={2} aria-hidden="true" />
                   <span>Acteurs uniques</span>
                 </div>
-                <div className="as-value">{auditStats?.unique_actors ?? '—'}</div>
-                <div className="as-hint">utilisateurs &amp; système</div>
+                <div className="as-value">{auditStats?.unique_actors ?? '—'}{auditStats && <DeltaChip current={Number(auditStats.unique_actors || 0)} previous={auditStats.previous_actors} against={rangePrev[auditRange]} />}</div>
+                <div className="ac-kpi-sub">
+                  {auditStats?.previous_actors != null
+                    ? `${auditStats.previous_actors} sur ${rangePrev[auditRange]}`
+                    : 'utilisateurs & système'}
+                </div>
               </article>
               <article className="ac-metric">
                 <div className="as-label">
@@ -2822,7 +2890,7 @@ if (loading) return (
                   <span>Sur cette page</span>
                 </div>
                 <div className="as-value">{auditLog.length}</div>
-                <div className="as-hint">
+                <div className="ac-kpi-sub">
                   page {auditCursorStack.length}
                   {auditMeta?.has_more ? ' · suite disponible' : ' · fin'}
                 </div>
@@ -2835,7 +2903,7 @@ if (loading) return (
                 <div className="as-value" style={{ fontSize: '1.05rem', wordBreak: 'break-word' }}>
                   {auditAction || topAct?.action || '—'}
                 </div>
-                <div className="as-hint">
+                <div className="ac-kpi-sub">
                   {auditAction
                     ? 'filtre actif sur ce type'
                     : topAct
@@ -2957,49 +3025,6 @@ if (loading) return (
                 </div>
               </div>
 
-              <div className="ac-audit-toolbar">
-                <div className="ac-dash-period-pills ac-audit-range-pills" role="group" aria-label="Période d’audit">
-                  {(['24h', '7d', '30d', 'all'] as const).map((rKey) => (
-                    <button
-                      key={rKey}
-                      type="button"
-                      className="ac-seg-btn"
-                      aria-pressed={auditRange === rKey}
-                      onClick={() => setAuditRange(rKey)}
-                    >
-                      {rangeShort[rKey]}
-                    </button>
-                  ))}
-                </div>
-                <div className="ac-audit-toolbar-actions">
-                  <button
-                    type="button"
-                    className="secondary ac-audit-action-btn"
-                    disabled={auditLoading}
-                    onClick={() => loadAuditPage(null, auditQ, true)}
-                  >
-                    <RefreshCw size={14} strokeWidth={2} aria-hidden="true" />
-                    <span>{auditLoading ? 'Chargement…' : 'Actualiser'}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="secondary ac-audit-action-btn"
-                    disabled={auditLoading}
-                    onClick={async () => {
-                      try {
-                        await api.exportAuditLog('csv', 500);
-                        flash('Export CSV téléchargé.');
-                      } catch (e: any) {
-                        flash(e?.message || 'Échec export', 'error');
-                      }
-                    }}
-                  >
-                    <Download size={14} strokeWidth={2} aria-hidden="true" />
-                    <span>Export CSV</span>
-                  </button>
-                </div>
-              </div>
-
               <div className="ac-audit-filters">
                 <div className="ac-audit-search-wrap">
                   <Search className="ac-audit-search-ico" size={15} strokeWidth={2} aria-hidden="true" />
@@ -3027,7 +3052,7 @@ if (loading) return (
                   ) : null}
                 </div>
 
-                <select
+                <Select
                   value={auditAction}
                   onChange={(e) => setAuditAction(e.target.value)}
                   aria-label="Filtrer par type d’action"
@@ -3038,7 +3063,7 @@ if (loading) return (
                       {a.action} ({a.n})
                     </option>
                   ))}
-                </select>
+                </Select>
 
                 <button
                   type="button"
@@ -3141,7 +3166,7 @@ if (loading) return (
                               <span>{actor.sub}</span>
                             </div>
                           </td>
-                          <td className="audit-ip">{row.ip || '—'}</td>
+                          <td className="audit-ip"><AuditIpCell ip={row.ip} geo={row.geo} compact /></td>
                           <td className="audit-detail">
                             <button
                               type="button"
@@ -3155,6 +3180,7 @@ if (loading) return (
                               <span className="ac-audit-detail-text">{summary}</span>
                               <ChevronRight className="ac-audit-detail-chev" size={14} strokeWidth={2} aria-hidden="true" />
                             </button>
+                            {row.id ? <ExplainButton onClick={() => setAuditExplain({ kind: 'audit', id: Number(row.id), title: `${row.action || ''} · ${actor.title}` })} /> : null}
                           </td>
                         </tr>
                       );
@@ -3164,6 +3190,8 @@ if (loading) return (
               </div>
 
             </section>
+            <ApiLogPanel />
+            <ExplainLogDialog target={auditExplain} onClose={closeAuditExplain} />
           </div>
         );
       })()}
@@ -3240,7 +3268,7 @@ if (loading) return (
               Réglage local : chaque personne choisit la sienne.
             </p>
           </div>
-          <select
+          <Select
             value={startPagePref}
             onChange={(e) => {
               setStartPagePref(e.target.value);
@@ -3253,7 +3281,7 @@ if (loading) return (
             {START_PAGES.map((sp) => (
               <option key={sp.value} value={sp.value}>{sp.label}</option>
             ))}
-          </select>
+          </Select>
         </div>
         {startPageSaved && (
           <p className="muted" style={{ margin: '8px 0 0', fontSize: 12 }}>
@@ -3380,7 +3408,7 @@ if (loading) return (
             </div>
           <label className="bk-label" htmlFor="bk-restore-select">Point de restauration</label>
           <div className="bk-restore-row">
-            <select
+            <Select
               id="bk-restore-select"
               value={selectedBackupKey}
               onChange={(e) => setSelectedBackupKey(e.target.value)}
@@ -3421,7 +3449,7 @@ if (loading) return (
                   </option>
                 );
               })}
-            </select>
+            </Select>
             <button
               type="button"
               className="secondary"
@@ -3766,12 +3794,12 @@ if (loading) return (
               </div>
               <div className="form-row">
                 <label>Rôle</label>
-                <select value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}>
+                <Select value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}>
                   <option value="stock">Magasinier (scan, stock, proposer produit · pas de caisse)</option>
                   <option value="secretaire">Secrétaire (tout le métier · pas admin serveur)</option>
                   <option value="admin">Admin (stock &amp; ventes)</option>
                   <option value="user">Lecture limitée</option>
-                </select>
+                </Select>
               </div>
             </div>
             {newUserError && <p role="alert">{newUserError}</p>}
@@ -3788,12 +3816,12 @@ if (loading) return (
                   </div>
                   <div className="form-row">
                     <label>Rôle</label>
-                    <select value={editingUser.role || 'secretaire'} onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}>
+                    <Select value={editingUser.role || 'secretaire'} onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}>
                       <option value="stock">Magasinier (scan, stock, proposer produit · pas de caisse)</option>
                       <option value="secretaire">Secrétaire (tout le métier · pas admin serveur)</option>
                       <option value="admin">Admin (stock &amp; ventes)</option>
                       <option value="user">Lecture limitée</option>
-                    </select>
+                    </Select>
                   </div>
                   <div className="form-row">
                     <label>Nouveau mot de passe (optionnel)</label>
@@ -4151,14 +4179,24 @@ if (loading) return (
                 </div>
                 <div>
                   <dt>IP</dt>
-                  <dd>{auditDetailRow.ip || '—'}</dd>
+                  <dd><AuditIpCell ip={auditDetailRow.ip} geo={auditDetailRow.geo} /></dd>
                 </div>
                 <div>
                   <dt>Détail</dt>
                   <dd className="audit-detail-full">{auditDetailRow.detail || '—'}</dd>
                 </div>
               </dl>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+                {auditDetailRow.id ? (
+                  <ExplainButton
+                    label="Expliquer avec l’IA"
+                    onClick={() => {
+                      const r = auditDetailRow;
+                      setAuditDetailRow(null);
+                      setAuditExplain({ kind: 'audit', id: Number(r.id), title: `${r.action || ''} · ${formatAuditActor(r).title}` });
+                    }}
+                  />
+                ) : null}
                 <button type="button" className="secondary" onClick={() => setAuditDetailRow(null)}>
                   Fermer
                 </button>

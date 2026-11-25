@@ -1,5 +1,7 @@
+// @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createElement } from 'react';
+import { act, createElement } from 'react';
+import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { WelcomePreview } from '../components/WelcomePreview';
 import {
@@ -82,12 +84,18 @@ describe('welcome capture steps', () => {
   it('keeps previous and next callbacks separate', () => {
     const previous = vi.fn();
     const next = vi.fn();
-    const view = WelcomePreview({ index: 0, onPrevious: previous, onNext: next });
-    const nav = view.props.children[4];
-    nav.props.children[0].props.onClick();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container as unknown as Element);
+    (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+    act(() => root.render(createElement(WelcomePreview, { index: 0, onPrevious: previous, onNext: next })));
+    const buttons = container.querySelectorAll('button');
+    act(() => buttons[0].click());
     expect(previous).toHaveBeenCalledTimes(1);
     expect(next).not.toHaveBeenCalled();
-    nav.props.children[1].props.onClick();
+    act(() => buttons[1].click());
     expect(next).toHaveBeenCalledTimes(1);
+    act(() => root.unmount());
+    container.remove();
   });
 });

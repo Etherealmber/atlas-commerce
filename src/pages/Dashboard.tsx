@@ -1,3 +1,4 @@
+import { intlLocale, t, useLang } from '../i18n/core';
 import { useEffect, useMemo, useState } from 'react';
 import ProductArtwork from '../components/ProductArtwork';
 import { DateRangePicker } from '../components/DatePicker';
@@ -9,6 +10,7 @@ import { IconPackage } from '../components/Icons';
 import { AreaChart, BarChart, DonutChart, HBarChart, formatCompactNum } from '../components/DashboardCharts';
 import PageSkeleton from '../components/PageSkeleton';
 import { MetricSpark, MetricTrend } from '../components/MetricSpark';
+import Select from '../components/ui/Select';
 
 /**
  * Date + place from the *device* clock/timezone only (never IP geolocation).
@@ -36,7 +38,7 @@ function devicePlaceLabel(): string {
 function todayLabel() {
   const d = new Date(); // device local time
   const date = d
-    .toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
+    .toLocaleDateString(intlLocale(), { weekday: 'long', day: 'numeric', month: 'long' })
     .toUpperCase();
   const place = devicePlaceLabel();
   return place ? `${date} · ${place.toUpperCase()}` : date;
@@ -92,29 +94,41 @@ function NextActionsPanel() {
   }, []);
   if (err || !items.length) return null;
   return (
-    <div className="ac-panel ac-dash-next-strip">
-      <div className="ac-dash-next-head">
-        <span className="ac-dash-next-badge">{items.length}</span>
-        <strong>Que faire ensuite ?</strong>
-      </div>
-      <div className="ac-dash-next-items">
-        {items.map((it, i) => (
-          <div key={i} className="ac-dash-next-item">
-            <div className="ac-dash-next-text">
-              <strong>{it.title}</strong>
-              <span>{it.detail}</span>
-            </div>
-            {it.href ? (
-              <Link to={it.href} className="ac-dash-link">Ouvrir<ArrowRight className="ac-dash-link-arrow" size={14} strokeWidth={2.25} aria-hidden="true" /></Link>
-            ) : null}
-          </div>
-        ))}
-      </div>
-    </div>
+    <section className="ac-panel ac-dash-next-strip" aria-labelledby="dash-next-title">
+      <header className="ac-dash-next-head">
+        <span className="ac-dash-next-badge" aria-hidden="true">{items.length}</span>
+        <div>
+          <strong id="dash-next-title">Que faire ensuite ?</strong>
+          <span className="ac-dash-next-sub">Priorités calculées à partir de vos données du jour</span>
+        </div>
+      </header>
+      <ul className="ac-dash-next-items">
+        {items.map((it, i) => {
+          const tone = it.priority >= 9 ? 'high' : it.priority >= 7 ? 'mid' : 'low';
+          const body = (
+            <>
+              <span className="ac-dash-next-text">
+                <strong>{it.title}</strong>
+                <span>{it.detail}</span>
+              </span>
+              {it.href ? (
+                <span className="ac-dash-next-go">Ouvrir<ArrowRight size={14} strokeWidth={2.25} aria-hidden="true" /></span>
+              ) : null}
+            </>
+          );
+          return (
+            <li key={i} className={`ac-dash-next-item is-${tone}`}>
+              {it.href ? <Link to={it.href} className="ac-dash-next-card">{body}</Link> : <div className="ac-dash-next-card">{body}</div>}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 
 export default function Dashboard() {
+  useLang(); // re-render greeting/date on language change
   const [attEnabled, setAttEnabled] = useState(false);
   const [attWeek, setAttWeek] = useState<{ date: string; present: number; late: number; absent: number }[] | null>(null);
   const [attEmpId, setAttEmpId] = useState<string>('');
@@ -381,7 +395,7 @@ export default function Dashboard() {
         <p className="ac-dash-eyebrow">{todayLabel()}</p>
         <div className="ac-dash-hero-row">
           <div>
-            <h1 className="ac-dash-hello">Bonjour, {name}.</h1>
+            <h1 className="ac-dash-hello">{t('Bonjour, {name}.', { name })}</h1>
             <p className="ac-dash-lead">
               Surface de vente synchronisée — voici ce qui mérite votre attention.
             </p>
@@ -709,7 +723,7 @@ export default function Dashboard() {
         <div className="ac-panel ac-presence-panel" style={{ marginBottom: 14 }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginBottom: 12 }}>
             <h3 style={{ margin: 0, fontSize: 15, flex: '1 1 auto' }}>Présence</h3>
-            <select
+            <Select
               value={attEmpId}
               onChange={(e) => setAttEmpId(e.target.value)}
               className="dash-range-select"
@@ -720,8 +734,8 @@ export default function Dashboard() {
               {attEmployees.map((e) => (
                 <option key={e.id} value={String(e.id)}>{e.name}</option>
               ))}
-            </select>
-            <select
+            </Select>
+            <Select
               value={attDays}
               onChange={(e) => setAttDays(Number(e.target.value))}
               className="dash-range-select"
@@ -731,7 +745,7 @@ export default function Dashboard() {
               <option value={7}>7 jours</option>
               <option value={14}>14 jours</option>
               <option value={30}>30 jours</option>
-            </select>
+            </Select>
           </div>
           {attWeek && attWeek.length > 0 ? (
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 110, overflowX: 'auto' }}>

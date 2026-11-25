@@ -3,6 +3,9 @@ import TopPageActions from '../components/TopPageActions';
 import { Ban, CheckCircle2, CreditCard, FileDown, PackageCheck, Plus, Printer } from 'lucide-react';
 import { TimedUndoDelete } from '../components/ui';
 import ListPager from '../components/ui/ListPager';
+import { RowActionsMenu } from '../components/ui/RowActionsMenu';
+import { DeltaChip } from '../components/DeltaChip';
+import { MetricSpark } from '../components/MetricSpark';
 import { useEffect, useState } from 'react';
 import DatePicker from '../components/DatePicker';
 import { api, BASE } from '../api';
@@ -23,6 +26,7 @@ import PageSkeleton from '../components/PageSkeleton';
 import { FloatingPortal } from '../components/FloatingPortal';
 import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
 import { ModalFormError } from '../components/ModalFormFeedback';
+import Select from '../components/ui/Select';
 
 const BILL_STEPS: readonly WizardStepDef[] = [
   { id: 'scan', label: 'Scanner', hint: 'Facultatif : scannez la facture pour pré-remplir le formulaire, ou continuez.' },
@@ -200,6 +204,8 @@ export default function Bills() {
     setTimeout(() => setSaveMsg(''), 4500);
   };
 
+  const printBill = (id: number) => window.open(`${BASE}/api/bills/${id}/print?token=${encodeURIComponent(getToken() || '')}`, '_blank', 'noopener,noreferrer');
+
   const load = (soft = false) => {
     if (soft) setRefreshing(true);
     else setLoading(true);
@@ -221,6 +227,7 @@ export default function Bills() {
   }, []);
 
   useEffect(() => { load(); }, [filter]);
+
 
   const selectVendor = (id: number | '') => {
     setVendorId(id);
@@ -280,6 +287,31 @@ export default function Bills() {
 
   const remainingOf = (b: any) =>
     remainingBalance(b.total, b.amount_paid);
+
+  // Purchase KPIs from the list itself (no extra request).
+  const billKpis = (() => {
+    const today = new Date();
+    const ym = today.toISOString().slice(0, 7);
+    const prev = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - 1, 1)).toISOString().slice(0, 7);
+    const todayIso = today.toISOString().slice(0, 10);
+    const since90 = new Date(today.getTime() - 90 * 86_400_000).toISOString().slice(0, 10);
+    const live = (bills || []).filter((b: any) => b.status !== 'cancelled');
+    const inMonth = live.filter((b: any) => String(b.issue_date || '').startsWith(ym));
+    const open = live.filter((b: any) => remainingOf(b) > 0.001);
+    const late = open.filter((b: any) => b.due_date && String(b.due_date) < todayIso);
+    const sum = (rows: any[], f: (b: any) => number) => Math.round(rows.reduce((a, b) => a + f(b), 0) * 100) / 100;
+    return {
+      month: sum(inMonth, (b) => Number(b.total || 0)),
+      monthCount: inMonth.length,
+      prevMonth: sum(live.filter((b: any) => String(b.issue_date || '').startsWith(prev)), (b) => Number(b.total || 0)),
+      due: sum(open, remainingOf),
+      openCount: open.length,
+      overdue: sum(late, remainingOf),
+      overdueCount: late.length,
+      paidMonth: sum(inMonth, (b) => Number(b.amount_paid || 0)),
+      vendors: new Set(live.filter((b: any) => String(b.issue_date || '') >= since90).map((b: any) => b.vendor_id || b.vendor_name)).size,
+    };
+  })();
 
   const openPay = async (b: any) => {
     const rest = remainingOf(b);
@@ -439,15 +471,41 @@ export default function Bills() {
 
       <SaveFeedback message={saveMsg} type={saveMsgType} />
 
+      <div className="ac-metric-grid ac-bills-kpis" style={{ marginBottom: 16 }}>
+        <div className="ac-metric">
+          <div className="as-label">Achats du mois</div>
+          <div className="as-value">{fmt(billKpis.month)}<DeltaChip current={billKpis.month} previous={billKpis.prevMonth} against="le mois précédent" invert /></div>
+          <div className="ac-kpi-sub">{billKpis.monthCount} facture{billKpis.monthCount === 1 ? '' : 's'} · {fmt(billKpis.prevMonth)} le mois précédent</div>
+          <MetricSpark k="purchases" unit="money" invert />
+        </div>
+        <div className="ac-metric">
+          <div className="as-label">Reste à payer</div>
+          <div className="as-value">{fmt(billKpis.due)}</div>
+          <div className="ac-kpi-sub">{billKpis.openCount} facture{billKpis.openCount === 1 ? '' : 's'} non soldée{billKpis.openCount === 1 ? '' : 's'}</div>
+          <MetricSpark k="payables" unit="money" invert />
+        </div>
+        <div className="ac-metric">
+          <div className="as-label">En retard</div>
+          <div className="as-value" style={billKpis.overdue > 0 ? { color: 'var(--bad)' } : undefined}>{fmt(billKpis.overdue)}</div>
+          <div className="ac-kpi-sub">{billKpis.overdueCount ? `${billKpis.overdueCount} échéance${billKpis.overdueCount === 1 ? '' : 's'} dépassée${billKpis.overdueCount === 1 ? '' : 's'}` : 'aucune échéance dépassée'}</div>
+        </div>
+        <div className="ac-metric">
+          <div className="as-label">Réglé ce mois</div>
+          <div className="as-value">{fmt(billKpis.paidMonth)}</div>
+          <div className="ac-kpi-sub">{billKpis.vendors} fournisseur{billKpis.vendors === 1 ? '' : 's'} actif{billKpis.vendors === 1 ? '' : 's'} sur 90 jours</div>
+          <MetricSpark k="bills_paid" unit="money" />
+        </div>
+      </div>
+
       <div className="ac-panel ac-products-filters">
         <div className="ac-products-filters-row"><div className="ac-search-field"><input className="ac-search-input" type="search" aria-label="Rechercher les factures d’achat" placeholder="Rechercher par numéro ou nom de fournisseur..." value={search} onChange={(e) => setSearch(e.target.value)} /></div>
-          <select value={filter} onChange={(e) => setFilter(e.target.value)} className="ac-filter-select" aria-label="Filtrer par statut">
+          <Select value={filter} onChange={(e) => setFilter(e.target.value)} className="ac-filter-select" aria-label="Filtrer par statut">
             <option value="">Tous les statuts</option>
             <option value="sent">Non payées / envoyées</option>
             <option value="partial">Partiellement payées</option>
             <option value="paid">Payées</option>
             <option value="cancelled">Annulées</option>
-          </select>
+          </Select>
         </div>
       </div>
 
@@ -492,7 +550,7 @@ export default function Bills() {
                   </td>
                   <td>{b.number}<DocumentActors document={b} /></td>
                   <td>
-                    {b.vendor_name}
+                    <span translate="no">{b.vendor_name}</span>
                     {b.vendor_id && <small style={{ display: 'block', color: 'var(--muted)', fontSize: 11 }}>Fiche fournisseur #{b.vendor_id}</small>}
                   </td>
                   <td>{b.issue_date}</td>
@@ -504,57 +562,48 @@ export default function Bills() {
                       <small style={{ display: 'block', color: 'var(--bad)', fontSize: 11 }}>Reste {fmt(remainingOf(b))}</small>
                     )}
                   </td>
-                  <td className="row-actions-cell"><div className="row-actions">
-                    <button
-                      type="button"
-                      className="secondary"
-                      onClick={() => window.open(`${BASE}/api/bills/${b.id}/print?token=${encodeURIComponent(getToken() || '')}`, '_blank', 'noopener,noreferrer')}
-                    >
-                      <Printer size={14} aria-hidden="true" />
-                      <span>Imprimer</span>
-                    </button>
-                    {b.status !== 'cancelled' && (
-                      <button type="button" className="secondary" onClick={() => openReceive(b)}>
-                        <PackageCheck size={14} aria-hidden="true" />
-                        <span>Réception</span>
-                      </button>
-                    )}
+                  <td className="row-actions-cell"><div className="row-actions ac-row-actions-compact">
                     {b.receive_status && (
                       <span className={`receive-status-${b.receive_status || 'pending'}`}>
                         {b.receive_status === 'matched' ? '3-voies OK' : b.receive_status === 'partial' ? 'Récep. partielle' : ''}
                       </span>
                     )}
-                    {b.status !== 'paid' && b.status !== 'cancelled' && (
-                      <>
-                        <button type="button" className="secondary" onClick={() => openPay(b)}>
-                          <CreditCard size={14} aria-hidden="true" />
-                          <span>Paiement…</span>
-                        </button>
-                        <button
-                          type="button"
-                          className="secondary"
-                          onClick={async () => {
-                            setModalError('');
-                            setPayTarget(b);
-                            setPayAmount(remainingOf(b));
-                            setPayMethod('cash');
-                            setPayNote('Règlement intégral');
-                            setPayDate(new Date().toISOString().slice(0, 10));
-                            setPayMode('full');
-                            setPayHistory([]);
-                          }}
-                        >
-                          <CheckCircle2 size={14} aria-hidden="true" />
-                          <span>Tout payer</span>
-                        </button>
-                      </>
-                    )}
-                    {b.status !== 'cancelled' && (
-                      <button type="button" className="danger" onClick={() => cancelBill(b.id)}>
-                        <Ban size={14} aria-hidden="true" />
-                        <span>Annuler</span>
+                    {b.status !== 'paid' && b.status !== 'cancelled' ? (
+                      <button type="button" className="secondary" onClick={() => openPay(b)}>
+                        <CreditCard size={14} aria-hidden="true" />
+                        <span>Paiement</span>
+                      </button>
+                    ) : (
+                      <button type="button" className="secondary" onClick={() => printBill(b.id)}>
+                        <Printer size={14} aria-hidden="true" />
+                        <span>Imprimer</span>
                       </button>
                     )}
+                    <RowActionsMenu
+                      label={`Plus d’actions pour ${b.number}`}
+                      actions={[
+                        ...(b.status !== 'paid' && b.status !== 'cancelled' ? [
+                          { key: 'print', label: 'Imprimer', icon: <Printer size={15} />, onSelect: () => printBill(b.id) },
+                          {
+                            key: 'payall', label: `Tout payer (${fmt(remainingOf(b))})`, icon: <CheckCircle2 size={15} />,
+                            onSelect: () => {
+                              setModalError('');
+                              setPayTarget(b);
+                              setPayAmount(remainingOf(b));
+                              setPayMethod('cash');
+                              setPayNote('Règlement intégral');
+                              setPayDate(new Date().toISOString().slice(0, 10));
+                              setPayMode('full');
+                              setPayHistory([]);
+                            },
+                          },
+                        ] : []),
+                        ...(b.status !== 'cancelled' ? [
+                          { key: 'receive', label: 'Réception de marchandise', icon: <PackageCheck size={15} />, onSelect: () => openReceive(b) },
+                          { key: 'cancel', label: 'Annuler la facture', icon: <Ban size={15} />, tone: 'danger' as const, onSelect: () => cancelBill(b.id) },
+                        ] : []),
+                      ]}
+                    />
                     {deleteArmId === b.id ? (
                       <TimedUndoDelete iconOnly width="34px" autoStart deleteLabel="Supprimer" undoLabel="Annuler" initialSeconds={10}
                         onConfirm={() => { setDeleteArmId(null); openDelete([b.id]); }} />
@@ -929,11 +978,11 @@ export default function Bills() {
 
             <div className="form-row">
               <label>Mode de paiement *</label>
-              <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} disabled={saving}>
+              <Select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} disabled={saving}>
                 {PAYMENT_METHODS.map((m) => (
                   <option key={m.value} value={m.value}>{m.label}</option>
                 ))}
-              </select>
+              </Select>
             </div>
 
             <div className="form-row">

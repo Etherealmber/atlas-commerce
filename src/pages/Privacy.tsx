@@ -1,9 +1,13 @@
+import { useLang } from '../i18n/core';
+import { ArabicPrivacy } from '../components/ArabicLegal';
 import { Link } from 'react-router-dom';
 import { Cookie } from 'lucide-react';
 import { APP_NAME } from '../version';
 import { openConsentSettings } from '../lib/cookieConsent';
 
 export default function Privacy() {
+  const lang = useLang();
+  if (lang === 'ar') return <ArabicPrivacy />;
   return (
     <div className="privacy-page">
       <div className="privacy-inner">

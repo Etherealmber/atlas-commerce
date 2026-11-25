@@ -5,6 +5,7 @@ import { useLandingMotion } from '../hooks/useLandingMotion';
 import { PublicNav, PublicSessionCta, GitHubStarButton } from '../components/PublicChrome';
 import { getApiBase } from '../config';
 import { APP_BUILD_DATE, APP_CREATOR_NAME, APP_NAME, APP_VERSION } from '../version';
+import Select from '../components/ui/Select';
 
 const GITHUB_ORG = 'https://github.com/Etherealmber';
 const GITHUB_REPO = 'Etherealmber/atlas-commerce';
@@ -407,7 +408,7 @@ export default function Support() {
               <li>
                 <b>Dépôt officiel</b>
                 <span>
-                  <a href={GITHUB_REPO_URL} target="_blank" rel="noopener noreferrer">{GITHUB_REPO} ↗</a>
+                  <a href={GITHUB_REPO_URL} target="_blank" rel="noopener noreferrer">Code source ↗</a>
                 </span>
               </li>
             </ul>
@@ -437,23 +438,23 @@ export default function Support() {
                   </label>
                   <label>
                     <span>Environnement</span>
-                    <select value={environment} onChange={(e) => setEnvironment(e.target.value as typeof environment)}>
+                    <Select value={environment} onChange={(e) => setEnvironment(e.target.value as typeof environment)}>
                       <option value="web">Web (navigateur)</option>
                       <option value="android">Application Android</option>
                       <option value="desktop">Application bureau (Windows / macOS / Linux)</option>
                       <option value="cloudflare">Instance Cloudflare (Workers / D1 / R2)</option>
-                    </select>
+                    </Select>
                   </label>
                   <label>
                     <span>Catégorie</span>
-                    <select value={category} onChange={(e) => setCategory(e.target.value as typeof category)}>
+                    <Select value={category} onChange={(e) => setCategory(e.target.value as typeof category)}>
                       <option value="support">Assistance technique &amp; déploiement</option>
                       <option value="auth">Compte, rôles, WebAuthn &amp; OTP</option>
                       <option value="billing">Stock, caisse &amp; facturation</option>
                       <option value="bug">Signalement de bug</option>
                       <option value="feedback">Suggestion d’amélioration</option>
                       <option value="other">Autre demande</option>
-                    </select>
+                    </Select>
                   </label>
                   <label>
                     <span>Version (optionnel)</span>
@@ -497,7 +498,7 @@ export default function Support() {
                       <p>
                         Suivi GitHub disponible :{' '}
                         <a href={submitOk.issueUrl} target="_blank" rel="noopener noreferrer">
-                          Ouvrir le ticket pré-rempli sur {GITHUB_REPO} ↗
+                          Ouvrir le ticket pré-rempli ↗
                         </a>
                       </p>
                     ) : (
@@ -612,7 +613,7 @@ export default function Support() {
         <div className="dl-foot-inner">
           <div className="dl-foot-brand">
             <AtlasLockup play="view" label={APP_NAME} className="dl-foot-lockup" />
-            <p>{APP_NAME} par {APP_CREATOR_NAME} — logiciel de gestion stock, caisse et facturation.</p>
+            <p>{APP_NAME} <span>par</span> {APP_CREATOR_NAME} — <span>logiciel de gestion stock, caisse et facturation.</span></p>
           </div>
           <nav aria-label="Liens support et produit">
             <Link to="/">Accueil</Link>

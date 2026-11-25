@@ -9,6 +9,7 @@ import { resetWelcome } from '../lib/welcome';
 import { useProfileWarm, useProfileTick } from '../lib/useProfileWarm';
 import { TopbarUserMenu } from './shell/TopbarUserMenu';
 import { LanguageSoonDialog } from './LanguageSoonDialog';
+import { useLang, t as tr } from '../i18n/core';
 
 
 /* ------------------------------------------------------------------ */
@@ -157,6 +158,7 @@ function PublicThemeToggle() {
  *  « Bientôt — l’arabe et l’anglais arrivent ». */
 function PublicLanguageButton() {
   const [open, setOpen] = useState(false);
+  const lang = useLang();
   if (isLoggedIn()) return null;
   return (
     <>
@@ -165,14 +167,14 @@ function PublicLanguageButton() {
           type="button"
           className="public-lang-btn"
           onClick={() => setOpen(true)}
-          title="Langue — l’arabe et l’anglais arrivent bientôt"
-          aria-label="Langue (français). L’arabe et l’anglais arrivent bientôt"
+          title="Langue — français, arabe, anglais"
+          aria-label="Changer la langue"
           aria-haspopup="dialog"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <path d="m5 8 6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6" />
           </svg>
-          <span className="public-lang-code">FR</span>
+          <span className="public-lang-code" translate="no">{lang.toUpperCase()}</span>
         </button>
       </div>
       <LanguageSoonDialog open={open} onClose={() => setOpen(false)} />
@@ -569,6 +571,10 @@ function startDownload(url: string) {
 export function PublicDownloadCta({ prefer, full = true }: { prefer?: Platform; full?: boolean }) {
   const { desktop, android } = usePublicReleases();
   const main: Platform = prefer || detectPlatform();
+  const lang = useLang();
+  const downloadLabel = (platform: Platform) => lang === 'ar'
+    ? platform === 'android' ? 'تنزيل تطبيق أندرويد' : `تنزيل لـ ${{ windows: 'ويندوز', macos: 'ماك أو إس', linux: 'لينكس' }[platform]}`
+    : `${tr('Télécharger pour')} ${PLATFORM_LABEL[platform]}`;
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement | null>(null);
   const navigate = useNavigate();
@@ -619,7 +625,7 @@ export function PublicDownloadCta({ prefer, full = true }: { prefer?: Platform; 
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'block' }}>
           <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
         </svg>
-        Télécharger pour {PLATFORM_LABEL[main]}
+        <span dir={lang === 'ar' ? 'rtl' : 'ltr'}>{downloadLabel(main)}</span>
       </button>
       <button
         type="button"
@@ -662,8 +668,8 @@ export function PublicDownloadCta({ prefer, full = true }: { prefer?: Platform; 
                 cursor: 'pointer', textDecoration: 'none',
               }}
             >
-              <span>Télécharger pour {PLATFORM_LABEL[p]}</span>
-              <span style={{ color: c.faint, fontSize: 12, fontWeight: 700 }}>{extFor(p)}</span>
+              <span dir={lang === 'ar' ? 'rtl' : 'ltr'}>{downloadLabel(p)}</span>
+              <span style={{ color: c.faint, fontSize: 12, fontWeight: 700 }}>{lang === 'ar' ? `ملف ${extFor(p)}` : extFor(p)}</span>
             </button>
           ))}
           <button

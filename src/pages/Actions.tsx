@@ -21,6 +21,7 @@ import ListPager from '../components/ui/ListPager';
 import EmptyState from '../components/EmptyState';
 import { ActionListRowsSkeleton } from '../components/PageSkeleton';
 import { MetricSpark, MetricTrend } from '../components/MetricSpark';
+import Select from '../components/ui/Select';
 
 type Action = {
   id: number;
@@ -677,10 +678,10 @@ export default function Actions() {
             </div>
             <div className="form-row">
               <label>Prix sur facture</label>
-              <select value={form.invoice_price_mode} onChange={(e) => setForm({ ...form, invoice_price_mode: e.target.value })}>
+              <Select value={form.invoice_price_mode} onChange={(e) => setForm({ ...form, invoice_price_mode: e.target.value })}>
                 <option value="exclusive">TVA ajoutée au prix (HT)</option>
                 <option value="inclusive">TVA incluse dans le prix (TTC)</option>
-              </select>
+              </Select>
               <small>Pour les ventes rapides, le prix reste sans TVA.</small>
             </div>
             <div className="grid grid-2">
@@ -696,7 +697,7 @@ export default function Actions() {
             <div className="grid grid-2">
               <div className="form-row">
                 <label>Unité</label>
-                <select
+                <Select
                   value={form.unit || ''}
                   onChange={(e) => {
                     if (e.target.value === '__new__') { void addUnit('unit'); return; }
@@ -713,11 +714,11 @@ export default function Actions() {
                     <option value={form.unit}>{form.unit}</option>
                   )}
                   <option value="__new__">+ Nouvelle unité…</option>
-                </select>
+                </Select>
               </div>
               <div className="form-row">
                 <label>Deuxième unité (facultatif)</label>
-                <select
+                <Select
                   value={form.secondary_unit || ''}
                   onChange={(e) => {
                     const val = e.target.value;
@@ -740,7 +741,7 @@ export default function Actions() {
                     <option value={form.secondary_unit}>{form.secondary_unit}</option>
                   )}
                   <option value="__new__">+ Nouvelle unité…</option>
-                </select>
+                </Select>
               </div>
             </div>
             <div className="form-row">

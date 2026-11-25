@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../../api';
 import { getUsername, getRole } from '../../auth';
 import ShowQr from '../ui/ShowQr';
+import Select from '../ui/Select';
 
 type Session = {
   token: string;
@@ -161,7 +162,7 @@ export default function QrLoginPanel() {
       {canPickUser ? (
         <label className="qr-login-user">
           Compte cible
-          <select
+          <Select
             value={targetUser}
             onChange={(e) => {
               setTargetUser(e.target.value);
@@ -176,7 +177,7 @@ export default function QrLoginPanel() {
                   {u.label || u.username} ({u.role})
                 </option>
               ))}
-          </select>
+          </Select>
         </label>
       ) : null}
 

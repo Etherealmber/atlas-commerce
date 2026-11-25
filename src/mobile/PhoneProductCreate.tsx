@@ -4,6 +4,7 @@ import { getRole } from '../auth';
 import PhoneDialog from './PhoneDialog';
 import { bounceDialogOf } from '../lib/unsavedGuard';
 import { dualStockLabel, mergeUnitOptions, type UnitOption } from '../lib/dualUnit';
+import Select from '../components/ui/Select';
 
 /** Admins create directly; other roles submit an approval request, never a product write. */
 export default function PhoneProductCreate({ onClose, onCreated }: { onClose: () => void; onCreated: (direct: boolean) => void }) {
@@ -93,7 +94,7 @@ export default function PhoneProductCreate({ onClose, onCreated }: { onClose: ()
       <fieldset data-step="1" className="ph-wz-page" hidden={step !== 1}>
       <div className="ph-create-fields">
         <label>Unité principale *
-          <select
+          <Select
             name={baseUnitChoice === '__custom__' ? undefined : 'unit'}
             value={baseUnitChoice}
             onChange={e => setBaseUnitChoice(e.target.value)}
@@ -103,7 +104,7 @@ export default function PhoneProductCreate({ onClose, onCreated }: { onClose: ()
               <option key={u.id ?? u.name} value={u.name}>{u.symbol ? `${u.name} (${u.symbol})` : u.name}</option>
             ))}
             <option value="__custom__">Autre unité…</option>
-          </select>
+          </Select>
           {baseUnitChoice === '__custom__' && (
             <input name="unit" value={customBaseUnit} onChange={e => setCustomBaseUnit(e.target.value)} maxLength={40} placeholder="Nom de l’unité" required />
           )}
@@ -112,7 +113,7 @@ export default function PhoneProductCreate({ onClose, onCreated }: { onClose: ()
       </div>
       <div className="ph-create-fields">
         <label>Deuxième unité (facultatif)
-          <select
+          <Select
             name={secondUnitChoice === '__custom__' ? undefined : 'secondary_unit'}
             value={secondUnitChoice}
             onChange={e => {
@@ -132,7 +133,7 @@ export default function PhoneProductCreate({ onClose, onCreated }: { onClose: ()
               </option>
             ))}
             <option value="__custom__">Autre unité…</option>
-          </select>
+          </Select>
           {secondUnitChoice === '__custom__' && (
             <input name="secondary_unit" value={customSecondUnit} onChange={e => setCustomSecondUnit(e.target.value)} maxLength={40} placeholder="Ex. m²" />
           )}
@@ -144,7 +145,7 @@ export default function PhoneProductCreate({ onClose, onCreated }: { onClose: ()
       <fieldset data-step="2" className="ph-wz-page" hidden={step !== 2}>
       <label>Photo facultative (4 Mo maximum)<input name="photo" type="file" accept="image/jpeg,image/png,image/webp,image/gif" /></label>
       {direct && <label>Prix de vente (MAD)<input name="price" type="number" min="0" step="any" defaultValue="0" inputMode="decimal" /></label>}
-      {direct && <><label>Prix sur facture<select name="invoice_price_mode" defaultValue="exclusive"><option value="exclusive">TVA ajoutée au prix (HT)</option><option value="inclusive">TVA incluse dans le prix (TTC)</option></select></label><p>Les ventes rapides utilisent le prix sans TVA.</p><label>Note<textarea name="note" rows={2} maxLength={500} /></label></>}
+      {direct && <><label>Prix sur facture<Select name="invoice_price_mode" defaultValue="exclusive"><option value="exclusive">TVA ajoutée au prix (HT)</option><option value="inclusive">TVA incluse dans le prix (TTC)</option></Select></label><p>Les ventes rapides utilisent le prix sans TVA.</p><label>Note<textarea name="note" rows={2} maxLength={500} /></label></>}
       </fieldset>
       {error && <p role="alert">{error}</p>}
       <div className="ph-create-actions">

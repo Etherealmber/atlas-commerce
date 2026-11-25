@@ -6,6 +6,7 @@
   "description": "Atlas Commerce — stock, devis, factures (web + Capacitor Android)",
   "author": "Etherealmber",
   "scripts": {
+    "i18n:missing": "node scripts/i18n-missing.mjs",
     "smoke": "node scripts/smoke-all.mjs",
     "smoke:risk": "node scripts/smoke-client-risk.mjs",
     "smoke:invoice": "node scripts/smoke-invoice-kinds.mjs",

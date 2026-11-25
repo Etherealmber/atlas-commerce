@@ -3,13 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { Camera, ChevronRight, Compass, ExternalLink, FileText, Globe, Heart, Info, Palette, RefreshCw, Share2, Smartphone, Sparkles, Users } from 'lucide-react';
 import { DISPLAY_VERSION } from '../version';
 import type { UiScale } from '../lib/density';
-import PhoneDialog from './PhoneDialog';
 import { getRole } from '../auth';
 import { restartPhoneOnboarding } from '../lib/onboarding';
 import { resetWelcome } from '../lib/welcome';
 import { phoneDockItems } from './PhoneDock';
 import { getScanPreference, setScanPreference, type ScanPreference } from './phoneScanPreferences';
 import { REPO_CONTRIBUTORS, fetchRepoContributors, type Contributor } from '../lib/contributors';
+import Select from '../components/ui/Select';
+import { LanguageSoonDialog } from '../components/LanguageSoonDialog';
+import { langMeta, useLang } from '../i18n/core';
 
 export type PhonePreferenceProps = { theme: string; onTheme: (t: 'light' | 'dark' | 'system') => void; animations: boolean; onAnimations: (v: boolean) => void; compact: boolean; onCompact: (v: boolean) => void; scale: UiScale; onScale: (v: UiScale) => void; startTab: string; onStartTab: (path: string) => void };
 function SettingSwitch({ title, description, checked, onChange }: { title: string; description: string; checked: boolean; onChange: (value: boolean) => void }) {
@@ -20,17 +22,18 @@ function ExternalSetting({ href, icon, title, description }: { href: string; ico
 }
 export function PhoneAppearanceSettings({ theme, onTheme, animations, onAnimations, compact, onCompact, scale, onScale, startTab, onStartTab }: PhonePreferenceProps) {
   const [language, setLanguage] = useState(false);
+  const lang = useLang();
   return <>
     <section className="ph-settings-card"><h2><Palette size={19} aria-hidden="true" /> Apparence et navigation</h2>
       <div className="ph-setting-block"><strong>Thème</strong><small>Choisissez l’apparence de l’application.</small><div className="ph-seg" role="group" aria-label="Thème de l’application">{([['light', 'Clair'], ['dark', 'Sombre'], ['system', 'Système']] as const).map(([value, label]) => <button type="button" key={value} data-theme-toggle className={`theme-toggle${theme === value ? ' on' : ''}`} aria-pressed={theme === value} onClick={() => onTheme(value)}>{label}</button>)}</div></div>
-      <button type="button" className="ph-setting-link" onClick={() => setLanguage(true)}><Globe size={20} aria-hidden="true" /><span><strong>Langue</strong><small>Français · arabe et anglais bientôt</small></span><ChevronRight size={18} aria-hidden="true" /></button>
+      <button type="button" className="ph-setting-link" onClick={() => setLanguage(true)}><Globe size={20} aria-hidden="true" /><span><strong>Langue</strong><small>{langMeta(lang).native} · Français, العربية, English</small></span><ChevronRight size={18} aria-hidden="true" /></button>
       <div className="ph-setting-block"><strong>Taille du texte</strong><small>Adaptée aux préférences de votre navigateur.</small><div className="ph-seg" role="group" aria-label="Taille du texte">{([['sm', 'Petite'], ['md', 'Normale'], ['lg', 'Grande']] as const).map(([value, label]) => <button type="button" key={value} className={`theme-toggle${scale === value ? ' on' : ''}`} aria-pressed={scale === value} onClick={() => onScale(value)}>{label}</button>)}</div></div>
       <div className="ph-setting-block"><strong>Densité d’affichage</strong><small>Espacement des cartes sur mobile.</small><div className="ph-seg ph-seg--two" role="group" aria-label="Densité d’affichage"><button type="button" className={`theme-toggle${!compact ? ' on' : ''}`} aria-pressed={!compact} onClick={() => onCompact(false)}>Confort</button><button type="button" className={`theme-toggle${compact ? ' on' : ''}`} aria-pressed={compact} onClick={() => onCompact(true)}>Compact</button></div></div>
-      <label className="ph-setting-block"><strong>Onglet d’ouverture au lancement</strong><small>Utilisé à l’ouverture de l’accueil mobile.</small><select aria-label="Onglet d’ouverture au lancement" value={phoneDockItems(getRole()).some(item => item.path === startTab) ? startTab : '/m'} onChange={e => onStartTab(e.target.value)}>{phoneDockItems(getRole()).map(item => <option key={item.id} value={item.path}>{item.label}</option>)}</select></label>
+      <label className="ph-setting-block"><strong>Onglet d’ouverture au lancement</strong><small>Utilisé à l’ouverture de l’accueil mobile.</small><Select aria-label="Onglet d’ouverture au lancement" value={phoneDockItems(getRole()).some(item => item.path === startTab) ? startTab : '/m'} onChange={e => onStartTab(e.target.value)}>{phoneDockItems(getRole()).map(item => <option key={item.id} value={item.path}>{item.label}</option>)}</Select></label>
       <SettingSwitch title="Animations fluides" description="Transitions et effets de mouvement." checked={animations} onChange={onAnimations} />
       <p className="ph-settings-hint">Le navigateur respecte aussi la préférence système de réduction des animations.</p>
     </section>
-    {language && <PhoneDialog titleId="ph-language-title" onClose={() => setLanguage(false)}><h2 id="ph-language-title">Langue</h2><p>Bientôt disponible — l’arabe et l’anglais arrivent.</p><button type="button" className="ph-primary" onClick={() => setLanguage(false)}>Compris</button></PhoneDialog>}
+    <LanguageSoonDialog open={language} onClose={() => setLanguage(false)} />
   </>;
 }
 export default function PhoneSettings({ theme, onTheme, animations, onAnimations, compact, onCompact, scale, onScale, startTab, onStartTab }: PhonePreferenceProps) {

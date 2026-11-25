@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, Sparkles, Settings, Info, Plus, ChevronRight, LayoutDashboard, Languages } from 'lucide-react';
 import { LanguageSoonDialog } from '../LanguageSoonDialog';
+import { langMeta, useLang } from '../../i18n/core';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { AvatarImage } from '../ui/AvatarImage';
 import { listSavedAccounts, switchSavedAccount, getUsername, clearToken, type SavedAccount } from '../../auth';
@@ -27,6 +28,7 @@ export const TopbarUserMenu: FC<Props> = ({
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
+  const uiLang = useLang();
   const [logoutAsk, setLogoutAsk] = useState(false);
   const [accounts, setAccounts] = useState<SavedAccount[]>([]);
   const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
@@ -208,8 +210,8 @@ export const TopbarUserMenu: FC<Props> = ({
                   <span className="ac-user-dropdown-ico" aria-hidden>
                     <Languages size={16} strokeWidth={1.9} />
                   </span>
-                  <span><b>Langue</b><i>Arabe et anglais bientôt</i></span>
-                  <span className="ac-user-dropdown-soon">Bientôt</span>
+                  <span><b>Langue</b><i className="notranslate" lang={uiLang} dir={langMeta(uiLang).dir}>{langMeta(uiLang).native}</i></span>
+                  <ChevronRight className="ac-user-dropdown-chev" size={14} aria-hidden />
                 </button>
                 <button type="button" role="menuitem" className="ac-user-dropdown-item" onClick={() => go('/whats-new')}>
                   <span className="ac-user-dropdown-ico" aria-hidden>

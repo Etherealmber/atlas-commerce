@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Pencil, Clock, ChevronDown } from 'lucide-react';
 import { timeZoneOptions } from '../../lib/profilePrefs';
+import Select from './Select';
 
 export type ProfileData = {
   fullName: string;
@@ -238,11 +239,11 @@ export const EditProfile: FC<Props> = ({ isOpen, onClose, initialData, onSave })
                       <label>
                         Fuseau horaire
                         <span className="ac-edit-profile-select-wrap">
-                          <select name="timezone" value={formData.timezone} onChange={handleChange}>
+                          <Select name="timezone" value={formData.timezone} onChange={handleChange}>
                             {timeZoneOptions(formData.timezone).map((z) => (
                               <option key={z.id} value={z.id}>{z.label}</option>
                             ))}
-                          </select>
+                          </Select>
                           <ChevronDown size={16} className="ac-edit-profile-chev" aria-hidden />
                         </span>
                       </label>

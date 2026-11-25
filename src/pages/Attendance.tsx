@@ -29,6 +29,7 @@ import PageSkeleton, { DesktopTableSkeleton } from '../components/PageSkeleton';
 import { getCachedFingerprint } from '../fingerprint';
 import { openReport } from '../lib/reports';
 import ListPager from '../components/ui/ListPager';
+import Select from '../components/ui/Select';
 
 type Row = {
   employee_id: number;
@@ -646,7 +647,7 @@ export default function Attendance() {
               </label>
               <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span>Employé</span>
-                <select
+                <Select
                   className="ac-filter-select"
                   value={employeeFilter}
                   onChange={(e) => setEmployeeFilter(e.target.value)}
@@ -658,7 +659,7 @@ export default function Attendance() {
                       {r.name} {r.emp_number ? `(${r.emp_number})` : ''}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -794,20 +795,20 @@ export default function Attendance() {
               aria-label="Rechercher présence"
             />
           </div>
-          <select className="ac-filter-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Statut">
+          <Select className="ac-filter-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Statut">
             <option value="all">Tous statuts</option>
             <option value="present">Présent</option>
             <option value="late">Retard</option>
             <option value="half">Demi</option>
             <option value="excused">Excusé</option>
             <option value="absent">Absent</option>
-          </select>
-          <select className="ac-filter-select" value={teamFilter} onChange={(e) => setTeamFilter(e.target.value)} aria-label="Équipe">
+          </Select>
+          <Select className="ac-filter-select" value={teamFilter} onChange={(e) => setTeamFilter(e.target.value)} aria-label="Équipe">
             <option value="all">Toutes équipes</option>
             {teams.map((tm) => (
               <option key={tm} value={tm}>{tm}</option>
             ))}
-          </select>
+          </Select>
         </div>
       </div>
 
@@ -965,11 +966,11 @@ export default function Attendance() {
             </div>
             <div className="form-row">
               <label>Statut (auto si heures saisies)</label>
-              <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)}>
+              <Select value={editStatus} onChange={(e) => setEditStatus(e.target.value)}>
                 <option value="auto">Automatique (heures)</option>
                 <option value="excused">Excusé (forcé)</option>
                 <option value="absent">Absent (forcé)</option>
-              </select>
+              </Select>
               <span className="muted" style={{ fontSize: 11 }}>
                 Après 09:15 → retard · 09:00–13:00 ou 14:00–18:00 → demi-journée
               </span>

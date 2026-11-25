@@ -2,6 +2,7 @@ import DocumentActors from '../components/DocumentActors';
 import TopPageActions from '../components/TopPageActions';
 import { ArrowRight, Ban, CheckCircle2, CreditCard, FileCheck2, FilePlus2, Pencil, RotateCcw, Truck } from 'lucide-react';
 import { TimedUndoDelete } from '../components/ui';
+import { RowActionsMenu } from '../components/ui/RowActionsMenu';
 import ListPager from '../components/ui/ListPager';
 import { onAgentDraft } from '../lib/agentDraft';
 import { useEffect, useState } from 'react';
@@ -32,6 +33,8 @@ import { FloatingPortal } from '../components/FloatingPortal';
 import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
 import { ModalFormError } from '../components/ModalFormFeedback';
 import { MetricSpark, MetricTrend } from '../components/MetricSpark';
+import Select from '../components/ui/Select';
+import { openDeliveryNote } from '../lib/deliveryNote';
 
 const INVOICE_STEPS: readonly WizardStepDef[] = [
   { id: 'client', label: 'Client', hint: 'Client enregistré ou nouveau client, avec son identifiant fiscal.' },
@@ -117,6 +120,29 @@ export default function Invoices() {
   const [refundSaving, setRefundSaving] = useState(false);
   const [refundPayMethod, setRefundPayMethod] = useState('cash');
   const [refundSources, setRefundSources] = useState<any[]>([]);
+
+  const openRefundFor = async (invoiceId: number) => {
+    setShowRefund(true);
+    setRefundReasonCode('');
+    setRefundReasonDetail('');
+    setRefundSourceId(invoiceId);
+    try {
+      const res = await api.getInvoice(invoiceId);
+      const data = res.data;
+      setRefundSource(data);
+      setRefundLines(
+        (data.items || []).map((it: any) => ({
+          invoice_item_id: it.id,
+          product_name: it.product_name,
+          max_qty: Number(it.quantity || 0),
+          quantity: Number(it.quantity || 0),
+          unit_price: Number(it.unit_price || 0),
+        }))
+      );
+    } catch (e: any) {
+      flash(e?.message || 'Impossible de charger la facture', 'error');
+    }
+  };
 
   const buildRefundLines = async (data: any) => {
     const prior = await api.getInvoices('remboursement', { kind: 'all' }).catch(() => ({ data: [] }));
@@ -500,14 +526,14 @@ export default function Invoices() {
           <div className="ac-search-field">
             <input className="ac-search-input" placeholder="Rechercher par numéro ou nom de client..." value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
-          <select value={filter} onChange={(e) => setFilter(e.target.value)} className="ac-filter-select" aria-label="Filtrer par statut">
+          <Select value={filter} onChange={(e) => setFilter(e.target.value)} className="ac-filter-select" aria-label="Filtrer par statut">
             <option value="">Toutes les factures</option>
             <option value="sent">Non payées / envoyées</option>
             <option value="partial">Partiellement payées</option>
             <option value="paid">Payées</option>
             <option value="cancelled">Annulées</option>
             <option value="overdue">En retard</option>
-          </select>
+          </Select>
         </div>
       </div>
       </div>
@@ -556,7 +582,7 @@ export default function Invoices() {
                       ) : null}
                     </td>
                     <td>
-                      {inv.client_name}
+                      <span translate="no">{inv.client_name}</span>
                       {inv.client_id && <small style={{ display: 'block', color: 'var(--muted)', fontSize: 11 }}>
                         <Link to={`/clients`}>Fiche client #{inv.client_id}</Link>
                       </small>}
@@ -575,7 +601,7 @@ export default function Invoices() {
                         ? '—'
                         : fmt(remainingBalance(inv.total, inv.amount_paid))}
                     </td>
-                    <td className="row-actions-cell" onClick={(e) => e.stopPropagation()}><div className="row-actions">
+                    <td className="row-actions-cell" onClick={(e) => e.stopPropagation()}><div className="row-actions ac-row-actions-compact">
                       <button
                         type="button"
                         className="secondary"
@@ -584,84 +610,50 @@ export default function Invoices() {
                         <Pencil size={14} aria-hidden="true" />
                         <span>{inv.status === 'cancelled' ? 'Consulter' : 'Modifier'}</span>
                       </button>
-                      {inv.status !== 'quote' && inv.status !== 'devis' && inv.status !== 'remboursement' && inv.status !== 'cancelled' && (
-                        <button
-                          type="button"
-                          className="secondary"
-                          onClick={async () => {
-                            try {
-                              const r: any = await api.createDeliveryNote({ invoice_id: inv.id });
-                              toast(r.message || 'BL créé', 'success');
-                            } catch (e: any) {
-                              setModalError(friendlyError(e));
-                            }
-                          }}
-                        >
-                          <FileCheck2 size={14} aria-hidden="true" />
-                          <span>BL</span>
-                        </button>
-                      )}
                       {(inv.status === 'quote' || inv.status === 'devis') && (
                         <button type="button" className="secondary" onClick={() => convertQuote(inv.id)}>
                           <ArrowRight size={14} aria-hidden="true" />
                           <span>Facturer</span>
                         </button>
                       )}
-                      {inv.status === 'sent' && (
-                        <button type="button" className="secondary" onClick={() => api.pipelineAdvance(inv.id, 'accepted').then(() => load(true)).catch((e: any) => alert(e?.message || 'Pipeline'))}>
-                          <CheckCircle2 size={14} aria-hidden="true" />
-                          <span>Acceptée</span>
-                        </button>
-                      )}
-                      {['sent', 'paid', 'partial'].includes(inv.status) && (
-                        <button type="button" className="secondary" onClick={() => api.pipelineAdvance(inv.id, 'delivered').then(() => load(true)).catch((e: any) => alert(e?.message || 'Pipeline'))}>
-                          <Truck size={14} aria-hidden="true" />
-                          <span>Livrée</span>
-                        </button>
-                      )}
                       {inv.status !== 'paid' && inv.status !== 'cancelled' && inv.status !== 'quote' && inv.status !== 'devis' && inv.status !== 'remboursement' && (
                         <button type="button" className="secondary" onClick={() => openPay(inv)}>
                           <CreditCard size={14} aria-hidden="true" />
-                          <span>Paiement…</span>
+                          <span>Paiement</span>
                         </button>
                       )}
-                      {inv.status !== 'cancelled' && inv.status !== 'quote' && inv.status !== 'devis' && inv.status !== 'remboursement' && (
-                        <button
-                          type="button"
-                          className="secondary"
-                          onClick={async () => {
-                            setShowRefund(true);
-                            setRefundReasonCode('');
-                            setRefundReasonDetail('');
-                            setRefundSourceId(inv.id);
-                            try {
-                              const res = await api.getInvoice(inv.id);
-                              const data = res.data;
-                              setRefundSource(data);
-                              setRefundLines(
-                                (data.items || []).map((it: any) => ({
-                                  invoice_item_id: it.id,
-                                  product_name: it.product_name,
-                                  max_qty: Number(it.quantity || 0),
-                                  quantity: Number(it.quantity || 0),
-                                  unit_price: Number(it.unit_price || 0),
-                                }))
-                              );
-                            } catch (e: any) {
-                              flash(e?.message || 'Impossible de charger la facture', 'error');
-                            }
-                          }}
-                        >
-                          <RotateCcw size={14} aria-hidden="true" />
-                          <span>WR…</span>
-                        </button>
-                      )}
-                      {inv.status !== 'cancelled' && inv.status !== 'remboursement' && (
-                        <button type="button" className="danger" onClick={() => cancelInvoice(inv.id)}>
-                          <Ban size={14} aria-hidden="true" />
-                          <span>Annuler</span>
-                        </button>
-                      )}
+                      <RowActionsMenu
+                        label={`Plus d’actions pour ${inv.number}`}
+                        actions={[
+                          ...(inv.status !== 'quote' && inv.status !== 'devis' && inv.status !== 'remboursement' && inv.status !== 'cancelled' ? [{
+                            key: 'bl', label: 'Bon de livraison (PDF)', icon: <FileCheck2 size={15} />,
+                            onSelect: async () => {
+                              try {
+                                const r = await openDeliveryNote(inv.id);
+                                toast(r.message, 'success');
+                              } catch (e: any) {
+                                setModalError(friendlyError(e));
+                              }
+                            },
+                          }] : []),
+                          ...(inv.status === 'sent' ? [{
+                            key: 'accepted', label: 'Marquer acceptée', icon: <CheckCircle2 size={15} />,
+                            onSelect: () => { api.pipelineAdvance(inv.id, 'accepted').then(() => load(true)).catch((e: any) => flash(e?.message || 'Pipeline', 'error')); },
+                          }] : []),
+                          ...(['sent', 'paid', 'partial'].includes(inv.status) ? [{
+                            key: 'delivered', label: 'Marquer livrée', icon: <Truck size={15} />,
+                            onSelect: () => { api.pipelineAdvance(inv.id, 'delivered').then(() => load(true)).catch((e: any) => flash(e?.message || 'Pipeline', 'error')); },
+                          }] : []),
+                          ...(inv.status !== 'cancelled' && inv.status !== 'quote' && inv.status !== 'devis' && inv.status !== 'remboursement' ? [{
+                            key: 'wr', label: 'Remboursement (WR)…', icon: <RotateCcw size={15} />,
+                            onSelect: () => { void openRefundFor(inv.id); },
+                          }] : []),
+                          ...(inv.status !== 'cancelled' && inv.status !== 'remboursement' ? [{
+                            key: 'cancel', label: 'Annuler la facture', icon: <Ban size={15} />, tone: 'danger' as const,
+                            onSelect: () => cancelInvoice(inv.id),
+                          }] : []),
+                        ]}
+                      />
                       <TimedUndoDelete iconOnly width="34px"
                         deleteLabel="Supprimer"
                         undoLabel="Annuler"
@@ -922,7 +914,7 @@ export default function Invoices() {
 
             <div className="form-row">
               <label>Facture d’origine *</label>
-              <select
+              <Select
                 value={refundSourceId}
                 disabled={refundSaving}
                 onChange={async (e) => {
@@ -952,7 +944,7 @@ export default function Invoices() {
                       {Number(inv.amount_paid || 0) >= Number(inv.total || 0) - 0.001 ? ' · payé' : ''}
                     </option>
                   ))}
-              </select>
+              </Select>
             </div>
 
             {refundSource && (
@@ -1009,7 +1001,7 @@ export default function Invoices() {
                     {line.restock ? (
                       <span style={{ fontSize: 11, color: 'var(--muted)' }}>— réintégré au stock</span>
                     ) : (
-                      <select
+                      <Select
                         value={line.disposition}
                         disabled={refundSaving}
                         onChange={(e) => {
@@ -1023,7 +1015,7 @@ export default function Invoices() {
                         {STOCK_DISPOSITION_OPTIONS.map((o) => (
                           <option key={o.code} value={o.code}>{o.label}</option>
                         ))}
-                      </select>
+                      </Select>
                     )}
                   </div>
                 ))}
@@ -1036,7 +1028,7 @@ export default function Invoices() {
 
             <div className="form-row">
               <label>Motif valable *</label>
-              <select
+              <Select
                 value={refundReasonCode}
                 onChange={(e) => setRefundReasonCode(e.target.value)}
                 disabled={refundSaving}
@@ -1045,7 +1037,7 @@ export default function Invoices() {
                 {REFUND_REASON_OPTIONS.map((o) => (
                   <option key={o.code} value={o.code}>{o.label}</option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div className="form-row">
               <label>Explication détaillée * (obligatoire)</label>
@@ -1073,13 +1065,13 @@ export default function Invoices() {
             
             <div className="form-row">
               <label>Mode de sortie (si déjà encaissé)</label>
-              <select value={refundPayMethod} onChange={(e) => setRefundPayMethod(e.target.value)} disabled={refundSaving}>
+              <Select value={refundPayMethod} onChange={(e) => setRefundPayMethod(e.target.value)} disabled={refundSaving}>
                 <option value="cash">Espèces (caisse)</option>
                 <option value="card">Carte</option>
                 <option value="transfer">Virement</option>
                 <option value="cheque">Chèque</option>
                 <option value="other">Autre</option>
-              </select>
+              </Select>
               <p style={{ fontSize: 12, color: 'var(--muted)', margin: '6px 0 0' }}>
                 Déjà payé → sortie dans Solde. Non payé → réduction du reste dû uniquement.
               </p>
@@ -1245,11 +1237,11 @@ export default function Invoices() {
 
             <div className="form-row">
               <label>Mode de paiement *</label>
-              <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} disabled={saving}>
+              <Select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} disabled={saving}>
                 {PAYMENT_METHODS.map((m) => (
                   <option key={m.value} value={m.value}>{m.label}</option>
                 ))}
-              </select>
+              </Select>
               <small style={{ color: 'var(--muted)', fontSize: 12 }}>
                 Espèces / carte → caisse. Virement / chèque → banque (solde caisse vs banque).
               </small>

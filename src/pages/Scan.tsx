@@ -19,6 +19,7 @@ import {
   preloadBarcodeScanner,
   type ScanStop,
 } from '../lib/barcodeScan';
+import Select from '../components/ui/Select';
 
 type Hit = {
   id: number;
@@ -431,19 +432,19 @@ export default function Scan() {
             )}
           </div>
           {(opMode === 'receive' || opMode === 'count') && warehouses.length > 0 && (
-            <select className="scan-input" value={opWh} onChange={(e) => setOpWh(e.target.value)} aria-label="Dépôt">
+            <Select className="scan-input" value={opWh} onChange={(e) => setOpWh(e.target.value)} aria-label="Dépôt">
               <option value="">Dépôt principal</option>
               {warehouses.map((w: any) => <option key={w.id} value={w.id}>{w.name}</option>)}
-            </select>
+            </Select>
           )}
           {opMode === 'transfer' && (
             <div className="scan-row">
-              <select className="scan-input" value={opWh} onChange={(e) => setOpWh(e.target.value)} aria-label="Dépôt source">
+              <Select className="scan-input" value={opWh} onChange={(e) => setOpWh(e.target.value)} aria-label="Dépôt source">
                 {warehouses.map((w: any) => <option key={w.id} value={w.id}>{w.name} (source)</option>)}
-              </select>
-              <select className="scan-input" value={opWh2} onChange={(e) => setOpWh2(e.target.value)} aria-label="Dépôt destination">
+              </Select>
+              <Select className="scan-input" value={opWh2} onChange={(e) => setOpWh2(e.target.value)} aria-label="Dépôt destination">
                 {warehouses.map((w: any) => <option key={w.id} value={w.id}>{w.name} (dest.)</option>)}
-              </select>
+              </Select>
             </div>
           )}
           <button type="submit" className="scan-submit" disabled={busy}>{opMode === 'receive' ? 'Réceptionner' : opMode === 'transfer' ? 'Transférer' : 'Compter'}</button>
@@ -632,7 +633,7 @@ export default function Scan() {
             <div className="scan-req-grid">
               <div>
                 <label className="scan-req-label" htmlFor="scan-req-unit">Unité *</label>
-                <select
+                <Select
                   id="scan-req-unit"
                   className={`scan-req-input${reqErrors.unit ? ' scan-req-input--err' : ''}`}
                   value={reqUnit}
@@ -641,7 +642,7 @@ export default function Scan() {
                   {reqUnits.map((u) => (
                     <option key={u} value={u}>{u}</option>
                   ))}
-                </select>
+                </Select>
                 {reqErrors.unit ? <span className="scan-req-err">{reqErrors.unit}</span> : null}
               </div>
               <div>
@@ -658,7 +659,7 @@ export default function Scan() {
               </div>
             </div>
             <label className="scan-req-label" htmlFor="scan-req-cat">Catégorie</label>
-            <select
+            <Select
               id="scan-req-cat"
               className="scan-req-input"
               value={reqCat}
@@ -668,7 +669,7 @@ export default function Scan() {
               {reqCats.map((cc) => (
                 <option key={cc} value={cc}>{cc}</option>
               ))}
-            </select>
+            </Select>
             <label className="scan-req-label" htmlFor="scan-req-photo">
               Photo (optionnel)
             </label>

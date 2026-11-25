@@ -179,3 +179,227 @@ html body .ac-audit-detail-btn:focus-visible .ac-audit-detail-chev:not(#tb-g):no
   html body :is(.content, .settings-main, .atlas-page) table tbody tr:not(#tb-g):not(#tb-h):not(#tb-i),
   html body .ac-audit-detail-btn .ac-audit-detail-chev:not(#tb-g):not(#tb-h):not(#tb-i) { transition: none !important; }
 }
+
+/* S — audit header: title on the left, period pills + Actualiser / Export CSV
+   on the right of the same card (they used to float above the table). */
+html body .ac-audit-header-panel:not(#tb-g):not(#tb-h):not(#tb-i) {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+}
+html body .ac-audit-header-panel > .ac-panel-head:not(#tb-g):not(#tb-h):not(#tb-i) {
+  flex: 1 1 320px;
+  margin: 0 !important;
+  min-width: 0;
+}
+html body .ac-audit-toolbar.ac-audit-toolbar--head:not(#tb-g):not(#tb-h):not(#tb-i) {
+  flex: 0 1 auto;
+  margin: 0 !important;
+  justify-content: flex-end;
+}
+@media (max-width: 720px) {
+  html body .ac-audit-toolbar.ac-audit-toolbar--head:not(#tb-g):not(#tb-h):not(#tb-i) {
+    flex: 1 1 100%;
+    justify-content: space-between;
+  }
+}
+/* Real comparison chip: « +8  +133 % » */
+html body .ac-delta-chip:not(#tb-g):not(#tb-h):not(#tb-i) { gap: 5px !important; }
+html body .ac-delta-chip .ac-delta-chip-pct:not(#tb-g):not(#tb-h):not(#tb-i) {
+  font-weight: 500;
+  opacity: 0.78;
+}
+html body .ac-metric .ac-audit-spark:not(#tb-g):not(#tb-h):not(#tb-i) {
+  display: block;
+  width: calc(100% + 36px);
+  height: 30px;
+  margin: 10px -18px -16px;
+  color: #3b82f6;
+  overflow: visible;
+}
+
+/* S — timed delete everywhere (Produits, Catégories, Unités, lignes…):
+   soft tint at rest, slightly stronger on mouse hover, never a solid red disc;
+   the armed countdown keeps its light background + red digits. */
+@media (hover: hover) and (pointer: fine) {
+  html body .ac-timed-delete-btn:not(.is-armed):hover:not(#td-g):not(#td-h):not(#td-i) {
+    background: rgba(239, 68, 68, 0.2) !important;
+    background-color: rgba(239, 68, 68, 0.2) !important;
+  }
+}
+html body .ac-timed-delete-btn.is-armed:not(#td-g):not(#td-h):not(#td-i),
+html body .ac-timed-delete-btn.is-armed:hover:not(#td-g):not(#td-h):not(#td-i),
+html body .ac-timed-delete-btn.is-armed:active:not(#td-g):not(#td-h):not(#td-i) {
+  background: #fee2e2 !important;
+  background-color: #fee2e2 !important;
+  color: #b91c1c !important;
+  -webkit-text-fill-color: #b91c1c !important;
+}
+html[data-theme="dark"] body .ac-timed-delete-btn.is-armed:not(#td-g):not(#td-h):not(#td-i),
+html[data-theme="dark"] body .ac-timed-delete-btn.is-armed:hover:not(#td-g):not(#td-h):not(#td-i) {
+  background: rgba(239, 68, 68, 0.22) !important;
+  background-color: rgba(239, 68, 68, 0.22) !important;
+  color: #fecaca !important;
+  -webkit-text-fill-color: #fecaca !important;
+}
+
+/* S — compact row actions: 1–2 visible buttons + « ⋯ » menu + delete.
+   Keeps tables (factures…) free of horizontal scroll, sidebar open or not. */
+html body .row-actions.ac-row-actions-compact:not(#ra-g):not(#ra-h):not(#ra-i) {
+  display: inline-flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 6px !important;
+  width: auto !important;
+}
+html body .row-actions.ac-row-actions-compact > button:not(#ra-g):not(#ra-h):not(#ra-i) {
+  flex: 0 0 auto !important;
+  white-space: nowrap !important;
+}
+html body button.ac-row-more:not(#ra-g):not(#ra-h):not(#ra-i) {
+  width: 34px !important;
+  min-width: 34px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 999px !important;
+}
+html body button.ac-row-more[aria-expanded="true"]:not(#ra-g):not(#ra-h):not(#ra-i) {
+  background: #e4e4e7 !important;
+  border-color: #d4d4d8 !important;
+}
+html body .ac-row-menu:not(#ra-g):not(#ra-h):not(#ra-i) {
+  position: fixed !important;
+  z-index: 13000 !important;
+  min-width: 220px;
+  max-width: min(320px, calc(100vw - 16px));
+  padding: 6px !important;
+  border-radius: 14px !important;
+  background: #ffffff !important;
+  border: 1px solid #e4e4e7 !important;
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.16), 0 2px 6px rgba(15, 23, 42, 0.06) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+  animation: ac-row-menu-in 0.12s ease-out;
+}
+@keyframes ac-row-menu-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+html body .ac-row-menu.is-up:not(#ra-g):not(#ra-h):not(#ra-i) { animation-name: ac-row-menu-in-up; }
+@keyframes ac-row-menu-in-up { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+html body .ac-row-menu button.ac-row-menu-item:not(#ra-g):not(#ra-h):not(#ra-i) {
+  all: unset;
+  box-sizing: border-box !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  width: 100% !important;
+  min-height: 36px !important;
+  padding: 8px 10px !important;
+  border-radius: 9px !important;
+  font: inherit !important;
+  font-size: 13.5px !important;
+  font-weight: 500 !important;
+  color: #18181b !important;
+  -webkit-text-fill-color: #18181b !important;
+  background: transparent !important;
+  cursor: pointer !important;
+  text-align: start !important;
+}
+html body .ac-row-menu button.ac-row-menu-item:hover:not(:disabled):not(#ra-g):not(#ra-h):not(#ra-i),
+html body .ac-row-menu button.ac-row-menu-item:focus-visible:not(#ra-g):not(#ra-h):not(#ra-i) {
+  background: #f4f4f5 !important;
+  outline: none !important;
+  box-shadow: inset 0 0 0 1.5px #a1a1aa !important;
+}
+html body .ac-row-menu button.ac-row-menu-item:focus:not(:focus-visible):not(#ra-g):not(#ra-h):not(#ra-i) { box-shadow: none !important; outline: none !important; }
+html body .ac-row-menu button.ac-row-menu-item:disabled:not(#ra-g):not(#ra-h):not(#ra-i) { opacity: 0.45 !important; cursor: default !important; }
+html body .ac-row-menu .ac-row-menu-ico:not(#ra-g):not(#ra-h):not(#ra-i) { display: inline-flex; color: #52525b; flex: none; }
+html body .ac-row-menu button.ac-row-menu-item.is-danger:not(#ra-g):not(#ra-h):not(#ra-i),
+html body .ac-row-menu button.is-danger .ac-row-menu-ico:not(#ra-g):not(#ra-h):not(#ra-i) {
+  color: #b91c1c !important;
+  -webkit-text-fill-color: #b91c1c !important;
+}
+html body .ac-row-menu button.ac-row-menu-item.is-danger:hover:not(#ra-g):not(#ra-h):not(#ra-i) { background: #fef2f2 !important; }
+html[data-theme="dark"] body .ac-row-menu:not(#ra-g):not(#ra-h):not(#ra-i) {
+  background: #18181b !important;
+  border-color: #27272a !important;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.55) !important;
+}
+html[data-theme="dark"] body .ac-row-menu button.ac-row-menu-item:not(#ra-g):not(#ra-h):not(#ra-i) {
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+}
+html[data-theme="dark"] body .ac-row-menu button.ac-row-menu-item:hover:not(:disabled):not(#ra-g):not(#ra-h):not(#ra-i),
+html[data-theme="dark"] body .ac-row-menu button.ac-row-menu-item:focus-visible:not(#ra-g):not(#ra-h):not(#ra-i) { background: #27272a !important; }
+html[data-theme="dark"] body .ac-row-menu .ac-row-menu-ico:not(#ra-g):not(#ra-h):not(#ra-i) { color: #a1a1aa; }
+html[data-theme="dark"] body .ac-row-menu button.ac-row-menu-item.is-danger:not(#ra-g):not(#ra-h):not(#ra-i),
+html[data-theme="dark"] body .ac-row-menu button.is-danger .ac-row-menu-ico:not(#ra-g):not(#ra-h):not(#ra-i) { color: #fca5a5 !important; -webkit-text-fill-color: #fca5a5 !important; }
+html[data-theme="dark"] body .ac-row-menu button.ac-row-menu-item.is-danger:hover:not(#ra-g):not(#ra-h):not(#ra-i) { background: rgba(239, 68, 68, 0.14) !important; }
+html[data-theme="dark"] body button.ac-row-more[aria-expanded="true"]:not(#ra-g):not(#ra-h):not(#ra-i) { background: #3f3f46 !important; border-color: #52525b !important; }
+
+/* ── Stock valuation (Inventory ops): readable numeric columns, share bars,
+      sticky header + total footer inside a bounded scroller. ── */
+.ac-valuation-wrap { max-height: 420px; overflow: auto; border-radius: 12px; }
+.ac-valuation-table { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; }
+.ac-valuation-table th,
+.ac-valuation-table td { padding: 10px 14px; vertical-align: middle; }
+.ac-valuation-table .num { text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ac-valuation-table thead th {
+  position: sticky; top: 0; z-index: 1;
+  background: var(--ac-surface-2, #f8fafc);
+  font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ac-muted, #64748b);
+}
+.ac-valuation-table tfoot th,
+.ac-valuation-table tfoot td {
+  position: sticky; bottom: 0; z-index: 1;
+  background: var(--ac-surface-2, #f8fafc);
+  border-top: 1px solid var(--ac-line, rgba(15, 23, 42, 0.1));
+  font-weight: 650; text-align: start;
+}
+.ac-valuation-table tfoot .num { text-align: end; }
+.ac-valuation-name { display: block; font-weight: 600; color: var(--ac-ink, #0f172a); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ac-valuation-meta { display: block; margin-top: 2px; font-size: 0.74rem; color: var(--ac-muted, #64748b); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ac-valuation-share { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.ac-valuation-bar { flex: 1 1 auto; height: 6px; border-radius: 999px; background: color-mix(in srgb, #2563eb 10%, transparent); overflow: hidden; }
+.ac-valuation-bar > span { display: block; height: 100%; border-radius: inherit; background: #2563eb; }
+.ac-valuation-pct { flex: 0 0 auto; min-width: 46px; text-align: end; font-size: 0.78rem; font-variant-numeric: tabular-nums; color: var(--ac-muted, #64748b); }
+html[data-theme="dark"] .ac-valuation-table thead th,
+html[data-theme="dark"] .ac-valuation-table tfoot th,
+html[data-theme="dark"] .ac-valuation-table tfoot td { background: #161b24; }
+html[data-theme="dark"] .ac-valuation-bar { background: rgba(96, 165, 250, 0.16); }
+html[data-theme="dark"] .ac-valuation-bar > span { background: #60a5fa; }
+@media (max-width: 760px) {
+  .ac-valuation-table colgroup col:nth-child(5), .ac-valuation-table th:nth-child(5), .ac-valuation-table td:nth-child(5) { display: none; }
+}
+
+/* KPI sublines that must stay visible (.as-hint is hidden app-wide). */
+html body .ac-metric .ac-kpi-sub {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.74rem;
+  line-height: 1.35;
+  color: var(--ac-muted, #64748b);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Audit + purchase KPI cards: values share one baseline whether or not a card has a spark. */
+html body :is(.ac-audit-kpis, .ac-bills-kpis) > .ac-metric:not(#tb-g):not(#tb-h):not(#tb-i) { justify-content: flex-start !important; }
+html body :is(.ac-audit-kpis, .ac-bills-kpis) > .ac-metric > :is(.ac-audit-spark, .ms-spark):not(#tb-g):not(#tb-h):not(#tb-i) { margin-top: auto; }
+html body .ac-metric > .ac-kpi-sub:not(#tb-g):not(#tb-h):not(#tb-i) {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+/* Pressing a (not yet armed) timed delete must not flash the global solid-red :active. */
+html body .ac-timed-delete-btn:not(.is-armed):active:not(#td-g):not(#td-h):not(#td-i) {
+  background: rgba(239, 68, 68, 0.24) !important;
+  background-color: rgba(239, 68, 68, 0.24) !important;
+}

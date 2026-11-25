@@ -4,6 +4,7 @@ import { clearToken, getToken } from '../auth';
 import {
   DEMO_EVENT,
   DEMO_STORAGE_KEY,
+  durationLabel,
   formatCountdown,
   getDemoSession,
   isDemoToken,
@@ -79,11 +80,11 @@ function DemoSessionChrome({ session }: { session: DemoSessionInfo }) {
             onClick={(e) => e.stopPropagation()}
           >
             <span className="demo-intro-badge">Mode démo</span>
-            <h2 id="demo-intro-title">{session.minutes} minutes pour tout essayer</h2>
+            <h2 id="demo-intro-title">{durationLabel(session.minutes)} pour tout essayer</h2>
             <ul className="demo-intro-list">
-              <li><strong>{session.minutes} min d’essai</strong>, une fois toutes les {session.window_hours} heures sur cet appareil.</li>
+              <li><strong>{durationLabel(session.minutes)} d’essai</strong>, une fois toutes les {session.window_hours} heures sur cet appareil.</li>
               <li><strong>Données fictives</strong> : créez, modifiez ou supprimez librement produits, ventes, clients…</li>
-              <li><strong>Remise à zéro automatique</strong> : la base de démo est effacée à la fin des {session.minutes} minutes.</li>
+              <li><strong>Remise à zéro automatique</strong> : la base de démo est effacée au bout de {durationLabel(session.minutes)}.</li>
               <li><strong>Aucun accès à vos vraies données</strong> : la démo tourne sur sa propre petite base SQLite.</li>
             </ul>
             <p className="demo-intro-time">Temps restant : <strong>{formatCountdown(left)}</strong></p>

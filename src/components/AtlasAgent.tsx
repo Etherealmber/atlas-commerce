@@ -721,7 +721,7 @@ export default function AtlasAgent() {
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
       if (!dragRef.current) return;
-      const dx = dragRef.current.startX - e.clientX;
+      const dx = (document.documentElement.dir === 'rtl' ? 1 : -1) * (e.clientX - dragRef.current.startX);
       const maxW = Math.min(800, Math.floor(window.innerWidth * 0.5));
       const next = Math.min(maxW, Math.max(320, dragRef.current.startW + dx));
       setPanelWidth(next);

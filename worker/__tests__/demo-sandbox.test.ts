@@ -1,7 +1,7 @@
 /// <reference types="node" />
 /**
  * Demo sandbox (« test / test ») — the Durable Object, its SQL engine, the D1
- * proxy, the 20 min / 24 h policy, token wrapping and cache isolation.
+ * proxy, the 1 h / 24 h policy, token wrapping and cache isolation.
  *
  * DemoHub runs here on top of `node:sqlite` through a tiny fake of the
  * Durable Object storage API, so the very same code path as production
@@ -19,9 +19,9 @@ import {
   formatWait,
   type DemoMeta,
 } from '../lib/demo/policy';
-import { buildDemoSeed, buildEmployeeSeed, buildSnapshotSeed, DEMO_COMPANY, seedDemoData } from '../lib/demo/seed';
+import { buildDemoModel, buildDemoSeed, buildEmployeeSeed, buildSnapshotSeed, DEMO_COMPANY, seedDemoData } from '../lib/demo/seed';
 import { execScript, runBatch, runStatement, splitSqlStatements, type SqlBackend } from '../lib/demo/sqlEngine';
-import { DEMO_TOKEN_PREFIX, demoOffLimitsResponse, isDevMachineHost, rewrapTokens, unwrapDemoToken, wrapDemoToken } from '../lib/demo/gateway';
+import { DEMO_TOKEN_PREFIX, demoOffLimitsResponse, isDevMachineHost, relinkTicket, rewrapTokens, unwrapDemoToken, wrapDemoToken } from '../lib/demo/gateway';
 import { currentDataScope, inDemoScope, runInDataScope, scopedKey } from '../lib/dataScope';
 import { checkRefreshLimit } from '../lib/cache';
 import { schemaOnce } from '../lib/schema';
@@ -188,7 +188,7 @@ describe('demo SQL engine', () => {
 
 // ── Policy ───────────────────────────────────────────────────────────────────
 
-describe('demo policy (20 min per 24 h)', () => {
+describe('demo policy (1 h per 24 h)', () => {
   const t0 = Date.UTC(2026, 9, 20, 9, 0, 0);
   const meta = (over: Partial<DemoMeta> = {}): DemoMeta => ({
     started_at: t0, expires_at: t0 + DEMO_SESSION_MS, gen: 1, seeded: true, ...over,
@@ -218,6 +218,30 @@ describe('demo seed', () => {
     expect(buildDemoSeed(now)).toEqual(buildDemoSeed(now));
     expect(buildEmployeeSeed(now).length).toBeGreaterThan(8);
     expect(buildSnapshotSeed(now).length).toBeGreaterThan(20);
+  });
+
+  it('keeps stock movements chained and never negative, with refunds, bills and expenses', () => {
+    const m = buildDemoModel(Date.UTC(2026, 10, 25, 12));
+    const moves = m.stmts.filter((st) => st.sql.includes('INSERT INTO stock_movements'));
+    const last: Record<number, number> = {};
+    let negative = 0;
+    let broken = 0;
+    for (const st of moves) {
+      const [pid, , , prev, next] = st.params as number[];
+      if (prev < 0 || next < 0) negative++;
+      if (last[pid] !== undefined && Math.abs(last[pid] - prev) > 1e-6) broken++;
+      last[pid] = next;
+    }
+    expect(moves.length).toBeGreaterThan(100);
+    expect(negative).toBe(0);
+    expect(broken).toBe(0);
+    const invoices = m.stmts.filter((st) => st.sql.includes('INSERT INTO invoices'));
+    expect(invoices.filter((st) => st.sql.includes('remboursement')).length).toBeGreaterThanOrEqual(3);
+    expect(m.stmts.filter((st) => st.sql.includes('INSERT INTO bills')).length).toBeGreaterThanOrEqual(10);
+    expect(m.stmts.filter((st) => st.sql.includes('INSERT INTO expenses')).length).toBeGreaterThan(30);
+    const kpi = m.daily.at(-1)!.values;
+    expect(kpi.low_stock).toBeGreaterThan(0);
+    expect(kpi.payables).toBeGreaterThan(0);
   });
 });
 
@@ -257,7 +281,7 @@ describe('DemoHub sandbox', () => {
     await expect(db.prepare('SELECT * FROM no_such_table').all()).rejects.toThrow(/no_such_table/);
   });
 
-  it('resumes the same data within 20 minutes, then wipes and denies until 24 h', async () => {
+  it('resumes the same data within the hour, then wipes and denies until 24 h', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     const t0 = Date.UTC(2026, 9, 20, 9, 0, 0);
     vi.setSystemTime(t0);
@@ -323,6 +347,21 @@ describe('demo tokens', () => {
     const out = (await (await rewrapTokens(env, claims, res)).json()) as { data: { token: string } };
     expect(out.data.token.startsWith(DEMO_TOKEN_PREFIX)).toBe(true);
     expect((await unwrapDemoToken(env, out.data.token))?.inner).toBe('c3RvY2stYXV0aC12Mnxu');
+  });
+
+  it('wraps report tickets (rt) so a new tab reaches the sandbox, and relinks them in HTML', async () => {
+    const res = new Response(JSON.stringify({ success: true, data: { rt: 'inner-ticket-123' } }), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const out = (await (await rewrapTokens(env, claims, res)).json()) as { data: { rt: string } };
+    expect(out.data.rt.startsWith(DEMO_TOKEN_PREFIX)).toBe(true);
+    expect((await unwrapDemoToken(env, out.data.rt))?.inner).toBe('inner-ticket-123');
+
+    const html = new Response('<a href="/api/reports/x?rt=inner-ticket-123">PDF</a>', { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    const relinked = await (await relinkTicket(html, 'inner-ticket-123', out.data.rt)).text();
+    expect(relinked).toBe(`<a href="/api/reports/x?rt=${encodeURIComponent(out.data.rt)}">PDF</a>`);
+    const json = new Response('{"rt":"inner-ticket-123"}', { headers: { 'Content-Type': 'application/json' } });
+    expect(await (await relinkTicket(json, 'inner-ticket-123', out.data.rt)).text()).toContain('inner-ticket-123');
   });
 });
 

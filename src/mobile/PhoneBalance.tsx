@@ -9,6 +9,7 @@ import DatePicker from '../components/DatePicker';
 import PhoneSkeleton from './PhoneSkeleton';
 import { financeMonths } from './phoneFinancePeriods';
 import type { FinanceBucket, FinanceMonthly, FinancePeriod, FinanceRow, FinanceStatement } from './financeTypes';
+import Select from '../components/ui/Select';
 
 type EntryKind = 'expense' | 'income' | 'owner_contrib' | 'owner_draw';
 type Section = 'movements' | 'accounts' | 'reports';
@@ -56,13 +57,13 @@ function EntryDialog({ initialKind, saving, error, onClose, onSave }: { initialK
   return <PhoneDialog titleId="pb-entry-title" className="pb-entry-modal" onClose={() => { if (!saving) onClose(); }}><form className="pb-form pb-entry-form" onSubmit={submit}>
     <h2 id="pb-entry-title">Nouvelle écriture — {entryLabels[kind]}</h2><div className="pb-entry-body">
       <p className="pb-entry-step">{step === 0 ? 'Étape 1/2 · Type et libellé' : 'Étape 2/2 · Montant et règlement'}</p>
-      {step === 0 ? <><label>Type<select name="kind" value={kind} onChange={e => { const next = e.target.value as EntryKind; setKind(next); setCategory(entryCategories[next][0]); }}>{(Object.keys(entryLabels) as EntryKind[]).map(k => <option key={k} value={k}>{entryLabels[k]}</option>)}</select></label>
-        <label>Catégorie<select name="category" value={category} onChange={e => setCategory(e.target.value)}>{entryCategories[kind].map(c => <option key={c}>{c}</option>)}</select></label>
+      {step === 0 ? <><label>Type<Select name="kind" value={kind} onChange={e => { const next = e.target.value as EntryKind; setKind(next); setCategory(entryCategories[next][0]); }}>{(Object.keys(entryLabels) as EntryKind[]).map(k => <option key={k} value={k}>{entryLabels[k]}</option>)}</Select></label>
+        <label>Catégorie<Select name="category" value={category} onChange={e => setCategory(e.target.value)}>{entryCategories[kind].map(c => <option key={c}>{c}</option>)}</Select></label>
         <label>Libellé *<input name="description" value={description} maxLength={255} placeholder="Ex. Loyer entrepôt octobre" onChange={e => setDescription(e.target.value)} /></label>
         {!description.trim() && <p className="pb-entry-help">La description est obligatoire.</p>}</> : <>
         <label>Montant *<input name="amount" type="text" inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} /></label>
         <label>Date<DatePicker value={date} onChange={setDate} /></label>
-        <label>Mode de paiement<select name="method" value={method} onChange={e => setMethod(e.target.value)}><option value="cash">Espèces (caisse)</option><option value="bank">Banque / virement</option><option value="card">Carte</option><option value="check">Chèque</option></select></label>
+        <label>Mode de paiement<Select name="method" value={method} onChange={e => setMethod(e.target.value)}><option value="cash">Espèces (caisse)</option><option value="bank">Banque / virement</option><option value="card">Carte</option><option value="check">Chèque</option></Select></label>
         <label>Bénéficiaire / fournisseur (facultatif)<input name="vendor" value={vendor} onChange={e => setVendor(e.target.value)} /></label><label>Notes (facultatif)<textarea name="notes" rows={2} value={notes} onChange={e => setNotes(e.target.value)} /></label>
         {(!Number.isFinite(parsed) || parsed < 0.01 || parsed > 1e12 || !amount.trim()) && <p className="pb-entry-help">Saisissez un montant entre 0,01 et 1 000 000 000 000.</p>}{!validDate(date) && <p className="pb-entry-help">La date doit être valide.</p>}
       </>}{error && <p className="pb-entry-help" role="alert">{error}</p>}
@@ -144,9 +145,9 @@ export default function PhoneBalance() {
   });
   return <div className="pb-page">
     <p className="pb-subtitle">Trésorerie · créances · mouvements</p>
-    <div className="pb-period"><label><span className="pb-sr">Choisir un mois</span><select aria-label="Choisir un mois" value={period || finance?.period || ''} disabled={!finance && !monthChoices.length} onChange={(e) => setPeriod(e.target.value)}>
+    <div className="pb-period"><label><span className="pb-sr">Choisir un mois</span><Select aria-label="Choisir un mois" value={period || finance?.period || ''} disabled={!finance && !monthChoices.length} onChange={(e) => setPeriod(e.target.value)}>
       {!finance && !period && <option value="">Mois</option>}{monthChoices.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
-    </select></label><button className="pb-refresh theme-toggle" type="button" aria-label="Actualiser les soldes" disabled={loading} onClick={refresh}><RefreshCw size={19} /></button></div>
+    </Select></label><button className="pb-refresh theme-toggle" type="button" aria-label="Actualiser les soldes" disabled={loading} onClick={refresh}><RefreshCw size={19} /></button></div>
     <div className="pb-actions" aria-label="Nouvelle écriture">{(Object.keys(entryLabels) as EntryKind[]).map((kind) => { const Icon = kind === 'expense' ? Plus : kind === 'income' ? CircleDollarSign : HandCoins; return <button className="theme-toggle" type="button" key={kind} onClick={() => { setEntryError(''); setEntry(kind); }}><Icon size={18} aria-hidden="true" /><span>{entryLabels[kind]}</span></button>; })}</div>
     <div className="pb-tabs" role="tablist" aria-label="Sections balance">{([['movements', 'Mouvements'], ['accounts', 'Comptes'], ['reports', 'Rapports']] as const).map(([id, label]) => <button className="theme-toggle" key={id} role="tab" type="button" aria-selected={section === id} tabIndex={section === id ? 0 : -1} onClick={() => setSection(id)} onKeyDown={(event) => {
       const ids: Section[] = ['movements', 'accounts', 'reports'];
@@ -166,7 +167,7 @@ export default function PhoneBalance() {
         <AmountCard label="Sorties payées" value={finance.expenses + finance.payroll_paid + finance.supplier_paid} currency={currency} tone="out" />
         {breakdown && <div className="pb-card"><h3>Dépenses par catégorie</h3>{breakdown.expense_categories.length ? breakdown.expense_categories.map((c) => <p key={c.category}>{c.category} <b>{money(c.total, currency)}</b></p>) : <p>Aucune dépense</p>}{breakdown.categories_truncated && <small>Liste partielle</small>}</div>}
         {statement && <><div className="pb-card"><h3>Entrées et sorties</h3><p>Entrées <b>{money(statement.totals.credits, currency)}</b></p><p>Sorties <b>{money(statement.totals.debits, currency)}</b></p><small>{statement.reconciliation.balanced ? 'Relevé équilibré' : 'Écart détecté dans le relevé'}{breakdown && !breakdown.statement.consistent_with_breakdown ? ' · La ventilation diffère du relevé' : ''}</small></div>
-          <div className="pb-card pb-movements"><h3>Transactions récentes</h3><p>{statement.total} mouvement(s) · filtrage des lignes chargées</p><label>Filtrer<select value={filter} onChange={(e) => setFilter(e.target.value)}><option value="all">Toutes les écritures</option><option value="in">Entrées</option><option value="out">Sorties</option><option value="expense">Dépenses</option></select></label><label>Rechercher<input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Libellé, référence…" /></label>
+          <div className="pb-card pb-movements"><h3>Transactions récentes</h3><p>{statement.total} mouvement(s) · filtrage des lignes chargées</p><label>Filtrer<Select value={filter} onChange={(e) => setFilter(e.target.value)}><option value="all">Toutes les écritures</option><option value="in">Entrées</option><option value="out">Sorties</option><option value="expense">Dépenses</option></Select></label><label>Rechercher<input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Libellé, référence…" /></label>
             {visibleRows.map((r, i) => <div className="pb-row" key={`${r.source}-${r.id}-${i}`}><span className="pb-row-icon">{r.credit > 0 ? <ArrowDownLeft size={18} /> : <ArrowUpRight size={18} />}</span><div><strong>{r.label || r.type}</strong><small>{r.ref} {r.ts ? `· ${r.ts.slice(0, 10)}` : ''}</small></div><b className={r.credit > 0 ? 'in' : 'out'}>{r.credit > 0 ? '+' : '−'}{money(r.credit > 0 ? r.credit : r.debit, currency)}</b></div>)}
             {!visibleRows.length && <p>Aucun mouvement parmi les lignes chargées.</p>}{!!statement.has_more && <button className="theme-toggle" type="button" disabled={loadingMore} onClick={loadMore}>{loadingMore ? 'Chargement…' : 'Charger plus'}</button>}
           </div></>}

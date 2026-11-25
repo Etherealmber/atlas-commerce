@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { RELEASES } from '../pages/WhatsNew';
+import { buildDicts } from '../i18n';
 import { REPO_CONTRIBUTORS, getContributorsForRelease } from '../lib/contributors';
 import { APP_VERSION, DISPLAY_VERSION, RELEASE_VISIBLE_CAP, WHATS_NEW_VERSION, semverAtMost } from '../version';
 
@@ -10,6 +11,16 @@ import { APP_VERSION, DISPLAY_VERSION, RELEASE_VISIBLE_CAP, WHATS_NEW_VERSION, s
  * so the "Nouveautés" badge pointed at an empty section).
  */
 describe('WhatsNew releases', () => {
+  it('translates all 0.6–0.9 release release entries into Arabic and English', () => {
+    const dicts = buildDicts();
+    for (const release of RELEASES.filter((r) => /^0\.[6789]\./.test(r.version))) {
+      for (const item of release.sections.flatMap((section) => section.items)) {
+        expect(dicts.ar[item.text], `${release.version}: ${item.id} Arabic`).toBeTruthy();
+        expect(dicts.en[item.text], `${release.version}: ${item.id} English`).toBeTruthy();
+      }
+    }
+  });
+
   it('publishes 0.9.3 and retains the unchanged 0.9.2, 0.9.1 and 0.9.0 notes', () => {
     expect(DISPLAY_VERSION).toBe('0.9.3');
     expect(RELEASE_VISIBLE_CAP).toBe('0.9.3');

@@ -332,3 +332,7 @@ html[data-theme="dark"] .settings-topbar-brand .atlas-lockup.settings-topbar-bra
 .atlas-lockup.is-tap-b .atlas-mark-tick { animation: atlas-ripple 620ms ease-in-out; animation-delay: calc(var(--i) * 26ms); }
 .atlas-lockup.is-tap-b .atlas-mark-tick { animation-name: atlas-ripple-b; }
 @keyframes atlas-ripple-b { 0%, 100% { opacity: 1; } 40% { opacity: 0.18; } }
+
+/* Arabic wordmark remains real text so the selected language is visible. */
+.atlas-lockup-word-ar { display: inline-block; font-family: Tahoma, Arial, sans-serif; font-size: calc(var(--lk-h) * .69); font-weight: 700; line-height: 1.25; white-space: nowrap; }
+.atlas-brand-word-ar { display: inline-block; font-family: Tahoma, Arial, sans-serif; font-size: 24px; font-weight: 700; line-height: 1.25; white-space: nowrap; }

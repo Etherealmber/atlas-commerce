@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getToken } from '../../auth';
 import { getApiBase } from '../../config';
+import Select from '../ui/Select';
 
 export type DesktopOsTab = 'windows' | 'macos' | 'linux';
 
@@ -369,10 +370,10 @@ export default function DesktopUpdateSection({ os, sharedState, loading, loadErr
           </div>
           <div className="form-row">
             <label>Canal</label>
-            <select value={channel} onChange={(e) => setChannel(e.target.value === 'prerelease' ? 'prerelease' : 'stable')}>
+            <Select value={channel} onChange={(e) => setChannel(e.target.value === 'prerelease' ? 'prerelease' : 'stable')}>
               <option value="stable">stable</option>
               <option value="prerelease">prerelease</option>
-            </select>
+            </Select>
           </div>
           <div className="form-row">
             <label>Version minimale (optionnelle)</label>
@@ -428,11 +429,11 @@ export default function DesktopUpdateSection({ os, sharedState, loading, loadErr
         </p>
         <div className="form-row" style={{ maxWidth: 260, marginBottom: 12 }}>
           <label>Architecture</label>
-          <select value={uploadArch} onChange={(e) => setUploadArch(e.target.value as 'universal' | 'x86_64' | 'arm64')}>
+          <Select value={uploadArch} onChange={(e) => setUploadArch(e.target.value as 'universal' | 'x86_64' | 'arm64')}>
             {meta.arches.map((a) => (
               <option key={a.value} value={a.value}>{a.label}</option>
             ))}
-          </select>
+          </Select>
         </div>
         <input
           ref={fileRef}
