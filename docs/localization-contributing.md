@@ -1,0 +1,11 @@
+# Localization roadmap and contributions
+
+French is currently the source language; `src/i18n/messages.ts` contains each French source string together with its English and Arabic translations. The tuple format keeps translations together and is checked for missing values and duplicate keys. It is not yet an extensible language-pack system: `Lang`, language metadata, dictionary construction, the selector, native bridge and some locale-specific behavior currently assume three languages.
+
+To contribute today, edit a tuple, preserve placeholders such as `{n}` and `{name}`, and run `npx vitest run src/__tests__/i18n-core.test.ts src/__tests__/whats-new.test.ts` and `npm run i18n:missing`. Review translations in context, especially amounts, plural forms, user data, and right-to-left screens. The static audit reports candidates, not a verified percentage: it also sees code, names and fragments, and cannot find every dynamic message.
+
+## Future language packs
+
+A practical next step is one source catalog and one JSON or similar catalog per language, with stable message IDs, language metadata (BCP-47 locale, direction and fallback), contributor documentation, and automated duplicate/placeholder/plural checks. Migrate existing French keys gradually with compatibility tests; don't rewrite or machine-translate customer data. Support a language only after the selector, persistence, Android bridge, date/number formatting, RTL behavior, screenshots and native-speaker review are ready. Splitting files alone does not add a language. Existing pattern matching and DOM translation need a compatible migration rather than a simple file split.
+
+For community translations, [Weblate](https://docs.weblate.org/en/latest/admin/continuous.html) supports GitHub synchronization and community workflows; [Crowdin](https://support.crowdin.com/developer/dev-tools/) offers GitHub Actions and translation pull requests. Either can work with standard catalog formats once chosen. Compare hosting, cost, access controls, contributor experience and data policies before adoption. Machine translation can suggest drafts, but human review is necessary, especially for financial terminology and RTL. Do not send business or customer data to translation providers without an appropriate privacy review and authorization.

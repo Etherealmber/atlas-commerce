@@ -34,6 +34,20 @@ type Release = {
 };
 
 
+// Draft for the next release. Keep unpublished until the 0.9.4 release is ready.
+export const UPCOMING_RELEASE_094: Release = {
+  version: '0.9.4',
+  date: '',
+  sections: [
+    { kind: 'improvements', items: [
+      { id: '094i1', platforms: ['web', 'android'], text: 'Langues : traduction élargie en arabe et en anglais, avec des améliorations de la mise en page de droite à gauche.' },
+      { id: '094i2', platforms: ['web'], text: 'Navigation : calendrier et pagination améliorés, et davantage de place pour les pages lorsque Atlas Agent est ouvert.' },
+      { id: '094i3', platforms: ['web'], text: 'Pour tous : Atlas Commerce se rapproche de sa sortie de bêta. Merci de nous accompagner !' },
+      { id: '094i4', platforms: ['desktop'], text: 'À suivre : une application bureau inspirée du site, avec des fonctionnalités, un cache et un démarrage avec votre ordinateur. Nous visons une expérience plus légère que Chrome ; les performances restent à mesurer.' },
+    ] },
+  ],
+};
+
 export const RELEASES: Release[] = [
   {
     version: '0.9.3',

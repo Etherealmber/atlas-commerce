@@ -227,7 +227,6 @@ html[dir="rtl"] .home-landing .hm-live .hl-tot bdi { white-space: nowrap; }
 @media (max-width: 900px) {
   html[dir="rtl"].atlas-agent-docked body .layout:not(#rtl-g):not(#rtl-h):not(#rtl-i) { padding-left: 0 !important; padding-right: 0 !important; }
 }
-html[dir="rtl"] .ac-pager-step svg { transform: scaleX(-1); }
 html[dir="rtl"] .ac-dp-nav svg { transform: scaleX(-1); }
 html[dir="rtl"] .payroll-settings-modal .modal-head > div { min-width: 0; padding-inline-end: 36px; }
 html[dir="rtl"] .atlas-brand-row { gap: 6px; }

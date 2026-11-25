@@ -20,7 +20,7 @@ describe('Arabic desktop polish', () => {
     expect(t('{duration} pour tout essayer', { duration: translate('1 heure') })).toContain('لتجربة كل شيء');
     expect(translate('CNSS salarié (taux, ex: 0.0448 = 4,48 %)')).toContain('الموظف');
   });
-  it('localizes dates while preserving ISO values and direction-aware keyboard paging', async () => {
+  it('localizes dates while preserving ISO values and stable left-to-right keyboard paging', async () => {
     setLang('ar');
     const host = document.createElement('div'); document.body.appendChild(host);
     const root = createRoot(host); const page = vi.fn(); const change = vi.fn();
@@ -33,7 +33,10 @@ describe('Arabic desktop polish', () => {
     expect(document.querySelector('.ac-dp-weekdays')?.textContent).toMatch(/[\u0600-\u06ff]/);
     expect(change).not.toHaveBeenCalled();
     const nav = host.querySelector('nav.ac-pager')!;
+    expect(nav.getAttribute('dir')).toBe('ltr');
     await act(async () => nav.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true })));
+    expect(page).toHaveBeenCalledWith(0);
+    await act(async () => nav.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })));
     expect(page).toHaveBeenCalledWith(2);
     await act(async () => root.unmount());
   });

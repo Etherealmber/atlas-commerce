@@ -1,4 +1,3 @@
-import { useLang } from '../../i18n/core';
 import { type FC, type KeyboardEvent, useId } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 
@@ -68,7 +67,6 @@ export const ListPager: FC<ListPagerProps> = ({
   const setPage = onChange || onPageChange || (() => {});
   const reduceMotion = useReducedMotion();
   const indicatorId = useId();
-  const rtl = useLang() === 'ar';
   const cursorMode = totalPages == null && total == null && hasMore != null;
   const cur0 = Math.max(0, page | 0);
   const tp = cursorMode
@@ -88,8 +86,8 @@ export const ListPager: FC<ListPagerProps> = ({
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLElement>) => {
-    if (e.key === 'ArrowLeft') { e.preventDefault(); goTo(cur + (rtl ? 1 : -1)); }
-    else if (e.key === 'ArrowRight') { e.preventDefault(); goTo(cur + (rtl ? -1 : 1)); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); goTo(cur - 1); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); goTo(cur + 1); }
     else if (e.key === 'Home' && !cursorMode) { e.preventDefault(); goTo(1); }
     else if (e.key === 'End' && !cursorMode) { e.preventDefault(); goTo(tp); }
   };
@@ -98,6 +96,7 @@ export const ListPager: FC<ListPagerProps> = ({
     <nav
       className={`ac-pager${sm ? ' ac-pager--sm' : ''}${tp <= 1 ? ' is-single' : ''}${className ? ` ${className}` : ''}`}
       aria-label="Pagination"
+      dir="ltr"
       onKeyDown={onKeyDown}
     >
       <button

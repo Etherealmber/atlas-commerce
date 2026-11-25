@@ -27,5 +27,5 @@ for (const f of files) {
   for (const m of s.matchAll(/(?:toast|flash|setError|setMsg|setModalError|alert|setSaveMsg)\(\s*'([^'\n]{3,})'/g)) add(m[1], f);
 }
 const rows = [...freq.entries()].sort((a, b) => b[1].n - a[1].n);
-console.log(`${known.size} translated · ${rows.length} French strings still untranslated\n`);
+console.log(`${known.size} dictionary keys · ${rows.length} unmatched source candidates (not a UI coverage percentage)\n`);
 for (const [t, e] of rows.slice(0, limit)) console.log(`${String(e.n).padStart(3)}  ${t}   (${[...e.files][0].replace('src/', '')})`);
