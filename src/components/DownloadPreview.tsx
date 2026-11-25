@@ -1,4 +1,5 @@
 import { useState, type MouseEvent } from 'react';
+import { useLang } from '../i18n/core';
 import ImageLightbox from './ui/ImageLightbox';
 import { themedShotSrc, useDocTheme } from '../lib/useDocTheme';
 
@@ -7,7 +8,8 @@ export default function DownloadPreview({ platform }: { platform: 'android' | 'd
   const [lightbox, setLightbox] = useState<{ src: string; name: string } | null>(null);
   // Captures follow the site theme (dark page → dark screenshots).
   const theme = useDocTheme();
-  const shot = (src: string) => themedShotSrc(src, theme);
+  const lang = useLang();
+  const shot = (src: string) => themedShotSrc(src, theme, lang);
   const openCapture = (e: MouseEvent<HTMLAnchorElement>, src: string, name: string) => {
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
     e.preventDefault();

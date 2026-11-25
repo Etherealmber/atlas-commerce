@@ -940,3 +940,14 @@ html.atlas-login-page body .atlas-login.atlas-login--auth7 #cf-turnstile { scrol
   }
 }
 @keyframes atlas-login-hero-in { from { opacity: 0; transform: translateY(-8px) scale(.96); } to { opacity: 1; transform: none; } }
+
+/* Compact identity step keeps password and verification together on phones. */
+html.atlas-login-page .atlas-login-identity {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 8px 0; min-width: 0; font-size: 14px;
+}
+html.atlas-login-page .atlas-login-identity span { overflow-wrap: anywhere; }
+html.atlas-login-page .atlas-login-identity button {
+  border: 0; background: transparent; color: inherit; text-decoration: underline;
+  padding: 6px; cursor: pointer; font: inherit;
+}

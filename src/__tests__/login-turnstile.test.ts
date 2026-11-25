@@ -52,9 +52,38 @@ describe('login Turnstile', () => {
     delete (window as any).turnstile;
     vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers();
   });
-  async function mount() {
+  async function mount(confirm = true) {
     await act(async () => { root.render(React.createElement(MemoryRouter, null, React.createElement(Login))); });
+    if (confirm) {
+      const input = container.querySelector<HTMLInputElement>('#username')!;
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, 'testuser');
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      await act(async () => { container.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); });
+    }
   }
+  it('asks for an identity before showing password and verification, without the demo banner', async () => {
+    (window as any).turnstile = { render: vi.fn(() => 'id'), remove: vi.fn() };
+    await mount(false);
+    expect(container.querySelector('#password')).toBeNull();
+    expect(container.querySelector('#cf-turnstile')).toBeNull();
+    expect(container.querySelector('.atlas-login-demo')).toBeNull();
+    await act(async () => { container.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); });
+    expect(container.textContent).toContain('Veuillez saisir votre identifiant');
+    const input = container.querySelector<HTMLInputElement>('#username')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, 'test');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await act(async () => { container.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); });
+    expect(container.querySelector('#password')).not.toBeNull();
+    expect(container.querySelector('#cf-turnstile')).not.toBeNull();
+    expect((window as any).turnstile.render.mock.calls[0][1].appearance).toBe('always');
+    await act(async () => { container.querySelector<HTMLButtonElement>('.atlas-login-identity button')!.click(); });
+    expect(container.querySelector<HTMLInputElement>('#username')!.value).toBe('test');
+    expect(container.querySelector('#password')).toBeNull();
+  });
   it('renders a compact mobile widget and cleans it up on unmount', async () => {
     vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(240);
     const remove = vi.fn();
@@ -73,13 +102,13 @@ describe('login Turnstile', () => {
     const script = document.querySelector<HTMLScriptElement>('script[src*="challenges.cloudflare.com/turnstile"]')!;
     expect(script).not.toBeNull();
     await act(async () => { script.dispatchEvent(new Event('error')); });
-    expect(container.textContent).toContain('Vérification Cloudflare indisponible');
+    expect(container.textContent).toContain('Si la vérification ne s’affiche pas');
     const button = container.querySelector<HTMLButtonElement>('.atlas-turnstile-retry')!;
     await act(async () => { button.click(); });
     const replacement = document.querySelector<HTMLScriptElement>('script[src*="challenges.cloudflare.com/turnstile"]');
     expect(replacement).not.toBeNull();
     expect(replacement).not.toBe(script);
-    expect(container.textContent).not.toContain('Vérification Cloudflare indisponible');
+    expect(container.textContent).not.toContain('Si la vérification ne s’affiche pas');
     const render = vi.fn(() => 'new-id');
     (window as any).turnstile = { render, remove: vi.fn() };
     await act(async () => { replacement!.dispatchEvent(new Event('load')); });
@@ -97,7 +126,6 @@ describe('login Turnstile', () => {
         input.dispatchEvent(new Event('input', { bubbles: true }));
       });
     };
-    await setInput('#username', 'testuser');
     await setInput('#password', 'example-password');
     const submit = async () => { await act(async () => { container.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); }); };
     const logins = () => fetchMock.mock.calls.filter(([url]) => String(url).includes('/api/auth/login'));
@@ -127,6 +155,6 @@ describe('login Turnstile', () => {
     vi.useFakeTimers();
     await mount();
     await act(async () => { await vi.advanceTimersByTimeAsync(10001); });
-    expect(container.textContent).toContain('Vérification Cloudflare indisponible');
+    expect(container.textContent).toContain('Si la vérification ne s’affiche pas');
   });
 });

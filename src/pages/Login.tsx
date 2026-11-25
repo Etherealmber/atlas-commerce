@@ -404,6 +404,7 @@ export default function Login() {
   // v0.7 — never prefill an identity: the field starts empty (placeholder only).
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [usernameConfirmed, setUsernameConfirmed] = useState(false);
   const [otp, setOtp] = useState('');
   const [step, setStep] = useState<'password' | 'otp'>('password');
   const [loading, setLoading] = useState(false);
@@ -534,16 +535,9 @@ export default function Login() {
   }, []);
   // The demo account works even when no real password is configured (local / preview).
   const formLocked = !passwordConfigured && !demoConfig?.enabled;
-  const fillDemo = () => {
-    if (!demoConfig) return;
-    setUsername(demoConfig.username);
-    setPassword(demoConfig.password);
-    setFieldErrors({});
-    setError('');
-  };
 
   useEffect(() => {
-    if (!turnstileSiteKey || step !== 'password' || offerBioSetup) return;
+    if (!turnstileSiteKey || !usernameConfirmed || step !== 'password' || offerBioSetup) return;
     let cancelled = false;
     let widgetId: string | undefined;
     let rendered = false;
@@ -606,6 +600,7 @@ export default function Login() {
           'error-callback': fail,
           'timeout-callback': fail,
           theme: turnstileTheme,
+          appearance: 'always',
           size,
         });
         rendered = true;
@@ -636,7 +631,7 @@ export default function Login() {
       if (turnstileWidgetId.current === widgetId) turnstileWidgetId.current = undefined;
       turnstileTokenRef.current = '';
     };
-  }, [turnstileSiteKey, turnstileNonce, turnstileTheme, step, offerBioSetup]);
+  }, [turnstileSiteKey, turnstileNonce, turnstileTheme, step, offerBioSetup, usernameConfirmed]);
 
   const afterToken = (data: any, justTrusted?: boolean) => {
     setToken(data.token, data.ip, (data.username || username).trim().toLowerCase(), data.role || 'user');
@@ -744,6 +739,7 @@ export default function Login() {
         pendingSubmitAt.current = Date.now();
         setError('La vérification Cloudflare n’a pas encore fourni de jeton. Touchez la case de vérification ci-dessous si elle s’affiche : la connexion reprendra toute seule.');
         setLoading(false);
+        setTurnstileHint(true);
         window.setTimeout(() => {
           document.getElementById('cf-turnstile')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
         }, 0);
@@ -1005,20 +1001,6 @@ export default function Login() {
 
           {error && !(demoConfig?.enabled && error === REASON_MESSAGES.NO_PASSWORD_CONFIGURED) && <div className="atlas-login-alert" role="alert">{error}</div>}
           {info && !error && <div className="atlas-login-info" role="status">{info}</div>}
-          {demoConfig && step === 'password' && !offerBioSetup && (
-            <div className={`atlas-login-demo${demoConfig.highlight || formLocked ? ' is-highlight' : ''}`} role="note">
-              <div className="atlas-login-demo-text">
-                <strong>Essayer sans compte</strong>
-                <span>
-                  Identifiant <code>{demoConfig.username}</code> · mot de passe <code>{demoConfig.password}</code> —
-                  {' '}{demoConfig.minutes % 60 === 0 ? `${demoConfig.minutes / 60} h` : `${demoConfig.minutes} min`} d’essai toutes les {demoConfig.window_hours} h, sur une base fictive réinitialisée ensuite.
-                </span>
-              </div>
-              <button type="button" className="atlas-login-demo-fill" onClick={fillDemo} disabled={loading}>
-                Remplir
-              </button>
-            </div>
-          )}
 
           {offerBioSetup ? (
             <div className="atlas-login-form atlas-login-auth7-form atlas-login-swap">
@@ -1044,6 +1026,17 @@ export default function Login() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ type: 'spring', stiffness: 240, damping: 28, bounce: 0, delay: 0.1 }}
               onSubmit={async (e) => {
+                if (!usernameConfirmed) {
+                  e.preventDefault();
+                  if (!username.trim()) {
+                    setFieldErrors((current) => ({ ...current, username: 'Identifiant requis.' }));
+                    setError('Veuillez saisir votre identifiant.');
+                    return;
+                  }
+                  setError('');
+                  setUsernameConfirmed(true);
+                  return;
+                }
                 try {
                   localStorage.setItem('atlas_remember_login', remember30 ? '1' : '0');
                 } catch { /* */ }
@@ -1057,7 +1050,7 @@ export default function Login() {
                 }
               }}
             >
-              <div className="atlas-field">
+              {!usernameConfirmed ? <div className="atlas-field">
                 <label htmlFor="username">Identifiant</label>
                 <input
                   id="username"
@@ -1072,8 +1065,11 @@ export default function Login() {
                   autoComplete="username"
                   disabled={loading || formLocked}
                 />
+              </div> : <>
+              <div className="atlas-login-identity">
+                <span translate="no">{username}</span>
+                <button type="button" onClick={() => { pendingSubmitAt.current = 0; setUsernameConfirmed(false); setPassword(''); setError(''); }} disabled={loading}>Modifier</button>
               </div>
-
               <div className="atlas-field">
                 <label htmlFor="password">
                   Mot de passe{deviceTrusted ? ' (appareil de confiance)' : ''}
@@ -1122,13 +1118,12 @@ export default function Login() {
               </label>
 
               {turnstileSiteKey && shouldLoadTurnstile() ? (
-                <div id="cf-turnstile" className="atlas-turnstile" />
+                <div id="cf-turnstile" className="atlas-turnstile" aria-label="Vérification de sécurité" />
               ) : null}
               {turnstileHint ? (
                 <div className="atlas-turnstile-hint" role="status">
                   <p style={{ margin: 0 }}>
-                    Vérification Cloudflare indisponible sur cette connexion — réessayez
-                    depuis un autre réseau ou relancez la vérification.
+                    Si la vérification ne s’affiche pas, réessayez. Si le problème persiste, désactivez le bloqueur de contenu ou changez de réseau.
                   </p>
                   <button type="button" className="atlas-turnstile-retry" onClick={retryTurnstile}>
                     Réessayer la vérification
@@ -1136,8 +1131,9 @@ export default function Login() {
                 </div>
               ) : null}
 
+              </>}
               <button type="submit" className="atlas-login-submit" disabled={loading || formLocked}>
-                <span>{loading ? 'Un instant…' : deviceTrusted ? 'Entrer dans Atlas' : 'Continuer'}</span>
+                <span>{loading ? 'Un instant…' : !usernameConfirmed ? 'Confirmer' : deviceTrusted ? 'Entrer dans Atlas' : 'Continuer'}</span>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
               </button>
             </motion.form>

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } fr
 import { AtlasMark, AtlasWordmark } from './AtlasMark';
 import { useBrandIntro } from './useBrandIntro';
 import './atlas-brand.css';
+import { useLang } from '../../i18n/core';
 
 type Props = {
   /** Rendered height in px (the wordmark keeps its proportions). Omit to size it from CSS (`--lk-h`, 24px by default). */
@@ -24,6 +25,7 @@ type Props = {
  */
 export function AtlasLockup({ height, markOnly = false, play = 'mount', idle = false, label = 'Atlas', className = '', style }: Props) {
   const intro = useBrandIntro<HTMLSpanElement>(play);
+  const lang = useLang();
   // Touch screens have no hover: a tap plays the same tick ripple (alternating
   // classes so every tap restarts it).
   const [tap, setTap] = useState<'' | 'is-tap-a' | 'is-tap-b'>('');
@@ -42,10 +44,10 @@ export function AtlasLockup({ height, markOnly = false, play = 'mount', idle = f
       className={cls}
       onPointerDown={onPointerDown}
       style={(height ? { '--lk-h': `${height}px`, ...style } : style) as CSSProperties | undefined}
-      {...(label ? { role: 'img', 'aria-label': label } : { 'aria-hidden': true })}
+      {...(label ? { role: 'img', 'aria-label': lang === 'ar' ? label.replace('Atlas Commerce', 'أطلس كوميرس').replace('Atlas', 'أطلس') : label } : { 'aria-hidden': true })}
     >
       <AtlasMark className="atlas-lockup-mark" />
-      {!markOnly && <AtlasWordmark className="atlas-lockup-word" />}
+      {!markOnly && (lang === 'ar' ? <span className="atlas-lockup-word-ar" lang="ar" dir="rtl" aria-hidden="true">أطلس</span> : <AtlasWordmark className="atlas-lockup-word" />)}
     </span>
   );
 }

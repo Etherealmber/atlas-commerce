@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AtlasMark, AtlasWordmark } from './AtlasMark';
 import { useBrandIntro } from './useBrandIntro';
 import './atlas-brand.css';
+import { useLang } from '../../i18n/core';
 
 /**
  * Sidebar lockup. Expanded: sunburst + "Atlas" (+ optional subtitle).
@@ -16,6 +17,7 @@ import './atlas-brand.css';
  */
 export function SidebarBrandLogo({ isCollapsed, subtitle }: { isCollapsed: boolean; subtitle?: string }) {
   const intro = useBrandIntro<HTMLSpanElement>('mount');
+  const lang = useLang();
   const [morph, setMorph] = useState<'' | 'a' | 'b'>('');
   const first = useRef(true);
   useEffect(() => {
@@ -31,8 +33,8 @@ export function SidebarBrandLogo({ isCollapsed, subtitle }: { isCollapsed: boole
     <span ref={intro.ref} className={cls} data-collapsed={isCollapsed ? 'true' : 'false'}>
       <span className="atlas-brand-row">
         <AtlasMark className="atlas-brand-mark" />
-        <span className="atlas-brand-word" aria-hidden="true"><AtlasWordmark /></span>
-        <span className="sr-only">Atlas Commerce</span>
+        <span className="atlas-brand-word" aria-hidden="true">{lang === 'ar' ? <span className="atlas-brand-word-ar" lang="ar" dir="rtl">أطلس</span> : <AtlasWordmark />}</span>
+        <span className="sr-only">{lang === 'ar' ? 'أطلس كوميرس' : 'Atlas Commerce'}</span>
       </span>
       {subtitle ? (
         <span className="atlas-brand-sub-wrap" aria-hidden={isCollapsed || undefined}>
