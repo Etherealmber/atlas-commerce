@@ -101,6 +101,14 @@ describe('i18n core', () => {
     expect(document.querySelector('option')!.value).toBe('Fournitures de bureau');
   });
 
+  it('uses Atlas API for legacy service labels without changing links', async () => {
+    document.body.innerHTML = '<a href="https://cdn1.afmarbre.com/app-updates/">Miroir cdn1.afmarbre.com</a>';
+    retranslateAll(); await tick();
+    const link = document.querySelector('a')!;
+    expect(link.textContent).toBe('Miroir Atlas API');
+    expect(link.getAttribute('href')).toBe('https://cdn1.afmarbre.com/app-updates/');
+  });
+
   it('accepts a language pushed by the native Android shell', () => {
     (window as unknown as { atlasSetLanguage: (l: string) => void }).atlasSetLanguage('en');
     expect(getLang()).toBe('en');

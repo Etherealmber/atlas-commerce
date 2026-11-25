@@ -573,7 +573,7 @@ export function PublicDownloadCta({ prefer, full = true }: { prefer?: Platform; 
   const main: Platform = prefer || detectPlatform();
   const lang = useLang();
   const downloadLabel = (platform: Platform) => lang === 'ar'
-    ? platform === 'android' ? 'تنزيل تطبيق أندرويد' : `تنزيل لـ ${{ windows: 'ويندوز', macos: 'ماك أو إس', linux: 'لينكس' }[platform]}`
+    ? platform === 'android' ? 'تنزيل تطبيق أندرويد' : `تنزيل لنظام ${{ windows: 'ويندوز', macos: 'ماك أو إس', linux: 'لينكس' }[platform]}`
     : `${tr('Télécharger pour')} ${PLATFORM_LABEL[platform]}`;
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement | null>(null);
