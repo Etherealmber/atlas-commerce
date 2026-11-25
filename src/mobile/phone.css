@@ -4185,3 +4185,85 @@ html.phone-shell:not([data-theme="dark"]) body #root .phone-root .ph-agent-bubbl
   -webkit-text-fill-color: #18181b !important;
 }
 html.phone-shell:not([data-theme="dark"]) body #root .phone-root .ph-agent-bubble.assistant .ph-agent-copy { color: #71717a !important; -webkit-text-fill-color: #71717a !important; }
+
+/* ===== 0.9.4 — back buttons follow the floating bar, no outline ===== */
+/* The back arrow sits inside the floating pill (top bar / Atlas Agent dock):
+   it takes the bar's own surface and ink, is a clean 40px circle, and never
+   draws a border or a filled disc. Hover/press is a soft tint of the bar. */
+html.phone-shell body #root .phone-root:not(#x) :is(.phone-topbar .ph-top-back, .phone-topbar .ph-top-settings, .ph-agent-dock-brand > button) {
+  display: grid !important;
+  place-items: center !important;
+  flex: 0 0 40px !important;
+  width: 40px !important;
+  min-width: 40px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  outline: 0;
+  border-radius: 50% !important;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  color: inherit !important;
+  -webkit-text-fill-color: currentColor !important;
+  transition: background-color 0.16s ease;
+}
+html.phone-shell body #root .phone-root:not(#x) :is(.phone-topbar .ph-top-back, .phone-topbar .ph-top-settings, .ph-agent-dock-brand > button) svg { color: currentColor !important; stroke: currentColor !important; }
+html.phone-shell body #root .phone-root:not(#x) :is(.phone-topbar .ph-top-back, .phone-topbar .ph-top-settings, .ph-agent-dock-brand > button):is(:hover, :active) { background: rgba(23, 23, 23, 0.06) !important; border: 0 !important; }
+html.phone-shell body #root .phone-root:not(#x) :is(.phone-topbar .ph-top-back, .phone-topbar .ph-top-settings, .ph-agent-dock-brand > button):focus-visible { background: rgba(23, 23, 23, 0.06) !important; border: 0 !important; outline: 2px solid currentColor; outline-offset: 2px; }
+html.phone-shell body #root .phone-root:not(#x) .phone-topbar { color: #141822; }
+html.phone-shell body #root .phone-root:not(#x) .ph-agent-dock { color: #141822; }
+html[data-theme="dark"].phone-shell body #root .phone-root:not(#x) :is(.phone-topbar, .ph-agent-dock) { color: var(--pd-ink, #f4f4f6); }
+html[data-theme="dark"].phone-shell body #root .phone-root:not(#x) :is(.phone-topbar .ph-top-back, .phone-topbar .ph-top-settings, .ph-agent-dock-brand > button) {
+  background: transparent !important;
+  border: 0 !important;
+  color: var(--pd-ink, #f4f4f6) !important;
+  -webkit-text-fill-color: var(--pd-ink, #f4f4f6) !important;
+}
+html[data-theme="dark"].phone-shell body #root .phone-root:not(#x) :is(.phone-topbar .ph-top-back, .phone-topbar .ph-top-settings, .ph-agent-dock-brand > button):is(:hover, :active, :focus-visible) {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 0 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* ===== 0.9.4 — device scan / connected devices page ===== */
+html.phone-shell body #root .phone-root .ph-device-page { display: flex; flex-direction: column; gap: 14px; padding-bottom: 24px; }
+html.phone-shell body #root .phone-root .ph-device-page .ph-device-heading { margin: 4px 0 2px; }
+html.phone-shell body #root .phone-root .ph-device-page .ph-device-heading > svg { flex: none; color: currentColor; }
+html.phone-shell body #root .phone-root .ph-device-page .ph-scan-idle,
+html.phone-shell body #root .phone-root .ph-linked {
+  margin: 0;
+  background: #ffffff;
+  border: 1px solid var(--ph-border, #e7e5df);
+  border-radius: 18px;
+  box-shadow: var(--ph-shadow, 0 1px 2px rgba(15, 23, 42, 0.04));
+}
+html.phone-shell body #root .phone-root .ph-device-page .ph-scan-idle-icon { background: #f4f4f5; color: #18181b; }
+html.phone-shell body #root .phone-root .ph-device-page .ph-scan-idle p { color: #52525b; }
+html.phone-shell body #root .phone-root .ph-device-page .ph-device-note { margin: 0 4px; color: #71717a; }
+html.phone-shell body #root .phone-root .ph-linked { padding: 14px 14px 8px; color: #18181b; }
+.ph-linked-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 2px 8px; }
+.ph-linked-head h2 { margin: 0; font-size: 16px; font-weight: 700; }
+.ph-linked-count { min-width: 26px; height: 24px; padding: 0 8px; display: inline-grid; place-items: center; border-radius: 999px; background: #f4f4f5; color: #3f3f46; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ph-linked-empty { margin: 4px 2px 10px; color: #71717a; font-size: 13px; }
+.ph-linked-list { list-style: none; margin: 0; padding: 0; }
+.ph-linked-row { display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 10px 2px; border-top: 1px solid var(--ph-border, #ecebe6); }
+.ph-linked-row:first-child { border-top: 0; }
+.ph-linked-ico { flex: none; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 12px; background: #f4f4f5; color: #27272a; }
+.ph-linked-main { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.ph-linked-main strong { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ph-linked-main small { color: #71717a; font-size: 12px; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ph-linked-chip { font-style: normal; padding: 2px 8px; border-radius: 999px; background: #ecfdf5; color: #047857; font-size: 11px; font-weight: 700; }
+html.phone-shell body #root .phone-root:not(#x) button.ph-linked-revoke { flex: none; width: auto !important; min-height: 36px; padding: 0 12px !important; border-radius: 10px !important; border: 0 !important; background: #fef2f2 !important; color: #b91c1c !important; -webkit-text-fill-color: #b91c1c !important; font-size: 13px; font-weight: 650; box-shadow: none !important; }
+.ph-linked-note { margin: 6px 2px 8px; font-size: 12.5px; color: #52525b; }
+/* dark */
+html[data-theme="dark"].phone-shell body #root .phone-root:not(#x) .ph-device-page { color: var(--pd-ink); }
+html[data-theme="dark"].phone-shell body #root .phone-root:not(#x) .ph-device-page :is(.ph-scan-idle, .ph-linked) { background: var(--pd-card) !important; border-color: var(--pd-line) !important; box-shadow: none !important; color: var(--pd-ink); }
+html[data-theme="dark"].phone-shell body #root .phone-root:not(#x) .ph-device-page :is(.ph-scan-idle-icon, .ph-linked-ico, .ph-linked-count) { background: var(--pd-control) !important; color: var(--pd-ink) !important; }
+html[data-theme="dark"].phone-shell body #root .phone-root:not(#x) .ph-device-page :is(.ph-scan-idle p, .ph-device-heading p, .ph-device-note, .ph-linked-empty, .ph-linked-main small, .ph-linked-note) { color: var(--pd-muted) !important; }
+html[data-theme="dark"].phone-shell body #root .phone-root:not(#x) .ph-device-page .ph-linked-row { border-top-color: var(--pd-line); }
+html[data-theme="dark"].phone-shell body #root .phone-root:not(#x) .ph-device-page .ph-linked-row:first-child { border-top: 0; }
+html[data-theme="dark"].phone-shell body #root .phone-root:not(#x) .ph-device-page .ph-linked-chip { background: rgba(16, 185, 129, 0.16); color: #6ee7b7; }
+html[data-theme="dark"].phone-shell body #root .phone-root:not(#x) .ph-device-page button.ph-linked-revoke { background: rgba(248, 113, 113, 0.14) !important; color: #fca5a5 !important; -webkit-text-fill-color: #fca5a5 !important; }

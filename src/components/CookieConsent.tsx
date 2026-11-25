@@ -55,7 +55,7 @@ export default function CookieConsent() {
         {hasDecidedConsent() && (
           <button
             type="button"
-            className="cookie-btn linkish cookie-consent-close"
+            className="cookie-btn cookie-consent-close"
             aria-label="Fermer"
             onClick={() => { setVisible(false); setPanel('banner'); }}
           >
@@ -114,7 +114,7 @@ export default function CookieConsent() {
         <div className="cookie-consent-actions">
           {panel === 'banner' ? (
             <>
-              <button type="button" className="cookie-btn linkish cookie-consent-customize" onClick={() => setPanel('details')}>
+              <button type="button" className="cookie-btn secondary cookie-consent-customize" onClick={() => setPanel('details')}>
                 Personnaliser
               </button>
               <button type="button" className="cookie-btn secondary" onClick={() => closeWith(acceptNecessaryOnly())}>
@@ -126,7 +126,7 @@ export default function CookieConsent() {
             </>
           ) : (
             <>
-              <button type="button" className="cookie-btn linkish" onClick={() => setPanel('banner')}>
+              <button type="button" className="cookie-btn secondary" onClick={() => setPanel('banner')}>
                 Retour
               </button>
               <button

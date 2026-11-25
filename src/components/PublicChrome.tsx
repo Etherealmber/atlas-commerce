@@ -6,6 +6,7 @@ import { invalidateAvatarCache } from '../lib/avatarCache';
 import { resetWelcome } from '../lib/welcome';
 import { useProfileWarm, useProfileTick } from '../lib/useProfileWarm';
 import { TopbarUserMenu } from './shell/TopbarUserMenu';
+import { LanguageSoonDialog } from './LanguageSoonDialog';
 
 const LOGO_DARK = '/atlas-logo-dark.png';
 const LOGO_LIGHT = '/atlas-logo-light.png';
@@ -148,6 +149,34 @@ function PublicThemeToggle() {
       {btn('light', 'clair')}
       {btn('dark', 'sombre')}
     </div>
+  );
+}
+
+/** v0.9.4 — langue pour les visiteurs non connectés (les connectés l’ont dans
+ *  le menu du compte). Même pastille que le trio de thème ; ouvre le dialogue
+ *  « Bientôt — l’arabe et l’anglais arrivent ». */
+function PublicLanguageButton() {
+  const [open, setOpen] = useState(false);
+  if (isLoggedIn()) return null;
+  return (
+    <>
+      <div className="settings-topbar-theme public-theme-trio public-lang-pill">
+        <button
+          type="button"
+          className="public-lang-btn"
+          onClick={() => setOpen(true)}
+          title="Langue — l’arabe et l’anglais arrivent bientôt"
+          aria-label="Langue (français). L’arabe et l’anglais arrivent bientôt"
+          aria-haspopup="dialog"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="m5 8 6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6" />
+          </svg>
+          <span className="public-lang-code">FR</span>
+        </button>
+      </div>
+      <LanguageSoonDialog open={open} onClose={() => setOpen(false)} />
+    </>
   );
 }
 
@@ -327,7 +356,7 @@ export function PublicNav({ links, cta, classic = false }: { links: NavLink[]; c
           </div>
         )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto', flex: '0 0 auto' }}>
-          <div className="pn-main-actions"><PublicThemeToggle />{isLoggedIn() ? <PublicProfileChip /> : cta}</div>
+          <div className="pn-main-actions"><PublicLanguageButton /><PublicThemeToggle />{isLoggedIn() ? <PublicProfileChip /> : cta}</div>
           <button
             type="button"
             ref={menuButton}
@@ -356,7 +385,7 @@ export function PublicNav({ links, cta, classic = false }: { links: NavLink[]; c
             background: c.menuBg, border: `1px solid ${c.menuBorder}`, boxShadow: c.menuShadow,
           }}
         >
-          <div className="pn-mobile-actions"><PublicThemeToggle />{loggedIn ? <PublicProfileChip /> : cta}</div>
+          <div className="pn-mobile-actions"><PublicLanguageButton /><PublicThemeToggle />{loggedIn ? <PublicProfileChip /> : cta}</div>
           <nav className="pn-mobile-links" aria-label="Pages et sections">
           {links.map((l) => (
             <a
@@ -448,6 +477,7 @@ export function PublicSettingsTopbar({ onOpenSidebar }: { onOpenSidebar?: () => 
         </div>
       </div>
       <div className="settings-topbar-right">
+        <PublicLanguageButton />
         <PublicThemeToggle />
         {loggedIn ? <PublicProfileChip /> : <PublicSessionCta />}
       </div>

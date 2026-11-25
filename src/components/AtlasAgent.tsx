@@ -19,6 +19,7 @@ import { isStockRole, canOfficeWork, canSell } from '../auth';
 import { setDensity, type Density } from '../lib/density';
 import { uiToast } from './AppDialogs';
 import { setAgentDraft } from '../lib/agentDraft';
+import { normalizeAgentPolicy, quotaPercent, quotaReached, type AgentPolicy } from '../lib/agentQuota';
 
 
 function IconCopy({ size = 14 }: { size?: number }) {
@@ -591,7 +592,7 @@ export default function AtlasAgent() {
   const [showExtras, setShowExtras] = useState<boolean>(() => {
     try { return localStorage.getItem('atlas_agent_show_extras') === '1'; } catch { return false; }
   });
-  const [agentPolicy, setAgentPolicy] = useState<{ blocked: boolean; isAdmin: boolean; dailyUsed: number; weeklyUsed: number; dailyLimit: number; weeklyLimit: number; dailyResetsAt?: string; weeklyResetsAt?: string } | null>(null);
+  const [agentPolicy, setAgentPolicy] = useState<AgentPolicy | null>(null);
   // v0.7.7 — popup dédié « accès suspendu » : montré une fois par session
   const [blockedModalSeen, setBlockedModalSeen] = useState(() => {
     try { return sessionStorage.getItem('atlas-agent-blocked-seen') === '1'; } catch { return true; }
@@ -602,7 +603,7 @@ export default function AtlasAgent() {
     (async () => {
       try {
         const res = await api.getAgentPolicy();
-        if (alive && res?.data) setAgentPolicy(res.data);
+        if (alive && res?.data) setAgentPolicy(normalizeAgentPolicy(res.data));
       } catch { /* offline: permissive */ }
     })();
     return () => { alive = false; };
@@ -1170,7 +1171,7 @@ export default function AtlasAgent() {
       lastReportedLen.current = msgs.length;
       // v233 — the server charges real tokens; we just refresh the quota display
       api.getAgentPolicy()
-        .then((res: any) => { if (res?.data) setAgentPolicy(res.data); })
+        .then((res: any) => { if (res?.data) setAgentPolicy(normalizeAgentPolicy(res.data)); })
         .catch(() => { /* */ });
     }
   }, [msgs]);
@@ -1191,11 +1192,11 @@ export default function AtlasAgent() {
         setMsgs((m) => [...m, { role: 'assistant', text: "⛔ Accès à Atlas Agent suspendu pour votre compte (abus ou injection de prompt détecté). Contactez un administrateur pour le rétablir." }]);
         return;
       }
-      if (agentPolicy && !agentPolicy.isAdmin && agentPolicy.dailyUsed >= agentPolicy.dailyLimit) {
+      if (agentPolicy && !agentPolicy.isAdmin && quotaReached(agentPolicy.dailyUsed, agentPolicy.dailyLimit)) {
         setMsgs((m) => [...m, { role: 'assistant', text: `📉 Quota quotidien de jetons atteint. Il se rafraîchira ${fmtReset(agentPolicy.dailyResetsAt)} (minuit UTC) — chaque jour à la même heure. Les administrateurs ne sont pas limités.` }]);
         return;
       }
-      if (agentPolicy && !agentPolicy.isAdmin && agentPolicy.weeklyUsed >= agentPolicy.weeklyLimit) {
+      if (agentPolicy && !agentPolicy.isAdmin && quotaReached(agentPolicy.weeklyUsed, agentPolicy.weeklyLimit)) {
         setMsgs((m) => [...m, { role: 'assistant', text: `📉 Quota hebdomadaire de jetons atteint. Il se rafraîchira ${fmtReset(agentPolicy.weeklyResetsAt)} (lundi 00:00 UTC) — chaque semaine au même moment. Les administrateurs ne sont pas limités.` }]);
         return;
       }
@@ -1904,14 +1905,17 @@ export default function AtlasAgent() {
               </span>
             </div>
           )}
-          {agentPolicy && !agentPolicy.isAdmin && !agentPolicy.blocked && (
+          {agentPolicy && !agentPolicy.isAdmin && !agentPolicy.blocked && (quotaPercent(agentPolicy.dailyUsed, agentPolicy.dailyLimit) !== null || quotaPercent(agentPolicy.weeklyUsed, agentPolicy.weeklyLimit) !== null) && (
             <div
               className="atlas-agent-quota"
               title={`Jetons utilisés (jour / semaine) — rafraîchit ${fmtReset(agentPolicy.dailyResetsAt)} / ${fmtReset(agentPolicy.weeklyResetsAt)}`}
             >
-              {Math.min(100, Math.round((agentPolicy.dailyUsed / agentPolicy.dailyLimit) * 100))}% du quota jour · {Math.min(100, Math.round((agentPolicy.weeklyUsed / agentPolicy.weeklyLimit) * 100))}% semaine
-              {agentPolicy.dailyUsed >= agentPolicy.dailyLimit || agentPolicy.weeklyUsed >= agentPolicy.weeklyLimit
-                ? ` — rafraîchit ${fmtReset(agentPolicy.dailyUsed >= agentPolicy.dailyLimit ? agentPolicy.dailyResetsAt : agentPolicy.weeklyResetsAt)}`
+              {[
+                quotaPercent(agentPolicy.dailyUsed, agentPolicy.dailyLimit) !== null ? `${quotaPercent(agentPolicy.dailyUsed, agentPolicy.dailyLimit)}% du quota jour` : '',
+                quotaPercent(agentPolicy.weeklyUsed, agentPolicy.weeklyLimit) !== null ? `${quotaPercent(agentPolicy.weeklyUsed, agentPolicy.weeklyLimit)}% semaine` : '',
+              ].filter(Boolean).join(' · ')}
+              {quotaReached(agentPolicy.dailyUsed, agentPolicy.dailyLimit) || quotaReached(agentPolicy.weeklyUsed, agentPolicy.weeklyLimit)
+                ? ` — rafraîchit ${fmtReset(quotaReached(agentPolicy.dailyUsed, agentPolicy.dailyLimit) ? agentPolicy.dailyResetsAt : agentPolicy.weeklyResetsAt)}`
                 : ''}
             </div>
           )}

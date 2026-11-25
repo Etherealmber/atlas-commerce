@@ -20,9 +20,9 @@ export type WelcomePrefs = {
 
 /** Real captures are individual welcome steps, never a stacked gallery. */
 export const WELCOME_PREVIEWS = [
-  { src: '/shots/desktop-demo.webp', title: 'Tableau de bord Bento en direct', description: 'Pilotez trésorerie, ventes du jour, alertes stock et profit en un coup d’œil.', alt: 'Tableau de bord Atlas Commerce en interface Bento claire', poster: '/shots/dashboard-light.png' },
-  { src: '/shots/dashboard-light.png', title: 'Indicateurs et graphiques interactifs', description: 'Suivez flux de trésorerie, évolution du profit, créances et dettes sur chaque période.', alt: 'Graphiques du tableau de bord Atlas Commerce en thème clair' },
-  { src: '/shots/desktop-products-demo.webp', title: 'Catalogue, stock & dock adaptatif', description: 'Gérez produits, seuils bas, étiquettes et actions rapides depuis une table épurée.', alt: 'Liste des produits Atlas Commerce en thème clair' },
+  { src: '/shots/site-dashboard-light.webp', title: 'Tableau de bord Bento en direct', description: 'Pilotez trésorerie, ventes du jour, alertes stock et profit en un coup d’œil.', alt: 'Capture réelle du tableau de bord Atlas Commerce en thème clair' },
+  { src: '/shots/site-widgets-light.webp', title: 'Indicateurs et graphiques interactifs', description: 'Suivez créances, dettes fournisseurs et santé du stock sur chaque période.', alt: 'Capture réelle des widgets créances, dettes et santé du stock' },
+  { src: '/shots/desktop-products-demo.webp', title: 'Catalogue, stock & dock adaptatif', description: 'Gérez produits, seuils bas, étiquettes et actions rapides depuis une table épurée.', alt: 'Capture réelle de la liste des produits Atlas Commerce en thème clair' },
   { src: '/shots/phone-home-demo.webp', title: 'Votre activité sur téléphone', description: 'Consultez trésorerie, alertes et ventes rapides depuis l’interface mobile.', alt: 'Accueil mobile Atlas Commerce en thème clair' },
   { src: '/shots/phone-products-demo.webp', title: 'Catalogue et réapprovisionnement mobile', description: 'Filtrez les articles à réapprovisionner ou à valider directement depuis le magasin.', alt: 'Produits sur mobile Atlas Commerce en thème clair' },
   { src: '/shots/phone-balance-demo.webp', title: 'Solde, caisse et mouvements en direct', description: 'Saisissez recettes, dépenses et apports avec suivi caisse et banque séparé.', alt: 'Solde et mouvements sur mobile Atlas Commerce en thème clair' },

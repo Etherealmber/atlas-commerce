@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, Sparkles, Settings, Info, Plus, ChevronRight, LayoutDashboard, Languages } from 'lucide-react';
 import { LanguageSoonDialog } from '../LanguageSoonDialog';
+import { ConfirmDialog } from '../ConfirmDialog';
 import { AvatarImage } from '../ui/AvatarImage';
 import { listSavedAccounts, switchSavedAccount, getUsername, clearToken, type SavedAccount } from '../../auth';
 
@@ -26,6 +27,7 @@ export const TopbarUserMenu: FC<Props> = ({
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
+  const [logoutAsk, setLogoutAsk] = useState(false);
   const [accounts, setAccounts] = useState<SavedAccount[]>([]);
   const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -223,7 +225,7 @@ export const TopbarUserMenu: FC<Props> = ({
                   <ChevronRight className="ac-user-dropdown-chev" size={14} aria-hidden />
                 </button>
                 <div className="ac-user-dropdown-sep" role="separator" />
-                <button type="button" role="menuitem" className="ac-user-dropdown-item ac-user-dropdown-item--danger ac-user-dropdown-logout" onClick={() => { setOpen(false); onLogout(); }}>
+                <button type="button" role="menuitem" className="ac-user-dropdown-item ac-user-dropdown-item--danger ac-user-dropdown-logout" onClick={() => { setOpen(false); setLogoutAsk(true); }}>
                   <span className="ac-user-dropdown-ico" aria-hidden>
                     <LogOut size={16} strokeWidth={1.9} />
                   </span>
@@ -235,6 +237,15 @@ export const TopbarUserMenu: FC<Props> = ({
           document.body,
         )}
       <LanguageSoonDialog open={langOpen} onClose={() => setLangOpen(false)} />
+      <ConfirmDialog
+        open={logoutAsk}
+        title="Se déconnecter ?"
+        message="La session actuelle sera fermée. Les données du serveur ne seront pas supprimées."
+        confirmLabel="Se déconnecter"
+        icon={<LogOut size={17} strokeWidth={1.9} />}
+        onCancel={() => setLogoutAsk(false)}
+        onConfirm={() => { setLogoutAsk(false); onLogout(); }}
+      />
     </div>
   );
 };

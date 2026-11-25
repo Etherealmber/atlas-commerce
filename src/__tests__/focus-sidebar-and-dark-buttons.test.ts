@@ -406,8 +406,9 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     expect(reportsSrc).toContain('DateRangePicker');
     expect(reportsSrc).toContain("'ytd'");
 
-    // README history includes 0.9.3-beta, 0.9.2-beta & 0.9.1-beta
-    expect(readmeSrc).toContain('0.0.1-beta → 0.9.3-beta');
+    // README history includes 0.9.4-beta, 0.9.3-beta, 0.9.2-beta & 0.9.1-beta
+    expect(readmeSrc).toContain('0.0.1-beta → 0.9.4-beta');
+    expect(readmeSrc).toContain('### 0.9.4-beta');
     expect(readmeSrc).toContain('### 0.9.3-beta');
     expect(readmeSrc).toContain('### 0.9.2-beta');
     expect(readmeSrc).toContain('### 0.9.1-beta');
@@ -636,7 +637,7 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     const focusCss = readFileSync(path.resolve(process.cwd(), 'src/styles/focus-sidebar.css'), 'utf8');
     const welcomeSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/Welcome.tsx'), 'utf8');
     const welcomeLibSrc = readFileSync(path.resolve(process.cwd(), 'src/lib/welcome.ts'), 'utf8');
-    const tourSrc = readFileSync(path.resolve(process.cwd(), 'src/components/ui/FeatureTour.tsx'), 'utf8');
+    const tourSrc = readFileSync(path.resolve(process.cwd(), 'src/components/GuidedOnboarding.tsx'), 'utf8');
 
     // 1. Settings.tsx: no top .ac-dash-hero block while preserving sr-only h1
     expect(settingsSrc).not.toContain('className="ac-dash-hero"');
@@ -661,14 +662,13 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     expect(welcomeSrc).toContain('welcome-summary-bento');
     expect(welcomeSrc).toContain('welcome-seg-btn');
     expect(welcomeSrc).toContain('Visite rapide des modules');
-    expect(tourSrc).toContain('ac-feature-tour-dot');
+    expect(welcomeSrc).toContain('welcome-tour-note');
+    expect(welcomeSrc).toContain('queueOnboarding()');
+    expect(tourSrc).toContain('ac-onboard-dot');
     for (const cls of [
       '.welcome-skip-btn',
       '.welcome-density-pill',
-      '.welcome-tour-trigger',
       '.welcome-seg-btn',
-      '.ac-feature-tour-close',
-      '.ac-feature-tour-dot',
     ]) {
       expect(overridesCss).toContain(`:not(${cls})`);
       expect(darkCss).toContain(`:not(${cls})`);

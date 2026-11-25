@@ -4641,6 +4641,8 @@ html body .cookie-consent-actions button.cookie-btn.primary {
 }
 html body .cookie-consent-card button.cookie-consent-close {
   z-index: 2;
+  text-decoration: none !important;
+  border: 1px solid transparent !important;
   min-height: 32px !important;
   min-width: 32px;
   padding: 0 !important;
@@ -7011,35 +7013,6 @@ html[data-theme="dark"] body .ac-chart-tooltip {
   padding: 7px 14px !important;
   border-radius: 999px !important;
 }
-.welcome-tour-trigger {
-  border-radius: 999px !important;
-}
-.ac-feature-tour-close {
-  width: 34px !important;
-  height: 34px !important;
-  min-width: 34px !important;
-  min-height: 34px !important;
-  padding: 0 !important;
-  border-radius: 999px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  box-shadow: none !important;
-}
-.ac-feature-tour-dots .ac-feature-tour-dot {
-  width: 10px !important;
-  height: 10px !important;
-  min-width: 0 !important;
-  min-height: 0 !important;
-  padding: 0 !important;
-  border: 0 !important;
-  border-radius: 999px !important;
-  box-shadow: none !important;
-  transition: width 0.18s ease, background-color 0.18s ease !important;
-}
-.ac-feature-tour-dots .ac-feature-tour-dot.on {
-  width: 24px !important;
-}
 
 /* Light & unset theme colors */
 html:not([data-theme="dark"]) body .welcome-skip-btn {
@@ -7085,35 +7058,6 @@ html:not([data-theme="dark"]) body .welcome-segment .welcome-seg-btn.active {
   background: #0f172a !important;
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
-}
-html:not([data-theme="dark"]) body .welcome-tour-trigger {
-  background: #ffffff !important;
-  background-image: none !important;
-  color: #0f172a !important;
-  -webkit-text-fill-color: #0f172a !important;
-  border: 1px solid rgba(15, 23, 42, 0.16) !important;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
-}
-html:not([data-theme="dark"]) body .welcome-tour-trigger:hover {
-  background: #f1f5f9 !important;
-  border-color: rgba(15, 23, 42, 0.28) !important;
-}
-html:not([data-theme="dark"]) body .ac-feature-tour-close {
-  background: #f1f5f9 !important;
-  background-image: none !important;
-  color: #0f172a !important;
-  -webkit-text-fill-color: #0f172a !important;
-  border: 1px solid #e2e8f0 !important;
-}
-html:not([data-theme="dark"]) body .ac-feature-tour-close:hover {
-  background: #e2e8f0 !important;
-}
-html:not([data-theme="dark"]) body .ac-feature-tour-dots .ac-feature-tour-dot {
-  background: #cbd5e1 !important;
-  background-image: none !important;
-}
-html:not([data-theme="dark"]) body .ac-feature-tour-dots .ac-feature-tour-dot.on {
-  background: #0f172a !important;
 }
 
 /* Dark theme colors (Dimmed Charcoal ramp) */
@@ -7162,38 +7106,6 @@ html[data-theme="dark"] body .welcome-segment .welcome-seg-btn.active {
   color: #121215 !important;
   -webkit-text-fill-color: #121215 !important;
 }
-html[data-theme="dark"] body .welcome-tour-trigger {
-  background: #202024 !important;
-  background-image: none !important;
-  color: #dfe2ea !important;
-  -webkit-text-fill-color: #dfe2ea !important;
-  border: 1px solid rgba(255, 255, 255, 0.14) !important;
-}
-html[data-theme="dark"] body .welcome-tour-trigger:hover {
-  background: #27272b !important;
-  color: #f4f4f6 !important;
-  -webkit-text-fill-color: #f4f4f6 !important;
-  border-color: rgba(255, 255, 255, 0.24) !important;
-}
-html[data-theme="dark"] body .ac-feature-tour-close {
-  background: #202024 !important;
-  background-image: none !important;
-  color: #dfe2ea !important;
-  -webkit-text-fill-color: #dfe2ea !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-}
-html[data-theme="dark"] body .ac-feature-tour-close:hover {
-  background: #27272b !important;
-  color: #f4f4f6 !important;
-  -webkit-text-fill-color: #f4f4f6 !important;
-}
-html[data-theme="dark"] body .ac-feature-tour-dots .ac-feature-tour-dot {
-  background: #363a45 !important;
-  background-image: none !important;
-}
-html[data-theme="dark"] body .ac-feature-tour-dots .ac-feature-tour-dot.on {
-  background: #d5d8e2 !important;
-}
 
 /* Complete Dimmed Charcoal unification across Settings, ProductHistory, Products, Onboarding, Welcome & Wizards */
 html[data-theme="dark"] body .settings-main .card,
@@ -7206,8 +7118,6 @@ html[data-theme="dark"] body .ac-audit-table-panel,
 html[data-theme="dark"] body .ac-audit-empty,
 html[data-theme="dark"] body .product-history-card,
 html[data-theme="dark"] body .desktop-product-card,
-html[data-theme="dark"] body .ac-onboard,
-html[data-theme="dark"] body .ac-feature-tour-card,
 html[data-theme="dark"] body .welcome-card,
 html[data-theme="dark"] body .welcome-compare-card,
 html[data-theme="dark"] body .audit-detail-modal,
@@ -7223,7 +7133,6 @@ html[data-theme="dark"] body .ac-settings-info-note,
 html[data-theme="dark"] body .product-history-movement,
 html[data-theme="dark"] body .welcome-pick,
 html[data-theme="dark"] body .welcome-summary-card,
-html[data-theme="dark"] body .ac-onboard-step,
 html[data-theme="dark"] body .settings-sticky-save {
   background: #202024 !important;
   background-color: #202024 !important;
@@ -7657,7 +7566,6 @@ html[data-theme="dark"] body .qr-fab-layer .qr-fab-backdrop:not(#ac-qr) {
    whole page. The layer stays transparent; its own backdrop does the dimming. */
 html[data-theme="dark"] body .qr-fab-layer:not(#ac-dlg),
 html[data-theme="dark"] body .ac-lang-layer:not(#ac-dlg),
-html[data-theme="dark"] body .ac-feature-tour:not(#ac-dlg),
 html[data-theme="dark"] body .ac-edit-profile-root:not(#ac-dlg) {
   background: transparent !important;
   background-color: transparent !important;
@@ -8074,3 +7982,122 @@ html[data-theme="dark"] body .ac-settings-lang .ac-settings-lang-btn:not(#ac-lan
     animation: none !important;
   }
 }
+
+/* v0.9.4 — Atlas Agent: the header "raccourcis" icon button stayed white in dark. */
+html[data-theme="dark"] body .atlas-agent-panel .atlas-agent-head-actions .atlas-agent-iconbtn:not(#ac-agent) {
+  background: #27272a !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"] body .atlas-agent-panel .atlas-agent-head-actions .atlas-agent-iconbtn:not(#ac-agent):hover,
+html[data-theme="dark"] body .atlas-agent-panel .atlas-agent-head-actions .atlas-agent-iconbtn.on:not(#ac-agent) {
+  background: #3f3f46 !important;
+}
+
+/* v0.9.4 — ConfirmDialog (déconnexion) : carte .ac-lang-* + deux boutons */
+.ac-confirm-foot { gap: 8px; margin-top: 18px; }
+html body .ac-confirm-card button.ac-confirm-cancel:not(#ac-cf),
+html body .ac-confirm-card button.ac-confirm-ok:not(#ac-cf) {
+  min-height: 38px !important;
+  padding: 0 18px !important;
+  border-radius: 999px !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  box-shadow: none !important;
+  text-decoration: none !important;
+  cursor: pointer;
+}
+html body .ac-confirm-card button.ac-confirm-cancel:not(#ac-cf) {
+  background: #ffffff !important;
+  border: 1px solid #d4d4d8 !important;
+  color: #18181b !important;
+  -webkit-text-fill-color: #18181b !important;
+}
+html body .ac-confirm-card button.ac-confirm-cancel:not(#ac-cf):hover { background: #f4f4f5 !important; }
+html body .ac-confirm-card--danger button.ac-confirm-ok:not(#ac-cf) {
+  background: #dc2626 !important;
+  border: 1px solid #dc2626 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body .ac-confirm-card--danger button.ac-confirm-ok:not(#ac-cf):hover { background: #b91c1c !important; border-color: #b91c1c !important; }
+html body .ac-confirm-card--default button.ac-confirm-ok:not(#ac-cf) {
+  background: #0a0a0a !important;
+  border: 1px solid #0a0a0a !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body .ac-confirm-card--danger .ac-confirm-ico { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
+html[data-theme="dark"] body .ac-confirm-layer:not(#ac-dlg) { background: transparent !important; border: 0 !important; box-shadow: none !important; }
+html[data-theme="dark"] body .ac-confirm-card button.ac-confirm-cancel:not(#ac-cf) {
+  background: #202024 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+}
+html[data-theme="dark"] body .ac-confirm-card button.ac-confirm-cancel:not(#ac-cf):hover { background: #2a2a2f !important; }
+html[data-theme="dark"] body .ac-confirm-card--danger button.ac-confirm-ok:not(#ac-cf) { background: #ef4444 !important; border-color: #ef4444 !important; }
+html[data-theme="dark"] body .ac-confirm-card--danger button.ac-confirm-ok:not(#ac-cf):hover { background: #dc2626 !important; border-color: #dc2626 !important; }
+html[data-theme="dark"] body .ac-confirm-card--danger .ac-confirm-ico { background: rgba(239, 68, 68, 0.14); border-color: rgba(239, 68, 68, 0.3); color: #fca5a5; }
+html[data-theme="dark"] body .ac-confirm-card--default button.ac-confirm-ok:not(#ac-cf) { background: #fafafa !important; border-color: #fafafa !important; color: #0a0a0a !important; -webkit-text-fill-color: #0a0a0a !important; }
+
+/* v0.9.4 — headings focused programmatically (welcome steps, route changes) are
+   not controls: keep the focus for screen readers, never paint a ring around them. */
+html body h1[tabindex="-1"]:focus:not(#ac-h),
+html body h2[tabindex="-1"]:focus:not(#ac-h),
+html body h3[tabindex="-1"]:focus:not(#ac-h) {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* v0.9.4 — Mon profil : densité d’affichage (sombre) */
+html[data-theme="dark"] body .ac-settings-density-row:not(#ac-dn) {
+  background: rgb(28, 28, 31) !important;
+  border-color: rgb(42, 42, 46) !important;
+  color: #f4f4f5;
+}
+html[data-theme="dark"] body .ac-settings-density-row span:not(#ac-dn) { color: #a1a1aa !important; }
+
+/* v0.9.4 — Welcome note + Visite guidée (sombre) */
+html[data-theme="dark"] body .welcome-tour-note:not(#ac-ob) { background: #1c1c1f; color: #d4d4d8; }
+html[data-theme="dark"] body .welcome-tour-note-icon:not(#ac-ob) { background: #27272a; border-color: #3f3f46; color: #f4f4f5; }
+html[data-theme="dark"] body .welcome-tour-note-text strong:not(#ac-ob) { color: #f4f4f5; }
+html[data-theme="dark"] body .welcome-tour-note-text span:not(#ac-ob) { color: #a1a1aa; }
+html[data-theme="dark"] body .ac-onboard-spot:not(#ac-ob) { box-shadow: 0 0 0 3px #e4e4e7, 0 0 0 9999px rgba(0, 0, 0, 0.58); }
+html[data-theme="dark"] body .ac-onboard-dim:not(#ac-ob) { background: rgba(0, 0, 0, 0.58); }
+html[data-theme="dark"] body .ac-onboard-card:not(#ac-ob) {
+  background: rgb(28, 28, 31) !important;
+  border-color: rgb(42, 42, 46) !important;
+  color: #f4f4f5 !important;
+  box-shadow: 0 24px 60px -18px rgba(0, 0, 0, 0.7) !important;
+}
+html[data-theme="dark"] body .ac-onboard-kicker:not(#ac-ob) { color: #a1a1aa; }
+html[data-theme="dark"] body .ac-onboard-body:not(#ac-ob) { color: #a1a1aa; }
+html[data-theme="dark"] body .ac-onboard-hint:not(#ac-ob),
+html[data-theme="dark"] body .ac-onboard-title:not(#ac-ob) { color: #f4f4f5; }
+html[data-theme="dark"] body .ac-onboard-dot:not(#ac-ob) { background: #3f3f46; }
+html[data-theme="dark"] body .ac-onboard-dot.is-done:not(#ac-ob) { background: #71717a; }
+html[data-theme="dark"] body .ac-onboard-dot.is-active:not(#ac-ob) { background: #e4e4e7; }
+html[data-theme="dark"] body .ac-onboard-card button.ac-onboard-btn--primary:not(#ac-ob):not(#ac-ob2) {
+  background: #3f3f46 !important;
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+  border-color: #52525b !important;
+}
+html[data-theme="dark"] body .ac-onboard-card button.ac-onboard-btn--primary:not(#ac-ob):not(#ac-ob2):hover { background: #52525b !important; }
+html[data-theme="dark"] body .ac-onboard-card button.ac-onboard-btn--ghost:not(#ac-ob):not(#ac-ob2),
+html[data-theme="dark"] body .ac-onboard-card button.ac-onboard-skip:not(#ac-ob):not(#ac-ob2) {
+  background: #27272a !important;
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+  border-color: #3f3f46 !important;
+}
+html[data-theme="dark"] body .ac-onboard-card button.ac-onboard-close:not(#ac-ob):not(#ac-ob2) {
+  background: transparent !important;
+  color: #a1a1aa !important;
+  -webkit-text-fill-color: #a1a1aa !important;
+  border-color: transparent !important;
+}
+html[data-theme="dark"] body .ac-onboard-card button.ac-onboard-close:not(#ac-ob):not(#ac-ob2):hover { background: #27272a !important; color: #f4f4f5 !important; }

@@ -11,7 +11,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT license" /></a>
   <a href="LICENSE-APACHE"><img src="https://img.shields.io/badge/License-Apache--2.0-blue.svg" alt="Apache 2.0 license" /></a>
   <!-- SUPPORT-SYNC:badge:start -->
-  <img src="https://img.shields.io/badge/version-0.9.3--beta-blue" alt="Version 0.9.3-beta" />
+  <img src="https://img.shields.io/badge/version-0.9.4--beta-blue" alt="Version 0.9.4-beta" />
 <!-- SUPPORT-SYNC:badge:end -->
 </p>
 <p>
@@ -30,19 +30,38 @@
 
 ## 📸 Aperçu de l’application
 
-Aperçus en thème clair : données et identité de démonstration. Les écrans et les permissions peuvent varier selon la version.
-
-| Web mobile — accueil | Web mobile — produits | Web mobile — balance |
-| --- | --- | --- |
-| ![Accueil web mobile avec données fictives](public/shots/phone-home-demo.webp) | ![Catalogue web mobile avec données fictives](public/shots/phone-products-demo.webp) | ![Balance web mobile avec données fictives](public/shots/phone-balance-demo.webp) |
+Captures **réelles** de l’interface web (pas de maquettes) : données et identité de démonstration. Les écrans et les permissions peuvent varier selon la version.
 
 ### Interface web sur ordinateur
 
-![Tableau de bord web sur ordinateur avec données fictives](public/shots/desktop-demo.webp)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="public/shots/site-dashboard-dark.webp" />
+  <img src="public/shots/site-dashboard-light.webp" alt="Tableau de bord web sur ordinateur avec données fictives" />
+</picture>
+
+| Thème clair | Thème sombre |
+| --- | --- |
+| ![Tableau de bord, thème clair](public/shots/site-dashboard-light.webp) | ![Tableau de bord, thème sombre](public/shots/site-dashboard-dark.webp) |
+| ![Assistant « Nouvelle vente rapide »](public/shots/site-quick-sale-light.webp) | ![Assistant « Nouvelle facture de vente »](public/shots/site-invoice-dark.webp) |
+| ![Assistant « Nouveau produit »](public/shots/site-product-light.webp) | ![Assistant « Ajuster le stock »](public/shots/site-stock-dark.webp) |
+| ![Widgets créances, dettes et santé du stock](public/shots/site-widgets-light.webp) | ![Centre de notifications](public/shots/site-notifications-dark.webp) |
 
 ![Catalogue web sur ordinateur avec données fictives](public/shots/desktop-products-demo.webp)
 
-Ces captures montrent l'interface web, pas les clients natifs Android ou bureau, dont l'apparence peut différer. Elles sont produites dans Chromium avec des réponses API fictives, sans connexion à une base de production. Pour les reproduire, démarrer `npx vite --config scripts/vite-capture.config.mjs --port 5173`, puis lancer `node scripts/capture-demo-shots.mjs` : les appels API et réseaux externes sont bloqués et remplacés par des données locales fictives.
+| Atlas Agent (clair) | Atlas Agent (sombre) |
+| --- | --- |
+| ![Panneau Atlas Agent, conversation fictive, thème clair](public/shots/site-agent-light.webp) | ![Panneau Atlas Agent, conversation fictive, thème sombre](public/shots/site-agent-dark.webp) |
+
+### Web mobile
+
+| Accueil | Produits | Balance |
+| --- | --- | --- |
+| ![Accueil web mobile avec données fictives](public/shots/phone-home-demo.webp) | ![Catalogue web mobile avec données fictives](public/shots/phone-products-demo.webp) | ![Balance web mobile avec données fictives](public/shots/phone-balance-demo.webp) |
+
+Ces captures montrent l'interface web, pas les clients natifs Android ou bureau, dont l'apparence peut différer. Elles sont produites dans Chromium (police DM Sans) avec des réponses API fictives, sans connexion à une base de production :
+
+- tableau de bord, assistants, widgets et notifications : `node scripts/make-site-shots.mjs` les dérive des captures de référence mesurées dans `docs/desktop-shell-reference/` (même rendu que le site, clair et sombre) et de `docs/site-shot-sources/` (panneau Atlas Agent) ;
+- web mobile et catalogue : démarrer `npx vite --config scripts/vite-capture.config.mjs --port 5173`, puis lancer `DM_SANS_DIR=<dossier woff2 DM Sans> node scripts/capture-demo-shots.mjs` : les appels API et réseaux externes sont bloqués et remplacés par des données locales fictives.
 
 ## Intégration Android — 0.8.1
 
@@ -126,8 +145,8 @@ Vérifiez l'API : `curl http://localhost:36521/api/health`.
 
 ```bash
 npm run smoke                              # suite de tests API bout-en-bout
-LD_LIBRARY_PATH=... node scripts/capture-shots.mjs   # captures réelles (voir plus haut)
-node scripts/make-posters.mjs              # 12 posters Instagram 1:1
+node scripts/make-site-shots.mjs           # captures du site (voir plus haut)
+DM_SANS_DIR=... node scripts/capture-desktop-reference.mjs   # références desktop (pages, réglages, agent)
 ```
 
 ### 6. Déployer sur Cloudflare
@@ -381,7 +400,7 @@ Atlas Commerce est développé et maintenu par **[Etherealmber](https://github.c
 - Les trois tournent sur chaque pull request (et sur main) avec filters par chemin : un PR rouge ne devrait jamais être mergé, donc jamais déployé
 
 <!-- SUPPORT-SYNC:support:start -->
-Version actuelle : **0.9.3-beta** (gelée jusqu'au prochain ordre de push).
+Version actuelle : **0.9.4-beta** (gelée jusqu'au prochain ordre de push).
 
 > **Politique de support** : seule la mineure courante (**0.9**) reçoit correctifs et mises à jour de sécurité. Dès la sortie de la mineure suivante (ex. 0.10.0), la mineure précédente passe immédiatement en fin de support — 0.8.x l'est depuis 0.9.0. Les versions 0.8.x et antérieures ne sont plus supportées.
 <!-- SUPPORT-SYNC:support:end -->
@@ -389,7 +408,12 @@ Version actuelle : **0.9.3-beta** (gelée jusqu'au prochain ordre de push).
 Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depuis la première version interne ; le détail complet et vivant est dans l'app (**Nouveautés**), y compris l’ancien cycle bêta pré-renumérotation, renuméroté en **0.x** (0.0.1 → 0.4.4).
 
 <details>
-<summary>📦 Historique des versions (0.0.1-beta → 0.9.3-beta) — cliquer pour déplier</summary>
+<summary>📦 Historique des versions (0.0.1-beta → 0.9.4-beta) — cliquer pour déplier</summary>
+
+### 0.9.4-beta
+- Visite guidée après le guide de bienvenue (Produits → « Ajouter un produit », client, facture, vente rapide, caisse, Atlas Agent, menu du compte ; Suivant / Précédent / Passer, progression gardée, à revoir depuis Paramètres → Mon profil) ; densité « Compacte » de nouveau active sur ordinateur (boutons, champs, cartes, tableaux, barre latérale et barre flottante) avec réglage dans Mon profil.
+- Confirmation « Se déconnecter ? » avant la déconnexion ; bouton « Langue » (bientôt) pour les visiteurs des pages publiques ; boutons du bandeau cookies qui ne ressemblent plus à des liens ; plus de contour sur « Bonjour » ; « Visite rapide des modules » informative.
+- Vraies captures d'écran clair/sombre sur l'accueil, `/desktop`, le guide de bienvenue et ce README ; références visuelles du client bureau (pages, Paramètres, Atlas Agent, menu du compte, visite guidée) ; correctifs thème sombre du Solde, du scan d'appareil mobile et d'Atlas Agent, quota sans « NaN », clôtures de caisse robustes. Publiée le 25 novembre 2026.
 
 ### 0.9.3-beta
 - Navigation entre les pages réécrite sur toutes les listes (numéros de page, points de suspension, page courante animée, clavier ← → Début/Fin, thèmes clair et sombre), boutons « Voir la balance / la boîte / le catalogue » du tableau de bord transformés en vrais boutons, squelettes de chargement alignés sur le nouveau tableau de bord et squelette éditorial sur l'accueil, Android, Desktop et Support.

@@ -38,5 +38,21 @@
       "type": "image/png",
       "purpose": "any"
     }
+  ],
+  "screenshots": [
+    {
+      "src": "/shots/site-dashboard-light.webp",
+      "sizes": "1280x800",
+      "type": "image/webp",
+      "form_factor": "wide",
+      "label": "Tableau de bord Atlas Commerce"
+    },
+    {
+      "src": "/shots/phone-home-demo.webp",
+      "sizes": "390x844",
+      "type": "image/webp",
+      "form_factor": "narrow",
+      "label": "Accueil mobile Atlas Commerce"
+    }
   ]
 }

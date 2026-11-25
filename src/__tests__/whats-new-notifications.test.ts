@@ -50,13 +50,13 @@ async function render(node: ReactNode, path = '/dashboard') {
 }
 
 describe('published release notification state', () => {
-  it('announces the new 0.9.3 notes to someone who has seen 0.9.2', () => {
-    localStorage.setItem(SEEN, '0.9.2-beta');
-    localStorage.setItem(MODAL, '0.9.2-beta');
+  it('announces the new 0.9.4 notes to someone who has seen 0.9.3', () => {
+    localStorage.setItem(SEEN, '0.9.3-beta');
+    localStorage.setItem(MODAL, '0.9.3-beta');
     expect(hasUnreadWhatsNew()).toBe(true);
     expect(shouldShowWhatsNewModal()).toBe(true);
   });
-  it.each(['0.9.3', '0.9.3-beta'])('preserves an existing %s marker across build changes', (version) => {
+  it.each(['0.9.4', '0.9.4-beta'])('preserves an existing %s marker across build changes', (version) => {
     localStorage.setItem(SEEN, version);
     localStorage.setItem(MODAL, version);
     expect(hasUnreadWhatsNew()).toBe(false);
@@ -67,19 +67,19 @@ describe('published release notification state', () => {
     expect(localStorage.getItem(MODAL)).toBe(version);
   });
   it('does not reopen a modal when the page-seen marker already covers the release', () => {
-    localStorage.setItem(SEEN, '0.9.3-beta');
+    localStorage.setItem(SEEN, '0.9.4-beta');
     expect(shouldShowWhatsNewModal()).toBe(false);
   });
   it('dismissing only the modal leaves the page unread badge intact', () => {
     markWhatsNewModalSeen();
     expect(shouldShowWhatsNewModal()).toBe(false);
     expect(hasUnreadWhatsNew()).toBe(true);
-    expect(localStorage.getItem(MODAL)).toBe('0.9.3');
+    expect(localStorage.getItem(MODAL)).toBe('0.9.4');
   });
   it('visiting the notes records the published version, not the build version', () => {
     markWhatsNewSeen();
-    expect(localStorage.getItem(SEEN)).toBe('0.9.3');
-    expect(localStorage.getItem(MODAL)).toBe('0.9.3');
+    expect(localStorage.getItem(SEEN)).toBe('0.9.4');
+    expect(localStorage.getItem(MODAL)).toBe('0.9.4');
     expect(hasUnreadWhatsNew()).toBe(false);
   });
   it('preserves newer seen markers when running an older build', () => {
@@ -105,29 +105,32 @@ describe('published release notification state', () => {
 });
 
 describe('release page and popup content', () => {
-  it('shows 0.9.3 first while retaining prior releases', async () => {
+  it('shows 0.9.4 first while retaining prior releases', async () => {
     await render(createElement(WhatsNew), '/whats-new');
     const releases = host.querySelectorAll('.wn-release');
-    expect(releases[0].textContent).toContain('0.9.3');
-    expect(releases[0].textContent).toContain('Navigation entre les pages réécrite');
-    expect(releases[1].textContent).toContain('0.9.2');
-    expect(releases[1].textContent).toContain('Interfaces de chargement harmonisées');
-    expect(releases[2].textContent).toContain('0.9.1');
-    expect(releases[2].textContent).toContain('Connexion desktop expérimentale');
-    expect(releases[3].textContent).toContain('0.9.0');
-    expect(releases[3].textContent).toContain('Cookies et données locales');
-    expect(releases[4].textContent).toContain('0.8.9');
-    expect(releases[4].textContent).toContain('API de suivi');
-    expect(localStorage.getItem(SEEN)).toBe('0.9.3');
+    expect(releases[0].textContent).toContain('0.9.4');
+    expect(releases[0].textContent).toContain('Visite guidée');
+    expect(releases[1].textContent).toContain('0.9.3');
+    expect(releases[1].textContent).toContain('Navigation entre les pages réécrite');
+    expect(releases[2].textContent).toContain('0.9.2');
+    expect(releases[2].textContent).toContain('Interfaces de chargement harmonisées');
+    expect(releases[3].textContent).toContain('0.9.1');
+    expect(releases[3].textContent).toContain('Connexion desktop expérimentale');
+    expect(releases[4].textContent).toContain('0.9.0');
+    expect(releases[4].textContent).toContain('Cookies et données locales');
+    expect(releases[5].textContent).toContain('0.8.9');
+    expect(releases[5].textContent).toContain('API de suivi');
+    expect(localStorage.getItem(SEEN)).toBe('0.9.4');
   });
   it('pairs popup title, date and bullets with the published release', async () => {
     await render(createElement(WhatsNewModal));
     const dialog = host.querySelector('[role="dialog"]');
-    expect(dialog?.textContent).toContain('Atlas Commerce 0.9.3');
+    expect(dialog?.textContent).toContain('Atlas Commerce 0.9.4');
     expect(dialog?.textContent).toContain('25 novembre 2026');
-    expect(dialog?.textContent).toContain('Répartition des charges');
-    expect(dialog?.textContent).toContain('jours déclarés CNSS');
-    expect(dialog?.textContent).toContain('Connexion desktop native sans navigateur');
+    expect(dialog?.textContent).toContain('Visite guidée');
+    expect(dialog?.textContent).toContain('Densité « Compacte »');
+    expect(dialog?.textContent).toContain('Se déconnecter ?');
+    expect(dialog?.textContent).not.toContain('bouton « Langue »');
     expect(dialog?.textContent).not.toContain('build-only-test');
     expect(dialog?.textContent).not.toContain('API de suivi');
     expect(dialog?.querySelectorAll('li')).toHaveLength(3);
@@ -135,7 +138,7 @@ describe('release page and popup content', () => {
     if (!dismissButton) throw new Error('Missing release popup dismiss button');
     await act(async () => dismissButton.click());
     expect(host.querySelector('[role="dialog"]')).toBeNull();
-    expect(localStorage.getItem(MODAL)).toBe('0.9.3');
+    expect(localStorage.getItem(MODAL)).toBe('0.9.4');
   });
   it('does not display the modal on the notes page itself', async () => {
     await render(createElement(WhatsNewModal), '/whats-new');
