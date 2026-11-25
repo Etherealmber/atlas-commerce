@@ -61,6 +61,16 @@ describe('i18n core', () => {
     expect(document.documentElement.dir).toBe('ltr');
   });
 
+  it('localises currency labels in Arabic without changing user data, and restores them', async () => {
+    document.body.innerHTML = '<div><span class="amount">1 260 MAD</span><span data-user-data>Model MAD 12</span><span class="dh">42 DH</span></div>';
+    setLang('ar'); retranslateAll(); await tick();
+    expect(document.querySelector('.amount')!.textContent).toBe('1 260 درهم');
+    expect(document.querySelector('.dh')!.textContent).toBe('42 درهم');
+    expect(document.querySelector('[data-user-data]')!.textContent).toBe('Model MAD 12');
+    setLang('en'); await tick();
+    expect(document.querySelector('.amount')!.textContent).toBe('1 260 MAD');
+  });
+
   it('accepts a language pushed by the native Android shell', () => {
     (window as unknown as { atlasSetLanguage: (l: string) => void }).atlasSetLanguage('en');
     expect(getLang()).toBe('en');

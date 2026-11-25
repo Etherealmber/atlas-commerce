@@ -5,11 +5,12 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { PublicNav } from '../components/PublicChrome';
 import DownloadPreview from '../components/DownloadPreview';
+import { setLang } from '../i18n/core';
 
 let host: HTMLDivElement;
 let root: ReturnType<typeof createRoot>;
 beforeEach(() => { (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true; host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host); localStorage.clear(); });
-afterEach(async () => { await act(async () => root.unmount()); host.remove(); localStorage.clear(); });
+afterEach(async () => { await act(async () => root.unmount()); setLang('fr'); host.remove(); localStorage.clear(); });
 
 it('opens its accessible menu and closes it on Escape or outside interaction', async () => {
   await act(async () => root.render(createElement(MemoryRouter, { children: createElement(PublicNav, { classic: true, links: [{ href: '/desktop', label: 'Bureau' }] }) })));
@@ -22,6 +23,15 @@ it('opens its accessible menu and closes it on Escape or outside interaction', a
   await act(async () => toggle.click());
   await act(async () => document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
   expect(toggle.getAttribute('aria-expanded')).toBe('false');
+});
+
+it('shows the current language in the public language button', async () => {
+  await act(async () => root.render(createElement(MemoryRouter, { children: createElement(PublicNav, { classic: true, links: [] }) })));
+  expect(host.querySelector('.public-lang-code')?.textContent).toBe('FR');
+  await act(async () => setLang('ar'));
+  expect(host.querySelector('.public-lang-code')?.textContent).toBe('AR');
+  await act(async () => setLang('en'));
+  expect(host.querySelector('.public-lang-code')?.textContent).toBe('EN');
 });
 
 it('uses separate, labelled Android and computer previews', async () => {

@@ -9,6 +9,7 @@ import { resetWelcome } from '../lib/welcome';
 import { useProfileWarm, useProfileTick } from '../lib/useProfileWarm';
 import { TopbarUserMenu } from './shell/TopbarUserMenu';
 import { LanguageSoonDialog } from './LanguageSoonDialog';
+import { useLang } from '../i18n/core';
 
 
 /* ------------------------------------------------------------------ */
@@ -157,6 +158,7 @@ function PublicThemeToggle() {
  *  « Bientôt — l’arabe et l’anglais arrivent ». */
 function PublicLanguageButton() {
   const [open, setOpen] = useState(false);
+  const lang = useLang();
   if (isLoggedIn()) return null;
   return (
     <>
@@ -172,7 +174,7 @@ function PublicLanguageButton() {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <path d="m5 8 6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6" />
           </svg>
-          <span className="public-lang-code">FR</span>
+          <span className="public-lang-code" translate="no">{lang.toUpperCase()}</span>
         </button>
       </div>
       <LanguageSoonDialog open={open} onClose={() => setOpen(false)} />

@@ -404,7 +404,7 @@ export default function Login() {
   // v0.7 — never prefill an identity: the field starts empty (placeholder only).
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [usernameConfirmed, setUsernameConfirmed] = useState(false);
+  const [usernameConfirmed, setUsernameConfirmed] = useState(() => !isMobileLogin() && !isNativeClient());
   const [otp, setOtp] = useState('');
   const [step, setStep] = useState<'password' | 'otp'>('password');
   const [loading, setLoading] = useState(false);
@@ -1050,7 +1050,7 @@ export default function Login() {
                 }
               }}
             >
-              {!usernameConfirmed ? <div className="atlas-field">
+              {(!usernameConfirmed || (!isMobileLogin() && !isNativeClient())) && <div className="atlas-field">
                 <label htmlFor="username">Identifiant</label>
                 <input
                   id="username"
@@ -1065,11 +1065,12 @@ export default function Login() {
                   autoComplete="username"
                   disabled={loading || formLocked}
                 />
-              </div> : <>
-              <div className="atlas-login-identity">
+              </div>}
+              {usernameConfirmed && <>
+              {(isMobileLogin() || isNativeClient()) && <div className="atlas-login-identity">
                 <span translate="no">{username}</span>
                 <button type="button" onClick={() => { pendingSubmitAt.current = 0; setUsernameConfirmed(false); setPassword(''); setError(''); }} disabled={loading}>Modifier</button>
-              </div>
+              </div>}
               <div className="atlas-field">
                 <label htmlFor="password">
                   Mot de passe{deviceTrusted ? ' (appareil de confiance)' : ''}

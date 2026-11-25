@@ -45,6 +45,12 @@ function hasLetters(s: string) {
   return /[A-Za-zÀ-ÿ]/.test(s);
 }
 
+/** Localise currency labels in presentation text only; API values stay ISO MAD. */
+function translateDisplay(src: string, lang: Lang) {
+  const out = translate(src, lang);
+  return lang === 'ar' ? out.replace(/\b(?:MAD|DH)\b/g, 'درهم') : out;
+}
+
 function translateText(node: Text, lang: Lang) {
   const value = node.nodeValue ?? '';
   const st = textState.get(node);
@@ -57,7 +63,7 @@ function translateText(node: Text, lang: Lang) {
     return;
   }
   if (node.parentElement && skipped(node.parentElement)) return;
-  const out = translate(src, lang);
+  const out = translateDisplay(src, lang);
   textState.set(node, { src, out });
   if (out !== value) node.nodeValue = out;
 }
@@ -75,7 +81,7 @@ function translateAttrs(el: Element, lang: Lang) {
       if (states) delete states[a];
       continue;
     }
-    const out = translate(src, lang);
+    const out = translateDisplay(src, lang);
     if (!states) { states = {}; attrState.set(el, states); }
     states[a] = { src, out };
     if (out !== value) el.setAttribute(a, out);
@@ -84,7 +90,7 @@ function translateAttrs(el: Element, lang: Lang) {
   if (el instanceof HTMLInputElement && (el.type === 'button' || el.type === 'submit' || el.type === 'reset') && el.value) {
     const st = states?.value;
     const src = st && el.value === st.out ? st.src : el.value;
-    const out = lang === 'fr' ? src : translate(src, lang);
+    const out = lang === 'fr' ? src : translateDisplay(src, lang);
     if (!states) { states = {}; attrState.set(el, states); }
     states.value = { src, out };
     if (out !== el.value) el.value = out;
@@ -151,7 +157,7 @@ function translateTitle(lang: Lang) {
   const cur = document.title;
   const src = cur === titleOut && titleSrc ? titleSrc : cur;
   titleSrc = src;
-  titleOut = lang === 'fr' ? src : translate(src, lang);
+  titleOut = lang === 'fr' ? src : translateDisplay(src, lang);
   if (titleOut !== cur) document.title = titleOut;
 }
 

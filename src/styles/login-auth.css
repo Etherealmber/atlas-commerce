@@ -951,3 +951,10 @@ html.atlas-login-page .atlas-login-identity button {
   border: 0; background: transparent; color: inherit; text-decoration: underline;
   padding: 6px; cursor: pointer; font: inherit;
 }
+/* The desktop form lives on a dark card, regardless of the page theme. */
+html.atlas-login-page body .atlas-login.atlas-login--auth7:not(.atlas-login--phone) .atlas-login-submit {
+  background: #fafafa !important; color: #111827 !important;
+}
+html.atlas-login-page body .atlas-login.atlas-login--auth7:not(.atlas-login--phone) .atlas-login-submit :is(span, svg) {
+  color: #111827 !important; stroke: #111827 !important;
+}

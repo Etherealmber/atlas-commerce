@@ -84,6 +84,15 @@ describe('login Turnstile', () => {
     expect(container.querySelector<HTMLInputElement>('#username')!.value).toBe('test');
     expect(container.querySelector('#password')).toBeNull();
   });
+  it('shows username and password together on desktop', async () => {
+    Object.defineProperty(window, 'matchMedia', { configurable: true, value: () => ({ matches: false, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {} }) });
+    (window as any).turnstile = { render: vi.fn(() => 'desktop-id'), remove: vi.fn() };
+    await mount(false);
+    expect(container.querySelector('#username')).not.toBeNull();
+    expect(container.querySelector('#password')).not.toBeNull();
+    expect(container.querySelector('#cf-turnstile')).not.toBeNull();
+    expect(container.querySelector('.atlas-login-identity')).toBeNull();
+  });
   it('renders a compact mobile widget and cleans it up on unmount', async () => {
     vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(240);
     const remove = vi.fn();

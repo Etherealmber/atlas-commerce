@@ -167,3 +167,19 @@ html[dir="rtl"] body .atlas-agent-panel:not(.open):not(#rtl-g):not(#rtl-h) {
   transform: translateX(-100%) !important;
 }
 html[dir="rtl"] body .atlas-agent-panel .atlas-agent-resize { left: auto; right: 0; }
+
+/* Keep references and numeric cells legible left-to-right inside Arabic copy. */
+html[dir="rtl"] :is(.hl-num, .hl-amt, .hl-pref, .hl-pmeta, .hl-tot, .hl-line i, .hl-line b, .ph-catalog-price, .ac-number-link, .phone-invoice-page td.num) {
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: start;
+}
+html[dir="rtl"] .home-landing :is(.hm-hero-copy, .hm-section-heading, .hm-bento-card, .dl-card, .hm-steps) { text-align: start; }
+html[dir="rtl"] .home-landing :is(.hm-headline-first, .hm-headline-second) { letter-spacing: 0; }
+html[dir="rtl"] .home-landing :is(.hm-start, .dl-chip) svg { transform: scaleX(-1); }
+/* Explicit contrast: the login is dark even if the rest of the site is light. */
+html body .ac-login-lang:not(#lang-g):not(#lang-h):not(#lang-i) { background: #fff !important; border-color: #d4d4d8 !important; direction: ltr; }
+html body .ac-login-lang > button:not(#lang-g):not(#lang-h):not(#lang-i) { color: #475569 !important; -webkit-text-fill-color: currentColor !important; }
+html body .ac-login-lang > button[aria-pressed="true"]:not(#lang-g):not(#lang-h):not(#lang-i) { background: #111827 !important; color: #fff !important; -webkit-text-fill-color: #fff !important; }
+html body .ac-login-lang > button:not(#lang-g):not(#lang-h):not(#lang-i) { min-height: 40px !important; height: auto !important; padding: 0 14px !important; }
+html body .ac-login-lang > button:focus-visible:not(#lang-g):not(#lang-h):not(#lang-i) { outline: 2px solid #2563eb !important; outline-offset: 2px; }

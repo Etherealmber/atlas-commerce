@@ -101,6 +101,7 @@ try {
   }, base, pkgVersion, theme, lang);
   const requested = new Set(process.argv.slice(2));
   for (const shot of [
+    { path: '/dashboard', name: 'site-dashboard', width: 1280, height: 800, mobile: false },
     { path: '/m', name: 'phone-home-demo', width: 390, height: 844, mobile: true },
     { path: '/m/products', name: 'phone-products-demo', width: 390, height: 844, mobile: true },
     { path: '/m/balance', name: 'phone-balance-demo', width: 390, height: 844, mobile: true },
@@ -111,7 +112,7 @@ try {
     await page.setUserAgent(shot.mobile ? 'Mozilla/5.0 (Linux; Android 13; Pixel) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Mobile Safari/537.36' : 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36');
     await page.goto(base + shot.path, { waitUntil: 'networkidle2', timeout: 60000 });
     try {
-      await page.waitForSelector(shot.mobile ? '.phone-root' : shot.path === '/products' ? '.atlas-catalog' : '.atlas-page', { timeout: 30000 });
+      await page.waitForSelector(shot.mobile ? '.phone-root' : shot.path === '/products' ? '.atlas-catalog' : '.ac-desktop-dock', { timeout: 30000 });
     } catch (err) {
       const text = await page.evaluate(() => document.body.innerText.slice(0, 400)).catch(() => '');
       console.error(`${shot.name}: page did not render (${err.message})\n${text}`);
@@ -120,7 +121,7 @@ try {
     }
     await new Promise((r) => setTimeout(r, 450));
     const image = await page.screenshot({ type: 'png' });
-    await sharp(image).webp({ quality: 86 }).toFile(`public/shots/${shot.name}${suffix}.webp`);
+    await sharp(image).webp({ quality: 86 }).toFile(`public/shots/${shot.name}${shot.name === 'site-dashboard' && lang === 'fr' ? `-${theme}` : suffix}.webp`);
     console.log(`${shot.name}${suffix}: ${new URL(page.url()).pathname}`);
   }
 } finally { await browser.close(); }
