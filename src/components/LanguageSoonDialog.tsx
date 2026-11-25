@@ -18,6 +18,7 @@ const LANG_LABEL: Record<Lang, string> = { fr: 'Français', ar: 'Arabe', en: 'An
 export const LanguageSoonDialog: FC<{ open: boolean; onClose: () => void }> = ({ open, onClose }) => {
   const lang = useLang();
   const okRef = useRef<HTMLButtonElement | null>(null);
+  const cardRef = useRef<HTMLDivElement | null>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
@@ -28,7 +29,10 @@ export const LanguageSoonDialog: FC<{ open: boolean; onClose: () => void }> = ({
       if (e.key === 'Escape') onCloseRef.current();
     };
     window.addEventListener('keydown', onKey);
-    const t = window.setTimeout(() => okRef.current?.focus(), 30);
+    const t = window.setTimeout(() => {
+      // Do not steal focus if the user has already started using the dialog.
+      if (!cardRef.current?.contains(document.activeElement)) okRef.current?.focus();
+    }, 30);
     return () => {
       window.removeEventListener('keydown', onKey);
       window.clearTimeout(t);
@@ -43,7 +47,7 @@ export const LanguageSoonDialog: FC<{ open: boolean; onClose: () => void }> = ({
   return createPortal(
     <div className="ac-lang-layer" role="dialog" aria-modal="true" aria-labelledby="ac-lang-title">
       <div className="ac-lang-backdrop" aria-hidden onClick={onClose} />
-      <div className="ac-lang-card">
+      <div className="ac-lang-card" ref={cardRef}>
         <div className="ac-lang-head">
           <span className="ac-lang-ico" aria-hidden>
             <Languages size={18} strokeWidth={1.9} />

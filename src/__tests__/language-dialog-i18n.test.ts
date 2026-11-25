@@ -21,6 +21,7 @@ describe('localized language chooser', () => {
     retranslateAll(); await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
     expect(document.documentElement.lang).toBe('ar');
     expect(radios[1].getAttribute('aria-checked')).toBe('true');
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
     expect(document.activeElement).toBe(radios[1]);
     expect(document.querySelector('.ac-lang-ok')?.textContent?.trim()).toBe('تم');
     await act(async () => root.unmount());
