@@ -49,3 +49,6 @@ android/local.properties
 *.abk
 backups/
 wrangler.local.jsonc
+
+# Local-only visual review output
+artifacts/visual-review/

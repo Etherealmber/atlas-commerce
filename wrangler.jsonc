@@ -213,7 +213,8 @@
     },
     "traces": {
       "enabled": true,
-      "head_sampling_rate": 1,
+      // Sample traces independently; retain full invocation logs for diagnostics.
+      "head_sampling_rate": 0.05,
       "persist": true
     },
     "issues": {

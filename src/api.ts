@@ -6,10 +6,11 @@ export type WorkStatusSource = {
 };
 
 import { getToken, clearToken, refreshSessionRole, getRefreshedTokenFor } from './auth';
+import { getLang } from './i18n/core';
 import { getCachedFingerprint } from './fingerprint';
 import { getApiBase, isNativeApp } from './config';
 import { uiToast } from './components/AppDialogs';
-import { dedupedGet, invalidateGetCache } from './lib/perf';
+import { dedupedGet, invalidateGetCache, peekFreshGet } from './lib/perf';
 
 /** Resolve on each use so Capacitor native is detected reliably */
 export function getBase(): string {
@@ -28,6 +29,13 @@ const GET_CACHE_TTL: Record<string, number> = {
   '/api/auth/me': 15_000,
   '/api/hub/snapshot': 10_000,
 };
+
+/** Synchronous fresh cache access for initial rendering; never crosses sessions. */
+export function peekCachedSettings(): { data: any } | undefined {
+  const token = getToken();
+  if (!token) return undefined;
+  return peekFreshGet(`GET:/api/settings:session:${token}`);
+}
 
 function cacheTtlForPath(path: string): number {
   const base = path.split('?')[0];
@@ -203,7 +211,11 @@ async function requestRaw<T>(path: string, options?: RequestInit & { silent?: bo
     if (!silent429) {
       try { uiToast(msg, 'error'); } catch { /* */ }
     }
-    throw new Error(msg);
+    const err: any = new Error(msg);
+    err.code = data.code;
+    err.status = res.status;
+    err.body = data;
+    throw err;
   }
   if (!res.ok || data.success === false) {
     let msg = data.error || `Erreur (${res.status})`;
@@ -479,6 +491,7 @@ export const api = {
         message,
         user_message: opts?.user_message || message,
         task: opts?.task || 'general',
+        response_language: getLang(),
         timezone: opts?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Africa/Casablanca',
         thread_id: opts?.thread_id || 'live',
         // v234 — images were never sent before: the model could not see them
@@ -1000,6 +1013,12 @@ export const api = {
     if (params?.stats) qs.set('stats', '1');
     return request<{ data: any[]; meta?: { limit: number; has_more: boolean; next_cursor: string | null; range: string; stats?: any } }>(`/api/admin/api-log?${qs}`);
   },
+  listJournalArchive: (day: string, cursor?: string | null) => {
+    const qs = new URLSearchParams({ day });
+    if (cursor) qs.set('cursor', cursor);
+    return request<{ data: string[]; meta: { next_cursor: string | null; mode: string } }>(`/api/admin/journal-archive?${qs}`, { silent: true });
+  },
+  getJournalArchiveItem: (key: string) => request<{ data: any }>(`/api/admin/journal-archive/item?${new URLSearchParams({ key })}`, { silent: true }),
   /** « Expliquer » — Groq (free tier, cached) explanation of one log line. */
   explainLogLine: (kind: 'audit' | 'api', id: number) =>
     request<{ data: { summary: string; risk: 'normal' | 'à surveiller' | 'suspect'; advice: string; source: string; model?: string; network?: { kind: string; label: string; risky: boolean } } }>(

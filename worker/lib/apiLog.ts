@@ -1,7 +1,7 @@
 /**
  * API call journal (« Journal des appels API »).
  *
- * Every /api/* call, successful or not, is written to `api_log` after the
+ * Eligible /api/* calls, including failures, are written to `api_log` after the
  * response is sent (ctx.waitUntil, so it never slows a request). Each row
  * keeps what Cloudflare already knows about the caller: country, city,
  * region, ASN and network operator. No third-party geo-IP lookup is needed.
@@ -52,6 +52,16 @@ export function shouldLogApiCall(path: string, authHeader: string | undefined | 
   // real journal.
   if (String(authHeader || '').includes('atlasdemo.')) return false;
   return true;
+}
+
+/** Repeated pending QR status reads are not security state changes. Keep every
+ * failure, mutation, malformed response and non-pending status in the journal. */
+export async function isIdleQrPoll(method: string, path: string, status: number, response: Response): Promise<boolean> {
+  if (method.toUpperCase() !== 'GET' || status !== 200 || !/^\/api\/auth\/qr\/session\/[^/]+$/.test(path)) return false;
+  try {
+    const body = await response.clone().json() as any;
+    return body?.success === true && body?.data?.status === 'pending' && !body?.data?.has_device;
+  } catch { return false; }
 }
 
 /** What Cloudflare attaches to `request.cf`. All fields are optional. */
@@ -154,6 +164,7 @@ export function normalizeApiPath(path: string): string {
   return path
     .split('?')[0]
     .slice(0, 160)
+    .replace(/(\/api\/auth\/qr\/session\/)[^/]+/i, '$1:token')
     .replace(/\/\d+(?=\/|$)/g, '/:id')
     .replace(/\/[0-9a-f]{8}-[0-9a-f-]{27,}(?=\/|$)/gi, '/:uuid')
     .replace(/\/[A-Za-z0-9_-]{24,}(?=\/|$)/g, '/:token');

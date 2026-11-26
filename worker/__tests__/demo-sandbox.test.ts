@@ -21,7 +21,7 @@ import {
 } from '../lib/demo/policy';
 import { buildDemoModel, buildDemoSeed, buildEmployeeSeed, buildSnapshotSeed, DEMO_COMPANY, seedDemoData } from '../lib/demo/seed';
 import { execScript, runBatch, runStatement, splitSqlStatements, type SqlBackend } from '../lib/demo/sqlEngine';
-import { DEMO_TOKEN_PREFIX, demoOffLimitsResponse, isDevMachineHost, relinkTicket, rewrapTokens, unwrapDemoToken, wrapDemoToken } from '../lib/demo/gateway';
+import { DEMO_TOKEN_PREFIX, configureDemoAi, handleDemoRequest, demoOffLimitsResponse, isDevMachineHost, relinkTicket, rewrapTokens, unwrapDemoToken, wrapDemoToken } from '../lib/demo/gateway';
 import { currentDataScope, inDemoScope, runInDataScope, scopedKey } from '../lib/dataScope';
 import { checkRefreshLimit } from '../lib/cache';
 import { schemaOnce } from '../lib/schema';
@@ -412,5 +412,47 @@ describe('demo off-limits actions', () => {
     expect(demoOffLimitsResponse('/api/admin/backups/restore', 'post')?.status).toBe(403);
     expect(demoOffLimitsResponse('/api/admin/backups', 'GET')).toBeNull();
     expect(demoOffLimitsResponse('/api/products', 'POST')).toBeNull();
+  });
+});
+
+
+describe('demo AI isolation', () => {
+  it('uses only a dedicated key on assistant routes and enforces fail-closed budgets', async () => {
+    const calls: string[] = [];
+    const ns = {
+      idFromName: (name: string) => name,
+      get: (name: string) => ({ fetch: async () => { calls.push(name); return Response.json({ ok: true }); } }),
+    };
+    const env = { GROQ_API_KEY: 'production-secret', DEMO_GROQ_API_KEY: 'demo-secret', DEMO_HUB: ns } as any;
+    const sandbox = {} as any;
+    expect(await configureDemoAi(env, sandbox, 'fingerprint:1', new Request('https://example.com/api/assist/chat', { method: 'POST' }))).toBeNull();
+    expect(sandbox.GROQ_API_KEY).toBe('demo-secret');
+    expect(calls).toEqual(['demo-ai-session:fingerprint:1', 'demo-ai-global']);
+    const other = {} as any;
+    await configureDemoAi(env, other, 'x', new Request('https://example.com/api/issues', { method: 'POST' }));
+    expect(other.GROQ_API_KEY).toBeUndefined();
+    const noDemo = {} as any;
+    await configureDemoAi({ GROQ_API_KEY: 'production-secret', DEMO_HUB: ns } as any, noDemo, 'x', new Request('https://example.com/api/assist/chat', { method: 'POST' }));
+    expect(noDemo.GROQ_API_KEY).toBe('production-secret');
+    const unavailable = {} as any;
+    const denied = await configureDemoAi({ DEMO_GROQ_API_KEY: 'demo-secret' } as any, unavailable, 'x', new Request('https://example.com/api/assist/chat', { method: 'POST' }));
+    expect(denied?.status).toBe(429);
+    expect(await denied?.json()).toMatchObject({ code: 'DEMO_AI_QUOTA', resets_at: expect.any(String) });
+    expect(unavailable.GROQ_API_KEY).toBeUndefined();
+  });
+});
+
+
+describe('authoritative demo countdown', () => {
+  it('reads the matching generation and clock from DemoHub', async () => {
+    const exp = Date.now() + 60000;
+    const env = { JWT_SECRET: 'test-only', DEMO_HUB: { idFromName: (name: string) => name, get: () => ({ fetch: async () => Response.json({ ok: true, now: exp - 45000, meta: { gen: 2, expires_at: exp } }) }) } } as any;
+    const token = await wrapDemoToken(env, { fp: 'a'.repeat(32), gen: 2, exp }, 'inner');
+    const req = new Request('https://example.test/api/demo/session', { headers: { Authorization: `Bearer ${token}` } });
+    const response = await handleDemoRequest(req, env, {} as any, () => { throw new Error('must not dispatch app'); }, async () => ({ ok: true }));
+    expect(response?.status).toBe(200);
+    expect(await response?.json()).toMatchObject({ data: { expires_at: exp, server_now: exp - 45000 } });
+    env.DEMO_HUB.get = () => ({ fetch: async () => Response.json({ ok: true, now: exp - 45000, meta: { gen: 3, expires_at: exp } }) });
+    expect((await handleDemoRequest(req, env, {} as any, () => new Response(), async () => ({ ok: true })))?.status).toBe(401);
   });
 });

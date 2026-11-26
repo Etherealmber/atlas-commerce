@@ -21633,3 +21633,12 @@ html body .ac-onboard-card button.ac-onboard-close:not(#ac-ob) {
   border: 1px solid transparent;
 }
 html body .ac-onboard-card button.ac-onboard-close:not(#ac-ob):hover { background: #f4f4f5; color: #18181b; }
+
+/* Audit connection details: readable in both themes and on narrow screens. */
+.audit-device-details > div { grid-template-columns: minmax(120px, 42%) minmax(0, 1fr); }
+.audit-device-details dd { overflow-wrap: anywhere; }
+.audit-geo-note { color: var(--muted, #64748b); font-size: 12px; line-height: 1.45; }
+
+.audit-detail-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.audit-detail-heading h3 { margin: 0; }
+.audit-detail-heading button { flex: none; }

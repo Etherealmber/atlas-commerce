@@ -275,7 +275,7 @@ export default function Clients() {
             <div className="ac-metric">
               <div className="as-label">Solde total dû</div>
               <div className="as-value" style={{ fontSize: '1.35rem' }}>{Math.round(totalDue).toLocaleString('fr-FR')} MAD<MetricTrend k="receivables" invert /></div>
-              <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>sur {withDue} compte{withDue !== 1 ? 's' : ''}</div>
+              <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>{`sur ${withDue} compte${withDue !== 1 ? 's' : ''}`}</div>
               {withDue > 0 && <span className="badge" style={{ marginTop: 6, background: 'var(--ac-ui-warn-bg, #fef3c7)', color: 'var(--ac-ui-warn-ink, #92400e)' }}>à relancer</span>}
               <MetricSpark k="receivables" invert unit="money" />
             </div>

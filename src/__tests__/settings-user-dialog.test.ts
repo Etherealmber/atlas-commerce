@@ -44,7 +44,45 @@ it('opens on demand, traps keyboard focus and restores focus on Escape', async (
 
 it('keeps the creation fields conditional and marks the password as a new password', () => {
   const settings = readFileSync('src/pages/Settings.tsx', 'utf8');
-  expect(settings).toContain('{userCreateOpen && <SettingsUserDialog');
+  expect(settings).toContain('{userCreateOpen && !pwOpen && <SettingsUserDialog');
   expect(settings).toContain('name="team-new-secret" autoComplete="new-password"');
   expect(settings).toContain('closeUserCreate();');
+});
+
+
+it('uses dialogs for editing users and managing categories and units', () => {
+  const settings = readFileSync('src/pages/Settings.tsx', 'utf8');
+  for (const id of ['edit-team-user-title', 'category-dialog-title', 'unit-dialog-title']) {
+    expect(settings).toContain(`titleId="${id}"`);
+    expect(settings).toContain(`id="${id}"`);
+  }
+  expect(settings).toContain('editingUser && !pwOpen');
+  expect(settings).toContain('d.name === cat.name && d.description === cat.description');
+  expect(settings).toContain('translate(cat.name, uiLang) : cat.name');
+});
+
+it('does not dismiss a saving dialog on Escape or backdrop click', async () => {
+  (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+  const host = document.createElement('div'); document.body.appendChild(host);
+  const root = createRoot(host);
+  let closes = 0;
+  try {
+    await act(async () => root.render(createElement(SettingsUserDialog, { dismissDisabled: true, onClose: () => { closes++; }, children: createElement('input') })));
+    const dialog = document.querySelector<HTMLElement>('[role=dialog]')!;
+    await act(async () => dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+    await act(async () => (dialog.parentElement as HTMLElement).click());
+    expect(closes).toBe(0);
+    await act(async () => root.render(createElement(SettingsUserDialog, { dismissDisabled: false, onClose: () => { closes++; }, children: createElement('input') })));
+    await act(async () => dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+    expect(closes).toBe(1);
+  } finally { await act(async () => root.unmount()); host.remove(); }
+});
+
+
+it('guards both catalog dialog dismissal and reports refresh failures after successful saves', () => {
+  const settings = readFileSync('src/pages/Settings.tsx', 'utf8');
+  expect(settings).toContain('titleId="category-dialog-title" dismissDisabled={catSaving}');
+  expect(settings).toContain('titleId="unit-dialog-title" dismissDisabled={catSaving}');
+  expect(settings).toContain("toast('Enregistré, mais actualisation des catégories impossible. Actualisez la page.', 'error')");
+  expect(settings).toContain("toast('Enregistré, mais actualisation des unités impossible. Actualisez la page.', 'error')");
 });

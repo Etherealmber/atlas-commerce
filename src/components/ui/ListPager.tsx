@@ -96,6 +96,7 @@ export const ListPager: FC<ListPagerProps> = ({
     <nav
       className={`ac-pager${sm ? ' ac-pager--sm' : ''}${tp <= 1 ? ' is-single' : ''}${className ? ` ${className}` : ''}`}
       aria-label="Pagination"
+      dir="ltr"
       onKeyDown={onKeyDown}
     >
       <button

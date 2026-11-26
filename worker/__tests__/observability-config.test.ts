@@ -8,6 +8,8 @@ describe('tracked Worker observability', () => {
     expect(result.error).toBeUndefined();
     const config = result.config;
     expect(config.observability.redact_query_string).toBe(true);
+    expect(config.observability.traces.head_sampling_rate).toBe(0.05);
+    expect(config.observability.logs.head_sampling_rate).toBe(1);
     // This repository does not override observability in its preview block.
     expect(config.previews?.observability).toBeUndefined();
   });

@@ -1,4 +1,5 @@
 import type { AtlasApp } from './types';
+import { otpCopy } from '../lib/otpCopy';
 import type { Env } from '../env';
 import { addColumnIfMissing } from '../lib/schema';
 import { normalizeRole } from '../lib/rbac';
@@ -291,19 +292,15 @@ app.post('/api/auth/login', async (c) => {
     fingerprint: fingerprint !== 'none' ? fingerprint : undefined,
     username,
     verifyUrl,
+    language: c.req.header('Accept-Language'),
   });
-  const emailText =
-    `Code de vérification : ${otp}\n\n` +
-    `Utilisez ce code pour confirmer votre connexion sur ${companyName} (valable 10 minutes).\n` +
-    `Lien de vérification : ${verifyUrl}\n\n` +
-    `---\n` +
-    `Compte : ${username}\n` +
-    `IP : ${ip}\n` +
-    `Empreinte : ${fingerprint}\n` +
-    `Appareil : ${ua.slice(0, 160)}`;
+  const mailCopy = otpCopy(c.req.header('Accept-Language'));
+  const emailText = mailCopy.lang === 'fr'
+    ? `Code de vérification : ${otp}\n\nUtilisez ce code pour confirmer votre connexion sur ${companyName} (valable 10 minutes).\nLien de vérification : ${verifyUrl}\n\n${mailCopy.warning}`
+    : `${mailCopy.code}: ${otp}\n\n${mailCopy.loginIntro} ${mailCopy.expiry}\n${verifyUrl}\n\n${mailCopy.warning}`;
 
   // Free tier: no Queues (paid). Background email via waitUntil only — do not block the response.
-  if (!c.env.EMAIL?.send) {
+  if (!c.env.EMAIL?.send && !(c.env as any).RESEND_API_KEY && String((c.env as any).ENVIRONMENT || '').toLowerCase() !== 'production' && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(new URL(c.req.url).hostname)) {
     // Local development without an e-mail binding: the OTP could never
     // arrive, so trust this device and continue. Production ALWAYS binds
     // EMAIL, therefore the e-mail OTP remains enforced everywhere else.
@@ -323,22 +320,18 @@ app.post('/api/auth/login', async (c) => {
       message: 'Environnement local sans service e-mail — appareil approuvé automatiquement.',
     });
   }
-  // OTPs are never written to logs, including on development/preview hosts.
-  const sendTask = sendOtpMail(c.env, {
+  // Do not report delivery success before a provider accepted the message.
+  // A missing or failed transport must never bypass OTP in production.
+  const delivered = await sendOtpMail(c.env, {
     to: toAddr,
     from: fromAddr,
-    subject: `${otp} — Code de connexion ${companyName}`,
+    subject: `${otp} — ${mailCopy.loginTag} ${companyName}`,
     html: emailHtml,
     text: emailText,
-  }).then((ok: any) => {
-    if (!ok) console.error('otp_email_failed_all_transports', username);
   });
-  try {
-    const ec = (c as any).executionCtx;
-    if (ec?.waitUntil) ec.waitUntil(sendTask);
-    else void sendTask;
-  } catch {
-    void sendTask;
+  if (!delivered) {
+    console.error('otp_email_failed_all_transports');
+    return c.json({ success: false, code: 'OTP_DELIVERY_FAILED', error: 'Impossible d’envoyer le code de connexion. Réessayez ou contactez l’administrateur.' }, 503);
   }
 
   const masked = toAddr.replace(/^(.{2})[^@]*(@.*)$/, '$1•••$2');

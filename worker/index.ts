@@ -1,3 +1,4 @@
+import { otpCopy } from './lib/otpCopy';
 import { REPORT_TICKET_PATHS, mintScopedReportTicket, verifyScopedReportTicket, verifyScopedPrintTicket } from './lib/report-ticket';
 import { withLedgerCreators } from './lib/documentCreators';
 import { verifyArchiveIdentity } from './lib/finance-report-archive-validation';
@@ -59,7 +60,8 @@ import type { Env } from './env';
 import { doCacheGet, doCachePut, hasLiveCache, checkRefreshLimit, invalidateDashboardCache } from './lib/cache';
 import { keyFromCdnUrl, deleteR2Object } from './lib/r2';
 import { rateLimit, isAllowedImageUrl, clientIpFromRequest } from './lib/security';
-import { shouldLogApiCall, geoFromCf, writeApiLog } from './lib/apiLog';
+import { shouldLogApiCall, geoFromCf, isIdleQrPoll } from './lib/apiLog';
+import { recordApiJournal } from './lib/journalSink';
 import { canMutateBusiness, normalizeRole } from './lib/rbac';
 import { apiFail, apiOk } from './lib/api-response';
 import { toClientError } from './lib/errors';
@@ -372,7 +374,10 @@ app.use('/api/*', async (c, next) => {
           surface: String(c.get('bffSurface') || '') || null,
           ...geoFromCf((c.req.raw as any).cf),
         };
-        ctx.waitUntil(writeApiLog(db, row));
+        const response = c.res;
+        ctx.waitUntil((async () => {
+          await recordApiJournal(c.env, db, row, await isIdleQrPoll(row.method, path, status, response));
+        })());
       }
     } catch { /* journaling never breaks a request */ }
   }
@@ -1999,6 +2004,7 @@ function otpEmailHTML(
     fingerprint?: string;
     username?: string;
     verifyUrl?: string;
+    language?: string;
   },
 ): string {
   const esc = (s: string) =>
@@ -2011,13 +2017,10 @@ function otpEmailHTML(
   const safeResource = esc(resourceLabel);
   const safeCompany = esc(companyName || 'Atlas Commerce');
   const isLogin = purpose === 'login';
-  const tag = isLogin ? 'VÉRIFICATION DE CONNEXION' : 'VÉRIFICATION DU COMPTE';
-  const h1 = isLogin
-    ? 'Confirmez cette connexion pour sécuriser votre'
-    : 'Confirmez votre e-mail pour sécuriser votre';
-  const intro = isLogin
-    ? 'Une nouvelle connexion vient d’être demandée sur votre compte. Saisissez le code de vérification ci-dessous, ou appuyez sur le bouton.'
-    : `Une opération sensible concernant ${safeResource} nécessite votre confirmation. Utilisez le code de vérification ci-dessous depuis l’application.`;
+  const copy = otpCopy(meta?.language);
+  const tag = isLogin ? copy.loginTag : copy.deleteTag;
+  const h1 = isLogin ? copy.loginHeading : copy.deleteHeading;
+  const intro = isLogin ? copy.loginIntro : `${copy.deleteIntro} (${safeResource})`;
   const ORANGE = '#c45c26'; /* terracotta Atlas */
   const LIGHT_TAG = '#9a461c';
   const DARK_SALMON = '#d4a017';
@@ -2036,10 +2039,10 @@ function otpEmailHTML(
   const DARK_GREY = '#a1a1aa';
   const DARK_FAINT = '#71717a';
   const rows = [
-    meta?.username ? ['Compte', esc(meta.username)] : null,
-    meta?.ip ? ['Adresse IP', esc(meta.ip)] : null,
-    meta?.ua ? ['Appareil', esc(meta.ua.slice(0, 120))] : null,
-    meta?.fingerprint ? ['Empreinte', esc(meta.fingerprint.slice(0, 24))] : null,
+    meta?.username ? [copy.account, esc(meta.username)] : null,
+    meta?.ip ? [copy.ip, esc(meta.ip)] : null,
+    meta?.ua ? [copy.device, esc(meta.ua.slice(0, 120))] : null,
+    meta?.fingerprint ? [copy.fingerprint, esc(meta.fingerprint.slice(0, 24))] : null,
   ].filter(Boolean) as [string, string][];
   // tableau role=presentation : évite que Gmail colle libellé et valeur.
   const deviceBlock = rows.length
@@ -2051,12 +2054,12 @@ function otpEmailHTML(
         .join('')}</table></div>`
     : '';
   const button = meta?.verifyUrl
-    ? `<a href="${esc(meta.verifyUrl)}" style="display:block;width:100%;box-sizing:border-box;background:${ORANGE};border-radius:10px;padding:16px 12px;text-align:center;color:#ffffff;font-size:15px;font-weight:800;letter-spacing:1.2px;text-decoration:none;text-transform:uppercase">Vérifier &amp; continuer</a>`
+    ? `<a href="${esc(meta.verifyUrl)}" style="display:block;width:100%;box-sizing:border-box;background:${ORANGE};border-radius:10px;padding:16px 12px;text-align:center;color:#ffffff;font-size:15px;font-weight:800;letter-spacing:1.2px;text-decoration:none;text-transform:uppercase">${copy.button}</a>`
     : '';
   const social = (href: string, d: string) =>
     `<a href="${href}" style="display:inline-block;margin-left:14px;text-decoration:none"><svg width="17" height="17" viewBox="0 0 24 24" fill="#71717a" xmlns="http://www.w3.org/2000/svg"><path d="${d}"/></svg></a>`;
   return `<!doctype html>
-<html lang="fr">
+<html lang="${copy.lang}" dir="${copy.dir}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -2094,7 +2097,7 @@ function otpEmailHTML(
 </style>
 </head>
 <body class="ac-mail-body" style="margin:0;padding:0;background-color:${LIGHT_CANVAS};font-family:-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;color:${LIGHT_INK}">
-  <div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all">Votre code de vérification : ${safeOtp}. Valable 10 minutes.&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;</div>
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all">${copy.preheader}&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;</div>
   <div class="ac-mail-canvas" style="background-color:${LIGHT_CANVAS};padding:28px 16px 24px">
     <div style="max-width:580px;margin:0 auto;text-align:center">
       <div class="ac-logo-pill" style="display:inline-block;padding:10px 18px;border-radius:14px;background-color:${LIGHT_CARD};background-image:linear-gradient(${LIGHT_CARD},${LIGHT_CARD});border:1px solid ${LIGHT_LINE}">
@@ -2103,16 +2106,16 @@ function otpEmailHTML(
       </div>
       <div style="height:26px"></div>
       <div class="ac-mail-tag" style="font-size:12px;font-weight:800;letter-spacing:2px;color:${LIGHT_TAG};text-transform:uppercase">${tag}</div>
-      <h1 class="ac-mail-ink" style="margin:12px 0 0;font-size:30px;line-height:1.2;font-weight:800;color:${LIGHT_INK}">${h1} <em class="ac-mail-em" style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-weight:600;color:${ORANGE}">compte</em></h1>
+      <h1 class="ac-mail-ink" style="margin:12px 0 0;font-size:30px;line-height:1.2;font-weight:800;color:${LIGHT_INK}">${h1}</h1>
       <p class="ac-mail-muted" style="margin:16px auto 0;max-width:440px;font-size:15px;line-height:1.65;color:${LIGHT_GREY}">${intro}</p>
       <div class="ac-mail-card" style="margin:26px 0 0;background:${LIGHT_CARD};border:1px solid ${LIGHT_LINE};border-radius:14px;padding:24px 16px">
-        <div class="ac-mail-muted" style="font-size:12px;font-weight:600;letter-spacing:0.6px;text-transform:uppercase;color:${LIGHT_GREY};margin-bottom:8px">Votre code de vérification</div>
-        <code class="ac-otp-code" style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:36px;font-weight:800;letter-spacing:6px;font-variant-numeric:tabular-nums;color:${LIGHT_INK};background:transparent;display:inline-block;user-select:all;-webkit-user-select:all">${safeOtp}</code>
+        <div class="ac-mail-muted" style="font-size:12px;font-weight:600;letter-spacing:0.6px;text-transform:uppercase;color:${LIGHT_GREY};margin-bottom:8px">${copy.code}</div>
+        <code dir="ltr" class="ac-otp-code" style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:36px;font-weight:800;letter-spacing:6px;font-variant-numeric:tabular-nums;color:${LIGHT_INK};background:transparent;display:inline-block;user-select:all;-webkit-user-select:all">${safeOtp}</code>
       </div>
       ${button ? `<div style="margin:20px 0 0">${button}</div>` : ''}
       ${deviceBlock}
-      <p class="ac-mail-muted" style="margin:24px auto 0;max-width:400px;font-size:14px;line-height:1.6;color:${LIGHT_GREY}">Vous n’êtes pas à l’origine de cette demande ? Ignorez simplement ce message.</p>
-      <p class="ac-mail-faint" style="margin:8px auto 0;max-width:440px;font-size:12px;line-height:1.6;color:${LIGHT_FAINT}">Code à usage unique, valable 10 minutes. Ne le partagez jamais, y compris avec un membre de votre équipe. · ${safeCompany}</p>
+      <p class="ac-mail-muted" style="margin:24px auto 0;max-width:400px;font-size:14px;line-height:1.6;color:${LIGHT_GREY}">${copy.warning}</p>
+      <p class="ac-mail-faint" style="margin:8px auto 0;max-width:440px;font-size:12px;line-height:1.6;color:${LIGHT_FAINT}">${copy.expiry} · ${safeCompany}</p>
     </div>
   </div>
   <div class="ac-mail-footer" style="background-color:${LIGHT_CARD};border-top:1px solid ${LIGHT_LINE};padding:26px 22px 24px;text-align:center">
@@ -2126,16 +2129,16 @@ ${social('https://www.youtube.com/', 'M23 12s0-3.9-.5-5.7c-.3-1-1.1-1.8-2.1-2.1C
 ${social('https://www.instagram.com/', 'M12 2.2c3.2 0 3.6 0 4.9.1 1.2.1 1.9.2 2.3.4.6.2 1 .5 1.4.9.4.4.7.8.9 1.4.2.4.4 1.1.4 2.3.1 1.3.1 1.7.1 4.9s0 3.6-.1 4.9c-.1 1.2-.2 1.9-.4 2.3-.2.6-.5 1-.9 1.4-.4.4-.8.7-1.4.9-.4.2-1.1.4-2.3.4-1.3.1-1.7.1-4.9.1s-3.6 0-4.9-.1c-1.2-.1-1.9-.2-2.3-.4-.6-.2-1-.5-1.4-.9-.4-.4-.7-.8-.9-1.4-.2-.4-.4-1.1-.4-2.3-.1-1.3-.1-1.7-.1-4.9s0-3.6.1-4.9c.1-1.2.2-1.9.4-2.3.2-.6.5-1 .9-1.4.4-.4.8-.7 1.4-.9.4-.2 1.1-.4 2.3-.4 1.3-.1 1.7-.1 4.9-.1Zm0 3.8a6 6 0 1 0 0 12 6 6 0 0 0 0-12Zm0 9.9a3.9 3.9 0 1 1 0-7.8 3.9 3.9 0 0 1 0 7.8Zm6.2-10.1a1.4 1.4 0 1 1-2.8 0 1.4 1.4 0 0 1 2.8 0Z')}</div>
       </div>
       <div class="ac-mail-footer-ink" style="margin-top:20px;font-size:13px;color:${LIGHT_GREY}">
-        <a href="https://stock.afmarbre.com/" style="color:inherit;text-decoration:underline">Accueil</a>
+        <a href="https://stock.afmarbre.com/" style="color:inherit;text-decoration:underline">${copy.home}</a>
         <span style="margin:0 8px;opacity:0.45">|</span>
-        <a href="https://stock.afmarbre.com/about" style="color:inherit;text-decoration:underline">À propos</a>
+        <a href="https://stock.afmarbre.com/about" style="color:inherit;text-decoration:underline">${copy.about}</a>
         <span style="margin:0 8px;opacity:0.45">|</span>
-        <a href="https://stock.afmarbre.com/whats-new" style="color:inherit;text-decoration:underline">Nouveautés</a>
+        <a href="https://stock.afmarbre.com/whats-new" style="color:inherit;text-decoration:underline">${copy.news}</a>
         <span style="margin:0 8px;opacity:0.45">|</span>
-        <a href="https://stock.afmarbre.com/privacy" style="color:inherit;text-decoration:underline">Confidentialité</a>
+        <a href="https://stock.afmarbre.com/privacy" style="color:inherit;text-decoration:underline">${copy.privacy}</a>
       </div>
       <div class="ac-mail-faint" style="margin-top:12px;font-size:12px;line-height:1.6;color:${LIGHT_FAINT}">Atlas — stock.afmarbre.com<br/>© ${new Date().getUTCFullYear()} Etherealmber · MIT ou Apache-2.0</div>
-      <div style="margin-top:8px"><a href="https://stock.afmarbre.com/settings" class="ac-mail-footer-ink" style="font-size:12px;color:${LIGHT_GREY};text-decoration:underline">Paramètres du compte</a></div>
+      <div style="margin-top:8px"><a href="https://stock.afmarbre.com/settings" class="ac-mail-footer-ink" style="font-size:12px;color:${LIGHT_GREY};text-decoration:underline">${copy.settings}</a></div>
     </div>
   </div>
 </body>
@@ -2189,7 +2192,7 @@ async function issueDeleteOtp(
   resourceId: string,
   resourceLabel: string,
   emailSubject: string,
-  opts?: { toEmail?: string },
+  opts?: { toEmail?: string; language?: string },
 ): Promise<{ otp: string; emailed: boolean; to: string; message: string }> {
   await ensureSecurityTables(env.DB);
   const otp = generateOTP();
@@ -2211,12 +2214,16 @@ async function issueDeleteOtp(
     env.OTP_TO ||
     'admin@afmarbre.com';
 
+  const copy = otpCopy(opts?.language);
+  const label = resourceType === 'agent-data'
+    ? copy.lang === 'ar' ? 'حذف جميع محادثات Atlas Agent' : copy.lang === 'en' ? 'Delete all Atlas Agent conversations' : resourceLabel
+    : resourceLabel;
   const sendPromise = sendOtpMail(env, {
     to: toAddr,
     from: fromAddr,
-    subject: emailSubject,
-    html: otpEmailHTML(otp, resourceLabel, companyName),
-    text: `Code de confirmation pour ${resourceLabel} : ${otp}. Valable 10 minutes.`,
+    subject: copy.lang === 'fr' ? emailSubject : `${copy.deleteTag} — ${label}`,
+    html: otpEmailHTML(otp, label, companyName, 'delete', { language: opts?.language }),
+    text: `${copy.deleteIntro} ${label}\n${copy.code}: ${otp}\n${copy.expiry}\n${copy.warning}`,
   });
   let emailed = false;
   try {

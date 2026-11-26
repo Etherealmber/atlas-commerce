@@ -664,7 +664,7 @@ export default function About() {
               <Heart size={13} strokeWidth={2.2} aria-hidden="true" /> Merci à
             </span>
             <span className="muted" style={{ fontSize: 13 }}>
-              chaque contributeur · voir le journal détaillé dans <Link to="/whats-new">Nouveautés</Link>
+              chaque contributeur et aux personnes qui traduisent Atlas Commerce · voir le journal détaillé dans <Link to="/whats-new">Nouveautés</Link>
             </span>
           </div>
         </section>

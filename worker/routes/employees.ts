@@ -1348,12 +1348,13 @@ app.post('/api/employees/:id/pay', async (c) => {
           `INSERT INTO payroll_assertions(marker, ok)
            SELECT ?, CASE WHEN EXISTS (
              SELECT 1 FROM employees WHERE id = ? AND COALESCE(last_paid_at, '') IS ?
+               AND (last_paid_at IS NULL OR last_paid_at = '' OR substr(last_paid_at, 1, 10) < ?)
            ) AND (
              SELECT COALESCE(SUM(amount), 0) FROM employee_payments
              WHERE employee_id = ? AND paid_at >= ? AND paid_at <= ?
                AND (period_label LIKE 'Acompte%' OR note LIKE '%[acompte]%')
            ) IS ? THEN 1 ELSE 0 END`
-        ).bind(payMarker, Number(id), emp.last_paid_at ?? '', Number(id), fromD, toD, advances),
+        ).bind(payMarker, Number(id), emp.last_paid_at ?? '', toD, Number(id), fromD, toD, advances),
         c.env.DB.prepare(
           `INSERT INTO employee_payments (employee_id, amount, paid_at, period_label, note) VALUES (?, ?, ?, ?, ?)`,
         ).bind(id, amount, paid_at, label, note),

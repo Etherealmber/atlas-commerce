@@ -1,4 +1,7 @@
 import { ShieldAlert, Smartphone, Server, Wifi } from 'lucide-react';
+import { useLang } from '../../i18n/core';
+import { cityName, countryName } from '../../i18n/places';
+export { countryName } from '../../i18n/places';
 
 export type IpGeo = {
   country?: string | null;
@@ -18,25 +21,15 @@ export function flagEmoji(cc?: string | null): string {
   return String.fromCodePoint(...[...c].map((ch) => 0x1f1e6 + ch.charCodeAt(0) - 65));
 }
 
-export function countryName(cc?: string | null): string {
-  const c = String(cc || '').toUpperCase();
-  if (!/^[A-Z]{2}$/.test(c)) return '';
-  if (c === 'T1') return 'Tor';
-  try {
-    return new Intl.DisplayNames([document.documentElement.lang || 'fr'], { type: 'region' }).of(c) || c;
-  } catch {
-    return c;
-  }
-}
-
 /**
  * IP + city/country + network operator, with a VPN / proxy / hosting flag
  * (Grabify-style). The data comes from Cloudflare on the API calls; there is
  * no third-party lookup.
  */
 export default function AuditIpCell({ ip, geo, compact = false }: { ip?: string | null; geo?: IpGeo | null; compact?: boolean }) {
+  useLang();
   if (!ip) return <span className="ac-ip-cell is-empty">—</span>;
-  const place = [geo?.city, countryName(geo?.country)].filter(Boolean).join(', ');
+  const place = [cityName(geo?.city), countryName(geo?.country)].filter(Boolean).join(', ');
   const Icon = geo?.risky ? ShieldAlert : geo?.kind === 'mobile' ? Smartphone : geo?.kind === 'hosting' ? Server : Wifi;
   const tone = geo?.risky ? (geo.kind === 'hosting' ? 'warn' : 'danger') : 'ok';
   const title = [

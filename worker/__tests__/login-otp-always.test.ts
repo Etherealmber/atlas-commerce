@@ -529,3 +529,34 @@ describe('controlled two-account shared-egress regression (local, not staging)',
 });
 
 /* eslint-enable no-await-in-loop */
+
+describe('OTP delivery failures', () => {
+  it('does not bypass OTP or report success when production has no email transport', async () => {
+    env.ENVIRONMENT = 'production';
+    delete env.EMAIL;
+    const result = await login({ username: 'admin', password: 'OwnerPass123!', fingerprint: 'missing-email' });
+    expect(result.status).toBe(503);
+    expect(result.body.token).toBeUndefined();
+  });
+  it('does not report a code was sent when the email provider fails', async () => {
+    env.ENVIRONMENT = 'production';
+    sendSpy.mockRejectedValue(new Error('delivery failed'));
+    const result = await login({ username: 'admin', password: 'OwnerPass123!', fingerprint: 'failed-email' });
+    expect(result.status).toBe(503);
+    expect(result.body.token).toBeUndefined();
+    expect(result.body.emailed).not.toBe(true);
+  });
+});
+
+
+describe('localized OTP email', () => {
+  it('renders Arabic right to left while keeping the one-time code left to right', async () => {
+    const result = await login({ username: 'admin', password: 'OwnerPass123!', fingerprint: 'arabic-email' }, testIp, { 'Accept-Language': 'ar' });
+    expect(result.status).toBe(200);
+    const sent = sendSpy.mock.calls[0][0];
+    expect(sent.html).toContain('<html lang="ar" dir="rtl">');
+    expect(sent.html).toContain('<code dir="ltr"');
+    expect(sent.html).toContain('رمز التحقق');
+    expect(sent.text).toContain('رمز التحقق');
+  });
+});

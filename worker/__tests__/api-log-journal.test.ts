@@ -125,3 +125,18 @@ describe('API journal', () => {
     expect(limited).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('pending QR polling journal policy', () => {
+  it('omits only successful, unclaimed pending status reads, not failures or transitions', async () => {
+    const { isIdleQrPoll } = await import('../lib/apiLog');
+    const path = '/api/auth/qr/session/opaque-token';
+    const body = (status: string, has_device = false) => Response.json({ success: true, data: { status, has_device } });
+    expect(await isIdleQrPoll('GET', path, 200, body('pending'))).toBe(true);
+    expect(await isIdleQrPoll('GET', path, 200, body('pending', true))).toBe(false);
+    for (const state of ['claimed', 'approved', 'denied', 'expired', 'consumed']) expect(await isIdleQrPoll('GET', path, 200, body(state))).toBe(false);
+    expect(await isIdleQrPoll('GET', path, 401, body('pending'))).toBe(false);
+    expect(await isIdleQrPoll('POST', path, 200, body('pending'))).toBe(false);
+    expect(await isIdleQrPoll('GET', `${path}/claim`, 200, body('pending'))).toBe(false);
+    expect(await isIdleQrPoll('GET', path, 200, new Response('bad json'))).toBe(false);
+  });
+});

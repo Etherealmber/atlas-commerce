@@ -16,6 +16,7 @@ import PhoneDock, { canOpenPhoneBalance, canOpenPhoneClients, canOpenPhoneEmploy
 import { usePhoneTheme } from './usePhoneTheme';
 import { usePhoneTopBar } from './usePhoneTopBar';
 import { api, getBase } from '../api';
+import { t as translate } from '../i18n/core';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import PhoneAgentActivity from './PhoneAgentActivity';
@@ -59,6 +60,7 @@ import AtlasAgentMascot from './AtlasAgentMascot';
 import { AtlasLoader } from '../components/brand/AtlasLoader';
 import { getScanPreference, phoneScanFeedback } from './phoneScanPreferences';
 import { PhoneKpiStrip, SCAN_KPIS } from './PhoneKpis';
+import { keyboardInset } from './keyboardViewport';
 import Select from '../components/ui/Select';
 
 
@@ -1400,6 +1402,12 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme, onProductCreated
   const [refreshing, setRefreshing] = useState(false);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
+  const [demoAiReset, setDemoAiReset] = useState(0);
+  useEffect(() => {
+    if (!demoAiReset) return;
+    const timer = window.setTimeout(() => setDemoAiReset(0), Math.max(0, demoAiReset - Date.now()));
+    return () => window.clearTimeout(timer);
+  }, [demoAiReset]);
   const [showLatest, setShowLatest] = useState(false); const [quickNotice, setQuickNotice] = useState(''); const [copyNotice, setCopyNotice] = useState('');
   const shellRef = useRef<HTMLDivElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -1459,9 +1467,16 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme, onProductCreated
   useEffect(() => {
     const viewport = window.visualViewport; const shell = shellRef.current;
     if (!viewport || !shell) return;
-    const update = () => shell.style.setProperty('--ph-agent-keyboard-inset', `${Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)}px`);
-    update(); viewport.addEventListener('resize', update); viewport.addEventListener('scroll', update);
-    return () => { viewport.removeEventListener('resize', update); viewport.removeEventListener('scroll', update); };
+    let frame = 0;
+    const update = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        shell.style.setProperty('--ph-agent-keyboard-inset', `${keyboardInset(window.innerHeight, viewport.height, viewport.offsetTop, viewport.scale)}px`);
+        shell.style.setProperty('--ph-agent-visible-height', `${viewport.height}px`);
+      });
+    };
+    update(); viewport.addEventListener('resize', update); viewport.addEventListener('scroll', update); window.addEventListener('resize', update);
+    return () => { cancelAnimationFrame(frame); viewport.removeEventListener('resize', update); viewport.removeEventListener('scroll', update); window.removeEventListener('resize', update); };
   }, []);
 
   // Archive only on explicit navigation; preserve the current cache format for existing users.
@@ -1498,7 +1513,7 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme, onProductCreated
 
   const send = async (prompt?: string) => {
     const text = (prompt ?? input).trim();
-    if (!text || sending.current) return;
+    if (!text || sending.current || (demoAiReset && Date.now() < demoAiReset)) return;
     sending.current = true;
     setQuickNotice('');
     followMessages.current = true; setShowLatest(false);
@@ -1513,6 +1528,10 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme, onProductCreated
       if (typeof reply !== 'string' || !reply.trim()) throw new Error('Aucune réponse reçue. Réessayez.');
       setMsgs((m) => [...m, { role: 'assistant', text: reply }]);
     } catch (e: any) {
+      if (e?.code === 'DEMO_AI_QUOTA') {
+        const reset = Date.parse(e?.body?.resets_at || '');
+        setDemoAiReset(Number.isFinite(reset) && reset > Date.now() ? reset : Date.now() + 60_000);
+      }
       setMsgs((m) => [
         ...m,
         {
@@ -1597,6 +1616,7 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme, onProductCreated
         <button type="button" className="ph-btn" onClick={() => setDialog(null)}>Fermer</button>
       </PhoneDialog>}
       {showLatest && msgs.length > 0 && <button type="button" className="theme-toggle ph-agent-latest" aria-label="Aller aux derniers messages" onClick={() => { const el = listRef.current; followMessages.current = true; setShowLatest(false); if (el) { el.dataset.phoneProgrammaticScroll = 'true'; el.scrollTop = el.scrollHeight; window.setTimeout(() => { delete el.dataset.phoneProgrammaticScroll; }, 150); } }}><ChevronDown size={20} /></button>}
+      {!!demoAiReset && <p role="status">{translate('La limite de l’Agent en démo est atteinte. Hébergez votre propre serveur ou réessayez après minuit UTC.')}</p>}
       <form
         className="ph-agent-composer"
         onSubmit={(e) => {
@@ -1607,20 +1627,21 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme, onProductCreated
         <textarea
           ref={inputRef}
           className="ph-agent-input"
+          dir="auto"
           rows={1}
           maxLength={2500}
           aria-label="Message à l’assistant Atlas"
           enterKeyHint="send"
           placeholder="Écrivez votre question…"
           value={input}
-          disabled={busy}
+          disabled={busy || !!demoAiReset}
           onChange={(e) => { const field = e.currentTarget; field.style.height = 'auto'; field.style.height = `${Math.min(120, field.scrollHeight)}px`; setInput(field.value); }}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send(); } }}
         />
         <button
           type="submit"
           className="theme-toggle ph-agent-send"
-          disabled={busy || !input.trim()}
+          disabled={busy || !!demoAiReset || !input.trim()}
           aria-label="Envoyer"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden>

@@ -7,11 +7,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from '../api';
+import { useLang } from '../i18n/core';
+import { cityName, countryName } from '../i18n/places';
 
 type Device = { fingerprint: string; full: string; last_ip: string; last_seen: string; user_agent: string; current: boolean; device_label?: string; city?: string; country?: string };
 type OtpFlow = { kind: 'account'; message: string; code?: string } | null;
 
 export default function AccountSecurityPanel({ isOwner, role }: { isOwner: boolean; role: string }) {
+  useLang();
   const [twoFa, setTwoFa] = useState<boolean | null>(null);
   const [devices, setDevices] = useState<Device[] | null>(null);
   const [showDevices, setShowDevices] = useState(false);
@@ -162,7 +165,7 @@ export default function AccountSecurityPanel({ isOwner, role }: { isOwner: boole
                       <span className="ac-device-ua">{d.user_agent}</span>
                       <span className="ac-device-meta">
                         {d.last_seen} · IP {d.last_ip}
-                        {(d.city || d.country) ? ` · ${[d.city, d.country].filter(Boolean).join(', ')}` : ''}
+                        {(d.city || d.country) ? ` · ${[cityName(d.city), countryName(d.country)].filter(Boolean).join(', ')}` : ''}
                       </span>
                     </div>
                     {!d.current && (

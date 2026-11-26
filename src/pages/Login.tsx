@@ -153,6 +153,7 @@ function LoginPcQrPanel({ onSuccessFlash }: { onSuccessFlash?: () => void }) {
   useEffect(() => {
     if (!token || isMobileLogin() || phase !== 'wait') return;
     const id = window.setInterval(() => {
+      if (document.visibilityState === 'hidden') return;
       setLeft((n) => {
         if (n <= 1) {
           if (!pausedRef.current) void refresh();
@@ -167,8 +168,13 @@ function LoginPcQrPanel({ onSuccessFlash }: { onSuccessFlash?: () => void }) {
   useEffect(() => {
     if (!token || isMobileLogin()) return;
     let stopped = false;
+    let timer: number | undefined;
     const poll = async () => {
       if (stopped) return;
+      if (document.visibilityState === 'hidden') {
+        timer = window.setTimeout(poll, 4000);
+        return;
+      }
       try {
         const st = await api.qrLoginStatus(token);
         const s = st.data?.status || '';
@@ -220,11 +226,12 @@ function LoginPcQrPanel({ onSuccessFlash }: { onSuccessFlash?: () => void }) {
           void refresh();
         }
       } catch { /* */ }
-      if (!stopped) window.setTimeout(poll, 2000);
+      if (!stopped) timer = window.setTimeout(poll, 4000);
     };
     void poll();
     return () => {
       stopped = true;
+      window.clearTimeout(timer);
     };
   }, [token, navigate, phase, onSuccessFlash]);
 
@@ -1061,7 +1068,7 @@ export default function Login() {
                   onFocus={() => setIsTyping(true)}
                   onBlur={() => setIsTyping(false)}
                   placeholder="Votre identifiant"
-                  autoFocus
+                  autoFocus={!isMobileLogin() && !isNativeClient() && !isPwaLogin()}
                   autoComplete="username"
                   disabled={loading || formLocked}
                 />

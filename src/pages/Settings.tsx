@@ -1,4 +1,5 @@
-import { langMeta, useLang } from '../i18n/core';
+import { langMeta, translate, useLang } from '../i18n/core';
+import { DEFAULT_CATEGORIES, DEFAULT_UNITS } from '../../worker/lib/product-defaults';
 import QrLoginPanel from '../components/settings/QrLoginPanel';
 import { LanguageSoonDialog } from '../components/LanguageSoonDialog';
 import SettingsUserDialog from '../components/SettingsUserDialog';
@@ -32,7 +33,7 @@ import {
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { APP_VERSION } from '../version';
 import { createPortal } from 'react-dom';
-import { api, BASE } from '../api';
+import { api, BASE, peekCachedSettings } from '../api';
 import { START_PAGES, getStartPage, setStartPage } from '../lib/startPage';
 import { removePasskeyLocally, registerWebAuthn, getCachedFingerprint, getDeviceLabel, getDeviceMeta, setStoredBiometricCredentialId, isWebAuthnAvailable } from '../fingerprint';
 import { getToken, canAccessAdminSettings, canAccessCompanySettings, getRole, setProfileCache } from '../auth';
@@ -51,7 +52,7 @@ import PageSkeleton, { DesktopTableSkeleton } from '../components/PageSkeleton';
 import GithubReportsPanel from '../components/settings/GithubReportsPanel';
 import ApiLogPanel from '../components/audit/ApiLogPanel';
 import AuditIpCell from '../components/audit/AuditIpCell';
-import ExplainLogDialog, { ExplainButton } from '../components/audit/ExplainLogDialog';
+import { AuditRequestDetails } from '../components/audit/AuditRequestDetails';
 import BackupStatusStrip from '../components/settings/BackupStatusStrip';
 import { AlertsPanel } from '../components/atlas-v209-panels';
 import AgentPermissionsPanel from '../components/AgentPermissionsPanel';
@@ -77,7 +78,8 @@ export default function Settings() {
   const [profileData, setProfileData] = useState<ProfileData>(() => profileDataFromServer({}, null));
   const [, setUiScaleState] = useState<UiScale>(() => getUiScale());
   const { confirm, prompt, toast } = useUi();
-  const [settings, setSettings] = useState<any>(null);
+  const [initialSettings] = useState(() => peekCachedSettings()?.data || null);
+  const [settings, setSettings] = useState<any>(initialSettings);
   const [, setAssistProvider] = useState<'groq'>('groq');
   const [assistMeta, setAssistMeta] = useState<{ groqConfigured?: boolean }>({});
   const [passkeys, setPasskeys] = useState<any[]>([]);
@@ -89,12 +91,14 @@ export default function Settings() {
   });
   const [profileSaving, setProfileSaving] = useState(false);
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialSettings);
+  const [settingsLoadError, setSettingsLoadError] = useState(false);
+  const [settingsRetry, setSettingsRetry] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saveOk, setSaveOk] = useState(false);
   const [settingsDirty, setSettingsDirty] = useState(false);
   // Last loaded / saved settings: « Annuler » restores it in place (no reload).
-  const savedSettingsRef = useRef<any>(null);
+  const savedSettingsRef = useRef<any>(initialSettings);
   const [langOpen, setLangOpen] = useState(false);
   const uiLang = useLang();
   const [justSaved, setJustSaved] = useState(false);
@@ -255,21 +259,27 @@ export default function Settings() {
   const [units, setUnits] = useState<any[]>([]);
   const [unitName, setUnitName] = useState('');
   const [editingCat, setEditingCat] = useState<any>(null);
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+  const [unitDialogOpen, setUnitDialogOpen] = useState(false);
+  const closeCategoryDialog = () => { setCategoryDialogOpen(false); setEditingCat(null); setCatName(''); setCatDesc(''); setCatalogDialogError(''); };
+  const closeUnitDialog = () => { setUnitDialogOpen(false); setEditingUnit(null); setUnitName(''); setCatalogDialogError(''); };
   const [editingUnit, setEditingUnit] = useState<any>(null);
   const [editingUser, setEditingUser] = useState<any>(null);
   const [catName, setCatName] = useState('');
   const [catDesc, setCatDesc] = useState('');
   const [catSaving, setCatSaving] = useState(false);
+  const [catalogDialogError, setCatalogDialogError] = useState('');
   const [auditLog, setAuditLog] = useState<any[]>([]);
   const [auditDetailRow, setAuditDetailRow] = useState<any | null>(null);
-  const [auditExplain, setAuditExplain] = useState<{ kind: 'audit' | 'api'; id: number; title?: string } | null>(null);
-  const closeAuditExplain = useCallback(() => setAuditExplain(null), []);
   useEffect(() => {
     if (!auditDetailRow) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setAuditDetailRow(null); };
+    window.addEventListener('keydown', onKey);
     return () => {
       document.body.style.overflow = prev;
+      window.removeEventListener('keydown', onKey);
     };
   }, [auditDetailRow]);
   const [auditLoading, setAuditLoading] = useState(false);
@@ -289,11 +299,11 @@ export default function Settings() {
   const AUDIT_PAGE = 80;
 
   const roleLabel = (r: string) => {
-    if (r === 'owner') return 'Propriétaire';
-    if (r === 'admin') return 'Admin';
-    if (r === 'secretaire') return 'Secrétaire';
-    if (r === 'stock') return 'Magasinier (scan & stock)';
-    return 'Utilisateur';
+    if (r === 'owner') return translate('Propriétaire', uiLang);
+    if (r === 'admin') return translate('Admin', uiLang);
+    if (r === 'secretaire') return translate('Secrétaire', uiLang);
+    if (r === 'stock') return translate('Magasinier (scan & stock)', uiLang);
+    return translate('Utilisateur', uiLang);
   };
 
   const flash = (msg: string, type: 'success' | 'error' = 'success') => {
@@ -308,16 +318,21 @@ export default function Settings() {
   };
 
 
+  const auditQueryLoaded = useRef('');
+  const auditGeneration = useRef(0);
   useEffect(() => {
-    if (activeTab === 'audit' && (canAccessAdminSettings() || isOwner)) {
+    if (activeTab === 'audit' && (canAccessAdminSettings() || isOwner) && auditQueryLoaded.current !== `${auditRange}:${auditAction}`) {
+      auditQueryLoaded.current = `${auditRange}:${auditAction}`;
       void loadAuditPage(null, auditQ, true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, auditRange, auditAction]);
 
+  const assistLoaded = useRef(false);
   useEffect(() => {
-    if (activeTab !== 'integrations') return;
+    if (activeTab !== 'integrations' || assistLoaded.current) return;
     if (!(canAccessAdminSettings() || isOwner)) return;
+    assistLoaded.current = true;
     api.getAssistProvider()
       .then((r: any) => {
         setAssistProvider('groq');
@@ -325,7 +340,7 @@ export default function Settings() {
           groqConfigured: !!r?.data?.groqConfigured,
         });
       })
-      .catch(() => {});
+      .catch(() => { assistLoaded.current = false; });
   }, [activeTab]);
 
   // Force profile tab when role cannot access company settings (stock / user)
@@ -360,8 +375,10 @@ export default function Settings() {
     }
   }, [toast]);
 
+  const backupLoaded = useRef(false);
   useEffect(() => {
-    if (activeTab === 'admin' && (canAccessAdminSettings() || isOwner)) {
+    if (activeTab === 'admin' && (canAccessAdminSettings() || isOwner) && !backupLoaded.current) {
+      backupLoaded.current = true;
       void loadBackupList(true);
     }
   }, [activeTab, isOwner]);
@@ -404,28 +421,23 @@ export default function Settings() {
 
 
   useEffect(() => {
-    const empty = {
-      company_name: '', legal_form: '', address: '', city: '', postal_code: '',
-      country: 'Morocco', phone: '', email: '', website: '', logo_url: '',
-      notes: '', pdf_footer: '', ice: '', rc: '', if_fiscal: '', cnss: '',
-    };
-    const timer = window.setTimeout(() => {
-      setSettings((prev: any) => {
-        const next = prev || empty;
-        if (!savedSettingsRef.current) savedSettingsRef.current = next;
-        return next;
-      });
-      setLoading(false);
-    }, 8000);
+    if (initialSettings && settingsRetry === 0) return;
+    let alive = true;
+    setSettingsLoadError(false);
     api.getSettings()
-      .then((r) => { const next = { ...empty, ...r.data }; savedSettingsRef.current = next; setSettings(next); })
-      .catch(() => { savedSettingsRef.current = empty; setSettings(empty); })
-      .finally(() => {
-        window.clearTimeout(timer);
-        setLoading(false);
-      });
-    api.getCategories().then((r) => setCategories(r.data || [])).catch(() => {});
-    api.getUnits().then((r) => setUnits(r.data || [])).catch(() => {});
+      .then((r) => {
+        if (!alive) return;
+        const next = r.data;
+        if (!next || typeof next !== 'object') throw new Error('Invalid settings');
+        savedSettingsRef.current = next;
+        setSettings(next);
+      })
+      .catch(() => { if (alive && !savedSettingsRef.current) setSettingsLoadError(true); })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [settingsRetry]);
+
+  useEffect(() => {
     api.getMe().then((r) => {
       const m = r.data || {};
       const owner = !!(m.is_owner || m.role === 'owner' || m.role === 'admin');
@@ -446,19 +458,33 @@ export default function Settings() {
         role: m.role,
       });
       setProfileData((prev) => profileDataFromServer(m, prev));
-      if (owner) {
-        api.getAdminUsers().then((u) => {
-          setOwnerInfo(u.data?.owner);
-          setAdminUsers(u.data?.users || []);
-        }).catch(() => {});
-        api.getAdminConfig().then((c) => setAdminConfig(c.data)).catch(() => {});
-        loadAuditPage(null, '', true);
-      }
     }).catch(() => setIsOwner(false));
   }, []);
 
+  const catalogLoaded = useRef(false);
+  const [catalogStatus, setCatalogStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [catalogRetry, setCatalogRetry] = useState(0);
+  useEffect(() => {
+    if (activeTab !== 'categories' || !canAccessCompanySettings() || catalogLoaded.current) return;
+    catalogLoaded.current = true;
+    setCatalogStatus('loading');
+    Promise.all([api.getCategories(), api.getUnits()]).then(([cats, unitsResult]) => {
+      setCategories(cats.data || []); setUnits(unitsResult.data || []); setCatalogStatus('ready');
+    }).catch(() => { catalogLoaded.current = false; setCatalogStatus('error'); });
+  }, [activeTab, catalogRetry]);
+
+  const adminLoaded = useRef(false);
+  useEffect(() => {
+    if (activeTab !== 'admin' || !(canAccessAdminSettings() || isOwner) || adminLoaded.current) return;
+    adminLoaded.current = true;
+    Promise.all([api.getAdminUsers(), api.getAdminConfig()]).then(([users, config]) => {
+      setOwnerInfo(users.data?.owner); setAdminUsers(users.data?.users || []); setAdminConfig(config.data);
+    }).catch(() => { adminLoaded.current = false; toast('Impossible de charger les données administrateur.', 'error'); });
+  }, [activeTab, isOwner]);
+
   /** Cursor-based audit pages. reset=true clears history (search / first page). */
   const loadAuditPage = async (cursor: string | null = null, q = auditQ, reset = false) => {
+    const generation = ++auditGeneration.current;
     setAuditLoading(true);
     try {
       const a = await api.getAuditLog({
@@ -469,16 +495,19 @@ export default function Settings() {
         range: auditRange,
         stats: reset || cursor == null,
       });
+      if (generation !== auditGeneration.current) return;
       setAuditLog(a.data || []);
       setAuditMeta(a.meta || null);
       if (a.meta?.stats) setAuditStats(a.meta.stats);
       if (reset) setAuditCursorStack([null]);
       else if (cursor) setAuditCursor(cursor);
     } catch {
+      if (generation !== auditGeneration.current) return;
+      auditQueryLoaded.current = '';
       setAuditLog([]);
       setAuditMeta(null);
     } finally {
-      setAuditLoading(false);
+      if (generation === auditGeneration.current) setAuditLoading(false);
     }
   };
 
@@ -733,9 +762,12 @@ export default function Settings() {
     }
   };
 
+  const passkeysLoaded = useRef(false);
   useEffect(() => {
+    if (activeTab !== 'profile' || passkeysLoaded.current) return;
+    passkeysLoaded.current = true;
     void loadPasskeys();
-  }, []);
+  }, [activeTab]);
 
 
   
@@ -777,10 +809,16 @@ export default function Settings() {
 
 
 
-if (loading) return (
+if (loading && !settings) return (
     <div className="atlas-page atlas-settings">
       <h1 className="sr-only">Paramètres</h1>
       <PageSkeleton variant="settings" />
+    </div>
+  );
+  if (settingsLoadError && !settings) return (
+    <div className="atlas-page atlas-settings" role="alert">
+      <p>Impossible de charger les paramètres. Réessayez.</p>
+      <button type="button" onClick={() => { setLoading(true); setSettingsRetry(n => n + 1); }}>Réessayer</button>
     </div>
   );
   const s = settings || {
@@ -2606,24 +2644,33 @@ if (loading) return (
               </span>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 20 }}>
+          {catalogStatus === 'loading' && <p role="status" aria-busy="true">Chargement des catégories et unités…</p>}
+          {catalogStatus === 'error' && <div role="alert"><p>Impossible de charger les catégories et unités.</p><button type="button" onClick={() => setCatalogRetry(n => n + 1)}>Réessayer</button></div>}
+          {catalogStatus === 'ready' && <>
+          <button type="button" data-visual-review="category-create" onClick={() => { closeCategoryDialog(); setCategoryDialogOpen(true); }}>+ Ajouter une catégorie</button>
+          {categoryDialogOpen && <SettingsUserDialog titleId="category-dialog-title" dismissDisabled={catSaving} onClose={closeCategoryDialog}>
+          <h2 id="category-dialog-title">{editingCat ? 'Modifier la catégorie' : 'Ajouter une catégorie'}</h2>
+          <div style={{ display: 'flex', gap: 10, flexDirection: 'column', marginTop: 16 }}>
+            <label htmlFor="category-dialog-name">Nom de la catégorie *</label>
             <input
+              id="category-dialog-name"
               placeholder="Nom de la catégorie *"
               value={catName}
               onChange={(e) => setCatName(e.target.value)}
-              style={{ flex: '1 1 180px' }}
             />
+            <label htmlFor="category-dialog-description">Description (optionnel)</label>
             <input
+              id="category-dialog-description"
               placeholder="Description (optionnel)"
               value={catDesc}
               onChange={(e) => setCatDesc(e.target.value)}
-              style={{ flex: '2 1 220px' }}
             />
             <button
               type="button"
               disabled={catSaving}
               onClick={async () => {
-                if (!catName.trim()) { flash('Nom obligatoire.', 'error'); return; }
+                if (!catName.trim()) { setCatalogDialogError('Nom obligatoire.'); return; }
+                setCatalogDialogError('');
                 setCatSaving(true);
                 try {
                   if (editingCat?.id) {
@@ -2634,21 +2681,20 @@ if (loading) return (
                     await api.createCategory({ name: catName.trim(), description: catDesc });
                     flash('Catégorie créée.');
                   }
-                  setCatName(''); setCatDesc('');
-                  const r = await api.getCategories();
-                  setCategories(r.data || []);
-                } catch (e: any) { flash(e.message, 'error'); }
+                  closeCategoryDialog();
+                  try {
+                    const r = await api.getCategories();
+                    setCategories(r.data || []);
+                  } catch { toast('Enregistré, mais actualisation des catégories impossible. Actualisez la page.', 'error'); }
+                } catch (e: any) { setCatalogDialogError(e.message || 'Enregistrement impossible.'); }
                 finally { setCatSaving(false); }
               }}
             >
               {catSaving ? '…' : editingCat ? 'Enregistrer' : '+ Ajouter'}
             </button>
-            {editingCat && (
-              <button type="button" className="secondary" onClick={() => { setEditingCat(null); setCatName(''); setCatDesc(''); }}>
-                Annuler
-              </button>
-            )}
-          </div>
+            {catalogDialogError && <p role="alert">{catalogDialogError}</p>}
+            <button type="button" className="secondary" disabled={catSaving} onClick={closeCategoryDialog}>Annuler</button>
+          </div></SettingsUserDialog>}
           <div className="table-wrap">
             <table>
               <thead>
@@ -2657,16 +2703,18 @@ if (loading) return (
               <tbody>
                 {categories.map((cat: any) => (
                   <tr key={cat.id ?? cat.name}>
-                    <td><strong>{cat.name}</strong></td>
-                    <td style={{ color: 'var(--muted)', fontSize: 13 }}>{cat.description || '—'}</td>
+                    <td><strong data-user-data dir="auto">{DEFAULT_CATEGORIES.some((d) => d.name === cat.name && d.description === cat.description) ? translate(cat.name, uiLang) : cat.name}</strong></td>
+                    <td data-user-data dir="auto" style={{ color: 'var(--muted)', fontSize: 13 }}>{DEFAULT_CATEGORIES.some((d) => d.name === cat.name && d.description === cat.description) ? translate(cat.description, uiLang) : cat.description || '—'}</td>
                     <td style={{ fontSize: 12 }}>{cat.from_products ? 'Utilisée sur produits' : 'Définie'}</td>
                     <td className="row-actions-cell">
                       {cat.id ? (
                         <button
                           type="button"
                           className="secondary"
+                          data-visual-review="category-edit"
                           onClick={() => {
                             setEditingCat(cat);
+                            setCategoryDialogOpen(true);
                             setCatName(cat.name || '');
                             setCatDesc(cat.description || '');
                           }}
@@ -2681,9 +2729,9 @@ if (loading) return (
                         onConfirm={async () => {
                           try {
                             await api.deleteCategory(cat.id || 'by-name', '', cat.name);
-                            const r = await api.getCategories();
-                            setCategories(r.data || []);
                             flash('Catégorie supprimée.');
+                            try { const r = await api.getCategories(); setCategories(r.data || []); }
+                            catch { toast('Supprimé, mais actualisation des catégories impossible. Actualisez la page.', 'error'); }
                           } catch (err: any) {
                             flash(err?.message || 'Suppression impossible', 'error');
                           }
@@ -2703,10 +2751,15 @@ if (loading) return (
           <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>
             Ex. unité, kg, carton — modifiables et supprimables par l&apos;admin.
           </p>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
-            <input placeholder="Nom de l&apos;unité *" value={unitName} onChange={(e) => setUnitName(e.target.value)} style={{ flex: '1 1 180px' }} />
+          <button type="button" data-visual-review="unit-create" onClick={() => { closeUnitDialog(); setUnitDialogOpen(true); }}>+ Ajouter unité</button>
+          {unitDialogOpen && <SettingsUserDialog titleId="unit-dialog-title" dismissDisabled={catSaving} onClose={closeUnitDialog}>
+          <h2 id="unit-dialog-title">{editingUnit ? 'Modifier l’unité' : 'Ajouter une unité'}</h2>
+          <div style={{ display: 'flex', gap: 10, flexDirection: 'column', marginTop: 16 }}>
+            <label htmlFor="unit-dialog-name">Nom de l&apos;unité *</label>
+            <input id="unit-dialog-name" placeholder="Nom de l&apos;unité *" value={unitName} onChange={(e) => setUnitName(e.target.value)} />
             <button type="button" disabled={catSaving} onClick={async () => {
-              if (!unitName.trim()) { flash('Nom obligatoire.', 'error'); return; }
+              if (!unitName.trim()) { setCatalogDialogError('Nom obligatoire.'); return; }
+              setCatalogDialogError('');
               setCatSaving(true);
               try {
                 if (editingUnit?.id) {
@@ -2717,25 +2770,28 @@ if (loading) return (
                   await api.createUnit({ name: unitName.trim() });
                   flash('Unité créée.');
                 }
-                setUnitName('');
-                const r = await api.getUnits();
-                setUnits(r.data || []);
-              } catch (e: any) { flash(e.message, 'error'); }
+                closeUnitDialog();
+                try {
+                  const r = await api.getUnits();
+                  setUnits(r.data || []);
+                } catch { toast('Enregistré, mais actualisation des unités impossible. Actualisez la page.', 'error'); }
+              } catch (e: any) { setCatalogDialogError(e.message || 'Enregistrement impossible.'); }
               finally { setCatSaving(false); }
             }}>{editingUnit ? 'Enregistrer' : '+ Ajouter unité'}</button>
-            {editingUnit && <button type="button" className="secondary" onClick={() => { setEditingUnit(null); setUnitName(''); }}>Annuler</button>}
-          </div>
+            {catalogDialogError && <p role="alert">{catalogDialogError}</p>}
+            <button type="button" className="secondary" disabled={catSaving} onClick={closeUnitDialog}>Annuler</button>
+          </div></SettingsUserDialog>}
           <div className="table-wrap">
             <table>
               <thead><tr><th>Nom</th><th></th></tr></thead>
               <tbody>
                 {units.map((u: any) => (
                   <tr key={u.id ?? u.name}>
-                    <td><strong>{u.name}</strong></td>
+                    <td><strong data-user-data dir="auto">{DEFAULT_UNITS.some((d) => d.name === u.name && d.symbol === u.symbol) ? translate(u.name, uiLang) : u.name}</strong></td>
                     <td className="row-actions-cell">
                       {u.id ? (
-                          <button type="button" className="secondary"
-                            onClick={() => { setEditingUnit(u); setUnitName(u.name || ''); }}>Modifier</button>
+                          <button type="button" className="secondary" data-visual-review="unit-edit"
+                            onClick={() => { setEditingUnit(u); setUnitName(u.name || ''); setUnitDialogOpen(true); }}>Modifier</button>
                       ) : null}
                           <TimedUndoDelete iconOnly width="34px"
                             deleteLabel="Supprimer"
@@ -2744,9 +2800,9 @@ if (loading) return (
                             onConfirm={async () => {
                               try {
                                 await api.deleteUnit(u.id || 'by-name', '', u.name);
-                                const r = await api.getUnits();
-                                setUnits(r.data || []);
                                 flash('Unité supprimée.');
+                                try { const r = await api.getUnits(); setUnits(r.data || []); }
+                                catch { toast('Supprimé, mais actualisation des unités impossible. Actualisez la page.', 'error'); }
                               } catch (err: any) {
                                 flash(err?.message || 'Suppression impossible', 'error');
                               }
@@ -2760,6 +2816,7 @@ if (loading) return (
               </tbody>
             </table>
           </div>
+          </>}
         </div>
       )}
 
@@ -3180,7 +3237,6 @@ if (loading) return (
                               <span className="ac-audit-detail-text">{summary}</span>
                               <ChevronRight className="ac-audit-detail-chev" size={14} strokeWidth={2} aria-hidden="true" />
                             </button>
-                            {row.id ? <ExplainButton onClick={() => setAuditExplain({ kind: 'audit', id: Number(row.id), title: `${row.action || ''} · ${actor.title}` })} /> : null}
                           </td>
                         </tr>
                       );
@@ -3191,7 +3247,6 @@ if (loading) return (
 
             </section>
             <ApiLogPanel />
-            <ExplainLogDialog target={auditExplain} onClose={closeAuditExplain} />
           </div>
         );
       })()}
@@ -3772,8 +3827,8 @@ if (loading) return (
               Les suppressions (facture, produit, etc.) demandent une simple confirmation — la session et le code OTP protègent déjà le compte.
               Seul le compte propriétaire voit cet onglet.
             </p>
-            <button type="button" onClick={() => setUserCreateOpen(true)}>+ Ajouter un utilisateur</button>
-            {userCreateOpen && <SettingsUserDialog onClose={closeUserCreate}><form autoComplete="off" onSubmit={e => { e.preventDefault(); createUser(); }}>
+            <button type="button" data-visual-review="user-create" onClick={() => setUserCreateOpen(true)}>+ Ajouter un utilisateur</button>
+            {userCreateOpen && !pwOpen && <SettingsUserDialog onClose={closeUserCreate}><form autoComplete="off" onSubmit={e => { e.preventDefault(); createUser(); }}>
               <h2 id="create-team-user-title">Créer un utilisateur</h2>
             <div className="grid grid-2" style={{ marginBottom: 12 }}>
               <div className="form-row">
@@ -3795,10 +3850,10 @@ if (loading) return (
               <div className="form-row">
                 <label>Rôle</label>
                 <Select value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}>
-                  <option value="stock">Magasinier (scan, stock, proposer produit · pas de caisse)</option>
-                  <option value="secretaire">Secrétaire (tout le métier · pas admin serveur)</option>
-                  <option value="admin">Admin (stock &amp; ventes)</option>
-                  <option value="user">Lecture limitée</option>
+                  <option value="stock">{translate('Magasinier (scan, stock, proposer produit · pas de caisse)', uiLang)}</option>
+                  <option value="secretaire">{translate('Secrétaire (tout le métier · pas admin serveur)', uiLang)}</option>
+                  <option value="admin">{translate('Admin (stock & ventes)', uiLang)}</option>
+                  <option value="user">{translate('Lecture limitée', uiLang)}</option>
                 </Select>
               </div>
             </div>
@@ -3806,9 +3861,9 @@ if (loading) return (
             <div className="modal-actions"><button type="button" className="secondary" onClick={closeUserCreate}>Annuler</button><button type="submit">Créer l&apos;utilisateur</button></div>
             </form></SettingsUserDialog>}
 
-            {editingUser && (
-              <div className="atlas-card" style={{ marginTop: 16 }}>
-                <h3 style={{ fontSize: 15, marginBottom: 10 }}>Modifier « {editingUser.username} »</h3>
+            {editingUser && !pwOpen && (
+              <SettingsUserDialog titleId="edit-team-user-title" onClose={() => setEditingUser(null)}>
+                <h3 id="edit-team-user-title" style={{ fontSize: 15, marginBottom: 10 }}>Modifier « <bdi data-user-data>{editingUser.username}</bdi> »</h3>
                 <div className="grid grid-2" style={{ marginBottom: 12 }}>
                   <div className="form-row" data-settings-anchor="display_name">
                     <label>Nom affiché</label>
@@ -3817,10 +3872,10 @@ if (loading) return (
                   <div className="form-row">
                     <label>Rôle</label>
                     <Select value={editingUser.role || 'secretaire'} onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}>
-                      <option value="stock">Magasinier (scan, stock, proposer produit · pas de caisse)</option>
-                      <option value="secretaire">Secrétaire (tout le métier · pas admin serveur)</option>
-                      <option value="admin">Admin (stock &amp; ventes)</option>
-                      <option value="user">Lecture limitée</option>
+                      <option value="stock">{translate('Magasinier (scan, stock, proposer produit · pas de caisse)', uiLang)}</option>
+                      <option value="secretaire">{translate('Secrétaire (tout le métier · pas admin serveur)', uiLang)}</option>
+                      <option value="admin">{translate('Admin (stock & ventes)', uiLang)}</option>
+                      <option value="user">{translate('Lecture limitée', uiLang)}</option>
                     </Select>
                   </div>
                   <div className="form-row">
@@ -3852,10 +3907,10 @@ if (loading) return (
                   }}>Enregistrer</button>
                   <button type="button" className="secondary" onClick={() => setEditingUser(null)}>Annuler</button>
                 </div>
-              </div>
+              </SettingsUserDialog>
             )}
 
-            <table className="data-table" style={{ marginTop: 20, width: '100%' }}>
+            <table className="data-table ac-team-users-table" style={{ marginTop: 20, width: '100%' }}>
               <thead>
                 <tr>
                   <th>Identifiant</th>
@@ -3868,7 +3923,7 @@ if (loading) return (
               </thead>
               <tbody>
                 {adminUsers.length === 0 && (
-                  <tr><td colSpan={5} style={{ color: 'var(--muted)' }}>Aucun utilisateur secondaire</td></tr>
+                  <tr><td colSpan={6} style={{ color: 'var(--muted)' }}>Aucun utilisateur secondaire</td></tr>
                 )}
                 {adminUsers.map((u) => (
                   <tr key={u.id}>
@@ -3897,7 +3952,7 @@ if (loading) return (
               Le propriétaire dispose de tous les droits.
             </p>
             <div className="table-wrap">
-              <table className="data-table" style={{ width: '100%', fontSize: 13 }}>
+              <table className="data-table ac-role-matrix" style={{ width: '100%', fontSize: 13 }}>
                 <thead>
                   <tr>
                     <th>Action</th>
@@ -4149,9 +4204,10 @@ if (loading) return (
               aria-labelledby="audit-detail-title"
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 id="audit-detail-title" style={{ marginTop: 0 }}>
-                Détail de l’entrée
-              </h3>
+              <div className="audit-detail-heading">
+                <h3 id="audit-detail-title">Détail de l’entrée</h3>
+                <button type="button" className="secondary" aria-label="Fermer" onClick={() => setAuditDetailRow(null)}>×</button>
+              </div>
               <dl className="audit-detail-dl">
                 <div>
                   <dt>Heure</dt>
@@ -4183,20 +4239,12 @@ if (loading) return (
                 </div>
                 <div>
                   <dt>Détail</dt>
-                  <dd className="audit-detail-full">{auditDetailRow.detail || '—'}</dd>
+                  <dd className="audit-detail-full" translate="no" dir="auto">{auditDetailRow.detail || '—'}</dd>
                 </div>
               </dl>
+              <h4>Détails de la connexion</h4>
+              <AuditRequestDetails row={auditDetailRow} kind="audit" />
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
-                {auditDetailRow.id ? (
-                  <ExplainButton
-                    label="Expliquer avec l’IA"
-                    onClick={() => {
-                      const r = auditDetailRow;
-                      setAuditDetailRow(null);
-                      setAuditExplain({ kind: 'audit', id: Number(r.id), title: `${r.action || ''} · ${formatAuditActor(r).title}` });
-                    }}
-                  />
-                ) : null}
                 <button type="button" className="secondary" onClick={() => setAuditDetailRow(null)}>
                   Fermer
                 </button>

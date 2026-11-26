@@ -1,6 +1,7 @@
 import type { AtlasApp } from './types';
 import { API_LOG_RETENTION_DAYS, classifyNetwork, ensureApiLogTable, geoForIps } from '../lib/apiLog';
 import { explainLogLine } from '../lib/auditExplain';
+import { listArchivedApiCalls, readArchivedApiCall } from '../lib/journalArchive';
 import { schemaOnce, addColumnIfMissing } from '../lib/schema';
 import { ensureDocAssetColumns } from '../lib/printTemplates';
 import {
@@ -323,7 +324,34 @@ app.get('/api/admin/audit', async (c) => {
   });
 });
 
-/** Journal des appels API — every /api/* call (failures included), 30 days. */
+/** Owner/admin access to the optional private shadow archive; never expose bucket URLs. */
+app.get('/api/admin/journal-archive', async (c) => {
+  const gate = requireOwner(c);
+  if (!gate.ok) return gate.response;
+  c.header('Cache-Control', 'no-store');
+  const day = String(c.req.query('day') || '');
+  const cursor = String(c.req.query('cursor') || '');
+  if (cursor.length > 2048) return c.json({ success: false, error: 'Curseur invalide.' }, 400);
+  try {
+    const result = await listArchivedApiCalls(c.env, day, cursor || undefined);
+    return c.json({ success: true, data: result.keys, meta: { next_cursor: result.cursor, mode: c.env.JOURNAL_ARCHIVE_MODE } });
+  } catch (e) {
+    if (e instanceof Error && e.message === 'Invalid archive date') return c.json({ success: false, error: 'Date invalide.' }, 400);
+    return c.json({ success: false, error: 'Archive indisponible.' }, 503);
+  }
+});
+app.get('/api/admin/journal-archive/item', async (c) => {
+  const gate = requireOwner(c);
+  if (!gate.ok) return gate.response;
+  c.header('Cache-Control', 'no-store');
+  try {
+    const row = await readArchivedApiCall(c.env, String(c.req.query('key') || ''));
+    if (!row) return c.json({ success: false, error: 'Entrée introuvable.' }, 404);
+    return c.json({ success: true, data: row });
+  } catch { return c.json({ success: false, error: 'Archive indisponible.' }, 503); }
+});
+
+/** Journal des appels API — eligible API calls, including failures, 30 days. */
 app.get('/api/admin/api-log', async (c) => {
   const gate = requireOwner(c);
   if (!gate.ok) return gate.response;

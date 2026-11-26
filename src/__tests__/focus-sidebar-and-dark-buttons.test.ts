@@ -319,12 +319,12 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
   it('formats chart money compactly as 1k / 1M / 1B when large or tight while keeping normal values intact', async () => {
     const { formatCompactNum, formatAxisVal } = await import('../components/DashboardCharts');
 
-    expect(formatCompactNum(0, 'MAD')).toBe('0 MAD');
-    expect(formatCompactNum(12500, 'MAD', 100_000)).toMatch(/12[\s\u202f\u00a0]?500 MAD/);
-    expect(formatCompactNum(12500, 'MAD', 10_000)).toBe('12.5k MAD');
-    expect(formatCompactNum(150_000, 'MAD')).toBe('150k MAD');
-    expect(formatCompactNum(2_500_000, 'MAD')).toBe('2.5M MAD');
-    expect(formatCompactNum(1_200_000_000, 'MAD')).toBe('1.2B MAD');
+    expect(formatCompactNum(0, 'MAD')).toBe('0 DH');
+    expect(formatCompactNum(12500, 'MAD', 100_000)).toMatch(/12[\s\u202f\u00a0]?500 DH/);
+    expect(formatCompactNum(12500, 'MAD', 10_000)).toBe('12.5k DH');
+    expect(formatCompactNum(150_000, 'MAD')).toBe('150k DH');
+    expect(formatCompactNum(2_500_000, 'MAD')).toBe('2.5M DH');
+    expect(formatCompactNum(1_200_000_000, 'MAD')).toBe('1.2B DH');
 
     expect(formatAxisVal(1_500_000_000, 2_000_000_000)).toBe('1.5B');
     expect(formatAxisVal(2_000_000, 4_000_000)).toBe('2M');
@@ -675,7 +675,7 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     }
   });
 
-  it('records invoice deletion actor for stock movements with Système fallback, enables authenticated Étiquette modal, and unifies Settings Bento + dark palette', () => {
+  it('records invoice deletion actor for stock movements with unknown-author fallback, enables authenticated Étiquette modal, and unifies Settings Bento + dark palette', () => {
     const ledgerSrc = readFileSync(path.resolve(process.cwd(), 'worker/lib/ledgerHelpers.ts'), 'utf8');
     const invWriteSrc = readFileSync(path.resolve(process.cwd(), 'worker/routes/invoicesWrite.ts'), 'utf8');
     const prodHistSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/ProductHistory.tsx'), 'utf8');
@@ -685,12 +685,12 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     const focusCss = readFileSync(path.resolve(process.cwd(), 'src/styles/focus-sidebar.css'), 'utf8');
     const overridesCss = readFileSync(path.resolve(process.cwd(), 'src/styles/overrides-final.css'), 'utf8');
 
-    // 1. Movement deletion actor & Système fallback
+    // 1. Movement deletion actor & unknown-author fallback
     expect(ledgerSrc).toContain('cascadeDeleteInvoice(\n  db: D1Database,\n  invoiceId: string | number,\n  opts?: { createdBy?: string }');
     expect(ledgerSrc).toContain("createdBy: opts?.createdBy || undefined");
     expect(invWriteSrc).toContain('cascadeDeleteInvoice(c.env.DB, id, { createdBy: gate.username || undefined })');
     expect(prodHistSrc).not.toContain('non renseigné');
-    expect(prodHistSrc).toContain("actor(m.created_by, 'Système')");
+    expect(prodHistSrc).toContain("actor(m.created_by, 'Auteur inconnu')");
 
     // 2. Étiquette uses authenticated ProductLabelModal (not unauthenticated window.open)
     expect(apiSrc).toContain('fetchLabelSvg:');

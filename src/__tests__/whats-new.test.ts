@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { RELEASES } from '../pages/WhatsNew';
+import { RELEASES, UPCOMING_RELEASE_094 } from '../pages/WhatsNew';
 import { buildDicts } from '../i18n';
 import { REPO_CONTRIBUTORS, getContributorsForRelease } from '../lib/contributors';
 import { APP_VERSION, DISPLAY_VERSION, RELEASE_VISIBLE_CAP, WHATS_NEW_VERSION, semverAtMost } from '../version';
@@ -11,6 +11,15 @@ import { APP_VERSION, DISPLAY_VERSION, RELEASE_VISIBLE_CAP, WHATS_NEW_VERSION, s
  * so the "Nouveautés" badge pointed at an empty section).
  */
 describe('WhatsNew releases', () => {
+  it('keeps the translated 0.9.4 draft unpublished until release', () => {
+    expect(RELEASES).not.toContain(UPCOMING_RELEASE_094);
+    const dicts = buildDicts();
+    for (const item of UPCOMING_RELEASE_094.sections.flatMap((section) => section.items)) {
+      expect(dicts.ar[item.text], item.id).toBeTruthy();
+      expect(dicts.en[item.text], item.id).toBeTruthy();
+    }
+  });
+
   it('translates all release entries into Arabic and English', () => {
     const dicts = buildDicts();
     for (const release of RELEASES) {
