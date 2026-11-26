@@ -5,6 +5,7 @@ import { ListPager } from '../ui/ListPager';
 import AuditIpCell from './AuditIpCell';
 import { createPortal } from 'react-dom';
 import { AuditRequestDetails } from './AuditRequestDetails';
+import { t, useLang } from '../../i18n/core';
 
 const PAGE = 25;
 type Range = '24h' | '7d' | '30d';
@@ -29,6 +30,7 @@ function statusTone(st: number) {
  * with inspectable request details.
  */
 export default function ApiLogPanel() {
+  useLang();
   const [rows, setRows] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -71,7 +73,7 @@ export default function ApiLogPanel() {
       <div className="ac-apilog-head">
         <div>
           <h3><Activity size={16} strokeWidth={2.2} aria-hidden="true" /> Journal des appels API</h3>
-          <p className="ac-apilog-sub">Requêtes enregistrées, y compris les échecs ; les vérifications QR en attente et certaines sondes sont exclues. Conservation : {stats?.retention_days ?? 30} jours.</p>
+          <p className="ac-apilog-sub">{t('Requêtes enregistrées, y compris les échecs ; les vérifications QR en attente et certaines sondes sont exclues. Conservation : {n} jours.', { n: stats?.retention_days ?? 30 })}</p>
         </div>
         <div className="ac-apilog-tools">
           <div className="ac-dash-period-pills" role="group" aria-label="Période">

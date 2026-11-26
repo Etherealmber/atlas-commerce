@@ -60,6 +60,7 @@ import { doCacheGet, doCachePut, hasLiveCache, checkRefreshLimit, invalidateDash
 import { keyFromCdnUrl, deleteR2Object } from './lib/r2';
 import { rateLimit, isAllowedImageUrl, clientIpFromRequest } from './lib/security';
 import { shouldLogApiCall, geoFromCf, writeApiLog, isIdleQrPoll } from './lib/apiLog';
+import { archiveApiCall } from './lib/journalArchive';
 import { canMutateBusiness, normalizeRole } from './lib/rbac';
 import { apiFail, apiOk } from './lib/api-response';
 import { toClientError } from './lib/errors';
@@ -374,8 +375,9 @@ app.use('/api/*', async (c, next) => {
         };
         const response = c.res;
         ctx.waitUntil((async () => {
-          if (await isIdleQrPoll(row.method, path, status, response)) return;
-          await writeApiLog(db, row);
+          const archive = archiveApiCall(c.env, row).catch(() => { console.error('journal_archive_write_failed'); });
+          if (!await isIdleQrPoll(row.method, path, status, response)) await writeApiLog(db, row);
+          await archive;
         })());
       }
     } catch { /* journaling never breaks a request */ }

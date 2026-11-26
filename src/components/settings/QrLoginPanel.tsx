@@ -91,6 +91,7 @@ export default function QrLoginPanel() {
     if (!open || !session) return;
     lifetimeRef.current = 0;
     const id = window.setInterval(() => {
+      if (document.visibilityState === 'hidden') return;
       lifetimeRef.current += 1;
       setLeft((n) => {
         if (status === 'claimed' || status === 'approved' || status === 'consumed') {
@@ -115,13 +116,17 @@ export default function QrLoginPanel() {
     let stopped = false;
     const poll = async () => {
       if (stopped) return;
+      if (document.visibilityState === 'hidden') {
+        tickRef.current = window.setTimeout(poll, 4000) as unknown as number;
+        return;
+      }
       try {
         const st = await api.qrLoginStatus(session.token);
         const s = st.data?.status || '';
         setStatus(s === 'expired' ? 'stopped' : s);
         // Do not auto-create on expire — user taps retry
       } catch { /* */ }
-      tickRef.current = window.setTimeout(poll, 2000) as unknown as number;
+      if (!stopped) tickRef.current = window.setTimeout(poll, 4000) as unknown as number;
     };
     void poll();
     return () => {

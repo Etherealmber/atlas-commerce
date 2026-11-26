@@ -73,6 +73,10 @@ export default function LoginQr() {
 
         const poll = async () => {
           if (stopped || done.current) return;
+          if (document.visibilityState === 'hidden') {
+            timer = window.setTimeout(poll, 4000) as unknown as number;
+            return;
+          }
           try {
             const st = await api.qrLoginStatus(token);
             const s = st.data?.status || '';
@@ -123,7 +127,7 @@ export default function LoginQr() {
               return;
             }
           }
-          timer = window.setTimeout(poll, 2000) as unknown as number;
+          if (!stopped) timer = window.setTimeout(poll, 4000) as unknown as number;
         };
         void poll();
       } catch (e: any) {

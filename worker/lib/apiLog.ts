@@ -164,6 +164,7 @@ export function normalizeApiPath(path: string): string {
   return path
     .split('?')[0]
     .slice(0, 160)
+    .replace(/(\/api\/auth\/qr\/session\/)[^/]+/i, '$1:token')
     .replace(/\/\d+(?=\/|$)/g, '/:id')
     .replace(/\/[0-9a-f]{8}-[0-9a-f-]{27,}(?=\/|$)/gi, '/:uuid')
     .replace(/\/[A-Za-z0-9_-]{24,}(?=\/|$)/g, '/:token');

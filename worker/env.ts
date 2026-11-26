@@ -18,6 +18,11 @@ export interface Env {
   ATLAS_DEMO?: string;
   /** R2 bucket for product/company images — company-stock-images */
   IMAGES?: R2Bucket;
+  /** Optional private R2 shadow journal; never bind the public image bucket. */
+  JOURNAL_ARCHIVE?: R2Bucket;
+  JOURNAL_ARCHIVE_MODE?: string;
+  /** Dedicated base64-encoded 32-byte secret, never stored in source. */
+  JOURNAL_ENCRYPTION_KEY?: string;
   /** Cloudflare Secret — never commit */
   ADMIN_PASSWORD: string;
   /** Google Cloud Translation API key (Secret) */
