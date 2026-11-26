@@ -285,6 +285,7 @@ export default function Settings() {
     };
   }, [auditDetailRow]);
   const [auditLoading, setAuditLoading] = useState(false);
+  const [auditError, setAuditError] = useState(false);
   const [, setAuditCursor] = useState<string | null>(null);
   const [auditCursorStack, setAuditCursorStack] = useState<(string | null)[]>([null]);
   const [auditMeta, setAuditMeta] = useState<{ limit: number; has_more: boolean; next_cursor: string | null; cursor: string | null } | null>(null);
@@ -321,14 +322,30 @@ export default function Settings() {
 
 
   const auditQueryLoaded = useRef('');
+  const auditLastAttempt = useRef(0);
   const auditGeneration = useRef(0);
   useEffect(() => {
-    if (activeTab === 'audit' && (canAccessAdminSettings() || isOwner) && auditQueryLoaded.current !== `${auditRange}:${auditAction}`) {
+    if (activeTab === 'audit' && (canAccessAdminSettings() || isOwner) && (auditQueryLoaded.current !== `${auditRange}:${auditAction}` || (auditCursorStack.length === 1 && Date.now() - auditLastAttempt.current >= 300_000))) {
       auditQueryLoaded.current = `${auditRange}:${auditAction}`;
       void loadAuditPage(null, auditQ, true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, auditRange, auditAction]);
+
+  // Avoid a permanently stale first page while a user leaves Settings open.
+  // Do not move paginated users back to page one, or poll a hidden tab.
+  useEffect(() => {
+    if (activeTab !== 'audit' || !(canAccessAdminSettings() || isOwner)) return;
+    const refreshIfStale = () => {
+      if (document.visibilityState === 'visible' && auditCursorStack.length === 1 && Date.now() - auditLastAttempt.current >= 300_000) {
+        void loadAuditPage(null, auditQ, true);
+      }
+    };
+    const timer = window.setInterval(refreshIfStale, 60_000);
+    document.addEventListener('visibilitychange', refreshIfStale);
+    return () => { window.clearInterval(timer); document.removeEventListener('visibilitychange', refreshIfStale); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, auditRange, auditAction, auditQ, auditCursorStack, isOwner]);
 
   const assistLoaded = useRef(false);
   useEffect(() => {
@@ -487,7 +504,9 @@ export default function Settings() {
   /** Cursor-based audit pages. reset=true clears history (search / first page). */
   const loadAuditPage = async (cursor: string | null = null, q = auditQ, reset = false) => {
     const generation = ++auditGeneration.current;
+    auditLastAttempt.current = Date.now();
     setAuditLoading(true);
+    setAuditError(false);
     try {
       const a = await api.getAuditLog({
         limit: AUDIT_PAGE,
@@ -501,6 +520,7 @@ export default function Settings() {
       setAuditLog(a.data || []);
       setAuditMeta(a.meta || null);
       if (a.meta?.stats) setAuditStats(a.meta.stats);
+      else if (reset || cursor == null) setAuditStats(null);
       if (reset) setAuditCursorStack([null]);
       else if (cursor) setAuditCursor(cursor);
     } catch {
@@ -508,6 +528,8 @@ export default function Settings() {
       auditQueryLoaded.current = '';
       setAuditLog([]);
       setAuditMeta(null);
+      setAuditStats(null);
+      setAuditError(true);
     } finally {
       if (generation === auditGeneration.current) setAuditLoading(false);
     }
@@ -2996,6 +3018,7 @@ if (loading && !settings) return (
                     <span>Historique détaillé</span>
                   </h3>
                   <p>Recherchez par utilisateur, action, ressource ou adresse IP ; cliquez sur une ligne pour l’inspecter.</p>
+                  <p>{translateText('Historique D1 · les archives R2 ne sont pas encore incluses.')}</p>
                 </div>
                 <div className="ac-audit-pager ac-audit-pager--top">
                   <span className="ac-audit-pager-meta">
@@ -3026,6 +3049,7 @@ if (loading && !settings) return (
                 </div>
               </div>
 
+              {auditError && <p role="alert">{translateText('Impossible de charger le journal. Réessayez plus tard.')}</p>}
               <div className="ac-audit-filters">
                 <div className="ac-audit-search-wrap">
                   <Search className="ac-audit-search-ico" size={15} strokeWidth={2} aria-hidden="true" />
@@ -3099,7 +3123,7 @@ if (loading && !settings) return (
                 <table className="audit-table">
                   <thead>
                     <tr>
-                      <th>Horodatage</th>
+                      <th>{translateText('Horodatage (heure locale)')}</th>
                       <th>Action</th>
                       <th>Ressource</th>
                       <th>Acteur</th>
@@ -3122,7 +3146,7 @@ if (loading && !settings) return (
                         ))}
                       </>
                     )}
-                    {!auditLoading && auditLog.length === 0 && (
+                    {!auditLoading && !auditError && auditLog.length === 0 && (
                       <tr>
                         <td colSpan={6} className="audit-empty">
                           Aucune entrée pour ces filtres.
@@ -4153,7 +4177,7 @@ if (loading && !settings) return (
               </div>
               <dl className="audit-detail-dl">
                 <div>
-                  <dt>Heure</dt>
+                  <dt>{translateText('Heure enregistrée (UTC)')}</dt>
                   <dd><bdi dir="ltr" translate="no">{auditDetailRow.created_at || '—'}</bdi></dd>
                 </div>
                 <div>

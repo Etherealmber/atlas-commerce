@@ -367,7 +367,11 @@ export async function writeAudit(
       opts.detail || null,
       opts.ip || null
     ).run();
-  } catch { /* never break business flow */ }
+  } catch {
+    // Preserve the existing business-flow contract, but make missing audit writes
+    // observable without logging user data, IP addresses, or raw database errors.
+    console.error('audit_journal_write_failed');
+  }
 }
 
 export async function makeSessionProof(

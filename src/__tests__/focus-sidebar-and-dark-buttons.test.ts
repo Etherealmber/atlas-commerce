@@ -523,6 +523,21 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     expect(host.querySelector('.ac-apilog-panel')).not.toBeNull();
     expect(host.querySelector('.ac-audit-kpis')).not.toBeNull();
 
+    // Visible first pages refresh after five minutes, without waiting for a tab switch.
+    const oldCount = auditSpy.mock.calls.length;
+    const oldApiCount = apiSpy.mock.calls.length;
+    const now = Date.now();
+    vi.spyOn(Date, 'now').mockReturnValue(now + 301_000);
+    await act(async () => { document.dispatchEvent(new Event('visibilitychange')); await new Promise((r) => setTimeout(r, 20)); });
+    expect(auditSpy.mock.calls.length).toBeGreaterThan(oldCount);
+    expect(apiSpy.mock.calls.length).toBeGreaterThan(oldApiCount);
+
+    auditSpy.mockRejectedValueOnce(new Error('D1 unavailable'));
+    const filter = host.querySelector<HTMLButtonElement>('.ac-audit-action-btn')!;
+    await act(async () => { filter.click(); await new Promise((r) => setTimeout(r, 20)); });
+    expect(host.querySelector('.ac-audit-table-panel [role=alert]')?.textContent).toContain('Impossible de charger le journal');
+    expect(host.querySelector('.ac-audit-kpis')?.textContent).not.toContain('12');
+
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });

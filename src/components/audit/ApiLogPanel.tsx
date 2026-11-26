@@ -37,6 +37,7 @@ export default function ApiLogPanel({ range, dockActions = true }: { range: Rang
   const [stats, setStats] = useState<any>(null);
   const statsCache = useRef<Partial<Record<Range, { value: any; at: number }>>>({});
   const generation = useRef(0);
+  const lastAttempt = useRef(0);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<StatusFilter>('');
@@ -53,6 +54,7 @@ export default function ApiLogPanel({ range, dockActions = true }: { range: Rang
 
   const load = useCallback(async (cursor: string | null, reset: boolean, query = q) => {
     const requestId = ++generation.current;
+    lastAttempt.current = Date.now();
     setLoading(true); setError(false);
     const cached = statsCache.current[range];
     const useCache = !!cached && Date.now() - cached.at < 60_000;
@@ -78,6 +80,15 @@ export default function ApiLogPanel({ range, dockActions = true }: { range: Rang
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { void load(null, true); }, [range, status]);
+  useEffect(() => {
+    const refreshIfStale = () => {
+      if (document.visibilityState === 'visible' && stack.length === 1 && Date.now() - lastAttempt.current >= 300_000) void load(null, true);
+    };
+    const timer = window.setInterval(refreshIfStale, 60_000);
+    document.addEventListener('visibilitychange', refreshIfStale);
+    return () => { window.clearInterval(timer); document.removeEventListener('visibilitychange', refreshIfStale); };
+  }, [load, stack.length]);
+  useEffect(() => () => { generation.current++; }, []);
 
   const errRate = stats?.total ? Math.round((Number(stats.errors || 0) / Number(stats.total)) * 1000) / 10 : 0;
 
@@ -131,7 +142,7 @@ export default function ApiLogPanel({ range, dockActions = true }: { range: Rang
         <table className="audit-table ac-apilog-table">
           <thead>
             <tr>
-              <th>Horodatage</th>
+              <th>{t('Horodatage (heure locale)')}</th>
               <th>Requête</th>
               <th>Statut</th>
               <th>Utilisateur</th>
