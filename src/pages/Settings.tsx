@@ -36,6 +36,7 @@ import { createPortal } from 'react-dom';
 import { api, BASE, peekCachedSettings } from '../api';
 import { START_PAGES, getStartPage, setStartPage } from '../lib/startPage';
 import { removePasskeyLocally, registerWebAuthn, getCachedFingerprint, getDeviceLabel, getDeviceMeta, setStoredBiometricCredentialId, isWebAuthnAvailable } from '../fingerprint';
+import { isDemoToken } from '../lib/demoSession';
 import { getToken, canAccessAdminSettings, canAccessCompanySettings, getRole, setProfileCache } from '../auth';
 import SaveFeedback from '../components/SaveFeedback';
 import PasswordConfirm from '../components/PasswordConfirm';
@@ -873,6 +874,10 @@ if (loading && !settings) return (
   };
 
   const createUser = () => {
+    if (isDemoToken(getToken())) {
+      setNewUserError('La création d’utilisateurs est indisponible en mode démo.');
+      return;
+    }
     if (!newUser.username.trim() || !newUser.password) {
       setNewUserError('Nom d\'utilisateur et mot de passe obligatoires.');
       return;
@@ -3800,7 +3805,11 @@ if (loading && !settings) return (
               Les suppressions (facture, produit, etc.) demandent une simple confirmation — la session et le code OTP protègent déjà le compte.
               Seul le compte propriétaire voit cet onglet.
             </p>
-            <button type="button" data-visual-review="user-create" onClick={() => setUserCreateOpen(true)}>+ Ajouter un utilisateur</button>
+            {isDemoToken(getToken()) ? (
+              <p role="note">La création d’utilisateurs est indisponible en mode démo.</p>
+            ) : (
+              <button type="button" data-visual-review="user-create" onClick={() => setUserCreateOpen(true)}>+ Ajouter un utilisateur</button>
+            )}
             {userCreateOpen && !pwOpen && <SettingsUserDialog onClose={closeUserCreate}><form autoComplete="off" onSubmit={e => { e.preventDefault(); createUser(); }}>
               <h2 id="create-team-user-title">Créer un utilisateur</h2>
             <div className="grid grid-2" style={{ marginBottom: 12 }}>

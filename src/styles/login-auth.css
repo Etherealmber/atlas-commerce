@@ -970,3 +970,13 @@ html.atlas-login-page body .atlas-login.atlas-login--auth7:not(.atlas-login--pho
   html.atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone .atlas-login-auth7-form { gap: 9px !important; }
   html.atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone .atlas-login-page-foot { padding-block: 2px !important; }
 }
+
+/* Keep the toggle away from right-aligned password text in RTL, including mobile. */
+html[dir="rtl"].atlas-login-page .atlas-login.atlas-login--auth7 .atlas-password-wrap input {
+  padding-left: 44px !important;
+  padding-right: 14px !important;
+}
+html[dir="rtl"].atlas-login-page .atlas-login.atlas-login--auth7 .atlas-password-wrap .atlas-password-toggle {
+  left: 10px !important;
+  right: auto !important;
+}
