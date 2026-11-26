@@ -406,9 +406,8 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     expect(reportsSrc).toContain('DateRangePicker');
     expect(reportsSrc).toContain("'ytd'");
 
-    // README history includes 0.9.3-beta, 0.9.2-beta & 0.9.1-beta (0.9.3 stays the current version)
+    // README retains its documented older release history; the current badge is generated separately.
     expect(readmeSrc).toContain('0.0.1-beta → 0.9.3-beta');
-    expect(readmeSrc).not.toContain('0.9.4');
     expect(readmeSrc).toContain('### 0.9.3-beta');
     expect(readmeSrc).toContain('### 0.9.2-beta');
     expect(readmeSrc).toContain('### 0.9.1-beta');
@@ -466,6 +465,8 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
       },
     } as any);
 
+    const apiSpy = vi.spyOn(api, 'getApiLog').mockResolvedValue({ data: [], meta: { has_more: false, stats: { total: 4 } } } as any);
+
     await act(async () => {
       root.render(
         createElement(
@@ -483,6 +484,8 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     expect(host.querySelector('.ac-audit-header-panel')).toBeNull();
     expect(host.querySelectorAll('.ac-audit-range-pills')).toHaveLength(1);
     expect(host.querySelector('.ac-audit-kpis')).not.toBeNull();
+    expect(host.querySelector('.ac-apilog-panel')).not.toBeNull();
+    expect(host.querySelector('[aria-label="Type de journal"] button[aria-pressed="true"]')?.textContent).toBe('Tous les journaux');
     expect(host.querySelector('.ac-audit-charts-grid')).not.toBeNull();
     expect(host.querySelector('.ac-audit-table-panel')).not.toBeNull();
     expect(host.querySelector('.ac-dash-period-pills')).not.toBeNull();
@@ -499,15 +502,26 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     expect(hbarBtn!.classList.contains('is-selected')).toBe(true);
     expect(auditSpy).toHaveBeenCalled();
 
-    const apiSpy = vi.spyOn(api, 'getApiLog').mockResolvedValue({ data: [], meta: { has_more: false, stats: { total: 4 } } } as any);
     const switchButton = Array.from(host.querySelectorAll('button')).find((b) => b.textContent === 'Journal des appels API')!;
     await act(async () => { switchButton.click(); await new Promise((r) => setTimeout(r, 20)); });
     expect(host.querySelectorAll('.ac-audit-range-pills')).toHaveLength(1);
     expect(host.querySelector('.ac-audit-kpis')).toBeNull();
-    expect(apiSpy).toHaveBeenCalledWith(expect.objectContaining({ range: '7d' }));
+    expect(apiSpy).toHaveBeenCalledWith(expect.objectContaining({ range: '7d', stats: true }));
+    const successful = Array.from(host.querySelectorAll<HTMLButtonElement>('.ac-apilog-status button')).find((b) => b.textContent === 'Réussis')!;
+    await act(async () => { successful.click(); await new Promise((r) => setTimeout(r, 20)); });
+    expect(apiSpy).toHaveBeenLastCalledWith(expect.objectContaining({ range: '7d', status: 'ok', stats: false }));
     const dayButton = Array.from(host.querySelectorAll<HTMLButtonElement>('button.ac-seg-btn')).find((b) => b.textContent === '24 h')!;
     await act(async () => { dayButton.click(); await new Promise((r) => setTimeout(r, 20)); });
     expect(apiSpy).toHaveBeenLastCalledWith(expect.objectContaining({ range: '24h' }));
+
+    const historyButton = Array.from(host.querySelectorAll('button')).find((b) => b.textContent === 'Historique détaillé')!;
+    await act(async () => { historyButton.click(); });
+    expect(host.querySelector('.ac-apilog-panel')).toBeNull();
+    expect(host.querySelector('.ac-audit-kpis')).not.toBeNull();
+    const allButton = Array.from(host.querySelectorAll('button')).find((b) => b.textContent === 'Tous les journaux')!;
+    await act(async () => { allButton.click(); });
+    expect(host.querySelector('.ac-apilog-panel')).not.toBeNull();
+    expect(host.querySelector('.ac-audit-kpis')).not.toBeNull();
 
     vi.restoreAllMocks();
     vi.unstubAllGlobals();

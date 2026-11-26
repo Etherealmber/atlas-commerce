@@ -1,5 +1,5 @@
 import CatalogNames, { emptyCatalogNames } from '../components/settings/CatalogNames';
-import { langMeta, translate, useLang } from '../i18n/core';
+import { langMeta, t as translateText, translate, useLang } from '../i18n/core';
 import { DEFAULT_CATEGORIES, DEFAULT_UNITS } from '../../worker/lib/product-defaults';
 import QrLoginPanel from '../components/settings/QrLoginPanel';
 import { LanguageSoonDialog } from '../components/LanguageSoonDialog';
@@ -18,7 +18,6 @@ import {
   Activity,
   BarChart3,
   Check,
-  ChevronRight,
   Download,
   Languages,
   Layers,
@@ -273,7 +272,7 @@ export default function Settings() {
   const [catalogDialogError, setCatalogDialogError] = useState('');
   const [auditLog, setAuditLog] = useState<any[]>([]);
   const [auditDetailRow, setAuditDetailRow] = useState<any | null>(null);
-  const [journalView, setJournalView] = useState<'audit' | 'api'>('audit');
+  const [journalView, setJournalView] = useState<'all' | 'audit' | 'api'>('all');
   useEffect(() => {
     if (!auditDetailRow) return;
     const prev = document.body.style.overflow;
@@ -2836,15 +2835,17 @@ if (loading && !settings) return (
 
         return (
           <div className="audit-panel settings-audit-full ac-audit-stack">
-            {journalView === 'audit' && <div className="page-header ac-page-header dock-page-header">
+            {journalView !== 'api' && <div className="page-header ac-page-header dock-page-header">
               <TopPageActions>
-                {journalView === 'audit' && <button type="button" className="secondary" title="Actualiser" aria-label="Actualiser" disabled={auditLoading} onClick={() => void loadAuditPage(null, auditQ, true)}><RefreshCw size={15} aria-hidden="true" /><span className="tpa-label">Actualiser</span></button>}
-                {journalView === 'audit' && <button type="button" className="secondary" title="Export CSV" aria-label="Export CSV" disabled={auditLoading} onClick={async () => { try { await api.exportAuditLog('csv', 500); flash('Export CSV téléchargé.'); } catch (e: any) { flash(e?.message || 'Échec export', 'error'); } }}><Download size={15} aria-hidden="true" /><span className="tpa-label">Export CSV</span></button>}
+                <button type="button" className="secondary" title="Actualiser" aria-label="Actualiser" disabled={auditLoading} onClick={() => void loadAuditPage(null, auditQ, true)}><RefreshCw size={15} aria-hidden="true" /><span className="tpa-label">Actualiser</span></button>
+                <button type="button" className="secondary" title="Export CSV" aria-label="Export CSV" disabled={auditLoading} onClick={async () => { try { await api.exportAuditLog('csv', 500); flash('Export CSV téléchargé.'); } catch (e: any) { flash(e?.message || 'Échec export', 'error'); } }}><Download size={15} aria-hidden="true" /><span className="tpa-label">Export CSV</span></button>
               </TopPageActions>
             </div>}
+            <div className="ac-panel journal-history" aria-label="Journaux">
             <p role="note">Attention : la purge D1 des journaux est suspendue jusqu’à la vérification de leur archivage. Les données peuvent rester plus de 30 jours.</p>
             <div className="journal-toolbar">
               <div className="journal-view-switch" role="group" aria-label="Type de journal">
+                <button type="button" className="secondary" aria-pressed={journalView === 'all'} onClick={() => setJournalView('all')}>{translateText('Tous les journaux')}</button>
                 <button type="button" className="secondary" aria-pressed={journalView === 'audit'} onClick={() => setJournalView('audit')}>Historique détaillé</button>
                 <button type="button" className="secondary" aria-pressed={journalView === 'api'} onClick={() => setJournalView('api')}>Journal des appels API</button>
               </div>
@@ -2852,7 +2853,8 @@ if (loading && !settings) return (
                 {(['24h', '7d', '30d'] as const).map((rKey) => <button key={rKey} type="button" className="ac-seg-btn" aria-pressed={auditRange === rKey} onClick={() => setAuditRange(rKey)}>{rangeShort[rKey]}</button>)}
               </div>
             </div>
-            {journalView === 'audit' && <>
+            {journalView !== 'api' && <section className="ac-panel ac-audit-table-panel" aria-label="Événements du journal">
+            <h3>Historique détaillé</h3>
             <div className="ac-metric-grid ac-audit-kpis">
               <article className="ac-metric">
                 <div className="as-label">
@@ -2921,7 +2923,7 @@ if (loading && !settings) return (
                       <BarChart3 className="as-icon" size={16} strokeWidth={2} aria-hidden="true" />
                       <span>Activité dans le temps</span>
                     </h3>
-                    <p>Volume quotidien d’événements enregistrés</p>
+                    <p>{auditRange === '30d' ? translateText('Volume quotidien · 14 derniers jours affichés') : translateText('Volume quotidien d’événements enregistrés')}</p>
                   </div>
                 </div>
                 {days.length === 0 ? (
@@ -2987,9 +2989,6 @@ if (loading && !settings) return (
               </section>
             </div>
 
-            </>}
-            <div className="ac-panel journal-history" aria-label="Historique détaillé">
-            {journalView === 'audit' ? <section className="ac-panel ac-audit-table-panel" aria-label="Événements du journal">
               <div className="ac-panel-head" style={{ marginBottom: 12 }}>
                 <div>
                   <h3>
@@ -3171,7 +3170,7 @@ if (loading && !settings) return (
                           <td className="audit-detail">
                             <button
                               type="button"
-                              className="ac-audit-detail-link ac-audit-detail-btn"
+                              className="secondary"
                               aria-label="Détails"
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -3179,7 +3178,6 @@ if (loading && !settings) return (
                               }}
                             >
                               <span className="ac-audit-detail-text">Détails</span>
-                              <ChevronRight className="ac-audit-detail-chev" size={14} strokeWidth={2} aria-hidden="true" />
                             </button>
                           </td>
                         </tr>
@@ -3189,7 +3187,8 @@ if (loading && !settings) return (
                 </table>
               </div>
 
-            </section> : <ApiLogPanel range={auditRange} />}
+            </section>}
+            {journalView !== 'audit' && <ApiLogPanel range={auditRange} dockActions={journalView === 'api'} />}
             </div>
           </div>
         );

@@ -84,7 +84,10 @@ describe('audit journal, tables and D1 target', () => {
     const s = read('src/pages/Settings.tsx');
     expect(s).toContain('journal-toolbar');
     expect(s).toContain('<TopPageActions>');
-    expect(s).toContain('<ApiLogPanel range={auditRange} />');
+    expect(s).toContain('<ApiLogPanel range={auditRange} dockActions={journalView === \'api\'} />');
+    expect(s).toContain("useState<'all' | 'audit' | 'api'>('all')");
+    expect(s).toContain("journalView !== 'api'");
+    expect(s).toContain("journalView !== 'audit'");
     expect(s).not.toMatch(/<option[^>]*>\s*7 derniers jours/);
   });
 

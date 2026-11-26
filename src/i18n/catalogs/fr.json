@@ -2945,5 +2945,11 @@
   "Vérifiez les propositions avant d’enregistrer. Les champs déjà remplis ne sont pas remplacés.": "Vérifiez les propositions avant d’enregistrer. Les champs déjà remplis ne sont pas remplacés.",
   "Saisissez d’abord un nom.": "Saisissez d’abord un nom.",
   "Suggestion indisponible. Vous pouvez saisir les noms manuellement.": "Suggestion indisponible. Vous pouvez saisir les noms manuellement.",
-  "Au moins un nom est obligatoire.": "Au moins un nom est obligatoire."
+  "Au moins un nom est obligatoire.": "Au moins un nom est obligatoire.",
+  "Tous les journaux": "Tous les journaux",
+  "Chemins API les plus appelés": "Chemins API les plus appelés",
+  "Appels enregistrés sur la période · statistiques indépendantes des filtres": "Appels enregistrés sur la période · statistiques indépendantes des filtres",
+  "Impossible de charger le journal. Réessayez plus tard.": "Impossible de charger le journal. Réessayez plus tard.",
+  "Volume quotidien · 14 derniers jours affichés": "Volume quotidien · 14 derniers jours affichés",
+  "Volume quotidien d’événements enregistrés": "Volume quotidien d’événements enregistrés"
 }
