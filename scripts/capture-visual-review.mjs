@@ -75,6 +75,7 @@ try {
         if (code === '19-audit') {
           await page.$eval('.ac-audit-table-wrap', (el) => el.scrollIntoView({ block: 'center' }));
           ready = (await waitForVisualReady(page)) && ready;
+          if (!ready) throw new Error(`${code}: audit table is still loading`);
         }
         if (lang !== 'fr') i18nObservations.push({ code, lang, device, ready, candidates: await page.evaluate(findVisibleFrenchCandidates) });
         const filename = `${code}--${lang}--${device}--light${ready ? '' : '--loading'}.png`;
@@ -87,6 +88,7 @@ try {
             await auditRow.click();
             await page.waitForSelector('#audit-detail-title', { timeout: 10000 });
             const modalReady = await waitForVisualReady(page);
+            if (!modalReady) throw new Error(`${code}: detail is still loading`);
             const modalFile = `${code}-detail--${lang}--${device}--light${modalReady ? '' : '--loading'}.png`;
             await page.screenshot({ path: `${OUT}/${modalFile}` });
             manifest.push(`- **${code}-detail** — ${lang}, ${device}: [${modalFile}](${modalFile})${modalReady ? '' : ' — loading did not finish'}`);

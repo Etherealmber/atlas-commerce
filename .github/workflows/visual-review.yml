@@ -56,5 +56,5 @@ jobs:
           echo 'Screenshots are private workflow artifacts, not committed files. GitHub requires downloading the artifact to view its individual images.' >> "$GITHUB_STEP_SUMMARY"
           if [ -f artifacts/visual-review/README.md ]; then
             echo '### Captured page codes' >> "$GITHUB_STEP_SUMMARY"
-            sed -n '/^- \*\*/p' artifacts/visual-review/README.md | sed -E 's/\[([^]]+)\]\([^)]+\)/``/' >> "$GITHUB_STEP_SUMMARY"
+            sed -n '/^- \*\*/p' artifacts/visual-review/README.md | sed -E 's/\[([^]]+)\]\([^)]+\)/`\1`/' >> "$GITHUB_STEP_SUMMARY"
           fi

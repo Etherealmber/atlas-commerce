@@ -864,7 +864,8 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
     if (reason !== 'ok') return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
     const session = sessionUserFromHeader(c.req.header('Authorization'));
     const username = String(session.username || '').toLowerCase();
-    const res = await issueDeleteOtp(c.env, 'agent-data', username, 'toutes les conversations Atlas Agent', 'Code de confirmation — suppression des données Atlas Agent', { toEmail: await userMail(c.env.DB, username) });
+    const res = await issueDeleteOtp(c.env, 'agent-data', username, 'toutes les conversations Atlas Agent', 'Code de confirmation — suppression des données Atlas Agent', { toEmail: await userMail(c.env.DB, username), language: c.req.header('Accept-Language') });
+    if (!res.emailed && !res.otp) return c.json({ success: false, code: 'OTP_DELIVERY_FAILED', error: res.message }, 503);
     return c.json({ success: true, emailed: res.emailed, message: res.message, otp: res.emailed ? undefined : res.otp });
   });
   

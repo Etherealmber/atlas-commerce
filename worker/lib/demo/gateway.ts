@@ -428,6 +428,17 @@ export async function handleDemoRequest(
   const parsed = await unwrapDemoToken(env, wrapped);
   if (!parsed) return json({ success: false, code: 'UNAUTHORIZED', error: 'Session de démo invalide.' }, 401);
   if (Date.now() >= parsed.claims.exp) return expiredResponse();
+  if (url.pathname === '/api/demo/session' && request.method === 'GET') {
+    try {
+      const stub = hubStub(env, `demo:${parsed.claims.fp}`);
+      if (!stub) return json({ success: false, code: 'DEMO_UNAVAILABLE' }, 503);
+      const status = await callHub(stub, '/status');
+      const meta = status?.meta;
+      if (status?.ok !== true || !meta) return json({ success: false, code: 'DEMO_UNAVAILABLE' }, 503);
+      if (Number(meta.gen) !== parsed.claims.gen || Number(meta.expires_at) !== parsed.claims.exp || Number(status.now) >= Number(meta.expires_at)) return expiredResponse();
+      return json({ success: true, data: { expires_at: meta.expires_at, server_now: status.now } });
+    } catch { return json({ success: false, code: 'DEMO_UNAVAILABLE' }, 503); }
+  }
   const offLimits = demoOffLimitsResponse(url.pathname, request.method);
   if (offLimits) return offLimits;
 

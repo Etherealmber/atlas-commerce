@@ -309,6 +309,9 @@ jobs:
           # intentionally not deleted because references may be shared.
           if ! npx wrangler d1 execute DB --remote --config wrangler.jsonc --json --command "DELETE FROM mail_messages WHERE created_at < datetime('now','-30 days') AND (SELECT COUNT(*) FROM mail_messages)=129 AND (SELECT COUNT(*) FROM mail_messages WHERE created_at < datetime('now','-30 days'))=129 AND (SELECT COUNT(*) FROM mail_messages WHERE r2_key != '')=128" > result.json 2> error.txt; then
             if grep -qiE 'quota|limit exceeded|exceeded.*limit' error.txt; then echo '::error::Cloudflare reports a quota or limit error.'; elif grep -qiE 'permission|authentication|unauthorized|not authorized' error.txt; then echo '::error::Cloudflare rejected the database write permission.'; else echo '::error::Cloudflare rejected the database delete; inspect the workflow log.'; fi
+            # This command contains only fixed SQL, never message data. Publish a bounded diagnostic.
+            detail=$(grep -iE 'error|reason|code' error.txt | head -3 | tr '\n' ' ' | cut -c1-400 || true)
+            echo "::notice title=Cloudflare diagnostic::$detail"
             exit 1
           fi
           changes=$(jq -er '.[0].meta.changes | numbers' result.json)

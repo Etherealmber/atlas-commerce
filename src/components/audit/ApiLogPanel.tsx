@@ -173,6 +173,7 @@ export default function ApiLogPanel() {
           }}
         />
       </div>
+      <JournalArchive onOpen={setDetail} />
       {detail && createPortal(<div className="audit-detail-modal-backdrop" role="presentation" onClick={() => setDetail(null)}>
         <div className="audit-detail-modal card" role="dialog" aria-modal="true" aria-labelledby="api-log-detail-title" onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Escape') setDetail(null); }}>
           <div className="audit-detail-heading"><h3 id="api-log-detail-title">Détails de la requête</h3><button type="button" className="secondary" aria-label="Fermer" onClick={() => setDetail(null)}>×</button></div>
@@ -183,4 +184,38 @@ export default function ApiLogPanel() {
       </div>, document.body)}
     </section>
   );
+}
+
+/** Separate archive browser: current D1 KPIs and filters do not include R2. */
+function JournalArchive({ onOpen }: { onOpen: (row: any) => void }) {
+  const [day, setDay] = useState(() => new Date().toISOString().slice(0, 10));
+  const [keys, setKeys] = useState<string[]>([]);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+  const load = async (next?: string) => {
+    setBusy(true); setMessage('');
+    try {
+      const result = await api.listJournalArchive(day, next);
+      setKeys(current => next ? [...current, ...result.data] : result.data);
+      setCursor(result.meta.next_cursor);
+      if (!result.data.length && !next) setMessage(t('Aucune entrée archivée pour cette date.'));
+    } catch { setKeys([]); setCursor(null); setMessage(t('Archive indisponible ou non configurée.')); }
+    finally { setBusy(false); }
+  };
+  const open = async (key: string) => {
+    setBusy(true); setMessage('');
+    try { const result = await api.getJournalArchiveItem(key); onOpen(result.data); }
+    catch { setMessage(t('Impossible de lire cette entrée archivée.')); }
+    finally { setBusy(false); }
+  };
+  return <details className="ac-panel">
+    <summary>{t('Archive chiffrée des appels API')}</summary>
+    <p>{t('Les statistiques et filtres ci-dessus concernent uniquement le journal D1. L’archive est consultable par jour, séparément.')}</p>
+    <label>{t('Date UTC')} <input type="date" value={day} onChange={e => { setDay(e.target.value); setKeys([]); setCursor(null); setMessage(''); }} /></label>{' '}
+    <button className="secondary" type="button" disabled={busy || !day} onClick={() => void load()}>{t('Afficher les archives')}</button>
+    {message && <p role="status">{message}</p>}
+    <ul>{keys.map((key, index) => <li key={key}><button className="secondary" type="button" disabled={busy} onClick={() => void open(key)}><bdi dir="ltr">{key.split('/').pop()?.slice(0, 23) || index + 1}</bdi></button></li>)}</ul>
+    {cursor && <button className="secondary" type="button" disabled={busy} onClick={() => void load(cursor)}>{t('Afficher plus')}</button>}
+  </details>;
 }

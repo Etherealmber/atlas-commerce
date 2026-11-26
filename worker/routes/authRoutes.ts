@@ -1,4 +1,5 @@
 import type { AtlasApp } from './types';
+import { otpCopy } from '../lib/otpCopy';
 import type { Env } from '../env';
 import { addColumnIfMissing } from '../lib/schema';
 import { normalizeRole } from '../lib/rbac';
@@ -291,16 +292,12 @@ app.post('/api/auth/login', async (c) => {
     fingerprint: fingerprint !== 'none' ? fingerprint : undefined,
     username,
     verifyUrl,
+    language: c.req.header('Accept-Language'),
   });
-  const emailText =
-    `Code de vérification : ${otp}\n\n` +
-    `Utilisez ce code pour confirmer votre connexion sur ${companyName} (valable 10 minutes).\n` +
-    `Lien de vérification : ${verifyUrl}\n\n` +
-    `---\n` +
-    `Compte : ${username}\n` +
-    `IP : ${ip}\n` +
-    `Empreinte : ${fingerprint}\n` +
-    `Appareil : ${ua.slice(0, 160)}`;
+  const mailCopy = otpCopy(c.req.header('Accept-Language'));
+  const emailText = mailCopy.lang === 'fr'
+    ? `Code de vérification : ${otp}\n\nUtilisez ce code pour confirmer votre connexion sur ${companyName} (valable 10 minutes).\nLien de vérification : ${verifyUrl}\n\n${mailCopy.warning}`
+    : `${mailCopy.code}: ${otp}\n\n${mailCopy.loginIntro} ${mailCopy.expiry}\n${verifyUrl}\n\n${mailCopy.warning}`;
 
   // Free tier: no Queues (paid). Background email via waitUntil only — do not block the response.
   if (!c.env.EMAIL?.send && !(c.env as any).RESEND_API_KEY && String((c.env as any).ENVIRONMENT || '').toLowerCase() !== 'production' && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(new URL(c.req.url).hostname)) {
@@ -328,7 +325,7 @@ app.post('/api/auth/login', async (c) => {
   const delivered = await sendOtpMail(c.env, {
     to: toAddr,
     from: fromAddr,
-    subject: `${otp} — Code de connexion ${companyName}`,
+    subject: `${otp} — ${mailCopy.loginTag} ${companyName}`,
     html: emailHtml,
     text: emailText,
   });

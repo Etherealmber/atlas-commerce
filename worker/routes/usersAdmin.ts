@@ -334,7 +334,7 @@ app.get('/api/admin/journal-archive', async (c) => {
   if (cursor.length > 2048) return c.json({ success: false, error: 'Curseur invalide.' }, 400);
   try {
     const result = await listArchivedApiCalls(c.env, day, cursor || undefined);
-    return c.json({ success: true, data: result.keys, meta: { next_cursor: result.cursor, mode: 'shadow' } });
+    return c.json({ success: true, data: result.keys, meta: { next_cursor: result.cursor, mode: c.env.JOURNAL_ARCHIVE_MODE } });
   } catch (e) {
     if (e instanceof Error && e.message === 'Invalid archive date') return c.json({ success: false, error: 'Date invalide.' }, 400);
     return c.json({ success: false, error: 'Archive indisponible.' }, 503);
