@@ -51,8 +51,7 @@ function formatRange(from: string, to: string): string {
   const a = parseISO(from);
   const b = parseISO(to);
   if (a && b) {
-    const left = a.getFullYear() === b.getFullYear() ? (getLang() === 'fr' ? `${a.getDate()} ${MONTHS_SHORT[a.getMonth()]}` : new Intl.DateTimeFormat(intlLocale(), { day: 'numeric', month: 'short' }).format(a)) : formatDisplay(from);
-    return `${left} — ${formatDisplay(to)}`;
+    return `${formatDisplay(from)} — ${formatDisplay(to)}`;
   }
   return formatDisplay(from) || formatDisplay(to);
 }

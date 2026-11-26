@@ -7970,3 +7970,19 @@ html[data-theme="dark"] body .wizard-foot .wizard-foot-actions:not(#wz-g1):not(#
   background: #ffffff !important;
   border-color: #ffffff !important;
 }
+
+/* Keep row and cell surfaces dark even when light-theme rules paint white
+   rows or product cells with higher specificity. Preserve badge colours. */
+html[data-theme="dark"] body :is(.content, .atlas-page, .settings-main) table tbody tr,
+html[data-theme="dark"] body :is(.content, .atlas-page, .settings-main) table tbody tr:nth-child(odd),
+html[data-theme="dark"] body :is(.content, .atlas-page, .settings-main) table tbody tr:nth-child(even) {
+  background: #18181b !important;
+}
+html[data-theme="dark"] body :is(.content, .atlas-page, .settings-main) table tbody td {
+  background: transparent !important;
+  color: #e4e4e7 !important;
+  border-bottom-color: #303036 !important;
+}
+html[data-theme="dark"] body :is(.content, .atlas-page, .settings-main) table tbody tr:hover > td {
+  background: #29292f !important;
+}
