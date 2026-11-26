@@ -19,6 +19,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Test screenshot readiness checks
+        run: node --test scripts/visual-wait.test.mjs
       - name: Start isolated test/test demo and capture pages
         run: |
           node scripts/visual-demo-worker.mjs

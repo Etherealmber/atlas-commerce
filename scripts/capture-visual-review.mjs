@@ -2,6 +2,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import puppeteer from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
+import { waitForVisualReady } from './visual-wait.mjs';
 
 const BASE = 'http://127.0.0.1:5173';
 const OUT = 'artifacts/visual-review';
@@ -47,12 +48,13 @@ try {
       }, auth, lang, fingerprint);
       for (const [code, path] of (device === 'desktop' ? pages : mobile).filter(([id]) => !process.env.VISUAL_FILTER || id.includes(process.env.VISUAL_FILTER))) {
         await page.goto(BASE + path, { waitUntil: 'networkidle2', timeout: 60000 });
-        await new Promise((r) => setTimeout(r, 1000));
+        const ready = await waitForVisualReady(page);
+        if (!ready) console.warn(`${code} (${lang}, ${device}): loading did not finish; screenshot marked loading`);
         const current = new URL(page.url());
         if (current.pathname === '/login' || current.pathname === '/welcome') throw new Error(`${code}: redirected to ${current.pathname}; demo session unavailable`);
-        const filename = `${code}--${lang}--${device}--light.png`;
+        const filename = `${code}--${lang}--${device}--light${ready ? '' : '--loading'}.png`;
         await page.screenshot({ path: `${OUT}/${filename}`, fullPage: true });
-        manifest.push(`- **${code}** — ${lang}, ${device}: [${filename}](${filename}) (${path})`);
+        manifest.push(`- **${code}** — ${lang}, ${device}: [${filename}](${filename}) (${path})${ready ? '' : ' — loading did not finish'}`);
         console.log(filename);
         const dialogs = device !== 'desktop' ? [] : code === '15-settings-categories'
           ? ['category-create', 'category-edit', 'unit-create', 'unit-edit']
@@ -62,13 +64,15 @@ try {
           // fullPage screenshots can trigger responsive re-renders; reload the
           // intended tab before interacting so the dialog belongs to that page.
           await page.goto(BASE + path, { waitUntil: 'networkidle2', timeout: 60000 });
+          const dialogReady = await waitForVisualReady(page);
+          if (!dialogReady) console.warn(`${code}-${dialog}: page still loading before dialog`);
           await page.waitForSelector(selector, { timeout: 15000 });
           await page.click(selector);
           await page.waitForSelector('[role="dialog"]', { timeout: 10000 });
-          await new Promise((r) => setTimeout(r, 350));
-          const modalFile = `${code}-${dialog}--${lang}--${device}--light.png`;
+          const modalReady = dialogReady && await waitForVisualReady(page);
+          const modalFile = `${code}-${dialog}--${lang}--${device}--light${modalReady ? '' : '--loading'}.png`;
           await page.screenshot({ path: `${OUT}/${modalFile}` });
-          manifest.push(`- **${code}-${dialog}** — ${lang}, ${device}: [${modalFile}](${modalFile})`);
+          manifest.push(`- **${code}-${dialog}** — ${lang}, ${device}: [${modalFile}](${modalFile})${modalReady ? '' : ' — loading did not finish'}`);
           console.log(modalFile);
           await page.keyboard.press('Escape');
           await page.waitForSelector('[role="dialog"]', { hidden: true, timeout: 10000 });
@@ -78,4 +82,4 @@ try {
     }
   }
 } finally { await browser.close(); }
-writeFileSync(`${OUT}/README.md`, `# Visual review screenshots\n\nIsolated local test/test demo; no production data. Names include page code, language and device. Send the filename and the area needing refinement. Light theme, full-page captures; overlays and every possible state are not covered.\n\n${manifest.join('\n')}\n`);
+writeFileSync(`${OUT}/README.md`, `# Visual review screenshots\n\nIsolated local test/test demo; no production data. Names include page code, language and device. Send the filename and the area needing refinement. Light theme, full-page captures; overlays and every possible state are not covered. Files marked --loading still had visible loading indicators after 20 seconds.\n\n${manifest.join('\n')}\n`);
