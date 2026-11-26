@@ -310,14 +310,22 @@ describe('shared VPN egress: real password/OTP handlers', () => {
   });
 
   it('a shared-IP spray still hits a global ceiling while health can remain healthy', async () => {
-    for (let i = 0; i < 60; i++) {
-      expect((await login({ username: `spray-${i}`, password: 'wrong' })).status).toBe(401);
+    // Admission uses fixed UTC minute buckets. Keep this integration scenario
+    // within one bucket even if CI is delayed or crosses a real minute boundary.
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(Math.floor(Date.now() / 60_000) * 60_000 + 5_000);
+    try {
+      for (let i = 0; i < 60; i++) {
+        expect((await login({ username: `spray-${i}`, password: 'wrong' })).status).toBe(401);
+      }
+      const blocked = await login({ username: 'next-account', password: 'wrong' });
+      expect(blocked.status).toBe(429);
+      expect(Number(blocked.headers.get('Retry-After'))).toBe(55);
+      const health = await app.fetch(new Request('http://test.local/api/health', { headers: { 'CF-Connecting-IP': testIp } }), env);
+      expect(health.status).toBe(200);
+      expect((await health.json() as any).data.d1).toBe(true);
+    } finally {
+      clock.mockRestore();
     }
-    const blocked = await login({ username: 'next-account', password: 'wrong' });
-    expect(blocked.status).toBe(429);
-    const health = await app.fetch(new Request('http://test.local/api/health', { headers: { 'CF-Connecting-IP': testIp } }), env);
-    expect(health.status).toBe(200);
-    expect((await health.json() as any).data.d1).toBe(true);
   });
 
   it('does not erase or ignore an explicit unexpired IP ban', async () => {

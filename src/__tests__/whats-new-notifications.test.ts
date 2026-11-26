@@ -107,6 +107,8 @@ describe('published release notification state', () => {
 describe('release page and popup content', () => {
   it('shows 0.9.3 first while retaining prior releases', async () => {
     await render(createElement(WhatsNew), '/whats-new');
+    expect(host.querySelector('.wn-upcoming')?.textContent).toContain('0.9.4');
+    expect(host.querySelector('.wn-upcoming')?.textContent).toContain('pas encore publiée');
     const releases = host.querySelectorAll('.wn-release');
     expect(releases[0].textContent).toContain('0.9.3');
     expect(releases[0].textContent).toContain('Navigation entre les pages réécrite');

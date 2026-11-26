@@ -2894,5 +2894,19 @@
   "Mode démo : le compte à rebours est synchronisé avec la session et Atlas Agent affiche un message lorsque la limite de démo est atteinte.": "Mode démo : le compte à rebours est synchronisé avec la session et Atlas Agent affiche un message lorsque la limite de démo est atteinte.",
   "Paramètres : les onglets déjà ouverts restent disponibles pendant le rafraîchissement et les formulaires de gestion utilisent des fenêtres dédiées.": "Paramètres : les onglets déjà ouverts restent disponibles pendant le rafraîchissement et les formulaires de gestion utilisent des fenêtres dédiées.",
   "Sécurité : les e-mails de connexion et de confirmation de suppression des conversations Atlas Agent sont disponibles en français, anglais et arabe.": "Sécurité : les e-mails de connexion et de confirmation de suppression des conversations Atlas Agent sont disponibles en français, anglais et arabe.",
-  "Historique Agent : les anciennes conversations au format pris en charge sont chiffrées lors de la prochaine réponse ; les formats non reconnus restent protégés.": "Historique Agent : les anciennes conversations au format pris en charge sont chiffrées lors de la prochaine réponse ; les formats non reconnus restent protégés."
+  "Historique Agent : les anciennes conversations au format pris en charge sont chiffrées lors de la prochaine réponse ; les formats non reconnus restent protégés.": "Historique Agent : les anciennes conversations au format pris en charge sont chiffrées lors de la prochaine réponse ; les formats non reconnus restent protégés.",
+  "Explication avec Atlas Agent": "Explication avec Atlas Agent",
+  "Sur demande, des catégories d’événement et indicateurs agrégés peuvent être envoyés au fournisseur IA. Aucun nom, adresse IP ou détail brut n’est envoyé.": "Sur demande, des catégories d’événement et indicateurs agrégés peuvent être envoyés au fournisseur IA. Aucun nom, adresse IP ou détail brut n’est envoyé.",
+  "Analyser à nouveau": "Analyser à nouveau",
+  "Expliquer avec Atlas Agent": "Expliquer avec Atlas Agent",
+  "Explication indisponible. Réessayez.": "Explication indisponible. Réessayez.",
+  "Explication automatique sans IA.": "Explication automatique sans IA.",
+  "Explication générée par IA.": "Explication générée par IA.",
+  "Vérifiez les faits avant toute action.": "Vérifiez les faits avant toute action.",
+  "0.9.4 — Aperçu en préparation": "0.9.4 — Aperçu en préparation",
+  "Ces notes sont provisoires ; la version 0.9.4 n’est pas encore publiée.": "Ces notes sont provisoires ; la version 0.9.4 n’est pas encore publiée.",
+  "Détail de l’entrée": "Détail de l’entrée",
+  "Suspect": "Suspect",
+  "À surveiller": "À surveiller",
+  "Normal": "Normal"
 }

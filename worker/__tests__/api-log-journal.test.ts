@@ -108,7 +108,7 @@ describe('API journal', () => {
 
     const kv = new Map<string, string>();
     const CACHE: any = { get: async (k: string) => kv.get(k) ?? null, put: async (k: string, v: string) => { kv.set(k, v); } };
-    const fetcher = vi.fn(async () => new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ summary: 'Tentatives de connexion refusées depuis un VPN aux Pays-Bas.', risk: 'suspect', advice: 'Bloquez cette IP.' }) } }] }), { status: 200 }));
+    const fetcher = vi.fn(async (_url: string, _init: RequestInit) => new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ summary: 'Tentatives de connexion refusées depuis un VPN aux Pays-Bas.', risk: 'suspect', advice: 'Bloquez cette IP.' }) } }] }), { status: 200 }));
     const { db } = makeD1();
     const env = { GROQ_API_KEY: 'k', CACHE, DB: db };
     await db.prepare('CREATE TABLE IF NOT EXISTS app_config (key TEXT PRIMARY KEY, value TEXT, updated_at TEXT)').run();
@@ -117,6 +117,17 @@ describe('API journal', () => {
     const second = await explainLogLine(env, line, fetcher);
     expect(second.source).toBe('cache');
     expect(fetcher).toHaveBeenCalledTimes(1);
+    const requestBody = JSON.stringify(JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body)));
+    expect(requestBody).not.toContain('185.1.1.1');
+    expect(requestBody).not.toContain('/api/auth/login');
+    expect(requestBody).not.toContain('Amsterdam');
+    const arabicRules = await explainLogLine({}, { ...line, language: 'ar' });
+    const englishRules = await explainLogLine({}, { ...line, language: 'en' });
+    expect(arabicRules.summary).toContain('الحدث');
+    expect(englishRules.summary).toContain('Recorded event');
+    const english = await explainLogLine(env, { ...line, language: 'en' }, fetcher);
+    expect(english.source).toBe('groq');
+    expect(fetcher).toHaveBeenCalledTimes(2);
 
     const limited = vi.fn(async () => new Response('{}', { status: 429, headers: { 'retry-after': '120' } }));
     expect((await explainLogLine({ ...env, CACHE: undefined }, { ...line, id: 8 }, limited)).source).toBe('rules');

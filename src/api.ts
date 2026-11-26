@@ -1020,10 +1020,10 @@ export const api = {
   },
   getJournalArchiveItem: (key: string) => request<{ data: any }>(`/api/admin/journal-archive/item?${new URLSearchParams({ key })}`, { silent: true }),
   /** « Expliquer » — Groq (free tier, cached) explanation of one log line. */
-  explainLogLine: (kind: 'audit' | 'api', id: number) =>
+  explainLogLine: (kind: 'audit' | 'api', id: number, language: 'fr' | 'en' | 'ar' = 'fr') =>
     request<{ data: { summary: string; risk: 'normal' | 'à surveiller' | 'suspect'; advice: string; source: string; model?: string; network?: { kind: string; label: string; risky: boolean } } }>(
       '/api/admin/audit/explain',
-      { method: 'POST', body: JSON.stringify({ kind, id }), headers: { 'Content-Type': 'application/json' } },
+      { method: 'POST', body: JSON.stringify({ kind, id, language }), headers: { 'Content-Type': 'application/json' } },
     ),
   getAuditLog: (params?: {
     limit?: number;

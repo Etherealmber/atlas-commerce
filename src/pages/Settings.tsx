@@ -53,6 +53,7 @@ import GithubReportsPanel from '../components/settings/GithubReportsPanel';
 import ApiLogPanel from '../components/audit/ApiLogPanel';
 import AuditIpCell from '../components/audit/AuditIpCell';
 import { AuditRequestDetails } from '../components/audit/AuditRequestDetails';
+import { AuditAgentExplanation } from '../components/audit/AuditAgentExplanation';
 import BackupStatusStrip from '../components/settings/BackupStatusStrip';
 import { AlertsPanel } from '../components/atlas-v209-panels';
 import AgentPermissionsPanel from '../components/AgentPermissionsPanel';
@@ -4198,7 +4199,7 @@ if (loading && !settings) return (
             onClick={() => setAuditDetailRow(null)}
           >
             <div
-              className="audit-detail-modal card"
+              className="audit-detail-modal audit-detail-modal--expanded card"
               role="dialog"
               aria-modal="true"
               aria-labelledby="audit-detail-title"
@@ -4242,6 +4243,7 @@ if (loading && !settings) return (
                   <dd className="audit-detail-full" translate="no" dir="auto">{auditDetailRow.detail || '—'}</dd>
                 </div>
               </dl>
+              {Number(auditDetailRow.id) > 0 && <AuditAgentExplanation key={auditDetailRow.id} id={Number(auditDetailRow.id)} />}
               <h4>Détails de la connexion</h4>
               <AuditRequestDetails row={auditDetailRow} kind="audit" />
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>

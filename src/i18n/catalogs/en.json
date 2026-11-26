@@ -2894,5 +2894,19 @@
   "Mode démo : le compte à rebours est synchronisé avec la session et Atlas Agent affiche un message lorsque la limite de démo est atteinte.": "Demo mode: the countdown is synchronized with the session and Atlas Agent shows a message when the demo limit is reached.",
   "Paramètres : les onglets déjà ouverts restent disponibles pendant le rafraîchissement et les formulaires de gestion utilisent des fenêtres dédiées.": "Settings: previously opened tabs remain available while refreshing, and management forms use dedicated dialogs.",
   "Sécurité : les e-mails de connexion et de confirmation de suppression des conversations Atlas Agent sont disponibles en français, anglais et arabe.": "Security: sign-in emails and Atlas Agent conversation deletion confirmation emails are available in French, English and Arabic.",
-  "Historique Agent : les anciennes conversations au format pris en charge sont chiffrées lors de la prochaine réponse ; les formats non reconnus restent protégés.": "Agent history: supported older conversations are encrypted on the next reply; unrecognized formats remain protected."
+  "Historique Agent : les anciennes conversations au format pris en charge sont chiffrées lors de la prochaine réponse ; les formats non reconnus restent protégés.": "Agent history: supported older conversations are encrypted on the next reply; unrecognized formats remain protected.",
+  "Explication avec Atlas Agent": "Explanation with Atlas Agent",
+  "Sur demande, des catégories d’événement et indicateurs agrégés peuvent être envoyés au fournisseur IA. Aucun nom, adresse IP ou détail brut n’est envoyé.": "On request, event categories and aggregate indicators may be sent to the AI provider. No names, IP addresses or raw details are sent.",
+  "Analyser à nouveau": "Analyze again",
+  "Expliquer avec Atlas Agent": "Explain with Atlas Agent",
+  "Explication indisponible. Réessayez.": "Explanation unavailable. Try again.",
+  "Explication automatique sans IA.": "Automatic explanation without AI.",
+  "Explication générée par IA.": "AI-generated explanation.",
+  "Vérifiez les faits avant toute action.": "Check the facts before taking action.",
+  "0.9.4 — Aperçu en préparation": "0.9.4 — Preview in preparation",
+  "Ces notes sont provisoires ; la version 0.9.4 n’est pas encore publiée.": "These notes are provisional; version 0.9.4 has not been released yet.",
+  "Détail de l’entrée": "Entry details",
+  "Suspect": "Suspicious",
+  "À surveiller": "Needs attention",
+  "Normal": "Normal"
 }

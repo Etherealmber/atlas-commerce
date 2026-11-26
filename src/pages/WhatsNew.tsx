@@ -1431,6 +1431,14 @@ export default function WhatsNew() {
         Nouveautés
       </motion.h1>
 
+      <details className="wn-upcoming">
+        <summary><strong>0.9.4 — Aperçu en préparation</strong></summary>
+        <p>Ces notes sont provisoires ; la version 0.9.4 n’est pas encore publiée.</p>
+        {UPCOMING_RELEASE_094.sections.map(section => <ul key={section.kind} className="wn-list">
+          {section.items.map(item => <li key={item.id}>{item.text}</li>)}
+        </ul>)}
+      </details>
+
       <motion.section
         className="wn-thanks-card"
         aria-label="Remerciements et contributeurs"
